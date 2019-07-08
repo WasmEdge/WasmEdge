@@ -61,8 +61,8 @@ public:
   /// Value mutability enumeration class.
   enum class ValMut : unsigned char { Const = 0x00, Var = 0x01 };
 
-  Base();
-  virtual ~Base();
+  Base() = default;
+  virtual ~Base() = default;
 
   /// Valitation checing.
   virtual bool checkValidation() { return false; };

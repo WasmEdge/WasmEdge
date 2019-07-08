@@ -19,7 +19,7 @@ namespace AST {
 class Segment : public Base {
 public:
   /// Binary loading from file manager. Inheritted from Base.
-  virtual bool loadBinary(FileMgr &Mgr);
+  virtual bool loadBinary(FileMgr &Mgr) { return false; };
 
 protected:
   /// Load binary from file manager.

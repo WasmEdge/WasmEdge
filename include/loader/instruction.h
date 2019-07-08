@@ -208,7 +208,7 @@ public:
 
   /// Constructor assigns the OpCode.
   Instruction(OpCode &Byte) { Code = Byte; };
-  virtual ~Instruction();
+  virtual ~Instruction() = default;
 
   /// Binary loading from file manager. Default not load anything.
   virtual bool loadBinary(FileMgr &Mgr) { return true; };
@@ -230,6 +230,15 @@ class BlockControlInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   BlockControlInstruction(OpCode &Byte) : Instruction(Byte) {}
+
+  /// Load binary from file manager.
+  ///
+  /// Inheritted and overrided from Instruction.
+  /// Read the return type, instructions in block body.
+  ///
+  /// \param Mgr the file manager reference.
+  ///
+  /// \returns true on success.
   virtual bool loadBinary(FileMgr &Mgr);
 
 private:

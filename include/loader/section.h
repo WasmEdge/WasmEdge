@@ -36,7 +36,7 @@ protected:
   bool loadSize(FileMgr &Mgr);
 
   /// Read content of this section.
-  virtual bool loadContent(FileMgr &Mgr);
+  virtual bool loadContent(FileMgr &Mgr){return false;};
 
   /// Template function of reading vector of type T.
   ///

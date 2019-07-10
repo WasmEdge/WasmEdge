@@ -26,6 +26,7 @@ TEST(FileManagerTest, SetPath) {
   EXPECT_TRUE(Mgr.setPath("filemgr/readS64Test.bin"));
   EXPECT_TRUE(Mgr.setPath("filemgr/readF32Test.bin"));
   EXPECT_TRUE(Mgr.setPath("filemgr/readF64Test.bin"));
+  EXPECT_TRUE(Mgr.setPath("filemgr/readNameTest.bin"));
 }
 
 TEST(FileManagerTest, ReadByte) {

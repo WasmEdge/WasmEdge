@@ -12,17 +12,23 @@
 #include "loader/filemgr.h"
 #include "limits"
 #include "gtest/gtest.h"
+#include <cmath>
 
 namespace {
 
 AST::FileMgrFStream Mgr;
 TEST(FileManagerTest, SetPath) {
+  /// 1. Test opening data file.
   EXPECT_TRUE(Mgr.setPath("filemgr/readU32Test.bin"));
   EXPECT_TRUE(Mgr.setPath("filemgr/readU64Test.bin"));
   EXPECT_TRUE(Mgr.setPath("filemgr/readS32Test.bin"));
+  EXPECT_TRUE(Mgr.setPath("filemgr/readS64Test.bin"));
+  EXPECT_TRUE(Mgr.setPath("filemgr/readF32Test.bin"));
+  EXPECT_TRUE(Mgr.setPath("filemgr/readF64Test.bin"));
 }
 
 TEST(FileManagerTest, ReadUnsigned32) {
+  /// 4. Test unsigned 32bit integer decoding.
   unsigned int ReadNum = 0;
   EXPECT_TRUE(Mgr.setPath("filemgr/readU32Test.bin"));
   EXPECT_TRUE(Mgr.readU32(ReadNum));
@@ -48,6 +54,7 @@ TEST(FileManagerTest, ReadUnsigned32) {
 }
 
 TEST(FileManagerTest, ReadUnsigned64) {
+  /// 5. Test unsigned 64bit integer decoding.
   uint64_t ReadNum = 0;
   EXPECT_TRUE(Mgr.setPath("filemgr/readU64Test.bin"));
   EXPECT_TRUE(Mgr.readU64(ReadNum));
@@ -73,6 +80,7 @@ TEST(FileManagerTest, ReadUnsigned64) {
 }
 
 TEST(FileManagerTest, ReadSigned32) {
+  /// 6. Test signed 32bit integer decoding.
   int ReadNum = 0;
   EXPECT_TRUE(Mgr.setPath("filemgr/readS32Test.bin"));
   EXPECT_TRUE(Mgr.readS32(ReadNum));
@@ -98,6 +106,7 @@ TEST(FileManagerTest, ReadSigned32) {
 }
 
 TEST(FileManagerTest, ReadSigned64) {
+  /// 7. Test signed 64bit integer decoding.
   int64_t ReadNum = 0;
   EXPECT_TRUE(Mgr.setPath("filemgr/readS64Test.bin"));
   EXPECT_TRUE(Mgr.readS64(ReadNum));
@@ -120,6 +129,74 @@ TEST(FileManagerTest, ReadSigned64) {
   EXPECT_EQ(-9198734298341434797LL, ReadNum);
   EXPECT_TRUE(Mgr.readS64(ReadNum));
   EXPECT_EQ(7124932496753367824LL, ReadNum);
+}
+
+TEST(FileManagerTest, ReadFloat32) {
+  /// 8. Test Special Cases float.
+  ///
+  ///   1.  +0.0
+  ///   2.  -0.0
+  ///   3.  sqrt(-1) : NaN
+  ///   4.  log(-1) : NaN
+  ///   5.  0.0 / 0.0 : NaN
+  ///   6.  -0.0 / 0.0 : NaN
+  ///   7.  log(0) : +inf
+  ///   8.  1.0 / 0.0 : +inf
+  ///   9.  -1.0 / 0.0 : -inf
+  float ReadNum = 0;
+  EXPECT_TRUE(Mgr.setPath("filemgr/readF32Test.bin"));
+  EXPECT_TRUE(Mgr.readF32(ReadNum));
+  EXPECT_EQ(+0.0f, ReadNum);
+  EXPECT_TRUE(Mgr.readF32(ReadNum));
+  EXPECT_EQ(-0.0f, ReadNum);
+  EXPECT_TRUE(Mgr.readF32(ReadNum));
+  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(Mgr.readF32(ReadNum));
+  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(Mgr.readF32(ReadNum));
+  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(Mgr.readF32(ReadNum));
+  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(Mgr.readF32(ReadNum));
+  EXPECT_TRUE(isinf(ReadNum));
+  EXPECT_TRUE(Mgr.readF32(ReadNum));
+  EXPECT_TRUE(isinf(ReadNum));
+  EXPECT_TRUE(Mgr.readF32(ReadNum));
+  EXPECT_TRUE(isinf(ReadNum));
+}
+
+TEST(FileManagerTest, ReadFloat64) {
+  /// 9. Test Special Cases double.
+  ///
+  ///   1.  +0.0
+  ///   2.  -0.0
+  ///   3.  sqrt(-1) : NaN
+  ///   4.  log(-1) : NaN
+  ///   5.  0.0 / 0.0 : NaN
+  ///   6.  -0.0 / 0.0 : NaN
+  ///   7.  log(0) : +inf
+  ///   8.  1.0 / 0.0 : +inf
+  ///   9.  -1.0 / 0.0 : -inf
+  double ReadNum = 0;
+  EXPECT_TRUE(Mgr.setPath("filemgr/readF64Test.bin"));
+  EXPECT_TRUE(Mgr.readF64(ReadNum));
+  EXPECT_EQ(+0.0f, ReadNum);
+  EXPECT_TRUE(Mgr.readF64(ReadNum));
+  EXPECT_EQ(-0.0f, ReadNum);
+  EXPECT_TRUE(Mgr.readF64(ReadNum));
+  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(Mgr.readF64(ReadNum));
+  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(Mgr.readF64(ReadNum));
+  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(Mgr.readF64(ReadNum));
+  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(Mgr.readF64(ReadNum));
+  EXPECT_TRUE(isinf(ReadNum));
+  EXPECT_TRUE(Mgr.readF64(ReadNum));
+  EXPECT_TRUE(isinf(ReadNum));
+  EXPECT_TRUE(Mgr.readF64(ReadNum));
+  EXPECT_TRUE(isinf(ReadNum));
 }
 
 } // namespace

@@ -9,6 +9,8 @@ bool Limit::loadBinary(FileMgr &Mgr) {
   if (!Mgr.readByte(Byte))
     return false;
   Type = static_cast<LimitType>(Byte);
+  if (Type != LimitType::HasMin && Type != LimitType::HasMinMax)
+    return false;
 
   /// Read min and max number.
   if (!Mgr.readU32(Min))
@@ -51,7 +53,7 @@ bool FunctionType::loadBinary(FileMgr &Mgr) {
 bool MemoryType::loadBinary(FileMgr &Mgr) {
   /// Read limit.
   Memory = std::make_unique<Limit>();
-  return (Memory != nullptr && Memory->loadBinary(Mgr));
+  return Memory->loadBinary(Mgr);
 }
 
 /// Load binary to construct TableType node. See "include/loader/type.h".
@@ -61,10 +63,12 @@ bool TableType::loadBinary(FileMgr &Mgr) {
   if (!Mgr.readByte(Byte))
     return false;
   Type = static_cast<ElemType>(Byte);
+  if (Type != ElemType::FuncRef)
+    return false;
 
   /// Read limit.
   Table = std::make_unique<Limit>();
-  return (Table != nullptr && Table->loadBinary(Mgr));
+  return Table->loadBinary(Mgr);
 }
 
 /// Load binary to construct GlobalType node. See "include/loader/type.h".
@@ -79,6 +83,8 @@ bool GlobalType::loadBinary(FileMgr &Mgr) {
   if (!Mgr.readByte(Byte))
     return false;
   Mut = static_cast<ValMut>(Byte);
+  if (Mut != ValMut::Const && Mut != ValMut::Var)
+    return false;
   return true;
 }
 

@@ -19,7 +19,7 @@ namespace AST {
 class Limit : public Base {
 public:
   /// Limit type enumeration class.
-  enum class LimitType : char { HasMin = 0x00, HasMinMax = 0x01 };
+  enum class LimitType : unsigned char { HasMin = 0x00, HasMinMax = 0x01 };
 
   /// Load binary from file manager.
   ///

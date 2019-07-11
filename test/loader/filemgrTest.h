@@ -8,10 +8,17 @@ public:
   FileMgrTest() = default;
   virtual ~FileMgrTest(){};
   virtual bool setPath(const std::string &FilePath) { return false; }
+
   bool setVector(std::vector<unsigned char> &Vec) {
     for (auto it = Vec.begin(); it != Vec.end(); it++)
       Que.push(*it);
     Vec.clear();
+    return true;
+  }
+
+  bool clearBuffer() {
+    while (Que.size() > 0)
+      Que.pop();
     return true;
   }
 

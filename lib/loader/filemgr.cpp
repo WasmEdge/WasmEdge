@@ -31,12 +31,14 @@ bool FileMgrFStream::readByte(unsigned char &Byte) {
 
 bool FileMgrFStream::readBytes(std::vector<unsigned char> &Buf,
                                size_t SizeToRead) {
-  std::istreambuf_iterator<char> Iter(Fin);
-  // TODO: error handling
-  std::copy_n(Iter, SizeToRead, std::back_inserter(Buf));
-  Iter++;
-  return true;
-}
+  if (SizeToRead > 0) {
+    std::istreambuf_iterator<char> Iter(Fin);
+    // TODO: error handling
+    std::copy_n(Iter, SizeToRead, std::back_inserter(Buf));
+    Iter++;
+  }
+  return !Fin.fail();
+} // namespace AST
 
 bool FileMgrFStream::readU32(uint32_t &U32) {
   if (!Fin.is_open() || Fin.fail())
@@ -159,7 +161,7 @@ bool FileMgrFStream::readName(std::string &Str) {
     std::copy_n(Iter, Size, std::back_inserter(Str));
     Iter++;
   }
-  return true;
+  return !Fin.fail();
 }
 
 } // namespace AST

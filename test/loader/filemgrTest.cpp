@@ -19,12 +19,59 @@ namespace {
 AST::FileMgrFStream Mgr;
 TEST(FileManagerTest, SetPath) {
   /// 1. Test opening data file.
+  EXPECT_TRUE(Mgr.setPath("filemgr/readByteTest.bin"));
   EXPECT_TRUE(Mgr.setPath("filemgr/readU32Test.bin"));
   EXPECT_TRUE(Mgr.setPath("filemgr/readU64Test.bin"));
   EXPECT_TRUE(Mgr.setPath("filemgr/readS32Test.bin"));
   EXPECT_TRUE(Mgr.setPath("filemgr/readS64Test.bin"));
   EXPECT_TRUE(Mgr.setPath("filemgr/readF32Test.bin"));
   EXPECT_TRUE(Mgr.setPath("filemgr/readF64Test.bin"));
+}
+
+TEST(FileManagerTest, ReadByte) {
+  /// 2. Test unsigned char reading.
+  unsigned char ReadByte = 0x00;
+  EXPECT_TRUE(Mgr.setPath("filemgr/readByteTest.bin"));
+  EXPECT_TRUE(Mgr.readByte(ReadByte));
+  EXPECT_EQ(0x00, ReadByte);
+  EXPECT_TRUE(Mgr.readByte(ReadByte));
+  EXPECT_EQ(0xFF, ReadByte);
+  EXPECT_TRUE(Mgr.readByte(ReadByte));
+  EXPECT_EQ(0x1F, ReadByte);
+  EXPECT_TRUE(Mgr.readByte(ReadByte));
+  EXPECT_EQ(0x2E, ReadByte);
+  EXPECT_TRUE(Mgr.readByte(ReadByte));
+  EXPECT_EQ(0x3D, ReadByte);
+  EXPECT_TRUE(Mgr.readByte(ReadByte));
+  EXPECT_EQ(0x4C, ReadByte);
+  EXPECT_TRUE(Mgr.readByte(ReadByte));
+  EXPECT_EQ(0x5B, ReadByte);
+  EXPECT_TRUE(Mgr.readByte(ReadByte));
+  EXPECT_EQ(0x6A, ReadByte);
+  EXPECT_TRUE(Mgr.readByte(ReadByte));
+  EXPECT_EQ(0x79, ReadByte);
+  EXPECT_TRUE(Mgr.readByte(ReadByte));
+  EXPECT_EQ(0x88, ReadByte);
+}
+
+TEST(FileManagerTest, ReadBytes) {
+  /// 3. Test unsigned char list reading.
+  std::vector<unsigned char> ReadBytes;
+  EXPECT_TRUE(Mgr.setPath("filemgr/readByteTest.bin"));
+  EXPECT_TRUE(Mgr.readBytes(ReadBytes, 1));
+  EXPECT_EQ(0x00, ReadBytes[0]);
+  EXPECT_TRUE(Mgr.readBytes(ReadBytes, 2));
+  EXPECT_EQ(0xFF, ReadBytes[1]);
+  EXPECT_EQ(0x1F, ReadBytes[2]);
+  EXPECT_TRUE(Mgr.readBytes(ReadBytes, 3));
+  EXPECT_EQ(0x2E, ReadBytes[3]);
+  EXPECT_EQ(0x3D, ReadBytes[4]);
+  EXPECT_EQ(0x4C, ReadBytes[5]);
+  EXPECT_TRUE(Mgr.readBytes(ReadBytes, 4));
+  EXPECT_EQ(0x5B, ReadBytes[6]);
+  EXPECT_EQ(0x6A, ReadBytes[7]);
+  EXPECT_EQ(0x79, ReadBytes[8]);
+  EXPECT_EQ(0x88, ReadBytes[9]);
 }
 
 TEST(FileManagerTest, ReadUnsigned32) {
@@ -197,6 +244,20 @@ TEST(FileManagerTest, ReadFloat64) {
   EXPECT_TRUE(isinf(ReadNum));
   EXPECT_TRUE(Mgr.readF64(ReadNum));
   EXPECT_TRUE(isinf(ReadNum));
+}
+
+TEST(FileManagerTest, ReadName) {
+  /// 10. Test utf-8 string reading.
+  std::string ReadStr;
+  EXPECT_TRUE(Mgr.setPath("filemgr/readNameTest.bin"));
+  EXPECT_TRUE(Mgr.readName(ReadStr));
+  EXPECT_EQ("", ReadStr);
+  EXPECT_TRUE(Mgr.readName(ReadStr));
+  EXPECT_EQ("test", ReadStr);
+  EXPECT_TRUE(Mgr.readName(ReadStr));
+  EXPECT_EQ("test ", ReadStr);
+  EXPECT_TRUE(Mgr.readName(ReadStr));
+  EXPECT_EQ("test Loader", ReadStr);
 }
 
 } // namespace

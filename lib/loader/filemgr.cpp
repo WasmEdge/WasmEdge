@@ -85,7 +85,7 @@ bool FileMgrFStream::readS32(int32_t &S32) {
   }
   if (Fin.fail())
     return false;
-  if (Byte & 0x40) {
+  if (Byte & 0x40 && Offset < 32) {
     Result |= 0xFFFFFFFF << Offset;
   }
   S32 = Result;

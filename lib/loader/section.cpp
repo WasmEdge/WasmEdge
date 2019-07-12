@@ -6,7 +6,6 @@ namespace AST {
 bool Section::loadBinary(FileMgr &Mgr) {
   if (!loadSize(Mgr))
     return false;
-  std::cout << "     | Size: " << ContentSize << std::endl;
   return loadContent(Mgr);
 }
 

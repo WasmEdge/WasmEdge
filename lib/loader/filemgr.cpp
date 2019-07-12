@@ -3,13 +3,13 @@
 
 namespace AST {
 
-FileMgrF::~FileMgrF() {
+FileMgrFStream::~FileMgrFStream() {
   if (Fin.is_open()) {
     Fin.close();
   }
 }
 
-bool FileMgrF::setPath(const std::string &FilePath) {
+bool FileMgrFStream::setPath(const std::string &FilePath) {
   if (Fin.is_open()) {
     Fin.close();
   }
@@ -18,7 +18,7 @@ bool FileMgrF::setPath(const std::string &FilePath) {
   return !Fin.fail();
 }
 
-bool FileMgrF::readByte(unsigned char &Byte) {
+bool FileMgrFStream::readByte(unsigned char &Byte) {
   if (!Fin.is_open() || Fin.fail())
     return false;
   char Buf = 0;
@@ -29,7 +29,16 @@ bool FileMgrF::readByte(unsigned char &Byte) {
   return true;
 }
 
-bool FileMgrF::readU32(uint32_t &U32) {
+bool FileMgrFStream::readBytes(std::vector<unsigned char> &Buf,
+                               size_t SizeToRead) {
+  std::istreambuf_iterator<char> Iter(Fin);
+  // TODO: error handling
+  std::copy_n(Iter, SizeToRead, std::back_inserter(Buf));
+  Iter++;
+  return true;
+}
+
+bool FileMgrFStream::readU32(uint32_t &U32) {
   if (!Fin.is_open() || Fin.fail())
     return false;
   uint32_t Result = 0;
@@ -46,7 +55,7 @@ bool FileMgrF::readU32(uint32_t &U32) {
   return true;
 }
 
-bool FileMgrF::readU64(uint64_t &U64) {
+bool FileMgrFStream::readU64(uint64_t &U64) {
   if (!Fin.is_open() || Fin.fail())
     return false;
   uint64_t Result = 0;
@@ -63,7 +72,7 @@ bool FileMgrF::readU64(uint64_t &U64) {
   return true;
 }
 
-bool FileMgrF::readS32(int32_t &S32) {
+bool FileMgrFStream::readS32(int32_t &S32) {
   if (!Fin.is_open() || Fin.fail())
     return false;
   int32_t Result = 0;
@@ -83,7 +92,7 @@ bool FileMgrF::readS32(int32_t &S32) {
   return true;
 }
 
-bool FileMgrF::readS64(int64_t &S64) {
+bool FileMgrFStream::readS64(int64_t &S64) {
   if (!Fin.is_open() || Fin.fail())
     return false;
   int64_t Result = 0;
@@ -103,7 +112,7 @@ bool FileMgrF::readS64(int64_t &S64) {
   return true;
 }
 
-bool FileMgrF::readF32(float &F32) {
+bool FileMgrFStream::readF32(float &F32) {
   if (!Fin.is_open() || Fin.fail())
     return false;
   union {
@@ -122,7 +131,7 @@ bool FileMgrF::readF32(float &F32) {
   return true;
 }
 
-bool FileMgrF::readF64(double &F64) {
+bool FileMgrFStream::readF64(double &F64) {
   if (!Fin.is_open() || Fin.fail())
     return false;
   union {
@@ -141,15 +150,7 @@ bool FileMgrF::readF64(double &F64) {
   return true;
 }
 
-bool FileMgrF::readSize(std::vector<unsigned char> &Buf, size_t SizeToRead) {
-  std::istreambuf_iterator<char> Iter(Fin);
-  // TODO: error handling
-  std::copy_n(Iter, SizeToRead, std::back_inserter(Buf));
-  Iter++;
-  return true;
-}
-
-bool FileMgrF::readName(std::string &Str) {
+bool FileMgrFStream::readName(std::string &Str) {
   unsigned int Size = 0;
   if (!readU32(Size))
     return false;

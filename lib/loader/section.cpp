@@ -6,6 +6,7 @@ namespace AST {
 bool Section::loadBinary(FileMgr &Mgr) {
   if (!loadSize(Mgr))
     return false;
+  std::cout << "     | Size: " << ContentSize << std::endl;
   return loadContent(Mgr);
 }
 
@@ -32,7 +33,7 @@ bool Section::loadVector(FileMgr &Mgr, std::vector<std::unique_ptr<T>> &Vec) {
 /// Load content of custom section.
 bool CustomSection::loadContent(FileMgr &Mgr) {
   /// Read all raw bytes.
-  return Mgr.readSize(Content, ContentSize);
+  return Mgr.readBytes(Content, ContentSize);
 }
 
 /// Load vector of type section.

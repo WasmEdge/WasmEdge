@@ -12,6 +12,8 @@
 #pragma once
 
 #include "filemgr.h"
+#include <iomanip>
+#include <iostream>
 
 namespace AST {
 
@@ -52,7 +54,7 @@ public:
     I32 = 0x7F,
     I64 = 0x7E,
     F32 = 0x7D,
-    F64 = 0x7C,
+    F64 = 0x7C
   };
 
   /// Element types enumeration class.

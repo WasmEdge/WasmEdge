@@ -70,7 +70,7 @@ bool DataSegment::loadBinary(FileMgr &Mgr) {
   unsigned int VecCnt = 0;
   if (!Mgr.readU32(VecCnt))
     return false;
-  return Mgr.readSize(Data, VecCnt);
+  return Mgr.readBytes(Data, VecCnt);
 }
 
 } // namespace AST

@@ -105,7 +105,7 @@ bool FileMgrFStream::readS64(int64_t &S64) {
   }
   if (Fin.fail())
     return false;
-  if (Byte & 0x40) {
+  if (Byte & 0x40 && Offset < 64) {
     Result |= 0xFFFFFFFFFFFFFFFFL << Offset;
   }
   S64 = Result;

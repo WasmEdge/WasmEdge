@@ -41,6 +41,7 @@ public:
       if (Que.size() == 0)
         return false;
       Byte = Que.front();
+      Que.pop();
       Result |= (Byte & 0x7FU) << (Offset);
       Offset += 7;
     }
@@ -56,6 +57,7 @@ public:
       if (Que.size() == 0)
         return false;
       Byte = Que.front();
+      Que.pop();
       Result |= static_cast<uint64_t>(Byte & 0x7FU) << (Offset);
       Offset += 7;
     }
@@ -71,6 +73,7 @@ public:
       if (Que.size() == 0)
         return false;
       Byte = Que.front();
+      Que.pop();
       Result |= (Byte & 0x7FU) << (Offset);
       Offset += 7;
     }
@@ -89,6 +92,7 @@ public:
       if (Que.size() == 0)
         return false;
       Byte = Que.front();
+      Que.pop();
       Result |= static_cast<int64_t>(Byte & 0x7FU) << (Offset);
       Offset += 7;
     }
@@ -110,6 +114,7 @@ public:
       if (Que.size() == 0)
         return false;
       Byte = Que.front();
+      Que.pop();
       Val.U |= (Byte & 0xFFU) << (i * 8);
     }
     F32 = Val.F;
@@ -127,6 +132,7 @@ public:
       if (Que.size() == 0)
         return false;
       Byte = Que.front();
+      Que.pop();
       Val.U |= static_cast<uint64_t>(Byte & 0xFFU) << (i * 8);
     }
     F64 = Val.D;

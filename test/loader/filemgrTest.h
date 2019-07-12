@@ -12,7 +12,6 @@ public:
   bool setVector(std::vector<unsigned char> &Vec) {
     for (auto it = Vec.begin(); it != Vec.end(); it++)
       Que.push(*it);
-    Vec.clear();
     return true;
   }
 

@@ -53,7 +53,7 @@ bool ImportDesc::loadBinary(FileMgr &Mgr) {
     break;
   }
   default:
-    break;
+    return false;
   }
   return true;
 }
@@ -69,6 +69,15 @@ bool ExportDesc::loadBinary(FileMgr &Mgr) {
   if (!Mgr.readByte(Byte))
     return false;
   ExtType = static_cast<ExternalType>(Byte);
+  switch (ExtType) {
+  case ExternalType::Function:
+  case ExternalType::Table:
+  case ExternalType::Memory:
+  case ExternalType::Global:
+    break;
+  default:
+    return false;
+  }
 
   /// Read external index to export.
   return Mgr.readU32(ExtIdx);

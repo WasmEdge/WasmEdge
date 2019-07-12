@@ -154,9 +154,11 @@ bool FileMgrFStream::readName(std::string &Str) {
   unsigned int Size = 0;
   if (!readU32(Size))
     return false;
-  std::istreambuf_iterator<char> Iter(Fin);
-  std::copy_n(Iter, Size, std::back_inserter(Str));
-  Iter++;
+  if (Size > 0) {
+    std::istreambuf_iterator<char> Iter(Fin);
+    std::copy_n(Iter, Size, std::back_inserter(Str));
+    Iter++;
+  }
   return true;
 }
 

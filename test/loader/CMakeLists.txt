@@ -29,9 +29,19 @@ add_executable(ssvmLoaderASTTests
   instructionTest.cpp
 )
 
+add_executable(ssvmLoaderWagonTests
+  wagonTest.cpp
+)
+
 configure_files(
-  ${CMAKE_CURRENT_SOURCE_DIR}/filemgr
-  ${CMAKE_CURRENT_BINARY_DIR}/filemgr
+  ${CMAKE_CURRENT_SOURCE_DIR}/filemgrTestData
+  ${CMAKE_CURRENT_BINARY_DIR}/filemgrTestData
+  COPYONLY
+)
+
+configure_files(
+  ${CMAKE_CURRENT_SOURCE_DIR}/wagonTestData
+  ${CMAKE_CURRENT_BINARY_DIR}/wagonTestData
   COPYONLY
 )
 
@@ -43,6 +53,12 @@ target_link_libraries(ssvmLoaderFileMgrTests
 
 target_link_libraries(ssvmLoaderASTTests
   PRIVATE
+  utilGoogleTest
   ssvmLoader
-  gtest
+)
+
+target_link_libraries(ssvmLoaderWagonTests
+  PRIVATE
+  utilGoogleTest
+  ssvmLoader
 )

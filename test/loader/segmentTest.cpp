@@ -6,7 +6,7 @@
 ///
 /// \file
 /// This file contents unit tests of AST segment nodes, which are element
-/// segment, code segment, and data segment.
+/// segment, code segment, data segment, and global segment.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -18,8 +18,37 @@ namespace {
 
 FileMgrTest Mgr;
 
+TEST(SegmentTest, LoadGlobalSegment) {
+  /// 1. Test load global segment.
+  ///
+  ///   1.  Load invalid empty global segment.
+  ///   2.  Load global segment with expression of only End operation.
+  ///   3.  Load global segment with non-empty expression.
+  Mgr.clearBuffer();
+  AST::GlobalSegment Seg1;
+  EXPECT_FALSE(Seg1.loadBinary(Mgr));
+
+  Mgr.clearBuffer();
+  std::vector<unsigned char> Vec2 = {
+      0x7FU, 0x00, /// Global type.
+      0x0BU        /// Expression.
+  };
+  Mgr.setVector(Vec2);
+  AST::GlobalSegment Seg2;
+  EXPECT_TRUE(Seg2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+
+  Mgr.clearBuffer();
+  std::vector<unsigned char> Vec3 = {
+      0x7FU, 0x00U,              /// Table index
+      0x45U, 0x46U, 0x47U, 0x0BU /// Expression
+  };
+  Mgr.setVector(Vec3);
+  AST::GlobalSegment Seg3;
+  EXPECT_TRUE(Seg3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+}
+
 TEST(SegmentTest, LoadElementSegment) {
-  /// 1. Test load element segment.
+  /// 2. Test load element segment.
   ///
   ///   1.  Load invalid empty element segment.
   ///   2.  Load element segment with expression of only End operation and empty
@@ -54,7 +83,7 @@ TEST(SegmentTest, LoadElementSegment) {
 }
 
 TEST(SegmentTest, LoadCodeSegment) {
-  /// 2. Test load code segment.
+  /// 3. Test load code segment.
   ///
   ///   1.  Load invalid empty code segment.
   ///   2.  Load invalid code segment of zero content size.
@@ -99,7 +128,7 @@ TEST(SegmentTest, LoadCodeSegment) {
 }
 
 TEST(SegmentTest, LoadDataSegment) {
-  /// 3. Test load data segment.
+  /// 4. Test load data segment.
   ///
   ///   1.  Load invalid empty data segment.
   ///   2.  Load data segment of expression with only End operation and empty

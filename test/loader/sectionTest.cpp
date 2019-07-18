@@ -291,9 +291,9 @@ TEST(SectionTest, LoadGlobalSection) {
   std::vector<unsigned char> Vec4 = {
       0x87U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 7
       0x03U,                             /// Vector length = 3
-      0x7CU, 0x00U,                      /// vec[0]
-      0x7DU, 0x00U,                      /// vec[1]
-      0x7EU, 0x01U                       /// vec[2]
+      0x7CU, 0x00U, 0x0BU,               /// vec[0]
+      0x7DU, 0x00U, 0x45U, 0x0BU,        /// vec[1]
+      0x7EU, 0x01U, 0x46U, 0x47U, 0x0BU  /// vec[2]
   };
   Mgr.setVector(Vec4);
   AST::GlobalSection Sec4;

@@ -8,6 +8,17 @@ bool Segment::loadExpression(FileMgr &Mgr) {
   return Expr->loadBinary(Mgr);
 }
 
+/// Load binary of GlobalSegment node. See "include/loader/segment.h".
+bool GlobalSegment::loadBinary(FileMgr &Mgr) {
+  /// Read global type node.
+  Global = std::make_unique<GlobalType>();
+  if (!Global->loadBinary(Mgr))
+    return false;
+
+  /// Read the expression.
+  return Segment::loadExpression(Mgr);
+}
+
 /// Load binary of ElementSegment node. See "include/loader/segment.h".
 bool ElementSegment::loadBinary(FileMgr &Mgr) {
   /// Read the table index.

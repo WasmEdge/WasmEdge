@@ -37,6 +37,7 @@ public:
     Sec_Data,
     Desc_Import,
     Desc_Export,
+    Seg_Global,
     Seg_Element,
     Seg_Code,
     Seg_Data,

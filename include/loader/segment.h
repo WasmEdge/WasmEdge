@@ -6,12 +6,14 @@
 ///
 /// \file
 /// This file contains the declaration of the Segment node class and subsegment
-/// node classes: ElementSegment, CodeSegment, and DataSegment.
+/// node classes: GlobalSegment, ElementSegment, CodeSegment, and DataSegment.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "base.h"
 #include "expression.h"
+#include "type.h"
 
 namespace AST {
 
@@ -33,6 +35,30 @@ protected:
 
   /// Expression node in this segment.
   std::unique_ptr<Expression> Expr;
+};
+
+/// AST GlobalSegment node.
+class GlobalSegment : public Segment {
+public:
+  /// Load binary from file manager.
+  ///
+  /// Inheritted and overrided from Base.
+  /// Read the global type and expression.
+  ///
+  /// \param Mgr the file manager reference.
+  ///
+  /// \returns true on success.
+  virtual bool loadBinary(FileMgr &Mgr);
+
+protected:
+  /// The node type should be Attr::Seg_Global.
+  Attr NodeAttr = Attr::Seg_Global;
+
+private:
+  /// \name Data of ElementSegment node.
+  /// @{
+  std::unique_ptr<GlobalType> Global;
+  /// @}
 };
 
 /// AST ElementSegment node.

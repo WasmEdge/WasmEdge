@@ -36,7 +36,7 @@ protected:
   bool loadSize(FileMgr &Mgr);
 
   /// Read content of this section.
-  virtual bool loadContent(FileMgr &Mgr){return false;};
+  virtual bool loadContent(FileMgr &Mgr) { return false; };
 
   /// Template function of reading vector of type T.
   ///
@@ -150,7 +150,7 @@ protected:
 
 private:
   /// Vector of GlobalType nodes.
-  std::vector<std::unique_ptr<GlobalType>> Content;
+  std::vector<std::unique_ptr<GlobalSegment>> Content;
 };
 
 /// AST ExportSection node.

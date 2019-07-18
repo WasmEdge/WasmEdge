@@ -181,7 +181,7 @@ std::unique_ptr<Instruction> makeInstructionNode(Instruction::OpCode Code) {
   case Instruction::OpCode::Local__tee:
   case Instruction::OpCode::Global__get:
   case Instruction::OpCode::Global__set:
-    return std::make_unique<ParametricInstruction>(Code);
+    return std::make_unique<VariableInstruction>(Code);
 
   case Instruction::OpCode::I32__load:
   case Instruction::OpCode::I64__load:

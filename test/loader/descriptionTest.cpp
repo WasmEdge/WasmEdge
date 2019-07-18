@@ -40,7 +40,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   };
   Mgr.setVector(Vec2);
   AST::ImportDesc Imp2;
-  EXPECT_TRUE(Imp2.loadBinary(Mgr));
+  EXPECT_TRUE(Imp2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -50,7 +50,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   };
   Mgr.setVector(Vec3);
   AST::ImportDesc Imp3;
-  EXPECT_TRUE(Imp3.loadBinary(Mgr));
+  EXPECT_TRUE(Imp3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -74,7 +74,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   };
   Mgr.setVector(Vec5);
   AST::ImportDesc Imp5;
-  EXPECT_TRUE(Imp5.loadBinary(Mgr));
+  EXPECT_TRUE(Imp5.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec6 = {
@@ -87,7 +87,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   };
   Mgr.setVector(Vec6);
   AST::ImportDesc Imp6;
-  EXPECT_TRUE(Imp6.loadBinary(Mgr));
+  EXPECT_TRUE(Imp6.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec7 = {
@@ -98,7 +98,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   };
   Mgr.setVector(Vec7);
   AST::ImportDesc Imp7;
-  EXPECT_TRUE(Imp7.loadBinary(Mgr));
+  EXPECT_TRUE(Imp7.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(DescriptionTest, LoadExportDesc) {
@@ -120,7 +120,7 @@ TEST(DescriptionTest, LoadExportDesc) {
   };
   Mgr.setVector(Vec2);
   AST::ExportDesc Exp2;
-  EXPECT_TRUE(Exp2.loadBinary(Mgr));
+  EXPECT_TRUE(Exp2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -129,7 +129,7 @@ TEST(DescriptionTest, LoadExportDesc) {
   };
   Mgr.setVector(Vec3);
   AST::ExportDesc Exp3;
-  EXPECT_TRUE(Exp3.loadBinary(Mgr));
+  EXPECT_TRUE(Exp3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -147,7 +147,7 @@ TEST(DescriptionTest, LoadExportDesc) {
   };
   Mgr.setVector(Vec5);
   AST::ExportDesc Exp5;
-  EXPECT_TRUE(Exp5.loadBinary(Mgr));
+  EXPECT_TRUE(Exp5.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 } // namespace

@@ -21,6 +21,8 @@ public:
     return true;
   }
 
+  size_t getQueueSize() { return Que.size(); }
+
   virtual bool readByte(unsigned char &Byte) {
     if (Que.size() == 0)
       return false;

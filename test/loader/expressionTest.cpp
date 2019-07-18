@@ -34,7 +34,7 @@ TEST(ExpressionTest, LoadExpression) {
   };
   Mgr.setVector(Vec2);
   AST::Expression Exp2;
-  EXPECT_TRUE(Exp2.loadBinary(Mgr));
+  EXPECT_TRUE(Exp2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -53,7 +53,7 @@ TEST(ExpressionTest, LoadExpression) {
   };
   Mgr.setVector(Vec4);
   AST::Expression Exp4;
-  EXPECT_TRUE(Exp4.loadBinary(Mgr));
+  EXPECT_TRUE(Exp4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 } // namespace

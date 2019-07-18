@@ -29,10 +29,10 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
 
   Mgr.clearBuffer();
   AST::BlockControlInstruction Ins1(Op1);
-  EXPECT_FALSE(Ins1.loadBinary(Mgr));
+  EXPECT_FALSE(Ins1.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
   Mgr.clearBuffer();
   AST::BlockControlInstruction Ins2(Op2);
-  EXPECT_FALSE(Ins2.loadBinary(Mgr));
+  EXPECT_FALSE(Ins2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -41,11 +41,11 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
   };
   Mgr.setVector(Vec2);
   AST::BlockControlInstruction Ins3(Op1);
-  EXPECT_TRUE(Ins3.loadBinary(Mgr));
+  EXPECT_TRUE(Ins3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
   Mgr.clearBuffer();
   Mgr.setVector(Vec2);
   AST::BlockControlInstruction Ins4(Op2);
-  EXPECT_TRUE(Ins4.loadBinary(Mgr));
+  EXPECT_TRUE(Ins4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -70,11 +70,11 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
   };
   Mgr.setVector(Vec4);
   AST::BlockControlInstruction Ins7(Op1);
-  EXPECT_TRUE(Ins7.loadBinary(Mgr));
+  EXPECT_TRUE(Ins7.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
   Mgr.clearBuffer();
   Mgr.setVector(Vec4);
   AST::BlockControlInstruction Ins8(Op2);
-  EXPECT_TRUE(Ins8.loadBinary(Mgr));
+  EXPECT_TRUE(Ins8.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(InstructionTest, LoadIfElseControlInstruction) {
@@ -100,7 +100,7 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   };
   Mgr.setVector(Vec2);
   AST::IfElseControlInstruction Ins2(Op);
-  EXPECT_TRUE(Ins2.loadBinary(Mgr));
+  EXPECT_TRUE(Ins2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -110,7 +110,7 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   };
   Mgr.setVector(Vec3);
   AST::IfElseControlInstruction Ins3(Op);
-  EXPECT_TRUE(Ins3.loadBinary(Mgr));
+  EXPECT_TRUE(Ins3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -142,7 +142,7 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   };
   Mgr.setVector(Vec6);
   AST::IfElseControlInstruction Ins6(Op);
-  EXPECT_TRUE(Ins6.loadBinary(Mgr));
+  EXPECT_TRUE(Ins6.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec7 = {
@@ -154,7 +154,7 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   };
   Mgr.setVector(Vec7);
   AST::IfElseControlInstruction Ins7(Op);
-  EXPECT_TRUE(Ins7.loadBinary(Mgr));
+  EXPECT_TRUE(Ins7.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(InstructionTest, LoadBrControlInstruction) {
@@ -178,11 +178,11 @@ TEST(InstructionTest, LoadBrControlInstruction) {
   };
   Mgr.setVector(Vec2);
   AST::BrControlInstruction Ins3(Op1);
-  EXPECT_TRUE(Ins3.loadBinary(Mgr));
+  EXPECT_TRUE(Ins3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
   Mgr.clearBuffer();
   Mgr.setVector(Vec2);
   AST::BrControlInstruction Ins4(Op2);
-  EXPECT_TRUE(Ins4.loadBinary(Mgr));
+  EXPECT_TRUE(Ins4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(InstructionTest, LoadBrTableControlInstruction) {
@@ -204,7 +204,7 @@ TEST(InstructionTest, LoadBrTableControlInstruction) {
   };
   Mgr.setVector(Vec2);
   AST::BrTableControlInstruction Ins2(Op);
-  EXPECT_TRUE(Ins2.loadBinary(Mgr));
+  EXPECT_TRUE(Ins2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -216,7 +216,7 @@ TEST(InstructionTest, LoadBrTableControlInstruction) {
   };
   Mgr.setVector(Vec3);
   AST::BrTableControlInstruction Ins3(Op);
-  EXPECT_TRUE(Ins3.loadBinary(Mgr));
+  EXPECT_TRUE(Ins3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(InstructionTest, LoadCallControlInstruction) {
@@ -241,7 +241,7 @@ TEST(InstructionTest, LoadCallControlInstruction) {
   };
   Mgr.setVector(Vec2);
   AST::CallControlInstruction Ins3(Op1);
-  EXPECT_TRUE(Ins3.loadBinary(Mgr));
+  EXPECT_TRUE(Ins3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -250,7 +250,7 @@ TEST(InstructionTest, LoadCallControlInstruction) {
   };
   Mgr.setVector(Vec3);
   AST::CallControlInstruction Ins4(Op2);
-  EXPECT_TRUE(Ins4.loadBinary(Mgr));
+  EXPECT_TRUE(Ins4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(InstructionTest, LoadVariableInstruction) {
@@ -270,7 +270,7 @@ TEST(InstructionTest, LoadVariableInstruction) {
   };
   Mgr.setVector(Vec2);
   AST::VariableInstruction Ins2(Op);
-  EXPECT_TRUE(Ins2.loadBinary(Mgr));
+  EXPECT_TRUE(Ins2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(InstructionTest, LoadMemoryInstruction) {
@@ -305,7 +305,7 @@ TEST(InstructionTest, LoadMemoryInstruction) {
   };
   Mgr.setVector(Vec3);
   AST::MemoryInstruction Ins4(Op1);
-  EXPECT_TRUE(Ins4.loadBinary(Mgr));
+  EXPECT_TRUE(Ins4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -313,7 +313,7 @@ TEST(InstructionTest, LoadMemoryInstruction) {
   };
   Mgr.setVector(Vec4);
   AST::MemoryInstruction Ins5(Op2);
-  EXPECT_TRUE(Ins5.loadBinary(Mgr));
+  EXPECT_TRUE(Ins5.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(InstructionTest, LoadConstInstruction) {
@@ -330,7 +330,7 @@ TEST(InstructionTest, LoadConstInstruction) {
   AST::Instruction::OpCode Op4 = AST::Instruction::OpCode::F64__const;
 
   Mgr.clearBuffer();
-  AST::VariableInstruction Ins1(Op1);
+  AST::ConstInstruction Ins1(Op1);
   EXPECT_FALSE(Ins1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
@@ -338,32 +338,32 @@ TEST(InstructionTest, LoadConstInstruction) {
       0xC0U, 0xBBU, 0x78U /// I32 -123456.
   };
   Mgr.setVector(Vec2);
-  AST::VariableInstruction Ins2(Op1);
-  EXPECT_TRUE(Ins2.loadBinary(Mgr));
+  AST::ConstInstruction Ins2(Op1);
+  EXPECT_TRUE(Ins2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0xC2U, 0x8EU, 0xF6U, 0xF2U, 0xDDU, 0x7CU /// I64 -112233445566
   };
   Mgr.setVector(Vec3);
-  AST::VariableInstruction Ins3(Op2);
-  EXPECT_TRUE(Ins3.loadBinary(Mgr));
+  AST::ConstInstruction Ins3(Op2);
+  EXPECT_TRUE(Ins3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0xDA, 0x0F, 0x49, 0xC0 /// F32 -3.1415926
   };
   Mgr.setVector(Vec4);
-  AST::VariableInstruction Ins4(Op3);
-  EXPECT_TRUE(Ins4.loadBinary(Mgr));
+  AST::ConstInstruction Ins4(Op3);
+  EXPECT_TRUE(Ins4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
       0x18, 0x2D, 0x44, 0x54, 0xFB, 0x21, 0x09, 0xC0 /// F64 -3.1415926535897932
   };
   Mgr.setVector(Vec5);
-  AST::VariableInstruction Ins5(Op4);
-  EXPECT_TRUE(Ins5.loadBinary(Mgr));
+  AST::ConstInstruction Ins5(Op4);
+  EXPECT_TRUE(Ins5.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 } // namespace

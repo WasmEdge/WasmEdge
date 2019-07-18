@@ -37,7 +37,7 @@ TEST(SegmentTest, LoadElementSegment) {
   };
   Mgr.setVector(Vec2);
   AST::ElementSegment Seg2;
-  EXPECT_TRUE(Seg2.loadBinary(Mgr));
+  EXPECT_TRUE(Seg2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -50,7 +50,7 @@ TEST(SegmentTest, LoadElementSegment) {
   };
   Mgr.setVector(Vec3);
   AST::ElementSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr));
+  EXPECT_TRUE(Seg3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(SegmentTest, LoadCodeSegment) {
@@ -81,7 +81,7 @@ TEST(SegmentTest, LoadCodeSegment) {
   };
   Mgr.setVector(Vec3);
   AST::CodeSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr));
+  EXPECT_TRUE(Seg3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -95,7 +95,7 @@ TEST(SegmentTest, LoadCodeSegment) {
   };
   Mgr.setVector(Vec4);
   AST::CodeSegment Seg4;
-  EXPECT_TRUE(Seg4.loadBinary(Mgr));
+  EXPECT_TRUE(Seg4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(SegmentTest, LoadDataSegment) {
@@ -117,7 +117,7 @@ TEST(SegmentTest, LoadDataSegment) {
   };
   Mgr.setVector(Vec2);
   AST::DataSegment Seg2;
-  EXPECT_TRUE(Seg2.loadBinary(Mgr));
+  EXPECT_TRUE(Seg2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -127,7 +127,7 @@ TEST(SegmentTest, LoadDataSegment) {
   };
   Mgr.setVector(Vec3);
   AST::DataSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr));
+  EXPECT_TRUE(Seg3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 } // namespace

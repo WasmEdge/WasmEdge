@@ -31,7 +31,7 @@ TEST(ModuleTest, LoadEmptyModule) {
   std::vector<unsigned char> Vec = {0x00U, 0x61U, 0x73U, 0x6DU,
                                     0x01U, 0x00U, 0x00U, 0x00U};
   Mgr.setVector(Vec);
-  EXPECT_TRUE(Mod.loadBinary(Mgr));
+  EXPECT_TRUE(Mod.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(ModuleTest, LoadValidSecModule) {
@@ -55,7 +55,7 @@ TEST(ModuleTest, LoadValidSecModule) {
       0x0BU, 0x81U, 0x80U, 0x80U, 0x80U, 0x00U, 0x00U  /// Data section
   };
   Mgr.setVector(Vec);
-  EXPECT_TRUE(Mod.loadBinary(Mgr));
+  EXPECT_TRUE(Mod.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(ModuleTest, LoadInvalidSecModule) {

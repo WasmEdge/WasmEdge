@@ -45,7 +45,7 @@ TEST(TypeTest, LoadLimit) {
   };
   Mgr.setVector(Vec3);
   AST::Limit Lim3;
-  EXPECT_TRUE(Lim3.loadBinary(Mgr));
+  EXPECT_TRUE(Lim3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -64,7 +64,7 @@ TEST(TypeTest, LoadLimit) {
   };
   Mgr.setVector(Vec5);
   AST::Limit Lim5;
-  EXPECT_TRUE(Lim5.loadBinary(Mgr));
+  EXPECT_TRUE(Lim5.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(TypeTest, LoadFunctionType) {
@@ -95,7 +95,7 @@ TEST(TypeTest, LoadFunctionType) {
   };
   Mgr.setVector(Vec3);
   AST::FunctionType Fun3;
-  EXPECT_TRUE(Fun3.loadBinary(Mgr));
+  EXPECT_TRUE(Fun3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -106,7 +106,7 @@ TEST(TypeTest, LoadFunctionType) {
   };
   Mgr.setVector(Vec4);
   AST::FunctionType Fun4;
-  EXPECT_TRUE(Fun4.loadBinary(Mgr));
+  EXPECT_TRUE(Fun4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
@@ -117,7 +117,7 @@ TEST(TypeTest, LoadFunctionType) {
   };
   Mgr.setVector(Vec5);
   AST::FunctionType Fun5;
-  EXPECT_TRUE(Fun5.loadBinary(Mgr));
+  EXPECT_TRUE(Fun5.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec6 = {
@@ -129,7 +129,7 @@ TEST(TypeTest, LoadFunctionType) {
   };
   Mgr.setVector(Vec6);
   AST::FunctionType Fun6;
-  EXPECT_TRUE(Fun6.loadBinary(Mgr));
+  EXPECT_TRUE(Fun6.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(TypeTest, LoadMemoryType) {
@@ -160,7 +160,7 @@ TEST(TypeTest, LoadMemoryType) {
   };
   Mgr.setVector(Vec3);
   AST::MemoryType Mem3;
-  EXPECT_TRUE(Mem3.loadBinary(Mgr));
+  EXPECT_TRUE(Mem3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -179,7 +179,7 @@ TEST(TypeTest, LoadMemoryType) {
   };
   Mgr.setVector(Vec5);
   AST::MemoryType Mem5;
-  EXPECT_TRUE(Mem5.loadBinary(Mgr));
+  EXPECT_TRUE(Mem5.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(TypeTest, LoadTableType) {
@@ -223,7 +223,7 @@ TEST(TypeTest, LoadTableType) {
   };
   Mgr.setVector(Vec4);
   AST::TableType Tab4;
-  EXPECT_TRUE(Tab4.loadBinary(Mgr));
+  EXPECT_TRUE(Tab4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
@@ -244,7 +244,7 @@ TEST(TypeTest, LoadTableType) {
   };
   Mgr.setVector(Vec6);
   AST::TableType Tab6;
-  EXPECT_TRUE(Tab6.loadBinary(Mgr));
+  EXPECT_TRUE(Tab6.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(TypeTest, LoadGlobalType) {
@@ -282,7 +282,7 @@ TEST(TypeTest, LoadGlobalType) {
   };
   Mgr.setVector(Vec4);
   AST::GlobalType Glb4;
-  EXPECT_TRUE(Glb4.loadBinary(Mgr));
+  EXPECT_TRUE(Glb4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 } // namespace

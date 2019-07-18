@@ -33,7 +33,7 @@ TEST(SectionTest, LoadCustomSection) {
   };
   Mgr.setVector(Vec2);
   AST::CustomSection Sec2;
-  EXPECT_TRUE(Sec2.loadBinary(Mgr));
+  EXPECT_TRUE(Sec2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -42,7 +42,7 @@ TEST(SectionTest, LoadCustomSection) {
   };
   Mgr.setVector(Vec3);
   AST::CustomSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr));
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadTypeSection) {
@@ -71,7 +71,7 @@ TEST(SectionTest, LoadTypeSection) {
   };
   Mgr.setVector(Vec3);
   AST::TypeSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr));
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -83,7 +83,7 @@ TEST(SectionTest, LoadTypeSection) {
   };
   Mgr.setVector(Vec4);
   AST::TypeSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr));
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadImportSection) {
@@ -112,7 +112,7 @@ TEST(SectionTest, LoadImportSection) {
   };
   Mgr.setVector(Vec3);
   AST::ImportSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr));
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -133,7 +133,7 @@ TEST(SectionTest, LoadImportSection) {
   };
   Mgr.setVector(Vec4);
   AST::ImportSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr));
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadFunctionSection) {
@@ -162,7 +162,7 @@ TEST(SectionTest, LoadFunctionSection) {
   };
   Mgr.setVector(Vec3);
   AST::FunctionSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr));
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -174,7 +174,7 @@ TEST(SectionTest, LoadFunctionSection) {
   };
   Mgr.setVector(Vec4);
   AST::FunctionSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr));
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadTableSection) {
@@ -203,7 +203,7 @@ TEST(SectionTest, LoadTableSection) {
   };
   Mgr.setVector(Vec3);
   AST::TableSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr));
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -215,7 +215,7 @@ TEST(SectionTest, LoadTableSection) {
   };
   Mgr.setVector(Vec4);
   AST::TableSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr));
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadMemorySection) {
@@ -244,7 +244,7 @@ TEST(SectionTest, LoadMemorySection) {
   };
   Mgr.setVector(Vec3);
   AST::MemorySection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr));
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -256,7 +256,7 @@ TEST(SectionTest, LoadMemorySection) {
   };
   Mgr.setVector(Vec4);
   AST::MemorySection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr));
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadGlobalSection) {
@@ -285,11 +285,11 @@ TEST(SectionTest, LoadGlobalSection) {
   };
   Mgr.setVector(Vec3);
   AST::GlobalSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr));
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
-      0x87U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 7
+      0x8DU, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 7
       0x03U,                             /// Vector length = 3
       0x7CU, 0x00U, 0x0BU,               /// vec[0]
       0x7DU, 0x00U, 0x45U, 0x0BU,        /// vec[1]
@@ -297,7 +297,7 @@ TEST(SectionTest, LoadGlobalSection) {
   };
   Mgr.setVector(Vec4);
   AST::GlobalSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr));
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadExportSection) {
@@ -326,7 +326,7 @@ TEST(SectionTest, LoadExportSection) {
   };
   Mgr.setVector(Vec3);
   AST::ExportSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr));
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -344,7 +344,7 @@ TEST(SectionTest, LoadExportSection) {
   };
   Mgr.setVector(Vec4);
   AST::ExportSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr));
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadStartSection) {
@@ -372,7 +372,7 @@ TEST(SectionTest, LoadStartSection) {
   };
   Mgr.setVector(Vec3);
   AST::StartSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr));
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadElementSection) {
@@ -401,7 +401,7 @@ TEST(SectionTest, LoadElementSection) {
   };
   Mgr.setVector(Vec3);
   AST::ElementSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr));
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -422,7 +422,7 @@ TEST(SectionTest, LoadElementSection) {
   };
   Mgr.setVector(Vec4);
   AST::ElementSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr));
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadCodeSection) {
@@ -451,7 +451,7 @@ TEST(SectionTest, LoadCodeSection) {
   };
   Mgr.setVector(Vec3);
   AST::CodeSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr));
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -472,7 +472,7 @@ TEST(SectionTest, LoadCodeSection) {
   };
   Mgr.setVector(Vec4);
   AST::CodeSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr));
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadDataSection) {
@@ -501,7 +501,7 @@ TEST(SectionTest, LoadDataSection) {
   };
   Mgr.setVector(Vec3);
   AST::DataSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr));
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -522,7 +522,7 @@ TEST(SectionTest, LoadDataSection) {
   };
   Mgr.setVector(Vec4);
   AST::DataSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr));
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
 }
 
 } // namespace

@@ -26,8 +26,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
-  virtual bool loadBinary(FileMgr &Mgr);
+  /// \returns ErrCode.
+  virtual ErrCode loadBinary(FileMgr &Mgr);
 
 protected:
   /// The node type should be Attr::Expression.

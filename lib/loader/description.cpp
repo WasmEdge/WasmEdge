@@ -3,19 +3,24 @@
 namespace AST {
 
 /// Load binary of Import description. See "include/loader/description.h".
-bool ImportDesc::loadBinary(FileMgr &Mgr) {
+Base::ErrCode ImportDesc::loadBinary(FileMgr &Mgr) {
+  Base::ErrCode Status = Base::ErrCode::Success;
+
   /// Read the module name.
-  if (!Mgr.readName(ModName))
-    return false;
+  if ((Status = static_cast<Base::ErrCode>(Mgr.readName(ModName))) !=
+      Base::ErrCode::Success)
+    return Status;
 
   /// Read the external name.
-  if (!Mgr.readName(ExtName))
-    return false;
+  if ((Status = static_cast<Base::ErrCode>(Mgr.readName(ExtName))) !=
+      Base::ErrCode::Success)
+    return Status;
 
   /// Read the external type.
   unsigned char Byte = 0;
-  if (!Mgr.readByte(Byte))
-    return false;
+  if ((Status = static_cast<Base::ErrCode>(Mgr.readByte(Byte))) !=
+      Base::ErrCode::Success)
+    return Status;
   ExtType = static_cast<ExternalType>(Byte);
 
   /// Make content node according to external type.
@@ -23,51 +28,52 @@ bool ImportDesc::loadBinary(FileMgr &Mgr) {
   case ExternalType::Function: {
     /// Read the function type index.
     unsigned int TypeIdx = 0;
-    if (!Mgr.readU32(TypeIdx))
-      return false;
+    Status = static_cast<Base::ErrCode>(Mgr.readU32(TypeIdx));
     ExtContent = std::make_unique<unsigned int>(TypeIdx);
     break;
   }
   case ExternalType::Table: {
     /// Read and make table type node.
     auto NewTable = std::make_unique<TableType>();
-    if (!NewTable->loadBinary(Mgr))
-      return false;
+    Status = NewTable->loadBinary(Mgr);
     ExtContent = std::move(NewTable);
     break;
   }
   case ExternalType::Memory: {
     /// Read and make memory type node.
     auto NewMemory = std::make_unique<MemoryType>();
-    if (!NewMemory->loadBinary(Mgr))
-      return false;
+    Status = NewMemory->loadBinary(Mgr);
     ExtContent = std::move(NewMemory);
     break;
   }
   case ExternalType::Global: {
     /// Read and make global type node.
     auto NewGlobal = std::make_unique<GlobalType>();
-    if (!NewGlobal->loadBinary(Mgr))
-      return false;
+    Status = NewGlobal->loadBinary(Mgr);
     ExtContent = std::move(NewGlobal);
     break;
   }
   default:
-    return false;
+    Status = Base::ErrCode::InvalidGrammar;
+    break;
   }
-  return true;
+  return Status;
 }
 
 /// Load binary of Export description. See "include/loader/description.h".
-bool ExportDesc::loadBinary(FileMgr &Mgr) {
+Base::ErrCode ExportDesc::loadBinary(FileMgr &Mgr) {
+  Base::ErrCode Status = Base::ErrCode::Success;
+
   /// Read external name to export.
-  if (!Mgr.readName(ExtName))
-    return false;
+  if ((Status = static_cast<Base::ErrCode>(Mgr.readName(ExtName))) !=
+      Base::ErrCode::Success)
+    return Status;
 
   /// Read external type.
   unsigned char Byte = 0;
-  if (!Mgr.readByte(Byte))
-    return false;
+  if ((Status = static_cast<Base::ErrCode>(Mgr.readByte(Byte))) !=
+      Base::ErrCode::Success)
+    return Status;
   ExtType = static_cast<ExternalType>(Byte);
   switch (ExtType) {
   case ExternalType::Function:
@@ -76,11 +82,11 @@ bool ExportDesc::loadBinary(FileMgr &Mgr) {
   case ExternalType::Global:
     break;
   default:
-    return false;
+    return Base::ErrCode::InvalidGrammar;
   }
 
   /// Read external index to export.
-  return Mgr.readU32(ExtIdx);
+  return static_cast<Base::ErrCode>(Mgr.readU32(ExtIdx));
 }
 
 } // namespace AST

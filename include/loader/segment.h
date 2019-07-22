@@ -21,7 +21,7 @@ namespace AST {
 class Segment : public Base {
 public:
   /// Binary loading from file manager. Inheritted from Base.
-  virtual bool loadBinary(FileMgr &Mgr) { return false; };
+  virtual ErrCode loadBinary(FileMgr &Mgr) { return ErrCode::InvalidGrammar; };
 
 protected:
   /// Load binary from file manager.
@@ -30,8 +30,8 @@ protected:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
-  bool loadExpression(FileMgr &Mgr);
+  /// \returns ErrCode.
+  ErrCode loadExpression(FileMgr &Mgr);
 
   /// Expression node in this segment.
   std::unique_ptr<Expression> Expr;
@@ -47,8 +47,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
-  virtual bool loadBinary(FileMgr &Mgr);
+  /// \returns ErrCode.
+  virtual ErrCode loadBinary(FileMgr &Mgr);
 
 protected:
   /// The node type should be Attr::Seg_Global.
@@ -71,8 +71,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
-  virtual bool loadBinary(FileMgr &Mgr);
+  /// \returns ErrCode.
+  virtual ErrCode loadBinary(FileMgr &Mgr);
 
 protected:
   /// The node type should be Attr::Seg_Element.
@@ -96,8 +96,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
-  virtual bool loadBinary(FileMgr &Mgr);
+  /// \returns ErrCode.
+  virtual ErrCode loadBinary(FileMgr &Mgr);
 
 protected:
   /// The node type should be Attr::Seg_Code.
@@ -121,8 +121,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
-  virtual bool loadBinary(FileMgr &Mgr);
+  /// \returns ErrCode.
+  virtual ErrCode loadBinary(FileMgr &Mgr);
 
 protected:
   /// The node type should be Attr::Seg_Data.

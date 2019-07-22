@@ -211,7 +211,9 @@ public:
   virtual ~Instruction() = default;
 
   /// Binary loading from file manager. Default not load anything.
-  virtual bool loadBinary(FileMgr &Mgr) { return true; };
+  virtual Base::ErrCode loadBinary(FileMgr &Mgr) {
+    return Base::ErrCode::Success;
+  };
 
 protected:
   /// OpCode if this instruction node.
@@ -238,8 +240,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
-  virtual bool loadBinary(FileMgr &Mgr);
+  /// \returns ErrCode.
+  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// \name Data of block instruction: return type and block body.
@@ -262,8 +264,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
-  virtual bool loadBinary(FileMgr &Mgr);
+  /// \returns ErrCode.
+  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// \name Data of block instruction: return type and statements.
@@ -287,8 +289,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
-  virtual bool loadBinary(FileMgr &Mgr);
+  /// \returns ErrCode.
+  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// Branch-to label index.
@@ -308,8 +310,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
-  virtual bool loadBinary(FileMgr &Mgr);
+  /// \returns ErrCode.
+  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// \name Data of branch instruction: label vector and defalt label.
@@ -332,8 +334,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
-  virtual bool loadBinary(FileMgr &Mgr);
+  /// \returns ErrCode.
+  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// Call function index.
@@ -360,8 +362,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
-  virtual bool loadBinary(FileMgr &Mgr);
+  /// \returns ErrCode.
+  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// Global or local index.
@@ -381,8 +383,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
-  virtual bool loadBinary(FileMgr &Mgr);
+  /// \returns ErrCode.
+  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// \name Data of memory instruction: Alignment and offset.
@@ -405,8 +407,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
-  virtual bool loadBinary(FileMgr &Mgr);
+  /// \returns ErrCode.
+  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// Const value of this instruction.
@@ -426,8 +428,10 @@ public:
 /// Create the derived instruction class and return pointer.
 ///
 /// \param Code the OpCode of instruction to make.
+/// \param NewInst the unique pointer to created instruction node.
 ///
-/// \returns unique pointer of not null if success.
-std::unique_ptr<Instruction> makeInstructionNode(Instruction::OpCode Code);
+/// \returns ErrCode.
+Base::ErrCode makeInstructionNode(Instruction::OpCode Code,
+                                  std::unique_ptr<Instruction> &NewInst);
 
 } // namespace AST

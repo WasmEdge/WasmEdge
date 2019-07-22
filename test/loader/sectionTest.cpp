@@ -16,6 +16,7 @@
 namespace {
 
 FileMgrTest Mgr;
+AST::Base::ErrCode SuccessCode = AST::Base::ErrCode::Success;
 
 TEST(SectionTest, LoadCustomSection) {
   /// 1. Test load custom section.
@@ -25,7 +26,7 @@ TEST(SectionTest, LoadCustomSection) {
   ///   3.  Load custom section with contents.
   Mgr.clearBuffer();
   AST::CustomSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr));
+  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -33,7 +34,7 @@ TEST(SectionTest, LoadCustomSection) {
   };
   Mgr.setVector(Vec2);
   AST::CustomSection Sec2;
-  EXPECT_TRUE(Sec2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -42,7 +43,7 @@ TEST(SectionTest, LoadCustomSection) {
   };
   Mgr.setVector(Vec3);
   AST::CustomSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadTypeSection) {
@@ -54,7 +55,7 @@ TEST(SectionTest, LoadTypeSection) {
   ///   4.  Load type section with contents.
   Mgr.clearBuffer();
   AST::TypeSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr));
+  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -62,7 +63,7 @@ TEST(SectionTest, LoadTypeSection) {
   };
   Mgr.setVector(Vec2);
   AST::TypeSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr));
+  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -71,7 +72,7 @@ TEST(SectionTest, LoadTypeSection) {
   };
   Mgr.setVector(Vec3);
   AST::TypeSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -83,7 +84,7 @@ TEST(SectionTest, LoadTypeSection) {
   };
   Mgr.setVector(Vec4);
   AST::TypeSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadImportSection) {
@@ -95,7 +96,7 @@ TEST(SectionTest, LoadImportSection) {
   ///   4.  Load import section with contents.
   Mgr.clearBuffer();
   AST::ImportSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr));
+  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -103,7 +104,7 @@ TEST(SectionTest, LoadImportSection) {
   };
   Mgr.setVector(Vec2);
   AST::ImportSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr));
+  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -112,7 +113,7 @@ TEST(SectionTest, LoadImportSection) {
   };
   Mgr.setVector(Vec3);
   AST::ImportSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -133,7 +134,7 @@ TEST(SectionTest, LoadImportSection) {
   };
   Mgr.setVector(Vec4);
   AST::ImportSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadFunctionSection) {
@@ -145,7 +146,7 @@ TEST(SectionTest, LoadFunctionSection) {
   ///   4.  Load function section with contents.
   Mgr.clearBuffer();
   AST::FunctionSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr));
+  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -153,7 +154,7 @@ TEST(SectionTest, LoadFunctionSection) {
   };
   Mgr.setVector(Vec2);
   AST::FunctionSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr));
+  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -162,7 +163,7 @@ TEST(SectionTest, LoadFunctionSection) {
   };
   Mgr.setVector(Vec3);
   AST::FunctionSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -174,7 +175,7 @@ TEST(SectionTest, LoadFunctionSection) {
   };
   Mgr.setVector(Vec4);
   AST::FunctionSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadTableSection) {
@@ -186,7 +187,7 @@ TEST(SectionTest, LoadTableSection) {
   ///   4.  Load table section with contents.
   Mgr.clearBuffer();
   AST::TableSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr));
+  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -194,7 +195,7 @@ TEST(SectionTest, LoadTableSection) {
   };
   Mgr.setVector(Vec2);
   AST::TableSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr));
+  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -203,7 +204,7 @@ TEST(SectionTest, LoadTableSection) {
   };
   Mgr.setVector(Vec3);
   AST::TableSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -215,7 +216,7 @@ TEST(SectionTest, LoadTableSection) {
   };
   Mgr.setVector(Vec4);
   AST::TableSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadMemorySection) {
@@ -227,7 +228,7 @@ TEST(SectionTest, LoadMemorySection) {
   ///   4.  Load memory section with contents.
   Mgr.clearBuffer();
   AST::MemorySection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr));
+  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -235,7 +236,7 @@ TEST(SectionTest, LoadMemorySection) {
   };
   Mgr.setVector(Vec2);
   AST::MemorySection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr));
+  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -244,7 +245,7 @@ TEST(SectionTest, LoadMemorySection) {
   };
   Mgr.setVector(Vec3);
   AST::MemorySection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -256,7 +257,7 @@ TEST(SectionTest, LoadMemorySection) {
   };
   Mgr.setVector(Vec4);
   AST::MemorySection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadGlobalSection) {
@@ -268,7 +269,7 @@ TEST(SectionTest, LoadGlobalSection) {
   ///   4.  Load global section with contents.
   Mgr.clearBuffer();
   AST::GlobalSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr));
+  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -276,7 +277,7 @@ TEST(SectionTest, LoadGlobalSection) {
   };
   Mgr.setVector(Vec2);
   AST::GlobalSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr));
+  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -285,7 +286,7 @@ TEST(SectionTest, LoadGlobalSection) {
   };
   Mgr.setVector(Vec3);
   AST::GlobalSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -297,7 +298,7 @@ TEST(SectionTest, LoadGlobalSection) {
   };
   Mgr.setVector(Vec4);
   AST::GlobalSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadExportSection) {
@@ -309,7 +310,7 @@ TEST(SectionTest, LoadExportSection) {
   ///   4.  Load export section with contents.
   Mgr.clearBuffer();
   AST::ExportSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr));
+  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -317,7 +318,7 @@ TEST(SectionTest, LoadExportSection) {
   };
   Mgr.setVector(Vec2);
   AST::ExportSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr));
+  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -326,7 +327,7 @@ TEST(SectionTest, LoadExportSection) {
   };
   Mgr.setVector(Vec3);
   AST::ExportSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -344,7 +345,7 @@ TEST(SectionTest, LoadExportSection) {
   };
   Mgr.setVector(Vec4);
   AST::ExportSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadStartSection) {
@@ -355,7 +356,7 @@ TEST(SectionTest, LoadStartSection) {
   ///   3.  Load start section with contents.
   Mgr.clearBuffer();
   AST::StartSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr));
+  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -363,7 +364,7 @@ TEST(SectionTest, LoadStartSection) {
   };
   Mgr.setVector(Vec2);
   AST::StartSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr));
+  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -372,7 +373,7 @@ TEST(SectionTest, LoadStartSection) {
   };
   Mgr.setVector(Vec3);
   AST::StartSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadElementSection) {
@@ -384,7 +385,7 @@ TEST(SectionTest, LoadElementSection) {
   ///   4.  Load element section with contents.
   Mgr.clearBuffer();
   AST::ElementSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr));
+  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -392,7 +393,7 @@ TEST(SectionTest, LoadElementSection) {
   };
   Mgr.setVector(Vec2);
   AST::ElementSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr));
+  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -401,7 +402,7 @@ TEST(SectionTest, LoadElementSection) {
   };
   Mgr.setVector(Vec3);
   AST::ElementSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -422,7 +423,7 @@ TEST(SectionTest, LoadElementSection) {
   };
   Mgr.setVector(Vec4);
   AST::ElementSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadCodeSection) {
@@ -434,7 +435,7 @@ TEST(SectionTest, LoadCodeSection) {
   ///   4.  Load code section with contents.
   Mgr.clearBuffer();
   AST::CodeSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr));
+  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -442,7 +443,7 @@ TEST(SectionTest, LoadCodeSection) {
   };
   Mgr.setVector(Vec2);
   AST::CodeSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr));
+  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -451,7 +452,7 @@ TEST(SectionTest, LoadCodeSection) {
   };
   Mgr.setVector(Vec3);
   AST::CodeSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -472,7 +473,7 @@ TEST(SectionTest, LoadCodeSection) {
   };
   Mgr.setVector(Vec4);
   AST::CodeSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(SectionTest, LoadDataSection) {
@@ -484,7 +485,7 @@ TEST(SectionTest, LoadDataSection) {
   ///   4.  Load data section with contents.
   Mgr.clearBuffer();
   AST::DataSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr));
+  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -492,7 +493,7 @@ TEST(SectionTest, LoadDataSection) {
   };
   Mgr.setVector(Vec2);
   AST::DataSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr));
+  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -501,7 +502,7 @@ TEST(SectionTest, LoadDataSection) {
   };
   Mgr.setVector(Vec3);
   AST::DataSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -522,7 +523,7 @@ TEST(SectionTest, LoadDataSection) {
   };
   Mgr.setVector(Vec4);
   AST::DataSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 } // namespace

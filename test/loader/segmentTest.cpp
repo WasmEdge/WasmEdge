@@ -17,6 +17,7 @@
 namespace {
 
 FileMgrTest Mgr;
+AST::Base::ErrCode SuccessCode = AST::Base::ErrCode::Success;
 
 TEST(SegmentTest, LoadGlobalSegment) {
   /// 1. Test load global segment.
@@ -26,7 +27,7 @@ TEST(SegmentTest, LoadGlobalSegment) {
   ///   3.  Load global segment with non-empty expression.
   Mgr.clearBuffer();
   AST::GlobalSegment Seg1;
-  EXPECT_FALSE(Seg1.loadBinary(Mgr));
+  EXPECT_FALSE(Seg1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -35,7 +36,7 @@ TEST(SegmentTest, LoadGlobalSegment) {
   };
   Mgr.setVector(Vec2);
   AST::GlobalSegment Seg2;
-  EXPECT_TRUE(Seg2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -44,7 +45,7 @@ TEST(SegmentTest, LoadGlobalSegment) {
   };
   Mgr.setVector(Vec3);
   AST::GlobalSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(SegmentTest, LoadElementSegment) {
@@ -56,7 +57,7 @@ TEST(SegmentTest, LoadElementSegment) {
   ///   3.  Load element segment with expression and function indices list.
   Mgr.clearBuffer();
   AST::ElementSegment Seg1;
-  EXPECT_FALSE(Seg1.loadBinary(Mgr));
+  EXPECT_FALSE(Seg1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -66,7 +67,7 @@ TEST(SegmentTest, LoadElementSegment) {
   };
   Mgr.setVector(Vec2);
   AST::ElementSegment Seg2;
-  EXPECT_TRUE(Seg2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -79,7 +80,7 @@ TEST(SegmentTest, LoadElementSegment) {
   };
   Mgr.setVector(Vec3);
   AST::ElementSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(SegmentTest, LoadCodeSegment) {
@@ -92,7 +93,7 @@ TEST(SegmentTest, LoadCodeSegment) {
   ///   4.  Load code segment with expression and local lists.
   Mgr.clearBuffer();
   AST::CodeSegment Seg1;
-  EXPECT_FALSE(Seg1.loadBinary(Mgr));
+  EXPECT_FALSE(Seg1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -100,7 +101,7 @@ TEST(SegmentTest, LoadCodeSegment) {
   };
   Mgr.setVector(Vec2);
   AST::CodeSegment Seg2;
-  EXPECT_FALSE(Seg2.loadBinary(Mgr));
+  EXPECT_FALSE(Seg2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -110,7 +111,7 @@ TEST(SegmentTest, LoadCodeSegment) {
   };
   Mgr.setVector(Vec3);
   AST::CodeSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -124,7 +125,7 @@ TEST(SegmentTest, LoadCodeSegment) {
   };
   Mgr.setVector(Vec4);
   AST::CodeSegment Seg4;
-  EXPECT_TRUE(Seg4.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(SegmentTest, LoadDataSegment) {
@@ -136,7 +137,7 @@ TEST(SegmentTest, LoadDataSegment) {
   ///   3.  Load data segment with expression and initialization data.
   Mgr.clearBuffer();
   AST::DataSegment Seg1;
-  EXPECT_FALSE(Seg1.loadBinary(Mgr));
+  EXPECT_FALSE(Seg1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -146,7 +147,7 @@ TEST(SegmentTest, LoadDataSegment) {
   };
   Mgr.setVector(Vec2);
   AST::DataSegment Seg2;
-  EXPECT_TRUE(Seg2.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -156,7 +157,7 @@ TEST(SegmentTest, LoadDataSegment) {
   };
   Mgr.setVector(Vec3);
   AST::DataSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 } // namespace

@@ -16,16 +16,17 @@
 namespace {
 
 AST::FileMgrFStream Mgr;
+AST::Base::ErrCode SuccessCode = AST::Base::ErrCode::Success;
 
 TEST(WagonTest, Load__token) {
-  Mgr.setPath("wagonTestData/token.wasm");
+  Mgr.setPath("ethereumTestData/token.wasm");
   AST::Module Mod;
-  EXPECT_TRUE(Mod.loadBinary(Mgr));
+  EXPECT_EQ(Mod.loadBinary(Mgr), SuccessCode);
 }
 TEST(WagonTest, Load__wrc20) {
-  Mgr.setPath("wagonTestData/wrc20.wasm");
+  Mgr.setPath("ethereumTestData/wrc20.wasm");
   AST::Module Mod;
-  EXPECT_TRUE(Mod.loadBinary(Mgr));
+  EXPECT_EQ(Mod.loadBinary(Mgr), SuccessCode);
 }
 
 } // namespace

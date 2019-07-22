@@ -16,12 +16,13 @@
 namespace {
 
 FileMgrTest Mgr;
+AST::Base::ErrCode SuccessCode = AST::Base::ErrCode::Success;
 
 TEST(ModuleTest, LoadInvalidModule) {
   /// 1. Test load empty file
   Mgr.clearBuffer();
   AST::Module Mod;
-  EXPECT_FALSE(Mod.loadBinary(Mgr));
+  EXPECT_FALSE(Mod.loadBinary(Mgr) == SuccessCode);
 }
 
 TEST(ModuleTest, LoadEmptyModule) {
@@ -31,7 +32,7 @@ TEST(ModuleTest, LoadEmptyModule) {
   std::vector<unsigned char> Vec = {0x00U, 0x61U, 0x73U, 0x6DU,
                                     0x01U, 0x00U, 0x00U, 0x00U};
   Mgr.setVector(Vec);
-  EXPECT_TRUE(Mod.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Mod.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(ModuleTest, LoadValidSecModule) {
@@ -55,7 +56,7 @@ TEST(ModuleTest, LoadValidSecModule) {
       0x0BU, 0x81U, 0x80U, 0x80U, 0x80U, 0x00U, 0x00U  /// Data section
   };
   Mgr.setVector(Vec);
-  EXPECT_TRUE(Mod.loadBinary(Mgr) && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Mod.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
 TEST(ModuleTest, LoadInvalidSecModule) {
@@ -80,7 +81,7 @@ TEST(ModuleTest, LoadInvalidSecModule) {
       0x0CU, 0x81U, 0x80U, 0x80U, 0x80U, 0x00U, 0x00U  /// Invalid section
   };
   Mgr.setVector(Vec);
-  EXPECT_FALSE(Mod.loadBinary(Mgr));
+  EXPECT_NE(Mod.loadBinary(Mgr), SuccessCode);
 }
 
 } // namespace

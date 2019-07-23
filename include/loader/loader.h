@@ -11,27 +11,15 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common.h"
 #include "module.h"
 #include <string>
+
+namespace Loader {
 
 /// Loader flow control class.
 class Loader {
 public:
-  /// Error code enumeration class.
-  enum class ErrCode : unsigned int {
-    Success = 0,
-    /// Error code of loader flow
-    WrongLoaderFlow,
-
-    /// Error code of file input
-    InvalidPath,
-    ReadError,
-    EndOfFile,
-
-    /// Error code of parsing
-    InvalidGrammar
-  };
-
   Loader() = default;
   ~Loader() = default;
 
@@ -61,3 +49,5 @@ private:
   std::unique_ptr<AST::Module> Mod;
   FileMgrFStream FMgr;
 };
+
+} // namespace Loader

@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common.h"
 #include "filemgr.h"
-#include "loader.h"
 
 namespace AST {
 

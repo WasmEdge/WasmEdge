@@ -1,7 +1,9 @@
 #include "loader/loader.h"
 
+namespace Loader {
+
 /// Set path to Loader class. See "include/loader/loader.h".
-Loader::ErrCode Loader::setPath(const std::string &FilePath) {
+ErrCode Loader::setPath(const std::string &FilePath) {
   /// Check is the correct state.
   if (Stat != State::Inited)
     return ErrCode::WrongLoaderFlow;
@@ -14,7 +16,7 @@ Loader::ErrCode Loader::setPath(const std::string &FilePath) {
 }
 
 /// Load and parse module. See "include/loader/loader.h".
-Loader::ErrCode Loader::parseModule() {
+ErrCode Loader::parseModule() {
   /// Check is the correct state.
   if (Stat != State::PathSet)
     return ErrCode::WrongLoaderFlow;
@@ -30,7 +32,7 @@ Loader::ErrCode Loader::parseModule() {
 }
 
 /// Do the validation checking. See "include/loader/loader.h".
-Loader::ErrCode Loader::validateModule() {
+ErrCode Loader::validateModule() {
   /// Check is the correct state.
   if (Stat != State::Parsed)
     return ErrCode::WrongLoaderFlow;
@@ -43,7 +45,7 @@ Loader::ErrCode Loader::validateModule() {
 }
 
 /// Get Module node. See "include/loader/loader.h".
-Loader::ErrCode Loader::getModule(std::unique_ptr<AST::Module> &OutModule) {
+ErrCode Loader::getModule(std::unique_ptr<AST::Module> &OutModule) {
   /// Check is the correct state.
   if (Stat != State::Validated)
     return ErrCode::WrongLoaderFlow;
@@ -52,4 +54,6 @@ Loader::ErrCode Loader::getModule(std::unique_ptr<AST::Module> &OutModule) {
   OutModule = std::move(Mod);
   Stat = State::Finished;
   return ErrCode::Success;
+}
+
 }

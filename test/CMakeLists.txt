@@ -1,2 +1,2 @@
 add_subdirectory(loader)
-#add_subdirectory(regression)
+add_subdirectory(regression)

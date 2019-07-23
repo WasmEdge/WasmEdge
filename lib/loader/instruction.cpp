@@ -3,21 +3,19 @@
 namespace AST {
 
 /// Load binary of block instructions. See "include/loader/instruction.h".
-Base::ErrCode BlockControlInstruction::loadBinary(FileMgr &Mgr) {
+Loader::ErrCode BlockControlInstruction::loadBinary(FileMgr &Mgr) {
   unsigned char Byte = 0;
-  Base::ErrCode Status = Base::ErrCode::Success;
+  Loader::ErrCode Status = Loader::ErrCode::Success;
 
   /// Read the block return type.
-  if ((Status = static_cast<Base::ErrCode>(Mgr.readByte(Byte))) !=
-      Base::ErrCode::Success)
+  if ((Status = Mgr.readByte(Byte)) != Loader::ErrCode::Success)
     return Status;
   BlockType = static_cast<Base::ValType>(Byte);
 
   /// Read instructions and make nodes until Opcode::End.
-  while (Status == Base::ErrCode::Success) {
+  while (Status == Loader::ErrCode::Success) {
     /// Read the opcode and check if error.
-    if ((Status = static_cast<Base::ErrCode>(Mgr.readByte(Byte))) !=
-        Base::ErrCode::Success)
+    if ((Status = Mgr.readByte(Byte)) != Loader::ErrCode::Success)
       break;
     Instruction::OpCode Code = static_cast<Instruction::OpCode>(Byte);
 
@@ -27,9 +25,10 @@ Base::ErrCode BlockControlInstruction::loadBinary(FileMgr &Mgr) {
 
     /// Create the instruction node and load contents.
     std::unique_ptr<Instruction> NewInst;
-    if ((Status = makeInstructionNode(Code, NewInst)) != Base::ErrCode::Success)
+    if ((Status = makeInstructionNode(Code, NewInst)) !=
+        Loader::ErrCode::Success)
       break;
-    if ((Status = NewInst->loadBinary(Mgr)) != Base::ErrCode::Success)
+    if ((Status = NewInst->loadBinary(Mgr)) != Loader::ErrCode::Success)
       break;
     Body.push_back(std::move(NewInst));
   }
@@ -37,22 +36,20 @@ Base::ErrCode BlockControlInstruction::loadBinary(FileMgr &Mgr) {
 }
 
 /// Load binary of if-else instructions. See "include/loader/instruction.h".
-Base::ErrCode IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
+Loader::ErrCode IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
   unsigned char Byte = 0;
-  Base::ErrCode Status = Base::ErrCode::Success;
+  Loader::ErrCode Status = Loader::ErrCode::Success;
 
   /// Read the block return type.
-  if ((Status = static_cast<Base::ErrCode>(Mgr.readByte(Byte))) !=
-      Base::ErrCode::Success)
+  if ((Status = Mgr.readByte(Byte)) != Loader::ErrCode::Success)
     return Status;
   BlockType = static_cast<Base::ValType>(Byte);
 
   /// Read instructions and make nodes until OpCode::End.
   bool IsElseStatement = false;
-  while (Status == Base::ErrCode::Success) {
+  while (Status == Loader::ErrCode::Success) {
     /// Read the opcode and check if error.
-    if ((Status = static_cast<Base::ErrCode>(Mgr.readByte(Byte))) !=
-        Base::ErrCode::Success)
+    if ((Status = Mgr.readByte(Byte)) != Loader::ErrCode::Success)
       break;
     Instruction::OpCode Code = static_cast<Instruction::OpCode>(Byte);
 
@@ -68,9 +65,10 @@ Base::ErrCode IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
 
     /// Create the instruction node and load contents.
     std::unique_ptr<Instruction> NewInst;
-    if ((Status = makeInstructionNode(Code, NewInst)) != Base::ErrCode::Success)
+    if ((Status = makeInstructionNode(Code, NewInst)) !=
+        Loader::ErrCode::Success)
       break;
-    if ((Status = NewInst->loadBinary(Mgr)) != Base::ErrCode::Success)
+    if ((Status = NewInst->loadBinary(Mgr)) != Loader::ErrCode::Success)
       break;
     if (IsElseStatement)
       ElseStatement.push_back(std::move(NewInst));
@@ -81,118 +79,115 @@ Base::ErrCode IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
 }
 
 /// Load binary of branch instructions. See "include/loader/instruction.h".
-Base::ErrCode BrControlInstruction::loadBinary(FileMgr &Mgr) {
-  return static_cast<Base::ErrCode>(Mgr.readU32(LabelIdx));
+Loader::ErrCode BrControlInstruction::loadBinary(FileMgr &Mgr) {
+  return Mgr.readU32(LabelIdx);
 }
 
 /// Load binary of branch table instructions. See
 /// "include/loader/instruction.h".
-Base::ErrCode BrTableControlInstruction::loadBinary(FileMgr &Mgr) {
+Loader::ErrCode BrTableControlInstruction::loadBinary(FileMgr &Mgr) {
   unsigned int VecCnt = 0;
   unsigned int Idx = 0;
-  Base::ErrCode Status = Base::ErrCode::Success;
+  Loader::ErrCode Status = Loader::ErrCode::Success;
 
   /// Read the vector of labels.
-  if ((Status = static_cast<Base::ErrCode>(Mgr.readU32(VecCnt))) !=
-      Base::ErrCode::Success)
+  if ((Status = Mgr.readU32(VecCnt)) != Loader::ErrCode::Success)
     return Status;
   for (int i = 0; i < VecCnt; i++) {
-    if ((Status = static_cast<Base::ErrCode>(Mgr.readU32(Idx))) !=
-        Base::ErrCode::Success)
+    if ((Status = Mgr.readU32(Idx)) != Loader::ErrCode::Success)
       return Status;
     LabelTable.push_back(Idx);
   }
 
   /// Read default label.
-  return static_cast<Base::ErrCode>(Mgr.readU32(LabelIdx));
+  return Mgr.readU32(LabelIdx);
 }
 
 /// Load binary of call instructions. See "include/loader/instruction.h".
-Base::ErrCode CallControlInstruction::loadBinary(FileMgr &Mgr) {
-  Base::ErrCode Status = Base::ErrCode::Success;
+Loader::ErrCode CallControlInstruction::loadBinary(FileMgr &Mgr) {
+  Loader::ErrCode Status = Loader::ErrCode::Success;
 
   /// Read function index.
-  if ((Status = static_cast<Base::ErrCode>(Mgr.readU32(FuncIdx))) !=
-      Base::ErrCode::Success)
+  if ((Status = Mgr.readU32(FuncIdx)) != Loader::ErrCode::Success)
     return Status;
 
   /// Read the 0x00 checking code in indirect_call case.
   if (Code == Instruction::OpCode::Call_indirect) {
     unsigned char Byte = 0xFF;
-    Status = static_cast<Base::ErrCode>(Mgr.readByte(Byte));
-    if (Status == Base::ErrCode::Success && Byte != 0x00)
-      Status = Base::ErrCode::InvalidGrammar;
+    Status = Mgr.readByte(Byte);
+    if (Status == Loader::ErrCode::Success && Byte != 0x00)
+      Status = Loader::ErrCode::InvalidGrammar;
   }
   return Status;
 }
 
 /// Load binary of variable instructions. See "include/loader/instruction.h".
-Base::ErrCode VariableInstruction::loadBinary(FileMgr &Mgr) {
-  return static_cast<Base::ErrCode>(Mgr.readU32(Idx));
+Loader::ErrCode VariableInstruction::loadBinary(FileMgr &Mgr) {
+  return Mgr.readU32(Idx);
 }
 
 /// Load binary of memory instructions. See "include/loader/instruction.h".
-Base::ErrCode MemoryInstruction::loadBinary(FileMgr &Mgr) {
-  Base::ErrCode Status = Base::ErrCode::Success;
+Loader::ErrCode MemoryInstruction::loadBinary(FileMgr &Mgr) {
+  Loader::ErrCode Status = Loader::ErrCode::Success;
 
   /// Read the 0x00 checking code in memory.grow and memory.size cases.
   unsigned char Byte = 0xFF;
   if (Code == Instruction::OpCode::Memory__grow ||
       Code == Instruction::OpCode::Memory__size) {
-    Status = static_cast<Base::ErrCode>(Mgr.readByte(Byte));
-    if (Status == Base::ErrCode::Success && Byte == 0x00)
+    Status = Mgr.readByte(Byte);
+    if (Status == Loader::ErrCode::Success && Byte == 0x00)
       return Status;
   }
 
   /// Read memory arguments.
-  if (Status == Base::ErrCode::Success)
-    Status = static_cast<Base::ErrCode>(Mgr.readU32(Align));
-  if (Status == Base::ErrCode::Success)
-    Status = static_cast<Base::ErrCode>(Mgr.readU32(Offset));
+  if (Status == Loader::ErrCode::Success)
+    Status = Mgr.readU32(Align);
+  if (Status == Loader::ErrCode::Success)
+    Status = Mgr.readU32(Offset);
   return Status;
 }
 
 /// Load binary of const numeric instructions. See
 /// "include/loader/instruction.h".
-Base::ErrCode ConstInstruction::loadBinary(FileMgr &Mgr) {
-  Base::ErrCode Status = Base::ErrCode::Success;
+Loader::ErrCode ConstInstruction::loadBinary(FileMgr &Mgr) {
+  Loader::ErrCode Status = Loader::ErrCode::Success;
 
   /// Read the const number of corresbonding value type.
   switch (Code) {
   case Instruction::OpCode::I32__const: {
     int32_t Val = 0;
-    Status = static_cast<Base::ErrCode>(Mgr.readS32(Val));
+    Status = Mgr.readS32(Val);
     Num = Val;
     break;
   }
   case Instruction::OpCode::I64__const: {
     int64_t Val = 0;
-    Status = static_cast<Base::ErrCode>(Mgr.readS64(Val));
+    Status = Mgr.readS64(Val);
     Num = Val;
     break;
   }
   case Instruction::OpCode::F32__const: {
     float Val = 0;
-    Status = static_cast<Base::ErrCode>(Mgr.readF32(Val));
+    Status = Mgr.readF32(Val);
     Num = Val;
     break;
   }
   case Instruction::OpCode::F64__const: {
     double Val = 0;
-    Status = static_cast<Base::ErrCode>(Mgr.readF64(Val));
+    Status = Mgr.readF64(Val);
     Num = Val;
     break;
   }
   default:
-    Status = Base::ErrCode::InvalidGrammar;
+    Status = Loader::ErrCode::InvalidGrammar;
     break;
   }
   return Status;
 }
 
 /// Instruction node maker. See "include/loader/instruction.h".
-Base::ErrCode makeInstructionNode(Instruction::OpCode Code,
-                                  std::unique_ptr<Instruction> &NewInst) {
+Loader::ErrCode makeInstructionNode(Instruction::OpCode Code,
+                                    std::unique_ptr<Instruction> &NewInst) {
   /// Make the instruction node according to Code.
   switch (Code) {
     /// The OpCode::End and OpCode::Else will not make nodes.
@@ -200,35 +195,35 @@ Base::ErrCode makeInstructionNode(Instruction::OpCode Code,
   case Instruction::OpCode::Nop:
   case Instruction::OpCode::Return:
     NewInst = std::make_unique<ControlInstruction>(Code);
-    return Base::ErrCode::Success;
+    return Loader::ErrCode::Success;
 
   case Instruction::OpCode::Block:
   case Instruction::OpCode::Loop:
     NewInst = std::make_unique<BlockControlInstruction>(Code);
-    return Base::ErrCode::Success;
+    return Loader::ErrCode::Success;
 
   case Instruction::OpCode::If:
     NewInst = std::make_unique<IfElseControlInstruction>(Code);
-    return Base::ErrCode::Success;
+    return Loader::ErrCode::Success;
 
   case Instruction::OpCode::Br:
   case Instruction::OpCode::Br_if:
     NewInst = std::make_unique<BrControlInstruction>(Code);
-    return Base::ErrCode::Success;
+    return Loader::ErrCode::Success;
 
   case Instruction::OpCode::Br_table:
     NewInst = std::make_unique<BrTableControlInstruction>(Code);
-    return Base::ErrCode::Success;
+    return Loader::ErrCode::Success;
 
   case Instruction::OpCode::Call:
   case Instruction::OpCode::Call_indirect:
     NewInst = std::make_unique<CallControlInstruction>(Code);
-    return Base::ErrCode::Success;
+    return Loader::ErrCode::Success;
 
   case Instruction::OpCode::Drop:
   case Instruction::OpCode::Select:
     NewInst = std::make_unique<ParametricInstruction>(Code);
-    return Base::ErrCode::Success;
+    return Loader::ErrCode::Success;
 
   case Instruction::OpCode::Local__get:
   case Instruction::OpCode::Local__set:
@@ -236,7 +231,7 @@ Base::ErrCode makeInstructionNode(Instruction::OpCode Code,
   case Instruction::OpCode::Global__get:
   case Instruction::OpCode::Global__set:
     NewInst = std::make_unique<VariableInstruction>(Code);
-    return Base::ErrCode::Success;
+    return Loader::ErrCode::Success;
 
   case Instruction::OpCode::I32__load:
   case Instruction::OpCode::I64__load:
@@ -264,14 +259,14 @@ Base::ErrCode makeInstructionNode(Instruction::OpCode Code,
   case Instruction::OpCode::Memory__size:
   case Instruction::OpCode::Memory__grow:
     NewInst = std::make_unique<MemoryInstruction>(Code);
-    return Base::ErrCode::Success;
+    return Loader::ErrCode::Success;
 
   case Instruction::OpCode::I32__const:
   case Instruction::OpCode::I64__const:
   case Instruction::OpCode::F32__const:
   case Instruction::OpCode::F64__const:
     NewInst = std::make_unique<ConstInstruction>(Code);
-    return Base::ErrCode::Success;
+    return Loader::ErrCode::Success;
 
   case Instruction::OpCode::I32__eqz:
   case Instruction::OpCode::I32__eq:
@@ -397,13 +392,13 @@ Base::ErrCode makeInstructionNode(Instruction::OpCode Code,
   case Instruction::OpCode::F32__reinterpret_i32:
   case Instruction::OpCode::F64__reinterpret_i64:
     NewInst = std::make_unique<NumericInstruction>(Code);
-    return Base::ErrCode::Success;
+    return Loader::ErrCode::Success;
 
   default:
     break;
   }
   /// If the Code not matched, return null pointer.
-  return Base::ErrCode::InvalidGrammar;
+  return Loader::ErrCode::InvalidGrammar;
 }
 
 } // namespace AST

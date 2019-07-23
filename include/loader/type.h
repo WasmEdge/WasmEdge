@@ -30,7 +30,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 protected:
   /// The node type should be Attr::Type_Limit.
@@ -56,7 +56,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 protected:
   /// The node type should be Attr::Type_Function.
@@ -81,7 +81,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 protected:
   /// The node type should be Attr::Type_Memory.
@@ -103,7 +103,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 protected:
   /// The node type should be Attr::Type_Table.
@@ -128,7 +128,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 protected:
   /// The node type should be Attr::Type_Global.

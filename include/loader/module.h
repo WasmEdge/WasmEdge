@@ -28,7 +28,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns true on success.
-  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 protected:
   /// The node type should be Attr::Module.

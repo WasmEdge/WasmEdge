@@ -29,14 +29,16 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 protected:
   /// Read content size of this section.
-  ErrCode loadSize(FileMgr &Mgr);
+  Loader::ErrCode loadSize(FileMgr &Mgr);
 
   /// Read content of this section.
-  virtual ErrCode loadContent(FileMgr &Mgr) { return ErrCode::InvalidGrammar; };
+  virtual Loader::ErrCode loadContent(FileMgr &Mgr) {
+    return Loader::ErrCode::InvalidGrammar;
+  };
 
   /// Template function of reading vector of type T.
   ///
@@ -49,7 +51,8 @@ protected:
   ///
   /// \returns ErrCode.
   template <typename T>
-  ErrCode loadVector(FileMgr &Mgr, std::vector<std::unique_ptr<T>> &Vec);
+  Loader::ErrCode loadVector(FileMgr &Mgr,
+                             std::vector<std::unique_ptr<T>> &Vec);
 
   /// Content size of this section.
   unsigned int ContentSize = 0;
@@ -59,7 +62,7 @@ protected:
 class CustomSection : public Section {
 protected:
   /// Overrided content loading of custom section.
-  virtual ErrCode loadContent(FileMgr &Mgr);
+  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Custom.
   Attr NodeAttr = Attr::Sec_Custom;
@@ -73,7 +76,7 @@ private:
 class TypeSection : public Section {
 protected:
   /// Overrided content loading of type section.
-  virtual ErrCode loadContent(FileMgr &Mgr);
+  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Type.
   Attr NodeAttr = Attr::Sec_Type;
@@ -87,7 +90,7 @@ private:
 class ImportSection : public Section {
 protected:
   /// Overrided content loading of import section.
-  virtual ErrCode loadContent(FileMgr &Mgr);
+  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Import.
   Attr NodeAttr = Attr::Sec_Import;
@@ -101,7 +104,7 @@ private:
 class FunctionSection : public Section {
 protected:
   /// Overrided content loading of function section.
-  virtual ErrCode loadContent(FileMgr &Mgr);
+  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Function.
   Attr NodeAttr = Attr::Sec_Function;
@@ -115,7 +118,7 @@ private:
 class TableSection : public Section {
 protected:
   /// Overrided content loading of table section.
-  virtual ErrCode loadContent(FileMgr &Mgr);
+  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Table.
   Attr NodeAttr = Attr::Sec_Table;
@@ -129,7 +132,7 @@ private:
 class MemorySection : public Section {
 protected:
   /// Overrided content loading of memory section.
-  virtual ErrCode loadContent(FileMgr &Mgr);
+  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Memory.
   Attr NodeAttr = Attr::Sec_Memory;
@@ -143,7 +146,7 @@ private:
 class GlobalSection : public Section {
 protected:
   /// Overrided content loading of global section.
-  virtual ErrCode loadContent(FileMgr &Mgr);
+  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Global.
   Attr NodeAttr = Attr::Sec_Global;
@@ -157,7 +160,7 @@ private:
 class ExportSection : public Section {
 protected:
   /// Overrided content loading of export section.
-  virtual ErrCode loadContent(FileMgr &Mgr);
+  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Export.
   Attr NodeAttr = Attr::Sec_Export;
@@ -171,7 +174,7 @@ private:
 class StartSection : public Section {
 protected:
   /// Overrided content loading of start section.
-  virtual ErrCode loadContent(FileMgr &Mgr);
+  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Start.
   Attr NodeAttr = Attr::Sec_Start;
@@ -185,7 +188,7 @@ private:
 class ElementSection : public Section {
 protected:
   /// Overrided content loading of element section.
-  virtual ErrCode loadContent(FileMgr &Mgr);
+  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Element.
   Attr NodeAttr = Attr::Sec_Element;
@@ -199,7 +202,7 @@ private:
 class CodeSection : public Section {
 protected:
   /// Overrided content loading of code section.
-  virtual ErrCode loadContent(FileMgr &Mgr);
+  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Code.
   Attr NodeAttr = Attr::Sec_Code;
@@ -213,7 +216,7 @@ private:
 class DataSection : public Section {
 protected:
   /// Overrided content loading of data section.
-  virtual ErrCode loadContent(FileMgr &Mgr);
+  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Data.
   Attr NodeAttr = Attr::Sec_Data;

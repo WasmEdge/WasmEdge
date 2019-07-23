@@ -12,8 +12,7 @@
 #pragma once
 
 #include "filemgr.h"
-#include <iomanip>
-#include <iostream>
+#include "loader.h"
 
 namespace AST {
 
@@ -58,15 +57,6 @@ public:
     F64 = 0x7C
   };
 
-  /// Error code enumeration class.
-  enum class ErrCode : unsigned int {
-    Success = 0,
-    InvalidPath,
-    ReadError,
-    EndOfFile,
-    InvalidGrammar
-  };
-
   /// Element types enumeration class.
   enum class ElemType : unsigned char { Func = 0x60, FuncRef = 0x70 };
 
@@ -80,7 +70,9 @@ public:
   virtual bool checkValidation() { return false; };
 
   /// Binary loading from file manager.
-  virtual ErrCode loadBinary(FileMgr &Mgr) { return ErrCode::InvalidGrammar; };
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr) {
+    return Loader::ErrCode::InvalidGrammar;
+  };
 
 protected:
   /// AST node attribute.

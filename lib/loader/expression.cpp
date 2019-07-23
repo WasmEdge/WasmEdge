@@ -3,15 +3,14 @@
 namespace AST {
 
 /// Load binary to construct Expression node. See "include/loader/expression.h".
-Base::ErrCode Expression::loadBinary(FileMgr &Mgr) {
+Loader::ErrCode Expression::loadBinary(FileMgr &Mgr) {
   unsigned char Byte = 0;
-  Base::ErrCode Status = Base::ErrCode::Success;
+  Loader::ErrCode Status = Loader::ErrCode::Success;
 
   /// Read opcode until the End code.
-  while (Status == Base::ErrCode::Success) {
+  while (Status == Loader::ErrCode::Success) {
     /// Read the opcode and check if error.
-    if ((Status = static_cast<Base::ErrCode>(Mgr.readByte(Byte))) !=
-        Base::ErrCode::Success)
+    if ((Status = Mgr.readByte(Byte)) != Loader::ErrCode::Success)
       break;
     Instruction::OpCode Code = static_cast<Instruction::OpCode>(Byte);
 
@@ -21,9 +20,10 @@ Base::ErrCode Expression::loadBinary(FileMgr &Mgr) {
 
     /// Create the instruction node and load contents.
     std::unique_ptr<Instruction> NewInst;
-    if ((Status = makeInstructionNode(Code, NewInst)) != Base::ErrCode::Success)
+    if ((Status = makeInstructionNode(Code, NewInst)) !=
+        Loader::ErrCode::Success)
       break;
-    if ((Status = NewInst->loadBinary(Mgr)) != Base::ErrCode::Success)
+    if ((Status = NewInst->loadBinary(Mgr)) != Loader::ErrCode::Success)
       break;
     Inst.push_back(std::move(NewInst));
   }

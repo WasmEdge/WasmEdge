@@ -3,24 +3,26 @@
 namespace AST {
 
 /// Load binary to construct Module node. See "include/loader/module.h".
-Base::ErrCode Module::loadBinary(FileMgr &Mgr) {
-  Base::ErrCode Status = Base::ErrCode::Success;
+Loader::ErrCode Module::loadBinary(FileMgr &Mgr) {
+  Loader::ErrCode Status = Loader::ErrCode::Success;
 
   /// Read Magic and Version sequences.
-  if ((Status = static_cast<Base::ErrCode>(Mgr.readBytes(Magic, 4))) !=
-      Base::ErrCode::Success)
+  if ((Status = Mgr.readBytes(Magic, 4)) != Loader::ErrCode::Success)
     return Status;
-  if ((Status = static_cast<Base::ErrCode>(Mgr.readBytes(Version, 4))) !=
-      Base::ErrCode::Success)
+  if ((Status = Mgr.readBytes(Version, 4)) != Loader::ErrCode::Success)
     return Status;
 
   /// Read Section index and create Section nodes.
   unsigned char NewSectionId = 0x00;
-  while (Status == Base::ErrCode::Success) {
+  while (Status == Loader::ErrCode::Success) {
     /// If not read section ID, seems the end of file and break.
-    if (static_cast<Base::ErrCode>(Mgr.readByte(NewSectionId)) !=
-        Base::ErrCode::Success)
+    Status = Mgr.readByte(NewSectionId);
+    if (Status == Loader::ErrCode::EndOfFile) {
+      Status = Loader::ErrCode::Success;
       break;
+    } else if (Status != Loader::ErrCode::Success) {
+      break;
+    }
 
     switch (NewSectionId) {
     case 0x00:
@@ -72,7 +74,7 @@ Base::ErrCode Module::loadBinary(FileMgr &Mgr) {
       Status = DataSec->loadBinary(Mgr);
       break;
     default:
-      Status = Base::ErrCode::InvalidGrammar;
+      Status = Loader::ErrCode::InvalidGrammar;
       break;
     }
   }

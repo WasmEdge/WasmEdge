@@ -16,7 +16,7 @@
 
 namespace AST {
 
-/// Base class of Instruction node.
+/// Loader class of Instruction node.
 class Instruction {
 public:
   /// Instruction opcode enumeration class.
@@ -211,8 +211,8 @@ public:
   virtual ~Instruction() = default;
 
   /// Binary loading from file manager. Default not load anything.
-  virtual Base::ErrCode loadBinary(FileMgr &Mgr) {
-    return Base::ErrCode::Success;
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr) {
+    return Loader::ErrCode::Success;
   };
 
 protected:
@@ -241,7 +241,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// \name Data of block instruction: return type and block body.
@@ -265,7 +265,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// \name Data of block instruction: return type and statements.
@@ -290,7 +290,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// Branch-to label index.
@@ -311,7 +311,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// \name Data of branch instruction: label vector and defalt label.
@@ -335,7 +335,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// Call function index.
@@ -363,7 +363,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// Global or local index.
@@ -384,7 +384,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// \name Data of memory instruction: Alignment and offset.
@@ -408,7 +408,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Base::ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 private:
   /// Const value of this instruction.
@@ -431,7 +431,7 @@ public:
 /// \param NewInst the unique pointer to created instruction node.
 ///
 /// \returns ErrCode.
-Base::ErrCode makeInstructionNode(Instruction::OpCode Code,
-                                  std::unique_ptr<Instruction> &NewInst);
+Loader::ErrCode makeInstructionNode(Instruction::OpCode Code,
+                                    std::unique_ptr<Instruction> &NewInst);
 
 } // namespace AST

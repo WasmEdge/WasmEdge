@@ -46,7 +46,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Variant of external type classes.
   using ExtContentType =
@@ -76,7 +76,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual ErrCode loadBinary(FileMgr &Mgr);
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
 protected:
   /// The node type should be Attr::Desc_Export.

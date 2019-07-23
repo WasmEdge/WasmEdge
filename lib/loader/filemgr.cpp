@@ -1,42 +1,40 @@
 #include "loader/filemgr.h"
 #include <iterator>
 
-namespace AST {
-
 FileMgrFStream::~FileMgrFStream() {
   if (Fin.is_open()) {
     Fin.close();
   }
 }
 
-FileMgr::ErrCode FileMgrFStream::setPath(const std::string &FilePath) {
+Loader::ErrCode FileMgrFStream::setPath(const std::string &FilePath) {
   if (Fin.is_open()) {
     Fin.close();
-    Status = ErrCode::InvalidPath;
+    Status = Loader::ErrCode::InvalidPath;
   }
   Path = FilePath;
   Fin.open(Path, std::ios::in | std::ios::binary);
   if (!Fin.fail())
-    Status = ErrCode::Success;
+    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
   return Status;
 }
 
-FileMgr::ErrCode FileMgrFStream::readByte(unsigned char &Byte) {
-  if (Status != ErrCode::Success)
+Loader::ErrCode FileMgrFStream::readByte(unsigned char &Byte) {
+  if (Status != Loader::ErrCode::Success)
     return Status;
   char Buf = 0;
   Fin.get(Buf);
   if (Fin.fail()) {
-    Status = ErrCode::ReadError;
+    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
     return Status;
   }
   Byte = static_cast<unsigned char>(Buf);
   return Status;
 }
 
-FileMgr::ErrCode FileMgrFStream::readBytes(std::vector<unsigned char> &Buf,
-                                           size_t SizeToRead) {
-  if (Status != ErrCode::Success)
+Loader::ErrCode FileMgrFStream::readBytes(std::vector<unsigned char> &Buf,
+                                          size_t SizeToRead) {
+  if (Status != Loader::ErrCode::Success)
     return Status;
   if (SizeToRead > 0) {
     std::istreambuf_iterator<char> Iter(Fin);
@@ -45,12 +43,12 @@ FileMgr::ErrCode FileMgrFStream::readBytes(std::vector<unsigned char> &Buf,
     Iter++;
   }
   if (Fin.fail())
-    Status = ErrCode::ReadError;
+    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
   return Status;
 }
 
-FileMgr::ErrCode FileMgrFStream::readU32(uint32_t &U32) {
-  if (Status != ErrCode::Success)
+Loader::ErrCode FileMgrFStream::readU32(uint32_t &U32) {
+  if (Status != Loader::ErrCode::Success)
     return Status;
   uint32_t Result = 0;
   uint32_t Offset = 0;
@@ -61,14 +59,14 @@ FileMgr::ErrCode FileMgrFStream::readU32(uint32_t &U32) {
     Offset += 7;
   }
   if (Fin.fail())
-    Status = ErrCode::ReadError;
+    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
   else
     U32 = Result;
   return Status;
 }
 
-FileMgr::ErrCode FileMgrFStream::readU64(uint64_t &U64) {
-  if (Status != ErrCode::Success)
+Loader::ErrCode FileMgrFStream::readU64(uint64_t &U64) {
+  if (Status != Loader::ErrCode::Success)
     return Status;
   uint64_t Result = 0;
   uint64_t Offset = 0;
@@ -79,14 +77,14 @@ FileMgr::ErrCode FileMgrFStream::readU64(uint64_t &U64) {
     Offset += 7;
   }
   if (Fin.fail())
-    Status = ErrCode::ReadError;
+    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
   else
     U64 = Result;
   return Status;
 }
 
-FileMgr::ErrCode FileMgrFStream::readS32(int32_t &S32) {
-  if (Status != ErrCode::Success)
+Loader::ErrCode FileMgrFStream::readS32(int32_t &S32) {
+  if (Status != Loader::ErrCode::Success)
     return Status;
   int32_t Result = 0;
   uint32_t Offset = 0;
@@ -97,7 +95,7 @@ FileMgr::ErrCode FileMgrFStream::readS32(int32_t &S32) {
     Offset += 7;
   }
   if (Fin.fail())
-    Status = ErrCode::ReadError;
+    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
   else {
     if (Byte & 0x40 && Offset < 32) {
       Result |= 0xFFFFFFFF << Offset;
@@ -107,8 +105,8 @@ FileMgr::ErrCode FileMgrFStream::readS32(int32_t &S32) {
   return Status;
 }
 
-FileMgr::ErrCode FileMgrFStream::readS64(int64_t &S64) {
-  if (Status != ErrCode::Success)
+Loader::ErrCode FileMgrFStream::readS64(int64_t &S64) {
+  if (Status != Loader::ErrCode::Success)
     return Status;
   int64_t Result = 0;
   uint64_t Offset = 0;
@@ -119,7 +117,7 @@ FileMgr::ErrCode FileMgrFStream::readS64(int64_t &S64) {
     Offset += 7;
   }
   if (Fin.fail())
-    Status = ErrCode::ReadError;
+    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
   else {
     if (Byte & 0x40 && Offset < 64) {
       Result |= 0xFFFFFFFFFFFFFFFFL << Offset;
@@ -129,8 +127,8 @@ FileMgr::ErrCode FileMgrFStream::readS64(int64_t &S64) {
   return Status;
 }
 
-FileMgr::ErrCode FileMgrFStream::readF32(float &F32) {
-  if (Status != ErrCode::Success)
+Loader::ErrCode FileMgrFStream::readF32(float &F32) {
+  if (Status != Loader::ErrCode::Success)
     return Status;
   union {
     uint32_t U;
@@ -141,7 +139,8 @@ FileMgr::ErrCode FileMgrFStream::readF32(float &F32) {
   for (int i = 0; i < 4; i++) {
     Fin.get(Byte);
     if (Fin.fail()) {
-      Status = ErrCode::ReadError;
+      Status =
+          Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
       return Status;
     }
     Val.U |= (Byte & 0xFF) << (i * 8);
@@ -150,8 +149,8 @@ FileMgr::ErrCode FileMgrFStream::readF32(float &F32) {
   return Status;
 }
 
-FileMgr::ErrCode FileMgrFStream::readF64(double &F64) {
-  if (Status != ErrCode::Success)
+Loader::ErrCode FileMgrFStream::readF64(double &F64) {
+  if (Status != Loader::ErrCode::Success)
     return Status;
   union {
     uint64_t U;
@@ -162,7 +161,8 @@ FileMgr::ErrCode FileMgrFStream::readF64(double &F64) {
   for (int i = 0; i < 8; i++) {
     Fin.get(Byte);
     if (Fin.fail()) {
-      Status = ErrCode::ReadError;
+      Status =
+          Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
       return Status;
     }
     Val.U |= static_cast<uint64_t>(Byte & 0xFF) << (i * 8);
@@ -171,9 +171,9 @@ FileMgr::ErrCode FileMgrFStream::readF64(double &F64) {
   return Status;
 }
 
-FileMgr::ErrCode FileMgrFStream::readName(std::string &Str) {
+Loader::ErrCode FileMgrFStream::readName(std::string &Str) {
   unsigned int Size = 0;
-  if (readU32(Size) != ErrCode::Success)
+  if (readU32(Size) != Loader::ErrCode::Success)
     return Status;
   if (Size > 0) {
     std::istreambuf_iterator<char> Iter(Fin);
@@ -181,8 +181,6 @@ FileMgr::ErrCode FileMgrFStream::readName(std::string &Str) {
     Iter++;
   }
   if (Fin.fail())
-    Status = ErrCode::ReadError;
+    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
   return Status;
 }
-
-} // namespace AST

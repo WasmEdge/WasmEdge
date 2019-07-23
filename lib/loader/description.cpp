@@ -3,23 +3,20 @@
 namespace AST {
 
 /// Load binary of Import description. See "include/loader/description.h".
-Base::ErrCode ImportDesc::loadBinary(FileMgr &Mgr) {
-  Base::ErrCode Status = Base::ErrCode::Success;
+Loader::ErrCode ImportDesc::loadBinary(FileMgr &Mgr) {
+  Loader::ErrCode Status = Loader::ErrCode::Success;
 
   /// Read the module name.
-  if ((Status = static_cast<Base::ErrCode>(Mgr.readName(ModName))) !=
-      Base::ErrCode::Success)
+  if ((Status = Mgr.readName(ModName)) != Loader::ErrCode::Success)
     return Status;
 
   /// Read the external name.
-  if ((Status = static_cast<Base::ErrCode>(Mgr.readName(ExtName))) !=
-      Base::ErrCode::Success)
+  if ((Status = Mgr.readName(ExtName)) != Loader::ErrCode::Success)
     return Status;
 
   /// Read the external type.
   unsigned char Byte = 0;
-  if ((Status = static_cast<Base::ErrCode>(Mgr.readByte(Byte))) !=
-      Base::ErrCode::Success)
+  if ((Status = Mgr.readByte(Byte)) != Loader::ErrCode::Success)
     return Status;
   ExtType = static_cast<ExternalType>(Byte);
 
@@ -28,7 +25,7 @@ Base::ErrCode ImportDesc::loadBinary(FileMgr &Mgr) {
   case ExternalType::Function: {
     /// Read the function type index.
     unsigned int TypeIdx = 0;
-    Status = static_cast<Base::ErrCode>(Mgr.readU32(TypeIdx));
+    Status = Mgr.readU32(TypeIdx);
     ExtContent = std::make_unique<unsigned int>(TypeIdx);
     break;
   }
@@ -54,25 +51,23 @@ Base::ErrCode ImportDesc::loadBinary(FileMgr &Mgr) {
     break;
   }
   default:
-    Status = Base::ErrCode::InvalidGrammar;
+    Status = Loader::ErrCode::InvalidGrammar;
     break;
   }
   return Status;
 }
 
 /// Load binary of Export description. See "include/loader/description.h".
-Base::ErrCode ExportDesc::loadBinary(FileMgr &Mgr) {
-  Base::ErrCode Status = Base::ErrCode::Success;
+Loader::ErrCode ExportDesc::loadBinary(FileMgr &Mgr) {
+  Loader::ErrCode Status = Loader::ErrCode::Success;
 
   /// Read external name to export.
-  if ((Status = static_cast<Base::ErrCode>(Mgr.readName(ExtName))) !=
-      Base::ErrCode::Success)
+  if ((Status = Mgr.readName(ExtName)) != Loader::ErrCode::Success)
     return Status;
 
   /// Read external type.
   unsigned char Byte = 0;
-  if ((Status = static_cast<Base::ErrCode>(Mgr.readByte(Byte))) !=
-      Base::ErrCode::Success)
+  if ((Status = Mgr.readByte(Byte)) != Loader::ErrCode::Success)
     return Status;
   ExtType = static_cast<ExternalType>(Byte);
   switch (ExtType) {
@@ -82,11 +77,11 @@ Base::ErrCode ExportDesc::loadBinary(FileMgr &Mgr) {
   case ExternalType::Global:
     break;
   default:
-    return Base::ErrCode::InvalidGrammar;
+    return Loader::ErrCode::InvalidGrammar;
   }
 
   /// Read external index to export.
-  return static_cast<Base::ErrCode>(Mgr.readU32(ExtIdx));
+  return Mgr.readU32(ExtIdx);
 }
 
 } // namespace AST

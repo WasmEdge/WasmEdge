@@ -10,5 +10,4 @@ enum class ErrCode : unsigned int {
   ExecutionFailed
 };
 
-class Exe;
-}
+} // namespace Executor

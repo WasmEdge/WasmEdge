@@ -11,10 +11,12 @@
 #pragma once
 
 #include "common.h"
+#include <memory>
 
 class DBMgr {
 public:
   DBMgr() = default;
+  ~DBMgr() = default;
   // Return a cloned DBMgr
   Executor::ErrCode snapshot(std::unique_ptr<DBMgr> &OutDBMgr) {
     OutDBMgr = std::make_unique<DBMgr>();
@@ -26,4 +28,4 @@ public:
   }
   Executor::ErrCode commit() { return Executor::ErrCode::Success; }
   Executor::ErrCode revert() { return Executor::ErrCode::Success; }
-}
+};

@@ -56,23 +56,25 @@ configure_files(
 target_link_libraries(ssvmLoaderFileMgrTests
   PRIVATE
   utilGoogleTest
-  ssvmLoader
+  ssvmLoaderFileMgr
 )
 
 target_link_libraries(ssvmLoaderASTTests
   PRIVATE
   utilGoogleTest
-  ssvmLoader
+  ssvmLoaderAST
 )
 
 target_link_libraries(ssvmLoaderWagonTests
   PRIVATE
   utilGoogleTest
-  ssvmLoader
+  ssvmLoaderFileMgr
+  ssvmLoaderAST
 )
 
 target_link_libraries(ssvmLoaderEthereumTests
   PRIVATE
   utilGoogleTest
-  ssvmLoader
+  ssvmLoaderFileMgr
+  ssvmLoaderAST
 )

@@ -67,7 +67,9 @@ public:
   virtual ~Base() = default;
 
   /// Valitation checing.
-  virtual bool checkValidation() { return false; };
+  virtual Loader::ErrCode checkValidation() {
+    return Loader::ErrCode::Success;
+  };
 
   /// Binary loading from file manager.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr) {

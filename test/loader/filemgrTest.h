@@ -3,17 +3,19 @@
 #include "loader/filemgr.h"
 #include <queue>
 
-class FileMgrTest : public AST::FileMgr {
+class FileMgrTest : public FileMgr {
 public:
   FileMgrTest() = default;
   virtual ~FileMgrTest(){};
-  virtual ErrCode setPath(const std::string &FilePath) { return Status; }
+  virtual Loader::ErrCode setPath(const std::string &FilePath) {
+    return Status;
+  }
 
   bool setVector(std::vector<unsigned char> &Vec) {
     for (auto it = Vec.begin(); it != Vec.end(); it++)
       Que.push(*it);
     if (Que.size() > 0)
-      Status = ErrCode::Success;
+      Status = Loader::ErrCode::Success;
     return true;
   }
 
@@ -25,25 +27,25 @@ public:
 
   size_t getQueueSize() { return Que.size(); }
 
-  virtual ErrCode readByte(unsigned char &Byte) {
+  virtual Loader::ErrCode readByte(unsigned char &Byte) {
     if (Que.size() == 0) {
-      Status = ErrCode::EndOfFile;
+      Status = Loader::ErrCode::EndOfFile;
       return Status;
     } else {
-      Status = ErrCode::Success;
+      Status = Loader::ErrCode::Success;
     }
     Byte = Que.front();
     Que.pop();
     return Status;
   }
 
-  virtual ErrCode readBytes(std::vector<unsigned char> &Buf,
-                            size_t SizeToRead) {
+  virtual Loader::ErrCode readBytes(std::vector<unsigned char> &Buf,
+                                    size_t SizeToRead) {
     if (Que.size() < SizeToRead) {
-      Status = ErrCode::EndOfFile;
+      Status = Loader::ErrCode::EndOfFile;
       return Status;
     } else {
-      Status = ErrCode::Success;
+      Status = Loader::ErrCode::Success;
     }
     while (SizeToRead--) {
       Buf.push_back(Que.front());
@@ -52,16 +54,16 @@ public:
     return Status;
   }
 
-  virtual ErrCode readU32(uint32_t &U32) {
+  virtual Loader::ErrCode readU32(uint32_t &U32) {
     uint32_t Result = 0;
     uint32_t Offset = 0;
     unsigned char Byte = 0x80U;
     while (Byte & 0x80U) {
       if (Que.size() == 0) {
-        Status = ErrCode::EndOfFile;
+        Status = Loader::ErrCode::EndOfFile;
         return Status;
       } else {
-        Status = ErrCode::Success;
+        Status = Loader::ErrCode::Success;
       }
       Byte = Que.front();
       Que.pop();
@@ -72,16 +74,16 @@ public:
     return Status;
   }
 
-  virtual ErrCode readU64(uint64_t &U64) {
+  virtual Loader::ErrCode readU64(uint64_t &U64) {
     uint64_t Result = 0;
     uint64_t Offset = 0;
     unsigned char Byte = 0x80U;
     while (Byte & 0x80U) {
       if (Que.size() == 0) {
-        Status = ErrCode::EndOfFile;
+        Status = Loader::ErrCode::EndOfFile;
         return Status;
       } else {
-        Status = ErrCode::Success;
+        Status = Loader::ErrCode::Success;
       }
       Byte = Que.front();
       Que.pop();
@@ -92,16 +94,16 @@ public:
     return Status;
   };
 
-  virtual ErrCode readS32(int32_t &S32) {
+  virtual Loader::ErrCode readS32(int32_t &S32) {
     int32_t Result = 0;
     uint32_t Offset = 0;
     unsigned char Byte = 0x80U;
     while (Byte & 0x80U) {
       if (Que.size() == 0) {
-        Status = ErrCode::EndOfFile;
+        Status = Loader::ErrCode::EndOfFile;
         return Status;
       } else {
-        Status = ErrCode::Success;
+        Status = Loader::ErrCode::Success;
       }
       Byte = Que.front();
       Que.pop();
@@ -115,16 +117,16 @@ public:
     return Status;
   }
 
-  virtual ErrCode readS64(int64_t &S64) {
+  virtual Loader::ErrCode readS64(int64_t &S64) {
     int64_t Result = 0;
     uint64_t Offset = 0;
     unsigned char Byte = 0x80;
     while (Byte & 0x80U) {
       if (Que.size() == 0) {
-        Status = ErrCode::EndOfFile;
+        Status = Loader::ErrCode::EndOfFile;
         return Status;
       } else {
-        Status = ErrCode::Success;
+        Status = Loader::ErrCode::Success;
       }
       Byte = Que.front();
       Que.pop();
@@ -138,7 +140,7 @@ public:
     return Status;
   }
 
-  virtual ErrCode readF32(float &F32) {
+  virtual Loader::ErrCode readF32(float &F32) {
     union {
       uint32_t U;
       float F;
@@ -147,10 +149,10 @@ public:
     unsigned char Byte = 0x00;
     for (int i = 0; i < 4; i++) {
       if (Que.size() == 0) {
-        Status = ErrCode::EndOfFile;
+        Status = Loader::ErrCode::EndOfFile;
         return Status;
       } else {
-        Status = ErrCode::Success;
+        Status = Loader::ErrCode::Success;
       }
       Byte = Que.front();
       Que.pop();
@@ -160,7 +162,7 @@ public:
     return Status;
   }
 
-  virtual ErrCode readF64(double &F64) {
+  virtual Loader::ErrCode readF64(double &F64) {
     union {
       uint64_t U;
       double D;
@@ -169,10 +171,10 @@ public:
     unsigned char Byte = 0x00;
     for (int i = 0; i < 8; i++) {
       if (Que.size() == 0) {
-        Status = ErrCode::EndOfFile;
+        Status = Loader::ErrCode::EndOfFile;
         return Status;
       } else {
-        Status = ErrCode::Success;
+        Status = Loader::ErrCode::Success;
       }
       Byte = Que.front();
       Que.pop();
@@ -182,16 +184,16 @@ public:
     return Status;
   }
 
-  virtual ErrCode readName(std::string &Str) {
+  virtual Loader::ErrCode readName(std::string &Str) {
     unsigned int Size = 0;
-    if (readU32(Size) != ErrCode::Success)
+    if (readU32(Size) != Loader::ErrCode::Success)
       return Status;
     if (Size > 0) {
       if (Que.size() < Size) {
-        Status = ErrCode::EndOfFile;
+        Status = Loader::ErrCode::EndOfFile;
         return Status;
       } else {
-        Status = ErrCode::Success;
+        Status = Loader::ErrCode::Success;
       }
       while (Size--) {
         Str.push_back(Que.front());

@@ -16,7 +16,7 @@
 namespace {
 
 FileMgrTest Mgr;
-AST::Base::ErrCode SuccessCode = AST::Base::ErrCode::Success;
+Loader::ErrCode SuccessCode = Loader::ErrCode::Success;
 
 TEST(SectionTest, LoadCustomSection) {
   /// 1. Test load custom section.

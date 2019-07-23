@@ -17,7 +17,7 @@
 namespace {
 
 FileMgrTest Mgr;
-AST::Base::ErrCode SuccessCode = AST::Base::ErrCode::Success;
+Loader::ErrCode SuccessCode = Loader::ErrCode::Success;
 
 TEST(DescriptionTest, LoadImportDesc) {
   /// 1. Test load import description.

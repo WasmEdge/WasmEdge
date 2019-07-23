@@ -16,8 +16,8 @@
 
 namespace {
 
-AST::FileMgrFStream Mgr;
-AST::FileMgr::ErrCode SuccessCode = AST::FileMgr::ErrCode::Success;
+FileMgrFStream Mgr;
+Loader::ErrCode SuccessCode = Loader::ErrCode::Success;
 
 TEST(FileManagerTest, SetPath) {
   /// 1. Test opening data file.

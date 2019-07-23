@@ -15,8 +15,8 @@
 
 namespace {
 
-AST::FileMgrFStream Mgr;
-AST::Base::ErrCode SuccessCode = AST::Base::ErrCode::Success;
+FileMgrFStream Mgr;
+Loader::ErrCode SuccessCode = Loader::ErrCode::Success;
 
 TEST(WagonTest, Load__add_ex_main) {
   Mgr.setPath("wagonTestData/add-ex-main.wasm");

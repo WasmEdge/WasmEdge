@@ -13,5 +13,5 @@ add_library(ssvmLoaderFileMgr
 )
 
 add_library(ssvmLoader
-  loader.cpp
+  loadmgr.cpp
 )

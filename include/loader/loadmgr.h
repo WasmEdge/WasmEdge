@@ -5,7 +5,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the Loader class, which controls flow
+/// This file contains the declaration of the LoadMgr class, which controls flow
 /// of WASM loading.
 ///
 //===----------------------------------------------------------------------===//
@@ -18,10 +18,10 @@
 namespace Loader {
 
 /// Loader flow control class.
-class Loader {
+class LoadMgr {
 public:
-  Loader() = default;
-  ~Loader() = default;
+  LoadMgr() = default;
+  ~LoadMgr() = default;
 
   /// Set the file path to loader.
   ErrCode setPath(const std::string &FilePath);

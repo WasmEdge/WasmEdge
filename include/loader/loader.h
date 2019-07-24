@@ -18,10 +18,10 @@
 namespace Loader {
 
 /// Loader flow control class.
-class LoadMgr {
+class Loader {
 public:
-  LoadMgr() = default;
-  ~LoadMgr() = default;
+  Loader() = default;
+  ~Loader() = default;
 
   /// Set the file path to loader.
   ErrCode setPath(const std::string &FilePath);

@@ -1,9 +1,9 @@
-#include "loader/loadmgr.h"
+#include "loader/loader.h"
 
 namespace Loader {
 
-/// Set path to LoadMgr class. See "include/loader/loadmgr.h".
-ErrCode LoadMgr::setPath(const std::string &FilePath) {
+/// Set path to Loader class. See "include/loader/loader.h".
+ErrCode Loader::setPath(const std::string &FilePath) {
   /// Check is the correct state.
   if (Stat != State::Inited)
     return ErrCode::WrongLoaderFlow;
@@ -15,8 +15,8 @@ ErrCode LoadMgr::setPath(const std::string &FilePath) {
   return Result;
 }
 
-/// Load and parse module. See "include/loader/loadmgr.h".
-ErrCode LoadMgr::parseModule() {
+/// Load and parse module. See "include/loader/loader.h".
+ErrCode Loader::parseModule() {
   /// Check is the correct state.
   if (Stat != State::PathSet)
     return ErrCode::WrongLoaderFlow;
@@ -31,8 +31,8 @@ ErrCode LoadMgr::parseModule() {
   return Result;
 }
 
-/// Do the validation checking. See "include/loader/loadmgr.h".
-ErrCode LoadMgr::validateModule() {
+/// Do the validation checking. See "include/loader/loader.h".
+ErrCode Loader::validateModule() {
   /// Check is the correct state.
   if (Stat != State::Parsed)
     return ErrCode::WrongLoaderFlow;
@@ -44,8 +44,8 @@ ErrCode LoadMgr::validateModule() {
   return Result;
 }
 
-/// Get Module node. See "include/loader/loadmgr.h".
-ErrCode LoadMgr::getModule(std::unique_ptr<AST::Module> &OutModule) {
+/// Get Module node. See "include/loader/loader.h".
+ErrCode Loader::getModule(std::unique_ptr<AST::Module> &OutModule) {
   /// Check is the correct state.
   if (Stat != State::Validated)
     return ErrCode::WrongLoaderFlow;

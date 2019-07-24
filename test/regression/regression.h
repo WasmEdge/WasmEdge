@@ -1,13 +1,13 @@
 #pragma once
 
-#include "executor/execmgr.h"
-#include "loader/loadmgr.h"
+#include "executor/executor.h"
+#include "loader/loader.h"
 #include "result.h"
 
-class RegressionMgr {
+class RegressionTester {
 public:
-  RegressionMgr() = default;
-  ~RegressionMgr() = default;
+  RegressionTester() = default;
+  ~RegressionTester() = default;
 
   /// Functions to set expect results.
   bool setExpectDBMgr(DBMgr &Mgr);
@@ -23,8 +23,8 @@ public:
   bool checkResult();
 
 private:
-  Loader::LoadMgr LoaderEngine;
-  Executor::ExecMgr ExecutorEngine;
+  Loader::Loader LoaderEngine;
+  Executor::Executor ExecutorEngine;
   std::unique_ptr<AST::Module> OutModule;
   std::string WasmPath;
   DBMgr InitDB;

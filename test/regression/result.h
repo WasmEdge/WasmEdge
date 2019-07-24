@@ -20,7 +20,6 @@ public:
   enum class Stage : unsigned int { Init, Loader, Executor, Invalid };
   enum class StorageMutability : unsigned int { Pure, View, Modified };
   enum class State : unsigned int { commit, revert };
-  enum class ErrCode : unsigned int { Success, Invalid };
   Result() = default;
   ~Result() = default;
   bool equal(Result &Other);
@@ -28,15 +27,12 @@ public:
   bool setStage(Stage NewStage);
   bool setStorageMut(StorageMutability NewStorageMut);
   bool setState(State NewState);
-  bool setErrCode(ErrCode Code);
   bool setErrCode(Loader::ErrCode Code);
   bool setErrCode(Executor::ErrCode Code);
 
 private:
   Stage LastStage = Stage::Invalid;
-  std::variant<ErrCode, Loader::ErrCode, Executor::ErrCode> Status =
-      ErrCode::Invalid;
-  std::variant<int32_t, int64_t, float, double> ReturnValue;
+  std::variant<Loader::ErrCode, Executor::ErrCode> Status = Loader::ErrCode::Success;
   StorageMutability StorageMut = StorageMutability::Pure;
   State ExecutionState = State::revert;
 };

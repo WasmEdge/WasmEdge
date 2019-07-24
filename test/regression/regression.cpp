@@ -1,26 +1,26 @@
 #include "regression.h"
 
-bool RegressionMgr::setExpectDBMgr(DBMgr &Mgr) {
+bool RegressionTester::setExpectDBMgr(DBMgr &Mgr) {
   ExpectDB = Mgr;
   return true;
 }
 
-bool RegressionMgr::setExpectResult(Result &Res) {
+bool RegressionTester::setExpectResult(Result &Res) {
   ExpectResult = Res;
   return true;
 }
 
-bool RegressionMgr::setFilePath(const std::string &FilePath) {
+bool RegressionTester::setFilePath(const std::string &FilePath) {
   WasmPath = FilePath;
   return true;
 }
 
-bool RegressionMgr::setDBMgr(DBMgr &Mgr) {
+bool RegressionTester::setDBMgr(DBMgr &Mgr) {
   InitDB = Mgr;
   return true;
 }
 
-bool RegressionMgr::runLoader() {
+bool RegressionTester::runLoader() {
   LoaderEngine.setPath(WasmPath);
   LoaderEngine.parseModule();
   LoaderEngine.validateModule();
@@ -28,7 +28,7 @@ bool RegressionMgr::runLoader() {
   return true;
 }
 
-bool RegressionMgr::runExecutor() {
+bool RegressionTester::runExecutor() {
   RTDataMgr RTMgr;
   ExecutorEngine.setDBMgr(InitDB);
   ExecutorEngine.setModule(OutModule);
@@ -39,4 +39,4 @@ bool RegressionMgr::runExecutor() {
   return true;
 }
 
-bool RegressionMgr::checkResult() { return true; }
+bool RegressionTester::checkResult() { return true; }

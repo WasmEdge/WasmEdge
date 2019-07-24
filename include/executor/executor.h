@@ -7,10 +7,10 @@
 
 namespace Executor {
 
-class ExecMgr {
+class Executor {
 public:
-  ExecMgr() = default;
-  ~ExecMgr() = default;
+  Executor() = default;
+  ~Executor() = default;
   ErrCode setModule(std::unique_ptr<AST::Module> &NewMod) {
     return ErrCode::Success;
   }

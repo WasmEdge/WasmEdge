@@ -5,7 +5,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the common-use definitions in Loader.s
+/// This file contains the common-use definitions in Loader.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

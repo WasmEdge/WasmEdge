@@ -1,4 +1,4 @@
-//===-- ssvm/test/loader/descriptionTest.cpp - AST description unit tests -===//
+//===-- ssvm/test/ast/load/descriptionTest.cpp - AST description unit tests ==//
 //
 // Part of the SSVM Project.
 //
@@ -10,8 +10,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "loader/description.h"
-#include "filemgrTest.h"
+#include "ast/description.h"
+#include "loader/filemgrTest.h"
 #include "gtest/gtest.h"
 
 namespace {

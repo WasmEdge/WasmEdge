@@ -1,4 +1,4 @@
-//===-- ssvm/loader/description.h - Desc classes definition------*- C++ -*-===//
+//===-- ssvm/ast/description.h - Desc classes definition---------*- C++ -*-===//
 //
 // Part of the SSVM Project.
 //

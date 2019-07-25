@@ -1,4 +1,4 @@
-//===-- ssvm/test/loader/expressionTest.cpp - AST expression unit tests ---===//
+//===-- ssvm/test/ast/load/expressionTest.cpp - AST expression unit tests -===//
 //
 // Part of the SSVM Project.
 //
@@ -9,8 +9,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "loader/expression.h"
-#include "filemgrTest.h"
+#include "ast/expression.h"
+#include "loader/filemgrTest.h"
 #include "gtest/gtest.h"
 
 namespace {

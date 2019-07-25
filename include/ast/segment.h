@@ -1,4 +1,4 @@
-//===-- ssvm/loader/segment.h - segment classes definition ------*- C++ -*-===//
+//===-- ssvm/ast/segment.h - segment classes definition ---------*- C++ -*-===//
 //
 // Part of the SSVM Project.
 //

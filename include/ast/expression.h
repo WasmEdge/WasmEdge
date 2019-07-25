@@ -1,4 +1,4 @@
-//===-- ssvm/loader/expression.h - Expression class definition --*- C++ -*-===//
+//===-- ssvm/ast/expression.h - Expression class definition -----*- C++ -*-===//
 //
 // Part of the SSVM Project.
 //

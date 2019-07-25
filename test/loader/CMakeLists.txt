@@ -19,15 +19,6 @@ add_executable(ssvmLoaderFileMgrTests
   filemgrTest.cpp
 )
 
-add_executable(ssvmLoaderASTTests
-  moduleTest.cpp
-  sectionTest.cpp
-  descriptionTest.cpp
-  segmentTest.cpp
-  typeTest.cpp
-  expressionTest.cpp
-  instructionTest.cpp
-)
 
 add_executable(ssvmLoaderWagonTests
   wagonTest.cpp
@@ -59,22 +50,16 @@ target_link_libraries(ssvmLoaderFileMgrTests
   ssvmLoaderFileMgr
 )
 
-target_link_libraries(ssvmLoaderASTTests
-  PRIVATE
-  utilGoogleTest
-  ssvmLoaderAST
-)
-
 target_link_libraries(ssvmLoaderWagonTests
   PRIVATE
   utilGoogleTest
   ssvmLoaderFileMgr
-  ssvmLoaderAST
+  ssvmASTLoad
 )
 
 target_link_libraries(ssvmLoaderEthereumTests
   PRIVATE
   utilGoogleTest
   ssvmLoaderFileMgr
-  ssvmLoaderAST
+  ssvmASTLoad
 )

@@ -1,4 +1,4 @@
-#include "loader/instruction.h"
+#include "ast/instruction.h"
 
 namespace AST {
 

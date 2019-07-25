@@ -1,4 +1,4 @@
-//===-- ssvm/test/loader/instructionTest.cpp - Instruction unit tests -----===//
+//===-- ssvm/test/ast/load/instructionTest.cpp - Instruction unit tests ---===//
 //
 // Part of the SSVM Project.
 //
@@ -9,8 +9,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "loader/instruction.h"
-#include "filemgrTest.h"
+#include "ast/instruction.h"
+#include "loader/filemgrTest.h"
 #include "gtest/gtest.h"
 
 namespace {

@@ -1,4 +1,4 @@
-//===-- ssvm/test/loader/moduleTest.cpp - AST module unit tests -----------===//
+//===-- ssvm/test/ast/load/moduleTest.cpp - AST module unit tests ---------===//
 //
 // Part of the SSVM Project.
 //
@@ -9,8 +9,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "loader/module.h"
-#include "filemgrTest.h"
+#include "ast/module.h"
+#include "loader/filemgrTest.h"
 #include "gtest/gtest.h"
 
 namespace {

@@ -1,4 +1,4 @@
-//===-- ssvm/loader/section.h - Section class definition --------*- C++ -*-===//
+//===-- ssvm/ast/section.h - Section class definition -----------*- C++ -*-===//
 //
 // Part of the SSVM Project.
 //

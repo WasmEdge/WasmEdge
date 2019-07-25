@@ -1,4 +1,4 @@
-//===-- ssvm/test/loader/segmentTest.cpp - AST segment unit tests ---------===//
+//===-- ssvm/test/ast/load/segmentTest.cpp - AST segment unit tests -------===//
 //
 // Part of the SSVM Project.
 //
@@ -10,8 +10,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "loader/segment.h"
-#include "filemgrTest.h"
+#include "ast/segment.h"
+#include "loader/filemgrTest.h"
 #include "gtest/gtest.h"
 
 namespace {

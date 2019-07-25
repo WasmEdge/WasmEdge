@@ -1,4 +1,4 @@
-//===-- ssvm/loader/base.h - AST node base class definition -----*- C++ -*-===//
+//===-- ssvm/ast/base.h - AST node base class definition -----*- C++ -*-===//
 //
 // Part of the SSVM Project.
 //
@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common.h"
-#include "filemgr.h"
+#include "executor/rtdatamgr.h"
+#include "loader/filemgr.h"
 
 namespace AST {
 
@@ -66,15 +66,20 @@ public:
   Base() = default;
   virtual ~Base() = default;
 
+  /// Binary loading from file manager.
+  virtual Loader::ErrCode loadBinary(FileMgr &Mgr) {
+    return Loader::ErrCode::InvalidGrammar;
+  };
+
   /// Valitation checing.
   virtual Loader::ErrCode checkValidation() {
     return Loader::ErrCode::Success;
   };
 
-  /// Binary loading from file manager.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr) {
-    return Loader::ErrCode::InvalidGrammar;
-  };
+  /// Instantiation to store manager.
+  virtual Executor::ErrCode instantiate(StoreMgr &Mgr) {
+    return Executor::ErrCode::InstantiateFailed;
+  }
 
 protected:
   /// AST node attribute.

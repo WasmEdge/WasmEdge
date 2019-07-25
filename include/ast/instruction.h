@@ -1,4 +1,4 @@
-//===-- ssvm/loader/instruction.h - Inst classes definition------*- C++ -*-===//
+//===-- ssvm/ast/instruction.h - Inst classes definition---------*- C++ -*-===//
 //
 // Part of the SSVM Project.
 //

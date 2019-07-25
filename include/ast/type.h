@@ -1,4 +1,4 @@
-//===-- ssvm/loader/type.h - type classes definition ------------*- C++ -*-===//
+//===-- ssvm/ast/type.h - type classes definition ---------------*- C++ -*-===//
 //
 // Part of the SSVM Project.
 //

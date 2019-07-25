@@ -1,4 +1,4 @@
-//===-- ssvm/loader/module.h - Module class definition ----------*- C++ -*-===//
+//===-- ssvm/ast/module.h - Module class definition -------------*- C++ -*-===//
 //
 // Part of the SSVM Project.
 //

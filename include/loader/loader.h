@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/module.h"
 #include "common.h"
-#include "module.h"
 #include <string>
 
 namespace Loader {

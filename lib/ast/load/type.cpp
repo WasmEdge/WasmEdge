@@ -1,4 +1,4 @@
-#include "loader/type.h"
+#include "ast/type.h"
 
 namespace AST {
 

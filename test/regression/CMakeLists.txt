@@ -7,6 +7,6 @@ target_link_libraries(ssvmRegressionTests
   PRIVATE
   utilGoogleTest
   ssvmLoaderFileMgr
-  ssvmLoaderAST
+  ssvmASTLoad
   ssvmLoader
 )

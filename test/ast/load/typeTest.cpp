@@ -1,4 +1,4 @@
-//===-- ssvm/test/loader/typeTest.cpp - AST type unit tests ---------------===//
+//===-- ssvm/test/ast/load/typeTest.cpp - AST type unit tests -------------===//
 //
 // Part of the SSVM Project.
 //
@@ -9,8 +9,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "loader/type.h"
-#include "filemgrTest.h"
+#include "ast/type.h"
+#include "loader/filemgrTest.h"
 #include "gtest/gtest.h"
 
 namespace {

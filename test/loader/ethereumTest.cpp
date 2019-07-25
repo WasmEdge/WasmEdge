@@ -9,8 +9,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "ast/module.h"
 #include "loader/filemgr.h"
-#include "loader/module.h"
 #include "gtest/gtest.h"
 
 namespace {

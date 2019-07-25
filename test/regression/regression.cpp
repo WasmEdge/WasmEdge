@@ -30,10 +30,9 @@ bool RegressionTester::runLoader() {
 
 bool RegressionTester::runExecutor() {
   RTDataMgr RTMgr;
-  ExecutorEngine.setDBMgr(InitDB);
-  ExecutorEngine.setModule(OutModule);
-  ExecutorEngine.setArguments();
   ExecutorEngine.setRuntimeDataMgr(RTMgr);
+  ExecutorEngine.setDBMgr(InitDB);
+  ExecutorEngine.setArguments();
   ExecutorEngine.instantiate();
   ExecutorEngine.run();
   return true;

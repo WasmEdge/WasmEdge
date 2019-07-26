@@ -74,6 +74,19 @@ private:
 
 /// AST TypeSection node.
 class TypeSection : public Section {
+public:
+  /// Instantiate to store manager.
+  ///
+  /// Overloaded from Base.
+  /// Move the vector of function types to Module instance.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param ModInst the reference to module instance pointer.
+  ///
+  /// \returns ErrCode.
+  virtual Executor::ErrCode
+  instantiate(StoreMgr &Mgr, std::unique_ptr<ModuleInstance> &ModInst);
+
 protected:
   /// Overrided content loading of type section.
   virtual Loader::ErrCode loadContent(FileMgr &Mgr);
@@ -102,6 +115,19 @@ private:
 
 /// AST FunctionSection node.
 class FunctionSection : public Section {
+public:
+  /// Instantiate to store manager.
+  ///
+  /// Overloaded from Base.
+  /// Make function instances and move Code Segment to instances.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param TypeIdx the type indices list for output.
+  ///
+  /// \returns ErrCode.
+  virtual Executor::ErrCode instantiate(StoreMgr &Mgr,
+                                        std::vector<unsigned int> &TypeIdx);
+
 protected:
   /// Overrided content loading of function section.
   virtual Loader::ErrCode loadContent(FileMgr &Mgr);
@@ -200,6 +226,21 @@ private:
 
 /// AST CodeSection node.
 class CodeSection : public Section {
+public:
+  /// Instantiate to store manager.
+  ///
+  /// Overloaded from Base.
+  /// Make function instances and move Code Segment to instances.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param ModId the module instance index in store manager.
+  /// \param TypeSec the corresponding function section for getting type index.
+  ///
+  /// \returns ErrCode.
+  virtual Executor::ErrCode
+  instantiate(StoreMgr &Mgr, unsigned int ModId,
+              std::unique_ptr<AST::FunctionSection> &FuncSec);
+
 protected:
   /// Overrided content loading of code section.
   virtual Loader::ErrCode loadContent(FileMgr &Mgr);

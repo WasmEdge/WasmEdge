@@ -27,8 +27,18 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns true on success.
+  /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+
+  /// Instantiate to store manager.
+  ///
+  /// Overloaded from Base.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param Id the available address for Module instance in Store.
+  ///
+  /// \returns ErrCode.
+  virtual Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int Id);
 
 protected:
   /// The node type should be Attr::Module.

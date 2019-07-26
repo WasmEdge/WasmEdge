@@ -2,7 +2,7 @@
 
 namespace AST {
 
-/// Load binary to construct Expression node. See "include/loader/expression.h".
+/// Load binary to construct Expression node. See "include/ast/expression.h".
 Loader::ErrCode Expression::loadBinary(FileMgr &Mgr) {
   unsigned char Byte = 0;
   Loader::ErrCode Status = Loader::ErrCode::Success;

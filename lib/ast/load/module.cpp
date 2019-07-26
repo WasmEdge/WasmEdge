@@ -2,7 +2,7 @@
 
 namespace AST {
 
-/// Load binary to construct Module node. See "include/loader/module.h".
+/// Load binary to construct Module node. See "include/ast/module.h".
 Loader::ErrCode Module::loadBinary(FileMgr &Mgr) {
   Loader::ErrCode Status = Loader::ErrCode::Success;
 

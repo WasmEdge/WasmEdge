@@ -2,7 +2,7 @@
 
 namespace AST {
 
-/// Load binary of block instructions. See "include/loader/instruction.h".
+/// Load binary of block instructions. See "include/ast/instruction.h".
 Loader::ErrCode BlockControlInstruction::loadBinary(FileMgr &Mgr) {
   unsigned char Byte = 0;
   Loader::ErrCode Status = Loader::ErrCode::Success;
@@ -35,7 +35,7 @@ Loader::ErrCode BlockControlInstruction::loadBinary(FileMgr &Mgr) {
   return Status;
 }
 
-/// Load binary of if-else instructions. See "include/loader/instruction.h".
+/// Load binary of if-else instructions. See "include/ast/instruction.h".
 Loader::ErrCode IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
   unsigned char Byte = 0;
   Loader::ErrCode Status = Loader::ErrCode::Success;
@@ -78,7 +78,7 @@ Loader::ErrCode IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
   return Status;
 }
 
-/// Load binary of branch instructions. See "include/loader/instruction.h".
+/// Load binary of branch instructions. See "include/ast/instruction.h".
 Loader::ErrCode BrControlInstruction::loadBinary(FileMgr &Mgr) {
   return Mgr.readU32(LabelIdx);
 }
@@ -103,7 +103,7 @@ Loader::ErrCode BrTableControlInstruction::loadBinary(FileMgr &Mgr) {
   return Mgr.readU32(LabelIdx);
 }
 
-/// Load binary of call instructions. See "include/loader/instruction.h".
+/// Load binary of call instructions. See "include/ast/instruction.h".
 Loader::ErrCode CallControlInstruction::loadBinary(FileMgr &Mgr) {
   Loader::ErrCode Status = Loader::ErrCode::Success;
 
@@ -121,12 +121,12 @@ Loader::ErrCode CallControlInstruction::loadBinary(FileMgr &Mgr) {
   return Status;
 }
 
-/// Load binary of variable instructions. See "include/loader/instruction.h".
+/// Load binary of variable instructions. See "include/ast/instruction.h".
 Loader::ErrCode VariableInstruction::loadBinary(FileMgr &Mgr) {
   return Mgr.readU32(Idx);
 }
 
-/// Load binary of memory instructions. See "include/loader/instruction.h".
+/// Load binary of memory instructions. See "include/ast/instruction.h".
 Loader::ErrCode MemoryInstruction::loadBinary(FileMgr &Mgr) {
   Loader::ErrCode Status = Loader::ErrCode::Success;
 
@@ -147,8 +147,7 @@ Loader::ErrCode MemoryInstruction::loadBinary(FileMgr &Mgr) {
   return Status;
 }
 
-/// Load binary of const numeric instructions. See
-/// "include/loader/instruction.h".
+/// Load binary of const numeric instructions. See "include/ast/instruction.h".
 Loader::ErrCode ConstInstruction::loadBinary(FileMgr &Mgr) {
   Loader::ErrCode Status = Loader::ErrCode::Success;
 
@@ -185,7 +184,7 @@ Loader::ErrCode ConstInstruction::loadBinary(FileMgr &Mgr) {
   return Status;
 }
 
-/// Instruction node maker. See "include/loader/instruction.h".
+/// Instruction node maker. See "include/ast/instruction.h".
 Loader::ErrCode makeInstructionNode(Instruction::OpCode Code,
                                     std::unique_ptr<Instruction> &NewInst) {
   /// Make the instruction node according to Code.

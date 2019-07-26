@@ -2,13 +2,13 @@
 
 namespace AST {
 
-/// Load binary of Expression node in Segment. See "include/loader/segment.h".
+/// Load binary of Expression node in Segment. See "include/ast/segment.h".
 Loader::ErrCode Segment::loadExpression(FileMgr &Mgr) {
   Expr = std::make_unique<Expression>();
   return Expr->loadBinary(Mgr);
 }
 
-/// Load binary of GlobalSegment node. See "include/loader/segment.h".
+/// Load binary of GlobalSegment node. See "include/ast/segment.h".
 Loader::ErrCode GlobalSegment::loadBinary(FileMgr &Mgr) {
   /// Read global type node.
   Global = std::make_unique<GlobalType>();
@@ -20,7 +20,7 @@ Loader::ErrCode GlobalSegment::loadBinary(FileMgr &Mgr) {
   return Segment::loadExpression(Mgr);
 }
 
-/// Load binary of ElementSegment node. See "include/loader/segment.h".
+/// Load binary of ElementSegment node. See "include/ast/segment.h".
 Loader::ErrCode ElementSegment::loadBinary(FileMgr &Mgr) {
   Loader::ErrCode Status = Loader::ErrCode::Success;
 
@@ -45,7 +45,7 @@ Loader::ErrCode ElementSegment::loadBinary(FileMgr &Mgr) {
   return Status;
 }
 
-/// Load binary of CodeSegment node. See "include/loader/segment.h".
+/// Load binary of CodeSegment node. See "include/ast/segment.h".
 Loader::ErrCode CodeSegment::loadBinary(FileMgr &Mgr) {
   Loader::ErrCode Status = Loader::ErrCode::Success;
 
@@ -72,7 +72,7 @@ Loader::ErrCode CodeSegment::loadBinary(FileMgr &Mgr) {
   return Segment::loadExpression(Mgr);
 }
 
-/// Load binary of DataSegment node. See "include/loader/segment.h".
+/// Load binary of DataSegment node. See "include/ast/segment.h".
 Loader::ErrCode DataSegment::loadBinary(FileMgr &Mgr) {
   Loader::ErrCode Status = Loader::ErrCode::Success;
 

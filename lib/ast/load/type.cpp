@@ -2,7 +2,7 @@
 
 namespace AST {
 
-/// Load binary to construct Limit node. See "include/loader/type.h".
+/// Load binary to construct Limit node. See "include/ast/type.h".
 Loader::ErrCode Limit::loadBinary(FileMgr &Mgr) {
   unsigned char Byte = 0;
   Loader::ErrCode Status = Loader::ErrCode::Success;
@@ -24,7 +24,7 @@ Loader::ErrCode Limit::loadBinary(FileMgr &Mgr) {
   return Status;
 }
 
-/// Load binary to construct FunctionType node. See "include/loader/type.h".
+/// Load binary to construct FunctionType node. See "include/ast/type.h".
 Loader::ErrCode FunctionType::loadBinary(FileMgr &Mgr) {
   unsigned char Byte = 0;
   unsigned int VecCnt = 0;
@@ -56,14 +56,14 @@ Loader::ErrCode FunctionType::loadBinary(FileMgr &Mgr) {
   return Status;
 }
 
-/// Load binary to construct MemoryType node. See "include/loader/type.h".
+/// Load binary to construct MemoryType node. See "include/ast/type.h".
 Loader::ErrCode MemoryType::loadBinary(FileMgr &Mgr) {
   /// Read limit.
   Memory = std::make_unique<Limit>();
   return Memory->loadBinary(Mgr);
 }
 
-/// Load binary to construct TableType node. See "include/loader/type.h".
+/// Load binary to construct TableType node. See "include/ast/type.h".
 Loader::ErrCode TableType::loadBinary(FileMgr &Mgr) {
   Loader::ErrCode Status = Loader::ErrCode::Success;
 
@@ -80,7 +80,7 @@ Loader::ErrCode TableType::loadBinary(FileMgr &Mgr) {
   return Table->loadBinary(Mgr);
 }
 
-/// Load binary to construct GlobalType node. See "include/loader/type.h".
+/// Load binary to construct GlobalType node. See "include/ast/type.h".
 Loader::ErrCode GlobalType::loadBinary(FileMgr &Mgr) {
   Loader::ErrCode Status = Loader::ErrCode::Success;
 

@@ -2,7 +2,7 @@
 
 namespace AST {
 
-/// Load binary of Import description. See "include/loader/description.h".
+/// Load binary of Import description. See "include/ast/description.h".
 Loader::ErrCode ImportDesc::loadBinary(FileMgr &Mgr) {
   Loader::ErrCode Status = Loader::ErrCode::Success;
 
@@ -57,7 +57,7 @@ Loader::ErrCode ImportDesc::loadBinary(FileMgr &Mgr) {
   return Status;
 }
 
-/// Load binary of Export description. See "include/loader/description.h".
+/// Load binary of Export description. See "include/ast/description.h".
 Loader::ErrCode ExportDesc::loadBinary(FileMgr &Mgr) {
   Loader::ErrCode Status = Loader::ErrCode::Success;
 

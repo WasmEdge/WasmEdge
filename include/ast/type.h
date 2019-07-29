@@ -60,6 +60,17 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
+  /// Instantiate to store manager.
+  ///
+  /// Insert the vector of param types and return types to Module instance.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param ModInst the reference to module instance pointer.
+  ///
+  /// \returns ErrCode.
+  Executor::ErrCode instantiate(StoreMgr &Mgr,
+                                std::unique_ptr<ModuleInstance> &ModInst);
+
 protected:
   /// The node type should be Attr::Type_Function.
   Attr NodeAttr = Attr::Type_Function;

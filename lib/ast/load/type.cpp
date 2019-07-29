@@ -33,7 +33,7 @@ Loader::ErrCode FunctionType::loadBinary(FileMgr &Mgr) {
   /// Read function type (0x60).
   if ((Status = Mgr.readByte(Byte)) != Loader::ErrCode::Success)
     return Status;
-  if (static_cast<ElemType>(Byte) != Base::ElemType::Func)
+  if (static_cast<ElemType>(Byte) != ElemType::Func)
     return Loader::ErrCode::InvalidGrammar;
 
   /// Read vector of parameter types.

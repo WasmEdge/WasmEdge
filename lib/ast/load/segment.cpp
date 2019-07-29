@@ -64,8 +64,7 @@ Loader::ErrCode CodeSegment::loadBinary(FileMgr &Mgr) {
       return Status;
     if ((Status = Mgr.readByte(LocalType)) != Loader::ErrCode::Success)
       return Status;
-    Locals.push_back(
-        std::make_pair(LocalCnt, static_cast<Base::ValType>(LocalType)));
+    Locals.push_back(std::make_pair(LocalCnt, static_cast<ValType>(LocalType)));
   }
 
   /// Read function body.

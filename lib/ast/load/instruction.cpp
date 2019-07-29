@@ -10,7 +10,7 @@ Loader::ErrCode BlockControlInstruction::loadBinary(FileMgr &Mgr) {
   /// Read the block return type.
   if ((Status = Mgr.readByte(Byte)) != Loader::ErrCode::Success)
     return Status;
-  BlockType = static_cast<Base::ValType>(Byte);
+  BlockType = static_cast<ValType>(Byte);
 
   /// Read instructions and make nodes until Opcode::End.
   while (Status == Loader::ErrCode::Success) {
@@ -43,7 +43,7 @@ Loader::ErrCode IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
   /// Read the block return type.
   if ((Status = Mgr.readByte(Byte)) != Loader::ErrCode::Success)
     return Status;
-  BlockType = static_cast<Base::ValType>(Byte);
+  BlockType = static_cast<ValType>(Byte);
 
   /// Read instructions and make nodes until OpCode::End.
   bool IsElseStatement = false;

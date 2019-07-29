@@ -31,6 +31,17 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
+  /// Instantiate to store manager.
+  ///
+  /// Move the instruction lists to function instance.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param FuncInst the function instance reference.
+  ///
+  /// \returns ErrCode.
+  Executor::ErrCode instantiate(StoreMgr &Mgr,
+                                std::unique_ptr<FunctionInstance> &FuncInst);
+
 protected:
   /// The node type should be Attr::Expression.
   Attr NodeAttr = Attr::Expression;

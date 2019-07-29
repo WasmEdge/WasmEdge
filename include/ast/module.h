@@ -38,7 +38,7 @@ public:
   /// \param Id the available address for Module instance in Store.
   ///
   /// \returns ErrCode.
-  virtual Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int Id);
+  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int Id);
 
 protected:
   /// The node type should be Attr::Module.

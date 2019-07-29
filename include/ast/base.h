@@ -63,7 +63,7 @@ public:
   };
 
   /// Instantiation to store manager.
-  virtual Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int Id) {
+  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int Id) {
     return Executor::ErrCode::InstantiateFailed;
   }
 

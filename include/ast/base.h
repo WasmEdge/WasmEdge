@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common.h"
 #include "executor/rtdatamgr.h"
 #include "loader/filemgr.h"
 
@@ -47,21 +48,6 @@ public:
     Type_Global,
     Expression
   };
-
-  /// Value types enumeration class.
-  enum class ValType : unsigned char {
-    None = 0x40,
-    I32 = 0x7F,
-    I64 = 0x7E,
-    F32 = 0x7D,
-    F64 = 0x7C
-  };
-
-  /// Element types enumeration class.
-  enum class ElemType : unsigned char { Func = 0x60, FuncRef = 0x70 };
-
-  /// Value mutability enumeration class.
-  enum class ValMut : unsigned char { Const = 0x00, Var = 0x01 };
 
   Base() = default;
   virtual ~Base() = default;

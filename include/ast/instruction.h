@@ -248,7 +248,7 @@ public:
 private:
   /// \name Data of block instruction: return type and block body.
   /// @{
-  Base::ValType BlockType;
+  ValType BlockType;
   std::vector<std::unique_ptr<Instruction>> Body;
   /// @}
 };
@@ -272,7 +272,7 @@ public:
 private:
   /// \name Data of block instruction: return type and statements.
   /// @{
-  Base::ValType BlockType;
+  ValType BlockType;
   std::vector<std::unique_ptr<Instruction>> IfStatement;
   std::vector<std::unique_ptr<Instruction>> ElseStatement;
   /// @}

@@ -109,7 +109,7 @@ private:
   /// \name Data of CodeSegment node.
   /// @{
   unsigned int SegSize = 0;
-  std::vector<std::pair<unsigned int, Base::ValType>> Locals;
+  std::vector<std::pair<unsigned int, ValType>> Locals;
   /// @}
 };
 

@@ -11,7 +11,8 @@ TypeSection::instantiate(StoreMgr &Mgr,
 
   /// Move function types into module instance.
   for (auto it = Content.begin(); it != Content.end(); it++) {
-    if ((Status = ModInst->setFuncType(*it)) != Executor::ErrCode::Success)
+    if ((Status = (*it)->instantiate(Mgr, ModInst)) !=
+        Executor::ErrCode::Success)
       return Status;
   }
   Content.clear();
@@ -29,7 +30,8 @@ FunctionSection::instantiate(StoreMgr &Mgr,
 
 /// Instantiate function instances. See "include/ast/section.h".
 Executor::ErrCode
-CodeSection::instantiate(StoreMgr &Mgr, unsigned int ModId,
+CodeSection::instantiate(StoreMgr &Mgr,
+                         std::unique_ptr<ModuleInstance> &ModInst,
                          std::unique_ptr<AST::FunctionSection> &FuncSec) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
@@ -47,19 +49,20 @@ CodeSection::instantiate(StoreMgr &Mgr, unsigned int ModId,
     auto NewFuncInst = std::make_unique<FunctionInstance>();
     unsigned int NewFuncInstId = 0;
     /// Set function instance data.
-    if ((Status = NewFuncInst->setModuleIdx(ModId)) !=
+    if ((Status = NewFuncInst->setModuleIdx(ModInst->Id)) !=
         Executor::ErrCode::Success)
       return Status;
     if ((Status = NewFuncInst->setTypeIdx(*itType)) !=
         Executor::ErrCode::Success)
       return Status;
-    if ((Status = NewFuncInst->setCodeSegment(std::move(*itCode))) !=
+    if ((Status = (*itCode)->instantiate(Mgr, NewFuncInst)) !=
         Executor::ErrCode::Success)
       return Status;
     /// Insert function instance to store manager.
     if ((Status = Mgr.queryFunctionEntry(NewFuncInstId)) !=
         Executor::ErrCode::Success)
       return Status;
+    NewFuncInst->Id = NewFuncInstId;
     if ((Status =
              Mgr.insertFunctionInst(NewFuncInstId, std::move(NewFuncInst))) !=
         Executor::ErrCode::Success)

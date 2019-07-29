@@ -10,15 +10,15 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/section.h"
-#include "ast/type.h"
+#include "ast/common.h"
 #include "common.h"
 #include <vector>
 
 class ModuleInstance {
 public:
   /// Move the function types in type section to module instance.
-  Executor::ErrCode setFuncType(std::unique_ptr<AST::FunctionType> &FType);
+  Executor::ErrCode addFuncType(std::vector<AST::ValType> &Params,
+                                std::vector<AST::ValType> &Returns);
 
   /// Map the external instences between Module and Store.
   Executor::ErrCode setFuncAddr(unsigned int ModuleFuncID,
@@ -30,9 +30,16 @@ public:
   Executor::ErrCode setGlobalAddr(unsigned int ModuleGlobalID,
                                   unsigned int StoreGlobalID);
 
+  /// Module Instance ID in store manager.
+  unsigned int Id;
+
 private:
   /// Function type definition in this module.
-  std::vector<std::unique_ptr<AST::FunctionType>> FuncType;
+  struct FType {
+    std::vector<AST::ValType> Params;
+    std::vector<AST::ValType> Returns;
+  };
+  std::vector<std::unique_ptr<FType>> FuncType;
 
   /// Elements address index in this module in Store.
   std::vector<unsigned int> FuncAddr;

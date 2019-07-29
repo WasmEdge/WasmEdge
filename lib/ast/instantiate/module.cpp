@@ -18,7 +18,7 @@ Executor::ErrCode Module::instantiate(StoreMgr &Mgr, unsigned int Id) {
 
   /// Instantiate Functions in module. (FuncionSec, CodeSec)
   if (CodeSec != nullptr && FunctionSec != nullptr) {
-    CodeSec->instantiate(Mgr, Id, FunctionSec);
+    CodeSec->instantiate(Mgr, ModInst, FunctionSec);
     CodeSec.reset();
     FunctionSec.reset();
   }

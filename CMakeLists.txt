@@ -20,6 +20,10 @@ add_subdirectory(include)
 add_subdirectory(lib)
 
 if(BUILD_TESTS)
+  include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/unittest/googletest/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/unittest/googletest
+  )
   add_subdirectory(test)
   add_subdirectory(utils/unittest)
 endif()

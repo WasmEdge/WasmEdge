@@ -14,6 +14,8 @@
 #include "base.h"
 #include "instruction.h"
 
+#include <memory>
+
 namespace AST {
 
 /// AST Expression node.

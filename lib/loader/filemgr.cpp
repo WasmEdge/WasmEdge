@@ -1,4 +1,6 @@
 #include "loader/filemgr.h"
+
+#include <algorithm>
 #include <iterator>
 
 FileMgrFStream::~FileMgrFStream() {

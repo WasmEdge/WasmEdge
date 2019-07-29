@@ -13,6 +13,8 @@
 
 #include "base.h"
 
+#include <memory>
+
 namespace AST {
 
 /// AST Limit node.

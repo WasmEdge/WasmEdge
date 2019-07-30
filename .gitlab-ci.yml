@@ -1,0 +1,34 @@
+build:
+  stage: build
+  image: hydai/ssvm-dev:alpha
+  before_script:
+    - rm -rf build
+    - mkdir build
+    - cd build
+  script:
+    - cmake ..
+    - make
+  cache:
+    paths:
+      - build
+    policy: push
+
+test:
+  stage: test
+  image: hydai/ssvm-dev:alpha
+  before_script:
+    - cd build
+  script:
+    - cmake .. -DBUILD_TESTS=ON
+    - make
+    - cd test/regression
+    - ./ssvmRegressionTests
+    - cd ../loader
+    - ./ssvmLoaderASTTests
+    - ./ssvmLoaderEthereumTests
+    - ./ssvmLoaderFileMgrTests
+    - ./ssvmLoaderWagonTests
+  cache:
+    paths:
+      - build
+    policy: pull

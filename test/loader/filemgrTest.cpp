@@ -200,19 +200,19 @@ TEST(FileManagerTest, ReadFloat32) {
   EXPECT_EQ(Mgr.readF32(ReadNum), SuccessCode);
   EXPECT_EQ(-0.0f, ReadNum);
   EXPECT_EQ(Mgr.readF32(ReadNum), SuccessCode);
-  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(std::isnan(ReadNum));
   EXPECT_EQ(Mgr.readF32(ReadNum), SuccessCode);
-  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(std::isnan(ReadNum));
   EXPECT_EQ(Mgr.readF32(ReadNum), SuccessCode);
-  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(std::isnan(ReadNum));
   EXPECT_EQ(Mgr.readF32(ReadNum), SuccessCode);
-  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(std::isnan(ReadNum));
   EXPECT_EQ(Mgr.readF32(ReadNum), SuccessCode);
-  EXPECT_TRUE(isinf(ReadNum));
+  EXPECT_TRUE(std::isinf(ReadNum));
   EXPECT_EQ(Mgr.readF32(ReadNum), SuccessCode);
-  EXPECT_TRUE(isinf(ReadNum));
+  EXPECT_TRUE(std::isinf(ReadNum));
   EXPECT_EQ(Mgr.readF32(ReadNum), SuccessCode);
-  EXPECT_TRUE(isinf(ReadNum));
+  EXPECT_TRUE(std::isinf(ReadNum));
 }
 
 TEST(FileManagerTest, ReadFloat64) {
@@ -234,19 +234,19 @@ TEST(FileManagerTest, ReadFloat64) {
   EXPECT_EQ(Mgr.readF64(ReadNum), SuccessCode);
   EXPECT_EQ(-0.0f, ReadNum);
   EXPECT_EQ(Mgr.readF64(ReadNum), SuccessCode);
-  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(std::isnan(ReadNum));
   EXPECT_EQ(Mgr.readF64(ReadNum), SuccessCode);
-  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(std::isnan(ReadNum));
   EXPECT_EQ(Mgr.readF64(ReadNum), SuccessCode);
-  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(std::isnan(ReadNum));
   EXPECT_EQ(Mgr.readF64(ReadNum), SuccessCode);
-  EXPECT_TRUE(isnan(ReadNum));
+  EXPECT_TRUE(std::isnan(ReadNum));
   EXPECT_EQ(Mgr.readF64(ReadNum), SuccessCode);
-  EXPECT_TRUE(isinf(ReadNum));
+  EXPECT_TRUE(std::isinf(ReadNum));
   EXPECT_EQ(Mgr.readF64(ReadNum), SuccessCode);
-  EXPECT_TRUE(isinf(ReadNum));
+  EXPECT_TRUE(std::isinf(ReadNum));
   EXPECT_EQ(Mgr.readF64(ReadNum), SuccessCode);
-  EXPECT_TRUE(isinf(ReadNum));
+  EXPECT_TRUE(std::isinf(ReadNum));
 }
 
 TEST(FileManagerTest, ReadName) {

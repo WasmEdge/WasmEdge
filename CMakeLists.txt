@@ -24,6 +24,10 @@ if(BUILD_TESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/unittest/googletest/include
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/unittest/googletest
   )
+  # pthread is required by googletest
+  set(THREADS_PREFER_PTHREAD_FLAG ON)
+  find_package(Threads REQUIRED)
+
   add_subdirectory(test)
   add_subdirectory(utils/unittest)
 endif()

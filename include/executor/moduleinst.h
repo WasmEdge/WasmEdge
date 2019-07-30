@@ -16,6 +16,9 @@
 
 class ModuleInstance {
 public:
+  ModuleInstance() = default;
+  ~ModuleInstance() = default;
+
   /// Move the function types in type section to module instance.
   Executor::ErrCode addFuncType(std::vector<AST::ValType> &Params,
                                 std::vector<AST::ValType> &Returns);

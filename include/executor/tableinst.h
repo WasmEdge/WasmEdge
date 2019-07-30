@@ -10,10 +10,34 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/common.h"
 #include "common.h"
 #include <memory>
 
 class TableInstance {
 public:
+  TableInstance() = default;
+  ~TableInstance() = default;
+
+  /// Set the element type.
+  Executor::ErrCode setElemType(AST::ElemType &Elem);
+
+  /// Set the table limit.
+  Executor::ErrCode setLimit(bool HasMax, unsigned int Max);
+
+  /// Set the initialization list.
+  Executor::ErrCode setInitList(unsigned int Offset,
+                                std::vector<unsigned int> &Addrs);
+
+  /// Table Instance ID in store manager.
+  unsigned int Id;
+
 private:
+  /// \name Data of table instance.
+  /// @{
+  AST::ElemType Type;
+  bool HasMax;
+  unsigned int Max;
+  std::vector<unsigned int> FuncElem;
+  /// @}
 };

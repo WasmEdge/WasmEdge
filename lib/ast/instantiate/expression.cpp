@@ -3,11 +3,11 @@
 namespace AST {
 
 /// Instantiation of expression. See "include/ast/expression.h".
-Executor::ErrCode
-Expression::instantiate(StoreMgr &Mgr,
-                        std::unique_ptr<FunctionInstance> &FuncInst) {
-  /// Instantiation will only move instructions to function instance.
-  return FuncInst->setExpression(Inst);
+template <typename T>
+Executor::ErrCode Expression::instantiate(StoreMgr &Mgr,
+                                          std::unique_ptr<T> &Instance) {
+  /// Instantiation will only move instructions to instance.
+  return Instance->setExpression(Inst);
 }
 
 } // namespace AST

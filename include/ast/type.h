@@ -34,6 +34,17 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
+  /// Instantiate to store manager.
+  ///
+  /// Set the min and max value to instance.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param Instance the table/memory instance reference.
+  ///
+  /// \returns ErrCode.
+  template <typename T>
+  Executor::ErrCode instantiate(StoreMgr &Mgr, std::unique_ptr<T> &Instance);
+
 protected:
   /// The node type should be Attr::Type_Limit.
   Attr NodeAttr = Attr::Type_Limit;
@@ -96,6 +107,17 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
+  /// Instantiate to store manager.
+  ///
+  /// Set the limit to table instance.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param MemInst the reference to memory instance pointer.
+  ///
+  /// \returns ErrCode.
+  Executor::ErrCode instantiate(StoreMgr &Mgr,
+                                std::unique_ptr<MemoryInstance> &MemInst);
+
 protected:
   /// The node type should be Attr::Type_Memory.
   Attr NodeAttr = Attr::Type_Memory;
@@ -117,6 +139,17 @@ public:
   ///
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+
+  /// Instantiate to store manager.
+  ///
+  /// Set the element type and limit to table instance.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param TabInst the reference to table instance pointer.
+  ///
+  /// \returns ErrCode.
+  Executor::ErrCode instantiate(StoreMgr &Mgr,
+                                std::unique_ptr<TableInstance> &TabInst);
 
 protected:
   /// The node type should be Attr::Type_Table.
@@ -142,6 +175,17 @@ public:
   ///
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+
+  /// Instantiate to store manager.
+  ///
+  /// Set the value type and mutibility to global instance.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param GlobInst the reference to global instance pointer.
+  ///
+  /// \returns ErrCode.
+  Executor::ErrCode instantiate(StoreMgr &Mgr,
+                                std::unique_ptr<GlobalInstance> &GlobInst);
 
 protected:
   /// The node type should be Attr::Type_Global.

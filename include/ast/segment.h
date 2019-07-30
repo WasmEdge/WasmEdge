@@ -52,6 +52,17 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
+  /// Instantiate to store manager.
+  ///
+  /// Move Global Types and Expression to global instance.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param GlobInst the global instance reference.
+  ///
+  /// \returns ErrCode.
+  Executor::ErrCode instantiate(StoreMgr &Mgr,
+                                std::unique_ptr<GlobalInstance> &GlobInst);
+
 protected:
   /// The node type should be Attr::Seg_Global.
   Attr NodeAttr = Attr::Seg_Global;

@@ -117,7 +117,7 @@ class FunctionSection : public Section {
 public:
   /// Instantiate to store manager.
   ///
-  /// Make function instances and move Code Segment to instances.
+  /// Make function instances and move expressions to instances.
   ///
   /// \param Mgr the store manager reference.
   /// \param TypeIdx the type indices list for output.
@@ -140,6 +140,18 @@ private:
 
 /// AST TableSection node.
 class TableSection : public Section {
+public:
+  /// Instantiate to store manager.
+  ///
+  /// Move the vector of table types to instances.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param ModInst the reference to module instance pointer.
+  ///
+  /// \returns ErrCode.
+  Executor::ErrCode instantiate(StoreMgr &Mgr,
+                                std::unique_ptr<ModuleInstance> &ModInst);
+
 protected:
   /// Overrided content loading of table section.
   virtual Loader::ErrCode loadContent(FileMgr &Mgr);
@@ -154,6 +166,18 @@ private:
 
 /// AST MemorySection node.
 class MemorySection : public Section {
+public:
+  /// Instantiate to store manager.
+  ///
+  /// Move the vector of memory types to instances.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param ModInst the reference to module instance pointer.
+  ///
+  /// \returns ErrCode.
+  Executor::ErrCode instantiate(StoreMgr &Mgr,
+                                std::unique_ptr<ModuleInstance> &ModInst);
+
 protected:
   /// Overrided content loading of memory section.
   virtual Loader::ErrCode loadContent(FileMgr &Mgr);
@@ -168,6 +192,18 @@ private:
 
 /// AST GlobalSection node.
 class GlobalSection : public Section {
+public:
+  /// Instantiate to store manager.
+  ///
+  /// Make global instances and move expressions to instances.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param ModInst the reference to module instance pointer.
+  ///
+  /// \returns ErrCode.
+  Executor::ErrCode instantiate(StoreMgr &Mgr,
+                                std::unique_ptr<ModuleInstance> &ModInst);
+
 protected:
   /// Overrided content loading of global section.
   virtual Loader::ErrCode loadContent(FileMgr &Mgr);

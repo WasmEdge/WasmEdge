@@ -36,11 +36,11 @@ public:
   /// Move the instruction lists to function instance.
   ///
   /// \param Mgr the store manager reference.
-  /// \param FuncInst the function instance reference.
+  /// \param Instance the function/global/table/memory instance reference.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr,
-                                std::unique_ptr<FunctionInstance> &FuncInst);
+  template <typename T>
+  Executor::ErrCode instantiate(StoreMgr &Mgr, std::unique_ptr<T> &Instance);
 
 protected:
   /// The node type should be Attr::Expression.

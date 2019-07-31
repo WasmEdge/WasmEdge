@@ -1,0 +1,8 @@
+add_library(ssvmVM
+  vm.cpp
+)
+
+target_link_libraries(ssvmVM
+  PRIVATE
+  ssvmLoader
+)

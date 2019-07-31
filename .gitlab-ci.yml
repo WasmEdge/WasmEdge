@@ -24,10 +24,11 @@ test:
     - cd test/regression
     - ./ssvmRegressionTests
     - cd ../loader
-    - ./ssvmLoaderASTTests
     - ./ssvmLoaderEthereumTests
     - ./ssvmLoaderFileMgrTests
     - ./ssvmLoaderWagonTests
+    - cd ../ast/load
+    - ./ssvmASTLoadTests
   cache:
     paths:
       - build

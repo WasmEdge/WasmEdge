@@ -87,6 +87,17 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
+  /// Instantiate to store manager.
+  ///
+  /// Find the main function address and set to Module instance.
+  /// TODO: make export instance.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param ModInstId the index of module instance in store manager.
+  ///
+  /// \returns ErrCode.
+  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int ModInstId);
+
 protected:
   /// The node type should be Attr::Desc_Export.
   Attr NodeAttr = Attr::Desc_Export;

@@ -81,7 +81,15 @@ Executor::ErrCode Module::instantiate(StoreMgr &Mgr) {
   /// Replace data in memory instance.
 
   /// Instantiate ExportSection (ExportSec)
+  if (ExportSec != nullptr) {
+    if ((Status = ExportSec->instantiate(Mgr, ModInstId)) !=
+        Executor::ErrCode::Success)
+      return Status;
+    ExportSec.reset();
+  }
   /// Instantiate StartSection (StartSec)
+  /// In e-wasm, the start section will always be "main" function.
+  /// Therefore, the start function index will be find in export section.
 
   return Status;
 }

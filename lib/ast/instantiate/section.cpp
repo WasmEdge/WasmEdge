@@ -142,6 +142,22 @@ Executor::ErrCode GlobalSection::instantiate(StoreMgr &Mgr,
   return Status;
 }
 
+/// Instantiation of export section. See "include/ast/section.h".
+Executor::ErrCode ExportSection::instantiate(StoreMgr &Mgr,
+                                             unsigned int ModInstId) {
+  Executor::ErrCode Status = Executor::ErrCode::Success;
+
+  /// Recursively call export descriptions' instantiation.
+  for (auto it = Content.begin(); it != Content.end(); it++) {
+    /// TODO: make export instances. Only match start function now.
+    if ((Status = (*it)->instantiate(Mgr, ModInstId)) !=
+        Executor::ErrCode::Success)
+      return Status;
+  }
+  Content.clear();
+  return Status;
+}
+
 /// Instantiate function instances. See "include/ast/section.h".
 Executor::ErrCode
 CodeSection::instantiate(StoreMgr &Mgr, unsigned int ModInstId,

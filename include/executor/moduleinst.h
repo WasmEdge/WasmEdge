@@ -29,6 +29,15 @@ public:
   Executor::ErrCode addMemAddr(unsigned int StoreMemID);
   Executor::ErrCode addGlobalAddr(unsigned int StoreGlobalID);
 
+  /// Get the external values by index. Addr will be address in Store.
+  Executor::ErrCode getFuncAddr(unsigned int Idx, unsigned int &Addr);
+  Executor::ErrCode getTableAddr(unsigned int Idx, unsigned int &Addr);
+  Executor::ErrCode getMemAddr(unsigned int Idx, unsigned int &Addr);
+  Executor::ErrCode getGlobalAddr(unsigned int Idx, unsigned int &Addr);
+
+  /// Set start function index and find the address in Store.
+  Executor::ErrCode setStartIdx(unsigned int Idx);
+
   /// Module Instance ID in store manager.
   unsigned int Id;
 
@@ -45,5 +54,8 @@ private:
   std::vector<unsigned int> TableAddr;
   std::vector<unsigned int> MemAddr;
   std::vector<unsigned int> GlobalAddr;
-  // TODO: add export inst
+  /// TODO: add export inst
+
+  /// Start function address
+  unsigned int StartAddr;
 };

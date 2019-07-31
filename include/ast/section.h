@@ -225,6 +225,17 @@ private:
 
 /// AST ExportSection node.
 class ExportSection : public Section {
+public:
+  /// Instantiate to store manager.
+  ///
+  /// Add the export instance to Module instance.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param ModInstId the index of module instance in store manager.
+  ///
+  /// \returns ErrCode.
+  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int ModInstId);
+
 protected:
   /// Overrided content loading of export section.
   virtual Loader::ErrCode loadContent(FileMgr &Mgr);

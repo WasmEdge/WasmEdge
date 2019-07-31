@@ -9,7 +9,7 @@ Executor::ErrCode Module::instantiate(StoreMgr &Mgr) {
   auto ModInst = std::make_unique<ModuleInstance>();
   unsigned int ModInstId = 0;
 
-  if ((Status = Mgr.insertModuleInst(ModInstId, std::move(ModInst))) !=
+  if ((Status = Mgr.insertModuleInst(std::move(ModInst), ModInstId)) !=
       Executor::ErrCode::Success)
     return Status;
 

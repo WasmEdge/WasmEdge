@@ -22,13 +22,13 @@ add_subdirectory(tools/ssvm)
 
 if(BUILD_TESTS)
   include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/utils/unittest/googletest/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/utils/unittest/googletest
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/googletest/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/googletest
   )
   # pthread is required by googletest
   set(THREADS_PREFER_PTHREAD_FLAG ON)
   find_package(Threads REQUIRED)
 
   add_subdirectory(test)
-  add_subdirectory(utils/unittest)
+  add_subdirectory(thirdparty)
 endif()

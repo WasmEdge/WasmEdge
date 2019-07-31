@@ -2,7 +2,7 @@
 
 #include "executor/executor.h"
 #include "loader/loader.h"
-#include "result.h"
+#include "vm/result.h"
 
 class RegressionTester {
 public:
@@ -11,7 +11,7 @@ public:
 
   /// Functions to set expect results.
   bool setExpectDBMgr(DBMgr &Mgr);
-  bool setExpectResult(Result &Res);
+  bool setExpectResult(SSVM::Result &Res);
 
   /// Functions to set inputs.
   bool setFilePath(const std::string &FilePath);
@@ -29,6 +29,6 @@ private:
   std::string WasmPath;
   DBMgr InitDB;
   DBMgr ExpectDB;
-  Result InitResult;
-  Result ExpectResult;
+  SSVM::Result InitResult;
+  SSVM::Result ExpectResult;
 };

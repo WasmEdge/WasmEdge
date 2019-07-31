@@ -1,4 +1,4 @@
-//===-- ssvm/test/regression/result.h - result class definition -----------===//
+//===-- ssvm/vm/result.h - result class definition ------------------------===//
 //
 // Part of the SSVM Project.
 //
@@ -10,13 +10,11 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "executor/common.h"
-#include "loader/common.h"
-#include "loader/filemgr.h"
-#include <variant>
+namespace SSVM {
 
 class Result {
 public:
+  enum class ErrCode : unsigned int { Success, Invalid };
   enum class Stage : unsigned int { Init, Loader, Executor, Invalid };
   enum class StorageMutability : unsigned int { Pure, View, Modified };
   enum class State : unsigned int { commit, revert };
@@ -27,12 +25,13 @@ public:
   bool setStage(Stage NewStage);
   bool setStorageMut(StorageMutability NewStorageMut);
   bool setState(State NewState);
-  bool setErrCode(Loader::ErrCode Code);
-  bool setErrCode(Executor::ErrCode Code);
+  bool setErrCode(ErrCode Code);
 
 private:
   Stage LastStage = Stage::Invalid;
-  std::variant<Loader::ErrCode, Executor::ErrCode> Status = Loader::ErrCode::Success;
+  ErrCode Status = ErrCode::Success;
   StorageMutability StorageMut = StorageMutability::Pure;
   State ExecutionState = State::revert;
 };
+
+} // namespace SSVM

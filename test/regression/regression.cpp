@@ -5,7 +5,7 @@ bool RegressionTester::setExpectDBMgr(DBMgr &Mgr) {
   return true;
 }
 
-bool RegressionTester::setExpectResult(Result &Res) {
+bool RegressionTester::setExpectResult(SSVM::Result &Res) {
   ExpectResult = Res;
   return true;
 }

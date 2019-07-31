@@ -18,7 +18,7 @@ option(BUILD_TESTS "Generate build targets for the ssvm unit tests." OFF)
 
 add_subdirectory(include)
 add_subdirectory(lib)
-add_subdirectory(utils/ssvm)
+add_subdirectory(tools/ssvm)
 
 if(BUILD_TESTS)
   include_directories(

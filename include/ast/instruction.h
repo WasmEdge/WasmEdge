@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "base.h"
-
+#include "ast/common.h"
+#include "loader/filemgr.h"
 #include <memory>
 #include <variant>
 

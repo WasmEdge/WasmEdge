@@ -80,11 +80,10 @@ public:
   /// Move the vector of function types to Module instance.
   ///
   /// \param Mgr the store manager reference.
-  /// \param ModInst the reference to module instance pointer.
+  /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr,
-                                std::unique_ptr<ModuleInstance> &ModInst);
+  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int ModInstId);
 
 protected:
   /// Overrided content loading of type section.
@@ -146,11 +145,10 @@ public:
   /// Move the vector of table types to instances.
   ///
   /// \param Mgr the store manager reference.
-  /// \param ModInst the reference to module instance pointer.
+  /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr,
-                                std::unique_ptr<ModuleInstance> &ModInst);
+  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int ModInstId);
 
 protected:
   /// Overrided content loading of table section.
@@ -172,11 +170,10 @@ public:
   /// Move the vector of memory types to instances.
   ///
   /// \param Mgr the store manager reference.
-  /// \param ModInst the reference to module instance pointer.
+  /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr,
-                                std::unique_ptr<ModuleInstance> &ModInst);
+  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int ModInstId);
 
 protected:
   /// Overrided content loading of memory section.
@@ -198,11 +195,10 @@ public:
   /// Make global instances and move expressions to instances.
   ///
   /// \param Mgr the store manager reference.
-  /// \param ModInst the reference to module instance pointer.
+  /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr,
-                                std::unique_ptr<ModuleInstance> &ModInst);
+  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int ModInstId);
 
 protected:
   /// Overrided content loading of global section.
@@ -266,12 +262,11 @@ public:
   /// Make function instances and move Code Segment to instances.
   ///
   /// \param Mgr the store manager reference.
-  /// \param ModInst the reference to module instance pointer.
+  /// \param ModInstId the index of module instance in store manager.
   /// \param TypeSec the corresponding function section for getting type index.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr,
-                                std::unique_ptr<ModuleInstance> &ModInst,
+  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int ModInstId,
                                 std::unique_ptr<AST::FunctionSection> &FuncSec);
 
 protected:

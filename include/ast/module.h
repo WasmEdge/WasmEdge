@@ -35,10 +35,9 @@ public:
   /// Overloaded from Base.
   ///
   /// \param Mgr the store manager reference.
-  /// \param Id the available address for Module instance in Store.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int Id);
+  Executor::ErrCode instantiate(StoreMgr &Mgr);
 
 protected:
   /// The node type should be Attr::Module.

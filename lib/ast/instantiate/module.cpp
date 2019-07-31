@@ -4,13 +4,20 @@
 namespace AST {
 
 /// Instantiate Module Instance. See "include/ast/module.h".
-Executor::ErrCode Module::instantiate(StoreMgr &Mgr, unsigned int Id) {
+Executor::ErrCode Module::instantiate(StoreMgr &Mgr) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
   auto ModInst = std::make_unique<ModuleInstance>();
+  unsigned int ModInstId = 0;
+
+  if ((Status = Mgr.insertModuleInst(ModInstId, std::move(ModInst))) !=
+      Executor::ErrCode::Success)
+    return Status;
 
   /// Instantiate Function Types in Module Instance. (TypeSec)
   if (TypeSec != nullptr) {
-    TypeSec->instantiate(Mgr, ModInst);
+    if ((Status = TypeSec->instantiate(Mgr, ModInstId)) !=
+        Executor::ErrCode::Success)
+      return Status;
     TypeSec.reset();
   }
 
@@ -18,14 +25,18 @@ Executor::ErrCode Module::instantiate(StoreMgr &Mgr, unsigned int Id) {
 
   /// Instantiate Functions in module. (FuncionSec, CodeSec)
   if (CodeSec != nullptr && FunctionSec != nullptr) {
-    CodeSec->instantiate(Mgr, ModInst, FunctionSec);
+    if ((Status = CodeSec->instantiate(Mgr, ModInstId, FunctionSec)) !=
+        Executor::ErrCode::Success)
+      return Status;
     CodeSec.reset();
     FunctionSec.reset();
   }
 
   /// Instantiate GlobalSection
   if (GlobalSec != nullptr) {
-    GlobalSec->instantiate(Mgr, ModInst);
+    if ((Status = GlobalSec->instantiate(Mgr, ModInstId)) !=
+        Executor::ErrCode::Success)
+      return Status;
     GlobalSec.reset();
     /// TODO: Initialize the globals
     /// Push Frame {NewModInst:{globaddrs}, local:none}
@@ -38,13 +49,17 @@ Executor::ErrCode Module::instantiate(StoreMgr &Mgr, unsigned int Id) {
 
   /// Instantiate TableSection
   if (TableSec != nullptr) {
-    TableSec->instantiate(Mgr, ModInst);
+    if ((Status = TableSec->instantiate(Mgr, ModInstId)) !=
+        Executor::ErrCode::Success)
+      return Status;
     TableSec.reset();
   }
 
   /// Instantiate MemorySection
   if (MemorySec != nullptr) {
-    MemorySec->instantiate(Mgr, ModInst);
+    if ((Status = MemorySec->instantiate(Mgr, ModInstId)) !=
+        Executor::ErrCode::Success)
+      return Status;
     MemorySec.reset();
   }
 
@@ -61,7 +76,7 @@ Executor::ErrCode Module::instantiate(StoreMgr &Mgr, unsigned int Id) {
   /// Instantiate ExportSection TODO
   /// Instantiate StartSection TODO
 
-  return Mgr.insertModuleInst(Id, std::move(ModInst));
+  return Status;
 }
 
 } // namespace AST

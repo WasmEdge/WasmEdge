@@ -76,11 +76,10 @@ public:
   /// Insert the vector of param types and return types to Module instance.
   ///
   /// \param Mgr the store manager reference.
-  /// \param ModInst the reference to module instance pointer.
+  /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr,
-                                std::unique_ptr<ModuleInstance> &ModInst);
+  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int ModInstId);
 
 protected:
   /// The node type should be Attr::Type_Function.

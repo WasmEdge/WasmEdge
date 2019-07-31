@@ -11,9 +11,16 @@ Executor::ErrCode Limit::instantiate(StoreMgr &Mgr,
 }
 
 /// Instantiation of function type. See "include/ast/section.h".
-Executor::ErrCode
-FunctionType::instantiate(StoreMgr &Mgr,
-                          std::unique_ptr<ModuleInstance> &ModInst) {
+Executor::ErrCode FunctionType::instantiate(StoreMgr &Mgr,
+                                            unsigned int ModInstId) {
+  Executor::ErrCode Status = Executor::ErrCode::Success;
+
+  /// Get the module instance from ID.
+  ModuleInstance *ModInst = nullptr;
+  if ((Status = Mgr.getModule(ModInstId, ModInst)) !=
+      Executor::ErrCode::Success)
+    return Status;
+
   /// Instantiation will only move param and return lists to module instance.
   return ModInst->addFuncType(ParamTypes, ReturnTypes);
 }

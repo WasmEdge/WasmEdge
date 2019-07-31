@@ -10,12 +10,10 @@ public:
   ~RegressionTester() = default;
 
   /// Functions to set expect results.
-  bool setExpectDBMgr(DBMgr &Mgr);
   bool setExpectResult(SSVM::Result &Res);
 
   /// Functions to set inputs.
   bool setFilePath(const std::string &FilePath);
-  bool setDBMgr(DBMgr &Mgr);
 
   /// Functions for running.
   bool runLoader();
@@ -27,8 +25,6 @@ private:
   Executor::Executor ExecutorEngine;
   std::unique_ptr<AST::Module> OutModule;
   std::string WasmPath;
-  DBMgr InitDB;
-  DBMgr ExpectDB;
   SSVM::Result InitResult;
   SSVM::Result ExpectResult;
 };

@@ -14,22 +14,34 @@ namespace SSVM {
 
 class Result {
 public:
-  enum class ErrCode : unsigned int { Success, Invalid };
+  using ErrCode = unsigned int;
   enum class Stage : unsigned int { Init, Loader, Executor, Invalid };
   enum class StorageMutability : unsigned int { Pure, View, Modified };
   enum class State : unsigned int { commit, revert };
+
+public:
   Result() = default;
   ~Result() = default;
-  bool equal(Result &Other);
 
-  bool setStage(Stage NewStage);
-  bool setStorageMut(StorageMutability NewStorageMut);
-  bool setState(State NewState);
-  bool setErrCode(ErrCode Code);
+  friend bool operator==(Result &LHS, Result &RHS) {
+    if (&LHS == &RHS) return true;
+    if (LHS.LastStage != RHS.LastStage) return false;
+    if (LHS.Status != RHS.Status) return false;
+    if (LHS.StorageMut != RHS.StorageMut) return false;
+    if (LHS.ExecutionState != RHS.ExecutionState) return false;
+    return true;
+  }
+
+  void setStage(Stage NewStage) { LastStage = NewStage; }
+  void setStorageMut(StorageMutability NewStorageMut) { StorageMut = NewStorageMut; }
+  void setState(State NewState) { ExecutionState = NewState; }
+  void setErrCode(ErrCode Code) { Status = Code; }
+  bool hasError() { return Status != 0; }
+  ErrCode getErrCode() { return Status; }
 
 private:
   Stage LastStage = Stage::Invalid;
-  ErrCode Status = ErrCode::Success;
+  ErrCode Status = 0;
   StorageMutability StorageMut = StorageMutability::Pure;
   State ExecutionState = State::revert;
 };

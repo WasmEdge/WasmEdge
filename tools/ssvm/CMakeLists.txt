@@ -6,5 +6,6 @@ target_link_libraries(ssvm
   PRIVATE
   ssvmLoader
   ssvmLoaderFileMgr
+  ssvmASTLoad
   ssvmVM
 )

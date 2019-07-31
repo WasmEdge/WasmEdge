@@ -21,6 +21,7 @@ namespace VM {
 
 enum class ErrCode : unsigned int {
   Success = 0,
+  Failed,
   Invalid
 };
 
@@ -35,12 +36,15 @@ public:
   /// Set the input data.
   ErrCode setInput(const std::vector<uint8_t> &InputVec);
   /// Execute wasm with given input.
-  ErrCode execute(Result &VMResult);
+  ErrCode execute();
+  /// Return VMResult
+  Result getResult() { return VMResult; }
 
 private:
   Loader::Loader LoaderEngine;
   std::unique_ptr<AST::Module> Mod = nullptr;
   std::vector<uint8_t> Input;
+  Result VMResult;
 };
 } // namespace VM
 } // namespace SSVM

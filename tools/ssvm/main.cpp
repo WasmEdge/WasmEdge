@@ -7,6 +7,7 @@ int main(int Argc, char* Argv[]) {
   SSVM::Result Result;
   VM.setPath(InputPath);
   VM.setInput(std::vector<uint8_t>());
-  VM.execute(Result);
+  VM.execute();
+  Result = VM.getResult();
   return 0;
 }

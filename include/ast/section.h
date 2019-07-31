@@ -99,6 +99,17 @@ private:
 
 /// AST ImportSection node.
 class ImportSection : public Section {
+public:
+  /// Instantiate to store manager.
+  ///
+  /// Find the function address and add to Module instance.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param ModInstId the index of module instance in store manager.
+  ///
+  /// \returns ErrCode.
+  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int ModInstId);
+
 protected:
   /// Overrided content loading of import section.
   virtual Loader::ErrCode loadContent(FileMgr &Mgr);

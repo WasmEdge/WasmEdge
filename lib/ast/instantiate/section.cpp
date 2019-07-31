@@ -27,6 +27,21 @@ FunctionSection::instantiate(StoreMgr &Mgr,
   return Executor::ErrCode::Success;
 }
 
+/// Instantiation of import section. See "include/ast/section.h".
+Executor::ErrCode ImportSection::instantiate(StoreMgr &Mgr,
+                                             unsigned int ModInstId) {
+  Executor::ErrCode Status = Executor::ErrCode::Success;
+
+  /// Recursively call import descriptions' instantiation.
+  for (auto it = Content.begin(); it != Content.end(); it++) {
+    if ((Status = (*it)->instantiate(Mgr, ModInstId)) !=
+        Executor::ErrCode::Success)
+      return Status;
+  }
+  Content.clear();
+  return Status;
+}
+
 /// Instantiation of table section. See "include/ast/section.h".
 Executor::ErrCode TableSection::instantiate(StoreMgr &Mgr,
                                             unsigned int ModInstId) {
@@ -39,7 +54,6 @@ Executor::ErrCode TableSection::instantiate(StoreMgr &Mgr,
     return Status;
 
   /// Recursively call table types' instantiation.
-  unsigned int Idx = 0;
   for (auto it = Content.begin(); it != Content.end(); it++) {
     /// Make a new table instance.
     auto NewTabInst = std::make_unique<TableInstance>();
@@ -53,11 +67,9 @@ Executor::ErrCode TableSection::instantiate(StoreMgr &Mgr,
         Executor::ErrCode::Success)
       return Status;
     /// Set external value (table address) to module instance.
-    if ((Status = ModInst->setTableAddr(Idx, NewTabInstId)) !=
+    if ((Status = ModInst->addTableAddr(NewTabInstId)) !=
         Executor::ErrCode::Success)
       return Status;
-
-    Idx++;
   }
   Content.clear();
   return Status;
@@ -75,7 +87,6 @@ Executor::ErrCode MemorySection::instantiate(StoreMgr &Mgr,
     return Status;
 
   /// Recursively call memory types' instantiation.
-  unsigned int Idx = 0;
   for (auto it = Content.begin(); it != Content.end(); it++) {
     /// Make a new memory instance.
     auto NewMemInst = std::make_unique<MemoryInstance>();
@@ -89,11 +100,9 @@ Executor::ErrCode MemorySection::instantiate(StoreMgr &Mgr,
         Executor::ErrCode::Success)
       return Status;
     /// Set external value (memory address) to module instance.
-    if ((Status = ModInst->setTableAddr(Idx, NewMemInstId)) !=
+    if ((Status = ModInst->addTableAddr(NewMemInstId)) !=
         Executor::ErrCode::Success)
       return Status;
-
-    Idx++;
   }
   Content.clear();
   return Status;
@@ -111,7 +120,6 @@ Executor::ErrCode GlobalSection::instantiate(StoreMgr &Mgr,
     return Status;
 
   /// Recursively call global types' instantiation.
-  unsigned int Idx = 0;
   for (auto it = Content.begin(); it != Content.end(); it++) {
     /// Make a new function instance.
     auto NewGlobInst = std::make_unique<GlobalInstance>();
@@ -126,11 +134,9 @@ Executor::ErrCode GlobalSection::instantiate(StoreMgr &Mgr,
         Executor::ErrCode::Success)
       return Status;
     /// Set external value (global address) to module instance.
-    if ((Status = ModInst->setFuncAddr(Idx, NewGlobInstId)) !=
+    if ((Status = ModInst->addFuncAddr(NewGlobInstId)) !=
         Executor::ErrCode::Success)
       return Status;
-
-    Idx++;
   }
   Content.clear();
   return Status;
@@ -157,7 +163,6 @@ CodeSection::instantiate(StoreMgr &Mgr, unsigned int ModInstId,
   /// Iterate through code segments to make function instances.
   auto itCode = Content.begin();
   auto itType = TypeIdx.begin();
-  unsigned int Idx = 0;
   while (itCode != Content.end() && itType != TypeIdx.end()) {
     /// Make a new function instance.
     auto NewFuncInst = std::make_unique<FunctionInstance>();
@@ -178,13 +183,12 @@ CodeSection::instantiate(StoreMgr &Mgr, unsigned int ModInstId,
         Executor::ErrCode::Success)
       return Status;
     /// Set external value (function address) to module instance.
-    if ((Status = ModInst->setFuncAddr(Idx, NewFuncInstId)) !=
+    if ((Status = ModInst->addFuncAddr(NewFuncInstId)) !=
         Executor::ErrCode::Success)
       return Status;
 
     itCode++;
     itType++;
-    Idx++;
   }
   Content.clear();
   return Status;

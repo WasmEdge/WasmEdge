@@ -47,6 +47,16 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
+  /// Instantiate to store manager.
+  ///
+  /// Find the external types index and set to Module instance.
+  ///
+  /// \param Mgr the store manager reference.
+  /// \param ModInstId the index of module instance in store manager.
+  ///
+  /// \returns ErrCode.
+  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int ModInstId);
+
   /// Variant of external type classes.
   using ExtContentType =
       std::variant<std::unique_ptr<unsigned int>, std::unique_ptr<TableType>,

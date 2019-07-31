@@ -9,9 +9,18 @@ Executor::ErrCode Module::instantiate(StoreMgr &Mgr) {
   auto ModInst = std::make_unique<ModuleInstance>();
   unsigned int ModInstId = 0;
 
+  /// Insert the module instance to store manager.
   if ((Status = Mgr.insertModuleInst(std::move(ModInst), ModInstId)) !=
       Executor::ErrCode::Success)
     return Status;
+
+  /// Instantiate ImportSection and do import matching. (ImportSec)
+  if (ImportSec != nullptr) {
+    if ((Status = ImportSec->instantiate(Mgr, ModInstId)) !=
+        Executor::ErrCode::Success)
+      return Status;
+    ImportSec.reset();
+  }
 
   /// Instantiate Function Types in Module Instance. (TypeSec)
   if (TypeSec != nullptr) {
@@ -20,8 +29,6 @@ Executor::ErrCode Module::instantiate(StoreMgr &Mgr) {
       return Status;
     TypeSec.reset();
   }
-
-  /// Instantiate ImportSection TODO
 
   /// Instantiate Functions in module. (FuncionSec, CodeSec)
   if (CodeSec != nullptr && FunctionSec != nullptr) {
@@ -32,7 +39,7 @@ Executor::ErrCode Module::instantiate(StoreMgr &Mgr) {
     FunctionSec.reset();
   }
 
-  /// Instantiate GlobalSection
+  /// Instantiate GlobalSection (GlobalSec)
   if (GlobalSec != nullptr) {
     if ((Status = GlobalSec->instantiate(Mgr, ModInstId)) !=
         Executor::ErrCode::Success)
@@ -47,7 +54,7 @@ Executor::ErrCode Module::instantiate(StoreMgr &Mgr) {
   /// TODO: Initializa the tables and memories
   /// Push Frame {ModInst, local:none}
 
-  /// Instantiate TableSection
+  /// Instantiate TableSection (TableSec)
   if (TableSec != nullptr) {
     if ((Status = TableSec->instantiate(Mgr, ModInstId)) !=
         Executor::ErrCode::Success)
@@ -55,7 +62,7 @@ Executor::ErrCode Module::instantiate(StoreMgr &Mgr) {
     TableSec.reset();
   }
 
-  /// Instantiate MemorySection
+  /// Instantiate MemorySection (MemorySec)
   if (MemorySec != nullptr) {
     if ((Status = MemorySec->instantiate(Mgr, ModInstId)) !=
         Executor::ErrCode::Success)
@@ -73,8 +80,8 @@ Executor::ErrCode Module::instantiate(StoreMgr &Mgr) {
   /// Replace data in table instance.
   /// Replace data in memory instance.
 
-  /// Instantiate ExportSection TODO
-  /// Instantiate StartSection TODO
+  /// Instantiate ExportSection (ExportSec)
+  /// Instantiate StartSection (StartSec)
 
   return Status;
 }

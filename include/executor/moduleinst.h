@@ -24,14 +24,10 @@ public:
                                 std::vector<AST::ValType> &Returns);
 
   /// Map the external instences between Module and Store.
-  Executor::ErrCode setFuncAddr(unsigned int ModuleFuncID,
-                                unsigned int StoreFuncID);
-  Executor::ErrCode setTableAddr(unsigned int ModuleTableID,
-                                 unsigned int StoreTableID);
-  Executor::ErrCode setMemAddr(unsigned int ModuleMemID,
-                               unsigned int StoreMemID);
-  Executor::ErrCode setGlobalAddr(unsigned int ModuleGlobalID,
-                                  unsigned int StoreGlobalID);
+  Executor::ErrCode addFuncAddr(unsigned int StoreFuncID);
+  Executor::ErrCode addTableAddr(unsigned int StoreTableID);
+  Executor::ErrCode addMemAddr(unsigned int StoreMemID);
+  Executor::ErrCode addGlobalAddr(unsigned int StoreGlobalID);
 
   /// Module Instance ID in store manager.
   unsigned int Id;

@@ -11,7 +11,6 @@ public:
   Executor() = default;
   ~Executor() = default;
   ErrCode setRuntimeDataMgr(RTDataMgr &Mgr) { return ErrCode::Success; }
-  ErrCode setDBMgr(DBMgr &Mgr) { return ErrCode::Success; }
   ErrCode setArguments() { return ErrCode::Success; }
   ErrCode instantiate() { return ErrCode::Success; }
   ErrCode run() { return ErrCode::Success; }
@@ -21,7 +20,6 @@ private:
   enum class State : unsigned int {
     Inited,
     ASTSet,
-    DBSet,
     ArgsSet,
     RuntimeDataMgrSet,
     Instantiated,

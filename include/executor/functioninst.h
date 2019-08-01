@@ -20,7 +20,7 @@ public:
   ~FunctionInstance() = default;
 
   /// Set the module instance index in store manager.
-  Executor::ErrCode setModuleIdx(unsigned int Id);
+  Executor::ErrCode setModuleAddr(unsigned int Addr);
 
   /// Set the function type index in module instance.
   Executor::ErrCode setTypeIdx(unsigned int Id);
@@ -33,14 +33,14 @@ public:
   Executor::ErrCode
   setExpression(std::vector<std::unique_ptr<AST::Instruction>> &Expr);
 
-  /// Function Instance ID in store manager.
-  unsigned int Id;
+  /// Function Instance address in store manager.
+  unsigned int Addr;
 
 private:
   /// \name Data of function instance.
   /// @{
   unsigned int TypeIdx;
-  unsigned int ModuleIdx;
+  unsigned int ModuleAddr;
   std::vector<std::pair<unsigned int, AST::ValType>> Locals;
   std::vector<std::unique_ptr<AST::Instruction>> Instrs;
   /// @}

@@ -12,6 +12,7 @@
 
 #include "ast/common.h"
 #include "common.h"
+#include <memory>
 #include <vector>
 
 class ModuleInstance {
@@ -24,10 +25,10 @@ public:
                                 std::vector<AST::ValType> &Returns);
 
   /// Map the external instences between Module and Store.
-  Executor::ErrCode addFuncAddr(unsigned int StoreFuncID);
-  Executor::ErrCode addTableAddr(unsigned int StoreTableID);
-  Executor::ErrCode addMemAddr(unsigned int StoreMemID);
-  Executor::ErrCode addGlobalAddr(unsigned int StoreGlobalID);
+  Executor::ErrCode addFuncAddr(unsigned int StoreFuncAddr);
+  Executor::ErrCode addTableAddr(unsigned int StoreTableAddr);
+  Executor::ErrCode addMemAddr(unsigned int StoreMemAddr);
+  Executor::ErrCode addGlobalAddr(unsigned int StoreGlobalAddr);
 
   /// Get the external values by index. Addr will be address in Store.
   Executor::ErrCode getFuncAddr(unsigned int Idx, unsigned int &Addr);
@@ -38,22 +39,24 @@ public:
   /// Set start function index and find the address in Store.
   Executor::ErrCode setStartIdx(unsigned int Idx);
 
-  /// Module Instance ID in store manager.
-  unsigned int Id;
+  /// Module Instance address in store manager.
+  unsigned int Addr;
 
 private:
   /// Function type definition in this module.
   struct FType {
+    FType() = default;
+    ~FType() = default;
     std::vector<AST::ValType> Params;
     std::vector<AST::ValType> Returns;
   };
-  std::vector<std::unique_ptr<FType>> FuncType;
+  std::vector<std::unique_ptr<FType>> FuncTypes;
 
   /// Elements address index in this module in Store.
-  std::vector<unsigned int> FuncAddr;
-  std::vector<unsigned int> TableAddr;
-  std::vector<unsigned int> MemAddr;
-  std::vector<unsigned int> GlobalAddr;
+  std::vector<unsigned int> FuncAddrs;
+  std::vector<unsigned int> TableAddrs;
+  std::vector<unsigned int> MemAddrs;
+  std::vector<unsigned int> GlobalAddrs;
   /// TODO: add export inst
 
   /// Start function address

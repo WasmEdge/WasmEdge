@@ -11,7 +11,7 @@
 #pragma once
 
 #include "common.h"
-#include <memory>
+#include <vector>
 
 class MemoryInstance {
 public:
@@ -25,14 +25,14 @@ public:
   Executor::ErrCode setInitList(unsigned int Offset,
                                 std::vector<unsigned char> &Bytes);
 
-  /// Memory Instance ID in store manager.
-  unsigned int Id;
+  /// Memory Instance address in store manager.
+  unsigned int Addr;
 
 private:
   /// \name Data of memory instance.
   /// @{
-  bool HasMax;
-  unsigned int Max;
+  bool HasMaxPage;
+  unsigned int MaxPage;
   std::vector<unsigned char> Data;
   /// @}
 };

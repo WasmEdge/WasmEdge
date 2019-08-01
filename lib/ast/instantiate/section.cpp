@@ -184,7 +184,7 @@ CodeSection::instantiate(StoreMgr &Mgr, unsigned int ModInstId,
     auto NewFuncInst = std::make_unique<FunctionInstance>();
     unsigned int NewFuncInstId = 0;
     /// Set function instance data.
-    if ((Status = NewFuncInst->setModuleIdx(ModInst->Id)) !=
+    if ((Status = NewFuncInst->setModuleAddr(ModInst->Addr)) !=
         Executor::ErrCode::Success)
       return Status;
     if ((Status = NewFuncInst->setTypeIdx(*itType)) !=

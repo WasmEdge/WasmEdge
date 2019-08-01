@@ -27,7 +27,7 @@ Executor::ErrCode ImportDesc::instantiate(StoreMgr &Mgr,
         Executor::ErrCode::Success)
       return Status;
     /// Set the function address to module instance.
-    if ((Status = ModInst->addFuncAddr(FuncInst->Id)) !=
+    if ((Status = ModInst->addFuncAddr(FuncInst->Addr)) !=
         Executor::ErrCode::Success)
       return Status;
     break;

@@ -17,6 +17,7 @@ enum class ErrCode : unsigned int {
   InstantiateFailed,
   RuntimeDataMgrInitFailed,
   ExecutionEngineInitFailed,
+  WrongInstanceAddress,
   ExecutionFailed
 };
 

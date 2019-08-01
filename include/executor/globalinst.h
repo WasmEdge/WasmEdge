@@ -14,6 +14,7 @@
 #include "ast/instruction.h"
 #include "common.h"
 #include <memory>
+#include <variant>
 
 class GlobalInstance {
 public:
@@ -29,17 +30,18 @@ public:
   setExpression(std::vector<std::unique_ptr<AST::Instruction>> &Expr);
 
   /// Set the value of this instance.
-  Executor::ErrCode setValue(std::variant<int32_t, int64_t, float, double> Val);
+  Executor::ErrCode
+  setValue(std::variant<int32_t, int64_t, float, double> &Val);
 
-  /// Global Instance ID in store manager.
-  unsigned int Id;
+  /// Global Instance address in store manager.
+  unsigned int Addr;
 
 private:
   /// \name Data of global instance.
   /// @{
   AST::ValType Type;
   AST::ValMut Mut;
-  std::variant<int32_t, int64_t, float, double> Val;
+  std::variant<int32_t, int64_t, float, double> Value;
   std::vector<std::unique_ptr<AST::Instruction>> Instrs;
   /// @}
 };

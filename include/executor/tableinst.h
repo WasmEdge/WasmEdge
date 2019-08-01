@@ -12,7 +12,7 @@
 
 #include "ast/common.h"
 #include "common.h"
-#include <memory>
+#include <vector>
 
 class TableInstance {
 public:
@@ -36,8 +36,8 @@ private:
   /// \name Data of table instance.
   /// @{
   AST::ElemType Type;
-  bool HasMax;
-  unsigned int Max;
+  bool HasMaxSize;
+  unsigned int MaxSize;
   std::vector<unsigned int> FuncElem;
   /// @}
 };

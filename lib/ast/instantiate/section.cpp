@@ -63,7 +63,7 @@ Executor::ErrCode TableSection::instantiate(StoreMgr &Mgr,
         Executor::ErrCode::Success)
       return Status;
     /// Insert table instance to store manager.
-    if ((Status = Mgr.insertTableInst(std::move(NewTabInst), NewTabInstId)) !=
+    if ((Status = Mgr.insertTableInst(NewTabInst, NewTabInstId)) !=
         Executor::ErrCode::Success)
       return Status;
     /// Set external value (table address) to module instance.
@@ -96,7 +96,7 @@ Executor::ErrCode MemorySection::instantiate(StoreMgr &Mgr,
         Executor::ErrCode::Success)
       return Status;
     /// Insert table instance to store manager.
-    if ((Status = Mgr.insertMemoryInst(std::move(NewMemInst), NewMemInstId)) !=
+    if ((Status = Mgr.insertMemoryInst(NewMemInst, NewMemInstId)) !=
         Executor::ErrCode::Success)
       return Status;
     /// Set external value (memory address) to module instance.
@@ -129,8 +129,7 @@ Executor::ErrCode GlobalSection::instantiate(StoreMgr &Mgr,
         Executor::ErrCode::Success)
       return Status;
     /// Insert global instance to store manager.
-    if ((Status =
-             Mgr.insertGlobalInst(std::move(NewGlobInst), NewGlobInstId)) !=
+    if ((Status = Mgr.insertGlobalInst(NewGlobInst, NewGlobInstId)) !=
         Executor::ErrCode::Success)
       return Status;
     /// Set external value (global address) to module instance.
@@ -194,8 +193,7 @@ CodeSection::instantiate(StoreMgr &Mgr, unsigned int ModInstId,
         Executor::ErrCode::Success)
       return Status;
     /// Insert function instance to store manager.
-    if ((Status =
-             Mgr.insertFunctionInst(std::move(NewFuncInst), NewFuncInstId)) !=
+    if ((Status = Mgr.insertFunctionInst(NewFuncInst, NewFuncInstId)) !=
         Executor::ErrCode::Success)
       return Status;
     /// Set external value (function address) to module instance.

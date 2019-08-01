@@ -38,48 +38,43 @@ Executor::ErrCode ModuleInstance::addGlobalAddr(unsigned int StoreGlobAddr) {
 /// Getter of function address. See "include/executor/moduleinst.h".
 Executor::ErrCode ModuleInstance::getFuncAddr(unsigned int Idx,
                                               unsigned int &Addr) {
-  if (FuncAddrs.size() > Idx) {
-    Addr = FuncAddrs[Addr];
-    return Executor::ErrCode::Success;
-  }
-  return Executor::ErrCode::WrongInstanceAddress;
+  if (FuncAddrs.size() <= Idx)
+    return Executor::ErrCode::WrongInstanceAddress;
+  Addr = FuncAddrs[Addr];
+  return Executor::ErrCode::Success;
 }
 
 /// Getter of table address. See "include/executor/moduleinst.h".
 Executor::ErrCode ModuleInstance::getTableAddr(unsigned int Idx,
                                                unsigned int &Addr) {
-  if (TableAddrs.size() > Idx) {
-    Addr = TableAddrs[Addr];
-    return Executor::ErrCode::Success;
-  }
-  return Executor::ErrCode::WrongInstanceAddress;
+  if (TableAddrs.size() <= Idx)
+    return Executor::ErrCode::WrongInstanceAddress;
+  Addr = TableAddrs[Addr];
+  return Executor::ErrCode::Success;
 }
 
 /// Getter of memory address. See "include/executor/moduleinst.h".
 Executor::ErrCode ModuleInstance::getMemAddr(unsigned int Idx,
                                              unsigned int &Addr) {
-  if (MemAddrs.size() > Idx) {
-    Addr = MemAddrs[Addr];
-    return Executor::ErrCode::Success;
-  }
-  return Executor::ErrCode::WrongInstanceAddress;
+  if (MemAddrs.size() <= Idx)
+    return Executor::ErrCode::WrongInstanceAddress;
+  Addr = MemAddrs[Addr];
+  return Executor::ErrCode::Success;
 }
 
 /// Getter of global address. See "include/executor/moduleinst.h".
 Executor::ErrCode ModuleInstance::getGlobalAddr(unsigned int Idx,
                                                 unsigned int &Addr) {
-  if (GlobalAddrs.size() > Idx) {
-    Addr = GlobalAddrs[Addr];
-    return Executor::ErrCode::Success;
-  }
-  return Executor::ErrCode::WrongInstanceAddress;
+  if (GlobalAddrs.size() <= Idx)
+    return Executor::ErrCode::WrongInstanceAddress;
+  Addr = GlobalAddrs[Addr];
+  return Executor::ErrCode::Success;
 }
 
 /// Set start function address in Store. See "include/executor/moduleinst.h".
 Executor::ErrCode ModuleInstance::setStartIdx(unsigned int Idx) {
-  if (FuncAddrs.size() > Idx) {
-    StartAddr = FuncAddrs[Idx];
-    return Executor::ErrCode::Success;
-  }
-  return Executor::ErrCode::WrongInstanceAddress;
+  if (FuncAddrs.size() <= Idx)
+    return Executor::ErrCode::WrongInstanceAddress;
+  StartAddr = FuncAddrs[Idx];
+  return Executor::ErrCode::Success;
 }

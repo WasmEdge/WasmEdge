@@ -8,13 +8,13 @@ Executor::ErrCode MemoryInstance::setLimit(bool HasMax, unsigned int Max) {
   return Executor::ErrCode::Success;
 }
 
-/// Set the initialization list.
+/// Set the initialization list. See "include/executor/memoryinst.h".
 Executor::ErrCode
 MemoryInstance::setInitList(unsigned int Offset,
                             std::vector<unsigned char> &Bytes) {
   if (Data.size() < Offset + Bytes.size())
     Data.resize(Offset + Bytes.size());
-  for (auto it = Bytes.begin(); it != Bytes.end(); it++)
-    Data[Offset + it - Bytes.begin()] = *it;
+  for (auto It = Bytes.begin(); It != Bytes.end(); It++)
+    Data[Offset + It - Bytes.begin()] = *It;
   return Executor::ErrCode::Success;
 }

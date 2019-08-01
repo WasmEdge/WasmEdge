@@ -13,6 +13,7 @@
 #include "ast/instruction.h"
 #include "common.h"
 #include <memory>
+#include <string>
 
 class FunctionInstance {
 public:
@@ -33,6 +34,12 @@ public:
   Executor::ErrCode
   setExpression(std::vector<std::unique_ptr<AST::Instruction>> &Expr);
 
+  /// Set the module name and function name.
+  Executor::ErrCode setNames(const std::string &Mod, const std::string &Func);
+
+  /// Match the module and function name.
+  bool isName(const std::string &Mod, const std::string &Func);
+
   /// Function Instance address in store manager.
   unsigned int Addr;
 
@@ -41,6 +48,8 @@ private:
   /// @{
   unsigned int TypeIdx;
   unsigned int ModuleAddr;
+  std::string ModName = "";
+  std::string FuncName = "";
   std::vector<std::pair<unsigned int, AST::ValType>> Locals;
   std::vector<std::unique_ptr<AST::Instruction>> Instrs;
   /// @}

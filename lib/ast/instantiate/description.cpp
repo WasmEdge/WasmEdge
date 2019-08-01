@@ -46,15 +46,33 @@ Executor::ErrCode ExportDesc::instantiate(StoreMgr &Mgr,
                                           unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
-  /// Find the main function.
-  if (ExtName == "main" && ExtType == ExternalType::Function) {
-    /// Get the module instance from ID.
-    ModuleInstance *ModInst = nullptr;
-    if ((Status = Mgr.getModule(ModInstId, ModInst)) !=
+  /// Get the module instance from ID.
+  ModuleInstance *ModInst = nullptr;
+  if ((Status = Mgr.getModule(ModInstId, ModInst)) !=
+      Executor::ErrCode::Success)
+    return Status;
+
+  /// Add the name of function to function instance.
+  if (ExtType == ExternalType::Function) {
+    unsigned int FuncAddr = 0;
+    FunctionInstance *FuncInst = nullptr;
+    /// Find function address.
+    if ((Status = ModInst->getFuncAddr(ExtIdx, FuncAddr)) !=
         Executor::ErrCode::Success)
       return Status;
-    if ((Status = ModInst->setStartIdx(ExtIdx)) != Executor::ErrCode::Success)
+    /// Get function instance.
+    if ((Status = Mgr.getFunction(FuncAddr, FuncInst)) !=
+        Executor::ErrCode::Success)
       return Status;
+    /// Set function name. TODO: module name
+    if ((Status = FuncInst->setNames("", ExtName)) !=
+        Executor::ErrCode::Success)
+      return Status;
+    /// Set start function index.
+    if (ExtName == "main") {
+      if ((Status = ModInst->setStartIdx(ExtIdx)) != Executor::ErrCode::Success)
+        return Status;
+    }
   }
 
   /// TODO: make export instance and add to module.

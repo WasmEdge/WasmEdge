@@ -10,7 +10,7 @@ Executor::ErrCode Module::instantiate(StoreMgr &Mgr) {
   unsigned int ModInstId = 0;
 
   /// Insert the module instance to store manager.
-  if ((Status = Mgr.insertModuleInst(std::move(ModInst), ModInstId)) !=
+  if ((Status = Mgr.insertModuleInst(ModInst, ModInstId)) !=
       Executor::ErrCode::Success)
     return Status;
 

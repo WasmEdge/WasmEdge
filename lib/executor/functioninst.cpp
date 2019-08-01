@@ -25,3 +25,16 @@ Executor::ErrCode FunctionInstance::setExpression(
   Instrs = std::move(Expr);
   return Executor::ErrCode::Success;
 }
+
+/// Setter of module and function name. See "include/executor/functioninst.h".
+Executor::ErrCode FunctionInstance::setNames(const std::string &Mod,
+                                             const std::string &Func) {
+  ModName = Mod;
+  FuncName = Func;
+  return Executor::ErrCode::Success;
+}
+
+/// Match the module and function name.
+bool FunctionInstance::isName(const std::string &Mod, const std::string &Func) {
+  return Mod == ModName && Func == FuncName;
+}

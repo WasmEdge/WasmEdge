@@ -30,7 +30,7 @@ public:
   /// \param [out] NewId the module address in Store.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode insertModuleInst(std::unique_ptr<ModuleInstance> Mod,
+  Executor::ErrCode insertModuleInst(std::unique_ptr<ModuleInstance> &Mod,
                                      unsigned int &NewId);
 
   /// Insert instance to store manager.
@@ -43,7 +43,7 @@ public:
   /// \param [out] NewId the function address in Store.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode insertFunctionInst(std::unique_ptr<FunctionInstance> Func,
+  Executor::ErrCode insertFunctionInst(std::unique_ptr<FunctionInstance> &Func,
                                        unsigned int &NewId);
 
   /// Insert instance to store manager.
@@ -56,7 +56,7 @@ public:
   /// \param [out] NewId the table address in Store.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode insertTableInst(std::unique_ptr<TableInstance> Tab,
+  Executor::ErrCode insertTableInst(std::unique_ptr<TableInstance> &Tab,
                                     unsigned int &NewId);
 
   /// Insert instance to store manager.
@@ -69,7 +69,7 @@ public:
   /// \param [out] NewId the memory address in Store.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode insertMemoryInst(std::unique_ptr<MemoryInstance> Mem,
+  Executor::ErrCode insertMemoryInst(std::unique_ptr<MemoryInstance> &Mem,
                                      unsigned int &NewId);
 
   /// Insert instance to store manager.
@@ -82,58 +82,58 @@ public:
   /// \param [out] NewId the global address in Store.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode insertGlobalInst(std::unique_ptr<GlobalInstance> Glob,
+  Executor::ErrCode insertGlobalInst(std::unique_ptr<GlobalInstance> &Glob,
                                      unsigned int &NewId);
 
   /// Get instance from store manager.
   ///
   /// Get the module instance by supplying module address.
   ///
-  /// \param Idx the module address in Store.
+  /// \param Addr the module address in Store.
   /// \param [out] Mod the module instance.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode getModule(unsigned int Idx, ModuleInstance *&Mod);
+  Executor::ErrCode getModule(unsigned int Addr, ModuleInstance *&Mod);
 
   /// Get instance from store manager.
   ///
   /// Get the function instance by supplying function address.
   ///
-  /// \param Idx the function address in Store.
+  /// \param Addr the function address in Store.
   /// \param [out] Func the function instance.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode getFunction(unsigned int Idx, FunctionInstance *&Func);
+  Executor::ErrCode getFunction(unsigned int Addr, FunctionInstance *&Func);
 
   /// Get instance from store manager.
   ///
   /// Get the table instance by supplying table address.
   ///
-  /// \param Idx the table address in Store.
+  /// \param Addr the table address in Store.
   /// \param [out] Tab the table instance.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode getTable(unsigned int Idx, TableInstance *&Tab);
+  Executor::ErrCode getTable(unsigned int Addr, TableInstance *&Tab);
 
   /// Get instance from store manager.
   ///
   /// Get the memory instance by supplying memory address.
   ///
-  /// \param Idx the memory address in Store.
+  /// \param Addr the memory address in Store.
   /// \param [out] Mem the memory instance.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode getMemory(unsigned int Idx, MemoryInstance *&Mem);
+  Executor::ErrCode getMemory(unsigned int Addr, MemoryInstance *&Mem);
 
   /// Get instance from store manager.
   ///
   /// Get the global instance by supplying global address.
   ///
-  /// \param Idx the global address in Store.
+  /// \param Addr the global address in Store.
   /// \param [out] Glob the global instance.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode getGlobal(unsigned int Idx, GlobalInstance *&Glob);
+  Executor::ErrCode getGlobal(unsigned int Addr, GlobalInstance *&Glob);
 
   /// Find function from store manager.
   ///
@@ -146,4 +146,11 @@ public:
   /// \returns ErrCode.
   Executor::ErrCode findFunction(std::string &ModName, std::string &FuncName,
                                  FunctionInstance *&Func);
+
+private:
+  std::vector<std::unique_ptr<ModuleInstance>> ModInsts;
+  std::vector<std::unique_ptr<FunctionInstance>> FuncInsts;
+  std::vector<std::unique_ptr<TableInstance>> TabInsts;
+  std::vector<std::unique_ptr<MemoryInstance>> MemInsts;
+  std::vector<std::unique_ptr<GlobalInstance>> GlobInsts;
 };

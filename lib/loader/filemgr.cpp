@@ -3,12 +3,14 @@
 #include <algorithm>
 #include <iterator>
 
+/// Destructor of file manager. See "include/loader/filemgr.h".
 FileMgrFStream::~FileMgrFStream() {
   if (Fin.is_open()) {
     Fin.close();
   }
 }
 
+/// Set path to file manager. See "include/loader/filemgr.h".
 Loader::ErrCode FileMgrFStream::setPath(const std::string &FilePath) {
   if (Fin.is_open()) {
     Fin.close();
@@ -21,6 +23,7 @@ Loader::ErrCode FileMgrFStream::setPath(const std::string &FilePath) {
   return Status;
 }
 
+/// Read one byte. See "include/loader/filemgr.h".
 Loader::ErrCode FileMgrFStream::readByte(unsigned char &Byte) {
   if (Status != Loader::ErrCode::Success)
     return Status;
@@ -34,6 +37,7 @@ Loader::ErrCode FileMgrFStream::readByte(unsigned char &Byte) {
   return Status;
 }
 
+/// Read number of bytes. See "include/loader/filemgr.h".
 Loader::ErrCode FileMgrFStream::readBytes(std::vector<unsigned char> &Buf,
                                           size_t SizeToRead) {
   if (Status != Loader::ErrCode::Success)
@@ -49,6 +53,7 @@ Loader::ErrCode FileMgrFStream::readBytes(std::vector<unsigned char> &Buf,
   return Status;
 }
 
+/// Decode and read an unsigned int. See "include/loader/filemgr.h".
 Loader::ErrCode FileMgrFStream::readU32(uint32_t &U32) {
   if (Status != Loader::ErrCode::Success)
     return Status;
@@ -67,6 +72,7 @@ Loader::ErrCode FileMgrFStream::readU32(uint32_t &U32) {
   return Status;
 }
 
+/// Decode and read an unsigned long long int. See "include/loader/filemgr.h".
 Loader::ErrCode FileMgrFStream::readU64(uint64_t &U64) {
   if (Status != Loader::ErrCode::Success)
     return Status;
@@ -85,6 +91,7 @@ Loader::ErrCode FileMgrFStream::readU64(uint64_t &U64) {
   return Status;
 }
 
+/// Decode and read a signed int. See "include/loader/filemgr.h".
 Loader::ErrCode FileMgrFStream::readS32(int32_t &S32) {
   if (Status != Loader::ErrCode::Success)
     return Status;
@@ -107,6 +114,7 @@ Loader::ErrCode FileMgrFStream::readS32(int32_t &S32) {
   return Status;
 }
 
+/// Decode and read a signed long long int. See "include/loader/filemgr.h".
 Loader::ErrCode FileMgrFStream::readS64(int64_t &S64) {
   if (Status != Loader::ErrCode::Success)
     return Status;
@@ -129,6 +137,7 @@ Loader::ErrCode FileMgrFStream::readS64(int64_t &S64) {
   return Status;
 }
 
+/// Copy bytes to a float. See "include/loader/filemgr.h".
 Loader::ErrCode FileMgrFStream::readF32(float &F32) {
   if (Status != Loader::ErrCode::Success)
     return Status;
@@ -151,6 +160,7 @@ Loader::ErrCode FileMgrFStream::readF32(float &F32) {
   return Status;
 }
 
+/// Copy bytes to a double. See "include/loader/filemgr.h".
 Loader::ErrCode FileMgrFStream::readF64(double &F64) {
   if (Status != Loader::ErrCode::Success)
     return Status;
@@ -173,6 +183,7 @@ Loader::ErrCode FileMgrFStream::readF64(double &F64) {
   return Status;
 }
 
+/// Read a vector of bytes. See "include/loader/filemgr.h".
 Loader::ErrCode FileMgrFStream::readName(std::string &Str) {
   unsigned int Size = 0;
   if (readU32(Size) != Loader::ErrCode::Success)

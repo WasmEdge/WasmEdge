@@ -17,6 +17,7 @@
 #include "moduleinst.h"
 #include "tableinst.h"
 #include <memory>
+#include <vector>
 
 class StoreMgr {
 public:

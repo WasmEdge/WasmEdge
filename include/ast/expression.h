@@ -48,7 +48,7 @@ protected:
 
 private:
   /// Instruction set list.
-  std::vector<std::unique_ptr<Instruction>> Inst;
+  std::vector<std::unique_ptr<Instruction>> Instr;
 };
 
 } // namespace AST

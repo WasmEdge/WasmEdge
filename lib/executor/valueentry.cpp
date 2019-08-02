@@ -1,5 +1,11 @@
 #include "executor/valueentry.h"
 
+/// Getter of value type. See "include/executor/valueentry.h".
+Executor::ErrCode ValueEntry::getType(AST::ValType &T) {
+  T = Type;
+  return Executor::ErrCode::Success;
+}
+
 /// Getter of I32 value. See "include/executor/valueentry.h".
 Executor::ErrCode ValueEntry::getValueI32(int32_t &Val) {
   if (Type != AST::ValType::I32)

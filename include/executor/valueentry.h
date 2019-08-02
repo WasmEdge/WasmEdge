@@ -24,6 +24,9 @@ public:
 
   ~ValueEntry() = default;
 
+  /// Getter of value type.
+  Executor::ErrCode getType(AST::ValType &T);
+
   /// Getters of getting values.
   Executor::ErrCode getValueI32(int32_t &Val);
   Executor::ErrCode getValueI64(int64_t &Val);

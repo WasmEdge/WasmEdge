@@ -12,6 +12,7 @@
 
 #include "ast/common.h"
 #include "common.h"
+#include <cstdint>
 #include <variant>
 
 class ValueEntry {

@@ -13,8 +13,10 @@
 #include "ast/common.h"
 #include "ast/instruction.h"
 #include "common.h"
+#include <cstdint>
 #include <memory>
 #include <variant>
+#include <vector>
 
 class GlobalInstance {
 public:

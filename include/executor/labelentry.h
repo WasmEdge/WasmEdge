@@ -13,8 +13,6 @@
 #include "ast/instruction.h"
 #include "common.h"
 #include <memory>
-#include <optional>
-#include <variant>
 #include <vector>
 
 class LabelEntry {

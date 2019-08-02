@@ -4,9 +4,8 @@
 Executor::ErrCode
 StoreMgr::insertModuleInst(std::unique_ptr<ModuleInstance> &Mod,
                            unsigned int &NewId) {
-  auto It = ModInsts.end();
-  ModInsts.insert(It, std::move(Mod));
-  NewId = It - ModInsts.begin();
+  ModInsts.push_back(std::move(Mod));
+  NewId = ModInsts.size() - 1;
   return Executor::ErrCode::Success;
 }
 
@@ -14,18 +13,16 @@ StoreMgr::insertModuleInst(std::unique_ptr<ModuleInstance> &Mod,
 Executor::ErrCode
 StoreMgr::insertFunctionInst(std::unique_ptr<FunctionInstance> &Func,
                              unsigned int &NewId) {
-  auto It = FuncInsts.end();
-  FuncInsts.insert(It, std::move(Func));
-  NewId = It - FuncInsts.begin();
+  FuncInsts.push_back(std::move(Func));
+  NewId = FuncInsts.size() - 1;
   return Executor::ErrCode::Success;
 }
 
 /// Inserter of table instance. See "include/executor/storemgr.h".
 Executor::ErrCode StoreMgr::insertTableInst(std::unique_ptr<TableInstance> &Tab,
                                             unsigned int &NewId) {
-  auto It = TabInsts.end();
-  TabInsts.insert(It, std::move(Tab));
-  NewId = It - TabInsts.begin();
+  TabInsts.push_back(std::move(Tab));
+  NewId = TabInsts.size() - 1;
   return Executor::ErrCode::Success;
 }
 
@@ -33,9 +30,8 @@ Executor::ErrCode StoreMgr::insertTableInst(std::unique_ptr<TableInstance> &Tab,
 Executor::ErrCode
 StoreMgr::insertMemoryInst(std::unique_ptr<MemoryInstance> &Mem,
                            unsigned int &NewId) {
-  auto It = MemInsts.end();
-  MemInsts.insert(It, std::move(Mem));
-  NewId = It - MemInsts.begin();
+  MemInsts.push_back(std::move(Mem));
+  NewId = MemInsts.size() - 1;
   return Executor::ErrCode::Success;
 }
 
@@ -43,9 +39,8 @@ StoreMgr::insertMemoryInst(std::unique_ptr<MemoryInstance> &Mem,
 Executor::ErrCode
 StoreMgr::insertGlobalInst(std::unique_ptr<GlobalInstance> &Glob,
                            unsigned int &NewId) {
-  auto It = GlobInsts.end();
-  GlobInsts.insert(It, std::move(Glob));
-  NewId = It - GlobInsts.begin();
+  GlobInsts.push_back(std::move(Glob));
+  NewId = GlobInsts.size() - 1;
   return Executor::ErrCode::Success;
 }
 

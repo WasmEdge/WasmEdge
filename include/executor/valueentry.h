@@ -16,10 +16,6 @@
 
 class ValueEntry {
 public:
-  /// Constructor for assigning value types.
-  ValueEntry(AST::ValType T,
-             std::variant<int32_t, int64_t, float, double> &Val);
-
   /// Constructors for assigning values. For instructions using.
   ValueEntry(int32_t Val) : Type(AST::ValType::I32), Value(Val){};
   ValueEntry(int64_t Val) : Type(AST::ValType::I64), Value(Val){};

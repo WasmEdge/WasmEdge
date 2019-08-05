@@ -10,6 +10,9 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include <cstdint>
+#include <variant>
+
 namespace AST {
 
 /// Value types enumeration class.
@@ -20,6 +23,8 @@ enum class ValType : unsigned char {
   F32 = 0x7D,
   F64 = 0x7C
 };
+
+using ValVariant = std::variant<int32_t, int64_t, float, double>;
 
 /// Element types enumeration class.
 enum class ElemType : unsigned char { Func = 0x60, FuncRef = 0x70 };

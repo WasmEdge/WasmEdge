@@ -40,23 +40,17 @@ public:
   /// Getter of arity.
   Executor::ErrCode getArity(unsigned int &Arity);
 
-  /// Getters of local variables.
-  Executor::ErrCode getValueI32(unsigned int Idx, int32_t &Val);
-  Executor::ErrCode getValueI64(unsigned int Idx, int64_t &Val);
-  Executor::ErrCode getValueF32(unsigned int Idx, float &Val);
-  Executor::ErrCode getValueF64(unsigned int Idx, double &Val);
+  /// Getter of local variables.
+  template <typename T> Executor::ErrCode getValue(unsigned int Idx, T &Val);
 
-  /// Setters of local variables.
-  Executor::ErrCode setValueI32(unsigned int Idx, int32_t Val);
-  Executor::ErrCode setValueI64(unsigned int Idx, int64_t Val);
-  Executor::ErrCode setValueF32(unsigned int Idx, float Val);
-  Executor::ErrCode setValueF64(unsigned int Idx, double Val);
+  /// Setter of local variables.
+  template <typename T> Executor::ErrCode setValue(unsigned int Idx, T Val);
 
 private:
   /// \name Data of frame entry.
   /// @{
   unsigned int FuncArity;
   unsigned int ModAddr;
-  std::vector<std::variant<int32_t, int64_t, float, double>> Locals;
+  std::vector<std::pair<AST::ValType, AST::ValVariant>> Locals;
   /// @}
 };

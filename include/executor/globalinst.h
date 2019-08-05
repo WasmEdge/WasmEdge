@@ -13,9 +13,7 @@
 #include "ast/common.h"
 #include "ast/instruction.h"
 #include "common.h"
-#include <cstdint>
 #include <memory>
-#include <variant>
 #include <vector>
 
 class GlobalInstance {
@@ -31,9 +29,11 @@ public:
   Executor::ErrCode
   setExpression(std::vector<std::unique_ptr<AST::Instruction>> &Expr);
 
+  /// Get the value of this instance.
+  template <typename T> Executor::ErrCode getValue(T &Val);
+
   /// Set the value of this instance.
-  Executor::ErrCode
-  setValue(std::variant<int32_t, int64_t, float, double> &Val);
+  template <typename T> Executor::ErrCode setValue(T Val);
 
   /// Global Instance address in store manager.
   unsigned int Addr;
@@ -43,7 +43,7 @@ private:
   /// @{
   AST::ValType Type;
   AST::ValMut Mut;
-  std::variant<int32_t, int64_t, float, double> Value;
+  AST::ValVariant Value;
   std::vector<std::unique_ptr<AST::Instruction>> Instrs;
   /// @}
 };

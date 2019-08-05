@@ -1,4 +1,5 @@
 #include "executor/globalinst.h"
+#include <type_traits>
 
 /// Setter of global type. See "include/executor/globalinst.h".
 Executor::ErrCode GlobalInstance::setGlobalType(AST::ValType &ValueType,
@@ -15,24 +16,41 @@ Executor::ErrCode GlobalInstance::setExpression(
   return Executor::ErrCode::Success;
 }
 
+/// Getter of value. See "include/executor/globalinst.h".
+template <typename T> Executor::ErrCode GlobalInstance::getValue(T &Val) {
+  /// Get value.
+  try {
+    Val = std::get<T>(Value);
+  } catch (std::bad_variant_access E) {
+    return Executor::ErrCode::TypeNotMatch;
+  }
+  return Executor::ErrCode::Success;
+}
+
 /// Setter of value. See "include/executor/globalinst.h".
-Executor::ErrCode
-GlobalInstance::setValue(std::variant<int32_t, int64_t, float, double> &Val) {
-  switch (Val.index()) {
-  case 0:
-    Value = std::get<0>(Val);
+template <typename T> Executor::ErrCode GlobalInstance::setValue(T Val) {
+  Executor::ErrCode Status = Executor::ErrCode::TypeNotMatch;
+  switch (Type) {
+  case AST::ValType::I32:
+    if (std::is_same<T, int32_t>::value)
+      Status = Executor::ErrCode::Success;
     break;
-  case 1:
-    Value = std::get<1>(Val);
+  case AST::ValType::I64:
+    if (std::is_same<T, int64_t>::value)
+      Status = Executor::ErrCode::Success;
     break;
-  case 2:
-    Value = std::get<2>(Val);
+  case AST::ValType::F32:
+    if (std::is_same<T, float>::value)
+      Status = Executor::ErrCode::Success;
     break;
-  case 3:
-    Value = std::get<3>(Val);
+  case AST::ValType::F64:
+    if (std::is_same<T, double>::value)
+      Status = Executor::ErrCode::Success;
     break;
   default:
     break;
   }
+  if (Status == Executor::ErrCode::Success)
+    Value = Val;
   return Executor::ErrCode::Success;
 }

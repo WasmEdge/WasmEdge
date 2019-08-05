@@ -18,10 +18,10 @@
 class ValueEntry {
 public:
   /// Constructors for assigning values. For instructions using.
-  ValueEntry(int32_t Val) : Type(AST::ValType::I32), Value(Val){};
-  ValueEntry(int64_t Val) : Type(AST::ValType::I64), Value(Val){};
-  ValueEntry(float Val) : Type(AST::ValType::F32), Value(Val){};
-  ValueEntry(double Val) : Type(AST::ValType::F64), Value(Val){};
+  explicit ValueEntry(int32_t Val) : Type(AST::ValType::I32), Value(Val){};
+  explicit ValueEntry(int64_t Val) : Type(AST::ValType::I64), Value(Val){};
+  explicit ValueEntry(float Val) : Type(AST::ValType::F32), Value(Val){};
+  explicit ValueEntry(double Val) : Type(AST::ValType::F64), Value(Val){};
 
   ~ValueEntry() = default;
 
@@ -29,15 +29,12 @@ public:
   Executor::ErrCode getType(AST::ValType &T);
 
   /// Getters of getting values.
-  Executor::ErrCode getValueI32(int32_t &Val);
-  Executor::ErrCode getValueI64(int64_t &Val);
-  Executor::ErrCode getValueF32(float &Val);
-  Executor::ErrCode getValueF64(double &Val);
+  template <typename T> Executor::ErrCode getValue(T &Val);
 
 private:
   /// \name Data of value entry.
   /// @{
   AST::ValType Type;
-  std::variant<int32_t, int64_t, float, double> Value;
+  AST::ValVariant Value;
   /// @}
 };

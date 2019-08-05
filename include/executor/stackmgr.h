@@ -25,19 +25,13 @@ public:
                    std::unique_ptr<ValueEntry>>;
 
   /// Getters of top entry of stack.
-  Executor::ErrCode getTop(FrameEntry *&Frame);
-  Executor::ErrCode getTop(LabelEntry *&Label);
-  Executor::ErrCode getTop(ValueEntry *&Value);
+  template <typename T> Executor::ErrCode getTop(T *&Entry);
 
   /// Push a new entry to stack.
-  Executor::ErrCode push(std::unique_ptr<FrameEntry> &NewFrame);
-  Executor::ErrCode push(std::unique_ptr<LabelEntry> &NewLabel);
-  Executor::ErrCode push(std::unique_ptr<ValueEntry> &NewEntry);
+  template <typename T> Executor::ErrCode push(std::unique_ptr<T> &NewEntry);
 
   /// Pop and return the top entry.
-  Executor::ErrCode pop(std::unique_ptr<FrameEntry> &Frame);
-  Executor::ErrCode pop(std::unique_ptr<LabelEntry> &Label);
-  Executor::ErrCode pop(std::unique_ptr<ValueEntry> &Value);
+  template <typename T> Executor::ErrCode pop(std::unique_ptr<T> &Entry);
 
   /// Drop the top entry.
   Executor::ErrCode drop();

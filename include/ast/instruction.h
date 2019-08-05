@@ -14,7 +14,6 @@
 #include "ast/common.h"
 #include "loader/filemgr.h"
 #include <memory>
-#include <variant>
 
 namespace AST {
 
@@ -414,7 +413,7 @@ public:
 
 private:
   /// Const value of this instruction.
-  std::variant<int32_t, int64_t, float, double> Num;
+  ValVariant Num;
 };
 
 /// Derived numeric instruction node.

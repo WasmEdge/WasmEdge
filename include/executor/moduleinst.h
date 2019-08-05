@@ -36,8 +36,17 @@ public:
   Executor::ErrCode getMemAddr(unsigned int Idx, unsigned int &Addr);
   Executor::ErrCode getGlobalAddr(unsigned int Idx, unsigned int &Addr);
 
+  /// Get the added external values' numbers.
+  Executor::ErrCode getFuncNum(unsigned int &Num);
+  Executor::ErrCode getTableNum(unsigned int &Num);
+  Executor::ErrCode getMemNum(unsigned int &Num);
+  Executor::ErrCode getGlobalNum(unsigned int &Num);
+
   /// Set start function index and find the address in Store.
   Executor::ErrCode setStartIdx(unsigned int Idx);
+
+  /// Get start function address in Store.
+  Executor::ErrCode getStartAddr(unsigned int &Addr);
 
   /// Module Instance address in store manager.
   unsigned int Addr;
@@ -60,5 +69,6 @@ private:
   /// TODO: add export inst
 
   /// Start function address
+  bool HasStartFunc = false;
   unsigned int StartAddr;
 };

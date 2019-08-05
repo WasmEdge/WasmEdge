@@ -12,7 +12,6 @@
 #pragma once
 
 #include "common.h"
-#include "executor/rtdatamgr.h"
 #include "loader/filemgr.h"
 
 namespace AST {
@@ -61,11 +60,6 @@ public:
   virtual Loader::ErrCode checkValidation() {
     return Loader::ErrCode::Success;
   };
-
-  /// Instantiation to store manager.
-  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int Id) {
-    return Executor::ErrCode::InstantiateFailed;
-  }
 
 protected:
   /// AST node attribute.

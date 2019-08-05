@@ -12,6 +12,8 @@
 #pragma once
 
 #include "base.h"
+#include "executor/stackmgr.h"
+#include "executor/storemgr.h"
 #include "section.h"
 
 namespace AST {
@@ -34,10 +36,11 @@ public:
   ///
   /// Overloaded from Base.
   ///
-  /// \param Mgr the store manager reference.
+  /// \param Store the store manager reference.
+  /// \param Stack the stack manager reference.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr);
+  Executor::ErrCode instantiate(StoreMgr &Store, StackMgr &Stack);
 
 protected:
   /// The node type should be Attr::Module.

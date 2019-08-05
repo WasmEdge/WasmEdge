@@ -100,7 +100,7 @@ Executor::ErrCode MemorySection::instantiate(StoreMgr &Mgr,
         Executor::ErrCode::Success)
       return Status;
     /// Set external value (memory address) to module instance.
-    if ((Status = ModInst->addTableAddr(NewMemInstId)) !=
+    if ((Status = ModInst->addMemAddr(NewMemInstId)) !=
         Executor::ErrCode::Success)
       return Status;
   }
@@ -109,15 +109,18 @@ Executor::ErrCode MemorySection::instantiate(StoreMgr &Mgr,
 }
 
 /// Instantiation of global section. See "include/ast/section.h".
-Executor::ErrCode GlobalSection::instantiate(StoreMgr &Mgr,
+Executor::ErrCode GlobalSection::instantiate(StoreMgr &Store, StackMgr &Stack,
                                              unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
   /// Get the module instance from ID.
   ModuleInstance *ModInst = nullptr;
-  if ((Status = Mgr.getModule(ModInstId, ModInst)) !=
+  if ((Status = Store.getModule(ModInstId, ModInst)) !=
       Executor::ErrCode::Success)
     return Status;
+
+  /// Add a temp module to Store for initialization
+  auto TmpModInst = std::make_unique<ModuleInstance>();
 
   /// Recursively call global types' instantiation.
   for (auto it = Content.begin(); it != Content.end(); it++) {
@@ -125,19 +128,94 @@ Executor::ErrCode GlobalSection::instantiate(StoreMgr &Mgr,
     auto NewGlobInst = std::make_unique<GlobalInstance>();
     unsigned int NewGlobInstId = 0;
     /// Set global instance data.
-    if ((Status = (*it)->instantiate(Mgr, NewGlobInst)) !=
+    if ((Status = (*it)->instantiate(Store, NewGlobInst)) !=
         Executor::ErrCode::Success)
       return Status;
     /// Insert global instance to store manager.
-    if ((Status = Mgr.insertGlobalInst(NewGlobInst, NewGlobInstId)) !=
+    if ((Status = Store.insertGlobalInst(NewGlobInst, NewGlobInstId)) !=
         Executor::ErrCode::Success)
       return Status;
     /// Set external value (global address) to module instance.
-    if ((Status = ModInst->addFuncAddr(NewGlobInstId)) !=
+    if ((Status = ModInst->addGlobalAddr(NewGlobInstId)) !=
+        Executor::ErrCode::Success)
+      return Status;
+    /// Set external value (global address) to temp module instance.
+    if ((Status = TmpModInst->addGlobalAddr(NewGlobInstId)) !=
         Executor::ErrCode::Success)
       return Status;
   }
   Content.clear();
+
+  /// Initialize the globals
+  /// Insert the temp. module instance to Store
+  unsigned int TmpModInstId = 0;
+  if ((Status = Store.insertModuleInst(TmpModInst, TmpModInstId)) !=
+      Executor::ErrCode::Success)
+    return Status;
+  ModuleInstance *TmpModInstPtr = nullptr;
+  if ((Status = Store.getModule(TmpModInstId, TmpModInstPtr)) !=
+      Executor::ErrCode::Success)
+    return Status;
+
+  /// Make a new frame {NewModInst:{globaddrs}, locals:none} and push
+  std::vector<std::unique_ptr<ValueEntry>> Args;
+  std::vector<std::pair<unsigned int, AST::ValType>> LocalDef;
+  auto Frame = std::make_unique<FrameEntry>(TmpModInstId, 0, Args, LocalDef);
+  Stack.push(Frame);
+
+  /// TODO: evaluate instrs in global instances
+
+  /// Get the values
+  /*
+  unsigned int GlobalNum = 0;
+  if ((Status = TmpModInstPtr->getGlobalNum(GlobalNum)) !=
+      Executor::ErrCode::Success)
+    return Status;
+  while (GlobalNum--) {
+    std::unique_ptr<ValueEntry> PopVal;
+    Stack.pop(PopVal);
+    unsigned int GlobalAddr = 0;
+    TmpModInstPtr->getGlobalAddr(GlobalNum, GlobalAddr);
+    GlobalInstance *GlobInst;
+    Store.getGlobal(GlobalAddr, GlobInst);
+    ValType GlobType;
+    PopVal->getType(GlobType);
+    switch (GlobType) {
+    case ValType::I32: {
+      int32_t GlobVal = 0;
+      PopVal->getValue(GlobVal);
+      GlobInst->setValue(GlobVal);
+      break;
+    }
+    case ValType::I64: {
+      int64_t GlobVal = 0;
+      PopVal->getValue(GlobVal);
+      GlobInst->setValue(GlobVal);
+      break;
+    }
+    case ValType::F32: {
+      float GlobVal = 0;
+      PopVal->getValue(GlobVal);
+      GlobInst->setValue(GlobVal);
+      break;
+    }
+    case ValType::F64: {
+      double GlobVal = 0;
+      PopVal->getValue(GlobVal);
+      GlobInst->setValue(GlobVal);
+      break;
+    }
+    default:
+      break;
+    }
+  }
+  */
+
+  /// Pop Frame
+  Stack.pop(Frame);
+
+  /// TODO: Delete the temp. module instance
+
   return Status;
 }
 

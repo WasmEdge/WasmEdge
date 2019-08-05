@@ -11,7 +11,10 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "base.h"
 #include "description.h"
+#include "executor/stackmgr.h"
+#include "executor/storemgr.h"
 #include "segment.h"
 #include "type.h"
 
@@ -205,11 +208,13 @@ public:
   ///
   /// Make global instances and move expressions to instances.
   ///
-  /// \param Mgr the store manager reference.
+  /// \param Store the store manager reference.
+  /// \param Stack the stack manager reference.
   /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int ModInstId);
+  Executor::ErrCode instantiate(StoreMgr &Store, StackMgr &Stack,
+                                unsigned int ModInstId);
 
 protected:
   /// Overrided content loading of global section.

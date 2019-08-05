@@ -12,6 +12,7 @@
 #pragma once
 
 #include "base.h"
+#include "executor/storemgr.h"
 
 #include <memory>
 

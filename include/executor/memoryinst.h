@@ -13,6 +13,8 @@
 #include "common.h"
 #include <vector>
 
+namespace SSVM {
+
 class MemoryInstance {
 public:
   MemoryInstance() = default;
@@ -36,3 +38,5 @@ private:
   std::vector<unsigned char> Data;
   /// @}
 };
+
+} // namespace SSVM

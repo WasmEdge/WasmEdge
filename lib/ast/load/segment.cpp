@@ -1,5 +1,6 @@
 #include "ast/segment.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Load binary of Expression node in Segment. See "include/ast/segment.h".
@@ -91,3 +92,4 @@ Loader::ErrCode DataSegment::loadBinary(FileMgr &Mgr) {
 }
 
 } // namespace AST
+} // namespace SSVM

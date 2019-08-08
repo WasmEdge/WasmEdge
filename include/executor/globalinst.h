@@ -16,6 +16,8 @@
 #include <memory>
 #include <vector>
 
+namespace SSVM {
+
 class GlobalInstance {
 public:
   GlobalInstance() = default;
@@ -47,3 +49,5 @@ private:
   std::vector<std::unique_ptr<AST::Instruction>> Instrs;
   /// @}
 };
+
+} // namespace SSVM

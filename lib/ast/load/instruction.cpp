@@ -1,5 +1,6 @@
 #include "ast/instruction.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Load binary of block instructions. See "include/ast/instruction.h".
@@ -401,3 +402,4 @@ Loader::ErrCode makeInstructionNode(Instruction::OpCode Code,
 }
 
 } // namespace AST
+} // namespace SSVM

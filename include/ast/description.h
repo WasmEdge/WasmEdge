@@ -15,6 +15,7 @@
 #include <string>
 #include <variant>
 
+namespace SSVM {
 namespace AST {
 
 /// Base class of Desc node.
@@ -111,3 +112,4 @@ private:
 };
 
 } // namespace AST
+} // namespace SSVM

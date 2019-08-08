@@ -16,6 +16,7 @@
 #include "expression.h"
 #include "type.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Segment's base class.
@@ -162,3 +163,4 @@ private:
 };
 
 } // namespace AST
+} // namespace SSVM

@@ -15,6 +15,7 @@
 #include "common.h"
 #include <string>
 
+namespace SSVM {
 namespace Loader {
 
 /// Loader flow control class.
@@ -51,3 +52,4 @@ private:
 };
 
 } // namespace Loader
+} // namespace SSVM

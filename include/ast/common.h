@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <variant>
 
+namespace SSVM {
 namespace AST {
 
 /// Value types enumeration class.
@@ -33,3 +34,4 @@ enum class ElemType : unsigned char { Func = 0x60, FuncRef = 0x70 };
 enum class ValMut : unsigned char { Const = 0x00, Var = 0x01 };
 
 } // namespace AST
+} // namespace SSVM

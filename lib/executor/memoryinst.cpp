@@ -1,6 +1,8 @@
 #include "executor/memoryinst.h"
 #include <iterator>
 
+namespace SSVM {
+
 /// Setter of memory limit. See "include/executor/memoryinst.h".
 Executor::ErrCode MemoryInstance::setLimit(bool HasMax, unsigned int Max) {
   HasMaxPage = HasMax;
@@ -18,3 +20,5 @@ MemoryInstance::setInitList(unsigned int Offset,
     Data[Offset + It - Bytes.begin()] = *It;
   return Executor::ErrCode::Success;
 }
+
+} // namespace SSVM

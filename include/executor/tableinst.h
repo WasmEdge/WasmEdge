@@ -14,6 +14,8 @@
 #include "common.h"
 #include <vector>
 
+namespace SSVM {
+
 class TableInstance {
 public:
   TableInstance() = default;
@@ -41,3 +43,5 @@ private:
   std::vector<unsigned int> FuncElem;
   /// @}
 };
+
+} // namespace SSVM

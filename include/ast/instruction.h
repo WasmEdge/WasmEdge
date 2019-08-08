@@ -15,6 +15,7 @@
 #include "loader/filemgr.h"
 #include <memory>
 
+namespace SSVM {
 namespace AST {
 
 /// Loader class of Instruction node.
@@ -436,3 +437,4 @@ Loader::ErrCode makeInstructionNode(Instruction::OpCode Code,
                                     std::unique_ptr<Instruction> &NewInst);
 
 } // namespace AST
+} // namespace SSVM

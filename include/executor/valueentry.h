@@ -15,6 +15,8 @@
 #include <cstdint>
 #include <variant>
 
+namespace SSVM {
+
 class ValueEntry {
 public:
   /// Constructors for assigning values. For instructions using.
@@ -38,3 +40,5 @@ private:
   AST::ValVariant Value;
   /// @}
 };
+
+} // namespace SSVM

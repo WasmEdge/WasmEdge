@@ -14,6 +14,7 @@
 #include "common.h"
 #include "loader/filemgr.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Base class of AST node.
@@ -67,3 +68,4 @@ protected:
 };
 
 } // namespace AST
+} // namespace SSVM

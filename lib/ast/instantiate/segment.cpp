@@ -1,5 +1,6 @@
 #include "ast/segment.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Instantiation of global segment. See "include/ast/segment.h".
@@ -26,3 +27,4 @@ CodeSegment::instantiate(StoreMgr &Mgr,
 }
 
 } // namespace AST
+} // namespace SSVM

@@ -1,5 +1,6 @@
 #include "ast/expression.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Load binary to construct Expression node. See "include/ast/expression.h".
@@ -31,3 +32,4 @@ Loader::ErrCode Expression::loadBinary(FileMgr &Mgr) {
 }
 
 } // namespace AST
+} // namespace SSVM

@@ -15,6 +15,8 @@
 #include <memory>
 #include <string>
 
+namespace SSVM {
+
 class FunctionInstance {
 public:
   FunctionInstance() = default;
@@ -54,3 +56,5 @@ private:
   std::vector<std::unique_ptr<AST::Instruction>> Instrs;
   /// @}
 };
+
+} // namespace SSVM

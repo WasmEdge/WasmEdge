@@ -1,5 +1,7 @@
 #include "executor/moduleinst.h"
 
+namespace SSVM {
+
 /// Adder of function types. See "include/executor/moduleinst.h".
 Executor::ErrCode
 ModuleInstance::addFuncType(std::vector<AST::ValType> &Params,
@@ -111,3 +113,5 @@ Executor::ErrCode ModuleInstance::getStartAddr(unsigned int &Addr) {
   Addr = StartAddr;
   return Executor::ErrCode::Success;
 }
+
+} // namespace SSVM

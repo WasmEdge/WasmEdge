@@ -1,5 +1,6 @@
 #include "ast/type.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Instantiation of limit. See "include/ast/section.h".
@@ -53,3 +54,4 @@ GlobalType::instantiate(StoreMgr &Mgr,
 }
 
 } // namespace AST
+} // namespace SSVM

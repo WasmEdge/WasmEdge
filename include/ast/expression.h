@@ -17,6 +17,7 @@
 
 #include <memory>
 
+namespace SSVM {
 namespace AST {
 
 /// AST Expression node.
@@ -53,3 +54,4 @@ private:
 };
 
 } // namespace AST
+} // namespace SSVM

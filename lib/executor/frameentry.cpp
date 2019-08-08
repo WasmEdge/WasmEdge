@@ -1,5 +1,7 @@
 #include "executor/frameentry.h"
 
+namespace SSVM {
+
 /// Constructor of frame entry. See "include/executor/frameentry.h".
 FrameEntry::FrameEntry(
     unsigned int ModuleAddr, unsigned int Arity,
@@ -132,3 +134,5 @@ Executor::ErrCode FrameEntry::setValue(unsigned int Idx, T Val) {
     Locals[Idx].second = Val;
   return Status;
 }
+
+} // namespace SSVM

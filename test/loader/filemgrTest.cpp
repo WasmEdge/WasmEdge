@@ -16,8 +16,8 @@
 
 namespace {
 
-FileMgrFStream Mgr;
-Loader::ErrCode SuccessCode = Loader::ErrCode::Success;
+SSVM::FileMgrFStream Mgr;
+SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(FileManagerTest, SetPath) {
   /// 1. Test opening data file.

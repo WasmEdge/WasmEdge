@@ -15,17 +15,17 @@
 
 namespace {
 
-FileMgrFStream Mgr;
-Loader::ErrCode SuccessCode = Loader::ErrCode::Success;
+SSVM::FileMgrFStream Mgr;
+SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(WagonTest, Load__token) {
   Mgr.setPath("ethereumTestData/token.wasm");
-  AST::Module Mod;
+  SSVM::AST::Module Mod;
   EXPECT_EQ(Mod.loadBinary(Mgr), SuccessCode);
 }
 TEST(WagonTest, Load__wrc20) {
   Mgr.setPath("ethereumTestData/wrc20.wasm");
-  AST::Module Mod;
+  SSVM::AST::Module Mod;
   EXPECT_EQ(Mod.loadBinary(Mgr), SuccessCode);
 }
 

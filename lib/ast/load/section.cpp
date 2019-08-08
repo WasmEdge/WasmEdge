@@ -1,5 +1,6 @@
 #include "ast/section.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Load binary to construct Section node. See "include/ast/section.h".
@@ -112,3 +113,4 @@ Loader::ErrCode DataSection::loadContent(FileMgr &Mgr) {
 }
 
 } // namespace AST
+} // namespace SSVM

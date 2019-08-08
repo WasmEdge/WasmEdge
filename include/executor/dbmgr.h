@@ -13,6 +13,8 @@
 #include "common.h"
 #include <memory>
 
+namespace SSVM {
+
 class DBMgr {
 public:
   DBMgr() = default;
@@ -29,3 +31,5 @@ public:
   Executor::ErrCode commit() { return Executor::ErrCode::Success; }
   Executor::ErrCode revert() { return Executor::ErrCode::Success; }
 };
+
+} // namespace SSVM

@@ -18,6 +18,7 @@
 #include "segment.h"
 #include "type.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Section's base class.
@@ -323,3 +324,4 @@ private:
 };
 
 } // namespace AST
+} // namespace SSVM

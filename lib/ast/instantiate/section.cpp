@@ -1,6 +1,7 @@
 #include "ast/section.h"
 #include "executor/storemgr.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Instantiate function types in Module Instance. See "include/ast/section.h".
@@ -285,3 +286,4 @@ CodeSection::instantiate(StoreMgr &Mgr, unsigned int ModInstId,
 }
 
 } // namespace AST
+} // namespace SSVM

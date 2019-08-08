@@ -16,6 +16,7 @@
 
 #include <memory>
 
+namespace SSVM {
 namespace AST {
 
 /// AST Limit node.
@@ -200,3 +201,4 @@ private:
 };
 
 } // namespace AST
+} // namespace SSVM

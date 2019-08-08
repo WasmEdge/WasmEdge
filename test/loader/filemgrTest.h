@@ -3,6 +3,8 @@
 #include "loader/filemgr.h"
 #include <queue>
 
+namespace SSVM {
+
 class FileMgrTest : public FileMgr {
 public:
   FileMgrTest() = default;
@@ -206,3 +208,5 @@ public:
 private:
   std::queue<unsigned char> Que;
 };
+
+} // namespace SSVM

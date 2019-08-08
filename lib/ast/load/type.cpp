@@ -1,5 +1,6 @@
 #include "ast/type.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Load binary to construct Limit node. See "include/ast/type.h".
@@ -100,3 +101,4 @@ Loader::ErrCode GlobalType::loadBinary(FileMgr &Mgr) {
 }
 
 } // namespace AST
+} // namespace SSVM

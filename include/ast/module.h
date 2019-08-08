@@ -16,6 +16,7 @@
 #include "executor/storemgr.h"
 #include "section.h"
 
+namespace SSVM {
 namespace AST {
 
 /// AST Module node.
@@ -71,3 +72,4 @@ private:
 };
 
 } // namespace AST
+} // namespace SSVM

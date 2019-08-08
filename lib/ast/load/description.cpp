@@ -1,5 +1,6 @@
 #include "ast/description.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Load binary of Import description. See "include/ast/description.h".
@@ -85,3 +86,4 @@ Loader::ErrCode ExportDesc::loadBinary(FileMgr &Mgr) {
 }
 
 } // namespace AST
+} // namespace SSVM

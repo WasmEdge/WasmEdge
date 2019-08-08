@@ -17,6 +17,8 @@
 #include <memory>
 #include <vector>
 
+namespace SSVM {
+
 class StackMgr {
 public:
   /// Variant of entry classes.
@@ -55,3 +57,5 @@ private:
   std::vector<unsigned int> FrameIdx;
   /// @}
 };
+
+} // namespace SSVM

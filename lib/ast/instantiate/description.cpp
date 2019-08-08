@@ -1,5 +1,6 @@
 #include "ast/description.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Instantiation of import description. See "include/ast/description.h".
@@ -81,3 +82,4 @@ Executor::ErrCode ExportDesc::instantiate(StoreMgr &Mgr,
 }
 
 } // namespace AST
+} // namespace SSVM

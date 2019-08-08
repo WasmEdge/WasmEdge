@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+namespace SSVM {
 namespace Loader {
 
 /// Loader error code enum class.
@@ -23,3 +24,4 @@ enum class ErrCode : unsigned int {
 };
 
 } // namespace Loader
+} // namespace SSVM

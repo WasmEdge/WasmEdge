@@ -4,6 +4,7 @@
 #include "dbmgr.h"
 #include "rtdatamgr.h"
 
+namespace SSVM {
 namespace Executor {
 
 class Executor {
@@ -28,3 +29,4 @@ private:
 };
 
 } // namespace Executor
+} // namespace SSVM

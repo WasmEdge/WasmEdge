@@ -1,6 +1,8 @@
 #include "executor/stackmgr.h"
 #include <type_traits>
 
+namespace SSVM {
+
 /// Getter of top entry. See "include/executor/stackmgr.h".
 template <typename T> Executor::ErrCode StackMgr::getTop(T *&Entry) {
   /// Check the size of stack.
@@ -93,3 +95,5 @@ Executor::ErrCode StackMgr::getLabelWithCount(LabelEntry *&Label,
   Label = std::get<1>(Stack[LabelIdx[Idx]]).get();
   return Executor::ErrCode::Success;
 }
+
+} // namespace SSVM

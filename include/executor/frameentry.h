@@ -17,6 +17,8 @@
 #include <variant>
 #include <vector>
 
+namespace SSVM {
+
 class FrameEntry {
 public:
   /// Constructor of initialization of a frame.
@@ -66,3 +68,5 @@ private:
   std::vector<std::pair<AST::ValType, AST::ValVariant>> Locals;
   /// @}
 };
+
+} // namespace SSVM

@@ -1,6 +1,7 @@
 #include "ast/module.h"
 #include "executor/moduleinst.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Instantiate Module Instance. See "include/ast/module.h".
@@ -91,3 +92,4 @@ Executor::ErrCode Module::instantiate(StoreMgr &Store, StackMgr &Stack) {
 }
 
 } // namespace AST
+} // namespace SSVM

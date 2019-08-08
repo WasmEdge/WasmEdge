@@ -21,9 +21,9 @@ public:
   bool checkResult();
 
 private:
-  Loader::Loader LoaderEngine;
-  Executor::Executor ExecutorEngine;
-  std::unique_ptr<AST::Module> OutModule;
+  SSVM::Loader::Loader LoaderEngine;
+  SSVM::Executor::Executor ExecutorEngine;
+  std::unique_ptr<SSVM::AST::Module> OutModule;
   std::string WasmPath;
   SSVM::Result InitResult;
   SSVM::Result ExpectResult;

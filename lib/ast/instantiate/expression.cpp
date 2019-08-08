@@ -1,5 +1,6 @@
 #include "ast/expression.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Instantiation of expression. See "include/ast/expression.h".
@@ -11,3 +12,4 @@ Executor::ErrCode Expression::instantiate(StoreMgr &Mgr,
 }
 
 } // namespace AST
+} // namespace SSVM

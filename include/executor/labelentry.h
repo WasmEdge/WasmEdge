@@ -15,6 +15,8 @@
 #include <memory>
 #include <vector>
 
+namespace SSVM {
+
 class LabelEntry {
 public:
   /// Constructor of initialization of a label.
@@ -45,3 +47,5 @@ private:
   std::vector<std::unique_ptr<AST::Instruction>> *Instr;
   /// @}
 };
+
+} // namespace SSVM

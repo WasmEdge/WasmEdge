@@ -1,5 +1,6 @@
 #include "loader/loader.h"
 
+namespace SSVM {
 namespace Loader {
 
 /// Set path to Loader class. See "include/loader/loader.h".
@@ -56,4 +57,5 @@ ErrCode Loader::getModule(std::unique_ptr<AST::Module> &OutModule) {
   return ErrCode::Success;
 }
 
-}
+} // namespace Loader
+} // namespace SSVM

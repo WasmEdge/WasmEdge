@@ -15,6 +15,8 @@
 #include <memory>
 #include <vector>
 
+namespace SSVM {
+
 class ModuleInstance {
 public:
   ModuleInstance() = default;
@@ -72,3 +74,5 @@ private:
   bool HasStartFunc = false;
   unsigned int StartAddr;
 };
+
+} // namespace SSVM

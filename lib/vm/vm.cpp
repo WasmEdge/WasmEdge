@@ -1,14 +1,13 @@
 #include "vm/vm.h"
-#include "vm/result.h"
 #include "loader/loader.h"
+#include "vm/result.h"
 
 namespace SSVM {
 namespace VM {
 
 namespace detail {
 
-template<typename T>
-bool testAndSetError(T Status, Result &VMResult) {
+template <typename T> bool testAndSetError(T Status, Result &VMResult) {
   if (Status != T::Success) {
     VMResult.setErrCode(static_cast<unsigned int>(Status));
     return true;
@@ -55,5 +54,6 @@ ErrCode VM::execute() {
   }
   return ErrCode::Success;
 }
+
 } // namespace VM
 } // namespace SSVM

@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+namespace SSVM {
 namespace Executor {
 
 /// Executor error code enum class.
@@ -26,3 +27,4 @@ enum class ErrCode : unsigned int {
 };
 
 } // namespace Executor
+} // namespace SSVM

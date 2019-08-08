@@ -19,6 +19,8 @@
 #include <memory>
 #include <vector>
 
+namespace SSVM {
+
 class StoreMgr {
 public:
   /// Insert instance to store manager.
@@ -155,3 +157,5 @@ private:
   std::vector<std::unique_ptr<MemoryInstance>> MemInsts;
   std::vector<std::unique_ptr<GlobalInstance>> GlobInsts;
 };
+
+} // namespace SSVM

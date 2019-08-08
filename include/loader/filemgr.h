@@ -16,6 +16,8 @@
 #include <string>
 #include <vector>
 
+namespace SSVM {
+
 /// File manager interface.
 class FileMgr {
 public:
@@ -81,3 +83,5 @@ private:
   /// file stream.
   std::ifstream Fin;
 };
+
+} // namespace SSVM

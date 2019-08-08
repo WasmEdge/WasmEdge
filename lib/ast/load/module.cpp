@@ -1,5 +1,6 @@
 #include "ast/module.h"
 
+namespace SSVM {
 namespace AST {
 
 /// Load binary to construct Module node. See "include/ast/module.h".
@@ -82,3 +83,4 @@ Loader::ErrCode Module::loadBinary(FileMgr &Mgr) {
 }
 
 } // namespace AST
+} // namespace SSVM

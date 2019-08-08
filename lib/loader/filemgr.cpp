@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <iterator>
 
+namespace SSVM {
+
 /// Destructor of file manager. See "include/loader/filemgr.h".
 FileMgrFStream::~FileMgrFStream() {
   if (Fin.is_open()) {
@@ -197,3 +199,5 @@ Loader::ErrCode FileMgrFStream::readName(std::string &Str) {
     Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
   return Status;
 }
+
+} // namespace SSVM

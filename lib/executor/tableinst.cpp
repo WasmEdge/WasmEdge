@@ -1,6 +1,8 @@
 #include "executor/tableinst.h"
 #include <iterator>
 
+namespace SSVM {
+
 /// Setter of element type. See "include/executor/tableinst.h".
 Executor::ErrCode TableInstance::setElemType(AST::ElemType &Elem) {
   Type = Elem;
@@ -23,3 +25,5 @@ Executor::ErrCode TableInstance::setInitList(unsigned int Offset,
     FuncElem[Offset + it - Addrs.begin()] = *it;
   return Executor::ErrCode::Success;
 }
+
+} // namespace SSVM

@@ -46,11 +46,13 @@ Executor::ErrCode StackMgr::pop(std::unique_ptr<T> &Entry) {
     FrameIdx.pop_back();
   if (std::is_same<T, LabelEntry>::value)
     LabelIdx.pop_back();
+  /// Drop the top entry.
+  Stack.pop_back();
   return Executor::ErrCode::Success;
 }
 
 /// Drop the top entry of stack. See "include/executor/stackmgr.h".
-Executor::ErrCode StackMgr::drop() {
+Executor::ErrCode StackMgr::pop() {
   /// Check the size of stack.
   if (Stack.size() == 0)
     return Executor::ErrCode::StackEmpty;

@@ -52,5 +52,5 @@ template <typename T> Executor::ErrCode GlobalInstance::setValue(T Val) {
   }
   if (Status == Executor::ErrCode::Success)
     Value = Val;
-  return Executor::ErrCode::Success;
+  return Status;
 }

@@ -4,37 +4,37 @@
 FrameEntry::FrameEntry(
     unsigned int ModuleAddr, unsigned int Arity,
     std::vector<std::unique_ptr<ValueEntry>> &Args,
-    std::vector<std::pair<unsigned int, AST::ValType>> &LocalDef) {
+    std::vector<std::pair<unsigned int, AST::ValType>> &LocalDefs) {
   /// Set arity.
-  FuncArity = Arity;
+  this->Arity = Arity;
 
   /// Set parameters with arguments.
-  for (auto It = Args.begin(); It != Args.end(); It++) {
+  for (auto Arg = Args.begin(); Arg != Args.end(); Arg++) {
     AST::ValType ArgType;
     AST::ValVariant ArgVal;
-    (*It)->getType(ArgType);
+    (*Arg)->getType(ArgType);
     switch (ArgType) {
     case AST::ValType::I32: {
       int32_t Val = 0;
-      (*It)->getValue(Val);
+      (*Arg)->getValue(Val);
       ArgVal = Val;
       break;
     }
     case AST::ValType::I64: {
       int64_t Val = 0LL;
-      (*It)->getValue(Val);
+      (*Arg)->getValue(Val);
       ArgVal = Val;
       break;
     }
     case AST::ValType::F32: {
       float Val = 0.0;
-      (*It)->getValue(Val);
+      (*Arg)->getValue(Val);
       ArgVal = Val;
       break;
     }
     case AST::ValType::F64: {
       double Val = 0.0;
-      (*It)->getValue(Val);
+      (*Arg)->getValue(Val);
       ArgVal = Val;
       break;
     }
@@ -46,32 +46,33 @@ FrameEntry::FrameEntry(
   }
 
   /// Set local variables with initialization.
-  for (auto It = LocalDef.begin(); It != LocalDef.end(); It++) {
-    switch (It->second) {
+  for (auto LocalDef = LocalDefs.begin(); LocalDef != LocalDefs.end();
+       LocalDef++) {
+    switch (LocalDef->second) {
     case AST::ValType::I32: {
       int32_t Val = 0;
-      for (unsigned int i = 0; i < It->first; i++)
+      for (unsigned int i = 0; i < LocalDef->first; i++)
         Locals.emplace_back(
             std::pair<AST::ValType, AST::ValVariant>(AST::ValType::I32, Val));
       break;
     }
     case AST::ValType::I64: {
       int64_t Val = 0;
-      for (unsigned int i = 0; i < It->first; i++)
+      for (unsigned int i = 0; i < LocalDef->first; i++)
         Locals.emplace_back(
             std::pair<AST::ValType, AST::ValVariant>(AST::ValType::I64, Val));
       break;
     }
     case AST::ValType::F32: {
       float Val = 0.0;
-      for (unsigned int i = 0; i < It->first; i++)
+      for (unsigned int i = 0; i < LocalDef->first; i++)
         Locals.emplace_back(
             std::pair<AST::ValType, AST::ValVariant>(AST::ValType::F32, Val));
       break;
     }
     case AST::ValType::F64: {
       double Val = 0.0;
-      for (unsigned int i = 0; i < It->first; i++)
+      for (unsigned int i = 0; i < LocalDef->first; i++)
         Locals.emplace_back(
             std::pair<AST::ValType, AST::ValVariant>(AST::ValType::F64, Val));
       break;
@@ -82,24 +83,12 @@ FrameEntry::FrameEntry(
   }
 }
 
-/// Getter of module address. See "include/executor/frameentry.h".
-Executor::ErrCode FrameEntry::getModuleAddr(unsigned int &Addr) {
-  Addr = ModAddr;
-  return Executor::ErrCode::Success;
-}
-
-/// Getter of arity. See "include/executor/frameentry.h".
-Executor::ErrCode FrameEntry::getArity(unsigned int &Arity) {
-  Arity = FuncArity;
-  return Executor::ErrCode::Success;
-}
-
-/// Getter of I32 local by index. See "include/executor/frameentry.h".
+/// Getter of local values by index. See "include/executor/frameentry.h".
 template <typename T>
 Executor::ErrCode FrameEntry::getValue(unsigned int Idx, T &Val) {
   /// Check if the index valid.
   if (Locals.size() <= Idx)
-    return Executor::ErrCode::StackWrongEntry;
+    return Executor::ErrCode::WrongLocalAddress;
 
   /// Get value.
   try {
@@ -110,12 +99,12 @@ Executor::ErrCode FrameEntry::getValue(unsigned int Idx, T &Val) {
   return Executor::ErrCode::Success;
 }
 
-/// Setter of I32 local by index. See "include/executor/frameentry.h".
+/// Setter of local values by index. See "include/executor/frameentry.h".
 template <typename T>
 Executor::ErrCode FrameEntry::setValue(unsigned int Idx, T Val) {
   /// Check if the index valid.
   if (Locals.size() <= Idx)
-    return Executor::ErrCode::StackWrongEntry;
+    return Executor::ErrCode::WrongLocalAddress;
 
   /// Check type.
   Executor::ErrCode Status = Executor::ErrCode::TypeNotMatch;
@@ -141,5 +130,5 @@ Executor::ErrCode FrameEntry::setValue(unsigned int Idx, T Val) {
   }
   if (Status == Executor::ErrCode::Success)
     Locals[Idx].second = Val;
-  return Executor::ErrCode::Success;
+  return Status;
 }

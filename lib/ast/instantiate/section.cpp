@@ -158,9 +158,7 @@ Executor::ErrCode GlobalSection::instantiate(StoreMgr &Store, StackMgr &Stack,
     return Status;
 
   /// Make a new frame {NewModInst:{globaddrs}, locals:none} and push
-  std::vector<std::unique_ptr<ValueEntry>> Args;
-  std::vector<std::pair<unsigned int, AST::ValType>> LocalDef;
-  auto Frame = std::make_unique<FrameEntry>(TmpModInstId, 0, Args, LocalDef);
+  auto Frame = std::make_unique<FrameEntry>(TmpModInstId, 0);
   Stack.push(Frame);
 
   /// TODO: evaluate instrs in global instances

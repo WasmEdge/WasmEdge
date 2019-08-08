@@ -27,21 +27,21 @@ public:
   /// \returns None.
   LabelEntry(unsigned int Arity,
              std::vector<std::unique_ptr<AST::Instruction>> *Body)
-      : LabArity(Arity), Instr(Body){};
+      : Arity(Arity), Instr(Body) {}
 
   ~LabelEntry() = default;
 
   /// Getter of arity.
-  Executor::ErrCode getArity(unsigned int &Arity);
+  unsigned int getArity() { return Arity; }
 
   /// Getter of instructions.
   Executor::ErrCode
   getInstructions(std::vector<std::unique_ptr<AST::Instruction>> *&Body);
 
 private:
-  /// \name Data of frame entry.
+  /// \name Data of label entry.
   /// @{
-  unsigned int LabArity;
+  unsigned int Arity;
   std::vector<std::unique_ptr<AST::Instruction>> *Instr;
   /// @}
 };

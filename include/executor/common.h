@@ -20,8 +20,9 @@ enum class ErrCode : unsigned int {
   WrongInstanceAddress, /// Wrong access of instances
   ExecutionFailed,      /// Runtime error when executing
   TypeNotMatch, /// Value type between instructions and stack or store not match
-  StackWrongEntry, /// Entry type not match when get or pop entry
-  StackEmpty       /// Empry stack when get or pop entry
+  StackWrongEntry,  /// Entry type not match when get or pop entry
+  StackEmpty,       /// Empry stack when get or pop entry
+  WrongLocalAddress /// Wrong access of local variable
 };
 
 } // namespace Executor

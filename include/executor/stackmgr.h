@@ -33,8 +33,8 @@ public:
   /// Pop and return the top entry.
   template <typename T> Executor::ErrCode pop(std::unique_ptr<T> &Entry);
 
-  /// Drop the top entry.
-  Executor::ErrCode drop();
+  /// Pop the top entry.
+  Executor::ErrCode pop();
 
   /// Get the current toppest frame.
   Executor::ErrCode getCurrentFrame(FrameEntry *&Frame);

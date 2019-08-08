@@ -6,6 +6,7 @@
 class RTDataMgr {
 public:
 private:
-  StoreMgr Store;
-  StackMgr Stack;
+  SSVM::StoreMgr Store;
+  SSVM::StackMgr Stack;
+  /// TODO: remove this class.
 };

@@ -15,8 +15,8 @@
 
 namespace {
 
-FileMgrTest Mgr;
-Loader::ErrCode SuccessCode = Loader::ErrCode::Success;
+SSVM::FileMgrTest Mgr;
+SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(TypeTest, LoadLimit) {
   /// 1. Test load limit.
@@ -27,7 +27,7 @@ TEST(TypeTest, LoadLimit) {
   ///   4.  Load invalid limit with fail of loading max.
   ///   5.  Load limit with min and max.
   Mgr.clearBuffer();
-  AST::Limit Lim1;
+  SSVM::AST::Limit Lim1;
   EXPECT_FALSE(Lim1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -36,7 +36,7 @@ TEST(TypeTest, LoadLimit) {
       0x00U  /// Min = 0
   };
   Mgr.setVector(Vec2);
-  AST::Limit Lim2;
+  SSVM::AST::Limit Lim2;
   EXPECT_FALSE(Lim2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -45,7 +45,7 @@ TEST(TypeTest, LoadLimit) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Min = 4294967295
   };
   Mgr.setVector(Vec3);
-  AST::Limit Lim3;
+  SSVM::AST::Limit Lim3;
   EXPECT_TRUE(Lim3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -54,7 +54,7 @@ TEST(TypeTest, LoadLimit) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Min = 4294967295
   };
   Mgr.setVector(Vec4);
-  AST::Limit Lim4;
+  SSVM::AST::Limit Lim4;
   EXPECT_FALSE(Lim4.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -64,7 +64,7 @@ TEST(TypeTest, LoadLimit) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  /// Max = 4294967295
   };
   Mgr.setVector(Vec5);
-  AST::Limit Lim5;
+  SSVM::AST::Limit Lim5;
   EXPECT_TRUE(Lim5.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
@@ -78,14 +78,14 @@ TEST(TypeTest, LoadFunctionType) {
   ///   5.  Load non-void result function type.
   ///   6.  Load function type with parameters and result.
   Mgr.clearBuffer();
-  AST::FunctionType Fun1;
+  SSVM::AST::FunctionType Fun1;
   EXPECT_FALSE(Fun1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {0xFFU, /// Invalid function type header
                                      0x00U, 0x00U};
   Mgr.setVector(Vec2);
-  AST::FunctionType Fun2;
+  SSVM::AST::FunctionType Fun2;
   EXPECT_FALSE(Fun2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -95,7 +95,7 @@ TEST(TypeTest, LoadFunctionType) {
       0x00U  /// Result length = 0
   };
   Mgr.setVector(Vec3);
-  AST::FunctionType Fun3;
+  SSVM::AST::FunctionType Fun3;
   EXPECT_TRUE(Fun3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -106,7 +106,7 @@ TEST(TypeTest, LoadFunctionType) {
       0x00U                       /// Result length = 0
   };
   Mgr.setVector(Vec4);
-  AST::FunctionType Fun4;
+  SSVM::AST::FunctionType Fun4;
   EXPECT_TRUE(Fun4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -117,7 +117,7 @@ TEST(TypeTest, LoadFunctionType) {
       0x7CU  /// Result list
   };
   Mgr.setVector(Vec5);
-  AST::FunctionType Fun5;
+  SSVM::AST::FunctionType Fun5;
   EXPECT_TRUE(Fun5.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -129,7 +129,7 @@ TEST(TypeTest, LoadFunctionType) {
       0x7CU                       /// Result list
   };
   Mgr.setVector(Vec6);
-  AST::FunctionType Fun6;
+  SSVM::AST::FunctionType Fun6;
   EXPECT_TRUE(Fun6.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
@@ -142,7 +142,7 @@ TEST(TypeTest, LoadMemoryType) {
   ///   4.  Load invalid limit with fail of loading max.
   ///   5.  Load limit with min and max.
   Mgr.clearBuffer();
-  AST::MemoryType Mem1;
+  SSVM::AST::MemoryType Mem1;
   EXPECT_FALSE(Mem1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -151,7 +151,7 @@ TEST(TypeTest, LoadMemoryType) {
       0x00U  /// Min = 0
   };
   Mgr.setVector(Vec2);
-  AST::MemoryType Mem2;
+  SSVM::AST::MemoryType Mem2;
   EXPECT_FALSE(Mem2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -160,7 +160,7 @@ TEST(TypeTest, LoadMemoryType) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Min = 4294967295
   };
   Mgr.setVector(Vec3);
-  AST::MemoryType Mem3;
+  SSVM::AST::MemoryType Mem3;
   EXPECT_TRUE(Mem3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -169,7 +169,7 @@ TEST(TypeTest, LoadMemoryType) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Min = 4294967295
   };
   Mgr.setVector(Vec4);
-  AST::MemoryType Mem4;
+  SSVM::AST::MemoryType Mem4;
   EXPECT_FALSE(Mem4.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -179,7 +179,7 @@ TEST(TypeTest, LoadMemoryType) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  /// Max = 4294967295
   };
   Mgr.setVector(Vec5);
-  AST::MemoryType Mem5;
+  SSVM::AST::MemoryType Mem5;
   EXPECT_TRUE(Mem5.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
@@ -193,7 +193,7 @@ TEST(TypeTest, LoadTableType) {
   ///   5.  Load invalid limit with fail of loading max.
   ///   6.  Load limit with min and max.
   Mgr.clearBuffer();
-  AST::TableType Tab1;
+  SSVM::AST::TableType Tab1;
   EXPECT_FALSE(Tab1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -203,7 +203,7 @@ TEST(TypeTest, LoadTableType) {
       0x00U  /// Min = 0
   };
   Mgr.setVector(Vec2);
-  AST::TableType Tab2;
+  SSVM::AST::TableType Tab2;
   EXPECT_FALSE(Tab2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -213,7 +213,7 @@ TEST(TypeTest, LoadTableType) {
       0x00U  /// Min = 0
   };
   Mgr.setVector(Vec3);
-  AST::TableType Tab3;
+  SSVM::AST::TableType Tab3;
   EXPECT_FALSE(Tab3.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -223,7 +223,7 @@ TEST(TypeTest, LoadTableType) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Min = 4294967295
   };
   Mgr.setVector(Vec4);
-  AST::TableType Tab4;
+  SSVM::AST::TableType Tab4;
   EXPECT_TRUE(Tab4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -233,7 +233,7 @@ TEST(TypeTest, LoadTableType) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Min = 4294967295
   };
   Mgr.setVector(Vec5);
-  AST::TableType Tab5;
+  SSVM::AST::TableType Tab5;
   EXPECT_FALSE(Tab5.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -244,7 +244,7 @@ TEST(TypeTest, LoadTableType) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  /// Max = 4294967295
   };
   Mgr.setVector(Vec6);
-  AST::TableType Tab6;
+  SSVM::AST::TableType Tab6;
   EXPECT_TRUE(Tab6.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
@@ -256,7 +256,7 @@ TEST(TypeTest, LoadGlobalType) {
   ///   3.  Load invalid mutation of global type.
   ///   4.  Load valid global type.
   Mgr.clearBuffer();
-  AST::GlobalType Glb1;
+  SSVM::AST::GlobalType Glb1;
   EXPECT_FALSE(Glb1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -264,7 +264,7 @@ TEST(TypeTest, LoadGlobalType) {
       0x7CU /// F64 value type
   };
   Mgr.setVector(Vec2);
-  AST::GlobalType Glb2;
+  SSVM::AST::GlobalType Glb2;
   EXPECT_FALSE(Glb2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -273,7 +273,7 @@ TEST(TypeTest, LoadGlobalType) {
       0xFFU  /// Invalid mutation type
   };
   Mgr.setVector(Vec3);
-  AST::GlobalType Glb3;
+  SSVM::AST::GlobalType Glb3;
   EXPECT_FALSE(Glb3.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -282,7 +282,7 @@ TEST(TypeTest, LoadGlobalType) {
       0x00U  /// Const mutation
   };
   Mgr.setVector(Vec4);
-  AST::GlobalType Glb4;
+  SSVM::AST::GlobalType Glb4;
   EXPECT_TRUE(Glb4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 

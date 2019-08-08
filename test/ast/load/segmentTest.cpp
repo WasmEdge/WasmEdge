@@ -16,8 +16,8 @@
 
 namespace {
 
-FileMgrTest Mgr;
-Loader::ErrCode SuccessCode = Loader::ErrCode::Success;
+SSVM::FileMgrTest Mgr;
+SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(SegmentTest, LoadGlobalSegment) {
   /// 1. Test load global segment.
@@ -26,7 +26,7 @@ TEST(SegmentTest, LoadGlobalSegment) {
   ///   2.  Load global segment with expression of only End operation.
   ///   3.  Load global segment with non-empty expression.
   Mgr.clearBuffer();
-  AST::GlobalSegment Seg1;
+  SSVM::AST::GlobalSegment Seg1;
   EXPECT_FALSE(Seg1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -35,7 +35,7 @@ TEST(SegmentTest, LoadGlobalSegment) {
       0x0BU        /// Expression.
   };
   Mgr.setVector(Vec2);
-  AST::GlobalSegment Seg2;
+  SSVM::AST::GlobalSegment Seg2;
   EXPECT_TRUE(Seg2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -44,7 +44,7 @@ TEST(SegmentTest, LoadGlobalSegment) {
       0x45U, 0x46U, 0x47U, 0x0BU /// Expression
   };
   Mgr.setVector(Vec3);
-  AST::GlobalSegment Seg3;
+  SSVM::AST::GlobalSegment Seg3;
   EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
@@ -56,7 +56,7 @@ TEST(SegmentTest, LoadElementSegment) {
   ///       function indices list.
   ///   3.  Load element segment with expression and function indices list.
   Mgr.clearBuffer();
-  AST::ElementSegment Seg1;
+  SSVM::AST::ElementSegment Seg1;
   EXPECT_FALSE(Seg1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -66,7 +66,7 @@ TEST(SegmentTest, LoadElementSegment) {
       0x00U                              /// Function indices list
   };
   Mgr.setVector(Vec2);
-  AST::ElementSegment Seg2;
+  SSVM::AST::ElementSegment Seg2;
   EXPECT_TRUE(Seg2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -79,7 +79,7 @@ TEST(SegmentTest, LoadElementSegment) {
       0xB9U, 0x60U                       /// vec[2]
   };
   Mgr.setVector(Vec3);
-  AST::ElementSegment Seg3;
+  SSVM::AST::ElementSegment Seg3;
   EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
@@ -92,7 +92,7 @@ TEST(SegmentTest, LoadCodeSegment) {
   ///       operation.
   ///   4.  Load code segment with expression and local lists.
   Mgr.clearBuffer();
-  AST::CodeSegment Seg1;
+  SSVM::AST::CodeSegment Seg1;
   EXPECT_FALSE(Seg1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -100,7 +100,7 @@ TEST(SegmentTest, LoadCodeSegment) {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Code segment size
   };
   Mgr.setVector(Vec2);
-  AST::CodeSegment Seg2;
+  SSVM::AST::CodeSegment Seg2;
   EXPECT_FALSE(Seg2.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -110,7 +110,7 @@ TEST(SegmentTest, LoadCodeSegment) {
       0x0BU                              /// Expression
   };
   Mgr.setVector(Vec3);
-  AST::CodeSegment Seg3;
+  SSVM::AST::CodeSegment Seg3;
   EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -124,7 +124,7 @@ TEST(SegmentTest, LoadCodeSegment) {
       0x45U, 0x46U, 0x47U, 0x0BU                /// Expression
   };
   Mgr.setVector(Vec4);
-  AST::CodeSegment Seg4;
+  SSVM::AST::CodeSegment Seg4;
   EXPECT_TRUE(Seg4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
@@ -136,7 +136,7 @@ TEST(SegmentTest, LoadDataSegment) {
   ///       initialization data.
   ///   3.  Load data segment with expression and initialization data.
   Mgr.clearBuffer();
-  AST::DataSegment Seg1;
+  SSVM::AST::DataSegment Seg1;
   EXPECT_FALSE(Seg1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -146,7 +146,7 @@ TEST(SegmentTest, LoadDataSegment) {
       0x00U                              /// Vector length = 0
   };
   Mgr.setVector(Vec2);
-  AST::DataSegment Seg2;
+  SSVM::AST::DataSegment Seg2;
   EXPECT_TRUE(Seg2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -156,7 +156,7 @@ TEST(SegmentTest, LoadDataSegment) {
       0x04U, 0x74U, 0x65U, 0x73U, 0x74U  /// Vector length = 4, "test"
   };
   Mgr.setVector(Vec3);
-  AST::DataSegment Seg3;
+  SSVM::AST::DataSegment Seg3;
   EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 

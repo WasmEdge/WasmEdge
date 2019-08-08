@@ -15,8 +15,8 @@
 
 namespace {
 
-FileMgrTest Mgr;
-Loader::ErrCode SuccessCode = Loader::ErrCode::Success;
+SSVM::FileMgrTest Mgr;
+SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(ExpressionTest, LoadExpression) {
   /// 1. Test load limit.
@@ -26,7 +26,7 @@ TEST(ExpressionTest, LoadExpression) {
   ///   3.  Load expression with invalid operations.
   ///   4.  Load expression with instructions.
   Mgr.clearBuffer();
-  AST::Expression Exp1;
+  SSVM::AST::Expression Exp1;
   EXPECT_FALSE(Exp1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -34,7 +34,7 @@ TEST(ExpressionTest, LoadExpression) {
       0x0BU /// OpCode End.
   };
   Mgr.setVector(Vec2);
-  AST::Expression Exp2;
+  SSVM::AST::Expression Exp2;
   EXPECT_TRUE(Exp2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -44,7 +44,7 @@ TEST(ExpressionTest, LoadExpression) {
       0x0BU                /// OpCode End.
   };
   Mgr.setVector(Vec3);
-  AST::Expression Exp3;
+  SSVM::AST::Expression Exp3;
   EXPECT_FALSE(Exp3.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -53,7 +53,7 @@ TEST(ExpressionTest, LoadExpression) {
       0x0BU                /// OpCode End.
   };
   Mgr.setVector(Vec4);
-  AST::Expression Exp4;
+  SSVM::AST::Expression Exp4;
   EXPECT_TRUE(Exp4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 

@@ -15,20 +15,20 @@
 
 namespace {
 
-FileMgrTest Mgr;
-Loader::ErrCode SuccessCode = Loader::ErrCode::Success;
+SSVM::FileMgrTest Mgr;
+SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(ModuleTest, LoadInvalidModule) {
   /// 1. Test load empty file
   Mgr.clearBuffer();
-  AST::Module Mod;
+  SSVM::AST::Module Mod;
   EXPECT_FALSE(Mod.loadBinary(Mgr) == SuccessCode);
 }
 
 TEST(ModuleTest, LoadEmptyModule) {
   /// 2. Test load empty module
   Mgr.clearBuffer();
-  AST::Module Mod;
+  SSVM::AST::Module Mod;
   std::vector<unsigned char> Vec = {0x00U, 0x61U, 0x73U, 0x6DU,
                                     0x01U, 0x00U, 0x00U, 0x00U};
   Mgr.setVector(Vec);
@@ -38,7 +38,7 @@ TEST(ModuleTest, LoadEmptyModule) {
 TEST(ModuleTest, LoadValidSecModule) {
   /// 3. Test load module with valid empty sections
   Mgr.clearBuffer();
-  AST::Module Mod;
+  SSVM::AST::Module Mod;
   std::vector<unsigned char> Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU,                      /// Magic
       0x01U, 0x00U, 0x00U, 0x00U,                      /// Version
@@ -62,7 +62,7 @@ TEST(ModuleTest, LoadValidSecModule) {
 TEST(ModuleTest, LoadInvalidSecModule) {
   /// 4. Test load module with invalid sections
   Mgr.clearBuffer();
-  AST::Module Mod;
+  SSVM::AST::Module Mod;
   std::vector<unsigned char> Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU,                      /// Magic
       0x01U, 0x00U, 0x00U, 0x00U,                      /// Version

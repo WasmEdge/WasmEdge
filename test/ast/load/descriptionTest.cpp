@@ -16,8 +16,8 @@
 
 namespace {
 
-FileMgrTest Mgr;
-Loader::ErrCode SuccessCode = Loader::ErrCode::Success;
+SSVM::FileMgrTest Mgr;
+SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(DescriptionTest, LoadImportDesc) {
   /// 1. Test load import description.
@@ -30,7 +30,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   ///   6.  Load import description of memory type.
   ///   7.  Load import description of global type.
   Mgr.clearBuffer();
-  AST::ImportDesc Imp1;
+  SSVM::AST::ImportDesc Imp1;
   EXPECT_FALSE(Imp1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -40,7 +40,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0x00U, 0x00U /// function type and index
   };
   Mgr.setVector(Vec2);
-  AST::ImportDesc Imp2;
+  SSVM::AST::ImportDesc Imp2;
   EXPECT_TRUE(Imp2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -50,7 +50,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0x00U, 0x00U /// function type and index
   };
   Mgr.setVector(Vec3);
-  AST::ImportDesc Imp3;
+  SSVM::AST::ImportDesc Imp3;
   EXPECT_TRUE(Imp3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -60,7 +60,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0x04U, 0x00U                                     /// Invalid external type
   };
   Mgr.setVector(Vec4);
-  AST::ImportDesc Imp4;
+  SSVM::AST::ImportDesc Imp4;
   EXPECT_FALSE(Imp4.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -74,7 +74,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU                /// Max = 4294967295
   };
   Mgr.setVector(Vec5);
-  AST::ImportDesc Imp5;
+  SSVM::AST::ImportDesc Imp5;
   EXPECT_TRUE(Imp5.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -87,7 +87,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU                /// Max = 4294967295
   };
   Mgr.setVector(Vec6);
-  AST::ImportDesc Imp6;
+  SSVM::AST::ImportDesc Imp6;
   EXPECT_TRUE(Imp6.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -98,7 +98,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0x7CU, 0x00U                                     /// Const F64 value type
   };
   Mgr.setVector(Vec7);
-  AST::ImportDesc Imp7;
+  SSVM::AST::ImportDesc Imp7;
   EXPECT_TRUE(Imp7.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 
@@ -111,7 +111,7 @@ TEST(DescriptionTest, LoadExportDesc) {
   ///   4.  Load export description with invalid external type.
   ///   5.  Load export description of table type.
   Mgr.clearBuffer();
-  AST::ExportDesc Exp1;
+  SSVM::AST::ExportDesc Exp1;
   EXPECT_FALSE(Exp1.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -120,7 +120,7 @@ TEST(DescriptionTest, LoadExportDesc) {
       0x00U, 0x00U /// function type and index
   };
   Mgr.setVector(Vec2);
-  AST::ExportDesc Exp2;
+  SSVM::AST::ExportDesc Exp2;
   EXPECT_TRUE(Exp2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -129,7 +129,7 @@ TEST(DescriptionTest, LoadExportDesc) {
       0x00U, 0x00U /// function type and index
   };
   Mgr.setVector(Vec3);
-  AST::ExportDesc Exp3;
+  SSVM::AST::ExportDesc Exp3;
   EXPECT_TRUE(Exp3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 
   Mgr.clearBuffer();
@@ -138,7 +138,7 @@ TEST(DescriptionTest, LoadExportDesc) {
       0x04U, 0x00U                                     /// Invalid external type
   };
   Mgr.setVector(Vec4);
-  AST::ExportDesc Exp4;
+  SSVM::AST::ExportDesc Exp4;
   EXPECT_FALSE(Exp4.loadBinary(Mgr) == SuccessCode);
 
   Mgr.clearBuffer();
@@ -147,7 +147,7 @@ TEST(DescriptionTest, LoadExportDesc) {
       0x01U, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Table type and table index
   };
   Mgr.setVector(Vec5);
-  AST::ExportDesc Exp5;
+  SSVM::AST::ExportDesc Exp5;
   EXPECT_TRUE(Exp5.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
 }
 

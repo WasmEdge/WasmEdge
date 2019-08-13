@@ -5,14 +5,14 @@ namespace AST {
 
 /// Instantiation of limit. See "include/ast/section.h".
 template <typename T>
-Executor::ErrCode Limit::instantiate(StoreMgr &Mgr,
+Executor::ErrCode Limit::instantiate(StoreManager &Mgr,
                                      std::unique_ptr<T> &Instance) {
   /// Instantiation will only set Max value to instance.
   return Instance->setLimit(Type == LimitType::HasMinMax ? true : false, Max);
 }
 
 /// Instantiation of function type. See "include/ast/section.h".
-Executor::ErrCode FunctionType::instantiate(StoreMgr &Mgr,
+Executor::ErrCode FunctionType::instantiate(StoreManager &Mgr,
                                             unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
@@ -28,7 +28,7 @@ Executor::ErrCode FunctionType::instantiate(StoreMgr &Mgr,
 
 /// Instantiation of memory type. See "include/ast/section.h".
 Executor::ErrCode
-MemoryType::instantiate(StoreMgr &Mgr,
+MemoryType::instantiate(StoreManager &Mgr,
                         std::unique_ptr<MemoryInstance> &MemInst) {
   /// Instantiation will only set limit memory instance.
   return Memory->instantiate(Mgr, MemInst);
@@ -36,7 +36,7 @@ MemoryType::instantiate(StoreMgr &Mgr,
 
 /// Instantiation of table type. See "include/ast/section.h".
 Executor::ErrCode
-TableType::instantiate(StoreMgr &Mgr, std::unique_ptr<TableInstance> &TabInst) {
+TableType::instantiate(StoreManager &Mgr, std::unique_ptr<TableInstance> &TabInst) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
   /// Instantiation sets element type and limits to table instance.
@@ -47,7 +47,7 @@ TableType::instantiate(StoreMgr &Mgr, std::unique_ptr<TableInstance> &TabInst) {
 
 /// Instantiation of global type. See "include/ast/section.h".
 Executor::ErrCode
-GlobalType::instantiate(StoreMgr &Mgr,
+GlobalType::instantiate(StoreManager &Mgr,
                         std::unique_ptr<GlobalInstance> &GlobInst) {
   /// Instantiation sets value type and mutibility to global instance.
   return GlobInst->setGlobalType(Type, Mut);

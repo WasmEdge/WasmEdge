@@ -62,7 +62,7 @@ public:
   /// \param GlobInst the global instance reference.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr,
+  Executor::ErrCode instantiate(StoreManager &Mgr,
                                 std::unique_ptr<GlobalInstance> &GlobInst);
 
 protected:
@@ -122,7 +122,7 @@ public:
   /// \param FuncInst the function instance reference.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr,
+  Executor::ErrCode instantiate(StoreManager &Mgr,
                                 std::unique_ptr<FunctionInstance> &FuncInst);
 
 protected:

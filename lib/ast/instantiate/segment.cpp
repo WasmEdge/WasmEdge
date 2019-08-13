@@ -5,7 +5,7 @@ namespace AST {
 
 /// Instantiation of global segment. See "include/ast/segment.h".
 Executor::ErrCode
-GlobalSegment::instantiate(StoreMgr &Mgr,
+GlobalSegment::instantiate(StoreManager &Mgr,
                            std::unique_ptr<GlobalInstance> &GlobInst) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
   /// Instantiation sets global type and moves expression to function instance.
@@ -17,7 +17,7 @@ GlobalSegment::instantiate(StoreMgr &Mgr,
 
 /// Instantiation of code segment. See "include/ast/segment.h".
 Executor::ErrCode
-CodeSegment::instantiate(StoreMgr &Mgr,
+CodeSegment::instantiate(StoreManager &Mgr,
                          std::unique_ptr<FunctionInstance> &FuncInst) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
   /// Instantiation will only move locals and expression to function instance.

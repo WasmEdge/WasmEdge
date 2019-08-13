@@ -19,9 +19,8 @@ bool RegressionTester::runLoader() {
 }
 
 bool RegressionTester::runExecutor() {
-  RTDataMgr RTMgr;
-  ExecutorEngine.setRuntimeDataMgr(RTMgr);
-  ExecutorEngine.setArguments();
+  /// TODO: prepare arguments
+  //ExecutorEngine.setArguments();
   ExecutorEngine.instantiate();
   ExecutorEngine.run();
   return true;

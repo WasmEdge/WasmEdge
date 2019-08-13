@@ -4,7 +4,7 @@ namespace SSVM {
 namespace AST {
 
 /// Instantiation of import description. See "include/ast/description.h".
-Executor::ErrCode ImportDesc::instantiate(StoreMgr &Mgr,
+Executor::ErrCode ImportDesc::instantiate(StoreManager &Mgr,
                                           unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
@@ -43,7 +43,7 @@ Executor::ErrCode ImportDesc::instantiate(StoreMgr &Mgr,
 }
 
 /// Instantiation of import description. See "include/ast/description.h".
-Executor::ErrCode ExportDesc::instantiate(StoreMgr &Mgr,
+Executor::ErrCode ExportDesc::instantiate(StoreManager &Mgr,
                                           unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 

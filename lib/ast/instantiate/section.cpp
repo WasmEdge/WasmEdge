@@ -5,7 +5,7 @@ namespace SSVM {
 namespace AST {
 
 /// Instantiate function types in Module Instance. See "include/ast/section.h".
-Executor::ErrCode TypeSection::instantiate(StoreMgr &Mgr,
+Executor::ErrCode TypeSection::instantiate(StoreManager &Mgr,
                                            unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
@@ -21,7 +21,7 @@ Executor::ErrCode TypeSection::instantiate(StoreMgr &Mgr,
 
 /// Instantiation of function section. See "include/ast/section.h".
 Executor::ErrCode
-FunctionSection::instantiate(StoreMgr &Mgr,
+FunctionSection::instantiate(StoreManager &Mgr,
                              std::vector<unsigned int> &TypeIdx) {
   /// Instantiation will only move content to output.
   TypeIdx = std::move(Content);
@@ -29,7 +29,7 @@ FunctionSection::instantiate(StoreMgr &Mgr,
 }
 
 /// Instantiation of import section. See "include/ast/section.h".
-Executor::ErrCode ImportSection::instantiate(StoreMgr &Mgr,
+Executor::ErrCode ImportSection::instantiate(StoreManager &Mgr,
                                              unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
@@ -44,7 +44,7 @@ Executor::ErrCode ImportSection::instantiate(StoreMgr &Mgr,
 }
 
 /// Instantiation of table section. See "include/ast/section.h".
-Executor::ErrCode TableSection::instantiate(StoreMgr &Mgr,
+Executor::ErrCode TableSection::instantiate(StoreManager &Mgr,
                                             unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
@@ -77,7 +77,7 @@ Executor::ErrCode TableSection::instantiate(StoreMgr &Mgr,
 }
 
 /// Instantiation of memory section. See "include/ast/section.h".
-Executor::ErrCode MemorySection::instantiate(StoreMgr &Mgr,
+Executor::ErrCode MemorySection::instantiate(StoreManager &Mgr,
                                              unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
@@ -110,7 +110,7 @@ Executor::ErrCode MemorySection::instantiate(StoreMgr &Mgr,
 }
 
 /// Instantiation of global section. See "include/ast/section.h".
-Executor::ErrCode GlobalSection::instantiate(StoreMgr &Store, StackMgr &Stack,
+Executor::ErrCode GlobalSection::instantiate(StoreManager &Store, StackManager &Stack,
                                              unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
@@ -219,7 +219,7 @@ Executor::ErrCode GlobalSection::instantiate(StoreMgr &Store, StackMgr &Stack,
 }
 
 /// Instantiation of export section. See "include/ast/section.h".
-Executor::ErrCode ExportSection::instantiate(StoreMgr &Mgr,
+Executor::ErrCode ExportSection::instantiate(StoreManager &Mgr,
                                              unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
@@ -236,7 +236,7 @@ Executor::ErrCode ExportSection::instantiate(StoreMgr &Mgr,
 
 /// Instantiate function instances. See "include/ast/section.h".
 Executor::ErrCode
-CodeSection::instantiate(StoreMgr &Mgr, unsigned int ModInstId,
+CodeSection::instantiate(StoreManager &Mgr, unsigned int ModInstId,
                          std::unique_ptr<AST::FunctionSection> &FuncSec) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 

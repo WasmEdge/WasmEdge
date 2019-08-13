@@ -3,10 +3,10 @@
 #include "stackmgr.h"
 #include "storemgr.h"
 
-class RTDataMgr {
-public:
-private:
+namespace SSVM {
+namespace RuntimeData {
   SSVM::StoreMgr Store;
   SSVM::StackMgr Stack;
-  /// TODO: remove this class.
-};
+
+} // namespace RuntimeData
+} // namespace SSVM

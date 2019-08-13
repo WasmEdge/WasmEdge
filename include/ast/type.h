@@ -45,7 +45,7 @@ public:
   ///
   /// \returns ErrCode.
   template <typename T>
-  Executor::ErrCode instantiate(StoreMgr &Mgr, std::unique_ptr<T> &Instance);
+  Executor::ErrCode instantiate(StoreManager &Mgr, std::unique_ptr<T> &Instance);
 
 protected:
   /// The node type should be Attr::Type_Limit.
@@ -81,7 +81,7 @@ public:
   /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr, unsigned int ModInstId);
+  Executor::ErrCode instantiate(StoreManager &Mgr, unsigned int ModInstId);
 
 protected:
   /// The node type should be Attr::Type_Function.
@@ -116,7 +116,7 @@ public:
   /// \param MemInst the reference to memory instance pointer.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr,
+  Executor::ErrCode instantiate(StoreManager &Mgr,
                                 std::unique_ptr<MemoryInstance> &MemInst);
 
 protected:
@@ -149,7 +149,7 @@ public:
   /// \param TabInst the reference to table instance pointer.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr,
+  Executor::ErrCode instantiate(StoreManager &Mgr,
                                 std::unique_ptr<TableInstance> &TabInst);
 
 protected:
@@ -185,7 +185,7 @@ public:
   /// \param GlobInst the reference to global instance pointer.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreMgr &Mgr,
+  Executor::ErrCode instantiate(StoreManager &Mgr,
                                 std::unique_ptr<GlobalInstance> &GlobInst);
 
 protected:

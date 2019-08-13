@@ -21,8 +21,10 @@
 
 namespace SSVM {
 
-class StoreMgr {
+class StoreManager {
 public:
+  StoreManager() = default;
+  ~StoreManager() = default;
   /// Insert instance to store manager.
   ///
   /// Insert new module instance to store manager.

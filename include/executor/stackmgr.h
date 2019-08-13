@@ -15,15 +15,19 @@
 #include "labelentry.h"
 #include "valueentry.h"
 #include <memory>
+#include <variant>
 #include <vector>
 
 namespace SSVM {
 
-class StackMgr {
+class StackManager {
 public:
+  StackManager() = default;
+  ~StackManager() = default;
   /// Variant of entry classes.
   using EntryType =
-      std::variant<std::unique_ptr<FrameEntry>, std::unique_ptr<LabelEntry>,
+      std::variant<std::unique_ptr<FrameEntry>,
+                   std::unique_ptr<LabelEntry>,
                    std::unique_ptr<ValueEntry>>;
 
   /// Getters of top entry of stack.

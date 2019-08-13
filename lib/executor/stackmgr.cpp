@@ -4,7 +4,7 @@
 namespace SSVM {
 
 /// Getter of top entry. See "include/executor/stackmgr.h".
-template <typename T> Executor::ErrCode StackMgr::getTop(T *&Entry) {
+template <typename T> Executor::ErrCode StackManager::getTop(T *&Entry) {
   /// Check the size of stack.
   if (Stack.size() == 0)
     return Executor::ErrCode::StackEmpty;
@@ -19,7 +19,7 @@ template <typename T> Executor::ErrCode StackMgr::getTop(T *&Entry) {
 
 /// Push a new frame entry to stack. See "include/executor/stackmgr.h".
 template <typename T>
-Executor::ErrCode StackMgr::push(std::unique_ptr<T> &NewEntry) {
+Executor::ErrCode StackManager::push(std::unique_ptr<T> &NewEntry) {
   Stack.push_back(std::move(NewEntry));
   /// If is frame or label, record the index in stack.
   if (std::is_same<T, FrameEntry>::value)
@@ -31,7 +31,7 @@ Executor::ErrCode StackMgr::push(std::unique_ptr<T> &NewEntry) {
 
 /// Pop and return the frame entry. See "include/executor/stackmgr.h".
 template <typename T>
-Executor::ErrCode StackMgr::pop(std::unique_ptr<T> &Entry) {
+Executor::ErrCode StackManager::pop(std::unique_ptr<T> &Entry) {
   /// Check the size of stack.
   if (Stack.size() == 0)
     return Executor::ErrCode::StackEmpty;
@@ -54,7 +54,7 @@ Executor::ErrCode StackMgr::pop(std::unique_ptr<T> &Entry) {
 }
 
 /// Drop the top entry of stack. See "include/executor/stackmgr.h".
-Executor::ErrCode StackMgr::pop() {
+Executor::ErrCode StackManager::pop() {
   /// Check the size of stack.
   if (Stack.size() == 0)
     return Executor::ErrCode::StackEmpty;
@@ -75,7 +75,7 @@ Executor::ErrCode StackMgr::pop() {
 }
 
 /// Frame related operation. See "include/executor/stackmgr.h".
-Executor::ErrCode StackMgr::getCurrentFrame(FrameEntry *&Frame) {
+Executor::ErrCode StackManager::getCurrentFrame(FrameEntry *&Frame) {
   /// Check is there current frame.
   if (FrameIdx.size() == 0)
     return Executor::ErrCode::WrongInstanceAddress;
@@ -85,8 +85,8 @@ Executor::ErrCode StackMgr::getCurrentFrame(FrameEntry *&Frame) {
 }
 
 /// Label related operation. See "include/executor/stackmgr.h".
-Executor::ErrCode StackMgr::getLabelWithCount(LabelEntry *&Label,
-                                              unsigned int Count = 0) {
+Executor::ErrCode StackManager::getLabelWithCount(LabelEntry *&Label,
+                                                  unsigned int Count = 0) {
   /// Check is there at least count + 1 labels.
   if (LabelIdx.size() < Count + 1)
     return Executor::ErrCode::WrongInstanceAddress;

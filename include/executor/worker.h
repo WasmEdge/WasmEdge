@@ -4,6 +4,7 @@
 #include "common.h"
 #include "stackmgr.h"
 #include "storemgr.h"
+#include "support/casting.h"
 
 #include <cstdint>
 
@@ -11,6 +12,7 @@ namespace SSVM {
 namespace Executor {
 
 class Worker {
+
 public:
   using Byte = uint8_t;
   using Bytes =  std::vector<Byte>;

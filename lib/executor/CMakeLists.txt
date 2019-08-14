@@ -1,13 +1,13 @@
-add_library(ssvmExecutionEngine
+add_library(ssvmExecutor
+  executor.cpp
+  frameentry.cpp
   functioninst.cpp
   globalinst.cpp
-  memoryinst.cpp
-  tableinst.cpp
-  moduleinst.cpp
-  valueentry.cpp
   labelentry.cpp
-  frameentry.cpp
-  executionengine.cpp
-  storemgr.cpp
+  memoryinst.cpp
+  moduleinst.cpp
   stackmgr.cpp
+  storemgr.cpp
+  tableinst.cpp
+  valueentry.cpp
 )

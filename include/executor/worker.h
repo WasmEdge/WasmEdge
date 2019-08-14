@@ -13,37 +13,34 @@ namespace Executor {
 class Worker {
 public:
   using Byte = uint8_t;
+  using Bytes =  std::vector<Byte>;
   using Instructions = std::vector<AST::Instruction*>;
 
 public:
-  Worker() = default;
+  /// Worker are not allowed to create without Store and Stack.
+  Worker() = delete;
+  explicit Worker(StoreManager &Store, StackManager &Stack)
+    : StoreMgr(Store), StackMgr(Stack) {
+  }
+
   ~Worker() = default;
 
-  ErrCode setArguments(std::vector<Byte> &Input) {
-    Args.assign(Input.begin(), Input.end());
-    return ErrCode::Success;
-  }
-
-  ErrCode setCode(std::vector<std::unique_ptr<AST::Instruction>> &Instrs) {
-    for (auto &Instr : Instrs) {
-      this->Instrs.push_back(Instr.get());
-    }
-    return ErrCode::Success;
-  }
-
-  ErrCode run() { return ErrCode::Success; }
+  /// Prepare input data for calldatacopy
+  ErrCode setArguments(Bytes &Input);
+  /// Prepare Wasm bytecode for execution
+  ErrCode setCode(std::vector<std::unique_ptr<AST::Instruction>> &Instrs);
+  /// Execution Wasm bytecode with given input data.
+  ErrCode run();
 
 private:
-  /// Worker State
-  enum class State : unsigned int {
-    Inited,
-    Terminated,
-    Finished
-  };
   /// Arguments
-  std::vector<Byte> Args;
+  Bytes Args;
   /// Instructions of execution code.
   Instructions Instrs;
+  /// Reference to Executor's Store
+  StoreManager &StoreMgr;
+  /// Reference to Executor's Stack
+  StackManager &StackMgr;
 };
 
 } // namespace Executor

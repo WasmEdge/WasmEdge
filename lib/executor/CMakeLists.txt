@@ -3,11 +3,11 @@ add_library(ssvmExecutor
   entry/frame.cpp
   entry/label.cpp
   entry/value.cpp
-  functioninst.cpp
-  globalinst.cpp
-  memoryinst.cpp
-  moduleinst.cpp
+  instance/function.cpp
+  instance/global.cpp
+  instance/memory.cpp
+  instance/module.cpp
+  instance/table.cpp
   stackmgr.cpp
   storemgr.cpp
-  tableinst.cpp
 )

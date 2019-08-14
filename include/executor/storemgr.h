@@ -11,11 +11,11 @@
 #pragma once
 
 #include "common.h"
-#include "functioninst.h"
-#include "globalinst.h"
-#include "memoryinst.h"
-#include "moduleinst.h"
-#include "tableinst.h"
+#include "instance/function.h"
+#include "instance/global.h"
+#include "instance/memory.h"
+#include "instance/module.h"
+#include "instance/table.h"
 #include <memory>
 #include <vector>
 
@@ -36,7 +36,7 @@ public:
   /// \param [out] NewId the module address in Store.
   ///
   /// \returns ErrCode.
-  ErrCode insertModuleInst(std::unique_ptr<ModuleInstance> &Mod,
+  ErrCode insertModuleInst(std::unique_ptr<Instance::ModuleInstance> &Mod,
                            unsigned int &NewId);
 
   /// Insert instance to store manager.
@@ -49,7 +49,7 @@ public:
   /// \param [out] NewId the function address in Store.
   ///
   /// \returns ErrCode.
-  ErrCode insertFunctionInst(std::unique_ptr<FunctionInstance> &Func,
+  ErrCode insertFunctionInst(std::unique_ptr<Instance::FunctionInstance> &Func,
                              unsigned int &NewId);
 
   /// Insert instance to store manager.
@@ -62,7 +62,7 @@ public:
   /// \param [out] NewId the table address in Store.
   ///
   /// \returns ErrCode.
-  ErrCode insertTableInst(std::unique_ptr<TableInstance> &Tab,
+  ErrCode insertTableInst(std::unique_ptr<Instance::TableInstance> &Tab,
                           unsigned int &NewId);
 
   /// Insert instance to store manager.
@@ -75,7 +75,7 @@ public:
   /// \param [out] NewId the memory address in Store.
   ///
   /// \returns ErrCode.
-  ErrCode insertMemoryInst(std::unique_ptr<MemoryInstance> &Mem,
+  ErrCode insertMemoryInst(std::unique_ptr<Instance::MemoryInstance> &Mem,
                            unsigned int &NewId);
 
   /// Insert instance to store manager.
@@ -88,7 +88,7 @@ public:
   /// \param [out] NewId the global address in Store.
   ///
   /// \returns ErrCode.
-  ErrCode insertGlobalInst(std::unique_ptr<GlobalInstance> &Glob,
+  ErrCode insertGlobalInst(std::unique_ptr<Instance::GlobalInstance> &Glob,
                            unsigned int &NewId);
 
   /// Get instance from store manager.
@@ -99,7 +99,7 @@ public:
   /// \param [out] Mod the module instance.
   ///
   /// \returns ErrCode.
-  ErrCode getModule(unsigned int Addr, ModuleInstance *&Mod);
+  ErrCode getModule(unsigned int Addr, Instance::ModuleInstance *&Mod);
 
   /// Get instance from store manager.
   ///
@@ -109,7 +109,7 @@ public:
   /// \param [out] Func the function instance.
   ///
   /// \returns ErrCode.
-  ErrCode getFunction(unsigned int Addr, FunctionInstance *&Func);
+  ErrCode getFunction(unsigned int Addr, Instance::FunctionInstance *&Func);
 
   /// Get instance from store manager.
   ///
@@ -119,7 +119,7 @@ public:
   /// \param [out] Tab the table instance.
   ///
   /// \returns ErrCode.
-  ErrCode getTable(unsigned int Addr, TableInstance *&Tab);
+  ErrCode getTable(unsigned int Addr, Instance::TableInstance *&Tab);
 
   /// Get instance from store manager.
   ///
@@ -129,7 +129,7 @@ public:
   /// \param [out] Mem the memory instance.
   ///
   /// \returns ErrCode.
-  ErrCode getMemory(unsigned int Addr, MemoryInstance *&Mem);
+  ErrCode getMemory(unsigned int Addr, Instance::MemoryInstance *&Mem);
 
   /// Get instance from store manager.
   ///
@@ -139,7 +139,7 @@ public:
   /// \param [out] Glob the global instance.
   ///
   /// \returns ErrCode.
-  ErrCode getGlobal(unsigned int Addr, GlobalInstance *&Glob);
+  ErrCode getGlobal(unsigned int Addr, Instance::GlobalInstance *&Glob);
 
   /// Find function from store manager.
   ///
@@ -151,14 +151,14 @@ public:
   ///
   /// \returns ErrCode.
   ErrCode findFunction(std::string &ModName, std::string &FuncName,
-                       FunctionInstance *&Func);
+                       Instance::FunctionInstance *&Func);
 
 private:
-  std::vector<std::unique_ptr<ModuleInstance>> ModInsts;
-  std::vector<std::unique_ptr<FunctionInstance>> FuncInsts;
-  std::vector<std::unique_ptr<TableInstance>> TabInsts;
-  std::vector<std::unique_ptr<MemoryInstance>> MemInsts;
-  std::vector<std::unique_ptr<GlobalInstance>> GlobInsts;
+  std::vector<std::unique_ptr<Instance::ModuleInstance>> ModInsts;
+  std::vector<std::unique_ptr<Instance::FunctionInstance>> FuncInsts;
+  std::vector<std::unique_ptr<Instance::TableInstance>> TabInsts;
+  std::vector<std::unique_ptr<Instance::MemoryInstance>> MemInsts;
+  std::vector<std::unique_ptr<Instance::GlobalInstance>> GlobInsts;
 };
 
 } // namespace Executor

@@ -1,4 +1,4 @@
-//===-- ssvm/executor/globalinst.h - Global Instance definition -----------===//
+//===-- ssvm/executor/instance/global.h - Global Instance definition ------===//
 //
 // Part of the SSVM Project.
 //
@@ -12,12 +12,13 @@
 
 #include "ast/common.h"
 #include "ast/instruction.h"
-#include "common.h"
+#include "executor/common.h"
 #include <memory>
 #include <vector>
 
 namespace SSVM {
 namespace Executor {
+namespace Instance {
 
 class GlobalInstance {
 public:
@@ -25,12 +26,10 @@ public:
   ~GlobalInstance() = default;
 
   /// Set the global type.
-  ErrCode setGlobalType(AST::ValType &ValueType,
-                        AST::ValMut &Mutibility);
+  ErrCode setGlobalType(AST::ValType &ValueType, AST::ValMut &Mutibility);
 
   /// Move the instruction list in global segment into global instance.
-  ErrCode
-  setExpression(std::vector<std::unique_ptr<AST::Instruction>> &Expr);
+  ErrCode setExpression(std::vector<std::unique_ptr<AST::Instruction>> &Expr);
 
   /// Get the value of this instance.
   template <typename T> ErrCode getValue(T &Val);
@@ -51,5 +50,6 @@ private:
   /// @}
 };
 
+} // namespace Instance
 } // namespace Executor
 } // namespace SSVM

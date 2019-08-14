@@ -1,4 +1,4 @@
-//===-- ssvm/executor/moduleinst.h - Module Instance definition -----------===//
+//===-- ssvm/executor/instance/module.h - Module Instance definition ------===//
 //
 // Part of the SSVM Project.
 //
@@ -11,12 +11,13 @@
 #pragma once
 
 #include "ast/common.h"
-#include "common.h"
+#include "executor/common.h"
 #include <memory>
 #include <vector>
 
 namespace SSVM {
 namespace Executor {
+namespace Instance {
 
 class ModuleInstance {
 public:
@@ -24,32 +25,32 @@ public:
   ~ModuleInstance() = default;
 
   /// Move the function types in type section to module instance.
-  Executor::ErrCode addFuncType(std::vector<AST::ValType> &Params,
-                                std::vector<AST::ValType> &Returns);
+  ErrCode addFuncType(std::vector<AST::ValType> &Params,
+                      std::vector<AST::ValType> &Returns);
 
   /// Map the external instences between Module and Store.
-  Executor::ErrCode addFuncAddr(unsigned int StoreFuncAddr);
-  Executor::ErrCode addTableAddr(unsigned int StoreTableAddr);
-  Executor::ErrCode addMemAddr(unsigned int StoreMemAddr);
-  Executor::ErrCode addGlobalAddr(unsigned int StoreGlobalAddr);
+  ErrCode addFuncAddr(unsigned int StoreFuncAddr);
+  ErrCode addTableAddr(unsigned int StoreTableAddr);
+  ErrCode addMemAddr(unsigned int StoreMemAddr);
+  ErrCode addGlobalAddr(unsigned int StoreGlobalAddr);
 
   /// Get the external values by index. Addr will be address in Store.
-  Executor::ErrCode getFuncAddr(unsigned int Idx, unsigned int &Addr);
-  Executor::ErrCode getTableAddr(unsigned int Idx, unsigned int &Addr);
-  Executor::ErrCode getMemAddr(unsigned int Idx, unsigned int &Addr);
-  Executor::ErrCode getGlobalAddr(unsigned int Idx, unsigned int &Addr);
+  ErrCode getFuncAddr(unsigned int Idx, unsigned int &Addr);
+  ErrCode getTableAddr(unsigned int Idx, unsigned int &Addr);
+  ErrCode getMemAddr(unsigned int Idx, unsigned int &Addr);
+  ErrCode getGlobalAddr(unsigned int Idx, unsigned int &Addr);
 
   /// Get the added external values' numbers.
-  Executor::ErrCode getFuncNum(unsigned int &Num);
-  Executor::ErrCode getTableNum(unsigned int &Num);
-  Executor::ErrCode getMemNum(unsigned int &Num);
-  Executor::ErrCode getGlobalNum(unsigned int &Num);
+  ErrCode getFuncNum(unsigned int &Num);
+  ErrCode getTableNum(unsigned int &Num);
+  ErrCode getMemNum(unsigned int &Num);
+  ErrCode getGlobalNum(unsigned int &Num);
 
   /// Set start function index and find the address in Store.
-  Executor::ErrCode setStartIdx(unsigned int Idx);
+  ErrCode setStartIdx(unsigned int Idx);
 
   /// Get start function address in Store.
-  Executor::ErrCode getStartAddr(unsigned int &Addr);
+  ErrCode getStartAddr(unsigned int &Addr);
 
   /// Module Instance address in store manager.
   unsigned int Addr;
@@ -76,5 +77,6 @@ private:
   unsigned int StartAddr;
 };
 
+} // namespace Instance
 } // namespace Executor
 } // namespace SSVM

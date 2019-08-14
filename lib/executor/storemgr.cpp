@@ -4,102 +4,104 @@ namespace SSVM {
 namespace Executor {
 
 /// Inserter of module instance. See "include/executor/storemgr.h".
-Executor::ErrCode
-StoreManager::insertModuleInst(std::unique_ptr<ModuleInstance> &Mod,
+ErrCode
+StoreManager::insertModuleInst(std::unique_ptr<Instance::ModuleInstance> &Mod,
                                unsigned int &NewId) {
   ModInsts.push_back(std::move(Mod));
   NewId = ModInsts.size() - 1;
-  return Executor::ErrCode::Success;
+  return ErrCode::Success;
 }
 
 /// Inserter of function instance. See "include/executor/storemgr.h".
-Executor::ErrCode
-StoreManager::insertFunctionInst(std::unique_ptr<FunctionInstance> &Func,
-                                 unsigned int &NewId) {
+ErrCode StoreManager::insertFunctionInst(
+    std::unique_ptr<Instance::FunctionInstance> &Func, unsigned int &NewId) {
   FuncInsts.push_back(std::move(Func));
   NewId = FuncInsts.size() - 1;
-  return Executor::ErrCode::Success;
+  return ErrCode::Success;
 }
 
 /// Inserter of table instance. See "include/executor/storemgr.h".
-Executor::ErrCode StoreManager::insertTableInst(std::unique_ptr<TableInstance> &Tab,
-                                                unsigned int &NewId) {
+ErrCode
+StoreManager::insertTableInst(std::unique_ptr<Instance::TableInstance> &Tab,
+                              unsigned int &NewId) {
   TabInsts.push_back(std::move(Tab));
   NewId = TabInsts.size() - 1;
-  return Executor::ErrCode::Success;
+  return ErrCode::Success;
 }
 
 /// Inserter of memory instance. See "include/executor/storemgr.h".
-Executor::ErrCode
-StoreManager::insertMemoryInst(std::unique_ptr<MemoryInstance> &Mem,
+ErrCode
+StoreManager::insertMemoryInst(std::unique_ptr<Instance::MemoryInstance> &Mem,
                                unsigned int &NewId) {
   MemInsts.push_back(std::move(Mem));
   NewId = MemInsts.size() - 1;
-  return Executor::ErrCode::Success;
+  return ErrCode::Success;
 }
 
 /// Inserter of global instance. See "include/executor/storemgr.h".
-Executor::ErrCode
-StoreManager::insertGlobalInst(std::unique_ptr<GlobalInstance> &Glob,
+ErrCode
+StoreManager::insertGlobalInst(std::unique_ptr<Instance::GlobalInstance> &Glob,
                                unsigned int &NewId) {
   GlobInsts.push_back(std::move(Glob));
   NewId = GlobInsts.size() - 1;
-  return Executor::ErrCode::Success;
+  return ErrCode::Success;
 }
 
 /// Getter of module instance. See "include/executor/storemgr.h".
-Executor::ErrCode StoreManager::getModule(unsigned int Addr, ModuleInstance *&Mod) {
+ErrCode StoreManager::getModule(unsigned int Addr,
+                                Instance::ModuleInstance *&Mod) {
   if (ModInsts.size() <= Addr)
-    return Executor::ErrCode::WrongInstanceAddress;
+    return ErrCode::WrongInstanceAddress;
   Mod = ModInsts[Addr].get();
-  return Executor::ErrCode::Success;
+  return ErrCode::Success;
 }
 
 /// Getter of function instance. See "include/executor/storemgr.h".
-Executor::ErrCode StoreManager::getFunction(unsigned int Addr,
-                                            FunctionInstance *&Func) {
+ErrCode StoreManager::getFunction(unsigned int Addr,
+                                  Instance::FunctionInstance *&Func) {
   if (FuncInsts.size() <= Addr)
-    return Executor::ErrCode::WrongInstanceAddress;
+    return ErrCode::WrongInstanceAddress;
   Func = FuncInsts[Addr].get();
-  return Executor::ErrCode::Success;
+  return ErrCode::Success;
 }
 
 /// Getter of table instance. See "include/executor/storemgr.h".
-Executor::ErrCode StoreManager::getTable(unsigned int Addr, TableInstance *&Tab) {
+ErrCode StoreManager::getTable(unsigned int Addr,
+                               Instance::TableInstance *&Tab) {
   if (TabInsts.size() <= Addr)
-    return Executor::ErrCode::WrongInstanceAddress;
+    return ErrCode::WrongInstanceAddress;
   Tab = TabInsts[Addr].get();
-  return Executor::ErrCode::Success;
+  return ErrCode::Success;
 }
 
 /// Getter of memory instance. See "include/executor/storemgr.h".
-Executor::ErrCode StoreManager::getMemory(unsigned int Addr, MemoryInstance *&Mem) {
+ErrCode StoreManager::getMemory(unsigned int Addr,
+                                Instance::MemoryInstance *&Mem) {
   if (MemInsts.size() <= Addr)
-    return Executor::ErrCode::WrongInstanceAddress;
+    return ErrCode::WrongInstanceAddress;
   Mem = MemInsts[Addr].get();
-  return Executor::ErrCode::Success;
+  return ErrCode::Success;
 }
 
 /// Getter of global instance. See "include/executor/storemgr.h".
-Executor::ErrCode StoreManager::getGlobal(unsigned int Addr,
-                                          GlobalInstance *&Glob) {
+ErrCode StoreManager::getGlobal(unsigned int Addr,
+                                Instance::GlobalInstance *&Glob) {
   if (GlobInsts.size() <= Addr)
-    return Executor::ErrCode::WrongInstanceAddress;
+    return ErrCode::WrongInstanceAddress;
   Glob = GlobInsts[Addr].get();
-  return Executor::ErrCode::Success;
+  return ErrCode::Success;
 }
 
 /// Finder of function instance. See "include/executor/storemgr.h".
-Executor::ErrCode StoreManager::findFunction(std::string &ModName,
-                                             std::string &FuncName,
-                                             FunctionInstance *&Func) {
+ErrCode StoreManager::findFunction(std::string &ModName, std::string &FuncName,
+                                   Instance::FunctionInstance *&Func) {
   for (auto It = FuncInsts.begin(); It != FuncInsts.end(); It++) {
     if ((*It)->isName(ModName, FuncName)) {
       Func = (*It).get();
-      return Executor::ErrCode::Success;
+      return ErrCode::Success;
     }
   }
-  return Executor::ErrCode::WrongInstanceAddress;
+  return ErrCode::WrongInstanceAddress;
 }
 
 } // namespace Executor

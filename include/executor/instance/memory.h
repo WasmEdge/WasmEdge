@@ -1,4 +1,4 @@
-//===-- ssvm/executor/memoryinst.h - Memory Instance definition -----------===//
+//===-- ssvm/executor/instance/memory.h - Memory Instance definition ------===//
 //
 // Part of the SSVM Project.
 //
@@ -10,11 +10,12 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common.h"
+#include "executor/common.h"
 #include <vector>
 
 namespace SSVM {
 namespace Executor {
+namespace Instance {
 
 class MemoryInstance {
 public:
@@ -22,11 +23,10 @@ public:
   ~MemoryInstance() = default;
 
   /// Set the memory limit.
-  Executor::ErrCode setLimit(bool HasMax, unsigned int Max);
+  ErrCode setLimit(bool HasMax, unsigned int Max);
 
   /// Set the initialization list.
-  Executor::ErrCode setInitList(unsigned int Offset,
-                                std::vector<unsigned char> &Bytes);
+  ErrCode setInitList(unsigned int Offset, std::vector<unsigned char> &Bytes);
 
   /// Memory Instance address in store manager.
   unsigned int Addr;
@@ -40,5 +40,6 @@ private:
   /// @}
 };
 
+} // namespace Instance
 } // namespace Executor
 } // namespace SSVM

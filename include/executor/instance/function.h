@@ -1,4 +1,4 @@
-//===-- ssvm/executor/functioninst.h - Function Instance definition -------===//
+//===-- ssvm/executor/instance/function.h - Function Instance definition --===//
 //
 // Part of the SSVM Project.
 //
@@ -11,12 +11,14 @@
 #pragma once
 
 #include "ast/instruction.h"
-#include "common.h"
+#include "executor/common.h"
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace SSVM {
 namespace Executor {
+namespace Instance {
 
 class FunctionInstance {
 public:
@@ -24,21 +26,19 @@ public:
   ~FunctionInstance() = default;
 
   /// Set the module instance index in store manager.
-  Executor::ErrCode setModuleAddr(unsigned int Addr);
+  ErrCode setModuleAddr(unsigned int Addr);
 
   /// Set the function type index in module instance.
-  Executor::ErrCode setTypeIdx(unsigned int Id);
+  ErrCode setTypeIdx(unsigned int Id);
 
   /// Move the local variables in code section into function instance.
-  Executor::ErrCode
-  setLocals(std::vector<std::pair<unsigned int, AST::ValType>> &Loc);
+  ErrCode setLocals(std::vector<std::pair<unsigned int, AST::ValType>> &Loc);
 
   /// Move the instruction list in code segment into function instance.
-  Executor::ErrCode
-  setExpression(std::vector<std::unique_ptr<AST::Instruction>> &Expr);
+  ErrCode setExpression(std::vector<std::unique_ptr<AST::Instruction>> &Expr);
 
   /// Set the module name and function name.
-  Executor::ErrCode setNames(const std::string &Mod, const std::string &Func);
+  ErrCode setNames(const std::string &Mod, const std::string &Func);
 
   /// Match the module and function name.
   bool isName(const std::string &Mod, const std::string &Func);
@@ -58,5 +58,6 @@ private:
   /// @}
 };
 
+} // namespace Instance
 } // namespace Executor
 } // namespace SSVM

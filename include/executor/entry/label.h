@@ -1,4 +1,4 @@
-//===-- ssvm/executor/labelentry.h - Label Entry class definition ---------===//
+//===-- ssvm/executor/entry/label.h - Label Entry class definition --------===//
 //
 // Part of the SSVM Project.
 //
@@ -11,12 +11,13 @@
 #pragma once
 
 #include "ast/instruction.h"
-#include "common.h"
+#include "executor/common.h"
 #include <memory>
 #include <vector>
 
 namespace SSVM {
 namespace Executor {
+namespace Entry {
 
 class LabelEntry {
 public:
@@ -38,7 +39,7 @@ public:
   unsigned int getArity() { return Arity; }
 
   /// Getter of instructions.
-  Executor::ErrCode
+  ErrCode
   getInstructions(std::vector<std::unique_ptr<AST::Instruction>> *&Body);
 
 private:
@@ -49,5 +50,6 @@ private:
   /// @}
 };
 
+} // namespace Entry
 } // namespace Executor
 } // namespace SSVM

@@ -1,9 +1,10 @@
-#include "executor/frameentry.h"
+#include "executor/entry/frame.h"
 
 namespace SSVM {
 namespace Executor {
+namespace Entry {
 
-/// Constructor of frame entry. See "include/executor/frameentry.h".
+/// Constructor of frame entry. See "include/executor/entry/frame.h".
 FrameEntry::FrameEntry(
     unsigned int ModuleAddr, unsigned int Arity,
     std::vector<std::unique_ptr<ValueEntry>> &Args,
@@ -26,7 +27,7 @@ FrameEntry::FrameEntry(
   }
 }
 
-/// Getter of local values by index. See "include/executor/frameentry.h".
+/// Getter of local values by index. See "include/executor/entry/frame.h".
 ErrCode FrameEntry::getValue(unsigned int Idx, ValueEntry *&Val) {
   /// Check if the index valid.
   if (Locals.size() <= Idx)
@@ -37,8 +38,9 @@ ErrCode FrameEntry::getValue(unsigned int Idx, ValueEntry *&Val) {
   return ErrCode::Success;
 }
 
-/// Setter of local values by index. See "include/executor/frameentry.h".
-ErrCode FrameEntry::setValue(unsigned int Idx, std::unique_ptr<ValueEntry> &ValPtr) {
+/// Setter of local values by index. See "include/executor/entry/frame.h".
+ErrCode FrameEntry::setValue(unsigned int Idx,
+                             std::unique_ptr<ValueEntry> &ValPtr) {
   /// Check if the index valid.
   if (Locals.size() <= Idx)
     return ErrCode::WrongLocalAddress;
@@ -47,5 +49,6 @@ ErrCode FrameEntry::setValue(unsigned int Idx, std::unique_ptr<ValueEntry> &ValP
   return Locals[Idx]->setValue(*ValPtr);
 }
 
+} // namespace Entry
 } // namespace Executor
 } // namespace SSVM

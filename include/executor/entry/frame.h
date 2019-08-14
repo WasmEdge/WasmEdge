@@ -1,4 +1,4 @@
-//===-- ssvm/executor/frameentry.h - Frame Entry class definition ---------===//
+//===-- ssvm/executor/entry/frame.h - Frame Entry class definition --------===//
 //
 // Part of the SSVM Project.
 //
@@ -11,14 +11,15 @@
 #pragma once
 
 #include "ast/common.h"
-#include "common.h"
-#include "valueentry.h"
+#include "executor/common.h"
+#include "value.h"
 #include <memory>
 #include <variant>
 #include <vector>
 
 namespace SSVM {
 namespace Executor {
+namespace Entry {
 
 class FrameEntry {
 public:
@@ -70,5 +71,6 @@ private:
   /// @}
 };
 
+} // namespace Entry
 } // namespace Executor
 } // namespace SSVM

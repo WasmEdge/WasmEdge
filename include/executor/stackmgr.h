@@ -11,9 +11,9 @@
 #pragma once
 
 #include "common.h"
-#include "frameentry.h"
-#include "labelentry.h"
-#include "valueentry.h"
+#include "entry/frame.h"
+#include "entry/label.h"
+#include "entry/value.h"
 #include <memory>
 #include <variant>
 #include <vector>
@@ -26,28 +26,27 @@ public:
   StackManager() = default;
   ~StackManager() = default;
   /// Variant of entry classes.
-  using EntryType =
-      std::variant<std::unique_ptr<FrameEntry>,
-                   std::unique_ptr<LabelEntry>,
-                   std::unique_ptr<ValueEntry>>;
+  using EntryType = std::variant<std::unique_ptr<Entry::FrameEntry>,
+                                 std::unique_ptr<Entry::LabelEntry>,
+                                 std::unique_ptr<Entry::ValueEntry>>;
 
   /// Getters of top entry of stack.
-  template <typename T> Executor::ErrCode getTop(T *&Entry);
+  template <typename T> ErrCode getTop(T *&Entry);
 
   /// Push a new entry to stack.
-  template <typename T> Executor::ErrCode push(std::unique_ptr<T> &NewEntry);
+  template <typename T> ErrCode push(std::unique_ptr<T> &NewEntry);
 
   /// Pop and return the top entry.
-  template <typename T> Executor::ErrCode pop(std::unique_ptr<T> &Entry);
+  template <typename T> ErrCode pop(std::unique_ptr<T> &Entry);
 
   /// Pop the top entry.
-  Executor::ErrCode pop();
+  ErrCode pop();
 
   /// Get the current toppest frame.
-  Executor::ErrCode getCurrentFrame(FrameEntry *&Frame);
+  ErrCode getCurrentFrame(Entry::FrameEntry *&Frame);
 
   /// Get the top of count of label.
-  Executor::ErrCode getLabelWithCount(LabelEntry *&Label, unsigned int Count);
+  ErrCode getLabelWithCount(Entry::LabelEntry *&Label, unsigned int Count);
 
   /// Checking the top entry's attribute
   bool isTopFrame();

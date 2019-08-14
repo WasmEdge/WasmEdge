@@ -1,4 +1,4 @@
-//===-- ssvm/executor/valueentry.h - Value Entry class definition ---------===//
+//===-- ssvm/executor/entry/value.h - Value Entry class definition --------===//
 //
 // Part of the SSVM Project.
 //
@@ -11,12 +11,13 @@
 #pragma once
 
 #include "ast/common.h"
-#include "common.h"
+#include "executor/common.h"
 #include <cstdint>
 #include <variant>
 
 namespace SSVM {
 namespace Executor {
+namespace Entry {
 
 class ValueEntry {
 public:
@@ -32,7 +33,7 @@ public:
   ~ValueEntry() = default;
 
   /// Getter of value type.
-  Executor::ErrCode getType(AST::ValType &T);
+  ErrCode getType(AST::ValType &T);
 
   /// Value setters
   template <typename T> ErrCode setValue(T &Val);
@@ -48,5 +49,6 @@ private:
   /// @}
 };
 
+} // namespace Entry
 } // namespace Executor
 } // namespace SSVM

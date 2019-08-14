@@ -217,6 +217,10 @@ public:
     return Loader::ErrCode::Success;
   };
 
+  OpCode getOpCode() const {
+    return Code;
+  }
+
 protected:
   /// OpCode if this instruction node.
   OpCode Code;

@@ -18,6 +18,7 @@
 #include <vector>
 
 namespace SSVM {
+namespace Executor {
 
 class FrameEntry {
 public:
@@ -69,4 +70,5 @@ private:
   /// @}
 };
 
+} // namespace Executor
 } // namespace SSVM

@@ -2,6 +2,7 @@
 #include <type_traits>
 
 namespace SSVM {
+namespace Executor {
 
 /// Setter of global type. See "include/executor/globalinst.h".
 Executor::ErrCode GlobalInstance::setGlobalType(AST::ValType &ValueType,
@@ -57,4 +58,5 @@ template <typename T> Executor::ErrCode GlobalInstance::setValue(T Val) {
   return Status;
 }
 
+} // namespace Executor
 } // namespace SSVM

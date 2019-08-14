@@ -5,9 +5,9 @@ namespace SSVM {
 namespace AST {
 
 /// Instantiate Module Instance. See "include/ast/module.h".
-Executor::ErrCode Module::instantiate(StoreManager &Store, StackManager &Stack) {
+Executor::ErrCode Module::instantiate(Executor::StoreManager &Store, Executor::StackManager &Stack) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
-  auto ModInst = std::make_unique<ModuleInstance>();
+  auto ModInst = std::make_unique<Executor::ModuleInstance>();
   unsigned int ModInstId = 0;
 
   /// Insert the module instance to store manager.

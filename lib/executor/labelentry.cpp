@@ -1,6 +1,7 @@
 #include "executor/labelentry.h"
 
 namespace SSVM {
+namespace Executor {
 
 /// Getter of instructions. See "include/executor/labelentry.h".
 Executor::ErrCode LabelEntry::getInstructions(
@@ -9,4 +10,5 @@ Executor::ErrCode LabelEntry::getInstructions(
   return Executor::ErrCode::Success;
 }
 
+} // namespace Executor
 } // namespace SSVM

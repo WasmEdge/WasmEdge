@@ -4,12 +4,12 @@ namespace SSVM {
 namespace AST {
 
 /// Instantiation of import description. See "include/ast/description.h".
-Executor::ErrCode ImportDesc::instantiate(StoreManager &Mgr,
+Executor::ErrCode ImportDesc::instantiate(Executor::StoreManager &Mgr,
                                           unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
   /// Get the module instance from ID.
-  ModuleInstance *ModInst = nullptr;
+  Executor::ModuleInstance *ModInst = nullptr;
   if ((Status = Mgr.getModule(ModInstId, ModInst)) !=
       Executor::ErrCode::Success)
     return Status;
@@ -19,7 +19,7 @@ Executor::ErrCode ImportDesc::instantiate(StoreManager &Mgr,
   case ExternalType::Function: /// Function type index
   {
     /// Find the function instance in Store.
-    FunctionInstance *FuncInst = nullptr;
+    Executor::FunctionInstance *FuncInst = nullptr;
     if ((Status = Mgr.findFunction(ModName, ExtName, FuncInst)) !=
         Executor::ErrCode::Success)
       return Status;
@@ -43,12 +43,12 @@ Executor::ErrCode ImportDesc::instantiate(StoreManager &Mgr,
 }
 
 /// Instantiation of import description. See "include/ast/description.h".
-Executor::ErrCode ExportDesc::instantiate(StoreManager &Mgr,
+Executor::ErrCode ExportDesc::instantiate(Executor::StoreManager &Mgr,
                                           unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
   /// Get the module instance from ID.
-  ModuleInstance *ModInst = nullptr;
+  Executor::ModuleInstance *ModInst = nullptr;
   if ((Status = Mgr.getModule(ModInstId, ModInst)) !=
       Executor::ErrCode::Success)
     return Status;
@@ -56,7 +56,7 @@ Executor::ErrCode ExportDesc::instantiate(StoreManager &Mgr,
   /// Add the name of function to function instance.
   if (ExtType == ExternalType::Function) {
     unsigned int FuncAddr = 0;
-    FunctionInstance *FuncInst = nullptr;
+    Executor::FunctionInstance *FuncInst = nullptr;
     /// Find function address.
     if ((Status = ModInst->getFuncAddr(ExtIdx, FuncAddr)) !=
         Executor::ErrCode::Success)

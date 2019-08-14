@@ -62,8 +62,8 @@ public:
   /// \param GlobInst the global instance reference.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr,
-                                std::unique_ptr<GlobalInstance> &GlobInst);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr,
+                                std::unique_ptr<Executor::GlobalInstance> &GlobInst);
 
 protected:
   /// The node type should be Attr::Seg_Global.
@@ -122,8 +122,8 @@ public:
   /// \param FuncInst the function instance reference.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr,
-                                std::unique_ptr<FunctionInstance> &FuncInst);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr,
+                                std::unique_ptr<Executor::FunctionInstance> &FuncInst);
 
 protected:
   /// The node type should be Attr::Seg_Code.

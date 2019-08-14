@@ -1,6 +1,7 @@
 #include "executor/moduleinst.h"
 
 namespace SSVM {
+namespace Executor {
 
 /// Adder of function types. See "include/executor/moduleinst.h".
 Executor::ErrCode
@@ -114,4 +115,5 @@ Executor::ErrCode ModuleInstance::getStartAddr(unsigned int &Addr) {
   return Executor::ErrCode::Success;
 }
 
+} // namespace Executor
 } // namespace SSVM

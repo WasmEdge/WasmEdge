@@ -2,6 +2,7 @@
 #include <iterator>
 
 namespace SSVM {
+namespace Executor {
 
 /// Setter of memory limit. See "include/executor/memoryinst.h".
 Executor::ErrCode MemoryInstance::setLimit(bool HasMax, unsigned int Max) {
@@ -21,4 +22,5 @@ MemoryInstance::setInitList(unsigned int Offset,
   return Executor::ErrCode::Success;
 }
 
+} // namespace Executor
 } // namespace SSVM

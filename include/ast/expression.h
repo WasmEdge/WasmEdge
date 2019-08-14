@@ -42,7 +42,7 @@ public:
   ///
   /// \returns ErrCode.
   template <typename T>
-  Executor::ErrCode instantiate(StoreManager &Mgr, std::unique_ptr<T> &Instance);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, std::unique_ptr<T> &Instance);
 
 protected:
   /// The node type should be Attr::Expression.

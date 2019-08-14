@@ -16,6 +16,7 @@
 #include <vector>
 
 namespace SSVM {
+namespace Executor {
 
 class LabelEntry {
 public:
@@ -48,4 +49,5 @@ private:
   /// @}
 };
 
+} // namespace Executor
 } // namespace SSVM

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "executor/executionengine.h"
+#include "executor/executor.h"
 #include "loader/loader.h"
 #include "vm/result.h"
 
@@ -22,7 +22,7 @@ public:
 
 private:
   SSVM::Loader::Loader LoaderEngine;
-  SSVM::ExecutionEngine::ExecutionEngine ExecutorEngine;
+  SSVM::Executor::Executor Executor;
   std::unique_ptr<SSVM::AST::Module> OutModule;
   std::string WasmPath;
   SSVM::Result InitResult;

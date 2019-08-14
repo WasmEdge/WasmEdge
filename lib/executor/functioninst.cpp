@@ -1,6 +1,7 @@
 #include "executor/functioninst.h"
 
 namespace SSVM {
+namespace Executor {
 
 /// Setter of module address. See "include/executor/functioninst.h".
 Executor::ErrCode FunctionInstance::setModuleAddr(unsigned int Addr) {
@@ -41,4 +42,5 @@ bool FunctionInstance::isName(const std::string &Mod, const std::string &Func) {
   return Mod == ModName && Func == FuncName;
 }
 
+} // namespace Executor
 } // namespace SSVM

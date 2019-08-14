@@ -15,6 +15,7 @@
 #include <vector>
 
 namespace SSVM {
+namespace Executor {
 
 class TableInstance {
 public:
@@ -44,4 +45,5 @@ private:
   /// @}
 };
 
+} // namespace Executor
 } // namespace SSVM

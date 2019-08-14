@@ -14,6 +14,7 @@
 #include <vector>
 
 namespace SSVM {
+namespace Executor {
 
 class MemoryInstance {
 public:
@@ -39,4 +40,5 @@ private:
   /// @}
 };
 
+} // namespace Executor
 } // namespace SSVM

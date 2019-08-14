@@ -20,6 +20,7 @@
 #include <vector>
 
 namespace SSVM {
+namespace Executor {
 
 class StoreManager {
 public:
@@ -35,8 +36,8 @@ public:
   /// \param [out] NewId the module address in Store.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode insertModuleInst(std::unique_ptr<ModuleInstance> &Mod,
-                                     unsigned int &NewId);
+  ErrCode insertModuleInst(std::unique_ptr<ModuleInstance> &Mod,
+                           unsigned int &NewId);
 
   /// Insert instance to store manager.
   ///
@@ -48,8 +49,8 @@ public:
   /// \param [out] NewId the function address in Store.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode insertFunctionInst(std::unique_ptr<FunctionInstance> &Func,
-                                       unsigned int &NewId);
+  ErrCode insertFunctionInst(std::unique_ptr<FunctionInstance> &Func,
+                             unsigned int &NewId);
 
   /// Insert instance to store manager.
   ///
@@ -61,8 +62,8 @@ public:
   /// \param [out] NewId the table address in Store.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode insertTableInst(std::unique_ptr<TableInstance> &Tab,
-                                    unsigned int &NewId);
+  ErrCode insertTableInst(std::unique_ptr<TableInstance> &Tab,
+                          unsigned int &NewId);
 
   /// Insert instance to store manager.
   ///
@@ -74,8 +75,8 @@ public:
   /// \param [out] NewId the memory address in Store.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode insertMemoryInst(std::unique_ptr<MemoryInstance> &Mem,
-                                     unsigned int &NewId);
+  ErrCode insertMemoryInst(std::unique_ptr<MemoryInstance> &Mem,
+                           unsigned int &NewId);
 
   /// Insert instance to store manager.
   ///
@@ -87,8 +88,8 @@ public:
   /// \param [out] NewId the global address in Store.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode insertGlobalInst(std::unique_ptr<GlobalInstance> &Glob,
-                                     unsigned int &NewId);
+  ErrCode insertGlobalInst(std::unique_ptr<GlobalInstance> &Glob,
+                           unsigned int &NewId);
 
   /// Get instance from store manager.
   ///
@@ -98,7 +99,7 @@ public:
   /// \param [out] Mod the module instance.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode getModule(unsigned int Addr, ModuleInstance *&Mod);
+  ErrCode getModule(unsigned int Addr, ModuleInstance *&Mod);
 
   /// Get instance from store manager.
   ///
@@ -108,7 +109,7 @@ public:
   /// \param [out] Func the function instance.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode getFunction(unsigned int Addr, FunctionInstance *&Func);
+  ErrCode getFunction(unsigned int Addr, FunctionInstance *&Func);
 
   /// Get instance from store manager.
   ///
@@ -118,7 +119,7 @@ public:
   /// \param [out] Tab the table instance.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode getTable(unsigned int Addr, TableInstance *&Tab);
+  ErrCode getTable(unsigned int Addr, TableInstance *&Tab);
 
   /// Get instance from store manager.
   ///
@@ -128,7 +129,7 @@ public:
   /// \param [out] Mem the memory instance.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode getMemory(unsigned int Addr, MemoryInstance *&Mem);
+  ErrCode getMemory(unsigned int Addr, MemoryInstance *&Mem);
 
   /// Get instance from store manager.
   ///
@@ -138,7 +139,7 @@ public:
   /// \param [out] Glob the global instance.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode getGlobal(unsigned int Addr, GlobalInstance *&Glob);
+  ErrCode getGlobal(unsigned int Addr, GlobalInstance *&Glob);
 
   /// Find function from store manager.
   ///
@@ -149,8 +150,8 @@ public:
   /// \param [out] Func the function instance.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode findFunction(std::string &ModName, std::string &FuncName,
-                                 FunctionInstance *&Func);
+  ErrCode findFunction(std::string &ModName, std::string &FuncName,
+                       FunctionInstance *&Func);
 
 private:
   std::vector<std::unique_ptr<ModuleInstance>> ModInsts;
@@ -160,4 +161,5 @@ private:
   std::vector<std::unique_ptr<GlobalInstance>> GlobInsts;
 };
 
+} // namespace Executor
 } // namespace SSVM

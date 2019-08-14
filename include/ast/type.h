@@ -45,7 +45,7 @@ public:
   ///
   /// \returns ErrCode.
   template <typename T>
-  Executor::ErrCode instantiate(StoreManager &Mgr, std::unique_ptr<T> &Instance);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, std::unique_ptr<T> &Instance);
 
 protected:
   /// The node type should be Attr::Type_Limit.
@@ -81,7 +81,7 @@ public:
   /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr, unsigned int ModInstId);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
 
 protected:
   /// The node type should be Attr::Type_Function.
@@ -116,8 +116,8 @@ public:
   /// \param MemInst the reference to memory instance pointer.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr,
-                                std::unique_ptr<MemoryInstance> &MemInst);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr,
+                                std::unique_ptr<Executor::MemoryInstance> &MemInst);
 
 protected:
   /// The node type should be Attr::Type_Memory.
@@ -149,8 +149,8 @@ public:
   /// \param TabInst the reference to table instance pointer.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr,
-                                std::unique_ptr<TableInstance> &TabInst);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr,
+                                std::unique_ptr<Executor::TableInstance> &TabInst);
 
 protected:
   /// The node type should be Attr::Type_Table.
@@ -185,8 +185,8 @@ public:
   /// \param GlobInst the reference to global instance pointer.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr,
-                                std::unique_ptr<GlobalInstance> &GlobInst);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr,
+                                std::unique_ptr<Executor::GlobalInstance> &GlobInst);
 
 protected:
   /// The node type should be Attr::Type_Global.

@@ -19,6 +19,7 @@
 #include <vector>
 
 namespace SSVM {
+namespace Executor {
 
 class StackManager {
 public:
@@ -62,4 +63,5 @@ private:
   /// @}
 };
 
+} // namespace Executor
 } // namespace SSVM

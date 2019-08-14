@@ -2,6 +2,7 @@
 #include <type_traits>
 
 namespace SSVM {
+namespace Executor {
 
 /// Getter of top entry. See "include/executor/stackmgr.h".
 template <typename T> Executor::ErrCode StackManager::getTop(T *&Entry) {
@@ -96,4 +97,5 @@ Executor::ErrCode StackManager::getLabelWithCount(LabelEntry *&Label,
   return Executor::ErrCode::Success;
 }
 
+} // namespace Executor
 } // namespace SSVM

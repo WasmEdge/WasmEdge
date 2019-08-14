@@ -5,7 +5,7 @@ namespace SSVM {
 namespace AST {
 
 /// Instantiate function types in Module Instance. See "include/ast/section.h".
-Executor::ErrCode TypeSection::instantiate(StoreManager &Mgr,
+Executor::ErrCode TypeSection::instantiate(Executor::StoreManager &Mgr,
                                            unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
@@ -21,7 +21,7 @@ Executor::ErrCode TypeSection::instantiate(StoreManager &Mgr,
 
 /// Instantiation of function section. See "include/ast/section.h".
 Executor::ErrCode
-FunctionSection::instantiate(StoreManager &Mgr,
+FunctionSection::instantiate(Executor::StoreManager &Mgr,
                              std::vector<unsigned int> &TypeIdx) {
   /// Instantiation will only move content to output.
   TypeIdx = std::move(Content);
@@ -29,7 +29,7 @@ FunctionSection::instantiate(StoreManager &Mgr,
 }
 
 /// Instantiation of import section. See "include/ast/section.h".
-Executor::ErrCode ImportSection::instantiate(StoreManager &Mgr,
+Executor::ErrCode ImportSection::instantiate(Executor::StoreManager &Mgr,
                                              unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
@@ -44,12 +44,12 @@ Executor::ErrCode ImportSection::instantiate(StoreManager &Mgr,
 }
 
 /// Instantiation of table section. See "include/ast/section.h".
-Executor::ErrCode TableSection::instantiate(StoreManager &Mgr,
+Executor::ErrCode TableSection::instantiate(Executor::StoreManager &Mgr,
                                             unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
   /// Get the module instance from ID.
-  ModuleInstance *ModInst = nullptr;
+  Executor::ModuleInstance *ModInst = nullptr;
   if ((Status = Mgr.getModule(ModInstId, ModInst)) !=
       Executor::ErrCode::Success)
     return Status;
@@ -57,7 +57,7 @@ Executor::ErrCode TableSection::instantiate(StoreManager &Mgr,
   /// Recursively call table types' instantiation.
   for (auto it = Content.begin(); it != Content.end(); it++) {
     /// Make a new table instance.
-    auto NewTabInst = std::make_unique<TableInstance>();
+    auto NewTabInst = std::make_unique<Executor::TableInstance>();
     unsigned int NewTabInstId = 0;
     /// Set table instance data.
     if ((Status = (*it)->instantiate(Mgr, NewTabInst)) !=
@@ -77,12 +77,12 @@ Executor::ErrCode TableSection::instantiate(StoreManager &Mgr,
 }
 
 /// Instantiation of memory section. See "include/ast/section.h".
-Executor::ErrCode MemorySection::instantiate(StoreManager &Mgr,
+Executor::ErrCode MemorySection::instantiate(Executor::StoreManager &Mgr,
                                              unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
   /// Get the module instance from ID.
-  ModuleInstance *ModInst = nullptr;
+  Executor::ModuleInstance *ModInst = nullptr;
   if ((Status = Mgr.getModule(ModInstId, ModInst)) !=
       Executor::ErrCode::Success)
     return Status;
@@ -90,7 +90,7 @@ Executor::ErrCode MemorySection::instantiate(StoreManager &Mgr,
   /// Recursively call memory types' instantiation.
   for (auto it = Content.begin(); it != Content.end(); it++) {
     /// Make a new memory instance.
-    auto NewMemInst = std::make_unique<MemoryInstance>();
+    auto NewMemInst = std::make_unique<Executor::MemoryInstance>();
     unsigned int NewMemInstId = 0;
     /// Set memory instance data.
     if ((Status = (*it)->instantiate(Mgr, NewMemInst)) !=
@@ -110,23 +110,23 @@ Executor::ErrCode MemorySection::instantiate(StoreManager &Mgr,
 }
 
 /// Instantiation of global section. See "include/ast/section.h".
-Executor::ErrCode GlobalSection::instantiate(StoreManager &Store, StackManager &Stack,
+Executor::ErrCode GlobalSection::instantiate(Executor::StoreManager &Store, Executor::StackManager &Stack,
                                              unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
   /// Get the module instance from ID.
-  ModuleInstance *ModInst = nullptr;
+  Executor::ModuleInstance *ModInst = nullptr;
   if ((Status = Store.getModule(ModInstId, ModInst)) !=
       Executor::ErrCode::Success)
     return Status;
 
   /// Add a temp module to Store for initialization
-  auto TmpModInst = std::make_unique<ModuleInstance>();
+  auto TmpModInst = std::make_unique<Executor::ModuleInstance>();
 
   /// Recursively call global types' instantiation.
   for (auto it = Content.begin(); it != Content.end(); it++) {
     /// Make a new function instance.
-    auto NewGlobInst = std::make_unique<GlobalInstance>();
+    auto NewGlobInst = std::make_unique<Executor::GlobalInstance>();
     unsigned int NewGlobInstId = 0;
     /// Set global instance data.
     if ((Status = (*it)->instantiate(Store, NewGlobInst)) !=
@@ -153,13 +153,13 @@ Executor::ErrCode GlobalSection::instantiate(StoreManager &Store, StackManager &
   if ((Status = Store.insertModuleInst(TmpModInst, TmpModInstId)) !=
       Executor::ErrCode::Success)
     return Status;
-  ModuleInstance *TmpModInstPtr = nullptr;
+  Executor::ModuleInstance *TmpModInstPtr = nullptr;
   if ((Status = Store.getModule(TmpModInstId, TmpModInstPtr)) !=
       Executor::ErrCode::Success)
     return Status;
 
   /// Make a new frame {NewModInst:{globaddrs}, locals:none} and push
-  auto Frame = std::make_unique<FrameEntry>(TmpModInstId, 0);
+  auto Frame = std::make_unique<Executor::FrameEntry>(TmpModInstId, 0);
   Stack.push(Frame);
 
   /// TODO: evaluate instrs in global instances
@@ -175,7 +175,7 @@ Executor::ErrCode GlobalSection::instantiate(StoreManager &Store, StackManager &
     Stack.pop(PopVal);
     unsigned int GlobalAddr = 0;
     TmpModInstPtr->getGlobalAddr(GlobalNum, GlobalAddr);
-    GlobalInstance *GlobInst;
+    Executor::GlobalInstance *GlobInst;
     Store.getGlobal(GlobalAddr, GlobInst);
     ValType GlobType;
     PopVal->getType(GlobType);
@@ -219,7 +219,7 @@ Executor::ErrCode GlobalSection::instantiate(StoreManager &Store, StackManager &
 }
 
 /// Instantiation of export section. See "include/ast/section.h".
-Executor::ErrCode ExportSection::instantiate(StoreManager &Mgr,
+Executor::ErrCode ExportSection::instantiate(Executor::StoreManager &Mgr,
                                              unsigned int ModInstId) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
@@ -236,7 +236,7 @@ Executor::ErrCode ExportSection::instantiate(StoreManager &Mgr,
 
 /// Instantiate function instances. See "include/ast/section.h".
 Executor::ErrCode
-CodeSection::instantiate(StoreManager &Mgr, unsigned int ModInstId,
+CodeSection::instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId,
                          std::unique_ptr<AST::FunctionSection> &FuncSec) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
 
@@ -247,7 +247,7 @@ CodeSection::instantiate(StoreManager &Mgr, unsigned int ModInstId,
     return Status;
 
   /// Get the module instance from ID.
-  ModuleInstance *ModInst = nullptr;
+  Executor::ModuleInstance *ModInst = nullptr;
   if ((Status = Mgr.getModule(ModInstId, ModInst)) !=
       Executor::ErrCode::Success)
     return Status;
@@ -257,7 +257,7 @@ CodeSection::instantiate(StoreManager &Mgr, unsigned int ModInstId,
   auto itType = TypeIdx.begin();
   while (itCode != Content.end() && itType != TypeIdx.end()) {
     /// Make a new function instance.
-    auto NewFuncInst = std::make_unique<FunctionInstance>();
+    auto NewFuncInst = std::make_unique<Executor::FunctionInstance>();
     unsigned int NewFuncInstId = 0;
     /// Set function instance data.
     if ((Status = NewFuncInst->setModuleAddr(ModInst->Addr)) !=

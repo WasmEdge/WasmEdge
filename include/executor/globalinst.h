@@ -17,6 +17,7 @@
 #include <vector>
 
 namespace SSVM {
+namespace Executor {
 
 class GlobalInstance {
 public:
@@ -50,4 +51,5 @@ private:
   /// @}
 };
 
+} // namespace Executor
 } // namespace SSVM

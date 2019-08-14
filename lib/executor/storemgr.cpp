@@ -1,6 +1,7 @@
 #include "executor/storemgr.h"
 
 namespace SSVM {
+namespace Executor {
 
 /// Inserter of module instance. See "include/executor/storemgr.h".
 Executor::ErrCode
@@ -101,4 +102,5 @@ Executor::ErrCode StoreManager::findFunction(std::string &ModName,
   return Executor::ErrCode::WrongInstanceAddress;
 }
 
+} // namespace Executor
 } // namespace SSVM

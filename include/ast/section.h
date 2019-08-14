@@ -87,7 +87,7 @@ public:
   /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr, unsigned int ModInstId);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
 
 protected:
   /// Overrided content loading of type section.
@@ -112,7 +112,7 @@ public:
   /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr, unsigned int ModInstId);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
 
 protected:
   /// Overrided content loading of import section.
@@ -137,7 +137,7 @@ public:
   /// \param TypeIdx the type indices list for output.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr,
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr,
                                 std::vector<unsigned int> &TypeIdx);
 
 protected:
@@ -163,7 +163,7 @@ public:
   /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr, unsigned int ModInstId);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
 
 protected:
   /// Overrided content loading of table section.
@@ -188,7 +188,7 @@ public:
   /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr, unsigned int ModInstId);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
 
 protected:
   /// Overrided content loading of memory section.
@@ -214,7 +214,7 @@ public:
   /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Store, StackManager &Stack,
+  Executor::ErrCode instantiate(Executor::StoreManager &Store, Executor::StackManager &Stack,
                                 unsigned int ModInstId);
 
 protected:
@@ -240,7 +240,7 @@ public:
   /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr, unsigned int ModInstId);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
 
 protected:
   /// Overrided content loading of export section.
@@ -294,7 +294,7 @@ public:
   /// \param TypeSec the corresponding function section for getting type index.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr, unsigned int ModInstId,
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId,
                                 std::unique_ptr<AST::FunctionSection> &FuncSec);
 
 protected:

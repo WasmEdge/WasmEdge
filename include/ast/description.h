@@ -56,7 +56,7 @@ public:
   /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr, unsigned int ModInstId);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
 
   /// Variant of external type classes.
   using ExtContentType =
@@ -97,7 +97,7 @@ public:
   /// \param ModInstId the index of module instance in store manager.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Mgr, unsigned int ModInstId);
+  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
 
 protected:
   /// The node type should be Attr::Desc_Export.

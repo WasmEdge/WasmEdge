@@ -16,6 +16,7 @@
 #include <vector>
 
 namespace SSVM {
+namespace Executor {
 
 class ModuleInstance {
 public:
@@ -75,4 +76,5 @@ private:
   unsigned int StartAddr;
 };
 
+} // namespace Executor
 } // namespace SSVM

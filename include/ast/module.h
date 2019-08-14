@@ -41,7 +41,7 @@ public:
   /// \param Stack the stack manager reference.
   ///
   /// \returns ErrCode.
-  Executor::ErrCode instantiate(StoreManager &Store, StackManager &Stack);
+  Executor::ErrCode instantiate(Executor::StoreManager &Store, Executor::StackManager &Stack);
 
 protected:
   /// The node type should be Attr::Module.

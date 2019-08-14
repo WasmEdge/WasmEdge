@@ -1,6 +1,7 @@
 #include "executor/frameentry.h"
 
 namespace SSVM {
+namespace Executor {
 
 /// Constructor of frame entry. See "include/executor/frameentry.h".
 FrameEntry::FrameEntry(
@@ -135,4 +136,5 @@ Executor::ErrCode FrameEntry::setValue(unsigned int Idx, T Val) {
   return Status;
 }
 
+} // namespace Executor
 } // namespace SSVM

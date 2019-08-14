@@ -5,8 +5,8 @@ namespace AST {
 
 /// Instantiation of global segment. See "include/ast/segment.h".
 Executor::ErrCode
-GlobalSegment::instantiate(StoreManager &Mgr,
-                           std::unique_ptr<GlobalInstance> &GlobInst) {
+GlobalSegment::instantiate(Executor::StoreManager &Mgr,
+                           std::unique_ptr<Executor::GlobalInstance> &GlobInst) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
   /// Instantiation sets global type and moves expression to function instance.
   if ((Status = Global->instantiate(Mgr, GlobInst)) !=
@@ -17,8 +17,8 @@ GlobalSegment::instantiate(StoreManager &Mgr,
 
 /// Instantiation of code segment. See "include/ast/segment.h".
 Executor::ErrCode
-CodeSegment::instantiate(StoreManager &Mgr,
-                         std::unique_ptr<FunctionInstance> &FuncInst) {
+CodeSegment::instantiate(Executor::StoreManager &Mgr,
+                         std::unique_ptr<Executor::FunctionInstance> &FuncInst) {
   Executor::ErrCode Status = Executor::ErrCode::Success;
   /// Instantiation will only move locals and expression to function instance.
   if ((Status = FuncInst->setLocals(Locals)) != Executor::ErrCode::Success)

@@ -2,6 +2,7 @@
 #include <iterator>
 
 namespace SSVM {
+namespace Executor {
 
 /// Setter of element type. See "include/executor/tableinst.h".
 Executor::ErrCode TableInstance::setElemType(AST::ElemType &Elem) {
@@ -26,4 +27,5 @@ Executor::ErrCode TableInstance::setInitList(unsigned int Offset,
   return Executor::ErrCode::Success;
 }
 
+} // namespace Executor
 } // namespace SSVM

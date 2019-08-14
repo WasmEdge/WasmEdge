@@ -16,6 +16,7 @@
 #include <string>
 
 namespace SSVM {
+namespace Executor {
 
 class FunctionInstance {
 public:
@@ -57,4 +58,5 @@ private:
   /// @}
 };
 
+} // namespace Executor
 } // namespace SSVM

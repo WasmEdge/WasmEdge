@@ -16,6 +16,7 @@
 #include <variant>
 
 namespace SSVM {
+namespace Executor {
 
 class ValueEntry {
 public:
@@ -41,4 +42,5 @@ private:
   /// @}
 };
 
+} // namespace Executor
 } // namespace SSVM

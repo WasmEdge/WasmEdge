@@ -41,6 +41,33 @@ inline bool isNumericOp(OpCode Opcode) {
   return isInRange(OpCode::I32__eqz, Opcode, OpCode::F64__reinterpret_i64);
 }
 
+inline bool isBinaryOp(OpCode Opcode) {
+  bool Ret = false;
+  switch (Opcode) {
+    case OpCode::I32__add:
+    case OpCode::I32__sub:
+      Ret = true;
+      break;
+    default:
+      Ret = false;
+      break;
+  }
+  return Ret;
+}
+
+inline bool isComparisonOp(OpCode Opcode) {
+  bool Ret = false;
+  switch (Opcode) {
+    case OpCode::I32__le_s:
+      Ret = true;
+      break;
+    default:
+      Ret = false;
+      break;
+  }
+  return Ret;
+}
+
 } // anonymous namespace
 
 ErrCode Worker::setArguments(Bytes &Input) {
@@ -103,7 +130,7 @@ ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
   }
 
   auto Opcode = TheInstrPtr->getOpCode();
-  if (Opcode == OpCode::I32__add) {
+  if (isBinaryOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val1, Val2;
     StackMgr.pop(Val2);
     StackMgr.pop(Val1);
@@ -111,17 +138,28 @@ ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
     AST::ValType ValTp1, ValTp2;
     Val1->getType(ValTp1);
     Val2->getType(ValTp2);
-    if (ValTp1 == AST::ValType::I32
-        && ValTp1 == ValTp2) {
+    if (ValTp1 != ValTp2) {
+      return ErrCode::TypeNotMatch;
+    }
+
+    if (ValTp1 == AST::ValType::I32) {
       int32_t Int1, Int2;
       Val1->getValue(Int1);
       Val2->getValue(Int2);
-      std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1+Int2);
-      StackMgr.push(NewVal);
-      return ErrCode::Success;
+      if (Opcode == OpCode::I32__add) {
+        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1+Int2);
+        StackMgr.push(NewVal);
+        return ErrCode::Success;
+      } else if (Opcode == OpCode::I32__sub) {
+        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1-Int2);
+        StackMgr.push(NewVal);
+        return ErrCode::Success;
+      } else {
+        return ErrCode::Unimplemented;
+      }
     }
     return ErrCode::TypeNotMatch;
-  } else if (Opcode == OpCode::I32__sub) {
+  } else if (isComparisonOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val1, Val2;
     StackMgr.pop(Val2);
     StackMgr.pop(Val1);
@@ -129,14 +167,17 @@ ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
     AST::ValType ValTp1, ValTp2;
     Val1->getType(ValTp1);
     Val2->getType(ValTp2);
-    if (ValTp1 == AST::ValType::I32
-        && ValTp1 == ValTp2) {
+    if (ValTp1 == AST::ValType::I32) {
       int32_t Int1, Int2;
       Val1->getValue(Int1);
       Val2->getValue(Int2);
-      std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1-Int2);
-      StackMgr.push(NewVal);
-      return ErrCode::Success;
+      if (Opcode == OpCode::I32__le_s) {
+        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>((Int1 <= Int2)?1:0);
+        StackMgr.push(NewVal);
+        return ErrCode::Success;
+      } else {
+        return ErrCode::Unimplemented;
+      }
     }
     return ErrCode::TypeNotMatch;
   } else {

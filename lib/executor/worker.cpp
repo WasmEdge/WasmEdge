@@ -111,8 +111,34 @@ ErrCode runMemoryOp(AST::Instruction* Instr) {
   return ErrCode::Success;
 }
 
-ErrCode runParametricOp(AST::Instruction* Instr) {
-  // XXX: unimplemented
+ErrCode Worker::runParametricOp(AST::Instruction* InstrPtr) {
+  auto TheInstrPtr = dynamic_cast<AST::ConstInstruction*>(InstrPtr);
+  if (TheInstrPtr == nullptr) {
+    return ErrCode::InstructionTypeMismatch;
+  }
+
+  if (TheInstrPtr->getOpCode() == OpCode::Drop) {
+    StackMgr.pop();
+  } else if (TheInstrPtr->getOpCode() == OpCode::Select) {
+
+    // Pop the value i32.const from the stack.
+    std::unique_ptr<ValueEntry> VE;
+    StackMgr.pop(VE);
+    int32_t Val;
+    VE->getValue(Val);
+
+    std::unique_ptr<ValueEntry> Val1, Val2;
+    StackMgr.pop(Val2);
+    StackMgr.pop(Val1);
+
+    if (Val == 0) {
+      StackMgr.push(Val2);
+    } else {
+      StackMgr.push(Val1);
+    }
+  } else {
+    return ErrCode::InstructionTypeMismatch;
+  }
   return ErrCode::Success;
 }
 

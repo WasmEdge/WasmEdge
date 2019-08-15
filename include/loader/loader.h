@@ -5,7 +5,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the LoadMgr class, which controls flow
+/// This file contains the declaration of the Loader class, which controls flow
 /// of WASM loading.
 ///
 //===----------------------------------------------------------------------===//

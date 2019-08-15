@@ -18,6 +18,7 @@ public:
   using Bytes =  std::vector<Byte>;
   using Instructions = std::vector<AST::Instruction*>;
 
+
 public:
   /// Worker are not allowed to create without Store and Stack.
   Worker() = delete;
@@ -35,6 +36,19 @@ public:
   ErrCode run();
 
 private:
+  /// Execute const numeric instructions
+  ErrCode runConstNumericOp(AST::Instruction*);
+  /// Execute numeric instructions
+  ErrCode runNumericOp(AST::Instruction*);
+  /// Execute coontrol instructions
+  ErrCode runControlOp(AST::Instruction*);
+  /// Execute memory instructions
+  ErrCode runMemoryOp(AST::Instruction*);
+  /// Execute parametric instructions
+  ErrCode runParametricOp(AST::Instruction*);
+  /// Execute variable instructions
+  ErrCode runVariableOp(AST::Instruction*);
+
   /// Arguments
   Bytes Args;
   /// Instructions of execution code.

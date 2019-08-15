@@ -10,4 +10,5 @@ add_library(ssvmExecutor
   storemgr.cpp
   tableinst.cpp
   valueentry.cpp
+  worker.cpp
 )

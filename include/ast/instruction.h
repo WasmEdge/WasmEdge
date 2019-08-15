@@ -416,6 +416,9 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
+  /// Getter of the constant value.
+  ValVariant value() { return Num; }
+
 private:
   /// Const value of this instruction.
   ValVariant Num;

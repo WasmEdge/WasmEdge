@@ -23,7 +23,8 @@ enum class ErrCode : unsigned int {
   TypeNotMatch, /// Value type between instructions and stack or store not match
   StackWrongEntry,  /// Entry type not match when get or pop entry
   StackEmpty,       /// Empry stack when get or pop entry
-  WrongLocalAddress /// Wrong access of local variable
+  WrongLocalAddress, /// Wrong access of local variable
+  InstructionTypeMismatch, /// Instruction type not match
 };
 
 } // namespace Executor

@@ -1,3 +1,4 @@
+#include "ast/common.h"
 #include "ast/instruction.h"
 #include "executor/worker.h"
 
@@ -6,67 +7,38 @@ namespace Executor {
 
 namespace {
 using OpCode = AST::Instruction::OpCode;
+using Value = AST::ValVariant;
 
 /// helper functions for execution
-inline bool isInRange(OpCode X, OpCode Y, OpCode Z) const {
-  auto XC = static_case <unsigned char>(X);
-  auto YC = static_case <unsigned char>(Y);
-  auto ZC = static_case <unsigned char>(Z);
+inline bool isInRange(OpCode X, OpCode Y, OpCode Z) {
+  auto XC = static_cast <unsigned char>(X);
+  auto YC = static_cast <unsigned char>(Y);
+  auto ZC = static_cast <unsigned char>(Z);
   return (XC <= YC && YC <= ZC);
 }
 
-inline bool isControlOp(OpCode Opcode) const {
+inline bool isControlOp(OpCode Opcode) {
   return isInRange(OpCode::Unreachable, Opcode, OpCode::Call_indirect);
 }
 
-inline bool isParametricOp(OpCode Opcode) const {
+inline bool isParametricOp(OpCode Opcode) {
   return isInRange(OpCode::Drop, Opcode, OpCode::Select);
 }
 
-inline bool isVariableOp(OpCode Opcode) const {
+inline bool isVariableOp(OpCode Opcode) {
   return isInRange(OpCode::Local__get, Opcode, OpCode::Global__set);
 }
 
-inline bool isMemoryOp(OpCode Opcode) const {
+inline bool isMemoryOp(OpCode Opcode) {
   return isInRange(OpCode::I32__load, Opcode, OpCode::Memory__grow);
 }
 
-inline bool isConstNumericOp(OpCode Opcode) const {
+inline bool isConstNumericOp(OpCode Opcode) {
   return isInRange(OpCode::I32__const, Opcode, OpCode::F64__const);
 }
 
-inline bool isNumericOp(OpCode Opcode) const {
+inline bool isNumericOp(OpCode Opcode) {
   return isInRange(OpCode::I32__eqz, Opcode, OpCode::F64__reinterpret_i64);
-}
-
-ErrCode runConstNumericOp(Instruction &Instr) {
-  // XXX: unimplemented
-  return ErrCode::Success;
-}
-
-ErrCode runNumericOp(Instruction &Instr) {
-  // XXX: unimplemented
-  return ErrCode::Success;
-}
-
-ErrCode runControlOp(Instruction &Instr) {
-  // XXX: unimplemented
-  return ErrCode::Success;
-}
-
-ErrCode runMemoryOp(Instruction &Instr) {
-  // XXX: unimplemented
-  return ErrCode::Success;
-}
-
-ErrCode runParametricOp(Instruction &Instr) {
-  // XXX: unimplemented
-  return ErrCode::Success;
-}
-
-ErrCode runVariableOp(Instruction &Instr) {
-  // XXX: unimplemented
-  return ErrCode::Success;
 }
 
 } // anonymous namespace
@@ -86,7 +58,7 @@ ErrCode Worker::setCode(std::vector<std::unique_ptr<AST::Instruction>> &Instrs) 
 ErrCode Worker::run() {
   ErrCode Status = ErrCode::Success;
   for (auto &Inst : Instrs) {
-    OpCode Opcode = Inst.getOpCode();
+    OpCode Opcode = Inst->getOpCode();
     if (isConstNumericOp(Opcode)) {
       Status = runConstNumericOp(Inst);
     } else if (isControlOp(Opcode)) {
@@ -106,6 +78,47 @@ ErrCode Worker::run() {
     }
   }
   return Status;
+}
+
+ErrCode Worker::runConstNumericOp(AST::Instruction *Instr) {
+  auto TheInstr = dynamic_cast<AST::ConstInstruction*>(Instr);
+  if (TheInstr == nullptr) {
+    return ErrCode::InstructionTypeMismatch;
+  }
+
+  std::unique_ptr<ValueEntry> VE = nullptr;
+  std::visit([&VE](auto&& arg) {
+    VE = std::make_unique<ValueEntry>(arg);
+  }, TheInstr->value());
+
+  StackMgr.push(VE);
+
+  return ErrCode::Success;
+}
+
+ErrCode runNumericOp(AST::Instruction* Instr) {
+  // XXX: unimplemented
+  return ErrCode::Success;
+}
+
+ErrCode runControlOp(AST::Instruction* Instr) {
+  // XXX: unimplemented
+  return ErrCode::Success;
+}
+
+ErrCode runMemoryOp(AST::Instruction* Instr) {
+  // XXX: unimplemented
+  return ErrCode::Success;
+}
+
+ErrCode runParametricOp(AST::Instruction* Instr) {
+  // XXX: unimplemented
+  return ErrCode::Success;
+}
+
+ErrCode runVariableOp(AST::Instruction* Instr) {
+  // XXX: unimplemented
+  return ErrCode::Success;
 }
 
 } // namespace Executor

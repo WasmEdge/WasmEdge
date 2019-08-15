@@ -22,9 +22,9 @@ template <typename T> ErrCode StackManager::getTop(T *&Entry) {
 template <typename T> ErrCode StackManager::push(std::unique_ptr<T> &NewEntry) {
   Stack.push_back(std::move(NewEntry));
   /// If is frame or label, record the index in stack.
-  if (std::is_same<T, FrameEntry>::value)
+  if (std::is_same<T, Entry::FrameEntry>::value)
     FrameIdx.push_back(Stack.size() - 1);
-  if (std::is_same<T, LabelEntry>::value)
+  if (std::is_same<T, Entry::LabelEntry>::value)
     LabelIdx.push_back(Stack.size() - 1);
   return ErrCode::Success;
 }
@@ -43,9 +43,9 @@ template <typename T> ErrCode StackManager::pop(std::unique_ptr<T> &Entry) {
   }
 
   /// Delete the index of this popped entry.
-  if (std::is_same<T, FrameEntry>::value)
+  if (std::is_same<T, Entry::FrameEntry>::value)
     FrameIdx.pop_back();
-  if (std::is_same<T, LabelEntry>::value)
+  if (std::is_same<T, Entry::LabelEntry>::value)
     LabelIdx.pop_back();
   /// Drop the top entry.
   Stack.pop_back();

@@ -93,7 +93,8 @@ ErrCode StoreManager::getGlobal(unsigned int Addr,
 }
 
 /// Finder of function instance. See "include/executor/storemgr.h".
-ErrCode StoreManager::findFunction(std::string &ModName, std::string &FuncName,
+ErrCode StoreManager::findFunction(const std::string &ModName,
+                                   const std::string &FuncName,
                                    Instance::FunctionInstance *&Func) {
   for (auto It = FuncInsts.begin(); It != FuncInsts.end(); It++) {
     if ((*It)->isName(ModName, FuncName)) {

@@ -150,7 +150,7 @@ public:
   /// \param [out] Func the function instance.
   ///
   /// \returns ErrCode.
-  ErrCode findFunction(std::string &ModName, std::string &FuncName,
+  ErrCode findFunction(const std::string &ModName, const std::string &FuncName,
                        Instance::FunctionInstance *&Func);
 
 private:

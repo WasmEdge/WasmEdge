@@ -175,6 +175,10 @@ ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
         std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>((Int1 <= Int2)?1:0);
         StackMgr.push(NewVal);
         return ErrCode::Success;
+      } else if (Opcode == OpCode::I32__eq) {
+        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>((Int1 == Int2)?1:0);
+        StackMgr.push(NewVal);
+        return ErrCode::Success;
       } else {
         return ErrCode::Unimplemented;
       }

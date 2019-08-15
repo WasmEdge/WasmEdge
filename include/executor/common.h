@@ -25,6 +25,7 @@ enum class ErrCode : unsigned int {
   StackEmpty,       /// Empry stack when get or pop entry
   WrongLocalAddress, /// Wrong access of local variable
   InstructionTypeMismatch, /// Instruction type not match
+  Unimplemented, /// Instruction is unimplemented
 };
 
 } // namespace Executor

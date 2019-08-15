@@ -96,8 +96,52 @@ ErrCode Worker::runConstNumericOp(AST::Instruction *InstrPtr) {
   return ErrCode::Success;
 }
 
-ErrCode Worker::runNumericOp(AST::Instruction* Instr) {
-  // XXX: unimplemented
+ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
+  auto TheInstrPtr = dynamic_cast<AST::NumericInstruction*>(InstrPtr);
+  if (TheInstrPtr == nullptr) {
+    return ErrCode::InstructionTypeMismatch;
+  }
+
+  auto Opcode = TheInstrPtr->getOpCode();
+  if (Opcode == OpCode::I32__add) {
+    std::unique_ptr<ValueEntry> Val1, Val2;
+    StackMgr.pop(Val2);
+    StackMgr.pop(Val1);
+    /// Type check
+    AST::ValType ValTp1, ValTp2;
+    Val1->getType(ValTp1);
+    Val2->getType(ValTp2);
+    if (ValTp1 == AST::ValType::I32
+        && ValTp1 == ValTp2) {
+      int32_t Int1, Int2;
+      Val1->getValue(Int1);
+      Val2->getValue(Int2);
+      std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1+Int2);
+      StackMgr.push(NewVal);
+      return ErrCode::Success;
+    }
+    return ErrCode::TypeNotMatch;
+  } else if (Opcode == OpCode::I32__sub) {
+    std::unique_ptr<ValueEntry> Val1, Val2;
+    StackMgr.pop(Val2);
+    StackMgr.pop(Val1);
+    /// Type check
+    AST::ValType ValTp1, ValTp2;
+    Val1->getType(ValTp1);
+    Val2->getType(ValTp2);
+    if (ValTp1 == AST::ValType::I32
+        && ValTp1 == ValTp2) {
+      int32_t Int1, Int2;
+      Val1->getValue(Int1);
+      Val2->getValue(Int2);
+      std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1-Int2);
+      StackMgr.push(NewVal);
+      return ErrCode::Success;
+    }
+    return ErrCode::TypeNotMatch;
+  } else {
+    return ErrCode::Unimplemented;
+  }
   return ErrCode::Success;
 }
 

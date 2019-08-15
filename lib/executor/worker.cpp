@@ -4,7 +4,7 @@
 namespace SSVM {
 namespace Executor {
 
-namespace detail {
+namespace {
 using OpCode = AST::Instruction::OpCode;
 
 /// helper functions for execution
@@ -39,7 +39,37 @@ inline bool isNumericOp(OpCode Opcode) const {
   return isInRange(OpCode::I32__eqz, Opcode, OpCode::F64__reinterpret_i64);
 }
 
-} // namespace detail
+ErrCode runConstNumericOp(Instruction &Instr) {
+  // XXX: unimplemented
+  return ErrCode::Success;
+}
+
+ErrCode runNumericOp(Instruction &Instr) {
+  // XXX: unimplemented
+  return ErrCode::Success;
+}
+
+ErrCode runControlOp(Instruction &Instr) {
+  // XXX: unimplemented
+  return ErrCode::Success;
+}
+
+ErrCode runMemoryOp(Instruction &Instr) {
+  // XXX: unimplemented
+  return ErrCode::Success;
+}
+
+ErrCode runParametricOp(Instruction &Instr) {
+  // XXX: unimplemented
+  return ErrCode::Success;
+}
+
+ErrCode runVariableOp(Instruction &Instr) {
+  // XXX: unimplemented
+  return ErrCode::Success;
+}
+
+} // anonymous namespace
 
 ErrCode Worker::setArguments(Bytes &Input) {
   Args.assign(Input.begin(), Input.end());
@@ -54,23 +84,28 @@ ErrCode Worker::setCode(std::vector<std::unique_ptr<AST::Instruction>> &Instrs) 
 }
 
 ErrCode Worker::run() {
+  ErrCode Status = ErrCode::Success;
   for (auto &Inst : Instrs) {
-    OpCode opcode = Inst.getOpCode();
-    if (isConstNumericOp(opcode)) {
-      // TODO: const numeric instructions
-    } else if (isControlOp(opcode)) {
-      // TODO: control instructions
-    } else if (isNumericOp(opcode)) {
-      // TODO: numeric instructions
-    } else if (isMemoryOp(opcode)) {
-      // TODO: memory instructions
-    } else if (isParametricOp(opcode)) {
-      // TODO: parametric instructions
-    } else if (isVariableOp(opcode)) {
-      // TODO: variable instructions
+    OpCode Opcode = Inst.getOpCode();
+    if (isConstNumericOp(Opcode)) {
+      Status = runConstNumericOp(Inst);
+    } else if (isControlOp(Opcode)) {
+      Status = runControlOp(Inst);
+    } else if (isNumericOp(Opcode)) {
+      Status = runNumericOp(Inst);
+    } else if (isMemoryOp(Opcode)) {
+      Status = runMemoryOp(Inst);
+    } else if (isParametricOp(Opcode)) {
+      Status = runParametricOp(Inst);
+    } else if (isVariableOp(Opcode)) {
+      Status = runVariableOp(Inst);
+    }
+
+    if (Status != ErrCode::Success) {
+      break;
     }
   }
-  return ErrCode::Success;
+  return Status;
 }
 
 } // namespace Executor

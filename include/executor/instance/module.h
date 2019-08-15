@@ -24,9 +24,9 @@ public:
   ModuleInstance() = default;
   ~ModuleInstance() = default;
 
-  /// Move the function types in type section to module instance.
-  ErrCode addFuncType(std::vector<AST::ValType> &Params,
-                      std::vector<AST::ValType> &Returns);
+  /// Copy the function types in type section to module instance.
+  ErrCode addFuncType(const std::vector<AST::ValType> &Params,
+                      const std::vector<AST::ValType> &Returns);
 
   /// Map the external instences between Module and Store.
   ErrCode addFuncAddr(unsigned int StoreFuncAddr);

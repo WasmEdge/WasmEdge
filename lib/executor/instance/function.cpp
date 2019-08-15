@@ -18,8 +18,8 @@ ErrCode FunctionInstance::setTypeIdx(unsigned int Id) {
 
 /// Setter of locals vector. See "include/executor/instance/function.h".
 ErrCode FunctionInstance::setLocals(
-    std::vector<std::pair<unsigned int, AST::ValType>> &Loc) {
-  Locals = std::move(Loc);
+    const std::vector<std::pair<unsigned int, AST::ValType>> &Loc) {
+  Locals = Loc;
   return ErrCode::Success;
 }
 

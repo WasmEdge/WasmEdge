@@ -39,8 +39,8 @@ private:
   /// \name Data of table instance.
   /// @{
   AST::ElemType Type;
-  bool HasMaxSize;
-  unsigned int MaxSize;
+  bool HasMaxSize = false;
+  unsigned int MaxSize = 0;
   std::vector<unsigned int> FuncElem;
   /// @}
 };

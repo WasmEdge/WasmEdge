@@ -32,7 +32,8 @@ public:
   ErrCode setTypeIdx(unsigned int Id);
 
   /// Move the local variables in code section into function instance.
-  ErrCode setLocals(std::vector<std::pair<unsigned int, AST::ValType>> &Loc);
+  ErrCode
+  setLocals(const std::vector<std::pair<unsigned int, AST::ValType>> &Loc);
 
   /// Move the instruction list in code segment into function instance.
   ErrCode setExpression(std::vector<std::unique_ptr<AST::Instruction>> &Expr);

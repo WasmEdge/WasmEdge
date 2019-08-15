@@ -5,11 +5,11 @@ namespace Executor {
 namespace Instance {
 
 /// Adder of function types. See "include/executor/instance/module.h".
-ErrCode ModuleInstance::addFuncType(std::vector<AST::ValType> &Params,
-                                    std::vector<AST::ValType> &Returns) {
+ErrCode ModuleInstance::addFuncType(const std::vector<AST::ValType> &Params,
+                                    const std::vector<AST::ValType> &Returns) {
   auto NewFuncType = std::make_unique<FType>();
-  NewFuncType->Params = std::move(Params);
-  NewFuncType->Returns = std::move(Returns);
+  NewFuncType->Params = Params;
+  NewFuncType->Returns = Returns;
   FuncTypes.push_back(std::move(NewFuncType));
   return ErrCode::Success;
 }

@@ -34,8 +34,8 @@ public:
 private:
   /// \name Data of memory instance.
   /// @{
-  bool HasMaxPage;
-  unsigned int MaxPage;
+  bool HasMaxPage = false;
+  unsigned int MaxPage = 0;
   std::vector<unsigned char> Data;
   /// @}
 };

@@ -63,6 +63,7 @@ inline bool isComparisonOp(OpCode Opcode) {
     case OpCode::I32__eq:
     case OpCode::I32__ne:
     case OpCode::I64__eq:
+    case OpCode::I64__lt_u:
       Ret = true;
       break;
     default:
@@ -207,6 +208,10 @@ ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
       Val2->getValue(Int2);
       if (Opcode == OpCode::I64__eq) {
         std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>((Int1 == Int2)?1:0);
+        StackMgr.push(NewVal);
+        return ErrCode::Success;
+      } else if (Opcode == OpCode::I64__lt_u) {
+        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>((Int1 < Int2)?1:0);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else {

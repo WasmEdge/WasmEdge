@@ -48,6 +48,7 @@ inline bool isBinaryOp(OpCode Opcode) {
     case OpCode::I32__sub:
     case OpCode::I64__add:
     case OpCode::I64__sub:
+    case OpCode::I64__mul:
     case OpCode::I64__rem_u:
       Ret = true;
       break;
@@ -131,6 +132,7 @@ ErrCode Worker::runConstNumericOp(AST::Instruction *InstrPtr) {
 }
 
 ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
+  /// FIXME: the following calculations do not apply `modulo 2^N`.
   auto TheInstrPtr = dynamic_cast<AST::NumericInstruction*>(InstrPtr);
   if (TheInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
@@ -174,6 +176,10 @@ ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
         return ErrCode::Success;
       } else if (Opcode == OpCode::I64__sub) {
         std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1-Int2);
+        StackMgr.push(NewVal);
+        return ErrCode::Success;
+      } else if (Opcode == OpCode::I64__mul) {
+        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1*Int2);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else if (Opcode == OpCode::I64__rem_u) {

@@ -395,6 +395,10 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
+  /// Getters
+  unsigned int getAlign() const { return Align; }
+  unsigned int getOffset() const { return Offset; }
+
 private:
   /// \name Data of memory instruction: Alignment and offset.
   /// @{

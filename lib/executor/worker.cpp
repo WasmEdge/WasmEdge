@@ -1,11 +1,12 @@
-#include "executor/worker.h"
 #include "ast/common.h"
 #include "ast/instruction.h"
+#include "executor/worker.h"
+#include "support/casting.h"
 
 namespace SSVM {
 namespace Executor {
 
-namespace {
+namespace detail {
 using OpCode = AST::Instruction::OpCode;
 using Value = AST::ValVariant;
 
@@ -27,6 +28,14 @@ inline bool isParametricOp(OpCode Opcode) {
 
 inline bool isVariableOp(OpCode Opcode) {
   return isInRange(OpCode::Local__get, Opcode, OpCode::Global__set);
+}
+
+inline bool isLoadOp(OpCode Opcode) {
+  return isInRange(OpCode::I32__load, Opcode, OpCode::I64__load32_u);
+}
+
+inline bool isStoreOp(OpCode Opcode) {
+  return isInRange(OpCode::I32__store, Opcode, OpCode::I64__store32);
 }
 
 inline bool isMemoryOp(OpCode Opcode) {
@@ -77,7 +86,7 @@ inline bool isComparisonOp(OpCode Opcode) {
   return Ret;
 }
 
-} // anonymous namespace
+} // detail namespace
 
 ErrCode Worker::setArguments(Bytes &Input) {
   Args.assign(Input.begin(), Input.end());
@@ -272,7 +281,107 @@ ErrCode Worker::runMemoryOp(AST::Instruction *InstrPtr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
-  // XXX: unimplemented
+  if (isLoadOp(TheInstrPtr->getOpCode())) {
+    StackMgr.getCurrentFrame(CurrentFrame);
+
+    unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
+    ModuleInstance *ModuleInst = nullptr;
+    StoreMgr.getModule(ModuleAddr, ModuleInst);
+    unsigned int MemAddr;
+    ModuleInst->getMemAddr(0, MemAddr);
+    MemoryInstance *MemoryInst = nullptr;
+    StoreMgr.getMemory(MemAddr, MemoryInst);
+
+    /// Calculate EA
+    std::unique_ptr<ValueEntry> Val;
+    StackMgr.pop(Val);
+
+    int32_t Int;
+    Val.getValue(Int);
+    int EA = Int + TheInstrPtr->getOffset();
+    /// TODO: The following codes do not handle the `t.loadN_sx`.
+
+    /// Get the bit width from the instruction
+    OpCode Opcode = TheInstrPtr->getOpCode();
+    int N = 0;
+    if (Opcode == OpCode::I64__load) {
+      N = 64;
+    } else if (Opcode == OpCode::I32__load) {
+      N = 32;
+    } else {
+      return ErrCode::Unimplemented;
+    }
+
+    /// Make sure the EA + N/8 is NOT larger than length of memory.data.
+    if (EA + N/8 > MemoryInst->getDataLength()) {
+      return ErrCode::AccessForbidMemory;
+    }
+
+    /// Bytes = Mem.Data[EA:N/8]
+    std::unique_ptr<std::vector<unsigned char>> BytesPtr = nullptr;
+    MemoryInst->getBytes(BytesPtr, EA, N/8);
+    std::unique_ptr<ValueEntry> C = nullptr;
+    if (Opcode == OpCode::I64__load) {
+      /// Construct const C = bytes_64(Bytes);
+      C = std::make_unique<ValueEntry>(bytesToInt<int64_t>(*BytesPtr.get()));
+    } else if (Opcode == OpCode::I32__load) {
+      /// Construct const C = bytes_32(Bytes);
+      C = std::make_unique<ValueEntry>(bytesToInt<int32_t>(*BytesPtr.get()));
+    } else {
+      return ErrCode::Unimplemented;
+    }
+
+    /// Push const C to the Stack
+    Stack.push(C);
+  } else if (isStoreOp(TheInstrPtr->getOpCode())) {
+    StackMgr.getCurrentFrame(CurrentFrame);
+
+    unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
+    ModuleInstance *ModuleInst = nullptr;
+    StoreMgr.getModule(ModuleAddr, ModuleInst);
+    unsigned int MemAddr;
+    ModuleInst->getMemAddr(0, MemAddr);
+    MemoryInstance *MemoryInst = nullptr;
+    StoreMgr.getMemory(MemAddr, MemoryInst);
+
+    /// Pop the value t.const c from the Stack
+    std::unique_ptr<ValueEntry> C;
+    StackMgr.pop(C);
+    /// Pop the i32.const i from the Stack
+    std::unique_ptr<ValueEntry> I;
+    StackMgr.pop(I);
+    /// EA = i + offset
+    int32_t Int32;
+    I.getValue(Int32);
+    int32_t EA = Int32 + TheInstrPtr->getOffset();
+    /// N = bits(t)
+    OpCode Opcode = TheInstrPtr->getOpCode();
+    int N = 0;
+    if (Opcode == OpCode::I64__store) {
+      N = 64;
+    } else {
+      return ErrCode::Unimplemented;
+    }
+    /// EA + N/8 <= Memory.Data.Length
+    if (EA + N/8 > MemoryInst->getDataLength()) {
+      return ErrCode::AccessForbidMemory;
+    }
+
+    /// b* = toBytes(c)
+    std::vector<unsigned char> Bytes;
+    if (Opcode == OpCode::I64__store) {
+      int64_t Int64;
+      C.getValue(Int64);
+      Bytes = IntToBytes<int64_t>(Int64);
+    } else {
+      return ErrCode::Unimplemented;
+    }
+    /// Replace the bytes.mem.data[EA:N/8] with b*
+    MemoryInst->setBytes(Bytes, EA, N/8);
+  } else {
+    return ErrCode::Unimplemented;
+  }
+
   return ErrCode::Success;
 }
 

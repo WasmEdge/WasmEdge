@@ -22,6 +22,24 @@ ErrCode MemoryInstance::setInitList(unsigned int Offset,
   return ErrCode::Success;
 }
 
+ErrCode MemoryInstance::getBytes(std::unique_ptr<Bytes> &Slice, int Start, int Length) {
+  Slice = std::make_unique<Bytes>(Data.data() + Start, Data.data() + Start + Length - 1);
+  if (Slice.get() == nullptr) {
+    return ErrCode::SliceDataFailed;
+  }
+  return ErrCode::Success;
+}
+
+ErrCode MemoryInstance::setBytes(Bytes &TheBytes, int Start, int Length) {
+  if (Length != TheBytes.size()) {
+    return ErrCode::AccessForbidMemory;
+  }
+  for (auto Iter = Start; Iter <= Start + Length - 1; Iter++) {
+    Data.at(Iter) = TheBytes.at(Iter-Start);
+  }
+  return ErrCode::Success;
+}
+
 } // namespace Instance
 } // namespace Executor
 } // namespace SSVM

@@ -49,6 +49,7 @@ inline bool isBinaryOp(OpCode Opcode) {
     case OpCode::I64__add:
     case OpCode::I64__sub:
     case OpCode::I64__mul:
+    case OpCode::I64__div_u:
     case OpCode::I64__rem_u:
       Ret = true;
       break;
@@ -180,6 +181,13 @@ ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
         return ErrCode::Success;
       } else if (Opcode == OpCode::I64__mul) {
         std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1*Int2);
+        StackMgr.push(NewVal);
+        return ErrCode::Success;
+      } else if (Opcode == OpCode::I64__div_u) {
+        if (Int2 == 0) {
+          return ErrCode::DivideByZero;
+        }
+        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1/Int2);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else if (Opcode == OpCode::I64__rem_u) {

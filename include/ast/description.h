@@ -22,12 +22,15 @@ namespace AST {
 class Desc : public Base {
 public:
   /// External type enumeration class
-  enum class ExternalType : char {
-    Function = 0x00,
-    Table = 0x01,
-    Memory = 0x02,
-    Global = 0x03
+  enum class ExternalType : unsigned char {
+    Function = 0x00U,
+    Table = 0x01U,
+    Memory = 0x02U,
+    Global = 0x03U
   };
+
+  /// Getter of external type.
+  virtual ExternalType getExternalType() { return ExtType; }
 
 protected:
   /// External type of this class.
@@ -37,6 +40,11 @@ protected:
 /// Derived import description class.
 class ImportDesc : public Desc {
 public:
+  /// Variant of external type classes.
+  using ExtContentType =
+      std::variant<std::unique_ptr<unsigned int>, std::unique_ptr<TableType>,
+                   std::unique_ptr<MemoryType>, std::unique_ptr<GlobalType>>;
+
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Base.
@@ -48,20 +56,21 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
-  /// Instantiate to store manager.
-  ///
-  /// Find the external types index and set to Module instance.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param ModInstId the index of module instance in store manager.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
+  /// Getter of module name.
+  const std::string &getModuleName() const { return ModName; }
 
-  /// Variant of external type classes.
-  using ExtContentType =
-      std::variant<std::unique_ptr<unsigned int>, std::unique_ptr<TableType>,
-                   std::unique_ptr<MemoryType>, std::unique_ptr<GlobalType>>;
+  /// Getter of external name.
+  const std::string &getExternalName() const { return ExtName; }
+
+  /// Getter of ExtContent.
+  template <typename T> Executor::ErrCode getExternalContent(T *&type) {
+    try {
+      type = std::get<std::unique_ptr<T>>(ExtContent).get();
+    } catch (std::bad_variant_access E) {
+      return Executor::ErrCode::TypeNotMatch;
+    }
+    return Executor::ErrCode::Success;
+  }
 
 protected:
   /// The node type should be Attr::Desc_Import.
@@ -88,16 +97,11 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
-  /// Instantiate to store manager.
-  ///
-  /// Find the main function address and set to Module instance.
-  /// TODO: make export instance.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param ModInstId the index of module instance in store manager.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
+  /// Getter of external name.
+  const std::string &getExternalName() { return ExtName; }
+
+  /// Getter of external index.
+  unsigned int getExternalIndex() { return ExtIdx; }
 
 protected:
   /// The node type should be Attr::Desc_Export.

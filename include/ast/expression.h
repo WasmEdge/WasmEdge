@@ -33,16 +33,8 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
-  /// Instantiate to store manager.
-  ///
-  /// Move the instruction lists to function instance.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param Instance the function/global/table/memory instance reference.
-  ///
-  /// \returns ErrCode.
-  template <typename T>
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, std::unique_ptr<T> &Instance);
+  /// Getter of instructions vector.
+  auto &getInstructions() { return Instr; }
 
 protected:
   /// The node type should be Attr::Expression.

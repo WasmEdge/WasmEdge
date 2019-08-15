@@ -1,9 +1,0 @@
-add_library(ssvmASTInstantiate
-  module.cpp
-  section.cpp
-  description.cpp
-  segment.cpp
-  type.cpp
-  expression.cpp
-  instruction.cpp
-)

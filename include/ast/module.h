@@ -12,8 +12,6 @@
 #pragma once
 
 #include "base.h"
-#include "executor/stackmgr.h"
-#include "executor/storemgr.h"
 #include "section.h"
 
 namespace SSVM {
@@ -33,15 +31,19 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
-  /// Instantiate to store manager.
-  ///
-  /// Overloaded from Base.
-  ///
-  /// \param Store the store manager reference.
-  /// \param Stack the stack manager reference.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Store, Executor::StackManager &Stack);
+  /// Getter of pointer to sections.
+  CustomSection *getCustomSection() { return CustomSec.get(); }
+  TypeSection *getTypeSection() { return TypeSec.get(); }
+  ImportSection *getImportSection() { return ImportSec.get(); }
+  FunctionSection *getFunctionSection() { return FunctionSec.get(); }
+  TableSection *getTableSection() { return TableSec.get(); }
+  MemorySection *getMemorySection() { return MemorySec.get(); }
+  GlobalSection *getGlobalSection() { return GlobalSec.get(); }
+  ExportSection *getExportSection() { return ExportSec.get(); }
+  StartSection *getStartSection() { return StartSec.get(); }
+  ElementSection *getElementSection() { return ElementSec.get(); }
+  CodeSection *getCodeSection() { return CodeSec.get(); }
+  DataSection *getDataSection() { return DataSec.get(); }
 
 protected:
   /// The node type should be Attr::Module.

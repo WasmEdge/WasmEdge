@@ -27,6 +27,9 @@ public:
     return Loader::ErrCode::InvalidGrammar;
   };
 
+  /// Getter of locals vector.
+  auto &getExpression() { return Expr->getInstructions(); }
+
 protected:
   /// Load binary from file manager.
   ///
@@ -54,23 +57,15 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
-  /// Instantiate to store manager.
-  ///
-  /// Move Global Types and Expression to global instance.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param GlobInst the global instance reference.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr,
-                                std::unique_ptr<Executor::GlobalInstance> &GlobInst);
+  /// Getter of locals vector.
+  const auto &getGlobalType() { return Global; }
 
 protected:
   /// The node type should be Attr::Seg_Global.
   Attr NodeAttr = Attr::Seg_Global;
 
 private:
-  /// \name Data of ElementSegment node.
+  /// \name Data of GlobalSegment node.
   /// @{
   std::unique_ptr<GlobalType> Global;
   /// @}
@@ -114,16 +109,8 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
-  /// Instantiate to store manager.
-  ///
-  /// Move Locals and Expression to function instance.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param FuncInst the function instance reference.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr,
-                                std::unique_ptr<Executor::FunctionInstance> &FuncInst);
+  /// Getter of locals vector.
+  const auto &getLocals() { return Locals; }
 
 protected:
   /// The node type should be Attr::Seg_Code.

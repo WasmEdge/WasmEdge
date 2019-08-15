@@ -36,16 +36,14 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
-  /// Instantiate to store manager.
-  ///
-  /// Set the min and max value to instance.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param Instance the table/memory instance reference.
-  ///
-  /// \returns ErrCode.
-  template <typename T>
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, std::unique_ptr<T> &Instance);
+  /// Getter of having max in limit.
+  bool hasMax() { return Type == LimitType::HasMinMax; }
+
+  /// Getter of min.
+  unsigned int getMin() { return Min; }
+
+  /// Getter of max.
+  unsigned int getMax() { return Max; }
 
 protected:
   /// The node type should be Attr::Type_Limit.
@@ -73,15 +71,11 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
-  /// Instantiate to store manager.
-  ///
-  /// Insert the vector of param types and return types to Module instance.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param ModInstId the index of module instance in store manager.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
+  /// Getter of parameter types vector.
+  const auto &getParamTypes() { return ParamTypes; }
+
+  /// Getter of return types vector.
+  const auto &getReturnTypes() { return ReturnTypes; }
 
 protected:
   /// The node type should be Attr::Type_Function.
@@ -108,16 +102,8 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
-  /// Instantiate to store manager.
-  ///
-  /// Set the limit to table instance.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param MemInst the reference to memory instance pointer.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr,
-                                std::unique_ptr<Executor::MemoryInstance> &MemInst);
+  /// Getter of limit.
+  const auto &getLimit() { return Memory; }
 
 protected:
   /// The node type should be Attr::Type_Memory.
@@ -141,16 +127,11 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
-  /// Instantiate to store manager.
-  ///
-  /// Set the element type and limit to table instance.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param TabInst the reference to table instance pointer.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr,
-                                std::unique_ptr<Executor::TableInstance> &TabInst);
+  /// Getter of element type.
+  ElemType getElementType() { return Type; }
+
+  /// Getter of limit.
+  const auto &getLimit() { return Table; }
 
 protected:
   /// The node type should be Attr::Type_Table.
@@ -177,16 +158,11 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
-  /// Instantiate to store manager.
-  ///
-  /// Set the value type and mutibility to global instance.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param GlobInst the reference to global instance pointer.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr,
-                                std::unique_ptr<Executor::GlobalInstance> &GlobInst);
+  /// Getter of global type.
+  ValType getValueType() { return Type; }
+
+  /// Getter of global mutation.
+  ValMut getValueMutation() { return Mut; }
 
 protected:
   /// The node type should be Attr::Type_Global.

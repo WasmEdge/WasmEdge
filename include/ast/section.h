@@ -79,15 +79,8 @@ private:
 /// AST TypeSection node.
 class TypeSection : public Section {
 public:
-  /// Instantiate to store manager.
-  ///
-  /// Move the vector of function types to Module instance.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param ModInstId the index of module instance in store manager.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
+  /// Getter of content vector.
+  const auto &getContent() { return Content; }
 
 protected:
   /// Overrided content loading of type section.
@@ -104,15 +97,8 @@ private:
 /// AST ImportSection node.
 class ImportSection : public Section {
 public:
-  /// Instantiate to store manager.
-  ///
-  /// Find the function address and add to Module instance.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param ModInstId the index of module instance in store manager.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
+  /// Getter of content vector.
+  const auto &getContent() { return Content; }
 
 protected:
   /// Overrided content loading of import section.
@@ -129,16 +115,8 @@ private:
 /// AST FunctionSection node.
 class FunctionSection : public Section {
 public:
-  /// Instantiate to store manager.
-  ///
-  /// Make function instances and move expressions to instances.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param TypeIdx the type indices list for output.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr,
-                                std::vector<unsigned int> &TypeIdx);
+  /// Getter of content vector.
+  const auto &getContent() { return Content; }
 
 protected:
   /// Overrided content loading of function section.
@@ -155,15 +133,8 @@ private:
 /// AST TableSection node.
 class TableSection : public Section {
 public:
-  /// Instantiate to store manager.
-  ///
-  /// Move the vector of table types to instances.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param ModInstId the index of module instance in store manager.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
+  /// Getter of content vector.
+  const auto &getContent() { return Content; }
 
 protected:
   /// Overrided content loading of table section.
@@ -180,15 +151,8 @@ private:
 /// AST MemorySection node.
 class MemorySection : public Section {
 public:
-  /// Instantiate to store manager.
-  ///
-  /// Move the vector of memory types to instances.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param ModInstId the index of module instance in store manager.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
+  /// Getter of content vector.
+  const auto &getContent() { return Content; }
 
 protected:
   /// Overrided content loading of memory section.
@@ -205,17 +169,8 @@ private:
 /// AST GlobalSection node.
 class GlobalSection : public Section {
 public:
-  /// Instantiate to store manager.
-  ///
-  /// Make global instances and move expressions to instances.
-  ///
-  /// \param Store the store manager reference.
-  /// \param Stack the stack manager reference.
-  /// \param ModInstId the index of module instance in store manager.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Store, Executor::StackManager &Stack,
-                                unsigned int ModInstId);
+  /// Getter of content vector.
+  const auto &getContent() { return Content; }
 
 protected:
   /// Overrided content loading of global section.
@@ -232,15 +187,8 @@ private:
 /// AST ExportSection node.
 class ExportSection : public Section {
 public:
-  /// Instantiate to store manager.
-  ///
-  /// Add the export instance to Module instance.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param ModInstId the index of module instance in store manager.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId);
+  /// Getter of content vector.
+  const auto &getContent() { return Content; }
 
 protected:
   /// Overrided content loading of export section.
@@ -285,17 +233,8 @@ private:
 /// AST CodeSection node.
 class CodeSection : public Section {
 public:
-  /// Instantiate to store manager.
-  ///
-  /// Make function instances and move Code Segment to instances.
-  ///
-  /// \param Mgr the store manager reference.
-  /// \param ModInstId the index of module instance in store manager.
-  /// \param TypeSec the corresponding function section for getting type index.
-  ///
-  /// \returns ErrCode.
-  Executor::ErrCode instantiate(Executor::StoreManager &Mgr, unsigned int ModInstId,
-                                std::unique_ptr<AST::FunctionSection> &FuncSec);
+  /// Getter of content vector.
+  const auto &getContent() { return Content; }
 
 protected:
   /// Overrided content loading of code section.

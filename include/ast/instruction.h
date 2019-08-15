@@ -371,6 +371,8 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
+  /// Getter of the index
+  unsigned int getIndex() const { return Idx; }
 private:
   /// Global or local index.
   unsigned int Idx = 0;

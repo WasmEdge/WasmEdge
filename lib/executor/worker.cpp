@@ -106,13 +106,18 @@ ErrCode runControlOp(AST::Instruction* Instr) {
   return ErrCode::Success;
 }
 
-ErrCode runMemoryOp(AST::Instruction* Instr) {
+ErrCode runMemoryOp(AST::Instruction *InstrPtr) {
+  auto TheInstrPtr = dynamic_cast<AST::MemoryInstruction*>(InstrPtr);
+  if (TheInstrPtr == nullptr) {
+    return ErrCode::InstructionTypeMismatch;
+  }
+
   // XXX: unimplemented
   return ErrCode::Success;
 }
 
 ErrCode Worker::runParametricOp(AST::Instruction *InstrPtr) {
-  auto TheInstrPtr = dynamic_cast<AST::ConstInstruction*>(InstrPtr);
+  auto TheInstrPtr = dynamic_cast<AST::ParametrcInstruction*>(InstrPtr);
   if (TheInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
@@ -143,7 +148,23 @@ ErrCode Worker::runParametricOp(AST::Instruction *InstrPtr) {
 }
 
 ErrCode runVariableOp(AST::Instruction* Instr) {
-  // XXX: unimplemented
+  auto TheInstrPtr = dynamic_cast<AST::VariableInstruction*>(InstrPtr);
+  if (TheInstrPtr == nullptr) {
+    return ErrCode::InstructionTypeMismatch;
+  }
+
+  auto Opcode = TheInstrPtr->getOpCode();
+  unsigned int Index = TheInstrPtr->getIndex();
+
+  if (Opcode == OpCode::Local__get) {
+  } else if (Opcode == OpCode::Local__set) {
+  } else if (Opcode == OpCode::Local__tee) {
+  } else if (Opcode == OpCode::Global__get) {
+  } else if (Opcode == OpCode::Global__set) {
+  } else {
+    return ErrCode::InstructionTypeMismatch;
+  }
+
   return ErrCode::Success;
 }
 

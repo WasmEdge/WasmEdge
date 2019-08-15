@@ -2,6 +2,7 @@
 
 #include "ast/instruction.h"
 #include "common.h"
+#include "frameentry.h"
 #include "stackmgr.h"
 #include "storemgr.h"
 #include "support/casting.h"
@@ -57,6 +58,8 @@ private:
   StoreManager &StoreMgr;
   /// Reference to Executor's Stack
   StackManager &StackMgr;
+  /// Pointer to current frame
+  FrameEntry *CurrentFrame;
 };
 
 } // namespace Executor

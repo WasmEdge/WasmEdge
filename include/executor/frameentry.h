@@ -56,17 +56,17 @@ public:
   unsigned int getArity() { return Arity; }
 
   /// Getter of local variables.
-  template <typename T> Executor::ErrCode getValue(unsigned int Idx, T &Val);
+  ErrCode getValue(unsigned int Idx, ValueEntry *&Val);
 
   /// Setter of local variables.
-  template <typename T> Executor::ErrCode setValue(unsigned int Idx, T Val);
+  ErrCode setValue(unsigned int Idx, std::unique_ptr<ValueEntry> &Val);
 
 private:
   /// \name Data of frame entry.
   /// @{
   unsigned int Arity;
   unsigned int ModAddr;
-  std::vector<std::pair<AST::ValType, AST::ValVariant>> Locals;
+  std::vector<std::unique_ptr<ValueEntry>> Locals;
   /// @}
 };
 

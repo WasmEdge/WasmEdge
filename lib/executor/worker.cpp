@@ -96,17 +96,17 @@ ErrCode Worker::runConstNumericOp(AST::Instruction *InstrPtr) {
   return ErrCode::Success;
 }
 
-ErrCode runNumericOp(AST::Instruction* Instr) {
+ErrCode Worker::runNumericOp(AST::Instruction* Instr) {
   // XXX: unimplemented
   return ErrCode::Success;
 }
 
-ErrCode runControlOp(AST::Instruction* Instr) {
+ErrCode Worker::runControlOp(AST::Instruction* Instr) {
   // XXX: unimplemented
   return ErrCode::Success;
 }
 
-ErrCode runMemoryOp(AST::Instruction *InstrPtr) {
+ErrCode Worker::runMemoryOp(AST::Instruction *InstrPtr) {
   auto TheInstrPtr = dynamic_cast<AST::MemoryInstruction*>(InstrPtr);
   if (TheInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
@@ -117,7 +117,7 @@ ErrCode runMemoryOp(AST::Instruction *InstrPtr) {
 }
 
 ErrCode Worker::runParametricOp(AST::Instruction *InstrPtr) {
-  auto TheInstrPtr = dynamic_cast<AST::ParametrcInstruction*>(InstrPtr);
+  auto TheInstrPtr = dynamic_cast<AST::ParametricInstruction*>(InstrPtr);
   if (TheInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
@@ -147,7 +147,7 @@ ErrCode Worker::runParametricOp(AST::Instruction *InstrPtr) {
   return ErrCode::Success;
 }
 
-ErrCode runVariableOp(AST::Instruction* Instr) {
+ErrCode Worker::runVariableOp(AST::Instruction* InstrPtr) {
   auto TheInstrPtr = dynamic_cast<AST::VariableInstruction*>(InstrPtr);
   if (TheInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
@@ -157,10 +157,37 @@ ErrCode runVariableOp(AST::Instruction* Instr) {
   unsigned int Index = TheInstrPtr->getIndex();
 
   if (Opcode == OpCode::Local__get) {
+    StackMgr.getCurrentFrame(CurrentFrame);
+    ValueEntry *Val;
+    CurrentFrame->getValue(Index, Val);
+    std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(*Val);
+    StackMgr.push(NewVal);
   } else if (Opcode == OpCode::Local__set) {
+    StackMgr.getCurrentFrame(CurrentFrame);
+    std::unique_ptr<ValueEntry> Val;
+    StackMgr.pop(Val);
+    CurrentFrame->setValue(Index, Val);
   } else if (Opcode == OpCode::Local__tee) {
+    std::unique_ptr<ValueEntry> Val;
+    StackMgr.pop(Val);
+    std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(*Val.get());
+    StackMgr.push(NewVal);
+    CurrentFrame->setValue(Index, Val);
   } else if (Opcode == OpCode::Global__get) {
+    StackMgr.getCurrentFrame(CurrentFrame);
+    ValueEntry Val;
+    GlobalInstance *GlobPtr = nullptr;
+    StoreMgr.getGlobal(Index, GlobPtr);
+    GlobPtr->getValue(Val);
+    std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Val);
+    StackMgr.push(NewVal);
   } else if (Opcode == OpCode::Global__set) {
+    StackMgr.getCurrentFrame(CurrentFrame);
+    GlobalInstance *GlobPtr = nullptr;
+    StoreMgr.getGlobal(Index, GlobPtr);
+    std::unique_ptr<ValueEntry> Val;
+    StackMgr.pop(Val);
+    GlobPtr->setValue(*Val.get());
   } else {
     return ErrCode::InstructionTypeMismatch;
   }

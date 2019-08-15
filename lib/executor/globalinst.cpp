@@ -20,18 +20,23 @@ Executor::ErrCode GlobalInstance::setExpression(
 }
 
 /// Getter of value. See "include/executor/globalinst.h".
-template <typename T> Executor::ErrCode GlobalInstance::getValue(T &Val) {
+template <typename T> ErrCode GlobalInstance::getValue(T &Val) {
   /// Get value.
   try {
     Val = std::get<T>(Value);
   } catch (std::bad_variant_access E) {
     return Executor::ErrCode::TypeNotMatch;
   }
-  return Executor::ErrCode::Success;
+  return ErrCode::Success;
+}
+template <> ErrCode GlobalInstance::getValue<AST::ValVariant>(AST::ValVariant &Val) {
+  Val = Value;
+  return ErrCode::Success;
 }
 
 /// Setter of value. See "include/executor/globalinst.h".
-template <typename T> Executor::ErrCode GlobalInstance::setValue(T Val) {
+template <typename T>
+ErrCode GlobalInstance::setValue(T &Val) {
   Executor::ErrCode Status = Executor::ErrCode::TypeNotMatch;
   switch (Type) {
   case AST::ValType::I32:
@@ -56,6 +61,11 @@ template <typename T> Executor::ErrCode GlobalInstance::setValue(T Val) {
   if (Status == Executor::ErrCode::Success)
     Value = Val;
   return Status;
+}
+template <>
+ErrCode GlobalInstance::setValue<AST::ValVariant>(AST::ValVariant &Val) {
+  Value = Val;
+  return ErrCode::Success;
 }
 
 } // namespace Executor

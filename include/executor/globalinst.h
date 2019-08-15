@@ -25,18 +25,18 @@ public:
   ~GlobalInstance() = default;
 
   /// Set the global type.
-  Executor::ErrCode setGlobalType(AST::ValType &ValueType,
-                                  AST::ValMut &Mutibility);
+  ErrCode setGlobalType(AST::ValType &ValueType,
+                        AST::ValMut &Mutibility);
 
   /// Move the instruction list in global segment into global instance.
-  Executor::ErrCode
+  ErrCode
   setExpression(std::vector<std::unique_ptr<AST::Instruction>> &Expr);
 
   /// Get the value of this instance.
-  template <typename T> Executor::ErrCode getValue(T &Val);
+  template <typename T> ErrCode getValue(T &Val);
 
   /// Set the value of this instance.
-  template <typename T> Executor::ErrCode setValue(T Val);
+  template <typename T> ErrCode setValue(T &Val);
 
   /// Global Instance address in store manager.
   unsigned int Addr;

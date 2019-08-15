@@ -80,16 +80,16 @@ ErrCode Worker::run() {
   return Status;
 }
 
-ErrCode Worker::runConstNumericOp(AST::Instruction *Instr) {
-  auto TheInstr = dynamic_cast<AST::ConstInstruction*>(Instr);
-  if (TheInstr == nullptr) {
+ErrCode Worker::runConstNumericOp(AST::Instruction *InstrPtr) {
+  auto TheInstrPtr = dynamic_cast<AST::ConstInstruction*>(InstrPtr);
+  if (TheInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
   std::unique_ptr<ValueEntry> VE = nullptr;
   std::visit([&VE](auto&& arg) {
     VE = std::make_unique<ValueEntry>(arg);
-  }, TheInstr->value());
+  }, TheInstrPtr->value());
 
   StackMgr.push(VE);
 
@@ -111,7 +111,7 @@ ErrCode runMemoryOp(AST::Instruction* Instr) {
   return ErrCode::Success;
 }
 
-ErrCode Worker::runParametricOp(AST::Instruction* InstrPtr) {
+ErrCode Worker::runParametricOp(AST::Instruction *InstrPtr) {
   auto TheInstrPtr = dynamic_cast<AST::ConstInstruction*>(InstrPtr);
   if (TheInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;

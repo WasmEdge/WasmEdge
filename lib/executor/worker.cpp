@@ -1,6 +1,6 @@
+#include "executor/worker.h"
 #include "ast/common.h"
 #include "ast/instruction.h"
-#include "executor/worker.h"
 
 namespace SSVM {
 namespace Executor {
@@ -11,9 +11,9 @@ using Value = AST::ValVariant;
 
 /// helper functions for execution
 inline bool isInRange(OpCode X, OpCode Y, OpCode Z) {
-  auto XC = static_cast <unsigned char>(X);
-  auto YC = static_cast <unsigned char>(Y);
-  auto ZC = static_cast <unsigned char>(Z);
+  auto XC = static_cast<unsigned char>(X);
+  auto YC = static_cast<unsigned char>(Y);
+  auto ZC = static_cast<unsigned char>(Z);
   return (XC <= YC && YC <= ZC);
 }
 
@@ -44,18 +44,18 @@ inline bool isNumericOp(OpCode Opcode) {
 inline bool isBinaryOp(OpCode Opcode) {
   bool Ret = false;
   switch (Opcode) {
-    case OpCode::I32__add:
-    case OpCode::I32__sub:
-    case OpCode::I64__add:
-    case OpCode::I64__sub:
-    case OpCode::I64__mul:
-    case OpCode::I64__div_u:
-    case OpCode::I64__rem_u:
-      Ret = true;
-      break;
-    default:
-      Ret = false;
-      break;
+  case OpCode::I32__add:
+  case OpCode::I32__sub:
+  case OpCode::I64__add:
+  case OpCode::I64__sub:
+  case OpCode::I64__mul:
+  case OpCode::I64__div_u:
+  case OpCode::I64__rem_u:
+    Ret = true;
+    break;
+  default:
+    Ret = false;
+    break;
   }
   return Ret;
 }
@@ -63,16 +63,16 @@ inline bool isBinaryOp(OpCode Opcode) {
 inline bool isComparisonOp(OpCode Opcode) {
   bool Ret = false;
   switch (Opcode) {
-    case OpCode::I32__le_s:
-    case OpCode::I32__eq:
-    case OpCode::I32__ne:
-    case OpCode::I64__eq:
-    case OpCode::I64__lt_u:
-      Ret = true;
-      break;
-    default:
-      Ret = false;
-      break;
+  case OpCode::I32__le_s:
+  case OpCode::I32__eq:
+  case OpCode::I32__ne:
+  case OpCode::I64__eq:
+  case OpCode::I64__lt_u:
+    Ret = true;
+    break;
+  default:
+    Ret = false;
+    break;
   }
   return Ret;
 }
@@ -84,11 +84,12 @@ ErrCode Worker::setArguments(Bytes &Input) {
   return ErrCode::Success;
 }
 
-ErrCode Worker::setCode(std::vector<std::unique_ptr<AST::Instruction>> &Instrs) {
-    for (auto &Instr : Instrs) {
-      this->Instrs.push_back(Instr.get());
-    }
-    return ErrCode::Success;
+ErrCode
+Worker::setCode(std::vector<std::unique_ptr<AST::Instruction>> &Instrs) {
+  for (auto &Instr : Instrs) {
+    this->Instrs.push_back(Instr.get());
+  }
+  return ErrCode::Success;
 }
 
 ErrCode Worker::run() {
@@ -117,24 +118,23 @@ ErrCode Worker::run() {
 }
 
 ErrCode Worker::runConstNumericOp(AST::Instruction *InstrPtr) {
-  auto TheInstrPtr = dynamic_cast<AST::ConstInstruction*>(InstrPtr);
+  auto TheInstrPtr = dynamic_cast<AST::ConstInstruction *>(InstrPtr);
   if (TheInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
   std::unique_ptr<ValueEntry> VE = nullptr;
-  std::visit([&VE](auto&& arg) {
-    VE = std::make_unique<ValueEntry>(arg);
-  }, TheInstrPtr->value());
+  std::visit([&VE](auto &&arg) { VE = std::make_unique<ValueEntry>(arg); },
+             TheInstrPtr->value());
 
   StackMgr.push(VE);
 
   return ErrCode::Success;
 }
 
-ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
+ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
   /// FIXME: the following calculations do not apply `modulo 2^N`.
-  auto TheInstrPtr = dynamic_cast<AST::NumericInstruction*>(InstrPtr);
+  auto TheInstrPtr = dynamic_cast<AST::NumericInstruction *>(InstrPtr);
   if (TheInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
@@ -157,11 +157,13 @@ ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
       Val1->getValue(Int1);
       Val2->getValue(Int2);
       if (Opcode == OpCode::I32__add) {
-        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1+Int2);
+        std::unique_ptr<ValueEntry> NewVal =
+            std::make_unique<ValueEntry>(Int1 + Int2);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else if (Opcode == OpCode::I32__sub) {
-        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1-Int2);
+        std::unique_ptr<ValueEntry> NewVal =
+            std::make_unique<ValueEntry>(Int1 - Int2);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else {
@@ -172,26 +174,31 @@ ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
       Val1->getValue(Int1);
       Val2->getValue(Int2);
       if (Opcode == OpCode::I64__add) {
-        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1+Int2);
+        std::unique_ptr<ValueEntry> NewVal =
+            std::make_unique<ValueEntry>(Int1 + Int2);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else if (Opcode == OpCode::I64__sub) {
-        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1-Int2);
+        std::unique_ptr<ValueEntry> NewVal =
+            std::make_unique<ValueEntry>(Int1 - Int2);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else if (Opcode == OpCode::I64__mul) {
-        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1*Int2);
+        std::unique_ptr<ValueEntry> NewVal =
+            std::make_unique<ValueEntry>(Int1 * Int2);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else if (Opcode == OpCode::I64__div_u) {
         if (Int2 == 0) {
           return ErrCode::DivideByZero;
         }
-        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1/Int2);
+        std::unique_ptr<ValueEntry> NewVal =
+            std::make_unique<ValueEntry>(Int1 / Int2);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else if (Opcode == OpCode::I64__rem_u) {
-        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Int1%Int2);
+        std::unique_ptr<ValueEntry> NewVal =
+            std::make_unique<ValueEntry>(Int1 % Int2);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else {
@@ -212,15 +219,18 @@ ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
       Val1->getValue(Int1);
       Val2->getValue(Int2);
       if (Opcode == OpCode::I32__le_s) {
-        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>((Int1 <= Int2)?1:0);
+        std::unique_ptr<ValueEntry> NewVal =
+            std::make_unique<ValueEntry>((Int1 <= Int2) ? 1 : 0);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else if (Opcode == OpCode::I32__eq) {
-        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>((Int1 == Int2)?1:0);
+        std::unique_ptr<ValueEntry> NewVal =
+            std::make_unique<ValueEntry>((Int1 == Int2) ? 1 : 0);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else if (Opcode == OpCode::I32__ne) {
-        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>((Int1 != Int2)?1:0);
+        std::unique_ptr<ValueEntry> NewVal =
+            std::make_unique<ValueEntry>((Int1 != Int2) ? 1 : 0);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else {
@@ -231,11 +241,13 @@ ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
       Val1->getValue(Int1);
       Val2->getValue(Int2);
       if (Opcode == OpCode::I64__eq) {
-        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>((Int1 == Int2)?1:0);
+        std::unique_ptr<ValueEntry> NewVal =
+            std::make_unique<ValueEntry>((Int1 == Int2) ? 1 : 0);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else if (Opcode == OpCode::I64__lt_u) {
-        std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>((Int1 < Int2)?1:0);
+        std::unique_ptr<ValueEntry> NewVal =
+            std::make_unique<ValueEntry>((Int1 < Int2) ? 1 : 0);
         StackMgr.push(NewVal);
         return ErrCode::Success;
       } else {
@@ -249,13 +261,13 @@ ErrCode Worker::runNumericOp(AST::Instruction* InstrPtr) {
   return ErrCode::Success;
 }
 
-ErrCode Worker::runControlOp(AST::Instruction* Instr) {
+ErrCode Worker::runControlOp(AST::Instruction *Instr) {
   // XXX: unimplemented
   return ErrCode::Success;
 }
 
 ErrCode Worker::runMemoryOp(AST::Instruction *InstrPtr) {
-  auto TheInstrPtr = dynamic_cast<AST::MemoryInstruction*>(InstrPtr);
+  auto TheInstrPtr = dynamic_cast<AST::MemoryInstruction *>(InstrPtr);
   if (TheInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
@@ -265,7 +277,7 @@ ErrCode Worker::runMemoryOp(AST::Instruction *InstrPtr) {
 }
 
 ErrCode Worker::runParametricOp(AST::Instruction *InstrPtr) {
-  auto TheInstrPtr = dynamic_cast<AST::ParametricInstruction*>(InstrPtr);
+  auto TheInstrPtr = dynamic_cast<AST::ParametricInstruction *>(InstrPtr);
   if (TheInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
@@ -295,8 +307,8 @@ ErrCode Worker::runParametricOp(AST::Instruction *InstrPtr) {
   return ErrCode::Success;
 }
 
-ErrCode Worker::runVariableOp(AST::Instruction* InstrPtr) {
-  auto TheInstrPtr = dynamic_cast<AST::VariableInstruction*>(InstrPtr);
+ErrCode Worker::runVariableOp(AST::Instruction *InstrPtr) {
+  auto TheInstrPtr = dynamic_cast<AST::VariableInstruction *>(InstrPtr);
   if (TheInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
@@ -318,20 +330,21 @@ ErrCode Worker::runVariableOp(AST::Instruction* InstrPtr) {
   } else if (Opcode == OpCode::Local__tee) {
     std::unique_ptr<ValueEntry> Val;
     StackMgr.pop(Val);
-    std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(*Val.get());
+    std::unique_ptr<ValueEntry> NewVal =
+        std::make_unique<ValueEntry>(*Val.get());
     StackMgr.push(NewVal);
     CurrentFrame->setValue(Index, Val);
   } else if (Opcode == OpCode::Global__get) {
     StackMgr.getCurrentFrame(CurrentFrame);
     ValueEntry Val;
-    GlobalInstance *GlobPtr = nullptr;
+    Instance::GlobalInstance *GlobPtr = nullptr;
     StoreMgr.getGlobal(Index, GlobPtr);
     GlobPtr->getValue(Val);
     std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Val);
     StackMgr.push(NewVal);
   } else if (Opcode == OpCode::Global__set) {
     StackMgr.getCurrentFrame(CurrentFrame);
-    GlobalInstance *GlobPtr = nullptr;
+    Instance::GlobalInstance *GlobPtr = nullptr;
     StoreMgr.getGlobal(Index, GlobPtr);
     std::unique_ptr<ValueEntry> Val;
     StackMgr.pop(Val);

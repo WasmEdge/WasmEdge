@@ -2,7 +2,7 @@
 
 #include "ast/instruction.h"
 #include "common.h"
-#include "frameentry.h"
+#include "executor/entry/frame.h"
 #include "stackmgr.h"
 #include "storemgr.h"
 #include "support/casting.h"
@@ -16,16 +16,14 @@ class Worker {
 
 public:
   using Byte = uint8_t;
-  using Bytes =  std::vector<Byte>;
-  using Instructions = std::vector<AST::Instruction*>;
-
+  using Bytes = std::vector<Byte>;
+  using Instructions = std::vector<AST::Instruction *>;
 
 public:
   /// Worker are not allowed to create without Store and Stack.
   Worker() = delete;
   explicit Worker(StoreManager &Store, StackManager &Stack)
-    : StoreMgr(Store), StackMgr(Stack) {
-  }
+      : StoreMgr(Store), StackMgr(Stack) {}
 
   ~Worker() = default;
 
@@ -38,17 +36,17 @@ public:
 
 private:
   /// Execute const numeric instructions
-  ErrCode runConstNumericOp(AST::Instruction*);
+  ErrCode runConstNumericOp(AST::Instruction *);
   /// Execute numeric instructions
-  ErrCode runNumericOp(AST::Instruction*);
+  ErrCode runNumericOp(AST::Instruction *);
   /// Execute coontrol instructions
-  ErrCode runControlOp(AST::Instruction*);
+  ErrCode runControlOp(AST::Instruction *);
   /// Execute memory instructions
-  ErrCode runMemoryOp(AST::Instruction*);
+  ErrCode runMemoryOp(AST::Instruction *);
   /// Execute parametric instructions
-  ErrCode runParametricOp(AST::Instruction*);
+  ErrCode runParametricOp(AST::Instruction *);
   /// Execute variable instructions
-  ErrCode runVariableOp(AST::Instruction*);
+  ErrCode runVariableOp(AST::Instruction *);
 
   /// Arguments
   Bytes Args;

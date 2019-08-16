@@ -261,7 +261,7 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
     return Status;
 
   /// Make a new frame {NewModInst:{globaddrs}, locals:none} and push
-  auto Frame = std::make_unique<Entry::FrameEntry>(TmpModInstId, 0);
+  auto Frame = std::make_unique<FrameEntry>(TmpModInstId, 0);
   StackMgr.push(Frame);
 
   /// TODO: evaluate instrs in global instances

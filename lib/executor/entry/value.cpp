@@ -2,7 +2,6 @@
 
 namespace SSVM {
 namespace Executor {
-namespace Entry {
 
 /// Getter for value type. See "include/executor/entry/value.h".
 ErrCode ValueEntry::getType(AST::ValType &T) {
@@ -21,6 +20,5 @@ template <typename T> ErrCode ValueEntry::getValue(T &Val) {
   return ErrCode::Success;
 }
 
-} // namespace Entry
 } // namespace Executor
 } // namespace SSVM

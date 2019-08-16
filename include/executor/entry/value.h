@@ -17,7 +17,6 @@
 
 namespace SSVM {
 namespace Executor {
-namespace Entry {
 
 class ValueEntry {
 public:
@@ -49,6 +48,5 @@ private:
   /// @}
 };
 
-} // namespace Entry
 } // namespace Executor
 } // namespace SSVM

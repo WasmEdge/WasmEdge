@@ -19,7 +19,6 @@
 
 namespace SSVM {
 namespace Executor {
-namespace Entry {
 
 class FrameEntry {
 public:
@@ -71,6 +70,5 @@ private:
   /// @}
 };
 
-} // namespace Entry
 } // namespace Executor
 } // namespace SSVM

@@ -26,9 +26,9 @@ public:
   StackManager() = default;
   ~StackManager() = default;
   /// Variant of entry classes.
-  using EntryType = std::variant<std::unique_ptr<Entry::FrameEntry>,
-                                 std::unique_ptr<Entry::LabelEntry>,
-                                 std::unique_ptr<Entry::ValueEntry>>;
+  using EntryType =
+      std::variant<std::unique_ptr<FrameEntry>, std::unique_ptr<LabelEntry>,
+                   std::unique_ptr<ValueEntry>>;
 
   /// Getters of top entry of stack.
   template <typename T> ErrCode getTop(T *&Entry);
@@ -43,10 +43,10 @@ public:
   ErrCode pop();
 
   /// Get the current toppest frame.
-  ErrCode getCurrentFrame(Entry::FrameEntry *&Frame);
+  ErrCode getCurrentFrame(FrameEntry *&Frame);
 
   /// Get the top of count of label.
-  ErrCode getLabelWithCount(Entry::LabelEntry *&Label, unsigned int Count);
+  ErrCode getLabelWithCount(LabelEntry *&Label, unsigned int Count);
 
   /// Checking the top entry's attribute
   bool isTopFrame();

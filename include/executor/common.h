@@ -29,6 +29,7 @@ enum class ErrCode : unsigned int {
   Unimplemented, /// Instruction is unimplemented
   AccessForbidMemory, /// Access the forbid memory section
   SliceDataFailed, /// Fail to get slice from memory.data
+  Unreachable, /// Get a unreachable instruction
 };
 
 } // namespace Executor

@@ -94,8 +94,8 @@ ErrCode Worker::setArguments(Bytes &Input) {
 }
 
 ErrCode
-Worker::setCode(std::vector<std::unique_ptr<AST::Instruction>> &Instrs) {
-  for (auto &Instr : Instrs) {
+Worker::setCode(std::vector<std::unique_ptr<AST::Instruction>> *&Instrs) {
+  for (auto &Instr : *Instrs) {
     this->Instrs.push_back(Instr.get());
   }
   return ErrCode::Success;
@@ -123,6 +123,13 @@ ErrCode Worker::run() {
       break;
     }
   }
+
+  if (TheState == State::Terminated) {
+    return ErrCode::Success;
+  } else if (TheState == State::Unreachable) {
+    return ErrCode::Unreachable;
+  }
+
   return Status;
 }
 
@@ -270,8 +277,90 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
   return ErrCode::Success;
 }
 
+ErrCode Worker::runBrOp(AST::ControlInstruction *Instr) {
+  auto BrInstr = dynamic_cast<AST::BrControlInstruction *>(TheInstrPtr);
+  if (BrInstr == nullptr) {
+    return ErrCode::InstructionTypeMismatch;
+  }
+  LabelEntry *Label;
+  StackMgr.getLabelWithCount(Label, BrInstr->getLabelIndex());
+  unsigned int Arity = Label->getArity();
+  std::vector<std::unique_ptr<ValueEntry>> Vals;
+  for (int i = 0; i < Arity; i++) {
+    std::unique_ptr<ValueEntry> Val;
+    StackMgr.pop(Val);
+    Vals.push_back(std::move(Val));
+  }
+  /// Repeat LabelIndex+1 times
+  for (int i = 0; i < BrInstr->getLabelIndex()+1; i++) {
+    while (StackMgr.isTopValue()) {
+      StackMgr.pop();
+    }
+    /// Pop label entry
+    StackMgr.pop();
+  }
+  /// Push the Vals into the Stack
+  for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
+    std::unique_ptr<ValueEntry> Val = std::make_unique<ValueEntry>(Iter->release());
+    StackMgr.push(Val);
+  }
+  /// Jump to the continuation of Label
+  std::unique_ptr<Worker> NewWorker = std::make_unique<Worker>(StoreMgr, StackMgr);
+  NewWorker->setCode(Label->getInstructions());
+  Status = NewWorker->run();
+  TheState = State::Terminated;
+  return Status;
+}
+
 ErrCode Worker::runControlOp(AST::Instruction *Instr) {
-  // XXX: unimplemented
+  auto TheInstrPtr = dynamic_cast<AST::ControlInstruction *>(InstrPtr);
+  if (TheInstrPtr == nullptr) {
+    return ErrCode::InstructionTypeMismatch;
+  }
+
+  OpCode Opcode = TheInstrPtr->getOpCode();
+  if (Opcode == OpCode::Unreachable) {
+    TheState = State::Unreachable;
+    Status = ErrCode::Unreachable;
+  } else if (Opcode == OpCode::Return) {
+    StackMgr.getCurrentFrame(CurrentFrame);
+    unsigned int Arity = CurrentFrame->getArity();
+    std::vector<std::unique_ptr<ValueEntry>> Vals;
+    for (int i = 0; i < Arity; i++) {
+      std::unique_ptr<ValueEntry> Val;
+      StackMgr.pop(Val);
+      Vals.push_back(std::move(Val));
+    }
+    while (StackMgr.isTopFrame()) {
+      StackMgr.pop();
+    }
+    /// Pop the frame entry from the Stack
+    StackMgr.pop();
+    /// Push the Vals into the Stack
+    for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
+      std::unique_ptr<ValueEntry> Val = std::make_unique<ValueEntry>(Iter->release());
+      StackMgr.push(Val);
+    }
+    /// Terminate this worker
+    TheState = State::Terminated;
+    Status =  ErrCode::Success;
+  } else if (Opcode == OpCode::Br) {
+    Status = runBrOp(TheInstrPtr);
+  } else if (Opcode == OpCode::Br_if) {
+    std::unique_ptr<ValueEntry> Val;
+    StackMgr.pop(Val);
+    int32_t Int32;
+    Val.getValue(Int32);
+    if (Int32 != 0) {
+      Status = runBrOp(TheInstrPtr);
+    } else {
+      // do nothing
+      Status = ErrCode::Success;
+    }
+  } else {
+    Status = ErrCode::Unimplemented;
+  }
+
   return ErrCode::Success;
 }
 

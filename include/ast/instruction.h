@@ -298,6 +298,9 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
+  /// Get label index
+  unsigned int getLabelIndex() const { return LabelIdx; }
+
 private:
   /// Branch-to label index.
   unsigned int LabelIdx = 0;

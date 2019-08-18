@@ -1,100 +1,25 @@
 #include "ast/common.h"
 #include "ast/instruction.h"
 #include "executor/worker.h"
+#include "executor/worker_util.h"
 #include "support/casting.h"
 
 namespace SSVM {
 namespace Executor {
 
-namespace detail {
+namespace {
+
 using OpCode = AST::Instruction::OpCode;
 using Value = AST::ValVariant;
 
-/// helper functions for execution
-inline bool isInRange(OpCode X, OpCode Y, OpCode Z) {
-  auto XC = static_cast<unsigned char>(X);
-  auto YC = static_cast<unsigned char>(Y);
-  auto ZC = static_cast<unsigned char>(Z);
-  return (XC <= YC && YC <= ZC);
-}
-
-inline bool isControlOp(OpCode Opcode) {
-  return isInRange(OpCode::Unreachable, Opcode, OpCode::Call_indirect);
-}
-
-inline bool isParametricOp(OpCode Opcode) {
-  return isInRange(OpCode::Drop, Opcode, OpCode::Select);
-}
-
-inline bool isVariableOp(OpCode Opcode) {
-  return isInRange(OpCode::Local__get, Opcode, OpCode::Global__set);
-}
-
-inline bool isLoadOp(OpCode Opcode) {
-  return isInRange(OpCode::I32__load, Opcode, OpCode::I64__load32_u);
-}
-
-inline bool isStoreOp(OpCode Opcode) {
-  return isInRange(OpCode::I32__store, Opcode, OpCode::I64__store32);
-}
-
-inline bool isMemoryOp(OpCode Opcode) {
-  return isInRange(OpCode::I32__load, Opcode, OpCode::Memory__grow);
-}
-
-inline bool isConstNumericOp(OpCode Opcode) {
-  return isInRange(OpCode::I32__const, Opcode, OpCode::F64__const);
-}
-
-inline bool isNumericOp(OpCode Opcode) {
-  return isInRange(OpCode::I32__eqz, Opcode, OpCode::F64__reinterpret_i64);
-}
-
-inline bool isBinaryOp(OpCode Opcode) {
-  bool Ret = false;
-  switch (Opcode) {
-  case OpCode::I32__add:
-  case OpCode::I32__sub:
-  case OpCode::I64__add:
-  case OpCode::I64__sub:
-  case OpCode::I64__mul:
-  case OpCode::I64__div_u:
-  case OpCode::I64__rem_u:
-    Ret = true;
-    break;
-  default:
-    Ret = false;
-    break;
-  }
-  return Ret;
-}
-
-inline bool isComparisonOp(OpCode Opcode) {
-  bool Ret = false;
-  switch (Opcode) {
-  case OpCode::I32__le_s:
-  case OpCode::I32__eq:
-  case OpCode::I32__ne:
-  case OpCode::I64__eq:
-  case OpCode::I64__lt_u:
-    Ret = true;
-    break;
-  default:
-    Ret = false;
-    break;
-  }
-  return Ret;
-}
-
-} // detail namespace
+} // namespace
 
 ErrCode Worker::setArguments(Bytes &Input) {
   Args.assign(Input.begin(), Input.end());
   return ErrCode::Success;
 }
 
-ErrCode
-Worker::setCode(std::vector<std::unique_ptr<AST::Instruction>> *&Instrs) {
+ErrCode Worker::setCode(std::vector<std::unique_ptr<AST::Instruction>> *Instrs) {
   for (auto &Instr : *Instrs) {
     this->Instrs.push_back(Instr.get());
   }
@@ -149,216 +74,107 @@ ErrCode Worker::runConstNumericOp(AST::Instruction *InstrPtr) {
 }
 
 ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
-  /// FIXME: the following calculations do not apply `modulo 2^N`.
   auto TheInstrPtr = dynamic_cast<AST::NumericInstruction *>(InstrPtr);
   if (TheInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
   auto Opcode = TheInstrPtr->getOpCode();
+  auto Status = ErrCode::Success;
   if (isBinaryOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val1, Val2;
     StackMgr.pop(Val2);
     StackMgr.pop(Val1);
-    /// Type check
-    AST::ValType ValTp1, ValTp2;
-    Val1->getType(ValTp1);
-    Val2->getType(ValTp2);
-    if (ValTp1 != ValTp2) {
+
+    if (isValueTypeEqual(*Val1.get(), *Val2.get())) {
       return ErrCode::TypeNotMatch;
     }
 
-    if (ValTp1 == AST::ValType::I32) {
-      int32_t Int1, Int2;
-      Val1->getValue(Int1);
-      Val2->getValue(Int2);
-      if (Opcode == OpCode::I32__add) {
-        std::unique_ptr<ValueEntry> NewVal =
-            std::make_unique<ValueEntry>(Int1 + Int2);
-        StackMgr.push(NewVal);
-        return ErrCode::Success;
-      } else if (Opcode == OpCode::I32__sub) {
-        std::unique_ptr<ValueEntry> NewVal =
-            std::make_unique<ValueEntry>(Int1 - Int2);
-        StackMgr.push(NewVal);
-        return ErrCode::Success;
-      } else {
-        return ErrCode::Unimplemented;
-      }
-    } else if (ValTp1 == AST::ValType::I64) {
-      int64_t Int1, Int2;
-      Val1->getValue(Int1);
-      Val2->getValue(Int2);
-      if (Opcode == OpCode::I64__add) {
-        std::unique_ptr<ValueEntry> NewVal =
-            std::make_unique<ValueEntry>(Int1 + Int2);
-        StackMgr.push(NewVal);
-        return ErrCode::Success;
-      } else if (Opcode == OpCode::I64__sub) {
-        std::unique_ptr<ValueEntry> NewVal =
-            std::make_unique<ValueEntry>(Int1 - Int2);
-        StackMgr.push(NewVal);
-        return ErrCode::Success;
-      } else if (Opcode == OpCode::I64__mul) {
-        std::unique_ptr<ValueEntry> NewVal =
-            std::make_unique<ValueEntry>(Int1 * Int2);
-        StackMgr.push(NewVal);
-        return ErrCode::Success;
-      } else if (Opcode == OpCode::I64__div_u) {
-        if (Int2 == 0) {
-          return ErrCode::DivideByZero;
-        }
-        std::unique_ptr<ValueEntry> NewVal =
-            std::make_unique<ValueEntry>(Int1 / Int2);
-        StackMgr.push(NewVal);
-        return ErrCode::Success;
-      } else if (Opcode == OpCode::I64__rem_u) {
-        std::unique_ptr<ValueEntry> NewVal =
-            std::make_unique<ValueEntry>(Int1 % Int2);
-        StackMgr.push(NewVal);
-        return ErrCode::Success;
-      } else {
-        return ErrCode::Unimplemented;
-      }
+    switch (Opcode) {
+      case OpCode::I32__add:
+        Status = runAddOp<int32_t>(Val1.get(), Val2.get());
+        break;
+      case OpCode::I32__sub:
+        Status = runSubOp<int32_t>(Val1.get(), Val2.get());
+        break;
+      case OpCode::I64__add:
+        Status = runAddOp<int64_t>(Val1.get(), Val2.get());
+        break;
+      case OpCode::I64__sub:
+        Status = runSubOp<int64_t>(Val1.get(), Val2.get());
+        break;
+      case OpCode::I64__mul:
+        Status = runMulOp<int64_t>(Val1.get(), Val2.get());
+        break;
+      case OpCode::I64__div_u:
+        Status = runDivUOp<int64_t>(Val1.get(), Val2.get());
+        break;
+      case OpCode::I64__rem_u:
+        Status = runModUOp<int64_t>(Val1.get(), Val2.get());
+        break;
+      default:
+        Status = ErrCode::Unimplemented;
+        break;
     }
-    return ErrCode::TypeNotMatch;
   } else if (isComparisonOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val1, Val2;
     StackMgr.pop(Val2);
     StackMgr.pop(Val1);
-    /// Type check
-    AST::ValType ValTp1, ValTp2;
-    Val1->getType(ValTp1);
-    Val2->getType(ValTp2);
-    if (ValTp1 == AST::ValType::I32) {
-      int32_t Int1, Int2;
-      Val1->getValue(Int1);
-      Val2->getValue(Int2);
-      if (Opcode == OpCode::I32__le_s) {
-        std::unique_ptr<ValueEntry> NewVal =
-            std::make_unique<ValueEntry>((Int1 <= Int2) ? 1 : 0);
-        StackMgr.push(NewVal);
-        return ErrCode::Success;
-      } else if (Opcode == OpCode::I32__eq) {
-        std::unique_ptr<ValueEntry> NewVal =
-            std::make_unique<ValueEntry>((Int1 == Int2) ? 1 : 0);
-        StackMgr.push(NewVal);
-        return ErrCode::Success;
-      } else if (Opcode == OpCode::I32__ne) {
-        std::unique_ptr<ValueEntry> NewVal =
-            std::make_unique<ValueEntry>((Int1 != Int2) ? 1 : 0);
-        StackMgr.push(NewVal);
-        return ErrCode::Success;
-      } else {
-        return ErrCode::Unimplemented;
-      }
-    } else if (ValTp1 == AST::ValType::I64) {
-      int64_t Int1, Int2;
-      Val1->getValue(Int1);
-      Val2->getValue(Int2);
-      if (Opcode == OpCode::I64__eq) {
-        std::unique_ptr<ValueEntry> NewVal =
-            std::make_unique<ValueEntry>((Int1 == Int2) ? 1 : 0);
-        StackMgr.push(NewVal);
-        return ErrCode::Success;
-      } else if (Opcode == OpCode::I64__lt_u) {
-        std::unique_ptr<ValueEntry> NewVal =
-            std::make_unique<ValueEntry>((Int1 < Int2) ? 1 : 0);
-        StackMgr.push(NewVal);
-        return ErrCode::Success;
-      } else {
-        return ErrCode::Unimplemented;
-      }
-    }
-    return ErrCode::TypeNotMatch;
-  } else {
-    return ErrCode::Unimplemented;
-  }
-  return ErrCode::Success;
-}
 
-ErrCode Worker::runBrOp(AST::ControlInstruction *Instr) {
-  auto BrInstr = dynamic_cast<AST::BrControlInstruction *>(TheInstrPtr);
-  if (BrInstr == nullptr) {
-    return ErrCode::InstructionTypeMismatch;
-  }
-  LabelEntry *Label;
-  StackMgr.getLabelWithCount(Label, BrInstr->getLabelIndex());
-  unsigned int Arity = Label->getArity();
-  std::vector<std::unique_ptr<ValueEntry>> Vals;
-  for (int i = 0; i < Arity; i++) {
-    std::unique_ptr<ValueEntry> Val;
-    StackMgr.pop(Val);
-    Vals.push_back(std::move(Val));
-  }
-  /// Repeat LabelIndex+1 times
-  for (int i = 0; i < BrInstr->getLabelIndex()+1; i++) {
-    while (StackMgr.isTopValue()) {
-      StackMgr.pop();
+    if (isValueTypeEqual(*Val1.get(), *Val2.get())) {
+      return ErrCode::TypeNotMatch;
     }
-    /// Pop label entry
-    StackMgr.pop();
+
+    switch (Opcode) {
+      case OpCode::I32__le_s:
+        Status = runLeSOp<int32_t>(Val1.get(), Val2.get());
+        break;
+      case OpCode::I32__eq:
+        Status = runEqOp<int32_t>(Val1.get(), Val2.get());
+        break;
+      case OpCode::I32__ne:
+        Status = runNeOp<int32_t>(Val1.get(), Val2.get());
+        break;
+      case OpCode::I64__eq:
+        Status = runEqOp<int64_t>(Val1.get(), Val2.get());
+        break;
+      case OpCode::I64__lt_u:
+        Status = runLtUOp<int64_t>(Val1.get(), Val2.get());
+        break;
+      default:
+        Status = ErrCode::Unimplemented;
+        break;
+    }
+  } else {
+    Status = ErrCode::Unimplemented;
   }
-  /// Push the Vals into the Stack
-  for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
-    std::unique_ptr<ValueEntry> Val = std::make_unique<ValueEntry>(Iter->release());
-    StackMgr.push(Val);
-  }
-  /// Jump to the continuation of Label
-  std::unique_ptr<Worker> NewWorker = std::make_unique<Worker>(StoreMgr, StackMgr);
-  NewWorker->setCode(Label->getInstructions());
-  Status = NewWorker->run();
-  TheState = State::Terminated;
   return Status;
 }
 
-ErrCode Worker::runControlOp(AST::Instruction *Instr) {
+ErrCode Worker::runControlOp(AST::Instruction *InstrPtr) {
   auto TheInstrPtr = dynamic_cast<AST::ControlInstruction *>(InstrPtr);
   if (TheInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
-  OpCode Opcode = TheInstrPtr->getOpCode();
-  if (Opcode == OpCode::Unreachable) {
-    TheState = State::Unreachable;
-    Status = ErrCode::Unreachable;
-  } else if (Opcode == OpCode::Return) {
-    StackMgr.getCurrentFrame(CurrentFrame);
-    unsigned int Arity = CurrentFrame->getArity();
-    std::vector<std::unique_ptr<ValueEntry>> Vals;
-    for (int i = 0; i < Arity; i++) {
-      std::unique_ptr<ValueEntry> Val;
-      StackMgr.pop(Val);
-      Vals.push_back(std::move(Val));
-    }
-    while (StackMgr.isTopFrame()) {
-      StackMgr.pop();
-    }
-    /// Pop the frame entry from the Stack
-    StackMgr.pop();
-    /// Push the Vals into the Stack
-    for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
-      std::unique_ptr<ValueEntry> Val = std::make_unique<ValueEntry>(Iter->release());
-      StackMgr.push(Val);
-    }
-    /// Terminate this worker
-    TheState = State::Terminated;
-    Status =  ErrCode::Success;
-  } else if (Opcode == OpCode::Br) {
-    Status = runBrOp(TheInstrPtr);
-  } else if (Opcode == OpCode::Br_if) {
-    std::unique_ptr<ValueEntry> Val;
-    StackMgr.pop(Val);
-    int32_t Int32;
-    Val.getValue(Int32);
-    if (Int32 != 0) {
+  auto Status = ErrCode::Success;
+  switch (TheInstrPtr->getOpCode()) {
+    case OpCode::Unreachable:
+      TheState = State::Unreachable;
+      Status = ErrCode::Unreachable;
+      break;
+    case OpCode::Return:
+      Status = runReturnOp();
+      break;
+    case OpCode::Br:
       Status = runBrOp(TheInstrPtr);
-    } else {
-      // do nothing
-      Status = ErrCode::Success;
-    }
-  } else {
-    Status = ErrCode::Unimplemented;
+      break;
+    case OpCode::Br_if:
+      Status = runBrIfOp(TheInstrPtr);
+      break;
+    default:
+      Status = ErrCode::Unimplemented;
+      break;
   }
 
   return ErrCode::Success;
@@ -370,108 +186,37 @@ ErrCode Worker::runMemoryOp(AST::Instruction *InstrPtr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
-  if (isLoadOp(TheInstrPtr->getOpCode())) {
-    StackMgr.getCurrentFrame(CurrentFrame);
-
-    unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
-    ModuleInstance *ModuleInst = nullptr;
-    StoreMgr.getModule(ModuleAddr, ModuleInst);
-    unsigned int MemAddr;
-    ModuleInst->getMemAddr(0, MemAddr);
-    MemoryInstance *MemoryInst = nullptr;
-    StoreMgr.getMemory(MemAddr, MemoryInst);
-
-    /// Calculate EA
-    std::unique_ptr<ValueEntry> Val;
-    StackMgr.pop(Val);
-
-    int32_t Int;
-    Val.getValue(Int);
-    int EA = Int + TheInstrPtr->getOffset();
-    /// TODO: The following codes do not handle the `t.loadN_sx`.
-
-    /// Get the bit width from the instruction
-    OpCode Opcode = TheInstrPtr->getOpCode();
-    int N = 0;
-    if (Opcode == OpCode::I64__load) {
-      N = 64;
-    } else if (Opcode == OpCode::I32__load) {
-      N = 32;
-    } else {
-      return ErrCode::Unimplemented;
+  auto Status = ErrCode::Success;
+  auto Opcode = TheInstrPtr->getOpCode();
+  if (isLoadOp(Opcode)) {
+    switch (Opcode) {
+      case OpCode::I32__load:
+        Status = runLoadOp<int32_t>(TheInstrPtr);
+        break;
+      case OpCode::I64__load:
+        Status = runLoadOp<int64_t>(TheInstrPtr);
+        break;
+      default:
+        Status = ErrCode::Unimplemented;
+        break;
     }
-
-    /// Make sure the EA + N/8 is NOT larger than length of memory.data.
-    if (EA + N/8 > MemoryInst->getDataLength()) {
-      return ErrCode::AccessForbidMemory;
+  } else if (isStoreOp(Opcode)) {
+    switch (Opcode) {
+      case OpCode::I32__store:
+        Status = runStoreOp<int32_t>(TheInstrPtr);
+        break;
+      case OpCode::I64__store:
+        Status = runStoreOp<int64_t>(TheInstrPtr);
+        break;
+      default:
+        Status = ErrCode::Unimplemented;
+        break;
     }
-
-    /// Bytes = Mem.Data[EA:N/8]
-    std::unique_ptr<std::vector<unsigned char>> BytesPtr = nullptr;
-    MemoryInst->getBytes(BytesPtr, EA, N/8);
-    std::unique_ptr<ValueEntry> C = nullptr;
-    if (Opcode == OpCode::I64__load) {
-      /// Construct const C = bytes_64(Bytes);
-      C = std::make_unique<ValueEntry>(bytesToInt<int64_t>(*BytesPtr.get()));
-    } else if (Opcode == OpCode::I32__load) {
-      /// Construct const C = bytes_32(Bytes);
-      C = std::make_unique<ValueEntry>(bytesToInt<int32_t>(*BytesPtr.get()));
-    } else {
-      return ErrCode::Unimplemented;
-    }
-
-    /// Push const C to the Stack
-    Stack.push(C);
-  } else if (isStoreOp(TheInstrPtr->getOpCode())) {
-    StackMgr.getCurrentFrame(CurrentFrame);
-
-    unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
-    ModuleInstance *ModuleInst = nullptr;
-    StoreMgr.getModule(ModuleAddr, ModuleInst);
-    unsigned int MemAddr;
-    ModuleInst->getMemAddr(0, MemAddr);
-    MemoryInstance *MemoryInst = nullptr;
-    StoreMgr.getMemory(MemAddr, MemoryInst);
-
-    /// Pop the value t.const c from the Stack
-    std::unique_ptr<ValueEntry> C;
-    StackMgr.pop(C);
-    /// Pop the i32.const i from the Stack
-    std::unique_ptr<ValueEntry> I;
-    StackMgr.pop(I);
-    /// EA = i + offset
-    int32_t Int32;
-    I.getValue(Int32);
-    int32_t EA = Int32 + TheInstrPtr->getOffset();
-    /// N = bits(t)
-    OpCode Opcode = TheInstrPtr->getOpCode();
-    int N = 0;
-    if (Opcode == OpCode::I64__store) {
-      N = 64;
-    } else {
-      return ErrCode::Unimplemented;
-    }
-    /// EA + N/8 <= Memory.Data.Length
-    if (EA + N/8 > MemoryInst->getDataLength()) {
-      return ErrCode::AccessForbidMemory;
-    }
-
-    /// b* = toBytes(c)
-    std::vector<unsigned char> Bytes;
-    if (Opcode == OpCode::I64__store) {
-      int64_t Int64;
-      C.getValue(Int64);
-      Bytes = IntToBytes<int64_t>(Int64);
-    } else {
-      return ErrCode::Unimplemented;
-    }
-    /// Replace the bytes.mem.data[EA:N/8] with b*
-    MemoryInst->setBytes(Bytes, EA, N/8);
   } else {
-    return ErrCode::Unimplemented;
+    Status = ErrCode::Unimplemented;
   }
 
-  return ErrCode::Success;
+  return Status;
 }
 
 ErrCode Worker::runParametricOp(AST::Instruction *InstrPtr) {

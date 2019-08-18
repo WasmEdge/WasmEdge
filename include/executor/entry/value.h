@@ -33,13 +33,13 @@ public:
   ~ValueEntry() = default;
 
   /// Getter of value type.
-  ErrCode getType(AST::ValType &T);
+  ErrCode getType(AST::ValType &T) const;
 
   /// Value setters
   template <typename T> ErrCode setValue(T &Val);
 
   /// Getters of getting values.
-  template <typename T> ErrCode getValue(T &Val);
+  template <typename T> ErrCode getValue(T &Val) const;
 
 private:
   /// \name Data of value entry.

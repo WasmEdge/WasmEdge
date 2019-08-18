@@ -4,13 +4,13 @@ namespace SSVM {
 namespace Executor {
 
 /// Getter for value type. See "include/executor/entry/value.h".
-ErrCode ValueEntry::getType(AST::ValType &T) {
+ErrCode ValueEntry::getType(AST::ValType &T) const {
   T = Type;
   return ErrCode::Success;
 }
 
 /// Getter for value. See "include/executor/entry/value.h".
-template <typename T> ErrCode ValueEntry::getValue(T &Val) {
+template <typename T> ErrCode ValueEntry::getValue(T &Val) const {
   /// Get value.
   try {
     Val = std::get<T>(Value);

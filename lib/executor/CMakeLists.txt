@@ -10,4 +10,9 @@ add_library(ssvmExecutor
   instance/table.cpp
   stackmgr.cpp
   storemgr.cpp
+  worker.cpp
+  worker_comparison.cpp
+  worker_control.cpp
+  worker_memory.cpp
+  worker_numeric.cpp
 )

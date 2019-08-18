@@ -33,7 +33,7 @@ inline T bytesToInt(const std::vector<unsigned char> &Bytes) {
 }
 
 template<typename T>
-inline std::vector<unsigned char> IntTobytes(T Int) {
+inline std::vector<unsigned char> intToBytes(T Int) {
   std::vector<unsigned char> Bytes;
   if (std::is_same<T, int32_t>::value) {
     Bytes.push_back(Int & 0xFF);

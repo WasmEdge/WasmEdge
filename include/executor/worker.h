@@ -2,7 +2,7 @@
 
 #include "ast/instruction.h"
 #include "common.h"
-#include "executor/entry/frame.h"
+#include "entry/frame.h"
 #include "stackmgr.h"
 #include "storemgr.h"
 #include "support/casting.h"
@@ -36,7 +36,7 @@ public:
   /// Prepare input data for calldatacopy
   ErrCode setArguments(Bytes &Input);
   /// Prepare Wasm bytecode for execution
-  ErrCode setCode(std::vector<std::unique_ptr<AST::Instruction>> *&Instrs);
+  ErrCode setCode(std::vector<std::unique_ptr<AST::Instruction>> *Instrs);
   /// Execution Wasm bytecode with given input data.
   ErrCode run();
 
@@ -53,6 +53,37 @@ private:
   ErrCode runParametricOp(AST::Instruction *);
   /// Execute variable instructions
   ErrCode runVariableOp(AST::Instruction *);
+
+  /// Run instructions functions
+  /// ======= Comparison =======
+  template <typename T>
+  ErrCode runLeSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runEqOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runNeOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runLtUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  /// ======= Control =======
+  ErrCode runReturnOp();
+  ErrCode runBrOp(AST::ControlInstruction *Instr);
+  ErrCode runBrIfOp(AST::ControlInstruction *Instr);
+  /// ======= Memory =======
+  template <typename T>
+  ErrCode runLoadOp(AST::MemoryInstruction *InstrPtr);
+  template <typename T>
+  ErrCode runStoreOp(AST::MemoryInstruction *InstrPtr);
+  /// ======= Numeric =======
+  template <typename T>
+  ErrCode runAddOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runDivUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runModUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runMulOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runSubOp(const ValueEntry *Val1, const ValueEntry *Val2);
 
   /// Worker State
   State TheState = State::Invalid;

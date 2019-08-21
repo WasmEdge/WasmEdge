@@ -11,7 +11,7 @@ ErrCode Worker::runReturnOp() {
   StackMgr.getCurrentFrame(CurrentFrame);
   unsigned int Arity = CurrentFrame->getArity();
   std::vector<std::unique_ptr<ValueEntry>> Vals;
-  for (int i = 0; i < Arity; i++) {
+  for (unsigned int I = 0; I < Arity; I++) {
     std::unique_ptr<ValueEntry> Val;
     StackMgr.pop(Val);
     Vals.push_back(std::move(Val));
@@ -42,13 +42,13 @@ ErrCode Worker::runBrOp(AST::ControlInstruction *InstrPtr) {
   StackMgr.getLabelWithCount(Label, BrInstr->getLabelIndex());
   unsigned int Arity = Label->getArity();
   std::vector<std::unique_ptr<ValueEntry>> Vals;
-  for (int i = 0; i < Arity; i++) {
+  for (unsigned int I = 0; I < Arity; I++) {
     std::unique_ptr<ValueEntry> Val;
     StackMgr.pop(Val);
     Vals.push_back(std::move(Val));
   }
   /// Repeat LabelIndex+1 times
-  for (int i = 0; i < BrInstr->getLabelIndex() + 1; i++) {
+  for (unsigned int I = 0; I < BrInstr->getLabelIndex() + 1; I++) {
     while (StackMgr.isTopValue()) {
       StackMgr.pop();
     }

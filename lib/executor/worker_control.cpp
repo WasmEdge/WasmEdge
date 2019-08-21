@@ -23,7 +23,8 @@ ErrCode Worker::runReturnOp() {
   StackMgr.pop();
   /// Push the Vals into the Stack
   for (auto Iter = Vals.crbegin(); Iter != Vals.crend(); Iter++) {
-    std::unique_ptr<ValueEntry> Val = std::make_unique<ValueEntry>(*Iter->get());
+    std::unique_ptr<ValueEntry> Val =
+        std::make_unique<ValueEntry>(*Iter->get());
     StackMgr.push(Val);
   }
   /// Terminate this worker
@@ -47,7 +48,7 @@ ErrCode Worker::runBrOp(AST::ControlInstruction *InstrPtr) {
     Vals.push_back(std::move(Val));
   }
   /// Repeat LabelIndex+1 times
-  for (int i = 0; i < BrInstr->getLabelIndex()+1; i++) {
+  for (int i = 0; i < BrInstr->getLabelIndex() + 1; i++) {
     while (StackMgr.isTopValue()) {
       StackMgr.pop();
     }
@@ -56,11 +57,13 @@ ErrCode Worker::runBrOp(AST::ControlInstruction *InstrPtr) {
   }
   /// Push the Vals into the Stack
   for (auto Iter = Vals.crbegin(); Iter != Vals.crend(); Iter++) {
-    std::unique_ptr<ValueEntry> Val = std::make_unique<ValueEntry>(*Iter->get());
+    std::unique_ptr<ValueEntry> Val =
+        std::make_unique<ValueEntry>(*Iter->get());
     StackMgr.push(Val);
   }
   /// Jump to the continuation of Label
-  std::unique_ptr<Worker> NewWorker = std::make_unique<Worker>(StoreMgr, StackMgr);
+  std::unique_ptr<Worker> NewWorker =
+      std::make_unique<Worker>(StoreMgr, StackMgr);
   NewWorker->setCode(Label->getInstructions());
   auto Status = NewWorker->run();
   TheState = State::Terminated;

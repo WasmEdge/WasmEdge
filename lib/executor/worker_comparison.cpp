@@ -8,7 +8,8 @@ namespace Executor {
 template <typename T>
 ErrCode Worker::runLeSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T Int1 = retrieveValue<T>(*Val1), Int2 = retrieveValue<T>(*Val2);
-  std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>((Int1 <= Int2) ? 1 : 0);
+  std::unique_ptr<ValueEntry> NewVal =
+      std::make_unique<ValueEntry>((Int1 <= Int2) ? 1 : 0);
   StackMgr.push(NewVal);
   return ErrCode::Success;
 }
@@ -16,7 +17,8 @@ ErrCode Worker::runLeSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 template <typename T>
 ErrCode Worker::runEqOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T Int1 = retrieveValue<T>(*Val1), Int2 = retrieveValue<T>(*Val2);
-  std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>((Int1 == Int2) ? 1 : 0);
+  std::unique_ptr<ValueEntry> NewVal =
+      std::make_unique<ValueEntry>((Int1 == Int2) ? 1 : 0);
   StackMgr.push(NewVal);
   return ErrCode::Success;
 }
@@ -24,7 +26,8 @@ ErrCode Worker::runEqOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 template <typename T>
 ErrCode Worker::runNeOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T Int1 = retrieveValue<T>(*Val1), Int2 = retrieveValue<T>(*Val2);
-  std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>((Int1 != Int2) ? 1 : 0);
+  std::unique_ptr<ValueEntry> NewVal =
+      std::make_unique<ValueEntry>((Int1 != Int2) ? 1 : 0);
   StackMgr.push(NewVal);
   return ErrCode::Success;
 }
@@ -32,7 +35,8 @@ ErrCode Worker::runNeOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 template <typename T>
 ErrCode Worker::runLtUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T Int1 = retrieveValue<T>(*Val1), Int2 = retrieveValue<T>(*Val2);
-  std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>((Int1 < Int2) ? 1 : 0);
+  std::unique_ptr<ValueEntry> NewVal =
+      std::make_unique<ValueEntry>((Int1 < Int2) ? 1 : 0);
   StackMgr.push(NewVal);
   return ErrCode::Success;
 }

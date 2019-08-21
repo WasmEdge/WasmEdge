@@ -20,7 +20,7 @@ bool RegressionTester::runLoader() {
 
 bool RegressionTester::runExecutor() {
   /// TODO: prepare arguments
-  //Executor.setArguments();
+  // Executor.setArguments();
   Executor.instantiate();
   Executor.run();
   return true;

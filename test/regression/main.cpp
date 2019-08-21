@@ -1,7 +1,7 @@
 #include "regression.h"
 
 int main() {
-  //RegressionMgr RegMgr;
+  // RegressionMgr RegMgr;
 
   return 0;
 }

@@ -1,7 +1,7 @@
 #include "ast/instruction.h"
 #include "executor/common.h"
-#include "executor/instance/module.h"
 #include "executor/instance/memory.h"
+#include "executor/instance/module.h"
 #include "executor/worker.h"
 #include "executor/worker_util.h"
 #include "support/casting.h"
@@ -44,13 +44,13 @@ ErrCode Worker::runLoadOp(AST::MemoryInstruction *InstrPtr) {
   }
 
   /// Make sure the EA + N/8 is NOT larger than length of memory.data.
-  if (EA + N/8 > MemoryInst->getDataLength()) {
+  if (EA + N / 8 > MemoryInst->getDataLength()) {
     return ErrCode::AccessForbidMemory;
   }
 
   /// Bytes = Mem.Data[EA:N/8]
   std::unique_ptr<std::vector<unsigned char>> BytesPtr = nullptr;
-  MemoryInst->getBytes(BytesPtr, EA, N/8);
+  MemoryInst->getBytes(BytesPtr, EA, N / 8);
   std::unique_ptr<ValueEntry> C = nullptr;
   C = std::make_unique<ValueEntry>(Support::bytesToInt<T>(*BytesPtr.get()));
 
@@ -88,14 +88,14 @@ ErrCode Worker::runStoreOp(AST::MemoryInstruction *InstrPtr) {
     return ErrCode::Unimplemented;
   }
   /// EA + N/8 <= Memory.Data.Length
-  if (EA + N/8 > MemoryInst->getDataLength()) {
+  if (EA + N / 8 > MemoryInst->getDataLength()) {
     return ErrCode::AccessForbidMemory;
   }
   /// b* = toBytes(c)
-  std::vector<unsigned char> Bytes = Support::intToBytes<T>(retrieveValue<T>(*C.get()));
+  std::vector<unsigned char> Bytes =
+      Support::intToBytes<T>(retrieveValue<T>(*C.get()));
   /// Replace the bytes.mem.data[EA:N/8] with b*
-  MemoryInst->setBytes(Bytes, EA, N/8);
-
+  MemoryInst->setBytes(Bytes, EA, N / 8);
 }
 
 } // namespace Executor

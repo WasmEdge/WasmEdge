@@ -1,6 +1,6 @@
+#include "executor/worker.h"
 #include "ast/common.h"
 #include "ast/instruction.h"
-#include "executor/worker.h"
 #include "executor/worker_util.h"
 #include "support/casting.h"
 
@@ -19,7 +19,8 @@ ErrCode Worker::setArguments(Bytes &Input) {
   return ErrCode::Success;
 }
 
-ErrCode Worker::setCode(std::vector<std::unique_ptr<AST::Instruction>> *Instrs) {
+ErrCode
+Worker::setCode(std::vector<std::unique_ptr<AST::Instruction>> *Instrs) {
   for (auto &Instr : *Instrs) {
     this->Instrs.push_back(Instr.get());
   }
@@ -91,30 +92,30 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
     }
 
     switch (Opcode) {
-      case OpCode::I32__add:
-        Status = runAddOp<int32_t>(Val1.get(), Val2.get());
-        break;
-      case OpCode::I32__sub:
-        Status = runSubOp<int32_t>(Val1.get(), Val2.get());
-        break;
-      case OpCode::I64__add:
-        Status = runAddOp<int64_t>(Val1.get(), Val2.get());
-        break;
-      case OpCode::I64__sub:
-        Status = runSubOp<int64_t>(Val1.get(), Val2.get());
-        break;
-      case OpCode::I64__mul:
-        Status = runMulOp<int64_t>(Val1.get(), Val2.get());
-        break;
-      case OpCode::I64__div_u:
-        Status = runDivUOp<int64_t>(Val1.get(), Val2.get());
-        break;
-      case OpCode::I64__rem_u:
-        Status = runModUOp<int64_t>(Val1.get(), Val2.get());
-        break;
-      default:
-        Status = ErrCode::Unimplemented;
-        break;
+    case OpCode::I32__add:
+      Status = runAddOp<int32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I32__sub:
+      Status = runSubOp<int32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__add:
+      Status = runAddOp<int64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__sub:
+      Status = runSubOp<int64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__mul:
+      Status = runMulOp<int64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__div_u:
+      Status = runDivUOp<int64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__rem_u:
+      Status = runModUOp<int64_t>(Val1.get(), Val2.get());
+      break;
+    default:
+      Status = ErrCode::Unimplemented;
+      break;
     }
   } else if (isComparisonOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val1, Val2;
@@ -126,24 +127,24 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
     }
 
     switch (Opcode) {
-      case OpCode::I32__le_s:
-        Status = runLeSOp<int32_t>(Val1.get(), Val2.get());
-        break;
-      case OpCode::I32__eq:
-        Status = runEqOp<int32_t>(Val1.get(), Val2.get());
-        break;
-      case OpCode::I32__ne:
-        Status = runNeOp<int32_t>(Val1.get(), Val2.get());
-        break;
-      case OpCode::I64__eq:
-        Status = runEqOp<int64_t>(Val1.get(), Val2.get());
-        break;
-      case OpCode::I64__lt_u:
-        Status = runLtUOp<int64_t>(Val1.get(), Val2.get());
-        break;
-      default:
-        Status = ErrCode::Unimplemented;
-        break;
+    case OpCode::I32__le_s:
+      Status = runLeSOp<int32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I32__eq:
+      Status = runEqOp<int32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I32__ne:
+      Status = runNeOp<int32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__eq:
+      Status = runEqOp<int64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__lt_u:
+      Status = runLtUOp<int64_t>(Val1.get(), Val2.get());
+      break;
+    default:
+      Status = ErrCode::Unimplemented;
+      break;
     }
   } else {
     Status = ErrCode::Unimplemented;
@@ -159,22 +160,22 @@ ErrCode Worker::runControlOp(AST::Instruction *InstrPtr) {
 
   auto Status = ErrCode::Success;
   switch (TheInstrPtr->getOpCode()) {
-    case OpCode::Unreachable:
-      TheState = State::Unreachable;
-      Status = ErrCode::Unreachable;
-      break;
-    case OpCode::Return:
-      Status = runReturnOp();
-      break;
-    case OpCode::Br:
-      Status = runBrOp(TheInstrPtr);
-      break;
-    case OpCode::Br_if:
-      Status = runBrIfOp(TheInstrPtr);
-      break;
-    default:
-      Status = ErrCode::Unimplemented;
-      break;
+  case OpCode::Unreachable:
+    TheState = State::Unreachable;
+    Status = ErrCode::Unreachable;
+    break;
+  case OpCode::Return:
+    Status = runReturnOp();
+    break;
+  case OpCode::Br:
+    Status = runBrOp(TheInstrPtr);
+    break;
+  case OpCode::Br_if:
+    Status = runBrIfOp(TheInstrPtr);
+    break;
+  default:
+    Status = ErrCode::Unimplemented;
+    break;
   }
 
   return ErrCode::Success;
@@ -190,27 +191,27 @@ ErrCode Worker::runMemoryOp(AST::Instruction *InstrPtr) {
   auto Opcode = TheInstrPtr->getOpCode();
   if (isLoadOp(Opcode)) {
     switch (Opcode) {
-      case OpCode::I32__load:
-        Status = runLoadOp<int32_t>(TheInstrPtr);
-        break;
-      case OpCode::I64__load:
-        Status = runLoadOp<int64_t>(TheInstrPtr);
-        break;
-      default:
-        Status = ErrCode::Unimplemented;
-        break;
+    case OpCode::I32__load:
+      Status = runLoadOp<int32_t>(TheInstrPtr);
+      break;
+    case OpCode::I64__load:
+      Status = runLoadOp<int64_t>(TheInstrPtr);
+      break;
+    default:
+      Status = ErrCode::Unimplemented;
+      break;
     }
   } else if (isStoreOp(Opcode)) {
     switch (Opcode) {
-      case OpCode::I32__store:
-        Status = runStoreOp<int32_t>(TheInstrPtr);
-        break;
-      case OpCode::I64__store:
-        Status = runStoreOp<int64_t>(TheInstrPtr);
-        break;
-      default:
-        Status = ErrCode::Unimplemented;
-        break;
+    case OpCode::I32__store:
+      Status = runStoreOp<int32_t>(TheInstrPtr);
+      break;
+    case OpCode::I64__store:
+      Status = runStoreOp<int64_t>(TheInstrPtr);
+      break;
+    default:
+      Status = ErrCode::Unimplemented;
+      break;
     }
   } else {
     Status = ErrCode::Unimplemented;

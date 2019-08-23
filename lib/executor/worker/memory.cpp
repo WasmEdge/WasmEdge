@@ -56,6 +56,7 @@ ErrCode Worker::runLoadOp(AST::MemoryInstruction *InstrPtr) {
 
   /// Push const C to the Stack
   StackMgr.push(C);
+  return ErrCode::Success;
 }
 
 template <typename T>
@@ -96,6 +97,7 @@ ErrCode Worker::runStoreOp(AST::MemoryInstruction *InstrPtr) {
       Support::intToBytes<T>(retrieveValue<T>(*C.get()));
   /// Replace the bytes.mem.data[EA:N/8] with b*
   MemoryInst->setBytes(Bytes, EA, N / 8);
+  return ErrCode::Success;
 }
 
 } // namespace Executor

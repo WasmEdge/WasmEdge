@@ -281,15 +281,25 @@ ErrCode Worker::runVariableOp(AST::Instruction *InstrPtr) {
   } else if (Opcode == OpCode::Global__get) {
     StackMgr.getCurrentFrame(CurrentFrame);
     ValueEntry Val;
+    unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
+    Instance::ModuleInstance *ModuleInstPtr = nullptr;
+    StoreMgr.getModule(ModuleAddr, ModuleInstPtr);
+    unsigned int GlobalAddr;
+    ModuleInstPtr->getGlobalAddr(Index, GlobalAddr);
     Instance::GlobalInstance *GlobPtr = nullptr;
-    StoreMgr.getGlobal(Index, GlobPtr);
+    StoreMgr.getGlobal(GlobalAddr, GlobPtr);
     GlobPtr->getValue(Val);
     std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Val);
     StackMgr.push(NewVal);
   } else if (Opcode == OpCode::Global__set) {
     StackMgr.getCurrentFrame(CurrentFrame);
+    unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
+    Instance::ModuleInstance *ModuleInstPtr = nullptr;
+    StoreMgr.getModule(ModuleAddr, ModuleInstPtr);
+    unsigned int GlobalAddr;
+    ModuleInstPtr->getGlobalAddr(Index, GlobalAddr);
     Instance::GlobalInstance *GlobPtr = nullptr;
-    StoreMgr.getGlobal(Index, GlobPtr);
+    StoreMgr.getGlobal(GlobalAddr, GlobPtr);
     std::unique_ptr<ValueEntry> Val;
     StackMgr.pop(Val);
     GlobPtr->setValue(*Val.get());

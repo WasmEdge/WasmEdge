@@ -11,8 +11,8 @@ add_library(ssvmExecutor
   stackmgr.cpp
   storemgr.cpp
   worker.cpp
-  worker_comparison.cpp
-  worker_control.cpp
-  worker_memory.cpp
-  worker_numeric.cpp
+  worker/comparison.cpp
+  worker/control.cpp
+  worker/memory.cpp
+  worker/numeric.cpp
 )

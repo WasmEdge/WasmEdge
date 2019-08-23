@@ -29,7 +29,7 @@ public:
   ///
   /// \returns None.
   LabelEntry(unsigned int Arity,
-             std::vector<std::unique_ptr<AST::Instruction>> *Body)
+             const std::vector<std::unique_ptr<AST::Instruction>> *Body)
       : Arity(Arity), Instrs(Body) {}
 
   ~LabelEntry() = default;
@@ -38,13 +38,13 @@ public:
   unsigned int getArity() { return Arity; }
 
   /// Getter of instructions.
-  std::vector<std::unique_ptr<AST::Instruction>>* getInstructions() { return Instrs; }
+  const std::vector<std::unique_ptr<AST::Instruction>>* getInstructions() { return Instrs; }
 
 private:
   /// \name Data of label entry.
   /// @{
   unsigned int Arity;
-  std::vector<std::unique_ptr<AST::Instruction>> *Instrs;
+  const std::vector<std::unique_ptr<AST::Instruction>> *Instrs;
   /// @}
 };
 

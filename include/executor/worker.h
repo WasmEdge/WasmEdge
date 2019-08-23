@@ -36,9 +36,10 @@ public:
   /// Prepare input data for calldatacopy
   ErrCode setArguments(Bytes &Input);
   /// Prepare Wasm bytecode for execution
-  ErrCode setCode(std::vector<std::unique_ptr<AST::Instruction>> *Instrs);
+  ErrCode setCode(const std::vector<std::unique_ptr<AST::Instruction>> *Instrs);
   /// Execution Wasm bytecode with given input data.
   ErrCode run();
+  State getState() const { return TheState; }
 
 private:
   /// Execute const numeric instructions
@@ -66,6 +67,7 @@ private:
   ErrCode runLtUOp(const ValueEntry *Val1, const ValueEntry *Val2);
   /// ======= Control =======
   ErrCode runReturnOp();
+  ErrCode runBlockOp(AST::ControlInstruction *Instr);
   ErrCode runBrOp(AST::ControlInstruction *Instr);
   ErrCode runBrIfOp(AST::ControlInstruction *Instr);
   /// ======= Memory =======
@@ -85,16 +87,16 @@ private:
   template <typename T>
   ErrCode runSubOp(const ValueEntry *Val1, const ValueEntry *Val2);
 
-  /// Worker State
-  State TheState = State::Invalid;
-  /// Arguments
-  Bytes Args;
-  /// Instructions of execution code.
-  Instructions Instrs;
   /// Reference to Executor's Store
   StoreManager &StoreMgr;
   /// Reference to Executor's Stack
   StackManager &StackMgr;
+  /// Worker State
+  State TheState;
+  /// Arguments
+  Bytes Args;
+  /// Instructions of execution code.
+  Instructions Instrs;
   /// Pointer to current frame
   FrameEntry *CurrentFrame;
 };

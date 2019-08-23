@@ -33,6 +33,36 @@ ErrCode Worker::runReturnOp() {
   return ErrCode::Success;
 }
 
+ErrCode Worker::runBlockOp(AST::ControlInstruction *InstrPtr) {
+  auto BlockInstr = dynamic_cast<AST::BlockControlInstruction *>(InstrPtr);
+  if (BlockInstr == nullptr) {
+    return ErrCode::InstructionTypeMismatch;
+  }
+  std::unique_ptr<LabelEntry> Label = std::make_unique<LabelEntry>(/* Arity */1, BlockInstr->getBody());
+  StackMgr.push(Label);
+  std::unique_ptr<Worker> NewWorker =
+      std::make_unique<Worker>(StoreMgr, StackMgr);
+  NewWorker->setCode(BlockInstr->getBody());
+  auto Status = NewWorker->run();
+  if (NewWorker->getState() == State::Active) {
+    std::vector<std::unique_ptr<ValueEntry>> Vals;
+    while (!StackMgr.isTopLabel()) {
+      std::unique_ptr<ValueEntry> Val = nullptr;
+      StackMgr.pop(Val);
+      Vals.push_back(std::move(Val));
+    }
+    /// Pop Label
+    StackMgr.pop();
+    /// Push the Vals into the Stack
+    for (auto Iter = Vals.crbegin(); Iter != Vals.crend(); Iter++) {
+      std::unique_ptr<ValueEntry> Val =
+        std::make_unique<ValueEntry>(*Iter->get());
+      StackMgr.push(Val);
+    }
+  }
+  return Status;
+}
+
 ErrCode Worker::runBrOp(AST::ControlInstruction *InstrPtr) {
   auto BrInstr = dynamic_cast<AST::BrControlInstruction *>(InstrPtr);
   if (BrInstr == nullptr) {

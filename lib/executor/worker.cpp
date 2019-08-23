@@ -173,6 +173,9 @@ ErrCode Worker::runControlOp(AST::Instruction *InstrPtr) {
   case OpCode::Br_if:
     Status = runBrIfOp(TheInstrPtr);
     break;
+  case OpCode::Block:
+    Status = runBlockOp(TheInstrPtr);
+    break;
   default:
     Status = ErrCode::Unimplemented;
     break;

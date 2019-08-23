@@ -1,7 +1,6 @@
 add_library(ssvmExecutor
   executor.cpp
   entry/frame.cpp
-  entry/label.cpp
   entry/value.cpp
   instance/function.cpp
   instance/global.cpp

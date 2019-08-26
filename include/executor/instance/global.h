@@ -29,13 +29,16 @@ public:
   ErrCode setGlobalType(AST::ValType &ValueType, AST::ValMut &Mutibility);
 
   /// Move the instruction list in global segment into global instance.
-  ErrCode setExpression(std::vector<std::unique_ptr<AST::Instruction>> &Expr);
+  ErrCode setInstrs(std::vector<std::unique_ptr<AST::Instruction>> &Expr);
+
+  /// Set the value of this instance.
+  template <typename T> ErrCode setValue(T &Val);
 
   /// Get the value of this instance.
   template <typename T> ErrCode getValue(T &Val);
 
-  /// Set the value of this instance.
-  template <typename T> ErrCode setValue(T &Val);
+  /// Getter of function body instrs.
+  const auto &getInstrs() const { return Instrs; }
 
   /// Global Instance address in store manager.
   unsigned int Addr;

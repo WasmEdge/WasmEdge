@@ -20,8 +20,8 @@ ErrCode Worker::setArguments(Bytes &Input) {
 }
 
 ErrCode
-Worker::setCode(const std::vector<std::unique_ptr<AST::Instruction>> *Instrs) {
-  for (auto &Instr : *Instrs) {
+Worker::setCode(const std::vector<std::unique_ptr<AST::Instruction>> &Instrs) {
+  for (auto &Instr : Instrs) {
     this->Instrs.push_back(Instr.get());
   }
   return ErrCode::Success;

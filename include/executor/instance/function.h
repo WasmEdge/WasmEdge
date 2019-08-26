@@ -51,9 +51,7 @@ public:
   const auto &getLocals() const { return Locals; }
 
   /// Getter of function body instrs.
-  const std::vector<std::unique_ptr<AST::Instruction>> *getInstrs() const {
-    return &Instrs;
-  }
+  const auto &getInstrs() const { return Instrs; }
 
   /// Function Instance address in store manager.
   unsigned int Addr;

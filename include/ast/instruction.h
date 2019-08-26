@@ -248,9 +248,7 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of Block Body
-  const std::vector<std::unique_ptr<Instruction>> *getBody() const {
-    return &Body;
-  }
+  const auto &getBody() const { return Body; }
 
 private:
   /// \name Data of block instruction: return type and block body.

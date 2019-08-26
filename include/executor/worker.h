@@ -36,7 +36,7 @@ public:
   /// Prepare input data for calldatacopy
   ErrCode setArguments(Bytes &Input);
   /// Prepare Wasm bytecode for execution
-  ErrCode setCode(const std::vector<std::unique_ptr<AST::Instruction>> *Instrs);
+  ErrCode setCode(const std::vector<std::unique_ptr<AST::Instruction>> &Instrs);
   /// Execution Wasm bytecode with given input data.
   ErrCode run();
   State getState() const { return TheState; }

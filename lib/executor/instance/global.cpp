@@ -14,7 +14,7 @@ ErrCode GlobalInstance::setGlobalType(AST::ValType &ValueType,
 }
 
 /// Setter of init expression. See "include/executor/instance/global.h".
-ErrCode GlobalInstance::setExpression(
+ErrCode GlobalInstance::setInstrs(
     std::vector<std::unique_ptr<AST::Instruction>> &Expr) {
   Instrs = std::move(Expr);
   return ErrCode::Success;

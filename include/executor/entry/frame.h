@@ -32,9 +32,10 @@ public:
   /// \param LocalDef the local variables definition in function instance.
   ///
   /// \returns None.
-  FrameEntry(unsigned int ModuleAddr, unsigned int Arity,
-             std::vector<std::unique_ptr<ValueEntry>> &Args,
-             std::vector<std::pair<unsigned int, AST::ValType>> &LocalDefs);
+  FrameEntry(
+      unsigned int ModuleAddr, unsigned int Arity,
+      std::vector<std::unique_ptr<ValueEntry>> &Args,
+      const std::vector<std::pair<unsigned int, AST::ValType>> &LocalDefs);
 
   /// Constructor of initialization of a frame.
   ///

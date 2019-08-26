@@ -47,16 +47,16 @@ public:
   ErrCode getGlobalAddr(unsigned int Idx, unsigned int &Addr);
 
   /// Get the added external values' numbers.
-  ErrCode getFuncNum(unsigned int &Num);
-  ErrCode getTableNum(unsigned int &Num);
-  ErrCode getMemNum(unsigned int &Num);
-  ErrCode getGlobalNum(unsigned int &Num);
+  unsigned int getFuncNum() { return FuncAddrs.size(); }
+  unsigned int getTableNum() { return TableAddrs.size(); }
+  unsigned int getMemNum() { return MemAddrs.size(); }
+  unsigned int getGlobalNum() { return GlobalAddrs.size(); }
 
   /// Set start function index and find the address in Store.
   ErrCode setStartIdx(unsigned int Idx);
 
   /// Get start function address in Store.
-  ErrCode getStartAddr(unsigned int &Addr);
+  unsigned int getStartAddr() { return StartAddr; };
 
   /// Get function type by index
   ErrCode getFuncType(unsigned int Idx, FType *Type);

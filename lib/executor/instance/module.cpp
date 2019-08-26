@@ -70,31 +70,6 @@ ErrCode ModuleInstance::getGlobalAddr(unsigned int Idx, unsigned int &Addr) {
   return ErrCode::Success;
 }
 
-/// Getter of function instances number. See
-/// "include/executor/instance/module.h".
-ErrCode ModuleInstance::getFuncNum(unsigned int &Num) {
-  Num = FuncAddrs.size();
-  return ErrCode::Success;
-}
-
-/// Getter of table instances number. See "include/executor/instance/module.h".
-ErrCode ModuleInstance::getTableNum(unsigned int &Num) {
-  Num = TableAddrs.size();
-  return ErrCode::Success;
-}
-
-/// Getter of memory instances number. See "include/executor/instance/module.h".
-ErrCode ModuleInstance::getMemNum(unsigned int &Num) {
-  Num = MemAddrs.size();
-  return ErrCode::Success;
-}
-
-/// Getter of global instances number. See "include/executor/instance/module.h".
-ErrCode ModuleInstance::getGlobalNum(unsigned int &Num) {
-  Num = GlobalAddrs.size();
-  return ErrCode::Success;
-}
-
 /// Set start function address in Store. See
 /// "include/executor/instance/module.h".
 ErrCode ModuleInstance::setStartIdx(unsigned int Idx) {
@@ -102,14 +77,6 @@ ErrCode ModuleInstance::setStartIdx(unsigned int Idx) {
     return ErrCode::WrongInstanceAddress;
   StartAddr = FuncAddrs[Idx];
   HasStartFunc = true;
-  return ErrCode::Success;
-}
-
-/// Get start function address. See "include/executor/instance/module.h".
-ErrCode ModuleInstance::getStartAddr(unsigned int &Addr) {
-  if (!HasStartFunc)
-    return ErrCode::WrongInstanceAddress;
-  Addr = StartAddr;
   return ErrCode::Success;
 }
 

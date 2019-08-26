@@ -24,6 +24,12 @@ public:
   ModuleInstance() = default;
   ~ModuleInstance() = default;
 
+  /// Function type definition in this module.
+  struct FType {
+    std::vector<AST::ValType> Params;
+    std::vector<AST::ValType> Returns;
+  };
+
   /// Copy the function types in type section to module instance.
   ErrCode addFuncType(const std::vector<AST::ValType> &Params,
                       const std::vector<AST::ValType> &Returns);
@@ -52,17 +58,14 @@ public:
   /// Get start function address in Store.
   ErrCode getStartAddr(unsigned int &Addr);
 
+  /// Get function type by index
+  ErrCode getFuncType(unsigned int Idx, FType *Type);
+
   /// Module Instance address in store manager.
   unsigned int Addr;
 
 private:
-  /// Function type definition in this module.
-  struct FType {
-    FType() = default;
-    ~FType() = default;
-    std::vector<AST::ValType> Params;
-    std::vector<AST::ValType> Returns;
-  };
+  /// Function types.
   std::vector<std::unique_ptr<FType>> FuncTypes;
 
   /// Elements address index in this module in Store.

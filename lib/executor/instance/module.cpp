@@ -113,6 +113,14 @@ ErrCode ModuleInstance::getStartAddr(unsigned int &Addr) {
   return ErrCode::Success;
 }
 
+/// Get function type by index. See "include/executor/instance/module.h".
+ErrCode ModuleInstance::getFuncType(unsigned int Idx, FType *Type) {
+  if (FuncTypes.size() <= Idx)
+    return ErrCode::WrongInstanceAddress;
+  Type = FuncTypes[Idx].get();
+  return ErrCode::Success;
+}
+
 } // namespace Instance
 } // namespace Executor
 } // namespace SSVM

@@ -20,16 +20,16 @@ public:
   using Instructions = std::vector<AST::Instruction *>;
   enum class State : unsigned char {
     Invalid = 0, /// Default State
-    Terminated, /// Reach `return` instruction
+    Terminated,  /// Reach `return` instruction
     Unreachable, /// Reach `unreachable` instruction
-    Active, /// In execution
+    Active,      /// In execution
   };
 
 public:
   /// Worker are not allowed to create without Store and Stack.
   Worker() = delete;
   explicit Worker(StoreManager &Store, StackManager &Stack)
-      : StoreMgr(Store), StackMgr(Stack), TheState(State::Active) {};
+      : StoreMgr(Store), StackMgr(Stack), TheState(State::Active){};
 
   ~Worker() = default;
 
@@ -66,15 +66,14 @@ private:
   template <typename T>
   ErrCode runLtUOp(const ValueEntry *Val1, const ValueEntry *Val2);
   /// ======= Control =======
-  ErrCode runReturnOp();
   ErrCode runBlockOp(AST::ControlInstruction *Instr);
   ErrCode runBrOp(AST::ControlInstruction *Instr);
   ErrCode runBrIfOp(AST::ControlInstruction *Instr);
+  ErrCode runReturnOp();
+  ErrCode runCallOp(AST::ControlInstruction *Instr);
   /// ======= Memory =======
-  template <typename T>
-  ErrCode runLoadOp(AST::MemoryInstruction *InstrPtr);
-  template <typename T>
-  ErrCode runStoreOp(AST::MemoryInstruction *InstrPtr);
+  template <typename T> ErrCode runLoadOp(AST::MemoryInstruction *InstrPtr);
+  template <typename T> ErrCode runStoreOp(AST::MemoryInstruction *InstrPtr);
   /// ======= Numeric =======
   template <typename T>
   ErrCode runAddOp(const ValueEntry *Val1, const ValueEntry *Val2);

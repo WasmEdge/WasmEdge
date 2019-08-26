@@ -164,8 +164,8 @@ ErrCode Worker::runControlOp(AST::Instruction *InstrPtr) {
     TheState = State::Unreachable;
     Status = ErrCode::Unreachable;
     break;
-  case OpCode::Return:
-    Status = runReturnOp();
+  case OpCode::Block:
+    Status = runBlockOp(TheInstrPtr);
     break;
   case OpCode::Br:
     Status = runBrOp(TheInstrPtr);
@@ -173,8 +173,11 @@ ErrCode Worker::runControlOp(AST::Instruction *InstrPtr) {
   case OpCode::Br_if:
     Status = runBrIfOp(TheInstrPtr);
     break;
-  case OpCode::Block:
-    Status = runBlockOp(TheInstrPtr);
+  case OpCode::Return:
+    Status = runReturnOp();
+    break;
+  case OpCode::Call:
+    Status = runCallOp(TheInstrPtr);
     break;
   default:
     Status = ErrCode::Unimplemented;

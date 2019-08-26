@@ -213,6 +213,10 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
     return ErrCode::Success;
   ErrCode Status = ErrCode::Success;
 
+  /// Create a worker to execute initializations.
+  std::unique_ptr<Worker> NewWorker =
+      std::make_unique<Worker>(StoreMgr, StackMgr);
+
   /// Get the module instance from ID.
   Instance::ModuleInstance *ModInst = nullptr;
   if ((Status = StoreMgr.getModule(ModInstId, ModInst)) != ErrCode::Success)
@@ -234,6 +238,9 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
     auto Mut = GlobType->getValueMutation();
     if ((Status = NewGlobInst->setGlobalType(Type, Mut)) != ErrCode::Success)
       return Status;
+
+    /// Set init instrs to worker.
+    NewWorker->setCode((*Seg)->getExpression());
 
     /// Insert global instance to store manager.
     if ((Status = StoreMgr.insertGlobalInst(NewGlobInst, NewGlobInstId)) !=
@@ -264,43 +271,41 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
   auto Frame = std::make_unique<FrameEntry>(TmpModInstId, 0);
   StackMgr.push(Frame);
 
-  /// TODO: evaluate instrs in global instances
+  /// Evaluate instrs in global instances
+  if ((Status = NewWorker->run()) != ErrCode::Success)
+    return Status;
 
   /// Get the values
-  /*
-  unsigned int GlobalNum = 0;
-  if ((Status = TmpModInstPtr->getGlobalNum(GlobalNum)) !=
-      Executor::ErrCode::Success)
-    return Status;
+  unsigned int GlobalNum = TmpModInst->getGlobalNum();
   while (GlobalNum--) {
     std::unique_ptr<ValueEntry> PopVal;
-    Stack.pop(PopVal);
+    StackMgr.pop(PopVal);
     unsigned int GlobalAddr = 0;
-    TmpModInstPtr->getGlobalAddr(GlobalNum, GlobalAddr);
-    Executor::GlobalInstance *GlobInst;
-    Store.getGlobal(GlobalAddr, GlobInst);
-    ValType GlobType;
+    TmpModInst->getGlobalAddr(GlobalNum, GlobalAddr);
+    Instance::GlobalInstance *GlobInst;
+    StoreMgr.getGlobal(GlobalAddr, GlobInst);
+    AST::ValType GlobType;
     PopVal->getType(GlobType);
     switch (GlobType) {
-    case ValType::I32: {
+    case AST::ValType::I32: {
       int32_t GlobVal = 0;
       PopVal->getValue(GlobVal);
       GlobInst->setValue(GlobVal);
       break;
     }
-    case ValType::I64: {
+    case AST::ValType::I64: {
       int64_t GlobVal = 0;
       PopVal->getValue(GlobVal);
       GlobInst->setValue(GlobVal);
       break;
     }
-    case ValType::F32: {
+    case AST::ValType::F32: {
       float GlobVal = 0;
       PopVal->getValue(GlobVal);
       GlobInst->setValue(GlobVal);
       break;
     }
-    case ValType::F64: {
+    case AST::ValType::F64: {
       double GlobVal = 0;
       PopVal->getValue(GlobVal);
       GlobInst->setValue(GlobVal);
@@ -310,7 +315,6 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
       break;
     }
   }
-  */
 
   /// Pop Frame
   StackMgr.pop();

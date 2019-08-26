@@ -217,9 +217,7 @@ public:
     return Loader::ErrCode::Success;
   };
 
-  OpCode getOpCode() const {
-    return Code;
-  }
+  OpCode getOpCode() const { return Code; }
 
 protected:
   /// OpCode if this instruction node.
@@ -250,7 +248,9 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of Block Body
-  const std::vector<std::unique_ptr<Instruction>>* getBody() const { return &Body; }
+  const std::vector<std::unique_ptr<Instruction>> *getBody() const {
+    return &Body;
+  }
 
 private:
   /// \name Data of block instruction: return type and block body.
@@ -348,6 +348,9 @@ public:
   ///
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+
+  /// Getter of the index
+  unsigned int getIndex() const { return FuncIdx; }
 
 private:
   /// Call function index.

@@ -36,13 +36,24 @@ public:
   setLocals(const std::vector<std::pair<unsigned int, AST::ValType>> &Loc);
 
   /// Move the instruction list in code segment into function instance.
-  ErrCode setExpression(std::vector<std::unique_ptr<AST::Instruction>> &Expr);
+  ErrCode setInstrs(std::vector<std::unique_ptr<AST::Instruction>> &Expr);
 
   /// Set the module name and function name.
   ErrCode setNames(const std::string &Mod, const std::string &Func);
 
   /// Match the module and function name.
   bool isName(const std::string &Mod, const std::string &Func);
+
+  /// Getter of function type index in module instance.
+  unsigned int getTypeIdx() const { return TypeIdx; }
+
+  /// Getter of function body instrs.
+  const auto &getLocals() const { return Locals; }
+
+  /// Getter of function body instrs.
+  const std::vector<std::unique_ptr<AST::Instruction>> *getInstrs() const {
+    return &Instrs;
+  }
 
   /// Function Instance address in store manager.
   unsigned int Addr;

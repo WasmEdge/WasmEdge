@@ -189,7 +189,7 @@ ErrCode Executor::instantiate(AST::FunctionSection *FuncSec,
       return Status;
     if ((Status = NewFuncInst->setLocals(Locals)) != ErrCode::Success)
       return Status;
-    if ((Status = NewFuncInst->setExpression(Instrs)) != ErrCode::Success)
+    if ((Status = NewFuncInst->setInstrs(Instrs)) != ErrCode::Success)
       return Status;
 
     /// Insert function instance to store manager.

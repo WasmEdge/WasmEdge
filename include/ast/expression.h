@@ -34,7 +34,7 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of instructions vector.
-  auto &getInstructions() { return Instr; }
+  auto &getInstrs() { return Instrs; }
 
 protected:
   /// The node type should be Attr::Expression.
@@ -42,7 +42,7 @@ protected:
 
 private:
   /// Instruction set list.
-  std::vector<std::unique_ptr<Instruction>> Instr;
+  std::vector<std::unique_ptr<Instruction>> Instrs;
 };
 
 } // namespace AST

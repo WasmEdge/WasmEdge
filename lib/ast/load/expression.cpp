@@ -26,7 +26,7 @@ Loader::ErrCode Expression::loadBinary(FileMgr &Mgr) {
       break;
     if ((Status = NewInst->loadBinary(Mgr)) != Loader::ErrCode::Success)
       break;
-    Instr.push_back(std::move(NewInst));
+    Instrs.push_back(std::move(NewInst));
   }
   return Status;
 }

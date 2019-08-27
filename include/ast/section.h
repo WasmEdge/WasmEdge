@@ -218,6 +218,10 @@ private:
 
 /// AST ElementSection node.
 class ElementSection : public Section {
+public:
+  /// Getter of content vector.
+  const auto &getContent() { return Content; }
+
 protected:
   /// Overrided content loading of element section.
   virtual Loader::ErrCode loadContent(FileMgr &Mgr);
@@ -250,6 +254,10 @@ private:
 
 /// AST DataSection node.
 class DataSection : public Section {
+public:
+  /// Getter of content vector.
+  const auto &getContent() { return Content; }
+
 protected:
   /// Overrided content loading of data section.
   virtual Loader::ErrCode loadContent(FileMgr &Mgr);

@@ -28,7 +28,7 @@ public:
   };
 
   /// Getter of locals vector.
-  auto &getExpression() { return Expr->getInstructions(); }
+  auto &getInstrs() { return Expr->getInstrs(); }
 
 protected:
   /// Load binary from file manager.
@@ -84,6 +84,12 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
+  /// Getter of table index.
+  const unsigned int getIdx() { return TableIdx; }
+
+  /// Getter of function indices.
+  auto &getFuncIdxes() { return FuncIdxes; }
+
 protected:
   /// The node type should be Attr::Seg_Element.
   Attr NodeAttr = Attr::Seg_Element;
@@ -136,6 +142,12 @@ public:
   ///
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+
+  /// Getter of memory index.
+  const unsigned int getIdx() { return MemoryIdx; }
+
+  /// Getter of data.
+  auto &getData() { return Data; }
 
 protected:
   /// The node type should be Attr::Seg_Data.

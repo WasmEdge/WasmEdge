@@ -12,9 +12,6 @@ ErrCode Executor::setModule(std::unique_ptr<AST::Module> &Module) {
   return ErrCode::Success;
 }
 
-/// Instantiate module. See "include/executor/executor.h".
-ErrCode Executor::instantiate() { return instantiate(Mod.get()); }
-
 /// Instantiate module instance. See "include/executor/executor.h".
 ErrCode Executor::instantiate(AST::Module *Mod) {
   if (Mod == nullptr)
@@ -48,28 +45,25 @@ ErrCode Executor::instantiate(AST::Module *Mod) {
   if ((Status = instantiate(GlobSec)) != ErrCode::Success)
     return Status;
 
-  /// TODO: Initializa the tables and memories
-  /// Push Frame {ModInst, local:none}
+  /// Initializa the tables and memories
+  /// Make a new frame {ModInst, locals:none} and push
+  auto Frame = std::make_unique<FrameEntry>(ModInstId, 0);
+  StackMgr.push(Frame);
 
-  /// Instantiate TableSection (TableSec)
+  /// Instantiate TableSection (TableSec, ElemSec)
   AST::TableSection *TabSec = Mod->getTableSection();
-  if ((Status = instantiate(TabSec)) != ErrCode::Success)
+  AST::ElementSection *ElemSec = Mod->getElementSection();
+  if ((Status = instantiate(TabSec, ElemSec)) != ErrCode::Success)
     return Status;
 
-  /// Instantiate MemorySection (MemorySec)
+  /// Instantiate MemorySection (MemorySec, DataSec)
   AST::MemorySection *MemSec = Mod->getMemorySection();
-  if ((Status = instantiate(MemSec)) != ErrCode::Success)
+  AST::DataSection *DataSec = Mod->getDataSection();
+  if ((Status = instantiate(MemSec, DataSec)) != ErrCode::Success)
     return Status;
-
-  /// Instantiate ElementSection TODO
-  ///   evaluate instrs in element segments
-
-  /// Instantiate DataSection TODO
-  ///   evaluate instrs in data segments
 
   /// Pop Frame.
-  /// Replace data in table instance.
-  /// Replace data in memory instance.
+  StackMgr.pop();
 
   /// Instantiate ExportSection (ExportSec)
   AST::ExportSection *ExportSec = Mod->getExportSection();
@@ -94,13 +88,17 @@ ErrCode Executor::instantiate(AST::ImportSection *ImportSec) {
   if ((Status = StoreMgr.getModule(ModInstId, ModInst)) != ErrCode::Success)
     return Status;
 
+  /// Create a worker to execute initializations.
+  std::unique_ptr<Worker> NewWorker =
+      std::make_unique<Worker>(StoreMgr, StackMgr);
+
   /// Iterate and instantiate import descriptions.
-  auto &Content = ImportSec->getContent();
-  for (auto Desc = Content.begin(); Desc != Content.end(); Desc++) {
+  auto &ImpDescs = ImportSec->getContent();
+  for (auto ImpDesc = ImpDescs.begin(); ImpDesc != ImpDescs.end(); ImpDesc++) {
     /// Get data from import description.
-    auto ExtType = (*Desc)->getExternalType();
-    const std::string &ModName = (*Desc)->getModuleName();
-    const std::string &ExtName = (*Desc)->getExternalName();
+    auto ExtType = (*ImpDesc)->getExternalType();
+    const std::string &ModName = (*ImpDesc)->getModuleName();
+    const std::string &ExtName = (*ImpDesc)->getExternalName();
 
     /// Add the imports into module istance.
     switch (ExtType) {
@@ -113,7 +111,8 @@ ErrCode Executor::instantiate(AST::ImportSection *ImportSec) {
         return Status;
       /// Set the function type index.
       unsigned int *TypeIdx = nullptr;
-      if ((Status = (*Desc)->getExternalContent(TypeIdx)) != ErrCode::Success)
+      if ((Status = (*ImpDesc)->getExternalContent(TypeIdx)) !=
+          ErrCode::Success)
         return Status;
       if ((Status = FuncInst->setTypeIdx(*TypeIdx)) != ErrCode::Success)
         return Status;
@@ -144,11 +143,12 @@ ErrCode Executor::instantiate(AST::TypeSection *TypeSec) {
     return Status;
 
   /// Iterate and instantiate types.
-  auto &Content = TypeSec->getContent();
-  for (auto Func = Content.begin(); Func != Content.end(); Func++) {
+  auto &FuncTypes = TypeSec->getContent();
+  for (auto FuncType = FuncTypes.begin(); FuncType != FuncTypes.end();
+       FuncType++) {
     /// Copy param and return lists to module instance.
-    auto &Param = (*Func)->getParamTypes();
-    auto &Return = (*Func)->getParamTypes();
+    auto &Param = (*FuncType)->getParamTypes();
+    auto &Return = (*FuncType)->getParamTypes();
     if ((Status = ModInst->addFuncType(Param, Return)) != ErrCode::Success)
       return Status;
   }
@@ -168,24 +168,24 @@ ErrCode Executor::instantiate(AST::FunctionSection *FuncSec,
     return Status;
 
   /// Get the function type indices.
-  auto &TypeIdx = FuncSec->getContent();
+  auto &TypeIdxs = FuncSec->getContent();
 
   /// Iterate through code segments to make function instances.
-  auto &Content = CodeSec->getContent();
-  auto ItCode = Content.begin();
-  auto ItType = TypeIdx.begin();
-  while (ItCode != Content.end() && ItType != TypeIdx.end()) {
+  auto &CodeSegs = CodeSec->getContent();
+  auto CodeSeg = CodeSegs.begin();
+  auto TypeIdx = TypeIdxs.begin();
+  while (CodeSeg != CodeSegs.end() && TypeIdx != TypeIdxs.end()) {
     /// Make a new function instance.
     auto NewFuncInst = std::make_unique<Instance::FunctionInstance>();
     unsigned int NewFuncInstId = 0;
-    auto &Locals = (*ItCode)->getLocals();
-    auto &Instrs = (*ItCode)->getExpression();
+    auto &Locals = (*CodeSeg)->getLocals();
+    auto &Instrs = (*CodeSeg)->getInstrs();
 
     /// Set function instance data.
     if ((Status = NewFuncInst->setModuleAddr(ModInst->Addr)) !=
         ErrCode::Success)
       return Status;
-    if ((Status = NewFuncInst->setTypeIdx(*ItType)) != ErrCode::Success)
+    if ((Status = NewFuncInst->setTypeIdx(*TypeIdx)) != ErrCode::Success)
       return Status;
     if ((Status = NewFuncInst->setLocals(Locals)) != ErrCode::Success)
       return Status;
@@ -201,8 +201,8 @@ ErrCode Executor::instantiate(AST::FunctionSection *FuncSec,
     if ((Status = ModInst->addFuncAddr(NewFuncInstId)) != ErrCode::Success)
       return Status;
 
-    ItCode++;
-    ItType++;
+    CodeSeg++;
+    TypeIdx++;
   }
   return Status;
 }
@@ -213,34 +213,34 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
     return ErrCode::Success;
   ErrCode Status = ErrCode::Success;
 
-  /// Create a worker to execute initializations.
-  std::unique_ptr<Worker> NewWorker =
-      std::make_unique<Worker>(StoreMgr, StackMgr);
-
   /// Get the module instance from ID.
   Instance::ModuleInstance *ModInst = nullptr;
   if ((Status = StoreMgr.getModule(ModInstId, ModInst)) != ErrCode::Success)
     return Status;
 
+  /// Create a worker to execute initializations.
+  std::unique_ptr<Worker> NewWorker =
+      std::make_unique<Worker>(StoreMgr, StackMgr);
+
   /// Add a temp module to Store for initialization
   auto TmpMod = std::make_unique<Instance::ModuleInstance>();
 
   /// Iterate and instantiate global segments.
-  auto &Content = GlobSec->getContent();
-  for (auto Seg = Content.begin(); Seg != Content.end(); Seg++) {
+  auto &GlobSegs = GlobSec->getContent();
+  for (auto GlobSeg = GlobSegs.begin(); GlobSeg != GlobSegs.end(); GlobSeg++) {
     /// Make a new function instance.
     auto NewGlobInst = std::make_unique<Instance::GlobalInstance>();
     unsigned int NewGlobInstId = 0;
 
     /// Set global instance data.
-    auto &GlobType = (*Seg)->getGlobalType();
+    auto &GlobType = (*GlobSeg)->getGlobalType();
     auto Type = GlobType->getValueType();
     auto Mut = GlobType->getValueMutation();
     if ((Status = NewGlobInst->setGlobalType(Type, Mut)) != ErrCode::Success)
       return Status;
 
     /// Set init instrs to worker.
-    NewWorker->setCode((*Seg)->getExpression());
+    NewWorker->setCode((*GlobSeg)->getInstrs());
 
     /// Insert global instance to store manager.
     if ((Status = StoreMgr.insertGlobalInst(NewGlobInst, NewGlobInstId)) !=
@@ -284,8 +284,7 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
     TmpModInst->getGlobalAddr(GlobalNum, GlobalAddr);
     Instance::GlobalInstance *GlobInst;
     StoreMgr.getGlobal(GlobalAddr, GlobInst);
-    AST::ValType GlobType;
-    PopVal->getType(GlobType);
+    AST::ValType GlobType = PopVal->getType();
     switch (GlobType) {
     case AST::ValType::I32: {
       int32_t GlobVal = 0;
@@ -324,7 +323,8 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
 }
 
 /// Instantiate table instance. See "include/executor/executor.h".
-ErrCode Executor::instantiate(AST::TableSection *TabSec) {
+ErrCode Executor::instantiate(AST::TableSection *TabSec,
+                              AST::ElementSection *ElemSec) {
   if (TabSec == nullptr)
     return ErrCode::Success;
   ErrCode Status = ErrCode::Success;
@@ -334,9 +334,13 @@ ErrCode Executor::instantiate(AST::TableSection *TabSec) {
   if ((Status = StoreMgr.getModule(ModInstId, ModInst)) != ErrCode::Success)
     return Status;
 
+  /// Create a worker to execute initializations.
+  std::unique_ptr<Worker> NewWorker =
+      std::make_unique<Worker>(StoreMgr, StackMgr);
+
   /// Iterate and istantiate table types.
-  auto &Content = TabSec->getContent();
-  for (auto TabType = Content.begin(); TabType != Content.end(); TabType++) {
+  auto &TabTypes = TabSec->getContent();
+  for (auto TabType = TabTypes.begin(); TabType != TabTypes.end(); TabType++) {
     /// Make a new table instance.
     auto NewTabInst = std::make_unique<Instance::TableInstance>();
     unsigned int NewTabInstId = 0;
@@ -359,11 +363,41 @@ ErrCode Executor::instantiate(AST::TableSection *TabSec) {
     if ((Status = ModInst->addTableAddr(NewTabInstId)) != ErrCode::Success)
       return Status;
   }
+
+  /// Iterate and evaluate element segments.
+  auto &ElemSegs = ElemSec->getContent();
+  for (auto ElemSeg = ElemSegs.begin(); ElemSeg != ElemSegs.end(); ElemSeg++) {
+    /// Evaluate instrs in element segment for offset.
+    NewWorker->setCode((*ElemSeg)->getInstrs());
+    if ((Status = NewWorker->run()) != ErrCode::Success)
+      return Status;
+
+    /// Pop the result for offset.
+    std::unique_ptr<ValueEntry> PopVal;
+    StackMgr.pop(PopVal);
+    int32_t Offset = 0;
+    if ((Status = PopVal->getValue(Offset)) != ErrCode::Success)
+      return Status;
+
+    /// Get table instance
+    Instance::TableInstance *TabInst = nullptr;
+    unsigned int TabAddr = 0;
+    if ((Status = ModInst->getMemAddr((*ElemSeg)->getIdx(), TabAddr)) !=
+        ErrCode::Success)
+      return Status;
+    if ((Status = StoreMgr.getTable(TabAddr, TabInst)) != ErrCode::Success)
+      return Status;
+
+    /// Copy data to memory instance
+    TabInst->setInitList(Offset, (*ElemSeg)->getFuncIdxes());
+  }
+
   return Status;
 }
 
 /// Instantiate memory instance. See "include/executor/executor.h".
-ErrCode Executor::instantiate(AST::MemorySection *MemSec) {
+ErrCode Executor::instantiate(AST::MemorySection *MemSec,
+                              AST::DataSection *DataSec) {
   if (MemSec == nullptr)
     return ErrCode::Success;
   ErrCode Status = ErrCode::Success;
@@ -373,9 +407,13 @@ ErrCode Executor::instantiate(AST::MemorySection *MemSec) {
   if ((Status = StoreMgr.getModule(ModInstId, ModInst)) != ErrCode::Success)
     return Status;
 
+  /// Create a worker to execute initializations.
+  std::unique_ptr<Worker> NewWorker =
+      std::make_unique<Worker>(StoreMgr, StackMgr);
+
   /// Iterate and istantiate memory types.
-  auto &Content = MemSec->getContent();
-  for (auto MemType = Content.begin(); MemType != Content.end(); MemType++) {
+  auto &MemTypes = MemSec->getContent();
+  for (auto MemType = MemTypes.begin(); MemType != MemTypes.end(); MemType++) {
     /// Make a new memory instance.
     auto NewMemInst = std::make_unique<Instance::MemoryInstance>();
     unsigned int NewMemInstId = 0;
@@ -395,6 +433,36 @@ ErrCode Executor::instantiate(AST::MemorySection *MemSec) {
     if ((Status = ModInst->addMemAddr(NewMemInstId)) != ErrCode::Success)
       return Status;
   }
+
+  /// Iterate and evaluate data segments.
+  auto &DataSegs = DataSec->getContent();
+  for (auto DataSeg = DataSegs.begin(); DataSeg != DataSegs.end(); DataSeg++) {
+    /// Evaluate instrs in data segment for offset.
+    NewWorker->setCode((*DataSeg)->getInstrs());
+    if ((Status = NewWorker->run()) != ErrCode::Success)
+      return Status;
+
+    /// Pop the result for offset.
+    std::unique_ptr<ValueEntry> PopVal;
+    StackMgr.pop(PopVal);
+    int32_t Offset = 0;
+    if ((Status = PopVal->getValue(Offset)) != ErrCode::Success)
+      return Status;
+
+    /// Get memory instance
+    Instance::MemoryInstance *MemInst = nullptr;
+    unsigned int MemAddr = 0;
+    if ((Status = ModInst->getMemAddr((*DataSeg)->getIdx(), MemAddr)) !=
+        ErrCode::Success)
+      return Status;
+    if ((Status = StoreMgr.getMemory(MemAddr, MemInst)) != ErrCode::Success)
+      return Status;
+
+    /// Copy data to memory instance
+    MemInst->setBytes((*DataSeg)->getData(), Offset,
+                      (*DataSeg)->getData().size());
+  }
+
   return Status;
 }
 
@@ -410,13 +478,13 @@ ErrCode Executor::instantiate(AST::ExportSection *ExportSec) {
     return Status;
 
   /// Iterate and istantiate export descriptions.
-  auto &Content = ExportSec->getContent();
-  for (auto Desc = Content.begin(); Desc != Content.end(); Desc++) {
+  auto &ExpDescs = ExportSec->getContent();
+  for (auto ExpDesc = ExpDescs.begin(); ExpDesc != ExpDescs.end(); ExpDesc++) {
     /// TODO: make export instances. Only match start function now.
     /// Get data from export description.
-    auto ExtType = (*Desc)->getExternalType();
-    const std::string &ExtName = (*Desc)->getExternalName();
-    unsigned int ExtIdx = (*Desc)->getExternalIndex();
+    auto ExtType = (*ExpDesc)->getExternalType();
+    const std::string &ExtName = (*ExpDesc)->getExternalName();
+    unsigned int ExtIdx = (*ExpDesc)->getExternalIndex();
 
     /// TODO: make export instance and add to module.
     /// Add the name of function to function instance.

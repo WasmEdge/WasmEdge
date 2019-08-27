@@ -31,7 +31,7 @@ public:
   ErrCode setModule(std::unique_ptr<AST::Module> &Module);
 
   /// Instantiate Wasm Module.
-  ErrCode instantiate();
+  ErrCode instantiate() { return instantiate(Mod.get()); }
 
   /// Execute Wasm.
   ErrCode run();
@@ -53,10 +53,10 @@ private:
   ErrCode instantiate(AST::GlobalSection *GlobSec);
 
   /// Instantiation of Table Instances.
-  ErrCode instantiate(AST::TableSection *TabSec);
+  ErrCode instantiate(AST::TableSection *TabSec, AST::ElementSection *ElemSec);
 
   /// Instantiation of Memory Instances.
-  ErrCode instantiate(AST::MemorySection *MemSec);
+  ErrCode instantiate(AST::MemorySection *MemSec, AST::DataSection *DataSec);
 
   /// Instantiation of Export Instances.
   ErrCode instantiate(AST::ExportSection *ExportSec);

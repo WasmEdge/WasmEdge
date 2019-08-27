@@ -35,7 +35,7 @@ public:
   ~ValueEntry() = default;
 
   /// Getter of value type.
-  ErrCode getType(AST::ValType &T) const;
+  AST::ValType getType() const { return Type; }
 
   /// Value setters
   template <typename T> ErrCode setValue(T &Val);

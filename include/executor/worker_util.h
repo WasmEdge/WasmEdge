@@ -9,23 +9,21 @@ namespace {
 using OpCode = AST::Instruction::OpCode;
 using Value = AST::ValVariant;
 
-}
+} // namespace
 
-template <typename T>
-inline T retrieveValue(const ValueEntry &Val) {
+template <typename T> inline T retrieveValue(const ValueEntry &Val) {
   T Value;
   Val.getValue(Value);
   return Value;
 }
 
 inline bool isValueTypeEqual(const ValueEntry &Val1, const ValueEntry &Val2) {
-    AST::ValType ValTp1, ValTp2;
-    Val1.getType(ValTp1);
-    Val2.getType(ValTp2);
-    if (ValTp1 != ValTp2) {
-      return false;
-    }
-    return true;
+  AST::ValType ValTp1 = Val1.getType();
+  AST::ValType ValTp2 = Val2.getType();
+  if (ValTp1 != ValTp2) {
+    return false;
+  }
+  return true;
 }
 
 inline bool isInRange(OpCode X, OpCode Y, OpCode Z) {

@@ -81,7 +81,7 @@ ErrCode ModuleInstance::setStartIdx(unsigned int Idx) {
 }
 
 /// Get function type by index. See "include/executor/instance/module.h".
-ErrCode ModuleInstance::getFuncType(unsigned int Idx, FType *Type) {
+ErrCode ModuleInstance::getFuncType(unsigned int Idx, FType *&Type) {
   if (FuncTypes.size() <= Idx)
     return ErrCode::WrongInstanceAddress;
   Type = FuncTypes[Idx].get();

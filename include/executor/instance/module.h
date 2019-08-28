@@ -59,7 +59,7 @@ public:
   unsigned int getStartAddr() { return StartAddr; };
 
   /// Get function type by index
-  ErrCode getFuncType(unsigned int Idx, FType *Type);
+  ErrCode getFuncType(unsigned int Idx, FType *&Type);
 
   /// Module Instance address in store manager.
   unsigned int Addr;

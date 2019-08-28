@@ -26,6 +26,7 @@ public:
   explicit ValueEntry(const ValueEntry &VE) : Type(VE.Type), Value(VE.Value) {}
   explicit ValueEntry(AST::ValType &VT, AST::ValVariant &Val)
       : Type(VT), Value(Val) {}
+  explicit ValueEntry(AST::ValType VT);
   /// Constructors for the different value type
   explicit ValueEntry(int32_t Val) : Type(AST::ValType::I32), Value(Val) {}
   explicit ValueEntry(int64_t Val) : Type(AST::ValType::I64), Value(Val) {}

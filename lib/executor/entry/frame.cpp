@@ -20,22 +20,7 @@ FrameEntry::FrameEntry(
   for (auto LocalDef = LocalDefs.begin(); LocalDef != LocalDefs.end();
        LocalDef++) {
     for (unsigned int i = 0; i < LocalDef->first; i++) {
-      switch (LocalDef->second) {
-      case AST::ValType::I32:
-        Locals.push_back(std::make_unique<ValueEntry>((int32_t)0));
-        break;
-      case AST::ValType::I64:
-        Locals.push_back(std::make_unique<ValueEntry>((int64_t)0));
-        break;
-      case AST::ValType::F32:
-        Locals.push_back(std::make_unique<ValueEntry>((float)0.0));
-        break;
-      case AST::ValType::F64:
-        Locals.push_back(std::make_unique<ValueEntry>((double)0.0));
-        break;
-      default:
-        break;
-      }
+      Locals.push_back(std::make_unique<ValueEntry>(LocalDef->second));
     }
   }
 }

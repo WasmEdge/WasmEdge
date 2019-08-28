@@ -38,7 +38,9 @@ public:
   unsigned int getArity() { return Arity; }
 
   /// Getter of instructions.
-  const auto &getInstructions() { return Instrs; }
+  const std::vector<std::unique_ptr<AST::Instruction>> &getInstructions() {
+    return Instrs;
+  }
 
 private:
   /// \name Data of label entry.

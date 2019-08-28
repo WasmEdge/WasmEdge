@@ -48,10 +48,14 @@ public:
   unsigned int getTypeIdx() const { return TypeIdx; }
 
   /// Getter of function body instrs.
-  const auto &getLocals() const { return Locals; }
+  const std::vector<std::pair<unsigned int, AST::ValType>> &getLocals() const {
+    return Locals;
+  }
 
   /// Getter of function body instrs.
-  const auto &getInstrs() const { return Instrs; }
+  const std::vector<std::unique_ptr<AST::Instruction>> &getInstrs() const {
+    return Instrs;
+  }
 
   /// Function Instance address in store manager.
   unsigned int Addr;

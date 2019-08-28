@@ -38,7 +38,9 @@ public:
   template <typename T> ErrCode getValue(T &Val);
 
   /// Getter of function body instrs.
-  const auto &getInstrs() const { return Instrs; }
+  const std::vector<std::unique_ptr<AST::Instruction>> &getInstrs() const {
+    return Instrs;
+  }
 
   /// Global Instance address in store manager.
   unsigned int Addr;

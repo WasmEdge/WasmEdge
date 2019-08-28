@@ -248,7 +248,9 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of Block Body
-  const auto &getBody() const { return Body; }
+  const std::vector<std::unique_ptr<Instruction>> &getBody() const {
+    return Body;
+  }
 
 private:
   /// \name Data of block instruction: return type and block body.
@@ -256,7 +258,7 @@ private:
   ValType BlockType;
   std::vector<std::unique_ptr<Instruction>> Body;
   /// @}
-};
+}; // namespace AST
 
 /// Derived if-else control instruction node.
 class IfElseControlInstruction : public Instruction {

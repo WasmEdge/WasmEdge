@@ -14,4 +14,5 @@ add_library(ssvmExecutor
   worker/control.cpp
   worker/memory.cpp
   worker/numeric.cpp
+  worker/provider.cpp
 )

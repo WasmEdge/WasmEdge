@@ -1,7 +1,7 @@
 #include "executor/common.h"
 #include "executor/entry/value.h"
 #include "executor/worker.h"
-#include "executor/worker_util.h"
+#include "executor/worker/util.h"
 
 namespace SSVM {
 namespace Executor {

@@ -1,6 +1,6 @@
 #include "executor/common.h"
 #include "executor/worker.h"
-#include "executor/worker_util.h"
+#include "executor/worker/util.h"
 
 #include <algorithm>
 #include <cstdint>

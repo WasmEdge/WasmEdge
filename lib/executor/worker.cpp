@@ -1,7 +1,7 @@
 #include "executor/worker.h"
 #include "ast/common.h"
 #include "ast/instruction.h"
-#include "executor/worker_util.h"
+#include "executor/worker/util.h"
 #include "support/casting.h"
 
 namespace SSVM {

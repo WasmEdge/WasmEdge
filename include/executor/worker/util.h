@@ -1,5 +1,5 @@
 #include "ast/instruction.h"
-#include "entry/value.h"
+#include "executor/entry/value.h"
 
 namespace SSVM {
 namespace Executor {

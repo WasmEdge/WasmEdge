@@ -49,9 +49,9 @@ public:
   ErrCode getLabelWithCount(LabelEntry *&Label, unsigned int Count);
 
   /// Checking the top entry's attribute
-  bool isTopFrame();
-  bool isTopLabel();
-  bool isTopValue();
+  bool isTopFrame() { return (Stack.size() > 0) && Stack.back().index() == 0; }
+  bool isTopLabel() { return (Stack.size() > 0) && Stack.back().index() == 1; }
+  bool isTopValue() { return (Stack.size() > 0) && Stack.back().index() == 2; }
 
 private:
   /// \name Data of value entry.

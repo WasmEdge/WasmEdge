@@ -88,10 +88,6 @@ ErrCode Executor::instantiate(AST::ImportSection *ImportSec) {
   if ((Status = StoreMgr.getModule(ModInstId, ModInst)) != ErrCode::Success)
     return Status;
 
-  /// Create a worker to execute initializations.
-  std::unique_ptr<Worker> NewWorker =
-      std::make_unique<Worker>(StoreMgr, StackMgr);
-
   /// Iterate and instantiate import descriptions.
   auto &ImpDescs = ImportSec->getContent();
   for (auto ImpDesc = ImpDescs.begin(); ImpDesc != ImpDescs.end(); ImpDesc++) {
@@ -218,10 +214,6 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
   if ((Status = StoreMgr.getModule(ModInstId, ModInst)) != ErrCode::Success)
     return Status;
 
-  /// Create a worker to execute initializations.
-  std::unique_ptr<Worker> NewWorker =
-      std::make_unique<Worker>(StoreMgr, StackMgr);
-
   /// Add a temp module to Store for initialization
   auto TmpMod = std::make_unique<Instance::ModuleInstance>();
 
@@ -238,9 +230,6 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
     auto Mut = GlobType->getValueMutation();
     if ((Status = NewGlobInst->setGlobalType(Type, Mut)) != ErrCode::Success)
       return Status;
-
-    /// Set init instrs to worker.
-    NewWorker->setCode((*GlobSeg)->getInstrs());
 
     /// Insert global instance to store manager.
     if ((Status = StoreMgr.insertGlobalInst(NewGlobInst, NewGlobInstId)) !=
@@ -271,52 +260,32 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
   auto Frame = std::make_unique<FrameEntry>(TmpModInstId, 0);
   StackMgr.push(Frame);
 
-  /// Evaluate instrs in global instances
-  if ((Status = NewWorker->run()) != ErrCode::Success)
-    return Status;
+  /// Evaluate values and set to global instance.
+  auto GlobSeg = GlobSegs.begin();
+  for (unsigned int I = 0; I < TmpModInst->getGlobalNum(); I++, GlobSeg++) {
+    /// Set init instrs to engine and run.
+    if ((Status = Engine->runExpression((*GlobSeg)->getInstrs())) !=
+        ErrCode::Success)
+      return Status;
 
-  /// Get the values
-  unsigned int GlobalNum = TmpModInst->getGlobalNum();
-  while (GlobalNum--) {
+    /// Pop result from stack.
     std::unique_ptr<ValueEntry> PopVal;
     StackMgr.pop(PopVal);
+
+    /// Get global instance from store.
     unsigned int GlobalAddr = 0;
-    TmpModInst->getGlobalAddr(GlobalNum, GlobalAddr);
+    TmpModInst->getGlobalAddr(I, GlobalAddr);
     Instance::GlobalInstance *GlobInst;
     StoreMgr.getGlobal(GlobalAddr, GlobInst);
-    AST::ValType GlobType = PopVal->getType();
-    switch (GlobType) {
-    case AST::ValType::I32: {
-      int32_t GlobVal = 0;
-      PopVal->getValue(GlobVal);
-      GlobInst->setValue(GlobVal);
-      break;
-    }
-    case AST::ValType::I64: {
-      int64_t GlobVal = 0;
-      PopVal->getValue(GlobVal);
-      GlobInst->setValue(GlobVal);
-      break;
-    }
-    case AST::ValType::F32: {
-      float GlobVal = 0;
-      PopVal->getValue(GlobVal);
-      GlobInst->setValue(GlobVal);
-      break;
-    }
-    case AST::ValType::F64: {
-      double GlobVal = 0;
-      PopVal->getValue(GlobVal);
-      GlobInst->setValue(GlobVal);
-      break;
-    }
-    default:
-      break;
-    }
+
+    /// Set value from value entry to global instance.
+    AST::ValVariant Val;
+    PopVal->getValue(Val);
+    GlobInst->setValue(Val);
   }
 
   /// Pop Frame
-  StackMgr.pop();
+  Status = StackMgr.pop();
 
   /// TODO: Delete the temp. module instance
   return Status;
@@ -333,10 +302,6 @@ ErrCode Executor::instantiate(AST::TableSection *TabSec,
   Instance::ModuleInstance *ModInst = nullptr;
   if ((Status = StoreMgr.getModule(ModInstId, ModInst)) != ErrCode::Success)
     return Status;
-
-  /// Create a worker to execute initializations.
-  std::unique_ptr<Worker> NewWorker =
-      std::make_unique<Worker>(StoreMgr, StackMgr);
 
   /// Iterate and istantiate table types.
   auto &TabTypes = TabSec->getContent();
@@ -368,8 +333,8 @@ ErrCode Executor::instantiate(AST::TableSection *TabSec,
   auto &ElemSegs = ElemSec->getContent();
   for (auto ElemSeg = ElemSegs.begin(); ElemSeg != ElemSegs.end(); ElemSeg++) {
     /// Evaluate instrs in element segment for offset.
-    NewWorker->setCode((*ElemSeg)->getInstrs());
-    if ((Status = NewWorker->run()) != ErrCode::Success)
+    if ((Status = Engine->runExpression((*ElemSeg)->getInstrs())) !=
+        ErrCode::Success)
       return Status;
 
     /// Pop the result for offset.
@@ -407,10 +372,6 @@ ErrCode Executor::instantiate(AST::MemorySection *MemSec,
   if ((Status = StoreMgr.getModule(ModInstId, ModInst)) != ErrCode::Success)
     return Status;
 
-  /// Create a worker to execute initializations.
-  std::unique_ptr<Worker> NewWorker =
-      std::make_unique<Worker>(StoreMgr, StackMgr);
-
   /// Iterate and istantiate memory types.
   auto &MemTypes = MemSec->getContent();
   for (auto MemType = MemTypes.begin(); MemType != MemTypes.end(); MemType++) {
@@ -438,8 +399,8 @@ ErrCode Executor::instantiate(AST::MemorySection *MemSec,
   auto &DataSegs = DataSec->getContent();
   for (auto DataSeg = DataSegs.begin(); DataSeg != DataSegs.end(); DataSeg++) {
     /// Evaluate instrs in data segment for offset.
-    NewWorker->setCode((*DataSeg)->getInstrs());
-    if ((Status = NewWorker->run()) != ErrCode::Success)
+    if ((Status = Engine->runExpression((*DataSeg)->getInstrs())) !=
+        ErrCode::Success)
       return Status;
 
     /// Pop the result for offset.

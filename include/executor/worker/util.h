@@ -20,10 +20,7 @@ template <typename T> inline T retrieveValue(const ValueEntry &Val) {
 inline bool isValueTypeEqual(const ValueEntry &Val1, const ValueEntry &Val2) {
   AST::ValType ValTp1 = Val1.getType();
   AST::ValType ValTp2 = Val2.getType();
-  if (ValTp1 != ValTp2) {
-    return false;
-  }
-  return true;
+  return ValTp1 == ValTp2;
 }
 
 inline bool isInRange(OpCode X, OpCode Y, OpCode Z) {

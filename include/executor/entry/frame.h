@@ -28,7 +28,7 @@ public:
   ///
   /// \param ModuleAddr the module instance address in store manager.
   /// \param Arity the return counts of this function type.
-  /// \param Args the arguments popped from stack for calling function.
+  /// \param Args the reversed arguments popped from stack for calling function.
   /// \param LocalDef the local variables definition in function instance.
   ///
   /// \returns None.

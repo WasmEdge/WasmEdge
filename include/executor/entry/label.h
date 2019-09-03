@@ -12,41 +12,47 @@
 
 #include "ast/instruction.h"
 #include "executor/common.h"
-#include <memory>
-#include <vector>
 
 namespace SSVM {
 namespace Executor {
 
 class LabelEntry {
 public:
+  /// Labels are not allowed to create without arguments.
+  LabelEntry() = delete;
+
+  /// Constructor of initialization of a label.
+  ///
+  /// Initialize the label with arity null of instruction sequence.
+  ///
+  /// \param Arity the return counts of this block.
+  ///
+  /// \returns None.
+  LabelEntry(unsigned int Arity) : Arity(Arity) {}
+
   /// Constructor of initialization of a label.
   ///
   /// Initialize the label with arity and pointer to instructions in blocks.
   ///
-  /// \param Arity the return counts of this function type.
-  /// \param Body the pointer to vector of instructions in blocks.
+  /// \param Arity the return counts of this block.
+  /// \param Instr the branch target of this label.
   ///
   /// \returns None.
-  LabelEntry(unsigned int Arity,
-             const std::vector<std::unique_ptr<AST::Instruction>> &Body)
-      : Arity(Arity), Instrs(Body) {}
+  LabelEntry(unsigned int Arity, AST::Instruction *Instr) : Target(Instr) {}
 
   ~LabelEntry() = default;
 
   /// Getter of arity.
   unsigned int getArity() { return Arity; }
 
-  /// Getter of instructions.
-  const std::vector<std::unique_ptr<AST::Instruction>> &getInstructions() {
-    return Instrs;
-  }
+  /// Getter of control instruction for branch target.
+  AST::Instruction *getTarget() { return Target; }
 
 private:
   /// \name Data of label entry.
   /// @{
   unsigned int Arity;
-  const std::vector<std::unique_ptr<AST::Instruction>> &Instrs;
+  AST::Instruction *Target;
   /// @}
 };
 

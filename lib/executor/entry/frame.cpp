@@ -12,8 +12,8 @@ FrameEntry::FrameEntry(
   this->Arity = Arity;
 
   /// Set parameters with arguments.
-  for (auto Arg = Args.begin(); Arg != Args.end(); Arg++) {
-    Locals.push_back(std::make_unique<ValueEntry>(*Arg->get()));
+  for (auto Arg = Args.rbegin(); Arg != Args.rend(); Arg++) {
+    Locals.push_back(std::move(*Arg));
   }
 
   /// Set local variables with initialization.

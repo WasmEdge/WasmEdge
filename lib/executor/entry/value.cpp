@@ -35,7 +35,6 @@ template <typename T> ErrCode ValueEntry::setValue(T &Val) {
   }
   return ErrCode::TypeNotMatch;
 }
-
 template <>
 ErrCode ValueEntry::setValue<AST::ValVariant>(AST::ValVariant &Val) {
   Value = Val;
@@ -50,6 +49,11 @@ template <typename T> ErrCode ValueEntry::getValue(T &Val) const {
   } catch (std::bad_variant_access E) {
     return ErrCode::TypeNotMatch;
   }
+  return ErrCode::Success;
+}
+template <>
+ErrCode ValueEntry::getValue<AST::ValVariant>(AST::ValVariant &Val) const {
+  Val = Value;
   return ErrCode::Success;
 }
 

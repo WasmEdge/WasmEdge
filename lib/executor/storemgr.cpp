@@ -7,16 +7,18 @@ namespace Executor {
 ErrCode
 StoreManager::insertModuleInst(std::unique_ptr<Instance::ModuleInstance> &Mod,
                                unsigned int &NewId) {
+  Mod->Addr = ModInsts.size();
+  NewId = ModInsts.size();
   ModInsts.push_back(std::move(Mod));
-  NewId = ModInsts.size() - 1;
   return ErrCode::Success;
 }
 
 /// Inserter of function instance. See "include/executor/storemgr.h".
 ErrCode StoreManager::insertFunctionInst(
     std::unique_ptr<Instance::FunctionInstance> &Func, unsigned int &NewId) {
+  Func->Addr = FuncInsts.size();
+  NewId = FuncInsts.size();
   FuncInsts.push_back(std::move(Func));
-  NewId = FuncInsts.size() - 1;
   return ErrCode::Success;
 }
 
@@ -24,8 +26,9 @@ ErrCode StoreManager::insertFunctionInst(
 ErrCode
 StoreManager::insertTableInst(std::unique_ptr<Instance::TableInstance> &Tab,
                               unsigned int &NewId) {
+  Tab->Addr = TabInsts.size();
+  NewId = TabInsts.size();
   TabInsts.push_back(std::move(Tab));
-  NewId = TabInsts.size() - 1;
   return ErrCode::Success;
 }
 
@@ -33,8 +36,9 @@ StoreManager::insertTableInst(std::unique_ptr<Instance::TableInstance> &Tab,
 ErrCode
 StoreManager::insertMemoryInst(std::unique_ptr<Instance::MemoryInstance> &Mem,
                                unsigned int &NewId) {
+  Mem->Addr = MemInsts.size();
+  NewId = MemInsts.size();
   MemInsts.push_back(std::move(Mem));
-  NewId = MemInsts.size() - 1;
   return ErrCode::Success;
 }
 
@@ -42,8 +46,9 @@ StoreManager::insertMemoryInst(std::unique_ptr<Instance::MemoryInstance> &Mem,
 ErrCode
 StoreManager::insertGlobalInst(std::unique_ptr<Instance::GlobalInstance> &Glob,
                                unsigned int &NewId) {
+  Glob->Addr = GlobInsts.size();
+  NewId = GlobInsts.size();
   GlobInsts.push_back(std::move(Glob));
-  NewId = GlobInsts.size() - 1;
   return ErrCode::Success;
 }
 

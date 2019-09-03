@@ -17,19 +17,21 @@ namespace Executor {
 enum class ErrCode : unsigned int {
   Success = 0,
   WrongExecutorFlow,    /// Wrong executor's flow
+  WrongWorkerFlow,      /// Wrong worker's flow
   InstantiateFailed,    /// Fail when instantiating
   WrongInstanceAddress, /// Wrong access of instances
   ExecutionFailed,      /// Runtime error when executing
   TypeNotMatch, /// Value type between instructions and stack or store not match
-  StackWrongEntry,  /// Entry type not match when get or pop entry
-  StackEmpty,       /// Empry stack when get or pop entry
-  WrongLocalAddress, /// Wrong access of local variable
+  StackWrongEntry,         /// Entry type not match when get or pop entry
+  StackEmpty,              /// Empry stack when get or pop entry
+  WrongLocalAddress,       /// Wrong access of local variable
   InstructionTypeMismatch, /// Instruction type not match
-  DivideByZero, /// Divide by zero
-  Unimplemented, /// Instruction is unimplemented
-  AccessForbidMemory, /// Access the forbid memory section
-  SliceDataFailed, /// Fail to get slice from memory.data
-  Unreachable, /// Get a unreachable instruction
+  DivideByZero,            /// Divide by zero
+  Unimplemented,           /// Instruction is unimplemented
+  AccessForbidMemory,      /// Access the forbid memory section
+  SliceDataFailed,         /// Fail to get slice from memory.data
+  Unreachable,             /// Get a unreachable instruction
+  WrongInstructionCounter  /// Instruction counter error
 };
 
 } // namespace Executor

@@ -11,43 +11,48 @@ namespace SSVM {
 namespace Executor {
 
 ErrCode Worker::runBlockOp(AST::ControlInstruction *InstrPtr) {
+  /// Check the instruction type.
   auto BlockInstr = dynamic_cast<AST::BlockControlInstruction *>(InstrPtr);
-  if (BlockInstr == nullptr) {
+  if (BlockInstr == nullptr || BlockInstr->getOpCode() != OpCode::Block)
     return ErrCode::InstructionTypeMismatch;
-  }
-  std::unique_ptr<LabelEntry> Label =
-      std::make_unique<LabelEntry>(/* Arity */ 1, BlockInstr->getBody());
-  StackMgr.push(Label);
-  std::unique_ptr<Worker> NewWorker =
-      std::make_unique<Worker>(StoreMgr, StackMgr);
-  NewWorker->setCode(BlockInstr->getBody());
-  auto Status = NewWorker->run();
-  if (NewWorker->getState() == State::Active) {
-    std::vector<std::unique_ptr<ValueEntry>> Vals;
-    while (!StackMgr.isTopLabel()) {
-      std::unique_ptr<ValueEntry> Val = nullptr;
-      StackMgr.pop(Val);
-      Vals.push_back(std::move(Val));
-    }
-    /// Pop Label
-    StackMgr.pop();
-    /// Push the Vals into the Stack
-    for (auto Iter = Vals.crbegin(); Iter != Vals.crend(); Iter++) {
-      std::unique_ptr<ValueEntry> Val =
-          std::make_unique<ValueEntry>(*Iter->get());
-      StackMgr.push(Val);
-    }
-  }
-  return Status;
+
+  /// Get result type for arity.
+  AST::ValType ResultType = BlockInstr->getResultType();
+  unsigned int Arity = (ResultType == AST::ValType::None) ? 0 : 1;
+
+  /// Create Label{ nothing } and push.
+  return enterBlock(Arity, nullptr, BlockInstr->getBody());
+}
+
+ErrCode Worker::runLoopOp(AST::ControlInstruction *InstrPtr) {
+  /// Check the instruction type.
+  auto LoopInstr = dynamic_cast<AST::BlockControlInstruction *>(InstrPtr);
+  if (LoopInstr == nullptr || LoopInstr->getOpCode() != OpCode::Loop)
+    return ErrCode::InstructionTypeMismatch;
+
+  /// Get result type for arity.
+  AST::ValType ResultType = LoopInstr->getResultType();
+
+  /// Create Label{ loop-instruction } and push.
+  return enterBlock(0, InstrPtr, LoopInstr->getBody());
 }
 
 ErrCode Worker::runBrOp(AST::ControlInstruction *InstrPtr) {
+  /// Check the instruction type.
   auto BrInstr = dynamic_cast<AST::BrControlInstruction *>(InstrPtr);
-  if (BrInstr == nullptr) {
+  if (BrInstr == nullptr)
     return ErrCode::InstructionTypeMismatch;
-  }
+
+  /// Get the l-th label from top of stack and the continuation instruction.
+  ErrCode Status = ErrCode::Success;
   LabelEntry *Label;
-  StackMgr.getLabelWithCount(Label, BrInstr->getLabelIndex());
+  AST::Instruction *ContInstr;
+  if ((Status = StackMgr.getLabelWithCount(Label, BrInstr->getLabelIndex())) !=
+      ErrCode::Success)
+    return Status;
+  ContInstr = Label->getTarget();
+
+  /// Get arity of L and pop n values.
   unsigned int Arity = Label->getArity();
   std::vector<std::unique_ptr<ValueEntry>> Vals;
   for (unsigned int I = 0; I < Arity; I++) {
@@ -55,26 +60,26 @@ ErrCode Worker::runBrOp(AST::ControlInstruction *InstrPtr) {
     StackMgr.pop(Val);
     Vals.push_back(std::move(Val));
   }
-  /// Repeat LabelIndex+1 times
+
+  /// Repeat LabelIndex + 1 times
   for (unsigned int I = 0; I < BrInstr->getLabelIndex() + 1; I++) {
     while (StackMgr.isTopValue()) {
       StackMgr.pop();
     }
-    /// Pop label entry
+    /// Pop label entry and the corresponding instruction sequence.
+    InstrPdr.popInstrs();
     StackMgr.pop();
   }
-  /// Push the Vals into the Stack
-  for (auto Iter = Vals.crbegin(); Iter != Vals.crend(); Iter++) {
-    std::unique_ptr<ValueEntry> Val =
-        std::make_unique<ValueEntry>(*Iter->get());
+
+  /// Push the Vals back into the Stack
+  for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
+    std::unique_ptr<ValueEntry> Val = std::move(*Iter);
     StackMgr.push(Val);
   }
+
   /// Jump to the continuation of Label
-  std::unique_ptr<Worker> NewWorker =
-      std::make_unique<Worker>(StoreMgr, StackMgr);
-  NewWorker->setCode(Label->getInstructions());
-  auto Status = NewWorker->run();
-  TheState = State::Terminated;
+  if (ContInstr != nullptr)
+    Status = runLoopOp(dynamic_cast<AST::ControlInstruction *>(ContInstr));
   return Status;
 }
 
@@ -88,116 +93,26 @@ ErrCode Worker::runBrIfOp(AST::ControlInstruction *InstrPtr) {
   return Status;
 }
 
-ErrCode Worker::runReturnOp() {
-  StackMgr.getCurrentFrame(CurrentFrame);
-  unsigned int Arity = CurrentFrame->getArity();
-  std::vector<std::unique_ptr<ValueEntry>> Vals;
-  for (unsigned int I = 0; I < Arity; I++) {
-    std::unique_ptr<ValueEntry> Val;
-    StackMgr.pop(Val);
-    Vals.push_back(std::move(Val));
-  }
-  while (!StackMgr.isTopFrame()) {
-    StackMgr.pop();
-  }
-  /// Pop the frame entry from the Stack
-  StackMgr.pop();
-  /// Push the Vals into the Stack
-  for (auto Iter = Vals.crbegin(); Iter != Vals.crend(); Iter++) {
-    std::unique_ptr<ValueEntry> Val =
-        std::make_unique<ValueEntry>(*Iter->get());
-    StackMgr.push(Val);
-  }
-  /// Terminate this worker
-  TheState = State::Terminated;
-
-  return ErrCode::Success;
-}
+ErrCode Worker::runReturnOp() { return returnFunction(); }
 
 ErrCode Worker::runCallOp(AST::ControlInstruction *InstrPtr) {
-  auto Status = ErrCode::Success;
+  /// Check the instruction type.
   auto CallInstr = dynamic_cast<AST::CallControlInstruction *>(InstrPtr);
-  if (CallInstr == nullptr) {
+  if (CallInstr == nullptr)
     return ErrCode::InstructionTypeMismatch;
-  }
-  StackMgr.getCurrentFrame(CurrentFrame);
 
-  /// Get Function Instance
+  /// Get current frame.
+  auto Status = ErrCode::Success;
+  if ((Status = StackMgr.getCurrentFrame(CurrentFrame)) != ErrCode::Success)
+    return Status;
+
+  /// Get Function address.
   unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
   Instance::ModuleInstance *ModuleInst = nullptr;
   StoreMgr.getModule(ModuleAddr, ModuleInst);
   unsigned int FuncAddr;
   ModuleInst->getFuncAddr(CallInstr->getIndex(), FuncAddr);
-  Instance::FunctionInstance *FuncInst = nullptr;
-  StoreMgr.getFunction(FuncAddr, FuncInst);
-
-  /// Get function type
-  Instance::ModuleInstance::FType *FuncType = nullptr;
-  ModuleInst->getFuncType(FuncInst->getTypeIdx(), FuncType);
-
-  /// Get function body instrs
-
-  /// Pop argument vals
-  std::vector<std::unique_ptr<ValueEntry>> Vals;
-  for (unsigned int I = 0; I < FuncType->Params.size(); I++) {
-    std::unique_ptr<ValueEntry> Val;
-    StackMgr.pop(Val);
-    Vals.push_back(std::move(Val));
-  }
-  std::reverse(Vals.begin(), Vals.end());
-
-  /// Push frame with locals and args
-  unsigned int Arity = FuncType->Returns.size();
-  auto Frame = std::make_unique<FrameEntry>(ModuleAddr, /// Module address
-                                            Arity,      /// Arity
-                                            Vals,       /// Arguments
-                                            FuncInst->getLocals() /// Local defs
-  );
-  StackMgr.push(Frame);
-
-  /// Run block of function body
-  /// TODO: refine it by call runBlockOp().
-  std::unique_ptr<LabelEntry> Label =
-      std::make_unique<LabelEntry>(Arity, FuncInst->getInstrs());
-  StackMgr.push(Label);
-  std::unique_ptr<Worker> NewWorker =
-      std::make_unique<Worker>(StoreMgr, StackMgr);
-  NewWorker->setCode(FuncInst->getInstrs());
-  Status = NewWorker->run();
-  if (NewWorker->getState() == State::Active) {
-    std::vector<std::unique_ptr<ValueEntry>> Vals;
-    while (!StackMgr.isTopLabel()) {
-      std::unique_ptr<ValueEntry> Val = nullptr;
-      StackMgr.pop(Val);
-      Vals.push_back(std::move(Val));
-    }
-    /// Pop Label
-    StackMgr.pop();
-
-    /// Push the Vals into the Stack
-    for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
-      std::unique_ptr<ValueEntry> Val = std::move(*Iter);
-      StackMgr.push(Val);
-    }
-
-    /// Pop the arity number of vals
-    for (unsigned int I = 0; I < Arity; I++) {
-      std::unique_ptr<ValueEntry> Val = nullptr;
-      StackMgr.pop(Val);
-      Vals.push_back(std::move(Val));
-    }
-
-    /// Pop frame.
-    StackMgr.pop();
-
-    /// Push the Vals into the Stack
-    for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
-      std::unique_ptr<ValueEntry> Val = std::move(*Iter);
-      StackMgr.push(Val);
-    }
-  }
-
-  return Status;
+  return invokeFunction(FuncAddr);
 }
 
 } // namespace Executor

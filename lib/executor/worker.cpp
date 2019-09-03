@@ -8,10 +8,8 @@ namespace SSVM {
 namespace Executor {
 
 namespace {
-
 using OpCode = AST::Instruction::OpCode;
 using Value = AST::ValVariant;
-
 } // namespace
 
 ErrCode Worker::setArguments(Bytes &Input) {
@@ -19,43 +17,82 @@ ErrCode Worker::setArguments(Bytes &Input) {
   return ErrCode::Success;
 }
 
-ErrCode
-Worker::setCode(const std::vector<std::unique_ptr<AST::Instruction>> &Instrs) {
-  for (auto &Instr : Instrs) {
-    this->Instrs.push_back(Instr.get());
-  }
-  return ErrCode::Success;
+ErrCode Worker::runExpression(const InstrVec &Instrs) {
+  /// Check worker's flow.
+  if (TheState != State::Inited)
+    return ErrCode::WrongWorkerFlow;
+
+  /// Set instruction vector to instruction provider.
+  InstrPdr.pushInstrs(InstrProvider::SeqType::Expression, Instrs);
+  TheState = State::CodeSet;
+  return runLoop();
 }
 
-ErrCode Worker::run() {
+ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
+  /// Check worker's flow.
+  if (TheState != State::Inited)
+    return ErrCode::WrongWorkerFlow;
+
+  /// TODO: Push arguments of start function into stack.
+
+  /// Enter start function.
   ErrCode Status = ErrCode::Success;
-  for (auto &Inst : Instrs) {
-    OpCode Opcode = Inst->getOpCode();
-    if (isConstNumericOp(Opcode)) {
-      Status = runConstNumericOp(Inst);
-    } else if (isControlOp(Opcode)) {
-      Status = runControlOp(Inst);
-    } else if (isNumericOp(Opcode)) {
-      Status = runNumericOp(Inst);
-    } else if (isMemoryOp(Opcode)) {
-      Status = runMemoryOp(Inst);
-    } else if (isParametricOp(Opcode)) {
-      Status = runParametricOp(Inst);
-    } else if (isVariableOp(Opcode)) {
-      Status = runVariableOp(Inst);
-    }
+  if ((Status = invokeFunction(FuncAddr)) != ErrCode::Success)
+    return Status;
 
-    if (Status != ErrCode::Success) {
-      break;
-    }
-  }
+  /// Execute run loop.
+  TheState = State::CodeSet;
+  if ((Status = runLoop()) != ErrCode::Success)
+    return Status;
 
-  if (TheState == State::Terminated) {
-    return ErrCode::Success;
-  } else if (TheState == State::Unreachable) {
+  /// TODO: Pop return value.
+  return Status;
+}
+
+ErrCode Worker::runLoop() {
+  /// Check worker's flow
+  if (TheState == State::Unreachable)
     return ErrCode::Unreachable;
+  if (TheState != State::CodeSet)
+    return ErrCode::WrongWorkerFlow;
+
+  /// Run instructions
+  ErrCode Status = ErrCode::Success;
+  AST::Instruction *Instr = nullptr;
+  TheState = State::Active;
+  while (InstrPdr.getScopeSize() > 0 && Status == ErrCode::Success) {
+    Instr = InstrPdr.getNextInstr();
+    if (Instr == nullptr) {
+      /// Pop instruction sequence.
+      if (InstrPdr.getTopScopeType() == InstrProvider::SeqType::FunctionCall)
+        Status = returnFunction();
+      else if (InstrPdr.getTopScopeType() == InstrProvider::SeqType::Block)
+        Status = leaveBlock();
+      else
+        Status = InstrPdr.popInstrs();
+    } else {
+      /// Run instructions.
+      OpCode Opcode = Instr->getOpCode();
+      if (isConstNumericOp(Opcode)) {
+        Status = runConstNumericOp(Instr);
+      } else if (isControlOp(Opcode)) {
+        Status = runControlOp(Instr);
+      } else if (isNumericOp(Opcode)) {
+        Status = runNumericOp(Instr);
+      } else if (isMemoryOp(Opcode)) {
+        Status = runMemoryOp(Instr);
+      } else if (isParametricOp(Opcode)) {
+        Status = runParametricOp(Instr);
+      } else if (isVariableOp(Opcode)) {
+        Status = runVariableOp(Instr);
+      }
+    }
   }
 
+  /// Check result
+  if (TheState == State::Unreachable)
+    return ErrCode::Unreachable;
+  TheState = State::Inited;
   return Status;
 }
 
@@ -313,6 +350,116 @@ ErrCode Worker::runVariableOp(AST::Instruction *InstrPtr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
+  return ErrCode::Success;
+}
+
+ErrCode Worker::enterBlock(unsigned int Arity, AST::Instruction *Instr,
+                           const InstrVec &Seq) {
+  /// Create label for block.
+  std::unique_ptr<LabelEntry> Label;
+  if (Instr == nullptr)
+    Label = std::make_unique<LabelEntry>(Arity);
+  else
+    Label = std::make_unique<LabelEntry>(Arity, Instr);
+
+  /// Push label and jump to block body.
+  StackMgr.push(Label);
+  return InstrPdr.pushInstrs(InstrProvider::SeqType::Block, Seq);
+}
+
+ErrCode Worker::leaveBlock() {
+  /// Pop top values on stack until a label.
+  std::vector<std::unique_ptr<ValueEntry>> Vals;
+  while (!StackMgr.isTopLabel()) {
+    std::unique_ptr<ValueEntry> Val = nullptr;
+    StackMgr.pop(Val);
+    Vals.push_back(std::move(Val));
+  }
+
+  /// Pop label entry and the corresponding instruction sequence.
+  InstrPdr.popInstrs();
+  StackMgr.pop();
+
+  /// Push the Vals back into the Stack
+  for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++)
+    StackMgr.push(*Iter);
+  return ErrCode::Success;
+}
+
+ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
+  ErrCode Status = ErrCode::Success;
+
+  /// Get Function Instance and module address.
+  Instance::FunctionInstance *FuncInst = nullptr;
+  Instance::ModuleInstance *ModuleInst = nullptr;
+  if ((Status = StoreMgr.getFunction(FuncAddr, FuncInst)) != ErrCode::Success)
+    return Status;
+  if ((StoreMgr.getModule(FuncInst->getModuleAddr(), ModuleInst)) !=
+      ErrCode::Success)
+    return Status;
+
+  /// Get function type
+  Instance::ModuleInstance::FType *FuncType = nullptr;
+  if ((ModuleInst->getFuncType(FuncInst->getTypeIdx(), FuncType)) !=
+      ErrCode::Success)
+    return Status;
+
+  /// Pop argument vals
+  std::vector<std::unique_ptr<ValueEntry>> Vals;
+  for (unsigned int I = 0; I < FuncType->Params.size(); I++) {
+    std::unique_ptr<ValueEntry> Val;
+    StackMgr.pop(Val);
+    Vals.push_back(std::move(Val));
+  }
+
+  /// Push frame with locals and args and set instruction vector
+  unsigned int Arity = FuncType->Returns.size();
+  InstrVec EmprySeq;
+  auto Frame =
+      std::make_unique<FrameEntry>(FuncInst->getModuleAddr(), /// Module address
+                                   Arity,                     /// Arity
+                                   Vals,                 /// Reversed arguments
+                                   FuncInst->getLocals() /// Local defs
+      );
+  StackMgr.push(Frame);
+  InstrPdr.pushInstrs(InstrProvider::SeqType::FunctionCall, EmprySeq);
+
+  /// Run block of function body
+  return enterBlock(Arity, nullptr, FuncInst->getInstrs());
+}
+
+ErrCode Worker::returnFunction() {
+  /// Get current frame and arity.
+  StackMgr.getCurrentFrame(CurrentFrame);
+  unsigned int Arity = CurrentFrame->getArity();
+
+  /// Pop the results from stack.
+  std::vector<std::unique_ptr<ValueEntry>> Vals;
+  for (unsigned int I = 0; I < Arity; I++) {
+    std::unique_ptr<ValueEntry> Val;
+    StackMgr.pop(Val);
+    Vals.push_back(std::move(Val));
+  }
+
+  /// TODO: Validate top of stack is a frame when reach end of function.
+
+  /// Pop until the top of stack is a frame.
+  while (!StackMgr.isTopFrame()) {
+    /// If pop a label, need to pop the instruction sequence of block.
+    if (StackMgr.isTopLabel())
+      InstrPdr.popInstrs();
+    StackMgr.pop();
+  }
+
+  /// Pop the frame entry from the Stack.
+  InstrPdr.popInstrs();
+  StackMgr.pop();
+
+  /// Push the retrun Vals into Stack.
+  for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
+    std::unique_ptr<ValueEntry> Val = std::move(*Iter);
+    StackMgr.push(Val);
+  }
   return ErrCode::Success;
 }
 

@@ -247,6 +247,9 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
+  /// Getter of block type
+  ValType getResultType() const { return BlockType; }
+
   /// Getter of Block Body
   const std::vector<std::unique_ptr<Instruction>> &getBody() const {
     return Body;

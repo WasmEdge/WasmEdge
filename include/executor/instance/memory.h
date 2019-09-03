@@ -33,9 +33,6 @@ public:
   /// Set the initialization list.
   ErrCode setInitList(unsigned int Offset, Bytes &InitBytes);
 
-  /// Memory Instance address in store manager.
-  unsigned int Addr;
-
   /// Get length of memory.data
   unsigned int getDataLength() const { return Data.size(); }
 
@@ -44,6 +41,9 @@ public:
 
   /// Replace the bytes of Data[start:start+length-1]
   ErrCode setBytes(Bytes &TheBytes, int Start, int Length);
+
+  /// Memory Instance address in store manager.
+  unsigned int Addr;
 
 private:
   /// \name Data of memory instance.

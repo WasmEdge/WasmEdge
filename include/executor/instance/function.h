@@ -47,6 +47,9 @@ public:
   /// Getter of function type index in module instance.
   unsigned int getTypeIdx() const { return TypeIdx; }
 
+  /// Getter of module address of this function instance.
+  unsigned int getModuleAddr() const { return ModuleAddr; }
+
   /// Getter of function body instrs.
   const std::vector<std::pair<unsigned int, AST::ValType>> &getLocals() const {
     return Locals;

@@ -35,6 +35,9 @@ public:
   /// Table Instance ID in store manager.
   unsigned int Id;
 
+  /// Table Instance address in store manager.
+  unsigned int Addr;
+
 private:
   /// \name Data of table instance.
   /// @{

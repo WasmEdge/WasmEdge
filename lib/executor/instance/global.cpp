@@ -13,13 +13,6 @@ ErrCode GlobalInstance::setGlobalType(AST::ValType &ValueType,
   return ErrCode::Success;
 }
 
-/// Setter of init expression. See "include/executor/instance/global.h".
-ErrCode GlobalInstance::setInstrs(
-    std::vector<std::unique_ptr<AST::Instruction>> &Expr) {
-  Instrs = std::move(Expr);
-  return ErrCode::Success;
-}
-
 /// Getter of value. See "include/executor/instance/global.h".
 template <typename T> ErrCode GlobalInstance::getValue(T &Val) {
   /// Get value.

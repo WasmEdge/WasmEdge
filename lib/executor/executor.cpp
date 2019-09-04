@@ -264,7 +264,7 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
   auto GlobSeg = GlobSegs.begin();
   for (unsigned int I = 0; I < TmpModInst->getGlobalNum(); I++, GlobSeg++) {
     /// Set init instrs to engine and run.
-    if ((Status = Engine->runExpression((*GlobSeg)->getInstrs())) !=
+    if ((Status = Engine.runExpression((*GlobSeg)->getInstrs())) !=
         ErrCode::Success)
       return Status;
 
@@ -333,7 +333,7 @@ ErrCode Executor::instantiate(AST::TableSection *TabSec,
   auto &ElemSegs = ElemSec->getContent();
   for (auto ElemSeg = ElemSegs.begin(); ElemSeg != ElemSegs.end(); ElemSeg++) {
     /// Evaluate instrs in element segment for offset.
-    if ((Status = Engine->runExpression((*ElemSeg)->getInstrs())) !=
+    if ((Status = Engine.runExpression((*ElemSeg)->getInstrs())) !=
         ErrCode::Success)
       return Status;
 
@@ -399,7 +399,7 @@ ErrCode Executor::instantiate(AST::MemorySection *MemSec,
   auto &DataSegs = DataSec->getContent();
   for (auto DataSeg = DataSegs.begin(); DataSeg != DataSegs.end(); DataSeg++) {
     /// Evaluate instrs in data segment for offset.
-    if ((Status = Engine->runExpression((*DataSeg)->getInstrs())) !=
+    if ((Status = Engine.runExpression((*DataSeg)->getInstrs())) !=
         ErrCode::Success)
       return Status;
 

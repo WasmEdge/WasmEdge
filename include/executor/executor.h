@@ -24,7 +24,7 @@ namespace Executor {
 /// Executor flow control class.
 class Executor {
 public:
-  Executor() { Engine = std::make_unique<Worker>(StoreMgr, StackMgr); }
+  Executor() : Engine(StoreMgr, StackMgr) {}
   ~Executor() = default;
 
   /// Retrieve ownership of Wasm Module.
@@ -63,7 +63,7 @@ private:
 
   std::unique_ptr<AST::Module> Mod = nullptr;
   unsigned int ModInstId = 0;
-  std::unique_ptr<Worker> Engine;
+  Worker Engine;
   StackManager StackMgr;
   StoreManager StoreMgr;
 };

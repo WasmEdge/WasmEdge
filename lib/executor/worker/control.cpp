@@ -40,16 +40,18 @@ ErrCode Worker::runLoopOp(AST::ControlInstruction *InstrPtr) {
 ErrCode Worker::runBrOp(AST::ControlInstruction *InstrPtr) {
   /// Check the instruction type.
   auto BrInstr = dynamic_cast<AST::BrControlInstruction *>(InstrPtr);
-  if (BrInstr == nullptr)
+  if (BrInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
+  }
 
   /// Get the l-th label from top of stack and the continuation instruction.
   ErrCode Status = ErrCode::Success;
   LabelEntry *Label;
   AST::Instruction *ContInstr;
   if ((Status = StackMgr.getLabelWithCount(Label, BrInstr->getLabelIndex())) !=
-      ErrCode::Success)
+      ErrCode::Success) {
     return Status;
+  }
   ContInstr = Label->getTarget();
 
   /// Get arity of L and pop n values.
@@ -98,13 +100,15 @@ ErrCode Worker::runReturnOp() { return returnFunction(); }
 ErrCode Worker::runCallOp(AST::ControlInstruction *InstrPtr) {
   /// Check the instruction type.
   auto CallInstr = dynamic_cast<AST::CallControlInstruction *>(InstrPtr);
-  if (CallInstr == nullptr)
+  if (CallInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
+  }
 
   /// Get current frame.
   auto Status = ErrCode::Success;
-  if ((Status = StackMgr.getCurrentFrame(CurrentFrame)) != ErrCode::Success)
+  if ((Status = StackMgr.getCurrentFrame(CurrentFrame)) != ErrCode::Success) {
     return Status;
+  }
 
   /// Get Function address.
   unsigned int ModuleAddr = CurrentFrame->getModuleAddr();

@@ -25,7 +25,7 @@ ErrCode Worker::runExpression(const InstrVec &Instrs) {
   /// Set instruction vector to instruction provider.
   InstrPdr.pushInstrs(InstrProvider::SeqType::Expression, Instrs);
   TheState = State::CodeSet;
-  return runLoop();
+  return execute();
 }
 
 ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
@@ -42,14 +42,14 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
 
   /// Execute run loop.
   TheState = State::CodeSet;
-  if ((Status = runLoop()) != ErrCode::Success)
+  if ((Status = execute()) != ErrCode::Success)
     return Status;
 
   /// TODO: Pop return value.
   return Status;
 }
 
-ErrCode Worker::runLoop() {
+ErrCode Worker::execute() {
   /// Check worker's flow
   if (TheState == State::Unreachable)
     return ErrCode::Unreachable;

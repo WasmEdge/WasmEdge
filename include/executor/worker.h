@@ -48,8 +48,8 @@ public:
   State getState() const { return TheState; }
 
 private:
-  /// Execution Wasm bytecode with given input data.
-  ErrCode runLoop();
+  /// Execute Wasm bytecode with given input data.
+  ErrCode execute();
 
   /// Execute const numeric instructions
   ErrCode runConstNumericOp(AST::Instruction *);

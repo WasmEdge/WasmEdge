@@ -19,7 +19,8 @@ template <typename T> ErrCode StackManager::getTop(T *&Entry) {
 }
 
 /// Push a new frame entry to stack. See "include/executor/stackmgr.h".
-template <typename T> ErrCode StackManager::push(std::unique_ptr<T> &NewEntry) {
+template <typename T>
+ErrCode StackManager::push(std::unique_ptr<T> &&NewEntry) {
   Stack.push_back(std::move(NewEntry));
   /// If is frame or label, record the index in stack.
   if (std::is_same<T, FrameEntry>::value)

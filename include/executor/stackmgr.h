@@ -34,7 +34,10 @@ public:
   template <typename T> ErrCode getTop(T *&Entry);
 
   /// Push a new entry to stack.
-  template <typename T> ErrCode push(std::unique_ptr<T> &NewEntry);
+  template <typename T> ErrCode push(std::unique_ptr<T> &&NewEntry);
+  template <typename T> ErrCode push(std::unique_ptr<T> &NewEntry) {
+    return push(std::move(NewEntry));
+  }
 
   /// Pop and return the top entry.
   template <typename T> ErrCode pop(std::unique_ptr<T> &Entry);

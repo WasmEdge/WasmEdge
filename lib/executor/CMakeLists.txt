@@ -10,9 +10,9 @@ add_library(ssvmExecutor
   stackmgr.cpp
   storemgr.cpp
   worker.cpp
-  worker/comparison.cpp
   worker/control.cpp
   worker/memory.cpp
-  worker/numeric.cpp
+  worker/relation_numeric.cpp
+  worker/binary_numeric.cpp
   worker/provider.cpp
 )

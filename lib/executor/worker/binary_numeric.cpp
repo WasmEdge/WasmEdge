@@ -49,7 +49,7 @@ ErrCode Worker::runDivUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 }
 
 template <typename T>
-ErrCode Worker::runModUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runRemUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   /// FIXME: the following calculations do not apply `modulo 2^N`.
   T Int1 = retrieveValue<T>(*Val1), Int2 = retrieveValue<T>(*Val2);
   if (Int2 == 0) {

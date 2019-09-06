@@ -51,18 +51,18 @@ private:
   /// Execute Wasm bytecode with given input data.
   ErrCode execute();
 
-  /// Execute const numeric instructions
-  ErrCode runConstNumericOp(AST::Instruction *);
-  /// Execute numeric instructions
-  ErrCode runNumericOp(AST::Instruction *);
   /// Execute coontrol instructions
   ErrCode runControlOp(AST::Instruction *);
-  /// Execute memory instructions
-  ErrCode runMemoryOp(AST::Instruction *);
   /// Execute parametric instructions
   ErrCode runParametricOp(AST::Instruction *);
   /// Execute variable instructions
   ErrCode runVariableOp(AST::Instruction *);
+  /// Execute memory instructions
+  ErrCode runMemoryOp(AST::Instruction *);
+  /// Execute const numeric instructions
+  ErrCode runConstNumericOp(AST::Instruction *);
+  /// Execute numeric instructions
+  ErrCode runNumericOp(AST::Instruction *);
 
   /// Helper function for entering block control operations.
   ///
@@ -96,36 +96,85 @@ private:
   ErrCode branchToLabel(unsigned int L);
 
   /// Run instructions functions
-  /// ======= Comparison =======
-  template <typename T>
-  ErrCode runLeSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  /// ======= Control =======
+  ErrCode runBlockOp(AST::ControlInstruction *Instr);
+  ErrCode runLoopOp(AST::ControlInstruction *Instr);
+  ErrCode runIfElseOp(AST::ControlInstruction *Instr);
+  ErrCode runBrOp(AST::ControlInstruction *Instr);
+  ErrCode runBrIfOp(AST::ControlInstruction *Instr);
+  ErrCode runBrTableOp(AST::ControlInstruction *Instr);
+  ErrCode runReturnOp();
+  ErrCode runCallOp(AST::ControlInstruction *Instr);
+  ErrCode runCallIndirectOp(AST::ControlInstruction *Instr);
+  /// ======= Memory =======
+  template <typename T> ErrCode runLoadOp(AST::MemoryInstruction *InstrPtr);
+  template <typename T> ErrCode runStoreOp(AST::MemoryInstruction *InstrPtr);
+  /// ======= Test Numeric =======
+  template <typename T> ErrCode runEqzOp(const ValueEntry *Val);
+  /// ======= Relation Numeric =======
   template <typename T>
   ErrCode runEqOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
   ErrCode runNeOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
+  ErrCode runLtSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
   ErrCode runLtUOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  /// ======= Control =======
-  ErrCode runBlockOp(AST::ControlInstruction *Instr);
-  ErrCode runLoopOp(AST::ControlInstruction *Instr);
-  ErrCode runBrOp(AST::ControlInstruction *Instr);
-  ErrCode runBrIfOp(AST::ControlInstruction *Instr);
-  ErrCode runReturnOp();
-  ErrCode runCallOp(AST::ControlInstruction *Instr);
-  /// ======= Memory =======
-  template <typename T> ErrCode runLoadOp(AST::MemoryInstruction *InstrPtr);
-  template <typename T> ErrCode runStoreOp(AST::MemoryInstruction *InstrPtr);
-  /// ======= Numeric =======
+  template <typename T>
+  ErrCode runGtSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runGtUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runLeSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runLeUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runGeSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runGeUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  /// ======= Unary Numeric =======
+  template <typename T> ErrCode runClzOp(const ValueEntry *Val);
+  template <typename T> ErrCode runCtzOp(const ValueEntry *Val);
+  template <typename T> ErrCode runPopcntOp(const ValueEntry *Val);
+  template <typename T> ErrCode runAbsOp(const ValueEntry *Val);
+  template <typename T> ErrCode runNegOp(const ValueEntry *Val);
+  template <typename T> ErrCode runCeilOp(const ValueEntry *Val);
+  template <typename T> ErrCode runFloorOp(const ValueEntry *Val);
+  template <typename T> ErrCode runTruncOp(const ValueEntry *Val);
+  template <typename T> ErrCode runNearestOp(const ValueEntry *Val);
+  template <typename T> ErrCode runSqrtOp(const ValueEntry *Val);
+  /// ======= Binary Numeric =======
   template <typename T>
   ErrCode runAddOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runDivUOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runModUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runSubOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
   ErrCode runMulOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runSubOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runDivSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runDivUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runRemSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runRemUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runMinOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runMaxOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runCopysignOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  /// ======= Casting Numeric =======
+  template <typename T> ErrCode runWrapOp(const ValueEntry *Val);
+  template <typename T> ErrCode runTruncSOp(const ValueEntry *Val);
+  template <typename T> ErrCode runTruncUOp(const ValueEntry *Val);
+  template <typename T> ErrCode runExtendSOp(const ValueEntry *Val);
+  template <typename T> ErrCode runExtendUOp(const ValueEntry *Val);
+  template <typename T> ErrCode runConvertSOp(const ValueEntry *Val);
+  template <typename T> ErrCode runConvertUOp(const ValueEntry *Val);
+  template <typename T> ErrCode runDemoteOp(const ValueEntry *Val);
+  template <typename T> ErrCode runPromoteOp(const ValueEntry *Val);
+  template <typename T> ErrCode runReinterpretOp(const ValueEntry *Val);
 
   /// Reference to Executor's Store
   StoreManager &StoreMgr;

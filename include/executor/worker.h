@@ -106,6 +106,12 @@ private:
   ErrCode runReturnOp();
   ErrCode runCallOp(AST::ControlInstruction *Instr);
   ErrCode runCallIndirectOp(AST::ControlInstruction *Instr);
+  /// ======= Variable =======
+  ErrCode runLocalGetOp(unsigned int Idx);
+  ErrCode runLocalSetOp(unsigned int Idx);
+  ErrCode runLocalTeeOp(unsigned int Idx);
+  ErrCode runGlobalGetOp(unsigned int Idx);
+  ErrCode runGlobalSetOp(unsigned int Idx);
   /// ======= Memory =======
   template <typename T> ErrCode runLoadOp(AST::MemoryInstruction *InstrPtr);
   template <typename T> ErrCode runStoreOp(AST::MemoryInstruction *InstrPtr);

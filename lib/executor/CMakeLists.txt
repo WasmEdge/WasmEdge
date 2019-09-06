@@ -11,6 +11,7 @@ add_library(ssvmExecutor
   storemgr.cpp
   worker.cpp
   worker/control.cpp
+  worker/variable.cpp
   worker/memory.cpp
   worker/relation_numeric.cpp
   worker/binary_numeric.cpp

@@ -279,6 +279,19 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
+  /// Getter of block type
+  ValType getResultType() const { return BlockType; }
+
+  /// Getter of if statement.
+  const std::vector<std::unique_ptr<Instruction>> &getIfStatement() const {
+    return IfStatement;
+  }
+
+  /// Getter of else statement.
+  const std::vector<std::unique_ptr<Instruction>> &getElseStatement() const {
+    return ElseStatement;
+  }
+
 private:
   /// \name Data of block instruction: return type and statements.
   /// @{
@@ -327,6 +340,12 @@ public:
   ///
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+
+  /// Getter of label table
+  const std::vector<unsigned int> &getLabelTable() const { return LabelTable; }
+
+  /// Getter of label index
+  unsigned int getLabelIdx() const { return LabelIdx; }
 
 private:
   /// \name Data of branch instruction: label vector and defalt label.

@@ -26,25 +26,27 @@ FrameEntry::FrameEntry(
 }
 
 /// Getter of local values by index. See "include/executor/entry/frame.h".
-ErrCode FrameEntry::getValue(unsigned int Idx, ValueEntry *&Val) {
+ErrCode FrameEntry::getValue(unsigned int Idx, ValueEntry *&ValEntry) {
   /// Check if the index valid.
   if (Locals.size() <= Idx)
     return ErrCode::WrongLocalAddress;
 
   /// Get value.
-  Val = Locals[Idx].get();
+  ValEntry = Locals[Idx].get();
   return ErrCode::Success;
 }
 
 /// Setter of local values by index. See "include/executor/entry/frame.h".
-ErrCode FrameEntry::setValue(unsigned int Idx,
-                             std::unique_ptr<ValueEntry> &ValPtr) {
+ErrCode FrameEntry::setValue(unsigned int Idx, const ValueEntry &ValEntry) {
   /// Check if the index valid.
   if (Locals.size() <= Idx)
     return ErrCode::WrongLocalAddress;
 
-  /// Type check is contained in ValueEntry::setValue.
-  return Locals[Idx]->setValue(*ValPtr);
+  /// Set value.
+  if (ValEntry.getType() != Locals[Idx]->getType())
+    return ErrCode::TypeNotMatch;
+  Locals[Idx]->setValue(ValEntry);
+  return ErrCode::Success;
 }
 
 } // namespace Executor

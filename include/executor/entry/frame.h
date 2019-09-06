@@ -57,10 +57,10 @@ public:
   unsigned int getArity() { return Arity; }
 
   /// Getter of local variables.
-  ErrCode getValue(unsigned int Idx, ValueEntry *&Val);
+  ErrCode getValue(unsigned int Idx, ValueEntry *&ValEntry);
 
   /// Setter of local variables.
-  ErrCode setValue(unsigned int Idx, std::unique_ptr<ValueEntry> &Val);
+  ErrCode setValue(unsigned int Idx, const ValueEntry &ValEntry);
 
 private:
   /// \name Data of frame entry.

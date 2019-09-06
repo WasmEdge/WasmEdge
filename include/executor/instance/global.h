@@ -11,10 +11,7 @@
 #pragma once
 
 #include "ast/common.h"
-#include "ast/instruction.h"
 #include "executor/common.h"
-#include <memory>
-#include <vector>
 
 namespace SSVM {
 namespace Executor {
@@ -28,8 +25,11 @@ public:
   /// Set the global type.
   ErrCode setGlobalType(AST::ValType &ValueType, AST::ValMut &Mutibility);
 
+  /// Get the global type.
+  AST::ValType getValType() const { return Type;}
+
   /// Set the value of this instance.
-  template <typename T> ErrCode setValue(T &Val);
+  template <typename T> ErrCode setValue(T Val);
 
   /// Get the value of this instance.
   template <typename T> ErrCode getValue(T &Val);

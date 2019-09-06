@@ -23,7 +23,14 @@ template <typename T> ErrCode GlobalInstance::getValue(T &Val) {
   }
   return ErrCode::Success;
 }
-template <typename T> ErrCode GlobalInstance::setValue(T &Val) {
+
+template <> ErrCode GlobalInstance::getValue(AST::ValVariant &Val) {
+  Val = Value;
+  return ErrCode::Success;
+}
+
+/// Setter of value. See "include/executor/instance/global.h".
+template <typename T> ErrCode GlobalInstance::setValue(T Val) {
   Executor::ErrCode Status = Executor::ErrCode::TypeNotMatch;
   switch (Type) {
   case AST::ValType::I32:
@@ -49,8 +56,12 @@ template <typename T> ErrCode GlobalInstance::setValue(T &Val) {
     Value = Val;
   return Status;
 }
+
 template <>
-ErrCode GlobalInstance::setValue<AST::ValVariant>(AST::ValVariant &Val) {
+ErrCode GlobalInstance::setValue<AST::ValVariant &>(AST::ValVariant &Val) {
+  if (Val.index() != Value.index()) {
+    return ErrCode::TypeNotMatch;
+  }
   Value = Val;
   return ErrCode::Success;
 }

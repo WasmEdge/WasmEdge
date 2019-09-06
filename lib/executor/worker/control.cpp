@@ -37,52 +37,43 @@ ErrCode Worker::runLoopOp(AST::ControlInstruction *InstrPtr) {
   return enterBlock(0, InstrPtr, LoopInstr->getBody());
 }
 
+ErrCode Worker::runIfElseOp(AST::ControlInstruction *InstrPtr) {
+  /// Check the instruction type.
+  auto IfElseInstr = dynamic_cast<AST::IfElseControlInstruction *>(InstrPtr);
+  if (IfElseInstr == nullptr)
+    return ErrCode::InstructionTypeMismatch;
+
+  /// Get value on top of stack
+  auto Status = ErrCode::Success;
+  std::unique_ptr<ValueEntry> Val;
+  StackMgr.pop(Val);
+
+  /// Get result type for arity.
+  AST::ValType ResultType = IfElseInstr->getResultType();
+  unsigned int Arity = (ResultType == AST::ValType::None) ? 0 : 1;
+
+  /// If non-zero, run if-statement; else, run else-statement.
+  if (retrieveValue<int32_t>(*Val.get()) != 0) {
+    const InstrVec &IfStatement = IfElseInstr->getIfStatement();
+    if (IfStatement.size() > 0) {
+      Status = enterBlock(Arity, nullptr, IfStatement);
+    }
+  } else {
+    const InstrVec &ElseStatement = IfElseInstr->getElseStatement();
+    if (ElseStatement.size() > 0) {
+      Status = enterBlock(Arity, nullptr, ElseStatement);
+    }
+  }
+  return Status;
+}
+
 ErrCode Worker::runBrOp(AST::ControlInstruction *InstrPtr) {
   /// Check the instruction type.
   auto BrInstr = dynamic_cast<AST::BrControlInstruction *>(InstrPtr);
   if (BrInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
-
-  /// Get the l-th label from top of stack and the continuation instruction.
-  ErrCode Status = ErrCode::Success;
-  LabelEntry *Label;
-  AST::Instruction *ContInstr;
-  if ((Status = StackMgr.getLabelWithCount(Label, BrInstr->getLabelIndex())) !=
-      ErrCode::Success) {
-    return Status;
-  }
-  ContInstr = Label->getTarget();
-
-  /// Get arity of L and pop n values.
-  unsigned int Arity = Label->getArity();
-  std::vector<std::unique_ptr<ValueEntry>> Vals;
-  for (unsigned int I = 0; I < Arity; I++) {
-    std::unique_ptr<ValueEntry> Val;
-    StackMgr.pop(Val);
-    Vals.push_back(std::move(Val));
-  }
-
-  /// Repeat LabelIndex + 1 times
-  for (unsigned int I = 0; I < BrInstr->getLabelIndex() + 1; I++) {
-    while (StackMgr.isTopValue()) {
-      StackMgr.pop();
-    }
-    /// Pop label entry and the corresponding instruction sequence.
-    InstrPdr.popInstrs();
-    StackMgr.pop();
-  }
-
-  /// Push the Vals back into the Stack
-  for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
-    std::unique_ptr<ValueEntry> Val = std::move(*Iter);
-    StackMgr.push(Val);
-  }
-
-  /// Jump to the continuation of Label
-  if (ContInstr != nullptr)
-    Status = runLoopOp(dynamic_cast<AST::ControlInstruction *>(ContInstr));
-  return Status;
+  return branchToLabel(BrInstr->getLabelIndex());
 }
 
 ErrCode Worker::runBrIfOp(AST::ControlInstruction *InstrPtr) {
@@ -91,6 +82,29 @@ ErrCode Worker::runBrIfOp(AST::ControlInstruction *InstrPtr) {
   StackMgr.pop(Val);
   if (retrieveValue<int32_t>(*Val.get()) != 0) {
     Status = runBrOp(InstrPtr);
+  }
+  return Status;
+}
+
+ErrCode Worker::runBrTableOp(AST::ControlInstruction *InstrPtr) {
+  /// Check the instruction type.
+  auto BrTableInstr = dynamic_cast<AST::BrTableControlInstruction *>(InstrPtr);
+  if (BrTableInstr == nullptr) {
+    return ErrCode::InstructionTypeMismatch;
+  }
+
+  /// Get value on top of stack.
+  auto Status = ErrCode::Success;
+  std::unique_ptr<ValueEntry> Val;
+  StackMgr.pop(Val);
+  int32_t Value = retrieveValue<int32_t>(*Val.get());
+
+  /// Do branch.
+  const std::vector<unsigned int> &LabelTable = BrTableInstr->getLabelTable();
+  if (Value < LabelTable.size()) {
+    Status = branchToLabel(LabelTable[Value]);
+  } else {
+    Status = branchToLabel(BrTableInstr->getLabelIdx());
   }
   return Status;
 }

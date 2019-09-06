@@ -97,13 +97,15 @@ ErrCode Worker::execute() {
 }
 
 ErrCode Worker::runControlOp(AST::Instruction *InstrPtr) {
-  auto TheInstrPtr = dynamic_cast<AST::ControlInstruction *>(InstrPtr);
-  if (TheInstrPtr == nullptr) {
+  /// Check instruction type.
+  auto CtrlInstrPtr = dynamic_cast<AST::ControlInstruction *>(InstrPtr);
+  if (CtrlInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
+  /// Check OpCode and run the specific instruction.
   ErrCode Status = ErrCode::Success;
-  switch (TheInstrPtr->getOpCode()) {
+  switch (CtrlInstrPtr->getOpCode()) {
   case OpCode::Unreachable:
     TheState = State::Unreachable;
     Status = ErrCode::Unreachable;
@@ -111,31 +113,31 @@ ErrCode Worker::runControlOp(AST::Instruction *InstrPtr) {
   case OpCode::Nop:
     break;
   case OpCode::Block:
-    Status = runBlockOp(TheInstrPtr);
+    Status = runBlockOp(CtrlInstrPtr);
     break;
   case OpCode::Loop:
-    Status = runLoopOp(TheInstrPtr);
+    Status = runLoopOp(CtrlInstrPtr);
     break;
   case OpCode::If:
-    Status = runIfElseOp(TheInstrPtr);
+    Status = runIfElseOp(CtrlInstrPtr);
     break;
   case OpCode::Br:
-    Status = runBrOp(TheInstrPtr);
+    Status = runBrOp(CtrlInstrPtr);
     break;
   case OpCode::Br_if:
-    Status = runBrIfOp(TheInstrPtr);
+    Status = runBrIfOp(CtrlInstrPtr);
     break;
   case OpCode::Br_table:
-    Status = runBrTableOp(TheInstrPtr);
+    Status = runBrTableOp(CtrlInstrPtr);
     break;
   case OpCode::Return:
     Status = runReturnOp();
     break;
   case OpCode::Call:
-    Status = runCallOp(TheInstrPtr);
+    Status = runCallOp(CtrlInstrPtr);
     break;
   case OpCode::Call_indirect:
-    // Status = runCallIndirectOp(TheInstrPtr);
+    // Status = runCallIndirectOp(CtrlInstrPtr);
     break;
   default:
     Status = ErrCode::InstructionTypeMismatch;
@@ -146,29 +148,32 @@ ErrCode Worker::runControlOp(AST::Instruction *InstrPtr) {
 }
 
 ErrCode Worker::runParametricOp(AST::Instruction *InstrPtr) {
-  auto TheInstrPtr = dynamic_cast<AST::ParametricInstruction *>(InstrPtr);
-  if (TheInstrPtr == nullptr) {
+  /// Check instruction type.
+  auto ParamInstrPtr = dynamic_cast<AST::ParametricInstruction *>(InstrPtr);
+  if (ParamInstrPtr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
-  if (TheInstrPtr->getOpCode() == OpCode::Drop) {
+  /// Check OpCode and run the specific instruction.
+  ErrCode Status = ErrCode::Success;
+  if (ParamInstrPtr->getOpCode() == OpCode::Drop) {
     StackMgr.pop();
-  } else if (TheInstrPtr->getOpCode() == OpCode::Select) {
+  } else if (ParamInstrPtr->getOpCode() == OpCode::Select) {
+    /// Pop the i32 value and select values from stack.
+    std::unique_ptr<ValueEntry> CondValEntry, ValEntry1, ValEntry2;
+    StackMgr.pop(CondValEntry);
+    StackMgr.pop(ValEntry2);
+    StackMgr.pop(ValEntry1);
+    int32_t CondValue;
+    if ((Status = CondValEntry->getValue(CondValue)) != ErrCode::Success) {
+      return Status;
+    }
 
-    // Pop the value i32.const from the stack.
-    std::unique_ptr<ValueEntry> VE;
-    StackMgr.pop(VE);
-    int32_t Val;
-    VE->getValue(Val);
-
-    std::unique_ptr<ValueEntry> Val1, Val2;
-    StackMgr.pop(Val2);
-    StackMgr.pop(Val1);
-
-    if (Val == 0) {
-      StackMgr.push(Val2);
+    /// Select the value.
+    if (CondValue == 0) {
+      StackMgr.push(ValEntry2);
     } else {
-      StackMgr.push(Val1);
+      StackMgr.push(ValEntry1);
     }
   } else {
     return ErrCode::InstructionTypeMismatch;
@@ -177,57 +182,94 @@ ErrCode Worker::runParametricOp(AST::Instruction *InstrPtr) {
 }
 
 ErrCode Worker::runVariableOp(AST::Instruction *InstrPtr) {
-  auto TheInstrPtr = dynamic_cast<AST::VariableInstruction *>(InstrPtr);
-  if (TheInstrPtr == nullptr) {
+  /// Check instruction type.
+  auto VarInstr = dynamic_cast<AST::VariableInstruction *>(InstrPtr);
+  if (VarInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
-  auto Opcode = TheInstrPtr->getOpCode();
-  unsigned int Index = TheInstrPtr->getIndex();
+  /// Get variable instruction OpCode, index, and current frame.
+  auto Opcode = VarInstr->getOpCode();
+  unsigned int Index = VarInstr->getIndex();
+  StackMgr.getCurrentFrame(CurrentFrame);
 
+  /// Check OpCode and run the specific instruction.
+  ErrCode Status = ErrCode::Success;
   if (Opcode == OpCode::Local__get) {
-    StackMgr.getCurrentFrame(CurrentFrame);
-    ValueEntry *Val;
-    CurrentFrame->getValue(Index, Val);
-    std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(*Val);
-    StackMgr.push(NewVal);
+    /// Local.get x
+    ValueEntry *ValEntry = nullptr;
+    if ((Status = CurrentFrame->getValue(Index, ValEntry)) !=
+        ErrCode::Success) {
+      return Status;
+    }
+    StackMgr.push(std::make_unique<ValueEntry>(*ValEntry));
   } else if (Opcode == OpCode::Local__set) {
-    StackMgr.getCurrentFrame(CurrentFrame);
-    std::unique_ptr<ValueEntry> Val;
-    StackMgr.pop(Val);
-    CurrentFrame->setValue(Index, Val);
+    /// Local.set x
+    std::unique_ptr<ValueEntry> ValEntry;
+    if ((Status = StackMgr.pop(ValEntry)) != ErrCode::Success) {
+      return Status;
+    }
+    if ((Status = CurrentFrame->setValue(Index, ValEntry)) !=
+        ErrCode::Success) {
+      return Status;
+    }
   } else if (Opcode == OpCode::Local__tee) {
-    std::unique_ptr<ValueEntry> Val;
-    StackMgr.pop(Val);
-    std::unique_ptr<ValueEntry> NewVal =
-        std::make_unique<ValueEntry>(*Val.get());
-    StackMgr.push(NewVal);
-    CurrentFrame->setValue(Index, Val);
+    /// Local.tee x
+    std::unique_ptr<ValueEntry> ValEntry;
+    if ((Status = StackMgr.pop(ValEntry)) != ErrCode::Success) {
+      return Status;
+    }
+    StackMgr.push(std::make_unique<ValueEntry>(*ValEntry.get()));
+    if ((Status = CurrentFrame->setValue(Index, ValEntry)) !=
+        ErrCode::Success) {
+      return Status;
+    }
   } else if (Opcode == OpCode::Global__get) {
-    StackMgr.getCurrentFrame(CurrentFrame);
-    ValueEntry Val;
+    /// Global.get x
+    AST::ValVariant Val;
+    Instance::ModuleInstance *ModInst = nullptr;
+    Instance::GlobalInstance *GlobInst = nullptr;
+    unsigned int GlobalAddr = 0;
     unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
-    Instance::ModuleInstance *ModuleInstPtr = nullptr;
-    StoreMgr.getModule(ModuleAddr, ModuleInstPtr);
-    unsigned int GlobalAddr;
-    ModuleInstPtr->getGlobalAddr(Index, GlobalAddr);
-    Instance::GlobalInstance *GlobPtr = nullptr;
-    StoreMgr.getGlobal(GlobalAddr, GlobPtr);
-    GlobPtr->getValue(Val);
-    std::unique_ptr<ValueEntry> NewVal = std::make_unique<ValueEntry>(Val);
-    StackMgr.push(NewVal);
+    if ((Status = StoreMgr.getModule(ModuleAddr, ModInst)) !=
+        ErrCode::Success) {
+      return Status;
+    };
+    if ((Status = ModInst->getGlobalAddr(Index, GlobalAddr)) !=
+        ErrCode::Success) {
+      return Status;
+    };
+    if ((Status = StoreMgr.getGlobal(GlobalAddr, GlobInst)) !=
+        ErrCode::Success) {
+      return Status;
+    };
+    GlobInst->getValue(Val);
+    StackMgr.push(std::make_unique<ValueEntry>(GlobInst->getValType(), Val));
   } else if (Opcode == OpCode::Global__set) {
-    StackMgr.getCurrentFrame(CurrentFrame);
+    /// Global.set x
+    std::unique_ptr<ValueEntry> ValEntry;
+    AST::ValVariant Val;
+    Instance::ModuleInstance *ModInst = nullptr;
+    Instance::GlobalInstance *GlobInst = nullptr;
+    unsigned int GlobalAddr = 0;
     unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
-    Instance::ModuleInstance *ModuleInstPtr = nullptr;
-    StoreMgr.getModule(ModuleAddr, ModuleInstPtr);
-    unsigned int GlobalAddr;
-    ModuleInstPtr->getGlobalAddr(Index, GlobalAddr);
-    Instance::GlobalInstance *GlobPtr = nullptr;
-    StoreMgr.getGlobal(GlobalAddr, GlobPtr);
-    std::unique_ptr<ValueEntry> Val;
-    StackMgr.pop(Val);
-    GlobPtr->setValue(*Val.get());
+    if ((Status = StoreMgr.getModule(ModuleAddr, ModInst)) !=
+        ErrCode::Success) {
+      return Status;
+    };
+    if ((Status = ModInst->getGlobalAddr(Index, GlobalAddr)) !=
+        ErrCode::Success) {
+      return Status;
+    };
+    if ((Status = StoreMgr.getGlobal(GlobalAddr, GlobInst)) !=
+        ErrCode::Success) {
+      return Status;
+    };
+    if ((Status = StackMgr.pop(ValEntry)) != ErrCode::Success) {
+      return Status;
+    }
+    ValEntry->getValue(Val);
+    GlobInst->setValue(Val);
   } else {
     return ErrCode::InstructionTypeMismatch;
   }

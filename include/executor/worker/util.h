@@ -62,40 +62,27 @@ inline bool isNumericOp(OpCode Opcode) {
   return isInRange(OpCode::I32__eqz, Opcode, OpCode::F64__reinterpret_i64);
 }
 
-inline bool isBinaryOp(OpCode Opcode) {
-  bool Ret = false;
-  switch (Opcode) {
-  case OpCode::I32__add:
-  case OpCode::I32__sub:
-  case OpCode::I64__add:
-  case OpCode::I64__sub:
-  case OpCode::I64__mul:
-  case OpCode::I64__div_u:
-  case OpCode::I64__rem_u:
-    Ret = true;
-    break;
-  default:
-    Ret = false;
-    break;
-  }
-  return Ret;
+inline bool isUnaryNumericOp(OpCode Opcode) {
+  return isInRange(OpCode::I32__clz, Opcode, OpCode::I32__popcnt) ||
+         isInRange(OpCode::I64__clz, Opcode, OpCode::I64__popcnt) ||
+         isInRange(OpCode::F32__abs, Opcode, OpCode::F32__sqrt) ||
+         isInRange(OpCode::F64__abs, Opcode, OpCode::F64__sqrt);
 }
 
-inline bool isComparisonOp(OpCode Opcode) {
-  bool Ret = false;
-  switch (Opcode) {
-  case OpCode::I32__le_s:
-  case OpCode::I32__eq:
-  case OpCode::I32__ne:
-  case OpCode::I64__eq:
-  case OpCode::I64__lt_u:
-    Ret = true;
-    break;
-  default:
-    Ret = false;
-    break;
-  }
-  return Ret;
+inline bool isBinaryNumericOp(OpCode Opcode) {
+  return isInRange(OpCode::I32__add, Opcode, OpCode::I32__rotr) ||
+         isInRange(OpCode::I64__add, Opcode, OpCode::I64__rotr) ||
+         isInRange(OpCode::F32__add, Opcode, OpCode::F32__copysign) ||
+         isInRange(OpCode::F64__add, Opcode, OpCode::F64__copysign);
+}
+
+inline bool isTestNumericOp(OpCode Opcode) {
+  return Opcode == OpCode::I32__eqz || Opcode == OpCode::I64__eqz;
+}
+
+inline bool isRelationNumericOp(OpCode Opcode) {
+  return isInRange(OpCode::I32__eq, Opcode, OpCode::F64__ge) &&
+         Opcode != OpCode::I64__eqz;
 }
 
 } // namespace Executor

@@ -92,6 +92,9 @@ private:
   /// Helper function for return from functions.
   ErrCode returnFunction();
 
+  /// Helper function for branching to label.
+  ErrCode branchToLabel(unsigned int L);
+
   /// Run instructions functions
   /// ======= Comparison =======
   template <typename T>

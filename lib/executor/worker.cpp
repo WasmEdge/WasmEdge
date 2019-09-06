@@ -463,5 +463,46 @@ ErrCode Worker::returnFunction() {
   return ErrCode::Success;
 }
 
+ErrCode Worker::branchToLabel(unsigned int L) {
+  /// Get the L-th label from top of stack and the continuation instruction.
+  ErrCode Status = ErrCode::Success;
+  LabelEntry *Label;
+  AST::Instruction *ContInstr = nullptr;
+  if ((Status = StackMgr.getLabelWithCount(Label, L)) != ErrCode::Success) {
+    return Status;
+  }
+  ContInstr = Label->getTarget();
+
+  /// Get arity of Label and pop n values.
+  unsigned int Arity = Label->getArity();
+  std::vector<std::unique_ptr<ValueEntry>> Vals;
+  for (unsigned int I = 0; I < Arity; I++) {
+    std::unique_ptr<ValueEntry> Val;
+    StackMgr.pop(Val);
+    Vals.push_back(std::move(Val));
+  }
+
+  /// Repeat LabelIndex + 1 times
+  for (unsigned int I = 0; I < L + 1; I++) {
+    while (StackMgr.isTopValue()) {
+      StackMgr.pop();
+    }
+    /// Pop label entry and the corresponding instruction sequence.
+    InstrPdr.popInstrs();
+    StackMgr.pop();
+  }
+
+  /// Push the Vals back into the Stack
+  for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
+    std::unique_ptr<ValueEntry> Val = std::move(*Iter);
+    StackMgr.push(Val);
+  }
+
+  /// Jump to the continuation of Label
+  if (ContInstr != nullptr)
+    Status = runLoopOp(dynamic_cast<AST::ControlInstruction *>(ContInstr));
+  return Status;
+}
+
 } // namespace Executor
 } // namespace SSVM

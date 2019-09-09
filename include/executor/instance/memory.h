@@ -37,10 +37,11 @@ public:
   unsigned int getDataLength() const { return Data.size(); }
 
   /// Get slice of Data[start:start+length-1]
-  ErrCode getBytes(std::unique_ptr<Bytes> &Slice, int Start, int Length);
+  ErrCode getBytes(std::unique_ptr<Bytes> &Slice, unsigned int Start,
+                   unsigned int Length);
 
   /// Replace the bytes of Data[start:start+length-1]
-  ErrCode setBytes(Bytes &TheBytes, int Start, int Length);
+  ErrCode setBytes(Bytes &TheBytes, unsigned int Start, unsigned int Length);
 
   /// Memory Instance address in store manager.
   unsigned int Addr;

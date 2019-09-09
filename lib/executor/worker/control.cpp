@@ -53,7 +53,7 @@ ErrCode Worker::runIfElseOp(AST::ControlInstruction *InstrPtr) {
   unsigned int Arity = (ResultType == AST::ValType::None) ? 0 : 1;
 
   /// If non-zero, run if-statement; else, run else-statement.
-  if (retrieveValue<int32_t>(*Val.get()) != 0) {
+  if (retrieveValue<uint32_t>(*Val.get()) != 0) {
     const InstrVec &IfStatement = IfElseInstr->getIfStatement();
     if (IfStatement.size() > 0) {
       Status = enterBlock(Arity, nullptr, IfStatement);
@@ -80,7 +80,7 @@ ErrCode Worker::runBrIfOp(AST::ControlInstruction *InstrPtr) {
   auto Status = ErrCode::Success;
   std::unique_ptr<ValueEntry> Val;
   StackMgr.pop(Val);
-  if (retrieveValue<int32_t>(*Val.get()) != 0) {
+  if (retrieveValue<uint32_t>(*Val.get()) != 0) {
     Status = runBrOp(InstrPtr);
   }
   return Status;
@@ -97,7 +97,7 @@ ErrCode Worker::runBrTableOp(AST::ControlInstruction *InstrPtr) {
   auto Status = ErrCode::Success;
   std::unique_ptr<ValueEntry> Val;
   StackMgr.pop(Val);
-  int32_t Value = retrieveValue<int32_t>(*Val.get());
+  int32_t Value = retrieveValue<uint32_t>(*Val.get());
 
   /// Do branch.
   const std::vector<unsigned int> &LabelTable = BrTableInstr->getLabelTable();

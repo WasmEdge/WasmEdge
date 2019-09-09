@@ -34,11 +34,11 @@ template <typename T> ErrCode GlobalInstance::setValue(T Val) {
   Executor::ErrCode Status = Executor::ErrCode::TypeNotMatch;
   switch (Type) {
   case AST::ValType::I32:
-    if (std::is_same<T, int32_t>::value)
+    if (std::is_same<T, uint32_t>::value)
       Status = Executor::ErrCode::Success;
     break;
   case AST::ValType::I64:
-    if (std::is_same<T, int64_t>::value)
+    if (std::is_same<T, uint64_t>::value)
       Status = Executor::ErrCode::Success;
     break;
   case AST::ValType::F32:

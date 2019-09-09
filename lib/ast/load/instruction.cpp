@@ -155,14 +155,14 @@ Loader::ErrCode ConstInstruction::loadBinary(FileMgr &Mgr) {
   /// Read the const number of corresbonding value type.
   switch (Code) {
   case Instruction::OpCode::I32__const: {
-    int32_t Val = 0;
-    Status = Mgr.readS32(Val);
+    uint32_t Val = 0;
+    Status = Mgr.readU32(Val);
     Num = Val;
     break;
   }
   case Instruction::OpCode::I64__const: {
-    int64_t Val = 0;
-    Status = Mgr.readS64(Val);
+    uint64_t Val = 0;
+    Status = Mgr.readU64(Val);
     Num = Val;
     break;
   }

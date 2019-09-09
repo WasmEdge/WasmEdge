@@ -22,8 +22,8 @@ ErrCode MemoryInstance::setInitList(unsigned int Offset,
   return ErrCode::Success;
 }
 
-ErrCode MemoryInstance::getBytes(std::unique_ptr<Bytes> &Slice, int Start,
-                                 int Length) {
+ErrCode MemoryInstance::getBytes(std::unique_ptr<Bytes> &Slice,
+                                 unsigned int Start, unsigned int Length) {
   Slice = std::make_unique<Bytes>(Data.data() + Start,
                                   Data.data() + Start + Length - 1);
   if (Slice.get() == nullptr) {
@@ -32,7 +32,8 @@ ErrCode MemoryInstance::getBytes(std::unique_ptr<Bytes> &Slice, int Start,
   return ErrCode::Success;
 }
 
-ErrCode MemoryInstance::setBytes(Bytes &TheBytes, int Start, int Length) {
+ErrCode MemoryInstance::setBytes(Bytes &TheBytes, unsigned int Start,
+                                 unsigned int Length) {
   if (Length != TheBytes.size()) {
     return ErrCode::AccessForbidMemory;
   }

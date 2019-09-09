@@ -8,10 +8,10 @@ ValueEntry::ValueEntry(AST::ValType VT) {
   Type = VT;
   switch (Type) {
   case AST::ValType::I32:
-    Value = (int32_t)0;
+    Value = (uint32_t)0;
     break;
   case AST::ValType::I64:
-    Value = (int64_t)0;
+    Value = (uint64_t)0;
     break;
   case AST::ValType::F32:
     Value = (float)0.0;
@@ -26,8 +26,8 @@ ValueEntry::ValueEntry(AST::ValType VT) {
 
 /// Setter for value. See "include/executor/entry/value.h".
 template <typename T> ErrCode ValueEntry::setValue(const T &Val) {
-  if ((std::is_same<T, int32_t>::value && Type == AST::ValType::I32) ||
-      (std::is_same<T, int64_t>::value && Type == AST::ValType::I64) ||
+  if ((std::is_same<T, uint32_t>::value && Type == AST::ValType::I32) ||
+      (std::is_same<T, uint64_t>::value && Type == AST::ValType::I64) ||
       (std::is_same<T, float>::value && Type == AST::ValType::F32) ||
       (std::is_same<T, double>::value && Type == AST::ValType::F64)) {
     Value = Val;

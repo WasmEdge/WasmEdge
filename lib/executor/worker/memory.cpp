@@ -29,7 +29,7 @@ ErrCode Worker::runLoadOp(AST::MemoryInstruction *InstrPtr) {
   std::unique_ptr<ValueEntry> Val;
   StackMgr.pop(Val);
 
-  int32_t EA = retrieveValue<int32_t>(*Val.get()) + InstrPtr->getOffset();
+  uint32_t EA = retrieveValue<uint32_t>(*Val.get()) + InstrPtr->getOffset();
   /// FIXME: The following codes do not handle the `t.loadN_sx`.
 
   /// Get the bit width from the instruction
@@ -78,7 +78,7 @@ ErrCode Worker::runStoreOp(AST::MemoryInstruction *InstrPtr) {
   std::unique_ptr<ValueEntry> I;
   StackMgr.pop(I);
   /// EA = i + offset
-  int32_t EA = retrieveValue<int32_t>(*I.get()) + InstrPtr->getOffset();
+  uint32_t EA = retrieveValue<uint32_t>(*I.get()) + InstrPtr->getOffset();
   /// N = bits(t)
   int N = 0;
   if (std::is_same<T, int64_t>::value) {

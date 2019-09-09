@@ -7,7 +7,6 @@ namespace Executor {
 namespace {
 
 using OpCode = AST::Instruction::OpCode;
-using Value = AST::ValVariant;
 
 } // namespace
 

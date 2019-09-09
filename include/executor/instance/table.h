@@ -32,9 +32,6 @@ public:
   /// Set the initialization list.
   ErrCode setInitList(unsigned int Offset, std::vector<unsigned int> &Addrs);
 
-  /// Table Instance ID in store manager.
-  unsigned int Id;
-
   /// Table Instance address in store manager.
   unsigned int Addr;
 

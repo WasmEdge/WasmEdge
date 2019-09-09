@@ -21,15 +21,15 @@ namespace Executor {
 class ValueEntry {
 public:
   /// Default constructors for temp ValueEntry.
-  ValueEntry() : Type(AST::ValType::I32), Value((int32_t)0) {}
+  ValueEntry() : Type(AST::ValType::I32), Value(0U) {}
   /// Copy constructor for duplication.
   explicit ValueEntry(const ValueEntry &VE) : Type(VE.Type), Value(VE.Value) {}
   explicit ValueEntry(AST::ValType VT);
   explicit ValueEntry(AST::ValType VT, AST::ValVariant &Val)
       : Type(VT), Value(Val) {}
   /// Constructors for the different value type
-  explicit ValueEntry(int32_t Val) : Type(AST::ValType::I32), Value(Val) {}
-  explicit ValueEntry(int64_t Val) : Type(AST::ValType::I64), Value(Val) {}
+  explicit ValueEntry(uint32_t Val) : Type(AST::ValType::I32), Value(Val) {}
+  explicit ValueEntry(uint64_t Val) : Type(AST::ValType::I64), Value(Val) {}
   explicit ValueEntry(float Val) : Type(AST::ValType::F32), Value(Val) {}
   explicit ValueEntry(double Val) : Type(AST::ValType::F64), Value(Val) {}
 

@@ -38,6 +38,7 @@ public:
   template <typename T> ErrCode push(std::unique_ptr<T> &NewEntry) {
     return push(std::move(NewEntry));
   }
+  template <typename T> ErrCode pushValue(T Val);
 
   /// Pop and return the top entry.
   template <typename T> ErrCode pop(std::unique_ptr<T> &Entry);

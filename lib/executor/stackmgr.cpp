@@ -30,6 +30,15 @@ ErrCode StackManager::push(std::unique_ptr<T> &&NewEntry) {
   return ErrCode::Success;
 }
 
+template <typename T> ErrCode StackManager::pushValue(T Val) {
+  if (!std::is_same<T, uint32_t>::value && !std::is_same<T, uint64_t>::value &&
+      !std::is_same<T, float>::value && !std::is_same<T, double>::value) {
+    return ErrCode::TypeNotMatch;
+  }
+  Stack.push_back(std::make_unique<ValueEntry>(Val));
+  return ErrCode::Success;
+}
+
 /// Pop and return the frame entry. See "include/executor/stackmgr.h".
 template <typename T> ErrCode StackManager::pop(std::unique_ptr<T> &Entry) {
   /// Check the size of stack.

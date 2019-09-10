@@ -118,48 +118,48 @@ private:
   /// ======= Test and Relation Numeric =======
   template <typename T> ErrCode runEqzOp(const ValueEntry *Val);
   template <typename T>
-  ErrCode runEqIOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runIEqOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runEqFOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runFEqOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runNeIOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runINeOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runNeFOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runFNeOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runLtSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runILtSOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runLtUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runILtUOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runLtFOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runFLtOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runGtSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runIGtSOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runGtUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runIGtUOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runGtFOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runFGtOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runLeSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runILeSOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runLeUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runILeUOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runLeFOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runFLeOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runGeSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runIGeSOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runGeUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runIGeUOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runGeFOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runFGeOp(const ValueEntry *Val1, const ValueEntry *Val2);
   /// ======= Unary Numeric =======
-  template <typename T> ErrCode runClzOp(const ValueEntry *Val);
-  template <typename T> ErrCode runCtzOp(const ValueEntry *Val);
-  template <typename T> ErrCode runPopcntOp(const ValueEntry *Val);
-  template <typename T> ErrCode runAbsOp(const ValueEntry *Val);
-  template <typename T> ErrCode runNegOp(const ValueEntry *Val);
-  template <typename T> ErrCode runCeilOp(const ValueEntry *Val);
-  template <typename T> ErrCode runFloorOp(const ValueEntry *Val);
-  template <typename T> ErrCode runTruncOp(const ValueEntry *Val);
-  template <typename T> ErrCode runNearestOp(const ValueEntry *Val);
-  template <typename T> ErrCode runSqrtOp(const ValueEntry *Val);
+  template <typename T> ErrCode runIClzOp(const ValueEntry *Val);
+  template <typename T> ErrCode runICtzOp(const ValueEntry *Val);
+  template <typename T> ErrCode runIPopcntOp(const ValueEntry *Val);
+  template <typename T> ErrCode runFAbsOp(const ValueEntry *Val);
+  template <typename T> ErrCode runFNegOp(const ValueEntry *Val);
+  template <typename T> ErrCode runFCeilOp(const ValueEntry *Val);
+  template <typename T> ErrCode runFFloorOp(const ValueEntry *Val);
+  template <typename T> ErrCode runFTruncOp(const ValueEntry *Val);
+  template <typename T> ErrCode runFNearestOp(const ValueEntry *Val);
+  template <typename T> ErrCode runFSqrtOp(const ValueEntry *Val);
   /// ======= Binary Numeric =======
   template <typename T>
   ErrCode runAddOp(const ValueEntry *Val1, const ValueEntry *Val2);

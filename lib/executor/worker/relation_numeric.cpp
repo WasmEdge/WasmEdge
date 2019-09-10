@@ -14,14 +14,14 @@ template <typename T> ErrCode Worker::runEqzOp(const ValueEntry *Val) {
 }
 
 template <typename T>
-ErrCode Worker::runEqIOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runIEqOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
   /// Return 1 if i1 equals i2, 0 otherwise.
   return StackMgr.pushValue((I1 == I2) ? 1U : 0U);
 }
 
 template <typename T>
-ErrCode Worker::runEqFOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runFEqOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T Z1 = retrieveValue<T>(*Val1), Z2 = retrieveValue<T>(*Val2);
   /// If either z1 or z2 is a NaN, then return 0.
   if (std::isnan(Z1) || std::isnan(Z2)) {
@@ -36,14 +36,14 @@ ErrCode Worker::runEqFOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 }
 
 template <typename T>
-ErrCode Worker::runNeIOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runINeOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
   /// Return 1 if i1 does not equal i2, 0 otherwise.
   return StackMgr.pushValue((I1 != I2) ? 1U : 0U);
 }
 
 template <typename T>
-ErrCode Worker::runNeFOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runFNeOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T Z1 = retrieveValue<T>(*Val1), Z2 = retrieveValue<T>(*Val2);
   /// If either z1 or z2 is a NaN, then return 1.
   if (std::isnan(Z1) || std::isnan(Z2)) {
@@ -58,14 +58,14 @@ ErrCode Worker::runNeFOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 }
 
 template <typename T>
-ErrCode Worker::runLtUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runILtUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
   /// Return 1 if i1 is less than i2, 0 otherwise.
   return StackMgr.pushValue((I1 < I2) ? 1U : 0U);
 }
 
 template <typename T>
-ErrCode Worker::runLtSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runILtSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
   /// Return 1 if signed_interpret(i1) is less than signed_interpret(i2), 0
   /// otherwise.
@@ -74,7 +74,7 @@ ErrCode Worker::runLtSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 }
 
 template <typename T>
-ErrCode Worker::runLtFOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runFLtOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T Z1 = retrieveValue<T>(*Val1), Z2 = retrieveValue<T>(*Val2);
   /// If either z1 or z2 is a NaN, then return 0.
   if (std::isnan(Z1) || std::isnan(Z2)) {
@@ -109,14 +109,14 @@ ErrCode Worker::runLtFOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 }
 
 template <typename T>
-ErrCode Worker::runGtUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runIGtUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
   /// Return 1 if i1 is greater than i2, 0 otherwise.
   return StackMgr.pushValue((I1 > I2) ? 1U : 0U);
 }
 
 template <typename T>
-ErrCode Worker::runGtSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runIGtSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
   /// Return 1 if signed_interpret(i1) is greater than signed_interpret(i2), 0
   /// otherwise.
@@ -125,7 +125,7 @@ ErrCode Worker::runGtSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 }
 
 template <typename T>
-ErrCode Worker::runGtFOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runFGtOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T Z1 = retrieveValue<T>(*Val1), Z2 = retrieveValue<T>(*Val2);
   /// If either z1 or z2 is a NaN, then return 0.
   if (std::isnan(Z1) || std::isnan(Z2)) {
@@ -160,14 +160,14 @@ ErrCode Worker::runGtFOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 }
 
 template <typename T>
-ErrCode Worker::runLeUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runILeUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
   /// Return 1 if i1 is less than or equal i2, 0 otherwise.
   return StackMgr.pushValue((I1 <= I2) ? 1U : 0U);
 }
 
 template <typename T>
-ErrCode Worker::runLeSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runILeSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
   /// Return 1 if signed_interpret(i1) is less than or equal to
   /// signed_interpret(i2), 0 otherwise.
@@ -176,7 +176,7 @@ ErrCode Worker::runLeSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 }
 
 template <typename T>
-ErrCode Worker::runLeFOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runFLeOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T Z1 = retrieveValue<T>(*Val1), Z2 = retrieveValue<T>(*Val2);
   /// If either z1 or z2 is a NaN, then return 0.
   if (std::isnan(Z1) || std::isnan(Z2)) {
@@ -211,14 +211,14 @@ ErrCode Worker::runLeFOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 }
 
 template <typename T>
-ErrCode Worker::runGeUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runIGeUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
   /// Return 1 if i1 is greater than or equal i2, 0 otherwise.
   return StackMgr.pushValue((I1 >= I2) ? 1U : 0U);
 }
 
 template <typename T>
-ErrCode Worker::runGeSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runIGeSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
   /// Return 1 if signed_interpret(i1) is greater than or equal to
   /// signed_interpret(i2), 0 otherwise.
@@ -227,7 +227,7 @@ ErrCode Worker::runGeSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 }
 
 template <typename T>
-ErrCode Worker::runGeFOp(const ValueEntry *Val1, const ValueEntry *Val2) {
+ErrCode Worker::runFGeOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T Z1 = retrieveValue<T>(*Val1), Z2 = retrieveValue<T>(*Val2);
   /// If either z1 or z2 is a NaN, then return 0.
   if (std::isnan(Z1) || std::isnan(Z2)) {

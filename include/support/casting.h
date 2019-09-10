@@ -44,11 +44,8 @@ template <typename T> inline std::vector<unsigned char> intToBytes(T Int) {
   return Bytes;
 }
 
-template <typename T> inline T signedInterpretation(T Int) {
-  if (Int >> (sizeof(T) * 8 - 1))
-    return Int - (0x01 << (sizeof(T) * 8 - 1));
-  return Int;
-}
+inline int32_t toSigned(uint32_t Int) { return static_cast<int32_t>(Int); }
+inline int64_t toSigned(uint64_t Int) { return static_cast<int64_t>(Int); }
 
 } // namespace Support
 } // namespace SSVM

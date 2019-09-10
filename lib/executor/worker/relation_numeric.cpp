@@ -16,7 +16,7 @@ template <typename T> ErrCode Worker::runEqzOp(const ValueEntry *Val) {
 template <typename T>
 ErrCode Worker::runIEqOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
-  /// Return 1 if i1 equals i2, 0 otherwise.
+  /// Return 1 if i1 == i2, 0 otherwise.
   return StackMgr.pushValue((I1 == I2) ? 1U : 0U);
 }
 
@@ -38,7 +38,7 @@ ErrCode Worker::runFEqOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 template <typename T>
 ErrCode Worker::runINeOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
-  /// Return 1 if i1 does not equal i2, 0 otherwise.
+  /// Return 1 if i1 != i2, 0 otherwise.
   return StackMgr.pushValue((I1 != I2) ? 1U : 0U);
 }
 
@@ -60,17 +60,15 @@ ErrCode Worker::runFNeOp(const ValueEntry *Val1, const ValueEntry *Val2) {
 template <typename T>
 ErrCode Worker::runILtUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
-  /// Return 1 if i1 is less than i2, 0 otherwise.
+  /// Return 1 if i1 < i2, 0 otherwise.
   return StackMgr.pushValue((I1 < I2) ? 1U : 0U);
 }
 
 template <typename T>
 ErrCode Worker::runILtSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
-  /// Return 1 if signed_interpret(i1) is less than signed_interpret(i2), 0
-  /// otherwise.
-  return StackMgr.pushValue(
-      (signedInterpretation(I1) < signedInterpretation(I2)) ? 1U : 0U);
+  /// Return 1 if signed(i1) < signed(i2), 0 otherwise.
+  return StackMgr.pushValue((toSigned(I1) < toSigned(I2)) ? 1U : 0U);
 }
 
 template <typename T>
@@ -104,24 +102,22 @@ ErrCode Worker::runFLtOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   if ((Z1 == +0.0f || Z1 == -0.0f) && (Z2 == +0.0f || Z2 == -0.0f)) {
     return StackMgr.pushValue(0U);
   }
-  /// If z1 is smaller than z2, then return 1. Else return 0.
+  /// If z1 < z2, then return 1. Else return 0.
   return StackMgr.pushValue((Z1 < Z2) ? 1U : 0U);
 }
 
 template <typename T>
 ErrCode Worker::runIGtUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
-  /// Return 1 if i1 is greater than i2, 0 otherwise.
+  /// Return 1 if i1 > i2, 0 otherwise.
   return StackMgr.pushValue((I1 > I2) ? 1U : 0U);
 }
 
 template <typename T>
 ErrCode Worker::runIGtSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
-  /// Return 1 if signed_interpret(i1) is greater than signed_interpret(i2), 0
-  /// otherwise.
-  return StackMgr.pushValue(
-      (signedInterpretation(I1) > signedInterpretation(I2)) ? 1U : 0U);
+  /// Return 1 if signed(i1) > signed(i2), 0 otherwise.
+  return StackMgr.pushValue((toSigned(I1) > toSigned(I2)) ? 1U : 0U);
 }
 
 template <typename T>
@@ -155,24 +151,22 @@ ErrCode Worker::runFGtOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   if ((Z1 == +0.0f || Z1 == -0.0f) && (Z2 == +0.0f || Z2 == -0.0f)) {
     return StackMgr.pushValue(0U);
   }
-  /// If z1 is larger than z2, then return 1. Else return 0.
+  /// If z1 > z2, then return 1. Else return 0.
   return StackMgr.pushValue((Z1 > Z2) ? 1U : 0U);
 }
 
 template <typename T>
 ErrCode Worker::runILeUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
-  /// Return 1 if i1 is less than or equal i2, 0 otherwise.
+  /// Return 1 if i1 <= i2, 0 otherwise.
   return StackMgr.pushValue((I1 <= I2) ? 1U : 0U);
 }
 
 template <typename T>
 ErrCode Worker::runILeSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
-  /// Return 1 if signed_interpret(i1) is less than or equal to
-  /// signed_interpret(i2), 0 otherwise.
-  return StackMgr.pushValue(
-      (signedInterpretation(I1) <= signedInterpretation(I2)) ? 1U : 0U);
+  /// Return 1 if signed(i1) <= signed(i2), 0 otherwise.
+  return StackMgr.pushValue((toSigned(I1) <= toSigned(I2)) ? 1U : 0U);
 }
 
 template <typename T>
@@ -206,24 +200,22 @@ ErrCode Worker::runFLeOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   if ((Z1 == +0.0f || Z1 == -0.0f) && (Z2 == +0.0f || Z2 == -0.0f)) {
     return StackMgr.pushValue(1U);
   }
-  /// If z1 is smaller than or equal to z2, then return 1. Else return 0.
+  /// If z1 <= z2, then return 1. Else return 0.
   return StackMgr.pushValue((Z1 <= Z2) ? 1U : 0U);
 }
 
 template <typename T>
 ErrCode Worker::runIGeUOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
-  /// Return 1 if i1 is greater than or equal i2, 0 otherwise.
+  /// Return 1 if i1 >= i2, 0 otherwise.
   return StackMgr.pushValue((I1 >= I2) ? 1U : 0U);
 }
 
 template <typename T>
 ErrCode Worker::runIGeSOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
-  /// Return 1 if signed_interpret(i1) is greater than or equal to
-  /// signed_interpret(i2), 0 otherwise.
-  return StackMgr.pushValue(
-      (signedInterpretation(I1) >= signedInterpretation(I2)) ? 1U : 0U);
+  /// Return 1 if signed(i1) >= signed(i2), 0 otherwise.
+  return StackMgr.pushValue((toSigned(I1) >= toSigned(I2)) ? 1U : 0U);
 }
 
 template <typename T>
@@ -257,7 +249,7 @@ ErrCode Worker::runFGeOp(const ValueEntry *Val1, const ValueEntry *Val2) {
   if ((Z1 == +0.0f || Z1 == -0.0f) && (Z2 == +0.0f || Z2 == -0.0f)) {
     return StackMgr.pushValue(1U);
   }
-  /// If z1 is larger than or equal to z2, then return 1. Else return 0.
+  /// If z1 >= z2, then return 1. Else return 0.
   return StackMgr.pushValue((Z1 >= Z2) ? 1U : 0U);
 }
 

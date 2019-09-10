@@ -281,12 +281,137 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
 
   auto Opcode = TheInstrPtr->getOpCode();
   auto Status = ErrCode::Success;
-  if (isBinaryNumericOp(Opcode)) {
+  if (isTestNumericOp(Opcode)) {
+    std::unique_ptr<ValueEntry> Val;
+    StackMgr.pop(Val);
+
+    switch (Opcode) {
+    case OpCode::I32__eqz:
+      Status = runEqzOp<uint32_t>(Val.get());
+      break;
+    case OpCode::I64__eqz:
+      Status = runEqzOp<uint64_t>(Val.get());
+      break;
+    default:
+      Status = ErrCode::InstructionTypeMismatch;
+      break;
+    }
+  } else if (isRelationNumericOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val1, Val2;
     StackMgr.pop(Val2);
     StackMgr.pop(Val1);
 
-    if (isValueTypeEqual(*Val1.get(), *Val2.get())) {
+    if (!isValueTypeEqual(*Val1.get(), *Val2.get())) {
+      return ErrCode::TypeNotMatch;
+    }
+
+    switch (Opcode) {
+    case OpCode::I32__eq:
+      Status = runEqIOp<uint32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I32__ne:
+      Status = runNeIOp<uint32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I32__lt_s:
+      Status = runLtSOp<uint32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I32__lt_u:
+      Status = runLtUOp<uint32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I32__gt_s:
+      Status = runGtSOp<uint32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I32__gt_u:
+      Status = runGtUOp<uint32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I32__le_s:
+      Status = runLeSOp<uint32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I32__le_u:
+      Status = runLeUOp<uint32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I32__ge_s:
+      Status = runGeSOp<uint32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I32__ge_u:
+      Status = runGeUOp<uint32_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__eq:
+      Status = runEqIOp<uint64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__ne:
+      Status = runNeIOp<uint64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__lt_s:
+      Status = runLtSOp<uint64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__lt_u:
+      Status = runLtUOp<uint64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__gt_s:
+      Status = runGtSOp<uint64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__gt_u:
+      Status = runGtUOp<uint64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__le_s:
+      Status = runLeSOp<uint64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__le_u:
+      Status = runLeUOp<uint64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__ge_s:
+      Status = runGeSOp<uint64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::I64__ge_u:
+      Status = runGeUOp<uint64_t>(Val1.get(), Val2.get());
+      break;
+    case OpCode::F32__eq:
+      Status = runEqFOp<float>(Val1.get(), Val2.get());
+      break;
+    case OpCode::F32__ne:
+      Status = runNeFOp<float>(Val1.get(), Val2.get());
+      break;
+    case OpCode::F32__lt:
+      Status = runLtFOp<float>(Val1.get(), Val2.get());
+      break;
+    case OpCode::F32__gt:
+      Status = runGtFOp<float>(Val1.get(), Val2.get());
+      break;
+    case OpCode::F32__le:
+      Status = runLeFOp<float>(Val1.get(), Val2.get());
+      break;
+    case OpCode::F32__ge:
+      Status = runGeFOp<float>(Val1.get(), Val2.get());
+      break;
+    case OpCode::F64__eq:
+      Status = runEqFOp<double>(Val1.get(), Val2.get());
+      break;
+    case OpCode::F64__ne:
+      Status = runNeFOp<double>(Val1.get(), Val2.get());
+      break;
+    case OpCode::F64__lt:
+      Status = runLtFOp<double>(Val1.get(), Val2.get());
+      break;
+    case OpCode::F64__gt:
+      Status = runGtFOp<double>(Val1.get(), Val2.get());
+      break;
+    case OpCode::F64__le:
+      Status = runLeFOp<double>(Val1.get(), Val2.get());
+      break;
+    case OpCode::F64__ge:
+      Status = runGeFOp<double>(Val1.get(), Val2.get());
+      break;
+    default:
+      Status = ErrCode::InstructionTypeMismatch;
+      break;
+    }
+  } else if (isBinaryNumericOp(Opcode)) {
+    std::unique_ptr<ValueEntry> Val1, Val2;
+    StackMgr.pop(Val2);
+    StackMgr.pop(Val1);
+
+    if (!isValueTypeEqual(*Val1.get(), *Val2.get())) {
       return ErrCode::TypeNotMatch;
     }
 
@@ -320,35 +445,6 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
       break;
     case OpCode::I64__rem_u:
       Status = runRemUOp<int64_t>(Val1.get(), Val2.get());
-      break;
-    default:
-      Status = ErrCode::Unimplemented;
-      break;
-    }
-  } else if (isRelationNumericOp(Opcode)) {
-    std::unique_ptr<ValueEntry> Val1, Val2;
-    StackMgr.pop(Val2);
-    StackMgr.pop(Val1);
-
-    if (isValueTypeEqual(*Val1.get(), *Val2.get())) {
-      return ErrCode::TypeNotMatch;
-    }
-
-    switch (Opcode) {
-    case OpCode::I32__le_s:
-      Status = runLeSOp<int32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__eq:
-      Status = runEqOp<int32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__ne:
-      Status = runNeOp<int32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__eq:
-      Status = runEqOp<int64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__lt_u:
-      Status = runLtUOp<int64_t>(Val1.get(), Val2.get());
       break;
     default:
       Status = ErrCode::Unimplemented;

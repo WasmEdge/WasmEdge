@@ -115,29 +115,40 @@ private:
   /// ======= Memory =======
   template <typename T> ErrCode runLoadOp(AST::MemoryInstruction *InstrPtr);
   template <typename T> ErrCode runStoreOp(AST::MemoryInstruction *InstrPtr);
-  /// ======= Test Numeric =======
+  /// ======= Test and Relation Numeric =======
   template <typename T> ErrCode runEqzOp(const ValueEntry *Val);
-  /// ======= Relation Numeric =======
   template <typename T>
-  ErrCode runEqOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runEqIOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runNeOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runEqFOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runNeIOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runNeFOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
   ErrCode runLtSOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
   ErrCode runLtUOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
+  ErrCode runLtFOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
   ErrCode runGtSOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
   ErrCode runGtUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runGtFOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
   ErrCode runLeSOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
   ErrCode runLeUOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
+  ErrCode runLeFOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
   ErrCode runGeSOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
   ErrCode runGeUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  template <typename T>
+  ErrCode runGeFOp(const ValueEntry *Val1, const ValueEntry *Val2);
   /// ======= Unary Numeric =======
   template <typename T> ErrCode runClzOp(const ValueEntry *Val);
   template <typename T> ErrCode runCtzOp(const ValueEntry *Val);

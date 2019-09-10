@@ -405,6 +405,69 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
       Status = ErrCode::InstructionTypeMismatch;
       break;
     }
+  } else if (isUnaryNumericOp(Opcode)) {
+    std::unique_ptr<ValueEntry> Val;
+    StackMgr.pop(Val);
+
+    switch (Opcode) {
+    case OpCode::I32__clz:
+      Status = runIClzOp<uint32_t>(Val.get());
+      break;
+    case OpCode::I32__ctz:
+      Status = runICtzOp<uint32_t>(Val.get());
+      break;
+    case OpCode::I32__popcnt:
+      Status = runIPopcntOp<uint32_t>(Val.get());
+      break;
+    case OpCode::I64__clz:
+      Status = runIClzOp<uint64_t>(Val.get());
+      break;
+    case OpCode::I64__ctz:
+      Status = runICtzOp<uint64_t>(Val.get());
+      break;
+    case OpCode::I64__popcnt:
+      Status = runIPopcntOp<uint64_t>(Val.get());
+      break;
+    case OpCode::F32__abs:
+      Status = runFAbsOp<float>(Val.get());
+      break;
+    case OpCode::F32__neg:
+      Status = runFNegOp<float>(Val.get());
+      break;
+    case OpCode::F32__ceil:
+      Status = runFCeilOp<float>(Val.get());
+      break;
+    case OpCode::F32__floor:
+      Status = runFFloorOp<float>(Val.get());
+      break;
+    case OpCode::F32__nearest:
+      Status = runFNearestOp<float>(Val.get());
+      break;
+    case OpCode::F32__sqrt:
+      Status = runFSqrtOp<float>(Val.get());
+      break;
+    case OpCode::F64__abs:
+      Status = runFAbsOp<double>(Val.get());
+      break;
+    case OpCode::F64__neg:
+      Status = runFNegOp<double>(Val.get());
+      break;
+    case OpCode::F64__ceil:
+      Status = runFCeilOp<double>(Val.get());
+      break;
+    case OpCode::F64__floor:
+      Status = runFFloorOp<double>(Val.get());
+      break;
+    case OpCode::F64__nearest:
+      Status = runFNearestOp<double>(Val.get());
+      break;
+    case OpCode::F64__sqrt:
+      Status = runFSqrtOp<double>(Val.get());
+      break;
+    default:
+      Status = ErrCode::InstructionTypeMismatch;
+      break;
+    }
   } else if (isBinaryNumericOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val1, Val2;
     StackMgr.pop(Val2);

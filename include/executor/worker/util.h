@@ -1,5 +1,6 @@
 #include "ast/instruction.h"
 #include "executor/entry/value.h"
+#include "support/casting.h"
 
 namespace SSVM {
 namespace Executor {
@@ -10,7 +11,19 @@ using OpCode = AST::Instruction::OpCode;
 
 } // namespace
 
-template <typename T> inline T retrieveValue(const ValueEntry &Val) {
+/// Retrieve value and casting to signed.
+template <typename T>
+inline typename std::enable_if_t<Support::IsWasmSign<T>::value, T>
+retrieveValue(const ValueEntry &Val) {
+  std::make_unsigned_t<T> Value;
+  Val.getValue(Value);
+  return Support::toSigned(Value);
+}
+
+/// Retrieve value with original type.
+template <typename T>
+inline typename std::enable_if_t<Support::IsWasmBuiltIn<T>::value, T>
+retrieveValue(const ValueEntry &Val) {
   T Value;
   Val.getValue(Value);
   return Value;

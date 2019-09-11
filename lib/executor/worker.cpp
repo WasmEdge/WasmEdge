@@ -306,100 +306,100 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
 
     switch (Opcode) {
     case OpCode::I32__eq:
-      Status = runTEqOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runEqOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__ne:
-      Status = runTNeOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runNeOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__lt_s:
-      Status = runILtSOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runLtOp<int32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__lt_u:
-      Status = runILtUOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runLtOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__gt_s:
-      Status = runIGtSOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runGtOp<int32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__gt_u:
-      Status = runIGtUOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runGtOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__le_s:
-      Status = runILeSOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runLeOp<int32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__le_u:
-      Status = runILeUOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runLeOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__ge_s:
-      Status = runIGeSOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runGeOp<int32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__ge_u:
-      Status = runIGeUOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runGeOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__eq:
-      Status = runTEqOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runEqOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__ne:
-      Status = runTNeOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runNeOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__lt_s:
-      Status = runILtSOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runLtOp<int64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__lt_u:
-      Status = runILtUOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runLtOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__gt_s:
-      Status = runIGtSOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runGtOp<int64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__gt_u:
-      Status = runIGtUOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runGtOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__le_s:
-      Status = runILeSOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runLeOp<int64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__le_u:
-      Status = runILeUOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runLeOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__ge_s:
-      Status = runIGeSOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runGeOp<int64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__ge_u:
-      Status = runIGeUOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runGeOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__eq:
-      Status = runTEqOp<float>(Val1.get(), Val2.get());
+      Status = runEqOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__ne:
-      Status = runTNeOp<float>(Val1.get(), Val2.get());
+      Status = runNeOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__lt:
-      Status = runFLtOp<float>(Val1.get(), Val2.get());
+      Status = runLtOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__gt:
-      Status = runFGtOp<float>(Val1.get(), Val2.get());
+      Status = runGtOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__le:
-      Status = runFLeOp<float>(Val1.get(), Val2.get());
+      Status = runLeOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__ge:
-      Status = runFGeOp<float>(Val1.get(), Val2.get());
+      Status = runGeOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__eq:
-      Status = runTEqOp<double>(Val1.get(), Val2.get());
+      Status = runEqOp<double>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__ne:
-      Status = runTNeOp<double>(Val1.get(), Val2.get());
+      Status = runNeOp<double>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__lt:
-      Status = runFLtOp<double>(Val1.get(), Val2.get());
+      Status = runLtOp<double>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__gt:
-      Status = runFGtOp<double>(Val1.get(), Val2.get());
+      Status = runGtOp<double>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__le:
-      Status = runFLeOp<double>(Val1.get(), Val2.get());
+      Status = runLeOp<double>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__ge:
-      Status = runFGeOp<double>(Val1.get(), Val2.get());
+      Status = runGeOp<double>(Val1.get(), Val2.get());
       break;
     default:
       Status = ErrCode::InstructionTypeMismatch;

@@ -13,14 +13,36 @@
 namespace SSVM {
 namespace Executor {
 
+namespace {
+
+/// Type name aliasing
+using Byte = uint8_t;
+using Bytes = std::vector<Byte>;
+using InstrVec = std::vector<std::unique_ptr<AST::Instruction>>;
+using InstrIter = InstrVec::const_iterator;
+
+/// Template return type aliasing
+/// Accept unsigned integer types. (uint32_t, uint64_t)
+template <typename T, typename TR>
+using TypeU = typename std::enable_if_t<Support::IsWasmUnsign<T>::value, TR>;
+/// Accept integer types. (uint32_t, int32_t, uint64_t, int64_t)
+template <typename T, typename TR>
+using TypeI = typename std::enable_if_t<Support::IsWasmInt<T>::value, TR>;
+/// Accept floating types. (float, double)
+template <typename T, typename TR>
+using TypeF = typename std::enable_if_t<Support::IsWasmFloat<T>::value, TR>;
+/// Accept all types. (uint32_t, int32_t, uint64_t, int64_t, float, double)
+template <typename T, typename TR>
+using TypeT = typename std::enable_if_t<Support::IsWasmType<T>::value, TR>;
+/// Accept Wasm built-in types. (uint32_t, uint64_t, float, double)
+template <typename T, typename TR>
+using TypeB = typename std::enable_if_t<Support::IsWasmBuiltIn<T>::value, TR>;
+
+} // namespace
+
 class Worker {
 
 public:
-  using Byte = uint8_t;
-  using Bytes = std::vector<Byte>;
-  using InstrVec = std::vector<std::unique_ptr<AST::Instruction>>;
-  using InstrIter = InstrVec::const_iterator;
-
   enum class State : unsigned char {
     Inited = 0,  /// Default State
     CodeSet,     /// Code set and ready for running
@@ -116,35 +138,19 @@ private:
   template <typename T> ErrCode runLoadOp(AST::MemoryInstruction *InstrPtr);
   template <typename T> ErrCode runStoreOp(AST::MemoryInstruction *InstrPtr);
   /// ======= Test and Relation Numeric =======
-  template <typename T> ErrCode runEqzOp(const ValueEntry *Val);
+  template <typename T> TypeU<T, ErrCode> runEqzOp(const ValueEntry *Val);
   template <typename T>
-  ErrCode runTEqOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeT<T, ErrCode> runEqOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runTNeOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeT<T, ErrCode> runNeOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runILtSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeT<T, ErrCode> runLtOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runILtUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeT<T, ErrCode> runGtOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runFLtOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeT<T, ErrCode> runLeOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runIGtSOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runIGtUOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runFGtOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runILeSOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runILeUOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runFLeOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runIGeSOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runIGeUOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runFGeOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeT<T, ErrCode> runGeOp(const ValueEntry *Val1, const ValueEntry *Val2);
   /// ======= Unary Numeric =======
   template <typename T> ErrCode runIClzOp(const ValueEntry *Val);
   template <typename T> ErrCode runICtzOp(const ValueEntry *Val);

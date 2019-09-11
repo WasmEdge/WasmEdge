@@ -623,61 +623,61 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
       Status = runWrapOp<uint64_t, uint32_t>(Val.get());
       break;
     case OpCode::I32__trunc_f32_s:
-      Status = runTruncSOp<float, uint32_t>(Val.get());
+      Status = runTruncateOp<float, int32_t>(Val.get());
       break;
     case OpCode::I32__trunc_f32_u:
-      Status = runTruncUOp<float, uint32_t>(Val.get());
+      Status = runTruncateOp<float, uint32_t>(Val.get());
       break;
     case OpCode::I32__trunc_f64_s:
-      Status = runTruncSOp<double, uint32_t>(Val.get());
+      Status = runTruncateOp<double, int32_t>(Val.get());
       break;
     case OpCode::I32__trunc_f64_u:
-      Status = runTruncUOp<double, uint32_t>(Val.get());
+      Status = runTruncateOp<double, uint32_t>(Val.get());
       break;
     case OpCode::I64__extend_i32_s:
-      Status = runExtendSOp<uint32_t, uint64_t>(Val.get());
+      Status = runExtendOp<int32_t, uint64_t>(Val.get());
       break;
     case OpCode::I64__extend_i32_u:
-      Status = runExtendUOp<uint32_t, uint64_t>(Val.get());
+      Status = runExtendOp<uint32_t, uint64_t>(Val.get());
       break;
     case OpCode::I64__trunc_f32_s:
-      Status = runTruncSOp<float, uint64_t>(Val.get());
+      Status = runTruncateOp<float, int64_t>(Val.get());
       break;
     case OpCode::I64__trunc_f32_u:
-      Status = runTruncUOp<float, uint64_t>(Val.get());
+      Status = runTruncateOp<float, uint64_t>(Val.get());
       break;
     case OpCode::I64__trunc_f64_s:
-      Status = runTruncSOp<double, uint64_t>(Val.get());
+      Status = runTruncateOp<double, int64_t>(Val.get());
       break;
     case OpCode::I64__trunc_f64_u:
-      Status = runTruncUOp<double, uint64_t>(Val.get());
+      Status = runTruncateOp<double, uint64_t>(Val.get());
       break;
     case OpCode::F32__convert_i32_s:
-      Status = runConvertSOp<uint32_t, float>(Val.get());
+      Status = runConvertOp<int32_t, float>(Val.get());
       break;
     case OpCode::F32__convert_i32_u:
-      Status = runConvertUOp<uint32_t, float>(Val.get());
+      Status = runConvertOp<uint32_t, float>(Val.get());
       break;
     case OpCode::F32__convert_i64_s:
-      Status = runConvertSOp<uint64_t, float>(Val.get());
+      Status = runConvertOp<int64_t, float>(Val.get());
       break;
     case OpCode::F32__convert_i64_u:
-      Status = runConvertUOp<uint64_t, float>(Val.get());
+      Status = runConvertOp<uint64_t, float>(Val.get());
       break;
     case OpCode::F32__demote_f64:
       Status = runDemoteOp<double, float>(Val.get());
       break;
     case OpCode::F64__convert_i32_s:
-      Status = runConvertSOp<uint32_t, double>(Val.get());
+      Status = runConvertOp<int32_t, double>(Val.get());
       break;
     case OpCode::F64__convert_i32_u:
-      Status = runConvertUOp<uint32_t, double>(Val.get());
+      Status = runConvertOp<uint32_t, double>(Val.get());
       break;
     case OpCode::F64__convert_i64_s:
-      Status = runConvertSOp<uint64_t, double>(Val.get());
+      Status = runConvertOp<int64_t, double>(Val.get());
       break;
     case OpCode::F64__convert_i64_u:
-      Status = runConvertUOp<uint64_t, double>(Val.get());
+      Status = runConvertOp<uint64_t, double>(Val.get());
       break;
     case OpCode::F64__promote_f32:
       Status = runPromoteOp<float, double>(Val.get());

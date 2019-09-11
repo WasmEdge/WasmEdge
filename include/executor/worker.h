@@ -38,6 +38,34 @@ using TypeT = typename std::enable_if_t<Support::IsWasmType<T>::value, TR>;
 template <typename T, typename TR>
 using TypeB = typename std::enable_if_t<Support::IsWasmBuiltIn<T>::value, TR>;
 
+/// Accept (unsigned integer types, unsigned integer types).
+template <typename T1, typename T2, typename TR>
+using TypeUU = typename std::enable_if_t<
+    Support::IsWasmUnsign<T1>::value && Support::IsWasmUnsign<T2>::value, TR>;
+/// Accept (integer types, unsigned integer types).
+template <typename T1, typename T2, typename TR>
+using TypeIU = typename std::enable_if_t<
+    Support::IsWasmInt<T1>::value && Support::IsWasmUnsign<T2>::value, TR>;
+/// Accept (floating types, floating types).
+template <typename T1, typename T2, typename TR>
+using TypeFF = typename std::enable_if_t<
+    Support::IsWasmFloat<T1>::value && Support::IsWasmFloat<T2>::value, TR>;
+/// Accept (integer types, floating types).
+template <typename T1, typename T2, typename TR>
+using TypeIF = typename std::enable_if_t<
+    Support::IsWasmInt<T1>::value && Support::IsWasmFloat<T2>::value, TR>;
+/// Accept (floating types, integer types).
+template <typename T1, typename T2, typename TR>
+using TypeFI = typename std::enable_if_t<
+    Support::IsWasmFloat<T1>::value && Support::IsWasmInt<T2>::value, TR>;
+/// Accept (Wasm built-in types, Wasm built-in types).
+template <typename T1, typename T2, typename TR>
+using TypeBB =
+    typename std::enable_if_t<Support::IsWasmBuiltIn<T1>::value &&
+                                  Support::IsWasmBuiltIn<T2>::value &&
+                                  sizeof(T1) == sizeof(T2),
+                              TR>;
+
 } // namespace
 
 class Worker {
@@ -196,25 +224,19 @@ private:
                                   const ValueEntry *Val2);
   /// ======= Cast Numeric =======
   template <typename TIn, typename TOut>
-  ErrCode runWrapOp(const ValueEntry *Val);
+  TypeUU<TIn, TOut, ErrCode> runWrapOp(const ValueEntry *Val);
   template <typename TIn, typename TOut>
-  ErrCode runTruncSOp(const ValueEntry *Val);
+  TypeFI<TIn, TOut, ErrCode> runTruncateOp(const ValueEntry *Val);
   template <typename TIn, typename TOut>
-  ErrCode runTruncUOp(const ValueEntry *Val);
+  TypeIU<TIn, TOut, ErrCode> runExtendOp(const ValueEntry *Val);
   template <typename TIn, typename TOut>
-  ErrCode runExtendSOp(const ValueEntry *Val);
+  TypeIF<TIn, TOut, ErrCode> runConvertOp(const ValueEntry *Val);
   template <typename TIn, typename TOut>
-  ErrCode runExtendUOp(const ValueEntry *Val);
+  TypeFF<TIn, TOut, ErrCode> runDemoteOp(const ValueEntry *Val);
   template <typename TIn, typename TOut>
-  ErrCode runConvertSOp(const ValueEntry *Val);
+  TypeFF<TIn, TOut, ErrCode> runPromoteOp(const ValueEntry *Val);
   template <typename TIn, typename TOut>
-  ErrCode runConvertUOp(const ValueEntry *Val);
-  template <typename TIn, typename TOut>
-  ErrCode runDemoteOp(const ValueEntry *Val);
-  template <typename TIn, typename TOut>
-  ErrCode runPromoteOp(const ValueEntry *Val);
-  template <typename TIn, typename TOut>
-  ErrCode runReinterpretOp(const ValueEntry *Val);
+  TypeBB<TIn, TOut, ErrCode> runReinterpretOp(const ValueEntry *Val);
 
   /// Reference to Executor's Store
   StoreManager &StoreMgr;

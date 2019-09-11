@@ -164,43 +164,36 @@ private:
   template <typename T> TypeF<T, ErrCode> runSqrtOp(const ValueEntry *Val);
   /// ======= Binary Numeric =======
   template <typename T>
-  ErrCode runTAddOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeB<T, ErrCode> runAddOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runTSubOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeB<T, ErrCode> runSubOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runTMulOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeB<T, ErrCode> runMulOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runIDivSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeT<T, ErrCode> runDivOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runIDivUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeI<T, ErrCode> runRemOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runFDivOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeU<T, ErrCode> runAndOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runIRemSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeU<T, ErrCode> runOrOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runIRemUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeU<T, ErrCode> runXorOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runIAndOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeU<T, ErrCode> runShlOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runIOrOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeI<T, ErrCode> runShrOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runIXorOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeU<T, ErrCode> runRotlOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runIShlOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeU<T, ErrCode> runRotrOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runIShrSOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeF<T, ErrCode> runMinOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runIShrUOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeF<T, ErrCode> runMaxOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runIRotlOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runIRotrOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runFMinOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runFMaxOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runFCopysignOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  TypeF<T, ErrCode> runCopysignOp(const ValueEntry *Val1,
+                                  const ValueEntry *Val2);
   /// ======= Cast Numeric =======
   template <typename TIn, typename TOut>
   ErrCode runWrapOp(const ValueEntry *Val);

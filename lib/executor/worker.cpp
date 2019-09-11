@@ -479,136 +479,136 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
 
     switch (Opcode) {
     case OpCode::I32__add:
-      Status = runTAddOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runAddOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__sub:
-      Status = runTSubOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runSubOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__mul:
-      Status = runTMulOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runMulOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__div_s:
-      Status = runIDivSOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runDivOp<int32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__div_u:
-      Status = runIDivUOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runDivOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__rem_s:
-      Status = runIRemSOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runRemOp<int32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__rem_u:
-      Status = runIRemUOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runRemOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__and:
-      Status = runIAndOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runAndOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__or:
-      Status = runIOrOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runOrOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__xor:
-      Status = runIXorOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runXorOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__shl:
-      Status = runIShlOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runShlOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__shr_s:
-      Status = runIShrSOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runShrOp<int32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__shr_u:
-      Status = runIShrUOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runShrOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__rotl:
-      Status = runIRotlOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runRotlOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__rotr:
-      Status = runIRotrOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runRotrOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__add:
-      Status = runTAddOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runAddOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__sub:
-      Status = runTSubOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runSubOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__mul:
-      Status = runTMulOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runMulOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__div_s:
-      Status = runIDivSOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runDivOp<int64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__div_u:
-      Status = runIDivUOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runDivOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__rem_s:
-      Status = runIRemSOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runRemOp<int64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__rem_u:
-      Status = runIRemUOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runRemOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__and:
-      Status = runIAndOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runAndOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__or:
-      Status = runIOrOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runOrOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__xor:
-      Status = runIXorOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runXorOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__shl:
-      Status = runIShlOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runShlOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__shr_s:
-      Status = runIShrSOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runShrOp<int64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__shr_u:
-      Status = runIShrUOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runShrOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__rotl:
-      Status = runIRotlOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runRotlOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__rotr:
-      Status = runIRotrOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runRotrOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__add:
-      Status = runTAddOp<float>(Val1.get(), Val2.get());
+      Status = runAddOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__sub:
-      Status = runTSubOp<float>(Val1.get(), Val2.get());
+      Status = runSubOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__mul:
-      Status = runTMulOp<float>(Val1.get(), Val2.get());
+      Status = runMulOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__div:
-      Status = runFDivOp<float>(Val1.get(), Val2.get());
+      Status = runDivOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__min:
-      Status = runFMinOp<float>(Val1.get(), Val2.get());
+      Status = runMinOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__max:
-      Status = runFMaxOp<float>(Val1.get(), Val2.get());
+      Status = runMaxOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__copysign:
-      Status = runFCopysignOp<float>(Val1.get(), Val2.get());
+      Status = runCopysignOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__add:
-      Status = runTAddOp<double>(Val1.get(), Val2.get());
+      Status = runAddOp<double>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__sub:
-      Status = runTSubOp<double>(Val1.get(), Val2.get());
+      Status = runSubOp<double>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__mul:
-      Status = runTMulOp<double>(Val1.get(), Val2.get());
+      Status = runMulOp<double>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__div:
-      Status = runFDivOp<double>(Val1.get(), Val2.get());
+      Status = runDivOp<double>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__min:
-      Status = runFMinOp<double>(Val1.get(), Val2.get());
+      Status = runMinOp<double>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__max:
-      Status = runFMaxOp<double>(Val1.get(), Val2.get());
+      Status = runMaxOp<double>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__copysign:
-      Status = runFCopysignOp<double>(Val1.get(), Val2.get());
+      Status = runCopysignOp<double>(Val1.get(), Val2.get());
       break;
     default:
       Status = ErrCode::InstructionTypeMismatch;

@@ -27,6 +27,7 @@ enum class ErrCode : unsigned int {
   WrongLocalAddress,       /// Wrong access of local variable
   InstructionTypeMismatch, /// Instruction type not match
   DivideByZero,            /// Divide by zero
+  FloatPointException,     /// Floating point exception
   Unimplemented,           /// Instruction is unimplemented
   AccessForbidMemory,      /// Access the forbid memory section
   SliceDataFailed,         /// Fail to get slice from memory.data

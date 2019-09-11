@@ -152,16 +152,16 @@ private:
   template <typename T>
   TypeT<T, ErrCode> runGeOp(const ValueEntry *Val1, const ValueEntry *Val2);
   /// ======= Unary Numeric =======
-  template <typename T> ErrCode runIClzOp(const ValueEntry *Val);
-  template <typename T> ErrCode runICtzOp(const ValueEntry *Val);
-  template <typename T> ErrCode runIPopcntOp(const ValueEntry *Val);
-  template <typename T> ErrCode runFAbsOp(const ValueEntry *Val);
-  template <typename T> ErrCode runFNegOp(const ValueEntry *Val);
-  template <typename T> ErrCode runFCeilOp(const ValueEntry *Val);
-  template <typename T> ErrCode runFFloorOp(const ValueEntry *Val);
-  template <typename T> ErrCode runFTruncOp(const ValueEntry *Val);
-  template <typename T> ErrCode runFNearestOp(const ValueEntry *Val);
-  template <typename T> ErrCode runFSqrtOp(const ValueEntry *Val);
+  template <typename T> TypeU<T, ErrCode> runClzOp(const ValueEntry *Val);
+  template <typename T> TypeU<T, ErrCode> runCtzOp(const ValueEntry *Val);
+  template <typename T> TypeU<T, ErrCode> runPopcntOp(const ValueEntry *Val);
+  template <typename T> TypeF<T, ErrCode> runAbsOp(const ValueEntry *Val);
+  template <typename T> TypeF<T, ErrCode> runNegOp(const ValueEntry *Val);
+  template <typename T> TypeF<T, ErrCode> runCeilOp(const ValueEntry *Val);
+  template <typename T> TypeF<T, ErrCode> runFloorOp(const ValueEntry *Val);
+  template <typename T> TypeF<T, ErrCode> runTruncOp(const ValueEntry *Val);
+  template <typename T> TypeF<T, ErrCode> runNearestOp(const ValueEntry *Val);
+  template <typename T> TypeF<T, ErrCode> runSqrtOp(const ValueEntry *Val);
   /// ======= Binary Numeric =======
   template <typename T>
   ErrCode runTAddOp(const ValueEntry *Val1, const ValueEntry *Val2);

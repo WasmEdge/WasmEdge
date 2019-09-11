@@ -411,58 +411,58 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
 
     switch (Opcode) {
     case OpCode::I32__clz:
-      Status = runIClzOp<uint32_t>(Val.get());
+      Status = runClzOp<uint32_t>(Val.get());
       break;
     case OpCode::I32__ctz:
-      Status = runICtzOp<uint32_t>(Val.get());
+      Status = runCtzOp<uint32_t>(Val.get());
       break;
     case OpCode::I32__popcnt:
-      Status = runIPopcntOp<uint32_t>(Val.get());
+      Status = runPopcntOp<uint32_t>(Val.get());
       break;
     case OpCode::I64__clz:
-      Status = runIClzOp<uint64_t>(Val.get());
+      Status = runClzOp<uint64_t>(Val.get());
       break;
     case OpCode::I64__ctz:
-      Status = runICtzOp<uint64_t>(Val.get());
+      Status = runCtzOp<uint64_t>(Val.get());
       break;
     case OpCode::I64__popcnt:
-      Status = runIPopcntOp<uint64_t>(Val.get());
+      Status = runPopcntOp<uint64_t>(Val.get());
       break;
     case OpCode::F32__abs:
-      Status = runFAbsOp<float>(Val.get());
+      Status = runAbsOp<float>(Val.get());
       break;
     case OpCode::F32__neg:
-      Status = runFNegOp<float>(Val.get());
+      Status = runNegOp<float>(Val.get());
       break;
     case OpCode::F32__ceil:
-      Status = runFCeilOp<float>(Val.get());
+      Status = runCeilOp<float>(Val.get());
       break;
     case OpCode::F32__floor:
-      Status = runFFloorOp<float>(Val.get());
+      Status = runFloorOp<float>(Val.get());
       break;
     case OpCode::F32__nearest:
-      Status = runFNearestOp<float>(Val.get());
+      Status = runNearestOp<float>(Val.get());
       break;
     case OpCode::F32__sqrt:
-      Status = runFSqrtOp<float>(Val.get());
+      Status = runSqrtOp<float>(Val.get());
       break;
     case OpCode::F64__abs:
-      Status = runFAbsOp<double>(Val.get());
+      Status = runAbsOp<double>(Val.get());
       break;
     case OpCode::F64__neg:
-      Status = runFNegOp<double>(Val.get());
+      Status = runNegOp<double>(Val.get());
       break;
     case OpCode::F64__ceil:
-      Status = runFCeilOp<double>(Val.get());
+      Status = runCeilOp<double>(Val.get());
       break;
     case OpCode::F64__floor:
-      Status = runFFloorOp<double>(Val.get());
+      Status = runFloorOp<double>(Val.get());
       break;
     case OpCode::F64__nearest:
-      Status = runFNearestOp<double>(Val.get());
+      Status = runNearestOp<double>(Val.get());
       break;
     case OpCode::F64__sqrt:
-      Status = runFSqrtOp<double>(Val.get());
+      Status = runSqrtOp<double>(Val.get());
       break;
     default:
       Status = ErrCode::InstructionTypeMismatch;

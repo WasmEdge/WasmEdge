@@ -7,7 +7,8 @@
 namespace SSVM {
 namespace Executor {
 
-template <typename T> ErrCode Worker::runIClzOp(const ValueEntry *Val) {
+template <typename T>
+TypeU<T, ErrCode> Worker::runClzOp(const ValueEntry *Val) {
   T I = retrieveValue<T>(*Val);
   /// Return the count of leading zero bits in i.
   if (I == 0U) {
@@ -22,7 +23,8 @@ template <typename T> ErrCode Worker::runIClzOp(const ValueEntry *Val) {
   return StackMgr.pushValue(Cnt);
 }
 
-template <typename T> ErrCode Worker::runICtzOp(const ValueEntry *Val) {
+template <typename T>
+TypeU<T, ErrCode> Worker::runCtzOp(const ValueEntry *Val) {
   T I = retrieveValue<T>(*Val);
   /// Return the count of trailing zero bits in i.
   if (I == 0U) {
@@ -37,7 +39,8 @@ template <typename T> ErrCode Worker::runICtzOp(const ValueEntry *Val) {
   return StackMgr.pushValue(Cnt);
 }
 
-template <typename T> ErrCode Worker::runIPopcntOp(const ValueEntry *Val) {
+template <typename T>
+TypeU<T, ErrCode> Worker::runPopcntOp(const ValueEntry *Val) {
   T I = retrieveValue<T>(*Val);
   /// Return the count of non-zero bits in i.
   if (I == 0U) {
@@ -54,31 +57,38 @@ template <typename T> ErrCode Worker::runIPopcntOp(const ValueEntry *Val) {
   return StackMgr.pushValue(Cnt);
 }
 
-template <typename T> ErrCode Worker::runFAbsOp(const ValueEntry *Val) {
+template <typename T>
+TypeF<T, ErrCode> Worker::runAbsOp(const ValueEntry *Val) {
   return StackMgr.pushValue(std::fabs(retrieveValue<T>(*Val)));
 }
 
-template <typename T> ErrCode Worker::runFNegOp(const ValueEntry *Val) {
+template <typename T>
+TypeF<T, ErrCode> Worker::runNegOp(const ValueEntry *Val) {
   return StackMgr.pushValue(-retrieveValue<T>(*Val));
 }
 
-template <typename T> ErrCode Worker::runFCeilOp(const ValueEntry *Val) {
+template <typename T>
+TypeF<T, ErrCode> Worker::runCeilOp(const ValueEntry *Val) {
   return StackMgr.pushValue(std::ceil(retrieveValue<T>(*Val)));
 }
 
-template <typename T> ErrCode Worker::runFFloorOp(const ValueEntry *Val) {
+template <typename T>
+TypeF<T, ErrCode> Worker::runFloorOp(const ValueEntry *Val) {
   return StackMgr.pushValue(std::floor(retrieveValue<T>(*Val)));
 }
 
-template <typename T> ErrCode Worker::runFTruncOp(const ValueEntry *Val) {
+template <typename T>
+TypeF<T, ErrCode> Worker::runTruncOp(const ValueEntry *Val) {
   return StackMgr.pushValue(std::trunc(retrieveValue<T>(*Val)));
 }
 
-template <typename T> ErrCode Worker::runFNearestOp(const ValueEntry *Val) {
+template <typename T>
+TypeF<T, ErrCode> Worker::runNearestOp(const ValueEntry *Val) {
   return StackMgr.pushValue(std::nearbyint(retrieveValue<T>(*Val)));
 }
 
-template <typename T> ErrCode Worker::runFSqrtOp(const ValueEntry *Val) {
+template <typename T>
+TypeF<T, ErrCode> Worker::runSqrtOp(const ValueEntry *Val) {
   return StackMgr.pushValue(std::sqrt(retrieveValue<T>(*Val)));
 }
 

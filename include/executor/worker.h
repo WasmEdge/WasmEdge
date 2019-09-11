@@ -118,13 +118,9 @@ private:
   /// ======= Test and Relation Numeric =======
   template <typename T> ErrCode runEqzOp(const ValueEntry *Val);
   template <typename T>
-  ErrCode runIEqOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runTEqOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
-  ErrCode runFEqOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runINeOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  template <typename T>
-  ErrCode runFNeOp(const ValueEntry *Val1, const ValueEntry *Val2);
+  ErrCode runTNeOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
   ErrCode runILtSOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>

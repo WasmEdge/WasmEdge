@@ -306,10 +306,10 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
 
     switch (Opcode) {
     case OpCode::I32__eq:
-      Status = runIEqOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runTEqOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__ne:
-      Status = runINeOp<uint32_t>(Val1.get(), Val2.get());
+      Status = runTNeOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I32__lt_s:
       Status = runILtSOp<uint32_t>(Val1.get(), Val2.get());
@@ -336,10 +336,10 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
       Status = runIGeUOp<uint32_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__eq:
-      Status = runIEqOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runTEqOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__ne:
-      Status = runINeOp<uint64_t>(Val1.get(), Val2.get());
+      Status = runTNeOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::I64__lt_s:
       Status = runILtSOp<uint64_t>(Val1.get(), Val2.get());
@@ -366,10 +366,10 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
       Status = runIGeUOp<uint64_t>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__eq:
-      Status = runFEqOp<float>(Val1.get(), Val2.get());
+      Status = runTEqOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__ne:
-      Status = runFNeOp<float>(Val1.get(), Val2.get());
+      Status = runTNeOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F32__lt:
       Status = runFLtOp<float>(Val1.get(), Val2.get());
@@ -384,10 +384,10 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
       Status = runFGeOp<float>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__eq:
-      Status = runFEqOp<double>(Val1.get(), Val2.get());
+      Status = runTEqOp<double>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__ne:
-      Status = runFNeOp<double>(Val1.get(), Val2.get());
+      Status = runTNeOp<double>(Val1.get(), Val2.get());
       break;
     case OpCode::F64__lt:
       Status = runFLtOp<double>(Val1.get(), Val2.get());

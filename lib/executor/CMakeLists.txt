@@ -16,5 +16,6 @@ add_library(ssvmExecutor
   worker/relation_numeric.cpp
   worker/unary_numeric.cpp
   worker/binary_numeric.cpp
+  worker/cast_numeric.cpp
   worker/provider.cpp
 )

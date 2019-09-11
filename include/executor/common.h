@@ -28,6 +28,7 @@ enum class ErrCode : unsigned int {
   InstructionTypeMismatch, /// Instruction type not match
   DivideByZero,            /// Divide by zero
   FloatPointException,     /// Floating point exception
+  CastingError,            /// Cannot do type casting
   Unimplemented,           /// Instruction is unimplemented
   AccessForbidMemory,      /// Access the forbid memory section
   SliceDataFailed,         /// Fail to get slice from memory.data

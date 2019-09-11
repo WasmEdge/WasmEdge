@@ -195,17 +195,27 @@ private:
   ErrCode runFMaxOp(const ValueEntry *Val1, const ValueEntry *Val2);
   template <typename T>
   ErrCode runFCopysignOp(const ValueEntry *Val1, const ValueEntry *Val2);
-  /// ======= Casting Numeric =======
-  template <typename T> ErrCode runWrapOp(const ValueEntry *Val);
-  template <typename T> ErrCode runTruncSOp(const ValueEntry *Val);
-  template <typename T> ErrCode runTruncUOp(const ValueEntry *Val);
-  template <typename T> ErrCode runExtendSOp(const ValueEntry *Val);
-  template <typename T> ErrCode runExtendUOp(const ValueEntry *Val);
-  template <typename T> ErrCode runConvertSOp(const ValueEntry *Val);
-  template <typename T> ErrCode runConvertUOp(const ValueEntry *Val);
-  template <typename T> ErrCode runDemoteOp(const ValueEntry *Val);
-  template <typename T> ErrCode runPromoteOp(const ValueEntry *Val);
-  template <typename T> ErrCode runReinterpretOp(const ValueEntry *Val);
+  /// ======= Cast Numeric =======
+  template <typename TIn, typename TOut>
+  ErrCode runWrapOp(const ValueEntry *Val);
+  template <typename TIn, typename TOut>
+  ErrCode runTruncSOp(const ValueEntry *Val);
+  template <typename TIn, typename TOut>
+  ErrCode runTruncUOp(const ValueEntry *Val);
+  template <typename TIn, typename TOut>
+  ErrCode runExtendSOp(const ValueEntry *Val);
+  template <typename TIn, typename TOut>
+  ErrCode runExtendUOp(const ValueEntry *Val);
+  template <typename TIn, typename TOut>
+  ErrCode runConvertSOp(const ValueEntry *Val);
+  template <typename TIn, typename TOut>
+  ErrCode runConvertUOp(const ValueEntry *Val);
+  template <typename TIn, typename TOut>
+  ErrCode runDemoteOp(const ValueEntry *Val);
+  template <typename TIn, typename TOut>
+  ErrCode runPromoteOp(const ValueEntry *Val);
+  template <typename TIn, typename TOut>
+  ErrCode runReinterpretOp(const ValueEntry *Val);
 
   /// Reference to Executor's Store
   StoreManager &StoreMgr;

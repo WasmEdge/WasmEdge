@@ -273,13 +273,13 @@ ErrCode Worker::runConstNumericOp(AST::Instruction *InstrPtr) {
 }
 
 ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
-  auto TheInstrPtr = dynamic_cast<AST::NumericInstruction *>(InstrPtr);
-  if (TheInstrPtr == nullptr) {
+  auto NumericInstr = dynamic_cast<AST::NumericInstruction *>(InstrPtr);
+  if (NumericInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
-  auto Opcode = TheInstrPtr->getOpCode();
-  auto Status = ErrCode::Success;
+  auto Opcode = NumericInstr->getOpCode();
+  ErrCode Status = ErrCode::Success;
   if (isTestNumericOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val;
     StackMgr.pop(Val);
@@ -614,8 +614,92 @@ ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
       Status = ErrCode::InstructionTypeMismatch;
       break;
     }
+  } else if (isCastNumericOp(Opcode)) {
+    std::unique_ptr<ValueEntry> Val;
+    StackMgr.pop(Val);
+
+    switch (Opcode) {
+    case OpCode::I32__wrap_i64:
+      Status = runWrapOp<uint64_t, uint32_t>(Val.get());
+      break;
+    case OpCode::I32__trunc_f32_s:
+      Status = runTruncSOp<float, uint32_t>(Val.get());
+      break;
+    case OpCode::I32__trunc_f32_u:
+      Status = runTruncUOp<float, uint32_t>(Val.get());
+      break;
+    case OpCode::I32__trunc_f64_s:
+      Status = runTruncSOp<double, uint32_t>(Val.get());
+      break;
+    case OpCode::I32__trunc_f64_u:
+      Status = runTruncUOp<double, uint32_t>(Val.get());
+      break;
+    case OpCode::I64__extend_i32_s:
+      Status = runExtendSOp<uint32_t, uint64_t>(Val.get());
+      break;
+    case OpCode::I64__extend_i32_u:
+      Status = runExtendUOp<uint32_t, uint64_t>(Val.get());
+      break;
+    case OpCode::I64__trunc_f32_s:
+      Status = runTruncSOp<float, uint64_t>(Val.get());
+      break;
+    case OpCode::I64__trunc_f32_u:
+      Status = runTruncUOp<float, uint64_t>(Val.get());
+      break;
+    case OpCode::I64__trunc_f64_s:
+      Status = runTruncSOp<double, uint64_t>(Val.get());
+      break;
+    case OpCode::I64__trunc_f64_u:
+      Status = runTruncUOp<double, uint64_t>(Val.get());
+      break;
+    case OpCode::F32__convert_i32_s:
+      Status = runConvertSOp<uint32_t, float>(Val.get());
+      break;
+    case OpCode::F32__convert_i32_u:
+      Status = runConvertUOp<uint32_t, float>(Val.get());
+      break;
+    case OpCode::F32__convert_i64_s:
+      Status = runConvertSOp<uint64_t, float>(Val.get());
+      break;
+    case OpCode::F32__convert_i64_u:
+      Status = runConvertUOp<uint64_t, float>(Val.get());
+      break;
+    case OpCode::F32__demote_f64:
+      Status = runDemoteOp<double, float>(Val.get());
+      break;
+    case OpCode::F64__convert_i32_s:
+      Status = runConvertSOp<uint32_t, double>(Val.get());
+      break;
+    case OpCode::F64__convert_i32_u:
+      Status = runConvertUOp<uint32_t, double>(Val.get());
+      break;
+    case OpCode::F64__convert_i64_s:
+      Status = runConvertSOp<uint64_t, double>(Val.get());
+      break;
+    case OpCode::F64__convert_i64_u:
+      Status = runConvertUOp<uint64_t, double>(Val.get());
+      break;
+    case OpCode::F64__promote_f32:
+      Status = runPromoteOp<float, double>(Val.get());
+      break;
+    case OpCode::I32__reinterpret_f32:
+      Status = runReinterpretOp<float, uint32_t>(Val.get());
+      break;
+    case OpCode::I64__reinterpret_f64:
+      Status = runReinterpretOp<double, uint64_t>(Val.get());
+      break;
+    case OpCode::F32__reinterpret_i32:
+      Status = runReinterpretOp<uint32_t, float>(Val.get());
+      break;
+    case OpCode::F64__reinterpret_i64:
+      Status = runReinterpretOp<uint64_t, double>(Val.get());
+      break;
+    default:
+      Status = ErrCode::InstructionTypeMismatch;
+      break;
+    }
   } else {
-    Status = ErrCode::Unimplemented;
+    Status = ErrCode::InstructionTypeMismatch;
   }
   return Status;
 }

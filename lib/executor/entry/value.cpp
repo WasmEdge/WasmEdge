@@ -4,7 +4,7 @@ namespace SSVM {
 namespace Executor {
 
 /// Constructor of value entry. See "include/executor/entry/value.h".
-ValueEntry::ValueEntry(AST::ValType VT) {
+ValueEntry::ValueEntry(const AST::ValType &VT) {
   Type = VT;
   switch (Type) {
   case AST::ValType::I32:

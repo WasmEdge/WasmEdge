@@ -137,7 +137,8 @@ ErrCode Worker::runControlOp(AST::Instruction *InstrPtr) {
     Status = runCallOp(CtrlInstrPtr);
     break;
   case OpCode::Call_indirect:
-    // Status = runCallIndirectOp(CtrlInstrPtr);
+    // TODO: Status = runCallIndirectOp(CtrlInstrPtr);
+    Status = ErrCode::Unimplemented;
     break;
   default:
     Status = ErrCode::InstructionTypeMismatch;

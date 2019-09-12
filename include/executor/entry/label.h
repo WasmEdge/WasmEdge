@@ -28,7 +28,7 @@ public:
   /// \param Arity the return counts of this block.
   ///
   /// \returns None.
-  LabelEntry(unsigned int Arity) : Arity(Arity) {}
+  LabelEntry(const unsigned int Arity) : Arity(Arity) {}
 
   /// Constructor of initialization of a label.
   ///
@@ -38,12 +38,13 @@ public:
   /// \param Instr the branch target of this label.
   ///
   /// \returns None.
-  LabelEntry(unsigned int Arity, AST::Instruction *Instr) : Target(Instr) {}
+  LabelEntry(const unsigned int Arity, AST::Instruction *Instr)
+      : Target(Instr) {}
 
   ~LabelEntry() = default;
 
   /// Getter of arity.
-  unsigned int getArity() { return Arity; }
+  unsigned int getArity() const { return Arity; }
 
   /// Getter of control instruction for branch target.
   AST::Instruction *getTarget() { return Target; }

@@ -23,13 +23,14 @@ public:
   ~GlobalInstance() = default;
 
   /// Set the global type.
-  ErrCode setGlobalType(AST::ValType &ValueType, AST::ValMut &Mutibility);
+  ErrCode setGlobalType(const AST::ValType &ValueType,
+                        const AST::ValMut &Mutibility);
 
   /// Get the global type.
-  AST::ValType getValType() const { return Type;}
+  AST::ValType getValType() const { return Type; }
 
   /// Set the value of this instance.
-  template <typename T> ErrCode setValue(T Val);
+  template <typename T> ErrCode setValue(const T &Val);
 
   /// Get the value of this instance.
   template <typename T> ErrCode getValue(T &Val);

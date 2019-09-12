@@ -6,8 +6,8 @@ namespace Executor {
 namespace Instance {
 
 /// Setter of global type. See "include/executor/instance/global.h".
-ErrCode GlobalInstance::setGlobalType(AST::ValType &ValueType,
-                                      AST::ValMut &Mutibility) {
+ErrCode GlobalInstance::setGlobalType(const AST::ValType &ValueType,
+                                      const AST::ValMut &Mutibility) {
   Type = ValueType;
   Mut = Mutibility;
   return ErrCode::Success;
@@ -30,7 +30,7 @@ template <> ErrCode GlobalInstance::getValue(AST::ValVariant &Val) {
 }
 
 /// Setter of value. See "include/executor/instance/global.h".
-template <typename T> ErrCode GlobalInstance::setValue(T Val) {
+template <typename T> ErrCode GlobalInstance::setValue(const T &Val) {
   Executor::ErrCode Status = Executor::ErrCode::TypeNotMatch;
   switch (Type) {
   case AST::ValType::I32:
@@ -58,7 +58,7 @@ template <typename T> ErrCode GlobalInstance::setValue(T Val) {
 }
 
 template <>
-ErrCode GlobalInstance::setValue<AST::ValVariant &>(AST::ValVariant &Val) {
+ErrCode GlobalInstance::setValue<AST::ValVariant>(const AST::ValVariant &Val) {
   if (Val.index() != Value.index()) {
     return ErrCode::TypeNotMatch;
   }

@@ -13,7 +13,9 @@
 
 #include "ast/common.h"
 #include "loader/filemgr.h"
+
 #include <memory>
+#include <vector>
 
 namespace SSVM {
 namespace AST {

@@ -14,6 +14,9 @@
 #include "base.h"
 #include "section.h"
 
+#include <memory>
+#include <vector>
+
 namespace SSVM {
 namespace AST {
 

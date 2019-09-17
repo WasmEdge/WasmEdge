@@ -11,7 +11,9 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "executor/common.h"
 #include "type.h"
+
 #include <string>
 #include <variant>
 

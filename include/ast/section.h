@@ -13,10 +13,11 @@
 
 #include "base.h"
 #include "description.h"
-#include "executor/stackmgr.h"
-#include "executor/storemgr.h"
 #include "segment.h"
 #include "type.h"
+
+#include <memory>
+#include <vector>
 
 namespace SSVM {
 namespace AST {

@@ -12,9 +12,10 @@
 #pragma once
 
 #include "base.h"
-#include "executor/storemgr.h"
 #include "expression.h"
 #include "type.h"
+
+#include <memory>
 
 namespace SSVM {
 namespace AST {

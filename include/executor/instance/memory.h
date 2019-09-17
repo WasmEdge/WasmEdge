@@ -31,8 +31,11 @@ public:
   /// Set the memory limit.
   ErrCode setLimit(unsigned int Min, bool HasMax, unsigned int Max);
 
-  /// Get length of memory.data
-  unsigned int getDataLength() const { return Data.size(); }
+  /// Get page size of memory.data
+  unsigned int getDataPageSize() const { return CurrPage; }
+
+  /// Grow page
+  ErrCode growPage(unsigned int Count);
 
   /// Get slice of Data[Start : Start + Length - 1]
   ErrCode getBytes(Bytes &Slice, unsigned int Start, unsigned int Length);
@@ -81,6 +84,7 @@ private:
   bool HasMaxPage = false;
   unsigned int MinPage = 0;
   unsigned int MaxPage = 0;
+  unsigned int CurrPage = 0;
   Bytes Data;
   /// @}
 };

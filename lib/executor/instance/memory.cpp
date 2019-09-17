@@ -11,6 +11,16 @@ ErrCode MemoryInstance::setLimit(unsigned int Min, bool HasMax,
   HasMaxPage = HasMax;
   MinPage = Min;
   MaxPage = Max;
+  CurrPage = Min;
+  return ErrCode::Success;
+}
+
+/// Grow memory page. See "include/executor/instance/memory.h".
+ErrCode MemoryInstance::growPage(unsigned int Count) {
+  if ((HasMaxPage && Count + CurrPage > MaxPage) || Count + CurrPage > 65536) {
+    return ErrCode::MemorySizeExceeded;
+  }
+  CurrPage += Count;
   return ErrCode::Success;
 }
 

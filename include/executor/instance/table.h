@@ -27,7 +27,7 @@ public:
   ErrCode setElemType(AST::ElemType &Elem);
 
   /// Set the table limit.
-  ErrCode setLimit(bool HasMax, unsigned int Max);
+  ErrCode setLimit(unsigned int Min, bool HasMax, unsigned int Max);
 
   /// Set the initialization list.
   ErrCode setInitList(unsigned int Offset, std::vector<unsigned int> &Addrs);
@@ -40,6 +40,7 @@ private:
   /// @{
   AST::ElemType Type;
   bool HasMaxSize = false;
+  unsigned int MinSize = 0;
   unsigned int MaxSize = 0;
   std::vector<unsigned int> FuncElem;
   /// @}

@@ -12,19 +12,29 @@ ErrCode TableInstance::setElemType(AST::ElemType &Elem) {
 }
 
 /// Setter of table limit. See "include/executor/instance/table.h".
-ErrCode TableInstance::setLimit(bool HasMax, unsigned int Max) {
+ErrCode TableInstance::setLimit(unsigned int Min, bool HasMax,
+                                unsigned int Max) {
   HasMaxSize = HasMax;
+  MinSize = Min;
   MaxSize = Max;
+  if (FuncElem.size() < MinSize) {
+    FuncElem.resize(MinSize);
+  }
   return ErrCode::Success;
 }
 
 /// Setter of initialization list. See "include/executor/instance/table.h".
 ErrCode TableInstance::setInitList(unsigned int Offset,
                                    std::vector<unsigned int> &Addrs) {
-  if (FuncElem.size() < Offset + Addrs.size())
+  if (HasMaxSize && Offset + Addrs.size() > MaxSize) {
+    return ErrCode::TableSizeExceeded;
+  }
+  if (FuncElem.size() < Offset + Addrs.size()) {
     FuncElem.resize(Offset + Addrs.size());
-  for (auto it = Addrs.begin(); it != Addrs.end(); it++)
-    FuncElem[Offset + it - Addrs.begin()] = *it;
+  }
+  for (auto It = Addrs.begin(); It != Addrs.end(); It++) {
+    FuncElem.at((It - Addrs.begin()) + Offset) = *It;
+  }
   return ErrCode::Success;
 }
 

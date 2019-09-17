@@ -102,17 +102,17 @@ private:
   ErrCode execute();
 
   /// Execute coontrol instructions
-  ErrCode runControlOp(AST::Instruction *);
+  ErrCode runControlOp(AST::Instruction *Instr);
   /// Execute parametric instructions
-  ErrCode runParametricOp(AST::Instruction *);
+  ErrCode runParametricOp(AST::Instruction *Instr);
   /// Execute variable instructions
-  ErrCode runVariableOp(AST::Instruction *);
+  ErrCode runVariableOp(AST::Instruction *Instr);
   /// Execute memory instructions
-  ErrCode runMemoryOp(AST::Instruction *);
+  ErrCode runMemoryOp(AST::Instruction *Instr);
   /// Execute const numeric instructions
-  ErrCode runConstNumericOp(AST::Instruction *);
+  ErrCode runConstNumericOp(AST::Instruction *Instr);
   /// Execute numeric instructions
-  ErrCode runNumericOp(AST::Instruction *);
+  ErrCode runNumericOp(AST::Instruction *Instr);
 
   /// Helper function for entering block control operations.
   ///

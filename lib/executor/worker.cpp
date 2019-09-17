@@ -96,16 +96,16 @@ ErrCode Worker::execute() {
   return Status;
 }
 
-ErrCode Worker::runControlOp(AST::Instruction *InstrPtr) {
+ErrCode Worker::runControlOp(AST::Instruction *Instr) {
   /// Check instruction type.
-  auto CtrlInstrPtr = dynamic_cast<AST::ControlInstruction *>(InstrPtr);
-  if (CtrlInstrPtr == nullptr) {
+  auto CtrlInstr = dynamic_cast<AST::ControlInstruction *>(Instr);
+  if (CtrlInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
   /// Check OpCode and run the specific instruction.
   ErrCode Status = ErrCode::Success;
-  switch (CtrlInstrPtr->getOpCode()) {
+  switch (CtrlInstr->getOpCode()) {
   case OpCode::Unreachable:
     TheState = State::Unreachable;
     Status = ErrCode::Unreachable;
@@ -113,31 +113,31 @@ ErrCode Worker::runControlOp(AST::Instruction *InstrPtr) {
   case OpCode::Nop:
     break;
   case OpCode::Block:
-    Status = runBlockOp(CtrlInstrPtr);
+    Status = runBlockOp(CtrlInstr);
     break;
   case OpCode::Loop:
-    Status = runLoopOp(CtrlInstrPtr);
+    Status = runLoopOp(CtrlInstr);
     break;
   case OpCode::If:
-    Status = runIfElseOp(CtrlInstrPtr);
+    Status = runIfElseOp(CtrlInstr);
     break;
   case OpCode::Br:
-    Status = runBrOp(CtrlInstrPtr);
+    Status = runBrOp(CtrlInstr);
     break;
   case OpCode::Br_if:
-    Status = runBrIfOp(CtrlInstrPtr);
+    Status = runBrIfOp(CtrlInstr);
     break;
   case OpCode::Br_table:
-    Status = runBrTableOp(CtrlInstrPtr);
+    Status = runBrTableOp(CtrlInstr);
     break;
   case OpCode::Return:
     Status = runReturnOp();
     break;
   case OpCode::Call:
-    Status = runCallOp(CtrlInstrPtr);
+    Status = runCallOp(CtrlInstr);
     break;
   case OpCode::Call_indirect:
-    // TODO: Status = runCallIndirectOp(CtrlInstrPtr);
+    // TODO: Status = runCallIndirectOp(CtrlInstr);
     Status = ErrCode::Unimplemented;
     break;
   default:
@@ -148,18 +148,18 @@ ErrCode Worker::runControlOp(AST::Instruction *InstrPtr) {
   return Status;
 }
 
-ErrCode Worker::runParametricOp(AST::Instruction *InstrPtr) {
+ErrCode Worker::runParametricOp(AST::Instruction *Instr) {
   /// Check instruction type.
-  auto ParamInstrPtr = dynamic_cast<AST::ParametricInstruction *>(InstrPtr);
-  if (ParamInstrPtr == nullptr) {
+  auto ParamInstr = dynamic_cast<AST::ParametricInstruction *>(Instr);
+  if (ParamInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
   /// Check OpCode and run the specific instruction.
   ErrCode Status = ErrCode::Success;
-  if (ParamInstrPtr->getOpCode() == OpCode::Drop) {
+  if (ParamInstr->getOpCode() == OpCode::Drop) {
     StackMgr.pop();
-  } else if (ParamInstrPtr->getOpCode() == OpCode::Select) {
+  } else if (ParamInstr->getOpCode() == OpCode::Select) {
     /// Pop the i32 value and select values from stack.
     std::unique_ptr<ValueEntry> CondValEntry, ValEntry1, ValEntry2;
     StackMgr.pop(CondValEntry);
@@ -182,9 +182,9 @@ ErrCode Worker::runParametricOp(AST::Instruction *InstrPtr) {
   return ErrCode::Success;
 }
 
-ErrCode Worker::runVariableOp(AST::Instruction *InstrPtr) {
+ErrCode Worker::runVariableOp(AST::Instruction *Instr) {
   /// Check instruction type.
-  auto VarInstr = dynamic_cast<AST::VariableInstruction *>(InstrPtr);
+  auto VarInstr = dynamic_cast<AST::VariableInstruction *>(Instr);
   if (VarInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
@@ -220,9 +220,9 @@ ErrCode Worker::runVariableOp(AST::Instruction *InstrPtr) {
   return ErrCode::Success;
 }
 
-ErrCode Worker::runMemoryOp(AST::Instruction *InstrPtr) {
+ErrCode Worker::runMemoryOp(AST::Instruction *Instr) {
   /// Check instruction type.
-  auto MemInstr = dynamic_cast<AST::MemoryInstruction *>(InstrPtr);
+  auto MemInstr = dynamic_cast<AST::MemoryInstruction *>(Instr);
   if (MemInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
@@ -313,26 +313,29 @@ ErrCode Worker::runMemoryOp(AST::Instruction *InstrPtr) {
   return Status;
 }
 
-ErrCode Worker::runConstNumericOp(AST::Instruction *InstrPtr) {
-  auto TheInstrPtr = dynamic_cast<AST::ConstInstruction *>(InstrPtr);
-  if (TheInstrPtr == nullptr) {
+ErrCode Worker::runConstNumericOp(AST::Instruction *Instr) {
+  /// Check instruction type.
+  auto ConstInstr = dynamic_cast<AST::ConstInstruction *>(Instr);
+  if (ConstInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
   std::unique_ptr<ValueEntry> VE = nullptr;
   std::visit([&VE](auto &&arg) { VE = std::make_unique<ValueEntry>(arg); },
-             TheInstrPtr->value());
+             ConstInstr->value());
   StackMgr.push(VE);
 
   return ErrCode::Success;
 }
 
-ErrCode Worker::runNumericOp(AST::Instruction *InstrPtr) {
-  auto NumericInstr = dynamic_cast<AST::NumericInstruction *>(InstrPtr);
+ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
+  /// Check instruction type.
+  auto NumericInstr = dynamic_cast<AST::NumericInstruction *>(Instr);
   if (NumericInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
+  /// Check OpCode and run the specific instruction.
   auto Opcode = NumericInstr->getOpCode();
   ErrCode Status = ErrCode::Success;
   if (isTestNumericOp(Opcode)) {

@@ -5,7 +5,7 @@ namespace SSVM {
 namespace Executor {
 
 /// Getter of top entry. See "include/executor/stackmgr.h".
-template <typename T> ErrCode StackManager::getTop(T *&Entry) {
+template <typename T> TypeE<T, ErrCode> StackManager::getTop(T *&Entry) {
   /// Check the size of stack.
   if (Stack.size() == 0)
     return ErrCode::StackEmpty;
@@ -20,7 +20,7 @@ template <typename T> ErrCode StackManager::getTop(T *&Entry) {
 
 /// Push a new frame entry to stack. See "include/executor/stackmgr.h".
 template <typename T>
-ErrCode StackManager::push(std::unique_ptr<T> &&NewEntry) {
+TypeE<T, ErrCode> StackManager::push(std::unique_ptr<T> &&NewEntry) {
   Stack.push_back(std::move(NewEntry));
   /// If is frame or label, record the index in stack.
   if (std::is_same<T, FrameEntry>::value)
@@ -30,7 +30,7 @@ ErrCode StackManager::push(std::unique_ptr<T> &&NewEntry) {
   return ErrCode::Success;
 }
 
-template <typename T> ErrCode StackManager::pushValue(T Val) {
+template <typename T> TypeB<T, ErrCode> StackManager::pushValue(T Val) {
   if (!std::is_same<T, uint32_t>::value && !std::is_same<T, uint64_t>::value &&
       !std::is_same<T, float>::value && !std::is_same<T, double>::value) {
     return ErrCode::TypeNotMatch;
@@ -40,7 +40,8 @@ template <typename T> ErrCode StackManager::pushValue(T Val) {
 }
 
 /// Pop and return the frame entry. See "include/executor/stackmgr.h".
-template <typename T> ErrCode StackManager::pop(std::unique_ptr<T> &Entry) {
+template <typename T>
+TypeE<T, ErrCode> StackManager::pop(std::unique_ptr<T> &Entry) {
   /// Check the size of stack.
   if (Stack.size() == 0)
     return ErrCode::StackEmpty;

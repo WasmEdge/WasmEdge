@@ -14,6 +14,8 @@
 #include "entry/frame.h"
 #include "entry/label.h"
 #include "entry/value.h"
+#include "support/casting.h"
+
 #include <memory>
 #include <variant>
 #include <vector>
@@ -21,27 +23,45 @@
 namespace SSVM {
 namespace Executor {
 
+namespace {
+/// Variant of entry classes.
+using EntryType =
+    std::variant<std::unique_ptr<FrameEntry>, std::unique_ptr<LabelEntry>,
+                 std::unique_ptr<ValueEntry>>;
+
+/// Return true if T is entry types.
+template <typename T> struct IsEntry {
+  static constexpr const bool value =
+      (std::is_same_v<T, FrameEntry> || std::is_same_v<T, LabelEntry> ||
+       std::is_same_v<T, ValueEntry>);
+};
+
+/// Accept entry types.
+template <typename T, typename TR>
+using TypeE = typename std::enable_if_t<IsEntry<T>::value, TR>;
+
+/// Accept Wasm built-in types. (uint32_t, uint64_t, float, double)
+template <typename T, typename TR>
+using TypeB = typename std::enable_if_t<Support::IsWasmBuiltIn<T>::value, TR>;
+} // namespace
+
 class StackManager {
 public:
   StackManager() = default;
   ~StackManager() = default;
-  /// Variant of entry classes.
-  using EntryType =
-      std::variant<std::unique_ptr<FrameEntry>, std::unique_ptr<LabelEntry>,
-                   std::unique_ptr<ValueEntry>>;
 
   /// Getters of top entry of stack.
-  template <typename T> ErrCode getTop(T *&Entry);
+  template <typename T> TypeE<T, ErrCode> getTop(T *&Entry);
 
   /// Push a new entry to stack.
-  template <typename T> ErrCode push(std::unique_ptr<T> &&NewEntry);
-  template <typename T> ErrCode push(std::unique_ptr<T> &NewEntry) {
+  template <typename T> TypeE<T, ErrCode> push(std::unique_ptr<T> &&NewEntry);
+  template <typename T> TypeE<T, ErrCode> push(std::unique_ptr<T> &NewEntry) {
     return push(std::move(NewEntry));
   }
-  template <typename T> ErrCode pushValue(T Val);
+  template <typename T> TypeB<T, ErrCode> pushValue(T Val);
 
   /// Pop and return the top entry.
-  template <typename T> ErrCode pop(std::unique_ptr<T> &Entry);
+  template <typename T> TypeE<T, ErrCode> pop(std::unique_ptr<T> &Entry);
 
   /// Pop the top entry.
   ErrCode pop();

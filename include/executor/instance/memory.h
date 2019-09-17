@@ -29,19 +29,16 @@ public:
   ~MemoryInstance() = default;
 
   /// Set the memory limit.
-  ErrCode setLimit(bool HasMax, unsigned int Max);
-
-  /// Set the initialization list.
-  ErrCode setInitList(unsigned int Offset, Bytes &InitBytes);
+  ErrCode setLimit(unsigned int Min, bool HasMax, unsigned int Max);
 
   /// Get length of memory.data
   unsigned int getDataLength() const { return Data.size(); }
 
-  /// Get slice of Data[start:start+length-1]
+  /// Get slice of Data[Start : Start + Length - 1]
   ErrCode getBytes(Bytes &Slice, unsigned int Start, unsigned int Length);
 
-  /// Replace the bytes of Data[start:start+length-1]
-  ErrCode setBytes(Bytes &Slice, unsigned int Start, unsigned int Length);
+  /// Replace the bytes of Data[Offset : Offset + Slice.size() - 1]
+  ErrCode setBytes(Bytes &Slice, unsigned int Offset);
 
   /// Template of loading bytes and convert to a value.
   ///
@@ -76,9 +73,13 @@ public:
   unsigned int Addr;
 
 private:
+  /// Check access size is valid and adjust vector.
+  ErrCode checkDataSize(unsigned int accessSize);
+
   /// \name Data of memory instance.
   /// @{
   bool HasMaxPage = false;
+  unsigned int MinPage = 0;
   unsigned int MaxPage = 0;
   Bytes Data;
   /// @}

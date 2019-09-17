@@ -33,7 +33,9 @@ enum class ErrCode : unsigned int {
   AccessForbidMemory,      /// Access the forbid memory section
   SliceDataFailed,         /// Fail to get slice from memory.data
   Unreachable,             /// Get a unreachable instruction
-  WrongInstructionCounter  /// Instruction counter error
+  WrongInstructionCounter, /// Instruction counter error
+  TableSizeExceeded,       /// Exceeded limit of table size in table instance.
+  MemorySizeExceeded       /// Exceeded limit of memory page in memory instance.
 };
 
 } // namespace Executor

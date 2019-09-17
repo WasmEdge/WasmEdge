@@ -6,37 +6,39 @@ namespace Executor {
 namespace Instance {
 
 /// Setter of memory limit. See "include/executor/instance/memory.h".
-ErrCode MemoryInstance::setLimit(bool HasMax, unsigned int Max) {
+ErrCode MemoryInstance::setLimit(unsigned int Min, bool HasMax,
+                                 unsigned int Max) {
   HasMaxPage = HasMax;
+  MinPage = Min;
   MaxPage = Max;
   return ErrCode::Success;
 }
 
-/// Set the initialization list. See "include/executor/instance/memory.h".
-ErrCode MemoryInstance::setInitList(unsigned int Offset,
-                                    std::vector<unsigned char> &Bytes) {
-  if (Data.size() < Offset + Bytes.size())
-    Data.resize(Offset + Bytes.size());
-  for (auto It = Bytes.begin(); It != Bytes.end(); It++)
-    Data[Offset + It - Bytes.begin()] = *It;
-  return ErrCode::Success;
-}
-
+/// Getter of data list. See "include/executor/instance/memory.h".
 ErrCode MemoryInstance::getBytes(Bytes &Slice, unsigned int Start,
-                                 unsigned int Length) {
+                                 unsigned int Length) { /// Check memory size.
+  ErrCode Status = ErrCode::Success;
+  if ((Status = checkDataSize(Start + Length)) != ErrCode::Success) {
+    return Status;
+  }
+
   for (auto Iter = Start; Iter < Start + Length; Iter++) {
     Slice.push_back(Data.at(Iter));
   }
   return ErrCode::Success;
 }
 
-ErrCode MemoryInstance::setBytes(Bytes &Slice, unsigned int Start,
-                                 unsigned int Length) {
-  if (Length != Slice.size()) {
-    return ErrCode::AccessForbidMemory;
+/// Setter of data list. See "include/executor/instance/memory.h".
+ErrCode MemoryInstance::setBytes(Bytes &Slice, unsigned int Offset) {
+  /// Check memory size.
+  ErrCode Status = ErrCode::Success;
+  if ((Status = checkDataSize(Offset + Slice.size())) != ErrCode::Success) {
+    return Status;
   }
-  for (auto Iter = Start; Iter <= Start + Length - 1; Iter++) {
-    Data.at(Iter) = Slice.at(Iter - Start);
+
+  /// Copy data.
+  for (unsigned int I = Offset; I < Offset + Slice.size(); I++) {
+    Data.at(I) = Slice.at(I - Offset);
   }
   return ErrCode::Success;
 }
@@ -45,9 +47,15 @@ ErrCode MemoryInstance::setBytes(Bytes &Slice, unsigned int Start,
 template <typename T>
 typename std::enable_if_t<Support::IsWasmType<T>::value, ErrCode>
 MemoryInstance::loadValue(unsigned int Offset, unsigned int Length, T &Value) {
-  /// Check memory boundary
-  if (Data.size() < Offset + Length || Length > sizeof(T)) {
+  /// Check data boundary.
+  if (Length > sizeof(T)) {
     return ErrCode::AccessForbidMemory;
+  }
+
+  /// Check memory size.
+  ErrCode Status = ErrCode::Success;
+  if ((Status = checkDataSize(Offset + Length)) != ErrCode::Success) {
+    return Status;
   }
 
   /// Load data to a value.
@@ -69,7 +77,7 @@ MemoryInstance::loadValue(unsigned int Offset, unsigned int Length, T &Value) {
     }
     Value = static_cast<T>(LoadVal);
   }
-  return ErrCode::Success;
+  return Status;
 }
 
 /// Store value to data. See "include/executor/instance/memory.h".
@@ -77,9 +85,15 @@ template <typename T>
 typename std::enable_if_t<Support::IsWasmBuiltIn<T>::value, ErrCode>
 MemoryInstance::storeValue(unsigned int Offset, unsigned int Length,
                            const T &Value) {
-  /// Check memory boundary
-  if (Data.size() < Offset + Length || Length > sizeof(T)) {
+  /// Check data boundary.
+  if (Length > sizeof(T)) {
     return ErrCode::AccessForbidMemory;
+  }
+
+  /// Check memory size.
+  ErrCode Status = ErrCode::Success;
+  if ((Status = checkDataSize(Offset + Length)) != ErrCode::Success) {
+    return Status;
   }
 
   /// Copy store data to a value.
@@ -89,6 +103,16 @@ MemoryInstance::storeValue(unsigned int Offset, unsigned int Length,
     Data.at(I + Offset) = static_cast<Byte>(StoreVal & 0xFFU);
     StoreVal >>= 8;
   }
+  return ErrCode::Success;
+}
+
+/// Check access size and vector size. See "include/executor/instance/memory.h".
+ErrCode MemoryInstance::checkDataSize(unsigned int accessSize) {
+  if (HasMaxPage && accessSize > MaxPage * 65536) {
+    return ErrCode::MemorySizeExceeded;
+  }
+  if (Data.size() < accessSize)
+    Data.resize(accessSize);
   return ErrCode::Success;
 }
 

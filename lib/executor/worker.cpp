@@ -221,41 +221,95 @@ ErrCode Worker::runVariableOp(AST::Instruction *InstrPtr) {
 }
 
 ErrCode Worker::runMemoryOp(AST::Instruction *InstrPtr) {
-  auto TheInstrPtr = dynamic_cast<AST::MemoryInstruction *>(InstrPtr);
-  if (TheInstrPtr == nullptr) {
+  /// Check instruction type.
+  auto MemInstr = dynamic_cast<AST::MemoryInstruction *>(InstrPtr);
+  if (MemInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
-  auto Status = ErrCode::Success;
-  auto Opcode = TheInstrPtr->getOpCode();
-  if (isLoadOp(Opcode)) {
-    switch (Opcode) {
-    case OpCode::I32__load:
-      Status = runLoadOp<int32_t>(TheInstrPtr);
-      break;
-    case OpCode::I64__load:
-      Status = runLoadOp<int64_t>(TheInstrPtr);
-      break;
-    default:
-      Status = ErrCode::Unimplemented;
-      break;
-    }
-  } else if (isStoreOp(Opcode)) {
-    switch (Opcode) {
-    case OpCode::I32__store:
-      Status = runStoreOp<int32_t>(TheInstrPtr);
-      break;
-    case OpCode::I64__store:
-      Status = runStoreOp<int64_t>(TheInstrPtr);
-      break;
-    default:
-      Status = ErrCode::Unimplemented;
-      break;
-    }
-  } else {
-    Status = ErrCode::Unimplemented;
+  /// Check OpCode and run the specific instruction.
+  ErrCode Status = ErrCode::Success;
+  StackMgr.getCurrentFrame(CurrentFrame);
+  switch (MemInstr->getOpCode()) {
+  case OpCode::I32__load:
+    Status = runLoadOp<uint32_t>(MemInstr);
+    break;
+  case OpCode::I64__load:
+    Status = runLoadOp<uint64_t>(MemInstr);
+    break;
+  case OpCode::F32__load:
+    Status = runLoadOp<float>(MemInstr);
+    break;
+  case OpCode::F64__load:
+    Status = runLoadOp<double>(MemInstr);
+    break;
+  case OpCode::I32__load8_s:
+    Status = runLoadOp<int32_t>(MemInstr, 8);
+    break;
+  case OpCode::I32__load8_u:
+    Status = runLoadOp<uint32_t>(MemInstr, 8);
+    break;
+  case OpCode::I32__load16_s:
+    Status = runLoadOp<int32_t>(MemInstr, 16);
+    break;
+  case OpCode::I32__load16_u:
+    Status = runLoadOp<uint32_t>(MemInstr, 16);
+    break;
+  case OpCode::I64__load8_s:
+    Status = runLoadOp<int64_t>(MemInstr, 8);
+    break;
+  case OpCode::I64__load8_u:
+    Status = runLoadOp<uint64_t>(MemInstr, 8);
+    break;
+  case OpCode::I64__load16_s:
+    Status = runLoadOp<int64_t>(MemInstr, 16);
+    break;
+  case OpCode::I64__load16_u:
+    Status = runLoadOp<uint64_t>(MemInstr, 16);
+    break;
+  case OpCode::I64__load32_s:
+    Status = runLoadOp<int64_t>(MemInstr, 32);
+    break;
+  case OpCode::I64__load32_u:
+    Status = runLoadOp<uint64_t>(MemInstr, 32);
+    break;
+  case OpCode::I32__store:
+    Status = runStoreOp<uint32_t>(MemInstr);
+    break;
+  case OpCode::I64__store:
+    Status = runStoreOp<uint64_t>(MemInstr);
+    break;
+  case OpCode::F32__store:
+    Status = runStoreOp<float>(MemInstr);
+    break;
+  case OpCode::F64__store:
+    Status = runStoreOp<double>(MemInstr);
+    break;
+  case OpCode::I32__store8:
+    Status = runStoreOp<uint32_t>(MemInstr, 8);
+    break;
+  case OpCode::I32__store16:
+    Status = runStoreOp<uint32_t>(MemInstr, 16);
+    break;
+  case OpCode::I64__store8:
+    Status = runStoreOp<uint64_t>(MemInstr, 8);
+    break;
+  case OpCode::I64__store16:
+    Status = runStoreOp<uint64_t>(MemInstr, 16);
+    break;
+  case OpCode::I64__store32:
+    Status = runStoreOp<uint64_t>(MemInstr, 32);
+    break;
+  case OpCode::Memory__grow:
+    /// TODO: Status = runMemoryGrowOp();
+    break;
+  case OpCode::Memory__size:
+    /// TODO: Status = runMemorySizeOp();
+    break;
+  default:
+    Status = ErrCode::InstructionTypeMismatch;
+    break;
   }
-
   return Status;
 }
 

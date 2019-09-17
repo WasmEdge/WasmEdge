@@ -163,8 +163,12 @@ private:
   ErrCode runGlobalGetOp(unsigned int Idx);
   ErrCode runGlobalSetOp(unsigned int Idx);
   /// ======= Memory =======
-  template <typename T> ErrCode runLoadOp(AST::MemoryInstruction *InstrPtr);
-  template <typename T> ErrCode runStoreOp(AST::MemoryInstruction *InstrPtr);
+  template <typename T>
+  TypeT<T, ErrCode> runLoadOp(AST::MemoryInstruction *Instr,
+                              unsigned int Width = sizeof(T) * 8);
+  template <typename T>
+  TypeB<T, ErrCode> runStoreOp(AST::MemoryInstruction *Instr,
+                               unsigned int Width = sizeof(T) * 8);
   /// ======= Test and Relation Numeric =======
   template <typename T> TypeU<T, ErrCode> runEqzOp(const ValueEntry *Val);
   template <typename T>

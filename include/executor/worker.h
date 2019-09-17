@@ -169,6 +169,8 @@ private:
   template <typename T>
   TypeB<T, ErrCode> runStoreOp(AST::MemoryInstruction *Instr,
                                unsigned int Width = sizeof(T) * 8);
+  ErrCode runMemorySizeOp();
+  ErrCode runMemoryGrowOp();
   /// ======= Test and Relation Numeric =======
   template <typename T> TypeU<T, ErrCode> runEqzOp(const ValueEntry *Val);
   template <typename T>

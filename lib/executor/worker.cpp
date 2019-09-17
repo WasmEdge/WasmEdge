@@ -301,10 +301,10 @@ ErrCode Worker::runMemoryOp(AST::Instruction *Instr) {
     Status = runStoreOp<uint64_t>(MemInstr, 32);
     break;
   case OpCode::Memory__grow:
-    /// TODO: Status = runMemoryGrowOp();
+    Status = runMemoryGrowOp();
     break;
   case OpCode::Memory__size:
-    /// TODO: Status = runMemorySizeOp();
+    Status = runMemorySizeOp();
     break;
   default:
     Status = ErrCode::InstructionTypeMismatch;

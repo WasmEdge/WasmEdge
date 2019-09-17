@@ -72,10 +72,10 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of parameter types vector.
-  const auto &getParamTypes() { return ParamTypes; }
+  const std::vector<ValType> &getParamTypes() { return ParamTypes; }
 
   /// Getter of return types vector.
-  const auto &getReturnTypes() { return ReturnTypes; }
+  const std::vector<ValType> &getReturnTypes() { return ReturnTypes; }
 
 protected:
   /// The node type should be Attr::Type_Function.
@@ -103,7 +103,7 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of limit.
-  const auto &getLimit() { return Memory; }
+  const std::unique_ptr<Limit> &getLimit() { return Memory; }
 
 protected:
   /// The node type should be Attr::Type_Memory.
@@ -131,7 +131,7 @@ public:
   ElemType getElementType() { return Type; }
 
   /// Getter of limit.
-  const auto &getLimit() { return Table; }
+  const std::unique_ptr<Limit> &getLimit() { return Table; }
 
 protected:
   /// The node type should be Attr::Type_Table.

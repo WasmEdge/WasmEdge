@@ -34,7 +34,7 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of instructions vector.
-  auto &getInstrs() { return Instrs; }
+  std::vector<std::unique_ptr<Instruction>> &getInstrs() { return Instrs; }
 
 protected:
   /// The node type should be Attr::Expression.

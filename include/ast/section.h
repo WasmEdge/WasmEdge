@@ -81,7 +81,9 @@ private:
 class TypeSection : public Section {
 public:
   /// Getter of content vector.
-  const auto &getContent() { return Content; }
+  const std::vector<std::unique_ptr<FunctionType>> &getContent() {
+    return Content;
+  }
 
 protected:
   /// Overrided content loading of type section.
@@ -99,7 +101,9 @@ private:
 class ImportSection : public Section {
 public:
   /// Getter of content vector.
-  const auto &getContent() { return Content; }
+  const std::vector<std::unique_ptr<ImportDesc>> &getContent() {
+    return Content;
+  }
 
 protected:
   /// Overrided content loading of import section.
@@ -117,7 +121,7 @@ private:
 class FunctionSection : public Section {
 public:
   /// Getter of content vector.
-  const auto &getContent() { return Content; }
+  const std::vector<unsigned int> &getContent() { return Content; }
 
 protected:
   /// Overrided content loading of function section.
@@ -135,7 +139,9 @@ private:
 class TableSection : public Section {
 public:
   /// Getter of content vector.
-  const auto &getContent() { return Content; }
+  const std::vector<std::unique_ptr<TableType>> &getContent() {
+    return Content;
+  }
 
 protected:
   /// Overrided content loading of table section.
@@ -153,7 +159,9 @@ private:
 class MemorySection : public Section {
 public:
   /// Getter of content vector.
-  const auto &getContent() { return Content; }
+  const std::vector<std::unique_ptr<MemoryType>> &getContent() {
+    return Content;
+  }
 
 protected:
   /// Overrided content loading of memory section.
@@ -171,7 +179,9 @@ private:
 class GlobalSection : public Section {
 public:
   /// Getter of content vector.
-  const auto &getContent() { return Content; }
+  const std::vector<std::unique_ptr<GlobalSegment>> &getContent() {
+    return Content;
+  }
 
 protected:
   /// Overrided content loading of global section.
@@ -189,7 +199,9 @@ private:
 class ExportSection : public Section {
 public:
   /// Getter of content vector.
-  const auto &getContent() { return Content; }
+  const std::vector<std::unique_ptr<ExportDesc>> &getContent() {
+    return Content;
+  }
 
 protected:
   /// Overrided content loading of export section.
@@ -221,7 +233,9 @@ private:
 class ElementSection : public Section {
 public:
   /// Getter of content vector.
-  const auto &getContent() { return Content; }
+  const std::vector<std::unique_ptr<ElementSegment>> &getContent() {
+    return Content;
+  }
 
 protected:
   /// Overrided content loading of element section.
@@ -239,7 +253,9 @@ private:
 class CodeSection : public Section {
 public:
   /// Getter of content vector.
-  const auto &getContent() { return Content; }
+  const std::vector<std::unique_ptr<CodeSegment>> &getContent() {
+    return Content;
+  }
 
 protected:
   /// Overrided content loading of code section.
@@ -257,7 +273,9 @@ private:
 class DataSection : public Section {
 public:
   /// Getter of content vector.
-  const auto &getContent() { return Content; }
+  const std::vector<std::unique_ptr<DataSegment>> &getContent() {
+    return Content;
+  }
 
 protected:
   /// Overrided content loading of data section.

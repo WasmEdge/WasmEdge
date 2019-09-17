@@ -29,7 +29,7 @@ public:
   };
 
   /// Getter of locals vector.
-  auto &getInstrs() { return Expr->getInstrs(); }
+  std::vector<std::unique_ptr<Instruction>> &getInstrs() { return Expr->getInstrs(); }
 
 protected:
   /// Load binary from file manager.
@@ -59,7 +59,7 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of locals vector.
-  const auto &getGlobalType() { return Global; }
+  const std::unique_ptr<GlobalType> &getGlobalType() { return Global; }
 
 protected:
   /// The node type should be Attr::Seg_Global.
@@ -89,7 +89,7 @@ public:
   const unsigned int getIdx() { return TableIdx; }
 
   /// Getter of function indices.
-  auto &getFuncIdxes() { return FuncIdxes; }
+  std::vector<unsigned int> &getFuncIdxes() { return FuncIdxes; }
 
 protected:
   /// The node type should be Attr::Seg_Element.
@@ -117,7 +117,9 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of locals vector.
-  const auto &getLocals() { return Locals; }
+  const std::vector<std::pair<unsigned int, ValType>> &getLocals() {
+    return Locals;
+  }
 
 protected:
   /// The node type should be Attr::Seg_Code.
@@ -148,7 +150,7 @@ public:
   const unsigned int getIdx() { return MemoryIdx; }
 
   /// Getter of data.
-  auto &getData() { return Data; }
+  std::vector<unsigned char> &getData() { return Data; }
 
 protected:
   /// The node type should be Attr::Seg_Data.

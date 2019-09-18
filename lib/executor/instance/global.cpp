@@ -5,16 +5,31 @@ namespace SSVM {
 namespace Executor {
 namespace Instance {
 
-/// Setter of global type. See "include/executor/instance/global.h".
-ErrCode GlobalInstance::setGlobalType(const AST::ValType &ValueType,
-                                      const AST::ValMut &Mutibility) {
+/// Constructor of global instance. See "include/executor/instance/global.h".
+GlobalInstance::GlobalInstance(const AST::ValType &ValueType,
+                               const AST::ValMut &Mutibility) {
   Type = ValueType;
   Mut = Mutibility;
-  return ErrCode::Success;
+  switch (Type) {
+  case AST::ValType::I32:
+    Value = (uint32_t)0;
+    break;
+  case AST::ValType::I64:
+    Value = (uint64_t)0;
+    break;
+  case AST::ValType::F32:
+    Value = (float)0.0;
+    break;
+  case AST::ValType::F64:
+    Value = (double)0.0;
+    break;
+  default:
+    break;
+  }
 }
 
 /// Getter of value. See "include/executor/instance/global.h".
-template <typename T> ErrCode GlobalInstance::getValue(T &Val) {
+template <typename T> TypeV<T, ErrCode> GlobalInstance::getValue(T &Val) const {
   /// Get value.
   try {
     Val = std::get<T>(Value);
@@ -24,41 +39,25 @@ template <typename T> ErrCode GlobalInstance::getValue(T &Val) {
   return ErrCode::Success;
 }
 
-template <> ErrCode GlobalInstance::getValue(AST::ValVariant &Val) {
+template <>
+TypeV<AST::ValVariant, ErrCode>
+GlobalInstance::getValue(AST::ValVariant &Val) const {
   Val = Value;
   return ErrCode::Success;
 }
 
 /// Setter of value. See "include/executor/instance/global.h".
-template <typename T> ErrCode GlobalInstance::setValue(const T &Val) {
-  Executor::ErrCode Status = Executor::ErrCode::TypeNotMatch;
-  switch (Type) {
-  case AST::ValType::I32:
-    if (std::is_same<T, uint32_t>::value)
-      Status = Executor::ErrCode::Success;
-    break;
-  case AST::ValType::I64:
-    if (std::is_same<T, uint64_t>::value)
-      Status = Executor::ErrCode::Success;
-    break;
-  case AST::ValType::F32:
-    if (std::is_same<T, float>::value)
-      Status = Executor::ErrCode::Success;
-    break;
-  case AST::ValType::F64:
-    if (std::is_same<T, double>::value)
-      Status = Executor::ErrCode::Success;
-    break;
-  default:
-    break;
+template <typename T> TypeV<T, ErrCode> GlobalInstance::setValue(const T &Val) {
+  if (!std::holds_alternative<T>(Value)) {
+    return ErrCode::TypeNotMatch;
   }
-  if (Status == Executor::ErrCode::Success)
-    Value = Val;
-  return Status;
+  Value = Val;
+  return ErrCode::Success;
 }
 
 template <>
-ErrCode GlobalInstance::setValue<AST::ValVariant>(const AST::ValVariant &Val) {
+TypeV<AST::ValVariant, ErrCode>
+GlobalInstance::setValue(const AST::ValVariant &Val) {
   if (Val.index() != Value.index()) {
     return ErrCode::TypeNotMatch;
   }

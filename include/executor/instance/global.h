@@ -12,28 +12,33 @@
 
 #include "ast/common.h"
 #include "executor/common.h"
+#include "support/casting.h"
 
 namespace SSVM {
 namespace Executor {
 namespace Instance {
 
+namespace {
+/// Accept Wasm built-in types and variant<...>
+template <typename T, typename TR>
+using TypeV = typename std::enable_if_t<
+    Support::IsWasmBuiltInV<T> || std::is_same_v<T, AST::ValVariant>, TR>;
+} // namespace
+
 class GlobalInstance {
 public:
-  GlobalInstance() = default;
+  GlobalInstance() = delete;
+  GlobalInstance(const AST::ValType &ValueType, const AST::ValMut &Mutibility);
   ~GlobalInstance() = default;
-
-  /// Set the global type.
-  ErrCode setGlobalType(const AST::ValType &ValueType,
-                        const AST::ValMut &Mutibility);
 
   /// Get the global type.
   AST::ValType getValType() const { return Type; }
 
   /// Set the value of this instance.
-  template <typename T> ErrCode setValue(const T &Val);
+  template <typename T> TypeV<T, ErrCode> setValue(const T &Val);
 
   /// Get the value of this instance.
-  template <typename T> ErrCode getValue(T &Val);
+  template <typename T> TypeV<T, ErrCode> getValue(T &Val) const;
 
   /// Global Instance address in store manager.
   unsigned int Addr;

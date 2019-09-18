@@ -25,7 +25,7 @@ ValueEntry::ValueEntry(const AST::ValType &VT) {
 }
 
 /// Setter for value. See "include/executor/entry/value.h".
-template <typename T> ErrCode ValueEntry::setValue(const T &Val) {
+template <typename T> TypeVE<T, ErrCode> ValueEntry::setValue(const T &Val) {
   if ((std::is_same<T, uint32_t>::value && Type == AST::ValType::I32) ||
       (std::is_same<T, uint64_t>::value && Type == AST::ValType::I64) ||
       (std::is_same<T, float>::value && Type == AST::ValType::F32) ||
@@ -36,7 +36,8 @@ template <typename T> ErrCode ValueEntry::setValue(const T &Val) {
   return ErrCode::TypeNotMatch;
 }
 
-template <> ErrCode ValueEntry::setValue<ValueEntry>(const ValueEntry &Val) {
+template <>
+TypeVE<ValueEntry, ErrCode> ValueEntry::setValue(const ValueEntry &Val) {
   if (Val.Type != this->Type) {
     return ErrCode::TypeNotMatch;
   }
@@ -45,7 +46,8 @@ template <> ErrCode ValueEntry::setValue<ValueEntry>(const ValueEntry &Val) {
 }
 
 template <>
-ErrCode ValueEntry::setValue<AST::ValVariant>(const AST::ValVariant &Val) {
+TypeVE<AST::ValVariant, ErrCode>
+ValueEntry::setValue(const AST::ValVariant &Val) {
   if (Val.index() != Value.index()) {
     return ErrCode::TypeNotMatch;
   }
@@ -54,7 +56,7 @@ ErrCode ValueEntry::setValue<AST::ValVariant>(const AST::ValVariant &Val) {
 }
 
 /// Getter for value. See "include/executor/entry/value.h".
-template <typename T> ErrCode ValueEntry::getValue(T &Val) const {
+template <typename T> TypeV<T, ErrCode> ValueEntry::getValue(T &Val) const {
   /// Get value.
   try {
     Val = std::get<T>(Value);
@@ -65,7 +67,8 @@ template <typename T> ErrCode ValueEntry::getValue(T &Val) const {
 }
 
 template <>
-ErrCode ValueEntry::getValue<AST::ValVariant>(AST::ValVariant &Val) const {
+TypeV<AST::ValVariant, ErrCode>
+ValueEntry::getValue(AST::ValVariant &Val) const {
   Val = Value;
   return ErrCode::Success;
 }

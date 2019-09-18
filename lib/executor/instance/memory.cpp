@@ -55,7 +55,7 @@ ErrCode MemoryInstance::setBytes(Bytes &Slice, unsigned int Offset) {
 
 /// Load value from data. See "include/executor/instance/memory.h".
 template <typename T>
-typename std::enable_if_t<Support::IsWasmType<T>::value, ErrCode>
+typename std::enable_if_t<Support::IsWasmTypeV<T>, ErrCode>
 MemoryInstance::loadValue(unsigned int Offset, unsigned int Length, T &Value) {
   /// Check data boundary.
   if (Length > sizeof(T)) {
@@ -92,7 +92,7 @@ MemoryInstance::loadValue(unsigned int Offset, unsigned int Length, T &Value) {
 
 /// Store value to data. See "include/executor/instance/memory.h".
 template <typename T>
-typename std::enable_if_t<Support::IsWasmBuiltIn<T>::value, ErrCode>
+typename std::enable_if_t<Support::IsWasmBuiltInV<T>, ErrCode>
 MemoryInstance::storeValue(unsigned int Offset, unsigned int Length,
                            const T &Value) {
   /// Check data boundary.

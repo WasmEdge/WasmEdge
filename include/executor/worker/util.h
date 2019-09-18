@@ -13,7 +13,7 @@ using OpCode = AST::Instruction::OpCode;
 
 /// Retrieve value and casting to signed.
 template <typename T>
-inline typename std::enable_if_t<Support::IsWasmSign<T>::value, T>
+inline typename std::enable_if_t<Support::IsWasmSignV<T>, T>
 retrieveValue(const ValueEntry &Val) {
   std::make_unsigned_t<T> Value;
   Val.getValue(Value);
@@ -22,7 +22,7 @@ retrieveValue(const ValueEntry &Val) {
 
 /// Retrieve value with original type.
 template <typename T>
-inline typename std::enable_if_t<Support::IsWasmBuiltIn<T>::value, T>
+inline typename std::enable_if_t<Support::IsWasmBuiltInV<T>, T>
 retrieveValue(const ValueEntry &Val) {
   T Value;
   Val.getValue(Value);

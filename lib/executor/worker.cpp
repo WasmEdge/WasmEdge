@@ -165,7 +165,7 @@ ErrCode Worker::runParametricOp(AST::Instruction *Instr) {
     StackMgr.pop(CondValEntry);
     StackMgr.pop(ValEntry2);
     StackMgr.pop(ValEntry1);
-    int32_t CondValue;
+    uint32_t CondValue;
     if ((Status = CondValEntry->getValue(CondValue)) != ErrCode::Success) {
       return Status;
     }

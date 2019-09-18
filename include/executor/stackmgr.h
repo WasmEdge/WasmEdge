@@ -17,6 +17,7 @@
 #include "support/casting.h"
 
 #include <memory>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -30,19 +31,18 @@ using EntryType =
                  std::unique_ptr<ValueEntry>>;
 
 /// Return true if T is entry types.
-template <typename T> struct IsEntry {
-  static constexpr const bool value =
-      (std::is_same_v<T, FrameEntry> || std::is_same_v<T, LabelEntry> ||
-       std::is_same_v<T, ValueEntry>);
-};
+template <typename T>
+inline constexpr const bool IsEntryV =
+    std::is_same_v<T, FrameEntry> || std::is_same_v<T, LabelEntry> ||
+    std::is_same_v<T, ValueEntry>;
 
 /// Accept entry types.
 template <typename T, typename TR>
-using TypeE = typename std::enable_if_t<IsEntry<T>::value, TR>;
+using TypeE = typename std::enable_if_t<IsEntryV<T>, TR>;
 
 /// Accept Wasm built-in types. (uint32_t, uint64_t, float, double)
 template <typename T, typename TR>
-using TypeB = typename std::enable_if_t<Support::IsWasmBuiltIn<T>::value, TR>;
+using TypeB = typename std::enable_if_t<Support::IsWasmBuiltInV<T>, TR>;
 } // namespace
 
 class StackManager {

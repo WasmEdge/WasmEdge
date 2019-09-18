@@ -55,7 +55,7 @@ public:
   ///
   /// \returns ErrCode.
   template <typename T>
-  typename std::enable_if_t<Support::IsWasmType<T>::value, ErrCode>
+  typename std::enable_if_t<Support::IsWasmTypeV<T>, ErrCode>
   loadValue(unsigned int Offset, unsigned int Length, T &Value);
 
   /// Template of loading bytes and convert to a value.
@@ -69,7 +69,7 @@ public:
   ///
   /// \returns ErrCode.
   template <typename T>
-  typename std::enable_if_t<Support::IsWasmBuiltIn<T>::value, ErrCode>
+  typename std::enable_if_t<Support::IsWasmBuiltInV<T>, ErrCode>
   storeValue(unsigned int Offset, unsigned int Length, const T &Value);
 
   /// Memory Instance address in store manager.

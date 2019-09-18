@@ -24,47 +24,46 @@ using InstrIter = InstrVec::const_iterator;
 /// Template return type aliasing
 /// Accept unsigned integer types. (uint32_t, uint64_t)
 template <typename T, typename TR>
-using TypeU = typename std::enable_if_t<Support::IsWasmUnsign<T>::value, TR>;
+using TypeU = typename std::enable_if_t<Support::IsWasmUnsignV<T>, TR>;
 /// Accept integer types. (uint32_t, int32_t, uint64_t, int64_t)
 template <typename T, typename TR>
-using TypeI = typename std::enable_if_t<Support::IsWasmInt<T>::value, TR>;
+using TypeI = typename std::enable_if_t<Support::IsWasmIntV<T>, TR>;
 /// Accept floating types. (float, double)
 template <typename T, typename TR>
-using TypeF = typename std::enable_if_t<Support::IsWasmFloat<T>::value, TR>;
+using TypeF = typename std::enable_if_t<Support::IsWasmFloatV<T>, TR>;
 /// Accept all types. (uint32_t, int32_t, uint64_t, int64_t, float, double)
 template <typename T, typename TR>
-using TypeT = typename std::enable_if_t<Support::IsWasmType<T>::value, TR>;
+using TypeT = typename std::enable_if_t<Support::IsWasmTypeV<T>, TR>;
 /// Accept Wasm built-in types. (uint32_t, uint64_t, float, double)
 template <typename T, typename TR>
-using TypeB = typename std::enable_if_t<Support::IsWasmBuiltIn<T>::value, TR>;
+using TypeB = typename std::enable_if_t<Support::IsWasmBuiltInV<T>, TR>;
 
 /// Accept (unsigned integer types, unsigned integer types).
 template <typename T1, typename T2, typename TR>
 using TypeUU = typename std::enable_if_t<
-    Support::IsWasmUnsign<T1>::value && Support::IsWasmUnsign<T2>::value, TR>;
+    Support::IsWasmUnsignV<T1> && Support::IsWasmUnsignV<T2>, TR>;
 /// Accept (integer types, unsigned integer types).
 template <typename T1, typename T2, typename TR>
 using TypeIU = typename std::enable_if_t<
-    Support::IsWasmInt<T1>::value && Support::IsWasmUnsign<T2>::value, TR>;
+    Support::IsWasmIntV<T1> && Support::IsWasmUnsignV<T2>, TR>;
 /// Accept (floating types, floating types).
 template <typename T1, typename T2, typename TR>
 using TypeFF = typename std::enable_if_t<
-    Support::IsWasmFloat<T1>::value && Support::IsWasmFloat<T2>::value, TR>;
+    Support::IsWasmFloatV<T1> && Support::IsWasmFloatV<T2>, TR>;
 /// Accept (integer types, floating types).
 template <typename T1, typename T2, typename TR>
 using TypeIF = typename std::enable_if_t<
-    Support::IsWasmInt<T1>::value && Support::IsWasmFloat<T2>::value, TR>;
+    Support::IsWasmIntV<T1> && Support::IsWasmFloatV<T2>, TR>;
 /// Accept (floating types, integer types).
 template <typename T1, typename T2, typename TR>
 using TypeFI = typename std::enable_if_t<
-    Support::IsWasmFloat<T1>::value && Support::IsWasmInt<T2>::value, TR>;
+    Support::IsWasmFloatV<T1> && Support::IsWasmIntV<T2>, TR>;
 /// Accept (Wasm built-in types, Wasm built-in types).
 template <typename T1, typename T2, typename TR>
-using TypeBB =
-    typename std::enable_if_t<Support::IsWasmBuiltIn<T1>::value &&
-                                  Support::IsWasmBuiltIn<T2>::value &&
-                                  sizeof(T1) == sizeof(T2),
-                              TR>;
+using TypeBB = typename std::enable_if_t<Support::IsWasmBuiltInV<T1> &&
+                                             Support::IsWasmBuiltInV<T2> &&
+                                             sizeof(T1) == sizeof(T2),
+                                         TR>;
 
 } // namespace
 

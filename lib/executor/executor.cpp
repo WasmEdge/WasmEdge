@@ -248,17 +248,11 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
   /// Iterate and instantiate global segments.
   auto &GlobSegs = GlobSec->getContent();
   for (auto GlobSeg = GlobSegs.begin(); GlobSeg != GlobSegs.end(); GlobSeg++) {
-    /// Make a new function instance.
-    auto NewGlobInst = std::make_unique<Instance::GlobalInstance>();
-    unsigned int NewGlobInstId = 0;
-
-    /// Set global instance data.
+    /// Make a new global instance.
     auto &GlobType = (*GlobSeg)->getGlobalType();
-    auto Type = GlobType->getValueType();
-    auto Mut = GlobType->getValueMutation();
-    if ((Status = NewGlobInst->setGlobalType(Type, Mut)) != ErrCode::Success) {
-      return Status;
-    }
+    auto NewGlobInst = std::make_unique<Instance::GlobalInstance>(
+        GlobType->getValueType(), GlobType->getValueMutation());
+    unsigned int NewGlobInstId = 0;
 
     /// Insert global instance to store manager.
     if ((Status = StoreMgr.insertGlobalInst(NewGlobInst, NewGlobInstId)) !=
@@ -382,7 +376,7 @@ ErrCode Executor::instantiate(AST::TableSection *TabSec,
     /// Pop the result for offset.
     std::unique_ptr<ValueEntry> PopVal;
     StackMgr.pop(PopVal);
-    int32_t Offset = 0;
+    uint32_t Offset = 0;
     if ((Status = PopVal->getValue(Offset)) != ErrCode::Success) {
       return Status;
     }
@@ -457,7 +451,7 @@ ErrCode Executor::instantiate(AST::MemorySection *MemSec,
     /// Pop the result for offset.
     std::unique_ptr<ValueEntry> PopVal;
     StackMgr.pop(PopVal);
-    int32_t Offset = 0;
+    uint32_t Offset = 0;
     if ((Status = PopVal->getValue(Offset)) != ErrCode::Success) {
       return Status;
     }

@@ -226,6 +226,10 @@ protected:
   OpCode Code;
 };
 
+/// Type aliasing
+using InstrVec = std::vector<std::unique_ptr<Instruction>>;
+using InstrIter = InstrVec::const_iterator;
+
 /// Derived control instruction node.
 class ControlInstruction : public Instruction {
 public:
@@ -253,15 +257,13 @@ public:
   ValType getResultType() const { return BlockType; }
 
   /// Getter of Block Body
-  const std::vector<std::unique_ptr<Instruction>> &getBody() const {
-    return Body;
-  }
+  const InstrVec &getBody() const { return Body; }
 
 private:
   /// \name Data of block instruction: return type and block body.
   /// @{
   ValType BlockType;
-  std::vector<std::unique_ptr<Instruction>> Body;
+  InstrVec Body;
   /// @}
 }; // namespace AST
 
@@ -285,21 +287,17 @@ public:
   ValType getResultType() const { return BlockType; }
 
   /// Getter of if statement.
-  const std::vector<std::unique_ptr<Instruction>> &getIfStatement() const {
-    return IfStatement;
-  }
+  const InstrVec &getIfStatement() const { return IfStatement; }
 
   /// Getter of else statement.
-  const std::vector<std::unique_ptr<Instruction>> &getElseStatement() const {
-    return ElseStatement;
-  }
+  const InstrVec &getElseStatement() const { return ElseStatement; }
 
 private:
   /// \name Data of block instruction: return type and statements.
   /// @{
   ValType BlockType;
-  std::vector<std::unique_ptr<Instruction>> IfStatement;
-  std::vector<std::unique_ptr<Instruction>> ElseStatement;
+  InstrVec IfStatement;
+  InstrVec ElseStatement;
   /// @}
 };
 

@@ -19,12 +19,6 @@
 namespace SSVM {
 namespace Executor {
 
-namespace {
-/// Type definition of const iterator.
-using InstrVec = std::vector<std::unique_ptr<AST::Instruction>>;
-using InstrIter = InstrVec::const_iterator;
-} // namespace
-
 class InstrProvider {
 public:
   /// Enum class of instruction sequence type.
@@ -43,7 +37,7 @@ public:
   unsigned int getScopeSize() { return Iters.size(); }
 
   /// Push instruction sequence.
-  ErrCode pushInstrs(SeqType Type, const InstrVec &Instrs);
+  ErrCode pushInstrs(SeqType Type, const AST::InstrVec &Instrs);
 
   /// Pop instruction sequence.
   ErrCode popInstrs();
@@ -51,11 +45,11 @@ public:
 private:
   /// Stack of instruction sequences.
   struct InstrScope {
-    InstrScope(SeqType Type, InstrIter Curr, InstrIter End)
+    InstrScope(SeqType Type, AST::InstrIter Curr, AST::InstrIter End)
         : Type(Type), Curr(Curr), End(End) {}
     SeqType Type;
-    InstrIter Curr;
-    InstrIter End;
+    AST::InstrIter Curr;
+    AST::InstrIter End;
   };
   std::vector<InstrScope> Iters;
 };

@@ -17,7 +17,7 @@ ErrCode Worker::setArguments(Bytes &Input) {
   return ErrCode::Success;
 }
 
-ErrCode Worker::runExpression(const InstrVec &Instrs) {
+ErrCode Worker::runExpression(const AST::InstrVec &Instrs) {
   /// Check worker's flow.
   if (TheState != State::Inited)
     return ErrCode::WrongWorkerFlow;
@@ -763,7 +763,7 @@ ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
 }
 
 ErrCode Worker::enterBlock(unsigned int Arity, AST::Instruction *Instr,
-                           const InstrVec &Seq) {
+                           const AST::InstrVec &Seq) {
   /// Create label for block.
   std::unique_ptr<LabelEntry> Label;
   if (Instr == nullptr)
@@ -823,7 +823,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
 
   /// Push frame with locals and args and set instruction vector
   unsigned int Arity = FuncType->Returns.size();
-  InstrVec EmprySeq;
+  AST::InstrVec EmprySeq;
   auto Frame =
       std::make_unique<FrameEntry>(FuncInst->getModuleAddr(), /// Module address
                                    Arity,                     /// Arity

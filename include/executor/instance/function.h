@@ -36,7 +36,7 @@ public:
   setLocals(const std::vector<std::pair<unsigned int, AST::ValType>> &Loc);
 
   /// Move the instruction list in code segment into function instance.
-  ErrCode setInstrs(std::vector<std::unique_ptr<AST::Instruction>> &Expr);
+  ErrCode setInstrs(AST::InstrVec &Expr);
 
   /// Set the module name and function name.
   ErrCode setNames(const std::string &Mod, const std::string &Func);
@@ -56,9 +56,7 @@ public:
   }
 
   /// Getter of function body instrs.
-  const std::vector<std::unique_ptr<AST::Instruction>> &getInstrs() const {
-    return Instrs;
-  }
+  const AST::InstrVec &getInstrs() const { return Instrs; }
 
   /// Function Instance address in store manager.
   unsigned int Addr;
@@ -71,7 +69,7 @@ private:
   std::string ModName = "";
   std::string FuncName = "";
   std::vector<std::pair<unsigned int, AST::ValType>> Locals;
-  std::vector<std::unique_ptr<AST::Instruction>> Instrs;
+  AST::InstrVec Instrs;
   /// @}
 };
 

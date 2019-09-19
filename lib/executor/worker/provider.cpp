@@ -32,7 +32,7 @@ InstrProvider::SeqType InstrProvider::getTopScopeType() {
 
 /// Push and jump to a new instruction sequence. See
 /// "include/executor/worker/provider.h".
-ErrCode InstrProvider::pushInstrs(SeqType Type, const InstrVec &Instrs) {
+ErrCode InstrProvider::pushInstrs(SeqType Type, const AST::InstrVec &Instrs) {
   Iters.emplace_back(Type, Instrs.cbegin(), Instrs.cend());
   return ErrCode::Success;
 }

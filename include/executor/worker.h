@@ -18,8 +18,6 @@ namespace {
 /// Type name aliasing
 using Byte = uint8_t;
 using Bytes = std::vector<Byte>;
-using InstrVec = std::vector<std::unique_ptr<AST::Instruction>>;
-using InstrIter = InstrVec::const_iterator;
 
 /// Template return type aliasing
 /// Accept unsigned integer types. (uint32_t, uint64_t)
@@ -88,7 +86,7 @@ public:
   ErrCode setArguments(Bytes &Input);
 
   /// Prepare Wasm bytecode expression for execution.
-  ErrCode runExpression(const InstrVec &Instrs);
+  ErrCode runExpression(const AST::InstrVec &Instrs);
 
   /// Invoke function with main function address.
   ErrCode runStartFunction(unsigned int FuncAddr);
@@ -123,7 +121,7 @@ private:
   ///
   /// \returns None.
   ErrCode enterBlock(unsigned int Arity, AST::Instruction *Instr,
-                     const InstrVec &Seq);
+                     const AST::InstrVec &Seq);
 
   /// Helper function for leaving blocks.
   ErrCode leaveBlock();

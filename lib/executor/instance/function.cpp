@@ -24,8 +24,7 @@ ErrCode FunctionInstance::setLocals(
 }
 
 /// Setter of function body. See "include/executor/instance/function.h".
-ErrCode FunctionInstance::setInstrs(
-    std::vector<std::unique_ptr<AST::Instruction>> &Expr) {
+ErrCode FunctionInstance::setInstrs(AST::InstrVec &Expr) {
   Instrs = std::move(Expr);
   return ErrCode::Success;
 }

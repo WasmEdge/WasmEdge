@@ -13,6 +13,7 @@
 
 #include "base.h"
 #include "expression.h"
+#include "instruction.h"
 #include "type.h"
 
 #include <memory>
@@ -29,7 +30,7 @@ public:
   };
 
   /// Getter of locals vector.
-  std::vector<std::unique_ptr<Instruction>> &getInstrs() { return Expr->getInstrs(); }
+  InstrVec &getInstrs() { return Expr->getInstrs(); }
 
 protected:
   /// Load binary from file manager.

@@ -54,12 +54,12 @@ ErrCode Worker::runIfElseOp(AST::ControlInstruction *InstrPtr) {
 
   /// If non-zero, run if-statement; else, run else-statement.
   if (retrieveValue<uint32_t>(*Val.get()) != 0) {
-    const InstrVec &IfStatement = IfElseInstr->getIfStatement();
+    const AST::InstrVec &IfStatement = IfElseInstr->getIfStatement();
     if (IfStatement.size() > 0) {
       Status = enterBlock(Arity, nullptr, IfStatement);
     }
   } else {
-    const InstrVec &ElseStatement = IfElseInstr->getElseStatement();
+    const AST::InstrVec &ElseStatement = IfElseInstr->getElseStatement();
     if (ElseStatement.size() > 0) {
       Status = enterBlock(Arity, nullptr, ElseStatement);
     }

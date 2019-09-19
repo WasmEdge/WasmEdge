@@ -536,24 +536,22 @@ ErrCode Executor::instantiate(AST::ExportSection *ExportSec) {
   /// Iterate and istantiate export descriptions.
   auto &ExpDescs = ExportSec->getContent();
   for (auto ExpDesc = ExpDescs.begin(); ExpDesc != ExpDescs.end(); ExpDesc++) {
-    /// TODO: make export instances. Only match start function now.
     /// Get data from export description.
     auto ExtType = (*ExpDesc)->getExternalType();
     const std::string &ExtName = (*ExpDesc)->getExternalName();
     unsigned int ExtIdx = (*ExpDesc)->getExternalIndex();
+    unsigned int EntityAddr = 0;
 
-    /// TODO: make export instance and add to module.
     /// Add the name of function to function instance.
-    if (ExtType == AST::Desc::ExternalType::Function) {
-      unsigned int FuncAddr = 0;
+    switch (ExtType) {
+    case AST::Desc::ExternalType::Function: {
       Instance::FunctionInstance *FuncInst = nullptr;
-      /// Find function address.
-      if ((Status = ModInst->getFuncAddr(ExtIdx, FuncAddr)) !=
+      /// Find function instance.
+      if ((Status = ModInst->getFuncAddr(ExtIdx, EntityAddr)) !=
           ErrCode::Success) {
         return Status;
       }
-      /// Get function instance.
-      if ((Status = StoreMgr.getFunction(FuncAddr, FuncInst)) !=
+      if ((Status = StoreMgr.getFunction(EntityAddr, FuncInst)) !=
           ErrCode::Success) {
         return Status;
       }
@@ -567,6 +565,64 @@ ErrCode Executor::instantiate(AST::ExportSection *ExportSec) {
           return Status;
         }
       }
+      break;
+    }
+    case AST::Desc::ExternalType::Global: {
+      Instance::GlobalInstance *GlobInst = nullptr;
+      /// Find global instance.
+      if ((Status = ModInst->getGlobalAddr(ExtIdx, EntityAddr)) !=
+          ErrCode::Success) {
+        return Status;
+      }
+      if ((Status = StoreMgr.getGlobal(EntityAddr, GlobInst)) !=
+          ErrCode::Success) {
+        return Status;
+      }
+      /// Set global name. TODO: module name
+      if ((Status = GlobInst->setNames("", ExtName)) != ErrCode::Success) {
+        return Status;
+      }
+      break;
+    }
+    case AST::Desc::ExternalType::Memory: {
+      Instance::MemoryInstance *MemInst = nullptr;
+      /// Find memory instance.
+      if ((Status = ModInst->getMemAddr(ExtIdx, EntityAddr)) !=
+          ErrCode::Success) {
+        return Status;
+      }
+      if ((Status = StoreMgr.getMemory(EntityAddr, MemInst)) !=
+          ErrCode::Success) {
+        return Status;
+      }
+      /// Set memory name. TODO: module name
+      if ((Status = MemInst->setNames("", ExtName)) != ErrCode::Success) {
+        return Status;
+      }
+      break;
+    }
+    case AST::Desc::ExternalType::Table: {
+      Instance::TableInstance *TabInst = nullptr;
+      /// Find table instance.
+      if ((Status = ModInst->getTableAddr(ExtIdx, EntityAddr)) !=
+          ErrCode::Success) {
+        return Status;
+      }
+      if ((Status = StoreMgr.getTable(EntityAddr, TabInst)) !=
+          ErrCode::Success) {
+        return Status;
+      }
+      /// Set table name. TODO: module name
+      if ((Status = TabInst->setNames("", ExtName)) != ErrCode::Success) {
+        return Status;
+      }
+      break;
+    }
+    default:
+      break;
+    }
+
+    if (ExtType == AST::Desc::ExternalType::Function) {
     }
   }
   return Status;

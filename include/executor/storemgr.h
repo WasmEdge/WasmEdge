@@ -16,11 +16,28 @@
 #include "instance/memory.h"
 #include "instance/module.h"
 #include "instance/table.h"
+
 #include <memory>
+#include <type_traits>
 #include <vector>
 
 namespace SSVM {
 namespace Executor {
+
+namespace {
+/// Return true if T is entities.
+template <typename T>
+inline constexpr const bool IsEntityV =
+    std::is_same_v<T, Instance::FunctionInstance> ||
+    std::is_same_v<T, Instance::GlobalInstance> ||
+    std::is_same_v<T, Instance::MemoryInstance> ||
+    std::is_same_v<T, Instance::TableInstance>;
+
+/// Return true if T is instances.
+template <typename T>
+inline constexpr const bool IsInstanceV =
+    IsEntityV<T> || std::is_same_v<T, Instance::ModuleInstance>;
+} // namespace
 
 class StoreManager {
 public:
@@ -36,8 +53,11 @@ public:
   /// \param [out] NewId the module address in Store.
   ///
   /// \returns ErrCode.
-  ErrCode insertModuleInst(std::unique_ptr<Instance::ModuleInstance> &Mod,
-                           unsigned int &NewId);
+  inline ErrCode
+  insertModuleInst(std::unique_ptr<Instance::ModuleInstance> &Mod,
+                   unsigned int &NewId) {
+    return insertInstance(Mod, ModInsts, NewId);
+  }
 
   /// Insert instance to store manager.
   ///
@@ -49,8 +69,11 @@ public:
   /// \param [out] NewId the function address in Store.
   ///
   /// \returns ErrCode.
-  ErrCode insertFunctionInst(std::unique_ptr<Instance::FunctionInstance> &Func,
-                             unsigned int &NewId);
+  inline ErrCode
+  insertFunctionInst(std::unique_ptr<Instance::FunctionInstance> &Func,
+                     unsigned int &NewId) {
+    return insertInstance(Func, FuncInsts, NewId);
+  }
 
   /// Insert instance to store manager.
   ///
@@ -62,8 +85,10 @@ public:
   /// \param [out] NewId the table address in Store.
   ///
   /// \returns ErrCode.
-  ErrCode insertTableInst(std::unique_ptr<Instance::TableInstance> &Tab,
-                          unsigned int &NewId);
+  inline ErrCode insertTableInst(std::unique_ptr<Instance::TableInstance> &Tab,
+                                 unsigned int &NewId) {
+    return insertInstance(Tab, TabInsts, NewId);
+  }
 
   /// Insert instance to store manager.
   ///
@@ -75,8 +100,11 @@ public:
   /// \param [out] NewId the memory address in Store.
   ///
   /// \returns ErrCode.
-  ErrCode insertMemoryInst(std::unique_ptr<Instance::MemoryInstance> &Mem,
-                           unsigned int &NewId);
+  inline ErrCode
+  insertMemoryInst(std::unique_ptr<Instance::MemoryInstance> &Mem,
+                   unsigned int &NewId) {
+    return insertInstance(Mem, MemInsts, NewId);
+  }
 
   /// Insert instance to store manager.
   ///
@@ -88,8 +116,11 @@ public:
   /// \param [out] NewId the global address in Store.
   ///
   /// \returns ErrCode.
-  ErrCode insertGlobalInst(std::unique_ptr<Instance::GlobalInstance> &Glob,
-                           unsigned int &NewId);
+  inline ErrCode
+  insertGlobalInst(std::unique_ptr<Instance::GlobalInstance> &Glob,
+                   unsigned int &NewId) {
+    return insertInstance(Glob, GlobInsts, NewId);
+  }
 
   /// Get instance from store manager.
   ///
@@ -99,7 +130,10 @@ public:
   /// \param [out] Mod the module instance.
   ///
   /// \returns ErrCode.
-  ErrCode getModule(unsigned int Addr, Instance::ModuleInstance *&Mod);
+  inline ErrCode getModule(const unsigned int Addr,
+                           Instance::ModuleInstance *&Mod) {
+    return getInstance(Addr, ModInsts, Mod);
+  }
 
   /// Get instance from store manager.
   ///
@@ -109,7 +143,10 @@ public:
   /// \param [out] Func the function instance.
   ///
   /// \returns ErrCode.
-  ErrCode getFunction(unsigned int Addr, Instance::FunctionInstance *&Func);
+  inline ErrCode getFunction(const unsigned int Addr,
+                             Instance::FunctionInstance *&Func) {
+    return getInstance(Addr, FuncInsts, Func);
+  }
 
   /// Get instance from store manager.
   ///
@@ -119,7 +156,10 @@ public:
   /// \param [out] Tab the table instance.
   ///
   /// \returns ErrCode.
-  ErrCode getTable(unsigned int Addr, Instance::TableInstance *&Tab);
+  inline ErrCode getTable(const unsigned int Addr,
+                          Instance::TableInstance *&Tab) {
+    return getInstance(Addr, TabInsts, Tab);
+  }
 
   /// Get instance from store manager.
   ///
@@ -129,7 +169,10 @@ public:
   /// \param [out] Mem the memory instance.
   ///
   /// \returns ErrCode.
-  ErrCode getMemory(unsigned int Addr, Instance::MemoryInstance *&Mem);
+  inline ErrCode getMemory(const unsigned int Addr,
+                           Instance::MemoryInstance *&Mem) {
+    return getInstance(Addr, MemInsts, Mem);
+  }
 
   /// Get instance from store manager.
   ///
@@ -139,26 +182,99 @@ public:
   /// \param [out] Glob the global instance.
   ///
   /// \returns ErrCode.
-  ErrCode getGlobal(unsigned int Addr, Instance::GlobalInstance *&Glob);
+  inline ErrCode getGlobal(const unsigned int Addr,
+                           Instance::GlobalInstance *&Glob) {
+    return getInstance(Addr, GlobInsts, Glob);
+  }
 
   /// Find function from store manager.
   ///
-  /// Get the function instance by supplying global address.
+  /// Get the function instance by mapping function name.
   ///
   /// \param ModName the module name of function.
   /// \param FuncName the function name.
   /// \param [out] Func the function instance.
   ///
   /// \returns ErrCode.
-  ErrCode findFunction(const std::string &ModName, const std::string &FuncName,
-                       Instance::FunctionInstance *&Func);
+  inline ErrCode findFunction(const std::string &ModName,
+                              const std::string &FuncName,
+                              Instance::FunctionInstance *&Func) {
+    return findEntity(ModName, FuncName, FuncInsts, Func);
+  }
+
+  /// Find table from store manager.
+  ///
+  /// Get the table instance by mapping table name.
+  ///
+  /// \param ModName the module name of table.
+  /// \param TabName the table name.
+  /// \param [out] Tab the table instance.
+  ///
+  /// \returns ErrCode.
+  inline ErrCode findTable(const std::string &ModName,
+                           const std::string &TabName,
+                           Instance::TableInstance *&Tab) {
+    return findEntity(ModName, TabName, TabInsts, Tab);
+  }
+
+  /// Find memory from store manager.
+  ///
+  /// Get the memory instance by mapping memory name.
+  ///
+  /// \param ModName the module name of memory.
+  /// \param MemName the memory name.
+  /// \param [out] Mem the memory instance.
+  ///
+  /// \returns ErrCode.
+  inline ErrCode findMemory(const std::string &ModName,
+                            const std::string &MemName,
+                            Instance::MemoryInstance *&Mem) {
+    return findEntity(ModName, MemName, MemInsts, Mem);
+  }
+
+  /// Find global from store manager.
+  ///
+  /// Get the global instance by mapping global name.
+  ///
+  /// \param ModName the module name of global.
+  /// \param GlobName the global name.
+  /// \param [out] Glob the global instance.
+  ///
+  /// \returns ErrCode.
+  inline ErrCode findGlobal(const std::string &ModName,
+                            const std::string &GlobName,
+                            Instance::GlobalInstance *&Glob) {
+    return findEntity(ModName, GlobName, GlobInsts, Glob);
+  }
 
 private:
+  /// Helper function for inserting instance to instance vector.
+  template <typename T>
+  std::enable_if_t<IsInstanceV<T>, ErrCode>
+  insertInstance(std::unique_ptr<T> &Inst,
+                 std::vector<std::unique_ptr<T>> &InstsVec,
+                 unsigned int &NewId);
+
+  /// Helper function for getting instance from instance vector.
+  template <typename T>
+  std::enable_if_t<IsInstanceV<T>, ErrCode>
+  getInstance(const unsigned int Addr,
+              std::vector<std::unique_ptr<T>> &InstsVec, T *&Inst);
+
+  /// Helper function for finding instance from instance vector.
+  template <typename T>
+  std::enable_if_t<IsEntityV<T>, ErrCode>
+  findEntity(const std::string &ModName, const std::string &EntityName,
+             std::vector<std::unique_ptr<T>> &InstsVec, T *&Inst);
+
+  /// \name Data of instances.
+  /// @{
   std::vector<std::unique_ptr<Instance::ModuleInstance>> ModInsts;
   std::vector<std::unique_ptr<Instance::FunctionInstance>> FuncInsts;
   std::vector<std::unique_ptr<Instance::TableInstance>> TabInsts;
   std::vector<std::unique_ptr<Instance::MemoryInstance>> MemInsts;
   std::vector<std::unique_ptr<Instance::GlobalInstance>> GlobInsts;
+  /// @}
 };
 
 } // namespace Executor

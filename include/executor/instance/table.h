@@ -12,16 +12,17 @@
 
 #include "ast/common.h"
 #include "executor/common.h"
+#include "executor/instance/entity.h"
 #include <vector>
 
 namespace SSVM {
 namespace Executor {
 namespace Instance {
 
-class TableInstance {
+class TableInstance : public Entity {
 public:
   TableInstance() = default;
-  ~TableInstance() = default;
+  virtual ~TableInstance() = default;
 
   /// Set the element type.
   ErrCode setElemType(AST::ElemType &Elem);
@@ -31,9 +32,6 @@ public:
 
   /// Set the initialization list.
   ErrCode setInitList(unsigned int Offset, std::vector<unsigned int> &Addrs);
-
-  /// Table Instance address in store manager.
-  unsigned int Addr;
 
 private:
   /// \name Data of table instance.

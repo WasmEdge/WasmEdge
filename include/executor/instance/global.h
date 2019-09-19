@@ -12,6 +12,7 @@
 
 #include "ast/common.h"
 #include "executor/common.h"
+#include "executor/instance/entity.h"
 #include "support/casting.h"
 
 namespace SSVM {
@@ -25,11 +26,11 @@ using TypeV = typename std::enable_if_t<
     Support::IsWasmBuiltInV<T> || std::is_same_v<T, AST::ValVariant>, TR>;
 } // namespace
 
-class GlobalInstance {
+class GlobalInstance : public Entity {
 public:
   GlobalInstance() = delete;
   GlobalInstance(const AST::ValType &ValueType, const AST::ValMut &Mutibility);
-  ~GlobalInstance() = default;
+  virtual ~GlobalInstance() = default;
 
   /// Get the global type.
   AST::ValType getValType() const { return Type; }
@@ -39,9 +40,6 @@ public:
 
   /// Get the value of this instance.
   template <typename T> TypeV<T, ErrCode> getValue(T &Val) const;
-
-  /// Global Instance address in store manager.
-  unsigned int Addr;
 
 private:
   /// \name Data of global instance.

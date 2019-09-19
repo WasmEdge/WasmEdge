@@ -29,19 +29,6 @@ ErrCode FunctionInstance::setInstrs(AST::InstrVec &Expr) {
   return ErrCode::Success;
 }
 
-/// Setter of function name. See "include/executor/instance/function.h".
-ErrCode FunctionInstance::setNames(const std::string &Mod,
-                                   const std::string &Func) {
-  ModName = Mod;
-  FuncName = Func;
-  return ErrCode::Success;
-}
-
-/// Match the module and function name.
-bool FunctionInstance::isName(const std::string &Mod, const std::string &Func) {
-  return Mod == ModName && Func == FuncName;
-}
-
 } // namespace Instance
 } // namespace Executor
 } // namespace SSVM

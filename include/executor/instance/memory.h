@@ -11,6 +11,7 @@
 #pragma once
 
 #include "executor/common.h"
+#include "executor/instance/entity.h"
 #include "support/casting.h"
 #include <memory>
 #include <vector>
@@ -19,7 +20,7 @@ namespace SSVM {
 namespace Executor {
 namespace Instance {
 
-class MemoryInstance {
+class MemoryInstance : public Entity {
 private:
   using Byte = unsigned char;
   using Bytes = std::vector<Byte>;
@@ -71,9 +72,6 @@ public:
   template <typename T>
   typename std::enable_if_t<Support::IsWasmBuiltInV<T>, ErrCode>
   storeValue(unsigned int Offset, unsigned int Length, const T &Value);
-
-  /// Memory Instance address in store manager.
-  unsigned int Addr;
 
 private:
   /// Check access size is valid and adjust vector.

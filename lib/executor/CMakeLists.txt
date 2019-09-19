@@ -1,15 +1,7 @@
-add_library(ssvmExecutor
-  executor.cpp
-  entry/frame.cpp
-  entry/value.cpp
-  instance/entity.cpp
-  instance/function.cpp
-  instance/global.cpp
-  instance/memory.cpp
-  instance/module.cpp
-  instance/table.cpp
-  stackmgr.cpp
-  storemgr.cpp
+add_subdirectory(entry)
+add_subdirectory(instance)
+
+add_library(ssvmExecutorWorker
   worker.cpp
   worker/control.cpp
   worker/variable.cpp
@@ -19,4 +11,10 @@ add_library(ssvmExecutor
   worker/binary_numeric.cpp
   worker/cast_numeric.cpp
   worker/provider.cpp
+)
+
+add_library(ssvmExecutor
+  stackmgr.cpp
+  storemgr.cpp
+  executor.cpp
 )

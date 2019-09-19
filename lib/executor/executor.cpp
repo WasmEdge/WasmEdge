@@ -118,6 +118,7 @@ ErrCode Executor::instantiate(AST::ImportSection *ImportSec) {
         return Status;
       }
       /// Set the function type index.
+      /// TODO: Do import matching
       unsigned int *TypeIdx = nullptr;
       if ((Status = (*ImpDesc)->getExternalContent(TypeIdx)) !=
           ErrCode::Success) {
@@ -132,9 +133,52 @@ ErrCode Executor::instantiate(AST::ImportSection *ImportSec) {
       }
       break;
     }
-    case AST::Desc::ExternalType::Table:  /// Table type TODO
-    case AST::Desc::ExternalType::Memory: /// Memory type TODO
-    case AST::Desc::ExternalType::Global: /// Global type TODO
+    case AST::Desc::ExternalType::Table: /// Table type
+    {
+      /// Find the table instance in Store.
+      Instance::TableInstance *TabInst = nullptr;
+      if ((Status = StoreMgr.findTable(ModName, ExtName, TabInst)) !=
+          ErrCode::Success) {
+        return Status;
+      }
+      /// TODO: Do import matching.
+      /// Set the memory address to module instance.
+      if ((Status = ModInst->addTableAddr(TabInst->Addr)) != ErrCode::Success) {
+        return Status;
+      }
+      break;
+    }
+    case AST::Desc::ExternalType::Memory: /// Memory type
+    {
+      /// Find the memory instance in Store.
+      Instance::MemoryInstance *MemInst = nullptr;
+      if ((Status = StoreMgr.findMemory(ModName, ExtName, MemInst)) !=
+          ErrCode::Success) {
+        return Status;
+      }
+      /// TODO: Do import matching.
+      /// Set the memory address to module instance.
+      if ((Status = ModInst->addMemAddr(MemInst->Addr)) != ErrCode::Success) {
+        return Status;
+      }
+      break;
+    }
+    case AST::Desc::ExternalType::Global: /// Global type
+    {
+      /// Find the global instance in Store.
+      Instance::GlobalInstance *GlobInst = nullptr;
+      if ((Status = StoreMgr.findGlobal(ModName, ExtName, GlobInst)) !=
+          ErrCode::Success) {
+        return Status;
+      }
+      /// TODO: Do import matching.
+      /// Set the global address to module instance.
+      if ((Status = ModInst->addGlobalAddr(GlobInst->Addr)) !=
+          ErrCode::Success) {
+        return Status;
+      }
+      break;
+    }
     default:
       break;
     }

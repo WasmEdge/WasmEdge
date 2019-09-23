@@ -13,12 +13,6 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
   }
   ErrCode Status = ErrCode::Success;
 
-  /// Get the module instance from ID.
-  Instance::ModuleInstance *ModInst = nullptr;
-  if ((Status = StoreMgr.getModule(ModInstId, ModInst)) != ErrCode::Success) {
-    return Status;
-  }
-
   /// Add a temp module to Store for initialization
   auto TmpMod = std::make_unique<Instance::ModuleInstance>();
 

@@ -12,11 +12,15 @@ ErrCode Executor::instantiate(AST::Module *Mod) {
     return ErrCode::Success;
   }
   ErrCode Status = ErrCode::Success;
-  auto ModInst = std::make_unique<Instance::ModuleInstance>();
+  auto NewModInst = std::make_unique<Instance::ModuleInstance>();
 
-  /// Insert the module instance to store manager.
-  if ((Status = StoreMgr.insertModuleInst(ModInst, ModInstId)) !=
+  /// Insert the module instance to store manager and retieve instance.
+  unsigned int ModInstAddr;
+  if ((Status = StoreMgr.insertModuleInst(NewModInst, ModInstAddr)) !=
       ErrCode::Success) {
+    return Status;
+  }
+  if ((Status = StoreMgr.getModule(ModInstAddr, ModInst)) != ErrCode::Success) {
     return Status;
   }
 
@@ -47,7 +51,7 @@ ErrCode Executor::instantiate(AST::Module *Mod) {
 
   /// Initializa the tables and memories
   /// Make a new frame {ModInst, locals:none} and push
-  auto Frame = std::make_unique<FrameEntry>(ModInstId, 0);
+  auto Frame = std::make_unique<FrameEntry>(ModInst->Addr, 0);
   StackMgr.push(Frame);
 
   /// Instantiate TableSection (TableSec, ElemSec)
@@ -74,6 +78,12 @@ ErrCode Executor::instantiate(AST::Module *Mod) {
   }
 
   /// Instantiate StartSection (StartSec)
+  AST::StartSection *StartSec = Mod->getStartSection();
+  if (StartSec != nullptr) {
+    /// Get the module instance from ID.
+    ModInst->setStartIdx(StartSec->getContent());
+  }
+
   /// In e-wasm, the start section will always be "main" function.
   /// Therefore, the start function index will be find in export section.
 

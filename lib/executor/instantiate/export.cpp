@@ -16,12 +16,6 @@ ErrCode Executor::instantiate(AST::ExportSection *ExportSec) {
   }
   ErrCode Status = ErrCode::Success;
 
-  /// Get the module instance from ID.
-  Instance::ModuleInstance *ModInst = nullptr;
-  if ((Status = StoreMgr.getModule(ModInstId, ModInst)) != ErrCode::Success) {
-    return Status;
-  }
-
   /// Iterate and istantiate export descriptions.
   auto &ExpDescs = ExportSec->getContent();
   for (auto ExpDesc = ExpDescs.begin(); ExpDesc != ExpDescs.end(); ExpDesc++) {

@@ -31,7 +31,7 @@ public:
   ErrCode setModule(std::unique_ptr<AST::Module> &Module);
 
   /// Instantiate Wasm Module.
-  ErrCode instantiate() { return instantiate(Mod.get()); }
+  ErrCode instantiate();
 
   /// Execute Wasm.
   ErrCode run();
@@ -61,8 +61,12 @@ private:
   /// Instantiation of Export Instances.
   ErrCode instantiate(AST::ExportSection *ExportSec);
 
+  /// Executor State
+  enum class State : unsigned int { Inited, ModuleSet, Instantiated, Finished };
+
+  State Stat = State::Inited;
   std::unique_ptr<AST::Module> Mod = nullptr;
-  unsigned int ModInstId = 0;
+  Instance::ModuleInstance *ModInst = nullptr;
   Worker Engine;
   StackManager StackMgr;
   StoreManager StoreMgr;

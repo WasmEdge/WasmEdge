@@ -14,12 +14,6 @@ ErrCode Executor::instantiate(AST::TableSection *TabSec,
   }
   ErrCode Status = ErrCode::Success;
 
-  /// Get the module instance from ID.
-  Instance::ModuleInstance *ModInst = nullptr;
-  if ((Status = StoreMgr.getModule(ModInstId, ModInst)) != ErrCode::Success) {
-    return Status;
-  }
-
   /// Iterate and istantiate table types.
   auto &TabTypes = TabSec->getContent();
   for (auto TabType = TabTypes.begin(); TabType != TabTypes.end(); TabType++) {

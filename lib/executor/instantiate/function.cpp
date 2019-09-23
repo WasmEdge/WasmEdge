@@ -14,12 +14,6 @@ ErrCode Executor::instantiate(AST::FunctionSection *FuncSec,
   }
   ErrCode Status = ErrCode::Success;
 
-  /// Get the module instance from ID.
-  Instance::ModuleInstance *ModInst = nullptr;
-  if ((Status = StoreMgr.getModule(ModInstId, ModInst)) != ErrCode::Success) {
-    return Status;
-  }
-
   /// Get the function type indices.
   auto &TypeIdxs = FuncSec->getContent();
 

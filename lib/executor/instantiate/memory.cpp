@@ -14,12 +14,6 @@ ErrCode Executor::instantiate(AST::MemorySection *MemSec,
   }
   ErrCode Status = ErrCode::Success;
 
-  /// Get the module instance from ID.
-  Instance::ModuleInstance *ModInst = nullptr;
-  if ((Status = StoreMgr.getModule(ModInstId, ModInst)) != ErrCode::Success) {
-    return Status;
-  }
-
   /// Iterate and istantiate memory types.
   auto &MemTypes = MemSec->getContent();
   for (auto MemType = MemTypes.begin(); MemType != MemTypes.end(); MemType++) {

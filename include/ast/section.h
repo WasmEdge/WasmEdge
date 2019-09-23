@@ -217,6 +217,10 @@ private:
 
 /// AST StartSection node.
 class StartSection : public Section {
+public:
+  /// Getter of content.
+  unsigned int getContent() const { return Content; }
+
 protected:
   /// Overrided content loading of start section.
   virtual Loader::ErrCode loadContent(FileMgr &Mgr);

@@ -22,7 +22,7 @@ ErrCode Executor::instantiate(AST::MemorySection *MemSec,
     unsigned int NewMemInstId = 0;
 
     /// Set memory instance data.
-    auto &Limit = (*MemType)->getLimit();
+    auto *Limit = (*MemType)->getLimit();
     if ((Status = NewMemInst->setLimit(Limit->getMin(), Limit->hasMax(),
                                        Limit->getMax())) != ErrCode::Success) {
       return Status;

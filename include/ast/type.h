@@ -37,13 +37,13 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of having max in limit.
-  bool hasMax() { return Type == LimitType::HasMinMax; }
+  bool hasMax() const { return Type == LimitType::HasMinMax; }
 
   /// Getter of min.
-  unsigned int getMin() { return Min; }
+  unsigned int getMin() const { return Min; }
 
   /// Getter of max.
-  unsigned int getMax() { return Max; }
+  unsigned int getMax() const { return Max; }
 
 protected:
   /// The node type should be Attr::Type_Limit.
@@ -103,7 +103,7 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of limit.
-  const std::unique_ptr<Limit> &getLimit() { return Memory; }
+  const Limit *getLimit() { return Memory.get(); }
 
 protected:
   /// The node type should be Attr::Type_Memory.
@@ -128,10 +128,10 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of element type.
-  ElemType getElementType() { return Type; }
+  ElemType getElementType() const { return Type; }
 
   /// Getter of limit.
-  const std::unique_ptr<Limit> &getLimit() { return Table; }
+  const Limit *getLimit() { return Table.get(); }
 
 protected:
   /// The node type should be Attr::Type_Table.
@@ -159,10 +159,10 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of global type.
-  ValType getValueType() { return Type; }
+  ValType getValueType() const { return Type; }
 
   /// Getter of global mutation.
-  ValMut getValueMutation() { return Mut; }
+  ValMut getValueMutation() const { return Mut; }
 
 protected:
   /// The node type should be Attr::Type_Global.

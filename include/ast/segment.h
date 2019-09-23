@@ -60,7 +60,7 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of locals vector.
-  const std::unique_ptr<GlobalType> &getGlobalType() { return Global; }
+  const GlobalType *getGlobalType() { return Global.get(); }
 
 protected:
   /// The node type should be Attr::Seg_Global.

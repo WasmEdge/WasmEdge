@@ -20,7 +20,7 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
   auto &GlobSegs = GlobSec->getContent();
   for (auto GlobSeg = GlobSegs.begin(); GlobSeg != GlobSegs.end(); GlobSeg++) {
     /// Make a new global instance.
-    auto &GlobType = (*GlobSeg)->getGlobalType();
+    auto *GlobType = (*GlobSeg)->getGlobalType();
     auto NewGlobInst = std::make_unique<Instance::GlobalInstance>(
         GlobType->getValueType(), GlobType->getValueMutation());
     unsigned int NewGlobInstId = 0;

@@ -23,7 +23,7 @@ ErrCode Executor::instantiate(AST::TableSection *TabSec,
 
     /// Set table instance data.
     auto ElemType = (*TabType)->getElementType();
-    auto &Limit = (*TabType)->getLimit();
+    auto *Limit = (*TabType)->getLimit();
     if ((Status = NewTabInst->setElemType(ElemType)) != ErrCode::Success) {
       return Status;
     }

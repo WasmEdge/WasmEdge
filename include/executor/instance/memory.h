@@ -90,3 +90,5 @@ private:
 } // namespace Instance
 } // namespace Executor
 } // namespace SSVM
+
+#include "memory.ipp"

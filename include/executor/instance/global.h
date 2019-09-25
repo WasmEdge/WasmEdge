@@ -20,10 +20,9 @@ namespace Executor {
 namespace Instance {
 
 namespace {
-/// Accept Wasm built-in types and variant<...>
+/// Accept Wasm built-in types
 template <typename T, typename TR>
-using TypeV = typename std::enable_if_t<
-    Support::IsWasmBuiltInV<T> || std::is_same_v<T, AST::ValVariant>, TR>;
+using TypeB = typename std::enable_if_t<Support::IsWasmBuiltInV<T>, TR>;
 } // namespace
 
 class GlobalInstance : public Entity {
@@ -35,11 +34,13 @@ public:
   /// Get the global type.
   AST::ValType getValType() const { return Type; }
 
-  /// Set the value of this instance.
-  template <typename T> TypeV<T, ErrCode> setValue(const T &Val);
+  /// Getter of value. See "include/executor/instance/global.h".
+  template <typename T> TypeB<T, ErrCode> getValue(T &Val) const;
+  ErrCode getValue(AST::ValVariant &Val) const;
 
-  /// Get the value of this instance.
-  template <typename T> TypeV<T, ErrCode> getValue(T &Val) const;
+  /// Setter of value. See "include/executor/instance/global.h".
+  template <typename T> TypeB<T, ErrCode> setValue(const T &Val);
+  ErrCode setValue(const AST::ValVariant &Val);
 
 private:
   /// \name Data of global instance.
@@ -53,3 +54,5 @@ private:
 } // namespace Instance
 } // namespace Executor
 } // namespace SSVM
+
+#include "global.ipp"

@@ -6,7 +6,12 @@ add_executable(ssvmRegressionTests
 target_link_libraries(ssvmRegressionTests
   PRIVATE
   utilGoogleTest
-  ssvmLoaderFileMgr
   ssvmASTLoad
+  ssvmLoaderFileMgr
   ssvmLoader
+  ssvmExecutorWorker
+  ssvmExecutorInstance
+  ssvmExecutorEntry
+  ssvmExecutorInstantiate
+  ssvmExecutor
 )

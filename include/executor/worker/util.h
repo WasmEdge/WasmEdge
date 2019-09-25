@@ -1,3 +1,5 @@
+#pragma once
+
 #include "ast/instruction.h"
 #include "executor/entry/value.h"
 #include "support/casting.h"

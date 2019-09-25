@@ -11,7 +11,5 @@ add_library(ssvmExecutorWorker
 )
 
 add_library(ssvmExecutor
-  stackmgr.cpp
-  storemgr.cpp
   executor.cpp
 )

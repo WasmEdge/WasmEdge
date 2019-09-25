@@ -58,19 +58,59 @@ public:
   template <typename T> TypeE<T, ErrCode> push(std::unique_ptr<T> &NewEntry) {
     return push(std::move(NewEntry));
   }
-  template <typename T> TypeB<T, ErrCode> pushValue(T Val);
+  template <typename T> TypeB<T, ErrCode> pushValue(T Val) {
+    Stack.push_back(std::make_unique<ValueEntry>(Val));
+    return ErrCode::Success;
+  }
 
   /// Pop and return the top entry.
   template <typename T> TypeE<T, ErrCode> pop(std::unique_ptr<T> &Entry);
 
   /// Pop the top entry.
-  ErrCode pop();
+  inline ErrCode pop() {
+    /// Check the size of stack.
+    if (Stack.size() == 0)
+      return ErrCode::StackEmpty;
+
+    /// Check is the top entry's type.
+    switch (Stack.back().index()) {
+    case 0: /// Frame entry
+      FrameIdx.pop_back();
+      break;
+    case 1: /// Label entry
+      LabelIdx.pop_back();
+      break;
+    default:
+      break;
+    }
+
+    /// Drop the top entry.
+    Stack.pop_back();
+    return ErrCode::Success;
+  }
 
   /// Get the current toppest frame.
-  ErrCode getCurrentFrame(FrameEntry *&Frame);
+  inline ErrCode getCurrentFrame(FrameEntry *&Frame) {
+    /// Check is there current frame.
+    if (FrameIdx.size() == 0)
+      return ErrCode::WrongInstanceAddress;
+
+    /// Get the current frame pointer.
+    Frame = std::get<0>(Stack[FrameIdx.back()]).get();
+    return ErrCode::Success;
+  }
 
   /// Get the top of count of label.
-  ErrCode getLabelWithCount(LabelEntry *&Label, unsigned int Count);
+  inline ErrCode getLabelWithCount(LabelEntry *&Label, unsigned int Count) {
+    /// Check is there at least count + 1 labels.
+    if (LabelIdx.size() < Count + 1)
+      return ErrCode::WrongInstanceAddress;
+
+    /// Get the (count + 1)-th top of label.
+    unsigned int Idx = LabelIdx.size() - Count - 1;
+    Label = std::get<1>(Stack[LabelIdx[Idx]]).get();
+    return ErrCode::Success;
+  }
 
   /// Checking the top entry's attribute
   bool isTopFrame() { return (Stack.size() > 0) && Stack.back().index() == 0; }
@@ -88,3 +128,5 @@ private:
 
 } // namespace Executor
 } // namespace SSVM
+
+#include "stackmgr.ipp"

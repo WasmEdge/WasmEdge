@@ -279,3 +279,5 @@ private:
 
 } // namespace Executor
 } // namespace SSVM
+
+#include "storemgr.ipp"

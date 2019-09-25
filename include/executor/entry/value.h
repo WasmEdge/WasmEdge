@@ -22,20 +22,9 @@ namespace Executor {
 
 class ValueEntry;
 namespace {
-/// Check the type is built-in types or variant<built-in>.
-template <typename T>
-inline constexpr const bool IsV =
-    Support::IsWasmBuiltInV<T> || std::is_same_v<T, AST::ValVariant>;
-/// Check the type is built-in types, variant<built-in>, or ValueEntry.
-template <typename T>
-inline constexpr const bool IsVE = IsV<T> || std::is_same_v<T, ValueEntry>;
-
-/// Accept Wasm built-in types, and variant<...>.
+/// Accept Wasm built-in types
 template <typename T, typename TR>
-using TypeV = typename std::enable_if_t<IsV<T>, TR>;
-/// Accept Wasm built-in types, variant<...>, and ValueEntry.
-template <typename T, typename TR>
-using TypeVE = typename std::enable_if_t<IsVE<T>, TR>;
+using TypeB = typename std::enable_if_t<Support::IsWasmBuiltInV<T>, TR>;
 } // namespace
 
 class ValueEntry {
@@ -62,10 +51,13 @@ public:
   AST::ValType getType() const { return Type; }
 
   /// Value setters
-  template <typename T> TypeVE<T, ErrCode> setValue(const T &Val);
+  template <typename T> TypeB<T, ErrCode> setValue(const T &Val);
+  ErrCode setValue(const ValueEntry &Val);
+  ErrCode setValue(const AST::ValVariant &Val);
 
   /// Getters of getting values.
-  template <typename T> TypeV<T, ErrCode> getValue(T &Val) const;
+  template <typename T> TypeB<T, ErrCode> getValue(T &Val) const;
+  ErrCode getValue(AST::ValVariant &Val) const;
 
 private:
   /// \name Data of value entry.
@@ -77,3 +69,5 @@ private:
 
 } // namespace Executor
 } // namespace SSVM
+
+#include "value.ipp"

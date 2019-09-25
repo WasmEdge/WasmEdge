@@ -7,10 +7,6 @@ add_library(ssvmExecutorWorker
   worker/control.cpp
   worker/variable.cpp
   worker/memory.cpp
-  worker/relation_numeric.cpp
-  worker/unary_numeric.cpp
-  worker/binary_numeric.cpp
-  worker/cast_numeric.cpp
   worker/provider.cpp
 )
 

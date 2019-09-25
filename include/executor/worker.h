@@ -9,6 +9,7 @@
 #include "worker/provider.h"
 
 #include <cstdint>
+#include <vector>
 
 namespace SSVM {
 namespace Executor {
@@ -142,6 +143,13 @@ private:
   /// Helper function for branching to label.
   ErrCode branchToLabel(unsigned int L);
 
+  /// Helper function for get memory instance by index.
+  ErrCode getMemInstByIdx(unsigned int Idx, Instance::MemoryInstance *&MemInst);
+
+  /// Helper function for get global instance by index.
+  ErrCode getGlobInstByIdx(unsigned int Idx,
+                           Instance::GlobalInstance *&GlobInst);
+
   /// Run instructions functions
   /// ======= Control =======
   ErrCode runBlockOp(AST::ControlInstruction *Instr);
@@ -257,3 +265,9 @@ private:
 
 } // namespace Executor
 } // namespace SSVM
+
+#include "worker/binary_numeric.ipp"
+#include "worker/cast_numeric.ipp"
+#include "worker/memory.ipp"
+#include "worker/relation_numeric.ipp"
+#include "worker/unary_numeric.ipp"

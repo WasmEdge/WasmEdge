@@ -57,11 +57,29 @@ struct IsWasmBuiltIn : std::bool_constant<IsWasmUnsignV<T> || IsWasmFloatV<T>> {
 template <typename T>
 inline constexpr const bool IsWasmBuiltInV = IsWasmBuiltIn<T>::value;
 
-/// Cast-to-signed function.
+/// Return signed type.
 template <typename T>
-typename std::enable_if_t<IsWasmUnsignV<T>, std::make_signed_t<T>>
-toSigned(T Int) {
-  return static_cast<std::make_signed_t<T>>(Int);
+using MakeWasmSignedT =
+    typename std::conditional<IsWasmFloatV<T>, std::common_type<T>,
+                              std::make_signed<T>>::type::type;
+
+/// Return unsigned type.
+template <typename T>
+using MakeWasmUnsignedT =
+    typename std::conditional<IsWasmFloatV<T>, std::common_type<T>,
+                              std::make_unsigned<T>>::type::type;
+
+/// Cast-to-signed function.
+template <typename T>
+typename std::enable_if_t<IsWasmTypeV<T>, MakeWasmSignedT<T>> toSigned(T Val) {
+  return static_cast<MakeWasmSignedT<T>>(Val);
+}
+
+/// Cast-to-unsigned function.
+template <typename T>
+typename std::enable_if_t<IsWasmTypeV<T>, MakeWasmUnsignedT<T>>
+toUnsigned(T Val) {
+  return static_cast<MakeWasmUnsignedT<T>>(Val);
 }
 
 } // namespace Support

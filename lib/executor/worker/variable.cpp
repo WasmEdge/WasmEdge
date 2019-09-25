@@ -10,23 +10,6 @@
 namespace SSVM {
 namespace Executor {
 
-/// Helper function of getting global instance by index.
-ErrCode getGlobInstByIdx(StoreManager &Store, FrameEntry &CurrFrame,
-                         unsigned int Idx,
-                         Instance::GlobalInstance *&GlobInst) {
-  ErrCode Status = ErrCode::Success;
-  Instance::ModuleInstance *ModInst = nullptr;
-  unsigned int GlobalAddr = 0;
-  unsigned int ModuleAddr = CurrFrame.getModuleAddr();
-  if ((Status = Store.getModule(ModuleAddr, ModInst)) != ErrCode::Success) {
-    return Status;
-  };
-  if ((Status = ModInst->getGlobalAddr(Idx, GlobalAddr)) != ErrCode::Success) {
-    return Status;
-  };
-  return Store.getGlobal(GlobalAddr, GlobInst);
-}
-
 ErrCode Worker::runLocalGetOp(unsigned int Idx) {
   ErrCode Status = ErrCode::Success;
   ValueEntry *ValEntry = nullptr;
@@ -58,8 +41,7 @@ ErrCode Worker::runGlobalGetOp(unsigned int Idx) {
   Instance::GlobalInstance *GlobInst = nullptr;
   AST::ValVariant Val;
   ErrCode Status = ErrCode::Success;
-  if ((Status = getGlobInstByIdx(StoreMgr, *CurrentFrame, Idx, GlobInst)) !=
-      ErrCode::Success) {
+  if ((Status = getGlobInstByIdx(Idx, GlobInst)) != ErrCode::Success) {
     return Status;
   };
   if ((Status = GlobInst->getValue(Val)) != ErrCode::Success) {
@@ -74,8 +56,7 @@ ErrCode Worker::runGlobalSetOp(unsigned int Idx) {
   AST::ValVariant Val;
   Instance::GlobalInstance *GlobInst = nullptr;
   ErrCode Status = ErrCode::Success;
-  if ((Status = getGlobInstByIdx(StoreMgr, *CurrentFrame, Idx, GlobInst)) !=
-      ErrCode::Success) {
+  if ((Status = getGlobInstByIdx(Idx, GlobInst)) != ErrCode::Success) {
     return Status;
   };
   if ((Status = StackMgr.pop(ValEntry)) != ErrCode::Success) {

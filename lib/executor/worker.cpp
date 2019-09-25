@@ -913,5 +913,35 @@ ErrCode Worker::branchToLabel(unsigned int L) {
   return Status;
 }
 
+ErrCode Worker::getMemInstByIdx(unsigned int Idx,
+                                Instance::MemoryInstance *&MemInst) {
+  ErrCode Status = ErrCode::Success;
+  Instance::ModuleInstance *ModInst = nullptr;
+  unsigned int MemoryAddr = 0;
+  unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
+  if ((Status = StoreMgr.getModule(ModuleAddr, ModInst)) != ErrCode::Success) {
+    return Status;
+  };
+  if ((Status = ModInst->getMemAddr(Idx, MemoryAddr)) != ErrCode::Success) {
+    return Status;
+  };
+  return StoreMgr.getMemory(MemoryAddr, MemInst);
+}
+
+ErrCode Worker::getGlobInstByIdx(unsigned int Idx,
+                                 Instance::GlobalInstance *&GlobInst) {
+  ErrCode Status = ErrCode::Success;
+  Instance::ModuleInstance *ModInst = nullptr;
+  unsigned int GlobalAddr = 0;
+  unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
+  if ((Status = StoreMgr.getModule(ModuleAddr, ModInst)) != ErrCode::Success) {
+    return Status;
+  };
+  if ((Status = ModInst->getGlobalAddr(Idx, GlobalAddr)) != ErrCode::Success) {
+    return Status;
+  };
+  return StoreMgr.getGlobal(GlobalAddr, GlobInst);
+}
+
 } // namespace Executor
 } // namespace SSVM

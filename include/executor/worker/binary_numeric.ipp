@@ -2,6 +2,7 @@
 #include "executor/entry/value.h"
 #include "executor/worker.h"
 #include "executor/worker/util.h"
+#include "support/casting.h"
 #include <cmath>
 
 namespace SSVM {
@@ -50,7 +51,7 @@ TypeT<T, ErrCode> Worker::runDivOp(const ValueEntry *Val1,
   /// Else, return the result of v1 / v2.
   /// Integer case: truncated toward zero.
   /// Floating case: +-0.0, NaN, and Inf case are handled.
-  return StackMgr.pushValue(static_cast<std::make_unsigned_t<T>>(V1 / V2));
+  return StackMgr.pushValue(Support::toUnsigned(V1 / V2));
 }
 
 template <typename T>
@@ -62,7 +63,7 @@ TypeI<T, ErrCode> Worker::runRemOp(const ValueEntry *Val1,
     return ErrCode::DivideByZero;
   }
   /// Else, return the i1 % i2. Signed case is handled.
-  return StackMgr.pushValue(static_cast<std::make_unsigned_t<T>>(I1 % I2));
+  return StackMgr.pushValue(Support::toUnsigned(I1 % I2));
 }
 
 template <typename T>
@@ -108,7 +109,7 @@ TypeI<T, ErrCode> Worker::runShrOp(const ValueEntry *Val1,
   /// Return the result of i1 >> k.
   /// In signed case, extended with the sign bit of i1.
   /// In unsigned case, extended with 0 bits.
-  return StackMgr.pushValue(static_cast<std::make_unsigned_t<T>>(I1 >> I2));
+  return StackMgr.pushValue(Support::toUnsigned(I1 >> I2));
 }
 
 template <typename T>

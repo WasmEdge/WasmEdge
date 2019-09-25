@@ -39,7 +39,7 @@ public:
   ///
   /// \returns None.
   LabelEntry(const unsigned int Arity, AST::Instruction *Instr)
-      : Target(Instr) {}
+      : Arity(Arity), Target(Instr) {}
 
   ~LabelEntry() = default;
 

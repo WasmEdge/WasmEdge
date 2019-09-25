@@ -3,6 +3,8 @@
 #include "executor/worker.h"
 #include "executor/worker/util.h"
 #include "support/casting.h"
+
+#include <string.h>
 #include <cmath>
 
 namespace SSVM {

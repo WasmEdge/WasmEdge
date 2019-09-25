@@ -1,5 +1,6 @@
 #include "executor/instance/memory.h"
-#include <iterator>
+
+#include <string.h>
 
 namespace SSVM {
 namespace Executor {

@@ -6,7 +6,7 @@ int main(int Argc, char *Argv[]) {
   SSVM::VM::VM VM;
   SSVM::Result Result;
   VM.setPath(InputPath);
-  VM.setInput(std::vector<uint8_t>());
+  VM.appendArgument(0U);
   VM.execute();
   Result = VM.getResult();
   return 0;

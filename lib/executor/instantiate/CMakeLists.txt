@@ -8,3 +8,9 @@ add_library(ssvmExecutorInstantiate
   export.cpp
   module.cpp
 )
+
+target_link_libraries(ssvmExecutorInstantiate
+  PRIVATE
+  ssvmExecutorEntry
+  ssvmExecutorInstance
+)

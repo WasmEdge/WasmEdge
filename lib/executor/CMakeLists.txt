@@ -10,6 +10,12 @@ add_library(ssvmExecutorWorker
   worker/provider.cpp
 )
 
+target_link_libraries(ssvmExecutorWorker
+  PRIVATE
+  ssvmExecutorEntry
+  ssvmExecutorInstance
+)
+
 add_library(ssvmExecutor
   executor.cpp
 )

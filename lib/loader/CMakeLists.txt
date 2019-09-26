@@ -5,3 +5,8 @@ add_library(ssvmLoaderFileMgr
 add_library(ssvmLoader
   loader.cpp
 )
+
+target_link_libraries(ssvmLoader
+  PRIVATE
+  ssvmLoaderFileMgr
+)

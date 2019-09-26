@@ -13,3 +13,11 @@ add_library(ssvmExecutorWorker
 add_library(ssvmExecutor
   executor.cpp
 )
+
+target_link_libraries(ssvmExecutor
+  PRIVATE
+  ssvmExecutorEntry
+  ssvmExecutorInstance
+  ssvmExecutorInstantiate
+  ssvmExecutorWorker
+)

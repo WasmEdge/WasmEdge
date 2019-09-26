@@ -33,6 +33,9 @@ public:
   /// Instantiate Wasm Module.
   ErrCode instantiate();
 
+  /// Set start function arguments.
+  ErrCode setArgs(std::vector<std::unique_ptr<ValueEntry>> &Args);
+
   /// Execute Wasm.
   ErrCode run();
 
@@ -62,7 +65,13 @@ private:
   ErrCode instantiate(AST::ExportSection *ExportSec);
 
   /// Executor State
-  enum class State : unsigned int { Inited, ModuleSet, Instantiated, Finished };
+  enum class State : unsigned int {
+    Inited,
+    ModuleSet,
+    Instantiated,
+    ArgsSet,
+    Finished
+  };
 
   State Stat = State::Inited;
   std::unique_ptr<AST::Module> Mod = nullptr;

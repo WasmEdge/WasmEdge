@@ -17,7 +17,7 @@ ErrCode Executor::setModule(std::unique_ptr<AST::Module> &Module) {
   return ErrCode::Success;
 }
 
-/// Instantiate module. See "include/loader/loader.h".
+/// Instantiate module. See "include/loader/executor.h".
 ErrCode Executor::instantiate() {
   /// Check is the correct state.
   if (Stat != State::ModuleSet)
@@ -30,16 +30,30 @@ ErrCode Executor::instantiate() {
   return Result;
 }
 
-/// Invoke start function. See "include/loader/loader.h".
-ErrCode Executor::run() {
+/// Set arguments. See "include/loader/executor.h".
+ErrCode Executor::setArgs(std::vector<std::unique_ptr<ValueEntry>> &Args) {
   /// Check is the correct state.
   if (Stat != State::Instantiated)
     return ErrCode::WrongExecutorFlow;
 
-  /// Instantiate module.
-  ErrCode Result = ErrCode::Success; /// instantiate(Mod.get());
-  if (Result == ErrCode::Success)
-    Stat = State::Finished;
+  /// Push args to stack.
+  for (auto It = Args.begin(); It != Args.end(); It++) {
+    StackMgr.push(std::move(*It));
+  }
+  Args.clear();
+  Stat = State::ArgsSet;
+  return ErrCode::Success;
+}
+
+/// Invoke start function. See "include/loader/executor.h".
+ErrCode Executor::run() {
+  /// Check is the correct state.
+  if (Stat != State::ArgsSet)
+    return ErrCode::WrongExecutorFlow;
+
+  /// Run start function.
+  ErrCode Result = Engine.runStartFunction(ModInst->getStartAddr());
+  Stat = State::Finished;
   return Result;
 }
 

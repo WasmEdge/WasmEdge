@@ -4,5 +4,7 @@ add_library(ssvmVM
 
 target_link_libraries(ssvmVM
   PRIVATE
+  ssvmASTLoad
   ssvmLoader
+  ssvmExecutor
 )

@@ -10,20 +10,18 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common.h"
+#include "executor/entry/value.h"
+#include "executor/executor.h"
 #include "loader/loader.h"
 #include "result.h"
+#include "support/casting.h"
 #include <cstdint>
 #include <string>
 #include <vector>
 
 namespace SSVM {
 namespace VM {
-
-enum class ErrCode : unsigned int {
-  Success = 0,
-  Failed,
-  Invalid
-};
 
 /// VM execution flow class
 class VM {
@@ -33,18 +31,33 @@ public:
 
   /// Set the wasm file path.
   ErrCode setPath(const std::string &FilePath);
-  /// Set the input data.
-  ErrCode setInput(const std::vector<uint8_t> &InputVec);
+
+  /// Append the start function arguments.
+  template <typename T>
+  typename std::enable_if_t<Support::IsWasmBuiltInV<T>, ErrCode>
+  appendArgument(const T &Val) {
+    Args.push_back(std::make_unique<Executor::ValueEntry>(Val));
+    return ErrCode::Success;
+  }
+
   /// Execute wasm with given input.
   ErrCode execute();
+
   /// Return VMResult
   Result getResult() { return VMResult; }
 
 private:
+  /// Functions for running.
+  ErrCode runLoader();
+  ErrCode runExecutor();
+
+  std::string WasmPath;
   Loader::Loader LoaderEngine;
+  Executor::Executor ExecutorEngine;
   std::unique_ptr<AST::Module> Mod = nullptr;
-  std::vector<uint8_t> Input;
+  std::vector<std::unique_ptr<Executor::ValueEntry>> Args;
   Result VMResult;
 };
+
 } // namespace VM
 } // namespace SSVM

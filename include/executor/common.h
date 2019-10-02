@@ -36,7 +36,8 @@ enum class ErrCode : unsigned int {
   WrongInstructionCounter, /// Instruction counter error
   TableSizeExceeded,       /// Exceeded limit of table size in table instance.
   MemorySizeExceeded,      /// Exceeded limit of memory page in memory instance.
-  FunctionInvalid          /// Invalid operation to function instance.
+  FunctionInvalid,         /// Invalid operation to function instance.
+  CallFunctionError        /// Arguement not match function type.
 };
 
 } // namespace Executor

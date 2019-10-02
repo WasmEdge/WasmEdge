@@ -12,7 +12,9 @@
 
 #include "ast/instruction.h"
 #include "executor/common.h"
+#include "executor/hostfunc.h"
 #include "executor/instance/entity.h"
+#include "executor/instance/module.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -23,14 +25,17 @@ namespace Instance {
 
 class FunctionInstance : public Entity {
 public:
-  FunctionInstance() = default;
+  FunctionInstance(bool IsHost = false) : IsHostFunction(IsHost){};
   virtual ~FunctionInstance() = default;
 
   /// Set the module instance index in store manager.
   ErrCode setModuleAddr(unsigned int Addr);
 
-  /// Set the function type index in module instance.
-  ErrCode setTypeIdx(unsigned int Id);
+  /// Set the function type in module instance.
+  ErrCode setFuncType(ModuleInstance::FType *Type);
+
+  /// Set the host function class.
+  ErrCode setHostFunc(std::unique_ptr<HostFunction> &Func);
 
   /// Move the local variables in code section into function instance.
   ErrCode
@@ -39,8 +44,8 @@ public:
   /// Move the instruction list in code segment into function instance.
   ErrCode setInstrs(AST::InstrVec &Expr);
 
-  /// Getter of function type index in module instance.
-  unsigned int getTypeIdx() const { return TypeIdx; }
+  /// Getter of function type.
+  ModuleInstance::FType *getFuncType() const { return FuncType; }
 
   /// Getter of module address of this function instance.
   unsigned int getModuleAddr() const { return ModuleAddr; }
@@ -53,13 +58,26 @@ public:
   /// Getter of function body instrs.
   const AST::InstrVec &getInstrs() const { return Instrs; }
 
+  /// Getter of host function.
+  HostFunction *getHostFunc() { return HostFunc.get(); }
+
+  /// Getter of checking is host function.
+  bool isHostFunction() const { return IsHostFunction; }
+
 private:
-  /// \name Data of function instance.
+  bool IsHostFunction = false;
+
+  /// \name Data of function instance for native function.
   /// @{
-  unsigned int TypeIdx;
+  ModuleInstance::FType *FuncType;
   unsigned int ModuleAddr;
   std::vector<std::pair<unsigned int, AST::ValType>> Locals;
   AST::InstrVec Instrs;
+  /// @}
+
+  /// \name Data of function instance for host function.
+  /// @{
+  std::unique_ptr<HostFunction> HostFunc;
   /// @}
 };
 

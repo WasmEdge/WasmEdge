@@ -808,10 +808,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     return Status;
 
   /// Get function type
-  Instance::ModuleInstance::FType *FuncType = nullptr;
-  if ((ModuleInst->getFuncType(FuncInst->getTypeIdx(), FuncType)) !=
-      ErrCode::Success)
-    return Status;
+  Instance::ModuleInstance::FType *FuncType = FuncInst->getFuncType();
 
   /// Pop argument vals
   std::vector<std::unique_ptr<ValueEntry>> Vals;
@@ -821,20 +818,25 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     Vals.push_back(std::move(Val));
   }
 
-  /// Push frame with locals and args and set instruction vector
-  unsigned int Arity = FuncType->Returns.size();
-  AST::InstrVec EmprySeq;
-  auto Frame =
-      std::make_unique<FrameEntry>(FuncInst->getModuleAddr(), /// Module address
-                                   Arity,                     /// Arity
-                                   Vals,                 /// Reversed arguments
-                                   FuncInst->getLocals() /// Local defs
-      );
-  StackMgr.push(Frame);
-  InstrPdr.pushInstrs(InstrProvider::SeqType::FunctionCall, EmprySeq);
+  if (FuncInst->isHostFunction()) {
+    /// Host function case: Push args and call function.
+    return ErrCode::Unimplemented;
+  } else {
+    /// Native function case: Push frame with locals and args.
+    unsigned int Arity = FuncType->Returns.size();
+    AST::InstrVec EmprySeq;
+    auto Frame = std::make_unique<FrameEntry>(
+        FuncInst->getModuleAddr(), /// Module address
+        Arity,                     /// Arity
+        Vals,                      /// Reversed arguments
+        FuncInst->getLocals()      /// Local defs
+    );
+    StackMgr.push(Frame);
+    InstrPdr.pushInstrs(InstrProvider::SeqType::FunctionCall, EmprySeq);
 
-  /// Run block of function body
-  return enterBlock(Arity, nullptr, FuncInst->getInstrs());
+    /// Run block of function body
+    return enterBlock(Arity, nullptr, FuncInst->getInstrs());
+  }
 }
 
 ErrCode Worker::returnFunction() {

@@ -27,13 +27,20 @@ ErrCode Executor::instantiate(AST::FunctionSection *FuncSec,
     unsigned int NewFuncInstId = 0;
     auto &Locals = (*CodeSeg)->getLocals();
     auto &Instrs = (*CodeSeg)->getInstrs();
+    Instance::ModuleInstance::FType *FuncType = nullptr;
+
+    /// Get function type pointer.
+    if ((Status = ModInst->getFuncType(*TypeIdx, FuncType)) !=
+        ErrCode::Success) {
+      return Status;
+    }
 
     /// Set function instance data.
     if ((Status = NewFuncInst->setModuleAddr(ModInst->Addr)) !=
         ErrCode::Success) {
       return Status;
     }
-    if ((Status = NewFuncInst->setTypeIdx(*TypeIdx)) != ErrCode::Success) {
+    if ((Status = NewFuncInst->setFuncType(FuncType)) != ErrCode::Success) {
       return Status;
     }
     if ((Status = NewFuncInst->setLocals(Locals)) != ErrCode::Success) {

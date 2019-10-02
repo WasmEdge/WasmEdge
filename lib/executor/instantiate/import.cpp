@@ -34,16 +34,13 @@ ErrCode Executor::instantiate(AST::ImportSection *ImportSec) {
           ErrCode::Success) {
         return Status;
       }
-      /// Set the function type index.
-      /// TODO: Do import matching
+      /// Get the function type index in module.
       unsigned int *TypeIdx = nullptr;
       if ((Status = (*ImpDesc)->getExternalContent(TypeIdx)) !=
           ErrCode::Success) {
         return Status;
       }
-      if ((Status = FuncInst->setTypeIdx(*TypeIdx)) != ErrCode::Success) {
-        return Status;
-      }
+      /// TODO: Do import matching.
       /// Set the function address to module instance.
       if ((Status = ModInst->addFuncAddr(FuncInst->Addr)) != ErrCode::Success) {
         return Status;

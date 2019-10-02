@@ -43,6 +43,8 @@ Loader::ErrCode FunctionType::loadBinary(FileMgr &Mgr) {
   for (int i = 0; i < VecCnt; i++) {
     if ((Status = Mgr.readByte(Byte)) != Loader::ErrCode::Success)
       return Status;
+    if (Byte == 0x40U)
+      return Loader::ErrCode::InvalidGrammar;
     ParamTypes.push_back(static_cast<ValType>(Byte));
   }
 
@@ -52,7 +54,8 @@ Loader::ErrCode FunctionType::loadBinary(FileMgr &Mgr) {
   for (int i = 0; i < VecCnt; i++) {
     if ((Status = Mgr.readByte(Byte)) != Loader::ErrCode::Success)
       return Status;
-    ReturnTypes.push_back(static_cast<ValType>(Byte));
+    if (Byte != 0x40U)
+      ReturnTypes.push_back(static_cast<ValType>(Byte));
   }
   return Status;
 }

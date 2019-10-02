@@ -3,6 +3,7 @@
 #include "ast/instruction.h"
 #include "common.h"
 #include "entry/frame.h"
+#include "hostfuncmgr.h"
 #include "stackmgr.h"
 #include "storemgr.h"
 #include "support/casting.h"
@@ -78,8 +79,10 @@ public:
 
   /// Worker are not allowed to create without Store and Stack.
   Worker() = delete;
-  explicit Worker(StoreManager &Store, StackManager &Stack)
-      : StoreMgr(Store), StackMgr(Stack), TheState(State::Inited){};
+  explicit Worker(StoreManager &Store, StackManager &Stack,
+                  HostFunctionManager &HostFunc)
+      : StoreMgr(Store), StackMgr(Stack), HostFuncMgr(HostFunc),
+        TheState(State::Inited){};
 
   ~Worker() = default;
 
@@ -253,6 +256,8 @@ private:
   StoreManager &StoreMgr;
   /// Reference to Executor's Stack
   StackManager &StackMgr;
+  /// Reference to Executor's Host function manager
+  HostFunctionManager &HostFuncMgr;
   /// Worker State
   State TheState;
   /// Arguments

@@ -14,6 +14,7 @@
 #include "ast/module.h"
 #include "common.h"
 #include "hostfunc.h"
+#include "hostfuncmgr.h"
 #include "stackmgr.h"
 #include "storemgr.h"
 #include "worker.h"
@@ -25,7 +26,7 @@ namespace Executor {
 /// Executor flow control class.
 class Executor {
 public:
-  Executor() : Engine(StoreMgr, StackMgr) {}
+  Executor() : Engine(StoreMgr, StackMgr, HostFuncMgr) {}
   ~Executor() = default;
 
   /// Set host functions.
@@ -84,6 +85,7 @@ private:
   Worker Engine;
   StackManager StackMgr;
   StoreManager StoreMgr;
+  HostFunctionManager HostFuncMgr;
 };
 
 } // namespace Executor

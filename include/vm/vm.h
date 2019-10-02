@@ -32,6 +32,12 @@ public:
   /// Set the wasm file path.
   ErrCode setPath(const std::string &FilePath);
 
+  /// Set the call data vector.
+  ErrCode setCallData(std::vector<unsigned char> &Data) {
+    CallData = Data;
+    return ErrCode::Success;
+  }
+
   /// Append the start function arguments.
   template <typename T>
   typename std::enable_if_t<Support::IsWasmBuiltInV<T>, ErrCode>
@@ -56,6 +62,7 @@ private:
   Executor::Executor ExecutorEngine;
   std::unique_ptr<AST::Module> Mod = nullptr;
   std::vector<std::unique_ptr<Executor::ValueEntry>> Args;
+  std::vector<unsigned char> CallData;
   Result VMResult;
 };
 

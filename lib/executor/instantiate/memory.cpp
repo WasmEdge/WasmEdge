@@ -69,7 +69,8 @@ ErrCode Executor::instantiate(AST::MemorySection *MemSec,
     }
 
     /// Copy data to memory instance
-    if ((Status = MemInst->setBytes((*DataSeg)->getData(), Offset)) !=
+    std::vector<unsigned char> &Data = (*DataSeg)->getData();
+    if ((Status = MemInst->setBytes(Data, Offset, 0, Data.size())) !=
         ErrCode::Success) {
       return Status;
     }

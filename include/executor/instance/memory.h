@@ -41,8 +41,9 @@ public:
   /// Get slice of Data[Start : Start + Length - 1]
   ErrCode getBytes(Bytes &Slice, unsigned int Start, unsigned int Length);
 
-  /// Replace the bytes of Data[Offset : Offset + Slice.size() - 1]
-  ErrCode setBytes(Bytes &Slice, unsigned int Offset);
+  /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Legnth - 1]
+  ErrCode setBytes(Bytes &Slice, unsigned int Offset, unsigned int Start,
+                   unsigned int Length);
 
   /// Template of loading bytes and convert to a value.
   ///

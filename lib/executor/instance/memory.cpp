@@ -39,16 +39,22 @@ ErrCode MemoryInstance::getBytes(Bytes &Slice, unsigned int Start,
 }
 
 /// Setter of data list. See "include/executor/instance/memory.h".
-ErrCode MemoryInstance::setBytes(Bytes &Slice, unsigned int Offset) {
+ErrCode MemoryInstance::setBytes(Bytes &Slice, unsigned int Offset,
+                                 unsigned int Start, unsigned int Length) {
   /// Check memory size.
   ErrCode Status = ErrCode::Success;
-  if ((Status = checkDataSize(Offset + Slice.size())) != ErrCode::Success) {
+  if ((Status = checkDataSize(Offset + Length)) != ErrCode::Success) {
     return Status;
   }
 
+  /// Check input data validation.
+  if (Start >= Slice.size() || Start + Length > Slice.size()) {
+    return ErrCode::AccessForbidMemory;
+  }
+
   /// Copy data.
-  for (unsigned int I = Offset; I < Offset + Slice.size(); I++) {
-    Data.at(I) = Slice.at(I - Offset);
+  for (unsigned int I = Offset; I < Offset + Length; I++) {
+    Data.at(I) = Slice.at(I - Offset + Start);
   }
   return ErrCode::Success;
 }

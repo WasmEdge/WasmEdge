@@ -15,20 +15,16 @@ ErrCode FunctionInstance::setModuleAddr(unsigned int Addr) {
 
 /// Setter of function type. See "include/executor/instance/function.h".
 ErrCode FunctionInstance::setFuncType(ModuleInstance::FType *Type) {
-  if (IsHostFunction) {
-    return ErrCode::FunctionInvalid;
-  }
   FuncType = Type;
   return ErrCode::Success;
 }
 
 /// Setter of host function. See "include/executor/instance/function.h".
-ErrCode FunctionInstance::setHostFunc(std::unique_ptr<HostFunction> &Func) {
+ErrCode FunctionInstance::setHostFuncAddr(unsigned int Addr) {
   if (!IsHostFunction) {
     return ErrCode::FunctionInvalid;
   }
-  HostFunc = std::move(Func);
-  FuncType = HostFunc->getFuncType();
+  HostFuncAddr = Addr;
   return ErrCode::Success;
 }
 

@@ -12,7 +12,6 @@
 
 #include "ast/instruction.h"
 #include "executor/common.h"
-#include "executor/hostfunc.h"
 #include "executor/instance/entity.h"
 #include "executor/instance/module.h"
 #include <memory>
@@ -35,7 +34,7 @@ public:
   ErrCode setFuncType(ModuleInstance::FType *Type);
 
   /// Set the host function class.
-  ErrCode setHostFunc(std::unique_ptr<HostFunction> &Func);
+  ErrCode setHostFuncAddr(unsigned int Addr);
 
   /// Move the local variables in code section into function instance.
   ErrCode
@@ -59,7 +58,7 @@ public:
   const AST::InstrVec &getInstrs() const { return Instrs; }
 
   /// Getter of host function.
-  HostFunction *getHostFunc() { return HostFunc.get(); }
+  unsigned int getHostFuncAddr() const { return HostFuncAddr; }
 
   /// Getter of checking is host function.
   bool isHostFunction() const { return IsHostFunction; }
@@ -77,7 +76,7 @@ private:
 
   /// \name Data of function instance for host function.
   /// @{
-  std::unique_ptr<HostFunction> HostFunc;
+  unsigned int HostFuncAddr;
   /// @}
 };
 

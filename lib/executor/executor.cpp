@@ -9,9 +9,36 @@ namespace Executor {
 /// Set and instantiate host function. See "include/executor/executor.h".
 ErrCode Executor::setHostFunction(std::unique_ptr<HostFunction> &Func,
                                   std::string &ModName, std::string &FuncName) {
+  ErrCode Status = ErrCode::Success;
   auto NewFuncInst = std::make_unique<Instance::FunctionInstance>();
-  NewFuncInst->setNames(ModName, FuncName);
-  return ErrCode::Success;
+  unsigned int NewHostFuncId = 0;
+  unsigned int NewFuncInstId = 0;
+  Instance::ModuleInstance::FType *FuncType = Func->getFuncType();
+
+  /// Set function instance data.
+  if ((Status = NewFuncInst->setNames(ModName, FuncName)) != ErrCode::Success) {
+    return Status;
+  }
+  if ((Status = NewFuncInst->setFuncType(FuncType)) != ErrCode::Success) {
+    return Status;
+  }
+
+  /// Insert host function to host function manager.
+  if ((Status = HostFuncMgr.insertHostFunction(Func, NewHostFuncId)) !=
+      ErrCode::Success) {
+    return Status;
+  }
+  if ((Status = NewFuncInst->setHostFuncAddr(NewHostFuncId)) !=
+      ErrCode::Success) {
+    return Status;
+  }
+
+  /// Insert function instance to store manager.
+  if ((Status = StoreMgr.insertFunctionInst(NewFuncInst, NewFuncInstId)) !=
+      ErrCode::Success) {
+    return Status;
+  }
+  return Status;
 }
 
 /// Set AST Module node to executor. See "include/executor/executor.h".

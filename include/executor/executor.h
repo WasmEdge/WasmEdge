@@ -13,6 +13,7 @@
 
 #include "ast/module.h"
 #include "common.h"
+#include "hostfunc.h"
 #include "stackmgr.h"
 #include "storemgr.h"
 #include "worker.h"
@@ -26,6 +27,10 @@ class Executor {
 public:
   Executor() : Engine(StoreMgr, StackMgr) {}
   ~Executor() = default;
+
+  /// Set host functions.
+  ErrCode setHostFunction(std::unique_ptr<HostFunction> &Func,
+                          std::string &ModName, std::string &FuncName);
 
   /// Retrieve ownership of Wasm Module.
   ErrCode setModule(std::unique_ptr<AST::Module> &Module);

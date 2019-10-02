@@ -6,6 +6,14 @@
 namespace SSVM {
 namespace Executor {
 
+/// Set and instantiate host function. See "include/executor/executor.h".
+ErrCode Executor::setHostFunction(std::unique_ptr<HostFunction> &Func,
+                                  std::string &ModName, std::string &FuncName) {
+  auto NewFuncInst = std::make_unique<Instance::FunctionInstance>();
+  NewFuncInst->setNames(ModName, FuncName);
+  return ErrCode::Success;
+}
+
 /// Set AST Module node to executor. See "include/executor/executor.h".
 ErrCode Executor::setModule(std::unique_ptr<AST::Module> &Module) {
   /// Check is the correct state.

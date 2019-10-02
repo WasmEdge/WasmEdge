@@ -13,6 +13,7 @@
 #include "common.h"
 #include "entry/value.h"
 #include "instance/module.h"
+#include "storemgr.h"
 
 #include <memory>
 #include <vector>
@@ -47,7 +48,9 @@ public:
   Instance::ModuleInstance::FType *getFuncType() { return &FuncType; }
 
   virtual ErrCode run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                      std::vector<std::unique_ptr<ValueEntry>> &Res) = 0;
+                      std::vector<std::unique_ptr<ValueEntry>> &Res,
+                      StoreManager &Store,
+                      Instance::ModuleInstance *ModInst) = 0;
 
 protected:
   Instance::ModuleInstance::FType FuncType;

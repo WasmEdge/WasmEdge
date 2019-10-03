@@ -4,4 +4,5 @@ add_library(ssvmHostFuncEEI
   calldatacopy.cpp
   getcaller.cpp
   returndatacopy.cpp
+  revert.cpp
 )

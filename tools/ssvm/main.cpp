@@ -3,7 +3,8 @@
 
 int main(int Argc, char *Argv[]) {
   std::string InputPath(Argv[1]);
-  SSVM::VM::VM VM;
+  SSVM::VM::Environment Env;
+  SSVM::VM::VM VM(Env);
   SSVM::Result Result;
   VM.setPath(InputPath);
   VM.appendArgument(0U);

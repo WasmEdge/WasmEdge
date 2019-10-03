@@ -11,11 +11,13 @@
 #pragma once
 
 #include "common.h"
+#include "environment.h"
 #include "executor/entry/value.h"
 #include "executor/executor.h"
 #include "loader/loader.h"
 #include "result.h"
 #include "support/casting.h"
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -26,17 +28,15 @@ namespace VM {
 /// VM execution flow class
 class VM {
 public:
-  VM() = default;
+  VM() = delete;
+  VM(Environment &InputEnv) : Env(InputEnv) {}
   ~VM() = default;
 
   /// Set the wasm file path.
   ErrCode setPath(const std::string &FilePath);
 
   /// Set the call data vector.
-  ErrCode setCallData(std::vector<unsigned char> &Data) {
-    CallData = Data;
-    return ErrCode::Success;
-  }
+  ErrCode setCallData(std::vector<unsigned char> &Data);
 
   /// Append the start function arguments.
   template <typename T>
@@ -60,9 +60,9 @@ private:
   std::string WasmPath;
   Loader::Loader LoaderEngine;
   Executor::Executor ExecutorEngine;
+  Environment Env;
   std::unique_ptr<AST::Module> Mod = nullptr;
   std::vector<std::unique_ptr<Executor::ValueEntry>> Args;
-  std::vector<unsigned char> CallData;
   Result VMResult;
 };
 

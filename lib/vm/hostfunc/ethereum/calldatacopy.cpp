@@ -27,11 +27,13 @@ ErrCode EEICallDataCopy::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     if ((Status = Store.getMemory(MemoryAddr, MemInst)) != ErrCode::Success) {
       return Status;
     }
-    if ((Status = MemInst->setBytes(Data, ResOffset, DataOffset, Length)) !=
-        ErrCode::Success) {
+    if ((Status = MemInst->setBytes(Env.getCallData(), ResOffset, DataOffset,
+                                    Length)) != ErrCode::Success) {
       return Status;
     }
   }
+
+  /// Return: void
   return Status;
 }
 

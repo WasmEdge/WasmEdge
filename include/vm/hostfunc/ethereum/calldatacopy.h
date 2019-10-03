@@ -7,7 +7,7 @@ namespace Executor {
 
 class EEICallDataCopy : public EEI {
 public:
-  EEICallDataCopy(std::vector<unsigned char> &CallData) : EEI(CallData) {}
+  EEICallDataCopy(VM::Environment &Env) : EEI(Env) {}
   EEICallDataCopy() = delete;
   virtual ~EEICallDataCopy() = default;
 

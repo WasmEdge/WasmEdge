@@ -22,6 +22,12 @@ ErrCode VM::setPath(const std::string &FilePath) {
   return ErrCode::Success;
 }
 
+ErrCode VM::setCallData(std::vector<unsigned char> &Data) {
+  std::vector<unsigned char> &CallData = Env.getCallData();
+  CallData = Data;
+  return ErrCode::Success;
+}
+
 ErrCode VM::execute() {
   ErrCode Status = ErrCode::Success;
   if ((Status = runLoader()) != ErrCode::Success)

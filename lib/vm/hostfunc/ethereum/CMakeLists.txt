@@ -5,6 +5,7 @@ add_library(ssvmHostFuncEEI
   storageload.cpp
   finish.cpp
   revert.cpp
+  callstatic.cpp
   getcaller.cpp
   returndatacopy.cpp
 )

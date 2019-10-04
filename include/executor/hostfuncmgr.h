@@ -28,6 +28,14 @@ public:
     return ErrCode::Success;
   }
 
+  ErrCode getHostFunction(unsigned int Addr, HostFunction *&Func) {
+    if (Addr >= HostFuncs.size()) {
+      return ErrCode::WrongInstanceAddress;
+    }
+    Func = HostFuncs[Addr].get();
+    return ErrCode::Success;
+  }
+
 private:
   std::vector<std::unique_ptr<HostFunction>> HostFuncs;
 };

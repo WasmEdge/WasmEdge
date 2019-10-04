@@ -820,7 +820,23 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
 
   if (FuncInst->isHostFunction()) {
     /// Host function case: Push args and call function.
-    return ErrCode::Unimplemented;
+    HostFunction *HostFunc = nullptr;
+    if ((Status = HostFuncMgr.getHostFunction(FuncInst->getHostFuncAddr(),
+                                              HostFunc)) != ErrCode::Success) {
+      return Status;
+    }
+    std::vector<std::unique_ptr<ValueEntry>> Returns;
+    if ((Status = HostFunc->run(Vals, Returns, StoreMgr, ModuleInst)) !=
+        ErrCode::Success) {
+      return Status;
+    }
+
+    /// Push result value into stack.
+    for (auto Iter = Returns.rbegin(); Iter != Returns.rend(); Iter++) {
+      std::unique_ptr<ValueEntry> Val = std::move(*Iter);
+      StackMgr.push(Val);
+    }
+    return Status;
   } else {
     /// Native function case: Push frame with locals and args.
     unsigned int Arity = FuncType->Returns.size();

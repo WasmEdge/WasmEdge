@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -11,6 +12,7 @@ public:
   Environment() = default;
   ~Environment() = default;
 
+  std::map<std::string, std::string> &getStorage() { return Storage; }
   unsigned int &getGasLeft() { return GasLeft; }
   std::vector<unsigned char> &getCallData() { return CallData; }
   std::vector<unsigned char> &getReturnData() { return ReturnData; }
@@ -19,6 +21,7 @@ public:
 
 private:
   unsigned int GasLeft;
+  std::map<std::string, std::string> Storage;
   std::vector<unsigned char> CallData;
   std::vector<unsigned char> ReturnData;
   std::string Caller;

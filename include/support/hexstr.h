@@ -8,7 +8,7 @@
 namespace SSVM {
 namespace Support {
 
-unsigned char convertCharToHex(const char C) {
+inline unsigned char convertCharToHex(const char C) {
   if (C >= '0' && C <= 9) {
     return C - '0';
   }
@@ -21,8 +21,8 @@ unsigned char convertCharToHex(const char C) {
   return 0U;
 }
 
-bool convertHexToString(std::vector<unsigned char> &Res, std::string &Dst,
-                        unsigned int Padding = 0) {
+inline bool convertHexToString(std::vector<unsigned char> &Res,
+                               std::string &Dst, unsigned int Padding = 0) {
   Dst = "";
   char Buf[3] = {0};
   for (auto It = Res.crbegin(); It != Res.crend(); It++) {
@@ -35,8 +35,9 @@ bool convertHexToString(std::vector<unsigned char> &Res, std::string &Dst,
   return true;
 }
 
-bool convertStringToHex(std::string &Res, std::vector<unsigned char> &Dst,
-                        unsigned int Padding = 2) {
+inline bool convertStringToHex(std::string &Res,
+                               std::vector<unsigned char> &Dst,
+                               unsigned int Padding = 2) {
   if (Padding & 0x01U) {
     Padding++;
   }

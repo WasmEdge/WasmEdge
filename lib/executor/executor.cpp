@@ -49,6 +49,7 @@ ErrCode Executor::setModule(std::unique_ptr<AST::Module> &Module) {
 
   /// Get ownership of module.
   Mod = std::move(Module);
+  Stat = State::ModuleSet;
   return ErrCode::Success;
 }
 

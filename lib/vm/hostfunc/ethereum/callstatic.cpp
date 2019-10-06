@@ -11,7 +11,7 @@ ErrCode EEICallStatic::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
                            StoreManager &Store,
                            Instance::ModuleInstance *ModInst) {
   /// Arg: gas(u32), addressOffset(u32), dataOffset(u32), dataLength(u32)
-  if (Args.size() != 1) {
+  if (Args.size() != 4) {
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;

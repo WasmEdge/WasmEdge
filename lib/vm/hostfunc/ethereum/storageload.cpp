@@ -11,7 +11,7 @@ ErrCode EEIStorageLoad::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
                             StoreManager &Store,
                             Instance::ModuleInstance *ModInst) {
   /// Arg: pathOffset(u32), valueOffset(u32)
-  if (Args.size() != 1) {
+  if (Args.size() != 2) {
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;

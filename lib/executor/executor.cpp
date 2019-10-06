@@ -11,7 +11,7 @@ ErrCode Executor::setHostFunction(std::unique_ptr<HostFunction> &Func,
                                   const std::string &ModName,
                                   const std::string &FuncName) {
   ErrCode Status = ErrCode::Success;
-  auto NewFuncInst = std::make_unique<Instance::FunctionInstance>();
+  auto NewFuncInst = std::make_unique<Instance::FunctionInstance>(true);
   unsigned int NewHostFuncId = 0;
   unsigned int NewFuncInstId = 0;
   Instance::ModuleInstance::FType *FuncType = Func->getFuncType();

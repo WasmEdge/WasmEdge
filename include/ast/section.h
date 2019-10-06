@@ -57,7 +57,22 @@ protected:
   /// \returns ErrCode.
   template <typename T>
   Loader::ErrCode loadVector(FileMgr &Mgr,
-                             std::vector<std::unique_ptr<T>> &Vec);
+                             std::vector<std::unique_ptr<T>> &Vec) {
+    unsigned int VecCnt = 0;
+    Loader::ErrCode Status = Loader::ErrCode::Success;
+    /// Read vector size.
+    if ((Status = Mgr.readU32(VecCnt)) != Loader::ErrCode::Success)
+      return Status;
+
+    /// Sequently create AST node T and read data.
+    for (int i = 0; i < VecCnt; i++) {
+      auto NewContent = std::make_unique<T>();
+      if ((Status = NewContent->loadBinary(Mgr)) != Loader::ErrCode::Success)
+        return Status;
+      Vec.push_back(std::move(NewContent));
+    }
+    return Status;
+  }
 
   /// Content size of this section.
   unsigned int ContentSize = 0;

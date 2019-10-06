@@ -16,27 +16,6 @@ Loader::ErrCode Section::loadSize(FileMgr &Mgr) {
   return Mgr.readU32(ContentSize);
 }
 
-/// Template function of reading vector. See "include/ast/section.h".
-template <typename T>
-Loader::ErrCode Section::loadVector(FileMgr &Mgr,
-                                    std::vector<std::unique_ptr<T>> &Vec) {
-  unsigned int VecCnt = 0;
-  Loader::ErrCode Status = Loader::ErrCode::Success;
-
-  /// Read vector size.
-  if ((Status = Mgr.readU32(VecCnt)) != Loader::ErrCode::Success)
-    return Status;
-
-  /// Sequently create AST node T and read data.
-  for (int i = 0; i < VecCnt; i++) {
-    auto NewContent = std::make_unique<T>();
-    if ((Status = NewContent->loadBinary(Mgr)) != Loader::ErrCode::Success)
-      return Status;
-    Vec.push_back(std::move(NewContent));
-  }
-  return Status;
-}
-
 /// Load content of custom section. See "include/ast/section.h".
 Loader::ErrCode CustomSection::loadContent(FileMgr &Mgr) {
   /// Read all raw bytes.

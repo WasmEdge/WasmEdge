@@ -8,7 +8,8 @@ namespace Executor {
 
 /// Set and instantiate host function. See "include/executor/executor.h".
 ErrCode Executor::setHostFunction(std::unique_ptr<HostFunction> &Func,
-                                  std::string &ModName, std::string &FuncName) {
+                                  const std::string &ModName,
+                                  const std::string &FuncName) {
   ErrCode Status = ErrCode::Success;
   auto NewFuncInst = std::make_unique<Instance::FunctionInstance>();
   unsigned int NewHostFuncId = 0;

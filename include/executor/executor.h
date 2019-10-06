@@ -31,7 +31,8 @@ public:
 
   /// Set host functions.
   ErrCode setHostFunction(std::unique_ptr<HostFunction> &Func,
-                          std::string &ModName, std::string &FuncName);
+                          const std::string &ModName,
+                          const std::string &FuncName);
 
   /// Retrieve ownership of Wasm Module.
   ErrCode setModule(std::unique_ptr<AST::Module> &Module);

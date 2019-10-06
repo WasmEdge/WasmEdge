@@ -10,9 +10,9 @@
 namespace SSVM {
 namespace Executor {
 
-ErrCode Worker::runBlockOp(AST::ControlInstruction *InstrPtr) {
+ErrCode Worker::runBlockOp(AST::Instruction *Instr) {
   /// Check the instruction type.
-  auto BlockInstr = dynamic_cast<AST::BlockControlInstruction *>(InstrPtr);
+  auto BlockInstr = dynamic_cast<AST::BlockControlInstruction *>(Instr);
   if (BlockInstr == nullptr || BlockInstr->getOpCode() != OpCode::Block)
     return ErrCode::InstructionTypeMismatch;
 
@@ -24,9 +24,9 @@ ErrCode Worker::runBlockOp(AST::ControlInstruction *InstrPtr) {
   return enterBlock(Arity, nullptr, BlockInstr->getBody());
 }
 
-ErrCode Worker::runLoopOp(AST::ControlInstruction *InstrPtr) {
+ErrCode Worker::runLoopOp(AST::Instruction *Instr) {
   /// Check the instruction type.
-  auto LoopInstr = dynamic_cast<AST::BlockControlInstruction *>(InstrPtr);
+  auto LoopInstr = dynamic_cast<AST::BlockControlInstruction *>(Instr);
   if (LoopInstr == nullptr || LoopInstr->getOpCode() != OpCode::Loop)
     return ErrCode::InstructionTypeMismatch;
 
@@ -34,12 +34,12 @@ ErrCode Worker::runLoopOp(AST::ControlInstruction *InstrPtr) {
   AST::ValType ResultType = LoopInstr->getResultType();
 
   /// Create Label{ loop-instruction } and push.
-  return enterBlock(0, InstrPtr, LoopInstr->getBody());
+  return enterBlock(0, Instr, LoopInstr->getBody());
 }
 
-ErrCode Worker::runIfElseOp(AST::ControlInstruction *InstrPtr) {
+ErrCode Worker::runIfElseOp(AST::Instruction *Instr) {
   /// Check the instruction type.
-  auto IfElseInstr = dynamic_cast<AST::IfElseControlInstruction *>(InstrPtr);
+  auto IfElseInstr = dynamic_cast<AST::IfElseControlInstruction *>(Instr);
   if (IfElseInstr == nullptr)
     return ErrCode::InstructionTypeMismatch;
 
@@ -67,28 +67,28 @@ ErrCode Worker::runIfElseOp(AST::ControlInstruction *InstrPtr) {
   return Status;
 }
 
-ErrCode Worker::runBrOp(AST::ControlInstruction *InstrPtr) {
+ErrCode Worker::runBrOp(AST::Instruction *Instr) {
   /// Check the instruction type.
-  auto BrInstr = dynamic_cast<AST::BrControlInstruction *>(InstrPtr);
+  auto BrInstr = dynamic_cast<AST::BrControlInstruction *>(Instr);
   if (BrInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
   return branchToLabel(BrInstr->getLabelIndex());
 }
 
-ErrCode Worker::runBrIfOp(AST::ControlInstruction *InstrPtr) {
+ErrCode Worker::runBrIfOp(AST::Instruction *Instr) {
   auto Status = ErrCode::Success;
   std::unique_ptr<ValueEntry> Val;
   StackMgr.pop(Val);
   if (retrieveValue<uint32_t>(*Val.get()) != 0) {
-    Status = runBrOp(InstrPtr);
+    Status = runBrOp(Instr);
   }
   return Status;
 }
 
-ErrCode Worker::runBrTableOp(AST::ControlInstruction *InstrPtr) {
+ErrCode Worker::runBrTableOp(AST::Instruction *Instr) {
   /// Check the instruction type.
-  auto BrTableInstr = dynamic_cast<AST::BrTableControlInstruction *>(InstrPtr);
+  auto BrTableInstr = dynamic_cast<AST::BrTableControlInstruction *>(Instr);
   if (BrTableInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }
@@ -111,9 +111,9 @@ ErrCode Worker::runBrTableOp(AST::ControlInstruction *InstrPtr) {
 
 ErrCode Worker::runReturnOp() { return returnFunction(); }
 
-ErrCode Worker::runCallOp(AST::ControlInstruction *InstrPtr) {
+ErrCode Worker::runCallOp(AST::Instruction *Instr) {
   /// Check the instruction type.
-  auto CallInstr = dynamic_cast<AST::CallControlInstruction *>(InstrPtr);
+  auto CallInstr = dynamic_cast<AST::CallControlInstruction *>(Instr);
   if (CallInstr == nullptr) {
     return ErrCode::InstructionTypeMismatch;
   }

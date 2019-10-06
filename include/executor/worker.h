@@ -155,15 +155,15 @@ private:
 
   /// Run instructions functions
   /// ======= Control =======
-  ErrCode runBlockOp(AST::ControlInstruction *Instr);
-  ErrCode runLoopOp(AST::ControlInstruction *Instr);
-  ErrCode runIfElseOp(AST::ControlInstruction *Instr);
-  ErrCode runBrOp(AST::ControlInstruction *Instr);
-  ErrCode runBrIfOp(AST::ControlInstruction *Instr);
-  ErrCode runBrTableOp(AST::ControlInstruction *Instr);
+  ErrCode runBlockOp(AST::Instruction *Instr);
+  ErrCode runLoopOp(AST::Instruction *Instr);
+  ErrCode runIfElseOp(AST::Instruction *Instr);
+  ErrCode runBrOp(AST::Instruction *Instr);
+  ErrCode runBrIfOp(AST::Instruction *Instr);
+  ErrCode runBrTableOp(AST::Instruction *Instr);
   ErrCode runReturnOp();
-  ErrCode runCallOp(AST::ControlInstruction *Instr);
-  ErrCode runCallIndirectOp(AST::ControlInstruction *Instr);
+  ErrCode runCallOp(AST::Instruction *Instr);
+  ErrCode runCallIndirectOp(AST::Instruction *Instr);
   /// ======= Variable =======
   ErrCode runLocalGetOp(unsigned int Idx);
   ErrCode runLocalSetOp(unsigned int Idx);

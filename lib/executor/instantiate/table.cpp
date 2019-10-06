@@ -45,6 +45,9 @@ ErrCode Executor::instantiate(AST::TableSection *TabSec,
   }
 
   /// Iterate and evaluate element segments.
+  if (ElemSec == nullptr) {
+    return ErrCode::Success;
+  }
   auto &ElemSegs = ElemSec->getContent();
   for (auto ElemSeg = ElemSegs.begin(); ElemSeg != ElemSegs.end(); ElemSeg++) {
     /// Evaluate instrs in element segment for offset.

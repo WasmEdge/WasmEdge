@@ -14,6 +14,7 @@
 #include "environment.h"
 #include "executor/entry/value.h"
 #include "executor/executor.h"
+#include "executor/hostfunc.h"
 #include "loader/loader.h"
 #include "result.h"
 #include "support/casting.h"
@@ -29,7 +30,7 @@ namespace VM {
 class VM {
 public:
   VM() = delete;
-  VM(Environment &InputEnv) : Env(InputEnv) {}
+  VM(Environment &InputEnv);
   ~VM() = default;
 
   /// Set the wasm file path.
@@ -56,6 +57,14 @@ private:
   /// Functions for running.
   ErrCode runLoader();
   ErrCode runExecutor();
+
+  template <typename T>
+  std::unique_ptr<Executor::HostFunction>
+  castHostFunc(std::unique_ptr<T> Func) {
+    T *FuncPtr = Func.release();
+    return std::move(std::unique_ptr<Executor::HostFunction>(
+        dynamic_cast<Executor::HostFunction *>(FuncPtr)));
+  }
 
   std::string WasmPath;
   Loader::Loader LoaderEngine;

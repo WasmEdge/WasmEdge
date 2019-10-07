@@ -22,10 +22,13 @@ public:
 private:
   unsigned int GasLeft;
   std::map<std::string, std::string> Storage;
-  std::vector<unsigned char> CallData;
+  std::vector<unsigned char> CallData = {
+      0xB1U, 0xAAU, 0x1FU, 0x4EU, 0U, 0U, 0U, 0U, 0U, 0U, 0U,
+      0U,    0U,    0U,    0U,    0U, 0U, 0U, 0U, 0U, 0U, 0U,
+      0U,    0U,    0U,    0U,    0U, 0U, 0U, 0U, 0U, 0U};
   std::vector<unsigned char> ReturnData;
-  std::string Caller;
-  std::string CallValue;
+  std::string Caller = "1234567890123456789012345678901234567890";
+  std::string CallValue = "ffffffffffffffffffffffffffffffff";
 };
 
 } // namespace VM

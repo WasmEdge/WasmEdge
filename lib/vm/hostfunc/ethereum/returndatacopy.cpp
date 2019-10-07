@@ -5,6 +5,12 @@
 namespace SSVM {
 namespace Executor {
 
+EEIReturnDataCopy::EEIReturnDataCopy(VM::Environment &Env) : EEI(Env) {
+  appendParamDef(AST::ValType::I32);
+  appendParamDef(AST::ValType::I32);
+  appendParamDef(AST::ValType::I32);
+}
+
 ErrCode EEIReturnDataCopy::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
                                std::vector<std::unique_ptr<ValueEntry>> &Res,
                                StoreManager &Store,

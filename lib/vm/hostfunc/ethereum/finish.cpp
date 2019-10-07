@@ -5,6 +5,11 @@
 namespace SSVM {
 namespace Executor {
 
+EEIFinish::EEIFinish(VM::Environment &Env) : EEI(Env) {
+  appendParamDef(AST::ValType::I32);
+  appendParamDef(AST::ValType::I32);
+}
+
 ErrCode EEIFinish::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
                        std::vector<std::unique_ptr<ValueEntry>> &Res,
                        StoreManager &Store, Instance::ModuleInstance *ModInst) {

@@ -7,7 +7,7 @@ namespace Executor {
 
 class EEIGetCaller : public EEI {
 public:
-  EEIGetCaller(VM::Environment &Env) : EEI(Env) {}
+  EEIGetCaller(VM::Environment &Env);
   EEIGetCaller() = delete;
   virtual ~EEIGetCaller() = default;
 

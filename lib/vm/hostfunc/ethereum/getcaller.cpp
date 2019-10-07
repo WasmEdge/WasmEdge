@@ -6,6 +6,10 @@
 namespace SSVM {
 namespace Executor {
 
+EEIGetCaller::EEIGetCaller(VM::Environment &Env) : EEI(Env) {
+  appendReturnDef(AST::ValType::I32);
+}
+
 ErrCode EEIGetCaller::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
                           std::vector<std::unique_ptr<ValueEntry>> &Res,
                           StoreManager &Store,

@@ -7,7 +7,7 @@ namespace Executor {
 
 class EEIReturnDataCopy : public EEI {
 public:
-  EEIReturnDataCopy(VM::Environment &Env) : EEI(Env) {}
+  EEIReturnDataCopy(VM::Environment &Env);
   EEIReturnDataCopy() = delete;
   virtual ~EEIReturnDataCopy() = default;
 

@@ -5,6 +5,10 @@
 namespace SSVM {
 namespace Executor {
 
+EEIGetCallDataSize::EEIGetCallDataSize(VM::Environment &Env) : EEI(Env) {
+  appendReturnDef(AST::ValType::I32);
+}
+
 ErrCode EEIGetCallDataSize::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
                                 std::vector<std::unique_ptr<ValueEntry>> &Res,
                                 StoreManager &Store,

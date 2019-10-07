@@ -5,9 +5,9 @@
 namespace SSVM {
 namespace Executor {
 
-class EEIRevert: public EEI {
+class EEIRevert : public EEI {
 public:
-  EEIRevert(VM::Environment &Env) : EEI(Env) {}
+  EEIRevert(VM::Environment &Env);
   EEIRevert() = delete;
   virtual ~EEIRevert() = default;
 

@@ -5,6 +5,12 @@
 namespace SSVM {
 namespace Executor {
 
+EEICallDataCopy::EEICallDataCopy(VM::Environment &Env) : EEI(Env) {
+  appendParamDef(AST::ValType::I32);
+  appendParamDef(AST::ValType::I32);
+  appendParamDef(AST::ValType::I32);
+}
+
 ErrCode EEICallDataCopy::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
                              std::vector<std::unique_ptr<ValueEntry>> &Res,
                              StoreManager &Store,

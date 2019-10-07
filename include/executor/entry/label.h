@@ -53,7 +53,7 @@ private:
   /// \name Data of label entry.
   /// @{
   unsigned int Arity;
-  AST::Instruction *Target;
+  AST::Instruction *Target = nullptr;
   /// @}
 };
 

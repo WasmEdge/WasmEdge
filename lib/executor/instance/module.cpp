@@ -42,7 +42,7 @@ ErrCode ModuleInstance::addGlobalAddr(unsigned int StoreGlobAddr) {
 ErrCode ModuleInstance::getFuncAddr(unsigned int Idx, unsigned int &Addr) {
   if (FuncAddrs.size() <= Idx)
     return ErrCode::WrongInstanceAddress;
-  Addr = FuncAddrs[Addr];
+  Addr = FuncAddrs[Idx];
   return ErrCode::Success;
 }
 
@@ -50,7 +50,7 @@ ErrCode ModuleInstance::getFuncAddr(unsigned int Idx, unsigned int &Addr) {
 ErrCode ModuleInstance::getTableAddr(unsigned int Idx, unsigned int &Addr) {
   if (TableAddrs.size() <= Idx)
     return ErrCode::WrongInstanceAddress;
-  Addr = TableAddrs[Addr];
+  Addr = TableAddrs[Idx];
   return ErrCode::Success;
 }
 
@@ -58,7 +58,7 @@ ErrCode ModuleInstance::getTableAddr(unsigned int Idx, unsigned int &Addr) {
 ErrCode ModuleInstance::getMemAddr(unsigned int Idx, unsigned int &Addr) {
   if (MemAddrs.size() <= Idx)
     return ErrCode::WrongInstanceAddress;
-  Addr = MemAddrs[Addr];
+  Addr = MemAddrs[Idx];
   return ErrCode::Success;
 }
 
@@ -66,7 +66,7 @@ ErrCode ModuleInstance::getMemAddr(unsigned int Idx, unsigned int &Addr) {
 ErrCode ModuleInstance::getGlobalAddr(unsigned int Idx, unsigned int &Addr) {
   if (GlobalAddrs.size() <= Idx)
     return ErrCode::WrongInstanceAddress;
-  Addr = GlobalAddrs[Addr];
+  Addr = GlobalAddrs[Idx];
   return ErrCode::Success;
 }
 

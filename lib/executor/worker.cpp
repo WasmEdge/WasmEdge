@@ -97,15 +97,9 @@ ErrCode Worker::execute() {
 }
 
 ErrCode Worker::runControlOp(AST::Instruction *Instr) {
-  /// Check instruction type.
-  auto CtrlInstr = dynamic_cast<AST::ControlInstruction *>(Instr);
-  if (CtrlInstr == nullptr) {
-    return ErrCode::InstructionTypeMismatch;
-  }
-
   /// Check OpCode and run the specific instruction.
   ErrCode Status = ErrCode::Success;
-  switch (CtrlInstr->getOpCode()) {
+  switch (Instr->getOpCode()) {
   case OpCode::Unreachable:
     TheState = State::Unreachable;
     Status = ErrCode::Unreachable;
@@ -113,31 +107,31 @@ ErrCode Worker::runControlOp(AST::Instruction *Instr) {
   case OpCode::Nop:
     break;
   case OpCode::Block:
-    Status = runBlockOp(CtrlInstr);
+    Status = runBlockOp(Instr);
     break;
   case OpCode::Loop:
-    Status = runLoopOp(CtrlInstr);
+    Status = runLoopOp(Instr);
     break;
   case OpCode::If:
-    Status = runIfElseOp(CtrlInstr);
+    Status = runIfElseOp(Instr);
     break;
   case OpCode::Br:
-    Status = runBrOp(CtrlInstr);
+    Status = runBrOp(Instr);
     break;
   case OpCode::Br_if:
-    Status = runBrIfOp(CtrlInstr);
+    Status = runBrIfOp(Instr);
     break;
   case OpCode::Br_table:
-    Status = runBrTableOp(CtrlInstr);
+    Status = runBrTableOp(Instr);
     break;
   case OpCode::Return:
     Status = runReturnOp();
     break;
   case OpCode::Call:
-    Status = runCallOp(CtrlInstr);
+    Status = runCallOp(Instr);
     break;
   case OpCode::Call_indirect:
-    // TODO: Status = runCallIndirectOp(CtrlInstr);
+    // TODO: Status = runCallIndirectOp(Instr);
     Status = ErrCode::Unimplemented;
     break;
   default:

@@ -247,6 +247,16 @@ public:
     return findEntity(ModName, GlobName, GlobInsts, Glob);
   }
 
+  /// Reset store.
+  ErrCode reset() {
+    ModInsts.clear();
+    FuncInsts.clear();
+    TabInsts.clear();
+    MemInsts.clear();
+    GlobInsts.clear();
+    return ErrCode::Success;
+  }
+
 private:
   /// Helper function for inserting instance to instance vector.
   template <typename T>

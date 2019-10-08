@@ -117,6 +117,14 @@ public:
   bool isTopLabel() { return (Stack.size() > 0) && Stack.back().index() == 1; }
   bool isTopValue() { return (Stack.size() > 0) && Stack.back().index() == 2; }
 
+  /// Reset stack.
+  ErrCode reset() {
+    Stack.clear();
+    LabelIdx.clear();
+    FrameIdx.clear();
+    return ErrCode::Success;
+  }
+
 private:
   /// \name Data of value entry.
   /// @{

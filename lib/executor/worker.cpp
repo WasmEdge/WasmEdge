@@ -179,8 +179,7 @@ ErrCode Worker::runVariableOp(AST::Instruction *Instr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
-  /// Get variable instruction OpCode, index, and current frame.
-  auto Opcode = VarInstr->getOpCode();
+  /// Get variable index and current frame.
   unsigned int Index = VarInstr->getIndex();
   StackMgr.getCurrentFrame(CurrentFrame);
 

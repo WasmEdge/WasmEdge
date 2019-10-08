@@ -21,18 +21,26 @@ public:
   HostFunctionManager() = default;
   ~HostFunctionManager() = default;
 
+  /// Insert new host function and get index.
   ErrCode insertHostFunction(std::unique_ptr<HostFunction> &Func,
-                             unsigned int &NewId) {
-    NewId = HostFuncs.size();
+                             unsigned int &NewAddr) {
+    NewAddr = HostFuncs.size();
     HostFuncs.push_back(std::move(Func));
     return ErrCode::Success;
   }
 
+  /// Get host function by address.
   ErrCode getHostFunction(unsigned int Addr, HostFunction *&Func) {
     if (Addr >= HostFuncs.size()) {
       return ErrCode::WrongInstanceAddress;
     }
     Func = HostFuncs[Addr].get();
+    return ErrCode::Success;
+  }
+
+  /// Reset host function manager.
+  ErrCode reset() {
+    HostFuncs.clear();
     return ErrCode::Success;
   }
 

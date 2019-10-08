@@ -36,6 +36,9 @@ public:
   /// Get the result AST::Module node.
   ErrCode getModule(std::unique_ptr<AST::Module> &OutModule);
 
+  /// Reset Loader.
+  ErrCode reset(bool Force = false);
+
 private:
   /// Loader State
   enum class State : unsigned int {

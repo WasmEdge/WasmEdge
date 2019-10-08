@@ -57,5 +57,15 @@ ErrCode Loader::getModule(std::unique_ptr<AST::Module> &OutModule) {
   return ErrCode::Success;
 }
 
+/// Reset Loader. See "include/loader/loader.h".
+ErrCode Loader::reset(bool Force) {
+  if (!Force && Stat != State::Finished) {
+    return ErrCode::WrongLoaderFlow;
+  }
+  Mod.reset();
+  Stat = State::Inited;
+  return ErrCode::Success;
+}
+
 } // namespace Loader
 } // namespace SSVM

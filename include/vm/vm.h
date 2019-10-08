@@ -26,11 +26,18 @@
 namespace SSVM {
 namespace VM {
 
+namespace {
+/// Accept host functions.
+template <typename T, typename TR>
+using TypeFunc =
+    typename std::enable_if_t<std::is_base_of_v<Executor::HostFunction, T>, TR>;
+} // namespace
+
 /// VM execution flow class
 class VM {
 public:
   VM() = delete;
-  VM(Environment &InputEnv);
+  VM(Environment &InputEnv) : Env(InputEnv){};
   ~VM() = default;
 
   /// Set the wasm file path.
@@ -38,6 +45,18 @@ public:
 
   /// Set the call data vector.
   ErrCode setCallData(std::vector<unsigned char> &Data);
+
+  /// Set host function.
+  template <typename T>
+  TypeFunc<T, ErrCode> setHostFunction(std::unique_ptr<T> &Func,
+                                       const std::string &ModName,
+                                       const std::string &FuncName) {
+    auto NewFunc = castHostFunc(std::move(Func));
+    if (ExecutorEngine.setHostFunction(NewFunc, ModName, FuncName) ==
+        Executor::ErrCode::Success)
+      return ErrCode::Success;
+    return ErrCode::Failed;
+  }
 
   /// Append the start function arguments.
   template <typename T>
@@ -58,8 +77,12 @@ private:
   ErrCode runLoader();
   ErrCode runExecutor();
 
+  /// Helper function for inserting EEI functions.
+  ErrCode insertEEI();
+
+  /// Helper function for casting host functions.
   template <typename T>
-  std::unique_ptr<Executor::HostFunction>
+  TypeFunc<T, std::unique_ptr<Executor::HostFunction>>
   castHostFunc(std::unique_ptr<T> Func) {
     T *FuncPtr = Func.release();
     return std::move(std::unique_ptr<Executor::HostFunction>(

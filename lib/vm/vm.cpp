@@ -28,38 +28,6 @@ template <typename T> bool testAndSetError(T Status, Result &VMResult) {
 
 } // namespace detail
 
-VM::VM(Environment &InputEnv) : Env(InputEnv) {
-  auto FuncEEICallDataCopy =
-      castHostFunc(std::make_unique<Executor::EEICallDataCopy>(Env));
-  auto FuncEEICallStatic =
-      castHostFunc(std::make_unique<Executor::EEICallStatic>(Env));
-  auto FuncEEIFinish = castHostFunc(std::make_unique<Executor::EEIFinish>(Env));
-  auto FuncEEIGetCallDataSize =
-      castHostFunc(std::make_unique<Executor::EEIGetCallDataSize>(Env));
-  auto FuncEEIGetCaller =
-      castHostFunc(std::make_unique<Executor::EEIGetCaller>(Env));
-  auto FuncEEIReturnDataCopy =
-      castHostFunc(std::make_unique<Executor::EEIReturnDataCopy>(Env));
-  auto FuncEEIRevert = castHostFunc(std::make_unique<Executor::EEIRevert>(Env));
-  auto FuncEEIStorageLoad =
-      castHostFunc(std::make_unique<Executor::EEIStorageLoad>(Env));
-  auto FuncEEIStorageStore =
-      castHostFunc(std::make_unique<Executor::EEIStorageStore>(Env));
-  ExecutorEngine.setHostFunction(FuncEEICallDataCopy, "ethereum",
-                                 "callDataCopy");
-  ExecutorEngine.setHostFunction(FuncEEICallStatic, "ethereum", "callStatic");
-  ExecutorEngine.setHostFunction(FuncEEIFinish, "ethereum", "finish");
-  ExecutorEngine.setHostFunction(FuncEEIGetCallDataSize, "ethereum",
-                                 "getCallDataSize");
-  ExecutorEngine.setHostFunction(FuncEEIGetCaller, "ethereum", "getCaller");
-  ExecutorEngine.setHostFunction(FuncEEIReturnDataCopy, "ethereum",
-                                 "returnDataCopy");
-  ExecutorEngine.setHostFunction(FuncEEIRevert, "ethereum", "revert");
-  ExecutorEngine.setHostFunction(FuncEEIStorageLoad, "ethereum", "storageLoad");
-  ExecutorEngine.setHostFunction(FuncEEIStorageStore, "ethereum",
-                                 "storageStore");
-}
-
 ErrCode VM::setPath(const std::string &FilePath) {
   WasmPath = FilePath;
   return ErrCode::Success;
@@ -72,16 +40,20 @@ ErrCode VM::setCallData(std::vector<unsigned char> &Data) {
 }
 
 ErrCode VM::execute() {
-  ErrCode Status = ErrCode::Success;
-  if ((Status = runLoader()) != ErrCode::Success) {
-    printf(" !!! load error \n");
-    return Status;
-  }
-  if ((Status = runExecutor()) != ErrCode::Success) {
+  /// Insert EEI functions.
+  insertEEI();
 
-    printf(" !!! exec error \n");
-    return Status;
+  /// Run code.
+  ErrCode Status = runLoader();
+  if (Status == ErrCode::Success) {
+    Status = runExecutor();
   }
+
+  /// Clear loader and executor engine.
+  LoaderEngine.reset();
+  ExecutorEngine.reset();
+  Mod.reset();
+  Args.clear();
   return Status;
 }
 
@@ -118,33 +90,79 @@ ErrCode VM::runExecutor() {
 
   ExecutorStatus = ExecutorEngine.setModule(Mod);
   if (detail::testAndSetError(ExecutorStatus, VMResult)) {
-    printf(" !!! setModule error \n");
     return ErrCode::Failed;
   }
 
   ExecutorStatus = ExecutorEngine.instantiate();
   if (detail::testAndSetError(ExecutorStatus, VMResult)) {
-    printf(" !!! instantiate error \n");
     return ErrCode::Failed;
   }
 
   ExecutorStatus = ExecutorEngine.setArgs(Args);
   if (detail::testAndSetError(ExecutorStatus, VMResult)) {
-    printf(" !!! setArgs error \n");
     return ErrCode::Failed;
   }
 
   ExecutorStatus = ExecutorEngine.run();
   if (detail::testAndSetError(ExecutorStatus, VMResult)) {
-    printf(" !!! run error \n");
     return ErrCode::Failed;
   }
 
   if (VMResult.hasError()) {
-    printf(" !!! result hasError error \n");
     return ErrCode::Failed;
   }
   return ErrCode::Success;
+}
+
+ErrCode VM::insertEEI() {
+  auto FuncEEICallDataCopy =
+      castHostFunc(std::make_unique<Executor::EEICallDataCopy>(Env));
+  auto FuncEEICallStatic =
+      castHostFunc(std::make_unique<Executor::EEICallStatic>(Env));
+  auto FuncEEIFinish = castHostFunc(std::make_unique<Executor::EEIFinish>(Env));
+  auto FuncEEIGetCallDataSize =
+      castHostFunc(std::make_unique<Executor::EEIGetCallDataSize>(Env));
+  auto FuncEEIGetCaller =
+      castHostFunc(std::make_unique<Executor::EEIGetCaller>(Env));
+  auto FuncEEIReturnDataCopy =
+      castHostFunc(std::make_unique<Executor::EEIReturnDataCopy>(Env));
+  auto FuncEEIRevert = castHostFunc(std::make_unique<Executor::EEIRevert>(Env));
+  auto FuncEEIStorageLoad =
+      castHostFunc(std::make_unique<Executor::EEIStorageLoad>(Env));
+  auto FuncEEIStorageStore =
+      castHostFunc(std::make_unique<Executor::EEIStorageStore>(Env));
+
+  ErrCode Status = ErrCode::Success;
+  if (Status == ErrCode::Success) {
+    Status = setHostFunction(FuncEEICallDataCopy, "ethereum", "callDataCopy");
+  }
+  if (Status == ErrCode::Success) {
+    Status = setHostFunction(FuncEEICallStatic, "ethereum", "callStatic");
+  }
+  if (Status == ErrCode::Success) {
+    Status = setHostFunction(FuncEEIFinish, "ethereum", "finish");
+  }
+  if (Status == ErrCode::Success) {
+    Status =
+        setHostFunction(FuncEEIGetCallDataSize, "ethereum", "getCallDataSize");
+  }
+  if (Status == ErrCode::Success) {
+    Status = setHostFunction(FuncEEIGetCaller, "ethereum", "getCaller");
+  }
+  if (Status == ErrCode::Success) {
+    Status =
+        setHostFunction(FuncEEIReturnDataCopy, "ethereum", "returnDataCopy");
+  }
+  if (Status == ErrCode::Success) {
+    Status = setHostFunction(FuncEEIRevert, "ethereum", "revert");
+  }
+  if (Status == ErrCode::Success) {
+    Status = setHostFunction(FuncEEIStorageLoad, "ethereum", "storageLoad");
+  }
+  if (Status == ErrCode::Success) {
+    Status = setHostFunction(FuncEEIStorageStore, "ethereum", "storageStore");
+  }
+  return Status;
 }
 
 } // namespace VM

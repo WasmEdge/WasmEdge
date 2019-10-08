@@ -42,6 +42,9 @@ public:
   /// Pop instruction sequence.
   ErrCode popInstrs();
 
+  /// Reset instruction provider.
+  ErrCode reset();
+
 private:
   /// Stack of instruction sequences.
   struct InstrScope {

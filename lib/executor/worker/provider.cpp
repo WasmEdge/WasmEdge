@@ -47,5 +47,11 @@ ErrCode InstrProvider::popInstrs() {
   return ErrCode::Success;
 }
 
+/// Reset provider. See "include/executor/worker/provider.h".
+ErrCode InstrProvider::reset() {
+  Iters.clear();
+  return ErrCode::Success;
+}
+
 } // namespace Executor
 } // namespace SSVM

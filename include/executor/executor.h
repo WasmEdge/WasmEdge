@@ -46,6 +46,9 @@ public:
   /// Execute Wasm.
   ErrCode run();
 
+  /// Reset Executor.
+  ErrCode reset(bool Force = false);
+
 private:
   /// Instantiation of Module Instance.
   ErrCode instantiate(AST::Module *Mod);

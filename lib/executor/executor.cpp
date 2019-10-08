@@ -94,5 +94,20 @@ ErrCode Executor::run() {
   return Result;
 }
 
+/// Reset Executor. See "include/loader/executor.h".
+ErrCode Executor::reset(bool Force) {
+  if (!Force && Stat != State::Finished) {
+    return ErrCode::WrongExecutorFlow;
+  }
+  Mod.reset();
+  ModInst = nullptr;
+  Engine.reset();
+  StackMgr.reset();
+  StoreMgr.reset();
+  HostFuncMgr.reset();
+  Stat = State::Inited;
+  return ErrCode::Success;
+}
+
 } // namespace Executor
 } // namespace SSVM

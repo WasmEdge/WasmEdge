@@ -9,13 +9,7 @@ namespace Executor {
 
 namespace {
 using OpCode = AST::Instruction::OpCode;
-using Value = AST::ValVariant;
 } // namespace
-
-ErrCode Worker::setArguments(Bytes &Input) {
-  Args.assign(Input.begin(), Input.end());
-  return ErrCode::Success;
-}
 
 ErrCode Worker::runExpression(const AST::InstrVec &Instrs) {
   /// Check worker's flow.
@@ -33,20 +27,22 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
   if (TheState != State::Inited)
     return ErrCode::WrongWorkerFlow;
 
-  /// TODO: Push arguments of start function into stack.
-
-  /// Enter start function.
+  /// Enter start function. Args should be pushed into stack.
   ErrCode Status = ErrCode::Success;
   if ((Status = invokeFunction(FuncAddr)) != ErrCode::Success)
     return Status;
 
   /// Execute run loop.
   TheState = State::CodeSet;
-  if ((Status = execute()) != ErrCode::Success)
-    return Status;
-
-  /// TODO: Pop return value.
+  Status = execute();
   return Status;
+}
+
+ErrCode Worker::reset() {
+  TheState = State::Inited;
+  CurrentFrame = nullptr;
+  InstrPdr.reset();
+  return ErrCode::Success;
 }
 
 ErrCode Worker::execute() {

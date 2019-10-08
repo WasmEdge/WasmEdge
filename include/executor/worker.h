@@ -86,14 +86,14 @@ public:
 
   ~Worker() = default;
 
-  /// Prepare input data for calldatacopy.
-  ErrCode setArguments(Bytes &Input);
-
   /// Prepare Wasm bytecode expression for execution.
   ErrCode runExpression(const AST::InstrVec &Instrs);
 
   /// Invoke function with main function address.
   ErrCode runStartFunction(unsigned int FuncAddr);
+
+  /// Reset worker.
+  ErrCode reset();
 
   /// Getter of worker state.
   State getState() const { return TheState; }
@@ -260,10 +260,8 @@ private:
   HostFunctionManager &HostFuncMgr;
   /// Worker State
   State TheState;
-  /// Arguments
-  Bytes Args;
   /// Pointer to current frame
-  FrameEntry *CurrentFrame;
+  FrameEntry *CurrentFrame = nullptr;
   /// Instruction provider
   InstrProvider InstrPdr;
 };

@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.9)
+project(SSVM)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if(NOT CMAKE_BUILD_TYPE)
@@ -8,6 +9,9 @@ endif()
 include_directories(BEFORE
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/Keccok
+  ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/Keccok
+  ${Boost_INCLUDE_DIR}
 )
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
@@ -16,19 +20,19 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(BUILD_TESTS "Generate build targets for the ssvm unit tests." OFF)
 
-add_subdirectory(include)
-add_subdirectory(lib)
-add_subdirectory(tools/ssvm)
+find_package(Boost REQUIRED)
 
 if(BUILD_TESTS)
   include_directories(
+    ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/googletest/include
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/googletest/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/googletest
+    ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/googletest/
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/googletest/
   )
-  # pthread is required by googletest
-  set(THREADS_PREFER_PTHREAD_FLAG ON)
-  find_package(Threads REQUIRED)
-
   add_subdirectory(test)
-  add_subdirectory(thirdparty)
 endif()
+
+add_subdirectory(include)
+add_subdirectory(lib)
+add_subdirectory(thirdparty)
+add_subdirectory(tools/ssvm)

@@ -1,4 +1,5 @@
-add_library(utilGoogleTest
-  googletest/src/gtest-all.cc
-)
-target_link_libraries(utilGoogleTest Threads::Threads)
+add_subdirectory(keccak)
+
+if(BUILD_TESTS)
+  add_subdirectory(googletest)
+endif()

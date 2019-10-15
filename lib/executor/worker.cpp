@@ -169,7 +169,7 @@ ErrCode Worker::runParametricOp(AST::Instruction *Instr) {
   } else {
     return ErrCode::InstructionTypeMismatch;
   }
-  return ErrCode::Success;
+  return Status;
 }
 
 ErrCode Worker::runVariableOp(AST::Instruction *Instr) {
@@ -206,7 +206,7 @@ ErrCode Worker::runVariableOp(AST::Instruction *Instr) {
     break;
   }
 
-  return ErrCode::Success;
+  return Status;
 }
 
 ErrCode Worker::runMemoryOp(AST::Instruction *Instr) {

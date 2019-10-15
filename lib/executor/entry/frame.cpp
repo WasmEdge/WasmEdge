@@ -8,7 +8,8 @@ FrameEntry::FrameEntry(
     unsigned int ModuleAddr, unsigned int Arity,
     std::vector<std::unique_ptr<ValueEntry>> &Args,
     const std::vector<std::pair<unsigned int, AST::ValType>> &LocalDefs) {
-  /// Set arity.
+  /// Set arity and module address.
+  ModAddr = ModuleAddr;
   this->Arity = Arity;
 
   /// Set parameters with arguments.

@@ -5,7 +5,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-///
+/// This file is the definition class of VM class.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -92,7 +92,7 @@ private:
   std::string WasmPath;
   Loader::Loader LoaderEngine;
   Executor::Executor ExecutorEngine;
-  Environment Env;
+  Environment &Env;
   std::unique_ptr<AST::Module> Mod = nullptr;
   std::vector<std::unique_ptr<Executor::ValueEntry>> Args;
   Result VMResult;

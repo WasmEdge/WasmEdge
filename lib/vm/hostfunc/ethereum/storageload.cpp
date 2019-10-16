@@ -39,7 +39,7 @@ ErrCode EEIStorageLoad::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
 
   /// Get Value data in storage by key of path.
   std::string Path("");
-  std::string Value(32, '0');
+  std::string Value(64, '0');
   std::map<std::string, std::string> &Storage = Env.getStorage();
   Support::convertHexToString(Data, Path, 64);
   if (Storage.find(Path) != Storage.end()) {
@@ -47,6 +47,7 @@ ErrCode EEIStorageLoad::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   }
 
   /// Set Value data to memory.
+  Data.clear();
   Support::convertStringToHex(Value, Data, 64);
   if ((Status = MemInst->setBytes(Data, ValueOffset, 0, 32)) !=
       ErrCode::Success) {

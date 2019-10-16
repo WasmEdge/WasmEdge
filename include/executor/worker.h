@@ -173,10 +173,10 @@ private:
   /// ======= Memory =======
   template <typename T>
   TypeT<T, ErrCode> runLoadOp(AST::MemoryInstruction *Instr,
-                              unsigned int Width = sizeof(T) * 8);
+                              unsigned int BitWidth = sizeof(T) * 8);
   template <typename T>
   TypeB<T, ErrCode> runStoreOp(AST::MemoryInstruction *Instr,
-                               unsigned int Width = sizeof(T) * 8);
+                               unsigned int BitWidth = sizeof(T) * 8);
   ErrCode runMemorySizeOp();
   ErrCode runMemoryGrowOp();
   /// ======= Test and Relation Numeric =======

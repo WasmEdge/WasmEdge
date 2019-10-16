@@ -61,7 +61,7 @@ MemoryInstance::storeValue(unsigned int Offset, unsigned int Length,
 
   /// Copy store data to a value.
   uint64_t StoreVal = 0;
-  memcpy(&StoreVal, &Value, Length / 8);
+  memcpy(&StoreVal, &Value, Length);
   for (unsigned int I = 0; I < Length; I++) {
     Data.at(I + Offset) = static_cast<Byte>(StoreVal & 0xFFU);
     StoreVal >>= 8;

@@ -13,7 +13,7 @@ namespace Executor {
 
 template <typename T>
 TypeT<T, ErrCode> Worker::runLoadOp(AST::MemoryInstruction *Instr,
-                                    unsigned int Width) {
+                                    unsigned int BitWidth) {
   /// Get Memory Instance
   ErrCode Status = ErrCode::Success;
   Instance::MemoryInstance *MemoryInst = nullptr;
@@ -28,7 +28,7 @@ TypeT<T, ErrCode> Worker::runLoadOp(AST::MemoryInstruction *Instr,
 
   /// Value = Mem.Data[EA : N / 8]
   T Value;
-  if ((Status = MemoryInst->loadValue(EA, Width / 8, Value)) !=
+  if ((Status = MemoryInst->loadValue(EA, BitWidth / 8, Value)) !=
       ErrCode::Success) {
     return Status;
   }
@@ -37,7 +37,7 @@ TypeT<T, ErrCode> Worker::runLoadOp(AST::MemoryInstruction *Instr,
 
 template <typename T>
 TypeB<T, ErrCode> Worker::runStoreOp(AST::MemoryInstruction *Instr,
-                                     unsigned int Width) {
+                                     unsigned int BitWidth) {
   /// Get Memory Instance
   ErrCode Status = ErrCode::Success;
   Instance::MemoryInstance *MemoryInst = nullptr;
@@ -56,7 +56,7 @@ TypeB<T, ErrCode> Worker::runStoreOp(AST::MemoryInstruction *Instr,
 
   /// Store value to bytes.
   T Value = retrieveValue<T>(*C.get());
-  if ((Status = MemoryInst->storeValue(EA, Width / 8, Value)) !=
+  if ((Status = MemoryInst->storeValue(EA, BitWidth / 8, Value)) !=
       ErrCode::Success) {
     return Status;
   };

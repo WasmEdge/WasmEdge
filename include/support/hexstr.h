@@ -9,7 +9,7 @@ namespace SSVM {
 namespace Support {
 
 inline unsigned char convertCharToHex(const char C) {
-  if (C >= '0' && C <= 9) {
+  if (C >= '0' && C <= '9') {
     return C - '0';
   }
   if (C >= 'a' && C <= 'f') {

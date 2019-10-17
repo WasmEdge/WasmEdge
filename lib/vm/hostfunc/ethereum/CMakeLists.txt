@@ -9,3 +9,8 @@ add_library(ssvmHostFuncEEI
   getcaller.cpp
   returndatacopy.cpp
 )
+
+target_link_libraries(ssvmHostFuncEEI
+  PRIVATE
+  utilKeccak
+)

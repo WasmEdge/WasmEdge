@@ -1,7 +1,10 @@
 #include "vm/hostfunc/ethereum/callstatic.h"
+#include "Keccak.h"
 #include "executor/common.h"
 #include "executor/worker/util.h"
 #include "support/hexstr.h"
+
+#include <boost/multiprecision/cpp_int.hpp>
 
 namespace SSVM {
 namespace Executor {
@@ -46,10 +49,24 @@ ErrCode EEICallStatic::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
       ErrCode::Success) {
     return Status;
   }
-  /// TODO: run VM by address and set result to Env.ResultValue.
+
+  boost::multiprecision::uint256_t AddressNum = 0;
+  for (auto It = Address.crbegin(); It != Address.crend(); It++) {
+    AddressNum <<= 8;
+    AddressNum += *It;
+  }
+
+  unsigned int Result = 1U;
+  if (AddressNum == 9) {
+    /// Run Keccak
+    Keccak K(256);
+    std::vector<unsigned char> &ReturnData = Env.getReturnData();
+    ReturnData = K.digest();
+    Result = 0U;
+  }
 
   /// Return: result(u32)
-  Res.push_back(std::make_unique<ValueEntry>(0U));
+  Res.push_back(std::make_unique<ValueEntry>(Result));
   return Status;
 }
 

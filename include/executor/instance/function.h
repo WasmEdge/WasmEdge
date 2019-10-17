@@ -64,7 +64,7 @@ public:
   bool isHostFunction() const { return IsHostFunction; }
 
 private:
-  bool IsHostFunction = false;
+  bool IsHostFunction;
 
   /// \name Data of function instance for native function.
   /// @{

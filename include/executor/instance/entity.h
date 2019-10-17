@@ -34,8 +34,8 @@ public:
   unsigned int Addr;
 
 protected:
-  std::string ModName = "";
-  std::string EntityName = "";
+  std::string ModName;
+  std::string EntityName;
 };
 
 } // namespace Instance

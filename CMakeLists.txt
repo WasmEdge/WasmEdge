@@ -22,6 +22,24 @@ option(BUILD_TESTS "Generate build targets for the ssvm unit tests." OFF)
 
 find_package(Boost REQUIRED)
 
+# Macro for copying directory.
+macro(configure_files srcDir destDir)
+message(STATUS "Generating testing input directory ${destDir}")
+make_directory(${destDir})
+
+file(GLOB templateFiles RELATIVE ${srcDir} ${srcDir}/*)
+foreach(templateFile ${templateFiles})
+    set(srcTemplatePath ${srcDir}/${templateFile})
+    if(NOT IS_DIRECTORY ${srcTemplatePath})
+        message(STATUS "Generating file ${templateFile}")
+        configure_file(
+                ${srcTemplatePath}
+                ${destDir}/${templateFile}
+                COPYONLY)
+    endif(NOT IS_DIRECTORY ${srcTemplatePath})
+endforeach(templateFile)
+endmacro(configure_files)
+
 if(BUILD_TESTS)
   include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/googletest/include

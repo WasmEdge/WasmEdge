@@ -18,12 +18,12 @@ namespace {
 SSVM::FileMgrFStream Mgr;
 SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
-TEST(WagonTest, Load__token) {
+TEST(EthereumTest, Load__token) {
   Mgr.setPath("ethereumTestData/token.wasm");
   SSVM::AST::Module Mod;
   EXPECT_EQ(Mod.loadBinary(Mgr), SuccessCode);
 }
-TEST(WagonTest, Load__wrc20) {
+TEST(EthereumTest, Load__wrc20) {
   Mgr.setPath("ethereumTestData/wrc20.wasm");
   SSVM::AST::Module Mod;
   EXPECT_EQ(Mod.loadBinary(Mgr), SuccessCode);

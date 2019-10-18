@@ -2,7 +2,6 @@ add_executable(ssvmLoaderFileMgrTests
   filemgrTest.cpp
 )
 
-
 add_executable(ssvmLoaderWagonTests
   wagonTest.cpp
 )

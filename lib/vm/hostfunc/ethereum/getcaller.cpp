@@ -6,7 +6,7 @@
 namespace SSVM {
 namespace Executor {
 
-EEIGetCaller::EEIGetCaller(VM::Environment &Env) : EEI(Env) {
+EEIGetCaller::EEIGetCaller(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
 }
 

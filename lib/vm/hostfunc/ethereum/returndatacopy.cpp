@@ -5,7 +5,7 @@
 namespace SSVM {
 namespace Executor {
 
-EEIReturnDataCopy::EEIReturnDataCopy(VM::Environment &Env) : EEI(Env) {
+EEIReturnDataCopy::EEIReturnDataCopy(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);

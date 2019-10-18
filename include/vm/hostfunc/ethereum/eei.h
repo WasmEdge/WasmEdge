@@ -8,12 +8,12 @@ namespace Executor {
 
 class EEI : public HostFunction {
 public:
-  EEI(VM::Environment &HostEnv) : Env(HostEnv) {}
+  EEI(VM::EVMEnvironment &HostEnv) : Env(HostEnv) {}
   EEI() = delete;
   virtual ~EEI() = default;
 
 protected:
-  VM::Environment &Env;
+  VM::EVMEnvironment &Env;
 };
 
 } // namespace Executor

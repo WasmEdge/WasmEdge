@@ -9,7 +9,7 @@
 namespace SSVM {
 namespace Executor {
 
-EEICallStatic::EEICallStatic(VM::Environment &Env) : EEI(Env) {
+EEICallStatic::EEICallStatic(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);

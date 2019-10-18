@@ -7,7 +7,7 @@ namespace Executor {
 
 class EEICallDataCopy : public EEI {
 public:
-  EEICallDataCopy(VM::Environment &Env);
+  EEICallDataCopy(VM::EVMEnvironment &Env);
   EEICallDataCopy() = delete;
   virtual ~EEICallDataCopy() = default;
 

@@ -5,7 +5,7 @@
 namespace SSVM {
 namespace Executor {
 
-EEIGetCallDataSize::EEIGetCallDataSize(VM::Environment &Env) : EEI(Env) {
+EEIGetCallDataSize::EEIGetCallDataSize(VM::EVMEnvironment &Env) : EEI(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 

@@ -7,7 +7,7 @@ namespace Executor {
 
 class EEICallStatic : public EEI {
 public:
-  EEICallStatic(VM::Environment &Env);
+  EEICallStatic(VM::EVMEnvironment &Env);
   EEICallStatic() = delete;
   virtual ~EEICallStatic() = default;
 

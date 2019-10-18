@@ -7,7 +7,7 @@ namespace Executor {
 
 class EEIStorageLoad : public EEI {
 public:
-  EEIStorageLoad(VM::Environment &Env);
+  EEIStorageLoad(VM::EVMEnvironment &Env);
   EEIStorageLoad() = delete;
   virtual ~EEIStorageLoad() = default;
 

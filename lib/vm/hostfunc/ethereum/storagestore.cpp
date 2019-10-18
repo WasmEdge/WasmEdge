@@ -6,7 +6,7 @@
 namespace SSVM {
 namespace Executor {
 
-EEIStorageStore::EEIStorageStore(VM::Environment &Env) : EEI(Env) {
+EEIStorageStore::EEIStorageStore(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);
 }

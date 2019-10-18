@@ -5,7 +5,7 @@
 namespace SSVM {
 namespace Executor {
 
-EEICallDataCopy::EEICallDataCopy(VM::Environment &Env) : EEI(Env) {
+EEICallDataCopy::EEICallDataCopy(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);

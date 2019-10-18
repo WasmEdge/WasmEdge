@@ -5,7 +5,7 @@
 namespace SSVM {
 namespace Executor {
 
-EEIRevert::EEIRevert(VM::Environment &Env) : EEI(Env) {
+EEIRevert::EEIRevert(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);
 }

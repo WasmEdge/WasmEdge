@@ -10,7 +10,13 @@ namespace VM {
 class Environment {
 public:
   Environment() = default;
-  ~Environment() = default;
+  virtual ~Environment() = default;
+};
+
+class EVMEnvironment : public Environment {
+public:
+  EVMEnvironment() = default;
+  virtual ~EVMEnvironment() = default;
 
   std::map<std::string, std::string> &getStorage() { return Storage; }
   unsigned int &getGasLeft() { return GasLeft; }
@@ -22,13 +28,16 @@ public:
 private:
   unsigned int GasLeft;
   std::map<std::string, std::string> Storage;
-  std::vector<unsigned char> CallData = {
-      0xB1U, 0xAAU, 0x1FU, 0x4EU, 0U, 0U, 0U, 0U, 0U, 0U, 0U,
-      0U,    0U,    0U,    0U,    0U, 0U, 0U, 0U, 0U, 0U, 0U,
-      0U,    0U,    0U,    0U,    0U, 0U, 0U, 0U, 0U, 0U};
+  std::vector<unsigned char> CallData;
   std::vector<unsigned char> ReturnData;
-  std::string Caller = "1234567890123456789012345678901234567890";
-  std::string CallValue = "ffffffffffffffffffffffffffffffff";
+  std::string Caller;
+  std::string CallValue;
+};
+
+class WasiEnvironment : public Environment {
+public:
+  WasiEnvironment() = default;
+  virtual ~WasiEnvironment() = default;
 };
 
 } // namespace VM

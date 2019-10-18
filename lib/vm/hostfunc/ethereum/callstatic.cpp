@@ -60,6 +60,9 @@ ErrCode EEICallStatic::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   if (AddressNum == 9) {
     /// Run Keccak
     Keccak K(256);
+    for (auto It = Data.cbegin(); It != Data.cend(); It++) {
+      K.addData(*It);
+    }
     std::vector<unsigned char> &ReturnData = Env.getReturnData();
     ReturnData = K.digest();
     Result = 0U;

@@ -11,12 +11,23 @@ class Environment {
 public:
   Environment() = default;
   virtual ~Environment() = default;
+
+  virtual void clear() = 0;
 };
 
 class EVMEnvironment : public Environment {
 public:
   EVMEnvironment() = default;
   virtual ~EVMEnvironment() = default;
+
+  virtual void clear() {
+    GasLeft = 0;
+    Storage.clear();
+    CallData.clear();
+    ReturnData.clear();
+    Caller.clear();
+    CallValue.clear();
+  }
 
   std::map<std::string, std::string> &getStorage() { return Storage; }
   unsigned int &getGasLeft() { return GasLeft; }
@@ -38,6 +49,8 @@ class WasiEnvironment : public Environment {
 public:
   WasiEnvironment() = default;
   virtual ~WasiEnvironment() = default;
+
+  virtual void clear() {}
 };
 
 } // namespace VM

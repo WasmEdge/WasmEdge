@@ -66,6 +66,22 @@ ErrCode VM::execute() {
   return Status;
 }
 
+ErrCode VM::getEnvironment(EVMEnvironment *&OutEnv) {
+  if (Config.getVMType() == Configure::VMType::EWasm) {
+    OutEnv = dynamic_cast<EVMEnvironment *>(Env.get());
+    return ErrCode::Success;
+  }
+  return ErrCode::Failed;
+}
+
+ErrCode VM::getEnvironment(WasiEnvironment *&OutEnv) {
+  if (Config.getVMType() == Configure::VMType::Wasi) {
+    OutEnv = dynamic_cast<WasiEnvironment *>(Env.get());
+    return ErrCode::Success;
+  }
+  return ErrCode::Failed;
+}
+
 ErrCode VM::runLoader() {
   Loader::ErrCode LoaderStatus = Loader::ErrCode::Success;
   VMResult.setStage(Result::Stage::Loader);

@@ -71,6 +71,12 @@ public:
   /// Return VMResult
   Result getResult() { return VMResult; }
 
+  /// Getter of EVM Environment.
+  ErrCode getEnvironment(EVMEnvironment *&OutEnv);
+
+  /// Getter of Wasi Environment.
+  ErrCode getEnvironment(WasiEnvironment *&OutEnv);
+
 private:
   /// Functions for running.
   ErrCode runLoader();

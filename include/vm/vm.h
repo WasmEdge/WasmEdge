@@ -11,6 +11,7 @@
 #pragma once
 
 #include "common.h"
+#include "configure.h"
 #include "environment.h"
 #include "executor/entry/value.h"
 #include "executor/executor.h"
@@ -37,24 +38,22 @@ using TypeFunc =
 class VM {
 public:
   VM() = delete;
-  VM(Environment &InputEnv) : Env(InputEnv){};
+  VM(Configure &InputConfig);
   ~VM() = default;
 
   /// Set the wasm file path.
   ErrCode setPath(const std::string &FilePath);
-
-  /// Set the call data vector.
-  ErrCode setCallData(std::vector<unsigned char> &Data);
 
   /// Set host function.
   template <typename T>
   TypeFunc<T, ErrCode> setHostFunction(std::unique_ptr<T> &Func,
                                        const std::string &ModName,
                                        const std::string &FuncName) {
-    auto NewFunc = castHostFunc(std::move(Func));
+    std::unique_ptr<Executor::HostFunction> NewFunc = std::move(Func);
     if (ExecutorEngine.setHostFunction(NewFunc, ModName, FuncName) ==
-        Executor::ErrCode::Success)
+        Executor::ErrCode::Success) {
       return ErrCode::Success;
+    }
     return ErrCode::Failed;
   }
 
@@ -77,24 +76,17 @@ private:
   ErrCode runLoader();
   ErrCode runExecutor();
 
-  /// Helper function for inserting EEI functions.
-  ErrCode insertEEI();
-
-  /// Helper function for casting host functions.
-  template <typename T>
-  TypeFunc<T, std::unique_ptr<Executor::HostFunction>>
-  castHostFunc(std::unique_ptr<T> Func) {
-    T *FuncPtr = Func.release();
-    return std::move(std::unique_ptr<Executor::HostFunction>(
-        dynamic_cast<Executor::HostFunction *>(FuncPtr)));
-  }
+  /// Helper function for inserting host functions according to VM type.
+  ErrCode prepareVMHost();
 
   std::string WasmPath;
   Loader::Loader LoaderEngine;
   Executor::Executor ExecutorEngine;
-  Environment &Env;
-  std::unique_ptr<AST::Module> Mod = nullptr;
+  Configure &Config;
+  std::unique_ptr<Environment> Env;
+  std::unique_ptr<AST::Module> Mod;
   std::vector<std::unique_ptr<Executor::ValueEntry>> Args;
+  std::vector<std::unique_ptr<Executor::ValueEntry>> Rets;
   Result VMResult;
 };
 

@@ -69,6 +69,7 @@ ErrCode Worker::execute() {
     } else {
       /// Run instructions.
       OpCode Opcode = Instr->getOpCode();
+      StackMgr.getCurrentFrame(CurrentFrame);
       if (isControlOp(Opcode)) {
         Status = runControlOp(Instr);
       } else if (isParametricOp(Opcode)) {
@@ -179,9 +180,8 @@ ErrCode Worker::runVariableOp(AST::Instruction *Instr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
-  /// Get variable index and current frame.
+  /// Get variable index.
   unsigned int Index = VarInstr->getIndex();
-  StackMgr.getCurrentFrame(CurrentFrame);
 
   /// Check OpCode and run the specific instruction.
   ErrCode Status = ErrCode::Success;
@@ -218,7 +218,6 @@ ErrCode Worker::runMemoryOp(AST::Instruction *Instr) {
 
   /// Check OpCode and run the specific instruction.
   ErrCode Status = ErrCode::Success;
-  StackMgr.getCurrentFrame(CurrentFrame);
   switch (MemInstr->getOpCode()) {
   case OpCode::I32__load:
     Status = runLoadOp<uint32_t>(MemInstr);
@@ -789,11 +788,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
 
   /// Get Function Instance and module address.
   Instance::FunctionInstance *FuncInst = nullptr;
-  Instance::ModuleInstance *ModuleInst = nullptr;
   if ((Status = StoreMgr.getFunction(FuncAddr, FuncInst)) != ErrCode::Success)
-    return Status;
-  if ((StoreMgr.getModule(FuncInst->getModuleAddr(), ModuleInst)) !=
-      ErrCode::Success)
     return Status;
 
   /// Get function type
@@ -809,6 +804,11 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
 
   if (FuncInst->isHostFunction()) {
     /// Host function case: Push args and call function.
+    Instance::ModuleInstance *ModuleInst = nullptr;
+    if ((Status = StoreMgr.getModule(CurrentFrame->getModuleAddr(),
+                                     ModuleInst)) != ErrCode::Success) {
+      return Status;
+    }
     HostFunction *HostFunc = nullptr;
     if ((Status = HostFuncMgr.getHostFunction(FuncInst->getHostFuncAddr(),
                                               HostFunc)) != ErrCode::Success) {

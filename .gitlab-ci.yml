@@ -29,6 +29,8 @@ test:
     - ./ssvmLoaderWagonTests
     - cd ../ast/load
     - ./ssvmASTLoadTests
+    - cd ../../evm
+    - ./ssvmEVMTests
   cache:
     paths:
       - build

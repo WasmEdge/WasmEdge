@@ -35,6 +35,10 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
   /// Execute run loop.
   TheState = State::CodeSet;
   Status = execute();
+  if (Status == ErrCode::Terminated) {
+    /// Forced terminated case.
+    return ErrCode::Success;
+  }
   return Status;
 }
 

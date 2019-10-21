@@ -1,1 +1,2 @@
 add_subdirectory(ethereum)
+add_subdirectory(wasi)

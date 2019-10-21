@@ -38,7 +38,8 @@ enum class ErrCode : unsigned int {
   MemorySizeExceeded,      /// Exceeded limit of memory page in memory instance.
   FunctionInvalid,         /// Invalid operation to function instance.
   CallFunctionError,       /// Arguement not match function type.
-  Revert                   /// Revert by evm.
+  Revert,                  /// Revert by evm.
+  Terminated               /// Forced terminated by program and return success.
 };
 
 } // namespace Executor

@@ -10,4 +10,5 @@ target_link_libraries(ssvmVM
   ssvmLoader
   ssvmExecutor
   ssvmHostFuncEEI
+  ssvmHostFuncWasi
 )

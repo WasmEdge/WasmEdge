@@ -18,7 +18,7 @@ ErrCode Executor::instantiate(AST::TypeSection *TypeSec) {
        FuncType++) {
     /// Copy param and return lists to module instance.
     auto &Param = (*FuncType)->getParamTypes();
-    auto &Return = (*FuncType)->getParamTypes();
+    auto &Return = (*FuncType)->getReturnTypes();
     if ((Status = ModInst->addFuncType(Param, Return)) != ErrCode::Success) {
       return Status;
     }

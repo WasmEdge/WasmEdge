@@ -20,7 +20,7 @@
 namespace {
 
 const std::string Erc20Path("ethereumTestData/erc20.wasm");
-SSVM::VM::Configure Conf(SSVM::VM::Configure::VMType::EWasm);
+SSVM::VM::Configure Conf(SSVM::VM::Configure::VMType::Ewasm);
 SSVM::VM::VM EVM(Conf);
 SSVM::VM::EVMEnvironment *Env = nullptr;
 

@@ -19,11 +19,11 @@ namespace VM {
 class Configure {
 public:
   /// VM type enum class.
-  enum class VMType : unsigned int { Wasm = 0, EWasm, Wasi };
+  enum class VMType : unsigned int { Wasm = 0, Ewasm, Wasi };
 
   Configure() = delete;
   Configure(VMType NewType = VMType::Wasm) : Type(NewType) {
-    if (Type == VMType::EWasm) {
+    if (Type == VMType::Ewasm) {
       StartFuncName = "main";
     } else if (Type == VMType::Wasi) {
       StartFuncName = "_main";

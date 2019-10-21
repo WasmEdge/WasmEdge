@@ -31,7 +31,7 @@ template <typename T> bool testAndSetError(T Status, Result &VMResult) {
 VM::VM(Configure &InputConfig) : Config(InputConfig) {
   Configure::VMType Type = Config.getVMType();
   switch (Type) {
-  case Configure::VMType::EWasm:
+  case Configure::VMType::Ewasm:
     Env = std::make_unique<EVMEnvironment>();
     break;
   case Configure::VMType::Wasi:
@@ -67,7 +67,7 @@ ErrCode VM::execute() {
 }
 
 ErrCode VM::getEnvironment(EVMEnvironment *&OutEnv) {
-  if (Config.getVMType() == Configure::VMType::EWasm) {
+  if (Config.getVMType() == Configure::VMType::Ewasm) {
     OutEnv = dynamic_cast<EVMEnvironment *>(Env.get());
     return ErrCode::Success;
   }
@@ -142,8 +142,8 @@ ErrCode VM::runExecutor() {
 ErrCode VM::prepareVMHost() {
   ErrCode Status = ErrCode::Success;
   Configure::VMType Type = Config.getVMType();
-  if (Type == Configure::VMType::EWasm) {
-    /// EWasm case, insert EEI host functions.
+  if (Type == Configure::VMType::Ewasm) {
+    /// Ewasm case, insert EEI host functions.
     EVMEnvironment *EVMEnv = dynamic_cast<EVMEnvironment *>(Env.get());
     auto FuncEEICallDataCopy =
         std::make_unique<Executor::EEICallDataCopy>(*EVMEnv);

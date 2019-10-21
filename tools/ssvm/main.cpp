@@ -4,7 +4,7 @@
 
 int main(int Argc, char *Argv[]) {
   std::string InputPath("ethereum/erc20.wasm");
-  SSVM::VM::Configure Conf(SSVM::VM::Configure::VMType::EWasm);
+  SSVM::VM::Configure Conf(SSVM::VM::Configure::VMType::Ewasm);
   SSVM::VM::VM VM(Conf);
   SSVM::Result Result;
   VM.setPath(InputPath);

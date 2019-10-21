@@ -118,6 +118,7 @@ ErrCode VM::runExecutor() {
   Executor::ErrCode ExecutorStatus = Executor::ErrCode::Success;
   VMResult.setStage(Result::Stage::Executor);
 
+  ExecutorEngine.setStartFuncName(Config.getStartFuncName());
   ExecutorStatus = ExecutorEngine.setModule(Mod);
   if (detail::testAndSetError(ExecutorStatus, VMResult)) {
     return ErrCode::Failed;

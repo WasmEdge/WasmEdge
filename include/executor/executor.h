@@ -34,6 +34,9 @@ public:
                           const std::string &ModName,
                           const std::string &FuncName);
 
+  /// Set exported start function name.
+  ErrCode setStartFuncName(const std::string &Name);
+
   /// Retrieve ownership of Wasm Module.
   ErrCode setModule(std::unique_ptr<AST::Module> &Module);
 
@@ -84,6 +87,7 @@ private:
   };
 
   State Stat = State::Inited;
+  std::string StartFunc;
   std::unique_ptr<AST::Module> Mod = nullptr;
   Instance::ModuleInstance *ModInst = nullptr;
   Worker Engine;

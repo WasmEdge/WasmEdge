@@ -26,7 +26,7 @@ public:
     if (Type == VMType::Ewasm) {
       StartFuncName = "main";
     } else if (Type == VMType::Wasi) {
-      StartFuncName = "_main";
+      StartFuncName = "_start";
     }
   }
   ~Configure() = default;

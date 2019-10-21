@@ -42,6 +42,12 @@ ErrCode Executor::setHostFunction(std::unique_ptr<HostFunction> &Func,
   return Status;
 }
 
+/// Set start function name. See "include/loader/executor.h".
+ErrCode Executor::setStartFuncName(const std::string &Name) {
+  StartFunc = Name;
+  return ErrCode::Success;
+}
+
 /// Set AST Module node to executor. See "include/executor/executor.h".
 ErrCode Executor::setModule(std::unique_ptr<AST::Module> &Module) {
   /// Check is the correct state.

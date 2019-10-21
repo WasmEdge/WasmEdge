@@ -43,7 +43,7 @@ ErrCode Executor::instantiate(AST::ExportSection *ExportSec) {
         return Status;
       }
       /// Set start function index.
-      if (ExtName == "main") {
+      if (StartFunc != "" && ExtName == StartFunc) {
         if ((Status = ModInst->setStartIdx(ExtIdx)) != ErrCode::Success) {
           return Status;
         }

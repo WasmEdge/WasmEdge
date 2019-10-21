@@ -25,7 +25,8 @@ SSVM::VM::VM EVM(Conf);
 SSVM::VM::EVMEnvironment *Env = nullptr;
 
 TEST(ERC20Test, Run__mint) {
-  EXPECT_EQ(EVM.getEnvironment(Env), SSVM::VM::ErrCode::Success);
+  Env = dynamic_cast<SSVM::VM::EVMEnvironment *>(EVM.getEnvironment());
+  EXPECT_NE(Env, nullptr);
   Env->clear();
   std::string &Caller = Env->getCaller();
   Caller = "1234567890123456789012345678901234567890";
@@ -55,8 +56,9 @@ TEST(ERC20Test, Run__mint) {
 }
 
 TEST(ERC20Test, Run__transfer) {
+  Env = dynamic_cast<SSVM::VM::EVMEnvironment *>(EVM.getEnvironment());
+  EXPECT_NE(Env, nullptr);
   Env->clear();
-  EXPECT_EQ(EVM.getEnvironment(Env), SSVM::VM::ErrCode::Success);
   std::string &Caller = Env->getCaller();
   Caller = "1234567890123456789012345678901234567890";
   std::string &CallValue = Env->getCallValue();
@@ -88,8 +90,9 @@ TEST(ERC20Test, Run__transfer) {
 }
 
 TEST(ERC20Test, Run__balanceOf) {
+  Env = dynamic_cast<SSVM::VM::EVMEnvironment *>(EVM.getEnvironment());
+  EXPECT_NE(Env, nullptr);
   Env->clear();
-  EXPECT_EQ(EVM.getEnvironment(Env), SSVM::VM::ErrCode::Success);
   std::string &Caller = Env->getCaller();
   Caller = "1234567890123456789012345678901234567890";
   std::string &CallValue = Env->getCallValue();

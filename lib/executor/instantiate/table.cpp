@@ -67,7 +67,7 @@ ErrCode Executor::instantiate(AST::TableSection *TabSec,
     /// Get table instance
     Instance::TableInstance *TabInst = nullptr;
     unsigned int TabAddr = 0;
-    if ((Status = ModInst->getMemAddr((*ElemSeg)->getIdx(), TabAddr)) !=
+    if ((Status = ModInst->getTableAddr((*ElemSeg)->getIdx(), TabAddr)) !=
         ErrCode::Success) {
       return Status;
     }

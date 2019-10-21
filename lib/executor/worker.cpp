@@ -919,8 +919,9 @@ ErrCode Worker::branchToLabel(unsigned int L) {
   }
 
   /// Jump to the continuation of Label
-  if (ContInstr != nullptr)
-    Status = runLoopOp(dynamic_cast<AST::ControlInstruction *>(ContInstr));
+  if (ContInstr != nullptr) {
+    Status = runLoopOp(ContInstr);
+  }
   return Status;
 }
 

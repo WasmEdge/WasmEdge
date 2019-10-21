@@ -1,6 +1,9 @@
 #include "vm/vm.h"
 #include "executor/hostfunc.h"
 #include "loader/loader.h"
+#include "vm/result.h"
+
+/// EEI Functions
 #include "vm/hostfunc/ethereum/calldatacopy.h"
 #include "vm/hostfunc/ethereum/callstatic.h"
 #include "vm/hostfunc/ethereum/finish.h"
@@ -10,7 +13,23 @@
 #include "vm/hostfunc/ethereum/revert.h"
 #include "vm/hostfunc/ethereum/storageload.h"
 #include "vm/hostfunc/ethereum/storagestore.h"
-#include "vm/result.h"
+
+/// Wasi Functions
+#include "vm/hostfunc/wasi/args_Get.h"
+#include "vm/hostfunc/wasi/args_SizesGet.h"
+#include "vm/hostfunc/wasi/environ_Get.h"
+#include "vm/hostfunc/wasi/environ_SizesGet.h"
+#include "vm/hostfunc/wasi/fd_Close.h"
+#include "vm/hostfunc/wasi/fd_FdstatGet.h"
+#include "vm/hostfunc/wasi/fd_FdstatSetFlags.h"
+#include "vm/hostfunc/wasi/fd_PrestatDirName.h"
+#include "vm/hostfunc/wasi/fd_PrestatGet.h"
+#include "vm/hostfunc/wasi/fd_Read.h"
+#include "vm/hostfunc/wasi/fd_Seek.h"
+#include "vm/hostfunc/wasi/fd_Write.h"
+#include "vm/hostfunc/wasi/path_Open.h"
+#include "vm/hostfunc/wasi/proc_Exit.h"
+
 #include <stdio.h>
 
 namespace SSVM {
@@ -177,6 +196,78 @@ ErrCode VM::prepareVMHost() {
     }
   } else if (Type == Configure::VMType::Wasi) {
     /// Wasi case, insert Wasi host functions.
+    WasiEnvironment *WasiEnv = dynamic_cast<WasiEnvironment *>(Env.get());
+    auto FuncWasiArgsGet = std::make_unique<Executor::WasiArgsGet>(*WasiEnv);
+    auto FuncWasiArgsSizesGet =
+        std::make_unique<Executor::WasiArgsSizesGet>(*WasiEnv);
+    auto FuncWasiEnvironGet =
+        std::make_unique<Executor::WasiEnvironGet>(*WasiEnv);
+    auto FuncWasiEnvironSizesGet =
+        std::make_unique<Executor::WasiEnvironSizesGet>(*WasiEnv);
+    auto FuncWasiFdClose = std::make_unique<Executor::WasiFdClose>(*WasiEnv);
+    auto FuncWasiFdFdstatGet =
+        std::make_unique<Executor::WasiFdFdstatGet>(*WasiEnv);
+    auto FuncWasiFdFdstatSetFlags =
+        std::make_unique<Executor::WasiFdFdstatSetFlags>(*WasiEnv);
+    auto FuncWasiFdPrestatDirName =
+        std::make_unique<Executor::WasiFdPrestatDirName>(*WasiEnv);
+    auto FuncWasiFdPrestatGet =
+        std::make_unique<Executor::WasiFdPrestatGet>(*WasiEnv);
+    auto FuncWasiFdRead = std::make_unique<Executor::WasiFdRead>(*WasiEnv);
+    auto FuncWasiFdSeek = std::make_unique<Executor::WasiFdSeek>(*WasiEnv);
+    auto FuncWasiFdWrite = std::make_unique<Executor::WasiFdWrite>(*WasiEnv);
+    auto FuncWasiPathOpen = std::make_unique<Executor::WasiPathOpen>(*WasiEnv);
+    auto FuncWasiProcExit = std::make_unique<Executor::WasiProcExit>(*WasiEnv);
+
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncWasiArgsGet, "wasi_unstable", "args_get");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncWasiArgsSizesGet, "wasi_unstable",
+                               "args_sizes_get");
+    }
+    if (Status == ErrCode::Success) {
+      Status =
+          setHostFunction(FuncWasiEnvironGet, "wasi_unstable", "environ_get");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncWasiEnvironSizesGet, "wasi_unstable",
+                               "environ_sizes_get");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncWasiFdClose, "wasi_unstable", "fd_close");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncWasiFdFdstatGet, "wasi_unstable",
+                               "fd_fdstat_get");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncWasiFdFdstatSetFlags, "wasi_unstable",
+                               "fd_fdstat_set_flags");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncWasiFdPrestatDirName, "wasi_unstable",
+                               "fd_prestat_dir_name");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncWasiFdPrestatGet, "wasi_unstable",
+                               "fd_prestat_get");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncWasiFdRead, "wasi_unstable", "fd_read");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncWasiFdSeek, "wasi_unstable", "fd_seek");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncWasiFdWrite, "wasi_unstable", "fd_write");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncWasiPathOpen, "wasi_unstable", "path_open");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncWasiProcExit, "wasi_unstable", "proc_exit");
+    }
   }
   return Status;
 }

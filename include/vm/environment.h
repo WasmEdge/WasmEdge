@@ -50,7 +50,12 @@ public:
   WasiEnvironment() = default;
   virtual ~WasiEnvironment() = default;
 
-  virtual void clear() {}
+  virtual void clear() { CmdArgs.clear(); }
+
+  std::vector<std::string> &getCmdArgs() { return CmdArgs; }
+
+private:
+  std::vector<std::string> CmdArgs;
 };
 
 } // namespace VM

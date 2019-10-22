@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../thirdparty/wasi/core.h"
 #include "executor/hostfunc.h"
 #include "vm/environment.h"
+#include "wasi/core.h"
 
 namespace SSVM {
 namespace Executor {

@@ -9,8 +9,8 @@ endif()
 include_directories(BEFORE
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/keccak
-  ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/keccak
+  ${CMAKE_CURRENT_BINARY_DIR}/thirdparty
+  ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty
   ${Boost_INCLUDE_DIR}
 )
 

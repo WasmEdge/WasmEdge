@@ -1,7 +1,7 @@
 #include "vm/hostfunc/ethereum/callstatic.h"
-#include "Keccak.h"
 #include "executor/common.h"
 #include "executor/worker/util.h"
+#include "keccak/Keccak.h"
 #include "support/hexstr.h"
 
 #include <boost/multiprecision/cpp_int.hpp>

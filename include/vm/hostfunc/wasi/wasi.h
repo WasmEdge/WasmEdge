@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../thirdparty/wasi/core.h"
 #include "executor/hostfunc.h"
 #include "vm/environment.h"
 

@@ -2,6 +2,8 @@
 #include "executor/common.h"
 #include "executor/worker/util.h"
 
+#include <unistd.h>
+
 namespace SSVM {
 namespace Executor {
 
@@ -19,9 +21,18 @@ ErrCode WasiFdClose::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
+  unsigned int Fd = retrieveValue<uint32_t>(*Args[0].get());
+
+  /// Close Fd.
+  int ErrNo = close(Fd);
 
   /// Return: errno(u32)
-  Res.push_back(std::make_unique<ValueEntry>(0U));
+  if (ErrNo == 0) {
+    Res.push_back(std::make_unique<ValueEntry>(0U));
+  } else {
+    /// TODO: errno
+    Res.push_back(std::make_unique<ValueEntry>(1U));
+  }
   return Status;
 }
 

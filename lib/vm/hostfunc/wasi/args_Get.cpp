@@ -33,24 +33,30 @@ ErrCode WasiArgsGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return Status;
   }
 
-  /// Store **Argv and ArgvBuf.
+  /// Store **Argv.
   std::vector<std::string> &CmdArgs = Env.getCmdArgs();
   std::vector<unsigned char> ArgvBuf;
+  uint32_t ArgvBufOffset = ArgvBufPtr;
   for (auto It = CmdArgs.cbegin(); It != CmdArgs.cend(); It++) {
-    ArgvBuf.clear();
+    /// Concate Argv.
     std::copy(It->cbegin(), It->cend(), std::back_inserter(ArgvBuf));
     ArgvBuf.push_back('\0');
 
-    if ((Status = MemInst->setBytes(ArgvBuf, ArgvBufPtr, 0, ArgvBuf.size())) !=
+    /// Calcuate Argv[i] offset and store.
+    if ((Status = MemInst->storeValue(ArgvPtr, 4, ArgvBufOffset)) !=
         ErrCode::Success) {
       return Status;
     }
-    if ((Status = MemInst->storeValue(ArgvPtr, 4, ArgvBufPtr)) !=
-        ErrCode::Success) {
-      return Status;
-    }
+
+    /// Shift one element.
     ArgvPtr += 4;
-    ArgvBufPtr += ArgvBuf.size();
+    ArgvBufOffset += It->length() + 1;
+  }
+
+  /// Store ArgvBuf.
+  if ((Status = MemInst->setBytes(ArgvBuf, ArgvBufPtr, 0, ArgvBuf.size())) !=
+      ErrCode::Success) {
+    return Status;
   }
 
   /// Return: errno(u32)

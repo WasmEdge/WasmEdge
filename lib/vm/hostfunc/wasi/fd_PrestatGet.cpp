@@ -66,7 +66,6 @@ ErrCode WasiFdPrestatGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     if ((Status = Store.getMemory(MemoryAddr, MemInst)) != ErrCode::Success) {
       return Status;
     }
-    uint64_t ConstZero = 0ULL;
     /// byte[0:sizeof(void *)] : pr_type(uint8_t)
     uint64_t PrType = (uint64_t)PreStat.pr_type;
     if ((Status = MemInst->storeValue(PreStatPtr, sizeof(void *), PrType)) !=

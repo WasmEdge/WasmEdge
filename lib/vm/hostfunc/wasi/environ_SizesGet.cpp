@@ -2,6 +2,10 @@
 #include "executor/common.h"
 #include "executor/worker/util.h"
 
+#include <string.h>
+
+extern char **environ;
+
 namespace SSVM {
 namespace Executor {
 
@@ -15,11 +19,43 @@ ErrCode WasiEnvironSizesGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
                                  std::vector<std::unique_ptr<ValueEntry>> &Res,
                                  StoreManager &Store,
                                  Instance::ModuleInstance *ModInst) {
-  /// Arg: environ_count_ptr(u32), environ_buf_size_ptr(u32)
+  /// Arg: EnvCntPtr(u32), EnvBufSizePtr(u32)
   if (Args.size() != 2) {
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
+  unsigned int EnvCntPtr = retrieveValue<uint32_t>(*Args[1].get());
+  unsigned int EnvBufSizePtr = retrieveValue<uint32_t>(*Args[0].get());
+
+  /// Get memory instance.
+  unsigned int MemoryAddr = 0;
+  Instance::MemoryInstance *MemInst = nullptr;
+  if ((Status = ModInst->getMemAddr(0, MemoryAddr)) != ErrCode::Success) {
+    return Status;
+  }
+  if ((Status = Store.getMemory(MemoryAddr, MemInst)) != ErrCode::Success) {
+    return Status;
+  }
+
+  /// Calculate EnvCnt and EnvBufSize.
+  uint32_t EnvCnt = 0;
+  uint32_t EnvBufSize = 0;
+  char *EnvString = *environ;
+  while (EnvString != nullptr) {
+    EnvBufSize += strlen(EnvString) + 1;
+    EnvCnt++;
+    EnvString = *(environ + EnvCnt);
+  }
+
+  /// Store EnvCnt and EnvBufSize.
+  if ((Status = MemInst->storeValue(EnvCntPtr, 4, EnvCnt)) !=
+      ErrCode::Success) {
+    return Status;
+  }
+  if ((Status = MemInst->storeValue(EnvBufSizePtr, 4, EnvBufSize)) !=
+      ErrCode::Success) {
+    return Status;
+  }
 
   /// Return: errno(u32)
   Res.push_back(std::make_unique<ValueEntry>(0U));

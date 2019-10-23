@@ -11,6 +11,7 @@
 #ifndef __wasi_core_h
 #define __wasi_core_h
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 

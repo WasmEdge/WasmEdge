@@ -2,6 +2,8 @@
 #include "executor/common.h"
 #include "executor/worker/util.h"
 
+#include <unistd.h>
+
 namespace SSVM {
 namespace Executor {
 
@@ -17,14 +19,62 @@ ErrCode WasiFdSeek::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
                         std::vector<std::unique_ptr<ValueEntry>> &Res,
                         StoreManager &Store,
                         Instance::ModuleInstance *ModInst) {
-  /// Arg: fd(u32), offset(u64), whence(u32), newOffsetPtr(u32)
+  /// Arg: Fd(u32), Offset(u64), Whence(u32), NewOffsetPtr(u32)
   if (Args.size() != 4) {
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
+  unsigned int Fd = retrieveValue<uint32_t>(*Args[3].get());
+  unsigned int Offset = retrieveValue<uint64_t>(*Args[2].get());
+  unsigned int Whence = retrieveValue<uint32_t>(*Args[1].get());
+  unsigned int NewOffsetPtr = retrieveValue<uint32_t>(*Args[0].get());
+  int ErrNo = 0;
+
+  /// Check directive whence.
+  switch (Whence) {
+  case __WASI_WHENCE_CUR:
+    Whence = SEEK_CUR;
+    break;
+  case __WASI_WHENCE_END:
+    Whence = SEEK_END;
+    break;
+  case __WASI_WHENCE_SET:
+    Whence = SEEK_SET;
+    break;
+  default:
+    /// TODO: Error handling
+    break;
+  }
+
+  /// Do lseek.
+  int64_t NewOffset = lseek(Fd, Offset, Whence);
+  if (NewOffset == -1) {
+    ErrNo = 1;
+  }
+
+  /// Store NewOffset.
+  if (ErrNo == 0) {
+    unsigned int MemoryAddr = 0;
+    Instance::MemoryInstance *MemInst = nullptr;
+    if ((Status = ModInst->getMemAddr(0, MemoryAddr)) != ErrCode::Success) {
+      return Status;
+    }
+    if ((Status = Store.getMemory(MemoryAddr, MemInst)) != ErrCode::Success) {
+      return Status;
+    }
+    if ((Status = MemInst->storeValue(NewOffsetPtr, 8, (uint64_t)NewOffset)) !=
+        ErrCode::Success) {
+      return Status;
+    }
+  }
 
   /// Return: errno(u32)
-  Res.push_back(std::make_unique<ValueEntry>(0U));
+  if (ErrNo == 0) {
+    Res.push_back(std::make_unique<ValueEntry>(0U));
+  } else {
+    /// TODO: errno
+    Res.push_back(std::make_unique<ValueEntry>(1U));
+  }
   return Status;
 }
 

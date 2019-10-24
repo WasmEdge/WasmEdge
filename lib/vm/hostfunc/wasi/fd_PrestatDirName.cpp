@@ -30,7 +30,7 @@ WasiFdPrestatDirName::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   ErrCode Status = ErrCode::Success;
   unsigned int Fd = retrieveValue<uint32_t>(*Args[2].get());
   unsigned int PathBufPtr = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int PathLenPtr = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int PathLen = retrieveValue<uint32_t>(*Args[0].get());
   int ErrNo = 0;
 
   /// Store current working dir and change to Fd working dir.
@@ -57,12 +57,8 @@ WasiFdPrestatDirName::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     std::vector<unsigned char> PathBuf;
     PathBuf.insert(PathBuf.end(), FdPath, FdPath + strlen(FdPath));
     PathBuf.push_back('\0');
-    if ((Status = MemInst->setBytes(PathBuf, PathBufPtr, 0, PathBuf.size())) !=
+    if ((Status = MemInst->setBytes(PathBuf, PathBufPtr, 0, PathLen)) !=
         ErrCode::Success) {
-      return Status;
-    }
-    if ((Status = MemInst->storeValue(
-             PathLenPtr, 4, (uint32_t)PathBuf.size())) != ErrCode::Success) {
       return Status;
     }
   } else {

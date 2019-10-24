@@ -2,6 +2,7 @@
 #include "executor/common.h"
 #include "executor/worker/util.h"
 
+#include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -66,16 +67,16 @@ ErrCode WasiFdPrestatGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     if ((Status = Store.getMemory(MemoryAddr, MemInst)) != ErrCode::Success) {
       return Status;
     }
-    /// byte[0:sizeof(void *)] : pr_type(uint8_t)
-    uint64_t PrType = (uint64_t)PreStat.pr_type;
-    if ((Status = MemInst->storeValue(PreStatPtr, sizeof(void *), PrType)) !=
+    /// TODO: sizeof(ptr) is 32-bit in wasm now.
+    /// byte[0:sizeof(ptr))))] : pr_type(uint8_t)
+    uint32_t PrType = (uint32_t)PreStat.pr_type;
+    if ((Status = MemInst->storeValue(PreStatPtr, 4, PrType)) !=
         ErrCode::Success) {
       return Status;
     }
-    /// byte[sizeof(void *):2*sizeof(void *)] : u.dir.pr_name_len(size_t)
-    uint64_t PrNameLen = (uint32_t)PreStat.u.dir.pr_name_len;
-    if ((Status = MemInst->storeValue(PreStatPtr + sizeof(void *),
-                                      sizeof(void *), PrNameLen)) !=
+    /// byte[sizeof(ptr):2*sizeof(ptr)] : u.dir.pr_name_len(size_t)
+    uint32_t PrNameLen = (uint32_t)PreStat.u.dir.pr_name_len;
+    if ((Status = MemInst->storeValue(PreStatPtr + 4, 4, PrNameLen)) !=
         ErrCode::Success) {
       return Status;
     }

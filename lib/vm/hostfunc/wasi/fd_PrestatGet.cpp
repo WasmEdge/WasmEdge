@@ -34,9 +34,29 @@ ErrCode WasiFdPrestatGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   /// 1. __wasi_prestat_t.pr_type
   if (ErrNo == 0) {
     struct stat SysFStat;
-    ErrNo = fstat(Fd, &SysFStat);
-    PreStat.pr_type =
-        ((SysFStat.st_mode & S_IFMT) == S_IFDIR) ? __WASI_PREOPENTYPE_DIR : 1;
+    if (fstat(Fd, &SysFStat) != 0) {
+      switch (errno) {
+      case EBADF:
+        ErrNo = __WASI_EBADF;
+        break;
+      case EFAULT:
+        ErrNo = __WASI_EFAULT;
+        break;
+      case EIO:
+        ErrNo = __WASI_EIO;
+        break;
+      case EOVERFLOW:
+        ErrNo = __WASI_EOVERFLOW;
+        break;
+      default:
+        ErrNo = -1;
+        break;
+      }
+    } else {
+      PreStat.pr_type =
+          ((SysFStat.st_mode & S_IFMT) == S_IFDIR) ? __WASI_PREOPENTYPE_DIR : 1;
+      PreStat.u.dir.pr_name_len = 0;
+    }
   }
 
   /// 2. __wasi_prestat_t.u.dir.pr_name_len
@@ -83,12 +103,7 @@ ErrCode WasiFdPrestatGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   }
 
   /// Return: errno(u32)
-  if (ErrNo == 0) {
-    Res.push_back(std::make_unique<ValueEntry>(0U));
-  } else {
-    /// TODO: errno
-    Res.push_back(std::make_unique<ValueEntry>(1U));
-  }
+  Res.push_back(std::make_unique<ValueEntry>(static_cast<uint32_t>(ErrNo)));
   return Status;
 }
 

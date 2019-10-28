@@ -41,6 +41,9 @@ ErrCode Executor::instantiate(AST::MemorySection *MemSec,
   }
 
   /// Iterate and evaluate data segments.
+  if (DataSec == nullptr) {
+    return ErrCode::Success;
+  }
   auto &DataSegs = DataSec->getContent();
   for (auto DataSeg = DataSegs.begin(); DataSeg != DataSegs.end(); DataSeg++) {
     /// Evaluate instrs in data segment for offset.

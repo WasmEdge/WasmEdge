@@ -63,6 +63,10 @@ TypeI<T, ErrCode> Worker::runRemOp(const ValueEntry *Val1,
     return ErrCode::DivideByZero;
   }
   /// Else, return the i1 % i2. Signed case is handled.
+  if (std::is_signed_v<T> && I2 == -1) {
+    /// Signed Integer case: If signed(v2) is -1, then the result 0.
+    return StackMgr.pushValue(Support::toUnsigned((T)0U));
+  }
   return StackMgr.pushValue(Support::toUnsigned(I1 % I2));
 }
 

@@ -44,7 +44,7 @@ TypeU<T, ErrCode> Worker::runPopcntOp(const ValueEntry *Val) {
   T I = retrieveValue<T>(*Val);
   /// Return the count of non-zero bits in i.
   if (I == 0U) {
-    return StackMgr.pushValue((T)(sizeof(T) * 8));
+    return StackMgr.pushValue((T)0);
   }
   T Cnt = 0;
   T Mask = (T)0x1U;

@@ -1,6 +1,6 @@
+#include "executor/instance/memory.h"
 #include "ast/instruction.h"
 #include "executor/common.h"
-#include "executor/instance/memory.h"
 #include "executor/worker.h"
 #include "executor/worker/util.h"
 #include "support/casting.h"
@@ -40,11 +40,12 @@ ErrCode Worker::runMemoryGrowOp() {
   }
 
   /// Grow page and push result.
+  unsigned int CurrPageSize = MemoryInst->getDataPageSize();
   if (MemoryInst->growPage(retrieveValue<uint32_t>(*N.get())) !=
       ErrCode::Success) {
     return StackMgr.pushValue(static_cast<uint32_t>(-1));
   }
-  return StackMgr.pushValue(MemoryInst->getDataPageSize());
+  return StackMgr.pushValue(CurrPageSize);
 }
 
 } // namespace Executor

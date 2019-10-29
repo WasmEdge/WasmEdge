@@ -38,6 +38,15 @@ ErrCode TableInstance::setInitList(unsigned int Offset,
   return ErrCode::Success;
 }
 
+/// Getter of address. See "include/executor/instance/table.h".
+ErrCode TableInstance::getElemAddr(unsigned int Idx, unsigned int &Addr) {
+  if (Idx >= FuncElem.size()) {
+    return ErrCode::AccessForbidMemory;
+  }
+  Addr = FuncElem[Idx];
+  return ErrCode::Success;
+}
+
 } // namespace Instance
 } // namespace Executor
 } // namespace SSVM

@@ -33,6 +33,9 @@ public:
   /// Set the initialization list.
   ErrCode setInitList(unsigned int Offset, std::vector<unsigned int> &Addrs);
 
+  /// Get the elem address.
+  ErrCode getElemAddr(unsigned int Idx, unsigned int &Addr);
+
 private:
   /// \name Data of table instance.
   /// @{

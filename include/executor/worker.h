@@ -146,6 +146,9 @@ private:
   /// Helper function for branching to label.
   ErrCode branchToLabel(unsigned int L);
 
+  /// Helper function for get table instance by index.
+  ErrCode getTabInstByIdx(unsigned int Idx, Instance::TableInstance *&TabInst);
+
   /// Helper function for get memory instance by index.
   ErrCode getMemInstByIdx(unsigned int Idx, Instance::MemoryInstance *&MemInst);
 

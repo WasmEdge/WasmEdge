@@ -118,18 +118,71 @@ ErrCode Worker::runCallOp(AST::Instruction *Instr) {
     return ErrCode::InstructionTypeMismatch;
   }
 
-  /// Get current frame.
-  auto Status = ErrCode::Success;
-  if ((Status = StackMgr.getCurrentFrame(CurrentFrame)) != ErrCode::Success) {
-    return Status;
-  }
-
   /// Get Function address.
   unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
   Instance::ModuleInstance *ModuleInst = nullptr;
   StoreMgr.getModule(ModuleAddr, ModuleInst);
   unsigned int FuncAddr;
   ModuleInst->getFuncAddr(CallInstr->getIndex(), FuncAddr);
+  return invokeFunction(FuncAddr);
+}
+
+ErrCode Worker::runCallIndirectOp(AST::Instruction *Instr) {
+  /// Check the instruction type.
+  auto CallInstr = dynamic_cast<AST::CallControlInstruction *>(Instr);
+  if (CallInstr == nullptr) {
+    return ErrCode::InstructionTypeMismatch;
+  }
+
+  /// Get Table Instance
+  ErrCode Status = ErrCode::Success;
+  Instance::TableInstance *TableInst = nullptr;
+  if ((Status = getTabInstByIdx(0, TableInst)) != ErrCode::Success) {
+    return Status;
+  };
+
+  /// Get function type at index x.
+  unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
+  Instance::ModuleInstance *ModuleInst = nullptr;
+  Instance::ModuleInstance::FType *FuncType = nullptr;
+  StoreMgr.getModule(ModuleAddr, ModuleInst);
+  if ((Status = ModuleInst->getFuncType(CallInstr->getIndex(), FuncType)) !=
+      ErrCode::Success) {
+    return Status;
+  };
+
+  /// Pop the value i32.const i from the Stack.
+  std::unique_ptr<ValueEntry> Idx;
+  StackMgr.pop(Idx);
+
+  /// Get function address.
+  unsigned int FuncAddr;
+  if ((Status = TableInst->getElemAddr(retrieveValue<uint32_t>(*Idx.get()),
+                                       FuncAddr)) != ErrCode::Success) {
+    return Status;
+  };
+
+  /// Check function type.
+  Instance::FunctionInstance *FuncInst = nullptr;
+  if ((Status = StoreMgr.getFunction(FuncAddr, FuncInst)) != ErrCode::Success) {
+    return Status;
+  }
+  Instance::ModuleInstance::FType *DstFuncType = FuncInst->getFuncType();
+  if (FuncType->Params.size() != DstFuncType->Params.size() ||
+      FuncType->Returns.size() != DstFuncType->Returns.size()) {
+    return ErrCode::TypeNotMatch;
+  }
+  for (unsigned int I = 0; I < FuncType->Params.size(); I++) {
+    if (FuncType->Params[I] != DstFuncType->Params[I]) {
+      return ErrCode::TypeNotMatch;
+    }
+  }
+  for (unsigned int I = 0; I < FuncType->Returns.size(); I++) {
+    if (FuncType->Returns[I] != DstFuncType->Returns[I]) {
+      return ErrCode::TypeNotMatch;
+    }
+  }
+
   return invokeFunction(FuncAddr);
 }
 

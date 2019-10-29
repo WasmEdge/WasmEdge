@@ -132,8 +132,7 @@ ErrCode Worker::runControlOp(AST::Instruction *Instr) {
     Status = runCallOp(Instr);
     break;
   case OpCode::Call_indirect:
-    // TODO: Status = runCallIndirectOp(Instr);
-    Status = ErrCode::Unimplemented;
+    Status = runCallIndirectOp(Instr);
     break;
   default:
     Status = ErrCode::InstructionTypeMismatch;
@@ -923,6 +922,21 @@ ErrCode Worker::branchToLabel(unsigned int L) {
     Status = runLoopOp(ContInstr);
   }
   return Status;
+}
+
+ErrCode Worker::getTabInstByIdx(unsigned int Idx,
+                                Instance::TableInstance *&TabInst) {
+  ErrCode Status = ErrCode::Success;
+  Instance::ModuleInstance *ModInst = nullptr;
+  unsigned int TableAddr = 0;
+  unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
+  if ((Status = StoreMgr.getModule(ModuleAddr, ModInst)) != ErrCode::Success) {
+    return Status;
+  };
+  if ((Status = ModInst->getTableAddr(Idx, TableAddr)) != ErrCode::Success) {
+    return Status;
+  };
+  return StoreMgr.getTable(TableAddr, TabInst);
 }
 
 ErrCode Worker::getMemInstByIdx(unsigned int Idx,

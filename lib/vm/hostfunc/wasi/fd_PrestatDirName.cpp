@@ -57,10 +57,12 @@ WasiFdPrestatDirName::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     std::vector<unsigned char> PathBuf;
     PathBuf.insert(PathBuf.end(), FdPath, FdPath + strlen(FdPath));
     PathBuf.push_back('\0');
+    /*
     if ((Status = MemInst->setBytes(PathBuf, PathBufPtr, 0, PathLen)) !=
         ErrCode::Success) {
       return Status;
     }
+    */
   } else {
     ErrNo = -1;
   }

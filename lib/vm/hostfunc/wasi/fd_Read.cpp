@@ -62,16 +62,16 @@ ErrCode WasiFdRead::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     unsigned int SizeRead = read(Fd, &Data[0], (uint32_t)CIOVecBufLen);
 
     /// Store data.
-    if ((Status = MemInst->setBytes(Data, (uint32_t)CIOVecBufPtr, 0,
-                                    (uint32_t)CIOVecBufLen)) !=
-        ErrCode::Success) {
-      return Status;
-    }
     if (SizeRead == -1) {
       ErrNo = 1;
     } else {
+    if ((Status = MemInst->setBytes(Data, (uint32_t)CIOVecBufPtr, 0,
+                                      SizeRead)) != ErrCode::Success) {
+      return Status;
+    }
       NRead += SizeRead;
     }
+    Data.clear();
     /// Shift one element.
     /// TODO: sizeof(__wasi_ciovec_t) is 8 in 32-bit wasm.
     IOVSPtr += 8;

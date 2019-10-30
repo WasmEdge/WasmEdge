@@ -62,12 +62,12 @@ ErrCode WasiFdRead::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     unsigned int SizeRead = read(Fd, &Data[0], (uint32_t)CIOVecBufLen);
 
     /// Store data.
-    if ((Status = MemInst->getBytes(Data, (uint32_t)CIOVecBufPtr,
+    if ((Status = MemInst->setBytes(Data, (uint32_t)CIOVecBufPtr, 0,
                                     (uint32_t)CIOVecBufLen)) !=
         ErrCode::Success) {
       return Status;
     }
-    if (SizeRead != CIOVecBufLen) {
+    if (SizeRead == -1) {
       ErrNo = 1;
     } else {
       NRead += SizeRead;

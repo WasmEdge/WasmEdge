@@ -30,7 +30,11 @@ ErrCode TableInstance::setInitList(unsigned int Offset,
     return ErrCode::TableSizeExceeded;
   }
   if (FuncElem.size() < Offset + Addrs.size()) {
+    unsigned int OriginSize = FuncElem.size();
     FuncElem.resize(Offset + Addrs.size());
+    for (unsigned int I = OriginSize; I < FuncElem.size(); I++) {
+      FuncElem.at(I) = 0;
+    }
   }
   for (auto It = Addrs.begin(); It != Addrs.end(); It++) {
     FuncElem.at((It - Addrs.begin()) + Offset) = *It;

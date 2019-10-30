@@ -75,8 +75,16 @@ ErrCode Executor::instantiate(AST::TableSection *TabSec,
       return Status;
     }
 
-    /// Copy data to table instance
-    TabInst->setInitList(Offset, (*ElemSeg)->getFuncIdxes());
+    /// Transfer function index to address and copy data to table instance
+    std::vector<unsigned int> FuncIdxList = (*ElemSeg)->getFuncIdxes();
+    for (auto It = FuncIdxList.begin(); It != FuncIdxList.end(); It++) {
+      unsigned int FuncAddr = 0;
+      if ((Status = ModInst->getFuncAddr(*It, FuncAddr)) != ErrCode::Success) {
+        return Status;
+      }
+      *It = FuncAddr;
+    }
+    TabInst->setInitList(Offset, FuncIdxList);
   }
 
   return Status;

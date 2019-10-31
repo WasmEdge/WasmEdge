@@ -32,9 +32,9 @@ ErrCode MemoryInstance::getBytes(Bytes &Slice, unsigned int Start,
     return Status;
   }
 
-  for (auto Iter = Start; Iter < Start + Length; Iter++) {
-    Slice.push_back(Data.at(Iter));
-  }
+  unsigned int OriginSize = Slice.size();
+  Slice.resize(Slice.size() + Length);
+  memcpy(&Slice[OriginSize], &Data[Start], Length);
   return ErrCode::Success;
 }
 
@@ -53,9 +53,7 @@ ErrCode MemoryInstance::setBytes(Bytes &Slice, unsigned int Offset,
   }
 
   /// Copy data.
-  for (unsigned int I = Offset; I < Offset + Length; I++) {
-    Data.at(I) = Slice.at(I - Offset + Start);
-  }
+  memcpy(&Data[Offset], &Slice[Start], Length);
   return ErrCode::Success;
 }
 

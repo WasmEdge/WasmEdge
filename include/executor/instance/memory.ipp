@@ -22,15 +22,12 @@ MemoryInstance::loadValue(unsigned int Offset, unsigned int Length, T &Value) {
   }
 
   /// Load data to a value.
-  uint64_t LoadVal = 0;
-  for (unsigned int I = 0; I < Length; I++) {
-    LoadVal |= static_cast<uint64_t>(Data.at(I + Offset)) << (I * 8);
-  }
-
   if (std::is_floating_point_v<T>) {
     /// Floating case. Do memory copy.
-    memcpy(&Value, &LoadVal, sizeof(T));
+    memcpy(&Value, &Data[Offset], sizeof(T));
   } else {
+    uint64_t LoadVal = 0;
+    memcpy(&LoadVal, &Data[Offset], Length);
     /// Integer case. Do extend to result type.
     if (std::is_signed_v<T> && (LoadVal >> (Length * 8 - 1))) {
       /// Signed extend.
@@ -59,13 +56,8 @@ MemoryInstance::storeValue(unsigned int Offset, unsigned int Length,
     return Status;
   }
 
-  /// Copy store data to a value.
-  uint64_t StoreVal = 0;
-  memcpy(&StoreVal, &Value, Length);
-  for (unsigned int I = 0; I < Length; I++) {
-    Data.at(I + Offset) = static_cast<Byte>(StoreVal & 0xFFU);
-    StoreVal >>= 8;
-  }
+  /// Copy store data to value.
+  memcpy(&Data[Offset], &Value, Length);
   return ErrCode::Success;
 }
 

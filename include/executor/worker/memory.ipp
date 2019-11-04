@@ -28,7 +28,7 @@ TypeT<T, ErrCode> Worker::runLoadOp(AST::MemoryInstruction *Instr,
 
   /// Value = Mem.Data[EA : N / 8]
   T Value;
-  if ((Status = MemoryInst->loadValue(EA, BitWidth / 8, Value)) !=
+  if ((Status = MemoryInst->loadValue(Value, EA, BitWidth / 8)) !=
       ErrCode::Success) {
     return Status;
   }
@@ -56,7 +56,7 @@ TypeB<T, ErrCode> Worker::runStoreOp(AST::MemoryInstruction *Instr,
 
   /// Store value to bytes.
   T Value = retrieveValue<T>(*C.get());
-  if ((Status = MemoryInst->storeValue(EA, BitWidth / 8, Value)) !=
+  if ((Status = MemoryInst->storeValue(Value, EA, BitWidth / 8)) !=
       ErrCode::Success) {
     return Status;
   };

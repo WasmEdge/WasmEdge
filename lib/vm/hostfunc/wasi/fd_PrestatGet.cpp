@@ -90,13 +90,13 @@ ErrCode WasiFdPrestatGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     /// TODO: sizeof(ptr) is 32-bit in wasm now.
     /// byte[0:sizeof(ptr))))] : pr_type(uint8_t)
     uint32_t PrType = (uint32_t)PreStat.pr_type;
-    if ((Status = MemInst->storeValue(PreStatPtr, 4, PrType)) !=
+    if ((Status = MemInst->storeValue(PrType, PreStatPtr, 4)) !=
         ErrCode::Success) {
       return Status;
     }
     /// byte[sizeof(ptr):2*sizeof(ptr)] : u.dir.pr_name_len(size_t)
     uint32_t PrNameLen = (uint32_t)PreStat.u.dir.pr_name_len;
-    if ((Status = MemInst->storeValue(PreStatPtr + 4, 4, PrNameLen)) !=
+    if ((Status = MemInst->storeValue(PrNameLen, PreStatPtr + 4, 4)) !=
         ErrCode::Success) {
       return Status;
     }

@@ -49,12 +49,12 @@ ErrCode WasiFdWrite::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     Data.clear();
     /// TODO: sizeof(ptr) is 32-bit in wasm now.
     /// Get data offset.
-    if ((Status = MemInst->loadValue(IOVSPtr, 4, CIOVecBufPtr)) !=
+    if ((Status = MemInst->loadValue(CIOVecBufPtr, IOVSPtr, 4)) !=
         ErrCode::Success) {
       return Status;
     }
     /// Get data length.
-    if ((Status = MemInst->loadValue(IOVSPtr + 4, 4, CIOVecBufLen)) !=
+    if ((Status = MemInst->loadValue(CIOVecBufLen, IOVSPtr + 4, 4)) !=
         ErrCode::Success) {
       return Status;
     }
@@ -77,7 +77,7 @@ ErrCode WasiFdWrite::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   }
 
   /// Store written bytes length.
-  if ((Status = MemInst->storeValue(NWrittenPtr, 4, NWritten)) !=
+  if ((Status = MemInst->storeValue(NWritten, NWrittenPtr, 4)) !=
       ErrCode::Success) {
     return Status;
   }

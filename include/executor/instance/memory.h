@@ -51,28 +51,28 @@ public:
   /// Only output value of int32, uint32, int64, uint64, float, and double are
   /// allowed.
   ///
+  /// \param Value the constructed output value.
   /// \param Offset the start offset in data array.
   /// \param Length the load length from data. Need to <= sizeof(T).
-  /// \param Value the constructed output value.
   ///
   /// \returns ErrCode.
   template <typename T>
   typename std::enable_if_t<Support::IsWasmTypeV<T>, ErrCode>
-  loadValue(unsigned int Offset, unsigned int Length, T &Value);
+  loadValue(T &Value, unsigned int Offset, unsigned int Length);
 
   /// Template of loading bytes and convert to a value.
   ///
   /// Destruct and Store the value to length of vector.
   /// Only input value of uint32, uint64, float, and double are allowed.
   ///
+  /// \param Value the value want to store into data array.
   /// \param Offset the start offset in data array.
   /// \param Length the store length to data. Need to <= sizeof(T).
-  /// \param Value the value want to store into data array.
   ///
   /// \returns ErrCode.
   template <typename T>
   typename std::enable_if_t<Support::IsWasmBuiltInV<T>, ErrCode>
-  storeValue(unsigned int Offset, unsigned int Length, const T &Value);
+  storeValue(const T &Value, unsigned int Offset, unsigned int Length);
 
 private:
   /// Check access size is valid and adjust vector.

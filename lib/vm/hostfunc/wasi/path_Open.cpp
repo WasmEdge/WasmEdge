@@ -64,7 +64,7 @@ ErrCode WasiPathOpen::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   if (Fd == -1) {
     ErrNo = 1;
   } else {
-    if ((Status = MemInst->storeValue(FdPtr, 4, (uint32_t)Fd)) !=
+    if ((Status = MemInst->storeValue((uint32_t)Fd, FdPtr, 4)) !=
         ErrCode::Success) {
       return Status;
     }

@@ -97,35 +97,35 @@ ErrCode WasiFdFdstatGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     uint64_t ConstZero = 0ULL;
     /// byte[0] : fs_filetype(uint8_t)
     uint32_t FsFileType = (uint32_t)FdStat.fs_filetype;
-    if ((Status = MemInst->storeValue(FdStatPtr, 1, FsFileType)) !=
+    if ((Status = MemInst->storeValue(FsFileType, FdStatPtr, 1)) !=
         ErrCode::Success) {
       return Status;
     }
     /// byte[1] : ZERO
-    if ((Status = MemInst->storeValue(FdStatPtr + 1, 1, ConstZero)) !=
+    if ((Status = MemInst->storeValue(ConstZero, FdStatPtr + 1, 1)) !=
         ErrCode::Success) {
       return Status;
     }
     /// byte[2:3] : fs_flags(uint16_t)
     uint32_t FsFlags = (uint32_t)FdStat.fs_flags;
-    if ((Status = MemInst->storeValue(FdStatPtr + 2, 2, FsFlags)) !=
+    if ((Status = MemInst->storeValue(FsFlags, FdStatPtr + 2, 2)) !=
         ErrCode::Success) {
       return Status;
     }
     /// byte[4:7] : ZERO
-    if ((Status = MemInst->storeValue(FdStatPtr + 4, 4, ConstZero)) !=
+    if ((Status = MemInst->storeValue(ConstZero, FdStatPtr + 4, 4)) !=
         ErrCode::Success) {
       return Status;
     }
     /// byte[8:15] : fs_rights_base
     uint64_t FsRightsBase = FdStat.fs_rights_base;
-    if ((Status = MemInst->storeValue(FdStatPtr + 8, 8, FsRightsBase)) !=
+    if ((Status = MemInst->storeValue(FsRightsBase, FdStatPtr + 8, 8)) !=
         ErrCode::Success) {
       return Status;
     }
     /// byte[16:23] : fs_rights_inheriting
     uint64_t FsRightsInheriting = FdStat.fs_rights_inheriting;
-    if ((Status = MemInst->storeValue(FdStatPtr + 16, 8, FsRightsInheriting)) !=
+    if ((Status = MemInst->storeValue(FsRightsInheriting, FdStatPtr + 16, 8)) !=
         ErrCode::Success) {
       return Status;
     }

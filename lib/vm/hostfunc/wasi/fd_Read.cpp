@@ -48,12 +48,12 @@ ErrCode WasiFdRead::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     uint64_t CIOVecBufLen = 0;
     /// TODO: sizeof(ptr) is 32-bit in wasm now.
     /// Get data offset.
-    if ((Status = MemInst->loadValue(IOVSPtr, 4, CIOVecBufPtr)) !=
+    if ((Status = MemInst->loadValue(CIOVecBufPtr, IOVSPtr, 4)) !=
         ErrCode::Success) {
       return Status;
     }
     /// Get data length.
-    if ((Status = MemInst->loadValue(IOVSPtr + 4, 4, CIOVecBufLen)) !=
+    if ((Status = MemInst->loadValue(CIOVecBufLen, IOVSPtr + 4, 4)) !=
         ErrCode::Success) {
       return Status;
     }
@@ -78,7 +78,7 @@ ErrCode WasiFdRead::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   }
 
   /// Store read bytes length.
-  if ((Status = MemInst->storeValue(NReadPtr, 4, NRead)) != ErrCode::Success) {
+  if ((Status = MemInst->storeValue(NRead, NReadPtr, 4)) != ErrCode::Success) {
     return Status;
   }
 

@@ -9,7 +9,7 @@ namespace Instance {
 /// Load value from data. See "include/executor/instance/memory.h".
 template <typename T>
 typename std::enable_if_t<Support::IsWasmTypeV<T>, ErrCode>
-MemoryInstance::loadValue(unsigned int Offset, unsigned int Length, T &Value) {
+MemoryInstance::loadValue(T &Value, unsigned int Offset, unsigned int Length) {
   /// Check data boundary.
   if (Length > sizeof(T)) {
     return ErrCode::AccessForbidMemory;
@@ -43,8 +43,8 @@ MemoryInstance::loadValue(unsigned int Offset, unsigned int Length, T &Value) {
 /// Store value to data. See "include/executor/instance/memory.h".
 template <typename T>
 typename std::enable_if_t<Support::IsWasmBuiltInV<T>, ErrCode>
-MemoryInstance::storeValue(unsigned int Offset, unsigned int Length,
-                           const T &Value) {
+MemoryInstance::storeValue(const T &Value, unsigned int Offset,
+                           unsigned int Length) {
   /// Check data boundary.
   if (Length > sizeof(T)) {
     return ErrCode::AccessForbidMemory;

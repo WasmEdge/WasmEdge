@@ -48,7 +48,7 @@ ErrCode WasiEnvironGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     EnvBuf.push_back('\0');
 
     /// Calculate Env[i] offset and store.
-    if ((Status = MemInst->storeValue(EnvPtr, 4, EnvBufOffset)) !=
+    if ((Status = MemInst->storeValue(EnvBufOffset, EnvPtr, 4)) !=
         ErrCode::Success) {
       return Status;
     }

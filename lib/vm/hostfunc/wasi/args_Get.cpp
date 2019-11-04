@@ -39,11 +39,12 @@ ErrCode WasiArgsGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   uint32_t ArgvBufOffset = ArgvBufPtr;
   for (auto It = CmdArgs.cbegin(); It != CmdArgs.cend(); It++) {
     /// Concate Argv.
+    int off = ArgvBuf.size();
     std::copy(It->cbegin(), It->cend(), std::back_inserter(ArgvBuf));
     ArgvBuf.push_back('\0');
 
     /// Calcuate Argv[i] offset and store.
-    if ((Status = MemInst->storeValue(ArgvPtr, 4, ArgvBufOffset)) !=
+    if ((Status = MemInst->storeValue(ArgvBufOffset, ArgvPtr, 4)) !=
         ErrCode::Success) {
       return Status;
     }

@@ -62,7 +62,7 @@ ErrCode WasiFdSeek::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     if ((Status = Store.getMemory(MemoryAddr, MemInst)) != ErrCode::Success) {
       return Status;
     }
-    if ((Status = MemInst->storeValue(NewOffsetPtr, 8, (uint64_t)NewOffset)) !=
+    if ((Status = MemInst->storeValue((uint64_t)NewOffset, NewOffsetPtr, 8)) !=
         ErrCode::Success) {
       return Status;
     }

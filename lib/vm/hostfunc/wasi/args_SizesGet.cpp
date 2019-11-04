@@ -35,7 +35,7 @@ ErrCode WasiArgsSizesGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
 
   /// Store Argc.
   std::vector<std::string> &CmdArgs = Env.getCmdArgs();
-  if ((Status = MemInst->storeValue(ArgcPtr, 4, (uint32_t)CmdArgs.size())) !=
+  if ((Status = MemInst->storeValue((uint32_t)CmdArgs.size(), ArgcPtr, 4)) !=
       ErrCode::Success) {
     return Status;
   }
@@ -45,7 +45,7 @@ ErrCode WasiArgsSizesGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   for (auto It = CmdArgs.cbegin(); It != CmdArgs.cend(); It++) {
     CmdArgsSize += It->length() + 1;
   }
-  if ((Status = MemInst->storeValue(ArgvBufSizePtr, 4, CmdArgsSize)) !=
+  if ((Status = MemInst->storeValue(CmdArgsSize, ArgvBufSizePtr, 4)) !=
       ErrCode::Success) {
     return Status;
   }

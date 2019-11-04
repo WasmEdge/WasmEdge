@@ -48,11 +48,11 @@ ErrCode WasiEnvironSizesGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   }
 
   /// Store EnvCnt and EnvBufSize.
-  if ((Status = MemInst->storeValue(EnvCntPtr, 4, EnvCnt)) !=
+  if ((Status = MemInst->storeValue(EnvCnt, EnvCntPtr, 4)) !=
       ErrCode::Success) {
     return Status;
   }
-  if ((Status = MemInst->storeValue(EnvBufSizePtr, 4, EnvBufSize)) !=
+  if ((Status = MemInst->storeValue(EnvBufSize, EnvBufSizePtr, 4)) !=
       ErrCode::Success) {
     return Status;
   }

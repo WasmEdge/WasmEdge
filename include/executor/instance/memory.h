@@ -45,6 +45,9 @@ public:
   ErrCode setBytes(Bytes &Slice, unsigned int Offset, unsigned int Start,
                    unsigned int Length);
 
+  /// Get pointer to specific offset of memory.
+  void *getPointer(unsigned int Offset);
+
   /// Template of loading bytes and convert to a value.
   ///
   /// Load the length of vector and construct into a value.

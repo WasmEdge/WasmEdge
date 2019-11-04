@@ -38,8 +38,8 @@ public:
   /// Grow page
   ErrCode growPage(unsigned int Count);
 
-  /// Get slice of Data[Start : Start + Length - 1]
-  ErrCode getBytes(Bytes &Slice, unsigned int Start, unsigned int Length);
+  /// Get slice of Data[Offset : Offset + Length - 1]
+  ErrCode getBytes(Bytes &Slice, unsigned int Offset, unsigned int Length);
 
   /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Legnth - 1]
   ErrCode setBytes(Bytes &Slice, unsigned int Offset, unsigned int Start,

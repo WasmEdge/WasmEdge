@@ -143,17 +143,11 @@ ErrCode Worker::runControlOp(AST::Instruction *Instr) {
 }
 
 ErrCode Worker::runParametricOp(AST::Instruction *Instr) {
-  /// Check instruction type.
-  auto ParamInstr = dynamic_cast<AST::ParametricInstruction *>(Instr);
-  if (ParamInstr == nullptr) {
-    return ErrCode::InstructionTypeMismatch;
-  }
-
   /// Check OpCode and run the specific instruction.
   ErrCode Status = ErrCode::Success;
-  if (ParamInstr->getOpCode() == OpCode::Drop) {
+  if (Instr->getOpCode() == OpCode::Drop) {
     StackMgr.pop();
-  } else if (ParamInstr->getOpCode() == OpCode::Select) {
+  } else if (Instr->getOpCode() == OpCode::Select) {
     /// Pop the i32 value and select values from stack.
     std::unique_ptr<ValueEntry> CondValEntry, ValEntry1, ValEntry2;
     StackMgr.pop(CondValEntry);
@@ -177,18 +171,12 @@ ErrCode Worker::runParametricOp(AST::Instruction *Instr) {
 }
 
 ErrCode Worker::runVariableOp(AST::Instruction *Instr) {
-  /// Check instruction type.
-  auto VarInstr = dynamic_cast<AST::VariableInstruction *>(Instr);
-  if (VarInstr == nullptr) {
-    return ErrCode::InstructionTypeMismatch;
-  }
-
   /// Get variable index.
-  unsigned int Index = VarInstr->getIndex();
+  unsigned int Index = Instr->getVariableIndex();
 
   /// Check OpCode and run the specific instruction.
   ErrCode Status = ErrCode::Success;
-  switch (VarInstr->getOpCode()) {
+  switch (Instr->getOpCode()) {
   case OpCode::Local__get:
     Status = runLocalGetOp(Index);
     break;
@@ -213,83 +201,77 @@ ErrCode Worker::runVariableOp(AST::Instruction *Instr) {
 }
 
 ErrCode Worker::runMemoryOp(AST::Instruction *Instr) {
-  /// Check instruction type.
-  auto MemInstr = dynamic_cast<AST::MemoryInstruction *>(Instr);
-  if (MemInstr == nullptr) {
-    return ErrCode::InstructionTypeMismatch;
-  }
-
   /// Check OpCode and run the specific instruction.
   ErrCode Status = ErrCode::Success;
-  switch (MemInstr->getOpCode()) {
+  switch (Instr->getOpCode()) {
   case OpCode::I32__load:
-    Status = runLoadOp<uint32_t>(MemInstr);
+    Status = runLoadOp<uint32_t>(Instr);
     break;
   case OpCode::I64__load:
-    Status = runLoadOp<uint64_t>(MemInstr);
+    Status = runLoadOp<uint64_t>(Instr);
     break;
   case OpCode::F32__load:
-    Status = runLoadOp<float>(MemInstr);
+    Status = runLoadOp<float>(Instr);
     break;
   case OpCode::F64__load:
-    Status = runLoadOp<double>(MemInstr);
+    Status = runLoadOp<double>(Instr);
     break;
   case OpCode::I32__load8_s:
-    Status = runLoadOp<int32_t>(MemInstr, 8);
+    Status = runLoadOp<int32_t>(Instr, 8);
     break;
   case OpCode::I32__load8_u:
-    Status = runLoadOp<uint32_t>(MemInstr, 8);
+    Status = runLoadOp<uint32_t>(Instr, 8);
     break;
   case OpCode::I32__load16_s:
-    Status = runLoadOp<int32_t>(MemInstr, 16);
+    Status = runLoadOp<int32_t>(Instr, 16);
     break;
   case OpCode::I32__load16_u:
-    Status = runLoadOp<uint32_t>(MemInstr, 16);
+    Status = runLoadOp<uint32_t>(Instr, 16);
     break;
   case OpCode::I64__load8_s:
-    Status = runLoadOp<int64_t>(MemInstr, 8);
+    Status = runLoadOp<int64_t>(Instr, 8);
     break;
   case OpCode::I64__load8_u:
-    Status = runLoadOp<uint64_t>(MemInstr, 8);
+    Status = runLoadOp<uint64_t>(Instr, 8);
     break;
   case OpCode::I64__load16_s:
-    Status = runLoadOp<int64_t>(MemInstr, 16);
+    Status = runLoadOp<int64_t>(Instr, 16);
     break;
   case OpCode::I64__load16_u:
-    Status = runLoadOp<uint64_t>(MemInstr, 16);
+    Status = runLoadOp<uint64_t>(Instr, 16);
     break;
   case OpCode::I64__load32_s:
-    Status = runLoadOp<int64_t>(MemInstr, 32);
+    Status = runLoadOp<int64_t>(Instr, 32);
     break;
   case OpCode::I64__load32_u:
-    Status = runLoadOp<uint64_t>(MemInstr, 32);
+    Status = runLoadOp<uint64_t>(Instr, 32);
     break;
   case OpCode::I32__store:
-    Status = runStoreOp<uint32_t>(MemInstr);
+    Status = runStoreOp<uint32_t>(Instr);
     break;
   case OpCode::I64__store:
-    Status = runStoreOp<uint64_t>(MemInstr);
+    Status = runStoreOp<uint64_t>(Instr);
     break;
   case OpCode::F32__store:
-    Status = runStoreOp<float>(MemInstr);
+    Status = runStoreOp<float>(Instr);
     break;
   case OpCode::F64__store:
-    Status = runStoreOp<double>(MemInstr);
+    Status = runStoreOp<double>(Instr);
     break;
   case OpCode::I32__store8:
-    Status = runStoreOp<uint32_t>(MemInstr, 8);
+    Status = runStoreOp<uint32_t>(Instr, 8);
     break;
   case OpCode::I32__store16:
-    Status = runStoreOp<uint32_t>(MemInstr, 16);
+    Status = runStoreOp<uint32_t>(Instr, 16);
     break;
   case OpCode::I64__store8:
-    Status = runStoreOp<uint64_t>(MemInstr, 8);
+    Status = runStoreOp<uint64_t>(Instr, 8);
     break;
   case OpCode::I64__store16:
-    Status = runStoreOp<uint64_t>(MemInstr, 16);
+    Status = runStoreOp<uint64_t>(Instr, 16);
     break;
   case OpCode::I64__store32:
-    Status = runStoreOp<uint64_t>(MemInstr, 32);
+    Status = runStoreOp<uint64_t>(Instr, 32);
     break;
   case OpCode::Memory__grow:
     Status = runMemoryGrowOp();
@@ -305,29 +287,17 @@ ErrCode Worker::runMemoryOp(AST::Instruction *Instr) {
 }
 
 ErrCode Worker::runConstNumericOp(AST::Instruction *Instr) {
-  /// Check instruction type.
-  auto ConstInstr = dynamic_cast<AST::ConstInstruction *>(Instr);
-  if (ConstInstr == nullptr) {
-    return ErrCode::InstructionTypeMismatch;
-  }
-
   std::unique_ptr<ValueEntry> VE = nullptr;
   std::visit([&VE](auto &&arg) { VE = std::make_unique<ValueEntry>(arg); },
-             ConstInstr->value());
+             Instr->getConstValue());
   StackMgr.push(VE);
 
   return ErrCode::Success;
 }
 
 ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
-  /// Check instruction type.
-  auto NumericInstr = dynamic_cast<AST::NumericInstruction *>(Instr);
-  if (NumericInstr == nullptr) {
-    return ErrCode::InstructionTypeMismatch;
-  }
-
   /// Check OpCode and run the specific instruction.
-  auto Opcode = NumericInstr->getOpCode();
+  auto Opcode = Instr->getOpCode();
   ErrCode Status = ErrCode::Success;
   if (isTestNumericOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val;

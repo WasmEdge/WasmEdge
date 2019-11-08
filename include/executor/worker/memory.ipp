@@ -12,7 +12,7 @@ namespace SSVM {
 namespace Executor {
 
 template <typename T>
-TypeT<T, ErrCode> Worker::runLoadOp(AST::MemoryInstruction *Instr,
+TypeT<T, ErrCode> Worker::runLoadOp(AST::Instruction *Instr,
                                     unsigned int BitWidth) {
   /// Get Memory Instance
   ErrCode Status = ErrCode::Success;
@@ -24,7 +24,7 @@ TypeT<T, ErrCode> Worker::runLoadOp(AST::MemoryInstruction *Instr,
   /// Calculate EA
   std::unique_ptr<ValueEntry> Val;
   StackMgr.pop(Val);
-  uint32_t EA = retrieveValue<uint32_t>(*Val.get()) + Instr->getOffset();
+  uint32_t EA = retrieveValue<uint32_t>(*Val.get()) + Instr->getMemoryOffset();
 
   /// Value = Mem.Data[EA : N / 8]
   T Value;
@@ -36,7 +36,7 @@ TypeT<T, ErrCode> Worker::runLoadOp(AST::MemoryInstruction *Instr,
 }
 
 template <typename T>
-TypeB<T, ErrCode> Worker::runStoreOp(AST::MemoryInstruction *Instr,
+TypeB<T, ErrCode> Worker::runStoreOp(AST::Instruction *Instr,
                                      unsigned int BitWidth) {
   /// Get Memory Instance
   ErrCode Status = ErrCode::Success;
@@ -52,7 +52,7 @@ TypeB<T, ErrCode> Worker::runStoreOp(AST::MemoryInstruction *Instr,
   /// Calculate EA = i + offset
   std::unique_ptr<ValueEntry> I;
   StackMgr.pop(I);
-  uint32_t EA = retrieveValue<uint32_t>(*I.get()) + Instr->getOffset();
+  uint32_t EA = retrieveValue<uint32_t>(*I.get()) + Instr->getMemoryOffset();
 
   /// Store value to bytes.
   T Value = retrieveValue<T>(*C.get());

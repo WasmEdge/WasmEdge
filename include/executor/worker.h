@@ -175,10 +175,10 @@ private:
   ErrCode runGlobalSetOp(unsigned int Idx);
   /// ======= Memory =======
   template <typename T>
-  TypeT<T, ErrCode> runLoadOp(AST::MemoryInstruction *Instr,
+  TypeT<T, ErrCode> runLoadOp(AST::Instruction *Instr,
                               unsigned int BitWidth = sizeof(T) * 8);
   template <typename T>
-  TypeB<T, ErrCode> runStoreOp(AST::MemoryInstruction *Instr,
+  TypeB<T, ErrCode> runStoreOp(AST::Instruction *Instr,
                                unsigned int BitWidth = sizeof(T) * 8);
   ErrCode runMemorySizeOp();
   ErrCode runMemoryGrowOp();

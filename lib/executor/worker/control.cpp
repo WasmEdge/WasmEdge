@@ -11,69 +11,49 @@ namespace SSVM {
 namespace Executor {
 
 ErrCode Worker::runBlockOp(AST::Instruction *Instr) {
-  /// Check the instruction type.
-  auto BlockInstr = dynamic_cast<AST::BlockControlInstruction *>(Instr);
-  if (BlockInstr == nullptr || BlockInstr->getOpCode() != OpCode::Block)
-    return ErrCode::InstructionTypeMismatch;
-
   /// Get result type for arity.
-  AST::ValType ResultType = BlockInstr->getResultType();
+  AST::ValType ResultType = Instr->getResultType();
   unsigned int Arity = (ResultType == AST::ValType::None) ? 0 : 1;
 
   /// Create Label{ nothing } and push.
-  return enterBlock(Arity, nullptr, BlockInstr->getBody());
+  return enterBlock(Arity, nullptr, *Instr->getBody());
 }
 
 ErrCode Worker::runLoopOp(AST::Instruction *Instr) {
-  /// Check the instruction type.
-  auto LoopInstr = dynamic_cast<AST::BlockControlInstruction *>(Instr);
-  if (LoopInstr == nullptr || LoopInstr->getOpCode() != OpCode::Loop)
-    return ErrCode::InstructionTypeMismatch;
-
   /// Get result type for arity.
-  AST::ValType ResultType = LoopInstr->getResultType();
+  AST::ValType ResultType = Instr->getResultType();
 
   /// Create Label{ loop-instruction } and push.
-  return enterBlock(0, Instr, LoopInstr->getBody());
+  return enterBlock(0, Instr, *Instr->getBody());
 }
 
 ErrCode Worker::runIfElseOp(AST::Instruction *Instr) {
-  /// Check the instruction type.
-  auto IfElseInstr = dynamic_cast<AST::IfElseControlInstruction *>(Instr);
-  if (IfElseInstr == nullptr)
-    return ErrCode::InstructionTypeMismatch;
-
   /// Get value on top of stack
   auto Status = ErrCode::Success;
   std::unique_ptr<ValueEntry> Val;
   StackMgr.pop(Val);
 
   /// Get result type for arity.
-  AST::ValType ResultType = IfElseInstr->getResultType();
+  AST::ValType ResultType = Instr->getResultType();
   unsigned int Arity = (ResultType == AST::ValType::None) ? 0 : 1;
 
   /// If non-zero, run if-statement; else, run else-statement.
   if (retrieveValue<uint32_t>(*Val.get()) != 0) {
-    const AST::InstrVec &IfStatement = IfElseInstr->getIfStatement();
-    if (IfStatement.size() > 0) {
-      Status = enterBlock(Arity, nullptr, IfStatement);
+    const AST::InstrVec *IfStatement = Instr->getIfStatement();
+    if (IfStatement->size() > 0) {
+      Status = enterBlock(Arity, nullptr, *IfStatement);
     }
   } else {
-    const AST::InstrVec &ElseStatement = IfElseInstr->getElseStatement();
-    if (ElseStatement.size() > 0) {
-      Status = enterBlock(Arity, nullptr, ElseStatement);
+    const AST::InstrVec *ElseStatement = Instr->getElseStatement();
+    if (ElseStatement->size() > 0) {
+      Status = enterBlock(Arity, nullptr, *ElseStatement);
     }
   }
   return Status;
 }
 
 ErrCode Worker::runBrOp(AST::Instruction *Instr) {
-  /// Check the instruction type.
-  auto BrInstr = dynamic_cast<AST::BrControlInstruction *>(Instr);
-  if (BrInstr == nullptr) {
-    return ErrCode::InstructionTypeMismatch;
-  }
-  return branchToLabel(BrInstr->getLabelIndex());
+  return branchToLabel(Instr->getLabelIndex());
 }
 
 ErrCode Worker::runBrIfOp(AST::Instruction *Instr) {
@@ -87,12 +67,6 @@ ErrCode Worker::runBrIfOp(AST::Instruction *Instr) {
 }
 
 ErrCode Worker::runBrTableOp(AST::Instruction *Instr) {
-  /// Check the instruction type.
-  auto BrTableInstr = dynamic_cast<AST::BrTableControlInstruction *>(Instr);
-  if (BrTableInstr == nullptr) {
-    return ErrCode::InstructionTypeMismatch;
-  }
-
   /// Get value on top of stack.
   auto Status = ErrCode::Success;
   std::unique_ptr<ValueEntry> Val;
@@ -100,11 +74,11 @@ ErrCode Worker::runBrTableOp(AST::Instruction *Instr) {
   int32_t Value = retrieveValue<uint32_t>(*Val.get());
 
   /// Do branch.
-  const std::vector<unsigned int> &LabelTable = BrTableInstr->getLabelTable();
-  if (Value < LabelTable.size()) {
-    Status = branchToLabel(LabelTable[Value]);
+  const std::vector<unsigned int> *LabelTable = Instr->getLabelTable();
+  if (Value < LabelTable->size()) {
+    Status = branchToLabel(LabelTable->at(Value));
   } else {
-    Status = branchToLabel(BrTableInstr->getLabelIdx());
+    Status = branchToLabel(Instr->getLabelIndex());
   }
   return Status;
 }
@@ -112,28 +86,16 @@ ErrCode Worker::runBrTableOp(AST::Instruction *Instr) {
 ErrCode Worker::runReturnOp() { return returnFunction(); }
 
 ErrCode Worker::runCallOp(AST::Instruction *Instr) {
-  /// Check the instruction type.
-  auto CallInstr = dynamic_cast<AST::CallControlInstruction *>(Instr);
-  if (CallInstr == nullptr) {
-    return ErrCode::InstructionTypeMismatch;
-  }
-
   /// Get Function address.
   unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
   Instance::ModuleInstance *ModuleInst = nullptr;
   StoreMgr.getModule(ModuleAddr, ModuleInst);
   unsigned int FuncAddr;
-  ModuleInst->getFuncAddr(CallInstr->getIndex(), FuncAddr);
+  ModuleInst->getFuncAddr(Instr->getFuncIndex(), FuncAddr);
   return invokeFunction(FuncAddr);
 }
 
 ErrCode Worker::runCallIndirectOp(AST::Instruction *Instr) {
-  /// Check the instruction type.
-  auto CallInstr = dynamic_cast<AST::CallControlInstruction *>(Instr);
-  if (CallInstr == nullptr) {
-    return ErrCode::InstructionTypeMismatch;
-  }
-
   /// Get Table Instance
   ErrCode Status = ErrCode::Success;
   Instance::TableInstance *TableInst = nullptr;
@@ -146,7 +108,7 @@ ErrCode Worker::runCallIndirectOp(AST::Instruction *Instr) {
   Instance::ModuleInstance *ModuleInst = nullptr;
   Instance::ModuleInstance::FType *FuncType = nullptr;
   StoreMgr.getModule(ModuleAddr, ModuleInst);
-  if ((Status = ModuleInst->getFuncType(CallInstr->getIndex(), FuncType)) !=
+  if ((Status = ModuleInst->getFuncType(Instr->getFuncIndex(), FuncType)) !=
       ErrCode::Success) {
     return Status;
   };

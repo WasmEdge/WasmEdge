@@ -124,7 +124,7 @@ Loader::ErrCode CallControlInstruction::loadBinary(FileMgr &Mgr) {
 
 /// Load binary of variable instructions. See "include/ast/instruction.h".
 Loader::ErrCode VariableInstruction::loadBinary(FileMgr &Mgr) {
-  return Mgr.readU32(Idx);
+  return Mgr.readU32(VarIdx);
 }
 
 /// Load binary of memory instructions. See "include/ast/instruction.h".

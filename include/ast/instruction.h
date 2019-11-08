@@ -20,6 +20,11 @@
 namespace SSVM {
 namespace AST {
 
+/// Type aliasing
+class Instruction;
+using InstrVec = std::vector<std::unique_ptr<Instruction>>;
+using InstrIter = InstrVec::const_iterator;
+
 /// Loader class of Instruction node.
 class Instruction {
 public:
@@ -219,16 +224,38 @@ public:
     return Loader::ErrCode::Success;
   };
 
+  /// Getter of OpCode.
   OpCode getOpCode() const { return Code; }
+
+  /// For IfElse and BlockControl instructions.
+  virtual ValType getResultType() const { return ValType::None; }
+  virtual const InstrVec *getBody() const { return nullptr; }
+  virtual const InstrVec *getIfStatement() const { return nullptr; }
+  virtual const InstrVec *getElseStatement() const { return nullptr; }
+
+  /// For Br and BrTable instructions.
+  virtual unsigned int getLabelIndex() const { return 0; }
+  virtual const std::vector<unsigned int> *getLabelTable() const {
+    return nullptr;
+  }
+
+  /// For Call instructions.
+  virtual unsigned int getFuncIndex() const { return 0; }
+
+  /// For Variable instructions.
+  virtual unsigned int getVariableIndex() const { return 0; }
+
+  /// For Memory instructions.
+  virtual unsigned int getMemoryAlign() const { return 0; }
+  virtual unsigned int getMemoryOffset() const { return 0; }
+
+  /// For ConstNumeric instructions.
+  virtual ValVariant getConstValue() { return ValVariant(0U); }
 
 protected:
   /// OpCode if this instruction node.
   OpCode Code;
 };
-
-/// Type aliasing
-using InstrVec = std::vector<std::unique_ptr<Instruction>>;
-using InstrIter = InstrVec::const_iterator;
 
 /// Derived control instruction node.
 class ControlInstruction : public Instruction {
@@ -254,10 +281,10 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of block type
-  ValType getResultType() const { return BlockType; }
+  virtual ValType getResultType() const { return BlockType; }
 
   /// Getter of Block Body
-  const InstrVec &getBody() const { return Body; }
+  virtual const InstrVec *getBody() const { return &Body; }
 
 private:
   /// \name Data of block instruction: return type and block body.
@@ -284,13 +311,13 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of block type
-  ValType getResultType() const { return BlockType; }
+  virtual ValType getResultType() const { return BlockType; }
 
   /// Getter of if statement.
-  const InstrVec &getIfStatement() const { return IfStatement; }
+  virtual const InstrVec *getIfStatement() const { return &IfStatement; }
 
   /// Getter of else statement.
-  const InstrVec &getElseStatement() const { return ElseStatement; }
+  virtual const InstrVec *getElseStatement() const { return &ElseStatement; }
 
 private:
   /// \name Data of block instruction: return type and statements.
@@ -318,7 +345,7 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Get label index
-  unsigned int getLabelIndex() const { return LabelIdx; }
+  virtual unsigned int getLabelIndex() const { return LabelIdx; }
 
 private:
   /// Branch-to label index.
@@ -342,10 +369,12 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of label table
-  const std::vector<unsigned int> &getLabelTable() const { return LabelTable; }
+  virtual const std::vector<unsigned int> *getLabelTable() const {
+    return &LabelTable;
+  }
 
   /// Getter of label index
-  unsigned int getLabelIdx() const { return LabelIdx; }
+  virtual unsigned int getLabelIndex() const { return LabelIdx; }
 
 private:
   /// \name Data of branch instruction: label vector and defalt label.
@@ -372,7 +401,7 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of the index
-  unsigned int getIndex() const { return FuncIdx; }
+  virtual unsigned int getFuncIndex() const { return FuncIdx; }
 
 private:
   /// Call function index.
@@ -403,11 +432,11 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of the index
-  unsigned int getIndex() const { return Idx; }
+  virtual unsigned int getVariableIndex() const { return VarIdx; }
 
 private:
   /// Global or local index.
-  unsigned int Idx = 0;
+  unsigned int VarIdx = 0;
 };
 
 /// Derived memory instruction node.
@@ -426,9 +455,9 @@ public:
   /// \returns ErrCode.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
-  /// Getters
-  unsigned int getAlign() const { return Align; }
-  unsigned int getOffset() const { return Offset; }
+  /// Getters of memory align and offset.
+  virtual unsigned int getMemoryAlign() const { return Align; }
+  virtual unsigned int getMemoryOffset() const { return Offset; }
 
 private:
   /// \name Data of memory instruction: Alignment and offset.
@@ -455,7 +484,7 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of the constant value.
-  ValVariant value() { return Num; }
+  virtual ValVariant getConstValue() { return Num; }
 
 private:
   /// Const value of this instruction.

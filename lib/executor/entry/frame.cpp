@@ -3,27 +3,40 @@
 namespace SSVM {
 namespace Executor {
 
-/// Constructor of frame entry. See "include/executor/entry/frame.h".
-FrameEntry::FrameEntry(
-    unsigned int ModuleAddr, unsigned int Arity,
+/// Initializer of frame entry. See "include/executor/entry/frame.h".
+ErrCode FrameEntry::InitFrameEntry(
+    unsigned int ModuleAddr, unsigned int FrameArity,
     std::vector<std::unique_ptr<ValueEntry>> &Args,
     const std::vector<std::pair<unsigned int, AST::ValType>> &LocalDefs) {
   /// Set arity and module address.
   ModAddr = ModuleAddr;
-  this->Arity = Arity;
+  Arity = FrameArity;
+  Locals.clear();
 
   /// Set parameters with arguments.
   for (auto Arg = Args.rbegin(); Arg != Args.rend(); Arg++) {
-    Locals.push_back(std::move(*Arg));
+    /// Call ctor ValueEntry(const ValueEntry &VE)
+    Locals.emplace_back(*Arg->get());
   }
 
   /// Set local variables with initialization.
   for (auto LocalDef = LocalDefs.begin(); LocalDef != LocalDefs.end();
        LocalDef++) {
     for (unsigned int i = 0; i < LocalDef->first; i++) {
-      Locals.push_back(std::make_unique<ValueEntry>(LocalDef->second));
+      /// Call ctor ValueEntry(const AST::ValType &VT)
+      Locals.emplace_back(LocalDef->second);
     }
   }
+  return ErrCode::Success;
+}
+
+/// Initializer of frame entry. See "include/executor/entry/frame.h".
+ErrCode FrameEntry::InitFrameEntry(unsigned int ModuleAddr,
+                                   unsigned int FrameArity) {
+  Arity = FrameArity;
+  ModAddr = ModuleAddr;
+  Locals.clear();
+  return ErrCode::Success;
 }
 
 /// Getter of local values by index. See "include/executor/entry/frame.h".
@@ -33,7 +46,7 @@ ErrCode FrameEntry::getValue(unsigned int Idx, ValueEntry *&ValEntry) {
     return ErrCode::WrongLocalAddress;
 
   /// Get value.
-  ValEntry = Locals[Idx].get();
+  ValEntry = &Locals[Idx];
   return ErrCode::Success;
 }
 
@@ -44,10 +57,7 @@ ErrCode FrameEntry::setValue(unsigned int Idx, const ValueEntry &ValEntry) {
     return ErrCode::WrongLocalAddress;
 
   /// Set value.
-  if (ValEntry.getType() != Locals[Idx]->getType())
-    return ErrCode::TypeNotMatch;
-  Locals[Idx]->setValue(ValEntry);
-  return ErrCode::Success;
+  return Locals[Idx].setValue(ValEntry);
 }
 
 } // namespace Executor

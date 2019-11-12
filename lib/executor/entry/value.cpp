@@ -3,8 +3,14 @@
 namespace SSVM {
 namespace Executor {
 
-/// Constructor of value entry. See "include/executor/entry/value.h".
-ValueEntry::ValueEntry(const AST::ValType &VT) {
+/// Initializers of value entry. See "include/executor/entry/value.h".
+ErrCode ValueEntry::InitValueEntry(const ValueEntry &VE) {
+  Type = VE.Type;
+  Value = VE.Value;
+  return ErrCode::Success;
+}
+
+ErrCode ValueEntry::InitValueEntry(const AST::ValType &VT) {
   Type = VT;
   switch (Type) {
   case AST::ValType::I32:
@@ -22,6 +28,38 @@ ValueEntry::ValueEntry(const AST::ValType &VT) {
   default:
     break;
   }
+  return ErrCode::Success;
+}
+
+ErrCode ValueEntry::InitValueEntry(const AST::ValType &VT,
+                                   const AST::ValVariant &Val) {
+  Type = VT;
+  Value = Val;
+  return ErrCode::Success;
+}
+
+ErrCode ValueEntry::InitValueEntry(const uint32_t &Val) {
+  Type = AST::ValType::I32;
+  Value = Val;
+  return ErrCode::Success;
+}
+
+ErrCode ValueEntry::InitValueEntry(const uint64_t &Val) {
+  Type = AST::ValType::I64;
+  Value = Val;
+  return ErrCode::Success;
+}
+
+ErrCode ValueEntry::InitValueEntry(const float &Val) {
+  Type = AST::ValType::F32;
+  Value = Val;
+  return ErrCode::Success;
+}
+
+ErrCode ValueEntry::InitValueEntry(const double &Val) {
+  Type = AST::ValType::F64;
+  Value = Val;
+  return ErrCode::Success;
 }
 
 /// Setter for value. See "include/executor/entry/value.h".

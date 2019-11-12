@@ -103,7 +103,7 @@ ErrCode WasiFdPrestatGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   }
 
   /// Return: errno(u32)
-  Res.push_back(std::make_unique<ValueEntry>(static_cast<uint32_t>(ErrNo)));
+  Res[0]->setValue(static_cast<uint32_t>(ErrNo));
   return Status;
 }
 

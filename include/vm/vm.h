@@ -61,7 +61,10 @@ public:
   template <typename T>
   typename std::enable_if_t<Support::IsWasmBuiltInV<T>, ErrCode>
   appendArgument(const T &Val) {
-    Args.push_back(std::make_unique<Executor::ValueEntry>(Val));
+    std::unique_ptr<Executor::ValueEntry> VE =
+        std::make_unique<Executor::ValueEntry>();
+    VE->InitValueEntry(Val);
+    Args.push_back(std::move(VE));
     return ErrCode::Success;
   }
 

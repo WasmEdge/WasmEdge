@@ -70,10 +70,10 @@ ErrCode WasiFdSeek::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
 
   /// Return: errno(u32)
   if (ErrNo == 0) {
-    Res.push_back(std::make_unique<ValueEntry>(0U));
+    Res[0]->setValue(0U);
   } else {
     /// TODO: errno
-    Res.push_back(std::make_unique<ValueEntry>(1U));
+    Res[0]->setValue(1U);
   }
   return Status;
 }

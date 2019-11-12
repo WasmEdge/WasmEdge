@@ -15,16 +15,18 @@ ErrCode FrameEntry::InitFrameEntry(
 
   /// Set parameters with arguments.
   for (auto Arg = Args.rbegin(); Arg != Args.rend(); Arg++) {
-    /// Call ctor ValueEntry(const ValueEntry &VE)
-    Locals.emplace_back(*Arg->get());
+    /// Call initializer ValueEntry(const ValueEntry &VE)
+    Locals.emplace_back();
+    Locals.back().InitValueEntry(*Arg->get());
   }
 
   /// Set local variables with initialization.
   for (auto LocalDef = LocalDefs.begin(); LocalDef != LocalDefs.end();
        LocalDef++) {
     for (unsigned int i = 0; i < LocalDef->first; i++) {
-      /// Call ctor ValueEntry(const AST::ValType &VT)
-      Locals.emplace_back(LocalDef->second);
+      /// Call initializer ValueEntry(const AST::ValType &VT)
+      Locals.emplace_back();
+      Locals.back().InitValueEntry(LocalDef->second);
     }
   }
   return ErrCode::Success;

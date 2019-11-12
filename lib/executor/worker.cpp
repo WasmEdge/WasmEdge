@@ -288,7 +288,11 @@ ErrCode Worker::runMemoryOp(AST::Instruction *Instr) {
 
 ErrCode Worker::runConstNumericOp(AST::Instruction *Instr) {
   std::unique_ptr<ValueEntry> VE = nullptr;
-  std::visit([&VE](auto &&arg) { VE = std::make_unique<ValueEntry>(arg); },
+  std::visit(
+      [&VE](auto &&arg) {
+        VE = std::make_unique<ValueEntry>();
+        VE->InitValueEntry(arg);
+      },
              Instr->getConstValue());
   StackMgr.push(VE);
 
@@ -787,7 +791,16 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
                                               HostFunc)) != ErrCode::Success) {
       return Status;
     }
+
+    /// Prepare return list.
     std::vector<std::unique_ptr<ValueEntry>> Returns;
+    for (auto It = FuncType->Returns.cbegin(); It != FuncType->Returns.cend();
+         It++) {
+      std::unique_ptr<ValueEntry> VE = std::make_unique<ValueEntry>();
+      VE->InitValueEntry(*It);
+      Returns.push_back(std::move(VE));
+    }
+
     if ((Status = HostFunc->run(Vals, Returns, StoreMgr, ModuleInst)) !=
         ErrCode::Success) {
       return Status;
@@ -795,8 +808,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
 
     /// Push result value into stack.
     for (auto Iter = Returns.rbegin(); Iter != Returns.rend(); Iter++) {
-      std::unique_ptr<ValueEntry> Val = std::move(*Iter);
-      StackMgr.push(Val);
+      StackMgr.push(std::move(*Iter));
     }
     return Status;
   } else {

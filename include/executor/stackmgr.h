@@ -59,7 +59,9 @@ public:
     return push(std::move(NewEntry));
   }
   template <typename T> TypeB<T, ErrCode> pushValue(T Val) {
-    Stack.push_back(std::make_unique<ValueEntry>(Val));
+    std::unique_ptr<ValueEntry> VE = std::make_unique<ValueEntry>();
+    VE->InitValueEntry(Val);
+    Stack.push_back(std::move(VE));
     return ErrCode::Success;
   }
 

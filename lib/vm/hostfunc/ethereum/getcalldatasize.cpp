@@ -19,8 +19,7 @@ ErrCode EEIGetCallDataSize::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   }
 
   /// Return: Length(u32)
-  Res.push_back(std::make_unique<ValueEntry>(
-      static_cast<uint32_t>(Env.getCallData().size())));
+  Res[0]->setValue(static_cast<uint32_t>(Env.getCallData().size()));
   return ErrCode::Success;
 }
 

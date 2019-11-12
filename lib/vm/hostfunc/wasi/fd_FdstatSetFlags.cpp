@@ -24,7 +24,7 @@ WasiFdFdstatSetFlags::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   ErrCode Status = ErrCode::Success;
 
   /// Return: errno(u32)
-  Res.push_back(std::make_unique<ValueEntry>(0U));
+  Res[0]->setValue(0U);
   return Status;
 }
 

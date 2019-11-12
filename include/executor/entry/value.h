@@ -31,21 +31,18 @@ class ValueEntry {
 public:
   /// Default constructors for temp ValueEntry.
   ValueEntry() : Type(AST::ValType::I32), Value(0U) {}
-  /// Copy constructor for duplication.
-  explicit ValueEntry(const ValueEntry &VE) : Type(VE.Type), Value(VE.Value) {}
-  explicit ValueEntry(const AST::ValType &VT);
-  explicit ValueEntry(const AST::ValType &VT, const AST::ValVariant &Val)
-      : Type(VT), Value(Val) {}
-  /// Constructors for the different value type
-  explicit ValueEntry(const uint32_t &Val)
-      : Type(AST::ValType::I32), Value(Val) {}
-  explicit ValueEntry(const uint64_t &Val)
-      : Type(AST::ValType::I64), Value(Val) {}
-  explicit ValueEntry(const float &Val) : Type(AST::ValType::F32), Value(Val) {}
-  explicit ValueEntry(const double &Val)
-      : Type(AST::ValType::F64), Value(Val) {}
-
   ~ValueEntry() = default;
+
+  /// Initializers of value entry.
+  ErrCode InitValueEntry() { return InitValueEntry(0U); }
+  ErrCode InitValueEntry(const ValueEntry &VE);
+  ErrCode InitValueEntry(const AST::ValType &VT);
+  ErrCode InitValueEntry(const AST::ValType &VT, const AST::ValVariant &Val);
+  /// Initializers for the different value types.
+  ErrCode InitValueEntry(const uint32_t &Val);
+  ErrCode InitValueEntry(const uint64_t &Val);
+  ErrCode InitValueEntry(const float &Val);
+  ErrCode InitValueEntry(const double &Val);
 
   /// Getter of value type.
   AST::ValType getType() const { return Type; }

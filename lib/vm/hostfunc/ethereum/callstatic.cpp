@@ -69,7 +69,7 @@ ErrCode EEICallStatic::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   }
 
   /// Return: result(u32)
-  Res.push_back(std::make_unique<ValueEntry>(Result));
+  Res[0]->setValue(Result);
   return Status;
 }
 

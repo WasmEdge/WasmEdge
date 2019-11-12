@@ -16,7 +16,9 @@ ErrCode Worker::runLocalGetOp(unsigned int Idx) {
   if ((Status = CurrentFrame->getValue(Idx, ValEntry)) != ErrCode::Success) {
     return Status;
   }
-  return StackMgr.push(std::make_unique<ValueEntry>(*ValEntry));
+  std::unique_ptr<ValueEntry> VE = std::make_unique<ValueEntry>();
+  VE->InitValueEntry(*ValEntry);
+  return StackMgr.push(VE);
 }
 
 ErrCode Worker::runLocalSetOp(unsigned int Idx) {
@@ -47,8 +49,9 @@ ErrCode Worker::runGlobalGetOp(unsigned int Idx) {
   if ((Status = GlobInst->getValue(Val)) != ErrCode::Success) {
     return Status;
   }
-  return StackMgr.push(
-      std::make_unique<ValueEntry>(GlobInst->getValType(), Val));
+  std::unique_ptr<ValueEntry> VE = std::make_unique<ValueEntry>();
+  VE->InitValueEntry(GlobInst->getValType(), Val);
+  return StackMgr.push(VE);
 }
 
 ErrCode Worker::runGlobalSetOp(unsigned int Idx) {

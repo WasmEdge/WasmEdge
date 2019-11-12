@@ -18,30 +18,23 @@ namespace Executor {
 
 class LabelEntry {
 public:
-  /// Labels are not allowed to create without arguments.
-  LabelEntry() = delete;
+  LabelEntry() = default;
+  ~LabelEntry() = default;
 
-  /// Constructor of initialization of a label.
-  ///
-  /// Initialize the label with arity null of instruction sequence.
-  ///
-  /// \param Arity the return counts of this block.
-  ///
-  /// \returns None.
-  LabelEntry(const unsigned int Arity) : Arity(Arity) {}
-
-  /// Constructor of initialization of a label.
+  /// Initializer of label entry.
   ///
   /// Initialize the label with arity and pointer to instructions in blocks.
   ///
-  /// \param Arity the return counts of this block.
+  /// \param LabelArity the return counts of this block.
   /// \param Instr the branch target of this label.
   ///
-  /// \returns None.
-  LabelEntry(const unsigned int Arity, AST::Instruction *Instr)
-      : Arity(Arity), Target(Instr) {}
-
-  ~LabelEntry() = default;
+  /// \returns ErrCode.
+  ErrCode InitLabelEntry(const unsigned int LabelArity,
+                         AST::Instruction *Instr = nullptr) {
+    Arity = LabelArity;
+    Target = Instr;
+    return ErrCode::Success;
+  }
 
   /// Getter of arity.
   unsigned int getArity() const { return Arity; }

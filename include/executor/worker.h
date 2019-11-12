@@ -4,6 +4,7 @@
 #include "common.h"
 #include "entry/frame.h"
 #include "hostfuncmgr.h"
+#include "memorypool.h"
 #include "stackmgr.h"
 #include "storemgr.h"
 #include "support/casting.h"
@@ -79,9 +80,9 @@ public:
 
   /// Worker are not allowed to create without Store and Stack.
   Worker() = delete;
-  explicit Worker(StoreManager &Store, StackManager &Stack,
+  explicit Worker(StoreManager &Store, StackManager &Stack, MemoryPool &Pool,
                   HostFunctionManager &HostFunc)
-      : StoreMgr(Store), StackMgr(Stack), HostFuncMgr(HostFunc),
+      : StoreMgr(Store), StackMgr(Stack), MemPool(Pool), HostFuncMgr(HostFunc),
         TheState(State::Inited){};
 
   ~Worker() = default;
@@ -259,6 +260,8 @@ private:
   StoreManager &StoreMgr;
   /// Reference to Executor's Stack
   StackManager &StackMgr;
+  /// Reference to Executor's Memory pool
+  MemoryPool &MemPool;
   /// Reference to Executor's Host function manager
   HostFunctionManager &HostFuncMgr;
   /// Worker State

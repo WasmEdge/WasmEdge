@@ -56,8 +56,7 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
   }
 
   /// Make a new frame {NewModInst:{globaddrs}, locals:none} and push
-  auto Frame = std::make_unique<FrameEntry>();
-  Frame->InitFrameEntry(TmpModInstId, 0);
+  auto Frame = MemPool.getFrameEntry(TmpModInstId, 0);
   StackMgr.push(Frame);
 
   /// Evaluate values and set to global instance.

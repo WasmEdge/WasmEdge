@@ -18,6 +18,7 @@ target_link_libraries(ssvmExecutorWorker
 
 add_library(ssvmExecutor
   executor.cpp
+  memorypool.cpp
 )
 
 target_link_libraries(ssvmExecutor

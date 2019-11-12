@@ -15,6 +15,7 @@
 #include "common.h"
 #include "hostfunc.h"
 #include "hostfuncmgr.h"
+#include "memorypool.h"
 #include "stackmgr.h"
 #include "storemgr.h"
 #include "worker.h"
@@ -26,7 +27,8 @@ namespace Executor {
 /// Executor flow control class.
 class Executor {
 public:
-  Executor() : Engine(StoreMgr, StackMgr, HostFuncMgr) {}
+  Executor()
+      : StackMgr(MemPool), Engine(StoreMgr, StackMgr, MemPool, HostFuncMgr) {}
   ~Executor() = default;
 
   /// Set host functions.
@@ -51,6 +53,9 @@ public:
 
   /// Reset Executor.
   ErrCode reset(bool Force = false);
+
+  /// Getter of memory pool.
+  MemoryPool &getMemoryPool() { return MemPool; }
 
 private:
   /// Instantiation of Module Instance.
@@ -93,6 +98,7 @@ private:
   Worker Engine;
   StackManager StackMgr;
   StoreManager StoreMgr;
+  MemoryPool MemPool;
   HostFunctionManager HostFuncMgr;
 };
 

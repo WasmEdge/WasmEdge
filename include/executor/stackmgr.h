@@ -14,6 +14,7 @@
 #include "entry/frame.h"
 #include "entry/label.h"
 #include "entry/value.h"
+#include "memorypool.h"
 #include "support/casting.h"
 
 #include <memory>
@@ -47,7 +48,8 @@ using TypeB = typename std::enable_if_t<Support::IsWasmBuiltInV<T>, TR>;
 
 class StackManager {
 public:
-  StackManager() = default;
+  StackManager() = delete;
+  explicit StackManager(MemoryPool &Pool) : MemPool(Pool){};
   ~StackManager() = default;
 
   /// Getters of top entry of stack.
@@ -78,6 +80,7 @@ public:
     switch (Stack.back().index()) {
     case 0: /// Frame entry
       FrameIdx.pop_back();
+      MemPool.recycleFrameEntry(std::move(std::get<0>(Stack.back())));
       break;
     case 1: /// Label entry
       LabelIdx.pop_back();
@@ -128,8 +131,9 @@ public:
   }
 
 private:
-  /// \name Data of value entry.
+  /// \name Data of stack manager.
   /// @{
+  MemoryPool &MemPool;
   std::vector<EntryType> Stack;
   std::vector<unsigned int> LabelIdx;
   std::vector<unsigned int> FrameIdx;

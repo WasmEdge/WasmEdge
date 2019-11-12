@@ -816,8 +816,8 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     /// Native function case: Push frame with locals and args.
     unsigned int Arity = FuncType->Returns.size();
     AST::InstrVec EmprySeq;
-    auto Frame = std::make_unique<FrameEntry>();
-    Frame->InitFrameEntry(FuncInst->getModuleAddr(), /// Module address
+    auto Frame =
+        MemPool.getFrameEntry(FuncInst->getModuleAddr(), /// Module address
         Arity,                     /// Arity
         Vals,                      /// Reversed arguments
         FuncInst->getLocals()      /// Local defs

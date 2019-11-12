@@ -31,9 +31,23 @@ std::unique_ptr<FrameEntry> MemoryPool::getFrameEntry(unsigned int ModuleAddr,
   return Frame;
 }
 
+/// Get and initialize label entry.
+std::unique_ptr<LabelEntry>
+MemoryPool::getLabelEntry(const unsigned int LabelArity,
+                          AST::Instruction *Instr) {
+  std::unique_ptr<LabelEntry> Label = requestLabelEntryFromPool();
+  Label->InitLabelEntry(LabelArity, Instr);
+  return Label;
+}
+
 /// Recycle frame entry.
 void MemoryPool::recycleFrameEntry(std::unique_ptr<FrameEntry> Frame) {
   FrameEntryPool.push_back(std::move(Frame));
+}
+
+/// Recycle label entry.
+void MemoryPool::recycleLabelEntry(std::unique_ptr<LabelEntry> Label) {
+  LabelEntryPool.push_back(std::move(Label));
 }
 
 std::unique_ptr<FrameEntry> MemoryPool::requestFrameEntryFromPool() {
@@ -46,6 +60,18 @@ std::unique_ptr<FrameEntry> MemoryPool::requestFrameEntryFromPool() {
   std::unique_ptr<FrameEntry> Frame = std::move(FrameEntryPool.back());
   FrameEntryPool.pop_back();
   return Frame;
+}
+
+std::unique_ptr<LabelEntry> MemoryPool::requestLabelEntryFromPool() {
+  if (LabelEntryPool.size() == 0) {
+    for (unsigned int I = 0; I < LabelEntryCnt; I++) {
+      LabelEntryPool.push_back(std::make_unique<LabelEntry>());
+    }
+  }
+  LabelEntryCnt *= 2;
+  std::unique_ptr<LabelEntry> Label = std::move(LabelEntryPool.back());
+  LabelEntryPool.pop_back();
+  return Label;
 }
 
 } // namespace Executor

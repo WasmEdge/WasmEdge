@@ -34,8 +34,15 @@ public:
   std::unique_ptr<FrameEntry> getFrameEntry(unsigned int ModuleAddr,
                                             unsigned int FrameArity);
 
+  /// Get and initialize label entry.
+  std::unique_ptr<LabelEntry> getLabelEntry(const unsigned int LabelArity,
+                                            AST::Instruction *Instr = nullptr);
+
   /// Recycle frame entry.
   void recycleFrameEntry(std::unique_ptr<FrameEntry> Frame);
+
+  /// Recycle frame entry.
+  void recycleLabelEntry(std::unique_ptr<LabelEntry> Label);
 
 private:
   unsigned int FrameEntryCnt;
@@ -45,6 +52,7 @@ private:
   std::vector<std::unique_ptr<LabelEntry>> LabelEntryPool;
   std::vector<std::unique_ptr<ValueEntry>> ValueEntryPool;
   std::unique_ptr<FrameEntry> requestFrameEntryFromPool();
+  std::unique_ptr<LabelEntry> requestLabelEntryFromPool();
 };
 
 } // namespace Executor

@@ -730,11 +730,11 @@ ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
 ErrCode Worker::enterBlock(unsigned int Arity, AST::Instruction *Instr,
                            const AST::InstrVec &Seq) {
   /// Create label for block.
-  std::unique_ptr<LabelEntry> Label = std::make_unique<LabelEntry>();
+  std::unique_ptr<LabelEntry> Label;
   if (Instr == nullptr) {
-    Label->InitLabelEntry(Arity);
+    Label = MemPool.getLabelEntry(Arity);
   } else {
-    Label->InitLabelEntry(Arity, Instr);
+    Label = MemPool.getLabelEntry(Arity, Instr);
   }
 
   /// Push label and jump to block body.

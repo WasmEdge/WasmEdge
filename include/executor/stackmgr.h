@@ -84,6 +84,7 @@ public:
       break;
     case 1: /// Label entry
       LabelIdx.pop_back();
+      MemPool.recycleLabelEntry(std::move(std::get<1>(Stack.back())));
       break;
     default:
       break;
@@ -124,7 +125,20 @@ public:
 
   /// Reset stack.
   ErrCode reset() {
-    Stack.clear();
+    /// Recycle entries in stack.
+    while (Stack.size() > 0) {
+      switch (Stack.back().index()) {
+      case 0: /// Frame entry
+        MemPool.recycleFrameEntry(std::move(std::get<0>(Stack.back())));
+        break;
+      case 1: /// Label entry
+        MemPool.recycleLabelEntry(std::move(std::get<1>(Stack.back())));
+        break;
+      default:
+        break;
+      }
+      Stack.pop_back();
+    }
     LabelIdx.clear();
     FrameIdx.clear();
     return ErrCode::Success;

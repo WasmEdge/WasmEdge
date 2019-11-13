@@ -38,6 +38,7 @@ public:
   ErrCode InitValueEntry(const ValueEntry &VE);
   ErrCode InitValueEntry(const AST::ValType &VT);
   ErrCode InitValueEntry(const AST::ValType &VT, const AST::ValVariant &Val);
+  ErrCode InitValueEntry(const AST::ValVariant &Val);
   /// Initializers for the different value types.
   ErrCode InitValueEntry(const uint32_t &Val);
   ErrCode InitValueEntry(const uint64_t &Val);

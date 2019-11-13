@@ -32,13 +32,15 @@ ErrCode Worker::runIfElseOp(AST::Instruction *Instr) {
   auto Status = ErrCode::Success;
   std::unique_ptr<ValueEntry> Val;
   StackMgr.pop(Val);
+  uint32_t Cond = retrieveValue<uint32_t>(*Val.get());
+  MemPool.recycleValueEntry(std::move(Val));
 
   /// Get result type for arity.
   AST::ValType ResultType = Instr->getResultType();
   unsigned int Arity = (ResultType == AST::ValType::None) ? 0 : 1;
 
   /// If non-zero, run if-statement; else, run else-statement.
-  if (retrieveValue<uint32_t>(*Val.get()) != 0) {
+  if (Cond != 0) {
     const AST::InstrVec *IfStatement = Instr->getIfStatement();
     if (IfStatement->size() > 0) {
       Status = enterBlock(Arity, nullptr, *IfStatement);
@@ -63,6 +65,7 @@ ErrCode Worker::runBrIfOp(AST::Instruction *Instr) {
   if (retrieveValue<uint32_t>(*Val.get()) != 0) {
     Status = runBrOp(Instr);
   }
+  MemPool.recycleValueEntry(std::move(Val));
   return Status;
 }
 
@@ -72,6 +75,7 @@ ErrCode Worker::runBrTableOp(AST::Instruction *Instr) {
   std::unique_ptr<ValueEntry> Val;
   StackMgr.pop(Val);
   int32_t Value = retrieveValue<uint32_t>(*Val.get());
+  MemPool.recycleValueEntry(std::move(Val));
 
   /// Do branch.
   const std::vector<unsigned int> *LabelTable = Instr->getLabelTable();
@@ -123,6 +127,7 @@ ErrCode Worker::runCallIndirectOp(AST::Instruction *Instr) {
                                        FuncAddr)) != ErrCode::Success) {
     return Status;
   };
+  MemPool.recycleValueEntry(std::move(Idx));
 
   /// Check function type.
   Instance::FunctionInstance *FuncInst = nullptr;

@@ -59,6 +59,7 @@ ErrCode Executor::instantiate(AST::MemorySection *MemSec,
     if ((Status = PopVal->getValue(Offset)) != ErrCode::Success) {
       return Status;
     }
+    MemPool.recycleValueEntry(std::move(PopVal));
 
     /// Get memory instance
     Instance::MemoryInstance *MemInst = nullptr;

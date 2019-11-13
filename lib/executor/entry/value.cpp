@@ -38,6 +38,30 @@ ErrCode ValueEntry::InitValueEntry(const AST::ValType &VT,
   return ErrCode::Success;
 }
 
+ErrCode ValueEntry::InitValueEntry(const AST::ValVariant &Val) {
+  switch (Val.index()) {
+  case 0:
+    Type = AST::ValType::I32;
+    Value = std::get<0>(Val);
+    break;
+  case 1:
+    Type = AST::ValType::I64;
+    Value = std::get<1>(Val);
+    break;
+  case 2:
+    Type = AST::ValType::F32;
+    Value = std::get<2>(Val);
+    break;
+  case 3:
+    Type = AST::ValType::F64;
+    Value = std::get<3>(Val);
+  default:
+    return ErrCode::TypeNotMatch;
+    break;
+  }
+  return ErrCode::Success;
+}
+
 ErrCode ValueEntry::InitValueEntry(const uint32_t &Val) {
   Type = AST::ValType::I32;
   Value = Val;

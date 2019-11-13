@@ -4,6 +4,8 @@
 #include "executor/worker/util.h"
 #include "support/casting.h"
 
+#include <stdio.h>
+
 namespace SSVM {
 namespace Executor {
 
@@ -33,8 +35,17 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
     return Status;
 
   /// Execute run loop.
+  printf("\n !!! start running...\n");
   TheState = State::CodeSet;
   Status = execute();
+  if (Status == ErrCode::Revert)
+    printf("\n !!! revert\n");
+  else if (Status == ErrCode::Terminated)
+    printf("\n !!! terminated\n");
+  else if (Status != ErrCode::Success)
+    printf("\n !!! worker execute error %u\n", Status);
+  else
+    printf("\n --- exec success\n");
   if (Status == ErrCode::Terminated) {
     /// Forced terminated case.
     return ErrCode::Success;
@@ -153,17 +164,17 @@ ErrCode Worker::runParametricOp(AST::Instruction *Instr) {
     StackMgr.pop(CondValEntry);
     StackMgr.pop(ValEntry2);
     StackMgr.pop(ValEntry1);
-    uint32_t CondValue;
-    if ((Status = CondValEntry->getValue(CondValue)) != ErrCode::Success) {
-      return Status;
-    }
+    uint32_t CondValue = retrieveValue<uint32_t>(*CondValEntry.get());
 
     /// Select the value.
     if (CondValue == 0) {
       StackMgr.push(ValEntry2);
+      MemPool.recycleValueEntry(std::move(ValEntry1));
     } else {
       StackMgr.push(ValEntry1);
+      MemPool.recycleValueEntry(std::move(ValEntry2));
     }
+    MemPool.recycleValueEntry(std::move(CondValEntry));
   } else {
     return ErrCode::InstructionTypeMismatch;
   }
@@ -287,16 +298,7 @@ ErrCode Worker::runMemoryOp(AST::Instruction *Instr) {
 }
 
 ErrCode Worker::runConstNumericOp(AST::Instruction *Instr) {
-  std::unique_ptr<ValueEntry> VE = nullptr;
-  std::visit(
-      [&VE](auto &&arg) {
-        VE = std::make_unique<ValueEntry>();
-        VE->InitValueEntry(arg);
-      },
-             Instr->getConstValue());
-  StackMgr.push(VE);
-
-  return ErrCode::Success;
+  return StackMgr.push(MemPool.getValueEntry(Instr->getConstValue()));
 }
 
 ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
@@ -318,6 +320,8 @@ ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
       Status = ErrCode::InstructionTypeMismatch;
       break;
     }
+
+    MemPool.recycleValueEntry(std::move(Val));
   } else if (isRelationNumericOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val1, Val2;
     StackMgr.pop(Val2);
@@ -428,6 +432,9 @@ ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
       Status = ErrCode::InstructionTypeMismatch;
       break;
     }
+
+    MemPool.recycleValueEntry(std::move(Val1));
+    MemPool.recycleValueEntry(std::move(Val2));
   } else if (isUnaryNumericOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val;
     StackMgr.pop(Val);
@@ -491,6 +498,8 @@ ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
       Status = ErrCode::InstructionTypeMismatch;
       break;
     }
+
+    MemPool.recycleValueEntry(std::move(Val));
   } else if (isBinaryNumericOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val1, Val2;
     StackMgr.pop(Val2);
@@ -637,6 +646,9 @@ ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
       Status = ErrCode::InstructionTypeMismatch;
       break;
     }
+
+    MemPool.recycleValueEntry(std::move(Val1));
+    MemPool.recycleValueEntry(std::move(Val2));
   } else if (isCastNumericOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val;
     StackMgr.pop(Val);
@@ -721,6 +733,8 @@ ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
       Status = ErrCode::InstructionTypeMismatch;
       break;
     }
+
+    MemPool.recycleValueEntry(std::move(Val));
   } else {
     Status = ErrCode::InstructionTypeMismatch;
   }
@@ -756,8 +770,9 @@ ErrCode Worker::leaveBlock() {
   StackMgr.pop();
 
   /// Push the Vals back into the Stack
-  for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++)
+  for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
     StackMgr.push(*Iter);
+  }
   return ErrCode::Success;
 }
 
@@ -797,9 +812,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     std::vector<std::unique_ptr<ValueEntry>> Returns;
     for (auto It = FuncType->Returns.cbegin(); It != FuncType->Returns.cend();
          It++) {
-      std::unique_ptr<ValueEntry> VE = std::make_unique<ValueEntry>();
-      VE->InitValueEntry(*It);
-      Returns.push_back(std::move(VE));
+      Returns.push_back(MemPool.getValueEntry(*It));
     }
 
     if ((Status = HostFunc->run(Vals, Returns, StoreMgr, ModuleInst)) !=
@@ -810,6 +823,11 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     /// Push result value into stack.
     for (auto Iter = Returns.rbegin(); Iter != Returns.rend(); Iter++) {
       StackMgr.push(std::move(*Iter));
+    }
+
+    /// Recycle params.
+    for (auto Iter = Vals.begin(); Iter != Vals.end(); Iter++) {
+      MemPool.recycleValueEntry(std::move(*Iter));
     }
     return Status;
   } else {

@@ -38,11 +38,36 @@ public:
   std::unique_ptr<LabelEntry> getLabelEntry(const unsigned int LabelArity,
                                             AST::Instruction *Instr = nullptr);
 
-  /// Recycle frame entry.
-  void recycleFrameEntry(std::unique_ptr<FrameEntry> Frame);
+  /// Get and initialize value entry.
+  std::unique_ptr<ValueEntry> getValueEntry() { return getValueEntry(0U); }
+  std::unique_ptr<ValueEntry> getValueEntry(const ValueEntry &VE);
+  std::unique_ptr<ValueEntry> getValueEntry(const AST::ValType &VT);
+  std::unique_ptr<ValueEntry> getValueEntry(const AST::ValType &VT,
+                                            const AST::ValVariant &Val);
+  std::unique_ptr<ValueEntry> getValueEntry(const AST::ValVariant &Val);
+  template <typename T>
+  inline std::enable_if_t<Support::IsWasmBuiltInV<T>,
+                          std::unique_ptr<ValueEntry>>
+  getValueEntry(const T &Val) {
+    std::unique_ptr<ValueEntry> Value = requestValueEntryFromPool();
+    Value->InitValueEntry(Val);
+    return Value;
+  }
 
   /// Recycle frame entry.
-  void recycleLabelEntry(std::unique_ptr<LabelEntry> Label);
+  void recycleFrameEntry(std::unique_ptr<FrameEntry> Frame) {
+    FrameEntryPool.push_back(std::move(Frame));
+  }
+
+  /// Recycle frame entry.
+  void recycleLabelEntry(std::unique_ptr<LabelEntry> Label) {
+    LabelEntryPool.push_back(std::move(Label));
+  }
+
+  /// Recycle frame entry.
+  void recycleValueEntry(std::unique_ptr<ValueEntry> Value) {
+    ValueEntryPool.push_back(std::move(Value));
+  }
 
 private:
   unsigned int FrameEntryCnt;
@@ -53,6 +78,7 @@ private:
   std::vector<std::unique_ptr<ValueEntry>> ValueEntryPool;
   std::unique_ptr<FrameEntry> requestFrameEntryFromPool();
   std::unique_ptr<LabelEntry> requestLabelEntryFromPool();
+  std::unique_ptr<ValueEntry> requestValueEntryFromPool();
 };
 
 } // namespace Executor

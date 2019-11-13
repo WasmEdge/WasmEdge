@@ -3,15 +3,13 @@
 namespace SSVM {
 namespace Executor {
 
-MemoryPool::MemoryPool() {
+MemoryPool::MemoryPool()
+    : FrameEntryCnt(128), LabelEntryCnt(128), ValueEntryCnt(128) {
   for (unsigned int I = 0; I < 128; I++) {
     FrameEntryPool.push_back(std::make_unique<FrameEntry>());
     LabelEntryPool.push_back(std::make_unique<LabelEntry>());
     ValueEntryPool.push_back(std::make_unique<ValueEntry>());
   }
-  FrameEntryCnt = 128;
-  LabelEntryCnt = 128;
-  ValueEntryCnt = 128;
 }
 
 /// Get and initialize frame entry.
@@ -40,14 +38,31 @@ MemoryPool::getLabelEntry(const unsigned int LabelArity,
   return Label;
 }
 
-/// Recycle frame entry.
-void MemoryPool::recycleFrameEntry(std::unique_ptr<FrameEntry> Frame) {
-  FrameEntryPool.push_back(std::move(Frame));
+/// Get and initialize value entry.
+std::unique_ptr<ValueEntry> MemoryPool::getValueEntry(const ValueEntry &VE) {
+  std::unique_ptr<ValueEntry> Value = requestValueEntryFromPool();
+  Value->InitValueEntry(VE);
+  return Value;
 }
 
-/// Recycle label entry.
-void MemoryPool::recycleLabelEntry(std::unique_ptr<LabelEntry> Label) {
-  LabelEntryPool.push_back(std::move(Label));
+std::unique_ptr<ValueEntry> MemoryPool::getValueEntry(const AST::ValType &VT) {
+  std::unique_ptr<ValueEntry> Value = requestValueEntryFromPool();
+  Value->InitValueEntry(VT);
+  return Value;
+}
+
+std::unique_ptr<ValueEntry>
+MemoryPool::getValueEntry(const AST::ValType &VT, const AST::ValVariant &Val) {
+  std::unique_ptr<ValueEntry> Value = requestValueEntryFromPool();
+  Value->InitValueEntry(VT, Val);
+  return Value;
+}
+
+std::unique_ptr<ValueEntry>
+MemoryPool::getValueEntry(const AST::ValVariant &Val) {
+  std::unique_ptr<ValueEntry> Value = requestValueEntryFromPool();
+  Value->InitValueEntry(Val);
+  return Value;
 }
 
 std::unique_ptr<FrameEntry> MemoryPool::requestFrameEntryFromPool() {
@@ -55,8 +70,8 @@ std::unique_ptr<FrameEntry> MemoryPool::requestFrameEntryFromPool() {
     for (unsigned int I = 0; I < FrameEntryCnt; I++) {
       FrameEntryPool.push_back(std::make_unique<FrameEntry>());
     }
+    FrameEntryCnt *= 2;
   }
-  FrameEntryCnt *= 2;
   std::unique_ptr<FrameEntry> Frame = std::move(FrameEntryPool.back());
   FrameEntryPool.pop_back();
   return Frame;
@@ -67,11 +82,23 @@ std::unique_ptr<LabelEntry> MemoryPool::requestLabelEntryFromPool() {
     for (unsigned int I = 0; I < LabelEntryCnt; I++) {
       LabelEntryPool.push_back(std::make_unique<LabelEntry>());
     }
+    LabelEntryCnt *= 2;
   }
-  LabelEntryCnt *= 2;
   std::unique_ptr<LabelEntry> Label = std::move(LabelEntryPool.back());
   LabelEntryPool.pop_back();
   return Label;
+}
+
+std::unique_ptr<ValueEntry> MemoryPool::requestValueEntryFromPool() {
+  if (ValueEntryPool.size() == 0) {
+    for (unsigned int I = 0; I < ValueEntryCnt; I++) {
+      ValueEntryPool.push_back(std::make_unique<ValueEntry>());
+    }
+    ValueEntryCnt *= 2;
+  }
+  std::unique_ptr<ValueEntry> Value = std::move(ValueEntryPool.back());
+  ValueEntryPool.pop_back();
+  return Value;
 }
 
 } // namespace Executor

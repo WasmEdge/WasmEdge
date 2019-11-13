@@ -82,6 +82,7 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
     AST::ValVariant Val;
     PopVal->getValue(Val);
     GlobInst->setValue(Val);
+    MemPool.recycleValueEntry(std::move(PopVal));
   }
 
   /// Pop Frame

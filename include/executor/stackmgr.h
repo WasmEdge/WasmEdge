@@ -61,9 +61,7 @@ public:
     return push(std::move(NewEntry));
   }
   template <typename T> TypeB<T, ErrCode> pushValue(T Val) {
-    std::unique_ptr<ValueEntry> VE = std::make_unique<ValueEntry>();
-    VE->InitValueEntry(Val);
-    Stack.push_back(std::move(VE));
+    Stack.push_back(std::move(MemPool.getValueEntry(Val)));
     return ErrCode::Success;
   }
 
@@ -85,6 +83,9 @@ public:
     case 1: /// Label entry
       LabelIdx.pop_back();
       MemPool.recycleLabelEntry(std::move(std::get<1>(Stack.back())));
+      break;
+    case 2: /// Value entry
+      MemPool.recycleValueEntry(std::move(std::get<2>(Stack.back())));
       break;
     default:
       break;

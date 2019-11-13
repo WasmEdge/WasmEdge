@@ -63,6 +63,7 @@ ErrCode Executor::instantiate(AST::TableSection *TabSec,
     if ((Status = PopVal->getValue(Offset)) != ErrCode::Success) {
       return Status;
     }
+    MemPool.recycleValueEntry(std::move(PopVal));
 
     /// Get table instance
     Instance::TableInstance *TabInst = nullptr;

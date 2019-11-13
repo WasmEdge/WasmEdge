@@ -2,6 +2,15 @@ add_subdirectory(entry)
 add_subdirectory(instance)
 add_subdirectory(instantiate)
 
+add_library(ssvmExecutorMemoryPool
+  memorypool.cpp
+)
+
+target_link_libraries(ssvmExecutorMemoryPool
+  PRIVATE
+  ssvmExecutorEntry
+)
+
 add_library(ssvmExecutorWorker
   worker.cpp
   worker/control.cpp
@@ -14,11 +23,11 @@ target_link_libraries(ssvmExecutorWorker
   PRIVATE
   ssvmExecutorEntry
   ssvmExecutorInstance
+  ssvmExecutorMemoryPool
 )
 
 add_library(ssvmExecutor
   executor.cpp
-  memorypool.cpp
 )
 
 target_link_libraries(ssvmExecutor
@@ -27,4 +36,5 @@ target_link_libraries(ssvmExecutor
   ssvmExecutorInstance
   ssvmExecutorInstantiate
   ssvmExecutorWorker
+  ssvmExecutorMemoryPool
 )

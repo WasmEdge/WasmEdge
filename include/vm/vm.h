@@ -22,6 +22,7 @@
 #include "rapidjson/document.h"
 #include "result.h"
 #include "support/casting.h"
+#include "validator/validator.h"
 
 #include <cstdint>
 #include <string>
@@ -116,6 +117,7 @@ public:
 private:
   /// Functions for running.
   ErrCode runLoader();
+  ErrCode runValidator();
   ErrCode runExecutor();
 
   /// Helper function for inserting host functions according to VM type.
@@ -134,6 +136,7 @@ private:
   EnvironmentManager EnvMgr;
   Loader::Loader LoaderEngine;
   Executor::Executor ExecutorEngine;
+  Validator::Validator ValidatorEngine;
   std::unique_ptr<AST::Module> Mod;
   std::vector<Executor::Value> Args;
   std::vector<Executor::Value> Rets;

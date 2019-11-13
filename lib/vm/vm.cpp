@@ -96,6 +96,9 @@ ErrCode VM::execute(const std::string &FuncName) {
 
   /// Run code.
   ErrCode Status = runLoader();
+  if( Status == ErrCode::Success ){
+    Status = runValidator();
+  }
   if (Status == ErrCode::Success) {
     Status = runExecutor();
   }
@@ -103,6 +106,7 @@ ErrCode VM::execute(const std::string &FuncName) {
 
   /// Clear loader and executor engine.
   LoaderEngine.reset();
+  ValidatorEngine.reset();
   ExecutorEngine.reset();
   Mod.reset();
   Args.clear();
@@ -140,6 +144,18 @@ ErrCode VM::runLoader() {
   }
 
   if (VMResult.hasError()) {
+    return ErrCode::Failed;
+  }
+  return ErrCode::Success;
+}
+
+ErrCode VM::runValidator() {
+  Validator::ErrCode ValidatorStatus = Validator::ErrCode::Success;
+  VMResult.setStage(Result::Stage::Loader); //TODO
+
+  ValidatorStatus = ValidatorEngine.validate(Mod);
+
+  if (ValidatorStatus!=Validator::ErrCode::Success) {
     return ErrCode::Failed;
   }
   return ErrCode::Success;

@@ -10,6 +10,7 @@ target_link_libraries(ssvmVM
   PRIVATE
   ssvmASTLoad
   ssvmLoader
+  ssvmValidator
   ssvmExecutor
   ssvmHostFuncEEI
   ssvmHostFuncWasi

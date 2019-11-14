@@ -3,6 +3,7 @@
 #include "ast/module.h"
 #include "vm/common.h"
 
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <cstdio>
@@ -46,6 +47,13 @@ ValType ValidatMachine::getlocal(unsigned int idx)
   return local[idx];
 }
 
+void ValidatMachine::setlocal(unsigned int idx, ValType v)
+{
+  if( local.count(idx) == 0 )
+    throw;
+  local[idx] = v;
+}
+
 void ValidatMachine::push_opd(ValType v)
 {
   ValStack.emplace_front(v);
@@ -66,7 +74,10 @@ ValType ValidatMachine::pop_opd(ValType expect)
   auto res = pop_opd();
   if( res == ValType::Unknown ) return expect;
   if( expect == ValType::Unknown ) return res;
-  if( res != expect ) throw;
+  if( res != expect ) {
+    cout << "Stack Val Not Match.." << endl;
+    throw;
+  }
   return res;
 }
 
@@ -85,34 +96,92 @@ ErrCode ValidatMachine::validate(AST::InstrVec &insts)
 void ValidatMachine::runop(AST::Instruction *instr)
 {
   auto stack_trans = [&](const std::vector<ValType> &take, const std::vector<ValType> &put)->void{
-    for(auto val:take)
+    auto takecp = take;
+    std::reverse(takecp.begin(), takecp.end());
+    for(auto val:takecp)
       pop_opd(val);
     for(auto val:put)
       push_opd(val);
   };
 
   auto opcode = instr->getOpCode();
-  AST::VariableInstruction* VarInstr = nullptr;dynamic_cast<AST::VariableInstruction *>(instr);
+  AST::VariableInstruction* VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
   switch(opcode)
   {
     /// 0x00
     case OpCode::Unreachable:
       //TODO:
+    case OpCode::Nop:
       break;
     
     /// 0x10
 
+    case OpCode::Drop:
+      stack_trans({ValType::Unknown},{});
+      break;
+    case OpCode::Select:
+    {
+      pop_opd(ValType::I32);
+      auto t1 = pop_opd();
+      auto t2 = pop_opd(t1);
+      push_opd(t2);
+      break;
+    }
+
     /// 0x20
     case OpCode::Local__get:
-      VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
       stack_trans({},{getlocal(VarInstr->getIndex())});
       break;
+    case OpCode::Local__set:
+    {
+      auto t = pop_opd();
+      setlocal(VarInstr->getIndex(), t);
+      break;
+    }
+    case OpCode::Local__tee:
+    {
+      auto t = pop_opd();
+      setlocal(VarInstr->getIndex(), t);
+      push_opd(t);
+      break;
+    }
 
+    //global.get 0x23
+    //global.set 0x24
+      
     
     /// 0x30
-
+    ///TODO: check store: https://webassembly.github.io/spec/core/appendix/properties.html
+    case OpCode::I32__store:
+      stack_trans({ValType::I32, ValType::I32},{});
+      break;
+    case OpCode::I64__store:
+      stack_trans({ValType::I32, ValType::I64},{});
+      break;
+    case OpCode::F32__store:
+      stack_trans({ValType::I32, ValType::F32},{});
+      break;
+    case OpCode::F64__store:
+      stack_trans({ValType::I32, ValType::F64},{});
+      break;
+    case OpCode::I32__store8:
+    case OpCode::I32__store16:
+      stack_trans({ValType::I32, ValType::I32},{});
+      break;
+    case OpCode::I64__store8:
+    case OpCode::I64__store16:
+    case OpCode::I64__store32:
+      stack_trans({ValType::I32, ValType::I64},{});
+      break;
+    case OpCode::Memory__size:
+      ///TODO: check memory[0]
+      stack_trans({},{ValType::I32});
+      break;
     /// 0x40
-    //case OpCode::Memory__grow:
+      case OpCode::Memory__grow:
+      ///TODO: check memory[0]
+      stack_trans({ValType::I32},{ValType::I32});
+      break;
     case OpCode::I32__const:
       stack_trans({},{ValType::I32});
       break;

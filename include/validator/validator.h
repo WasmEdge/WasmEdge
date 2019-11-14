@@ -48,6 +48,7 @@ class ValidatMachine
   ValType pop_opd(ValType);
 
   ValType getlocal(unsigned int);
+  void setlocal(unsigned int, ValType);
 public:
   void addloacl(unsigned int, AST::ValType);
   void reset();

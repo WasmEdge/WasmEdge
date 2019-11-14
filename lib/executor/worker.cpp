@@ -169,12 +169,12 @@ ErrCode Worker::runParametricOp(AST::Instruction *Instr) {
     /// Select the value.
     if (CondValue == 0) {
       StackMgr.push(ValEntry2);
-      MemPool.recycleValueEntry(std::move(ValEntry1));
+      MemPool.destroyValueEntry(std::move(ValEntry1));
     } else {
       StackMgr.push(ValEntry1);
-      MemPool.recycleValueEntry(std::move(ValEntry2));
+      MemPool.destroyValueEntry(std::move(ValEntry2));
     }
-    MemPool.recycleValueEntry(std::move(CondValEntry));
+    MemPool.destroyValueEntry(std::move(CondValEntry));
   } else {
     return ErrCode::InstructionTypeMismatch;
   }
@@ -298,7 +298,7 @@ ErrCode Worker::runMemoryOp(AST::Instruction *Instr) {
 }
 
 ErrCode Worker::runConstNumericOp(AST::Instruction *Instr) {
-  return StackMgr.push(MemPool.getValueEntry(Instr->getConstValue()));
+  return StackMgr.push(MemPool.allocValueEntry(Instr->getConstValue()));
 }
 
 ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
@@ -321,7 +321,7 @@ ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
       break;
     }
 
-    MemPool.recycleValueEntry(std::move(Val));
+    MemPool.destroyValueEntry(std::move(Val));
   } else if (isRelationNumericOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val1, Val2;
     StackMgr.pop(Val2);
@@ -433,8 +433,8 @@ ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
       break;
     }
 
-    MemPool.recycleValueEntry(std::move(Val1));
-    MemPool.recycleValueEntry(std::move(Val2));
+    MemPool.destroyValueEntry(std::move(Val1));
+    MemPool.destroyValueEntry(std::move(Val2));
   } else if (isUnaryNumericOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val;
     StackMgr.pop(Val);
@@ -499,7 +499,7 @@ ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
       break;
     }
 
-    MemPool.recycleValueEntry(std::move(Val));
+    MemPool.destroyValueEntry(std::move(Val));
   } else if (isBinaryNumericOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val1, Val2;
     StackMgr.pop(Val2);
@@ -647,8 +647,8 @@ ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
       break;
     }
 
-    MemPool.recycleValueEntry(std::move(Val1));
-    MemPool.recycleValueEntry(std::move(Val2));
+    MemPool.destroyValueEntry(std::move(Val1));
+    MemPool.destroyValueEntry(std::move(Val2));
   } else if (isCastNumericOp(Opcode)) {
     std::unique_ptr<ValueEntry> Val;
     StackMgr.pop(Val);
@@ -734,7 +734,7 @@ ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
       break;
     }
 
-    MemPool.recycleValueEntry(std::move(Val));
+    MemPool.destroyValueEntry(std::move(Val));
   } else {
     Status = ErrCode::InstructionTypeMismatch;
   }
@@ -746,9 +746,9 @@ ErrCode Worker::enterBlock(unsigned int Arity, AST::Instruction *Instr,
   /// Create label for block.
   std::unique_ptr<LabelEntry> Label;
   if (Instr == nullptr) {
-    Label = MemPool.getLabelEntry(Arity);
+    Label = MemPool.allocLabelEntry(Arity);
   } else {
-    Label = MemPool.getLabelEntry(Arity, Instr);
+    Label = MemPool.allocLabelEntry(Arity, Instr);
   }
 
   /// Push label and jump to block body.
@@ -812,7 +812,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     std::vector<std::unique_ptr<ValueEntry>> Returns;
     for (auto It = FuncType->Returns.cbegin(); It != FuncType->Returns.cend();
          It++) {
-      Returns.push_back(MemPool.getValueEntry(*It));
+      Returns.push_back(MemPool.allocValueEntry(*It));
     }
 
     if ((Status = HostFunc->run(Vals, Returns, StoreMgr, ModuleInst)) !=
@@ -827,7 +827,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
 
     /// Recycle params.
     for (auto Iter = Vals.begin(); Iter != Vals.end(); Iter++) {
-      MemPool.recycleValueEntry(std::move(*Iter));
+      MemPool.destroyValueEntry(std::move(*Iter));
     }
     return Status;
   } else {
@@ -835,10 +835,10 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     unsigned int Arity = FuncType->Returns.size();
     AST::InstrVec EmprySeq;
     auto Frame =
-        MemPool.getFrameEntry(FuncInst->getModuleAddr(), /// Module address
+        MemPool.allocFrameEntry(FuncInst->getModuleAddr(), /// Module address
         Arity,                     /// Arity
-        Vals,                      /// Reversed arguments
-        FuncInst->getLocals()      /// Local defs
+                                Vals,                 /// Reversed arguments
+                                FuncInst->getLocals() /// Local defs
     );
     StackMgr.push(Frame);
     InstrPdr.pushInstrs(InstrProvider::SeqType::FunctionCall, EmprySeq);

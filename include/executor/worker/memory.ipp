@@ -25,7 +25,7 @@ TypeT<T, ErrCode> Worker::runLoadOp(AST::Instruction *Instr,
   std::unique_ptr<ValueEntry> Val;
   StackMgr.pop(Val);
   uint32_t EA = retrieveValue<uint32_t>(*Val.get()) + Instr->getMemoryOffset();
-  MemPool.recycleValueEntry(std::move(Val));
+  MemPool.destroyValueEntry(std::move(Val));
 
   /// Value = Mem.Data[EA : N / 8]
   T Value;
@@ -61,8 +61,8 @@ TypeB<T, ErrCode> Worker::runStoreOp(AST::Instruction *Instr,
       ErrCode::Success) {
     return Status;
   };
-  MemPool.recycleValueEntry(std::move(C));
-  MemPool.recycleValueEntry(std::move(I));
+  MemPool.destroyValueEntry(std::move(C));
+  MemPool.destroyValueEntry(std::move(I));
   return ErrCode::Success;
 }
 

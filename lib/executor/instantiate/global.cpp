@@ -56,7 +56,7 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
   }
 
   /// Make a new frame {NewModInst:{globaddrs}, locals:none} and push
-  auto Frame = MemPool.getFrameEntry(TmpModInstId, 0);
+  auto Frame = MemPool.allocFrameEntry(TmpModInstId, 0);
   StackMgr.push(Frame);
 
   /// Evaluate values and set to global instance.
@@ -82,7 +82,7 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
     AST::ValVariant Val;
     PopVal->getValue(Val);
     GlobInst->setValue(Val);
-    MemPool.recycleValueEntry(std::move(PopVal));
+    MemPool.destroyValueEntry(std::move(PopVal));
   }
 
   /// Pop Frame

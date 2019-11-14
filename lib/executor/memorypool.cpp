@@ -13,7 +13,7 @@ MemoryPool::MemoryPool()
 }
 
 /// Get and initialize frame entry.
-std::unique_ptr<FrameEntry> MemoryPool::getFrameEntry(
+std::unique_ptr<FrameEntry> MemoryPool::allocFrameEntry(
     unsigned int ModuleAddr, unsigned int FrameArity,
     std::vector<std::unique_ptr<ValueEntry>> &Args,
     const std::vector<std::pair<unsigned int, AST::ValType>> &LocalDefs) {
@@ -22,8 +22,8 @@ std::unique_ptr<FrameEntry> MemoryPool::getFrameEntry(
   return Frame;
 }
 
-std::unique_ptr<FrameEntry> MemoryPool::getFrameEntry(unsigned int ModuleAddr,
-                                                      unsigned int FrameArity) {
+std::unique_ptr<FrameEntry>
+MemoryPool::allocFrameEntry(unsigned int ModuleAddr, unsigned int FrameArity) {
   std::unique_ptr<FrameEntry> Frame = requestFrameEntryFromPool();
   Frame->InitFrameEntry(ModuleAddr, FrameArity);
   return Frame;
@@ -31,35 +31,37 @@ std::unique_ptr<FrameEntry> MemoryPool::getFrameEntry(unsigned int ModuleAddr,
 
 /// Get and initialize label entry.
 std::unique_ptr<LabelEntry>
-MemoryPool::getLabelEntry(const unsigned int LabelArity,
-                          AST::Instruction *Instr) {
+MemoryPool::allocLabelEntry(const unsigned int LabelArity,
+                            AST::Instruction *Instr) {
   std::unique_ptr<LabelEntry> Label = requestLabelEntryFromPool();
   Label->InitLabelEntry(LabelArity, Instr);
   return Label;
 }
 
 /// Get and initialize value entry.
-std::unique_ptr<ValueEntry> MemoryPool::getValueEntry(const ValueEntry &VE) {
+std::unique_ptr<ValueEntry> MemoryPool::allocValueEntry(const ValueEntry &VE) {
   std::unique_ptr<ValueEntry> Value = requestValueEntryFromPool();
   Value->InitValueEntry(VE);
   return Value;
 }
 
-std::unique_ptr<ValueEntry> MemoryPool::getValueEntry(const AST::ValType &VT) {
+std::unique_ptr<ValueEntry>
+MemoryPool::allocValueEntry(const AST::ValType &VT) {
   std::unique_ptr<ValueEntry> Value = requestValueEntryFromPool();
   Value->InitValueEntry(VT);
   return Value;
 }
 
 std::unique_ptr<ValueEntry>
-MemoryPool::getValueEntry(const AST::ValType &VT, const AST::ValVariant &Val) {
+MemoryPool::allocValueEntry(const AST::ValType &VT,
+                            const AST::ValVariant &Val) {
   std::unique_ptr<ValueEntry> Value = requestValueEntryFromPool();
   Value->InitValueEntry(VT, Val);
   return Value;
 }
 
 std::unique_ptr<ValueEntry>
-MemoryPool::getValueEntry(const AST::ValVariant &Val) {
+MemoryPool::allocValueEntry(const AST::ValVariant &Val) {
   std::unique_ptr<ValueEntry> Value = requestValueEntryFromPool();
   Value->InitValueEntry(Val);
   return Value;

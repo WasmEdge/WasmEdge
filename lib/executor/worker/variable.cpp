@@ -16,7 +16,7 @@ ErrCode Worker::runLocalGetOp(unsigned int Idx) {
   if ((Status = CurrentFrame->getValue(Idx, ValEntry)) != ErrCode::Success) {
     return Status;
   }
-  return StackMgr.push(MemPool.getValueEntry(*ValEntry));
+  return StackMgr.push(MemPool.allocValueEntry(*ValEntry));
 }
 
 ErrCode Worker::runLocalSetOp(unsigned int Idx) {
@@ -29,7 +29,7 @@ ErrCode Worker::runLocalSetOp(unsigned int Idx) {
       ErrCode::Success) {
     return Status;
   }
-  MemPool.recycleValueEntry(std::move(ValEntry));
+  MemPool.destroyValueEntry(std::move(ValEntry));
   return Status;
 }
 
@@ -52,7 +52,7 @@ ErrCode Worker::runGlobalGetOp(unsigned int Idx) {
   if ((Status = GlobInst->getValue(Val)) != ErrCode::Success) {
     return Status;
   }
-  return StackMgr.push(MemPool.getValueEntry(GlobInst->getValType(), Val));
+  return StackMgr.push(MemPool.allocValueEntry(GlobInst->getValType(), Val));
 }
 
 ErrCode Worker::runGlobalSetOp(unsigned int Idx) {
@@ -69,7 +69,7 @@ ErrCode Worker::runGlobalSetOp(unsigned int Idx) {
   if ((Status = ValEntry->getValue(Val)) != ErrCode::Success) {
     return Status;
   }
-  MemPool.recycleValueEntry(std::move(ValEntry));
+  MemPool.destroyValueEntry(std::move(ValEntry));
   return GlobInst->setValue(Val);
 }
 

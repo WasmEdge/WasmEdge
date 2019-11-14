@@ -51,7 +51,7 @@ ErrCode Executor::instantiate(AST::Module *Mod) {
 
   /// Initializa the tables and memories
   /// Make a new frame {ModInst, locals:none} and push
-  auto Frame = MemPool.getFrameEntry(ModInst->Addr, 0);
+  auto Frame = MemPool.allocFrameEntry(ModInst->Addr, 0);
   StackMgr.push(Frame);
 
   /// Instantiate TableSection (TableSec, ElemSec)

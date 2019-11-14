@@ -20,7 +20,7 @@ ErrCode Worker::runMemorySizeOp() {
   };
 
   /// Push SZ = page size to stack.
-  return StackMgr.push(MemPool.getValueEntry(MemoryInst->getDataPageSize()));
+  return StackMgr.push(MemPool.allocValueEntry(MemoryInst->getDataPageSize()));
 }
 
 ErrCode Worker::runMemoryGrowOp() {
@@ -43,7 +43,7 @@ ErrCode Worker::runMemoryGrowOp() {
       ErrCode::Success) {
     return StackMgr.pushValue(static_cast<uint32_t>(-1));
   }
-  MemPool.recycleValueEntry(std::move(N));
+  MemPool.destroyValueEntry(std::move(N));
   return StackMgr.pushValue(CurrPageSize);
 }
 

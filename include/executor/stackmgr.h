@@ -61,7 +61,7 @@ public:
     return push(std::move(NewEntry));
   }
   template <typename T> TypeB<T, ErrCode> pushValue(T Val) {
-    Stack.push_back(std::move(MemPool.getValueEntry(Val)));
+    Stack.push_back(std::move(MemPool.allocValueEntry(Val)));
     return ErrCode::Success;
   }
 
@@ -78,14 +78,14 @@ public:
     switch (Stack.back().index()) {
     case 0: /// Frame entry
       FrameIdx.pop_back();
-      MemPool.recycleFrameEntry(std::move(std::get<0>(Stack.back())));
+      MemPool.destroyFrameEntry(std::move(std::get<0>(Stack.back())));
       break;
     case 1: /// Label entry
       LabelIdx.pop_back();
-      MemPool.recycleLabelEntry(std::move(std::get<1>(Stack.back())));
+      MemPool.destroyLabelEntry(std::move(std::get<1>(Stack.back())));
       break;
     case 2: /// Value entry
-      MemPool.recycleValueEntry(std::move(std::get<2>(Stack.back())));
+      MemPool.destroyValueEntry(std::move(std::get<2>(Stack.back())));
       break;
     default:
       break;
@@ -130,10 +130,10 @@ public:
     while (Stack.size() > 0) {
       switch (Stack.back().index()) {
       case 0: /// Frame entry
-        MemPool.recycleFrameEntry(std::move(std::get<0>(Stack.back())));
+        MemPool.destroyFrameEntry(std::move(std::get<0>(Stack.back())));
         break;
       case 1: /// Label entry
-        MemPool.recycleLabelEntry(std::move(std::get<1>(Stack.back())));
+        MemPool.destroyLabelEntry(std::move(std::get<1>(Stack.back())));
         break;
       default:
         break;

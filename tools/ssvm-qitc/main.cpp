@@ -8,6 +8,11 @@
 #include <unistd.h>
 
 int main(int Argc, char *Argv[]) {
+  if (Argc != 4) {
+    std::cout << "Usage: ./ssvm model_wasm tensor_file weight_file"
+              << std::endl;
+    return 0;
+  }
 
   char *cwdstr = getcwd(NULL, 0);
   opendir(cwdstr);

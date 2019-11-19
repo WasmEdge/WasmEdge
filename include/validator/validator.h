@@ -51,12 +51,13 @@ class ValidatMachine
   void setlocal(unsigned int, ValType);
   ValType getglobal(unsigned int);
   void setglobal(unsigned int, ValType);
+  ErrCode validateWarp(const AST::InstrVec &);
 public:
   void addloacl(unsigned int, AST::ValType);
   void addglobal(unsigned int, AST::GlobalType);
   void reset(bool CleanGlobal = false);
   void init();
-  ErrCode validate(AST::InstrVec &);
+  ErrCode validate(const AST::InstrVec &);
   std::deque<ValType> result(){return ValStack;};
 private:
   std::map<unsigned int, ValType> local;

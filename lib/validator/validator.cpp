@@ -113,12 +113,18 @@ ValType ValidatMachine::pop_opd(ValType expect)
   return res;
 }
 
-ErrCode ValidatMachine::validate(AST::InstrVec &insts)
+ErrCode ValidatMachine::validateWarp(const AST::InstrVec &insts)
 {
   cout << insts.size() << " insts.." << endl;
+  for(auto &op:insts)
+    runop(op.get());
+  return ErrCode::Success;
+}
+
+ErrCode ValidatMachine::validate(const AST::InstrVec &insts)
+{
   try {
-    for(auto &op:insts)
-      runop(op.get());
+    validateWarp(insts);
   } catch (...) {
     return ErrCode::Invalid;
   }
@@ -137,7 +143,8 @@ void ValidatMachine::runop(AST::Instruction *instr)
   };
 
   auto opcode = instr->getOpCode();
-  AST::VariableInstruction* VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
+  AST::VariableInstruction* VarInstr = nullptr;
+  AST::BlockControlInstruction* BlockInstr = nullptr;
   switch(opcode)
   {
     /// 0x00
@@ -145,7 +152,10 @@ void ValidatMachine::runop(AST::Instruction *instr)
       //TODO:
     case OpCode::Nop:
       break;
-    
+    case OpCode::Block:
+      BlockInstr = dynamic_cast<AST::BlockControlInstruction *>(instr);
+      validateWarp(BlockInstr->getBody());
+      break;
     /// 0x10
 
     case OpCode::Drop:
@@ -162,25 +172,30 @@ void ValidatMachine::runop(AST::Instruction *instr)
 
     /// 0x20
     case OpCode::Local__get:
+      VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
       stack_trans({},{getlocal(VarInstr->getIndex())});
       break;
     case OpCode::Local__set:
     {
+      VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
       auto t = pop_opd();
       setlocal(VarInstr->getIndex(), t);
       break;
     }
     case OpCode::Local__tee:
     {
+      VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
       auto t = pop_opd();
       setlocal(VarInstr->getIndex(), t);
       push_opd(t);
       break;
     }
     case OpCode::Global__get:
+      VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
       stack_trans({},{getglobal(VarInstr->getIndex())});
     case OpCode::Global__set:
     {
+      VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
       auto t = pop_opd();
       setglobal(VarInstr->getIndex(), t);
     }
@@ -213,6 +228,7 @@ void ValidatMachine::runop(AST::Instruction *instr)
       ///TODO: check memory[0]
       stack_trans({},{ValType::I32});
       break;
+
     /// 0x40
       case OpCode::Memory__grow:
       ///TODO: check memory[0]
@@ -230,11 +246,63 @@ void ValidatMachine::runop(AST::Instruction *instr)
     case OpCode::F64__const:
       stack_trans({},{ValType::F64});
       break;
+    case OpCode::I32__eqz:
+      stack_trans({ValType::I32},{ValType::I32});
+      break;
+    case OpCode::I32__eq:
+    case OpCode::I32__ne:
+    case OpCode::I32__lt_s:
+    case OpCode::I32__lt_u:
+    case OpCode::I32__gt_s:
+    case OpCode::I32__gt_u:
+    case OpCode::I32__le_s:
+    case OpCode::I32__le_u:
+    case OpCode::I32__ge_s:
+    case OpCode::I32__ge_u:
+      stack_trans({ValType::I32,ValType::I32},{ValType::I32});
+      break;
 
     /// 0x50
+    case OpCode::I64__eqz:
+      stack_trans({ValType::I64},{ValType::I32});
+      break;
+    case OpCode::I64__eq:
+    case OpCode::I64__ne:
+    case OpCode::I64__lt_s:
+    case OpCode::I64__lt_u:
+    case OpCode::I64__gt_s:
+    case OpCode::I64__gt_u:
+    case OpCode::I64__le_s:
+    case OpCode::I64__le_u:
+    case OpCode::I64__ge_s:
+    case OpCode::I64__ge_u:
+      stack_trans({ValType::I64,ValType::I64},{ValType::I32});
+      break;
+    case OpCode::F32__eq:
+    case OpCode::F32__ne:
+    case OpCode::F32__lt:
+    case OpCode::F32__gt:
+    case OpCode::F32__le:
+      stack_trans({ValType::F32,ValType::F32},{ValType::I32});
+      break;
 
     /// 0x60
-
+    case OpCode::F32__ge:
+      stack_trans({ValType::F32,ValType::F32},{ValType::I32});
+      break;
+    case OpCode::F64__eq:
+    case OpCode::F64__ne:
+    case OpCode::F64__lt:
+    case OpCode::F64__gt:
+    case OpCode::F64__le:
+    case OpCode::F64__ge:
+      stack_trans({ValType::F64,ValType::F64},{ValType::I32});
+      break;
+    case OpCode::I32__clz:
+    case OpCode::I32__ctz:
+    case OpCode::I32__popcnt:
+      stack_trans({ValType::I32},{ValType::I32});
+      break;
     case OpCode::I32__add:
     case OpCode::I32__sub:
     case OpCode::I32__mul:
@@ -243,6 +311,7 @@ void ValidatMachine::runop(AST::Instruction *instr)
     case OpCode::I32__rem_s:
       stack_trans({ValType::I32, ValType::I32},{ValType::I32});
       break;
+
     /// 0x70
     case OpCode::I32__rem_u:
     case OpCode::I32__and:
@@ -266,6 +335,7 @@ void ValidatMachine::runop(AST::Instruction *instr)
     case OpCode::I64__div_s:
       stack_trans({ValType::I64, ValType::I64},{ValType::I64});
       break;
+
     /// 0x80
     case OpCode::I64__div_u:
     case OpCode::I64__rem_s:
@@ -287,6 +357,7 @@ void ValidatMachine::runop(AST::Instruction *instr)
     case OpCode::F32__trunc:
       stack_trans({ValType::F32},{ValType::F32});
       break;
+
     /// 0x90
     case OpCode::F32__nearest:
     case OpCode::F32__sqrt:
@@ -310,6 +381,7 @@ void ValidatMachine::runop(AST::Instruction *instr)
     case OpCode::F64__sqrt:
       stack_trans({ValType::F64},{ValType::F64});
       break;
+
     /// 0xA0
     case OpCode::F64__add:
     case OpCode::F64__sub:
@@ -339,6 +411,7 @@ void ValidatMachine::runop(AST::Instruction *instr)
     case OpCode::I64__trunc_f32_u:
       stack_trans({ValType::F32},{ValType::I64});
       break;
+
     /// 0XB0
     case OpCode::I64__trunc_f64_s:
     case OpCode::I64__trunc_f64_u:

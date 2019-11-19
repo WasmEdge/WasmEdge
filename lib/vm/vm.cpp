@@ -30,7 +30,7 @@
 #include "vm/hostfunc/wasi/path_Open.h"
 #include "vm/hostfunc/wasi/proc_Exit.h"
 
-#ifdef ONNC_WASM_LIBRARY
+#ifdef ONNC_WASM
 #include "vm/hostfunc/onnc/runtime_add_float.h"
 #include "vm/hostfunc/onnc/runtime_averagepool_float.h"
 #include "vm/hostfunc/onnc/runtime_batchnormalization_float.h"
@@ -289,7 +289,7 @@ ErrCode VM::prepareVMHost() {
       Status = setHostFunction(FuncWasiProcExit, "wasi_unstable", "proc_exit");
     }
 
-#ifdef ONNC_WASM_LIBRARY
+#ifdef ONNC_WASM
     auto FuncONNCRuntimeAddFloat =
         std::make_unique<Executor::ONNCRuntimeAddFloat>();
     auto FuncONNCRuntimeAveragepoolFloat =

@@ -3,6 +3,7 @@ add_executable(ssvm-qitc
 )
 
 if(ONNC_WASM_LIBRARY)
+  add_definitions(-DONNC_WASM)
   target_link_libraries(ssvm-qitc
     PRIVATE
     ssvmVM

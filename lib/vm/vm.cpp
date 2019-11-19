@@ -30,6 +30,25 @@
 #include "vm/hostfunc/wasi/path_Open.h"
 #include "vm/hostfunc/wasi/proc_Exit.h"
 
+#ifdef ONNC_WASM_LIBRARY
+#include "vm/hostfunc/onnc/runtime_add_float.h"
+#include "vm/hostfunc/onnc/runtime_averagepool_float.h"
+#include "vm/hostfunc/onnc/runtime_batchnormalization_float.h"
+#include "vm/hostfunc/onnc/runtime_concat_float.h"
+#include "vm/hostfunc/onnc/runtime_conv_float.h"
+#include "vm/hostfunc/onnc/runtime_gemm_float.h"
+#include "vm/hostfunc/onnc/runtime_globalaveragepool_float.h"
+#include "vm/hostfunc/onnc/runtime_lrn_float.h"
+#include "vm/hostfunc/onnc/runtime_maxpool_float.h"
+#include "vm/hostfunc/onnc/runtime_mul_float.h"
+#include "vm/hostfunc/onnc/runtime_relu_float.h"
+#include "vm/hostfunc/onnc/runtime_reshape_float.h"
+#include "vm/hostfunc/onnc/runtime_softmax_float.h"
+#include "vm/hostfunc/onnc/runtime_sum_float.h"
+#include "vm/hostfunc/onnc/runtime_transpose_float.h"
+#include "vm/hostfunc/onnc/runtime_unsqueeze_float.h"
+#endif
+
 #include <stdio.h>
 
 namespace SSVM {
@@ -269,6 +288,107 @@ ErrCode VM::prepareVMHost() {
     if (Status == ErrCode::Success) {
       Status = setHostFunction(FuncWasiProcExit, "wasi_unstable", "proc_exit");
     }
+
+#ifdef ONNC_WASM_LIBRARY
+    auto FuncONNCRuntimeAddFloat =
+        std::make_unique<Executor::ONNCRuntimeAddFloat>();
+    auto FuncONNCRuntimeAveragepoolFloat =
+        std::make_unique<Executor::ONNCRuntimeAveragepoolFloat>();
+    auto FuncONNCRuntimeBatchnormalizationFloat =
+        std::make_unique<Executor::ONNCRuntimeBatchnormalizationFloat>();
+    auto FuncONNCRuntimeConcatFloat =
+        std::make_unique<Executor::ONNCRuntimeConcatFloat>();
+    auto FuncONNCRuntimeConvFloat =
+        std::make_unique<Executor::ONNCRuntimeConvFloat>();
+    auto FuncONNCRuntimeGemmFloat =
+        std::make_unique<Executor::ONNCRuntimeGemmFloat>();
+    auto FuncONNCRuntimeGlobalaveragepoolFloat =
+        std::make_unique<Executor::ONNCRuntimeGlobalaveragepoolFloat>();
+    auto FuncONNCRuntimeLrnFloat =
+        std::make_unique<Executor::ONNCRuntimeLrnFloat>();
+    auto FuncONNCRuntimeMaxpoolFloat =
+        std::make_unique<Executor::ONNCRuntimeMaxpoolFloat>();
+    auto FuncONNCRuntimeMulFloat =
+        std::make_unique<Executor::ONNCRuntimeMulFloat>();
+    auto FuncONNCRuntimeReluFloat =
+        std::make_unique<Executor::ONNCRuntimeReluFloat>();
+    auto FuncONNCRuntimeReshapeFloat =
+        std::make_unique<Executor::ONNCRuntimeReshapeFloat>();
+    auto FuncONNCRuntimeSoftmaxFloat =
+        std::make_unique<Executor::ONNCRuntimeSoftmaxFloat>();
+    auto FuncONNCRuntimeSumFloat =
+        std::make_unique<Executor::ONNCRuntimeSumFloat>();
+    auto FuncONNCRuntimeTransposeFloat =
+        std::make_unique<Executor::ONNCRuntimeTransposeFloat>();
+    auto FuncONNCRuntimeUnsqueezeFloat =
+        std::make_unique<Executor::ONNCRuntimeUnsqueezeFloat>();
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeAddFloat, "onnc_wasm",
+                               "ONNC_RUNTIME_add_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeAveragepoolFloat, "onnc_wasm",
+                               "ONNC_RUNTIME_averagepool_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status =
+          setHostFunction(FuncONNCRuntimeBatchnormalizationFloat, "onnc_wasm",
+                          "ONNC_RUNTIME_batchnormalization_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeConcatFloat, "onnc_wasm",
+                               "ONNC_RUNTIME_concat_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeConvFloat, "onnc_wasm",
+                               "ONNC_RUNTIME_conv_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeGemmFloat, "onnc_wasm",
+                               "ONNC_RUNTIME_gemm_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status =
+          setHostFunction(FuncONNCRuntimeGlobalaveragepoolFloat, "onnc_wasm",
+                          "ONNC_RUNTIME_globalaveragepool_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeLrnFloat, "onnc_wasm",
+                               "ONNC_RUNTIME_lrn_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeMaxpoolFloat, "onnc_wasm",
+                               "ONNC_RUNTIME_maxpool_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeMulFloat, "onnc_wasm",
+                               "ONNC_RUNTIME_mul_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeReluFloat, "onnc_wasm",
+                               "ONNC_RUNTIME_relu_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeReshapeFloat, "onnc_wasm",
+                               "ONNC_RUNTIME_reshape_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeSoftmaxFloat, "onnc_wasm",
+                               "ONNC_RUNTIME_softmax_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeSumFloat, "onnc_wasm",
+                               "ONNC_RUNTIME_sum_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeTransposeFloat, "onnc_wasm",
+                               "ONNC_RUNTIME_transpose_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeUnsqueezeFloat, "onnc_wasm",
+                               "ONNC_RUNTIME_unsqueeze_float");
+    }
+#endif
   }
   return Status;
 }

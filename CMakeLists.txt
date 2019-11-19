@@ -24,6 +24,10 @@ option(BUILD_TESTS "Generate build targets for the ssvm unit tests." OFF)
 find_package(Boost REQUIRED)
 find_package(ONNC-wasm)
 
+if(ONNC_WASM_LIBRARY)
+  add_definitions(-DONNC_WASM)
+endif()
+
 # Macro for copying directory.
 macro(configure_files srcDir destDir)
 message(STATUS "Generating testing input directory ${destDir}")

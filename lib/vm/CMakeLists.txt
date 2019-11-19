@@ -11,5 +11,11 @@ target_link_libraries(ssvmVM
   ssvmExecutor
   ssvmHostFuncEEI
   ssvmHostFuncWasi
-  ssvmHostFuncONNC
 )
+
+if(ONNC_WASM_LIBRARY)
+  target_link_libraries(ssvmVM
+    PRIVATE
+    ssvmHostFuncONNC
+  )
+endif()

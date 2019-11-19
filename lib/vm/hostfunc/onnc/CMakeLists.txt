@@ -16,3 +16,10 @@ add_library(ssvmHostFuncONNC
   runtime_transpose_float.cpp
   runtime_unsqueeze_float.cpp
 )
+
+if(ONNC_WASM_LIBRARY)
+  target_link_libraries(ssvmHostFuncONNC
+    PRIVATE
+    ${ONNC_WASM_LIBRARY}
+  )
+endif()

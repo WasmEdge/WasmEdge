@@ -31,11 +31,14 @@
 #include "vm/hostfunc/wasi/proc_Exit.h"
 
 #ifdef ONNC_WASM
+/*
 #include "vm/hostfunc/onnc/runtime_add_float.h"
 #include "vm/hostfunc/onnc/runtime_averagepool_float.h"
 #include "vm/hostfunc/onnc/runtime_batchnormalization_float.h"
 #include "vm/hostfunc/onnc/runtime_concat_float.h"
+*/
 #include "vm/hostfunc/onnc/runtime_conv_float.h"
+/*
 #include "vm/hostfunc/onnc/runtime_gemm_float.h"
 #include "vm/hostfunc/onnc/runtime_globalaveragepool_float.h"
 #include "vm/hostfunc/onnc/runtime_lrn_float.h"
@@ -47,6 +50,7 @@
 #include "vm/hostfunc/onnc/runtime_sum_float.h"
 #include "vm/hostfunc/onnc/runtime_transpose_float.h"
 #include "vm/hostfunc/onnc/runtime_unsqueeze_float.h"
+*/
 #endif
 
 #include <stdio.h>
@@ -290,6 +294,8 @@ ErrCode VM::prepareVMHost() {
     }
 
 #ifdef ONNC_WASM
+    /// Found ONNC library, insert ONNC host functions.
+    /*
     auto FuncONNCRuntimeAddFloat =
         std::make_unique<Executor::ONNCRuntimeAddFloat>();
     auto FuncONNCRuntimeAveragepoolFloat =
@@ -298,8 +304,10 @@ ErrCode VM::prepareVMHost() {
         std::make_unique<Executor::ONNCRuntimeBatchnormalizationFloat>();
     auto FuncONNCRuntimeConcatFloat =
         std::make_unique<Executor::ONNCRuntimeConcatFloat>();
+    */
     auto FuncONNCRuntimeConvFloat =
         std::make_unique<Executor::ONNCRuntimeConvFloat>();
+    /*
     auto FuncONNCRuntimeGemmFloat =
         std::make_unique<Executor::ONNCRuntimeGemmFloat>();
     auto FuncONNCRuntimeGlobalaveragepoolFloat =
@@ -339,10 +347,12 @@ ErrCode VM::prepareVMHost() {
       Status = setHostFunction(FuncONNCRuntimeConcatFloat, "onnc_wasm",
                                "ONNC_RUNTIME_concat_float");
     }
+    */
     if (Status == ErrCode::Success) {
       Status = setHostFunction(FuncONNCRuntimeConvFloat, "onnc_wasm",
                                "ONNC_RUNTIME_conv_float");
     }
+    /*
     if (Status == ErrCode::Success) {
       Status = setHostFunction(FuncONNCRuntimeGemmFloat, "onnc_wasm",
                                "ONNC_RUNTIME_gemm_float");
@@ -388,6 +398,7 @@ ErrCode VM::prepareVMHost() {
       Status = setHostFunction(FuncONNCRuntimeUnsqueezeFloat, "onnc_wasm",
                                "ONNC_RUNTIME_unsqueeze_float");
     }
+    */
 #endif
   }
   return Status;

@@ -11,4 +11,5 @@ target_link_libraries(ssvmVM
   ssvmExecutor
   ssvmHostFuncEEI
   ssvmHostFuncWasi
+  ssvmHostFuncONNC
 )

@@ -49,13 +49,18 @@ class ValidatMachine
 
   ValType getlocal(unsigned int);
   void setlocal(unsigned int, ValType);
+  ValType getglobal(unsigned int);
+  void setglobal(unsigned int, ValType);
 public:
   void addloacl(unsigned int, AST::ValType);
-  void reset();
+  void addglobal(unsigned int, AST::GlobalType);
+  void reset(bool CleanGlobal = false);
   void init();
   ErrCode validate(AST::InstrVec &);
+  std::deque<ValType> result(){return ValStack;};
 private:
   std::map<unsigned int, ValType> local;
+  std::map<unsigned int, AST::GlobalType> global;
   std::deque<ValType> ValStack;
   std::deque<CtrlFrame> CtrlStack;
 };
@@ -75,6 +80,8 @@ class Validator {
   ErrCode validate(AST::FunctionSection *, AST::CodeSection *, AST::TypeSection *);
   ErrCode validate(AST::CodeSegment *, AST::FunctionType *);
   ErrCode validate(AST::MemorySection *);
+  ErrCode validate(AST::GlobalSection *);
+  ErrCode validate(AST::GlobalSegment *);
   ErrCode validate(AST::ElementSection *);
   ErrCode validate(AST::ElementSegment *);
   ErrCode validate(AST::StartSection *);

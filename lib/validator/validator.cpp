@@ -17,14 +17,17 @@ using std::puts;
 namespace SSVM {
 namespace Validator {
 
-void ValidatMachine::reset()
+void ValidatMachine::reset(bool CleanGlobal)
 {
   ValStack.clear();
   CtrlStack.clear();
   local.clear();
+
+  if (CleanGlobal)
+    global.clear();
 }
 
-void ValidatMachine::addloacl(unsigned int idx, AST::ValType v)
+static ValType Ast2ValType(AST::ValType v)
 {
   ValType res;
   switch(v)
@@ -37,21 +40,50 @@ void ValidatMachine::addloacl(unsigned int idx, AST::ValType v)
       //TODO throw expect
       throw;
   }
-  local[idx] = res;
+  return res;
+}
+
+void ValidatMachine::addloacl(unsigned int idx, AST::ValType v)
+{
+  local[idx] = Ast2ValType(v);
 }
 
 ValType ValidatMachine::getlocal(unsigned int idx)
 {
-  if( local.count(idx) == 0 )
+  if (local.count(idx) == 0)
     throw;
   return local[idx];
 }
 
 void ValidatMachine::setlocal(unsigned int idx, ValType v)
 {
-  if( local.count(idx) == 0 )
+  if (local.count(idx) == 0)
     throw;
   local[idx] = v;
+}
+
+void ValidatMachine::addglobal(unsigned int idx, AST::GlobalType v)
+{
+  // Check type
+  (void) Ast2ValType(v.getValueType());
+  global[idx] = v;
+}
+
+ValType ValidatMachine::getglobal(unsigned int idx)
+{
+  if (global.count(idx) == 0)
+    throw;
+  return Ast2ValType(global[idx].getValueType());
+}
+
+void ValidatMachine::setglobal(unsigned int idx, ValType v)
+{
+  if (global.count(idx) == 0)
+    throw;
+  if (global[idx].getValueMutation() != AST::ValMut::Var)
+    throw;
+  if (Ast2ValType(global[idx].getValueType()) != v)
+    throw;
 }
 
 void ValidatMachine::push_opd(ValType v)
@@ -83,7 +115,7 @@ ValType ValidatMachine::pop_opd(ValType expect)
 
 ErrCode ValidatMachine::validate(AST::InstrVec &insts)
 {
-  cout << insts.size() << "insts.." << endl;
+  cout << insts.size() << " insts.." << endl;
   try {
     for(auto &op:insts)
       runop(op.get());
@@ -145,9 +177,13 @@ void ValidatMachine::runop(AST::Instruction *instr)
       push_opd(t);
       break;
     }
-
-    //global.get 0x23
-    //global.set 0x24
+    case OpCode::Global__get:
+      stack_trans({},{getglobal(VarInstr->getIndex())});
+    case OpCode::Global__set:
+    {
+      auto t = pop_opd();
+      setglobal(VarInstr->getIndex(), t);
+    }
       
     
     /// 0x30
@@ -343,7 +379,7 @@ void ValidatMachine::runop(AST::Instruction *instr)
       break;
     
     default:
-      cout<<"unimp opcode:0x"<<std::hex<<(uint)opcode<<endl;
+      cout<<"unimp opcode:0x"<<std::hex<<(uint)opcode<<std::dec<<endl;
       throw;
 
   }
@@ -412,8 +448,8 @@ ErrCode Validator::validate(AST::FunctionSection *FuncSec, AST::CodeSection *Cod
 ErrCode Validator::validate(AST::CodeSegment *CodeSeg, AST::FunctionType *Func)
 {
   vm.reset();
-
   int idx = 0;
+
   for (auto val:Func->getParamTypes())
   {
     vm.addloacl(idx++, val);
@@ -421,9 +457,10 @@ ErrCode Validator::validate(AST::CodeSegment *CodeSeg, AST::FunctionType *Func)
 
   for (auto val:CodeSeg->getLocals())
   {
-    vm.addloacl(val.first, val.second);
+    for (unsigned int cnt=0 ; cnt<val.first ; ++cnt)
+      vm.addloacl(idx++, val.second);
   }
-  cout << "locals=" << CodeSeg->getLocals().size() << endl;
+  cout << "locals= " << idx << endl;
   return vm.validate(CodeSeg->getInstrs());
 }
 
@@ -437,6 +474,32 @@ ErrCode Validator::validate(AST::MemorySection *MemSec)
 
   return ErrCode::Success;
 }
+
+ErrCode Validator::validate(AST::GlobalSection *GloSec)
+{
+  if (!GloSec) return ErrCode::Success;
+
+  int idx = 0;
+  for (auto &val:GloSec->getContent())
+    if (validate(val.get()) != ErrCode::Success)
+    {
+      return ErrCode::Invalid;
+    }
+    else
+    {
+      vm.addglobal(idx++, *val.get()->getGlobalType());
+    }
+    
+  cout << "globals=" << GloSec->getContent().size() << endl;
+  return ErrCode::Success;
+}
+
+ErrCode Validator::validate(AST::GlobalSegment *)
+{
+  // TODO: Check GloSeg->getInstrs(); is a const expr
+  return ErrCode::Success;
+}
+
 
 ErrCode Validator::validate(AST::ElementSegment *)
 {cout<<"unimp ElementSegment";
@@ -492,10 +555,10 @@ ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod)
   reset();
 
   // https://webassembly.github.io/spec/core/valid/modules.html
-  if (validate((*Mod).getFunctionSection(), (*Mod).getCodeSection(), (*Mod).getTypeSection()) != ErrCode::Success)
-    return ErrCode::Invalid;
-
   if (validate((*Mod).getMemorySection()) != ErrCode::Success)
+    return ErrCode::Invalid;
+  
+  if (validate((*Mod).getGlobalSection()) != ErrCode::Success)
     return ErrCode::Invalid;
 
   if (validate((*Mod).getElementSection()) != ErrCode::Success)
@@ -509,14 +572,18 @@ ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod)
 
   if (validate((*Mod).getImportSection()) != ErrCode::Success)
     return ErrCode::Invalid;
+
+  if (validate((*Mod).getFunctionSection(), (*Mod).getCodeSection(), (*Mod).getTypeSection()) != ErrCode::Success)
+    return ErrCode::Invalid;
   
+  cout<<"Validator OK"<<endl;
   cout<<std::flush;
   return ErrCode::Success;
 }
 
 void Validator::reset()
 {
-  vm.reset();
+  vm.reset(true);
 }
 
 } // namespace Loader

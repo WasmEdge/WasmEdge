@@ -94,9 +94,8 @@ void ValidatMachine::addfunc(AST::FunctionType *func)
 
   for (auto val:func->getParamTypes())
     param.emplace_back(Ast2ValType(val));
-  for (auto val:func->getParamTypes())
+  for (auto val:func->getReturnTypes())
     ret.emplace_back(Ast2ValType(val));
-
   funcs.emplace_back(param, ret);
 }
 
@@ -111,7 +110,10 @@ ValType ValidatMachine::pop_opd()
     return ValType::Unknown;
   
   if (ValStack.size() == CtrlStack[0].height)
+  {
+    cout<<"Reach Block End."<<endl;
     throw;
+  }
 
   auto res = ValStack.front();
   ValStack.pop_front();
@@ -218,7 +220,6 @@ void ValidatMachine::runop(AST::Instruction *instr)
     case OpCode::Block:
     {
       AST::BlockControlInstruction* BlockInstr = dynamic_cast<AST::BlockControlInstruction *>(instr);
-      ///
       auto res = BlockInstr->getResultType();
       std::vector<ValType> res_vec;
       if (res != SSVM::AST::ValType::None)
@@ -227,12 +228,33 @@ void ValidatMachine::runop(AST::Instruction *instr)
       validateWarp(BlockInstr->getBody());
       break;
     }
-      
+    case OpCode::Loop:
+    {
+      AST::BlockControlInstruction* BlockInstr = dynamic_cast<AST::BlockControlInstruction *>(instr);
+
+      auto res = BlockInstr->getResultType();
+      std::vector<ValType> res_vec;
+      if (res != SSVM::AST::ValType::None)
+        res_vec.emplace_back(Ast2ValType(res));
+      push_ctrl({}, res_vec);
+      validateWarp(BlockInstr->getBody());
+      break;
+    }
+
+    case OpCode::Br:
+    {
+      AST::BrControlInstruction *BrInstr = dynamic_cast<AST::BrControlInstruction *>(instr);
+      auto N = BrInstr->getLabelIndex();
+      if (CtrlStack.size()<=N)
+        throw;
+      pop_opds(CtrlStack[N].label_types);
+      unreachable();
+      break;
+    }
     case OpCode::Br_if:
     {
       AST::BrControlInstruction *BrInstr = dynamic_cast<AST::BrControlInstruction *>(instr);
       auto N = BrInstr->getLabelIndex();
-      cout<<"N="<<N<<' '<<CtrlStack.size()<<endl;
       if (CtrlStack.size()<=N)
         throw;
       pop_opd(ValType::I32);
@@ -240,6 +262,8 @@ void ValidatMachine::runop(AST::Instruction *instr)
       push_opds(CtrlStack[N].label_types);
       break;
     }
+    case OpCode::Return:
+      break;
   
     /// 0x10
     case OpCode::Call:
@@ -294,9 +318,36 @@ void ValidatMachine::runop(AST::Instruction *instr)
       setglobal(VarInstr->getIndex(), t);
       break;
     }
-      
-    
+
+    ///TODO: Check memory arg
+    case OpCode::I32__load:
+      stack_trans({ValType::I32},{ValType::I32});
+      break;
+    case OpCode::I64__load:
+      stack_trans({ValType::I32},{ValType::I64});
+      break;
+    case OpCode::F32__load:
+      stack_trans({ValType::I32},{ValType::F32});
+      break;
+    case OpCode::F64__load:
+      stack_trans({ValType::I32},{ValType::F64});
+      break;
+    case OpCode::I32__load8_s:
+    case OpCode::I32__load8_u:
+    case OpCode::I32__load16_s:
+    case OpCode::I32__load16_u:
+      stack_trans({ValType::I32},{ValType::I32});
+      break;
+
     /// 0x30
+    case OpCode::I64__load8_s:
+    case OpCode::I64__load8_u:
+    case OpCode::I64__load16_s:
+    case OpCode::I64__load16_u:
+    case OpCode::I64__load32_s:
+    case OpCode::I64__load32_u:
+      stack_trans({ValType::I32},{ValType::I64});
+      break;
     ///TODO: check store: https://webassembly.github.io/spec/core/appendix/properties.html
     case OpCode::I32__store:
       stack_trans({ValType::I32, ValType::I32},{});
@@ -607,8 +658,16 @@ ErrCode Validator::validate(AST::FunctionSection *FuncSec, AST::CodeSection *Cod
     
     if( tid >= TypeSec->getContent().size() )
       return ErrCode::Invalid;
-    
-    validate(CodeSec->getContent().at(id).get(), TypeSec->getContent().at(tid).get());
+
+    vm.addfunc(TypeSec->getContent().at(tid).get());
+  }
+
+  for (size_t id = 0 ; id < TotoalFunctions ; ++id )
+  {
+    auto tid = FuncSec->getContent().at(id);
+
+    if (validate(CodeSec->getContent().at(id).get(), TypeSec->getContent().at(tid).get()) != ErrCode::Success)
+      return ErrCode::Invalid;
   }
   return ErrCode::Success;
 }

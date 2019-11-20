@@ -37,6 +37,9 @@ enum class ValType : unsigned int {
 };
 
 struct CtrlFrame {
+  std::vector<ValType> label_types;
+  std::vector<ValType> end_types;
+  size_t height;
   bool unreachable;
 };
 
@@ -46,6 +49,9 @@ class ValidatMachine
   void push_opd(ValType);
   ValType pop_opd();
   ValType pop_opd(ValType);
+  void push_ctrl(const std::vector<ValType> &, const std::vector<ValType> &);
+  std::vector<ValType> pop_ctrl();
+  void unreachable();
 
   ValType getlocal(unsigned int);
   void setlocal(unsigned int, ValType);
@@ -64,6 +70,8 @@ private:
   std::map<unsigned int, AST::GlobalType> global;
   std::deque<ValType> ValStack;
   std::deque<CtrlFrame> CtrlStack;
+
+  static const size_t NAT = -1;
 };
 
 /// Loader flow control class.

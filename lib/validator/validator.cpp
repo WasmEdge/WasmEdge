@@ -93,8 +93,11 @@ void ValidatMachine::push_opd(ValType v)
 
 ValType ValidatMachine::pop_opd()
 {
-  //if (opds.size() = ctrls[0].height && ctrls[0].unreachable) return Unknown
-  //error_if(opds.size() = ctrls[0].height)
+  if (ValStack.size() == CtrlStack[0].height && CtrlStack[0].unreachable)
+    return ValType::Unknown;
+  
+  if (ValStack.size() == CtrlStack[0].height)
+    throw;
 
   auto res = ValStack.front();
   ValStack.pop_front();
@@ -111,6 +114,43 @@ ValType ValidatMachine::pop_opd(ValType expect)
     throw;
   }
   return res;
+}
+
+void ValidatMachine::push_ctrl(const std::vector<ValType> &label, const std::vector<ValType> &out)
+{
+  CtrlFrame frame;
+
+  frame.label_types = label;
+  frame.end_types = out;
+  frame.height = ValStack.size();
+  frame.unreachable = false;
+
+  CtrlStack.emplace_front(std::move(frame));
+}
+
+std::vector<ValType> ValidatMachine::pop_ctrl()
+{
+  if (CtrlStack.empty())
+    throw;
+  auto head = CtrlStack.front();
+  
+  auto end_reverse = head.end_types;
+  std::reverse(end_reverse.begin(), end_reverse.end());
+  for (auto val:end_reverse)
+    pop_opd(val);
+
+  if (ValStack.size()!=head.height)
+    throw;
+
+  CtrlStack.pop_front();
+  return head.end_types;
+}
+
+void ValidatMachine::unreachable()
+{
+  while (ValStack.size()>CtrlStack[0].height)
+    pop_opd();
+  CtrlStack[0].unreachable = true;
 }
 
 ErrCode ValidatMachine::validateWarp(const AST::InstrVec &insts)

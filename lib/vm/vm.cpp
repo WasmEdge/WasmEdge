@@ -291,7 +291,6 @@ ErrCode VM::prepareVMHost() {
 
 #ifdef ONNC_WASM
     /// Found ONNC library, insert ONNC host functions.
-    
     auto FuncONNCRuntimeAddFloat =
         std::make_unique<Executor::ONNCRuntimeAddFloat>();
     auto FuncONNCRuntimeAveragepoolFloat =

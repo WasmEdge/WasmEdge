@@ -30,6 +30,12 @@ public:
   /// Match the module and function name.
   bool isName(const std::string &Mod, const std::string &Entity);
 
+  /// Getter of module name.
+  const std::string &getModName() const { return ModName; }
+
+  /// Getter of entity name.
+  const std::string &getEntityName() const { return EntityName; }
+
   /// Entity instance address in store manager.
   unsigned int Addr;
 

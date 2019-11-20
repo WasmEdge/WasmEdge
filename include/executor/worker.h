@@ -7,6 +7,7 @@
 #include "stackmgr.h"
 #include "storemgr.h"
 #include "support/casting.h"
+#include "support/time.h"
 #include "worker/provider.h"
 
 #include <cstdint>
@@ -82,7 +83,7 @@ public:
   explicit Worker(StoreManager &Store, StackManager &Stack,
                   HostFunctionManager &HostFunc)
       : StoreMgr(Store), StackMgr(Stack), HostFuncMgr(HostFunc),
-        TheState(State::Inited) {}
+        TheState(State::Inited), CurrentFrame(nullptr), ExecInstrCnt(0) {}
 
   /// Prepare Wasm bytecode expression for execution.
   ErrCode runExpression(const AST::InstrVec &Instrs);
@@ -248,8 +249,7 @@ private:
   template <typename T>
   TypeF<T, ErrCode> runMaxOp(const Value &Val1, const Value &Val2);
   template <typename T>
-  TypeF<T, ErrCode> runCopysignOp(const Value &Val1,
-                                  const Value &Val2);
+  TypeF<T, ErrCode> runCopysignOp(const Value &Val1, const Value &Val2);
   /// ======= Cast Numeric =======
   template <typename TIn, typename TOut>
   TypeUU<TIn, TOut, ErrCode> runWrapOp(const Value &Val);
@@ -275,9 +275,14 @@ private:
   /// Worker State
   State TheState;
   /// Pointer to current frame
-  Frame *CurrentFrame = nullptr;
+  Frame *CurrentFrame;
   /// Instruction provider
   InstrProvider InstrPdr;
+
+  /// Time recorder
+  Support::TimeRecord TimeRecorder;
+  /// Instruction Counts
+  uint64_t ExecInstrCnt;
 };
 
 } // namespace Executor

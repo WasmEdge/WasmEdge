@@ -5,7 +5,9 @@
 #include "support/casting.h"
 
 #include <functional>
+#include <iostream>
 #include <stdio.h>
+#include <sys/time.h>
 
 namespace SSVM {
 namespace Executor {
@@ -35,18 +37,34 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
   if ((Status = invokeFunction(FuncAddr)) != ErrCode::Success)
     return Status;
 
+  /// Set start time.
+  TimeRecorder.startRecord("Execution");
+
   /// Execute run loop.
-  printf("\n !!! start running...\n");
+  std::cout << " !!! start running..." << std::endl;
   TheState = State::CodeSet;
   Status = execute();
-  if (Status == ErrCode::Revert)
-    printf("\n !!! revert\n");
-  else if (Status == ErrCode::Terminated)
-    printf("\n !!! terminated\n");
-  else if (Status != ErrCode::Success)
-    printf("\n !!! worker execute error %u\n", Status);
-  else
-    printf("\n --- exec success\n");
+  if (Status == ErrCode::Revert) {
+    std::cout << " !!! revert" << std::endl;
+  } else if (Status == ErrCode::Terminated) {
+    std::cout << " --- terminated" << std::endl;
+  } else if (Status != ErrCode::Success) {
+    std::cout << " !!! worker execute error " << (unsigned int)Status
+              << std::endl;
+  } else {
+    std::cout << " --- exec success" << std::endl;
+  }
+
+  /// Print time cost.
+  uint64_t ExecTime = TimeRecorder.stopRecord("Execution");
+  uint64_t HostFuncTime = TimeRecorder.getRecord("HostFunction");
+  std::cout << " Instructions execution cost " << ExecTime << " us" << std::endl
+            << " Host functions cost " << HostFuncTime << " us" << std::endl
+            << " Total executed instructions: " << ExecInstrCnt << std::endl
+            << " Instructions per second: "
+            << static_cast<uint64_t>((double)ExecInstrCnt * 1000000 / ExecTime)
+            << std::endl;
+
   if (Status == ErrCode::Terminated) {
     /// Forced terminated case.
     return ErrCode::Success;
@@ -58,6 +76,7 @@ ErrCode Worker::reset() {
   TheState = State::Inited;
   CurrentFrame = nullptr;
   InstrPdr.reset();
+  ExecInstrCnt = 0;
   return ErrCode::Success;
 }
 
@@ -508,6 +527,7 @@ ErrCode Worker::execute() {
         Status = InstrPdr.popInstrs();
     } else {
       StackMgr.getCurrentFrame(CurrentFrame);
+      ++ExecInstrCnt;
       /// Run instructions.
       Status = Instr->execute(*this);
     }
@@ -593,10 +613,26 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
       Returns.push_back(AST::ValueFromType(*It));
     }
 
+    /// Set start time.
+    std::string RecordName =
+        FuncInst->getModName() + "::" + FuncInst->getEntityName();
+    TimeRecorder.stopRecord("Execution");
+    TimeRecorder.startRecord("HostFunction");
+    TimeRecorder.startRecord(RecordName);
+
+    /// Run host function.
     if ((Status = HostFunc->run(Vals, Returns, StoreMgr, ModuleInst)) !=
         ErrCode::Success) {
       return Status;
     }
+
+    /// Print time cost.
+    uint64_t HostFuncTime = TimeRecorder.stopRecord(RecordName);
+    TimeRecorder.clearRecord(RecordName);
+    TimeRecorder.stopRecord("HostFunction");
+    TimeRecorder.startRecord("Execution");
+    std::cout << " Host func " << RecordName << " cost " << HostFuncTime
+              << " us" << std::endl;
 
     /// Push result value into stack.
     for (auto Iter = Returns.rbegin(); Iter != Returns.rend(); Iter++) {

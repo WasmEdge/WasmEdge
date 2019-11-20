@@ -24,7 +24,9 @@ void ValidatMachine::reset(bool CleanGlobal)
   local.clear();
 
   if (CleanGlobal)
+  {
     global.clear();
+  }
 }
 
 static ValType Ast2ValType(AST::ValType v)
@@ -86,6 +88,18 @@ void ValidatMachine::setglobal(unsigned int idx, ValType v)
     throw;
 }
 
+void ValidatMachine::addfunc(AST::FunctionType *func)
+{
+  std::vector<ValType> param, ret;
+
+  for (auto val:func->getParamTypes())
+    param.emplace_back(Ast2ValType(val));
+  for (auto val:func->getParamTypes())
+    ret.emplace_back(Ast2ValType(val));
+
+  funcs.emplace_back(param, ret);
+}
+
 void ValidatMachine::push_opd(ValType v)
 {
   ValStack.emplace_front(v);
@@ -116,6 +130,21 @@ ValType ValidatMachine::pop_opd(ValType expect)
   return res;
 }
 
+void ValidatMachine::pop_opds(const std::vector<ValType> &input)
+{
+  auto vals = input;
+  reverse(vals.begin(), vals.end());
+
+  for (auto val:vals)
+    pop_opd(val);
+}
+
+void ValidatMachine::push_opds(const std::vector<ValType> &input)
+{
+  for (auto val:input)
+    push_opd(val);
+}
+
 void ValidatMachine::push_ctrl(const std::vector<ValType> &label, const std::vector<ValType> &out)
 {
   CtrlFrame frame;
@@ -133,11 +162,8 @@ std::vector<ValType> ValidatMachine::pop_ctrl()
   if (CtrlStack.empty())
     throw;
   auto head = CtrlStack.front();
-  
-  auto end_reverse = head.end_types;
-  std::reverse(end_reverse.begin(), end_reverse.end());
-  for (auto val:end_reverse)
-    pop_opd(val);
+
+  pop_opds(head.end_types);
 
   if (ValStack.size()!=head.height)
     throw;
@@ -174,30 +200,57 @@ ErrCode ValidatMachine::validate(const AST::InstrVec &insts)
 void ValidatMachine::runop(AST::Instruction *instr)
 {
   auto stack_trans = [&](const std::vector<ValType> &take, const std::vector<ValType> &put)->void{
-    auto takecp = take;
-    std::reverse(takecp.begin(), takecp.end());
-    for(auto val:takecp)
-      pop_opd(val);
-    for(auto val:put)
-      push_opd(val);
+    pop_opds(take);
+    push_opds(put);
   };
 
   auto opcode = instr->getOpCode();
   AST::VariableInstruction* VarInstr = nullptr;
-  AST::BlockControlInstruction* BlockInstr = nullptr;
+  printf("op: 0x%x\n", opcode);
   switch(opcode)
   {
     /// 0x00
     case OpCode::Unreachable:
-      //TODO:
+      unreachable();
+      break;
     case OpCode::Nop:
       break;
     case OpCode::Block:
-      BlockInstr = dynamic_cast<AST::BlockControlInstruction *>(instr);
+    {
+      AST::BlockControlInstruction* BlockInstr = dynamic_cast<AST::BlockControlInstruction *>(instr);
+      ///
+      auto res = BlockInstr->getResultType();
+      std::vector<ValType> res_vec;
+      if (res != SSVM::AST::ValType::None)
+        res_vec.emplace_back(Ast2ValType(res));
+      push_ctrl(res_vec, res_vec);
       validateWarp(BlockInstr->getBody());
       break;
+    }
+      
+    case OpCode::Br_if:
+    {
+      AST::BrControlInstruction *BrInstr = dynamic_cast<AST::BrControlInstruction *>(instr);
+      auto N = BrInstr->getLabelIndex();
+      cout<<"N="<<N<<' '<<CtrlStack.size()<<endl;
+      if (CtrlStack.size()<=N)
+        throw;
+      pop_opd(ValType::I32);
+      pop_opds(CtrlStack[N].label_types);
+      push_opds(CtrlStack[N].label_types);
+      break;
+    }
+  
     /// 0x10
-
+    case OpCode::Call:
+    {
+      AST::CallControlInstruction *CallInstr = dynamic_cast<AST::CallControlInstruction *>(instr);
+      auto N = CallInstr->getIndex();
+      if (funcs.size()<=N)
+        throw;
+      stack_trans({funcs[N].first},{funcs[N].second});
+      break;
+    }
     case OpCode::Drop:
       stack_trans({ValType::Unknown},{});
       break;
@@ -233,11 +286,13 @@ void ValidatMachine::runop(AST::Instruction *instr)
     case OpCode::Global__get:
       VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
       stack_trans({},{getglobal(VarInstr->getIndex())});
+      break;
     case OpCode::Global__set:
     {
       VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
       auto t = pop_opd();
       setglobal(VarInstr->getIndex(), t);
+      break;
     }
       
     
@@ -655,11 +710,31 @@ ErrCode Validator::validate(AST::ExportDesc *ExportDesc)
   return ErrCode::Success;
 }
 
-ErrCode Validator::validate(AST::ImportSection *ImportSec)
+ErrCode Validator::validate(AST::ImportSection *ImportSec, AST::TypeSection *TypeSec)
 {
-    if (!ImportSec) return ErrCode::Success;
-cout<<"unimp ImportSection";
-  assert( false && "unimp ImportSection" );
+  if (!ImportSec) return ErrCode::Success;
+
+  for( auto &import:ImportSec->getContent())
+    if (validate(import.get(), TypeSec) != ErrCode::Success)
+      return ErrCode::Invalid;
+  return ErrCode::Success;
+}
+
+ErrCode Validator::validate(AST::ImportDesc *Import, AST::TypeSection *TypeSec)
+{
+  switch (Import->getExternalType())
+  {
+    case SSVM::AST::Desc::ExternalType::Function:
+      unsigned int *tid;
+      if (Import->getExternalContent(tid) != SSVM::Executor::ErrCode::Success)
+        return ErrCode::Invalid;
+      vm.addfunc(TypeSec->getContent().at(*tid).get());
+      break;
+    default:
+      cout<<"Unimp ImportDesc:"<<(int)Import->getExternalType()<<endl;
+      return ErrCode::Invalid;
+  }
+
   return ErrCode::Success;
 }
 
@@ -683,7 +758,7 @@ ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod)
   if (validate((*Mod).getExportSection()) != ErrCode::Success)
     return ErrCode::Invalid;
 
-  if (validate((*Mod).getImportSection()) != ErrCode::Success)
+  if (validate((*Mod).getImportSection(), (*Mod).getTypeSection()) != ErrCode::Success)
     return ErrCode::Invalid;
 
   if (validate((*Mod).getFunctionSection(), (*Mod).getCodeSection(), (*Mod).getTypeSection()) != ErrCode::Success)

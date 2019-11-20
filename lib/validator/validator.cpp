@@ -226,6 +226,7 @@ void ValidatMachine::runop(AST::Instruction *instr)
         res_vec.emplace_back(Ast2ValType(res));
       push_ctrl(res_vec, res_vec);
       validateWarp(BlockInstr->getBody());
+      push_opds(pop_ctrl());
       break;
     }
     case OpCode::Loop:
@@ -238,9 +239,13 @@ void ValidatMachine::runop(AST::Instruction *instr)
         res_vec.emplace_back(Ast2ValType(res));
       push_ctrl({}, res_vec);
       validateWarp(BlockInstr->getBody());
+      push_opds(pop_ctrl());
       break;
     }
+    //case OpCode::If: TODO
+    //case OpCode::Else: Unused opcode in AST
 
+    //case OpCode::End: Unused opcode in AST
     case OpCode::Br:
     {
       AST::BrControlInstruction *BrInstr = dynamic_cast<AST::BrControlInstruction *>(instr);
@@ -262,6 +267,7 @@ void ValidatMachine::runop(AST::Instruction *instr)
       push_opds(CtrlStack[N].label_types);
       break;
     }
+    //case OpCode::Br_table: TODO
     case OpCode::Return:
       break;
   
@@ -275,6 +281,7 @@ void ValidatMachine::runop(AST::Instruction *instr)
       stack_trans({funcs[N].first},{funcs[N].second});
       break;
     }
+    //case OpCode::Call_indirect: TODO
     case OpCode::Drop:
       stack_trans({ValType::Unknown},{});
       break;

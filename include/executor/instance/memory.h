@@ -26,7 +26,7 @@ private:
   using Bytes = std::vector<Byte>;
 
 public:
-  MemoryInstance() = default;
+  MemoryInstance() : Data(65536){};
   ~MemoryInstance() = default;
 
   /// Set the memory limit.
@@ -79,7 +79,7 @@ public:
 
 private:
   /// Check access size is valid and adjust vector.
-  ErrCode checkDataSize(unsigned int accessSize);
+  ErrCode checkDataSize(unsigned int AccessSize);
 
   /// \name Data of memory instance.
   /// @{

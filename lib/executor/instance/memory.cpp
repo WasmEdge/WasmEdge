@@ -65,12 +65,19 @@ void *MemoryInstance::getPointer(unsigned int Offset) {
 }
 
 /// Check access size and vector size. See "include/executor/instance/memory.h".
-ErrCode MemoryInstance::checkDataSize(unsigned int accessSize) {
-  if (HasMaxPage && accessSize > MaxPage * 65536) {
+ErrCode MemoryInstance::checkDataSize(unsigned int AccessSize) {
+  if (HasMaxPage && AccessSize > MaxPage * 65536) {
     return ErrCode::MemorySizeExceeded;
   }
-  if (Data.size() < accessSize)
-    Data.resize(accessSize);
+  if (Data.size() < AccessSize) {
+    unsigned int TargetPageSize = AccessSize / 65536 + 1;
+    if (TargetPageSize < 256) {
+      TargetPageSize *= 2;
+    } else {
+      TargetPageSize *= 1.1;
+    }
+    Data.resize(TargetPageSize * 65536);
+  }
   return ErrCode::Success;
 }
 

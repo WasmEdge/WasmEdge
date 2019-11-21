@@ -41,7 +41,6 @@ ErrCode WasiFdRead::run(std::vector<Value> &Args, std::vector<Value> &Res,
 
   /// Sequencially reading.
   unsigned int NRead = 0;
-  std::vector<unsigned char> Data;
   for (unsigned int I = 0; I < IOVSCnt && ErrNo == 0; I++) {
     uint64_t CIOVecBufPtr = 0;
     uint64_t CIOVecBufLen = 0;
@@ -57,20 +56,15 @@ ErrCode WasiFdRead::run(std::vector<Value> &Args, std::vector<Value> &Res,
       return Status;
     }
     /// Read data from Fd.
-    Data.resize(CIOVecBufLen);
-    unsigned int SizeRead = read(Fd, &Data[0], (uint32_t)CIOVecBufLen);
-
+    unsigned char *ReadArr =
+        reinterpret_cast<unsigned char *>(MemInst->getPointer(CIOVecBufPtr));
+    unsigned int SizeRead = read(Fd, ReadArr, (uint32_t)CIOVecBufLen);
     /// Store data.
     if (SizeRead == -1) {
       ErrNo = 1;
     } else {
-      if ((Status = MemInst->setBytes(Data, (uint32_t)CIOVecBufPtr, 0,
-                                      SizeRead)) != ErrCode::Success) {
-        return Status;
-      }
       NRead += SizeRead;
     }
-    Data.clear();
     /// Shift one element.
     /// TODO: sizeof(__wasi_ciovec_t) is 8 in 32-bit wasm.
     IOVSPtr += 8;

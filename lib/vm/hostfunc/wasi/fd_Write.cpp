@@ -41,11 +41,9 @@ ErrCode WasiFdWrite::run(std::vector<Value> &Args, std::vector<Value> &Res,
 
   /// Sequencially writting.
   unsigned int NWritten = 0;
-  std::vector<unsigned char> Data;
   for (unsigned int I = 0; I < IOVSCnt && ErrNo == 0; I++) {
     uint64_t CIOVecBufPtr = 0;
     uint64_t CIOVecBufLen = 0;
-    Data.clear();
     /// TODO: sizeof(ptr) is 32-bit in wasm now.
     /// Get data offset.
     if ((Status = MemInst->loadValue(CIOVecBufPtr, IOVSPtr, 4)) !=
@@ -57,14 +55,10 @@ ErrCode WasiFdWrite::run(std::vector<Value> &Args, std::vector<Value> &Res,
         ErrCode::Success) {
       return Status;
     }
-    /// Get data.
-    if ((Status = MemInst->getBytes(Data, (uint32_t)CIOVecBufPtr,
-                                    (uint32_t)CIOVecBufLen)) !=
-        ErrCode::Success) {
-      return Status;
-    }
     /// Write data to Fd.
-    unsigned int SizeWrite = write(Fd, &Data[0], (uint32_t)CIOVecBufLen);
+    unsigned char *WriteArr =
+        reinterpret_cast<unsigned char *>(MemInst->getPointer(CIOVecBufPtr));
+    unsigned int SizeWrite = write(Fd, WriteArr, (uint32_t)CIOVecBufLen);
     if (SizeWrite != CIOVecBufLen) {
       ErrNo = 1;
     } else {

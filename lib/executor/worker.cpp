@@ -12,22 +12,6 @@ namespace Executor {
 
 namespace {
 using OpCode = AST::Instruction::OpCode;
-
-struct Guard {
-  Guard() = default;
-  template <typename LambdaT> Guard(LambdaT Lambda) : Function(Lambda) {}
-  ~Guard() {
-    if (Function)
-      Function();
-  }
-  template <typename LambdaT> void operator=(LambdaT Lambda) {
-    Function = Lambda;
-  }
-
-private:
-  std::function<void(void)> Function;
-};
-
 } // namespace
 
 ErrCode Worker::runExpression(const AST::InstrVec &Instrs) {
@@ -143,21 +127,18 @@ ErrCode Worker::execute(AST::ParametricInstruction &Instr) {
     return ErrCode::Success;
   case OpCode::Select: {
     /// Pop the i32 value and select values from stack.
-    std::unique_ptr<ValueEntry> CondValEntry, ValEntry1, ValEntry2;
-    StackMgr.pop(CondValEntry);
-    StackMgr.pop(ValEntry2);
-    StackMgr.pop(ValEntry1);
-    uint32_t CondValue = retrieveValue<uint32_t>(*CondValEntry.get());
+    Value CondVal, Val1, Val2;
+    StackMgr.pop(CondVal);
+    StackMgr.pop(Val2);
+    StackMgr.pop(Val1);
+    uint32_t CondValue = retrieveValue<uint32_t>(CondVal);
 
     /// Select the value.
     if (CondValue == 0) {
-      StackMgr.push(ValEntry2);
-      MemPool.destroyValueEntry(std::move(ValEntry1));
+      StackMgr.push(Val2);
     } else {
-      StackMgr.push(ValEntry1);
-      MemPool.destroyValueEntry(std::move(ValEntry2));
+      StackMgr.push(Val1);
     }
-    MemPool.destroyValueEntry(std::move(CondValEntry));
 
     return ErrCode::Success;
   }
@@ -242,268 +223,263 @@ ErrCode Worker::execute(AST::MemoryInstruction &Instr) {
   }
 }
 ErrCode Worker::execute(AST::ConstInstruction &Instr) {
-  return StackMgr.push(MemPool.allocValueEntry(Instr.getConstValue()));
+  return StackMgr.push(Instr.getConstValue());
 }
 ErrCode Worker::execute(AST::UnaryNumericInstruction &Instr) {
-  std::unique_ptr<ValueEntry> Val;
+  Value Val;
   StackMgr.pop(Val);
-  Guard G = [this, &Val]() { MemPool.destroyValueEntry(std::move(Val)); };
   switch (Instr.getOpCode()) {
   case OpCode::I32__eqz:
-    return runEqzOp<uint32_t>(Val.get());
+    return runEqzOp<uint32_t>(Val);
   case OpCode::I64__eqz:
-    return runEqzOp<uint64_t>(Val.get());
+    return runEqzOp<uint64_t>(Val);
   case OpCode::I32__clz:
-    return runClzOp<uint32_t>(Val.get());
+    return runClzOp<uint32_t>(Val);
   case OpCode::I32__ctz:
-    return runCtzOp<uint32_t>(Val.get());
+    return runCtzOp<uint32_t>(Val);
   case OpCode::I32__popcnt:
-    return runPopcntOp<uint32_t>(Val.get());
+    return runPopcntOp<uint32_t>(Val);
   case OpCode::I64__clz:
-    return runClzOp<uint64_t>(Val.get());
+    return runClzOp<uint64_t>(Val);
   case OpCode::I64__ctz:
-    return runCtzOp<uint64_t>(Val.get());
+    return runCtzOp<uint64_t>(Val);
   case OpCode::I64__popcnt:
-    return runPopcntOp<uint64_t>(Val.get());
+    return runPopcntOp<uint64_t>(Val);
   case OpCode::F32__abs:
-    return runAbsOp<float>(Val.get());
+    return runAbsOp<float>(Val);
   case OpCode::F32__neg:
-    return runNegOp<float>(Val.get());
+    return runNegOp<float>(Val);
   case OpCode::F32__ceil:
-    return runCeilOp<float>(Val.get());
+    return runCeilOp<float>(Val);
   case OpCode::F32__floor:
-    return runFloorOp<float>(Val.get());
+    return runFloorOp<float>(Val);
   case OpCode::F32__nearest:
-    return runNearestOp<float>(Val.get());
+    return runNearestOp<float>(Val);
   case OpCode::F32__sqrt:
-    return runSqrtOp<float>(Val.get());
+    return runSqrtOp<float>(Val);
   case OpCode::F64__abs:
-    return runAbsOp<double>(Val.get());
+    return runAbsOp<double>(Val);
   case OpCode::F64__neg:
-    return runNegOp<double>(Val.get());
+    return runNegOp<double>(Val);
   case OpCode::F64__ceil:
-    return runCeilOp<double>(Val.get());
+    return runCeilOp<double>(Val);
   case OpCode::F64__floor:
-    return runFloorOp<double>(Val.get());
+    return runFloorOp<double>(Val);
   case OpCode::F64__nearest:
-    return runNearestOp<double>(Val.get());
+    return runNearestOp<double>(Val);
   case OpCode::F64__sqrt:
-    return runSqrtOp<double>(Val.get());
+    return runSqrtOp<double>(Val);
   case OpCode::I32__wrap_i64:
-    return runWrapOp<uint64_t, uint32_t>(Val.get());
+    return runWrapOp<uint64_t, uint32_t>(Val);
   case OpCode::I32__trunc_f32_s:
-    return runTruncateOp<float, int32_t>(Val.get());
+    return runTruncateOp<float, int32_t>(Val);
   case OpCode::I32__trunc_f32_u:
-    return runTruncateOp<float, uint32_t>(Val.get());
+    return runTruncateOp<float, uint32_t>(Val);
   case OpCode::I32__trunc_f64_s:
-    return runTruncateOp<double, int32_t>(Val.get());
+    return runTruncateOp<double, int32_t>(Val);
   case OpCode::I32__trunc_f64_u:
-    return runTruncateOp<double, uint32_t>(Val.get());
+    return runTruncateOp<double, uint32_t>(Val);
   case OpCode::I64__extend_i32_s:
-    return runExtendOp<int32_t, uint64_t>(Val.get());
+    return runExtendOp<int32_t, uint64_t>(Val);
   case OpCode::I64__extend_i32_u:
-    return runExtendOp<uint32_t, uint64_t>(Val.get());
+    return runExtendOp<uint32_t, uint64_t>(Val);
   case OpCode::I64__trunc_f32_s:
-    return runTruncateOp<float, int64_t>(Val.get());
+    return runTruncateOp<float, int64_t>(Val);
   case OpCode::I64__trunc_f32_u:
-    return runTruncateOp<float, uint64_t>(Val.get());
+    return runTruncateOp<float, uint64_t>(Val);
   case OpCode::I64__trunc_f64_s:
-    return runTruncateOp<double, int64_t>(Val.get());
+    return runTruncateOp<double, int64_t>(Val);
   case OpCode::I64__trunc_f64_u:
-    return runTruncateOp<double, uint64_t>(Val.get());
+    return runTruncateOp<double, uint64_t>(Val);
   case OpCode::F32__convert_i32_s:
-    return runConvertOp<int32_t, float>(Val.get());
+    return runConvertOp<int32_t, float>(Val);
   case OpCode::F32__convert_i32_u:
-    return runConvertOp<uint32_t, float>(Val.get());
+    return runConvertOp<uint32_t, float>(Val);
   case OpCode::F32__convert_i64_s:
-    return runConvertOp<int64_t, float>(Val.get());
+    return runConvertOp<int64_t, float>(Val);
   case OpCode::F32__convert_i64_u:
-    return runConvertOp<uint64_t, float>(Val.get());
+    return runConvertOp<uint64_t, float>(Val);
   case OpCode::F32__demote_f64:
-    return runDemoteOp<double, float>(Val.get());
+    return runDemoteOp<double, float>(Val);
   case OpCode::F64__convert_i32_s:
-    return runConvertOp<int32_t, double>(Val.get());
+    return runConvertOp<int32_t, double>(Val);
   case OpCode::F64__convert_i32_u:
-    return runConvertOp<uint32_t, double>(Val.get());
+    return runConvertOp<uint32_t, double>(Val);
   case OpCode::F64__convert_i64_s:
-    return runConvertOp<int64_t, double>(Val.get());
+    return runConvertOp<int64_t, double>(Val);
   case OpCode::F64__convert_i64_u:
-    return runConvertOp<uint64_t, double>(Val.get());
+    return runConvertOp<uint64_t, double>(Val);
   case OpCode::F64__promote_f32:
-    return runPromoteOp<float, double>(Val.get());
+    return runPromoteOp<float, double>(Val);
   case OpCode::I32__reinterpret_f32:
-    return runReinterpretOp<float, uint32_t>(Val.get());
+    return runReinterpretOp<float, uint32_t>(Val);
   case OpCode::I64__reinterpret_f64:
-    return runReinterpretOp<double, uint64_t>(Val.get());
+    return runReinterpretOp<double, uint64_t>(Val);
   case OpCode::F32__reinterpret_i32:
-    return runReinterpretOp<uint32_t, float>(Val.get());
+    return runReinterpretOp<uint32_t, float>(Val);
   case OpCode::F64__reinterpret_i64:
-    return runReinterpretOp<uint64_t, double>(Val.get());
+    return runReinterpretOp<uint64_t, double>(Val);
   default:
     __builtin_unreachable();
   }
 }
 ErrCode Worker::execute(AST::BinaryNumericInstruction &Instr) {
-  std::unique_ptr<ValueEntry> Val1, Val2;
+  Value Val1, Val2;
   StackMgr.pop(Val2);
   StackMgr.pop(Val1);
-  Guard G = [this, &Val1, &Val2]() {
-    MemPool.destroyValueEntry(std::move(Val1));
-    MemPool.destroyValueEntry(std::move(Val2));
-  };
   switch (Instr.getOpCode()) {
   case OpCode::I32__eq:
-    return runEqOp<uint32_t>(Val1.get(), Val2.get());
+    return runEqOp<uint32_t>(Val1, Val2);
   case OpCode::I32__ne:
-    return runNeOp<uint32_t>(Val1.get(), Val2.get());
+    return runNeOp<uint32_t>(Val1, Val2);
   case OpCode::I32__lt_s:
-    return runLtOp<int32_t>(Val1.get(), Val2.get());
+    return runLtOp<int32_t>(Val1, Val2);
   case OpCode::I32__lt_u:
-    return runLtOp<uint32_t>(Val1.get(), Val2.get());
+    return runLtOp<uint32_t>(Val1, Val2);
   case OpCode::I32__gt_s:
-    return runGtOp<int32_t>(Val1.get(), Val2.get());
+    return runGtOp<int32_t>(Val1, Val2);
   case OpCode::I32__gt_u:
-    return runGtOp<uint32_t>(Val1.get(), Val2.get());
+    return runGtOp<uint32_t>(Val1, Val2);
   case OpCode::I32__le_s:
-    return runLeOp<int32_t>(Val1.get(), Val2.get());
+    return runLeOp<int32_t>(Val1, Val2);
   case OpCode::I32__le_u:
-    return runLeOp<uint32_t>(Val1.get(), Val2.get());
+    return runLeOp<uint32_t>(Val1, Val2);
   case OpCode::I32__ge_s:
-    return runGeOp<int32_t>(Val1.get(), Val2.get());
+    return runGeOp<int32_t>(Val1, Val2);
   case OpCode::I32__ge_u:
-    return runGeOp<uint32_t>(Val1.get(), Val2.get());
+    return runGeOp<uint32_t>(Val1, Val2);
   case OpCode::I64__eq:
-    return runEqOp<uint64_t>(Val1.get(), Val2.get());
+    return runEqOp<uint64_t>(Val1, Val2);
   case OpCode::I64__ne:
-    return runNeOp<uint64_t>(Val1.get(), Val2.get());
+    return runNeOp<uint64_t>(Val1, Val2);
   case OpCode::I64__lt_s:
-    return runLtOp<int64_t>(Val1.get(), Val2.get());
+    return runLtOp<int64_t>(Val1, Val2);
   case OpCode::I64__lt_u:
-    return runLtOp<uint64_t>(Val1.get(), Val2.get());
+    return runLtOp<uint64_t>(Val1, Val2);
   case OpCode::I64__gt_s:
-    return runGtOp<int64_t>(Val1.get(), Val2.get());
+    return runGtOp<int64_t>(Val1, Val2);
   case OpCode::I64__gt_u:
-    return runGtOp<uint64_t>(Val1.get(), Val2.get());
+    return runGtOp<uint64_t>(Val1, Val2);
   case OpCode::I64__le_s:
-    return runLeOp<int64_t>(Val1.get(), Val2.get());
+    return runLeOp<int64_t>(Val1, Val2);
   case OpCode::I64__le_u:
-    return runLeOp<uint64_t>(Val1.get(), Val2.get());
+    return runLeOp<uint64_t>(Val1, Val2);
   case OpCode::I64__ge_s:
-    return runGeOp<int64_t>(Val1.get(), Val2.get());
+    return runGeOp<int64_t>(Val1, Val2);
   case OpCode::I64__ge_u:
-    return runGeOp<uint64_t>(Val1.get(), Val2.get());
+    return runGeOp<uint64_t>(Val1, Val2);
   case OpCode::F32__eq:
-    return runEqOp<float>(Val1.get(), Val2.get());
+    return runEqOp<float>(Val1, Val2);
   case OpCode::F32__ne:
-    return runNeOp<float>(Val1.get(), Val2.get());
+    return runNeOp<float>(Val1, Val2);
   case OpCode::F32__lt:
-    return runLtOp<float>(Val1.get(), Val2.get());
+    return runLtOp<float>(Val1, Val2);
   case OpCode::F32__gt:
-    return runGtOp<float>(Val1.get(), Val2.get());
+    return runGtOp<float>(Val1, Val2);
   case OpCode::F32__le:
-    return runLeOp<float>(Val1.get(), Val2.get());
+    return runLeOp<float>(Val1, Val2);
   case OpCode::F32__ge:
-    return runGeOp<float>(Val1.get(), Val2.get());
+    return runGeOp<float>(Val1, Val2);
   case OpCode::F64__eq:
-    return runEqOp<double>(Val1.get(), Val2.get());
+    return runEqOp<double>(Val1, Val2);
   case OpCode::F64__ne:
-    return runNeOp<double>(Val1.get(), Val2.get());
+    return runNeOp<double>(Val1, Val2);
   case OpCode::F64__lt:
-    return runLtOp<double>(Val1.get(), Val2.get());
+    return runLtOp<double>(Val1, Val2);
   case OpCode::F64__gt:
-    return runGtOp<double>(Val1.get(), Val2.get());
+    return runGtOp<double>(Val1, Val2);
   case OpCode::F64__le:
-    return runLeOp<double>(Val1.get(), Val2.get());
+    return runLeOp<double>(Val1, Val2);
   case OpCode::F64__ge:
-    return runGeOp<double>(Val1.get(), Val2.get());
+    return runGeOp<double>(Val1, Val2);
   case OpCode::I32__add:
-    return runAddOp<uint32_t>(Val1.get(), Val2.get());
+    return runAddOp<uint32_t>(Val1, Val2);
   case OpCode::I32__sub:
-    return runSubOp<uint32_t>(Val1.get(), Val2.get());
+    return runSubOp<uint32_t>(Val1, Val2);
   case OpCode::I32__mul:
-    return runMulOp<uint32_t>(Val1.get(), Val2.get());
+    return runMulOp<uint32_t>(Val1, Val2);
   case OpCode::I32__div_s:
-    return runDivOp<int32_t>(Val1.get(), Val2.get());
+    return runDivOp<int32_t>(Val1, Val2);
   case OpCode::I32__div_u:
-    return runDivOp<uint32_t>(Val1.get(), Val2.get());
+    return runDivOp<uint32_t>(Val1, Val2);
   case OpCode::I32__rem_s:
-    return runRemOp<int32_t>(Val1.get(), Val2.get());
+    return runRemOp<int32_t>(Val1, Val2);
   case OpCode::I32__rem_u:
-    return runRemOp<uint32_t>(Val1.get(), Val2.get());
+    return runRemOp<uint32_t>(Val1, Val2);
   case OpCode::I32__and:
-    return runAndOp<uint32_t>(Val1.get(), Val2.get());
+    return runAndOp<uint32_t>(Val1, Val2);
   case OpCode::I32__or:
-    return runOrOp<uint32_t>(Val1.get(), Val2.get());
+    return runOrOp<uint32_t>(Val1, Val2);
   case OpCode::I32__xor:
-    return runXorOp<uint32_t>(Val1.get(), Val2.get());
+    return runXorOp<uint32_t>(Val1, Val2);
   case OpCode::I32__shl:
-    return runShlOp<uint32_t>(Val1.get(), Val2.get());
+    return runShlOp<uint32_t>(Val1, Val2);
   case OpCode::I32__shr_s:
-    return runShrOp<int32_t>(Val1.get(), Val2.get());
+    return runShrOp<int32_t>(Val1, Val2);
   case OpCode::I32__shr_u:
-    return runShrOp<uint32_t>(Val1.get(), Val2.get());
+    return runShrOp<uint32_t>(Val1, Val2);
   case OpCode::I32__rotl:
-    return runRotlOp<uint32_t>(Val1.get(), Val2.get());
+    return runRotlOp<uint32_t>(Val1, Val2);
   case OpCode::I32__rotr:
-    return runRotrOp<uint32_t>(Val1.get(), Val2.get());
+    return runRotrOp<uint32_t>(Val1, Val2);
   case OpCode::I64__add:
-    return runAddOp<uint64_t>(Val1.get(), Val2.get());
+    return runAddOp<uint64_t>(Val1, Val2);
   case OpCode::I64__sub:
-    return runSubOp<uint64_t>(Val1.get(), Val2.get());
+    return runSubOp<uint64_t>(Val1, Val2);
   case OpCode::I64__mul:
-    return runMulOp<uint64_t>(Val1.get(), Val2.get());
+    return runMulOp<uint64_t>(Val1, Val2);
   case OpCode::I64__div_s:
-    return runDivOp<int64_t>(Val1.get(), Val2.get());
+    return runDivOp<int64_t>(Val1, Val2);
   case OpCode::I64__div_u:
-    return runDivOp<uint64_t>(Val1.get(), Val2.get());
+    return runDivOp<uint64_t>(Val1, Val2);
   case OpCode::I64__rem_s:
-    return runRemOp<int64_t>(Val1.get(), Val2.get());
+    return runRemOp<int64_t>(Val1, Val2);
   case OpCode::I64__rem_u:
-    return runRemOp<uint64_t>(Val1.get(), Val2.get());
+    return runRemOp<uint64_t>(Val1, Val2);
   case OpCode::I64__and:
-    return runAndOp<uint64_t>(Val1.get(), Val2.get());
+    return runAndOp<uint64_t>(Val1, Val2);
   case OpCode::I64__or:
-    return runOrOp<uint64_t>(Val1.get(), Val2.get());
+    return runOrOp<uint64_t>(Val1, Val2);
   case OpCode::I64__xor:
-    return runXorOp<uint64_t>(Val1.get(), Val2.get());
+    return runXorOp<uint64_t>(Val1, Val2);
   case OpCode::I64__shl:
-    return runShlOp<uint64_t>(Val1.get(), Val2.get());
+    return runShlOp<uint64_t>(Val1, Val2);
   case OpCode::I64__shr_s:
-    return runShrOp<int64_t>(Val1.get(), Val2.get());
+    return runShrOp<int64_t>(Val1, Val2);
   case OpCode::I64__shr_u:
-    return runShrOp<uint64_t>(Val1.get(), Val2.get());
+    return runShrOp<uint64_t>(Val1, Val2);
   case OpCode::I64__rotl:
-    return runRotlOp<uint64_t>(Val1.get(), Val2.get());
+    return runRotlOp<uint64_t>(Val1, Val2);
   case OpCode::I64__rotr:
-    return runRotrOp<uint64_t>(Val1.get(), Val2.get());
+    return runRotrOp<uint64_t>(Val1, Val2);
   case OpCode::F32__add:
-    return runAddOp<float>(Val1.get(), Val2.get());
+    return runAddOp<float>(Val1, Val2);
   case OpCode::F32__sub:
-    return runSubOp<float>(Val1.get(), Val2.get());
+    return runSubOp<float>(Val1, Val2);
   case OpCode::F32__mul:
-    return runMulOp<float>(Val1.get(), Val2.get());
+    return runMulOp<float>(Val1, Val2);
   case OpCode::F32__div:
-    return runDivOp<float>(Val1.get(), Val2.get());
+    return runDivOp<float>(Val1, Val2);
   case OpCode::F32__min:
-    return runMinOp<float>(Val1.get(), Val2.get());
+    return runMinOp<float>(Val1, Val2);
   case OpCode::F32__max:
-    return runMaxOp<float>(Val1.get(), Val2.get());
+    return runMaxOp<float>(Val1, Val2);
   case OpCode::F32__copysign:
-    return runCopysignOp<float>(Val1.get(), Val2.get());
+    return runCopysignOp<float>(Val1, Val2);
   case OpCode::F64__add:
-    return runAddOp<double>(Val1.get(), Val2.get());
+    return runAddOp<double>(Val1, Val2);
   case OpCode::F64__sub:
-    return runSubOp<double>(Val1.get(), Val2.get());
+    return runSubOp<double>(Val1, Val2);
   case OpCode::F64__mul:
-    return runMulOp<double>(Val1.get(), Val2.get());
+    return runMulOp<double>(Val1, Val2);
   case OpCode::F64__div:
-    return runDivOp<double>(Val1.get(), Val2.get());
+    return runDivOp<double>(Val1, Val2);
   case OpCode::F64__min:
-    return runMinOp<double>(Val1.get(), Val2.get());
+    return runMinOp<double>(Val1, Val2);
   case OpCode::F64__max:
-    return runMaxOp<double>(Val1.get(), Val2.get());
+    return runMaxOp<double>(Val1, Val2);
   case OpCode::F64__copysign:
-    return runCopysignOp<double>(Val1.get(), Val2.get());
+    return runCopysignOp<double>(Val1, Val2);
   default:
     __builtin_unreachable();
   }
@@ -547,26 +523,24 @@ ErrCode Worker::execute() {
 ErrCode Worker::enterBlock(unsigned int Arity,
                            AST::BlockControlInstruction *Instr,
                            const AST::InstrVec &Seq) {
-  /// Create label for block.
-  std::unique_ptr<LabelEntry> Label;
+  /// Create label for block and push.
   if (Instr == nullptr) {
-    Label = MemPool.allocLabelEntry(Arity);
+    StackMgr.push(Label(Arity));
   } else {
-    Label = MemPool.allocLabelEntry(Arity, Instr);
+    StackMgr.push(Label(Arity, Instr));
   }
 
-  /// Push label and jump to block body.
-  StackMgr.push(Label);
+  /// Jump to block body.
   return InstrPdr.pushInstrs(InstrProvider::SeqType::Block, Seq);
 }
 
 ErrCode Worker::leaveBlock() {
   /// Pop top values on stack until a label.
-  std::vector<std::unique_ptr<ValueEntry>> Vals;
+  std::vector<Value> Vals;
   while (!StackMgr.isTopLabel()) {
-    std::unique_ptr<ValueEntry> Val = nullptr;
+    Value Val;
     StackMgr.pop(Val);
-    Vals.push_back(std::move(Val));
+    Vals.push_back(Val);
   }
 
   /// Pop label entry and the corresponding instruction sequence.
@@ -592,11 +566,11 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
   Instance::ModuleInstance::FType *FuncType = FuncInst->getFuncType();
 
   /// Pop argument vals
-  std::vector<std::unique_ptr<ValueEntry>> Vals;
+  std::vector<Value> Vals;
   for (unsigned int I = 0; I < FuncType->Params.size(); I++) {
-    std::unique_ptr<ValueEntry> Val;
+    Value Val;
     StackMgr.pop(Val);
-    Vals.push_back(std::move(Val));
+    Vals.push_back(Val);
   }
 
   if (FuncInst->isHostFunction()) {
@@ -613,10 +587,10 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     }
 
     /// Prepare return list.
-    std::vector<std::unique_ptr<ValueEntry>> Returns;
+    std::vector<Value> Returns;
     for (auto It = FuncType->Returns.cbegin(); It != FuncType->Returns.cend();
          It++) {
-      Returns.push_back(MemPool.allocValueEntry(*It));
+      Returns.push_back(AST::ValueFromType(*It));
     }
 
     if ((Status = HostFunc->run(Vals, Returns, StoreMgr, ModuleInst)) !=
@@ -626,25 +600,20 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
 
     /// Push result value into stack.
     for (auto Iter = Returns.rbegin(); Iter != Returns.rend(); Iter++) {
-      StackMgr.push(std::move(*Iter));
+      StackMgr.push(*Iter);
     }
 
-    /// Recycle params.
-    for (auto Iter = Vals.begin(); Iter != Vals.end(); Iter++) {
-      MemPool.destroyValueEntry(std::move(*Iter));
-    }
     return Status;
   } else {
     /// Native function case: Push frame with locals and args.
     unsigned int Arity = FuncType->Returns.size();
     AST::InstrVec EmprySeq;
-    auto Frame =
-        MemPool.allocFrameEntry(FuncInst->getModuleAddr(), /// Module address
-        Arity,                     /// Arity
-                                Vals,                 /// Reversed arguments
-                                FuncInst->getLocals() /// Local defs
+    Frame F(FuncInst->getModuleAddr(), /// Module address
+            Arity,                     /// Arity
+            Vals,                      /// Reversed arguments
+            FuncInst->getLocals()      /// Local defs
     );
-    StackMgr.push(Frame);
+    StackMgr.push(F);
     InstrPdr.pushInstrs(InstrProvider::SeqType::FunctionCall, EmprySeq);
 
     /// Run block of function body
@@ -658,11 +627,11 @@ ErrCode Worker::returnFunction() {
   unsigned int Arity = CurrentFrame->getArity();
 
   /// Pop the results from stack.
-  std::vector<std::unique_ptr<ValueEntry>> Vals;
+  std::vector<Value> Vals;
   for (unsigned int I = 0; I < Arity; I++) {
-    std::unique_ptr<ValueEntry> Val;
+    Value Val;
     StackMgr.pop(Val);
-    Vals.push_back(std::move(Val));
+    Vals.push_back(Val);
   }
 
   /// TODO: Validate top of stack is a frame when reach end of function.
@@ -681,33 +650,32 @@ ErrCode Worker::returnFunction() {
 
   /// Push the retrun Vals into Stack.
   for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
-    std::unique_ptr<ValueEntry> Val = std::move(*Iter);
-    StackMgr.push(Val);
+    StackMgr.push(*Iter);
   }
   return ErrCode::Success;
 }
 
-ErrCode Worker::branchToLabel(unsigned int L) {
+ErrCode Worker::branchToLabel(unsigned int LabelId) {
   /// Get the L-th label from top of stack and the continuation instruction.
   ErrCode Status = ErrCode::Success;
-  LabelEntry *Label;
+  Label *L = nullptr;
   AST::BlockControlInstruction *ContInstr = nullptr;
-  if ((Status = StackMgr.getLabelWithCount(Label, L)) != ErrCode::Success) {
+  if ((Status = StackMgr.getLabelWithCount(L, LabelId)) != ErrCode::Success) {
     return Status;
   }
-  ContInstr = Label->getTarget();
+  ContInstr = L->getTarget();
 
   /// Get arity of Label and pop n values.
-  unsigned int Arity = Label->getArity();
-  std::vector<std::unique_ptr<ValueEntry>> Vals;
+  unsigned int Arity = L->getArity();
+  std::vector<Value> Vals;
   for (unsigned int I = 0; I < Arity; I++) {
-    std::unique_ptr<ValueEntry> Val;
+    Value Val;
     StackMgr.pop(Val);
-    Vals.push_back(std::move(Val));
+    Vals.push_back(Val);
   }
 
   /// Repeat LabelIndex + 1 times
-  for (unsigned int I = 0; I < L + 1; I++) {
+  for (unsigned int I = 0; I < LabelId + 1; I++) {
     while (StackMgr.isTopValue()) {
       StackMgr.pop();
     }
@@ -718,8 +686,7 @@ ErrCode Worker::branchToLabel(unsigned int L) {
 
   /// Push the Vals back into the Stack
   for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
-    std::unique_ptr<ValueEntry> Val = std::move(*Iter);
-    StackMgr.push(Val);
+    StackMgr.push(*Iter);
   }
 
   /// Jump to the continuation of Label

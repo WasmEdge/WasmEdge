@@ -11,8 +11,7 @@ WasiArgsGet::WasiArgsGet(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiArgsGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                         std::vector<std::unique_ptr<ValueEntry>> &Res,
+ErrCode WasiArgsGet::run(std::vector<Value> &Args, std::vector<Value> &Res,
                          StoreManager &Store,
                          Instance::ModuleInstance *ModInst) {
   /// Arg: ArgvPtr(u32), ArgvBufPtr(u32)
@@ -20,8 +19,8 @@ ErrCode WasiArgsGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int ArgvPtr = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int ArgvBufPtr = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int ArgvPtr = retrieveValue<uint32_t>(Args[1]);
+  unsigned int ArgvBufPtr = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;
@@ -61,7 +60,7 @@ ErrCode WasiArgsGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   }
 
   /// Return: errno(u32)
-  Res[0]->setValue(0U);
+  Res[0] = uint32_t(0U);
   return Status;
 }
 

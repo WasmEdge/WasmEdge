@@ -30,10 +30,9 @@ ErrCode Worker::runLoopOp(AST::BlockControlInstruction &Instr) {
 ErrCode Worker::runIfElseOp(AST::IfElseControlInstruction &Instr) {
   /// Get value on top of stack
   auto Status = ErrCode::Success;
-  std::unique_ptr<ValueEntry> Val;
+  Value Val;
   StackMgr.pop(Val);
-  uint32_t Cond = retrieveValue<uint32_t>(*Val.get());
-  MemPool.destroyValueEntry(std::move(Val));
+  uint32_t Cond = retrieveValue<uint32_t>(Val);
 
   /// Get result type for arity.
   AST::ValType ResultType = Instr.getResultType();
@@ -60,22 +59,20 @@ ErrCode Worker::runBrOp(AST::BrControlInstruction &Instr) {
 
 ErrCode Worker::runBrIfOp(AST::BrControlInstruction &Instr) {
   auto Status = ErrCode::Success;
-  std::unique_ptr<ValueEntry> Val;
+  Value Val;
   StackMgr.pop(Val);
-  if (retrieveValue<uint32_t>(*Val.get()) != 0) {
+  if (retrieveValue<uint32_t>(Val) != 0) {
     Status = runBrOp(Instr);
   }
-  MemPool.destroyValueEntry(std::move(Val));
   return Status;
 }
 
 ErrCode Worker::runBrTableOp(AST::BrTableControlInstruction &Instr) {
   /// Get value on top of stack.
   auto Status = ErrCode::Success;
-  std::unique_ptr<ValueEntry> Val;
+  Value Val;
   StackMgr.pop(Val);
-  int32_t Value = retrieveValue<uint32_t>(*Val.get());
-  MemPool.destroyValueEntry(std::move(Val));
+  int32_t Value = retrieveValue<uint32_t>(Val);
 
   /// Do branch.
   const std::vector<unsigned int> *LabelTable = Instr.getLabelTable();
@@ -118,16 +115,15 @@ ErrCode Worker::runCallIndirectOp(AST::CallControlInstruction &Instr) {
   };
 
   /// Pop the value i32.const i from the Stack.
-  std::unique_ptr<ValueEntry> Idx;
+  Value Idx;
   StackMgr.pop(Idx);
 
   /// Get function address.
   unsigned int FuncAddr;
-  if ((Status = TableInst->getElemAddr(retrieveValue<uint32_t>(*Idx.get()),
+  if ((Status = TableInst->getElemAddr(retrieveValue<uint32_t>(Idx),
                                        FuncAddr)) != ErrCode::Success) {
     return Status;
   };
-  MemPool.destroyValueEntry(std::move(Idx));
 
   /// Check function type.
   Instance::FunctionInstance *FuncInst = nullptr;

@@ -22,10 +22,9 @@ TypeT<T, ErrCode> Worker::runLoadOp(AST::MemoryInstruction &Instr,
   };
 
   /// Calculate EA
-  std::unique_ptr<ValueEntry> Val;
+  Value Val;
   StackMgr.pop(Val);
-  uint32_t EA = retrieveValue<uint32_t>(*Val.get()) + Instr.getMemoryOffset();
-  MemPool.destroyValueEntry(std::move(Val));
+  uint32_t EA = retrieveValue<uint32_t>(Val) + Instr.getMemoryOffset();
 
   /// Value = Mem.Data[EA : N / 8]
   T Value;
@@ -47,22 +46,20 @@ TypeB<T, ErrCode> Worker::runStoreOp(AST::MemoryInstruction &Instr,
   };
 
   /// Pop the value t.const c from the Stack
-  std::unique_ptr<ValueEntry> C;
+  Value C;
   StackMgr.pop(C);
 
   /// Calculate EA = i + offset
-  std::unique_ptr<ValueEntry> I;
+  Value I;
   StackMgr.pop(I);
-  uint32_t EA = retrieveValue<uint32_t>(*I.get()) + Instr.getMemoryOffset();
+  uint32_t EA = retrieveValue<uint32_t>(I) + Instr.getMemoryOffset();
 
   /// Store value to bytes.
-  T Value = retrieveValue<T>(*C.get());
+  T Value = retrieveValue<T>(C);
   if ((Status = MemoryInst->storeValue(Value, EA, BitWidth / 8)) !=
       ErrCode::Success) {
     return Status;
   };
-  MemPool.destroyValueEntry(std::move(C));
-  MemPool.destroyValueEntry(std::move(I));
   return ErrCode::Success;
 }
 

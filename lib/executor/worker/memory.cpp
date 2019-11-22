@@ -20,7 +20,7 @@ ErrCode Worker::runMemorySizeOp() {
   };
 
   /// Push SZ = page size to stack.
-  return StackMgr.push(MemPool.allocValueEntry(MemoryInst->getDataPageSize()));
+  return StackMgr.push(Value(MemoryInst->getDataPageSize()));
 }
 
 ErrCode Worker::runMemoryGrowOp() {
@@ -32,18 +32,16 @@ ErrCode Worker::runMemoryGrowOp() {
   };
 
   /// Pop N for growing page size.
-  std::unique_ptr<ValueEntry> N;
+  Value N;
   if ((Status = StackMgr.pop(N)) != ErrCode::Success) {
     return Status;
   }
 
   /// Grow page and push result.
   unsigned int CurrPageSize = MemoryInst->getDataPageSize();
-  if (MemoryInst->growPage(retrieveValue<uint32_t>(*N.get())) !=
-      ErrCode::Success) {
+  if (MemoryInst->growPage(retrieveValue<uint32_t>(N)) != ErrCode::Success) {
     return StackMgr.pushValue(static_cast<uint32_t>(-1));
   }
-  MemPool.destroyValueEntry(std::move(N));
   return StackMgr.pushValue(CurrPageSize);
 }
 

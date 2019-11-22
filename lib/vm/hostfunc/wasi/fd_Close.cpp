@@ -12,8 +12,7 @@ WasiFdClose::WasiFdClose(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiFdClose::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                         std::vector<std::unique_ptr<ValueEntry>> &Res,
+ErrCode WasiFdClose::run(std::vector<Value> &Args, std::vector<Value> &Res,
                          StoreManager &Store,
                          Instance::ModuleInstance *ModInst) {
   /// Arg: fd(u32)
@@ -21,17 +20,17 @@ ErrCode WasiFdClose::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int Fd = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int Fd = retrieveValue<uint32_t>(Args[0]);
 
   /// Close Fd.
   int ErrNo = close(Fd);
 
   /// Return: errno(u32)
   if (ErrNo == 0) {
-    Res[0]->setValue(0U);
+    Res[0] = uint32_t(0U);
   } else {
     /// TODO: errno
-    Res[0]->setValue(1U);
+    Res[0] = uint32_t(1U);
   }
   return Status;
 }

@@ -17,8 +17,7 @@ WasiFdPrestatGet::WasiFdPrestatGet(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiFdPrestatGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                              std::vector<std::unique_ptr<ValueEntry>> &Res,
+ErrCode WasiFdPrestatGet::run(std::vector<Value> &Args, std::vector<Value> &Res,
                               StoreManager &Store,
                               Instance::ModuleInstance *ModInst) {
   /// Arg: Fd(u32), PreStatPtr(u32)
@@ -26,8 +25,8 @@ ErrCode WasiFdPrestatGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int Fd = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int PreStatPtr = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int Fd = retrieveValue<uint32_t>(Args[1]);
+  unsigned int PreStatPtr = retrieveValue<uint32_t>(Args[0]);
   int ErrNo = 0;
 
   __wasi_prestat_t PreStat;
@@ -103,7 +102,7 @@ ErrCode WasiFdPrestatGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   }
 
   /// Return: errno(u32)
-  Res[0]->setValue(static_cast<uint32_t>(ErrNo));
+  Res[0] = uint32_t(ErrNo);
   return Status;
 }
 

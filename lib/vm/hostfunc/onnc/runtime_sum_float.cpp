@@ -20,9 +20,8 @@ ONNCRuntimeSumFloat::ONNCRuntimeSumFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode ONNCRuntimeSumFloat::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                                 std::vector<std::unique_ptr<ValueEntry>> &Res,
-                                 StoreManager &Store,
+ErrCode ONNCRuntimeSumFloat::run(std::vector<Value> &Args,
+                                 std::vector<Value> &Res, StoreManager &Store,
                                  Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,
   ///      const float *const *input_data_0,
@@ -36,14 +35,14 @@ ErrCode ONNCRuntimeSumFloat::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(*Args[7].get());
-  unsigned int InDataPtrPtr = retrieveValue<uint32_t>(*Args[6].get());
-  unsigned int InDataNTensor = retrieveValue<uint32_t>(*Args[5].get());
-  unsigned int InDataNDimPtr = retrieveValue<uint32_t>(*Args[4].get());
-  unsigned int InDataDimsPtrPtr = retrieveValue<uint32_t>(*Args[3].get());
-  unsigned int OutSumPtr = retrieveValue<uint32_t>(*Args[2].get());
-  unsigned int OutSumNDim = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int OutSumDimsPtr = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[7]);
+  unsigned int InDataPtrPtr = retrieveValue<uint32_t>(Args[6]);
+  unsigned int InDataNTensor = retrieveValue<uint32_t>(Args[5]);
+  unsigned int InDataNDimPtr = retrieveValue<uint32_t>(Args[4]);
+  unsigned int InDataDimsPtrPtr = retrieveValue<uint32_t>(Args[3]);
+  unsigned int OutSumPtr = retrieveValue<uint32_t>(Args[2]);
+  unsigned int OutSumNDim = retrieveValue<uint32_t>(Args[1]);
+  unsigned int OutSumDimsPtr = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;

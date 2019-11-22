@@ -15,17 +15,16 @@ WasiEnvironSizesGet::WasiEnvironSizesGet(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiEnvironSizesGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                                 std::vector<std::unique_ptr<ValueEntry>> &Res,
-                                 StoreManager &Store,
+ErrCode WasiEnvironSizesGet::run(std::vector<Value> &Args,
+                                 std::vector<Value> &Res, StoreManager &Store,
                                  Instance::ModuleInstance *ModInst) {
   /// Arg: EnvCntPtr(u32), EnvBufSizePtr(u32)
   if (Args.size() != 2) {
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int EnvCntPtr = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int EnvBufSizePtr = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int EnvCntPtr = retrieveValue<uint32_t>(Args[1]);
+  unsigned int EnvBufSizePtr = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;
@@ -58,7 +57,7 @@ ErrCode WasiEnvironSizesGet::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   }
 
   /// Return: errno(u32)
-  Res[0]->setValue(0U);
+  Res[0] = uint32_t(0U);
   return Status;
 }
 

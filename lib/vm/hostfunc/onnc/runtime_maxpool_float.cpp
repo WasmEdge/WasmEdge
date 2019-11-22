@@ -30,11 +30,10 @@ ONNCRuntimeMaxpoolFloat::ONNCRuntimeMaxpoolFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode
-ONNCRuntimeMaxpoolFloat::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                             std::vector<std::unique_ptr<ValueEntry>> &Res,
-                             StoreManager &Store,
-                             Instance::ModuleInstance *ModInst) {
+ErrCode ONNCRuntimeMaxpoolFloat::run(std::vector<Value> &Args,
+                                     std::vector<Value> &Res,
+                                     StoreManager &Store,
+                                     Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,
   ///      const float *input_X,
   ///      int32_t input_X_ndim,
@@ -57,24 +56,24 @@ ONNCRuntimeMaxpoolFloat::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(*Args[17].get());
-  unsigned int InXPtr = retrieveValue<uint32_t>(*Args[16].get());
-  unsigned int InXNDim = retrieveValue<uint32_t>(*Args[15].get());
-  unsigned int InXDimsPtr = retrieveValue<uint32_t>(*Args[14].get());
-  unsigned int OutYPtr = retrieveValue<uint32_t>(*Args[13].get());
-  unsigned int OutYNDim = retrieveValue<uint32_t>(*Args[12].get());
-  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(*Args[11].get());
-  unsigned int OutIndicesPtr = retrieveValue<uint32_t>(*Args[10].get());
-  unsigned int OutIndicesNDim = retrieveValue<uint32_t>(*Args[9].get());
-  unsigned int OutIndicesDimsPtr = retrieveValue<uint32_t>(*Args[8].get());
-  unsigned int AutoPadPtr = retrieveValue<uint32_t>(*Args[7].get());
-  unsigned int KernelShapePtr = retrieveValue<uint32_t>(*Args[6].get());
-  unsigned int KernelShapeNum = retrieveValue<uint32_t>(*Args[5].get());
-  unsigned int PadsPtr = retrieveValue<uint32_t>(*Args[4].get());
-  unsigned int PadsNum = retrieveValue<uint32_t>(*Args[3].get());
-  unsigned int StorageOrder = retrieveValue<uint32_t>(*Args[2].get());
-  unsigned int StridesPtr = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int StridesNum = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[17]);
+  unsigned int InXPtr = retrieveValue<uint32_t>(Args[16]);
+  unsigned int InXNDim = retrieveValue<uint32_t>(Args[15]);
+  unsigned int InXDimsPtr = retrieveValue<uint32_t>(Args[14]);
+  unsigned int OutYPtr = retrieveValue<uint32_t>(Args[13]);
+  unsigned int OutYNDim = retrieveValue<uint32_t>(Args[12]);
+  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(Args[11]);
+  unsigned int OutIndicesPtr = retrieveValue<uint32_t>(Args[10]);
+  unsigned int OutIndicesNDim = retrieveValue<uint32_t>(Args[9]);
+  unsigned int OutIndicesDimsPtr = retrieveValue<uint32_t>(Args[8]);
+  unsigned int AutoPadPtr = retrieveValue<uint32_t>(Args[7]);
+  unsigned int KernelShapePtr = retrieveValue<uint32_t>(Args[6]);
+  unsigned int KernelShapeNum = retrieveValue<uint32_t>(Args[5]);
+  unsigned int PadsPtr = retrieveValue<uint32_t>(Args[4]);
+  unsigned int PadsNum = retrieveValue<uint32_t>(Args[3]);
+  unsigned int StorageOrder = retrieveValue<uint32_t>(Args[2]);
+  unsigned int StridesPtr = retrieveValue<uint32_t>(Args[1]);
+  unsigned int StridesNum = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;

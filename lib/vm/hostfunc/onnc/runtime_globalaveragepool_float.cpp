@@ -21,8 +21,7 @@ ONNCRuntimeGlobalaveragepoolFloat::ONNCRuntimeGlobalaveragepoolFloat() {
 }
 
 ErrCode ONNCRuntimeGlobalaveragepoolFloat::run(
-    std::vector<std::unique_ptr<ValueEntry>> &Args,
-    std::vector<std::unique_ptr<ValueEntry>> &Res, StoreManager &Store,
+    std::vector<Value> &Args, std::vector<Value> &Res, StoreManager &Store,
     Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,
   ///      const float *input_X,
@@ -35,13 +34,13 @@ ErrCode ONNCRuntimeGlobalaveragepoolFloat::run(
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(*Args[14].get());
-  unsigned int InXPtr = retrieveValue<uint32_t>(*Args[13].get());
-  unsigned int InXNDim = retrieveValue<uint32_t>(*Args[12].get());
-  unsigned int InXDimsPtr = retrieveValue<uint32_t>(*Args[11].get());
-  unsigned int OutYPtr = retrieveValue<uint32_t>(*Args[10].get());
-  unsigned int OutYNDim = retrieveValue<uint32_t>(*Args[9].get());
-  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(*Args[8].get());
+  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[14]);
+  unsigned int InXPtr = retrieveValue<uint32_t>(Args[13]);
+  unsigned int InXNDim = retrieveValue<uint32_t>(Args[12]);
+  unsigned int InXDimsPtr = retrieveValue<uint32_t>(Args[11]);
+  unsigned int OutYPtr = retrieveValue<uint32_t>(Args[10]);
+  unsigned int OutYNDim = retrieveValue<uint32_t>(Args[9]);
+  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(Args[8]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;

@@ -10,8 +10,7 @@ EEIGetCaller::EEIGetCaller(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode EEIGetCaller::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                          std::vector<std::unique_ptr<ValueEntry>> &Res,
+ErrCode EEIGetCaller::run(std::vector<Value> &Args, std::vector<Value> &Res,
                           StoreManager &Store,
                           Instance::ModuleInstance *ModInst) {
   /// Arg: resultOffset(u32)
@@ -19,7 +18,7 @@ ErrCode EEIGetCaller::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int ResOffset = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int ResOffset = retrieveValue<uint32_t>(Args[0]);
 
   std::vector<unsigned char> Data;
   Support::convertStringToHex(Env.getCaller(), Data, 40);

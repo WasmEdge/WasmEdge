@@ -9,9 +9,8 @@ EEIGetCallDataSize::EEIGetCallDataSize(VM::EVMEnvironment &Env) : EEI(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode EEIGetCallDataSize::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                                std::vector<std::unique_ptr<ValueEntry>> &Res,
-                                StoreManager &Store,
+ErrCode EEIGetCallDataSize::run(std::vector<Value> &Args,
+                                std::vector<Value> &Res, StoreManager &Store,
                                 Instance::ModuleInstance *ModInst) {
   /// Arg: void
   if (Args.size() != 0) {
@@ -19,7 +18,7 @@ ErrCode EEIGetCallDataSize::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   }
 
   /// Return: Length(u32)
-  Res[0]->setValue(static_cast<uint32_t>(Env.getCallData().size()));
+  Res[0] = uint32_t(Env.getCallData().size());
   return ErrCode::Success;
 }
 

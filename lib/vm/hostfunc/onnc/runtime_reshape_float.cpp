@@ -22,11 +22,10 @@ ONNCRuntimeReshapeFloat::ONNCRuntimeReshapeFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode
-ONNCRuntimeReshapeFloat::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                             std::vector<std::unique_ptr<ValueEntry>> &Res,
-                             StoreManager &Store,
-                             Instance::ModuleInstance *ModInst) {
+ErrCode ONNCRuntimeReshapeFloat::run(std::vector<Value> &Args,
+                                     std::vector<Value> &Res,
+                                     StoreManager &Store,
+                                     Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,
   ///      const float *input_data,
   ///      int32_t input_data_ndim,
@@ -41,16 +40,16 @@ ONNCRuntimeReshapeFloat::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(*Args[9].get());
-  unsigned int InDataPtr = retrieveValue<uint32_t>(*Args[8].get());
-  unsigned int InDataNDim = retrieveValue<uint32_t>(*Args[7].get());
-  unsigned int InDataDimsPtr = retrieveValue<uint32_t>(*Args[6].get());
-  unsigned int InShapePtr = retrieveValue<uint32_t>(*Args[5].get());
-  unsigned int InShapeNDim = retrieveValue<uint32_t>(*Args[4].get());
-  unsigned int InShapeDimsPtr = retrieveValue<uint32_t>(*Args[3].get());
-  unsigned int OutReshapedPtr = retrieveValue<uint32_t>(*Args[2].get());
-  unsigned int OutReshapedNDim = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int OutReshapedDimsPtr = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[9]);
+  unsigned int InDataPtr = retrieveValue<uint32_t>(Args[8]);
+  unsigned int InDataNDim = retrieveValue<uint32_t>(Args[7]);
+  unsigned int InDataDimsPtr = retrieveValue<uint32_t>(Args[6]);
+  unsigned int InShapePtr = retrieveValue<uint32_t>(Args[5]);
+  unsigned int InShapeNDim = retrieveValue<uint32_t>(Args[4]);
+  unsigned int InShapeDimsPtr = retrieveValue<uint32_t>(Args[3]);
+  unsigned int OutReshapedPtr = retrieveValue<uint32_t>(Args[2]);
+  unsigned int OutReshapedNDim = retrieveValue<uint32_t>(Args[1]);
+  unsigned int OutReshapedDimsPtr = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;

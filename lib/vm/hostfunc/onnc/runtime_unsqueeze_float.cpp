@@ -20,11 +20,10 @@ ONNCRuntimeUnsqueezeFloat::ONNCRuntimeUnsqueezeFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode
-ONNCRuntimeUnsqueezeFloat::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                               std::vector<std::unique_ptr<ValueEntry>> &Res,
-                               StoreManager &Store,
-                               Instance::ModuleInstance *ModInst) {
+ErrCode ONNCRuntimeUnsqueezeFloat::run(std::vector<Value> &Args,
+                                       std::vector<Value> &Res,
+                                       StoreManager &Store,
+                                       Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,
   ///      const float *input_data,
   ///      int32_t input_data_ndim,
@@ -38,15 +37,15 @@ ONNCRuntimeUnsqueezeFloat::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(*Args[8].get());
-  unsigned int InDataPtr = retrieveValue<uint32_t>(*Args[7].get());
-  unsigned int InDataNDim = retrieveValue<uint32_t>(*Args[6].get());
-  unsigned int InDataDimsPtr = retrieveValue<uint32_t>(*Args[5].get());
-  unsigned int OutExpandedPtr = retrieveValue<uint32_t>(*Args[4].get());
-  unsigned int OutExpandedNDim = retrieveValue<uint32_t>(*Args[3].get());
-  unsigned int OutExpandedDimsPtr = retrieveValue<uint32_t>(*Args[2].get());
-  unsigned int AxesPtr = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int AxesNum = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[8]);
+  unsigned int InDataPtr = retrieveValue<uint32_t>(Args[7]);
+  unsigned int InDataNDim = retrieveValue<uint32_t>(Args[6]);
+  unsigned int InDataDimsPtr = retrieveValue<uint32_t>(Args[5]);
+  unsigned int OutExpandedPtr = retrieveValue<uint32_t>(Args[4]);
+  unsigned int OutExpandedNDim = retrieveValue<uint32_t>(Args[3]);
+  unsigned int OutExpandedDimsPtr = retrieveValue<uint32_t>(Args[2]);
+  unsigned int AxesPtr = retrieveValue<uint32_t>(Args[1]);
+  unsigned int AxesNum = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;

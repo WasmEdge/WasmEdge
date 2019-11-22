@@ -19,11 +19,9 @@ ONNCRuntimeReluFloat::ONNCRuntimeReluFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode
-ONNCRuntimeReluFloat::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                          std::vector<std::unique_ptr<ValueEntry>> &Res,
-                          StoreManager &Store,
-                          Instance::ModuleInstance *ModInst) {
+ErrCode ONNCRuntimeReluFloat::run(std::vector<Value> &Args,
+                                  std::vector<Value> &Res, StoreManager &Store,
+                                  Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,
   ///      const float* input_X,
   ///      int32_t input_X_ndim,
@@ -35,13 +33,13 @@ ONNCRuntimeReluFloat::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(*Args[6].get());
-  unsigned int InXPtr = retrieveValue<uint32_t>(*Args[5].get());
-  unsigned int InXNDim = retrieveValue<uint32_t>(*Args[4].get());
-  unsigned int InXDimsPtr = retrieveValue<uint32_t>(*Args[3].get());
-  unsigned int OutYPtr = retrieveValue<uint32_t>(*Args[2].get());
-  unsigned int OutYNDim = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[6]);
+  unsigned int InXPtr = retrieveValue<uint32_t>(Args[5]);
+  unsigned int InXNDim = retrieveValue<uint32_t>(Args[4]);
+  unsigned int InXDimsPtr = retrieveValue<uint32_t>(Args[3]);
+  unsigned int OutYPtr = retrieveValue<uint32_t>(Args[2]);
+  unsigned int OutYNDim = retrieveValue<uint32_t>(Args[1]);
+  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;

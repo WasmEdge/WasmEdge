@@ -10,16 +10,15 @@ EEIFinish::EEIFinish(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode EEIFinish::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                       std::vector<std::unique_ptr<ValueEntry>> &Res,
+ErrCode EEIFinish::run(std::vector<Value> &Args, std::vector<Value> &Res,
                        StoreManager &Store, Instance::ModuleInstance *ModInst) {
   /// Arg: dataOffset(u32), dataLength(u32)
   if (Args.size() != 2) {
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int DataOffset = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int DataLength = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int DataOffset = retrieveValue<uint32_t>(Args[1]);
+  unsigned int DataLength = retrieveValue<uint32_t>(Args[0]);
   Env.getReturnData().clear();
 
   if (DataLength > 0) {

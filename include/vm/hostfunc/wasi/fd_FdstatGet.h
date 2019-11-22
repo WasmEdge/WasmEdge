@@ -11,8 +11,7 @@ public:
   WasiFdFdstatGet() = delete;
   virtual ~WasiFdFdstatGet() = default;
 
-  virtual ErrCode run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                      std::vector<std::unique_ptr<ValueEntry>> &Res,
+  virtual ErrCode run(std::vector<Value> &Args, std::vector<Value> &Res,
                       StoreManager &Store, Instance::ModuleInstance *ModInst);
 };
 

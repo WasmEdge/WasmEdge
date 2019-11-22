@@ -11,8 +11,7 @@ EEICallDataCopy::EEICallDataCopy(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode EEICallDataCopy::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                             std::vector<std::unique_ptr<ValueEntry>> &Res,
+ErrCode EEICallDataCopy::run(std::vector<Value> &Args, std::vector<Value> &Res,
                              StoreManager &Store,
                              Instance::ModuleInstance *ModInst) {
   /// Arg: resultOffset(u32), dataOffset(u32), length(u32)
@@ -20,9 +19,9 @@ ErrCode EEICallDataCopy::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int ResOffset = retrieveValue<uint32_t>(*Args[2].get());
-  unsigned int DataOffset = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int Length = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int ResOffset = retrieveValue<uint32_t>(Args[2]);
+  unsigned int DataOffset = retrieveValue<uint32_t>(Args[1]);
+  unsigned int Length = retrieveValue<uint32_t>(Args[0]);
 
   if (Length > 0) {
     unsigned int MemoryAddr = 0;

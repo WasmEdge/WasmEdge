@@ -4,21 +4,21 @@
 #include "executor/worker/util.h"
 #include "support/casting.h"
 
-#include <string.h>
 #include <cmath>
+#include <string.h>
 
 namespace SSVM {
 namespace Executor {
 
 template <typename TIn, typename TOut>
-TypeUU<TIn, TOut, ErrCode> Worker::runWrapOp(const ValueEntry *Val) {
-  TIn I = retrieveValue<TIn>(*Val);
+TypeUU<TIn, TOut, ErrCode> Worker::runWrapOp(const Value &Val) {
+  TIn I = retrieveValue<TIn>(Val);
   return StackMgr.pushValue(static_cast<TOut>(I));
 }
 
 template <typename TIn, typename TOut>
-TypeFI<TIn, TOut, ErrCode> Worker::runTruncateOp(const ValueEntry *Val) {
-  TIn Z = retrieveValue<TIn>(*Val);
+TypeFI<TIn, TOut, ErrCode> Worker::runTruncateOp(const Value &Val) {
+  TIn Z = retrieveValue<TIn>(Val);
   /// If z is a NaN or an infinity, then the result is undefined.
   if (std::isnan(Z) || std::isinf(Z)) {
     return ErrCode::CastingError;
@@ -36,36 +36,36 @@ TypeFI<TIn, TOut, ErrCode> Worker::runTruncateOp(const ValueEntry *Val) {
 }
 
 template <typename TIn, typename TOut>
-TypeIU<TIn, TOut, ErrCode> Worker::runExtendOp(const ValueEntry *Val) {
-  TIn I = retrieveValue<TIn>(*Val);
+TypeIU<TIn, TOut, ErrCode> Worker::runExtendOp(const Value &Val) {
+  TIn I = retrieveValue<TIn>(Val);
   /// Return i extend to TOut. Signed case handled.
   return StackMgr.pushValue(static_cast<TOut>(I));
 }
 
 template <typename TIn, typename TOut>
-TypeIF<TIn, TOut, ErrCode> Worker::runConvertOp(const ValueEntry *Val) {
-  TIn I = retrieveValue<TIn>(*Val);
+TypeIF<TIn, TOut, ErrCode> Worker::runConvertOp(const Value &Val) {
+  TIn I = retrieveValue<TIn>(Val);
   /// Return i convert to TOut. Signed case handled.
   return StackMgr.pushValue(static_cast<TOut>(I));
 }
 
 template <typename TIn, typename TOut>
-TypeFF<TIn, TOut, ErrCode> Worker::runDemoteOp(const ValueEntry *Val) {
-  TIn Z = retrieveValue<TIn>(*Val);
+TypeFF<TIn, TOut, ErrCode> Worker::runDemoteOp(const Value &Val) {
+  TIn Z = retrieveValue<TIn>(Val);
   /// Return i convert to TOut. (NaN, inf, and zeros handled)
   return StackMgr.pushValue(static_cast<TOut>(Z));
 }
 
 template <typename TIn, typename TOut>
-TypeFF<TIn, TOut, ErrCode> Worker::runPromoteOp(const ValueEntry *Val) {
-  TIn Z = retrieveValue<TIn>(*Val);
+TypeFF<TIn, TOut, ErrCode> Worker::runPromoteOp(const Value &Val) {
+  TIn Z = retrieveValue<TIn>(Val);
   /// Return i convert to TOut. (NaN, inf, and zeros handled)
   return StackMgr.pushValue(static_cast<TOut>(Z));
 }
 
 template <typename TIn, typename TOut>
-TypeBB<TIn, TOut, ErrCode> Worker::runReinterpretOp(const ValueEntry *Val) {
-  TIn V = retrieveValue<TIn>(*Val);
+TypeBB<TIn, TOut, ErrCode> Worker::runReinterpretOp(const Value &Val) {
+  TIn V = retrieveValue<TIn>(Val);
   /// Return value with type TOut which copy bits of V.
   TOut Res;
   memcpy(&Res, &V, sizeof(TOut));

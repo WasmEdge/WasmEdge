@@ -27,6 +27,20 @@ enum class ValType : unsigned char {
 
 using ValVariant = Variant<uint32_t, uint64_t, float, double>;
 
+inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
+  switch (Type) {
+  default:
+  case ValType::I32:
+    return uint32_t(0);
+  case ValType::I64:
+    return uint64_t(0);
+  case ValType::F32:
+    return float(0);
+  case ValType::F64:
+    return double(0);
+  }
+}
+
 /// Element types enumeration class.
 enum class ElemType : unsigned char { Func = 0x60, FuncRef = 0x70 };
 

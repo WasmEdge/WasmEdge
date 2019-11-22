@@ -28,11 +28,9 @@ ONNCRuntimeGemmFloat::ONNCRuntimeGemmFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode
-ONNCRuntimeGemmFloat::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                          std::vector<std::unique_ptr<ValueEntry>> &Res,
-                          StoreManager &Store,
-                          Instance::ModuleInstance *ModInst) {
+ErrCode ONNCRuntimeGemmFloat::run(std::vector<Value> &Args,
+                                  std::vector<Value> &Res, StoreManager &Store,
+                                  Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,
   ///      const float *input_A,
   ///      int32_t input_A_ndim,
@@ -54,23 +52,23 @@ ONNCRuntimeGemmFloat::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(*Args[16].get());
-  unsigned int InAPtr = retrieveValue<uint32_t>(*Args[15].get());
-  unsigned int InANDim = retrieveValue<uint32_t>(*Args[14].get());
-  unsigned int InADimsPtr = retrieveValue<uint32_t>(*Args[13].get());
-  unsigned int InBPtr = retrieveValue<uint32_t>(*Args[12].get());
-  unsigned int InBNDim = retrieveValue<uint32_t>(*Args[11].get());
-  unsigned int InBDimsPtr = retrieveValue<uint32_t>(*Args[10].get());
-  unsigned int InCPtr = retrieveValue<uint32_t>(*Args[9].get());
-  unsigned int InCNDim = retrieveValue<uint32_t>(*Args[8].get());
-  unsigned int InCDimsPtr = retrieveValue<uint32_t>(*Args[7].get());
-  unsigned int OutYPtr = retrieveValue<uint32_t>(*Args[6].get());
-  unsigned int OutYNDim = retrieveValue<uint32_t>(*Args[5].get());
-  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(*Args[4].get());
-  float Alpha = retrieveValue<float>(*Args[3].get());
-  float Beta = retrieveValue<float>(*Args[2].get());
-  unsigned int TransA = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int TransB = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[16]);
+  unsigned int InAPtr = retrieveValue<uint32_t>(Args[15]);
+  unsigned int InANDim = retrieveValue<uint32_t>(Args[14]);
+  unsigned int InADimsPtr = retrieveValue<uint32_t>(Args[13]);
+  unsigned int InBPtr = retrieveValue<uint32_t>(Args[12]);
+  unsigned int InBNDim = retrieveValue<uint32_t>(Args[11]);
+  unsigned int InBDimsPtr = retrieveValue<uint32_t>(Args[10]);
+  unsigned int InCPtr = retrieveValue<uint32_t>(Args[9]);
+  unsigned int InCNDim = retrieveValue<uint32_t>(Args[8]);
+  unsigned int InCDimsPtr = retrieveValue<uint32_t>(Args[7]);
+  unsigned int OutYPtr = retrieveValue<uint32_t>(Args[6]);
+  unsigned int OutYNDim = retrieveValue<uint32_t>(Args[5]);
+  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(Args[4]);
+  float Alpha = retrieveValue<float>(Args[3]);
+  float Beta = retrieveValue<float>(Args[2]);
+  unsigned int TransA = retrieveValue<uint32_t>(Args[1]);
+  unsigned int TransB = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;

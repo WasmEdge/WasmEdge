@@ -46,8 +46,7 @@ ONNCRuntimeBatchnormalizationFloat::ONNCRuntimeBatchnormalizationFloat() {
 }
 
 ErrCode ONNCRuntimeBatchnormalizationFloat::run(
-    std::vector<std::unique_ptr<ValueEntry>> &Args,
-    std::vector<std::unique_ptr<ValueEntry>> &Res, StoreManager &Store,
+    std::vector<Value> &Args, std::vector<Value> &Res, StoreManager &Store,
     Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,
   ///      const float *input_X,
@@ -87,40 +86,40 @@ ErrCode ONNCRuntimeBatchnormalizationFloat::run(
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(*Args[33].get());
-  unsigned int InXPtr = retrieveValue<uint32_t>(*Args[32].get());
-  unsigned int InXNDim = retrieveValue<uint32_t>(*Args[31].get());
-  unsigned int InXDimsPtr = retrieveValue<uint32_t>(*Args[30].get());
-  unsigned int InScalePtr = retrieveValue<uint32_t>(*Args[29].get());
-  unsigned int InScaleNDim = retrieveValue<uint32_t>(*Args[28].get());
-  unsigned int InScaleDimsPtr = retrieveValue<uint32_t>(*Args[27].get());
-  unsigned int InBPtr = retrieveValue<uint32_t>(*Args[26].get());
-  unsigned int InBNDim = retrieveValue<uint32_t>(*Args[25].get());
-  unsigned int InBDimsPtr = retrieveValue<uint32_t>(*Args[24].get());
-  unsigned int InMeanPtr = retrieveValue<uint32_t>(*Args[23].get());
-  unsigned int InMeanNDim = retrieveValue<uint32_t>(*Args[22].get());
-  unsigned int InMeanDimsPtr = retrieveValue<uint32_t>(*Args[21].get());
-  unsigned int InVarPtr = retrieveValue<uint32_t>(*Args[20].get());
-  unsigned int InVarNDim = retrieveValue<uint32_t>(*Args[19].get());
-  unsigned int InVarDimsPtr = retrieveValue<uint32_t>(*Args[18].get());
-  unsigned int OutYPtr = retrieveValue<uint32_t>(*Args[17].get());
-  unsigned int OutYNDim = retrieveValue<uint32_t>(*Args[16].get());
-  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(*Args[15].get());
-  unsigned int OutMeanPtr = retrieveValue<uint32_t>(*Args[14].get());
-  unsigned int OutMeanNDim = retrieveValue<uint32_t>(*Args[13].get());
-  unsigned int OutMeanDimsPtr = retrieveValue<uint32_t>(*Args[12].get());
-  unsigned int OutVarPtr = retrieveValue<uint32_t>(*Args[11].get());
-  unsigned int OutVarNDim = retrieveValue<uint32_t>(*Args[10].get());
-  unsigned int OutVarDimsPtr = retrieveValue<uint32_t>(*Args[9].get());
-  unsigned int OutSavedMeanPtr = retrieveValue<uint32_t>(*Args[8].get());
-  unsigned int OutSavedMeanNDim = retrieveValue<uint32_t>(*Args[7].get());
-  unsigned int OutSavedMeanDimsPtr = retrieveValue<uint32_t>(*Args[6].get());
-  unsigned int OutSavedVarPtr = retrieveValue<uint32_t>(*Args[5].get());
-  unsigned int OutSavedVarNDim = retrieveValue<uint32_t>(*Args[4].get());
-  unsigned int OutSavedVarDimsPtr = retrieveValue<uint32_t>(*Args[3].get());
-  float Epsilon = retrieveValue<float>(*Args[2].get());
-  float Momentum = retrieveValue<float>(*Args[1].get());
-  unsigned int Spatial = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[33]);
+  unsigned int InXPtr = retrieveValue<uint32_t>(Args[32]);
+  unsigned int InXNDim = retrieveValue<uint32_t>(Args[31]);
+  unsigned int InXDimsPtr = retrieveValue<uint32_t>(Args[30]);
+  unsigned int InScalePtr = retrieveValue<uint32_t>(Args[29]);
+  unsigned int InScaleNDim = retrieveValue<uint32_t>(Args[28]);
+  unsigned int InScaleDimsPtr = retrieveValue<uint32_t>(Args[27]);
+  unsigned int InBPtr = retrieveValue<uint32_t>(Args[26]);
+  unsigned int InBNDim = retrieveValue<uint32_t>(Args[25]);
+  unsigned int InBDimsPtr = retrieveValue<uint32_t>(Args[24]);
+  unsigned int InMeanPtr = retrieveValue<uint32_t>(Args[23]);
+  unsigned int InMeanNDim = retrieveValue<uint32_t>(Args[22]);
+  unsigned int InMeanDimsPtr = retrieveValue<uint32_t>(Args[21]);
+  unsigned int InVarPtr = retrieveValue<uint32_t>(Args[20]);
+  unsigned int InVarNDim = retrieveValue<uint32_t>(Args[19]);
+  unsigned int InVarDimsPtr = retrieveValue<uint32_t>(Args[18]);
+  unsigned int OutYPtr = retrieveValue<uint32_t>(Args[17]);
+  unsigned int OutYNDim = retrieveValue<uint32_t>(Args[16]);
+  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(Args[15]);
+  unsigned int OutMeanPtr = retrieveValue<uint32_t>(Args[14]);
+  unsigned int OutMeanNDim = retrieveValue<uint32_t>(Args[13]);
+  unsigned int OutMeanDimsPtr = retrieveValue<uint32_t>(Args[12]);
+  unsigned int OutVarPtr = retrieveValue<uint32_t>(Args[11]);
+  unsigned int OutVarNDim = retrieveValue<uint32_t>(Args[10]);
+  unsigned int OutVarDimsPtr = retrieveValue<uint32_t>(Args[9]);
+  unsigned int OutSavedMeanPtr = retrieveValue<uint32_t>(Args[8]);
+  unsigned int OutSavedMeanNDim = retrieveValue<uint32_t>(Args[7]);
+  unsigned int OutSavedMeanDimsPtr = retrieveValue<uint32_t>(Args[6]);
+  unsigned int OutSavedVarPtr = retrieveValue<uint32_t>(Args[5]);
+  unsigned int OutSavedVarNDim = retrieveValue<uint32_t>(Args[4]);
+  unsigned int OutSavedVarDimsPtr = retrieveValue<uint32_t>(Args[3]);
+  float Epsilon = retrieveValue<float>(Args[2]);
+  float Momentum = retrieveValue<float>(Args[1]);
+  unsigned int Spatial = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;

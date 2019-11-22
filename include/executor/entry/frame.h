@@ -20,10 +20,10 @@
 namespace SSVM {
 namespace Executor {
 
-class FrameEntry {
+class Frame {
 public:
-  FrameEntry() = default;
-  ~FrameEntry() = default;
+  Frame() = default;
+  ~Frame() = default;
 
   /// Initializer of frame entry.
   ///
@@ -35,10 +35,9 @@ public:
   /// \param LocalDef the local variables definition in function instance.
   ///
   /// \returns ErrCode.
-  ErrCode InitFrameEntry(
-      unsigned int ModuleAddr, unsigned int FrameArity,
-      std::vector<std::unique_ptr<ValueEntry>> &Args,
-      const std::vector<std::pair<unsigned int, AST::ValType>> &LocalDefs);
+  Frame(unsigned int ModuleAddr, unsigned int FrameArity,
+        std::vector<Value> &Args,
+        const std::vector<std::pair<unsigned int, AST::ValType>> &LocalDefs);
 
   /// Initializer of frame entry.
   ///
@@ -48,26 +47,26 @@ public:
   /// \param FrameArity the return counts of this function type.
   ///
   /// \returns ErrCode.
-  ErrCode InitFrameEntry(unsigned int ModuleAddr, unsigned int FrameArity);
+  Frame(unsigned int ModuleAddr, unsigned int FrameArity);
 
   /// Getter of module address.
-  unsigned int getModuleAddr() { return ModAddr; }
+  unsigned int getModuleAddr() const { return ModAddr; }
 
   /// Getter of arity.
-  unsigned int getArity() { return Arity; }
+  unsigned int getArity() const { return Arity; }
 
   /// Getter of local variables.
-  ErrCode getValue(unsigned int Idx, ValueEntry *&ValEntry);
+  ErrCode getValue(unsigned int Idx, Value *&ValEntry);
 
   /// Setter of local variables.
-  ErrCode setValue(unsigned int Idx, const ValueEntry &ValEntry);
+  ErrCode setValue(unsigned int Idx, const Value &ValEntry);
 
 private:
   /// \name Data of frame entry.
   /// @{
   unsigned int ModAddr;
   unsigned int Arity;
-  std::vector<ValueEntry> Locals;
+  std::vector<Value> Locals;
   /// @}
 };
 

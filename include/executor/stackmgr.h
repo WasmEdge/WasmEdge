@@ -14,7 +14,6 @@
 #include "entry/frame.h"
 #include "entry/label.h"
 #include "entry/value.h"
-#include "memorypool.h"
 #include "support/casting.h"
 
 #include <memory>
@@ -27,15 +26,11 @@ namespace Executor {
 
 namespace {
 /// Variant of entry classes.
-using EntryType =
-    std::variant<std::unique_ptr<FrameEntry>, std::unique_ptr<LabelEntry>,
-                 std::unique_ptr<ValueEntry>>;
+using EntryType = std::variant<Frame, Label, Value>;
 
 /// Return true if T is entry types.
 template <typename T>
-inline constexpr const bool IsEntryV =
-    std::is_same_v<T, FrameEntry> || std::is_same_v<T, LabelEntry> ||
-    std::is_same_v<T, ValueEntry>;
+inline constexpr const bool IsEntryV = std::is_constructible_v<EntryType, T>;
 
 /// Accept entry types.
 template <typename T, typename TR>
@@ -48,25 +43,21 @@ using TypeB = typename std::enable_if_t<Support::IsWasmBuiltInV<T>, TR>;
 
 class StackManager {
 public:
-  StackManager() = delete;
-  explicit StackManager(MemoryPool &Pool) : MemPool(Pool){};
+  StackManager() = default;
   ~StackManager() = default;
 
   /// Getters of top entry of stack.
   template <typename T> TypeE<T, ErrCode> getTop(T *&Entry);
 
   /// Push a new entry to stack.
-  template <typename T> TypeE<T, ErrCode> push(std::unique_ptr<T> &&NewEntry);
-  template <typename T> TypeE<T, ErrCode> push(std::unique_ptr<T> &NewEntry) {
-    return push(std::move(NewEntry));
-  }
-  template <typename T> TypeB<T, ErrCode> pushValue(T Val) {
-    Stack.push_back(std::move(MemPool.allocValueEntry(Val)));
+  template <typename T> TypeE<T, ErrCode> push(T &&NewEntry);
+  template <typename T> TypeB<T, ErrCode> pushValue(T &&Val) {
+    Stack.push_back(Value(std::forward<T>(Val)));
     return ErrCode::Success;
   }
 
   /// Pop and return the top entry.
-  template <typename T> TypeE<T, ErrCode> pop(std::unique_ptr<T> &Entry);
+  template <typename T> TypeE<T, ErrCode> pop(T &Entry);
 
   /// Pop the top entry.
   inline ErrCode pop() {
@@ -78,14 +69,11 @@ public:
     switch (Stack.back().index()) {
     case 0: /// Frame entry
       FrameIdx.pop_back();
-      MemPool.destroyFrameEntry(std::move(std::get<0>(Stack.back())));
       break;
     case 1: /// Label entry
       LabelIdx.pop_back();
-      MemPool.destroyLabelEntry(std::move(std::get<1>(Stack.back())));
       break;
     case 2: /// Value entry
-      MemPool.destroyValueEntry(std::move(std::get<2>(Stack.back())));
       break;
     default:
       break;
@@ -97,25 +85,25 @@ public:
   }
 
   /// Get the current toppest frame.
-  inline ErrCode getCurrentFrame(FrameEntry *&Frame) {
+  inline ErrCode getCurrentFrame(Frame *&F) {
     /// Check is there current frame.
     if (FrameIdx.size() == 0)
       return ErrCode::WrongInstanceAddress;
 
     /// Get the current frame pointer.
-    Frame = std::get<0>(Stack[FrameIdx.back()]).get();
+    F = &std::get<Frame>(Stack[FrameIdx.back()]);
     return ErrCode::Success;
   }
 
   /// Get the top of count of label.
-  inline ErrCode getLabelWithCount(LabelEntry *&Label, unsigned int Count) {
+  inline ErrCode getLabelWithCount(Label *&L, unsigned int Count) {
     /// Check is there at least count + 1 labels.
     if (LabelIdx.size() < Count + 1)
       return ErrCode::WrongInstanceAddress;
 
     /// Get the (count + 1)-th top of label.
     unsigned int Idx = LabelIdx.size() - Count - 1;
-    Label = std::get<1>(Stack[LabelIdx[Idx]]).get();
+    L = &std::get<Label>(Stack[LabelIdx[Idx]]);
     return ErrCode::Success;
   }
 
@@ -126,20 +114,7 @@ public:
 
   /// Reset stack.
   ErrCode reset() {
-    /// Recycle entries in stack.
-    while (Stack.size() > 0) {
-      switch (Stack.back().index()) {
-      case 0: /// Frame entry
-        MemPool.destroyFrameEntry(std::move(std::get<0>(Stack.back())));
-        break;
-      case 1: /// Label entry
-        MemPool.destroyLabelEntry(std::move(std::get<1>(Stack.back())));
-        break;
-      default:
-        break;
-      }
-      Stack.pop_back();
-    }
+    Stack.clear();
     LabelIdx.clear();
     FrameIdx.clear();
     return ErrCode::Success;
@@ -148,7 +123,6 @@ public:
 private:
   /// \name Data of stack manager.
   /// @{
-  MemoryPool &MemPool;
   std::vector<EntryType> Stack;
   std::vector<unsigned int> LabelIdx;
   std::vector<unsigned int> FrameIdx;

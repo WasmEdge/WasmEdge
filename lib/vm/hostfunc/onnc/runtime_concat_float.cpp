@@ -21,11 +21,10 @@ ONNCRuntimeConcatFloat::ONNCRuntimeConcatFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode
-ONNCRuntimeConcatFloat::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                            std::vector<std::unique_ptr<ValueEntry>> &Res,
-                            StoreManager &Store,
-                            Instance::ModuleInstance *ModInst) {
+ErrCode ONNCRuntimeConcatFloat::run(std::vector<Value> &Args,
+                                    std::vector<Value> &Res,
+                                    StoreManager &Store,
+                                    Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,
   ///      const float *const *input_inputs,
   ///      int32_t input_inputs_ntensor,
@@ -39,15 +38,15 @@ ONNCRuntimeConcatFloat::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(*Args[8].get());
-  unsigned int InInputsPtrPtr = retrieveValue<uint32_t>(*Args[7].get());
-  unsigned int InInputsNTensor = retrieveValue<uint32_t>(*Args[6].get());
-  unsigned int InInputsNDimPtr = retrieveValue<uint32_t>(*Args[5].get());
-  unsigned int InInputsDimsPtrPtr = retrieveValue<uint32_t>(*Args[4].get());
-  unsigned int OutConcatResultPtr = retrieveValue<uint32_t>(*Args[3].get());
-  unsigned int OutConcatResultNDim = retrieveValue<uint32_t>(*Args[2].get());
-  unsigned int OutConcatResultDimsPtr = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int Axis = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[8]);
+  unsigned int InInputsPtrPtr = retrieveValue<uint32_t>(Args[7]);
+  unsigned int InInputsNTensor = retrieveValue<uint32_t>(Args[6]);
+  unsigned int InInputsNDimPtr = retrieveValue<uint32_t>(Args[5]);
+  unsigned int InInputsDimsPtrPtr = retrieveValue<uint32_t>(Args[4]);
+  unsigned int OutConcatResultPtr = retrieveValue<uint32_t>(Args[3]);
+  unsigned int OutConcatResultNDim = retrieveValue<uint32_t>(Args[2]);
+  unsigned int OutConcatResultDimsPtr = retrieveValue<uint32_t>(Args[1]);
+  unsigned int Axis = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;

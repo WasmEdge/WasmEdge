@@ -74,7 +74,7 @@ ErrCode Executor::instantiate() {
 }
 
 /// Set arguments. See "include/loader/executor.h".
-ErrCode Executor::setArgs(std::vector<std::unique_ptr<ValueEntry>> &Args) {
+ErrCode Executor::setArgs(std::vector<Value> &Args) {
   /// Check is the correct state.
   if (Stat != State::Instantiated)
     return ErrCode::WrongExecutorFlow;

@@ -11,8 +11,7 @@ EEIStorageLoad::EEIStorageLoad(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode EEIStorageLoad::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                            std::vector<std::unique_ptr<ValueEntry>> &Res,
+ErrCode EEIStorageLoad::run(std::vector<Value> &Args, std::vector<Value> &Res,
                             StoreManager &Store,
                             Instance::ModuleInstance *ModInst) {
   /// Arg: pathOffset(u32), valueOffset(u32)
@@ -20,8 +19,8 @@ ErrCode EEIStorageLoad::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int PathOffset = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int ValueOffset = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int PathOffset = retrieveValue<uint32_t>(Args[1]);
+  unsigned int ValueOffset = retrieveValue<uint32_t>(Args[0]);
 
   /// Get Path data by path offset.
   std::vector<unsigned char> Data;

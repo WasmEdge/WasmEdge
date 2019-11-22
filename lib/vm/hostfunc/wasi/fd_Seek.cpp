@@ -15,8 +15,7 @@ WasiFdSeek::WasiFdSeek(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiFdSeek::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                        std::vector<std::unique_ptr<ValueEntry>> &Res,
+ErrCode WasiFdSeek::run(std::vector<Value> &Args, std::vector<Value> &Res,
                         StoreManager &Store,
                         Instance::ModuleInstance *ModInst) {
   /// Arg: Fd(u32), Offset(u64), Whence(u32), NewOffsetPtr(u32)
@@ -24,10 +23,10 @@ ErrCode WasiFdSeek::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int Fd = retrieveValue<uint32_t>(*Args[3].get());
-  unsigned int Offset = retrieveValue<uint64_t>(*Args[2].get());
-  unsigned int Whence = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int NewOffsetPtr = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int Fd = retrieveValue<uint32_t>(Args[3]);
+  unsigned int Offset = retrieveValue<uint64_t>(Args[2]);
+  unsigned int Whence = retrieveValue<uint32_t>(Args[1]);
+  unsigned int NewOffsetPtr = retrieveValue<uint32_t>(Args[0]);
   int ErrNo = 0;
 
   /// Check directive whence.
@@ -70,10 +69,10 @@ ErrCode WasiFdSeek::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
 
   /// Return: errno(u32)
   if (ErrNo == 0) {
-    Res[0]->setValue(0U);
+    Res[0] = uint32_t(0U);
   } else {
     /// TODO: errno
-    Res[0]->setValue(1U);
+    Res[0] = uint32_t(1U);
   }
   return Status;
 }

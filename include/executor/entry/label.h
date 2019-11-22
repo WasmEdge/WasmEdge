@@ -16,10 +16,10 @@
 namespace SSVM {
 namespace Executor {
 
-class LabelEntry {
+class Label {
 public:
-  LabelEntry() = default;
-  ~LabelEntry() = default;
+  Label() = default;
+  ~Label() = default;
 
   /// Initializer of label entry.
   ///
@@ -29,12 +29,9 @@ public:
   /// \param Instr the branch target of this label.
   ///
   /// \returns ErrCode.
-  ErrCode InitLabelEntry(const unsigned int LabelArity,
-                         AST::BlockControlInstruction *Instr = nullptr) {
-    Arity = LabelArity;
-    Target = Instr;
-    return ErrCode::Success;
-  }
+  Label(const unsigned int LabelArity,
+        AST::BlockControlInstruction *Instr = nullptr)
+      : Arity(LabelArity), Target(Instr) {}
 
   /// Getter of arity.
   unsigned int getArity() const { return Arity; }

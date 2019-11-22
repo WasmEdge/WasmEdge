@@ -12,11 +12,9 @@ WasiFdFdstatSetFlags::WasiFdFdstatSetFlags(VM::WasiEnvironment &Env)
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode
-WasiFdFdstatSetFlags::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                          std::vector<std::unique_ptr<ValueEntry>> &Res,
-                          StoreManager &Store,
-                          Instance::ModuleInstance *ModInst) {
+ErrCode WasiFdFdstatSetFlags::run(std::vector<Value> &Args,
+                                  std::vector<Value> &Res, StoreManager &Store,
+                                  Instance::ModuleInstance *ModInst) {
   /// Arg: fd, iovsPtr, iovs_len, nreadPtr
   if (Args.size() != 2) {
     return ErrCode::CallFunctionError;
@@ -24,7 +22,7 @@ WasiFdFdstatSetFlags::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
   ErrCode Status = ErrCode::Success;
 
   /// Return: errno(u32)
-  Res[0]->setValue(0U);
+  Res[0] = uint32_t(0U);
   return Status;
 }
 

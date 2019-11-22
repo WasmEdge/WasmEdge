@@ -9,36 +9,32 @@ namespace SSVM {
 namespace Executor {
 
 template <typename T>
-TypeB<T, ErrCode> Worker::runAddOp(const ValueEntry *Val1,
-                                   const ValueEntry *Val2) {
-  T V1 = retrieveValue<T>(*Val1), V2 = retrieveValue<T>(*Val2);
+TypeB<T, ErrCode> Worker::runAddOp(const Value &Val1, const Value &Val2) {
+  T V1 = retrieveValue<T>(Val1), V2 = retrieveValue<T>(Val2);
   /// Integer case: Return the result of (v1 + v2) modulo 2^N.
   /// Floating case: NaN, inf, and zeros are handled.
   return StackMgr.pushValue(V1 + V2);
 }
 
 template <typename T>
-TypeB<T, ErrCode> Worker::runSubOp(const ValueEntry *Val1,
-                                   const ValueEntry *Val2) {
-  T V1 = retrieveValue<T>(*Val1), V2 = retrieveValue<T>(*Val2);
+TypeB<T, ErrCode> Worker::runSubOp(const Value &Val1, const Value &Val2) {
+  T V1 = retrieveValue<T>(Val1), V2 = retrieveValue<T>(Val2);
   /// Integer case: Return the result of (v1 - v2) modulo 2^N.
   /// Floating case: NaN, inf, and zeros are handled.
   return StackMgr.pushValue(V1 - V2);
 }
 
 template <typename T>
-TypeB<T, ErrCode> Worker::runMulOp(const ValueEntry *Val1,
-                                   const ValueEntry *Val2) {
-  T V1 = retrieveValue<T>(*Val1), V2 = retrieveValue<T>(*Val2);
+TypeB<T, ErrCode> Worker::runMulOp(const Value &Val1, const Value &Val2) {
+  T V1 = retrieveValue<T>(Val1), V2 = retrieveValue<T>(Val2);
   /// Integer case: Return the result of (v1 * v2) modulo 2^N.
   /// Floating case: NaN, inf, and zeros are handled.
   return StackMgr.pushValue(V1 * V2);
 }
 
 template <typename T>
-TypeT<T, ErrCode> Worker::runDivOp(const ValueEntry *Val1,
-                                   const ValueEntry *Val2) {
-  T V1 = retrieveValue<T>(*Val1), V2 = retrieveValue<T>(*Val2);
+TypeT<T, ErrCode> Worker::runDivOp(const Value &Val1, const Value &Val2) {
+  T V1 = retrieveValue<T>(Val1), V2 = retrieveValue<T>(Val2);
   if (!std::is_floating_point_v<T> && V2 == 0) {
     /// Integer case: If v2 is 0, then the result is undefined.
     return ErrCode::DivideByZero;
@@ -55,9 +51,8 @@ TypeT<T, ErrCode> Worker::runDivOp(const ValueEntry *Val1,
 }
 
 template <typename T>
-TypeI<T, ErrCode> Worker::runRemOp(const ValueEntry *Val1,
-                                   const ValueEntry *Val2) {
-  T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
+TypeI<T, ErrCode> Worker::runRemOp(const Value &Val1, const Value &Val2) {
+  T I1 = retrieveValue<T>(Val1), I2 = retrieveValue<T>(Val2);
   /// If i2 is 0, then the result is undefined.
   if (I2 == 0) {
     return ErrCode::DivideByZero;
@@ -71,33 +66,29 @@ TypeI<T, ErrCode> Worker::runRemOp(const ValueEntry *Val1,
 }
 
 template <typename T>
-TypeU<T, ErrCode> Worker::runAndOp(const ValueEntry *Val1,
-                                   const ValueEntry *Val2) {
-  T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
+TypeU<T, ErrCode> Worker::runAndOp(const Value &Val1, const Value &Val2) {
+  T I1 = retrieveValue<T>(Val1), I2 = retrieveValue<T>(Val2);
   /// Return the bitwise conjunction of i1 and i2.
   return StackMgr.pushValue(I1 & I2);
 }
 
 template <typename T>
-TypeU<T, ErrCode> Worker::runOrOp(const ValueEntry *Val1,
-                                  const ValueEntry *Val2) {
-  T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
+TypeU<T, ErrCode> Worker::runOrOp(const Value &Val1, const Value &Val2) {
+  T I1 = retrieveValue<T>(Val1), I2 = retrieveValue<T>(Val2);
   /// Return the bitwise disjunction of i1 and i2.
   return StackMgr.pushValue(I1 | I2);
 }
 
 template <typename T>
-TypeU<T, ErrCode> Worker::runXorOp(const ValueEntry *Val1,
-                                   const ValueEntry *Val2) {
-  T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
+TypeU<T, ErrCode> Worker::runXorOp(const Value &Val1, const Value &Val2) {
+  T I1 = retrieveValue<T>(Val1), I2 = retrieveValue<T>(Val2);
   /// Return the bitwise exclusive disjunction of i1 and i2.
   return StackMgr.pushValue(I1 ^ I2);
 }
 
 template <typename T>
-TypeU<T, ErrCode> Worker::runShlOp(const ValueEntry *Val1,
-                                   const ValueEntry *Val2) {
-  T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
+TypeU<T, ErrCode> Worker::runShlOp(const Value &Val1, const Value &Val2) {
+  T I1 = retrieveValue<T>(Val1), I2 = retrieveValue<T>(Val2);
   /// Let k be i2 modulo N.
   I2 %= sizeof(T) * 8;
   /// Return the result of i1 << k, modulo 2^N.
@@ -105,9 +96,8 @@ TypeU<T, ErrCode> Worker::runShlOp(const ValueEntry *Val1,
 }
 
 template <typename T>
-TypeI<T, ErrCode> Worker::runShrOp(const ValueEntry *Val1,
-                                   const ValueEntry *Val2) {
-  T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
+TypeI<T, ErrCode> Worker::runShrOp(const Value &Val1, const Value &Val2) {
+  T I1 = retrieveValue<T>(Val1), I2 = retrieveValue<T>(Val2);
   /// Let k be i2 modulo N.
   I2 %= sizeof(T) * 8;
   /// Return the result of i1 >> k.
@@ -117,9 +107,8 @@ TypeI<T, ErrCode> Worker::runShrOp(const ValueEntry *Val1,
 }
 
 template <typename T>
-TypeU<T, ErrCode> Worker::runRotlOp(const ValueEntry *Val1,
-                                    const ValueEntry *Val2) {
-  T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
+TypeU<T, ErrCode> Worker::runRotlOp(const Value &Val1, const Value &Val2) {
+  T I1 = retrieveValue<T>(Val1), I2 = retrieveValue<T>(Val2);
   /// Let k be i2 modulo N.
   I2 %= sizeof(T) * 8;
   /// Return the result of rotating i1 left by k bits.
@@ -127,9 +116,8 @@ TypeU<T, ErrCode> Worker::runRotlOp(const ValueEntry *Val1,
 }
 
 template <typename T>
-TypeU<T, ErrCode> Worker::runRotrOp(const ValueEntry *Val1,
-                                    const ValueEntry *Val2) {
-  T I1 = retrieveValue<T>(*Val1), I2 = retrieveValue<T>(*Val2);
+TypeU<T, ErrCode> Worker::runRotrOp(const Value &Val1, const Value &Val2) {
+  T I1 = retrieveValue<T>(Val1), I2 = retrieveValue<T>(Val2);
   /// Let k be i2 modulo N.
   I2 %= sizeof(T) * 8;
   /// Return the result of rotating i1 left by k bits.
@@ -137,9 +125,8 @@ TypeU<T, ErrCode> Worker::runRotrOp(const ValueEntry *Val1,
 }
 
 template <typename T>
-TypeF<T, ErrCode> Worker::runMinOp(const ValueEntry *Val1,
-                                   const ValueEntry *Val2) {
-  T Z1 = retrieveValue<T>(*Val1), Z2 = retrieveValue<T>(*Val2);
+TypeF<T, ErrCode> Worker::runMinOp(const Value &Val1, const Value &Val2) {
+  T Z1 = retrieveValue<T>(Val1), Z2 = retrieveValue<T>(Val2);
   /// If both z1 and z2 are zeroes of opposite signs, then return negative zero.
   if (Z1 == 0.0 && Z2 == 0.0 && std::signbit(Z1) != std::signbit(Z2))
     return StackMgr.pushValue((T)-0.0);
@@ -148,17 +135,15 @@ TypeF<T, ErrCode> Worker::runMinOp(const ValueEntry *Val1,
 }
 
 template <typename T>
-TypeF<T, ErrCode> Worker::runMaxOp(const ValueEntry *Val1,
-                                   const ValueEntry *Val2) {
-  T Z1 = retrieveValue<T>(*Val1), Z2 = retrieveValue<T>(*Val2);
+TypeF<T, ErrCode> Worker::runMaxOp(const Value &Val1, const Value &Val2) {
+  T Z1 = retrieveValue<T>(Val1), Z2 = retrieveValue<T>(Val2);
   /// Return the min of z1 and z2. (+-0.0, NaN, and Inf case are handled.)
   return StackMgr.pushValue(std::max(Z1, Z2));
 }
 
 template <typename T>
-TypeF<T, ErrCode> Worker::runCopysignOp(const ValueEntry *Val1,
-                                        const ValueEntry *Val2) {
-  T Z1 = retrieveValue<T>(*Val1), Z2 = retrieveValue<T>(*Val2);
+TypeF<T, ErrCode> Worker::runCopysignOp(const Value &Val1, const Value &Val2) {
+  T Z1 = retrieveValue<T>(Val1), Z2 = retrieveValue<T>(Val2);
   /// Return z1 with the same sign with z2.
   return StackMgr.pushValue(std::copysign(Z1, Z2));
 }

@@ -61,10 +61,7 @@ public:
   template <typename T>
   typename std::enable_if_t<Support::IsWasmBuiltInV<T>, ErrCode>
   appendArgument(const T &Val) {
-    std::unique_ptr<Executor::ValueEntry> VE =
-        std::make_unique<Executor::ValueEntry>();
-    VE->InitValueEntry(Val);
-    Args.push_back(std::move(VE));
+    Args.push_back(Val);
     return ErrCode::Success;
   }
 
@@ -91,8 +88,8 @@ private:
   Configure &Config;
   std::unique_ptr<Environment> Env;
   std::unique_ptr<AST::Module> Mod;
-  std::vector<std::unique_ptr<Executor::ValueEntry>> Args;
-  std::vector<std::unique_ptr<Executor::ValueEntry>> Rets;
+  std::vector<Executor::Value> Args;
+  std::vector<Executor::Value> Rets;
   Result VMResult;
 };
 

@@ -15,8 +15,7 @@ WasiFdWrite::WasiFdWrite(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiFdWrite::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                         std::vector<std::unique_ptr<ValueEntry>> &Res,
+ErrCode WasiFdWrite::run(std::vector<Value> &Args, std::vector<Value> &Res,
                          StoreManager &Store,
                          Instance::ModuleInstance *ModInst) {
   /// Arg: Fd(u32), IOVSPtr(u32), IOVSCnt(u32), NWrittenPtr(u32)
@@ -24,10 +23,10 @@ ErrCode WasiFdWrite::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int Fd = retrieveValue<uint32_t>(*Args[3].get());
-  unsigned int IOVSPtr = retrieveValue<uint32_t>(*Args[2].get());
-  unsigned int IOVSCnt = retrieveValue<uint32_t>(*Args[1].get());
-  unsigned int NWrittenPtr = retrieveValue<uint32_t>(*Args[0].get());
+  unsigned int Fd = retrieveValue<uint32_t>(Args[3]);
+  unsigned int IOVSPtr = retrieveValue<uint32_t>(Args[2]);
+  unsigned int IOVSCnt = retrieveValue<uint32_t>(Args[1]);
+  unsigned int NWrittenPtr = retrieveValue<uint32_t>(Args[0]);
   int ErrNo = 0;
 
   /// Get memory instance.
@@ -84,10 +83,10 @@ ErrCode WasiFdWrite::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
 
   /// Return: errno(u32)
   if (ErrNo == 0) {
-    Res[0]->setValue(0U);
+    Res[0] = uint32_t(0U);
   } else {
     /// TODO: errno
-    Res[0]->setValue(1U);
+    Res[0] = uint32_t(1U);
   }
   return Status;
 }

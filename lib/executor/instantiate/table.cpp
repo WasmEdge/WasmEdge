@@ -57,13 +57,9 @@ ErrCode Executor::instantiate(AST::TableSection *TabSec,
     }
 
     /// Pop the result for offset.
-    std::unique_ptr<ValueEntry> PopVal;
+    Value PopVal;
     StackMgr.pop(PopVal);
-    uint32_t Offset = 0;
-    if ((Status = PopVal->getValue(Offset)) != ErrCode::Success) {
-      return Status;
-    }
-    MemPool.destroyValueEntry(std::move(PopVal));
+    uint32_t Offset = retrieveValue<uint32_t>(PopVal);
 
     /// Get table instance
     Instance::TableInstance *TabInst = nullptr;

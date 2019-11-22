@@ -1,65 +1,57 @@
 #include "executor/entry/frame.h"
+#include <numeric>
 
 namespace SSVM {
 namespace Executor {
 
 /// Initializer of frame entry. See "include/executor/entry/frame.h".
-ErrCode FrameEntry::InitFrameEntry(
-    unsigned int ModuleAddr, unsigned int FrameArity,
-    std::vector<std::unique_ptr<ValueEntry>> &Args,
-    const std::vector<std::pair<unsigned int, AST::ValType>> &LocalDefs) {
-  /// Set arity and module address.
-  ModAddr = ModuleAddr;
-  Arity = FrameArity;
-  Locals.clear();
+Frame::Frame(
+    unsigned int ModuleAddr, unsigned int FrameArity, std::vector<Value> &Args,
+    const std::vector<std::pair<unsigned int, AST::ValType>> &LocalDefs)
+    : ModAddr(ModuleAddr), Arity(FrameArity) {
+
+  Locals.reserve(Args.size() +
+                 std::accumulate(LocalDefs.cbegin(), LocalDefs.cend(),
+                                 size_t(0), [](size_t value, const auto &Def) {
+                                   return value + Def.first;
+                                 }));
 
   /// Set parameters with arguments.
-  for (auto Arg = Args.rbegin(); Arg != Args.rend(); Arg++) {
-    /// Call initializer ValueEntry(const ValueEntry &VE)
-    Locals.emplace_back();
-    Locals.back().InitValueEntry(*Arg->get());
-  }
+  std::copy(Args.crbegin(), Args.crend(), std::back_inserter(Locals));
 
   /// Set local variables with initialization.
   for (auto LocalDef = LocalDefs.begin(); LocalDef != LocalDefs.end();
        LocalDef++) {
     for (unsigned int i = 0; i < LocalDef->first; i++) {
-      /// Call initializer ValueEntry(const AST::ValType &VT)
-      Locals.emplace_back();
-      Locals.back().InitValueEntry(LocalDef->second);
+      Locals.emplace_back(AST::ValueFromType(LocalDef->second));
     }
   }
-  return ErrCode::Success;
 }
 
 /// Initializer of frame entry. See "include/executor/entry/frame.h".
-ErrCode FrameEntry::InitFrameEntry(unsigned int ModuleAddr,
-                                   unsigned int FrameArity) {
-  Arity = FrameArity;
-  ModAddr = ModuleAddr;
-  Locals.clear();
-  return ErrCode::Success;
-}
+Frame::Frame(unsigned int ModuleAddr, unsigned int FrameArity)
+    : ModAddr(ModuleAddr), Arity(FrameArity) {}
 
 /// Getter of local values by index. See "include/executor/entry/frame.h".
-ErrCode FrameEntry::getValue(unsigned int Idx, ValueEntry *&ValEntry) {
+ErrCode Frame::getValue(unsigned int Idx, Value *&Val) {
   /// Check if the index valid.
   if (Locals.size() <= Idx)
     return ErrCode::WrongLocalAddress;
 
   /// Get value.
-  ValEntry = &Locals[Idx];
+  Val = &Locals[Idx];
   return ErrCode::Success;
 }
 
 /// Setter of local values by index. See "include/executor/entry/frame.h".
-ErrCode FrameEntry::setValue(unsigned int Idx, const ValueEntry &ValEntry) {
+ErrCode Frame::setValue(unsigned int Idx, const Value &Val) {
   /// Check if the index valid.
   if (Locals.size() <= Idx)
     return ErrCode::WrongLocalAddress;
 
   /// Set value.
-  return Locals[Idx].setValue(ValEntry);
+  Locals[Idx] = Val;
+  return ErrCode::Success;
 }
 
 } // namespace Executor

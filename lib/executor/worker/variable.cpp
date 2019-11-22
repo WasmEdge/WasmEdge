@@ -12,39 +12,37 @@ namespace Executor {
 
 ErrCode Worker::runLocalGetOp(unsigned int Idx) {
   ErrCode Status = ErrCode::Success;
-  ValueEntry *ValEntry = nullptr;
-  if ((Status = CurrentFrame->getValue(Idx, ValEntry)) != ErrCode::Success) {
+  Value *Val = nullptr;
+  if ((Status = CurrentFrame->getValue(Idx, Val)) != ErrCode::Success) {
     return Status;
   }
-  return StackMgr.push(MemPool.allocValueEntry(*ValEntry));
+  return StackMgr.push(*Val);
 }
 
 ErrCode Worker::runLocalSetOp(unsigned int Idx) {
   ErrCode Status = ErrCode::Success;
-  std::unique_ptr<ValueEntry> ValEntry;
-  if ((Status = StackMgr.pop(ValEntry)) != ErrCode::Success) {
+  Value Val;
+  if ((Status = StackMgr.pop(Val)) != ErrCode::Success) {
     return Status;
   }
-  if ((Status = CurrentFrame->setValue(Idx, *ValEntry.get())) !=
-      ErrCode::Success) {
+  if ((Status = CurrentFrame->setValue(Idx, Val)) != ErrCode::Success) {
     return Status;
   }
-  MemPool.destroyValueEntry(std::move(ValEntry));
   return Status;
 }
 
 ErrCode Worker::runLocalTeeOp(unsigned int Idx) {
   ErrCode Status = ErrCode::Success;
-  ValueEntry *ValEntry = nullptr;
-  if ((Status = StackMgr.getTop(ValEntry)) != ErrCode::Success) {
+  Value *Val = nullptr;
+  if ((Status = StackMgr.getTop(Val)) != ErrCode::Success) {
     return Status;
   }
-  return CurrentFrame->setValue(Idx, *ValEntry);
+  return CurrentFrame->setValue(Idx, *Val);
 }
 
 ErrCode Worker::runGlobalGetOp(unsigned int Idx) {
   Instance::GlobalInstance *GlobInst = nullptr;
-  AST::ValVariant Val;
+  Value Val;
   ErrCode Status = ErrCode::Success;
   if ((Status = getGlobInstByIdx(Idx, GlobInst)) != ErrCode::Success) {
     return Status;
@@ -52,24 +50,19 @@ ErrCode Worker::runGlobalGetOp(unsigned int Idx) {
   if ((Status = GlobInst->getValue(Val)) != ErrCode::Success) {
     return Status;
   }
-  return StackMgr.push(MemPool.allocValueEntry(GlobInst->getValType(), Val));
+  return StackMgr.push(Val);
 }
 
 ErrCode Worker::runGlobalSetOp(unsigned int Idx) {
-  std::unique_ptr<ValueEntry> ValEntry;
-  AST::ValVariant Val;
+  Value Val;
   Instance::GlobalInstance *GlobInst = nullptr;
   ErrCode Status = ErrCode::Success;
   if ((Status = getGlobInstByIdx(Idx, GlobInst)) != ErrCode::Success) {
     return Status;
   };
-  if ((Status = StackMgr.pop(ValEntry)) != ErrCode::Success) {
+  if ((Status = StackMgr.pop(Val)) != ErrCode::Success) {
     return Status;
   }
-  if ((Status = ValEntry->getValue(Val)) != ErrCode::Success) {
-    return Status;
-  }
-  MemPool.destroyValueEntry(std::move(ValEntry));
   return GlobInst->setValue(Val);
 }
 

@@ -9,8 +9,7 @@ WasiProcExit::WasiProcExit(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode WasiProcExit::run(std::vector<std::unique_ptr<ValueEntry>> &Args,
-                          std::vector<std::unique_ptr<ValueEntry>> &Res,
+ErrCode WasiProcExit::run(std::vector<Value> &Args, std::vector<Value> &Res,
                           StoreManager &Store,
                           Instance::ModuleInstance *ModInst) {
   /// Arg: errno(u32)

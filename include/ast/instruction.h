@@ -12,10 +12,17 @@
 #pragma once
 
 #include "ast/common.h"
+#include "executor/common.h"
 #include "loader/filemgr.h"
 
 #include <memory>
 #include <vector>
+
+namespace SSVM {
+namespace Executor {
+class Worker;
+}
+} // namespace SSVM
 
 namespace SSVM {
 namespace AST {
@@ -217,40 +224,18 @@ public:
 
   /// Constructor assigns the OpCode.
   Instruction(OpCode &Byte) { Code = Byte; };
-  virtual ~Instruction() = default;
+  virtual ~Instruction() noexcept = default;
+
+  /// Execute dispatcher
+  virtual Executor::ErrCode execute(Executor::Worker &Worker) = 0;
 
   /// Binary loading from file manager. Default not load anything.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr) {
     return Loader::ErrCode::Success;
-  };
+  }
 
   /// Getter of OpCode.
   OpCode getOpCode() const { return Code; }
-
-  /// For IfElse and BlockControl instructions.
-  virtual ValType getResultType() const { return ValType::None; }
-  virtual const InstrVec *getBody() const { return nullptr; }
-  virtual const InstrVec *getIfStatement() const { return nullptr; }
-  virtual const InstrVec *getElseStatement() const { return nullptr; }
-
-  /// For Br and BrTable instructions.
-  virtual unsigned int getLabelIndex() const { return 0; }
-  virtual const std::vector<unsigned int> *getLabelTable() const {
-    return nullptr;
-  }
-
-  /// For Call instructions.
-  virtual unsigned int getFuncIndex() const { return 0; }
-
-  /// For Variable instructions.
-  virtual unsigned int getVariableIndex() const { return 0; }
-
-  /// For Memory instructions.
-  virtual unsigned int getMemoryAlign() const { return 0; }
-  virtual unsigned int getMemoryOffset() const { return 0; }
-
-  /// For ConstNumeric instructions.
-  virtual ValVariant getConstValue() { return ValVariant(0U); }
 
 protected:
   /// OpCode if this instruction node.
@@ -262,6 +247,9 @@ class ControlInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   ControlInstruction(OpCode &Byte) : Instruction(Byte) {}
+
+  /// Execute dispatcher
+  Executor::ErrCode execute(Executor::Worker &Worker) override;
 };
 
 /// Derived block control instruction node.
@@ -269,6 +257,9 @@ class BlockControlInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   BlockControlInstruction(OpCode &Byte) : Instruction(Byte) {}
+
+  /// Execute dispatcher
+  Executor::ErrCode execute(Executor::Worker &Worker) override;
 
   /// Load binary from file manager.
   ///
@@ -278,13 +269,13 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
 
   /// Getter of block type
-  virtual ValType getResultType() const { return BlockType; }
+  ValType getResultType() const { return BlockType; }
 
   /// Getter of Block Body
-  virtual const InstrVec *getBody() const { return &Body; }
+  const InstrVec *getBody() const { return &Body; }
 
 private:
   /// \name Data of block instruction: return type and block body.
@@ -300,6 +291,9 @@ public:
   /// Call base constructor to initialize OpCode.
   IfElseControlInstruction(OpCode &Byte) : Instruction(Byte) {}
 
+  /// Execute dispatcher
+  Executor::ErrCode execute(Executor::Worker &Worker) override;
+
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Instruction.
@@ -308,16 +302,16 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
 
   /// Getter of block type
-  virtual ValType getResultType() const { return BlockType; }
+  ValType getResultType() const { return BlockType; }
 
   /// Getter of if statement.
-  virtual const InstrVec *getIfStatement() const { return &IfStatement; }
+  const InstrVec *getIfStatement() const { return &IfStatement; }
 
   /// Getter of else statement.
-  virtual const InstrVec *getElseStatement() const { return &ElseStatement; }
+  const InstrVec *getElseStatement() const { return &ElseStatement; }
 
 private:
   /// \name Data of block instruction: return type and statements.
@@ -334,6 +328,9 @@ public:
   /// Call base constructor to initialize OpCode.
   BrControlInstruction(OpCode &Byte) : Instruction(Byte) {}
 
+  /// Execute dispatcher
+  Executor::ErrCode execute(Executor::Worker &Worker) override;
+
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Instruction.
@@ -342,10 +339,10 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
 
   /// Get label index
-  virtual unsigned int getLabelIndex() const { return LabelIdx; }
+  unsigned int getLabelIndex() const { return LabelIdx; }
 
 private:
   /// Branch-to label index.
@@ -358,6 +355,9 @@ public:
   /// Call base constructor to initialize OpCode.
   BrTableControlInstruction(OpCode &Byte) : Instruction(Byte) {}
 
+  /// Execute dispatcher
+  Executor::ErrCode execute(Executor::Worker &Worker) override;
+
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Instruction.
@@ -366,15 +366,13 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
 
   /// Getter of label table
-  virtual const std::vector<unsigned int> *getLabelTable() const {
-    return &LabelTable;
-  }
+  const std::vector<unsigned int> *getLabelTable() const { return &LabelTable; }
 
   /// Getter of label index
-  virtual unsigned int getLabelIndex() const { return LabelIdx; }
+  unsigned int getLabelIndex() const { return LabelIdx; }
 
 private:
   /// \name Data of branch instruction: label vector and defalt label.
@@ -390,6 +388,9 @@ public:
   /// Call base constructor to initialize OpCode.
   CallControlInstruction(OpCode &Byte) : Instruction(Byte) {}
 
+  /// Execute dispatcher
+  Executor::ErrCode execute(Executor::Worker &Worker) override;
+
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Instruction.
@@ -398,10 +399,10 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
 
   /// Getter of the index
-  virtual unsigned int getFuncIndex() const { return FuncIdx; }
+  unsigned int getFuncIndex() const { return FuncIdx; }
 
 private:
   /// Call function index.
@@ -413,6 +414,9 @@ class ParametricInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   ParametricInstruction(OpCode &Byte) : Instruction(Byte) {}
+
+  /// Execute dispatcher
+  Executor::ErrCode execute(Executor::Worker &Worker) override;
 };
 
 /// Derived variable instruction node.
@@ -420,6 +424,9 @@ class VariableInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   VariableInstruction(OpCode &Byte) : Instruction(Byte) {}
+
+  /// Execute dispatcher
+  Executor::ErrCode execute(Executor::Worker &Worker) override;
 
   /// Load binary from file manager.
   ///
@@ -429,10 +436,10 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
 
   /// Getter of the index
-  virtual unsigned int getVariableIndex() const { return VarIdx; }
+  unsigned int getVariableIndex() const { return VarIdx; }
 
 private:
   /// Global or local index.
@@ -445,6 +452,9 @@ public:
   /// Call base constructor to initialize OpCode.
   MemoryInstruction(OpCode &Byte) : Instruction(Byte) {}
 
+  /// Execute dispatcher
+  Executor::ErrCode execute(Executor::Worker &Worker) override;
+
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Instruction.
@@ -453,11 +463,11 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
 
   /// Getters of memory align and offset.
-  virtual unsigned int getMemoryAlign() const { return Align; }
-  virtual unsigned int getMemoryOffset() const { return Offset; }
+  unsigned int getMemoryAlign() const { return Align; }
+  unsigned int getMemoryOffset() const { return Offset; }
 
 private:
   /// \name Data of memory instruction: Alignment and offset.
@@ -473,6 +483,9 @@ public:
   /// Call base constructor to initialize OpCode.
   ConstInstruction(OpCode &Byte) : Instruction(Byte) {}
 
+  /// Execute dispatcher
+  Executor::ErrCode execute(Executor::Worker &Worker) override;
+
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Instruction.
@@ -481,10 +494,10 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
 
   /// Getter of the constant value.
-  virtual ValVariant getConstValue() { return Num; }
+  ValVariant getConstValue() { return Num; }
 
 private:
   /// Const value of this instruction.
@@ -492,10 +505,23 @@ private:
 };
 
 /// Derived numeric instruction node.
-class NumericInstruction : public Instruction {
+class UnaryNumericInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
-  NumericInstruction(OpCode &Byte) : Instruction(Byte) {}
+  UnaryNumericInstruction(OpCode &Byte) : Instruction(Byte) {}
+
+  /// Execute dispatcher
+  Executor::ErrCode execute(Executor::Worker &Worker) override;
+};
+
+/// Derived numeric instruction node.
+class BinaryNumericInstruction : public Instruction {
+public:
+  /// Call base constructor to initialize OpCode.
+  BinaryNumericInstruction(OpCode &Byte) : Instruction(Byte) {}
+
+  /// Execute dispatcher
+  Executor::ErrCode execute(Executor::Worker &Worker) override;
 };
 
 /// Make the new instruction node.

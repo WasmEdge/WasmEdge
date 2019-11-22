@@ -4,6 +4,7 @@
 #include "executor/worker/util.h"
 #include "support/casting.h"
 
+#include <functional>
 #include <stdio.h>
 
 namespace SSVM {
@@ -11,6 +12,22 @@ namespace Executor {
 
 namespace {
 using OpCode = AST::Instruction::OpCode;
+
+struct Guard {
+  Guard() = default;
+  template <typename LambdaT> Guard(LambdaT Lambda) : Function(Lambda) {}
+  ~Guard() {
+    if (Function)
+      Function();
+  }
+  template <typename LambdaT> void operator=(LambdaT Lambda) {
+    Function = Lambda;
+  }
+
+private:
+  std::function<void(void)> Function;
+};
+
 } // namespace
 
 ErrCode Worker::runExpression(const AST::InstrVec &Instrs) {
@@ -60,6 +77,438 @@ ErrCode Worker::reset() {
   return ErrCode::Success;
 }
 
+ErrCode Worker::execute(AST::ControlInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::Unreachable:
+    TheState = State::Unreachable;
+    return ErrCode::Unreachable;
+  case OpCode::Nop:
+    return ErrCode::Success;
+  case OpCode::Return:
+    return runReturnOp();
+  default:
+    __builtin_unreachable();
+  }
+}
+ErrCode Worker::execute(AST::BlockControlInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::Block:
+    return runBlockOp(Instr);
+  case OpCode::Loop:
+    return runLoopOp(Instr);
+  default:
+    __builtin_unreachable();
+  }
+}
+ErrCode Worker::execute(AST::IfElseControlInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::If:
+    return runIfElseOp(Instr);
+  default:
+    __builtin_unreachable();
+  }
+}
+ErrCode Worker::execute(AST::BrControlInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::Br:
+    return runBrOp(Instr);
+  case OpCode::Br_if:
+    return runBrIfOp(Instr);
+  default:
+    __builtin_unreachable();
+  }
+}
+ErrCode Worker::execute(AST::BrTableControlInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::Br_table:
+    return runBrTableOp(Instr);
+  default:
+    __builtin_unreachable();
+  }
+}
+ErrCode Worker::execute(AST::CallControlInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::Call:
+    return runCallOp(Instr);
+  case OpCode::Call_indirect:
+    return runCallIndirectOp(Instr);
+  default:
+    __builtin_unreachable();
+  }
+}
+ErrCode Worker::execute(AST::ParametricInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::Drop:
+    StackMgr.pop();
+    return ErrCode::Success;
+  case OpCode::Select: {
+    /// Pop the i32 value and select values from stack.
+    std::unique_ptr<ValueEntry> CondValEntry, ValEntry1, ValEntry2;
+    StackMgr.pop(CondValEntry);
+    StackMgr.pop(ValEntry2);
+    StackMgr.pop(ValEntry1);
+    uint32_t CondValue = retrieveValue<uint32_t>(*CondValEntry.get());
+
+    /// Select the value.
+    if (CondValue == 0) {
+      StackMgr.push(ValEntry2);
+      MemPool.destroyValueEntry(std::move(ValEntry1));
+    } else {
+      StackMgr.push(ValEntry1);
+      MemPool.destroyValueEntry(std::move(ValEntry2));
+    }
+    MemPool.destroyValueEntry(std::move(CondValEntry));
+
+    return ErrCode::Success;
+  }
+  default:
+    __builtin_unreachable();
+  }
+}
+ErrCode Worker::execute(AST::VariableInstruction &Instr) {
+  /// Get variable index.
+  unsigned int Index = Instr.getVariableIndex();
+
+  /// Check OpCode and run the specific instruction.
+  switch (Instr.getOpCode()) {
+  case OpCode::Local__get:
+    return runLocalGetOp(Index);
+  case OpCode::Local__set:
+    return runLocalSetOp(Index);
+  case OpCode::Local__tee:
+    return runLocalTeeOp(Index);
+  case OpCode::Global__get:
+    return runGlobalGetOp(Index);
+  case OpCode::Global__set:
+    return runGlobalSetOp(Index);
+  default:
+    __builtin_unreachable();
+  }
+}
+ErrCode Worker::execute(AST::MemoryInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::I32__load:
+    return runLoadOp<uint32_t>(Instr);
+  case OpCode::I64__load:
+    return runLoadOp<uint64_t>(Instr);
+  case OpCode::F32__load:
+    return runLoadOp<float>(Instr);
+  case OpCode::F64__load:
+    return runLoadOp<double>(Instr);
+  case OpCode::I32__load8_s:
+    return runLoadOp<int32_t>(Instr, 8);
+  case OpCode::I32__load8_u:
+    return runLoadOp<uint32_t>(Instr, 8);
+  case OpCode::I32__load16_s:
+    return runLoadOp<int32_t>(Instr, 16);
+  case OpCode::I32__load16_u:
+    return runLoadOp<uint32_t>(Instr, 16);
+  case OpCode::I64__load8_s:
+    return runLoadOp<int64_t>(Instr, 8);
+  case OpCode::I64__load8_u:
+    return runLoadOp<uint64_t>(Instr, 8);
+  case OpCode::I64__load16_s:
+    return runLoadOp<int64_t>(Instr, 16);
+  case OpCode::I64__load16_u:
+    return runLoadOp<uint64_t>(Instr, 16);
+  case OpCode::I64__load32_s:
+    return runLoadOp<int64_t>(Instr, 32);
+  case OpCode::I64__load32_u:
+    return runLoadOp<uint64_t>(Instr, 32);
+  case OpCode::I32__store:
+    return runStoreOp<uint32_t>(Instr);
+  case OpCode::I64__store:
+    return runStoreOp<uint64_t>(Instr);
+  case OpCode::F32__store:
+    return runStoreOp<float>(Instr);
+  case OpCode::F64__store:
+    return runStoreOp<double>(Instr);
+  case OpCode::I32__store8:
+    return runStoreOp<uint32_t>(Instr, 8);
+  case OpCode::I32__store16:
+    return runStoreOp<uint32_t>(Instr, 16);
+  case OpCode::I64__store8:
+    return runStoreOp<uint64_t>(Instr, 8);
+  case OpCode::I64__store16:
+    return runStoreOp<uint64_t>(Instr, 16);
+  case OpCode::I64__store32:
+    return runStoreOp<uint64_t>(Instr, 32);
+  case OpCode::Memory__grow:
+    return runMemoryGrowOp();
+  case OpCode::Memory__size:
+    return runMemorySizeOp();
+  default:
+    __builtin_unreachable();
+  }
+}
+ErrCode Worker::execute(AST::ConstInstruction &Instr) {
+  return StackMgr.push(MemPool.allocValueEntry(Instr.getConstValue()));
+}
+ErrCode Worker::execute(AST::UnaryNumericInstruction &Instr) {
+  std::unique_ptr<ValueEntry> Val;
+  StackMgr.pop(Val);
+  Guard G = [this, &Val]() { MemPool.destroyValueEntry(std::move(Val)); };
+  switch (Instr.getOpCode()) {
+  case OpCode::I32__eqz:
+    return runEqzOp<uint32_t>(Val.get());
+  case OpCode::I64__eqz:
+    return runEqzOp<uint64_t>(Val.get());
+  case OpCode::I32__clz:
+    return runClzOp<uint32_t>(Val.get());
+  case OpCode::I32__ctz:
+    return runCtzOp<uint32_t>(Val.get());
+  case OpCode::I32__popcnt:
+    return runPopcntOp<uint32_t>(Val.get());
+  case OpCode::I64__clz:
+    return runClzOp<uint64_t>(Val.get());
+  case OpCode::I64__ctz:
+    return runCtzOp<uint64_t>(Val.get());
+  case OpCode::I64__popcnt:
+    return runPopcntOp<uint64_t>(Val.get());
+  case OpCode::F32__abs:
+    return runAbsOp<float>(Val.get());
+  case OpCode::F32__neg:
+    return runNegOp<float>(Val.get());
+  case OpCode::F32__ceil:
+    return runCeilOp<float>(Val.get());
+  case OpCode::F32__floor:
+    return runFloorOp<float>(Val.get());
+  case OpCode::F32__nearest:
+    return runNearestOp<float>(Val.get());
+  case OpCode::F32__sqrt:
+    return runSqrtOp<float>(Val.get());
+  case OpCode::F64__abs:
+    return runAbsOp<double>(Val.get());
+  case OpCode::F64__neg:
+    return runNegOp<double>(Val.get());
+  case OpCode::F64__ceil:
+    return runCeilOp<double>(Val.get());
+  case OpCode::F64__floor:
+    return runFloorOp<double>(Val.get());
+  case OpCode::F64__nearest:
+    return runNearestOp<double>(Val.get());
+  case OpCode::F64__sqrt:
+    return runSqrtOp<double>(Val.get());
+  case OpCode::I32__wrap_i64:
+    return runWrapOp<uint64_t, uint32_t>(Val.get());
+  case OpCode::I32__trunc_f32_s:
+    return runTruncateOp<float, int32_t>(Val.get());
+  case OpCode::I32__trunc_f32_u:
+    return runTruncateOp<float, uint32_t>(Val.get());
+  case OpCode::I32__trunc_f64_s:
+    return runTruncateOp<double, int32_t>(Val.get());
+  case OpCode::I32__trunc_f64_u:
+    return runTruncateOp<double, uint32_t>(Val.get());
+  case OpCode::I64__extend_i32_s:
+    return runExtendOp<int32_t, uint64_t>(Val.get());
+  case OpCode::I64__extend_i32_u:
+    return runExtendOp<uint32_t, uint64_t>(Val.get());
+  case OpCode::I64__trunc_f32_s:
+    return runTruncateOp<float, int64_t>(Val.get());
+  case OpCode::I64__trunc_f32_u:
+    return runTruncateOp<float, uint64_t>(Val.get());
+  case OpCode::I64__trunc_f64_s:
+    return runTruncateOp<double, int64_t>(Val.get());
+  case OpCode::I64__trunc_f64_u:
+    return runTruncateOp<double, uint64_t>(Val.get());
+  case OpCode::F32__convert_i32_s:
+    return runConvertOp<int32_t, float>(Val.get());
+  case OpCode::F32__convert_i32_u:
+    return runConvertOp<uint32_t, float>(Val.get());
+  case OpCode::F32__convert_i64_s:
+    return runConvertOp<int64_t, float>(Val.get());
+  case OpCode::F32__convert_i64_u:
+    return runConvertOp<uint64_t, float>(Val.get());
+  case OpCode::F32__demote_f64:
+    return runDemoteOp<double, float>(Val.get());
+  case OpCode::F64__convert_i32_s:
+    return runConvertOp<int32_t, double>(Val.get());
+  case OpCode::F64__convert_i32_u:
+    return runConvertOp<uint32_t, double>(Val.get());
+  case OpCode::F64__convert_i64_s:
+    return runConvertOp<int64_t, double>(Val.get());
+  case OpCode::F64__convert_i64_u:
+    return runConvertOp<uint64_t, double>(Val.get());
+  case OpCode::F64__promote_f32:
+    return runPromoteOp<float, double>(Val.get());
+  case OpCode::I32__reinterpret_f32:
+    return runReinterpretOp<float, uint32_t>(Val.get());
+  case OpCode::I64__reinterpret_f64:
+    return runReinterpretOp<double, uint64_t>(Val.get());
+  case OpCode::F32__reinterpret_i32:
+    return runReinterpretOp<uint32_t, float>(Val.get());
+  case OpCode::F64__reinterpret_i64:
+    return runReinterpretOp<uint64_t, double>(Val.get());
+  default:
+    __builtin_unreachable();
+  }
+}
+ErrCode Worker::execute(AST::BinaryNumericInstruction &Instr) {
+  std::unique_ptr<ValueEntry> Val1, Val2;
+  StackMgr.pop(Val2);
+  StackMgr.pop(Val1);
+  Guard G = [this, &Val1, &Val2]() {
+    MemPool.destroyValueEntry(std::move(Val1));
+    MemPool.destroyValueEntry(std::move(Val2));
+  };
+  switch (Instr.getOpCode()) {
+  case OpCode::I32__eq:
+    return runEqOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__ne:
+    return runNeOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__lt_s:
+    return runLtOp<int32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__lt_u:
+    return runLtOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__gt_s:
+    return runGtOp<int32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__gt_u:
+    return runGtOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__le_s:
+    return runLeOp<int32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__le_u:
+    return runLeOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__ge_s:
+    return runGeOp<int32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__ge_u:
+    return runGeOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I64__eq:
+    return runEqOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__ne:
+    return runNeOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__lt_s:
+    return runLtOp<int64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__lt_u:
+    return runLtOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__gt_s:
+    return runGtOp<int64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__gt_u:
+    return runGtOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__le_s:
+    return runLeOp<int64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__le_u:
+    return runLeOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__ge_s:
+    return runGeOp<int64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__ge_u:
+    return runGeOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::F32__eq:
+    return runEqOp<float>(Val1.get(), Val2.get());
+  case OpCode::F32__ne:
+    return runNeOp<float>(Val1.get(), Val2.get());
+  case OpCode::F32__lt:
+    return runLtOp<float>(Val1.get(), Val2.get());
+  case OpCode::F32__gt:
+    return runGtOp<float>(Val1.get(), Val2.get());
+  case OpCode::F32__le:
+    return runLeOp<float>(Val1.get(), Val2.get());
+  case OpCode::F32__ge:
+    return runGeOp<float>(Val1.get(), Val2.get());
+  case OpCode::F64__eq:
+    return runEqOp<double>(Val1.get(), Val2.get());
+  case OpCode::F64__ne:
+    return runNeOp<double>(Val1.get(), Val2.get());
+  case OpCode::F64__lt:
+    return runLtOp<double>(Val1.get(), Val2.get());
+  case OpCode::F64__gt:
+    return runGtOp<double>(Val1.get(), Val2.get());
+  case OpCode::F64__le:
+    return runLeOp<double>(Val1.get(), Val2.get());
+  case OpCode::F64__ge:
+    return runGeOp<double>(Val1.get(), Val2.get());
+  case OpCode::I32__add:
+    return runAddOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__sub:
+    return runSubOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__mul:
+    return runMulOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__div_s:
+    return runDivOp<int32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__div_u:
+    return runDivOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__rem_s:
+    return runRemOp<int32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__rem_u:
+    return runRemOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__and:
+    return runAndOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__or:
+    return runOrOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__xor:
+    return runXorOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__shl:
+    return runShlOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__shr_s:
+    return runShrOp<int32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__shr_u:
+    return runShrOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__rotl:
+    return runRotlOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I32__rotr:
+    return runRotrOp<uint32_t>(Val1.get(), Val2.get());
+  case OpCode::I64__add:
+    return runAddOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__sub:
+    return runSubOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__mul:
+    return runMulOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__div_s:
+    return runDivOp<int64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__div_u:
+    return runDivOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__rem_s:
+    return runRemOp<int64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__rem_u:
+    return runRemOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__and:
+    return runAndOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__or:
+    return runOrOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__xor:
+    return runXorOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__shl:
+    return runShlOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__shr_s:
+    return runShrOp<int64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__shr_u:
+    return runShrOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__rotl:
+    return runRotlOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::I64__rotr:
+    return runRotrOp<uint64_t>(Val1.get(), Val2.get());
+  case OpCode::F32__add:
+    return runAddOp<float>(Val1.get(), Val2.get());
+  case OpCode::F32__sub:
+    return runSubOp<float>(Val1.get(), Val2.get());
+  case OpCode::F32__mul:
+    return runMulOp<float>(Val1.get(), Val2.get());
+  case OpCode::F32__div:
+    return runDivOp<float>(Val1.get(), Val2.get());
+  case OpCode::F32__min:
+    return runMinOp<float>(Val1.get(), Val2.get());
+  case OpCode::F32__max:
+    return runMaxOp<float>(Val1.get(), Val2.get());
+  case OpCode::F32__copysign:
+    return runCopysignOp<float>(Val1.get(), Val2.get());
+  case OpCode::F64__add:
+    return runAddOp<double>(Val1.get(), Val2.get());
+  case OpCode::F64__sub:
+    return runSubOp<double>(Val1.get(), Val2.get());
+  case OpCode::F64__mul:
+    return runMulOp<double>(Val1.get(), Val2.get());
+  case OpCode::F64__div:
+    return runDivOp<double>(Val1.get(), Val2.get());
+  case OpCode::F64__min:
+    return runMinOp<double>(Val1.get(), Val2.get());
+  case OpCode::F64__max:
+    return runMaxOp<double>(Val1.get(), Val2.get());
+  case OpCode::F64__copysign:
+    return runCopysignOp<double>(Val1.get(), Val2.get());
+  default:
+    __builtin_unreachable();
+  }
+}
+
 ErrCode Worker::execute() {
   /// Check worker's flow
   if (TheState == State::Unreachable)
@@ -82,22 +531,9 @@ ErrCode Worker::execute() {
       else
         Status = InstrPdr.popInstrs();
     } else {
-      /// Run instructions.
-      OpCode Opcode = Instr->getOpCode();
       StackMgr.getCurrentFrame(CurrentFrame);
-      if (isControlOp(Opcode)) {
-        Status = runControlOp(Instr);
-      } else if (isParametricOp(Opcode)) {
-        Status = runParametricOp(Instr);
-      } else if (isVariableOp(Opcode)) {
-        Status = runVariableOp(Instr);
-      } else if (isMemoryOp(Opcode)) {
-        Status = runMemoryOp(Instr);
-      } else if (isConstNumericOp(Opcode)) {
-        Status = runConstNumericOp(Instr);
-      } else if (isNumericOp(Opcode)) {
-        Status = runNumericOp(Instr);
-      }
+      /// Run instructions.
+      Status = Instr->execute(*this);
     }
   }
 
@@ -108,640 +544,8 @@ ErrCode Worker::execute() {
   return Status;
 }
 
-ErrCode Worker::runControlOp(AST::Instruction *Instr) {
-  /// Check OpCode and run the specific instruction.
-  ErrCode Status = ErrCode::Success;
-  switch (Instr->getOpCode()) {
-  case OpCode::Unreachable:
-    TheState = State::Unreachable;
-    Status = ErrCode::Unreachable;
-    break;
-  case OpCode::Nop:
-    break;
-  case OpCode::Block:
-    Status = runBlockOp(Instr);
-    break;
-  case OpCode::Loop:
-    Status = runLoopOp(Instr);
-    break;
-  case OpCode::If:
-    Status = runIfElseOp(Instr);
-    break;
-  case OpCode::Br:
-    Status = runBrOp(Instr);
-    break;
-  case OpCode::Br_if:
-    Status = runBrIfOp(Instr);
-    break;
-  case OpCode::Br_table:
-    Status = runBrTableOp(Instr);
-    break;
-  case OpCode::Return:
-    Status = runReturnOp();
-    break;
-  case OpCode::Call:
-    Status = runCallOp(Instr);
-    break;
-  case OpCode::Call_indirect:
-    Status = runCallIndirectOp(Instr);
-    break;
-  default:
-    Status = ErrCode::InstructionTypeMismatch;
-    break;
-  }
-
-  return Status;
-}
-
-ErrCode Worker::runParametricOp(AST::Instruction *Instr) {
-  /// Check OpCode and run the specific instruction.
-  ErrCode Status = ErrCode::Success;
-  if (Instr->getOpCode() == OpCode::Drop) {
-    StackMgr.pop();
-  } else if (Instr->getOpCode() == OpCode::Select) {
-    /// Pop the i32 value and select values from stack.
-    std::unique_ptr<ValueEntry> CondValEntry, ValEntry1, ValEntry2;
-    StackMgr.pop(CondValEntry);
-    StackMgr.pop(ValEntry2);
-    StackMgr.pop(ValEntry1);
-    uint32_t CondValue = retrieveValue<uint32_t>(*CondValEntry.get());
-
-    /// Select the value.
-    if (CondValue == 0) {
-      StackMgr.push(ValEntry2);
-      MemPool.destroyValueEntry(std::move(ValEntry1));
-    } else {
-      StackMgr.push(ValEntry1);
-      MemPool.destroyValueEntry(std::move(ValEntry2));
-    }
-    MemPool.destroyValueEntry(std::move(CondValEntry));
-  } else {
-    return ErrCode::InstructionTypeMismatch;
-  }
-  return Status;
-}
-
-ErrCode Worker::runVariableOp(AST::Instruction *Instr) {
-  /// Get variable index.
-  unsigned int Index = Instr->getVariableIndex();
-
-  /// Check OpCode and run the specific instruction.
-  ErrCode Status = ErrCode::Success;
-  switch (Instr->getOpCode()) {
-  case OpCode::Local__get:
-    Status = runLocalGetOp(Index);
-    break;
-  case OpCode::Local__set:
-    Status = runLocalSetOp(Index);
-    break;
-  case OpCode::Local__tee:
-    Status = runLocalTeeOp(Index);
-    break;
-  case OpCode::Global__get:
-    Status = runGlobalGetOp(Index);
-    break;
-  case OpCode::Global__set:
-    Status = runGlobalSetOp(Index);
-    break;
-  default:
-    Status = ErrCode::InstructionTypeMismatch;
-    break;
-  }
-
-  return Status;
-}
-
-ErrCode Worker::runMemoryOp(AST::Instruction *Instr) {
-  /// Check OpCode and run the specific instruction.
-  ErrCode Status = ErrCode::Success;
-  switch (Instr->getOpCode()) {
-  case OpCode::I32__load:
-    Status = runLoadOp<uint32_t>(Instr);
-    break;
-  case OpCode::I64__load:
-    Status = runLoadOp<uint64_t>(Instr);
-    break;
-  case OpCode::F32__load:
-    Status = runLoadOp<float>(Instr);
-    break;
-  case OpCode::F64__load:
-    Status = runLoadOp<double>(Instr);
-    break;
-  case OpCode::I32__load8_s:
-    Status = runLoadOp<int32_t>(Instr, 8);
-    break;
-  case OpCode::I32__load8_u:
-    Status = runLoadOp<uint32_t>(Instr, 8);
-    break;
-  case OpCode::I32__load16_s:
-    Status = runLoadOp<int32_t>(Instr, 16);
-    break;
-  case OpCode::I32__load16_u:
-    Status = runLoadOp<uint32_t>(Instr, 16);
-    break;
-  case OpCode::I64__load8_s:
-    Status = runLoadOp<int64_t>(Instr, 8);
-    break;
-  case OpCode::I64__load8_u:
-    Status = runLoadOp<uint64_t>(Instr, 8);
-    break;
-  case OpCode::I64__load16_s:
-    Status = runLoadOp<int64_t>(Instr, 16);
-    break;
-  case OpCode::I64__load16_u:
-    Status = runLoadOp<uint64_t>(Instr, 16);
-    break;
-  case OpCode::I64__load32_s:
-    Status = runLoadOp<int64_t>(Instr, 32);
-    break;
-  case OpCode::I64__load32_u:
-    Status = runLoadOp<uint64_t>(Instr, 32);
-    break;
-  case OpCode::I32__store:
-    Status = runStoreOp<uint32_t>(Instr);
-    break;
-  case OpCode::I64__store:
-    Status = runStoreOp<uint64_t>(Instr);
-    break;
-  case OpCode::F32__store:
-    Status = runStoreOp<float>(Instr);
-    break;
-  case OpCode::F64__store:
-    Status = runStoreOp<double>(Instr);
-    break;
-  case OpCode::I32__store8:
-    Status = runStoreOp<uint32_t>(Instr, 8);
-    break;
-  case OpCode::I32__store16:
-    Status = runStoreOp<uint32_t>(Instr, 16);
-    break;
-  case OpCode::I64__store8:
-    Status = runStoreOp<uint64_t>(Instr, 8);
-    break;
-  case OpCode::I64__store16:
-    Status = runStoreOp<uint64_t>(Instr, 16);
-    break;
-  case OpCode::I64__store32:
-    Status = runStoreOp<uint64_t>(Instr, 32);
-    break;
-  case OpCode::Memory__grow:
-    Status = runMemoryGrowOp();
-    break;
-  case OpCode::Memory__size:
-    Status = runMemorySizeOp();
-    break;
-  default:
-    Status = ErrCode::InstructionTypeMismatch;
-    break;
-  }
-  return Status;
-}
-
-ErrCode Worker::runConstNumericOp(AST::Instruction *Instr) {
-  return StackMgr.push(MemPool.allocValueEntry(Instr->getConstValue()));
-}
-
-ErrCode Worker::runNumericOp(AST::Instruction *Instr) {
-  /// Check OpCode and run the specific instruction.
-  auto Opcode = Instr->getOpCode();
-  ErrCode Status = ErrCode::Success;
-  if (isTestNumericOp(Opcode)) {
-    std::unique_ptr<ValueEntry> Val;
-    StackMgr.pop(Val);
-
-    switch (Opcode) {
-    case OpCode::I32__eqz:
-      Status = runEqzOp<uint32_t>(Val.get());
-      break;
-    case OpCode::I64__eqz:
-      Status = runEqzOp<uint64_t>(Val.get());
-      break;
-    default:
-      Status = ErrCode::InstructionTypeMismatch;
-      break;
-    }
-
-    MemPool.destroyValueEntry(std::move(Val));
-  } else if (isRelationNumericOp(Opcode)) {
-    std::unique_ptr<ValueEntry> Val1, Val2;
-    StackMgr.pop(Val2);
-    StackMgr.pop(Val1);
-
-    if (!isValueTypeEqual(*Val1.get(), *Val2.get())) {
-      return ErrCode::TypeNotMatch;
-    }
-
-    switch (Opcode) {
-    case OpCode::I32__eq:
-      Status = runEqOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__ne:
-      Status = runNeOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__lt_s:
-      Status = runLtOp<int32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__lt_u:
-      Status = runLtOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__gt_s:
-      Status = runGtOp<int32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__gt_u:
-      Status = runGtOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__le_s:
-      Status = runLeOp<int32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__le_u:
-      Status = runLeOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__ge_s:
-      Status = runGeOp<int32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__ge_u:
-      Status = runGeOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__eq:
-      Status = runEqOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__ne:
-      Status = runNeOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__lt_s:
-      Status = runLtOp<int64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__lt_u:
-      Status = runLtOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__gt_s:
-      Status = runGtOp<int64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__gt_u:
-      Status = runGtOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__le_s:
-      Status = runLeOp<int64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__le_u:
-      Status = runLeOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__ge_s:
-      Status = runGeOp<int64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__ge_u:
-      Status = runGeOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F32__eq:
-      Status = runEqOp<float>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F32__ne:
-      Status = runNeOp<float>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F32__lt:
-      Status = runLtOp<float>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F32__gt:
-      Status = runGtOp<float>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F32__le:
-      Status = runLeOp<float>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F32__ge:
-      Status = runGeOp<float>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F64__eq:
-      Status = runEqOp<double>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F64__ne:
-      Status = runNeOp<double>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F64__lt:
-      Status = runLtOp<double>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F64__gt:
-      Status = runGtOp<double>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F64__le:
-      Status = runLeOp<double>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F64__ge:
-      Status = runGeOp<double>(Val1.get(), Val2.get());
-      break;
-    default:
-      Status = ErrCode::InstructionTypeMismatch;
-      break;
-    }
-
-    MemPool.destroyValueEntry(std::move(Val1));
-    MemPool.destroyValueEntry(std::move(Val2));
-  } else if (isUnaryNumericOp(Opcode)) {
-    std::unique_ptr<ValueEntry> Val;
-    StackMgr.pop(Val);
-
-    switch (Opcode) {
-    case OpCode::I32__clz:
-      Status = runClzOp<uint32_t>(Val.get());
-      break;
-    case OpCode::I32__ctz:
-      Status = runCtzOp<uint32_t>(Val.get());
-      break;
-    case OpCode::I32__popcnt:
-      Status = runPopcntOp<uint32_t>(Val.get());
-      break;
-    case OpCode::I64__clz:
-      Status = runClzOp<uint64_t>(Val.get());
-      break;
-    case OpCode::I64__ctz:
-      Status = runCtzOp<uint64_t>(Val.get());
-      break;
-    case OpCode::I64__popcnt:
-      Status = runPopcntOp<uint64_t>(Val.get());
-      break;
-    case OpCode::F32__abs:
-      Status = runAbsOp<float>(Val.get());
-      break;
-    case OpCode::F32__neg:
-      Status = runNegOp<float>(Val.get());
-      break;
-    case OpCode::F32__ceil:
-      Status = runCeilOp<float>(Val.get());
-      break;
-    case OpCode::F32__floor:
-      Status = runFloorOp<float>(Val.get());
-      break;
-    case OpCode::F32__nearest:
-      Status = runNearestOp<float>(Val.get());
-      break;
-    case OpCode::F32__sqrt:
-      Status = runSqrtOp<float>(Val.get());
-      break;
-    case OpCode::F64__abs:
-      Status = runAbsOp<double>(Val.get());
-      break;
-    case OpCode::F64__neg:
-      Status = runNegOp<double>(Val.get());
-      break;
-    case OpCode::F64__ceil:
-      Status = runCeilOp<double>(Val.get());
-      break;
-    case OpCode::F64__floor:
-      Status = runFloorOp<double>(Val.get());
-      break;
-    case OpCode::F64__nearest:
-      Status = runNearestOp<double>(Val.get());
-      break;
-    case OpCode::F64__sqrt:
-      Status = runSqrtOp<double>(Val.get());
-      break;
-    default:
-      Status = ErrCode::InstructionTypeMismatch;
-      break;
-    }
-
-    MemPool.destroyValueEntry(std::move(Val));
-  } else if (isBinaryNumericOp(Opcode)) {
-    std::unique_ptr<ValueEntry> Val1, Val2;
-    StackMgr.pop(Val2);
-    StackMgr.pop(Val1);
-
-    if (!isValueTypeEqual(*Val1.get(), *Val2.get())) {
-      return ErrCode::TypeNotMatch;
-    }
-
-    switch (Opcode) {
-    case OpCode::I32__add:
-      Status = runAddOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__sub:
-      Status = runSubOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__mul:
-      Status = runMulOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__div_s:
-      Status = runDivOp<int32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__div_u:
-      Status = runDivOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__rem_s:
-      Status = runRemOp<int32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__rem_u:
-      Status = runRemOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__and:
-      Status = runAndOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__or:
-      Status = runOrOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__xor:
-      Status = runXorOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__shl:
-      Status = runShlOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__shr_s:
-      Status = runShrOp<int32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__shr_u:
-      Status = runShrOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__rotl:
-      Status = runRotlOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I32__rotr:
-      Status = runRotrOp<uint32_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__add:
-      Status = runAddOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__sub:
-      Status = runSubOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__mul:
-      Status = runMulOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__div_s:
-      Status = runDivOp<int64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__div_u:
-      Status = runDivOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__rem_s:
-      Status = runRemOp<int64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__rem_u:
-      Status = runRemOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__and:
-      Status = runAndOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__or:
-      Status = runOrOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__xor:
-      Status = runXorOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__shl:
-      Status = runShlOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__shr_s:
-      Status = runShrOp<int64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__shr_u:
-      Status = runShrOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__rotl:
-      Status = runRotlOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::I64__rotr:
-      Status = runRotrOp<uint64_t>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F32__add:
-      Status = runAddOp<float>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F32__sub:
-      Status = runSubOp<float>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F32__mul:
-      Status = runMulOp<float>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F32__div:
-      Status = runDivOp<float>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F32__min:
-      Status = runMinOp<float>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F32__max:
-      Status = runMaxOp<float>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F32__copysign:
-      Status = runCopysignOp<float>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F64__add:
-      Status = runAddOp<double>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F64__sub:
-      Status = runSubOp<double>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F64__mul:
-      Status = runMulOp<double>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F64__div:
-      Status = runDivOp<double>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F64__min:
-      Status = runMinOp<double>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F64__max:
-      Status = runMaxOp<double>(Val1.get(), Val2.get());
-      break;
-    case OpCode::F64__copysign:
-      Status = runCopysignOp<double>(Val1.get(), Val2.get());
-      break;
-    default:
-      Status = ErrCode::InstructionTypeMismatch;
-      break;
-    }
-
-    MemPool.destroyValueEntry(std::move(Val1));
-    MemPool.destroyValueEntry(std::move(Val2));
-  } else if (isCastNumericOp(Opcode)) {
-    std::unique_ptr<ValueEntry> Val;
-    StackMgr.pop(Val);
-
-    switch (Opcode) {
-    case OpCode::I32__wrap_i64:
-      Status = runWrapOp<uint64_t, uint32_t>(Val.get());
-      break;
-    case OpCode::I32__trunc_f32_s:
-      Status = runTruncateOp<float, int32_t>(Val.get());
-      break;
-    case OpCode::I32__trunc_f32_u:
-      Status = runTruncateOp<float, uint32_t>(Val.get());
-      break;
-    case OpCode::I32__trunc_f64_s:
-      Status = runTruncateOp<double, int32_t>(Val.get());
-      break;
-    case OpCode::I32__trunc_f64_u:
-      Status = runTruncateOp<double, uint32_t>(Val.get());
-      break;
-    case OpCode::I64__extend_i32_s:
-      Status = runExtendOp<int32_t, uint64_t>(Val.get());
-      break;
-    case OpCode::I64__extend_i32_u:
-      Status = runExtendOp<uint32_t, uint64_t>(Val.get());
-      break;
-    case OpCode::I64__trunc_f32_s:
-      Status = runTruncateOp<float, int64_t>(Val.get());
-      break;
-    case OpCode::I64__trunc_f32_u:
-      Status = runTruncateOp<float, uint64_t>(Val.get());
-      break;
-    case OpCode::I64__trunc_f64_s:
-      Status = runTruncateOp<double, int64_t>(Val.get());
-      break;
-    case OpCode::I64__trunc_f64_u:
-      Status = runTruncateOp<double, uint64_t>(Val.get());
-      break;
-    case OpCode::F32__convert_i32_s:
-      Status = runConvertOp<int32_t, float>(Val.get());
-      break;
-    case OpCode::F32__convert_i32_u:
-      Status = runConvertOp<uint32_t, float>(Val.get());
-      break;
-    case OpCode::F32__convert_i64_s:
-      Status = runConvertOp<int64_t, float>(Val.get());
-      break;
-    case OpCode::F32__convert_i64_u:
-      Status = runConvertOp<uint64_t, float>(Val.get());
-      break;
-    case OpCode::F32__demote_f64:
-      Status = runDemoteOp<double, float>(Val.get());
-      break;
-    case OpCode::F64__convert_i32_s:
-      Status = runConvertOp<int32_t, double>(Val.get());
-      break;
-    case OpCode::F64__convert_i32_u:
-      Status = runConvertOp<uint32_t, double>(Val.get());
-      break;
-    case OpCode::F64__convert_i64_s:
-      Status = runConvertOp<int64_t, double>(Val.get());
-      break;
-    case OpCode::F64__convert_i64_u:
-      Status = runConvertOp<uint64_t, double>(Val.get());
-      break;
-    case OpCode::F64__promote_f32:
-      Status = runPromoteOp<float, double>(Val.get());
-      break;
-    case OpCode::I32__reinterpret_f32:
-      Status = runReinterpretOp<float, uint32_t>(Val.get());
-      break;
-    case OpCode::I64__reinterpret_f64:
-      Status = runReinterpretOp<double, uint64_t>(Val.get());
-      break;
-    case OpCode::F32__reinterpret_i32:
-      Status = runReinterpretOp<uint32_t, float>(Val.get());
-      break;
-    case OpCode::F64__reinterpret_i64:
-      Status = runReinterpretOp<uint64_t, double>(Val.get());
-      break;
-    default:
-      Status = ErrCode::InstructionTypeMismatch;
-      break;
-    }
-
-    MemPool.destroyValueEntry(std::move(Val));
-  } else {
-    Status = ErrCode::InstructionTypeMismatch;
-  }
-  return Status;
-}
-
-ErrCode Worker::enterBlock(unsigned int Arity, AST::Instruction *Instr,
+ErrCode Worker::enterBlock(unsigned int Arity,
+                           AST::BlockControlInstruction *Instr,
                            const AST::InstrVec &Seq) {
   /// Create label for block.
   std::unique_ptr<LabelEntry> Label;
@@ -887,7 +691,7 @@ ErrCode Worker::branchToLabel(unsigned int L) {
   /// Get the L-th label from top of stack and the continuation instruction.
   ErrCode Status = ErrCode::Success;
   LabelEntry *Label;
-  AST::Instruction *ContInstr = nullptr;
+  AST::BlockControlInstruction *ContInstr = nullptr;
   if ((Status = StackMgr.getLabelWithCount(Label, L)) != ErrCode::Success) {
     return Status;
   }
@@ -920,7 +724,7 @@ ErrCode Worker::branchToLabel(unsigned int L) {
 
   /// Jump to the continuation of Label
   if (ContInstr != nullptr) {
-    Status = runLoopOp(ContInstr);
+    Status = runLoopOp(*ContInstr);
   }
   return Status;
 }

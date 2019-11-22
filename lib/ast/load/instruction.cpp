@@ -1,4 +1,5 @@
 #include "ast/instruction.h"
+#include "executor/worker.h"
 
 namespace SSVM {
 namespace AST {
@@ -269,75 +270,13 @@ Loader::ErrCode makeInstructionNode(Instruction::OpCode Code,
     return Loader::ErrCode::Success;
 
   case Instruction::OpCode::I32__eqz:
-  case Instruction::OpCode::I32__eq:
-  case Instruction::OpCode::I32__ne:
-  case Instruction::OpCode::I32__lt_s:
-  case Instruction::OpCode::I32__lt_u:
-  case Instruction::OpCode::I32__gt_s:
-  case Instruction::OpCode::I32__gt_u:
-  case Instruction::OpCode::I32__le_s:
-  case Instruction::OpCode::I32__le_u:
-  case Instruction::OpCode::I32__ge_s:
-  case Instruction::OpCode::I32__ge_u:
-  case Instruction::OpCode::I64__eqz:
-  case Instruction::OpCode::I64__eq:
-  case Instruction::OpCode::I64__ne:
-  case Instruction::OpCode::I64__lt_s:
-  case Instruction::OpCode::I64__lt_u:
-  case Instruction::OpCode::I64__gt_s:
-  case Instruction::OpCode::I64__gt_u:
-  case Instruction::OpCode::I64__le_s:
-  case Instruction::OpCode::I64__le_u:
-  case Instruction::OpCode::I64__ge_s:
-  case Instruction::OpCode::I64__ge_u:
-  case Instruction::OpCode::F32__eq:
-  case Instruction::OpCode::F32__ne:
-  case Instruction::OpCode::F32__lt:
-  case Instruction::OpCode::F32__gt:
-  case Instruction::OpCode::F32__le:
-  case Instruction::OpCode::F32__ge:
-  case Instruction::OpCode::F64__eq:
-  case Instruction::OpCode::F64__ne:
-  case Instruction::OpCode::F64__lt:
-  case Instruction::OpCode::F64__gt:
-  case Instruction::OpCode::F64__le:
-  case Instruction::OpCode::F64__ge:
   case Instruction::OpCode::I32__clz:
   case Instruction::OpCode::I32__ctz:
   case Instruction::OpCode::I32__popcnt:
-  case Instruction::OpCode::I32__add:
-  case Instruction::OpCode::I32__sub:
-  case Instruction::OpCode::I32__mul:
-  case Instruction::OpCode::I32__div_s:
-  case Instruction::OpCode::I32__div_u:
-  case Instruction::OpCode::I32__rem_s:
-  case Instruction::OpCode::I32__rem_u:
-  case Instruction::OpCode::I32__and:
-  case Instruction::OpCode::I32__or:
-  case Instruction::OpCode::I32__xor:
-  case Instruction::OpCode::I32__shl:
-  case Instruction::OpCode::I32__shr_s:
-  case Instruction::OpCode::I32__shr_u:
-  case Instruction::OpCode::I32__rotl:
-  case Instruction::OpCode::I32__rotr:
+  case Instruction::OpCode::I64__eqz:
   case Instruction::OpCode::I64__clz:
   case Instruction::OpCode::I64__ctz:
   case Instruction::OpCode::I64__popcnt:
-  case Instruction::OpCode::I64__add:
-  case Instruction::OpCode::I64__sub:
-  case Instruction::OpCode::I64__mul:
-  case Instruction::OpCode::I64__div_s:
-  case Instruction::OpCode::I64__div_u:
-  case Instruction::OpCode::I64__rem_s:
-  case Instruction::OpCode::I64__rem_u:
-  case Instruction::OpCode::I64__and:
-  case Instruction::OpCode::I64__or:
-  case Instruction::OpCode::I64__xor:
-  case Instruction::OpCode::I64__shl:
-  case Instruction::OpCode::I64__shr_s:
-  case Instruction::OpCode::I64__shr_u:
-  case Instruction::OpCode::I64__rotl:
-  case Instruction::OpCode::I64__rotr:
   case Instruction::OpCode::F32__abs:
   case Instruction::OpCode::F32__neg:
   case Instruction::OpCode::F32__ceil:
@@ -345,13 +284,6 @@ Loader::ErrCode makeInstructionNode(Instruction::OpCode Code,
   case Instruction::OpCode::F32__trunc:
   case Instruction::OpCode::F32__nearest:
   case Instruction::OpCode::F32__sqrt:
-  case Instruction::OpCode::F32__add:
-  case Instruction::OpCode::F32__sub:
-  case Instruction::OpCode::F32__mul:
-  case Instruction::OpCode::F32__div:
-  case Instruction::OpCode::F32__min:
-  case Instruction::OpCode::F32__max:
-  case Instruction::OpCode::F32__copysign:
   case Instruction::OpCode::F64__abs:
   case Instruction::OpCode::F64__neg:
   case Instruction::OpCode::F64__ceil:
@@ -359,13 +291,6 @@ Loader::ErrCode makeInstructionNode(Instruction::OpCode Code,
   case Instruction::OpCode::F64__trunc:
   case Instruction::OpCode::F64__nearest:
   case Instruction::OpCode::F64__sqrt:
-  case Instruction::OpCode::F64__add:
-  case Instruction::OpCode::F64__sub:
-  case Instruction::OpCode::F64__mul:
-  case Instruction::OpCode::F64__div:
-  case Instruction::OpCode::F64__min:
-  case Instruction::OpCode::F64__max:
-  case Instruction::OpCode::F64__copysign:
   case Instruction::OpCode::I32__wrap_i64:
   case Instruction::OpCode::I32__trunc_f32_s:
   case Instruction::OpCode::I32__trunc_f32_u:
@@ -391,7 +316,87 @@ Loader::ErrCode makeInstructionNode(Instruction::OpCode Code,
   case Instruction::OpCode::I64__reinterpret_f64:
   case Instruction::OpCode::F32__reinterpret_i32:
   case Instruction::OpCode::F64__reinterpret_i64:
-    NewInst = std::make_unique<NumericInstruction>(Code);
+    NewInst = std::make_unique<UnaryNumericInstruction>(Code);
+    return Loader::ErrCode::Success;
+
+  case Instruction::OpCode::I32__eq:
+  case Instruction::OpCode::I32__ne:
+  case Instruction::OpCode::I32__lt_s:
+  case Instruction::OpCode::I32__lt_u:
+  case Instruction::OpCode::I32__gt_s:
+  case Instruction::OpCode::I32__gt_u:
+  case Instruction::OpCode::I32__le_s:
+  case Instruction::OpCode::I32__le_u:
+  case Instruction::OpCode::I32__ge_s:
+  case Instruction::OpCode::I32__ge_u:
+  case Instruction::OpCode::I64__eq:
+  case Instruction::OpCode::I64__ne:
+  case Instruction::OpCode::I64__lt_s:
+  case Instruction::OpCode::I64__lt_u:
+  case Instruction::OpCode::I64__gt_s:
+  case Instruction::OpCode::I64__gt_u:
+  case Instruction::OpCode::I64__le_s:
+  case Instruction::OpCode::I64__le_u:
+  case Instruction::OpCode::I64__ge_s:
+  case Instruction::OpCode::I64__ge_u:
+  case Instruction::OpCode::F32__eq:
+  case Instruction::OpCode::F32__ne:
+  case Instruction::OpCode::F32__lt:
+  case Instruction::OpCode::F32__gt:
+  case Instruction::OpCode::F32__le:
+  case Instruction::OpCode::F32__ge:
+  case Instruction::OpCode::F64__eq:
+  case Instruction::OpCode::F64__ne:
+  case Instruction::OpCode::F64__lt:
+  case Instruction::OpCode::F64__gt:
+  case Instruction::OpCode::F64__le:
+  case Instruction::OpCode::F64__ge:
+
+  case Instruction::OpCode::I32__add:
+  case Instruction::OpCode::I32__sub:
+  case Instruction::OpCode::I32__mul:
+  case Instruction::OpCode::I32__div_s:
+  case Instruction::OpCode::I32__div_u:
+  case Instruction::OpCode::I32__rem_s:
+  case Instruction::OpCode::I32__rem_u:
+  case Instruction::OpCode::I32__and:
+  case Instruction::OpCode::I32__or:
+  case Instruction::OpCode::I32__xor:
+  case Instruction::OpCode::I32__shl:
+  case Instruction::OpCode::I32__shr_s:
+  case Instruction::OpCode::I32__shr_u:
+  case Instruction::OpCode::I32__rotl:
+  case Instruction::OpCode::I32__rotr:
+  case Instruction::OpCode::I64__add:
+  case Instruction::OpCode::I64__sub:
+  case Instruction::OpCode::I64__mul:
+  case Instruction::OpCode::I64__div_s:
+  case Instruction::OpCode::I64__div_u:
+  case Instruction::OpCode::I64__rem_s:
+  case Instruction::OpCode::I64__rem_u:
+  case Instruction::OpCode::I64__and:
+  case Instruction::OpCode::I64__or:
+  case Instruction::OpCode::I64__xor:
+  case Instruction::OpCode::I64__shl:
+  case Instruction::OpCode::I64__shr_s:
+  case Instruction::OpCode::I64__shr_u:
+  case Instruction::OpCode::I64__rotl:
+  case Instruction::OpCode::I64__rotr:
+  case Instruction::OpCode::F32__add:
+  case Instruction::OpCode::F32__sub:
+  case Instruction::OpCode::F32__mul:
+  case Instruction::OpCode::F32__div:
+  case Instruction::OpCode::F32__min:
+  case Instruction::OpCode::F32__max:
+  case Instruction::OpCode::F32__copysign:
+  case Instruction::OpCode::F64__add:
+  case Instruction::OpCode::F64__sub:
+  case Instruction::OpCode::F64__mul:
+  case Instruction::OpCode::F64__div:
+  case Instruction::OpCode::F64__min:
+  case Instruction::OpCode::F64__max:
+  case Instruction::OpCode::F64__copysign:
+    NewInst = std::make_unique<BinaryNumericInstruction>(Code);
     return Loader::ErrCode::Success;
 
   default:
@@ -399,6 +404,54 @@ Loader::ErrCode makeInstructionNode(Instruction::OpCode Code,
   }
   /// If the Code not matched, return null pointer.
   return Loader::ErrCode::InvalidGrammar;
+}
+
+Executor::ErrCode ControlInstruction::execute(Executor::Worker &Worker) {
+  return Worker.execute(*this);
+}
+
+Executor::ErrCode BlockControlInstruction::execute(Executor::Worker &Worker) {
+  return Worker.execute(*this);
+}
+
+Executor::ErrCode IfElseControlInstruction::execute(Executor::Worker &Worker) {
+  return Worker.execute(*this);
+}
+
+Executor::ErrCode BrControlInstruction::execute(Executor::Worker &Worker) {
+  return Worker.execute(*this);
+}
+
+Executor::ErrCode BrTableControlInstruction::execute(Executor::Worker &Worker) {
+  return Worker.execute(*this);
+}
+
+Executor::ErrCode CallControlInstruction::execute(Executor::Worker &Worker) {
+  return Worker.execute(*this);
+}
+
+Executor::ErrCode ParametricInstruction::execute(Executor::Worker &Worker) {
+  return Worker.execute(*this);
+}
+
+Executor::ErrCode VariableInstruction::execute(Executor::Worker &Worker) {
+  return Worker.execute(*this);
+}
+
+Executor::ErrCode MemoryInstruction::execute(Executor::Worker &Worker) {
+  return Worker.execute(*this);
+}
+
+Executor::ErrCode ConstInstruction::execute(Executor::Worker &Worker) {
+  return Worker.execute(*this);
+}
+
+Executor::ErrCode UnaryNumericInstruction::execute(Executor::Worker &Worker) {
+  return Worker.execute(*this);
+}
+
+Executor::ErrCode BinaryNumericInstruction::execute(Executor::Worker &Worker) {
+  return Worker.execute(*this);
 }
 
 } // namespace AST

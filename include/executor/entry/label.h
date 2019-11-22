@@ -30,7 +30,7 @@ public:
   ///
   /// \returns ErrCode.
   ErrCode InitLabelEntry(const unsigned int LabelArity,
-                         AST::Instruction *Instr = nullptr) {
+                         AST::BlockControlInstruction *Instr = nullptr) {
     Arity = LabelArity;
     Target = Instr;
     return ErrCode::Success;
@@ -40,13 +40,13 @@ public:
   unsigned int getArity() const { return Arity; }
 
   /// Getter of control instruction for branch target.
-  AST::Instruction *getTarget() { return Target; }
+  AST::BlockControlInstruction *getTarget() { return Target; }
 
 private:
   /// \name Data of label entry.
   /// @{
   unsigned int Arity;
-  AST::Instruction *Target = nullptr;
+  AST::BlockControlInstruction *Target = nullptr;
   /// @}
 };
 

@@ -85,8 +85,6 @@ public:
       : StoreMgr(Store), StackMgr(Stack), MemPool(Pool), HostFuncMgr(HostFunc),
         TheState(State::Inited){};
 
-  ~Worker() = default;
-
   /// Prepare Wasm bytecode expression for execution.
   ErrCode runExpression(const AST::InstrVec &Instrs);
 
@@ -100,21 +98,34 @@ public:
   State getState() const { return TheState; }
 
 private:
+  friend class AST::ControlInstruction;
+  friend class AST::BlockControlInstruction;
+  friend class AST::IfElseControlInstruction;
+  friend class AST::BrControlInstruction;
+  friend class AST::BrTableControlInstruction;
+  friend class AST::CallControlInstruction;
+  friend class AST::ParametricInstruction;
+  friend class AST::VariableInstruction;
+  friend class AST::MemoryInstruction;
+  friend class AST::ConstInstruction;
+  friend class AST::UnaryNumericInstruction;
+  friend class AST::BinaryNumericInstruction;
+  ErrCode execute(AST::ControlInstruction &);
+  ErrCode execute(AST::BlockControlInstruction &);
+  ErrCode execute(AST::IfElseControlInstruction &);
+  ErrCode execute(AST::BrControlInstruction &);
+  ErrCode execute(AST::BrTableControlInstruction &);
+  ErrCode execute(AST::CallControlInstruction &);
+  ErrCode execute(AST::ParametricInstruction &);
+  ErrCode execute(AST::VariableInstruction &);
+  ErrCode execute(AST::MemoryInstruction &);
+  ErrCode execute(AST::ConstInstruction &);
+  ErrCode execute(AST::UnaryNumericInstruction &);
+  ErrCode execute(AST::BinaryNumericInstruction &);
+
+private:
   /// Execute Wasm bytecode with given input data.
   ErrCode execute();
-
-  /// Execute coontrol instructions
-  ErrCode runControlOp(AST::Instruction *Instr);
-  /// Execute parametric instructions
-  ErrCode runParametricOp(AST::Instruction *Instr);
-  /// Execute variable instructions
-  ErrCode runVariableOp(AST::Instruction *Instr);
-  /// Execute memory instructions
-  ErrCode runMemoryOp(AST::Instruction *Instr);
-  /// Execute const numeric instructions
-  ErrCode runConstNumericOp(AST::Instruction *Instr);
-  /// Execute numeric instructions
-  ErrCode runNumericOp(AST::Instruction *Instr);
 
   /// Helper function for entering block control operations.
   ///
@@ -125,7 +136,7 @@ private:
   /// \param Seq the entering instruction sequence.
   ///
   /// \returns None.
-  ErrCode enterBlock(unsigned int Arity, AST::Instruction *Instr,
+  ErrCode enterBlock(unsigned int Arity, AST::BlockControlInstruction *Instr,
                      const AST::InstrVec &Seq);
 
   /// Helper function for leaving blocks.
@@ -159,15 +170,15 @@ private:
 
   /// Run instructions functions
   /// ======= Control =======
-  ErrCode runBlockOp(AST::Instruction *Instr);
-  ErrCode runLoopOp(AST::Instruction *Instr);
-  ErrCode runIfElseOp(AST::Instruction *Instr);
-  ErrCode runBrOp(AST::Instruction *Instr);
-  ErrCode runBrIfOp(AST::Instruction *Instr);
-  ErrCode runBrTableOp(AST::Instruction *Instr);
+  ErrCode runBlockOp(AST::BlockControlInstruction &Instr);
+  ErrCode runLoopOp(AST::BlockControlInstruction &Instr);
+  ErrCode runIfElseOp(AST::IfElseControlInstruction &Instr);
+  ErrCode runBrOp(AST::BrControlInstruction &Instr);
+  ErrCode runBrIfOp(AST::BrControlInstruction &Instr);
+  ErrCode runBrTableOp(AST::BrTableControlInstruction &Instr);
   ErrCode runReturnOp();
-  ErrCode runCallOp(AST::Instruction *Instr);
-  ErrCode runCallIndirectOp(AST::Instruction *Instr);
+  ErrCode runCallOp(AST::CallControlInstruction &Instr);
+  ErrCode runCallIndirectOp(AST::CallControlInstruction &Instr);
   /// ======= Variable =======
   ErrCode runLocalGetOp(unsigned int Idx);
   ErrCode runLocalSetOp(unsigned int Idx);
@@ -176,10 +187,10 @@ private:
   ErrCode runGlobalSetOp(unsigned int Idx);
   /// ======= Memory =======
   template <typename T>
-  TypeT<T, ErrCode> runLoadOp(AST::Instruction *Instr,
+  TypeT<T, ErrCode> runLoadOp(AST::MemoryInstruction &Instr,
                               unsigned int BitWidth = sizeof(T) * 8);
   template <typename T>
-  TypeB<T, ErrCode> runStoreOp(AST::Instruction *Instr,
+  TypeB<T, ErrCode> runStoreOp(AST::MemoryInstruction &Instr,
                                unsigned int BitWidth = sizeof(T) * 8);
   ErrCode runMemorySizeOp();
   ErrCode runMemoryGrowOp();

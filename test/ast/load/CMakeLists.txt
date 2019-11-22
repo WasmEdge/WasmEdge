@@ -12,4 +12,5 @@ target_link_libraries(ssvmASTLoadTests
   PRIVATE
   utilGoogleTest
   ssvmASTLoad
+  ssvmExecutor
 )

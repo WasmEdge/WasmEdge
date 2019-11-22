@@ -10,24 +10,24 @@
 namespace SSVM {
 namespace Executor {
 
-ErrCode Worker::runBlockOp(AST::Instruction *Instr) {
+ErrCode Worker::runBlockOp(AST::BlockControlInstruction &Instr) {
   /// Get result type for arity.
-  AST::ValType ResultType = Instr->getResultType();
+  AST::ValType ResultType = Instr.getResultType();
   unsigned int Arity = (ResultType == AST::ValType::None) ? 0 : 1;
 
   /// Create Label{ nothing } and push.
-  return enterBlock(Arity, nullptr, *Instr->getBody());
+  return enterBlock(Arity, nullptr, *Instr.getBody());
 }
 
-ErrCode Worker::runLoopOp(AST::Instruction *Instr) {
+ErrCode Worker::runLoopOp(AST::BlockControlInstruction &Instr) {
   /// Get result type for arity.
-  AST::ValType ResultType = Instr->getResultType();
+  AST::ValType ResultType = Instr.getResultType();
 
   /// Create Label{ loop-instruction } and push.
-  return enterBlock(0, Instr, *Instr->getBody());
+  return enterBlock(0, &Instr, *Instr.getBody());
 }
 
-ErrCode Worker::runIfElseOp(AST::Instruction *Instr) {
+ErrCode Worker::runIfElseOp(AST::IfElseControlInstruction &Instr) {
   /// Get value on top of stack
   auto Status = ErrCode::Success;
   std::unique_ptr<ValueEntry> Val;
@@ -36,17 +36,17 @@ ErrCode Worker::runIfElseOp(AST::Instruction *Instr) {
   MemPool.destroyValueEntry(std::move(Val));
 
   /// Get result type for arity.
-  AST::ValType ResultType = Instr->getResultType();
+  AST::ValType ResultType = Instr.getResultType();
   unsigned int Arity = (ResultType == AST::ValType::None) ? 0 : 1;
 
   /// If non-zero, run if-statement; else, run else-statement.
   if (Cond != 0) {
-    const AST::InstrVec *IfStatement = Instr->getIfStatement();
+    const AST::InstrVec *IfStatement = Instr.getIfStatement();
     if (IfStatement->size() > 0) {
       Status = enterBlock(Arity, nullptr, *IfStatement);
     }
   } else {
-    const AST::InstrVec *ElseStatement = Instr->getElseStatement();
+    const AST::InstrVec *ElseStatement = Instr.getElseStatement();
     if (ElseStatement->size() > 0) {
       Status = enterBlock(Arity, nullptr, *ElseStatement);
     }
@@ -54,11 +54,11 @@ ErrCode Worker::runIfElseOp(AST::Instruction *Instr) {
   return Status;
 }
 
-ErrCode Worker::runBrOp(AST::Instruction *Instr) {
-  return branchToLabel(Instr->getLabelIndex());
+ErrCode Worker::runBrOp(AST::BrControlInstruction &Instr) {
+  return branchToLabel(Instr.getLabelIndex());
 }
 
-ErrCode Worker::runBrIfOp(AST::Instruction *Instr) {
+ErrCode Worker::runBrIfOp(AST::BrControlInstruction &Instr) {
   auto Status = ErrCode::Success;
   std::unique_ptr<ValueEntry> Val;
   StackMgr.pop(Val);
@@ -69,7 +69,7 @@ ErrCode Worker::runBrIfOp(AST::Instruction *Instr) {
   return Status;
 }
 
-ErrCode Worker::runBrTableOp(AST::Instruction *Instr) {
+ErrCode Worker::runBrTableOp(AST::BrTableControlInstruction &Instr) {
   /// Get value on top of stack.
   auto Status = ErrCode::Success;
   std::unique_ptr<ValueEntry> Val;
@@ -78,28 +78,28 @@ ErrCode Worker::runBrTableOp(AST::Instruction *Instr) {
   MemPool.destroyValueEntry(std::move(Val));
 
   /// Do branch.
-  const std::vector<unsigned int> *LabelTable = Instr->getLabelTable();
+  const std::vector<unsigned int> *LabelTable = Instr.getLabelTable();
   if (Value < LabelTable->size()) {
     Status = branchToLabel(LabelTable->at(Value));
   } else {
-    Status = branchToLabel(Instr->getLabelIndex());
+    Status = branchToLabel(Instr.getLabelIndex());
   }
   return Status;
 }
 
 ErrCode Worker::runReturnOp() { return returnFunction(); }
 
-ErrCode Worker::runCallOp(AST::Instruction *Instr) {
+ErrCode Worker::runCallOp(AST::CallControlInstruction &Instr) {
   /// Get Function address.
   unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
   Instance::ModuleInstance *ModuleInst = nullptr;
   StoreMgr.getModule(ModuleAddr, ModuleInst);
   unsigned int FuncAddr;
-  ModuleInst->getFuncAddr(Instr->getFuncIndex(), FuncAddr);
+  ModuleInst->getFuncAddr(Instr.getFuncIndex(), FuncAddr);
   return invokeFunction(FuncAddr);
 }
 
-ErrCode Worker::runCallIndirectOp(AST::Instruction *Instr) {
+ErrCode Worker::runCallIndirectOp(AST::CallControlInstruction &Instr) {
   /// Get Table Instance
   ErrCode Status = ErrCode::Success;
   Instance::TableInstance *TableInst = nullptr;
@@ -112,7 +112,7 @@ ErrCode Worker::runCallIndirectOp(AST::Instruction *Instr) {
   Instance::ModuleInstance *ModuleInst = nullptr;
   Instance::ModuleInstance::FType *FuncType = nullptr;
   StoreMgr.getModule(ModuleAddr, ModuleInst);
-  if ((Status = ModuleInst->getFuncType(Instr->getFuncIndex(), FuncType)) !=
+  if ((Status = ModuleInst->getFuncType(Instr.getFuncIndex(), FuncType)) !=
       ErrCode::Success) {
     return Status;
   };

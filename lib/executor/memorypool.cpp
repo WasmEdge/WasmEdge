@@ -32,7 +32,7 @@ MemoryPool::allocFrameEntry(unsigned int ModuleAddr, unsigned int FrameArity) {
 /// Get and initialize label entry.
 std::unique_ptr<LabelEntry>
 MemoryPool::allocLabelEntry(const unsigned int LabelArity,
-                            AST::Instruction *Instr) {
+                            AST::BlockControlInstruction *Instr) {
   std::unique_ptr<LabelEntry> Label = requestLabelEntryFromPool();
   Label->InitLabelEntry(LabelArity, Instr);
   return Label;

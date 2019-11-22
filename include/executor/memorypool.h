@@ -37,7 +37,7 @@ public:
   /// Get and initialize label entry.
   std::unique_ptr<LabelEntry>
   allocLabelEntry(const unsigned int LabelArity,
-                  AST::Instruction *Instr = nullptr);
+                  AST::BlockControlInstruction *Instr = nullptr);
 
   /// Get and initialize value entry.
   std::unique_ptr<ValueEntry> allocValueEntry() { return allocValueEntry(0U); }

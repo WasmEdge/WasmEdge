@@ -34,9 +34,6 @@ ErrCode GlobalInstance::getValue(AST::ValVariant &Val) const {
 }
 
 ErrCode GlobalInstance::setValue(const AST::ValVariant &Val) {
-  if (Val.index() != Value.index()) {
-    return ErrCode::TypeNotMatch;
-  }
   Value = Val;
   return ErrCode::Success;
 }

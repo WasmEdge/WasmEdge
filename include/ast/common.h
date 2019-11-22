@@ -10,8 +10,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "variant.h"
 #include <cstdint>
-#include <variant>
 
 namespace SSVM {
 namespace AST {
@@ -25,7 +25,7 @@ enum class ValType : unsigned char {
   F64 = 0x7C
 };
 
-using ValVariant = std::variant<uint32_t, uint64_t, float, double>;
+using ValVariant = Variant<uint32_t, uint64_t, float, double>;
 
 /// Element types enumeration class.
 enum class ElemType : unsigned char { Func = 0x60, FuncRef = 0x70 };

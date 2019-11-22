@@ -30,7 +30,7 @@ using TypeB = typename std::enable_if_t<Support::IsWasmBuiltInV<T>, TR>;
 class ValueEntry {
 public:
   /// Default constructors for temp ValueEntry.
-  ValueEntry() : Type(AST::ValType::I32), Value(0U) {}
+  ValueEntry() {}
   ~ValueEntry() = default;
 
   /// Initializers of value entry.
@@ -45,9 +45,6 @@ public:
   ErrCode InitValueEntry(const float &Val);
   ErrCode InitValueEntry(const double &Val);
 
-  /// Getter of value type.
-  AST::ValType getType() const { return Type; }
-
   /// Value setters
   template <typename T> TypeB<T, ErrCode> setValue(const T &Val);
   ErrCode setValue(const ValueEntry &Val);
@@ -60,7 +57,6 @@ public:
 private:
   /// \name Data of value entry.
   /// @{
-  AST::ValType Type;
   AST::ValVariant Value;
   /// @}
 };

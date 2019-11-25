@@ -52,27 +52,28 @@ ErrCode ONNCRuntimeMaxpoolFloat::run(std::vector<Value> &Args,
   ///      int32_t storage_order,
   ///      int32_t *strides,
   ///      int32_t number_of_strides
+  /// Optional: output_Indices
   if (Args.size() != 18) {
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[17]);
-  unsigned int InXPtr = retrieveValue<uint32_t>(Args[16]);
+  unsigned int RuntimeContextOff = retrieveValue<uint32_t>(Args[17]);
+  unsigned int InXOff = retrieveValue<uint32_t>(Args[16]);
   unsigned int InXNDim = retrieveValue<uint32_t>(Args[15]);
-  unsigned int InXDimsPtr = retrieveValue<uint32_t>(Args[14]);
-  unsigned int OutYPtr = retrieveValue<uint32_t>(Args[13]);
+  unsigned int InXDimsOff = retrieveValue<uint32_t>(Args[14]);
+  unsigned int OutYOff = retrieveValue<uint32_t>(Args[13]);
   unsigned int OutYNDim = retrieveValue<uint32_t>(Args[12]);
-  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(Args[11]);
-  unsigned int OutIndicesPtr = retrieveValue<uint32_t>(Args[10]);
+  unsigned int OutYDimsOff = retrieveValue<uint32_t>(Args[11]);
+  unsigned int OutIndicesOff = retrieveValue<uint32_t>(Args[10]);
   unsigned int OutIndicesNDim = retrieveValue<uint32_t>(Args[9]);
-  unsigned int OutIndicesDimsPtr = retrieveValue<uint32_t>(Args[8]);
-  unsigned int AutoPadPtr = retrieveValue<uint32_t>(Args[7]);
-  unsigned int KernelShapePtr = retrieveValue<uint32_t>(Args[6]);
+  unsigned int OutIndicesDimsOff = retrieveValue<uint32_t>(Args[8]);
+  unsigned int AutoPadOff = retrieveValue<uint32_t>(Args[7]);
+  unsigned int KernelShapeOff = retrieveValue<uint32_t>(Args[6]);
   unsigned int KernelShapeNum = retrieveValue<uint32_t>(Args[5]);
-  unsigned int PadsPtr = retrieveValue<uint32_t>(Args[4]);
+  unsigned int PadsOff = retrieveValue<uint32_t>(Args[4]);
   unsigned int PadsNum = retrieveValue<uint32_t>(Args[3]);
   unsigned int StorageOrder = retrieveValue<uint32_t>(Args[2]);
-  unsigned int StridesPtr = retrieveValue<uint32_t>(Args[1]);
+  unsigned int StridesOff = retrieveValue<uint32_t>(Args[1]);
   unsigned int StridesNum = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
@@ -85,24 +86,18 @@ ErrCode ONNCRuntimeMaxpoolFloat::run(std::vector<Value> &Args,
     return Status;
   }
 
-  void *RuntimeContext =
-      reinterpret_cast<void *>(MemInst->getPointer(RuntimeContextPtr));
-  int32_t *InXDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InXDimsPtr));
-  int32_t *OutYDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutYDimsPtr));
+  void *RuntimeContext = MemInst->getPointer<void *>(RuntimeContextOff);
+  int32_t *InXDims = MemInst->getPointer<int32_t *>(InXDimsOff);
+  int32_t *OutYDims = MemInst->getPointer<int32_t *>(OutYDimsOff);
   int32_t *OutIndicesDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutIndicesDimsPtr));
-  float *InX = reinterpret_cast<float *>(MemInst->getPointer(InXPtr));
-  float *OutY = reinterpret_cast<float *>(MemInst->getPointer(OutYPtr));
-  float *OutIndices =
-      reinterpret_cast<float *>(MemInst->getPointer(OutIndicesPtr));
-  char *AutoPad = reinterpret_cast<char *>(MemInst->getPointer(AutoPadPtr));
-  int32_t *KernelShape =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(KernelShapePtr));
-  int32_t *Pads = reinterpret_cast<int32_t *>(MemInst->getPointer(PadsPtr));
-  int32_t *Strides =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(StridesPtr));
+      MemInst->getPointerOrNull<int32_t *>(OutIndicesDimsOff);
+  float *InX = MemInst->getPointer<float *>(InXOff);
+  float *OutY = MemInst->getPointer<float *>(OutYOff);
+  float *OutIndices = MemInst->getPointerOrNull<float *>(OutIndicesOff);
+  char *AutoPad = MemInst->getPointer<char *>(AutoPadOff);
+  int32_t *KernelShape = MemInst->getPointer<int32_t *>(KernelShapeOff);
+  int32_t *Pads = MemInst->getPointer<int32_t *>(PadsOff);
+  int32_t *Strides = MemInst->getPointer<int32_t *>(StridesOff);
 
   ONNC_RUNTIME_maxpool_float(
       RuntimeContext, InX, InXNDim, InXDims, OutY, OutYNDim, OutYDims,

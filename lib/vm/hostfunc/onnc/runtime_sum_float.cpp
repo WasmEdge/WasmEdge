@@ -35,14 +35,14 @@ ErrCode ONNCRuntimeSumFloat::run(std::vector<Value> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[7]);
-  unsigned int InDataPtrPtr = retrieveValue<uint32_t>(Args[6]);
+  unsigned int RuntimeContextOff = retrieveValue<uint32_t>(Args[7]);
+  unsigned int InDataOffOff = retrieveValue<uint32_t>(Args[6]);
   unsigned int InDataNTensor = retrieveValue<uint32_t>(Args[5]);
-  unsigned int InDataNDimPtr = retrieveValue<uint32_t>(Args[4]);
-  unsigned int InDataDimsPtrPtr = retrieveValue<uint32_t>(Args[3]);
-  unsigned int OutSumPtr = retrieveValue<uint32_t>(Args[2]);
+  unsigned int InDataNDimOff = retrieveValue<uint32_t>(Args[4]);
+  unsigned int InDataDimsOffOff = retrieveValue<uint32_t>(Args[3]);
+  unsigned int OutSumOff = retrieveValue<uint32_t>(Args[2]);
   unsigned int OutSumNDim = retrieveValue<uint32_t>(Args[1]);
-  unsigned int OutSumDimsPtr = retrieveValue<uint32_t>(Args[0]);
+  unsigned int OutSumDimsOff = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;
@@ -54,23 +54,17 @@ ErrCode ONNCRuntimeSumFloat::run(std::vector<Value> &Args,
     return Status;
   }
 
-  void *RuntimeContext =
-      reinterpret_cast<void *>(MemInst->getPointer(RuntimeContextPtr));
-  uint32_t *InDataPtr =
-      reinterpret_cast<uint32_t *>(MemInst->getPointer(InDataPtrPtr));
-  uint32_t *InDataDimsPtr =
-      reinterpret_cast<uint32_t *>(MemInst->getPointer(InDataDimsPtrPtr));
-  int32_t *InDataNDim =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InDataNDimPtr));
-  int32_t *OutSumDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutSumDimsPtr));
-  float *OutSum = reinterpret_cast<float *>(MemInst->getPointer(OutSumPtr));
+  void *RuntimeContext = MemInst->getPointer<void *>(RuntimeContextOff);
+  uint32_t *InDataOff = MemInst->getPointer<uint32_t *>(InDataOffOff);
+  uint32_t *InDataDimsOff = MemInst->getPointer<uint32_t *>(InDataDimsOffOff);
+  int32_t *InDataNDim = MemInst->getPointer<int32_t *>(InDataNDimOff);
+  int32_t *OutSumDims = MemInst->getPointer<int32_t *>(OutSumDimsOff);
+  float *OutSum = MemInst->getPointer<float *>(OutSumOff);
   float *InData[InDataNTensor];
   int32_t *InDataDims[InDataNTensor];
   for (int i = 0; i < InDataNTensor; i++) {
-    InData[i] = reinterpret_cast<float *>(MemInst->getPointer(InDataPtr[i]));
-    InDataDims[i] =
-        reinterpret_cast<int32_t *>(MemInst->getPointer(InDataDimsPtr[i]));
+    InData[i] = MemInst->getPointer<float *>(InDataOff[i]);
+    InDataDims[i] = MemInst->getPointer<int32_t *>(InDataDimsOff[i]);
   }
 
   ONNC_RUNTIME_sum_float(RuntimeContext, InData, InDataNTensor, InDataNDim,

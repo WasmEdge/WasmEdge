@@ -36,13 +36,13 @@ ErrCode ONNCRuntimeSoftmaxFloat::run(std::vector<Value> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[7]);
-  unsigned int InPtr = retrieveValue<uint32_t>(Args[6]);
+  unsigned int RuntimeContextOff = retrieveValue<uint32_t>(Args[7]);
+  unsigned int InOff = retrieveValue<uint32_t>(Args[6]);
   unsigned int InNDim = retrieveValue<uint32_t>(Args[5]);
-  unsigned int InDimsPtr = retrieveValue<uint32_t>(Args[4]);
-  unsigned int OutPtr = retrieveValue<uint32_t>(Args[3]);
+  unsigned int InDimsOff = retrieveValue<uint32_t>(Args[4]);
+  unsigned int OutOff = retrieveValue<uint32_t>(Args[3]);
   unsigned int OutNDim = retrieveValue<uint32_t>(Args[2]);
-  unsigned int OutDimsPtr = retrieveValue<uint32_t>(Args[1]);
+  unsigned int OutDimsOff = retrieveValue<uint32_t>(Args[1]);
   unsigned int Axis = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
@@ -55,13 +55,11 @@ ErrCode ONNCRuntimeSoftmaxFloat::run(std::vector<Value> &Args,
     return Status;
   }
 
-  void *RuntimeContext =
-      reinterpret_cast<void *>(MemInst->getPointer(RuntimeContextPtr));
-  int32_t *InDims = reinterpret_cast<int32_t *>(MemInst->getPointer(InDimsPtr));
-  int32_t *OutDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutDimsPtr));
-  float *In = reinterpret_cast<float *>(MemInst->getPointer(InPtr));
-  float *Out = reinterpret_cast<float *>(MemInst->getPointer(OutPtr));
+  void *RuntimeContext = MemInst->getPointer<void *>(RuntimeContextOff);
+  int32_t *InDims = MemInst->getPointer<int32_t *>(InDimsOff);
+  int32_t *OutDims = MemInst->getPointer<int32_t *>(OutDimsOff);
+  float *In = MemInst->getPointer<float *>(InOff);
+  float *Out = MemInst->getPointer<float *>(OutOff);
 
   ONNC_RUNTIME_softmax_float(RuntimeContext, In, InNDim, InDims, Out, OutNDim,
                              OutDims, Axis);

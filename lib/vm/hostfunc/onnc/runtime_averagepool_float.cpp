@@ -51,20 +51,20 @@ ErrCode ONNCRuntimeAveragepoolFloat::run(std::vector<Value> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[14]);
-  unsigned int InXPtr = retrieveValue<uint32_t>(Args[13]);
+  unsigned int RuntimeContextOff = retrieveValue<uint32_t>(Args[14]);
+  unsigned int InXOff = retrieveValue<uint32_t>(Args[13]);
   unsigned int InXNDim = retrieveValue<uint32_t>(Args[12]);
-  unsigned int InXDimsPtr = retrieveValue<uint32_t>(Args[11]);
-  unsigned int OutYPtr = retrieveValue<uint32_t>(Args[10]);
+  unsigned int InXDimsOff = retrieveValue<uint32_t>(Args[11]);
+  unsigned int OutYOff = retrieveValue<uint32_t>(Args[10]);
   unsigned int OutYNDim = retrieveValue<uint32_t>(Args[9]);
-  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(Args[8]);
-  unsigned int AutoPadPtr = retrieveValue<uint32_t>(Args[7]);
+  unsigned int OutYDimsOff = retrieveValue<uint32_t>(Args[8]);
+  unsigned int AutoPadOff = retrieveValue<uint32_t>(Args[7]);
   unsigned int IncludePadCnt = retrieveValue<uint32_t>(Args[6]);
-  unsigned int KernelShapePtr = retrieveValue<uint32_t>(Args[5]);
+  unsigned int KernelShapeOff = retrieveValue<uint32_t>(Args[5]);
   unsigned int KernelShapeNum = retrieveValue<uint32_t>(Args[4]);
-  unsigned int PadsPtr = retrieveValue<uint32_t>(Args[3]);
+  unsigned int PadsOff = retrieveValue<uint32_t>(Args[3]);
   unsigned int PadsNum = retrieveValue<uint32_t>(Args[2]);
-  unsigned int StridesPtr = retrieveValue<uint32_t>(Args[1]);
+  unsigned int StridesOff = retrieveValue<uint32_t>(Args[1]);
   unsigned int StridesNum = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
@@ -77,20 +77,15 @@ ErrCode ONNCRuntimeAveragepoolFloat::run(std::vector<Value> &Args,
     return Status;
   }
 
-  void *RuntimeContext =
-      reinterpret_cast<void *>(MemInst->getPointer(RuntimeContextPtr));
-  int32_t *InXDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InXDimsPtr));
-  int32_t *OutYDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutYDimsPtr));
-  float *InX = reinterpret_cast<float *>(MemInst->getPointer(InXPtr));
-  float *OutY = reinterpret_cast<float *>(MemInst->getPointer(OutYPtr));
-  char *AutoPad = reinterpret_cast<char *>(MemInst->getPointer(AutoPadPtr));
-  int32_t *KernelShape =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(KernelShapePtr));
-  int32_t *Pads = reinterpret_cast<int32_t *>(MemInst->getPointer(PadsPtr));
-  int32_t *Strides =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(StridesPtr));
+  void *RuntimeContext = MemInst->getPointer<void *>(RuntimeContextOff);
+  int32_t *InXDims = MemInst->getPointer<int32_t *>(InXDimsOff);
+  int32_t *OutYDims = MemInst->getPointer<int32_t *>(OutYDimsOff);
+  float *InX = MemInst->getPointer<float *>(InXOff);
+  float *OutY = MemInst->getPointer<float *>(OutYOff);
+  char *AutoPad = MemInst->getPointer<char *>(AutoPadOff);
+  int32_t *KernelShape = MemInst->getPointer<int32_t *>(KernelShapeOff);
+  int32_t *Pads = MemInst->getPointer<int32_t *>(PadsOff);
+  int32_t *Strides = MemInst->getPointer<int32_t *>(StridesOff);
 
   ONNC_RUNTIME_averagepool_float(RuntimeContext, InX, InXNDim, InXDims, OutY,
                                  OutYNDim, OutYDims, AutoPad, IncludePadCnt,

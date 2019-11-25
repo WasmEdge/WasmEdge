@@ -33,13 +33,13 @@ ErrCode ONNCRuntimeReluFloat::run(std::vector<Value> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[6]);
-  unsigned int InXPtr = retrieveValue<uint32_t>(Args[5]);
+  unsigned int RuntimeContextOff = retrieveValue<uint32_t>(Args[6]);
+  unsigned int InXOff = retrieveValue<uint32_t>(Args[5]);
   unsigned int InXNDim = retrieveValue<uint32_t>(Args[4]);
-  unsigned int InXDimsPtr = retrieveValue<uint32_t>(Args[3]);
-  unsigned int OutYPtr = retrieveValue<uint32_t>(Args[2]);
+  unsigned int InXDimsOff = retrieveValue<uint32_t>(Args[3]);
+  unsigned int OutYOff = retrieveValue<uint32_t>(Args[2]);
   unsigned int OutYNDim = retrieveValue<uint32_t>(Args[1]);
-  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(Args[0]);
+  unsigned int OutYDimsOff = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;
@@ -51,14 +51,11 @@ ErrCode ONNCRuntimeReluFloat::run(std::vector<Value> &Args,
     return Status;
   }
 
-  void *RuntimeContext =
-      reinterpret_cast<void *>(MemInst->getPointer(RuntimeContextPtr));
-  int32_t *InXDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InXDimsPtr));
-  int32_t *OutYDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutYDimsPtr));
-  float *InX = reinterpret_cast<float *>(MemInst->getPointer(InXPtr));
-  float *OutY = reinterpret_cast<float *>(MemInst->getPointer(OutYPtr));
+  void *RuntimeContext = MemInst->getPointer<void *>(RuntimeContextOff);
+  int32_t *InXDims = MemInst->getPointer<int32_t *>(InXDimsOff);
+  int32_t *OutYDims = MemInst->getPointer<int32_t *>(OutYDimsOff);
+  float *InX = MemInst->getPointer<float *>(InXOff);
+  float *OutY = MemInst->getPointer<float *>(OutYOff);
 
   ONNC_RUNTIME_relu_float(RuntimeContext, InX, InXNDim, InXDims, OutY, OutYNDim,
                           OutYDims);

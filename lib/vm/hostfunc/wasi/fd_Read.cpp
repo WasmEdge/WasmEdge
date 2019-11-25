@@ -56,8 +56,7 @@ ErrCode WasiFdRead::run(std::vector<Value> &Args, std::vector<Value> &Res,
       return Status;
     }
     /// Read data from Fd.
-    unsigned char *ReadArr =
-        reinterpret_cast<unsigned char *>(MemInst->getPointer(CIOVecBufPtr));
+    unsigned char *ReadArr = MemInst->getPointer<unsigned char *>(CIOVecBufPtr);
     unsigned int SizeRead = read(Fd, ReadArr, (uint32_t)CIOVecBufLen);
     /// Store data.
     if (SizeRead == -1) {

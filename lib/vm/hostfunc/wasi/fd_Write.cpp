@@ -57,7 +57,7 @@ ErrCode WasiFdWrite::run(std::vector<Value> &Args, std::vector<Value> &Res,
     }
     /// Write data to Fd.
     unsigned char *WriteArr =
-        reinterpret_cast<unsigned char *>(MemInst->getPointer(CIOVecBufPtr));
+        MemInst->getPointer<unsigned char *>(CIOVecBufPtr);
     unsigned int SizeWrite = write(Fd, WriteArr, (uint32_t)CIOVecBufLen);
     if (SizeWrite != CIOVecBufLen) {
       ErrNo = 1;

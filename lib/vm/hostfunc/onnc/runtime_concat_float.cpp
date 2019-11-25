@@ -38,14 +38,14 @@ ErrCode ONNCRuntimeConcatFloat::run(std::vector<Value> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[8]);
-  unsigned int InInputsPtrPtr = retrieveValue<uint32_t>(Args[7]);
+  unsigned int RuntimeContextOff = retrieveValue<uint32_t>(Args[8]);
+  unsigned int InInputsOffOff = retrieveValue<uint32_t>(Args[7]);
   unsigned int InInputsNTensor = retrieveValue<uint32_t>(Args[6]);
-  unsigned int InInputsNDimPtr = retrieveValue<uint32_t>(Args[5]);
-  unsigned int InInputsDimsPtrPtr = retrieveValue<uint32_t>(Args[4]);
-  unsigned int OutConcatResultPtr = retrieveValue<uint32_t>(Args[3]);
+  unsigned int InInputsNDimOff = retrieveValue<uint32_t>(Args[5]);
+  unsigned int InInputsDimsOffOff = retrieveValue<uint32_t>(Args[4]);
+  unsigned int OutConcatResultOff = retrieveValue<uint32_t>(Args[3]);
   unsigned int OutConcatResultNDim = retrieveValue<uint32_t>(Args[2]);
-  unsigned int OutConcatResultDimsPtr = retrieveValue<uint32_t>(Args[1]);
+  unsigned int OutConcatResultDimsOff = retrieveValue<uint32_t>(Args[1]);
   unsigned int Axis = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
@@ -58,25 +58,19 @@ ErrCode ONNCRuntimeConcatFloat::run(std::vector<Value> &Args,
     return Status;
   }
 
-  void *RuntimeContext =
-      reinterpret_cast<void *>(MemInst->getPointer(RuntimeContextPtr));
-  uint32_t *InInputsPtr =
-      reinterpret_cast<uint32_t *>(MemInst->getPointer(InInputsPtrPtr));
-  uint32_t *InInputsDimsPtr =
-      reinterpret_cast<uint32_t *>(MemInst->getPointer(InInputsDimsPtrPtr));
-  int32_t *InInputsNDim =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InInputsNDimPtr));
+  void *RuntimeContext = MemInst->getPointer<void *>(RuntimeContextOff);
+  uint32_t *InInputsOff = MemInst->getPointer<uint32_t *>(InInputsOffOff);
+  uint32_t *InInputsDimsOff =
+      MemInst->getPointer<uint32_t *>(InInputsDimsOffOff);
+  int32_t *InInputsNDim = MemInst->getPointer<int32_t *>(InInputsNDimOff);
   int32_t *OutConcatResultDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutConcatResultDimsPtr));
-  float *OutConcatResult =
-      reinterpret_cast<float *>(MemInst->getPointer(OutConcatResultPtr));
+      MemInst->getPointer<int32_t *>(OutConcatResultDimsOff);
+  float *OutConcatResult = MemInst->getPointer<float *>(OutConcatResultOff);
   float *InInputs[InInputsNTensor];
   int32_t *InInputsDims[InInputsNTensor];
   for (int i = 0; i < InInputsNTensor; i++) {
-    InInputs[i] =
-        reinterpret_cast<float *>(MemInst->getPointer(InInputsPtr[i]));
-    InInputsDims[i] =
-        reinterpret_cast<int32_t *>(MemInst->getPointer(InInputsDimsPtr[i]));
+    InInputs[i] = MemInst->getPointer<float *>(InInputsOff[i]);
+    InInputsDims[i] = MemInst->getPointer<int32_t *>(InInputsDimsOff[i]);
   }
 
   ONNC_RUNTIME_concat_float(RuntimeContext, InInputs, InInputsNTensor,

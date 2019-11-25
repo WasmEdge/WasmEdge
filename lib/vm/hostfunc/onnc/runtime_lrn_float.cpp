@@ -41,13 +41,13 @@ ErrCode ONNCRuntimeLrnFloat::run(std::vector<Value> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[10]);
-  unsigned int InXPtr = retrieveValue<uint32_t>(Args[9]);
+  unsigned int RuntimeContextOff = retrieveValue<uint32_t>(Args[10]);
+  unsigned int InXOff = retrieveValue<uint32_t>(Args[9]);
   unsigned int InXNDim = retrieveValue<uint32_t>(Args[8]);
-  unsigned int InXDimsPtr = retrieveValue<uint32_t>(Args[7]);
-  unsigned int OutYPtr = retrieveValue<uint32_t>(Args[6]);
+  unsigned int InXDimsOff = retrieveValue<uint32_t>(Args[7]);
+  unsigned int OutYOff = retrieveValue<uint32_t>(Args[6]);
   unsigned int OutYNDim = retrieveValue<uint32_t>(Args[5]);
-  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(Args[4]);
+  unsigned int OutYDimsOff = retrieveValue<uint32_t>(Args[4]);
   float Alpha = retrieveValue<float>(Args[3]);
   float Beta = retrieveValue<float>(Args[2]);
   float Bias = retrieveValue<float>(Args[1]);
@@ -63,14 +63,11 @@ ErrCode ONNCRuntimeLrnFloat::run(std::vector<Value> &Args,
     return Status;
   }
 
-  void *RuntimeContext =
-      reinterpret_cast<void *>(MemInst->getPointer(RuntimeContextPtr));
-  int32_t *InXDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InXDimsPtr));
-  int32_t *OutYDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutYDimsPtr));
-  float *InX = reinterpret_cast<float *>(MemInst->getPointer(InXPtr));
-  float *OutY = reinterpret_cast<float *>(MemInst->getPointer(OutYPtr));
+  void *RuntimeContext = MemInst->getPointer<void *>(RuntimeContextOff);
+  int32_t *InXDims = MemInst->getPointer<int32_t *>(InXDimsOff);
+  int32_t *OutYDims = MemInst->getPointer<int32_t *>(OutYDimsOff);
+  float *InX = MemInst->getPointer<float *>(InXOff);
+  float *OutY = MemInst->getPointer<float *>(OutYOff);
 
   ONNC_RUNTIME_lrn_float(RuntimeContext, InX, InXNDim, InXDims, OutY, OutYNDim,
                          OutYDims, Alpha, Beta, Bias, Size);

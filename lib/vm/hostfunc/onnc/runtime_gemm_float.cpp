@@ -48,23 +48,24 @@ ErrCode ONNCRuntimeGemmFloat::run(std::vector<Value> &Args,
   ///      float beta,
   ///      int32_t transA,
   ///      int32_t transB
+  /// Optional: input_C
   if (Args.size() != 17) {
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[16]);
-  unsigned int InAPtr = retrieveValue<uint32_t>(Args[15]);
+  unsigned int RuntimeContextOff = retrieveValue<uint32_t>(Args[16]);
+  unsigned int InAOff = retrieveValue<uint32_t>(Args[15]);
   unsigned int InANDim = retrieveValue<uint32_t>(Args[14]);
-  unsigned int InADimsPtr = retrieveValue<uint32_t>(Args[13]);
-  unsigned int InBPtr = retrieveValue<uint32_t>(Args[12]);
+  unsigned int InADimsOff = retrieveValue<uint32_t>(Args[13]);
+  unsigned int InBOff = retrieveValue<uint32_t>(Args[12]);
   unsigned int InBNDim = retrieveValue<uint32_t>(Args[11]);
-  unsigned int InBDimsPtr = retrieveValue<uint32_t>(Args[10]);
-  unsigned int InCPtr = retrieveValue<uint32_t>(Args[9]);
+  unsigned int InBDimsOff = retrieveValue<uint32_t>(Args[10]);
+  unsigned int InCOff = retrieveValue<uint32_t>(Args[9]);
   unsigned int InCNDim = retrieveValue<uint32_t>(Args[8]);
-  unsigned int InCDimsPtr = retrieveValue<uint32_t>(Args[7]);
-  unsigned int OutYPtr = retrieveValue<uint32_t>(Args[6]);
+  unsigned int InCDimsOff = retrieveValue<uint32_t>(Args[7]);
+  unsigned int OutYOff = retrieveValue<uint32_t>(Args[6]);
   unsigned int OutYNDim = retrieveValue<uint32_t>(Args[5]);
-  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(Args[4]);
+  unsigned int OutYDimsOff = retrieveValue<uint32_t>(Args[4]);
   float Alpha = retrieveValue<float>(Args[3]);
   float Beta = retrieveValue<float>(Args[2]);
   unsigned int TransA = retrieveValue<uint32_t>(Args[1]);
@@ -80,20 +81,15 @@ ErrCode ONNCRuntimeGemmFloat::run(std::vector<Value> &Args,
     return Status;
   }
 
-  void *RuntimeContext =
-      reinterpret_cast<void *>(MemInst->getPointer(RuntimeContextPtr));
-  int32_t *InADims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InADimsPtr));
-  int32_t *InBDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InBDimsPtr));
-  int32_t *InCDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InCDimsPtr));
-  int32_t *OutYDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutYDimsPtr));
-  float *InA = reinterpret_cast<float *>(MemInst->getPointer(InAPtr));
-  float *InB = reinterpret_cast<float *>(MemInst->getPointer(InBPtr));
-  float *InC = reinterpret_cast<float *>(MemInst->getPointer(InCPtr));
-  float *OutY = reinterpret_cast<float *>(MemInst->getPointer(OutYPtr));
+  void *RuntimeContext = MemInst->getPointer<void *>(RuntimeContextOff);
+  int32_t *InADims = MemInst->getPointer<int32_t *>(InADimsOff);
+  int32_t *InBDims = MemInst->getPointer<int32_t *>(InBDimsOff);
+  int32_t *InCDims = MemInst->getPointerOrNull<int32_t *>(InCDimsOff);
+  int32_t *OutYDims = MemInst->getPointer<int32_t *>(OutYDimsOff);
+  float *InA = MemInst->getPointer<float *>(InAOff);
+  float *InB = MemInst->getPointer<float *>(InBOff);
+  float *InC = MemInst->getPointerOrNull<float *>(InCOff);
+  float *OutY = MemInst->getPointer<float *>(OutYOff);
 
   ONNC_RUNTIME_gemm_float(RuntimeContext, InA, InANDim, InADims, InB, InBNDim,
                           InBDims, InC, InCNDim, InCDims, OutY, OutYNDim,

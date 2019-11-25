@@ -6,6 +6,26 @@ namespace SSVM {
 namespace Executor {
 namespace Instance {
 
+/// Get pointer or null in memory. See "include/executor/instance/memory.h".
+template <typename T>
+typename std::enable_if_t<std::is_pointer_v<T>, T>
+MemoryInstance::getPointerOrNull(unsigned int Offset) {
+  if (Offset >= Data.size() || Offset == 0) {
+    return nullptr;
+  }
+  return reinterpret_cast<T>(&Data[Offset]);
+}
+
+/// Get pointer to offset of memory. See "include/executor/instance/memory.h".
+template <typename T>
+typename std::enable_if_t<std::is_pointer_v<T>, T>
+MemoryInstance::getPointer(unsigned int Offset) {
+  if (Offset >= Data.size()) {
+    return nullptr;
+  }
+  return reinterpret_cast<T>(&Data[Offset]);
+}
+
 /// Load value from data. See "include/executor/instance/memory.h".
 template <typename T>
 typename std::enable_if_t<Support::IsWasmTypeV<T>, ErrCode>

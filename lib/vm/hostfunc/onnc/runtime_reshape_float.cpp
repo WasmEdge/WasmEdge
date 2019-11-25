@@ -40,16 +40,16 @@ ErrCode ONNCRuntimeReshapeFloat::run(std::vector<Value> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[9]);
-  unsigned int InDataPtr = retrieveValue<uint32_t>(Args[8]);
+  unsigned int RuntimeContextOff = retrieveValue<uint32_t>(Args[9]);
+  unsigned int InDataOff = retrieveValue<uint32_t>(Args[8]);
   unsigned int InDataNDim = retrieveValue<uint32_t>(Args[7]);
-  unsigned int InDataDimsPtr = retrieveValue<uint32_t>(Args[6]);
-  unsigned int InShapePtr = retrieveValue<uint32_t>(Args[5]);
+  unsigned int InDataDimsOff = retrieveValue<uint32_t>(Args[6]);
+  unsigned int InShapeOff = retrieveValue<uint32_t>(Args[5]);
   unsigned int InShapeNDim = retrieveValue<uint32_t>(Args[4]);
-  unsigned int InShapeDimsPtr = retrieveValue<uint32_t>(Args[3]);
-  unsigned int OutReshapedPtr = retrieveValue<uint32_t>(Args[2]);
+  unsigned int InShapeDimsOff = retrieveValue<uint32_t>(Args[3]);
+  unsigned int OutReshapedOff = retrieveValue<uint32_t>(Args[2]);
   unsigned int OutReshapedNDim = retrieveValue<uint32_t>(Args[1]);
-  unsigned int OutReshapedDimsPtr = retrieveValue<uint32_t>(Args[0]);
+  unsigned int OutReshapedDimsOff = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;
@@ -61,18 +61,13 @@ ErrCode ONNCRuntimeReshapeFloat::run(std::vector<Value> &Args,
     return Status;
   }
 
-  void *RuntimeContext =
-      reinterpret_cast<void *>(MemInst->getPointer(RuntimeContextPtr));
-  int32_t *InDataDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InDataDimsPtr));
-  int32_t *InShapeDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InShapeDimsPtr));
-  int32_t *OutReshapedDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutReshapedDimsPtr));
-  float *InData = reinterpret_cast<float *>(MemInst->getPointer(InDataPtr));
-  float *InShape = reinterpret_cast<float *>(MemInst->getPointer(InShapePtr));
-  float *OutReshaped =
-      reinterpret_cast<float *>(MemInst->getPointer(OutReshapedPtr));
+  void *RuntimeContext = MemInst->getPointer<void *>(RuntimeContextOff);
+  int32_t *InDataDims = MemInst->getPointer<int32_t *>(InDataDimsOff);
+  int32_t *InShapeDims = MemInst->getPointer<int32_t *>(InShapeDimsOff);
+  int32_t *OutReshapedDims = MemInst->getPointer<int32_t *>(OutReshapedDimsOff);
+  float *InData = MemInst->getPointer<float *>(InDataOff);
+  float *InShape = MemInst->getPointer<float *>(InShapeOff);
+  float *OutReshaped = MemInst->getPointer<float *>(OutReshapedOff);
 
   ONNC_RUNTIME_reshape_float(RuntimeContext, InData, InDataNDim, InDataDims,
                              InShape, InShapeNDim, InShapeDims, OutReshaped,

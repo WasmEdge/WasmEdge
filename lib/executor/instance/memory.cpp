@@ -57,13 +57,6 @@ ErrCode MemoryInstance::setBytes(Bytes &Slice, unsigned int Offset,
   return ErrCode::Success;
 }
 
-void *MemoryInstance::getPointer(unsigned int Offset) {
-  if (Offset >= Data.size()) {
-    return nullptr;
-  }
-  return reinterpret_cast<void *>(&Data[Offset]);
-}
-
 /// Check access size and vector size. See "include/executor/instance/memory.h".
 ErrCode MemoryInstance::checkDataSize(unsigned int AccessSize) {
   if (HasMaxPage && AccessSize > MaxPage * 65536) {

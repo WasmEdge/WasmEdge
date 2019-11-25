@@ -45,8 +45,15 @@ public:
   ErrCode setBytes(Bytes &Slice, unsigned int Offset, unsigned int Start,
                    unsigned int Length);
 
+  /// Get pointer to specific offset of memory or null.
+  template <typename T>
+  typename std::enable_if_t<std::is_pointer_v<T>, T>
+  getPointerOrNull(unsigned int Offset);
+
   /// Get pointer to specific offset of memory.
-  void *getPointer(unsigned int Offset);
+  template <typename T>
+  typename std::enable_if_t<std::is_pointer_v<T>, T>
+  getPointer(unsigned int Offset);
 
   /// Template of loading bytes and convert to a value.
   ///

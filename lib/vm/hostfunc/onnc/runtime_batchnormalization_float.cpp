@@ -82,41 +82,42 @@ ErrCode ONNCRuntimeBatchnormalizationFloat::run(
   ///      float epsilon,
   ///      float momentum,
   ///      int32_t spatial
+  /// Optional: output_mean, output_var, output_saved_mean, output_saved_var
   if (Args.size() != 34) {
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[33]);
-  unsigned int InXPtr = retrieveValue<uint32_t>(Args[32]);
+  unsigned int RuntimeContextOff = retrieveValue<uint32_t>(Args[33]);
+  unsigned int InXOff = retrieveValue<uint32_t>(Args[32]);
   unsigned int InXNDim = retrieveValue<uint32_t>(Args[31]);
-  unsigned int InXDimsPtr = retrieveValue<uint32_t>(Args[30]);
-  unsigned int InScalePtr = retrieveValue<uint32_t>(Args[29]);
+  unsigned int InXDimsOff = retrieveValue<uint32_t>(Args[30]);
+  unsigned int InScaleOff = retrieveValue<uint32_t>(Args[29]);
   unsigned int InScaleNDim = retrieveValue<uint32_t>(Args[28]);
-  unsigned int InScaleDimsPtr = retrieveValue<uint32_t>(Args[27]);
-  unsigned int InBPtr = retrieveValue<uint32_t>(Args[26]);
+  unsigned int InScaleDimsOff = retrieveValue<uint32_t>(Args[27]);
+  unsigned int InBOff = retrieveValue<uint32_t>(Args[26]);
   unsigned int InBNDim = retrieveValue<uint32_t>(Args[25]);
-  unsigned int InBDimsPtr = retrieveValue<uint32_t>(Args[24]);
-  unsigned int InMeanPtr = retrieveValue<uint32_t>(Args[23]);
+  unsigned int InBDimsOff = retrieveValue<uint32_t>(Args[24]);
+  unsigned int InMeanOff = retrieveValue<uint32_t>(Args[23]);
   unsigned int InMeanNDim = retrieveValue<uint32_t>(Args[22]);
-  unsigned int InMeanDimsPtr = retrieveValue<uint32_t>(Args[21]);
-  unsigned int InVarPtr = retrieveValue<uint32_t>(Args[20]);
+  unsigned int InMeanDimsOff = retrieveValue<uint32_t>(Args[21]);
+  unsigned int InVarOff = retrieveValue<uint32_t>(Args[20]);
   unsigned int InVarNDim = retrieveValue<uint32_t>(Args[19]);
-  unsigned int InVarDimsPtr = retrieveValue<uint32_t>(Args[18]);
-  unsigned int OutYPtr = retrieveValue<uint32_t>(Args[17]);
+  unsigned int InVarDimsOff = retrieveValue<uint32_t>(Args[18]);
+  unsigned int OutYOff = retrieveValue<uint32_t>(Args[17]);
   unsigned int OutYNDim = retrieveValue<uint32_t>(Args[16]);
-  unsigned int OutYDimsPtr = retrieveValue<uint32_t>(Args[15]);
-  unsigned int OutMeanPtr = retrieveValue<uint32_t>(Args[14]);
+  unsigned int OutYDimsOff = retrieveValue<uint32_t>(Args[15]);
+  unsigned int OutMeanOff = retrieveValue<uint32_t>(Args[14]);
   unsigned int OutMeanNDim = retrieveValue<uint32_t>(Args[13]);
-  unsigned int OutMeanDimsPtr = retrieveValue<uint32_t>(Args[12]);
-  unsigned int OutVarPtr = retrieveValue<uint32_t>(Args[11]);
+  unsigned int OutMeanDimsOff = retrieveValue<uint32_t>(Args[12]);
+  unsigned int OutVarOff = retrieveValue<uint32_t>(Args[11]);
   unsigned int OutVarNDim = retrieveValue<uint32_t>(Args[10]);
-  unsigned int OutVarDimsPtr = retrieveValue<uint32_t>(Args[9]);
-  unsigned int OutSavedMeanPtr = retrieveValue<uint32_t>(Args[8]);
+  unsigned int OutVarDimsOff = retrieveValue<uint32_t>(Args[9]);
+  unsigned int OutSavedMeanOff = retrieveValue<uint32_t>(Args[8]);
   unsigned int OutSavedMeanNDim = retrieveValue<uint32_t>(Args[7]);
-  unsigned int OutSavedMeanDimsPtr = retrieveValue<uint32_t>(Args[6]);
-  unsigned int OutSavedVarPtr = retrieveValue<uint32_t>(Args[5]);
+  unsigned int OutSavedMeanDimsOff = retrieveValue<uint32_t>(Args[6]);
+  unsigned int OutSavedVarOff = retrieveValue<uint32_t>(Args[5]);
   unsigned int OutSavedVarNDim = retrieveValue<uint32_t>(Args[4]);
-  unsigned int OutSavedVarDimsPtr = retrieveValue<uint32_t>(Args[3]);
+  unsigned int OutSavedVarDimsOff = retrieveValue<uint32_t>(Args[3]);
   float Epsilon = retrieveValue<float>(Args[2]);
   float Momentum = retrieveValue<float>(Args[1]);
   unsigned int Spatial = retrieveValue<uint32_t>(Args[0]);
@@ -131,40 +132,29 @@ ErrCode ONNCRuntimeBatchnormalizationFloat::run(
     return Status;
   }
 
-  void *RuntimeContext =
-      reinterpret_cast<void *>(MemInst->getPointer(RuntimeContextPtr));
-  int32_t *InXDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InXDimsPtr));
-  int32_t *InScaleDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InScaleDimsPtr));
-  int32_t *InBDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InBDimsPtr));
-  int32_t *InMeanDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InMeanDimsPtr));
-  int32_t *InVarDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InVarDimsPtr));
-  int32_t *OutYDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutYDimsPtr));
-  int32_t *OutMeanDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutMeanDimsPtr));
-  int32_t *OutVarDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutVarDimsPtr));
+  void *RuntimeContext = MemInst->getPointer<void *>(RuntimeContextOff);
+  int32_t *InXDims = MemInst->getPointer<int32_t *>(InXDimsOff);
+  int32_t *InScaleDims = MemInst->getPointer<int32_t *>(InScaleDimsOff);
+  int32_t *InBDims = MemInst->getPointer<int32_t *>(InBDimsOff);
+  int32_t *InMeanDims = MemInst->getPointer<int32_t *>(InMeanDimsOff);
+  int32_t *InVarDims = MemInst->getPointer<int32_t *>(InVarDimsOff);
+  int32_t *OutYDims = MemInst->getPointer<int32_t *>(OutYDimsOff);
+  int32_t *OutMeanDims = MemInst->getPointerOrNull<int32_t *>(OutMeanDimsOff);
+  int32_t *OutVarDims = MemInst->getPointerOrNull<int32_t *>(OutVarDimsOff);
   int32_t *OutSavedMeanDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutSavedMeanDimsPtr));
+      MemInst->getPointerOrNull<int32_t *>(OutSavedMeanDimsOff);
   int32_t *OutSavedVarDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutSavedVarDimsPtr));
-  float *InX = reinterpret_cast<float *>(MemInst->getPointer(InXPtr));
-  float *InScale = reinterpret_cast<float *>(MemInst->getPointer(InScalePtr));
-  float *InB = reinterpret_cast<float *>(MemInst->getPointer(InBPtr));
-  float *InMean = reinterpret_cast<float *>(MemInst->getPointer(InMeanPtr));
-  float *InVar = reinterpret_cast<float *>(MemInst->getPointer(InVarPtr));
-  float *OutY = reinterpret_cast<float *>(MemInst->getPointer(OutYPtr));
-  float *OutMean = reinterpret_cast<float *>(MemInst->getPointer(OutMeanPtr));
-  float *OutVar = reinterpret_cast<float *>(MemInst->getPointer(OutVarPtr));
-  float *OutSavedMean =
-      reinterpret_cast<float *>(MemInst->getPointer(OutSavedMeanPtr));
-  float *OutSavedVar =
-      reinterpret_cast<float *>(MemInst->getPointer(OutSavedVarPtr));
+      MemInst->getPointerOrNull<int32_t *>(OutSavedVarDimsOff);
+  float *InX = MemInst->getPointer<float *>(InXOff);
+  float *InScale = MemInst->getPointer<float *>(InScaleOff);
+  float *InB = MemInst->getPointer<float *>(InBOff);
+  float *InMean = MemInst->getPointer<float *>(InMeanOff);
+  float *InVar = MemInst->getPointer<float *>(InVarOff);
+  float *OutY = MemInst->getPointer<float *>(OutYOff);
+  float *OutMean = MemInst->getPointerOrNull<float *>(OutMeanOff);
+  float *OutVar = MemInst->getPointerOrNull<float *>(OutVarOff);
+  float *OutSavedMean = MemInst->getPointerOrNull<float *>(OutSavedMeanOff);
+  float *OutSavedVar = MemInst->getPointerOrNull<float *>(OutSavedVarOff);
 
   ONNC_RUNTIME_batchnormalization_float(
       RuntimeContext, InX, InXNDim, InXDims, InScale, InScaleNDim, InScaleDims,

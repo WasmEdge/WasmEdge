@@ -39,16 +39,16 @@ ErrCode ONNCRuntimeAddFloat::run(std::vector<Value> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[9]);
-  unsigned int InAPtr = retrieveValue<uint32_t>(Args[8]);
+  unsigned int RuntimeContextOff = retrieveValue<uint32_t>(Args[9]);
+  unsigned int InAOff = retrieveValue<uint32_t>(Args[8]);
   unsigned int InANDim = retrieveValue<uint32_t>(Args[7]);
-  unsigned int InADimsPtr = retrieveValue<uint32_t>(Args[6]);
-  unsigned int InBPtr = retrieveValue<uint32_t>(Args[5]);
+  unsigned int InADimsOff = retrieveValue<uint32_t>(Args[6]);
+  unsigned int InBOff = retrieveValue<uint32_t>(Args[5]);
   unsigned int InBNDim = retrieveValue<uint32_t>(Args[4]);
-  unsigned int InBDimsPtr = retrieveValue<uint32_t>(Args[3]);
-  unsigned int OutCPtr = retrieveValue<uint32_t>(Args[2]);
+  unsigned int InBDimsOff = retrieveValue<uint32_t>(Args[3]);
+  unsigned int OutCOff = retrieveValue<uint32_t>(Args[2]);
   unsigned int OutCNDim = retrieveValue<uint32_t>(Args[1]);
-  unsigned int OutCDimsPtr = retrieveValue<uint32_t>(Args[0]);
+  unsigned int OutCDimsOff = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;
@@ -60,17 +60,13 @@ ErrCode ONNCRuntimeAddFloat::run(std::vector<Value> &Args,
     return Status;
   }
 
-  void *RuntimeContext =
-      reinterpret_cast<void *>(MemInst->getPointer(RuntimeContextPtr));
-  int32_t *InADims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InADimsPtr));
-  int32_t *InBDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InBDimsPtr));
-  int32_t *OutCDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutCDimsPtr));
-  float *InA = reinterpret_cast<float *>(MemInst->getPointer(InAPtr));
-  float *InB = reinterpret_cast<float *>(MemInst->getPointer(InBPtr));
-  float *OutC = reinterpret_cast<float *>(MemInst->getPointer(OutCPtr));
+  void *RuntimeContext = MemInst->getPointer<void *>(RuntimeContextOff);
+  int32_t *InADims = MemInst->getPointer<int32_t *>(InADimsOff);
+  int32_t *InBDims = MemInst->getPointer<int32_t *>(InBDimsOff);
+  int32_t *OutCDims = MemInst->getPointer<int32_t *>(OutCDimsOff);
+  float *InA = MemInst->getPointer<float *>(InAOff);
+  float *InB = MemInst->getPointer<float *>(InBOff);
+  float *OutC = MemInst->getPointer<float *>(OutCOff);
 
   ONNC_RUNTIME_add_float(RuntimeContext, InA, InANDim, InADims, InB, InBNDim,
                          InBDims, OutC, OutCNDim, OutCDims);

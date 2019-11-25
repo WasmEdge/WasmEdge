@@ -38,14 +38,14 @@ ErrCode ONNCRuntimeTransposeFloat::run(std::vector<Value> &Args,
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextPtr = retrieveValue<uint32_t>(Args[8]);
-  unsigned int InDataPtr = retrieveValue<uint32_t>(Args[7]);
+  unsigned int RuntimeContextOff = retrieveValue<uint32_t>(Args[8]);
+  unsigned int InDataOff = retrieveValue<uint32_t>(Args[7]);
   unsigned int InDataNDim = retrieveValue<uint32_t>(Args[6]);
-  unsigned int InDataDimsPtr = retrieveValue<uint32_t>(Args[5]);
-  unsigned int OutTransposedPtr = retrieveValue<uint32_t>(Args[4]);
+  unsigned int InDataDimsOff = retrieveValue<uint32_t>(Args[5]);
+  unsigned int OutTransposedOff = retrieveValue<uint32_t>(Args[4]);
   unsigned int OutTransposedNDim = retrieveValue<uint32_t>(Args[3]);
-  unsigned int OutTransposedDimsPtr = retrieveValue<uint32_t>(Args[2]);
-  unsigned int PermPtr = retrieveValue<uint32_t>(Args[1]);
+  unsigned int OutTransposedDimsOff = retrieveValue<uint32_t>(Args[2]);
+  unsigned int PermOff = retrieveValue<uint32_t>(Args[1]);
   unsigned int PermNum = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
@@ -58,16 +58,13 @@ ErrCode ONNCRuntimeTransposeFloat::run(std::vector<Value> &Args,
     return Status;
   }
 
-  void *RuntimeContext =
-      reinterpret_cast<void *>(MemInst->getPointer(RuntimeContextPtr));
-  int32_t *InDataDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(InDataDimsPtr));
+  void *RuntimeContext = MemInst->getPointer<void *>(RuntimeContextOff);
+  int32_t *InDataDims = MemInst->getPointer<int32_t *>(InDataDimsOff);
   int32_t *OutTransposedDims =
-      reinterpret_cast<int32_t *>(MemInst->getPointer(OutTransposedDimsPtr));
-  float *InData = reinterpret_cast<float *>(MemInst->getPointer(InDataPtr));
-  float *OutTransposed =
-      reinterpret_cast<float *>(MemInst->getPointer(OutTransposedPtr));
-  int32_t *Perm = reinterpret_cast<int32_t *>(MemInst->getPointer(PermPtr));
+      MemInst->getPointer<int32_t *>(OutTransposedDimsOff);
+  float *InData = MemInst->getPointer<float *>(InDataOff);
+  float *OutTransposed = MemInst->getPointer<float *>(OutTransposedOff);
+  int32_t *Perm = MemInst->getPointer<int32_t *>(PermOff);
 
   ONNC_RUNTIME_transpose_float(RuntimeContext, InData, InDataNDim, InDataDims,
                                OutTransposed, OutTransposedNDim,

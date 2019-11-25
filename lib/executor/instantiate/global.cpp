@@ -11,7 +11,6 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
   if (GlobSec == nullptr) {
     return ErrCode::Success;
   }
-  ErrCode Status = ErrCode::Success;
 
   /// Add a temp module to Store for initialization
   auto TmpMod = std::make_unique<Instance::ModuleInstance>();
@@ -26,18 +25,20 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
     unsigned int NewGlobInstId = 0;
 
     /// Insert global instance to store manager.
-    if ((Status = StoreMgr.insertGlobalInst(NewGlobInst, NewGlobInstId)) !=
-        ErrCode::Success) {
+    if (ErrCode Status = StoreMgr.insertGlobalInst(NewGlobInst, NewGlobInstId);
+        Status != ErrCode::Success) {
       return Status;
     }
 
     /// Set external value (global address) to module instance.
-    if ((Status = ModInst->addGlobalAddr(NewGlobInstId)) != ErrCode::Success) {
+    if (ErrCode Status = ModInst->addGlobalAddr(NewGlobInstId);
+        Status != ErrCode::Success) {
       return Status;
     }
 
     /// Set external value (global address) to temp module instance.
-    if ((Status = TmpMod->addGlobalAddr(NewGlobInstId)) != ErrCode::Success) {
+    if (ErrCode Status = TmpMod->addGlobalAddr(NewGlobInstId);
+        Status != ErrCode::Success) {
       return Status;
     }
   }
@@ -45,26 +46,27 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
   /// Initialize the globals
   /// Insert the temp. module instance to Store
   unsigned int TmpModInstId = 0;
-  if ((Status = StoreMgr.insertModuleInst(TmpMod, TmpModInstId)) !=
-      ErrCode::Success) {
+  if (ErrCode Status = StoreMgr.insertModuleInst(TmpMod, TmpModInstId);
+      Status != ErrCode::Success) {
     return Status;
   }
   Instance::ModuleInstance *TmpModInst = nullptr;
-  if ((Status = StoreMgr.getModule(TmpModInstId, TmpModInst)) !=
-      ErrCode::Success) {
+  if (ErrCode Status = StoreMgr.getModule(TmpModInstId, TmpModInst);
+      Status != ErrCode::Success) {
     return Status;
   }
 
   /// Make a new frame {NewModInst:{globaddrs}, locals:none} and push
-  Frame F(TmpModInstId, 0);
-  StackMgr.push(F);
+  StackMgr.pushFrame(TmpModInstId, /// Module address
+                     0             /// Arity
+  );
 
   /// Evaluate values and set to global instance.
   auto GlobSeg = GlobSegs.begin();
   for (unsigned int I = 0; I < TmpModInst->getGlobalNum(); I++, GlobSeg++) {
     /// Set init instrs to engine and run.
-    if ((Status = Engine.runExpression((*GlobSeg)->getInstrs())) !=
-        ErrCode::Success) {
+    if (ErrCode Status = Engine.runExpression((*GlobSeg)->getInstrs());
+        Status != ErrCode::Success) {
       return Status;
     }
 
@@ -83,7 +85,7 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
   }
 
   /// Pop Frame
-  Status = StackMgr.pop();
+  ErrCode Status = StackMgr.popFrame();
 
   /// TODO: Delete the temp. module instance
   return Status;

@@ -11,68 +11,73 @@ ErrCode Executor::instantiate(AST::Module *Mod) {
   if (Mod == nullptr) {
     return ErrCode::Success;
   }
-  ErrCode Status = ErrCode::Success;
   auto NewModInst = std::make_unique<Instance::ModuleInstance>();
 
   /// Insert the module instance to store manager and retieve instance.
   unsigned int ModInstAddr;
-  if ((Status = StoreMgr.insertModuleInst(NewModInst, ModInstAddr)) !=
-      ErrCode::Success) {
+  if (ErrCode Status = StoreMgr.insertModuleInst(NewModInst, ModInstAddr);
+      Status != ErrCode::Success) {
     return Status;
   }
-  if ((Status = StoreMgr.getModule(ModInstAddr, ModInst)) != ErrCode::Success) {
+  if (ErrCode Status = StoreMgr.getModule(ModInstAddr, ModInst);
+      Status != ErrCode::Success) {
     return Status;
   }
 
   /// Instantiate ImportSection and do import matching. (ImportSec)
   AST::ImportSection *ImportSec = Mod->getImportSection();
-  if ((Status = instantiate(ImportSec)) != ErrCode::Success) {
+  if (ErrCode Status = instantiate(ImportSec); Status != ErrCode::Success) {
     return Status;
   }
 
   /// Instantiate Function Types in Module Instance. (TypeSec)
   AST::TypeSection *TypeSec = Mod->getTypeSection();
-  if ((Status = instantiate(TypeSec)) != ErrCode::Success) {
+  if (ErrCode Status = instantiate(TypeSec); Status != ErrCode::Success) {
     return Status;
   }
 
   /// Instantiate Functions in module. (FuncionSec, CodeSec)
   AST::FunctionSection *FuncSec = Mod->getFunctionSection();
   AST::CodeSection *CodeSec = Mod->getCodeSection();
-  if ((Status = instantiate(FuncSec, CodeSec)) != ErrCode::Success) {
+  if (ErrCode Status = instantiate(FuncSec, CodeSec);
+      Status != ErrCode::Success) {
     return Status;
   }
 
   /// Instantiate GlobalSection (GlobalSec)
   AST::GlobalSection *GlobSec = Mod->getGlobalSection();
-  if ((Status = instantiate(GlobSec)) != ErrCode::Success) {
+  if (ErrCode Status = instantiate(GlobSec); Status != ErrCode::Success) {
     return Status;
   }
 
   /// Initializa the tables and memories
   /// Make a new frame {ModInst, locals:none} and push
-  StackMgr.push(Frame(ModInst->Addr, 0));
+  StackMgr.pushFrame(ModInst->Addr, /// Module address
+                     0              /// Arity
+  );
 
   /// Instantiate TableSection (TableSec, ElemSec)
   AST::TableSection *TabSec = Mod->getTableSection();
   AST::ElementSection *ElemSec = Mod->getElementSection();
-  if ((Status = instantiate(TabSec, ElemSec)) != ErrCode::Success) {
+  if (ErrCode Status = instantiate(TabSec, ElemSec);
+      Status != ErrCode::Success) {
     return Status;
   }
 
   /// Instantiate MemorySection (MemorySec, DataSec)
   AST::MemorySection *MemSec = Mod->getMemorySection();
   AST::DataSection *DataSec = Mod->getDataSection();
-  if ((Status = instantiate(MemSec, DataSec)) != ErrCode::Success) {
+  if (ErrCode Status = instantiate(MemSec, DataSec);
+      Status != ErrCode::Success) {
     return Status;
   }
 
   /// Pop Frame.
-  StackMgr.pop();
+  StackMgr.popFrame();
 
   /// Instantiate ExportSection (ExportSec)
   AST::ExportSection *ExportSec = Mod->getExportSection();
-  if ((Status = instantiate(ExportSec)) != ErrCode::Success) {
+  if (ErrCode Status = instantiate(ExportSec); Status != ErrCode::Success) {
     return Status;
   }
 
@@ -86,7 +91,7 @@ ErrCode Executor::instantiate(AST::Module *Mod) {
   /// In e-wasm, the start section will always be "main" function.
   /// Therefore, the start function index will be find in export section.
 
-  return Status;
+  return ErrCode::Success;
 }
 
 } // namespace Executor

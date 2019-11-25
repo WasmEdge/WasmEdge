@@ -10,7 +10,7 @@ template <typename T> TypeB<T, ErrCode> GlobalInstance::getValue(T &Val) const {
   /// Get value.
   try {
     Val = std::get<T>(Value);
-  } catch (std::bad_variant_access E) {
+  } catch (std::bad_variant_access &E) {
     return ErrCode::TypeNotMatch;
   }
   return ErrCode::Success;

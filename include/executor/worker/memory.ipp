@@ -32,7 +32,7 @@ TypeT<T, ErrCode> Worker::runLoadOp(AST::MemoryInstruction &Instr,
       ErrCode::Success) {
     return Status;
   }
-  return StackMgr.pushValue(Support::toUnsigned(Value));
+  return StackMgr.push(Support::toUnsigned(Value));
 }
 
 template <typename T>

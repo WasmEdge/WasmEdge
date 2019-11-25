@@ -33,8 +33,7 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
     return ErrCode::WrongWorkerFlow;
 
   /// Enter start function. Args should be pushed into stack.
-  ErrCode Status = ErrCode::Success;
-  if ((Status = invokeFunction(FuncAddr)) != ErrCode::Success)
+  if (ErrCode Status = invokeFunction(FuncAddr); Status != ErrCode::Success)
     return Status;
 
   /// Set start time.
@@ -43,7 +42,7 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
   /// Execute run loop.
   std::cout << " !!! start running..." << std::endl;
   TheState = State::CodeSet;
-  Status = execute();
+  ErrCode Status = execute();
   if (Status == ErrCode::Revert) {
     std::cout << " !!! revert" << std::endl;
   } else if (Status == ErrCode::Terminated) {
@@ -346,6 +345,7 @@ ErrCode Worker::execute(AST::BinaryNumericInstruction &Instr) {
   Value Val1, Val2;
   StackMgr.pop(Val2);
   StackMgr.pop(Val1);
+
   switch (Instr.getOpCode()) {
   case OpCode::I32__eq:
     return runEqOp<uint32_t>(Val1, Val2);
@@ -526,7 +526,10 @@ ErrCode Worker::execute() {
       else
         Status = InstrPdr.popInstrs();
     } else {
-      StackMgr.getCurrentFrame(CurrentFrame);
+      Status = StackMgr.getCurrentFrame(CurrentFrame);
+      if (Status != ErrCode::Success) {
+        break;
+      }
       ++ExecInstrCnt;
       /// Run instructions.
       Status = Instr->execute(*this);
@@ -544,85 +547,84 @@ ErrCode Worker::enterBlock(unsigned int Arity,
                            AST::BlockControlInstruction *Instr,
                            const AST::InstrVec &Seq) {
   /// Create label for block and push.
-  if (Instr == nullptr) {
-    StackMgr.push(Label(Arity));
-  } else {
-    StackMgr.push(Label(Arity, Instr));
-  }
+  StackMgr.pushLabel(Arity, Instr);
 
   /// Jump to block body.
   return InstrPdr.pushInstrs(InstrProvider::SeqType::Block, Seq);
 }
 
 ErrCode Worker::leaveBlock() {
-  /// Pop top values on stack until a label.
-  std::vector<Value> Vals;
-  while (!StackMgr.isTopLabel()) {
-    Value Val;
-    StackMgr.pop(Val);
-    Vals.push_back(Val);
+  Label *L = nullptr;
+  if (ErrCode Status = StackMgr.getLabelWithCount(L, 0);
+      Status != ErrCode::Success) {
+    return Status;
   }
 
+  unsigned int Arity = L->getArity();
+  std::vector<Value> Vals(Arity);
+  for (unsigned int I = 0; I < Arity; I++) {
+    StackMgr.pop(Vals[I]);
+  }
+
+  StackMgr.popLabel();
   /// Pop label entry and the corresponding instruction sequence.
   InstrPdr.popInstrs();
-  StackMgr.pop();
 
-  /// Push the Vals back into the Stack
   for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
-    StackMgr.push(*Iter);
+    StackMgr.push(std::move(*Iter));
   }
   return ErrCode::Success;
 }
 
 ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
-  ErrCode Status = ErrCode::Success;
-
   /// Get Function Instance and module address.
   Instance::FunctionInstance *FuncInst = nullptr;
-  if ((Status = StoreMgr.getFunction(FuncAddr, FuncInst)) != ErrCode::Success)
+  if (ErrCode Status = StoreMgr.getFunction(FuncAddr, FuncInst);
+      Status != ErrCode::Success)
     return Status;
 
   /// Get function type
   Instance::ModuleInstance::FType *FuncType = FuncInst->getFuncType();
 
   /// Pop argument vals
-  std::vector<Value> Vals;
+  std::vector<Value> Vals(FuncType->Params.size());
   for (unsigned int I = 0; I < FuncType->Params.size(); I++) {
-    Value Val;
-    StackMgr.pop(Val);
-    Vals.push_back(Val);
+    StackMgr.pop(Vals[I]);
   }
 
   if (FuncInst->isHostFunction()) {
     /// Host function case: Push args and call function.
     Instance::ModuleInstance *ModuleInst = nullptr;
-    if ((Status = StoreMgr.getModule(CurrentFrame->getModuleAddr(),
-                                     ModuleInst)) != ErrCode::Success) {
+    if (ErrCode Status =
+            StoreMgr.getModule(CurrentFrame->getModuleAddr(), ModuleInst);
+        Status != ErrCode::Success) {
       return Status;
     }
     HostFunction *HostFunc = nullptr;
-    if ((Status = HostFuncMgr.getHostFunction(FuncInst->getHostFuncAddr(),
-                                              HostFunc)) != ErrCode::Success) {
+    if (ErrCode Status =
+            HostFuncMgr.getHostFunction(FuncInst->getHostFuncAddr(), HostFunc);
+        Status != ErrCode::Success) {
       return Status;
     }
 
     /// Prepare return list.
     std::vector<Value> Returns;
+    Returns.reserve(FuncType->Returns.size());
     for (auto It = FuncType->Returns.cbegin(); It != FuncType->Returns.cend();
          It++) {
       Returns.push_back(AST::ValueFromType(*It));
     }
 
     /// Set start time.
-    std::string RecordName =
+    const std::string RecordName =
         FuncInst->getModName() + "::" + FuncInst->getEntityName();
     TimeRecorder.stopRecord("Execution");
     TimeRecorder.startRecord("HostFunction");
     TimeRecorder.startRecord(RecordName);
 
     /// Run host function.
-    if ((Status = HostFunc->run(Vals, Returns, StoreMgr, ModuleInst)) !=
-        ErrCode::Success) {
+    if (ErrCode Status = HostFunc->run(Vals, Returns, StoreMgr, ModuleInst);
+        Status != ErrCode::Success) {
       return Status;
     }
 
@@ -631,6 +633,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     TimeRecorder.clearRecord(RecordName);
     TimeRecorder.stopRecord("HostFunction");
     TimeRecorder.startRecord("Execution");
+
     std::cout << " Host func " << RecordName << " cost " << HostFuncTime
               << " us" << std::endl;
 
@@ -639,17 +642,16 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
       StackMgr.push(*Iter);
     }
 
-    return Status;
+    return ErrCode::Success;
   } else {
     /// Native function case: Push frame with locals and args.
     unsigned int Arity = FuncType->Returns.size();
     AST::InstrVec EmprySeq;
-    Frame F(FuncInst->getModuleAddr(), /// Module address
-            Arity,                     /// Arity
-            Vals,                      /// Reversed arguments
-            FuncInst->getLocals()      /// Local defs
+    StackMgr.pushFrame(FuncInst->getModuleAddr(), /// Module address
+                       Arity,                     /// Arity
+                       Vals,                      /// Reversed arguments
+                       FuncInst->getLocals()      /// Local defs
     );
-    StackMgr.push(F);
     InstrPdr.pushInstrs(InstrProvider::SeqType::FunctionCall, EmprySeq);
 
     /// Run block of function body
@@ -659,89 +661,89 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
 
 ErrCode Worker::returnFunction() {
   /// Get current frame and arity.
-  StackMgr.getCurrentFrame(CurrentFrame);
+  if (ErrCode Status = StackMgr.getCurrentFrame(CurrentFrame);
+      Status != ErrCode::Success) {
+    return Status;
+  }
+
   unsigned int Arity = CurrentFrame->getArity();
 
   /// Pop the results from stack.
-  std::vector<Value> Vals;
+  std::vector<Value> Vals(Arity);
   for (unsigned int I = 0; I < Arity; I++) {
-    Value Val;
-    StackMgr.pop(Val);
-    Vals.push_back(Val);
+    StackMgr.pop(Vals[I]);
   }
 
   /// TODO: Validate top of stack is a frame when reach end of function.
 
-  /// Pop until the top of stack is a frame.
-  while (!StackMgr.isTopFrame()) {
-    /// If pop a label, need to pop the instruction sequence of block.
-    if (StackMgr.isTopLabel())
-      InstrPdr.popInstrs();
-    StackMgr.pop();
+  /// Pop the frame entry from the Stack.
+  unsigned int LabelPoped;
+  if (ErrCode Status = StackMgr.popFrame(LabelPoped);
+      Status != ErrCode::Success) {
+    return Status;
+  }
+  for (unsigned int I = 0; I < LabelPoped; ++I) {
+    InstrPdr.popInstrs();
   }
 
-  /// Pop the frame entry from the Stack.
   InstrPdr.popInstrs();
-  StackMgr.pop();
 
   /// Push the retrun Vals into Stack.
   for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
-    StackMgr.push(*Iter);
+    StackMgr.push(std::move(*Iter));
   }
   return ErrCode::Success;
 }
 
 ErrCode Worker::branchToLabel(unsigned int LabelId) {
   /// Get the L-th label from top of stack and the continuation instruction.
-  ErrCode Status = ErrCode::Success;
   Label *L = nullptr;
   AST::BlockControlInstruction *ContInstr = nullptr;
-  if ((Status = StackMgr.getLabelWithCount(L, LabelId)) != ErrCode::Success) {
+  if (ErrCode Status = StackMgr.getLabelWithCount(L, LabelId);
+      Status != ErrCode::Success) {
     return Status;
   }
   ContInstr = L->getTarget();
 
   /// Get arity of Label and pop n values.
   unsigned int Arity = L->getArity();
-  std::vector<Value> Vals;
+
+  std::vector<Value> Vals(Arity);
   for (unsigned int I = 0; I < Arity; I++) {
-    Value Val;
-    StackMgr.pop(Val);
-    Vals.push_back(Val);
+    StackMgr.pop(Vals[I]);
   }
 
   /// Repeat LabelIndex + 1 times
   for (unsigned int I = 0; I < LabelId + 1; I++) {
-    while (StackMgr.isTopValue()) {
-      StackMgr.pop();
-    }
+    StackMgr.popLabel();
     /// Pop label entry and the corresponding instruction sequence.
     InstrPdr.popInstrs();
-    StackMgr.pop();
   }
 
   /// Push the Vals back into the Stack
   for (auto Iter = Vals.rbegin(); Iter != Vals.rend(); Iter++) {
-    StackMgr.push(*Iter);
+    StackMgr.push(std::move(*Iter));
   }
 
   /// Jump to the continuation of Label
   if (ContInstr != nullptr) {
-    Status = runLoopOp(*ContInstr);
+    return runLoopOp(*ContInstr);
   }
-  return Status;
+
+  return ErrCode::Success;
 }
 
 ErrCode Worker::getTabInstByIdx(unsigned int Idx,
                                 Instance::TableInstance *&TabInst) {
-  ErrCode Status = ErrCode::Success;
   Instance::ModuleInstance *ModInst = nullptr;
   unsigned int TableAddr = 0;
   unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
-  if ((Status = StoreMgr.getModule(ModuleAddr, ModInst)) != ErrCode::Success) {
+  if (ErrCode Status = StoreMgr.getModule(ModuleAddr, ModInst);
+      Status != ErrCode::Success) {
     return Status;
   };
-  if ((Status = ModInst->getTableAddr(Idx, TableAddr)) != ErrCode::Success) {
+  if (ErrCode Status = ModInst->getTableAddr(Idx, TableAddr);
+      Status != ErrCode::Success) {
     return Status;
   };
   return StoreMgr.getTable(TableAddr, TabInst);
@@ -749,14 +751,15 @@ ErrCode Worker::getTabInstByIdx(unsigned int Idx,
 
 ErrCode Worker::getMemInstByIdx(unsigned int Idx,
                                 Instance::MemoryInstance *&MemInst) {
-  ErrCode Status = ErrCode::Success;
   Instance::ModuleInstance *ModInst = nullptr;
   unsigned int MemoryAddr = 0;
   unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
-  if ((Status = StoreMgr.getModule(ModuleAddr, ModInst)) != ErrCode::Success) {
+  if (ErrCode Status = StoreMgr.getModule(ModuleAddr, ModInst);
+      Status != ErrCode::Success) {
     return Status;
   };
-  if ((Status = ModInst->getMemAddr(Idx, MemoryAddr)) != ErrCode::Success) {
+  if (ErrCode Status = ModInst->getMemAddr(Idx, MemoryAddr);
+      Status != ErrCode::Success) {
     return Status;
   };
   return StoreMgr.getMemory(MemoryAddr, MemInst);
@@ -764,14 +767,15 @@ ErrCode Worker::getMemInstByIdx(unsigned int Idx,
 
 ErrCode Worker::getGlobInstByIdx(unsigned int Idx,
                                  Instance::GlobalInstance *&GlobInst) {
-  ErrCode Status = ErrCode::Success;
   Instance::ModuleInstance *ModInst = nullptr;
   unsigned int GlobalAddr = 0;
   unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
-  if ((Status = StoreMgr.getModule(ModuleAddr, ModInst)) != ErrCode::Success) {
+  if (ErrCode Status = StoreMgr.getModule(ModuleAddr, ModInst);
+      Status != ErrCode::Success) {
     return Status;
   };
-  if ((Status = ModInst->getGlobalAddr(Idx, GlobalAddr)) != ErrCode::Success) {
+  if (ErrCode Status = ModInst->getGlobalAddr(Idx, GlobalAddr);
+      Status != ErrCode::Success) {
     return Status;
   };
   return StoreMgr.getGlobal(GlobalAddr, GlobInst);

@@ -24,8 +24,10 @@ int main(int Argc, char *Argv[]) {
   /// Open dir for WASI environment.
   /// FIXME: Don't move it! Need to refine this after completion of Wasi
   /// functions.
-  char *cwdstr = getcwd(NULL, 0);
-  opendir(cwdstr);
+  std::unique_ptr<char, decltype(std::free) *> cwdstr(getcwd(NULL, 0),
+                                                      std::free);
+  std::unique_ptr<DIR, decltype(closedir) *> dir(opendir(cwdstr.get()),
+                                                 closedir);
 
   std::string InputPath(Argv[1]);
   SSVM::VM::Configure Conf(SSVM::VM::Configure::VMType::Wasi);

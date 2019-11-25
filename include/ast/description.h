@@ -68,7 +68,7 @@ public:
   template <typename T> Executor::ErrCode getExternalContent(T *&type) {
     try {
       type = std::get<std::unique_ptr<T>>(ExtContent).get();
-    } catch (std::bad_variant_access E) {
+    } catch (std::bad_variant_access &E) {
       return Executor::ErrCode::TypeNotMatch;
     }
     return Executor::ErrCode::Success;

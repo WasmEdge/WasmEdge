@@ -13,7 +13,7 @@ namespace Executor {
 template <typename TIn, typename TOut>
 TypeUU<TIn, TOut, ErrCode> Worker::runWrapOp(const Value &Val) {
   TIn I = retrieveValue<TIn>(Val);
-  return StackMgr.pushValue(static_cast<TOut>(I));
+  return StackMgr.push(static_cast<TOut>(I));
 }
 
 template <typename TIn, typename TOut>
@@ -32,35 +32,35 @@ TypeFI<TIn, TOut, ErrCode> Worker::runTruncateOp(const Value &Val) {
   }
   /// Else, return trunc(z). Signed case handled.
   TOut Res = Z;
-  return StackMgr.pushValue(static_cast<std::make_unsigned_t<TOut>>(Res));
+  return StackMgr.push(static_cast<std::make_unsigned_t<TOut>>(Res));
 }
 
 template <typename TIn, typename TOut>
 TypeIU<TIn, TOut, ErrCode> Worker::runExtendOp(const Value &Val) {
   TIn I = retrieveValue<TIn>(Val);
   /// Return i extend to TOut. Signed case handled.
-  return StackMgr.pushValue(static_cast<TOut>(I));
+  return StackMgr.push(static_cast<TOut>(I));
 }
 
 template <typename TIn, typename TOut>
 TypeIF<TIn, TOut, ErrCode> Worker::runConvertOp(const Value &Val) {
   TIn I = retrieveValue<TIn>(Val);
   /// Return i convert to TOut. Signed case handled.
-  return StackMgr.pushValue(static_cast<TOut>(I));
+  return StackMgr.push(static_cast<TOut>(I));
 }
 
 template <typename TIn, typename TOut>
 TypeFF<TIn, TOut, ErrCode> Worker::runDemoteOp(const Value &Val) {
   TIn Z = retrieveValue<TIn>(Val);
   /// Return i convert to TOut. (NaN, inf, and zeros handled)
-  return StackMgr.pushValue(static_cast<TOut>(Z));
+  return StackMgr.push(static_cast<TOut>(Z));
 }
 
 template <typename TIn, typename TOut>
 TypeFF<TIn, TOut, ErrCode> Worker::runPromoteOp(const Value &Val) {
   TIn Z = retrieveValue<TIn>(Val);
   /// Return i convert to TOut. (NaN, inf, and zeros handled)
-  return StackMgr.pushValue(static_cast<TOut>(Z));
+  return StackMgr.push(static_cast<TOut>(Z));
 }
 
 template <typename TIn, typename TOut>
@@ -69,7 +69,7 @@ TypeBB<TIn, TOut, ErrCode> Worker::runReinterpretOp(const Value &Val) {
   /// Return value with type TOut which copy bits of V.
   TOut Res;
   memcpy(&Res, &V, sizeof(TOut));
-  return StackMgr.pushValue(Res);
+  return StackMgr.push(Res);
 }
 
 } // namespace Executor

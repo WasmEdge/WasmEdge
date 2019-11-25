@@ -20,9 +20,6 @@ ErrCode Worker::runBlockOp(AST::BlockControlInstruction &Instr) {
 }
 
 ErrCode Worker::runLoopOp(AST::BlockControlInstruction &Instr) {
-  /// Get result type for arity.
-  AST::ValType ResultType = Instr.getResultType();
-
   /// Create Label{ loop-instruction } and push.
   return enterBlock(0, &Instr, *Instr.getBody());
 }

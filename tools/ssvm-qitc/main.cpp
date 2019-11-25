@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 int main(int Argc, char *Argv[]) {
-  if (Argc != 4) {
+  if (Argc != 4 && Argc != 5) {
     std::cout << "Usage: ./ssvm model_wasm tensor_file weight_file"
               << std::endl;
     return 0;

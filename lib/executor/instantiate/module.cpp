@@ -53,7 +53,8 @@ ErrCode Executor::instantiate(AST::Module *Mod) {
   /// Initializa the tables and memories
   /// Make a new frame {ModInst, locals:none} and push
   StackMgr.pushFrame(ModInst->Addr, /// Module address
-                     0              /// Arity
+                     0,             /// Arity
+                     0              /// Coarity
   );
 
   /// Instantiate TableSection (TableSec, ElemSec)

@@ -85,7 +85,7 @@ ErrCode Worker::runReturnOp() { return returnFunction(); }
 
 ErrCode Worker::runCallOp(AST::CallControlInstruction &Instr) {
   /// Get Function address.
-  unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
+  unsigned int ModuleAddr = StackMgr.getModuleAddr();
   Instance::ModuleInstance *ModuleInst = nullptr;
   StoreMgr.getModule(ModuleAddr, ModuleInst);
   unsigned int FuncAddr;
@@ -102,7 +102,7 @@ ErrCode Worker::runCallIndirectOp(AST::CallControlInstruction &Instr) {
   };
 
   /// Get function type at index x.
-  unsigned int ModuleAddr = CurrentFrame->getModuleAddr();
+  unsigned int ModuleAddr = StackMgr.getModuleAddr();
   Instance::ModuleInstance *ModuleInst = nullptr;
   Instance::ModuleInstance::FType *FuncType = nullptr;
   StoreMgr.getModule(ModuleAddr, ModuleInst);

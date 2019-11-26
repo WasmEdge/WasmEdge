@@ -11,12 +11,13 @@ namespace SSVM {
 namespace Executor {
 
 ErrCode Worker::runLocalGetOp(unsigned int Idx) {
-  Value *Val = nullptr;
-  if (ErrCode Status = CurrentFrame->getValue(Idx, Val);
+  const unsigned int Offset = StackMgr.getOffset(Idx);
+  Value *Var = nullptr;
+  if (ErrCode Status = StackMgr.getBottomN(Offset, Var);
       Status != ErrCode::Success) {
     return Status;
   }
-  return StackMgr.push(*Val);
+  return StackMgr.push(*Var);
 }
 
 ErrCode Worker::runLocalSetOp(unsigned int Idx) {
@@ -24,19 +25,25 @@ ErrCode Worker::runLocalSetOp(unsigned int Idx) {
   if (ErrCode Status = StackMgr.pop(Val); Status != ErrCode::Success) {
     return Status;
   }
-  if (ErrCode Status = CurrentFrame->setValue(Idx, Val);
+  const unsigned int Offset = StackMgr.getOffset(Idx);
+  Value *Var = nullptr;
+  if (ErrCode Status = StackMgr.getBottomN(Offset, Var);
       Status != ErrCode::Success) {
     return Status;
   }
+  *Var = Val;
   return ErrCode::Success;
 }
 
 ErrCode Worker::runLocalTeeOp(unsigned int Idx) {
   Value &Val = StackMgr.getTop();
-  if (ErrCode Status = CurrentFrame->setValue(Idx, Val);
+  const unsigned int Offset = StackMgr.getOffset(Idx);
+  Value *Var = nullptr;
+  if (ErrCode Status = StackMgr.getBottomN(Offset, Var);
       Status != ErrCode::Success) {
     return Status;
   }
+  *Var = Val;
   return ErrCode::Success;
 }
 

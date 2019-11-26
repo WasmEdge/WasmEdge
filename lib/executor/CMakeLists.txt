@@ -1,4 +1,3 @@
-add_subdirectory(entry)
 add_subdirectory(instance)
 add_subdirectory(instantiate)
 
@@ -12,7 +11,6 @@ add_library(ssvmExecutorWorker
 
 target_link_libraries(ssvmExecutorWorker
   PRIVATE
-  ssvmExecutorEntry
   ssvmExecutorInstance
 )
 
@@ -22,7 +20,6 @@ add_library(ssvmExecutor
 
 target_link_libraries(ssvmExecutor
   PRIVATE
-  ssvmExecutorEntry
   ssvmExecutorInstance
   ssvmExecutorInstantiate
   ssvmExecutorWorker

@@ -11,6 +11,5 @@ add_library(ssvmExecutorInstantiate
 
 target_link_libraries(ssvmExecutorInstantiate
   PRIVATE
-  ssvmExecutorEntry
   ssvmExecutorInstance
 )

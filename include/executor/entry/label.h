@@ -29,12 +29,15 @@ public:
   /// \param Instr the branch target of this label.
   ///
   /// \returns ErrCode.
-  Label(const unsigned int LabelArity,
-        AST::BlockControlInstruction *Instr = nullptr)
-      : Arity(LabelArity), Target(Instr) {}
+  Label(unsigned StackSize, unsigned int Coarity,
+        AST::BlockControlInstruction *Instr)
+      : StackSize(StackSize), Coarity(Coarity), Target(Instr) {}
 
-  /// Getter of arity.
-  unsigned int getArity() const { return Arity; }
+  /// Getter of stack size.
+  unsigned int getStackSize() const { return StackSize; }
+
+  /// Getter of coarity.
+  unsigned int getCoarity() const { return Coarity; }
 
   /// Getter of control instruction for branch target.
   AST::BlockControlInstruction *getTarget() { return Target; }
@@ -42,7 +45,8 @@ public:
 private:
   /// \name Data of label entry.
   /// @{
-  unsigned int Arity;
+  unsigned int StackSize;
+  unsigned int Coarity;
   AST::BlockControlInstruction *Target = nullptr;
   /// @}
 };

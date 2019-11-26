@@ -30,43 +30,31 @@ public:
   /// Initialize the frame with parameters and local variables.
   ///
   /// \param ModuleAddr the module instance address in store manager.
-  /// \param FrameArity the return counts of this function type.
-  /// \param Args the reversed arguments popped from stack for calling function.
-  /// \param LocalDef the local variables definition in function instance.
+  /// \param StackSize current stack size.
+  /// \param Coarity the return counts of this function type.
   ///
   /// \returns ErrCode.
-  Frame(unsigned int ModuleAddr, unsigned int FrameArity,
-        std::vector<Value> &Args,
-        const std::vector<std::pair<unsigned int, AST::ValType>> &LocalDefs);
-
-  /// Initializer of frame entry.
-  ///
-  /// Initialize the frame with parameters and no local variable.
-  ///
-  /// \param ModuleAddr the module instance address in store manager.
-  /// \param FrameArity the return counts of this function type.
-  ///
-  /// \returns ErrCode.
-  Frame(unsigned int ModuleAddr, unsigned int FrameArity);
+  Frame(unsigned int ModuleAddr, unsigned int StackSize, unsigned int Coarity)
+      : ModAddr(ModuleAddr), StackSize(StackSize), Coarity(Coarity) {}
 
   /// Getter of module address.
   unsigned int getModuleAddr() const { return ModAddr; }
 
+  /// Getter of stack size.
+  unsigned int getStackSize() const { return StackSize; }
+
   /// Getter of arity.
-  unsigned int getArity() const { return Arity; }
+  unsigned int getCoarity() const { return Coarity; }
 
-  /// Getter of local variables.
-  ErrCode getValue(unsigned int Idx, Value *&ValEntry);
-
-  /// Setter of local variables.
-  ErrCode setValue(unsigned int Idx, const Value &ValEntry);
+  /// Getter for stack offset of local values by index.
+  unsigned int getOffset(unsigned int Idx) const { return StackSize + Idx; }
 
 private:
   /// \name Data of frame entry.
   /// @{
   unsigned int ModAddr;
-  unsigned int Arity;
-  std::vector<Value> Locals;
+  unsigned int StackSize;
+  unsigned int Coarity;
   /// @}
 };
 

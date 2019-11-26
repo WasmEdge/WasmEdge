@@ -83,7 +83,7 @@ public:
   explicit Worker(StoreManager &Store, StackManager &Stack,
                   HostFunctionManager &HostFunc)
       : StoreMgr(Store), StackMgr(Stack), HostFuncMgr(HostFunc),
-        TheState(State::Inited), CurrentFrame(nullptr), ExecInstrCnt(0) {}
+        TheState(State::Inited), ExecInstrCnt(0) {}
 
   /// Prepare Wasm bytecode expression for execution.
   ErrCode runExpression(const AST::InstrVec &Instrs);
@@ -274,8 +274,6 @@ private:
   HostFunctionManager &HostFuncMgr;
   /// Worker State
   State TheState;
-  /// Pointer to current frame
-  Frame *CurrentFrame;
   /// Instruction provider
   InstrProvider InstrPdr;
 

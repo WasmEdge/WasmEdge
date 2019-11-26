@@ -58,7 +58,8 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
 
   /// Make a new frame {NewModInst:{globaddrs}, locals:none} and push
   StackMgr.pushFrame(TmpModInstId, /// Module address
-                     0             /// Arity
+                     0,            /// Arity
+                     0             /// Coarity
   );
 
   /// Evaluate values and set to global instance.

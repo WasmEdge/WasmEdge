@@ -1,12 +1,13 @@
-//===-- ssvm/validator/validator.h - Loader flow control class definition -------===//
+//===-- ssvm/validator/validator.h - Loader flow control class definition
+//-------===//
 //
 // Part of the SSVM Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the validator class, which controls flow
-/// of WASM loading.
+/// This file contains the declaration of the validator class, which controls
+/// flow of WASM loading.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -23,18 +24,9 @@ namespace {
 using OpCode = AST::Instruction::OpCode;
 } // namespace
 
-enum class ErrCode : unsigned int {
-  Success = 0,
-  Invalid
-};
+enum class ErrCode : unsigned int { Success = 0, Invalid };
 
-enum class ValType : unsigned int {
-  Unknown,
-  I32,
-  I64,
-  F32,
-  F64
-};
+enum class ValType : unsigned int { Unknown, I32, I64, F32, F64 };
 
 struct CtrlFrame {
   std::vector<ValType> label_types;
@@ -43,9 +35,8 @@ struct CtrlFrame {
   bool unreachable;
 };
 
-class ValidatMachine
-{
-  void runop(AST::Instruction*);
+class ValidatMachine {
+  void runop(AST::Instruction *);
   void push_opd(ValType);
   ValType pop_opd();
   ValType pop_opd(ValType);
@@ -60,6 +51,7 @@ class ValidatMachine
   ValType getglobal(unsigned int);
   void setglobal(unsigned int, ValType);
   ErrCode validateWarp(const AST::InstrVec *);
+
 public:
   void addloacl(unsigned int, AST::ValType);
   void addglobal(unsigned int, AST::GlobalType);
@@ -67,14 +59,15 @@ public:
   void reset(bool CleanGlobal = false);
   void init();
   ErrCode validate(const AST::InstrVec &);
-  std::deque<ValType> result(){return ValStack;};
+  std::deque<ValType> result() { return ValStack; };
+
 private:
   std::map<unsigned int, ValType> local;
   std::deque<ValType> ValStack;
   std::deque<CtrlFrame> CtrlStack;
 
   std::map<unsigned int, AST::GlobalType> global;
-  std::vector<std::pair<std::vector<ValType>,std::vector<ValType>>> funcs;
+  std::vector<std::pair<std::vector<ValType>, std::vector<ValType>>> funcs;
 
   static const size_t NAT = -1;
 };
@@ -87,11 +80,12 @@ class Validator {
   ErrCode validate(AST::TableType *);
   ErrCode validate(AST::MemoryType *);
   ErrCode validate(AST::GlobalType *);
-  
+
   /// Sec. Instructions types
 
   /// Sec. Instructions types
-  ErrCode validate(AST::FunctionSection *, AST::CodeSection *, AST::TypeSection *);
+  ErrCode validate(AST::FunctionSection *, AST::CodeSection *,
+                   AST::TypeSection *);
   ErrCode validate(AST::CodeSegment *, AST::FunctionType *);
   ErrCode validate(AST::MemorySection *);
   ErrCode validate(AST::GlobalSection *);
@@ -116,9 +110,9 @@ public:
 private:
   ValidatMachine vm;
 
-  static const unsigned int LIMIT_TABLETYPE  = 4294967295; // 2^32-1
-  static const unsigned int LIMIT_MEMORYTYPE = 1U<<16;
+  static const unsigned int LIMIT_TABLETYPE = 4294967295; // 2^32-1
+  static const unsigned int LIMIT_MEMORYTYPE = 1U << 16;
 };
 
-} // namespace Loader
+} // namespace Validator
 } // namespace SSVM

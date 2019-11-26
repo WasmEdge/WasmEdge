@@ -96,7 +96,7 @@ ErrCode VM::execute(const std::string &FuncName) {
 
   /// Run code.
   ErrCode Status = runLoader();
-  if( Status == ErrCode::Success ){
+  if (Status == ErrCode::Success) {
     Status = runValidator();
   }
   if (Status == ErrCode::Success) {
@@ -151,11 +151,11 @@ ErrCode VM::runLoader() {
 
 ErrCode VM::runValidator() {
   Validator::ErrCode ValidatorStatus = Validator::ErrCode::Success;
-  VMResult.setStage(Result::Stage::Loader); //TODO
+  VMResult.setStage(Result::Stage::Loader); // TODO
 
   ValidatorStatus = ValidatorEngine.validate(Mod);
 
-  if (ValidatorStatus!=Validator::ErrCode::Success) {
+  if (ValidatorStatus != Validator::ErrCode::Success) {
     return ErrCode::Failed;
   }
   return ErrCode::Success;

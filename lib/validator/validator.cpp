@@ -181,10 +181,9 @@ void ValidatMachine::unreachable()
   CtrlStack[0].unreachable = true;
 }
 
-ErrCode ValidatMachine::validateWarp(const AST::InstrVec &insts)
+ErrCode ValidatMachine::validateWarp(const AST::InstrVec *insts)
 {
-  cout << insts.size() << " insts.." << endl;
-  for(auto &op:insts)
+  for(auto &op:*insts)
     runop(op.get());
   return ErrCode::Success;
 }
@@ -192,7 +191,7 @@ ErrCode ValidatMachine::validateWarp(const AST::InstrVec &insts)
 ErrCode ValidatMachine::validate(const AST::InstrVec &insts)
 {
   try {
-    validateWarp(insts);
+    validateWarp(&insts);
   } catch (...) {
     return ErrCode::Invalid;
   }
@@ -275,7 +274,7 @@ void ValidatMachine::runop(AST::Instruction *instr)
     case OpCode::Call:
     {
       AST::CallControlInstruction *CallInstr = dynamic_cast<AST::CallControlInstruction *>(instr);
-      auto N = CallInstr->getIndex();
+      auto N = CallInstr->getFuncIndex();
       if (funcs.size()<=N)
         throw;
       stack_trans({funcs[N].first},{funcs[N].second});
@@ -297,32 +296,32 @@ void ValidatMachine::runop(AST::Instruction *instr)
     /// 0x20
     case OpCode::Local__get:
       VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
-      stack_trans({},{getlocal(VarInstr->getIndex())});
+      stack_trans({},{getlocal(VarInstr->getVariableIndex())});
       break;
     case OpCode::Local__set:
     {
       VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
       auto t = pop_opd();
-      setlocal(VarInstr->getIndex(), t);
+      setlocal(VarInstr->getVariableIndex(), t);
       break;
     }
     case OpCode::Local__tee:
     {
       VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
       auto t = pop_opd();
-      setlocal(VarInstr->getIndex(), t);
+      setlocal(VarInstr->getVariableIndex(), t);
       push_opd(t);
       break;
     }
     case OpCode::Global__get:
       VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
-      stack_trans({},{getglobal(VarInstr->getIndex())});
+      stack_trans({},{getglobal(VarInstr->getVariableIndex())});
       break;
     case OpCode::Global__set:
     {
       VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
       auto t = pop_opd();
-      setglobal(VarInstr->getIndex(), t);
+      setglobal(VarInstr->getVariableIndex(), t);
       break;
     }
 

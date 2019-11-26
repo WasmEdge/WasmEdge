@@ -21,6 +21,7 @@ void ValidatMachine::reset(bool CleanGlobal) {
   ValStack.clear();
   CtrlStack.clear();
   local.clear();
+  ReturnVals.clear();
 
   if (CleanGlobal) {
     global.clear();
@@ -44,7 +45,7 @@ static ValType Ast2ValType(AST::ValType v) {
     break;
   default:
     // TODO throw expect
-    throw;
+    throw "Ast2ValType";
   }
   return res;
 }
@@ -55,35 +56,35 @@ void ValidatMachine::addloacl(unsigned int idx, AST::ValType v) {
 
 ValType ValidatMachine::getlocal(unsigned int idx) {
   if (local.count(idx) == 0)
-    throw;
+    throw "getlocal";
   return local[idx];
 }
 
 void ValidatMachine::setlocal(unsigned int idx, ValType v) {
   if (local.count(idx) == 0)
-    throw;
+    throw "setlocal";
   local[idx] = v;
 }
 
-void ValidatMachine::addglobal(unsigned int idx, AST::GlobalType v) {
+void ValidatMachine::addglobal(AST::GlobalType v) {
   // Check type
   (void)Ast2ValType(v.getValueType());
-  global[idx] = v;
+  global.emplace_back(v);
 }
 
 ValType ValidatMachine::getglobal(unsigned int idx) {
-  if (global.count(idx) == 0)
-    throw;
+  if (global.size() <= idx)
+    throw "getglobal";
   return Ast2ValType(global[idx].getValueType());
 }
 
 void ValidatMachine::setglobal(unsigned int idx, ValType v) {
-  if (global.count(idx) == 0)
-    throw;
+  if (global.size() <= idx)
+    throw "setglobal idx";
   if (global[idx].getValueMutation() != AST::ValMut::Var)
-    throw;
+    throw "setglobal getValueMutation";
   if (Ast2ValType(global[idx].getValueType()) != v)
-    throw;
+    throw "setglobal Ast2ValType";
 }
 
 void ValidatMachine::addfunc(AST::FunctionType *func) {
@@ -103,8 +104,7 @@ ValType ValidatMachine::pop_opd() {
     return ValType::Unknown;
 
   if (ValStack.size() == CtrlStack[0].height) {
-    cout << "Reach Block End." << endl;
-    throw;
+    throw "pop_opd Reach Block End.";
   }
 
   auto res = ValStack.front();
@@ -119,8 +119,7 @@ ValType ValidatMachine::pop_opd(ValType expect) {
   if (expect == ValType::Unknown)
     return res;
   if (res != expect) {
-    cout << "Stack Val Not Match.." << endl;
-    throw;
+    throw "Stack Val Not Match..";
   }
   return res;
 }
@@ -152,13 +151,13 @@ void ValidatMachine::push_ctrl(const std::vector<ValType> &label,
 
 std::vector<ValType> ValidatMachine::pop_ctrl() {
   if (CtrlStack.empty())
-    throw;
+    throw "ValidatMachine::pop_ctr CtrlStack.empty";
   auto head = CtrlStack.front();
 
   pop_opds(head.end_types);
 
   if (ValStack.size() != head.height)
-    throw;
+    throw "ValStack.size() != head.height";
 
   CtrlStack.pop_front();
   return head.end_types;
@@ -176,9 +175,15 @@ ErrCode ValidatMachine::validateWarp(const AST::InstrVec *insts) {
   return ErrCode::Success;
 }
 
-ErrCode ValidatMachine::validate(const AST::InstrVec &insts) {
+ErrCode ValidatMachine::validate(const AST::InstrVec &insts,
+                                 const std::vector<AST::ValType> &ret) {
   try {
+    for (AST::ValType val : ret)
+      ReturnVals.push_back(Ast2ValType(val));
     validateWarp(&insts);
+  } catch (const char *str) {
+    cout << "Error:" << str << endl;
+    return ErrCode::Invalid;
   } catch (...) {
     return ErrCode::Invalid;
   }
@@ -194,7 +199,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
 
   auto opcode = instr->getOpCode();
   AST::VariableInstruction *VarInstr = nullptr;
-  printf("op: 0x%x\n", opcode);
+  //printf("op: 0x%x\n", opcode);
   switch (opcode) {
   /// 0x00
   case OpCode::Unreachable:
@@ -227,8 +232,25 @@ void ValidatMachine::runop(AST::Instruction *instr) {
     push_opds(pop_ctrl());
     break;
   }
-  // case OpCode::If: TODO
-  // case OpCode::Else: Unused opcode in AST
+  case OpCode::If: {
+    // case OpCode::Else: Unused opcode in AST
+    AST::IfElseControlInstruction *IfInstr =
+        dynamic_cast<AST::IfElseControlInstruction *>(instr);
+    pop_opd(ValType::I32);
+
+    auto res = IfInstr->getResultType();
+    std::vector<ValType> res_vec;
+    if (res != SSVM::AST::ValType::None)
+      res_vec.emplace_back(Ast2ValType(res));
+    push_ctrl(res_vec, res_vec);
+    validateWarp(IfInstr->getIfStatement());
+    if (IfInstr->getElseStatement())
+    {
+      auto result = pop_ctrl();
+      push_ctrl(result, result);
+    }
+    push_opds(pop_ctrl());
+  }
 
   // case OpCode::End: Unused opcode in AST
   case OpCode::Br: {
@@ -236,7 +258,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
         dynamic_cast<AST::BrControlInstruction *>(instr);
     auto N = BrInstr->getLabelIndex();
     if (CtrlStack.size() <= N)
-      throw;
+      throw "Br CtrlStack.size() <= N";
     pop_opds(CtrlStack[N].label_types);
     unreachable();
     break;
@@ -246,7 +268,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
         dynamic_cast<AST::BrControlInstruction *>(instr);
     auto N = BrInstr->getLabelIndex();
     if (CtrlStack.size() <= N)
-      throw;
+      throw "Br_if CtrlStack.size() <= N";
     pop_opd(ValType::I32);
     pop_opds(CtrlStack[N].label_types);
     push_opds(CtrlStack[N].label_types);
@@ -254,6 +276,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   }
   // case OpCode::Br_table: TODO
   case OpCode::Return:
+    pop_opds(ReturnVals);
     break;
 
   /// 0x10
@@ -262,7 +285,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
         dynamic_cast<AST::CallControlInstruction *>(instr);
     auto N = CallInstr->getFuncIndex();
     if (funcs.size() <= N)
-      throw;
+      throw "Call funcs.size() <= N";
     stack_trans({funcs[N].first}, {funcs[N].second});
     break;
   }
@@ -669,8 +692,9 @@ ErrCode Validator::validate(AST::CodeSegment *CodeSeg,
     for (unsigned int cnt = 0; cnt < val.first; ++cnt)
       vm.addloacl(idx++, val.second);
   }
+
   cout << "locals= " << idx << endl;
-  return vm.validate(CodeSeg->getInstrs());
+  return vm.validate(CodeSeg->getInstrs(), Func->getReturnTypes());
 }
 
 ErrCode Validator::validate(AST::MemorySection *MemSec) {
@@ -688,12 +712,11 @@ ErrCode Validator::validate(AST::GlobalSection *GloSec) {
   if (!GloSec)
     return ErrCode::Success;
 
-  int idx = 0;
   for (auto &val : GloSec->getContent())
     if (validate(val.get()) != ErrCode::Success) {
       return ErrCode::Invalid;
     } else {
-      vm.addglobal(idx++, *val.get()->getGlobalType());
+      vm.addglobal(*val.get()->getGlobalType());
     }
 
   cout << "globals=" << GloSec->getContent().size() << endl;
@@ -705,9 +728,13 @@ ErrCode Validator::validate(AST::GlobalSegment *) {
   return ErrCode::Success;
 }
 
-ErrCode Validator::validate(AST::ElementSegment *) {
-  cout << "unimp ElementSegment";
-  assert(false && "unimp ElementSegment");
+ErrCode Validator::validate(AST::ElementSegment *EleSeg) {
+  // In the current version of WebAssembly, at most one table is allowed in a
+  // module. Consequently, the only valid tableidx is 0
+  if (EleSeg->getIdx() != 0)
+    return ErrCode::Invalid;
+
+  // TODO check EleSeg->getInstrs(); is const expr
   return ErrCode::Success;
 }
 
@@ -766,6 +793,12 @@ ErrCode Validator::validate(AST::ImportDesc *Import,
       return ErrCode::Invalid;
     vm.addfunc(TypeSec->getContent().at(*tid).get());
     break;
+  case SSVM::AST::Desc::ExternalType::Global:
+    AST::GlobalType *global;
+    if (Import->getExternalContent(global) != SSVM::Executor::ErrCode::Success)
+      return ErrCode::Invalid;
+    vm.addglobal(*global);
+    break;
   default:
     cout << "Unimp ImportDesc:" << (int)Import->getExternalType() << endl;
     return ErrCode::Invalid;
@@ -776,6 +809,13 @@ ErrCode Validator::validate(AST::ImportDesc *Import,
 
 ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod) {
   reset();
+
+  // Every import defines an index in the respective index space. In each index
+  // space, the indices of imports go before the first index of any definition
+  // contained in the module itself.
+  if (validate((*Mod).getImportSection(), (*Mod).getTypeSection()) !=
+      ErrCode::Success)
+    return ErrCode::Invalid;
 
   // https://webassembly.github.io/spec/core/valid/modules.html
   if (validate((*Mod).getMemorySection()) != ErrCode::Success)
@@ -791,10 +831,6 @@ ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod) {
     return ErrCode::Invalid;
 
   if (validate((*Mod).getExportSection()) != ErrCode::Success)
-    return ErrCode::Invalid;
-
-  if (validate((*Mod).getImportSection(), (*Mod).getTypeSection()) !=
-      ErrCode::Success)
     return ErrCode::Invalid;
 
   if (validate((*Mod).getFunctionSection(), (*Mod).getCodeSection(),

@@ -54,11 +54,11 @@ class ValidatMachine {
 
 public:
   void addloacl(unsigned int, AST::ValType);
-  void addglobal(unsigned int, AST::GlobalType);
+  void addglobal(AST::GlobalType);
   void addfunc(AST::FunctionType *);
   void reset(bool CleanGlobal = false);
   void init();
-  ErrCode validate(const AST::InstrVec &);
+  ErrCode validate(const AST::InstrVec &, const std::vector<AST::ValType> &);
   std::deque<ValType> result() { return ValStack; };
 
 private:
@@ -66,7 +66,9 @@ private:
   std::deque<ValType> ValStack;
   std::deque<CtrlFrame> CtrlStack;
 
-  std::map<unsigned int, AST::GlobalType> global;
+  std::vector<ValType> ReturnVals;
+
+  std::vector<AST::GlobalType> global;
   std::vector<std::pair<std::vector<ValType>, std::vector<ValType>>> funcs;
 
   static const size_t NAT = -1;

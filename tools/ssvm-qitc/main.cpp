@@ -9,11 +9,21 @@
 
 int main(int Argc, char *Argv[]) {
   if (Argc != 4 && Argc != 5) {
-    std::cout << "Usage: ./ssvm model_wasm tensor_file weight_file"
-              << std::endl;
+    /// Args pass to wasm config.
+    /// Arg0: ./ssvm-qitc
+    /// Arg1: wasm file
+    /// Arg2: tensor file
+    /// Arg3: weight file
+    /// Arg4: [Optional] run loop times
+    std::cout
+        << "Usage: ./ssvm-qitc model_wasm tensor_file weight_file [run_times]"
+        << std::endl;
     return 0;
   }
 
+  /// Open dir for WASI environment.
+  /// FIXME: Don't move it! Need to refine this after completion of Wasi
+  /// functions.
   char *cwdstr = getcwd(NULL, 0);
   opendir(cwdstr);
 

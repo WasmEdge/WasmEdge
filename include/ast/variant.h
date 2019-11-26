@@ -71,7 +71,7 @@ union VariadicUnion<FirstT, RestT...> {
   VariadicUnion<RestT...> Rest;
 };
 
-template <typename T> struct tag {};
+template <typename T> struct tag { using type = T; };
 
 template <typename T>
 using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;

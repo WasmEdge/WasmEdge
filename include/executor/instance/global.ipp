@@ -8,9 +8,9 @@ namespace Instance {
 /// Getter of value. See "include/executor/instance/global.h".
 template <typename T> TypeB<T, ErrCode> GlobalInstance::getValue(T &Val) const {
   /// Get value.
-  try {
-    Val = std::get<T>(Value);
-  } catch (std::bad_variant_access &E) {
+  if (auto Ptr = std::get_if<T>(&Value)) {
+    Val = *Ptr;
+  } else {
     return ErrCode::TypeNotMatch;
   }
   return ErrCode::Success;

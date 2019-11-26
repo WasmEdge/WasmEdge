@@ -37,7 +37,6 @@ target_link_libraries(ssvmLoaderWagonTests
   utilGoogleTest
   ssvmLoaderFileMgr
   ssvmASTLoad
-  ssvmExecutor
 )
 
 target_link_libraries(ssvmLoaderEthereumTests
@@ -45,5 +44,4 @@ target_link_libraries(ssvmLoaderEthereumTests
   utilGoogleTest
   ssvmLoaderFileMgr
   ssvmASTLoad
-  ssvmExecutor
 )

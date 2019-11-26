@@ -16,12 +16,12 @@ ErrCode Worker::runBlockOp(AST::BlockControlInstruction &Instr) {
   unsigned int Arity = (ResultType == AST::ValType::None) ? 0 : 1;
 
   /// Create Label{ nothing } and push.
-  return enterBlock(Arity, nullptr, *Instr.getBody());
+  return enterBlock(Arity, nullptr, Instr.getBody());
 }
 
 ErrCode Worker::runLoopOp(AST::BlockControlInstruction &Instr) {
   /// Create Label{ loop-instruction } and push.
-  return enterBlock(0, &Instr, *Instr.getBody());
+  return enterBlock(0, &Instr, Instr.getBody());
 }
 
 ErrCode Worker::runIfElseOp(AST::IfElseControlInstruction &Instr) {
@@ -37,14 +37,14 @@ ErrCode Worker::runIfElseOp(AST::IfElseControlInstruction &Instr) {
 
   /// If non-zero, run if-statement; else, run else-statement.
   if (Cond != 0) {
-    const AST::InstrVec *IfStatement = Instr.getIfStatement();
-    if (IfStatement->size() > 0) {
-      Status = enterBlock(Arity, nullptr, *IfStatement);
+    const AST::InstrVec &IfStatement = Instr.getIfStatement();
+    if (!IfStatement.empty()) {
+      Status = enterBlock(Arity, nullptr, IfStatement);
     }
   } else {
-    const AST::InstrVec *ElseStatement = Instr.getElseStatement();
-    if (ElseStatement->size() > 0) {
-      Status = enterBlock(Arity, nullptr, *ElseStatement);
+    const AST::InstrVec &ElseStatement = Instr.getElseStatement();
+    if (!ElseStatement.empty()) {
+      Status = enterBlock(Arity, nullptr, ElseStatement);
     }
   }
   return Status;

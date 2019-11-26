@@ -531,7 +531,19 @@ ErrCode Worker::execute() {
       }
       ++ExecInstrCnt;
       /// Run instructions.
-      Status = Instr->execute(*this);
+      Status =
+          dispatchInstruction(Instr->getOpCode(), [this, &Instr](auto &&Arg) {
+            if constexpr (std::is_void_v<
+                              typename std::decay_t<decltype(Arg)>::type>) {
+              /// If the Code not matched, return null pointer.
+              return ErrCode::Unimplemented;
+            } else {
+              /// Make the instruction node according to Code.
+              return execute(
+                  *static_cast<typename std::decay_t<decltype(Arg)>::type *>(
+                      Instr));
+            }
+          });
     }
   }
 

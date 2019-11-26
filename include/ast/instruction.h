@@ -12,17 +12,10 @@
 #pragma once
 
 #include "ast/common.h"
-#include "executor/common.h"
 #include "loader/filemgr.h"
 
 #include <memory>
 #include <vector>
-
-namespace SSVM {
-namespace Executor {
-class Worker;
-}
-} // namespace SSVM
 
 namespace SSVM {
 namespace AST {
@@ -226,9 +219,6 @@ public:
   Instruction(OpCode &Byte) { Code = Byte; };
   virtual ~Instruction() noexcept = default;
 
-  /// Execute dispatcher
-  virtual Executor::ErrCode execute(Executor::Worker &Worker) = 0;
-
   /// Binary loading from file manager. Default not load anything.
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr) {
     return Loader::ErrCode::Success;
@@ -247,9 +237,6 @@ class ControlInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   ControlInstruction(OpCode &Byte) : Instruction(Byte) {}
-
-  /// Execute dispatcher
-  Executor::ErrCode execute(Executor::Worker &Worker) override;
 };
 
 /// Derived block control instruction node.
@@ -257,9 +244,6 @@ class BlockControlInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   BlockControlInstruction(OpCode &Byte) : Instruction(Byte) {}
-
-  /// Execute dispatcher
-  Executor::ErrCode execute(Executor::Worker &Worker) override;
 
   /// Load binary from file manager.
   ///
@@ -275,7 +259,7 @@ public:
   ValType getResultType() const { return BlockType; }
 
   /// Getter of Block Body
-  const InstrVec *getBody() const { return &Body; }
+  const InstrVec &getBody() const { return Body; }
 
 private:
   /// \name Data of block instruction: return type and block body.
@@ -291,9 +275,6 @@ public:
   /// Call base constructor to initialize OpCode.
   IfElseControlInstruction(OpCode &Byte) : Instruction(Byte) {}
 
-  /// Execute dispatcher
-  Executor::ErrCode execute(Executor::Worker &Worker) override;
-
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Instruction.
@@ -308,10 +289,10 @@ public:
   ValType getResultType() const { return BlockType; }
 
   /// Getter of if statement.
-  const InstrVec *getIfStatement() const { return &IfStatement; }
+  const InstrVec &getIfStatement() const { return IfStatement; }
 
   /// Getter of else statement.
-  const InstrVec *getElseStatement() const { return &ElseStatement; }
+  const InstrVec &getElseStatement() const { return ElseStatement; }
 
 private:
   /// \name Data of block instruction: return type and statements.
@@ -327,9 +308,6 @@ class BrControlInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   BrControlInstruction(OpCode &Byte) : Instruction(Byte) {}
-
-  /// Execute dispatcher
-  Executor::ErrCode execute(Executor::Worker &Worker) override;
 
   /// Load binary from file manager.
   ///
@@ -354,9 +332,6 @@ class BrTableControlInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   BrTableControlInstruction(OpCode &Byte) : Instruction(Byte) {}
-
-  /// Execute dispatcher
-  Executor::ErrCode execute(Executor::Worker &Worker) override;
 
   /// Load binary from file manager.
   ///
@@ -388,9 +363,6 @@ public:
   /// Call base constructor to initialize OpCode.
   CallControlInstruction(OpCode &Byte) : Instruction(Byte) {}
 
-  /// Execute dispatcher
-  Executor::ErrCode execute(Executor::Worker &Worker) override;
-
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Instruction.
@@ -414,9 +386,6 @@ class ParametricInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   ParametricInstruction(OpCode &Byte) : Instruction(Byte) {}
-
-  /// Execute dispatcher
-  Executor::ErrCode execute(Executor::Worker &Worker) override;
 };
 
 /// Derived variable instruction node.
@@ -424,9 +393,6 @@ class VariableInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   VariableInstruction(OpCode &Byte) : Instruction(Byte) {}
-
-  /// Execute dispatcher
-  Executor::ErrCode execute(Executor::Worker &Worker) override;
 
   /// Load binary from file manager.
   ///
@@ -451,9 +417,6 @@ class MemoryInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   MemoryInstruction(OpCode &Byte) : Instruction(Byte) {}
-
-  /// Execute dispatcher
-  Executor::ErrCode execute(Executor::Worker &Worker) override;
 
   /// Load binary from file manager.
   ///
@@ -483,9 +446,6 @@ public:
   /// Call base constructor to initialize OpCode.
   ConstInstruction(OpCode &Byte) : Instruction(Byte) {}
 
-  /// Execute dispatcher
-  Executor::ErrCode execute(Executor::Worker &Worker) override;
-
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Instruction.
@@ -509,9 +469,6 @@ class UnaryNumericInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   UnaryNumericInstruction(OpCode &Byte) : Instruction(Byte) {}
-
-  /// Execute dispatcher
-  Executor::ErrCode execute(Executor::Worker &Worker) override;
 };
 
 /// Derived numeric instruction node.
@@ -519,10 +476,211 @@ class BinaryNumericInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   BinaryNumericInstruction(OpCode &Byte) : Instruction(Byte) {}
-
-  /// Execute dispatcher
-  Executor::ErrCode execute(Executor::Worker &Worker) override;
 };
+
+template <typename T>
+auto dispatchInstruction(Instruction::OpCode Code, T &&Visitor) {
+  switch (Code) {
+    /// The OpCode::End and OpCode::Else will not make nodes.
+  case Instruction::OpCode::Unreachable:
+  case Instruction::OpCode::Nop:
+  case Instruction::OpCode::Return:
+    return Visitor(tag<ControlInstruction>());
+
+  case Instruction::OpCode::Block:
+  case Instruction::OpCode::Loop:
+    return Visitor(tag<BlockControlInstruction>());
+
+  case Instruction::OpCode::If:
+    return Visitor(tag<IfElseControlInstruction>());
+
+  case Instruction::OpCode::Br:
+  case Instruction::OpCode::Br_if:
+    return Visitor(tag<BrControlInstruction>());
+
+  case Instruction::OpCode::Br_table:
+    return Visitor(tag<BrTableControlInstruction>());
+
+  case Instruction::OpCode::Call:
+  case Instruction::OpCode::Call_indirect:
+    return Visitor(tag<CallControlInstruction>());
+
+  case Instruction::OpCode::Drop:
+  case Instruction::OpCode::Select:
+    return Visitor(tag<ParametricInstruction>());
+
+  case Instruction::OpCode::Local__get:
+  case Instruction::OpCode::Local__set:
+  case Instruction::OpCode::Local__tee:
+  case Instruction::OpCode::Global__get:
+  case Instruction::OpCode::Global__set:
+    return Visitor(tag<VariableInstruction>());
+
+  case Instruction::OpCode::I32__load:
+  case Instruction::OpCode::I64__load:
+  case Instruction::OpCode::F32__load:
+  case Instruction::OpCode::F64__load:
+  case Instruction::OpCode::I32__load8_s:
+  case Instruction::OpCode::I32__load8_u:
+  case Instruction::OpCode::I32__load16_s:
+  case Instruction::OpCode::I32__load16_u:
+  case Instruction::OpCode::I64__load8_s:
+  case Instruction::OpCode::I64__load8_u:
+  case Instruction::OpCode::I64__load16_s:
+  case Instruction::OpCode::I64__load16_u:
+  case Instruction::OpCode::I64__load32_s:
+  case Instruction::OpCode::I64__load32_u:
+  case Instruction::OpCode::I32__store:
+  case Instruction::OpCode::I64__store:
+  case Instruction::OpCode::F32__store:
+  case Instruction::OpCode::F64__store:
+  case Instruction::OpCode::I32__store8:
+  case Instruction::OpCode::I32__store16:
+  case Instruction::OpCode::I64__store8:
+  case Instruction::OpCode::I64__store16:
+  case Instruction::OpCode::I64__store32:
+  case Instruction::OpCode::Memory__size:
+  case Instruction::OpCode::Memory__grow:
+    return Visitor(tag<MemoryInstruction>());
+
+  case Instruction::OpCode::I32__const:
+  case Instruction::OpCode::I64__const:
+  case Instruction::OpCode::F32__const:
+  case Instruction::OpCode::F64__const:
+    return Visitor(tag<ConstInstruction>());
+
+  case Instruction::OpCode::I32__eqz:
+  case Instruction::OpCode::I32__clz:
+  case Instruction::OpCode::I32__ctz:
+  case Instruction::OpCode::I32__popcnt:
+  case Instruction::OpCode::I64__eqz:
+  case Instruction::OpCode::I64__clz:
+  case Instruction::OpCode::I64__ctz:
+  case Instruction::OpCode::I64__popcnt:
+  case Instruction::OpCode::F32__abs:
+  case Instruction::OpCode::F32__neg:
+  case Instruction::OpCode::F32__ceil:
+  case Instruction::OpCode::F32__floor:
+  case Instruction::OpCode::F32__trunc:
+  case Instruction::OpCode::F32__nearest:
+  case Instruction::OpCode::F32__sqrt:
+  case Instruction::OpCode::F64__abs:
+  case Instruction::OpCode::F64__neg:
+  case Instruction::OpCode::F64__ceil:
+  case Instruction::OpCode::F64__floor:
+  case Instruction::OpCode::F64__trunc:
+  case Instruction::OpCode::F64__nearest:
+  case Instruction::OpCode::F64__sqrt:
+  case Instruction::OpCode::I32__wrap_i64:
+  case Instruction::OpCode::I32__trunc_f32_s:
+  case Instruction::OpCode::I32__trunc_f32_u:
+  case Instruction::OpCode::I32__trunc_f64_s:
+  case Instruction::OpCode::I32__trunc_f64_u:
+  case Instruction::OpCode::I64__extend_i32_s:
+  case Instruction::OpCode::I64__extend_i32_u:
+  case Instruction::OpCode::I64__trunc_f32_s:
+  case Instruction::OpCode::I64__trunc_f32_u:
+  case Instruction::OpCode::I64__trunc_f64_s:
+  case Instruction::OpCode::I64__trunc_f64_u:
+  case Instruction::OpCode::F32__convert_i32_s:
+  case Instruction::OpCode::F32__convert_i32_u:
+  case Instruction::OpCode::F32__convert_i64_s:
+  case Instruction::OpCode::F32__convert_i64_u:
+  case Instruction::OpCode::F32__demote_f64:
+  case Instruction::OpCode::F64__convert_i32_s:
+  case Instruction::OpCode::F64__convert_i32_u:
+  case Instruction::OpCode::F64__convert_i64_s:
+  case Instruction::OpCode::F64__convert_i64_u:
+  case Instruction::OpCode::F64__promote_f32:
+  case Instruction::OpCode::I32__reinterpret_f32:
+  case Instruction::OpCode::I64__reinterpret_f64:
+  case Instruction::OpCode::F32__reinterpret_i32:
+  case Instruction::OpCode::F64__reinterpret_i64:
+    return Visitor(tag<UnaryNumericInstruction>());
+
+  case Instruction::OpCode::I32__eq:
+  case Instruction::OpCode::I32__ne:
+  case Instruction::OpCode::I32__lt_s:
+  case Instruction::OpCode::I32__lt_u:
+  case Instruction::OpCode::I32__gt_s:
+  case Instruction::OpCode::I32__gt_u:
+  case Instruction::OpCode::I32__le_s:
+  case Instruction::OpCode::I32__le_u:
+  case Instruction::OpCode::I32__ge_s:
+  case Instruction::OpCode::I32__ge_u:
+  case Instruction::OpCode::I64__eq:
+  case Instruction::OpCode::I64__ne:
+  case Instruction::OpCode::I64__lt_s:
+  case Instruction::OpCode::I64__lt_u:
+  case Instruction::OpCode::I64__gt_s:
+  case Instruction::OpCode::I64__gt_u:
+  case Instruction::OpCode::I64__le_s:
+  case Instruction::OpCode::I64__le_u:
+  case Instruction::OpCode::I64__ge_s:
+  case Instruction::OpCode::I64__ge_u:
+  case Instruction::OpCode::F32__eq:
+  case Instruction::OpCode::F32__ne:
+  case Instruction::OpCode::F32__lt:
+  case Instruction::OpCode::F32__gt:
+  case Instruction::OpCode::F32__le:
+  case Instruction::OpCode::F32__ge:
+  case Instruction::OpCode::F64__eq:
+  case Instruction::OpCode::F64__ne:
+  case Instruction::OpCode::F64__lt:
+  case Instruction::OpCode::F64__gt:
+  case Instruction::OpCode::F64__le:
+  case Instruction::OpCode::F64__ge:
+
+  case Instruction::OpCode::I32__add:
+  case Instruction::OpCode::I32__sub:
+  case Instruction::OpCode::I32__mul:
+  case Instruction::OpCode::I32__div_s:
+  case Instruction::OpCode::I32__div_u:
+  case Instruction::OpCode::I32__rem_s:
+  case Instruction::OpCode::I32__rem_u:
+  case Instruction::OpCode::I32__and:
+  case Instruction::OpCode::I32__or:
+  case Instruction::OpCode::I32__xor:
+  case Instruction::OpCode::I32__shl:
+  case Instruction::OpCode::I32__shr_s:
+  case Instruction::OpCode::I32__shr_u:
+  case Instruction::OpCode::I32__rotl:
+  case Instruction::OpCode::I32__rotr:
+  case Instruction::OpCode::I64__add:
+  case Instruction::OpCode::I64__sub:
+  case Instruction::OpCode::I64__mul:
+  case Instruction::OpCode::I64__div_s:
+  case Instruction::OpCode::I64__div_u:
+  case Instruction::OpCode::I64__rem_s:
+  case Instruction::OpCode::I64__rem_u:
+  case Instruction::OpCode::I64__and:
+  case Instruction::OpCode::I64__or:
+  case Instruction::OpCode::I64__xor:
+  case Instruction::OpCode::I64__shl:
+  case Instruction::OpCode::I64__shr_s:
+  case Instruction::OpCode::I64__shr_u:
+  case Instruction::OpCode::I64__rotl:
+  case Instruction::OpCode::I64__rotr:
+  case Instruction::OpCode::F32__add:
+  case Instruction::OpCode::F32__sub:
+  case Instruction::OpCode::F32__mul:
+  case Instruction::OpCode::F32__div:
+  case Instruction::OpCode::F32__min:
+  case Instruction::OpCode::F32__max:
+  case Instruction::OpCode::F32__copysign:
+  case Instruction::OpCode::F64__add:
+  case Instruction::OpCode::F64__sub:
+  case Instruction::OpCode::F64__mul:
+  case Instruction::OpCode::F64__div:
+  case Instruction::OpCode::F64__min:
+  case Instruction::OpCode::F64__max:
+  case Instruction::OpCode::F64__copysign:
+    return Visitor(tag<BinaryNumericInstruction>());
+
+  default:
+    return Visitor(tag<void>());
+  }
+}
 
 /// Make the new instruction node.
 ///

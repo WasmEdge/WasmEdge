@@ -1,0 +1,31 @@
+{
+    "Service_Name": "ERC20",
+    "UUID": "0x12345678",
+    "Result": {
+        "Status": "Successful",
+        "Error_Message": "...",
+        "Gas": 123,
+        "UsedGas": 100,
+        "VMSnapshot": {
+            "Global": [
+                [
+                    0,
+                    "0x00000000FFFFFFFF"
+                ],
+                [
+                    1,
+                    "0x00000000FFFFFFFF"
+                ]
+            ],
+            "Memory": [
+                [
+                    0,
+                    "00000000"
+                ]
+            ]
+        },
+        "ReturnValue": [
+            "0xFFFFFFFFFFFFFFFF"
+        ]
+    }
+}

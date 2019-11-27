@@ -52,6 +52,14 @@ public:
   ~StackManager() = default;
 
   /// Getters of top entry of stack.
+  Value &getTop() {
+    /// Check the size of stack.
+    assert(!Stack.empty());
+    /// Get pointer.
+    return Stack.back();
+  }
+
+  /// Getters of top entry of stack.
   ErrCode getTop(Value *&Entry) {
     /// Check the size of stack.
     if (Stack.empty())

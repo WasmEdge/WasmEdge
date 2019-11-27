@@ -244,8 +244,7 @@ ErrCode Worker::execute(AST::ConstInstruction &Instr) {
   return StackMgr.push(Instr.getConstValue());
 }
 ErrCode Worker::execute(AST::UnaryNumericInstruction &Instr) {
-  Value Val;
-  StackMgr.pop(Val);
+  Value &Val = StackMgr.getTop();
   switch (Instr.getOpCode()) {
   case OpCode::I32__eqz:
     return runEqzOp<uint32_t>(Val);
@@ -342,9 +341,9 @@ ErrCode Worker::execute(AST::UnaryNumericInstruction &Instr) {
   }
 }
 ErrCode Worker::execute(AST::BinaryNumericInstruction &Instr) {
-  Value Val1, Val2;
+  Value Val2;
   StackMgr.pop(Val2);
-  StackMgr.pop(Val1);
+  Value &Val1 = StackMgr.getTop();
 
   switch (Instr.getOpCode()) {
   case OpCode::I32__eq:

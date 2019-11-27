@@ -11,13 +11,13 @@ namespace SSVM {
 namespace Executor {
 
 template <typename TIn, typename TOut>
-TypeUU<TIn, TOut, ErrCode> Worker::runWrapOp(const Value &Val) {
-  TIn I = retrieveValue<TIn>(Val);
-  return StackMgr.push(static_cast<TOut>(I));
+TypeUU<TIn, TOut, ErrCode> Worker::runWrapOp(Value &Val) const {
+  Val = static_cast<TOut>(retrieveValue<TIn>(Val));
+  return ErrCode::Success;
 }
 
 template <typename TIn, typename TOut>
-TypeFI<TIn, TOut, ErrCode> Worker::runTruncateOp(const Value &Val) {
+TypeFI<TIn, TOut, ErrCode> Worker::runTruncateOp(Value &Val) const {
   TIn Z = retrieveValue<TIn>(Val);
   /// If z is a NaN or an infinity, then the result is undefined.
   if (std::isnan(Z) || std::isinf(Z)) {
@@ -31,45 +31,43 @@ TypeFI<TIn, TOut, ErrCode> Worker::runTruncateOp(const Value &Val) {
     return ErrCode::CastingError;
   }
   /// Else, return trunc(z). Signed case handled.
-  TOut Res = Z;
-  return StackMgr.push(static_cast<std::make_unsigned_t<TOut>>(Res));
+  retrieveValue<TOut>(Val) = Z;
+  return ErrCode::Success;
 }
 
 template <typename TIn, typename TOut>
-TypeIU<TIn, TOut, ErrCode> Worker::runExtendOp(const Value &Val) {
-  TIn I = retrieveValue<TIn>(Val);
+TypeIU<TIn, TOut, ErrCode> Worker::runExtendOp(Value &Val) const {
   /// Return i extend to TOut. Signed case handled.
-  return StackMgr.push(static_cast<TOut>(I));
+  retrieveValue<TOut>(Val) = retrieveValue<TIn>(Val);
+  return ErrCode::Success;
 }
 
 template <typename TIn, typename TOut>
-TypeIF<TIn, TOut, ErrCode> Worker::runConvertOp(const Value &Val) {
-  TIn I = retrieveValue<TIn>(Val);
+TypeIF<TIn, TOut, ErrCode> Worker::runConvertOp(Value &Val) const {
   /// Return i convert to TOut. Signed case handled.
-  return StackMgr.push(static_cast<TOut>(I));
+  retrieveValue<TOut>(Val) = retrieveValue<TIn>(Val);
+  return ErrCode::Success;
 }
 
 template <typename TIn, typename TOut>
-TypeFF<TIn, TOut, ErrCode> Worker::runDemoteOp(const Value &Val) {
-  TIn Z = retrieveValue<TIn>(Val);
+TypeFF<TIn, TOut, ErrCode> Worker::runDemoteOp(Value &Val) const {
   /// Return i convert to TOut. (NaN, inf, and zeros handled)
-  return StackMgr.push(static_cast<TOut>(Z));
+  retrieveValue<TOut>(Val) = retrieveValue<TIn>(Val);
+  return ErrCode::Success;
 }
 
 template <typename TIn, typename TOut>
-TypeFF<TIn, TOut, ErrCode> Worker::runPromoteOp(const Value &Val) {
-  TIn Z = retrieveValue<TIn>(Val);
+TypeFF<TIn, TOut, ErrCode> Worker::runPromoteOp(Value &Val) const {
   /// Return i convert to TOut. (NaN, inf, and zeros handled)
-  return StackMgr.push(static_cast<TOut>(Z));
+  retrieveValue<TOut>(Val) = retrieveValue<TIn>(Val);
+  return ErrCode::Success;
 }
 
 template <typename TIn, typename TOut>
-TypeBB<TIn, TOut, ErrCode> Worker::runReinterpretOp(const Value &Val) {
-  TIn V = retrieveValue<TIn>(Val);
+TypeBB<TIn, TOut, ErrCode> Worker::runReinterpretOp(Value &Val) const {
   /// Return value with type TOut which copy bits of V.
-  TOut Res;
-  memcpy(&Res, &V, sizeof(TOut));
-  return StackMgr.push(Res);
+  memcpy(&retrieveValue<TOut>(Val), &retrieveValue<TIn>(Val), sizeof(TOut));
+  return ErrCode::Success;
 }
 
 } // namespace Executor

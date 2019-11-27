@@ -20,7 +20,7 @@ ErrCode Worker::runMemorySizeOp() {
   };
 
   /// Push SZ = page size to stack.
-  return StackMgr.push(Value(MemoryInst->getDataPageSize()));
+  return StackMgr.push(uint32_t(MemoryInst->getDataPageSize()));
 }
 
 ErrCode Worker::runMemoryGrowOp() {
@@ -32,17 +32,16 @@ ErrCode Worker::runMemoryGrowOp() {
   };
 
   /// Pop N for growing page size.
-  Value N;
-  if (ErrCode Status = StackMgr.pop(N); Status != ErrCode::Success) {
-    return Status;
-  }
+  uint32_t &N = retrieveValue<uint32_t>(StackMgr.getTop());
 
   /// Grow page and push result.
   unsigned int CurrPageSize = MemoryInst->getDataPageSize();
-  if (MemoryInst->growPage(retrieveValue<uint32_t>(N)) != ErrCode::Success) {
-    return StackMgr.push(static_cast<uint32_t>(-1));
+  if (MemoryInst->growPage(N) != ErrCode::Success) {
+    N = -1;
+  } else {
+    N = CurrPageSize;
   }
-  return StackMgr.push(CurrPageSize);
+  return ErrCode::Success;
 }
 
 } // namespace Executor

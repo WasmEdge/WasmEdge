@@ -195,76 +195,76 @@ private:
   ErrCode runMemorySizeOp();
   ErrCode runMemoryGrowOp();
   /// ======= Test and Relation Numeric =======
-  template <typename T> TypeU<T, ErrCode> runEqzOp(const Value &Val);
+  template <typename T> TypeU<T, ErrCode> runEqzOp(Value &Val) const;
   template <typename T>
-  TypeT<T, ErrCode> runEqOp(const Value &Val1, const Value &Val2);
+  TypeT<T, ErrCode> runEqOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeT<T, ErrCode> runNeOp(const Value &Val1, const Value &Val2);
+  TypeT<T, ErrCode> runNeOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeT<T, ErrCode> runLtOp(const Value &Val1, const Value &Val2);
+  TypeT<T, ErrCode> runLtOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeT<T, ErrCode> runGtOp(const Value &Val1, const Value &Val2);
+  TypeT<T, ErrCode> runGtOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeT<T, ErrCode> runLeOp(const Value &Val1, const Value &Val2);
+  TypeT<T, ErrCode> runLeOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeT<T, ErrCode> runGeOp(const Value &Val1, const Value &Val2);
+  TypeT<T, ErrCode> runGeOp(Value &Val1, const Value &Val2) const;
   /// ======= Unary Numeric =======
-  template <typename T> TypeU<T, ErrCode> runClzOp(const Value &Val);
-  template <typename T> TypeU<T, ErrCode> runCtzOp(const Value &Val);
-  template <typename T> TypeU<T, ErrCode> runPopcntOp(const Value &Val);
-  template <typename T> TypeF<T, ErrCode> runAbsOp(const Value &Val);
-  template <typename T> TypeF<T, ErrCode> runNegOp(const Value &Val);
-  template <typename T> TypeF<T, ErrCode> runCeilOp(const Value &Val);
-  template <typename T> TypeF<T, ErrCode> runFloorOp(const Value &Val);
-  template <typename T> TypeF<T, ErrCode> runTruncOp(const Value &Val);
-  template <typename T> TypeF<T, ErrCode> runNearestOp(const Value &Val);
-  template <typename T> TypeF<T, ErrCode> runSqrtOp(const Value &Val);
+  template <typename T> TypeU<T, ErrCode> runClzOp(Value &Val) const;
+  template <typename T> TypeU<T, ErrCode> runCtzOp(Value &Val) const;
+  template <typename T> TypeU<T, ErrCode> runPopcntOp(Value &Val) const;
+  template <typename T> TypeF<T, ErrCode> runAbsOp(Value &Val) const;
+  template <typename T> TypeF<T, ErrCode> runNegOp(Value &Val) const;
+  template <typename T> TypeF<T, ErrCode> runCeilOp(Value &Val) const;
+  template <typename T> TypeF<T, ErrCode> runFloorOp(Value &Val) const;
+  template <typename T> TypeF<T, ErrCode> runTruncOp(Value &Val) const;
+  template <typename T> TypeF<T, ErrCode> runNearestOp(Value &Val) const;
+  template <typename T> TypeF<T, ErrCode> runSqrtOp(Value &Val) const;
   /// ======= Binary Numeric =======
   template <typename T>
-  TypeB<T, ErrCode> runAddOp(const Value &Val1, const Value &Val2);
+  TypeB<T, ErrCode> runAddOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeB<T, ErrCode> runSubOp(const Value &Val1, const Value &Val2);
+  TypeB<T, ErrCode> runSubOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeB<T, ErrCode> runMulOp(const Value &Val1, const Value &Val2);
+  TypeB<T, ErrCode> runMulOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeT<T, ErrCode> runDivOp(const Value &Val1, const Value &Val2);
+  TypeT<T, ErrCode> runDivOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeI<T, ErrCode> runRemOp(const Value &Val1, const Value &Val2);
+  TypeI<T, ErrCode> runRemOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeU<T, ErrCode> runAndOp(const Value &Val1, const Value &Val2);
+  TypeU<T, ErrCode> runAndOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeU<T, ErrCode> runOrOp(const Value &Val1, const Value &Val2);
+  TypeU<T, ErrCode> runOrOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeU<T, ErrCode> runXorOp(const Value &Val1, const Value &Val2);
+  TypeU<T, ErrCode> runXorOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeU<T, ErrCode> runShlOp(const Value &Val1, const Value &Val2);
+  TypeU<T, ErrCode> runShlOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeI<T, ErrCode> runShrOp(const Value &Val1, const Value &Val2);
+  TypeI<T, ErrCode> runShrOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeU<T, ErrCode> runRotlOp(const Value &Val1, const Value &Val2);
+  TypeU<T, ErrCode> runRotlOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeU<T, ErrCode> runRotrOp(const Value &Val1, const Value &Val2);
+  TypeU<T, ErrCode> runRotrOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeF<T, ErrCode> runMinOp(const Value &Val1, const Value &Val2);
+  TypeF<T, ErrCode> runMinOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeF<T, ErrCode> runMaxOp(const Value &Val1, const Value &Val2);
+  TypeF<T, ErrCode> runMaxOp(Value &Val1, const Value &Val2) const;
   template <typename T>
-  TypeF<T, ErrCode> runCopysignOp(const Value &Val1, const Value &Val2);
+  TypeF<T, ErrCode> runCopysignOp(Value &Val1, const Value &Val2) const;
   /// ======= Cast Numeric =======
   template <typename TIn, typename TOut>
-  TypeUU<TIn, TOut, ErrCode> runWrapOp(const Value &Val);
+  TypeUU<TIn, TOut, ErrCode> runWrapOp(Value &Val) const;
   template <typename TIn, typename TOut>
-  TypeFI<TIn, TOut, ErrCode> runTruncateOp(const Value &Val);
+  TypeFI<TIn, TOut, ErrCode> runTruncateOp(Value &Val) const;
   template <typename TIn, typename TOut>
-  TypeIU<TIn, TOut, ErrCode> runExtendOp(const Value &Val);
+  TypeIU<TIn, TOut, ErrCode> runExtendOp(Value &Val) const;
   template <typename TIn, typename TOut>
-  TypeIF<TIn, TOut, ErrCode> runConvertOp(const Value &Val);
+  TypeIF<TIn, TOut, ErrCode> runConvertOp(Value &Val) const;
   template <typename TIn, typename TOut>
-  TypeFF<TIn, TOut, ErrCode> runDemoteOp(const Value &Val);
+  TypeFF<TIn, TOut, ErrCode> runDemoteOp(Value &Val) const;
   template <typename TIn, typename TOut>
-  TypeFF<TIn, TOut, ErrCode> runPromoteOp(const Value &Val);
+  TypeFF<TIn, TOut, ErrCode> runPromoteOp(Value &Val) const;
   template <typename TIn, typename TOut>
-  TypeBB<TIn, TOut, ErrCode> runReinterpretOp(const Value &Val);
+  TypeBB<TIn, TOut, ErrCode> runReinterpretOp(Value &Val) const;
 
   /// Reference to Executor's Store
   StoreManager &StoreMgr;

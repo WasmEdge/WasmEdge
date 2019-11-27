@@ -22,17 +22,11 @@ TypeT<T, ErrCode> Worker::runLoadOp(AST::MemoryInstruction &Instr,
   };
 
   /// Calculate EA
-  Value Val;
-  StackMgr.pop(Val);
+  Value &Val = StackMgr.getTop();
   uint32_t EA = retrieveValue<uint32_t>(Val) + Instr.getMemoryOffset();
 
   /// Value = Mem.Data[EA : N / 8]
-  T Value;
-  if ((Status = MemoryInst->loadValue(Value, EA, BitWidth / 8)) !=
-      ErrCode::Success) {
-    return Status;
-  }
-  return StackMgr.push(Support::toUnsigned(Value));
+  return MemoryInst->loadValue(retrieveValue<T>(Val), EA, BitWidth / 8);
 }
 
 template <typename T>

@@ -7,24 +7,24 @@
 namespace SSVM {
 namespace Executor {
 
-namespace {
+template <typename T> struct TypeToWasmType { using type = T; };
+template <> struct TypeToWasmType<int32_t> { using type = uint32_t; };
+template <> struct TypeToWasmType<int64_t> { using type = uint64_t; };
+template <typename T> using TypeToWasmTypeT = typename TypeToWasmType<T>::type;
 
-using OpCode = AST::Instruction::OpCode;
-
-} // namespace
-
-/// Retrieve value and casting to signed.
-template <typename T>
-inline typename std::enable_if_t<Support::IsWasmSignV<T>, T>
-retrieveValue(const Value &Val) {
-  return Support::toSigned(std::get<std::make_unsigned_t<T>>(Val));
+/// Retrieve value.
+template <typename T> inline const T &retrieveValue(const Value &Val) {
+  return *reinterpret_cast<const T *>(&std::get<TypeToWasmTypeT<T>>(Val));
 }
-
-/// Retrieve value with original type.
-template <typename T>
-inline typename std::enable_if_t<Support::IsWasmBuiltInV<T>, T>
-retrieveValue(const Value &Val) {
-  return std::get<T>(Val);
+template <typename T> inline T &retrieveValue(Value &Val) {
+  return *reinterpret_cast<T *>(&std::get<TypeToWasmTypeT<T>>(Val));
+}
+template <typename T> inline const T &&retrieveValue(const Value &&Val) {
+  return std::move(
+      *reinterpret_cast<const T *>(&std::get<TypeToWasmTypeT<T>>(Val)));
+}
+template <typename T> inline T &&retrieveValue(Value &&Val) {
+  return std::move(*reinterpret_cast<T *>(&std::get<TypeToWasmTypeT<T>>(Val)));
 }
 
 } // namespace Executor

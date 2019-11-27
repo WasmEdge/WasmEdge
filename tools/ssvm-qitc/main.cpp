@@ -8,15 +8,13 @@
 #include <unistd.h>
 
 int main(int Argc, char *Argv[]) {
-  if (Argc != 4 && Argc != 5) {
+  if (Argc < 2) {
     /// Args pass to wasm config.
     /// Arg0: ./ssvm-qitc
     /// Arg1: wasm file
-    /// Arg2: tensor file
-    /// Arg3: weight file
-    /// Arg4: [Optional] run loop times
+    /// Other args are pass into ONNC runtime 
     std::cout
-        << "Usage: ./ssvm-qitc model_wasm tensor_file weight_file [run_times]"
+        << "Usage: ./ssvm-qitc model_wasm [args...]"
         << std::endl;
     return 0;
   }
@@ -45,5 +43,5 @@ int main(int Argc, char *Argv[]) {
   VM.setPath(InputPath);
   VM.execute();
   Result = VM.getResult();
-  return 0;
+  return Result.getErrCode();
 }

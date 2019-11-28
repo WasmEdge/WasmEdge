@@ -56,6 +56,7 @@ public:
   void addloacl(unsigned int, AST::ValType);
   void addglobal(AST::GlobalType);
   void addfunc(AST::FunctionType *);
+  void addtype(AST::FunctionType *);
   void reset(bool CleanGlobal = false);
   void init();
   ErrCode validate(const AST::InstrVec &, const std::vector<AST::ValType> &);
@@ -70,6 +71,7 @@ private:
 
   std::vector<AST::GlobalType> global;
   std::vector<std::pair<std::vector<ValType>, std::vector<ValType>>> funcs;
+  std::vector<std::pair<std::vector<ValType>, std::vector<ValType>>> types;
 
   static const size_t NAT = -1;
 };
@@ -90,6 +92,7 @@ class Validator {
                    AST::TypeSection *);
   ErrCode validate(AST::CodeSegment *, AST::FunctionType *);
   ErrCode validate(AST::MemorySection *);
+  ErrCode validate(AST::TableSection *);
   ErrCode validate(AST::GlobalSection *);
   ErrCode validate(AST::GlobalSegment *);
   ErrCode validate(AST::ElementSection *);

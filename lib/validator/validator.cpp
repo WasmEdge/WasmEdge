@@ -25,6 +25,8 @@ void ValidatMachine::reset(bool CleanGlobal) {
 
   if (CleanGlobal) {
     global.clear();
+    funcs.clear();
+    types.clear();
   }
 }
 
@@ -95,6 +97,16 @@ void ValidatMachine::addfunc(AST::FunctionType *func) {
   for (auto val : func->getReturnTypes())
     ret.emplace_back(Ast2ValType(val));
   funcs.emplace_back(param, ret);
+}
+
+void ValidatMachine::addtype(AST::FunctionType *func) {
+  std::vector<ValType> param, ret;
+
+  for (auto val : func->getParamTypes())
+    param.emplace_back(Ast2ValType(val));
+  for (auto val : func->getReturnTypes())
+    ret.emplace_back(Ast2ValType(val));
+  types.emplace_back(param, ret);
 }
 
 void ValidatMachine::push_opd(ValType v) { ValStack.emplace_front(v); }
@@ -180,6 +192,7 @@ ErrCode ValidatMachine::validate(const AST::InstrVec &insts,
   try {
     for (AST::ValType val : ret)
       ReturnVals.push_back(Ast2ValType(val));
+    push_ctrl({}, ReturnVals);
     validateWarp(&insts);
   } catch (const char *str) {
     cout << "Error:" << str << endl;
@@ -250,6 +263,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
       push_ctrl(result, result);
     }
     push_opds(pop_ctrl());
+    break;
   }
 
   // case OpCode::End: Unused opcode in AST
@@ -274,9 +288,28 @@ void ValidatMachine::runop(AST::Instruction *instr) {
     push_opds(CtrlStack[N].label_types);
     break;
   }
-  // case OpCode::Br_table: TODO
+  case OpCode::Br_table: {
+    AST::BrTableControlInstruction *BrTInstr =
+      dynamic_cast<AST::BrTableControlInstruction *>(instr);
+    auto M = BrTInstr->getLabelIndex();
+    if (CtrlStack.size() <= M)
+       throw "Br_table CtrlStack.size() <= M";
+    for (auto N:*BrTInstr->getLabelTable())
+    {
+      //rror_if(ctrls.size() < n || ctrls[n].label_types =/= ctrls[m].label_types)
+      if (CtrlStack.size() <= N)
+        throw "Br_table CtrlStack.size() <= N";
+      if (CtrlStack[N].label_types != CtrlStack[M].label_types)
+        throw "CtrlStack[N].label_types != CtrlStack[M].label_types";
+    }
+    pop_opd(ValType::I32);
+    pop_opds(CtrlStack[M].label_types);
+    unreachable();
+    break;
+  }
   case OpCode::Return:
     pop_opds(ReturnVals);
+    unreachable();
     break;
 
   /// 0x10
@@ -289,7 +322,15 @@ void ValidatMachine::runop(AST::Instruction *instr) {
     stack_trans({funcs[N].first}, {funcs[N].second});
     break;
   }
-  // case OpCode::Call_indirect: TODO
+  case OpCode::Call_indirect: {
+    AST::CallControlInstruction *CallInstr =
+        dynamic_cast<AST::CallControlInstruction *>(instr);
+    auto N = CallInstr->getFuncIndex();
+    if (types.size() <= N)
+      throw "Call funcs.size() <= N";
+    stack_trans({types[N].first}, {types[N].second});
+    break;
+  }
   case OpCode::Drop:
     stack_trans({ValType::Unknown}, {});
     break;
@@ -574,6 +615,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   case OpCode::I64__trunc_f64_s:
   case OpCode::I64__trunc_f64_u:
     stack_trans({ValType::F64}, {ValType::I64});
+    break;
   case OpCode::F32__convert_i32_s:
   case OpCode::F32__convert_i32_u:
     stack_trans({ValType::I32}, {ValType::F32});
@@ -699,11 +741,33 @@ ErrCode Validator::validate(AST::CodeSegment *CodeSeg,
 
 ErrCode Validator::validate(AST::MemorySection *MemSec) {
   if (!MemSec)
-    return ErrCode::Invalid; /// Why?
+    return ErrCode::Success;
 
   for (auto &mem : MemSec->getContent())
     if (validate(mem.get()) != ErrCode::Success)
       return ErrCode::Invalid;
+
+  return ErrCode::Success;
+}
+
+ErrCode Validator::validate(AST::TableSection *TabSec) {
+  if (!TabSec)
+    return ErrCode::Success;
+
+  for (auto &tab:TabSec->getContent())
+  {
+    if (validate(tab.get()) != ErrCode::Success)
+      return ErrCode::Invalid;
+    
+    switch (tab->getElementType())
+    {
+      case AST::ElemType::FuncRef:
+        break;
+      default:
+        // In future versions of WebAssembly, additional element types may be introduced.
+        return ErrCode::Invalid;
+    }
+  }
 
   return ErrCode::Success;
 }
@@ -808,6 +872,7 @@ ErrCode Validator::validate(AST::ImportDesc *Import,
 }
 
 ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod) {
+  cout << "start Validator" << endl;
   reset();
 
   // Every import defines an index in the respective index space. In each index
@@ -815,6 +880,12 @@ ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod) {
   // contained in the module itself.
   if (validate((*Mod).getImportSection(), (*Mod).getTypeSection()) !=
       ErrCode::Success)
+    return ErrCode::Invalid;
+
+  for (auto &type:(*Mod).getTypeSection()->getContent())
+    vm.addtype(type.get());
+
+  if (validate((*Mod).getTableSection()) != ErrCode::Success)
     return ErrCode::Invalid;
 
   // https://webassembly.github.io/spec/core/valid/modules.html

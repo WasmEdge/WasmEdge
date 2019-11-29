@@ -12,7 +12,9 @@
 
 #include "ast/common.h"
 #include "executor/common.h"
+
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace SSVM {
@@ -56,9 +58,11 @@ public:
   ErrCode setStartIdx(unsigned int Idx);
 
   /// Get start function address in Store.
-  bool getStartAddr(unsigned int &Addr) {
-    Addr = StartAddr;
-    return HasStartFunc;
+  std::optional<unsigned int> getStartAddr() {
+    if (!HasStartFunc) {
+      return std::nullopt;
+    }
+    return {StartAddr};
   };
 
   /// Get function type by index

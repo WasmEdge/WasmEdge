@@ -95,10 +95,9 @@ ErrCode Executor::run() {
     return ErrCode::WrongExecutorFlow;
 
   /// Run start function.
-  unsigned int StartAddr = 0;
   ErrCode Result = ErrCode::Success;
-  if (ModInst->getStartAddr(StartAddr)) {
-    Result = Engine.runStartFunction(StartAddr);
+  if (auto StartAddr = ModInst->getStartAddr()) {
+    Result = Engine.runStartFunction(*StartAddr);
   }
   Stat = State::Finished;
   return Result;

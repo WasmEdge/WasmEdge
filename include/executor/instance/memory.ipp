@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "executor/instance/memory.h"
 
 #include <string.h>

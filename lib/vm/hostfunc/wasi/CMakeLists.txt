@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 add_library(ssvmHostFuncWasi
   args_Get.cpp
   args_SizesGet.cpp

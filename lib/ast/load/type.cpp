@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "ast/type.h"
 
 namespace SSVM {

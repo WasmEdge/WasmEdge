@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "vm/configure.h"
 #include "vm/result.h"
 #include "vm/vm.h"

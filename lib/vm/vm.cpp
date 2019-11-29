@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "vm/vm.h"
 #include "executor/hostfunc.h"
 #include "loader/loader.h"

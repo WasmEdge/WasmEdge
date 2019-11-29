@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/executor/entry/value.h - Value Entry class definition --------===//
 //
 // Part of the SSVM Project.

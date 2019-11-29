@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "support/hexstr.h"
 #include "vm/configure.h"
 #include "vm/result.h"

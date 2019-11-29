@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/executor/entry/label.h - Label Entry class definition --------===//
 //
 // Part of the SSVM Project.

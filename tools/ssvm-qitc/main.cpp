@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "vm/configure.h"
 #include "vm/result.h"
 #include "vm/vm.h"
@@ -12,7 +13,7 @@ int main(int Argc, char *Argv[]) {
     /// Args pass to wasm config.
     /// Arg0: ./ssvm-qitc
     /// Arg1: wasm file
-    /// Other args are pass into ONNC runtime 
+    /// Other args are pass into ONNC runtime
     std::cout
         << "Usage: ./ssvm-qitc model_wasm [args...]"
         << std::endl;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/loader/common.h - Common definitions in Loader -----*- C++ -*-===//
 //
 // Part of the SSVM Project.

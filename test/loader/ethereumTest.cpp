@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/test/loader/ethereumTest.cpp - Ethereum related wasm tests ---===//
 //
 // Part of the SSVM Project.
@@ -20,11 +21,6 @@ SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(EthereumTest, Load__token) {
   Mgr.setPath("ethereumTestData/token.wasm");
-  SSVM::AST::Module Mod;
-  EXPECT_EQ(Mod.loadBinary(Mgr), SuccessCode);
-}
-TEST(EthereumTest, Load__wrc20) {
-  Mgr.setPath("ethereumTestData/wrc20.wasm");
   SSVM::AST::Module Mod;
   EXPECT_EQ(Mod.loadBinary(Mgr), SuccessCode);
 }

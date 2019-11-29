@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/vm/configure.h - consiguration class of ssvm -----------------===//
 //
 // Part of the SSVM Project.

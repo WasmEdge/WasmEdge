@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/test/loader/ethereumTest.cpp - Ethereum related wasm tests ---===//
 //
 // Part of the SSVM Project.

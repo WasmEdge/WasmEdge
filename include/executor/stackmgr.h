@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/executor/stackmgr.h - Stack Manager definition ---------------===//
 //
 // Part of the SSVM Project.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "regression.h"
 
 bool RegressionTester::setExpectResult(SSVM::Result &Res) {

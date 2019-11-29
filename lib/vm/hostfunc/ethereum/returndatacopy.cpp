@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/ethereum/returndatacopy.h"
 #include "executor/common.h"
 #include "executor/worker/util.h"

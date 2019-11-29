@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/ast/module.h - Module class definition -------------*- C++ -*-===//
 //
 // Part of the SSVM Project.

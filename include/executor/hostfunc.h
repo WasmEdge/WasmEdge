@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/executor/hostfunc.h - host function interface ----------------===//
 //
 // Part of the SSVM Project.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/executor/executor.h - Executor flow control class definition -===//
 //
 // Part of the SSVM Project.

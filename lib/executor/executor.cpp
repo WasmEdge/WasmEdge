@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "executor/executor.h"
 #include "ast/module.h"
 #include "ast/section.h"

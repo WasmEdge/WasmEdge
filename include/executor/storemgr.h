@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/executor/storemgr.h - Store Manager definition ---------------===//
 //
 // Part of the SSVM Project.

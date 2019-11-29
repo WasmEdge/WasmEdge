@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/vm/common.h - common definitions in vm -----------------------===//
 //
 // Part of the SSVM Project.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/ethereum/getcalldatasize.h"
 #include "executor/common.h"
 #include "stdint.h"

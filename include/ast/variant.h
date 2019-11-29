@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/ast/variant.h - Unsafe variant implement -----------*- C++ -*-===//
 //
 // Part of the SSVM Project.

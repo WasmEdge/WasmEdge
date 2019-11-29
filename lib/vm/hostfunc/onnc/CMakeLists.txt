@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 add_library(ssvmHostFuncONNC
   runtime_add_float.cpp
   runtime_averagepool_float.cpp

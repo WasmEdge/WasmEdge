@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/executor/worker/provider.h - Instruction Privider Class ------===//
 //
 // Part of the SSVM Project.

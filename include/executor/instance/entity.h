@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/executor/instance/entity.h - Entity base definition ------===//
 //
 // Part of the SSVM Project.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/ast/load/loader/sectionTest.cpp - AST section unit tests -----===//
 //
 // Part of the SSVM Project.

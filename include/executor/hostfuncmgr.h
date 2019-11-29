@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/executor/hostfuncmgr.h - host function manager class ---------===//
 //
 // Part of the SSVM Project.

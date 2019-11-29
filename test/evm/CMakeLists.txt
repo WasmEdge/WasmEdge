@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 configure_files(
   ${CMAKE_CURRENT_SOURCE_DIR}/ethereumTestData
   ${CMAKE_CURRENT_BINARY_DIR}/ethereumTestData

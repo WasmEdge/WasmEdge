@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/test/loader/wagonTest.cpp - wagon wasm loading unit tests ----===//
 //
 // Part of the SSVM Project.

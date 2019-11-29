@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/onnc/runtime_sum_float.h"
 #include "executor/common.h"
 #include "executor/worker/util.h"

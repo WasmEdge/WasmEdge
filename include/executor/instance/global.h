@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/executor/instance/global.h - Global Instance definition ------===//
 //
 // Part of the SSVM Project.

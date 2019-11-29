@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/ast/segment.h - segment classes definition ---------*- C++ -*-===//
 //
 // Part of the SSVM Project.

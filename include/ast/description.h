@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/ast/description.h - Desc classes definition---------*- C++ -*-===//
 //
 // Part of the SSVM Project.

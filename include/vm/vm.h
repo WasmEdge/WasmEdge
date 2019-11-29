@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/vm/vm.h - VM execution flow class definition -----------------===//
 //
 // Part of the SSVM Project.

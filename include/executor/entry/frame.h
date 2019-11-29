@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/executor/entry/frame.h - Frame Entry class definition --------===//
 //
 // Part of the SSVM Project.

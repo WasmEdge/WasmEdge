@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/executor/common.h - Common definitions in Executor -*- C++ -*-===//
 //
 // Part of the SSVM Project.

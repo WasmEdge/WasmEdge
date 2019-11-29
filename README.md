@@ -40,3 +40,16 @@ $ ./ssvmASTLoadTests
 $ cd ../../evm
 $ ./ssvmEVMTests
 ```
+
+## Run ssvm-evm
+```Shell
+$ cd tools/ssvm-evm
+# ./ssvm-evm wasm_file.wasm call_value_string
+$ ./ssvm-evm ethereum/erc20.wasm 4e6ec24700000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064
+```
+
+## Run ssvm
+```Shell
+$ cd tools/ssvm
+# ./ssvm wasm_file.wasm [exported_func_name]
+```

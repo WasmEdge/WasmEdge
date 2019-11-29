@@ -1,14 +1,20 @@
+#include "support/hexstr.h"
 #include "vm/configure.h"
 #include "vm/result.h"
 #include "vm/vm.h"
 
-#include <dirent.h>
 #include <iostream>
-#include <sys/types.h>
-#include <unistd.h>
 
 int main(int Argc, char *Argv[]) {
-  const std::string Erc20Path("ethereum/erc20.wasm");
+  if (Argc < 3) {
+    /// Arg0: ./ssvm-evm
+    /// Arg1: ewasm file
+    /// Arg2: call data
+    std::cout << "Usage: ./ssvm-evm ethereum/erc20.wasm call_data" << std::endl;
+    return 0;
+  }
+
+  const std::string Erc20Path(Argv[1]);
   SSVM::VM::Configure Conf(SSVM::VM::Configure::VMType::Ewasm);
   SSVM::VM::VM EVM(Conf);
   SSVM::VM::EVMEnvironment *Env =
@@ -24,12 +30,17 @@ int main(int Argc, char *Argv[]) {
   CallValue = "ffffffffffffffffffffffffffffffff";
 
   /// Set call data
+  std::string CallDataStr(Argv[2]);
   std::vector<unsigned char> &CallData = Env->getCallData();
-  CallData = {78, 110, 194, 71, 0,  0,   0,   0,   0,  0,  0,   0,   0,  0,
-              0,  0,   18,  52, 86, 120, 144, 18,  52, 86, 120, 144, 18, 52,
-              86, 120, 144, 18, 52, 86,  120, 144, 0,  0,  0,   0,   0,  0,
-              0,  0,   0,   0,  0,  0,   0,   0,   0,  0,  0,   0,   0,  0,
-              0,  0,   0,   0,  0,  0,   0,   0,   0,  0,  0,   100};
+  if (CallDataStr.length() & 0x01U) {
+    CallDataStr += "0";
+  }
+  for (auto It = CallDataStr.cbegin(); It != CallDataStr.cend(); It += 2) {
+    char CH = *It;
+    char CL = *(It + 1);
+    CallData.push_back(SSVM::Support::convertCharToHex(CL) +
+                       (SSVM::Support::convertCharToHex(CH) << 4));
+  }
 
   EVM.setPath(Erc20Path);
   EVM.execute();

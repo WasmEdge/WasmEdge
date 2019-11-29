@@ -56,7 +56,10 @@ public:
   ErrCode setStartIdx(unsigned int Idx);
 
   /// Get start function address in Store.
-  unsigned int getStartAddr() { return StartAddr; };
+  bool getStartAddr(unsigned int &Addr) {
+    Addr = StartAddr;
+    return HasStartFunc;
+  };
 
   /// Get function type by index
   ErrCode getFuncType(unsigned int Idx, FType *&Type);

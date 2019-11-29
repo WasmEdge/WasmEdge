@@ -95,6 +95,7 @@ ErrCode VM::execute() {
   if (Status == ErrCode::Success) {
     Status = runExecutor();
   }
+  VMResult.setErrCode(static_cast<unsigned int>(Status));
 
   /// Clear loader and executor engine.
   LoaderEngine.reset();

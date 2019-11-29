@@ -7,6 +7,13 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 
+find_package(Boost REQUIRED)
+find_package(ONNC-wasm)
+
+if(ONNC_WASM_LIBRARY)
+  add_definitions(-DONNC_WASM)
+endif()
+
 include_directories(BEFORE
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -20,13 +27,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(BUILD_TESTS "Generate build targets for the ssvm unit tests." OFF)
-
-find_package(Boost REQUIRED)
-find_package(ONNC-wasm)
-
-if(ONNC_WASM_LIBRARY)
-  add_definitions(-DONNC_WASM)
-endif()
 
 # Macro for copying directory.
 macro(configure_files srcDir destDir)
@@ -45,6 +45,7 @@ foreach(templateFile ${templateFiles})
     endif(NOT IS_DIRECTORY ${srcTemplatePath})
 endforeach(templateFile)
 endmacro(configure_files)
+# End of Macro
 
 if(BUILD_TESTS)
   include_directories(

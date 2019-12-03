@@ -261,6 +261,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
     {
       auto result = pop_ctrl();
       push_ctrl(result, result);
+      validateWarp(IfInstr->getElseStatement());
     }
     push_opds(pop_ctrl());
     break;
@@ -328,6 +329,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
     auto N = CallInstr->getFuncIndex();
     if (types.size() <= N)
       throw "Call funcs.size() <= N";
+    pop_opd(ValType::I32);
     stack_trans({types[N].first}, {types[N].second});
     break;
   }
@@ -734,8 +736,6 @@ ErrCode Validator::validate(AST::CodeSegment *CodeSeg,
     for (unsigned int cnt = 0; cnt < val.first; ++cnt)
       vm.addloacl(idx++, val.second);
   }
-
-  cout << "locals= " << idx << endl;
   return vm.validate(CodeSeg->getInstrs(), Func->getReturnTypes());
 }
 
@@ -882,8 +882,9 @@ ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod) {
       ErrCode::Success)
     return ErrCode::Invalid;
 
-  for (auto &type:(*Mod).getTypeSection()->getContent())
-    vm.addtype(type.get());
+  if ((*Mod).getTypeSection())
+    for (auto &type:(*Mod).getTypeSection()->getContent())
+      vm.addtype(type.get());
 
   if (validate((*Mod).getTableSection()) != ErrCode::Success)
     return ErrCode::Invalid;

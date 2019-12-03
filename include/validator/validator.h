@@ -50,7 +50,7 @@ class ValidatMachine {
   void setlocal(unsigned int, ValType);
   ValType getglobal(unsigned int);
   void setglobal(unsigned int, ValType);
-  ErrCode validateWarp(const AST::InstrVec *);
+  ErrCode validateWarp(const AST::InstrVec &);
 
 public:
   void addloacl(unsigned int, AST::ValType);

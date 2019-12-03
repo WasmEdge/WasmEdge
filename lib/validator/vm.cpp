@@ -181,8 +181,8 @@ void ValidatMachine::unreachable() {
   CtrlStack[0].unreachable = true;
 }
 
-ErrCode ValidatMachine::validateWarp(const AST::InstrVec *insts) {
-  for (auto &op : *insts)
+ErrCode ValidatMachine::validateWarp(const AST::InstrVec &insts) {
+  for (auto &op : insts)
     runop(op.get());
   return ErrCode::Success;
 }
@@ -193,7 +193,7 @@ ErrCode ValidatMachine::validate(const AST::InstrVec &insts,
     for (AST::ValType val : ret)
       ReturnVals.push_back(Ast2ValType(val));
     push_ctrl({}, ReturnVals);
-    validateWarp(&insts);
+    validateWarp(insts);
   } catch (const char *str) {
     cout << "Error:" << str << endl;
     return ErrCode::Invalid;
@@ -257,7 +257,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
       res_vec.emplace_back(Ast2ValType(res));
     push_ctrl(res_vec, res_vec);
     validateWarp(IfInstr->getIfStatement());
-    if (IfInstr->getElseStatement()) {
+    if (IfInstr->getElseStatement().size()!=0) {
       auto result = pop_ctrl();
       push_ctrl(result, result);
       validateWarp(IfInstr->getElseStatement());

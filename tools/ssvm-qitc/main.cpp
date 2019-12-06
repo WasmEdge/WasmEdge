@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+#include "helper.h"
+#include "onncenv.h"
 #include "vm/configure.h"
 #include "vm/result.h"
 #include "vm/vm.h"
@@ -14,9 +16,7 @@ int main(int Argc, char *Argv[]) {
     /// Arg0: ./ssvm-qitc
     /// Arg1: wasm file
     /// Other args are pass into ONNC runtime
-    std::cout
-        << "Usage: ./ssvm-qitc model_wasm [args...]"
-        << std::endl;
+    std::cout << "Usage: ./ssvm-qitc model_wasm [args...]" << std::endl;
     return 0;
   }
 
@@ -41,6 +41,19 @@ int main(int Argc, char *Argv[]) {
     std::cout << " Args : " << *It << std::endl;
   }
   SSVM::Result Result;
+
+  /// Insert helper host functions.
+  SSVM::VM::ONNCEnvironment ONNCEnv;
+  auto FuncONNCTimeStart =
+      std::make_unique<SSVM::Executor::ONNCTimeStart>(ONNCEnv);
+  auto FuncONNCTimeStop =
+      std::make_unique<SSVM::Executor::ONNCTimeStop>(ONNCEnv);
+  auto FuncONNCTimeClear =
+      std::make_unique<SSVM::Executor::ONNCTimeClear>(ONNCEnv);
+  VM.setHostFunction(FuncONNCTimeStart, "QITC", "QITC_time_start");
+  VM.setHostFunction(FuncONNCTimeStart, "QITC", "QITC_time_stop");
+  VM.setHostFunction(FuncONNCTimeStart, "QITC", "QITC_time_clear");
+
   VM.setPath(InputPath);
   VM.execute();
   Result = VM.getResult();

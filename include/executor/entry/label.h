@@ -26,6 +26,7 @@ public:
   ///
   /// Initialize the label with arity and pointer to instructions in blocks.
   ///
+  /// \param StackSize the current label position in stack.
   /// \param LabelArity the return counts of this block.
   /// \param Instr the branch target of this label.
   ///

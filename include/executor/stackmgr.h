@@ -150,7 +150,7 @@ public:
       const auto &L = LabelStack.back();
       assert(Stack.size() >= L.getCoarity());
       assert(!FrameStack.empty() &&
-             FrameStack.back().StackSize <= L.getStackSize());
+             FrameStack.back().F.getStackSize() <= L.getStackSize());
       assert(Stack.size() - L.getCoarity() >= L.getStackSize());
       Stack.erase(Stack.begin() + L.getStackSize(),
                   Stack.end() - L.getCoarity());

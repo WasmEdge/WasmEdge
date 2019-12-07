@@ -51,8 +51,8 @@ int main(int Argc, char *Argv[]) {
   auto FuncONNCTimeClear =
       std::make_unique<SSVM::Executor::ONNCTimeClear>(ONNCEnv);
   VM.setHostFunction(FuncONNCTimeStart, "QITC", "QITC_time_start");
-  VM.setHostFunction(FuncONNCTimeStart, "QITC", "QITC_time_stop");
-  VM.setHostFunction(FuncONNCTimeStart, "QITC", "QITC_time_clear");
+  VM.setHostFunction(FuncONNCTimeStop, "QITC", "QITC_time_stop");
+  VM.setHostFunction(FuncONNCTimeClear, "QITC", "QITC_time_clear");
 
   VM.setPath(InputPath);
   VM.execute();

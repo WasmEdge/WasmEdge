@@ -38,7 +38,7 @@ public:
       return Status;
     }
 
-    char *Key = MemInst->getPointer<char *>(KeyPtr);
+    const char *Key = MemInst->getPointer<char *>(KeyPtr);
     Env.setStart(std::string(Key));
     return ErrCode::Success;
   }
@@ -75,11 +75,11 @@ public:
       return Status;
     }
 
-    char *Key = MemInst->getPointer<char *>(KeyPtr);
+    const char *Key = MemInst->getPointer<char *>(KeyPtr);
     uint64_t T = Env.setStop(std::string(Key));
-    char *Msg = MemInst->getPointer<char *>(MsgPtr);
-    std::string MsgStr(Msg);
-    std::cerr << " -- " << MsgStr << " cost " << T << " us" << std::endl;
+    const char *Msg = MemInst->getPointer<char *>(MsgPtr);
+    std::cerr << " -- " << std::string(Msg) << " cost " << T << " us"
+              << std::endl;
     return ErrCode::Success;
   }
 
@@ -113,7 +113,7 @@ public:
       return Status;
     }
 
-    char *Key = MemInst->getPointer<char *>(KeyPtr);
+    const char *Key = MemInst->getPointer<char *>(KeyPtr);
     Env.clear(std::string(Key));
     return ErrCode::Success;
   }

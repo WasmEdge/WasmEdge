@@ -19,20 +19,20 @@ public:
 
   uint64_t stopRecord(const std::string &Name) {
     std::unordered_map<std::string, uint64_t>::iterator It;
+    uint64_t NDiff = 0;
     if ((It = StartTime.find(Name)) != StartTime.end()) {
       struct timeval TEnd;
       gettimeofday(&TEnd, NULL);
-      uint64_t NStart = It->second;
-      uint64_t NEnd = (uint64_t)1000000 * TEnd.tv_sec + TEnd.tv_usec;
-      if (RecTime.find(Name) != RecTime.end()) {
-        RecTime[Name] += NEnd - NStart;
-      } else {
-        RecTime.insert(std::make_pair(Name, NEnd - NStart));
-      }
+      NDiff = (uint64_t)1000000 * TEnd.tv_sec + TEnd.tv_usec - It->second;
       StartTime.erase(Name);
-      return RecTime[Name];
     }
-    return 0;
+
+    if (RecTime.find(Name) != RecTime.end()) {
+      RecTime[Name] += NDiff;
+    } else {
+      RecTime.insert(std::make_pair(Name, NDiff));
+    }
+    return RecTime[Name];
   }
 
   void clearRecord(const std::string &Name) { RecTime.erase(Name); }

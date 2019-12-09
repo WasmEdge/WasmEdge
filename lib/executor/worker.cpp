@@ -608,11 +608,13 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     }
 
     /// Set start time.
-    const std::string RecordName =
-        FuncInst->getModName() + "::" + FuncInst->getEntityName();
     TimeRecorder.stopRecord("Execution");
     TimeRecorder.startRecord("HostFunction");
+#ifdef DEBUG
+    const std::string RecordName =
+        FuncInst->getModName() + "::" + FuncInst->getEntityName();
     TimeRecorder.startRecord(RecordName);
+#endif
 
     /// Run host function.
     if (ErrCode Status = HostFunc->run(Vals, Returns, StoreMgr, ModuleInst);
@@ -620,14 +622,15 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
       return Status;
     }
 
+#ifdef DEBUG
     /// Print time cost.
     uint64_t HostFuncTime = TimeRecorder.stopRecord(RecordName);
     TimeRecorder.clearRecord(RecordName);
-    TimeRecorder.stopRecord("HostFunction");
-    TimeRecorder.startRecord("Execution");
-
     std::cout << " Host func " << RecordName << " cost " << HostFuncTime
               << " us" << std::endl;
+#endif
+    TimeRecorder.stopRecord("HostFunction");
+    TimeRecorder.startRecord("Execution");
 
     /// Push result value into stack.
     for (auto Iter = Returns.rbegin(); Iter != Returns.rend(); Iter++) {

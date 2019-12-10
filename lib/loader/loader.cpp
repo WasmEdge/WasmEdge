@@ -11,21 +11,40 @@ ErrCode Loader::setPath(const std::string &FilePath) {
     return ErrCode::WrongLoaderFlow;
 
   /// Set path to file manager and check error.
-  ErrCode Result = FMgr.setPath(FilePath);
+  ErrCode Result = FSMgr.setPath(FilePath);
   if (Result == ErrCode::Success)
-    Stat = State::PathSet;
+    Stat = State::PathSet_FStream;
+  return Result;
+}
+
+/// Set byte code to Loader class. See "include/loader/loader.h".
+ErrCode Loader::setCode(const std::vector<uint8_t> &Code) {
+  /// Check is the correct state.
+  if (Stat != State::Inited)
+    return ErrCode::WrongLoaderFlow;
+
+  /// Set vector to file manager and check error.
+  ErrCode Result = FVMgr.setCode(Code);
+  if (Result == ErrCode::Success)
+    Stat = State::PathSet_Vector;
   return Result;
 }
 
 /// Load and parse module. See "include/loader/loader.h".
 ErrCode Loader::parseModule() {
   /// Check is the correct state.
-  if (Stat != State::PathSet)
+  if (Stat != State::PathSet_FStream && Stat != State::PathSet_Vector)
     return ErrCode::WrongLoaderFlow;
 
   /// Make module node and parse it.
   Mod = std::make_unique<AST::Module>();
-  ErrCode Result = Mod->loadBinary(FMgr);
+  ErrCode Result = ErrCode::ReadError;
+  if (Stat == State::PathSet_FStream)
+    Result = Mod->loadBinary(FSMgr);
+  else if (Stat == State::PathSet_Vector)
+    Result = Mod->loadBinary(FVMgr);
+
+  /// Check load error code.
   if (Result == ErrCode::Success)
     Stat = State::Parsed;
   else

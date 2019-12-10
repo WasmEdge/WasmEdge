@@ -14,7 +14,9 @@
 
 #include "ast/module.h"
 #include "common.h"
+
 #include <string>
+#include <vector>
 
 namespace SSVM {
 namespace Loader {
@@ -27,6 +29,9 @@ public:
 
   /// Set the file path to loader.
   ErrCode setPath(const std::string &FilePath);
+
+  /// Set byte code to loader.
+  ErrCode setCode(const std::vector<uint8_t> &Code);
 
   /// Load and Parse the file into AST::Module.
   ErrCode parseModule();
@@ -44,7 +49,8 @@ private:
   /// Loader State
   enum class State : unsigned int {
     Inited,
-    PathSet,
+    PathSet_FStream,
+    PathSet_Vector,
     Parsed,
     Validated,
     Finished
@@ -52,7 +58,8 @@ private:
 
   State Stat = State::Inited;
   std::unique_ptr<AST::Module> Mod;
-  FileMgrFStream FMgr;
+  FileMgrFStream FSMgr;
+  FileMgrVector FVMgr;
 };
 
 } // namespace Loader

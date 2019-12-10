@@ -25,6 +25,9 @@ public:
   /// Set the file path.
   virtual Loader::ErrCode setPath(const std::string &FilePath) = 0;
 
+  /// Set the binary data.
+  virtual Loader::ErrCode setCode(const std::vector<uint8_t> &CodeData) = 0;
+
   /// Read one byte.
   virtual Loader::ErrCode readByte(unsigned char &Byte) = 0;
 
@@ -69,6 +72,9 @@ public:
 
   /// Inheritted from FileMgr.
   virtual Loader::ErrCode setPath(const std::string &FilePath);
+  virtual Loader::ErrCode setCode(const std::vector<uint8_t> &CodeData) {
+    return Loader::ErrCode::InvalidPath;
+  }
   virtual Loader::ErrCode readByte(unsigned char &Byte);
   virtual Loader::ErrCode readBytes(std::vector<unsigned char> &Buf,
                                     size_t SizeToRead);
@@ -83,6 +89,41 @@ public:
 private:
   /// file stream.
   std::ifstream Fin;
+};
+
+/// Vector version of file manager.
+class FileMgrVector : public FileMgr {
+public:
+  FileMgrVector() = default;
+  virtual ~FileMgrVector() = default;
+
+  /// Inheritted from FileMgr.
+  virtual Loader::ErrCode setPath(const std::string &FilePath) {
+    return Loader::ErrCode::InvalidPath;
+  }
+  virtual Loader::ErrCode setCode(const std::vector<uint8_t> &CodeData);
+  virtual Loader::ErrCode readByte(unsigned char &Byte);
+  virtual Loader::ErrCode readBytes(std::vector<unsigned char> &Buf,
+                                    size_t SizeToRead);
+  virtual Loader::ErrCode readU32(uint32_t &U32);
+  virtual Loader::ErrCode readU64(uint64_t &U64);
+  virtual Loader::ErrCode readS32(int32_t &S32);
+  virtual Loader::ErrCode readS64(int64_t &S64);
+  virtual Loader::ErrCode readF32(float &F32);
+  virtual Loader::ErrCode readF64(double &F64);
+  virtual Loader::ErrCode readName(std::string &Str);
+
+  unsigned int getRemainSize() const { return Code.size() - Pos; }
+  void clearBuffer() {
+    Code.clear();
+    Pos = 0;
+    Status = Loader::ErrCode::EndOfFile;
+  }
+
+private:
+  /// Reference to input vector.
+  std::vector<uint8_t> Code;
+  unsigned int Pos = 0;
 };
 
 } // namespace SSVM

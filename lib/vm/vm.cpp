@@ -50,8 +50,6 @@
 #include "vm/hostfunc/onnc/runtime_unsqueeze_float.h"
 #endif
 
-#include <stdio.h>
-
 namespace SSVM {
 namespace VM {
 
@@ -68,17 +66,11 @@ template <typename T> bool testAndSetError(T Status, Result &VMResult) {
 } // namespace detail
 
 VM::VM(Configure &InputConfig) : Config(InputConfig) {
-  Configure::VMType Type = Config.getVMType();
-  switch (Type) {
-  case Configure::VMType::Ewasm:
-    Env = std::make_unique<EVMEnvironment>();
-    break;
-  case Configure::VMType::Wasi:
-    Env = std::make_unique<WasiEnvironment>();
-    break;
-  default:
-    Env.reset();
-    break;
+  if (Config.checkIsVMType(Configure::VMType::Ewasm)) {
+    EnvTable[Configure::VMType::Ewasm] = std::make_unique<EVMEnvironment>();
+  }
+  if (Config.checkIsVMType(Configure::VMType::Wasi)) {
+    EnvTable[Configure::VMType::Wasi] = std::make_unique<WasiEnvironment>();
   }
 }
 
@@ -87,9 +79,15 @@ ErrCode VM::setPath(const std::string &FilePath) {
   return ErrCode::Success;
 }
 
-ErrCode VM::execute() {
+ErrCode VM::execute(const std::string &FuncName) {
   /// Prepare VM according to VM type.
   prepareVMHost();
+
+  if (FuncName == "") {
+    ExecutorEngine.setStartFuncName(Config.getStartFuncName());
+  } else {
+    ExecutorEngine.setStartFuncName(FuncName);
+  }
 
   /// Run code.
   ErrCode Status = runLoader();
@@ -106,7 +104,7 @@ ErrCode VM::execute() {
   return Status;
 }
 
-Environment *VM::getEnvironment() { return Env.get(); }
+ErrCode VM::execute() { return execute(""); }
 
 ErrCode VM::runLoader() {
   Loader::ErrCode LoaderStatus = Loader::ErrCode::Success;
@@ -139,7 +137,6 @@ ErrCode VM::runExecutor() {
   Executor::ErrCode ExecutorStatus = Executor::ErrCode::Success;
   VMResult.setStage(Result::Stage::Executor);
 
-  ExecutorEngine.setStartFuncName(Config.getStartFuncName());
   ExecutorStatus = ExecutorEngine.setModule(Mod);
   if (detail::testAndSetError(ExecutorStatus, VMResult)) {
     return ErrCode::Failed;
@@ -168,10 +165,10 @@ ErrCode VM::runExecutor() {
 
 ErrCode VM::prepareVMHost() {
   ErrCode Status = ErrCode::Success;
-  Configure::VMType Type = Config.getVMType();
-  if (Type == Configure::VMType::Ewasm) {
+  if (Config.checkIsVMType(Configure::VMType::Ewasm)) {
     /// Ewasm case, insert EEI host functions.
-    EVMEnvironment *EVMEnv = dynamic_cast<EVMEnvironment *>(Env.get());
+    EVMEnvironment *EVMEnv = dynamic_cast<EVMEnvironment *>(
+        EnvTable[Configure::VMType::Ewasm].get());
     auto FuncEEICallDataCopy =
         std::make_unique<Executor::EEICallDataCopy>(*EVMEnv);
     auto FuncEEICallStatic = std::make_unique<Executor::EEICallStatic>(*EVMEnv);
@@ -216,9 +213,11 @@ ErrCode VM::prepareVMHost() {
     if (Status == ErrCode::Success) {
       Status = setHostFunction(FuncEEIStorageStore, "ethereum", "storageStore");
     }
-  } else if (Type == Configure::VMType::Wasi) {
+  }
+  if (Config.checkIsVMType(Configure::VMType::Wasi)) {
     /// Wasi case, insert Wasi host functions.
-    WasiEnvironment *WasiEnv = dynamic_cast<WasiEnvironment *>(Env.get());
+    WasiEnvironment *WasiEnv = dynamic_cast<WasiEnvironment *>(
+        EnvTable[Configure::VMType::Wasi].get());
     auto FuncWasiArgsGet = std::make_unique<Executor::WasiArgsGet>(*WasiEnv);
     auto FuncWasiArgsSizesGet =
         std::make_unique<Executor::WasiArgsSizesGet>(*WasiEnv);
@@ -290,8 +289,10 @@ ErrCode VM::prepareVMHost() {
     if (Status == ErrCode::Success) {
       Status = setHostFunction(FuncWasiProcExit, "wasi_unstable", "proc_exit");
     }
+  }
 
 #ifdef ONNC_WASM
+  if (Config.checkIsVMType(Configure::VMType::ONNC)) {
     /// Found ONNC library, insert ONNC host functions.
     auto FuncONNCRuntimeAddFloat =
         std::make_unique<Executor::ONNCRuntimeAddFloat>();
@@ -391,8 +392,9 @@ ErrCode VM::prepareVMHost() {
       Status = setHostFunction(FuncONNCRuntimeUnsqueezeFloat, "onnc_wasm",
                                "ONNC_RUNTIME_unsqueeze_float");
     }
-#endif
   }
+#endif
+
   return Status;
 }
 

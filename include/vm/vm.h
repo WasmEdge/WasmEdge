@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace SSVM {
@@ -33,6 +34,9 @@ namespace {
 template <typename T, typename TR>
 using TypeFunc =
     typename std::enable_if_t<std::is_base_of_v<Executor::HostFunction, T>, TR>;
+/// Return environments.
+template <typename T>
+using TypeEnv = typename std::enable_if_t<std::is_base_of_v<Environment, T>, T>;
 } // namespace
 
 /// VM execution flow class
@@ -68,12 +72,18 @@ public:
 
   /// Execute wasm with given input.
   ErrCode execute();
+  ErrCode execute(const std::string &FuncName);
 
   /// Return VMResult
   Result getResult() { return VMResult; }
 
   /// Getter of Environment.
-  Environment *getEnvironment();
+  template <typename T> TypeEnv<T> *getEnvironment(Configure::VMType Type) {
+    if (EnvTable.find(Type) != EnvTable.end()) {
+      return dynamic_cast<T *>(EnvTable[Type].get());
+    }
+    return nullptr;
+  }
 
 private:
   /// Functions for running.
@@ -87,7 +97,7 @@ private:
   Loader::Loader LoaderEngine;
   Executor::Executor ExecutorEngine;
   Configure &Config;
-  std::unique_ptr<Environment> Env;
+  std::unordered_map<Configure::VMType, std::unique_ptr<Environment>> EnvTable;
   std::unique_ptr<AST::Module> Mod;
   std::vector<Executor::Value> Args;
   std::vector<Executor::Value> Rets;

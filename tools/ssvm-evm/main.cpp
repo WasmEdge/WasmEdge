@@ -16,10 +16,11 @@ int main(int Argc, char *Argv[]) {
   }
 
   const std::string Erc20Path(Argv[1]);
-  SSVM::VM::Configure Conf(SSVM::VM::Configure::VMType::Ewasm);
+  SSVM::VM::Configure Conf;
+  Conf.addVMType(SSVM::VM::Configure::VMType::Ewasm);
   SSVM::VM::VM EVM(Conf);
-  SSVM::VM::EVMEnvironment *Env =
-      dynamic_cast<SSVM::VM::EVMEnvironment *>(EVM.getEnvironment());
+  SSVM::VM::EVMEnvironment *Env = EVM.getEnvironment<SSVM::VM::EVMEnvironment>(
+      SSVM::VM::Configure::VMType::Ewasm);
   Env->clear();
 
   /// Set caller
@@ -44,7 +45,7 @@ int main(int Argc, char *Argv[]) {
   }
 
   EVM.setPath(Erc20Path);
-  EVM.execute();
+  EVM.execute("main");
 
   std::map<std::string, std::string> &FinalStorage = Env->getStorage();
   std::cout << "    --- result storage: " << std::endl;

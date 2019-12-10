@@ -29,10 +29,12 @@ int main(int Argc, char *Argv[]) {
                                                  closedir);
 
   std::string InputPath(Argv[1]);
-  SSVM::VM::Configure Conf(SSVM::VM::Configure::VMType::Wasi);
+  SSVM::VM::Configure Conf;
+  Conf.addVMType(SSVM::VM::Configure::VMType::Wasi);
+  Conf.addVMType(SSVM::VM::Configure::VMType::ONNC);
   SSVM::VM::VM VM(Conf);
-  SSVM::VM::WasiEnvironment *Env =
-      dynamic_cast<SSVM::VM::WasiEnvironment *>(VM.getEnvironment());
+  SSVM::VM::WasiEnvironment *Env = VM.getEnvironment<SSVM::VM::WasiEnvironment>(
+      SSVM::VM::Configure::VMType::Wasi);
   std::vector<std::string> &CmdArgsVec = Env->getCmdArgs();
   for (int I = 1; I < Argc; I++) {
     CmdArgsVec.push_back(std::string(Argv[I]));
@@ -55,7 +57,7 @@ int main(int Argc, char *Argv[]) {
   VM.setHostFunction(FuncONNCTimeClear, "QITC", "QITC_time_clear");
 
   VM.setPath(InputPath);
-  VM.execute();
+  VM.execute("_start");
   Result = VM.getResult();
   return Result.getErrCode();
 }

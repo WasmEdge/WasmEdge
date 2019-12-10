@@ -15,7 +15,7 @@ int main(int Argc, char *Argv[]) {
   }
 
   std::string InputPath(Argv[1]);
-  SSVM::VM::Configure Conf(SSVM::VM::Configure::VMType::Wasm);
+  SSVM::VM::Configure Conf;
   if (Argc == 3) {
     Conf.setStartFuncName(Argv[2]);
   }

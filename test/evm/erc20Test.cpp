@@ -21,12 +21,14 @@
 namespace {
 
 const std::string Erc20Path("ethereumTestData/erc20.wasm");
-SSVM::VM::Configure Conf(SSVM::VM::Configure::VMType::Ewasm);
-SSVM::VM::VM EVM(Conf);
+SSVM::VM::Configure Conf;
 SSVM::VM::EVMEnvironment *Env = nullptr;
 
 TEST(ERC20Test, Run__mint) {
-  Env = dynamic_cast<SSVM::VM::EVMEnvironment *>(EVM.getEnvironment());
+  Conf.addVMType(SSVM::VM::Configure::VMType::Ewasm);
+  SSVM::VM::VM EVM(Conf);
+  Env = EVM.getEnvironment<SSVM::VM::EVMEnvironment>(
+      SSVM::VM::Configure::VMType::Ewasm);
   EXPECT_NE(Env, nullptr);
   Env->clear();
   std::string &Caller = Env->getCaller();
@@ -40,7 +42,7 @@ TEST(ERC20Test, Run__mint) {
               0,  0,   0,   0,  0,  0,   0,   0,   0,  0,  0,   0,   0,  0,
               0,  0,   0,   0,  0,  0,   0,   0,   0,  0,  0,   100};
   EVM.setPath(Erc20Path);
-  EXPECT_EQ(EVM.execute(), SSVM::VM::ErrCode::Success);
+  EXPECT_EQ(EVM.execute("main"), SSVM::VM::ErrCode::Success);
 
   std::map<std::string, std::string> &FinalStorage = Env->getStorage();
   std::cout << "    --- result storage: " << std::endl;
@@ -57,7 +59,10 @@ TEST(ERC20Test, Run__mint) {
 }
 
 TEST(ERC20Test, Run__transfer) {
-  Env = dynamic_cast<SSVM::VM::EVMEnvironment *>(EVM.getEnvironment());
+  Conf.addVMType(SSVM::VM::Configure::VMType::Ewasm);
+  SSVM::VM::VM EVM(Conf);
+  Env = EVM.getEnvironment<SSVM::VM::EVMEnvironment>(
+      SSVM::VM::Configure::VMType::Ewasm);
   EXPECT_NE(Env, nullptr);
   Env->clear();
   std::string &Caller = Env->getCaller();
@@ -74,7 +79,7 @@ TEST(ERC20Test, Run__transfer) {
   Storage["f5b24dcea0e9381721a8c72784d30cfe64c11b4591226269f839d095b3e9cf10"] =
       "64";
   EVM.setPath(Erc20Path);
-  EXPECT_EQ(EVM.execute(), SSVM::VM::ErrCode::Success);
+  EXPECT_EQ(EVM.execute("main"), SSVM::VM::ErrCode::Success);
 
   std::map<std::string, std::string> &FinalStorage = Env->getStorage();
   std::cout << "    --- result storage: " << std::endl;
@@ -91,7 +96,10 @@ TEST(ERC20Test, Run__transfer) {
 }
 
 TEST(ERC20Test, Run__balanceOf) {
-  Env = dynamic_cast<SSVM::VM::EVMEnvironment *>(EVM.getEnvironment());
+  Conf.addVMType(SSVM::VM::Configure::VMType::Ewasm);
+  SSVM::VM::VM EVM(Conf);
+  Env = EVM.getEnvironment<SSVM::VM::EVMEnvironment>(
+      SSVM::VM::Configure::VMType::Ewasm);
   EXPECT_NE(Env, nullptr);
   Env->clear();
   std::string &Caller = Env->getCaller();
@@ -108,7 +116,7 @@ TEST(ERC20Test, Run__balanceOf) {
   Storage["3cbd4ff31ab6027f35d2d04a81e2957deb3a24998b9cea0327c6e16d0b547a1d"] =
       "a";
   EVM.setPath(Erc20Path);
-  EXPECT_EQ(EVM.execute(), SSVM::VM::ErrCode::Success);
+  EXPECT_EQ(EVM.execute("main"), SSVM::VM::ErrCode::Success);
 
   std::map<std::string, std::string> &FinalStorage = Env->getStorage();
   std::cout << "    --- result storage: " << std::endl;

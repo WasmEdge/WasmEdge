@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 namespace SSVM {
 namespace VM {
@@ -20,26 +21,23 @@ namespace VM {
 class Configure {
 public:
   /// VM type enum class.
-  enum class VMType : unsigned int { Wasm = 0, Ewasm, Wasi };
+  enum class VMType : unsigned int { Wasm = 0, Ewasm, Wasi, ONNC };
 
-  Configure() = delete;
-  Configure(VMType NewType = VMType::Wasm) : Type(NewType) {
-    if (Type == VMType::Ewasm) {
-      StartFuncName = "main";
-    } else if (Type == VMType::Wasi) {
-      StartFuncName = "_start";
-    }
-  }
+  Configure() { Types.insert(VMType::Wasm); }
   ~Configure() = default;
 
-  VMType getVMType() { return Type; }
+  void addVMType(const VMType &Type) { Types.insert(Type); }
+
+  bool checkIsVMType(const VMType &Type) const {
+    return (Types.find(Type) != Types.end() ? true : false);
+  }
 
   std::string &getStartFuncName() { return StartFuncName; }
 
   void setStartFuncName(const std::string &Name) { StartFuncName = Name; }
 
 private:
-  VMType Type;
+  std::unordered_set<VMType> Types;
   std::string StartFuncName;
 };
 

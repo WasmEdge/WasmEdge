@@ -12,12 +12,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "ast/description.h"
-#include "loader/filemgrTest.h"
+#include "loader/filemgr.h"
 #include "gtest/gtest.h"
 
 namespace {
 
-SSVM::FileMgrTest Mgr;
+SSVM::FileMgrVector Mgr;
 SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(DescriptionTest, LoadImportDesc) {
@@ -40,9 +40,9 @@ TEST(DescriptionTest, LoadImportDesc) {
       0x00U,       /// Empty external name
       0x00U, 0x00U /// function type and index
   };
-  Mgr.setVector(Vec2);
+  Mgr.setCode(Vec2);
   SSVM::AST::ImportDesc Imp2;
-  EXPECT_TRUE(Imp2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Imp2.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -50,9 +50,9 @@ TEST(DescriptionTest, LoadImportDesc) {
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
       0x00U, 0x00U /// function type and index
   };
-  Mgr.setVector(Vec3);
+  Mgr.setCode(Vec3);
   SSVM::AST::ImportDesc Imp3;
-  EXPECT_TRUE(Imp3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Imp3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -60,7 +60,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
       0x04U, 0x00U                                     /// Invalid external type
   };
-  Mgr.setVector(Vec4);
+  Mgr.setCode(Vec4);
   SSVM::AST::ImportDesc Imp4;
   EXPECT_FALSE(Imp4.loadBinary(Mgr) == SuccessCode);
 
@@ -74,9 +74,9 @@ TEST(DescriptionTest, LoadImportDesc) {
       0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU,               /// Min = 4294967281
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU                /// Max = 4294967295
   };
-  Mgr.setVector(Vec5);
+  Mgr.setCode(Vec5);
   SSVM::AST::ImportDesc Imp5;
-  EXPECT_TRUE(Imp5.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Imp5.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec6 = {
@@ -87,9 +87,9 @@ TEST(DescriptionTest, LoadImportDesc) {
       0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU,               /// Min = 4294967281
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU                /// Max = 4294967295
   };
-  Mgr.setVector(Vec6);
+  Mgr.setCode(Vec6);
   SSVM::AST::ImportDesc Imp6;
-  EXPECT_TRUE(Imp6.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Imp6.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec7 = {
@@ -98,9 +98,9 @@ TEST(DescriptionTest, LoadImportDesc) {
       0x03U,                                           /// Global type
       0x7CU, 0x00U                                     /// Const F64 value type
   };
-  Mgr.setVector(Vec7);
+  Mgr.setCode(Vec7);
   SSVM::AST::ImportDesc Imp7;
-  EXPECT_TRUE(Imp7.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Imp7.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 }
 
 TEST(DescriptionTest, LoadExportDesc) {
@@ -120,25 +120,25 @@ TEST(DescriptionTest, LoadExportDesc) {
       0x00U,       /// Empty external name
       0x00U, 0x00U /// function type and index
   };
-  Mgr.setVector(Vec2);
+  Mgr.setCode(Vec2);
   SSVM::AST::ExportDesc Exp2;
-  EXPECT_TRUE(Exp2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Exp2.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
       0x00U, 0x00U /// function type and index
   };
-  Mgr.setVector(Vec3);
+  Mgr.setCode(Vec3);
   SSVM::AST::ExportDesc Exp3;
-  EXPECT_TRUE(Exp3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Exp3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
       0x04U, 0x00U                                     /// Invalid external type
   };
-  Mgr.setVector(Vec4);
+  Mgr.setCode(Vec4);
   SSVM::AST::ExportDesc Exp4;
   EXPECT_FALSE(Exp4.loadBinary(Mgr) == SuccessCode);
 
@@ -147,9 +147,9 @@ TEST(DescriptionTest, LoadExportDesc) {
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
       0x01U, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Table type and table index
   };
-  Mgr.setVector(Vec5);
+  Mgr.setCode(Vec5);
   SSVM::AST::ExportDesc Exp5;
-  EXPECT_TRUE(Exp5.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Exp5.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 }
 
 } // namespace

@@ -13,5 +13,6 @@ add_executable(ssvmASTLoadTests
 target_link_libraries(ssvmASTLoadTests
   PRIVATE
   utilGoogleTest
+  ssvmLoaderFileMgr
   ssvmASTLoad
 )

@@ -11,12 +11,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "ast/expression.h"
-#include "loader/filemgrTest.h"
+#include "loader/filemgr.h"
 #include "gtest/gtest.h"
 
 namespace {
 
-SSVM::FileMgrTest Mgr;
+SSVM::FileMgrVector Mgr;
 SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(ExpressionTest, LoadExpression) {
@@ -34,9 +34,9 @@ TEST(ExpressionTest, LoadExpression) {
   std::vector<unsigned char> Vec2 = {
       0x0BU /// OpCode End.
   };
-  Mgr.setVector(Vec2);
+  Mgr.setCode(Vec2);
   SSVM::AST::Expression Exp2;
-  EXPECT_TRUE(Exp2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Exp2.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -44,7 +44,7 @@ TEST(ExpressionTest, LoadExpression) {
       0xEDU, 0xEEU, 0xEFU, /// Invalid OpCodes.
       0x0BU                /// OpCode End.
   };
-  Mgr.setVector(Vec3);
+  Mgr.setCode(Vec3);
   SSVM::AST::Expression Exp3;
   EXPECT_FALSE(Exp3.loadBinary(Mgr) == SuccessCode);
 
@@ -53,9 +53,9 @@ TEST(ExpressionTest, LoadExpression) {
       0x45U, 0x46U, 0x47U, /// Valid OpCodes.
       0x0BU                /// OpCode End.
   };
-  Mgr.setVector(Vec4);
+  Mgr.setCode(Vec4);
   SSVM::AST::Expression Exp4;
-  EXPECT_TRUE(Exp4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Exp4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 }
 
 } // namespace

@@ -11,12 +11,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "ast/module.h"
-#include "loader/filemgrTest.h"
+#include "loader/filemgr.h"
 #include "gtest/gtest.h"
 
 namespace {
 
-SSVM::FileMgrTest Mgr;
+SSVM::FileMgrVector Mgr;
 SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(ModuleTest, LoadInvalidModule) {
@@ -32,8 +32,8 @@ TEST(ModuleTest, LoadEmptyModule) {
   SSVM::AST::Module Mod;
   std::vector<unsigned char> Vec = {0x00U, 0x61U, 0x73U, 0x6DU,
                                     0x01U, 0x00U, 0x00U, 0x00U};
-  Mgr.setVector(Vec);
-  EXPECT_TRUE(Mod.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  Mgr.setCode(Vec);
+  EXPECT_TRUE(Mod.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 }
 
 TEST(ModuleTest, LoadValidSecModule) {
@@ -56,8 +56,8 @@ TEST(ModuleTest, LoadValidSecModule) {
       0x0AU, 0x81U, 0x80U, 0x80U, 0x80U, 0x00U, 0x00U, /// Code section
       0x0BU, 0x81U, 0x80U, 0x80U, 0x80U, 0x00U, 0x00U  /// Data section
   };
-  Mgr.setVector(Vec);
-  EXPECT_TRUE(Mod.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  Mgr.setCode(Vec);
+  EXPECT_TRUE(Mod.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 }
 
 TEST(ModuleTest, LoadInvalidSecModule) {
@@ -81,7 +81,7 @@ TEST(ModuleTest, LoadInvalidSecModule) {
       0x0BU, 0x81U, 0x80U, 0x80U, 0x80U, 0x00U, 0x00U, /// Data section
       0x0CU, 0x81U, 0x80U, 0x80U, 0x80U, 0x00U, 0x00U  /// Invalid section
   };
-  Mgr.setVector(Vec);
+  Mgr.setCode(Vec);
   EXPECT_NE(Mod.loadBinary(Mgr), SuccessCode);
 }
 

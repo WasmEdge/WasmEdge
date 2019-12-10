@@ -12,12 +12,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "ast/segment.h"
-#include "loader/filemgrTest.h"
+#include "loader/filemgr.h"
 #include "gtest/gtest.h"
 
 namespace {
 
-SSVM::FileMgrTest Mgr;
+SSVM::FileMgrVector Mgr;
 SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(SegmentTest, LoadGlobalSegment) {
@@ -35,18 +35,18 @@ TEST(SegmentTest, LoadGlobalSegment) {
       0x7FU, 0x00, /// Global type.
       0x0BU        /// Expression.
   };
-  Mgr.setVector(Vec2);
+  Mgr.setCode(Vec2);
   SSVM::AST::GlobalSegment Seg2;
-  EXPECT_TRUE(Seg2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg2.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x7FU, 0x00U,              /// Table index
       0x45U, 0x46U, 0x47U, 0x0BU /// Expression
   };
-  Mgr.setVector(Vec3);
+  Mgr.setCode(Vec3);
   SSVM::AST::GlobalSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 }
 
 TEST(SegmentTest, LoadElementSegment) {
@@ -66,9 +66,9 @@ TEST(SegmentTest, LoadElementSegment) {
       0x0BU,                             /// Expression
       0x00U                              /// Function indices list
   };
-  Mgr.setVector(Vec2);
+  Mgr.setCode(Vec2);
   SSVM::AST::ElementSegment Seg2;
-  EXPECT_TRUE(Seg2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg2.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -79,9 +79,9 @@ TEST(SegmentTest, LoadElementSegment) {
       0x00U,                             /// vec[1]
       0xB9U, 0x60U                       /// vec[2]
   };
-  Mgr.setVector(Vec3);
+  Mgr.setCode(Vec3);
   SSVM::AST::ElementSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 }
 
 TEST(SegmentTest, LoadCodeSegment) {
@@ -100,7 +100,7 @@ TEST(SegmentTest, LoadCodeSegment) {
   std::vector<unsigned char> Vec2 = {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Code segment size
   };
-  Mgr.setVector(Vec2);
+  Mgr.setCode(Vec2);
   SSVM::AST::CodeSegment Seg2;
   EXPECT_FALSE(Seg2.loadBinary(Mgr) == SuccessCode);
 
@@ -110,9 +110,9 @@ TEST(SegmentTest, LoadCodeSegment) {
       0x00U,                             /// Vector length = 0
       0x0BU                              /// Expression
   };
-  Mgr.setVector(Vec3);
+  Mgr.setCode(Vec3);
   SSVM::AST::CodeSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -124,9 +124,9 @@ TEST(SegmentTest, LoadCodeSegment) {
       0xF3U, 0xFFU, 0xFFU, 0xFFU, 0x0FU, 0x7FU, /// vec[3]
       0x45U, 0x46U, 0x47U, 0x0BU                /// Expression
   };
-  Mgr.setVector(Vec4);
+  Mgr.setCode(Vec4);
   SSVM::AST::CodeSegment Seg4;
-  EXPECT_TRUE(Seg4.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 }
 
 TEST(SegmentTest, LoadDataSegment) {
@@ -146,9 +146,9 @@ TEST(SegmentTest, LoadDataSegment) {
       0x0BU,                             /// Expression
       0x00U                              /// Vector length = 0
   };
-  Mgr.setVector(Vec2);
+  Mgr.setCode(Vec2);
   SSVM::AST::DataSegment Seg2;
-  EXPECT_TRUE(Seg2.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg2.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -156,9 +156,9 @@ TEST(SegmentTest, LoadDataSegment) {
       0x45U, 0x46U, 0x47U, 0x0BU,        /// Expression
       0x04U, 0x74U, 0x65U, 0x73U, 0x74U  /// Vector length = 4, "test"
   };
-  Mgr.setVector(Vec3);
+  Mgr.setCode(Vec3);
   SSVM::AST::DataSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getQueueSize() == 0);
+  EXPECT_TRUE(Seg3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
 }
 
 } // namespace

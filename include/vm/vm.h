@@ -49,6 +49,9 @@ public:
   /// Set the wasm file path.
   ErrCode setPath(const std::string &FilePath);
 
+  /// Set the wasm byte code.
+  ErrCode setCode(const std::vector<uint8_t> &Code);
+
   /// Set host function.
   template <typename T>
   TypeFunc<T, ErrCode> setHostFunction(std::unique_ptr<T> &Func,
@@ -93,7 +96,10 @@ private:
   /// Helper function for inserting host functions according to VM type.
   ErrCode prepareVMHost();
 
+  /// Wasm source.
   std::string WasmPath;
+  std::vector<uint8_t> WasmCode;
+
   Loader::Loader LoaderEngine;
   Executor::Executor ExecutorEngine;
   Configure &Config;

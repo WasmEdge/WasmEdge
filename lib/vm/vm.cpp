@@ -76,6 +76,13 @@ VM::VM(Configure &InputConfig) : Config(InputConfig) {
 
 ErrCode VM::setPath(const std::string &FilePath) {
   WasmPath = FilePath;
+  WasmCode.clear();
+  return ErrCode::Success;
+}
+
+ErrCode VM::setCode(const std::vector<uint8_t> &Code) {
+  WasmPath = "";
+  WasmCode = Code;
   return ErrCode::Success;
 }
 
@@ -110,7 +117,11 @@ ErrCode VM::runLoader() {
   Loader::ErrCode LoaderStatus = Loader::ErrCode::Success;
   VMResult.setStage(Result::Stage::Loader);
 
-  LoaderStatus = LoaderEngine.setPath(WasmPath);
+  if (WasmPath == "") {
+    LoaderStatus = LoaderEngine.setCode(WasmCode);
+  } else {
+    LoaderStatus = LoaderEngine.setPath(WasmPath);
+  }
   if (detail::testAndSetError(LoaderStatus, VMResult)) {
     return ErrCode::Failed;
   }

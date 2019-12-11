@@ -607,6 +607,29 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
       Returns.push_back(AST::ValueFromType(*It));
     }
 
+#ifdef ONNC_WASM
+    static bool IsQITCTimer = false;
+    if (FuncInst->getModName() == "QITC") {
+      if (FuncInst->getEntityName() == "QITC_time_start") {
+        TimeRecorder.startRecord("QITC_Infer_SSVM");
+        IsQITCTimer = true;
+      } else if (FuncInst->getEntityName() == "QITC_time_stop") {
+        uint64_t SSVMTime = TimeRecorder.stopRecord("QITC_Infer_SSVM");
+        uint64_t HostTime = TimeRecorder.stopRecord("QITC_Infer_Host");
+        printf(
+            " --- Inference: SSVM cost %llu us, Host functions cost %llu us\n",
+            SSVMTime, HostTime);
+      } else if (FuncInst->getEntityName() == "QITC_time_clear") {
+        TimeRecorder.clearRecord("QITC_Infer_SSVM");
+        TimeRecorder.clearRecord("QITC_Infer_Host");
+      }
+      return ErrCode::Success;
+    }
+    if (IsQITCTimer) {
+      TimeRecorder.stopRecord("QITC_Infer_SSVM");
+      TimeRecorder.startRecord("QITC_Infer_Host");
+    }
+#endif
     /// Set start time.
     TimeRecorder.stopRecord("Execution");
     TimeRecorder.startRecord("HostFunction");
@@ -631,6 +654,12 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
 #endif
     TimeRecorder.stopRecord("HostFunction");
     TimeRecorder.startRecord("Execution");
+#ifdef ONNC_WASM
+    if (IsQITCTimer) {
+      TimeRecorder.stopRecord("QITC_Infer_Host");
+      TimeRecorder.startRecord("QITC_Infer_SSVM");
+    }
+#endif
 
     /// Push result value into stack.
     for (auto Iter = Returns.rbegin(); Iter != Returns.rend(); Iter++) {
@@ -652,8 +681,8 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
       }
     }
 
-    AST::InstrVec EmprySeq;
-    InstrPdr.pushInstrs(InstrProvider::SeqType::FunctionCall, EmprySeq);
+    AST::InstrVec EmptySeq;
+    InstrPdr.pushInstrs(InstrProvider::SeqType::FunctionCall, EmptySeq);
 
     /// Run block of function body
     return enterBlock(FuncType->Returns.size(), nullptr, FuncInst->getInstrs());

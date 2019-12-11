@@ -35,7 +35,10 @@ public:
     return RecTime[Name];
   }
 
-  void clearRecord(const std::string &Name) { RecTime.erase(Name); }
+  void clearRecord(const std::string &Name) {
+    StartTime.erase(Name);
+    RecTime.erase(Name);
+  }
 
   uint64_t getRecord(const std::string &Name) {
     if (RecTime.find(Name) != RecTime.end()) {

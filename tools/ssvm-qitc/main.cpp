@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "helper.h"
-#include "onncenv.h"
 #include "vm/configure.h"
 #include "vm/result.h"
 #include "vm/vm.h"
@@ -45,13 +44,9 @@ int main(int Argc, char *Argv[]) {
   SSVM::Result Result;
 
   /// Insert helper host functions.
-  SSVM::VM::ONNCEnvironment ONNCEnv;
-  auto FuncONNCTimeStart =
-      std::make_unique<SSVM::Executor::ONNCTimeStart>(ONNCEnv);
-  auto FuncONNCTimeStop =
-      std::make_unique<SSVM::Executor::ONNCTimeStop>(ONNCEnv);
-  auto FuncONNCTimeClear =
-      std::make_unique<SSVM::Executor::ONNCTimeClear>(ONNCEnv);
+  auto FuncONNCTimeStart = std::make_unique<SSVM::Executor::ONNCTimeStart>();
+  auto FuncONNCTimeStop = std::make_unique<SSVM::Executor::ONNCTimeStop>();
+  auto FuncONNCTimeClear = std::make_unique<SSVM::Executor::ONNCTimeClear>();
   VM.setHostFunction(FuncONNCTimeStart, "QITC", "QITC_time_start");
   VM.setHostFunction(FuncONNCTimeStop, "QITC", "QITC_time_stop");
   VM.setHostFunction(FuncONNCTimeClear, "QITC", "QITC_time_clear");

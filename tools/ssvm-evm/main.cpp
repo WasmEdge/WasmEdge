@@ -5,13 +5,16 @@
 #include "vm/vm.h"
 
 #include <iostream>
+#include <stdlib.h>
 
 int main(int Argc, char *Argv[]) {
-  if (Argc < 3) {
+  if (Argc < 4) {
     /// Arg0: ./ssvm-evm
     /// Arg1: ewasm file
     /// Arg2: call data
-    std::cout << "Usage: ./ssvm-evm ethereum/erc20.wasm call_data" << std::endl;
+    /// Arg3: gas
+    std::cout << "Usage: ./ssvm-evm ethereum/erc20.wasm call_data gas"
+              << std::endl;
     return 0;
   }
 
@@ -44,6 +47,7 @@ int main(int Argc, char *Argv[]) {
                        (SSVM::Support::convertCharToHex(CH) << 4));
   }
 
+  EVM.setCostLimit(atoi(Argv[3]));
   EVM.setPath(Erc20Path);
   EVM.execute("main");
 

@@ -85,7 +85,8 @@ public:
   explicit Worker(StoreManager &Store, StackManager &Stack,
                   HostFunctionManager &HostFunc, VM::EnvironmentManager &Env)
       : StoreMgr(Store), StackMgr(Stack), HostFuncMgr(HostFunc), EnvMgr(Env),
-        TheState(State::Inited), ExecInstrCnt(0) {}
+        TheState(State::Inited), ExecInstrCnt(0), CostCnt(0),
+        CostTable(this->EnvMgr.getCostTable()) {}
 
   /// Prepare Wasm bytecode expression for execution.
   ErrCode runExpression(const AST::InstrVec &Instrs);
@@ -285,6 +286,10 @@ private:
   Support::TimeRecord TimeRecorder;
   /// Instruction Counts
   uint64_t ExecInstrCnt;
+  /// Cost Summary
+  int CostCnt;
+  /// Cost Table
+  const std::vector<int> &CostTable;
 };
 
 } // namespace Executor

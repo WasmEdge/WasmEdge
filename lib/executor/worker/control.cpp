@@ -40,11 +40,27 @@ ErrCode Worker::runIfElseOp(AST::IfElseControlInstruction &Instr) {
   if (Cond != 0) {
     const AST::InstrVec &IfStatement = Instr.getIfStatement();
     if (!IfStatement.empty()) {
+#ifndef ONNC_WASM
+      /// If-then case should add the cost.
+      CostCnt += CostTable[5];
+      if (CostCnt > EnvMgr.getCostLimit()) {
+        CostCnt -= CostTable[5];
+        return ErrCode::Revert;
+      }
+#endif
       Status = enterBlock(Arity, nullptr, IfStatement);
     }
   } else {
     const AST::InstrVec &ElseStatement = Instr.getElseStatement();
     if (!ElseStatement.empty()) {
+#ifndef ONNC_WASM
+      /// If-then case should add the cost.
+      CostCnt += CostTable[5];
+      if (CostCnt > EnvMgr.getCostLimit()) {
+        CostCnt -= CostTable[5];
+        return ErrCode::Revert;
+      }
+#endif
       Status = enterBlock(Arity, nullptr, ElseStatement);
     }
   }

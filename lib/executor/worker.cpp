@@ -61,6 +61,7 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
   std::cout << " Instructions execution cost " << ExecTime << " us" << std::endl
             << " Host functions cost " << HostFuncTime << " us" << std::endl
             << " Total executed instructions: " << ExecInstrCnt << std::endl
+            << " Instructions costs: " << CostCnt << std::endl
             << " Instructions per second: "
             << static_cast<uint64_t>((double)ExecInstrCnt * 1000000 / ExecTime)
             << std::endl;
@@ -75,7 +76,9 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
 ErrCode Worker::reset() {
   TheState = State::Inited;
   InstrPdr.reset();
+  StackMgr.reset();
   ExecInstrCnt = 0;
+  CostCnt = 0;
   return ErrCode::Success;
 }
 
@@ -526,20 +529,29 @@ ErrCode Worker::execute() {
         Status = InstrPdr.popInstrs();
     } else {
       ++ExecInstrCnt;
+      OpCode Code = Instr->getOpCode();
+#ifndef ONNC_WASM
+      /// Add cost.
+      /// Note: if-else case should be processed additionally.
+      CostCnt += CostTable[static_cast<uint32_t>(Code)];
+      if (CostCnt > EnvMgr.getCostLimit()) {
+        CostCnt -= CostTable[static_cast<uint32_t>(Code)];
+        return ErrCode::Revert;
+      }
+#endif
       /// Run instructions.
-      Status =
-          dispatchInstruction(Instr->getOpCode(), [this, &Instr](auto &&Arg) {
-            if constexpr (std::is_void_v<
-                              typename std::decay_t<decltype(Arg)>::type>) {
-              /// If the Code not matched, return null pointer.
-              return ErrCode::Unimplemented;
-            } else {
-              /// Make the instruction node according to Code.
-              return execute(
-                  *static_cast<typename std::decay_t<decltype(Arg)>::type *>(
-                      Instr));
-            }
-          });
+      Status = dispatchInstruction(Code, [this, &Instr](auto &&Arg) {
+        if constexpr (std::is_void_v<
+                          typename std::decay_t<decltype(Arg)>::type>) {
+          /// If the Code not matched, return null pointer.
+          return ErrCode::Unimplemented;
+        } else {
+          /// Make the instruction node according to Code.
+          return execute(
+              *static_cast<typename std::decay_t<decltype(Arg)>::type *>(
+                  Instr));
+        }
+      });
     }
   }
 

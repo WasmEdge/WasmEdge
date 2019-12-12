@@ -29,7 +29,7 @@ public:
   void addVMType(const VMType &Type) { Types.insert(Type); }
 
   bool hasVMType(const VMType &Type) const {
-    return (Types.find(Type) != Types.end() ? true : false);
+    return ((Types.find(Type) != Types.end()) ? true : false);
   }
 
   std::string &getStartFuncName() { return StartFuncName; }

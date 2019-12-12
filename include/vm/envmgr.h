@@ -23,7 +23,9 @@ namespace VM {
 class EnvironmentManager {
 public:
   EnvironmentManager() = delete;
-  EnvironmentManager(Configure &InputConfig) : Config(InputConfig) {
+  EnvironmentManager(Configure &InputConfig)
+      : Config(InputConfig), CostTab(), CostLimit(0) {
+    CostTab.setCostTable(Configure::VMType::Wasm);
     if (Config.hasVMType(Configure::VMType::Ewasm)) {
       EnvTable[Configure::VMType::Ewasm] = std::make_unique<EVMEnvironment>();
       CostTab.setCostTable(Configure::VMType::Ewasm);
@@ -37,7 +39,7 @@ public:
 
   Configure &getConfigure() const { return Config; }
 
-  const std::vector<int> &getCostTable() const {
+  const std::vector<int> &getCostTable() {
     if (Config.hasVMType(Configure::VMType::Ewasm)) {
       return CostTab.getCostTable(Configure::VMType::Ewasm);
     } else if (Config.hasVMType(Configure::VMType::Wasi)) {
@@ -54,9 +56,16 @@ public:
     return nullptr;
   }
 
+  /// Setter of cost limit.
+  void setCostLimit(const int &Limit) { CostLimit = Limit; }
+
+  /// Getter of cost limit.
+  int getCostLimit() { return CostLimit; }
+
 private:
   std::unordered_map<Configure::VMType, std::unique_ptr<Environment>> EnvTable;
   CostTable CostTab;
+  int CostLimit;
   Configure &Config;
 };
 

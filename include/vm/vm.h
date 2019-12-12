@@ -42,8 +42,8 @@ class VM {
 public:
   VM() = delete;
   VM(Configure &InputConfig)
-      : Config(InputConfig), EnvMgr(InputConfig), LoaderEngine(EnvMgr),
-        ExecutorEngine(EnvMgr) {}
+      : Config(InputConfig), EnvMgr(InputConfig), LoaderEngine(this->EnvMgr),
+        ExecutorEngine(this->EnvMgr) {}
   ~VM() = default;
 
   /// Set the wasm file path.
@@ -85,6 +85,12 @@ public:
     return EnvMgr.getEnvironment<T>(Type);
   }
 
+  /// Setter of cost limit.
+  void setCostLimit(const int &Limit) { EnvMgr.setCostLimit(Limit); }
+
+  /// Getter of cost limit.
+  int getCostLimit() { return EnvMgr.getCostLimit(); }
+
 private:
   /// Functions for running.
   ErrCode runLoader();
@@ -97,10 +103,10 @@ private:
   std::string WasmPath;
   std::vector<uint8_t> WasmCode;
 
+  Configure &Config;
+  EnvironmentManager EnvMgr;
   Loader::Loader LoaderEngine;
   Executor::Executor ExecutorEngine;
-  EnvironmentManager EnvMgr;
-  Configure &Config;
   std::unique_ptr<AST::Module> Mod;
   std::vector<Executor::Value> Args;
   std::vector<Executor::Value> Rets;

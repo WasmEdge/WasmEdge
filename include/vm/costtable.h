@@ -20,7 +20,7 @@ namespace VM {
 
 class CostTable {
 public:
-  CostTable() { setCostTable(Configure::VMType::Wasm); }
+  CostTable() = default;
   ~CostTable() = default;
 
   /// Add default cost table by types.
@@ -35,6 +35,11 @@ public:
       /// Ewasm cost table
       Costs[Type] = std::vector<int>{
           /// 0x00 - 0x0F
+          /// Note: Due to the instructions are only if and else,
+          /// cost of if-end should be Costs[0x05] (i.e. if),
+          /// cost of if-then should be Costs[if] + Costs[else] (i.e. if +
+          /// else),
+          /// cost of if-else should be Costs[if] + Costs[else] (i.e. if + else)
           1, 1, 1, 1, 1, 90, 0, 0, 0, 0, 0, 0, 90, 90, 120, 90,
           /// 0x10 - 0x1F
           90, 10000, 0, 0, 0, 0, 0, 0, 0, 0, 120, 120, 0, 0, 0, 0,
@@ -93,7 +98,7 @@ public:
   }
 
   /// Get cost table reference by types.
-  const std::vector<int> &getCostTable(const Configure::VMType &Type) const {
+  const std::vector<int> &getCostTable(const Configure::VMType &Type) {
     if (Costs.find(Type) != Costs.end()) {
       return Costs.at(Type);
     }

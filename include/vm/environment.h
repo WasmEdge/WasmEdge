@@ -16,6 +16,10 @@ public:
   virtual void clear() = 0;
 };
 
+/// Return type if is base class is Environment
+template <typename T>
+using TypeEnv = typename std::enable_if_t<std::is_base_of_v<Environment, T>, T>;
+
 class EVMEnvironment : public Environment {
 public:
   EVMEnvironment() = default;

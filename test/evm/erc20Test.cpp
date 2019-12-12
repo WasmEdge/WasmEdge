@@ -41,6 +41,7 @@ TEST(ERC20Test, Run__mint) {
               86, 120, 144, 18, 52, 86,  120, 144, 0,  0,  0,   0,   0,  0,
               0,  0,   0,   0,  0,  0,   0,   0,   0,  0,  0,   0,   0,  0,
               0,  0,   0,   0,  0,  0,   0,   0,   0,  0,  0,   100};
+  EVM.setCostLimit(2147483647);
   EVM.setPath(Erc20Path);
   EXPECT_EQ(EVM.execute("main"), SSVM::VM::ErrCode::Success);
 
@@ -78,6 +79,7 @@ TEST(ERC20Test, Run__transfer) {
   Storage["0"] = "64";
   Storage["f5b24dcea0e9381721a8c72784d30cfe64c11b4591226269f839d095b3e9cf10"] =
       "64";
+  EVM.setCostLimit(2147483647);
   EVM.setPath(Erc20Path);
   EXPECT_EQ(EVM.execute("main"), SSVM::VM::ErrCode::Success);
 
@@ -115,6 +117,7 @@ TEST(ERC20Test, Run__balanceOf) {
       "5a";
   Storage["3cbd4ff31ab6027f35d2d04a81e2957deb3a24998b9cea0327c6e16d0b547a1d"] =
       "a";
+  EVM.setCostLimit(2147483647);
   EVM.setPath(Erc20Path);
   EXPECT_EQ(EVM.execute("main"), SSVM::VM::ErrCode::Success);
 

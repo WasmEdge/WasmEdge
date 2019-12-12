@@ -44,9 +44,9 @@ int main(int Argc, char *Argv[]) {
   SSVM::Result Result;
 
   /// Insert helper host functions.
-  auto FuncONNCTimeStart = std::make_unique<SSVM::Executor::ONNCTimeStart>();
-  auto FuncONNCTimeStop = std::make_unique<SSVM::Executor::ONNCTimeStop>();
-  auto FuncONNCTimeClear = std::make_unique<SSVM::Executor::ONNCTimeClear>();
+  auto FuncONNCTimeStart = std::make_unique<SSVM::Executor::QITCTimer>();
+  auto FuncONNCTimeStop = std::make_unique<SSVM::Executor::QITCTimer>();
+  auto FuncONNCTimeClear = std::make_unique<SSVM::Executor::QITCTimer>();
   VM.setHostFunction(FuncONNCTimeStart, "QITC", "QITC_time_start");
   VM.setHostFunction(FuncONNCTimeStop, "QITC", "QITC_time_stop");
   VM.setHostFunction(FuncONNCTimeClear, "QITC", "QITC_time_clear");

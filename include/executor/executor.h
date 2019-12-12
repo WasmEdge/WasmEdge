@@ -18,6 +18,7 @@
 #include "hostfuncmgr.h"
 #include "stackmgr.h"
 #include "storemgr.h"
+#include "vm/envmgr.h"
 #include "worker.h"
 #include <memory>
 
@@ -27,7 +28,9 @@ namespace Executor {
 /// Executor flow control class.
 class Executor {
 public:
-  Executor() : StackMgr(), Engine(StoreMgr, StackMgr, HostFuncMgr) {}
+  Executor() = delete;
+  Executor(VM::EnvironmentManager &Env)
+      : EnvMgr(Env), Engine(StoreMgr, StackMgr, HostFuncMgr, Env) {}
   ~Executor() = default;
 
   /// Set host functions.
@@ -95,6 +98,7 @@ private:
   StackManager StackMgr;
   StoreManager StoreMgr;
   HostFunctionManager HostFuncMgr;
+  VM::EnvironmentManager &EnvMgr;
 };
 
 } // namespace Executor

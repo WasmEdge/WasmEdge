@@ -71,15 +71,6 @@ template <typename T> bool testAndSetError(T Status, Result &VMResult) {
 
 } // namespace detail
 
-VM::VM(Configure &InputConfig) : Config(InputConfig) {
-  if (Config.hasVMType(Configure::VMType::Ewasm)) {
-    EnvTable[Configure::VMType::Ewasm] = std::make_unique<EVMEnvironment>();
-  }
-  if (Config.hasVMType(Configure::VMType::Wasi)) {
-    EnvTable[Configure::VMType::Wasi] = std::make_unique<WasiEnvironment>();
-  }
-}
-
 ErrCode VM::setPath(const std::string &FilePath) {
   WasmPath = FilePath;
   WasmCode.clear();
@@ -184,8 +175,8 @@ ErrCode VM::prepareVMHost() {
   ErrCode Status = ErrCode::Success;
   if (Config.hasVMType(Configure::VMType::Ewasm)) {
     /// Ewasm case, insert EEI host functions.
-    EVMEnvironment *EVMEnv = dynamic_cast<EVMEnvironment *>(
-        EnvTable[Configure::VMType::Ewasm].get());
+    EVMEnvironment *EVMEnv =
+        getEnvironment<EVMEnvironment>(Configure::VMType::Ewasm);
     auto FuncEEICallDataCopy =
         std::make_unique<Executor::EEICallDataCopy>(*EVMEnv);
     auto FuncEEICallStatic = std::make_unique<Executor::EEICallStatic>(*EVMEnv);
@@ -233,8 +224,8 @@ ErrCode VM::prepareVMHost() {
   }
   if (Config.hasVMType(Configure::VMType::Wasi)) {
     /// Wasi case, insert Wasi host functions.
-    WasiEnvironment *WasiEnv = dynamic_cast<WasiEnvironment *>(
-        EnvTable[Configure::VMType::Wasi].get());
+    WasiEnvironment *WasiEnv =
+        getEnvironment<WasiEnvironment>(Configure::VMType::Wasi);
     auto FuncWasiArgsGet = std::make_unique<Executor::WasiArgsGet>(*WasiEnv);
     auto FuncWasiArgsSizesGet =
         std::make_unique<Executor::WasiArgsSizesGet>(*WasiEnv);

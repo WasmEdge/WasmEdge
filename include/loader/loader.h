@@ -14,6 +14,7 @@
 
 #include "ast/module.h"
 #include "common.h"
+#include "vm/envmgr.h"
 
 #include <string>
 #include <vector>
@@ -24,7 +25,8 @@ namespace Loader {
 /// Loader flow control class.
 class Loader {
 public:
-  Loader() = default;
+  Loader() = delete;
+  Loader(VM::EnvironmentManager &Env) : EnvMgr(Env) {}
   ~Loader() = default;
 
   /// Set the file path to loader.
@@ -58,6 +60,7 @@ private:
 
   State Stat = State::Inited;
   std::unique_ptr<AST::Module> Mod;
+  VM::EnvironmentManager &EnvMgr;
   FileMgrFStream FSMgr;
   FileMgrVector FVMgr;
 };

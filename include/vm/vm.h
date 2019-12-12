@@ -14,6 +14,7 @@
 #include "common.h"
 #include "configure.h"
 #include "environment.h"
+#include "envmgr.h"
 #include "executor/entry/value.h"
 #include "executor/executor.h"
 #include "executor/hostfunc.h"
@@ -34,16 +35,15 @@ namespace {
 template <typename T, typename TR>
 using TypeFunc =
     typename std::enable_if_t<std::is_base_of_v<Executor::HostFunction, T>, TR>;
-/// Return environments.
-template <typename T>
-using TypeEnv = typename std::enable_if_t<std::is_base_of_v<Environment, T>, T>;
 } // namespace
 
 /// VM execution flow class
 class VM {
 public:
   VM() = delete;
-  VM(Configure &InputConfig);
+  VM(Configure &InputConfig)
+      : Config(InputConfig), EnvMgr(InputConfig), LoaderEngine(EnvMgr),
+        ExecutorEngine(EnvMgr) {}
   ~VM() = default;
 
   /// Set the wasm file path.
@@ -82,10 +82,7 @@ public:
 
   /// Getter of Environment.
   template <typename T> TypeEnv<T> *getEnvironment(Configure::VMType Type) {
-    if (EnvTable.find(Type) != EnvTable.end()) {
-      return dynamic_cast<T *>(EnvTable[Type].get());
-    }
-    return nullptr;
+    return EnvMgr.getEnvironment<T>(Type);
   }
 
 private:
@@ -102,8 +99,8 @@ private:
 
   Loader::Loader LoaderEngine;
   Executor::Executor ExecutorEngine;
+  EnvironmentManager EnvMgr;
   Configure &Config;
-  std::unordered_map<Configure::VMType, std::unique_ptr<Environment>> EnvTable;
   std::unique_ptr<AST::Module> Mod;
   std::vector<Executor::Value> Args;
   std::vector<Executor::Value> Rets;

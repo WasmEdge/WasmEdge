@@ -9,6 +9,7 @@
 #include "storemgr.h"
 #include "support/casting.h"
 #include "support/time.h"
+#include "vm/envmgr.h"
 #include "worker/provider.h"
 
 #include <cstdint>
@@ -82,8 +83,8 @@ public:
   /// Worker are not allowed to create without Store and Stack.
   Worker() = delete;
   explicit Worker(StoreManager &Store, StackManager &Stack,
-                  HostFunctionManager &HostFunc)
-      : StoreMgr(Store), StackMgr(Stack), HostFuncMgr(HostFunc),
+                  HostFunctionManager &HostFunc, VM::EnvironmentManager &Env)
+      : StoreMgr(Store), StackMgr(Stack), HostFuncMgr(HostFunc), EnvMgr(Env),
         TheState(State::Inited), ExecInstrCnt(0) {}
 
   /// Prepare Wasm bytecode expression for execution.
@@ -273,6 +274,8 @@ private:
   StackManager &StackMgr;
   /// Reference to Executor's Host function manager
   HostFunctionManager &HostFuncMgr;
+  /// Reference to Environment manager
+  VM::EnvironmentManager &EnvMgr;
   /// Worker State
   State TheState;
   /// Instruction provider

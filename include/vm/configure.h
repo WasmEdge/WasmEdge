@@ -28,7 +28,7 @@ public:
 
   void addVMType(const VMType &Type) { Types.insert(Type); }
 
-  bool checkIsVMType(const VMType &Type) const {
+  bool hasVMType(const VMType &Type) const {
     return (Types.find(Type) != Types.end() ? true : false);
   }
 

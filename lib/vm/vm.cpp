@@ -72,10 +72,10 @@ template <typename T> bool testAndSetError(T Status, Result &VMResult) {
 } // namespace detail
 
 VM::VM(Configure &InputConfig) : Config(InputConfig) {
-  if (Config.checkIsVMType(Configure::VMType::Ewasm)) {
+  if (Config.hasVMType(Configure::VMType::Ewasm)) {
     EnvTable[Configure::VMType::Ewasm] = std::make_unique<EVMEnvironment>();
   }
-  if (Config.checkIsVMType(Configure::VMType::Wasi)) {
+  if (Config.hasVMType(Configure::VMType::Wasi)) {
     EnvTable[Configure::VMType::Wasi] = std::make_unique<WasiEnvironment>();
   }
 }
@@ -182,7 +182,7 @@ ErrCode VM::runExecutor() {
 
 ErrCode VM::prepareVMHost() {
   ErrCode Status = ErrCode::Success;
-  if (Config.checkIsVMType(Configure::VMType::Ewasm)) {
+  if (Config.hasVMType(Configure::VMType::Ewasm)) {
     /// Ewasm case, insert EEI host functions.
     EVMEnvironment *EVMEnv = dynamic_cast<EVMEnvironment *>(
         EnvTable[Configure::VMType::Ewasm].get());
@@ -231,7 +231,7 @@ ErrCode VM::prepareVMHost() {
       Status = setHostFunction(FuncEEIStorageStore, "ethereum", "storageStore");
     }
   }
-  if (Config.checkIsVMType(Configure::VMType::Wasi)) {
+  if (Config.hasVMType(Configure::VMType::Wasi)) {
     /// Wasi case, insert Wasi host functions.
     WasiEnvironment *WasiEnv = dynamic_cast<WasiEnvironment *>(
         EnvTable[Configure::VMType::Wasi].get());
@@ -309,7 +309,7 @@ ErrCode VM::prepareVMHost() {
   }
 
 #ifdef ONNC_WASM
-  if (Config.checkIsVMType(Configure::VMType::ONNC)) {
+  if (Config.hasVMType(Configure::VMType::ONNC)) {
     /// Found ONNC library, insert ONNC host functions.
     auto FuncONNCRuntimeAddFloat =
         std::make_unique<Executor::ONNCRuntimeAddFloat>();

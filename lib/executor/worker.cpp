@@ -38,7 +38,7 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
     return Status;
 
   /// Set start time.
-  TimeRecorder.startRecord("Execution");
+  TimeRecorder.startRecord(TIMER_TAG_EXECUTION);
 
   /// Execute run loop.
   std::cout << " !!! start running..." << std::endl;
@@ -56,8 +56,8 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
   }
 
   /// Print time cost.
-  uint64_t ExecTime = TimeRecorder.stopRecord("Execution");
-  uint64_t HostFuncTime = TimeRecorder.getRecord("HostFunction");
+  uint64_t ExecTime = TimeRecorder.stopRecord(TIMER_TAG_EXECUTION);
+  uint64_t HostFuncTime = TimeRecorder.getRecord(TIMER_TAG_HOSTFUNC);
   std::cout << " Instructions execution cost " << ExecTime << " us" << std::endl
             << " Host functions cost " << HostFuncTime << " us" << std::endl
             << " Total executed instructions: " << ExecInstrCnt << std::endl
@@ -620,37 +620,14 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     }
 
 #ifdef ONNC_WASM
-    if (FuncInst->getModName() == "QITC") {
-      if (FuncInst->getEntityName() == "QITC_time_start") {
-        TimeRecorder.startRecord("QITC_Infer_SSVM");
-        EnvMgr.IsQITCTimer = true;
-      } else if (FuncInst->getEntityName() == "QITC_time_stop") {
-        uint64_t SSVMTime = TimeRecorder.stopRecord("QITC_Infer_SSVM");
-        uint64_t HostTime = TimeRecorder.stopRecord("QITC_Infer_Host");
-        printf(
-            " --- Inference: SSVM cost %llu us, Host functions cost %llu us\n",
-            SSVMTime, HostTime);
-        EnvMgr.IsQITCTimer = false;
-      } else if (FuncInst->getEntityName() == "QITC_time_clear") {
-        TimeRecorder.clearRecord("QITC_Infer_SSVM");
-        TimeRecorder.clearRecord("QITC_Infer_Host");
-        EnvMgr.IsQITCTimer = false;
-      }
-      return ErrCode::Success;
-    }
     if (EnvMgr.IsQITCTimer) {
-      TimeRecorder.stopRecord("QITC_Infer_SSVM");
-      TimeRecorder.startRecord("QITC_Infer_Host");
+      TimeRecorder.stopRecord(TIMER_TAG_QITC_INFER_SSVM);
+      TimeRecorder.startRecord(TIMER_TAG_QITC_INFER_HOST);
     }
 #endif
     /// Set start time.
-    TimeRecorder.stopRecord("Execution");
-    TimeRecorder.startRecord("HostFunction");
-#ifdef DEBUG
-    const std::string RecordName =
-        FuncInst->getModName() + "::" + FuncInst->getEntityName();
-    TimeRecorder.startRecord(RecordName);
-#endif
+    TimeRecorder.stopRecord(TIMER_TAG_EXECUTION);
+    TimeRecorder.startRecord(TIMER_TAG_HOSTFUNC);
 
     /// Run host function.
     if (ErrCode Status =
@@ -659,19 +636,12 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
       return Status;
     }
 
-#ifdef DEBUG
-    /// Print time cost.
-    uint64_t HostFuncTime = TimeRecorder.stopRecord(RecordName);
-    TimeRecorder.clearRecord(RecordName);
-    std::cout << " Host func " << RecordName << " cost " << HostFuncTime
-              << " us" << std::endl;
-#endif
-    TimeRecorder.stopRecord("HostFunction");
-    TimeRecorder.startRecord("Execution");
+    TimeRecorder.stopRecord(TIMER_TAG_HOSTFUNC);
+    TimeRecorder.startRecord(TIMER_TAG_EXECUTION);
 #ifdef ONNC_WASM
     if (EnvMgr.IsQITCTimer) {
-      TimeRecorder.stopRecord("QITC_Infer_Host");
-      TimeRecorder.startRecord("QITC_Infer_SSVM");
+      TimeRecorder.stopRecord(TIMER_TAG_QITC_INFER_HOST);
+      TimeRecorder.startRecord(TIMER_TAG_QITC_INFER_SSVM);
     }
 #endif
 

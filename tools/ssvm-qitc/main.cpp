@@ -43,13 +43,15 @@ int main(int Argc, char *Argv[]) {
   }
   SSVM::Result Result;
 
-  /// Insert helper host functions.
-  auto FuncONNCTimeStart = std::make_unique<SSVM::Executor::QITCTimer>();
-  auto FuncONNCTimeStop = std::make_unique<SSVM::Executor::QITCTimer>();
-  auto FuncONNCTimeClear = std::make_unique<SSVM::Executor::QITCTimer>();
+/// Insert helper host functions.
+#ifdef ONNC_WASM
+  auto FuncONNCTimeStart = std::make_unique<SSVM::Executor::QITCTimerStart>();
+  auto FuncONNCTimeStop = std::make_unique<SSVM::Executor::QITCTimerStop>();
+  auto FuncONNCTimeClear = std::make_unique<SSVM::Executor::QITCTimerClear>();
   VM.setHostFunction(FuncONNCTimeStart, "QITC", "QITC_time_start");
   VM.setHostFunction(FuncONNCTimeStop, "QITC", "QITC_time_stop");
   VM.setHostFunction(FuncONNCTimeClear, "QITC", "QITC_time_clear");
+#endif
 
   VM.setPath(InputPath);
   VM.execute("_start");

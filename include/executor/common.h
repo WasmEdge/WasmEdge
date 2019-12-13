@@ -11,6 +11,13 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#define TIMER_TAG_EXECUTION 1U
+#define TIMER_TAG_HOSTFUNC 2U
+#ifdef ONNC_WASM
+#define TIMER_TAG_QITC_INFER_SSVM 256U
+#define TIMER_TAG_QITC_INFER_HOST 257U
+#endif
+
 namespace SSVM {
 namespace Executor {
 

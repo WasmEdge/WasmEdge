@@ -10,39 +10,39 @@ namespace Support {
 
 class TimeRecord {
 public:
-  void startRecord(const std::string &Name) {
+  void startRecord(const uint32_t &ID) {
     struct timeval TStart;
     gettimeofday(&TStart, NULL);
-    StartTime.insert(std::make_pair(Name, (uint64_t)1000000 * TStart.tv_sec +
-                                              TStart.tv_usec));
+    StartTime.insert(
+        std::make_pair(ID, (uint64_t)1000000 * TStart.tv_sec + TStart.tv_usec));
   }
 
-  uint64_t stopRecord(const std::string &Name) {
-    std::unordered_map<std::string, uint64_t>::iterator It;
+  uint64_t stopRecord(const uint32_t &ID) {
+    std::unordered_map<uint32_t, uint64_t>::iterator It;
     uint64_t NDiff = 0;
-    if ((It = StartTime.find(Name)) != StartTime.end()) {
+    if ((It = StartTime.find(ID)) != StartTime.end()) {
       struct timeval TEnd;
       gettimeofday(&TEnd, NULL);
       NDiff = (uint64_t)1000000 * TEnd.tv_sec + TEnd.tv_usec - It->second;
-      StartTime.erase(Name);
+      StartTime.erase(ID);
     }
 
-    if (RecTime.find(Name) != RecTime.end()) {
-      RecTime[Name] += NDiff;
+    if (RecTime.find(ID) != RecTime.end()) {
+      RecTime[ID] += NDiff;
     } else {
-      RecTime.insert(std::make_pair(Name, NDiff));
+      RecTime.insert(std::make_pair(ID, NDiff));
     }
-    return RecTime[Name];
+    return RecTime[ID];
   }
 
-  void clearRecord(const std::string &Name) {
-    StartTime.erase(Name);
-    RecTime.erase(Name);
+  void clearRecord(const uint32_t &ID) {
+    StartTime.erase(ID);
+    RecTime.erase(ID);
   }
 
-  uint64_t getRecord(const std::string &Name) {
-    if (RecTime.find(Name) != RecTime.end()) {
-      return RecTime[Name];
+  uint64_t getRecord(const uint32_t &ID) {
+    if (RecTime.find(ID) != RecTime.end()) {
+      return RecTime[ID];
     }
     return 0;
   }
@@ -53,8 +53,8 @@ public:
   }
 
 private:
-  std::unordered_map<std::string, uint64_t> StartTime;
-  std::unordered_map<std::string, uint64_t> RecTime;
+  std::unordered_map<uint32_t, uint64_t> StartTime;
+  std::unordered_map<uint32_t, uint64_t> RecTime;
 };
 
 } // namespace Support

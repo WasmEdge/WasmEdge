@@ -28,12 +28,12 @@ public:
     switch (Type) {
     case Configure::VMType::Wasm:
       /// Wasm cost table
-      Costs[Type] = std::vector<int>(256, 0);
+      Costs[Type] = std::vector<uint64_t>(256, 0);
       return true;
       break;
     case Configure::VMType::Ewasm:
       /// Ewasm cost table
-      Costs[Type] = std::vector<int>{
+      Costs[Type] = std::vector<uint64_t>{
           /// 0x00 - 0x0F
           /// Note: Due to the instructions are only if and else,
           /// cost of if-end should be Costs[0x05] (i.e. if),
@@ -78,7 +78,7 @@ public:
       break;
     case Configure::VMType::Wasi:
       /// Wasi cost table
-      Costs[Type] = std::vector<int>(256, 0);
+      Costs[Type] = std::vector<uint64_t>(256, 0);
       return true;
       break;
     default:
@@ -89,7 +89,7 @@ public:
 
   /// Set customized cost table.
   bool setCostTable(const Configure::VMType &Type,
-                    const std::vector<int> &Table) {
+                    const std::vector<uint64_t> &Table) {
     if (Table.size() < 0xFF) {
       return false;
     }
@@ -98,7 +98,7 @@ public:
   }
 
   /// Get cost table reference by types.
-  const std::vector<int> &getCostTable(const Configure::VMType &Type) {
+  const std::vector<uint64_t> &getCostTable(const Configure::VMType &Type) {
     if (Costs.find(Type) != Costs.end()) {
       return Costs.at(Type);
     }
@@ -106,7 +106,7 @@ public:
   }
 
 private:
-  std::unordered_map<Configure::VMType, std::vector<int>> Costs;
+  std::unordered_map<Configure::VMType, std::vector<uint64_t>> Costs;
 };
 
 } // namespace VM

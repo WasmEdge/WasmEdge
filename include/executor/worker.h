@@ -287,9 +287,9 @@ private:
   /// Instruction Counts
   uint64_t ExecInstrCnt;
   /// Cost Summary
-  int CostCnt;
+  uint64_t CostCnt;
   /// Cost Table
-  const std::vector<int> &CostTable;
+  const std::vector<uint64_t> &CostTable;
 };
 
 } // namespace Executor

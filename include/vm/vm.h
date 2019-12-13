@@ -86,10 +86,10 @@ public:
   }
 
   /// Setter of cost limit.
-  void setCostLimit(const int &Limit) { EnvMgr.setCostLimit(Limit); }
+  void setCostLimit(const uint64_t &Limit) { EnvMgr.setCostLimit(Limit); }
 
   /// Getter of cost limit.
-  int getCostLimit() { return EnvMgr.getCostLimit(); }
+  uint64_t getCostLimit() { return EnvMgr.getCostLimit(); }
 
 private:
   /// Functions for running.

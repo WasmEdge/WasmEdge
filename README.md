@@ -4,6 +4,14 @@
 
 # Getting Started
 
+## Get Source Code
+
+```bash
+$ git clone git@github.com:second-state/SSVM.git
+$ cd SSVM
+$ git checkout 0.1.0
+```
+
 ## Prepare environment
 
 ### Use our docker image
@@ -33,8 +41,12 @@ After the build is finished, you can find there are two ssvm binaries:
 2. `ssvm-evm` is for Ewasm runtime.
 
 ```bash
-$ mkdir -p build && cd build
-$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make
+# After pulling our ssvm-dev docker image
+$ docker run -it --rm \
+    -v <path/to/your/ssvm/source/folder>:/root/ssvm
+(docker)$ cd /root/ssvm
+(docker)$ mkdir -p build && cd build
+(docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make
 ```
 
 ## Run built-in tests

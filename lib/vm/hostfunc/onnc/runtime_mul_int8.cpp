@@ -23,7 +23,8 @@ ONNCRuntimeMulInt8::ONNCRuntimeMulInt8() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode ONNCRuntimeMulInt8::run(std::vector<Value> &Args,
+ErrCode ONNCRuntimeMulInt8::run(VM::EnvironmentManager &EnvMgr,
+                                std::vector<Value> &Args,
                                 std::vector<Value> &Res, StoreManager &Store,
                                 Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,

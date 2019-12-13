@@ -18,7 +18,8 @@ EEICallStatic::EEICallStatic(VM::EVMEnvironment &Env) : EEI(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode EEICallStatic::run(std::vector<Value> &Args, std::vector<Value> &Res,
+ErrCode EEICallStatic::run(VM::EnvironmentManager &EnvMgr,
+                           std::vector<Value> &Args, std::vector<Value> &Res,
                            StoreManager &Store,
                            Instance::ModuleInstance *ModInst) {
   /// Arg: gas(u32), addressOffset(u32), dataOffset(u32), dataLength(u32)

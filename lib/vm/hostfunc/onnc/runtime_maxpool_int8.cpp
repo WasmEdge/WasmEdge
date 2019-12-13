@@ -31,7 +31,8 @@ ONNCRuntimeMaxpoolInt8::ONNCRuntimeMaxpoolInt8() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode ONNCRuntimeMaxpoolInt8::run(std::vector<Value> &Args,
+ErrCode ONNCRuntimeMaxpoolInt8::run(VM::EnvironmentManager &EnvMgr,
+                                    std::vector<Value> &Args,
                                     std::vector<Value> &Res,
                                     StoreManager &Store,
                                     Instance::ModuleInstance *ModInst) {

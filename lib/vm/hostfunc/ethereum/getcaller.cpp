@@ -11,7 +11,8 @@ EEIGetCaller::EEIGetCaller(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode EEIGetCaller::run(std::vector<Value> &Args, std::vector<Value> &Res,
+ErrCode EEIGetCaller::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+                      std::vector<Value> &Res,
                           StoreManager &Store,
                           Instance::ModuleInstance *ModInst) {
   /// Arg: resultOffset(u32)

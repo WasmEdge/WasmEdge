@@ -22,7 +22,8 @@ ONNCRuntimeGlobalaveragepoolFloat::ONNCRuntimeGlobalaveragepoolFloat() {
 }
 
 ErrCode ONNCRuntimeGlobalaveragepoolFloat::run(
-    std::vector<Value> &Args, std::vector<Value> &Res, StoreManager &Store,
+    VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+    std::vector<Value> &Res, StoreManager &Store,
     Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,
   ///      const float *input_X,

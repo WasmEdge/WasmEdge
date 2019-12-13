@@ -21,7 +21,8 @@ ONNCRuntimeTransposeFloat::ONNCRuntimeTransposeFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode ONNCRuntimeTransposeFloat::run(std::vector<Value> &Args,
+ErrCode ONNCRuntimeTransposeFloat::run(VM::EnvironmentManager &EnvMgr,
+                                       std::vector<Value> &Args,
                                        std::vector<Value> &Res,
                                        StoreManager &Store,
                                        Instance::ModuleInstance *ModInst) {

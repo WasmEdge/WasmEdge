@@ -12,8 +12,9 @@ public:
   EEIFinish() = delete;
   virtual ~EEIFinish() = default;
 
-  virtual ErrCode run(std::vector<Value> &Args, std::vector<Value> &Res,
-                      StoreManager &Store, Instance::ModuleInstance *ModInst);
+  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+                      std::vector<Value> &Res, StoreManager &Store,
+                      Instance::ModuleInstance *ModInst);
 };
 
 } // namespace Executor

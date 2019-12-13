@@ -13,7 +13,7 @@ WasiFdFdstatSetFlags::WasiFdFdstatSetFlags(VM::WasiEnvironment &Env)
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiFdFdstatSetFlags::run(std::vector<Value> &Args,
+ErrCode WasiFdFdstatSetFlags::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
                                   std::vector<Value> &Res, StoreManager &Store,
                                   Instance::ModuleInstance *ModInst) {
   /// Arg: fd, iovsPtr, iovs_len, nreadPtr

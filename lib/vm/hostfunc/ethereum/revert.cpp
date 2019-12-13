@@ -11,7 +11,8 @@ EEIRevert::EEIRevert(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode EEIRevert::run(std::vector<Value> &Args, std::vector<Value> &Res,
+ErrCode EEIRevert::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+                      std::vector<Value> &Res,
                        StoreManager &Store, Instance::ModuleInstance *ModInst) {
   /// Arg: dataOffset(u32), dataLength(u32)
   if (Args.size() != 2) {

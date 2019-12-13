@@ -14,6 +14,7 @@
 #include "configure.h"
 #include "costtable.h"
 #include "environment.h"
+#include "support/time.h"
 
 #include <unordered_map>
 
@@ -62,7 +63,15 @@ public:
   /// Getter of cost limit.
   uint64_t getCostLimit() { return CostLimit; }
 
+  /// Getter of time recorder.
+  Support::TimeRecord &getTimeRecorder() { return TimeRecorder; }
+
+#ifdef ONNC_WASM
+  bool IsQITCTimer = false;
+#endif
+
 private:
+  Support::TimeRecord TimeRecorder;
   std::unordered_map<Configure::VMType, std::unique_ptr<Environment>> EnvTable;
   CostTable CostTab;
   uint64_t CostLimit;

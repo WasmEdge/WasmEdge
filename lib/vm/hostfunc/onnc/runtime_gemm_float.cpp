@@ -29,7 +29,8 @@ ONNCRuntimeGemmFloat::ONNCRuntimeGemmFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode ONNCRuntimeGemmFloat::run(std::vector<Value> &Args,
+ErrCode ONNCRuntimeGemmFloat::run(VM::EnvironmentManager &EnvMgr,
+                                  std::vector<Value> &Args,
                                   std::vector<Value> &Res, StoreManager &Store,
                                   Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,

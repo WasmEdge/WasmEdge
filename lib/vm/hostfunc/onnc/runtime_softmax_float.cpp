@@ -21,7 +21,8 @@ ONNCRuntimeSoftmaxFloat::ONNCRuntimeSoftmaxFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode ONNCRuntimeSoftmaxFloat::run(std::vector<Value> &Args,
+ErrCode ONNCRuntimeSoftmaxFloat::run(VM::EnvironmentManager &EnvMgr,
+                                     std::vector<Value> &Args,
                                      std::vector<Value> &Res,
                                      StoreManager &Store,
                                      Instance::ModuleInstance *ModInst) {

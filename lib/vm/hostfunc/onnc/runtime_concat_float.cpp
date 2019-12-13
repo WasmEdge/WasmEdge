@@ -22,7 +22,8 @@ ONNCRuntimeConcatFloat::ONNCRuntimeConcatFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode ONNCRuntimeConcatFloat::run(std::vector<Value> &Args,
+ErrCode ONNCRuntimeConcatFloat::run(VM::EnvironmentManager &EnvMgr,
+                                    std::vector<Value> &Args,
                                     std::vector<Value> &Res,
                                     StoreManager &Store,
                                     Instance::ModuleInstance *ModInst) {

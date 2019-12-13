@@ -20,7 +20,8 @@ ONNCRuntimeUnsqueezeFloat::ONNCRuntimeUnsqueezeFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode ONNCRuntimeUnsqueezeFloat::run(std::vector<Value> &Args,
+ErrCode ONNCRuntimeUnsqueezeFloat::run(VM::EnvironmentManager &EnvMgr,
+                                       std::vector<Value> &Args,
                                        std::vector<Value> &Res,
                                        StoreManager &Store,
                                        Instance::ModuleInstance *ModInst) {

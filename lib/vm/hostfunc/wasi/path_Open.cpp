@@ -21,7 +21,8 @@ WasiPathOpen::WasiPathOpen(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiPathOpen::run(std::vector<Value> &Args, std::vector<Value> &Res,
+ErrCode WasiPathOpen::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+                      std::vector<Value> &Res,
                           StoreManager &Store,
                           Instance::ModuleInstance *ModInst) {
   /// Arg: DirFd(u32), DirFlags(u32), PathPtr(u32), PathLen(u32), OFlags(u32),

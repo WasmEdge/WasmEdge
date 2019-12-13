@@ -11,7 +11,8 @@ EEIFinish::EEIFinish(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode EEIFinish::run(std::vector<Value> &Args, std::vector<Value> &Res,
+ErrCode EEIFinish::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+                      std::vector<Value> &Res,
                        StoreManager &Store, Instance::ModuleInstance *ModInst) {
   /// Arg: dataOffset(u32), dataLength(u32)
   if (Args.size() != 2) {

@@ -23,7 +23,8 @@ ONNCRuntimeReshapeFloat::ONNCRuntimeReshapeFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode ONNCRuntimeReshapeFloat::run(std::vector<Value> &Args,
+ErrCode ONNCRuntimeReshapeFloat::run(VM::EnvironmentManager &EnvMgr,
+                                     std::vector<Value> &Args,
                                      std::vector<Value> &Res,
                                      StoreManager &Store,
                                      Instance::ModuleInstance *ModInst) {

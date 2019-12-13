@@ -19,7 +19,7 @@ WasiFdPrestatDirName::WasiFdPrestatDirName(VM::WasiEnvironment &Env)
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiFdPrestatDirName::run(std::vector<Value> &Args,
+ErrCode WasiFdPrestatDirName::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
                                   std::vector<Value> &Res, StoreManager &Store,
                                   Instance::ModuleInstance *ModInst) {
   /// Arg: Fd(u32), PathBufPtr(u32), PathLenPtr(u32)

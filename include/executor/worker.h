@@ -86,6 +86,7 @@ public:
                   HostFunctionManager &HostFunc, VM::EnvironmentManager &Env)
       : StoreMgr(Store), StackMgr(Stack), HostFuncMgr(HostFunc), EnvMgr(Env),
         TheState(State::Inited), ExecInstrCnt(0), CostCnt(0),
+        TimeRecorder(this->EnvMgr.getTimeRecorder()),
         CostTable(this->EnvMgr.getCostTable()) {}
 
   /// Prepare Wasm bytecode expression for execution.
@@ -283,7 +284,7 @@ private:
   InstrProvider InstrPdr;
 
   /// Time recorder
-  Support::TimeRecord TimeRecorder;
+  Support::TimeRecord &TimeRecorder;
   /// Instruction Counts
   uint64_t ExecInstrCnt;
   /// Cost Summary

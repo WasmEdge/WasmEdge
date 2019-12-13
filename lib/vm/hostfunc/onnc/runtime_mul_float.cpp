@@ -23,7 +23,8 @@ ONNCRuntimeMulFloat::ONNCRuntimeMulFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode ONNCRuntimeMulFloat::run(std::vector<Value> &Args,
+ErrCode ONNCRuntimeMulFloat::run(VM::EnvironmentManager &EnvMgr,
+                                 std::vector<Value> &Args,
                                  std::vector<Value> &Res, StoreManager &Store,
                                  Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,

@@ -16,7 +16,8 @@ public:
   QITCTimer() = default;
   virtual ~QITCTimer() = default;
 
-  virtual ErrCode run(std::vector<Value> &Args, std::vector<Value> &Res,
+  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+                      std::vector<Value> &Res,
                       StoreManager &Store, Instance::ModuleInstance *ModInst) {
     return ErrCode::Success;
   }

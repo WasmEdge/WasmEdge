@@ -24,7 +24,8 @@ ONNCRuntimeLrnFloat::ONNCRuntimeLrnFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode ONNCRuntimeLrnFloat::run(std::vector<Value> &Args,
+ErrCode ONNCRuntimeLrnFloat::run(VM::EnvironmentManager &EnvMgr,
+                                 std::vector<Value> &Args,
                                  std::vector<Value> &Res, StoreManager &Store,
                                  Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,

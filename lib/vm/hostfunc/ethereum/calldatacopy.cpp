@@ -12,7 +12,8 @@ EEICallDataCopy::EEICallDataCopy(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode EEICallDataCopy::run(std::vector<Value> &Args, std::vector<Value> &Res,
+ErrCode EEICallDataCopy::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+                      std::vector<Value> &Res,
                              StoreManager &Store,
                              Instance::ModuleInstance *ModInst) {
   /// Arg: resultOffset(u32), dataOffset(u32), length(u32)

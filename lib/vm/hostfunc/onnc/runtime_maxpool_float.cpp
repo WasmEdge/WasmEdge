@@ -31,7 +31,8 @@ ONNCRuntimeMaxpoolFloat::ONNCRuntimeMaxpoolFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode ONNCRuntimeMaxpoolFloat::run(std::vector<Value> &Args,
+ErrCode ONNCRuntimeMaxpoolFloat::run(VM::EnvironmentManager &EnvMgr,
+                                     std::vector<Value> &Args,
                                      std::vector<Value> &Res,
                                      StoreManager &Store,
                                      Instance::ModuleInstance *ModInst) {

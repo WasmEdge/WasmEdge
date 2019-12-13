@@ -29,7 +29,8 @@ ONNCRuntimeAveragepoolFloat::ONNCRuntimeAveragepoolFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode ONNCRuntimeAveragepoolFloat::run(std::vector<Value> &Args,
+ErrCode ONNCRuntimeAveragepoolFloat::run(VM::EnvironmentManager &EnvMgr,
+                                         std::vector<Value> &Args,
                                          std::vector<Value> &Res,
                                          StoreManager &Store,
                                          Instance::ModuleInstance *ModInst) {

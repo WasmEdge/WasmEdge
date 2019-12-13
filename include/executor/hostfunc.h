@@ -15,6 +15,7 @@
 #include "entry/value.h"
 #include "instance/module.h"
 #include "storemgr.h"
+#include "vm/envmgr.h"
 
 #include <memory>
 #include <vector>
@@ -48,8 +49,8 @@ public:
   /// Getter of function type.
   Instance::ModuleInstance::FType *getFuncType() { return &FuncType; }
 
-  virtual ErrCode run(std::vector<Value> &Args, std::vector<Value> &Res,
-                      StoreManager &Store,
+  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+                      std::vector<Value> &Res, StoreManager &Store,
                       Instance::ModuleInstance *ModInst) = 0;
 
 protected:

@@ -47,7 +47,8 @@ ONNCRuntimeBatchnormalizationInt8::ONNCRuntimeBatchnormalizationInt8() {
 }
 
 ErrCode ONNCRuntimeBatchnormalizationInt8::run(
-    std::vector<Value> &Args, std::vector<Value> &Res, StoreManager &Store,
+    VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+    std::vector<Value> &Res, StoreManager &Store,
     Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,
   ///      const int8_t *input_X,

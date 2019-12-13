@@ -10,7 +10,7 @@ EEIGetCallDataSize::EEIGetCallDataSize(VM::EVMEnvironment &Env) : EEI(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode EEIGetCallDataSize::run(std::vector<Value> &Args,
+ErrCode EEIGetCallDataSize::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
                                 std::vector<Value> &Res, StoreManager &Store,
                                 Instance::ModuleInstance *ModInst) {
   /// Arg: void

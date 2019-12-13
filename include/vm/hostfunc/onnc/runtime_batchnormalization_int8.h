@@ -11,8 +11,9 @@ public:
   ONNCRuntimeBatchnormalizationInt8();
   virtual ~ONNCRuntimeBatchnormalizationInt8() = default;
 
-  virtual ErrCode run(std::vector<Value> &Args, std::vector<Value> &Res,
-                      StoreManager &Store, Instance::ModuleInstance *ModInst);
+  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+                      std::vector<Value> &Res, StoreManager &Store,
+                      Instance::ModuleInstance *ModInst);
 };
 
 } // namespace Executor

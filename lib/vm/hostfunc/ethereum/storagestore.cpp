@@ -12,7 +12,8 @@ EEIStorageStore::EEIStorageStore(VM::EVMEnvironment &Env) : EEI(Env) {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode EEIStorageStore::run(std::vector<Value> &Args, std::vector<Value> &Res,
+ErrCode EEIStorageStore::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+                      std::vector<Value> &Res,
                              StoreManager &Store,
                              Instance::ModuleInstance *ModInst) {
   /// Arg: pathOffset(u32), valueOffset(u32)

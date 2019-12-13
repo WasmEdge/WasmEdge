@@ -620,24 +620,25 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     }
 
 #ifdef ONNC_WASM
-    static bool IsQITCTimer = false;
     if (FuncInst->getModName() == "QITC") {
       if (FuncInst->getEntityName() == "QITC_time_start") {
         TimeRecorder.startRecord("QITC_Infer_SSVM");
-        IsQITCTimer = true;
+        EnvMgr.IsQITCTimer = true;
       } else if (FuncInst->getEntityName() == "QITC_time_stop") {
         uint64_t SSVMTime = TimeRecorder.stopRecord("QITC_Infer_SSVM");
         uint64_t HostTime = TimeRecorder.stopRecord("QITC_Infer_Host");
         printf(
             " --- Inference: SSVM cost %llu us, Host functions cost %llu us\n",
             SSVMTime, HostTime);
+        EnvMgr.IsQITCTimer = false;
       } else if (FuncInst->getEntityName() == "QITC_time_clear") {
         TimeRecorder.clearRecord("QITC_Infer_SSVM");
         TimeRecorder.clearRecord("QITC_Infer_Host");
+        EnvMgr.IsQITCTimer = false;
       }
       return ErrCode::Success;
     }
-    if (IsQITCTimer) {
+    if (EnvMgr.IsQITCTimer) {
       TimeRecorder.stopRecord("QITC_Infer_SSVM");
       TimeRecorder.startRecord("QITC_Infer_Host");
     }
@@ -652,7 +653,8 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
 #endif
 
     /// Run host function.
-    if (ErrCode Status = HostFunc->run(Vals, Returns, StoreMgr, ModuleInst);
+    if (ErrCode Status =
+            HostFunc->run(EnvMgr, Vals, Returns, StoreMgr, ModuleInst);
         Status != ErrCode::Success) {
       return Status;
     }
@@ -667,7 +669,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     TimeRecorder.stopRecord("HostFunction");
     TimeRecorder.startRecord("Execution");
 #ifdef ONNC_WASM
-    if (IsQITCTimer) {
+    if (EnvMgr.IsQITCTimer) {
       TimeRecorder.stopRecord("QITC_Infer_Host");
       TimeRecorder.startRecord("QITC_Infer_SSVM");
     }

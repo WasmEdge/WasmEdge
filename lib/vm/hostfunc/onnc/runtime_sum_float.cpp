@@ -21,7 +21,8 @@ ONNCRuntimeSumFloat::ONNCRuntimeSumFloat() {
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode ONNCRuntimeSumFloat::run(std::vector<Value> &Args,
+ErrCode ONNCRuntimeSumFloat::run(VM::EnvironmentManager &EnvMgr,
+                                 std::vector<Value> &Args,
                                  std::vector<Value> &Res, StoreManager &Store,
                                  Instance::ModuleInstance *ModInst) {
   /// Arg: void* onnc_runtime_context,

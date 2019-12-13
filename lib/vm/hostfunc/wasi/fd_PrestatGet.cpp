@@ -18,7 +18,8 @@ WasiFdPrestatGet::WasiFdPrestatGet(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiFdPrestatGet::run(std::vector<Value> &Args, std::vector<Value> &Res,
+ErrCode WasiFdPrestatGet::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+                      std::vector<Value> &Res,
                               StoreManager &Store,
                               Instance::ModuleInstance *ModInst) {
   /// Arg: Fd(u32), PreStatPtr(u32)

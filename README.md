@@ -43,7 +43,8 @@ After the build is finished, you can find there are two ssvm binaries:
 ```bash
 # After pulling our ssvm-dev docker image
 $ docker run -it --rm \
-    -v <path/to/your/ssvm/source/folder>:/root/ssvm
+    -v <path/to/your/ssvm/source/folder>:/root/ssvm hydai/ssvm-dev:0.1.0
+
 (docker)$ cd /root/ssvm
 (docker)$ mkdir -p build && cd build
 (docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make

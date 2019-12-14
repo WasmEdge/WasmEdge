@@ -85,7 +85,7 @@ public:
   explicit Worker(StoreManager &Store, StackManager &Stack,
                   HostFunctionManager &HostFunc, VM::EnvironmentManager &Env)
       : StoreMgr(Store), StackMgr(Stack), HostFuncMgr(HostFunc), EnvMgr(Env),
-        TheState(State::Inited), ExecInstrCnt(0), CostCnt(0),
+        TheState(State::Inited), ExecInstrCnt(0),
         TimeRecorder(this->EnvMgr.getTimeRecorder()),
         CostTable(this->EnvMgr.getCostTable()) {}
 
@@ -287,8 +287,6 @@ private:
   Support::TimeRecord &TimeRecorder;
   /// Instruction Counts
   uint64_t ExecInstrCnt;
-  /// Cost Summary
-  uint64_t CostCnt;
   /// Cost Table
   const std::vector<uint64_t> &CostTable;
 };

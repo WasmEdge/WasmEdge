@@ -58,10 +58,13 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
   /// Print time cost.
   uint64_t ExecTime = TimeRecorder.stopRecord(TIMER_TAG_EXECUTION);
   uint64_t HostFuncTime = TimeRecorder.getRecord(TIMER_TAG_HOSTFUNC);
-  std::cout << " Instructions execution cost " << ExecTime << " us" << std::endl
-            << " Host functions cost " << HostFuncTime << " us" << std::endl
+  std::cout << " Instructions execution time: " << ExecTime << " us"
+            << std::endl
+            << " Host functions time: " << HostFuncTime << " us" << std::endl
             << " Total executed instructions: " << ExecInstrCnt << std::endl
-            << " Instructions costs: " << CostCnt << std::endl
+#ifndef ONNC_WASM
+            << " Gas costs: " << EnvMgr.getCostSum() << std::endl
+#endif
             << " Instructions per second: "
             << static_cast<uint64_t>((double)ExecInstrCnt * 1000000 / ExecTime)
             << std::endl;
@@ -78,7 +81,6 @@ ErrCode Worker::reset() {
   InstrPdr.reset();
   StackMgr.reset();
   ExecInstrCnt = 0;
-  CostCnt = 0;
   return ErrCode::Success;
 }
 
@@ -533,9 +535,7 @@ ErrCode Worker::execute() {
 #ifndef ONNC_WASM
       /// Add cost.
       /// Note: if-else case should be processed additionally.
-      CostCnt += CostTable[static_cast<uint32_t>(Code)];
-      if (CostCnt > EnvMgr.getCostLimit()) {
-        CostCnt -= CostTable[static_cast<uint32_t>(Code)];
+      if (!EnvMgr.addCost(CostTable[static_cast<uint32_t>(Code)])) {
         return ErrCode::Revert;
       }
 #endif

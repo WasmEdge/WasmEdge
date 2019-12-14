@@ -25,15 +25,18 @@ class EnvironmentManager {
 public:
   EnvironmentManager() = delete;
   EnvironmentManager(Configure &InputConfig)
-      : Config(InputConfig), CostTab(), CostLimit(UINT64_MAX) {
+      : Config(InputConfig), CostTab(), CostLimit(UINT64_MAX), CostSum(0) {
+    /// Default cost table: wasm
     CostTab.setCostTable(Configure::VMType::Wasm);
-    if (Config.hasVMType(Configure::VMType::Ewasm)) {
-      EnvTable[Configure::VMType::Ewasm] = std::make_unique<EVMEnvironment>();
-      CostTab.setCostTable(Configure::VMType::Ewasm);
-    }
     if (Config.hasVMType(Configure::VMType::Wasi)) {
       EnvTable[Configure::VMType::Wasi] = std::make_unique<WasiEnvironment>();
+      /// 2nd priority of cost table: Wasi
       CostTab.setCostTable(Configure::VMType::Wasi);
+    }
+    if (Config.hasVMType(Configure::VMType::Ewasm)) {
+      EnvTable[Configure::VMType::Ewasm] = std::make_unique<EVMEnvironment>();
+      /// 1st priority of cost table: EWasm
+      CostTab.setCostTable(Configure::VMType::Ewasm);
     }
   }
   ~EnvironmentManager() = default;
@@ -63,6 +66,19 @@ public:
   /// Getter of cost limit.
   uint64_t getCostLimit() { return CostLimit; }
 
+  /// Add cost and return false if exceeded limit.
+  bool addCost(const uint64_t &Cost) {
+    CostSum += Cost;
+    if (CostSum > CostLimit) {
+      CostSum -= Cost;
+      return false;
+    }
+    return true;
+  }
+
+  /// Getter of cost sum.
+  uint64_t getCostSum() const { return CostSum; }
+
   /// Getter of time recorder.
   Support::TimeRecord &getTimeRecorder() { return TimeRecorder; }
 
@@ -75,6 +91,7 @@ private:
   std::unordered_map<Configure::VMType, std::unique_ptr<Environment>> EnvTable;
   CostTable CostTab;
   uint64_t CostLimit;
+  uint64_t CostSum;
   Configure &Config;
 };
 

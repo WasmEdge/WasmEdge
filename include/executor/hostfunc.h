@@ -25,7 +25,7 @@ namespace Executor {
 
 class HostFunction {
 public:
-  HostFunction() = default;
+  HostFunction(uint64_t FuncCost = 0) : Cost(FuncCost) {}
   virtual ~HostFunction() = default;
 
   /// Setter of function parameter.
@@ -47,7 +47,10 @@ public:
   }
 
   /// Getter of function type.
-  Instance::ModuleInstance::FType *getFuncType() { return &FuncType; }
+  const Instance::ModuleInstance::FType *getFuncType() { return &FuncType; }
+
+  /// Getter of host function cost.
+  uint64_t getCost() { return Cost; }
 
   virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
                       std::vector<Value> &Res, StoreManager &Store,
@@ -55,6 +58,7 @@ public:
 
 protected:
   Instance::ModuleInstance::FType FuncType;
+  uint64_t Cost = 0;
 };
 
 } // namespace Executor

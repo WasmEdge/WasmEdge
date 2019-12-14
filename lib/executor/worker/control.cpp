@@ -42,9 +42,7 @@ ErrCode Worker::runIfElseOp(AST::IfElseControlInstruction &Instr) {
     if (!IfStatement.empty()) {
 #ifndef ONNC_WASM
       /// If-then case should add the cost.
-      CostCnt += CostTable[5];
-      if (CostCnt > EnvMgr.getCostLimit()) {
-        CostCnt -= CostTable[5];
+      if (!EnvMgr.addCost(CostTable[5])) {
         return ErrCode::Revert;
       }
 #endif
@@ -55,9 +53,7 @@ ErrCode Worker::runIfElseOp(AST::IfElseControlInstruction &Instr) {
     if (!ElseStatement.empty()) {
 #ifndef ONNC_WASM
       /// If-then case should add the cost.
-      CostCnt += CostTable[5];
-      if (CostCnt > EnvMgr.getCostLimit()) {
-        CostCnt -= CostTable[5];
+      if (!EnvMgr.addCost(CostTable[5])) {
         return ErrCode::Revert;
       }
 #endif

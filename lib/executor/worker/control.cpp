@@ -144,7 +144,7 @@ ErrCode Worker::runCallIndirectOp(AST::CallControlInstruction &Instr) {
   if ((Status = StoreMgr.getFunction(FuncAddr, FuncInst)) != ErrCode::Success) {
     return Status;
   }
-  Instance::ModuleInstance::FType *DstFuncType = FuncInst->getFuncType();
+  const Instance::ModuleInstance::FType *DstFuncType = FuncInst->getFuncType();
   if (FuncType->Params.size() != DstFuncType->Params.size() ||
       FuncType->Returns.size() != DstFuncType->Returns.size()) {
     return ErrCode::TypeNotMatch;

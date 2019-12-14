@@ -588,7 +588,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     return Status;
 
   /// Get function type
-  Instance::ModuleInstance::FType *FuncType = FuncInst->getFuncType();
+  const Instance::ModuleInstance::FType *FuncType = FuncInst->getFuncType();
 
   if (FuncInst->isHostFunction()) {
     /// Host function case: Push args and call function.

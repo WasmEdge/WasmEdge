@@ -32,7 +32,7 @@ public:
   ErrCode setModuleAddr(unsigned int Addr);
 
   /// Set the function type in module instance.
-  ErrCode setFuncType(ModuleInstance::FType *Type);
+  ErrCode setFuncType(const ModuleInstance::FType *Type);
 
   /// Set the host function class.
   ErrCode setHostFuncAddr(unsigned int Addr);
@@ -45,7 +45,7 @@ public:
   ErrCode setInstrs(AST::InstrVec &Expr);
 
   /// Getter of function type.
-  ModuleInstance::FType *getFuncType() const { return FuncType; }
+  const ModuleInstance::FType *getFuncType() const { return FuncType; }
 
   /// Getter of module address of this function instance.
   unsigned int getModuleAddr() const { return ModuleAddr; }
@@ -69,7 +69,7 @@ private:
 
   /// \name Data of function instance for native function.
   /// @{
-  ModuleInstance::FType *FuncType;
+  const ModuleInstance::FType *FuncType;
   unsigned int ModuleAddr;
   std::vector<std::pair<unsigned int, AST::ValType>> Locals;
   AST::InstrVec Instrs;

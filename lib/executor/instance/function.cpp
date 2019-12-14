@@ -15,7 +15,7 @@ ErrCode FunctionInstance::setModuleAddr(unsigned int Addr) {
 }
 
 /// Setter of function type. See "include/executor/instance/function.h".
-ErrCode FunctionInstance::setFuncType(ModuleInstance::FType *Type) {
+ErrCode FunctionInstance::setFuncType(const ModuleInstance::FType *Type) {
   FuncType = Type;
   return ErrCode::Success;
 }

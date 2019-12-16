@@ -33,16 +33,22 @@
 
 #ifdef ONNC_WASM
 #include "vm/hostfunc/onnc/runtime_add_float.h"
+#include "vm/hostfunc/onnc/runtime_add_int8.h"
 #include "vm/hostfunc/onnc/runtime_averagepool_float.h"
 #include "vm/hostfunc/onnc/runtime_batchnormalization_float.h"
+#include "vm/hostfunc/onnc/runtime_batchnormalization_int8.h"
 #include "vm/hostfunc/onnc/runtime_concat_float.h"
 #include "vm/hostfunc/onnc/runtime_conv_float.h"
+#include "vm/hostfunc/onnc/runtime_conv_int8.h"
 #include "vm/hostfunc/onnc/runtime_gemm_float.h"
 #include "vm/hostfunc/onnc/runtime_globalaveragepool_float.h"
 #include "vm/hostfunc/onnc/runtime_lrn_float.h"
 #include "vm/hostfunc/onnc/runtime_maxpool_float.h"
+#include "vm/hostfunc/onnc/runtime_maxpool_int8.h"
 #include "vm/hostfunc/onnc/runtime_mul_float.h"
+#include "vm/hostfunc/onnc/runtime_mul_int8.h"
 #include "vm/hostfunc/onnc/runtime_relu_float.h"
+#include "vm/hostfunc/onnc/runtime_relu_int8.h"
 #include "vm/hostfunc/onnc/runtime_reshape_float.h"
 #include "vm/hostfunc/onnc/runtime_softmax_float.h"
 #include "vm/hostfunc/onnc/runtime_sum_float.h"
@@ -337,6 +343,18 @@ ErrCode VM::prepareVMHost() {
         std::make_unique<Executor::ONNCRuntimeTransposeFloat>();
     auto FuncONNCRuntimeUnsqueezeFloat =
         std::make_unique<Executor::ONNCRuntimeUnsqueezeFloat>();
+    auto FuncONNCRuntimeAddInt8 =
+        std::make_unique<Executor::ONNCRuntimeAddInt8>();
+    auto FuncONNCRuntimeBatchnormalizationInt8 =
+        std::make_unique<Executor::ONNCRuntimeBatchnormalizationInt8>();
+    auto FuncONNCRuntimeConvInt8 =
+        std::make_unique<Executor::ONNCRuntimeConvInt8>();
+    auto FuncONNCRuntimeMaxpoolInt8 =
+        std::make_unique<Executor::ONNCRuntimeMaxpoolInt8>();
+    auto FuncONNCRuntimeMulInt8 =
+        std::make_unique<Executor::ONNCRuntimeMulInt8>();
+    auto FuncONNCRuntimeReluInt8 =
+        std::make_unique<Executor::ONNCRuntimeReluInt8>();
     if (Status == ErrCode::Success) {
       Status = setHostFunction(FuncONNCRuntimeAddFloat, "onnc_wasm",
                                "ONNC_RUNTIME_add_float");
@@ -402,6 +420,31 @@ ErrCode VM::prepareVMHost() {
     if (Status == ErrCode::Success) {
       Status = setHostFunction(FuncONNCRuntimeUnsqueezeFloat, "onnc_wasm",
                                "ONNC_RUNTIME_unsqueeze_float");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeAddInt8, "onnc_wasm",
+                               "ONNC_RUNTIME_add_int8");
+    }
+    if (Status == ErrCode::Success) {
+      Status =
+          setHostFunction(FuncONNCRuntimeBatchnormalizationInt8, "onnc_wasm",
+                          "ONNC_RUNTIME_batchnormalization_int8");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeConvInt8, "onnc_wasm",
+                               "ONNC_RUNTIME_conv_int8");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeMaxpoolInt8, "onnc_wasm",
+                               "ONNC_RUNTIME_maxpool_int8");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeMulInt8, "onnc_wasm",
+                               "ONNC_RUNTIME_mul_int8");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncONNCRuntimeReluInt8, "onnc_wasm",
+                               "ONNC_RUNTIME_relu_int8");
     }
   }
 #endif

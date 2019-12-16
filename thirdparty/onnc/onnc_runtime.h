@@ -6,73 +6,6 @@
 
 extern "C" {
 
-struct ONNC_RUNTIME_tensor_file
-{
-  void* data; /* Implementation defined data */
-};
-
-struct ONNC_RUNTIME_tensor_offset {
-  uint64_t offset; /* Tensor offset */
-  uint64_t size;   /* Size of tensor in bytes */
-};
-
-#ifndef ONNC_RUNTIME_TENSOR_FILE_MAGIC
-#  define ONNC_RUNTIME_TENSOR_FILE_MAGIC ".TSR"
-#endif
-
-struct ONNC_RUNTIME_tensor_offset_table
-{
-  char                              magic[8]; /* Tensor File magic number. */
-  uint64_t                          number_of_tensors;
-  struct ONNC_RUNTIME_tensor_offset tensor_offsets[];
-};
-
-struct ONNC_RUNTIME_tensor_view
-{
-  void*    data;
-  uint64_t size; /* Size of tensor in bytes */
-};
-
-// Core Library
-bool ONNC_RUNTIME_has_tensor(const struct ONNC_RUNTIME_tensor_offset_table* table, uint64_t tensor);
-struct ONNC_RUNTIME_tensor_offset ONNC_RUNTIME_get_tensor_offset(const struct ONNC_RUNTIME_tensor_offset_table* table,
-                                                                 uint64_t                                       tensor);
-
-// Client Library
-const struct ONNC_RUNTIME_tensor_offset_table*
-                                ONNC_RUNTIME_read_tensor_offset_table(struct ONNC_RUNTIME_tensor_file* file);
-struct ONNC_RUNTIME_tensor_view ONNC_RUNTIME_read_tensor(struct ONNC_RUNTIME_tensor_file* file, uint64_t tensor);
-
-// Service Library
-struct ONNC_RUNTIME_inference_context
-{
-  struct ONNC_RUNTIME_tensor_file* input;
-  struct ONNC_RUNTIME_tensor_file* weight;
-  uint64_t                         id;
-  void (*completed)(uint64_t id, struct ONNC_RUNTIME_tensor_view output);
-};
-
-/**
- * ONNC generated entry point.
- * @param context The ONNC Runtime Context.
- */
-int model_main(const struct ONNC_RUNTIME_inference_context* context);
-
-/**
- * Initialize runtime.
- * @deprecated
- * @return The ONNC Runtime Context, should be passed to every ONNC Runtime functions.
- */
-void *ONNC_RUNTIME_init_runtime();
-
-/**
- * Shutdown runtime.
- * @deprecated
- * @param onnc_runtime_context The ONNC Runtime Context.
- * @return True if shutdown successfully. False if something wrong.
- */
-bool ONNC_RUNTIME_shutdown_runtime(void *onnc_runtime_context);
-
 void ONNC_RUNTIME_abs_float(
   void * onnc_runtime_context
   ,const float * input_X
@@ -1263,6 +1196,96 @@ void ONNC_RUNTIME_xor_float(
   ,int32_t input_B_ndim, const int32_t * input_B_dims
   ,float * output_C
   ,int32_t output_C_ndim, const int32_t * output_C_dims
+);
+// int8 runtime interfaces
+void ONNC_RUNTIME_add_int8(
+  void * onnc_runtime_context
+  ,const int8_t * input_A
+  ,int32_t input_A_ndim, const int32_t * input_A_dims
+  ,const int8_t * input_B
+  ,int32_t input_B_ndim, const int32_t * input_B_dims
+  ,int8_t * output_C
+  ,int32_t output_C_ndim, const int32_t * output_C_dims
+);
+void ONNC_RUNTIME_batchnormalization_int8(
+  void * onnc_runtime_context
+  ,const int8_t * input_X
+  ,int32_t input_X_ndim, const int32_t * input_X_dims
+  ,const int8_t * input_scale
+  ,int32_t input_scale_ndim, const int32_t * input_scale_dims
+  ,const int8_t * input_B
+  ,int32_t input_B_ndim, const int32_t * input_B_dims
+  ,const int8_t * input_mean
+  ,int32_t input_mean_ndim, const int32_t * input_mean_dims
+  ,const int8_t * input_var
+  ,int32_t input_var_ndim, const int32_t * input_var_dims
+  ,int8_t * output_Y
+  ,int32_t output_Y_ndim, const int32_t * output_Y_dims
+  ,int8_t * output_mean
+  ,int32_t output_mean_ndim, const int32_t * output_mean_dims
+  ,int8_t * output_var
+  ,int32_t output_var_ndim, const int32_t * output_var_dims
+  ,int8_t * output_saved_mean
+  ,int32_t output_saved_mean_ndim, const int32_t * output_saved_mean_dims
+  ,int8_t * output_saved_var
+  ,int32_t output_saved_var_ndim, const int32_t * output_saved_var_dims
+  ,int8_t epsilon
+  ,int8_t momentum
+  ,int32_t spatial
+);
+void ONNC_RUNTIME_conv_int8(
+  void * onnc_runtime_context
+  ,const int8_t * input_X
+  ,int32_t input_X_ndim, const int32_t * input_X_dims
+  ,const int8_t * input_W
+  ,int32_t input_W_ndim, const int32_t * input_W_dims
+  ,const int8_t * input_B
+  ,int32_t input_B_ndim, const int32_t * input_B_dims
+  ,int8_t * output_Y
+  ,int32_t output_Y_ndim, const int32_t * output_Y_dims
+  ,const char * auto_pad
+  ,int32_t * dilations
+  ,int32_t number_of_dilations
+  ,int32_t group
+  ,int32_t * kernel_shape
+  ,int32_t number_of_kernel_shape
+  ,int32_t * pads
+  ,int32_t number_of_pads
+  ,int32_t * strides
+  ,int32_t number_of_strides
+);
+void ONNC_RUNTIME_maxpool_int8(
+  void * onnc_runtime_context
+  ,const int8_t * input_X
+  ,int32_t input_X_ndim, const int32_t * input_X_dims
+  ,int8_t * output_Y
+  ,int32_t output_Y_ndim, const int32_t * output_Y_dims
+  ,int8_t * output_Indices
+  ,int32_t output_Indices_ndim, const int32_t * output_Indices_dims
+  ,const char * auto_pad
+  ,int32_t * kernel_shape
+  ,int32_t number_of_kernel_shape
+  ,int32_t * pads
+  ,int32_t number_of_pads
+  ,int32_t storage_order
+  ,int32_t * strides   
+  ,int32_t number_of_strides
+);
+void ONNC_RUNTIME_mul_int8(
+  void * onnc_runtime_context
+  ,const int8_t * input_A
+  ,int32_t input_A_ndim, const int32_t * input_A_dims
+  ,const int8_t * input_B
+  ,int32_t input_B_ndim, const int32_t * input_B_dims
+  ,int8_t * output_C
+  ,int32_t output_C_ndim, const int32_t * output_C_dims
+);
+void ONNC_RUNTIME_relu_int8(
+  void * onnc_runtime_context
+  ,const int8_t * input_X
+  ,int32_t input_X_ndim, const int32_t * input_X_dims
+  ,int8_t * output_Y
+  ,int32_t output_Y_ndim, const int32_t * output_Y_dims
 );
 
 }

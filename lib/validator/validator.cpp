@@ -4,15 +4,7 @@
 #include "vm/common.h"
 
 #include <algorithm>
-#include <cassert>
-#include <cstdio>
-#include <iomanip>
 #include <iostream>
-
-using std::cout;
-using std::endl;
-using std::printf;
-using std::puts;
 
 namespace SSVM {
 namespace Validator {
@@ -47,7 +39,7 @@ ErrCode Validator::validate(AST::MemoryType *Mem) {
 }
 
 ErrCode Validator::validate(AST::GlobalType *) {
-  /// The global type is valid any way
+  /// The global type is always valid
   return ErrCode::Success;
 }
 
@@ -140,12 +132,13 @@ ErrCode Validator::validate(AST::GlobalSection *GloSec) {
       vm.addglobal(*val.get()->getGlobalType());
     }
 
-  cout << "globals=" << GloSec->getContent().size() << endl;
   return ErrCode::Success;
 }
 
 ErrCode Validator::validate(AST::GlobalSegment *) {
   // TODO: Check GloSeg->getInstrs(); is a const expr
+  std::cerr << "...GlobalSegment check are ignored (unimplemented)"
+            << std::endl;
   return ErrCode::Success;
 }
 
@@ -156,6 +149,8 @@ ErrCode Validator::validate(AST::ElementSegment *EleSeg) {
     return ErrCode::Invalid;
 
   // TODO check EleSeg->getInstrs(); is const expr
+  std::cerr << "...ElementSegment check are ignored (unimplemented)"
+            << std::endl;
   return ErrCode::Success;
 }
 
@@ -172,8 +167,7 @@ ErrCode Validator::validate(AST::ElementSection *EleSec) {
 ErrCode Validator::validate(AST::StartSection *StartSec) {
   if (!StartSec)
     return ErrCode::Success;
-  cout << "unimp StartSection";
-  assert(false && "unimp StartSection");
+  std::cerr << "...StartSection check are ignored (unimplemented)" << std::endl;
   return ErrCode::Success;
 }
 
@@ -191,6 +185,7 @@ ErrCode Validator::validate(AST::ExportDesc *ExportDesc) {
   /// TODO: Ast not provide where the data is.
   ///      It need to enumerate func/table/mem/global to check the name are
   ///      defined.
+  std::cerr << "...ExportDesc check are ignored (unimplemented)" << std::endl;
   return ErrCode::Success;
 }
 
@@ -221,15 +216,15 @@ ErrCode Validator::validate(AST::ImportDesc *Import,
     vm.addglobal(*global);
     break;
   default:
-    cout << "Unimp ImportDesc:" << (int)Import->getExternalType() << endl;
-    return ErrCode::Invalid;
+    std::cerr << "ImportDesc check are ignored (unimplemented type:"
+              << (int)Import->getExternalType() << ")" << std::endl;
   }
 
   return ErrCode::Success;
 }
 
 ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod) {
-  cout << "start Validator" << endl;
+  std::cout << "start Validator" << std::endl;
   reset();
 
   // Every import defines an index in the respective index space. In each index
@@ -266,8 +261,7 @@ ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod) {
                (*Mod).getTypeSection()) != ErrCode::Success)
     return ErrCode::Invalid;
 
-  cout << "Validator OK" << endl;
-  cout << std::flush;
+  std::cout << "Validator OK" << std::endl;
   return ErrCode::Success;
 }
 

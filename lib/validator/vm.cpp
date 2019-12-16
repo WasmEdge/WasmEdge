@@ -46,8 +46,7 @@ static ValType Ast2ValType(AST::ValType v) {
     res = ValType::F64;
     break;
   default:
-    // TODO throw expect
-    throw "Ast2ValType";
+    throw "unlisted Ast2ValType";
   }
   return res;
 }
@@ -58,13 +57,13 @@ void ValidatMachine::addloacl(unsigned int idx, AST::ValType v) {
 
 ValType ValidatMachine::getlocal(unsigned int idx) {
   if (local.count(idx) == 0)
-    throw "getlocal";
+    throw "Local value id is not exist.(getlocal)";
   return local[idx];
 }
 
 void ValidatMachine::setlocal(unsigned int idx, ValType v) {
   if (local.count(idx) == 0)
-    throw "setlocal";
+    throw "Local value id is not exist.(setlocal)";
   local[idx] = v;
 }
 
@@ -76,17 +75,17 @@ void ValidatMachine::addglobal(AST::GlobalType v) {
 
 ValType ValidatMachine::getglobal(unsigned int idx) {
   if (global.size() <= idx)
-    throw "getglobal";
+    throw "Global value id is not exist. (getglobal)";
   return Ast2ValType(global[idx].getValueType());
 }
 
 void ValidatMachine::setglobal(unsigned int idx, ValType v) {
   if (global.size() <= idx)
-    throw "setglobal idx";
+    throw "Global value id is not exist. (setglobal)";
   if (global[idx].getValueMutation() != AST::ValMut::Var)
-    throw "setglobal getValueMutation";
+    throw "Global value can not be change.";
   if (Ast2ValType(global[idx].getValueType()) != v)
-    throw "setglobal Ast2ValType";
+    throw "Global Value type is not matched.";
 }
 
 void ValidatMachine::addfunc(AST::FunctionType *func) {
@@ -116,7 +115,7 @@ ValType ValidatMachine::pop_opd() {
     return ValType::Unknown;
 
   if (ValStack.size() == CtrlStack[0].height) {
-    throw "pop_opd Reach Block End.";
+    throw "ValidatMachine Stack underflow";
   }
 
   auto res = ValStack.front();
@@ -131,7 +130,7 @@ ValType ValidatMachine::pop_opd(ValType expect) {
   if (expect == ValType::Unknown)
     return res;
   if (res != expect) {
-    throw "Stack Val Not Match..";
+    throw "Expect value on ValidatMachine stack is not matched.";
   }
   return res;
 }
@@ -211,8 +210,6 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   };
 
   auto opcode = instr->getOpCode();
-  AST::VariableInstruction *VarInstr = nullptr;
-  // printf("op: 0x%x\n", opcode);
   switch (opcode) {
   /// 0x00
   case OpCode::Unreachable:
@@ -223,6 +220,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   case OpCode::Block: {
     AST::BlockControlInstruction *BlockInstr =
         dynamic_cast<AST::BlockControlInstruction *>(instr);
+
     auto res = BlockInstr->getResultType();
     std::vector<ValType> res_vec;
     if (res != SSVM::AST::ValType::None)
@@ -257,7 +255,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
       res_vec.emplace_back(Ast2ValType(res));
     push_ctrl(res_vec, res_vec);
     validateWarp(IfInstr->getIfStatement());
-    if (IfInstr->getElseStatement().size()!=0) {
+    if (IfInstr->getElseStatement().size() != 0) {
       auto result = pop_ctrl();
       push_ctrl(result, result);
       validateWarp(IfInstr->getElseStatement());
@@ -344,28 +342,36 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   }
 
   /// 0x20
-  case OpCode::Local__get:
-    VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
+  case OpCode::Local__get: {
+    AST::VariableInstruction *VarInstr =
+        dynamic_cast<AST::VariableInstruction *>(instr);
     stack_trans({}, {getlocal(VarInstr->getVariableIndex())});
     break;
+  }
   case OpCode::Local__set: {
-    VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
+    AST::VariableInstruction *VarInstr =
+        dynamic_cast<AST::VariableInstruction *>(instr);
     auto t = pop_opd();
     setlocal(VarInstr->getVariableIndex(), t);
     break;
   }
   case OpCode::Local__tee: {
-    VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
+    AST::VariableInstruction *VarInstr =
+        dynamic_cast<AST::VariableInstruction *>(instr);
     auto t = pop_opd();
     setlocal(VarInstr->getVariableIndex(), t);
     push_opd(t);
     break;
   }
-  case OpCode::Global__get:
-    VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
+  case OpCode::Global__get: {
+    AST::VariableInstruction *VarInstr =
+        dynamic_cast<AST::VariableInstruction *>(instr);
     stack_trans({}, {getglobal(VarInstr->getVariableIndex())});
     break;
+  }
   case OpCode::Global__set: {
+    AST::VariableInstruction *VarInstr =
+        dynamic_cast<AST::VariableInstruction *>(instr);
     VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
     auto t = pop_opd();
     setglobal(VarInstr->getVariableIndex(), t);

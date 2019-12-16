@@ -13,6 +13,7 @@
 #pragma once
 
 #include "ast/module.h"
+
 #include <deque>
 #include <map>
 #include <string>
@@ -86,8 +87,6 @@ class Validator {
   ErrCode validate(AST::GlobalType *);
 
   /// Sec. Instructions types
-
-  /// Sec. Instructions types
   ErrCode validate(AST::FunctionSection *, AST::CodeSection *,
                    AST::TypeSection *);
   ErrCode validate(AST::CodeSegment *, AST::FunctionType *);
@@ -115,7 +114,7 @@ public:
 private:
   ValidatMachine vm;
 
-  static const unsigned int LIMIT_TABLETYPE = 4294967295; // 2^32-1
+  static const unsigned int LIMIT_TABLETYPE = 4294967295U; // 2^32-1
   static const unsigned int LIMIT_MEMORYTYPE = 1U << 16;
 };
 

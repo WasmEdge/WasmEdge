@@ -8,7 +8,7 @@ namespace Executor {
 
 class EEIRevert : public EEI {
 public:
-  EEIRevert(VM::EVMEnvironment &Env);
+  EEIRevert(VM::EVMEnvironment &Env, uint64_t Cost = 100);
   EEIRevert() = delete;
   virtual ~EEIRevert() = default;
 

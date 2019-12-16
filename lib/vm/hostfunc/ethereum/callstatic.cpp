@@ -10,7 +10,8 @@
 namespace SSVM {
 namespace Executor {
 
-EEICallStatic::EEICallStatic(VM::EVMEnvironment &Env) : EEI(Env) {
+EEICallStatic::EEICallStatic(VM::EVMEnvironment &Env, uint64_t Cost)
+    : EEI(Env, Cost) {
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);
@@ -25,6 +26,10 @@ ErrCode EEICallStatic::run(VM::EnvironmentManager &EnvMgr,
   /// Arg: gas(u32), addressOffset(u32), dataOffset(u32), dataLength(u32)
   if (Args.size() != 4) {
     return ErrCode::CallFunctionError;
+  }
+  /// Add cost.
+  if (!EnvMgr.addCost(Cost)) {
+    return ErrCode::Revert;
   }
   ErrCode Status = ErrCode::Success;
   unsigned int Gas = retrieveValue<uint32_t>(Args[3]);

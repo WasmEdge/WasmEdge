@@ -6,17 +6,21 @@
 namespace SSVM {
 namespace Executor {
 
-EEIRevert::EEIRevert(VM::EVMEnvironment &Env) : EEI(Env) {
+EEIRevert::EEIRevert(VM::EVMEnvironment &Env, uint64_t Cost) : EEI(Env, Cost) {
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);
 }
 
 ErrCode EEIRevert::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res,
-                       StoreManager &Store, Instance::ModuleInstance *ModInst) {
+                       std::vector<Value> &Res, StoreManager &Store,
+                       Instance::ModuleInstance *ModInst) {
   /// Arg: dataOffset(u32), dataLength(u32)
   if (Args.size() != 2) {
     return ErrCode::CallFunctionError;
+  }
+  /// Add cost.
+  if (!EnvMgr.addCost(Cost)) {
+    return ErrCode::Revert;
   }
   ErrCode Status = ErrCode::Success;
   unsigned int DataOffset = retrieveValue<uint32_t>(Args[1]);

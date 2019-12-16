@@ -8,7 +8,7 @@ namespace Executor {
 
 class EEIStorageStore : public EEI {
 public:
-  EEIStorageStore(VM::EVMEnvironment &Env);
+  EEIStorageStore(VM::EVMEnvironment &Env, uint64_t Cost = 100);
   EEIStorageStore() = delete;
   virtual ~EEIStorageStore() = default;
 

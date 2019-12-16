@@ -6,18 +6,24 @@
 namespace SSVM {
 namespace Executor {
 
-EEIReturnDataCopy::EEIReturnDataCopy(VM::EVMEnvironment &Env) : EEI(Env) {
+EEIReturnDataCopy::EEIReturnDataCopy(VM::EVMEnvironment &Env, uint64_t Cost)
+    : EEI(Env, Cost) {
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode EEIReturnDataCopy::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+ErrCode EEIReturnDataCopy::run(VM::EnvironmentManager &EnvMgr,
+                               std::vector<Value> &Args,
                                std::vector<Value> &Res, StoreManager &Store,
                                Instance::ModuleInstance *ModInst) {
   /// Arg: resultOffset(u32), dataOffset(u32), length(u32)
   if (Args.size() != 3) {
     return ErrCode::CallFunctionError;
+  }
+  /// Add cost.
+  if (!EnvMgr.addCost(Cost)) {
+    return ErrCode::Revert;
   }
   ErrCode Status = ErrCode::Success;
   unsigned int ResOffset = retrieveValue<uint32_t>(Args[2]);

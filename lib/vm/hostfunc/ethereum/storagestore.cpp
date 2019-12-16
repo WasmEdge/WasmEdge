@@ -7,18 +7,23 @@
 namespace SSVM {
 namespace Executor {
 
-EEIStorageStore::EEIStorageStore(VM::EVMEnvironment &Env) : EEI(Env) {
+EEIStorageStore::EEIStorageStore(VM::EVMEnvironment &Env, uint64_t Cost)
+    : EEI(Env, Cost) {
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);
 }
 
-ErrCode EEIStorageStore::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res,
+ErrCode EEIStorageStore::run(VM::EnvironmentManager &EnvMgr,
+                             std::vector<Value> &Args, std::vector<Value> &Res,
                              StoreManager &Store,
                              Instance::ModuleInstance *ModInst) {
   /// Arg: pathOffset(u32), valueOffset(u32)
   if (Args.size() != 2) {
     return ErrCode::CallFunctionError;
+  }
+  /// Add cost.
+  if (!EnvMgr.addCost(Cost)) {
+    return ErrCode::Revert;
   }
   ErrCode Status = ErrCode::Success;
   unsigned int PathOffset = retrieveValue<uint32_t>(Args[1]);

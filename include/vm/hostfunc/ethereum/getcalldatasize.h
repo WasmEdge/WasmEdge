@@ -8,7 +8,7 @@ namespace Executor {
 
 class EEIGetCallDataSize : public EEI {
 public:
-  EEIGetCallDataSize(VM::EVMEnvironment &Env);
+  EEIGetCallDataSize(VM::EVMEnvironment &Env, uint64_t Cost = 100);
   EEIGetCallDataSize() = delete;
   virtual ~EEIGetCallDataSize() = default;
 

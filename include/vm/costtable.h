@@ -28,7 +28,7 @@ public:
     switch (Type) {
     case Configure::VMType::Wasm:
       /// Wasm cost table
-      Costs[Type] = std::vector<uint64_t>(256, 0);
+      Costs[Type] = std::vector<uint64_t>(256, 1);
       return true;
       break;
     case Configure::VMType::Ewasm:
@@ -78,7 +78,7 @@ public:
       break;
     case Configure::VMType::Wasi:
       /// Wasi cost table
-      Costs[Type] = std::vector<uint64_t>(256, 0);
+      Costs[Type] = std::vector<uint64_t>(256, 1);
       return true;
       break;
     default:

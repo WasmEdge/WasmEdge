@@ -8,7 +8,7 @@ namespace Executor {
 
 class EEIFinish : public EEI {
 public:
-  EEIFinish(VM::EVMEnvironment &Env);
+  EEIFinish(VM::EVMEnvironment &Env, uint64_t Cost = 100);
   EEIFinish() = delete;
   virtual ~EEIFinish() = default;
 

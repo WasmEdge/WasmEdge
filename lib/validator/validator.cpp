@@ -167,7 +167,16 @@ ErrCode Validator::validate(AST::ElementSection *EleSec) {
 ErrCode Validator::validate(AST::StartSection *StartSec) {
   if (!StartSec)
     return ErrCode::Success;
-  std::cerr << "...StartSection check are ignored (unimplemented)" << std::endl;
+
+  auto fid = StartSec->getContent();
+
+  if (fid >= vm.getFunctions().size())
+    return ErrCode::Invalid;
+
+  auto &type = vm.getFunctions().at(fid);
+  if (type.first.size() != 0 || type.second.size() != 0)
+    return ErrCode::Invalid;
+
   return ErrCode::Success;
 }
 
@@ -182,10 +191,25 @@ ErrCode Validator::validate(AST::ExportSection *ExportSec) {
 }
 
 ErrCode Validator::validate(AST::ExportDesc *ExportDesc) {
-  /// TODO: Ast not provide where the data is.
-  ///      It need to enumerate func/table/mem/global to check the name are
-  ///      defined.
-  std::cerr << "...ExportDesc check are ignored (unimplemented)" << std::endl;
+  auto id = ExportDesc->getExternalIndex();
+
+  switch (ExportDesc->getExternalType()) {
+  case AST::Desc::ExternalType::Function:
+    if (id >= vm.getFunctions().size())
+      return ErrCode::Invalid;
+    break;
+  case AST::Desc::ExternalType::Global:
+    if (id >= vm.getGlobals().size())
+      return ErrCode::Invalid;
+    break;
+  case AST::Desc::ExternalType::Memory:
+  case AST::Desc::ExternalType::Table:
+    std::cerr << "...ExportDesc check are ignored (unimplemented)" << std::endl;
+    break;
+  default:
+    // unreachable code
+    return ErrCode::Invalid;
+  }
   return ErrCode::Success;
 }
 
@@ -251,14 +275,14 @@ ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod) {
   if (validate((*Mod).getElementSection()) != ErrCode::Success)
     return ErrCode::Invalid;
 
+  if (validate((*Mod).getFunctionSection(), (*Mod).getCodeSection(),
+               (*Mod).getTypeSection()) != ErrCode::Success)
+    return ErrCode::Invalid;
+
   if (validate((*Mod).getStartSection()) != ErrCode::Success)
     return ErrCode::Invalid;
 
   if (validate((*Mod).getExportSection()) != ErrCode::Success)
-    return ErrCode::Invalid;
-
-  if (validate((*Mod).getFunctionSection(), (*Mod).getCodeSection(),
-               (*Mod).getTypeSection()) != ErrCode::Success)
     return ErrCode::Invalid;
 
   std::cout << "Validator OK" << std::endl;

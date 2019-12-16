@@ -61,7 +61,11 @@ public:
   void reset(bool CleanGlobal = false);
   void init();
   ErrCode validate(const AST::InstrVec &, const std::vector<AST::ValType> &);
+  
   std::deque<ValType> result() { return ValStack; };
+  auto& getGlobals() { return  global; }
+  auto& getFunctions() { return  funcs; }
+  auto& getTypes() { return  types; }
 
 private:
   std::map<unsigned int, ValType> local;

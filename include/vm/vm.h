@@ -73,6 +73,9 @@ public:
     return ErrCode::Success;
   }
 
+  /// Get start function return values.
+  void getReturnValue(std::vector<Executor::Value> &RetVals) { RetVals = Rets; }
+
   /// Execute wasm with given input.
   ErrCode execute();
   ErrCode execute(const std::string &FuncName);

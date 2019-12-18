@@ -53,6 +53,9 @@ public:
   /// Execute Wasm.
   ErrCode run();
 
+  /// Get start function return values.
+  ErrCode getRets(std::vector<Value> &Rets);
+
   /// Reset Executor.
   ErrCode reset(bool Force = false);
 
@@ -87,6 +90,7 @@ private:
     ModuleSet,
     Instantiated,
     ArgsSet,
+    Executed,
     Finished
   };
 

@@ -100,13 +100,34 @@ ErrCode Executor::run() {
   if (auto StartAddr = ModInst->getStartAddr()) {
     Result = Engine.runStartFunction(*StartAddr);
   }
-  Stat = State::Finished;
+  Stat = State::Executed;
   return Result;
+}
+
+/// Get return values. See "include/loader/executor.h".
+ErrCode Executor::getRets(std::vector<Value> &Rets) {
+  /// Check is the correct state.
+  if (Stat != State::Executed)
+    return ErrCode::WrongExecutorFlow;
+
+  /// Push args to stack.
+  Rets.clear();
+  Rets.resize(StackMgr.size());
+  auto Iter = Rets.rbegin();
+  while (StackMgr.size() > 0) {
+    Value V;
+    StackMgr.pop(V);
+    *Iter = V;
+    Iter++;
+  }
+
+  Stat = State::Finished;
+  return ErrCode::Success;
 }
 
 /// Reset Executor. See "include/loader/executor.h".
 ErrCode Executor::reset(bool Force) {
-  if (!Force && Stat != State::Finished) {
+  if (!Force && (Stat != State::Finished && Stat != State::Executed)) {
     return ErrCode::WrongExecutorFlow;
   }
   Mod.reset();

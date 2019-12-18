@@ -165,6 +165,11 @@ ErrCode VM::runExecutor() {
     return ErrCode::Failed;
   }
 
+  ExecutorStatus = ExecutorEngine.getRets(Rets);
+  if (detail::testAndSetError(ExecutorStatus, VMResult)) {
+    return ErrCode::Failed;
+  }
+
   if (VMResult.hasError()) {
     return ErrCode::Failed;
   }

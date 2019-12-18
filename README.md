@@ -9,7 +9,7 @@
 ```bash
 $ git clone git@github.com:second-state/SSVM.git
 $ cd SSVM
-$ git checkout 0.1.0
+$ git checkout 0.2.0
 ```
 
 ## Prepare environment
@@ -19,7 +19,7 @@ $ git checkout 0.1.0
 Our docker image use `ubuntu 18.04` as base.
 
 ```bash
-$ docker pull hydai/ssvm-dev:0.1.0
+$ docker pull hydai/ssvm-dev:0.2.0
 ```
 
 ### Or setup the environment manually
@@ -29,7 +29,6 @@ $ sudo apt install -y \
 	cmake \
 	g++ \
 	libboost-all-dev
-
 ```
 
 ## Build SSVM
@@ -37,13 +36,15 @@ $ sudo apt install -y \
 SSVM provides various tools to enabling different runtime environment for optimal performance.
 After the build is finished, you can find there are two ssvm binaries:
 
-1. `ssvm` is for general wasm runtime (Still in the very early stage).
+1. `ssvm` is for general wasm runtime.
 2. `ssvm-evm` is for Ewasm runtime.
+3. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
 
 ```bash
 # After pulling our ssvm-dev docker image
 $ docker run -it --rm \
-    -v <path/to/your/ssvm/source/folder>:/root/ssvm
+    -v <path/to/your/ssvm/source/folder>:/root/ssvm \
+    hydai/ssvm-dev:0.2.0
 (docker)$ cd /root/ssvm
 (docker)$ mkdir -p build && cd build
 (docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make
@@ -74,12 +75,21 @@ $ ./ssvmEVMTests
 To run SSVM with Ewasm bytecode, you will need to provide a valid Ewasm bytecode and the calldata.
 Currently, SSVM doesn’t support ABI encoding for Ethereum, so users need to compose the calldata by theirselves.
 
-SSVM will dump the log information of EEI function calls and print the state of storage in the end.
+SSVM-EVM will take 3 parameters:
 
-SSVM provides an ERC20 token contract example for the demo purpose. See the example below.
+1. Ewasm bytecode file (`/path/to/your/ewasm/file`)
+2. Call data in hex string format (`4e6ec2..000054`)
+3. Gas limit (`100000`)
+
+### Example: ERC20 token contract
+
+In this example, we create an ERC20 token contract and compile it into Ewasm bytecode by SecondState [SOLL](https://github.com/second-state/soll) compiler.
+You can find this Ewasm file(`ethereum/erc20.wasm`) in the same folder of ssvm-evm.
+
+#### With enough gas limit (Expect execution succeeded)
 
 ```bash
-$ cd <path/to/ssvm/build_folder>
+# cd <path/to/ssvm/build_folder>
 $ cd tools/ssvm-evm
 # Usage: ./ssvm-evm wasm_file.wasm call_data_in_string_format gas_limit
 $ ./ssvm-evm ethereum/erc20.wasm 4e6ec24700000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064 100000
@@ -97,7 +107,13 @@ $ ./ssvm-evm ethereum/erc20.wasm 4e6ec247000000000000000000000000123456789012345
          0000000000000000000000000000000000000000000000000000000000000000 0000000000000000000000000000000000000000000000000000000000000064
          f5b24dcea0e9381721a8c72784d30cfe64c11b4591226269f839d095b3e9cf10 0000000000000000000000000000000000000000000000000000000000000064
     --- return data:
+```
 
+#### Without enough gas limit (Expect execution reverted)
+
+```bash
+# cd <path/to/ssvm/build_folder>
+$ cd tools/ssvm-evm
 # Usage: ./ssvm-evm wasm_file.wasm call_data_in_string_format gas_limit
 $ ./ssvm-evm ethereum/erc20.wasm 4e6ec24700000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064 10000
 # Expect output:
@@ -115,8 +131,17 @@ $ ./ssvm-evm ethereum/erc20.wasm 4e6ec247000000000000000000000000123456789012345
 ```
 
 ## Run ssvm (SSVM with general wasm runtime)
+
+To run SSVM with general wasm runtime, users will need to provide the following parameters:
+
+1. Wasm file(`/path/to/wasm/file`)
+2. (Optional) Entry function name, default value is `main`
+3. (Optional) Argument List, can be one or more arguments.
+
+### Example: Fibonacci
+
 ```bash
-$ cd <path/to/ssvm/build_folder>
+# cd <path/to/ssvm/build_folder>
 $ cd tools/ssvm
 # ./ssvm wasm_file.wasm [exported_func_name] [args...]
 $ ./ssvm examples/fibonacci.wasm fib 10
@@ -130,7 +155,11 @@ $ ./ssvm examples/fibonacci.wasm fib 10
  Gas costs: 1855
  Instructions per second: 29433333
  Return value: 89
+```
 
+### Example: Factorial
+
+```bash
 # ./ssvm wasm_file.wasm [exported_func_name] [args...]
 $ ./ssvm examples/factorial.wasm fac 5
  Info: Start running...

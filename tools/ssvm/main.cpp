@@ -10,20 +10,32 @@ int main(int Argc, char *Argv[]) {
     /// Arg0: ./ssvm
     /// Arg1: wasm file
     /// Arg2: start func name
-    std::cout << "Usage: ./ssvm wasm_file.wasm [start_func]" << std::endl;
+    /// Arg3...: inputs
+    std::cout << "Usage: ./ssvm wasm_file.wasm [start_func] [args...]"
+              << std::endl;
     return 0;
   }
 
   std::string InputPath(Argv[1]);
   SSVM::VM::Configure Conf;
-  if (Argc == 3) {
-    Conf.setStartFuncName(Argv[2]);
-  }
   SSVM::VM::VM VM(Conf);
   SSVM::Result Result;
 
   VM.setPath(InputPath);
-  VM.execute();
+  for (int I = 3; I < Argc; I++) {
+    VM.appendArgument(static_cast<uint32_t>(atoi(Argv[I])));
+  }
+  if (Argc >= 3) {
+    VM.execute(Argv[2]);
+  } else {
+    VM.execute();
+  }
+  std::vector<SSVM::Executor::Value> Rets;
+  VM.getReturnValue(Rets);
   Result = VM.getResult();
+
+  for (auto It = Rets.begin(); It != Rets.end(); It++) {
+    std::cout << " Return value: " << std::get<uint32_t>(*It) << std::endl;
+  }
   return Result.getErrCode();
 }

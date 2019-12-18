@@ -41,27 +41,32 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
   TimeRecorder.startRecord(TIMER_TAG_EXECUTION);
 
   /// Execute run loop.
-  std::cout << " !!! start running..." << std::endl;
+  std::cout << " Info: Start running..." << std::endl;
   TheState = State::CodeSet;
   ErrCode Status = execute();
   if (Status == ErrCode::Revert) {
-    std::cout << " !!! revert" << std::endl;
+    std::cout << " Error: Reverted." << std::endl;
   } else if (Status == ErrCode::Terminated) {
-    std::cout << " --- terminated" << std::endl;
+    std::cout << " Info: Terminated." << std::endl;
   } else if (Status != ErrCode::Success) {
-    std::cout << " !!! worker execute error " << (unsigned int)Status
-              << std::endl;
+    std::cout << " Error: Worker execution failed. Code: "
+              << (unsigned int)Status << std::endl;
   } else {
-    std::cout << " --- exec success" << std::endl;
+    std::cout << " Info: Worker execution succeeded." << std::endl;
   }
 
   /// Print time cost.
   uint64_t ExecTime = TimeRecorder.stopRecord(TIMER_TAG_EXECUTION);
   uint64_t HostFuncTime = TimeRecorder.getRecord(TIMER_TAG_HOSTFUNC);
-  std::cout << " Instructions execution time: " << ExecTime << " us"
+  std::cout << " =================  Statistics  =================" << std::endl
+            << " Total execution time: " << ExecTime + HostFuncTime << " us"
             << std::endl
-            << " Host functions time: " << HostFuncTime << " us" << std::endl
-            << " Total executed instructions: " << ExecInstrCnt << std::endl
+            << " Wasm instructions execution time: " << ExecTime << " us"
+            << std::endl
+            << " Host functions execution time: " << HostFuncTime << " us"
+            << std::endl
+            << " Executed wasm instructions count: " << ExecInstrCnt
+            << std::endl
 #ifndef ONNC_WASM
             << " Gas costs: " << EnvMgr.getCostSum() << std::endl
 #endif

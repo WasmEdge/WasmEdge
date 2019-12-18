@@ -4,6 +4,8 @@
 #include "ast/section.h"
 #include "executor/instance/module.h"
 
+#include <iostream>
+
 namespace SSVM {
 namespace Executor {
 
@@ -71,6 +73,9 @@ ErrCode Executor::instantiate() {
   ErrCode Result = instantiate(Mod.get());
   if (Result == ErrCode::Success)
     Stat = State::Instantiated;
+  else
+    std::cout << " Error: Wasm instantiation failed. Code: "
+              << static_cast<uint32_t>(Result) << std::endl;
   return Result;
 }
 

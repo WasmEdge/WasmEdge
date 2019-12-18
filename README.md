@@ -81,30 +81,36 @@ SSVM provides an ERC20 token contract example for the demo purpose. See the exam
 ```bash
 $ cd <path/to/ssvm/build_folder>
 $ cd tools/ssvm-evm
-# Usage: ./ssvm-evm wasm_file.wasm call_data_in_string_format
-$ ./ssvm-evm ethereum/erc20.wasm 4e6ec24700000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064
+# Usage: ./ssvm-evm wasm_file.wasm call_data_in_string_format gas_limit
+$ ./ssvm-evm ethereum/erc20.wasm 4e6ec24700000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064 100000
 # Expect output:
- !!! start running...
- Host func ethereum::getCallDataSize cost 1 us
- Host func ethereum::callDataCopy cost 0 us
- Host func ethereum::callDataCopy cost 0 us
- Host func ethereum::storageLoad cost 13 us
- Host func ethereum::storageStore cost 9 us
- Host func ethereum::callStatic cost 3 us
- Host func ethereum::returnDataCopy cost 0 us
- Host func ethereum::callStatic cost 2 us
- Host func ethereum::returnDataCopy cost 0 us
- Host func ethereum::storageLoad cost 5 us
- Host func ethereum::storageStore cost 9 us
- Host func ethereum::finish cost 1 us
- --- exec success
- Instructions execution cost 273 us
- Host functions cost 50 us
- Total executed instructions: 1041
- Instructions per second: 3813186
+ Info: Start running...
+ Info: Worker execution succeeded.
+ =================  Statistics  =================
+ Total execution time: 243 us
+ Wasm instructions execution time: 190 us
+ Host functions execution time: 53 us
+ Executed wasm instructions count: 1041
+ Gas costs: 71308
+ Instructions per second: 5478947
     --- result storage:
          0000000000000000000000000000000000000000000000000000000000000000 0000000000000000000000000000000000000000000000000000000000000064
          f5b24dcea0e9381721a8c72784d30cfe64c11b4591226269f839d095b3e9cf10 0000000000000000000000000000000000000000000000000000000000000064
+    --- return data:
+
+# Usage: ./ssvm-evm wasm_file.wasm call_data_in_string_format gas_limit
+$ ./ssvm-evm ethereum/erc20.wasm 4e6ec24700000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064 10000
+# Expect output:
+ Info: Start running...
+ Error: Reverted.
+ =================  Statistics  =================
+ Total execution time: 152 us
+ Wasm instructions execution time: 152 us
+ Host functions execution time: 0 us
+ Executed wasm instructions count: 188
+ Gas costs: 9900
+ Instructions per second: 1236842
+    --- result storage:
     --- return data:
 ```
 
@@ -112,5 +118,29 @@ $ ./ssvm-evm ethereum/erc20.wasm 4e6ec247000000000000000000000000123456789012345
 ```bash
 $ cd <path/to/ssvm/build_folder>
 $ cd tools/ssvm
-# ./ssvm wasm_file.wasm [exported_func_name]
+# ./ssvm wasm_file.wasm [exported_func_name] [args...]
+$ ./ssvm examples/fibonacci.wasm fib 10
+ Info: Start running...
+ Info: Worker execution succeeded.
+ =================  Statistics  =================
+ Total execution time: 60 us
+ Wasm instructions execution time: 60 us
+ Host functions execution time: 0 us
+ Executed wasm instructions count: 1766
+ Gas costs: 1855
+ Instructions per second: 29433333
+ Return value: 89
+
+# ./ssvm wasm_file.wasm [exported_func_name] [args...]
+$ ./ssvm examples/factorial.wasm fac 5
+ Info: Start running...
+ Info: Worker execution succeeded.
+ =================  Statistics  =================
+ Total execution time: 33 us
+ Wasm instructions execution time: 33 us
+ Host functions execution time: 0 us
+ Executed wasm instructions count: 55
+ Gas costs: 61
+ Instructions per second: 1666666
+ Return value: 120
 ```

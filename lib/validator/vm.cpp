@@ -9,192 +9,187 @@
 #include <iomanip>
 #include <iostream>
 
-using std::cout;
-using std::endl;
-using std::printf;
-using std::puts;
-
 namespace SSVM {
 namespace Validator {
 
-void ValidatMachine::reset(bool CleanGlobal) {
+void ValidateMachine::reset(bool CleanGlobal) {
   ValStack.clear();
   CtrlStack.clear();
-  local.clear();
+  Local.clear();
   ReturnVals.clear();
 
   if (CleanGlobal) {
-    global.clear();
-    funcs.clear();
-    types.clear();
+    Global.clear();
+    Funcs.clear();
+    Types.clear();
   }
 }
 
-static ValType Ast2ValType(AST::ValType v) {
-  ValType res;
-  switch (v) {
+static ValType Ast2ValType(AST::ValType V) {
+  ValType Res;
+  switch (V) {
   case AST::ValType::I32:
-    res = ValType::I32;
+    Res = ValType::I32;
     break;
   case AST::ValType::I64:
-    res = ValType::I64;
+    Res = ValType::I64;
     break;
   case AST::ValType::F32:
-    res = ValType::F32;
+    Res = ValType::F32;
     break;
   case AST::ValType::F64:
-    res = ValType::F64;
+    Res = ValType::F64;
     break;
   default:
     throw "unlisted Ast2ValType";
   }
-  return res;
+  return Res;
 }
 
-void ValidatMachine::addloacl(unsigned int idx, AST::ValType v) {
-  local[idx] = Ast2ValType(v);
+void ValidateMachine::addLocal(unsigned int Idx, AST::ValType V) {
+  Local[Idx] = Ast2ValType(V);
 }
 
-ValType ValidatMachine::getlocal(unsigned int idx) {
-  if (local.count(idx) == 0)
+ValType ValidateMachine::getLocal(unsigned int Idx) {
+  if (Local.count(Idx) == 0)
     throw "Local value id is not exist.(getlocal)";
-  return local[idx];
+  return Local[Idx];
 }
 
-void ValidatMachine::setlocal(unsigned int idx, ValType v) {
-  if (local.count(idx) == 0)
+void ValidateMachine::setLocal(unsigned int Idx, ValType V) {
+  if (Local.count(Idx) == 0)
     throw "Local value id is not exist.(setlocal)";
-  local[idx] = v;
+  Local[Idx] = V;
 }
 
-void ValidatMachine::addglobal(AST::GlobalType v) {
+void ValidateMachine::addGlobal(AST::GlobalType V) {
   // Check type
-  (void)Ast2ValType(v.getValueType());
-  global.emplace_back(v);
+  (void)Ast2ValType(V.getValueType());
+  Global.emplace_back(V);
 }
 
-ValType ValidatMachine::getglobal(unsigned int idx) {
-  if (global.size() <= idx)
+ValType ValidateMachine::getGlobal(unsigned int Idx) {
+  if (Global.size() <= Idx)
     throw "Global value id is not exist. (getglobal)";
-  return Ast2ValType(global[idx].getValueType());
+  return Ast2ValType(Global[Idx].getValueType());
 }
 
-void ValidatMachine::setglobal(unsigned int idx, ValType v) {
-  if (global.size() <= idx)
+void ValidateMachine::setGlobal(unsigned int Idx, ValType V) {
+  if (Global.size() <= Idx)
     throw "Global value id is not exist. (setglobal)";
-  if (global[idx].getValueMutation() != AST::ValMut::Var)
+  if (Global[Idx].getValueMutation() != AST::ValMut::Var)
     throw "Global value can not be change.";
-  if (Ast2ValType(global[idx].getValueType()) != v)
+  if (Ast2ValType(Global[Idx].getValueType()) != V)
     throw "Global Value type is not matched.";
 }
 
-void ValidatMachine::addfunc(AST::FunctionType *func) {
-  std::vector<ValType> param, ret;
+void ValidateMachine::addFunc(AST::FunctionType *Func) {
+  std::vector<ValType> Param, Ret;
 
-  for (auto val : func->getParamTypes())
-    param.emplace_back(Ast2ValType(val));
-  for (auto val : func->getReturnTypes())
-    ret.emplace_back(Ast2ValType(val));
-  funcs.emplace_back(param, ret);
+  for (auto Val : Func->getParamTypes())
+    Param.emplace_back(Ast2ValType(Val));
+  for (auto Val : Func->getReturnTypes())
+    Ret.emplace_back(Ast2ValType(Val));
+  Funcs.emplace_back(Param, Ret);
 }
 
-void ValidatMachine::addtype(AST::FunctionType *func) {
-  std::vector<ValType> param, ret;
+void ValidateMachine::addType(AST::FunctionType *Func) {
+  std::vector<ValType> Param, Ret;
 
-  for (auto val : func->getParamTypes())
-    param.emplace_back(Ast2ValType(val));
-  for (auto val : func->getReturnTypes())
-    ret.emplace_back(Ast2ValType(val));
-  types.emplace_back(param, ret);
+  for (auto Val : Func->getParamTypes())
+    Param.emplace_back(Ast2ValType(Val));
+  for (auto Val : Func->getReturnTypes())
+    Ret.emplace_back(Ast2ValType(Val));
+  Types.emplace_back(Param, Ret);
 }
 
-void ValidatMachine::push_opd(ValType v) { ValStack.emplace_front(v); }
+void ValidateMachine::push_opd(ValType V) { ValStack.emplace_front(V); }
 
-ValType ValidatMachine::pop_opd() {
-  if (ValStack.size() == CtrlStack[0].height && CtrlStack[0].unreachable)
+ValType ValidateMachine::pop_opd() {
+  if (ValStack.size() == CtrlStack[0].Height && CtrlStack[0].IsUnreachable)
     return ValType::Unknown;
 
-  if (ValStack.size() == CtrlStack[0].height) {
+  if (ValStack.size() == CtrlStack[0].Height) {
     throw "ValidatMachine Stack underflow";
   }
 
-  auto res = ValStack.front();
+  auto Res = ValStack.front();
   ValStack.pop_front();
-  return res;
+  return Res;
 }
 
-ValType ValidatMachine::pop_opd(ValType expect) {
-  auto res = pop_opd();
-  if (res == ValType::Unknown)
-    return expect;
-  if (expect == ValType::Unknown)
-    return res;
-  if (res != expect) {
+ValType ValidateMachine::pop_opd(ValType Expect) {
+  auto Res = pop_opd();
+  if (Res == ValType::Unknown)
+    return Expect;
+  if (Expect == ValType::Unknown)
+    return Res;
+  if (Res != Expect) {
     throw "Expect value on ValidatMachine stack is not matched.";
   }
-  return res;
+  return Res;
 }
 
-void ValidatMachine::pop_opds(const std::vector<ValType> &input) {
-  auto vals = input;
-  reverse(vals.begin(), vals.end());
+void ValidateMachine::pop_opds(const std::vector<ValType> &Input) {
+  auto Vals = Input;
+  reverse(Vals.begin(), Vals.end());
 
-  for (auto val : vals)
-    pop_opd(val);
+  for (auto Val : Vals)
+    pop_opd(Val);
 }
 
-void ValidatMachine::push_opds(const std::vector<ValType> &input) {
-  for (auto val : input)
-    push_opd(val);
+void ValidateMachine::push_opds(const std::vector<ValType> &Input) {
+  for (auto Val : Input)
+    push_opd(Val);
 }
 
-void ValidatMachine::push_ctrl(const std::vector<ValType> &label,
-                               const std::vector<ValType> &out) {
-  CtrlFrame frame;
+void ValidateMachine::push_ctrl(const std::vector<ValType> &Label,
+                                const std::vector<ValType> &Out) {
+  CtrlFrame Frame;
 
-  frame.label_types = label;
-  frame.end_types = out;
-  frame.height = ValStack.size();
-  frame.unreachable = false;
+  Frame.LabelTypes = Label;
+  Frame.EndTypes = Out;
+  Frame.Height = ValStack.size();
+  Frame.IsUnreachable = false;
 
-  CtrlStack.emplace_front(std::move(frame));
+  CtrlStack.emplace_front(std::move(Frame));
 }
 
-std::vector<ValType> ValidatMachine::pop_ctrl() {
+std::vector<ValType> ValidateMachine::pop_ctrl() {
   if (CtrlStack.empty())
     throw "ValidatMachine::pop_ctr CtrlStack.empty";
-  auto head = CtrlStack.front();
+  auto Head = CtrlStack.front();
 
-  pop_opds(head.end_types);
+  pop_opds(Head.EndTypes);
 
-  if (ValStack.size() != head.height)
+  if (ValStack.size() != Head.Height)
     throw "ValStack.size() != head.height";
 
   CtrlStack.pop_front();
-  return head.end_types;
+  return Head.EndTypes;
 }
 
-void ValidatMachine::unreachable() {
-  while (ValStack.size() > CtrlStack[0].height)
+void ValidateMachine::unreachable() {
+  while (ValStack.size() > CtrlStack[0].Height)
     pop_opd();
-  CtrlStack[0].unreachable = true;
+  CtrlStack[0].IsUnreachable = true;
 }
 
-ErrCode ValidatMachine::validateWarp(const AST::InstrVec &insts) {
-  for (auto &op : insts)
-    runop(op.get());
+ErrCode ValidateMachine::validateWarp(const AST::InstrVec &Instrs) {
+  for (auto &Instr : Instrs)
+    runOp(Instr.get());
   return ErrCode::Success;
 }
 
-ErrCode ValidatMachine::validate(const AST::InstrVec &insts,
-                                 const std::vector<AST::ValType> &ret) {
+ErrCode ValidateMachine::validate(const AST::InstrVec &Instrs,
+                                  const std::vector<AST::ValType> &RetVals) {
   try {
-    for (AST::ValType val : ret)
-      ReturnVals.push_back(Ast2ValType(val));
+    for (AST::ValType Val : RetVals)
+      ReturnVals.push_back(Ast2ValType(Val));
     push_ctrl({}, ReturnVals);
-    validateWarp(insts);
-  } catch (const char *str) {
-    cout << "Error:" << str << endl;
+    validateWarp(Instrs);
+  } catch (const char *Str) {
+    std::cout << "Error:" << Str << std::endl;
     return ErrCode::Invalid;
   } catch (...) {
     return ErrCode::Invalid;
@@ -202,15 +197,15 @@ ErrCode ValidatMachine::validate(const AST::InstrVec &insts,
   return ErrCode::Success;
 }
 
-void ValidatMachine::runop(AST::Instruction *instr) {
-  auto stack_trans = [&](const std::vector<ValType> &take,
-                         const std::vector<ValType> &put) -> void {
-    pop_opds(take);
-    push_opds(put);
+void ValidateMachine::runOp(AST::Instruction *Instr) {
+  auto StackTrans = [&](const std::vector<ValType> &Take,
+                        const std::vector<ValType> &Put) -> void {
+    pop_opds(Take);
+    push_opds(Put);
   };
 
-  auto opcode = instr->getOpCode();
-  switch (opcode) {
+  auto Code = Instr->getOpCode();
+  switch (Code) {
   /// 0x00
   case OpCode::Unreachable:
     unreachable();
@@ -219,89 +214,89 @@ void ValidatMachine::runop(AST::Instruction *instr) {
     break;
   case OpCode::Block: {
     AST::BlockControlInstruction *BlockInstr =
-        dynamic_cast<AST::BlockControlInstruction *>(instr);
+        dynamic_cast<AST::BlockControlInstruction *>(Instr);
 
-    auto res = BlockInstr->getResultType();
-    std::vector<ValType> res_vec;
-    if (res != SSVM::AST::ValType::None)
-      res_vec.emplace_back(Ast2ValType(res));
-    push_ctrl(res_vec, res_vec);
+    auto Res = BlockInstr->getResultType();
+    std::vector<ValType> ResVec;
+    if (Res != SSVM::AST::ValType::None)
+      ResVec.emplace_back(Ast2ValType(Res));
+    push_ctrl(ResVec, ResVec);
     validateWarp(BlockInstr->getBody());
     push_opds(pop_ctrl());
     break;
   }
   case OpCode::Loop: {
     AST::BlockControlInstruction *BlockInstr =
-        dynamic_cast<AST::BlockControlInstruction *>(instr);
+        dynamic_cast<AST::BlockControlInstruction *>(Instr);
 
-    auto res = BlockInstr->getResultType();
-    std::vector<ValType> res_vec;
-    if (res != SSVM::AST::ValType::None)
-      res_vec.emplace_back(Ast2ValType(res));
-    push_ctrl({}, res_vec);
+    auto Res = BlockInstr->getResultType();
+    std::vector<ValType> ResVec;
+    if (Res != SSVM::AST::ValType::None)
+      ResVec.emplace_back(Ast2ValType(Res));
+    push_ctrl({}, ResVec);
     validateWarp(BlockInstr->getBody());
     push_opds(pop_ctrl());
     break;
   }
   case OpCode::If: {
-    // case OpCode::Else: Unused opcode in AST
+    // case OpCode::Else: Unused OpCode in AST
     AST::IfElseControlInstruction *IfInstr =
-        dynamic_cast<AST::IfElseControlInstruction *>(instr);
+        dynamic_cast<AST::IfElseControlInstruction *>(Instr);
     pop_opd(ValType::I32);
 
-    auto res = IfInstr->getResultType();
-    std::vector<ValType> res_vec;
-    if (res != SSVM::AST::ValType::None)
-      res_vec.emplace_back(Ast2ValType(res));
-    push_ctrl(res_vec, res_vec);
+    auto Res = IfInstr->getResultType();
+    std::vector<ValType> ResVec;
+    if (Res != SSVM::AST::ValType::None)
+      ResVec.emplace_back(Ast2ValType(Res));
+    push_ctrl(ResVec, ResVec);
     validateWarp(IfInstr->getIfStatement());
     if (IfInstr->getElseStatement().size() != 0) {
-      auto result = pop_ctrl();
-      push_ctrl(result, result);
+      auto Result = pop_ctrl();
+      push_ctrl(Result, Result);
       validateWarp(IfInstr->getElseStatement());
     }
     push_opds(pop_ctrl());
     break;
   }
 
-  // case OpCode::End: Unused opcode in AST
+  // case OpCode::End: Unused Code in AST
   case OpCode::Br: {
     AST::BrControlInstruction *BrInstr =
-        dynamic_cast<AST::BrControlInstruction *>(instr);
+        dynamic_cast<AST::BrControlInstruction *>(Instr);
     auto N = BrInstr->getLabelIndex();
     if (CtrlStack.size() <= N)
       throw "Br CtrlStack.size() <= N";
-    pop_opds(CtrlStack[N].label_types);
+    pop_opds(CtrlStack[N].LabelTypes);
     unreachable();
     break;
   }
   case OpCode::Br_if: {
     AST::BrControlInstruction *BrInstr =
-        dynamic_cast<AST::BrControlInstruction *>(instr);
+        dynamic_cast<AST::BrControlInstruction *>(Instr);
     auto N = BrInstr->getLabelIndex();
     if (CtrlStack.size() <= N)
       throw "Br_if CtrlStack.size() <= N";
     pop_opd(ValType::I32);
-    pop_opds(CtrlStack[N].label_types);
-    push_opds(CtrlStack[N].label_types);
+    pop_opds(CtrlStack[N].LabelTypes);
+    push_opds(CtrlStack[N].LabelTypes);
     break;
   }
   case OpCode::Br_table: {
     AST::BrTableControlInstruction *BrTInstr =
-        dynamic_cast<AST::BrTableControlInstruction *>(instr);
+        dynamic_cast<AST::BrTableControlInstruction *>(Instr);
     auto M = BrTInstr->getLabelIndex();
     if (CtrlStack.size() <= M)
       throw "Br_table CtrlStack.size() <= M";
     for (auto N : *BrTInstr->getLabelTable()) {
-      // rror_if(ctrls.size() < n || ctrls[n].label_types =/=
+      // Error_if(ctrls.size() < n || ctrls[n].label_types =/=
       // ctrls[m].label_types)
       if (CtrlStack.size() <= N)
         throw "Br_table CtrlStack.size() <= N";
-      if (CtrlStack[N].label_types != CtrlStack[M].label_types)
+      if (CtrlStack[N].LabelTypes != CtrlStack[M].LabelTypes)
         throw "CtrlStack[N].label_types != CtrlStack[M].label_types";
     }
     pop_opd(ValType::I32);
-    pop_opds(CtrlStack[M].label_types);
+    pop_opds(CtrlStack[M].LabelTypes);
     unreachable();
     break;
   }
@@ -313,89 +308,89 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   /// 0x10
   case OpCode::Call: {
     AST::CallControlInstruction *CallInstr =
-        dynamic_cast<AST::CallControlInstruction *>(instr);
+        dynamic_cast<AST::CallControlInstruction *>(Instr);
     auto N = CallInstr->getFuncIndex();
-    if (funcs.size() <= N)
+    if (Funcs.size() <= N)
       throw "Call funcs.size() <= N";
-    stack_trans({funcs[N].first}, {funcs[N].second});
+    StackTrans({Funcs[N].first}, {Funcs[N].second});
     break;
   }
   case OpCode::Call_indirect: {
     AST::CallControlInstruction *CallInstr =
-        dynamic_cast<AST::CallControlInstruction *>(instr);
+        dynamic_cast<AST::CallControlInstruction *>(Instr);
     auto N = CallInstr->getFuncIndex();
-    if (types.size() <= N)
+    if (Types.size() <= N)
       throw "Call funcs.size() <= N";
     pop_opd(ValType::I32);
-    stack_trans({types[N].first}, {types[N].second});
+    StackTrans({Types[N].first}, {Types[N].second});
     break;
   }
   case OpCode::Drop:
-    stack_trans({ValType::Unknown}, {});
+    StackTrans({ValType::Unknown}, {});
     break;
   case OpCode::Select: {
     pop_opd(ValType::I32);
-    auto t1 = pop_opd();
-    auto t2 = pop_opd(t1);
-    push_opd(t2);
+    auto T1 = pop_opd();
+    auto T2 = pop_opd(T1);
+    push_opd(T2);
     break;
   }
 
   /// 0x20
   case OpCode::Local__get: {
     AST::VariableInstruction *VarInstr =
-        dynamic_cast<AST::VariableInstruction *>(instr);
-    stack_trans({}, {getlocal(VarInstr->getVariableIndex())});
+        dynamic_cast<AST::VariableInstruction *>(Instr);
+    StackTrans({}, {getLocal(VarInstr->getVariableIndex())});
     break;
   }
   case OpCode::Local__set: {
     AST::VariableInstruction *VarInstr =
-        dynamic_cast<AST::VariableInstruction *>(instr);
-    auto t = pop_opd();
-    setlocal(VarInstr->getVariableIndex(), t);
+        dynamic_cast<AST::VariableInstruction *>(Instr);
+    auto T = pop_opd();
+    setLocal(VarInstr->getVariableIndex(), T);
     break;
   }
   case OpCode::Local__tee: {
     AST::VariableInstruction *VarInstr =
-        dynamic_cast<AST::VariableInstruction *>(instr);
-    auto t = pop_opd();
-    setlocal(VarInstr->getVariableIndex(), t);
-    push_opd(t);
+        dynamic_cast<AST::VariableInstruction *>(Instr);
+    auto T = pop_opd();
+    setLocal(VarInstr->getVariableIndex(), T);
+    push_opd(T);
     break;
   }
   case OpCode::Global__get: {
     AST::VariableInstruction *VarInstr =
-        dynamic_cast<AST::VariableInstruction *>(instr);
-    stack_trans({}, {getglobal(VarInstr->getVariableIndex())});
+        dynamic_cast<AST::VariableInstruction *>(Instr);
+    StackTrans({}, {getGlobal(VarInstr->getVariableIndex())});
     break;
   }
   case OpCode::Global__set: {
     AST::VariableInstruction *VarInstr =
-        dynamic_cast<AST::VariableInstruction *>(instr);
-    VarInstr = dynamic_cast<AST::VariableInstruction *>(instr);
-    auto t = pop_opd();
-    setglobal(VarInstr->getVariableIndex(), t);
+        dynamic_cast<AST::VariableInstruction *>(Instr);
+    VarInstr = dynamic_cast<AST::VariableInstruction *>(Instr);
+    auto T = pop_opd();
+    setGlobal(VarInstr->getVariableIndex(), T);
     break;
   }
 
   /// TODO: Check memory arg
   case OpCode::I32__load:
-    stack_trans({ValType::I32}, {ValType::I32});
+    StackTrans({ValType::I32}, {ValType::I32});
     break;
   case OpCode::I64__load:
-    stack_trans({ValType::I32}, {ValType::I64});
+    StackTrans({ValType::I32}, {ValType::I64});
     break;
   case OpCode::F32__load:
-    stack_trans({ValType::I32}, {ValType::F32});
+    StackTrans({ValType::I32}, {ValType::F32});
     break;
   case OpCode::F64__load:
-    stack_trans({ValType::I32}, {ValType::F64});
+    StackTrans({ValType::I32}, {ValType::F64});
     break;
   case OpCode::I32__load8_s:
   case OpCode::I32__load8_u:
   case OpCode::I32__load16_s:
   case OpCode::I32__load16_u:
-    stack_trans({ValType::I32}, {ValType::I32});
+    StackTrans({ValType::I32}, {ValType::I32});
     break;
 
   /// 0x30
@@ -405,55 +400,55 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   case OpCode::I64__load16_u:
   case OpCode::I64__load32_s:
   case OpCode::I64__load32_u:
-    stack_trans({ValType::I32}, {ValType::I64});
+    StackTrans({ValType::I32}, {ValType::I64});
     break;
   /// TODO: check store:
   /// https://webassembly.github.io/spec/core/appendix/properties.html
   case OpCode::I32__store:
-    stack_trans({ValType::I32, ValType::I32}, {});
+    StackTrans({ValType::I32, ValType::I32}, {});
     break;
   case OpCode::I64__store:
-    stack_trans({ValType::I32, ValType::I64}, {});
+    StackTrans({ValType::I32, ValType::I64}, {});
     break;
   case OpCode::F32__store:
-    stack_trans({ValType::I32, ValType::F32}, {});
+    StackTrans({ValType::I32, ValType::F32}, {});
     break;
   case OpCode::F64__store:
-    stack_trans({ValType::I32, ValType::F64}, {});
+    StackTrans({ValType::I32, ValType::F64}, {});
     break;
   case OpCode::I32__store8:
   case OpCode::I32__store16:
-    stack_trans({ValType::I32, ValType::I32}, {});
+    StackTrans({ValType::I32, ValType::I32}, {});
     break;
   case OpCode::I64__store8:
   case OpCode::I64__store16:
   case OpCode::I64__store32:
-    stack_trans({ValType::I32, ValType::I64}, {});
+    StackTrans({ValType::I32, ValType::I64}, {});
     break;
   case OpCode::Memory__size:
     /// TODO: check memory[0]
-    stack_trans({}, {ValType::I32});
+    StackTrans({}, {ValType::I32});
     break;
 
     /// 0x40
   case OpCode::Memory__grow:
     /// TODO: check memory[0]
-    stack_trans({ValType::I32}, {ValType::I32});
+    StackTrans({ValType::I32}, {ValType::I32});
     break;
   case OpCode::I32__const:
-    stack_trans({}, {ValType::I32});
+    StackTrans({}, {ValType::I32});
     break;
   case OpCode::I64__const:
-    stack_trans({}, {ValType::I64});
+    StackTrans({}, {ValType::I64});
     break;
   case OpCode::F32__const:
-    stack_trans({}, {ValType::F32});
+    StackTrans({}, {ValType::F32});
     break;
   case OpCode::F64__const:
-    stack_trans({}, {ValType::F64});
+    StackTrans({}, {ValType::F64});
     break;
   case OpCode::I32__eqz:
-    stack_trans({ValType::I32}, {ValType::I32});
+    StackTrans({ValType::I32}, {ValType::I32});
     break;
   case OpCode::I32__eq:
   case OpCode::I32__ne:
@@ -465,12 +460,12 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   case OpCode::I32__le_u:
   case OpCode::I32__ge_s:
   case OpCode::I32__ge_u:
-    stack_trans({ValType::I32, ValType::I32}, {ValType::I32});
+    StackTrans({ValType::I32, ValType::I32}, {ValType::I32});
     break;
 
   /// 0x50
   case OpCode::I64__eqz:
-    stack_trans({ValType::I64}, {ValType::I32});
+    StackTrans({ValType::I64}, {ValType::I32});
     break;
   case OpCode::I64__eq:
   case OpCode::I64__ne:
@@ -482,19 +477,19 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   case OpCode::I64__le_u:
   case OpCode::I64__ge_s:
   case OpCode::I64__ge_u:
-    stack_trans({ValType::I64, ValType::I64}, {ValType::I32});
+    StackTrans({ValType::I64, ValType::I64}, {ValType::I32});
     break;
   case OpCode::F32__eq:
   case OpCode::F32__ne:
   case OpCode::F32__lt:
   case OpCode::F32__gt:
   case OpCode::F32__le:
-    stack_trans({ValType::F32, ValType::F32}, {ValType::I32});
+    StackTrans({ValType::F32, ValType::F32}, {ValType::I32});
     break;
 
   /// 0x60
   case OpCode::F32__ge:
-    stack_trans({ValType::F32, ValType::F32}, {ValType::I32});
+    StackTrans({ValType::F32, ValType::F32}, {ValType::I32});
     break;
   case OpCode::F64__eq:
   case OpCode::F64__ne:
@@ -502,12 +497,12 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   case OpCode::F64__gt:
   case OpCode::F64__le:
   case OpCode::F64__ge:
-    stack_trans({ValType::F64, ValType::F64}, {ValType::I32});
+    StackTrans({ValType::F64, ValType::F64}, {ValType::I32});
     break;
   case OpCode::I32__clz:
   case OpCode::I32__ctz:
   case OpCode::I32__popcnt:
-    stack_trans({ValType::I32}, {ValType::I32});
+    StackTrans({ValType::I32}, {ValType::I32});
     break;
   case OpCode::I32__add:
   case OpCode::I32__sub:
@@ -515,7 +510,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   case OpCode::I32__div_s:
   case OpCode::I32__div_u:
   case OpCode::I32__rem_s:
-    stack_trans({ValType::I32, ValType::I32}, {ValType::I32});
+    StackTrans({ValType::I32, ValType::I32}, {ValType::I32});
     break;
 
   /// 0x70
@@ -528,18 +523,18 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   case OpCode::I32__shr_u:
   case OpCode::I32__rotl:
   case OpCode::I32__rotr:
-    stack_trans({ValType::I32, ValType::I32}, {ValType::I32});
+    StackTrans({ValType::I32, ValType::I32}, {ValType::I32});
     break;
   case OpCode::I64__clz:
   case OpCode::I64__ctz:
   case OpCode::I64__popcnt:
-    stack_trans({ValType::I64}, {ValType::I64});
+    StackTrans({ValType::I64}, {ValType::I64});
     break;
   case OpCode::I64__add:
   case OpCode::I64__sub:
   case OpCode::I64__mul:
   case OpCode::I64__div_s:
-    stack_trans({ValType::I64, ValType::I64}, {ValType::I64});
+    StackTrans({ValType::I64, ValType::I64}, {ValType::I64});
     break;
 
   /// 0x80
@@ -554,20 +549,20 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   case OpCode::I64__shr_u:
   case OpCode::I64__rotl:
   case OpCode::I64__rotr:
-    stack_trans({ValType::I64, ValType::I64}, {ValType::I64});
+    StackTrans({ValType::I64, ValType::I64}, {ValType::I64});
     break;
   case OpCode::F32__abs:
   case OpCode::F32__neg:
   case OpCode::F32__ceil:
   case OpCode::F32__floor:
   case OpCode::F32__trunc:
-    stack_trans({ValType::F32}, {ValType::F32});
+    StackTrans({ValType::F32}, {ValType::F32});
     break;
 
   /// 0x90
   case OpCode::F32__nearest:
   case OpCode::F32__sqrt:
-    stack_trans({ValType::F32}, {ValType::F32});
+    StackTrans({ValType::F32}, {ValType::F32});
     break;
   case OpCode::F32__add:
   case OpCode::F32__sub:
@@ -576,7 +571,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   case OpCode::F32__min:
   case OpCode::F32__max:
   case OpCode::F32__copysign:
-    stack_trans({ValType::F32, ValType::F32}, {ValType::F32});
+    StackTrans({ValType::F32, ValType::F32}, {ValType::F32});
     break;
   case OpCode::F64__abs:
   case OpCode::F64__neg:
@@ -585,7 +580,7 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   case OpCode::F64__trunc:
   case OpCode::F64__nearest:
   case OpCode::F64__sqrt:
-    stack_trans({ValType::F64}, {ValType::F64});
+    StackTrans({ValType::F64}, {ValType::F64});
     break;
 
   /// 0xA0
@@ -596,70 +591,71 @@ void ValidatMachine::runop(AST::Instruction *instr) {
   case OpCode::F64__min:
   case OpCode::F64__max:
   case OpCode::F64__copysign:
-    stack_trans({ValType::F64, ValType::F64}, {ValType::F64});
+    StackTrans({ValType::F64, ValType::F64}, {ValType::F64});
     break;
   case OpCode::I32__wrap_i64:
-    stack_trans({ValType::I64}, {ValType::I32});
+    StackTrans({ValType::I64}, {ValType::I32});
     break;
   case OpCode::I32__trunc_f32_s:
   case OpCode::I32__trunc_f32_u:
-    stack_trans({ValType::F32}, {ValType::I32});
+    StackTrans({ValType::F32}, {ValType::I32});
     break;
   case OpCode::I32__trunc_f64_s:
   case OpCode::I32__trunc_f64_u:
-    stack_trans({ValType::F64}, {ValType::I32});
+    StackTrans({ValType::F64}, {ValType::I32});
     break;
   case OpCode::I64__extend_i32_s:
   case OpCode::I64__extend_i32_u:
-    stack_trans({ValType::I32}, {ValType::I64});
+    StackTrans({ValType::I32}, {ValType::I64});
     break;
   case OpCode::I64__trunc_f32_s:
   case OpCode::I64__trunc_f32_u:
-    stack_trans({ValType::F32}, {ValType::I64});
+    StackTrans({ValType::F32}, {ValType::I64});
     break;
 
   /// 0XB0
   case OpCode::I64__trunc_f64_s:
   case OpCode::I64__trunc_f64_u:
-    stack_trans({ValType::F64}, {ValType::I64});
+    StackTrans({ValType::F64}, {ValType::I64});
     break;
   case OpCode::F32__convert_i32_s:
   case OpCode::F32__convert_i32_u:
-    stack_trans({ValType::I32}, {ValType::F32});
+    StackTrans({ValType::I32}, {ValType::F32});
     break;
   case OpCode::F32__convert_i64_s:
   case OpCode::F32__convert_i64_u:
-    stack_trans({ValType::I64}, {ValType::F32});
+    StackTrans({ValType::I64}, {ValType::F32});
     break;
   case OpCode::F32__demote_f64:
-    stack_trans({ValType::F64}, {ValType::F32});
+    StackTrans({ValType::F64}, {ValType::F32});
     break;
   case OpCode::F64__convert_i32_s:
   case OpCode::F64__convert_i32_u:
-    stack_trans({ValType::I32}, {ValType::F64});
+    StackTrans({ValType::I32}, {ValType::F64});
     break;
   case OpCode::F64__convert_i64_s:
   case OpCode::F64__convert_i64_u:
-    stack_trans({ValType::I64}, {ValType::F64});
+    StackTrans({ValType::I64}, {ValType::F64});
     break;
   case OpCode::F64__promote_f32:
-    stack_trans({ValType::F32}, {ValType::F64});
+    StackTrans({ValType::F32}, {ValType::F64});
     break;
   case OpCode::I32__reinterpret_f32:
-    stack_trans({ValType::F32}, {ValType::I32});
+    StackTrans({ValType::F32}, {ValType::I32});
     break;
   case OpCode::I64__reinterpret_f64:
-    stack_trans({ValType::F64}, {ValType::I64});
+    StackTrans({ValType::F64}, {ValType::I64});
     break;
   case OpCode::F32__reinterpret_i32:
-    stack_trans({ValType::I32}, {ValType::F32});
+    StackTrans({ValType::I32}, {ValType::F32});
     break;
   case OpCode::F64__reinterpret_i64:
-    stack_trans({ValType::I64}, {ValType::F64});
+    StackTrans({ValType::I64}, {ValType::F64});
     break;
 
   default:
-    cout << "unimp opcode:0x" << std::hex << (uint)opcode << std::dec << endl;
+    std::cout << "unimp OpCode: 0x" << std::hex << (uint)Code << std::dec
+              << std::endl;
     throw;
   }
 }

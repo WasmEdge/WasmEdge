@@ -1,5 +1,4 @@
 #include "validator/validator.h"
-
 #include "ast/module.h"
 #include "vm/common.h"
 
@@ -9,15 +8,15 @@
 namespace SSVM {
 namespace Validator {
 
-ErrCode Validator::validate(const AST::Limit *limit, unsigned int K) {
-  bool cond1 = limit->getMin() <= K;
-  bool cond2 = true;
+ErrCode Validator::validate(const AST::Limit *Lim, unsigned int K) {
+  bool Cond1 = Lim->getMin() <= K;
+  bool Cond2 = true;
 
-  if (limit->hasMax()) {
-    cond2 = limit->getMax() <= K && limit->getMin() <= limit->getMax();
+  if (Lim->hasMax()) {
+    Cond2 = Lim->getMax() <= K && Lim->getMin() <= Lim->getMax();
   }
 
-  if (cond1 && cond2)
+  if (Cond1 && Cond2)
     return ErrCode::Success;
   return ErrCode::Invalid;
 }
@@ -52,22 +51,22 @@ ErrCode Validator::validate(AST::FunctionSection *FuncSec,
   if (FuncSec->getContent().size() != CodeSec->getContent().size())
     return ErrCode::Invalid;
 
-  size_t TotoalFunctions = FuncSec->getContent().size();
+  size_t TotalFunctions = FuncSec->getContent().size();
 
-  for (size_t id = 0; id < TotoalFunctions; ++id) {
-    auto tid = FuncSec->getContent().at(id);
+  for (size_t Id = 0; Id < TotalFunctions; ++Id) {
+    auto TId = FuncSec->getContent().at(Id);
 
-    if (tid >= TypeSec->getContent().size())
+    if (TId >= TypeSec->getContent().size())
       return ErrCode::Invalid;
 
-    vm.addfunc(TypeSec->getContent().at(tid).get());
+    VM.addFunc(TypeSec->getContent().at(TId).get());
   }
 
-  for (size_t id = 0; id < TotoalFunctions; ++id) {
-    auto tid = FuncSec->getContent().at(id);
+  for (size_t Id = 0; Id < TotalFunctions; ++Id) {
+    auto TId = FuncSec->getContent().at(Id);
 
-    if (validate(CodeSec->getContent().at(id).get(),
-                 TypeSec->getContent().at(tid).get()) != ErrCode::Success)
+    if (validate(CodeSec->getContent().at(Id).get(),
+                 TypeSec->getContent().at(TId).get()) != ErrCode::Success)
       return ErrCode::Invalid;
   }
   return ErrCode::Success;
@@ -75,26 +74,26 @@ ErrCode Validator::validate(AST::FunctionSection *FuncSec,
 
 ErrCode Validator::validate(AST::CodeSegment *CodeSeg,
                             AST::FunctionType *Func) {
-  vm.reset();
-  int idx = 0;
+  VM.reset();
+  int Idx = 0;
 
-  for (auto val : Func->getParamTypes()) {
-    vm.addloacl(idx++, val);
+  for (auto Val : Func->getParamTypes()) {
+    VM.addLocal(Idx++, Val);
   }
 
-  for (auto val : CodeSeg->getLocals()) {
-    for (unsigned int cnt = 0; cnt < val.first; ++cnt)
-      vm.addloacl(idx++, val.second);
+  for (auto Val : CodeSeg->getLocals()) {
+    for (unsigned int Cnt = 0; Cnt < Val.first; ++Cnt)
+      VM.addLocal(Idx++, Val.second);
   }
-  return vm.validate(CodeSeg->getInstrs(), Func->getReturnTypes());
+  return VM.validate(CodeSeg->getInstrs(), Func->getReturnTypes());
 }
 
 ErrCode Validator::validate(AST::MemorySection *MemSec) {
   if (!MemSec)
     return ErrCode::Success;
 
-  for (auto &mem : MemSec->getContent())
-    if (validate(mem.get()) != ErrCode::Success)
+  for (auto &Mem : MemSec->getContent())
+    if (validate(Mem.get()) != ErrCode::Success)
       return ErrCode::Invalid;
 
   return ErrCode::Success;
@@ -104,11 +103,11 @@ ErrCode Validator::validate(AST::TableSection *TabSec) {
   if (!TabSec)
     return ErrCode::Success;
 
-  for (auto &tab : TabSec->getContent()) {
-    if (validate(tab.get()) != ErrCode::Success)
+  for (auto &Tab : TabSec->getContent()) {
+    if (validate(Tab.get()) != ErrCode::Success)
       return ErrCode::Invalid;
 
-    switch (tab->getElementType()) {
+    switch (Tab->getElementType()) {
     case AST::ElemType::FuncRef:
       break;
     default:
@@ -121,45 +120,45 @@ ErrCode Validator::validate(AST::TableSection *TabSec) {
   return ErrCode::Success;
 }
 
-ErrCode Validator::validate(AST::GlobalSection *GloSec) {
-  if (!GloSec)
+ErrCode Validator::validate(AST::GlobalSection *GlobSec) {
+  if (!GlobSec)
     return ErrCode::Success;
 
-  for (auto &val : GloSec->getContent())
-    if (validate(val.get()) != ErrCode::Success) {
+  for (auto &Val : GlobSec->getContent())
+    if (validate(Val.get()) != ErrCode::Success) {
       return ErrCode::Invalid;
     } else {
-      vm.addglobal(*val.get()->getGlobalType());
+      VM.addGlobal(*Val.get()->getGlobalType());
     }
 
   return ErrCode::Success;
 }
 
 ErrCode Validator::validate(AST::GlobalSegment *) {
-  // TODO: Check GloSeg->getInstrs(); is a const expr
+  // TODO: Check GlobSeg->getInstrs(); is a const expr
   std::cerr << "...GlobalSegment check are ignored (unimplemented)"
             << std::endl;
   return ErrCode::Success;
 }
 
-ErrCode Validator::validate(AST::ElementSegment *EleSeg) {
+ErrCode Validator::validate(AST::ElementSegment *ElemSeg) {
   // In the current version of WebAssembly, at most one table is allowed in a
   // module. Consequently, the only valid tableidx is 0
-  if (EleSeg->getIdx() != 0)
+  if (ElemSeg->getIdx() != 0)
     return ErrCode::Invalid;
 
-  // TODO check EleSeg->getInstrs(); is const expr
+  // TODO check ElemSeg->getInstrs(); is const expr
   std::cerr << "...ElementSegment check are ignored (unimplemented)"
             << std::endl;
   return ErrCode::Success;
 }
 
-ErrCode Validator::validate(AST::ElementSection *EleSec) {
-  if (!EleSec)
+ErrCode Validator::validate(AST::ElementSection *ElemSec) {
+  if (!ElemSec)
     return ErrCode::Success;
 
-  for (auto &element : EleSec->getContent())
-    if (validate(element.get()) != ErrCode::Success)
+  for (auto &Elem : ElemSec->getContent())
+    if (validate(Elem.get()) != ErrCode::Success)
       return ErrCode::Invalid;
   return ErrCode::Success;
 }
@@ -168,13 +167,13 @@ ErrCode Validator::validate(AST::StartSection *StartSec) {
   if (!StartSec)
     return ErrCode::Success;
 
-  auto fid = StartSec->getContent();
+  auto FId = StartSec->getContent();
 
-  if (fid >= vm.getFunctions().size())
+  if (FId >= VM.getFunctions().size())
     return ErrCode::Invalid;
 
-  auto &type = vm.getFunctions().at(fid);
-  if (type.first.size() != 0 || type.second.size() != 0)
+  auto &Type = VM.getFunctions().at(FId);
+  if (Type.first.size() != 0 || Type.second.size() != 0)
     return ErrCode::Invalid;
 
   return ErrCode::Success;
@@ -184,22 +183,22 @@ ErrCode Validator::validate(AST::ExportSection *ExportSec) {
   if (!ExportSec)
     return ErrCode::Success;
 
-  for (auto &exportedc : ExportSec->getContent())
-    if (validate(exportedc.get()) != ErrCode::Success)
+  for (auto &ExportDesc : ExportSec->getContent())
+    if (validate(ExportDesc.get()) != ErrCode::Success)
       return ErrCode::Invalid;
   return ErrCode::Success;
 }
 
 ErrCode Validator::validate(AST::ExportDesc *ExportDesc) {
-  auto id = ExportDesc->getExternalIndex();
+  auto Id = ExportDesc->getExternalIndex();
 
   switch (ExportDesc->getExternalType()) {
   case AST::Desc::ExternalType::Function:
-    if (id >= vm.getFunctions().size())
+    if (Id >= VM.getFunctions().size())
       return ErrCode::Invalid;
     break;
   case AST::Desc::ExternalType::Global:
-    if (id >= vm.getGlobals().size())
+    if (Id >= VM.getGlobals().size())
       return ErrCode::Invalid;
     break;
   case AST::Desc::ExternalType::Memory:
@@ -218,30 +217,31 @@ ErrCode Validator::validate(AST::ImportSection *ImportSec,
   if (!ImportSec)
     return ErrCode::Success;
 
-  for (auto &import : ImportSec->getContent())
-    if (validate(import.get(), TypeSec) != ErrCode::Success)
+  for (auto &ImportDesc : ImportSec->getContent())
+    if (validate(ImportDesc.get(), TypeSec) != ErrCode::Success)
       return ErrCode::Invalid;
   return ErrCode::Success;
 }
 
-ErrCode Validator::validate(AST::ImportDesc *Import,
+ErrCode Validator::validate(AST::ImportDesc *ImportDesc,
                             AST::TypeSection *TypeSec) {
-  switch (Import->getExternalType()) {
+  switch (ImportDesc->getExternalType()) {
   case SSVM::AST::Desc::ExternalType::Function:
-    unsigned int *tid;
-    if (Import->getExternalContent(tid) != SSVM::Executor::ErrCode::Success)
+    unsigned int *TId;
+    if (ImportDesc->getExternalContent(TId) != SSVM::Executor::ErrCode::Success)
       return ErrCode::Invalid;
-    vm.addfunc(TypeSec->getContent().at(*tid).get());
+    VM.addFunc(TypeSec->getContent().at(*TId).get());
     break;
   case SSVM::AST::Desc::ExternalType::Global:
-    AST::GlobalType *global;
-    if (Import->getExternalContent(global) != SSVM::Executor::ErrCode::Success)
+    AST::GlobalType *GlobType;
+    if (ImportDesc->getExternalContent(GlobType) !=
+        SSVM::Executor::ErrCode::Success)
       return ErrCode::Invalid;
-    vm.addglobal(*global);
+    VM.addGlobal(*GlobType);
     break;
   default:
     std::cerr << "ImportDesc check are ignored (unimplemented type:"
-              << (int)Import->getExternalType() << ")" << std::endl;
+              << (int)ImportDesc->getExternalType() << ")" << std::endl;
   }
 
   return ErrCode::Success;
@@ -259,8 +259,8 @@ ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod) {
     return ErrCode::Invalid;
 
   if ((*Mod).getTypeSection())
-    for (auto &type : (*Mod).getTypeSection()->getContent())
-      vm.addtype(type.get());
+    for (auto &Type : (*Mod).getTypeSection()->getContent())
+      VM.addType(Type.get());
 
   if (validate((*Mod).getTableSection()) != ErrCode::Success)
     return ErrCode::Invalid;
@@ -289,7 +289,7 @@ ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod) {
   return ErrCode::Success;
 }
 
-void Validator::reset() { vm.reset(true); }
+void Validator::reset() { VM.reset(true); }
 
 } // namespace Validator
 } // namespace SSVM

@@ -1,5 +1,4 @@
-//===-- ssvm/validator/validator.h - Loader flow control class definition
-//-------===//
+//===-- ssvm/validator/validator.h - Loader flow control class definition--===//
 //
 // Part of the SSVM Project.
 //
@@ -7,7 +6,7 @@
 ///
 /// \file
 /// This file contains the declaration of the validator class, which controls
-/// flow of WASM loading.
+/// flow of WASM validation.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -30,14 +29,14 @@ enum class ErrCode : unsigned int { Success = 0, Invalid };
 enum class ValType : unsigned int { Unknown, I32, I64, F32, F64 };
 
 struct CtrlFrame {
-  std::vector<ValType> label_types;
-  std::vector<ValType> end_types;
-  size_t height;
-  bool unreachable;
+  std::vector<ValType> LabelTypes;
+  std::vector<ValType> EndTypes;
+  size_t Height;
+  bool IsUnreachable;
 };
 
-class ValidatMachine {
-  void runop(AST::Instruction *);
+class ValidateMachine {
+  void runOp(AST::Instruction *);
   void push_opd(ValType);
   ValType pop_opd();
   ValType pop_opd(ValType);
@@ -47,36 +46,35 @@ class ValidatMachine {
   std::vector<ValType> pop_ctrl();
   void unreachable();
 
-  ValType getlocal(unsigned int);
-  void setlocal(unsigned int, ValType);
-  ValType getglobal(unsigned int);
-  void setglobal(unsigned int, ValType);
+  ValType getLocal(unsigned int);
+  void setLocal(unsigned int, ValType);
+  ValType getGlobal(unsigned int);
+  void setGlobal(unsigned int, ValType);
   ErrCode validateWarp(const AST::InstrVec &);
 
 public:
-  void addloacl(unsigned int, AST::ValType);
-  void addglobal(AST::GlobalType);
-  void addfunc(AST::FunctionType *);
-  void addtype(AST::FunctionType *);
+  void addLocal(unsigned int, AST::ValType);
+  void addGlobal(AST::GlobalType);
+  void addFunc(AST::FunctionType *);
+  void addType(AST::FunctionType *);
   void reset(bool CleanGlobal = false);
   void init();
   ErrCode validate(const AST::InstrVec &, const std::vector<AST::ValType> &);
-  
+
   std::deque<ValType> result() { return ValStack; };
-  auto& getGlobals() { return  global; }
-  auto& getFunctions() { return  funcs; }
-  auto& getTypes() { return  types; }
+  auto &getGlobals() { return Global; }
+  auto &getFunctions() { return Funcs; }
+  auto &getTypes() { return Types; }
 
 private:
-  std::map<unsigned int, ValType> local;
+  std::map<unsigned int, ValType> Local;
   std::deque<ValType> ValStack;
   std::deque<CtrlFrame> CtrlStack;
-
   std::vector<ValType> ReturnVals;
 
-  std::vector<AST::GlobalType> global;
-  std::vector<std::pair<std::vector<ValType>, std::vector<ValType>>> funcs;
-  std::vector<std::pair<std::vector<ValType>, std::vector<ValType>>> types;
+  std::vector<AST::GlobalType> Global;
+  std::vector<std::pair<std::vector<ValType>, std::vector<ValType>>> Funcs;
+  std::vector<std::pair<std::vector<ValType>, std::vector<ValType>>> Types;
 
   static const size_t NAT = -1;
 };
@@ -116,9 +114,9 @@ public:
   void reset();
 
 private:
-  ValidatMachine vm;
+  ValidateMachine VM;
 
-  static const unsigned int LIMIT_TABLETYPE = 4294967295U; // 2^32-1
+  static const unsigned int LIMIT_TABLETYPE = UINT32_MAX; // 2^32-1
   static const unsigned int LIMIT_MEMORYTYPE = 1U << 16;
 };
 

@@ -7,10 +7,6 @@
 namespace SSVM {
 namespace Support {
 
-template <typename X, typename Y> inline bool isa(const Y ptr) {
-  return dynamic_cast<const X *>(ptr) != nullptr;
-}
-
 /// Remove const, reference, and volitile.
 template <typename T>
 using RemoveCVRefT = std::remove_cv_t<std::remove_reference_t<T>>;

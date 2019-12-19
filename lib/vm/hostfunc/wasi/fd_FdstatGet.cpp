@@ -18,8 +18,8 @@ WasiFdFdstatGet::WasiFdFdstatGet(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiFdFdstatGet::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res,
+ErrCode WasiFdFdstatGet::run(VM::EnvironmentManager &EnvMgr,
+                             std::vector<Value> &Args, std::vector<Value> &Res,
                              StoreManager &Store,
                              Instance::ModuleInstance *ModInst) {
   /// Arg: Fd(u32), FdStatPtr(u32)

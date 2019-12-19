@@ -12,8 +12,8 @@ WasiArgsSizesGet::WasiArgsSizesGet(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiArgsSizesGet::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res,
+ErrCode WasiArgsSizesGet::run(VM::EnvironmentManager &EnvMgr,
+                              std::vector<Value> &Args, std::vector<Value> &Res,
                               StoreManager &Store,
                               Instance::ModuleInstance *ModInst) {
   /// Arg: ArgcPtr(u32), ArgvBufSizePtr(u32)

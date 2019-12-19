@@ -113,8 +113,9 @@ std::vector<unsigned char> digest_generic(uint64_t *A, unsigned int hashLength,
 // functions Pads the structure (in case the input is not a multiple of the
 // block length) returns the hash result in a char vector
 std::vector<unsigned char> Keccak::digest() {
-  return digest_generic(A, length, [this]() { addPadding(); },
-                        [this]() { processBuffer(); }, [this]() { reset(); });
+  return digest_generic(
+      A, length, [this]() { addPadding(); }, [this]() { processBuffer(); },
+      [this]() { reset(); });
 }
 
 void Keccak::addPadding() {

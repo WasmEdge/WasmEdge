@@ -16,7 +16,8 @@ WasiEnvironSizesGet::WasiEnvironSizesGet(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiEnvironSizesGet::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
+ErrCode WasiEnvironSizesGet::run(VM::EnvironmentManager &EnvMgr,
+                                 std::vector<Value> &Args,
                                  std::vector<Value> &Res, StoreManager &Store,
                                  Instance::ModuleInstance *ModInst) {
   /// Arg: EnvCntPtr(u32), EnvBufSizePtr(u32)

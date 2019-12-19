@@ -25,16 +25,23 @@ public:
   ~Result() = default;
 
   friend bool operator==(Result &LHS, Result &RHS) {
-    if (&LHS == &RHS) return true;
-    if (LHS.LastStage != RHS.LastStage) return false;
-    if (LHS.Status != RHS.Status) return false;
-    if (LHS.StorageMut != RHS.StorageMut) return false;
-    if (LHS.ExecutionState != RHS.ExecutionState) return false;
+    if (&LHS == &RHS)
+      return true;
+    if (LHS.LastStage != RHS.LastStage)
+      return false;
+    if (LHS.Status != RHS.Status)
+      return false;
+    if (LHS.StorageMut != RHS.StorageMut)
+      return false;
+    if (LHS.ExecutionState != RHS.ExecutionState)
+      return false;
     return true;
   }
 
   void setStage(Stage NewStage) { LastStage = NewStage; }
-  void setStorageMut(StorageMutability NewStorageMut) { StorageMut = NewStorageMut; }
+  void setStorageMut(StorageMutability NewStorageMut) {
+    StorageMut = NewStorageMut;
+  }
   void setState(State NewState) { ExecutionState = NewState; }
   void setErrCode(ErrCode Code) { Status = Code; }
   bool hasError() { return Status != 0; }

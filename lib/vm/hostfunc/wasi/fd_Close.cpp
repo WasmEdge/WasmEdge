@@ -13,8 +13,8 @@ WasiFdClose::WasiFdClose(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiFdClose::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res,
+ErrCode WasiFdClose::run(VM::EnvironmentManager &EnvMgr,
+                         std::vector<Value> &Args, std::vector<Value> &Res,
                          StoreManager &Store,
                          Instance::ModuleInstance *ModInst) {
   /// Arg: fd(u32)

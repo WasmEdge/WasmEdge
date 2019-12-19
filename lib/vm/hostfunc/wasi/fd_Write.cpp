@@ -16,8 +16,8 @@ WasiFdWrite::WasiFdWrite(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiFdWrite::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res,
+ErrCode WasiFdWrite::run(VM::EnvironmentManager &EnvMgr,
+                         std::vector<Value> &Args, std::vector<Value> &Res,
                          StoreManager &Store,
                          Instance::ModuleInstance *ModInst) {
   /// Arg: Fd(u32), IOVSPtr(u32), IOVSCnt(u32), NWrittenPtr(u32)

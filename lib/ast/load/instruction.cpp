@@ -196,7 +196,8 @@ Loader::ErrCode makeInstructionNode(Instruction::OpCode Code,
       return Loader::ErrCode::InvalidGrammar;
     } else {
       /// Make the instruction node according to Code.
-      NewInst = std::make_unique<typename std::decay_t<decltype(Arg)>::type>(Code);
+      NewInst =
+          std::make_unique<typename std::decay_t<decltype(Arg)>::type>(Code);
       return Loader::ErrCode::Success;
     }
   });

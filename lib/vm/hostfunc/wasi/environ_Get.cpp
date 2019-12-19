@@ -16,8 +16,8 @@ WasiEnvironGet::WasiEnvironGet(VM::WasiEnvironment &Env) : Wasi(Env) {
   appendReturnDef(AST::ValType::I32);
 }
 
-ErrCode WasiEnvironGet::run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res,
+ErrCode WasiEnvironGet::run(VM::EnvironmentManager &EnvMgr,
+                            std::vector<Value> &Args, std::vector<Value> &Res,
                             StoreManager &Store,
                             Instance::ModuleInstance *ModInst) {
   /// Arg: EnvPtr(u32), EnvBufPtr(u32)

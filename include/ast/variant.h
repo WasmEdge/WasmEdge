@@ -35,32 +35,28 @@ union VariadicUnion<FirstT, RestT...> {
   constexpr VariadicUnion(std::in_place_index_t<N>, Args &&... Values)
       : Rest(std::in_place_index<N - 1>, std::forward<Args>(Values)...) {}
 
-  template <typename T>
-  constexpr const T &get() const &noexcept {
+  template <typename T> constexpr const T &get() const &noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
       return *reinterpret_cast<const FirstT *>(&First);
     } else {
       return Rest.template get<T>();
     }
   }
-  template <typename T>
-  constexpr T &get() & noexcept {
+  template <typename T> constexpr T &get() &noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
       return *reinterpret_cast<FirstT *>(&First);
     } else {
       return Rest.template get<T>();
     }
   }
-  template <typename T>
-  constexpr const T &&get() const &&noexcept {
+  template <typename T> constexpr const T &&get() const &&noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
       return std::move(*reinterpret_cast<const FirstT *>(&First));
     } else {
       return std::move(Rest).template get<T>();
     }
   }
-  template <typename T>
-  constexpr T &&get() && noexcept {
+  template <typename T> constexpr T &&get() &&noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
       return std::move(*reinterpret_cast<FirstT *>(&First));
     } else {
@@ -86,7 +82,6 @@ struct is_in_place_tag<std::in_place_index_t<N>> : std::true_type {};
 template <typename T>
 static constexpr bool not_in_place_tag =
     !is_in_place_tag<remove_cvref_t<T>>::value;
-
 
 template <typename T, typename... Types>
 struct index_of : std::integral_constant<std::size_t, 0> {};
@@ -144,11 +139,11 @@ public:
       : Variant(std::in_place_index_t<index_of_v<T, Types...>>(),
                 std::forward<Args>(Values)...) {}
 
-  template <typename T> constexpr T &get() & noexcept {
+  template <typename T> constexpr T &get() &noexcept {
     return Storage.template get<T>();
   }
 
-  template <typename T> constexpr T &&get() && noexcept {
+  template <typename T> constexpr T &&get() &&noexcept {
     return std::move(Storage).template get<T>();
   }
 
@@ -213,6 +208,5 @@ get(const SSVM::AST::Variant<Types...> &&Variant) {
   return std::move(Variant)
       .template get<std::variant_alternative_t<I, std::variant<Types...>>>();
 }
-
 
 } // namespace std

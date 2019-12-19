@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "executor/instance/global.h"
+
 #include <type_traits>
 
 namespace SSVM {

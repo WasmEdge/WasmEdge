@@ -44,6 +44,7 @@ class StoreManager {
 public:
   StoreManager() = default;
   ~StoreManager() = default;
+
   /// Insert instance to store manager.
   ///
   /// Insert new module instance to store manager.
@@ -58,6 +59,13 @@ public:
   insertModuleInst(std::unique_ptr<Instance::ModuleInstance> &Mod,
                    unsigned int &NewId) {
     return insertInstance(Mod, ModInsts, NewId);
+  }
+
+  /// Pop the back module instance in list.
+  inline ErrCode popModuleInst() {
+    /// FIXME: Remove this API after fixing inserting temporary instance.
+    ModInsts.pop_back();
+    return ErrCode::Success;
   }
 
   /// Insert instance to store manager.

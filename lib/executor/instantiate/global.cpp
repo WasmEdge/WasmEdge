@@ -46,6 +46,7 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
 
   /// Initialize the globals
   /// Insert the temp. module instance to Store
+  /// FIXME: Use pointer in frame instead of insert into Store.
   unsigned int TmpModInstId = 0;
   if (ErrCode Status = StoreMgr.insertModuleInst(TmpMod, TmpModInstId);
       Status != ErrCode::Success) {
@@ -87,10 +88,12 @@ ErrCode Executor::instantiate(AST::GlobalSection *GlobSec) {
   }
 
   /// Pop Frame
-  ErrCode Status = StackMgr.popFrame();
+  if (ErrCode Status = StackMgr.popFrame(); Status != ErrCode::Success) {
+    return Status;
+  }
 
-  /// TODO: Delete the temp. module instance
-  return Status;
+  /// FIXME: Use a temporary module instance instead of inserting to Store.
+  return StoreMgr.popModuleInst();
 }
 
 } // namespace Executor

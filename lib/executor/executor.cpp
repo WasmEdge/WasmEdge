@@ -4,6 +4,8 @@
 #include "ast/section.h"
 #include "executor/instance/module.h"
 
+#include <boost/algorithm/hex.hpp>
+#include <cstdlib>
 #include <iostream>
 
 namespace SSVM {
@@ -45,7 +47,7 @@ ErrCode Executor::setHostFunction(std::unique_ptr<HostFunction> &Func,
   return Status;
 }
 
-/// Set start function name. See "include/loader/executor.h".
+/// Set start function name. See "include/executor/executor.h".
 ErrCode Executor::setStartFuncName(const std::string &Name) {
   StartFunc = Name;
   return ErrCode::Success;
@@ -63,7 +65,7 @@ ErrCode Executor::setModule(std::unique_ptr<AST::Module> &Module) {
   return ErrCode::Success;
 }
 
-/// Instantiate module. See "include/loader/executor.h".
+/// Instantiate module. See "include/executor/executor.h".
 ErrCode Executor::instantiate() {
   /// Check is the correct state.
   if (Stat != State::ModuleSet)
@@ -79,7 +81,7 @@ ErrCode Executor::instantiate() {
   return Result;
 }
 
-/// Set arguments. See "include/loader/executor.h".
+/// Set arguments. See "include/executor/executor.h".
 ErrCode Executor::setArgs(std::vector<Value> &Args) {
   /// Check is the correct state.
   if (Stat != State::Instantiated)
@@ -94,7 +96,50 @@ ErrCode Executor::setArgs(std::vector<Value> &Args) {
   return ErrCode::Success;
 }
 
-/// Invoke start function. See "include/loader/executor.h".
+/// Resume from JSON. See "include/executor/executor.h"
+ErrCode Executor::restore(const rapidjson::Value &Doc) {
+  /// Find Global instances.
+  rapidjson::Value::ConstMemberIterator ItGlob = Doc.FindMember("Global");
+  if (ItGlob != Doc.MemberEnd()) {
+    for (auto It = ItGlob->value.Begin(); It != ItGlob->value.End(); ++It) {
+      /// Get global address and hex
+      const uint32_t Idx = It->GetArray()[0].GetUint();
+      Instance::GlobalInstance *GlobInst = nullptr;
+      if (ErrCode Status = StoreMgr.getGlobal(Idx, GlobInst);
+          Status != ErrCode::Success) {
+        return Status;
+      }
+      AST::ValVariant Val = static_cast<uint64_t>(
+          std::strtoull(It->GetArray()[1].GetString(), nullptr, 16));
+      GlobInst->setValue(Val);
+    }
+  }
+
+  /// Find Memory instances.
+  rapidjson::Value::ConstMemberIterator ItMem = Doc.FindMember("Memory");
+  if (ItMem != Doc.MemberEnd()) {
+    for (auto It = ItMem->value.Begin(); It != ItMem->value.End(); ++It) {
+      /// Get memory address and data
+      const uint32_t Idx = It->GetArray()[0].GetUint();
+      const std::string &Hex = It->GetArray()[1].GetString();
+      Instance::MemoryInstance *MemInst = nullptr;
+      if (ErrCode Status = StoreMgr.getMemory(Idx, MemInst);
+          Status != ErrCode::Success) {
+        return Status;
+      }
+      std::vector<unsigned char> MemVec;
+      boost::algorithm::unhex(Hex.begin(), Hex.end(),
+                              std::back_inserter(MemVec));
+      if (ErrCode Status = MemInst->setBytes(MemVec, 0, 0, MemVec.size());
+          Status != ErrCode::Success) {
+        return Status;
+      }
+    }
+  }
+  return ErrCode::Success;
+}
+
+/// Invoke start function. See "include/executor/executor.h".
 ErrCode Executor::run() {
   /// Check is the correct state.
   if (Stat != State::ArgsSet)
@@ -109,7 +154,7 @@ ErrCode Executor::run() {
   return Result;
 }
 
-/// Get return values. See "include/loader/executor.h".
+/// Get return values. See "include/executor/executor.h".
 ErrCode Executor::getRets(std::vector<Value> &Rets) {
   /// Check is the correct state.
   if (Stat != State::Executed)
@@ -130,7 +175,7 @@ ErrCode Executor::getRets(std::vector<Value> &Rets) {
   return ErrCode::Success;
 }
 
-/// Reset Executor. See "include/loader/executor.h".
+/// Reset Executor. See "include/executor/executor.h".
 ErrCode Executor::reset(bool Force) {
   if (!Force && (Stat != State::Finished && Stat != State::Executed)) {
     return ErrCode::WrongExecutorFlow;

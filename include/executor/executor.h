@@ -16,10 +16,12 @@
 #include "common.h"
 #include "hostfunc.h"
 #include "hostfuncmgr.h"
+#include "rapidjson/document.h"
 #include "stackmgr.h"
 #include "storemgr.h"
 #include "vm/envmgr.h"
 #include "worker.h"
+
 #include <memory>
 
 namespace SSVM {
@@ -49,6 +51,9 @@ public:
 
   /// Set start function arguments.
   ErrCode setArgs(std::vector<Value> &Args);
+
+  /// Resume global and memory instance from JSON file.
+  ErrCode restore(const rapidjson::Value &Doc);
 
   /// Execute Wasm.
   ErrCode run();

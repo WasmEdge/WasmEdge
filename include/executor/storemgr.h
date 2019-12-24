@@ -115,6 +115,9 @@ public:
     return insertInstance(Mem, MemInsts, NewId);
   }
 
+  /// Getter counts of memory instances.
+  inline unsigned int getMemoryInstsCnt() { return MemInsts.size(); }
+
   /// Insert instance to store manager.
   ///
   /// Insert new global instance to store manager.
@@ -130,6 +133,9 @@ public:
                    unsigned int &NewId) {
     return insertInstance(Glob, GlobInsts, NewId);
   }
+
+  /// Getter counts of global instances.
+  inline unsigned int getGlobalInstsCnt() { return GlobInsts.size(); }
 
   /// Get instance from store manager.
   ///

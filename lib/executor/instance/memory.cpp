@@ -27,7 +27,8 @@ ErrCode MemoryInstance::growPage(unsigned int Count) {
 
 /// Getter of data list. See "include/executor/instance/memory.h".
 ErrCode MemoryInstance::getBytes(Bytes &Slice, unsigned int Offset,
-                                 unsigned int Length) { /// Check memory size.
+                                 unsigned int Length) {
+  /// Check memory size.
   ErrCode Status = ErrCode::Success;
   if ((Status = checkDataSize(Offset + Length)) != ErrCode::Success) {
     return Status;

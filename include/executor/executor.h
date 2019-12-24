@@ -55,6 +55,10 @@ public:
   /// Resume global and memory instance from JSON file.
   ErrCode restore(const rapidjson::Value &Doc);
 
+  /// Store global and memory instance to JSON file.
+  ErrCode snapshot(rapidjson::Value &Doc,
+                   rapidjson::Document::AllocatorType &Alloc);
+
   /// Execute Wasm.
   ErrCode run();
 

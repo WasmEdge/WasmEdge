@@ -5,6 +5,7 @@
 #include "executor/instance/module.h"
 
 #include <boost/algorithm/hex.hpp>
+#include <boost/format.hpp>
 #include <cstdlib>
 #include <iostream>
 
@@ -135,6 +136,61 @@ ErrCode Executor::restore(const rapidjson::Value &Doc) {
         return Status;
       }
     }
+  }
+  return ErrCode::Success;
+}
+
+/// Resume from JSON. See "include/executor/executor.h"
+ErrCode Executor::snapshot(rapidjson::Value &Doc,
+                           rapidjson::Document::AllocatorType &Alloc) {
+  /// Iterate Global instances.
+  unsigned int GlobCnt = StoreMgr.getGlobalInstsCnt();
+  if (GlobCnt > 0) {
+    rapidjson::Value GlobArr(rapidjson::kArrayType);
+    for (unsigned int I = 0; I < GlobCnt; I++) {
+      /// Get address and data to string.
+      Instance::GlobalInstance *GlobInst = nullptr;
+      StoreMgr.getGlobal(I, GlobInst);
+      AST::ValVariant Val;
+      GlobInst->getValue(Val);
+      std::string ValHex =
+          (boost::format("0x%016llx") % retrieveValue<uint64_t>(Val)).str();
+
+      /// Insert into global array.
+      rapidjson::Value GlobData(rapidjson::kArrayType);
+      rapidjson::Value Idx(I);
+      rapidjson::Value ValStr;
+      ValStr.SetString(ValHex.c_str(), Alloc);
+      GlobData.PushBack(Idx, Alloc);
+      GlobData.PushBack(ValStr, Alloc);
+      GlobArr.PushBack(GlobData, Alloc);
+    }
+    Doc.AddMember("Global", GlobArr, Alloc);
+  }
+
+  /// Iterate Memory instances.
+  unsigned int MemCnt = StoreMgr.getMemoryInstsCnt();
+  if (MemCnt > 0) {
+    rapidjson::Value MemArr(rapidjson::kArrayType);
+    for (unsigned int I = 0; I < MemCnt; I++) {
+      /// Get address and data to string.
+      Instance::MemoryInstance *MemInst = nullptr;
+      StoreMgr.getMemory(I, MemInst);
+      const std::vector<uint8_t> &Data = MemInst->getDataVector();
+      std::string DataHex;
+      boost::algorithm::hex_lower(Data.begin(), Data.end(),
+                                  std::back_inserter(DataHex));
+
+      /// Insert into memory array.
+      rapidjson::Value MemData(rapidjson::kArrayType);
+      rapidjson::Value Idx(I);
+      rapidjson::Value MemStr;
+      MemStr.SetString(DataHex.c_str(), Alloc);
+      MemData.PushBack(Idx, Alloc);
+      MemData.PushBack(MemStr, Alloc);
+      MemArr.PushBack(MemData, Alloc);
+    }
+    Doc.AddMember("Memory", MemArr, Alloc);
   }
   return ErrCode::Success;
 }

@@ -28,7 +28,7 @@ private:
   using Bytes = std::vector<Byte>;
 
 public:
-  MemoryInstance() : Data(65536){};
+  MemoryInstance() = default;
   ~MemoryInstance() = default;
 
   /// Set the memory limit.
@@ -39,6 +39,9 @@ public:
 
   /// Grow page
   ErrCode growPage(unsigned int Count);
+
+  /// Get memory length.
+  const Bytes &getDataVector() { return Data; }
 
   /// Get slice of Data[Offset : Offset + Length - 1]
   ErrCode getBytes(Bytes &Slice, unsigned int Offset, unsigned int Length);

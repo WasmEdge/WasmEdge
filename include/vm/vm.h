@@ -94,6 +94,15 @@ public:
   /// Getter of cost limit.
   uint64_t getCostLimit() { return EnvMgr.getCostLimit(); }
 
+  /// Getter of used cost.
+  uint64_t getUsedCost() { return EnvMgr.getCostSum(); }
+
+  /// Getter of service name.
+  std::string &getServiceName() { return ServiceName; }
+
+  /// Getter of UUID.
+  uint64_t &getUUID() { return UUID; }
+
 private:
   /// Functions for running.
   ErrCode runLoader();
@@ -114,6 +123,10 @@ private:
   std::vector<Executor::Value> Args;
   std::vector<Executor::Value> Rets;
   Result VMResult;
+
+  /// Identification
+  std::string ServiceName;
+  uint64_t UUID;
 };
 
 } // namespace VM

@@ -5,6 +5,7 @@
 #include "rapidjson/writer.h"
 
 #include <boost/format.hpp>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -14,11 +15,6 @@ namespace SSVM {
 namespace Proxy {
 
 void Proxy::runRequest() {
-  /// No output JSON Path. Do nothing.
-  if (OutputJSONPath == "") {
-    return;
-  }
-
   prepareOutputJSON();
   parseInputJSON();
   executeVM();
@@ -36,9 +32,11 @@ void Proxy::prepareOutputJSON() {
 
   rapidjson::Value ResultObj(rapidjson::kObjectType);
   ResultObj.AddMember("Status", "Failed", Allocator);
+  ResultObj.AddMember("Error_Message", "", Allocator);
   ResultObj.AddMember("Gas", 0, Allocator);
   ResultObj.AddMember("UsedGas", 0, Allocator);
-  ResultObj.AddMember("Error_Message", "", Allocator);
+  ResultObj.AddMember("ReturnValue", rapidjson::Value(rapidjson::kArrayType),
+                      Allocator);
   OutputDoc.AddMember("Result", ResultObj, Allocator);
 }
 
@@ -46,7 +44,6 @@ void Proxy::parseInputJSON() {
   /// Open JSON file
   std::ifstream InputFS(InputJSONPath, std::ios::binary);
   if (!InputFS.is_open()) {
-    rapidjson::Document::AllocatorType &Alloc = OutputDoc.GetAllocator();
     OutputDoc["Result"]["Error_Message"].SetString(
         "Input JSON file not found.");
     return;
@@ -55,29 +52,38 @@ void Proxy::parseInputJSON() {
 
   /// Get file size
   InputFS.seekg(0, std::ios::end);
-  std::streampos InputFileSize = InputFS.tellg();
+  std::streampos FileEndPos = InputFS.tellg();
   InputFS.seekg(0, std::ios::beg);
+  uint32_t FileSize = FileEndPos - InputFS.tellg();
 
-  /// Read data into vector
+  /// Read data to RapidJSON
   std::vector<char> Data;
-  Data.reserve(InputFileSize);
+  Data.reserve(FileSize + 1);
   Data.insert(Data.begin(), std::istream_iterator<char>(InputFS),
               std::istream_iterator<char>());
-
-  /// Create rapidjson objects
-  rapidjson::Document Doc;
-  Doc.Parse(&Data[0]);
+  Data.push_back(0);
+  InputDoc.Parse(&Data[0]);
 
   /// Parse header
   rapidjson::Value::ConstMemberIterator ItServiceName =
-      Doc.FindMember("Service_Name");
-  rapidjson::Value::ConstMemberIterator ItUUID = Doc.FindMember("UUID");
-  rapidjson::Value::ConstMemberIterator ItModules = Doc.FindMember("Modules");
+      InputDoc.FindMember("Service_Name");
+  rapidjson::Value::ConstMemberIterator ItUUID = InputDoc.FindMember("UUID");
+  rapidjson::Value::ConstMemberIterator ItModules =
+      InputDoc.FindMember("Modules");
   rapidjson::Value::ConstMemberIterator ItExecution =
-      Doc.FindMember("Execution");
-  if (ItModules == Doc.MemberEnd() || ItExecution == Doc.MemberEnd()) {
+      InputDoc.FindMember("Execution");
+  if (ItModules == InputDoc.MemberEnd() ||
+      ItExecution == InputDoc.MemberEnd()) {
     OutputDoc["Result"]["Error_Message"].SetString("Module not determined.");
     return;
+  }
+  rapidjson::Document::AllocatorType &Allocator = OutputDoc.GetAllocator();
+  if (ItServiceName != InputDoc.MemberEnd()) {
+    OutputDoc["Service_Name"].SetString(ItServiceName->value.GetString(),
+                                        Allocator);
+  }
+  if (ItUUID != InputDoc.MemberEnd()) {
+    OutputDoc["UUID"].SetString(ItUUID->value.GetString(), Allocator);
   }
 
   /// Create VM with configure.
@@ -87,34 +93,80 @@ void Proxy::parseInputJSON() {
     if (ModuleType == "Rust") {
       Conf.addVMType(SSVM::VM::Configure::VMType::Wasi);
     } else if (ModuleType == "Ethereum") {
-      Conf.addVMType(SSVM::VM::Configure::VMType::Ewasm);
+      OutputDoc["Result"]["Error_Message"].SetString(
+          "Ethereum mode is not supported in SSVM-RPC.");
+      return;
+      /// Conf.addVMType(SSVM::VM::Configure::VMType::Ewasm);
     }
   }
   VMUnit = std::make_unique<VM::VM>(Conf);
-  if (ItServiceName != Doc.MemberEnd()) {
-    VMUnit->getServiceName() = ItServiceName->value.GetString();
-  }
-  if (ItUUID != Doc.MemberEnd()) {
-    VMUnit->getUUID() = std::stoull(ItUUID->value.GetString(), nullptr, 16);
-  }
 }
 
 void Proxy::executeVM() {
-  /// TODO: Set up execution.
+  /// Wasm path is empty or not found.
+  if (WasmPath == "") {
+    OutputDoc["Result"]["Error_Message"].SetString("Wasm file not found.");
+    return;
+  }
 
-  /// TODO: Run wasm function.
+  /// Failed in previous functions.
+  if (VMUnit == nullptr) {
+    return;
+  }
 
-  /// Add VM indentification to output JSON.
-  rapidjson::Document::AllocatorType &Allocator = OutputDoc.GetAllocator();
-  std::string Hex = (boost::format("0x%016llx") % VMUnit->getUUID()).str();
-  OutputDoc["Service_Name"].SetString(VMUnit->getServiceName().c_str(),
-                                      Allocator);
-  OutputDoc["UUID"].SetString(Hex.c_str(), Allocator);
+  /// Set up VM identification.
+  VMUnit->getServiceName() = OutputDoc["Service_Name"].GetString();
+  VMUnit->getUUID() = std::strtoull(OutputDoc["UUID"].GetString(), nullptr, 16);
+
+  /// Set up VM execution.
+  rapidjson::Value::ConstMemberIterator ItFuncName =
+      InputDoc["Execution"].FindMember("Function_Name");
+  rapidjson::Value::ConstMemberIterator ItGas =
+      InputDoc["Execution"].FindMember("Gas");
+  rapidjson::Value::ConstMemberIterator ItArgs =
+      InputDoc["Execution"].FindMember("Argument");
+  rapidjson::Value::ConstMemberIterator ItVMSnapshot =
+      InputDoc["Execution"].FindMember("VMSnapshot");
+  if (ItGas != InputDoc["Execution"].MemberEnd()) {
+    /// Set gas.
+    VMUnit->setCostLimit(ItGas->value.GetUint64());
+  }
+  if (ItArgs != InputDoc["Execution"].MemberEnd()) {
+    /// Set start function arguments.
+    for (auto It = ItArgs->value.Begin(); It != ItArgs->value.End(); ++It) {
+      VMUnit->appendArgument(
+          static_cast<uint64_t>(std::strtoull(It->GetString(), nullptr, 16)));
+    }
+  }
+  if (ItVMSnapshot != InputDoc["Execution"].MemberEnd()) {
+    /// TODO: restoreVM
+  }
+
+  /// Execute function.
+  VMUnit->setPath(WasmPath);
+  if (ItFuncName != InputDoc["Execution"].MemberEnd()) {
+    VMUnit->execute(ItFuncName->value.GetString());
+  } else {
+    VMUnit->execute();
+  }
 
   /// Add VM result to output JSON.
+  rapidjson::Document::AllocatorType &Allocator = OutputDoc.GetAllocator();
   OutputDoc["Result"]["Gas"].SetUint64(VMUnit->getCostLimit());
   OutputDoc["Result"]["UsedGas"].SetUint64(VMUnit->getUsedCost());
-  /// TODO: Add VM snapshot and return value.
+  std::vector<SSVM::Executor::Value> ReturnVals;
+  VMUnit->getReturnValue(ReturnVals);
+  for (auto It = ReturnVals.cbegin(); It != ReturnVals.cend(); It++) {
+    uint64_t val = std::get<uint64_t>(*It);
+    rapidjson::Value ValStr;
+    std::string ValHex =
+        (boost::format("0x%016llx") % std::get<uint64_t>(*It)).str();
+    ValStr.SetString(ValHex.c_str(), Allocator);
+    OutputDoc["Result"]["ReturnValue"].PushBack(ValStr, Allocator);
+  }
+  /// TODO: Add VM snapshot.
+
+  VMUnit.reset();
 }
 
 void Proxy::exportOutputJSON() {
@@ -124,7 +176,9 @@ void Proxy::exportOutputJSON() {
 
   std::ofstream OutputFS(OutputJSONPath, std::ios::out | std::ios::trunc);
   if (!OutputFS.is_open()) {
-    std::cout << "Cannot open output path: " << OutputJSONPath << std::endl;
+    std::cout << "Cannot open output path: \"" << OutputJSONPath << "\""
+              << "\n------------ Result ------------\n"
+              << StrBuf.GetString() << std::endl;
     return;
   }
   OutputFS << StrBuf.GetString();

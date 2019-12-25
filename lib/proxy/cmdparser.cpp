@@ -35,7 +35,7 @@ void CmdParser::parseCommandLine(int Argc, const char *const *Argv) {
 
     // Get the bytecode file path.
     if (S.rfind("--wasm_file=") == 0) {
-      WasmPath = S.substr(16);
+      WasmPath = S.substr(12);
       std::cout << "Wasm file locates in " << WasmPath << std::endl;
     }
   }

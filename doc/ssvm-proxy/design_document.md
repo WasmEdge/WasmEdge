@@ -29,16 +29,24 @@ The file formats of three parameters will be mentioned below.
 {
     //Debugging Info for Rust Container
     "Service_Name": "ERC20",  // A string
-    "UUID": "0x12345678",  // 64 bits unsigned integer in hex string format
+    "UUID": "0x0000000012345678",  // 64 bits unsigned integer in hex string format
     //Info for SSVM 
     "Modules": ["Rust"],
     "Execution":
     {
         "Function_Name": "Mint",  // String format
-        "Argument": ["0x1234", "1000"],  // JSON Array for the function's arugments
-        
-        "Storage": {"0000000000000000000000000000000000000000000000000000000000000000":"0000000000000000000000000000000000000000000000000000000000000064",
-                        "f5b24dcea0e9381721a8c72784d30cfe64c11b4591226269f839d095b3e9cf10":"0000000000000000000000000000000000000000000000000000000000000064"},       // Key-value pairs in JSON Object
+        "Gas": 123, // Integer
+        "Argument": ["0x0000000012345678", "0x0000000087654321"],  // JSON Array for the function's arugments
+        "VMSnapshot": {
+            "Global" : [
+                [0, "0x00000000FFFFFFFF"], [1, "0x00000000FFFFFFFF"]
+                // List: [global_id, value_hex_string(64bit)]
+            ],  // Global instance
+            "Memory" : [
+                [0, "00000000"]
+                // List: [memory_id, memory_dump_hex_string]
+            ]   // Memory instance
+        } // Dumpped snapshot to restore VM
     }
 }
 ```
@@ -54,6 +62,7 @@ The file formats of three parameters will be mentioned below.
     "Execution":
     {
         "Function_Name": "Mint",  // String format
+        "Gas": 123,  // Integer
         "Argument": ["0x1234", "1000"],  // JSON Array for the function's arugments
         "Ethereum": {
             "Caller": "0x0",  // 20 bytes hex number in string format
@@ -65,9 +74,9 @@ The file formats of three parameters will be mentioned below.
                 "payable": false,
                 "type": "function"
             }],
+            "Storage": {"0000000000000000000000000000000000000000000000000000000000000000":"0000000000000000000000000000000000000000000000000000000000000064",
+             "f5b24dcea0e9381721a8c72784d30cfe64c11b4591226269f839d095b3e9cf10":"0000000000000000000000000000000000000000000000000000000000000064"}  // Key-value pairs in JSON Object
         }
-        "Storage": {"0000000000000000000000000000000000000000000000000000000000000000":"0000000000000000000000000000000000000000000000000000000000000064",
-                        "f5b24dcea0e9381721a8c72784d30cfe64c11b4591226269f839d095b3e9cf10":"0000000000000000000000000000000000000000000000000000000000000064"},       // Key-value pairs in JSON Object
     }
 }
 ```
@@ -81,6 +90,8 @@ The file formats of three parameters will be mentioned below.
     "Result":
     {
         "Status": "Successful",  // Can be "Successful", "Failed"
+        "Gas": 123, // Gas given by Input JSON, in Integer format
+        "UsedGas": 100, // Used gas by this transaction, in Integer format
         "Storage": {"0000000000000000000000000000000000000000000000000000000000000000":"0000000000000000000000000000000000000000000000000000000000000064",
                         "f5b24dcea0e9381721a8c72784d30cfe64c11b4591226269f839d095b3e9cf10":"0000000000000000000000000000000000000000000000000000000000000064"},    // Key-value pairs in JSON Object
         "Return_Data": [],       // JSON Array

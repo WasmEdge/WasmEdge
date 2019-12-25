@@ -1,8 +1,8 @@
 {
     "Service_Name": "ERC20",
-    "UUID": "0x12345678",
+    "UUID": "0x0000000012345678",
     "Result": {
-        "Status": "Successful",
+        "Status": "Succeeded",
         "Error_Message": "...",
         "Gas": 123,
         "UsedGas": 100,

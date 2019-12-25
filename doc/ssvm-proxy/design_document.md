@@ -82,20 +82,47 @@ The file formats of three parameters will be mentioned below.
 ```
 
 ### Output JSON file: Return to SSVMRPC
+
+#### Return result for executing a Rust program from SSVMRPC
 ```json
 {
     "Service Name": "ERC20",  // A string
-    "UUID": "0x12345678",  // 64 bits unsigned integer in hex string format
-
+    "UUID": "0x0000000012345678",  // 64 bits unsigned integer in hex string format
     "Result":
     {
-        "Status": "Successful",  // Can be "Successful", "Failed"
+        "Status": "Succeeded",  // Can be "Succeeded", "Failed", or "Reverted"
+        "Error_Message": "...",  // String
+        "Gas": 123, // Gas given by Input JSON, in Integer format
+        "UsedGas": 100, // Used gas by this transaction, in Integer format
+        "VMSnapshot": {
+            "Global" : [
+                [0, "0x00000000FFFFFFFF"], [1, "0x00000000FFFFFFFF"]
+                // List: [global_id(uint32), value_hex_string(64bit)]
+            ],  // Global instance
+            "Memory" : [
+                [0, "00000000"]
+                // List: [memory_id(uint32), memory_dump_hex_string]
+            ]   // Memory instance
+        }, // Dumpped snapshot to restore VM, only in rust mode
+        "ReturnValue": ["0xFFFFFFFFFFFFFFFF"] // Return value list of function
+    }
+}
+```
+
+#### Return result for executing a Ethereum program from SSVMRPC
+```json
+{
+    "Service Name": "ERC20",  // A string
+    "UUID": "0x0000000012345678",  // 64 bits unsigned integer in hex string format
+    "Result":
+    {
+        "Status": "Succeeded",  // Can be "Succeeded", "Failed", or "Reverted"
+        "Error_Message": "...",  // String
         "Gas": 123, // Gas given by Input JSON, in Integer format
         "UsedGas": 100, // Used gas by this transaction, in Integer format
         "Storage": {"0000000000000000000000000000000000000000000000000000000000000000":"0000000000000000000000000000000000000000000000000000000000000064",
                         "f5b24dcea0e9381721a8c72784d30cfe64c11b4591226269f839d095b3e9cf10":"0000000000000000000000000000000000000000000000000000000000000064"},    // Key-value pairs in JSON Object
-        "Return_Data": [],       // JSON Array
-        "Error_Message": "...",  // String
+        "Return_Data": []  // JSON Array
     }
 }
 ```

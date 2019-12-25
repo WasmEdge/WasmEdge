@@ -1,3 +1,4 @@
+add_subdirectory(easyloggingpp)
 add_subdirectory(evmc)
 add_subdirectory(keccak)
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "proxy/proxy.h"
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"

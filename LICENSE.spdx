@@ -51,8 +51,17 @@ PackageLicenseDeclared: BSD-3-Clause
 FilesAnalyzed: false
 PackageComment: <text>Only for testing.</text>
 
+PackageName: rapidjson
+SPDXID: SPDXRef-rapidjson
+PackageFileName: ./thirdparty/rapidjson
+PackageHomePage: https://github.com/Tencent/rapidjson
+PackageOriginator: Milo Yip
+PackageLicenseDeclared: MIT
+FilesAnalyzed: false
+
 ## Relationships
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-SHA3
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-ONNC
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-googletest
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-wagon
+Relationship: SPDXRef-ssvm CONTAINS SPDXRef-rapidjson

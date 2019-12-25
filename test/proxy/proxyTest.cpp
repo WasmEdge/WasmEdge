@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //===-- ssvm/test/option/optionTest.cpp - Option parsing tests ------------===//
 //
 // Part of the SSVM Project.

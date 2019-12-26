@@ -19,7 +19,7 @@ int main(int Argc, char *Argv[]) {
   std::string InputPath(Argv[1]);
   SSVM::VM::Configure Conf;
   SSVM::VM::VM VM(Conf);
-  SSVM::Result Result;
+  SSVM::VM::Result Result;
 
   VM.setPath(InputPath);
   for (int I = 3; I < Argc; I++) {

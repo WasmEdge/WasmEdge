@@ -41,7 +41,7 @@ int main(int Argc, char *Argv[]) {
   for (auto It = CmdArgsVec.begin(); It != CmdArgsVec.end(); It++) {
     std::cout << " Args : " << *It << std::endl;
   }
-  SSVM::Result Result;
+  SSVM::VM::Result Result;
 
 /// Insert helper host functions.
 #ifdef ONNC_WASM

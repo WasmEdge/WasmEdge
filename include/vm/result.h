@@ -12,13 +12,14 @@
 #pragma once
 
 namespace SSVM {
+namespace VM {
 
 class Result {
 public:
   using ErrCode = unsigned int;
   enum class Stage : unsigned int { Init, Loader, Executor, Invalid };
   enum class StorageMutability : unsigned int { Pure, View, Modified };
-  enum class State : unsigned int { commit, revert };
+  enum class State : unsigned int { Commit, Revert, Fail };
 
 public:
   Result() = default;
@@ -45,13 +46,15 @@ public:
   void setState(State NewState) { ExecutionState = NewState; }
   void setErrCode(ErrCode Code) { Status = Code; }
   bool hasError() { return Status != 0; }
+  State getState() { return ExecutionState; }
   ErrCode getErrCode() { return Status; }
 
 private:
   Stage LastStage = Stage::Invalid;
   ErrCode Status = 0;
   StorageMutability StorageMut = StorageMutability::Pure;
-  State ExecutionState = State::revert;
+  State ExecutionState = State::Fail;
 };
 
+} // namespace VM
 } // namespace SSVM

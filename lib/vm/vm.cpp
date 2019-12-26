@@ -85,6 +85,7 @@ ErrCode VM::setCode(const std::vector<uint8_t> &Code) {
 
 ErrCode VM::execute(const std::string &FuncName) {
   /// Prepare VM according to VM type.
+  Rets.clear();
   prepareVMHost();
 
   if (FuncName == "") {
@@ -105,6 +106,9 @@ ErrCode VM::execute(const std::string &FuncName) {
   ExecutorEngine.reset();
   Mod.reset();
   Args.clear();
+  InVMStore = nullptr;
+  OutVMStore = nullptr;
+  OutAlloc = nullptr;
   return Status;
 }
 
@@ -160,9 +164,23 @@ ErrCode VM::runExecutor() {
     return ErrCode::Failed;
   }
 
+  if (InVMStore != nullptr) {
+    ExecutorStatus = ExecutorEngine.restore(*InVMStore);
+    if (detail::testAndSetError(ExecutorStatus, VMResult)) {
+      return ErrCode::Failed;
+    }
+  }
+
   ExecutorStatus = ExecutorEngine.run();
   if (detail::testAndSetError(ExecutorStatus, VMResult)) {
     return ErrCode::Failed;
+  }
+
+  if (OutVMStore != nullptr) {
+    ExecutorStatus = ExecutorEngine.snapshot(*OutVMStore, *OutAlloc);
+    if (detail::testAndSetError(ExecutorStatus, VMResult)) {
+      return ErrCode::Failed;
+    }
   }
 
   ExecutorStatus = ExecutorEngine.getRets(Rets);

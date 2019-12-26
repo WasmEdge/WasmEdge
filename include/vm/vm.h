@@ -19,6 +19,7 @@
 #include "executor/executor.h"
 #include "executor/hostfunc.h"
 #include "loader/loader.h"
+#include "rapidjson/document.h"
 #include "result.h"
 #include "support/casting.h"
 
@@ -43,7 +44,8 @@ public:
   VM() = delete;
   VM(Configure &InputConfig)
       : Config(InputConfig), EnvMgr(InputConfig), LoaderEngine(this->EnvMgr),
-        ExecutorEngine(this->EnvMgr) {}
+        ExecutorEngine(this->EnvMgr), InVMStore(nullptr), OutVMStore(nullptr),
+        OutAlloc(nullptr) {}
   ~VM() = default;
 
   /// Set the wasm file path.
@@ -103,6 +105,14 @@ public:
   /// Getter of UUID.
   uint64_t &getUUID() { return UUID; }
 
+  /// Set input and output JSON object for saving and restoring VM.
+  void setVMStore(rapidjson::Value &InStore, rapidjson::Value &OutStore,
+                  rapidjson::Document::AllocatorType &Allocator) {
+    InVMStore = &InStore;
+    OutVMStore = &OutStore;
+    OutAlloc = &Allocator;
+  }
+
 private:
   /// Functions for running.
   ErrCode runLoader();
@@ -114,6 +124,11 @@ private:
   /// Wasm source.
   std::string WasmPath;
   std::vector<uint8_t> WasmCode;
+
+  /// VM state objects.
+  rapidjson::Value *InVMStore;
+  rapidjson::Value *OutVMStore;
+  rapidjson::Document::AllocatorType *OutAlloc;
 
   Configure &Config;
   EnvironmentManager EnvMgr;

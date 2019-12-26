@@ -35,6 +35,8 @@ void Proxy::prepareOutputJSON() {
   ResultObj.AddMember("Error_Message", "", Allocator);
   ResultObj.AddMember("Gas", 0, Allocator);
   ResultObj.AddMember("UsedGas", 0, Allocator);
+  ResultObj.AddMember("VMSnapshot", rapidjson::Value(rapidjson::kObjectType),
+                      Allocator);
   ResultObj.AddMember("ReturnValue", rapidjson::Value(rapidjson::kArrayType),
                       Allocator);
   OutputDoc.AddMember("Result", ResultObj, Allocator);
@@ -138,8 +140,14 @@ void Proxy::executeVM() {
           static_cast<uint64_t>(std::strtoull(It->GetString(), nullptr, 16)));
     }
   }
+  rapidjson::Document::AllocatorType &Allocator = OutputDoc.GetAllocator();
   if (ItVMSnapshot != InputDoc["Execution"].MemberEnd()) {
-    /// TODO: restoreVM
+    VMUnit->setVMStore(InputDoc["Execution"]["VMSnapshot"],
+                       OutputDoc["Result"]["VMSnapshot"], Allocator);
+  } else {
+    rapidjson::Value SnapshotObj(rapidjson::kObjectType);
+    VMUnit->setVMStore(SnapshotObj, OutputDoc["Result"]["VMSnapshot"],
+                       Allocator);
   }
 
   /// Execute function.
@@ -151,7 +159,6 @@ void Proxy::executeVM() {
   }
 
   /// Add VM result to output JSON.
-  rapidjson::Document::AllocatorType &Allocator = OutputDoc.GetAllocator();
   OutputDoc["Result"]["Gas"].SetUint64(VMUnit->getCostLimit());
   OutputDoc["Result"]["UsedGas"].SetUint64(VMUnit->getUsedCost());
   std::vector<SSVM::Executor::Value> ReturnVals;
@@ -164,7 +171,6 @@ void Proxy::executeVM() {
     ValStr.SetString(ValHex.c_str(), Allocator);
     OutputDoc["Result"]["ReturnValue"].PushBack(ValStr, Allocator);
   }
-  /// TODO: Add VM snapshot.
 
   VMUnit.reset();
 }

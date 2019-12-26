@@ -21,9 +21,7 @@ test:
   script:
     - cmake .. -DBUILD_TESTS=ON
     - make
-    - cd test/regression
-    - ./ssvmRegressionTests
-    - cd ../loader
+    - cd test/loader
     - ./ssvmLoaderEthereumTests
     - ./ssvmLoaderFileMgrTests
     - ./ssvmLoaderWagonTests
@@ -31,6 +29,8 @@ test:
     - ./ssvmASTLoadTests
     - cd ../../evm
     - ./ssvmEVMTests
+    - cd ../proxy
+    - ./ssvmProxyTests
   cache:
     paths:
       - build

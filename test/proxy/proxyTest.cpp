@@ -10,48 +10,102 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "proxy/cmdparser.h"
+#include "proxy/proxy.h"
 #include "gtest/gtest.h"
 
-#include <cstdio>
-#include <cstring>
-#include <iostream>
+#include "rapidjson/document.h"
+
+#include <cstdlib>
+#include <fstream>
+#include <string>
 
 namespace {
 
-TEST(OptionTest, Parse__argument) {
-  // SSVM --input_file=/home/application_uuid/service_id/timestamp/input.json
-  // --output_file=/home/application_uuid/service_id/timestamp/output.json
-  // --bytecode_file=/home/application_uuid/bytecode.wasm
-  int argc = 4;
-  char **argv = new char *[argc];
-  argv[0] = (char *)malloc(sizeof(char) * 5);
-  strcpy(argv[0], "SSVM");
-  argv[1] = (char *)malloc(sizeof(char) * 69);
-  strcpy(argv[1],
-         "--input_file=/home/application_uuid/service_id/timestamp/input.json");
-  argv[2] = (char *)malloc(sizeof(char) * 70);
-  strcpy(
-      argv[2],
-      "--output_file=/home/application_uuid/service_id/timestamp/output.json");
-  argv[3] = (char *)malloc(sizeof(char) * 54);
-  strcpy(argv[3], "--bytecode_file=/home/application_uuid/bytecode.wasm");
+std::string WasmPath("WasmTestData/calc.wasm");
+void readJSONFile(rapidjson::Document &Doc, std::ifstream &FS) {
+  /// Get file size
+  FS.unsetf(std::ios::skipws);
+  FS.seekg(0, std::ios::end);
+  std::streampos FileEndPos = FS.tellg();
+  FS.seekg(0, std::ios::beg);
+  uint32_t FileSize = FileEndPos - FS.tellg();
 
-  SSVM::Proxy::CmdParser Parser;
-  Parser.parseCommandLine(argc, argv);
-  EXPECT_EQ(Parser.getInputJSONPath(),
-            "/home/application_uuid/service_id/timestamp/input.json");
-  EXPECT_EQ(Parser.getOutputJSONPath(),
-            "/home/application_uuid/service_id/timestamp/output.json");
-  EXPECT_EQ(Parser.getWasmPath(), "/home/application_uuid/bytecode.wasm");
-
-  free(argv[0]);
-  free(argv[1]);
-  free(argv[2]);
-  free(argv[3]);
-  free(argv);
+  /// Read output JSON
+  std::vector<char> Data;
+  Data.reserve(FileSize + 1);
+  Data.insert(Data.begin(), std::istream_iterator<char>(FS),
+              std::istream_iterator<char>());
+  Data.push_back(0);
+  Doc.Parse(&Data[0]);
 }
 
+TEST(ProxyTest, Calc__mplus) {
+  /// Run input-mplus.json: mplus(255), original 9 in stored memory
+  SSVM::Proxy::Proxy VMProxy;
+  VMProxy.setInputJSONPath("inputJSONTestData/input-mplus.json");
+  VMProxy.setOutputJSONPath("outputJSONTestData/output-mplus.json");
+  VMProxy.setWasmPath(WasmPath);
+  VMProxy.runRequest();
+
+  /// Check output JSON file
+  std::ifstream OutputFS("outputJSONTestData/output-mplus.json",
+                         std::ios::binary);
+  EXPECT_TRUE(OutputFS.is_open());
+  rapidjson::Document Doc;
+  readJSONFile(Doc, OutputFS);
+
+  /// Check return value in JSON content
+  EXPECT_NE(Doc.FindMember("Result"), Doc.MemberEnd());
+  EXPECT_NE(Doc["Result"].FindMember("ReturnValue"), Doc["Result"].MemberEnd());
+  std::string RetStr = Doc["Result"]["ReturnValue"].GetArray()[0].GetString();
+  EXPECT_EQ(int64_t(std::strtoull(RetStr.c_str(), nullptr, 16)),
+            int64_t(0xFF + 9));
+}
+
+TEST(ProxyTest, Calc__mminus) {
+  /// Run input-mminus.json: mminus(160), original 9 in stored memory
+  SSVM::Proxy::Proxy VMProxy;
+  VMProxy.setInputJSONPath("inputJSONTestData/input-mminus.json");
+  VMProxy.setOutputJSONPath("outputJSONTestData/output-mminus.json");
+  VMProxy.setWasmPath(WasmPath);
+  VMProxy.runRequest();
+
+  /// Check output JSON file
+  std::ifstream OutputFS("outputJSONTestData/output-mminus.json",
+                         std::ios::binary);
+  EXPECT_TRUE(OutputFS.is_open());
+  rapidjson::Document Doc;
+  readJSONFile(Doc, OutputFS);
+
+  /// Check return value in JSON content
+  EXPECT_NE(Doc.FindMember("Result"), Doc.MemberEnd());
+  EXPECT_NE(Doc["Result"].FindMember("ReturnValue"), Doc["Result"].MemberEnd());
+  std::string RetStr = Doc["Result"]["ReturnValue"].GetArray()[0].GetString();
+  EXPECT_EQ(int64_t(std::strtoull(RetStr.c_str(), nullptr, 16)),
+            int64_t(9 - 160));
+}
+
+TEST(ProxyTest, Calc__mrc) {
+  /// Run input-mrc.json: mrc(), original 238 in stored memory
+  SSVM::Proxy::Proxy VMProxy;
+  VMProxy.setInputJSONPath("inputJSONTestData/input-mrc.json");
+  VMProxy.setOutputJSONPath("outputJSONTestData/output-mrc.json");
+  VMProxy.setWasmPath(WasmPath);
+  VMProxy.runRequest();
+
+  /// Check output JSON file
+  std::ifstream OutputFS("outputJSONTestData/output-mrc.json",
+                         std::ios::binary);
+  EXPECT_TRUE(OutputFS.is_open());
+  rapidjson::Document Doc;
+  readJSONFile(Doc, OutputFS);
+
+  /// Check return value in JSON content
+  EXPECT_NE(Doc.FindMember("Result"), Doc.MemberEnd());
+  EXPECT_NE(Doc["Result"].FindMember("ReturnValue"), Doc["Result"].MemberEnd());
+  std::string RetStr = Doc["Result"]["ReturnValue"].GetArray()[0].GetString();
+  EXPECT_EQ(int64_t(std::strtoull(RetStr.c_str(), nullptr, 16)), int64_t(238));
+}
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

@@ -16,15 +16,13 @@ configure_files(
 )
 
 configure_files(
-  ${CMAKE_CURRENT_SOURCE_DIR}/bytecodeTestData
-  ${CMAKE_CURRENT_BINARY_DIR}/bytecodeTestData
+  ${CMAKE_CURRENT_SOURCE_DIR}/WasmTestData
+  ${CMAKE_CURRENT_BINARY_DIR}/WasmTestData
   COPYONLY
 )
 
 target_link_libraries(ssvmProxyTests
   PRIVATE
   utilGoogleTest
-  utilKeccak
-  ssvmVM
   ssvmProxy
 )

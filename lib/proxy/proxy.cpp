@@ -3,6 +3,8 @@
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
+#include "vm/result.h"
+#include "vm/vm.h"
 
 #include <boost/format.hpp>
 #include <cstdlib>
@@ -89,19 +91,18 @@ void Proxy::parseInputJSON() {
   }
 
   /// Create VM with configure.
-  VM::Configure Conf;
   for (auto It = ItModules->value.Begin(); It != ItModules->value.End(); ++It) {
     std::string ModuleType(It->GetString());
     if (ModuleType == "Rust") {
-      Conf.addVMType(SSVM::VM::Configure::VMType::Wasi);
+      VMConf.addVMType(SSVM::VM::Configure::VMType::Wasi);
     } else if (ModuleType == "Ethereum") {
       OutputDoc["Result"]["Error_Message"].SetString(
           "Ethereum mode is not supported in SSVM-RPC.");
       return;
-      /// Conf.addVMType(SSVM::VM::Configure::VMType::Ewasm);
+      /// VMConf.addVMType(SSVM::VM::Configure::VMType::Ewasm);
     }
   }
-  VMUnit = std::make_unique<VM::VM>(Conf);
+  VMUnit = std::make_unique<VM::VM>(VMConf);
 }
 
 void Proxy::executeVM() {
@@ -141,14 +142,13 @@ void Proxy::executeVM() {
     }
   }
   rapidjson::Document::AllocatorType &Allocator = OutputDoc.GetAllocator();
-  if (ItVMSnapshot != InputDoc["Execution"].MemberEnd()) {
-    VMUnit->setVMStore(InputDoc["Execution"]["VMSnapshot"],
-                       OutputDoc["Result"]["VMSnapshot"], Allocator);
-  } else {
-    rapidjson::Value SnapshotObj(rapidjson::kObjectType);
-    VMUnit->setVMStore(SnapshotObj, OutputDoc["Result"]["VMSnapshot"],
-                       Allocator);
+  if (ItVMSnapshot == InputDoc["Execution"].MemberEnd()) {
+    InputDoc["Execution"].AddMember("VMSnapshot",
+                                    rapidjson::Value(rapidjson::kObjectType),
+                                    InputDoc.GetAllocator());
   }
+  VMUnit->setVMStore(InputDoc["Execution"]["VMSnapshot"],
+                     OutputDoc["Result"]["VMSnapshot"], Allocator);
 
   /// Execute function.
   VMUnit->setPath(WasmPath);
@@ -171,8 +171,15 @@ void Proxy::executeVM() {
     ValStr.SetString(ValHex.c_str(), Allocator);
     OutputDoc["Result"]["ReturnValue"].PushBack(ValStr, Allocator);
   }
+  VM::Result VMRes = VMUnit->getResult();
+  if (VMRes.getState() == VM::Result::State::Commit) {
+    OutputDoc["Result"]["Status"].SetString("Succeeded", Allocator);
+  } else if (VMRes.getState() == VM::Result::State::Revert) {
+    OutputDoc["Result"]["Status"].SetString("Reverted", Allocator);
+  }
 
   VMUnit.reset();
+  VMConf = VM::Configure();
 }
 
 void Proxy::exportOutputJSON() {

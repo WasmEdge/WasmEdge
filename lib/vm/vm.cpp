@@ -173,6 +173,9 @@ ErrCode VM::runExecutor() {
 
   ExecutorStatus = ExecutorEngine.run();
   if (detail::testAndSetError(ExecutorStatus, VMResult)) {
+    if (ExecutorStatus == Executor::ErrCode::Revert) {
+      VMResult.setState(Result::State::Revert);
+    }
     return ErrCode::Failed;
   }
 
@@ -191,6 +194,7 @@ ErrCode VM::runExecutor() {
   if (VMResult.hasError()) {
     return ErrCode::Failed;
   }
+  VMResult.setState(Result::State::Commit);
   return ErrCode::Success;
 }
 

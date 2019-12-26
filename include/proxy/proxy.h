@@ -2,6 +2,7 @@
 #pragma once
 
 #include "rapidjson/document.h"
+#include "vm/configure.h"
 #include "vm/vm.h"
 #include <memory>
 #include <string>
@@ -37,6 +38,7 @@ private:
   rapidjson::Document InputDoc;
   rapidjson::Document OutputDoc;
   std::unique_ptr<VM::VM> VMUnit;
+  VM::Configure VMConf;
 };
 
 } // namespace Proxy

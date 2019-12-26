@@ -36,13 +36,13 @@ ErrCode ONNCRuntimeGlobalaveragepoolFloat::run(
     return ErrCode::CallFunctionError;
   }
   ErrCode Status = ErrCode::Success;
-  unsigned int RuntimeContextOff = retrieveValue<uint32_t>(Args[14]);
-  unsigned int InXOff = retrieveValue<uint32_t>(Args[13]);
-  unsigned int InXNDim = retrieveValue<uint32_t>(Args[12]);
-  unsigned int InXDimsOff = retrieveValue<uint32_t>(Args[11]);
-  unsigned int OutYOff = retrieveValue<uint32_t>(Args[10]);
-  unsigned int OutYNDim = retrieveValue<uint32_t>(Args[9]);
-  unsigned int OutYDimsOff = retrieveValue<uint32_t>(Args[8]);
+  unsigned int RuntimeContextOff = retrieveValue<uint32_t>(Args[6]);
+  unsigned int InXOff = retrieveValue<uint32_t>(Args[5]);
+  unsigned int InXNDim = retrieveValue<uint32_t>(Args[4]);
+  unsigned int InXDimsOff = retrieveValue<uint32_t>(Args[3]);
+  unsigned int OutYOff = retrieveValue<uint32_t>(Args[2]);
+  unsigned int OutYNDim = retrieveValue<uint32_t>(Args[1]);
+  unsigned int OutYDimsOff = retrieveValue<uint32_t>(Args[0]);
 
   /// Get memory instance.
   unsigned int MemoryAddr = 0;

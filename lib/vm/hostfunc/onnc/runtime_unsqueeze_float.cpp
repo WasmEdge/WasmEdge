@@ -18,6 +18,7 @@ ONNCRuntimeUnsqueezeFloat::ONNCRuntimeUnsqueezeFloat() {
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);
   appendParamDef(AST::ValType::I32);
+  appendParamDef(AST::ValType::I32);
 }
 
 ErrCode ONNCRuntimeUnsqueezeFloat::run(VM::EnvironmentManager &EnvMgr,

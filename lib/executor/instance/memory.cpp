@@ -65,13 +65,13 @@ ErrCode MemoryInstance::checkDataSize(unsigned int AccessSize) {
     return ErrCode::MemorySizeExceeded;
   }
   if (Data.size() < AccessSize) {
-    unsigned int TargetPageSize = AccessSize / 65536 + 1;
-    if (TargetPageSize < 256) {
-      TargetPageSize *= 2;
+    unsigned int TargetSize = AccessSize / 8 + 1;
+    if (TargetSize < 32 * 65536) {
+      TargetSize *= 2;
     } else {
-      TargetPageSize *= 1.1;
+      TargetSize *= 1.1;
     }
-    Data.resize(TargetPageSize * 65536);
+    Data.resize(TargetSize * 8);
   }
   return ErrCode::Success;
 }

@@ -135,9 +135,9 @@ ErrCode Validator::validate(AST::GlobalSection *GlobSec) {
 }
 
 ErrCode Validator::validate(AST::GlobalSegment *) {
-  // TODO: Check GlobSeg->getInstrs(); is a const expr
-  std::cerr << "...GlobalSegment check are ignored (unimplemented)"
-            << std::endl;
+  /// TODO: Check GlobSeg->getInstrs(); is a const expr
+  /// std::cerr << "...GlobalSegment check are ignored (unimplemented)"
+  ///           << std::endl;
   return ErrCode::Success;
 }
 
@@ -148,8 +148,8 @@ ErrCode Validator::validate(AST::ElementSegment *ElemSeg) {
     return ErrCode::Invalid;
 
   // TODO check ElemSeg->getInstrs(); is const expr
-  std::cerr << "...ElementSegment check are ignored (unimplemented)"
-            << std::endl;
+  /// std::cerr << "...ElementSegment check are ignored (unimplemented)"
+  ///           << std::endl;
   return ErrCode::Success;
 }
 
@@ -203,7 +203,8 @@ ErrCode Validator::validate(AST::ExportDesc *ExportDesc) {
     break;
   case AST::Desc::ExternalType::Memory:
   case AST::Desc::ExternalType::Table:
-    std::cerr << "...ExportDesc check are ignored (unimplemented)" << std::endl;
+    /// std::cerr << "...ExportDesc check are ignored (unimplemented)"
+    ///           << std::endl;
     break;
   default:
     // unreachable code
@@ -240,15 +241,15 @@ ErrCode Validator::validate(AST::ImportDesc *ImportDesc,
     VM.addGlobal(*GlobType);
     break;
   default:
-    std::cerr << "ImportDesc check are ignored (unimplemented type:"
-              << (int)ImportDesc->getExternalType() << ")" << std::endl;
+    /// std::cerr << "ImportDesc check are ignored (unimplemented type:"
+    ///           << (int)ImportDesc->getExternalType() << ")" << std::endl;
+    break;
   }
 
   return ErrCode::Success;
 }
 
 ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod) {
-  std::cout << "start Validator" << std::endl;
   reset();
 
   // Every import defines an index in the respective index space. In each index
@@ -285,7 +286,6 @@ ErrCode Validator::validate(std::unique_ptr<AST::Module> &Mod) {
   if (validate((*Mod).getExportSection()) != ErrCode::Success)
     return ErrCode::Invalid;
 
-  std::cout << "Validator OK" << std::endl;
   return ErrCode::Success;
 }
 

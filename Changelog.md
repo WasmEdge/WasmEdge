@@ -2,18 +2,22 @@
 
 Features:
 
-* Validator
-  * Validate wasm file before execution.
-* Proxy
-  * Supports input and output JSON file for running VM.
-  * Supports restore VM state before execution.
-  * Supports dump VM state after execution.
+* WebAssembly Validation
+  * Implement Wasm Validation mechanism. SSVM will validate wasm modules before execution.
+* Snapshot and restore execution state
+  * SSVM provides restore mechanism from the previous execution state.
+  * SSVM provides snapshot mechanism to dump the current execution state.
+* [JSON interface Spec](doc/ssvm-proxy/design_document.md)
+  * Initialize and set up SSVM via input JSON format.
+  * Retrieve execution results via output JSON format.
 
 Tools:
 
-* Sub-project Proxy
-  * SSVM-PROXY enables JSON input and output for running and retoring state of VM.
-  * With this tool, users can easily use JSON file to run function of wasm file.
+* Sub-project RPC service proxy mode
+  * SSVM-PROXY is a component of [SSVMRPC service](https://github.com/second-state/SSVMRPC).
+  * SSVM-PROXY can archive current execution states and serialize these data into output JSON format.
+  * SSVM-PROXY can restore previous program states from input JSON format.
+
 
 ### 0.2.0 (2019-12-18)
 

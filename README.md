@@ -9,7 +9,7 @@
 ```bash
 $ git clone git@github.com:second-state/SSVM.git
 $ cd SSVM
-$ git checkout 0.2.0
+$ git checkout 0.3.0
 ```
 
 ## Prepare environment
@@ -19,7 +19,7 @@ $ git checkout 0.2.0
 Our docker image use `ubuntu 18.04` as base.
 
 ```bash
-$ docker pull hydai/ssvm-dev:0.2.0
+$ docker pull secondstate/ssvm:dev-0.3.0
 ```
 
 ### Or setup the environment manually
@@ -39,12 +39,13 @@ After the build is finished, you can find there are two ssvm binaries:
 1. `ssvm` is for general wasm runtime.
 2. `ssvm-evm` is for Ewasm runtime.
 3. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
+4. `ssvm-proxy` is for SSVMRPC service, which allows users to deploy and execute Wasm applications via Web interface.
 
 ```bash
 # After pulling our ssvm-dev docker image
 $ docker run -it --rm \
     -v <path/to/your/ssvm/source/folder>:/root/ssvm \
-    hydai/ssvm-dev:0.2.0
+    hydai/ssvm-dev:0.3.0
 (docker)$ cd /root/ssvm
 (docker)$ mkdir -p build && cd build
 (docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make

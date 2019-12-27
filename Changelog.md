@@ -1,3 +1,20 @@
+### 0.3.0 (2019-12-27)
+
+Features:
+
+* Validator
+  * Validate wasm file before execution.
+* Proxy
+  * Supports input and output JSON file for running VM.
+  * Supports restore VM state before execution.
+  * Supports dump VM state after execution.
+
+Tools:
+
+* Sub-project Proxy
+  * SSVM-PROXY enables JSON input and output for running and retoring state of VM.
+  * With this tool, users can easily use JSON file to run function of wasm file.
+
 ### 0.2.0 (2019-12-18)
 
 Features:

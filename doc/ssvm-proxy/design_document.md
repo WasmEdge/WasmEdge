@@ -11,12 +11,12 @@ SSVM-Proxy is a frontend of SSVM to handle requests from SSVMRPC, a RPC handler 
 SSVMRPC can use the following command to execute SSVM-Proxy.
 
 ```shell
-$ SSVM --input_file=/home/johndoe/input.json --output_file=/home/johndoe/output.json --bytecode_file=/home/johndoe/bytecode.wasm
+$ SSVM --input_file=/home/johndoe/input.json --output_file=/home/johndoe/output.json --wasm_file=/home/johndoe/bytecode.wasm
 ```
 There are only three parameters:
 1. input_file: Put a input JSON file path from SSVMRPC here.
 2. output_file: Put a output JSON file path to SSVMRPC here.
-3. bytecode_file: Put a input JSON file path from SSVMRPC here.
+3. wasm_file: Put a input JSON file path from SSVMRPC here.
 
 The file formats of three parameters will be mentioned below. 
 
@@ -140,7 +140,6 @@ In the first phase, we will let SSVM execute a Rust program from the request of 
 #### Phase 2
 
 In the second phase, we will let SSVM execute a Ethereum program from the request of SSVMRPC.
-
 
 1. Parsing Input JSON file for executing a Ethereum program
 2. Encode argument in Ethereum format with given ABI

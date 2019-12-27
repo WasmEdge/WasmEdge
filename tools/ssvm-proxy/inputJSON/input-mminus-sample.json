@@ -1,0 +1,22 @@
+{
+    "Service_Name": "ERC20",
+    "UUID": "0x0000000012345678",
+    "Modules": [
+        "Rust"
+    ],
+    "Execution": {
+        "Function_Name": "mminus",
+        "Gas": 100,
+        "Argument": [
+            "0x00000000000000A0"
+        ],
+        "VMSnapshot": {
+            "Memory": [
+                [
+                    0,
+                    "0000000000000000000000000000000009"
+                ]
+            ]
+        }
+    }
+}

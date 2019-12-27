@@ -73,10 +73,10 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of parameter types vector.
-  const std::vector<ValType> &getParamTypes() { return ParamTypes; }
+  const std::vector<ValType> &getParamTypes() const { return ParamTypes; }
 
   /// Getter of return types vector.
-  const std::vector<ValType> &getReturnTypes() { return ReturnTypes; }
+  const std::vector<ValType> &getReturnTypes() const { return ReturnTypes; }
 
 protected:
   /// The node type should be Attr::Type_Function.

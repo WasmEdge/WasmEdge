@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "evmc/evmc.h"
 #include "evmc/evmc.hpp"
 #include "support/hexstr.h"
 
 #include <cstring>
+#include <fcntl.h>
 #include <map>
+#include <memory>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 namespace SSVM {
@@ -17,6 +19,7 @@ class Environment {
 public:
   Environment() = default;
   virtual ~Environment() = default;
+  Environment(const Environment &) = delete;
 
   virtual void clear() = 0;
 };
@@ -32,7 +35,7 @@ public:
       : GasLimit(CostLimit), GasUsed(CostSum) {}
   virtual ~EVMEnvironment() = default;
 
-  virtual void clear() {
+  void clear() override {
     CallData.clear();
     ReturnData.clear();
     Caller.clear();
@@ -207,17 +210,20 @@ public:
 
   virtual ~WasiEnvironment() noexcept;
 
-  virtual void clear() { CmdArgs.clear(); }
+  void clear() override { CmdArgs.clear(); }
 
   int32_t getStatus() const { return Status; }
   void setStatus(int32_t S) { Status = S; }
   std::vector<std::string> &getCmdArgs() { return CmdArgs; }
   std::vector<PreStat> &getPreStats() { return PreStats; }
+  int getExitCode() const { return ExitCode; }
+  void setExitCode(int ExitCode) { this->ExitCode = ExitCode; }
 
 private:
   int32_t Status;
   std::vector<std::string> CmdArgs;
   std::vector<PreStat> PreStats;
+  int ExitCode = 0;
 };
 
 } // namespace VM

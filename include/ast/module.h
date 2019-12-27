@@ -36,18 +36,18 @@ public:
   virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
 
   /// Getter of pointer to sections.
-  CustomSection *getCustomSection() { return CustomSec.get(); }
-  TypeSection *getTypeSection() { return TypeSec.get(); }
-  ImportSection *getImportSection() { return ImportSec.get(); }
-  FunctionSection *getFunctionSection() { return FunctionSec.get(); }
-  TableSection *getTableSection() { return TableSec.get(); }
-  MemorySection *getMemorySection() { return MemorySec.get(); }
-  GlobalSection *getGlobalSection() { return GlobalSec.get(); }
-  ExportSection *getExportSection() { return ExportSec.get(); }
-  StartSection *getStartSection() { return StartSec.get(); }
-  ElementSection *getElementSection() { return ElementSec.get(); }
-  CodeSection *getCodeSection() { return CodeSec.get(); }
-  DataSection *getDataSection() { return DataSec.get(); }
+  CustomSection *getCustomSection() const { return CustomSec.get(); }
+  TypeSection *getTypeSection() const { return TypeSec.get(); }
+  ImportSection *getImportSection() const { return ImportSec.get(); }
+  FunctionSection *getFunctionSection() const { return FunctionSec.get(); }
+  TableSection *getTableSection() const { return TableSec.get(); }
+  MemorySection *getMemorySection() const { return MemorySec.get(); }
+  GlobalSection *getGlobalSection() const { return GlobalSec.get(); }
+  ExportSection *getExportSection() const { return ExportSec.get(); }
+  StartSection *getStartSection() const { return StartSec.get(); }
+  ElementSection *getElementSection() const { return ElementSec.get(); }
+  CodeSection *getCodeSection() const { return CodeSec.get(); }
+  DataSection *getDataSection() const { return DataSec.get(); }
 
 protected:
   /// The node type should be Attr::Module.

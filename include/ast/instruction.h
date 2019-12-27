@@ -458,7 +458,7 @@ public:
   Loader::ErrCode loadBinary(FileMgr &Mgr) override;
 
   /// Getter of the constant value.
-  ValVariant getConstValue() { return Num; }
+  ValVariant getConstValue() const { return Num; }
 
 private:
   /// Const value of this instruction.

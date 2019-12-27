@@ -97,7 +97,7 @@ private:
 class TypeSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<FunctionType>> &getContent() {
+  const std::vector<std::unique_ptr<FunctionType>> &getContent() const {
     return Content;
   }
 
@@ -117,7 +117,7 @@ private:
 class ImportSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<ImportDesc>> &getContent() {
+  const std::vector<std::unique_ptr<ImportDesc>> &getContent() const {
     return Content;
   }
 
@@ -137,7 +137,7 @@ private:
 class FunctionSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<unsigned int> &getContent() { return Content; }
+  const std::vector<unsigned int> &getContent() const { return Content; }
 
 protected:
   /// Overrided content loading of function section.
@@ -155,7 +155,7 @@ private:
 class TableSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<TableType>> &getContent() {
+  const std::vector<std::unique_ptr<TableType>> &getContent() const {
     return Content;
   }
 
@@ -175,7 +175,7 @@ private:
 class MemorySection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<MemoryType>> &getContent() {
+  const std::vector<std::unique_ptr<MemoryType>> &getContent() const {
     return Content;
   }
 
@@ -195,7 +195,7 @@ private:
 class GlobalSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<GlobalSegment>> &getContent() {
+  const std::vector<std::unique_ptr<GlobalSegment>> &getContent() const {
     return Content;
   }
 
@@ -215,7 +215,7 @@ private:
 class ExportSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<ExportDesc>> &getContent() {
+  const std::vector<std::unique_ptr<ExportDesc>> &getContent() const {
     return Content;
   }
 
@@ -253,7 +253,7 @@ private:
 class ElementSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<ElementSegment>> &getContent() {
+  const std::vector<std::unique_ptr<ElementSegment>> &getContent() const {
     return Content;
   }
 
@@ -273,7 +273,7 @@ private:
 class CodeSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<CodeSegment>> &getContent() {
+  const std::vector<std::unique_ptr<CodeSegment>> &getContent() const {
     return Content;
   }
 
@@ -293,7 +293,7 @@ private:
 class DataSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<DataSegment>> &getContent() {
+  const std::vector<std::unique_ptr<DataSegment>> &getContent() const {
     return Content;
   }
 

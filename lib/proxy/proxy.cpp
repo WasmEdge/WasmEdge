@@ -6,6 +6,7 @@
 #include "vm/result.h"
 #include "vm/vm.h"
 
+#include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <cstdlib>
 #include <fstream>
@@ -107,7 +108,7 @@ void Proxy::parseInputJSON() {
 
 void Proxy::executeVM() {
   /// Wasm path is empty or not found.
-  if (WasmPath == "") {
+  if (WasmPath == "" || !boost::filesystem::exists(WasmPath)) {
     OutputDoc["result"]["error_message"].SetString("Wasm file not found.");
     return;
   }

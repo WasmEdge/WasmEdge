@@ -100,7 +100,7 @@ ErrCode Executor::setArgs(std::vector<Value> &Args) {
 /// Resume from JSON. See "include/executor/executor.h"
 ErrCode Executor::restore(const rapidjson::Value &Doc) {
   /// Find Global instances.
-  rapidjson::Value::ConstMemberIterator ItGlob = Doc.FindMember("Global");
+  rapidjson::Value::ConstMemberIterator ItGlob = Doc.FindMember("global");
   if (ItGlob != Doc.MemberEnd()) {
     for (auto It = ItGlob->value.Begin(); It != ItGlob->value.End(); ++It) {
       /// Get global address and hex
@@ -117,7 +117,7 @@ ErrCode Executor::restore(const rapidjson::Value &Doc) {
   }
 
   /// Find Memory instances.
-  rapidjson::Value::ConstMemberIterator ItMem = Doc.FindMember("Memory");
+  rapidjson::Value::ConstMemberIterator ItMem = Doc.FindMember("memory");
   if (ItMem != Doc.MemberEnd()) {
     for (auto It = ItMem->value.Begin(); It != ItMem->value.End(); ++It) {
       /// Get memory address and data
@@ -165,7 +165,7 @@ ErrCode Executor::snapshot(rapidjson::Value &Doc,
       GlobData.PushBack(ValStr, Alloc);
       GlobArr.PushBack(GlobData, Alloc);
     }
-    Doc.AddMember("Global", GlobArr, Alloc);
+    Doc.AddMember("global", GlobArr, Alloc);
   }
 
   /// Iterate Memory instances.
@@ -190,7 +190,7 @@ ErrCode Executor::snapshot(rapidjson::Value &Doc,
       MemData.PushBack(MemStr, Alloc);
       MemArr.PushBack(MemData, Alloc);
     }
-    Doc.AddMember("Memory", MemArr, Alloc);
+    Doc.AddMember("memory", MemArr, Alloc);
   }
   return ErrCode::Success;
 }

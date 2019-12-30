@@ -1,15 +1,15 @@
 {
-    "Service_Name": "ERC20",
-    "UUID": "0x0000000012345678",
-    "Modules": [
+    "service_name": "ERC20",
+    "uuid": "0x0000000012345678",
+    "modules": [
         "Rust"
     ],
-    "Execution": {
-        "Function_Name": "mrc",
-        "Gas": 100,
-        "Argument": [],
-        "VMSnapshot": {
-            "Memory": [
+    "execution": {
+        "function_name": "mrc",
+        "gas": 100,
+        "argument": [],
+        "vm_snapshot": {
+            "memory": [
                 [
                     0,
                     "00000000000000000000000000000000EE"

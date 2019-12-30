@@ -55,9 +55,10 @@ TEST(ProxyTest, Calc__mplus) {
   readJSONFile(Doc, OutputFS);
 
   /// Check return value in JSON content
-  EXPECT_NE(Doc.FindMember("Result"), Doc.MemberEnd());
-  EXPECT_NE(Doc["Result"].FindMember("ReturnValue"), Doc["Result"].MemberEnd());
-  std::string RetStr = Doc["Result"]["ReturnValue"].GetArray()[0].GetString();
+  EXPECT_NE(Doc.FindMember("result"), Doc.MemberEnd());
+  EXPECT_NE(Doc["result"].FindMember("return_value"),
+            Doc["result"].MemberEnd());
+  std::string RetStr = Doc["result"]["return_value"].GetArray()[0].GetString();
   EXPECT_EQ(int64_t(std::strtoull(RetStr.c_str(), nullptr, 16)),
             int64_t(0xFF + 9));
 }
@@ -78,9 +79,10 @@ TEST(ProxyTest, Calc__mminus) {
   readJSONFile(Doc, OutputFS);
 
   /// Check return value in JSON content
-  EXPECT_NE(Doc.FindMember("Result"), Doc.MemberEnd());
-  EXPECT_NE(Doc["Result"].FindMember("ReturnValue"), Doc["Result"].MemberEnd());
-  std::string RetStr = Doc["Result"]["ReturnValue"].GetArray()[0].GetString();
+  EXPECT_NE(Doc.FindMember("result"), Doc.MemberEnd());
+  EXPECT_NE(Doc["result"].FindMember("return_value"),
+            Doc["result"].MemberEnd());
+  std::string RetStr = Doc["result"]["return_value"].GetArray()[0].GetString();
   EXPECT_EQ(int64_t(std::strtoull(RetStr.c_str(), nullptr, 16)),
             int64_t(9 - 160));
 }
@@ -101,9 +103,10 @@ TEST(ProxyTest, Calc__mrc) {
   readJSONFile(Doc, OutputFS);
 
   /// Check return value in JSON content
-  EXPECT_NE(Doc.FindMember("Result"), Doc.MemberEnd());
-  EXPECT_NE(Doc["Result"].FindMember("ReturnValue"), Doc["Result"].MemberEnd());
-  std::string RetStr = Doc["Result"]["ReturnValue"].GetArray()[0].GetString();
+  EXPECT_NE(Doc.FindMember("result"), Doc.MemberEnd());
+  EXPECT_NE(Doc["result"].FindMember("return_value"),
+            Doc["result"].MemberEnd());
+  std::string RetStr = Doc["result"]["return_value"].GetArray()[0].GetString();
   EXPECT_EQ(int64_t(std::strtoull(RetStr.c_str(), nullptr, 16)), int64_t(238));
 }
 } // namespace

@@ -28,21 +28,21 @@ The file formats of three parameters will be mentioned below.
 ```json
 {
     //Debugging Info for Rust Container
-    "Service_Name": "ERC20",  // A string
-    "UUID": "0x0000000012345678",  // 64 bits unsigned integer in hex string format
+    "service_name": "ERC20",  // A string
+    "uuid": "0x0000000012345678",  // 64 bits unsigned integer in hex string format
     //Info for SSVM 
-    "Modules": ["Rust"],
-    "Execution":
+    "modules": ["Rust"],
+    "execution":
     {
-        "Function_Name": "Mint",  // String format
-        "Gas": 123, // Integer
-        "Argument": ["0x0000000012345678", "0x0000000087654321"],  // JSON Array for the function's arugments
-        "VMSnapshot": {
-            "Global" : [
+        "function_name": "Mint",  // String format
+        "gas": 123, // Integer
+        "argument": ["0x0000000012345678", "0x0000000087654321"],  // JSON Array for the function's arugments
+        "vm_snapshot": {
+            "global" : [
                 [0, "0x00000000FFFFFFFF"], [1, "0x00000000FFFFFFFF"]
                 // List: [global_id, value_hex_string(64bit)]
             ],  // Global instance
-            "Memory" : [
+            "memory" : [
                 [0, "00000000"]
                 // List: [memory_id, memory_dump_hex_string]
             ]   // Memory instance
@@ -55,18 +55,18 @@ The file formats of three parameters will be mentioned below.
 ```json
 {
     //Debugging Info for Rust Container
-    "Service_Name": "ERC20",  // A string
-    "UUID": "0x12345678",  // 64 bits unsigned integer in hex string format
+    "service_name": "ERC20",  // A string
+    "uuid": "0x12345678",  // 64 bits unsigned integer in hex string format
     //Info for SSVM 
-    "Modules": ["Ethereum"],
-    "Execution":
+    "modules": ["Ethereum"],
+    "execution":
     {
-        "Function_Name": "Mint",  // String format
-        "Gas": 123,  // Integer
-        "Argument": ["0x1234", "1000"],  // JSON Array for the function's arugments
-        "Ethereum": {
-            "Caller": "0x0",  // 20 bytes hex number in string format
-            "Call_Value": "0x0",  // 32 bytes hex number in string format
+        "function_name": "Mint",  // String format
+        "gas": 123,  // Integer
+        "argument": ["0x1234", "1000"],  // JSON Array for the function's arugments
+        "ethereum": {
+            "caller": "0x0",  // 20 bytes hex number in string format
+            "call_value": "0x0",  // 32 bytes hex number in string format
             "abi": [{                 // Smart contract ABI
                 "constant": true,
                 "inputs": [],
@@ -74,7 +74,7 @@ The file formats of three parameters will be mentioned below.
                 "payable": false,
                 "type": "function"
             }],
-            "Storage": {"0000000000000000000000000000000000000000000000000000000000000000":"0000000000000000000000000000000000000000000000000000000000000064",
+            "storage": {"0000000000000000000000000000000000000000000000000000000000000000":"0000000000000000000000000000000000000000000000000000000000000064",
              "f5b24dcea0e9381721a8c72784d30cfe64c11b4591226269f839d095b3e9cf10":"0000000000000000000000000000000000000000000000000000000000000064"}  // Key-value pairs in JSON Object
         }
     }
@@ -86,25 +86,25 @@ The file formats of three parameters will be mentioned below.
 #### Return result for executing a Rust program from SSVMRPC
 ```json
 {
-    "Service Name": "ERC20",  // A string
-    "UUID": "0x0000000012345678",  // 64 bits unsigned integer in hex string format
-    "Result":
+    "service_name": "ERC20",  // A string
+    "uuid": "0x0000000012345678",  // 64 bits unsigned integer in hex string format
+    "result":
     {
-        "Status": "Succeeded",  // Can be "Succeeded", "Failed", or "Reverted"
-        "Error_Message": "...",  // String
-        "Gas": 123, // Gas given by Input JSON, in Integer format
-        "UsedGas": 100, // Used gas by this transaction, in Integer format
-        "VMSnapshot": {
-            "Global" : [
+        "status": "Succeeded",  // Can be "Succeeded", "Failed", or "Reverted"
+        "error_message": "...",  // String
+        "gas": 123, // Gas given by Input JSON, in Integer format
+        "gas_used": 100, // Used gas by this transaction, in Integer format
+        "vm_snapshot": {
+            "global" : [
                 [0, "0x00000000FFFFFFFF"], [1, "0x00000000FFFFFFFF"]
                 // List: [global_id(uint32), value_hex_string(64bit)]
             ],  // Global instance
-            "Memory" : [
+            "memory" : [
                 [0, "00000000"]
                 // List: [memory_id(uint32), memory_dump_hex_string]
             ]   // Memory instance
         }, // Dumpped snapshot to restore VM, only in rust mode
-        "ReturnValue": ["0xFFFFFFFFFFFFFFFF"] // Return value list of function
+        "return_value": ["0xFFFFFFFFFFFFFFFF"] // Return value list of function
     }
 }
 ```
@@ -112,17 +112,17 @@ The file formats of three parameters will be mentioned below.
 #### Return result for executing a Ethereum program from SSVMRPC
 ```json
 {
-    "Service Name": "ERC20",  // A string
-    "UUID": "0x0000000012345678",  // 64 bits unsigned integer in hex string format
-    "Result":
+    "service_name": "ERC20",  // A string
+    "uuid": "0x0000000012345678",  // 64 bits unsigned integer in hex string format
+    "result":
     {
-        "Status": "Succeeded",  // Can be "Succeeded", "Failed", or "Reverted"
-        "Error_Message": "...",  // String
-        "Gas": 123, // Gas given by Input JSON, in Integer format
-        "UsedGas": 100, // Used gas by this transaction, in Integer format
-        "Storage": {"0000000000000000000000000000000000000000000000000000000000000000":"0000000000000000000000000000000000000000000000000000000000000064",
+        "status": "Succeeded",  // Can be "Succeeded", "Failed", or "Reverted"
+        "error_message": "...",  // String
+        "gas": 123, // Gas given by Input JSON, in Integer format
+        "gas_used": 100, // Used gas by this transaction, in Integer format
+        "storage": {"0000000000000000000000000000000000000000000000000000000000000000":"0000000000000000000000000000000000000000000000000000000000000064",
                         "f5b24dcea0e9381721a8c72784d30cfe64c11b4591226269f839d095b3e9cf10":"0000000000000000000000000000000000000000000000000000000000000064"},    // Key-value pairs in JSON Object
-        "Return_Data": []  // JSON Array
+        "return_data": []  // JSON Array
     }
 }
 ```

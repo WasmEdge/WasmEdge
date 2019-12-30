@@ -1,20 +1,20 @@
 {
-    "Service_Name": "ERC20",
-    "UUID": "0x0000000012345678",
-    "Result": {
-        "Status": "Succeeded",
-        "Error_Message": "",
-        "Gas": 100,
-        "UsedGas": 8,
-        "VMSnapshot": {
-            "Memory": [
+    "service_name": "ERC20",
+    "uuid": "0x0000000012345678",
+    "result": {
+        "status": "Succeeded",
+        "error_message": "",
+        "gas": 100,
+        "gas_used": 8,
+        "vm_snapshot": {
+            "memory": [
                 [
                     0,
                     "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
                 ]
             ]
         },
-        "ReturnValue": [
+        "return_value": [
             "0x00000000000000ee"
         ]
     }

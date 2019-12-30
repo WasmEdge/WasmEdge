@@ -90,6 +90,11 @@ void Proxy::parseInputJSON() {
   if (ItUUID != InputDoc.MemberEnd()) {
     OutputDoc["uuid"].SetString(ItUUID->value.GetString(), Allocator);
   }
+  if (InputDoc["execution"].FindMember("gas") !=
+      InputDoc["execution"].MemberEnd()) {
+    OutputDoc["result"]["gas"].SetUint64(
+        InputDoc["execution"]["gas"].GetInt64());
+  }
 
   /// Create VM with configure.
   for (auto It = ItModules->value.Begin(); It != ItModules->value.End(); ++It) {
@@ -160,7 +165,6 @@ void Proxy::executeVM() {
   }
 
   /// Add VM result to output JSON.
-  OutputDoc["result"]["gas"].SetUint64(VMUnit->getCostLimit());
   OutputDoc["result"]["gas_used"].SetUint64(VMUnit->getUsedCost());
   std::vector<SSVM::Executor::Value> ReturnVals;
   VMUnit->getReturnValue(ReturnVals);
@@ -174,9 +178,26 @@ void Proxy::executeVM() {
   }
   VM::Result VMRes = VMUnit->getResult();
   if (VMRes.getState() == VM::Result::State::Commit) {
-    OutputDoc["result"]["status"].SetString("Succeeded", Allocator);
+    OutputDoc["result"]["status"].SetString("Succeeded");
   } else if (VMRes.getState() == VM::Result::State::Revert) {
-    OutputDoc["result"]["status"].SetString("Reverted", Allocator);
+    OutputDoc["result"]["status"].SetString("Reverted");
+    OutputDoc["result"]["error_message"].SetString("Gas not enough.");
+  } else {
+    switch (VMRes.getStage()) {
+    case VM::Result::Stage::Loader:
+      OutputDoc["result"]["error_message"].SetString(
+          "Wasm file decoding failed.");
+      break;
+    case VM::Result::Stage::Validator:
+      OutputDoc["result"]["error_message"].SetString("Wasm validation failed.");
+      break;
+    case VM::Result::Stage::Executor:
+      OutputDoc["result"]["error_message"].SetString("Wasm execution failed.");
+      break;
+    default:
+      OutputDoc["result"]["error_message"].SetString("Undefined error.");
+      break;
+    }
   }
 
   VMUnit.reset();
@@ -190,8 +211,8 @@ void Proxy::exportOutputJSON() {
 
   std::ofstream OutputFS(OutputJSONPath, std::ios::out | std::ios::trunc);
   if (!OutputFS.is_open()) {
-    std::cout << "Cannot open output path: \"" << OutputJSONPath << "\""
-              << "\n------------ Result ------------\n"
+    std::cout << "\n Cannot open output path: \"" << OutputJSONPath << "\""
+              << "\n ===================  Results  ==================\n "
               << StrBuf.GetString() << std::endl;
     return;
   }

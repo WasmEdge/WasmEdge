@@ -151,7 +151,7 @@ ErrCode VM::runLoader() {
 
 ErrCode VM::runValidator() {
   Validator::ErrCode ValidatorStatus = Validator::ErrCode::Success;
-  VMResult.setStage(Result::Stage::Loader); // TODO
+  VMResult.setStage(Result::Stage::Validator);
 
   ValidatorStatus = ValidatorEngine.validate(Mod);
 

@@ -17,7 +17,13 @@ namespace VM {
 class Result {
 public:
   using ErrCode = unsigned int;
-  enum class Stage : unsigned int { Init, Loader, Executor, Invalid };
+  enum class Stage : unsigned int {
+    Init,
+    Loader,
+    Validator,
+    Executor,
+    Invalid
+  };
   enum class StorageMutability : unsigned int { Pure, View, Modified };
   enum class State : unsigned int { Commit, Revert, Fail };
 
@@ -47,6 +53,7 @@ public:
   void setErrCode(ErrCode Code) { Status = Code; }
   bool hasError() { return Status != 0; }
   State getState() { return ExecutionState; }
+  Stage getStage() { return LastStage; }
   ErrCode getErrCode() { return Status; }
 
 private:

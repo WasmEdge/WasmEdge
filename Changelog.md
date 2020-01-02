@@ -1,3 +1,15 @@
+### 0.3.1 (2020-01-02)
+
+Fixed issues:
+
+* Change the naming style of JSON format in SSVM proxy mode
+  * Use snake case for the keys of JSON files instead
+* Change the arguements and return values formats.
+  * Add `argument_types` and `return_types` in input JSON format.
+* Expand home directory path
+  * Accept ~ in the file path
+
+
 ### 0.3.0 (2019-12-27)
 
 Features:

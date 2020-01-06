@@ -75,6 +75,10 @@ public:
     Args.push_back(Val);
     return ErrCode::Success;
   }
+  ErrCode appendArgument(const Executor::Value &Val) {
+    Args.push_back(Val);
+    return ErrCode::Success;
+  }
 
   /// Get start function return values.
   void getReturnValue(std::vector<Executor::Value> &RetVals) { RetVals = Rets; }

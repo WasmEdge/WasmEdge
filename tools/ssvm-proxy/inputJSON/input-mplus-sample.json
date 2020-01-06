@@ -8,7 +8,13 @@
         "function_name": "mplus",
         "gas": 100,
         "argument": [
-            "0x00000000000000FF"
+            "255"
+        ],
+        "argument_types": [
+            "i64"
+        ],
+        "return_types": [
+            "i64"
         ],
         "vm_snapshot": {
             "memory": [

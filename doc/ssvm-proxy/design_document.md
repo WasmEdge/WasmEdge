@@ -36,7 +36,9 @@ The file formats of three parameters will be mentioned below.
     {
         "function_name": "Mint",  // String format
         "gas": 123, // Integer
-        "argument": ["0x0000000012345678", "0x0000000087654321"],  // JSON Array for the function's arugments
+        "argument": ["12345678", "87654321"],  // JSON Array for the function's arugments
+        "argument_types": ["i64", "i64"],  // Should be i32, i64, f32, or f64
+        "return_types": ["i64"],  // JSON Array for function's return type list
         "vm_snapshot": {
             "global" : [
                 [0, "0x00000000FFFFFFFF"], [1, "0x00000000FFFFFFFF"]
@@ -104,7 +106,7 @@ The file formats of three parameters will be mentioned below.
                 // List: [memory_id(uint32), memory_dump_hex_string]
             ]   // Memory instance
         }, // Dumpped snapshot to restore VM, only in rust mode
-        "return_value": ["0xFFFFFFFFFFFFFFFF"] // Return value list of function
+        "return_value": ["-12345678"] // Return value list of function
     }
 }
 ```

@@ -59,7 +59,7 @@ TEST(ProxyTest, Calc__mplus) {
   EXPECT_NE(Doc["result"].FindMember("return_value"),
             Doc["result"].MemberEnd());
   std::string RetStr = Doc["result"]["return_value"].GetArray()[0].GetString();
-  EXPECT_EQ(int64_t(std::strtoull(RetStr.c_str(), nullptr, 16)),
+  EXPECT_EQ(int64_t(std::strtoull(RetStr.c_str(), nullptr, 10)),
             int64_t(0xFF + 9));
 }
 
@@ -83,7 +83,7 @@ TEST(ProxyTest, Calc__mminus) {
   EXPECT_NE(Doc["result"].FindMember("return_value"),
             Doc["result"].MemberEnd());
   std::string RetStr = Doc["result"]["return_value"].GetArray()[0].GetString();
-  EXPECT_EQ(int64_t(std::strtoull(RetStr.c_str(), nullptr, 16)),
+  EXPECT_EQ(int64_t(std::strtoull(RetStr.c_str(), nullptr, 10)),
             int64_t(9 - 160));
 }
 
@@ -107,7 +107,7 @@ TEST(ProxyTest, Calc__mrc) {
   EXPECT_NE(Doc["result"].FindMember("return_value"),
             Doc["result"].MemberEnd());
   std::string RetStr = Doc["result"]["return_value"].GetArray()[0].GetString();
-  EXPECT_EQ(int64_t(std::strtoull(RetStr.c_str(), nullptr, 16)), int64_t(238));
+  EXPECT_EQ(int64_t(std::strtoull(RetStr.c_str(), nullptr, 10)), int64_t(238));
 }
 } // namespace
 

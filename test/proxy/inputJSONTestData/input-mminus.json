@@ -8,7 +8,13 @@
         "function_name": "mminus",
         "gas": 100,
         "argument": [
-            "0x00000000000000A0"
+            "160"
+        ],
+        "argument_types": [
+            "i64"
+        ],
+        "return_types": [
+            "i64"
         ],
         "vm_snapshot": {
             "memory": [

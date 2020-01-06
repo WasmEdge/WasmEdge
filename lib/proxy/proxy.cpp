@@ -7,7 +7,8 @@
 #include "vm/vm.h"
 
 #include <boost/filesystem.hpp>
-#include <boost/format.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/range/counting_range.hpp>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -16,6 +17,36 @@
 
 namespace SSVM {
 namespace Proxy {
+
+/// Helper function for converting string to Executor::Value.
+Executor::Value convStrToVal(const std::string &Str, const std::string &Type) {
+  Executor::Value Val;
+  if (Type == "i32") {
+    Val = static_cast<uint32_t>(std::stol(Str));
+  } else if (Type == "i64") {
+    Val = static_cast<uint64_t>(std::stoll(Str));
+  } else if (Type == "f32") {
+    Val = std::stof(Str);
+  } else if (Type == "f64") {
+    Val = std::stod(Str);
+  }
+  return Val;
+}
+
+/// Helper function for converting Executor::Value to string.
+std::string convValToStr(const Executor::Value &Val, const std::string &Type) {
+  std::string Str;
+  if (Type == "i32") {
+    Str = std::to_string(static_cast<int32_t>(std::get<uint32_t>(Val)));
+  } else if (Type == "i64") {
+    Str = std::to_string(static_cast<int64_t>(std::get<uint64_t>(Val)));
+  } else if (Type == "f32") {
+    Str = boost::lexical_cast<std::string>(std::get<float>(Val));
+  } else if (Type == "f64") {
+    Str = boost::lexical_cast<std::string>(std::get<double>(Val));
+  }
+  return Str;
+}
 
 void Proxy::runRequest() {
   prepareOutputJSON();
@@ -97,8 +128,10 @@ void Proxy::parseInputJSON() {
   }
 
   /// Create VM with configure.
-  for (auto It = ItModules->value.Begin(); It != ItModules->value.End(); ++It) {
-    std::string ModuleType(It->GetString());
+  VMUnit.reset();
+  VMConf = VM::Configure();
+  for (auto &Val : ItModules->value.GetArray()) {
+    std::string ModuleType(Val.GetString());
     if (ModuleType == "Rust") {
       VMConf.addVMType(SSVM::VM::Configure::VMType::Wasi);
     } else if (ModuleType == "ethereum") {
@@ -134,17 +167,31 @@ void Proxy::executeVM() {
       InputDoc["execution"].FindMember("gas");
   rapidjson::Value::ConstMemberIterator ItArgs =
       InputDoc["execution"].FindMember("argument");
+  rapidjson::Value::ConstMemberIterator ItArgTypes =
+      InputDoc["execution"].FindMember("argument_types");
+  rapidjson::Value::ConstMemberIterator ItRetTypes =
+      InputDoc["execution"].FindMember("return_types");
   rapidjson::Value::ConstMemberIterator ItVMSnapshot =
       InputDoc["execution"].FindMember("vm_snapshot");
   if (ItGas != InputDoc["execution"].MemberEnd()) {
     /// Set gas.
     VMUnit->setCostLimit(ItGas->value.GetUint64());
   }
-  if (ItArgs != InputDoc["execution"].MemberEnd()) {
+  if (ItArgs != InputDoc["execution"].MemberEnd() &&
+      ItArgTypes != InputDoc["execution"].MemberEnd()) {
+    /// Check arguments and types array.
+    if (ItArgs->value.GetArray().Size() !=
+        ItArgTypes->value.GetArray().Size()) {
+      OutputDoc["result"]["error_message"].SetString(
+          "Arguments and types array length not matched.");
+      return;
+    }
     /// Set start function arguments.
-    for (auto It = ItArgs->value.Begin(); It != ItArgs->value.End(); ++It) {
+    for (uint32_t I : boost::counting_range(
+             size_t(0), size_t(ItArgs->value.GetArray().Size()))) {
       VMUnit->appendArgument(
-          static_cast<uint64_t>(std::strtoull(It->GetString(), nullptr, 16)));
+          convStrToVal(ItArgs->value.GetArray()[I].GetString(),
+                       ItArgTypes->value.GetArray()[I].GetString()));
     }
   }
   rapidjson::Document::AllocatorType &Allocator = OutputDoc.GetAllocator();
@@ -166,15 +213,26 @@ void Proxy::executeVM() {
 
   /// Add VM result to output JSON.
   OutputDoc["result"]["gas_used"].SetUint64(VMUnit->getUsedCost());
-  std::vector<SSVM::Executor::Value> ReturnVals;
-  VMUnit->getReturnValue(ReturnVals);
-  for (auto It = ReturnVals.cbegin(); It != ReturnVals.cend(); It++) {
-    uint64_t val = std::get<uint64_t>(*It);
-    rapidjson::Value ValStr;
-    std::string ValHex =
-        (boost::format("0x%016llx") % std::get<uint64_t>(*It)).str();
-    ValStr.SetString(ValHex.c_str(), Allocator);
-    OutputDoc["result"]["return_value"].PushBack(ValStr, Allocator);
+  if (ItRetTypes != InputDoc["execution"].MemberEnd() &&
+      ItRetTypes->value.GetArray().Size() > 0) {
+    /// Store return value.
+    std::vector<SSVM::Executor::Value> ReturnVals;
+    VMUnit->getReturnValue(ReturnVals);
+    /// Check return types and return value.
+    if (ReturnVals.size() < ItRetTypes->value.GetArray().Size()) {
+      OutputDoc["result"]["error_message"].SetString(
+          "Return value array length and wasm function not matched.");
+      return;
+    }
+    for (uint32_t I : boost::counting_range(
+             size_t(0), size_t(ItRetTypes->value.GetArray().Size()))) {
+      rapidjson::Value ValStr;
+      ValStr.SetString(convValToStr(ReturnVals[I],
+                                    ItRetTypes->value.GetArray()[I].GetString())
+                           .c_str(),
+                       Allocator);
+      OutputDoc["result"]["return_value"].PushBack(ValStr, Allocator);
+    }
   }
   VM::Result VMRes = VMUnit->getResult();
   if (VMRes.getState() == VM::Result::State::Commit) {
@@ -199,9 +257,6 @@ void Proxy::executeVM() {
       break;
     }
   }
-
-  VMUnit.reset();
-  VMConf = VM::Configure();
 }
 
 void Proxy::exportOutputJSON() {

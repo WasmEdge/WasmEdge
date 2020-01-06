@@ -8,6 +8,10 @@
         "function_name": "mrc",
         "gas": 100,
         "argument": [],
+        "argument_types": [],
+        "return_types": [
+            "i64"
+        ],
         "vm_snapshot": {
             "memory": [
                 [

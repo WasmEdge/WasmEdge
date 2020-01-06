@@ -1,84 +1,93 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/wasi/path_Open.h"
-#include "executor/common.h"
-#include "executor/worker/util.h"
-
 #include <fcntl.h>
 
 namespace SSVM {
 namespace Executor {
 
 WasiPathOpen::WasiPathOpen(VM::WasiEnvironment &Env) : Wasi(Env) {
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I64);
-  appendParamDef(AST::ValType::I64);
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendReturnDef(AST::ValType::I32);
+  initializeFuncType<WasiPathOpen>();
 }
 
 ErrCode WasiPathOpen::run(VM::EnvironmentManager &EnvMgr,
-                          std::vector<Value> &Args, std::vector<Value> &Res,
-                          StoreManager &Store,
-                          Instance::ModuleInstance *ModInst) {
-  /// Arg: DirFd(u32), DirFlags(u32), PathPtr(u32), PathLen(u32), OFlags(u32),
-  /// FsRightsBase(u64), FsRightsInheriting(u64), FsFlags(u32), FdPtr(u32)
-  if (Args.size() != 9) {
-    return ErrCode::CallFunctionError;
-  }
-  ErrCode Status = ErrCode::Success;
-  /// unsigned int DirFd = retrieveValue<uint32_t>(Args[8]);
-  /// unsigned int DirFlags = retrieveValue<uint32_t>(Args[7]);
-  unsigned int PathPtr = retrieveValue<uint32_t>(Args[6]);
-  unsigned int PathLen = retrieveValue<uint32_t>(Args[5]);
-  unsigned int OFlags = retrieveValue<uint32_t>(Args[4]);
-  /// unsigned int FsRightsBase = retrieveValue<uint64_t>(Args[3]);
-  /// unsigned int FsRightsInheriting = retrieveValue<uint64_t>(Args[2]);
-  /// unsigned int FsFlags = retrieveValue<uint32_t>(Args[1]);
-  unsigned int FdPtr = retrieveValue<uint32_t>(Args[0]);
-  int ErrNo = 0;
+                          StackManager &StackMgr,
+                          Instance::MemoryInstance &MemInst) {
+  return invoke<WasiPathOpen>(EnvMgr, StackMgr, MemInst);
+}
 
-  /// Get memory instance.
-  unsigned int MemoryAddr = 0;
-  Instance::MemoryInstance *MemInst = nullptr;
-  if ((Status = ModInst->getMemAddr(0, MemoryAddr)) != ErrCode::Success) {
-    return Status;
-  }
-  if ((Status = Store.getMemory(MemoryAddr, MemInst)) != ErrCode::Success) {
-    return Status;
-  }
-
+ErrCode WasiPathOpen::body(VM::EnvironmentManager &EnvMgr,
+                           Instance::MemoryInstance &MemInst, uint32_t &ErrNo,
+                           int32_t DirFd, uint32_t DirFlags, uint32_t PathPtr,
+                           uint32_t PathLen, uint32_t OFlags,
+                           uint64_t FsRightsBase, uint64_t FsRightsInheriting,
+                           uint32_t FsFlags, uint32_t FdPtr) {
   /// Get file path.
   std::vector<unsigned char> Data;
-  if ((Status = MemInst->getBytes(Data, PathPtr, PathLen)) !=
-      ErrCode::Success) {
+  if (ErrCode Status = MemInst.getBytes(Data, PathPtr, PathLen);
+      Status != ErrCode::Success) {
     return Status;
   }
   std::string Path(Data.begin(), Data.end());
 
-  /// Open file and store Fd.
-  int Fd = open(Path.c_str(), OFlags);
-  if (Fd == -1) {
-    ErrNo = 1;
-  } else {
-    if ((Status = MemInst->storeValue((uint32_t)Fd, FdPtr, 4)) !=
-        ErrCode::Success) {
-      return Status;
-    }
+  const bool Read =
+      (FsRightsBase & (__WASI_RIGHT_FD_READ | __WASI_RIGHT_FD_READDIR)) != 0;
+  const bool Write =
+      (FsRightsBase &
+       (__WASI_RIGHT_FD_DATASYNC | __WASI_RIGHT_FD_WRITE |
+        __WASI_RIGHT_FD_ALLOCATE | __WASI_RIGHT_FD_FILESTAT_SET_SIZE)) != 0;
+
+  int Flags = Write ? (Read ? O_RDWR : O_WRONLY) : O_RDONLY;
+  if ((OFlags & __WASI_O_CREAT) != 0) {
+    Flags |= O_CREAT;
+  }
+  if ((OFlags & __WASI_O_DIRECTORY) != 0)
+    Flags |= O_DIRECTORY;
+  if ((OFlags & __WASI_O_EXCL) != 0)
+    Flags |= O_EXCL;
+  if ((OFlags & __WASI_O_TRUNC) != 0) {
+    Flags |= O_TRUNC;
   }
 
-  /// Return: errno(u32)
-  if (ErrNo == 0) {
-    Res[0] = uint32_t(0U);
-  } else {
-    /// TODO: errno
-    Res[0] = uint32_t(1U);
+  // Convert file descriptor flags.
+  if ((FsFlags & __WASI_FDFLAG_APPEND) != 0)
+    Flags |= O_APPEND;
+  if ((FsFlags & __WASI_FDFLAG_DSYNC) != 0) {
+#ifdef O_DSYNC
+    Flags |= O_DSYNC;
+#else
+    Flags |= O_SYNC;
+#endif
   }
-  return Status;
+  if ((FsFlags & __WASI_FDFLAG_NONBLOCK) != 0)
+    Flags |= O_NONBLOCK;
+  if ((FsFlags & __WASI_FDFLAG_RSYNC) != 0) {
+#ifdef O_RSYNC
+    Flags |= O_RSYNC;
+#else
+    Flags |= O_SYNC;
+#endif
+  }
+  if ((FsFlags & __WASI_FDFLAG_SYNC) != 0) {
+    Flags |= O_SYNC;
+  }
+
+  if ((DirFlags & __WASI_LOOKUP_SYMLINK_FOLLOW) == 0) {
+    Flags |= O_NOFOLLOW;
+  }
+
+  /// Open file and store Fd.
+  int32_t Fd = open(Path.c_str(), Flags, 0644);
+  if (Fd == -1) {
+    /// TODO: errno
+    ErrNo = 1U;
+    return ErrCode::Success;
+  }
+  if (ErrCode Status = MemInst.storeValue(uint32_t(Fd), FdPtr, 4);
+      Status != ErrCode::Success) {
+    return Status;
+  }
+  ErrNo = 0U;
+  return ErrCode::Success;
 }
 
 } // namespace Executor

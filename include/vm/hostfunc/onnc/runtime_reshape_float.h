@@ -9,11 +9,16 @@ namespace Executor {
 class ONNCRuntimeReshapeFloat : public HostFunction {
 public:
   ONNCRuntimeReshapeFloat();
-  virtual ~ONNCRuntimeReshapeFloat() = default;
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst);
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override;
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
+               uint32_t InDataOff, uint32_t InDataNDim, uint32_t InDataDimsOff,
+               uint32_t InShapeOff, uint32_t InShapeNDim,
+               uint32_t InShapeDimsOff, uint32_t OutReshapedOff,
+               uint32_t OutReshapedNDim, uint32_t OutReshapedDimsOff);
 };
 
 } // namespace Executor

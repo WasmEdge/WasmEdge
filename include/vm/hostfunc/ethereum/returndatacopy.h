@@ -9,12 +9,13 @@ namespace Executor {
 class EEIReturnDataCopy : public EEI {
 public:
   EEIReturnDataCopy(VM::EVMEnvironment &Env, uint64_t Cost = 100);
-  EEIReturnDataCopy() = delete;
-  virtual ~EEIReturnDataCopy() = default;
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst);
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override;
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst, uint32_t ResultOffset,
+               uint32_t DataOffset, uint32_t Length);
 };
 
 } // namespace Executor

@@ -11,8 +11,6 @@ namespace Executor {
 class Wasi : public HostFunction {
 public:
   Wasi(VM::WasiEnvironment &HostEnv) : Env(HostEnv) {}
-  Wasi() = delete;
-  virtual ~Wasi() = default;
 
 protected:
   VM::WasiEnvironment &Env;

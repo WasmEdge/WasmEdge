@@ -9,12 +9,14 @@ namespace Executor {
 class EEICallStatic : public EEI {
 public:
   EEICallStatic(VM::EVMEnvironment &Env, uint64_t Cost = 100);
-  EEICallStatic() = delete;
-  virtual ~EEICallStatic() = default;
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst);
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override;
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst, uint32_t &Ret, uint32_t Gas,
+               uint32_t AddressOffset, uint32_t DataOffset,
+               uint32_t DataLength);
 };
 
 } // namespace Executor

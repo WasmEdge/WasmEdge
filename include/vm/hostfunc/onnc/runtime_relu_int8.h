@@ -9,11 +9,14 @@ namespace Executor {
 class ONNCRuntimeReluInt8 : public HostFunction {
 public:
   ONNCRuntimeReluInt8();
-  virtual ~ONNCRuntimeReluInt8() = default;
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst);
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override;
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
+               uint32_t InXOff, uint32_t InXNDim, uint32_t InXDimsOff,
+               uint32_t OutYOff, uint32_t OutYNDim, uint32_t OutYDimsOff);
 };
 
 } // namespace Executor

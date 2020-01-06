@@ -1,26 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/wasi/proc_Exit.h"
-#include "executor/common.h"
-#include "executor/worker/util.h"
 
 namespace SSVM {
 namespace Executor {
 
 WasiProcExit::WasiProcExit(VM::WasiEnvironment &Env) : Wasi(Env) {
-  appendParamDef(AST::ValType::I32);
+  initializeFuncType<WasiProcExit>();
 }
 
 ErrCode WasiProcExit::run(VM::EnvironmentManager &EnvMgr,
-                          std::vector<Value> &Args, std::vector<Value> &Res,
-                          StoreManager &Store,
-                          Instance::ModuleInstance *ModInst) {
-  /// Arg: errno(u32)
-  if (Args.size() != 1) {
-    return ErrCode::CallFunctionError;
-  }
-  /// TODO: push errno to stack.
+                          StackManager &StackMgr,
+                          Instance::MemoryInstance &MemInst) {
+  return invoke<WasiProcExit>(EnvMgr, StackMgr, MemInst);
+}
 
-  /// Return: void
+ErrCode WasiProcExit::body(VM::EnvironmentManager &EnvMgr,
+                           Instance::MemoryInstance &MemInst, int32_t Status) {
+  Env.setStatus(Status);
   return ErrCode::Terminated;
 }
 

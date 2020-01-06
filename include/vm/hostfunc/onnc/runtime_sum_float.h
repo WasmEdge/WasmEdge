@@ -9,11 +9,15 @@ namespace Executor {
 class ONNCRuntimeSumFloat : public HostFunction {
 public:
   ONNCRuntimeSumFloat();
-  virtual ~ONNCRuntimeSumFloat() = default;
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst);
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override;
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
+               uint32_t InDataOffOff, uint32_t InDataNTensor,
+               uint32_t InDataNDimOff, uint32_t InDataDimsOffOff,
+               uint32_t OutSumOff, uint32_t OutSumNDim, uint32_t OutSumDimsOff);
 };
 
 } // namespace Executor

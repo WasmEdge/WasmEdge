@@ -9,12 +9,12 @@ namespace Executor {
 class WasiFdClose : public Wasi {
 public:
   WasiFdClose(VM::WasiEnvironment &Env);
-  WasiFdClose() = delete;
-  virtual ~WasiFdClose() = default;
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst);
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override;
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst, uint32_t &ErrNo, int32_t Fd);
 };
 
 } // namespace Executor

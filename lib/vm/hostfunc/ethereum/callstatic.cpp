@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/ethereum/callstatic.h"
-#include "executor/common.h"
-#include "executor/worker/util.h"
 #include "keccak/Keccak.h"
 #include "support/hexstr.h"
-
 #include <boost/multiprecision/cpp_int.hpp>
 
 namespace SSVM {
@@ -12,47 +9,32 @@ namespace Executor {
 
 EEICallStatic::EEICallStatic(VM::EVMEnvironment &Env, uint64_t Cost)
     : EEI(Env, Cost) {
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendReturnDef(AST::ValType::I32);
+  initializeFuncType<EEICallStatic>();
 }
 
 ErrCode EEICallStatic::run(VM::EnvironmentManager &EnvMgr,
-                           std::vector<Value> &Args, std::vector<Value> &Res,
-                           StoreManager &Store,
-                           Instance::ModuleInstance *ModInst) {
-  /// Arg: gas(u32), addressOffset(u32), dataOffset(u32), dataLength(u32)
-  if (Args.size() != 4) {
-    return ErrCode::CallFunctionError;
-  }
+                           StackManager &StackMgr,
+                           Instance::MemoryInstance &MemInst) {
+  return invoke<EEICallStatic>(EnvMgr, StackMgr, MemInst);
+}
+
+ErrCode EEICallStatic::body(VM::EnvironmentManager &EnvMgr,
+                            Instance::MemoryInstance &MemInst, uint32_t &Ret,
+                            uint32_t Gas, uint32_t AddressOffset,
+                            uint32_t DataOffset, uint32_t DataLength) {
   /// Add cost.
   if (!EnvMgr.addCost(Cost)) {
     return ErrCode::Revert;
   }
-  ErrCode Status = ErrCode::Success;
-  unsigned int Gas = retrieveValue<uint32_t>(Args[3]);
-  unsigned int AddressOffset = retrieveValue<uint32_t>(Args[2]);
-  unsigned int DataOffset = retrieveValue<uint32_t>(Args[1]);
-  unsigned int DataLength = retrieveValue<uint32_t>(Args[0]);
 
   std::vector<unsigned char> Address;
   std::vector<unsigned char> Data;
-  unsigned int MemoryAddr = 0;
-  Instance::MemoryInstance *MemInst = nullptr;
-  if ((Status = ModInst->getMemAddr(0, MemoryAddr)) != ErrCode::Success) {
+  if (ErrCode Status = MemInst.getBytes(Address, AddressOffset, 20);
+      Status != ErrCode::Success) {
     return Status;
   }
-  if ((Status = Store.getMemory(MemoryAddr, MemInst)) != ErrCode::Success) {
-    return Status;
-  }
-  if ((Status = MemInst->getBytes(Address, AddressOffset, 20)) !=
-      ErrCode::Success) {
-    return Status;
-  }
-  if ((Status = MemInst->getBytes(Data, DataOffset, DataLength)) !=
-      ErrCode::Success) {
+  if (ErrCode Status = MemInst.getBytes(Data, DataOffset, DataLength);
+      Status != ErrCode::Success) {
     return Status;
   }
 
@@ -62,7 +44,7 @@ ErrCode EEICallStatic::run(VM::EnvironmentManager &EnvMgr,
     AddressNum += *It;
   }
 
-  unsigned int Result = 1U;
+  Ret = 1U;
   if (AddressNum == 9) {
     /// Run Keccak
     Keccak K(256);
@@ -71,12 +53,10 @@ ErrCode EEICallStatic::run(VM::EnvironmentManager &EnvMgr,
     }
     std::vector<unsigned char> &ReturnData = Env.getReturnData();
     ReturnData = K.digest();
-    Result = 0U;
+    Ret = 0U;
   }
 
-  /// Return: result(u32)
-  Res[0] = uint32_t(Result);
-  return Status;
+  return ErrCode::Success;
 }
 
 } // namespace Executor

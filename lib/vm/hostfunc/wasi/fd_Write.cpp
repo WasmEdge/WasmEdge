@@ -1,90 +1,64 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/wasi/fd_Write.h"
-#include "executor/common.h"
-#include "executor/worker/util.h"
-
 #include <unistd.h>
 
 namespace SSVM {
 namespace Executor {
 
 WasiFdWrite::WasiFdWrite(VM::WasiEnvironment &Env) : Wasi(Env) {
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendReturnDef(AST::ValType::I32);
+  initializeFuncType<WasiFdWrite>();
 }
 
-ErrCode WasiFdWrite::run(VM::EnvironmentManager &EnvMgr,
-                         std::vector<Value> &Args, std::vector<Value> &Res,
-                         StoreManager &Store,
-                         Instance::ModuleInstance *ModInst) {
-  /// Arg: Fd(u32), IOVSPtr(u32), IOVSCnt(u32), NWrittenPtr(u32)
-  if (Args.size() != 4) {
-    return ErrCode::CallFunctionError;
-  }
-  ErrCode Status = ErrCode::Success;
-  unsigned int Fd = retrieveValue<uint32_t>(Args[3]);
-  unsigned int IOVSPtr = retrieveValue<uint32_t>(Args[2]);
-  unsigned int IOVSCnt = retrieveValue<uint32_t>(Args[1]);
-  unsigned int NWrittenPtr = retrieveValue<uint32_t>(Args[0]);
-  int ErrNo = 0;
+ErrCode WasiFdWrite::run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+                         Instance::MemoryInstance &MemInst) {
+  return invoke<WasiFdWrite>(EnvMgr, StackMgr, MemInst);
+}
 
-  /// Get memory instance.
-  unsigned int MemoryAddr = 0;
-  Instance::MemoryInstance *MemInst = nullptr;
-  if ((Status = ModInst->getMemAddr(0, MemoryAddr)) != ErrCode::Success) {
-    return Status;
-  }
-  if ((Status = Store.getMemory(MemoryAddr, MemInst)) != ErrCode::Success) {
-    return Status;
-  }
-
+ErrCode WasiFdWrite::body(VM::EnvironmentManager &EnvMgr,
+                          Instance::MemoryInstance &MemInst, uint32_t &ErrNo,
+                          int32_t Fd, uint32_t IOVSPtr, uint32_t IOVSCnt,
+                          uint32_t NWrittenPtr) {
   /// Sequencially writting.
-  unsigned int NWritten = 0;
-  for (unsigned int I = 0; I < IOVSCnt && ErrNo == 0; I++) {
-    uint64_t CIOVecBufPtr = 0;
-    uint64_t CIOVecBufLen = 0;
-    /// TODO: sizeof(ptr) is 32-bit in wasm now.
+  uint32_t NWritten = 0;
+  for (uint32_t I = 0; I < IOVSCnt; I++) {
+    uint32_t CIOVecBufPtr = 0;
+    uint32_t CIOVecBufLen = 0;
     /// Get data offset.
-    if ((Status = MemInst->loadValue(CIOVecBufPtr, IOVSPtr, 4)) !=
-        ErrCode::Success) {
+    if (ErrCode Status = MemInst.loadValue(CIOVecBufPtr, IOVSPtr, 4);
+        Status != ErrCode::Success) {
       return Status;
     }
     /// Get data length.
-    if ((Status = MemInst->loadValue(CIOVecBufLen, IOVSPtr + 4, 4)) !=
-        ErrCode::Success) {
+    if (ErrCode Status = MemInst.loadValue(CIOVecBufLen, IOVSPtr + 4, 4);
+        Status != ErrCode::Success) {
       return Status;
     }
     /// Write data to Fd.
-    unsigned char *WriteArr =
-        MemInst->getPointer<unsigned char *>(CIOVecBufPtr);
-    unsigned int SizeWrite = write(Fd, WriteArr, (uint32_t)CIOVecBufLen);
-    if (SizeWrite != CIOVecBufLen) {
-      ErrNo = 1;
-    } else {
-      NWritten += SizeWrite;
+    unsigned char *WriteArr = MemInst.getPointer<unsigned char *>(CIOVecBufPtr);
+    int32_t SizeWrite = write(Fd, WriteArr, CIOVecBufLen);
+    if (SizeWrite == -1) {
+      /// Store read bytes length.
+      if (ErrCode Status = MemInst.storeValue(NWritten, NWrittenPtr, 4);
+          Status != ErrCode::Success) {
+        return Status;
+      }
+      /// TODO: errno
+      ErrNo = 1U;
+      return ErrCode::Success;
     }
+
+    NWritten += SizeWrite;
     /// Shift one element.
-    /// TODO: sizeof(__wasi_ciovec_t) is 8 in 32-bit wasm.
     IOVSPtr += 8;
   }
 
-  /// Store written bytes length.
-  if ((Status = MemInst->storeValue(NWritten, NWrittenPtr, 4)) !=
-      ErrCode::Success) {
+  /// Store read bytes length.
+  if (ErrCode Status = MemInst.storeValue(NWritten, NWrittenPtr, 4);
+      Status != ErrCode::Success) {
     return Status;
   }
-
-  /// Return: errno(u32)
-  if (ErrNo == 0) {
-    Res[0] = uint32_t(0U);
-  } else {
-    /// TODO: errno
-    Res[0] = uint32_t(1U);
-  }
-  return Status;
+  ErrNo = 0U;
+  return ErrCode::Success;
 }
 
 } // namespace Executor

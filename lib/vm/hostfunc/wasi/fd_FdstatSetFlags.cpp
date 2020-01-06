@@ -1,31 +1,27 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/wasi/fd_FdstatSetFlags.h"
-#include "executor/common.h"
-#include "executor/worker/util.h"
 
 namespace SSVM {
 namespace Executor {
 
 WasiFdFdstatSetFlags::WasiFdFdstatSetFlags(VM::WasiEnvironment &Env)
     : Wasi(Env) {
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendReturnDef(AST::ValType::I32);
+  initializeFuncType<WasiFdFdstatSetFlags>();
 }
 
 ErrCode WasiFdFdstatSetFlags::run(VM::EnvironmentManager &EnvMgr,
-                                  std::vector<Value> &Args,
-                                  std::vector<Value> &Res, StoreManager &Store,
-                                  Instance::ModuleInstance *ModInst) {
-  /// Arg: fd, iovsPtr, iovs_len, nreadPtr
-  if (Args.size() != 2) {
-    return ErrCode::CallFunctionError;
-  }
-  ErrCode Status = ErrCode::Success;
+                                  StackManager &StackMgr,
+                                  Instance::MemoryInstance &MemInst) {
+  return invoke<WasiFdFdstatSetFlags>(EnvMgr, StackMgr, MemInst);
+}
 
-  /// Return: errno(u32)
-  Res[0] = uint32_t(0U);
-  return Status;
+ErrCode WasiFdFdstatSetFlags::body(VM::EnvironmentManager &EnvMgr,
+                                   Instance::MemoryInstance &MemInst,
+                                   uint32_t &ErrNo, int32_t Fd,
+                                   uint32_t FsFlags) {
+  /// TODO: implement
+  ErrNo = 0U;
+  return ErrCode::Success;
 }
 
 } // namespace Executor

@@ -1,69 +1,54 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/wasi/args_Get.h"
-#include "executor/common.h"
-#include "executor/worker/util.h"
 
 namespace SSVM {
 namespace Executor {
 
 WasiArgsGet::WasiArgsGet(VM::WasiEnvironment &Env) : Wasi(Env) {
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendReturnDef(AST::ValType::I32);
+  initializeFuncType<WasiArgsGet>();
 }
 
-ErrCode WasiArgsGet::run(VM::EnvironmentManager &EnvMgr,
-                         std::vector<Value> &Args, std::vector<Value> &Res,
-                         StoreManager &Store,
-                         Instance::ModuleInstance *ModInst) {
-  /// Arg: ArgvPtr(u32), ArgvBufPtr(u32)
-  if (Args.size() != 2) {
-    return ErrCode::CallFunctionError;
-  }
-  ErrCode Status = ErrCode::Success;
-  unsigned int ArgvPtr = retrieveValue<uint32_t>(Args[1]);
-  unsigned int ArgvBufPtr = retrieveValue<uint32_t>(Args[0]);
+ErrCode WasiArgsGet::run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+                         Instance::MemoryInstance &MemInst) {
+  return invoke<WasiArgsGet>(EnvMgr, StackMgr, MemInst);
+}
 
-  /// Get memory instance.
-  unsigned int MemoryAddr = 0;
-  Instance::MemoryInstance *MemInst = nullptr;
-  if ((Status = ModInst->getMemAddr(0, MemoryAddr)) != ErrCode::Success) {
-    return Status;
-  }
-  if ((Status = Store.getMemory(MemoryAddr, MemInst)) != ErrCode::Success) {
-    return Status;
-  }
-
+ErrCode WasiArgsGet::body(VM::EnvironmentManager &EnvMgr,
+                          Instance::MemoryInstance &MemInst, uint32_t &ErrNo,
+                          uint32_t ArgvPtr, uint32_t ArgvBufPtr) {
   /// Store **Argv.
-  std::vector<std::string> &CmdArgs = Env.getCmdArgs();
   std::vector<unsigned char> ArgvBuf;
   uint32_t ArgvBufOffset = ArgvBufPtr;
-  for (auto It = CmdArgs.cbegin(); It != CmdArgs.cend(); It++) {
+  for (const auto &Arg : Env.getCmdArgs()) {
     /// Concate Argv.
-    int off = ArgvBuf.size();
-    std::copy(It->cbegin(), It->cend(), std::back_inserter(ArgvBuf));
+    std::copy(Arg.cbegin(), Arg.cend(), std::back_inserter(ArgvBuf));
     ArgvBuf.push_back('\0');
 
     /// Calcuate Argv[i] offset and store.
-    if ((Status = MemInst->storeValue(ArgvBufOffset, ArgvPtr, 4)) !=
-        ErrCode::Success) {
+    if (ErrCode Status = MemInst.storeValue(ArgvBufOffset, ArgvPtr, 4);
+        Status != ErrCode::Success) {
       return Status;
     }
 
     /// Shift one element.
+    ArgvBufOffset += Arg.size() + 1;
     ArgvPtr += 4;
-    ArgvBufOffset += It->length() + 1;
   }
 
-  /// Store ArgvBuf.
-  if ((Status = MemInst->setBytes(ArgvBuf, ArgvBufPtr, 0, ArgvBuf.size())) !=
-      ErrCode::Success) {
+  /// Store nullptr
+  if (ErrCode Status = MemInst.storeValue(uint32_t(0), ArgvPtr, 4);
+      Status != ErrCode::Success) {
     return Status;
   }
 
-  /// Return: errno(u32)
-  Res[0] = uint32_t(0U);
-  return Status;
+  /// Store ArgvBuf.
+  if (ErrCode Status = MemInst.setBytes(ArgvBuf, ArgvBufPtr, 0, ArgvBuf.size());
+      Status != ErrCode::Success) {
+    return Status;
+  }
+
+  ErrNo = 0U;
+  return ErrCode::Success;
 }
 
 } // namespace Executor

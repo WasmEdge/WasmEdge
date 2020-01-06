@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/ethereum/storageload.h"
-#include "executor/common.h"
-#include "executor/worker/util.h"
 #include "support/hexstr.h"
 
 namespace SSVM {
@@ -9,59 +7,50 @@ namespace Executor {
 
 EEIStorageLoad::EEIStorageLoad(VM::EVMEnvironment &Env, uint64_t Cost)
     : EEI(Env, Cost) {
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
+  initializeFuncType<EEIStorageLoad>();
 }
 
 ErrCode EEIStorageLoad::run(VM::EnvironmentManager &EnvMgr,
-                            std::vector<Value> &Args, std::vector<Value> &Res,
-                            StoreManager &Store,
-                            Instance::ModuleInstance *ModInst) {
-  /// Arg: pathOffset(u32), valueOffset(u32)
-  if (Args.size() != 2) {
-    return ErrCode::CallFunctionError;
-  }
+                            StackManager &StackMgr,
+                            Instance::MemoryInstance &MemInst) {
+  return invoke<EEIStorageLoad>(EnvMgr, StackMgr, MemInst);
+}
+
+ErrCode EEIStorageLoad::body(VM::EnvironmentManager &EnvMgr,
+                             Instance::MemoryInstance &MemInst,
+                             uint32_t PathOffset, uint32_t ValueOffset) {
   /// Add cost.
   if (!EnvMgr.addCost(Cost)) {
     return ErrCode::Revert;
   }
-  ErrCode Status = ErrCode::Success;
-  unsigned int PathOffset = retrieveValue<uint32_t>(Args[1]);
-  unsigned int ValueOffset = retrieveValue<uint32_t>(Args[0]);
 
   /// Get Path data by path offset.
   std::vector<unsigned char> Data;
-  unsigned int MemoryAddr = 0;
-  Instance::MemoryInstance *MemInst = nullptr;
-  if ((Status = ModInst->getMemAddr(0, MemoryAddr)) != ErrCode::Success) {
-    return Status;
-  }
-  if ((Status = Store.getMemory(MemoryAddr, MemInst)) != ErrCode::Success) {
-    return Status;
-  }
-  if ((Status = MemInst->getBytes(Data, PathOffset, 32)) != ErrCode::Success) {
+  if (ErrCode Status = MemInst.getBytes(Data, PathOffset, 32);
+      Status != ErrCode::Success) {
     return Status;
   }
 
   /// Get Value data in storage by key of path.
-  std::string Path("");
-  std::string Value(64, '0');
+  std::string Path;
+  std::string Value;
   std::map<std::string, std::string> &Storage = Env.getStorage();
   Support::convertHexToString(Data, Path, 64);
-  if (Storage.find(Path) != Storage.end()) {
-    Value = Storage[Path];
+  if (auto Iter = Storage.find(Path); Iter != Storage.end()) {
+    Value = Iter->second;
+  } else {
+    Value.resize(64, '0');
   }
 
   /// Set Value data to memory.
   Data.clear();
   Support::convertStringToHex(Value, Data, 64);
-  if ((Status = MemInst->setBytes(Data, ValueOffset, 0, 32)) !=
-      ErrCode::Success) {
+  if (ErrCode Status = MemInst.setBytes(Data, ValueOffset, 0, 32);
+      Status != ErrCode::Success) {
     return Status;
   }
 
-  /// Return: void
-  return Status;
+  return ErrCode::Success;
 }
 
 } // namespace Executor

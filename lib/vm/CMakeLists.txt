@@ -3,6 +3,7 @@
 add_subdirectory(hostfunc)
 
 add_library(ssvmVM
+  environment.cpp
   vm.cpp
 )
 

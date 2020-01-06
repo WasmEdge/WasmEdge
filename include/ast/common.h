@@ -28,6 +28,27 @@ enum class ValType : unsigned char {
 
 using ValVariant = Variant<uint32_t, uint64_t, float, double>;
 
+template <typename T> inline ValType ValTypeFromType() noexcept;
+
+template <> inline ValType ValTypeFromType<uint32_t>() noexcept {
+  return ValType::I32;
+}
+template <> inline ValType ValTypeFromType<int32_t>() noexcept {
+  return ValType::I32;
+}
+template <> inline ValType ValTypeFromType<uint64_t>() noexcept {
+  return ValType::I64;
+}
+template <> inline ValType ValTypeFromType<int64_t>() noexcept {
+  return ValType::I64;
+}
+template <> inline ValType ValTypeFromType<float>() noexcept {
+  return ValType::F32;
+}
+template <> inline ValType ValTypeFromType<double>() noexcept {
+  return ValType::F64;
+}
+
 inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   switch (Type) {
   default:

@@ -1,59 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/wasi/args_SizesGet.h"
-#include "executor/common.h"
-#include "executor/worker/util.h"
 
 namespace SSVM {
 namespace Executor {
 
 WasiArgsSizesGet::WasiArgsSizesGet(VM::WasiEnvironment &Env) : Wasi(Env) {
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendReturnDef(AST::ValType::I32);
+  initializeFuncType<WasiArgsSizesGet>();
 }
 
 ErrCode WasiArgsSizesGet::run(VM::EnvironmentManager &EnvMgr,
-                              std::vector<Value> &Args, std::vector<Value> &Res,
-                              StoreManager &Store,
-                              Instance::ModuleInstance *ModInst) {
-  /// Arg: ArgcPtr(u32), ArgvBufSizePtr(u32)
-  if (Args.size() != 2) {
-    return ErrCode::CallFunctionError;
-  }
-  ErrCode Status = ErrCode::Success;
-  unsigned int ArgcPtr = retrieveValue<uint32_t>(Args[1]);
-  unsigned int ArgvBufSizePtr = retrieveValue<uint32_t>(Args[0]);
+                              StackManager &StackMgr,
+                              Instance::MemoryInstance &MemInst) {
+  return invoke<WasiArgsSizesGet>(EnvMgr, StackMgr, MemInst);
+}
 
-  /// Get memory instance.
-  unsigned int MemoryAddr = 0;
-  Instance::MemoryInstance *MemInst = nullptr;
-  if ((Status = ModInst->getMemAddr(0, MemoryAddr)) != ErrCode::Success) {
-    return Status;
-  }
-  if ((Status = Store.getMemory(MemoryAddr, MemInst)) != ErrCode::Success) {
-    return Status;
-  }
-
+ErrCode WasiArgsSizesGet::body(VM::EnvironmentManager &EnvMgr,
+                               Instance::MemoryInstance &MemInst,
+                               uint32_t &ErrNo, uint32_t ArgcPtr,
+                               uint32_t ArgvBufSizePtr) {
   /// Store Argc.
   std::vector<std::string> &CmdArgs = Env.getCmdArgs();
-  if ((Status = MemInst->storeValue((uint32_t)CmdArgs.size(), ArgcPtr, 4)) !=
-      ErrCode::Success) {
+  if (ErrCode Status = MemInst.storeValue(uint32_t(CmdArgs.size()), ArgcPtr, 4);
+      Status != ErrCode::Success) {
     return Status;
   }
 
   /// Store ArgvBufSize.
   uint32_t CmdArgsSize = 0;
-  for (auto It = CmdArgs.cbegin(); It != CmdArgs.cend(); It++) {
-    CmdArgsSize += It->length() + 1;
+  for (const auto &Arg : CmdArgs) {
+    CmdArgsSize += Arg.size() + 1;
   }
-  if ((Status = MemInst->storeValue(CmdArgsSize, ArgvBufSizePtr, 4)) !=
-      ErrCode::Success) {
+  if (ErrCode Status = MemInst.storeValue(CmdArgsSize, ArgvBufSizePtr, 4);
+      Status != ErrCode::Success) {
     return Status;
   }
 
-  /// Return: errno(u32)
-  Res[0] = uint32_t(0U);
-  return Status;
+  ErrNo = 0U;
+  return ErrCode::Success;
 }
 
 } // namespace Executor

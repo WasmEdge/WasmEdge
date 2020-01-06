@@ -9,12 +9,12 @@ namespace Executor {
 class WasiProcExit : public Wasi {
 public:
   WasiProcExit(VM::WasiEnvironment &Env);
-  WasiProcExit() = delete;
-  virtual ~WasiProcExit() = default;
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst);
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override;
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst, int32_t Status);
 };
 
 } // namespace Executor

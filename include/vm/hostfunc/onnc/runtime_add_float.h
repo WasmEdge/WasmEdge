@@ -9,11 +9,15 @@ namespace Executor {
 class ONNCRuntimeAddFloat : public HostFunction {
 public:
   ONNCRuntimeAddFloat();
-  virtual ~ONNCRuntimeAddFloat() = default;
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst);
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override;
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
+               uint32_t InAOff, uint32_t InANDim, uint32_t InADimsOff,
+               uint32_t InBOff, uint32_t InBNDim, uint32_t InBDimsOff,
+               uint32_t OutCOff, uint32_t OutCNDim, uint32_t OutCDimsOff);
 };
 
 } // namespace Executor

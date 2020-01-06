@@ -597,12 +597,6 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
 
   if (FuncInst->isHostFunction()) {
     /// Host function case: Push args and call function.
-    Instance::ModuleInstance *ModuleInst = nullptr;
-    if (ErrCode Status =
-            StoreMgr.getModule(StackMgr.getModuleAddr(), ModuleInst);
-        Status != ErrCode::Success) {
-      return Status;
-    }
     HostFunction *HostFunc = nullptr;
     if (ErrCode Status =
             HostFuncMgr.getHostFunction(FuncInst->getHostFuncAddr(), HostFunc);
@@ -610,18 +604,10 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
       return Status;
     }
 
-    /// Pop argument vals
-    std::vector<Value> Vals(FuncType->Params.size());
-    for (unsigned int I = 0; I < FuncType->Params.size(); I++) {
-      StackMgr.pop(Vals[I]);
-    }
-
-    /// Prepare return list.
-    std::vector<Value> Returns;
-    Returns.reserve(FuncType->Returns.size());
-    for (auto It = FuncType->Returns.cbegin(); It != FuncType->Returns.cend();
-         It++) {
-      Returns.push_back(AST::ValueFromType(*It));
+    Instance::MemoryInstance *MemoryInst = nullptr;
+    if (ErrCode Status = getMemInstByIdx(0, MemoryInst);
+        Status != ErrCode::Success) {
+      return Status;
     }
 
 #ifdef ONNC_WASM
@@ -635,11 +621,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     TimeRecorder.startRecord(TIMER_TAG_HOSTFUNC);
 
     /// Run host function.
-    if (ErrCode Status =
-            HostFunc->run(EnvMgr, Vals, Returns, StoreMgr, ModuleInst);
-        Status != ErrCode::Success) {
-      return Status;
-    }
+    ErrCode Status = HostFunc->run(EnvMgr, StackMgr, *MemoryInst);
 
     TimeRecorder.stopRecord(TIMER_TAG_HOSTFUNC);
     TimeRecorder.startRecord(TIMER_TAG_EXECUTION);
@@ -650,12 +632,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     }
 #endif
 
-    /// Push result value into stack.
-    for (auto Iter = Returns.rbegin(); Iter != Returns.rend(); Iter++) {
-      StackMgr.push(*Iter);
-    }
-
-    return ErrCode::Success;
+    return Status;
   } else {
     /// Native function case: Push frame with locals and args.
     StackMgr.pushFrame(FuncInst->getModuleAddr(), /// Module address

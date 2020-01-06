@@ -3,11 +3,7 @@
 #include "vm/configure.h"
 #include "vm/result.h"
 #include "vm/vm.h"
-
-#include <dirent.h>
 #include <iostream>
-#include <sys/types.h>
-#include <unistd.h>
 
 int main(int Argc, char *Argv[]) {
   if (Argc < 2) {
@@ -18,14 +14,6 @@ int main(int Argc, char *Argv[]) {
     std::cout << "Usage: ./ssvm-qitc model_wasm [args...]" << std::endl;
     return 0;
   }
-
-  /// Open dir for WASI environment.
-  /// FIXME: Don't move it! Need to refine this after completion of Wasi
-  /// functions.
-  std::unique_ptr<char, decltype(std::free) *> cwdstr(getcwd(NULL, 0),
-                                                      std::free);
-  std::unique_ptr<DIR, decltype(closedir) *> dir(opendir(cwdstr.get()),
-                                                 closedir);
 
   std::string InputPath(Argv[1]);
   SSVM::VM::Configure Conf;

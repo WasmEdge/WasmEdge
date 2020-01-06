@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/wasi/environ_Get.h"
-#include "executor/common.h"
-#include "executor/worker/util.h"
-
-#include <string.h>
+#include <string_view>
 
 extern char **environ;
 
@@ -11,65 +8,53 @@ namespace SSVM {
 namespace Executor {
 
 WasiEnvironGet::WasiEnvironGet(VM::WasiEnvironment &Env) : Wasi(Env) {
-  appendParamDef(AST::ValType::I32);
-  appendParamDef(AST::ValType::I32);
-  appendReturnDef(AST::ValType::I32);
+  initializeFuncType<WasiEnvironGet>();
 }
 
 ErrCode WasiEnvironGet::run(VM::EnvironmentManager &EnvMgr,
-                            std::vector<Value> &Args, std::vector<Value> &Res,
-                            StoreManager &Store,
-                            Instance::ModuleInstance *ModInst) {
-  /// Arg: EnvPtr(u32), EnvBufPtr(u32)
-  if (Args.size() != 2) {
-    return ErrCode::CallFunctionError;
-  }
-  ErrCode Status = ErrCode::Success;
-  unsigned int EnvPtr = retrieveValue<uint32_t>(Args[1]);
-  unsigned int EnvBufPtr = retrieveValue<uint32_t>(Args[0]);
+                            StackManager &StackMgr,
+                            Instance::MemoryInstance &MemInst) {
+  return invoke<WasiEnvironGet>(EnvMgr, StackMgr, MemInst);
+}
 
-  /// Get memory instance.
-  unsigned int MemoryAddr = 0;
-  Instance::MemoryInstance *MemInst = nullptr;
-  if ((Status = ModInst->getMemAddr(0, MemoryAddr)) != ErrCode::Success) {
-    return Status;
-  }
-  if ((Status = Store.getMemory(MemoryAddr, MemInst)) != ErrCode::Success) {
-    return Status;
-  }
-
+ErrCode WasiEnvironGet::body(VM::EnvironmentManager &EnvMgr,
+                             Instance::MemoryInstance &MemInst, uint32_t &ErrNo,
+                             uint32_t EnvPtr, uint32_t EnvBufPtr) {
   /// Store **Env.
-  uint32_t EnvCnt = 0;
   uint32_t EnvBufOffset = EnvBufPtr;
-  char *EnvString = *environ;
   std::vector<unsigned char> EnvBuf;
-  while (EnvString != nullptr) {
+  for (uint32_t EnvCnt = 0; environ[EnvCnt] != nullptr; ++EnvCnt) {
+    std::string_view EnvString(environ[EnvCnt]);
+
     /// Concate EnvString.
-    EnvBuf.insert(EnvBuf.end(), EnvString, EnvString + strlen(EnvString));
+    std::copy(EnvString.cbegin(), EnvString.cend(), std::back_inserter(EnvBuf));
     EnvBuf.push_back('\0');
 
     /// Calculate Env[i] offset and store.
-    if ((Status = MemInst->storeValue(EnvBufOffset, EnvPtr, 4)) !=
-        ErrCode::Success) {
+    if (ErrCode Status = MemInst.storeValue(EnvBufOffset, EnvPtr, 4);
+        Status != ErrCode::Success) {
       return Status;
     }
 
     /// Shift one element.
-    EnvCnt++;
+    EnvBufOffset += EnvString.size() + 1;
     EnvPtr += 4;
-    EnvBufOffset += strlen(EnvString) + 1;
-    EnvString = *(environ + EnvCnt);
   }
 
-  /// Store EnvBuf.
-  if ((Status = MemInst->setBytes(EnvBuf, EnvBufPtr, 0, EnvBuf.size())) !=
-      ErrCode::Success) {
+  /// Store nullptr
+  if (ErrCode Status = MemInst.storeValue(uint32_t(0), EnvPtr, 4);
+      Status != ErrCode::Success) {
     return Status;
   }
 
-  /// Return: errno(u32)
-  Res[0] = uint32_t(0U);
-  return Status;
+  /// Store EnvBuf.
+  if (ErrCode Status = MemInst.setBytes(EnvBuf, EnvBufPtr, 0, EnvBuf.size());
+      Status != ErrCode::Success) {
+    return Status;
+  }
+
+  ErrNo = 0U;
+  return ErrCode::Success;
 }
 
 } // namespace Executor

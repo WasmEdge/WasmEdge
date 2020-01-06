@@ -9,12 +9,12 @@ namespace Executor {
 class EEIGetCaller : public EEI {
 public:
   EEIGetCaller(VM::EVMEnvironment &Env, uint64_t Cost = 100);
-  EEIGetCaller() = delete;
-  virtual ~EEIGetCaller() = default;
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst);
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override;
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst, uint32_t ResultOffset);
 };
 
 } // namespace Executor

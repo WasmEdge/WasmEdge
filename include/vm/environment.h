@@ -52,15 +52,29 @@ private:
 
 class WasiEnvironment : public Environment {
 public:
-  WasiEnvironment() = default;
-  virtual ~WasiEnvironment() = default;
+  struct PreStat {
+    int32_t Fd;
+    uint8_t Type;
+    std::vector<unsigned char> Path;
+    PreStat(int32_t F, uint8_t T, std::vector<unsigned char> P)
+        : Fd(F), Type(T), Path(std::move(P)) {}
+  };
+
+  WasiEnvironment();
+
+  virtual ~WasiEnvironment() noexcept;
 
   virtual void clear() { CmdArgs.clear(); }
 
+  int32_t getStatus() const { return Status; }
+  void setStatus(int32_t S) { Status = S; }
   std::vector<std::string> &getCmdArgs() { return CmdArgs; }
+  std::vector<PreStat> &getPreStats() { return PreStats; }
 
 private:
+  int32_t Status;
   std::vector<std::string> CmdArgs;
+  std::vector<PreStat> PreStats;
 };
 
 } // namespace VM

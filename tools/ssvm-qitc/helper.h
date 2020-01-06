@@ -5,9 +5,7 @@
 #include "executor/hostfunc.h"
 #include "executor/worker/util.h"
 #include "vm/envmgr.h"
-
 #include <iostream>
-#include <string>
 
 namespace SSVM {
 namespace Executor {
@@ -15,12 +13,15 @@ namespace Executor {
 #ifdef ONNC_WASM
 class QITCTimerStart : public HostFunction {
 public:
-  QITCTimerStart() = default;
-  virtual ~QITCTimerStart() = default;
+  QITCTimerStart() { initializeFuncType<QITCTimerStart>(); }
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst) {
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override {
+    return invoke<QITCTimerStart>(EnvMgr, StackMgr, MemInst);
+  }
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst) {
     EnvMgr.getTimeRecorder().startRecord(TIMER_TAG_QITC_INFER_SSVM);
     EnvMgr.IsQITCTimer = true;
     return ErrCode::Success;
@@ -29,18 +30,21 @@ public:
 
 class QITCTimerStop : public HostFunction {
 public:
-  QITCTimerStop() = default;
-  virtual ~QITCTimerStop() = default;
+  QITCTimerStop() { initializeFuncType<QITCTimerStop>(); }
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst) {
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override {
+    return invoke<QITCTimerStop>(EnvMgr, StackMgr, MemInst);
+  }
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst) {
     uint64_t SSVMTime =
         EnvMgr.getTimeRecorder().stopRecord(TIMER_TAG_QITC_INFER_SSVM);
     uint64_t HostTime =
         EnvMgr.getTimeRecorder().stopRecord(TIMER_TAG_QITC_INFER_HOST);
-    printf(" --- Inference: SSVM cost %llu us, Host functions cost %llu us\n",
-           SSVMTime, HostTime);
+    std::cout << " --- Inference: SSVM cost " << SSVMTime
+              << " us, Host functions cost " << HostTime << " us\n";
     EnvMgr.IsQITCTimer = false;
     return ErrCode::Success;
   }
@@ -48,12 +52,15 @@ public:
 
 class QITCTimerClear : public HostFunction {
 public:
-  QITCTimerClear() = default;
-  virtual ~QITCTimerClear() = default;
+  QITCTimerClear() { initializeFuncType<QITCTimerClear>(); }
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst) {
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override {
+    return invoke<QITCTimerClear>(EnvMgr, StackMgr, MemInst);
+  }
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst) {
     EnvMgr.getTimeRecorder().clearRecord(TIMER_TAG_QITC_INFER_SSVM);
     EnvMgr.getTimeRecorder().clearRecord(TIMER_TAG_QITC_INFER_HOST);
     EnvMgr.IsQITCTimer = false;

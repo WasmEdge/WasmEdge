@@ -9,10 +9,8 @@ namespace Executor {
 
 class EEI : public HostFunction {
 public:
-  EEI(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 0)
+  EEI(VM::EVMEnvironment &HostEnv, const uint64_t &Cost)
       : HostFunction(Cost), Env(HostEnv) {}
-  EEI() = delete;
-  virtual ~EEI() = default;
 
 protected:
   VM::EVMEnvironment &Env;

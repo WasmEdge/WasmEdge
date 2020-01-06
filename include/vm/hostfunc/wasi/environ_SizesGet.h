@@ -9,12 +9,13 @@ namespace Executor {
 class WasiEnvironSizesGet : public Wasi {
 public:
   WasiEnvironSizesGet(VM::WasiEnvironment &Env);
-  WasiEnvironSizesGet() = delete;
-  virtual ~WasiEnvironSizesGet() = default;
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst);
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override;
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst, uint32_t &ErrNo,
+               uint32_t EnvCntPtr, uint32_t EnvBufSizePtr);
 };
 
 } // namespace Executor

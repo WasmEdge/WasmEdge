@@ -9,12 +9,13 @@ namespace Executor {
 class WasiFdSeek : public Wasi {
 public:
   WasiFdSeek(VM::WasiEnvironment &Env);
-  WasiFdSeek() = delete;
-  virtual ~WasiFdSeek() = default;
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst);
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override;
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst, uint32_t &ErrNo, int32_t Fd,
+               int32_t Offset, uint32_t Whence, uint32_t NewOffsetPtr);
 };
 
 } // namespace Executor

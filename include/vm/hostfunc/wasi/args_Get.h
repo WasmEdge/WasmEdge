@@ -9,12 +9,13 @@ namespace Executor {
 class WasiArgsGet : public Wasi {
 public:
   WasiArgsGet(VM::WasiEnvironment &Env);
-  WasiArgsGet() = delete;
-  virtual ~WasiArgsGet() = default;
 
-  virtual ErrCode run(VM::EnvironmentManager &EnvMgr, std::vector<Value> &Args,
-                      std::vector<Value> &Res, StoreManager &Store,
-                      Instance::ModuleInstance *ModInst);
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override;
+
+  ErrCode body(VM::EnvironmentManager &EnvMgr,
+               Instance::MemoryInstance &MemInst, uint32_t &ErrNo,
+               uint32_t ArgvPtr, uint32_t ArgvBufPtr);
 };
 
 } // namespace Executor

@@ -16,7 +16,7 @@ ErrCode EEIStorageStore::body(VM::EnvironmentManager &EnvMgr,
       Status != ErrCode::Success) {
     return Status;
   }
-  Support::convertHexToString(Data, Path, 64);
+  Support::convertBytesToHexStr(Data, Path, 64);
 
   /// Get Value data by value offset.
   Data.clear();
@@ -24,7 +24,7 @@ ErrCode EEIStorageStore::body(VM::EnvironmentManager &EnvMgr,
       Status != ErrCode::Success) {
     return Status;
   }
-  Support::convertHexToString(Data, Value, 64);
+  Support::convertBytesToHexStr(Data, Value, 64);
 
   /// Set Value data to storage.
   Env.getStorage()[Path] = Value;

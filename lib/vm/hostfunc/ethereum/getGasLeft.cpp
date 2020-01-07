@@ -5,7 +5,9 @@ namespace SSVM {
 namespace Executor {
 
 ErrCode EEIGetGasLeft::body(VM::EnvironmentManager &EnvMgr,
-                            Instance::MemoryInstance &MemInst) {
+                            Instance::MemoryInstance &MemInst,
+                            uint64_t &GasLeft) {
+  GasLeft = EnvMgr.getCostLimit() - EnvMgr.getCostSum();
   return ErrCode::Success;
 }
 

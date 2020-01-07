@@ -9,7 +9,9 @@
 #include "vm/hostfunc/ethereum/callStatic.h"
 #include "vm/hostfunc/ethereum/finish.h"
 #include "vm/hostfunc/ethereum/getCallDataSize.h"
+#include "vm/hostfunc/ethereum/getCallValue.h"
 #include "vm/hostfunc/ethereum/getCaller.h"
+#include "vm/hostfunc/ethereum/getGasLeft.h"
 #include "vm/hostfunc/ethereum/returnDataCopy.h"
 #include "vm/hostfunc/ethereum/revert.h"
 #include "vm/hostfunc/ethereum/storageLoad.h"
@@ -228,6 +230,9 @@ ErrCode VM::prepareVMHost() {
     auto FuncEEIGetCallDataSize =
         std::make_unique<Executor::EEIGetCallDataSize>(*EVMEnv);
     auto FuncEEIGetCaller = std::make_unique<Executor::EEIGetCaller>(*EVMEnv);
+    auto FuncEEIGetCallValue =
+        std::make_unique<Executor::EEIGetCallValue>(*EVMEnv);
+    auto FuncEEIGetGasLeft = std::make_unique<Executor::EEIGetGasLeft>(*EVMEnv);
     auto FuncEEIReturnDataCopy =
         std::make_unique<Executor::EEIReturnDataCopy>(*EVMEnv);
     auto FuncEEIRevert = std::make_unique<Executor::EEIRevert>(*EVMEnv);
@@ -251,6 +256,12 @@ ErrCode VM::prepareVMHost() {
     }
     if (Status == ErrCode::Success) {
       Status = setHostFunction(FuncEEIGetCaller, "ethereum", "getCaller");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncEEIGetCallValue, "ethereum", "getCallValue");
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(FuncEEIGetGasLeft, "ethereum", "getGasLeft");
     }
     if (Status == ErrCode::Success) {
       Status =

@@ -22,42 +22,69 @@ inline unsigned char convertCharToHex(const char C) {
   return 0U;
 }
 
-inline bool convertHexToString(std::vector<unsigned char> &Res,
-                               std::string &Dst, unsigned int Padding = 0) {
-  Dst = "";
+inline void convertBytesToHexStr(const std::vector<unsigned char> &Src,
+                                 std::string &Dst, uint32_t Padding = 0,
+                                 bool IsLittleEndian = false) {
+  Dst.clear();
   char Buf[3] = {0};
-  for (auto It = Res.crbegin(); It != Res.crend(); It++) {
-    snprintf(Buf, 3, "%02x", *It);
-    Dst += Buf;
+  if (IsLittleEndian) {
+    for (auto It = Src.crbegin(); It != Src.crend(); It++) {
+      snprintf(Buf, 3, "%02x", *It);
+      Dst += Buf;
+    }
+  } else {
+    for (auto It = Src.cbegin(); It != Src.cend(); It++) {
+      snprintf(Buf, 3, "%02x", *It);
+      Dst += Buf;
+    }
   }
   if (Dst.length() < Padding) {
     Dst = std::string(Padding - Dst.length(), '0').append(Dst);
   }
-  return true;
 }
 
-inline bool convertStringToHex(std::string &Res,
-                               std::vector<unsigned char> &Dst,
-                               unsigned int Padding = 2) {
+inline void convertValVecToHexStr(const std::vector<unsigned char> &Src,
+                                  std::string &Dst, uint32_t Padding = 0) {
+  convertBytesToHexStr(Src, Dst, Padding, true);
+}
+
+inline void convertHexStrToBytes(const std::string &Src,
+                                 std::vector<unsigned char> &Dst,
+                                 uint32_t Padding = 2,
+                                 bool IsLittleEndian = false) {
   if (Padding & 0x01U) {
     Padding++;
   }
   Dst.clear();
-  if (Res.length() == 0) {
-    return true;
+  if (Src.length() == 0) {
+    return;
   }
-  if (Res.length() < Padding) {
-    Res = std::string(Padding - Res.length(), '0').append(Res);
+  std::string S = Src;
+  if (S.length() < Padding) {
+    S = std::string(Padding - S.length(), '0').append(S);
   }
-  if (Res.length() & 0x01U) {
-    Res = '0' + Res;
+  if (S.length() & 0x01U) {
+    S = '0' + S;
   }
-  for (auto It = Res.crbegin(); It != Res.crend(); It += 2) {
-    char CL = *It;
-    char CH = *(It + 1);
-    Dst.push_back(convertCharToHex(CL) + (convertCharToHex(CH) << 4));
+  if (IsLittleEndian) {
+    for (auto It = S.crbegin(); It != S.crend(); It += 2) {
+      char CL = *It;
+      char CH = *(It + 1);
+      Dst.push_back(convertCharToHex(CL) + (convertCharToHex(CH) << 4));
+    }
+  } else {
+    for (auto It = S.cbegin(); It != S.cend(); It += 2) {
+      char CH = *It;
+      char CL = *(It + 1);
+      Dst.push_back(convertCharToHex(CL) + (convertCharToHex(CH) << 4));
+    }
   }
-  return true;
+}
+
+inline void convertHexStrToValVec(const std::string &Src,
+                                  std::vector<unsigned char> &Dst,
+                                  unsigned int Padding = 2) {
+  convertHexStrToBytes(Src, Dst, Padding);
 }
 
 } // namespace Support

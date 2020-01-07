@@ -9,7 +9,7 @@ ErrCode EEIGetCaller::body(VM::EnvironmentManager &EnvMgr,
                            Instance::MemoryInstance &MemInst,
                            uint32_t ResultOffset) {
   std::vector<unsigned char> Data;
-  Support::convertStringToHex(Env.getCaller(), Data, 40);
+  Support::convertHexStrToBytes(Env.getCaller(), Data, 40);
   return MemInst.setBytes(Data, ResultOffset, 0, 20);
 }
 

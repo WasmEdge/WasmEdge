@@ -5,7 +5,11 @@ namespace SSVM {
 namespace Executor {
 
 ErrCode EEIUseGas::body(VM::EnvironmentManager &EnvMgr,
-                        Instance::MemoryInstance &MemInst) {
+                        Instance::MemoryInstance &MemInst, uint64_t Amount) {
+  /// Take gas.
+  if (!EnvMgr.addCost(Amount)) {
+    return ErrCode::Revert;
+  }
   return ErrCode::Success;
 }
 

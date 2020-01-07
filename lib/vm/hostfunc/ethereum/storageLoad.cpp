@@ -19,7 +19,7 @@ ErrCode EEIStorageLoad::body(VM::EnvironmentManager &EnvMgr,
   std::string Path;
   std::string Value;
   std::map<std::string, std::string> &Storage = Env.getStorage();
-  Support::convertHexToString(Data, Path, 64);
+  Support::convertBytesToHexStr(Data, Path, 64);
   if (auto Iter = Storage.find(Path); Iter != Storage.end()) {
     Value = Iter->second;
   } else {
@@ -28,7 +28,7 @@ ErrCode EEIStorageLoad::body(VM::EnvironmentManager &EnvMgr,
 
   /// Set Value data to memory.
   Data.clear();
-  Support::convertStringToHex(Value, Data, 64);
+  Support::convertHexStrToBytes(Value, Data, 64);
   if (ErrCode Status = MemInst.setBytes(Data, ValueOffset, 0, 32);
       Status != ErrCode::Success) {
     return Status;

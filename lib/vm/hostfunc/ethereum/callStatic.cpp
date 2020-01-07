@@ -9,7 +9,7 @@ namespace Executor {
 
 ErrCode EEICallStatic::body(VM::EnvironmentManager &EnvMgr,
                             Instance::MemoryInstance &MemInst, uint32_t &Ret,
-                            uint32_t Gas, uint32_t AddressOffset,
+                            uint64_t Gas, uint32_t AddressOffset,
                             uint32_t DataOffset, uint32_t DataLength) {
   std::vector<unsigned char> Address;
   std::vector<unsigned char> Data;
@@ -23,7 +23,7 @@ ErrCode EEICallStatic::body(VM::EnvironmentManager &EnvMgr,
   }
 
   boost::multiprecision::uint256_t AddressNum = 0;
-  for (auto It = Address.crbegin(); It != Address.crend(); It++) {
+  for (auto It = Address.cbegin(); It != Address.cend(); It++) {
     AddressNum <<= 8;
     AddressNum += *It;
   }

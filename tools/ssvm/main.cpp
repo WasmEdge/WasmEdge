@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
+#include "easyloggingpp/easylogging++.h"
 #include "vm/configure.h"
 #include "vm/result.h"
 #include "vm/vm.h"
 
 #include <iostream>
 
+INITIALIZE_EASYLOGGINGPP
+
 int main(int Argc, char *Argv[]) {
+  START_EASYLOGGINGPP(Argc, Argv);
   if (Argc < 2) {
     /// Arg0: ./ssvm
     /// Arg1: wasm file

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+#include "easyloggingpp/easylogging++.h"
 #include "executor/worker.h"
 #include "ast/common.h"
 #include "ast/instruction.h"
@@ -41,24 +42,25 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
   TimeRecorder.startRecord(TIMER_TAG_EXECUTION);
 
   /// Execute run loop.
-  std::cout << " Info: Start running..." << std::endl;
+  LOG(INFO) << "Start running...";
   TheState = State::CodeSet;
   ErrCode Status = execute();
   if (Status == ErrCode::Revert) {
-    std::cout << " Error: Reverted." << std::endl;
+    LOG(ERROR) << "Reverted.";
   } else if (Status == ErrCode::Terminated) {
-    std::cout << " Info: Terminated." << std::endl;
+    LOG(INFO) << "Terminated.";
   } else if (Status != ErrCode::Success) {
-    std::cout << " Error: Worker execution failed. Code: "
-              << (unsigned int)Status << std::endl;
+    LOG(ERROR)  << "Worker execution failed. Code: "
+                << (unsigned int)Status;
   } else {
-    std::cout << " Info: Worker execution succeeded." << std::endl;
+    LOG(INFO) << "Worker execution succeeded.";
   }
 
   /// Print time cost.
   uint64_t ExecTime = TimeRecorder.stopRecord(TIMER_TAG_EXECUTION);
   uint64_t HostFuncTime = TimeRecorder.getRecord(TIMER_TAG_HOSTFUNC);
-  std::cout << " =================  Statistics  =================" << std::endl
+  LOG(INFO) << std::endl
+            << " =================  Statistics  =================" << std::endl
             << " Total execution time: " << ExecTime + HostFuncTime << " us"
             << std::endl
             << " Wasm instructions execution time: " << ExecTime << " us"
@@ -515,6 +517,7 @@ ErrCode Worker::execute(AST::BinaryNumericInstruction &Instr) {
 
 ErrCode Worker::execute() {
   /// Check worker's flow
+  TIMED_FUNC(exec);
   if (TheState == State::Unreachable)
     return ErrCode::Unreachable;
   if (TheState != State::CodeSet)

@@ -16,6 +16,13 @@
 
 #ifndef EASYLOGGINGPP_H
 #define EASYLOGGINGPP_H
+
+// Configuration Macros
+#define ELPP_NO_LOG_TO_FILE
+#define ELPP_FEATURE_PERFORMANCE_TRACKING
+#define ELPP_PERFORMANCE_MICROSECONDS
+#define ELPP_FEATURE_CRASH_LOG
+
 // Compilers and C++0x/C++11 Evaluation
 #if __cplusplus >= 201103L
 #  define ELPP_CXX11 1

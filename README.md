@@ -9,7 +9,7 @@
 ```bash
 $ git clone git@github.com:second-state/SSVM.git
 $ cd SSVM
-$ git checkout 0.3.0
+$ git checkout 0.3.1
 ```
 
 ## Prepare environment
@@ -19,7 +19,7 @@ $ git checkout 0.3.0
 Our docker image use `ubuntu 18.04` as base.
 
 ```bash
-$ docker pull secondstate/ssvm:dev-0.3.0
+$ docker pull secondstate/ssvm:dev-0.3.1
 ```
 
 ### Or setup the environment manually
@@ -45,7 +45,7 @@ After the build is finished, you can find there are two ssvm binaries:
 # After pulling our ssvm-dev docker image
 $ docker run -it --rm \
     -v <path/to/your/ssvm/source/folder>:/root/ssvm \
-    hydai/ssvm-dev:0.3.0
+    secondstate/ssvm:dev-0.3.1
 (docker)$ cd /root/ssvm
 (docker)$ mkdir -p build && cd build
 (docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make

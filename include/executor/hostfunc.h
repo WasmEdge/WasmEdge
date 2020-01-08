@@ -70,7 +70,7 @@ protected:
                         std::index_sequence<Indices...>) {
     Tuple Result(getBottomN<std::tuple_element_t<Indices, Tuple>>(
         StackMgr, N + Indices)...);
-    ((StackMgr.pop(), Indices), ...);
+    ((StackMgr.pop(), (void)Indices), ...);
     return Result;
   }
 

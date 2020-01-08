@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include "evmc/evmc.h"
+
 #include <map>
 #include <string>
 #include <vector>
@@ -40,6 +42,7 @@ public:
   std::vector<unsigned char> &getReturnData() { return ReturnData; }
   std::string &getCaller() { return Caller; }
   std::string &getCallValue() { return CallValue; }
+  void setContext(struct evmc_context *context) { Context = context; }
 
 private:
   unsigned int GasLeft;
@@ -48,6 +51,7 @@ private:
   std::vector<unsigned char> ReturnData;
   std::string Caller;
   std::string CallValue;
+  struct evmc_context *Context;
 };
 
 class WasiEnvironment : public Environment {

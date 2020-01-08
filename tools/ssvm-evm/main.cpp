@@ -5,7 +5,7 @@
 #include "vm/vm.h"
 
 #include <iostream>
-#include <stdlib.h>
+#include <string>
 
 int main(int Argc, char *Argv[]) {
   if (Argc < 4) {
@@ -32,22 +32,14 @@ int main(int Argc, char *Argv[]) {
 
   /// Set call value
   std::string &CallValue = Env->getCallValue();
-  CallValue = "ffffffffffffffffffffffffffffffff";
+  CallValue = "00000000000000000000000000000000";
 
   /// Set call data
   std::string CallDataStr(Argv[2]);
   std::vector<unsigned char> &CallData = Env->getCallData();
-  if (CallDataStr.length() & 0x01U) {
-    CallDataStr += "0";
-  }
-  for (auto It = CallDataStr.cbegin(); It != CallDataStr.cend(); It += 2) {
-    char CH = *It;
-    char CL = *(It + 1);
-    CallData.push_back(SSVM::Support::convertCharToHex(CL) +
-                       (SSVM::Support::convertCharToHex(CH) << 4));
-  }
+  SSVM::Support::convertHexStrToBytes(CallDataStr, CallData);
 
-  EVM.setCostLimit(atoi(Argv[3]));
+  EVM.setCostLimit(std::stoull(Argv[3]));
   EVM.setPath(Erc20Path);
   EVM.execute("main");
 
@@ -60,7 +52,7 @@ int main(int Argc, char *Argv[]) {
   std::vector<unsigned char> &FinalReturn = Env->getReturnData();
   std::cout << "    --- return data: " << std::endl << "         ";
   for (auto it = FinalReturn.begin(); it != FinalReturn.end(); ++it) {
-    printf("%u ", *it);
+    printf("%02x", *it);
   }
   std::cout << std::endl;
   return 0;

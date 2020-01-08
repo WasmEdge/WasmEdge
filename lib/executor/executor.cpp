@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+#include "easyloggingpp/easylogging++.h"
 #include "executor/executor.h"
 #include "ast/module.h"
 #include "ast/section.h"
@@ -67,6 +68,7 @@ ErrCode Executor::setModule(std::unique_ptr<AST::Module> &Module) {
 
 /// Instantiate module. See "include/executor/executor.h".
 ErrCode Executor::instantiate() {
+  Statistics.reset();
   /// Check is the correct state.
   if (Stat != State::ModuleSet)
     return ErrCode::WrongExecutorFlow;
@@ -75,9 +77,12 @@ ErrCode Executor::instantiate() {
   ErrCode Result = instantiate(Mod.get());
   if (Result == ErrCode::Success)
     Stat = State::Instantiated;
-  else
-    std::cout << " Error: Wasm instantiation failed. Code: "
+  else {
+    LOG(ERROR)<< "Wasm instantiation failed. Code: "
               << static_cast<uint32_t>(Result) << std::endl;
+    Statistics.Status = Result;
+    Statistics.Infomation = "Wasm instantiation failed.";
+  }
   return Result;
 }
 
@@ -208,6 +213,7 @@ ErrCode Executor::run() {
   ErrCode Result = ErrCode::Success;
   if (auto StartAddr = ModInst->getStartAddr()) {
     Result = Engine.runStartFunction(*StartAddr);
+    Statistics = Engine.statistics();
   }
   Stat = State::Executed;
   return Result;
@@ -245,8 +251,46 @@ ErrCode Executor::reset(bool Force) {
   StackMgr.reset();
   StoreMgr.reset();
   HostFuncMgr.reset();
+  Statistics.reset();
   Stat = State::Inited;
   return ErrCode::Success;
+}
+
+/// Return Executor statistics. See "include/executor/executor.h".
+Worker::Result Executor::statistics() {
+  switch (Statistics.Status) {
+    case ErrCode::Success:
+      LOG(INFO) << "Worker execution succeeded.";
+      break;
+    case ErrCode::Revert:
+      LOG(ERROR) << "Reverted.";
+      break;
+    case ErrCode::Terminated:
+      LOG(ERROR) << "Terminated.";
+      break;
+    default:
+      LOG(ERROR)  << "Worker execution failed. Code: "
+                  << (unsigned int)Statistics.Status;
+  }
+  LOG(INFO) << "Info: " << Statistics.Infomation;
+
+  LOG(INFO) << std::endl
+          << " =================  Statistics  =================" << std::endl
+          << " Total execution time: " << Statistics.ExecTime + Statistics.HostFuncTime << " us"
+          << std::endl
+          << " Wasm instructions execution time: " << Statistics.ExecTime << " us"
+          << std::endl
+          << " Host functions execution time: " << Statistics.HostFuncTime << " us"
+          << std::endl
+          << " Executed wasm instructions count: " << Statistics.ExecInstrCnt
+          << std::endl
+#ifndef ONNC_WASM
+          << " Gas costs: " << Statistics.Gas << std::endl
+#endif
+          << " Instructions per second: "
+          << static_cast<uint64_t>((double)Statistics.ExecInstrCnt * 1000000 / ((Statistics.ExecTime)?Statistics.ExecTime:1) )
+          << std::endl;
+  return Statistics;
 }
 
 } // namespace Executor

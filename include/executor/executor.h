@@ -66,6 +66,8 @@ public:
   /// Reset Executor.
   ErrCode reset(bool Force = false);
 
+  Worker::Result statistics();
+
 private:
   /// Instantiation of Module Instance.
   ErrCode instantiate(AST::Module *Mod);
@@ -110,6 +112,8 @@ private:
   StoreManager StoreMgr;
   HostFunctionManager HostFuncMgr;
   VM::EnvironmentManager &EnvMgr;
+
+  Worker::Result Statistics;
 };
 
 } // namespace Executor

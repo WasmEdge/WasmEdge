@@ -104,6 +104,7 @@ ErrCode VM::execute(const std::string &FuncName) {
   }
   if (Status == ErrCode::Success) {
     Status = runExecutor();
+    ExecutorEngine.statistics();
   }
   VMResult.setErrCode(static_cast<unsigned int>(Status));
 

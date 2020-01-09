@@ -111,7 +111,7 @@ ErrCode Executor::restore(const rapidjson::Value &Doc) {
         return Status;
       }
       AST::ValVariant Val = static_cast<uint64_t>(
-          std::strtoull(It->GetArray()[1].GetString(), nullptr, 16));
+          std::stoull(It->GetArray()[1].GetString(), 0, 16));
       GlobInst->setValue(Val);
     }
   }
@@ -182,15 +182,19 @@ ErrCode Executor::snapshot(rapidjson::Value &Doc,
                                   std::back_inserter(DataHex));
 
       /// Insert into memory array.
-      rapidjson::Value MemData(rapidjson::kArrayType);
-      rapidjson::Value Idx(I);
-      rapidjson::Value MemStr;
-      MemStr.SetString(DataHex.c_str(), Alloc);
-      MemData.PushBack(Idx, Alloc);
-      MemData.PushBack(MemStr, Alloc);
-      MemArr.PushBack(MemData, Alloc);
+      if (DataHex.length() > 0) {
+        rapidjson::Value MemData(rapidjson::kArrayType);
+        rapidjson::Value Idx(I);
+        rapidjson::Value MemStr;
+        MemStr.SetString(DataHex.c_str(), Alloc);
+        MemData.PushBack(Idx, Alloc);
+        MemData.PushBack(MemStr, Alloc);
+        MemArr.PushBack(MemData, Alloc);
+      }
     }
-    Doc.AddMember("memory", MemArr, Alloc);
+    if (MemArr.Size() > 0) {
+      Doc.AddMember("memory", MemArr, Alloc);
+    }
   }
   return ErrCode::Success;
 }

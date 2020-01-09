@@ -8,11 +8,6 @@ namespace Executor {
 ErrCode EEIStorageStore::body(VM::EnvironmentManager &EnvMgr,
                               Instance::MemoryInstance &MemInst,
                               uint32_t PathOffset, uint32_t ValueOffset) {
-  /// Add cost.
-  if (!EnvMgr.addCost(Cost)) {
-    return ErrCode::Revert;
-  }
-
   /// Get Path data by path offset.
   std::vector<unsigned char> Data;
   std::string Path;

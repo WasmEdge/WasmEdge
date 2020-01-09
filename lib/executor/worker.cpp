@@ -604,6 +604,11 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
       return Status;
     }
 
+    /// Check host function cost.
+    if (!EnvMgr.addCost(HostFunc->getCost())) {
+      return ErrCode::Revert;
+    }
+
     Instance::MemoryInstance *MemoryInst = nullptr;
     if (ErrCode Status = getMemInstByIdx(0, MemoryInst);
         Status != ErrCode::Success) {

@@ -7,11 +7,6 @@ namespace Executor {
 ErrCode EEIRevert::body(VM::EnvironmentManager &EnvMgr,
                         Instance::MemoryInstance &MemInst, uint32_t DataOffset,
                         uint32_t DataLength) {
-  /// Add cost.
-  if (!EnvMgr.addCost(Cost)) {
-    return ErrCode::Revert;
-  }
-
   Env.getReturnData().clear();
   if (DataLength > 0) {
     if (ErrCode Status =

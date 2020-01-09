@@ -7,10 +7,6 @@ namespace Executor {
 ErrCode EEIGetCallDataSize::body(VM::EnvironmentManager &EnvMgr,
                                  Instance::MemoryInstance &MemInst,
                                  uint32_t &Ret) {
-  /// Add cost.
-  if (!EnvMgr.addCost(Cost)) {
-    return ErrCode::Revert;
-  }
   /// Return: Length(u32)
   Ret = Env.getCallData().size();
   return ErrCode::Success;

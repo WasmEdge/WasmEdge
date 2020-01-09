@@ -36,13 +36,20 @@ public:
   /// Getter of function type.
   const Instance::ModuleInstance::FType *getFuncType() { return &FuncType; }
 
+  /// Getter of host function cost.
+  uint64_t getCost() { return Cost; }
+
 protected:
   Instance::ModuleInstance::FType FuncType;
+  uint64_t Cost = 0;
 };
 
 template <typename T> class HostFunction : public HostFunctionBase {
 public:
-  HostFunction() { initializeFuncType(); }
+  HostFunction(const uint64_t &FuncCost = 0) {
+    Cost = FuncCost;
+    initializeFuncType();
+  }
 
   ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
               Instance::MemoryInstance &MemInst) override {

@@ -10,6 +10,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "support/hexstr.h"
 #include "vm/configure.h"
 #include "vm/environment.h"
 #include "vm/result.h"
@@ -20,119 +21,253 @@
 
 namespace {
 
-const std::string Erc20Path("ethereumTestData/erc20.wasm");
-SSVM::VM::Configure Conf;
-SSVM::VM::EVMEnvironment *Env = nullptr;
-
-TEST(ERC20Test, Run__mint) {
-  Conf.addVMType(SSVM::VM::Configure::VMType::Ewasm);
-  SSVM::VM::VM EVM(Conf);
-  Env = EVM.getEnvironment<SSVM::VM::EVMEnvironment>(
-      SSVM::VM::Configure::VMType::Ewasm);
-  EXPECT_NE(Env, nullptr);
-  Env->clear();
-  std::string &Caller = Env->getCaller();
-  Caller = "1234567890123456789012345678901234567890";
-  std::string &CallValue = Env->getCallValue();
-  CallValue = "ffffffffffffffffffffffffffffffff";
-  std::vector<unsigned char> &CallData = Env->getCallData();
-  CallData = {78, 110, 194, 71, 0,  0,   0,   0,   0,  0,  0,   0,   0,  0,
-              0,  0,   18,  52, 86, 120, 144, 18,  52, 86, 120, 144, 18, 52,
-              86, 120, 144, 18, 52, 86,  120, 144, 0,  0,  0,   0,   0,  0,
-              0,  0,   0,   0,  0,  0,   0,   0,   0,  0,  0,   0,   0,  0,
-              0,  0,   0,   0,  0,  0,   0,   0,   0,  0,  0,   100};
-  EVM.setCostLimit(2147483647);
-  EVM.setPath(Erc20Path);
-  EXPECT_EQ(EVM.execute("main"), SSVM::VM::ErrCode::Success);
-
-  std::map<std::string, std::string> &FinalStorage = Env->getStorage();
-  std::cout << "    --- result storage: " << std::endl;
-  for (auto it = FinalStorage.begin(); it != FinalStorage.end(); ++it) {
-    std::cout << "         " << it->first << " " << it->second << std::endl;
-  }
-
-  std::vector<unsigned char> &FinalReturn = Env->getReturnData();
-  std::cout << "    --- return data: " << std::endl << "         ";
-  for (auto it = FinalReturn.begin(); it != FinalReturn.end(); ++it) {
-    printf("%u ", *it);
-  }
-  std::cout << std::endl;
+/// Helper function to check return data string
+bool isReturnExpected(const std::string &ExpStr,
+                      const std::vector<uint8_t> &Data) {
+  std::string DataStr = "";
+  SSVM::Support::convertBytesToHexStr(Data, DataStr);
+  return DataStr == ExpStr;
 }
 
-TEST(ERC20Test, Run__transfer) {
-  Conf.addVMType(SSVM::VM::Configure::VMType::Ewasm);
-  SSVM::VM::VM EVM(Conf);
-  Env = EVM.getEnvironment<SSVM::VM::EVMEnvironment>(
-      SSVM::VM::Configure::VMType::Ewasm);
-  EXPECT_NE(Env, nullptr);
-  Env->clear();
-  std::string &Caller = Env->getCaller();
-  Caller = "1234567890123456789012345678901234567890";
-  std::string &CallValue = Env->getCallValue();
-  CallValue = "ffffffffffffffffffffffffffffffff";
-  std::vector<unsigned char> &CallData = Env->getCallData();
-  CallData = {169, 5, 156, 187, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-              0,   0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-              0,   1, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-              0,   0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10};
-  std::map<std::string, std::string> &Storage = Env->getStorage();
-  Storage["0"] = "64";
-  Storage["f5b24dcea0e9381721a8c72784d30cfe64c11b4591226269f839d095b3e9cf10"] =
-      "64";
-  EVM.setCostLimit(2147483647);
-  EVM.setPath(Erc20Path);
-  EXPECT_EQ(EVM.execute("main"), SSVM::VM::ErrCode::Success);
-
-  std::map<std::string, std::string> &FinalStorage = Env->getStorage();
-  std::cout << "    --- result storage: " << std::endl;
-  for (auto it = FinalStorage.begin(); it != FinalStorage.end(); ++it) {
-    std::cout << "         " << it->first << " " << it->second << std::endl;
-  }
-
-  std::vector<unsigned char> &FinalReturn = Env->getReturnData();
-  std::cout << "    --- return data: " << std::endl << "         ";
-  for (auto it = FinalReturn.begin(); it != FinalReturn.end(); ++it) {
-    printf("%u ", *it);
-  }
-  std::cout << std::endl;
+/// Helper function to load file to vector
+void readBinary(const std::string &Path, std::vector<uint8_t> &Dst) {
+  std::ifstream F(Path, std::ios::binary);
+  F.unsetf(std::ios::skipws);
+  std::streampos FSize;
+  F.seekg(0, std::ios::end);
+  FSize = F.tellg();
+  F.seekg(0, std::ios::beg);
+  Dst.clear();
+  Dst.reserve(FSize);
+  Dst.insert(Dst.begin(), std::istream_iterator<uint8_t>(F),
+             std::istream_iterator<uint8_t>());
 }
 
-TEST(ERC20Test, Run__balanceOf) {
-  Conf.addVMType(SSVM::VM::Configure::VMType::Ewasm);
-  SSVM::VM::VM EVM(Conf);
-  Env = EVM.getEnvironment<SSVM::VM::EVMEnvironment>(
-      SSVM::VM::Configure::VMType::Ewasm);
-  EXPECT_NE(Env, nullptr);
-  Env->clear();
-  std::string &Caller = Env->getCaller();
-  Caller = "1234567890123456789012345678901234567890";
-  std::string &CallValue = Env->getCallValue();
-  CallValue = "ffffffffffffffffffffffffffffffff";
-  std::vector<unsigned char> &CallData = Env->getCallData();
-  CallData = {112, 160, 130, 49, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-              0,   0,   0,   0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
-  std::map<std::string, std::string> &Storage = Env->getStorage();
-  Storage["0"] = "64";
-  Storage["f5b24dcea0e9381721a8c72784d30cfe64c11b4591226269f839d095b3e9cf10"] =
-      "5a";
-  Storage["3cbd4ff31ab6027f35d2d04a81e2957deb3a24998b9cea0327c6e16d0b547a1d"] =
-      "a";
-  EVM.setCostLimit(2147483647);
-  EVM.setPath(Erc20Path);
-  EXPECT_EQ(EVM.execute("main"), SSVM::VM::ErrCode::Success);
+/// VMUnit class for google test global variable.
+struct VMUnit {
+  std::string Erc20Path = "ethereumTestData/erc20.wasm";
+  std::string Erc20DeployPath = "ethereumTestData/erc20.deploy.wasm";
+  std::vector<uint8_t> Erc20Bin;
+  std::vector<uint8_t> Erc20DeployBin;
+  SSVM::VM::Configure Conf;
+  std::unique_ptr<SSVM::VM::VM> VM;
+  SSVM::VM::EVMEnvironment *Env = nullptr;
 
-  std::map<std::string, std::string> &FinalStorage = Env->getStorage();
-  std::cout << "    --- result storage: " << std::endl;
-  for (auto it = FinalStorage.begin(); it != FinalStorage.end(); ++it) {
-    std::cout << "         " << it->first << " " << it->second << std::endl;
+  VMUnit() {
+    Conf.addVMType(SSVM::VM::Configure::VMType::Ewasm);
+    VM = std::make_unique<SSVM::VM::VM>(Conf);
+    Env = VM->getEnvironment<SSVM::VM::EVMEnvironment>(
+        SSVM::VM::Configure::VMType::Ewasm);
+    VM->setCostLimit(UINT64_MAX);
+    Env->getCallValue() = "00000000000000000000000000000000";
+    readBinary(Erc20Path, Erc20Bin);
+    readBinary(Erc20DeployPath, Erc20DeployBin);
   }
 
-  std::vector<unsigned char> &FinalReturn = Env->getReturnData();
-  std::cout << "    --- return data: " << std::endl << "         ";
-  for (auto it = FinalReturn.begin(); it != FinalReturn.end(); ++it) {
-    printf("%u ", *it);
+  void printResult() {
+    std::cout << " Storage: {" << std::endl;
+    for (auto &it : Env->getStorage()) {
+      std::cout << "   " << it.first << " : " << it.second << std::endl;
+    }
+    std::cout << "          }" << std::endl;
+    std::string DataStr;
+    SSVM::Support::convertBytesToHexStr(Env->getReturnData(), DataStr, 64);
+    std::cout << " Return Data: " << DataStr << std::endl;
   }
-  std::cout << std::endl;
+};
+
+/// Testing setup class
+class ERC20Test : public ::testing::Test {
+protected:
+  static void SetUpTestSuite() { EVM = new VMUnit; }
+
+  static void TearDownTestSuite() {
+    delete EVM;
+    EVM = nullptr;
+  }
+
+  static VMUnit *EVM;
+};
+
+VMUnit *ERC20Test::EVM = nullptr;
+
+TEST_F(ERC20Test, Run__1_deploy) {
+  /// Set caller and data.
+  EVM->Env->getCaller() = "7fffffff";
+  EVM->Env->getCallData() = EVM->Erc20DeployBin;
+
+  /// Execute.
+  EVM->VM->setPath(EVM->Erc20DeployPath);
+  EXPECT_EQ(EVM->VM->execute("main"), SSVM::VM::ErrCode::Success);
+
+  /// Check return data.
+  std::vector<unsigned char> &RetData = EVM->Env->getReturnData();
+  std::string ExpStr = "";
+  SSVM::Support::convertBytesToHexStr(EVM->Erc20Bin, ExpStr);
+  EXPECT_TRUE(isReturnExpected(ExpStr, EVM->Env->getReturnData()));
+
+  /// Check result.
+  EVM->printResult();
+}
+
+TEST_F(ERC20Test, Run__2_check_balance_of_0x7FFFFFFF) {
+  /// Set call data
+  std::string CallDataStr = "70a08231000000000000000000000000000000000000000000"
+                            "000000000000007fffffff";
+  SSVM::Support::convertHexStrToBytes(CallDataStr, EVM->Env->getCallData());
+
+  /// Execute.
+  EVM->VM->setPath(EVM->Erc20Path);
+  EXPECT_EQ(EVM->VM->execute("main"), SSVM::VM::ErrCode::Success);
+
+  /// Check return data.
+  std::string ExpStr =
+      "00000000000000000000000000000000000000000000000000000000000003e8";
+  EXPECT_TRUE(isReturnExpected(ExpStr, EVM->Env->getReturnData()));
+
+  /// Check result.
+  EVM->printResult();
+}
+
+TEST_F(ERC20Test, Run__3_check_total_supply) {
+  /// Set call data
+  std::string CallDataStr = "18160ddd";
+  SSVM::Support::convertHexStrToBytes(CallDataStr, EVM->Env->getCallData());
+
+  /// Execute.
+  EVM->VM->setPath(EVM->Erc20Path);
+  EXPECT_EQ(EVM->VM->execute("main"), SSVM::VM::ErrCode::Success);
+
+  /// Check return data.
+  std::string ExpStr =
+      "00000000000000000000000000000000000000000000000000000000000003e8";
+  EXPECT_TRUE(isReturnExpected(ExpStr, EVM->Env->getReturnData()));
+  ;
+
+  /// Check result.
+  EVM->printResult();
+}
+
+TEST_F(ERC20Test, Run__4_transfer_20_from_0x7FFFFFFF_to_0x01) {
+  /// Set caller and data.
+  EVM->Env->getCaller() = "7fffffff";
+  std::string CallDataStr =
+      "a9059cbb0000000000000000000000000000000000000000000000000000000000000001"
+      "0000000000000000000000000000000000000000000000000000000000000014";
+  SSVM::Support::convertHexStrToBytes(CallDataStr, EVM->Env->getCallData());
+
+  /// Execute.
+  EVM->VM->setPath(EVM->Erc20Path);
+  EXPECT_EQ(EVM->VM->execute("main"), SSVM::VM::ErrCode::Success);
+
+  /// Check return data.
+  std::string ExpStr =
+      "0000000000000000000000000000000000000000000000000000000000000001";
+  EXPECT_TRUE(isReturnExpected(ExpStr, EVM->Env->getReturnData()));
+
+  /// Check result.
+  EVM->printResult();
+}
+
+TEST_F(ERC20Test, Run__5_check_balance_of_0x01) {
+  /// Set call data
+  std::string CallDataStr = "70a08231000000000000000000000000000000000000000000"
+                            "0000000000000000000001";
+  SSVM::Support::convertHexStrToBytes(CallDataStr, EVM->Env->getCallData());
+
+  /// Execute.
+  EVM->VM->setPath(EVM->Erc20Path);
+  EXPECT_EQ(EVM->VM->execute("main"), SSVM::VM::ErrCode::Success);
+
+  /// Check return data.
+  std::string ExpStr =
+      "0000000000000000000000000000000000000000000000000000000000000014";
+  EXPECT_TRUE(isReturnExpected(ExpStr, EVM->Env->getReturnData()));
+
+  /// Check result.
+  EVM->printResult();
+}
+
+TEST_F(ERC20Test, Run__6_approve_10_from_0x7FFFFFFF_for_0x01_to_spend) {
+  /// Set caller and data.
+  EVM->Env->getCaller() = "7fffffff";
+  std::string CallDataStr =
+      "095ea7b30000000000000000000000000000000000000000000000000000000000000001"
+      "000000000000000000000000000000000000000000000000000000000000000a";
+  SSVM::Support::convertHexStrToBytes(CallDataStr, EVM->Env->getCallData());
+
+  /// Execute.
+  EVM->VM->setPath(EVM->Erc20Path);
+  EXPECT_EQ(EVM->VM->execute("main"), SSVM::VM::ErrCode::Success);
+
+  /// Check return data.
+  std::string ExpStr =
+      "0000000000000000000000000000000000000000000000000000000000000001";
+  EXPECT_TRUE(isReturnExpected(ExpStr, EVM->Env->getReturnData()));
+
+  /// Check result.
+  EVM->printResult();
+}
+
+TEST_F(ERC20Test, Run__7_check_allowance_from_0x7FFFFFFF_by_0x01) {
+  /// Set call data
+  std::string CallDataStr =
+      "dd62ed3e000000000000000000000000000000000000000000000000000000007fffffff"
+      "0000000000000000000000000000000000000000000000000000000000000001";
+  SSVM::Support::convertHexStrToBytes(CallDataStr, EVM->Env->getCallData());
+
+  /// Execute.
+  EVM->VM->setPath(EVM->Erc20Path);
+  EXPECT_EQ(EVM->VM->execute("main"), SSVM::VM::ErrCode::Success);
+
+  /// Check return data.
+  std::string ExpStr =
+      "000000000000000000000000000000000000000000000000000000000000000a";
+  EXPECT_TRUE(isReturnExpected(ExpStr, EVM->Env->getReturnData()));
+
+  /// Check result.
+  EVM->printResult();
+}
+
+TEST_F(ERC20Test, Run__8_transfer_3_from_0x7FFFFFFF_by_0x01_to_0x02) {
+  /// Set caller and data.
+  EVM->Env->getCaller() = "01";
+  std::string CallDataStr =
+      "23b872dd000000000000000000000000000000000000000000000000000000007fffffff"
+      "000000000000000000000000000000000000000000000000000000000000000200000000"
+      "00000000000000000000000000000000000000000000000000000003";
+  SSVM::Support::convertHexStrToBytes(CallDataStr, EVM->Env->getCallData());
+
+  /// Execute.
+  EVM->VM->setPath(EVM->Erc20Path);
+  EXPECT_EQ(EVM->VM->execute("main"), SSVM::VM::ErrCode::Success);
+
+  /// Check return data.
+  std::string ExpStr =
+      "0000000000000000000000000000000000000000000000000000000000000001";
+  EXPECT_TRUE(isReturnExpected(ExpStr, EVM->Env->getReturnData()));
+
+  /// Check result.
+  EVM->printResult();
+}
+
+TEST_F(ERC20Test, Run__9_check_balance_of_0x7FFFFFFF) {
+  /// Set call data
+  std::string CallDataStr = "70a08231000000000000000000000000000000000000000000"
+                            "000000000000007fffffff";
+  SSVM::Support::convertHexStrToBytes(CallDataStr, EVM->Env->getCallData());
+
+  /// Execute.
+  EVM->VM->setPath(EVM->Erc20Path);
+  EXPECT_EQ(EVM->VM->execute("main"), SSVM::VM::ErrCode::Success);
+
+  /// Check return data.
+  std::string ExpStr =
+      "00000000000000000000000000000000000000000000000000000000000003d1";
+  EXPECT_TRUE(isReturnExpected(ExpStr, EVM->Env->getReturnData()));
+
+  /// Check result.
+  EVM->printResult();
 }
 
 } // namespace

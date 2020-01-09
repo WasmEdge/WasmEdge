@@ -1,3 +1,10 @@
+### 0.3.2 (2020-01-09)
+
+Fixed issues:
+
+* Handle empty length of memory in `vm_snapshot`.
+* Correct error message when execution failed in SSVM proxy mode.
+
 ### 0.3.1 (2020-01-07)
 
 Fixed issues:

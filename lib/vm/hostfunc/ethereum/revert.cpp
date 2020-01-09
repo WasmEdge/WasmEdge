@@ -4,15 +4,6 @@
 namespace SSVM {
 namespace Executor {
 
-EEIRevert::EEIRevert(VM::EVMEnvironment &Env, uint64_t Cost) : EEI(Env, Cost) {
-  initializeFuncType<EEIRevert>();
-}
-
-ErrCode EEIRevert::run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-                       Instance::MemoryInstance &MemInst) {
-  return invoke<EEIRevert>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode EEIRevert::body(VM::EnvironmentManager &EnvMgr,
                         Instance::MemoryInstance &MemInst, uint32_t DataOffset,
                         uint32_t DataLength) {

@@ -5,15 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-WasiFdWrite::WasiFdWrite(VM::WasiEnvironment &Env) : Wasi(Env) {
-  initializeFuncType<WasiFdWrite>();
-}
-
-ErrCode WasiFdWrite::run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-                         Instance::MemoryInstance &MemInst) {
-  return invoke<WasiFdWrite>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode WasiFdWrite::body(VM::EnvironmentManager &EnvMgr,
                           Instance::MemoryInstance &MemInst, uint32_t &ErrNo,
                           int32_t Fd, uint32_t IOVSPtr, uint32_t IOVSCnt,

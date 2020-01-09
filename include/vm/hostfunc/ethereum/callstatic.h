@@ -6,12 +6,10 @@
 namespace SSVM {
 namespace Executor {
 
-class EEICallStatic : public EEI {
+class EEICallStatic : public EEI<EEICallStatic> {
 public:
-  EEICallStatic(VM::EVMEnvironment &Env, uint64_t Cost = 100);
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override;
+  EEICallStatic(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 100)
+      : EEI(HostEnv, Cost) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &Ret, uint32_t Gas,

@@ -7,17 +7,6 @@
 namespace SSVM {
 namespace Executor {
 
-EEICallStatic::EEICallStatic(VM::EVMEnvironment &Env, uint64_t Cost)
-    : EEI(Env, Cost) {
-  initializeFuncType<EEICallStatic>();
-}
-
-ErrCode EEICallStatic::run(VM::EnvironmentManager &EnvMgr,
-                           StackManager &StackMgr,
-                           Instance::MemoryInstance &MemInst) {
-  return invoke<EEICallStatic>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode EEICallStatic::body(VM::EnvironmentManager &EnvMgr,
                             Instance::MemoryInstance &MemInst, uint32_t &Ret,
                             uint32_t Gas, uint32_t AddressOffset,

@@ -6,13 +6,8 @@
 namespace SSVM {
 namespace Executor {
 
-class ONNCRuntimeSoftmaxFloat : public HostFunction {
+class ONNCRuntimeSoftmaxFloat : public HostFunction<ONNCRuntimeSoftmaxFloat> {
 public:
-  ONNCRuntimeSoftmaxFloat();
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override;
-
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
                uint32_t InOff, uint32_t InNDim, uint32_t InDimsOff,

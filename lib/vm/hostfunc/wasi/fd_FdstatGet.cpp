@@ -8,16 +8,6 @@
 namespace SSVM {
 namespace Executor {
 
-WasiFdFdstatGet::WasiFdFdstatGet(VM::WasiEnvironment &Env) : Wasi(Env) {
-  initializeFuncType<WasiFdFdstatGet>();
-}
-
-ErrCode WasiFdFdstatGet::run(VM::EnvironmentManager &EnvMgr,
-                             StackManager &StackMgr,
-                             Instance::MemoryInstance &MemInst) {
-  return invoke<WasiFdFdstatGet>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode WasiFdFdstatGet::body(VM::EnvironmentManager &EnvMgr,
                               Instance::MemoryInstance &MemInst,
                               uint32_t &ErrNo, int32_t Fd, uint32_t FdStatPtr) {

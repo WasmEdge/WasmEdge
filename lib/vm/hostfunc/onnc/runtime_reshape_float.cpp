@@ -5,16 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-ONNCRuntimeReshapeFloat::ONNCRuntimeReshapeFloat() {
-  initializeFuncType<ONNCRuntimeReshapeFloat>();
-}
-
-ErrCode ONNCRuntimeReshapeFloat::run(VM::EnvironmentManager &EnvMgr,
-                                     StackManager &StackMgr,
-                                     Instance::MemoryInstance &MemInst) {
-  return invoke<ONNCRuntimeReshapeFloat>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode ONNCRuntimeReshapeFloat::body(
     VM::EnvironmentManager &EnvMgr, Instance::MemoryInstance &MemInst,
     uint32_t RuntimeContextOff, uint32_t InDataOff, uint32_t InDataNDim,

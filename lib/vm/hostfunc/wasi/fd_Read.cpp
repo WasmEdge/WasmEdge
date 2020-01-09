@@ -5,15 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-WasiFdRead::WasiFdRead(VM::WasiEnvironment &Env) : Wasi(Env) {
-  initializeFuncType<WasiFdRead>();
-}
-
-ErrCode WasiFdRead::run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-                        Instance::MemoryInstance &MemInst) {
-  return invoke<WasiFdRead>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode WasiFdRead::body(VM::EnvironmentManager &EnvMgr,
                          Instance::MemoryInstance &MemInst, uint32_t &ErrNo,
                          int32_t Fd, uint32_t IOVSPtr, uint32_t IOVSCnt,

@@ -5,16 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-ONNCRuntimeMulFloat::ONNCRuntimeMulFloat() {
-  initializeFuncType<ONNCRuntimeMulFloat>();
-}
-
-ErrCode ONNCRuntimeMulFloat::run(VM::EnvironmentManager &EnvMgr,
-                                 StackManager &StackMgr,
-                                 Instance::MemoryInstance &MemInst) {
-  return invoke<ONNCRuntimeMulFloat>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode ONNCRuntimeMulFloat::body(VM::EnvironmentManager &EnvMgr,
                                   Instance::MemoryInstance &MemInst,
                                   uint32_t RuntimeContextOff, uint32_t InAOff,

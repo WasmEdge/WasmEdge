@@ -23,7 +23,7 @@ public:
   ~HostFunctionManager() = default;
 
   /// Insert new host function and get index.
-  ErrCode insertHostFunction(std::unique_ptr<HostFunction> &Func,
+  ErrCode insertHostFunction(std::unique_ptr<HostFunctionBase> &Func,
                              unsigned int &NewAddr) {
     NewAddr = HostFuncs.size();
     HostFuncs.push_back(std::move(Func));
@@ -31,7 +31,7 @@ public:
   }
 
   /// Get host function by address.
-  ErrCode getHostFunction(unsigned int Addr, HostFunction *&Func) {
+  ErrCode getHostFunction(unsigned int Addr, HostFunctionBase *&Func) {
     if (Addr >= HostFuncs.size()) {
       return ErrCode::WrongInstanceAddress;
     }
@@ -46,7 +46,7 @@ public:
   }
 
 private:
-  std::vector<std::unique_ptr<HostFunction>> HostFuncs;
+  std::vector<std::unique_ptr<HostFunctionBase>> HostFuncs;
 };
 
 } // namespace Executor

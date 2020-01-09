@@ -8,7 +8,7 @@
 namespace SSVM {
 namespace Executor {
 
-class Wasi : public HostFunction {
+template <typename T> class Wasi : public HostFunction<T> {
 public:
   Wasi(VM::WasiEnvironment &HostEnv) : Env(HostEnv) {}
 

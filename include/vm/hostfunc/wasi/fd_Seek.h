@@ -6,12 +6,9 @@
 namespace SSVM {
 namespace Executor {
 
-class WasiFdSeek : public Wasi {
+class WasiFdSeek : public Wasi<WasiFdSeek> {
 public:
-  WasiFdSeek(VM::WasiEnvironment &Env);
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override;
+  WasiFdSeek(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &ErrNo, int32_t Fd,

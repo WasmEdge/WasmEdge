@@ -4,16 +4,6 @@
 namespace SSVM {
 namespace Executor {
 
-ONNCRuntimeUnsqueezeFloat::ONNCRuntimeUnsqueezeFloat() {
-  initializeFuncType<ONNCRuntimeUnsqueezeFloat>();
-}
-
-ErrCode ONNCRuntimeUnsqueezeFloat::run(VM::EnvironmentManager &EnvMgr,
-                                       StackManager &StackMgr,
-                                       Instance::MemoryInstance &MemInst) {
-  return invoke<ONNCRuntimeUnsqueezeFloat>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode ONNCRuntimeUnsqueezeFloat::body(
     VM::EnvironmentManager &EnvMgr, Instance::MemoryInstance &MemInst,
     uint32_t RuntimeContextOff, uint32_t InDataOff, uint32_t InDataNDim,

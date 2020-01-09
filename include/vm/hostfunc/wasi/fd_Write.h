@@ -6,12 +6,9 @@
 namespace SSVM {
 namespace Executor {
 
-class WasiFdWrite : public Wasi {
+class WasiFdWrite : public Wasi<WasiFdWrite> {
 public:
-  WasiFdWrite(VM::WasiEnvironment &Env);
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override;
+  WasiFdWrite(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &ErrNo, int32_t Fd,

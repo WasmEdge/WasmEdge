@@ -5,16 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-ONNCRuntimeMaxpoolInt8::ONNCRuntimeMaxpoolInt8() {
-  initializeFuncType<ONNCRuntimeMaxpoolInt8>();
-}
-
-ErrCode ONNCRuntimeMaxpoolInt8::run(VM::EnvironmentManager &EnvMgr,
-                                    StackManager &StackMgr,
-                                    Instance::MemoryInstance &MemInst) {
-  return invoke<ONNCRuntimeMaxpoolInt8>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode ONNCRuntimeMaxpoolInt8::body(
     VM::EnvironmentManager &EnvMgr, Instance::MemoryInstance &MemInst,
     uint32_t RuntimeContextOff, uint32_t InXOff, uint32_t InXNDim,

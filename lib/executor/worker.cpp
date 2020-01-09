@@ -597,7 +597,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
 
   if (FuncInst->isHostFunction()) {
     /// Host function case: Push args and call function.
-    HostFunction *HostFunc = nullptr;
+    HostFunctionBase *HostFunc = nullptr;
     if (ErrCode Status =
             HostFuncMgr.getHostFunction(FuncInst->getHostFuncAddr(), HostFunc);
         Status != ErrCode::Success) {

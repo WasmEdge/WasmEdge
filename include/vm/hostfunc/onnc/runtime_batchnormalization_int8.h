@@ -6,13 +6,9 @@
 namespace SSVM {
 namespace Executor {
 
-class ONNCRuntimeBatchnormalizationInt8 : public HostFunction {
+class ONNCRuntimeBatchnormalizationInt8
+    : public HostFunction<ONNCRuntimeBatchnormalizationInt8> {
 public:
-  ONNCRuntimeBatchnormalizationInt8();
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override;
-
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
                uint32_t InXOff, uint32_t InXNDim, uint32_t InXDimsOff,

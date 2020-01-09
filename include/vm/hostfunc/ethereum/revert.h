@@ -6,12 +6,10 @@
 namespace SSVM {
 namespace Executor {
 
-class EEIRevert : public EEI {
+class EEIRevert : public EEI<EEIRevert> {
 public:
-  EEIRevert(VM::EVMEnvironment &Env, uint64_t Cost = 100);
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override;
+  EEIRevert(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 100)
+      : EEI(HostEnv, Cost) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t DataOffset,

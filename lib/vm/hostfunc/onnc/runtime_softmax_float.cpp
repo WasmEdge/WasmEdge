@@ -5,16 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-ONNCRuntimeSoftmaxFloat::ONNCRuntimeSoftmaxFloat() {
-  initializeFuncType<ONNCRuntimeSoftmaxFloat>();
-}
-
-ErrCode ONNCRuntimeSoftmaxFloat::run(VM::EnvironmentManager &EnvMgr,
-                                     StackManager &StackMgr,
-                                     Instance::MemoryInstance &MemInst) {
-  return invoke<ONNCRuntimeSoftmaxFloat>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode ONNCRuntimeSoftmaxFloat::body(VM::EnvironmentManager &EnvMgr,
                                       Instance::MemoryInstance &MemInst,
                                       uint32_t RuntimeContextOff,

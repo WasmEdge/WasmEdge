@@ -5,15 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-WasiFdClose::WasiFdClose(VM::WasiEnvironment &Env) : Wasi(Env) {
-  initializeFuncType<WasiFdClose>();
-}
-
-ErrCode WasiFdClose::run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-                         Instance::MemoryInstance &MemInst) {
-  return invoke<WasiFdClose>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode WasiFdClose::body(VM::EnvironmentManager &EnvMgr,
                           Instance::MemoryInstance &MemInst, uint32_t &ErrNo,
                           int32_t Fd) {

@@ -5,16 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-ONNCRuntimeMulInt8::ONNCRuntimeMulInt8() {
-  initializeFuncType<ONNCRuntimeMulInt8>();
-}
-
-ErrCode ONNCRuntimeMulInt8::run(VM::EnvironmentManager &EnvMgr,
-                                StackManager &StackMgr,
-                                Instance::MemoryInstance &MemInst) {
-  return invoke<ONNCRuntimeMulInt8>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode ONNCRuntimeMulInt8::body(VM::EnvironmentManager &EnvMgr,
                                  Instance::MemoryInstance &MemInst,
                                  uint32_t RuntimeContextOff, uint32_t InAOff,

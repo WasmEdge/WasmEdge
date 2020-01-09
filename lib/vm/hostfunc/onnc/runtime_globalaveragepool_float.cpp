@@ -5,17 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-ONNCRuntimeGlobalaveragepoolFloat::ONNCRuntimeGlobalaveragepoolFloat() {
-  initializeFuncType<ONNCRuntimeGlobalaveragepoolFloat>();
-}
-
-ErrCode
-ONNCRuntimeGlobalaveragepoolFloat::run(VM::EnvironmentManager &EnvMgr,
-                                       StackManager &StackMgr,
-                                       Instance::MemoryInstance &MemInst) {
-  return invoke<ONNCRuntimeGlobalaveragepoolFloat>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode ONNCRuntimeGlobalaveragepoolFloat::body(
     VM::EnvironmentManager &EnvMgr, Instance::MemoryInstance &MemInst,
     uint32_t RuntimeContextOff, uint32_t InXOff, uint32_t InXNDim,

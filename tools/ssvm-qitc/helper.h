@@ -11,15 +11,8 @@ namespace SSVM {
 namespace Executor {
 
 #ifdef ONNC_WASM
-class QITCTimerStart : public HostFunction {
+class QITCTimerStart : public HostFunction<QITCTimerStart> {
 public:
-  QITCTimerStart() { initializeFuncType<QITCTimerStart>(); }
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override {
-    return invoke<QITCTimerStart>(EnvMgr, StackMgr, MemInst);
-  }
-
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst) {
     EnvMgr.getTimeRecorder().startRecord(TIMER_TAG_QITC_INFER_SSVM);
@@ -28,15 +21,8 @@ public:
   }
 };
 
-class QITCTimerStop : public HostFunction {
+class QITCTimerStop : public HostFunction<QITCTimerStop> {
 public:
-  QITCTimerStop() { initializeFuncType<QITCTimerStop>(); }
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override {
-    return invoke<QITCTimerStop>(EnvMgr, StackMgr, MemInst);
-  }
-
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst) {
     uint64_t SSVMTime =
@@ -50,15 +36,8 @@ public:
   }
 };
 
-class QITCTimerClear : public HostFunction {
+class QITCTimerClear : public HostFunction<QITCTimerClear> {
 public:
-  QITCTimerClear() { initializeFuncType<QITCTimerClear>(); }
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override {
-    return invoke<QITCTimerClear>(EnvMgr, StackMgr, MemInst);
-  }
-
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst) {
     EnvMgr.getTimeRecorder().clearRecord(TIMER_TAG_QITC_INFER_SSVM);

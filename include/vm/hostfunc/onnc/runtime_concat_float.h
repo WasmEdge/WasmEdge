@@ -6,13 +6,8 @@
 namespace SSVM {
 namespace Executor {
 
-class ONNCRuntimeConcatFloat : public HostFunction {
+class ONNCRuntimeConcatFloat : public HostFunction<ONNCRuntimeConcatFloat> {
 public:
-  ONNCRuntimeConcatFloat();
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override;
-
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
                uint32_t InInputsOffOff, uint32_t InInputsNTensor,

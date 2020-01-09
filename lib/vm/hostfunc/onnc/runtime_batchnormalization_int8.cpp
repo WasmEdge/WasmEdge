@@ -9,17 +9,6 @@
 namespace SSVM {
 namespace Executor {
 
-ONNCRuntimeBatchnormalizationInt8::ONNCRuntimeBatchnormalizationInt8() {
-  initializeFuncType<ONNCRuntimeBatchnormalizationInt8>();
-}
-
-ErrCode
-ONNCRuntimeBatchnormalizationInt8::run(VM::EnvironmentManager &EnvMgr,
-                                       StackManager &StackMgr,
-                                       Instance::MemoryInstance &MemInst) {
-  return invoke<ONNCRuntimeBatchnormalizationInt8>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode ONNCRuntimeBatchnormalizationInt8::body(
     VM::EnvironmentManager &EnvMgr, Instance::MemoryInstance &MemInst,
     uint32_t RuntimeContextOff, uint32_t InXOff, uint32_t InXNDim,

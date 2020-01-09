@@ -6,13 +6,8 @@
 namespace SSVM {
 namespace Executor {
 
-class ONNCRuntimeAddFloat : public HostFunction {
+class ONNCRuntimeAddFloat : public HostFunction<ONNCRuntimeAddFloat> {
 public:
-  ONNCRuntimeAddFloat();
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override;
-
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
                uint32_t InAOff, uint32_t InANDim, uint32_t InADimsOff,

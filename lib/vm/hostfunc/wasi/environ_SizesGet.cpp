@@ -7,16 +7,6 @@ extern char **environ;
 namespace SSVM {
 namespace Executor {
 
-WasiEnvironSizesGet::WasiEnvironSizesGet(VM::WasiEnvironment &Env) : Wasi(Env) {
-  initializeFuncType<WasiEnvironSizesGet>();
-}
-
-ErrCode WasiEnvironSizesGet::run(VM::EnvironmentManager &EnvMgr,
-                                 StackManager &StackMgr,
-                                 Instance::MemoryInstance &MemInst) {
-  return invoke<WasiEnvironSizesGet>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode WasiEnvironSizesGet::body(VM::EnvironmentManager &EnvMgr,
                                   Instance::MemoryInstance &MemInst,
                                   uint32_t &ErrNo, uint32_t EnvCntPtr,

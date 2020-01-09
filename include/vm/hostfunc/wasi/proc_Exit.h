@@ -6,12 +6,9 @@
 namespace SSVM {
 namespace Executor {
 
-class WasiProcExit : public Wasi {
+class WasiProcExit : public Wasi<WasiProcExit> {
 public:
-  WasiProcExit(VM::WasiEnvironment &Env);
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override;
+  WasiProcExit(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, int32_t Status);

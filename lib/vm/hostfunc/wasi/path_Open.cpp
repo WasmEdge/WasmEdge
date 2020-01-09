@@ -5,16 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-WasiPathOpen::WasiPathOpen(VM::WasiEnvironment &Env) : Wasi(Env) {
-  initializeFuncType<WasiPathOpen>();
-}
-
-ErrCode WasiPathOpen::run(VM::EnvironmentManager &EnvMgr,
-                          StackManager &StackMgr,
-                          Instance::MemoryInstance &MemInst) {
-  return invoke<WasiPathOpen>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode WasiPathOpen::body(VM::EnvironmentManager &EnvMgr,
                            Instance::MemoryInstance &MemInst, uint32_t &ErrNo,
                            int32_t DirFd, uint32_t DirFlags, uint32_t PathPtr,

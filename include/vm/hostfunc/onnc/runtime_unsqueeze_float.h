@@ -5,13 +5,9 @@
 namespace SSVM {
 namespace Executor {
 
-class ONNCRuntimeUnsqueezeFloat : public HostFunction {
+class ONNCRuntimeUnsqueezeFloat
+    : public HostFunction<ONNCRuntimeUnsqueezeFloat> {
 public:
-  ONNCRuntimeUnsqueezeFloat();
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override;
-
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
                uint32_t InDataOff, uint32_t InDataNDim, uint32_t InDataDimsOff,

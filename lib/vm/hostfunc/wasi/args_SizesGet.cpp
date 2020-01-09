@@ -4,16 +4,6 @@
 namespace SSVM {
 namespace Executor {
 
-WasiArgsSizesGet::WasiArgsSizesGet(VM::WasiEnvironment &Env) : Wasi(Env) {
-  initializeFuncType<WasiArgsSizesGet>();
-}
-
-ErrCode WasiArgsSizesGet::run(VM::EnvironmentManager &EnvMgr,
-                              StackManager &StackMgr,
-                              Instance::MemoryInstance &MemInst) {
-  return invoke<WasiArgsSizesGet>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode WasiArgsSizesGet::body(VM::EnvironmentManager &EnvMgr,
                                Instance::MemoryInstance &MemInst,
                                uint32_t &ErrNo, uint32_t ArgcPtr,

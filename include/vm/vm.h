@@ -36,7 +36,8 @@ namespace {
 /// Accept host functions.
 template <typename T, typename TR>
 using TypeFunc =
-    typename std::enable_if_t<std::is_base_of_v<Executor::HostFunction, T>, TR>;
+    typename std::enable_if_t<std::is_base_of_v<Executor::HostFunctionBase, T>,
+                              TR>;
 } // namespace
 
 /// VM execution flow class
@@ -60,7 +61,7 @@ public:
   TypeFunc<T, ErrCode> setHostFunction(std::unique_ptr<T> &Func,
                                        const std::string &ModName,
                                        const std::string &FuncName) {
-    std::unique_ptr<Executor::HostFunction> NewFunc = std::move(Func);
+    std::unique_ptr<Executor::HostFunctionBase> NewFunc = std::move(Func);
     if (ExecutorEngine.setHostFunction(NewFunc, ModName, FuncName) ==
         Executor::ErrCode::Success) {
       return ErrCode::Success;

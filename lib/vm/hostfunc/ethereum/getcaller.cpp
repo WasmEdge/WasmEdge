@@ -5,17 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-EEIGetCaller::EEIGetCaller(VM::EVMEnvironment &Env, uint64_t Cost)
-    : EEI(Env, Cost) {
-  initializeFuncType<EEIGetCaller>();
-}
-
-ErrCode EEIGetCaller::run(VM::EnvironmentManager &EnvMgr,
-                          StackManager &StackMgr,
-                          Instance::MemoryInstance &MemInst) {
-  return invoke<EEIGetCaller>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode EEIGetCaller::body(VM::EnvironmentManager &EnvMgr,
                            Instance::MemoryInstance &MemInst,
                            uint32_t ResultOffset) {

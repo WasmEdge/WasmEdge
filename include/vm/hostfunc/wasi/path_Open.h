@@ -6,12 +6,9 @@
 namespace SSVM {
 namespace Executor {
 
-class WasiPathOpen : public Wasi {
+class WasiPathOpen : public Wasi<WasiPathOpen> {
 public:
-  WasiPathOpen(VM::WasiEnvironment &Env);
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override;
+  WasiPathOpen(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &ErrNo,

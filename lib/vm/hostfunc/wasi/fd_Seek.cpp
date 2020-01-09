@@ -5,15 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-WasiFdSeek::WasiFdSeek(VM::WasiEnvironment &Env) : Wasi(Env) {
-  initializeFuncType<WasiFdSeek>();
-}
-
-ErrCode WasiFdSeek::run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-                        Instance::MemoryInstance &MemInst) {
-  return invoke<WasiFdSeek>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode WasiFdSeek::body(VM::EnvironmentManager &EnvMgr,
                          Instance::MemoryInstance &MemInst, uint32_t &ErrNo,
                          int32_t Fd, int32_t Offset, uint32_t Whence,

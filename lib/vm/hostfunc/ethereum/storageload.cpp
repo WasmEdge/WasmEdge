@@ -5,17 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-EEIStorageLoad::EEIStorageLoad(VM::EVMEnvironment &Env, uint64_t Cost)
-    : EEI(Env, Cost) {
-  initializeFuncType<EEIStorageLoad>();
-}
-
-ErrCode EEIStorageLoad::run(VM::EnvironmentManager &EnvMgr,
-                            StackManager &StackMgr,
-                            Instance::MemoryInstance &MemInst) {
-  return invoke<EEIStorageLoad>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode EEIStorageLoad::body(VM::EnvironmentManager &EnvMgr,
                              Instance::MemoryInstance &MemInst,
                              uint32_t PathOffset, uint32_t ValueOffset) {

@@ -7,13 +7,15 @@
 namespace SSVM {
 namespace Executor {
 
-class EEI : public HostFunction {
+template <typename T>
+class EEI : public HostFunction<T> {
 public:
   EEI(VM::EVMEnvironment &HostEnv, const uint64_t &Cost)
-      : HostFunction(Cost), Env(HostEnv) {}
+      : HostFunction<T>(), Env(HostEnv), Cost(Cost) {}
 
 protected:
   VM::EVMEnvironment &Env;
+  uint64_t Cost;
 };
 
 } // namespace Executor

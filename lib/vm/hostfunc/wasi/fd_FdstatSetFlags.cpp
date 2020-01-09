@@ -4,17 +4,6 @@
 namespace SSVM {
 namespace Executor {
 
-WasiFdFdstatSetFlags::WasiFdFdstatSetFlags(VM::WasiEnvironment &Env)
-    : Wasi(Env) {
-  initializeFuncType<WasiFdFdstatSetFlags>();
-}
-
-ErrCode WasiFdFdstatSetFlags::run(VM::EnvironmentManager &EnvMgr,
-                                  StackManager &StackMgr,
-                                  Instance::MemoryInstance &MemInst) {
-  return invoke<WasiFdFdstatSetFlags>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode WasiFdFdstatSetFlags::body(VM::EnvironmentManager &EnvMgr,
                                    Instance::MemoryInstance &MemInst,
                                    uint32_t &ErrNo, int32_t Fd,

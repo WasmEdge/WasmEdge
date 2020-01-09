@@ -7,17 +7,6 @@
 namespace SSVM {
 namespace Executor {
 
-ONNCRuntimeBatchnormalizationFloat::ONNCRuntimeBatchnormalizationFloat() {
-  initializeFuncType<ONNCRuntimeBatchnormalizationFloat>();
-}
-
-ErrCode
-ONNCRuntimeBatchnormalizationFloat::run(VM::EnvironmentManager &EnvMgr,
-                                        StackManager &StackMgr,
-                                        Instance::MemoryInstance &MemInst) {
-  return invoke<ONNCRuntimeBatchnormalizationFloat>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode ONNCRuntimeBatchnormalizationFloat::body(
     VM::EnvironmentManager &EnvMgr, Instance::MemoryInstance &MemInst,
     uint32_t RuntimeContextOff, uint32_t InXOff, uint32_t InXNDim,

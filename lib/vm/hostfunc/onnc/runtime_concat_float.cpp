@@ -5,16 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-ONNCRuntimeConcatFloat::ONNCRuntimeConcatFloat() {
-  initializeFuncType<ONNCRuntimeConcatFloat>();
-}
-
-ErrCode ONNCRuntimeConcatFloat::run(VM::EnvironmentManager &EnvMgr,
-                                    StackManager &StackMgr,
-                                    Instance::MemoryInstance &MemInst) {
-  return invoke<ONNCRuntimeConcatFloat>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode ONNCRuntimeConcatFloat::body(
     VM::EnvironmentManager &EnvMgr, Instance::MemoryInstance &MemInst,
     uint32_t RuntimeContextOff, uint32_t InInputsOffOff,

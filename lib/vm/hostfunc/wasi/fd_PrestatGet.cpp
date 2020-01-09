@@ -4,16 +4,6 @@
 namespace SSVM {
 namespace Executor {
 
-WasiFdPrestatGet::WasiFdPrestatGet(VM::WasiEnvironment &Env) : Wasi(Env) {
-  initializeFuncType<WasiFdPrestatGet>();
-}
-
-ErrCode WasiFdPrestatGet::run(VM::EnvironmentManager &EnvMgr,
-                              StackManager &StackMgr,
-                              Instance::MemoryInstance &MemInst) {
-  return invoke<WasiFdPrestatGet>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode WasiFdPrestatGet::body(VM::EnvironmentManager &EnvMgr,
                                Instance::MemoryInstance &MemInst,
                                uint32_t &ErrNo, int32_t Fd,

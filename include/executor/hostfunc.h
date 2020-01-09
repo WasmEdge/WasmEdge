@@ -25,13 +25,10 @@
 namespace SSVM {
 namespace Executor {
 
-class HostFunction {
+class HostFunctionBase {
 public:
-  HostFunction(uint64_t FuncCost = 0) : Cost(FuncCost) {}
-  virtual ~HostFunction() = default;
-
-  /// Getter of host function cost.
-  uint64_t getCost() { return Cost; }
+  HostFunctionBase() = default;
+  virtual ~HostFunctionBase() = default;
 
   virtual ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
                       Instance::MemoryInstance &MemInst) = 0;
@@ -40,41 +37,19 @@ public:
   const Instance::ModuleInstance::FType *getFuncType() { return &FuncType; }
 
 protected:
-  template <typename T> struct Helper;
-  template <typename R, typename C, typename... A>
-  struct Helper<ErrCode (C::*)(VM::EnvironmentManager &,
-                               Instance::MemoryInstance &, R &, A...)> {
-    using ArgsT = std::tuple<A...>;
-    using RetT = R;
-    static inline constexpr const bool hasReturn = true;
-  };
-  template <typename C, typename... A>
-  struct Helper<ErrCode (C::*)(VM::EnvironmentManager &,
-                               Instance::MemoryInstance &, A...)> {
-    using ArgsT = std::tuple<A...>;
-    static inline constexpr const bool hasReturn = false;
-  };
+  Instance::ModuleInstance::FType FuncType;
+};
 
-  template <typename T>
-  static T getBottomN(StackManager &StackMgr, std::size_t N) {
-    Value *Ret;
-    if (ErrCode Status = StackMgr.getBottomN(N, Ret);
-        Status != ErrCode::Success) {
-      return T();
-    }
-    return retrieveValue<T>(*Ret);
+template <typename T> class HostFunction : public HostFunctionBase {
+public:
+  HostFunction() { initializeFuncType(); }
+
+  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
+              Instance::MemoryInstance &MemInst) override {
+    return invoke(EnvMgr, StackMgr, MemInst);
   }
 
-  template <typename Tuple, std::size_t... Indices>
-  static Tuple popTuple(StackManager &StackMgr, std::size_t N,
-                        std::index_sequence<Indices...>) {
-    Tuple Result(getBottomN<std::tuple_element_t<Indices, Tuple>>(
-        StackMgr, N + Indices)...);
-    ((StackMgr.pop(), (void)Indices), ...);
-    return Result;
-  }
-
-  template <typename T>
+protected:
   ErrCode invoke(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
                  Instance::MemoryInstance &MemInst) {
     using H = Helper<decltype(&T::body)>;
@@ -105,14 +80,7 @@ protected:
     }
   }
 
-  template <typename Tuple, std::size_t... Indices>
-  void pushValType(std::index_sequence<Indices...>) {
-    (FuncType.Params.push_back(
-         AST::ValTypeFromType<std::tuple_element_t<Indices, Tuple>>()),
-     ...);
-  }
-
-  template <typename T> void initializeFuncType() {
+  void initializeFuncType() {
     using H = Helper<decltype(&T::body)>;
     using ArgsT = typename H::ArgsT;
     constexpr const size_t kSize = std::tuple_size_v<ArgsT>;
@@ -123,8 +91,45 @@ protected:
     }
   }
 
-  Instance::ModuleInstance::FType FuncType;
-  uint64_t Cost = 0;
+private:
+  template <typename U> struct Helper;
+  template <typename R, typename C, typename... A>
+  struct Helper<ErrCode (C::*)(VM::EnvironmentManager &,
+                               Instance::MemoryInstance &, R &, A...)> {
+    using ArgsT = std::tuple<A...>;
+    using RetT = R;
+    static inline constexpr const bool hasReturn = true;
+  };
+  template <typename C, typename... A>
+  struct Helper<ErrCode (C::*)(VM::EnvironmentManager &,
+                               Instance::MemoryInstance &, A...)> {
+    using ArgsT = std::tuple<A...>;
+    static inline constexpr const bool hasReturn = false;
+  };
+
+  template <typename U>
+  static U getBottomN(StackManager &StackMgr, std::size_t N) {
+    Value *Ret;
+    if (ErrCode Status = StackMgr.getBottomN(N, Ret);
+        Status != ErrCode::Success) {
+      return U();
+    }
+    return retrieveValue<U>(*Ret);
+  }
+  template <typename Tuple, std::size_t... Indices>
+  static Tuple popTuple(StackManager &StackMgr, std::size_t N,
+                        std::index_sequence<Indices...>) {
+    Tuple Result(getBottomN<std::tuple_element_t<Indices, Tuple>>(
+        StackMgr, N + Indices)...);
+    ((StackMgr.pop(), (void)Indices), ...);
+    return Result;
+  }
+  template <typename Tuple, std::size_t... Indices>
+  void pushValType(std::index_sequence<Indices...>) {
+    (FuncType.Params.push_back(
+         AST::ValTypeFromType<std::tuple_element_t<Indices, Tuple>>()),
+     ...);
+  }
 };
 
 } // namespace Executor

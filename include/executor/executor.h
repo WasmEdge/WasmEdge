@@ -36,7 +36,7 @@ public:
   ~Executor() = default;
 
   /// Set host functions.
-  ErrCode setHostFunction(std::unique_ptr<HostFunction> &Func,
+  ErrCode setHostFunction(std::unique_ptr<HostFunctionBase> &Func,
                           const std::string &ModName,
                           const std::string &FuncName);
 

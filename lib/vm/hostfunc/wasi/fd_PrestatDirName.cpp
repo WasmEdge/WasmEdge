@@ -4,17 +4,6 @@
 namespace SSVM {
 namespace Executor {
 
-WasiFdPrestatDirName::WasiFdPrestatDirName(VM::WasiEnvironment &Env)
-    : Wasi(Env) {
-  initializeFuncType<WasiFdPrestatDirName>();
-}
-
-ErrCode WasiFdPrestatDirName::run(VM::EnvironmentManager &EnvMgr,
-                                  StackManager &StackMgr,
-                                  Instance::MemoryInstance &MemInst) {
-  return invoke<WasiFdPrestatDirName>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode WasiFdPrestatDirName::body(VM::EnvironmentManager &EnvMgr,
                                    Instance::MemoryInstance &MemInst,
                                    uint32_t &ErrNo, int32_t Fd,

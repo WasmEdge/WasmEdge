@@ -6,12 +6,9 @@
 namespace SSVM {
 namespace Executor {
 
-class WasiArgsSizesGet : public Wasi {
+class WasiArgsSizesGet : public Wasi<WasiArgsSizesGet> {
 public:
-  WasiArgsSizesGet(VM::WasiEnvironment &Env);
-
-  ErrCode run(VM::EnvironmentManager &EnvMgr, StackManager &StackMgr,
-              Instance::MemoryInstance &MemInst) override;
+  WasiArgsSizesGet(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &ErrNo,

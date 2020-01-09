@@ -5,16 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-ONNCRuntimeReluFloat::ONNCRuntimeReluFloat() {
-  initializeFuncType<ONNCRuntimeReluFloat>();
-}
-
-ErrCode ONNCRuntimeReluFloat::run(VM::EnvironmentManager &EnvMgr,
-                                  StackManager &StackMgr,
-                                  Instance::MemoryInstance &MemInst) {
-  return invoke<ONNCRuntimeReluFloat>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode ONNCRuntimeReluFloat::body(VM::EnvironmentManager &EnvMgr,
                                    Instance::MemoryInstance &MemInst,
                                    uint32_t RuntimeContextOff, uint32_t InXOff,

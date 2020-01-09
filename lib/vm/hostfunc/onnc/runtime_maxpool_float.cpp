@@ -5,16 +5,6 @@
 namespace SSVM {
 namespace Executor {
 
-ONNCRuntimeMaxpoolFloat::ONNCRuntimeMaxpoolFloat() {
-  initializeFuncType<ONNCRuntimeMaxpoolFloat>();
-}
-
-ErrCode ONNCRuntimeMaxpoolFloat::run(VM::EnvironmentManager &EnvMgr,
-                                     StackManager &StackMgr,
-                                     Instance::MemoryInstance &MemInst) {
-  return invoke<ONNCRuntimeMaxpoolFloat>(EnvMgr, StackMgr, MemInst);
-}
-
 ErrCode ONNCRuntimeMaxpoolFloat::body(
     VM::EnvironmentManager &EnvMgr, Instance::MemoryInstance &MemInst,
     uint32_t RuntimeContextOff, uint32_t InXOff, uint32_t InXNDim,

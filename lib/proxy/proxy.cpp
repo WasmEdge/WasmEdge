@@ -213,30 +213,32 @@ void Proxy::executeVM() {
 
   /// Add VM result to output JSON.
   OutputDoc["result"]["gas_used"].SetUint64(VMUnit->getUsedCost());
-  if (ItRetTypes != InputDoc["execution"].MemberEnd() &&
-      ItRetTypes->value.GetArray().Size() > 0) {
-    /// Store return value.
-    std::vector<SSVM::Executor::Value> ReturnVals;
-    VMUnit->getReturnValue(ReturnVals);
-    /// Check return types and return value.
-    if (ReturnVals.size() < ItRetTypes->value.GetArray().Size()) {
-      OutputDoc["result"]["error_message"].SetString(
-          "Return value array length and wasm function not matched.");
-      return;
-    }
-    for (uint32_t I : boost::counting_range(
-             size_t(0), size_t(ItRetTypes->value.GetArray().Size()))) {
-      rapidjson::Value ValStr;
-      ValStr.SetString(convValToStr(ReturnVals[I],
-                                    ItRetTypes->value.GetArray()[I].GetString())
-                           .c_str(),
-                       Allocator);
-      OutputDoc["result"]["return_value"].PushBack(ValStr, Allocator);
-    }
-  }
   VM::Result VMRes = VMUnit->getResult();
   if (VMRes.getState() == VM::Result::State::Commit) {
     OutputDoc["result"]["status"].SetString("Succeeded");
+    /// Add return values to output JSON.
+    if (ItRetTypes != InputDoc["execution"].MemberEnd() &&
+        ItRetTypes->value.GetArray().Size() > 0) {
+      /// Store return value.
+      std::vector<SSVM::Executor::Value> ReturnVals;
+      VMUnit->getReturnValue(ReturnVals);
+      /// Check return types and return value.
+      if (ReturnVals.size() < ItRetTypes->value.GetArray().Size()) {
+        OutputDoc["result"]["error_message"].SetString(
+            "Return value array length and wasm function not matched.");
+        return;
+      }
+      for (uint32_t I : boost::counting_range(
+               size_t(0), size_t(ItRetTypes->value.GetArray().Size()))) {
+        rapidjson::Value ValStr;
+        ValStr.SetString(
+            convValToStr(ReturnVals[I],
+                         ItRetTypes->value.GetArray()[I].GetString())
+                .c_str(),
+            Allocator);
+        OutputDoc["result"]["return_value"].PushBack(ValStr, Allocator);
+      }
+    }
   } else if (VMRes.getState() == VM::Result::State::Revert) {
     OutputDoc["result"]["status"].SetString("Reverted");
     OutputDoc["result"]["error_message"].SetString("Gas not enough.");

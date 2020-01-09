@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "executor/instance/memory.h"
-#include <iterator>
+
+#include <cstring>
 
 namespace SSVM {
 namespace Executor {
@@ -28,6 +29,9 @@ ErrCode MemoryInstance::growPage(unsigned int Count) {
 /// Getter of data list. See "include/executor/instance/memory.h".
 ErrCode MemoryInstance::getBytes(Bytes &Slice, unsigned int Offset,
                                  unsigned int Length) {
+  if (Length == 0) {
+    return ErrCode::Success;
+  }
   /// Check memory size.
   ErrCode Status = ErrCode::Success;
   if ((Status = checkDataSize(Offset + Length)) != ErrCode::Success) {
@@ -36,13 +40,16 @@ ErrCode MemoryInstance::getBytes(Bytes &Slice, unsigned int Offset,
 
   unsigned int OriginSize = Slice.size();
   Slice.resize(Slice.size() + Length);
-  memcpy(&Slice[OriginSize], &Data[Offset], Length);
+  std::memcpy(&Slice[OriginSize], &Data[Offset], Length);
   return ErrCode::Success;
 }
 
 /// Setter of data list. See "include/executor/instance/memory.h".
 ErrCode MemoryInstance::setBytes(Bytes &Slice, unsigned int Offset,
                                  unsigned int Start, unsigned int Length) {
+  if (Length == 0) {
+    return ErrCode::Success;
+  }
   /// Check memory size.
   ErrCode Status = ErrCode::Success;
   if ((Status = checkDataSize(Offset + Length)) != ErrCode::Success) {
@@ -55,7 +62,7 @@ ErrCode MemoryInstance::setBytes(Bytes &Slice, unsigned int Offset,
   }
 
   /// Copy data.
-  memcpy(&Data[Offset], &Slice[Start], Length);
+  std::memcpy(&Data[Offset], &Slice[Start], Length);
   return ErrCode::Success;
 }
 

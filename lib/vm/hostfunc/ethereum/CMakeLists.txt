@@ -1,15 +1,39 @@
 # SPDX-License-Identifier: Apache-2.0
 
 add_library(ssvmHostFuncEEI
+  call.cpp
+  callCode.cpp
+  callDelegate.cpp
   callDataCopy.cpp
   callStatic.cpp
+  codeCopy.cpp
+  create.cpp
+  externalCodeCopy.cpp
   finish.cpp
+  getAddress.cpp
+  getBlockCoinbase.cpp
+  getBlockDifficulty.cpp
+  getBlockGasLimit.cpp
+  getBlockHash.cpp
+  getBlockNumber.cpp
+  getBlockTimestamp.cpp
+  getCallValue.cpp
+  getCodeSize.cpp
+  getExternalBalance.cpp
+  getExternalCodeSize.cpp
+  getGasLeft.cpp
+  getReturnDataSize.cpp
+  getTxGasPrice.cpp
+  getTxOrigin.cpp
   getCallDataSize.cpp
   getCaller.cpp
+  log.cpp
   returnDataCopy.cpp
   revert.cpp
+  selfDestruct.cpp
   storageLoad.cpp
   storageStore.cpp
+  useGas.cpp
 )
 
 target_link_libraries(ssvmHostFuncEEI

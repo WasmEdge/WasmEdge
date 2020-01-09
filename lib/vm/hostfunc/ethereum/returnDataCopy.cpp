@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "vm/hostfunc/ethereum/returndatacopy.h"
+#include "vm/hostfunc/ethereum/returnDataCopy.h"
 
 namespace SSVM {
 namespace Executor {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "vm/hostfunc/ethereum/storageload.h"
+#include "vm/hostfunc/ethereum/storageLoad.h"
 #include "support/hexstr.h"
 
 namespace SSVM {

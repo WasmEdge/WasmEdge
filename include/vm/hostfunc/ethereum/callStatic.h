@@ -8,7 +8,7 @@ namespace Executor {
 
 class EEICallStatic : public EEI<EEICallStatic> {
 public:
-  EEICallStatic(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 100)
+  EEICallStatic(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 700)
       : EEI(HostEnv, Cost) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,

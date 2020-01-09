@@ -8,7 +8,7 @@ namespace Executor {
 
 class EEIFinish : public EEI<EEIFinish> {
 public:
-  EEIFinish(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 100)
+  EEIFinish(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 0)
       : EEI(HostEnv, Cost) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,

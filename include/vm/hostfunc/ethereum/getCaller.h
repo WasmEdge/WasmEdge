@@ -6,14 +6,13 @@
 namespace SSVM {
 namespace Executor {
 
-class EEIStorageStore : public EEI<EEIStorageStore> {
+class EEIGetCaller : public EEI<EEIGetCaller> {
 public:
-  EEIStorageStore(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 100)
+  EEIGetCaller(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 2)
       : EEI(HostEnv, Cost) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
-               Instance::MemoryInstance &MemInst, uint32_t PathOffset,
-               uint32_t ValueOffset);
+               Instance::MemoryInstance &MemInst, uint32_t ResultOffset);
 };
 
 } // namespace Executor

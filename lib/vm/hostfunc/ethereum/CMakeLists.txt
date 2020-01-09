@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 add_library(ssvmHostFuncEEI
-  getcalldatasize.cpp
-  calldatacopy.cpp
-  storagestore.cpp
-  storageload.cpp
+  callDataCopy.cpp
+  callStatic.cpp
   finish.cpp
+  getCallDataSize.cpp
+  getCaller.cpp
+  returnDataCopy.cpp
   revert.cpp
-  callstatic.cpp
-  getcaller.cpp
-  returndatacopy.cpp
+  storageLoad.cpp
+  storageStore.cpp
 )
 
 target_link_libraries(ssvmHostFuncEEI

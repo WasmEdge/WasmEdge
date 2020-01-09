@@ -8,7 +8,7 @@ namespace Executor {
 
 class EEIGetCallDataSize : public EEI<EEIGetCallDataSize> {
 public:
-  EEIGetCallDataSize(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 100)
+  EEIGetCallDataSize(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 2)
       : EEI(HostEnv, Cost) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "vm/hostfunc/ethereum/getcalldatasize.h"
+#include "vm/hostfunc/ethereum/getCallDataSize.h"
 
 namespace SSVM {
 namespace Executor {

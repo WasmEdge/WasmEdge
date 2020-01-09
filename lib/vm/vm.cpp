@@ -5,15 +5,15 @@
 #include "vm/result.h"
 
 /// EEI Functions
-#include "vm/hostfunc/ethereum/calldatacopy.h"
-#include "vm/hostfunc/ethereum/callstatic.h"
+#include "vm/hostfunc/ethereum/callDataCopy.h"
+#include "vm/hostfunc/ethereum/callStatic.h"
 #include "vm/hostfunc/ethereum/finish.h"
-#include "vm/hostfunc/ethereum/getcalldatasize.h"
-#include "vm/hostfunc/ethereum/getcaller.h"
-#include "vm/hostfunc/ethereum/returndatacopy.h"
+#include "vm/hostfunc/ethereum/getCallDataSize.h"
+#include "vm/hostfunc/ethereum/getCaller.h"
+#include "vm/hostfunc/ethereum/returnDataCopy.h"
 #include "vm/hostfunc/ethereum/revert.h"
-#include "vm/hostfunc/ethereum/storageload.h"
-#include "vm/hostfunc/ethereum/storagestore.h"
+#include "vm/hostfunc/ethereum/storageLoad.h"
+#include "vm/hostfunc/ethereum/storageStore.h"
 
 /// Wasi Functions
 #include "vm/hostfunc/wasi/args_Get.h"
@@ -32,6 +32,7 @@
 #include "vm/hostfunc/wasi/proc_Exit.h"
 
 #ifdef ONNC_WASM
+/// ONNC Runtime Functions
 #include "vm/hostfunc/onnc/runtime_add_float.h"
 #include "vm/hostfunc/onnc/runtime_add_int8.h"
 #include "vm/hostfunc/onnc/runtime_averagepool_float.h"

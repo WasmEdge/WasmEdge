@@ -8,7 +8,7 @@ namespace Executor {
 
 class EEIRevert : public EEI<EEIRevert> {
 public:
-  EEIRevert(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 100)
+  EEIRevert(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 0)
       : EEI(HostEnv, Cost) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,

@@ -6,9 +6,9 @@
 namespace SSVM {
 namespace Executor {
 
-class EEIStorageLoad : public EEI<EEIStorageLoad> {
+class EEIStorageStore : public EEI<EEIStorageStore> {
 public:
-  EEIStorageLoad(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 100)
+  EEIStorageStore(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 5000)
       : EEI(HostEnv, Cost) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,

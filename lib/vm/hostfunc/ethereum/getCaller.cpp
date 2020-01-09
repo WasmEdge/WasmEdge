@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "vm/hostfunc/ethereum/getcaller.h"
+#include "vm/hostfunc/ethereum/getCaller.h"
 #include "support/hexstr.h"
 
 namespace SSVM {

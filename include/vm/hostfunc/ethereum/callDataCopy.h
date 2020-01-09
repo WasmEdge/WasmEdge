@@ -6,9 +6,9 @@
 namespace SSVM {
 namespace Executor {
 
-class EEIReturnDataCopy : public EEI<EEIReturnDataCopy> {
+class EEICallDataCopy : public EEI<EEICallDataCopy> {
 public:
-  EEIReturnDataCopy(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 100)
+  EEICallDataCopy(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 3)
       : EEI(HostEnv, Cost) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,

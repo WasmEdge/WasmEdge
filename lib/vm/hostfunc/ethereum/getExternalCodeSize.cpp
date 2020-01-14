@@ -5,7 +5,16 @@ namespace SSVM {
 namespace Executor {
 
 ErrCode EEIGetExternalCodeSize::body(VM::EnvironmentManager &EnvMgr,
-                                     Instance::MemoryInstance &MemInst) {
+                                     Instance::MemoryInstance &MemInst,
+                                     uint32_t &Ret, uint32_t AddressOffset) {
+  evmc_context *Cxt = Env.getEVMCContext();
+
+  /// Get address from memory instance.
+  evmc_address Addr;
+  MemInst.getArray(Addr.bytes, AddressOffset, 20);
+
+  /// Return: ExtCodeSize(u32)
+  Ret = Cxt->host->get_code_size(Cxt, &Addr);
   return ErrCode::Success;
 }
 

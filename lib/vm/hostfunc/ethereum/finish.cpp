@@ -7,7 +7,10 @@ namespace Executor {
 ErrCode EEIFinish::body(VM::EnvironmentManager &EnvMgr,
                         Instance::MemoryInstance &MemInst, uint32_t DataOffset,
                         uint32_t DataLength) {
-  return MemInst.getBytes(Env.getReturnData(), DataOffset, DataLength);
+  Env.getReturnData().clear();
+  MemInst.getBytes(Env.getReturnData(), DataOffset, DataLength);
+  Env.getReturnData().resize(DataLength);
+  return ErrCode::Terminated;
 }
 
 } // namespace Executor

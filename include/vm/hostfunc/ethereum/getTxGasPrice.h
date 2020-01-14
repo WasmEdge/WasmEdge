@@ -12,7 +12,7 @@ public:
       : EEI(HostEnv, Cost) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
-               Instance::MemoryInstance &MemInst);
+               Instance::MemoryInstance &MemInst, uint64_t ResultOffset);
 };
 
 } // namespace Executor

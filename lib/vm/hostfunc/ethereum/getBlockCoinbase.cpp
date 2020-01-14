@@ -5,8 +5,13 @@ namespace SSVM {
 namespace Executor {
 
 ErrCode EEIGetBlockCoinbase::body(VM::EnvironmentManager &EnvMgr,
-                                  Instance::MemoryInstance &MemInst) {
-  return ErrCode::Success;
+                                  Instance::MemoryInstance &MemInst,
+                                  uint32_t ResultOffset) {
+  evmc_context *Cxt = Env.getEVMCContext();
+
+  /// Get block coinbase and store bytes20.
+  return MemInst.setArray(Cxt->host->get_tx_context(Cxt).block_coinbase.bytes,
+                          ResultOffset, 20);
 }
 
 } // namespace Executor

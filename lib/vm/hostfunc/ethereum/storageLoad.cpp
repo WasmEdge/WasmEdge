@@ -8,34 +8,17 @@ namespace Executor {
 ErrCode EEIStorageLoad::body(VM::EnvironmentManager &EnvMgr,
                              Instance::MemoryInstance &MemInst,
                              uint32_t PathOffset, uint32_t ValueOffset) {
-  /// Get Path data by path offset.
-  std::vector<unsigned char> Data;
-  if (ErrCode Status = MemInst.getBytes(Data, PathOffset, 32);
-      Status != ErrCode::Success) {
-    return Status;
-  }
+  evmc_context *Cxt = Env.getEVMCContext();
 
-  /*
-  /// Get Value data in storage by key of path.
-  std::string Path;
-  std::string Value;
-  std::map<std::string, std::string> &Storage = Env.getStorage();
-  Support::convertBytesToHexStr(Data, Path, 64);
-  if (auto Iter = Storage.find(Path); Iter != Storage.end()) {
-    Value = Iter->second;
-  } else {
-    Value.resize(64, '0');
-  }
+  /// Get destination, path, and value data.
+  evmc::bytes32 Path, Value;
+  evmc::address Addr;
+  MemInst.getArray(Path.bytes, PathOffset, 32);
+  std::memcpy(Addr.bytes, &Env.getAddress()[0], 20);
+  Value = Cxt->host->get_storage(Cxt, &Addr, &Path);
 
-  /// Set Value data to memory.
-  Data.clear();
-  Support::convertHexStrToBytes(Value, Data, 64);
-  if (ErrCode Status = MemInst.setBytes(Data, ValueOffset, 0, 32);
-      Status != ErrCode::Success) {
-    return Status;
-  }
-  */
-  return ErrCode::Success;
+  /// Store bytes32 into memory instance.
+  return MemInst.setArray(Value.bytes, ValueOffset, 32);
 }
 
 } // namespace Executor

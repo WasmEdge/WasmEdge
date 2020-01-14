@@ -5,7 +5,9 @@ namespace SSVM {
 namespace Executor {
 
 ErrCode EEIGetCodeSize::body(VM::EnvironmentManager &EnvMgr,
-                             Instance::MemoryInstance &MemInst) {
+                             Instance::MemoryInstance &MemInst, uint32_t &Ret) {
+  /// Return: CodeSize(u32)
+  Ret = Env.getCode().size();
   return ErrCode::Success;
 }
 

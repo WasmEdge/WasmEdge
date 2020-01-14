@@ -5,7 +5,13 @@ namespace SSVM {
 namespace Executor {
 
 ErrCode EEIGetBlockNumber::body(VM::EnvironmentManager &EnvMgr,
-                                Instance::MemoryInstance &MemInst) {
+                                Instance::MemoryInstance &MemInst,
+                                uint64_t &BlockNumber) {
+  evmc_context *Cxt = Env.getEVMCContext();
+
+  /// Return: BlockNumber(u64)
+  BlockNumber =
+      static_cast<uint64_t>(Cxt->host->get_tx_context(Cxt).block_number);
   return ErrCode::Success;
 }
 

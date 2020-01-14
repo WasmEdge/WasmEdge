@@ -8,27 +8,20 @@ namespace Executor {
 ErrCode EEIStorageStore::body(VM::EnvironmentManager &EnvMgr,
                               Instance::MemoryInstance &MemInst,
                               uint32_t PathOffset, uint32_t ValueOffset) {
-  /// Get Path data by path offset.
-  std::vector<unsigned char> Data;
-  std::string Path;
-  std::string Value;
-  if (ErrCode Status = MemInst.getBytes(Data, PathOffset, 32);
-      Status != ErrCode::Success) {
-    return Status;
-  }
-  Support::convertBytesToHexStr(Data, Path, 64);
+  evmc_context *Cxt = Env.getEVMCContext();
 
-  /// Get Value data by value offset.
-  Data.clear();
-  if (ErrCode Status = MemInst.getBytes(Data, ValueOffset, 32);
-      Status != ErrCode::Success) {
-    return Status;
-  }
-  Support::convertBytesToHexStr(Data, Value, 64);
+  /// Get destination, path, value data, and current storage value.
+  evmc::bytes32 Path, Value, CurrValue;
+  evmc::address Addr;
+  MemInst.getArray(Path.bytes, PathOffset, 32);
+  MemInst.getArray(Value.bytes, ValueOffset, 32);
+  std::memcpy(Addr.bytes, &Env.getAddress()[0], 20);
+  CurrValue = Cxt->host->get_storage(Cxt, &Addr, &Path);
 
-  /// Set Value data to storage.
-  // Env.getStorage()[Path] = Value;
+  /// TODO: Charge gas.
 
+  /// Store value into storage.
+  Cxt->host->set_storage(Cxt, &Addr, &Path, &Value);
   return ErrCode::Success;
 }
 

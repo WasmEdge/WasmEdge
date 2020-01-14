@@ -94,7 +94,13 @@ public:
   /// Getter of return data vector.
   std::vector<unsigned char> &getReturnData() { return ReturnData; }
 
+  /// Getter of code vector.
+  std::vector<uint8_t> &getCode() { return Code; }
+
   void setEVMCContext(struct evmc_context *Cxt) { EVMCContext = Cxt; }
+  struct evmc_context *getEVMCContext() {
+    return EVMCContext;
+  }
   void setEVMCMessage(const struct evmc_message *Msg) {
     /// Set gas limit.
     GasLimit = Msg->gas;
@@ -134,6 +140,8 @@ private:
   std::vector<uint8_t> Address;
   /// ReturnData: return value list.
   std::vector<uint8_t> ReturnData;
+  /// Code:
+  std::vector<uint8_t> Code;
 
   struct evmc_context *EVMCContext;
 };

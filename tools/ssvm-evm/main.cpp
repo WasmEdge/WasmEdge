@@ -27,12 +27,10 @@ int main(int Argc, char *Argv[]) {
   Env->clear();
 
   /// Set caller
-  std::string &Caller = Env->getCaller();
-  Caller = "1234567890123456789012345678901234567890";
+  Env->setCaller("1234567890123456789012345678901234567890");
 
   /// Set call value
-  std::string &CallValue = Env->getCallValue();
-  CallValue = "00000000000000000000000000000000";
+  Env->setCallValue("00000000000000000000000000000000");
 
   /// Set call data
   std::string CallDataStr(Argv[2]);
@@ -43,11 +41,13 @@ int main(int Argc, char *Argv[]) {
   EVM.setPath(Erc20Path);
   EVM.execute("main");
 
+  /*
   std::map<std::string, std::string> &FinalStorage = Env->getStorage();
   std::cout << "    --- result storage: " << std::endl;
   for (auto it = FinalStorage.begin(); it != FinalStorage.end(); ++it) {
     std::cout << "         " << it->first << " " << it->second << std::endl;
   }
+  */
 
   std::vector<unsigned char> &FinalReturn = Env->getReturnData();
   std::cout << "    --- return data: " << std::endl << "         ";

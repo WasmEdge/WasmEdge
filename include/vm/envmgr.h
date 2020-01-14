@@ -34,7 +34,8 @@ public:
       CostTab.setCostTable(Configure::VMType::Wasi);
     }
     if (Config.hasVMType(Configure::VMType::Ewasm)) {
-      EnvTable[Configure::VMType::Ewasm] = std::make_unique<EVMEnvironment>();
+      EnvTable[Configure::VMType::Ewasm] =
+          std::make_unique<EVMEnvironment>(CostLimit, CostSum);
       /// 1st priority of cost table: EWasm
       CostTab.setCostTable(Configure::VMType::Ewasm);
     }

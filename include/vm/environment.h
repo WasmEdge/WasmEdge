@@ -2,7 +2,10 @@
 #pragma once
 
 #include "evmc/evmc.h"
+#include "evmc/evmc.hpp"
+#include "support/hexstr.h"
 
+#include <cstring>
 #include <map>
 #include <string>
 #include <vector>
@@ -24,34 +27,115 @@ using TypeEnv = typename std::enable_if_t<std::is_base_of_v<Environment, T>, T>;
 
 class EVMEnvironment : public Environment {
 public:
-  EVMEnvironment() = default;
+  EVMEnvironment() = delete;
+  EVMEnvironment(uint64_t &CostLimit, uint64_t &CostSum)
+      : GasLimit(CostLimit), GasUsed(CostSum) {}
   virtual ~EVMEnvironment() = default;
 
   virtual void clear() {
-    GasLeft = 0;
-    Storage.clear();
     CallData.clear();
     ReturnData.clear();
     Caller.clear();
     CallValue.clear();
+    EVMCContext = nullptr;
   }
 
-  std::map<std::string, std::string> &getStorage() { return Storage; }
-  unsigned int &getGasLeft() { return GasLeft; }
+  /// Getter of remain gas. Gas limit can be set by EnvironmentManager.
+  uint64_t getGasLeft() { return GasLimit - GasUsed; }
+
+  /// Getter of caller and converting into hex string.
+  std::string getCallerStr() {
+    std::string Str;
+    Support::convertBytesToHexStr(Caller, Str, 40);
+    return Str;
+  }
+
+  /// Getter of caller vector.
+  std::vector<uint8_t> &getCaller() { return Caller; }
+
+  /// Setter of caller by hex string.
+  void setCaller(const std::string &Str) {
+    Support::convertHexStrToBytes(Str, Caller, 40);
+  }
+
+  /// Getter of call value and converting into hex string.
+  std::string getCallValueStr() {
+    std::string Str;
+    Support::convertValVecToHexStr(CallValue, Str, 64);
+    return Str;
+  }
+
+  /// Getter of call value vector.
+  std::vector<uint8_t> &getCallValue() { return CallValue; }
+
+  /// Setter of call value by hex string.
+  void setCallValue(const std::string &Str) {
+    Support::convertHexStrToValVec(Str, CallValue, 64);
+  }
+
+  /// Getter of call data vector.
   std::vector<unsigned char> &getCallData() { return CallData; }
+
+  /// Getter of address and converting into hex string.
+  std::string getAddressStr() {
+    std::string Str;
+    Support::convertBytesToHexStr(Address, Str, 40);
+    return Str;
+  }
+
+  /// Getter of address vector.
+  std::vector<uint8_t> &getAddress() { return Address; }
+
+  /// Setter of address by hex string.
+  void setAddress(const std::string &Str) {
+    Support::convertHexStrToBytes(Str, Address, 40);
+  }
+
+  /// Getter of return data vector.
   std::vector<unsigned char> &getReturnData() { return ReturnData; }
-  std::string &getCaller() { return Caller; }
-  std::string &getCallValue() { return CallValue; }
-  void setContext(struct evmc_context *context) { Context = context; }
+
+  void setEVMCContext(struct evmc_context *Cxt) { EVMCContext = Cxt; }
+  void setEVMCMessage(const struct evmc_message *Msg) {
+    /// Set gas limit.
+    GasLimit = Msg->gas;
+
+    /// Set caller.
+    Caller = std::vector<uint8_t>(Msg->sender.bytes, Msg->sender.bytes + 20);
+
+    /// Set call value. Convert big-endian to little-endian.
+    CallValue = std::vector<uint8_t>(Msg->value.bytes, Msg->value.bytes + 32);
+    std::reverse(CallValue.begin(), CallValue.end());
+
+    /// Set call data.
+    CallData.clear();
+    if (Msg->input_size > 0 && Msg->input_data != nullptr) {
+      CallData.resize(Msg->input_size);
+      std::memcpy(&CallData[0], Msg->input_data, Msg->input_size);
+    }
+
+    /// Set address.
+    Address = std::vector<uint8_t>(Msg->destination.bytes,
+                                   Msg->destination.bytes + 20);
+
+    ReturnData.clear();
+  }
 
 private:
-  unsigned int GasLeft;
-  std::map<std::string, std::string> Storage;
-  std::vector<unsigned char> CallData;
-  std::vector<unsigned char> ReturnData;
-  std::string Caller;
-  std::string CallValue;
-  struct evmc_context *Context;
+  uint64_t &GasLimit;
+  uint64_t &GasUsed;
+
+  /// Caller: 20 bytes sendor address.
+  std::vector<uint8_t> Caller;
+  /// CallValue: 32 bytes little endian. Reversed value.
+  std::vector<uint8_t> CallValue;
+  /// CallData: inputs, may be 0-length.
+  std::vector<uint8_t> CallData;
+  /// Address: 20 bytes destination address.
+  std::vector<uint8_t> Address;
+  /// ReturnData: return value list.
+  std::vector<uint8_t> ReturnData;
+
+  struct evmc_context *EVMCContext;
 };
 
 class WasiEnvironment : public Environment {

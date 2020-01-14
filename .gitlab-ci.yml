@@ -27,9 +27,9 @@ test:
     - ./ssvmLoaderWagonTests
     - cd ../ast/load
     - ./ssvmASTLoadTests
-    - cd ../../evm
-    - ./ssvmEVMTests
-    - cd ../proxy
+    #- cd ../../evm
+    #- ./ssvmEVMTests
+    - cd ../../proxy
     - ./ssvmProxyTests
   cache:
     paths:

@@ -8,8 +8,8 @@ namespace Executor {
 
 class EEIGetBlockHash : public EEI<EEIGetBlockHash> {
 public:
-  EEIGetBlockHash(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 800)
-      : EEI(HostEnv, Cost) {}
+  EEIGetBlockHash(VM::EVMEnvironment &HostEnv)
+      : EEI(HostEnv, "getBlockHash", 800) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &Ret,

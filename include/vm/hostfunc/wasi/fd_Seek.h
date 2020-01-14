@@ -8,7 +8,7 @@ namespace Executor {
 
 class WasiFdSeek : public Wasi<WasiFdSeek> {
 public:
-  WasiFdSeek(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+  WasiFdSeek(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv, "fd_seek") {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &ErrNo, int32_t Fd,

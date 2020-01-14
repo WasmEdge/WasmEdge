@@ -1,13 +1,13 @@
 #pragma once
 
-#include "executor/hostfunc.h"
+#include "onncwasm.h"
 
 namespace SSVM {
 namespace Executor {
 
-class ONNCRuntimeUnsqueezeFloat
-    : public HostFunction<ONNCRuntimeUnsqueezeFloat> {
+class ONNCRuntimeUnsqueezeFloat : public ONNCWasm<ONNCRuntimeUnsqueezeFloat> {
 public:
+  ONNCRuntimeUnsqueezeFloat() : ONNCWasm("ONNC_RUNTIME_unsqueeze_float") {}
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
                uint32_t InDataOff, uint32_t InDataNDim, uint32_t InDataDimsOff,

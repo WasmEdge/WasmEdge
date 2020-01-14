@@ -8,8 +8,8 @@ namespace Executor {
 
 class EEIGetExternalBalance : public EEI<EEIGetExternalBalance> {
 public:
-  EEIGetExternalBalance(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 400)
-      : EEI(HostEnv, Cost) {}
+  EEIGetExternalBalance(VM::EVMEnvironment &HostEnv)
+      : EEI(HostEnv, "getExternalBalance", 400) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t AddressOffset,

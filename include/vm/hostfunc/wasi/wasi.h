@@ -10,7 +10,8 @@ namespace Executor {
 
 template <typename T> class Wasi : public HostFunction<T> {
 public:
-  Wasi(VM::WasiEnvironment &HostEnv) : Env(HostEnv) {}
+  Wasi(VM::WasiEnvironment &HostEnv, const std::string &FuncName = "")
+      : HostFunction<T>("wasi_unstable", FuncName, 0), Env(HostEnv) {}
 
 protected:
   VM::WasiEnvironment &Env;

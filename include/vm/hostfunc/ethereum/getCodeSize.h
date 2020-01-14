@@ -8,8 +8,8 @@ namespace Executor {
 
 class EEIGetCodeSize : public EEI<EEIGetCodeSize> {
 public:
-  EEIGetCodeSize(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 2)
-      : EEI(HostEnv, Cost) {}
+  EEIGetCodeSize(VM::EVMEnvironment &HostEnv)
+      : EEI(HostEnv, "getCodeSize", 2) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &Ret);

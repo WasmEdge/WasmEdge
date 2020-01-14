@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "executor/hostfunc.h"
+#include "onncwasm.h"
 
 namespace SSVM {
 namespace Executor {
 
 class ONNCRuntimeBatchnormalizationInt8
-    : public HostFunction<ONNCRuntimeBatchnormalizationInt8> {
+    : public ONNCWasm<ONNCRuntimeBatchnormalizationInt8> {
 public:
+  ONNCRuntimeBatchnormalizationInt8()
+      : ONNCWasm("ONNC_RUNTIME_batchnormalization_int8") {}
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
                uint32_t InXOff, uint32_t InXNDim, uint32_t InXDimsOff,

@@ -8,8 +8,8 @@ namespace Executor {
 
 class EEIGetBlockCoinbase : public EEI<EEIGetBlockCoinbase> {
 public:
-  EEIGetBlockCoinbase(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 2)
-      : EEI(HostEnv, Cost) {}
+  EEIGetBlockCoinbase(VM::EVMEnvironment &HostEnv)
+      : EEI(HostEnv, "getBlockCoinbase", 2) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t ResultOffset);

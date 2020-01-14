@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "executor/hostfunc.h"
+#include "onncwasm.h"
 
 namespace SSVM {
 namespace Executor {
 
-class ONNCRuntimeSoftmaxFloat : public HostFunction<ONNCRuntimeSoftmaxFloat> {
+class ONNCRuntimeSoftmaxFloat : public ONNCWasm<ONNCRuntimeSoftmaxFloat> {
 public:
+  ONNCRuntimeSoftmaxFloat() : ONNCWasm("ONNC_RUNTIME_softmax_float") {}
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
                uint32_t InOff, uint32_t InNDim, uint32_t InDimsOff,

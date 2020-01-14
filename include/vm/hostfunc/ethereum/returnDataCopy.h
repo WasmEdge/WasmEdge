@@ -8,8 +8,8 @@ namespace Executor {
 
 class EEIReturnDataCopy : public EEI<EEIReturnDataCopy> {
 public:
-  EEIReturnDataCopy(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 3)
-      : EEI(HostEnv, Cost) {}
+  EEIReturnDataCopy(VM::EVMEnvironment &HostEnv)
+      : EEI(HostEnv, "returnDataCopy", 3) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t ResultOffset,

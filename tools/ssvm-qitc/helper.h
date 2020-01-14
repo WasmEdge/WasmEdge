@@ -13,6 +13,8 @@ namespace Executor {
 #ifdef ONNC_WASM
 class QITCTimerStart : public HostFunction<QITCTimerStart> {
 public:
+  QITCTimerStart()
+      : HostFunction<QITCTimerStart>("QITC", "QITC_time_start", 0) {}
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst) {
     EnvMgr.getTimeRecorder().startRecord(TIMER_TAG_QITC_INFER_SSVM);
@@ -23,6 +25,7 @@ public:
 
 class QITCTimerStop : public HostFunction<QITCTimerStop> {
 public:
+  QITCTimerStop() : HostFunction<QITCTimerStop>("QITC", "QITC_time_stop", 0) {}
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst) {
     uint64_t SSVMTime =
@@ -38,6 +41,8 @@ public:
 
 class QITCTimerClear : public HostFunction<QITCTimerClear> {
 public:
+  QITCTimerClear()
+      : HostFunction<QITCTimerClear>("QITC", "QITC_time_clear", 0) {}
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst) {
     EnvMgr.getTimeRecorder().clearRecord(TIMER_TAG_QITC_INFER_SSVM);

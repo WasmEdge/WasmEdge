@@ -8,7 +8,7 @@ namespace Executor {
 
 class WasiFdFdstatGet : public Wasi<WasiFdFdstatGet> {
 public:
-  WasiFdFdstatGet(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+  WasiFdFdstatGet(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv, "fd_fdstat_get") {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &ErrNo, int32_t Fd,

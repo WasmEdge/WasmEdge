@@ -8,8 +8,7 @@ namespace Executor {
 
 class EEICreate : public EEI<EEICreate> {
 public:
-  EEICreate(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 32000)
-      : EEI(HostEnv, Cost) {}
+  EEICreate(VM::EVMEnvironment &HostEnv) : EEI(HostEnv, "create", 32000) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst);

@@ -8,8 +8,7 @@ namespace Executor {
 
 class EEIFinish : public EEI<EEIFinish> {
 public:
-  EEIFinish(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 0)
-      : EEI(HostEnv, Cost) {}
+  EEIFinish(VM::EVMEnvironment &HostEnv) : EEI(HostEnv, "finish", 0) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t DataOffset,

@@ -8,8 +8,7 @@ namespace Executor {
 
 class EEILog : public EEI<EEILog> {
 public:
-  EEILog(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 375)
-      : EEI(HostEnv, Cost) {}
+  EEILog(VM::EVMEnvironment &HostEnv) : EEI(HostEnv, "log", 375) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t DataOffset,

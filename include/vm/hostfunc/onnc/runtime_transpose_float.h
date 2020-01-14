@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "executor/hostfunc.h"
+#include "onncwasm.h"
 
 namespace SSVM {
 namespace Executor {
 
-class ONNCRuntimeTransposeFloat
-    : public HostFunction<ONNCRuntimeTransposeFloat> {
+class ONNCRuntimeTransposeFloat : public ONNCWasm<ONNCRuntimeTransposeFloat> {
 public:
+  ONNCRuntimeTransposeFloat() : ONNCWasm("ONNC_RUNTIME_transpose_float") {}
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
                uint32_t InDataOff, uint32_t InDataNDim, uint32_t InDataDimsOff,

@@ -8,7 +8,7 @@ namespace Executor {
 
 class WasiFdRead : public Wasi<WasiFdRead> {
 public:
-  WasiFdRead(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+  WasiFdRead(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv, "fd_read") {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &ErrNo, int32_t Fd,

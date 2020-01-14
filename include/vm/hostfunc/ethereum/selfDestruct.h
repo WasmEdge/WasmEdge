@@ -8,8 +8,8 @@ namespace Executor {
 
 class EEISelfDestruct : public EEI<EEISelfDestruct> {
 public:
-  EEISelfDestruct(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 5000)
-      : EEI(HostEnv, Cost) {}
+  EEISelfDestruct(VM::EVMEnvironment &HostEnv)
+      : EEI(HostEnv, "selfDestruct", 5000) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint64_t AddressOffset);

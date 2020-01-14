@@ -8,8 +8,8 @@ namespace Executor {
 
 class EEIStorageLoad : public EEI<EEIStorageLoad> {
 public:
-  EEIStorageLoad(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 200)
-      : EEI(HostEnv, Cost) {}
+  EEIStorageLoad(VM::EVMEnvironment &HostEnv)
+      : EEI(HostEnv, "storageLoad", 200) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t PathOffset,

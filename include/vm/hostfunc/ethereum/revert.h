@@ -8,8 +8,7 @@ namespace Executor {
 
 class EEIRevert : public EEI<EEIRevert> {
 public:
-  EEIRevert(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 0)
-      : EEI(HostEnv, Cost) {}
+  EEIRevert(VM::EVMEnvironment &HostEnv) : EEI(HostEnv, "revert", 0) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t DataOffset,

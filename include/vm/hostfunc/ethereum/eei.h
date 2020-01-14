@@ -9,8 +9,9 @@ namespace Executor {
 
 template <typename T> class EEI : public HostFunction<T> {
 public:
-  EEI(VM::EVMEnvironment &HostEnv, const uint64_t &Cost)
-      : HostFunction<T>(Cost), Env(HostEnv) {}
+  EEI(VM::EVMEnvironment &HostEnv, const std::string &FuncName = "",
+      const uint64_t &Cost = 0)
+      : HostFunction<T>("ethereum", FuncName, Cost), Env(HostEnv) {}
 
 protected:
   VM::EVMEnvironment &Env;

@@ -8,8 +8,8 @@ namespace Executor {
 
 class EEIGetCallValue : public EEI<EEIGetCallValue> {
 public:
-  EEIGetCallValue(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 2)
-      : EEI(HostEnv, Cost) {}
+  EEIGetCallValue(VM::EVMEnvironment &HostEnv)
+      : EEI(HostEnv, "getCallValue", 2) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t ResultOffset);

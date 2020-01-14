@@ -8,7 +8,7 @@ namespace Executor {
 
 class WasiFdClose : public Wasi<WasiFdClose> {
 public:
-  WasiFdClose(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+  WasiFdClose(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv, "fd_close") {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &ErrNo, int32_t Fd);

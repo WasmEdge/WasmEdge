@@ -8,7 +8,7 @@ namespace Executor {
 
 class WasiEnvironGet : public Wasi<WasiEnvironGet> {
 public:
-  WasiEnvironGet(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+  WasiEnvironGet(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv, "environ_get") {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &ErrNo,

@@ -8,7 +8,7 @@ namespace Executor {
 
 class WasiFdWrite : public Wasi<WasiFdWrite> {
 public:
-  WasiFdWrite(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+  WasiFdWrite(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv, "fd_write") {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &ErrNo, int32_t Fd,

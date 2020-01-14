@@ -8,8 +8,8 @@ namespace Executor {
 
 class EEICallStatic : public EEI<EEICallStatic> {
 public:
-  EEICallStatic(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 700)
-      : EEI(HostEnv, Cost) {}
+  EEICallStatic(VM::EVMEnvironment &HostEnv)
+      : EEI(HostEnv, "callStatic", 700) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &Ret, uint64_t Gas,

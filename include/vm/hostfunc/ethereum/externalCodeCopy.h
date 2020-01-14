@@ -8,8 +8,8 @@ namespace Executor {
 
 class EEIExternalCodeCopy : public EEI<EEIExternalCodeCopy> {
 public:
-  EEIExternalCodeCopy(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 700)
-      : EEI(HostEnv, Cost) {}
+  EEIExternalCodeCopy(VM::EVMEnvironment &HostEnv)
+      : EEI(HostEnv, "externalCodeCopy", 700) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t AddressOffset,

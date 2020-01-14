@@ -8,8 +8,8 @@ namespace Executor {
 
 class EEIGetTxOrigin : public EEI<EEIGetTxOrigin> {
 public:
-  EEIGetTxOrigin(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 2)
-      : EEI(HostEnv, Cost) {}
+  EEIGetTxOrigin(VM::EVMEnvironment &HostEnv)
+      : EEI(HostEnv, "getTxOrigin", 2) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint64_t ResultOffset);

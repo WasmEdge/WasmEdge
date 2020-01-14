@@ -8,8 +8,8 @@ namespace Executor {
 
 class EEIGetBlockDifficulty : public EEI<EEIGetBlockDifficulty> {
 public:
-  EEIGetBlockDifficulty(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 2)
-      : EEI(HostEnv, Cost) {}
+  EEIGetBlockDifficulty(VM::EVMEnvironment &HostEnv)
+      : EEI(HostEnv, "getBlockDifficulty", 2) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t ResultOffset);

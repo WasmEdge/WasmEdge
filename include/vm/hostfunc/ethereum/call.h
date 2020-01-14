@@ -8,8 +8,7 @@ namespace Executor {
 
 class EEICall : public EEI<EEICall> {
 public:
-  EEICall(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 700)
-      : EEI(HostEnv, Cost) {}
+  EEICall(VM::EVMEnvironment &HostEnv) : EEI(HostEnv, "call", 700) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst);

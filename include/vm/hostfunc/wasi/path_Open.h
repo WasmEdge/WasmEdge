@@ -8,7 +8,7 @@ namespace Executor {
 
 class WasiPathOpen : public Wasi<WasiPathOpen> {
 public:
-  WasiPathOpen(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+  WasiPathOpen(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv, "path_open") {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &ErrNo,

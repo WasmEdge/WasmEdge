@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "executor/hostfunc.h"
+#include "onncwasm.h"
 
 namespace SSVM {
 namespace Executor {
 
-class ONNCRuntimeMulFloat : public HostFunction<ONNCRuntimeMulFloat> {
+class ONNCRuntimeMulFloat : public ONNCWasm<ONNCRuntimeMulFloat> {
 public:
+  ONNCRuntimeMulFloat() : ONNCWasm("ONNC_RUNTIME_mul_float") {}
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
                uint32_t InAOff, uint32_t InANDim, uint32_t InADimsOff,

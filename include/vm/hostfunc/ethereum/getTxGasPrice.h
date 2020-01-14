@@ -8,8 +8,8 @@ namespace Executor {
 
 class EEIGetTxGasPrice : public EEI<EEIGetTxGasPrice> {
 public:
-  EEIGetTxGasPrice(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 2)
-      : EEI(HostEnv, Cost) {}
+  EEIGetTxGasPrice(VM::EVMEnvironment &HostEnv)
+      : EEI(HostEnv, "getTxGasPrice", 2) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint64_t ResultOffset);

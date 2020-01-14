@@ -8,7 +8,7 @@ namespace Executor {
 
 class WasiEnvironSizesGet : public Wasi<WasiEnvironSizesGet> {
 public:
-  WasiEnvironSizesGet(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+  WasiEnvironSizesGet(VM::WasiEnvironment &HostEnv) : Wasi(HostEnv, "environ_sizes_get") {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint32_t &ErrNo,

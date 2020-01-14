@@ -8,8 +8,8 @@ namespace Executor {
 
 class EEIGetBlockNumber : public EEI<EEIGetBlockNumber> {
 public:
-  EEIGetBlockNumber(VM::EVMEnvironment &HostEnv, const uint64_t &Cost = 2)
-      : EEI(HostEnv, Cost) {}
+  EEIGetBlockNumber(VM::EVMEnvironment &HostEnv)
+      : EEI(HostEnv, "getBlockNumber", 2) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
                Instance::MemoryInstance &MemInst, uint64_t &BlockNumber);

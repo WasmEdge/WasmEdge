@@ -15,6 +15,7 @@ ErrCode EEIStorageLoad::body(VM::EnvironmentManager &EnvMgr,
     return Status;
   }
 
+  /*
   /// Get Value data in storage by key of path.
   std::string Path;
   std::string Value;
@@ -33,7 +34,7 @@ ErrCode EEIStorageLoad::body(VM::EnvironmentManager &EnvMgr,
       Status != ErrCode::Success) {
     return Status;
   }
-
+  */
   return ErrCode::Success;
 }
 

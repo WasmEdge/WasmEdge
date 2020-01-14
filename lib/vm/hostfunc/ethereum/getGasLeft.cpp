@@ -7,7 +7,7 @@ namespace Executor {
 ErrCode EEIGetGasLeft::body(VM::EnvironmentManager &EnvMgr,
                             Instance::MemoryInstance &MemInst,
                             uint64_t &GasLeft) {
-  GasLeft = EnvMgr.getCostLimit() - EnvMgr.getCostSum();
+  GasLeft = Env.getGasLeft();
   return ErrCode::Success;
 }
 

@@ -27,7 +27,7 @@ ErrCode EEIStorageStore::body(VM::EnvironmentManager &EnvMgr,
   Support::convertBytesToHexStr(Data, Value, 64);
 
   /// Set Value data to storage.
-  Env.getStorage()[Path] = Value;
+  // Env.getStorage()[Path] = Value;
 
   return ErrCode::Success;
 }

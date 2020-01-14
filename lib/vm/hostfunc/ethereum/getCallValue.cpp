@@ -8,9 +8,7 @@ namespace Executor {
 ErrCode EEIGetCallValue::body(VM::EnvironmentManager &EnvMgr,
                               Instance::MemoryInstance &MemInst,
                               uint32_t ResultOffset) {
-  std::vector<unsigned char> Data;
-  Support::convertHexStrToValVec(Env.getCallValue(), Data, 32);
-  return MemInst.setBytes(Data, ResultOffset, 0, 16);
+  return MemInst.setBytes(Env.getCallValue(), ResultOffset, 0, 16);
 }
 
 } // namespace Executor

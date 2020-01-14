@@ -13,20 +13,19 @@ namespace SSVM {
 namespace Executor {
 
 /// Set and instantiate host function. See "include/executor/executor.h".
-ErrCode Executor::setHostFunction(std::unique_ptr<HostFunctionBase> &Func,
-                                  const std::string &ModName,
-                                  const std::string &FuncName) {
+ErrCode Executor::setHostFunction(std::unique_ptr<HostFunctionBase> &Func) {
   ErrCode Status = ErrCode::Success;
   auto NewFuncInst = std::make_unique<Instance::FunctionInstance>(true);
   unsigned int NewHostFuncId = 0;
   unsigned int NewFuncInstId = 0;
-  const Instance::ModuleInstance::FType *FuncType = Func->getFuncType();
 
   /// Set function instance data.
-  if ((Status = NewFuncInst->setNames(ModName, FuncName)) != ErrCode::Success) {
+  if ((Status = NewFuncInst->setNames(
+           Func->getModName(), Func->getFuncName())) != ErrCode::Success) {
     return Status;
   }
-  if ((Status = NewFuncInst->setFuncType(FuncType)) != ErrCode::Success) {
+  if ((Status = NewFuncInst->setFuncType(Func->getFuncType())) !=
+      ErrCode::Success) {
     return Status;
   }
 

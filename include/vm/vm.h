@@ -58,12 +58,13 @@ public:
 
   /// Set host function.
   template <typename T>
-  TypeFunc<T, ErrCode> setHostFunction(std::unique_ptr<T> &Func,
-                                       const std::string &ModName,
-                                       const std::string &FuncName) {
+  TypeFunc<T, ErrCode> setHostFunction(std::unique_ptr<T> &&Func) {
+    return setHostFunction<T>(Func);
+  }
+  template <typename T>
+  TypeFunc<T, ErrCode> setHostFunction(std::unique_ptr<T> &Func) {
     std::unique_ptr<Executor::HostFunctionBase> NewFunc = std::move(Func);
-    if (ExecutorEngine.setHostFunction(NewFunc, ModName, FuncName) ==
-        Executor::ErrCode::Success) {
+    if (ExecutorEngine.setHostFunction(NewFunc) == Executor::ErrCode::Success) {
       return ErrCode::Success;
     }
     return ErrCode::Failed;

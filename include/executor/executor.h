@@ -36,9 +36,7 @@ public:
   ~Executor() = default;
 
   /// Set host functions.
-  ErrCode setHostFunction(std::unique_ptr<HostFunctionBase> &Func,
-                          const std::string &ModName,
-                          const std::string &FuncName);
+  ErrCode setHostFunction(std::unique_ptr<HostFunctionBase> &Func);
 
   /// Set exported start function name.
   ErrCode setStartFuncName(const std::string &Name);

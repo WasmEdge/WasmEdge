@@ -39,15 +39,26 @@ public:
   /// Getter of host function cost.
   uint64_t getCost() { return Cost; }
 
+  /// Getter of module name.
+  const std::string &getModName() { return ModName; }
+
+  /// Getter of function name.
+  const std::string &getFuncName() { return FuncName; }
+
 protected:
   Instance::ModuleInstance::FType FuncType;
   uint64_t Cost = 0;
+  std::string ModName = "";
+  std::string FuncName = "";
 };
 
 template <typename T> class HostFunction : public HostFunctionBase {
 public:
-  HostFunction(const uint64_t &FuncCost = 0) {
+  HostFunction(const std::string &Mod = "", const std::string &Func = "",
+               const uint64_t &FuncCost = 0) {
     Cost = FuncCost;
+    ModName = Mod;
+    FuncName = Func;
     initializeFuncType();
   }
 
@@ -82,7 +93,6 @@ protected:
       ErrCode Status =
           std::apply(&T::body, std::tuple_cat(std::move(GeneralArguments),
                                               std::move(Tuple)));
-
       return Status;
     }
   }

@@ -50,6 +50,14 @@ public:
   ErrCode setBytes(Bytes &Slice, unsigned int Offset, unsigned int Start,
                    unsigned int Length);
 
+  /// Get an uint8 array from Data[Offset : Offset + Length - 1]
+  ErrCode getArray(uint8_t *Arr, unsigned int Offset, unsigned int Length,
+                   bool IsReverse = false);
+
+  /// Replace Data[Offset : Offset + Length - 1] to an uint8 array
+  ErrCode setArray(const uint8_t *Arr, unsigned int Offset, unsigned int Length,
+                   bool IsReverse = false);
+
   /// Get pointer to specific offset of memory or null.
   template <typename T>
   typename std::enable_if_t<std::is_pointer_v<T>, T>

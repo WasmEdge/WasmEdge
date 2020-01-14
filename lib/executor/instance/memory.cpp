@@ -66,6 +66,50 @@ ErrCode MemoryInstance::setBytes(Bytes &Slice, unsigned int Offset,
   return ErrCode::Success;
 }
 
+/// Getter of data to array. See "include/executor/instance/memory.h".
+ErrCode MemoryInstance::getArray(uint8_t *Arr, unsigned int Offset,
+                                 unsigned int Length, bool IsReverse) {
+  if (Length == 0) {
+    return ErrCode::Success;
+  }
+  /// Check memory size.
+  ErrCode Status = ErrCode::Success;
+  if ((Status = checkDataSize(Offset + Length)) != ErrCode::Success) {
+    return Status;
+  }
+  /// Copy data.
+  if (IsReverse) {
+    for (uint32_t I = 0; I < Length; I++) {
+      Arr[I] = Data[Offset + Length - I - 1];
+    }
+  } else {
+    std::memcpy(Arr, &Data[Offset], Length);
+  }
+  return ErrCode::Success;
+}
+
+/// Getter of data from array. See "include/executor/instance/memory.h".
+ErrCode MemoryInstance::setArray(const uint8_t *Arr, unsigned int Offset,
+                                 unsigned int Length, bool IsReverse) {
+  if (Length == 0) {
+    return ErrCode::Success;
+  }
+  /// Check memory size.
+  ErrCode Status = ErrCode::Success;
+  if ((Status = checkDataSize(Offset + Length)) != ErrCode::Success) {
+    return Status;
+  }
+  /// Copy data.
+  if (IsReverse) {
+    for (uint32_t I = 0; I < Length; I++) {
+      Data[Offset + Length - I - 1] = Arr[I];
+    }
+  } else {
+    std::memcpy(&Data[Offset], Arr, Length);
+  }
+  return ErrCode::Success;
+}
+
 /// Check access size and vector size. See "include/executor/instance/memory.h".
 ErrCode MemoryInstance::checkDataSize(unsigned int AccessSize) {
   if (HasMaxPage && AccessSize > MaxPage * 65536) {

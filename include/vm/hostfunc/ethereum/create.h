@@ -11,7 +11,9 @@ public:
   EEICreate(VM::EVMEnvironment &HostEnv) : EEI(HostEnv, "create", 32000) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
-               Instance::MemoryInstance &MemInst);
+               Instance::MemoryInstance &MemInst, uint32_t &Ret,
+               uint32_t ValueOffset, uint32_t DataOffset, uint32_t DataLength,
+               uint32_t ResultOffset);
 };
 
 } // namespace Executor

@@ -18,7 +18,12 @@ ErrCode EEIStorageStore::body(VM::EnvironmentManager &EnvMgr,
   std::memcpy(Addr.bytes, &Env.getAddress()[0], 20);
   CurrValue = Cxt->host->get_storage(Cxt, &Addr, &Path);
 
-  /// TODO: Charge gas.
+  /// Take additional gas if create case.
+  if (evmc::is_zero(CurrValue) && !evmc::is_zero(Value)) {
+    if (!EnvMgr.addCost(15000ULL)) {
+      return ErrCode::Revert;
+    }
+  }
 
   /// Store value into storage.
   Cxt->host->set_storage(Cxt, &Addr, &Path, &Value);

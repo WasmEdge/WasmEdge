@@ -9,6 +9,11 @@ ErrCode EEILog::body(VM::EnvironmentManager &EnvMgr,
                      uint32_t DataLength, uint32_t NumberOfTopics,
                      uint32_t Topic1, uint32_t Topic2, uint32_t Topic3,
                      uint32_t Topic4) {
+  /// Take additional gas of logs.
+  uint64_t TakeGas = 375ULL * NumberOfTopics + 8ULL * DataLength;
+  if (!EnvMgr.addCost(TakeGas)) {
+    return ErrCode::Revert;
+  }
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Copy topics to array.

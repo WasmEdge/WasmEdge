@@ -15,6 +15,10 @@ public:
 
 protected:
   VM::EVMEnvironment &Env;
+  ErrCode addCopyCost(VM::EnvironmentManager &EnvMgr, uint64_t Length) {
+    uint64_t TakeGas = 3 * ((Length + 31) / 32);
+    return EnvMgr.addCost(TakeGas) ? ErrCode::Success : ErrCode::Revert;
+  }
 };
 
 } // namespace Executor

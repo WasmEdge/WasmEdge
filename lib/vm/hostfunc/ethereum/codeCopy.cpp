@@ -8,6 +8,10 @@ ErrCode EEICodeCopy::body(VM::EnvironmentManager &EnvMgr,
                           Instance::MemoryInstance &MemInst,
                           uint32_t ResultOffset, uint32_t CodeOffset,
                           uint32_t Length) {
+  /// Take additional gas of copy.
+  if (addCopyCost(EnvMgr, Length) != ErrCode::Success) {
+    return ErrCode::Revert;
+  }
   return MemInst.setBytes(Env.getCode(), ResultOffset, CodeOffset, Length);
 }
 

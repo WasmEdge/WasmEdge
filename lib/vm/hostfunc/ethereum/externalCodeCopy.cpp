@@ -8,6 +8,10 @@ ErrCode EEIExternalCodeCopy::body(VM::EnvironmentManager &EnvMgr,
                                   Instance::MemoryInstance &MemInst,
                                   uint32_t AddressOffset, uint32_t ResultOffset,
                                   uint32_t CodeOffset, uint32_t Length) {
+  /// Take additional gas of copy.
+  if (addCopyCost(EnvMgr, Length) != ErrCode::Success) {
+    return ErrCode::Revert;
+  }
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Get address from memory instance.

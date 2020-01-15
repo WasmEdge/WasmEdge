@@ -11,6 +11,7 @@ ErrCode EEICallStatic::body(VM::EnvironmentManager &EnvMgr,
                             Instance::MemoryInstance &MemInst, uint32_t &Ret,
                             uint64_t Gas, uint32_t AddressOffset,
                             uint32_t DataOffset, uint32_t DataLength) {
+  /// TODO: Add additional gas cost.
   std::vector<unsigned char> Address;
   std::vector<unsigned char> Data;
   if (ErrCode Status = MemInst.getBytes(Address, AddressOffset, 20);

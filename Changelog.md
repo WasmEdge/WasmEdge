@@ -1,3 +1,25 @@
+### 0.4.0 (2020-01-??)
+
+Features:
+
+* Ethereum environment interfece implementation
+  * Add EVMC library.
+  * [Ewasm functions implemented](doc/evm/design_document.md)
+  * Update gas costs of Ewasm functions.
+* Host function refactoring
+  * Use template to generate wasm function type of host function body.
+  * Move function module name and function name to host function class.
+
+Tools:
+
+* Sub-project EVM with evmc
+  * SSVM-EVMC integrates the Ethereum Environment Interface(EEI) and evmc.
+
+Test:
+
+* ERC20 contracts with EVMC
+
+
 ### 0.3.2 (2020-01-09)
 
 Fixed issues:

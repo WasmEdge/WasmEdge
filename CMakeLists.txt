@@ -22,6 +22,8 @@ include_directories(BEFORE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_BINARY_DIR}/thirdparty
   ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty
+  ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/evmc/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/evmc/include
   ${Boost_INCLUDE_DIR}
 )
 

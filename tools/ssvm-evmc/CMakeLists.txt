@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_library(ssvm-evmc
+add_library(ssvmEVMC
   SHARED
-  main.cpp
+  evmccreate.cpp
 )
 
-target_link_libraries(ssvm-evmc
+target_link_libraries(ssvmEVMC
   PRIVATE
   ssvmVM
 )

@@ -25,7 +25,7 @@ namespace {
 
 evmc_context *context = example_host_create_context(evmc_tx_context{});
 const std::string evmc_library =
-    std::string("../../tools/ssvm-evmc/libssvm-evmc.") +
+    std::string("../../tools/ssvm-evmc/libssvmEVMC.") +
     std::string(EVMC_SHARED_LIBRARY_SUFFIX);
 
 TEST(EVMCTest, Run__1_deploy) {

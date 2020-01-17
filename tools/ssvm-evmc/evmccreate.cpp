@@ -5,10 +5,7 @@
 #include "vm/configure.h"
 #include "vm/vm.h"
 
-#include <cstdlib>
-#include <iomanip>
 #include <iostream>
-#include <sstream>
 
 namespace {
 
@@ -75,14 +72,8 @@ static struct evmc_result execute(struct evmc_instance *vm,
 
   // Debug log
   std::cout << "usedGas: " << usedGas << std::endl;
-  /*
-  std::cout << "    --- result storage: " << std::endl;
-  for (auto it = storage.begin(); it != storage.end(); ++it) {
-    std::cout << "         " << it->first << " " << it->second << std::endl;
-  }
-  */
-  std::cout << "    --- return_size: " << returnData.size() << std::endl;
-  std::cout << "    --- return data: " << std::endl << "         ";
+  std::cout << "return_size: " << returnData.size() << std::endl;
+  std::cout << "return_data: ";
   for (auto it = returnData.begin(); it != returnData.end(); ++it) {
     printf("%02x", *it);
   }
@@ -119,7 +110,7 @@ static struct evmc_result execute(struct evmc_instance *vm,
 
 extern "C" EVMC_EXPORT struct evmc_instance *evmc_create() EVMC_NOEXCEPT {
   static evmc_instance vm = {
-      EVMC_ABI_VERSION,   "ssvm",  "0.3.1",
+      EVMC_ABI_VERSION,   "ssvm",  "0.4.0",
       ::destroy, // destroy
       ::execute, // execute
       ::get_capabilities, nullptr,

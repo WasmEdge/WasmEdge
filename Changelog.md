@@ -6,21 +6,25 @@ Features:
   * Add EVMC library.
   * [Ewasm functions implemented](doc/evm/design_document.md)
   * Update gas costs of Ewasm functions.
-* Host function refactoring
+
+Refactor:
+
+* Host functions:
   * Use template to generate wasm function type of host function body.
   * Move function module name and function name to host function class.
 
 Tools:
 
 * Sub-project EVM with evmc
-  * SSVM-EVMC is a VM implementation shared library integrates Ethereum Environment Interface(EEI).
+  * SSVM-EVMC integrates EVMC and Ethereum Environment Interface(EEI).
+  * SSVM-EVMC is a shared library for EVMC-compatible clients.
 
-Test:
+Tests:
 
-* ERC20 contracts with EVMC
-  * Implement an example host for testing.
-  * Do the following tests for erc20:
-    * Deploy
+* ERC20 contracts for SSVM-EVMC
+  * Create an example VM for testing.
+  * Test the following functionalities of ERC20 contracts:
+    * Deploy ERC20 contract
     * Check balance
     * Check total supply
     * Transfer

@@ -9,7 +9,7 @@
 ```bash
 $ git clone git@github.com:second-state/SSVM.git
 $ cd SSVM
-$ git checkout 0.3.1
+$ git checkout 0.4.0
 ```
 
 ## Prepare environment
@@ -19,7 +19,7 @@ $ git checkout 0.3.1
 Our docker image use `ubuntu 18.04` as base.
 
 ```bash
-$ docker pull secondstate/ssvm:dev-0.3.1
+$ docker pull secondstate/ssvm:dev-0.4.0
 ```
 
 ### Or setup the environment manually
@@ -37,7 +37,7 @@ SSVM provides various tools to enabling different runtime environment for optima
 After the build is finished, you can find there are two ssvm binaries:
 
 1. `ssvm` is for general wasm runtime.
-2. `ssvm-evmc` is a shared library with Ewasm runtime and evmc interface.
+2. `ssvm-evmc` is an Ewasm runtime which is compatible with EVMC.
 3. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
 4. `ssvm-proxy` is for SSVMRPC service, which allows users to deploy and execute Wasm applications via Web interface.
 
@@ -45,7 +45,7 @@ After the build is finished, you can find there are two ssvm binaries:
 # After pulling our ssvm-dev docker image
 $ docker run -it --rm \
     -v <path/to/your/ssvm/source/folder>:/root/ssvm \
-    secondstate/ssvm:dev-0.3.1
+    secondstate/ssvm:dev-0.4.0
 (docker)$ cd /root/ssvm
 (docker)$ mkdir -p build && cd build
 (docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make
@@ -71,10 +71,11 @@ $ cd ../proxy
 $ ./ssvmProxyTests
 ```
 
-## ssvm-evmc (SSVM with Ewasm runtime of evmc VM implementation)
+## ssvm-evmc (SSVM with Ewasm runtime with EVMC integration)
 
-SSVM-EVMC is a VM implementation shared library compatible with [evmc](https://github.com/ethereum/evmc).
-The built library will be placed at `build/tools/ssvm-evmc/libssvmEVMC.so` on Linux or `build/tools/ssvm-evmc/libssvmEVMC.dylib` on MacOS.
+SSVM-EVMC is a Ewasm runtime which is compatible with [EVMC](https://github.com/ethereum/evmc).
+Please notice that SSVM-EVMC is not a standalone tool but a shared library which can initialize and execute by EVMC interface.
+The built library will be placed at `<your/build/folder>/tools/ssvm-evmc/libssvmEVMC.so` on Linux or `<your/build/folder>/tools/ssvm-evmc/libssvmEVMC.dylib` on MacOS.
 
 ## Run ssvm-proxy (SSVM with general wasm runtime and JSON input/output)
 

@@ -37,7 +37,7 @@ SSVM provides various tools to enabling different runtime environment for optima
 After the build is finished, you can find there are two ssvm binaries:
 
 1. `ssvm` is for general wasm runtime.
-2. `ssvm-evm` is for Ewasm runtime.
+2. `ssvm-evmc` is a shared library with Ewasm runtime and evmc interface.
 3. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
 4. `ssvm-proxy` is for SSVMRPC service, which allows users to deploy and execute Wasm applications via Web interface.
 
@@ -65,71 +65,16 @@ $ ./ssvmLoaderFileMgrTests
 $ ./ssvmLoaderWagonTests
 $ cd ../ast/load
 $ ./ssvmASTLoadTests
-$ cd ../../evm
-$ ./ssvmEVMTests
+$ cd ../../evmc
+$ ./ssvmEVMCTests
 $ cd ../proxy
 $ ./ssvmProxyTests
 ```
 
-## Run ssvm-evm (SSVM with Ewasm runtime)
+## ssvm-evmc (SSVM with Ewasm runtime of evmc VM implementation)
 
-To run SSVM with Ewasm bytecode, you will need to provide a valid Ewasm bytecode and the calldata.
-Currently, SSVM doesn’t support ABI encoding for Ethereum, so users need to compose the calldata by theirselves.
-
-SSVM-EVM will take 3 parameters:
-
-1. Ewasm bytecode file (`/path/to/your/ewasm/file`)
-2. Call data in hex string format (`4e6ec2..000054`)
-3. Gas limit (`100000`)
-
-### Example: ERC20 token contract
-
-In this example, we create an ERC20 token contract and compile it into Ewasm bytecode by SecondState [SOLL](https://github.com/second-state/soll) compiler.
-You can find this Ewasm file(`ethereum/erc20.wasm`) in the same folder of ssvm-evm.
-
-#### With enough gas limit (Expect execution succeeded)
-
-```bash
-# cd <path/to/ssvm/build_folder>
-$ cd tools/ssvm-evm
-# Usage: ./ssvm-evm wasm_file.wasm call_data_in_string_format gas_limit
-$ ./ssvm-evm ethereum/erc20.wasm 4e6ec24700000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064 100000
-# Expect output:
- Info: Start running...
- Info: Worker execution succeeded.
- =================  Statistics  =================
- Total execution time: 243 us
- Wasm instructions execution time: 190 us
- Host functions execution time: 53 us
- Executed wasm instructions count: 1041
- Gas costs: 71308
- Instructions per second: 5478947
-    --- result storage:
-         0000000000000000000000000000000000000000000000000000000000000000 0000000000000000000000000000000000000000000000000000000000000064
-         f5b24dcea0e9381721a8c72784d30cfe64c11b4591226269f839d095b3e9cf10 0000000000000000000000000000000000000000000000000000000000000064
-    --- return data:
-```
-
-#### Without enough gas limit (Expect execution reverted)
-
-```bash
-# cd <path/to/ssvm/build_folder>
-$ cd tools/ssvm-evm
-# Usage: ./ssvm-evm wasm_file.wasm call_data_in_string_format gas_limit
-$ ./ssvm-evm ethereum/erc20.wasm 4e6ec24700000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064 10000
-# Expect output:
- Info: Start running...
- Error: Reverted.
- =================  Statistics  =================
- Total execution time: 152 us
- Wasm instructions execution time: 152 us
- Host functions execution time: 0 us
- Executed wasm instructions count: 188
- Gas costs: 9900
- Instructions per second: 1236842
-    --- result storage:
-    --- return data:
-```
+SSVM-EVMC is a VM implementation shared library compatible with [evmc](https://github.com/ethereum/evmc).
+The built library will be placed at `build/tools/ssvm-evmc/libssvmEVMC.so` on Linux or `build/tools/ssvm-evmc/libssvmEVMC.dylib` on MacOS.
 
 ## Run ssvm-proxy (SSVM with general wasm runtime and JSON input/output)
 

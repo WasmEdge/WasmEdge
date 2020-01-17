@@ -1,4 +1,4 @@
-### 0.4.0 (2020-01-??)
+### 0.4.0 (2020-01-17)
 
 Features:
 
@@ -13,11 +13,19 @@ Features:
 Tools:
 
 * Sub-project EVM with evmc
-  * SSVM-EVMC integrates the Ethereum Environment Interface(EEI) and evmc.
+  * SSVM-EVMC is a VM implementation shared library integrates Ethereum Environment Interface(EEI).
 
 Test:
 
 * ERC20 contracts with EVMC
+  * Implement an example host for testing.
+  * Do the following tests for erc20:
+    * Deploy
+    * Check balance
+    * Check total supply
+    * Transfer
+    * Approve
+    * Check allowance
 
 
 ### 0.3.2 (2020-01-09)

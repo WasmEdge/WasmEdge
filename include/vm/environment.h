@@ -43,6 +43,15 @@ public:
   /// Getter of remain gas. Gas limit can be set by EnvironmentManager.
   uint64_t getGasLeft() { return GasLimit - GasUsed; }
 
+  /// Getter and setter of depth.
+  uint32_t &getDepth() { return Depth; }
+
+  /// Getter and setter of flag.
+  uint32_t &getFlag() { return Flag; }
+
+  /// Getter and setter of call kind.
+  evmc_call_kind &getCallKind() { return CallKind; }
+
   /// Getter of caller and converting into hex string.
   std::string getCallerStr() {
     std::string Str;
@@ -102,6 +111,15 @@ public:
     return EVMCContext;
   }
   void setEVMCMessage(const struct evmc_message *Msg) {
+    /// Set depth.
+    Depth = Msg->depth;
+
+    /// Set call flag.
+    Flag = Msg->flags;
+
+    /// Set call kind.
+    CallKind = Msg->kind;
+
     /// Set gas limit.
     GasLimit = Msg->gas;
 
@@ -115,8 +133,7 @@ public:
     /// Set call data.
     CallData.clear();
     if (Msg->input_size > 0 && Msg->input_data != nullptr) {
-      CallData.resize(Msg->input_size);
-      std::memcpy(&CallData[0], Msg->input_data, Msg->input_size);
+      CallData.assign(Msg->input_data, Msg->input_data + Msg->input_size);
     }
 
     /// Set address.
@@ -142,6 +159,12 @@ private:
   std::vector<uint8_t> ReturnData;
   /// Code:
   std::vector<uint8_t> Code;
+  /// Depth:
+  uint32_t Depth = 0;
+  /// Call flag:
+  uint32_t Flag = 0;
+  /// Call kind:
+  evmc_call_kind CallKind = evmc_call_kind::EVMC_CALL;
 
   struct evmc_context *EVMCContext;
 };

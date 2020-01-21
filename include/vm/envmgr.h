@@ -77,6 +77,17 @@ public:
     return true;
   }
 
+  /// Return cost back.
+  bool subCost(const uint64_t &Cost) {
+    if (CostSum > Cost) {
+      CostSum -= Cost;
+      return true;
+    }
+    /// Over returned: Returning cost larger than consumed.
+    CostSum = 0;
+    return false;
+  }
+
   /// Getter of cost sum.
   uint64_t getCostSum() const { return CostSum; }
 

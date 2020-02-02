@@ -95,29 +95,6 @@ public:
   /// Invoke function with main function address.
   ErrCode runStartFunction(unsigned int FuncAddr);
 
-  struct Result {
-    ErrCode Status;
-    std::string Infomation;
-  
-    /// Below available after execution succeeded
-    uint64_t ExecTime;
-    uint64_t HostFuncTime;
-    uint64_t ExecInstrCnt;
-    uint64_t Gas;
-
-    void reset() {
-      Status = ErrCode::Terminated;
-      Infomation = "";
-
-      ExecTime = 0;
-      HostFuncTime = 0;
-      ExecInstrCnt = 0;
-      Gas = 0;
-    }
-  };
-
-  Result statistics();
-
   /// Reset worker.
   ErrCode reset();
 
@@ -312,8 +289,6 @@ private:
   uint64_t ExecInstrCnt;
   /// Cost Table
   const std::vector<uint64_t> &CostTable;
-  /// 
-  Result Statistic;
 };
 
 } // namespace Executor

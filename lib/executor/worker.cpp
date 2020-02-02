@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "easyloggingpp/easylogging++.h"
+#include "support/statistics.h"
 #include "executor/worker.h"
 #include "ast/common.h"
 #include "ast/instruction.h"
@@ -47,13 +48,16 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
   ErrCode Status = execute();
   LOG(INFO) << "done...";
 
-  Statistic.Status = Status;
-  Statistic.ExecTime = TimeRecorder.stopRecord(TIMER_TAG_EXECUTION);
-  Statistic.HostFuncTime = TimeRecorder.getRecord(TIMER_TAG_HOSTFUNC);
-  Statistic.ExecInstrCnt = ExecInstrCnt;
+  Support::statistics.appendResult(std::make_unique<Support::ExeResult>(
+    Status
+    ,""
+    ,TimeRecorder.stopRecord(TIMER_TAG_EXECUTION)
+    ,TimeRecorder.getRecord(TIMER_TAG_HOSTFUNC)
+    ,ExecInstrCnt
 #ifndef ONNC_WASM
-  Statistic.Gas = EnvMgr.getCostSum();
+    ,EnvMgr.getCostSum()
 #endif
+  ));
 
   if (Status == ErrCode::Terminated) {
     /// Forced terminated case.
@@ -66,7 +70,6 @@ ErrCode Worker::reset() {
   TheState = State::Inited;
   InstrPdr.reset();
   StackMgr.reset();
-  Statistic.reset();
   ExecInstrCnt = 0;
   return ErrCode::Success;
 }
@@ -732,9 +735,6 @@ ErrCode Worker::getGlobInstByIdx(unsigned int Idx,
   return StoreMgr.getGlobal(GlobalAddr, GlobInst);
 }
 
-Worker::Result Worker::statistics() {
-  return Statistic;
-}
 
 } // namespace Executor
 } // namespace SSVM

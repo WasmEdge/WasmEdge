@@ -25,4 +25,5 @@ target_link_libraries(ssvmExecutor
   ssvmExecutorInstance
   ssvmExecutorInstantiate
   ssvmExecutorWorker
+  ssvmSupport
 )

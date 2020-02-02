@@ -10,6 +10,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "easyloggingpp/easylogging++.h"
 #include "proxy/proxy.h"
 #include "gtest/gtest.h"
 
@@ -18,6 +19,9 @@
 #include <cstdlib>
 #include <fstream>
 #include <string>
+
+// todo: remove this and fix test build
+INITIALIZE_EASYLOGGINGPP
 
 namespace {
 

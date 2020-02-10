@@ -13,12 +13,12 @@ ErrCode EEICallDelegate::body(VM::EnvironmentManager &EnvMgr,
 
   /// Prepare call message.
   evmc_message CallMsg;
-  MemInst.getArray(CallMsg.destination.bytes, AddressOffset, 20);
+  CallMsg.destination = loadAddress(MemInst, AddressOffset);
   CallMsg.flags = Env.getFlag() & evmc_flags::EVMC_STATIC;
   CallMsg.depth = Env.getDepth() + 1;
   CallMsg.kind = evmc_call_kind::EVMC_DELEGATECALL;
-  std::memcpy(CallMsg.sender.bytes, &Env.getCaller()[0], 20);
-  std::memcpy(CallMsg.value.bytes, &Env.getCallValue()[0], 32);
+  CallMsg.sender = Env.getCallerEVMC();
+  CallMsg.value = Env.getCallValueEVMC();
 
   /// Prepare input data.
   std::vector<uint8_t> Code;

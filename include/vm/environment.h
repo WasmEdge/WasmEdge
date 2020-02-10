@@ -59,6 +59,13 @@ public:
     return Str;
   }
 
+  /// Getter of caller in EVMC version.
+  evmc_address getCallerEVMC() {
+    evmc_address Addr;
+    std::memcpy(Addr.bytes, &Caller[0], 20);
+    return Addr;
+  }
+
   /// Getter of caller vector.
   std::vector<uint8_t> &getCaller() { return Caller; }
 
@@ -72,6 +79,13 @@ public:
     std::string Str;
     Support::convertValVecToHexStr(CallValue, Str, 64);
     return Str;
+  }
+
+  /// Getter of call value in EVMC version.
+  evmc_bytes32 getCallValueEVMC() {
+    evmc_bytes32 Val;
+    std::memcpy(Val.bytes, &CallValue[0], 32);
+    return Val;
   }
 
   /// Getter of call value vector.
@@ -90,6 +104,13 @@ public:
     std::string Str;
     Support::convertBytesToHexStr(Address, Str, 40);
     return Str;
+  }
+
+  /// Getter of address in EVMC version.
+  evmc_address getAddressEVMC() {
+    evmc_address Addr;
+    std::memcpy(Addr.bytes, &Address[0], 20);
+    return Addr;
   }
 
   /// Getter of address vector.

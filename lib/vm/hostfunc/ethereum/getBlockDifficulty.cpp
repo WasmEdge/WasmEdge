@@ -10,8 +10,8 @@ ErrCode EEIGetBlockDifficulty::body(VM::EnvironmentManager &EnvMgr,
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Get block difficulty and store uint256 little-endian value.
-  return MemInst.setArray(Cxt->host->get_tx_context(Cxt).block_difficulty.bytes,
-                          ResultOffset, 32, true);
+  return storeUInt(MemInst, Cxt->host->get_tx_context(Cxt).block_difficulty,
+                   ResultOffset);
 }
 
 } // namespace Executor

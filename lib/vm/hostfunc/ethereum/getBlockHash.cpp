@@ -12,14 +12,14 @@ ErrCode EEIGetBlockHash::body(VM::EnvironmentManager &EnvMgr,
   Ret = 0U;
 
   /// Get the block hash value.
-  const evmc::bytes32 Hash = Cxt->host->get_block_hash(Cxt, Number);
+  const evmc_bytes32 Hash = Cxt->host->get_block_hash(Cxt, Number);
 
   /// Check is zero.
   if (evmc::is_zero(Hash)) {
     Ret = 1U;
   } else {
     /// Store bytes32.
-    Status = MemInst.setArray(Hash.bytes, ResultOffset, 32);
+    Status = storeBytes32(MemInst, Hash, ResultOffset);
     if (Status != ErrCode::Success) {
       Ret = 1U;
     }

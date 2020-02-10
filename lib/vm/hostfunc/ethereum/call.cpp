@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/ethereum/call.h"
-#include <boost/multiprecision/cpp_int.hpp>
 
 namespace SSVM {
 namespace Executor {
@@ -15,12 +14,12 @@ ErrCode EEICall::body(VM::EnvironmentManager &EnvMgr,
 
   /// Prepare call message.
   evmc_message CallMsg;
-  MemInst.getArray(CallMsg.destination.bytes, AddressOffset, 20);
+  CallMsg.destination = loadAddress(MemInst, AddressOffset);
   CallMsg.flags = Env.getFlag() & evmc_flags::EVMC_STATIC;
   CallMsg.depth = Env.getDepth() + 1;
   CallMsg.kind = evmc_call_kind::EVMC_CALL;
-  std::memcpy(CallMsg.sender.bytes, &Env.getAddress()[0], 20);
-  MemInst.getArray(CallMsg.value.bytes + 16, ValueOffset, 16, true);
+  CallMsg.sender = Env.getAddressEVMC();
+  CallMsg.value = loadUInt(MemInst, ValueOffset, 16);
 
   /// Check flag.
   if (!evmc::is_zero(CallMsg.value)) {
@@ -50,14 +49,9 @@ ErrCode EEICall::body(VM::EnvironmentManager &EnvMgr,
       return ErrCode::Revert;
     }
     /// Check balance.
-    evmc_uint256be Balance = Cxt->host->get_balance(Cxt, &(CallMsg.sender));
-    boost::multiprecision::uint128_t DstBalance = 0, ValBalance = 0;
-    for (uint32_t I = 16; I < 32; ++I) {
-      DstBalance <<= 8;
-      ValBalance <<= 8;
-      DstBalance |= Balance.bytes[I];
-      ValBalance |= CallMsg.value.bytes[I];
-    }
+    boost::multiprecision::uint128_t DstBalance =
+        convToUInt128(Cxt->host->get_balance(Cxt, &(CallMsg.sender)));
+    boost::multiprecision::uint128_t ValBalance = convToUInt128(CallMsg.value);
     if (DstBalance <= ValBalance) {
       Ret = 1;
       return ErrCode::Revert;

@@ -14,12 +14,12 @@ ErrCode EEICallCode::body(VM::EnvironmentManager &EnvMgr,
 
   /// Prepare call message.
   evmc_message CallMsg;
-  MemInst.getArray(CallMsg.destination.bytes, AddressOffset, 20);
+  CallMsg.destination = loadAddress(MemInst, AddressOffset);
   CallMsg.flags = Env.getFlag() & evmc_flags::EVMC_STATIC;
   CallMsg.depth = Env.getDepth() + 1;
   CallMsg.kind = evmc_call_kind::EVMC_CALLCODE;
-  std::memcpy(CallMsg.sender.bytes, &Env.getAddress()[0], 20);
-  MemInst.getArray(CallMsg.value.bytes + 16, ValueOffset, 16, true);
+  CallMsg.sender = Env.getAddressEVMC();
+  CallMsg.value = loadUInt(MemInst, ValueOffset, 16);
 
   /// Prepare input data.
   std::vector<uint8_t> Code;

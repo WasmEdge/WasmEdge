@@ -17,18 +17,18 @@ ErrCode EEILog::body(VM::EnvironmentManager &EnvMgr,
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Copy topics to array.
-  std::vector<evmc::bytes32> Topics(4, evmc::bytes32());
+  std::vector<evmc_bytes32> Topics(4, evmc_bytes32());
   if (NumberOfTopics >= 1) {
-    MemInst.getArray(Topics[0].bytes, Topic1, 32);
+    Topics[0] = loadBytes32(MemInst, Topic1);
   }
   if (NumberOfTopics >= 2) {
-    MemInst.getArray(Topics[1].bytes, Topic2, 32);
+    Topics[1] = loadBytes32(MemInst, Topic2);
   }
   if (NumberOfTopics >= 3) {
-    MemInst.getArray(Topics[2].bytes, Topic3, 32);
+    Topics[2] = loadBytes32(MemInst, Topic3);
   }
   if (NumberOfTopics == 4) {
-    MemInst.getArray(Topics[3].bytes, Topic4, 32);
+    Topics[3] = loadBytes32(MemInst, Topic4);
   }
 
   /// Load data.
@@ -36,8 +36,7 @@ ErrCode EEILog::body(VM::EnvironmentManager &EnvMgr,
   MemInst.getBytes(Data, DataOffset, DataLength);
 
   /// Get address data.
-  evmc::address Addr;
-  std::memcpy(Addr.bytes, &Env.getAddress()[0], 20);
+  evmc_address Addr = Env.getAddressEVMC();
 
   /// Call emit_log.
   Cxt->host->emit_log(Cxt, &Addr, &Data[0], DataLength, &Topics[0],

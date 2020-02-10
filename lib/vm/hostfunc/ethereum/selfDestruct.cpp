@@ -10,9 +10,8 @@ ErrCode EEISelfDestruct::body(VM::EnvironmentManager &EnvMgr,
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Get address data.
-  evmc::address Addr, Self;
-  MemInst.getArray(Addr.bytes, AddressOffset, 20);
-  std::memcpy(Self.bytes, &Env.getAddress()[0], 20);
+  evmc_address Addr = loadAddress(MemInst, AddressOffset);
+  evmc_address Self = Env.getAddressEVMC();
 
   /// Take additional gas if call new account.
   if (!Cxt->host->account_exists(Cxt, &Addr)) {

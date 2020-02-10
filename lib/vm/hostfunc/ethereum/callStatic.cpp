@@ -2,7 +2,6 @@
 #include "vm/hostfunc/ethereum/callStatic.h"
 #include "keccak/Keccak.h"
 #include "support/hexstr.h"
-#include <boost/multiprecision/cpp_int.hpp>
 
 namespace SSVM {
 namespace Executor {

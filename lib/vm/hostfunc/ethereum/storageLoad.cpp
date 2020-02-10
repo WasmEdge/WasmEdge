@@ -11,14 +11,12 @@ ErrCode EEIStorageLoad::body(VM::EnvironmentManager &EnvMgr,
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Get destination, path, and value data.
-  evmc::bytes32 Path, Value;
-  evmc::address Addr;
-  MemInst.getArray(Path.bytes, PathOffset, 32);
-  std::memcpy(Addr.bytes, &Env.getAddress()[0], 20);
-  Value = Cxt->host->get_storage(Cxt, &Addr, &Path);
+  evmc_address Addr = Env.getAddressEVMC();
+  evmc_bytes32 Path = loadBytes32(MemInst, PathOffset);
 
   /// Store bytes32 into memory instance.
-  return MemInst.setArray(Value.bytes, ValueOffset, 32);
+  return storeBytes32(MemInst, Cxt->host->get_storage(Cxt, &Addr, &Path),
+                      ValueOffset);
 }
 
 } // namespace Executor

@@ -11,14 +11,13 @@ ErrCode EEIGetExternalBalance::body(VM::EnvironmentManager &EnvMgr,
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Get address from memory instance.
-  evmc_address Addr;
-  MemInst.getArray(Addr.bytes, AddressOffset, 20);
+  evmc_address Addr = loadAddress(MemInst, AddressOffset);
 
   /// Get balance uint256 big-endian value.
   evmc_uint256be Balance = Cxt->host->get_balance(Cxt, &Addr);
 
   /// Store uint128 little-endian value.
-  return MemInst.setArray(Balance.bytes + 16, ResultOffset, 16, true);
+  return storeUInt(MemInst, Balance, ResultOffset, 16);
 }
 
 } // namespace Executor

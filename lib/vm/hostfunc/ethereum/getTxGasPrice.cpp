@@ -13,7 +13,7 @@ ErrCode EEIGetTxGasPrice::body(VM::EnvironmentManager &EnvMgr,
   evmc_uint256be Price = Cxt->host->get_tx_context(Cxt).tx_gas_price;
 
   /// Store uint128 little-endian value.
-  return MemInst.setArray(Price.bytes + 16, ResultOffset, 16, true);
+  return storeUInt(MemInst, Price, ResultOffset, 16);
 }
 
 } // namespace Executor

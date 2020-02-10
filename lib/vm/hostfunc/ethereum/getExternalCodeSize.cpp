@@ -10,8 +10,7 @@ ErrCode EEIGetExternalCodeSize::body(VM::EnvironmentManager &EnvMgr,
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Get address from memory instance.
-  evmc_address Addr;
-  MemInst.getArray(Addr.bytes, AddressOffset, 20);
+  evmc_address Addr = loadAddress(MemInst, AddressOffset);
 
   /// Return: ExtCodeSize(u32)
   Ret = Cxt->host->get_code_size(Cxt, &Addr);

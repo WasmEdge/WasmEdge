@@ -11,12 +11,10 @@ ErrCode EEIStorageStore::body(VM::EnvironmentManager &EnvMgr,
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Get destination, path, value data, and current storage value.
-  evmc::bytes32 Path, Value, CurrValue;
-  evmc::address Addr;
-  MemInst.getArray(Path.bytes, PathOffset, 32);
-  MemInst.getArray(Value.bytes, ValueOffset, 32);
-  std::memcpy(Addr.bytes, &Env.getAddress()[0], 20);
-  CurrValue = Cxt->host->get_storage(Cxt, &Addr, &Path);
+  evmc_address Addr = Env.getAddressEVMC();
+  evmc_bytes32 Path = loadBytes32(MemInst, PathOffset);
+  evmc_bytes32 Value = loadBytes32(MemInst, ValueOffset);
+  evmc_bytes32 CurrValue = Cxt->host->get_storage(Cxt, &Addr, &Path);
 
   /// Take additional gas if create case.
   if (evmc::is_zero(CurrValue) && !evmc::is_zero(Value)) {

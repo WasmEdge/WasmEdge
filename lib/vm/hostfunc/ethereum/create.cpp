@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/ethereum/create.h"
-#include <boost/multiprecision/cpp_int.hpp>
 
 namespace SSVM {
 namespace Executor {
@@ -15,8 +14,8 @@ ErrCode EEICreate::body(VM::EnvironmentManager &EnvMgr,
   /// Prepare creation message.
   evmc_message CreateMsg;
   CreateMsg.destination = {};
-  std::memcpy(CreateMsg.sender.bytes, &Env.getAddress()[0], 20);
-  MemInst.getArray(CreateMsg.value.bytes + 16, ValueOffset, 16, true);
+  CreateMsg.sender = Env.getAddressEVMC();
+  CreateMsg.value = loadUInt(MemInst, ValueOffset, 16);
 
   /// Check depth.
   if (Env.getDepth() >= 1024) {
@@ -24,14 +23,9 @@ ErrCode EEICreate::body(VM::EnvironmentManager &EnvMgr,
     return ErrCode::Revert;
   }
   /// Check balance.
-  evmc_uint256be Balance = Cxt->host->get_balance(Cxt, &(CreateMsg.sender));
-  boost::multiprecision::uint128_t DstBalance = 0, ValBalance = 0;
-  for (uint32_t I = 16; I < 32; ++I) {
-    DstBalance <<= 8;
-    ValBalance <<= 8;
-    DstBalance |= Balance.bytes[I];
-    ValBalance |= CreateMsg.value.bytes[I];
-  }
+  boost::multiprecision::uint128_t DstBalance =
+      convToUInt128(Cxt->host->get_balance(Cxt, &(CreateMsg.sender)));
+  boost::multiprecision::uint128_t ValBalance = convToUInt128(CreateMsg.value);
   if (DstBalance <= ValBalance) {
     Ret = 1;
     return ErrCode::Revert;
@@ -60,7 +54,7 @@ ErrCode EEICreate::body(VM::EnvironmentManager &EnvMgr,
   }
   EnvMgr.subCost(CreateRes.gas_left);
   if (CreateRes.status_code == EVMC_SUCCESS) {
-    Status = MemInst.setArray(CreateRes.create_address.bytes, ResultOffset, 20);
+    Status = storeAddress(MemInst, CreateRes.create_address, ResultOffset);
     Env.getReturnData().clear();
   } else if (CreateRes.output_data) {
     Env.getReturnData().assign(CreateRes.output_data,

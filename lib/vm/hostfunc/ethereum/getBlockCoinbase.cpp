@@ -10,8 +10,8 @@ ErrCode EEIGetBlockCoinbase::body(VM::EnvironmentManager &EnvMgr,
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Get block coinbase and store bytes20.
-  return MemInst.setArray(Cxt->host->get_tx_context(Cxt).block_coinbase.bytes,
-                          ResultOffset, 20);
+  return storeAddress(MemInst, Cxt->host->get_tx_context(Cxt).block_coinbase,
+                      ResultOffset);
 }
 
 } // namespace Executor

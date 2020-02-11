@@ -23,6 +23,11 @@ protected:
     return EnvMgr.addCost(TakeGas) ? ErrCode::Success : ErrCode::Revert;
   }
 
+  /// Helper function to get max call gas.
+  uint64_t getMaxCallGas() {
+    return Env.getGasLeft() - (Env.getGasLeft() / 64);
+  }
+
   /// Helper function to load value and store to evmc_uint256be.
   evmc_uint256be loadUInt(Instance::MemoryInstance &MemInst, uint32_t Off,
                           uint32_t Bytes = 32) {
@@ -78,6 +83,104 @@ protected:
       Res |= Src.bytes[I];
     }
     return Res;
+  }
+
+  /// Helper function to make call operation.
+  uint32_t callContract(VM::EnvironmentManager &EnvMgr,
+                        Instance::MemoryInstance &MemInst, evmc_message &Msg,
+                        uint32_t DataOffset, uint32_t DataLength,
+                        uint32_t CreateResOffset = 0) {
+    evmc_context *Cxt = Env.getEVMCContext();
+
+    /// Check depth.
+    if (Env.getDepth() >= 1024) {
+      return 1;
+    }
+
+    /// Setup input data.
+    std::vector<uint8_t> Code;
+    if (DataLength > 0) {
+      MemInst.setBytes(Code, DataOffset, 0, DataLength);
+      Msg.input_data = &Code[0];
+      Msg.input_size = Code.size();
+    }
+
+    /// Check flag.
+    if ((Msg.kind == evmc_call_kind::EVMC_CREATE ||
+         (Msg.kind == evmc_call_kind::EVMC_CALL &&
+          !evmc::is_zero(Msg.value))) &&
+        (Env.getFlag() & evmc_flags::EVMC_STATIC)) {
+      return 1;
+    }
+
+    /// Take additional gas.
+    if ((Msg.kind == evmc_call_kind::EVMC_CALL ||
+         Msg.kind == evmc_call_kind::EVMC_CALLCODE) &&
+        !evmc::is_zero(Msg.value)) {
+      /// Take transfer gas.
+      if (!EnvMgr.addCost(9000ULL)) {
+        return 2;
+      }
+
+      /// Take gas if create new account.
+      if (!Cxt->host->account_exists(Cxt, &(Msg.destination))) {
+        if (!EnvMgr.addCost(25000ULL)) {
+          return 2;
+        }
+      }
+    }
+
+    /// Check balance.
+    if (((Msg.kind == evmc_call_kind::EVMC_CALL ||
+          Msg.kind == evmc_call_kind::EVMC_CALLCODE) &&
+         !evmc::is_zero(Msg.value)) ||
+        Msg.kind == evmc_call_kind::EVMC_CREATE) {
+      boost::multiprecision::uint128_t DstBalance =
+          convToUInt128(Cxt->host->get_balance(Cxt, &(Msg.sender)));
+      boost::multiprecision::uint128_t ValBalance = convToUInt128(Msg.value);
+      if (DstBalance <= ValBalance) {
+        return 1;
+      }
+    }
+
+    /// Assign gas to callee.
+    EnvMgr.addCost(Msg.gas);
+
+    // Add gas stipend for value transfers.
+    if (!evmc::is_zero(Msg.value) && Msg.kind != evmc_call_kind::EVMC_CREATE) {
+      Msg.gas += 2300ULL;
+    }
+
+    /// Call.
+    evmc_result CallRes = Cxt->host->call(Cxt, &Msg);
+
+    /// Return data.
+    if (Msg.kind == evmc_call_kind::EVMC_CREATE &&
+        CallRes.status_code == EVMC_SUCCESS) {
+      storeAddress(MemInst, CallRes.create_address, CreateResOffset);
+      Env.getReturnData().clear();
+    } else if (CallRes.output_data) {
+      Env.getReturnData().assign(CallRes.output_data,
+                                 CallRes.output_data + CallRes.output_size);
+    } else {
+      Env.getReturnData().clear();
+    }
+
+    /// Return left gas.
+    if (CallRes.gas_left < 0) {
+      return 1;
+    }
+    EnvMgr.subCost(CallRes.gas_left);
+
+    /// Return status.
+    switch (CallRes.status_code) {
+    case evmc_status_code::EVMC_SUCCESS:
+      return 0;
+    case evmc_status_code::EVMC_REVERT:
+      return 2;
+    default:
+      return 1;
+    }
   }
 };
 

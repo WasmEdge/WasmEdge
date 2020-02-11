@@ -10,36 +10,54 @@ ErrCode EEICallStatic::body(VM::EnvironmentManager &EnvMgr,
                             Instance::MemoryInstance &MemInst, uint32_t &Ret,
                             uint64_t Gas, uint32_t AddressOffset,
                             uint32_t DataOffset, uint32_t DataLength) {
-  /// TODO: Add additional gas cost.
-  std::vector<unsigned char> Address;
-  std::vector<unsigned char> Data;
-  if (ErrCode Status = MemInst.getBytes(Address, AddressOffset, 20);
-      Status != ErrCode::Success) {
-    return Status;
-  }
-  if (ErrCode Status = MemInst.getBytes(Data, DataOffset, DataLength);
-      Status != ErrCode::Success) {
-    return Status;
+  /// Load address and convert to uint256.
+  evmc_address Addr = loadAddress(MemInst, AddressOffset);
+  boost::multiprecision::uint256_t AddrNum = 0;
+  for (auto &I : Addr.bytes) {
+    AddrNum <<= 8;
+    AddrNum |= I;
   }
 
-  boost::multiprecision::uint256_t AddressNum = 0;
-  for (auto It = Address.cbegin(); It != Address.cend(); It++) {
-    AddressNum <<= 8;
-    AddressNum += *It;
-  }
+  if (AddrNum == 9) {
+    /// Check data copy cost.
+    if (addCopyCost(EnvMgr, DataLength) != ErrCode::Success) {
+      Ret = 2U;
+      /// Revert case handled by return value in call operations.
+      return ErrCode::Success;
+    }
 
-  Ret = 1U;
-  if (AddressNum == 9) {
+    /// Prepare call data.
+    std::vector<unsigned char> Data;
+    if (ErrCode Status = MemInst.getBytes(Data, DataOffset, DataLength);
+        Status != ErrCode::Success) {
+      return Status;
+    }
+
     /// Run Keccak
     Keccak K(256);
-    for (auto It = Data.cbegin(); It != Data.cend(); It++) {
-      K.addData(*It);
+    for (auto &I : Data) {
+      K.addData(I);
     }
-    std::vector<unsigned char> &ReturnData = Env.getReturnData();
-    ReturnData = K.digest();
-    Ret = 0U;
-  }
+    Env.getReturnData() = K.digest();
 
+    /// Return: Result(i32)
+    Ret = 0U;
+  } else {
+    /// Prepare call message.
+    evmc_message CallMsg = {
+        .kind = evmc_call_kind::EVMC_CALL,
+        .flags = evmc_flags::EVMC_STATIC,
+        .depth = static_cast<int32_t>(Env.getDepth() + 1),
+        .gas = static_cast<int64_t>(std::min(Gas, getMaxCallGas())),
+        .destination = Addr,
+        .sender = Env.getAddressEVMC(),
+        .input_data = nullptr,
+        .input_size = 0,
+        .value = {}};
+
+    /// Return: Result(i32)
+    Ret = callContract(EnvMgr, MemInst, CallMsg, DataOffset, DataLength);
+  }
   return ErrCode::Success;
 }
 

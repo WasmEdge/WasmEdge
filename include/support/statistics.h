@@ -12,10 +12,12 @@ namespace Support {
 
 class Statistics {
 public:
-  void appendResult(std::unique_ptr<Result> &&result);
+  void appendResult(std::unique_ptr<Result> &&Res);
   void show();
+  void reset();
+
 private:
-  std::vector<std::unique_ptr<Result>> results;
+  std::vector<std::unique_ptr<Result>> Results;
 };
 
 extern Statistics statistics;

@@ -5,14 +5,18 @@ namespace SSVM {
 namespace Support {
 Statistics statistics = Statistics();
 
-void Statistics::appendResult(std::unique_ptr<Result> &&result) {
-  results.emplace_back(std::move(result));
+void Statistics::appendResult(std::unique_ptr<Result> &&Res) {
+  Results.emplace_back(std::move(Res));
 }
 
 void Statistics::show() {
-  for(auto &result:results)
-      result->show();
+  for (auto &result : Results)
+    result->show();
 }
 
-} // namespace Validator
+void Statistics::reset() {
+  Results.clear();
+}
+
 } // namespace Support
+} // namespace SSVM

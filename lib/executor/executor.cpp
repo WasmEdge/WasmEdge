@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "easyloggingpp/easylogging++.h"
-#include "support/statistics.h"
 #include "executor/executor.h"
 #include "ast/module.h"
 #include "ast/section.h"
+#include "easyloggingpp/easylogging++.h"
 #include "executor/instance/module.h"
+#include "support/statistics.h"
 
 #include <boost/algorithm/hex.hpp>
 #include <boost/format.hpp>
@@ -78,9 +78,10 @@ ErrCode Executor::instantiate() {
   if (Result == ErrCode::Success)
     Stat = State::Instantiated;
   else {
-    LOG(ERROR)<< "Wasm instantiation failed. Code: "
-              << static_cast<uint32_t>(Result) << std::endl;
-    Support::statistics.appendResult(std::make_unique<Support::ExeResult>(Result, "Wasm instantiation failed."));
+    LOG(ERROR) << "Wasm instantiation failed. Code: "
+               << static_cast<uint32_t>(Result) << std::endl;
+    Support::statistics.appendResult(std::make_unique<Support::ExeResult>(
+        Result, "Wasm instantiation failed."));
   }
   return Result;
 }
@@ -252,7 +253,6 @@ ErrCode Executor::reset(bool Force) {
   Stat = State::Inited;
   return ErrCode::Success;
 }
-
 
 } // namespace Executor
 } // namespace SSVM

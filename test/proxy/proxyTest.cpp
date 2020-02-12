@@ -10,8 +10,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "easyloggingpp/easylogging++.h"
 #include "proxy/proxy.h"
+#include "easyloggingpp/easylogging++.h"
 #include "gtest/gtest.h"
 
 #include "rapidjson/document.h"

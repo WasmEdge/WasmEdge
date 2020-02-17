@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "easyloggingpp/easylogging++.h"
 #include "evmc/evmc.h"
 #include "evmc/utils.h"
 #include "support/hexstr.h"
@@ -7,8 +6,6 @@
 #include "vm/vm.h"
 
 #include <iostream>
-
-INITIALIZE_EASYLOGGINGPP
 
 namespace {
 

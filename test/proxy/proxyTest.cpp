@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "proxy/proxy.h"
-#include "easyloggingpp/easylogging++.h"
 #include "gtest/gtest.h"
 
 #include "rapidjson/document.h"
@@ -19,9 +18,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <string>
-
-// todo: remove this and fix test build
-INITIALIZE_EASYLOGGINGPP
 
 namespace {
 

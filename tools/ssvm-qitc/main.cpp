@@ -6,10 +6,8 @@
 #include "vm/vm.h"
 #include <iostream>
 
-INITIALIZE_EASYLOGGINGPP
 
 int main(int Argc, char *Argv[]) {
-  START_EASYLOGGINGPP(Argc, Argv);
   if (Argc < 2) {
     /// Args pass to wasm config.
     /// Arg0: ./ssvm-qitc

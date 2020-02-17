@@ -8,12 +8,12 @@
 #include <vector>
 
 namespace SSVM {
-namespace Support {
+namespace Log {
 
 void passEasyloggingppArgs(int Argc, char *Argv[]);
 
 extern el::base::type::StoragePointer elStorage;
 extern el::base::debug::CrashHandler elCrashHandler;
 
-} // namespace Support
+} // namespace Log
 } // namespace SSVM

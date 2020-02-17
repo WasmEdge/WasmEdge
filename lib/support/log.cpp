@@ -1,14 +1,14 @@
-#include "support/statistics.h"
+#include "support/log.h"
 #include "easyloggingpp/easylogging++.h"
 
 INITIALIZE_EASYLOGGINGPP
 
 namespace SSVM {
-namespace Support {
+namespace Log {
 
 void passEasyloggingppArgs(int Argc, char *Argv[]) {
   START_EASYLOGGINGPP(Argc, Argv);
 }
 
-} // namespace Support
+} // namespace Log
 } // namespace SSVM

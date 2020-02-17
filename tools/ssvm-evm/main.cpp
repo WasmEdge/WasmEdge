@@ -55,6 +55,5 @@ int main(int Argc, char *Argv[]) {
     printf("%02x", *it);
   }
   std::cout << std::endl;
-
   return 0;
 }

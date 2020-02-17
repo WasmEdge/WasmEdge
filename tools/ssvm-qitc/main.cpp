@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "easyloggingpp/easylogging++.h"
 #include "helper.h"
+#include "support/log.h"
 #include "vm/configure.h"
 #include "vm/result.h"
 #include "vm/vm.h"

@@ -16,7 +16,6 @@ target_link_libraries(ssvmVM
   ssvmExecutor
   ssvmHostFuncEEI
   ssvmHostFuncWasi
-  utilLog
 )
 
 if(ONNC_WASM_LIBRARY)

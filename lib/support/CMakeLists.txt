@@ -1,7 +1,8 @@
 add_library(ssvmSupport
-  statistics.cpp
+  log.cpp
 )
 
 target_link_libraries(ssvmSupport
   PRIVATE
+  utilLog
 )

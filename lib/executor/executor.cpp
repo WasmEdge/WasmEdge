@@ -2,8 +2,8 @@
 #include "executor/executor.h"
 #include "ast/module.h"
 #include "ast/section.h"
-#include "easyloggingpp/easylogging++.h"
 #include "executor/instance/module.h"
+#include "support/log.h"
 
 #include <boost/algorithm/hex.hpp>
 #include <boost/format.hpp>

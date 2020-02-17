@@ -4,7 +4,6 @@
 #include "ast/section.h"
 #include "easyloggingpp/easylogging++.h"
 #include "executor/instance/module.h"
-#include "support/statistics.h"
 
 #include <boost/algorithm/hex.hpp>
 #include <boost/format.hpp>
@@ -78,10 +77,9 @@ ErrCode Executor::instantiate() {
   if (Result == ErrCode::Success)
     Stat = State::Instantiated;
   else {
+    // TODO: Unified error output format
     LOG(ERROR) << "Wasm instantiation failed. Code: "
                << static_cast<uint32_t>(Result) << std::endl;
-    Support::statistics.appendResult(std::make_unique<Support::ExeResult>(
-        Result, "Wasm instantiation failed."));
   }
   return Result;
 }

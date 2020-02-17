@@ -6,7 +6,6 @@
 #include "vm/vm.h"
 #include <iostream>
 
-
 int main(int Argc, char *Argv[]) {
   if (Argc < 2) {
     /// Args pass to wasm config.

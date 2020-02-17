@@ -48,14 +48,35 @@ ErrCode Worker::runStartFunction(unsigned int FuncAddr) {
   ErrCode Status = execute();
   LOG(INFO) << "done...";
 
-  Support::statistics.appendResult(std::make_unique<Support::ExeResult>(
-      Status, "", TimeRecorder.stopRecord(TIMER_TAG_EXECUTION),
-      TimeRecorder.getRecord(TIMER_TAG_HOSTFUNC), ExecInstrCnt
+  if (Status == ErrCode::Revert) {
+    LOG(ERROR) << "Reverted.";
+  } else if (Status == ErrCode::Terminated) {
+    LOG(INFO) << "Terminated.";
+  } else if (Status != ErrCode::Success) {
+    LOG(ERROR) << "Worker execution failed. Code: " << (unsigned int)Status;
+  } else {
+    LOG(INFO) << "Worker execution succeeded.";
+  }
+
+  /// Print time cost.
+  uint64_t ExecTime = TimeRecorder.stopRecord(TIMER_TAG_EXECUTION);
+  uint64_t HostFuncTime = TimeRecorder.getRecord(TIMER_TAG_HOSTFUNC);
+  LOG(INFO) << std::endl
+            << " =================  Statistics  =================" << std::endl
+            << " Total execution time: " << ExecTime + HostFuncTime << " us"
+            << std::endl
+            << " Wasm instructions execution time: " << ExecTime << " us"
+            << std::endl
+            << " Host functions execution time: " << HostFuncTime << " us"
+            << std::endl
+            << " Executed wasm instructions count: " << ExecInstrCnt
+            << std::endl
 #ifndef ONNC_WASM
-      ,
-      EnvMgr.getCostSum()
+            << " Gas costs: " << EnvMgr.getCostSum() << std::endl
 #endif
-          ));
+            << " Instructions per second: "
+            << static_cast<uint64_t>((double)ExecInstrCnt * 1000000 / ExecTime)
+            << std::endl;
 
   if (Status == ErrCode::Terminated) {
     /// Forced terminated case.

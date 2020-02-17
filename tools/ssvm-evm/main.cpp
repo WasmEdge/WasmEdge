@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "support/hexstr.h"
-#include "support/statistics.h"
 #include "vm/configure.h"
 #include "vm/result.h"
 #include "vm/vm.h"
@@ -57,6 +56,5 @@ int main(int Argc, char *Argv[]) {
   }
   std::cout << std::endl;
 
-  SSVM::Support::statistics.show();
   return 0;
 }

@@ -1,3 +1,1 @@
-add_library(utilEVMC
-  lib/loader/loader.c
-)
+add_subdirectory(lib)

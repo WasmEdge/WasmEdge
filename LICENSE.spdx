@@ -59,9 +59,18 @@ PackageOriginator: Milo Yip
 PackageLicenseDeclared: MIT
 FilesAnalyzed: false
 
+PackageName: easyloggingpp
+SPDXID: SPDXRef-easyloggingpp
+PackageFileName: ./thirdparty/easyloggingpp
+PackageHomePage: https://github.com/amrayn/easyloggingpp
+PackageOriginator: Amrayn Web Services, abumusamq
+PackageLicenseDeclared: MIT
+FilesAnalyzed: false
+
 ## Relationships
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-SHA3
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-ONNC
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-googletest
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-wagon
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-rapidjson
+Relationship: SPDXRef-ssvm CONTAINS SPDXRef-easyloggingpp

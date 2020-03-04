@@ -1,0 +1,89 @@
+// SPDX-License-Identifier: Apache-2.0
+#pragma once
+
+#include "common/errcode.h"
+#include "runtime/hostfunc.h"
+#include "runtime/importobj.h"
+#include "runtime/instance/memory.h"
+
+namespace SSVM {
+namespace Host {
+
+class SpecTestPrint : public Runtime::HostFunction<SpecTestPrint> {
+public:
+  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst) { return {}; }
+};
+
+class SpecTestPrintI32 : public Runtime::HostFunction<SpecTestPrintI32> {
+public:
+  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, uint32_t Val) {
+    return {};
+  }
+};
+
+class SpecTestPrintF32 : public Runtime::HostFunction<SpecTestPrintF32> {
+public:
+  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, float Val) {
+    return {};
+  }
+};
+
+class SpecTestPrintF64 : public Runtime::HostFunction<SpecTestPrintF64> {
+public:
+  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, double Val) {
+    return {};
+  }
+};
+
+class SpecTestPrintI32F32 : public Runtime::HostFunction<SpecTestPrintI32F32> {
+public:
+  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, uint32_t Val1,
+                    float Val2) {
+    return {};
+  }
+};
+
+class SpecTestPrintF64F64 : public Runtime::HostFunction<SpecTestPrintF64F64> {
+public:
+  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, double IVal,
+                    double Val2) {
+    return {};
+  }
+};
+
+class SpecTestModule : public Runtime::ImportObject {
+public:
+  SpecTestModule() : ImportObject("spectest") {
+    addHostFunc("print", std::make_unique<SpecTestPrint>());
+    addHostFunc("print_i32", std::make_unique<SpecTestPrintI32>());
+    addHostFunc("print_f32", std::make_unique<SpecTestPrintF32>());
+    addHostFunc("print_f64", std::make_unique<SpecTestPrintF64>());
+    addHostFunc("print_i32_f32", std::make_unique<SpecTestPrintI32F32>());
+    addHostFunc("print_f64_f64", std::make_unique<SpecTestPrintF64F64>());
+
+    AST::Limit TabLimit(10, 20);
+    addHostTable("table", std::make_unique<Runtime::Instance::TableInstance>(
+                              ElemType::FuncRef, TabLimit));
+
+    AST::Limit MemLimit(1, 2);
+    addHostMemory("memory", std::make_unique<Runtime::Instance::MemoryInstance>(
+                                MemLimit));
+
+    addHostGlobal("global_i32",
+                  std::make_unique<Runtime::Instance::GlobalInstance>(
+                      ValType::I32, ValMut::Const, uint32_t(666)));
+    addHostGlobal("global_i64",
+                  std::make_unique<Runtime::Instance::GlobalInstance>(
+                      ValType::I64, ValMut::Const, uint64_t(666)));
+    addHostGlobal("global_f32",
+                  std::make_unique<Runtime::Instance::GlobalInstance>(
+                      ValType::F32, ValMut::Const, float(666)));
+    addHostGlobal("global_f64",
+                  std::make_unique<Runtime::Instance::GlobalInstance>(
+                      ValType::F64, ValMut::Const, double(666)));
+  }
+  virtual ~SpecTestModule() = default;
+};
+
+} // namespace Host
+} // namespace SSVM

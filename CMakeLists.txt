@@ -42,12 +42,16 @@ file(GLOB templateFiles RELATIVE ${srcDir} ${srcDir}/*)
 foreach(templateFile ${templateFiles})
     set(srcTemplatePath ${srcDir}/${templateFile})
     if(NOT IS_DIRECTORY ${srcTemplatePath})
-        message(STATUS "Generating file ${templateFile}")
         configure_file(
                 ${srcTemplatePath}
                 ${destDir}/${templateFile}
                 COPYONLY)
-    endif(NOT IS_DIRECTORY ${srcTemplatePath})
+    else()
+        configure_files(
+                ${srcTemplatePath}
+                ${destDir}/${templateFile}
+                COPYONLY)
+    endif()
 endforeach(templateFile)
 endmacro(configure_files)
 # End of Macro

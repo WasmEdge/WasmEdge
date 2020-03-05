@@ -86,28 +86,13 @@ ErrCode VM::setCode(const std::vector<uint8_t> &Code) {
   return ErrCode::Success;
 }
 
-ErrCode VM::execute(const std::string &FuncName) {
-  /// Prepare VM according to VM type.
+void VM::initVMEnv() {
   Rets.clear();
+  VMResult.clear();
   prepareVMHost();
+}
 
-  if (FuncName == "") {
-    ExecutorEngine.setStartFuncName(Config.getStartFuncName());
-  } else {
-    ExecutorEngine.setStartFuncName(FuncName);
-  }
-
-  /// Run code.
-  ErrCode Status = runLoader();
-  if (Status == ErrCode::Success) {
-    Status = runValidator();
-  }
-  if (Status == ErrCode::Success) {
-    Status = runExecutor();
-  }
-  VMResult.setErrCode(static_cast<unsigned int>(Status));
-
-  /// Clear loader and executor engine.
+void VM::cleanup() {
   LoaderEngine.reset();
   ValidatorEngine.reset();
   ExecutorEngine.reset();
@@ -116,12 +101,9 @@ ErrCode VM::execute(const std::string &FuncName) {
   InVMStore = nullptr;
   OutVMStore = nullptr;
   OutAlloc = nullptr;
-  return Status;
 }
 
-ErrCode VM::execute() { return execute(""); }
-
-ErrCode VM::runLoader() {
+ErrCode VM::loadWasm() {
   Loader::ErrCode LoaderStatus = Loader::ErrCode::Success;
   VMResult.setStage(Result::Stage::Loader);
 
@@ -130,20 +112,18 @@ ErrCode VM::runLoader() {
   } else {
     LoaderStatus = LoaderEngine.setPath(WasmPath);
   }
-  if (detail::testAndSetError(LoaderStatus, VMResult)) {
-    return ErrCode::Failed;
+  detail::testAndSetError(LoaderStatus, VMResult);
+  if (!VMResult.hasError()) {
+    LoaderStatus = LoaderEngine.parseModule();
+    detail::testAndSetError(LoaderStatus, VMResult);
   }
-  LoaderStatus = LoaderEngine.parseModule();
-  if (detail::testAndSetError(LoaderStatus, VMResult)) {
-    return ErrCode::Failed;
+  if (!VMResult.hasError()) {
+    LoaderStatus = LoaderEngine.validateModule();
+    detail::testAndSetError(LoaderStatus, VMResult);
   }
-  LoaderStatus = LoaderEngine.validateModule();
-  if (detail::testAndSetError(LoaderStatus, VMResult)) {
-    return ErrCode::Failed;
-  }
-  LoaderStatus = LoaderEngine.getModule(Mod);
-  if (detail::testAndSetError(LoaderStatus, VMResult)) {
-    return ErrCode::Failed;
+  if (!VMResult.hasError()) {
+    LoaderStatus = LoaderEngine.getModule(Mod);
+    detail::testAndSetError(LoaderStatus, VMResult);
   }
 
   if (VMResult.hasError()) {
@@ -152,62 +132,68 @@ ErrCode VM::runLoader() {
   return ErrCode::Success;
 }
 
-ErrCode VM::runValidator() {
+ErrCode VM::validate() {
   Validator::ErrCode ValidatorStatus = Validator::ErrCode::Success;
   VMResult.setStage(Result::Stage::Validator);
 
   ValidatorStatus = ValidatorEngine.validate(Mod);
+  detail::testAndSetError(ValidatorStatus, VMResult);
 
-  if (ValidatorStatus != Validator::ErrCode::Success) {
+  if (VMResult.hasError()) {
     return ErrCode::Failed;
   }
   return ErrCode::Success;
 }
 
-ErrCode VM::runExecutor() {
+ErrCode VM::instantiate() {
   Executor::ErrCode ExecutorStatus = Executor::ErrCode::Success;
   VMResult.setStage(Result::Stage::Executor);
 
   ExecutorStatus = ExecutorEngine.setModule(Mod);
-  if (detail::testAndSetError(ExecutorStatus, VMResult)) {
-    return ErrCode::Failed;
+  detail::testAndSetError(ExecutorStatus, VMResult);
+  if (!VMResult.hasError()) {
+    ExecutorStatus = ExecutorEngine.instantiate();
+    detail::testAndSetError(ExecutorStatus, VMResult);
   }
 
-  ExecutorStatus = ExecutorEngine.instantiate();
-  if (detail::testAndSetError(ExecutorStatus, VMResult)) {
+  if (VMResult.hasError()) {
     return ErrCode::Failed;
   }
+  return ErrCode::Success;
+}
 
+ErrCode VM::runWasm() {
+  Executor::ErrCode ExecutorStatus = Executor::ErrCode::Success;
+
+  /// Prepare wasm input arguments.
   ExecutorStatus = ExecutorEngine.setArgs(Args);
-  if (detail::testAndSetError(ExecutorStatus, VMResult)) {
-    return ErrCode::Failed;
-  }
+  detail::testAndSetError(ExecutorStatus, VMResult);
 
-  if (InVMStore != nullptr) {
+  /// Load previous snapshot if VMStore is given.
+  if (!VMResult.hasError() && InVMStore != nullptr) {
     ExecutorStatus = ExecutorEngine.restore(*InVMStore);
-    if (detail::testAndSetError(ExecutorStatus, VMResult)) {
-      return ErrCode::Failed;
-    }
+    detail::testAndSetError(ExecutorStatus, VMResult);
   }
 
-  ExecutorStatus = ExecutorEngine.run();
-  if (detail::testAndSetError(ExecutorStatus, VMResult)) {
+  /// Execute wasm function.
+  if (!VMResult.hasError()) {
+    ExecutorStatus = ExecutorEngine.run();
+    detail::testAndSetError(ExecutorStatus, VMResult);
     if (ExecutorStatus == Executor::ErrCode::Revert) {
       VMResult.setState(Result::State::Revert);
     }
-    return ErrCode::Failed;
   }
 
-  if (OutVMStore != nullptr) {
+  /// Create current snapshot if VMStore is given.
+  if (!VMResult.hasError() && OutVMStore != nullptr) {
     ExecutorStatus = ExecutorEngine.snapshot(*OutVMStore, *OutAlloc);
-    if (detail::testAndSetError(ExecutorStatus, VMResult)) {
-      return ErrCode::Failed;
-    }
+    detail::testAndSetError(ExecutorStatus, VMResult);
   }
 
-  ExecutorStatus = ExecutorEngine.getRets(Rets);
-  if (detail::testAndSetError(ExecutorStatus, VMResult)) {
-    return ErrCode::Failed;
+  /// Prepare return values.
+  if (!VMResult.hasError()) {
+    ExecutorStatus = ExecutorEngine.getRets(Rets);
+    detail::testAndSetError(ExecutorStatus, VMResult);
   }
 
   if (VMResult.hasError()) {
@@ -216,6 +202,54 @@ ErrCode VM::runExecutor() {
   VMResult.setState(Result::State::Commit);
   return ErrCode::Success;
 }
+
+void VM::setEntryFuncName(const std::string &FuncName) {
+  /// Set entry function name.
+  if (FuncName == "") {
+    ExecutorEngine.setStartFuncName(Config.getStartFuncName());
+  } else {
+    ExecutorEngine.setStartFuncName(FuncName);
+  }
+}
+
+ErrCode VM::execute(const std::string &FuncName) {
+  /// Reset previous return values and VMResult.
+  /// Initialize host functions.
+  initVMEnv();
+
+  /// Load wasm from file path or given bytes array.
+  loadWasm();
+
+  /// Validate wasm module.
+  if (!VMResult.hasError()) {
+    validate();
+  }
+
+  /// Set entry function name here.
+  /// XXX: instantiate() will use this information in the instantiation of
+  /// export section.
+  setEntryFuncName(FuncName);
+
+  /// Create wasm instance.
+  if (!VMResult.hasError()) {
+    instantiate();
+  }
+
+  /// Execute wasm with given input and entry function name.
+  if (!VMResult.hasError()) {
+    runWasm();
+  }
+
+  /// Clear loader and executor engine.
+  cleanup();
+
+  if (VMResult.hasError()) {
+    return ErrCode::Failed;
+  }
+  return ErrCode::Success;
+}
+
+ErrCode VM::execute() { return execute(""); }
 
 ErrCode VM::prepareVMHost() {
   ErrCode Status = ErrCode::Success;

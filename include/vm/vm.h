@@ -85,6 +85,27 @@ public:
   /// Get start function return values.
   void getReturnValue(std::vector<Executor::Value> &RetVals) { RetVals = Rets; }
 
+  /// Prepare VM according to VM type before executing wasm.
+  void initVMEnv();
+
+  /// Load given wasm file or wasm bytecode
+  ErrCode loadWasm();
+
+  /// Validate loaded wasm module
+  ErrCode validate();
+
+  /// Set the entry function name
+  void setEntryFuncName(const std::string &FuncName);
+
+  /// Instantiate wasm module
+  ErrCode instantiate();
+
+  /// Run wasm module with given function name and input.
+  ErrCode runWasm();
+
+  /// Clean up VM status
+  void cleanup();
+
   /// Execute wasm with given input.
   ErrCode execute();
   ErrCode execute(const std::string &FuncName);
@@ -118,6 +139,17 @@ public:
     InVMStore = &InStore;
     OutVMStore = &OutStore;
     OutAlloc = &Allocator;
+  }
+
+  /// Memory helper function
+  void setMemoryWithBytes(const std::vector<uint8_t> &Src,
+                          const uint32_t DistMemIdx, const uint32_t MemOffset,
+                          const uint64_t Size) {
+    ExecutorEngine.setMemoryWithBytes(Src, DistMemIdx, MemOffset, Size);
+  }
+  void getMemoryToBytes(const uint32_t SrcMemIdx, const uint32_t MemOffset,
+                        std::vector<uint8_t> &Dist, const uint64_t Size) {
+    ExecutorEngine.getMemoryToBytes(SrcMemIdx, MemOffset, Dist, Size);
   }
 
 private:

@@ -49,6 +49,12 @@ public:
   void setStorageMut(StorageMutability NewStorageMut) {
     StorageMut = NewStorageMut;
   }
+  void clear() {
+    LastStage = Stage::Invalid;
+    Status = 0;
+    StorageMut = StorageMutability::Pure;
+    ExecutionState = State::Fail;
+  }
   void setState(State NewState) { ExecutionState = NewState; }
   void setErrCode(ErrCode Code) { Status = Code; }
   bool hasError() { return Status != 0; }

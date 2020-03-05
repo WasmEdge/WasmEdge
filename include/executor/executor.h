@@ -50,6 +50,15 @@ public:
   /// Set start function arguments.
   ErrCode setArgs(std::vector<Value> &Args);
 
+  /// Set memory at specific memory index with given bytes array and length
+  ErrCode setMemoryWithBytes(const std::vector<uint8_t> &Src,
+                             const uint32_t DistMemIdx,
+                             const uint32_t MemOffset, const uint64_t Size);
+
+  /// Get memory and save into bytes array from given memory index and length
+  ErrCode getMemoryToBytes(const uint32_t SrcMemIdx, const uint32_t MemOffset,
+                           std::vector<uint8_t> &Dist, const uint64_t Size);
+
   /// Resume global and memory instance from JSON file.
   ErrCode restore(const rapidjson::Value &Doc);
 

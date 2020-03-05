@@ -99,6 +99,33 @@ ErrCode Executor::setArgs(std::vector<Value> &Args) {
   return ErrCode::Success;
 }
 
+/// Set memory at specific memory index with given bytes array and length
+ErrCode Executor::setMemoryWithBytes(const std::vector<uint8_t> &Src,
+                                     const uint32_t DistMemIdx,
+                                     const uint32_t MemOffset,
+                                     const uint64_t Size) {
+  Instance::MemoryInstance *MemInst = nullptr;
+  if (ErrCode Status = StoreMgr.getMemory(DistMemIdx, MemInst);
+      Status != ErrCode::Success) {
+    return Status;
+  }
+  return MemInst->setBytes(const_cast<std::vector<uint8_t> &>(Src), MemOffset,
+                           0, Size);
+}
+
+/// Get memory and save into bytes array from given memory index and length
+ErrCode Executor::getMemoryToBytes(const uint32_t SrcMemIdx,
+                                   const uint32_t MemOffset,
+                                   std::vector<uint8_t> &Dist,
+                                   const uint64_t Size) {
+  Instance::MemoryInstance *MemInst = nullptr;
+  if (ErrCode Status = StoreMgr.getMemory(SrcMemIdx, MemInst);
+      Status != ErrCode::Success) {
+    return Status;
+  }
+  return MemInst->getBytes(Dist, MemOffset, Size);
+}
+
 /// Resume from JSON. See "include/executor/executor.h"
 ErrCode Executor::restore(const rapidjson::Value &Doc) {
   /// Find Global instances.

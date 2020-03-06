@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/type.h - type classes definition ---------------*- C++ -*-===//
+//===-- ssvm/common/ast/type.h - type classes definition ------------------===//
 //
 // Part of the SSVM Project.
 //
@@ -34,17 +34,17 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of having max in limit.
-  bool hasMax() const { return Type == LimitType::HasMinMax; }
+  const bool hasMax() const { return Type == LimitType::HasMinMax; }
 
   /// Getter of min.
-  unsigned int getMin() const { return Min; }
+  const uint32_t getMin() const { return Min; }
 
   /// Getter of max.
-  unsigned int getMax() const { return Max; }
+  const uint32_t getMax() const { return Max; }
 
 protected:
   /// The node type should be Attr::Type_Limit.
@@ -54,8 +54,8 @@ private:
   /// \name Data of Limit node.
   /// @{
   LimitType Type;
-  unsigned int Min;
-  unsigned int Max;
+  uint32_t Min;
+  uint32_t Max;
   /// @}
 };
 
@@ -69,8 +69,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of parameter types vector.
   const std::vector<ValType> &getParamTypes() const { return ParamTypes; }
@@ -100,11 +100,11 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of limit.
-  const Limit *getLimit() { return Memory.get(); }
+  const Limit *getLimit() const { return Memory.get(); }
 
 protected:
   /// The node type should be Attr::Type_Memory.
@@ -125,14 +125,14 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of element type.
-  ElemType getElementType() const { return Type; }
+  const ElemType getElementType() const { return Type; }
 
   /// Getter of limit.
-  const Limit *getLimit() { return Table.get(); }
+  const Limit *getLimit() const { return Table.get(); }
 
 protected:
   /// The node type should be Attr::Type_Table.
@@ -156,14 +156,14 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of global type.
-  ValType getValueType() const { return Type; }
+  const ValType getValueType() const { return Type; }
 
   /// Getter of global mutation.
-  ValMut getValueMutation() const { return Mut; }
+  const ValMut getValueMutation() const { return Mut; }
 
 protected:
   /// The node type should be Attr::Type_Global.

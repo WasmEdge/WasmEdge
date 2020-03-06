@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/description.h - Desc classes definition---------*- C++ -*-===//
+//===-- ssvm/common/ast/description.h - Desc classes definition -----------===//
 //
 // Part of the SSVM Project.
 //
@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "executor/common.h"
 #include "type.h"
 
 #include <string>
@@ -33,7 +32,7 @@ public:
   };
 
   /// Getter of external type.
-  virtual ExternalType getExternalType() { return ExtType; }
+  virtual const ExternalType getExternalType() const { return ExtType; }
 
 protected:
   /// External type of this class.
@@ -45,7 +44,7 @@ class ImportDesc : public Desc {
 public:
   /// Variant of external type classes.
   using ExtContentType =
-      std::variant<std::unique_ptr<unsigned int>, std::unique_ptr<TableType>,
+      std::variant<std::unique_ptr<uint32_t>, std::unique_ptr<TableType>,
                    std::unique_ptr<MemoryType>, std::unique_ptr<GlobalType>>;
 
   /// Load binary from file manager.
@@ -56,8 +55,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of module name.
   const std::string &getModuleName() const { return ModName; }
@@ -66,13 +65,12 @@ public:
   const std::string &getExternalName() const { return ExtName; }
 
   /// Getter of ExtContent.
-  template <typename T> Executor::ErrCode getExternalContent(T *&type) {
+  template <typename T> Expect<T *> getExternalContent() const {
     if (auto Ptr = std::get_if<std::unique_ptr<T>>(&ExtContent)) {
-      type = Ptr->get();
+      return Ptr->get();
     } else {
-      return Executor::ErrCode::TypeNotMatch;
+      return Unexpect(ErrCode::TypeNotMatch);
     }
-    return Executor::ErrCode::Success;
   }
 
 protected:
@@ -97,14 +95,14 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of external name.
-  const std::string &getExternalName() { return ExtName; }
+  const std::string &getExternalName() const { return ExtName; }
 
   /// Getter of external index.
-  unsigned int getExternalIndex() { return ExtIdx; }
+  const uint32_t getExternalIndex() const { return ExtIdx; }
 
 protected:
   /// The node type should be Attr::Desc_Export.
@@ -114,7 +112,7 @@ private:
   /// \name Data of ExportDesc: External name and external index.
   /// @{
   std::string ExtName;
-  unsigned int ExtIdx;
+  uint32_t ExtIdx;
   /// @}
 };
 

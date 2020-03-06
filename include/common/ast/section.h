@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/section.h - Section class definition -----------*- C++ -*-===//
+//===-- ssvm/common/ast/section.h - Section class definition --------------===//
 //
 // Part of the SSVM Project.
 //
@@ -34,16 +34,16 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  virtual Expect<void> loadBinary(FileMgr &Mgr);
 
 protected:
   /// Read content size of this section.
-  Loader::ErrCode loadSize(FileMgr &Mgr);
+  Expect<void> loadSize(FileMgr &Mgr);
 
   /// Read content of this section.
-  virtual Loader::ErrCode loadContent(FileMgr &Mgr) {
-    return Loader::ErrCode::InvalidGrammar;
+  virtual Expect<void> loadContent(FileMgr &Mgr) {
+    return Unexpect(ErrCode::InvalidGrammar);
   };
 
   /// Template function of reading vector of type T.
@@ -55,42 +55,46 @@ protected:
   /// \param Mgr the file manager reference.
   /// \param [out] &Vec filled with read data on loadVector success.
   ///
-  /// \returns ErrCode.
+  /// \returns void when success, ErrMsg when failed.
   template <typename T>
-  Loader::ErrCode loadVector(FileMgr &Mgr,
-                             std::vector<std::unique_ptr<T>> &Vec) {
-    unsigned int VecCnt = 0;
-    Loader::ErrCode Status = Loader::ErrCode::Success;
+  Expect<void> loadToVector(FileMgr &Mgr,
+                            std::vector<std::unique_ptr<T>> &Vec) {
+    uint32_t VecCnt = 0;
     /// Read vector size.
-    if ((Status = Mgr.readU32(VecCnt)) != Loader::ErrCode::Success)
-      return Status;
+    if (auto Res = Mgr.readU32()) {
+      VecCnt = *Res;
+    } else {
+      return Unexpect(Res);
+    }
 
     /// Sequently create AST node T and read data.
     for (int i = 0; i < VecCnt; i++) {
       auto NewContent = std::make_unique<T>();
-      if ((Status = NewContent->loadBinary(Mgr)) != Loader::ErrCode::Success)
-        return Status;
-      Vec.push_back(std::move(NewContent));
+      if (auto Res = NewContent->loadBinary(Mgr)) {
+        Vec.push_back(std::move(NewContent));
+      } else {
+        return Unexpect(Res);
+      }
     }
-    return Status;
+    return {};
   }
 
   /// Content size of this section.
-  unsigned int ContentSize = 0;
+  uint32_t ContentSize = 0;
 };
 
 /// AST CustomSection node.
 class CustomSection : public Section {
 protected:
   /// Overrided content loading of custom section.
-  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
+  virtual Expect<void> loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Custom.
   Attr NodeAttr = Attr::Sec_Custom;
 
 private:
   /// Vector of raw bytes of content.
-  std::vector<unsigned char> Content;
+  Bytes Content;
 };
 
 /// AST TypeSection node.
@@ -103,7 +107,7 @@ public:
 
 protected:
   /// Overrided content loading of type section.
-  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
+  virtual Expect<void> loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Type.
   Attr NodeAttr = Attr::Sec_Type;
@@ -123,7 +127,7 @@ public:
 
 protected:
   /// Overrided content loading of import section.
-  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
+  virtual Expect<void> loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Import.
   Attr NodeAttr = Attr::Sec_Import;
@@ -137,18 +141,18 @@ private:
 class FunctionSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<unsigned int> &getContent() const { return Content; }
+  const std::vector<uint32_t> &getContent() const { return Content; }
 
 protected:
   /// Overrided content loading of function section.
-  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
+  virtual Expect<void> loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Function.
   Attr NodeAttr = Attr::Sec_Function;
 
 private:
   /// Vector of function indices.
-  std::vector<unsigned int> Content;
+  std::vector<uint32_t> Content;
 };
 
 /// AST TableSection node.
@@ -161,7 +165,7 @@ public:
 
 protected:
   /// Overrided content loading of table section.
-  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
+  virtual Expect<void> loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Table.
   Attr NodeAttr = Attr::Sec_Table;
@@ -181,7 +185,7 @@ public:
 
 protected:
   /// Overrided content loading of memory section.
-  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
+  virtual Expect<void> loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Memory.
   Attr NodeAttr = Attr::Sec_Memory;
@@ -201,7 +205,7 @@ public:
 
 protected:
   /// Overrided content loading of global section.
-  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
+  virtual Expect<void> loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Global.
   Attr NodeAttr = Attr::Sec_Global;
@@ -221,7 +225,7 @@ public:
 
 protected:
   /// Overrided content loading of export section.
-  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
+  virtual Expect<void> loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Export.
   Attr NodeAttr = Attr::Sec_Export;
@@ -235,18 +239,18 @@ private:
 class StartSection : public Section {
 public:
   /// Getter of content.
-  unsigned int getContent() const { return Content; }
+  const uint32_t getContent() const { return Content; }
 
 protected:
   /// Overrided content loading of start section.
-  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
+  virtual Expect<void> loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Start.
   Attr NodeAttr = Attr::Sec_Start;
 
 private:
   /// Start function index.
-  unsigned int Content;
+  uint32_t Content;
 };
 
 /// AST ElementSection node.
@@ -259,7 +263,7 @@ public:
 
 protected:
   /// Overrided content loading of element section.
-  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
+  virtual Expect<void> loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Element.
   Attr NodeAttr = Attr::Sec_Element;
@@ -279,7 +283,7 @@ public:
 
 protected:
   /// Overrided content loading of code section.
-  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
+  virtual Expect<void> loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Code.
   Attr NodeAttr = Attr::Sec_Code;
@@ -299,7 +303,7 @@ public:
 
 protected:
   /// Overrided content loading of data section.
-  virtual Loader::ErrCode loadContent(FileMgr &Mgr);
+  virtual Expect<void> loadContent(FileMgr &Mgr);
 
   /// The node type should be Attr::Sec_Data.
   Attr NodeAttr = Attr::Sec_Data;

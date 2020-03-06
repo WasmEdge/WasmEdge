@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/expression.h - Expression class definition -----*- C++ -*-===//
+//===-- ssvm/common/ast/expression.h - Expression class definition --------===//
 //
 // Part of the SSVM Project.
 //
@@ -31,8 +31,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of instructions vector.
   InstrVec &getInstrs() { return Instrs; }

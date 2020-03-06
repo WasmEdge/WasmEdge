@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/instruction.h - Inst classes definition---------*- C++ -*-===//
+//===-- ssvm/common/ast/instruction.h - Inst classes definition------------===//
 //
 // Part of the SSVM Project.
 //
@@ -12,8 +12,11 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/common.h"
+#include "common/errcode.h"
+#include "common/types.h"
+#include "common/value.h"
 #include "loader/filemgr.h"
+#include "support/variant.h"
 
 #include <memory>
 #include <vector>
@@ -30,7 +33,7 @@ using InstrIter = InstrVec::const_iterator;
 class Instruction {
 public:
   /// Instruction opcode enumeration class.
-  enum class OpCode : unsigned char {
+  enum class OpCode : uint8_t {
     /// Control instructions
     Unreachable = 0x00,
     Nop = 0x01,
@@ -221,12 +224,10 @@ public:
   virtual ~Instruction() noexcept = default;
 
   /// Binary loading from file manager. Default not load anything.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr) {
-    return Loader::ErrCode::Success;
-  }
+  virtual Expect<void> loadBinary(FileMgr &Mgr) { return {}; }
 
   /// Getter of OpCode.
-  OpCode getOpCode() const { return Code; }
+  const OpCode getOpCode() const { return Code; }
 
 protected:
   /// OpCode if this instruction node.
@@ -253,11 +254,11 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
+  /// \returns void when success, ErrMsg when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of block type
-  ValType getResultType() const { return BlockType; }
+  const ValType getResultType() const { return BlockType; }
 
   /// Getter of Block Body
   const InstrVec &getBody() const { return Body; }
@@ -283,11 +284,11 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
+  /// \returns void when success, ErrMsg when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of block type
-  ValType getResultType() const { return BlockType; }
+  const ValType getResultType() const { return BlockType; }
 
   /// Getter of if statement.
   const InstrVec &getIfStatement() const { return IfStatement; }
@@ -317,15 +318,15 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
+  /// \returns void when success, ErrMsg when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Get label index
-  unsigned int getLabelIndex() const { return LabelIdx; }
+  const uint32_t getLabelIndex() const { return LabelIdx; }
 
 private:
   /// Branch-to label index.
-  unsigned int LabelIdx = 0;
+  uint32_t LabelIdx = 0;
 };
 
 /// Derived branch table control instruction node.
@@ -341,20 +342,20 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
+  /// \returns void when success, ErrMsg when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of label table
-  const std::vector<unsigned int> *getLabelTable() const { return &LabelTable; }
+  const std::vector<uint32_t> *getLabelTable() const { return &LabelTable; }
 
   /// Getter of label index
-  unsigned int getLabelIndex() const { return LabelIdx; }
+  const uint32_t getLabelIndex() const { return LabelIdx; }
 
 private:
   /// \name Data of branch instruction: label vector and defalt label.
   /// @{
-  std::vector<unsigned int> LabelTable;
-  unsigned int LabelIdx = 0;
+  std::vector<uint32_t> LabelTable;
+  uint32_t LabelIdx = 0;
   /// @}
 };
 
@@ -371,15 +372,15 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
+  /// \returns void when success, ErrMsg when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of the index
-  unsigned int getFuncIndex() const { return FuncIdx; }
+  const uint32_t getFuncIndex() const { return FuncIdx; }
 
 private:
   /// Call function index.
-  unsigned int FuncIdx = 0;
+  uint32_t FuncIdx = 0;
 };
 
 /// Derived parametric instruction node.
@@ -402,15 +403,15 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
+  /// \returns void when success, ErrMsg when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of the index
-  unsigned int getVariableIndex() const { return VarIdx; }
+  const uint32_t getVariableIndex() const { return VarIdx; }
 
 private:
   /// Global or local index.
-  unsigned int VarIdx = 0;
+  uint32_t VarIdx = 0;
 };
 
 /// Derived memory instruction node.
@@ -426,18 +427,18 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
+  /// \returns void when success, ErrMsg when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getters of memory align and offset.
-  unsigned int getMemoryAlign() const { return Align; }
-  unsigned int getMemoryOffset() const { return Offset; }
+  const uint32_t getMemoryAlign() const { return Align; }
+  const uint32_t getMemoryOffset() const { return Offset; }
 
 private:
   /// \name Data of memory instruction: Alignment and offset.
   /// @{
-  unsigned int Align = 0;
-  unsigned int Offset = 0;
+  uint32_t Align = 0;
+  uint32_t Offset = 0;
   /// @}
 };
 
@@ -454,11 +455,11 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  Loader::ErrCode loadBinary(FileMgr &Mgr) override;
+  /// \returns void when success, ErrMsg when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of the constant value.
-  ValVariant getConstValue() const { return Num; }
+  const ValVariant getConstValue() const { return Num; }
 
 private:
   /// Const value of this instruction.
@@ -486,36 +487,36 @@ auto dispatchInstruction(Instruction::OpCode Code, T &&Visitor) {
   case Instruction::OpCode::Unreachable:
   case Instruction::OpCode::Nop:
   case Instruction::OpCode::Return:
-    return Visitor(tag<ControlInstruction>());
+    return Visitor(Support::tag<ControlInstruction>());
 
   case Instruction::OpCode::Block:
   case Instruction::OpCode::Loop:
-    return Visitor(tag<BlockControlInstruction>());
+    return Visitor(Support::tag<BlockControlInstruction>());
 
   case Instruction::OpCode::If:
-    return Visitor(tag<IfElseControlInstruction>());
+    return Visitor(Support::tag<IfElseControlInstruction>());
 
   case Instruction::OpCode::Br:
   case Instruction::OpCode::Br_if:
-    return Visitor(tag<BrControlInstruction>());
+    return Visitor(Support::tag<BrControlInstruction>());
 
   case Instruction::OpCode::Br_table:
-    return Visitor(tag<BrTableControlInstruction>());
+    return Visitor(Support::tag<BrTableControlInstruction>());
 
   case Instruction::OpCode::Call:
   case Instruction::OpCode::Call_indirect:
-    return Visitor(tag<CallControlInstruction>());
+    return Visitor(Support::tag<CallControlInstruction>());
 
   case Instruction::OpCode::Drop:
   case Instruction::OpCode::Select:
-    return Visitor(tag<ParametricInstruction>());
+    return Visitor(Support::tag<ParametricInstruction>());
 
   case Instruction::OpCode::Local__get:
   case Instruction::OpCode::Local__set:
   case Instruction::OpCode::Local__tee:
   case Instruction::OpCode::Global__get:
   case Instruction::OpCode::Global__set:
-    return Visitor(tag<VariableInstruction>());
+    return Visitor(Support::tag<VariableInstruction>());
 
   case Instruction::OpCode::I32__load:
   case Instruction::OpCode::I64__load:
@@ -542,13 +543,13 @@ auto dispatchInstruction(Instruction::OpCode Code, T &&Visitor) {
   case Instruction::OpCode::I64__store32:
   case Instruction::OpCode::Memory__size:
   case Instruction::OpCode::Memory__grow:
-    return Visitor(tag<MemoryInstruction>());
+    return Visitor(Support::tag<MemoryInstruction>());
 
   case Instruction::OpCode::I32__const:
   case Instruction::OpCode::I64__const:
   case Instruction::OpCode::F32__const:
   case Instruction::OpCode::F64__const:
-    return Visitor(tag<ConstInstruction>());
+    return Visitor(Support::tag<ConstInstruction>());
 
   case Instruction::OpCode::I32__eqz:
   case Instruction::OpCode::I32__clz:
@@ -597,7 +598,7 @@ auto dispatchInstruction(Instruction::OpCode Code, T &&Visitor) {
   case Instruction::OpCode::I64__reinterpret_f64:
   case Instruction::OpCode::F32__reinterpret_i32:
   case Instruction::OpCode::F64__reinterpret_i64:
-    return Visitor(tag<UnaryNumericInstruction>());
+    return Visitor(Support::tag<UnaryNumericInstruction>());
 
   case Instruction::OpCode::I32__eq:
   case Instruction::OpCode::I32__ne:
@@ -676,10 +677,10 @@ auto dispatchInstruction(Instruction::OpCode Code, T &&Visitor) {
   case Instruction::OpCode::F64__min:
   case Instruction::OpCode::F64__max:
   case Instruction::OpCode::F64__copysign:
-    return Visitor(tag<BinaryNumericInstruction>());
+    return Visitor(Support::tag<BinaryNumericInstruction>());
 
   default:
-    return Visitor(tag<void>());
+    return Visitor(Support::tag<void>());
   }
 }
 
@@ -689,11 +690,10 @@ auto dispatchInstruction(Instruction::OpCode Code, T &&Visitor) {
 /// Create the derived instruction class and return pointer.
 ///
 /// \param Code the OpCode of instruction to make.
-/// \param NewInst the unique pointer to created instruction node.
 ///
-/// \returns ErrCode.
-Loader::ErrCode makeInstructionNode(Instruction::OpCode Code,
-                                    std::unique_ptr<Instruction> &NewInst);
+/// \returns unique pointer of instruction node if success, ErrMsg when failed.
+Expect<std::unique_ptr<Instruction>>
+makeInstructionNode(Instruction::OpCode Code);
 
 } // namespace AST
 } // namespace SSVM

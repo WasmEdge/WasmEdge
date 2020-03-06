@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/module.h - Module class definition -------------*- C++ -*-===//
+//===-- ssvm/common/ast/module.h - Module class definition ----------------===//
 //
 // Part of the SSVM Project.
 //
@@ -32,8 +32,8 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of pointer to sections.
   CustomSection *getCustomSection() const { return CustomSec.get(); }
@@ -56,8 +56,8 @@ protected:
 private:
   /// \name Data of Module node.
   /// @{
-  std::vector<unsigned char> Magic;
-  std::vector<unsigned char> Version;
+  Bytes Magic;
+  Bytes Version;
   /// @}
 
   /// \name Section nodes of Module node.

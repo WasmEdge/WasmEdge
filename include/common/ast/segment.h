@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/segment.h - segment classes definition ---------*- C++ -*-===//
+//===-- ssvm/common/ast/segment.h - segment classes definition ------------===//
 //
 // Part of the SSVM Project.
 //
@@ -26,12 +26,12 @@ namespace AST {
 class Segment : public Base {
 public:
   /// Binary loading from file manager. Inheritted from Base.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr) {
-    return Loader::ErrCode::InvalidGrammar;
+  virtual Expect<void> loadBinary(FileMgr &Mgr) {
+    return Unexpect(ErrCode::InvalidGrammar);
   };
 
   /// Getter of locals vector.
-  InstrVec &getInstrs() { return Expr->getInstrs(); }
+  InstrVec &getInstrs() const { return Expr->getInstrs(); }
 
 protected:
   /// Load binary from file manager.
@@ -40,8 +40,8 @@ protected:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  Loader::ErrCode loadExpression(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  Expect<void> loadExpression(FileMgr &Mgr);
 
   /// Expression node in this segment.
   std::unique_ptr<Expression> Expr;
@@ -57,11 +57,11 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of locals vector.
-  const GlobalType *getGlobalType() { return Global.get(); }
+  const GlobalType *getGlobalType() const { return Global.get(); }
 
 protected:
   /// The node type should be Attr::Seg_Global.
@@ -84,14 +84,14 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of table index.
-  const unsigned int getIdx() { return TableIdx; }
+  const uint32_t getIdx() const { return TableIdx; }
 
   /// Getter of function indices.
-  std::vector<unsigned int> &getFuncIdxes() { return FuncIdxes; }
+  const std::vector<uint32_t> &getFuncIdxes() const { return FuncIdxes; }
 
 protected:
   /// The node type should be Attr::Seg_Element.
@@ -100,8 +100,8 @@ protected:
 private:
   /// \name Data of ElementSegment node.
   /// @{
-  unsigned int TableIdx = 0;
-  std::vector<unsigned int> FuncIdxes;
+  uint32_t TableIdx = 0;
+  std::vector<uint32_t> FuncIdxes;
   /// @}
 };
 
@@ -115,11 +115,11 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of locals vector.
-  const std::vector<std::pair<unsigned int, ValType>> &getLocals() {
+  const std::vector<std::pair<uint32_t, ValType>> &getLocals() const {
     return Locals;
   }
 
@@ -130,8 +130,8 @@ protected:
 private:
   /// \name Data of CodeSegment node.
   /// @{
-  unsigned int SegSize = 0;
-  std::vector<std::pair<unsigned int, ValType>> Locals;
+  uint32_t SegSize = 0;
+  std::vector<std::pair<uint32_t, ValType>> Locals;
   /// @}
 };
 
@@ -145,14 +145,14 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns ErrCode.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr);
+  /// \returns void when success, ErrMsg when failed.
+  virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of memory index.
-  const unsigned int getIdx() { return MemoryIdx; }
+  const uint32_t getIdx() const { return MemoryIdx; }
 
   /// Getter of data.
-  std::vector<unsigned char> &getData() { return Data; }
+  const Bytes &getData() const { return Data; }
 
 protected:
   /// The node type should be Attr::Seg_Data.
@@ -161,8 +161,8 @@ protected:
 private:
   /// \name Data of DataSegment node.
   /// @{
-  unsigned int MemoryIdx = 0;
-  std::vector<unsigned char> Data;
+  uint32_t MemoryIdx = 0;
+  Bytes Data;
   /// @}
 };
 

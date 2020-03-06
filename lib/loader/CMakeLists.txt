@@ -10,6 +10,6 @@ add_library(ssvmLoader
 
 target_link_libraries(ssvmLoader
   PRIVATE
-  ssvmASTLoad
+  ssvmAST
   ssvmLoaderFileMgr
 )

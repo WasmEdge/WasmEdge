@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/base.h - AST node base class definition -----*- C++ -*-===//
+//===-- ssvm/common/ast/base.h - AST node base class definition -----------===//
 //
 // Part of the SSVM Project.
 //
@@ -12,7 +12,9 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common.h"
+#include "common/types.h"
+#include "common/value.h"
+#include "common/errcode.h"
 #include "loader/filemgr.h"
 
 namespace SSVM {
@@ -54,13 +56,8 @@ public:
   virtual ~Base() = default;
 
   /// Binary loading from file manager.
-  virtual Loader::ErrCode loadBinary(FileMgr &Mgr) {
-    return Loader::ErrCode::InvalidGrammar;
-  };
-
-  /// Valitation checing.
-  virtual Loader::ErrCode checkValidation() {
-    return Loader::ErrCode::Success;
+  virtual Expect<void> loadBinary(FileMgr &Mgr) {
+    return Unexpect(ErrCode::InvalidGrammar);
   };
 
 protected:

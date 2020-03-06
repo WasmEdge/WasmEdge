@@ -10,7 +10,7 @@ add_library(ssvmVM
 target_link_libraries(ssvmVM
   PRIVATE
   ssvmSupport
-  ssvmASTLoad
+  ssvmAST
   ssvmLoader
   ssvmValidator
   ssvmExecutor

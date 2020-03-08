@@ -14,6 +14,7 @@
 
 #include "common/errcode.h"
 #include "common/value.h"
+#include "common/types.h"
 
 #include <fstream>
 #include <string>

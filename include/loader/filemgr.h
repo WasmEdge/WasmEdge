@@ -12,7 +12,9 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common.h"
+#include "common/errcode.h"
+#include "common/value.h"
+
 #include <fstream>
 #include <string>
 #include <vector>
@@ -23,45 +25,41 @@ namespace SSVM {
 class FileMgr {
 public:
   /// Set the file path.
-  virtual Loader::ErrCode setPath(const std::string &FilePath) = 0;
+  virtual Expect<void> setPath(const std::string &FilePath) = 0;
 
   /// Set the binary data.
-  virtual Loader::ErrCode setCode(const std::vector<uint8_t> &CodeData) = 0;
+  virtual Expect<void> setCode(const Bytes &CodeData) = 0;
 
   /// Read one byte.
-  virtual Loader::ErrCode readByte(unsigned char &Byte) = 0;
+  virtual Expect<Byte> readByte() = 0;
 
   /// Read number of bytes into a vector.
-  virtual Loader::ErrCode readBytes(std::vector<unsigned char> &Buf,
-                                    size_t SizeToRead) = 0;
+  virtual Expect<Bytes> readBytes(size_t SizeToRead) = 0;
 
   /// Read an unsigned int.
-  virtual Loader::ErrCode readU32(uint32_t &U32) = 0;
+  virtual Expect<uint32_t> readU32() = 0;
 
   /// Read an unsigned long long int.
-  virtual Loader::ErrCode readU64(uint64_t &U64) = 0;
+  virtual Expect<uint64_t> readU64() = 0;
 
   /// Read a signed int.
-  virtual Loader::ErrCode readS32(int32_t &S32) = 0;
+  virtual Expect<int32_t> readS32() = 0;
 
   /// Read a signed long long int.
-  virtual Loader::ErrCode readS64(int64_t &S64) = 0;
+  virtual Expect<int64_t> readS64() = 0;
 
   /// Read a float.
-  virtual Loader::ErrCode readF32(float &F32) = 0;
+  virtual Expect<float> readF32() = 0;
 
   /// Read a double.
-  virtual Loader::ErrCode readF64(double &F64) = 0;
+  virtual Expect<double> readF64() = 0;
 
   /// Read a string, which is size(unsigned int) + bytes.
-  virtual Loader::ErrCode readName(std::string &Str) = 0;
+  virtual Expect<std::string> readName() = 0;
 
 protected:
-  /// The file path string.
-  std::string Path;
-
   /// File manager status.
-  Loader::ErrCode Status = Loader::ErrCode::InvalidPath;
+  ErrCode Status = ErrCode::InvalidPath;
 };
 
 /// File stream version of file manager.
@@ -71,20 +69,19 @@ public:
   virtual ~FileMgrFStream();
 
   /// Inheritted from FileMgr.
-  virtual Loader::ErrCode setPath(const std::string &FilePath);
-  virtual Loader::ErrCode setCode(const std::vector<uint8_t> &CodeData) {
-    return Loader::ErrCode::InvalidPath;
+  virtual Expect<void> setPath(const std::string &FilePath);
+  virtual Expect<void> setCode(const Bytes &CodeData) {
+    return Unexpect(ErrCode::InvalidPath);
   }
-  virtual Loader::ErrCode readByte(unsigned char &Byte);
-  virtual Loader::ErrCode readBytes(std::vector<unsigned char> &Buf,
-                                    size_t SizeToRead);
-  virtual Loader::ErrCode readU32(uint32_t &U32);
-  virtual Loader::ErrCode readU64(uint64_t &U64);
-  virtual Loader::ErrCode readS32(int32_t &S32);
-  virtual Loader::ErrCode readS64(int64_t &S64);
-  virtual Loader::ErrCode readF32(float &F32);
-  virtual Loader::ErrCode readF64(double &F64);
-  virtual Loader::ErrCode readName(std::string &Str);
+  virtual Expect<Byte> readByte();
+  virtual Expect<Bytes> readBytes(size_t SizeToRead);
+  virtual Expect<uint32_t> readU32();
+  virtual Expect<uint64_t> readU64();
+  virtual Expect<int32_t> readS32();
+  virtual Expect<int64_t> readS64();
+  virtual Expect<float> readF32();
+  virtual Expect<double> readF64();
+  virtual Expect<std::string> readName();
 
 private:
   /// file stream.
@@ -98,32 +95,31 @@ public:
   virtual ~FileMgrVector() = default;
 
   /// Inheritted from FileMgr.
-  virtual Loader::ErrCode setPath(const std::string &FilePath) {
-    return Loader::ErrCode::InvalidPath;
+  virtual Expect<void> setPath(const std::string &FilePath) {
+    return Unexpect(ErrCode::InvalidPath);
   }
-  virtual Loader::ErrCode setCode(const std::vector<uint8_t> &CodeData);
-  virtual Loader::ErrCode readByte(unsigned char &Byte);
-  virtual Loader::ErrCode readBytes(std::vector<unsigned char> &Buf,
-                                    size_t SizeToRead);
-  virtual Loader::ErrCode readU32(uint32_t &U32);
-  virtual Loader::ErrCode readU64(uint64_t &U64);
-  virtual Loader::ErrCode readS32(int32_t &S32);
-  virtual Loader::ErrCode readS64(int64_t &S64);
-  virtual Loader::ErrCode readF32(float &F32);
-  virtual Loader::ErrCode readF64(double &F64);
-  virtual Loader::ErrCode readName(std::string &Str);
+  virtual Expect<void> setCode(const Bytes &CodeData);
+  virtual Expect<Byte> readByte();
+  virtual Expect<Bytes> readBytes(size_t SizeToRead);
+  virtual Expect<uint32_t> readU32();
+  virtual Expect<uint64_t> readU64();
+  virtual Expect<int32_t> readS32();
+  virtual Expect<int64_t> readS64();
+  virtual Expect<float> readF32();
+  virtual Expect<double> readF64();
+  virtual Expect<std::string> readName();
 
-  unsigned int getRemainSize() const { return Code.size() - Pos; }
+  uint32_t getRemainSize() const { return Code.size() - Pos; }
   void clearBuffer() {
     Code.clear();
     Pos = 0;
-    Status = Loader::ErrCode::EndOfFile;
+    Status = ErrCode::EndOfFile;
   }
 
 private:
   /// Reference to input vector.
-  std::vector<uint8_t> Code;
-  unsigned int Pos = 0;
+  Bytes Code;
+  uint32_t Pos = 0;
 };
 
 } // namespace SSVM

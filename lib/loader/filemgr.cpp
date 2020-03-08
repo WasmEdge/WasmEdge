@@ -14,52 +14,59 @@ FileMgrFStream::~FileMgrFStream() {
 }
 
 /// Set path to file manager. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrFStream::setPath(const std::string &FilePath) {
+Expect<void> FileMgrFStream::setPath(const std::string &FilePath) {
   if (Fin.is_open()) {
     Fin.close();
-    Status = Loader::ErrCode::InvalidPath;
+    Status = ErrCode::InvalidPath;
   }
-  Path = FilePath;
-  Fin.open(Path, std::ios::in | std::ios::binary);
-  if (!Fin.fail())
-    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
-  return Status;
+  Fin.open(FilePath, std::ios::in | std::ios::binary);
+  if (!Fin.fail()) {
+    Status = ErrCode::Success;
+  }
+  if (Status != ErrCode::Success) {
+    return Unexpect(Status);
+  }
+  return {};
 }
 
 /// Read one byte. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrFStream::readByte(unsigned char &Byte) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<Byte> FileMgrFStream::readByte() {
+  if (Status != ErrCode::Success) {
+    return Unexpect(Status);
+  }
   char Buf = 0;
   Fin.get(Buf);
   if (Fin.fail()) {
-    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
-    return Status;
+    Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
+    return Unexpect(Status);
   }
-  Byte = static_cast<unsigned char>(Buf);
-  return Status;
+  return static_cast<unsigned char>(Buf);
 }
 
 /// Read number of bytes. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrFStream::readBytes(std::vector<unsigned char> &Buf,
-                                          size_t SizeToRead) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<Bytes> FileMgrFStream::readBytes(size_t SizeToRead) {
+  if (Status != ErrCode::Success) {
+    return Unexpect(Status);
+  }
+  Bytes Buf;
   if (SizeToRead > 0) {
     std::istreambuf_iterator<char> Iter(Fin);
     // TODO: error handling
     std::copy_n(Iter, SizeToRead, std::back_inserter(Buf));
     Iter++;
   }
-  if (Fin.fail())
-    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
-  return Status;
+  if (Fin.fail()) {
+    Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
+    return Unexpect(Status);
+  }
+  return Buf;
 }
 
 /// Decode and read an unsigned int. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrFStream::readU32(uint32_t &U32) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<uint32_t> FileMgrFStream::readU32() {
+  if (Status != ErrCode::Success) {
+    return Unexpect(Status);
+  }
   uint32_t Result = 0;
   uint32_t Offset = 0;
   char Byte = 0x80;
@@ -68,17 +75,18 @@ Loader::ErrCode FileMgrFStream::readU32(uint32_t &U32) {
     Result |= (Byte & 0x7F) << (Offset);
     Offset += 7;
   }
-  if (Fin.fail())
-    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
-  else
-    U32 = Result;
-  return Status;
+  if (Fin.fail()) {
+    Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
+    return Unexpect(Status);
+  }
+  return Result;
 }
 
 /// Decode and read an unsigned long long int. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrFStream::readU64(uint64_t &U64) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<uint64_t> FileMgrFStream::readU64() {
+  if (Status != ErrCode::Success) {
+    return Unexpect(Status);
+  }
   uint64_t Result = 0;
   uint64_t Offset = 0;
   char Byte = 0x80;
@@ -87,17 +95,18 @@ Loader::ErrCode FileMgrFStream::readU64(uint64_t &U64) {
     Result |= static_cast<uint64_t>(Byte & 0x7F) << (Offset);
     Offset += 7;
   }
-  if (Fin.fail())
-    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
-  else
-    U64 = Result;
-  return Status;
+  if (Fin.fail()) {
+    Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
+    return Unexpect(Status);
+  }
+  return Result;
 }
 
 /// Decode and read a signed int. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrFStream::readS32(int32_t &S32) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<int32_t> FileMgrFStream::readS32() {
+  if (Status != ErrCode::Success) {
+    return Unexpect(Status);
+  }
   int32_t Result = 0;
   uint32_t Offset = 0;
   char Byte = 0x80;
@@ -106,21 +115,21 @@ Loader::ErrCode FileMgrFStream::readS32(int32_t &S32) {
     Result |= (Byte & 0x7F) << (Offset);
     Offset += 7;
   }
-  if (Fin.fail())
-    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
-  else {
-    if (Byte & 0x40 && Offset < 32) {
-      Result |= 0xFFFFFFFF << Offset;
-    }
-    S32 = Result;
+  if (Fin.fail()) {
+    Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
+    return Unexpect(Status);
   }
-  return Status;
+  if (Byte & 0x40 && Offset < 32) {
+    Result |= 0xFFFFFFFF << Offset;
+  }
+  return Result;
 }
 
 /// Decode and read a signed long long int. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrFStream::readS64(int64_t &S64) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<int64_t> FileMgrFStream::readS64() {
+  if (Status != ErrCode::Success) {
+    return Unexpect(Status);
+  }
   int64_t Result = 0;
   uint64_t Offset = 0;
   char Byte = 0x80;
@@ -129,21 +138,21 @@ Loader::ErrCode FileMgrFStream::readS64(int64_t &S64) {
     Result |= static_cast<int64_t>(Byte & 0x7F) << (Offset);
     Offset += 7;
   }
-  if (Fin.fail())
-    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
-  else {
-    if (Byte & 0x40 && Offset < 64) {
-      Result |= 0xFFFFFFFFFFFFFFFFULL << Offset;
-    }
-    S64 = Result;
+  if (Fin.fail()) {
+    Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
+    return Unexpect(Status);
   }
-  return Status;
+  if (Byte & 0x40 && Offset < 64) {
+    Result |= 0xFFFFFFFFFFFFFFFFULL << Offset;
+  }
+  return Result;
 }
 
 /// Copy bytes to a float. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrFStream::readF32(float &F32) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<float> FileMgrFStream::readF32() {
+  if (Status != ErrCode::Success) {
+    return Unexpect(Status);
+  }
   union {
     uint32_t U;
     float F;
@@ -153,20 +162,19 @@ Loader::ErrCode FileMgrFStream::readF32(float &F32) {
   for (int i = 0; i < 4; i++) {
     Fin.get(Byte);
     if (Fin.fail()) {
-      Status =
-          Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
-      return Status;
+      Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
+      return Unexpect(Status);
     }
     Val.U |= (Byte & 0xFF) << (i * 8);
   }
-  F32 = Val.F;
-  return Status;
+  return Val.F;
 }
 
 /// Copy bytes to a double. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrFStream::readF64(double &F64) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<double> FileMgrFStream::readF64() {
+  if (Status != ErrCode::Success) {
+    return Unexpect(Status);
+  }
   union {
     uint64_t U;
     double D;
@@ -176,167 +184,149 @@ Loader::ErrCode FileMgrFStream::readF64(double &F64) {
   for (int i = 0; i < 8; i++) {
     Fin.get(Byte);
     if (Fin.fail()) {
-      Status =
-          Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
-      return Status;
+      Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
+      return Unexpect(Status);
     }
     Val.U |= static_cast<uint64_t>(Byte & 0xFF) << (i * 8);
   }
-  F64 = Val.D;
-  return Status;
+  return Val.D;
 }
 
 /// Read a vector of bytes. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrFStream::readName(std::string &Str) {
-  unsigned int Size = 0;
-  if (readU32(Size) != Loader::ErrCode::Success)
-    return Status;
-  if (Size > 0) {
+Expect<std::string> FileMgrFStream::readName() {
+  std::string Str;
+  Expect<uint32_t> Size = readU32();
+  if (!Size) {
+    return Unexpect(Size);
+  }
+  if (*Size > 0) {
     std::istreambuf_iterator<char> Iter(Fin);
-    std::copy_n(Iter, Size, std::back_inserter(Str));
+    std::copy_n(Iter, *Size, std::back_inserter(Str));
     Iter++;
   }
-  if (Fin.fail())
-    Status = Fin.eof() ? Loader::ErrCode::EndOfFile : Loader::ErrCode::Success;
-  return Status;
+  if (Fin.fail()) {
+    Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
+    return Unexpect(Status);
+  }
+  return Str;
 }
 
 /// Set code data. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrVector::setCode(const std::vector<uint8_t> &CodeData) {
+Expect<void> FileMgrVector::setCode(const std::vector<uint8_t> &CodeData) {
   Code = CodeData;
   Pos = 0;
-  Status =
-      Code.size() > 0 ? Loader::ErrCode::Success : Loader::ErrCode::EndOfFile;
-  return Status;
+  if (Code.size() == 0) {
+    Status = ErrCode::EndOfFile;
+    return Unexpect(Status);
+  }
+  Status = ErrCode::Success;
+  return {};
 }
 
 /// Read one byte. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrVector::readByte(unsigned char &Byte) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<Byte> FileMgrVector::readByte() {
   if (Pos >= Code.size()) {
-    Status = Loader::ErrCode::EndOfFile;
-    return Status;
+    Status = ErrCode::EndOfFile;
+    return Unexpect(Status);
   }
-
-  Byte = Code[Pos];
-  Pos++;
-  return Status;
+  return Code[Pos++];
 }
 
 /// Read number of bytes. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrVector::readBytes(std::vector<unsigned char> &Buf,
-                                         size_t SizeToRead) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<Bytes> FileMgrVector::readBytes(size_t SizeToRead) {
+  Bytes Buf;
   if (SizeToRead > 0) {
     if (Pos + SizeToRead > Code.size()) {
-      Status = Loader::ErrCode::EndOfFile;
-      return Status;
+      Pos = Code.size();
+      Status = ErrCode::EndOfFile;
+      return Unexpect(Status);
     }
     std::copy_n(Code.begin() + Pos, SizeToRead, std::back_inserter(Buf));
     Pos += SizeToRead;
   }
-  return Status;
+  return Buf;
 }
 
 /// Decode and read an unsigned int. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrVector::readU32(uint32_t &U32) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<uint32_t> FileMgrVector::readU32() {
   uint32_t Result = 0;
   uint32_t Offset = 0;
   uint8_t Byte = 0x80;
   while (Byte & 0x80) {
     if (Pos >= Code.size()) {
-      Status = Loader::ErrCode::EndOfFile;
-      return Status;
+      Status = ErrCode::EndOfFile;
+      return Unexpect(Status);
     }
-    Byte = Code[Pos];
-    Pos++;
+    Byte = Code[Pos++];
     Result |= (Byte & 0x7F) << (Offset);
     Offset += 7;
   }
-  U32 = Result;
-  return Status;
+  return Result;
 }
 
 /// Decode and read an unsigned long long int. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrVector::readU64(uint64_t &U64) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<uint64_t> FileMgrVector::readU64() {
   uint64_t Result = 0;
   uint64_t Offset = 0;
   uint8_t Byte = 0x80;
   while (Byte & 0x80) {
     if (Pos >= Code.size()) {
-      Status = Loader::ErrCode::EndOfFile;
-      return Status;
+      Status = ErrCode::EndOfFile;
+      return Unexpect(Status);
     }
-    Byte = Code[Pos];
-    Pos++;
+    Byte = Code[Pos++];
     Result |= static_cast<uint64_t>(Byte & 0x7F) << (Offset);
     Offset += 7;
   }
-  U64 = Result;
-  return Status;
+  return Result;
 }
 
 /// Decode and read a signed int. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrVector::readS32(int32_t &S32) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<int32_t> FileMgrVector::readS32() {
   int32_t Result = 0;
   uint32_t Offset = 0;
   uint8_t Byte = 0x80;
   while (Byte & 0x80) {
     if (Pos >= Code.size()) {
-      Status = Loader::ErrCode::EndOfFile;
-      return Status;
+      Status = ErrCode::EndOfFile;
+      return Unexpect(Status);
     }
-    Byte = Code[Pos];
-    Pos++;
+    Byte = Code[Pos++];
     Result |= (Byte & 0x7F) << (Offset);
     Offset += 7;
   }
   if (Byte & 0x40 && Offset < 32) {
     Result |= 0xFFFFFFFF << Offset;
   }
-  S32 = Result;
-  return Status;
+  return Result;
 }
 
 /// Decode and read a signed long long int. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrVector::readS64(int64_t &S64) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<int64_t> FileMgrVector::readS64() {
   int64_t Result = 0;
   uint64_t Offset = 0;
   uint8_t Byte = 0x80;
   while (Byte & 0x80) {
     if (Pos >= Code.size()) {
-      Status = Loader::ErrCode::EndOfFile;
-      return Status;
+      Status = ErrCode::EndOfFile;
+      return Unexpect(Status);
     }
-    Byte = Code[Pos];
-    Pos++;
+    Byte = Code[Pos++];
     Result |= static_cast<int64_t>(Byte & 0x7F) << (Offset);
     Offset += 7;
   }
   if (Byte & 0x40 && Offset < 64) {
     Result |= 0xFFFFFFFFFFFFFFFFULL << Offset;
   }
-  S64 = Result;
-  return Status;
+  return Result;
 }
 
 /// Copy bytes to a float. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrVector::readF32(float &F32) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<float> FileMgrVector::readF32() {
   if (Pos + 4 > Code.size()) {
-    Status = Loader::ErrCode::EndOfFile;
-    return Status;
+    Pos = Code.size();
+    Status = ErrCode::EndOfFile;
+    return Unexpect(Status);
   }
   union {
     uint32_t U;
@@ -344,20 +334,17 @@ Loader::ErrCode FileMgrVector::readF32(float &F32) {
   } Val;
   Val.U = 0;
   for (int i = 0; i < 4; i++) {
-    Val.U |= (Code[Pos] & 0xFF) << (i * 8);
-    Pos++;
+    Val.U |= (Code[Pos++] & 0xFF) << (i * 8);
   }
-  F32 = Val.F;
-  return Status;
+  return Val.F;
 }
 
 /// Copy bytes to a double. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrVector::readF64(double &F64) {
-  if (Status != Loader::ErrCode::Success)
-    return Status;
+Expect<double> FileMgrVector::readF64() {
   if (Pos + 8 > Code.size()) {
-    Status = Loader::ErrCode::EndOfFile;
-    return Status;
+    Pos = Code.size();
+    Status = ErrCode::EndOfFile;
+    return Unexpect(Status);
   }
   union {
     uint64_t U;
@@ -365,27 +352,28 @@ Loader::ErrCode FileMgrVector::readF64(double &F64) {
   } Val;
   Val.U = 0;
   for (int i = 0; i < 8; i++) {
-    Val.U |= static_cast<uint64_t>(Code[Pos] & 0xFF) << (i * 8);
-    Pos++;
+    Val.U |= static_cast<uint64_t>(Code[Pos++] & 0xFF) << (i * 8);
   }
-  F64 = Val.D;
-  return Status;
+  return Val.D;
 }
 
 /// Read a vector of bytes. See "include/loader/filemgr.h".
-Loader::ErrCode FileMgrVector::readName(std::string &Str) {
-  unsigned int Size = 0;
-  if (readU32(Size) != Loader::ErrCode::Success)
-    return Status;
-  if (Size > 0) {
-    if (Pos + Size > Code.size()) {
-      Status = Loader::ErrCode::EndOfFile;
-      return Status;
-    }
-    std::copy_n(Code.begin() + Pos, Size, std::back_inserter(Str));
-    Pos += Size;
+Expect<std::string> FileMgrVector::readName() {
+  std::string Str;
+  Expect<uint32_t> Size = readU32();
+  if (!Size) {
+    return Unexpect(Size);
   }
-  return Status;
+  if (*Size > 0) {
+    if (Pos + *Size > Code.size()) {
+      Pos = Code.size();
+      Status = ErrCode::EndOfFile;
+      return Unexpect(Status);
+    }
+    std::copy_n(Code.begin() + Pos, *Size, std::back_inserter(Str));
+    Pos += *Size;
+  }
+  return Str;
 }
 
 } // namespace SSVM

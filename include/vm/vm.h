@@ -151,6 +151,10 @@ public:
                         std::vector<uint8_t> &Dist, const uint64_t Size) {
     ExecutorEngine.getMemoryToBytes(SrcMemIdx, MemOffset, Dist, Size);
   }
+  void getMemoryToBytesAll(const uint32_t SrcMemIdx,
+                           std::vector<uint8_t> &Dist) {
+    ExecutorEngine.getMemoryToBytesAll(SrcMemIdx, Dist);
+  }
 
 private:
   /// Functions for running.

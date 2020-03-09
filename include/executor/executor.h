@@ -59,6 +59,10 @@ public:
   ErrCode getMemoryToBytes(const uint32_t SrcMemIdx, const uint32_t MemOffset,
                            std::vector<uint8_t> &Dist, const uint64_t Size);
 
+  /// Get all memory and save into bytes array from given memory index
+  ErrCode getMemoryToBytesAll(const uint32_t SrcMemIdx,
+                              std::vector<uint8_t> &Dist);
+
   /// Resume global and memory instance from JSON file.
   ErrCode restore(const rapidjson::Value &Doc);
 

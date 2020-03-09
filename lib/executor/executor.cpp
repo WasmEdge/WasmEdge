@@ -126,6 +126,17 @@ ErrCode Executor::getMemoryToBytes(const uint32_t SrcMemIdx,
   return MemInst->getBytes(Dist, MemOffset, Size);
 }
 
+/// Get all memory and save into bytes array from given memory index
+ErrCode Executor::getMemoryToBytesAll(const uint32_t SrcMemIdx,
+                                      std::vector<uint8_t> &Dist) {
+  Instance::MemoryInstance *MemInst = nullptr;
+  if (ErrCode Status = StoreMgr.getMemory(SrcMemIdx, MemInst);
+      Status != ErrCode::Success) {
+    return Status;
+  }
+  return MemInst->getBytes(Dist, 0, MemInst->getDataVector().size());
+}
+
 /// Resume from JSON. See "include/executor/executor.h"
 ErrCode Executor::restore(const rapidjson::Value &Doc) {
   /// Find Global instances.

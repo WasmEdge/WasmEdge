@@ -38,12 +38,12 @@ target_link_libraries(ssvmLoaderWagonTests
   PRIVATE
   utilGoogleTest
   ssvmLoaderFileMgr
-  ssvmASTLoad
+  ssvmAST
 )
 
 target_link_libraries(ssvmLoaderEthereumTests
   PRIVATE
   utilGoogleTest
   ssvmLoaderFileMgr
-  ssvmASTLoad
+  ssvmAST
 )

@@ -255,13 +255,13 @@ TEST(FileManagerTest, ReadName) {
   /// 10. Test utf-8 string reading.
   SSVM::Expect<std::string> ReadStr;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readNameTest.bin"));
-  ASSERT_TRUE(Mgr.readName());
+  ASSERT_TRUE(ReadStr = Mgr.readName());
   EXPECT_EQ("", ReadStr.value());
-  ASSERT_TRUE(Mgr.readName());
+  ASSERT_TRUE(ReadStr = Mgr.readName());
   EXPECT_EQ("test", ReadStr.value());
-  ASSERT_TRUE(Mgr.readName());
+  ASSERT_TRUE(ReadStr = Mgr.readName());
   EXPECT_EQ(" ", ReadStr.value());
-  ASSERT_TRUE(Mgr.readName());
+  ASSERT_TRUE(ReadStr = Mgr.readName());
   EXPECT_EQ("Loader", ReadStr.value());
 }
 

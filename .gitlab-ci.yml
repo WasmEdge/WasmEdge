@@ -41,9 +41,9 @@ stages:
     - ./ssvmLoaderEthereumTests
     - ./ssvmLoaderFileMgrTests
     - ./ssvmLoaderWagonTests
-    - cd ../ast/load
-    - ./ssvmASTLoadTests
-    - cd ../../evmc
+    - cd ../ast
+    - ./ssvmASTTests
+    - cd ../evmc
     - ./ssvmEVMCTests
     - cd ../proxy
     - ./ssvmProxyTests

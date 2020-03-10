@@ -10,19 +10,18 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "ast/module.h"
+#include "common/ast/module.h"
 #include "loader/filemgr.h"
 #include "gtest/gtest.h"
 
 namespace {
 
 SSVM::FileMgrFStream Mgr;
-SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(EthereumTest, Load__token) {
-  Mgr.setPath("ethereumTestData/token.wasm");
   SSVM::AST::Module Mod;
-  EXPECT_EQ(Mod.loadBinary(Mgr), SuccessCode);
+  ASSERT_TRUE(Mgr.setPath("ethereumTestData/token.wasm"));
+  ASSERT_TRUE(Mod.loadBinary(Mgr));
 }
 
 } // namespace

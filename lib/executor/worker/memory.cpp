@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "executor/instance/memory.h"
-#include "ast/instruction.h"
+#include "common/ast/instruction.h"
 #include "executor/common.h"
 #include "executor/worker.h"
 #include "executor/worker/util.h"

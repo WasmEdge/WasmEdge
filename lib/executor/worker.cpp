@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "executor/worker.h"
-#include "ast/common.h"
-#include "ast/instruction.h"
+#include "common/ast/instruction.h"
 #include "executor/worker/util.h"
 #include "support/casting.h"
 #include "support/log.h"
@@ -651,7 +650,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
     /// Prepare local variables
     for (auto &Def : FuncInst->getLocals()) {
       for (unsigned int i = 0; i < Def.first; i++) {
-        StackMgr.push(AST::ValueFromType(Def.second));
+        StackMgr.push(ValueFromType(Def.second));
       }
     }
 

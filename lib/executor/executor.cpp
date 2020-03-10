@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "executor/executor.h"
-#include "ast/module.h"
-#include "ast/section.h"
+#include "common/ast/module.h"
+#include "common/ast/section.h"
 #include "executor/instance/module.h"
 #include "support/log.h"
 
@@ -164,7 +164,7 @@ ErrCode Executor::restore(const rapidjson::Value &Doc) {
           Status != ErrCode::Success) {
         return Status;
       }
-      AST::ValVariant Val = static_cast<uint64_t>(
+      ValVariant Val = static_cast<uint64_t>(
           std::stoull(It->GetArray()[1].GetString(), 0, 16));
       GlobInst->setValue(Val);
     }
@@ -205,7 +205,7 @@ ErrCode Executor::snapshot(rapidjson::Value &Doc,
       /// Get address and data to string.
       Instance::GlobalInstance *GlobInst = nullptr;
       StoreMgr.getGlobal(I, GlobInst);
-      AST::ValVariant Val;
+      ValVariant Val;
       GlobInst->getValue(Val);
       std::string ValHex =
           (boost::format("0x%016llx") % retrieveValue<uint64_t>(Val)).str();

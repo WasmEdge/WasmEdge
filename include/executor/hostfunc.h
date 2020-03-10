@@ -104,7 +104,7 @@ protected:
     pushValType<ArgsT>(std::make_index_sequence<kSize>());
     if constexpr (H::hasReturn) {
       using RetT = typename H::RetT;
-      FuncType.Returns.push_back(AST::ValTypeFromType<RetT>());
+      FuncType.Returns.push_back(ValTypeFromType<RetT>());
     }
   }
 
@@ -144,7 +144,7 @@ private:
   template <typename Tuple, std::size_t... Indices>
   void pushValType(std::index_sequence<Indices...>) {
     (FuncType.Params.push_back(
-         AST::ValTypeFromType<std::tuple_element_t<Indices, Tuple>>()),
+         ValTypeFromType<std::tuple_element_t<Indices, Tuple>>()),
      ...);
   }
 };

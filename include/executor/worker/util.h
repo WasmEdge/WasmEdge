@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "ast/instruction.h"
+#include "common/ast/instruction.h"
 #include "executor/entry/value.h"
 #include "support/casting.h"
 

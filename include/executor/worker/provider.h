@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/instruction.h"
+#include "common/ast/instruction.h"
 #include "executor/common.h"
 
 #include <memory>

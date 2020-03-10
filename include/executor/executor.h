@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/module.h"
+#include "common/ast/module.h"
 #include "common.h"
 #include "hostfunc.h"
 #include "hostfuncmgr.h"

@@ -13,8 +13,8 @@ namespace Executor {
 
 ErrCode Worker::runBlockOp(AST::BlockControlInstruction &Instr) {
   /// Get result type for arity.
-  AST::ValType ResultType = Instr.getResultType();
-  unsigned int Arity = (ResultType == AST::ValType::None) ? 0 : 1;
+  ValType ResultType = Instr.getResultType();
+  unsigned int Arity = (ResultType == ValType::None) ? 0 : 1;
 
   /// Create Label{ nothing } and push.
   return enterBlock(Arity, nullptr, Instr.getBody());
@@ -33,8 +33,8 @@ ErrCode Worker::runIfElseOp(AST::IfElseControlInstruction &Instr) {
   uint32_t Cond = retrieveValue<uint32_t>(Val);
 
   /// Get result type for arity.
-  AST::ValType ResultType = Instr.getResultType();
-  unsigned int Arity = (ResultType == AST::ValType::None) ? 0 : 1;
+  ValType ResultType = Instr.getResultType();
+  unsigned int Arity = (ResultType == ValType::None) ? 0 : 1;
 
   /// If non-zero, run if-statement; else, run else-statement.
   if (Cond != 0) {

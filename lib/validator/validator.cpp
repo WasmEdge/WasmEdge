@@ -1,6 +1,5 @@
 #include "validator/validator.h"
-#include "ast/module.h"
-#include "vm/common.h"
+#include "common/ast/module.h"
 
 #include <algorithm>
 #include <iostream>
@@ -108,7 +107,7 @@ ErrCode Validator::validate(AST::TableSection *TabSec) {
       return ErrCode::Invalid;
 
     switch (Tab->getElementType()) {
-    case AST::ElemType::FuncRef:
+    case ElemType::FuncRef:
       break;
     default:
       // In future versions of WebAssembly, additional element types may be
@@ -228,18 +227,21 @@ ErrCode Validator::validate(AST::ImportDesc *ImportDesc,
                             AST::TypeSection *TypeSec) {
   switch (ImportDesc->getExternalType()) {
   case SSVM::AST::Desc::ExternalType::Function:
-    unsigned int *TId;
-    if (ImportDesc->getExternalContent(TId) != SSVM::Executor::ErrCode::Success)
+    if (auto Res = ImportDesc->getExternalContent<uint32_t>()) {
+      uint32_t *TId = *Res;
+      VM.addFunc(TypeSec->getContent().at(*TId).get());
+      break;
+    } else {
       return ErrCode::Invalid;
-    VM.addFunc(TypeSec->getContent().at(*TId).get());
-    break;
+    }
   case SSVM::AST::Desc::ExternalType::Global:
-    AST::GlobalType *GlobType;
-    if (ImportDesc->getExternalContent(GlobType) !=
-        SSVM::Executor::ErrCode::Success)
+    if (auto Res = ImportDesc->getExternalContent<AST::GlobalType>()) {
+      AST::GlobalType *GlobType = *Res;
+      VM.addGlobal(*GlobType);
+      break;
+    } else {
       return ErrCode::Invalid;
-    VM.addGlobal(*GlobType);
-    break;
+    }
   default:
     /// std::cerr << "ImportDesc check are ignored (unimplemented type:"
     ///           << (int)ImportDesc->getExternalType() << ")" << std::endl;

@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/module.h"
+#include "common/ast/module.h"
 
 #include <deque>
 #include <map>
@@ -26,55 +26,55 @@ using OpCode = AST::Instruction::OpCode;
 
 enum class ErrCode : unsigned int { Success = 0, Invalid };
 
-enum class ValType : unsigned int { Unknown, I32, I64, F32, F64 };
+enum class Value : unsigned int { Unknown, I32, I64, F32, F64 };
 
 struct CtrlFrame {
-  std::vector<ValType> LabelTypes;
-  std::vector<ValType> EndTypes;
+  std::vector<Value> LabelTypes;
+  std::vector<Value> EndTypes;
   size_t Height;
   bool IsUnreachable;
 };
 
 class ValidateMachine {
   void runOp(AST::Instruction *);
-  void push_opd(ValType);
-  ValType pop_opd();
-  ValType pop_opd(ValType);
-  void pop_opds(const std::vector<ValType> &);
-  void push_opds(const std::vector<ValType> &);
-  void push_ctrl(const std::vector<ValType> &, const std::vector<ValType> &);
-  std::vector<ValType> pop_ctrl();
+  void push_opd(Value);
+  Value pop_opd();
+  Value pop_opd(Value);
+  void pop_opds(const std::vector<Value> &);
+  void push_opds(const std::vector<Value> &);
+  void push_ctrl(const std::vector<Value> &, const std::vector<Value> &);
+  std::vector<Value> pop_ctrl();
   void unreachable();
 
-  ValType getLocal(unsigned int);
-  void setLocal(unsigned int, ValType);
-  ValType getGlobal(unsigned int);
-  void setGlobal(unsigned int, ValType);
+  Value getLocal(unsigned int);
+  void setLocal(unsigned int, Value);
+  Value getGlobal(unsigned int);
+  void setGlobal(unsigned int, Value);
   ErrCode validateWarp(const AST::InstrVec &);
 
 public:
-  void addLocal(unsigned int, AST::ValType);
+  void addLocal(unsigned int, ValType);
   void addGlobal(AST::GlobalType);
   void addFunc(AST::FunctionType *);
   void addType(AST::FunctionType *);
   void reset(bool CleanGlobal = false);
   void init();
-  ErrCode validate(const AST::InstrVec &, const std::vector<AST::ValType> &);
+  ErrCode validate(const AST::InstrVec &, const std::vector<ValType> &);
 
-  std::deque<ValType> result() { return ValStack; };
+  std::deque<Value> result() { return ValStack; };
   auto &getGlobals() { return Global; }
   auto &getFunctions() { return Funcs; }
   auto &getTypes() { return Types; }
 
 private:
-  std::map<unsigned int, ValType> Local;
-  std::deque<ValType> ValStack;
+  std::map<unsigned int, Value> Local;
+  std::deque<Value> ValStack;
   std::deque<CtrlFrame> CtrlStack;
-  std::vector<ValType> ReturnVals;
+  std::vector<Value> ReturnVals;
 
   std::vector<AST::GlobalType> Global;
-  std::vector<std::pair<std::vector<ValType>, std::vector<ValType>>> Funcs;
-  std::vector<std::pair<std::vector<ValType>, std::vector<ValType>>> Types;
+  std::vector<std::pair<std::vector<Value>, std::vector<Value>>> Funcs;
+  std::vector<std::pair<std::vector<Value>, std::vector<Value>>> Types;
 
   static const size_t NAT = -1;
 };

@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/common.h"
+#include "common/types.h"
 #include "executor/common.h"
 #include "executor/instance/entity.h"
 #include <vector>
@@ -26,7 +26,7 @@ public:
   virtual ~TableInstance() = default;
 
   /// Set the element type.
-  ErrCode setElemType(AST::ElemType &Elem);
+  ErrCode setElemType(ElemType &Elem);
 
   /// Set the table limit.
   ErrCode setLimit(unsigned int Min, bool HasMax, unsigned int Max);
@@ -40,7 +40,7 @@ public:
 private:
   /// \name Data of table instance.
   /// @{
-  AST::ElemType Type;
+  ElemType Type;
   bool HasMaxSize = false;
   unsigned int MinSize = 0;
   unsigned int MaxSize = 0;

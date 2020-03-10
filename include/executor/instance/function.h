@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/instruction.h"
+#include "common/ast/instruction.h"
 #include "executor/common.h"
 #include "executor/instance/entity.h"
 #include "executor/instance/module.h"
@@ -39,8 +39,7 @@ public:
   ErrCode setHostFuncAddr(unsigned int Addr);
 
   /// Move the local variables in code section into function instance.
-  ErrCode
-  setLocals(const std::vector<std::pair<unsigned int, AST::ValType>> &Loc);
+  ErrCode setLocals(const std::vector<std::pair<unsigned int, ValType>> &Loc);
 
   /// Move the instruction list in code segment into function instance.
   ErrCode setInstrs(AST::InstrVec &Expr);
@@ -52,7 +51,7 @@ public:
   unsigned int getModuleAddr() const { return ModuleAddr; }
 
   /// Getter of function body instrs.
-  const std::vector<std::pair<unsigned int, AST::ValType>> &getLocals() const {
+  const std::vector<std::pair<unsigned int, ValType>> &getLocals() const {
     return Locals;
   }
 
@@ -72,7 +71,7 @@ private:
   /// @{
   const ModuleInstance::FType *FuncType;
   unsigned int ModuleAddr;
-  std::vector<std::pair<unsigned int, AST::ValType>> Locals;
+  std::vector<std::pair<unsigned int, ValType>> Locals;
   AST::InstrVec Instrs;
   /// @}
 

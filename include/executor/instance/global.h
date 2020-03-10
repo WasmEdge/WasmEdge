@@ -11,7 +11,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/common.h"
+#include "common/types.h"
+#include "common/value.h"
 #include "executor/common.h"
 #include "executor/instance/entity.h"
 #include "support/casting.h"
@@ -29,26 +30,26 @@ using TypeB = typename std::enable_if_t<Support::IsWasmBuiltInV<T>, TR>;
 class GlobalInstance : public Entity {
 public:
   GlobalInstance() = delete;
-  GlobalInstance(const AST::ValType &ValueType, const AST::ValMut &Mutibility);
+  GlobalInstance(const ValType &ValueType, const ValMut &Mutibility);
   virtual ~GlobalInstance() = default;
 
   /// Get the global type.
-  AST::ValType getValType() const { return Type; }
+  ValType getValType() const { return Type; }
 
   /// Getter of value. See "include/executor/instance/global.h".
   template <typename T> TypeB<T, ErrCode> getValue(T &Val) const;
-  ErrCode getValue(AST::ValVariant &Val) const;
+  ErrCode getValue(ValVariant &Val) const;
 
   /// Setter of value. See "include/executor/instance/global.h".
   template <typename T> TypeB<T, ErrCode> setValue(const T &Val);
-  ErrCode setValue(const AST::ValVariant &Val);
+  ErrCode setValue(const ValVariant &Val);
 
 private:
   /// \name Data of global instance.
   /// @{
-  AST::ValType Type;
-  AST::ValMut Mut;
-  AST::ValVariant Value;
+  ValType Type;
+  ValMut Mut;
+  ValVariant Value;
   /// @}
 };
 

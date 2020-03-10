@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/common.h"
+#include "common/types.h"
 #include "executor/common.h"
 
 #include <memory>
@@ -29,13 +29,13 @@ public:
 
   /// Function type definition in this module.
   struct FType {
-    std::vector<AST::ValType> Params;
-    std::vector<AST::ValType> Returns;
+    std::vector<ValType> Params;
+    std::vector<ValType> Returns;
   };
 
   /// Copy the function types in type section to module instance.
-  ErrCode addFuncType(const std::vector<AST::ValType> &Params,
-                      const std::vector<AST::ValType> &Returns);
+  ErrCode addFuncType(const std::vector<ValType> &Params,
+                      const std::vector<ValType> &Returns);
 
   /// Map the external instences between Module and Store.
   ErrCode addFuncAddr(unsigned int StoreFuncAddr);

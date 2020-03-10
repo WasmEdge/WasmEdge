@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/value.h"
 #include "executor/common.h"
 #include "executor/instance/entity.h"
 #include "support/casting.h"
@@ -23,10 +24,6 @@ namespace Executor {
 namespace Instance {
 
 class MemoryInstance : public Entity {
-private:
-  using Byte = unsigned char;
-  using Bytes = std::vector<Byte>;
-
 public:
   MemoryInstance() = default;
   ~MemoryInstance() = default;
@@ -47,7 +44,7 @@ public:
   ErrCode getBytes(Bytes &Slice, unsigned int Offset, unsigned int Length);
 
   /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Legnth - 1]
-  ErrCode setBytes(Bytes &Slice, unsigned int Offset, unsigned int Start,
+  ErrCode setBytes(const Bytes &Slice, unsigned int Offset, unsigned int Start,
                    unsigned int Length);
 
   /// Get an uint8 array from Data[Offset : Offset + Length - 1]

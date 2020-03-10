@@ -45,7 +45,7 @@ ErrCode MemoryInstance::getBytes(Bytes &Slice, unsigned int Offset,
 }
 
 /// Setter of data list. See "include/executor/instance/memory.h".
-ErrCode MemoryInstance::setBytes(Bytes &Slice, unsigned int Offset,
+ErrCode MemoryInstance::setBytes(const Bytes &Slice, unsigned int Offset,
                                  unsigned int Start, unsigned int Length) {
   /// Check memory size.
   ErrCode Status = ErrCode::Success;

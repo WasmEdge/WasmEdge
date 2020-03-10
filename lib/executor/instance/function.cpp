@@ -31,7 +31,7 @@ ErrCode FunctionInstance::setHostFuncAddr(unsigned int Addr) {
 
 /// Setter of locals vector. See "include/executor/instance/function.h".
 ErrCode FunctionInstance::setLocals(
-    const std::vector<std::pair<unsigned int, AST::ValType>> &Loc) {
+    const std::vector<std::pair<unsigned int, ValType>> &Loc) {
   if (IsHostFunction) {
     return ErrCode::FunctionInvalid;
   }

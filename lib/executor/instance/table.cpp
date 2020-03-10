@@ -7,7 +7,7 @@ namespace Executor {
 namespace Instance {
 
 /// Setter of element type. See "include/executor/instance/table.h".
-ErrCode TableInstance::setElemType(AST::ElemType &Elem) {
+ErrCode TableInstance::setElemType(ElemType &Elem) {
   Type = Elem;
   return ErrCode::Success;
 }

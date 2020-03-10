@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "ast/section.h"
+#include "common/ast/section.h"
 #include "executor/executor.h"
 #include "executor/instance/function.h"
 #include "executor/instance/global.h"

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "executor/instance/memory.h"
-#include "ast/section.h"
+#include "common/ast/section.h"
 #include "executor/executor.h"
 #include "executor/instance/module.h"
 
@@ -70,7 +70,7 @@ ErrCode Executor::instantiate(AST::MemorySection *MemSec,
     }
 
     /// Copy data to memory instance
-    std::vector<unsigned char> &Data = (*DataSeg)->getData();
+    const std::vector<unsigned char> &Data = (*DataSeg)->getData();
     if ((Status = MemInst->setBytes(Data, Offset, 0, Data.size())) !=
         ErrCode::Success) {
       return Status;

@@ -30,7 +30,7 @@ int main(int Argc, char *Argv[]) {
   } else {
     VM.execute();
   }
-  std::vector<SSVM::Executor::Value> Rets;
+  std::vector<SSVM::ValVariant> Rets;
   VM.getReturnValue(Rets);
   Result = VM.getResult();
 

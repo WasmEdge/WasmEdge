@@ -12,9 +12,9 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/module.h"
-#include "common.h"
+#include "common/ast/module.h"
 #include "vm/envmgr.h"
+#include "common/errcode.h"
 
 #include <string>
 #include <vector>
@@ -29,37 +29,14 @@ public:
   Loader(VM::EnvironmentManager &Env) : EnvMgr(Env) {}
   ~Loader() = default;
 
-  /// Set the file path to loader.
-  ErrCode setPath(const std::string &FilePath);
+  /// Parse module from file path.
+  Expect<std::unique_ptr<AST::Module>> parseModule(const std::string &FilePath);
 
-  /// Set byte code to loader.
-  ErrCode setCode(const std::vector<uint8_t> &Code);
-
-  /// Load and Parse the file into AST::Module.
-  ErrCode parseModule();
-
-  /// Validate AST::Module.
-  ErrCode validateModule();
-
-  /// Get the result AST::Module node.
-  ErrCode getModule(std::unique_ptr<AST::Module> &OutModule);
-
-  /// Reset Loader.
-  ErrCode reset(bool Force = false);
+  /// Parse module from byte code.
+  Expect<std::unique_ptr<AST::Module>>
+  parseModule(const std::vector<uint8_t> &Code);
 
 private:
-  /// Loader State
-  enum class State : unsigned int {
-    Inited,
-    PathSet_FStream,
-    PathSet_Vector,
-    Parsed,
-    Validated,
-    Finished
-  };
-
-  State Stat = State::Inited;
-  std::unique_ptr<AST::Module> Mod;
   VM::EnvironmentManager &EnvMgr;
   FileMgrFStream FSMgr;
   FileMgrVector FVMgr;

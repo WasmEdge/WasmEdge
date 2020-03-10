@@ -1040,30 +1040,17 @@ namespace SSVM {
 namespace Compiler {
 
 ErrCode Compiler::runLoader() {
+  Expect<std::unique_ptr<AST::Module>> Res;
   if (WasmPath == "") {
-    if (auto Status = LoaderEngine.setCode(WasmCode);
-        Status != Loader::ErrCode::Success) {
-      return ErrCode::Failed;
-    }
+    Res = LoaderEngine.parseModule(WasmCode);
   } else {
-    if (auto Status = LoaderEngine.setPath(WasmPath);
-        Status != Loader::ErrCode::Success) {
-      return ErrCode::Failed;
-    }
+    Res = LoaderEngine.parseModule(WasmPath);
   }
-  if (auto Status = LoaderEngine.parseModule();
-      Status != Loader::ErrCode::Success) {
+  if (!Res) {
     return ErrCode::Failed;
+  } else {
+    Mod = std::move(*Res);
   }
-  if (auto Status = LoaderEngine.validateModule();
-      Status != Loader::ErrCode::Success) {
-    return ErrCode::Failed;
-  }
-  if (auto Status = LoaderEngine.getModule(Mod);
-      Status != Loader::ErrCode::Success) {
-    return ErrCode::Failed;
-  }
-
   return ErrCode::Success;
 }
 

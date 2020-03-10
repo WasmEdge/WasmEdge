@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/vm.h"
 #include "executor/hostfunc.h"
-#include "loader/loader.h"
 #include "vm/result.h"
+#include "common/errcode.h"
 
 /// EEI Functions
 #include "vm/hostfunc/ethereum/ethereum.h"
@@ -49,7 +49,6 @@ void VM::initVMEnv() {
 }
 
 void VM::cleanup() {
-  LoaderEngine.reset();
   ValidatorEngine.reset();
   ExecutorEngine.reset();
   Mod.reset();
@@ -60,30 +59,20 @@ void VM::cleanup() {
 }
 
 ErrCode VM::loadWasm() {
-  Loader::ErrCode LoaderStatus = Loader::ErrCode::Success;
   VMResult.setStage(Result::Stage::Loader);
 
+  Expect<std::unique_ptr<AST::Module>> Res;
   if (WasmPath == "") {
-    LoaderStatus = LoaderEngine.setCode(WasmCode);
+    Res = LoaderEngine.parseModule(WasmCode);
   } else {
-    LoaderStatus = LoaderEngine.setPath(WasmPath);
+    Res = LoaderEngine.parseModule(WasmPath);
   }
-  detail::testAndSetError(LoaderStatus, VMResult);
-  if (!VMResult.hasError()) {
-    LoaderStatus = LoaderEngine.parseModule();
-    detail::testAndSetError(LoaderStatus, VMResult);
-  }
-  if (!VMResult.hasError()) {
-    LoaderStatus = LoaderEngine.validateModule();
-    detail::testAndSetError(LoaderStatus, VMResult);
-  }
-  if (!VMResult.hasError()) {
-    LoaderStatus = LoaderEngine.getModule(Mod);
-    detail::testAndSetError(LoaderStatus, VMResult);
-  }
-
-  if (VMResult.hasError()) {
+  if (!Res) {
+    /// TODO: Refine error code system in VMResult.
+    VMResult.setErrCode(static_cast<uint32_t>(Res.error()));
     return ErrCode::Failed;
+  } else {
+    Mod = std::move(*Res);
   }
   return ErrCode::Success;
 }

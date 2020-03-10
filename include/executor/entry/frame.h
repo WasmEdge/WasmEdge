@@ -11,10 +11,6 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/common.h"
-#include "executor/common.h"
-#include "value.h"
-
 #include <memory>
 #include <variant>
 #include <vector>

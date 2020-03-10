@@ -11,12 +11,12 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/common.h"
+#include "common/value.h"
 
 namespace SSVM {
 namespace Executor {
 
-using Value = AST::ValVariant;
+using Value = ValVariant;
 
 } // namespace Executor
 } // namespace SSVM

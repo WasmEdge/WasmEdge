@@ -1,9 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
-include_directories(
-  ../
+add_executable(ssvmASTTests
+  moduleTest.cpp
+  sectionTest.cpp
+  descriptionTest.cpp
+  segmentTest.cpp
+  typeTest.cpp
+  expressionTest.cpp
+  instructionTest.cpp
 )
 
-add_subdirectory(load)
-#add_subdirectory(validate)
-#add_subdirectory(instantiate)
+target_link_libraries(ssvmASTTests
+  PRIVATE
+  utilGoogleTest
+  ssvmLoaderFileMgr
+  ssvmAST
+)

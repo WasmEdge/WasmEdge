@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/ast/load/descriptionTest.cpp - AST description unit tests ==//
+//===-- ssvm/test/ast/descriptionTest.cpp - AST description unit tests ----===//
 //
 // Part of the SSVM Project.
 //
@@ -11,14 +11,13 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "ast/description.h"
+#include "common/ast/description.h"
 #include "loader/filemgr.h"
 #include "gtest/gtest.h"
 
 namespace {
 
 SSVM::FileMgrVector Mgr;
-SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(DescriptionTest, LoadImportDesc) {
   /// 1. Test load import description.
@@ -32,7 +31,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   ///   7.  Load import description of global type.
   Mgr.clearBuffer();
   SSVM::AST::ImportDesc Imp1;
-  EXPECT_FALSE(Imp1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Imp1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -42,7 +41,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::ImportDesc Imp2;
-  EXPECT_TRUE(Imp2.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Imp2.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -52,7 +51,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::ImportDesc Imp3;
-  EXPECT_TRUE(Imp3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Imp3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -62,7 +61,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::ImportDesc Imp4;
-  EXPECT_FALSE(Imp4.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Imp4.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
@@ -76,7 +75,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   };
   Mgr.setCode(Vec5);
   SSVM::AST::ImportDesc Imp5;
-  EXPECT_TRUE(Imp5.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Imp5.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec6 = {
@@ -89,7 +88,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   };
   Mgr.setCode(Vec6);
   SSVM::AST::ImportDesc Imp6;
-  EXPECT_TRUE(Imp6.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Imp6.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec7 = {
@@ -100,7 +99,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   };
   Mgr.setCode(Vec7);
   SSVM::AST::ImportDesc Imp7;
-  EXPECT_TRUE(Imp7.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Imp7.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(DescriptionTest, LoadExportDesc) {
@@ -113,7 +112,7 @@ TEST(DescriptionTest, LoadExportDesc) {
   ///   5.  Load export description of table type.
   Mgr.clearBuffer();
   SSVM::AST::ExportDesc Exp1;
-  EXPECT_FALSE(Exp1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Exp1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -122,7 +121,7 @@ TEST(DescriptionTest, LoadExportDesc) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::ExportDesc Exp2;
-  EXPECT_TRUE(Exp2.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Exp2.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -131,7 +130,7 @@ TEST(DescriptionTest, LoadExportDesc) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::ExportDesc Exp3;
-  EXPECT_TRUE(Exp3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Exp3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -140,7 +139,7 @@ TEST(DescriptionTest, LoadExportDesc) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::ExportDesc Exp4;
-  EXPECT_FALSE(Exp4.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Exp4.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
@@ -149,7 +148,7 @@ TEST(DescriptionTest, LoadExportDesc) {
   };
   Mgr.setCode(Vec5);
   SSVM::AST::ExportDesc Exp5;
-  EXPECT_TRUE(Exp5.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Exp5.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 } // namespace

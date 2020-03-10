@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/ast/load/moduleTest.cpp - AST module unit tests ---------===//
+//===-- ssvm/test/ast/moduleTest.cpp - AST module unit tests --------------===//
 //
 // Part of the SSVM Project.
 //
@@ -10,20 +10,19 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "ast/module.h"
+#include "common/ast/module.h"
 #include "loader/filemgr.h"
 #include "gtest/gtest.h"
 
 namespace {
 
 SSVM::FileMgrVector Mgr;
-SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(ModuleTest, LoadInvalidModule) {
   /// 1. Test load empty file
   Mgr.clearBuffer();
   SSVM::AST::Module Mod;
-  EXPECT_FALSE(Mod.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Mod.loadBinary(Mgr));
 }
 
 TEST(ModuleTest, LoadEmptyModule) {
@@ -33,7 +32,7 @@ TEST(ModuleTest, LoadEmptyModule) {
   std::vector<unsigned char> Vec = {0x00U, 0x61U, 0x73U, 0x6DU,
                                     0x01U, 0x00U, 0x00U, 0x00U};
   Mgr.setCode(Vec);
-  EXPECT_TRUE(Mod.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Mod.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(ModuleTest, LoadValidSecModule) {
@@ -57,7 +56,7 @@ TEST(ModuleTest, LoadValidSecModule) {
       0x0BU, 0x81U, 0x80U, 0x80U, 0x80U, 0x00U, 0x00U  /// Data section
   };
   Mgr.setCode(Vec);
-  EXPECT_TRUE(Mod.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Mod.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(ModuleTest, LoadInvalidSecModule) {
@@ -82,7 +81,7 @@ TEST(ModuleTest, LoadInvalidSecModule) {
       0x0CU, 0x81U, 0x80U, 0x80U, 0x80U, 0x00U, 0x00U  /// Invalid section
   };
   Mgr.setCode(Vec);
-  EXPECT_NE(Mod.loadBinary(Mgr), SuccessCode);
+  EXPECT_FALSE(Mod.loadBinary(Mgr));
 }
 
 } // namespace

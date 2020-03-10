@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/ast/load/instructionTest.cpp - Instruction unit tests ---===//
+//===-- ssvm/test/ast/instructionTest.cpp - Instruction unit tests --------===//
 //
 // Part of the SSVM Project.
 //
@@ -10,14 +10,13 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "ast/instruction.h"
+#include "common/ast/instruction.h"
 #include "loader/filemgr.h"
 #include "gtest/gtest.h"
 
 namespace {
 
 SSVM::FileMgrVector Mgr;
-SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(InstructionTest, LoadBlockControlInstruction) {
   /// 1. Test load block control instruction.
@@ -31,10 +30,10 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
 
   Mgr.clearBuffer();
   SSVM::AST::BlockControlInstruction Ins1(Op1);
-  EXPECT_FALSE(Ins1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins1.loadBinary(Mgr));
   Mgr.clearBuffer();
   SSVM::AST::BlockControlInstruction Ins2(Op2);
-  EXPECT_FALSE(Ins2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -43,11 +42,11 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::BlockControlInstruction Ins3(Op1);
-  EXPECT_TRUE(Ins3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
   Mgr.clearBuffer();
   Mgr.setCode(Vec2);
   SSVM::AST::BlockControlInstruction Ins4(Op2);
-  EXPECT_TRUE(Ins4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -58,11 +57,11 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::BlockControlInstruction Ins5(Op1);
-  EXPECT_FALSE(Ins5.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins5.loadBinary(Mgr));
   Mgr.clearBuffer();
   Mgr.setCode(Vec3);
   SSVM::AST::BlockControlInstruction Ins6(Op2);
-  EXPECT_FALSE(Ins6.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins6.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -72,11 +71,11 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::BlockControlInstruction Ins7(Op1);
-  EXPECT_TRUE(Ins7.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins7.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
   Mgr.clearBuffer();
   Mgr.setCode(Vec4);
   SSVM::AST::BlockControlInstruction Ins8(Op2);
-  EXPECT_TRUE(Ins8.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins8.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(InstructionTest, LoadIfElseControlInstruction) {
@@ -93,7 +92,7 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
 
   Mgr.clearBuffer();
   SSVM::AST::IfElseControlInstruction Ins1(Op);
-  EXPECT_FALSE(Ins1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -102,7 +101,7 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::IfElseControlInstruction Ins2(Op);
-  EXPECT_TRUE(Ins2.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins2.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -112,7 +111,7 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::IfElseControlInstruction Ins3(Op);
-  EXPECT_TRUE(Ins3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -122,7 +121,7 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::IfElseControlInstruction Ins4(Op);
-  EXPECT_FALSE(Ins4.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins4.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
@@ -134,7 +133,7 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   };
   Mgr.setCode(Vec5);
   SSVM::AST::IfElseControlInstruction Ins5(Op);
-  EXPECT_FALSE(Ins5.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins5.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec6 = {
@@ -144,7 +143,7 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   };
   Mgr.setCode(Vec6);
   SSVM::AST::IfElseControlInstruction Ins6(Op);
-  EXPECT_TRUE(Ins6.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins6.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec7 = {
@@ -156,7 +155,7 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   };
   Mgr.setCode(Vec7);
   SSVM::AST::IfElseControlInstruction Ins7(Op);
-  EXPECT_TRUE(Ins7.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins7.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(InstructionTest, LoadBrControlInstruction) {
@@ -169,10 +168,10 @@ TEST(InstructionTest, LoadBrControlInstruction) {
 
   Mgr.clearBuffer();
   SSVM::AST::BrControlInstruction Ins1(Op1);
-  EXPECT_FALSE(Ins1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins1.loadBinary(Mgr));
   Mgr.clearBuffer();
   SSVM::AST::BrControlInstruction Ins2(Op2);
-  EXPECT_FALSE(Ins2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -180,11 +179,11 @@ TEST(InstructionTest, LoadBrControlInstruction) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::BrControlInstruction Ins3(Op1);
-  EXPECT_TRUE(Ins3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
   Mgr.clearBuffer();
   Mgr.setCode(Vec2);
   SSVM::AST::BrControlInstruction Ins4(Op2);
-  EXPECT_TRUE(Ins4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(InstructionTest, LoadBrTableControlInstruction) {
@@ -197,7 +196,7 @@ TEST(InstructionTest, LoadBrTableControlInstruction) {
 
   Mgr.clearBuffer();
   SSVM::AST::BrTableControlInstruction Ins1(Op);
-  EXPECT_FALSE(Ins1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -206,7 +205,7 @@ TEST(InstructionTest, LoadBrTableControlInstruction) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::BrTableControlInstruction Ins2(Op);
-  EXPECT_TRUE(Ins2.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins2.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -218,7 +217,7 @@ TEST(InstructionTest, LoadBrTableControlInstruction) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::BrTableControlInstruction Ins3(Op);
-  EXPECT_TRUE(Ins3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(InstructionTest, LoadCallControlInstruction) {
@@ -233,10 +232,10 @@ TEST(InstructionTest, LoadCallControlInstruction) {
 
   Mgr.clearBuffer();
   SSVM::AST::CallControlInstruction Ins1(Op1);
-  EXPECT_FALSE(Ins1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins1.loadBinary(Mgr));
   Mgr.clearBuffer();
   SSVM::AST::CallControlInstruction Ins2(Op2);
-  EXPECT_FALSE(Ins2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -244,7 +243,7 @@ TEST(InstructionTest, LoadCallControlInstruction) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::CallControlInstruction Ins3(Op1);
-  EXPECT_TRUE(Ins3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -253,7 +252,7 @@ TEST(InstructionTest, LoadCallControlInstruction) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::CallControlInstruction Ins4(Op2);
-  EXPECT_TRUE(Ins4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(InstructionTest, LoadVariableInstruction) {
@@ -266,7 +265,7 @@ TEST(InstructionTest, LoadVariableInstruction) {
 
   Mgr.clearBuffer();
   SSVM::AST::VariableInstruction Ins1(Op);
-  EXPECT_FALSE(Ins1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -274,7 +273,7 @@ TEST(InstructionTest, LoadVariableInstruction) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::VariableInstruction Ins2(Op);
-  EXPECT_TRUE(Ins2.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins2.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(InstructionTest, LoadMemoryInstruction) {
@@ -291,10 +290,10 @@ TEST(InstructionTest, LoadMemoryInstruction) {
 
   Mgr.clearBuffer();
   SSVM::AST::MemoryInstruction Ins1(Op1);
-  EXPECT_FALSE(Ins1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins1.loadBinary(Mgr));
   Mgr.clearBuffer();
   SSVM::AST::MemoryInstruction Ins2(Op2);
-  EXPECT_FALSE(Ins2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -302,7 +301,7 @@ TEST(InstructionTest, LoadMemoryInstruction) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::MemoryInstruction Ins3(Op2);
-  EXPECT_FALSE(Ins3.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins3.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -311,7 +310,7 @@ TEST(InstructionTest, LoadMemoryInstruction) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::MemoryInstruction Ins4(Op1);
-  EXPECT_TRUE(Ins4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -319,7 +318,7 @@ TEST(InstructionTest, LoadMemoryInstruction) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::MemoryInstruction Ins5(Op2);
-  EXPECT_TRUE(Ins5.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins5.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(InstructionTest, LoadConstInstruction) {
@@ -341,7 +340,7 @@ TEST(InstructionTest, LoadConstInstruction) {
 
   Mgr.clearBuffer();
   SSVM::AST::ConstInstruction Ins1(Op1);
-  EXPECT_FALSE(Ins1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Ins1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -349,7 +348,7 @@ TEST(InstructionTest, LoadConstInstruction) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::ConstInstruction Ins2(Op1);
-  EXPECT_TRUE(Ins2.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins2.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -357,7 +356,7 @@ TEST(InstructionTest, LoadConstInstruction) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::ConstInstruction Ins3(Op2);
-  EXPECT_TRUE(Ins3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -365,7 +364,7 @@ TEST(InstructionTest, LoadConstInstruction) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::ConstInstruction Ins4(Op3);
-  EXPECT_TRUE(Ins4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
@@ -373,7 +372,7 @@ TEST(InstructionTest, LoadConstInstruction) {
   };
   Mgr.setCode(Vec5);
   SSVM::AST::ConstInstruction Ins5(Op4);
-  EXPECT_TRUE(Ins5.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Ins5.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 } // namespace

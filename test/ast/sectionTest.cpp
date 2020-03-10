@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/load/loader/sectionTest.cpp - AST section unit tests -----===//
+//===-- ssvm/test/ast/sectionTest.cpp - AST section unit tests ------------===//
 //
 // Part of the SSVM Project.
 //
@@ -10,14 +10,13 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "ast/section.h"
+#include "common/ast/section.h"
 #include "loader/filemgr.h"
 #include "gtest/gtest.h"
 
 namespace {
 
 SSVM::FileMgrVector Mgr;
-SSVM::Loader::ErrCode SuccessCode = SSVM::Loader::ErrCode::Success;
 
 TEST(SectionTest, LoadCustomSection) {
   /// 1. Test load custom section.
@@ -27,7 +26,7 @@ TEST(SectionTest, LoadCustomSection) {
   ///   3.  Load custom section with contents.
   Mgr.clearBuffer();
   SSVM::AST::CustomSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -35,7 +34,7 @@ TEST(SectionTest, LoadCustomSection) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::CustomSection Sec2;
-  EXPECT_TRUE(Sec2.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec2.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -44,7 +43,7 @@ TEST(SectionTest, LoadCustomSection) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::CustomSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(SectionTest, LoadTypeSection) {
@@ -56,7 +55,7 @@ TEST(SectionTest, LoadTypeSection) {
   ///   4.  Load type section with contents.
   Mgr.clearBuffer();
   SSVM::AST::TypeSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -64,7 +63,7 @@ TEST(SectionTest, LoadTypeSection) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::TypeSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -73,7 +72,7 @@ TEST(SectionTest, LoadTypeSection) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::TypeSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -85,7 +84,7 @@ TEST(SectionTest, LoadTypeSection) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::TypeSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(SectionTest, LoadImportSection) {
@@ -97,7 +96,7 @@ TEST(SectionTest, LoadImportSection) {
   ///   4.  Load import section with contents.
   Mgr.clearBuffer();
   SSVM::AST::ImportSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -105,7 +104,7 @@ TEST(SectionTest, LoadImportSection) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::ImportSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -114,7 +113,7 @@ TEST(SectionTest, LoadImportSection) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::ImportSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -135,7 +134,7 @@ TEST(SectionTest, LoadImportSection) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::ImportSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(SectionTest, LoadFunctionSection) {
@@ -147,7 +146,7 @@ TEST(SectionTest, LoadFunctionSection) {
   ///   4.  Load function section with contents.
   Mgr.clearBuffer();
   SSVM::AST::FunctionSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -155,7 +154,7 @@ TEST(SectionTest, LoadFunctionSection) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::FunctionSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -164,7 +163,7 @@ TEST(SectionTest, LoadFunctionSection) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::FunctionSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -176,7 +175,7 @@ TEST(SectionTest, LoadFunctionSection) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::FunctionSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(SectionTest, LoadTableSection) {
@@ -188,7 +187,7 @@ TEST(SectionTest, LoadTableSection) {
   ///   4.  Load table section with contents.
   Mgr.clearBuffer();
   SSVM::AST::TableSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -196,7 +195,7 @@ TEST(SectionTest, LoadTableSection) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::TableSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -205,7 +204,7 @@ TEST(SectionTest, LoadTableSection) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::TableSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -217,7 +216,7 @@ TEST(SectionTest, LoadTableSection) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::TableSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(SectionTest, LoadMemorySection) {
@@ -229,7 +228,7 @@ TEST(SectionTest, LoadMemorySection) {
   ///   4.  Load memory section with contents.
   Mgr.clearBuffer();
   SSVM::AST::MemorySection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -237,7 +236,7 @@ TEST(SectionTest, LoadMemorySection) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::MemorySection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -246,7 +245,7 @@ TEST(SectionTest, LoadMemorySection) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::MemorySection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -258,7 +257,7 @@ TEST(SectionTest, LoadMemorySection) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::MemorySection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(SectionTest, LoadGlobalSection) {
@@ -270,7 +269,7 @@ TEST(SectionTest, LoadGlobalSection) {
   ///   4.  Load global section with contents.
   Mgr.clearBuffer();
   SSVM::AST::GlobalSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -278,7 +277,7 @@ TEST(SectionTest, LoadGlobalSection) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::GlobalSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -287,7 +286,7 @@ TEST(SectionTest, LoadGlobalSection) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::GlobalSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -299,7 +298,7 @@ TEST(SectionTest, LoadGlobalSection) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::GlobalSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(SectionTest, LoadExportSection) {
@@ -311,7 +310,7 @@ TEST(SectionTest, LoadExportSection) {
   ///   4.  Load export section with contents.
   Mgr.clearBuffer();
   SSVM::AST::ExportSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -319,7 +318,7 @@ TEST(SectionTest, LoadExportSection) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::ExportSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -328,7 +327,7 @@ TEST(SectionTest, LoadExportSection) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::ExportSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -346,7 +345,7 @@ TEST(SectionTest, LoadExportSection) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::ExportSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(SectionTest, LoadStartSection) {
@@ -357,7 +356,7 @@ TEST(SectionTest, LoadStartSection) {
   ///   3.  Load start section with contents.
   Mgr.clearBuffer();
   SSVM::AST::StartSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -365,7 +364,7 @@ TEST(SectionTest, LoadStartSection) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::StartSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -374,7 +373,7 @@ TEST(SectionTest, LoadStartSection) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::StartSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(SectionTest, LoadElementSection) {
@@ -386,7 +385,7 @@ TEST(SectionTest, LoadElementSection) {
   ///   4.  Load element section with contents.
   Mgr.clearBuffer();
   SSVM::AST::ElementSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -394,7 +393,7 @@ TEST(SectionTest, LoadElementSection) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::ElementSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -403,7 +402,7 @@ TEST(SectionTest, LoadElementSection) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::ElementSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -424,7 +423,7 @@ TEST(SectionTest, LoadElementSection) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::ElementSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(SectionTest, LoadCodeSection) {
@@ -436,7 +435,7 @@ TEST(SectionTest, LoadCodeSection) {
   ///   4.  Load code section with contents.
   Mgr.clearBuffer();
   SSVM::AST::CodeSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -444,7 +443,7 @@ TEST(SectionTest, LoadCodeSection) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::CodeSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -453,7 +452,7 @@ TEST(SectionTest, LoadCodeSection) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::CodeSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -474,7 +473,7 @@ TEST(SectionTest, LoadCodeSection) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::CodeSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 TEST(SectionTest, LoadDataSection) {
@@ -486,7 +485,7 @@ TEST(SectionTest, LoadDataSection) {
   ///   4.  Load data section with contents.
   Mgr.clearBuffer();
   SSVM::AST::DataSection Sec1;
-  EXPECT_FALSE(Sec1.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -494,7 +493,7 @@ TEST(SectionTest, LoadDataSection) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::DataSection Sec2;
-  EXPECT_FALSE(Sec2.loadBinary(Mgr) == SuccessCode);
+  EXPECT_FALSE(Sec2.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -503,7 +502,7 @@ TEST(SectionTest, LoadDataSection) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::DataSection Sec3;
-  EXPECT_TRUE(Sec3.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec3.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -524,7 +523,7 @@ TEST(SectionTest, LoadDataSection) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::DataSection Sec4;
-  EXPECT_TRUE(Sec4.loadBinary(Mgr) == SuccessCode && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Sec4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
 }
 
 } // namespace

@@ -1,5 +1,4 @@
 #include "ssvmaddon.h"
-
 #include "vm/configure.h"
 #include "vm/vm.h"
 
@@ -39,8 +38,6 @@ SSVMAddon::SSVMAddon(const Napi::CallbackInfo &info)
 }
 
 Napi::Value SSVMAddon::Run(const Napi::CallbackInfo &info) {
-  // ssvm.run(func, args...)
-
   SSVM::VM::Configure Conf;
   SSVM::VM::VM VM(Conf);
   SSVM::VM::Result Result;
@@ -58,7 +55,7 @@ Napi::Value SSVMAddon::Run(const Napi::CallbackInfo &info) {
       std::vector<uint8_t> StrArgVec(StrArg.begin(), StrArg.end());
       std::vector<SSVM::Executor::Value> Rets;
 
-      // init vm
+      // Initialize VM
       VM.initVMEnv();
       VM.loadWasm();
       VM.validate();
@@ -66,18 +63,18 @@ Napi::Value SSVMAddon::Run(const Napi::CallbackInfo &info) {
       VM.appendArgument(StrArg.length());
       VM.instantiate();
 
-      // restore memory
+      // Restore memory
       if (MemData.size() > 0) {
         VM.setMemoryWithBytes(MemData, 0, 0, MemData.size());
       }
 
       VM.runWasm();
 
-      // get malloc return address
+      // Get malloc return address
       VM.getReturnValue(Rets);
       uint32_t StrAddr = std::get<uint32_t>(Rets[0]);
 
-      // update memory data
+      // Update memory data
       MemData.clear();
       VM.getMemoryToBytesAll(0, MemData);
 
@@ -99,23 +96,23 @@ Napi::Value SSVMAddon::Run(const Napi::CallbackInfo &info) {
     }
   }
 
-  // prepare start function
+  // Prepare start function
   std::string StartFunction = "";
   if (length > 0) {
     StartFunction = info[0].As<Napi::String>().Utf8Value();
   }
 
-  // initialize vm
+  // Initialize vm
   VM.initVMEnv();
   VM.loadWasm();
   VM.validate();
   VM.setEntryFuncName(StartFunction);
   VM.instantiate();
 
-  // set memory
+  // Set memory
   VM.setMemoryWithBytes(MemData, 0, 0, MemData.size());
 
-  // prepare arguments
+  // Prepare arguments
   VM.appendArgument(ResultMemAddr);
   for (auto a : Arguments) {
     VM.appendArgument(a);

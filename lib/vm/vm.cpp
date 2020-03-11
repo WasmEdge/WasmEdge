@@ -5,17 +5,39 @@
 #include "vm/result.h"
 
 /// EEI Functions
+#include "vm/hostfunc/ethereum/call.h"
+#include "vm/hostfunc/ethereum/callCode.h"
 #include "vm/hostfunc/ethereum/callDataCopy.h"
+#include "vm/hostfunc/ethereum/callDelegate.h"
 #include "vm/hostfunc/ethereum/callStatic.h"
+#include "vm/hostfunc/ethereum/codeCopy.h"
+#include "vm/hostfunc/ethereum/create.h"
+#include "vm/hostfunc/ethereum/externalCodeCopy.h"
 #include "vm/hostfunc/ethereum/finish.h"
+#include "vm/hostfunc/ethereum/getAddress.h"
+#include "vm/hostfunc/ethereum/getBlockCoinbase.h"
+#include "vm/hostfunc/ethereum/getBlockDifficulty.h"
+#include "vm/hostfunc/ethereum/getBlockGasLimit.h"
+#include "vm/hostfunc/ethereum/getBlockHash.h"
+#include "vm/hostfunc/ethereum/getBlockNumber.h"
+#include "vm/hostfunc/ethereum/getBlockTimestamp.h"
 #include "vm/hostfunc/ethereum/getCallDataSize.h"
 #include "vm/hostfunc/ethereum/getCallValue.h"
 #include "vm/hostfunc/ethereum/getCaller.h"
+#include "vm/hostfunc/ethereum/getCodeSize.h"
+#include "vm/hostfunc/ethereum/getExternalBalance.h"
+#include "vm/hostfunc/ethereum/getExternalCodeSize.h"
 #include "vm/hostfunc/ethereum/getGasLeft.h"
+#include "vm/hostfunc/ethereum/getReturnDataSize.h"
+#include "vm/hostfunc/ethereum/getTxGasPrice.h"
+#include "vm/hostfunc/ethereum/getTxOrigin.h"
+#include "vm/hostfunc/ethereum/log.h"
 #include "vm/hostfunc/ethereum/returnDataCopy.h"
 #include "vm/hostfunc/ethereum/revert.h"
+#include "vm/hostfunc/ethereum/selfDestruct.h"
 #include "vm/hostfunc/ethereum/storageLoad.h"
 #include "vm/hostfunc/ethereum/storageStore.h"
+#include "vm/hostfunc/ethereum/useGas.h"
 
 /// Wasi Functions
 #include "vm/hostfunc/wasi/args_Get.h"
@@ -259,15 +281,65 @@ ErrCode VM::prepareVMHost() {
         getEnvironment<EVMEnvironment>(Configure::VMType::Ewasm);
 
     if (Status == ErrCode::Success) {
+      Status = setHostFunction(std::make_unique<Executor::EEICall>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status =
+          setHostFunction(std::make_unique<Executor::EEICallCode>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
       Status =
           setHostFunction(std::make_unique<Executor::EEICallDataCopy>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status =
+          setHostFunction(std::make_unique<Executor::EEICallDelegate>(*EVMEnv));
     }
     if (Status == ErrCode::Success) {
       Status =
           setHostFunction(std::make_unique<Executor::EEICallStatic>(*EVMEnv));
     }
     if (Status == ErrCode::Success) {
+      Status =
+          setHostFunction(std::make_unique<Executor::EEICodeCopy>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(std::make_unique<Executor::EEICreate>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(
+          std::make_unique<Executor::EEIExternalCodeCopy>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
       Status = setHostFunction(std::make_unique<Executor::EEIFinish>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status =
+          setHostFunction(std::make_unique<Executor::EEIGetAddress>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(
+          std::make_unique<Executor::EEIGetBlockCoinbase>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(
+          std::make_unique<Executor::EEIGetBlockDifficulty>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(
+          std::make_unique<Executor::EEIGetBlockGasLimit>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status =
+          setHostFunction(std::make_unique<Executor::EEIGetBlockHash>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(
+          std::make_unique<Executor::EEIGetBlockNumber>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(
+          std::make_unique<Executor::EEIGetBlockTimestamp>(*EVMEnv));
     }
     if (Status == ErrCode::Success) {
       Status = setHostFunction(
@@ -275,15 +347,42 @@ ErrCode VM::prepareVMHost() {
     }
     if (Status == ErrCode::Success) {
       Status =
-          setHostFunction(std::make_unique<Executor::EEIGetCaller>(*EVMEnv));
-    }
-    if (Status == ErrCode::Success) {
-      Status =
           setHostFunction(std::make_unique<Executor::EEIGetCallValue>(*EVMEnv));
     }
     if (Status == ErrCode::Success) {
       Status =
+          setHostFunction(std::make_unique<Executor::EEIGetCaller>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status =
+          setHostFunction(std::make_unique<Executor::EEIGetCodeSize>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(
+          std::make_unique<Executor::EEIGetExternalBalance>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(
+          std::make_unique<Executor::EEIGetExternalCodeSize>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status =
           setHostFunction(std::make_unique<Executor::EEIGetGasLeft>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(
+          std::make_unique<Executor::EEIGetReturnDataSize>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(
+          std::make_unique<Executor::EEIGetTxGasPrice>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status =
+          setHostFunction(std::make_unique<Executor::EEIGetTxOrigin>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(std::make_unique<Executor::EEILog>(*EVMEnv));
     }
     if (Status == ErrCode::Success) {
       Status = setHostFunction(
@@ -294,11 +393,18 @@ ErrCode VM::prepareVMHost() {
     }
     if (Status == ErrCode::Success) {
       Status =
+          setHostFunction(std::make_unique<Executor::EEISelfDestruct>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status =
           setHostFunction(std::make_unique<Executor::EEIStorageLoad>(*EVMEnv));
     }
     if (Status == ErrCode::Success) {
       Status =
           setHostFunction(std::make_unique<Executor::EEIStorageStore>(*EVMEnv));
+    }
+    if (Status == ErrCode::Success) {
+      Status = setHostFunction(std::make_unique<Executor::EEIUseGas>(*EVMEnv));
     }
   }
   if (Config.hasVMType(Configure::VMType::Wasi)) {

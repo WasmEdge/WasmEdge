@@ -41,7 +41,17 @@ ErrCode Executor::instantiate(AST::ImportSection *ImportSec) {
           ErrCode::Success) {
         return Status;
       }
-      /// TODO: Do import matching.
+      /// Do import matching.
+      const Instance::ModuleInstance::FType *FuncType = FuncInst->getFuncType();
+      Instance::ModuleInstance::FType *TargetType;
+      if ((Status = ModInst->getFuncType(*TypeIdx, TargetType)) !=
+          ErrCode::Success) {
+        return Status;
+      }
+      if (FuncType->Params != TargetType->Params ||
+          FuncType->Returns != TargetType->Returns) {
+        return ErrCode::TypeNotMatch;
+      }
       /// Set the function address to module instance.
       if ((Status = ModInst->addFuncAddr(FuncInst->Addr)) != ErrCode::Success) {
         return Status;

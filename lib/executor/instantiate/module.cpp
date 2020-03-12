@@ -25,15 +25,15 @@ ErrCode Executor::instantiate(AST::Module *Mod) {
     return Status;
   }
 
-  /// Instantiate ImportSection and do import matching. (ImportSec)
-  AST::ImportSection *ImportSec = Mod->getImportSection();
-  if (ErrCode Status = instantiate(ImportSec); Status != ErrCode::Success) {
-    return Status;
-  }
-
   /// Instantiate Function Types in Module Instance. (TypeSec)
   AST::TypeSection *TypeSec = Mod->getTypeSection();
   if (ErrCode Status = instantiate(TypeSec); Status != ErrCode::Success) {
+    return Status;
+  }
+
+  /// Instantiate ImportSection and do import matching. (ImportSec)
+  AST::ImportSection *ImportSec = Mod->getImportSection();
+  if (ErrCode Status = instantiate(ImportSec); Status != ErrCode::Success) {
     return Status;
   }
 

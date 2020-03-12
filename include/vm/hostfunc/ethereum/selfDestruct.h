@@ -12,7 +12,7 @@ public:
       : EEI(HostEnv, "selfDestruct", 5000) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
-               Instance::MemoryInstance &MemInst, uint64_t AddressOffset);
+               Instance::MemoryInstance &MemInst, uint32_t AddressOffset);
 };
 
 } // namespace Executor

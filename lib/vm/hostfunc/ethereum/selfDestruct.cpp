@@ -6,7 +6,7 @@ namespace Executor {
 
 ErrCode EEISelfDestruct::body(VM::EnvironmentManager &EnvMgr,
                               Instance::MemoryInstance &MemInst,
-                              uint64_t AddressOffset) {
+                              uint32_t AddressOffset) {
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Get address data.

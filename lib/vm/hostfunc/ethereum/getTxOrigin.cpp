@@ -6,7 +6,7 @@ namespace Executor {
 
 ErrCode EEIGetTxOrigin::body(VM::EnvironmentManager &EnvMgr,
                              Instance::MemoryInstance &MemInst,
-                             uint64_t ResultOffset) {
+                             uint32_t ResultOffset) {
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Get block coinbase and store bytes20.

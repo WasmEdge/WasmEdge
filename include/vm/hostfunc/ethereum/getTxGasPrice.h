@@ -12,7 +12,7 @@ public:
       : EEI(HostEnv, "getTxGasPrice", 2) {}
 
   ErrCode body(VM::EnvironmentManager &EnvMgr,
-               Instance::MemoryInstance &MemInst, uint64_t ResultOffset);
+               Instance::MemoryInstance &MemInst, uint32_t ResultOffset);
 };
 
 } // namespace Executor

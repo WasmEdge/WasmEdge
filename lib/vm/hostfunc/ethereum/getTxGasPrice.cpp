@@ -6,7 +6,7 @@ namespace Executor {
 
 ErrCode EEIGetTxGasPrice::body(VM::EnvironmentManager &EnvMgr,
                                Instance::MemoryInstance &MemInst,
-                               uint64_t ResultOffset) {
+                               uint32_t ResultOffset) {
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Get tx gas price uint256 big-endian value.

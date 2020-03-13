@@ -163,6 +163,9 @@ public:
 
     ReturnData.clear();
   }
+  void setEVMCCode(const uint8_t *Buf, const uint32_t Size) {
+    Code = std::vector<uint8_t>(Buf, Buf + Size);
+  }
 
 private:
   uint64_t &GasLimit;

@@ -27,13 +27,6 @@ static struct evmc_result execute(struct evmc_instance *vm,
                                   enum evmc_revision rev,
                                   const struct evmc_message *msg,
                                   uint8_t const *code, size_t code_size) {
-  evmc_address destination = msg->destination;
-  evmc_address sender = msg->sender;
-  const uint8_t *input_data = msg->input_data;
-  size_t input_size = msg->input_size;
-  evmc_uint256be value = msg->value;
-  evmc_bytes32 create2_salt = msg->create2_salt;
-
   SSVM::VM::Configure Conf;
   Conf.addVMType(SSVM::VM::Configure::VMType::Ewasm);
   SSVM::VM::VM EVM(Conf);
@@ -42,6 +35,7 @@ static struct evmc_result execute(struct evmc_instance *vm,
   Env->clear();
   Env->setEVMCContext(context);
   Env->setEVMCMessage(msg);
+  Env->setEVMCCode(code, code_size);
 
   // Debug log
   std::cout << "code_size: " << code_size << std::endl;

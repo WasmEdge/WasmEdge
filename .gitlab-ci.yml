@@ -33,6 +33,8 @@ test:
     - ./ssvmEVMCTests
     - cd ../proxy
     - ./ssvmProxyTests
+    - cd ../expected
+    - ./expectedTests
   cache:
     paths:
       - build

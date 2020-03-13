@@ -29,13 +29,13 @@ ErrCode MemoryInstance::growPage(unsigned int Count) {
 /// Getter of data list. See "include/executor/instance/memory.h".
 ErrCode MemoryInstance::getBytes(Bytes &Slice, unsigned int Offset,
                                  unsigned int Length) {
-  if (Length == 0) {
-    return ErrCode::Success;
-  }
   /// Check memory size.
   ErrCode Status = ErrCode::Success;
-  if ((Status = checkDataSize(Offset + Length)) != ErrCode::Success) {
+  if ((Status = checkDataSize(Offset, Length)) != ErrCode::Success) {
     return Status;
+  }
+  if (Length == 0) {
+    return ErrCode::Success;
   }
 
   unsigned int OriginSize = Slice.size();
@@ -47,21 +47,21 @@ ErrCode MemoryInstance::getBytes(Bytes &Slice, unsigned int Offset,
 /// Setter of data list. See "include/executor/instance/memory.h".
 ErrCode MemoryInstance::setBytes(Bytes &Slice, unsigned int Offset,
                                  unsigned int Start, unsigned int Length) {
-  if (Length == 0) {
-    return ErrCode::Success;
-  }
   /// Check memory size.
   ErrCode Status = ErrCode::Success;
-  if ((Status = checkDataSize(Offset + Length)) != ErrCode::Success) {
+  if ((Status = checkDataSize(Offset, Length)) != ErrCode::Success) {
     return Status;
   }
 
   /// Check input data validation.
-  if (Start >= Slice.size() || Start + Length > Slice.size()) {
+  if (Start > Slice.size() || Start + Length > Slice.size()) {
     return ErrCode::AccessForbidMemory;
   }
 
   /// Copy data.
+  if (Length == 0) {
+    return ErrCode::Success;
+  }
   std::memcpy(&Data[Offset], &Slice[Start], Length);
   return ErrCode::Success;
 }
@@ -69,14 +69,15 @@ ErrCode MemoryInstance::setBytes(Bytes &Slice, unsigned int Offset,
 /// Getter of data to array. See "include/executor/instance/memory.h".
 ErrCode MemoryInstance::getArray(uint8_t *Arr, unsigned int Offset,
                                  unsigned int Length, bool IsReverse) {
+  /// Check memory size.
+  ErrCode Status = ErrCode::Success;
+  if ((Status = checkDataSize(Offset, Length)) != ErrCode::Success) {
+    return Status;
+  }
   if (Length == 0) {
     return ErrCode::Success;
   }
-  /// Check memory size.
-  ErrCode Status = ErrCode::Success;
-  if ((Status = checkDataSize(Offset + Length)) != ErrCode::Success) {
-    return Status;
-  }
+
   /// Copy data.
   if (IsReverse) {
     for (uint32_t I = 0; I < Length; I++) {
@@ -91,14 +92,15 @@ ErrCode MemoryInstance::getArray(uint8_t *Arr, unsigned int Offset,
 /// Getter of data from array. See "include/executor/instance/memory.h".
 ErrCode MemoryInstance::setArray(const uint8_t *Arr, unsigned int Offset,
                                  unsigned int Length, bool IsReverse) {
+  /// Check memory size.
+  ErrCode Status = ErrCode::Success;
+  if ((Status = checkDataSize(Offset, Length)) != ErrCode::Success) {
+    return Status;
+  }
   if (Length == 0) {
     return ErrCode::Success;
   }
-  /// Check memory size.
-  ErrCode Status = ErrCode::Success;
-  if ((Status = checkDataSize(Offset + Length)) != ErrCode::Success) {
-    return Status;
-  }
+
   /// Copy data.
   if (IsReverse) {
     for (uint32_t I = 0; I < Length; I++) {
@@ -111,18 +113,25 @@ ErrCode MemoryInstance::setArray(const uint8_t *Arr, unsigned int Offset,
 }
 
 /// Check access size and vector size. See "include/executor/instance/memory.h".
-ErrCode MemoryInstance::checkDataSize(unsigned int AccessSize) {
-  if (HasMaxPage && AccessSize > MaxPage * 65536) {
+ErrCode MemoryInstance::checkDataSize(uint32_t Offset, uint32_t Length) {
+  uint64_t AccessLen =
+      static_cast<uint64_t>(Offset) + static_cast<uint64_t>(Length);
+  if (AccessLen > CurrPage * 65536ULL) {
     return ErrCode::MemorySizeExceeded;
   }
-  if (Data.size() < AccessSize) {
-    unsigned int TargetSize = AccessSize / 8 + 1;
+  /// Note: the vector size will <= CurrPage * 65536
+  if (Data.size() < Offset + Length) {
+    unsigned int TargetSize = (Offset + Length) / 8 + 1;
     if (TargetSize < 32 * 65536) {
       TargetSize *= 2;
     } else {
       TargetSize *= 1.1;
     }
-    Data.resize(TargetSize * 8);
+    if (TargetSize * 8 > CurrPage * 65536) {
+      Data.resize(CurrPage * 65536);
+    } else {
+      Data.resize(TargetSize * 8);
+    }
   }
   return ErrCode::Success;
 }

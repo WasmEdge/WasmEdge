@@ -99,7 +99,7 @@ public:
 
 private:
   /// Check access size is valid and adjust vector.
-  ErrCode checkDataSize(unsigned int AccessSize);
+  ErrCode checkDataSize(uint32_t Offset, uint32_t Length);
 
   /// \name Data of memory instance.
   /// @{

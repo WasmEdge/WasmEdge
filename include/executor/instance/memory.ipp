@@ -38,7 +38,7 @@ MemoryInstance::loadValue(T &Value, unsigned int Offset, unsigned int Length) {
 
   /// Check memory size.
   ErrCode Status = ErrCode::Success;
-  if ((Status = checkDataSize(Offset + Length)) != ErrCode::Success) {
+  if ((Status = checkDataSize(Offset, Length)) != ErrCode::Success) {
     return Status;
   }
 
@@ -73,7 +73,7 @@ MemoryInstance::storeValue(const T &Value, unsigned int Offset,
 
   /// Check memory size.
   ErrCode Status = ErrCode::Success;
-  if ((Status = checkDataSize(Offset + Length)) != ErrCode::Success) {
+  if ((Status = checkDataSize(Offset, Length)) != ErrCode::Success) {
     return Status;
   }
 

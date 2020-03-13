@@ -249,8 +249,11 @@ ErrCode Executor::run() {
   ErrCode Result = ErrCode::Success;
   if (auto StartAddr = ModInst->getStartAddr()) {
     Result = Engine.runStartFunction(*StartAddr);
+    Stat = State::Executed;
+  } else {
+    StackMgr.reset();
+    Result = ErrCode::CallFunctionError;
   }
-  Stat = State::Executed;
   return Result;
 }
 

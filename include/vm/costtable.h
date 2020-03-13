@@ -30,9 +30,10 @@ public:
       /// Wasm cost table
       Costs[Type] = std::vector<uint64_t>(256, 1);
       return true;
-      break;
     case Configure::VMType::Ewasm:
-      /// Ewasm cost table
+      Costs[Type] = std::vector<uint64_t>(256, 0);
+      /// TODO: Ewasm cost table
+      /*
       Costs[Type] = std::vector<uint64_t>{
           /// 0x00 - 0x0F
           /// Note: Due to the instructions are only if and else,
@@ -74,13 +75,12 @@ public:
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
           /// 0xF0 - 0xFF
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+      */
       return true;
-      break;
     case Configure::VMType::Wasi:
       /// Wasi cost table
       Costs[Type] = std::vector<uint64_t>(256, 1);
       return true;
-      break;
     default:
       break;
     }

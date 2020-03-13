@@ -20,9 +20,8 @@ ErrCode EEICreate::body(VM::EnvironmentManager &EnvMgr,
                             .value = loadUInt(MemInst, ValueOffset, 16)};
 
   /// Return: Result(i32)
-  Ret = callContract(EnvMgr, MemInst, CreateMsg, DataOffset, DataLength,
-                     ResultOffset);
-  return ErrCode::Success;
+  return callContract(EnvMgr, MemInst, Ret, CreateMsg, DataOffset, DataLength,
+                      ResultOffset);
 }
 
 } // namespace Executor

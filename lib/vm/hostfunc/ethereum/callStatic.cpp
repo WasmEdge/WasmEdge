@@ -21,9 +21,7 @@ ErrCode EEICallStatic::body(VM::EnvironmentManager &EnvMgr,
   if (AddrNum == 9) {
     /// Check data copy cost.
     if (addCopyCost(EnvMgr, DataLength) != ErrCode::Success) {
-      Ret = 2U;
-      /// Revert case handled by return value in call operations.
-      return ErrCode::Success;
+      return ErrCode::CostLimitExceeded;
     }
 
     /// Prepare call data.
@@ -56,7 +54,7 @@ ErrCode EEICallStatic::body(VM::EnvironmentManager &EnvMgr,
         .value = {}};
 
     /// Return: Result(i32)
-    Ret = callContract(EnvMgr, MemInst, CallMsg, DataOffset, DataLength);
+    return callContract(EnvMgr, MemInst, Ret, CallMsg, DataOffset, DataLength);
   }
   return ErrCode::Success;
 }

@@ -22,8 +22,7 @@ ErrCode EEICall::body(VM::EnvironmentManager &EnvMgr,
       .value = loadUInt(MemInst, ValueOffset, 16)};
 
   /// Return: Result(i32)
-  Ret = callContract(EnvMgr, MemInst, CallMsg, DataOffset, DataLength);
-  return ErrCode::Success;
+  return callContract(EnvMgr, MemInst, Ret, CallMsg, DataOffset, DataLength);
 }
 
 } // namespace Executor

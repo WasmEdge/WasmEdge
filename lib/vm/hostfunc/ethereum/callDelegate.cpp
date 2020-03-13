@@ -21,8 +21,7 @@ ErrCode EEICallDelegate::body(VM::EnvironmentManager &EnvMgr,
       .value = Env.getCallValueEVMC()};
 
   /// Return: Result(i32)
-  Ret = callContract(EnvMgr, MemInst, CallMsg, DataOffset, DataLength);
-  return ErrCode::Success;
+  return callContract(EnvMgr, MemInst, Ret, CallMsg, DataOffset, DataLength);
 }
 
 } // namespace Executor

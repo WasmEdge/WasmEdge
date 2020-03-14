@@ -16,7 +16,7 @@ ErrCode EEISelfDestruct::body(VM::EnvironmentManager &EnvMgr,
   /// Take additional gas if call new account.
   if (!Cxt->host->account_exists(Cxt, &Addr)) {
     if (!EnvMgr.addCost(25000ULL)) {
-      return ErrCode::Revert;
+      return ErrCode::CostLimitExceeded;
     }
   }
 

@@ -10,7 +10,7 @@ ErrCode EEIReturnDataCopy::body(VM::EnvironmentManager &EnvMgr,
                                 uint32_t Length) {
   /// Take additional gas of copy.
   if (addCopyCost(EnvMgr, Length) != ErrCode::Success) {
-    return ErrCode::Revert;
+    return ErrCode::CostLimitExceeded;
   }
   return MemInst.setBytes(Env.getReturnData(), ResultOffset, DataOffset,
                           Length);

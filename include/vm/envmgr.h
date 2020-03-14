@@ -71,7 +71,8 @@ public:
   bool addCost(const uint64_t &Cost) {
     CostSum += Cost;
     if (CostSum > CostLimit) {
-      CostSum -= Cost;
+      /// Cost exceeds limit.
+      CostSum = CostLimit;
       return false;
     }
     return true;

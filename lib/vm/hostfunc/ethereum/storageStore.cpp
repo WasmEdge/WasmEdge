@@ -19,7 +19,7 @@ ErrCode EEIStorageStore::body(VM::EnvironmentManager &EnvMgr,
   /// Take additional gas if create case.
   if (evmc::is_zero(CurrValue) && !evmc::is_zero(Value)) {
     if (!EnvMgr.addCost(15000ULL)) {
-      return ErrCode::Revert;
+      return ErrCode::CostLimitExceeded;
     }
   }
 

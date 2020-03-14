@@ -47,6 +47,7 @@ enum class ErrCode : unsigned int {
   FunctionInvalid,         /// Invalid operation to function instance.
   CallFunctionError,       /// Arguement not match function type.
   Revert,                  /// Revert by evm.
+  CostLimitExceeded,       /// Exceeded cost limit (out of gas).
   Terminated               /// Forced terminated by program and return success.
 };
 

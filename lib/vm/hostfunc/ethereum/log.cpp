@@ -12,7 +12,7 @@ ErrCode EEILog::body(VM::EnvironmentManager &EnvMgr,
   /// Take additional gas of logs.
   uint64_t TakeGas = 375ULL * NumberOfTopics + 8ULL * DataLength;
   if (!EnvMgr.addCost(TakeGas)) {
-    return ErrCode::Revert;
+    return ErrCode::CostLimitExceeded;
   }
   evmc_context *Cxt = Env.getEVMCContext();
 

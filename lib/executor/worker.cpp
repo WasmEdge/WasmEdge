@@ -609,7 +609,7 @@ ErrCode Worker::invokeFunction(unsigned int FuncAddr) {
 
     /// Check host function cost.
     if (!EnvMgr.addCost(HostFunc->getCost())) {
-      return ErrCode::Revert;
+      return ErrCode::CostLimitExceeded;
     }
 
     Instance::MemoryInstance *MemoryInst = nullptr;

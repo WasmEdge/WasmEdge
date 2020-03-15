@@ -59,6 +59,11 @@ protected:
     if (Bytes > 32) {
       Bytes = 32;
     }
+    for (uint32_t I = 0; I < 32 - Bytes; ++I) {
+      if (Src.bytes[I]) {
+        return ErrCode::ExecutionFailed;
+      }
+    }
     return MemInst.setArray(Src.bytes + (32 - Bytes), Off, Bytes, true);
   }
 
@@ -75,13 +80,18 @@ protected:
   }
 
   /// Helper function to convert evmc_bytes32 to uint128_t.
-  boost::multiprecision::uint128_t convToUInt128(const evmc_uint256be &Src) {
-    boost::multiprecision::uint128_t Res = 0;
-    for (uint32_t I = 16; I < 32; ++I) {
-      Res <<= 8;
-      Res |= Src.bytes[I];
+  ErrCode convToUInt128(const evmc_uint256be &Src,
+                        boost::multiprecision::uint128_t &Dst) {
+    for (uint32_t I = 0; I < 16; ++I) {
+      if (Src.bytes[I]) {
+        return ErrCode::ExecutionFailed;
+      }
     }
-    return Res;
+    for (uint32_t I = 16; I < 32; ++I) {
+      Dst <<= 8;
+      Dst |= Src.bytes[I];
+    }
+    return ErrCode::Success;
   }
 
   /// Helper function to make call operation.
@@ -138,9 +148,14 @@ protected:
           Msg.kind == evmc_call_kind::EVMC_CALLCODE) &&
          !evmc::is_zero(Msg.value)) ||
         Msg.kind == evmc_call_kind::EVMC_CREATE) {
-      boost::multiprecision::uint128_t DstBalance =
-          convToUInt128(Cxt->host->get_balance(Cxt, &(Msg.sender)));
-      boost::multiprecision::uint128_t ValBalance = convToUInt128(Msg.value);
+      boost::multiprecision::uint128_t DstBalance = 0, ValBalance = 0;
+      if (convToUInt128(Cxt->host->get_balance(Cxt, &(Msg.sender)),
+                        DstBalance) != ErrCode::Success) {
+        return ErrCode::ExecutionFailed;
+      }
+      if (convToUInt128(Msg.value, ValBalance) != ErrCode::Success) {
+        return ErrCode::ExecutionFailed;
+      }
       if (DstBalance < ValBalance) {
         Ret = 1;
         return ErrCode::Success;

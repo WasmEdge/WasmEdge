@@ -8,8 +8,11 @@ ErrCode EEIRevert::body(VM::EnvironmentManager &EnvMgr,
                         Instance::MemoryInstance &MemInst, uint32_t DataOffset,
                         uint32_t DataLength) {
   Env.getReturnData().clear();
-  MemInst.getBytes(Env.getReturnData(), DataOffset, DataLength);
-  Env.getReturnData().resize(DataLength);
+  if (auto Status =
+          MemInst.getBytes(Env.getReturnData(), DataOffset, DataLength);
+      Status != ErrCode::Success) {
+    return Status;
+  }
   return ErrCode::Revert;
 }
 

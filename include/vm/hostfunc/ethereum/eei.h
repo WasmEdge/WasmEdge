@@ -29,28 +29,27 @@ protected:
   }
 
   /// Helper function to load value and store to evmc_uint256be.
-  evmc_uint256be loadUInt(Instance::MemoryInstance &MemInst, uint32_t Off,
-                          uint32_t Bytes = 32) {
+  ErrCode loadUInt(Instance::MemoryInstance &MemInst, evmc_uint256be &Dst,
+                   uint32_t Off, uint32_t Bytes = 32) {
     if (Bytes > 32) {
       Bytes = 32;
     }
-    evmc_uint256be Val = {};
-    MemInst.getArray(Val.bytes + (32 - Bytes), Off, Bytes, true);
-    return Val;
+    Dst = {};
+    return MemInst.getArray(Dst.bytes + (32 - Bytes), Off, Bytes, true);
   }
 
   /// Helper function to load evmc_address from memory instance.
-  evmc_address loadAddress(Instance::MemoryInstance &MemInst, uint32_t Off) {
-    evmc_address Addr;
-    MemInst.getArray(Addr.bytes, Off, 20);
-    return Addr;
+  ErrCode loadAddress(Instance::MemoryInstance &MemInst, evmc_address &Dst,
+                      uint32_t Off) {
+    Dst = {};
+    return MemInst.getArray(Dst.bytes, Off, 20);
   }
 
   /// Helper function to load evmc_bytes32 from memory instance.
-  evmc_bytes32 loadBytes32(Instance::MemoryInstance &MemInst, uint32_t Off) {
-    evmc_bytes32 Bytes;
-    MemInst.getArray(Bytes.bytes, Off, 32);
-    return Bytes;
+  ErrCode loadBytes32(Instance::MemoryInstance &MemInst, evmc_bytes32 &Dst,
+                      uint32_t Off) {
+    Dst = {};
+    return MemInst.getArray(Dst.bytes, Off, 32);
   }
 
   /// Helper function to reverse and store evmc_uint256be to memory instance.
@@ -168,7 +167,11 @@ protected:
     /// Return data.
     if (Msg.kind == evmc_call_kind::EVMC_CREATE &&
         CallRes.status_code == EVMC_SUCCESS) {
-      storeAddress(MemInst, CallRes.create_address, CreateResOffset);
+      if (ErrCode Status =
+              storeAddress(MemInst, CallRes.create_address, CreateResOffset);
+          Status != ErrCode::Success) {
+        return Status;
+      }
       Env.getReturnData().clear();
     } else if (CallRes.output_data) {
       Env.getReturnData().assign(CallRes.output_data,

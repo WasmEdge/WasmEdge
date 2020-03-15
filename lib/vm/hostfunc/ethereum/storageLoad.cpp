@@ -12,7 +12,11 @@ ErrCode EEIStorageLoad::body(VM::EnvironmentManager &EnvMgr,
 
   /// Get destination, path, and value data.
   evmc_address Addr = Env.getAddressEVMC();
-  evmc_bytes32 Path = loadBytes32(MemInst, PathOffset);
+  evmc_bytes32 Path;
+  if (ErrCode Status = loadBytes32(MemInst, Path, PathOffset);
+      Status != ErrCode::Success) {
+    return Status;
+  }
 
   /// Store bytes32 into memory instance.
   return storeBytes32(MemInst, Cxt->host->get_storage(Cxt, &Addr, &Path),

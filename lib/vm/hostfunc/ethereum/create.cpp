@@ -9,6 +9,11 @@ ErrCode EEICreate::body(VM::EnvironmentManager &EnvMgr,
                         uint32_t ValueOffset, uint32_t DataOffset,
                         uint32_t DataLength, uint32_t ResultOffset) {
   /// Prepare creation message.
+  evmc_uint256be Val;
+  if (ErrCode Status = loadUInt(MemInst, Val, ValueOffset, 16);
+      Status != ErrCode::Success) {
+    return Status;
+  }
   evmc_message CreateMsg = {.kind = evmc_call_kind::EVMC_CREATE,
                             .flags = 0,
                             .depth = static_cast<int32_t>(Env.getDepth() + 1),
@@ -17,7 +22,7 @@ ErrCode EEICreate::body(VM::EnvironmentManager &EnvMgr,
                             .sender = Env.getAddressEVMC(),
                             .input_data = nullptr,
                             .input_size = 0,
-                            .value = loadUInt(MemInst, ValueOffset, 16)};
+                            .value = Val};
 
   /// Return: Result(i32)
   return callContract(EnvMgr, MemInst, Ret, CreateMsg, DataOffset, DataLength,

@@ -15,7 +15,11 @@ ErrCode EEIExternalCodeCopy::body(VM::EnvironmentManager &EnvMgr,
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Get address from memory instance.
-  evmc_address Addr = loadAddress(MemInst, AddressOffset);
+  evmc_address Addr;
+  if (ErrCode Status = loadAddress(MemInst, Addr, AddressOffset);
+      Status != ErrCode::Success) {
+    return Status;
+  }
 
   /// Copy code to vector.
   std::vector<uint8_t> Buffer(Length, 0);

@@ -10,7 +10,11 @@ ErrCode EEISelfDestruct::body(VM::EnvironmentManager &EnvMgr,
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Get address data.
-  evmc_address Addr = loadAddress(MemInst, AddressOffset);
+  evmc_address Addr;
+  if (ErrCode Status = loadAddress(MemInst, Addr, AddressOffset);
+      Status != ErrCode::Success) {
+    return Status;
+  }
   evmc_address Self = Env.getAddressEVMC();
 
   /// Take additional gas if call new account.

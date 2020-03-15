@@ -11,7 +11,11 @@ ErrCode EEIGetExternalBalance::body(VM::EnvironmentManager &EnvMgr,
   evmc_context *Cxt = Env.getEVMCContext();
 
   /// Get address from memory instance.
-  evmc_address Addr = loadAddress(MemInst, AddressOffset);
+  evmc_address Addr;
+  if (ErrCode Status = loadAddress(MemInst, Addr, AddressOffset);
+      Status != ErrCode::Success) {
+    return Status;
+  }
 
   /// Get balance uint256 big-endian value.
   evmc_uint256be Balance = Cxt->host->get_balance(Cxt, &Addr);

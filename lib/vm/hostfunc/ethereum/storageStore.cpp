@@ -12,8 +12,15 @@ ErrCode EEIStorageStore::body(VM::EnvironmentManager &EnvMgr,
 
   /// Get destination, path, value data, and current storage value.
   evmc_address Addr = Env.getAddressEVMC();
-  evmc_bytes32 Path = loadBytes32(MemInst, PathOffset);
-  evmc_bytes32 Value = loadBytes32(MemInst, ValueOffset);
+  evmc_bytes32 Path, Value;
+  if (ErrCode Status = loadBytes32(MemInst, Path, PathOffset);
+      Status != ErrCode::Success) {
+    return Status;
+  }
+  if (ErrCode Status = loadBytes32(MemInst, Value, ValueOffset);
+      Status != ErrCode::Success) {
+    return Status;
+  }
   evmc_bytes32 CurrValue = Cxt->host->get_storage(Cxt, &Addr, &Path);
 
   /// Take additional gas if create case.

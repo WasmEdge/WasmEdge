@@ -11,7 +11,11 @@ ErrCode EEICallStatic::body(VM::EnvironmentManager &EnvMgr,
                             uint64_t Gas, uint32_t AddressOffset,
                             uint32_t DataOffset, uint32_t DataLength) {
   /// Load address and convert to uint256.
-  evmc_address Addr = loadAddress(MemInst, AddressOffset);
+  evmc_address Addr;
+  if (ErrCode Status = loadAddress(MemInst, Addr, AddressOffset);
+      Status != ErrCode::Success) {
+    return Status;
+  }
   boost::multiprecision::uint256_t AddrNum = 0;
   for (auto &I : Addr.bytes) {
     AddrNum <<= 8;

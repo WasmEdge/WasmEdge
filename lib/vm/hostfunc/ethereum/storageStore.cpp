@@ -10,6 +10,11 @@ ErrCode EEIStorageStore::body(VM::EnvironmentManager &EnvMgr,
                               uint32_t PathOffset, uint32_t ValueOffset) {
   evmc_context *Cxt = Env.getEVMCContext();
 
+  /// Static mode cannot store storage
+  if (Env.getFlag() & evmc_flags::EVMC_STATIC) {
+    return ErrCode::ExecutionFailed;
+  }
+
   /// Get destination, path, value data, and current storage value.
   evmc_address Addr = Env.getAddressEVMC();
   evmc_bytes32 Path, Value;

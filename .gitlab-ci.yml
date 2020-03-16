@@ -1,6 +1,6 @@
 build:
   stage: build
-  image: hydai/ssvm-dev:alpha
+  image: secondstate/ssvm:ubuntu-build
   before_script:
     - rm -rf build
     - mkdir build
@@ -15,7 +15,7 @@ build:
 
 test:
   stage: test
-  image: hydai/ssvm-dev:alpha
+  image: secondstate/ssvm:ubuntu-build
   before_script:
     - cd build
   script:

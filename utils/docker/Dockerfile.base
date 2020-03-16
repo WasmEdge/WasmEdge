@@ -1,0 +1,14 @@
+FROM ubuntu:18.04
+
+MAINTAINER hydai hydai@secondstate.io
+
+RUN apt update && apt install -y \
+	cmake \
+	curl \
+	g++ \
+	libboost-all-dev
+
+RUN curl -sL https://deb.nodesource.com/setup_12.x | bash \
+	&& apt install -y nodejs
+
+RUN rm -rf /var/lib/apt/lists/*

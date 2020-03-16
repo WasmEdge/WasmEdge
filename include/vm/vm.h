@@ -151,9 +151,13 @@ public:
                         std::vector<uint8_t> &Dist, const uint64_t Size) {
     ExecutorEngine.getMemoryToBytes(SrcMemIdx, MemOffset, Dist, Size);
   }
-  void getMemoryToBytesAll(const uint32_t SrcMemIdx,
-                           std::vector<uint8_t> &Dist) {
-    ExecutorEngine.getMemoryToBytesAll(SrcMemIdx, Dist);
+  void getMemoryToBytesAll(const uint32_t SrcMemIdx, std::vector<uint8_t> &Dist,
+                           unsigned int &DataPageSize) {
+    ExecutorEngine.getMemoryToBytesAll(SrcMemIdx, Dist, DataPageSize);
+  }
+  void setMemoryDataPageSize(const uint32_t SrcMemIdx,
+                             const unsigned int DataPageSize) {
+    ExecutorEngine.setMemoryDataPageSize(SrcMemIdx, DataPageSize);
   }
 
 private:

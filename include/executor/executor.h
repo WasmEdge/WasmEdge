@@ -61,7 +61,12 @@ public:
 
   /// Get all memory and save into bytes array from given memory index
   ErrCode getMemoryToBytesAll(const uint32_t SrcMemIdx,
-                              std::vector<uint8_t> &Dist);
+                              std::vector<uint8_t> &Dist,
+                              unsigned int &DataPageSize);
+
+  /// Set memory data page size
+  ErrCode setMemoryDataPageSize(const uint32_t SrcMemIdx,
+                                const unsigned int DataPageSize);
 
   /// Resume global and memory instance from JSON file.
   ErrCode restore(const rapidjson::Value &Doc);

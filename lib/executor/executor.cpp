@@ -128,13 +128,27 @@ ErrCode Executor::getMemoryToBytes(const uint32_t SrcMemIdx,
 
 /// Get all memory and save into bytes array from given memory index
 ErrCode Executor::getMemoryToBytesAll(const uint32_t SrcMemIdx,
-                                      std::vector<uint8_t> &Dist) {
+                                      std::vector<uint8_t> &Dist,
+                                      unsigned int &DataPageSize) {
   Instance::MemoryInstance *MemInst = nullptr;
   if (ErrCode Status = StoreMgr.getMemory(SrcMemIdx, MemInst);
       Status != ErrCode::Success) {
     return Status;
   }
+  DataPageSize = MemInst->getDataPageSize();
   return MemInst->getBytes(Dist, 0, MemInst->getDataVector().size());
+}
+
+/// Set memory data page size
+ErrCode Executor::setMemoryDataPageSize(const uint32_t SrcMemIdx,
+                                        const unsigned int DataPageSize) {
+  Instance::MemoryInstance *MemInst = nullptr;
+  if (ErrCode Status = StoreMgr.getMemory(SrcMemIdx, MemInst);
+      Status != ErrCode::Success) {
+    return Status;
+  }
+  MemInst->setLimit(DataPageSize, false, 0);
+  return ErrCode::Success;
 }
 
 /// Resume from JSON. See "include/executor/executor.h"

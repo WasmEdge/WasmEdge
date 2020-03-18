@@ -49,7 +49,6 @@ void VM::initVMEnv() {
 }
 
 void VM::cleanup() {
-  ValidatorEngine.reset();
   ExecutorEngine.reset();
   Mod.reset();
   Args.clear();
@@ -78,13 +77,10 @@ ErrCode VM::loadWasm() {
 }
 
 ErrCode VM::validate() {
-  Validator::ErrCode ValidatorStatus = Validator::ErrCode::Success;
   VMResult.setStage(Result::Stage::Validator);
 
-  ValidatorStatus = ValidatorEngine.validate(Mod);
-  detail::testAndSetError(ValidatorStatus, VMResult);
-
-  if (VMResult.hasError()) {
+  if (auto Res = ValidatorEngine.validate(Mod); !Res) {
+    VMResult.setErrCode(static_cast<uint32_t>(Res.error()));
     return ErrCode::Failed;
   }
   return ErrCode::Success;

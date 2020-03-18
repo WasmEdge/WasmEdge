@@ -1,4 +1,5 @@
-//===-- ssvm/validator/validator.h - Loader flow control class definition--===//
+// SPDX-License-Identifier: Apache-2.0
+//===-- ssvm/validator/validator.h - validator class definition -----------===//
 //
 // Part of the SSVM Project.
 //
@@ -12,112 +13,61 @@
 #pragma once
 
 #include "common/ast/module.h"
+#include "common/errcode.h"
+#include "formchecker.h"
 
-#include <deque>
-#include <map>
-#include <string>
+#include <memory>
 
 namespace SSVM {
 namespace Validator {
 
-namespace {
-using OpCode = AST::Instruction::OpCode;
-} // namespace
-
-enum class ErrCode : unsigned int { Success = 0, Invalid };
-
-enum class Value : unsigned int { Unknown, I32, I64, F32, F64 };
-
-struct CtrlFrame {
-  std::vector<Value> LabelTypes;
-  std::vector<Value> EndTypes;
-  size_t Height;
-  bool IsUnreachable;
-};
-
-class ValidateMachine {
-  void runOp(AST::Instruction *);
-  void push_opd(Value);
-  Value pop_opd();
-  Value pop_opd(Value);
-  void pop_opds(const std::vector<Value> &);
-  void push_opds(const std::vector<Value> &);
-  void push_ctrl(const std::vector<Value> &, const std::vector<Value> &);
-  std::vector<Value> pop_ctrl();
-  void unreachable();
-
-  Value getLocal(unsigned int);
-  void setLocal(unsigned int, Value);
-  Value getGlobal(unsigned int);
-  void setGlobal(unsigned int, Value);
-  ErrCode validateWarp(const AST::InstrVec &);
-
-public:
-  void addLocal(unsigned int, ValType);
-  void addGlobal(AST::GlobalType);
-  void addFunc(AST::FunctionType *);
-  void addType(AST::FunctionType *);
-  void reset(bool CleanGlobal = false);
-  void init();
-  ErrCode validate(const AST::InstrVec &, const std::vector<ValType> &);
-
-  std::deque<Value> result() { return ValStack; };
-  auto &getGlobals() { return Global; }
-  auto &getFunctions() { return Funcs; }
-  auto &getTypes() { return Types; }
-
-private:
-  std::map<unsigned int, Value> Local;
-  std::deque<Value> ValStack;
-  std::deque<CtrlFrame> CtrlStack;
-  std::vector<Value> ReturnVals;
-
-  std::vector<AST::GlobalType> Global;
-  std::vector<std::pair<std::vector<Value>, std::vector<Value>>> Funcs;
-  std::vector<std::pair<std::vector<Value>, std::vector<Value>>> Types;
-
-  static const size_t NAT = -1;
-};
-
-/// Loader flow control class.
+/// Validator flow control class.
 class Validator {
-  /// Sec. valid types
-  ErrCode validate(const AST::Limit *, unsigned int);
-  ErrCode validate(AST::FunctionType *);
-  ErrCode validate(AST::TableType *);
-  ErrCode validate(AST::MemoryType *);
-  ErrCode validate(AST::GlobalType *);
-
-  /// Sec. Instructions types
-  ErrCode validate(AST::FunctionSection *, AST::CodeSection *,
-                   AST::TypeSection *);
-  ErrCode validate(AST::CodeSegment *, AST::FunctionType *);
-  ErrCode validate(AST::MemorySection *);
-  ErrCode validate(AST::TableSection *);
-  ErrCode validate(AST::GlobalSection *);
-  ErrCode validate(AST::GlobalSegment *);
-  ErrCode validate(AST::ElementSection *);
-  ErrCode validate(AST::ElementSegment *);
-  ErrCode validate(AST::StartSection *);
-  ErrCode validate(AST::ExportSection *);
-  ErrCode validate(AST::ExportDesc *);
-  ErrCode validate(AST::ImportSection *, AST::TypeSection *);
-  ErrCode validate(AST::ImportDesc *, AST::TypeSection *);
-
-  /// Validator Stack Operation
 public:
   Validator() = default;
   ~Validator() = default;
 
   /// Validate AST::Module.
-  ErrCode validate(std::unique_ptr<AST::Module> &);
-  void reset();
+  Expect<void> validate(const std::unique_ptr<AST::Module> &Mod);
 
 private:
-  ValidateMachine VM;
+  /// Validate AST::Types
+  Expect<void> validate(const AST::Limit &Lim, const uint32_t K);
+  Expect<void> validate(const AST::FunctionType &Func);
+  Expect<void> validate(const AST::TableType &Tab);
+  Expect<void> validate(const AST::MemoryType &Mem);
+  /// GlobalType is always valid.
 
-  static const unsigned int LIMIT_TABLETYPE = UINT32_MAX; // 2^32-1
-  static const unsigned int LIMIT_MEMORYTYPE = 1U << 16;
+  /// Validate AST::Segments
+  Expect<void> validate(const AST::GlobalSegment &GlobSeg);
+  Expect<void> validate(const AST::ElementSegment &ElemSeg);
+  Expect<void> validate(const AST::CodeSegment &CodeSeg,
+                        const uint32_t TypeIdx);
+  Expect<void> validate(const AST::DataSegment &DataSeg);
+
+  /// Validate AST::Desc
+  Expect<void> validate(const AST::ImportDesc &ImpDesc);
+  Expect<void> validate(const AST::ExportDesc &ExpDesc);
+
+  /// Validate AST::Sections
+  Expect<void> validate(const AST::ImportSection *);
+  Expect<void> validate(const AST::FunctionSection *, const AST::CodeSection *);
+  Expect<void> validate(const AST::TableSection *);
+  Expect<void> validate(const AST::MemorySection *);
+  Expect<void> validate(const AST::GlobalSection *);
+  Expect<void> validate(const AST::ExportSection *);
+  Expect<void> validate(const AST::StartSection *);
+  Expect<void> validate(const AST::ElementSection *);
+  Expect<void> validate(const AST::DataSection *);
+
+  /// Validate const expression
+  Expect<void> validateConstExpr(const AST::InstrVec &Instrs,
+                                 const std::vector<ValType> &Returns,
+                                 const bool RestrictGlobal = false);
+
+  const uint32_t LIMIT_TABLETYPE = UINT32_MAX; // 2^32-1
+  const uint32_t LIMIT_MEMORYTYPE = 1U << 16;
+  FormChecker Checker;
 };
 
 } // namespace Validator

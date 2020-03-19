@@ -1,0 +1,24 @@
+ARG BASE=secondstate/ssvm:ubuntu-base
+FROM ${BASE}
+
+RUN apt update && apt install -y \
+	software-properties-common \
+	wget
+
+RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|apt-key add -
+
+RUN apt update && apt install -y \
+	libllvm9 \
+	llvm-9 \
+	llvm-9-dev \
+	llvm-9-runtime \
+	libclang-common-9-dev # for yaml-bench
+
+RUN apt install -y \
+	clang-9 \
+	clang-tools-9
+
+RUN rm -rf /var/lib/apt/lists/*
+
+ENV CC=/usr/bin/clang-9
+ENV CXX=/usr/bin/clang++-9

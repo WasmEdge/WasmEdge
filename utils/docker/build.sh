@@ -23,8 +23,12 @@ function docker_build
 }
 
 # Build all images.
-docker_build Dockerfile.base        ubuntu-base
-docker_build Dockerfile.build       ubuntu-build    \
+docker_build Dockerfile.base            ubuntu-base
+docker_build Dockerfile.build-clang     ubuntu-build-clang  \
+    --build-arg "BASE=${NAME}:ubuntu-base"
+docker_build Dockerfile.build-clang     latest              \
+    --build-arg "BASE=${NAME}:ubuntu-base"
+docker_build Dockerfile.build-gcc       ubuntu-build-gcc    \
     --build-arg "BASE=${NAME}:ubuntu-base"
 
 # Remove intermediate images.

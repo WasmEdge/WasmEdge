@@ -2,6 +2,7 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   BASE_BINDIR: build
+  BASE_TESTDIR: build/test
 
 stages:
   - build
@@ -34,16 +35,14 @@ stages:
   stage: test
   image: secondstate/ssvm:${KEY}
   before_script:
-    - cd ${BASE_BINDIR}
+    - cd ${BASE_TESTDIR}
   script:
-    - cd test/loader
+    - cd loader
     - ./ssvmLoaderEthereumTests
     - ./ssvmLoaderFileMgrTests
     - ./ssvmLoaderWagonTests
     - cd ../ast/load
     - ./ssvmASTLoadTests
-    #- cd ../../evm
-    #- ./ssvmEVMTests
     - cd ../../evmc
     - ./ssvmEVMCTests
     - cd ../proxy
@@ -59,12 +58,14 @@ stages:
 
 build:gcc:
   <<: *build_job
+  tags: ["ssvm-gcc"]
   variables:
     CMAKE_OPTIONS: "-DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON"
     KEY: "ubuntu-build-gcc"
 
 build:clang:
   <<: *build_job
+  tags: ["ssvm-clang"]
   variables:
     CMAKE_OPTIONS: "-DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON"
     KEY: "ubuntu-build-clang"
@@ -73,12 +74,14 @@ build:clang:
 
 test:gcc:
   <<: *test_job
+  tags: ["ssvm-gcc"]
   needs: ["build:gcc"]
   variables:
     KEY: "ubuntu-build-gcc"
 
 test:clang:
   <<: *test_job
+  tags: ["ssvm-clang"]
   needs: ["build:clang"]
   variables:
     KEY: "ubuntu-build-clang"

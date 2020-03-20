@@ -5,6 +5,12 @@
 #include "vm/environment.h"
 #include "wasi/core.h"
 
+#ifdef __APPLE__
+#include <crt_externs.h>
+#define environ (*_NSGetEnviron())
+#include <errno.h>
+#endif
+
 namespace SSVM {
 namespace Compiler {
 

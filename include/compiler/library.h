@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/common.h"
 #include "common.h"
+#include "common/value.h"
 #include "hostfunc.h"
 #include <memory>
 #include <string>
@@ -53,13 +53,13 @@ public:
   }
 
   /// Append the start function arguments.
-  ErrCode appendArgument(AST::ValVariant Val) {
+  ErrCode appendArgument(ValVariant Val) {
     Arguments.push_back(std::move(Val));
     return ErrCode::Success;
   }
 
   /// Get start function return values.
-  const std::vector<AST::ValVariant> &getReturnValue() const { return Returns; }
+  const std::vector<ValVariant> &getReturnValue() const { return Returns; }
 
   /// Execute wasm with given input.
   ErrCode execute();
@@ -71,8 +71,7 @@ public:
     return *reinterpret_cast<T *>(Memory.data() + Offset);
   }
 
-  template <typename T>
-  Span<T *> getMemory(uint32_t Offset, uint32_t Length) {
+  template <typename T> Span<T *> getMemory(uint32_t Offset, uint32_t Length) {
     const auto Begin = reinterpret_cast<T *>(Memory.data() + Offset);
     const auto End = Begin + Length;
     return {Begin, End};
@@ -81,8 +80,8 @@ public:
 private:
   class Engine;
   Engine *ExecutionEngine;
-  std::vector<AST::ValVariant> Arguments;
-  std::vector<AST::ValVariant> Returns;
+  std::vector<ValVariant> Arguments;
+  std::vector<ValVariant> Returns;
   std::vector<std::unique_ptr<HostFunction>> HostFuncs;
   std::vector<uint8_t> Memory;
   void *MemoryPtr;
@@ -90,12 +89,8 @@ private:
   void trap(ErrCode Status);
   uint32_t memorySize();
   uint32_t memoryGrow(uint32_t NewSize);
-  static void trapProxy(Library *Lib, ErrCode Status) {
-    Lib->trap(Status);
-  }
-  static uint32_t memorySizeProxy(Library *Lib) {
-    return Lib->memorySize();
-  }
+  static void trapProxy(Library *Lib, ErrCode Status) { Lib->trap(Status); }
+  static uint32_t memorySizeProxy(Library *Lib) { return Lib->memorySize(); }
   static uint32_t memoryGrowProxy(Library *Lib, uint32_t NewSize) {
     return Lib->memoryGrow(NewSize);
   }

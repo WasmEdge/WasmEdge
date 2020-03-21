@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "compiler/compiler.h"
-#include "ast/instruction.h"
-#include "ast/section.h"
+#include "common/ast/instruction.h"
+#include "common/ast/section.h"
+#include "common/types.h"
 #include "compiler/hostfunc/ethereum/calldatacopy.h"
 #include "compiler/hostfunc/ethereum/callstatic.h"
 #include "compiler/hostfunc/ethereum/finish.h"
@@ -110,15 +111,15 @@ struct Compiler::CompileContext {
 namespace {
 
 static llvm::Type *toLLVMType(llvm::LLVMContext &Context,
-                              const SSVM::AST::ValType &ValType) {
+                              const SSVM::ValType &ValType) {
   switch (ValType) {
-  case SSVM::AST::ValType::I32:
+  case SSVM::ValType::I32:
     return llvm::Type::getInt32Ty(Context);
-  case SSVM::AST::ValType::I64:
+  case SSVM::ValType::I64:
     return llvm::Type::getInt64Ty(Context);
-  case SSVM::AST::ValType::F32:
+  case SSVM::ValType::F32:
     return llvm::Type::getFloatTy(Context);
-  case SSVM::AST::ValType::F64:
+  case SSVM::ValType::F64:
     return llvm::Type::getDoubleTy(Context);
   default:
     assert(false);
@@ -128,7 +129,7 @@ static llvm::Type *toLLVMType(llvm::LLVMContext &Context,
 
 static std::vector<llvm::Type *>
 toLLVMType(llvm::LLVMContext &Context,
-           const std::vector<SSVM::AST::ValType> &ValTypes) {
+           const std::vector<SSVM::ValType> &ValTypes) {
   std::vector<llvm::Type *> Result;
   Result.reserve(ValTypes.size());
   for (const auto &Type : ValTypes) {
@@ -149,15 +150,15 @@ toLLVMType(llvm::LLVMContext &Context,
 }
 
 static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &Context,
-                                          const SSVM::AST::ValType &ValType) {
+                                          const SSVM::ValType &ValType) {
   switch (ValType) {
-  case SSVM::AST::ValType::I32:
+  case SSVM::ValType::I32:
     return llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0);
-  case SSVM::AST::ValType::I64:
+  case SSVM::ValType::I64:
     return llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), 0);
-  case SSVM::AST::ValType::F32:
+  case SSVM::ValType::F32:
     return llvm::ConstantFP::get(llvm::Type::getFloatTy(Context), 0.0f);
-  case SSVM::AST::ValType::F64:
+  case SSVM::ValType::F64:
     return llvm::ConstantFP::get(llvm::Type::getDoubleTy(Context), 0.0);
   default:
     assert(false);
@@ -170,8 +171,7 @@ public:
   using ErrCode = SSVM::Compiler::ErrCode;
   using OpCode = SSVM::AST::Instruction::OpCode;
   FunctionCompiler(SSVM::Compiler::Compiler::CompileContext &Context,
-                   llvm::Function *F,
-                   const std::vector<SSVM::AST::ValType> &Locals)
+                   llvm::Function *F, const std::vector<SSVM::ValType> &Locals)
       : Context(Context), VMContext(Context.Context), F(F),
         Builder(llvm::BasicBlock::Create(VMContext, "entry", F)) {
     if (F) {
@@ -1262,8 +1262,9 @@ ErrCode Compiler::compile(const AST::ImportSection &ImportSec) {
     {
       /// Get the function type index in module.
       unsigned int *TypeIdx = nullptr;
-      if (Executor::ErrCode Status = ImpDesc->getExternalContent(TypeIdx);
-          Status != Executor::ErrCode::Success) {
+      if (auto Res = ImpDesc->getExternalContent<uint32_t>()) {
+        TypeIdx = *Res;
+      } else {
         return ErrCode::Failed;
       }
       if (*TypeIdx >= Context->FunctionTypes.size()) {
@@ -1322,7 +1323,7 @@ ErrCode Compiler::compile(const AST::ExportSection &ExportSec) {
 
 ErrCode Compiler::compile(const AST::GlobalSection &GlobalSec) {
   for (size_t I = 0; I < GlobalSec.getContent().size(); ++I) {
-    const SSVM::AST::ValType &ValType =
+    const SSVM::ValType &ValType =
         GlobalSec.getContent()[I]->getGlobalType()->getValueType();
     llvm::GlobalVariable *G = new llvm::GlobalVariable(
         Context->Module, toLLVMType(Context->Context, ValType), false,
@@ -1412,7 +1413,7 @@ ErrCode Compiler::compile(const AST::FunctionSection &FuncSec,
       continue;
     }
 
-    std::vector<AST::ValType> Locals;
+    std::vector<ValType> Locals;
     for (const auto &Local : Code->getLocals()) {
       for (unsigned I = 0; I < Local.first; ++I) {
         Locals.push_back(Local.second);

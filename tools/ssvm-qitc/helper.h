@@ -3,7 +3,6 @@
 
 #include "executor/common.h"
 #include "executor/hostfunc.h"
-#include "executor/worker/util.h"
 #include "vm/envmgr.h"
 #include <iostream>
 

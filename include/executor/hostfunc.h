@@ -17,7 +17,8 @@
 #include "stackmgr.h"
 #include "storemgr.h"
 #include "vm/envmgr.h"
-#include "worker/util.h"
+#include "common/types.h"
+
 #include <memory>
 #include <tuple>
 #include <vector>

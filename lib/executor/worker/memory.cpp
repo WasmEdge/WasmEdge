@@ -3,7 +3,7 @@
 #include "common/ast/instruction.h"
 #include "executor/common.h"
 #include "executor/worker.h"
-#include "executor/worker/util.h"
+#include "common/value.h"
 #include "support/casting.h"
 
 #include <cstdint>

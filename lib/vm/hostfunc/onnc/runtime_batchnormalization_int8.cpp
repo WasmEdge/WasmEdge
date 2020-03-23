@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/hostfunc/onnc/runtime_batchnormalization_int8.h"
-#include "executor/common.h"
-#include "executor/worker/util.h"
 #include "onnc/onnc_runtime.h"
 
 #include <stdint.h>

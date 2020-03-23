@@ -2,7 +2,8 @@
 #include "executor/common.h"
 #include "executor/entry/value.h"
 #include "executor/worker.h"
-#include "executor/worker/util.h"
+#include "common/value.h"
+
 #include <cmath>
 
 namespace SSVM {

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "compiler/hostfunc/wasi/fd_FdstatGet.h"
 #include "executor/common.h"
-#include "executor/worker/util.h"
 #include <algorithm>
 #include <fcntl.h>
 #include <stdint.h>

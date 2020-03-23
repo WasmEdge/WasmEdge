@@ -3,8 +3,7 @@
 #include "executor/common.h"
 #include "executor/instance/memory.h"
 #include "executor/worker.h"
-#include "executor/worker/util.h"
-#include "support/casting.h"
+#include "common/value.h"
 
 #include <cstdint>
 #include <type_traits>

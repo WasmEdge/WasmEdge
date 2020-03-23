@@ -12,6 +12,7 @@
 #pragma once
 
 #include "support/variant.h"
+#include "support/casting.h"
 #include "types.h"
 
 #include <cstdint>
@@ -56,6 +57,23 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   case ValType::F64:
     return double(0.0);
   }
+}
+
+/// Retrieve value.
+template <typename T> inline const T &retrieveValue(const ValVariant &Val) {
+  return *reinterpret_cast<const T *>(
+      &std::get<Support::TypeToWasmTypeT<T>>(Val));
+}
+template <typename T> inline T &retrieveValue(ValVariant &Val) {
+  return *reinterpret_cast<T *>(&std::get<Support::TypeToWasmTypeT<T>>(Val));
+}
+template <typename T> inline const T &&retrieveValue(const ValVariant &&Val) {
+  return std::move(*reinterpret_cast<const T *>(
+      &std::get<Support::TypeToWasmTypeT<T>>(Val)));
+}
+template <typename T> inline T &&retrieveValue(ValVariant &&Val) {
+  return std::move(
+      *reinterpret_cast<T *>(&std::get<Support::TypeToWasmTypeT<T>>(Val)));
 }
 
 } // namespace SSVM

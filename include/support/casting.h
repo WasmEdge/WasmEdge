@@ -79,5 +79,12 @@ toUnsigned(T Val) {
   return static_cast<MakeWasmUnsignedT<T>>(Val);
 }
 
+template <typename T> struct TypeToWasmType { using type = T; };
+template <> struct TypeToWasmType<int32_t> { using type = uint32_t; };
+template <> struct TypeToWasmType<int64_t> { using type = uint64_t; };
+template <typename T>
+using TypeToWasmTypeT =
+    typename std::enable_if_t<IsWasmTypeV<T>, typename TypeToWasmType<T>::type>;
+
 } // namespace Support
 } // namespace SSVM

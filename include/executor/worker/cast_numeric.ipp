@@ -2,11 +2,10 @@
 #include "executor/common.h"
 #include "executor/entry/value.h"
 #include "executor/worker.h"
-#include "executor/worker/util.h"
-#include "support/casting.h"
+#include "common/value.h"
 
 #include <cmath>
-#include <string.h>
+#include <cstring>
 
 namespace SSVM {
 namespace Executor {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "executor/common.h"
 #include "executor/worker.h"
-#include "executor/worker/util.h"
+#include "common/value.h"
 
 #include <algorithm>
 #include <cstdint>

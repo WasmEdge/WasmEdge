@@ -4,6 +4,17 @@
 namespace SSVM {
 namespace AST {
 
+/// Copy construtor. See "include/common/ast/instruction.h".
+BlockControlInstruction::BlockControlInstruction(
+    const BlockControlInstruction &Instr)
+    : Instruction(Instr.Code), BlockType(Instr.BlockType) {
+  for (auto &It : Instr.Body) {
+    if (auto Res = makeInstructionNode(*It.get())) {
+      Body.push_back(std::move(*Res));
+    }
+  }
+}
+
 /// Load binary of block instructions. See "include/common/ast/instruction.h".
 Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
   /// Read the block return type.
@@ -54,6 +65,22 @@ Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
   }
 
   return {};
+}
+
+/// Copy construtor. See "include/common/ast/instruction.h".
+IfElseControlInstruction::IfElseControlInstruction(
+    const IfElseControlInstruction &Instr)
+    : Instruction(Instr.Code), BlockType(Instr.BlockType) {
+  for (auto &It : Instr.IfStatement) {
+    if (auto Res = makeInstructionNode(*It.get())) {
+      IfStatement.push_back(std::move(*Res));
+    }
+  }
+  for (auto &It : Instr.ElseStatement) {
+    if (auto Res = makeInstructionNode(*It.get())) {
+      ElseStatement.push_back(std::move(*Res));
+    }
+  }
 }
 
 /// Load binary of if-else instructions. See "include/common/ast/instruction.h".
@@ -259,7 +286,7 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
 
 /// Instruction node maker. See "include/common/ast/instruction.h".
 Expect<std::unique_ptr<Instruction>>
-makeInstructionNode(Instruction::OpCode Code) {
+makeInstructionNode(const Instruction::OpCode &Code) {
   return dispatchInstruction(
       Code, [&Code](auto &&Arg) -> Expect<std::unique_ptr<Instruction>> {
         if constexpr (std::is_void_v<
@@ -270,6 +297,25 @@ makeInstructionNode(Instruction::OpCode Code) {
           /// Make the instruction node according to Code.
           return std::make_unique<typename std::decay_t<decltype(Arg)>::type>(
               Code);
+        }
+      });
+}
+
+/// Instruction node duplicater. See "include/common/ast/instruction.h".
+Expect<std::unique_ptr<Instruction>>
+makeInstructionNode(const Instruction &Instr) {
+  return dispatchInstruction(
+      Instr.getOpCode(),
+      [&Instr](auto &&Arg) -> Expect<std::unique_ptr<Instruction>> {
+        if constexpr (std::is_void_v<
+                          typename std::decay_t<decltype(Arg)>::type>) {
+          /// If the Code not matched, return null pointer.
+          return Unexpect(ErrCode::InvalidGrammar);
+        } else {
+          /// Make the instruction node according to Code.
+          return std::make_unique<typename std::decay_t<decltype(Arg)>::type>(
+              static_cast<const typename std::decay_t<decltype(Arg)>::type &>(
+                  Instr));
         }
       });
 }

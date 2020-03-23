@@ -220,7 +220,7 @@ public:
   };
 
   /// Constructor assigns the OpCode.
-  Instruction(OpCode &Byte) { Code = Byte; };
+  Instruction(const OpCode &Byte) : Code(Byte) {}
   virtual ~Instruction() noexcept = default;
 
   /// Binary loading from file manager. Default not load anything.
@@ -231,21 +231,26 @@ public:
 
 protected:
   /// OpCode if this instruction node.
-  OpCode Code;
+  const OpCode Code;
 };
 
 /// Derived control instruction node.
 class ControlInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
-  ControlInstruction(OpCode &Byte) : Instruction(Byte) {}
+  ControlInstruction(const OpCode &Byte) : Instruction(Byte) {}
+  /// Copy constructor.
+  ControlInstruction(const ControlInstruction &Instr)
+      : Instruction(Instr.Code) {}
 };
 
 /// Derived block control instruction node.
 class BlockControlInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
-  BlockControlInstruction(OpCode &Byte) : Instruction(Byte) {}
+  BlockControlInstruction(const OpCode &Byte) : Instruction(Byte) {}
+  /// Copy constructor.
+  BlockControlInstruction(const BlockControlInstruction &Instr);
 
   /// Load binary from file manager.
   ///
@@ -275,7 +280,9 @@ private:
 class IfElseControlInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
-  IfElseControlInstruction(OpCode &Byte) : Instruction(Byte) {}
+  IfElseControlInstruction(const OpCode &Byte) : Instruction(Byte) {}
+  /// Copy constructor.
+  IfElseControlInstruction(const IfElseControlInstruction &Instr);
 
   /// Load binary from file manager.
   ///
@@ -309,7 +316,10 @@ private:
 class BrControlInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
-  BrControlInstruction(OpCode &Byte) : Instruction(Byte) {}
+  BrControlInstruction(const OpCode &Byte) : Instruction(Byte) {}
+  /// Copy constructor.
+  BrControlInstruction(const BrControlInstruction &Instr)
+      : Instruction(Instr.Code), LabelIdx(Instr.LabelIdx) {}
 
   /// Load binary from file manager.
   ///
@@ -333,7 +343,11 @@ private:
 class BrTableControlInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
-  BrTableControlInstruction(OpCode &Byte) : Instruction(Byte) {}
+  BrTableControlInstruction(const OpCode &Byte) : Instruction(Byte) {}
+  /// Copy constructor.
+  BrTableControlInstruction(const BrTableControlInstruction &Instr)
+      : Instruction(Instr.Code), LabelTable(Instr.LabelTable),
+        LabelIdx(Instr.LabelIdx) {}
 
   /// Load binary from file manager.
   ///
@@ -363,7 +377,10 @@ private:
 class CallControlInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
-  CallControlInstruction(OpCode &Byte) : Instruction(Byte) {}
+  CallControlInstruction(const OpCode &Byte) : Instruction(Byte) {}
+  /// Copy constructor.
+  CallControlInstruction(const CallControlInstruction &Instr)
+      : Instruction(Instr.Code), FuncIdx(Instr.FuncIdx) {}
 
   /// Load binary from file manager.
   ///
@@ -387,14 +404,17 @@ private:
 class ParametricInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
-  ParametricInstruction(OpCode &Byte) : Instruction(Byte) {}
+  ParametricInstruction(const OpCode &Byte) : Instruction(Byte) {}
 };
 
 /// Derived variable instruction node.
 class VariableInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
-  VariableInstruction(OpCode &Byte) : Instruction(Byte) {}
+  VariableInstruction(const OpCode &Byte) : Instruction(Byte) {}
+  /// Copy constructor.
+  VariableInstruction(const VariableInstruction &Instr)
+      : Instruction(Instr.Code), VarIdx(Instr.VarIdx) {}
 
   /// Load binary from file manager.
   ///
@@ -418,7 +438,10 @@ private:
 class MemoryInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
-  MemoryInstruction(OpCode &Byte) : Instruction(Byte) {}
+  MemoryInstruction(const OpCode &Byte) : Instruction(Byte) {}
+  /// Copy constructor.
+  MemoryInstruction(const MemoryInstruction &Instr)
+      : Instruction(Instr.Code), Align(Instr.Align), Offset(Instr.Offset) {}
 
   /// Load binary from file manager.
   ///
@@ -446,7 +469,10 @@ private:
 class ConstInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
-  ConstInstruction(OpCode &Byte) : Instruction(Byte) {}
+  ConstInstruction(const OpCode &Byte) : Instruction(Byte) {}
+  /// Copy constructor.
+  ConstInstruction(const ConstInstruction &Instr)
+      : Instruction(Instr.Code), Num(Instr.Num) {}
 
   /// Load binary from file manager.
   ///
@@ -470,14 +496,20 @@ private:
 class UnaryNumericInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
-  UnaryNumericInstruction(OpCode &Byte) : Instruction(Byte) {}
+  UnaryNumericInstruction(const OpCode &Byte) : Instruction(Byte) {}
+  /// Copy constructor.
+  UnaryNumericInstruction(const UnaryNumericInstruction &Instr)
+      : Instruction(Instr.Code) {}
 };
 
 /// Derived numeric instruction node.
 class BinaryNumericInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
-  BinaryNumericInstruction(OpCode &Byte) : Instruction(Byte) {}
+  BinaryNumericInstruction(const OpCode &Byte) : Instruction(Byte) {}
+  /// Copy constructor.
+  BinaryNumericInstruction(const BinaryNumericInstruction &Instr)
+      : Instruction(Instr.Code) {}
 };
 
 template <typename T>
@@ -693,7 +725,18 @@ auto dispatchInstruction(Instruction::OpCode Code, T &&Visitor) {
 ///
 /// \returns unique pointer of instruction node if success, ErrMsg when failed.
 Expect<std::unique_ptr<Instruction>>
-makeInstructionNode(Instruction::OpCode Code);
+makeInstructionNode(const Instruction::OpCode &Code);
+
+/// Make the new instruction node from old one.
+///
+/// Select the node type corresponding to the input Code.
+/// Create the duplicated instruction node and return pointer.
+///
+/// \param Instr the instruction to duplicate.
+///
+/// \returns unique pointer of instruction node if success, ErrMsg when failed.
+Expect<std::unique_ptr<Instruction>>
+makeInstructionNode(const Instruction &Instr);
 
 } // namespace AST
 } // namespace SSVM

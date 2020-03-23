@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/ast/section.h"
+#include "common/types.h"
 #include "executor/executor.h"
 #include "executor/instance/function.h"
 #include "executor/instance/global.h"
@@ -28,7 +29,7 @@ ErrCode Executor::instantiate(AST::ExportSection *ExportSec) {
 
     /// Add the name of function to function instance.
     switch (ExtType) {
-    case AST::Desc::ExternalType::Function: {
+    case ExternalType::Function: {
       Instance::FunctionInstance *FuncInst = nullptr;
       /// Find function instance.
       if ((Status = ModInst->getFuncAddr(ExtIdx, EntityAddr)) !=
@@ -51,7 +52,7 @@ ErrCode Executor::instantiate(AST::ExportSection *ExportSec) {
       }
       break;
     }
-    case AST::Desc::ExternalType::Global: {
+    case ExternalType::Global: {
       Instance::GlobalInstance *GlobInst = nullptr;
       /// Find global instance.
       if ((Status = ModInst->getGlobalAddr(ExtIdx, EntityAddr)) !=
@@ -68,7 +69,7 @@ ErrCode Executor::instantiate(AST::ExportSection *ExportSec) {
       }
       break;
     }
-    case AST::Desc::ExternalType::Memory: {
+    case ExternalType::Memory: {
       Instance::MemoryInstance *MemInst = nullptr;
       /// Find memory instance.
       if ((Status = ModInst->getMemAddr(ExtIdx, EntityAddr)) !=
@@ -85,7 +86,7 @@ ErrCode Executor::instantiate(AST::ExportSection *ExportSec) {
       }
       break;
     }
-    case AST::Desc::ExternalType::Table: {
+    case ExternalType::Table: {
       Instance::TableInstance *TabInst = nullptr;
       /// Find table instance.
       if ((Status = ModInst->getTableAddr(ExtIdx, EntityAddr)) !=

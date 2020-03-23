@@ -1258,7 +1258,7 @@ ErrCode Compiler::compile(const AST::ImportSection &ImportSec) {
 
     /// Add the imports into module istance.
     switch (ExtType) {
-    case AST::Desc::ExternalType::Function: /// Function type index
+    case ExternalType::Function: /// Function type index
     {
       /// Get the function type index in module.
       unsigned int *TypeIdx = nullptr;
@@ -1285,15 +1285,15 @@ ErrCode Compiler::compile(const AST::ImportSection &ImportSec) {
 
       Context->Functions.emplace_back(*TypeIdx, F, nullptr);
     }
-    case AST::Desc::ExternalType::Table: /// Table type
+    case ExternalType::Table: /// Table type
     {
       break;
     }
-    case AST::Desc::ExternalType::Memory: /// Memory type
+    case ExternalType::Memory: /// Memory type
     {
       break;
     }
-    case AST::Desc::ExternalType::Global: /// Global type
+    case ExternalType::Global: /// Global type
     {
       break;
     }
@@ -1307,7 +1307,7 @@ ErrCode Compiler::compile(const AST::ImportSection &ImportSec) {
 ErrCode Compiler::compile(const AST::ExportSection &ExportSec) {
   for (const auto &ExpDesc : ExportSec.getContent()) {
     switch (ExpDesc->getExternalType()) {
-    case AST::Desc::ExternalType::Function: {
+    case ExternalType::Function: {
       llvm::Function *F =
           std::get<1>(Context->Functions[ExpDesc->getExternalIndex()]);
       F->setLinkage(llvm::GlobalValue::ExternalLinkage);

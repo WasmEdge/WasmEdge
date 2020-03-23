@@ -171,7 +171,7 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
 /// Validate Import description. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
   switch (ImpDesc.getExternalType()) {
-  case AST::Desc::ExternalType::Function:
+  case ExternalType::Function:
     if (auto TId = ImpDesc.getExternalContent<uint32_t>()) {
       /// Types must exist in context.
       if (*(*TId) >= Checker.getTypes().size()) {
@@ -182,7 +182,7 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
       return Unexpect(TId);
     }
     break;
-  case AST::Desc::ExternalType::Table:
+  case ExternalType::Table:
     if (auto TabType = ImpDesc.getExternalContent<AST::TableType>()) {
       /// Table type must be valid.
       if (auto Res = validate(*(*TabType))) {
@@ -194,7 +194,7 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
       return Unexpect(TabType);
     }
     break;
-  case AST::Desc::ExternalType::Memory:
+  case ExternalType::Memory:
     if (auto MemType = ImpDesc.getExternalContent<AST::MemoryType>()) {
       /// Memory type must be valid.
       if (auto Res = validate(*(*MemType))) {
@@ -206,7 +206,7 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
       return Unexpect(MemType);
     }
     break;
-  case AST::Desc::ExternalType::Global:
+  case ExternalType::Global:
     if (auto GlobType = ImpDesc.getExternalContent<AST::GlobalType>()) {
       /// Global type always is valid.
       Checker.addGlobal(*(*GlobType), true);
@@ -224,22 +224,22 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
 Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
   auto Id = ExpDesc.getExternalIndex();
   switch (ExpDesc.getExternalType()) {
-  case AST::Desc::ExternalType::Function:
+  case ExternalType::Function:
     if (Id >= Checker.getFunctions().size()) {
       return Unexpect(ErrCode::ValidationFailed);
     }
     break;
-  case AST::Desc::ExternalType::Table:
+  case ExternalType::Table:
     if (Id >= Checker.getTables().size()) {
       return Unexpect(ErrCode::ValidationFailed);
     }
     break;
-  case AST::Desc::ExternalType::Memory:
+  case ExternalType::Memory:
     if (Id >= Checker.getMemories().size()) {
       return Unexpect(ErrCode::ValidationFailed);
     }
     break;
-  case AST::Desc::ExternalType::Global:
+  case ExternalType::Global:
     if (Id >= Checker.getGlobals().size()) {
       return Unexpect(ErrCode::ValidationFailed);
     }

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/ast/section.h"
+#include "common/types.h"
 #include "executor/executor.h"
 #include "executor/instance/function.h"
 #include "executor/instance/global.h"
@@ -27,7 +28,7 @@ ErrCode Executor::instantiate(AST::ImportSection *ImportSec) {
 
     /// Add the imports into module istance.
     switch (ExtType) {
-    case AST::Desc::ExternalType::Function: /// Function type index
+    case ExternalType::Function: /// Function type index
     {
       /// Find the function instance in Store.
       Instance::FunctionInstance *FuncInst = nullptr;
@@ -59,7 +60,7 @@ ErrCode Executor::instantiate(AST::ImportSection *ImportSec) {
       }
       break;
     }
-    case AST::Desc::ExternalType::Table: /// Table type
+    case ExternalType::Table: /// Table type
     {
       /// Find the table instance in Store.
       Instance::TableInstance *TabInst = nullptr;
@@ -74,7 +75,7 @@ ErrCode Executor::instantiate(AST::ImportSection *ImportSec) {
       }
       break;
     }
-    case AST::Desc::ExternalType::Memory: /// Memory type
+    case ExternalType::Memory: /// Memory type
     {
       /// Find the memory instance in Store.
       Instance::MemoryInstance *MemInst = nullptr;
@@ -89,7 +90,7 @@ ErrCode Executor::instantiate(AST::ImportSection *ImportSec) {
       }
       break;
     }
-    case AST::Desc::ExternalType::Global: /// Global type
+    case ExternalType::Global: /// Global type
     {
       /// Find the global instance in Store.
       Instance::GlobalInstance *GlobInst = nullptr;

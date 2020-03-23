@@ -13,6 +13,7 @@
 #pragma once
 
 #include "type.h"
+#include "common/types.h"
 
 #include <string>
 #include <variant>
@@ -23,14 +24,6 @@ namespace AST {
 /// Base class of Desc node.
 class Desc : public Base {
 public:
-  /// External type enumeration class
-  enum class ExternalType : unsigned char {
-    Function = 0x00U,
-    Table = 0x01U,
-    Memory = 0x02U,
-    Global = 0x03U
-  };
-
   /// Getter of external type.
   virtual const ExternalType getExternalType() const { return ExtType; }
 

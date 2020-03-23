@@ -30,4 +30,12 @@ enum class ElemType : uint8_t { Func = 0x60, FuncRef = 0x70 };
 /// Value mutability enumeration class.
 enum class ValMut : uint8_t { Const = 0x00, Var = 0x01 };
 
+/// External type enumeration class.
+enum class ExternalType : uint8_t {
+  Function = 0x00U,
+  Table = 0x01U,
+  Memory = 0x02U,
+  Global = 0x03U
+};
+
 } // namespace SSVM

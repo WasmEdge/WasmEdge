@@ -31,6 +31,7 @@ enum class ErrCode : unsigned char {
   WrongWorkerFlow,      /// Wrong worker's flow
   InstantiateFailed,    /// Fail when instantiating
   WrongInstanceAddress, /// Wrong access of instances
+  ImportNotMatch,       /// Import matching failed
   ExecutionFailed,      /// Runtime error when executing
   TypeNotMatch, /// Value type between instructions and stack or store not match
   StackWrongEntry,         /// Entry type not match when get or pop entry
@@ -49,6 +50,7 @@ enum class ErrCode : unsigned char {
   MemorySizeExceeded,      /// Exceeded limit of memory page in memory instance.
   FunctionInvalid,         /// Invalid operation to function instance.
   CallFunctionError,       /// Arguement not match function type.
+  CostLimitExceeded,       /// Exceeded cost limit (out of gas).
   Revert                   /// Revert by evm.
 };
 

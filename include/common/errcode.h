@@ -51,7 +51,8 @@ enum class ErrCode : unsigned char {
   FunctionInvalid,         /// Invalid operation to function instance.
   CallFunctionError,       /// Arguement not match function type.
   CostLimitExceeded,       /// Exceeded cost limit (out of gas).
-  Revert                   /// Revert by evm.
+  Revert,                  /// Revert by evm.
+  ModuleNameConflict       /// Module name conflicted when importing.
 };
 
 /// Type aliasing for Expected<T, ErrMsg>.

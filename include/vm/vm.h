@@ -45,9 +45,8 @@ class VM {
 public:
   VM() = delete;
   VM(Configure &InputConfig)
-      : Config(InputConfig), EnvMgr(InputConfig), LoaderEngine(this->EnvMgr),
-        ExecutorEngine(this->EnvMgr), InVMStore(nullptr), OutVMStore(nullptr),
-        OutAlloc(nullptr) {}
+      : Config(InputConfig), EnvMgr(InputConfig), ExecutorEngine(this->EnvMgr),
+        InVMStore(nullptr), OutVMStore(nullptr), OutAlloc(nullptr) {}
   ~VM() = default;
 
   /// Set the wasm file path.

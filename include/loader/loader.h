@@ -13,7 +13,6 @@
 #pragma once
 
 #include "common/ast/module.h"
-#include "vm/envmgr.h"
 #include "common/errcode.h"
 
 #include <string>
@@ -25,8 +24,7 @@ namespace Loader {
 /// Loader flow control class.
 class Loader {
 public:
-  Loader() = delete;
-  Loader(VM::EnvironmentManager &Env) : EnvMgr(Env) {}
+  Loader() = default;
   ~Loader() = default;
 
   /// Parse module from file path.
@@ -37,7 +35,6 @@ public:
   parseModule(const std::vector<uint8_t> &Code);
 
 private:
-  VM::EnvironmentManager &EnvMgr;
   FileMgrFStream FSMgr;
   FileMgrVector FVMgr;
 };

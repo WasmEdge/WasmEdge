@@ -13,6 +13,7 @@
 
 #include "common.h"
 #include "loader/loader.h"
+#include "vm/envmgr.h"
 #include "vm/configure.h"
 #include <memory>
 #include <string>
@@ -26,8 +27,7 @@ class Library;
 /// Compiler class
 class Compiler {
 public:
-  Compiler(VM::Configure &InputConfig)
-      : Config(InputConfig), EnvMgr(Config), LoaderEngine(EnvMgr) {}
+  Compiler(VM::Configure &InputConfig) : Config(InputConfig), EnvMgr(Config) {}
 
   /// Set the wasm file path.
   ErrCode setPath(const std::string &FilePath) {

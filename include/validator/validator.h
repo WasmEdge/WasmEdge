@@ -28,7 +28,7 @@ public:
   ~Validator() = default;
 
   /// Validate AST::Module.
-  Expect<void> validate(const std::unique_ptr<AST::Module> &Mod);
+  Expect<void> validate(const AST::Module &Mod);
 
 private:
   /// Validate AST::Types
@@ -50,15 +50,16 @@ private:
   Expect<void> validate(const AST::ExportDesc &ExpDesc);
 
   /// Validate AST::Sections
-  Expect<void> validate(const AST::ImportSection *);
-  Expect<void> validate(const AST::FunctionSection *, const AST::CodeSection *);
-  Expect<void> validate(const AST::TableSection *);
-  Expect<void> validate(const AST::MemorySection *);
-  Expect<void> validate(const AST::GlobalSection *);
-  Expect<void> validate(const AST::ExportSection *);
-  Expect<void> validate(const AST::StartSection *);
-  Expect<void> validate(const AST::ElementSection *);
-  Expect<void> validate(const AST::DataSection *);
+  Expect<void> validate(const AST::ImportSection &ImportSec);
+  Expect<void> validate(const AST::FunctionSection &FuncSec,
+                        const AST::CodeSection &CodeSec);
+  Expect<void> validate(const AST::TableSection &TabSec);
+  Expect<void> validate(const AST::MemorySection &MemSec);
+  Expect<void> validate(const AST::GlobalSection &GlobSec);
+  Expect<void> validate(const AST::ExportSection &ExportSec);
+  Expect<void> validate(const AST::StartSection &StartSec);
+  Expect<void> validate(const AST::ElementSection &ElemSec);
+  Expect<void> validate(const AST::DataSection &DataSec);
 
   /// Validate const expression
   Expect<void> validateConstExpr(const AST::InstrVec &Instrs,

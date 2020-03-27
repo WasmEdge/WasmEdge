@@ -9,65 +9,83 @@ namespace SSVM {
 namespace Validator {
 
 /// Validate Module. See "include/validator/validator.h".
-Expect<void> Validator::validate(const std::unique_ptr<AST::Module> &Mod) {
+Expect<void> Validator::validate(const AST::Module &Mod) {
   /// https://webassembly.github.io/spec/core/valid/modules.html
   Checker.reset(true);
 
-  if (Mod == nullptr) {
-    return {};
-  }
-
   /// Register type definitions into FormChecker.
-  if (Mod->getTypeSection()) {
-    for (auto &Type : Mod->getTypeSection()->getContent()) {
+  if (Mod.getTypeSection()) {
+    for (auto &Type : Mod.getTypeSection()->getContent()) {
       Checker.addType(*Type.get());
     }
   }
 
   /// Validate and register import section into FormChecker.
-  if (auto Res = validate(Mod->getImportSection()); !Res) {
-    return Unexpect(Res);
+  if (Mod.getImportSection() != nullptr) {
+    if (auto Res = validate(*Mod.getImportSection()); !Res) {
+      return Unexpect(Res);
+    }
   }
 
   /// Validate table section and register tables into FormChecker.
-  if (auto Res = validate(Mod->getTableSection()); !Res) {
-    return Unexpect(Res);
+  if (Mod.getTableSection() != nullptr) {
+    if (auto Res = validate(*Mod.getTableSection()); !Res) {
+      return Unexpect(Res);
+    }
   }
 
   /// Validate memory section and register memories into FormChecker.
-  if (auto Res = validate(Mod->getMemorySection()); !Res) {
-    return Unexpect(Res);
+  if (Mod.getMemorySection() != nullptr) {
+    if (auto Res = validate(*Mod.getMemorySection()); !Res) {
+      return Unexpect(Res);
+    }
   }
 
   /// Validate global section and register globals into FormChecker.
-  if (auto Res = validate(Mod->getGlobalSection()); !Res) {
-    return Unexpect(Res);
+  if (Mod.getGlobalSection() != nullptr) {
+    if (auto Res = validate(*Mod.getGlobalSection()); !Res) {
+      return Unexpect(Res);
+    }
   }
 
   /// Validate function section and code section.
-  if (auto Res = validate(Mod->getFunctionSection(), Mod->getCodeSection());
-      !Res) {
-    return Unexpect(Res);
+  if ((Mod.getFunctionSection() && !Mod.getCodeSection()) ||
+      (!Mod.getFunctionSection() && Mod.getCodeSection())) {
+    /// Function section and code section should be pairly.
+    return Unexpect(ErrCode::ValidationFailed);
+  } else if (Mod.getFunctionSection() && Mod.getCodeSection()) {
+    if (auto Res = validate(*Mod.getFunctionSection(), *Mod.getCodeSection());
+        !Res) {
+      return Unexpect(Res);
+    }
   }
 
   /// Validate element section which initialize tables.
-  if (auto Res = validate(Mod->getElementSection()); !Res) {
-    return Unexpect(Res);
+  if (Mod.getElementSection() != nullptr) {
+    if (auto Res = validate(*Mod.getElementSection()); !Res) {
+      return Unexpect(Res);
+    }
   }
 
   /// Validate data section which initialize memories.
-  if (auto Res = validate(Mod->getDataSection()); !Res) {
-    return Unexpect(Res);
+  if (Mod.getDataSection() != nullptr) {
+    if (auto Res = validate(*Mod.getDataSection()); !Res) {
+      return Unexpect(Res);
+    }
   }
 
   /// Validate start section.
-  if (auto Res = validate(Mod->getStartSection()); !Res) {
-    return Unexpect(Res);
+  if (Mod.getStartSection() != nullptr) {
+    if (auto Res = validate(*Mod.getStartSection()); !Res) {
+      return Unexpect(Res);
+    }
   }
 
   /// Validate export section.
-  if (auto Res = validate(Mod->getExportSection()); !Res) {
-    return Unexpect(Res);
+  if (Mod.getExportSection() != nullptr) {
+    if (auto Res = validate(*Mod.getExportSection()); !Res) {
+      return Unexpect(Res);
+    }
   }
 
   /// In current version, memory and table must be <= 1.
@@ -251,11 +269,8 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
 }
 
 /// Validate Import section. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::ImportSection *ImportSec) {
-  if (!ImportSec) {
-    return {};
-  }
-  for (auto &ImportDesc : ImportSec->getContent()) {
+Expect<void> Validator::validate(const AST::ImportSection &ImportSec) {
+  for (auto &ImportDesc : ImportSec.getContent()) {
     if (auto Res = validate(*ImportDesc.get()); !Res) {
       return Unexpect(ErrCode::ValidationFailed);
     }
@@ -264,21 +279,15 @@ Expect<void> Validator::validate(const AST::ImportSection *ImportSec) {
 }
 
 /// Validate Function section. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::FunctionSection *FuncSec,
-                                 const AST::CodeSection *CodeSec) {
-  if (!FuncSec && !CodeSec) {
-    return {};
-  }
-  if (
-      /// Have only function section or code section, failed.
-      ((FuncSec && !CodeSec) || (!FuncSec && CodeSec)) ||
-      /// Function section length != code section length, failed.
-      FuncSec->getContent().size() != CodeSec->getContent().size()) {
+Expect<void> Validator::validate(const AST::FunctionSection &FuncSec,
+                                 const AST::CodeSection &CodeSec) {
+  if (FuncSec.getContent().size() != CodeSec.getContent().size()) {
+    /// Function section length != code section length, failed.
     return Unexpect(ErrCode::ValidationFailed);
   }
 
-  const auto &FuncVec = FuncSec->getContent();
-  const auto &CodeVec = CodeSec->getContent();
+  const auto &FuncVec = FuncSec.getContent();
+  const auto &CodeVec = CodeSec.getContent();
   const auto &TypeVec = Checker.getTypes();
 
   /// Check if type id of function is valid in context.
@@ -301,11 +310,8 @@ Expect<void> Validator::validate(const AST::FunctionSection *FuncSec,
 }
 
 /// Validate Table section. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::TableSection *TabSec) {
-  if (!TabSec) {
-    return {};
-  }
-  for (auto &Tab : TabSec->getContent()) {
+Expect<void> Validator::validate(const AST::TableSection &TabSec) {
+  for (auto &Tab : TabSec.getContent()) {
     if (auto Res = validate(*Tab.get())) {
       Checker.addTable(*Tab.get());
     } else {
@@ -316,11 +322,8 @@ Expect<void> Validator::validate(const AST::TableSection *TabSec) {
 }
 
 /// Validate Memory section. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::MemorySection *MemSec) {
-  if (!MemSec) {
-    return {};
-  }
-  for (auto &Mem : MemSec->getContent()) {
+Expect<void> Validator::validate(const AST::MemorySection &MemSec) {
+  for (auto &Mem : MemSec.getContent()) {
     if (auto Res = validate(*Mem.get())) {
       Checker.addMemory(*Mem.get());
     } else {
@@ -331,11 +334,8 @@ Expect<void> Validator::validate(const AST::MemorySection *MemSec) {
 }
 
 /// Validate Global section. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::GlobalSection *GlobSec) {
-  if (!GlobSec) {
-    return {};
-  }
-  for (auto &Val : GlobSec->getContent()) {
+Expect<void> Validator::validate(const AST::GlobalSection &GlobSec) {
+  for (auto &Val : GlobSec.getContent()) {
     if (auto Res = validate(*Val.get())) {
       Checker.addGlobal(*Val.get()->getGlobalType());
     } else {
@@ -346,12 +346,9 @@ Expect<void> Validator::validate(const AST::GlobalSection *GlobSec) {
 }
 
 /// Validate Export section. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::ExportSection *ExportSec) {
-  if (!ExportSec) {
-    return {};
-  }
+Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
   std::unordered_set<std::string> ExportNames;
-  for (auto &ExportDesc : ExportSec->getContent()) {
+  for (auto &ExportDesc : ExportSec.getContent()) {
     const auto &Name = ExportDesc->getExternalName();
     if (Name == "" || ExportNames.find(Name) != ExportNames.end()) {
       /// Duplicated export name.
@@ -366,11 +363,8 @@ Expect<void> Validator::validate(const AST::ExportSection *ExportSec) {
 }
 
 /// Validate Start section. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::StartSection *StartSec) {
-  if (!StartSec) {
-    return {};
-  }
-  auto FId = StartSec->getContent();
+Expect<void> Validator::validate(const AST::StartSection &StartSec) {
+  auto FId = StartSec.getContent();
   if (FId >= Checker.getFunctions().size()) {
     return Unexpect(ErrCode::ValidationFailed);
   }
@@ -383,11 +377,8 @@ Expect<void> Validator::validate(const AST::StartSection *StartSec) {
 }
 
 /// Validate Element section. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::ElementSection *ElemSec) {
-  if (!ElemSec) {
-    return {};
-  }
-  for (auto &Elem : ElemSec->getContent()) {
+Expect<void> Validator::validate(const AST::ElementSection &ElemSec) {
+  for (auto &Elem : ElemSec.getContent()) {
     if (auto Res = validate(*Elem.get()); !Res) {
       return Unexpect(Res);
     }
@@ -396,11 +387,8 @@ Expect<void> Validator::validate(const AST::ElementSection *ElemSec) {
 }
 
 /// Validate Data section. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::DataSection *DataSec) {
-  if (!DataSec) {
-    return {};
-  }
-  for (auto &Data : DataSec->getContent()) {
+Expect<void> Validator::validate(const AST::DataSection &DataSec) {
+  for (auto &Data : DataSec.getContent()) {
     if (auto Res = validate(*Data.get()); !Res) {
       return Unexpect(Res);
     }

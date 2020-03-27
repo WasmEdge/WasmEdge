@@ -79,7 +79,7 @@ ErrCode VM::loadWasm() {
 ErrCode VM::validate() {
   VMResult.setStage(Result::Stage::Validator);
 
-  if (auto Res = ValidatorEngine.validate(Mod); !Res) {
+  if (auto Res = ValidatorEngine.validate(*Mod.get()); !Res) {
     VMResult.setErrCode(static_cast<uint32_t>(Res.error()));
     return ErrCode::Failed;
   }

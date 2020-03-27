@@ -29,6 +29,7 @@ enum class ErrCode : unsigned char {
   /// Execution phase
   WrongExecutorFlow,    /// Wrong executor's flow
   WrongWorkerFlow,      /// Wrong worker's flow
+  WrongVMWorkflow,      /// Wrong VM's workflow
   InstantiateFailed,    /// Fail when instantiating
   WrongInstanceAddress, /// Wrong access of instances
   ImportNotMatch,       /// Import matching failed

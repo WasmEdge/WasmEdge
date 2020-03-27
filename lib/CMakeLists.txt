@@ -2,6 +2,7 @@
 add_subdirectory(ast)
 add_subdirectory(compiler)
 add_subdirectory(interpreter)
+add_subdirectory(expvm)
 add_subdirectory(host)
 add_subdirectory(executor)
 add_subdirectory(loader)

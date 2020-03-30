@@ -2,8 +2,8 @@
 #pragma once
 
 #include "rapidjson/document.h"
-#include "vm/configure.h"
-#include "vm/vm.h"
+#include "expvm/configure.h"
+#include "expvm/vm.h"
 
 #include <boost/filesystem.hpp>
 #include <memory>
@@ -61,8 +61,8 @@ private:
   std::string WasmPath;
   rapidjson::Document InputDoc;
   rapidjson::Document OutputDoc;
-  std::unique_ptr<VM::VM> VMUnit;
-  VM::Configure VMConf;
+  std::unique_ptr<ExpVM::VM> VMUnit;
+  ExpVM::Configure VMConf;
 };
 
 } // namespace Proxy

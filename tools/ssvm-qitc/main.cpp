@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
+#include "expvm/configure.h"
+#include "expvm/vm.h"
 #include "helper.h"
+#include "host/wasi/wasimodule.h"
 #include "support/log.h"
-#include "vm/configure.h"
-#include "vm/result.h"
-#include "vm/vm.h"
 #include <iostream>
 
 int main(int Argc, char *Argv[]) {
@@ -17,30 +17,23 @@ int main(int Argc, char *Argv[]) {
   }
 
   std::string InputPath(Argv[1]);
-  SSVM::VM::Configure Conf;
-  Conf.addVMType(SSVM::VM::Configure::VMType::Wasi);
-  Conf.addVMType(SSVM::VM::Configure::VMType::ONNC);
-  SSVM::VM::VM VM(Conf);
-  SSVM::VM::WasiEnvironment *Env = VM.getEnvironment<SSVM::VM::WasiEnvironment>(
-      SSVM::VM::Configure::VMType::Wasi);
-  std::vector<std::string> &CmdArgsVec = Env->getCmdArgs();
+  SSVM::ExpVM::Configure Conf;
+  Conf.addVMType(SSVM::ExpVM::Configure::VMType::Wasi);
+  Conf.addVMType(SSVM::ExpVM::Configure::VMType::ONNC);
+  SSVM::ExpVM::VM VM(Conf);
+  SSVM::Host::WasiModule *WasiMod = dynamic_cast<SSVM::Host::WasiModule *>(
+      VM.getImportModule(SSVM::ExpVM::Configure::VMType::Wasi));
+  std::vector<std::string> &CmdArgsVec = WasiMod->getEnv().getCmdArgs();
   for (int I = 1; I < Argc; I++) {
     CmdArgsVec.push_back(std::string(Argv[I]));
   }
   for (auto It = CmdArgsVec.begin(); It != CmdArgsVec.end(); It++) {
     std::cout << " Args : " << *It << std::endl;
   }
-  SSVM::VM::Result Result;
 
-/// Insert helper host functions.
-#ifdef ONNC_WASM
-  VM.setHostFunction(std::make_unique<SSVM::Executor::QITCTimerStart>());
-  VM.setHostFunction(std::make_unique<SSVM::Executor::QITCTimerStop>());
-  VM.setHostFunction(std::make_unique<SSVM::Executor::QITCTimerClear>());
-#endif
-
-  VM.setPath(InputPath);
-  VM.execute("_start");
-  Result = VM.getResult();
-  return Result.getErrCode();
+  /// Insert helper host functions.
+  SSVM::Host::QITCModule QITCMod;
+  VM.registerModule(QITCMod);
+  VM.runWasmFile(InputPath, "_start");
+  return 0;
 }

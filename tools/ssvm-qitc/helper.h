@@ -1,56 +1,72 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "executor/common.h"
-#include "executor/hostfunc.h"
-#include "vm/envmgr.h"
+#include "runtime/hostfunc.h"
+#include "runtime/importobj.h"
+#include "support/time.h"
+
 #include <iostream>
 
-namespace SSVM {
-namespace Executor {
+#define TIMER_TAG_QITC_INFER_SSVM 256U
+#define TIMER_TAG_QITC_INFER_HOST 257U
 
-#ifdef ONNC_WASM
-class QITCTimerStart : public HostFunction<QITCTimerStart> {
+namespace SSVM {
+namespace Host {
+
+template <typename T> class QITC : public Runtime::HostFunction<T> {
 public:
-  QITCTimerStart()
-      : HostFunction<QITCTimerStart>("QITC", "QITC_time_start", 0) {}
-  ErrCode body(VM::EnvironmentManager &EnvMgr,
-               Instance::MemoryInstance &MemInst) {
-    EnvMgr.getTimeRecorder().startRecord(TIMER_TAG_QITC_INFER_SSVM);
-    EnvMgr.IsQITCTimer = true;
+  QITC(Support::TimeRecord &R) : Runtime::HostFunction<T>(0), Timer(R) {}
+
+protected:
+  Support::TimeRecord &Timer;
+};
+
+class QITCTimerStart : public QITC<QITCTimerStart> {
+public:
+  QITCTimerStart(Support::TimeRecord &T) : QITC<QITCTimerStart>(T) {}
+  ErrCode body(Runtime::Instance::MemoryInstance &MemInst) {
+    Timer.startRecord(TIMER_TAG_QITC_INFER_SSVM);
+    /// TODO: Inject timer in measurement to start to record ssvm and host time.
     return ErrCode::Success;
   }
 };
 
-class QITCTimerStop : public HostFunction<QITCTimerStop> {
+class QITCTimerStop : public QITC<QITCTimerStop> {
 public:
-  QITCTimerStop() : HostFunction<QITCTimerStop>("QITC", "QITC_time_stop", 0) {}
-  ErrCode body(VM::EnvironmentManager &EnvMgr,
-               Instance::MemoryInstance &MemInst) {
-    uint64_t SSVMTime =
-        EnvMgr.getTimeRecorder().stopRecord(TIMER_TAG_QITC_INFER_SSVM);
-    uint64_t HostTime =
-        EnvMgr.getTimeRecorder().stopRecord(TIMER_TAG_QITC_INFER_HOST);
+  QITCTimerStop(Support::TimeRecord &T) : QITC<QITCTimerStop>(T) {}
+  ErrCode body(Runtime::Instance::MemoryInstance &MemInst) {
+    uint64_t SSVMTime = Timer.stopRecord(TIMER_TAG_QITC_INFER_SSVM);
+    uint64_t HostTime = Timer.stopRecord(TIMER_TAG_QITC_INFER_HOST);
     std::cout << " --- Inference: SSVM cost " << SSVMTime
               << " us, Host functions cost " << HostTime << " us\n";
-    EnvMgr.IsQITCTimer = false;
+    /// TODO: Inject timer in measurement to stop recording ssvm and host time.
     return ErrCode::Success;
   }
 };
 
-class QITCTimerClear : public HostFunction<QITCTimerClear> {
+class QITCTimerClear : public QITC<QITCTimerClear> {
 public:
-  QITCTimerClear()
-      : HostFunction<QITCTimerClear>("QITC", "QITC_time_clear", 0) {}
-  ErrCode body(VM::EnvironmentManager &EnvMgr,
-               Instance::MemoryInstance &MemInst) {
-    EnvMgr.getTimeRecorder().clearRecord(TIMER_TAG_QITC_INFER_SSVM);
-    EnvMgr.getTimeRecorder().clearRecord(TIMER_TAG_QITC_INFER_HOST);
-    EnvMgr.IsQITCTimer = false;
+  QITCTimerClear(Support::TimeRecord &T) : QITC<QITCTimerClear>(T) {}
+  ErrCode body(Runtime::Instance::MemoryInstance &MemInst) {
+    Timer.clearRecord(TIMER_TAG_QITC_INFER_SSVM);
+    Timer.clearRecord(TIMER_TAG_QITC_INFER_HOST);
+    /// TODO: Inject timer in measurement to stop recording ssvm and host time.
     return ErrCode::Success;
   }
 };
-#endif
 
-} // namespace Executor
+class QITCModule : public Runtime::ImportObject {
+public:
+  QITCModule() : ImportObject("QITC") {
+    addHostFunc("QITC_time_start", std::make_unique<QITCTimerStart>(Timer));
+    addHostFunc("QITC_time_stop", std::make_unique<QITCTimerStop>(Timer));
+    addHostFunc("QITC_time_clear", std::make_unique<QITCTimerClear>(Timer));
+  }
+  virtual ~QITCModule() = default;
+
+private:
+  Support::TimeRecord Timer;
+};
+
+} // namespace Host
 } // namespace SSVM

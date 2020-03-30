@@ -1,41 +1,41 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "vm/configure.h"
-#include "vm/result.h"
-#include "vm/vm.h"
+#include "common/value.h"
+#include "expvm/configure.h"
+#include "expvm/vm.h"
 
 #include <iostream>
 
 int main(int Argc, char *Argv[]) {
-  if (Argc < 2) {
+  if (Argc < 3) {
     /// Arg0: ./ssvm
     /// Arg1: wasm file
-    /// Arg2: start func name
+    /// Arg2: invoke function name
     /// Arg3...: inputs
-    std::cout << "Usage: ./ssvm wasm_file.wasm [start_func] [args...]"
+    std::cout << "Usage: ./ssvm wasm_file.wasm func_name [args...]"
               << std::endl;
     return 0;
   }
 
   std::string InputPath(Argv[1]);
-  SSVM::VM::Configure Conf;
-  SSVM::VM::VM VM(Conf);
-  SSVM::VM::Result Result;
+  SSVM::ExpVM::Configure Conf;
+  SSVM::ExpVM::VM VM(Conf);
 
-  VM.setPath(InputPath);
+  /// Parameters and return values.
+  std::vector<SSVM::ValVariant> Params, Results;
+  uint32_t Err = 0;
+
   for (int I = 3; I < Argc; I++) {
-    VM.appendArgument(static_cast<uint32_t>(atoi(Argv[I])));
+    Params.push_back(static_cast<uint32_t>(std::stoul(Argv[I])));
   }
-  if (Argc >= 3) {
-    VM.execute(Argv[2]);
+  if (auto Res = VM.runWasmFile(InputPath, Argv[2], Params)) {
+    Results = *Res;
+    for (auto &It : Results) {
+      std::cout << " Return value: " << std::get<uint32_t>(It) << std::endl;
+    }
   } else {
-    VM.execute();
+    Err = static_cast<uint32_t>(Res.error());
+    std::cout << " Failed. Code : " << Err << std::endl;
   }
-  std::vector<SSVM::ValVariant> Rets;
-  VM.getReturnValue(Rets);
-  Result = VM.getResult();
 
-  for (auto It = Rets.begin(); It != Rets.end(); It++) {
-    std::cout << " Return value: " << std::get<uint32_t>(*It) << std::endl;
-  }
-  return Result.getErrCode();
+  return Err;
 }

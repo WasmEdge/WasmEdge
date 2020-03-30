@@ -9,6 +9,5 @@ target_link_libraries(ssvmEVMCTests
   PRIVATE
   utilEVMCLoader
   utilGoogleTest
-  ssvmVM
   ${CMAKE_DL_LIBS}
 )

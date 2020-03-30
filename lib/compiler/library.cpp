@@ -57,8 +57,6 @@ Library::Library() : ExecutionEngine(nullptr) {
   llvm::InitializeNativeTargetAsmPrinter();
   llvm::InitializeNativeTargetAsmParser();
   ExecutionEngine = new Engine;
-  Memory.resize(kPageSize * 2);
-  Memory.reserve(1048576);
   MemoryPtr = Memory.data();
 }
 

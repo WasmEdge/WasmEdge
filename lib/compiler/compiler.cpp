@@ -249,10 +249,10 @@ public:
       auto *EndBlock = llvm::BasicBlock::Create(VMContext, "block.end", F);
       Builder.CreateBr(Block);
 
-      enterBlock(EndBlock, EndBlock);
+      enterBlock(EndBlock, true, Instr.getResultType());
       Builder.SetInsertPoint(Block);
       compile(Instr.getBody());
-      leaveBlock();
+      buildPHI(Instr.getResultType(), leaveBlock(EndBlock));
       break;
     }
     case OpCode::Loop: {
@@ -260,10 +260,10 @@ public:
       auto *EndLoop = llvm::BasicBlock::Create(VMContext, "loop.end", F);
       Builder.CreateBr(Loop);
 
-      enterBlock(Loop, EndLoop);
+      enterBlock(Loop, false, Instr.getResultType());
       Builder.SetInsertPoint(Loop);
       compile(Instr.getBody());
-      leaveBlock();
+      buildPHI(Instr.getResultType(), leaveBlock(EndLoop));
       break;
     }
     default:
@@ -281,16 +281,22 @@ public:
       auto *Then = llvm::BasicBlock::Create(VMContext, "then", F);
       auto *Else = llvm::BasicBlock::Create(VMContext, "else", F);
       auto *EndIf = llvm::BasicBlock::Create(VMContext, "if.end", F);
-      Builder.CreateCondBr(Cond, Then, EndIf);
+      Builder.CreateCondBr(Cond, Then, Else);
 
-      enterBlock(EndIf, Else);
+      enterBlock(EndIf, true, Instr.getResultType());
       Builder.SetInsertPoint(Then);
       compile(Instr.getIfStatement());
-      leaveBlock();
+      auto IfResult = leaveBlock(EndIf);
 
-      enterBlock(EndIf, EndIf);
-      compile(Instr.getIfStatement());
-      leaveBlock();
+      enterBlock(EndIf, true, Instr.getResultType());
+      Builder.SetInsertPoint(Else);
+      compile(Instr.getElseStatement());
+      auto ElseResult = leaveBlock(EndIf);
+
+      IfResult.reserve(IfResult.size() + ElseResult.size());
+      IfResult.insert(IfResult.end(), ElseResult.begin(), ElseResult.end());
+
+      buildPHI(Instr.getResultType(), IfResult);
 
       break;
     }
@@ -301,22 +307,25 @@ public:
   }
   ErrCode compile(const SSVM::AST::BrControlInstruction &Instr) {
     const unsigned int Label = Instr.getLabelIndex();
-    if (Label >= ControlStack.size()) {
-      return ErrCode::Failed;
-    }
-    llvm::BasicBlock *Target = getLabel(Label);
     switch (Instr.getOpCode()) {
-    case OpCode::Br:
-      Builder.CreateBr(Target);
+    case OpCode::Br: {
+      if (!setLableJumpPHI(Label)) {
+        return ErrCode::Failed;
+      }
+      Builder.CreateBr(getLabel(Label));
       Builder.SetInsertPoint(llvm::BasicBlock::Create(VMContext, "br.end", F));
       break;
+    }
     case OpCode::Br_if: {
       llvm::Value *Cond =
           Builder.CreateICmpNE(Stack.back(), Builder.getInt32(0));
       Stack.pop_back();
+      if (!setLableJumpPHI(Label)) {
+        return ErrCode::Failed;
+      }
       llvm::BasicBlock *Next =
           llvm::BasicBlock::Create(VMContext, "br_if.end", F);
-      Builder.CreateCondBr(Cond, Target, Next);
+      Builder.CreateCondBr(Cond, getLabel(Label), Next);
       Builder.SetInsertPoint(Next);
       break;
     }
@@ -329,9 +338,15 @@ public:
     const std::vector<unsigned int> &LabelTable = Instr.getLabelTable();
     switch (Instr.getOpCode()) {
     case OpCode::Br_table: {
+      if (!setLableJumpPHI(Instr.getLabelIndex())) {
+        return ErrCode::Failed;
+      }
       llvm::SwitchInst *Switch = Builder.CreateSwitch(
           Stack.back(), getLabel(Instr.getLabelIndex()), LabelTable.size());
       for (size_t I = 0; I < LabelTable.size(); ++I) {
+        if (!setLableJumpPHI(LabelTable[I])) {
+          return ErrCode::Failed;
+        }
         Switch->addCase(Builder.getInt32(I), getLabel(LabelTable[I]));
       }
       llvm::BasicBlock *End =
@@ -515,12 +530,12 @@ public:
           Builder.getInt32Ty());
       break;
     case OpCode::I32__clz:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ctlz, Stack.back());
+      Stack.back() = Builder.CreateBinaryIntrinsic(
+          llvm::Intrinsic::ctlz, Stack.back(), Builder.getFalse());
       break;
     case OpCode::I32__ctz:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::cttz, Stack.back());
+      Stack.back() = Builder.CreateBinaryIntrinsic(
+          llvm::Intrinsic::cttz, Stack.back(), Builder.getFalse());
       break;
     case OpCode::I32__popcnt:
       Stack.back() =
@@ -532,12 +547,12 @@ public:
           Builder.getInt32Ty());
       break;
     case OpCode::I64__clz:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ctlz, Stack.back());
+      Stack.back() = Builder.CreateBinaryIntrinsic(
+          llvm::Intrinsic::ctlz, Stack.back(), Builder.getFalse());
       break;
     case OpCode::I64__ctz:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::cttz, Stack.back());
+      Stack.back() = Builder.CreateBinaryIntrinsic(
+          llvm::Intrinsic::cttz, Stack.back(), Builder.getFalse());
       break;
     case OpCode::I64__popcnt:
       Stack.back() =
@@ -925,12 +940,8 @@ private:
     llvm::SwitchInst *Switch =
         Builder.CreateSwitch(Stack.back(), Error, Table.size());
 
-    llvm::PHINode *PHIRet = nullptr;
-    if (!FuncType.getReturnTypes().empty()) {
-      PHIRet = llvm::PHINode::Create(
-          toLLVMType(VMContext, FuncType.getReturnTypes().front()),
-          Table.size(), "", OK);
-    }
+    const bool HasReturnValue = !FuncType.getReturnTypes().empty();
+    std::vector<std::tuple<llvm::Value *, llvm::BasicBlock *>> ReturnValues;
 
     for (const auto &[Value, Func] : Table) {
       llvm::BasicBlock *Entry = llvm::BasicBlock::Create(
@@ -940,8 +951,8 @@ private:
           Func, llvm::ArrayRef<llvm::Value *>(&*Begin, &*End));
       Builder.CreateBr(OK);
       Switch->addCase(Builder.getInt32(Value), Entry);
-      if (PHIRet) {
-        PHIRet->addIncoming(Ret, Entry);
+      if (HasReturnValue) {
+        ReturnValues.emplace_back(Ret, Entry);
       }
     }
 
@@ -955,8 +966,8 @@ private:
     }
 
     Stack.erase(Begin, Stack.end());
-    if (PHIRet) {
-      Stack.push_back(PHIRet);
+    if (HasReturnValue) {
+      buildPHI(FuncType.getReturnTypes().front(), ReturnValues);
     }
 
     Builder.SetInsertPoint(OK);
@@ -1009,26 +1020,90 @@ private:
     return ErrCode::Success;
   }
 
-  void enterBlock(llvm::BasicBlock *JumpTarget, llvm::BasicBlock *NextTarget) {
-    ControlStack.emplace_back(Stack.size(), JumpTarget, NextTarget);
+  void enterBlock(llvm::BasicBlock *JumpTarget, bool IsForward,
+                  SSVM::ValType ResultType) {
+    ControlStack.emplace_back(Stack.size(), JumpTarget, IsForward, ResultType,
+                              0);
   }
 
-  void leaveBlock() {
-    Stack.resize(std::get<0>(ControlStack.back()));
-    Builder.CreateBr(std::get<2>(ControlStack.back()));
-    Builder.SetInsertPoint(std::get<2>(ControlStack.back()));
+  std::vector<std::tuple<llvm::Value *, llvm::BasicBlock *>>
+  leaveBlock(llvm::BasicBlock *NextTarget) {
+    auto &Entry = ControlStack.back();
+    if (auto &Type = std::get<kReturnType>(Entry);
+        Type != SSVM::ValType::None) {
+      llvm::Value *V =
+          Stack.empty()
+              ? llvm::UndefValue::get(toLLVMType(Context.Context, Type))
+              : Stack.back();
+      std::get<kReturnPHI>(Entry).emplace_back(V, Builder.GetInsertBlock());
+    }
+    Builder.CreateBr(NextTarget);
+    Builder.SetInsertPoint(NextTarget);
+
+    Stack.erase(Stack.begin() + std::get<kStackSize>(ControlStack.back()),
+                Stack.end());
+    std::vector<std::tuple<llvm::Value *, llvm::BasicBlock *>> Result =
+        std::move(std::get<kReturnPHI>(ControlStack.back()));
+
     ControlStack.pop_back();
+    return Result;
+  }
+
+  void buildPHI(SSVM::ValType ValType,
+                const std::vector<std::tuple<llvm::Value *, llvm::BasicBlock *>>
+                    &Incomings) {
+    if (ValType == SSVM::ValType::None) {
+      return;
+    }
+    llvm::Type *Type = toLLVMType(Context.Context, ValType);
+    llvm::Value *Node = nullptr;
+    if (Incomings.size() == 0) {
+      Node = llvm::UndefValue::get(Type);
+    } else if (Incomings.size() == 1) {
+      Node = std::get<0>(Incomings.front());
+    } else {
+      llvm::PHINode *PHIRet = llvm::PHINode::Create(Type, Incomings.size(), "",
+                                                    Builder.GetInsertBlock());
+      for (auto &[Value, BB] : Incomings) {
+        PHIRet->addIncoming(Value, BB);
+      }
+      Node = PHIRet;
+    }
+    Stack.push_back(Node);
+  }
+
+  bool setLableJumpPHI(unsigned int Index) {
+    if (Index >= ControlStack.size()) {
+      return false;
+    }
+    auto &Entry = *(ControlStack.rbegin() + Index);
+    if (auto &Type = std::get<kReturnType>(Entry);
+        Type != SSVM::ValType::None && std::get<kIsForward>(Entry)) {
+      llvm::Value *V =
+          Stack.empty()
+              ? llvm::UndefValue::get(toLLVMType(Context.Context, Type))
+              : Stack.back();
+      std::get<kReturnPHI>(Entry).emplace_back(V, Builder.GetInsertBlock());
+    }
+    return true;
   }
 
   llvm::BasicBlock *getLabel(unsigned int Index) const {
-    return std::get<1>(*(ControlStack.rbegin() + Index));
+    return std::get<kJumpBlock>(*(ControlStack.rbegin() + Index));
   }
 
   SSVM::Compiler::Compiler::CompileContext &Context;
   llvm::LLVMContext &VMContext;
   std::vector<llvm::Value *> Local;
   std::vector<llvm::Value *> Stack;
-  std::vector<std::tuple<size_t, llvm::BasicBlock *, llvm::BasicBlock *>>
+  static inline constexpr size_t kStackSize = 0;
+  static inline constexpr size_t kJumpBlock = 1;
+  static inline constexpr size_t kIsForward = 2;
+  static inline constexpr size_t kReturnType = 3;
+  static inline constexpr size_t kReturnPHI = 4;
+  std::vector<
+      std::tuple<size_t, llvm::BasicBlock *, bool, SSVM::ValType,
+                 std::vector<std::tuple<llvm::Value *, llvm::BasicBlock *>>>>
       ControlStack;
   llvm::Function *F;
   llvm::IRBuilder<> Builder;
@@ -1144,27 +1219,34 @@ ErrCode Compiler::compile() {
     auto *WasiEnv = getEnvironment<SSVM::VM::WasiEnvironment>(
         SSVM::VM::Configure::VMType::Wasi);
 
-    Lib->setHostFunction<WasiArgsGet>("wasi_unstable", "args_get", *WasiEnv);
-    Lib->setHostFunction<WasiArgsSizesGet>("wasi_unstable", "args_sizes_get",
-                                           *WasiEnv);
-    Lib->setHostFunction<WasiEnvironGet>("wasi_unstable", "environ_get",
-                                         *WasiEnv);
-    Lib->setHostFunction<WasiEnvironSizesGet>("wasi_unstable",
+    Lib->setHostFunction<WasiArgsGet>("wasi_snapshot_preview1", "args_get",
+                                      *WasiEnv);
+    Lib->setHostFunction<WasiArgsSizesGet>("wasi_snapshot_preview1",
+                                           "args_sizes_get", *WasiEnv);
+    Lib->setHostFunction<WasiEnvironGet>("wasi_snapshot_preview1",
+                                         "environ_get", *WasiEnv);
+    Lib->setHostFunction<WasiEnvironSizesGet>("wasi_snapshot_preview1",
                                               "environ_sizes_get", *WasiEnv);
-    Lib->setHostFunction<WasiFdClose>("wasi_unstable", "fd_close", *WasiEnv);
-    Lib->setHostFunction<WasiFdFdstatGet>("wasi_unstable", "fd_fdstat_get",
-                                          *WasiEnv);
-    Lib->setHostFunction<WasiFdFdstatSetFlags>("wasi_unstable",
+    Lib->setHostFunction<WasiFdClose>("wasi_snapshot_preview1", "fd_close",
+                                      *WasiEnv);
+    Lib->setHostFunction<WasiFdFdstatGet>("wasi_snapshot_preview1",
+                                          "fd_fdstat_get", *WasiEnv);
+    Lib->setHostFunction<WasiFdFdstatSetFlags>("wasi_snapshot_preview1",
                                                "fd_fdstat_set_flags", *WasiEnv);
-    Lib->setHostFunction<WasiFdPrestatDirName>("wasi_unstable",
+    Lib->setHostFunction<WasiFdPrestatDirName>("wasi_snapshot_preview1",
                                                "fd_prestat_dir_name", *WasiEnv);
-    Lib->setHostFunction<WasiFdPrestatGet>("wasi_unstable", "fd_prestat_get",
-                                           *WasiEnv);
-    Lib->setHostFunction<WasiFdRead>("wasi_unstable", "fd_read", *WasiEnv);
-    Lib->setHostFunction<WasiFdSeek>("wasi_unstable", "fd_seek", *WasiEnv);
-    Lib->setHostFunction<WasiFdWrite>("wasi_unstable", "fd_write", *WasiEnv);
-    Lib->setHostFunction<WasiPathOpen>("wasi_unstable", "path_open", *WasiEnv);
-    Lib->setHostFunction<WasiProcExit>("wasi_unstable", "proc_exit", *WasiEnv);
+    Lib->setHostFunction<WasiFdPrestatGet>("wasi_snapshot_preview1",
+                                           "fd_prestat_get", *WasiEnv);
+    Lib->setHostFunction<WasiFdRead>("wasi_snapshot_preview1", "fd_read",
+                                     *WasiEnv);
+    Lib->setHostFunction<WasiFdSeek>("wasi_snapshot_preview1", "fd_seek",
+                                     *WasiEnv);
+    Lib->setHostFunction<WasiFdWrite>("wasi_snapshot_preview1", "fd_write",
+                                      *WasiEnv);
+    Lib->setHostFunction<WasiPathOpen>("wasi_snapshot_preview1", "path_open",
+                                       *WasiEnv);
+    Lib->setHostFunction<WasiProcExit>("wasi_snapshot_preview1", "proc_exit",
+                                       *WasiEnv);
   }
 
   return ErrCode::Success;
@@ -1338,6 +1420,11 @@ ErrCode Compiler::compile(const AST::GlobalSection &GlobalSec) {
 
 ErrCode Compiler::compile(const AST::MemorySection &MemorySection,
                           const AST::DataSection &DataSec) {
+  if (MemorySection.getContent().size() != 1) {
+    return ErrCode::Failed;
+  }
+  Lib->memoryGrow(MemorySection.getContent()[0]->getLimit()->getMin());
+
   auto &VMContext = Context->Context;
   std::vector<char> ResultData;
   for (const auto &DataSeg : DataSec.getContent()) {

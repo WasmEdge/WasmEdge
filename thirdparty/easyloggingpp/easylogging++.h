@@ -18,6 +18,7 @@
 #define EASYLOGGINGPP_H
 
 // Configuration Macros
+#define ELPP_THREAD_SAFE
 #define ELPP_NO_LOG_TO_FILE
 #define ELPP_NO_DEFAULT_LOG_FILE
 #define ELPP_FEATURE_PERFORMANCE_TRACKING

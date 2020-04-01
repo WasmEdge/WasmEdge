@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "evmc/evmc.h"
 #include "evmc/utils.h"
-#include "support/hexstr.h"
 #include "expvm/configure.h"
 #include "expvm/vm.h"
 #include "host/ethereum/eeimodule.h"
-
-#include <iostream>
+#include "support/hexstr.h"
+#include "support/log.h"
 
 namespace {
 
@@ -33,6 +32,7 @@ static struct evmc_result execute(struct evmc_instance *vm,
                                   enum evmc_revision rev,
                                   const struct evmc_message *msg,
                                   uint8_t const *code, size_t code_size) {
+  SSVM::Log::setErrorLoggingLevel();
   // Prepare EVMC result
   struct evmc_result result;
   result.status_code = EVMC_SUCCESS;
@@ -62,11 +62,11 @@ static struct evmc_result execute(struct evmc_instance *vm,
   EVM.getMeasurement().getCostLimit() = msg->gas;
 
   /// Debug log.
-  std::cout << "msg->gas: " << msg->gas << std::endl;
-  std::cout << "msg->depth: " << msg->depth << std::endl;
-  std::cout << "msg->input_size: " << msg->input_size << std::endl;
-  std::cout << "Caller: " << EEIEnv.getCallerStr() << std::endl;
-  std::cout << "CallValue: " << EEIEnv.getCallValueStr() << std::endl;
+  LOG(DEBUG) << "msg->gas: " << msg->gas;
+  LOG(DEBUG) << "msg->depth: " << msg->depth;
+  LOG(DEBUG) << "msg->input_size: " << msg->input_size;
+  LOG(DEBUG) << "Caller: " << EEIEnv.getCallerStr();
+  LOG(DEBUG) << "CallValue: " << EEIEnv.getCallValueStr();
 
   /// Load, validate, and instantiate code.
   if (result.status_code == EVMC_SUCCESS && !EVM.loadWasm(Code)) {
@@ -129,8 +129,8 @@ static struct evmc_result execute(struct evmc_instance *vm,
       (result.status_code == EVMC_FAILURE) ? 0 : msg->gas - usedGas;
 
   /// Debug log.
-  std::cout << "gas_left: " << result.gas_left << std::endl;
-  std::cout << "output_size: " << result.output_size << std::endl;
+  LOG(DEBUG) << "gas_left: " << result.gas_left;
+  LOG(DEBUG) << "output_size: " << result.output_size;
 
   return result;
 }

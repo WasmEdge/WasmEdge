@@ -10,5 +10,10 @@ void passEasyloggingppArgs(int Argc, char *Argv[]) {
   START_EASYLOGGINGPP(Argc, Argv);
 }
 
+void setErrorLoggingLevel() {
+  el::Loggers::addFlag(el::LoggingFlag::HierarchicalLogging);
+  el::Loggers::setLoggingLevel(el::Level::Error);
+}
+
 } // namespace Log
 } // namespace SSVM

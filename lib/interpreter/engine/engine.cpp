@@ -33,18 +33,18 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
   }
 
   /// Execute run loop.
-  LOG(INFO) << "Start running...";
+  LOG(DEBUG) << "Start running...";
   auto Res = execute(StoreMgr);
   if (Res) {
-    LOG(INFO) << "Execution succeeded.";
+    LOG(DEBUG) << "Execution succeeded.";
   } else if (Res.error() == ErrCode::Revert) {
     LOG(ERROR) << "Reverted.";
   } else if (Res.error() == ErrCode::Terminated) {
-    LOG(INFO) << "Terminated.";
+    LOG(DEBUG) << "Terminated.";
   } else if (Res.error() != ErrCode::Success) {
     LOG(ERROR) << "Execution failed. Code: " << (uint32_t)Res.error();
   }
-  LOG(INFO) << "Done.";
+  LOG(DEBUG) << "Done.";
 
   /// Print time cost.
   if (Measure) {
@@ -52,22 +52,22 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
         Measure->getTimeRecorder().stopRecord(TIMER_TAG_EXECUTION);
     uint64_t HostFuncTime =
         Measure->getTimeRecorder().getRecord(TIMER_TAG_HOSTFUNC);
-    LOG(INFO) << std::endl
-              << " =================  Statistics  ================="
-              << std::endl
-              << " Total execution time: " << ExecTime + HostFuncTime << " us"
-              << std::endl
-              << " Wasm instructions execution time: " << ExecTime << " us"
-              << std::endl
-              << " Host functions execution time: " << HostFuncTime << " us"
-              << std::endl
-              << " Executed wasm instructions count: " << Measure->getInstrCnt()
-              << std::endl
-              << " Gas costs: " << Measure->getCostSum() << std::endl
-              << " Instructions per second: "
-              << static_cast<uint64_t>((double)Measure->getInstrCnt() *
-                                       1000000 / ExecTime)
-              << std::endl;
+    LOG(DEBUG) << std::endl
+               << " =================  Statistics  ================="
+               << std::endl
+               << " Total execution time: " << ExecTime + HostFuncTime << " us"
+               << std::endl
+               << " Wasm instructions execution time: " << ExecTime << " us"
+               << std::endl
+               << " Host functions execution time: " << HostFuncTime << " us"
+               << std::endl
+               << " Executed wasm instructions count: "
+               << Measure->getInstrCnt() << std::endl
+               << " Gas costs: " << Measure->getCostSum() << std::endl
+               << " Instructions per second: "
+               << static_cast<uint64_t>((double)Measure->getInstrCnt() *
+                                        1000000 / ExecTime)
+               << std::endl;
   }
 
   if (Res || Res.error() == ErrCode::Terminated) {

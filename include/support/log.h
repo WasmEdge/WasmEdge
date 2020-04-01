@@ -12,6 +12,8 @@ namespace Log {
 
 void passEasyloggingppArgs(int Argc, char *Argv[]);
 
+void setErrorLoggingLevel();
+
 extern el::base::type::StoragePointer elStorage;
 extern el::base::debug::CrashHandler elCrashHandler;
 

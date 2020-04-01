@@ -1,7 +1,6 @@
 # Introduction
 **SSVM** is a high performance, hardware optimal Wasm Virtual Machine for AI and Blockchain applications.
 
-
 # Getting Started
 
 ## Get Source Code
@@ -9,7 +8,7 @@
 ```bash
 $ git clone git@github.com:second-state/SSVM.git
 $ cd SSVM
-$ git checkout 0.4.0
+$ git checkout 0.5.0
 ```
 
 ## Prepare environment
@@ -19,7 +18,7 @@ $ git checkout 0.4.0
 Our docker image use `ubuntu 18.04` as base.
 
 ```bash
-$ docker pull secondstate/ssvm:dev-0.4.0
+$ docker pull secondstate/ssvm
 ```
 
 ### Or setup the environment manually
@@ -27,25 +26,36 @@ $ docker pull secondstate/ssvm:dev-0.4.0
 ```bash
 $ sudo apt install -y \
 	cmake \
-	g++ \
+	gcc-8 \
+	g++-8
 	libboost-all-dev
+# And you will need to install llvm-9 for ssvm-aot tools
+$ wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+$ sudo apt update && apt install -y \
+	libllvm9 \
+	llvm-9 \
+	llvm-9-dev \
+	llvm-9-runtime \
+	libclang-common-9-dev # for yaml-bench
+
 ```
 
 ## Build SSVM
 
 SSVM provides various tools to enabling different runtime environment for optimal performance.
-After the build is finished, you can find there are two ssvm binaries:
+After the build is finished, you can find there are several ssvm related tools:
 
-1. `ssvm` is for general wasm runtime.
+1. `ssvm` is for general wasm runtime. Interpreter mode.
 2. `ssvm-evmc` is an Ewasm runtime which is compatible with EVMC.
 3. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
 4. `ssvm-proxy` is for SSVMRPC service, which allows users to deploy and execute Wasm applications via Web interface.
+5. `ssvm-aot` is for general wasm runtime. AOT compilation mode.
 
 ```bash
-# After pulling our ssvm-dev docker image
+# After pulling our ssvm docker image
 $ docker run -it --rm \
     -v <path/to/your/ssvm/source/folder>:/root/ssvm \
-    secondstate/ssvm:dev-0.4.0
+    secondstate/ssvm:latest
 (docker)$ cd /root/ssvm
 (docker)$ mkdir -p build && cd build
 (docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make
@@ -59,7 +69,8 @@ Users can use these tests to verify the correctness of SSVM binaries.
 
 ```bash
 $ cd <path/to/ssvm/build_folder>
-$ cd test/loader
+$ cd test
+$ cd loader
 $ ./ssvmLoaderEthereumTests
 $ ./ssvmLoaderFileMgrTests
 $ ./ssvmLoaderWagonTests
@@ -69,6 +80,8 @@ $ cd ../../evmc
 $ ./ssvmEVMCTests
 $ cd ../proxy
 $ ./ssvmProxyTests
+$ cd ../expected
+$ ./expectedTests
 ```
 
 ## ssvm-evmc (SSVM with Ewasm runtime with EVMC integration)
@@ -120,19 +133,19 @@ Examples of input and output JSON files are in `doc/ssvm-proxy/design_document.m
 $ cd tools/ssvm-proxy
 # ./ssvm-proxy --input_file=input.json --output_file=output.json --wasm_file=wasm_file.wasm
 $ ./ssvm-proxy --input_file=inputJSON/input-mplus-sample.json --output_file=outputJSON/output-mplus-sample.json --wasm_file=wasm/calc.wasm
-Parsing arguments...
-Input JSON file locates in inputJSON/input-mplus-sample.json
-Output JSON file locates in outputJSON/output-mplus-sample.json
-Wasm file locates in wasm/calc.wasm
- Info: Start running...
- Info: Worker execution succeeded.
+2020-04-01 12:26:20,417 INFO [default] Start running...
+2020-04-01 12:26:20,418 INFO [default] Execution succeeded.
+2020-04-01 12:26:20,418 INFO [default] Done.
+2020-04-01 12:26:20,418 INFO [default]
  =================  Statistics  =================
- Total execution time: 23 us
- Wasm instructions execution time: 23 us
+ Total execution time: 47 us
+ Wasm instructions execution time: 47 us
  Host functions execution time: 0 us
  Executed wasm instructions count: 9
  Gas costs: 9
- Instructions per second: 391304
+ Instructions per second: 191489
+
+# The output json should be logically the same with SSVM/tools/ssvm-proxy/outputJSON/output-mplus-sample.json
 ```
 
 ## Run ssvm (SSVM with general wasm runtime)
@@ -150,15 +163,18 @@ To run SSVM with general wasm runtime, users will need to provide the following 
 $ cd tools/ssvm
 # ./ssvm wasm_file.wasm [exported_func_name] [args...]
 $ ./ssvm examples/fibonacci.wasm fib 10
- Info: Start running...
- Info: Worker execution succeeded.
+2020-04-01 12:31:56,042 INFO [default] Start running...
+2020-04-01 12:31:56,042 INFO [default] Execution succeeded.
+2020-04-01 12:31:56,042 INFO [default] Done.
+2020-04-01 12:31:56,042 INFO [default]
  =================  Statistics  =================
- Total execution time: 60 us
- Wasm instructions execution time: 60 us
+ Total execution time: 52 us
+ Wasm instructions execution time: 52 us
  Host functions execution time: 0 us
  Executed wasm instructions count: 1766
  Gas costs: 1855
- Instructions per second: 29433333
+ Instructions per second: 33961538
+
  Return value: 89
 ```
 
@@ -167,14 +183,26 @@ $ ./ssvm examples/fibonacci.wasm fib 10
 ```bash
 # ./ssvm wasm_file.wasm [exported_func_name] [args...]
 $ ./ssvm examples/factorial.wasm fac 5
- Info: Start running...
- Info: Worker execution succeeded.
+2020-04-01 12:32:33,153 INFO [default] Start running...
+2020-04-01 12:32:33,153 INFO [default] Execution succeeded.
+2020-04-01 12:32:33,153 INFO [default] Done.
+2020-04-01 12:32:33,153 INFO [default]
  =================  Statistics  =================
- Total execution time: 33 us
- Wasm instructions execution time: 33 us
+ Total execution time: 49 us
+ Wasm instructions execution time: 49 us
  Host functions execution time: 0 us
  Executed wasm instructions count: 55
  Gas costs: 61
- Instructions per second: 1666666
+ Instructions per second: 1122448
+
  Return value: 120
 ```
+
+# Related tools
+
+## SSVM nodejs addon
+
+[SSVM-napi](https://github.com/second-state/SSVM-napi) provides support for accessing SSVM as a Node.js addon. 
+It allows Node.js applications to call WebAssembly functions written in Rust or other high performance languages. 
+[Why do you want to run WebAssembly on the server-side?](https://docs.secondstate.io/serverless-cloud/the-case-for-webassembly-on-the-server-side)
+The SSVM addon could interact with the wasm files generated by the [ssvmup](https://github.com/second-state/ssvmup) compiler tool.

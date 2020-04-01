@@ -1,8 +1,96 @@
+### 0.5.0 (2020-04-01)
+
+Features:
+
+* Ethereum environment interface
+  * Implemented all EEI functions.
+  * For more details, please refer to [Ewasm functions design document](doc/evm/design_document.md)
+* Validation
+  * Completed validations for wasm sections.
+  * Completed checkings in const expressions.
+* Runtime Wasm module registering
+  * WASM modules can be registered into `Store` for importing.
+  * Host modules, which may contain host functions and `global`s, can be registered into `Store`.
+* (Experimental) New VM APIs
+  * New VM is refactoring from legacy’s VM and provides a rapidly running process for WASM.
+  * Export `Store` for external access.
+* Node.js addon
+  * Integrate SSVM with Node.js Addon API.
+  * [SSVM Node.js addon](https://github.com/second-state/ssvm-napi) is separated from this project as an independent repository.
+
+Refactor:
+
+* Code structure layout
+  * Create `common` namespace for cross-component data structures and type definitions.
+  * Extract AST structures from ast to `common`.
+  * Extract duplicate enumerations to `common`.
+  * Collects all error code classes into `common`.
+* Internal error handling mechanism
+  * Apply C++ p0323r9 `expected` features
+  * Add several helper functions for wrapping return values with error code.
+* Wasm loader
+  * Simplify workflow.
+  * Take a wasm input and return an `AST` object directly.
+* Wasm validator
+  * Simplify workflow.
+  * Take an `AST` object and return the results.
+  * Rename `validator/vm` to `formchecker`.
+* Refine runtime data structure
+  * Extract `instance`s, `host function`s, `stack manager`, and `store manager` classes to `runtime` folder.
+  * Extract `frame`, `label`, and `value` entry classes into `stack manager`.
+  * Delete redundant checks in `stack manager`. All of these checks are verified in the validation stage.
+  * Add `ImportObj` class for handling the host modules registration.
+* Interpreter
+  * Create `interpreter` namespace.
+  * Extract `executor` class to `interpreter`.
+  * Add instantiation methods for registering host modules.
+* Host functions
+  * Create `host` namespace.
+  * Extract `EEI`, `Wasi-core`, and `ONNC` host functions to `host`.
+  * Make host functions construction in host modules.
+  * Extract `host environment`s from `environment manager` to respective `host module`s.
+* Refactoring from legacy VM.
+  * Simplify workflow. Provide two approaches for invoking a wasm function.
+    * All-in-one way: Calling `runWasmFile` can instantiate and invoke a wasm function directly.
+    * Step-by-step way: Calling `loadWasm`, `validate`, `instantiate`, `execute` sequentially can make developers control the workflow manually.
+  * External access APIs
+    * Access `export`ed wasm functions.
+    * Export `Store`.
+    * Export measurement data class including instruction counter, timer, and cost meter.
+  * Provide registration API for wasm modules and host modules.
+  * Extract `host environment`s of `EEI` and `Wasi-core` into respective `host module`s.
+  * Apply experimental VM to `ssvm-proxy` and `ssvm-evmc` tools.
+
+Tools:
+
+* Remove unused ssvm-evm
+  * `ssvm-evm` is replaced by `ssvm-evmc`.
+* (Experimental) Add sub-project `ssvm-aot`
+  * `ssvm-aot` provides ahead-of-time(AOT) compilation mechanism for general wasm applications.
+
+Tests:
+
+* Remove redundant `ssvm-evm` tests.
+* (Experimental) Add integration tests for `ssvm-aot`.
+* (Experimental) Add unit tests for C++ `expected` feature.
+* Move `AST` tests to the test top folder.
+
+Fixed issues:
+
+* Ethereum Environment Interface
+  * Fix function signatures.
+  * Return `fail` instead of `revert` when the execution state is `out of gas`.
+  * Handle memory edge case when loading and storing from memory instance.
+  * Add missing check for evmc flags.
+  * Set running code to evmc environment.
+* Complete import matching when instantiation in the interpreter.
+* Fix lost of validation when importing `global`s.
+
 ### 0.4.0 (2020-01-17)
 
 Features:
 
-* Ethereum environment interfece implementation
+* Ethereum environment interface implementation
   * Add EVMC library.
   * [Ewasm functions implemented](doc/evm/design_document.md)
   * Update gas costs of Ewasm functions.

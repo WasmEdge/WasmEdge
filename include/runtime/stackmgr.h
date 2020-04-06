@@ -57,7 +57,7 @@ public:
   ~StackManager() = default;
 
   /// Getter of stack size.
-  const size_t size() const { return ValueStack.size(); }
+  size_t size() const { return ValueStack.size(); }
 
   /// Unsafe Getter of top entry of stack.
   Value &getTop() { return ValueStack.back(); }
@@ -109,10 +109,10 @@ public:
   }
 
   /// Unsafe getter of module address.
-  const uint32_t getModuleAddr() const { return FrameStack.back().ModAddr; }
+  uint32_t getModuleAddr() const { return FrameStack.back().ModAddr; }
 
   /// Unsafe getter for stack offset of local values by index.
-  const uint32_t getOffset(uint32_t Idx) const {
+  uint32_t getOffset(uint32_t Idx) const {
     return FrameStack.back().VStackSize + Idx;
   }
 

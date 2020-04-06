@@ -12,12 +12,12 @@
 #pragma once
 
 #include "common/ast/type.h"
-#include "common/value.h"
 #include "common/errcode.h"
+#include "common/value.h"
 #include "support/casting.h"
 
-#include <memory>
 #include <cstring>
+#include <memory>
 #include <vector>
 
 namespace SSVM {
@@ -33,16 +33,16 @@ public:
   virtual ~MemoryInstance() = default;
 
   /// Get page size of memory.data
-  const uint32_t getDataPageSize() const { return CurrPage; }
+  uint32_t getDataPageSize() const { return CurrPage; }
 
   /// Getter of limit definition.
-  const bool getHasMax() const { return HasMaxPage; }
+  bool getHasMax() const { return HasMaxPage; }
 
   /// Getter of limit definition.
-  const uint32_t getMin() const { return MinPage; }
+  uint32_t getMin() const { return MinPage; }
 
   /// Getter of limit definition.
-  const uint32_t getMax() const { return MaxPage; }
+  uint32_t getMax() const { return MaxPage; }
 
   /// Grow page
   Expect<void> growPage(const uint32_t Count) {

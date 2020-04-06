@@ -12,8 +12,8 @@
 #pragma once
 
 #include "common/ast/instruction.h"
-#include "runtime/hostfunc.h"
 #include "module.h"
+#include "runtime/hostfunc.h"
 
 #include <memory>
 #include <string>
@@ -30,7 +30,7 @@ public:
   FunctionInstance(const uint32_t ModAddr, const FType &Type,
                    const std::vector<std::pair<uint32_t, ValType>> &Locs,
                    const AST::InstrVec &Expr)
-      : IsHostFunction(false), ModuleAddr(ModAddr), FuncType(Type),
+      : IsHostFunction(false), FuncType(Type), ModuleAddr(ModAddr),
         Locals(Locs) {
     /// Copy instructions
     for (auto &It : Expr) {
@@ -41,15 +41,15 @@ public:
   }
   /// Constructor for host function. Module address will not be used.
   FunctionInstance(std::unique_ptr<HostFunctionBase> &Func)
-      : IsHostFunction(true), ModuleAddr(0), FuncType(Func->getFuncType()),
+      : IsHostFunction(true), FuncType(Func->getFuncType()), ModuleAddr(0),
         HostFunc(std::move(Func)) {}
   virtual ~FunctionInstance() = default;
 
   /// Getter of checking is host function.
-  const bool isHostFunction() const { return IsHostFunction; }
+  bool isHostFunction() const { return IsHostFunction; }
 
   /// Getter of module address of this function instance.
-  const uint32_t getModuleAddr() const { return ModuleAddr; }
+  uint32_t getModuleAddr() const { return ModuleAddr; }
 
   /// Getter of function type.
   const FType &getFuncType() const { return FuncType; }

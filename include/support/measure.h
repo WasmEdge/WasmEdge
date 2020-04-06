@@ -25,7 +25,7 @@ public:
   void incInstrCnt() { ++InstrCnt; }
 
   /// Getter of instruction counter.
-  const uint64_t getInstrCnt() const { return InstrCnt; }
+  uint64_t getInstrCnt() const { return InstrCnt; }
 
   /// Setter of cost table.
   void setCostTable(const std::vector<uint64_t> &NewTable) {

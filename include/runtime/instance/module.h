@@ -11,13 +11,14 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/types.h"
 #include "common/errcode.h"
+#include "common/types.h"
 #include "type.h"
 
-#include <optional>
-#include <vector>
 #include <map>
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace SSVM {
 namespace Runtime {
@@ -106,10 +107,10 @@ public:
   }
 
   /// Get the added external values' numbers.
-  const uint32_t getFuncNum() const { return FuncAddrs.size(); }
-  const uint32_t getTableNum() const { return TableAddrs.size(); }
-  const uint32_t getMemNum() const { return MemAddrs.size(); }
-  const uint32_t getGlobalNum() const { return GlobalAddrs.size(); }
+  uint32_t getFuncNum() const { return FuncAddrs.size(); }
+  uint32_t getTableNum() const { return TableAddrs.size(); }
+  uint32_t getMemNum() const { return MemAddrs.size(); }
+  uint32_t getGlobalNum() const { return GlobalAddrs.size(); }
 
   /// Set start function index and find the address in Store.
   void setStartIdx(const uint32_t Idx) {

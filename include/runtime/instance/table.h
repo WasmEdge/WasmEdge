@@ -12,11 +12,11 @@
 #pragma once
 
 #include "common/ast/type.h"
-#include "common/types.h"
 #include "common/errcode.h"
+#include "common/types.h"
 
-#include <vector>
 #include <cstdint>
+#include <vector>
 
 namespace SSVM {
 namespace Runtime {
@@ -35,16 +35,16 @@ public:
   virtual ~TableInstance() = default;
 
   /// Getter of element type.
-  const ElemType getElementType() const { return Type; }
+  ElemType getElementType() const { return Type; }
 
   /// Getter of limit definition.
-  const bool getHasMax() const { return HasMaxSize; }
+  bool getHasMax() const { return HasMaxSize; }
 
   /// Getter of limit definition.
-  const uint32_t getMin() const { return MinSize; }
+  uint32_t getMin() const { return MinSize; }
 
   /// Getter of limit definition.
-  const uint32_t getMax() const { return MaxSize; }
+  uint32_t getMax() const { return MaxSize; }
 
   /// Set the function index initialization list.
   Expect<void> setInitList(const uint32_t Offset,

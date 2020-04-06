@@ -425,7 +425,7 @@ Expect<void> FormChecker::checkInstr(const AST::MemoryInstruction &Instr) {
   case OpCode::I64__load8_u:
   case OpCode::I32__store8:
   case OpCode::I64__store8:
-    if ((1 << Instr.getMemoryAlign()) > (N >> 3)) {
+    if ((1UL << Instr.getMemoryAlign()) > (N >> 3UL)) {
       /// 2 ^ align needs to <= N / 8
       return Unexpect(ErrCode::ValidationFailed);
     }

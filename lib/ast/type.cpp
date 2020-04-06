@@ -52,7 +52,7 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr) {
   } else {
     return Unexpect(Res);
   }
-  for (int i = 0; i < VecCnt; ++i) {
+  for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readByte()) {
       ValType Type = static_cast<ValType>(*Res);
       switch (Type) {
@@ -76,7 +76,7 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr) {
   } else {
     return Unexpect(Res);
   }
-  for (int i = 0; i < VecCnt; ++i) {
+  for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readByte()) {
       ValType Type = static_cast<ValType>(*Res);
       switch (Type) {

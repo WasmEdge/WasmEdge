@@ -43,7 +43,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr) {
   } else {
     return Unexpect(Res);
   }
-  for (int i = 0; i < VecCnt; i++) {
+  for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readU32()) {
       FuncIdxes.push_back(*Res);
     } else {
@@ -70,7 +70,7 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr) {
   } else {
     return Unexpect(Res);
   }
-  for (int i = 0; i < VecCnt; i++) {
+  for (uint32_t i = 0; i < VecCnt; ++i) {
     uint32_t LocalCnt = 0;
     ValType LocalType = ValType::None;
     if (auto Res = Mgr.readU32()) {

@@ -33,12 +33,12 @@ public:
   const AST::Instruction *getNextInstr();
 
   /// Get sequence type of top scope.
-  const SeqType getTopScopeType() const {
+  SeqType getTopScopeType() const {
     return (Iters.size() > 0) ? Iters.back().Type : SeqType::Expression;
   }
 
   /// Get sequences stack size.
-  const uint32_t getScopeSize() const { return Iters.size(); }
+  uint32_t getScopeSize() const { return Iters.size(); }
 
   /// Push instruction sequence.
   void pushInstrs(SeqType Type) {

@@ -46,14 +46,14 @@ Expect<void> ImportSection::loadContent(FileMgr &Mgr) {
 
 /// Load vector of function section. See "include/ast/section.h".
 Expect<void> FunctionSection::loadContent(FileMgr &Mgr) {
-  unsigned int VecCnt = 0;
+  uint32_t VecCnt = 0;
   /// Read vector count.
   if (auto Res = Mgr.readU32()) {
     VecCnt = *Res;
   } else {
     return Unexpect(Res);
   }
-  for (int i = 0; i < VecCnt; i++) {
+  for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readU32()) {
       Content.push_back(*Res);
     } else {

@@ -10,15 +10,14 @@ namespace SSVM {
 namespace ExpVM {
 
 VM::VM(Configure &InputConfig)
-    : Config(InputConfig), Store(std::make_unique<Runtime::StoreManager>()),
-      StoreRef(*Store.get()), InterpreterEngine(&Measure),
-      Stage(VMStage::Inited) {
+    : Config(InputConfig), Stage(VMStage::Inited), InterpreterEngine(&Measure),
+      Store(std::make_unique<Runtime::StoreManager>()), StoreRef(*Store.get()) {
   initVM();
 }
 
 VM::VM(Configure &InputConfig, Runtime::StoreManager &S)
-    : Config(InputConfig), StoreRef(S), InterpreterEngine(&Measure),
-      Stage(VMStage::Inited) {
+    : Config(InputConfig), Stage(VMStage::Inited), InterpreterEngine(&Measure),
+      StoreRef(S) {
   initVM();
 }
 

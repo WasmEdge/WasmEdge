@@ -12,8 +12,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "type.h"
 #include "common/types.h"
+#include "type.h"
 
 #include <string>
 #include <variant>
@@ -25,7 +25,7 @@ namespace AST {
 class Desc : public Base {
 public:
   /// Getter of external type.
-  virtual const ExternalType getExternalType() const { return ExtType; }
+  virtual ExternalType getExternalType() const { return ExtType; }
 
 protected:
   /// External type of this class.
@@ -95,7 +95,7 @@ public:
   const std::string &getExternalName() const { return ExtName; }
 
   /// Getter of external index.
-  const uint32_t getExternalIndex() const { return ExtIdx; }
+  uint32_t getExternalIndex() const { return ExtIdx; }
 
 protected:
   /// The node type should be Attr::Desc_Export.

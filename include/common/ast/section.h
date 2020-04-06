@@ -68,7 +68,7 @@ protected:
     }
 
     /// Sequently create AST node T and read data.
-    for (int i = 0; i < VecCnt; i++) {
+    for (uint32_t i = 0; i < VecCnt; ++i) {
       auto NewContent = std::make_unique<T>();
       if (auto Res = NewContent->loadBinary(Mgr)) {
         Vec.push_back(std::move(NewContent));
@@ -239,7 +239,7 @@ private:
 class StartSection : public Section {
 public:
   /// Getter of content.
-  const uint32_t getContent() const { return Content; }
+  uint32_t getContent() const { return Content; }
 
 protected:
   /// Overrided content loading of start section.

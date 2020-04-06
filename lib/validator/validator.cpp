@@ -2,8 +2,8 @@
 #include "validator/validator.h"
 #include "common/ast/module.h"
 
-#include <unordered_set>
 #include <string>
+#include <unordered_set>
 
 namespace SSVM {
 namespace Validator {
@@ -160,7 +160,6 @@ Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
   /// Reset stack in FormChecker.
   Checker.reset();
   /// Add parameters into this frame.
-  uint32_t Idx = 0;
   for (auto Val : Checker.getTypes()[TypeIdx].first) {
     Checker.addLocal(Val);
   }

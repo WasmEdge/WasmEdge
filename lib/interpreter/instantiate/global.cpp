@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "common/ast/section.h"
-#include "runtime/instance/module.h"
 #include "runtime/instance/global.h"
+#include "common/ast/section.h"
 #include "interpreter/interpreter.h"
+#include "runtime/instance/module.h"
 
 namespace SSVM {
 namespace Interpreter {
@@ -20,7 +20,6 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 
   /// Insert the temp. module instance to Store.
   uint32_t TmpModInstAddr = StoreMgr.pushModule(TmpMod);
-  auto *TmpModInst = *StoreMgr.getModule(TmpModInstAddr);
 
   /// Push a new frame {TmpModInst:{globaddrs}, locals:none}
   StackMgr.pushFrame(TmpModInstAddr, 0, 0);

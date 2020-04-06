@@ -43,10 +43,10 @@ public:
   virtual ~GlobalInstance() = default;
 
   /// Getter the global value type.
-  const ValType getValType() const { return Type; }
+  ValType getValType() const { return Type; }
 
   /// Getter the global mutation.
-  const ValMut getValMut() const { return Mut; }
+  ValMut getValMut() const { return Mut; }
 
   /// Getter of value.
   ValVariant &getValue() { return Value; };

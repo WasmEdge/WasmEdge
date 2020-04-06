@@ -12,8 +12,8 @@
 #pragma once
 
 #include "common/value.h"
-#include "instance/type.h"
 #include "instance/memory.h"
+#include "instance/type.h"
 #include "stackmgr.h"
 
 #include <memory>
@@ -36,7 +36,7 @@ public:
   const Instance::FType &getFuncType() const { return FuncType; }
 
   /// Getter of host function cost.
-  const uint64_t getCost() const { return Cost; }
+  uint64_t getCost() const { return Cost; }
 
 protected:
   Instance::FType FuncType;

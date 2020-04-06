@@ -88,7 +88,7 @@ public:
   virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of table index.
-  const uint32_t getIdx() const { return TableIdx; }
+  uint32_t getIdx() const { return TableIdx; }
 
   /// Getter of function indices.
   const std::vector<uint32_t> &getFuncIdxes() const { return FuncIdxes; }
@@ -149,7 +149,7 @@ public:
   virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of memory index.
-  const uint32_t getIdx() const { return MemoryIdx; }
+  uint32_t getIdx() const { return MemoryIdx; }
 
   /// Getter of data.
   const Bytes &getData() const { return Data; }

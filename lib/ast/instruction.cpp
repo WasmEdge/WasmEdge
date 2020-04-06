@@ -158,7 +158,7 @@ Expect<void> BrControlInstruction::loadBinary(FileMgr &Mgr) {
 
 /// Load branch table instructions. See "include/common/ast/instruction.h".
 Expect<void> BrTableControlInstruction::loadBinary(FileMgr &Mgr) {
-  unsigned int VecCnt = 0;
+  uint32_t VecCnt = 0;
 
   /// Read the vector of labels.
   if (auto Res = Mgr.readU32()) {
@@ -166,7 +166,7 @@ Expect<void> BrTableControlInstruction::loadBinary(FileMgr &Mgr) {
   } else {
     return Unexpect(Res);
   }
-  for (int i = 0; i < VecCnt; i++) {
+  for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readU32()) {
       LabelTable.push_back(*Res);
     } else {
@@ -194,7 +194,6 @@ Expect<void> CallControlInstruction::loadBinary(FileMgr &Mgr) {
 
   /// Read the 0x00 checking code in indirect_call case.
   if (Code == OpCode::Call_indirect) {
-    unsigned char Byte = 0xFF;
     if (auto Res = Mgr.readByte()) {
       if (*Res != 0x00) {
         return Unexpect(ErrCode::InvalidGrammar);

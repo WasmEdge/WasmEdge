@@ -38,13 +38,13 @@ public:
   virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of having max in limit.
-  const bool hasMax() const { return Type == LimitType::HasMinMax; }
+  bool hasMax() const { return Type == LimitType::HasMinMax; }
 
   /// Getter of min.
-  const uint32_t getMin() const { return Min; }
+  uint32_t getMin() const { return Min; }
 
   /// Getter of max.
-  const uint32_t getMax() const { return Max; }
+  uint32_t getMax() const { return Max; }
 
 protected:
   /// The node type should be Attr::Type_Limit.
@@ -129,7 +129,7 @@ public:
   virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of element type.
-  const ElemType getElementType() const { return Type; }
+  ElemType getElementType() const { return Type; }
 
   /// Getter of limit.
   const Limit *getLimit() const { return Table.get(); }
@@ -160,10 +160,10 @@ public:
   virtual Expect<void> loadBinary(FileMgr &Mgr);
 
   /// Getter of global type.
-  const ValType getValueType() const { return Type; }
+  ValType getValueType() const { return Type; }
 
   /// Getter of global mutation.
-  const ValMut getValueMutation() const { return Mut; }
+  ValMut getValueMutation() const { return Mut; }
 
 protected:
   /// The node type should be Attr::Type_Global.

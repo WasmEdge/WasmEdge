@@ -227,7 +227,7 @@ public:
   virtual Expect<void> loadBinary(FileMgr &Mgr) { return {}; }
 
   /// Getter of OpCode.
-  const OpCode getOpCode() const { return Code; }
+  OpCode getOpCode() const { return Code; }
 
 protected:
   /// OpCode if this instruction node.
@@ -263,7 +263,7 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of block type
-  const ValType getResultType() const { return BlockType; }
+  ValType getResultType() const { return BlockType; }
 
   /// Getter of Block Body
   const InstrVec &getBody() const { return Body; }
@@ -295,7 +295,7 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of block type
-  const ValType getResultType() const { return BlockType; }
+  ValType getResultType() const { return BlockType; }
 
   /// Getter of if statement.
   const InstrVec &getIfStatement() const { return IfStatement; }
@@ -332,7 +332,7 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Get label index
-  const uint32_t getLabelIndex() const { return LabelIdx; }
+  uint32_t getLabelIndex() const { return LabelIdx; }
 
 private:
   /// Branch-to label index.
@@ -363,7 +363,7 @@ public:
   const std::vector<uint32_t> *getLabelTable() const { return &LabelTable; }
 
   /// Getter of label index
-  const uint32_t getLabelIndex() const { return LabelIdx; }
+  uint32_t getLabelIndex() const { return LabelIdx; }
 
 private:
   /// \name Data of branch instruction: label vector and defalt label.
@@ -393,7 +393,7 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of the index
-  const uint32_t getFuncIndex() const { return FuncIdx; }
+  uint32_t getFuncIndex() const { return FuncIdx; }
 
 private:
   /// Call function index.
@@ -427,7 +427,7 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of the index
-  const uint32_t getVariableIndex() const { return VarIdx; }
+  uint32_t getVariableIndex() const { return VarIdx; }
 
 private:
   /// Global or local index.
@@ -454,8 +454,8 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getters of memory align and offset.
-  const uint32_t getMemoryAlign() const { return Align; }
-  const uint32_t getMemoryOffset() const { return Offset; }
+  uint32_t getMemoryAlign() const { return Align; }
+  uint32_t getMemoryOffset() const { return Offset; }
 
 private:
   /// \name Data of memory instruction: Alignment and offset.
@@ -485,7 +485,7 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of the constant value.
-  const ValVariant getConstValue() const { return Num; }
+  ValVariant getConstValue() const { return Num; }
 
 private:
   /// Const value of this instruction.

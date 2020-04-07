@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
+#include "common/value.h"
 #include "executor/common.h"
 #include "executor/worker.h"
-#include "common/value.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -85,9 +85,9 @@ ErrCode Worker::runBrTableOp(AST::BrTableControlInstruction &Instr) {
   int32_t Value = retrieveValue<uint32_t>(Val);
 
   /// Do branch.
-  const std::vector<unsigned int> *LabelTable = Instr.getLabelTable();
-  if (Value < LabelTable->size()) {
-    Status = branchToLabel(LabelTable->at(Value));
+  const std::vector<unsigned int> &LabelTable = Instr.getLabelTable();
+  if (Value < LabelTable.size()) {
+    Status = branchToLabel(LabelTable.at(Value));
   } else {
     Status = branchToLabel(Instr.getLabelIndex());
   }

@@ -360,7 +360,7 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of label table
-  const std::vector<uint32_t> *getLabelTable() const { return &LabelTable; }
+  const std::vector<uint32_t> &getLabelTable() const { return LabelTable; }
 
   /// Getter of label index
   uint32_t getLabelIndex() const { return LabelIdx; }

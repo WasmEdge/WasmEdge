@@ -245,7 +245,7 @@ FormChecker::checkInstr(const AST::BrTableControlInstruction &Instr) {
       /// Branch out of table index
       return Unexpect(ErrCode::ValidationFailed);
     }
-    for (auto N : *Instr.getLabelTable()) {
+    for (auto &N : Instr.getLabelTable()) {
       // Error_if(ctrls.size() < n || ctrls[n].label_types =/=
       // ctrls[m].label_types)
       if (CtrlStack.size() <= N) {

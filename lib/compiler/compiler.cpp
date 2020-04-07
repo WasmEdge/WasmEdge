@@ -326,7 +326,7 @@ public:
     return ErrCode::Success;
   }
   ErrCode compile(const SSVM::AST::BrTableControlInstruction &Instr) {
-    const std::vector<unsigned int> &LabelTable = *Instr.getLabelTable();
+    const std::vector<unsigned int> &LabelTable = Instr.getLabelTable();
     switch (Instr.getOpCode()) {
     case OpCode::Br_table: {
       llvm::SwitchInst *Switch = Builder.CreateSwitch(

@@ -74,7 +74,7 @@ Interpreter::runBrTableOp(const AST::BrTableControlInstruction &Instr) {
   uint32_t Value = retrieveValue<uint32_t>(StackMgr.pop());
 
   /// Do branch.
-  const auto &LabelTable = *Instr.getLabelTable();
+  const auto &LabelTable = Instr.getLabelTable();
   if (Value < LabelTable.size()) {
     return branchToLabel(LabelTable[Value]);
   }

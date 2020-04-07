@@ -4,8 +4,8 @@
 #include "rapidjson/document.h"
 #include "expvm/configure.h"
 #include "expvm/vm.h"
+#include "support/filesystem.h"
 
-#include <boost/filesystem.hpp>
 #include <memory>
 #include <string>
 #include <vector>
@@ -19,7 +19,7 @@ std::string getAbsPath(const std::string &RelPath) {
   if (RelPath == "") {
     return RelPath;
   }
-  boost::filesystem::path Path;
+  std::filesystem::path Path;
   if (RelPath[0] == '~') {
     const char *Home = getenv("HOME");
     if (Home != NULL) {
@@ -28,7 +28,7 @@ std::string getAbsPath(const std::string &RelPath) {
   } else {
     Path = RelPath;
   }
-  return boost::filesystem::weakly_canonical(Path).string();
+  return std::filesystem::absolute(Path).string();
 }
 
 } // namespace

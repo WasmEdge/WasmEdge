@@ -4,7 +4,6 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
-#include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/hex.hpp>
@@ -12,8 +11,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <memory>
-#include <vector>
 
 namespace SSVM {
 namespace Proxy {
@@ -261,7 +258,7 @@ void Proxy::parseInputJSON() {
 
 void Proxy::executeVM() {
   /// Wasm path is empty or not found.
-  if (WasmPath == "" || !boost::filesystem::exists(WasmPath)) {
+  if (WasmPath == "" || !std::filesystem::exists(WasmPath)) {
     OutputDoc["result"]["error_message"].SetString("Wasm file not found.");
     return;
   }

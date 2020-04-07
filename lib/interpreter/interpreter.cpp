@@ -17,7 +17,6 @@ Expect<void> Interpreter::instantiateModule(Runtime::StoreManager &StoreMgr,
                                             const AST::Module &Mod,
                                             const std::string &Name) {
   InsMode = InstantiateMode::Instantiate;
-  StoreMgr.reset();
   return instantiate(StoreMgr, Mod, Name);
 }
 
@@ -62,7 +61,6 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
                                          const AST::Module &Mod,
                                          const std::string &Name = "") {
   InsMode = InstantiateMode::ImportWasm;
-  StoreMgr.reset();
   return instantiate(StoreMgr, Mod, Name);
 }
 
@@ -84,6 +82,7 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const std::string &Name,
   }
 
   /// Push arguments.
+  InstrPdr.reset();
   StackMgr.reset();
   for (auto &Val : Params) {
     StackMgr.push(Val);

@@ -76,11 +76,6 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
   return Unexpect(Res);
 }
 
-void Interpreter::reset() {
-  InstrPdr.reset();
-  StackMgr.reset();
-}
-
 Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
                                   const AST::ControlInstruction &Instr) {
   switch (Instr.getOpCode()) {

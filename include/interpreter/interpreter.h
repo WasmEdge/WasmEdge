@@ -110,9 +110,6 @@ public:
                                          const std::string &Name,
                                          const std::vector<ValVariant> &Params);
 
-  /// Reset runtime in interpreter.
-  void reset();
-
 private:
   /// Run Wasm bytecode expression for initialization.
   Expect<void> runExpression(Runtime::StoreManager &StoreMgr,

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/ast/module.h"
 #include "common/ast/section.h"
-#include "runtime/instance/module.h"
 #include "interpreter/interpreter.h"
+#include "runtime/instance/module.h"
 
 namespace SSVM {
 namespace Interpreter {
@@ -16,6 +16,11 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     return Unexpect(ErrCode::ModuleNameConflict);
   }
   auto NewModInst = std::make_unique<Runtime::Instance::ModuleInstance>(Name);
+
+  /// Reset store manager, stack manager, and instruction provider.
+  StoreMgr.reset();
+  StackMgr.reset();
+  InstrPdr.reset();
 
   /// Insert the module instance to store manager and retieve instance.
   uint32_t ModInstAddr;

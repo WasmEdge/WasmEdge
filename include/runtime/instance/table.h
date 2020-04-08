@@ -15,6 +15,7 @@
 #include "common/errcode.h"
 #include "common/types.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <vector>
 
@@ -55,7 +56,7 @@ public:
     if (FuncElem.size() < Offset + Addrs.size()) {
       FuncElem.resize(Offset + Addrs.size());
     }
-    memcpy(&FuncElem[Offset], &Addrs[0], Addrs.size());
+    std::copy(Addrs.begin(), Addrs.end(), FuncElem.begin() + Offset);
     return {};
   }
 

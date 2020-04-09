@@ -16,6 +16,7 @@
 #include "common/value.h"
 #include "support/casting.h"
 
+#include <algorithm>
 #include <cstring>
 #include <memory>
 #include <vector>
@@ -66,7 +67,8 @@ public:
     Bytes Slice;
     if (Length > 0) {
       Slice.resize(Length);
-      std::memcpy(&Slice[0], &Data[Offset], Length);
+      std::copy(Data.begin() + Offset, Data.begin() + Offset + Length,
+                Slice.begin());
     }
     return Slice;
   }
@@ -87,7 +89,8 @@ public:
 
     /// Copy data.
     if (Length > 0) {
-      std::memcpy(&Data[Offset], &Slice[Start], Length);
+      std::copy(Slice.begin() + Start, Slice.begin() + Start + Length,
+                Data.begin() + Offset);
     }
     return {};
   }
@@ -106,7 +109,7 @@ public:
           Arr[I] = Data[Offset + Length - I - 1];
         }
       } else {
-        std::memcpy(Arr, &Data[Offset], Length);
+        std::copy(Data.begin() + Offset, Data.begin() + Offset + Length, Arr);
       }
     }
     return {};
@@ -126,7 +129,7 @@ public:
           Data[Offset + Length - I - 1] = Arr[I];
         }
       } else {
-        std::memcpy(&Data[Offset], Arr, Length);
+        std::copy(Arr, Arr + Length, Data.begin() + Offset);
       }
     }
     return {};

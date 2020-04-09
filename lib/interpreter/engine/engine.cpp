@@ -6,9 +6,6 @@
 #include "support/log.h"
 #include "support/measure.h"
 
-#include <functional>
-#include <iostream>
-
 namespace SSVM {
 namespace Interpreter {
 
@@ -661,10 +658,12 @@ Expect<void> Interpreter::branchToLabel(const uint32_t Cnt) {
   auto &L = StackMgr.getLabelWithCount(Cnt);
   const AST::BlockControlInstruction *ContInstr = L.Target;
 
+  /// Pop L + 1 labels.
+  StackMgr.popLabel(Cnt + 1);
+
   /// Repeat LabelIndex + 1 times
   for (uint32_t I = 0; I < Cnt + 1; I++) {
-    StackMgr.popLabel();
-    /// Pop label entry and the corresponding instruction sequence.
+    /// Pop the corresponding instruction sequence.
     InstrPdr.popInstrs();
   }
 

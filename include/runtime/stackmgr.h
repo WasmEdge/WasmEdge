@@ -102,10 +102,13 @@ public:
   }
 
   /// Unsafe pop top label.
-  void popLabel() {
-    ValueStack.erase(ValueStack.begin() + LabelStack.back().StackSize,
-                     ValueStack.end() - LabelStack.back().Coarity);
-    LabelStack.pop_back();
+  void popLabel(const uint32_t Cnt = 1) {
+    const auto &L = getLabelWithCount(Cnt - 1);
+    ValueStack.erase(ValueStack.begin() + L.StackSize,
+                     ValueStack.end() - L.Coarity);
+    for (uint32_t I = 0; I < Cnt; ++I) {
+      LabelStack.pop_back();
+    }
   }
 
   /// Unsafe getter of module address.
@@ -116,7 +119,7 @@ public:
     return FrameStack.back().VStackSize + Idx;
   }
 
-  /// Unsafe getter the top of count of label.
+  /// Unsafe getter of the top count of label which index start from 0.
   const Label &getLabelWithCount(const uint32_t Count) const {
     return LabelStack[LabelStack.size() - Count - 1];
   }

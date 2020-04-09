@@ -1,3 +1,12 @@
+### 0.5.1 (2020-04-09)
+
+SSVM 0.5.1 is a bug-fix release from 0.5.0.
+
+* Issues:
+  * Set correct reset timing of the interpreter.
+  * Fix data copying in table instance in the instanciation phase.
+  * Fix label popping in stack manager.
+
 ### 0.5.0 (2020-04-01)
 
 Features:

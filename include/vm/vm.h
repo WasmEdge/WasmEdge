@@ -29,7 +29,7 @@
 #include <vector>
 
 namespace SSVM {
-namespace ExpVM {
+namespace VM {
 
 /// VM execution flow class
 class VM {
@@ -130,5 +130,5 @@ private:
   uint64_t UUID;
 };
 
-} // namespace ExpVM
+} // namespace VM
 } // namespace SSVM

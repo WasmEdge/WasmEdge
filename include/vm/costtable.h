@@ -16,7 +16,7 @@
 #include <vector>
 
 namespace SSVM {
-namespace ExpVM {
+namespace VM {
 
 class CostTable {
 public:
@@ -66,5 +66,5 @@ private:
   std::unordered_map<Configure::VMType, std::vector<uint64_t>> Costs;
 };
 
-} // namespace ExpVM
+} // namespace VM
 } // namespace SSVM

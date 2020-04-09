@@ -1,4 +1,5 @@
-#include "expvm/vm.h"
+// SPDX-License-Identifier: Apache-2.0
+#include "vm/vm.h"
 #include "host/ethereum/eeimodule.h"
 #include "host/wasi/wasimodule.h"
 
@@ -7,7 +8,7 @@
 #endif
 
 namespace SSVM {
-namespace ExpVM {
+namespace VM {
 
 VM::VM(Configure &InputConfig)
     : Config(InputConfig), Stage(VMStage::Inited), InterpreterEngine(&Measure),
@@ -258,5 +259,5 @@ Runtime::ImportObject *VM::getImportModule(const Configure::VMType Type) {
   return nullptr;
 }
 
-} // namespace ExpVM
+} // namespace VM
 } // namespace SSVM

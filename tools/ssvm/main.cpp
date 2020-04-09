@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/value.h"
-#include "expvm/configure.h"
-#include "expvm/vm.h"
+#include "vm/configure.h"
+#include "vm/vm.h"
 
 #include <iostream>
 
@@ -17,8 +17,8 @@ int main(int Argc, char *Argv[]) {
   }
 
   std::string InputPath(Argv[1]);
-  SSVM::ExpVM::Configure Conf;
-  SSVM::ExpVM::VM VM(Conf);
+  SSVM::VM::Configure Conf;
+  SSVM::VM::VM VM(Conf);
 
   /// Parameters and return values.
   std::vector<SSVM::ValVariant> Params, Results;

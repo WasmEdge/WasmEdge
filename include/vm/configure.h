@@ -16,7 +16,7 @@
 #include <unordered_set>
 
 namespace SSVM {
-namespace ExpVM {
+namespace VM {
 
 class Configure {
 public:
@@ -38,5 +38,5 @@ private:
   std::unordered_set<VMType> Types;
 };
 
-} // namespace ExpVM
+} // namespace VM
 } // namespace SSVM

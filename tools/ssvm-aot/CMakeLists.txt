@@ -16,6 +16,6 @@ add_executable(ssvmr
 
 target_link_libraries(ssvmr
   PRIVATE
-  ssvmExpVM
+  ssvmVM
   std::filesystem
 )

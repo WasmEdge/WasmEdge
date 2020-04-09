@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "evmc/evmc.h"
 #include "evmc/utils.h"
-#include "expvm/configure.h"
-#include "expvm/vm.h"
 #include "host/ethereum/eeimodule.h"
 #include "support/hexstr.h"
 #include "support/log.h"
+#include "vm/configure.h"
+#include "vm/vm.h"
 
 namespace {
 
@@ -43,14 +43,14 @@ static struct evmc_result execute(struct evmc_instance *vm,
   result.create_address = {};
 
   /// Create VM with ewasm configuration.
-  SSVM::ExpVM::Configure Conf;
-  Conf.addVMType(SSVM::ExpVM::Configure::VMType::Ewasm);
-  SSVM::ExpVM::VM EVM(Conf);
+  SSVM::VM::Configure Conf;
+  Conf.addVMType(SSVM::VM::Configure::VMType::Ewasm);
+  SSVM::VM::VM EVM(Conf);
 
   /// Set data from message.
   std::vector<uint8_t> Code(code, code + code_size);
   SSVM::Host::EEIModule &EEIObj = *dynamic_cast<SSVM::Host::EEIModule *>(
-      EVM.getImportModule(SSVM::ExpVM::Configure::VMType::Ewasm));
+      EVM.getImportModule(SSVM::VM::Configure::VMType::Ewasm));
   SSVM::Host::EVMEnvironment &EEIEnv = EEIObj.getEnv();
   EEIEnv.setEVMCContext(context);
   EEIEnv.setEVMCMessage(msg);

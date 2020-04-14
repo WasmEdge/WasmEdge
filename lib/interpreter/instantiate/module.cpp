@@ -11,18 +11,18 @@ namespace Interpreter {
 Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
                                       const AST::Module &Mod,
                                       const std::string &Name) {
+  /// Reset store manager, stack manager, and instruction provider.
+  StoreMgr.reset();
+  StackMgr.reset();
+  InstrPdr.reset();
+
   /// Check is module name duplicated.
   if (auto Res = StoreMgr.findModule(Name)) {
     return Unexpect(ErrCode::ModuleNameConflict);
   }
   auto NewModInst = std::make_unique<Runtime::Instance::ModuleInstance>(Name);
 
-  /// Reset store manager, stack manager, and instruction provider.
-  StoreMgr.reset();
-  StackMgr.reset();
-  InstrPdr.reset();
-
-  /// Insert the module instance to store manager and retieve instance.
+  /// Insert the module instance to store manager and retrieve instance.
   uint32_t ModInstAddr;
   if (InsMode == InstantiateMode::Instantiate) {
     ModInstAddr = StoreMgr.pushModule(NewModInst);

@@ -21,25 +21,9 @@ namespace Instance {
 class GlobalInstance {
 public:
   GlobalInstance() = delete;
-  GlobalInstance(const ValType &ValueType, const ValMut &Mutibility)
-      : Type(ValueType), Mut(Mutibility) {
-    switch (Type) {
-    case ValType::I32:
-      Value = (uint32_t)0;
-      break;
-    case ValType::I64:
-      Value = (uint64_t)0;
-      break;
-    case ValType::F32:
-      Value = (float)0.0;
-      break;
-    case ValType::F64:
-      Value = (double)0.0;
-      break;
-    default:
-      break;
-    }
-  }
+  GlobalInstance(const ValType ValueType, const ValMut Mutibility,
+                 const ValVariant Val = uint32_t(0))
+      : Type(ValueType), Mut(Mutibility), Value(Val) {}
   virtual ~GlobalInstance() = default;
 
   /// Getter the global value type.

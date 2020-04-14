@@ -26,7 +26,7 @@ Expect<void> FormChecker::validate(const AST::InstrVec &Instrs,
   for (ValType Val : RetVals) {
     Returns.push_back(ASTToVType(Val));
   }
-  pushCtrl({}, Returns);
+  pushCtrl(Returns, Returns);
   return checkInstrs(Instrs);
 }
 
@@ -35,7 +35,7 @@ Expect<void> FormChecker::validate(const AST::InstrVec &Instrs,
   for (VType Val : RetVals) {
     Returns.push_back(Val);
   }
-  pushCtrl({}, Returns);
+  pushCtrl(Returns, Returns);
   return checkInstrs(Instrs);
 }
 
@@ -731,7 +731,8 @@ Expect<std::vector<VType>> FormChecker::popCtrl() {
     return Unexpect(ErrCode::ValidationFailed);
   }
   auto Head = CtrlStack.front();
-  if (auto Res = popTypes(Head.EndTypes); !Res) {
+  auto ResTypes = Head.EndTypes;
+  if (auto Res = popTypes(ResTypes); !Res) {
     return Unexpect(Res);
   }
   if (ValStack.size() != Head.Height) {

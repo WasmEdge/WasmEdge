@@ -349,7 +349,7 @@ Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
   std::unordered_set<std::string> ExportNames;
   for (auto &ExportDesc : ExportSec.getContent()) {
     const auto &Name = ExportDesc->getExternalName();
-    if (Name == "" || ExportNames.find(Name) != ExportNames.end()) {
+    if (ExportNames.find(Name) != ExportNames.end()) {
       /// Duplicated export name.
       return Unexpect(ErrCode::ValidationFailed);
     }

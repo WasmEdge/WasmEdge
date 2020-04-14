@@ -24,7 +24,12 @@ namespace AST {
 class Limit : public Base {
 public:
   /// Limit type enumeration class.
-  enum class LimitType : unsigned char { HasMin = 0x00, HasMinMax = 0x01 };
+  enum class LimitType : uint8_t { HasMin = 0x00, HasMinMax = 0x01 };
+
+  Limit() {}
+  Limit(const uint32_t MinVal) : Type(LimitType::HasMin), Min(MinVal) {}
+  Limit(const uint32_t MinVal, const uint32_t MaxVal)
+      : Type(LimitType::HasMinMax), Min(MinVal), Max(MaxVal) {}
 
   /// Load binary from file manager.
   ///

@@ -2,6 +2,7 @@
 
 add_library(ssvmLoaderFileMgr
   filemgr.cpp
+  ldmgr.cpp
 )
 
 target_include_directories(ssvmLoaderFileMgr
@@ -14,6 +15,8 @@ add_library(ssvmLoader
 )
 
 target_link_libraries(ssvmLoader
+  PUBLIC
+  dl
   PRIVATE
   ssvmAST
   ssvmLoaderFileMgr

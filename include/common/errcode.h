@@ -24,6 +24,8 @@ enum class ErrCode : unsigned char {
   ReadError,      /// Error when reading
   EndOfFile,      /// Reach end of file when reading
   InvalidGrammar, /// Parsing error
+  InvalidVersion, /// Unsupported version
+  LoadFailed,     /// Loading failed
   /// Validation phase
   ValidationFailed, /// Validation checking failed
   /// Execution phase

@@ -13,6 +13,7 @@ target_link_libraries(ssvmExpVM
   ssvmInterpreter
   ssvmHostModuleEEI
   ssvmHostModuleWasi
+  ssvmAOT
 )
 
 if(ONNC_WASM_LIBRARY)

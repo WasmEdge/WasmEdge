@@ -111,6 +111,11 @@ public:
   /// Getter of limit.
   const Limit *getLimit() const { return Memory.get(); }
 
+  /// Getter of compiled symbol.
+  void *getSymbol() const { return Symbol; }
+  /// Setter of compiled symbol.
+  void setSymbol(void *S) { Symbol = S; }
+
 protected:
   /// The node type should be Attr::Type_Memory.
   Attr NodeAttr = Attr::Type_Memory;
@@ -118,6 +123,7 @@ protected:
 private:
   /// Data of MemoryType node.
   std::unique_ptr<Limit> Memory;
+  void *Symbol = nullptr;
 };
 
 /// AST TableType node.

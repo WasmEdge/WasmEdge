@@ -292,7 +292,7 @@ Expect<int32_t> FileMgrVector::readS32() {
       return Unexpect(Status);
     }
     Byte = Code[Pos++];
-    Result |= (Byte & 0x7F) << (Offset);
+    Result |= (Byte & UINT32_C(0x7F)) << Offset;
     Offset += 7;
   }
   if (Byte & 0x40 && Offset < 32) {
@@ -312,7 +312,7 @@ Expect<int64_t> FileMgrVector::readS64() {
       return Unexpect(Status);
     }
     Byte = Code[Pos++];
-    Result |= static_cast<int64_t>(Byte & 0x7F) << (Offset);
+    Result |= (Byte & UINT64_C(0x7F)) << Offset;
     Offset += 7;
   }
   if (Byte & 0x40 && Offset < 64) {

@@ -14,3 +14,6 @@ target_include_directories(ssvmAST
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
 )
+target_link_libraries(ssvmAST
+  ssvmLoaderFileMgr
+)

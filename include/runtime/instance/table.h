@@ -63,8 +63,17 @@ public:
     if (Idx >= FuncElem.size()) {
       return Unexpect(ErrCode::AccessForbidMemory);
     }
-    return FuncElem[Idx];
+    if (Symbol) {
+      return Symbol[Idx];
+    } else {
+      return FuncElem[Idx];
+    }
   }
+
+  /// Getter of symbol
+  void *getSymbol() const { return Symbol; }
+  /// Setter of symbol
+  void setSymbol(void *S) { Symbol = reinterpret_cast<uint32_t *>(S); }
 
 private:
   /// \name Data of table instance.
@@ -74,6 +83,7 @@ private:
   const uint32_t MinSize = 0;
   const uint32_t MaxSize = 0;
   std::vector<uint32_t> FuncElem;
+  uint32_t *Symbol = nullptr;
   /// @}
 };
 

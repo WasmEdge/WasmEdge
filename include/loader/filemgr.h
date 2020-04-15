@@ -13,8 +13,8 @@
 #pragma once
 
 #include "common/errcode.h"
-#include "common/value.h"
 #include "common/types.h"
+#include "common/value.h"
 
 #include <fstream>
 #include <string>
@@ -25,6 +25,8 @@ namespace SSVM {
 /// File manager interface.
 class FileMgr {
 public:
+  virtual ~FileMgr() = default;
+
   /// Set the file path.
   virtual Expect<void> setPath(const std::string &FilePath) = 0;
 

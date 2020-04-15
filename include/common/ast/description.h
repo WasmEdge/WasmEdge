@@ -97,6 +97,11 @@ public:
   /// Getter of external index.
   uint32_t getExternalIndex() const { return ExtIdx; }
 
+  /// Getter of compiled symbol.
+  void *getSymbol() const { return Symbol; }
+  /// Setter of compiled symbol.
+  void setSymbol(void *S) { Symbol = S; }
+
 protected:
   /// The node type should be Attr::Desc_Export.
   Attr NodeAttr = Attr::Desc_Export;
@@ -106,6 +111,7 @@ private:
   /// @{
   std::string ExtName;
   uint32_t ExtIdx;
+  void *Symbol = nullptr;
   /// @}
 };
 

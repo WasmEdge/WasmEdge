@@ -136,5 +136,34 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
+/// Load compiled function from loadable manager. See "include/ast/module.h".
+Expect<void> Module::loadCompiled(LDMgr &Mgr) {
+  if (ExportSec) {
+    for (auto &ExpDesc : ExportSec->getContent()) {
+      const std::string Name = '$' + ExpDesc->getExternalName();
+      switch (ExpDesc->getExternalType()) {
+      case ExternalType::Function:
+      case ExternalType::Global:
+        if (void *Symbol = Mgr.getRawSymbol(Name.c_str())) {
+          ExpDesc->setSymbol(Symbol);
+        } else {
+          return Unexpect(ErrCode::ValidationFailed);
+        }
+        break;
+      case ExternalType::Table:
+      case ExternalType::Memory:
+        break;
+      default:
+        return Unexpect(ErrCode::ValidationFailed);
+      }
+    }
+  }
+  if (MemorySec) {
+    auto &MemType = MemorySec->getContent().front();
+    MemType->setSymbol(Mgr.getRawSymbol("mem"));
+  }
+  return {};
+}
+
 } // namespace AST
 } // namespace SSVM

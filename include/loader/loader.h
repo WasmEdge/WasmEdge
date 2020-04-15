@@ -27,6 +27,9 @@ public:
   Loader() = default;
   ~Loader() = default;
 
+  /// Load data from file path.
+  Expect<Bytes> loadFile(const std::string &FilePath);
+
   /// Parse module from file path.
   Expect<std::unique_ptr<AST::Module>> parseModule(const std::string &FilePath);
 
@@ -37,6 +40,7 @@ public:
 private:
   FileMgrFStream FSMgr;
   FileMgrVector FVMgr;
+  LDMgr LMgr;
 };
 
 } // namespace Loader

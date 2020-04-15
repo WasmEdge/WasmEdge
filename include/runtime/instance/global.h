@@ -33,7 +33,27 @@ public:
   ValMut getValMut() const { return Mut; }
 
   /// Getter of value.
-  ValVariant &getValue() { return Value; };
+  const ValVariant &getValue() const {
+    if (Symbol) {
+      return *Symbol;
+    } else {
+      return Value;
+    }
+  }
+
+  /// Getter of value.
+  ValVariant &getValue() {
+    if (Symbol) {
+      return *Symbol;
+    } else {
+      return Value;
+    }
+  }
+
+  /// Getter of symbol
+  void *getSymbol() const { return Symbol; }
+  /// Setter of symbol
+  void setSymbol(void *S) { Symbol = reinterpret_cast<ValVariant *>(S); }
 
 private:
   /// \name Data of global instance.
@@ -41,6 +61,7 @@ private:
   const ValType Type;
   const ValMut Mut;
   ValVariant Value;
+  ValVariant *Symbol = nullptr;
   /// @}
 };
 

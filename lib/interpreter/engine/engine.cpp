@@ -9,6 +9,60 @@
 namespace SSVM {
 namespace Interpreter {
 
+void Interpreter::trapProxy(Interpreter *This, uint32_t Status) {
+  This->trap(Status);
+}
+
+void Interpreter::callProxy(Interpreter *This, const uint32_t FuncIndex,
+                            const ValVariant *Args, ValVariant *Rets) {
+  This->call(FuncIndex, Args, Rets);
+}
+
+uint32_t Interpreter::memGrowProxy(Interpreter *This, const uint32_t NewSize) {
+  return This->memGrow(NewSize);
+}
+
+uint32_t Interpreter::memSizeProxy(Interpreter *This) {
+  return This->memSize();
+}
+
+void Interpreter::trap(uint32_t Status) {
+  std::longjmp(TrapJump, Status);
+}
+
+void Interpreter::call(const uint32_t FuncIndex, const ValVariant *Args,
+                       ValVariant *Rets) {
+  const auto *ModInst = *CurrentStore->getModule(StackMgr.getModuleAddr());
+  const uint32_t FuncAddr = *ModInst->getFuncAddr(FuncIndex);
+  const auto *FuncInst = *CurrentStore->getFunction(FuncAddr);
+  const auto &FuncType = FuncInst->getFuncType();
+  const unsigned ParamsSize = FuncType.Params.size();
+  const unsigned ReturnsSize = FuncType.Returns.size();
+
+  for (unsigned I = 0; I < ParamsSize; ++I) {
+    StackMgr.push(Args[I]);
+  }
+  enterFunction(*CurrentStore, *FuncInst);
+  for (unsigned I = 0; I < ReturnsSize; ++I) {
+    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
+  }
+}
+
+uint32_t Interpreter::memGrow(const uint32_t NewSize) {
+  auto &MemInst = *getMemInstByIdx(*CurrentStore, 0);
+  const uint32_t CurrPageSize = MemInst.getDataPageSize();
+  if (auto Res = MemInst.growPage(NewSize)) {
+    return CurrPageSize;
+  } else {
+    return -1;
+  }
+}
+
+uint32_t Interpreter::memSize() {
+  auto &MemInst = *getMemInstByIdx(*CurrentStore, 0);
+  return MemInst.getDataPageSize();
+}
+
 Expect<void> Interpreter::runExpression(Runtime::StoreManager &StoreMgr,
                                         const AST::InstrVec &Instrs) {
   /// Set instruction vector to instruction provider.
@@ -657,6 +711,38 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
 
     /// TODO: Fix this after refactoring HostFunctionBase.
     return Ret;
+  } else if (auto CompiledFunc = Func.getSymbol()) {
+    /// Run host function.
+    const size_t ArgsN = FuncType.Params.size();
+    const size_t RetsN = FuncType.Returns.size();
+
+    /// Native function case: Push frame with locals and args.
+    StackMgr.pushFrame(Func.getModuleAddr(), /// Module address
+                       ArgsN,                /// Arity
+                       RetsN                 /// Coarity
+    );
+
+    Span<ValVariant> Args;
+    if (auto Res = StackMgr.getTopSpan(ArgsN)) {
+      Args = std::move(*Res);
+    } else {
+      return Unexpect(Res);
+    }
+    std::vector<ValVariant> Rets(RetsN);
+
+    CurrentStore = &StoreMgr;
+    if (int Status = setjmp(TrapJump); Status != 0) {
+      return Unexpect(ErrCode(Status));
+    }
+
+    CompiledFunc(reinterpret_cast<void *>(this), Args.data(), Rets.data());
+
+    for (uint32_t I = 0; I < Rets.size(); ++I) {
+      StackMgr.push(Rets[I]);
+    }
+
+    StackMgr.popFrame();
+    return {};
   } else {
     /// Native function case: Push frame with locals and args.
     StackMgr.pushFrame(Func.getModuleAddr(),   /// Module address

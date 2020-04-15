@@ -57,6 +57,9 @@ public:
       return Unexpect(ErrCode::MemorySizeExceeded);
     }
     CurrPage += Count;
+    if (Symbol != nullptr) {
+      resizeData(CurrPage * 65536);
+    }
     return {};
   }
 
@@ -231,7 +234,23 @@ public:
     return {};
   }
 
+  /// Getter of symbol
+  void *getSymbol() const { return Symbol; }
+  /// Setter of symbol
+  void setSymbol(void *S) {
+    resizeData(CurrPage * 65536);
+    Symbol = reinterpret_cast<uint8_t **>(S);
+    *Symbol = Data.data();
+  }
+
 private:
+  void resizeData(uint32_t Length) {
+    Data.resize(Length);
+    if (Symbol) {
+      *Symbol = Data.data();
+    }
+  }
+
   /// Check access size is valid and adjust vector.
   bool checkDataSize(uint32_t Offset, uint32_t Length) {
     uint64_t AccessLen =
@@ -248,9 +267,9 @@ private:
         TargetSize *= 1.1;
       }
       if (TargetSize * 8 > CurrPage * 65536) {
-        Data.resize(CurrPage * 65536);
+        resizeData(CurrPage * 65536);
       } else {
-        Data.resize(TargetSize * 8);
+        resizeData(TargetSize * 8);
       }
     }
     return true;
@@ -263,6 +282,7 @@ private:
   const uint32_t MaxPage;
   uint32_t CurrPage;
   Bytes Data;
+  uint8_t **Symbol = nullptr;
   /// @}
 };
 

@@ -117,7 +117,6 @@ private:
   Loader::Loader LoaderEngine;
   Validator::Validator ValidatorEngine;
   Interpreter::Interpreter InterpreterEngine;
-  /// TODO: Add AOT here.
 
   /// VM Storage.
   std::unique_ptr<AST::Module> Mod;

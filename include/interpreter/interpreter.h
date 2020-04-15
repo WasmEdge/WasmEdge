@@ -23,6 +23,7 @@
 #include "support/measure.h"
 #include "support/time.h"
 
+#include <csetjmp>
 #include <memory>
 #include <type_traits>
 #include <vector>
@@ -352,6 +353,20 @@ private:
   TypeBB<TIn, TOut> runReinterpretOp(ValVariant &Val) const;
   /// @}
 
+  /// \name Run compiled functions
+  /// @{
+  void trap(uint32_t Status);
+  void call(const uint32_t FuncIndex, const ValVariant *Args, ValVariant *Rets);
+  uint32_t memGrow(const uint32_t NewSize);
+  uint32_t memSize();
+
+  static void trapProxy(Interpreter *This, uint32_t Status);
+  static void callProxy(Interpreter *This, const uint32_t FuncIndex,
+                        const ValVariant *Args, ValVariant *Rets);
+  static uint32_t memGrowProxy(Interpreter *This, const uint32_t NewSize);
+  static uint32_t memSizeProxy(Interpreter *This);
+  /// @}
+
   enum class InstantiateMode : uint8_t { Instantiate = 0, ImportWasm };
 
   /// Instantiate mode
@@ -362,6 +377,9 @@ private:
   InstrProvider InstrPdr;
   /// Pointer to measurement.
   Support::Measurement *Measure;
+  /// jmp_buf for trap.
+  std::jmp_buf TrapJump;
+  Runtime::StoreManager *CurrentStore;
 };
 
 } // namespace Interpreter

@@ -1,15 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
-configure_files(
-  ${CMAKE_CURRENT_SOURCE_DIR}/examples
-  ${CMAKE_CURRENT_BINARY_DIR}/examples
-  COPYONLY
+add_executable(ssvmc
+  ssvmc.cpp
 )
 
-add_executable(ssvm-aot
-  main.cpp
-)
-
-target_link_libraries(ssvm-aot
+target_link_libraries(ssvmc
   PRIVATE
-  ssvmCompiler
+  ssvmLoader
+  ssvmAOT
+)
+
+add_executable(ssvmr
+  ssvmr.cpp
+)
+
+target_link_libraries(ssvmr
+  PRIVATE
+  ssvmExpVM
 )

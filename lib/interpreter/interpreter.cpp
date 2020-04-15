@@ -34,6 +34,7 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
   auto *ModInst = *StoreMgr.getModule(ModInstAddr);
 
   for (auto &Func : Obj.getFuncs()) {
+    Func.second->setModuleAddr(ModInstAddr);
     uint32_t Addr = StoreMgr.importHostFunction(*Func.second.get());
     ModInst->addFuncAddr(Addr);
     ModInst->exportFuncion(Func.first, ModInst->getFuncNum() - 1);
@@ -81,15 +82,8 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const std::string &Name,
     return Unexpect(ErrCode::TypeNotMatch);
   }
 
-  /// Push arguments.
-  InstrPdr.reset();
-  StackMgr.reset();
-  for (auto &Val : Params) {
-    StackMgr.push(Val);
-  }
-
   /// Call runFunction.
-  if (auto Res = runFunction(StoreMgr, *FuncInst); !Res) {
+  if (auto Res = runFunction(StoreMgr, *FuncInst, Params); !Res) {
     return Unexpect(Res);
   }
 

@@ -128,7 +128,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     const auto *FuncInst = *StoreMgr.getFunction(Addr);
 
     /// Call runFunction.
-    return runFunction(StoreMgr, *FuncInst);
+    return runFunction(StoreMgr, *FuncInst, {});
   }
   return {};
 }

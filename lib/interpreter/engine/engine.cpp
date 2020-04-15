@@ -18,20 +18,37 @@ Expect<void> Interpreter::runExpression(Runtime::StoreManager &StoreMgr,
 
 Expect<void>
 Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
-                         const Runtime::Instance::FunctionInstance &Func) {
-  /// Enter start function. Args should be pushed into stack.
-  if (auto Res = enterFunction(StoreMgr, Func); !Res) {
-    return Unexpect(Res);
-  }
-
+                         const Runtime::Instance::FunctionInstance &Func,
+                         const std::vector<ValVariant> &Params) {
   /// Set start time.
   if (Measure) {
     Measure->getTimeRecorder().startRecord(TIMER_TAG_EXECUTION);
   }
 
-  /// Execute run loop.
+  /// Execute function. Args should be pushed into stack.
   LOG(DEBUG) << "Start running...";
-  auto Res = execute(StoreMgr);
+
+  /// Reset and push a dummy frame into stack.
+  InstrPdr.reset();
+  StackMgr.reset();
+  /// FIXME: Add a dummy frame pusher in stack manager.
+  StackMgr.pushFrame(0, 0, 0);
+
+  /// Push arguments.
+  for (auto &Val : Params) {
+    StackMgr.push(Val);
+  }
+
+  /// Enter and execute function.
+  auto Res = enterFunction(StoreMgr, Func);
+  if (!Func.isHostFunction()) {
+    if (!Res) {
+      return Unexpect(Res);
+    }
+    /// Execute run loop.
+    Res = execute(StoreMgr);
+  }
+
   if (Res) {
     LOG(DEBUG) << "Execution succeeded.";
   } else if (Res.error() == ErrCode::Revert) {
@@ -595,6 +612,8 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
   if (Func.isHostFunction()) {
     /// Host function case: Push args and call function.
     auto &HostFunc = Func.getHostFunc();
+    /// FIXME: If current frame is dummy frame, find memory instance from host
+    /// module, and then use nullptr if host module has no memory instance.
     auto *MemoryInst = getMemInstByIdx(StoreMgr, 0);
 
     if (Measure) {
@@ -608,6 +627,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     /// Run host function.
+    /// FIXME: Pass memory instance pointer instead of reference and nullable.
     ErrCode Status = HostFunc.run(StackMgr, *MemoryInst);
 
     if (Measure) {
@@ -677,6 +697,7 @@ Expect<void> Interpreter::branchToLabel(const uint32_t Cnt) {
 Runtime::Instance::TableInstance *
 Interpreter::getTabInstByIdx(Runtime::StoreManager &StoreMgr,
                              const uint32_t Idx) {
+  /// FIXME: Return nullptr when top frame is dummy frame.
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
   const uint32_t TabAddr = *ModInst->getTableAddr(Idx);
   return *StoreMgr.getTable(TabAddr);
@@ -685,6 +706,7 @@ Interpreter::getTabInstByIdx(Runtime::StoreManager &StoreMgr,
 Runtime::Instance::MemoryInstance *
 Interpreter::getMemInstByIdx(Runtime::StoreManager &StoreMgr,
                              const uint32_t Idx) {
+  /// FIXME: Return nullptr when top frame is dummy frame.
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
   const uint32_t MemAddr = *ModInst->getMemAddr(Idx);
   return *StoreMgr.getMemory(MemAddr);
@@ -693,6 +715,7 @@ Interpreter::getMemInstByIdx(Runtime::StoreManager &StoreMgr,
 Runtime::Instance::GlobalInstance *
 Interpreter::getGlobInstByIdx(Runtime::StoreManager &StoreMgr,
                               const uint32_t Idx) {
+  /// FIXME: Return nullptr when top frame is dummy frame.
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
   const uint32_t GlobAddr = *ModInst->getGlobalAddr(Idx);
   return *StoreMgr.getGlobal(GlobAddr);

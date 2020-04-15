@@ -117,7 +117,7 @@ private:
 
   /// Run Wasm function.
   Expect<void> runFunction(Runtime::StoreManager &StoreMgr,
-                           const Runtime::Instance::FunctionInstance &Func);
+                           const Runtime::Instance::FunctionInstance &Func, const std::vector<ValVariant> &Params);
 
   /// \name Functions for instantiation.
   /// @{

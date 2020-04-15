@@ -51,6 +51,9 @@ public:
   /// Getter of module address of this function instance.
   uint32_t getModuleAddr() const { return ModuleAddr; }
 
+  /// Setter of module address of this function instance.
+  void setModuleAddr(const uint32_t Addr) { ModuleAddr = Addr; }
+
   /// Getter of function type.
   const FType &getFuncType() const { return FuncType; }
 
@@ -71,7 +74,7 @@ private:
 
   /// \name Data of function instance for native function.
   /// @{
-  const uint32_t ModuleAddr;
+  uint32_t ModuleAddr;
   const std::vector<std::pair<uint32_t, ValType>> Locals;
   AST::InstrVec Instrs;
   /// @}

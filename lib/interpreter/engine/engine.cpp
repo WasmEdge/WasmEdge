@@ -41,13 +41,10 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
 
   /// Enter and execute function.
   auto Res = enterFunction(StoreMgr, Func);
-  if (!Func.isHostFunction()) {
-    if (!Res) {
-      return Unexpect(Res);
-    }
-    /// Execute run loop.
-    Res = execute(StoreMgr);
+  if (!Res) {
+    return Unexpect(Res);
   }
+  Res = execute(StoreMgr);
 
   if (Res) {
     LOG(DEBUG) << "Execution succeeded.";

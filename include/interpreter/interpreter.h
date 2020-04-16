@@ -105,9 +105,9 @@ public:
   Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
                               const AST::Module &Mod, const std::string &Name);
 
-  /// Invoke function by function name.
+  /// Invoke function by function address in Store manager.
   Expect<std::vector<ValVariant>> invoke(Runtime::StoreManager &StoreMgr,
-                                         const std::string &Name,
+                                         const uint32_t FuncAddr,
                                          const std::vector<ValVariant> &Params);
 
 private:
@@ -117,7 +117,8 @@ private:
 
   /// Run Wasm function.
   Expect<void> runFunction(Runtime::StoreManager &StoreMgr,
-                           const Runtime::Instance::FunctionInstance &Func, const std::vector<ValVariant> &Params);
+                           const Runtime::Instance::FunctionInstance &Func,
+                           const std::vector<ValVariant> &Params);
 
   /// \name Functions for instantiation.
   /// @{

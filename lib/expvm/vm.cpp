@@ -143,7 +143,12 @@ VM::runWasmFile(const AST::Module &Module, const std::string &Func,
   if (auto Res = InterpreterEngine.instantiateModule(StoreRef, Module); !Res) {
     return Unexpect(Res);
   }
-  if (auto Res = InterpreterEngine.invoke(StoreRef, Func, Params)) {
+  const auto FuncExp = StoreRef.getFuncExports();
+  if (FuncExp.find(Func) == FuncExp.cend()) {
+    return Unexpect(ErrCode::WrongInstanceAddress);
+  }
+  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second,
+                                          Params)) {
     return *Res;
   } else {
     return Unexpect(Res);
@@ -201,8 +206,31 @@ Expect<void> VM::instantiate() {
 
 Expect<std::vector<ValVariant>>
 VM::execute(const std::string &Func, const std::vector<ValVariant> &Params) {
-  /// Error handling is included in interpreter.
-  return InterpreterEngine.invoke(StoreRef, Func, Params);
+  /// Check exports for finding function address.
+  const auto FuncExp = StoreRef.getFuncExports();
+  if (FuncExp.find(Func) == FuncExp.cend()) {
+    return Unexpect(ErrCode::WrongInstanceAddress);
+  }
+  return InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second, Params);
+}
+
+Expect<std::vector<ValVariant>>
+VM::execute(const std::string &Mod, const std::string &Func,
+            const std::vector<ValVariant> &Params) {
+  /// Get module instance.
+  Runtime::Instance::ModuleInstance *ModInst;
+  if (auto Res = StoreRef.findModule(Mod)) {
+    ModInst = *Res;
+  } else {
+    return Unexpect(Res);
+  }
+
+  /// Get exports and fund function
+  const auto FuncExp = ModInst->getFuncExports();
+  if (FuncExp.find(Func) == FuncExp.cend()) {
+    return Unexpect(ErrCode::WrongInstanceAddress);
+  }
+  return InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second, Params);
 }
 
 void VM::cleanup() {

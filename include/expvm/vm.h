@@ -70,6 +70,11 @@ public:
   Expect<std::vector<ValVariant>>
   execute(const std::string &Func, const std::vector<ValVariant> &Params = {});
 
+  /// Execute function of registered module with given input.
+  Expect<std::vector<ValVariant>>
+  execute(const std::string &Mod, const std::string &Func,
+          const std::vector<ValVariant> &Params = {});
+
   /// ======= Functions which are stageless. =======
   /// Clean up VM status
   void cleanup();

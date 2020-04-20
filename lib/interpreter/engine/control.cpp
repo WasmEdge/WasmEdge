@@ -18,8 +18,12 @@ Interpreter::runBlockOp(const AST::BlockControlInstruction &Instr) {
 }
 
 Expect<void> Interpreter::runLoopOp(const AST::BlockControlInstruction &Instr) {
+  /// Get result type for arity.
+  const ValType ResultType = Instr.getResultType();
+  uint32_t Arity = (ResultType == ValType::None) ? 0 : 1;
+
   /// Create Label{ loop-instruction } and push.
-  return enterBlock(0, &Instr, Instr.getBody());
+  return enterBlock(Arity, &Instr, Instr.getBody());
 }
 
 Expect<void>

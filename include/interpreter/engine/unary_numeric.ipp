@@ -18,6 +18,8 @@ template <typename T> TypeU<T> Interpreter::runClzOp(ValVariant &Val) const {
       I <<= 1;
     }
     Val = Cnt;
+  } else {
+    Val = static_cast<T>(sizeof(T) * 8);
   }
   return {};
 }

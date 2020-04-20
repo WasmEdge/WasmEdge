@@ -297,6 +297,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     return runCeilOp<float>(Val);
   case OpCode::F32__floor:
     return runFloorOp<float>(Val);
+  case OpCode::F32__trunc:
+    return runTruncOp<float>(Val);
   case OpCode::F32__nearest:
     return runNearestOp<float>(Val);
   case OpCode::F32__sqrt:
@@ -309,6 +311,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     return runCeilOp<double>(Val);
   case OpCode::F64__floor:
     return runFloorOp<double>(Val);
+  case OpCode::F64__trunc:
+    return runTruncOp<double>(Val);
   case OpCode::F64__nearest:
     return runNearestOp<double>(Val);
   case OpCode::F64__sqrt:

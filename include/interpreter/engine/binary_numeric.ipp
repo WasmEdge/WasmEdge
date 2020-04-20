@@ -35,15 +35,17 @@ template <typename T>
 TypeT<T> Interpreter::runDivOp(ValVariant &Val1, const ValVariant &Val2) const {
   T &V1 = retrieveValue<T>(Val1);
   const T &V2 = retrieveValue<T>(Val2);
-  if (!std::is_floating_point_v<T> && V2 == 0) {
-    /// Integer case: If v2 is 0, then the result is undefined.
-    return Unexpect(ErrCode::DivideByZero);
-  }
-  if (std::is_signed_v<T> && V1 == std::numeric_limits<T>::min() &&
-      V2 == static_cast<T>(-1)) {
-    /// Signed Integer case: If signed(v1) / signed(v2) is 2^(N − 1), then the
-    /// result is undefined.
-    return Unexpect(ErrCode::FloatPointException);
+  if (!std::is_floating_point_v<T>) {
+    if (V2 == 0) {
+      /// Integer case: If v2 is 0, then the result is undefined.
+      return Unexpect(ErrCode::DivideByZero);
+    }
+    if (std::is_signed_v<T> && V1 == std::numeric_limits<T>::min() &&
+        V2 == static_cast<T>(-1)) {
+      /// Signed Integer case: If signed(v1) / signed(v2) is 2^(N − 1), then the
+      /// result is undefined.
+      return Unexpect(ErrCode::FloatPointException);
+    }
   }
   /// Else, return the result of v1 / v2.
   /// Integer case: truncated toward zero.
@@ -133,11 +135,14 @@ template <typename T>
 TypeF<T> Interpreter::runMinOp(ValVariant &Val1, const ValVariant &Val2) const {
   T &Z1 = retrieveValue<T>(Val1);
   const T &Z2 = retrieveValue<T>(Val2);
-  /// If both z1 and z2 are zeroes of opposite signs, then return negative zero.
-  if (Z1 == 0.0 && Z2 == 0.0 && std::signbit(Z1) != std::signbit(Z2)) {
+  /// TODO: canonical and arithmetical NaN
+  if (std::isnan(Z2)) {
+    Z1 = Z2;
+  } else if (Z1 == 0.0 && Z2 == 0.0 && std::signbit(Z1) != std::signbit(Z2)) {
+    /// If both z1 and z2 are zeroes of opposite signs, then return -0.0.
     Z1 = -0.0;
-  } else {
-    /// Else return the min of z1 and z2. (NaN and Inf case are handled.)
+  } else if (!std::isnan(Z1)) {
+    /// Else return the min of z1 and z2. (Inf case are handled.)
     Z1 = std::min(Z1, Z2);
   }
   return {};
@@ -147,8 +152,16 @@ template <typename T>
 TypeF<T> Interpreter::runMaxOp(ValVariant &Val1, const ValVariant &Val2) const {
   T &Z1 = retrieveValue<T>(Val1);
   const T &Z2 = retrieveValue<T>(Val2);
-  /// Return the max of z1 and z2. (+-0.0, NaN, and Inf case are handled.)
-  Z1 = std::max(Z1, Z2);
+  /// TODO: canonical and arithmetical NaN
+  if (std::isnan(Z2)) {
+    Z1 = Z2;
+  } else if (Z1 == 0.0 && Z2 == 0.0 && std::signbit(Z1) != std::signbit(Z2)) {
+    /// If both z1 and z2 are zeroes of opposite signs, then return +0.0.
+    Z1 = 0.0;
+  } else if (!std::isnan(Z1)) {
+    /// Else return the max of z1 and z2. (Inf case are handled.)
+    Z1 = std::max(Z1, Z2);
+  }
   return {};
 }
 

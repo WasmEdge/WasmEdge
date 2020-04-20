@@ -25,8 +25,16 @@ TypeFI<TIn, TOut> Interpreter::runTruncateOp(ValVariant &Val) const {
   Z = std::trunc(Z);
   TIn ValTOutMin = static_cast<TIn>(std::numeric_limits<TOut>::min());
   TIn ValTOutMax = static_cast<TIn>(std::numeric_limits<TOut>::max());
-  if (Z <= ValTOutMin - 1.0 || Z >= ValTOutMax + 1.0) {
-    return Unexpect(ErrCode::CastingError);
+  if (sizeof(TIn) > sizeof(TOut)) {
+    /// Floating precision is better than integer case.
+    if (Z < ValTOutMin || Z > ValTOutMax) {
+      return Unexpect(ErrCode::CastingError);
+    }
+  } else {
+    /// Floating precision is worse than integer case.
+    if (Z < ValTOutMin || Z >= ValTOutMax) {
+      return Unexpect(ErrCode::CastingError);
+    }
   }
   /// Else, return trunc(z). Signed case handled.
   retrieveValue<TOut>(Val) = Z;

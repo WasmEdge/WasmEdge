@@ -45,6 +45,11 @@ public:
   /// Getter of limit definition.
   uint32_t getMax() const { return MaxPage; }
 
+  /// Check is out of bound.
+  bool checkAccessBound(const uint32_t Offset) {
+    return checkDataSize(Offset, 0);
+  }
+
   /// Grow page
   Expect<void> growPage(const uint32_t Count) {
     if ((HasMaxPage && Count + CurrPage > MaxPage) ||

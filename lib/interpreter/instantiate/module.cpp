@@ -83,31 +83,52 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
   }
 
-  /// Initializa the tables and memories
+  /// Initialize the tables and memories
   /// Make a new frame {ModInst, locals:none} and push
   StackMgr.pushFrame(ModInst->Addr, /// Module address
                      0,             /// Arity
                      0              /// Coarity
   );
+  std::vector<uint32_t> ElemOffsets, DataOffsets;
 
-  /// Instantiate initialization of table instances (ElemSec)
+  /// Resolve offset list of element section.
   const AST::ElementSection *ElemSec = Mod.getElementSection();
   if (ElemSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *ElemSec); !Res) {
+    if (auto Res = resolveExpression(StoreMgr, *ModInst, *ElemSec)) {
+      ElemOffsets = std::move(*Res);
+    } else {
       return Unexpect(Res);
     }
   }
 
-  /// Instantiate initialization of memory instances (DataSec)
+  /// Resolve offset list of data section.
   const AST::DataSection *DataSec = Mod.getDataSection();
   if (DataSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *DataSec); !Res) {
+    if (auto Res = resolveExpression(StoreMgr, *ModInst, *DataSec)) {
+      DataOffsets = std::move(*Res);
+    } else {
       return Unexpect(Res);
     }
   }
 
   /// Pop Frame.
   StackMgr.popFrame();
+
+  /// Instantiate initialization of table instances (ElemSec)
+  if (ElemSec != nullptr) {
+    if (auto Res = instantiate(StoreMgr, *ModInst, *ElemSec, ElemOffsets);
+        !Res) {
+      return Unexpect(Res);
+    }
+  }
+
+  /// Instantiate initialization of memory instances (DataSec)
+  if (DataSec != nullptr) {
+    if (auto Res = instantiate(StoreMgr, *ModInst, *DataSec, DataOffsets);
+        !Res) {
+      return Unexpect(Res);
+    }
+  }
 
   /// Instantiate ExportSection (ExportSec)
   const AST::ExportSection *ExportSec = Mod.getExportSection();

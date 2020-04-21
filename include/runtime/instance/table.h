@@ -53,6 +53,11 @@ public:
     return {};
   }
 
+  /// Check is out of bound.
+  bool checkAccessBound(const uint32_t Offset) {
+    return (Offset > MinSize) ? false : true;
+  }
+
   /// Get the elem address.
   Expect<uint32_t> getElemAddr(const uint32_t Idx) const {
     if (Idx >= FuncElem.size()) {

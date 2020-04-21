@@ -152,15 +152,29 @@ private:
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::MemorySection &MemSec);
 
+  /// Calculate offsets of table initializations.
+  Expect<std::vector<uint32_t>>
+  resolveExpression(Runtime::StoreManager &StoreMgr,
+                    Runtime::Instance::ModuleInstance &ModInst,
+                    const AST::ElementSection &ElemSec);
+
   /// Instantiation initialization of Table Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
-                           const AST::ElementSection &ElemSec);
+                           const AST::ElementSection &ElemSec,
+                           const std::vector<uint32_t> &Offsets);
+
+  /// Calculate offsets of memory initializations.
+  Expect<std::vector<uint32_t>>
+  resolveExpression(Runtime::StoreManager &StoreMgr,
+                    Runtime::Instance::ModuleInstance &ModInst,
+                    const AST::DataSection &DataSec);
 
   /// Instantiation initialization of Memory Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
-                           const AST::DataSection &DataSec);
+                           const AST::DataSection &DataSec,
+                           const std::vector<uint32_t> &Offsets);
 
   /// Instantiation of Export Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,

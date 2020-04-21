@@ -28,11 +28,7 @@ public:
   TableInstance() = delete;
   TableInstance(const ElemType &Elem, const AST::Limit &Lim)
       : Type(Elem), HasMaxSize(Lim.hasMax()), MinSize(Lim.getMin()),
-        MaxSize(Lim.getMax()) {
-    if (FuncElem.size() < MinSize) {
-      FuncElem.resize(MinSize);
-    }
-  };
+        MaxSize(Lim.getMax()), FuncElem(MinSize) {}
   virtual ~TableInstance() = default;
 
   /// Getter of element type.
@@ -50,11 +46,8 @@ public:
   /// Set the function index initialization list.
   Expect<void> setInitList(const uint32_t Offset,
                            const std::vector<uint32_t> &Addrs) {
-    if (HasMaxSize && Offset + Addrs.size() > MaxSize) {
+    if (Offset + Addrs.size() > MinSize) {
       return Unexpect(ErrCode::TableSizeExceeded);
-    }
-    if (FuncElem.size() < Offset + Addrs.size()) {
-      FuncElem.resize(Offset + Addrs.size());
     }
     std::copy(Addrs.begin(), Addrs.end(), FuncElem.begin() + Offset);
     return {};

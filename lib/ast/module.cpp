@@ -34,73 +34,97 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
 
     switch (NewSectionId) {
     case 0x00:
-      CustomSec = std::make_unique<CustomSection>();
+      if (CustomSec == nullptr) {
+        CustomSec = std::make_unique<CustomSection>();
+      }
       if (auto Res = CustomSec->loadBinary(Mgr); !Res) {
         return Unexpect(Res);
       }
       break;
     case 0x01:
-      TypeSec = std::make_unique<TypeSection>();
+      if (TypeSec == nullptr) {
+        TypeSec = std::make_unique<TypeSection>();
+      }
       if (auto Res = TypeSec->loadBinary(Mgr); !Res) {
         return Unexpect(Res);
       }
       break;
     case 0x02:
-      ImportSec = std::make_unique<ImportSection>();
+      if (ImportSec == nullptr) {
+        ImportSec = std::make_unique<ImportSection>();
+      }
       if (auto Res = ImportSec->loadBinary(Mgr); !Res) {
         return Unexpect(Res);
       }
       break;
     case 0x03:
-      FunctionSec = std::make_unique<FunctionSection>();
+      if (FunctionSec == nullptr) {
+        FunctionSec = std::make_unique<FunctionSection>();
+      }
       if (auto Res = FunctionSec->loadBinary(Mgr); !Res) {
         return Unexpect(Res);
       }
       break;
     case 0x04:
-      TableSec = std::make_unique<TableSection>();
+      if (TableSec == nullptr) {
+        TableSec = std::make_unique<TableSection>();
+      }
       if (auto Res = TableSec->loadBinary(Mgr); !Res) {
         return Unexpect(Res);
       }
       break;
     case 0x05:
-      MemorySec = std::make_unique<MemorySection>();
+      if (MemorySec == nullptr) {
+        MemorySec = std::make_unique<MemorySection>();
+      }
       if (auto Res = MemorySec->loadBinary(Mgr); !Res) {
         return Unexpect(Res);
       }
       break;
     case 0x06:
-      GlobalSec = std::make_unique<GlobalSection>();
+      if (GlobalSec == nullptr) {
+        GlobalSec = std::make_unique<GlobalSection>();
+      }
       if (auto Res = GlobalSec->loadBinary(Mgr); !Res) {
         return Unexpect(Res);
       }
       break;
     case 0x07:
-      ExportSec = std::make_unique<ExportSection>();
+      if (ExportSec == nullptr) {
+        ExportSec = std::make_unique<ExportSection>();
+      }
       if (auto Res = ExportSec->loadBinary(Mgr); !Res) {
         return Unexpect(Res);
       }
       break;
     case 0x08:
-      StartSec = std::make_unique<StartSection>();
+      if (StartSec == nullptr) {
+        StartSec = std::make_unique<StartSection>();
+      }
       if (auto Res = StartSec->loadBinary(Mgr); !Res) {
         return Unexpect(Res);
       }
       break;
     case 0x09:
-      ElementSec = std::make_unique<ElementSection>();
+      if (ElementSec == nullptr) {
+        ElementSec = std::make_unique<ElementSection>();
+      }
       if (auto Res = ElementSec->loadBinary(Mgr); !Res) {
         return Unexpect(Res);
       }
       break;
     case 0x0A:
-      CodeSec = std::make_unique<CodeSection>();
+      if (CodeSec == nullptr) {
+        CodeSec = std::make_unique<CodeSection>();
+      }
       if (auto Res = CodeSec->loadBinary(Mgr); !Res) {
         return Unexpect(Res);
       }
       break;
     case 0x0B:
-      DataSec = std::make_unique<DataSection>();
+      if (DataSec == nullptr) {
+        DataSec = std::make_unique<DataSection>();
+      }
       if (auto Res = DataSec->loadBinary(Mgr); !Res) {
         return Unexpect(Res);
       }

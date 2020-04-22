@@ -2,7 +2,7 @@
 #include "interpreter/interpreter.h"
 #include "common/ast/module.h"
 #include "common/ast/section.h"
-#include "executor/instance/module.h"
+#include "runtime/instance/module.h"
 #include "support/log.h"
 
 #include <boost/algorithm/hex.hpp>

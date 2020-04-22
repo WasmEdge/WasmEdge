@@ -72,8 +72,10 @@ TypeFF<TIn, TOut> Interpreter::runPromoteOp(ValVariant &Val) const {
 template <typename TIn, typename TOut>
 TypeBB<TIn, TOut> Interpreter::runReinterpretOp(ValVariant &Val) const {
   /// Return ValVariant with type TOut which copy bits of V.
-  std::memcpy(&retrieveValue<TOut>(Val), &retrieveValue<TIn>(Val),
-              sizeof(TOut));
+  TOut VOut;
+  TIn VIn = retrieveValue<TIn>(Val);
+  std::memcpy(&VOut, &VIn, sizeof(TIn));
+  retrieveValue<TOut>(Val) = VOut;
   return {};
 }
 

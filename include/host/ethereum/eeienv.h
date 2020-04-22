@@ -6,7 +6,7 @@
 #include "evmc/evmc.hpp"
 #include "support/hexstr.h"
 
-#include <cstring>
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -48,7 +48,7 @@ public:
   /// Getter of caller in EVMC version.
   evmc_address getCallerEVMC() {
     evmc_address Addr;
-    std::memcpy(Addr.bytes, &Caller[0], 20);
+    std::copy_n(Caller.cbegin(), 20, Addr.bytes);
     return Addr;
   }
 
@@ -70,7 +70,7 @@ public:
   /// Getter of call value in EVMC version.
   evmc_bytes32 getCallValueEVMC() {
     evmc_bytes32 Val;
-    std::memcpy(Val.bytes, &CallValue[0], 32);
+    std::copy_n(CallValue.cbegin(), 32, Val.bytes);
     return Val;
   }
 
@@ -95,7 +95,7 @@ public:
   /// Getter of address in EVMC version.
   evmc_address getAddressEVMC() {
     evmc_address Addr;
-    std::memcpy(Addr.bytes, &Address[0], 20);
+    std::copy_n(Address.cbegin(), 20, Addr.bytes);
     return Addr;
   }
 

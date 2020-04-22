@@ -364,6 +364,7 @@ Expect<void> FormChecker::checkInstr(const AST::VariableInstruction &Instr) {
       /// Global is immutable
       return Unexpect(ErrCode::ValidationFailed);
     }
+    // fall through
   case OpCode::Local__set:
   case OpCode::Local__tee:
     if (auto Res = popType(TExpect); !Res) {
@@ -395,13 +396,14 @@ Expect<void> FormChecker::checkInstr(const AST::MemoryInstruction &Instr) {
   /// Get bit width
   uint32_t N = 8;
   switch (Instr.getOpCode()) {
-    /// N will be 64 in the end
   case OpCode::I64__load:
   case OpCode::F64__load:
   case OpCode::I64__store:
   case OpCode::F64__store:
+    /// N will be 64 in the end
     N <<= 1;
-    /// N will be 32 in the end
+    // fall through
+
   case OpCode::I32__load:
   case OpCode::F32__load:
   case OpCode::I32__store:
@@ -409,22 +411,27 @@ Expect<void> FormChecker::checkInstr(const AST::MemoryInstruction &Instr) {
   case OpCode::I64__load32_s:
   case OpCode::I64__load32_u:
   case OpCode::I64__store32:
+    /// N will be 32 in the end
     N <<= 1;
-    /// N will be 16 in the end
+    // fall through
+
   case OpCode::I32__load16_s:
   case OpCode::I32__load16_u:
   case OpCode::I64__load16_s:
   case OpCode::I64__load16_u:
   case OpCode::I32__store16:
   case OpCode::I64__store16:
+    /// N will be 16 in the end
     N <<= 1;
-    /// N will be 8 in the end
+    // fall through
+
   case OpCode::I32__load8_s:
   case OpCode::I32__load8_u:
   case OpCode::I64__load8_s:
   case OpCode::I64__load8_u:
   case OpCode::I32__store8:
   case OpCode::I64__store8:
+    /// N will be 8 in the end
     if ((1UL << Instr.getMemoryAlign()) > (N >> 3UL)) {
       /// 2 ^ align needs to <= N / 8
       return Unexpect(ErrCode::ValidationFailed);

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/ast/instruction.h"
 #include "common/value.h"
-#include "runtime/instance/memory.h"
 #include "interpreter/interpreter.h"
+#include "runtime/instance/memory.h"
 
 #include <cstdint>
 
@@ -15,6 +15,10 @@ TypeT<T> Interpreter::runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
                                 const uint32_t BitWidth) {
   /// Calculate EA
   ValVariant &Val = StackMgr.getTop();
+  if (retrieveValue<uint32_t>(Val) >
+      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
+    return Unexpect(ErrCode::AccessForbidMemory);
+  }
   uint32_t EA = retrieveValue<uint32_t>(Val) + Instr.getMemoryOffset();
 
   /// Value = Mem.Data[EA : N / 8]
@@ -30,6 +34,10 @@ TypeB<T> Interpreter::runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
 
   /// Calculate EA = i + offset
   ValVariant I = StackMgr.pop();
+  if (retrieveValue<uint32_t>(I) >
+      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
+    return Unexpect(ErrCode::AccessForbidMemory);
+  }
   uint32_t EA = retrieveValue<uint32_t>(I) + Instr.getMemoryOffset();
 
   /// Store value to bytes.

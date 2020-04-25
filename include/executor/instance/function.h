@@ -27,7 +27,6 @@ namespace Instance {
 class FunctionInstance : public Entity {
 public:
   FunctionInstance(bool IsHost = false) : IsHostFunction(IsHost){};
-  virtual ~FunctionInstance() = default;
 
   /// Set the module instance index in store manager.
   ErrCode setModuleAddr(unsigned int Addr);

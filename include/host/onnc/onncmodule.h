@@ -9,7 +9,6 @@ namespace Host {
 class ONNCModule : public Runtime::ImportObject {
 public:
   ONNCModule();
-  virtual ~ONNCModule() = default;
 };
 
 } // namespace Host

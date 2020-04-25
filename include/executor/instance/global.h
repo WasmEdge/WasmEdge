@@ -31,7 +31,6 @@ class GlobalInstance : public Entity {
 public:
   GlobalInstance() = delete;
   GlobalInstance(const ValType &ValueType, const ValMut &Mutibility);
-  virtual ~GlobalInstance() = default;
 
   /// Get the global type.
   ValType getValType() const { return Type; }

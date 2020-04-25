@@ -33,7 +33,6 @@ public:
   EVMEnvironment() = delete;
   EVMEnvironment(uint64_t &CostLimit, uint64_t &CostSum)
       : GasLimit(CostLimit), GasUsed(CostSum) {}
-  virtual ~EVMEnvironment() = default;
 
   void clear() override {
     CallData.clear();

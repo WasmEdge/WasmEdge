@@ -40,7 +40,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrMsg when failed.
-  virtual Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of having max in limit.
   bool hasMax() const { return Type == LimitType::HasMinMax; }
@@ -75,7 +75,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrMsg when failed.
-  virtual Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of parameter types vector.
   const std::vector<ValType> &getParamTypes() const { return ParamTypes; }
@@ -106,7 +106,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrMsg when failed.
-  virtual Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of limit.
   const Limit *getLimit() const { return Memory.get(); }
@@ -131,7 +131,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrMsg when failed.
-  virtual Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of element type.
   ElemType getElementType() const { return Type; }
@@ -162,7 +162,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrMsg when failed.
-  virtual Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of global type.
   ValType getValueType() const { return Type; }

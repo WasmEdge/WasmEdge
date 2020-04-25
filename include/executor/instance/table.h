@@ -23,7 +23,6 @@ namespace Instance {
 class TableInstance : public Entity {
 public:
   TableInstance() = default;
-  virtual ~TableInstance() = default;
 
   /// Set the element type.
   ErrCode setElemType(ElemType &Elem);

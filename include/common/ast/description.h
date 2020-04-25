@@ -49,7 +49,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrMsg when failed.
-  virtual Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of module name.
   const std::string &getModuleName() const { return ModName; }
@@ -89,7 +89,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrMsg when failed.
-  virtual Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of external name.
   const std::string &getExternalName() const { return ExtName; }

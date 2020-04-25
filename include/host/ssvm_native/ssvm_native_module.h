@@ -9,7 +9,6 @@ namespace Host {
 class SSVMNativeModule : public Runtime::ImportObject {
 public:
   SSVMNativeModule();
-  virtual ~SSVMNativeModule() = default;
 };
 
 } // namespace Host

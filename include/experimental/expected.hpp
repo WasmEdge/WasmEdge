@@ -35,7 +35,7 @@ template <class E>
 class bad_expected_access : public bad_expected_access<void> {
 public:
   explicit bad_expected_access(E e) : m_error(move(e)) {}
-  virtual const char *what() const noexcept override {
+  const char *what() const noexcept override {
     return "Bad expected access";
   }
   const E &error() const & { return m_error; }

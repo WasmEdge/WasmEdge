@@ -32,7 +32,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrMsg when failed.
-  virtual Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of instructions vector.
   InstrVec &getInstrs() { return Instrs; }

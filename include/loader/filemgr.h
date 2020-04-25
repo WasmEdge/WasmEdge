@@ -67,22 +67,22 @@ protected:
 class FileMgrFStream : public FileMgr {
 public:
   FileMgrFStream() = default;
-  virtual ~FileMgrFStream();
+  virtual ~FileMgrFStream() noexcept;
 
   /// Inheritted from FileMgr.
-  virtual Expect<void> setPath(const std::string &FilePath);
-  virtual Expect<void> setCode(const Bytes &CodeData) {
+  Expect<void> setPath(const std::string &FilePath) override;
+  Expect<void> setCode(const Bytes &CodeData) override {
     return Unexpect(ErrCode::InvalidPath);
   }
-  virtual Expect<Byte> readByte();
-  virtual Expect<Bytes> readBytes(size_t SizeToRead);
-  virtual Expect<uint32_t> readU32();
-  virtual Expect<uint64_t> readU64();
-  virtual Expect<int32_t> readS32();
-  virtual Expect<int64_t> readS64();
-  virtual Expect<float> readF32();
-  virtual Expect<double> readF64();
-  virtual Expect<std::string> readName();
+  Expect<Byte> readByte() override;
+  Expect<Bytes> readBytes(size_t SizeToRead) override;
+  Expect<uint32_t> readU32() override;
+  Expect<uint64_t> readU64() override;
+  Expect<int32_t> readS32() override;
+  Expect<int64_t> readS64() override;
+  Expect<float> readF32() override;
+  Expect<double> readF64() override;
+  Expect<std::string> readName() override;
 
 private:
   /// file stream.
@@ -93,22 +93,21 @@ private:
 class FileMgrVector : public FileMgr {
 public:
   FileMgrVector() = default;
-  virtual ~FileMgrVector() = default;
 
   /// Inheritted from FileMgr.
-  virtual Expect<void> setPath(const std::string &FilePath) {
+  Expect<void> setPath(const std::string &FilePath) override {
     return Unexpect(ErrCode::InvalidPath);
   }
-  virtual Expect<void> setCode(const Bytes &CodeData);
-  virtual Expect<Byte> readByte();
-  virtual Expect<Bytes> readBytes(size_t SizeToRead);
-  virtual Expect<uint32_t> readU32();
-  virtual Expect<uint64_t> readU64();
-  virtual Expect<int32_t> readS32();
-  virtual Expect<int64_t> readS64();
-  virtual Expect<float> readF32();
-  virtual Expect<double> readF64();
-  virtual Expect<std::string> readName();
+  Expect<void> setCode(const Bytes &CodeData) override;
+  Expect<Byte> readByte() override;
+  Expect<Bytes> readBytes(size_t SizeToRead) override;
+  Expect<uint32_t> readU32() override;
+  Expect<uint64_t> readU64() override;
+  Expect<int32_t> readS32() override;
+  Expect<int64_t> readS64() override;
+  Expect<float> readF32() override;
+  Expect<double> readF64() override;
+  Expect<std::string> readName() override;
 
   uint32_t getRemainSize() const { return Code.size() - Pos; }
   void clearBuffer() {

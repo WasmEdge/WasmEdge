@@ -35,7 +35,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrMsg when failed.
-  virtual Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
 protected:
   /// Read content size of this section.
@@ -87,7 +87,7 @@ protected:
 class CustomSection : public Section {
 protected:
   /// Overrided content loading of custom section.
-  virtual Expect<void> loadContent(FileMgr &Mgr);
+  Expect<void> loadContent(FileMgr &Mgr) override;
 
   /// The node type should be Attr::Sec_Custom.
   Attr NodeAttr = Attr::Sec_Custom;
@@ -107,7 +107,7 @@ public:
 
 protected:
   /// Overrided content loading of type section.
-  virtual Expect<void> loadContent(FileMgr &Mgr);
+  Expect<void> loadContent(FileMgr &Mgr) override;
 
   /// The node type should be Attr::Sec_Type.
   Attr NodeAttr = Attr::Sec_Type;
@@ -127,7 +127,7 @@ public:
 
 protected:
   /// Overrided content loading of import section.
-  virtual Expect<void> loadContent(FileMgr &Mgr);
+  Expect<void> loadContent(FileMgr &Mgr) override;
 
   /// The node type should be Attr::Sec_Import.
   Attr NodeAttr = Attr::Sec_Import;
@@ -145,7 +145,7 @@ public:
 
 protected:
   /// Overrided content loading of function section.
-  virtual Expect<void> loadContent(FileMgr &Mgr);
+  Expect<void> loadContent(FileMgr &Mgr) override;
 
   /// The node type should be Attr::Sec_Function.
   Attr NodeAttr = Attr::Sec_Function;
@@ -165,7 +165,7 @@ public:
 
 protected:
   /// Overrided content loading of table section.
-  virtual Expect<void> loadContent(FileMgr &Mgr);
+  Expect<void> loadContent(FileMgr &Mgr) override;
 
   /// The node type should be Attr::Sec_Table.
   Attr NodeAttr = Attr::Sec_Table;
@@ -185,7 +185,7 @@ public:
 
 protected:
   /// Overrided content loading of memory section.
-  virtual Expect<void> loadContent(FileMgr &Mgr);
+  Expect<void> loadContent(FileMgr &Mgr) override;
 
   /// The node type should be Attr::Sec_Memory.
   Attr NodeAttr = Attr::Sec_Memory;

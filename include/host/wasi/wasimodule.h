@@ -12,7 +12,6 @@ namespace Host {
 class WasiModule : public Runtime::ImportObject {
 public:
   WasiModule();
-  virtual ~WasiModule() = default;
 
   WasiEnvironment &getEnv() { return Env; }
 

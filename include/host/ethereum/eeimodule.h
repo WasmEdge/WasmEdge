@@ -13,7 +13,6 @@ class EEIModule : public Runtime::ImportObject {
 public:
   EEIModule() = delete;
   EEIModule(uint64_t &CostLimit, uint64_t &CostSum);
-  virtual ~EEIModule() = default;
 
   EVMEnvironment &getEnv() { return Env; }
 

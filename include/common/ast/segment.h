@@ -26,7 +26,7 @@ namespace AST {
 class Segment : public Base {
 public:
   /// Binary loading from file manager. Inheritted from Base.
-  virtual Expect<void> loadBinary(FileMgr &Mgr) {
+  Expect<void> loadBinary(FileMgr &Mgr) override {
     return Unexpect(ErrCode::InvalidGrammar);
   };
 
@@ -58,7 +58,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrMsg when failed.
-  virtual Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of locals vector.
   const GlobalType *getGlobalType() const { return Global.get(); }
@@ -85,7 +85,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrMsg when failed.
-  virtual Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of table index.
   uint32_t getIdx() const { return TableIdx; }
@@ -116,7 +116,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrMsg when failed.
-  virtual Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of locals vector.
   const std::vector<std::pair<uint32_t, ValType>> &getLocals() const {
@@ -146,7 +146,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrMsg when failed.
-  virtual Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of memory index.
   uint32_t getIdx() const { return MemoryIdx; }

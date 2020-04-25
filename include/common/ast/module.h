@@ -33,7 +33,7 @@ public:
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrMsg when failed.
-  virtual Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of pointer to sections.
   CustomSection *getCustomSection() const { return CustomSec.get(); }

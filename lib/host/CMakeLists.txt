@@ -3,4 +3,3 @@
 add_subdirectory(ethereum)
 add_subdirectory(wasi)
 add_subdirectory(onnc)
-add_subdirectory(ssvm_native)

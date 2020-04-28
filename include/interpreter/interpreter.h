@@ -20,7 +20,6 @@
 #include "runtime/importobj.h"
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"
-#include "support/log.h"
 #include "support/measure.h"
 #include "support/time.h"
 

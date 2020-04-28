@@ -7,7 +7,7 @@
 namespace SSVM {
 
 /// Destructor of file manager. See "include/loader/filemgr.h".
-FileMgrFStream::~FileMgrFStream() {
+FileMgrFStream::~FileMgrFStream() noexcept {
   if (Fin.is_open()) {
     Fin.close();
   }

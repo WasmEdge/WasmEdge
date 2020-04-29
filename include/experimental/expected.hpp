@@ -19,6 +19,42 @@
 #include <utility>
 #include <variant>
 
+#if defined(__has_feature)
+# if __has_feature(cxx_exceptions)
+#  define M_ENABLE_EXCEPTIONS 1
+# else
+#  define M_ENABLE_EXCEPTIONS 0
+# endif
+#elif defined(__GNUC__)
+# ifdef __EXCEPTIONS
+#  define M_ENABLE_EXCEPTIONS 1
+# else
+#  define M_ENABLE_EXCEPTIONS 0
+# endif
+#elif defined(_MSC_VER)
+# ifdef _CPPUNWIND
+#  define M_ENABLE_EXCEPTIONS 1
+# else
+#  define M_ENABLE_EXCEPTIONS 0
+# endif
+#endif
+
+#ifndef M_ENABLE_EXCEPTIONS
+# define M_ENABLE_EXCEPTIONS 1
+#endif
+
+#if M_ENABLE_EXCEPTIONS
+# define m_try      try
+# define m_catch(X) catch(X)
+# define m_throw(X) throw X
+# define m_throw_exception_again throw
+#else
+# define m_try      if (true)
+# define m_catch(X) if (false)
+# define m_throw(X) abort()
+# define m_throw_exception_again
+#endif
+
 namespace std::experimental {
 inline namespace fundamentals_v3 {
 
@@ -576,11 +612,11 @@ struct expected_view_base : public expected_storage_base<T, E> {
     } else {
       E tmp = move(error());
       base::destruct_error();
-      try {
+      m_try {
         construct_value(forward<Args>(args)...);
-      } catch (...) {
+      } m_catch (...) {
         base::construct_error(move(tmp));
-        throw;
+        m_throw_exception_again;
       }
     }
     return val();
@@ -607,11 +643,11 @@ struct expected_view_base : public expected_storage_base<T, E> {
     } else {
       E tmp = move(error());
       base::destruct_error();
-      try {
+      m_try {
         construct_value(il, forward<Args>(args)...);
-      } catch (...) {
+      } m_catch (...) {
         base::construct_error(move(tmp));
-        throw;
+        m_throw_exception_again;
       }
     }
     return val();
@@ -687,11 +723,11 @@ protected:
       } else {
         E tmp = this->error();
         this->destruct_error();
-        try {
+        m_try {
           this->construct_value(forward<U>(rhs));
-        } catch (...) {
+        } m_catch (...) {
           this->construct_error(move(tmp));
-          throw;
+          m_throw_exception_again;
         }
       }
     } else {
@@ -747,11 +783,11 @@ protected:
       } else {
         E tmp = this->error();
         this->destruct_error();
-        try {
+        m_try {
           this->construct_value(rhs.val());
-        } catch (...) {
+        } m_catch (...) {
           this->construct_error(move(tmp));
-          throw;
+          m_throw_exception_again;
         }
       }
     } else if (this->has_value() && !rhs.has_value()) {
@@ -767,11 +803,11 @@ protected:
       } else {
         T tmp = this->val();
         this->destruct_value();
-        try {
+        m_try {
           this->construct_error(rhs.error());
-        } catch (...) {
+        } m_catch (...) {
           this->construct_value(move(tmp));
-          throw;
+          m_throw_exception_again;
         }
       }
     } else {
@@ -807,11 +843,11 @@ protected:
       } else {
         E tmp = move(this->error());
         this->destruct_error();
-        try {
+        m_try {
           this->construct_value(move(rhs).val());
-        } catch (...) {
+        } m_catch (...) {
           this->construct_error(move(tmp));
-          throw;
+          m_throw_exception_again;
         }
       }
     } else if (this->has_value() && !rhs.has_value()) {
@@ -823,11 +859,11 @@ protected:
       } else {
         T tmp = move(this->val());
         this->destruct_value();
-        try {
+        m_try {
           this->construct_error(move(rhs).error());
-        } catch (...) {
+        } m_catch (...) {
           this->construct_value(move(tmp));
-          throw;
+          m_throw_exception_again;
         }
       }
     } else {
@@ -1463,11 +1499,11 @@ public:
           if constexpr (is_nothrow_move_constructible_v<T>) {
             rhs.construct_value(move(*this).val());
           } else {
-            try {
+            m_try {
               rhs.construct_value(move(*this).val());
-            } catch (...) {
+            } m_catch (...) {
               rhs.construct_error(move(tmp));
-              throw;
+              m_throw_exception_again;
             }
           }
           this->destruct_value();
@@ -1476,11 +1512,11 @@ public:
           static_assert(is_nothrow_move_constructible_v<T>);
           T tmp = move(*this).val();
           this->destruct_value();
-          try {
+          m_try {
             this->construct_error(move(rhs).error());
-          } catch (...) {
+          } m_catch (...) {
             this->construct_value(move(tmp));
-            throw;
+            m_throw_exception_again;
           }
           rhs.destruct_error();
           rhs.construct_value(move(tmp));
@@ -1517,25 +1553,25 @@ public:
   using impl_base::has_value;
   constexpr const_lvalue_reference_type value() const & {
     if (!has_value()) {
-      throw bad_expected_access<E>(error());
+      m_throw(bad_expected_access<E>(error()));
     }
     return impl_base::val();
   }
   constexpr const_rvalue_reference_type value() const && {
     if (!has_value()) {
-      throw bad_expected_access<E>(move(error()));
+      m_throw(bad_expected_access<E>(move(error())));
     }
     return move(impl_base::val());
   }
   constexpr lvalue_reference_type value() & {
     if (!has_value()) {
-      throw bad_expected_access<E>(error());
+      m_throw(bad_expected_access<E>(error()));
     }
     return impl_base::val();
   }
   constexpr rvalue_reference_type value() && {
     if (!has_value()) {
-      throw bad_expected_access<E>(move(error()));
+      m_throw(bad_expected_access<E>(move(error())));
     }
     return move(impl_base::val());
   }
@@ -1708,3 +1744,9 @@ void swap(unexpected<E1> &x, unexpected<E1> &y) = delete;
 
 } // namespace fundamentals_v3
 } // namespace std::experimental
+
+#undef m_try
+#undef m_catch
+#undef m_throw
+#undef m_throw_exception_again
+#undef M_ENABLE_EXCEPTIONS

@@ -7,12 +7,17 @@
 namespace SSVM {
 namespace Host {
 
-WasiModule::WasiModule() : ImportObject("wasi_unstable") {
+WasiModule::WasiModule() : ImportObject("wasi_snapshot_preview1") {
   addHostFunc("args_get", std::make_unique<WasiArgsGet>(Env));
   addHostFunc("args_sizes_get", std::make_unique<WasiArgsSizesGet>(Env));
   addHostFunc("environ_get", std::make_unique<WasiEnvironGet>(Env));
   addHostFunc("environ_sizes_get", std::make_unique<WasiEnvironSizesGet>(Env));
+  addHostFunc("clock_res_get", std::make_unique<WasiClockResGet>(Env));
+  addHostFunc("clock_time_get", std::make_unique<WasiClockTimeGet>(Env));
+  addHostFunc("fd_advise", std::make_unique<WasiFdAdvise>(Env));
+  addHostFunc("fd_allocate", std::make_unique<WasiFdAllocate>(Env));
   addHostFunc("fd_close", std::make_unique<WasiFdClose>(Env));
+  addHostFunc("fd_datasync", std::make_unique<WasiFdDatasync>(Env));
   addHostFunc("fd_fdstat_get", std::make_unique<WasiFdFdstatGet>(Env));
   addHostFunc("fd_fdstat_set_flags",
               std::make_unique<WasiFdFdstatSetFlags>(Env));

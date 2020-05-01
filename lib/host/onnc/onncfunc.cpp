@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "runtime/instance/memory.h"
 #include "host/onnc/onncfunc.h"
 #include "onnc/onnc_runtime.h"
+#include "runtime/instance/memory.h"
 
 namespace SSVM {
 namespace Host {
 
-ErrCode ONNCRuntimeAddFloat::body(Runtime::Instance::MemoryInstance &MemInst,
-                                  uint32_t RuntimeContextOff, uint32_t InAOff,
-                                  uint32_t InANDim, uint32_t InADimsOff,
-                                  uint32_t InBOff, uint32_t InBNDim,
-                                  uint32_t InBDimsOff, uint32_t OutCOff,
-                                  uint32_t OutCNDim, uint32_t OutCDimsOff) {
+Expect<void> ONNCRuntimeAddFloat::body(
+    Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
+    uint32_t InAOff, uint32_t InANDim, uint32_t InADimsOff, uint32_t InBOff,
+    uint32_t InBNDim, uint32_t InBDimsOff, uint32_t OutCOff, uint32_t OutCNDim,
+    uint32_t OutCDimsOff) {
   /// Arg: void* onnc_runtime_context,
   ///      const float *input_A,
   ///      int32_t input_A_ndim,
@@ -34,15 +33,14 @@ ErrCode ONNCRuntimeAddFloat::body(Runtime::Instance::MemoryInstance &MemInst,
   ONNC_RUNTIME_add_float(RuntimeContext, InA, InANDim, InADims, InB, InBNDim,
                          InBDims, OutC, OutCNDim, OutCDims);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeAddInt8::body(Runtime::Instance::MemoryInstance &MemInst,
-                                 uint32_t RuntimeContextOff, uint32_t InAOff,
-                                 uint32_t InANDim, uint32_t InADimsOff,
-                                 uint32_t InBOff, uint32_t InBNDim,
-                                 uint32_t InBDimsOff, uint32_t OutCOff,
-                                 uint32_t OutCNDim, uint32_t OutCDimsOff) {
+Expect<void> ONNCRuntimeAddInt8::body(
+    Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
+    uint32_t InAOff, uint32_t InANDim, uint32_t InADimsOff, uint32_t InBOff,
+    uint32_t InBNDim, uint32_t InBDimsOff, uint32_t OutCOff, uint32_t OutCNDim,
+    uint32_t OutCDimsOff) {
   /// Arg: void* onnc_runtime_context,
   ///      const int8_t *input_A,
   ///      int32_t input_A_ndim,
@@ -65,10 +63,10 @@ ErrCode ONNCRuntimeAddInt8::body(Runtime::Instance::MemoryInstance &MemInst,
   ONNC_RUNTIME_add_int8(RuntimeContext, InA, InANDim, InADims, InB, InBNDim,
                         InBDims, OutC, OutCNDim, OutCDims);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeAveragepoolFloat::body(
+Expect<void> ONNCRuntimeAveragepoolFloat::body(
     Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
     uint32_t InXOff, uint32_t InXNDim, uint32_t InXDimsOff, uint32_t OutYOff,
     uint32_t OutYNDim, uint32_t OutYDimsOff, uint32_t AutoPadOff,
@@ -106,10 +104,10 @@ ErrCode ONNCRuntimeAveragepoolFloat::body(
                                  KernelShape, KernelShapeNum, Pads, PadsNum,
                                  Strides, StridesNum);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeBatchnormalizationFloat::body(
+Expect<void> ONNCRuntimeBatchnormalizationFloat::body(
     Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
     uint32_t InXOff, uint32_t InXNDim, uint32_t InXDimsOff, uint32_t InScaleOff,
     uint32_t InScaleNDim, uint32_t InScaleDimsOff, uint32_t InBOff,
@@ -191,10 +189,10 @@ ErrCode ONNCRuntimeBatchnormalizationFloat::body(
       OutSavedMeanDims, OutSavedVar, OutSavedVarNDim, OutSavedVarDims, Epsilon,
       Momentum, Spatial);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeBatchnormalizationInt8::body(
+Expect<void> ONNCRuntimeBatchnormalizationInt8::body(
     Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
     uint32_t InXOff, uint32_t InXNDim, uint32_t InXDimsOff, uint32_t InScaleOff,
     uint32_t InScaleNDim, uint32_t InScaleDimsOff, uint32_t InBOff,
@@ -276,10 +274,10 @@ ErrCode ONNCRuntimeBatchnormalizationInt8::body(
       OutSavedMeanDims, OutSavedVar, OutSavedVarNDim, OutSavedVarDims, Epsilon,
       Momentum, Spatial);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeConcatFloat::body(
+Expect<void> ONNCRuntimeConcatFloat::body(
     Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
     uint32_t InInputsOffOff, uint32_t InInputsNTensor, uint32_t InInputsNDimOff,
     uint32_t InInputsDimsOffOff, uint32_t OutConcatResultOff,
@@ -314,10 +312,10 @@ ErrCode ONNCRuntimeConcatFloat::body(
                             InInputsNDim, InInputsDims, OutConcatResult,
                             OutConcatResultNDim, OutConcatResultDims, Axis);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeConvFloat::body(
+Expect<void> ONNCRuntimeConvFloat::body(
     Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
     uint32_t InXOff, uint32_t InXNDim, uint32_t InXDimsOff, uint32_t InWOff,
     uint32_t InWNDim, uint32_t InWDimsOff, uint32_t InBOff, uint32_t InBNDim,
@@ -372,10 +370,10 @@ ErrCode ONNCRuntimeConvFloat::body(
                           KernelShape, KernelShapeNum, Pads, PadsNum, Strides,
                           StridesNum);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeConvInt8::body(
+Expect<void> ONNCRuntimeConvInt8::body(
     Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
     uint32_t InXOff, uint32_t InXNDim, uint32_t InXDimsOff, uint32_t InWOff,
     uint32_t InWNDim, uint32_t InWDimsOff, uint32_t InBOff, uint32_t InBNDim,
@@ -430,10 +428,10 @@ ErrCode ONNCRuntimeConvInt8::body(
                          KernelShape, KernelShapeNum, Pads, PadsNum, Strides,
                          StridesNum);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeGemmFloat::body(
+Expect<void> ONNCRuntimeGemmFloat::body(
     Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
     uint32_t InAOff, uint32_t InANDim, uint32_t InADimsOff, uint32_t InBOff,
     uint32_t InBNDim, uint32_t InBDimsOff, uint32_t InCOff, uint32_t InCNDim,
@@ -473,10 +471,10 @@ ErrCode ONNCRuntimeGemmFloat::body(
                           InBDims, InC, InCNDim, InCDims, OutY, OutYNDim,
                           OutYDims, Alpha, Beta, TransA, TransB);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeGlobalaveragepoolFloat::body(
+Expect<void> ONNCRuntimeGlobalaveragepoolFloat::body(
     Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
     uint32_t InXOff, uint32_t InXNDim, uint32_t InXDimsOff, uint32_t OutYOff,
     uint32_t OutYNDim, uint32_t OutYDimsOff) {
@@ -497,15 +495,14 @@ ErrCode ONNCRuntimeGlobalaveragepoolFloat::body(
   ONNC_RUNTIME_globalaveragepool_float(RuntimeContext, InX, InXNDim, InXDims,
                                        OutY, OutYNDim, OutYDims);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeLrnFloat::body(Runtime::Instance::MemoryInstance &MemInst,
-                                  uint32_t RuntimeContextOff, uint32_t InXOff,
-                                  uint32_t InXNDim, uint32_t InXDimsOff,
-                                  uint32_t OutYOff, uint32_t OutYNDim,
-                                  uint32_t OutYDimsOff, float Alpha, float Beta,
-                                  float Bias, uint32_t Size) {
+Expect<void> ONNCRuntimeLrnFloat::body(
+    Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
+    uint32_t InXOff, uint32_t InXNDim, uint32_t InXDimsOff, uint32_t OutYOff,
+    uint32_t OutYNDim, uint32_t OutYDimsOff, float Alpha, float Beta,
+    float Bias, uint32_t Size) {
   /// Arg: void* onnc_runtime_context,
   ///      const float* input_X,
   ///      int32_t input_X_ndim,
@@ -527,10 +524,10 @@ ErrCode ONNCRuntimeLrnFloat::body(Runtime::Instance::MemoryInstance &MemInst,
   ONNC_RUNTIME_lrn_float(RuntimeContext, InX, InXNDim, InXDims, OutY, OutYNDim,
                          OutYDims, Alpha, Beta, Bias, Size);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeMaxpoolFloat::body(
+Expect<void> ONNCRuntimeMaxpoolFloat::body(
     Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
     uint32_t InXOff, uint32_t InXNDim, uint32_t InXDimsOff, uint32_t OutYOff,
     uint32_t OutYNDim, uint32_t OutYDimsOff, uint32_t OutIndicesOff,
@@ -576,10 +573,10 @@ ErrCode ONNCRuntimeMaxpoolFloat::body(
       OutIndices, OutIndicesNDim, OutIndicesDims, AutoPad, KernelShape,
       KernelShapeNum, Pads, PadsNum, StorageOrder, Strides, StridesNum);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeMaxpoolInt8::body(
+Expect<void> ONNCRuntimeMaxpoolInt8::body(
     Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
     uint32_t InXOff, uint32_t InXNDim, uint32_t InXDimsOff, uint32_t OutYOff,
     uint32_t OutYNDim, uint32_t OutYDimsOff, uint32_t OutIndicesOff,
@@ -625,15 +622,14 @@ ErrCode ONNCRuntimeMaxpoolInt8::body(
       OutIndices, OutIndicesNDim, OutIndicesDims, AutoPad, KernelShape,
       KernelShapeNum, Pads, PadsNum, StorageOrder, Strides, StridesNum);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeMulFloat::body(Runtime::Instance::MemoryInstance &MemInst,
-                                  uint32_t RuntimeContextOff, uint32_t InAOff,
-                                  uint32_t InANDim, uint32_t InADimsOff,
-                                  uint32_t InBOff, uint32_t InBNDim,
-                                  uint32_t InBDimsOff, uint32_t OutCOff,
-                                  uint32_t OutCNDim, uint32_t OutCDimsOff) {
+Expect<void> ONNCRuntimeMulFloat::body(
+    Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
+    uint32_t InAOff, uint32_t InANDim, uint32_t InADimsOff, uint32_t InBOff,
+    uint32_t InBNDim, uint32_t InBDimsOff, uint32_t OutCOff, uint32_t OutCNDim,
+    uint32_t OutCDimsOff) {
   /// Arg: void* onnc_runtime_context,
   ///      const float *input_A,
   ///      int32_t input_A_ndim,
@@ -656,15 +652,14 @@ ErrCode ONNCRuntimeMulFloat::body(Runtime::Instance::MemoryInstance &MemInst,
   ONNC_RUNTIME_mul_float(RuntimeContext, InA, InANDim, InADims, InB, InBNDim,
                          InBDims, OutC, OutCNDim, OutCDims);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeMulInt8::body(Runtime::Instance::MemoryInstance &MemInst,
-                                 uint32_t RuntimeContextOff, uint32_t InAOff,
-                                 uint32_t InANDim, uint32_t InADimsOff,
-                                 uint32_t InBOff, uint32_t InBNDim,
-                                 uint32_t InBDimsOff, uint32_t OutCOff,
-                                 uint32_t OutCNDim, uint32_t OutCDimsOff) {
+Expect<void> ONNCRuntimeMulInt8::body(
+    Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
+    uint32_t InAOff, uint32_t InANDim, uint32_t InADimsOff, uint32_t InBOff,
+    uint32_t InBNDim, uint32_t InBDimsOff, uint32_t OutCOff, uint32_t OutCNDim,
+    uint32_t OutCDimsOff) {
   /// Arg: void* onnc_runtime_context,
   ///      const int8_t *input_A,
   ///      int32_t input_A_ndim,
@@ -687,14 +682,13 @@ ErrCode ONNCRuntimeMulInt8::body(Runtime::Instance::MemoryInstance &MemInst,
   ONNC_RUNTIME_mul_int8(RuntimeContext, InA, InANDim, InADims, InB, InBNDim,
                         InBDims, OutC, OutCNDim, OutCDims);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeReluFloat::body(Runtime::Instance::MemoryInstance &MemInst,
-                                   uint32_t RuntimeContextOff, uint32_t InXOff,
-                                   uint32_t InXNDim, uint32_t InXDimsOff,
-                                   uint32_t OutYOff, uint32_t OutYNDim,
-                                   uint32_t OutYDimsOff) {
+Expect<void> ONNCRuntimeReluFloat::body(
+    Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
+    uint32_t InXOff, uint32_t InXNDim, uint32_t InXDimsOff, uint32_t OutYOff,
+    uint32_t OutYNDim, uint32_t OutYDimsOff) {
   /// Arg: void* onnc_runtime_context,
   ///      const float* input_X,
   ///      int32_t input_X_ndim,
@@ -712,14 +706,13 @@ ErrCode ONNCRuntimeReluFloat::body(Runtime::Instance::MemoryInstance &MemInst,
   ONNC_RUNTIME_relu_float(RuntimeContext, InX, InXNDim, InXDims, OutY, OutYNDim,
                           OutYDims);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeReluInt8::body(Runtime::Instance::MemoryInstance &MemInst,
-                                  uint32_t RuntimeContextOff, uint32_t InXOff,
-                                  uint32_t InXNDim, uint32_t InXDimsOff,
-                                  uint32_t OutYOff, uint32_t OutYNDim,
-                                  uint32_t OutYDimsOff) {
+Expect<void> ONNCRuntimeReluInt8::body(
+    Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
+    uint32_t InXOff, uint32_t InXNDim, uint32_t InXDimsOff, uint32_t OutYOff,
+    uint32_t OutYNDim, uint32_t OutYDimsOff) {
   /// Arg: void* onnc_runtime_context,
   ///      const int8_t* input_X,
   ///      int32_t input_X_ndim,
@@ -737,10 +730,10 @@ ErrCode ONNCRuntimeReluInt8::body(Runtime::Instance::MemoryInstance &MemInst,
   ONNC_RUNTIME_relu_int8(RuntimeContext, InX, InXNDim, InXDims, OutY, OutYNDim,
                          OutYDims);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeReshapeFloat::body(
+Expect<void> ONNCRuntimeReshapeFloat::body(
     Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
     uint32_t InDataOff, uint32_t InDataNDim, uint32_t InDataDimsOff,
     uint32_t InShapeOff, uint32_t InShapeNDim, uint32_t InShapeDimsOff,
@@ -769,10 +762,10 @@ ErrCode ONNCRuntimeReshapeFloat::body(
                              InShape, InShapeNDim, InShapeDims, OutReshaped,
                              OutReshapedNDim, OutReshapedDims);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeSoftmaxFloat::body(
+Expect<void> ONNCRuntimeSoftmaxFloat::body(
     Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
     uint32_t InOff, uint32_t InNDim, uint32_t InDimsOff, uint32_t OutOff,
     uint32_t OutNDim, uint32_t OutDimsOff, uint32_t Axis) {
@@ -794,15 +787,15 @@ ErrCode ONNCRuntimeSoftmaxFloat::body(
   ONNC_RUNTIME_softmax_float(RuntimeContext, In, InNDim, InDims, Out, OutNDim,
                              OutDims, Axis);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeSumFloat::body(Runtime::Instance::MemoryInstance &MemInst,
-                                  uint32_t RuntimeContextOff,
-                                  uint32_t InDataOffOff, uint32_t InDataNTensor,
-                                  uint32_t InDataNDimOff,
-                                  uint32_t InDataDimsOffOff, uint32_t OutSumOff,
-                                  uint32_t OutSumNDim, uint32_t OutSumDimsOff) {
+Expect<void>
+ONNCRuntimeSumFloat::body(Runtime::Instance::MemoryInstance &MemInst,
+                          uint32_t RuntimeContextOff, uint32_t InDataOffOff,
+                          uint32_t InDataNTensor, uint32_t InDataNDimOff,
+                          uint32_t InDataDimsOffOff, uint32_t OutSumOff,
+                          uint32_t OutSumNDim, uint32_t OutSumDimsOff) {
   /// Arg: void* onnc_runtime_context,
   ///      const float *const *input_data_0,
   ///      int32_t input_data_0_ntensor,
@@ -828,10 +821,10 @@ ErrCode ONNCRuntimeSumFloat::body(Runtime::Instance::MemoryInstance &MemInst,
   ONNC_RUNTIME_sum_float(RuntimeContext, InData, InDataNTensor, InDataNDim,
                          InDataDims, OutSum, OutSumNDim, OutSumDims);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeTransposeFloat::body(
+Expect<void> ONNCRuntimeTransposeFloat::body(
     Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
     uint32_t InDataOff, uint32_t InDataNDim, uint32_t InDataDimsOff,
     uint32_t OutTransposedOff, uint32_t OutTransposedNDim,
@@ -858,10 +851,10 @@ ErrCode ONNCRuntimeTransposeFloat::body(
                                OutTransposed, OutTransposedNDim,
                                OutTransposedDims, Perm, PermNum);
 
-  return ErrCode::Success;
+  return {};
 }
 
-ErrCode ONNCRuntimeUnsqueezeFloat::body(
+Expect<void> ONNCRuntimeUnsqueezeFloat::body(
     Runtime::Instance::MemoryInstance &MemInst, uint32_t RuntimeContextOff,
     uint32_t InDataOff, uint32_t InDataNDim, uint32_t InDataDimsOff,
     uint32_t OutExpandedOff, uint32_t OutExpandedNDim,
@@ -887,7 +880,7 @@ ErrCode ONNCRuntimeUnsqueezeFloat::body(
                                OutExpanded, OutExpandedNDim, OutExpandedDims,
                                Axes, AxesNum);
 
-  return ErrCode::Success;
+  return {};
 }
 
 } // namespace Host

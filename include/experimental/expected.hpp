@@ -35,9 +35,7 @@ template <class E>
 class bad_expected_access : public bad_expected_access<void> {
 public:
   explicit bad_expected_access(E e) : m_error(move(e)) {}
-  const char *what() const noexcept override {
-    return "Bad expected access";
-  }
+  const char *what() const noexcept override { return "Bad expected access"; }
   const E &error() const & { return m_error; }
   const E &&error() const && { return move(m_error); }
   E &error() & { return m_error; }
@@ -74,6 +72,8 @@ template <class T> struct is_expected : false_type {};
 template <class T, class E> struct is_expected<expected<T, E>> : true_type {};
 template <class T>
 static inline constexpr bool is_expected_v = is_expected<T>::value;
+
+static inline bool likely(bool V) { return __builtin_expect(V, true); }
 
 } // namespace detail
 
@@ -548,7 +548,7 @@ struct expected_view_base : public expected_storage_base<T, E> {
   using base = expected_storage_base<T, E>;
   using base::base;
 
-  constexpr bool has_value() const noexcept { return base::m_has_val; }
+  constexpr bool has_value() const noexcept { return likely(base::m_has_val); }
   constexpr const E &error() const &noexcept { return base::m_unex.value(); }
   constexpr const E &&error() const &&noexcept {
     return move(base::m_unex).value();
@@ -643,7 +643,7 @@ struct expected_view_base<void, E> : public expected_storage_base<void, E> {
   using base = expected_storage_base<void, E>;
   using base::base;
 
-  constexpr bool has_value() const noexcept { return base::m_has_val; }
+  constexpr bool has_value() const noexcept { return likely(base::m_has_val); }
   constexpr const E &error() const &noexcept { return base::m_unex.value(); }
   constexpr const E &&error() const &&noexcept {
     return move(base::m_unex).value();

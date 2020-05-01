@@ -14,6 +14,7 @@
 #include "common/ast/instruction.h"
 #include "common/value.h"
 #include "support/casting.h"
+#include "support/span.h"
 
 #include <memory>
 #include <vector>
@@ -64,6 +65,14 @@ public:
 
   /// Unsafe Getter of bottom N-th value entry of stack.
   Value &getBottomN(uint32_t N) { return ValueStack[N]; }
+
+  /// Unsafe Getter of top N value entries of stack.
+  Expect<Span<Value>> getTopSpan(uint32_t N) {
+    if (unlikely(ValueStack.size() < N)) {
+      return Unexpect(ErrCode::StackEmpty);
+    }
+    return Span<Value>(ValueStack.end() - N, N);
+  }
 
   /// Push a new value entry to stack.
   template <typename T> void push(T &&Val) {

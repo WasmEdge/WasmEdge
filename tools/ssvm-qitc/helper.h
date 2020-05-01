@@ -24,34 +24,34 @@ protected:
 class QITCTimerStart : public QITC<QITCTimerStart> {
 public:
   QITCTimerStart(Support::TimeRecord &T) : QITC<QITCTimerStart>(T) {}
-  ErrCode body(Runtime::Instance::MemoryInstance &MemInst) {
+  Expect<void> body(Runtime::Instance::MemoryInstance &MemInst) {
     Timer.startRecord(TIMER_TAG_QITC_INFER_SSVM);
     /// TODO: Inject timer in measurement to start to record ssvm and host time.
-    return ErrCode::Success;
+    return {};
   }
 };
 
 class QITCTimerStop : public QITC<QITCTimerStop> {
 public:
   QITCTimerStop(Support::TimeRecord &T) : QITC<QITCTimerStop>(T) {}
-  ErrCode body(Runtime::Instance::MemoryInstance &MemInst) {
+  Expect<void> body(Runtime::Instance::MemoryInstance &MemInst) {
     uint64_t SSVMTime = Timer.stopRecord(TIMER_TAG_QITC_INFER_SSVM);
     uint64_t HostTime = Timer.stopRecord(TIMER_TAG_QITC_INFER_HOST);
     std::cout << " --- Inference: SSVM cost " << SSVMTime
               << " us, Host functions cost " << HostTime << " us\n";
     /// TODO: Inject timer in measurement to stop recording ssvm and host time.
-    return ErrCode::Success;
+    return {};
   }
 };
 
 class QITCTimerClear : public QITC<QITCTimerClear> {
 public:
   QITCTimerClear(Support::TimeRecord &T) : QITC<QITCTimerClear>(T) {}
-  ErrCode body(Runtime::Instance::MemoryInstance &MemInst) {
+  Expect<void> body(Runtime::Instance::MemoryInstance &MemInst) {
     Timer.clearRecord(TIMER_TAG_QITC_INFER_SSVM);
     Timer.clearRecord(TIMER_TAG_QITC_INFER_HOST);
     /// TODO: Inject timer in measurement to stop recording ssvm and host time.
-    return ErrCode::Success;
+    return {};
   }
 };
 

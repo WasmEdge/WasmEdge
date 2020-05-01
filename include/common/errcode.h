@@ -56,6 +56,9 @@ enum class ErrCode : unsigned char {
   ModuleNameConflict       /// Module name conflicted when importing.
 };
 
+static inline bool likely(bool V) { return __builtin_expect(V, true); }
+static inline bool unlikely(bool V) { return __builtin_expect(V, false); }
+
 /// Type aliasing for Expected<T, ErrMsg>.
 template <typename T> using Expect = Support::Expected<T, ErrCode>;
 

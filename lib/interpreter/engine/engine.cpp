@@ -628,8 +628,26 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     /// Run host function.
+    const size_t ArgsN = FuncType.Params.size();
+    const size_t RetsN = FuncType.Returns.size();
+
+    Span<ValVariant> Args;
+    if (auto Res = StackMgr.getTopSpan(ArgsN)) {
+      Args = std::move(*Res);
+    } else {
+      return Unexpect(Res);
+    }
+    std::vector<ValVariant> Rets(RetsN);
+
     /// FIXME: Pass memory instance pointer instead of reference and nullable.
-    ErrCode Status = HostFunc.run(StackMgr, *MemoryInst);
+    auto Ret = HostFunc.run(*MemoryInst, std::move(Args), Rets);
+
+    for (size_t I = 0; I < ArgsN; ++I) {
+      StackMgr.pop();
+    }
+    for (auto &R : Rets) {
+      StackMgr.push(std::move(R));
+    }
 
     if (Measure) {
       /// Stop recording time of running host function.
@@ -638,10 +656,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     /// TODO: Fix this after refactoring HostFunctionBase.
-    if (Status != ErrCode::Success) {
-      return Unexpect(Status);
-    }
-    return {};
+    return Ret;
   } else {
     /// Native function case: Push frame with locals and args.
     StackMgr.pushFrame(Func.getModuleAddr(),   /// Module address

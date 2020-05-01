@@ -49,6 +49,8 @@ stages:
     - ./ssvmProxyTests
     - cd ../expected
     - ./expectedTests
+    - cd ../span
+    - ./spanTests
   cache:
     <<: *cache_paths
     key: ${KEY}

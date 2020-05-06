@@ -16,16 +16,6 @@ if(ONNC_WASM_LIBRARY)
   add_definitions(-DONNC_WASM)
 endif()
 
-include_directories(BEFORE
-  ${CMAKE_CURRENT_BINARY_DIR}/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${CMAKE_CURRENT_BINARY_DIR}/thirdparty
-  ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty
-  ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/evmc/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/evmc/include
-  ${Boost_INCLUDE_DIR}
-)
-
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -57,12 +47,6 @@ endmacro(configure_files)
 # End of Macro
 
 if(BUILD_TESTS)
-  include_directories(
-    ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/googletest/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/googletest/include
-    ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/googletest/
-    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/googletest/
-  )
   add_subdirectory(test)
 endif()
 

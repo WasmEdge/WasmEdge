@@ -5,3 +5,9 @@ add_library(ssvmHostModuleWasi
   wasifunc.cpp
   wasimodule.cpp
 )
+
+target_include_directories(ssvmHostModuleWasi
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/thirdparty
+)

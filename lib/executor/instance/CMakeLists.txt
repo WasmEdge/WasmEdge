@@ -8,3 +8,8 @@ add_library(ssvmExecutorInstance
   module.cpp
   table.cpp
 )
+
+target_include_directories(ssvmExecutorInstance
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+)

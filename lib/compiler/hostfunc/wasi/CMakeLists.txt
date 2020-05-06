@@ -16,3 +16,10 @@ add_library(ssvmCompilerHostFuncWasi
   path_Open.cpp
   proc_Exit.cpp
 )
+
+target_include_directories(ssvmCompilerHostFuncWasi
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/thirdparty
+  ${PROJECT_SOURCE_DIR}/thirdparty/evmc/include
+)

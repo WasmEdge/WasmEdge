@@ -8,4 +8,5 @@ add_library(ssvmEVMC
 target_link_libraries(ssvmEVMC
   PRIVATE
   ssvmExpVM
+  ssvmHostModuleEEI
 )

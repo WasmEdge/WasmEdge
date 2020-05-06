@@ -9,3 +9,8 @@ add_library(ssvmAST
   expression.cpp
   instruction.cpp
 )
+
+target_include_directories(ssvmAST
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+)

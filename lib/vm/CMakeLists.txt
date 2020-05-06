@@ -24,3 +24,11 @@ if(ONNC_WASM_LIBRARY)
     ssvmHostFuncONNC
   )
 endif()
+
+target_include_directories(ssvmVM
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/thirdparty
+  ${PROJECT_SOURCE_DIR}/thirdparty/evmc/include
+  ${Boost_INCLUDE_DIR}
+)

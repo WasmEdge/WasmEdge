@@ -16,6 +16,12 @@ target_link_libraries(ssvmExecutorWorker
   ssvmExecutorInstance
 )
 
+target_include_directories(ssvmExecutorWorker
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/thirdparty
+  ${PROJECT_SOURCE_DIR}/thirdparty/evmc/include
+)
+
 add_library(ssvmExecutor
   executor.cpp
 )
@@ -26,4 +32,9 @@ target_link_libraries(ssvmExecutor
   ssvmExecutorInstantiate
   ssvmExecutorWorker
   ssvmSupport
+)
+
+target_include_directories(ssvmExecutor
+  PUBLIC
+  ${Boost_INCLUDE_DIR}
 )

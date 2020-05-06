@@ -19,3 +19,8 @@ target_link_libraries(expectedTests
   PRIVATE
   utilGoogleTest
 )
+
+target_include_directories(expectedTests  
+  PRIVATE
+  ${PROJECT_SOURCE_DIR}/include
+)

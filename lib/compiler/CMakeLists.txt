@@ -30,4 +30,12 @@ target_link_libraries(ssvmCompiler
   ssvmVM
 )
 
+target_include_directories(ssvmCompiler
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/thirdparty
+  ${PROJECT_SOURCE_DIR}/thirdparty/evmc/include
+  ${Boost_INCLUDE_DIR}
+)
+
 add_subdirectory(hostfunc)

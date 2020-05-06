@@ -11,3 +11,8 @@ target_link_libraries(ssvmEVMCTests
   utilGoogleTest
   ${CMAKE_DL_LIBS}
 )
+
+target_include_directories(ssvmEVMCTests  
+  PRIVATE
+  ${PROJECT_SOURCE_DIR}/include
+)

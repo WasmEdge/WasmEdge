@@ -11,3 +11,8 @@ add_library(ssvmInterpreterInstantiate
   export.cpp
   module.cpp
 )
+
+target_include_directories(ssvmInterpreterInstantiate
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+)

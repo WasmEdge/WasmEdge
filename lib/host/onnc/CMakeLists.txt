@@ -11,3 +11,9 @@ if(ONNC_WASM_LIBRARY)
     ${ONNC_WASM_LIBRARY}
   )
 endif()
+
+target_include_directories(ssvmHostModuleONNC
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/thirdparty
+)

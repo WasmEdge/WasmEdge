@@ -21,3 +21,10 @@ if(ONNC_WASM_LIBRARY)
     ssvmHostModuleONNC
   )
 endif()
+
+target_include_directories(ssvmExpVM
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/thirdparty
+  ${PROJECT_SOURCE_DIR}/thirdparty/evmc/include
+)

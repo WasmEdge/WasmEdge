@@ -3,11 +3,6 @@
 #include "common/ast/module.h"
 #include "common/ast/section.h"
 #include "runtime/instance/module.h"
-#include "support/log.h"
-
-#include <boost/algorithm/hex.hpp>
-#include <boost/format.hpp>
-#include <cstdlib>
 
 namespace SSVM {
 namespace Interpreter {

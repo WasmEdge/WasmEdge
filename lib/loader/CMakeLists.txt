@@ -4,6 +4,11 @@ add_library(ssvmLoaderFileMgr
   filemgr.cpp
 )
 
+target_include_directories(ssvmLoaderFileMgr
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+)
+
 add_library(ssvmLoader
   loader.cpp
 )

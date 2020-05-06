@@ -40,3 +40,11 @@ target_link_libraries(ssvmHostFuncEEI
   PRIVATE
   utilKeccak
 )
+
+target_include_directories(ssvmHostFuncEEI  
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/thirdparty
+  ${PROJECT_SOURCE_DIR}/thirdparty/evmc/include
+  ${Boost_INCLUDE_DIR}
+)

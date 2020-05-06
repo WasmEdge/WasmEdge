@@ -12,3 +12,8 @@ target_link_libraries(ssvmInterpreterEngine
   PRIVATE
   ssvmSupport
 )
+
+target_include_directories(ssvmInterpreterEngine
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+)

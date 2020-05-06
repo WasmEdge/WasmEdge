@@ -7,3 +7,9 @@ target_link_libraries(ssvmSupport
   PRIVATE
   utilLog
 )
+
+target_include_directories(ssvmSupport
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/thirdparty
+)

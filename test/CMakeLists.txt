@@ -3,6 +3,5 @@
 add_subdirectory(ast)
 add_subdirectory(evmc)
 add_subdirectory(loader)
-add_subdirectory(proxy)
 add_subdirectory(expected)
 add_subdirectory(span)

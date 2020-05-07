@@ -45,8 +45,6 @@ stages:
     - ./ssvmASTTests
     - cd ../evmc
     - ./ssvmEVMCTests
-    - cd ../proxy
-    - ./ssvmProxyTests
     - cd ../expected
     - ./expectedTests
     - cd ../span

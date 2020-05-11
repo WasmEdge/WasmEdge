@@ -40,6 +40,18 @@ class FunctionCompiler;
 struct SSVM::AOT::Compiler::CompileContext {
   llvm::LLVMContext &Context;
   llvm::Module &Module;
+  llvm::SubtargetFeatures SubtargetFeatures;
+  bool SupportRoundeven =
+#if (defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||           \
+     defined(_M_X64)) &&                                                       \
+    (defined(__AVX512F__) || defined(__AVX__) || defined(__SSE4_1__))
+      true;
+#elif (defined(__arm__) || defined(__aarch64__)) &&                            \
+    (defined(__ARM_NEON__) || defined(__ARM_NEON) || defined(__ARM_NEON_FP))
+      true;
+#else
+      false;
+#endif
   std::vector<const AST::FunctionType *> FunctionTypes;
   std::vector<unsigned int> Elements;
   std::vector<
@@ -53,6 +65,7 @@ struct SSVM::AOT::Compiler::CompileContext {
   llvm::GlobalVariable *MemSize;
   llvm::GlobalVariable *Mem;
   llvm::GlobalVariable *InstrCount;
+  llvm::MDNode *Likely;
   CompileContext(llvm::Module &M)
       : Context(M.getContext()), Module(M),
         Trap(new llvm::GlobalVariable(
@@ -94,7 +107,13 @@ struct SSVM::AOT::Compiler::CompileContext {
             Module, llvm::Type::getInt64Ty(Context), false,
             llvm::GlobalValue::ExternalLinkage,
             llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), 0),
-            "instr")) {
+            "instr")),
+        Likely(llvm::MDTuple::getDistinct(
+            Context, {llvm::MDString::get(Context, "branch_weights"),
+                      llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+                          Context, llvm::APInt(32, 2000))),
+                      llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+                          Context, llvm::APInt(32, 0)))})) {
     Trap->setInitializer(
         llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(
             Trap->getType()->getPointerElementType())));
@@ -118,6 +137,27 @@ struct SSVM::AOT::Compiler::CompileContext {
         llvm::GlobalValue::ExternalLinkage,
         llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), kVersion),
         "version");
+
+    {
+      llvm::StringMap<bool> FeatureMap;
+      llvm::sys::getHostCPUFeatures(FeatureMap);
+      for (auto &Feature : FeatureMap) {
+        if (!SupportRoundeven && Feature.second) {
+          if (llvm::StringSwitch<bool>(Feature.first())
+#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||            \
+    defined(_M_X64)
+                  .Cases("avx512f", "avx", "sse4.1", true)
+#endif
+#if defined(__arm__) || defined(__aarch64__)
+                  .Cases("neon", true)
+#endif
+                  .Default(false)) {
+            SupportRoundeven = true;
+          }
+        }
+        SubtargetFeatures.AddFeature(Feature.first(), Feature.second);
+      }
+    }
   }
   void callTrap(llvm::IRBuilder<> &Builder, llvm::Value *Ctx,
                 llvm::Value *Status) {
@@ -225,6 +265,11 @@ public:
       : Context(Context), VMContext(Context.Context), F(F),
         Builder(llvm::BasicBlock::Create(VMContext, "entry", F)) {
     if (F) {
+      Builder.setIsFPConstrained(true);
+      Builder.setDefaultConstrainedRounding(
+          llvm::ConstrainedFPIntrinsic::RoundingMode::rmToNearest);
+      Builder.setDefaultConstrainedExcept(
+          llvm::ConstrainedFPIntrinsic::ExceptionBehavior::ebIgnore);
       Ctx = F->arg_begin();
       for (llvm::Argument *Arg = Ctx + 1; Arg != F->arg_end(); ++Arg) {
         llvm::Value *ArgPtr = Builder.CreateAlloca(Arg->getType());
@@ -619,85 +664,94 @@ public:
           Builder.CreateICmpEQ(Stack.back(), Builder.getInt32(0)),
           Builder.getInt32Ty());
       break;
-    case OpCode::I32__clz:
-      Stack.back() = Builder.CreateBinaryIntrinsic(
-          llvm::Intrinsic::ctlz, Stack.back(), Builder.getFalse());
-      break;
-    case OpCode::I32__ctz:
-      Stack.back() = Builder.CreateBinaryIntrinsic(
-          llvm::Intrinsic::cttz, Stack.back(), Builder.getFalse());
-      break;
-    case OpCode::I32__popcnt:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ctpop, Stack.back());
-      break;
     case OpCode::I64__eqz:
       Stack.back() = Builder.CreateZExt(
           Builder.CreateICmpEQ(Stack.back(), Builder.getInt64(0)),
           Builder.getInt32Ty());
       break;
+    case OpCode::I32__clz:
     case OpCode::I64__clz:
       Stack.back() = Builder.CreateBinaryIntrinsic(
           llvm::Intrinsic::ctlz, Stack.back(), Builder.getFalse());
       break;
+    case OpCode::I32__ctz:
     case OpCode::I64__ctz:
       Stack.back() = Builder.CreateBinaryIntrinsic(
           llvm::Intrinsic::cttz, Stack.back(), Builder.getFalse());
       break;
+    case OpCode::I32__popcnt:
     case OpCode::I64__popcnt:
       Stack.back() =
           Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ctpop, Stack.back());
       break;
     case OpCode::F32__abs:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::fabs, Stack.back());
-      break;
-    case OpCode::F32__neg:
-      Stack.back() = Builder.CreateFNeg(Stack.back());
-      break;
-    case OpCode::F32__ceil:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ceil, Stack.back());
-      break;
-    case OpCode::F32__floor:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::floor, Stack.back());
-      break;
-    case OpCode::F32__trunc:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Stack.back());
-      break;
-    case OpCode::F32__nearest:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::rint, Stack.back());
-      break;
-    case OpCode::F32__sqrt:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::sqrt, Stack.back());
-      break;
     case OpCode::F64__abs:
       Stack.back() =
           Builder.CreateUnaryIntrinsic(llvm::Intrinsic::fabs, Stack.back());
       break;
+    case OpCode::F32__neg:
     case OpCode::F64__neg:
       Stack.back() = Builder.CreateFNeg(Stack.back());
       break;
+    case OpCode::F32__ceil:
     case OpCode::F64__ceil:
       Stack.back() =
           Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ceil, Stack.back());
       break;
+    case OpCode::F32__floor:
     case OpCode::F64__floor:
       Stack.back() =
           Builder.CreateUnaryIntrinsic(llvm::Intrinsic::floor, Stack.back());
       break;
+    case OpCode::F32__trunc:
     case OpCode::F64__trunc:
       Stack.back() =
           Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Stack.back());
       break;
-    case OpCode::F64__nearest:
+    case OpCode::F32__nearest:
+    case OpCode::F64__nearest: {
+      const bool IsFloat = Instr.getOpCode() == OpCode::F32__nearest;
+      const uint32_t VectorSize = IsFloat ? 4 : 2;
+      llvm::Value *Value = Stack.back();
+
+#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||            \
+    defined(_M_X64)
+
+      if (Context.SupportRoundeven) {
+        llvm::Value *Ret = llvm::UndefValue::get(
+            llvm::VectorType::get(Value->getType(), VectorSize));
+        Ret = Builder.CreateInsertElement(Ret, Value, UINT64_C(0));
+        if (IsFloat) {
+          Ret = Builder.CreateIntrinsic(llvm::Intrinsic::x86_sse41_round_ss, {},
+                                        {Ret, Ret, Builder.getInt32(8)});
+        } else {
+          Ret = Builder.CreateIntrinsic(llvm::Intrinsic::x86_sse41_round_sd, {},
+                                        {Ret, Ret, Builder.getInt32(8)});
+        }
+        Ret = Builder.CreateExtractElement(Ret, UINT64_C(0));
+        Stack.back() = Ret;
+        break;
+      }
+#endif
+
+#if defined(__arm__) || defined(__aarch64__)
+      if (Context.SupportRoundeven) {
+        llvm::Value *Ret = llvm::UndefValue::get(
+            llvm::VectorType::get(Value->getType(), VectorSize));
+        Ret = Builder.CreateInsertElement(Ret, Value, UINT64_C(0));
+        Ret = Builder.CreateBinaryIntrinsic(
+            llvm::Intrinsic::aarch64_neon_frintn, Ret, Ret);
+        Ret = Builder.CreateExtractElement(Ret, UINT64_C(0));
+        Stack.back() = Ret;
+        break;
+      }
+#endif
+
       Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::rint, Stack.back());
+          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, Value);
       break;
+    }
+    case OpCode::F32__sqrt:
     case OpCode::F64__sqrt:
       Stack.back() =
           Builder.CreateUnaryIntrinsic(llvm::Intrinsic::sqrt, Stack.back());
@@ -873,9 +927,44 @@ public:
       Stack.back() = Builder.CreateUDiv(Stack.back(), RHS);
       break;
     case OpCode::I32__rem_s:
-    case OpCode::I64__rem_s:
-      Stack.back() = Builder.CreateSRem(Stack.back(), RHS);
+    case OpCode::I64__rem_s: {
+      // handle INT32_MIN % -1
+      llvm::ConstantInt *IntZero = Instr.getOpCode() == OpCode::I32__rem_s
+                                       ? Builder.getInt32(0)
+                                       : Builder.getInt64(0);
+      llvm::ConstantInt *IntMinusOne = Instr.getOpCode() == OpCode::I32__rem_s
+                                           ? Builder.getInt32(int32_t(-1))
+                                           : Builder.getInt64(int64_t(-1));
+      llvm::ConstantInt *IntMin =
+          Instr.getOpCode() == OpCode::I32__rem_s
+              ? Builder.getInt32(std::numeric_limits<int32_t>::min())
+              : Builder.getInt64(std::numeric_limits<int64_t>::min());
+
+      llvm::BasicBlock *CurrentBB = Builder.GetInsertBlock();
+      llvm::BasicBlock *NoOverflowBB =
+          llvm::BasicBlock::Create(VMContext, "no.overflow", F);
+      llvm::BasicBlock *EndBB =
+          llvm::BasicBlock::Create(VMContext, "end.overflow", F);
+
+      llvm::Value *LHS = Stack.back();
+      llvm::Value *NotOverflow =
+          Builder.CreateOr(Builder.CreateICmpNE(LHS, IntMin),
+                           Builder.CreateICmpNE(RHS, IntMinusOne));
+
+      Builder.CreateCondBr(NotOverflow, NoOverflowBB, EndBB, Context.Likely);
+
+      Builder.SetInsertPoint(NoOverflowBB);
+      llvm::Value *Ret1 = Builder.CreateSRem(LHS, RHS);
+      Builder.CreateBr(EndBB);
+
+      Builder.SetInsertPoint(EndBB);
+      llvm::PHINode *Ret = Builder.CreatePHI(Ret1->getType(), 2);
+      Ret->addIncoming(Ret1, NoOverflowBB);
+      Ret->addIncoming(IntZero, CurrentBB);
+
+      Stack.back() = Ret;
       break;
+    }
     case OpCode::I32__rem_u:
     case OpCode::I64__rem_u:
       Stack.back() = Builder.CreateURem(Stack.back(), RHS);
@@ -942,25 +1031,62 @@ public:
       Stack.back() = Builder.CreateFDiv(Stack.back(), RHS);
       break;
     case OpCode::F32__min:
-      Stack.back() = Builder.CreateBinaryIntrinsic(
-          llvm::Intrinsic::experimental_constrained_minnum, Stack.back(), RHS);
-      break;
+    case OpCode::F64__min: {
+      llvm::Value *LHS = Stack.back();
+      llvm::Type *FpTy = Instr.getOpCode() == OpCode::F32__min
+                             ? Builder.getFloatTy()
+                             : Builder.getDoubleTy();
+      llvm::Type *IntTy = Instr.getOpCode() == OpCode::F32__min
+                              ? Builder.getInt32Ty()
+                              : Builder.getInt64Ty();
+
+      llvm::Value *UEQ = Builder.CreateFCmpUEQ(LHS, RHS);
+      llvm::Value *UNO = Builder.CreateFCmpUNO(LHS, RHS);
+
+      llvm::Value *LHSInt = Builder.CreateBitCast(LHS, IntTy);
+      llvm::Value *RHSInt = Builder.CreateBitCast(RHS, IntTy);
+      llvm::Value *OrInt = Builder.CreateOr(LHSInt, RHSInt);
+      llvm::Value *OrFp = Builder.CreateBitCast(OrInt, FpTy);
+
+      llvm::Value *AddFp = Builder.CreateFAdd(LHS, RHS);
+
+      llvm::CallInst *MinFp =
+          Builder.CreateBinaryIntrinsic(llvm::Intrinsic::minnum, LHS, RHS);
+      MinFp->setHasNoNaNs(true);
+
+      llvm::Value *Ret = Builder.CreateSelect(
+          UEQ, Builder.CreateSelect(UNO, AddFp, OrFp), MinFp);
+      Stack.back() = Ret;
+    } break;
     case OpCode::F32__max:
-      Stack.back() = Builder.CreateBinaryIntrinsic(
-          llvm::Intrinsic::experimental_constrained_maxnum, Stack.back(), RHS);
-      break;
+    case OpCode::F64__max: {
+      llvm::Value *LHS = Stack.back();
+      llvm::Type *FpTy = Instr.getOpCode() == OpCode::F32__max
+                             ? Builder.getFloatTy()
+                             : Builder.getDoubleTy();
+      llvm::Type *IntTy = Instr.getOpCode() == OpCode::F32__max
+                              ? Builder.getInt32Ty()
+                              : Builder.getInt64Ty();
+
+      llvm::Value *UEQ = Builder.CreateFCmpUEQ(LHS, RHS);
+      llvm::Value *UNO = Builder.CreateFCmpUNO(LHS, RHS);
+
+      llvm::Value *LHSInt = Builder.CreateBitCast(LHS, IntTy);
+      llvm::Value *RHSInt = Builder.CreateBitCast(RHS, IntTy);
+      llvm::Value *AndInt = Builder.CreateAnd(LHSInt, RHSInt);
+      llvm::Value *AndFp = Builder.CreateBitCast(AndInt, FpTy);
+
+      llvm::Value *AddFp = Builder.CreateFAdd(LHS, RHS);
+
+      llvm::CallInst *MaxFp =
+          Builder.CreateBinaryIntrinsic(llvm::Intrinsic::maxnum, LHS, RHS);
+      MaxFp->setHasNoNaNs(true);
+
+      llvm::Value *Ret = Builder.CreateSelect(
+          UEQ, Builder.CreateSelect(UNO, AddFp, AndFp), MaxFp);
+      Stack.back() = Ret;
+    } break;
     case OpCode::F32__copysign:
-      Stack.back() = Builder.CreateBinaryIntrinsic(llvm::Intrinsic::copysign,
-                                                   Stack.back(), RHS);
-      break;
-    case OpCode::F64__min:
-      Stack.back() = Builder.CreateBinaryIntrinsic(
-          llvm::Intrinsic::experimental_constrained_minnum, Stack.back(), RHS);
-      break;
-    case OpCode::F64__max:
-      Stack.back() = Builder.CreateBinaryIntrinsic(
-          llvm::Intrinsic::experimental_constrained_maxnum, Stack.back(), RHS);
-      break;
     case OpCode::F64__copysign:
       Stack.back() = Builder.CreateBinaryIntrinsic(llvm::Intrinsic::copysign,
                                                    Stack.back(), RHS);
@@ -1190,8 +1316,7 @@ private:
     } else if (Incomings.size() == 1) {
       Node = std::get<0>(Incomings.front());
     } else {
-      llvm::PHINode *PHIRet = llvm::PHINode::Create(Ty, Incomings.size(), "",
-                                                    Builder.GetInsertBlock());
+      llvm::PHINode *PHIRet = Builder.CreatePHI(Ty, Incomings.size());
       for (auto &[Value, BB] : Incomings) {
         PHIRet->addIncoming(Value, BB);
       }
@@ -1398,9 +1523,15 @@ Expect<void> Compiler::compile(const Bytes &Data, const AST::Module &Module,
                  Context->MemSize->getType()->getPointerElementType()},
                 false),
             llvm::GlobalValue::ExternalLinkage, "ctor", LLModule.get());
+        Ctor->addFnAttr(llvm::Attribute::StrictFP);
 
         llvm::IRBuilder<> Builder(
             llvm::BasicBlock::Create(Context->Context, "entry", Ctor));
+        Builder.setIsFPConstrained(true);
+        Builder.setDefaultConstrainedRounding(
+            llvm::ConstrainedFPIntrinsic::RoundingMode::rmToNearest);
+        Builder.setDefaultConstrainedExcept(
+            llvm::ConstrainedFPIntrinsic::ExceptionBehavior::ebIgnore);
         Builder.CreateStore(Ctor->arg_begin(), Context->Trap);
         Builder.CreateStore(Ctor->arg_begin() + 1, Context->Call);
         Builder.CreateStore(Ctor->arg_begin() + 2, Context->MemGrow);
@@ -1425,7 +1556,13 @@ Expect<void> Compiler::compile(const Bytes &Data, const AST::Module &Module,
                                    Builder.getInt32(Data.size()), "wasm.size");
         }
 
-        // LLModule->print(llvm::errs(), nullptr);
+        {
+          int Fd;
+          llvm::sys::fs::openFileForWrite("wasm.ll", Fd);
+          llvm::raw_fd_ostream OS(Fd, true);
+          LLModule->print(OS, nullptr);
+        }
+
         llvm::verifyModule(*LLModule, &llvm::errs());
 
         // tempfile
@@ -1456,22 +1593,13 @@ Expect<void> Compiler::compile(const Bytes &Data, const AST::Module &Module,
             return {};
           }
 
-          llvm::SubtargetFeatures SubtargetFeatures;
-          {
-            llvm::StringMap<bool> FeatureMap;
-            llvm::sys::getHostCPUFeatures(FeatureMap);
-            for (auto &Feature : FeatureMap) {
-              SubtargetFeatures.AddFeature(Feature.first(), Feature.second);
-            }
-          }
-
           llvm::TargetOptions Options;
           llvm::Reloc::Model RM = llvm::Reloc::PIC_;
           std::unique_ptr<llvm::TargetMachine> TM(
               TheTarget->createTargetMachine(
                   Triple, llvm::sys::getHostCPUName(),
-                  SubtargetFeatures.getString(), Options, RM, llvm::None,
-                  llvm::CodeGenOpt::Level::Aggressive));
+                  Context->SubtargetFeatures.getString(), Options, RM,
+                  llvm::None, llvm::CodeGenOpt::Level::Aggressive));
           LLModule->setDataLayout(TM->createDataLayout());
 
 #if LLVM_VERSION_MAJOR >= 9
@@ -1527,7 +1655,12 @@ Expect<void> Compiler::compile(const Bytes &Data, const AST::Module &Module,
           }
 
           MPM.run(*LLModule, MAM);
-          // LLModule->print(llvm::errs(), nullptr);
+          {
+            int Fd;
+            llvm::sys::fs::openFileForWrite("wasm-opt.ll", Fd);
+            llvm::raw_fd_ostream OS(Fd, true);
+            LLModule->print(OS, nullptr);
+          }
           CodeGenPasses.run(*LLModule);
         }
 
@@ -1583,12 +1716,18 @@ Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
       llvm::FunctionType *FTy = toLLVMType(VMContext, FuncType);
       llvm::Function *F = llvm::Function::Create(
           FTy, llvm::GlobalValue::InternalLinkage, FullName, Context->Module);
+      F->addFnAttr(llvm::Attribute::StrictFP);
       llvm::Type *Ty = FTy->getReturnType();
 
       llvm::Argument *Ctx = F->arg_begin();
 
       llvm::BasicBlock *Entry = llvm::BasicBlock::Create(VMContext, "entry", F);
       llvm::IRBuilder<> Builder(Entry);
+      Builder.setIsFPConstrained(true);
+      Builder.setDefaultConstrainedRounding(
+          llvm::ConstrainedFPIntrinsic::RoundingMode::rmToNearest);
+      Builder.setDefaultConstrainedExcept(
+          llvm::ConstrainedFPIntrinsic::ExceptionBehavior::ebIgnore);
 
       llvm::Value *Args;
       if (FTy->getNumParams() == 1) {
@@ -1678,11 +1817,17 @@ Expect<void> Compiler::compile(const AST::ExportSection &ExportSec) {
                                   false),
           llvm::GlobalValue::ExternalLinkage, "$" + ExpDesc->getExternalName(),
           Context->Module);
+      Wrapper->addFnAttr(llvm::Attribute::StrictFP);
       llvm::Argument *Ctx = Wrapper->arg_begin();
       llvm::Argument *RawArgs = Ctx + 1;
       llvm::Argument *RawRets = RawArgs + 1;
       llvm::IRBuilder<> Builder(
           llvm::BasicBlock::Create(Ctx->getContext(), "entry", Wrapper));
+      Builder.setIsFPConstrained(true);
+      Builder.setDefaultConstrainedRounding(
+          llvm::ConstrainedFPIntrinsic::RoundingMode::rmToNearest);
+      Builder.setDefaultConstrainedExcept(
+          llvm::ConstrainedFPIntrinsic::ExceptionBehavior::ebIgnore);
       llvm::Function *F =
           std::get<1>(Context->Functions[ExpDesc->getExternalIndex()]);
       llvm::Type *Ty = F->getReturnType();
@@ -1796,6 +1941,11 @@ Expect<void> Compiler::compile(const AST::MemorySection &MemorySection,
 
   llvm::IRBuilder<> Builder(
       llvm::BasicBlock::Create(Context->Context, "entry", Ctor));
+  Builder.setIsFPConstrained(true);
+  Builder.setDefaultConstrainedRounding(
+      llvm::ConstrainedFPIntrinsic::RoundingMode::rmToNearest);
+  Builder.setDefaultConstrainedExcept(
+      llvm::ConstrainedFPIntrinsic::ExceptionBehavior::ebIgnore);
   llvm::Constant *Content = llvm::ConstantDataArray::getString(
       VMContext, llvm::StringRef(ResultData.data(), ResultData.size()), false);
   llvm::GlobalVariable *GV =
@@ -1845,6 +1995,7 @@ Expect<void> Compiler::compile(const AST::FunctionSection &FuncSec,
     llvm::Function *F = llvm::Function::Create(
         FTy, llvm::GlobalValue::InternalLinkage,
         "f" + std::to_string(Context->Functions.size()), Context->Module);
+    F->addFnAttr(llvm::Attribute::StrictFP);
 
     Context->Functions.emplace_back(TypeIdx, F, Code.get());
   }

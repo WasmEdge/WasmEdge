@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/value.h"
 #include "interpreter/interpreter.h"
-
+#include "support/roundeven.h"
 #include <cmath>
 
 namespace SSVM {
@@ -85,7 +85,7 @@ template <typename T> TypeF<T> Interpreter::runTruncOp(ValVariant &Val) const {
 
 template <typename T>
 TypeF<T> Interpreter::runNearestOp(ValVariant &Val) const {
-  Val = std::nearbyint(retrieveValue<T>(Val));
+  Val = SSVM::roundeven(T(retrieveValue<T>(Val)));
   return {};
 }
 

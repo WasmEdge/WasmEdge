@@ -42,9 +42,12 @@ void Interpreter::call(const uint32_t FuncIndex, const ValVariant *Args,
   for (unsigned I = 0; I < ParamsSize; ++I) {
     StackMgr.push(Args[I]);
   }
-  enterFunction(*CurrentStore, *FuncInst);
+  auto Res = enterFunction(*CurrentStore, *FuncInst);
   for (unsigned I = 0; I < ReturnsSize; ++I) {
     Rets[ReturnsSize - 1 - I] = StackMgr.pop();
+  }
+  if (!Res) {
+    std::longjmp(TrapJump, int(Res.error()));
   }
 }
 
@@ -95,10 +98,9 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
 
   /// Enter and execute function.
   auto Res = enterFunction(StoreMgr, Func);
-  if (!Res) {
-    return Unexpect(Res);
+  if (Res) {
+    Res = execute(StoreMgr);
   }
-  Res = execute(StoreMgr);
 
   if (Res) {
     LOG(DEBUG) << "Execution succeeded.";

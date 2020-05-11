@@ -15,6 +15,7 @@
 #include "common/errcode.h"
 #include "common/value.h"
 #include "support/casting.h"
+#include "support/span.h"
 
 #include <algorithm>
 #include <cstring>
@@ -82,7 +83,7 @@ public:
   }
 
   /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Legnth - 1]
-  Expect<void> setBytes(const Bytes &Slice, const uint32_t Offset,
+  Expect<void> setBytes(Span<const Byte> Slice, const uint32_t Offset,
                         const uint32_t Start, const uint32_t Length) {
     /// Check memory boundary.
     if (!checkDataSize(Offset, Length)) {

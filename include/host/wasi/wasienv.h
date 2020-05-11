@@ -4,9 +4,10 @@
 #include "wasi/core.h"
 
 #include <fcntl.h>
+#include <string>
+#include <string_view>
 #include <unistd.h>
 #include <vector>
-#include <string>
 
 namespace SSVM {
 namespace Host {
@@ -14,11 +15,19 @@ namespace Host {
 class WasiEnvironment {
 public:
   struct PreStat {
-    int32_t Fd;
-    uint8_t Type;
-    std::vector<unsigned char> Path;
-    PreStat(int32_t F, uint8_t T, std::vector<unsigned char> P)
-        : Fd(F), Type(T), Path(std::move(P)) {}
+    __wasi_fd_t Fd;
+    __wasi_rights_t Rights;
+    __wasi_rights_t InheritingRights;
+    std::string Path;
+    PreStat(__wasi_fd_t F, __wasi_rights_t R, __wasi_rights_t IR,
+            std::string_view P)
+        : Fd(F), Rights(R), InheritingRights(IR), Path(P) {}
+    bool checkRights(__wasi_rights_t RequiredRights,
+                     __wasi_rights_t RequiredInheritingRights = 0) const {
+      return (Rights & RequiredRights) == RequiredRights &&
+             (InheritingRights & RequiredInheritingRights) ==
+                 RequiredInheritingRights;
+    }
   };
 
   WasiEnvironment();

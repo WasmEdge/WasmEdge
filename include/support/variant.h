@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "span.h"
+
 #include <cstddef>
 #include <cstring>
 #include <type_traits>

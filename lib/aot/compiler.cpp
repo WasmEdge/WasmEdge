@@ -1668,7 +1668,11 @@ Expect<void> Compiler::compile(const Bytes &Data, const AST::Module &Module,
         const char *Args[] = {
             "lld", "--shared",  "--gc-sections", Object->TmpName.c_str(),
             "-o",  Path.c_str()};
+#ifdef __APPLE__
+        lld::mach_o::link(Args, false, llvm::errs());
+#else
         lld::elf::link(Args, false, llvm::errs());
+#endif
 
         llvm::consumeError(Object->discard());
         return {};

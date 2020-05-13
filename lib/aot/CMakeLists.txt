@@ -5,14 +5,28 @@ find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}")
 list(APPEND CMAKE_MODULE_PATH ${LLVM_DIR})
 include(AddLLVM)
 
-find_library(LLD_ELF lldELF PATHS "${LLVM_LIBRARY_DIR}")
+find_library(LLVM_OPTION LLVMOption PATHS "${LLVM_LIBRARY_DIR}")
 find_library(LLD_COMMON lldCommon PATHS "${LLVM_LIBRARY_DIR}")
+find_library(LLD_CORE lldCore PATHS "${LLVM_LIBRARY_DIR}")
+find_library(LLD_DRIVER lldDriver PATHS "${LLVM_LIBRARY_DIR}")
+find_library(LLD_READERWRITER lldReaderWriter PATHS "${LLVM_LIBRARY_DIR}")
+find_library(LLD_YAML lldYAML PATHS "${LLVM_LIBRARY_DIR}")
+if(APPLE)
+  find_library(LLD_SYSTEM lldMachO PATHS "${LLVM_LIBRARY_DIR}")
+else()
+  find_library(LLD_SYSTEM lldELF PATHS "${LLVM_LIBRARY_DIR}")
+endif()
 
 add_llvm_library(ssvmAOT
   compiler.cpp
   LINK_LIBS
-  ${LLD_ELF}
+  ${LLVM_OPTION}
+  ${LLD_SYSTEM}
   ${LLD_COMMON}
+  ${LLD_CORE}
+  ${LLD_DRIVER}
+  ${LLD_READERWRITER}
+  ${LLD_YAML}
   ${CMAKE_THREAD_LIBS_INIT}
   LINK_COMPONENTS
   core

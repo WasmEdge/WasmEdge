@@ -10,6 +10,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 find_package(Boost REQUIRED)
+find_package(Filesystem REQUIRED Experimental)
 find_package(ONNC-wasm)
 
 if(ONNC_WASM_LIBRARY)

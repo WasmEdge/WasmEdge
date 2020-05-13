@@ -32,3 +32,7 @@ target_include_directories(ssvmAOT
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
 )
+target_link_libraries(ssvmAOT
+  PRIVATE
+  std::filesystem
+)

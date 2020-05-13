@@ -7,6 +7,7 @@ target_link_libraries(ssvmc
   PRIVATE
   ssvmLoader
   ssvmAOT
+  std::filesystem
 )
 
 add_executable(ssvmr
@@ -16,4 +17,5 @@ add_executable(ssvmr
 target_link_libraries(ssvmr
   PRIVATE
   ssvmExpVM
+  std::filesystem
 )

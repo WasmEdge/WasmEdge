@@ -3,6 +3,8 @@
 #include "runtime/instance/memory.h"
 
 #include <fcntl.h>
+#include <limits>
+#include <random>
 #include <string_view>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -775,6 +777,24 @@ Expect<void> WasiProcExit::body(Runtime::Instance::MemoryInstance &MemInst,
                                 int32_t Status) {
   Env.setStatus(Status);
   return Unexpect(ErrCode::Terminated);
+}
+
+Expect<void> WasiRandomGet::body(Runtime::Instance::MemoryInstance &MemInst,
+                                 uint32_t BufPtr, uint32_t BufLen) {
+  /// Use uniform distribution to generate random bytes array
+  std::vector<uint8_t> RandomBytes(BufLen);
+  std::random_device RandomDevice;
+  std::mt19937 Generator(RandomDevice());
+  std::uniform_int_distribution<> Distribution(
+      std::numeric_limits<uint8_t>::min(), std::numeric_limits<uint8_t>::max());
+  std::generate(
+      RandomBytes.begin(), RandomBytes.end(),
+      [&Generator, &Distribution] { return Distribution(Generator); });
+  /// Store random bytes array into buffer pointer
+  if (auto Res = MemInst.setBytes(RandomBytes, BufPtr, 0, BufLen); !Res) {
+    return Unexpect(Res);
+  }
+  return {};
 }
 
 } // namespace Host

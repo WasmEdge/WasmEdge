@@ -29,6 +29,7 @@ WasiModule::WasiModule() : ImportObject("wasi_snapshot_preview1") {
   addHostFunc("fd_write", std::make_unique<WasiFdWrite>(Env));
   addHostFunc("path_open", std::make_unique<WasiPathOpen>(Env));
   addHostFunc("proc_exit", std::make_unique<WasiProcExit>(Env));
+  addHostFunc("random_get", std::make_unique<WasiRandomGet>(Env));
 }
 
 } // namespace Host

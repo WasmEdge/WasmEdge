@@ -173,5 +173,13 @@ public:
   Expect<void> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Status);
 };
 
+class WasiRandomGet : public Wasi<WasiRandomGet> {
+public:
+  WasiRandomGet(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<void> body(Runtime::Instance::MemoryInstance &MemInst, uint32_t BufPtr,
+                    uint32_t BufLen);
+};
+
 } // namespace Host
 } // namespace SSVM

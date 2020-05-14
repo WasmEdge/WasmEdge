@@ -1812,7 +1812,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
                                    "wasm.size");
         }
 
-        {
+        if (DumpIR) {
           int Fd;
           llvm::sys::fs::openFileForWrite("wasm.ll", Fd);
           llvm::raw_fd_ostream OS(Fd, true);
@@ -1938,7 +1938,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
             }
           }
 
-          {
+          if (DumpIR) {
             int Fd;
             llvm::sys::fs::openFileForWrite("wasm-opt.ll", Fd);
             llvm::raw_fd_ostream OS(Fd, true);

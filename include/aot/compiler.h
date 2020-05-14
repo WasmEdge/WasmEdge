@@ -20,6 +20,7 @@
 namespace SSVM {
 namespace AOT {
 
+/// Compiling Module into loadable executable binary.
 class Compiler {
 public:
   Expect<void> compile(Span<const Byte> Data, const AST::Module &Module,
@@ -37,8 +38,12 @@ public:
 
   struct CompileContext;
 
+  /// Setter of module name.
+  void setDumpIR(bool Value = true) { DumpIR = Value; }
+
 private:
   CompileContext *Context = nullptr;
+  bool DumpIR = false;
 };
 
 } // namespace AOT

@@ -43,8 +43,6 @@ stages:
     - ./ssvmLoaderWagonTests
     - cd ../ast
     - ./ssvmASTTests
-    - cd ../evmc
-    - ./ssvmEVMCTests
     - cd ../expected
     - ./expectedTests
     - cd ../span

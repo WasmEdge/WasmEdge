@@ -46,7 +46,6 @@ SSVM provides various tools to enabling different runtime environment for optima
 After the build is finished, you can find there are several ssvm related tools:
 
 1. `ssvm` is for general wasm runtime. Interpreter mode.
-2. `ssvm-evmc` is an Ewasm runtime which is compatible with EVMC.
 3. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
 4. `ssvm-aot` is for general wasm runtime. AOT compilation mode.
 
@@ -75,17 +74,11 @@ $ ./ssvmLoaderFileMgrTests
 $ ./ssvmLoaderWagonTests
 $ cd ../ast
 $ ./ssvmASTLoadTests
-$ cd ../evmc
-$ ./ssvmEVMCTests
 $ cd ../expected
 $ ./expectedTests
+$ cd ../span
+$ ./spanTests
 ```
-
-## ssvm-evmc (SSVM with Ewasm runtime with EVMC integration)
-
-SSVM-EVMC is a Ewasm runtime which is compatible with [EVMC](https://github.com/ethereum/evmc).
-Please notice that SSVM-EVMC is not a standalone tool but a shared library which can initialize and execute by EVMC interface.
-The built library will be placed at `<your/build/folder>/tools/ssvm-evmc/libssvmEVMC.so` on Linux or `<your/build/folder>/tools/ssvm-evmc/libssvmEVMC.dylib` on MacOS.
 
 ## Run ssvm (SSVM with general wasm runtime)
 

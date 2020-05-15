@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/vm.h"
-#include "host/ethereum/eeimodule.h"
 #include "host/wasi/wasimodule.h"
 
 #ifdef ONNC_WASM
@@ -34,16 +33,6 @@ void VM::initVM() {
     ImpObjs.insert({Configure::VMType::Wasi, std::move(WasiMod)});
     CostTab.setCostTable(Configure::VMType::Wasi);
     Measure.setCostTable(CostTab.getCostTable(Configure::VMType::Wasi));
-  }
-  if (Config.hasVMType(Configure::VMType::Ewasm)) {
-    /// 1st priority of cost table: EWasm
-    std::unique_ptr<Runtime::ImportObject> EEIMod =
-        std::make_unique<Host::EEIModule>(Measure.getCostLimit(),
-                                          Measure.getCostSum());
-    InterpreterEngine.registerModule(StoreRef, *EEIMod.get());
-    ImpObjs.insert({Configure::VMType::Ewasm, std::move(EEIMod)});
-    CostTab.setCostTable(Configure::VMType::Ewasm);
-    Measure.setCostTable(CostTab.getCostTable(Configure::VMType::Ewasm));
   }
 #ifdef ONNC_WASM
   if (Config.hasVMType(Configure::VMType::ONNC)) {

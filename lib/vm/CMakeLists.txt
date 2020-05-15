@@ -11,7 +11,6 @@ target_link_libraries(ssvmVM
   ssvmLoader
   ssvmValidator
   ssvmInterpreter
-  ssvmHostModuleEEI
   ssvmHostModuleWasi
   ssvmAOT
 )

@@ -30,10 +30,6 @@ public:
       /// Wasm cost table
       Costs[Type] = std::vector<uint64_t>(256, 1);
       return true;
-    case Configure::VMType::Ewasm:
-      /// Ewasm cost table
-      Costs[Type] = std::vector<uint64_t>(256, 0);
-      return true;
     case Configure::VMType::Wasi:
       /// Wasi cost table
       Costs[Type] = std::vector<uint64_t>(256, 1);

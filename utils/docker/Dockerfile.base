@@ -3,8 +3,21 @@ FROM ubuntu:18.04
 MAINTAINER hydai hydai@secondstate.io
 
 RUN apt update && apt install -y \
+	apt-transport-https \
+	ca-certificates \
+	gnupg \
+	software-properties-common \
+	wget
+
+RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
+	gpg --dearmor - | \
+	tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+
+RUN apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main' -y
+RUN apt update && apt install -y \
 	cmake \
 	curl \
+	git \
 	libboost-all-dev
 
 RUN curl -sL https://deb.nodesource.com/setup_12.x | bash \

@@ -132,6 +132,12 @@ $ ./ssvm examples/factorial.wasm fac 5
 
 # Related tools
 
+## SSVM-EVMC
+
+[SSVM-EVMC](https://github.com/second-state/ssvm-napi) provides support for Ewasm runtime which is compatible with [EVMC](https://github.com/ethereum/evmc).
+
+This project provides a shared library that can initialize and execute by the EVMC interface.
+
 ## SSVM nodejs addon
 
 [SSVM-napi](https://github.com/second-state/SSVM-napi) provides support for accessing SSVM as a Node.js addon.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 ///
-// expected - An c++17 implementation of std::span
+// span - An c++20 implementation of std::span
 // Written in 2020 by Shen-Ta Hsieh (ibmibmibm.tw@gmail.com, @ibmibmibm)
 //
 // To the extent possible under law, the author(s) have dedicated all

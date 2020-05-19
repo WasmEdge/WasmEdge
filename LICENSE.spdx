@@ -19,14 +19,6 @@ PackageOriginator: Organization: Second State LCC (contact@secondstate.io)
 PackageLicenseDeclared: (Apache-2.0)
 FilesAnalyzed: false
 
-PackageName: SHA3
-SPDXID: SPDXRef-SHA3
-PackageFileName: ./thirdparty/keccak
-PackageOriginator: Daniel Horne
-PackageHomePage: https://github.com/DuSTman31/SHA-3
-PackageLicenseDeclared: (BSD-3-Clause)
-FilesAnalyzed: false
-
 PackageName: ONNC
 SPDXID: SPDXRef-ONNC
 PackageFileName: ./thirdparty/onnc
@@ -68,7 +60,6 @@ PackageLicenseDeclared: MIT
 FilesAnalyzed: false
 
 ## Relationships
-Relationship: SPDXRef-ssvm CONTAINS SPDXRef-SHA3
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-ONNC
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-googletest
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-wagon

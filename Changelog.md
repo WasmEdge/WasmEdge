@@ -1,3 +1,74 @@
+### 0.6.0 (2020-05-20)
+
+Features:
+
+* Wasm AST
+  * Add support of multiple partition of sections in wasm module.
+* AOT
+  * // TODO
+
+Refactor:
+
+* Internal tuple span mechanism
+  * Apply C++20 `span` features in host functions.
+* Internal error handling mechanism
+  * Apply non-exception version of `expected`.
+* Refine cmake files
+  * Update file copying macro in `CMakeFile` to support resursively copying.
+  * Refine include paths and dependencies in every static libraries.
+  * Modularize static libraries to be included as submodules easier.
+* Interpreter
+  * Use function address in `Store` for invoking instead of exported function name.
+  * Support invokation of a host function.
+* Host functions
+  * Return `Expect` instead of `ErrCode` in host functions.
+  * Return function return values in `Expect` class rather than in function parameter.
+* AOT
+  * // TODO
+* New VM APIs
+  * Add routine to invoke a function of registered and named module in `Store`.
+  * Removed old `executor` and use `interpreter` instead.
+  * Renamed `ExpVM` to `VM` and removed the old one.
+  * Apply new `VM` to all tools.
+
+Tools:
+
+* SSVM-AOT
+  * // TODO
+
+Fixed Issues:
+
+* Loader
+  * Add checking Wasm header and version when loading.
+* Validation
+  * Fix `export section` checking to support `""` function name.
+  * Fix type transforming when function invokation and returning.
+* Runtime Data Structure
+  * Fix wrong table resizing when initialization in `table instance`.
+* Interpreter
+  * Instantiation
+    * Fix instantiation steps of `data` and `element sections`.
+    * Check `memory` and `table instances` boundary according to Wasm spec.
+    * Not to replace data in `memory` and `table instances` until all checkings were done.
+  * Engine
+    * Fix wrong arity assignment in `loop` instruction.
+    * Fix wrong answer issue in `trunc` and `clz` instructions.
+    * Fix logic of `div` instruction in both integer and floating point inputs.
+    * Fix wrong handling of `NaN` inputs in `min` and `max` instructions.
+    * Add dummy frame before function invokation according to Wasm spec.
+    * Add memory boundary checking when loading value in `memory` instructions.
+
+Tests:
+
+* Remove `ssvm-evmc` tests.
+* (Experimental) Add unit tests for C++ `span` feature.
+
+Deprecated:
+
+* SSVM-Proxy is removed.
+* SSVM-EVMC is removed.
+  * [SSVM-EVMC](https://github.com/second-state/ssvm-evmc) is separated from this project as an independent repository.
+
 ### 0.5.1 (2020-04-09)
 
 SSVM 0.5.1 is a bug-fix release from 0.5.0.

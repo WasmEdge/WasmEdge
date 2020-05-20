@@ -46,8 +46,10 @@ SSVM provides various tools to enabling different runtime environment for optima
 After the build is finished, you can find there are several ssvm related tools:
 
 1. `ssvm` is for general wasm runtime. Interpreter mode.
-3. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
-4. `ssvm-aot` is for general wasm runtime. AOT compilation mode.
+2. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
+3. `ssvm-aot` is for general wasm runtime. AOT compilation mode.
+	* `ssvmc` compiles a general wasm runtime to so file.
+	* `ssvmr` execute a general wasm runtime or so file in WASI environment.
 
 ```bash
 # After pulling our ssvm docker image

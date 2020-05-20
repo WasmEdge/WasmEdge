@@ -5,7 +5,13 @@ Features:
 * Wasm AST
   * Add support of multiple partition of sections in wasm module.
 * AOT
-  * // TODO
+  * Add SSVM-AOT tools.
+
+Tools:
+
+* SSVM-AOT
+  * Enable to compile and run separatedly.
+  * Enable to run compiled module and normal module with interpreter.
 
 Refactor:
 
@@ -23,18 +29,14 @@ Refactor:
 * Host functions
   * Return `Expect` instead of `ErrCode` in host functions.
   * Return function return values in `Expect` class rather than in function parameter.
-* AOT
-  * // TODO
 * New VM APIs
   * Add routine to invoke a function of registered and named module in `Store`.
   * Removed old `executor` and use `interpreter` instead.
   * Renamed `ExpVM` to `VM` and removed the old one.
   * Apply new `VM` to all tools.
-
-Tools:
-
-* SSVM-AOT
-  * // TODO
+* AOT
+  * Integrated into new VM API and HostFunctions
+  * Generate minimum machine code for `nearestint` instructions.
 
 Fixed Issues:
 
@@ -54,9 +56,12 @@ Fixed Issues:
     * Fix wrong arity assignment in `loop` instruction.
     * Fix wrong answer issue in `trunc` and `clz` instructions.
     * Fix logic of `div` instruction in both integer and floating point inputs.
-    * Fix wrong handling of `NaN` inputs in `min` and `max` instructions.
+    * Fix wrong handling of `NaN` oprend in `min` and `max` instructions.
     * Add dummy frame before function invokation according to Wasm spec.
     * Add memory boundary checking when loading value in `memory` instructions.
+* AOT
+  * Fix wrong handling of minimum oprend in `mod` instructions.
+  * Fix wrong handling of `NaN` oprend in `min` and `max` instructions.
 
 Tests:
 

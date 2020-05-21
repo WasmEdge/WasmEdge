@@ -75,7 +75,7 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
   /// Check parameter and function type.
   const auto &FuncType = FuncInst->getFuncType();
   if (FuncType.Params.size() != Params.size()) {
-    return Unexpect(ErrCode::TypeNotMatch);
+    return Unexpect(ErrCode::FunctionSignatureMismatch);
   }
 
   /// Call runFunction.

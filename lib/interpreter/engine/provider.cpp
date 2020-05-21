@@ -22,15 +22,5 @@ const AST::Instruction *InstrProvider::getNextInstr() {
   return Instr;
 }
 
-/// Pop last instruction sequence and jump back. See
-/// "include/interpreter/engine/provider.h".
-Expect<void> InstrProvider::popInstrs() {
-  if (Iters.size() == 0) {
-    return Unexpect(ErrCode::WrongInstructionCounter);
-  }
-  Iters.pop_back();
-  return {};
-}
-
 } // namespace Interpreter
 } // namespace SSVM

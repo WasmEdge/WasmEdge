@@ -48,8 +48,9 @@ public:
     Iters.emplace_back(Type, Instrs.cbegin(), Instrs.cend());
   }
 
-  /// Pop instruction sequence.
-  Expect<void> popInstrs();
+  /// Unsafe pop instruction sequence. Should be correct according to
+  /// validation.
+  void popInstrs() { Iters.pop_back(); }
 
   /// Reset instruction provider.
   void reset() { Iters.clear(); }

@@ -26,9 +26,7 @@ uint32_t Interpreter::memSizeProxy(Interpreter *This) {
   return This->memSize();
 }
 
-void Interpreter::trap(uint32_t Status) {
-  std::longjmp(TrapJump, Status);
-}
+void Interpreter::trap(uint32_t Status) { std::longjmp(TrapJump, Status); }
 
 void Interpreter::call(const uint32_t FuncIndex, const ValVariant *Args,
                        ValVariant *Rets) {
@@ -606,9 +604,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr) {
           return Unexpect(Res);
         }
       } else {
-        if (auto Res = InstrPdr.popInstrs(); !Res) {
-          return Unexpect(Res);
-        }
+        InstrPdr.popInstrs();
       }
     } else {
       OpCode Code = Instr->getOpCode();
@@ -657,7 +653,8 @@ Expect<void> Interpreter::enterBlock(const uint32_t Arity,
 Expect<void> Interpreter::leaveBlock() {
   /// Pop label entry and the corresponding instruction sequence.
   StackMgr.popLabel();
-  return InstrPdr.popInstrs();
+  InstrPdr.popInstrs();
+  return {};
 }
 
 Expect<void>

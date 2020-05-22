@@ -545,6 +545,43 @@ WasiFdFdstatSetFlags::body(Runtime::Instance::MemoryInstance &MemInst,
 }
 
 Expect<uint32_t>
+WasiFdFdstatSetRights::body(Runtime::Instance::MemoryInstance &MemInst,
+                            int32_t Fd, uint64_t FsRightsBase,
+                            uint64_t FsRightsInheriting) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t>
+WasiFdFilestatGet::body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t FilestatPtr) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t>
+WasiFdFilestatSetSize::body(Runtime::Instance::MemoryInstance &MemInst,
+                            int32_t Fd, uint64_t FileSize) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t>
+WasiFdFilestatSetTimes::body(Runtime::Instance::MemoryInstance &MemInst,
+                             int32_t Fd, uint32_t ATimPtr, uint32_t MTimPtr,
+                             uint32_t FstFlags) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t> WasiFdPread::body(Runtime::Instance::MemoryInstance &MemInst,
+                                   int32_t Fd, uint32_t IOVSPtr,
+                                   uint32_t Offset, uint32_t NRead) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t>
 WasiFdPrestatDirName::body(Runtime::Instance::MemoryInstance &MemInst,
                            int32_t Fd, uint32_t PathBufPtr, uint32_t PathLen) {
   for (auto &Entry : Env.getPreStats()) {
@@ -593,6 +630,13 @@ WasiFdPrestatGet::body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
   return __WASI_EBADF;
 }
 
+Expect<uint32_t> WasiFdPwrite::body(Runtime::Instance::MemoryInstance &MemInst,
+                                    int32_t Fd, uint32_t IOVSPtr,
+                                    uint32_t Offset, uint32_t NWritten) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
 Expect<uint32_t> WasiFdRead::body(Runtime::Instance::MemoryInstance &MemInst,
                                   int32_t Fd, uint32_t IOVSPtr,
                                   uint32_t IOVSCnt, uint32_t NReadPtr) {
@@ -633,6 +677,21 @@ Expect<uint32_t> WasiFdRead::body(Runtime::Instance::MemoryInstance &MemInst,
   return UINT32_C(0);
 }
 
+Expect<uint32_t> WasiFdReadDir::body(Runtime::Instance::MemoryInstance &MemInst,
+                                     int32_t Fd, uint32_t BufPtr,
+                                     uint32_t BufLen, uint64_t Cookie,
+                                     uint32_t BufUsedSize) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t>
+WasiFdRenumber::body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                     int32_t ToFd) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
 Expect<int32_t> WasiFdSeek::body(Runtime::Instance::MemoryInstance &MemInst,
                                  int32_t Fd, int64_t Offset, uint32_t Whence,
                                  uint32_t NewOffsetPtr) {
@@ -660,6 +719,17 @@ Expect<int32_t> WasiFdSeek::body(Runtime::Instance::MemoryInstance &MemInst,
     return Unexpect(Res);
   }
   return convertErrNo(errno);
+}
+
+Expect<uint32_t> WasiFdSync::body(Runtime::Instance::MemoryInstance &MemInst,
+                                  int32_t Fd) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+Expect<uint32_t> WasiFdTell::body(Runtime::Instance::MemoryInstance &MemInst,
+                                  int32_t Fd, int64_t Offset) {
+  /// TODO: implement
+  return UINT32_C(0);
 }
 
 Expect<uint32_t> WasiFdWrite::body(Runtime::Instance::MemoryInstance &MemInst,
@@ -698,6 +768,36 @@ Expect<uint32_t> WasiFdWrite::body(Runtime::Instance::MemoryInstance &MemInst,
   if (auto Res = MemInst.storeValue(NWritten, NWrittenPtr, 4); !Res) {
     return Unexpect(Res);
   }
+  return UINT32_C(0);
+}
+
+Expect<uint32_t>
+WasiPathCreateDirectory::body(Runtime::Instance::MemoryInstance &MemInst,
+                              int32_t Fd, uint32_t PathPtr) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t>
+WasiPathFilestatGet::body(Runtime::Instance::MemoryInstance &MemInst,
+                          int32_t Fd, uint32_t Flags, uint32_t PathPtr,
+                          uint32_t BufPtr) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t> WasiPathFilestatSetTimes::body(
+    Runtime::Instance::MemoryInstance &MemInst, int32_t Fd, uint32_t Flags,
+    uint32_t PathPtr, uint32_t ATim, uint32_t MTim, uint32_t FstFlags) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t> WasiPathLink::body(Runtime::Instance::MemoryInstance &MemInst,
+                                    int32_t OldFd, uint32_t OldFlags,
+                                    uint32_t OldPathPtr, int32_t NewFd,
+                                    uint32_t NewPathPtr) {
+  /// TODO: implement
   return UINT32_C(0);
 }
 
@@ -773,10 +873,59 @@ Expect<uint32_t> WasiPathOpen::body(Runtime::Instance::MemoryInstance &MemInst,
   return UINT32_C(0);
 }
 
+Expect<uint32_t>
+WasiPathReadLink::body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                       uint32_t PathPtr, uint32_t BufPtr, uint32_t BufLen) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t>
+WasiPathRemoveDirectory::body(Runtime::Instance::MemoryInstance &MemInst,
+                              int32_t Fd, uint32_t PathPtr) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t>
+WasiPathRename::body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                     uint32_t OldPathPtr, int32_t NewFd, uint32_t NewPathPtr) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t>
+WasiPathSymlink::body(Runtime::Instance::MemoryInstance &MemInst,
+                      uint32_t OldPathPtr, int32_t Fd, uint32_t NewPathPtr) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t>
+WasiPathUnlinkFile::body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                         uint32_t PathPtr) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t>
+WasiPollOneoff::body(Runtime::Instance::MemoryInstance &MemInst, uint32_t InPtr,
+                     uint32_t OutPtr, uint32_t NSubscriptions,
+                     uint32_t NEvents) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
 Expect<void> WasiProcExit::body(Runtime::Instance::MemoryInstance &MemInst,
                                 int32_t Status) {
   Env.setStatus(Status);
   return Unexpect(ErrCode::Terminated);
+}
+
+Expect<uint32_t> WasiProcRaise::body(Runtime::Instance::MemoryInstance &MemInst,
+                                     int32_t Signal) {
+  /// TODO: implement
+  return UINT32_C(0);
 }
 
 Expect<void> WasiRandomGet::body(Runtime::Instance::MemoryInstance &MemInst,
@@ -795,6 +944,34 @@ Expect<void> WasiRandomGet::body(Runtime::Instance::MemoryInstance &MemInst,
     return Unexpect(Res);
   }
   return {};
+}
+
+Expect<uint32_t>
+WasiSchedYield::body(Runtime::Instance::MemoryInstance &MemInst) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t> WasiSockRecv::body(Runtime::Instance::MemoryInstance &MemInst,
+                                    int32_t Fd, uint32_t RiDataPtr,
+                                    uint32_t RiFlags, uint32_t RoDataLen,
+                                    uint32_t RoFlags) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t> WasiSockSend::body(Runtime::Instance::MemoryInstance &MemInst,
+                                    int32_t Fd, uint32_t SiDataPtr,
+                                    uint32_t SiFlags, uint32_t SoDataLen) {
+  /// TODO: implement
+  return UINT32_C(0);
+}
+
+Expect<uint32_t>
+WasiSockShutdown::body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                       uint32_t SdFlags) {
+  /// TODO: implement
+  return UINT32_C(0);
 }
 
 } // namespace Host

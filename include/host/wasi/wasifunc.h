@@ -114,12 +114,44 @@ public:
                         uint32_t FsFlags);
 };
 
-class WasiFdPrestatDirName : public Wasi<WasiFdPrestatDirName> {
+class WasiFdFdstatSetRights : public Wasi<WasiFdFdstatSetRights> {
 public:
-  WasiFdPrestatDirName(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+  WasiFdFdstatSetRights(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
-                        uint32_t PathBufPtr, uint32_t PathLen);
+                        uint64_t FsRightsBase, uint64_t FsRightsInheriting);
+};
+
+class WasiFdFilestatGet : public Wasi<WasiFdFdstatGet> {
+public:
+  WasiFdFilestatGet(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t FilestatPtr);
+};
+
+class WasiFdFilestatSetSize : public Wasi<WasiFdFilestatSetSize> {
+public:
+  WasiFdFilestatSetSize(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint64_t FileSize);
+};
+
+class WasiFdFilestatSetTimes : public Wasi<WasiFdFilestatSetTimes> {
+public:
+  WasiFdFilestatSetTimes(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t ATimPtr, uint32_t MTimPtr, uint32_t FstFlags);
+};
+
+class WasiFdPread : public Wasi<WasiFdPread> {
+public:
+  WasiFdPread(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t IOVSPtr, uint32_t Offset, uint32_t NRead);
 };
 
 class WasiFdPrestatGet : public Wasi<WasiFdPrestatGet> {
@@ -130,12 +162,45 @@ public:
                         uint32_t PreStatPtr);
 };
 
+class WasiFdPrestatDirName : public Wasi<WasiFdPrestatDirName> {
+public:
+  WasiFdPrestatDirName(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t PathBufPtr, uint32_t PathLen);
+};
+
+class WasiFdPwrite : public Wasi<WasiFdPwrite> {
+public:
+  WasiFdPwrite(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t IOVSPtr, uint32_t Offset, uint32_t NWritten);
+};
+
 class WasiFdRead : public Wasi<WasiFdRead> {
 public:
   WasiFdRead(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
                         uint32_t IOVSPtr, uint32_t IOVSCnt, uint32_t NReadPtr);
+};
+
+class WasiFdReadDir : public Wasi<WasiFdReadDir> {
+public:
+  WasiFdReadDir(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t BufPtr, uint32_t BufLen, uint64_t Cookie,
+                        uint32_t BufUsedSize);
+};
+
+class WasiFdRenumber : public Wasi<WasiFdRenumber> {
+public:
+  WasiFdRenumber(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        int32_t ToFd);
 };
 
 class WasiFdSeek : public Wasi<WasiFdSeek> {
@@ -146,6 +211,21 @@ public:
                        int64_t Offset, uint32_t Whence, uint32_t NewOffsetPtr);
 };
 
+class WasiFdSync : public Wasi<WasiFdSync> {
+public:
+  WasiFdSync(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd);
+};
+
+class WasiFdTell : public Wasi<WasiFdTell> {
+public:
+  WasiFdTell(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        int64_t Offset);
+};
+
 class WasiFdWrite : public Wasi<WasiFdWrite> {
 public:
   WasiFdWrite(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
@@ -153,6 +233,40 @@ public:
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
                         uint32_t IOVSPtr, uint32_t IOVSCnt,
                         uint32_t NWrittenPtr);
+};
+
+class WasiPathCreateDirectory : public Wasi<WasiPathCreateDirectory> {
+public:
+  WasiPathCreateDirectory(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t PathPtr);
+};
+
+class WasiPathFilestatGet : public Wasi<WasiPathFilestatGet> {
+public:
+  WasiPathFilestatGet(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t Flags, uint32_t PathPtr, uint32_t BufPtr);
+};
+
+class WasiPathFilestatSetTimes : public Wasi<WasiPathFilestatSetTimes> {
+public:
+  WasiPathFilestatSetTimes(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t Flags, uint32_t PathPtr, uint32_t ATim,
+                        uint32_t MTim, uint32_t FstFlags);
+};
+
+class WasiPathLink : public Wasi<WasiPathLink> {
+public:
+  WasiPathLink(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst,
+                        int32_t OldFd, uint32_t OldFlags, uint32_t OldPathPtr,
+                        int32_t NewFd, uint32_t NewPathPtr);
 };
 
 class WasiPathOpen : public Wasi<WasiPathOpen> {
@@ -166,11 +280,69 @@ public:
                         uint32_t FsFlags, uint32_t FdPtr);
 };
 
+class WasiPathReadLink : public Wasi<WasiPathReadLink> {
+public:
+  WasiPathReadLink(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t PathPtr, uint32_t BufPtr, uint32_t BufLen);
+};
+
+class WasiPathRemoveDirectory : public Wasi<WasiPathRemoveDirectory> {
+public:
+  WasiPathRemoveDirectory(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t PathPtr);
+};
+
+class WasiPathRename : public Wasi<WasiPathRename> {
+public:
+  WasiPathRename(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t OldPathPtr, int32_t NewFd,
+                        uint32_t NewPathPtr);
+};
+
+class WasiPathSymlink : public Wasi<WasiPathSymlink> {
+public:
+  WasiPathSymlink(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst,
+                        uint32_t OldPathPtr, int32_t Fd, uint32_t NewPathPtr);
+};
+
+class WasiPathUnlinkFile : public Wasi<WasiPathUnlinkFile> {
+public:
+  WasiPathUnlinkFile(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t PathPtr);
+};
+
+class WasiPollOneoff : public Wasi<WasiPollOneoff> {
+public:
+  WasiPollOneoff(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst,
+                        uint32_t InPtr, uint32_t OutPtr,
+                        uint32_t NSubscriptions, uint32_t NEvents);
+};
+
 class WasiProcExit : public Wasi<WasiProcExit> {
 public:
   WasiProcExit(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
 
   Expect<void> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Status);
+};
+
+class WasiProcRaise : public Wasi<WasiProcRaise> {
+public:
+  WasiProcRaise(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst,
+                        int32_t Signal);
 };
 
 class WasiRandomGet : public Wasi<WasiRandomGet> {
@@ -179,6 +351,39 @@ public:
 
   Expect<void> body(Runtime::Instance::MemoryInstance &MemInst, uint32_t BufPtr,
                     uint32_t BufLen);
+};
+
+class WasiSchedYield : public Wasi<WasiSchedYield> {
+public:
+  WasiSchedYield(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst);
+};
+
+class WasiSockRecv : public Wasi<WasiSockRecv> {
+public:
+  WasiSockRecv(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t RiDataPtr, uint32_t RiFlags,
+                        uint32_t RoDataLen, uint32_t RoFlags);
+};
+
+class WasiSockSend : public Wasi<WasiSockSend> {
+public:
+  WasiSockSend(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t SiDataPtr, uint32_t SiFlags,
+                        uint32_t SoDataLen);
+};
+
+class WasiSockShutdown : public Wasi<WasiSockShutdown> {
+public:
+  WasiSockShutdown(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
+                        uint32_t SdFlags);
 };
 
 } // namespace Host

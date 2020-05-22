@@ -21,15 +21,46 @@ WasiModule::WasiModule() : ImportObject("wasi_snapshot_preview1") {
   addHostFunc("fd_fdstat_get", std::make_unique<WasiFdFdstatGet>(Env));
   addHostFunc("fd_fdstat_set_flags",
               std::make_unique<WasiFdFdstatSetFlags>(Env));
+  addHostFunc("fd_fdstat_set_rights",
+              std::make_unique<WasiFdFdstatSetRights>(Env));
+  addHostFunc("fd_filestat_get", std::make_unique<WasiFdFilestatGet>(Env));
+  addHostFunc("fd_filestat_set_size",
+              std::make_unique<WasiFdFilestatSetSize>(Env));
+  addHostFunc("fd_filestat_set_times",
+              std::make_unique<WasiFdFilestatSetTimes>(Env));
+  addHostFunc("fd_pread", std::make_unique<WasiFdPread>(Env));
+  addHostFunc("fd_prestat_get", std::make_unique<WasiFdPrestatGet>(Env));
   addHostFunc("fd_prestat_dir_name",
               std::make_unique<WasiFdPrestatDirName>(Env));
-  addHostFunc("fd_prestat_get", std::make_unique<WasiFdPrestatGet>(Env));
+  addHostFunc("fd_pwrite", std::make_unique<WasiFdPwrite>(Env));
   addHostFunc("fd_read", std::make_unique<WasiFdRead>(Env));
+  addHostFunc("fd_readdir", std::make_unique<WasiFdReadDir>(Env));
+  addHostFunc("fd_renumber", std::make_unique<WasiFdRenumber>(Env));
   addHostFunc("fd_seek", std::make_unique<WasiFdSeek>(Env));
+  addHostFunc("fd_sync", std::make_unique<WasiFdSync>(Env));
+  addHostFunc("fd_tell", std::make_unique<WasiFdTell>(Env));
   addHostFunc("fd_write", std::make_unique<WasiFdWrite>(Env));
+  addHostFunc("path_create_directory",
+              std::make_unique<WasiPathCreateDirectory>(Env));
+  addHostFunc("path_filestat_get", std::make_unique<WasiPathFilestatGet>(Env));
+  addHostFunc("path_filestat_set_times",
+              std::make_unique<WasiPathFilestatSetTimes>(Env));
+  addHostFunc("path_link", std::make_unique<WasiPathLink>(Env));
   addHostFunc("path_open", std::make_unique<WasiPathOpen>(Env));
+  addHostFunc("path_readlink", std::make_unique<WasiPathReadLink>(Env));
+  addHostFunc("path_remove_directory",
+              std::make_unique<WasiPathRemoveDirectory>(Env));
+  addHostFunc("path_rename", std::make_unique<WasiPathRename>(Env));
+  addHostFunc("path_symlink", std::make_unique<WasiPathSymlink>(Env));
+  addHostFunc("path_unlink_file", std::make_unique<WasiPathUnlinkFile>(Env));
+  addHostFunc("poll_oneoff", std::make_unique<WasiPollOneoff>(Env));
   addHostFunc("proc_exit", std::make_unique<WasiProcExit>(Env));
+  addHostFunc("proc_raise", std::make_unique<WasiProcRaise>(Env));
+  addHostFunc("sched_yield", std::make_unique<WasiSchedYield>(Env));
   addHostFunc("random_get", std::make_unique<WasiRandomGet>(Env));
+  addHostFunc("sock_recv", std::make_unique<WasiSockRecv>(Env));
+  addHostFunc("sock_send", std::make_unique<WasiSockSend>(Env));
+  addHostFunc("sock_shutdown", std::make_unique<WasiSockShutdown>(Env));
 }
 
 } // namespace Host

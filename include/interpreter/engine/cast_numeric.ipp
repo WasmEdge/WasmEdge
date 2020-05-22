@@ -18,8 +18,11 @@ template <typename TIn, typename TOut>
 TypeFI<TIn, TOut> Interpreter::runTruncateOp(ValVariant &Val) const {
   TIn Z = retrieveValue<TIn>(Val);
   /// If z is a NaN or an infinity, then the result is undefined.
-  if (std::isnan(Z) || std::isinf(Z)) {
-    return Unexpect(ErrCode::CastingError);
+  if (std::isnan(Z)) {
+    return Unexpect(ErrCode::InvalidConvToInt);
+  }
+  if (std::isinf(Z)) {
+    return Unexpect(ErrCode::IntegerOverflow);
   }
   /// If trunc(z) is out of range of target type, then the result is undefined.
   Z = std::trunc(Z);
@@ -28,12 +31,12 @@ TypeFI<TIn, TOut> Interpreter::runTruncateOp(ValVariant &Val) const {
   if (sizeof(TIn) > sizeof(TOut)) {
     /// Floating precision is better than integer case.
     if (Z < ValTOutMin || Z > ValTOutMax) {
-      return Unexpect(ErrCode::CastingError);
+      return Unexpect(ErrCode::IntegerOverflow);
     }
   } else {
     /// Floating precision is worse than integer case.
     if (Z < ValTOutMin || Z >= ValTOutMax) {
-      return Unexpect(ErrCode::CastingError);
+      return Unexpect(ErrCode::IntegerOverflow);
     }
   }
   /// Else, return trunc(z). Signed case handled.

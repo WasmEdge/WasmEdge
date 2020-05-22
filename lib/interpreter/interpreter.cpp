@@ -3,6 +3,7 @@
 #include "common/ast/module.h"
 #include "common/ast/section.h"
 #include "runtime/instance/module.h"
+#include "support/log.h"
 
 namespace SSVM {
 namespace Interpreter {
@@ -12,7 +13,12 @@ Expect<void> Interpreter::instantiateModule(Runtime::StoreManager &StoreMgr,
                                             const AST::Module &Mod,
                                             const std::string &Name) {
   InsMode = InstantiateMode::Instantiate;
-  return instantiate(StoreMgr, Mod, Name);
+  if (auto Res = instantiate(StoreMgr, Mod, Name); !Res) {
+    LOG(ERROR) << "Instantiation failed: " << ErrStr[(uint32_t)Res.error()]
+               << ", Code: " << std::hex << (uint32_t)Res.error() << std::dec;
+    return Unexpect(Res);
+  }
+  return {};
 }
 
 /// Register host module. See "include/interpreter/interpreter.h".
@@ -57,7 +63,12 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
                                          const AST::Module &Mod,
                                          const std::string &Name = "") {
   InsMode = InstantiateMode::ImportWasm;
-  return instantiate(StoreMgr, Mod, Name);
+  if (auto Res = instantiate(StoreMgr, Mod, Name); !Res) {
+    LOG(ERROR) << "Instantiation failed: " << ErrStr[(uint32_t)Res.error()]
+               << ", Code: " << std::hex << (uint32_t)Res.error() << std::dec;
+    return Unexpect(Res);
+  }
+  return {};
 }
 
 /// Invoke function. See "include/interpreter/interpreter.h".
@@ -75,7 +86,7 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
   /// Check parameter and function type.
   const auto &FuncType = FuncInst->getFuncType();
   if (FuncType.Params.size() != Params.size()) {
-    return Unexpect(ErrCode::FunctionSignatureMismatch);
+    return Unexpect(ErrCode::FuncSigMismatch);
   }
 
   /// Call runFunction.

@@ -23,6 +23,22 @@ bool isLimitMatched(const bool HasMax1, const uint32_t Min1,
   return true;
 }
 
+ErrCode checkImportError(const std::string &Name,
+                         const std::map<std::string, uint32_t> &Map1,
+                         const std::map<std::string, uint32_t> &Map2,
+                         const std::map<std::string, uint32_t> &Map3) {
+  if (Map1.find(Name) != Map1.cend()) {
+    return ErrCode::IncompatibleImportType;
+  }
+  if (Map2.find(Name) != Map2.cend()) {
+    return ErrCode::IncompatibleImportType;
+  }
+  if (Map3.find(Name) != Map3.cend()) {
+    return ErrCode::IncompatibleImportType;
+  }
+  return ErrCode::UnknownImport;
+}
+
 /// Instantiate imports. See "include/interpreter/interpreter.h".
 Expect<void>
 Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
@@ -41,16 +57,20 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     } else {
       return Unexpect(Res);
     }
+    const auto &FuncList = TargetModInst->getFuncExports();
+    const auto &TabList = TargetModInst->getTableExports();
+    const auto &MemList = TargetModInst->getMemExports();
+    const auto &GlobList = TargetModInst->getGlobalExports();
 
     /// Add the imports into module istance.
     switch (ExtType) {
     case ExternalType::Function: {
       /// Find the function address in Store.
-      const auto FuncList = TargetModInst->getFuncExports();
       if (FuncList.find(ExtName) != FuncList.cend()) {
         TargetAddr = FuncList.find(ExtName)->second;
       } else {
-        return Unexpect(ErrCode::WrongInstanceAddress);
+        /// Check is error external type or unknown imports.
+        return Unexpect(checkImportError(ExtName, TabList, MemList, GlobList));
       }
       /// Get the function type index in module.
       uint32_t *TypeIdx = nullptr;
@@ -66,7 +86,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         const auto FuncType = *Res;
         if (TargetType.Params != FuncType->Params ||
             TargetType.Returns != FuncType->Returns) {
-          return Unexpect(ErrCode::ImportNotMatch);
+          return Unexpect(ErrCode::IncompatibleImportType);
         }
       } else {
         return Unexpect(Res);
@@ -77,11 +97,11 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
     case ExternalType::Table: {
       /// Find the table address in Store.
-      const auto TabList = TargetModInst->getTableExports();
       if (TabList.find(ExtName) != TabList.cend()) {
         TargetAddr = TabList.find(ExtName)->second;
       } else {
-        return Unexpect(ErrCode::WrongInstanceAddress);
+        /// Check is error external type or unknown imports.
+        return Unexpect(checkImportError(ExtName, FuncList, MemList, GlobList));
       }
       /// Get the table descriptment in module.
       AST::TableType *TabType = nullptr;
@@ -97,7 +117,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
           !isLimitMatched(TargetInst->getHasMax(), TargetInst->getMin(),
                           TargetInst->getMax(), TabLim->hasMax(),
                           TabLim->getMin(), TabLim->getMax())) {
-        return Unexpect(ErrCode::ImportNotMatch);
+        return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched table address to module instance.
       ModInst.addTableAddr(TargetAddr);
@@ -105,11 +125,11 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
     case ExternalType::Memory: {
       /// Find the memory address in Store.
-      const auto MemList = TargetModInst->getMemExports();
       if (MemList.find(ExtName) != MemList.cend()) {
         TargetAddr = MemList.find(ExtName)->second;
       } else {
-        return Unexpect(ErrCode::WrongInstanceAddress);
+        /// Check is error external type or unknown imports.
+        return Unexpect(checkImportError(ExtName, FuncList, TabList, GlobList));
       }
       /// Get the memory descriptment in module.
       AST::MemoryType *MemType = nullptr;
@@ -124,7 +144,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       if (!isLimitMatched(TargetInst->getHasMax(), TargetInst->getMin(),
                           TargetInst->getMax(), MemLim->hasMax(),
                           MemLim->getMin(), MemLim->getMax())) {
-        return Unexpect(ErrCode::ImportNotMatch);
+        return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched memory address to module instance.
       ModInst.addMemAddr(TargetAddr);
@@ -132,11 +152,11 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
     case ExternalType::Global: {
       /// Find the global address in Store.
-      const auto GlobList = TargetModInst->getGlobalExports();
       if (GlobList.find(ExtName) != GlobList.cend()) {
         TargetAddr = GlobList.find(ExtName)->second;
       } else {
-        return Unexpect(ErrCode::WrongInstanceAddress);
+        /// Check is error external type or unknown imports.
+        return Unexpect(checkImportError(ExtName, FuncList, MemList, TabList));
       }
       /// Get the global descriptment in module.
       AST::GlobalType *GlobType = nullptr;
@@ -149,7 +169,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       const auto *TargetInst = *StoreMgr.getGlobal(TargetAddr);
       if (TargetInst->getValType() != GlobType->getValueType() ||
           TargetInst->getValMut() != GlobType->getValueMutation()) {
-        return Unexpect(ErrCode::ImportNotMatch);
+        return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched global address to module instance.
       ModInst.addGlobalAddr(TargetAddr);

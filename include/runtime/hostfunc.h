@@ -54,10 +54,10 @@ public:
                    Span<ValVariant> Rets) override {
     using F = FuncTraits<decltype(&T::body)>;
     if (unlikely(F::ArgsN != Args.size())) {
-      return Unexpect(ErrCode::FunctionSignatureMismatch);
+      return Unexpect(ErrCode::FuncSigMismatch);
     }
     if (unlikely(F::RetsN != Rets.size())) {
-      return Unexpect(ErrCode::FunctionSignatureMismatch);
+      return Unexpect(ErrCode::FuncSigMismatch);
     }
     return invoke(MemInst, Args.first<F::ArgsN>(), Rets.first<F::RetsN>());
   }

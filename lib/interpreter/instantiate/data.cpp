@@ -30,7 +30,7 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
 
     /// Check offset bound.
     if (!MemInst->checkAccessBound(Offset + DataSeg->getData().size())) {
-      return Unexpect(ErrCode::AccessForbidMemory);
+      return Unexpect(ErrCode::DataSegDoesNotFit);
     }
     Offsets.push_back(Offset);
   }
@@ -51,7 +51,7 @@ Expect<void> Interpreter::instantiate(
     /// Copy data to memory instance.
     const auto &Data = (*ItDataSeg)->getData();
     if (auto Res = MemInst->setBytes(Data, *ItOffset, 0, Data.size()); !Res) {
-      return Unexpect(Res);
+      return Unexpect(ErrCode::DataSegDoesNotFit);
     }
 
     ++ItDataSeg;

@@ -122,7 +122,7 @@ Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
   const auto &FuncType = FuncInst->getFuncType();
   if (TargetFuncType->Params != FuncType.Params ||
       TargetFuncType->Returns != FuncType.Returns) {
-    return Unexpect(ErrCode::FunctionSignatureMismatch);
+    return Unexpect(ErrCode::IndirectCallTypeMismatch);
   }
   return enterFunction(StoreMgr, *FuncInst);
 }

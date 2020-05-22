@@ -28,7 +28,8 @@ public:
   TableInstance() = delete;
   TableInstance(const ElemType &Elem, const AST::Limit &Lim)
       : Type(Elem), HasMaxSize(Lim.hasMax()), MinSize(Lim.getMin()),
-        MaxSize(Lim.getMax()), FuncElem(MinSize) {}
+        MaxSize(Lim.getMax()), FuncElem(MinSize), FuncElemInit(MinSize, false) {
+  }
   virtual ~TableInstance() = default;
 
   /// Getter of element type.
@@ -47,9 +48,11 @@ public:
   Expect<void> setInitList(const uint32_t Offset,
                            const std::vector<uint32_t> &Addrs) {
     if (Offset + Addrs.size() > MinSize) {
-      return Unexpect(ErrCode::TableSizeExceeded);
+      return Unexpect(ErrCode::UndefinedElement);
     }
     std::copy(Addrs.begin(), Addrs.end(), FuncElem.begin() + Offset);
+    std::fill(FuncElemInit.begin() + Offset,
+              FuncElemInit.begin() + Offset + Addrs.size(), true);
     return {};
   }
 
@@ -61,12 +64,16 @@ public:
   /// Get the elem address.
   Expect<uint32_t> getElemAddr(const uint32_t Idx) const {
     if (Idx >= FuncElem.size()) {
-      return Unexpect(ErrCode::AccessForbidMemory);
+      return Unexpect(ErrCode::UndefinedElement);
     }
     if (Symbol) {
       return Symbol[Idx];
     } else {
-      return FuncElem[Idx];
+      if (FuncElemInit[Idx]) {
+        return FuncElem[Idx];
+      } else {
+        return Unexpect(ErrCode::UninitializedElement);
+      }
     }
   }
 
@@ -83,6 +90,7 @@ private:
   const uint32_t MinSize = 0;
   const uint32_t MaxSize = 0;
   std::vector<uint32_t> FuncElem;
+  std::vector<bool> FuncElemInit;
   uint32_t *Symbol = nullptr;
   /// @}
 };

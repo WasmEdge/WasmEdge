@@ -44,7 +44,7 @@ TypeT<T> Interpreter::runDivOp(ValVariant &Val1, const ValVariant &Val2) const {
         V2 == static_cast<T>(-1)) {
       /// Signed Integer case: If signed(v1) / signed(v2) is 2^(N − 1), then the
       /// result is undefined.
-      return Unexpect(ErrCode::FloatPointException);
+      return Unexpect(ErrCode::IntegerOverflow);
     }
   }
   /// Else, return the result of v1 / v2.

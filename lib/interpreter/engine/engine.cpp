@@ -107,7 +107,8 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
   } else if (Res.error() == ErrCode::Terminated) {
     LOG(DEBUG) << "Terminated.";
   } else if (Res.error() != ErrCode::Success) {
-    LOG(ERROR) << "Execution failed. Code: " << (uint32_t)Res.error();
+    LOG(ERROR) << "Execution failed: " << ErrStr[(uint32_t)Res.error()]
+               << ", Code: " << std::hex << (uint32_t)Res.error() << std::dec;
   }
   LOG(DEBUG) << "Done.";
 

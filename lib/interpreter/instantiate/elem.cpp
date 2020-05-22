@@ -30,7 +30,7 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
 
     /// Check offset bound.
     if (!TabInst->checkAccessBound(Offset + ElemSeg->getFuncIdxes().size())) {
-      return Unexpect(ErrCode::AccessForbidMemory);
+      return Unexpect(ErrCode::ElemSegDoesNotFit);
     }
     Offsets.push_back(Offset);
   }
@@ -55,7 +55,7 @@ Expect<void> Interpreter::instantiate(
       Idx = FuncAddr;
     }
     if (auto Res = TabInst->setInitList(*ItOffset, FuncIdxList); !Res) {
-      return Unexpect(Res);
+      return Unexpect(ErrCode::ElemSegDoesNotFit);
     }
 
     ++ItElemSeg;

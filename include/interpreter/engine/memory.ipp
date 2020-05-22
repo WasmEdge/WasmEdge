@@ -17,7 +17,7 @@ TypeT<T> Interpreter::runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
   ValVariant &Val = StackMgr.getTop();
   if (retrieveValue<uint32_t>(Val) >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    return Unexpect(ErrCode::AccessForbidMemory);
+    return Unexpect(ErrCode::MemoryOutOfBounds);
   }
   uint32_t EA = retrieveValue<uint32_t>(Val) + Instr.getMemoryOffset();
 
@@ -36,7 +36,7 @@ TypeB<T> Interpreter::runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
   ValVariant I = StackMgr.pop();
   if (retrieveValue<uint32_t>(I) >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    return Unexpect(ErrCode::AccessForbidMemory);
+    return Unexpect(ErrCode::MemoryOutOfBounds);
   }
   uint32_t EA = retrieveValue<uint32_t>(I) + Instr.getMemoryOffset();
 

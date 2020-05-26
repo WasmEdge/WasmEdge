@@ -80,9 +80,6 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
     Measure->getTimeRecorder().startRecord(TIMER_TAG_EXECUTION);
   }
 
-  /// Execute function. Args should be pushed into stack.
-  LOG(DEBUG) << "Start running...";
-
   /// Reset and push a dummy frame into stack.
   InstrPdr.reset();
   StackMgr.reset();
@@ -101,16 +98,10 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
   }
 
   if (Res) {
-    LOG(DEBUG) << "Execution succeeded.";
-  } else if (Res.error() == ErrCode::Revert) {
-    LOG(ERROR) << "Reverted.";
+    LOG(DEBUG) << " Execution succeeded.";
   } else if (Res.error() == ErrCode::Terminated) {
-    LOG(DEBUG) << "Terminated.";
-  } else if (Res.error() != ErrCode::Success) {
-    LOG(ERROR) << "Execution failed: " << ErrStr[(uint32_t)Res.error()]
-               << ", Code: " << std::hex << (uint32_t)Res.error() << std::dec;
+    LOG(DEBUG) << " Terminated.";
   }
-  LOG(DEBUG) << "Done.";
 
   /// Print time cost.
   if (Measure) {
@@ -119,7 +110,7 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
     uint64_t HostFuncTime =
         Measure->getTimeRecorder().getRecord(TIMER_TAG_HOSTFUNC);
     LOG(DEBUG) << std::endl
-               << " =================  Statistics  ================="
+               << " ====================  Statistics  ===================="
                << std::endl
                << " Total execution time: " << ExecTime + HostFuncTime << " us"
                << std::endl

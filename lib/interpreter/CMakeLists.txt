@@ -13,3 +13,9 @@ target_link_libraries(ssvmInterpreter
   ssvmInterpreterEngine
   ssvmSupport
 )
+
+target_include_directories(ssvmInterpreter
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/thirdparty
+)

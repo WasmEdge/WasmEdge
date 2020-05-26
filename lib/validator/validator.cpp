@@ -1,12 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "validator/validator.h"
 #include "common/ast/module.h"
+#include "support/log.h"
 
 #include <string>
 #include <unordered_set>
 
 namespace SSVM {
 namespace Validator {
+
+namespace {
+static void loggingError(ErrCode Code) {
+  /// TODO: Refine error logging.
+  LOG(ERROR) << "Validation failed: " << ErrStr[(uint32_t)Code] << ", Code: 0x"
+             << std::hex << (uint32_t)Code << std::dec;
+}
+} // namespace
 
 /// Validate Module. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::Module &Mod) {
@@ -23,6 +32,7 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   /// Validate and register import section into FormChecker.
   if (Mod.getImportSection() != nullptr) {
     if (auto Res = validate(*Mod.getImportSection()); !Res) {
+      loggingError(Res.error());
       return Unexpect(Res);
     }
   }
@@ -30,6 +40,7 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   /// Validate table section and register tables into FormChecker.
   if (Mod.getTableSection() != nullptr) {
     if (auto Res = validate(*Mod.getTableSection()); !Res) {
+      loggingError(Res.error());
       return Unexpect(Res);
     }
   }
@@ -37,6 +48,7 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   /// Validate memory section and register memories into FormChecker.
   if (Mod.getMemorySection() != nullptr) {
     if (auto Res = validate(*Mod.getMemorySection()); !Res) {
+      loggingError(Res.error());
       return Unexpect(Res);
     }
   }
@@ -44,6 +56,7 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   /// Validate global section and register globals into FormChecker.
   if (Mod.getGlobalSection() != nullptr) {
     if (auto Res = validate(*Mod.getGlobalSection()); !Res) {
+      loggingError(Res.error());
       return Unexpect(Res);
     }
   }
@@ -52,10 +65,12 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   if ((Mod.getFunctionSection() && !Mod.getCodeSection()) ||
       (!Mod.getFunctionSection() && Mod.getCodeSection())) {
     /// Function section and code section should be pairly.
+    loggingError(ErrCode::ValidationFailed);
     return Unexpect(ErrCode::ValidationFailed);
   } else if (Mod.getFunctionSection() && Mod.getCodeSection()) {
     if (auto Res = validate(*Mod.getFunctionSection(), *Mod.getCodeSection());
         !Res) {
+      loggingError(Res.error());
       return Unexpect(Res);
     }
   }
@@ -63,6 +78,7 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   /// Validate element section which initialize tables.
   if (Mod.getElementSection() != nullptr) {
     if (auto Res = validate(*Mod.getElementSection()); !Res) {
+      loggingError(Res.error());
       return Unexpect(Res);
     }
   }
@@ -70,6 +86,7 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   /// Validate data section which initialize memories.
   if (Mod.getDataSection() != nullptr) {
     if (auto Res = validate(*Mod.getDataSection()); !Res) {
+      loggingError(Res.error());
       return Unexpect(Res);
     }
   }
@@ -77,6 +94,7 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   /// Validate start section.
   if (Mod.getStartSection() != nullptr) {
     if (auto Res = validate(*Mod.getStartSection()); !Res) {
+      loggingError(Res.error());
       return Unexpect(Res);
     }
   }
@@ -84,12 +102,14 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   /// Validate export section.
   if (Mod.getExportSection() != nullptr) {
     if (auto Res = validate(*Mod.getExportSection()); !Res) {
+      loggingError(Res.error());
       return Unexpect(Res);
     }
   }
 
   /// In current version, memory and table must be <= 1.
   if (Checker.getMemories().size() > 1 || Checker.getTables().size() > 1) {
+    loggingError(ErrCode::ValidationFailed);
     return Unexpect(ErrCode::ValidationFailed);
   }
   return {};

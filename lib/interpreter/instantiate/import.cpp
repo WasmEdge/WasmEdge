@@ -11,6 +11,7 @@
 namespace SSVM {
 namespace Interpreter {
 
+namespace {
 bool isLimitMatched(const bool HasMax1, const uint32_t Min1,
                     const uint32_t Max1, const bool HasMax2,
                     const uint32_t Min2, const uint32_t Max2) {
@@ -38,6 +39,7 @@ ErrCode checkImportError(const std::string &Name,
   }
   return ErrCode::UnknownImport;
 }
+} // namespace
 
 /// Instantiate imports. See "include/interpreter/interpreter.h".
 Expect<void>

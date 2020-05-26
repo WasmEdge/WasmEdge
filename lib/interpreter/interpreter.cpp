@@ -8,14 +8,27 @@
 namespace SSVM {
 namespace Interpreter {
 
+namespace {
+static void loggingErrorInst(ErrCode Code) {
+  /// TODO: Refine error logging.
+  LOG(ERROR) << "Instantiation failed: " << ErrStr[(uint32_t)Code]
+             << ", Code: 0x" << std::hex << (uint32_t)Code << std::dec;
+}
+
+static void loggingErrorExec(ErrCode Code) {
+  /// TODO: Refine error logging.
+  LOG(ERROR) << "Execution failed: " << ErrStr[(uint32_t)Code] << ", Code: 0x"
+             << std::hex << (uint32_t)Code << std::dec;
+}
+} // namespace
+
 /// Instantiate Wasm Module. See "include/interpreter/interpreter.h".
 Expect<void> Interpreter::instantiateModule(Runtime::StoreManager &StoreMgr,
                                             const AST::Module &Mod,
                                             const std::string &Name) {
   InsMode = InstantiateMode::Instantiate;
   if (auto Res = instantiate(StoreMgr, Mod, Name); !Res) {
-    LOG(ERROR) << "Instantiation failed: " << ErrStr[(uint32_t)Res.error()]
-               << ", Code: " << std::hex << (uint32_t)Res.error() << std::dec;
+    loggingErrorInst(Res.error());
     return Unexpect(Res);
   }
   return {};
@@ -27,6 +40,7 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
   StoreMgr.reset();
   /// Check is module name duplicated.
   if (auto Res = StoreMgr.findModule(Obj.getModuleName())) {
+    loggingErrorInst(ErrCode::ModuleNameConflict);
     return Unexpect(ErrCode::ModuleNameConflict);
   }
   auto NewModInst =
@@ -64,8 +78,7 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
                                          const std::string &Name = "") {
   InsMode = InstantiateMode::ImportWasm;
   if (auto Res = instantiate(StoreMgr, Mod, Name); !Res) {
-    LOG(ERROR) << "Instantiation failed: " << ErrStr[(uint32_t)Res.error()]
-               << ", Code: " << std::hex << (uint32_t)Res.error() << std::dec;
+    loggingErrorInst(Res.error());
     return Unexpect(Res);
   }
   return {};
@@ -80,17 +93,20 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
   if (auto Res = StoreMgr.getFunction(FuncAddr)) {
     FuncInst = *Res;
   } else {
+    loggingErrorExec(Res.error());
     return Unexpect(Res);
   }
 
   /// Check parameter and function type.
   const auto &FuncType = FuncInst->getFuncType();
   if (FuncType.Params.size() != Params.size()) {
+    loggingErrorExec(ErrCode::FuncSigMismatch);
     return Unexpect(ErrCode::FuncSigMismatch);
   }
 
   /// Call runFunction.
   if (auto Res = runFunction(StoreMgr, *FuncInst, Params); !Res) {
+    loggingErrorExec(Res.error());
     return Unexpect(Res);
   }
 

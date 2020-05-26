@@ -39,10 +39,9 @@ static std::map<WasmPhase, std::string> WasmPhaseStr = {
 enum class ErrCode : uint8_t {
   Success = 0x00,
   Terminated = 0x01,        /// Exit and return success.
-  Revert = 0x02,            /// Revert by evm.
-  CostLimitExceeded = 0x03, /// Exceeded cost limit (out of gas).
-  WrongVMWorkflow = 0x04,   /// Wrong VM's workflow
-  FuncNotFound = 0x05,      /// Wasm function not found
+  CostLimitExceeded = 0x02, /// Exceeded cost limit (out of gas).
+  WrongVMWorkflow = 0x03,   /// Wrong VM's workflow
+  FuncNotFound = 0x04,      /// Wasm function not found
   /// Load phase
   InvalidPath = 0x10,    /// File not found
   ReadError = 0x11,      /// Error when reading
@@ -77,7 +76,6 @@ enum class ErrCode : uint8_t {
 static std::map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::Success, "success"},
     {ErrCode::Terminated, "terminated"},
-    {ErrCode::Revert, "revert"},
     {ErrCode::CostLimitExceeded, "cost limit exceeded"},
     {ErrCode::WrongVMWorkflow, "wrong VM workflow"},
     {ErrCode::FuncNotFound, "wasm function not found"},

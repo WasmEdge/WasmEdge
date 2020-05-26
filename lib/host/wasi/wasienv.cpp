@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "host/wasi/wasienv.h"
 
+extern char **environ;
+
 namespace {
 static inline constexpr const __wasi_rights_t kFileRights =
     __WASI_RIGHT_FD_DATASYNC | __WASI_RIGHT_FD_READ | __WASI_RIGHT_FD_SEEK |
@@ -37,17 +39,25 @@ namespace Host {
 
 WasiEnvironment::WasiEnvironment() {
   using namespace std::string_view_literals;
-  PreStats.emplace_back(STDIN_FILENO, kStdInRights, 0, "/dev/stdin"sv);
-  PreStats.emplace_back(STDOUT_FILENO, kStdOutRights, 0, "/dev/stdout"sv);
-  PreStats.emplace_back(STDERR_FILENO, kStdErrRights, 0, "/dev/stderr"sv);
+  FileArray.emplace_back(STDIN_FILENO, kStdInRights, 0, "/dev/stdin"sv);
+  FileArray.emplace_back(STDOUT_FILENO, kStdOutRights, 0, "/dev/stdout"sv);
+  FileArray.emplace_back(STDERR_FILENO, kStdErrRights, 0, "/dev/stderr"sv);
   /// Open dir for WASI environment.
-  PreStats.emplace_back(open(".", O_RDONLY | O_DIRECTORY), kDirectoryRights,
-                        kInheritingDirectoryRights, "."sv);
+  FileArray.emplace_back(open(".", O_RDONLY | O_DIRECTORY), kDirectoryRights,
+                         kInheritingDirectoryRights, "."sv);
+
+  for (size_t I = 0; environ[I] != nullptr; ++I) {
+    Environs.emplace_back(environ[I]);
+  }
+  Environs.shrink_to_fit();
 }
 
 WasiEnvironment::~WasiEnvironment() noexcept {
-  for (const auto &Entry : PreStats) {
-    close(Entry.Fd);
+  for (const auto &File : FileArray) {
+    if (File.Fd != STDIN_FILENO && File.Fd != STDOUT_FILENO &&
+        File.Fd != STDERR_FILENO) {
+      close(File.Fd);
+    }
   }
 }
 

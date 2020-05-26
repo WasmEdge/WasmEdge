@@ -11,3 +11,8 @@ target_include_directories(ssvmHostModuleWasi
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty
 )
+
+target_link_libraries(ssvmHostModuleWasi
+  PUBLIC
+  rt
+)

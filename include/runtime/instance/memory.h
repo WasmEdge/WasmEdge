@@ -18,8 +18,10 @@
 #include "support/span.h"
 
 #include <algorithm>
+#include <boost/align/aligned_allocator.hpp>
 #include <cstring>
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace SSVM {
@@ -28,58 +30,54 @@ namespace Instance {
 
 class MemoryInstance {
 public:
+  static inline constexpr const uint64_t kPageSize = UINT64_C(65536);
   MemoryInstance() = delete;
   MemoryInstance(const AST::Limit &Lim)
       : HasMaxPage(Lim.hasMax()), MinPage(Lim.getMin()), MaxPage(Lim.getMax()),
-        CurrPage(Lim.getMin()) {}
-  virtual ~MemoryInstance() = default;
+        CurrPage(Lim.getMin()), Data(CurrPage * kPageSize) {}
+  virtual ~MemoryInstance() noexcept = default;
 
   /// Get page size of memory.data
-  uint32_t getDataPageSize() const { return CurrPage; }
+  uint32_t getDataPageSize() const noexcept { return CurrPage; }
 
   /// Getter of limit definition.
-  bool getHasMax() const { return HasMaxPage; }
+  bool getHasMax() const noexcept { return HasMaxPage; }
 
   /// Getter of limit definition.
-  uint32_t getMin() const { return MinPage; }
+  uint32_t getMin() const noexcept { return MinPage; }
 
   /// Getter of limit definition.
-  uint32_t getMax() const { return MaxPage; }
+  uint32_t getMax() const noexcept { return MaxPage; }
 
   /// Check is out of bound.
-  bool checkAccessBound(const uint32_t Offset) {
+  bool checkAccessBound(const uint32_t Offset) noexcept {
     return checkDataSize(Offset, 0);
   }
 
   /// Grow page
   Expect<void> growPage(const uint32_t Count) {
-    if ((HasMaxPage && Count + CurrPage > MaxPage) ||
-        Count + CurrPage > 65536) {
+    uint32_t MaxPageCaped = UINT32_C(65536);
+    if (HasMaxPage) {
+      MaxPageCaped = std::min(MaxPage, MaxPageCaped);
+    }
+    if (Count + CurrPage > MaxPageCaped) {
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     CurrPage += Count;
-    if (Symbol != nullptr) {
-      resizeData(CurrPage * 65536);
+    Data.resize(CurrPage * kPageSize);
+    if (Symbol) {
+      *Symbol = Data.data();
     }
     return {};
   }
 
-  /// Get memory length.
-  const Bytes &getDataVector() const { return Data; }
-
   /// Get slice of Data[Offset : Offset + Length - 1]
-  Expect<Bytes> getBytes(const uint32_t Offset, const uint32_t Length) {
+  Expect<Span<Byte>> getBytes(const uint32_t Offset, const uint32_t Length) {
     /// Check memory boundary.
     if (!checkDataSize(Offset, Length)) {
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
-    Bytes Slice;
-    if (Length > 0) {
-      Slice.resize(Length);
-      std::copy(Data.begin() + Offset, Data.begin() + Offset + Length,
-                Slice.begin());
-    }
-    return Slice;
+    return Span<Byte>(&Data[Offset], Length);
   }
 
   /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Legnth - 1]
@@ -148,7 +146,8 @@ public:
   template <typename T>
   typename std::enable_if_t<std::is_pointer_v<T>, T>
   getPointerOrNull(const uint32_t Offset) {
-    if (Offset >= Data.size() || Offset == 0) {
+    if (Offset == 0 ||
+        !checkDataSize(Offset, sizeof(std::remove_pointer_t<T>))) {
       return nullptr;
     }
     return reinterpret_cast<T>(&Data[Offset]);
@@ -157,8 +156,10 @@ public:
   /// Get pointer to specific offset of memory.
   template <typename T>
   typename std::enable_if_t<std::is_pointer_v<T>, T>
-  getPointer(const uint32_t Offset) {
-    if (Offset >= Data.size()) {
+  getPointer(const uint32_t Offset, const uint32_t Size = 1) {
+    using Type = std::remove_pointer_t<T>;
+    size_t ByteSize = sizeof(T) * Size;
+    if (!checkDataSize(Offset, ByteSize)) {
       return nullptr;
     }
     return reinterpret_cast<T>(&Data[Offset]);
@@ -239,41 +240,16 @@ public:
   void *getSymbol() const { return Symbol; }
   /// Setter of symbol
   void setSymbol(void *S) {
-    resizeData(CurrPage * 65536);
     Symbol = reinterpret_cast<uint8_t **>(S);
     *Symbol = Data.data();
   }
 
 private:
-  void resizeData(uint32_t Length) {
-    Data.resize(Length);
-    if (Symbol) {
-      *Symbol = Data.data();
-    }
-  }
-
   /// Check access size is valid and adjust vector.
-  bool checkDataSize(uint32_t Offset, uint32_t Length) {
-    uint64_t AccessLen =
+  bool checkDataSize(uint32_t Offset, uint32_t Length) const noexcept {
+    const uint64_t AccessLen =
         static_cast<uint64_t>(Offset) + static_cast<uint64_t>(Length);
-    if (AccessLen > CurrPage * 65536ULL) {
-      return false;
-    }
-    /// Note: the vector size will <= CurrPage * 65536
-    if (Data.size() < Offset + Length) {
-      uint32_t TargetSize = (Offset + Length) / 8 + 1;
-      if (TargetSize < 32 * 65536) {
-        TargetSize *= 2;
-      } else {
-        TargetSize *= 1.1;
-      }
-      if (TargetSize * 8 > CurrPage * 65536) {
-        resizeData(CurrPage * 65536);
-      } else {
-        resizeData(TargetSize * 8);
-      }
-    }
-    return true;
+    return AccessLen <= Data.size();
   }
 
   /// \name Data of memory instance.
@@ -282,7 +258,7 @@ private:
   const uint32_t MinPage;
   const uint32_t MaxPage;
   uint32_t CurrPage;
-  Bytes Data;
+  std::vector<Byte, boost::alignment::aligned_allocator<Byte, 65536>> Data;
   uint8_t **Symbol = nullptr;
   /// @}
 };

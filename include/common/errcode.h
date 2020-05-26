@@ -106,8 +106,12 @@ private:
   std::string Msg;
 };
 
-static inline bool likely(bool V) { return __builtin_expect(V, true); }
-static inline bool unlikely(bool V) { return __builtin_expect(V, false); }
+static inline constexpr bool likely(bool V) {
+  return __builtin_expect(V, true);
+}
+static inline constexpr bool unlikely(bool V) {
+  return __builtin_expect(V, false);
+}
 
 /// Type aliasing for Expected<T, ErrMsg>.
 template <typename T> using Expect = Support::Expected<T, ErrCode>;

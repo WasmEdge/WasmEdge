@@ -310,25 +310,15 @@ typedef struct __wasi_prestat_t {
   __wasi_preopentype_t pr_type;
   union __wasi_prestat_u {
     struct __wasi_prestat_u_dir_t {
-      size_t pr_name_len;
+      uint32_t pr_name_len;
     } dir;
   } u;
 } __wasi_prestat_t;
 static_assert(offsetof(__wasi_prestat_t, pr_type) == 0, "non-wasi data layout");
-static_assert(sizeof(void *) != 4 ||
-                  offsetof(__wasi_prestat_t, u.dir.pr_name_len) == 4,
+static_assert(offsetof(__wasi_prestat_t, u.dir.pr_name_len) == 4,
               "non-wasi data layout");
-static_assert(sizeof(void *) != 8 ||
-                  offsetof(__wasi_prestat_t, u.dir.pr_name_len) == 8,
-              "non-wasi data layout");
-static_assert(sizeof(void *) != 4 || sizeof(__wasi_prestat_t) == 8,
-              "non-wasi data layout");
-static_assert(sizeof(void *) != 8 || sizeof(__wasi_prestat_t) == 16,
-              "non-wasi data layout");
-static_assert(sizeof(void *) != 4 || alignof(__wasi_prestat_t) == 4,
-              "non-wasi data layout");
-static_assert(sizeof(void *) != 8 || alignof(__wasi_prestat_t) == 8,
-              "non-wasi data layout");
+static_assert(sizeof(__wasi_prestat_t) == 8, "non-wasi data layout");
+static_assert(alignof(__wasi_prestat_t) == 4, "non-wasi data layout");
 
 typedef struct __wasi_fdstat_t {
   __wasi_filetype_t fs_filetype;
@@ -374,40 +364,22 @@ static_assert(sizeof(__wasi_filestat_t) == 56, "non-wasi data layout");
 static_assert(alignof(__wasi_filestat_t) == 8, "non-wasi data layout");
 
 typedef struct __wasi_ciovec_t {
-  const void *buf;
-  size_t buf_len;
+  const uint32_t buf;
+  uint32_t buf_len;
 } __wasi_ciovec_t;
 static_assert(offsetof(__wasi_ciovec_t, buf) == 0, "non-wasi data layout");
-static_assert(sizeof(void *) != 4 || offsetof(__wasi_ciovec_t, buf_len) == 4,
-              "non-wasi data layout");
-static_assert(sizeof(void *) != 8 || offsetof(__wasi_ciovec_t, buf_len) == 8,
-              "non-wasi data layout");
-static_assert(sizeof(void *) != 4 || sizeof(__wasi_ciovec_t) == 8,
-              "non-wasi data layout");
-static_assert(sizeof(void *) != 8 || sizeof(__wasi_ciovec_t) == 16,
-              "non-wasi data layout");
-static_assert(sizeof(void *) != 4 || alignof(__wasi_ciovec_t) == 4,
-              "non-wasi data layout");
-static_assert(sizeof(void *) != 8 || alignof(__wasi_ciovec_t) == 8,
-              "non-wasi data layout");
+static_assert(offsetof(__wasi_ciovec_t, buf_len) == 4, "non-wasi data layout");
+static_assert(sizeof(__wasi_ciovec_t) == 8, "non-wasi data layout");
+static_assert(alignof(__wasi_ciovec_t) == 4, "non-wasi data layout");
 
 typedef struct __wasi_iovec_t {
-  void *buf;
-  size_t buf_len;
+  uint32_t buf;
+  uint32_t buf_len;
 } __wasi_iovec_t;
 static_assert(offsetof(__wasi_iovec_t, buf) == 0, "non-wasi data layout");
-static_assert(sizeof(void *) != 4 || offsetof(__wasi_iovec_t, buf_len) == 4,
-              "non-wasi data layout");
-static_assert(sizeof(void *) != 8 || offsetof(__wasi_iovec_t, buf_len) == 8,
-              "non-wasi data layout");
-static_assert(sizeof(void *) != 4 || sizeof(__wasi_iovec_t) == 8,
-              "non-wasi data layout");
-static_assert(sizeof(void *) != 8 || sizeof(__wasi_iovec_t) == 16,
-              "non-wasi data layout");
-static_assert(sizeof(void *) != 4 || alignof(__wasi_iovec_t) == 4,
-              "non-wasi data layout");
-static_assert(sizeof(void *) != 8 || alignof(__wasi_iovec_t) == 8,
-              "non-wasi data layout");
+static_assert(offsetof(__wasi_iovec_t, buf_len) == 4, "non-wasi data layout");
+static_assert(sizeof(__wasi_iovec_t) == 8, "non-wasi data layout");
+static_assert(alignof(__wasi_iovec_t) == 4, "non-wasi data layout");
 
 typedef struct __wasi_subscription_t {
   __wasi_userdata_t userdata;

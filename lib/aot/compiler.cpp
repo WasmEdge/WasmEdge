@@ -566,62 +566,71 @@ public:
     llvm::ConstantInt *Offset = Builder.getInt32(Instr.getMemoryOffset());
     switch (Instr.getOpCode()) {
     case OpCode::I32__load:
-      return compileLoadOp(Instr.getMemoryOffset(), Builder.getInt32Ty());
+      return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Builder.getInt32Ty());
     case OpCode::I64__load:
-      return compileLoadOp(Instr.getMemoryOffset(), Builder.getInt64Ty());
+      return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Builder.getInt64Ty());
     case OpCode::F32__load:
-      return compileLoadOp(Instr.getMemoryOffset(), Builder.getFloatTy());
+      return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Builder.getFloatTy());
     case OpCode::F64__load:
-      return compileLoadOp(Instr.getMemoryOffset(), Builder.getDoubleTy());
+      return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Builder.getDoubleTy());
     case OpCode::I32__load8_s:
-      return compileLoadOp(Instr.getMemoryOffset(), Builder.getInt8Ty(),
-                           Builder.getInt32Ty(), true);
+      return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Builder.getInt8Ty(), Builder.getInt32Ty(), true);
     case OpCode::I32__load8_u:
-      return compileLoadOp(Instr.getMemoryOffset(), Builder.getInt8Ty(),
-                           Builder.getInt32Ty(), false);
+      return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Builder.getInt8Ty(), Builder.getInt32Ty(), false);
     case OpCode::I32__load16_s:
-      return compileLoadOp(Instr.getMemoryOffset(), Builder.getInt16Ty(),
-                           Builder.getInt32Ty(), true);
+      return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Builder.getInt16Ty(), Builder.getInt32Ty(), true);
     case OpCode::I32__load16_u:
-      return compileLoadOp(Instr.getMemoryOffset(), Builder.getInt16Ty(),
-                           Builder.getInt32Ty(), false);
+      return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Builder.getInt16Ty(), Builder.getInt32Ty(), false);
     case OpCode::I64__load8_s:
-      return compileLoadOp(Instr.getMemoryOffset(), Builder.getInt8Ty(),
-                           Builder.getInt64Ty(), true);
+      return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Builder.getInt8Ty(), Builder.getInt64Ty(), true);
     case OpCode::I64__load8_u:
-      return compileLoadOp(Instr.getMemoryOffset(), Builder.getInt8Ty(),
-                           Builder.getInt64Ty(), false);
+      return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Builder.getInt8Ty(), Builder.getInt64Ty(), false);
     case OpCode::I64__load16_s:
-      return compileLoadOp(Instr.getMemoryOffset(), Builder.getInt16Ty(),
-                           Builder.getInt64Ty(), true);
+      return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Builder.getInt16Ty(), Builder.getInt64Ty(), true);
     case OpCode::I64__load16_u:
-      return compileLoadOp(Instr.getMemoryOffset(), Builder.getInt16Ty(),
-                           Builder.getInt64Ty(), false);
+      return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Builder.getInt16Ty(), Builder.getInt64Ty(), false);
     case OpCode::I64__load32_s:
-      return compileLoadOp(Instr.getMemoryOffset(), Builder.getInt32Ty(),
-                           Builder.getInt64Ty(), true);
+      return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Builder.getInt32Ty(), Builder.getInt64Ty(), true);
     case OpCode::I64__load32_u:
-      return compileLoadOp(Instr.getMemoryOffset(), Builder.getInt32Ty(),
-                           Builder.getInt64Ty(), false);
+      return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Builder.getInt32Ty(), Builder.getInt64Ty(), false);
 
     case OpCode::I32__store:
-      return compileStoreOp(Instr.getMemoryOffset(), Builder.getInt32Ty());
+      return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                            Builder.getInt32Ty());
     case OpCode::I64__store:
-      return compileStoreOp(Instr.getMemoryOffset(), Builder.getInt64Ty());
+      return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                            Builder.getInt64Ty());
     case OpCode::F32__store:
-      return compileStoreOp(Instr.getMemoryOffset(), Builder.getFloatTy());
+      return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                            Builder.getFloatTy());
     case OpCode::F64__store:
-      return compileStoreOp(Instr.getMemoryOffset(), Builder.getDoubleTy());
+      return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                            Builder.getDoubleTy());
     case OpCode::I32__store8:
     case OpCode::I64__store8:
-      return compileStoreOp(Instr.getMemoryOffset(), Builder.getInt8Ty(), true);
+      return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                            Builder.getInt8Ty(), true);
     case OpCode::I32__store16:
     case OpCode::I64__store16:
-      return compileStoreOp(Instr.getMemoryOffset(), Builder.getInt16Ty(),
-                            true);
+      return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                            Builder.getInt16Ty(), true);
     case OpCode::I64__store32:
-      return compileStoreOp(Instr.getMemoryOffset(), Builder.getInt32Ty(),
-                            true);
+      return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                            Builder.getInt32Ty(), true);
     case OpCode::Memory__size:
       Stack.push_back(Context.callMemSize(Builder, Ctx));
       break;
@@ -1221,25 +1230,28 @@ private:
     return {};
   }
 
-  Expect<void> compileLoadOp(unsigned int Offset, llvm::Type *LoadTy) {
+  Expect<void> compileLoadOp(unsigned int Offset, unsigned Alignment,
+                             llvm::Type *LoadTy) {
     if (Stack.empty()) {
       return Unexpect(ErrCode::ValidationFailed);
     }
-    llvm::Value *Off = Stack.back();
+    llvm::Value *Off = Builder.CreateZExt(Stack.back(), Builder.getInt64Ty());
     if (Offset != 0) {
-      Off = Builder.CreateAdd(Off, Builder.getInt32(Offset));
+      Off = Builder.CreateAdd(Off, Builder.getInt64(Offset));
     }
-    Off = Builder.CreateZExt(Off, Builder.getInt64Ty());
     llvm::Value *VPtr =
         Builder.CreateInBoundsGEP(Builder.CreateLoad(LocalMemPtr), {Off});
     llvm::Value *Ptr =
         Builder.CreateBitCast(VPtr, llvm::PointerType::getUnqual(LoadTy));
-    Stack.back() = Builder.CreateLoad(Ptr);
+    llvm::LoadInst *LoadInst = Builder.CreateLoad(Ptr);
+    LoadInst->setAlignment(1 << Alignment);
+    Stack.back() = LoadInst;
     return {};
   }
-  Expect<void> compileLoadOp(unsigned int Offset, llvm::Type *LoadTy,
-                             llvm::Type *ExtendTy, bool Signed) {
-    if (auto Ret = compileLoadOp(Offset, LoadTy); !Ret) {
+  Expect<void> compileLoadOp(unsigned int Offset, unsigned Alignment,
+                             llvm::Type *LoadTy, llvm::Type *ExtendTy,
+                             bool Signed) {
+    if (auto Ret = compileLoadOp(Offset, Alignment, LoadTy); !Ret) {
       return Unexpect(Ret);
     }
     if (Signed) {
@@ -1249,8 +1261,8 @@ private:
     }
     return {};
   }
-  Expect<void> compileStoreOp(unsigned int Offset, llvm::Type *LoadTy,
-                              bool Trunc = false) {
+  Expect<void> compileStoreOp(unsigned int Offset, unsigned Alignment,
+                              llvm::Type *LoadTy, bool Trunc = false) {
     if (Stack.size() < 2) {
       return Unexpect(ErrCode::ValidationFailed);
     }
@@ -1260,18 +1272,18 @@ private:
       V = Builder.CreateTrunc(V, LoadTy);
     }
 
-    llvm::Value *Off = Stack.back();
+    llvm::Value *Off = Builder.CreateZExt(Stack.back(), Builder.getInt64Ty());
     Stack.pop_back();
     if (Offset != 0) {
-      Off = Builder.CreateAdd(Off, Builder.getInt32(Offset));
+      Off = Builder.CreateAdd(Off, Builder.getInt64(Offset));
     }
-    Off = Builder.CreateZExt(Off, Builder.getInt64Ty());
 
     llvm::Value *VPtr =
         Builder.CreateInBoundsGEP(Builder.CreateLoad(LocalMemPtr), {Off});
     llvm::Value *Ptr =
         Builder.CreateBitCast(VPtr, llvm::PointerType::getUnqual(LoadTy));
-    Builder.CreateStore(V, Ptr);
+    llvm::StoreInst *StoreInst = Builder.CreateStore(V, Ptr);
+    StoreInst->setAlignment(1 << Alignment);
     return {};
   }
 

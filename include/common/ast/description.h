@@ -62,7 +62,7 @@ public:
     if (auto Ptr = std::get_if<std::unique_ptr<T>>(&ExtContent)) {
       return Ptr->get();
     } else {
-      return Unexpect(ErrCode::ValueTypeMismatch);
+      return Unexpect(ErrCode::IncompatibleImportType);
     }
   }
 

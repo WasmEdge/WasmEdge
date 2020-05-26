@@ -74,13 +74,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         /// Check is error external type or unknown imports.
         return Unexpect(checkImportError(ExtName, TabList, MemList, GlobList));
       }
-      /// Get the function type index in module.
-      uint32_t *TypeIdx = nullptr;
-      if (auto Res = ImpDesc->getExternalContent<uint32_t>()) {
-        TypeIdx = *Res;
-      } else {
-        return Unexpect(Res);
-      }
+      /// Get function type index. External type checked in validation.
+      uint32_t *TypeIdx = *ImpDesc->getExternalContent<uint32_t>();
       /// Import matching.
       const auto *TargetInst = *StoreMgr.getFunction(TargetAddr);
       const auto &TargetType = TargetInst->getFuncType();
@@ -105,13 +100,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         /// Check is error external type or unknown imports.
         return Unexpect(checkImportError(ExtName, FuncList, MemList, GlobList));
       }
-      /// Get the table descriptment in module.
-      AST::TableType *TabType = nullptr;
-      if (auto Res = ImpDesc->getExternalContent<AST::TableType>()) {
-        TabType = *Res;
-      } else {
-        return Unexpect(Res);
-      }
+      /// Get table type. External type checked in validation.
+      AST::TableType *TabType = *ImpDesc->getExternalContent<AST::TableType>();
       /// Import matching.
       const auto *TargetInst = *StoreMgr.getTable(TargetAddr);
       const auto *TabLim = TabType->getLimit();
@@ -133,13 +123,9 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         /// Check is error external type or unknown imports.
         return Unexpect(checkImportError(ExtName, FuncList, TabList, GlobList));
       }
-      /// Get the memory descriptment in module.
-      AST::MemoryType *MemType = nullptr;
-      if (auto Res = ImpDesc->getExternalContent<AST::MemoryType>()) {
-        MemType = *Res;
-      } else {
-        return Unexpect(Res);
-      }
+      /// Get memory type. External type checked in validation.
+      AST::MemoryType *MemType =
+          *ImpDesc->getExternalContent<AST::MemoryType>();
       /// Import matching.
       const auto *TargetInst = *StoreMgr.getMemory(TargetAddr);
       const auto *MemLim = MemType->getLimit();
@@ -160,13 +146,9 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         /// Check is error external type or unknown imports.
         return Unexpect(checkImportError(ExtName, FuncList, MemList, TabList));
       }
-      /// Get the global descriptment in module.
-      AST::GlobalType *GlobType = nullptr;
-      if (auto Res = ImpDesc->getExternalContent<AST::GlobalType>()) {
-        GlobType = *Res;
-      } else {
-        return Unexpect(Res);
-      }
+      /// Get global type. External type checked in validation.
+      AST::GlobalType *GlobType =
+          *ImpDesc->getExternalContent<AST::GlobalType>();
       /// Import matching.
       const auto *TargetInst = *StoreMgr.getGlobal(TargetAddr);
       if (TargetInst->getValType() != GlobType->getValueType() ||

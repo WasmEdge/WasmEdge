@@ -303,33 +303,32 @@ public:
 
   Expect<void> compile(const AST::InstrVec &Instrs) {
     for (const auto &Instr : Instrs) {
-      if (ErrCode Status = AST::dispatchInstruction(
-              Instr->getOpCode(),
-              [this, &Instr](const auto &&Arg) {
-                if constexpr (std::is_void_v<
-                                  typename std::decay_t<decltype(Arg)>::type>) {
-                  /// If the Code not matched, return null pointer.
-                  return ErrCode::InstrTypeMismatch;
-                } else {
-                  /// Make the instruction node according to Code.
-                  if (LocalInstrCount) {
-                    Builder.CreateStore(
-                        Builder.CreateAdd(Builder.CreateLoad(LocalInstrCount),
-                                          Builder.getInt64(1)),
-                        LocalInstrCount);
-                  }
-                  auto Status = compile(
+      auto Res = AST::dispatchInstruction(
+          Instr->getOpCode(), [this, &Instr](const auto &&Arg) -> Expect<void> {
+            if constexpr (std::is_void_v<
+                              typename std::decay_t<decltype(Arg)>::type>) {
+              /// If the Code not matched, return null pointer.
+              return Unexpect(ErrCode::InstrTypeMismatch);
+            } else {
+              /// Make the instruction node according to Code.
+              if (LocalInstrCount) {
+                Builder.CreateStore(
+                    Builder.CreateAdd(Builder.CreateLoad(LocalInstrCount),
+                                      Builder.getInt64(1)),
+                    LocalInstrCount);
+              }
+              if (auto Status = compile(
                       *static_cast<
                           const typename std::decay_t<decltype(Arg)>::type *>(
                           Instr.get()));
-                  if (!Status) {
-                    return Status.error();
-                  }
-                  return ErrCode::Success;
-                }
-              });
-          Status != ErrCode::Success) {
-        return Unexpect(Status);
+                  !Status) {
+                return Unexpect(Status);
+              }
+              return {};
+            }
+          });
+      if (!Res) {
+        return Unexpect(Res);
       }
     }
     return {};

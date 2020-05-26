@@ -45,7 +45,7 @@ void Interpreter::call(const uint32_t FuncIndex, const ValVariant *Args,
     Rets[ReturnsSize - 1 - I] = StackMgr.pop();
   }
   if (!Res) {
-    std::longjmp(TrapJump, int(Res.error()));
+    std::longjmp(TrapJump, uint32_t(Res.error()));
   }
 }
 

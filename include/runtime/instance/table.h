@@ -48,7 +48,7 @@ public:
   Expect<void> setInitList(const uint32_t Offset,
                            const std::vector<uint32_t> &Addrs) {
     if (Offset + Addrs.size() > MinSize) {
-      return Unexpect(ErrCode::UndefinedElement);
+      return Unexpect(ErrCode::ElemSegDoesNotFit);
     }
     std::copy(Addrs.begin(), Addrs.end(), FuncElem.begin() + Offset);
     std::fill(FuncElemInit.begin() + Offset,

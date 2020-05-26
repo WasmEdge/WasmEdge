@@ -309,7 +309,7 @@ public:
                 if constexpr (std::is_void_v<
                                   typename std::decay_t<decltype(Arg)>::type>) {
                   /// If the Code not matched, return null pointer.
-                  return ErrCode::InstructionTypeMismatch;
+                  return ErrCode::InstrTypeMismatch;
                 } else {
                   /// Make the instruction node according to Code.
                   if (LocalInstrCount) {

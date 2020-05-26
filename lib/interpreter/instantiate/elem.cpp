@@ -55,7 +55,7 @@ Expect<void> Interpreter::instantiate(
       Idx = FuncAddr;
     }
     if (auto Res = TabInst->setInitList(*ItOffset, FuncIdxList); !Res) {
-      return Unexpect(ErrCode::ElemSegDoesNotFit);
+      return Unexpect(Res);
     }
 
     ++ItElemSeg;

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/vm.h"
 #include "host/wasi/wasimodule.h"
+#include "support/log.h"
 
 #ifdef ONNC_WASM
 #include "host/onnc/onncmodule.h"
@@ -135,7 +136,8 @@ VM::runWasmFile(const AST::Module &Module, const std::string &Func,
   }
   const auto FuncExp = StoreRef.getFuncExports();
   if (FuncExp.find(Func) == FuncExp.cend()) {
-    return Unexpect(ErrCode::WrongInstanceAddress);
+    Log::loggingError(ErrCode::FuncNotFound);
+    return Unexpect(ErrCode::FuncNotFound);
   }
   if (auto Res = InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second,
                                           Params)) {
@@ -170,6 +172,7 @@ Expect<void> VM::loadWasm(const Bytes &Code) {
 Expect<void> VM::validate() {
   if (Stage < VMStage::Loaded) {
     /// When module is not loaded, not validate.
+    Log::loggingError(ErrCode::WrongVMWorkflow);
     return Unexpect(ErrCode::WrongVMWorkflow);
   }
   if (auto Res = ValidatorEngine.validate(*Mod.get())) {
@@ -183,7 +186,8 @@ Expect<void> VM::validate() {
 Expect<void> VM::instantiate() {
   if (Stage < VMStage::Validated) {
     /// When module is not validated, not instantiate.
-    return Unexpect(ErrCode::ValidationFailed);
+    Log::loggingError(ErrCode::WrongVMWorkflow);
+    return Unexpect(ErrCode::WrongVMWorkflow);
   }
   if (auto Res =
           InterpreterEngine.instantiateModule(StoreRef, *Mod.get(), "")) {
@@ -199,7 +203,8 @@ VM::execute(const std::string &Func, const std::vector<ValVariant> &Params) {
   /// Check exports for finding function address.
   const auto FuncExp = StoreRef.getFuncExports();
   if (FuncExp.find(Func) == FuncExp.cend()) {
-    return Unexpect(ErrCode::WrongInstanceAddress);
+    Log::loggingError(ErrCode::FuncNotFound);
+    return Unexpect(ErrCode::FuncNotFound);
   }
   return InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second, Params);
 }
@@ -218,7 +223,8 @@ VM::execute(const std::string &Mod, const std::string &Func,
   /// Get exports and fund function
   const auto FuncExp = ModInst->getFuncExports();
   if (FuncExp.find(Func) == FuncExp.cend()) {
-    return Unexpect(ErrCode::WrongInstanceAddress);
+    Log::loggingError(ErrCode::FuncNotFound);
+    return Unexpect(ErrCode::FuncNotFound);
   }
   return InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second, Params);
 }

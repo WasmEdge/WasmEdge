@@ -143,7 +143,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Return:
     return runReturnOp();
   default:
-    return Unexpect(ErrCode::InstructionTypeMismatch);
+    return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
 
@@ -155,7 +155,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Loop:
     return runLoopOp(Instr);
   default:
-    return Unexpect(ErrCode::InstructionTypeMismatch);
+    return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
 
@@ -165,7 +165,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::If:
     return runIfElseOp(Instr);
   default:
-    return Unexpect(ErrCode::InstructionTypeMismatch);
+    return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
 
@@ -177,7 +177,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Br_if:
     return runBrIfOp(Instr);
   default:
-    return Unexpect(ErrCode::InstructionTypeMismatch);
+    return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
 
@@ -187,7 +187,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Br_table:
     return runBrTableOp(Instr);
   default:
-    return Unexpect(ErrCode::InstructionTypeMismatch);
+    return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
 
@@ -199,7 +199,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Call_indirect:
     return runCallIndirectOp(StoreMgr, Instr);
   default:
-    return Unexpect(ErrCode::InstructionTypeMismatch);
+    return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
 
@@ -224,7 +224,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     return {};
   }
   default:
-    return Unexpect(ErrCode::InstructionTypeMismatch);
+    return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
 
@@ -246,7 +246,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Global__set:
     return runGlobalSetOp(StoreMgr, Index);
   default:
-    return Unexpect(ErrCode::InstructionTypeMismatch);
+    return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
 
@@ -305,7 +305,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Memory__size:
     return runMemorySizeOp(*MemInst);
   default:
-    return Unexpect(ErrCode::InstructionTypeMismatch);
+    return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
 
@@ -414,7 +414,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::F64__reinterpret_i64:
     return runReinterpretOp<uint64_t, double>(Val);
   default:
-    return Unexpect(ErrCode::InstructionTypeMismatch);
+    return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
 
@@ -577,7 +577,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::F64__copysign:
     return runCopysignOp<double>(Val1, Val2);
   default:
-    return Unexpect(ErrCode::InstructionTypeMismatch);
+    return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
 
@@ -613,7 +613,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr) {
             if constexpr (std::is_void_v<
                               typename std::decay_t<decltype(Arg)>::type>) {
               /// If the Code not matched, return null pointer.
-              return Unexpect(ErrCode::InstructionTypeMismatch);
+              return Unexpect(ErrCode::InstrTypeMismatch);
             } else {
               /// Make the instruction node according to Code.
               return execute(

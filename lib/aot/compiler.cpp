@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "aot/compiler.h"
 #include "support/filesystem.h"
+#include "support/log.h"
 #include <lld/Common/Driver.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/IR/IRBuilder.h>
@@ -1438,6 +1439,7 @@ Expect<void> Compiler::compile(const Bytes &Data, const AST::Module &Module,
                                std::string_view PathSV) {
   using namespace std::literals;
 
+  LOG(INFO) << "compile start";
   const std::filesystem::path Path(PathSV);
   std::filesystem::path LLPath(Path);
   LLPath.replace_extension("ll"sv);
@@ -1575,7 +1577,9 @@ Expect<void> Compiler::compile(const Bytes &Data, const AST::Module &Module,
           LLModule->print(OS, nullptr);
         }
 
+        LOG(INFO) << "verify start";
         llvm::verifyModule(*LLModule, &llvm::errs());
+        LOG(INFO) << "optimize start";
 
         // tempfile
         auto Object = llvm::sys::fs::TempFile::create(OPath.native());
@@ -1673,6 +1677,7 @@ Expect<void> Compiler::compile(const Bytes &Data, const AST::Module &Module,
             llvm::raw_fd_ostream OS(Fd, true);
             LLModule->print(OS, nullptr);
           }
+          LOG(INFO) << "codegen start";
           CodeGenPasses.run(*LLModule);
         }
 
@@ -1687,6 +1692,7 @@ Expect<void> Compiler::compile(const Bytes &Data, const AST::Module &Module,
 #endif
 
         llvm::consumeError(Object->discard());
+        LOG(INFO) << "compile done";
         return {};
       });
 }

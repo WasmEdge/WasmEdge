@@ -24,20 +24,47 @@ bool isLimitMatched(const bool HasMax1, const uint32_t Min1,
   return true;
 }
 
-ErrCode checkImportError(const std::string &Name,
-                         const std::map<std::string, uint32_t> &Map1,
-                         const std::map<std::string, uint32_t> &Map2,
-                         const std::map<std::string, uint32_t> &Map3) {
-  if (Map1.find(Name) != Map1.cend()) {
-    return ErrCode::IncompatibleImportType;
+Expect<uint32_t> getImportAddr(const std::string &Name,
+                               const ExternalType ExtType,
+                               Runtime::Instance::ModuleInstance &ModInst) {
+  const auto &FuncList = ModInst.getFuncExports();
+  const auto &TabList = ModInst.getTableExports();
+  const auto &MemList = ModInst.getMemExports();
+  const auto &GlobList = ModInst.getGlobalExports();
+
+  switch (ExtType) {
+  case ExternalType::Function:
+    if (FuncList.find(Name) != FuncList.cend()) {
+      return FuncList.find(Name)->second;
+    }
+    break;
+  case ExternalType::Table:
+    if (TabList.find(Name) != TabList.cend()) {
+      return TabList.find(Name)->second;
+    }
+    break;
+  case ExternalType::Memory:
+    if (MemList.find(Name) != MemList.cend()) {
+      return MemList.find(Name)->second;
+    }
+    break;
+  case ExternalType::Global:
+    if (GlobList.find(Name) != GlobList.cend()) {
+      return GlobList.find(Name)->second;
+    }
+    break;
+  default:
+    return Unexpect(ErrCode::UnknownImport);
   }
-  if (Map2.find(Name) != Map2.cend()) {
-    return ErrCode::IncompatibleImportType;
+
+  /// Check is error external type or unknown imports.
+  if (FuncList.find(Name) != FuncList.cend() ||
+      TabList.find(Name) != TabList.cend() ||
+      MemList.find(Name) != MemList.cend() ||
+      GlobList.find(Name) != GlobList.cend()) {
+    return Unexpect(ErrCode::IncompatibleImportType);
   }
-  if (Map3.find(Name) != Map3.cend()) {
-    return ErrCode::IncompatibleImportType;
-  }
-  return ErrCode::UnknownImport;
+  return Unexpect(ErrCode::UnknownImport);
 }
 } // namespace
 
@@ -52,54 +79,37 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     auto ExtType = ImpDesc->getExternalType();
     auto &ModName = ImpDesc->getModuleName();
     auto &ExtName = ImpDesc->getExternalName();
-    uint32_t TargetAddr;
     Runtime::Instance::ModuleInstance *TargetModInst;
+    uint32_t TargetAddr;
     if (auto Res = StoreMgr.findModule(ModName)) {
       TargetModInst = *Res;
     } else {
+      return Unexpect(ErrCode::UnknownImport);
+    }
+    if (auto Res = getImportAddr(ExtName, ExtType, *TargetModInst)) {
+      TargetAddr = *Res;
+    } else {
       return Unexpect(Res);
     }
-    const auto &FuncList = TargetModInst->getFuncExports();
-    const auto &TabList = TargetModInst->getTableExports();
-    const auto &MemList = TargetModInst->getMemExports();
-    const auto &GlobList = TargetModInst->getGlobalExports();
 
     /// Add the imports into module istance.
     switch (ExtType) {
     case ExternalType::Function: {
-      /// Find the function address in Store.
-      if (FuncList.find(ExtName) != FuncList.cend()) {
-        TargetAddr = FuncList.find(ExtName)->second;
-      } else {
-        /// Check is error external type or unknown imports.
-        return Unexpect(checkImportError(ExtName, TabList, MemList, GlobList));
-      }
       /// Get function type index. External type checked in validation.
       uint32_t *TypeIdx = *ImpDesc->getExternalContent<uint32_t>();
       /// Import matching.
       const auto *TargetInst = *StoreMgr.getFunction(TargetAddr);
       const auto &TargetType = TargetInst->getFuncType();
-      if (auto Res = ModInst.getFuncType(*TypeIdx)) {
-        const auto FuncType = *Res;
-        if (TargetType.Params != FuncType->Params ||
-            TargetType.Returns != FuncType->Returns) {
-          return Unexpect(ErrCode::IncompatibleImportType);
-        }
-      } else {
-        return Unexpect(Res);
+      const auto *FuncType = *ModInst.getFuncType(*TypeIdx);
+      if (TargetType.Params != FuncType->Params ||
+          TargetType.Returns != FuncType->Returns) {
+        return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched function address to module instance.
       ModInst.addFuncAddr(TargetAddr);
       break;
     }
     case ExternalType::Table: {
-      /// Find the table address in Store.
-      if (TabList.find(ExtName) != TabList.cend()) {
-        TargetAddr = TabList.find(ExtName)->second;
-      } else {
-        /// Check is error external type or unknown imports.
-        return Unexpect(checkImportError(ExtName, FuncList, MemList, GlobList));
-      }
       /// Get table type. External type checked in validation.
       AST::TableType *TabType = *ImpDesc->getExternalContent<AST::TableType>();
       /// Import matching.
@@ -116,13 +126,6 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       break;
     }
     case ExternalType::Memory: {
-      /// Find the memory address in Store.
-      if (MemList.find(ExtName) != MemList.cend()) {
-        TargetAddr = MemList.find(ExtName)->second;
-      } else {
-        /// Check is error external type or unknown imports.
-        return Unexpect(checkImportError(ExtName, FuncList, TabList, GlobList));
-      }
       /// Get memory type. External type checked in validation.
       AST::MemoryType *MemType =
           *ImpDesc->getExternalContent<AST::MemoryType>();
@@ -139,13 +142,6 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       break;
     }
     case ExternalType::Global: {
-      /// Find the global address in Store.
-      if (GlobList.find(ExtName) != GlobList.cend()) {
-        TargetAddr = GlobList.find(ExtName)->second;
-      } else {
-        /// Check is error external type or unknown imports.
-        return Unexpect(checkImportError(ExtName, FuncList, MemList, TabList));
-      }
       /// Get global type. External type checked in validation.
       AST::GlobalType *GlobType =
           *ImpDesc->getExternalContent<AST::GlobalType>();

@@ -29,57 +29,33 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     case ExternalType::Function:
       ModInst.exportFuncion(ExtName, ExtIdx);
       if (Symbol) {
-        if (auto Addr = ModInst.getFuncAddr(ExtIdx)) {
-          if (auto Inst = StoreMgr.getFunction(*Addr)) {
-            (*Inst)->setSymbol(Symbol);
-          } else {
-            return Unexpect(Inst);
-          }
-        } else {
-          return Unexpect(Addr);
-        }
+        uint32_t Addr = *ModInst.getFuncAddr(ExtIdx);
+        auto *Inst = *StoreMgr.getFunction(Addr);
+        Inst->setSymbol(Symbol);
       }
       break;
     case ExternalType::Global:
       ModInst.exportGlobal(ExtName, ExtIdx);
       if (Symbol) {
-        if (auto Addr = ModInst.getGlobalAddr(ExtIdx)) {
-          if (auto Inst = StoreMgr.getGlobal(*Addr)) {
-            (*Inst)->setSymbol(Symbol);
-          } else {
-            return Unexpect(Inst);
-          }
-        } else {
-          return Unexpect(Addr);
-        }
+        uint32_t Addr = *ModInst.getGlobalAddr(ExtIdx);
+        auto *Inst = *StoreMgr.getGlobal(Addr);
+        Inst->setSymbol(Symbol);
       }
       break;
     case ExternalType::Memory:
       ModInst.exportMemory(ExtName, ExtIdx);
       if (Symbol) {
-        if (auto Addr = ModInst.getMemAddr(ExtIdx)) {
-          if (auto Inst = StoreMgr.getMemory(*Addr)) {
-            (*Inst)->setSymbol(Symbol);
-          } else {
-            return Unexpect(Inst);
-          }
-        } else {
-          return Unexpect(Addr);
-        }
+        uint32_t Addr = *ModInst.getMemAddr(ExtIdx);
+        auto *Inst = *StoreMgr.getMemory(Addr);
+        Inst->setSymbol(Symbol);
       }
       break;
     case ExternalType::Table:
       ModInst.exportTable(ExtName, ExtIdx);
       if (Symbol) {
-        if (auto Addr = ModInst.getTableAddr(ExtIdx)) {
-          if (auto Inst = StoreMgr.getTable(*Addr)) {
-            (*Inst)->setSymbol(Symbol);
-          } else {
-            return Unexpect(Inst);
-          }
-        } else {
-          return Unexpect(Addr);
-        }
+        uint32_t Addr = *ModInst.getTableAddr(ExtIdx);
+        auto *Inst = *StoreMgr.getTable(Addr);
+        Inst->setSymbol(Symbol);
       }
       break;
     default:

@@ -60,6 +60,9 @@ public:
   /// Read a string, which is size(unsigned int) + bytes.
   virtual Expect<std::string> readName() = 0;
 
+  /// Get current offset.
+  virtual uint32_t getOffset() = 0;
+
 protected:
   /// File manager status.
   ErrCode Status = ErrCode::InvalidPath;
@@ -85,6 +88,7 @@ public:
   Expect<float> readF32() override;
   Expect<double> readF64() override;
   Expect<std::string> readName() override;
+  uint32_t getOffset() override { return Fin.tellg(); }
 
 private:
   /// file stream.
@@ -110,6 +114,7 @@ public:
   Expect<float> readF32() override;
   Expect<double> readF64() override;
   Expect<std::string> readName() override;
+  uint32_t getOffset() override { return Pos; }
 
   uint32_t getRemainSize() const { return Code.size() - Pos; }
   void clearBuffer() {

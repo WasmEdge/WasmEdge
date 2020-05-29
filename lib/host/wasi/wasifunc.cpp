@@ -1098,6 +1098,7 @@ Expect<uint32_t> WasiFdReadDir::body(Runtime::Instance::MemoryInstance &MemInst,
       if (errno != 0) {
         return convertErrNo(errno);
       }
+      return __WASI_ENOSYS;
     }
     Dir.Cookie = telldir(Dir.Dir);
     std::string_view Name = SysDirent->d_name;
@@ -1412,7 +1413,7 @@ WasiPathFilestatSetTimes::body(Runtime::Instance::MemoryInstance &MemInst,
     SysTimespec[1].tv_nsec = UTIME_OMIT;
   }
 
-  if (unlikely(utimensat(Fd, PathStr.c_str(), SysTimespec, 0) != 0)) {
+  if (unlikely(utimensat(Fd, PathStr.c_str(), SysTimespec, SysFlags) != 0)) {
     return convertErrNo(errno);
   }
 
@@ -1543,8 +1544,7 @@ Expect<uint32_t> WasiPathOpen::body(Runtime::Instance::MemoryInstance &MemInst,
     Flags |= O_NOFOLLOW;
   }
 
-  if (unlikely(!Entry->checkRights(RequiredInheritingRights,
-                                   RequiredInheritingRights))) {
+  if (unlikely(!Entry->checkRights(RequiredRights, RequiredInheritingRights))) {
     return __WASI_ENOTCAPABLE;
   }
 

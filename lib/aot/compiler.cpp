@@ -15,7 +15,22 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
 
+#if LLVM_VERSION_MAJOR >= 10
+#include <llvm/IR/IntrinsicsX86.h>
+#include <llvm/Support/Alignment.h>
+#endif
+
 namespace {
+
+#if LLVM_VERSION_MAJOR >= 10
+using RoundingMode = llvm::fp::RoundingMode;
+using ExceptionBehavior = llvm::fp::ExceptionBehavior;
+using Align = llvm::Align;
+#else
+using RoundingMode = llvm::ConstrainedFPIntrinsic::RoundingMode;
+using ExceptionBehavior = llvm::ConstrainedFPIntrinsic::ExceptionBehavior;
+static inline unsigned Align(unsigned Value) noexcept { return Value; }
+#endif
 
 static bool isVoidReturn(const std::vector<SSVM::ValType> &ValTypes);
 static llvm::Type *toLLVMType(llvm::LLVMContext &Context,
@@ -267,10 +282,8 @@ public:
         Builder(llvm::BasicBlock::Create(VMContext, "entry", F)) {
     if (F) {
       Builder.setIsFPConstrained(true);
-      Builder.setDefaultConstrainedRounding(
-          llvm::ConstrainedFPIntrinsic::RoundingMode::rmToNearest);
-      Builder.setDefaultConstrainedExcept(
-          llvm::ConstrainedFPIntrinsic::ExceptionBehavior::ebIgnore);
+      Builder.setDefaultConstrainedRounding(RoundingMode::rmToNearest);
+      Builder.setDefaultConstrainedExcept(ExceptionBehavior::ebIgnore);
       Ctx = F->arg_begin();
       for (llvm::Argument *Arg = Ctx + 1; Arg != F->arg_end(); ++Arg) {
         llvm::Value *ArgPtr = Builder.CreateAlloca(Arg->getType());
@@ -1243,7 +1256,7 @@ private:
     llvm::Value *Ptr =
         Builder.CreateBitCast(VPtr, llvm::PointerType::getUnqual(LoadTy));
     llvm::LoadInst *LoadInst = Builder.CreateLoad(Ptr);
-    LoadInst->setAlignment(1 << Alignment);
+    LoadInst->setAlignment(Align(UINT64_C(1) << Alignment));
     Stack.back() = LoadInst;
     return {};
   }
@@ -1282,7 +1295,7 @@ private:
     llvm::Value *Ptr =
         Builder.CreateBitCast(VPtr, llvm::PointerType::getUnqual(LoadTy));
     llvm::StoreInst *StoreInst = Builder.CreateStore(V, Ptr);
-    StoreInst->setAlignment(1 << Alignment);
+    StoreInst->setAlignment(Align(UINT64_C(1) << Alignment));
     return {};
   }
 
@@ -1540,10 +1553,8 @@ Expect<void> Compiler::compile(const Bytes &Data, const AST::Module &Module,
         llvm::IRBuilder<> Builder(
             llvm::BasicBlock::Create(Context->Context, "entry", Ctor));
         Builder.setIsFPConstrained(true);
-        Builder.setDefaultConstrainedRounding(
-            llvm::ConstrainedFPIntrinsic::RoundingMode::rmToNearest);
-        Builder.setDefaultConstrainedExcept(
-            llvm::ConstrainedFPIntrinsic::ExceptionBehavior::ebIgnore);
+        Builder.setDefaultConstrainedRounding(RoundingMode::rmToNearest);
+        Builder.setDefaultConstrainedExcept(ExceptionBehavior::ebIgnore);
         Builder.CreateStore(Ctor->arg_begin(), Context->Trap);
         Builder.CreateStore(Ctor->arg_begin() + 1, Context->Call);
         Builder.CreateStore(Ctor->arg_begin() + 2, Context->MemGrow);
@@ -1660,7 +1671,11 @@ Expect<void> Compiler::compile(const Bytes &Data, const AST::Module &Module,
           CodeGenPasses.add(new llvm::TargetLibraryInfoWrapperPass(*TLII));
 
           if (TM->addPassesToEmitFile(CodeGenPasses, *OS, nullptr,
+#if LLVM_VERSION_MAJOR >= 10
+                                      llvm::CGFT_ObjectFile,
+#else
                                       llvm::TargetMachine::CGFT_ObjectFile,
+#endif
                                       false)) {
             // TODO:return error
             llvm::errs() << "addPassesToEmitFile failed\n";
@@ -1680,13 +1695,21 @@ Expect<void> Compiler::compile(const Bytes &Data, const AST::Module &Module,
         }
 
         // link
-        const char *Args[] = {
+        std::array<const char *, 6> Args = {
             "lld", "--shared",  "--gc-sections", Object->TmpName.c_str(),
             "-o",  Path.c_str()};
+#if LLVM_VERSION_MAJOR >= 10
+#ifdef __APPLE__
+        lld::mach_o::link(Args, false, llvm::outs(), llvm::errs());
+#else
+        lld::elf::link(Args, false, llvm::outs(), llvm::errs());
+#endif
+#else
 #ifdef __APPLE__
         lld::mach_o::link(Args, false, llvm::errs());
 #else
         lld::elf::link(Args, false, llvm::errs());
+#endif
 #endif
 
         llvm::consumeError(Object->discard());
@@ -1744,10 +1767,8 @@ Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
       llvm::BasicBlock *Entry = llvm::BasicBlock::Create(VMContext, "entry", F);
       llvm::IRBuilder<> Builder(Entry);
       Builder.setIsFPConstrained(true);
-      Builder.setDefaultConstrainedRounding(
-          llvm::ConstrainedFPIntrinsic::RoundingMode::rmToNearest);
-      Builder.setDefaultConstrainedExcept(
-          llvm::ConstrainedFPIntrinsic::ExceptionBehavior::ebIgnore);
+      Builder.setDefaultConstrainedRounding(RoundingMode::rmToNearest);
+      Builder.setDefaultConstrainedExcept(ExceptionBehavior::ebIgnore);
 
       llvm::Value *Args;
       if (FTy->getNumParams() == 1) {
@@ -1844,10 +1865,8 @@ Expect<void> Compiler::compile(const AST::ExportSection &ExportSec) {
       llvm::IRBuilder<> Builder(
           llvm::BasicBlock::Create(Ctx->getContext(), "entry", Wrapper));
       Builder.setIsFPConstrained(true);
-      Builder.setDefaultConstrainedRounding(
-          llvm::ConstrainedFPIntrinsic::RoundingMode::rmToNearest);
-      Builder.setDefaultConstrainedExcept(
-          llvm::ConstrainedFPIntrinsic::ExceptionBehavior::ebIgnore);
+      Builder.setDefaultConstrainedRounding(RoundingMode::rmToNearest);
+      Builder.setDefaultConstrainedExcept(ExceptionBehavior::ebIgnore);
       llvm::Function *F =
           std::get<1>(Context->Functions[ExpDesc->getExternalIndex()]);
       llvm::Type *Ty = F->getReturnType();
@@ -1962,10 +1981,8 @@ Expect<void> Compiler::compile(const AST::MemorySection &MemorySection,
   llvm::IRBuilder<> Builder(
       llvm::BasicBlock::Create(Context->Context, "entry", Ctor));
   Builder.setIsFPConstrained(true);
-  Builder.setDefaultConstrainedRounding(
-      llvm::ConstrainedFPIntrinsic::RoundingMode::rmToNearest);
-  Builder.setDefaultConstrainedExcept(
-      llvm::ConstrainedFPIntrinsic::ExceptionBehavior::ebIgnore);
+  Builder.setDefaultConstrainedRounding(RoundingMode::rmToNearest);
+  Builder.setDefaultConstrainedExcept(ExceptionBehavior::ebIgnore);
   llvm::Constant *Content = llvm::ConstantDataArray::getString(
       VMContext, llvm::StringRef(ResultData.data(), ResultData.size()), false);
   llvm::GlobalVariable *GV =

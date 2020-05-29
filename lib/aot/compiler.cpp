@@ -563,7 +563,6 @@ public:
     return {};
   }
   Expect<void> compile(const AST::MemoryInstruction &Instr) {
-    llvm::ConstantInt *Offset = Builder.getInt32(Instr.getMemoryOffset());
     switch (Instr.getOpCode()) {
     case OpCode::I32__load:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),

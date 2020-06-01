@@ -10,15 +10,19 @@
 #include <numeric>
 #include <random>
 #include <string_view>
-#include <sys/epoll.h>
 #include <sys/ioctl.h>
-#include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifndef __APPLE__
+#include <sys/epoll.h>
+#include <sys/signalfd.h>
+#endif
 
 namespace {
 
@@ -747,9 +751,11 @@ WasiFdFilestatGet::body(Runtime::Instance::MemoryInstance &MemInst, int32_t Fd,
   Filestat->st_filetype = statMode2FileType(SysFStat.st_mode);
   Filestat->st_nlink = SysFStat.st_nlink;
   Filestat->st_size = SysFStat.st_size;
+#ifndef __APPLE__
   Filestat->st_atim = timespec2Timestamp(SysFStat.st_atim);
   Filestat->st_mtim = timespec2Timestamp(SysFStat.st_mtim);
   Filestat->st_ctim = timespec2Timestamp(SysFStat.st_ctim);
+#endif
 
   return __WASI_ESUCCESS;
 }
@@ -1364,9 +1370,11 @@ WasiPathFilestatGet::body(Runtime::Instance::MemoryInstance &MemInst,
   Filestat->st_filetype = statMode2FileType(SysFStat.st_mode);
   Filestat->st_nlink = SysFStat.st_nlink;
   Filestat->st_size = SysFStat.st_size;
+#ifndef __APPLE__
   Filestat->st_atim = timespec2Timestamp(SysFStat.st_atim);
   Filestat->st_mtim = timespec2Timestamp(SysFStat.st_mtim);
   Filestat->st_ctim = timespec2Timestamp(SysFStat.st_ctim);
+#endif
 
   return __WASI_ESUCCESS;
 }

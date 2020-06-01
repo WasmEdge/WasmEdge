@@ -3,9 +3,10 @@
 
 #include "wasibase.h"
 
-/// POSIX Definitions on MacOS
+/// Definitions on MacOS
 #ifdef __APPLE__
 /// TODO: Implement functions bellow on MacOS
+/// Posix functions
 #define posix_fallocate(...) ((uint32_t)0)
 #define posix_fadvise(...) ((uint32_t)0)
 #define fdatasync(...) ((uint32_t)0)
@@ -15,6 +16,85 @@
 #define POSIX_FADV_WILLNEED 3   /* Will need these pages. */
 #define POSIX_FADV_DONTNEED 4   /* Don't need these pages. */
 #define POSIX_FADV_NOREUSE 5    /* Data will be accessed once. */
+
+/// Epoll structures
+typedef union epoll_data {
+  void *ptr;
+  int fd;
+  uint32_t u32;
+  uint64_t u64;
+} epoll_data_t;
+
+struct epoll_event {
+  uint32_t events;   /* Epoll events */
+  epoll_data_t data; /* User data variable */
+};
+
+/// Epoll functions
+#define EPOLLIN 0x001
+#define EPOLLPRI 0x002
+#define EPOLLOUT 0x004
+#define EPOLLRDNORM 0x040
+#define EPOLLRDBAND 0x080
+#define EPOLLWRNORM 0x100
+#define EPOLLWRBAND 0x200
+#define EPOLLMSG 0x400
+#define EPOLLERR 0x008
+#define EPOLLHUP 0x010
+#define EPOLLRDHUP 0x2000
+#define EPOLLONESHOT (1 << 30)
+#define EPOLLET (1 << 31)
+#define epoll_create1(...) ((uint32_t)0)
+#define epoll_ctl(...) ((uint32_t)0)
+#define epoll_pwait(...) ((uint32_t)0)
+
+/// Signalfd structures
+struct signalfd_siginfo {
+  uint32_t ssi_signo;    /* Signal number */
+  int32_t ssi_errno;     /* Error number (unused) */
+  int32_t ssi_code;      /* Signal code */
+  uint32_t ssi_pid;      /* PID of sender */
+  uint32_t ssi_uid;      /* Real UID of sender */
+  int32_t ssi_fd;        /* File descriptor (SIGIO) */
+  uint32_t ssi_tid;      /* Kernel timer ID (POSIX timers) */
+  uint32_t ssi_band;     /* Band event (SIGIO) */
+  uint32_t ssi_overrun;  /* POSIX timer overrun count */
+  uint32_t ssi_trapno;   /* Trap number that caused signal */
+  int32_t ssi_status;    /* Exit status or signal (SIGCHLD) */
+  int32_t ssi_int;       /* Integer sent by sigqueue(3) */
+  uint64_t ssi_ptr;      /* Pointer sent by sigqueue(3) */
+  uint64_t ssi_utime;    /* User CPU time consumed (SIGCHLD) */
+  uint64_t ssi_stime;    /* System CPU time consumed
+                            (SIGCHLD) */
+  uint64_t ssi_addr;     /* Address that generated signal
+                            (for hardware-generated signals) */
+  uint16_t ssi_addr_lsb; /* Least significant bit of address
+                            (SIGBUS; since Linux 2.6.37) */
+  uint8_t pad[46];       /* Pad size to 128 bytes (allow for
+                            additional fields in the future) */
+};
+
+/// Signalfd functions
+#define signalfd(...) ((uint32_t)0)
+#define SIGPOLL SIGIO
+#define SIGPWR 30
+#define SIGRTMIN 34
+
+/// Preadv
+#define preadv(...) ((uint32_t)0)
+#define pwritev(...) ((uint32_t)0)
+#define O_RSYNC 0x0800
+
+/// Timer
+struct itimerspec {
+  struct timespec it_interval; /* timer period */
+  struct timespec it_value;    /* timer expiration */
+};
+#define TIMER_ABSTIME 0x01
+#define timer_t int
+#define timer_create(...) ((uint32_t)0)
+#define timer_settime(...) ((uint32_t)0)
+#define timer_delete(...) ((uint32_t)0)
 #endif
 
 namespace SSVM {

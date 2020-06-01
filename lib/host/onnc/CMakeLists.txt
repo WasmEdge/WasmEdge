@@ -14,6 +14,7 @@ endif()
 
 target_include_directories(ssvmHostModuleONNC
   PUBLIC
+  ${Boost_INCLUDE_DIR}
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty
 )

@@ -14,5 +14,6 @@ add_library(ssvmInterpreterInstantiate
 
 target_include_directories(ssvmInterpreterInstantiate
   PUBLIC
+  ${Boost_INCLUDE_DIR}
   ${PROJECT_SOURCE_DIR}/include
 )

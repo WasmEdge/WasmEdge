@@ -22,7 +22,7 @@
 namespace std {
 
 inline constexpr size_t dynamic_extent = numeric_limits<size_t>::max();
-template <class T, size_t Extent = dynamic_extent> class span;
+template <class T, size_t Extent = dynamic_extent> struct span;
 
 namespace detail {
 template <class T, class = void> struct defined_to_address : false_type {};

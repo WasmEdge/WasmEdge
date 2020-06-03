@@ -676,12 +676,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     const size_t ArgsN = FuncType.Params.size();
     const size_t RetsN = FuncType.Returns.size();
 
-    Span<ValVariant> Args;
-    if (auto Res = StackMgr.getTopSpan(ArgsN)) {
-      Args = std::move(*Res);
-    } else {
-      return Unexpect(Res);
-    }
+    Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
 
     /// FIXME: Pass memory instance pointer instead of reference and nullable.
@@ -713,12 +708,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
                        RetsN                 /// Coarity
     );
 
-    Span<ValVariant> Args;
-    if (auto Res = StackMgr.getTopSpan(ArgsN)) {
-      Args = std::move(*Res);
-    } else {
-      return Unexpect(Res);
-    }
+    Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
 
     CurrentStore = &StoreMgr;

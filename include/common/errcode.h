@@ -56,20 +56,20 @@ enum class ErrCode : uint8_t {
   UnknownImport = 0x32,          /// Unknown import instances
   DataSegDoesNotFit = 0x33,      /// Init failed when instantiating data segment
   ElemSegDoesNotFit = 0x34, /// Init failed when instantiating element segment
-  WrongInstanceAddress = 0x35, /// Wrong access of instances
   /// Execution phase
-  StackEmpty = 0x40,           /// Empry stack when get or pop entry
-  InstrTypeMismatch = 0x41,    /// Instruction type not match
-  FuncSigMismatch = 0x42,      /// Function signature not match when invoking
-  DivideByZero = 0x43,         /// Divide by zero
-  IntegerOverflow = 0x44,      /// Integer overflow
-  InvalidConvToInt = 0x45,     /// Cannot do convert to integer
-  MemoryOutOfBounds = 0x46,    /// Out of bounds memory access
-  Unreachable = 0x47,          /// Meet an unreachable instruction
-  UninitializedElement = 0x48, /// Uninitialized element in table instance
-  UndefinedElement = 0x49,     /// Access undefined element in table instances
-  IndirectCallTypeMismatch = 0x4A, /// Func type mismatch in call_indirect
-  ExecutionFailed = 0x4B           /// Host function execution failed
+  WrongInstanceAddress = 0x40, /// Wrong access of instances addresses
+  WrongInstanceIndex = 0x41,   /// Wrong access of instances indices
+  InstrTypeMismatch = 0x42,    /// Instruction type not match
+  FuncSigMismatch = 0x43,      /// Function signature not match when invoking
+  DivideByZero = 0x44,         /// Divide by zero
+  IntegerOverflow = 0x45,      /// Integer overflow
+  InvalidConvToInt = 0x46,     /// Cannot do convert to integer
+  MemoryOutOfBounds = 0x47,    /// Out of bounds memory access
+  Unreachable = 0x48,          /// Meet an unreachable instruction
+  UninitializedElement = 0x49, /// Uninitialized element in table instance
+  UndefinedElement = 0x4A,     /// Access undefined element in table instances
+  IndirectCallTypeMismatch = 0x4B, /// Func type mismatch in call_indirect
+  ExecutionFailed = 0x4C           /// Host function execution failed
 };
 
 /// Error code enumeration string mapping.
@@ -91,7 +91,7 @@ static inline std::map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::DataSegDoesNotFit, "data segment does not fit"},
     {ErrCode::ElemSegDoesNotFit, "elements segment does not fit"},
     {ErrCode::WrongInstanceAddress, "wrong instance address"},
-    {ErrCode::StackEmpty, "stack empty"},
+    {ErrCode::WrongInstanceIndex, "wrong instance index"},
     {ErrCode::InstrTypeMismatch, "instruction type mismatch"},
     {ErrCode::FuncSigMismatch, "function signature mismatch"},
     {ErrCode::DivideByZero, "integer divide by zero"},

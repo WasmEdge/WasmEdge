@@ -67,10 +67,7 @@ public:
   Value &getBottomN(uint32_t N) { return ValueStack[N]; }
 
   /// Unsafe Getter of top N value entries of stack.
-  Expect<Span<Value>> getTopSpan(uint32_t N) {
-    if (unlikely(ValueStack.size() < N)) {
-      return Unexpect(ErrCode::StackEmpty);
-    }
+  Span<Value> getTopSpan(uint32_t N) {
     return Span<Value>(ValueStack.end() - N, N);
   }
 

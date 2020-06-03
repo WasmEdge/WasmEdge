@@ -97,8 +97,8 @@ VType FormChecker::ASTToVType(const ValType &V) {
 Expect<void> FormChecker::checkInstrs(const AST::InstrVec &Instrs) {
   for (auto &Instr : Instrs) {
     OpCode Code = Instr->getOpCode();
-    auto Res =
-        dispatchInstruction(Code, [this, &Instr](auto &&Arg) -> Expect<void> {
+    auto Res = AST::dispatchInstruction(
+        Code, [this, &Instr](auto &&Arg) -> Expect<void> {
           if constexpr (std::is_void_v<
                             typename std::decay_t<decltype(Arg)>::type>) {
             /// If the Code not matched, validation failed.

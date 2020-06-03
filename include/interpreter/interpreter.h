@@ -36,8 +36,6 @@ namespace {
 #define TIMER_TAG_EXECUTION 1U
 #define TIMER_TAG_HOSTFUNC 2U
 
-using OpCode = AST::Instruction::OpCode;
-
 /// Template return type aliasing
 /// Accept unsigned integer types. (uint32_t, uint64_t)
 template <typename T>

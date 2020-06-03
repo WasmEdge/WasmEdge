@@ -25,8 +25,8 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
   ///   2.  Load block with only end operation.
   ///   3.  Load block with invalid operations.
   ///   4.  Load block with instructions.
-  SSVM::AST::Instruction::OpCode Op1 = SSVM::AST::Instruction::OpCode::Block;
-  SSVM::AST::Instruction::OpCode Op2 = SSVM::AST::Instruction::OpCode::Loop;
+  SSVM::OpCode Op1 = SSVM::OpCode::Block;
+  SSVM::OpCode Op2 = SSVM::OpCode::Loop;
 
   Mgr.clearBuffer();
   SSVM::AST::BlockControlInstruction Ins1(Op1);
@@ -88,7 +88,7 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   ///   5.  Load if and else statements with invalid operations.
   ///   6.  Load if statement with instructions.
   ///   7.  Load if and else statements with instructions.
-  SSVM::AST::Instruction::OpCode Op = SSVM::AST::Instruction::OpCode::If;
+  SSVM::OpCode Op = SSVM::OpCode::If;
 
   Mgr.clearBuffer();
   SSVM::AST::IfElseControlInstruction Ins1(Op);
@@ -163,8 +163,8 @@ TEST(InstructionTest, LoadBrControlInstruction) {
   ///
   ///   1.  Load invalid empty label index.
   ///   2.  Load valid label index.
-  SSVM::AST::Instruction::OpCode Op1 = SSVM::AST::Instruction::OpCode::Br;
-  SSVM::AST::Instruction::OpCode Op2 = SSVM::AST::Instruction::OpCode::Br_if;
+  SSVM::OpCode Op1 = SSVM::OpCode::Br;
+  SSVM::OpCode Op2 = SSVM::OpCode::Br_if;
 
   Mgr.clearBuffer();
   SSVM::AST::BrControlInstruction Ins1(Op1);
@@ -192,7 +192,7 @@ TEST(InstructionTest, LoadBrTableControlInstruction) {
   ///   1.  Load invalid empty instruction body.
   ///   2.  Load instruction with empty label vector.
   ///   3.  Load instruction with label vector.
-  SSVM::AST::Instruction::OpCode Op = SSVM::AST::Instruction::OpCode::Br_table;
+  SSVM::OpCode Op = SSVM::OpCode::Br_table;
 
   Mgr.clearBuffer();
   SSVM::AST::BrTableControlInstruction Ins1(Op);
@@ -226,9 +226,8 @@ TEST(InstructionTest, LoadCallControlInstruction) {
   ///   1.  Load invalid empty instruction body.
   ///   2.  Load valid type index.
   ///   3.  Load valid function index.
-  SSVM::AST::Instruction::OpCode Op1 = SSVM::AST::Instruction::OpCode::Call;
-  SSVM::AST::Instruction::OpCode Op2 =
-      SSVM::AST::Instruction::OpCode::Call_indirect;
+  SSVM::OpCode Op1 = SSVM::OpCode::Call;
+  SSVM::OpCode Op2 = SSVM::OpCode::Call_indirect;
 
   Mgr.clearBuffer();
   SSVM::AST::CallControlInstruction Ins1(Op1);
@@ -260,8 +259,7 @@ TEST(InstructionTest, LoadVariableInstruction) {
   ///
   ///   1.  Load invalid empty local or global index.
   ///   2.  Load valid empty local or global index.
-  SSVM::AST::Instruction::OpCode Op =
-      SSVM::AST::Instruction::OpCode::Local__get;
+  SSVM::OpCode Op = SSVM::OpCode::Local__get;
 
   Mgr.clearBuffer();
   SSVM::AST::VariableInstruction Ins1(Op);
@@ -283,10 +281,8 @@ TEST(InstructionTest, LoadMemoryInstruction) {
   ///   2.  Load invalid memory size or grow instruction.
   ///   3.  Load valid memory args.
   ///   4.  Load valid memory size instruction.
-  SSVM::AST::Instruction::OpCode Op1 =
-      SSVM::AST::Instruction::OpCode::I32__load;
-  SSVM::AST::Instruction::OpCode Op2 =
-      SSVM::AST::Instruction::OpCode::Memory__grow;
+  SSVM::OpCode Op1 = SSVM::OpCode::I32__load;
+  SSVM::OpCode Op2 = SSVM::OpCode::Memory__grow;
 
   Mgr.clearBuffer();
   SSVM::AST::MemoryInstruction Ins1(Op1);
@@ -329,14 +325,10 @@ TEST(InstructionTest, LoadConstInstruction) {
   ///   3.  Load I64 const numeric instruction.
   ///   4.  Load F32 const numeric instruction.
   ///   5.  Load F64 const numeric instruction.
-  SSVM::AST::Instruction::OpCode Op1 =
-      SSVM::AST::Instruction::OpCode::I32__const;
-  SSVM::AST::Instruction::OpCode Op2 =
-      SSVM::AST::Instruction::OpCode::I64__const;
-  SSVM::AST::Instruction::OpCode Op3 =
-      SSVM::AST::Instruction::OpCode::F32__const;
-  SSVM::AST::Instruction::OpCode Op4 =
-      SSVM::AST::Instruction::OpCode::F64__const;
+  SSVM::OpCode Op1 = SSVM::OpCode::I32__const;
+  SSVM::OpCode Op2 = SSVM::OpCode::I64__const;
+  SSVM::OpCode Op3 = SSVM::OpCode::F32__const;
+  SSVM::OpCode Op4 = SSVM::OpCode::F64__const;
 
   Mgr.clearBuffer();
   SSVM::AST::ConstInstruction Ins1(Op1);

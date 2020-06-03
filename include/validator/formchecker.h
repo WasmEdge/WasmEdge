@@ -26,7 +26,6 @@ namespace SSVM {
 namespace Validator {
 
 enum class VType : uint32_t { Unknown, I32, I64, F32, F64 };
-using OpCode = AST::Instruction::OpCode;
 
 /// TODO: Validator should update due to applying multi-value returns in spec.
 

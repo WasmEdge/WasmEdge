@@ -38,7 +38,7 @@ public:
   }
 
   /// Adder for instruction costs.
-  bool addInstrCost(const AST::Instruction::OpCode &Code) {
+  bool addInstrCost(OpCode Code) {
     return addCost(CostTab[static_cast<uint64_t>(Code)]);
   }
 

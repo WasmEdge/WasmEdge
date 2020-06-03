@@ -41,13 +41,13 @@ Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
 
     /// Read the opcode and check if error.
     if (auto Res = Mgr.readByte()) {
-      Code = static_cast<Instruction::OpCode>(*Res);
+      Code = static_cast<OpCode>(*Res);
     } else {
       return Unexpect(Res);
     }
 
     /// When reach end, this block is ended.
-    if (Code == Instruction::OpCode::End) {
+    if (Code == OpCode::End) {
       break;
     }
 
@@ -111,7 +111,7 @@ Expect<void> IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
 
     /// Read the opcode and check if error.
     if (auto Res = Mgr.readByte()) {
-      Code = static_cast<Instruction::OpCode>(*Res);
+      Code = static_cast<OpCode>(*Res);
     } else {
       return Unexpect(Res);
     }
@@ -221,8 +221,7 @@ Expect<void> VariableInstruction::loadBinary(FileMgr &Mgr) {
 /// Load binary of memory instructions. See "include/common/ast/instruction.h".
 Expect<void> MemoryInstruction::loadBinary(FileMgr &Mgr) {
   /// Read the 0x00 checking code in memory.grow and memory.size cases.
-  if (Code == Instruction::OpCode::Memory__grow ||
-      Code == Instruction::OpCode::Memory__size) {
+  if (Code == OpCode::Memory__grow || Code == OpCode::Memory__size) {
     if (auto Res = Mgr.readByte()) {
       if (*Res == 0x00) {
         return {};
@@ -250,28 +249,28 @@ Expect<void> MemoryInstruction::loadBinary(FileMgr &Mgr) {
 Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
   /// Read the const number of corresbonding value type.
   switch (Code) {
-  case Instruction::OpCode::I32__const:
+  case OpCode::I32__const:
     if (auto Res = Mgr.readS32()) {
       Num = static_cast<uint32_t>(*Res);
     } else {
       return Unexpect(Res);
     }
     break;
-  case Instruction::OpCode::I64__const:
+  case OpCode::I64__const:
     if (auto Res = Mgr.readS64()) {
       Num = static_cast<uint64_t>(*Res);
     } else {
       return Unexpect(Res);
     }
     break;
-  case Instruction::OpCode::F32__const:
+  case OpCode::F32__const:
     if (auto Res = Mgr.readF32()) {
       Num = *Res;
     } else {
       return Unexpect(Res);
     }
     break;
-  case Instruction::OpCode::F64__const:
+  case OpCode::F64__const:
     if (auto Res = Mgr.readF64()) {
       Num = *Res;
     } else {
@@ -286,8 +285,8 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
 }
 
 /// Instruction node maker. See "include/common/ast/instruction.h".
-Expect<std::unique_ptr<Instruction>>
-makeInstructionNode(Instruction::OpCode Code, uint32_t Offset) {
+Expect<std::unique_ptr<Instruction>> makeInstructionNode(OpCode Code,
+                                                         uint32_t Offset) {
   return dispatchInstruction(
       Code,
       [&Code, &Offset](auto &&Arg) -> Expect<std::unique_ptr<Instruction>> {

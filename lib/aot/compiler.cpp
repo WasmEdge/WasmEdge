@@ -274,7 +274,6 @@ static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &Context,
 
 class FunctionCompiler {
 public:
-  using OpCode = AST::Instruction::OpCode;
   FunctionCompiler(AOT::Compiler::CompileContext &Context, llvm::Function *F,
                    Span<const ValType> Locals, bool CalculateInstrCount)
       : Context(Context), VMContext(Context.Context), F(F),

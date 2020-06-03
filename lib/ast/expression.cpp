@@ -8,18 +8,18 @@ namespace AST {
 Expect<void> Expression::loadBinary(FileMgr &Mgr) {
   /// Read opcode until the End code.
   while (true) {
-    Instruction::OpCode Code;
+    OpCode Code;
     uint32_t Offset = Mgr.getOffset();
 
     /// Read the opcode and check if error.
     if (auto Res = Mgr.readByte()) {
-      Code = static_cast<Instruction::OpCode>(*Res);
+      Code = static_cast<OpCode>(*Res);
     } else {
       return Unexpect(Res);
     }
 
     /// When reach end, this expression is ended.
-    if (Code == Instruction::OpCode::End)
+    if (Code == OpCode::End)
       break;
 
     /// Create the instruction node and load contents.

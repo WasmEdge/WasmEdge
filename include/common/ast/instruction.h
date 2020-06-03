@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/ast.h"
 #include "common/errcode.h"
 #include "common/types.h"
 #include "common/value.h"
@@ -32,193 +33,6 @@ using InstrIter = InstrVec::const_iterator;
 /// Loader class of Instruction node.
 class Instruction {
 public:
-  /// Instruction opcode enumeration class.
-  enum class OpCode : uint8_t {
-    /// Control instructions
-    Unreachable = 0x00,
-    Nop = 0x01,
-    Block = 0x02,
-    Loop = 0x03,
-    If = 0x04,
-    Else = 0x05,
-    End = 0x0B,
-    Br = 0x0C,
-    Br_if = 0x0D,
-    Br_table = 0x0E,
-    Return = 0x0F,
-    Call = 0x10,
-    Call_indirect = 0x11,
-
-    /// Parametric Instructions
-    Drop = 0x1A,
-    Select = 0x1B,
-
-    /// Variable Instructions
-    Local__get = 0x20,
-    Local__set = 0x21,
-    Local__tee = 0x22,
-    Global__get = 0x23,
-    Global__set = 0x24,
-
-    /// Memory Instructions
-    I32__load = 0x28,
-    I64__load = 0x29,
-    F32__load = 0x2A,
-    F64__load = 0x2B,
-    I32__load8_s = 0x2C,
-    I32__load8_u = 0x2D,
-    I32__load16_s = 0x2E,
-    I32__load16_u = 0x2F,
-    I64__load8_s = 0x30,
-    I64__load8_u = 0x31,
-    I64__load16_s = 0x32,
-    I64__load16_u = 0x33,
-    I64__load32_s = 0x34,
-    I64__load32_u = 0x35,
-    I32__store = 0x36,
-    I64__store = 0x37,
-    F32__store = 0x38,
-    F64__store = 0x39,
-    I32__store8 = 0x3A,
-    I32__store16 = 0x3B,
-    I64__store8 = 0x3C,
-    I64__store16 = 0x3D,
-    I64__store32 = 0x3E,
-    Memory__size = 0x3F,
-    Memory__grow = 0x40,
-
-    /// Const numeric instructions
-    I32__const = 0x41,
-    I64__const = 0x42,
-    F32__const = 0x43,
-    F64__const = 0x44,
-
-    /// Numeric instructions
-    I32__eqz = 0x45,
-    I32__eq = 0x46,
-    I32__ne = 0x47,
-    I32__lt_s = 0x48,
-    I32__lt_u = 0x49,
-    I32__gt_s = 0x4A,
-    I32__gt_u = 0x4B,
-    I32__le_s = 0x4C,
-    I32__le_u = 0x4D,
-    I32__ge_s = 0x4E,
-    I32__ge_u = 0x4F,
-    I64__eqz = 0x50,
-    I64__eq = 0x51,
-    I64__ne = 0x52,
-    I64__lt_s = 0x53,
-    I64__lt_u = 0x54,
-    I64__gt_s = 0x55,
-    I64__gt_u = 0x56,
-    I64__le_s = 0x57,
-    I64__le_u = 0x58,
-    I64__ge_s = 0x59,
-    I64__ge_u = 0x5A,
-    F32__eq = 0x5B,
-    F32__ne = 0x5C,
-    F32__lt = 0x5D,
-    F32__gt = 0x5E,
-    F32__le = 0x5F,
-    F32__ge = 0x60,
-    F64__eq = 0x61,
-    F64__ne = 0x62,
-    F64__lt = 0x63,
-    F64__gt = 0x64,
-    F64__le = 0x65,
-    F64__ge = 0x66,
-    I32__clz = 0x67,
-    I32__ctz = 0x68,
-    I32__popcnt = 0x69,
-    I32__add = 0x6A,
-    I32__sub = 0x6B,
-    I32__mul = 0x6C,
-    I32__div_s = 0x6D,
-    I32__div_u = 0x6E,
-    I32__rem_s = 0x6F,
-    I32__rem_u = 0x70,
-    I32__and = 0x71,
-    I32__or = 0x72,
-    I32__xor = 0x73,
-    I32__shl = 0x74,
-    I32__shr_s = 0x75,
-    I32__shr_u = 0x76,
-    I32__rotl = 0x77,
-    I32__rotr = 0x78,
-    I64__clz = 0x79,
-    I64__ctz = 0x7a,
-    I64__popcnt = 0x7b,
-    I64__add = 0x7c,
-    I64__sub = 0x7d,
-    I64__mul = 0x7e,
-    I64__div_s = 0x7f,
-    I64__div_u = 0x80,
-    I64__rem_s = 0x81,
-    I64__rem_u = 0x82,
-    I64__and = 0x83,
-    I64__or = 0x84,
-    I64__xor = 0x85,
-    I64__shl = 0x86,
-    I64__shr_s = 0x87,
-    I64__shr_u = 0x88,
-    I64__rotl = 0x89,
-    I64__rotr = 0x8A,
-    F32__abs = 0x8B,
-    F32__neg = 0x8C,
-    F32__ceil = 0x8D,
-    F32__floor = 0x8E,
-    F32__trunc = 0x8F,
-    F32__nearest = 0x90,
-    F32__sqrt = 0x91,
-    F32__add = 0x92,
-    F32__sub = 0x93,
-    F32__mul = 0x94,
-    F32__div = 0x95,
-    F32__min = 0x96,
-    F32__max = 0x97,
-    F32__copysign = 0x98,
-    F64__abs = 0x99,
-    F64__neg = 0x9A,
-    F64__ceil = 0x9B,
-    F64__floor = 0x9C,
-    F64__trunc = 0x9D,
-    F64__nearest = 0x9E,
-    F64__sqrt = 0x9F,
-    F64__add = 0xA0,
-    F64__sub = 0xA1,
-    F64__mul = 0xA2,
-    F64__div = 0xA3,
-    F64__min = 0xA4,
-    F64__max = 0xA5,
-    F64__copysign = 0xA6,
-    I32__wrap_i64 = 0xA7,
-    I32__trunc_f32_s = 0xA8,
-    I32__trunc_f32_u = 0xA9,
-    I32__trunc_f64_s = 0xAA,
-    I32__trunc_f64_u = 0xAB,
-    I64__extend_i32_s = 0xAC,
-    I64__extend_i32_u = 0xAD,
-    I64__trunc_f32_s = 0xAE,
-    I64__trunc_f32_u = 0xAF,
-    I64__trunc_f64_s = 0xB0,
-    I64__trunc_f64_u = 0xB1,
-    F32__convert_i32_s = 0xB2,
-    F32__convert_i32_u = 0xB3,
-    F32__convert_i64_s = 0xB4,
-    F32__convert_i64_u = 0xB5,
-    F32__demote_f64 = 0xB6,
-    F64__convert_i32_s = 0xB7,
-    F64__convert_i32_u = 0xB8,
-    F64__convert_i64_s = 0xB9,
-    F64__convert_i64_u = 0xBA,
-    F64__promote_f32 = 0xBB,
-    I32__reinterpret_f32 = 0xBC,
-    I64__reinterpret_f64 = 0xBD,
-    F32__reinterpret_i32 = 0xBE,
-    F64__reinterpret_i64 = 0xBF
-  };
-
   /// Constructor assigns the OpCode.
   Instruction(const OpCode Byte, const uint32_t Off = 0)
       : Code(Byte), Offset(Off) {}
@@ -530,203 +344,202 @@ public:
       : Instruction(Instr.Code, Instr.Offset) {}
 };
 
-template <typename T>
-auto dispatchInstruction(Instruction::OpCode Code, T &&Visitor) {
+template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   switch (Code) {
     /// The OpCode::End and OpCode::Else will not make nodes.
-  case Instruction::OpCode::Unreachable:
-  case Instruction::OpCode::Nop:
-  case Instruction::OpCode::Return:
+  case OpCode::Unreachable:
+  case OpCode::Nop:
+  case OpCode::Return:
     return Visitor(Support::tag<ControlInstruction>());
 
-  case Instruction::OpCode::Block:
-  case Instruction::OpCode::Loop:
+  case OpCode::Block:
+  case OpCode::Loop:
     return Visitor(Support::tag<BlockControlInstruction>());
 
-  case Instruction::OpCode::If:
+  case OpCode::If:
     return Visitor(Support::tag<IfElseControlInstruction>());
 
-  case Instruction::OpCode::Br:
-  case Instruction::OpCode::Br_if:
+  case OpCode::Br:
+  case OpCode::Br_if:
     return Visitor(Support::tag<BrControlInstruction>());
 
-  case Instruction::OpCode::Br_table:
+  case OpCode::Br_table:
     return Visitor(Support::tag<BrTableControlInstruction>());
 
-  case Instruction::OpCode::Call:
-  case Instruction::OpCode::Call_indirect:
+  case OpCode::Call:
+  case OpCode::Call_indirect:
     return Visitor(Support::tag<CallControlInstruction>());
 
-  case Instruction::OpCode::Drop:
-  case Instruction::OpCode::Select:
+  case OpCode::Drop:
+  case OpCode::Select:
     return Visitor(Support::tag<ParametricInstruction>());
 
-  case Instruction::OpCode::Local__get:
-  case Instruction::OpCode::Local__set:
-  case Instruction::OpCode::Local__tee:
-  case Instruction::OpCode::Global__get:
-  case Instruction::OpCode::Global__set:
+  case OpCode::Local__get:
+  case OpCode::Local__set:
+  case OpCode::Local__tee:
+  case OpCode::Global__get:
+  case OpCode::Global__set:
     return Visitor(Support::tag<VariableInstruction>());
 
-  case Instruction::OpCode::I32__load:
-  case Instruction::OpCode::I64__load:
-  case Instruction::OpCode::F32__load:
-  case Instruction::OpCode::F64__load:
-  case Instruction::OpCode::I32__load8_s:
-  case Instruction::OpCode::I32__load8_u:
-  case Instruction::OpCode::I32__load16_s:
-  case Instruction::OpCode::I32__load16_u:
-  case Instruction::OpCode::I64__load8_s:
-  case Instruction::OpCode::I64__load8_u:
-  case Instruction::OpCode::I64__load16_s:
-  case Instruction::OpCode::I64__load16_u:
-  case Instruction::OpCode::I64__load32_s:
-  case Instruction::OpCode::I64__load32_u:
-  case Instruction::OpCode::I32__store:
-  case Instruction::OpCode::I64__store:
-  case Instruction::OpCode::F32__store:
-  case Instruction::OpCode::F64__store:
-  case Instruction::OpCode::I32__store8:
-  case Instruction::OpCode::I32__store16:
-  case Instruction::OpCode::I64__store8:
-  case Instruction::OpCode::I64__store16:
-  case Instruction::OpCode::I64__store32:
-  case Instruction::OpCode::Memory__size:
-  case Instruction::OpCode::Memory__grow:
+  case OpCode::I32__load:
+  case OpCode::I64__load:
+  case OpCode::F32__load:
+  case OpCode::F64__load:
+  case OpCode::I32__load8_s:
+  case OpCode::I32__load8_u:
+  case OpCode::I32__load16_s:
+  case OpCode::I32__load16_u:
+  case OpCode::I64__load8_s:
+  case OpCode::I64__load8_u:
+  case OpCode::I64__load16_s:
+  case OpCode::I64__load16_u:
+  case OpCode::I64__load32_s:
+  case OpCode::I64__load32_u:
+  case OpCode::I32__store:
+  case OpCode::I64__store:
+  case OpCode::F32__store:
+  case OpCode::F64__store:
+  case OpCode::I32__store8:
+  case OpCode::I32__store16:
+  case OpCode::I64__store8:
+  case OpCode::I64__store16:
+  case OpCode::I64__store32:
+  case OpCode::Memory__size:
+  case OpCode::Memory__grow:
     return Visitor(Support::tag<MemoryInstruction>());
 
-  case Instruction::OpCode::I32__const:
-  case Instruction::OpCode::I64__const:
-  case Instruction::OpCode::F32__const:
-  case Instruction::OpCode::F64__const:
+  case OpCode::I32__const:
+  case OpCode::I64__const:
+  case OpCode::F32__const:
+  case OpCode::F64__const:
     return Visitor(Support::tag<ConstInstruction>());
 
-  case Instruction::OpCode::I32__eqz:
-  case Instruction::OpCode::I32__clz:
-  case Instruction::OpCode::I32__ctz:
-  case Instruction::OpCode::I32__popcnt:
-  case Instruction::OpCode::I64__eqz:
-  case Instruction::OpCode::I64__clz:
-  case Instruction::OpCode::I64__ctz:
-  case Instruction::OpCode::I64__popcnt:
-  case Instruction::OpCode::F32__abs:
-  case Instruction::OpCode::F32__neg:
-  case Instruction::OpCode::F32__ceil:
-  case Instruction::OpCode::F32__floor:
-  case Instruction::OpCode::F32__trunc:
-  case Instruction::OpCode::F32__nearest:
-  case Instruction::OpCode::F32__sqrt:
-  case Instruction::OpCode::F64__abs:
-  case Instruction::OpCode::F64__neg:
-  case Instruction::OpCode::F64__ceil:
-  case Instruction::OpCode::F64__floor:
-  case Instruction::OpCode::F64__trunc:
-  case Instruction::OpCode::F64__nearest:
-  case Instruction::OpCode::F64__sqrt:
-  case Instruction::OpCode::I32__wrap_i64:
-  case Instruction::OpCode::I32__trunc_f32_s:
-  case Instruction::OpCode::I32__trunc_f32_u:
-  case Instruction::OpCode::I32__trunc_f64_s:
-  case Instruction::OpCode::I32__trunc_f64_u:
-  case Instruction::OpCode::I64__extend_i32_s:
-  case Instruction::OpCode::I64__extend_i32_u:
-  case Instruction::OpCode::I64__trunc_f32_s:
-  case Instruction::OpCode::I64__trunc_f32_u:
-  case Instruction::OpCode::I64__trunc_f64_s:
-  case Instruction::OpCode::I64__trunc_f64_u:
-  case Instruction::OpCode::F32__convert_i32_s:
-  case Instruction::OpCode::F32__convert_i32_u:
-  case Instruction::OpCode::F32__convert_i64_s:
-  case Instruction::OpCode::F32__convert_i64_u:
-  case Instruction::OpCode::F32__demote_f64:
-  case Instruction::OpCode::F64__convert_i32_s:
-  case Instruction::OpCode::F64__convert_i32_u:
-  case Instruction::OpCode::F64__convert_i64_s:
-  case Instruction::OpCode::F64__convert_i64_u:
-  case Instruction::OpCode::F64__promote_f32:
-  case Instruction::OpCode::I32__reinterpret_f32:
-  case Instruction::OpCode::I64__reinterpret_f64:
-  case Instruction::OpCode::F32__reinterpret_i32:
-  case Instruction::OpCode::F64__reinterpret_i64:
+  case OpCode::I32__eqz:
+  case OpCode::I32__clz:
+  case OpCode::I32__ctz:
+  case OpCode::I32__popcnt:
+  case OpCode::I64__eqz:
+  case OpCode::I64__clz:
+  case OpCode::I64__ctz:
+  case OpCode::I64__popcnt:
+  case OpCode::F32__abs:
+  case OpCode::F32__neg:
+  case OpCode::F32__ceil:
+  case OpCode::F32__floor:
+  case OpCode::F32__trunc:
+  case OpCode::F32__nearest:
+  case OpCode::F32__sqrt:
+  case OpCode::F64__abs:
+  case OpCode::F64__neg:
+  case OpCode::F64__ceil:
+  case OpCode::F64__floor:
+  case OpCode::F64__trunc:
+  case OpCode::F64__nearest:
+  case OpCode::F64__sqrt:
+  case OpCode::I32__wrap_i64:
+  case OpCode::I32__trunc_f32_s:
+  case OpCode::I32__trunc_f32_u:
+  case OpCode::I32__trunc_f64_s:
+  case OpCode::I32__trunc_f64_u:
+  case OpCode::I64__extend_i32_s:
+  case OpCode::I64__extend_i32_u:
+  case OpCode::I64__trunc_f32_s:
+  case OpCode::I64__trunc_f32_u:
+  case OpCode::I64__trunc_f64_s:
+  case OpCode::I64__trunc_f64_u:
+  case OpCode::F32__convert_i32_s:
+  case OpCode::F32__convert_i32_u:
+  case OpCode::F32__convert_i64_s:
+  case OpCode::F32__convert_i64_u:
+  case OpCode::F32__demote_f64:
+  case OpCode::F64__convert_i32_s:
+  case OpCode::F64__convert_i32_u:
+  case OpCode::F64__convert_i64_s:
+  case OpCode::F64__convert_i64_u:
+  case OpCode::F64__promote_f32:
+  case OpCode::I32__reinterpret_f32:
+  case OpCode::I64__reinterpret_f64:
+  case OpCode::F32__reinterpret_i32:
+  case OpCode::F64__reinterpret_i64:
     return Visitor(Support::tag<UnaryNumericInstruction>());
 
-  case Instruction::OpCode::I32__eq:
-  case Instruction::OpCode::I32__ne:
-  case Instruction::OpCode::I32__lt_s:
-  case Instruction::OpCode::I32__lt_u:
-  case Instruction::OpCode::I32__gt_s:
-  case Instruction::OpCode::I32__gt_u:
-  case Instruction::OpCode::I32__le_s:
-  case Instruction::OpCode::I32__le_u:
-  case Instruction::OpCode::I32__ge_s:
-  case Instruction::OpCode::I32__ge_u:
-  case Instruction::OpCode::I64__eq:
-  case Instruction::OpCode::I64__ne:
-  case Instruction::OpCode::I64__lt_s:
-  case Instruction::OpCode::I64__lt_u:
-  case Instruction::OpCode::I64__gt_s:
-  case Instruction::OpCode::I64__gt_u:
-  case Instruction::OpCode::I64__le_s:
-  case Instruction::OpCode::I64__le_u:
-  case Instruction::OpCode::I64__ge_s:
-  case Instruction::OpCode::I64__ge_u:
-  case Instruction::OpCode::F32__eq:
-  case Instruction::OpCode::F32__ne:
-  case Instruction::OpCode::F32__lt:
-  case Instruction::OpCode::F32__gt:
-  case Instruction::OpCode::F32__le:
-  case Instruction::OpCode::F32__ge:
-  case Instruction::OpCode::F64__eq:
-  case Instruction::OpCode::F64__ne:
-  case Instruction::OpCode::F64__lt:
-  case Instruction::OpCode::F64__gt:
-  case Instruction::OpCode::F64__le:
-  case Instruction::OpCode::F64__ge:
+  case OpCode::I32__eq:
+  case OpCode::I32__ne:
+  case OpCode::I32__lt_s:
+  case OpCode::I32__lt_u:
+  case OpCode::I32__gt_s:
+  case OpCode::I32__gt_u:
+  case OpCode::I32__le_s:
+  case OpCode::I32__le_u:
+  case OpCode::I32__ge_s:
+  case OpCode::I32__ge_u:
+  case OpCode::I64__eq:
+  case OpCode::I64__ne:
+  case OpCode::I64__lt_s:
+  case OpCode::I64__lt_u:
+  case OpCode::I64__gt_s:
+  case OpCode::I64__gt_u:
+  case OpCode::I64__le_s:
+  case OpCode::I64__le_u:
+  case OpCode::I64__ge_s:
+  case OpCode::I64__ge_u:
+  case OpCode::F32__eq:
+  case OpCode::F32__ne:
+  case OpCode::F32__lt:
+  case OpCode::F32__gt:
+  case OpCode::F32__le:
+  case OpCode::F32__ge:
+  case OpCode::F64__eq:
+  case OpCode::F64__ne:
+  case OpCode::F64__lt:
+  case OpCode::F64__gt:
+  case OpCode::F64__le:
+  case OpCode::F64__ge:
 
-  case Instruction::OpCode::I32__add:
-  case Instruction::OpCode::I32__sub:
-  case Instruction::OpCode::I32__mul:
-  case Instruction::OpCode::I32__div_s:
-  case Instruction::OpCode::I32__div_u:
-  case Instruction::OpCode::I32__rem_s:
-  case Instruction::OpCode::I32__rem_u:
-  case Instruction::OpCode::I32__and:
-  case Instruction::OpCode::I32__or:
-  case Instruction::OpCode::I32__xor:
-  case Instruction::OpCode::I32__shl:
-  case Instruction::OpCode::I32__shr_s:
-  case Instruction::OpCode::I32__shr_u:
-  case Instruction::OpCode::I32__rotl:
-  case Instruction::OpCode::I32__rotr:
-  case Instruction::OpCode::I64__add:
-  case Instruction::OpCode::I64__sub:
-  case Instruction::OpCode::I64__mul:
-  case Instruction::OpCode::I64__div_s:
-  case Instruction::OpCode::I64__div_u:
-  case Instruction::OpCode::I64__rem_s:
-  case Instruction::OpCode::I64__rem_u:
-  case Instruction::OpCode::I64__and:
-  case Instruction::OpCode::I64__or:
-  case Instruction::OpCode::I64__xor:
-  case Instruction::OpCode::I64__shl:
-  case Instruction::OpCode::I64__shr_s:
-  case Instruction::OpCode::I64__shr_u:
-  case Instruction::OpCode::I64__rotl:
-  case Instruction::OpCode::I64__rotr:
-  case Instruction::OpCode::F32__add:
-  case Instruction::OpCode::F32__sub:
-  case Instruction::OpCode::F32__mul:
-  case Instruction::OpCode::F32__div:
-  case Instruction::OpCode::F32__min:
-  case Instruction::OpCode::F32__max:
-  case Instruction::OpCode::F32__copysign:
-  case Instruction::OpCode::F64__add:
-  case Instruction::OpCode::F64__sub:
-  case Instruction::OpCode::F64__mul:
-  case Instruction::OpCode::F64__div:
-  case Instruction::OpCode::F64__min:
-  case Instruction::OpCode::F64__max:
-  case Instruction::OpCode::F64__copysign:
+  case OpCode::I32__add:
+  case OpCode::I32__sub:
+  case OpCode::I32__mul:
+  case OpCode::I32__div_s:
+  case OpCode::I32__div_u:
+  case OpCode::I32__rem_s:
+  case OpCode::I32__rem_u:
+  case OpCode::I32__and:
+  case OpCode::I32__or:
+  case OpCode::I32__xor:
+  case OpCode::I32__shl:
+  case OpCode::I32__shr_s:
+  case OpCode::I32__shr_u:
+  case OpCode::I32__rotl:
+  case OpCode::I32__rotr:
+  case OpCode::I64__add:
+  case OpCode::I64__sub:
+  case OpCode::I64__mul:
+  case OpCode::I64__div_s:
+  case OpCode::I64__div_u:
+  case OpCode::I64__rem_s:
+  case OpCode::I64__rem_u:
+  case OpCode::I64__and:
+  case OpCode::I64__or:
+  case OpCode::I64__xor:
+  case OpCode::I64__shl:
+  case OpCode::I64__shr_s:
+  case OpCode::I64__shr_u:
+  case OpCode::I64__rotl:
+  case OpCode::I64__rotr:
+  case OpCode::F32__add:
+  case OpCode::F32__sub:
+  case OpCode::F32__mul:
+  case OpCode::F32__div:
+  case OpCode::F32__min:
+  case OpCode::F32__max:
+  case OpCode::F32__copysign:
+  case OpCode::F64__add:
+  case OpCode::F64__sub:
+  case OpCode::F64__mul:
+  case OpCode::F64__div:
+  case OpCode::F64__min:
+  case OpCode::F64__max:
+  case OpCode::F64__copysign:
     return Visitor(Support::tag<BinaryNumericInstruction>());
 
   default:
@@ -743,8 +556,8 @@ auto dispatchInstruction(Instruction::OpCode Code, T &&Visitor) {
 /// \param Offset the Offset of loaded file or vector.
 ///
 /// \returns unique pointer of instruction node if success, ErrMsg when failed.
-Expect<std::unique_ptr<Instruction>>
-makeInstructionNode(Instruction::OpCode Code, uint32_t Offset);
+Expect<std::unique_ptr<Instruction>> makeInstructionNode(OpCode Code,
+                                                         uint32_t Offset);
 
 /// Make the new instruction node from old one.
 ///

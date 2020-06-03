@@ -607,7 +607,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr) {
         }
       }
       /// Run instructions.
-      auto Res = dispatchInstruction(
+      auto Res = AST::dispatchInstruction(
           Code, [this, &Instr, &StoreMgr](auto &&Arg) -> Expect<void> {
             if constexpr (std::is_void_v<
                               typename std::decay_t<decltype(Arg)>::type>) {

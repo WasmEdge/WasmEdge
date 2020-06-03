@@ -29,7 +29,7 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
     auto *MemInst = *StoreMgr.getMemory(MemAddr);
 
     /// Check offset bound.
-    if (!MemInst->checkAccessBound(Offset + DataSeg->getData().size())) {
+    if (!MemInst->checkAccessBound(Offset, DataSeg->getData().size())) {
       return Unexpect(ErrCode::DataSegDoesNotFit);
     }
     Offsets.push_back(Offset);
@@ -48,11 +48,9 @@ Expect<void> Interpreter::instantiate(
     uint32_t MemAddr = *ModInst.getMemAddr((*ItDataSeg)->getIdx());
     auto *MemInst = *StoreMgr.getMemory(MemAddr);
 
-    /// Copy data to memory instance.
+    /// Copy data to memory instance. Boundary checked in resolving expression.
     const auto &Data = (*ItDataSeg)->getData();
-    if (auto Res = MemInst->setBytes(Data, *ItOffset, 0, Data.size()); !Res) {
-      return Unexpect(ErrCode::DataSegDoesNotFit);
-    }
+    MemInst->setBytes(Data, *ItOffset, 0, Data.size());
 
     ++ItDataSeg;
     ++ItOffset;

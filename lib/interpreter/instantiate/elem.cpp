@@ -29,7 +29,7 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
     auto *TabInst = *StoreMgr.getTable(TabAddr);
 
     /// Check offset bound.
-    if (!TabInst->checkAccessBound(Offset + ElemSeg->getFuncIdxes().size())) {
+    if (!TabInst->checkAccessBound(Offset, ElemSeg->getFuncIdxes().size())) {
       return Unexpect(ErrCode::ElemSegDoesNotFit);
     }
     Offsets.push_back(Offset);
@@ -54,9 +54,7 @@ Expect<void> Interpreter::instantiate(
     for (auto &Idx : (*ItElemSeg)->getFuncIdxes()) {
       FuncIdxList.push_back(*ModInst.getFuncAddr(Idx));
     }
-    if (auto Res = TabInst->setInitList(*ItOffset, FuncIdxList); !Res) {
-      return Unexpect(Res);
-    }
+    TabInst->setInitList(*ItOffset, FuncIdxList);
 
     ++ItElemSeg;
     ++ItOffset;

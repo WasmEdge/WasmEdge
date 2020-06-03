@@ -47,9 +47,7 @@ public:
 
   /// Set the function index initialization list.
   Expect<void> setInitList(const uint32_t Offset, Span<const uint32_t> Addrs) {
-    if (Offset + Addrs.size() > MinSize) {
-      return Unexpect(ErrCode::ElemSegDoesNotFit);
-    }
+    /// Boundary checked during validation.
     std::copy(Addrs.begin(), Addrs.end(), FuncElem.begin() + Offset);
     std::fill(FuncElemInit.begin() + Offset,
               FuncElemInit.begin() + Offset + Addrs.size(), true);
@@ -57,8 +55,10 @@ public:
   }
 
   /// Check is out of bound.
-  bool checkAccessBound(const uint32_t Offset) {
-    return (Offset > MinSize) ? false : true;
+  bool checkAccessBound(uint32_t Offset, uint32_t Length) const noexcept {
+    const uint64_t AccessLen =
+        static_cast<uint64_t>(Offset) + static_cast<uint64_t>(Length);
+    return AccessLen <= MinSize;
   }
 
   /// Get the elem address.

@@ -49,9 +49,11 @@ public:
   /// Getter of limit definition.
   uint32_t getMax() const noexcept { return MaxPage; }
 
-  /// Check is out of bound.
-  bool checkAccessBound(const uint32_t Offset) noexcept {
-    return checkDataSize(Offset, 0);
+  /// Check access size is valid.
+  bool checkAccessBound(uint32_t Offset, uint32_t Length) const noexcept {
+    const uint64_t AccessLen =
+        static_cast<uint64_t>(Offset) + static_cast<uint64_t>(Length);
+    return AccessLen <= Data.size();
   }
 
   /// Grow page
@@ -74,7 +76,7 @@ public:
   /// Get slice of Data[Offset : Offset + Length - 1]
   Expect<Span<Byte>> getBytes(const uint32_t Offset, const uint32_t Length) {
     /// Check memory boundary.
-    if (!checkDataSize(Offset, Length)) {
+    if (!checkAccessBound(Offset, Length)) {
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     return Span<Byte>(&Data[Offset], Length);
@@ -84,7 +86,7 @@ public:
   Expect<void> setBytes(Span<const Byte> Slice, const uint32_t Offset,
                         const uint32_t Start, const uint32_t Length) {
     /// Check memory boundary.
-    if (!checkDataSize(Offset, Length)) {
+    if (!checkAccessBound(Offset, Length)) {
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
 
@@ -106,7 +108,7 @@ public:
   Expect<void> getArray(uint8_t *Arr, const uint32_t Offset,
                         const uint32_t Length, const bool IsReverse = false) {
     /// Check memory boundary.
-    if (!checkDataSize(Offset, Length)) {
+    if (!checkAccessBound(Offset, Length)) {
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     if (Length > 0) {
@@ -126,7 +128,7 @@ public:
   Expect<void> setArray(const uint8_t *Arr, const uint32_t Offset,
                         const uint32_t Length, const bool IsReverse = false) {
     /// Check memory boundary.
-    if (!checkDataSize(Offset, Length)) {
+    if (!checkAccessBound(Offset, Length)) {
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     if (Length > 0) {
@@ -147,7 +149,7 @@ public:
   typename std::enable_if_t<std::is_pointer_v<T>, T>
   getPointerOrNull(const uint32_t Offset) {
     if (Offset == 0 ||
-        !checkDataSize(Offset, sizeof(std::remove_pointer_t<T>))) {
+        !checkAccessBound(Offset, sizeof(std::remove_pointer_t<T>))) {
       return nullptr;
     }
     return reinterpret_cast<T>(&Data[Offset]);
@@ -159,7 +161,7 @@ public:
   getPointer(const uint32_t Offset, const uint32_t Size = 1) {
     using Type = std::remove_pointer_t<T>;
     size_t ByteSize = sizeof(Type) * Size;
-    if (!checkDataSize(Offset, ByteSize)) {
+    if (!checkAccessBound(Offset, ByteSize)) {
       return nullptr;
     }
     return reinterpret_cast<T>(&Data[Offset]);
@@ -184,7 +186,7 @@ public:
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     /// Check memory boundary.
-    if (!checkDataSize(Offset, Length)) {
+    if (!checkAccessBound(Offset, Length)) {
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     /// Load data to a value.
@@ -226,7 +228,7 @@ public:
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     /// Check memory boundary.
-    if (!checkDataSize(Offset, Length)) {
+    if (!checkAccessBound(Offset, Length)) {
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     /// Copy store data to value.
@@ -245,13 +247,6 @@ public:
   }
 
 private:
-  /// Check access size is valid and adjust vector.
-  bool checkDataSize(uint32_t Offset, uint32_t Length) const noexcept {
-    const uint64_t AccessLen =
-        static_cast<uint64_t>(Offset) + static_cast<uint64_t>(Length);
-    return AccessLen <= Data.size();
-  }
-
   /// \name Data of memory instance.
   /// @{
   const bool HasMaxPage;

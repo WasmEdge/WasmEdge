@@ -12,6 +12,8 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
+#include <unordered_map>
 
 namespace SSVM {
 
@@ -24,11 +26,21 @@ enum class ValType : uint8_t {
   F64 = 0x7C
 };
 
+static inline std::unordered_map<ValType, std::string> ValTypeStr = {
+    {ValType::None, "none"},
+    {ValType::I32, "i32"},
+    {ValType::I64, "i64"},
+    {ValType::F32, "f32"},
+    {ValType::F64, "f64"}};
+
 /// Element types enumeration class.
 enum class ElemType : uint8_t { Func = 0x60, FuncRef = 0x70 };
 
 /// Value mutability enumeration class.
 enum class ValMut : uint8_t { Const = 0x00, Var = 0x01 };
+
+static inline std::unordered_map<ValMut, std::string> ValMutStr = {
+    {ValMut::Const, "const"}, {ValMut::Var, "var"}};
 
 /// External type enumeration class.
 enum class ExternalType : uint8_t {
@@ -37,5 +49,11 @@ enum class ExternalType : uint8_t {
   Memory = 0x02U,
   Global = 0x03U
 };
+
+static inline std::unordered_map<ExternalType, std::string> ExternalTypeStr = {
+    {ExternalType::Function, "function"},
+    {ExternalType::Table, "table"},
+    {ExternalType::Memory, "memory"},
+    {ExternalType::Global, "global"}};
 
 } // namespace SSVM

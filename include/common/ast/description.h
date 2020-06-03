@@ -67,8 +67,8 @@ public:
   }
 
 protected:
-  /// The node type should be Attr::Desc_Import.
-  Attr NodeAttr = Attr::Desc_Import;
+  /// The node type should be ASTNodeAttr::Desc_Import.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Desc_Import;
 
 private:
   /// \name Data of ImportDesc: Module name, External name, and content node.
@@ -103,8 +103,8 @@ public:
   void setSymbol(void *S) { Symbol = S; }
 
 protected:
-  /// The node type should be Attr::Desc_Export.
-  Attr NodeAttr = Attr::Desc_Export;
+  /// The node type should be ASTNodeAttr::Desc_Export.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Desc_Export;
 
 private:
   /// \name Data of ExportDesc: External name and external index.

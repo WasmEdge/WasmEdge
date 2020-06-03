@@ -89,8 +89,8 @@ protected:
   /// Overrided content loading of custom section.
   Expect<void> loadContent(FileMgr &Mgr) override;
 
-  /// The node type should be Attr::Sec_Custom.
-  Attr NodeAttr = Attr::Sec_Custom;
+  /// The node type should be ASTNodeAttr::Sec_Custom.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Custom;
 
 private:
   /// Vector of raw bytes of content.
@@ -109,8 +109,8 @@ protected:
   /// Overrided content loading of type section.
   Expect<void> loadContent(FileMgr &Mgr) override;
 
-  /// The node type should be Attr::Sec_Type.
-  Attr NodeAttr = Attr::Sec_Type;
+  /// The node type should be ASTNodeAttr::Sec_Type.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Type;
 
 private:
   /// Vector of FunctionType nodes.
@@ -127,8 +127,8 @@ protected:
   /// Overrided content loading of import section.
   Expect<void> loadContent(FileMgr &Mgr) override;
 
-  /// The node type should be Attr::Sec_Import.
-  Attr NodeAttr = Attr::Sec_Import;
+  /// The node type should be ASTNodeAttr::Sec_Import.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Import;
 
 private:
   /// Vector of ImportDesc nodes.
@@ -145,8 +145,8 @@ protected:
   /// Overrided content loading of function section.
   Expect<void> loadContent(FileMgr &Mgr) override;
 
-  /// The node type should be Attr::Sec_Function.
-  Attr NodeAttr = Attr::Sec_Function;
+  /// The node type should be ASTNodeAttr::Sec_Function.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Function;
 
 private:
   /// Vector of function indices.
@@ -163,8 +163,8 @@ protected:
   /// Overrided content loading of table section.
   Expect<void> loadContent(FileMgr &Mgr) override;
 
-  /// The node type should be Attr::Sec_Table.
-  Attr NodeAttr = Attr::Sec_Table;
+  /// The node type should be ASTNodeAttr::Sec_Table.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Table;
 
 private:
   /// Vector of TableType nodes.
@@ -181,8 +181,8 @@ protected:
   /// Overrided content loading of memory section.
   Expect<void> loadContent(FileMgr &Mgr) override;
 
-  /// The node type should be Attr::Sec_Memory.
-  Attr NodeAttr = Attr::Sec_Memory;
+  /// The node type should be ASTNodeAttr::Sec_Memory.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Memory;
 
 private:
   /// Vector of MemoryType nodes.
@@ -201,8 +201,8 @@ protected:
   /// Overrided content loading of global section.
   virtual Expect<void> loadContent(FileMgr &Mgr);
 
-  /// The node type should be Attr::Sec_Global.
-  Attr NodeAttr = Attr::Sec_Global;
+  /// The node type should be ASTNodeAttr::Sec_Global.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Global;
 
 private:
   /// Vector of GlobalType nodes.
@@ -219,8 +219,8 @@ protected:
   /// Overrided content loading of export section.
   virtual Expect<void> loadContent(FileMgr &Mgr);
 
-  /// The node type should be Attr::Sec_Export.
-  Attr NodeAttr = Attr::Sec_Export;
+  /// The node type should be ASTNodeAttr::Sec_Export.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Export;
 
 private:
   /// Vector of ExportDesc nodes.
@@ -237,8 +237,8 @@ protected:
   /// Overrided content loading of start section.
   virtual Expect<void> loadContent(FileMgr &Mgr);
 
-  /// The node type should be Attr::Sec_Start.
-  Attr NodeAttr = Attr::Sec_Start;
+  /// The node type should be ASTNodeAttr::Sec_Start.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Start;
 
 private:
   /// Start function index.
@@ -257,8 +257,8 @@ protected:
   /// Overrided content loading of element section.
   virtual Expect<void> loadContent(FileMgr &Mgr);
 
-  /// The node type should be Attr::Sec_Element.
-  Attr NodeAttr = Attr::Sec_Element;
+  /// The node type should be ASTNodeAttr::Sec_Element.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Element;
 
 private:
   /// Vector of ElementSegment nodes.
@@ -277,8 +277,8 @@ protected:
   /// Overrided content loading of code section.
   virtual Expect<void> loadContent(FileMgr &Mgr);
 
-  /// The node type should be Attr::Sec_Code.
-  Attr NodeAttr = Attr::Sec_Code;
+  /// The node type should be ASTNodeAttr::Sec_Code.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Code;
 
 private:
   /// Vector of CodeSegment nodes.
@@ -297,8 +297,8 @@ protected:
   /// Overrided content loading of data section.
   virtual Expect<void> loadContent(FileMgr &Mgr);
 
-  /// The node type should be Attr::Sec_Data.
-  Attr NodeAttr = Attr::Sec_Data;
+  /// The node type should be ASTNodeAttr::Sec_Data.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Data;
 
 private:
   /// Vector of DataSegment nodes.

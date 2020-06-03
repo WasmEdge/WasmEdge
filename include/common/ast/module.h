@@ -68,8 +68,8 @@ public:
   void setCtor(Ctor F) { CtorFunc = F; }
 
 protected:
-  /// The node type should be Attr::Module.
-  Attr NodeAttr = Attr::Module;
+  /// The node type should be ASTNodeAttr::Module.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Module;
 
 private:
   /// \name Data of Module node.

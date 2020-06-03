@@ -38,8 +38,8 @@ public:
   InstrVec &getInstrs() { return Instrs; }
 
 protected:
-  /// The node type should be Attr::Expression.
-  Attr NodeAttr = Attr::Expression;
+  /// The node type should be ASTNodeAttr::Expression.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Expression;
 
 private:
   /// Instruction set list.

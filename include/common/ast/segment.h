@@ -64,8 +64,8 @@ public:
   const GlobalType *getGlobalType() const { return Global.get(); }
 
 protected:
-  /// The node type should be Attr::Seg_Global.
-  Attr NodeAttr = Attr::Seg_Global;
+  /// The node type should be ASTNodeAttr::Seg_Global.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Global;
 
 private:
   /// \name Data of GlobalSegment node.
@@ -94,8 +94,8 @@ public:
   Span<const uint32_t> getFuncIdxes() const { return FuncIdxes; }
 
 protected:
-  /// The node type should be Attr::Seg_Element.
-  Attr NodeAttr = Attr::Seg_Element;
+  /// The node type should be ASTNodeAttr::Seg_Element.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Element;
 
 private:
   /// \name Data of ElementSegment node.
@@ -122,8 +122,8 @@ public:
   Span<const std::pair<uint32_t, ValType>> getLocals() const { return Locals; }
 
 protected:
-  /// The node type should be Attr::Seg_Code.
-  Attr NodeAttr = Attr::Seg_Code;
+  /// The node type should be ASTNodeAttr::Seg_Code.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Code;
 
 private:
   /// \name Data of CodeSegment node.
@@ -153,8 +153,8 @@ public:
   Span<const Byte> getData() const { return Data; }
 
 protected:
-  /// The node type should be Attr::Seg_Data.
-  Attr NodeAttr = Attr::Seg_Data;
+  /// The node type should be ASTNodeAttr::Seg_Data.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Data;
 
 private:
   /// \name Data of DataSegment node.

@@ -16,6 +16,35 @@
 
 namespace SSVM {
 
+/// AST node attributes enumeration class.
+enum class ASTNodeAttr {
+  Module,
+  Sec_Custom,
+  Sec_Type,
+  Sec_Import,
+  Sec_Function,
+  Sec_Table,
+  Sec_Memory,
+  Sec_Global,
+  Sec_Export,
+  Sec_Start,
+  Sec_Element,
+  Sec_Code,
+  Sec_Data,
+  Desc_Import,
+  Desc_Export,
+  Seg_Global,
+  Seg_Element,
+  Seg_Code,
+  Seg_Data,
+  Type_Function,
+  Type_Limit,
+  Type_Memory,
+  Type_Table,
+  Type_Global,
+  Expression
+};
+
 /// Instruction opcode enumeration class.
 enum class OpCode : uint8_t {
   /// Control instructions

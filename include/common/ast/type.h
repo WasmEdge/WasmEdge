@@ -52,8 +52,8 @@ public:
   uint32_t getMax() const { return Max; }
 
 protected:
-  /// The node type should be Attr::Type_Limit.
-  Attr NodeAttr = Attr::Type_Limit;
+  /// The node type should be ASTNodeAttr::Type_Limit.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Limit;
 
 private:
   /// \name Data of Limit node.
@@ -84,8 +84,8 @@ public:
   Span<const ValType> getReturnTypes() const { return ReturnTypes; }
 
 protected:
-  /// The node type should be Attr::Type_Function.
-  Attr NodeAttr = Attr::Type_Function;
+  /// The node type should be ASTNodeAttr::Type_Function.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Function;
 
 private:
   /// \name Data of FunctionType node.
@@ -117,8 +117,8 @@ public:
   void setSymbol(void *S) { Symbol = S; }
 
 protected:
-  /// The node type should be Attr::Type_Memory.
-  Attr NodeAttr = Attr::Type_Memory;
+  /// The node type should be ASTNodeAttr::Type_Memory.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Memory;
 
 private:
   /// Data of MemoryType node.
@@ -146,8 +146,8 @@ public:
   const Limit *getLimit() const { return Table.get(); }
 
 protected:
-  /// The node type should be Attr::Type_Table.
-  Attr NodeAttr = Attr::Type_Table;
+  /// The node type should be ASTNodeAttr::Type_Table.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Table;
 
 private:
   /// \name Data of TableType node.
@@ -177,8 +177,8 @@ public:
   ValMut getValueMutation() const { return Mut; }
 
 protected:
-  /// The node type should be Attr::Type_Global.
-  Attr NodeAttr = Attr::Type_Global;
+  /// The node type should be ASTNodeAttr::Type_Global.
+  ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Global;
 
 private:
   /// \name Data of GlobalType node.

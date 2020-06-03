@@ -9,6 +9,7 @@ Expect<void> Expression::loadBinary(FileMgr &Mgr) {
   /// Read opcode until the End code.
   while (true) {
     Instruction::OpCode Code;
+    uint32_t Offset = Mgr.getOffset();
 
     /// Read the opcode and check if error.
     if (auto Res = Mgr.readByte()) {
@@ -23,7 +24,7 @@ Expect<void> Expression::loadBinary(FileMgr &Mgr) {
 
     /// Create the instruction node and load contents.
     std::unique_ptr<Instruction> NewInst;
-    if (auto Res = makeInstructionNode(Code)) {
+    if (auto Res = makeInstructionNode(Code, Offset)) {
       NewInst = std::move(*Res);
     } else {
       return Unexpect(Res);

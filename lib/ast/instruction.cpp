@@ -7,7 +7,7 @@ namespace AST {
 /// Copy construtor. See "include/common/ast/instruction.h".
 BlockControlInstruction::BlockControlInstruction(
     const BlockControlInstruction &Instr)
-    : Instruction(Instr.Code), BlockType(Instr.BlockType) {
+    : Instruction(Instr.Code, Instr.Offset), BlockType(Instr.BlockType) {
   for (auto &It : Instr.Body) {
     if (auto Res = makeInstructionNode(*It.get())) {
       Body.push_back(std::move(*Res));
@@ -37,6 +37,7 @@ Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
   /// Read instructions and make nodes until Opcode::End.
   while (true) {
     OpCode Code;
+    uint32_t Offset = Mgr.getOffset();
 
     /// Read the opcode and check if error.
     if (auto Res = Mgr.readByte()) {
@@ -52,7 +53,7 @@ Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
 
     /// Create the instruction node and load contents.
     std::unique_ptr<Instruction> NewInst;
-    if (auto Res = makeInstructionNode(Code)) {
+    if (auto Res = makeInstructionNode(Code, Offset)) {
       NewInst = std::move(*Res);
     } else {
       return Unexpect(Res);
@@ -70,7 +71,7 @@ Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
 /// Copy construtor. See "include/common/ast/instruction.h".
 IfElseControlInstruction::IfElseControlInstruction(
     const IfElseControlInstruction &Instr)
-    : Instruction(Instr.Code), BlockType(Instr.BlockType) {
+    : Instruction(Instr.Code, Instr.Offset), BlockType(Instr.BlockType) {
   for (auto &It : Instr.IfStatement) {
     if (auto Res = makeInstructionNode(*It.get())) {
       IfStatement.push_back(std::move(*Res));
@@ -106,6 +107,7 @@ Expect<void> IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
   bool IsElseStatement = false;
   while (true) {
     OpCode Code;
+    uint32_t Offset = Mgr.getOffset();
 
     /// Read the opcode and check if error.
     if (auto Res = Mgr.readByte()) {
@@ -127,7 +129,7 @@ Expect<void> IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
 
     /// Create the instruction node and load contents.
     std::unique_ptr<Instruction> NewInst;
-    if (auto Res = makeInstructionNode(Code)) {
+    if (auto Res = makeInstructionNode(Code, Offset)) {
       NewInst = std::move(*Res);
     } else {
       return Unexpect(Res);
@@ -285,9 +287,10 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
 
 /// Instruction node maker. See "include/common/ast/instruction.h".
 Expect<std::unique_ptr<Instruction>>
-makeInstructionNode(const Instruction::OpCode &Code) {
+makeInstructionNode(Instruction::OpCode Code, uint32_t Offset) {
   return dispatchInstruction(
-      Code, [&Code](auto &&Arg) -> Expect<std::unique_ptr<Instruction>> {
+      Code,
+      [&Code, &Offset](auto &&Arg) -> Expect<std::unique_ptr<Instruction>> {
         if constexpr (std::is_void_v<
                           typename std::decay_t<decltype(Arg)>::type>) {
           /// If the Code not matched, return null pointer.
@@ -295,7 +298,7 @@ makeInstructionNode(const Instruction::OpCode &Code) {
         } else {
           /// Make the instruction node according to Code.
           return std::make_unique<typename std::decay_t<decltype(Arg)>::type>(
-              Code);
+              Code, Offset);
         }
       });
 }

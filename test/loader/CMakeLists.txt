@@ -4,13 +4,19 @@ add_executable(ssvmLoaderFileMgrTests
   filemgrTest.cpp
 )
 
+add_test(ssvmLoaderFileMgrTests ssvmLoaderFileMgrTests)
+
 add_executable(ssvmLoaderWagonTests
   wagonTest.cpp
 )
 
+add_test(ssvmLoaderWagonTests ssvmLoaderWagonTests)
+
 add_executable(ssvmLoaderEthereumTests
   ethereumTest.cpp
 )
+
+add_test(ssvmLoaderEthereumTests ssvmLoaderEthereumTests)
 
 configure_files(
   ${CMAKE_CURRENT_SOURCE_DIR}/filemgrTestData

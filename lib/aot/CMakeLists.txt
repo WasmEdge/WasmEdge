@@ -17,7 +17,7 @@ else()
   find_library(LLD_SYSTEM lldELF PATHS "${LLVM_LIBRARY_DIR}")
 endif()
 
-add_llvm_library(ssvmAOT
+llvm_add_library(ssvmAOT
   compiler.cpp
   LINK_LIBS
   ${LLVM_OPTION}
@@ -27,6 +27,7 @@ add_llvm_library(ssvmAOT
   ${LLD_DRIVER}
   ${LLD_READERWRITER}
   ${LLD_YAML}
+  std::filesystem
   ${CMAKE_THREAD_LIBS_INIT}
   LINK_COMPONENTS
   core
@@ -46,8 +47,4 @@ target_include_directories(ssvmAOT
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty
-)
-target_link_libraries(ssvmAOT
-  PRIVATE
-  std::filesystem
 )

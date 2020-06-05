@@ -3,6 +3,8 @@ add_executable(ssvmc
   ssvmc.cpp
 )
 
+install(TARGETS ssvmc EXPORT ssvm DESTINATION bin)
+
 target_link_libraries(ssvmc
   PRIVATE
   ssvmLoader
@@ -13,6 +15,8 @@ target_link_libraries(ssvmc
 add_executable(ssvmr
   ssvmr.cpp
 )
+
+install(TARGETS ssvmr EXPORT ssvm DESTINATION bin)
 
 target_link_libraries(ssvmr
   PRIVATE

@@ -10,7 +10,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 find_package(Boost REQUIRED)
-find_package(Filesystem REQUIRED Experimental)
+find_package(Filesystem REQUIRED Final Experimental)
 find_package(ONNC-wasm)
 
 if(ONNC_WASM_LIBRARY)
@@ -26,28 +26,29 @@ option(BUILD_TESTS "Generate build targets for the ssvm unit tests." OFF)
 
 # Macro for copying directory.
 macro(configure_files srcDir destDir)
-message(STATUS "Generating testing input directory ${destDir}")
-make_directory(${destDir})
+  message(STATUS "Generating testing input directory ${destDir}")
+  make_directory(${destDir})
 
-file(GLOB templateFiles RELATIVE ${srcDir} ${srcDir}/*)
-foreach(templateFile ${templateFiles})
-    set(srcTemplatePath ${srcDir}/${templateFile})
-    if(NOT IS_DIRECTORY ${srcTemplatePath})
-        configure_file(
-                ${srcTemplatePath}
-                ${destDir}/${templateFile}
-                COPYONLY)
-    else()
-        configure_files(
-                ${srcTemplatePath}
-                ${destDir}/${templateFile}
-                COPYONLY)
-    endif()
-endforeach(templateFile)
+  file(GLOB templateFiles RELATIVE ${srcDir} ${srcDir}/*)
+  foreach(templateFile ${templateFiles})
+      set(srcTemplatePath ${srcDir}/${templateFile})
+      if(NOT IS_DIRECTORY ${srcTemplatePath})
+          configure_file(
+                  ${srcTemplatePath}
+                  ${destDir}/${templateFile}
+                  COPYONLY)
+      else()
+          configure_files(
+                  ${srcTemplatePath}
+                  ${destDir}/${templateFile}
+                  COPYONLY)
+      endif()
+  endforeach(templateFile)
 endmacro(configure_files)
 # End of Macro
 
 if(BUILD_TESTS)
+  include(CTest)
   add_subdirectory(test)
 endif()
 

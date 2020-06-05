@@ -10,6 +10,8 @@ add_executable(ssvmASTTests
   instructionTest.cpp
 )
 
+add_test(ssvmASTTests ssvmASTTests)
+
 target_link_libraries(ssvmASTTests
   PRIVATE
   utilGoogleTest

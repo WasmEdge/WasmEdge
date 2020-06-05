@@ -37,16 +37,7 @@ stages:
   before_script:
     - cd ${BASE_TESTDIR}
   script:
-    - cd loader
-    - ./ssvmLoaderEthereumTests
-    - ./ssvmLoaderFileMgrTests
-    - ./ssvmLoaderWagonTests
-    - cd ../ast
-    - ./ssvmASTTests
-    - cd ../expected
-    - ./expectedTests
-    - cd ../span
-    - ./spanTests
+    - ctest
   cache:
     <<: *cache_paths
     key: ${KEY}

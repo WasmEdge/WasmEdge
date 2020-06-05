@@ -4,6 +4,8 @@ add_executable(spanTests
   span.cpp
 )
 
+add_test(spanTests spanTests)
+
 target_link_libraries(spanTests
   PRIVATE
   utilGoogleTest

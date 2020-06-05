@@ -43,7 +43,16 @@ PackageOriginator: Amrayn Web Services, abumusamq
 PackageLicenseDeclared: MIT
 FilesAnalyzed: false
 
+PackageName: rapidjson
+SPDXID: SPDXRef-rapidjson
+PackageFileName: ./thirdparty/rapidjson
+PackageHomePage: https://github.com/Tencent/rapidjson
+PackageOriginator: Milo Yip
+PackageLicenseDeclared: MIT
+FilesAnalyzed: false
+
 ## Relationships
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-googletest
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-wagon
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-easyloggingpp
+Relationship: SPDXRef-ssvm CONTAINS SPDXRef-rapidjson

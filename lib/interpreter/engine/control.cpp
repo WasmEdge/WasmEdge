@@ -37,23 +37,11 @@ Interpreter::runIfElseOp(const AST::IfElseControlInstruction &Instr) {
   if (retrieveValue<uint32_t>(Cond) != 0) {
     const auto &IfStatement = Instr.getIfStatement();
     if (!IfStatement.empty()) {
-#ifndef ONNC_WASM
-      /// If-then case should add the cost.
-      if (!Measure->addInstrCost(OpCode::Else)) {
-        return Unexpect(ErrCode::CostLimitExceeded);
-      }
-#endif
       return enterBlock(Arity, nullptr, IfStatement);
     }
   } else {
     const auto &ElseStatement = Instr.getElseStatement();
     if (!ElseStatement.empty()) {
-#ifndef ONNC_WASM
-      /// If-then case should add the cost.
-      if (!Measure->addInstrCost(OpCode::Else)) {
-        return Unexpect(ErrCode::CostLimitExceeded);
-      }
-#endif
       return enterBlock(Arity, nullptr, ElseStatement);
     }
   }

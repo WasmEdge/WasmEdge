@@ -3,10 +3,6 @@
 #include "host/wasi/wasimodule.h"
 #include "support/log.h"
 
-#ifdef ONNC_WASM
-#include "host/onnc/onncmodule.h"
-#endif
-
 namespace SSVM {
 namespace VM {
 
@@ -35,14 +31,6 @@ void VM::initVM() {
     CostTab.setCostTable(Configure::VMType::Wasi);
     Measure.setCostTable(CostTab.getCostTable(Configure::VMType::Wasi));
   }
-#ifdef ONNC_WASM
-  if (Config.hasVMType(Configure::VMType::ONNC)) {
-    std::unique_ptr<Runtime::ImportObject> ONNCMod =
-        std::make_unique<Host::ONNCModule>();
-    InterpreterEngine.registerModule(StoreRef, *ONNCMod.get());
-    ImpObjs.insert({Configure::VMType::ONNC, std::move(ONNCMod)});
-  }
-#endif
 }
 
 Expect<void> VM::registerModule(const std::string &Name,

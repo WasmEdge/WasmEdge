@@ -13,10 +13,6 @@ find_package(Boost REQUIRED)
 find_package(Filesystem REQUIRED Final Experimental)
 find_package(ONNC-wasm)
 
-if(ONNC_WASM_LIBRARY)
-  add_definitions(-DONNC_WASM)
-endif()
-
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)

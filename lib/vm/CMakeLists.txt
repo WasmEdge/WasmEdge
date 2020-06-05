@@ -15,13 +15,6 @@ target_link_libraries(ssvmVM
   ssvmAOT
 )
 
-if(ONNC_WASM_LIBRARY)
-  target_link_libraries(ssvmVM
-    PRIVATE
-    ssvmHostModuleONNC
-  )
-endif()
-
 target_include_directories(ssvmVM
   PUBLIC
   ${Boost_INCLUDE_DIR}

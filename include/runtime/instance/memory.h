@@ -158,7 +158,7 @@ public:
   typename std::enable_if_t<std::is_pointer_v<T>, T>
   getPointer(const uint32_t Offset, const uint32_t Size = 1) {
     using Type = std::remove_pointer_t<T>;
-    size_t ByteSize = sizeof(T) * Size;
+    size_t ByteSize = sizeof(Type) * Size;
     if (!checkDataSize(Offset, ByteSize)) {
       return nullptr;
     }

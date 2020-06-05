@@ -19,14 +19,6 @@ PackageOriginator: Organization: Second State LCC (contact@secondstate.io)
 PackageLicenseDeclared: (Apache-2.0)
 FilesAnalyzed: false
 
-PackageName: ONNC
-SPDXID: SPDXRef-ONNC
-PackageFileName: ./thirdparty/onnc
-PackageOriginator: ONNC
-PackageHomePage: https://github.com/ONNC/onnc
-PackageLicenseDeclared: (BSD-3-Clause)
-FilesAnalyzed: false
-
 PackageName: googletest
 SPDXID: SPDXRef-googletest
 PackageFileName: ./thirdparty/googletest
@@ -43,14 +35,6 @@ PackageLicenseDeclared: BSD-3-Clause
 FilesAnalyzed: false
 PackageComment: <text>Only for testing.</text>
 
-PackageName: rapidjson
-SPDXID: SPDXRef-rapidjson
-PackageFileName: ./thirdparty/rapidjson
-PackageHomePage: https://github.com/Tencent/rapidjson
-PackageOriginator: Milo Yip
-PackageLicenseDeclared: MIT
-FilesAnalyzed: false
-
 PackageName: easyloggingpp
 SPDXID: SPDXRef-easyloggingpp
 PackageFileName: ./thirdparty/easyloggingpp
@@ -60,8 +44,6 @@ PackageLicenseDeclared: MIT
 FilesAnalyzed: false
 
 ## Relationships
-Relationship: SPDXRef-ssvm CONTAINS SPDXRef-ONNC
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-googletest
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-wagon
-Relationship: SPDXRef-ssvm CONTAINS SPDXRef-rapidjson
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-easyloggingpp

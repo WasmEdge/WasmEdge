@@ -51,6 +51,9 @@ After the build is finished, you can find there are several ssvm related tools:
 	* `ssvmc` compiles a general wasm runtime to so file.
 	* `ssvmr` execute a general wasm runtime or so file in WASI environment.
 
+If you want to try `ssvm-qitc`, please refer to [ONNC-Wasm](https://github.com/ONNC/onnc-wasm) project to setup the working environment and run several examples.
+And here is our [tutorial for ONNC-Wasm project(YouTube Video)](https://www.youtube.com/watch?v=cbiPuHMS-iQ).
+
 ```bash
 # After pulling our ssvm docker image
 $ docker run -it --rm \

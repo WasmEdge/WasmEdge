@@ -47,12 +47,12 @@ After the build is finished, you can find there are several ssvm related tools:
 
 1. `ssvm` is for general wasm runtime. Interpreter mode.
 2. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
+	* If you want to try `ssvm-qitc`, please refer to [ONNC-Wasm](https://github.com/ONNC/onnc-wasm) project to setup the working environment and run several examples.
+	* And here is our [tutorial for ONNC-Wasm project(YouTube Video)](https://www.youtube.com/watch?v=cbiPuHMS-iQ).
 3. `ssvm-aot` is for general wasm runtime. AOT compilation mode.
 	* `ssvmc` compiles a general wasm runtime to so file.
 	* `ssvmr` execute a general wasm runtime or so file in WASI environment.
-
-If you want to try `ssvm-qitc`, please refer to [ONNC-Wasm](https://github.com/ONNC/onnc-wasm) project to setup the working environment and run several examples.
-And here is our [tutorial for ONNC-Wasm project(YouTube Video)](https://www.youtube.com/watch?v=cbiPuHMS-iQ).
+	* To disable building the ahead of time compilation runtime, you can set the cmake option `SSVM_DISABLE_AOT_RUNTIME` to `OFF`.
 
 ```bash
 # After pulling our ssvm docker image
@@ -72,17 +72,7 @@ Users can use these tests to verify the correctness of SSVM binaries.
 
 ```bash
 $ cd <path/to/ssvm/build_folder>
-$ cd test
-$ cd loader
-$ ./ssvmLoaderEthereumTests
-$ ./ssvmLoaderFileMgrTests
-$ ./ssvmLoaderWagonTests
-$ cd ../ast
-$ ./ssvmASTLoadTests
-$ cd ../expected
-$ ./expectedTests
-$ cd ../span
-$ ./spanTests
+$ ctest
 ```
 
 ## Run ssvm (SSVM with general wasm runtime)

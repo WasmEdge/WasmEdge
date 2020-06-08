@@ -1,7 +1,9 @@
-### 0.6.0 (2020-05-20)
+### 0.6.0 (2020-06-08)
 
 Features:
 
+* Building System
+  * Add cmake option `SSVM_DISABLE_AOT_RUNTIME` to disable building ahead of time compilation mode.
 * Wasm AST
   * Add support of multiple partition of sections in wasm module.
 * AOT

@@ -11,7 +11,6 @@ endif()
 
 find_package(Boost REQUIRED)
 find_package(Filesystem REQUIRED Final Experimental)
-find_package(ONNC-wasm)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 set(CMAKE_CXX_STANDARD 17)
@@ -20,6 +19,9 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(BUILD_TESTS "Generate build targets for the ssvm unit tests." OFF)
 
+# List of SSVM runtimes
+option(SSVM_DISABLE_AOT_RUNTIME "Disable SSVM LLVM-based ahead of time compilation runtime." OFF)
+
 # Macro for copying directory.
 macro(configure_files srcDir destDir)
   message(STATUS "Generating testing input directory ${destDir}")
@@ -27,18 +29,18 @@ macro(configure_files srcDir destDir)
 
   file(GLOB templateFiles RELATIVE ${srcDir} ${srcDir}/*)
   foreach(templateFile ${templateFiles})
-      set(srcTemplatePath ${srcDir}/${templateFile})
-      if(NOT IS_DIRECTORY ${srcTemplatePath})
-          configure_file(
-                  ${srcTemplatePath}
-                  ${destDir}/${templateFile}
-                  COPYONLY)
-      else()
-          configure_files(
-                  ${srcTemplatePath}
-                  ${destDir}/${templateFile}
-                  COPYONLY)
-      endif()
+    set(srcTemplatePath ${srcDir}/${templateFile})
+    if(NOT IS_DIRECTORY ${srcTemplatePath})
+      configure_file(
+        ${srcTemplatePath}
+        ${destDir}/${templateFile}
+        COPYONLY)
+    else()
+      configure_files(
+        ${srcTemplatePath}
+        ${destDir}/${templateFile}
+        COPYONLY)
+    endif()
   endforeach(templateFile)
 endmacro(configure_files)
 # End of Macro

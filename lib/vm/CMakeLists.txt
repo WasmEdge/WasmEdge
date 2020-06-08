@@ -4,15 +4,25 @@ add_library(ssvmVM
   vm.cpp
 )
 
-target_link_libraries(ssvmVM
-  PRIVATE
+set(ssvmLibs
   ssvmSupport
   ssvmAST
   ssvmLoader
   ssvmValidator
   ssvmInterpreter
   ssvmHostModuleWasi
-  ssvmAOT
+)
+
+if (NOT SSVM_DISABLE_AOT_RUNTIME)
+  set(ssvmLibs
+    ${ssvmLibs}
+    ssvmAOT
+  )
+endif()
+
+target_link_libraries(ssvmVM
+  PRIVATE
+  ${ssvmLibs}
 )
 
 target_include_directories(ssvmVM

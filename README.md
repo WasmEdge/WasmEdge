@@ -1,5 +1,11 @@
 # Introduction
-**SSVM** is a high performance, hardware optimal Wasm Virtual Machine for AI and Blockchain applications.
+
+**SSVM** is a high performance and enterprise-ready WebAssembly (WASM) Virtual Machine for AI and Blockchain applications. Its use cases include the following.
+
+* A high performance and secure runtime for Rust functions in Node.js applications. [Getting started](https://cloud.secondstate.io/server-side-webassembly/getting-started) | [VSCode Codespaces](https://github.com/second-state/ssvm-nodejs-starter) | [Tensorflow](https://github.com/second-state/rust-wasm-ai-demo) | [Privacy computing @ Mozilla Open Labs](https://hackernoon.com/second-state-releases-scalable-privacy-service-at-mozilla-open-labs-b15u3wh7)
+* A hardware-optimized runtime for ONNX AI models. [ONNC compiler for AI](https://github.com/ONNC/onnc-wasm)
+* Smart contract runtime engine for leading blockchain platforms. [Polkadot/Substrate](https://github.com/second-state/substrate-ssvm-node) | [CyberMiles](https://docs.secondstate.io/devchain/getting-started/cybermiles-ewasm-testnet)
+
 
 # Getting Started
 

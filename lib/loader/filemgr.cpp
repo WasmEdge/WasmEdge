@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "loader/filemgr.h"
+#include "support/filesystem.h"
 
 #include <algorithm>
 #include <iterator>
@@ -14,12 +15,12 @@ FileMgrFStream::~FileMgrFStream() noexcept {
 }
 
 /// Set path to file manager. See "include/loader/filemgr.h".
-Expect<void> FileMgrFStream::setPath(const std::string &FilePath) {
+Expect<void> FileMgrFStream::setPath(std::string_view FilePath) {
   if (Fin.is_open()) {
     Fin.close();
     Status = ErrCode::InvalidPath;
   }
-  Fin.open(FilePath, std::ios::in | std::ios::binary);
+  Fin.open(std::filesystem::u8path(FilePath), std::ios::in | std::ios::binary);
   if (!Fin.fail()) {
     Status = ErrCode::Success;
   }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "loader/loader.h"
 #include "common/version.h"
+#include "support/filesystem.h"
 #include "support/log.h"
 
 #include <string_view>
@@ -9,8 +10,8 @@ namespace SSVM {
 namespace Loader {
 
 namespace {
-static bool endsWith(const std::string &String, const std::string_view Suffix) {
-  const std::string_view View(String.data(), String.size());
+static bool endsWith(std::string_view String, std::string_view Suffix) {
+  std::string_view View(String.data(), String.size());
   return View.size() >= Suffix.size() &&
          View.compare(View.size() - Suffix.size(), std::string_view::npos,
                       Suffix) == 0;
@@ -18,8 +19,9 @@ static bool endsWith(const std::string &String, const std::string_view Suffix) {
 } // namespace
 
 /// Load data from file path. See "include/loader/loader.h".
-Expect<std::vector<Byte>> Loader::loadFile(const std::string &FilePath) {
-  std::ifstream Fin(FilePath, std::ios::in | std::ios::binary);
+Expect<std::vector<Byte>> Loader::loadFile(std::string_view FilePath) {
+  std::ifstream Fin(std::filesystem::u8path(FilePath),
+                    std::ios::in | std::ios::binary);
   if (!Fin) {
     Log::loggingError(ErrCode::InvalidPath);
     return Unexpect(ErrCode::InvalidPath);
@@ -45,7 +47,7 @@ Expect<std::vector<Byte>> Loader::loadFile(const std::string &FilePath) {
 
 /// Parse module from file path. See "include/loader/loader.h".
 Expect<std::unique_ptr<AST::Module>>
-Loader::parseModule(const std::string &FilePath) {
+Loader::parseModule(std::string_view FilePath) {
   using namespace std::literals::string_view_literals;
   if (endsWith(FilePath, ".so"sv)) {
     if (auto Res = LMgr.setPath(FilePath); !Res) {

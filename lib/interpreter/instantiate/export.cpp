@@ -20,7 +20,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   for (const auto &ExpDesc : ExportSec.getContent()) {
     /// Get data from export description.
     const auto ExtType = ExpDesc->getExternalType();
-    const std::string &ExtName = ExpDesc->getExternalName();
+    std::string_view ExtName = ExpDesc->getExternalName();
     const uint32_t ExtIdx = ExpDesc->getExternalIndex();
     void *Symbol = ExpDesc->getSymbol();
 

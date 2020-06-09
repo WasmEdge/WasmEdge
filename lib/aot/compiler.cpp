@@ -1694,26 +1694,21 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
           CodeGenPasses.run(*LLModule);
         }
 
-        // link
-        std::array Args{"lld",
-                        "--shared",
-                        "--gc-sections",
-                        Object->TmpName.c_str(),
-                        "-o",
-                        Path.u8string().c_str()};
+    // link
+#ifdef __APPLE__
+        lld::mach_o::link(
+#else
+        lld::elf::link(
+#endif
+            std::array{"lld", "--shared", "--gc-sections",
+                       Object->TmpName.c_str(), "-o", Path.u8string().c_str()},
+            false,
 #if LLVM_VERSION_MAJOR >= 10
-#ifdef __APPLE__
-        lld::mach_o::link(Args, false, llvm::outs(), llvm::errs());
+            llvm::outs(), llvm::errs()
 #else
-        lld::elf::link(Args, false, llvm::outs(), llvm::errs());
+            llvm::errs()
 #endif
-#else
-#ifdef __APPLE__
-        lld::mach_o::link(Args, false, llvm::errs());
-#else
-        lld::elf::link(Args, false, llvm::errs());
-#endif
-#endif
+        );
 
         llvm::consumeError(Object->discard());
         LOG(INFO) << "compile done";
@@ -1737,10 +1732,10 @@ Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
   for (const auto &ImpDesc : ImportSec.getContent()) {
     /// Get data from import description.
     const auto &ExtType = ImpDesc->getExternalType();
-    const std::string &ModName = ImpDesc->getModuleName();
-    const std::string &ExtName = ImpDesc->getExternalName();
-    const std::string &FullName = '$' + ModName + '.' + ExtName;
-    const std::string &FullCtxName = FullName + ".ctx";
+    const std::string ModName(ImpDesc->getModuleName());
+    const std::string ExtName(ImpDesc->getExternalName());
+    const std::string FullName = '$' + ModName + '.' + ExtName;
+    const std::string FullCtxName = FullName + ".ctx";
 
     /// Add the imports into module istance.
     switch (ExtType) {
@@ -1859,8 +1854,8 @@ Expect<void> Compiler::compile(const AST::ExportSection &ExportSec) {
                                    llvm::Type::getInt8PtrTy(VMContext),
                                    llvm::Type::getInt8PtrTy(VMContext)},
                                   false),
-          llvm::GlobalValue::ExternalLinkage, "$" + ExpDesc->getExternalName(),
-          Context->Module);
+          llvm::GlobalValue::ExternalLinkage,
+          "$" + std::string(ExpDesc->getExternalName()), Context->Module);
       Wrapper->addFnAttr(llvm::Attribute::StrictFP);
       llvm::Argument *Ctx = Wrapper->arg_begin();
       llvm::Argument *RawArgs = Ctx + 1;
@@ -1909,7 +1904,7 @@ Expect<void> Compiler::compile(const AST::ExportSection &ExportSec) {
     case ExternalType::Global: {
       llvm::GlobalVariable *G = Context->Globals[ExpDesc->getExternalIndex()];
       G->setLinkage(llvm::GlobalValue::ExternalLinkage);
-      G->setName("$" + ExpDesc->getExternalName());
+      G->setName("$" + std::string(ExpDesc->getExternalName()));
       break;
     }
     case ExternalType::Memory: {

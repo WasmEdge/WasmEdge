@@ -10,7 +10,7 @@ namespace Interpreter {
 /// Instantiate module instance. See "include/executor/Interpreter.h".
 Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
                                       const AST::Module &Mod,
-                                      const std::string &Name) {
+                                      std::string_view Name) {
   /// Reset store manager, stack manager, and instruction provider.
   StoreMgr.reset();
   StackMgr.reset();

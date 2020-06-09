@@ -27,10 +27,10 @@ namespace Instance {
 
 class ModuleInstance {
 public:
-  ModuleInstance(const std::string &Name) : ModName(Name) {}
+  ModuleInstance(std::string_view Name) : ModName(Name) {}
   ~ModuleInstance() = default;
 
-  const std::string &getModuleName() const { return ModName; }
+  std::string_view getModuleName() const { return ModName; }
 
   /// Copy the function types in type section to module instance.
   void addFuncType(Span<const ValType> Params, Span<const ValType> Returns) {
@@ -46,30 +46,30 @@ public:
   }
 
   /// Exports functions.
-  void exportFuncion(const std::string &Name, const uint32_t Idx) {
-    ExpFuncs[Name] = FuncAddrs[Idx];
+  void exportFuncion(std::string_view Name, const uint32_t Idx) {
+    ExpFuncs.emplace(Name, FuncAddrs[Idx]);
   }
-  void exportTable(const std::string &Name, const uint32_t Idx) {
-    ExpTables[Name] = TableAddrs[Idx];
+  void exportTable(std::string_view Name, const uint32_t Idx) {
+    ExpTables.emplace(Name, TableAddrs[Idx]);
   }
-  void exportMemory(const std::string &Name, const uint32_t Idx) {
-    ExpMems[Name] = MemAddrs[Idx];
+  void exportMemory(std::string_view Name, const uint32_t Idx) {
+    ExpMems.emplace(Name, MemAddrs[Idx]);
   }
-  void exportGlobal(const std::string &Name, const uint32_t Idx) {
-    ExpGlobals[Name] = GlobalAddrs[Idx];
+  void exportGlobal(std::string_view Name, const uint32_t Idx) {
+    ExpGlobals.emplace(Name, GlobalAddrs[Idx]);
   }
 
   /// Get export maps.
-  const std::map<std::string, uint32_t> &getFuncExports() const {
+  const std::map<std::string, uint32_t, std::less<>> &getFuncExports() const {
     return ExpFuncs;
   }
-  const std::map<std::string, uint32_t> &getTableExports() const {
+  const std::map<std::string, uint32_t, std::less<>> &getTableExports() const {
     return ExpTables;
   }
-  const std::map<std::string, uint32_t> &getMemExports() const {
+  const std::map<std::string, uint32_t, std::less<>> &getMemExports() const {
     return ExpMems;
   }
-  const std::map<std::string, uint32_t> &getGlobalExports() const {
+  const std::map<std::string, uint32_t, std::less<>> &getGlobalExports() const {
     return ExpGlobals;
   }
 
@@ -143,10 +143,10 @@ private:
   std::vector<uint32_t> GlobalAddrs;
 
   /// Exports.
-  std::map<std::string, uint32_t> ExpFuncs;
-  std::map<std::string, uint32_t> ExpTables;
-  std::map<std::string, uint32_t> ExpMems;
-  std::map<std::string, uint32_t> ExpGlobals;
+  std::map<std::string, uint32_t, std::less<>> ExpFuncs;
+  std::map<std::string, uint32_t, std::less<>> ExpTables;
+  std::map<std::string, uint32_t, std::less<>> ExpMems;
+  std::map<std::string, uint32_t, std::less<>> ExpGlobals;
 
   /// Start function address
   bool HasStartFunc = false;

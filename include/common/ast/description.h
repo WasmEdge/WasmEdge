@@ -52,10 +52,10 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of module name.
-  const std::string &getModuleName() const { return ModName; }
+  std::string_view getModuleName() const { return ModName; }
 
   /// Getter of external name.
-  const std::string &getExternalName() const { return ExtName; }
+  std::string_view getExternalName() const { return ExtName; }
 
   /// Getter of ExtContent.
   template <typename T> Expect<T *> getExternalContent() const {
@@ -92,7 +92,7 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of external name.
-  const std::string &getExternalName() const { return ExtName; }
+  std::string_view getExternalName() const { return ExtName; }
 
   /// Getter of external index.
   uint32_t getExternalIndex() const { return ExtIdx; }

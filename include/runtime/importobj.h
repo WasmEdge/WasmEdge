@@ -21,6 +21,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 
 namespace SSVM {
 namespace Runtime {
@@ -31,44 +32,44 @@ public:
   using InstMap = typename std::map<std::string, std::unique_ptr<T>>;
 
   ImportObject() = delete;
-  ImportObject(const std::string &Name) : ModName(Name) {}
+  ImportObject(std::string_view Name) : ModName(Name) {}
   virtual ~ImportObject() = default;
 
-  const std::string &getModuleName() const { return ModName; }
+  std::string_view getModuleName() const { return ModName; }
 
-  void addHostFunc(const std::string &Name,
+  void addHostFunc(std::string_view Name,
                    std::unique_ptr<HostFunctionBase> &&Func) {
     addHostFunc(Name, Func);
   }
-  void addHostFunc(const std::string &Name,
+  void addHostFunc(std::string_view Name,
                    std::unique_ptr<HostFunctionBase> &Func) {
     Funcs.emplace(Name,
                   std::make_unique<Runtime::Instance::FunctionInstance>(Func));
   }
 
-  void addHostTable(const std::string &Name,
+  void addHostTable(std::string_view Name,
                     std::unique_ptr<Instance::TableInstance> &&Tab) {
     addHostTable(Name, Tab);
   }
-  void addHostTable(const std::string &Name,
+  void addHostTable(std::string_view Name,
                     std::unique_ptr<Instance::TableInstance> &Tab) {
     Tabs.emplace(Name, std::move(Tab));
   }
 
-  void addHostMemory(const std::string &Name,
+  void addHostMemory(std::string_view Name,
                      std::unique_ptr<Instance::MemoryInstance> &&Mem) {
     addHostMemory(Name, Mem);
   }
-  void addHostMemory(const std::string &Name,
+  void addHostMemory(std::string_view Name,
                      std::unique_ptr<Instance::MemoryInstance> &Mem) {
     Mems.emplace(Name, std::move(Mem));
   }
 
-  void addHostGlobal(const std::string &Name,
+  void addHostGlobal(std::string_view Name,
                      std::unique_ptr<Instance::GlobalInstance> &&Glob) {
     addHostGlobal(Name, Glob);
   }
-  void addHostGlobal(const std::string &Name,
+  void addHostGlobal(std::string_view Name,
                      std::unique_ptr<Instance::GlobalInstance> &Glob) {
     Globs.emplace(Name, std::move(Glob));
   }

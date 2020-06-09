@@ -28,10 +28,10 @@ public:
   ~Loader() = default;
 
   /// Load data from file path.
-  Expect<std::vector<Byte>> loadFile(const std::string &FilePath);
+  Expect<std::vector<Byte>> loadFile(std::string_view FilePath);
 
   /// Parse module from file path.
-  Expect<std::unique_ptr<AST::Module>> parseModule(const std::string &FilePath);
+  Expect<std::unique_ptr<AST::Module>> parseModule(std::string_view FilePath);
 
   /// Parse module from byte code.
   Expect<std::unique_ptr<AST::Module>> parseModule(Span<const uint8_t> Code);

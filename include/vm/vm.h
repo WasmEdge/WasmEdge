@@ -41,20 +41,20 @@ public:
 
   /// ======= Functions can be called before instantiated stage. =======
   /// Register wasm modules and host modules.
-  Expect<void> registerModule(const std::string &Name, const std::string &Path);
-  Expect<void> registerModule(const std::string &Name, Span<const Byte> Code);
+  Expect<void> registerModule(std::string_view Name, std::string_view Path);
+  Expect<void> registerModule(std::string_view Name, Span<const Byte> Code);
   Expect<void> registerModule(const Runtime::ImportObject &Obj);
 
   /// Rapidly load, validate, instantiate, and run wasm function.
   Expect<std::vector<ValVariant>>
-  runWasmFile(const std::string &Path, const std::string &Func,
+  runWasmFile(std::string_view Path, std::string_view Func,
               Span<const ValVariant> Params = {});
   Expect<std::vector<ValVariant>>
-  runWasmFile(Span<const Byte> Code, const std::string &Func,
+  runWasmFile(Span<const Byte> Code, std::string_view Func,
               Span<const ValVariant> Params = {});
 
   /// Load given wasm file or wasm bytecode.
-  Expect<void> loadWasm(const std::string &Path);
+  Expect<void> loadWasm(std::string_view Path);
   Expect<void> loadWasm(Span<const Byte> Code);
 
   /// ======= Functions can be called after loaded stage. =======
@@ -67,12 +67,12 @@ public:
 
   /// ======= Functions can be called after instantiated stage. =======
   /// Execute wasm with given input.
-  Expect<std::vector<ValVariant>> execute(const std::string &Func,
+  Expect<std::vector<ValVariant>> execute(std::string_view Func,
                                           Span<const ValVariant> Params = {});
 
   /// Execute function of registered module with given input.
-  Expect<std::vector<ValVariant>> execute(const std::string &Mod,
-                                          const std::string &Func,
+  Expect<std::vector<ValVariant>> execute(std::string_view Mod,
+                                          std::string_view Func,
                                           Span<const ValVariant> Params = {});
 
   /// ======= Functions which are stageless. =======
@@ -102,10 +102,9 @@ private:
   enum class VMStage : uint8_t { Inited, Loaded, Validated, Instantiated };
 
   void initVM();
-  Expect<void> registerModule(const std::string &Name,
-                              const AST::Module &Module);
+  Expect<void> registerModule(std::string_view Name, const AST::Module &Module);
   Expect<std::vector<ValVariant>> runWasmFile(const AST::Module &Module,
-                                              const std::string &Func,
+                                              std::string_view Func,
                                               Span<const ValVariant> Params);
 
   /// VM environment.

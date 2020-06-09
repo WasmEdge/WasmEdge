@@ -24,7 +24,7 @@ bool isLimitMatched(const bool HasMax1, const uint32_t Min1,
   return true;
 }
 
-Expect<uint32_t> getImportAddr(const std::string &Name,
+Expect<uint32_t> getImportAddr(std::string_view Name,
                                const ExternalType ExtType,
                                Runtime::Instance::ModuleInstance &ModInst) {
   const auto &FuncList = ModInst.getFuncExports();
@@ -77,8 +77,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   for (const auto &ImpDesc : ImportSec.getContent()) {
     /// Get data from import description and find import module.
     auto ExtType = ImpDesc->getExternalType();
-    auto &ModName = ImpDesc->getModuleName();
-    auto &ExtName = ImpDesc->getExternalName();
+    auto ModName = ImpDesc->getModuleName();
+    auto ExtName = ImpDesc->getExternalName();
     Runtime::Instance::ModuleInstance *TargetModInst;
     uint32_t TargetAddr;
     if (auto Res = StoreMgr.findModule(ModName)) {

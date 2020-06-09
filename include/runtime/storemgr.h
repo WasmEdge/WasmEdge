@@ -126,25 +126,25 @@ public:
   }
 
   /// Get exported instances of instantiated module.
-  const std::map<std::string, uint32_t> getFuncExports() const {
+  const std::map<std::string, uint32_t, std::less<>> getFuncExports() const {
     if (NumMod > 0) {
       return ModInsts.back()->getFuncExports();
     }
     return {};
   }
-  const std::map<std::string, uint32_t> getTableExports() const {
+  const std::map<std::string, uint32_t, std::less<>> getTableExports() const {
     if (NumMod > 0) {
       return ModInsts.back()->getTableExports();
     }
     return {};
   }
-  const std::map<std::string, uint32_t> getMemExports() const {
+  const std::map<std::string, uint32_t, std::less<>> getMemExports() const {
     if (NumMod > 0) {
       return ModInsts.back()->getMemExports();
     }
     return {};
   }
-  const std::map<std::string, uint32_t> getGlobalExports() const {
+  const std::map<std::string, uint32_t, std::less<>> getGlobalExports() const {
     if (NumMod > 0) {
       return ModInsts.back()->getGlobalExports();
     }
@@ -160,7 +160,7 @@ public:
   }
 
   /// Find module by name.
-  Expect<Instance::ModuleInstance *> findModule(const std::string &Name) {
+  Expect<Instance::ModuleInstance *> findModule(std::string_view Name) {
     for (auto It : ModInsts) {
       if (It->getModuleName() == Name) {
         return It;

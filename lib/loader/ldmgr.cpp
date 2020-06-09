@@ -17,11 +17,11 @@ LDMgr::~LDMgr() noexcept {
 }
 
 /// Set path to loadable manager. See "include/loader/ldmgr.h".
-Expect<void> LDMgr::setPath(const std::string &FilePath) {
+Expect<void> LDMgr::setPath(std::string_view FilePath) {
   if (Handler != nullptr) {
     dlclose(Handler);
   }
-  Handler = dlopen(FilePath.c_str(), RTLD_LAZY | RTLD_LOCAL);
+  Handler = dlopen(std::string(FilePath).c_str(), RTLD_LAZY | RTLD_LOCAL);
   if (Handler == nullptr) {
     return Unexpect(ErrCode::InvalidPath);
   }

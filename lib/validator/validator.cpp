@@ -360,12 +360,11 @@ Expect<void> Validator::validate(const AST::GlobalSection &GlobSec) {
 Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
   std::unordered_set<std::string> ExportNames;
   for (auto &ExportDesc : ExportSec.getContent()) {
-    const auto &Name = ExportDesc->getExternalName();
-    if (ExportNames.find(Name) != ExportNames.end()) {
+    auto Result = ExportNames.emplace(ExportDesc->getExternalName());
+    if (!Result.second) {
       /// Duplicated export name.
       return Unexpect(ErrCode::ValidationFailed);
     }
-    ExportNames.insert(Name);
     if (auto Res = validate(*ExportDesc.get()); !Res) {
       return Unexpect(Res);
     }

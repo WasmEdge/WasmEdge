@@ -28,7 +28,7 @@ public:
   ~LDMgr() noexcept;
 
   /// Set the file path.
-  Expect<void> setPath(const std::string &FilePath);
+  Expect<void> setPath(std::string_view FilePath);
 
   /// Read embedded Wasm binary.
   Expect<std::vector<Byte>> getWasm();

@@ -148,7 +148,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
 Expect<void> Module::loadCompiled(LDMgr &Mgr) {
   if (ExportSec) {
     for (auto &ExpDesc : ExportSec->getContent()) {
-      const std::string Name = '$' + ExpDesc->getExternalName();
+      const std::string Name = '$' + std::string(ExpDesc->getExternalName());
       switch (ExpDesc->getExternalType()) {
       case ExternalType::Function:
       case ExternalType::Global:

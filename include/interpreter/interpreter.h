@@ -95,7 +95,7 @@ public:
   /// Instantiate Wasm Module.
   Expect<void> instantiateModule(Runtime::StoreManager &StoreMgr,
                                  const AST::Module &Mod,
-                                 const std::string &Name = "");
+                                 std::string_view Name = {});
 
   /// Register host module.
   Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
@@ -103,7 +103,7 @@ public:
 
   /// Register Wasm module.
   Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
-                              const AST::Module &Mod, const std::string &Name);
+                              const AST::Module &Mod, std::string_view Name);
 
   /// Invoke function by function address in Store manager.
   Expect<std::vector<ValVariant>> invoke(Runtime::StoreManager &StoreMgr,
@@ -124,7 +124,7 @@ private:
   /// @{
   /// Instantiation of Module Instance.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           const AST::Module &Mod, const std::string &Name);
+                           const AST::Module &Mod, std::string_view Name);
 
   /// Instantiation of Import Section.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,

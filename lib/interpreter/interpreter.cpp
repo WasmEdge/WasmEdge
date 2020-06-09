@@ -11,7 +11,7 @@ namespace Interpreter {
 /// Instantiate Wasm Module. See "include/interpreter/interpreter.h".
 Expect<void> Interpreter::instantiateModule(Runtime::StoreManager &StoreMgr,
                                             const AST::Module &Mod,
-                                            const std::string &Name) {
+                                            std::string_view Name) {
   InsMode = InstantiateMode::Instantiate;
   if (auto Res = instantiate(StoreMgr, Mod, Name); !Res) {
     Log::loggingError(Res.error());
@@ -61,7 +61,7 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
 /// Register Wasm module. See "include/interpreter/interpreter.h".
 Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
                                          const AST::Module &Mod,
-                                         const std::string &Name = "") {
+                                         std::string_view Name) {
   InsMode = InstantiateMode::ImportWasm;
   if (auto Res = instantiate(StoreMgr, Mod, Name); !Res) {
     Log::loggingError(Res.error());

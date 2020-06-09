@@ -1,0 +1,70 @@
+name: docker
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - utils/docker/**
+  pull_request:
+    branches:
+      - master
+    paths:
+      - utils/docker/**
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  build-docker-images:
+    name: build-docker-images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: "Rebuild secondstate/ssvm:ubuntu-base"
+        uses: docker/build-push-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+          repository: secondstate/ssvm
+          tags: ubuntu-base
+          add_git_labels: true
+          path: utils/docker
+          dockerfile: utils/docker/Dockerfile.base
+          always_pull: true
+      - name: "Rebuild secondstate/ssvm:ubuntu-build-clang"
+        uses: docker/build-push-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+          repository: secondstate/ssvm
+          tags: ubuntu-build-clang
+          add_git_labels: true
+          path: utils/docker
+          dockerfile: utils/docker/Dockerfile.build-clang
+          always_pull: true
+          build_args: BASE=secondstate/ssvm:ubuntu-base
+      - name: "Rebuild secondstate/ssvm:ubuntu-build-gcc"
+        uses: docker/build-push-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+          repository: secondstate/ssvm
+          tags: ubuntu-build-gcc
+          add_git_labels: true
+          path: utils/docker
+          dockerfile: utils/docker/Dockerfile.build-gcc
+          always_pull: true
+          build_args: BASE=secondstate/ssvm:ubuntu-base
+      - name: "Rebuild secondstate/ssvm:latest"
+        uses: docker/build-push-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+          repository: secondstate/ssvm
+          tags: ubuntu-build-clang
+          add_git_labels: true
+          path: utils/docker
+          dockerfile: utils/docker/Dockerfile.build-clang
+          always_pull: true
+          build_args: BASE=secondstate/ssvm:ubuntu-base

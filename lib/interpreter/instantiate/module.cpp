@@ -34,7 +34,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Instantiate Function Types in Module Instance. (TypeSec)
   const AST::TypeSection *TypeSec = Mod.getTypeSection();
   if (TypeSec != nullptr) {
-    auto &FuncTypes = TypeSec->getContent();
+    auto FuncTypes = TypeSec->getContent();
     for (auto &FuncType : FuncTypes) {
       /// Copy param and return lists to module instance.
       ModInst->addFuncType(FuncType->getParamTypes(),

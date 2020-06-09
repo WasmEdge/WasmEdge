@@ -63,7 +63,7 @@ private:
 
   /// Validate const expression
   Expect<void> validateConstExpr(const AST::InstrVec &Instrs,
-                                 const std::vector<ValType> &Returns,
+                                 Span<const ValType> Returns,
                                  const bool RestrictGlobal = false);
 
   const uint32_t LIMIT_TABLETYPE = UINT32_MAX; // 2^32-1

@@ -17,7 +17,7 @@ int main(int Argc, char *Argv[]) {
   std::string OutputPath = std::filesystem::absolute(Argv[2]).string();
   SSVM::Loader::Loader Loader;
 
-  SSVM::Bytes Data;
+  std::vector<SSVM::Byte> Data;
   if (auto Res = Loader.loadFile(InputPath)) {
     Data = std::move(*Res);
   } else {

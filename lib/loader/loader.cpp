@@ -18,7 +18,7 @@ static bool endsWith(const std::string &String, const std::string_view Suffix) {
 } // namespace
 
 /// Load data from file path. See "include/loader/loader.h".
-Expect<Bytes> Loader::loadFile(const std::string &FilePath) {
+Expect<std::vector<Byte>> Loader::loadFile(const std::string &FilePath) {
   std::ifstream Fin(FilePath, std::ios::in | std::ios::binary);
   if (!Fin) {
     Log::loggingError(ErrCode::InvalidPath);
@@ -29,7 +29,7 @@ Expect<Bytes> Loader::loadFile(const std::string &FilePath) {
   const size_t Size = Fin.tellg();
   Fin.seekg(0, std::ios::beg);
 
-  Bytes Buf(Size);
+  std::vector<Byte> Buf(Size);
   Fin.read(reinterpret_cast<char *>(Buf.data()), Size);
   if (Fin.gcount() != Size) {
     if (Fin.eof()) {
@@ -99,7 +99,7 @@ Loader::parseModule(const std::string &FilePath) {
 
 /// Parse module from byte code. See "include/loader/loader.h".
 Expect<std::unique_ptr<AST::Module>>
-Loader::parseModule(const std::vector<uint8_t> &Code) {
+Loader::parseModule(Span<const uint8_t> Code) {
   auto Mod = std::make_unique<AST::Module>();
   if (auto Res = FVMgr.setCode(Code); !Res) {
     Log::loggingError(Res.error());

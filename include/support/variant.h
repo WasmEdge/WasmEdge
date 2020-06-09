@@ -44,7 +44,7 @@ union VariadicUnion<FirstT, RestT...> {
       return Rest.template get<T>();
     }
   }
-  template <typename T> constexpr T &get() & noexcept {
+  template <typename T> constexpr T &get() &noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
       return *reinterpret_cast<FirstT *>(&First);
     } else {
@@ -58,7 +58,7 @@ union VariadicUnion<FirstT, RestT...> {
       return std::move(Rest).template get<T>();
     }
   }
-  template <typename T> constexpr T &&get() && noexcept {
+  template <typename T> constexpr T &&get() &&noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
       return std::move(*reinterpret_cast<FirstT *>(&First));
     } else {
@@ -141,11 +141,11 @@ public:
       : Variant(std::in_place_index_t<index_of_v<T, Types...>>(),
                 std::forward<Args>(Values)...) {}
 
-  template <typename T> constexpr T &get() & noexcept {
+  template <typename T> constexpr T &get() &noexcept {
     return Storage.template get<T>();
   }
 
-  template <typename T> constexpr T &&get() && noexcept {
+  template <typename T> constexpr T &&get() &&noexcept {
     return std::move(Storage).template get<T>();
   }
 

@@ -14,7 +14,7 @@ public:
     struct timeval TStart;
     gettimeofday(&TStart, NULL);
     StartTime.insert(
-        std::make_pair(ID, (uint64_t)1000000 * TStart.tv_sec + TStart.tv_usec));
+        std::pair{ID, (uint64_t)1000000 * TStart.tv_sec + TStart.tv_usec});
   }
 
   uint64_t stopRecord(const uint32_t &ID) {

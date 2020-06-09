@@ -44,11 +44,11 @@ Expect<Byte> FileMgrFStream::readByte() {
 }
 
 /// Read number of bytes. See "include/loader/filemgr.h".
-Expect<Bytes> FileMgrFStream::readBytes(size_t SizeToRead) {
+Expect<std::vector<Byte>> FileMgrFStream::readBytes(size_t SizeToRead) {
   if (Status != ErrCode::Success) {
     return Unexpect(Status);
   }
-  Bytes Buf;
+  std::vector<Byte> Buf;
   if (SizeToRead > 0) {
     std::istreambuf_iterator<char> Iter(Fin);
     // TODO: error handling
@@ -212,8 +212,8 @@ Expect<std::string> FileMgrFStream::readName() {
 }
 
 /// Set code data. See "include/loader/filemgr.h".
-Expect<void> FileMgrVector::setCode(const std::vector<uint8_t> &CodeData) {
-  Code = CodeData;
+Expect<void> FileMgrVector::setCode(Span<const Byte> CodeData) {
+  Code.assign(CodeData.begin(), CodeData.end());
   Pos = 0;
   if (Code.size() == 0) {
     Status = ErrCode::EndOfFile;
@@ -233,8 +233,8 @@ Expect<Byte> FileMgrVector::readByte() {
 }
 
 /// Read number of bytes. See "include/loader/filemgr.h".
-Expect<Bytes> FileMgrVector::readBytes(size_t SizeToRead) {
-  Bytes Buf;
+Expect<std::vector<Byte>> FileMgrVector::readBytes(size_t SizeToRead) {
+  std::vector<Byte> Buf;
   if (SizeToRead > 0) {
     if (Pos + SizeToRead > Code.size()) {
       Pos = Code.size();

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "common/ast/section.h"
-#include "runtime/instance/module.h"
 #include "runtime/instance/memory.h"
+#include "common/ast/section.h"
 #include "interpreter/interpreter.h"
+#include "runtime/instance/module.h"
 
 namespace SSVM {
 namespace Interpreter {

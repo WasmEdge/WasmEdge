@@ -4,10 +4,6 @@
 #include "common/errcode.h"
 #include "easyloggingpp/easylogging++.h"
 
-#include <iostream>
-#include <string>
-#include <vector>
-
 namespace SSVM {
 namespace Log {
 

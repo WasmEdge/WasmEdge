@@ -73,7 +73,7 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
 /// Invoke function. See "include/interpreter/interpreter.h".
 Expect<std::vector<ValVariant>>
 Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
-                    const std::vector<ValVariant> &Params) {
+                    Span<const ValVariant> Params) {
   /// Check and get function address from store manager.
   Runtime::Instance::FunctionInstance *FuncInst;
   if (auto Res = StoreMgr.getFunction(FuncAddr)) {

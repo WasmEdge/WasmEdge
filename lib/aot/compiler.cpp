@@ -32,14 +32,14 @@ using ExceptionBehavior = llvm::ConstrainedFPIntrinsic::ExceptionBehavior;
 static inline unsigned Align(unsigned Value) noexcept { return Value; }
 #endif
 
-static bool isVoidReturn(const std::vector<SSVM::ValType> &ValTypes);
+static bool isVoidReturn(SSVM::Span<const SSVM::ValType> ValTypes);
 static llvm::Type *toLLVMType(llvm::LLVMContext &Context,
                               const SSVM::ValType &ValType);
 static std::vector<llvm::Type *>
 toLLVMArgsType(llvm::LLVMContext &Context,
-               const std::vector<SSVM::ValType> &ValTypes);
+               SSVM::Span<const SSVM::ValType> ValTypes);
 static llvm::Type *toLLVMRetsType(llvm::LLVMContext &Context,
-                                  const std::vector<SSVM::ValType> &ValTypes);
+                                  SSVM::Span<const SSVM::ValType> ValTypes);
 static llvm::FunctionType *toLLVMType(llvm::LLVMContext &Context,
                                       const SSVM::AST::FunctionType &FuncType);
 static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &Context,
@@ -200,7 +200,7 @@ namespace {
 
 using namespace SSVM;
 
-static bool isVoidReturn(const std::vector<ValType> &ValTypes) {
+static bool isVoidReturn(Span<const SSVM::ValType> ValTypes) {
   return ValTypes.empty() ||
          (ValTypes.size() == 1 && ValTypes.front() == ValType::None);
 }
@@ -222,9 +222,8 @@ static llvm::Type *toLLVMType(llvm::LLVMContext &Context,
   }
 }
 
-static std::vector<llvm::Type *>
-toLLVMArgsType(llvm::LLVMContext &Context,
-               const std::vector<ValType> &ValTypes) {
+static std::vector<llvm::Type *> toLLVMArgsType(llvm::LLVMContext &Context,
+                                                Span<const ValType> ValTypes) {
   std::vector<llvm::Type *> Result = {llvm::Type::getInt8PtrTy(Context)};
   Result.reserve(ValTypes.size() + 1);
   for (const auto &Type : ValTypes) {
@@ -234,7 +233,7 @@ toLLVMArgsType(llvm::LLVMContext &Context,
 }
 
 static llvm::Type *toLLVMRetsType(llvm::LLVMContext &Context,
-                                  const std::vector<ValType> &ValTypes) {
+                                  Span<const ValType> ValTypes) {
   if (isVoidReturn(ValTypes)) {
     return llvm::Type::getVoidTy(Context);
   }
@@ -277,7 +276,7 @@ class FunctionCompiler {
 public:
   using OpCode = AST::Instruction::OpCode;
   FunctionCompiler(AOT::Compiler::CompileContext &Context, llvm::Function *F,
-                   const std::vector<ValType> &Locals, bool CalculateInstrCount)
+                   Span<const ValType> Locals, bool CalculateInstrCount)
       : Context(Context), VMContext(Context.Context), F(F),
         Builder(llvm::BasicBlock::Create(VMContext, "entry", F)) {
     if (F) {
@@ -398,7 +397,7 @@ public:
       enterBlock(EndBlock, true, Instr.getResultType());
       Builder.SetInsertPoint(Block);
       compile(Instr.getBody());
-      buildPHI({Instr.getResultType()}, leaveBlock(EndBlock));
+      buildPHI(std::array{Instr.getResultType()}, leaveBlock(EndBlock));
       break;
     }
     case OpCode::Loop: {
@@ -409,7 +408,7 @@ public:
       enterBlock(Loop, false, Instr.getResultType());
       Builder.SetInsertPoint(Loop);
       compile(Instr.getBody());
-      buildPHI({Instr.getResultType()}, leaveBlock(EndLoop));
+      buildPHI(std::array{Instr.getResultType()}, leaveBlock(EndLoop));
       break;
     }
     default:
@@ -442,7 +441,7 @@ public:
       IfResult.reserve(IfResult.size() + ElseResult.size());
       IfResult.insert(IfResult.end(), ElseResult.begin(), ElseResult.end());
 
-      buildPHI({Instr.getResultType()}, IfResult);
+      buildPHI(std::array{Instr.getResultType()}, IfResult);
 
       break;
     }
@@ -481,7 +480,7 @@ public:
     return {};
   }
   Expect<void> compile(const AST::BrTableControlInstruction &Instr) {
-    const std::vector<unsigned int> &LabelTable = Instr.getLabelTable();
+    auto LabelTable = Instr.getLabelTable();
     switch (Instr.getOpCode()) {
     case OpCode::Br_table: {
       if (!setLableJumpPHI(Instr.getLabelIndex())) {
@@ -1327,9 +1326,9 @@ private:
     return Result;
   }
 
-  void buildPHI(const std::vector<ValType> &RetType,
-                const std::vector<std::tuple<llvm::Value *, llvm::BasicBlock *>>
-                    &Incomings) {
+  void buildPHI(
+      Span<const ValType> RetType,
+      Span<const std::tuple<llvm::Value *, llvm::BasicBlock *>> Incomings) {
     if (isVoidReturn(RetType)) {
       return;
     }
@@ -1446,13 +1445,14 @@ static std::vector<llvm::Value *> unpackStruct(llvm::IRBuilder<> &Builder,
 namespace SSVM {
 namespace AOT {
 
-Expect<void> Compiler::compile(const Bytes &Data, const AST::Module &Module,
-                               std::string_view PathSV) {
+Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
+                               std::string_view OutputPath) {
+  namespace fs = std::filesystem;
   using namespace std::literals;
 
   LOG(INFO) << "compile start";
-  const std::filesystem::path Path(PathSV);
-  std::filesystem::path LLPath(Path);
+  const fs::path Path(fs::u8path(OutputPath));
+  fs::path LLPath(Path);
   LLPath.replace_extension("ll"sv);
   std::filesystem::path OPath(Path);
   OPath.replace_extension("%%%%%%%%%%.o"sv);
@@ -1695,9 +1695,12 @@ Expect<void> Compiler::compile(const Bytes &Data, const AST::Module &Module,
         }
 
         // link
-        std::array<const char *, 6> Args = {
-            "lld", "--shared",  "--gc-sections", Object->TmpName.c_str(),
-            "-o",  Path.c_str()};
+        std::array Args{"lld",
+                        "--shared",
+                        "--gc-sections",
+                        Object->TmpName.c_str(),
+                        "-o",
+                        Path.u8string().c_str()};
 #if LLVM_VERSION_MAJOR >= 10
 #ifdef __APPLE__
         lld::mach_o::link(Args, false, llvm::outs(), llvm::errs());
@@ -2011,7 +2014,7 @@ Expect<void> Compiler::compile(const AST::TableSection &TableSection,
     if (Elements.size() < Offset + FuncIdxes.size()) {
       Elements.resize(Offset + FuncIdxes.size());
     }
-    std::copy(FuncIdxes.cbegin(), FuncIdxes.cend(), Elements.begin() + Offset);
+    std::copy(FuncIdxes.begin(), FuncIdxes.end(), Elements.begin() + Offset);
   }
   return {};
 }

@@ -91,7 +91,7 @@ public:
   uint32_t getIdx() const { return TableIdx; }
 
   /// Getter of function indices.
-  const std::vector<uint32_t> &getFuncIdxes() const { return FuncIdxes; }
+  Span<const uint32_t> getFuncIdxes() const { return FuncIdxes; }
 
 protected:
   /// The node type should be Attr::Seg_Element.
@@ -119,9 +119,7 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of locals vector.
-  const std::vector<std::pair<uint32_t, ValType>> &getLocals() const {
-    return Locals;
-  }
+  Span<const std::pair<uint32_t, ValType>> getLocals() const { return Locals; }
 
 protected:
   /// The node type should be Attr::Seg_Code.
@@ -152,7 +150,7 @@ public:
   uint32_t getIdx() const { return MemoryIdx; }
 
   /// Getter of data.
-  const Bytes &getData() const { return Data; }
+  Span<const Byte> getData() const { return Data; }
 
 protected:
   /// The node type should be Attr::Seg_Data.
@@ -162,7 +160,7 @@ private:
   /// \name Data of DataSegment node.
   /// @{
   uint32_t MemoryIdx = 0;
-  Bytes Data;
+  std::vector<Byte> Data;
   /// @}
 };
 

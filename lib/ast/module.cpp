@@ -9,7 +9,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
   /// Read Magic and Version sequences.
   if (auto Res = Mgr.readBytes(4)) {
     Magic = *Res;
-    Bytes WasmMagic = {0x00, 0x61, 0x73, 0x6D};
+    std::vector<Byte> WasmMagic = {0x00, 0x61, 0x73, 0x6D};
     if (Magic != WasmMagic) {
       return Unexpect(ErrCode::InvalidGrammar);
     }
@@ -18,7 +18,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
   }
   if (auto Res = Mgr.readBytes(4)) {
     Version = *Res;
-    Bytes WasmVersion = {0x01, 0x00, 0x00, 0x00};
+    std::vector<Byte> WasmVersion = {0x01, 0x00, 0x00, 0x00};
     if (Version != WasmVersion) {
       return Unexpect(ErrCode::InvalidGrammar);
     }

@@ -30,10 +30,10 @@ public:
   FunctionInstance() = delete;
   /// Constructor for native function.
   FunctionInstance(const uint32_t ModAddr, const FType &Type,
-                   const std::vector<std::pair<uint32_t, ValType>> &Locs,
+                   Span<const std::pair<uint32_t, ValType>> Locs,
                    const AST::InstrVec &Expr)
       : IsHostFunction(false), FuncType(Type), ModuleAddr(ModAddr),
-        Locals(Locs) {
+        Locals(Locs.begin(), Locs.end()) {
     /// Copy instructions
     for (auto &It : Expr) {
       if (auto Res = makeInstructionNode(*It.get())) {
@@ -60,9 +60,7 @@ public:
   const FType &getFuncType() const { return FuncType; }
 
   /// Getter of function body instrs.
-  const std::vector<std::pair<uint32_t, ValType>> &getLocals() const {
-    return Locals;
-  }
+  Span<const std::pair<uint32_t, ValType>> getLocals() const { return Locals; }
 
   /// Getter of function body instrs.
   const AST::InstrVec &getInstrs() const { return Instrs; }

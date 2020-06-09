@@ -40,19 +40,19 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
 /// Initialize table instance. See "include/interpreter/interpreter.h".
 Expect<void> Interpreter::instantiate(
     Runtime::StoreManager &StoreMgr, Runtime::Instance::ModuleInstance &ModInst,
-    const AST::ElementSection &ElemSec, const std::vector<uint32_t> &Offsets) {
-  auto ItElemSeg = ElemSec.getContent().cbegin();
-  auto ItOffset = Offsets.cbegin();
-  while (ItOffset != Offsets.cend()) {
+    const AST::ElementSection &ElemSec, Span<const uint32_t> Offsets) {
+  auto ItElemSeg = ElemSec.getContent().begin();
+  auto ItOffset = Offsets.begin();
+  while (ItOffset != Offsets.end()) {
     /// Get table instance.
     uint32_t TabAddr = *ModInst.getTableAddr((*ItElemSeg)->getIdx());
     auto *TabInst = *StoreMgr.getTable(TabAddr);
 
     /// Transfer function index to address and copy data to table instance.
-    auto FuncIdxList = (*ItElemSeg)->getFuncIdxes();
-    for (auto &Idx : FuncIdxList) {
-      uint32_t FuncAddr = *ModInst.getFuncAddr(Idx);
-      Idx = FuncAddr;
+    std::vector<uint32_t> FuncIdxList;
+    FuncIdxList.reserve((*ItElemSeg)->getFuncIdxes().size());
+    for (auto &Idx : (*ItElemSeg)->getFuncIdxes()) {
+      FuncIdxList.push_back(*ModInst.getFuncAddr(Idx));
     }
     if (auto Res = TabInst->setInitList(*ItOffset, FuncIdxList); !Res) {
       return Unexpect(Res);

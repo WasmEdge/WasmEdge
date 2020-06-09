@@ -2,6 +2,7 @@
 #pragma once
 
 #include "common/ast/instruction.h"
+#include "support/span.h"
 #include "time.h"
 
 #include <vector>
@@ -13,8 +14,9 @@ class Measurement {
 public:
   Measurement(const uint64_t Lim = UINT64_MAX)
       : CostTab(256, 0ULL), InstrCnt(0), CostLimit(Lim), CostSum(0) {}
-  Measurement(const std::vector<uint64_t> &Tab, const uint64_t Lim = UINT64_MAX)
-      : CostTab(Tab), InstrCnt(0), CostLimit(Lim), CostSum(0) {
+  Measurement(Span<const uint64_t> Tab, const uint64_t Lim = UINT64_MAX)
+      : CostTab(Tab.begin(), Tab.end()), InstrCnt(0), CostLimit(Lim),
+        CostSum(0) {
     if (CostTab.size() < 256) {
       CostTab.resize(256);
     }
@@ -28,8 +30,8 @@ public:
   uint64_t getInstrCnt() const { return InstrCnt; }
 
   /// Setter of cost table.
-  void setCostTable(const std::vector<uint64_t> &NewTable) {
-    CostTab = NewTable;
+  void setCostTable(Span<const uint64_t> NewTable) {
+    CostTab.assign(NewTable.begin(), NewTable.end());
     if (CostTab.size() < 256) {
       CostTab.resize(256);
     }

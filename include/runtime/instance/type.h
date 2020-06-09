@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/types.h"
+#include "support/span.h"
 #include <vector>
 
 namespace SSVM {
@@ -20,8 +22,8 @@ namespace Instance {
 /// Function type definition in this module.
 struct FType {
   FType() = default;
-  FType(const std::vector<ValType> &P, const std::vector<ValType> &R)
-      : Params(P), Returns(R) {}
+  FType(Span<const ValType> P, Span<const ValType> R)
+      : Params(P.begin(), P.end()), Returns(R.begin(), R.end()) {}
   std::vector<ValType> Params;
   std::vector<ValType> Returns;
 };

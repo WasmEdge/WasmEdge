@@ -14,6 +14,7 @@
 #include "common/ast/type.h"
 #include "common/errcode.h"
 #include "common/types.h"
+#include "support/span.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -45,8 +46,7 @@ public:
   uint32_t getMax() const { return MaxSize; }
 
   /// Set the function index initialization list.
-  Expect<void> setInitList(const uint32_t Offset,
-                           const std::vector<uint32_t> &Addrs) {
+  Expect<void> setInitList(const uint32_t Offset, Span<const uint32_t> Addrs) {
     if (Offset + Addrs.size() > MinSize) {
       return Unexpect(ErrCode::ElemSegDoesNotFit);
     }

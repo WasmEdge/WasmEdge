@@ -94,14 +94,14 @@ protected:
 
 private:
   /// Vector of raw bytes of content.
-  Bytes Content;
+  std::vector<Byte> Content;
 };
 
 /// AST TypeSection node.
 class TypeSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<FunctionType>> &getContent() const {
+  Span<const std::unique_ptr<FunctionType>> getContent() const {
     return Content;
   }
 
@@ -121,9 +121,7 @@ private:
 class ImportSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<ImportDesc>> &getContent() const {
-    return Content;
-  }
+  Span<const std::unique_ptr<ImportDesc>> getContent() const { return Content; }
 
 protected:
   /// Overrided content loading of import section.
@@ -141,7 +139,7 @@ private:
 class FunctionSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<uint32_t> &getContent() const { return Content; }
+  Span<const uint32_t> getContent() const { return Content; }
 
 protected:
   /// Overrided content loading of function section.
@@ -159,9 +157,7 @@ private:
 class TableSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<TableType>> &getContent() const {
-    return Content;
-  }
+  Span<const std::unique_ptr<TableType>> getContent() const { return Content; }
 
 protected:
   /// Overrided content loading of table section.
@@ -179,9 +175,7 @@ private:
 class MemorySection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<MemoryType>> &getContent() const {
-    return Content;
-  }
+  Span<const std::unique_ptr<MemoryType>> getContent() const { return Content; }
 
 protected:
   /// Overrided content loading of memory section.
@@ -199,7 +193,7 @@ private:
 class GlobalSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<GlobalSegment>> &getContent() const {
+  Span<const std::unique_ptr<GlobalSegment>> getContent() const {
     return Content;
   }
 
@@ -219,9 +213,7 @@ private:
 class ExportSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<ExportDesc>> &getContent() const {
-    return Content;
-  }
+  Span<const std::unique_ptr<ExportDesc>> getContent() const { return Content; }
 
 protected:
   /// Overrided content loading of export section.
@@ -257,7 +249,7 @@ private:
 class ElementSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<ElementSegment>> &getContent() const {
+  Span<const std::unique_ptr<ElementSegment>> getContent() const {
     return Content;
   }
 
@@ -277,7 +269,7 @@ private:
 class CodeSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<CodeSegment>> &getContent() const {
+  Span<const std::unique_ptr<CodeSegment>> getContent() const {
     return Content;
   }
 
@@ -297,7 +289,7 @@ private:
 class DataSection : public Section {
 public:
   /// Getter of content vector.
-  const std::vector<std::unique_ptr<DataSegment>> &getContent() const {
+  Span<const std::unique_ptr<DataSegment>> getContent() const {
     return Content;
   }
 

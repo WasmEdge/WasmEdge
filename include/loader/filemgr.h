@@ -31,13 +31,13 @@ public:
   virtual Expect<void> setPath(const std::string &FilePath) = 0;
 
   /// Set the binary data.
-  virtual Expect<void> setCode(const Bytes &CodeData) = 0;
+  virtual Expect<void> setCode(Span<const Byte> CodeData) = 0;
 
   /// Read one byte.
   virtual Expect<Byte> readByte() = 0;
 
   /// Read number of bytes into a vector.
-  virtual Expect<Bytes> readBytes(size_t SizeToRead) = 0;
+  virtual Expect<std::vector<Byte>> readBytes(size_t SizeToRead) = 0;
 
   /// Read an unsigned int.
   virtual Expect<uint32_t> readU32() = 0;
@@ -76,11 +76,11 @@ public:
 
   /// Inheritted from FileMgr.
   Expect<void> setPath(const std::string &FilePath) override;
-  Expect<void> setCode(const Bytes &CodeData) override {
+  Expect<void> setCode(Span<const Byte> CodeData) override {
     return Unexpect(ErrCode::InvalidPath);
   }
   Expect<Byte> readByte() override;
-  Expect<Bytes> readBytes(size_t SizeToRead) override;
+  Expect<std::vector<Byte>> readBytes(size_t SizeToRead) override;
   Expect<uint32_t> readU32() override;
   Expect<uint64_t> readU64() override;
   Expect<int32_t> readS32() override;
@@ -104,9 +104,9 @@ public:
   Expect<void> setPath(const std::string &FilePath) override {
     return Unexpect(ErrCode::InvalidPath);
   }
-  Expect<void> setCode(const Bytes &CodeData) override;
+  Expect<void> setCode(Span<const Byte> CodeData) override;
   Expect<Byte> readByte() override;
-  Expect<Bytes> readBytes(size_t SizeToRead) override;
+  Expect<std::vector<Byte>> readBytes(size_t SizeToRead) override;
   Expect<uint32_t> readU32() override;
   Expect<uint64_t> readU64() override;
   Expect<int32_t> readS32() override;
@@ -125,7 +125,7 @@ public:
 
 private:
   /// Reference to input vector.
-  Bytes Code;
+  std::vector<Byte> Code;
   uint32_t Pos = 0;
 };
 

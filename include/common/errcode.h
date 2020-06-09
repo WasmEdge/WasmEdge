@@ -28,7 +28,7 @@ enum class WasmPhase : uint8_t {
 };
 
 /// Wasm runtime phasing enumeration string mapping.
-static std::map<WasmPhase, std::string> WasmPhaseStr = {
+static inline std::map<WasmPhase, std::string> WasmPhaseStr = {
     {WasmPhase::SSVM, "ssvm runtime"},
     {WasmPhase::Loading, "loading"},
     {WasmPhase::Validation, "validation"},
@@ -73,7 +73,7 @@ enum class ErrCode : uint8_t {
 };
 
 /// Error code enumeration string mapping.
-static std::map<ErrCode, std::string> ErrCodeStr = {
+static inline std::map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::Success, "success"},
     {ErrCode::Terminated, "terminated"},
     {ErrCode::CostLimitExceeded, "cost limit exceeded"},

@@ -17,6 +17,7 @@
 #include "common/errcode.h"
 #include "common/types.h"
 #include "common/value.h"
+#include "support/span.h"
 
 #include <deque>
 #include <vector>
@@ -36,9 +37,8 @@ public:
 
   void reset(bool CleanGlobal = false);
   Expect<void> validate(const AST::InstrVec &Instrs,
-                        const std::vector<ValType> &RetVals);
-  Expect<void> validate(const AST::InstrVec &Instrs,
-                        const std::vector<VType> &RetVals);
+                        Span<const ValType> RetVals);
+  Expect<void> validate(const AST::InstrVec &Instrs, Span<const VType> RetVals);
 
   /// Adder of contexts
   void addType(const AST::FunctionType &Func);
@@ -85,15 +85,14 @@ private:
 
   /// Stack operations
   void pushType(VType);
-  void pushTypes(const std::vector<VType> &Input);
+  void pushTypes(Span<const VType> Input);
   Expect<VType> popType();
   Expect<VType> popType(VType E);
-  Expect<void> popTypes(const std::vector<VType> &Input);
-  void pushCtrl(const std::vector<VType> &Label, const std::vector<VType> &Out);
+  Expect<void> popTypes(Span<const VType> Input);
+  void pushCtrl(Span<const VType> Label, Span<const VType> Out);
   Expect<std::vector<VType>> popCtrl();
   Expect<void> unreachable();
-  Expect<void> StackTrans(const std::vector<VType> &Take,
-                          const std::vector<VType> &Put);
+  Expect<void> StackTrans(Span<const VType> Take, Span<const VType> Put);
 
   /// Contexts.
   std::vector<std::pair<std::vector<VType>, std::vector<VType>>> Types;

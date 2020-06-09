@@ -13,6 +13,7 @@
 
 #include "common/errcode.h"
 #include "common/types.h"
+#include "support/span.h"
 #include "type.h"
 
 #include <map>
@@ -32,8 +33,7 @@ public:
   const std::string &getModuleName() const { return ModName; }
 
   /// Copy the function types in type section to module instance.
-  void addFuncType(const std::vector<ValType> &Params,
-                   const std::vector<ValType> &Returns) {
+  void addFuncType(Span<const ValType> Params, Span<const ValType> Returns) {
     FuncTypes.emplace_back(Params, Returns);
   }
 

@@ -144,7 +144,7 @@ Expect<void> Validator::validate(const AST::MemoryType &Mem) {
 Expect<void> Validator::validate(const AST::GlobalSegment &GlobSeg) {
   /// Check global initialization is a const expression.
   return validateConstExpr(GlobSeg.getInstrs(),
-                           {GlobSeg.getGlobalType()->getValueType()});
+                           std::array{GlobSeg.getGlobalType()->getValueType()});
 }
 
 /// Validate Element segment. See "include/validator/validator.h".
@@ -163,7 +163,7 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
     }
   }
   /// Check table initialization is const expression.
-  return validateConstExpr(ElemSeg.getInstrs(), {ValType::I32});
+  return validateConstExpr(ElemSeg.getInstrs(), std::array{ValType::I32});
 }
 
 /// Validate Code segment. See "include/validator/validator.h".
@@ -194,7 +194,7 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
     return Unexpect(ErrCode::ValidationFailed);
   }
   /// Check memory initialization is a const expression.
-  return validateConstExpr(DataSeg.getInstrs(), {ValType::I32});
+  return validateConstExpr(DataSeg.getInstrs(), std::array{ValType::I32});
 }
 
 /// Validate Import description. See "include/validator/validator.h".
@@ -409,7 +409,7 @@ Expect<void> Validator::validate(const AST::DataSection &DataSec) {
 
 /// Validate constant expression. See "include/validator/validator.h".
 Expect<void> Validator::validateConstExpr(const AST::InstrVec &Instrs,
-                                          const std::vector<ValType> &Returns,
+                                          Span<const ValType> Returns,
                                           const bool RestrictGlobal) {
   for (auto &Instr : Instrs) {
     /// Only these 5 instructions are constant.

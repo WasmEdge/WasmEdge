@@ -108,7 +108,7 @@ public:
   /// Invoke function by function address in Store manager.
   Expect<std::vector<ValVariant>> invoke(Runtime::StoreManager &StoreMgr,
                                          const uint32_t FuncAddr,
-                                         const std::vector<ValVariant> &Params);
+                                         Span<const ValVariant> Params);
 
 private:
   /// Run Wasm bytecode expression for initialization.
@@ -118,7 +118,7 @@ private:
   /// Run Wasm function.
   Expect<void> runFunction(Runtime::StoreManager &StoreMgr,
                            const Runtime::Instance::FunctionInstance &Func,
-                           const std::vector<ValVariant> &Params);
+                           Span<const ValVariant> Params);
 
   /// \name Functions for instantiation.
   /// @{
@@ -162,7 +162,7 @@ private:
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::ElementSection &ElemSec,
-                           const std::vector<uint32_t> &Offsets);
+                           Span<const uint32_t> Offsets);
 
   /// Calculate offsets of memory initializations.
   Expect<std::vector<uint32_t>>
@@ -174,7 +174,7 @@ private:
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::DataSection &DataSec,
-                           const std::vector<uint32_t> &Offsets);
+                           Span<const uint32_t> Offsets);
 
   /// Instantiation of Export Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,

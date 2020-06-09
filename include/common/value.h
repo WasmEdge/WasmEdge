@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "support/variant.h"
 #include "support/casting.h"
+#include "support/variant.h"
 #include "types.h"
 
 #include <cstdint>
@@ -22,7 +22,6 @@ namespace SSVM {
 
 using ValVariant = Support::Variant<uint32_t, uint64_t, float, double>;
 using Byte = uint8_t;
-using Bytes = std::vector<Byte>;
 
 template <typename T> inline ValType ValTypeFromType() noexcept;
 

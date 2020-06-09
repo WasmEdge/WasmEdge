@@ -74,7 +74,7 @@ Expect<void> Interpreter::runExpression(Runtime::StoreManager &StoreMgr,
 Expect<void>
 Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
                          const Runtime::Instance::FunctionInstance &Func,
-                         const std::vector<ValVariant> &Params) {
+                         Span<const ValVariant> Params) {
   /// Set start time.
   if (Measure) {
     Measure->getTimeRecorder().startRecord(TIMER_TAG_EXECUTION);

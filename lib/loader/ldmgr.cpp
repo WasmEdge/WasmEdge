@@ -28,7 +28,7 @@ Expect<void> LDMgr::setPath(const std::string &FilePath) {
   return {};
 }
 
-Expect<Bytes> LDMgr::getWasm() {
+Expect<std::vector<Byte>> LDMgr::getWasm() {
   if (Handler == nullptr) {
     return Unexpect(ErrCode::InvalidPath);
   }
@@ -41,7 +41,7 @@ Expect<Bytes> LDMgr::getWasm() {
     return Unexpect(ErrCode::InvalidGrammar);
   }
 
-  return Bytes(Code, Code + *Size);
+  return std::vector<Byte>(Code, Code + *Size);
 }
 
 Expect<uint32_t> LDMgr::getVersion() {

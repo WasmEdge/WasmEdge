@@ -42,20 +42,20 @@ public:
   /// ======= Functions can be called before instantiated stage. =======
   /// Register wasm modules and host modules.
   Expect<void> registerModule(const std::string &Name, const std::string &Path);
-  Expect<void> registerModule(const std::string &Name, const Bytes &Code);
+  Expect<void> registerModule(const std::string &Name, Span<const Byte> Code);
   Expect<void> registerModule(const Runtime::ImportObject &Obj);
 
   /// Rapidly load, validate, instantiate, and run wasm function.
   Expect<std::vector<ValVariant>>
   runWasmFile(const std::string &Path, const std::string &Func,
-              const std::vector<ValVariant> &Params = {});
+              Span<const ValVariant> Params = {});
   Expect<std::vector<ValVariant>>
-  runWasmFile(const Bytes &Code, const std::string &Func,
-              const std::vector<ValVariant> &Params = {});
+  runWasmFile(Span<const Byte> Code, const std::string &Func,
+              Span<const ValVariant> Params = {});
 
   /// Load given wasm file or wasm bytecode.
   Expect<void> loadWasm(const std::string &Path);
-  Expect<void> loadWasm(const Bytes &Code);
+  Expect<void> loadWasm(Span<const Byte> Code);
 
   /// ======= Functions can be called after loaded stage. =======
   /// Validate loaded wasm module.
@@ -67,13 +67,13 @@ public:
 
   /// ======= Functions can be called after instantiated stage. =======
   /// Execute wasm with given input.
-  Expect<std::vector<ValVariant>>
-  execute(const std::string &Func, const std::vector<ValVariant> &Params = {});
+  Expect<std::vector<ValVariant>> execute(const std::string &Func,
+                                          Span<const ValVariant> Params = {});
 
   /// Execute function of registered module with given input.
-  Expect<std::vector<ValVariant>>
-  execute(const std::string &Mod, const std::string &Func,
-          const std::vector<ValVariant> &Params = {});
+  Expect<std::vector<ValVariant>> execute(const std::string &Mod,
+                                          const std::string &Func,
+                                          Span<const ValVariant> Params = {});
 
   /// ======= Functions which are stageless. =======
   /// Clean up VM status
@@ -104,9 +104,9 @@ private:
   void initVM();
   Expect<void> registerModule(const std::string &Name,
                               const AST::Module &Module);
-  Expect<std::vector<ValVariant>>
-  runWasmFile(const AST::Module &Module, const std::string &Func,
-              const std::vector<ValVariant> &Params);
+  Expect<std::vector<ValVariant>> runWasmFile(const AST::Module &Module,
+                                              const std::string &Func,
+                                              Span<const ValVariant> Params);
 
   /// VM environment.
   Configure &Config;

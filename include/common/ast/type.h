@@ -78,10 +78,10 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of parameter types vector.
-  const std::vector<ValType> &getParamTypes() const { return ParamTypes; }
+  Span<const ValType> getParamTypes() const { return ParamTypes; }
 
   /// Getter of return types vector.
-  const std::vector<ValType> &getReturnTypes() const { return ReturnTypes; }
+  Span<const ValType> getReturnTypes() const { return ReturnTypes; }
 
 protected:
   /// The node type should be Attr::Type_Function.

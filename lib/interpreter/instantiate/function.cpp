@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "common/ast/section.h"
-#include "runtime/instance/module.h"
 #include "runtime/instance/function.h"
+#include "common/ast/section.h"
 #include "interpreter/interpreter.h"
+#include "runtime/instance/module.h"
 
 namespace SSVM {
 namespace Interpreter {
@@ -13,8 +13,8 @@ Expect<void> Interpreter::instantiate(
     const AST::FunctionSection &FuncSec, const AST::CodeSection &CodeSec) {
 
   /// Get the function type indices.
-  auto &TypeIdxs = FuncSec.getContent();
-  auto &CodeSegs = CodeSec.getContent();
+  auto TypeIdxs = FuncSec.getContent();
+  auto CodeSegs = CodeSec.getContent();
 
   /// Iterate through code segments to make function instances.
   for (uint32_t I = 0; I < CodeSegs.size(); ++I) {

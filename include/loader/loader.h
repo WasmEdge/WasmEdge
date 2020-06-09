@@ -28,14 +28,13 @@ public:
   ~Loader() = default;
 
   /// Load data from file path.
-  Expect<Bytes> loadFile(const std::string &FilePath);
+  Expect<std::vector<Byte>> loadFile(const std::string &FilePath);
 
   /// Parse module from file path.
   Expect<std::unique_ptr<AST::Module>> parseModule(const std::string &FilePath);
 
   /// Parse module from byte code.
-  Expect<std::unique_ptr<AST::Module>>
-  parseModule(const std::vector<uint8_t> &Code);
+  Expect<std::unique_ptr<AST::Module>> parseModule(Span<const uint8_t> Code);
 
 private:
   FileMgrFStream FSMgr;

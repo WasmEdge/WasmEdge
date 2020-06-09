@@ -31,7 +31,7 @@ public:
   Expect<void> setPath(const std::string &FilePath);
 
   /// Read embedded Wasm binary.
-  Expect<Bytes> getWasm();
+  Expect<std::vector<Byte>> getWasm();
 
   /// Read ssvm version.
   Expect<uint32_t> getVersion();

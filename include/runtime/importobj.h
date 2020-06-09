@@ -14,9 +14,9 @@
 
 #include "hostfunc.h"
 #include "instance/function.h"
-#include "instance/table.h"
-#include "instance/memory.h"
 #include "instance/global.h"
+#include "instance/memory.h"
+#include "instance/table.h"
 
 #include <map>
 #include <memory>

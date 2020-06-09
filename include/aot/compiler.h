@@ -23,7 +23,7 @@ class Compiler {
 public:
   static inline uint32_t kVersion = 1;
 
-  Expect<void> compile(const Bytes &Data, const AST::Module &Module,
+  Expect<void> compile(Span<const Byte> Data, const AST::Module &Module,
                        std::string_view OutputPath);
   Expect<void> compile(const AST::ImportSection &ImportSection);
   Expect<void> compile(const AST::ExportSection &ExportSection);

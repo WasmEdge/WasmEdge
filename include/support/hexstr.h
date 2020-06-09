@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include "support/span.h"
+
+#include <cstdio>
 #include <iterator>
-#include <stdio.h>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace SSVM {
@@ -22,19 +25,19 @@ inline unsigned char convertCharToHex(const char C) {
   return 0U;
 }
 
-inline void convertBytesToHexStr(const std::vector<unsigned char> &Src,
+inline void convertBytesToHexStr(Span<const unsigned char> Src,
                                  std::string &Dst, uint32_t Padding = 0,
                                  bool IsLittleEndian = false) {
   Dst.clear();
   char Buf[3] = {0};
   if (IsLittleEndian) {
-    for (auto It = Src.crbegin(); It != Src.crend(); It++) {
-      snprintf(Buf, 3, "%02x", *It);
+    for (auto It = Src.rbegin(); It != Src.rend(); It++) {
+      std::snprintf(Buf, 3, "%02x", *It);
       Dst += Buf;
     }
   } else {
-    for (auto It = Src.cbegin(); It != Src.cend(); It++) {
-      snprintf(Buf, 3, "%02x", *It);
+    for (auto It = Src.begin(); It != Src.end(); It++) {
+      std::snprintf(Buf, 3, "%02x", *It);
       Dst += Buf;
     }
   }
@@ -43,12 +46,12 @@ inline void convertBytesToHexStr(const std::vector<unsigned char> &Src,
   }
 }
 
-inline void convertValVecToHexStr(const std::vector<unsigned char> &Src,
+inline void convertValVecToHexStr(Span<const unsigned char> Src,
                                   std::string &Dst, uint32_t Padding = 0) {
   convertBytesToHexStr(Src, Dst, Padding, true);
 }
 
-inline void convertHexStrToBytes(const std::string &Src,
+inline void convertHexStrToBytes(std::string_view Src,
                                  std::vector<unsigned char> &Dst,
                                  uint32_t Padding = 2,
                                  bool IsLittleEndian = false) {
@@ -59,7 +62,7 @@ inline void convertHexStrToBytes(const std::string &Src,
   if (Src.length() == 0) {
     return;
   }
-  std::string S = Src;
+  std::string S(Src);
   if (S.length() < Padding) {
     S = std::string(Padding - S.length(), '0').append(S);
   }
@@ -81,7 +84,7 @@ inline void convertHexStrToBytes(const std::string &Src,
   }
 }
 
-inline void convertHexStrToValVec(const std::string &Src,
+inline void convertHexStrToValVec(std::string_view Src,
                                   std::vector<unsigned char> &Dst,
                                   unsigned int Padding = 2) {
   convertHexStrToBytes(Src, Dst, Padding);

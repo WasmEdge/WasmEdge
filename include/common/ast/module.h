@@ -74,8 +74,8 @@ protected:
 private:
   /// \name Data of Module node.
   /// @{
-  Bytes Magic;
-  Bytes Version;
+  std::vector<Byte> Magic;
+  std::vector<Byte> Version;
   /// @}
 
   /// \name Section nodes of Module node.

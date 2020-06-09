@@ -4,10 +4,10 @@
 #include "wasi/core.h"
 
 #include <algorithm>
-#include <mutex>
 #include <boost/align/aligned_allocator.hpp>
 #include <dirent.h>
 #include <fcntl.h>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>

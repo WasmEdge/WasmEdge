@@ -40,10 +40,10 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
 /// Initialize memory instance. See "include/interpreter/interpreter.h".
 Expect<void> Interpreter::instantiate(
     Runtime::StoreManager &StoreMgr, Runtime::Instance::ModuleInstance &ModInst,
-    const AST::DataSection &DataSec, const std::vector<uint32_t> &Offsets) {
-  auto ItDataSeg = DataSec.getContent().cbegin();
-  auto ItOffset = Offsets.cbegin();
-  while (ItOffset != Offsets.cend()) {
+    const AST::DataSection &DataSec, Span<const uint32_t> Offsets) {
+  auto ItDataSeg = DataSec.getContent().begin();
+  auto ItOffset = Offsets.begin();
+  while (ItOffset != Offsets.end()) {
     /// Get memory instance.
     uint32_t MemAddr = *ModInst.getMemAddr((*ItDataSeg)->getIdx());
     auto *MemInst = *StoreMgr.getMemory(MemAddr);

@@ -15,6 +15,7 @@
 #include "base.h"
 #include "expression.h"
 #include "instruction.h"
+#include "support/log.h"
 #include "type.h"
 
 #include <memory>
@@ -27,6 +28,8 @@ class Segment : public Base {
 public:
   /// Binary loading from file manager. Inheritted from Base.
   Expect<void> loadBinary(FileMgr &Mgr) override {
+    LOG(ERROR) << ErrCode::InvalidGrammar;
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
     return Unexpect(ErrCode::InvalidGrammar);
   };
 
@@ -63,9 +66,8 @@ public:
   /// Getter of locals vector.
   const GlobalType *getGlobalType() const { return Global.get(); }
 
-protected:
   /// The node type should be ASTNodeAttr::Seg_Global.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Global;
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Global;
 
 private:
   /// \name Data of GlobalSegment node.
@@ -93,9 +95,8 @@ public:
   /// Getter of function indices.
   Span<const uint32_t> getFuncIdxes() const { return FuncIdxes; }
 
-protected:
   /// The node type should be ASTNodeAttr::Seg_Element.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Element;
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Element;
 
 private:
   /// \name Data of ElementSegment node.
@@ -121,9 +122,8 @@ public:
   /// Getter of locals vector.
   Span<const std::pair<uint32_t, ValType>> getLocals() const { return Locals; }
 
-protected:
   /// The node type should be ASTNodeAttr::Seg_Code.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Code;
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Code;
 
 private:
   /// \name Data of CodeSegment node.
@@ -152,9 +152,8 @@ public:
   /// Getter of data.
   Span<const Byte> getData() const { return Data; }
 
-protected:
   /// The node type should be ASTNodeAttr::Seg_Data.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Data;
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Data;
 
 private:
   /// \name Data of DataSegment node.

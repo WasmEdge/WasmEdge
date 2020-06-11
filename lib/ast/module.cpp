@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/ast/module.h"
+#include "support/log.h"
 
 namespace SSVM {
 namespace AST {
@@ -11,18 +12,30 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
     Magic = *Res;
     std::vector<Byte> WasmMagic = {0x00, 0x61, 0x73, 0x6D};
     if (Magic != WasmMagic) {
+      LOG(ERROR) << ErrCode::InvalidGrammar;
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 4);
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(ErrCode::InvalidGrammar);
     }
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
   if (auto Res = Mgr.readBytes(4)) {
     Version = *Res;
     std::vector<Byte> WasmVersion = {0x01, 0x00, 0x00, 0x00};
     if (Version != WasmVersion) {
+      LOG(ERROR) << ErrCode::InvalidGrammar;
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 4);
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(ErrCode::InvalidGrammar);
     }
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
 
@@ -36,6 +49,9 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
       if (Res.error() == ErrCode::EndOfFile) {
         break;
       } else {
+        LOG(ERROR) << Res.error();
+        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
     }
@@ -46,6 +62,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
         CustomSec = std::make_unique<CustomSection>();
       }
       if (auto Res = CustomSec->loadBinary(Mgr); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
@@ -54,6 +71,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
         TypeSec = std::make_unique<TypeSection>();
       }
       if (auto Res = TypeSec->loadBinary(Mgr); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
@@ -62,6 +80,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
         ImportSec = std::make_unique<ImportSection>();
       }
       if (auto Res = ImportSec->loadBinary(Mgr); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
@@ -70,6 +89,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
         FunctionSec = std::make_unique<FunctionSection>();
       }
       if (auto Res = FunctionSec->loadBinary(Mgr); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
@@ -78,6 +98,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
         TableSec = std::make_unique<TableSection>();
       }
       if (auto Res = TableSec->loadBinary(Mgr); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
@@ -86,6 +107,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
         MemorySec = std::make_unique<MemorySection>();
       }
       if (auto Res = MemorySec->loadBinary(Mgr); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
@@ -94,6 +116,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
         GlobalSec = std::make_unique<GlobalSection>();
       }
       if (auto Res = GlobalSec->loadBinary(Mgr); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
@@ -102,6 +125,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
         ExportSec = std::make_unique<ExportSection>();
       }
       if (auto Res = ExportSec->loadBinary(Mgr); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
@@ -110,6 +134,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
         StartSec = std::make_unique<StartSection>();
       }
       if (auto Res = StartSec->loadBinary(Mgr); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
@@ -118,6 +143,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
         ElementSec = std::make_unique<ElementSection>();
       }
       if (auto Res = ElementSec->loadBinary(Mgr); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
@@ -126,6 +152,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
         CodeSec = std::make_unique<CodeSection>();
       }
       if (auto Res = CodeSec->loadBinary(Mgr); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
@@ -134,10 +161,14 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
         DataSec = std::make_unique<DataSection>();
       }
       if (auto Res = DataSec->loadBinary(Mgr); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     default:
+      LOG(ERROR) << ErrCode::InvalidGrammar;
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(ErrCode::InvalidGrammar);
     }
   }
@@ -155,6 +186,10 @@ Expect<void> Module::loadCompiled(LDMgr &Mgr) {
         if (void *Symbol = Mgr.getRawSymbol(Name.c_str())) {
           ExpDesc->setSymbol(Symbol);
         } else {
+          LOG(ERROR) << ErrCode::ValidationFailed;
+          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Desc_Export);
+          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Sec_Export);
+          LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
           return Unexpect(ErrCode::ValidationFailed);
         }
         break;
@@ -162,6 +197,10 @@ Expect<void> Module::loadCompiled(LDMgr &Mgr) {
       case ExternalType::Memory:
         break;
       default:
+        LOG(ERROR) << ErrCode::ValidationFailed;
+        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Desc_Export);
+        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Sec_Export);
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(ErrCode::ValidationFailed);
       }
     }

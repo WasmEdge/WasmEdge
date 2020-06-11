@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/ast/expression.h"
+#include "support/log.h"
 
 namespace SSVM {
 namespace AST {
@@ -15,6 +16,9 @@ Expect<void> Expression::loadBinary(FileMgr &Mgr) {
     if (auto Res = Mgr.readByte()) {
       Code = static_cast<OpCode>(*Res);
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(Res);
     }
 
@@ -27,6 +31,8 @@ Expect<void> Expression::loadBinary(FileMgr &Mgr) {
     if (auto Res = makeInstructionNode(Code, Offset)) {
       NewInst = std::move(*Res);
     } else {
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(Res);
     }
     if (auto Res = NewInst->loadBinary(Mgr)) {

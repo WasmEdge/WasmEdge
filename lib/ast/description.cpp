@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/ast/description.h"
+#include "support/log.h"
 
 namespace SSVM {
 namespace AST {
@@ -10,6 +11,9 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readName()) {
     ModName = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
 
@@ -17,6 +21,9 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readName()) {
     ExtName = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
 
@@ -24,6 +31,9 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readByte()) {
     ExtType = static_cast<ExternalType>(*Res);
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
 
@@ -34,6 +44,9 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr) {
     if (auto Res = Mgr.readU32()) {
       ExtContent = std::make_unique<unsigned int>(*Res);
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(Res);
     }
     break;
@@ -54,6 +67,9 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr) {
     return std::get<3>(ExtContent)->loadBinary(Mgr);
   }
   default:
+    LOG(ERROR) << ErrCode::InvalidGrammar;
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(ErrCode::InvalidGrammar);
   }
   return {};
@@ -65,6 +81,9 @@ Expect<void> ExportDesc::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readName()) {
     ExtName = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
 
@@ -72,6 +91,9 @@ Expect<void> ExportDesc::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readByte()) {
     ExtType = static_cast<ExternalType>(*Res);
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
   switch (ExtType) {
@@ -81,6 +103,9 @@ Expect<void> ExportDesc::loadBinary(FileMgr &Mgr) {
   case ExternalType::Global:
     break;
   default:
+    LOG(ERROR) << ErrCode::InvalidGrammar;
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(ErrCode::InvalidGrammar);
   }
 
@@ -88,6 +113,9 @@ Expect<void> ExportDesc::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     ExtIdx = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
   return {};

@@ -67,9 +67,8 @@ public:
   Ctor getCtor() const { return CtorFunc; }
   void setCtor(Ctor F) { CtorFunc = F; }
 
-protected:
   /// The node type should be ASTNodeAttr::Module.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Module;
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Module;
 
 private:
   /// \name Data of Module node.

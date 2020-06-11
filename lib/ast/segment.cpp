@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/ast/segment.h"
+#include "support/log.h"
 
 namespace SSVM {
 namespace AST {
@@ -14,11 +15,18 @@ Expect<void> Segment::loadExpression(FileMgr &Mgr) {
 Expect<void> GlobalSegment::loadBinary(FileMgr &Mgr) {
   /// Read global type node.
   Global = std::make_unique<GlobalType>();
-  if (auto Res = Global->loadBinary(Mgr)) {
-    return Segment::loadExpression(Mgr);
-  } else {
+  if (auto Res = Global->loadBinary(Mgr); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
+
+  /// Read the expression.
+  if (auto Res = Segment::loadExpression(Mgr); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+    return Unexpect(Res);
+  }
+
+  return {};
 }
 
 /// Load binary of ElementSegment node. See "include/common/ast/segment.h".
@@ -27,13 +35,16 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     TableIdx = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
 
   /// Read the expression.
-  auto Expr = Segment::loadExpression(Mgr);
-  if (!Expr) {
-    return Unexpect(Expr);
+  if (auto Res = Segment::loadExpression(Mgr); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Read the function indices.
@@ -41,12 +52,18 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     VecCnt = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
   for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readU32()) {
       FuncIdxes.push_back(*Res);
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -60,6 +77,9 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     SegSize = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
 
@@ -68,6 +88,9 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     VecCnt = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
   for (uint32_t i = 0; i < VecCnt; ++i) {
@@ -76,18 +99,29 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr) {
     if (auto Res = Mgr.readU32()) {
       LocalCnt = *Res;
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(Res);
     }
     if (auto Res = Mgr.readByte()) {
       LocalType = static_cast<ValType>(*Res);
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(Res);
     }
     Locals.push_back(std::make_pair(LocalCnt, LocalType));
   }
 
   /// Read function body.
-  return Segment::loadExpression(Mgr);
+  if (auto Res = Segment::loadExpression(Mgr); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+    return Unexpect(Res);
+  }
+
+  return {};
 }
 
 /// Load binary of DataSegment node. See "include/common/ast/segment.h".
@@ -96,13 +130,16 @@ Expect<void> DataSegment::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     MemoryIdx = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
 
   /// Read the offset expression.
-  auto Expr = Segment::loadExpression(Mgr);
-  if (!Expr) {
-    return Unexpect(Expr);
+  if (auto Res = Segment::loadExpression(Mgr); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Read initialization data.
@@ -110,11 +147,17 @@ Expect<void> DataSegment::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     VecCnt = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
   if (auto Res = Mgr.readBytes(VecCnt)) {
     Data = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
 

@@ -44,7 +44,8 @@ enum class ASTNodeAttr : uint8_t {
   Type_Memory,
   Type_Table,
   Type_Global,
-  Expression
+  Expression,
+  Instruction
 };
 
 /// AST node attributes enumeration string mapping.
@@ -73,7 +74,8 @@ static inline std::unordered_map<ASTNodeAttr, std::string> ASTNodeAttrStr = {
     {ASTNodeAttr::Type_Memory, "memory type"},
     {ASTNodeAttr::Type_Table, "table type"},
     {ASTNodeAttr::Type_Global, "global type"},
-    {ASTNodeAttr::Expression, "expression"}};
+    {ASTNodeAttr::Expression, "expression"},
+    {ASTNodeAttr::Instruction, "instruction"}};
 
 /// Instruction opcode enumeration class.
 enum class OpCode : uint8_t {

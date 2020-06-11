@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/ast/section.h"
+#include "support/log.h"
 
 namespace SSVM {
 namespace AST {
@@ -18,6 +19,9 @@ Expect<void> Section::loadSize(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     ContentSize = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
   return {};
@@ -29,6 +33,9 @@ Expect<void> CustomSection::loadContent(FileMgr &Mgr) {
   if (auto Res = Mgr.readBytes(ContentSize)) {
     Content = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
   return {};
@@ -51,12 +58,18 @@ Expect<void> FunctionSection::loadContent(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     VecCnt = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
   for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readU32()) {
       Content.push_back(*Res);
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -88,6 +101,9 @@ Expect<void> StartSection::loadContent(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     Content = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
   return {};

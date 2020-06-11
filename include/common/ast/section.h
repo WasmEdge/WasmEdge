@@ -15,6 +15,7 @@
 #include "base.h"
 #include "description.h"
 #include "segment.h"
+#include "support/log.h"
 #include "type.h"
 
 #include <memory>
@@ -43,6 +44,8 @@ protected:
 
   /// Read content of this section.
   virtual Expect<void> loadContent(FileMgr &Mgr) {
+    LOG(ERROR) << ErrCode::InvalidGrammar;
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(ErrCode::InvalidGrammar);
   };
 
@@ -64,6 +67,9 @@ protected:
     if (auto Res = Mgr.readU32()) {
       VecCnt = *Res;
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(Res);
     }
 
@@ -73,6 +79,7 @@ protected:
       if (auto Res = NewContent->loadBinary(Mgr)) {
         Vec.push_back(std::move(NewContent));
       } else {
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
     }
@@ -85,12 +92,13 @@ protected:
 
 /// AST CustomSection node.
 class CustomSection : public Section {
+public:
+  /// The node type should be ASTNodeAttr::Sec_Custom.
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Custom;
+
 protected:
   /// Overrided content loading of custom section.
   Expect<void> loadContent(FileMgr &Mgr) override;
-
-  /// The node type should be ASTNodeAttr::Sec_Custom.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Custom;
 
 private:
   /// Vector of raw bytes of content.
@@ -105,12 +113,12 @@ public:
     return Content;
   }
 
+  /// The node type should be ASTNodeAttr::Sec_Type.
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Type;
+
 protected:
   /// Overrided content loading of type section.
   Expect<void> loadContent(FileMgr &Mgr) override;
-
-  /// The node type should be ASTNodeAttr::Sec_Type.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Type;
 
 private:
   /// Vector of FunctionType nodes.
@@ -123,12 +131,12 @@ public:
   /// Getter of content vector.
   Span<const std::unique_ptr<ImportDesc>> getContent() const { return Content; }
 
+  /// The node type should be ASTNodeAttr::Sec_Import.
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Import;
+
 protected:
   /// Overrided content loading of import section.
   Expect<void> loadContent(FileMgr &Mgr) override;
-
-  /// The node type should be ASTNodeAttr::Sec_Import.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Import;
 
 private:
   /// Vector of ImportDesc nodes.
@@ -141,12 +149,12 @@ public:
   /// Getter of content vector.
   Span<const uint32_t> getContent() const { return Content; }
 
+  /// The node type should be ASTNodeAttr::Sec_Function.
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Function;
+
 protected:
   /// Overrided content loading of function section.
   Expect<void> loadContent(FileMgr &Mgr) override;
-
-  /// The node type should be ASTNodeAttr::Sec_Function.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Function;
 
 private:
   /// Vector of function indices.
@@ -159,12 +167,12 @@ public:
   /// Getter of content vector.
   Span<const std::unique_ptr<TableType>> getContent() const { return Content; }
 
+  /// The node type should be ASTNodeAttr::Sec_Table.
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Table;
+
 protected:
   /// Overrided content loading of table section.
   Expect<void> loadContent(FileMgr &Mgr) override;
-
-  /// The node type should be ASTNodeAttr::Sec_Table.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Table;
 
 private:
   /// Vector of TableType nodes.
@@ -177,12 +185,12 @@ public:
   /// Getter of content vector.
   Span<const std::unique_ptr<MemoryType>> getContent() const { return Content; }
 
+  /// The node type should be ASTNodeAttr::Sec_Memory.
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Memory;
+
 protected:
   /// Overrided content loading of memory section.
   Expect<void> loadContent(FileMgr &Mgr) override;
-
-  /// The node type should be ASTNodeAttr::Sec_Memory.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Memory;
 
 private:
   /// Vector of MemoryType nodes.
@@ -197,12 +205,12 @@ public:
     return Content;
   }
 
+  /// The node type should be ASTNodeAttr::Sec_Global.
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Global;
+
 protected:
   /// Overrided content loading of global section.
   virtual Expect<void> loadContent(FileMgr &Mgr);
-
-  /// The node type should be ASTNodeAttr::Sec_Global.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Global;
 
 private:
   /// Vector of GlobalType nodes.
@@ -215,12 +223,12 @@ public:
   /// Getter of content vector.
   Span<const std::unique_ptr<ExportDesc>> getContent() const { return Content; }
 
+  /// The node type should be ASTNodeAttr::Sec_Export.
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Export;
+
 protected:
   /// Overrided content loading of export section.
   virtual Expect<void> loadContent(FileMgr &Mgr);
-
-  /// The node type should be ASTNodeAttr::Sec_Export.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Export;
 
 private:
   /// Vector of ExportDesc nodes.
@@ -233,12 +241,12 @@ public:
   /// Getter of content.
   uint32_t getContent() const { return Content; }
 
+  /// The node type should be ASTNodeAttr::Sec_Start.
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Start;
+
 protected:
   /// Overrided content loading of start section.
   virtual Expect<void> loadContent(FileMgr &Mgr);
-
-  /// The node type should be ASTNodeAttr::Sec_Start.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Start;
 
 private:
   /// Start function index.
@@ -253,12 +261,12 @@ public:
     return Content;
   }
 
+  /// The node type should be ASTNodeAttr::Sec_Element.
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Element;
+
 protected:
   /// Overrided content loading of element section.
   virtual Expect<void> loadContent(FileMgr &Mgr);
-
-  /// The node type should be ASTNodeAttr::Sec_Element.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Element;
 
 private:
   /// Vector of ElementSegment nodes.
@@ -273,12 +281,12 @@ public:
     return Content;
   }
 
+  /// The node type should be ASTNodeAttr::Sec_Code.
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Code;
+
 protected:
   /// Overrided content loading of code section.
   virtual Expect<void> loadContent(FileMgr &Mgr);
-
-  /// The node type should be ASTNodeAttr::Sec_Code.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Code;
 
 private:
   /// Vector of CodeSegment nodes.
@@ -293,12 +301,12 @@ public:
     return Content;
   }
 
+  /// The node type should be ASTNodeAttr::Sec_Data.
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Data;
+
 protected:
   /// Overrided content loading of data section.
   virtual Expect<void> loadContent(FileMgr &Mgr);
-
-  /// The node type should be ASTNodeAttr::Sec_Data.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Data;
 
 private:
   /// Vector of DataSegment nodes.

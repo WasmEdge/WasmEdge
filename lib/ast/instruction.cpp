@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/ast/instruction.h"
+#include "support/log.h"
 
 namespace SSVM {
 namespace AST {
@@ -28,9 +29,15 @@ Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
     case ValType::None:
       break;
     default:
+      LOG(ERROR) << ErrCode::InvalidGrammar;
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(ErrCode::InvalidGrammar);
     }
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
     return Unexpect(Res);
   }
 
@@ -43,6 +50,9 @@ Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
     if (auto Res = Mgr.readByte()) {
       Code = static_cast<OpCode>(*Res);
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
 
@@ -97,9 +107,15 @@ Expect<void> IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
     case ValType::None:
       break;
     default:
+      LOG(ERROR) << ErrCode::InvalidGrammar;
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(ErrCode::InvalidGrammar);
     }
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
     return Unexpect(Res);
   }
 
@@ -113,6 +129,9 @@ Expect<void> IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
     if (auto Res = Mgr.readByte()) {
       Code = static_cast<OpCode>(*Res);
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
 
@@ -153,6 +172,9 @@ Expect<void> BrControlInstruction::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     LabelIdx = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
     return Unexpect(Res);
   }
   return {};
@@ -166,12 +188,18 @@ Expect<void> BrTableControlInstruction::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     VecCnt = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
     return Unexpect(Res);
   }
   for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readU32()) {
       LabelTable.push_back(*Res);
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
   }
@@ -180,6 +208,9 @@ Expect<void> BrTableControlInstruction::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     LabelIdx = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
     return Unexpect(Res);
   }
   return {};
@@ -191,6 +222,9 @@ Expect<void> CallControlInstruction::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     FuncIdx = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
     return Unexpect(Res);
   }
 
@@ -198,9 +232,15 @@ Expect<void> CallControlInstruction::loadBinary(FileMgr &Mgr) {
   if (Code == OpCode::Call_indirect) {
     if (auto Res = Mgr.readByte()) {
       if (*Res != 0x00) {
+        LOG(ERROR) << ErrCode::InvalidGrammar;
+        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
         return Unexpect(ErrCode::InvalidGrammar);
       }
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
   }
@@ -213,6 +253,9 @@ Expect<void> VariableInstruction::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     VarIdx = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
     return Unexpect(Res);
   }
   return {};
@@ -227,6 +270,9 @@ Expect<void> MemoryInstruction::loadBinary(FileMgr &Mgr) {
         return {};
       }
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
   }
@@ -235,11 +281,17 @@ Expect<void> MemoryInstruction::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     Align = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
     return Unexpect(Res);
   }
   if (auto Res = Mgr.readU32()) {
     Offset = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
     return Unexpect(Res);
   }
   return {};
@@ -253,6 +305,9 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
     if (auto Res = Mgr.readS32()) {
       Num = static_cast<uint32_t>(*Res);
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
     break;
@@ -260,6 +315,9 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
     if (auto Res = Mgr.readS64()) {
       Num = static_cast<uint64_t>(*Res);
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
     break;
@@ -267,6 +325,9 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
     if (auto Res = Mgr.readF32()) {
       Num = *Res;
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
     break;
@@ -274,10 +335,16 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
     if (auto Res = Mgr.readF64()) {
       Num = *Res;
     } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
     break;
   default:
+    LOG(ERROR) << ErrCode::InvalidGrammar;
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
     return Unexpect(ErrCode::InvalidGrammar);
   }
 
@@ -293,6 +360,7 @@ Expect<std::unique_ptr<Instruction>> makeInstructionNode(OpCode Code,
         if constexpr (std::is_void_v<
                           typename std::decay_t<decltype(Arg)>::type>) {
           /// If the Code not matched, return null pointer.
+          LOG(ERROR) << ErrCode::InvalidGrammar;
           return Unexpect(ErrCode::InvalidGrammar);
         } else {
           /// Make the instruction node according to Code.
@@ -311,6 +379,7 @@ makeInstructionNode(const Instruction &Instr) {
         if constexpr (std::is_void_v<
                           typename std::decay_t<decltype(Arg)>::type>) {
           /// If the Code not matched, return null pointer.
+          LOG(ERROR) << ErrCode::InvalidGrammar;
           return Unexpect(ErrCode::InvalidGrammar);
         } else {
           /// Make the instruction node according to Code.

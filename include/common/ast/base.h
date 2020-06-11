@@ -30,9 +30,8 @@ public:
     return Unexpect(ErrCode::InvalidGrammar);
   };
 
-protected:
   /// AST node attribute.
-  ASTNodeAttr NodeAttr;
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Module;
 };
 
 } // namespace AST

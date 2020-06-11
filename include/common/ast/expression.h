@@ -37,9 +37,8 @@ public:
   /// Getter of instructions vector.
   InstrVec &getInstrs() { return Instrs; }
 
-protected:
   /// The node type should be ASTNodeAttr::Expression.
-  ASTNodeAttr NodeAttr = ASTNodeAttr::Expression;
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Expression;
 
 private:
   /// Instruction set list.

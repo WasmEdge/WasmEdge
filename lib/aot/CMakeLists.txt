@@ -44,6 +44,7 @@ target_include_directories(ssvmAOT
   PRIVATE
   "${LLVM_INCLUDE_DIR}"
 )
+
 target_include_directories(ssvmAOT
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include

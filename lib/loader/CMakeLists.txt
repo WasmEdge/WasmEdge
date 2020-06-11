@@ -11,9 +11,15 @@ target_link_libraries(ssvmLoaderFileMgr
   std::filesystem
 )
 
+target_link_libraries(ssvmLoaderFileMgr
+  PRIVATE
+  ssvmSupport
+)
+
 target_include_directories(ssvmLoaderFileMgr
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/thirdparty
 )
 
 add_library(ssvmLoader

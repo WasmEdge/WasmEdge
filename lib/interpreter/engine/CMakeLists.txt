@@ -17,4 +17,5 @@ target_include_directories(ssvmInterpreterEngine
   PUBLIC
   ${Boost_INCLUDE_DIR}
   ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/thirdparty
 )

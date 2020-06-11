@@ -12,8 +12,14 @@ add_library(ssvmInterpreterInstantiate
   module.cpp
 )
 
+target_link_libraries(ssvmInterpreterInstantiate
+  PRIVATE
+  ssvmSupport
+)
+
 target_include_directories(ssvmInterpreterInstantiate
   PUBLIC
   ${Boost_INCLUDE_DIR}
   ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/thirdparty
 )

@@ -13,7 +13,10 @@ add_library(ssvmAST
 target_include_directories(ssvmAST
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/thirdparty
 )
+
 target_link_libraries(ssvmAST
   ssvmLoaderFileMgr
+  ssvmSupport
 )

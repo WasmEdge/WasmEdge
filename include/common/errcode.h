@@ -11,10 +11,12 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include <map>
-#include <string>
-
 #include "support/expected.h"
+#include "support/hexstr.h"
+
+#include <ostream>
+#include <string>
+#include <unordered_map>
 
 namespace SSVM {
 
@@ -28,7 +30,7 @@ enum class WasmPhase : uint8_t {
 };
 
 /// Wasm runtime phasing enumeration string mapping.
-static inline std::map<WasmPhase, std::string> WasmPhaseStr = {
+static inline std::unordered_map<WasmPhase, std::string> WasmPhaseStr = {
     {WasmPhase::SSVM, "ssvm runtime"},
     {WasmPhase::Loading, "loading"},
     {WasmPhase::Validation, "validation"},
@@ -73,7 +75,7 @@ enum class ErrCode : uint8_t {
 };
 
 /// Error code enumeration string mapping.
-static inline std::map<ErrCode, std::string> ErrCodeStr = {
+static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::Success, "success"},
     {ErrCode::Terminated, "terminated"},
     {ErrCode::CostLimitExceeded, "cost limit exceeded"},
@@ -108,16 +110,12 @@ static inline WasmPhase getErrCodePhase(ErrCode Code) {
   return static_cast<WasmPhase>((static_cast<uint8_t>(Code) & 0xF0) >> 4);
 }
 
-class ErrMsg {
-public:
-  ErrMsg() = delete;
-  ErrMsg(const ErrMsg &EM) : Code(EM.Code), Msg(EM.Msg) {}
-  ErrMsg(ErrMsg &&EM) : Code(EM.Code), Msg(std::move(EM.Msg)) {}
-
-private:
-  ErrCode Code;
-  std::string Msg;
-};
+static std::ostream &operator<<(std::ostream &OS, ErrCode Code) {
+  OS << WasmPhaseStr[getErrCodePhase(Code)] << " failed: " << ErrCodeStr[Code]
+     << ", Code: "
+     << Support::convertUIntToHexStr(static_cast<uint32_t>(Code), 2);
+  return OS;
+}
 
 static inline constexpr bool likely(bool V) {
   return __builtin_expect(V, true);
@@ -126,10 +124,10 @@ static inline constexpr bool unlikely(bool V) {
   return __builtin_expect(V, false);
 }
 
-/// Type aliasing for Expected<T, ErrMsg>.
+/// Type aliasing for Expected<T, ErrCode>.
 template <typename T> using Expect = Support::Expected<T, ErrCode>;
 
-/// Helper function for Unexpected<ErrMsg>.
+/// Helper function for Unexpected<ErrCode>.
 constexpr auto Unexpect(const ErrCode &Val) {
   return Support::Unexpected<ErrCode>(Val);
 }

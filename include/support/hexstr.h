@@ -86,8 +86,16 @@ inline void convertHexStrToBytes(std::string_view Src,
 
 inline void convertHexStrToValVec(std::string_view Src,
                                   std::vector<unsigned char> &Dst,
-                                  unsigned int Padding = 2) {
+                                  uint32_t Padding = 2) {
   convertHexStrToBytes(Src, Dst, Padding);
+}
+
+inline std::string convertUIntToHexStr(uint64_t Num, uint32_t MinLen = 8) {
+  char Buf[16] = {0}, Str[32] = {0};
+  MinLen = (MinLen > 16 ? 16 : MinLen);
+  sprintf(Buf, "0x%%0%dllx", MinLen);
+  sprintf(Str, Buf, Num);
+  return Str;
 }
 
 } // namespace Support

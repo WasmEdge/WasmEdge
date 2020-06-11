@@ -123,7 +123,7 @@ Expect<std::vector<ValVariant>> VM::runWasmFile(const AST::Module &Module,
   }
   const auto FuncExp = StoreRef.getFuncExports();
   if (FuncExp.find(Func) == FuncExp.cend()) {
-    Log::loggingError(ErrCode::FuncNotFound);
+    LOG(ERROR) << ErrCode::FuncNotFound;
     return Unexpect(ErrCode::FuncNotFound);
   }
   if (auto Res = InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second,
@@ -159,7 +159,7 @@ Expect<void> VM::loadWasm(Span<const Byte> Code) {
 Expect<void> VM::validate() {
   if (Stage < VMStage::Loaded) {
     /// When module is not loaded, not validate.
-    Log::loggingError(ErrCode::WrongVMWorkflow);
+    LOG(ERROR) << ErrCode::WrongVMWorkflow;
     return Unexpect(ErrCode::WrongVMWorkflow);
   }
   if (auto Res = ValidatorEngine.validate(*Mod.get())) {
@@ -173,7 +173,7 @@ Expect<void> VM::validate() {
 Expect<void> VM::instantiate() {
   if (Stage < VMStage::Validated) {
     /// When module is not validated, not instantiate.
-    Log::loggingError(ErrCode::WrongVMWorkflow);
+    LOG(ERROR) << ErrCode::WrongVMWorkflow;
     return Unexpect(ErrCode::WrongVMWorkflow);
   }
   if (auto Res =
@@ -190,7 +190,7 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Func,
   /// Check exports for finding function address.
   const auto FuncExp = StoreRef.getFuncExports();
   if (FuncExp.find(Func) == FuncExp.cend()) {
-    Log::loggingError(ErrCode::FuncNotFound);
+    LOG(ERROR) << ErrCode::FuncNotFound;
     return Unexpect(ErrCode::FuncNotFound);
   }
   return InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second, Params);
@@ -210,7 +210,7 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
   /// Get exports and fund function
   const auto FuncExp = ModInst->getFuncExports();
   if (FuncExp.find(Func) == FuncExp.cend()) {
-    Log::loggingError(ErrCode::FuncNotFound);
+    LOG(ERROR) << ErrCode::FuncNotFound;
     return Unexpect(ErrCode::FuncNotFound);
   }
   return InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second, Params);

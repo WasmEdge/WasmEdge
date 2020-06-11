@@ -14,7 +14,7 @@ Expect<void> Interpreter::instantiateModule(Runtime::StoreManager &StoreMgr,
                                             std::string_view Name) {
   InsMode = InstantiateMode::Instantiate;
   if (auto Res = instantiate(StoreMgr, Mod, Name); !Res) {
-    Log::loggingError(Res.error());
+    LOG(ERROR) << Res.error();
     return Unexpect(Res);
   }
   return {};
@@ -26,7 +26,7 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
   StoreMgr.reset();
   /// Check is module name duplicated.
   if (auto Res = StoreMgr.findModule(Obj.getModuleName())) {
-    Log::loggingError(ErrCode::ModuleNameConflict);
+    LOG(ERROR) << ErrCode::ModuleNameConflict;
     return Unexpect(ErrCode::ModuleNameConflict);
   }
   auto NewModInst =
@@ -64,7 +64,7 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
                                          std::string_view Name) {
   InsMode = InstantiateMode::ImportWasm;
   if (auto Res = instantiate(StoreMgr, Mod, Name); !Res) {
-    Log::loggingError(Res.error());
+    LOG(ERROR) << Res.error();
     return Unexpect(Res);
   }
   return {};
@@ -79,20 +79,20 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
   if (auto Res = StoreMgr.getFunction(FuncAddr)) {
     FuncInst = *Res;
   } else {
-    Log::loggingError(Res.error());
+    LOG(ERROR) << Res.error();
     return Unexpect(Res);
   }
 
   /// Check parameter and function type.
   const auto &FuncType = FuncInst->getFuncType();
   if (FuncType.Params.size() != Params.size()) {
-    Log::loggingError(ErrCode::FuncSigMismatch);
+    LOG(ERROR) << ErrCode::FuncSigMismatch;
     return Unexpect(ErrCode::FuncSigMismatch);
   }
 
   /// Call runFunction.
   if (auto Res = runFunction(StoreMgr, *FuncInst, Params); !Res) {
-    Log::loggingError(Res.error());
+    LOG(ERROR) << Res.error();
     return Unexpect(Res);
   }
 

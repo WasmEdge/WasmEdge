@@ -5,6 +5,8 @@
 #endif
 
 #include "loader/ldmgr.h"
+#include "support/log.h"
+
 #include <dlfcn.h>
 
 namespace SSVM {
@@ -23,21 +25,21 @@ Expect<void> LDMgr::setPath(std::string_view FilePath) {
   }
   Handler = dlopen(std::string(FilePath).c_str(), RTLD_LAZY | RTLD_LOCAL);
   if (Handler == nullptr) {
+    LOG(ERROR) << ErrCode::InvalidPath;
     return Unexpect(ErrCode::InvalidPath);
   }
   return {};
 }
 
 Expect<std::vector<Byte>> LDMgr::getWasm() {
-  if (Handler == nullptr) {
-    return Unexpect(ErrCode::InvalidPath);
-  }
   const auto *const Size = getSymbol<uint32_t>("wasm.size");
   if (Size == nullptr) {
+    LOG(ERROR) << ErrCode::InvalidGrammar;
     return Unexpect(ErrCode::InvalidGrammar);
   }
   const auto *const Code = getSymbol<uint8_t>("wasm.code");
   if (Code == nullptr) {
+    LOG(ERROR) << ErrCode::InvalidGrammar;
     return Unexpect(ErrCode::InvalidGrammar);
   }
 
@@ -45,11 +47,9 @@ Expect<std::vector<Byte>> LDMgr::getWasm() {
 }
 
 Expect<uint32_t> LDMgr::getVersion() {
-  if (Handler == nullptr) {
-    return Unexpect(ErrCode::InvalidPath);
-  }
   const auto *const Version = getSymbol<uint32_t>("version");
   if (Version == nullptr) {
+    LOG(ERROR) << ErrCode::InvalidGrammar;
     return Unexpect(ErrCode::InvalidGrammar);
   }
   return *Version;

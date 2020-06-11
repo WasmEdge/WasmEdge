@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <iterator>
 
+/// Error logging of file manager need to be handled in caller.
+
 namespace SSVM {
 
 /// Destructor of file manager. See "include/loader/filemgr.h".

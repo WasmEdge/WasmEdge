@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/value.h"
 #include "interpreter/interpreter.h"
+#include "support/log.h"
 
 #include <cmath>
 
@@ -32,18 +33,27 @@ TypeB<T> Interpreter::runMulOp(ValVariant &Val1, const ValVariant &Val2) const {
 }
 
 template <typename T>
-TypeT<T> Interpreter::runDivOp(ValVariant &Val1, const ValVariant &Val2) const {
+TypeT<T> Interpreter::runDivOp(const AST::BinaryNumericInstruction &Instr,
+                               ValVariant &Val1, const ValVariant &Val2) const {
   T &V1 = retrieveValue<T>(Val1);
   const T &V2 = retrieveValue<T>(Val2);
   if (!std::is_floating_point_v<T>) {
     if (V2 == 0) {
       /// Integer case: If v2 is 0, then the result is undefined.
+      LOG(ERROR) << ErrCode::DivideByZero;
+      LOG(ERROR) << ErrInfo::InfoInstruction(
+          Instr.getOpCode(), Instr.getOffset(), {Val1, Val2},
+          {ValTypeFromType<T>(), ValTypeFromType<T>()}, std::is_signed_v<T>);
       return Unexpect(ErrCode::DivideByZero);
     }
     if (std::is_signed_v<T> && V1 == std::numeric_limits<T>::min() &&
         V2 == static_cast<T>(-1)) {
       /// Signed Integer case: If signed(v1) / signed(v2) is 2^(N − 1), then the
       /// result is undefined.
+      LOG(ERROR) << ErrCode::IntegerOverflow;
+      LOG(ERROR) << ErrInfo::InfoInstruction(
+          Instr.getOpCode(), Instr.getOffset(), {Val1, Val2},
+          {ValTypeFromType<T>(), ValTypeFromType<T>()}, true);
       return Unexpect(ErrCode::IntegerOverflow);
     }
   }
@@ -55,11 +65,16 @@ TypeT<T> Interpreter::runDivOp(ValVariant &Val1, const ValVariant &Val2) const {
 }
 
 template <typename T>
-TypeI<T> Interpreter::runRemOp(ValVariant &Val1, const ValVariant &Val2) const {
+TypeI<T> Interpreter::runRemOp(const AST::BinaryNumericInstruction &Instr,
+                               ValVariant &Val1, const ValVariant &Val2) const {
   T &I1 = retrieveValue<T>(Val1);
   const T &I2 = retrieveValue<T>(Val2);
   /// If i2 is 0, then the result is undefined.
   if (I2 == 0) {
+    LOG(ERROR) << ErrCode::DivideByZero;
+    LOG(ERROR) << ErrInfo::InfoInstruction(
+        Instr.getOpCode(), Instr.getOffset(), {Val1, Val2},
+        {ValTypeFromType<T>(), ValTypeFromType<T>()}, std::is_signed_v<T>);
     return Unexpect(ErrCode::DivideByZero);
   }
   /// Else, return the i1 % i2. Signed case is handled.

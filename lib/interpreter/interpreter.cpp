@@ -14,7 +14,9 @@ Expect<void> Interpreter::instantiateModule(Runtime::StoreManager &StoreMgr,
                                             std::string_view Name) {
   InsMode = InstantiateMode::Instantiate;
   if (auto Res = instantiate(StoreMgr, Mod, Name); !Res) {
-    LOG(ERROR) << Res.error();
+    if (Name != "") {
+      LOG(ERROR) << ErrInfo::InfoRegistering(Name);
+    }
     return Unexpect(Res);
   }
   return {};
@@ -27,6 +29,7 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
   /// Check is module name duplicated.
   if (auto Res = StoreMgr.findModule(Obj.getModuleName())) {
     LOG(ERROR) << ErrCode::ModuleNameConflict;
+    LOG(ERROR) << ErrInfo::InfoRegistering(Obj.getModuleName());
     return Unexpect(ErrCode::ModuleNameConflict);
   }
   auto NewModInst =
@@ -64,7 +67,7 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
                                          std::string_view Name) {
   InsMode = InstantiateMode::ImportWasm;
   if (auto Res = instantiate(StoreMgr, Mod, Name); !Res) {
-    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoRegistering(Name);
     return Unexpect(Res);
   }
   return {};
@@ -79,7 +82,6 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
   if (auto Res = StoreMgr.getFunction(FuncAddr)) {
     FuncInst = *Res;
   } else {
-    LOG(ERROR) << Res.error();
     return Unexpect(Res);
   }
 
@@ -92,7 +94,6 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
 
   /// Call runFunction.
   if (auto Res = runFunction(StoreMgr, *FuncInst, Params); !Res) {
-    LOG(ERROR) << Res.error();
     return Unexpect(Res);
   }
 

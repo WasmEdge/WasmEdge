@@ -102,6 +102,9 @@ Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
   if (auto Res = TabInst->getElemAddr(retrieveValue<uint32_t>(Idx))) {
     FuncAddr = *Res;
   } else {
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+                                           {Idx},
+                                           {ValTypeFromType<uint32_t>()});
     return Unexpect(Res);
   }
 
@@ -110,6 +113,13 @@ Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
   const auto &FuncType = FuncInst->getFuncType();
   if (TargetFuncType->Params != FuncType.Params ||
       TargetFuncType->Returns != FuncType.Returns) {
+    LOG(ERROR) << ErrCode::IndirectCallTypeMismatch;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+                                           {Idx},
+                                           {ValTypeFromType<uint32_t>()});
+    LOG(ERROR) << ErrInfo::InfoMismatch(TargetFuncType->Params,
+                                        TargetFuncType->Returns,
+                                        FuncType.Params, FuncType.Returns);
     return Unexpect(ErrCode::IndirectCallTypeMismatch);
   }
   return enterFunction(StoreMgr, *FuncInst);

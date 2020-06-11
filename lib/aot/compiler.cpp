@@ -319,6 +319,9 @@ public:
             if constexpr (std::is_void_v<
                               typename std::decay_t<decltype(Arg)>::type>) {
               /// If the Code not matched, return null pointer.
+              LOG(ERROR) << ErrCode::InstrTypeMismatch;
+              LOG(ERROR) << ErrInfo::InfoInstruction(Instr->getOpCode(),
+                                                     Instr->getOffset());
               return Unexpect(ErrCode::InstrTypeMismatch);
             } else {
               /// Make the instruction node according to Code.

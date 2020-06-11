@@ -311,9 +311,11 @@ private:
   template <typename T>
   TypeB<T> runMulOp(ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T>
-  TypeT<T> runDivOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeT<T> runDivOp(const AST::BinaryNumericInstruction &Instr,
+                    ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T>
-  TypeI<T> runRemOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeI<T> runRemOp(const AST::BinaryNumericInstruction &Instr,
+                    ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T>
   TypeU<T> runAndOp(ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T>
@@ -338,7 +340,8 @@ private:
   template <typename TIn, typename TOut>
   TypeUU<TIn, TOut> runWrapOp(ValVariant &Val) const;
   template <typename TIn, typename TOut>
-  TypeFI<TIn, TOut> runTruncateOp(ValVariant &Val) const;
+  TypeFI<TIn, TOut> runTruncateOp(const AST::UnaryNumericInstruction &Instr,
+                                  ValVariant &Val) const;
   template <typename TIn, typename TOut>
   TypeIU<TIn, TOut> runExtendOp(ValVariant &Val) const;
   template <typename TIn, typename TOut>

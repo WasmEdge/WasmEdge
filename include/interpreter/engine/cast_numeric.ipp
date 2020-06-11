@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/value.h"
 #include "interpreter/interpreter.h"
+#include "support/log.h"
 
 #include <cmath>
 #include <cstring>
@@ -15,13 +16,21 @@ TypeUU<TIn, TOut> Interpreter::runWrapOp(ValVariant &Val) const {
 }
 
 template <typename TIn, typename TOut>
-TypeFI<TIn, TOut> Interpreter::runTruncateOp(ValVariant &Val) const {
+TypeFI<TIn, TOut>
+Interpreter::runTruncateOp(const AST::UnaryNumericInstruction &Instr,
+                           ValVariant &Val) const {
   TIn Z = retrieveValue<TIn>(Val);
   /// If z is a NaN or an infinity, then the result is undefined.
   if (std::isnan(Z)) {
+    LOG(ERROR) << ErrCode::InvalidConvToInt;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+                                           {Val}, {ValTypeFromType<TIn>()});
     return Unexpect(ErrCode::InvalidConvToInt);
   }
   if (std::isinf(Z)) {
+    LOG(ERROR) << ErrCode::IntegerOverflow;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+                                           {Val}, {ValTypeFromType<TIn>()});
     return Unexpect(ErrCode::IntegerOverflow);
   }
   /// If trunc(z) is out of range of target type, then the result is undefined.
@@ -31,11 +40,19 @@ TypeFI<TIn, TOut> Interpreter::runTruncateOp(ValVariant &Val) const {
   if (sizeof(TIn) > sizeof(TOut)) {
     /// Floating precision is better than integer case.
     if (Z < ValTOutMin || Z > ValTOutMax) {
+      LOG(ERROR) << ErrCode::IntegerOverflow;
+      LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                             Instr.getOffset(), {Val},
+                                             {ValTypeFromType<TIn>()});
       return Unexpect(ErrCode::IntegerOverflow);
     }
   } else {
     /// Floating precision is worse than integer case.
     if (Z < ValTOutMin || Z >= ValTOutMax) {
+      LOG(ERROR) << ErrCode::IntegerOverflow;
+      LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                             Instr.getOffset(), {Val},
+                                             {ValTypeFromType<TIn>()});
       return Unexpect(ErrCode::IntegerOverflow);
     }
   }

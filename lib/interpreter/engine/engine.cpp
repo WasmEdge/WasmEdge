@@ -136,12 +136,18 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
                                   const AST::ControlInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::Unreachable:
+    LOG(ERROR) << ErrCode::Unreachable;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
     return Unexpect(ErrCode::Unreachable);
   case OpCode::Nop:
     return {};
   case OpCode::Return:
     return runReturnOp();
   default:
+    LOG(ERROR) << ErrCode::InstrTypeMismatch;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
     return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
@@ -154,6 +160,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Loop:
     return runLoopOp(Instr);
   default:
+    LOG(ERROR) << ErrCode::InstrTypeMismatch;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
     return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
@@ -164,6 +173,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::If:
     return runIfElseOp(Instr);
   default:
+    LOG(ERROR) << ErrCode::InstrTypeMismatch;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
     return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
@@ -176,6 +188,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Br_if:
     return runBrIfOp(Instr);
   default:
+    LOG(ERROR) << ErrCode::InstrTypeMismatch;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
     return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
@@ -186,6 +201,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Br_table:
     return runBrTableOp(Instr);
   default:
+    LOG(ERROR) << ErrCode::InstrTypeMismatch;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
     return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
@@ -198,6 +216,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Call_indirect:
     return runCallIndirectOp(StoreMgr, Instr);
   default:
+    LOG(ERROR) << ErrCode::InstrTypeMismatch;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
     return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
@@ -223,6 +244,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     return {};
   }
   default:
+    LOG(ERROR) << ErrCode::InstrTypeMismatch;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
     return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
@@ -245,6 +269,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Global__set:
     return runGlobalSetOp(StoreMgr, Index);
   default:
+    LOG(ERROR) << ErrCode::InstrTypeMismatch;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
     return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
@@ -304,6 +331,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Memory__size:
     return runMemorySizeOp(*MemInst);
   default:
+    LOG(ERROR) << ErrCode::InstrTypeMismatch;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
     return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
@@ -365,25 +395,25 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::I32__wrap_i64:
     return runWrapOp<uint64_t, uint32_t>(Val);
   case OpCode::I32__trunc_f32_s:
-    return runTruncateOp<float, int32_t>(Val);
+    return runTruncateOp<float, int32_t>(Instr, Val);
   case OpCode::I32__trunc_f32_u:
-    return runTruncateOp<float, uint32_t>(Val);
+    return runTruncateOp<float, uint32_t>(Instr, Val);
   case OpCode::I32__trunc_f64_s:
-    return runTruncateOp<double, int32_t>(Val);
+    return runTruncateOp<double, int32_t>(Instr, Val);
   case OpCode::I32__trunc_f64_u:
-    return runTruncateOp<double, uint32_t>(Val);
+    return runTruncateOp<double, uint32_t>(Instr, Val);
   case OpCode::I64__extend_i32_s:
     return runExtendOp<int32_t, uint64_t>(Val);
   case OpCode::I64__extend_i32_u:
     return runExtendOp<uint32_t, uint64_t>(Val);
   case OpCode::I64__trunc_f32_s:
-    return runTruncateOp<float, int64_t>(Val);
+    return runTruncateOp<float, int64_t>(Instr, Val);
   case OpCode::I64__trunc_f32_u:
-    return runTruncateOp<float, uint64_t>(Val);
+    return runTruncateOp<float, uint64_t>(Instr, Val);
   case OpCode::I64__trunc_f64_s:
-    return runTruncateOp<double, int64_t>(Val);
+    return runTruncateOp<double, int64_t>(Instr, Val);
   case OpCode::I64__trunc_f64_u:
-    return runTruncateOp<double, uint64_t>(Val);
+    return runTruncateOp<double, uint64_t>(Instr, Val);
   case OpCode::F32__convert_i32_s:
     return runConvertOp<int32_t, float>(Val);
   case OpCode::F32__convert_i32_u:
@@ -413,6 +443,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::F64__reinterpret_i64:
     return runReinterpretOp<uint64_t, double>(Val);
   default:
+    LOG(ERROR) << ErrCode::InstrTypeMismatch;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
     return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
@@ -494,13 +527,13 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::I32__mul:
     return runMulOp<uint32_t>(Val1, Val2);
   case OpCode::I32__div_s:
-    return runDivOp<int32_t>(Val1, Val2);
+    return runDivOp<int32_t>(Instr, Val1, Val2);
   case OpCode::I32__div_u:
-    return runDivOp<uint32_t>(Val1, Val2);
+    return runDivOp<uint32_t>(Instr, Val1, Val2);
   case OpCode::I32__rem_s:
-    return runRemOp<int32_t>(Val1, Val2);
+    return runRemOp<int32_t>(Instr, Val1, Val2);
   case OpCode::I32__rem_u:
-    return runRemOp<uint32_t>(Val1, Val2);
+    return runRemOp<uint32_t>(Instr, Val1, Val2);
   case OpCode::I32__and:
     return runAndOp<uint32_t>(Val1, Val2);
   case OpCode::I32__or:
@@ -524,13 +557,13 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::I64__mul:
     return runMulOp<uint64_t>(Val1, Val2);
   case OpCode::I64__div_s:
-    return runDivOp<int64_t>(Val1, Val2);
+    return runDivOp<int64_t>(Instr, Val1, Val2);
   case OpCode::I64__div_u:
-    return runDivOp<uint64_t>(Val1, Val2);
+    return runDivOp<uint64_t>(Instr, Val1, Val2);
   case OpCode::I64__rem_s:
-    return runRemOp<int64_t>(Val1, Val2);
+    return runRemOp<int64_t>(Instr, Val1, Val2);
   case OpCode::I64__rem_u:
-    return runRemOp<uint64_t>(Val1, Val2);
+    return runRemOp<uint64_t>(Instr, Val1, Val2);
   case OpCode::I64__and:
     return runAndOp<uint64_t>(Val1, Val2);
   case OpCode::I64__or:
@@ -554,7 +587,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::F32__mul:
     return runMulOp<float>(Val1, Val2);
   case OpCode::F32__div:
-    return runDivOp<float>(Val1, Val2);
+    return runDivOp<float>(Instr, Val1, Val2);
   case OpCode::F32__min:
     return runMinOp<float>(Val1, Val2);
   case OpCode::F32__max:
@@ -568,7 +601,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::F64__mul:
     return runMulOp<double>(Val1, Val2);
   case OpCode::F64__div:
-    return runDivOp<double>(Val1, Val2);
+    return runDivOp<double>(Instr, Val1, Val2);
   case OpCode::F64__min:
     return runMinOp<double>(Val1, Val2);
   case OpCode::F64__max:
@@ -576,6 +609,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::F64__copysign:
     return runCopysignOp<double>(Val1, Val2);
   default:
+    LOG(ERROR) << ErrCode::InstrTypeMismatch;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
     return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }
@@ -612,6 +648,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr) {
             if constexpr (std::is_void_v<
                               typename std::decay_t<decltype(Arg)>::type>) {
               /// If the Code not matched, return null pointer.
+              LOG(ERROR) << ErrCode::InstrTypeMismatch;
+              LOG(ERROR) << ErrInfo::InfoInstruction(Instr->getOpCode(),
+                                                     Instr->getOffset());
               return Unexpect(ErrCode::InstrTypeMismatch);
             } else {
               /// Make the instruction node according to Code.

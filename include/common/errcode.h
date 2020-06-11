@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "errinfo.h"
 #include "support/expected.h"
 #include "support/hexstr.h"
 

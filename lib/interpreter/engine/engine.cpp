@@ -83,8 +83,7 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
   /// Reset and push a dummy frame into stack.
   InstrPdr.reset();
   StackMgr.reset();
-  /// FIXME: Add a dummy frame pusher in stack manager.
-  StackMgr.pushFrame(0, 0, 0);
+  StackMgr.pushDummyFrame();
 
   /// Push arguments.
   for (auto &Val : Params) {
@@ -658,8 +657,8 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
   if (Func.isHostFunction()) {
     /// Host function case: Push args and call function.
     auto &HostFunc = Func.getHostFunc();
-    /// FIXME: If current frame is dummy frame, find memory instance from host
-    /// module, and then use nullptr if host module has no memory instance.
+
+    /// Get memory instance from current frame.
     auto *MemoryInst = getMemInstByIdx(StoreMgr, 0);
 
     if (Measure) {
@@ -780,28 +779,64 @@ Expect<void> Interpreter::branchToLabel(const uint32_t Cnt) {
 Runtime::Instance::TableInstance *
 Interpreter::getTabInstByIdx(Runtime::StoreManager &StoreMgr,
                              const uint32_t Idx) {
-  /// FIXME: Return nullptr when top frame is dummy frame.
+  /// When top frame is dummy frame, cannot find instance.
+  if (StackMgr.isTopDummyFrame()) {
+    return nullptr;
+  }
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  const uint32_t TabAddr = *ModInst->getTableAddr(Idx);
-  return *StoreMgr.getTable(TabAddr);
+  uint32_t TabAddr;
+  if (auto Res = ModInst->getTableAddr(Idx)) {
+    TabAddr = *Res;
+  } else {
+    return nullptr;
+  }
+  if (auto Res = StoreMgr.getTable(TabAddr)) {
+    return *Res;
+  } else {
+    return nullptr;
+  }
 }
 
 Runtime::Instance::MemoryInstance *
 Interpreter::getMemInstByIdx(Runtime::StoreManager &StoreMgr,
                              const uint32_t Idx) {
-  /// FIXME: Return nullptr when top frame is dummy frame.
+  /// When top frame is dummy frame, cannot find instance.
+  if (StackMgr.isTopDummyFrame()) {
+    return nullptr;
+  }
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  const uint32_t MemAddr = *ModInst->getMemAddr(Idx);
-  return *StoreMgr.getMemory(MemAddr);
+  uint32_t MemAddr;
+  if (auto Res = ModInst->getMemAddr(Idx)) {
+    MemAddr = *Res;
+  } else {
+    return nullptr;
+  }
+  if (auto Res = StoreMgr.getMemory(MemAddr)) {
+    return *Res;
+  } else {
+    return nullptr;
+  }
 }
 
 Runtime::Instance::GlobalInstance *
 Interpreter::getGlobInstByIdx(Runtime::StoreManager &StoreMgr,
                               const uint32_t Idx) {
-  /// FIXME: Return nullptr when top frame is dummy frame.
+  /// When top frame is dummy frame, cannot find instance.
+  if (StackMgr.isTopDummyFrame()) {
+    return nullptr;
+  }
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  const uint32_t GlobAddr = *ModInst->getGlobalAddr(Idx);
-  return *StoreMgr.getGlobal(GlobAddr);
+  uint32_t GlobAddr;
+  if (auto Res = ModInst->getGlobalAddr(Idx)) {
+    GlobAddr = *Res;
+  } else {
+    return nullptr;
+  }
+  if (auto Res = StoreMgr.getGlobal(GlobAddr)) {
+    return *Res;
+  } else {
+    return nullptr;
+  }
 }
 
 } // namespace Interpreter

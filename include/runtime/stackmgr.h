@@ -37,12 +37,14 @@ public:
   struct Frame {
     Frame() = delete;
     Frame(const uint32_t Addr, const uint32_t VS, const uint32_t LS,
-          const uint32_t C)
-        : ModAddr(Addr), VStackSize(VS), LStackSize(LS), Coarity(C) {}
+          const uint32_t C, const bool Dummy = false)
+        : ModAddr(Addr), VStackSize(VS), LStackSize(LS), Coarity(C),
+          IsDummy(Dummy) {}
     uint32_t ModAddr;
     uint32_t VStackSize;
     uint32_t LStackSize;
     uint32_t Coarity;
+    bool IsDummy;
   };
 
   using Value = ValVariant;
@@ -90,6 +92,11 @@ public:
                             LabelStack.size(), Coarity);
   }
 
+  /// Push a dummy frame for invokation base.
+  void pushDummyFrame() {
+    FrameStack.emplace_back(0, ValueStack.size(), LabelStack.size(), 0, true);
+  }
+
   /// Unsafe pop top frame. Return number of popped label.
   uint32_t popFrame() {
     uint32_t LabelPopped = LabelStack.size() - FrameStack.back().LStackSize;
@@ -129,6 +136,9 @@ public:
   const Label &getLabelWithCount(const uint32_t Count) const {
     return LabelStack[LabelStack.size() - Count - 1];
   }
+
+  /// Unsafe checker of top frame is a dummy frame.
+  bool isTopDummyFrame() { return FrameStack.back().IsDummy; }
 
   /// Reset stack.
   void reset() {

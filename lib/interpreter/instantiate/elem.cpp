@@ -3,6 +3,7 @@
 #include "interpreter/interpreter.h"
 #include "runtime/instance/module.h"
 #include "runtime/instance/table.h"
+#include "support/log.h"
 
 namespace SSVM {
 namespace Interpreter {
@@ -30,6 +31,11 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
 
     /// Check offset bound.
     if (!TabInst->checkAccessBound(Offset, ElemSeg->getFuncIdxes().size())) {
+      LOG(ERROR) << ErrCode::ElemSegDoesNotFit;
+      LOG(ERROR) << ErrInfo::InfoBoundary(
+          Offset, ElemSeg->getFuncIdxes().size(), TabInst->getMin() - 1);
+      LOG(ERROR) << ErrInfo::InfoAST(ElemSeg->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(ElemSec.NodeAttr);
       return Unexpect(ErrCode::ElemSegDoesNotFit);
     }
     Offsets.push_back(Offset);

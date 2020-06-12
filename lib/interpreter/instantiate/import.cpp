@@ -7,6 +7,7 @@
 #include "runtime/instance/memory.h"
 #include "runtime/instance/module.h"
 #include "runtime/instance/table.h"
+#include "support/log.h"
 
 namespace SSVM {
 namespace Interpreter {
@@ -54,16 +55,33 @@ Expect<uint32_t> getImportAddr(std::string_view Name,
     }
     break;
   default:
+    LOG(ERROR) << ErrCode::UnknownImport;
     return Unexpect(ErrCode::UnknownImport);
   }
 
   /// Check is error external type or unknown imports.
-  if (FuncList.find(Name) != FuncList.cend() ||
-      TabList.find(Name) != TabList.cend() ||
-      MemList.find(Name) != MemList.cend() ||
-      GlobList.find(Name) != GlobList.cend()) {
+  if (FuncList.find(Name) != FuncList.cend()) {
+    LOG(ERROR) << ErrCode::IncompatibleImportType;
+    LOG(ERROR) << ErrInfo::InfoMismatch(ExtType, ExternalType::Function);
     return Unexpect(ErrCode::IncompatibleImportType);
   }
+  if (TabList.find(Name) != TabList.cend()) {
+    LOG(ERROR) << ErrCode::IncompatibleImportType;
+    LOG(ERROR) << ErrInfo::InfoMismatch(ExtType, ExternalType::Table);
+    return Unexpect(ErrCode::IncompatibleImportType);
+  }
+  if (MemList.find(Name) != MemList.cend()) {
+    LOG(ERROR) << ErrCode::IncompatibleImportType;
+    LOG(ERROR) << ErrInfo::InfoMismatch(ExtType, ExternalType::Memory);
+    return Unexpect(ErrCode::IncompatibleImportType);
+  }
+  if (GlobList.find(Name) != GlobList.cend()) {
+    LOG(ERROR) << ErrCode::IncompatibleImportType;
+    LOG(ERROR) << ErrInfo::InfoMismatch(ExtType, ExternalType::Global);
+    return Unexpect(ErrCode::IncompatibleImportType);
+  }
+
+  LOG(ERROR) << ErrCode::UnknownImport;
   return Unexpect(ErrCode::UnknownImport);
 }
 } // namespace
@@ -84,11 +102,18 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     if (auto Res = StoreMgr.findModule(ModName)) {
       TargetModInst = *Res;
     } else {
+      LOG(ERROR) << ErrCode::UnknownImport;
+      LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
+      LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(ImportSec.NodeAttr);
       return Unexpect(ErrCode::UnknownImport);
     }
     if (auto Res = getImportAddr(ExtName, ExtType, *TargetModInst)) {
       TargetAddr = *Res;
     } else {
+      LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
+      LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(ImportSec.NodeAttr);
       return Unexpect(Res);
     }
 
@@ -103,6 +128,13 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       const auto *FuncType = *ModInst.getFuncType(*TypeIdx);
       if (TargetType.Params != FuncType->Params ||
           TargetType.Returns != FuncType->Returns) {
+        LOG(ERROR) << ErrCode::IncompatibleImportType;
+        LOG(ERROR) << ErrInfo::InfoMismatch(FuncType->Params, FuncType->Returns,
+                                            TargetType.Params,
+                                            TargetType.Returns);
+        LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
+        LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
+        LOG(ERROR) << ErrInfo::InfoAST(ImportSec.NodeAttr);
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched function address to module instance.
@@ -119,6 +151,15 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
           !isLimitMatched(TargetInst->getHasMax(), TargetInst->getMin(),
                           TargetInst->getMax(), TabLim->hasMax(),
                           TabLim->getMin(), TabLim->getMax())) {
+        LOG(ERROR) << ErrCode::IncompatibleImportType;
+        LOG(ERROR) << ErrInfo::InfoMismatch(
+            TabType->getElementType(), TabLim->hasMax(), TabLim->getMin(),
+            TabLim->getMax(), TargetInst->getElementType(),
+            TargetInst->getHasMax(), TargetInst->getMin(),
+            TargetInst->getMax());
+        LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
+        LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
+        LOG(ERROR) << ErrInfo::InfoAST(ImportSec.NodeAttr);
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched table address to module instance.
@@ -135,6 +176,14 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       if (!isLimitMatched(TargetInst->getHasMax(), TargetInst->getMin(),
                           TargetInst->getMax(), MemLim->hasMax(),
                           MemLim->getMin(), MemLim->getMax())) {
+        LOG(ERROR) << ErrCode::IncompatibleImportType;
+        LOG(ERROR) << ErrInfo::InfoMismatch(
+            MemLim->hasMax(), MemLim->getMin(), MemLim->getMax(),
+            TargetInst->getHasMax(), TargetInst->getMin(),
+            TargetInst->getMax());
+        LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
+        LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
+        LOG(ERROR) << ErrInfo::InfoAST(ImportSec.NodeAttr);
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched memory address to module instance.
@@ -149,6 +198,13 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       const auto *TargetInst = *StoreMgr.getGlobal(TargetAddr);
       if (TargetInst->getValType() != GlobType->getValueType() ||
           TargetInst->getValMut() != GlobType->getValueMutation()) {
+        LOG(ERROR) << ErrCode::IncompatibleImportType;
+        LOG(ERROR) << ErrInfo::InfoMismatch(
+            GlobType->getValueType(), GlobType->getValueMutation(),
+            TargetInst->getValType(), TargetInst->getValMut());
+        LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
+        LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
+        LOG(ERROR) << ErrInfo::InfoAST(ImportSec.NodeAttr);
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched global address to module instance.

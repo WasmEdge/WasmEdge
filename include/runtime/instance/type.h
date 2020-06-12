@@ -13,6 +13,7 @@
 
 #include "common/types.h"
 #include "support/span.h"
+
 #include <vector>
 
 namespace SSVM {

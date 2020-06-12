@@ -3,6 +3,7 @@
 #include "interpreter/interpreter.h"
 #include "runtime/instance/memory.h"
 #include "runtime/instance/module.h"
+#include "support/log.h"
 
 namespace SSVM {
 namespace Interpreter {
@@ -30,6 +31,12 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
 
     /// Check offset bound.
     if (!MemInst->checkAccessBound(Offset, DataSeg->getData().size())) {
+      LOG(ERROR) << ErrCode::DataSegDoesNotFit;
+      LOG(ERROR) << ErrInfo::InfoBoundary(
+          Offset, DataSeg->getData().size(),
+          MemInst->getDataPageSize() * MemInst->kPageSize - 1);
+      LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(DataSec.NodeAttr);
       return Unexpect(ErrCode::DataSegDoesNotFit);
     }
     Offsets.push_back(Offset);

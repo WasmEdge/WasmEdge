@@ -3,6 +3,7 @@
 #include "common/ast/section.h"
 #include "interpreter/interpreter.h"
 #include "runtime/instance/module.h"
+#include "support/log.h"
 
 namespace SSVM {
 namespace Interpreter {
@@ -18,6 +19,8 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 
   /// Check is module name duplicated.
   if (auto Res = StoreMgr.findModule(Name)) {
+    LOG(ERROR) << ErrCode::ModuleNameConflict;
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
     return Unexpect(ErrCode::ModuleNameConflict);
   }
   auto NewModInst = std::make_unique<Runtime::Instance::ModuleInstance>(Name);
@@ -46,6 +49,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   const AST::ImportSection *ImportSec = Mod.getImportSection();
   if (ImportSec != nullptr) {
     if (auto Res = instantiate(StoreMgr, *ModInst, *ImportSec); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -55,6 +59,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   const AST::CodeSection *CodeSec = Mod.getCodeSection();
   if (FuncSec != nullptr && CodeSec != nullptr) {
     if (auto Res = instantiate(StoreMgr, *ModInst, *FuncSec, *CodeSec); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -63,6 +68,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   const AST::GlobalSection *GlobSec = Mod.getGlobalSection();
   if (GlobSec != nullptr) {
     if (auto Res = instantiate(StoreMgr, *ModInst, *GlobSec); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -71,6 +77,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   const AST::TableSection *TabSec = Mod.getTableSection();
   if (TabSec != nullptr) {
     if (auto Res = instantiate(StoreMgr, *ModInst, *TabSec); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -79,6 +86,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   const AST::MemorySection *MemSec = Mod.getMemorySection();
   if (MemSec != nullptr) {
     if (auto Res = instantiate(StoreMgr, *ModInst, *MemSec); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -97,6 +105,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     if (auto Res = resolveExpression(StoreMgr, *ModInst, *ElemSec)) {
       ElemOffsets = std::move(*Res);
     } else {
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -107,6 +116,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     if (auto Res = resolveExpression(StoreMgr, *ModInst, *DataSec)) {
       DataOffsets = std::move(*Res);
     } else {
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -118,6 +128,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   if (ElemSec != nullptr) {
     if (auto Res = instantiate(StoreMgr, *ModInst, *ElemSec, ElemOffsets);
         !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -126,6 +137,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   if (DataSec != nullptr) {
     if (auto Res = instantiate(StoreMgr, *ModInst, *DataSec, DataOffsets);
         !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -134,6 +146,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   const AST::ExportSection *ExportSec = Mod.getExportSection();
   if (ExportSec != nullptr) {
     if (auto Res = instantiate(StoreMgr, *ModInst, *ExportSec); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);
     }
   }

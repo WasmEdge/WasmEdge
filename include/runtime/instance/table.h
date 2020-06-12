@@ -14,6 +14,7 @@
 #include "common/ast/type.h"
 #include "common/errcode.h"
 #include "common/types.h"
+#include "support/log.h"
 #include "support/span.h"
 
 #include <algorithm>
@@ -64,6 +65,8 @@ public:
   /// Get the elem address.
   Expect<uint32_t> getElemAddr(const uint32_t Idx) const {
     if (Idx >= FuncElem.size()) {
+      LOG(ERROR) << ErrCode::UndefinedElement;
+      LOG(ERROR) << ErrInfo::InfoBoundary(Idx, 1, FuncElem.size() - 1);
       return Unexpect(ErrCode::UndefinedElement);
     }
     if (Symbol) {
@@ -72,6 +75,7 @@ public:
       if (FuncElemInit[Idx]) {
         return FuncElem[Idx];
       } else {
+        LOG(ERROR) << ErrCode::UninitializedElement;
         return Unexpect(ErrCode::UninitializedElement);
       }
     }

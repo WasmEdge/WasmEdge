@@ -29,9 +29,9 @@ namespace {
 template <typename T>
 inline constexpr const bool IsEntityV =
     std::is_same_v<T, Instance::FunctionInstance> ||
-    std::is_same_v<T, Instance::GlobalInstance> ||
+    std::is_same_v<T, Instance::TableInstance> ||
     std::is_same_v<T, Instance::MemoryInstance> ||
-    std::is_same_v<T, Instance::TableInstance>;
+    std::is_same_v<T, Instance::GlobalInstance>;
 
 /// Return true if T is instances.
 template <typename T>
@@ -156,6 +156,7 @@ public:
     if (NumMod > 0) {
       return ModInsts.back();
     }
+    /// Error logging need to be handled in caller.
     return Unexpect(ErrCode::WrongInstanceAddress);
   }
 
@@ -166,6 +167,7 @@ public:
         return It;
       }
     }
+    /// Error logging need to be handled in caller.
     return Unexpect(ErrCode::WrongInstanceAddress);
   }
 
@@ -243,6 +245,7 @@ private:
   std::enable_if_t<IsInstanceV<T>, Expect<T *>>
   getInstance(const uint32_t Addr, const std::vector<T *> &InstsVec) {
     if (Addr >= InstsVec.size()) {
+      /// Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceAddress);
     }
     return InstsVec[Addr];

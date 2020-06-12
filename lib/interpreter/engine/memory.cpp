@@ -19,7 +19,7 @@ Interpreter::runMemoryGrowOp(Runtime::Instance::MemoryInstance &MemInst) {
 
   /// Grow page and push result.
   const uint32_t CurrPageSize = MemInst.getDataPageSize();
-  if (auto Res = MemInst.growPage(N)) {
+  if (MemInst.growPage(N)) {
     N = CurrPageSize;
   } else {
     N = -1;

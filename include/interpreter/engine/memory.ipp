@@ -3,6 +3,7 @@
 #include "common/value.h"
 #include "interpreter/interpreter.h"
 #include "runtime/instance/memory.h"
+#include "support/log.h"
 
 #include <cstdint>
 
@@ -17,12 +18,25 @@ TypeT<T> Interpreter::runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
   ValVariant &Val = StackMgr.getTop();
   if (retrieveValue<uint32_t>(Val) >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
+    LOG(ERROR) << ErrCode::MemoryOutOfBounds;
+    LOG(ERROR) << ErrInfo::InfoBoundary(
+        retrieveValue<uint32_t>(Val) +
+            static_cast<uint64_t>(Instr.getMemoryOffset()),
+        BitWidth / 8);
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
   uint32_t EA = retrieveValue<uint32_t>(Val) + Instr.getMemoryOffset();
 
   /// Value = Mem.Data[EA : N / 8]
-  return MemInst.loadValue(retrieveValue<T>(Val), EA, BitWidth / 8);
+  if (auto Res = MemInst.loadValue(retrieveValue<T>(Val), EA, BitWidth / 8);
+      !Res) {
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
+    return Unexpect(Res);
+  }
+  return {};
 }
 
 template <typename T>
@@ -36,12 +50,25 @@ TypeB<T> Interpreter::runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
   ValVariant I = StackMgr.pop();
   if (retrieveValue<uint32_t>(I) >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
+    LOG(ERROR) << ErrCode::MemoryOutOfBounds;
+    LOG(ERROR) << ErrInfo::InfoBoundary(
+        retrieveValue<uint32_t>(I) +
+            static_cast<uint64_t>(Instr.getMemoryOffset()),
+        BitWidth / 8);
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
   uint32_t EA = retrieveValue<uint32_t>(I) + Instr.getMemoryOffset();
 
   /// Store value to bytes.
-  return MemInst.storeValue(retrieveValue<T>(C), EA, BitWidth / 8);
+  if (auto Res = MemInst.storeValue(retrieveValue<T>(C), EA, BitWidth / 8);
+      !Res) {
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
+    return Unexpect(Res);
+  }
+  return {};
 }
 
 } // namespace Interpreter

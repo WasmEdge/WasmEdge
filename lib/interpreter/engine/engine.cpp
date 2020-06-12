@@ -52,7 +52,7 @@ void Interpreter::call(const uint32_t FuncIndex, const ValVariant *Args,
 uint32_t Interpreter::memGrow(const uint32_t NewSize) {
   auto &MemInst = *getMemInstByIdx(*CurrentStore, 0);
   const uint32_t CurrPageSize = MemInst.getDataPageSize();
-  if (auto Res = MemInst.growPage(NewSize)) {
+  if (MemInst.growPage(NewSize)) {
     return CurrPageSize;
   } else {
     return -1;

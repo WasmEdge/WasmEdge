@@ -15,6 +15,7 @@
 #include "common/errcode.h"
 #include "common/value.h"
 #include "support/casting.h"
+#include "support/log.h"
 #include "support/span.h"
 
 #include <algorithm>
@@ -57,26 +58,28 @@ public:
   }
 
   /// Grow page
-  Expect<void> growPage(const uint32_t Count) {
+  bool growPage(const uint32_t Count) {
     uint32_t MaxPageCaped = UINT32_C(65536);
     if (HasMaxPage) {
       MaxPageCaped = std::min(MaxPage, MaxPageCaped);
     }
     if (Count + CurrPage > MaxPageCaped) {
-      return Unexpect(ErrCode::MemoryOutOfBounds);
+      return false;
     }
     CurrPage += Count;
     Data.resize(CurrPage * kPageSize);
     if (Symbol) {
       *Symbol = Data.data();
     }
-    return {};
+    return true;
   }
 
   /// Get slice of Data[Offset : Offset + Length - 1]
   Expect<Span<Byte>> getBytes(const uint32_t Offset, const uint32_t Length) {
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
+      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, Data.size() - 1);
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     return Span<Byte>(&Data[Offset], Length);
@@ -87,12 +90,16 @@ public:
                         const uint32_t Start, const uint32_t Length) {
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
+      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, Data.size() - 1);
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
 
     /// Check input data validation.
     if ((Slice.size() > 0 && Start >= Slice.size()) ||
         Start + Length > Slice.size()) {
+      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
+      LOG(ERROR) << ErrInfo::InfoBoundary(Start, Length, Slice.size() - 1);
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
 
@@ -109,6 +116,8 @@ public:
                         const uint32_t Length, const bool IsReverse = false) {
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
+      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, Data.size() - 1);
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     if (Length > 0) {
@@ -129,6 +138,8 @@ public:
                         const uint32_t Length, const bool IsReverse = false) {
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
+      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, Data.size() - 1);
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     if (Length > 0) {
@@ -183,10 +194,15 @@ public:
   loadValue(T &Value, const uint32_t Offset, const uint32_t Length) {
     /// Check data boundary.
     if (Length > sizeof(T)) {
+      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length,
+                                          Offset + sizeof(T) - 1);
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
+      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, Data.size() - 1);
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     /// Load data to a value.
@@ -225,10 +241,15 @@ public:
   storeValue(const T &Value, const uint32_t Offset, const uint32_t Length) {
     /// Check data boundary.
     if (Length > sizeof(T)) {
+      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length,
+                                          Offset + sizeof(T) - 1);
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
+      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, Data.size() - 1);
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     /// Copy store data to value.

@@ -124,6 +124,7 @@ Expect<std::vector<ValVariant>> VM::runWasmFile(const AST::Module &Module,
   const auto FuncExp = StoreRef.getFuncExports();
   if (FuncExp.find(Func) == FuncExp.cend()) {
     LOG(ERROR) << ErrCode::FuncNotFound;
+    LOG(ERROR) << ErrInfo::InfoExecuting("", Func);
     return Unexpect(ErrCode::FuncNotFound);
   }
   if (auto Res = InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second,
@@ -191,9 +192,18 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Func,
   const auto FuncExp = StoreRef.getFuncExports();
   if (FuncExp.find(Func) == FuncExp.cend()) {
     LOG(ERROR) << ErrCode::FuncNotFound;
+    LOG(ERROR) << ErrInfo::InfoExecuting("", Func);
     return Unexpect(ErrCode::FuncNotFound);
   }
-  return InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second, Params);
+
+  /// Execute function.
+  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second,
+                                          Params)) {
+    return Res;
+  } else {
+    LOG(ERROR) << ErrInfo::InfoExecuting("", Func);
+    return Unexpect(Res);
+  }
 }
 
 Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
@@ -204,16 +214,27 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
   if (auto Res = StoreRef.findModule(Mod)) {
     ModInst = *Res;
   } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoExecuting(Mod, Func);
     return Unexpect(Res);
   }
 
-  /// Get exports and fund function
+  /// Get exports and find function.
   const auto FuncExp = ModInst->getFuncExports();
   if (FuncExp.find(Func) == FuncExp.cend()) {
     LOG(ERROR) << ErrCode::FuncNotFound;
+    LOG(ERROR) << ErrInfo::InfoExecuting(Mod, Func);
     return Unexpect(ErrCode::FuncNotFound);
   }
-  return InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second, Params);
+
+  /// Execute function.
+  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second,
+                                          Params)) {
+    return Res;
+  } else {
+    LOG(ERROR) << ErrInfo::InfoExecuting(Mod, Func);
+    return Unexpect(Res);
+  }
 }
 
 void VM::cleanup() {

@@ -3,6 +3,7 @@
 find_package(Threads)
 find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}")
 list(APPEND CMAKE_MODULE_PATH ${LLVM_DIR})
+include(LLVMConfig)
 include(AddLLVM)
 
 find_library(LLVM_OPTION LLVMOption PATHS "${LLVM_LIBRARY_DIR}")

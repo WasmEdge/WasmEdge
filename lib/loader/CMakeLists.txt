@@ -8,6 +8,7 @@ add_library(ssvmLoaderFileMgr
 target_link_libraries(ssvmLoaderFileMgr
   PUBLIC
   dl
+  std::filesystem
 )
 
 target_include_directories(ssvmLoaderFileMgr
@@ -24,6 +25,8 @@ target_link_libraries(ssvmLoader
   ssvmAST
   ssvmLoaderFileMgr
   ssvmSupport
+  PUBLIC
+  std::filesystem
 )
 
 target_include_directories(ssvmLoader

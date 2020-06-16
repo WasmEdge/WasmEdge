@@ -93,7 +93,7 @@ static inline std::map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::WrongInstanceAddress, "wrong instance address"},
     {ErrCode::StackEmpty, "stack empty"},
     {ErrCode::InstrTypeMismatch, "instruction type mismatch"},
-    {ErrCode::FuncSigMismatch, "funcion signature mismatch"},
+    {ErrCode::FuncSigMismatch, "function signature mismatch"},
     {ErrCode::DivideByZero, "integer divide by zero"},
     {ErrCode::IntegerOverflow, "integer overflow"},
     {ErrCode::InvalidConvToInt, "invalid conversion to integer"},

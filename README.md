@@ -6,6 +6,8 @@
 * A hardware-optimized runtime for ONNX AI models. [ONNC compiler for AI](https://github.com/ONNC/onnc-wasm)
 * Smart contract runtime engine for leading blockchain platforms. [Polkadot/Substrate](https://github.com/second-state/substrate-ssvm-node) | [CyberMiles](https://docs.secondstate.io/devchain/getting-started/cybermiles-ewasm-testnet)
 
+![build](https://github.com/second-state/SSVM/workflows/build/badge.svg)
+
 
 # Getting Started
 
@@ -135,7 +137,7 @@ $ ./ssvm examples/factorial.wasm fac 5
 
 ## SSVM-EVMC
 
-[SSVM-EVMC](https://github.com/second-state/ssvm-napi) provides support for Ewasm runtime which is compatible with [EVMC](https://github.com/ethereum/evmc).
+[SSVM-EVMC](https://github.com/second-state/ssvm-evmc) provides support for Ewasm runtime which is compatible with [EVMC](https://github.com/ethereum/evmc).
 
 This project provides a shared library that can initialize and execute by the EVMC interface.
 

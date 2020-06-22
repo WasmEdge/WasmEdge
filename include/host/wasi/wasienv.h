@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include "support/span.h"
 #include "wasi/core.h"
 
 #include <algorithm>
-#include <boost/align/aligned_allocator.hpp>
-#include <dirent.h>
-#include <fcntl.h>
 #include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <unistd.h>
 #include <vector>
+
+#include <boost/align/aligned_allocator.hpp>
+
+#include <dirent.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 namespace SSVM {
 namespace Host {
@@ -49,10 +52,13 @@ public:
   WasiEnvironment();
   virtual ~WasiEnvironment() noexcept;
 
+  void init(Span<const std::string> Dirs, std::string ProgramName,
+            Span<const std::string> Args);
+
   int32_t getStatus() const { return Status; }
   void setStatus(int32_t S) { Status = S; }
-  std::vector<std::string> &getCmdArgs() { return CmdArgs; }
-  std::vector<std::string_view> &getEnvirons() { return Environs; }
+  const std::vector<std::string> &getCmdArgs() const { return CmdArgs; }
+  const std::vector<std::string_view> &getEnvirons() const { return Environs; }
   int getExitCode() const { return ExitCode; }
   void setExitCode(int ExitCode) { this->ExitCode = ExitCode; }
 

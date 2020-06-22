@@ -37,20 +37,7 @@ static inline constexpr const __wasi_rights_t kStdErrRights = kStdOutRights;
 namespace SSVM {
 namespace Host {
 
-WasiEnvironment::WasiEnvironment() {
-  using namespace std::string_view_literals;
-  FileArray.emplace_back(STDIN_FILENO, kStdInRights, 0, "/dev/stdin"sv);
-  FileArray.emplace_back(STDOUT_FILENO, kStdOutRights, 0, "/dev/stdout"sv);
-  FileArray.emplace_back(STDERR_FILENO, kStdErrRights, 0, "/dev/stderr"sv);
-  /// Open dir for WASI environment.
-  FileArray.emplace_back(open(".", O_RDONLY | O_DIRECTORY), kDirectoryRights,
-                         kInheritingDirectoryRights, "."sv);
-
-  for (size_t I = 0; environ[I] != nullptr; ++I) {
-    Environs.emplace_back(environ[I]);
-  }
-  Environs.shrink_to_fit();
-}
+WasiEnvironment::WasiEnvironment() {}
 
 WasiEnvironment::~WasiEnvironment() noexcept {
   for (const auto &File : FileArray) {
@@ -59,6 +46,34 @@ WasiEnvironment::~WasiEnvironment() noexcept {
       close(File.Fd);
     }
   }
+}
+
+void WasiEnvironment::init(Span<const std::string> Dirs,
+                           std::string ProgramName,
+                           Span<const std::string> Args) {
+  using namespace std::string_view_literals;
+  FileArray.clear();
+  FileArray.emplace_back(STDIN_FILENO, kStdInRights, 0, "/dev/stdin"sv);
+  FileArray.emplace_back(STDOUT_FILENO, kStdOutRights, 0, "/dev/stdout"sv);
+  FileArray.emplace_back(STDERR_FILENO, kStdErrRights, 0, "/dev/stderr"sv);
+  /// Open dir for WASI environment.
+  FileArray.emplace_back(open(".", O_RDONLY | O_DIRECTORY), kDirectoryRights,
+                         kInheritingDirectoryRights, "."sv);
+  for (const auto &Dir : Dirs) {
+    FileArray.emplace_back(open(Dir.c_str(), O_RDONLY | O_DIRECTORY),
+                           kDirectoryRights, kInheritingDirectoryRights, Dir);
+  }
+  FileArray.shrink_to_fit();
+
+  CmdArgs.resize(Args.size() + 1);
+  CmdArgs.front() = std::move(ProgramName);
+  std::copy(Args.begin(), Args.end(), CmdArgs.begin() + 1);
+  CmdArgs.shrink_to_fit();
+
+  for (size_t I = 0; environ[I] != nullptr; ++I) {
+    Environs.emplace_back(environ[I]);
+  }
+  Environs.shrink_to_fit();
 }
 
 } // namespace Host

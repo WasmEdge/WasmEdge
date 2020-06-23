@@ -30,7 +30,10 @@ public:
   HostFunctionBase(const uint64_t FuncCost) : Cost(FuncCost) {}
   virtual ~HostFunctionBase() = default;
 
-  virtual Expect<void> run(Instance::MemoryInstance &MemInst,
+  /// Run host function body.
+  /// Note: memory instance from module may be nullptr. Need to check if want to
+  /// use it in function body.
+  virtual Expect<void> run(Instance::MemoryInstance *MemInst,
                            Span<ValVariant> Args, Span<ValVariant> Rets) = 0;
 
   /// Getter of function type.
@@ -50,7 +53,7 @@ public:
     initializeFuncType();
   }
 
-  Expect<void> run(Instance::MemoryInstance &MemInst, Span<ValVariant> Args,
+  Expect<void> run(Instance::MemoryInstance *MemInst, Span<ValVariant> Args,
                    Span<ValVariant> Rets) override {
     using F = FuncTraits<decltype(&T::body)>;
     if (unlikely(F::ArgsN != Args.size())) {
@@ -64,7 +67,7 @@ public:
 
 protected:
   template <typename SpanA, typename SpanR>
-  Expect<void> invoke(Instance::MemoryInstance &MemInst, SpanA &&Args,
+  Expect<void> invoke(Instance::MemoryInstance *MemInst, SpanA &&Args,
                       SpanR &&Rets) {
     using F = FuncTraits<decltype(&T::body)>;
     using ArgsT = typename F::ArgsT;
@@ -106,7 +109,7 @@ private:
   };
   template <typename> struct FuncTraits;
   template <typename R, typename C, typename... A>
-  struct FuncTraits<Expect<R> (C::*)(Instance::MemoryInstance &, A...)> {
+  struct FuncTraits<Expect<R> (C::*)(Instance::MemoryInstance *, A...)> {
     using ArgsT = std::tuple<A...>;
     using RetsT = typename Wrap<R>::Type;
     static inline constexpr const std::size_t ArgsN = std::tuple_size_v<ArgsT>;
@@ -114,7 +117,7 @@ private:
     static inline constexpr const bool hasReturn = true;
   };
   template <typename C, typename... A>
-  struct FuncTraits<Expect<void> (C::*)(Instance::MemoryInstance &, A...)> {
+  struct FuncTraits<Expect<void> (C::*)(Instance::MemoryInstance *, A...)> {
     using ArgsT = std::tuple<A...>;
     static inline constexpr const std::size_t ArgsN = std::tuple_size_v<ArgsT>;
     static inline constexpr const std::size_t RetsN = 0;

@@ -698,6 +698,8 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     auto &HostFunc = Func.getHostFunc();
 
     /// Get memory instance from current frame.
+    /// It'll be nullptr if current frame is dummy frame or no memory instance
+    /// in current module.
     auto *MemoryInst = getMemInstByIdx(StoreMgr, 0);
 
     if (Measure) {
@@ -717,8 +719,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
 
-    /// FIXME: Pass memory instance pointer instead of reference and nullable.
-    auto Ret = HostFunc.run(*MemoryInst, std::move(Args), Rets);
+    auto Ret = HostFunc.run(MemoryInst, std::move(Args), Rets);
 
     for (size_t I = 0; I < ArgsN; ++I) {
       StackMgr.pop();
@@ -733,14 +734,12 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
       Measure->getTimeRecorder().startRecord(TIMER_TAG_EXECUTION);
     }
 
-    /// TODO: Fix this after refactoring HostFunctionBase.
     return Ret;
   } else if (auto CompiledFunc = Func.getSymbol()) {
-    /// Run host function.
+    /// Compiled function case: Push frame with locals and args.
     const size_t ArgsN = FuncType.Params.size();
     const size_t RetsN = FuncType.Returns.size();
 
-    /// Native function case: Push frame with locals and args.
     StackMgr.pushFrame(Func.getModuleAddr(), /// Module address
                        ArgsN,                /// Arity
                        RetsN                 /// Coarity

@@ -1,3 +1,28 @@
+### 0.6.1 (2020-06-24)
+
+Features:
+
+* Error Logging System
+  * Add information structures to print information when error occurs.
+  * Apply error logging in every phases.
+
+Refactor:
+* Internal tuple span mechanism
+  * Apply C++20 `span` features instead of `std::vector &`.
+* Internal string passing mechanism
+  * Apply C++17 `std::string_view` for passing strings.
+* Move enumeration definitions
+  * Add string mapping of types, instructions, and AST nodes.
+  * Move enumerations to SSVM top scope.
+* Memory instance passing in host functions
+  * Pass pointer instead of reference of memory instance to allow `nullptr`.
+
+Fixed Issues:
+* Instantiation Phase
+  * Fixed boundary checking bugs when initializing data sections.
+* Function invokation
+  * Add dummy frame when invoking function from VM.
+
 ### 0.6.0 (2020-06-08)
 
 Features:

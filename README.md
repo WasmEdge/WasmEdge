@@ -16,7 +16,7 @@
 ```bash
 $ git clone git@github.com:second-state/SSVM.git
 $ cd SSVM
-$ git checkout 0.5.1
+$ git checkout 0.6.1
 ```
 
 ## Prepare environment
@@ -98,11 +98,9 @@ To run SSVM with general wasm runtime, users will need to provide the following 
 $ cd tools/ssvm
 # ./ssvm wasm_file.wasm [exported_func_name] [args...]
 $ ./ssvm examples/fibonacci.wasm fib 10
-2020-04-01 12:31:56,042 INFO [default] Start running...
-2020-04-01 12:31:56,042 INFO [default] Execution succeeded.
-2020-04-01 12:31:56,042 INFO [default] Done.
-2020-04-01 12:31:56,042 INFO [default]
- =================  Statistics  =================
+2020-06-23 21:53:56,703 DEBUG [default] [ubuntu@unknown-host] [Expect<void> SSVM::Interpreter::Interpreter::runFunction(Runtime::StoreManager &, const Runtime::Instance::FunctionInstance &, Span<const SSVM::ValVariant>)] [/root/ssvm/lib/interpreter/engine/engine.cpp:100]  Execution succeeded.
+2020-06-23 21:53:56,703 DEBUG [default] [ubuntu@unknown-host] [Expect<void> SSVM::Interpreter::Interpreter::runFunction(Runtime::StoreManager &, const Runtime::Instance::FunctionInstance &, Span<const SSVM::ValVariant>)] [/root/ssvm/lib/interpreter/engine/engine.cpp:111]
+ ====================  Statistics  ====================
  Total execution time: 52 us
  Wasm instructions execution time: 52 us
  Host functions execution time: 0 us
@@ -118,11 +116,9 @@ $ ./ssvm examples/fibonacci.wasm fib 10
 ```bash
 # ./ssvm wasm_file.wasm [exported_func_name] [args...]
 $ ./ssvm examples/factorial.wasm fac 5
-2020-04-01 12:32:33,153 INFO [default] Start running...
-2020-04-01 12:32:33,153 INFO [default] Execution succeeded.
-2020-04-01 12:32:33,153 INFO [default] Done.
-2020-04-01 12:32:33,153 INFO [default]
- =================  Statistics  =================
+2020-06-23 21:56:14,706 DEBUG [default] [ubuntu@unknown-host] [Expect<void> SSVM::Interpreter::Interpreter::runFunction(Runtime::StoreManager &, const Runtime::Instance::FunctionInstance &, Span<const SSVM::ValVariant>)] [/root/ssvm/lib/interpreter/engine/engine.cpp:100]  Execution succeeded.
+2020-06-23 21:56:14,707 DEBUG [default] [ubuntu@unknown-host] [Expect<void> SSVM::Interpreter::Interpreter::runFunction(Runtime::StoreManager &, const Runtime::Instance::FunctionInstance &, Span<const SSVM::ValVariant>)] [/root/ssvm/lib/interpreter/engine/engine.cpp:111]
+ ====================  Statistics  ====================
  Total execution time: 49 us
  Wasm instructions execution time: 49 us
  Host functions execution time: 0 us

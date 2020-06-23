@@ -61,7 +61,7 @@ Loader::parseModule(std::string_view FilePath) {
     }
     if (auto Res = LMgr.getVersion()) {
       if (*Res != kVersion) {
-        /// TODO: Print information of unexpected version
+        LOG(ERROR) << ErrInfo::InfoMismatch(kVersion, *Res);
         return Unexpect(ErrCode::InvalidVersion);
       }
     } else {

@@ -124,8 +124,21 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoMismatch &Rhs) {
 }
 
 std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
-  OS << "    In instruction: " << OpCodeStr[Rhs.Code] << " ("
-     << Support::convertUIntToHexStr(uint32_t(Rhs.Code), 2)
+  OS << "    In instruction: ";
+  if (Rhs.HasSubOp) {
+    switch (Rhs.Code) {
+    case OpCode::Trunc_sat:
+      OS << OpCodeTruncSatStr[Rhs.SubOp];
+      break;
+    /// Preserved for 2-byte OpCode instructions in the future.
+    default:
+      break;
+    }
+  } else {
+    OS << OpCodeStr[Rhs.Code];
+  }
+
+  OS << " (" << Support::convertUIntToHexStr(uint32_t(Rhs.Code), 2)
      << ") , Bytecode offset: " << Support::convertUIntToHexStr(Rhs.Offset);
   if (Rhs.Args.size() > 0) {
     OS << " , Args: [";

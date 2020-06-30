@@ -268,6 +268,11 @@ Expect<void> MemoryInstruction::loadBinary(FileMgr &Mgr) {
     if (auto Res = Mgr.readByte()) {
       if (*Res == 0x00) {
         return {};
+      } else {
+        LOG(ERROR) << ErrCode::InvalidGrammar;
+        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+        return Unexpect(ErrCode::InvalidGrammar);
       }
     } else {
       LOG(ERROR) << Res.error();
@@ -348,6 +353,28 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
     return Unexpect(ErrCode::InvalidGrammar);
   }
 
+  return {};
+}
+
+/// Load binary of trunc instructions. See "include/common/ast/instruction.h".
+Expect<void> TruncSatNumericInstruction::loadBinary(FileMgr &Mgr) {
+  /// Read sub OpCode.
+  if (auto Res = Mgr.readByte()) {
+    SubOp = *Res;
+  } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+    return Unexpect(Res);
+  }
+
+  /// Check sub OpCode range.
+  if (SubOp > static_cast<uint8_t>(0x07U)) {
+    LOG(ERROR) << ErrCode::InvalidGrammar;
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+    return Unexpect(ErrCode::InvalidGrammar);
+  }
   return {};
 }
 

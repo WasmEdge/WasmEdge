@@ -838,6 +838,13 @@ public:
     case OpCode::F64__reinterpret_i64:
       Stack.back() = Builder.CreateBitCast(Stack.back(), Builder.getDoubleTy());
       break;
+    case OpCode::I32__extend8_s:
+    case OpCode::I32__extend16_s:
+    case OpCode::I64__extend8_s:
+    case OpCode::I64__extend16_s:
+    case OpCode::I64__extend32_s:
+      /// TODO: Implement this.
+      return Unexpect(ErrCode::ValidationFailed);
     default:
       __builtin_unreachable();
     }
@@ -1114,6 +1121,27 @@ public:
       Stack.back() = Builder.CreateBinaryIntrinsic(llvm::Intrinsic::copysign,
                                                    Stack.back(), RHS);
       break;
+    default:
+      __builtin_unreachable();
+    }
+    return {};
+  }
+  Expect<void> compile(const AST::TruncSatNumericInstruction &Instr) {
+    if (Instr.getOpCode() != OpCode::Trunc_sat) {
+      __builtin_unreachable();
+    }
+
+    switch (Instr.getSubOp()) {
+    case 0x00U:
+    case 0x01U:
+    case 0x02U:
+    case 0x03U:
+    case 0x04U:
+    case 0x05U:
+    case 0x06U:
+    case 0x07U:
+      /// TODO: Implement this.
+      return Unexpect(ErrCode::ValidationFailed);
     default:
       __builtin_unreachable();
     }

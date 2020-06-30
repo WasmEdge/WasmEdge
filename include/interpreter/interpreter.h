@@ -207,6 +207,8 @@ private:
                        const AST::UnaryNumericInstruction &Instr);
   Expect<void> execute(Runtime::StoreManager &StoreMgr,
                        const AST::BinaryNumericInstruction &Instr);
+  Expect<void> execute(Runtime::StoreManager &StoreMgr,
+                       const AST::TruncSatNumericInstruction &Instr);
   /// @}
 
   /// \name Helper Functions for block controls.
@@ -343,6 +345,8 @@ private:
   TypeFI<TIn, TOut> runTruncateOp(const AST::UnaryNumericInstruction &Instr,
                                   ValVariant &Val) const;
   template <typename TIn, typename TOut>
+  TypeFI<TIn, TOut> runTruncateSatOp(ValVariant &Val) const;
+  template <typename TIn, typename TOut, size_t B = sizeof(TIn) * 8>
   TypeIU<TIn, TOut> runExtendOp(ValVariant &Val) const;
   template <typename TIn, typename TOut>
   TypeIF<TIn, TOut> runConvertOp(ValVariant &Val) const;

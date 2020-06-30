@@ -344,6 +344,34 @@ public:
       : Instruction(Instr.Code, Instr.Offset) {}
 };
 
+/// Derived numeric instruction node.
+class TruncSatNumericInstruction : public Instruction {
+public:
+  /// Call base constructor to initialize OpCode.
+  TruncSatNumericInstruction(const OpCode Byte, const uint32_t Off = 0)
+      : Instruction(Byte, Off) {}
+  /// Copy constructor.
+  TruncSatNumericInstruction(const TruncSatNumericInstruction &Instr)
+      : Instruction(Instr.Code, Instr.Offset), SubOp(Instr.SubOp) {}
+
+  /// Load binary from file manager.
+  ///
+  /// Inheritted and overrided from Instruction.
+  /// Read the sub OpCode.
+  ///
+  /// \param Mgr the file manager reference.
+  ///
+  /// \returns void when success, ErrMsg when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
+
+  /// Getter of the constant value.
+  uint8_t getSubOp() const { return SubOp; }
+
+private:
+  /// Const value of this instruction.
+  uint8_t SubOp;
+};
+
 template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   switch (Code) {
     /// The OpCode::End and OpCode::Else will not make nodes.
@@ -461,6 +489,11 @@ template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   case OpCode::I64__reinterpret_f64:
   case OpCode::F32__reinterpret_i32:
   case OpCode::F64__reinterpret_i64:
+  case OpCode::I32__extend8_s:
+  case OpCode::I32__extend16_s:
+  case OpCode::I64__extend8_s:
+  case OpCode::I64__extend16_s:
+  case OpCode::I64__extend32_s:
     return Visitor(Support::tag<UnaryNumericInstruction>());
 
   case OpCode::I32__eq:
@@ -541,6 +574,9 @@ template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   case OpCode::F64__max:
   case OpCode::F64__copysign:
     return Visitor(Support::tag<BinaryNumericInstruction>());
+
+  case OpCode::Trunc_sat:
+    return Visitor(Support::tag<TruncSatNumericInstruction>());
 
   default:
     return Visitor(Support::tag<void>());

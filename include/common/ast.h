@@ -261,7 +261,13 @@ enum class OpCode : uint8_t {
   I32__reinterpret_f32 = 0xBC,
   I64__reinterpret_f64 = 0xBD,
   F32__reinterpret_i32 = 0xBE,
-  F64__reinterpret_i64 = 0xBF
+  F64__reinterpret_i64 = 0xBF,
+  I32__extend8_s = 0xC0,
+  I32__extend16_s = 0xC1,
+  I64__extend8_s = 0xC2,
+  I64__extend16_s = 0xC3,
+  I64__extend32_s = 0xC4,
+  Trunc_sat = 0xFC
 };
 
 /// Instruction opcode enumeration string mapping.
@@ -446,6 +452,18 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::I32__reinterpret_f32, "i32.reinterpret_f32"},
     {OpCode::I64__reinterpret_f64, "i64.reinterpret_f64"},
     {OpCode::F32__reinterpret_i32, "f32.reinterpret_i32"},
-    {OpCode::F64__reinterpret_i64, "f64.reinterpret_i64"}};
+    {OpCode::F64__reinterpret_i64, "f64.reinterpret_i64"},
+    {OpCode::I32__extend8_s, "i32.extend8_s"},
+    {OpCode::I32__extend16_s, "i32.extend16_s"},
+    {OpCode::I64__extend8_s, "i64.extend8_s"},
+    {OpCode::I64__extend16_s, "i64.extend16_s"},
+    {OpCode::I64__extend32_s, "i64.extend32_s"},
+    {OpCode::Trunc_sat, "trunc_sat"}};
+
+static inline std::unordered_map<uint8_t, std::string> OpCodeTruncSatStr = {
+    {0x00U, "i32.trunc_sat_f32_s"}, {0x01U, "i32.trunc_sat_f32_u"},
+    {0x02U, "i32.trunc_sat_f64_s"}, {0x03U, "i32.trunc_sat_f64_u"},
+    {0x04U, "i64.trunc_sat_f32_s"}, {0x05U, "i64.trunc_sat_f32_u"},
+    {0x06U, "i64.trunc_sat_f64_s"}, {0x07U, "i64.trunc_sat_f64_u"}};
 
 } // namespace SSVM

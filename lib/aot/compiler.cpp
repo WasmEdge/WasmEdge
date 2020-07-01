@@ -17,6 +17,7 @@
 
 #if LLVM_VERSION_MAJOR >= 10
 #include <llvm/IR/IntrinsicsX86.h>
+#include <llvm/IR/IntrinsicsAArch64.h>
 #include <llvm/Support/Alignment.h>
 #endif
 
@@ -165,7 +166,7 @@ struct SSVM::AOT::Compiler::CompileContext {
                   .Cases("avx512f", "avx", "sse4.1", true)
 #endif
 #if defined(__arm__) || defined(__aarch64__)
-                  .Cases("neon", true)
+                  .Case("neon", true)
 #endif
                   .Default(false)) {
             SupportRoundeven = true;

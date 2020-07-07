@@ -56,16 +56,33 @@ public:
   auto &getGlobals() { return Globals; }
   uint32_t getNumImportGlobals() const { return NumImportGlobals; }
 
-private:
   struct CtrlFrame {
-    std::vector<VType> LabelTypes;
+    CtrlFrame() = default;
+    CtrlFrame(struct CtrlFrame &&F)
+        : StartTypes(std::move(F.StartTypes)), EndTypes(std::move(F.EndTypes)),
+          Height(F.Height), IsUnreachable(F.IsUnreachable), IsLoop(F.IsLoop) {}
+    CtrlFrame(const struct CtrlFrame &F)
+        : StartTypes(F.StartTypes), EndTypes(F.EndTypes), Height(F.Height),
+          IsUnreachable(F.IsUnreachable), IsLoop(F.IsLoop) {}
+    CtrlFrame(Span<const VType> In, Span<const VType> Out, size_t H,
+              bool IsLoopOp = false)
+        : StartTypes(In.begin(), In.end()), EndTypes(Out.begin(), Out.end()),
+          Height(H), IsUnreachable(false), IsLoop(IsLoopOp) {}
+    std::vector<VType> StartTypes;
     std::vector<VType> EndTypes;
     size_t Height;
     bool IsUnreachable;
+    bool IsLoop;
   };
 
-  /// Instruction iteration
+private:
+  /// Checking function
+  Expect<void> checkFunc(const AST::InstrVec &Instrs);
+
+  /// Checking expression
   Expect<void> checkInstrs(const AST::InstrVec &Instrs);
+
+  /// Instruction iteration
   Expect<void> checkInstr(const AST::ControlInstruction &Instr);
   Expect<void> checkInstr(const AST::BlockControlInstruction &Instr);
   Expect<void> checkInstr(const AST::IfElseControlInstruction &Instr);
@@ -89,8 +106,10 @@ private:
   Expect<VType> popType();
   Expect<VType> popType(VType E);
   Expect<void> popTypes(Span<const VType> Input);
-  void pushCtrl(Span<const VType> Label, Span<const VType> Out);
-  Expect<std::vector<VType>> popCtrl();
+  void pushCtrl(Span<const VType> Label, Span<const VType> Out,
+                bool IsLoopOp = false);
+  Expect<CtrlFrame> popCtrl();
+  Span<const VType> getLabelTypes(const CtrlFrame &F);
   Expect<void> unreachable();
   Expect<void> StackTrans(Span<const VType> Take, Span<const VType> Put);
 

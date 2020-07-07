@@ -26,8 +26,7 @@ Expect<void> FormChecker::validate(const AST::InstrVec &Instrs,
   for (ValType Val : RetVals) {
     Returns.push_back(ASTToVType(Val));
   }
-  pushCtrl(Returns, Returns);
-  return checkInstrs(Instrs);
+  return checkFunc(Instrs);
 }
 
 Expect<void> FormChecker::validate(const AST::InstrVec &Instrs,
@@ -35,8 +34,7 @@ Expect<void> FormChecker::validate(const AST::InstrVec &Instrs,
   for (VType Val : RetVals) {
     Returns.push_back(Val);
   }
-  pushCtrl(Returns, Returns);
-  return checkInstrs(Instrs);
+  return checkFunc(Instrs);
 }
 
 void FormChecker::addType(const AST::FunctionType &Func) {
@@ -94,23 +92,37 @@ VType FormChecker::ASTToVType(const ValType &V) {
   }
 }
 
+Expect<void> FormChecker::checkFunc(const AST::InstrVec &Instrs) {
+  /// Push ctrl frame ([] -> [Returns])
+  pushCtrl({}, Returns);
+  if (auto Res = checkInstrs(Instrs); !Res) {
+    return Unexpect(Res);
+  }
+  /// Pop ctrl frame
+  if (auto Res = popCtrl(); !Res) {
+    return Unexpect(Res);
+  }
+  return {};
+}
+
 Expect<void> FormChecker::checkInstrs(const AST::InstrVec &Instrs) {
+  /// Validate instructions
   for (auto &Instr : Instrs) {
-    OpCode Code = Instr->getOpCode();
-    auto Res = AST::dispatchInstruction(
-        Code, [this, &Instr](auto &&Arg) -> Expect<void> {
-          if constexpr (std::is_void_v<
-                            typename std::decay_t<decltype(Arg)>::type>) {
-            /// If the Code not matched, validation failed.
-            return Unexpect(ErrCode::ValidationFailed);
-          } else {
-            /// Check the corresponding instruction.
-            return checkInstr(
-                *static_cast<typename std::decay_t<decltype(Arg)>::type *>(
-                    Instr.get()));
-          }
-        });
-    if (!Res) {
+    if (auto Res = AST::dispatchInstruction(
+            Instr->getOpCode(),
+            [this, &Instr](auto &&Arg) -> Expect<void> {
+              if constexpr (std::is_void_v<
+                                typename std::decay_t<decltype(Arg)>::type>) {
+                /// If the Code not matched, validation failed.
+                return Unexpect(ErrCode::ValidationFailed);
+              } else {
+                /// Check the corresponding instruction.
+                return checkInstr(
+                    *static_cast<typename std::decay_t<decltype(Arg)>::type *>(
+                        Instr.get()));
+              }
+            });
+        !Res) {
       return Unexpect(Res);
     }
   }
@@ -136,31 +148,51 @@ Expect<void> FormChecker::checkInstr(const AST::ControlInstruction &Instr) {
 
 Expect<void>
 FormChecker::checkInstr(const AST::BlockControlInstruction &Instr) {
-  /// Get blocktype [t*]
+  /// Get blocktype [t1*] -> [t2*]
   std::vector<VType> ResVec;
-  if (Instr.getResultType() != ValType::None) {
-    ResVec.emplace_back(ASTToVType(Instr.getResultType()));
+  Span<const VType> T1, T2;
+  if (std::holds_alternative<ValType>(Instr.getBlockType())) {
+    /// ValType case. t2* = valtype | none
+    ValType RetType = std::get<ValType>(Instr.getBlockType());
+    if (RetType != ValType::None) {
+      ResVec.emplace_back(ASTToVType(RetType));
+    }
+    T1 = {};
+    T2 = ResVec;
+  } else {
+    /// Type index case. t2* = type[index].returns
+    uint32_t TypeIdx = std::get<uint32_t>(Instr.getBlockType());
+    if (Types.size() <= TypeIdx) {
+      /// Function type index out of range.
+      return Unexpect(ErrCode::ValidationFailed);
+    }
+    T1 = Types[TypeIdx].first;
+    T2 = Types[TypeIdx].second;
   }
+
+  /// Check type transformation
   switch (Instr.getOpCode()) {
-  case OpCode::Block: {
-    /// Push ctrl frame ([t*], [t*])
-    pushCtrl(ResVec, ResVec);
+  case OpCode::Block:
+  case OpCode::Loop:
+    /// Pop and check [t1*]
+    if (auto Res = popTypes(T1); !Res) {
+      return Unexpect(Res);
+    }
+    /// Push ctrl frame ([t1*], [t2*])
+    pushCtrl(T1, T2, (Instr.getOpCode() == OpCode::Loop));
     break;
-  }
-  case OpCode::Loop: {
-    /// Push ctrl frame ([], [t*])
-    pushCtrl({}, ResVec);
-    break;
-  }
   default:
     return Unexpect(ErrCode::ValidationFailed);
   }
+
   /// Check block body
   if (auto Res = checkInstrs(Instr.getBody()); !Res) {
     return Unexpect(Res);
   }
+
+  /// End of block body
   if (auto Res = popCtrl()) {
-    pushTypes(*Res);
+    pushTypes((*Res).EndTypes);
   } else {
     return Unexpect(Res);
   }
@@ -171,31 +203,57 @@ Expect<void>
 FormChecker::checkInstr(const AST::IfElseControlInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::If: {
-    /// Get blocktype [t*]
+    /// Get blocktype [t1*] -> [t2*]
     std::vector<VType> ResVec;
-    if (Instr.getResultType() != ValType::None) {
-      ResVec.emplace_back(ASTToVType(Instr.getResultType()));
+    Span<const VType> T1, T2;
+    if (std::holds_alternative<ValType>(Instr.getBlockType())) {
+      /// ValType case. t2* = valtype | none
+      ValType RetType = std::get<ValType>(Instr.getBlockType());
+      if (RetType != ValType::None) {
+        ResVec.emplace_back(ASTToVType(RetType));
+      }
+      T1 = {};
+      T2 = ResVec;
+    } else {
+      /// Type index case. t2* = type[index].returns
+      uint32_t TypeIdx = std::get<uint32_t>(Instr.getBlockType());
+      if (Types.size() <= TypeIdx) {
+        /// Function type index out of range.
+        return Unexpect(ErrCode::ValidationFailed);
+      }
+      T1 = Types[TypeIdx].first;
+      T2 = Types[TypeIdx].second;
     }
+
     /// Pop I32
-    popType(VType::I32);
-    /// Push ctrl frame ([t*], [t*]) and check body
-    pushCtrl(ResVec, ResVec);
+    if (auto Res = popType(VType::I32); !Res) {
+      return Unexpect(ErrCode::ValidationFailed);
+    }
+    /// Pop and check [t1*]
+    if (auto Res = popTypes(T1); !Res) {
+      return Unexpect(Res);
+    }
+    /// Push ctrl frame ([t1*], [t2*])
+    pushCtrl(T1, T2);
+
+    /// Check `if` body.
     if (auto Res = checkInstrs(Instr.getIfStatement()); !Res) {
       return Unexpect(Res);
     }
-    /// Else case, push ctrl frame (Results, Results) and check body
-    if (Instr.getElseStatement().size() > 0) {
-      if (auto Results = popCtrl()) {
-        pushCtrl(*Results, *Results);
-        if (auto Res = checkInstrs(Instr.getElseStatement()); !Res) {
-          return Unexpect(Res);
-        }
-      } else {
-        return Unexpect(Results);
+
+    /// Check `else` body.
+    if (auto Frame = popCtrl()) {
+      pushCtrl((*Frame).StartTypes, (*Frame).EndTypes);
+      if (auto Res = checkInstrs(Instr.getElseStatement()); !Res) {
+        return Unexpect(Res);
       }
+    } else {
+      return Unexpect(Frame);
     }
+
+    /// End of `if-else` statement.
     if (auto Res = popCtrl()) {
-      pushTypes(*Res);
+      pushTypes((*Res).EndTypes);
     } else {
       return Unexpect(Res);
     }
@@ -215,7 +273,7 @@ Expect<void> FormChecker::checkInstr(const AST::BrControlInstruction &Instr) {
   }
   switch (Instr.getOpCode()) {
   case OpCode::Br: {
-    if (auto Res = popTypes(CtrlStack[N].LabelTypes); !Res) {
+    if (auto Res = popTypes(getLabelTypes(CtrlStack[N])); !Res) {
       return Unexpect(Res);
     }
     return unreachable();
@@ -224,10 +282,10 @@ Expect<void> FormChecker::checkInstr(const AST::BrControlInstruction &Instr) {
     if (auto Res = popType(VType::I32); !Res) {
       return Unexpect(Res);
     }
-    if (auto Res = popTypes(CtrlStack[N].LabelTypes); !Res) {
+    if (auto Res = popTypes(getLabelTypes(CtrlStack[N])); !Res) {
       return Unexpect(Res);
     }
-    pushTypes(CtrlStack[N].LabelTypes);
+    pushTypes(getLabelTypes(CtrlStack[N]));
     return {};
   }
   default:
@@ -246,13 +304,14 @@ FormChecker::checkInstr(const AST::BrTableControlInstruction &Instr) {
       return Unexpect(ErrCode::ValidationFailed);
     }
     for (auto &N : Instr.getLabelTable()) {
-      // Error_if(ctrls.size() < n || ctrls[n].label_types =/=
-      // ctrls[m].label_types)
       if (CtrlStack.size() <= N) {
         /// Branch out of stack
         return Unexpect(ErrCode::ValidationFailed);
       }
-      if (CtrlStack[N].LabelTypes != CtrlStack[M].LabelTypes) {
+      Span<const VType> NSpan = getLabelTypes(CtrlStack[N]);
+      Span<const VType> MSpan = getLabelTypes(CtrlStack[M]);
+      if (std::vector<VType>(NSpan.begin(), NSpan.end()) !=
+          std::vector<VType>(MSpan.begin(), MSpan.end())) {
         /// CtrlStack[N].label_types != CtrlStack[M].label_types
         return Unexpect(ErrCode::ValidationFailed);
       }
@@ -260,7 +319,7 @@ FormChecker::checkInstr(const AST::BrTableControlInstruction &Instr) {
     if (auto Res = popType(VType::I32); !Res) {
       return Unexpect(Res);
     }
-    if (auto Res = popTypes(CtrlStack[M].LabelTypes); !Res) {
+    if (auto Res = popTypes(getLabelTypes(CtrlStack[M])); !Res) {
       return Unexpect(Res);
     }
     return unreachable();
@@ -761,30 +820,34 @@ Expect<void> FormChecker::popTypes(Span<const VType> Input) {
   return {};
 }
 
-void FormChecker::pushCtrl(Span<const VType> Label, Span<const VType> Out) {
-  CtrlFrame Frame = {.LabelTypes = {Label.begin(), Label.end()},
-                     .EndTypes = {Out.begin(), Out.end()},
-                     .Height = ValStack.size(),
-                     .IsUnreachable = false};
-  CtrlStack.emplace_front(Frame);
+void FormChecker::pushCtrl(Span<const VType> In, Span<const VType> Out,
+                           bool IsLoopOp) {
+  CtrlStack.emplace_front(In, Out, ValStack.size(), IsLoopOp);
+  pushTypes(In);
 }
 
-Expect<std::vector<VType>> FormChecker::popCtrl() {
+Expect<FormChecker::CtrlFrame> FormChecker::popCtrl() {
   if (CtrlStack.empty()) {
     /// Ctrl stack is empty when pop.
     return Unexpect(ErrCode::ValidationFailed);
   }
-  auto Head = CtrlStack.front();
-  auto ResTypes = Head.EndTypes;
-  if (auto Res = popTypes(ResTypes); !Res) {
+  if (auto Res = popTypes(CtrlStack.front().EndTypes); !Res) {
     return Unexpect(Res);
   }
-  if (ValStack.size() != Head.Height) {
+  if (ValStack.size() != CtrlStack.front().Height) {
     /// Value stack size not matched.
     return Unexpect(ErrCode::ValidationFailed);
   }
+  auto Head = std::move(CtrlStack.front());
   CtrlStack.pop_front();
-  return Head.EndTypes;
+  return Head;
+}
+
+Span<const VType> FormChecker::getLabelTypes(const FormChecker::CtrlFrame &F) {
+  if (F.IsLoop) {
+    return F.StartTypes;
+  }
+  return F.EndTypes;
 }
 
 Expect<void> FormChecker::unreachable() {

@@ -4,7 +4,7 @@ include(FetchContent)
 FetchContent_Declare(
   ssvm_unit_test
   GIT_REPOSITORY https://github.com/second-state/ssvm-unittest.git
-  GIT_TAG origin/master
+  GIT_TAG wasm-1.1
 )
 
 FetchContent_GetProperties(ssvm_unit_test)

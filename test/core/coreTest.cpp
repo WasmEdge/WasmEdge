@@ -236,6 +236,29 @@ bool unexpectInvoke(std::map<std::string, std::string> &Alias,
   return true;
 }
 
+/// Helper function to validate modules
+bool unexpectValidate(std::string &FileName, SSVM::VM::VM &VM,
+                      rapidjson::Value::ConstMemberIterator ItMsg) {
+  SSVM::ErrCode Code;
+  if (!VM.loadWasm(FileName)) {
+    return false;
+  }
+  if (auto Res = VM.validate()) {
+    return false;
+  } else {
+    Code = static_cast<SSVM::ErrCode>(Res.error());
+  }
+
+  if (SSVM::ErrCodeStr[Code].rfind(ItMsg->value.GetString(), 0) != 0) {
+    std::cout << "   ##### expected text : " << ItMsg->value.GetString()
+              << std::endl;
+    std::cout << "   ######## error text : " << SSVM::ErrCodeStr[Code]
+              << std::endl;
+    return false;
+  }
+  return true;
+}
+
 /// Helper function to instantiate modules
 bool unexpectInstantiate(std::string &FileName, SSVM::VM::VM &VM,
                          rapidjson::Value::ConstMemberIterator ItMsg) {
@@ -361,17 +384,11 @@ bool TestCommand(const std::string &UnitName, std::string &LastModName,
     /// TODO: Add processing binary cases.
     return true;
   } else if (CmdType == "assert_invalid") {
-    /// TODO: Fix validator for passing all tests.
-    /*
     std::string FileName = TestSuiteRoot + "/" + UnitName + "/" +
                            ItCmd->GetObject()["filename"].GetString();
-    if (VM.loadWasm(FileName)) {
-      if (VM.validate()) {
-        return false;
-      }
-    }
-    */
-    return true;
+    rapidjson::Value::ConstMemberIterator ItText =
+        ItCmd->GetObject().FindMember("text");
+    return unexpectValidate(FileName, VM, ItText);
   } else if (CmdType == "assert_unlinkable" ||
              CmdType == "assert_uninstantiable") {
     std::string FileName = TestSuiteRoot + "/" + UnitName + "/" +

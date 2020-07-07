@@ -163,9 +163,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
                                   const AST::BlockControlInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::Block:
-    return runBlockOp(Instr);
+    return runBlockOp(StoreMgr, Instr);
   case OpCode::Loop:
-    return runLoopOp(Instr);
+    return runLoopOp(StoreMgr, Instr);
   default:
     LOG(ERROR) << ErrCode::InstrTypeMismatch;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
@@ -178,7 +178,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
                                   const AST::IfElseControlInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::If:
-    return runIfElseOp(Instr);
+    return runIfElseOp(StoreMgr, Instr);
   default:
     LOG(ERROR) << ErrCode::InstrTypeMismatch;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
@@ -191,9 +191,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
                                   const AST::BrControlInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::Br:
-    return runBrOp(Instr);
+    return runBrOp(StoreMgr, Instr);
   case OpCode::Br_if:
-    return runBrIfOp(Instr);
+    return runBrIfOp(StoreMgr, Instr);
   default:
     LOG(ERROR) << ErrCode::InstrTypeMismatch;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
@@ -206,7 +206,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
                                   const AST::BrTableControlInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::Br_table:
-    return runBrTableOp(Instr);
+    return runBrTableOp(StoreMgr, Instr);
   default:
     LOG(ERROR) << ErrCode::InstrTypeMismatch;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
@@ -717,20 +717,19 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr) {
   return {};
 }
 
-Expect<void> Interpreter::enterBlock(const uint32_t Arity,
+Expect<void> Interpreter::enterBlock(const uint32_t Locals,
+                                     const uint32_t Arity,
                                      const AST::BlockControlInstruction *Instr,
                                      const AST::InstrVec &Seq) {
-  /// Create label for block and push.
-  StackMgr.pushLabel(Arity, Instr);
-
-  /// Jump to block body.
+  /// Create and push label for block and jump to block body.
+  StackMgr.pushLabel(Locals, Arity, Instr);
   InstrPdr.pushInstrs(InstrProvider::SeqType::Block, Seq);
   return {};
 }
 
 Expect<void> Interpreter::leaveBlock() {
   /// Pop label entry and the corresponding instruction sequence.
-  StackMgr.popLabel();
+  StackMgr.leaveLabel();
   InstrPdr.popInstrs();
   return {};
 }
@@ -753,6 +752,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     if (Measure) {
       /// Check host function cost.
       if (!Measure->addCost(HostFunc.getCost())) {
+        LOG(ERROR) << ErrCode::CostLimitExceeded;
         return Unexpect(ErrCode::CostLimitExceeded);
       }
       /// Start recording time of running host function.
@@ -763,12 +763,11 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     /// Run host function.
     const size_t ArgsN = FuncType.Params.size();
     const size_t RetsN = FuncType.Returns.size();
-
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
-
     auto Ret = HostFunc.run(MemoryInst, std::move(Args), Rets);
 
+    /// Push returns back to stack.
     for (size_t I = 0; I < ArgsN; ++I) {
       StackMgr.pop();
     }
@@ -782,6 +781,9 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
       Measure->getTimeRecorder().startRecord(TimerTag::Execution);
     }
 
+    if (!Ret && Ret.error() == ErrCode::ExecutionFailed) {
+      LOG(ERROR) << Ret.error();
+    }
     return Ret;
   } else if (auto CompiledFunc = Func.getSymbol()) {
     /// Compiled function case: Push frame with locals and args.
@@ -789,8 +791,8 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     const size_t RetsN = FuncType.Returns.size();
 
     StackMgr.pushFrame(Func.getModuleAddr(), /// Module address
-                       ArgsN,                /// Arity
-                       RetsN                 /// Coarity
+                       ArgsN,                /// Arguments num
+                       RetsN                 /// Returns num
     );
 
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
@@ -812,8 +814,8 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
   } else {
     /// Native function case: Push frame with locals and args.
     StackMgr.pushFrame(Func.getModuleAddr(),   /// Module address
-                       FuncType.Params.size(), /// Arity
-                       FuncType.Returns.size() /// Coarity
+                       FuncType.Params.size(), /// Arguments num
+                       FuncType.Returns.size() /// Returns num
     );
 
     /// Push local variables to stack.
@@ -826,8 +828,8 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     /// Push function body to instruction provider.
     InstrPdr.pushInstrs(InstrProvider::SeqType::FunctionCall);
 
-    /// Enter function block.
-    return enterBlock(FuncType.Returns.size(), nullptr, Func.getInstrs());
+    /// Enter function block []->[returns] with label{none}.
+    return enterBlock(0, FuncType.Returns.size(), nullptr, Func.getInstrs());
   }
 }
 
@@ -841,10 +843,10 @@ Expect<void> Interpreter::leaveFunction() {
   return {};
 }
 
-Expect<void> Interpreter::branchToLabel(const uint32_t Cnt) {
+Expect<void> Interpreter::branchToLabel(Runtime::StoreManager &StoreMgr,
+                                        const uint32_t Cnt) {
   /// Get the L-th label from top of stack and the continuation instruction.
-  auto &L = StackMgr.getLabelWithCount(Cnt);
-  const AST::BlockControlInstruction *ContInstr = L.Target;
+  const auto *ContInstr = StackMgr.getLabelWithCount(Cnt).Target;
 
   /// Pop L + 1 labels.
   StackMgr.popLabel(Cnt + 1);
@@ -857,7 +859,7 @@ Expect<void> Interpreter::branchToLabel(const uint32_t Cnt) {
 
   /// Jump to the continuation of Label
   if (ContInstr != nullptr) {
-    return runLoopOp(*ContInstr);
+    return runLoopOp(StoreMgr, *ContInstr);
   }
   return {};
 }

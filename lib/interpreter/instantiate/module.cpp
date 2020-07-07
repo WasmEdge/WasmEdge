@@ -94,8 +94,8 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Initialize the tables and memories
   /// Make a new frame {ModInst, locals:none} and push
   StackMgr.pushFrame(ModInst->Addr, /// Module address
-                     0,             /// Arity
-                     0              /// Coarity
+                     0,             /// Arguments num
+                     0              /// Returns num
   );
   std::vector<uint32_t> ElemOffsets, DataOffsets;
 

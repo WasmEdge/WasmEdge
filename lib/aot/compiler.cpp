@@ -839,12 +839,30 @@ public:
       Stack.back() = Builder.CreateBitCast(Stack.back(), Builder.getDoubleTy());
       break;
     case OpCode::I32__extend8_s:
+      Stack.back() = Builder.CreateSExt(
+          Builder.CreateTrunc(Stack.back(), Builder.getInt8Ty()),
+          Builder.getInt32Ty());
+      break;
     case OpCode::I32__extend16_s:
+      Stack.back() = Builder.CreateSExt(
+          Builder.CreateTrunc(Stack.back(), Builder.getInt16Ty()),
+          Builder.getInt32Ty());
+      break;
     case OpCode::I64__extend8_s:
+      Stack.back() = Builder.CreateSExt(
+          Builder.CreateTrunc(Stack.back(), Builder.getInt8Ty()),
+          Builder.getInt64Ty());
+      break;
     case OpCode::I64__extend16_s:
+      Stack.back() = Builder.CreateSExt(
+          Builder.CreateTrunc(Stack.back(), Builder.getInt16Ty()),
+          Builder.getInt64Ty());
+      break;
     case OpCode::I64__extend32_s:
-      /// TODO: Implement this.
-      return Unexpect(ErrCode::ValidationFailed);
+      Stack.back() = Builder.CreateSExt(
+          Builder.CreateTrunc(Stack.back(), Builder.getInt32Ty()),
+          Builder.getInt64Ty());
+      break;
     default:
       __builtin_unreachable();
     }
@@ -1126,22 +1144,128 @@ public:
     }
     return {};
   }
+  void compileSignedTruncSat(llvm::ConstantFP *MinFp, llvm::ConstantFP *MaxFp,
+                             llvm::ConstantInt *MinInt,
+                             llvm::ConstantInt *MaxInt) {
+    llvm::BasicBlock *CurrBB = Builder.GetInsertBlock();
+    llvm::BasicBlock *NormBB =
+        llvm::BasicBlock::Create(VMContext, "sats.norm", F);
+    llvm::BasicBlock *NotMinBB =
+        llvm::BasicBlock::Create(VMContext, "sats.notmin", F);
+    llvm::BasicBlock *NotMaxBB =
+        llvm::BasicBlock::Create(VMContext, "sats.notmax", F);
+    llvm::BasicBlock *EndBB =
+        llvm::BasicBlock::Create(VMContext, "sats.end", F);
+    llvm::Value *Value = Stack.back();
+
+    Builder.CreateCondBr(Builder.CreateFCmpORD(Value, Value), NormBB, EndBB,
+                         Context.Likely);
+
+    Builder.SetInsertPoint(NormBB);
+    Builder.CreateCondBr(Builder.CreateFCmpUGT(Value, MinFp), NotMinBB, EndBB,
+                         Context.Likely);
+
+    Builder.SetInsertPoint(NotMinBB);
+    Builder.CreateCondBr(Builder.CreateFCmpULT(Value, MaxFp), NotMaxBB, EndBB,
+                         Context.Likely);
+
+    Builder.SetInsertPoint(NotMaxBB);
+    llvm::Type *Ty = MaxInt->getType();
+    llvm::Value *IntValue = Builder.CreateFPToSI(Value, Ty);
+    Builder.CreateBr(EndBB);
+
+    Builder.SetInsertPoint(EndBB);
+    llvm::PHINode *PHIRet = Builder.CreatePHI(Ty, 4);
+    PHIRet->addIncoming(llvm::ConstantInt::get(Ty, 0), CurrBB);
+    PHIRet->addIncoming(MinInt, NormBB);
+    PHIRet->addIncoming(MaxInt, NotMinBB);
+    PHIRet->addIncoming(IntValue, NotMaxBB);
+
+    Stack.back() = PHIRet;
+  }
+  void compileUnsignedTruncSat(llvm::ConstantFP *MaxFp,
+                               llvm::ConstantInt *MaxInt) {
+    llvm::BasicBlock *CurrBB = Builder.GetInsertBlock();
+    llvm::BasicBlock *NormBB =
+        llvm::BasicBlock::Create(VMContext, "sats.norm", F);
+    llvm::BasicBlock *NotMaxBB =
+        llvm::BasicBlock::Create(VMContext, "sats.notmax", F);
+    llvm::BasicBlock *EndBB =
+        llvm::BasicBlock::Create(VMContext, "sats.end", F);
+    llvm::Value *Value = Stack.back();
+
+    Builder.CreateCondBr(
+        Builder.CreateFCmpOGT(Value,
+                              llvm::ConstantFP::get(Value->getType(), 0.0)),
+        NormBB, EndBB, Context.Likely);
+
+    Builder.SetInsertPoint(NormBB);
+    Builder.CreateCondBr(Builder.CreateFCmpOLT(Value, MaxFp), NotMaxBB, EndBB,
+                         Context.Likely);
+
+    Builder.SetInsertPoint(NotMaxBB);
+    llvm::Type *Ty = MaxInt->getType();
+    llvm::Value *IntValue = Builder.CreateFPToSI(Value, Ty);
+    Builder.CreateBr(EndBB);
+
+    Builder.SetInsertPoint(EndBB);
+    llvm::PHINode *PHIRet = Builder.CreatePHI(Ty, 3);
+    PHIRet->addIncoming(llvm::ConstantInt::get(Ty, 0), CurrBB);
+    PHIRet->addIncoming(MaxInt, NormBB);
+    PHIRet->addIncoming(IntValue, NotMaxBB);
+
+    Stack.back() = PHIRet;
+  }
   Expect<void> compile(const AST::TruncSatNumericInstruction &Instr) {
     if (Instr.getOpCode() != OpCode::Trunc_sat) {
       __builtin_unreachable();
     }
 
     switch (Instr.getSubOp()) {
-    case 0x00U:
-    case 0x01U:
-    case 0x02U:
-    case 0x03U:
-    case 0x04U:
-    case 0x05U:
-    case 0x06U:
-    case 0x07U:
-      /// TODO: Implement this.
-      return Unexpect(ErrCode::ValidationFailed);
+    case 0x00U: // i32.trunc_sat_f32_s
+      compileSignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+31f)),
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+31f)),
+          Builder.getInt32(INT32_MIN), Builder.getInt32(INT32_MAX));
+      break;
+    case 0x01U: // i32.trunc_sat_f32_u
+      compileUnsignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+32f)),
+          Builder.getInt32(UINT32_MAX));
+      break;
+    case 0x02U: // i32.trunc_sat_f64_s
+      compileSignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+31)),
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+31)),
+          Builder.getInt32(INT32_MIN), Builder.getInt32(INT32_MAX));
+      break;
+    case 0x03U: // i32.trunc_sat_f64_u
+      compileUnsignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+32)),
+          Builder.getInt32(UINT32_MAX));
+      break;
+    case 0x04U: // i64.trunc_sat_f32_s
+      compileSignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+63f)),
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+63f)),
+          Builder.getInt64(INT64_MIN), Builder.getInt64(INT64_MAX));
+      break;
+    case 0x05U: // i64.trunc_sat_f32_u
+      compileUnsignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+64f)),
+          Builder.getInt64(UINT64_MAX));
+      break;
+    case 0x06U: // i64.trunc_sat_f64_s
+      compileSignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+63)),
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+63)),
+          Builder.getInt64(INT64_MIN), Builder.getInt64(INT64_MAX));
+      break;
+    case 0x07U: // i64.trunc_sat_f64_u
+      compileUnsignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+64)),
+          Builder.getInt64(UINT64_MAX));
+      break;
     default:
       __builtin_unreachable();
     }

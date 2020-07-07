@@ -8,7 +8,7 @@ namespace AST {
 /// Copy construtor. See "include/common/ast/instruction.h".
 BlockControlInstruction::BlockControlInstruction(
     const BlockControlInstruction &Instr)
-    : Instruction(Instr.Code, Instr.Offset), BlockType(Instr.BlockType) {
+    : Instruction(Instr.Code, Instr.Offset), ResType(Instr.ResType) {
   for (auto &It : Instr.Body) {
     if (auto Res = makeInstructionNode(*It.get())) {
       Body.push_back(std::move(*Res));
@@ -19,20 +19,27 @@ BlockControlInstruction::BlockControlInstruction(
 /// Load binary of block instructions. See "include/common/ast/instruction.h".
 Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
   /// Read the block return type.
-  if (auto Res = Mgr.readByte()) {
-    BlockType = static_cast<ValType>(*Res);
-    switch (BlockType) {
-    case ValType::I32:
-    case ValType::I64:
-    case ValType::F32:
-    case ValType::F64:
-    case ValType::None:
-      break;
-    default:
-      LOG(ERROR) << ErrCode::InvalidGrammar;
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(ErrCode::InvalidGrammar);
+  if (auto Res = Mgr.readS32()) {
+    if (*Res < 0) {
+      /// Value type case.
+      ValType VType = static_cast<ValType>((*Res) & 0x7FU);
+      switch (VType) {
+      case ValType::I32:
+      case ValType::I64:
+      case ValType::F32:
+      case ValType::F64:
+      case ValType::None:
+        ResType = VType;
+        break;
+      default:
+        LOG(ERROR) << ErrCode::InvalidGrammar;
+        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+        return Unexpect(ErrCode::InvalidGrammar);
+      }
+    } else {
+      /// Type index case.
+      ResType = static_cast<uint32_t>(*Res);
     }
   } else {
     LOG(ERROR) << Res.error();
@@ -81,7 +88,7 @@ Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
 /// Copy construtor. See "include/common/ast/instruction.h".
 IfElseControlInstruction::IfElseControlInstruction(
     const IfElseControlInstruction &Instr)
-    : Instruction(Instr.Code, Instr.Offset), BlockType(Instr.BlockType) {
+    : Instruction(Instr.Code, Instr.Offset), ResType(Instr.ResType) {
   for (auto &It : Instr.IfStatement) {
     if (auto Res = makeInstructionNode(*It.get())) {
       IfStatement.push_back(std::move(*Res));
@@ -97,20 +104,27 @@ IfElseControlInstruction::IfElseControlInstruction(
 /// Load binary of if-else instructions. See "include/common/ast/instruction.h".
 Expect<void> IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
   /// Read the block return type.
-  if (auto Res = Mgr.readByte()) {
-    BlockType = static_cast<ValType>(*Res);
-    switch (BlockType) {
-    case ValType::I32:
-    case ValType::I64:
-    case ValType::F32:
-    case ValType::F64:
-    case ValType::None:
-      break;
-    default:
-      LOG(ERROR) << ErrCode::InvalidGrammar;
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(ErrCode::InvalidGrammar);
+  if (auto Res = Mgr.readS32()) {
+    if (*Res < 0) {
+      /// Value type case.
+      ValType VType = static_cast<ValType>((*Res) & 0x7FU);
+      switch (VType) {
+      case ValType::I32:
+      case ValType::I64:
+      case ValType::F32:
+      case ValType::F64:
+      case ValType::None:
+        ResType = VType;
+        break;
+      default:
+        LOG(ERROR) << ErrCode::InvalidGrammar;
+        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+        return Unexpect(ErrCode::InvalidGrammar);
+      }
+    } else {
+      /// Type index case.
+      ResType = static_cast<uint32_t>(*Res);
     }
   } else {
     LOG(ERROR) << Res.error();

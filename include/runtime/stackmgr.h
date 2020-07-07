@@ -26,24 +26,24 @@ class StackManager {
 public:
   struct Label {
     Label() = delete;
-    Label(const uint32_t S, const uint32_t C,
+    Label(const uint32_t S, const uint32_t A,
           const AST::BlockControlInstruction *Instr)
-        : StackSize(S), Coarity(C), Target(Instr) {}
-    uint32_t StackSize;
-    uint32_t Coarity;
+        : VStackOff(S), Arity(A), Target(Instr) {}
+    uint32_t VStackOff;
+    uint32_t Arity;
     const AST::BlockControlInstruction *Target;
   };
 
   struct Frame {
     Frame() = delete;
     Frame(const uint32_t Addr, const uint32_t VS, const uint32_t LS,
-          const uint32_t C, const bool Dummy = false)
-        : ModAddr(Addr), VStackSize(VS), LStackSize(LS), Coarity(C),
+          const uint32_t A, const bool Dummy = false)
+        : ModAddr(Addr), VStackOff(VS), LStackOff(LS), Arity(A),
           IsDummy(Dummy) {}
     uint32_t ModAddr;
-    uint32_t VStackSize;
-    uint32_t LStackSize;
-    uint32_t Coarity;
+    uint32_t VStackOff;
+    uint32_t LStackOff;
+    uint32_t Arity;
     bool IsDummy;
   };
 
@@ -86,10 +86,10 @@ public:
   }
 
   /// Push a new frame entry to stack.
-  void pushFrame(const uint32_t ModuleAddr, const uint32_t Arity,
-                 const uint32_t Coarity) {
-    FrameStack.emplace_back(ModuleAddr, ValueStack.size() - Arity,
-                            LabelStack.size(), Coarity);
+  void pushFrame(const uint32_t ModuleAddr, const uint32_t LocalNum = 0,
+                 const uint32_t ArityNum = 0) {
+    FrameStack.emplace_back(ModuleAddr, ValueStack.size() - LocalNum,
+                            LabelStack.size(), ArityNum);
   }
 
   /// Push a dummy frame for invokation base.
@@ -99,37 +99,40 @@ public:
 
   /// Unsafe pop top frame. Return number of popped label.
   uint32_t popFrame() {
-    uint32_t LabelPopped = LabelStack.size() - FrameStack.back().LStackSize;
-    LabelStack.erase(LabelStack.begin() + FrameStack.back().LStackSize,
+    uint32_t LabelPopped = LabelStack.size() - FrameStack.back().LStackOff;
+    LabelStack.erase(LabelStack.begin() + FrameStack.back().LStackOff,
                      LabelStack.end());
-    ValueStack.erase(ValueStack.begin() + FrameStack.back().VStackSize,
-                     ValueStack.end() - FrameStack.back().Coarity);
+    ValueStack.erase(ValueStack.begin() + FrameStack.back().VStackOff,
+                     ValueStack.end() - FrameStack.back().Arity);
     FrameStack.pop_back();
     return LabelPopped;
   }
 
   /// Push a new label entry to stack.
-  void pushLabel(const uint32_t Coarity,
+  void pushLabel(const uint32_t LocalNum = 0, const uint32_t ArityNum = 0,
                  const AST::BlockControlInstruction *Instr = nullptr) {
-    LabelStack.emplace_back(ValueStack.size(), Coarity, Instr);
+    LabelStack.emplace_back(ValueStack.size() - LocalNum, ArityNum, Instr);
   }
 
   /// Unsafe pop top label.
   void popLabel(const uint32_t Cnt = 1) {
     const auto &L = getLabelWithCount(Cnt - 1);
-    ValueStack.erase(ValueStack.begin() + L.StackSize,
-                     ValueStack.end() - L.Coarity);
+    ValueStack.erase(ValueStack.begin() + L.VStackOff,
+                     ValueStack.end() - L.Arity);
     for (uint32_t I = 0; I < Cnt; ++I) {
       LabelStack.pop_back();
     }
   }
+
+  /// Unsafe leave top label.
+  void leaveLabel() { LabelStack.pop_back(); }
 
   /// Unsafe getter of module address.
   uint32_t getModuleAddr() const { return FrameStack.back().ModAddr; }
 
   /// Unsafe getter for stack offset of local values by index.
   uint32_t getOffset(uint32_t Idx) const {
-    return FrameStack.back().VStackSize + Idx;
+    return FrameStack.back().VStackOff + Idx;
   }
 
   /// Unsafe getter of the top count of label which index start from 0.

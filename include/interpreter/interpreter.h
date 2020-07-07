@@ -214,7 +214,7 @@ private:
   /// \name Helper Functions for block controls.
   /// @{
   /// Helper function for entering blocks.
-  Expect<void> enterBlock(const uint32_t Arity,
+  Expect<void> enterBlock(const uint32_t Locals, const uint32_t Arity,
                           const AST::BlockControlInstruction *Instr,
                           const AST::InstrVec &Seq);
 
@@ -229,7 +229,8 @@ private:
   Expect<void> leaveFunction();
 
   /// Helper function for branching to label.
-  Expect<void> branchToLabel(const uint32_t Cnt);
+  Expect<void> branchToLabel(Runtime::StoreManager &StoreMgr,
+                             const uint32_t Cnt);
   /// @}
 
   /// \name Helper Functions for getting instances.
@@ -250,12 +251,18 @@ private:
   /// \name Run instructions functions
   /// @{
   /// ======= Control instructions =======
-  Expect<void> runBlockOp(const AST::BlockControlInstruction &Instr);
-  Expect<void> runLoopOp(const AST::BlockControlInstruction &Instr);
-  Expect<void> runIfElseOp(const AST::IfElseControlInstruction &Instr);
-  Expect<void> runBrOp(const AST::BrControlInstruction &Instr);
-  Expect<void> runBrIfOp(const AST::BrControlInstruction &Instr);
-  Expect<void> runBrTableOp(const AST::BrTableControlInstruction &Instr);
+  Expect<void> runBlockOp(Runtime::StoreManager &StoreMgr,
+                          const AST::BlockControlInstruction &Instr);
+  Expect<void> runLoopOp(Runtime::StoreManager &StoreMgr,
+                         const AST::BlockControlInstruction &Instr);
+  Expect<void> runIfElseOp(Runtime::StoreManager &StoreMgr,
+                           const AST::IfElseControlInstruction &Instr);
+  Expect<void> runBrOp(Runtime::StoreManager &StoreMgr,
+                       const AST::BrControlInstruction &Instr);
+  Expect<void> runBrIfOp(Runtime::StoreManager &StoreMgr,
+                         const AST::BrControlInstruction &Instr);
+  Expect<void> runBrTableOp(Runtime::StoreManager &StoreMgr,
+                            const AST::BrTableControlInstruction &Instr);
   Expect<void> runReturnOp();
   Expect<void> runCallOp(Runtime::StoreManager &StoreMgr,
                          const AST::CallControlInstruction &Instr);

@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <variant>
 
 namespace SSVM {
 
@@ -32,6 +33,9 @@ static inline std::unordered_map<ValType, std::string> ValTypeStr = {
     {ValType::I64, "i64"},
     {ValType::F32, "f32"},
     {ValType::F64, "f64"}};
+
+/// Block type definition
+using BlockType = std::variant<ValType, uint32_t>;
 
 /// Element types enumeration class.
 enum class ElemType : uint8_t { Func = 0x60, FuncRef = 0x70 };

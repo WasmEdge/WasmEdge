@@ -84,7 +84,7 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of block type
-  ValType getResultType() const { return BlockType; }
+  BlockType getBlockType() const { return ResType; }
 
   /// Getter of Block Body
   const InstrVec &getBody() const { return Body; }
@@ -92,7 +92,7 @@ public:
 private:
   /// \name Data of block instruction: return type and block body.
   /// @{
-  ValType BlockType;
+  BlockType ResType;
   InstrVec Body;
   /// @}
 }; // namespace AST
@@ -117,7 +117,7 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of block type
-  ValType getResultType() const { return BlockType; }
+  BlockType getBlockType() const { return ResType; }
 
   /// Getter of if statement.
   const InstrVec &getIfStatement() const { return IfStatement; }
@@ -128,7 +128,7 @@ public:
 private:
   /// \name Data of block instruction: return type and statements.
   /// @{
-  ValType BlockType;
+  BlockType ResType;
   InstrVec IfStatement;
   InstrVec ElseStatement;
   /// @}

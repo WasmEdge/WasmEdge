@@ -142,8 +142,8 @@ struct InfoMismatch {
                const std::vector<ValType> &ExpR,
                const std::vector<ValType> &GotP,
                const std::vector<ValType> &GotR) noexcept
-      : Category(InstCategory::FunctionType), ExpParams(ExpP), ExpReturns(ExpR),
-        GotParams(GotP), GotReturns(GotR) {}
+      : Category(InstCategory::FunctionType), ExpParams(ExpP), GotParams(GotP),
+        ExpReturns(ExpR), GotReturns(GotR) {}
 
   /// Case 3: unexpected table types
   InfoMismatch(const ElemType ExpEType, /// Element type
@@ -154,8 +154,8 @@ struct InfoMismatch {
                const uint32_t GotMax /// Got limit
                ) noexcept
       : Category(InstCategory::Table), ExpElemType(ExpEType),
-        ExpLimHasMax(ExpHasMax), ExpLimMin(ExpMin), ExpLimMax(ExpMax),
-        GotElemType(GotEType), GotLimHasMax(GotHasMax), GotLimMin(GotMin),
+        GotElemType(GotEType), ExpLimHasMax(ExpHasMax), GotLimHasMax(GotHasMax),
+        ExpLimMin(ExpMin), GotLimMin(GotMin), ExpLimMax(ExpMax),
         GotLimMax(GotMax) {}
 
   /// Case 4: unexpected memory limits
@@ -165,14 +165,14 @@ struct InfoMismatch {
                const uint32_t GotMax /// Got limit
                ) noexcept
       : Category(InstCategory::Memory), ExpLimHasMax(ExpHasMax),
-        ExpLimMin(ExpMin), ExpLimMax(ExpMax), GotLimHasMax(GotHasMax),
-        GotLimMin(GotMin), GotLimMax(GotMax) {}
+        GotLimHasMax(GotHasMax), ExpLimMin(ExpMin), GotLimMin(GotMin),
+        ExpLimMax(ExpMax), GotLimMax(GotMax) {}
 
   /// Case 5: unexpected global types
   InfoMismatch(const ValType ExpVType, const ValMut ExpVMut,
                const ValType GotVType, const ValMut GotVMut) noexcept
       : Category(InstCategory::Global), ExpValType(ExpVType),
-        ExpValMut(ExpVMut), GotValType(GotVType), GotValMut(GotVMut) {}
+        GotValType(GotVType), ExpValMut(ExpVMut), GotValMut(GotVMut) {}
 
   /// Case 6: unexpected version
   InfoMismatch(const uint32_t ExpV, const uint32_t GotV) noexcept

@@ -111,7 +111,7 @@ static inline WasmPhase getErrCodePhase(ErrCode Code) {
   return static_cast<WasmPhase>((static_cast<uint8_t>(Code) & 0xF0) >> 4);
 }
 
-static std::ostream &operator<<(std::ostream &OS, ErrCode Code) {
+static inline std::ostream &operator<<(std::ostream &OS, ErrCode Code) {
   OS << WasmPhaseStr[getErrCodePhase(Code)] << " failed: " << ErrCodeStr[Code]
      << ", Code: "
      << Support::convertUIntToHexStr(static_cast<uint32_t>(Code), 2);

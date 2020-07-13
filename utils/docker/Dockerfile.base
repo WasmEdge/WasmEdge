@@ -1,26 +1,18 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 MAINTAINER hydai hydai@secondstate.io
+ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt update && apt install -y \
-	apt-transport-https \
-	ca-certificates \
-	gnupg \
+RUN apt update && apt upgrade -y \
+	&& apt install -y \
 	software-properties-common \
-	wget
-
-RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
-	gpg --dearmor - | \
-	tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
-
-RUN apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main' -y
-RUN apt update && apt install -y \
+	wget \
 	cmake \
 	curl \
 	git \
 	libboost-all-dev
 
-RUN curl -sL https://deb.nodesource.com/setup_12.x | bash \
+RUN curl -sL https://deb.nodesource.com/setup_14.x | bash \
 	&& apt install -y nodejs
 
 RUN rm -rf /var/lib/apt/lists/*

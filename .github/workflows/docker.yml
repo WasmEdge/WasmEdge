@@ -62,7 +62,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
           repository: secondstate/ssvm
-          tags: ubuntu-build-clang
+          tags: latest
           add_git_labels: true
           path: utils/docker
           dockerfile: utils/docker/Dockerfile.build-clang

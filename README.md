@@ -23,7 +23,7 @@ $ git checkout 0.6.1
 
 ### Use our docker image
 
-Our docker image use `ubuntu 18.04` as base.
+Our docker image use `ubuntu 20.04` as base.
 
 ```bash
 $ docker pull secondstate/ssvm
@@ -32,20 +32,21 @@ $ docker pull secondstate/ssvm
 ### Or setup the environment manually
 
 ```bash
+# Tools and libraries
 $ sudo apt install -y \
+	software-properties-common \
 	cmake \
-	gcc-8 \
-	g++-8
 	libboost-all-dev
-# And you will need to install llvm-9 for ssvm-aot tools
-$ wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-$ sudo apt update && apt install -y \
-	libllvm9 \
-	llvm-9 \
-	llvm-9-dev \
-	llvm-9-runtime \
-	libclang-common-9-dev # for yaml-bench
 
+# And you will need to install llvm for ssvm-aot tools
+$ sudo apt install -y \
+	llvm-dev \
+	liblld-10-dev
+
+# SSVM supports both clang++ and g++ compilers
+# You can choose one of them for building this project
+$ sudo apt install -y gcc g++
+$ sudo apt install -y clang
 ```
 
 ## Build SSVM

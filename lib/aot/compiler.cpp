@@ -52,6 +52,11 @@ static std::vector<llvm::Value *> unpackStruct(llvm::IRBuilder<> &Builder,
                                                llvm::Value *Struct);
 class FunctionCompiler;
 
+template <typename... Ts> struct overloaded : Ts... {
+  using Ts::operator()...;
+};
+template <typename... Ts> overloaded(Ts...)->overloaded<Ts...>;
+
 } // namespace
 
 struct SSVM::AOT::Compiler::CompileContext {
@@ -223,10 +228,21 @@ static llvm::Type *toLLVMType(llvm::LLVMContext &Context,
   }
 }
 
+static std::vector<llvm::Type *>
+toLLVMTypeVector(llvm::LLVMContext &Context, Span<const ValType> ValTypes) {
+  std::vector<llvm::Type *> Result;
+  Result.reserve(ValTypes.size());
+  for (const auto &Type : ValTypes) {
+    Result.push_back(toLLVMType(Context, Type));
+  }
+  return Result;
+}
+
 static std::vector<llvm::Type *> toLLVMArgsType(llvm::LLVMContext &Context,
                                                 Span<const ValType> ValTypes) {
-  std::vector<llvm::Type *> Result = {llvm::Type::getInt8PtrTy(Context)};
+  std::vector<llvm::Type *> Result;
   Result.reserve(ValTypes.size() + 1);
+  Result.push_back(llvm::Type::getInt8PtrTy(Context));
   for (const auto &Type : ValTypes) {
     Result.push_back(toLLVMType(Context, Type));
   }
@@ -358,8 +374,18 @@ public:
 
       Builder.SetInsertPoint(
           llvm::BasicBlock::Create(VMContext, "unreachable.end", F));
-      for (auto *Undef : getUndefValue(F->getReturnType())) {
-        Stack.push_back(Undef);
+      if (!ControlStack.empty()) {
+        const auto &Entry = ControlStack.back();
+        if (const auto &Types = std::get<kReturnType>(Entry); !Types.empty()) {
+          for (const auto &Type : Types) {
+            Stack.push_back(
+                llvm::UndefValue::get(toLLVMType(Context.Context, Type)));
+          }
+        }
+      } else {
+        for (auto *Undef : getUndefValue(F->getReturnType())) {
+          Stack.push_back(Undef);
+        }
       }
       break;
     }
@@ -397,10 +423,10 @@ public:
       auto *EndBlock = llvm::BasicBlock::Create(VMContext, "block.end", F);
       Builder.CreateBr(Block);
 
-      enterBlock(EndBlock, true, Instr.getResultType());
+      enterBlock(EndBlock, true, Instr.getBlockType());
       Builder.SetInsertPoint(Block);
       compile(Instr.getBody());
-      buildPHI(std::array{Instr.getResultType()}, leaveBlock(EndBlock));
+      buildPHI(resolveBlockType(Instr.getBlockType()), leaveBlock(EndBlock));
       break;
     }
     case OpCode::Loop: {
@@ -408,10 +434,10 @@ public:
       auto *EndLoop = llvm::BasicBlock::Create(VMContext, "loop.end", F);
       Builder.CreateBr(Loop);
 
-      enterBlock(Loop, false, Instr.getResultType());
+      enterBlock(Loop, false, Instr.getBlockType());
       Builder.SetInsertPoint(Loop);
       compile(Instr.getBody());
-      buildPHI(std::array{Instr.getResultType()}, leaveBlock(EndLoop));
+      buildPHI(resolveBlockType(Instr.getBlockType()), leaveBlock(EndLoop));
       break;
     }
     default:
@@ -422,6 +448,7 @@ public:
   Expect<void> compile(const AST::IfElseControlInstruction &Instr) {
     switch (Instr.getOpCode()) {
     case OpCode::If: {
+      assert(!Stack.empty());
       llvm::Value *Cond =
           Builder.CreateICmpNE(Stack.back(), Builder.getInt32(0));
       Stack.pop_back();
@@ -431,12 +458,12 @@ public:
       auto *EndIf = llvm::BasicBlock::Create(VMContext, "if.end", F);
       Builder.CreateCondBr(Cond, Then, Else);
 
-      enterBlock(EndIf, true, Instr.getResultType());
+      enterBlock(EndIf, true, Instr.getBlockType());
       Builder.SetInsertPoint(Then);
       compile(Instr.getIfStatement());
       auto IfResult = leaveBlock(EndIf);
 
-      enterBlock(EndIf, true, Instr.getResultType());
+      enterBlock(EndIf, true, Instr.getBlockType());
       Builder.SetInsertPoint(Else);
       compile(Instr.getElseStatement());
       auto ElseResult = leaveBlock(EndIf);
@@ -444,7 +471,7 @@ public:
       IfResult.reserve(IfResult.size() + ElseResult.size());
       IfResult.insert(IfResult.end(), ElseResult.begin(), ElseResult.end());
 
-      buildPHI(std::array{Instr.getResultType()}, IfResult);
+      buildPHI(resolveBlockType(Instr.getBlockType()), IfResult);
 
       break;
     }
@@ -465,6 +492,7 @@ public:
       break;
     }
     case OpCode::Br_if: {
+      assert(!Stack.empty());
       llvm::Value *Cond =
           Builder.CreateICmpNE(Stack.back(), Builder.getInt32(0));
       Stack.pop_back();
@@ -524,9 +552,11 @@ public:
   Expect<void> compile(const AST::ParametricInstruction &Instr) {
     switch (Instr.getOpCode()) {
     case OpCode::Drop:
+      assert(!Stack.empty());
       Stack.pop_back();
       break;
     case OpCode::Select: {
+      assert(Stack.size() >= 2);
       llvm::Value *Cond =
           Builder.CreateICmpNE(Stack.back(), Builder.getInt32(0));
       Stack.pop_back();
@@ -552,6 +582,7 @@ public:
       Stack.push_back(Builder.CreateLoad(Local[Index]));
       break;
     case OpCode::Local__set:
+      assert(!Stack.empty());
       Builder.CreateStore(Stack.back(), Local[Index]);
       Stack.pop_back();
       break;
@@ -565,6 +596,7 @@ public:
       Stack.push_back(Builder.CreateLoad(Context.Globals[Index]));
       break;
     case OpCode::Global__set:
+      assert(!Stack.empty());
       if (Index >= Context.Globals.size()) {
         return Unexpect(ErrCode::ValidationFailed);
       }
@@ -869,6 +901,7 @@ public:
     return {};
   }
   Expect<void> compile(const AST::BinaryNumericInstruction &Instr) {
+    assert(!Stack.empty());
     llvm::Value *RHS = Stack.back();
     Stack.pop_back();
     switch (Instr.getOpCode()) {
@@ -1365,7 +1398,8 @@ private:
         Builder.CreateSwitch(Stack.back(), Error, Table.size());
 
     const bool HasReturnValue = !isVoidReturn(FuncType.getReturnTypes());
-    std::vector<std::tuple<llvm::Value *, llvm::BasicBlock *>> ReturnValues;
+    std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
+        ReturnValues;
 
     for (const auto &[Value, Func] : Table) {
       llvm::BasicBlock *Entry = llvm::BasicBlock::Create(
@@ -1375,7 +1409,11 @@ private:
       Builder.CreateBr(OK);
       Switch->addCase(Builder.getInt32(Value), Entry);
       if (HasReturnValue) {
-        ReturnValues.emplace_back(Ret, Entry);
+        if (Ret->getType()->isStructTy()) {
+          ReturnValues.emplace_back(unpackStruct(Builder, Ret), Entry);
+        } else {
+          ReturnValues.emplace_back(std::vector<llvm::Value *>{Ret}, Entry);
+        }
       }
     }
 
@@ -1429,9 +1467,7 @@ private:
   }
   Expect<void> compileStoreOp(unsigned int Offset, unsigned Alignment,
                               llvm::Type *LoadTy, bool Trunc = false) {
-    if (Stack.size() < 2) {
-      return Unexpect(ErrCode::ValidationFailed);
-    }
+    assert(Stack.size() >= 2);
     llvm::Value *V = Stack.back();
     Stack.pop_back();
     if (Trunc) {
@@ -1453,29 +1489,53 @@ private:
     return {};
   }
 
-  void enterBlock(llvm::BasicBlock *JumpTarget, bool IsForward,
-                  ValType ResultType) {
-    ControlStack.emplace_back(Stack.size(), JumpTarget, IsForward, ResultType,
-                              0);
+  std::vector<ValType> resolveBlockType(const BlockType &ResultType) const {
+    return std::visit(overloaded{[](const ValType &Type) {
+                                   if (Type == ValType::None) {
+                                     return std::vector<ValType>{};
+                                   }
+                                   return std::vector<ValType>{Type};
+                                 },
+                                 [this](const uint32_t &Index) {
+                                   const auto &FuncType =
+                                       *Context.FunctionTypes[Index];
+                                   std::vector<ValType> Result(
+                                       FuncType.getReturnTypes().begin(),
+                                       FuncType.getReturnTypes().end());
+                                   return Result;
+                                 }},
+                      ResultType);
   }
 
-  std::vector<std::tuple<llvm::Value *, llvm::BasicBlock *>>
+  void enterBlock(llvm::BasicBlock *JumpTarget, bool IsForward,
+                  const BlockType &ResultType) {
+    ControlStack.emplace_back(Stack.size(), JumpTarget, IsForward,
+                              resolveBlockType(ResultType), 0);
+  }
+
+  std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
   leaveBlock(llvm::BasicBlock *NextTarget) {
     auto &Entry = ControlStack.back();
-    if (auto &Type = std::get<kReturnType>(Entry); Type != ValType::None) {
-      llvm::Value *V =
-          Stack.empty()
-              ? llvm::UndefValue::get(toLLVMType(Context.Context, Type))
-              : Stack.back();
-      std::get<kReturnPHI>(Entry).emplace_back(V, Builder.GetInsertBlock());
+    if (const auto &Types = std::get<kReturnType>(Entry); !Types.empty()) {
+      for (size_t I = Stack.size(); I < Types.size(); ++I) {
+        Stack.push_back(
+            llvm::UndefValue::get(toLLVMType(Context.Context, Types[I])));
+      }
+      assert(Stack.size() >= Types.size());
+      const auto Begin = Stack.end() - Types.size();
+      const auto End = Stack.end();
+      std::vector<llvm::Value *> Values(Begin, End);
+      Stack.erase(Begin, End);
+      std::get<kReturnPHI>(Entry).emplace_back(std::move(Values),
+                                               Builder.GetInsertBlock());
     }
     Builder.CreateBr(NextTarget);
     Builder.SetInsertPoint(NextTarget);
 
     Stack.erase(Stack.begin() + std::get<kStackSize>(ControlStack.back()),
                 Stack.end());
-    std::vector<std::tuple<llvm::Value *, llvm::BasicBlock *>> Result =
-        std::move(std::get<kReturnPHI>(ControlStack.back()));
+    std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
+        Result = std::move(std::get<kReturnPHI>(ControlStack.back()));
 
     ControlStack.pop_back();
     return Result;
@@ -1483,29 +1543,31 @@ private:
 
   void buildPHI(
       Span<const ValType> RetType,
-      Span<const std::tuple<llvm::Value *, llvm::BasicBlock *>> Incomings) {
+      Span<const std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
+          Incomings) {
     if (isVoidReturn(RetType)) {
       return;
     }
-    llvm::Type *Ty = toLLVMRetsType(Context.Context, RetType);
-    llvm::Value *Node = nullptr;
+    std::vector<llvm::Value *> Nodes;
     if (Incomings.size() == 0) {
-      Node = llvm::UndefValue::get(Ty);
+      for (llvm::Type *Type : toLLVMTypeVector(Context.Context, RetType)) {
+        Nodes.push_back(llvm::UndefValue::get(Type));
+      }
     } else if (Incomings.size() == 1) {
-      Node = std::get<0>(Incomings.front());
+        Nodes = std::move(std::get<0>(Incomings.front()));
     } else {
-      llvm::PHINode *PHIRet = Builder.CreatePHI(Ty, Incomings.size());
-      for (auto &[Value, BB] : Incomings) {
-        PHIRet->addIncoming(Value, BB);
+      const auto &Types = toLLVMTypeVector(Context.Context, RetType);
+      for (size_t I = 0; I < Types.size(); ++I) {
+        llvm::PHINode *PHIRet = Builder.CreatePHI(Types[I], Incomings.size());
+        for (auto &[Value, BB] : Incomings) {
+          assert(Value.size() == Types.size());
+          PHIRet->addIncoming(Value[Types.size() - 1 - I], BB);
+        }
+        Nodes.push_back(PHIRet);
       }
-      Node = PHIRet;
     }
-    if (Ty->isStructTy()) {
-      for (auto *Val : unpackStruct(Builder, Node)) {
-        Stack.push_back(Val);
-      }
-    } else {
-      Stack.push_back(Node);
+    for (auto *Val : Nodes) {
+      Stack.push_back(Val);
     }
   }
 
@@ -1514,13 +1576,16 @@ private:
       return false;
     }
     auto &Entry = *(ControlStack.rbegin() + Index);
-    if (auto &Type = std::get<kReturnType>(Entry);
-        Type != ValType::None && std::get<kIsForward>(Entry)) {
-      llvm::Value *V =
-          Stack.empty()
-              ? llvm::UndefValue::get(toLLVMType(Context.Context, Type))
-              : Stack.back();
-      std::get<kReturnPHI>(Entry).emplace_back(V, Builder.GetInsertBlock());
+    if (const auto &Types = std::get<kReturnType>(Entry);
+        !Types.empty() && std::get<kIsForward>(Entry)) {
+      const auto TargetStackSize = std::get<kStackSize>(Entry);
+      assert(Stack.size() - TargetStackSize >= Types.size());
+      std::vector<llvm::Value *> Values;
+      for (size_t I = 0; I < Types.size(); ++I) {
+        Values.push_back(Stack[Stack.size() - Types.size() + I]);
+      }
+      std::get<kReturnPHI>(Entry).emplace_back(Values,
+                                               Builder.GetInsertBlock());
     }
     return true;
   }
@@ -1541,9 +1606,9 @@ private:
   static inline constexpr size_t kIsForward = 2;
   static inline constexpr size_t kReturnType = 3;
   static inline constexpr size_t kReturnPHI = 4;
-  std::vector<
-      std::tuple<size_t, llvm::BasicBlock *, bool, ValType,
-                 std::vector<std::tuple<llvm::Value *, llvm::BasicBlock *>>>>
+  std::vector<std::tuple<
+      size_t, llvm::BasicBlock *, bool, std::vector<ValType>,
+      std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>>>
       ControlStack;
   llvm::Function *F;
   llvm::IRBuilder<> Builder;

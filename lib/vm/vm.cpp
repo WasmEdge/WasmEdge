@@ -7,14 +7,15 @@ namespace SSVM {
 namespace VM {
 
 VM::VM(Configure &InputConfig)
-    : Config(InputConfig), Stage(VMStage::Inited), InterpreterEngine(&Measure),
+    : Config(InputConfig), Stage(VMStage::Inited),
+      InterpreterEngine(&Measure, &Stat),
       Store(std::make_unique<Runtime::StoreManager>()), StoreRef(*Store.get()) {
   initVM();
 }
 
 VM::VM(Configure &InputConfig, Runtime::StoreManager &S)
-    : Config(InputConfig), Stage(VMStage::Inited), InterpreterEngine(&Measure),
-      StoreRef(S) {
+    : Config(InputConfig), Stage(VMStage::Inited),
+      InterpreterEngine(&Measure, &Stat), StoreRef(S) {
   initVM();
 }
 

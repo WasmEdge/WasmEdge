@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/ast/instruction.h"
+#include "common/statistics.h"
 #include "common/value.h"
 #include "interpreter/interpreter.h"
 #include "support/casting.h"
 #include "support/log.h"
 #include "support/measure.h"
+#include "support/time.h"
 
 namespace SSVM {
 namespace Interpreter {
+
+using TimerTag = Support::TimerTag;
 
 void Interpreter::trapProxy(Interpreter *This, uint32_t Status) {
   This->trap(Status);
@@ -77,7 +81,7 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
                          Span<const ValVariant> Params) {
   /// Set start time.
   if (Measure) {
-    Measure->getTimeRecorder().startRecord(TIMER_TAG_EXECUTION);
+    Measure->getTimeRecorder().startRecord(TimerTag::Execution);
   }
 
   /// Reset and push a dummy frame into stack.
@@ -105,25 +109,28 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
   /// Print time cost.
   if (Measure) {
     uint64_t ExecTime =
-        Measure->getTimeRecorder().stopRecord(TIMER_TAG_EXECUTION);
+        Measure->getTimeRecorder().stopRecord(TimerTag::Execution);
     uint64_t HostFuncTime =
-        Measure->getTimeRecorder().getRecord(TIMER_TAG_HOSTFUNC);
+        Measure->getTimeRecorder().getRecord(TimerTag::HostFunc);
+
+    Stat->setWasmExecTime(ExecTime);
+    Stat->setHostFuncExecTime(HostFuncTime);
+    Stat->setTotalGasCost(Measure->getCostSum());
+    Stat->setInstrCount(Measure->getInstrCnt());
     LOG(DEBUG) << std::endl
                << " ====================  Statistics  ===================="
                << std::endl
-               << " Total execution time: " << ExecTime + HostFuncTime << " us"
+               << " Total execution time: " << Stat->getTotalExecTime() << " us"
                << std::endl
-               << " Wasm instructions execution time: " << ExecTime << " us"
+               << " Wasm instructions execution time: "
+               << Stat->getWasmExecTime() << " us" << std::endl
+               << " Host functions execution time: "
+               << Stat->getHostFuncExecTime() << " us" << std::endl
+               << " Executed wasm instructions count: " << Stat->getInstrCount()
                << std::endl
-               << " Host functions execution time: " << HostFuncTime << " us"
-               << std::endl
-               << " Executed wasm instructions count: "
-               << Measure->getInstrCnt() << std::endl
-               << " Gas costs: " << Measure->getCostSum() << std::endl
+               << " Gas costs: " << Stat->getTotalGasCost() << std::endl
                << " Instructions per second: "
-               << static_cast<uint64_t>((double)Measure->getInstrCnt() *
-                                        1000000 / ExecTime)
-               << std::endl;
+               << static_cast<uint64_t>(Stat->getInstrPerSecond()) << std::endl;
   }
 
   if (Res || Res.error() == ErrCode::Terminated) {
@@ -749,8 +756,8 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
         return Unexpect(ErrCode::CostLimitExceeded);
       }
       /// Start recording time of running host function.
-      Measure->getTimeRecorder().stopRecord(TIMER_TAG_EXECUTION);
-      Measure->getTimeRecorder().startRecord(TIMER_TAG_HOSTFUNC);
+      Measure->getTimeRecorder().stopRecord(TimerTag::Execution);
+      Measure->getTimeRecorder().startRecord(TimerTag::HostFunc);
     }
 
     /// Run host function.
@@ -771,8 +778,8 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
 
     if (Measure) {
       /// Stop recording time of running host function.
-      Measure->getTimeRecorder().stopRecord(TIMER_TAG_HOSTFUNC);
-      Measure->getTimeRecorder().startRecord(TIMER_TAG_EXECUTION);
+      Measure->getTimeRecorder().stopRecord(TimerTag::HostFunc);
+      Measure->getTimeRecorder().startRecord(TimerTag::Execution);
     }
 
     return Ret;

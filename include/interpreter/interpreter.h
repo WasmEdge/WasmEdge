@@ -15,6 +15,7 @@
 #include "common/ast/instruction.h"
 #include "common/ast/module.h"
 #include "common/errcode.h"
+#include "common/statistics.h"
 #include "common/value.h"
 #include "engine/provider.h"
 #include "runtime/importobj.h"
@@ -32,9 +33,6 @@ namespace SSVM {
 namespace Interpreter {
 
 namespace {
-
-#define TIMER_TAG_EXECUTION 1U
-#define TIMER_TAG_HOSTFUNC 2U
 
 /// Template return type aliasing
 /// Accept unsigned integer types. (uint32_t, uint64_t)
@@ -87,7 +85,9 @@ using TypeBB = typename std::enable_if_t<Support::IsWasmBuiltInV<T1> &&
 /// Executor flow control class.
 class Interpreter {
 public:
-  Interpreter(Support::Measurement *M = nullptr) : Measure(M) {}
+  Interpreter(Support::Measurement *M = nullptr,
+              Statistics::Statistics *S = nullptr)
+      : Measure(M), Stat(S) {}
   ~Interpreter() = default;
 
   /// Instantiate Wasm Module.
@@ -380,6 +380,8 @@ private:
   Runtime::StackManager StackMgr;
   /// Instruction provider
   InstrProvider InstrPdr;
+  /// Interpreter statistics
+  Statistics::Statistics *Stat;
   /// Pointer to measurement.
   Support::Measurement *Measure;
   /// jmp_buf for trap.

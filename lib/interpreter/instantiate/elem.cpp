@@ -40,7 +40,7 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
     }
     Offsets.push_back(Offset);
   }
-  return std::move(Offsets);
+  return Offsets;
 }
 
 /// Initialize table instance. See "include/interpreter/interpreter.h".

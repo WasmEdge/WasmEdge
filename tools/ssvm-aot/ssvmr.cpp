@@ -42,7 +42,8 @@ int main(int Argc, const char *Argv[]) {
   SSVM::Host::WasiModule *WasiMod = dynamic_cast<SSVM::Host::WasiModule *>(
       VM.getImportModule(SSVM::VM::Configure::VMType::Wasi));
 
-  WasiMod->getEnv().init(Dir.value(), SoName.value(), Args.value());
+  WasiMod->getEnv().init(Dir.value(), SoName.value(), Args.value(),
+                         {} /* Envs */);
 
   for (const auto &Arg: WasiMod->getEnv().getCmdArgs()) {
     std::cout << " Args : " << Arg << '\n';

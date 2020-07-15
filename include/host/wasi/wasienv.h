@@ -53,7 +53,7 @@ public:
   virtual ~WasiEnvironment() noexcept;
 
   void init(Span<const std::string> Dirs, std::string ProgramName,
-            Span<const std::string> Args);
+            Span<const std::string> Args, Span<const std::string> Envs);
 
   int32_t getStatus() const { return Status; }
   void setStatus(int32_t S) { Status = S; }

@@ -92,6 +92,9 @@ public:
   /// Getter of measurement.
   Support::Measurement &getMeasurement() { return Measure; }
 
+  /// Getter of statistics.
+  Statistics::Statistics &getStatistics() { return Stat; }
+
   /// Getter of service name.
   std::string &getServiceName() { return ServiceName; }
 
@@ -110,6 +113,7 @@ private:
   /// VM environment.
   Configure &Config;
   Support::Measurement Measure;
+  Statistics::Statistics Stat;
   VMStage Stage;
 
   /// VM runners.

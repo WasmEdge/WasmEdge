@@ -380,10 +380,10 @@ private:
   Runtime::StackManager StackMgr;
   /// Instruction provider
   InstrProvider InstrPdr;
-  /// Interpreter statistics
-  Statistics::Statistics *Stat;
   /// Pointer to measurement.
   Support::Measurement *Measure;
+  /// Interpreter statistics
+  Statistics::Statistics *Stat;
   /// jmp_buf for trap.
   std::jmp_buf TrapJump;
   Runtime::StoreManager *CurrentStore;

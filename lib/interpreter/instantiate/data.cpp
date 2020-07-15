@@ -41,7 +41,7 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
     }
     Offsets.push_back(Offset);
   }
-  return std::move(Offsets);
+  return Offsets;
 }
 
 /// Initialize memory instance. See "include/interpreter/interpreter.h".

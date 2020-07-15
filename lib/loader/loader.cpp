@@ -47,7 +47,7 @@ Expect<std::vector<Byte>> Loader::loadFile(std::string_view FilePath) {
       return Unexpect(ErrCode::ReadError);
     }
   }
-  return std::move(Buf);
+  return Buf;
 }
 
 /// Parse module from file path. See "include/loader/loader.h".
@@ -96,7 +96,7 @@ Loader::parseModule(std::string_view FilePath) {
       return Unexpect(Res);
     }
     if (auto Res = Mod->loadBinary(FSMgr)) {
-      return std::move(Mod);
+      return Mod;
     } else {
       LOG(ERROR) << ErrInfo::InfoFile(FilePath);
       return Unexpect(Res);
@@ -112,7 +112,7 @@ Loader::parseModule(Span<const uint8_t> Code) {
     return Unexpect(Res);
   }
   if (auto Res = Mod->loadBinary(FVMgr)) {
-    return std::move(Mod);
+    return Mod;
   } else {
     return Unexpect(Res);
   }

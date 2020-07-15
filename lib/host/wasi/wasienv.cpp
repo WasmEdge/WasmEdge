@@ -50,7 +50,8 @@ WasiEnvironment::~WasiEnvironment() noexcept {
 
 void WasiEnvironment::init(Span<const std::string> Dirs,
                            std::string ProgramName,
-                           Span<const std::string> Args) {
+                           Span<const std::string> Args,
+                           Span<const std::string> Envs) {
   using namespace std::string_view_literals;
   FileArray.clear();
   FileArray.emplace_back(STDIN_FILENO, kStdInRights, 0, "/dev/stdin"sv);
@@ -72,6 +73,9 @@ void WasiEnvironment::init(Span<const std::string> Dirs,
 
   for (size_t I = 0; environ[I] != nullptr; ++I) {
     Environs.emplace_back(environ[I]);
+  }
+  for (const auto &Env : Envs) {
+    Environs.emplace_back(Env);
   }
   Environs.shrink_to_fit();
 }

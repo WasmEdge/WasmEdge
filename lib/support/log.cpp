@@ -39,6 +39,38 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoAST &Rhs) {
   return OS;
 }
 
+std::ostream &operator<<(std::ostream &OS,
+                         const struct InfoInstanceBound &Rhs) {
+  OS << "    Instance " << ExternalTypeStr[Rhs.Instance]
+     << " has limited number " << Rhs.Limited << " , Got: " << Rhs.Number;
+  return OS;
+}
+
+std::ostream &operator<<(std::ostream &OS, const struct InfoForbidIndex &Rhs) {
+  OS << "    When checking " << IndexCategoryStr[Rhs.Category]
+     << " index: " << Rhs.Index << " , Out of boundary: ";
+  if (Rhs.Boundary > 0) {
+    OS << (Rhs.Boundary - 1);
+  } else {
+    OS << "empty";
+  }
+  return OS;
+}
+
+std::ostream &operator<<(std::ostream &OS, const struct InfoExporting &Rhs) {
+  OS << "    Duplicated exporting name: \"" << Rhs.ExtName << "\"";
+  return OS;
+}
+
+std::ostream &operator<<(std::ostream &OS, const struct InfoLimit &Rhs) {
+  OS << "    In Limit type: { min: " << Rhs.LimMin;
+  if (Rhs.LimHasMax) {
+    OS << " , max: " << Rhs.LimMax;
+  }
+  OS << " }";
+  return OS;
+}
+
 std::ostream &operator<<(std::ostream &OS, const struct InfoRegistering &Rhs) {
   OS << "    Module name: \"" << Rhs.ModName << "\"";
   return OS;
@@ -60,13 +92,43 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoExecuting &Rhs) {
 }
 
 std::ostream &operator<<(std::ostream &OS, const struct InfoMismatch &Rhs) {
-  OS << "    Mismatched " << InstCategoryStr[Rhs.Category] << ". ";
+  OS << "    Mismatched " << MismatchCategoryStr[Rhs.Category] << ". ";
   switch (Rhs.Category) {
-  case InstCategory::ExternalType:
+  case MismatchCategory::Alignment:
+    OS << "Expected: need to <= " << static_cast<uint32_t>(Rhs.ExpAlignment)
+       << " , Got: " << (1UL << Rhs.GotAlignment);
+    break;
+  case MismatchCategory::ValueType:
+    OS << "Expected: " << ValTypeStr[Rhs.ExpValType]
+       << " , Got: " << ValTypeStr[Rhs.GotValType];
+    break;
+  case MismatchCategory::ValueTypes:
+
+    OS << "Expected: types{";
+    for (uint32_t I = 0; I < Rhs.ExpParams.size(); ++I) {
+      OS << ValTypeStr[Rhs.ExpParams[I]];
+      if (I < Rhs.ExpParams.size() - 1) {
+        OS << " , ";
+      }
+    }
+    OS << "} , Got: types{";
+    for (uint32_t I = 0; I < Rhs.GotParams.size(); ++I) {
+      OS << ValTypeStr[Rhs.GotParams[I]];
+      if (I < Rhs.GotParams.size() - 1) {
+        OS << " , ";
+      }
+    }
+    OS << "}";
+    break;
+  case MismatchCategory::Mutation:
+    OS << "Expected: " << ValMutStr[Rhs.ExpValMut]
+       << " , Got: " << ValMutStr[Rhs.GotValMut];
+    break;
+  case MismatchCategory::ExternalType:
     OS << "Expected: " << ExternalTypeStr[Rhs.ExpExtType]
        << " , Got: " << ExternalTypeStr[Rhs.GotExtType];
     break;
-  case InstCategory::FunctionType:
+  case MismatchCategory::FunctionType:
     OS << "Expected: params{";
     for (uint32_t I = 0; I < Rhs.ExpParams.size(); ++I) {
       OS << ValTypeStr[Rhs.ExpParams[I]];
@@ -97,8 +159,8 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoMismatch &Rhs) {
     }
     OS << "}";
     break;
-  case InstCategory::Table:
-  case InstCategory::Memory:
+  case MismatchCategory::Table:
+  case MismatchCategory::Memory:
     OS << "Expected: limit {" << Rhs.ExpLimMin;
     if (Rhs.ExpLimHasMax) {
       OS << " , " << Rhs.ExpLimMax;
@@ -109,12 +171,12 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoMismatch &Rhs) {
     }
     OS << "}";
     break;
-  case InstCategory::Global:
+  case MismatchCategory::Global:
     OS << "Expected: global type {" << ValMutStr[Rhs.ExpValMut] << " "
        << ValTypeStr[Rhs.ExpValType] << "} , Got: global type {"
        << ValMutStr[Rhs.GotValMut] << " " << ValTypeStr[Rhs.GotValType] << "}";
     break;
-  case InstCategory::Version:
+  case MismatchCategory::Version:
     OS << "Expected: " << Rhs.ExpVersion << " , Got: " << Rhs.GotVersion;
     break;
   default:

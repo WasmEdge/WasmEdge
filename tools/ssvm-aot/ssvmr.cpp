@@ -28,10 +28,16 @@ int main(int Argc, const char *Argv[]) {
           "like `fopen` in the guest."s),
       PO::MetaVar("PREOPEN_DIRS"s));
 
+  PO::List<std::string> Env(
+      PO::Description(
+          "Environ variables. Each variables can specified as --env `NAME=VALUE`."s),
+      PO::MetaVar("ENVS"s));
+
   if (!PO::ArgumentParser()
            .add_option(SoName)
            .add_option(Args)
            .add_option("dir", Dir)
+           .add_option("env", Env)
            .parse(Argc, Argv)) {
     return 0;
   }
@@ -45,7 +51,7 @@ int main(int Argc, const char *Argv[]) {
       VM.getImportModule(SSVM::VM::Configure::VMType::Wasi));
 
   WasiMod->getEnv().init(Dir.value(), SoName.value(), Args.value(),
-                         {} /* Envs */);
+                         Env.value());
 
   if (auto Result = VM.runWasmFile(InputPath, "_start")) {
     return WasiMod->getEnv().getExitCode();

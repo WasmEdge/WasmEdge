@@ -22,6 +22,7 @@ namespace Host {
 
 class WasiEnvironment {
 public:
+  static inline int kGuestFdOffset = 5;
   struct DirFdStat {
     DIR *Dir;
     uint64_t Cookie = 0;
@@ -55,8 +56,6 @@ public:
   void init(Span<const std::string> Dirs, std::string ProgramName,
             Span<const std::string> Args, Span<const std::string> Envs);
 
-  int32_t getStatus() const { return Status; }
-  void setStatus(int32_t S) { Status = S; }
   const std::vector<std::string> &getCmdArgs() const { return CmdArgs; }
   const std::vector<std::string_view> &getEnvirons() const { return Environs; }
   int getExitCode() const { return ExitCode; }
@@ -66,8 +65,9 @@ public:
     FileArray.emplace_back(std::forward<Args>(args)...);
   }
   std::vector<File>::iterator getFile(uint32_t Fd) noexcept {
-    return std::find_if(FileArray.begin(), FileArray.end(),
-                        [Fd](const File &File) { return File.Fd == Fd; });
+    return std::find_if(
+        FileArray.begin(), FileArray.end(),
+        [Fd](const File &File) { return File.Fd == Fd + kGuestFdOffset; });
   }
   std::vector<File>::iterator getFileEnd() noexcept { return FileArray.end(); }
   void eraseFile(std::vector<File>::iterator File) noexcept {
@@ -75,7 +75,6 @@ public:
   }
 
 private:
-  int32_t Status;
   std::vector<std::string> CmdArgs;
   std::vector<std::string_view> Environs;
   std::vector<File> FileArray;

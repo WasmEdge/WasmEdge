@@ -13,6 +13,8 @@ int main(int Argc, const char *Argv[]) {
   using namespace std::literals;
 
   std::ios::sync_with_stdio(false);
+  SSVM::Log::setErrorLoggingLevel();
+
   PO::Option<std::string> SoName(PO::Description("Wasm so file"s),
                                  PO::MetaVar("WASM_SO"s));
   PO::List<std::string> Args(PO::Description("Execution arguments"s),
@@ -45,16 +47,8 @@ int main(int Argc, const char *Argv[]) {
   WasiMod->getEnv().init(Dir.value(), SoName.value(), Args.value(),
                          {} /* Envs */);
 
-  for (const auto &Arg: WasiMod->getEnv().getCmdArgs()) {
-    std::cout << " Args : " << Arg << '\n';
-  }
-  for (auto It = Dir.value().begin(); It != Dir.value().end(); It++) {
-    std::cout << " Dir : " << *It << '\n';
-  }
-  std::cout.flush();
-
   if (auto Result = VM.runWasmFile(InputPath, "_start")) {
-    return EXIT_SUCCESS;
+    return WasiMod->getEnv().getExitCode();
   } else {
     std::cout << "Failed. Error code : "
               << static_cast<uint32_t>(Result.error()) << '\n';

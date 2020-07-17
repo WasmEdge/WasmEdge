@@ -54,15 +54,32 @@ void WasiEnvironment::init(Span<const std::string> Dirs,
                            Span<const std::string> Envs) {
   using namespace std::string_view_literals;
   FileArray.clear();
-  FileArray.emplace_back(STDIN_FILENO, kStdInRights, 0, "/dev/stdin"sv);
-  FileArray.emplace_back(STDOUT_FILENO, kStdOutRights, 0, "/dev/stdout"sv);
-  FileArray.emplace_back(STDERR_FILENO, kStdErrRights, 0, "/dev/stderr"sv);
+  FileArray.reserve(4 + Dirs.size());
+
+  /// Add Fd offset to guest fd
+  dup2(STDIN_FILENO, STDIN_FILENO + kGuestFdOffset);
+  dup2(STDOUT_FILENO, STDOUT_FILENO + kGuestFdOffset);
+  dup2(STDERR_FILENO, STDERR_FILENO + kGuestFdOffset);
+
+  FileArray.emplace_back(STDIN_FILENO + kGuestFdOffset, kStdInRights, 0,
+                         "/dev/stdin"sv);
+  FileArray.emplace_back(STDOUT_FILENO + kGuestFdOffset, kStdOutRights, 0,
+                         "/dev/stdout"sv);
+  FileArray.emplace_back(STDERR_FILENO + kGuestFdOffset, kStdErrRights, 0,
+                         "/dev/stderr"sv);
+
   /// Open dir for WASI environment.
-  FileArray.emplace_back(open(".", O_RDONLY | O_DIRECTORY), kDirectoryRights,
+  FileArray.emplace_back(open(".", O_PATH | O_DIRECTORY), kDirectoryRights,
                          kInheritingDirectoryRights, "."sv);
   for (const auto &Dir : Dirs) {
-    FileArray.emplace_back(open(Dir.c_str(), O_RDONLY | O_DIRECTORY),
-                           kDirectoryRights, kInheritingDirectoryRights, Dir);
+    const auto Pos = Dir.find(':');
+    if (Pos != std::string::npos) {
+      const auto GuestDir = Dir.substr(0, Pos);
+      const auto HostDir = Dir.substr(Pos + 1);
+      FileArray.emplace_back(open(HostDir.c_str(), O_PATH | O_DIRECTORY),
+                             kDirectoryRights, kInheritingDirectoryRights,
+                             GuestDir);
+    }
   }
   FileArray.shrink_to_fit();
 

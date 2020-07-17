@@ -42,7 +42,7 @@ public:
     }
   }
   /// Constructor for host function. Module address will not be used.
-  FunctionInstance(std::unique_ptr<HostFunctionBase> &Func)
+  FunctionInstance(std::unique_ptr<HostFunctionBase> &&Func)
       : IsHostFunction(true), FuncType(Func->getFuncType()), ModuleAddr(0),
         HostFunc(std::move(Func)) {}
   virtual ~FunctionInstance() = default;

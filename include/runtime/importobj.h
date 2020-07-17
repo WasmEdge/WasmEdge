@@ -39,12 +39,8 @@ public:
 
   void addHostFunc(std::string_view Name,
                    std::unique_ptr<HostFunctionBase> &&Func) {
-    addHostFunc(Name, Func);
-  }
-  void addHostFunc(std::string_view Name,
-                   std::unique_ptr<HostFunctionBase> &Func) {
-    Funcs.emplace(Name,
-                  std::make_unique<Runtime::Instance::FunctionInstance>(Func));
+    Funcs.emplace(Name, std::make_unique<Runtime::Instance::FunctionInstance>(
+                            std::move(Func)));
   }
 
   void addHostTable(std::string_view Name,

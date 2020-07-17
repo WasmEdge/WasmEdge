@@ -88,9 +88,7 @@ void WasiEnvironment::init(Span<const std::string> Dirs,
   std::copy(Args.begin(), Args.end(), CmdArgs.begin() + 1);
   CmdArgs.shrink_to_fit();
 
-  for (size_t I = 0; environ[I] != nullptr; ++I) {
-    Environs.emplace_back(environ[I]);
-  }
+  Environs.reserve(Envs.size());
   for (const auto &Env : Envs) {
     Environs.emplace_back(Env);
   }

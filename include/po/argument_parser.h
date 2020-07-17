@@ -285,7 +285,6 @@ public:
 
   private:
     ArgumentDescriptor *consume_short_options(std::string_view Arg) {
-      std::cout << __PRETTY_FUNCTION__ << ':' << Arg << '\n';
       ArgumentDescriptor *CurrentDesc = nullptr;
       for (std::size_t I = 1; I < Arg.size(); ++I) {
         if (CurrentDesc && CurrentDesc->nargs() == 0) {
@@ -298,7 +297,6 @@ public:
     }
     ArgumentDescriptor *consume_long_option_with_argument(
         std::string_view Arg) {
-      std::cout << __PRETTY_FUNCTION__ << ':' << Arg << '\n';
       if (auto Pos = Arg.find('=', 2); Pos != std::string_view::npos) {
         // long option with argument
         std::string_view Option = Arg.substr(2, Pos - 2);
@@ -319,7 +317,6 @@ public:
       }
     }
     ArgumentDescriptor *consume_short_option(std::string_view Option) {
-      std::cout << __PRETTY_FUNCTION__ << ':' << Option << '\n';
       auto Iter = ArgumentMap.find(Option);
       if (Iter == ArgumentMap.end()) {
         using namespace std::literals;
@@ -333,7 +330,6 @@ public:
       return &CurrentDesc;
     }
     ArgumentDescriptor *consume_long_option(std::string_view Option) {
-      std::cout << __PRETTY_FUNCTION__ << ':' << Option << '\n';
       auto Iter = ArgumentMap.find(Option);
       if (Iter == ArgumentMap.end()) {
         using namespace std::literals;
@@ -348,7 +344,6 @@ public:
     }
     ArgumentDescriptor *consume_argument(ArgumentDescriptor & CurrentDesc,
                                          std::string_view Argument) {
-      std::cout << __PRETTY_FUNCTION__ << ':' << Argument << '\n';
       CurrentDesc.value(std::string(Argument));
       if (++CurrentDesc.nargs() >= CurrentDesc.max_nargs()) {
         return nullptr;

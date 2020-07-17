@@ -2,6 +2,8 @@
 #define _DEFAULT_SOURCE
 #include "host/wasi/wasifunc.h"
 #include "runtime/instance/memory.h"
+#include "support/filesystem.h"
+#include "support/log.h"
 
 #include <chrono>
 #include <csignal>
@@ -588,7 +590,7 @@ Expect<uint32_t> WasiFdAdvise::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_ENOTCAPABLE;
   }
 
-  if (unlikely(posix_fadvise(Fd, Offset, Len, SysAdvise) != 0)) {
+  if (unlikely(posix_fadvise(Entry->Fd, Offset, Len, SysAdvise) != 0)) {
     return convertErrNo(errno);
   }
 
@@ -607,7 +609,7 @@ WasiFdAllocate::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
     return __WASI_ENOTCAPABLE;
   }
 
-  if (unlikely(posix_fallocate(Fd, Offset, Len) != 0)) {
+  if (unlikely(posix_fallocate(Entry->Fd, Offset, Len) != 0)) {
     return convertErrNo(errno);
   }
 
@@ -621,7 +623,7 @@ Expect<uint32_t> WasiFdClose::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_EBADF;
   }
 
-  if (unlikely(close(Fd) != 0)) {
+  if (unlikely(close(Entry->Fd) != 0)) {
     return convertErrNo(errno);
   }
 
@@ -640,7 +642,7 @@ WasiFdDatasync::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd) {
     return __WASI_ENOTCAPABLE;
   }
 
-  if (unlikely(fdatasync(Fd) != 0)) {
+  if (unlikely(fdatasync(Entry->Fd) != 0)) {
     return convertErrNo(errno);
   }
 
@@ -669,7 +671,7 @@ WasiFdFdstatGet::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   /// 1. __wasi_fdstat_t.fs_filetype
   {
     struct stat SysFStat;
-    if (unlikely(fstat(Fd, &SysFStat) != 0)) {
+    if (unlikely(fstat(Entry->Fd, &SysFStat) != 0)) {
       return convertErrNo(errno);
     }
     FdStat->fs_filetype = statMode2FileType(SysFStat.st_mode);
@@ -677,11 +679,11 @@ WasiFdFdstatGet::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
 
   /// 2. __wasi_fdstat_t.fs_flags
   {
-    int FdFlags = fcntl(Fd, F_GETFL);
+    int FdFlags = fcntl(Entry->Fd, F_GETFL);
     if (unlikely(FdFlags < 0)) {
       return convertErrNo(errno);
     }
-    FdStat->fs_flags = FdFlags & O_ACCMODE;
+    FdStat->fs_flags = 0;
     FdStat->fs_flags |= ((FdFlags & O_APPEND) ? __WASI_FDFLAG_APPEND : 0);
     FdStat->fs_flags |= ((FdFlags & O_DSYNC) ? __WASI_FDFLAG_DSYNC : 0);
     FdStat->fs_flags |= ((FdFlags & O_NONBLOCK) ? __WASI_FDFLAG_NONBLOCK : 0);
@@ -733,7 +735,7 @@ WasiFdFdstatSetFlags::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_ENOTCAPABLE;
   }
 
-  if (unlikely(fcntl(Fd, F_SETFL, SysFlag) != 0)) {
+  if (unlikely(fcntl(Entry->Fd, F_SETFL, SysFlag) != 0)) {
     return convertErrNo(errno);
   }
 
@@ -781,7 +783,7 @@ WasiFdFilestatGet::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   }
 
   struct stat SysFStat;
-  if (unlikely(fstat(Fd, &SysFStat) != 0)) {
+  if (unlikely(fstat(Entry->Fd, &SysFStat) != 0)) {
     return convertErrNo(errno);
   }
 
@@ -812,7 +814,7 @@ WasiFdFilestatSetSize::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_ENOTCAPABLE;
   }
 
-  if (unlikely(ftruncate(Fd, FileSize) == -1)) {
+  if (unlikely(ftruncate(Entry->Fd, FileSize) == -1)) {
     return convertErrNo(errno);
   }
 
@@ -848,7 +850,7 @@ WasiFdFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
     SysTimespec[1].tv_nsec = UTIME_OMIT;
   }
 
-  if (unlikely(futimens(Fd, SysTimespec) != 0)) {
+  if (unlikely(futimens(Entry->Fd, SysTimespec) != 0)) {
     return convertErrNo(errno);
   }
 
@@ -914,7 +916,7 @@ Expect<uint32_t> WasiFdPread::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   /// Store read bytes length.
-  *NRead = preadv(Fd, SysIOVS, IOVSLen, Offset);
+  *NRead = preadv(Entry->Fd, SysIOVS, IOVSLen, Offset);
 
   if (unlikely(*NRead < 0)) {
     return convertErrNo(errno);
@@ -1035,7 +1037,7 @@ Expect<uint32_t> WasiFdPwrite::body(Runtime::Instance::MemoryInstance *MemInst,
     SysIOVS[I].iov_len = IOVS.buf_len;
   }
 
-  *NWritten = pwritev(Fd, SysIOVS, IOVSLen, Offset);
+  *NWritten = pwritev(Entry->Fd, SysIOVS, IOVSLen, Offset);
 
   if (unlikely(*NWritten < 0)) {
     return convertErrNo(errno);
@@ -1100,7 +1102,7 @@ Expect<uint32_t> WasiFdRead::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   /// Store read bytes length.
-  *NRead = readv(Fd, SysIOVS, IOVSLen);
+  *NRead = readv(Entry->Fd, SysIOVS, IOVSLen);
 
   if (unlikely(*NRead < 0)) {
     return convertErrNo(errno);
@@ -1143,7 +1145,7 @@ Expect<uint32_t> WasiFdReadDir::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   if (unlikely(!Entry->Dir)) {
-    DIR *D = fdopendir(Fd);
+    DIR *D = fdopendir(Entry->Fd);
     if (D == nullptr) {
       return convertErrNo(errno);
     }
@@ -1176,9 +1178,9 @@ Expect<uint32_t> WasiFdReadDir::body(Runtime::Instance::MemoryInstance *MemInst,
       if (errno != 0) {
         return convertErrNo(errno);
       }
-      return __WASI_ENOSYS;
+      return __WASI_ESUCCESS;
     }
-    Dir.Cookie = telldir(Dir.Dir);
+    Dir.Cookie = SysDirent->d_off;
     std::string_view Name = SysDirent->d_name;
 
     Dir.Buffer.resize(sizeof(__wasi_dirent_t) + Name.size());
@@ -1209,6 +1211,9 @@ WasiFdRenumber::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                Fd == STDERR_FILENO)) {
     return __WASI_ENOTSUP;
   }
+
+  Fd += WasiEnvironment::kGuestFdOffset;
+  ToFd += WasiEnvironment::kGuestFdOffset;
 
   /// Duplicate file descriptor
   if (unlikely(dup2(Fd, ToFd) == -1)) {
@@ -1268,7 +1273,7 @@ Expect<int32_t> WasiFdSeek::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   /// Do lseek.
-  *NewOffset = lseek(Fd, Offset, SysWhence);
+  *NewOffset = lseek(Entry->Fd, Offset, SysWhence);
   if (unlikely(*NewOffset < 0)) {
     return convertErrNo(errno);
   }
@@ -1287,7 +1292,7 @@ Expect<uint32_t> WasiFdSync::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_ENOTCAPABLE;
   }
 
-  if (unlikely(fsync(Fd) != 0)) {
+  if (unlikely(fsync(Entry->Fd) != 0)) {
     return convertErrNo(errno);
   }
 
@@ -1318,7 +1323,7 @@ Expect<uint32_t> WasiFdTell::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   /// Do lseek.
-  *Offset = lseek(Fd, 0, SEEK_CUR);
+  *Offset = lseek(Entry->Fd, 0, SEEK_CUR);
   if (unlikely(*Offset < 0)) {
     return convertErrNo(errno);
   }
@@ -1382,7 +1387,7 @@ Expect<uint32_t> WasiFdWrite::body(Runtime::Instance::MemoryInstance *MemInst,
     SysIOVS[I].iov_len = IOVS.buf_len;
   }
 
-  *NWritten = writev(Fd, SysIOVS, IOVSLen);
+  *NWritten = writev(Entry->Fd, SysIOVS, IOVSLen);
 
   if (unlikely(*NWritten < 0)) {
     return convertErrNo(errno);
@@ -1414,7 +1419,7 @@ WasiPathCreateDirectory::body(Runtime::Instance::MemoryInstance *MemInst,
   }
   std::string PathStr(Path, PathLen);
 
-  if (unlikely(mkdirat(Fd, PathStr.c_str(), 0755) != 0)) {
+  if (unlikely(mkdirat(Entry->Fd, PathStr.c_str(), 0755) != 0)) {
     return convertErrNo(errno);
   }
 
@@ -1453,11 +1458,12 @@ WasiPathFilestatGet::body(Runtime::Instance::MemoryInstance *MemInst,
 
   struct stat SysFStat;
 
+  /// TODO: restrict PathStr on escaping root directory
   int Result;
   if (Flags & __WASI_LOOKUP_SYMLINK_FOLLOW) {
-    Result = stat(PathStr.c_str(), &SysFStat);
+    Result = fstatat(Entry->Fd, PathStr.c_str(), &SysFStat, 0);
   } else {
-    Result = lstat(PathStr.c_str(), &SysFStat);
+    Result = fstatat(Entry->Fd, PathStr.c_str(), &SysFStat, AT_SYMLINK_NOFOLLOW);
   }
   if (unlikely(Result != 0)) {
     return convertErrNo(errno);
@@ -1524,7 +1530,7 @@ WasiPathFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
     SysTimespec[1].tv_nsec = UTIME_OMIT;
   }
 
-  if (unlikely(utimensat(Fd, PathStr.c_str(), SysTimespec, SysFlags) != 0)) {
+  if (unlikely(utimensat(Entry->Fd, PathStr.c_str(), SysTimespec, SysFlags) != 0)) {
     return convertErrNo(errno);
   }
 
@@ -1577,8 +1583,8 @@ Expect<uint32_t> WasiPathLink::body(Runtime::Instance::MemoryInstance *MemInst,
     SysFlags |= AT_SYMLINK_FOLLOW;
   }
 
-  if (unlikely(linkat(OldFd, OldPathStr.c_str(), NewFd, NewPathStr.c_str(),
-                      SysFlags) != 0)) {
+  if (unlikely(linkat(OldEntry->Fd, OldPathStr.c_str(), NewEntry->Fd,
+                      NewPathStr.c_str(), SysFlags) != 0)) {
     return convertErrNo(errno);
   }
 
@@ -1670,12 +1676,18 @@ Expect<uint32_t> WasiPathOpen::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   /// Open file and store Fd.
-  *Fd = open(PathStr.c_str(), Flags, 0644);
-  if (unlikely(*Fd < 0)) {
+  *Fd = openat(Entry->Fd, PathStr.c_str(), Flags, 0644);
+  if (unlikely(int32_t(*Fd) < 0)) {
     return convertErrNo(errno);
   }
 
-  Env.emplaceFile(*Fd, FsRightsBase, FsRightsInheriting, PathStr);
+  std::string NewPathStr = (std::filesystem::u8path(Entry->Path) / PathStr)
+                               .lexically_normal()
+                               .u8string();
+
+  Env.emplaceFile(*Fd, FsRightsBase, FsRightsInheriting, NewPathStr);
+
+  *Fd -= WasiEnvironment::kGuestFdOffset;
   return __WASI_ESUCCESS;
 }
 
@@ -1708,7 +1720,7 @@ WasiPathReadLink::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
     return __WASI_EFAULT;
   }
 
-  if (unlikely(readlinkat(Fd, PathStr.c_str(), Buf, BufLen) < 0)) {
+  if (unlikely(readlinkat(Entry->Fd, PathStr.c_str(), Buf, BufLen) < 0)) {
     return convertErrNo(errno);
   }
 
@@ -1738,7 +1750,7 @@ WasiPathRemoveDirectory::body(Runtime::Instance::MemoryInstance *MemInst,
   }
   std::string PathStr(Path, PathLen);
 
-  if (unlinkat(Fd, PathStr.c_str(), AT_REMOVEDIR) < 0) {
+  if (unlinkat(Entry->Fd, PathStr.c_str(), AT_REMOVEDIR) < 0) {
     return convertErrNo(errno);
   }
 
@@ -1764,12 +1776,14 @@ WasiPathRename::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   }
 
   const auto NewEntry = NewFd == Fd ? Entry : Env.getFile(NewFd);
-  if (unlikely(NewEntry == Env.getFileEnd())) {
-    return __WASI_EBADF;
-  }
+  if (NewFd != Fd) {
+    if (unlikely(NewEntry == Env.getFileEnd())) {
+      return __WASI_EBADF;
+    }
 
-  if (unlikely(!NewEntry->checkRights(__WASI_RIGHT_PATH_RENAME_TARGET))) {
-    return __WASI_ENOTCAPABLE;
+    if (unlikely(!NewEntry->checkRights(__WASI_RIGHT_PATH_RENAME_TARGET))) {
+      return __WASI_ENOTCAPABLE;
+    }
   }
 
   char *const OldPath = MemInst->getPointer<char *>(OldPathPtr, OldPathLen);
@@ -1783,8 +1797,8 @@ WasiPathRename::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   std::string OldPathStr(OldPath, OldPathLen);
   std::string NewPathStr(NewPath, NewPathLen);
 
-  if (unlikely(renameat(Fd, OldPathStr.c_str(), NewFd, NewPathStr.c_str()) !=
-               0)) {
+  if (unlikely(renameat(Entry->Fd, OldPathStr.c_str(), NewEntry->Fd,
+                        NewPathStr.c_str()) != 0)) {
     return convertErrNo(errno);
   }
 
@@ -1820,7 +1834,7 @@ WasiPathSymlink::body(Runtime::Instance::MemoryInstance *MemInst,
   std::string OldPathStr(OldPath, OldPathLen);
   std::string NewPathStr(NewPath, NewPathLen);
 
-  if (unlikely(symlinkat(OldPathStr.c_str(), Fd, NewPathStr.c_str()) != 0)) {
+  if (unlikely(symlinkat(OldPathStr.c_str(), Entry->Fd, NewPathStr.c_str()) != 0)) {
     return convertErrNo(errno);
   }
 
@@ -1850,7 +1864,7 @@ WasiPathUnlinkFile::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   }
   std::string PathStr(Path, PathLen);
 
-  if (unlinkat(Fd, PathStr.c_str(), 0) < 0) {
+  if (unlinkat(Entry->Fd, PathStr.c_str(), 0) < 0) {
     return convertErrNo(errno);
   }
 
@@ -2151,8 +2165,8 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
 }
 
 Expect<void> WasiProcExit::body(Runtime::Instance::MemoryInstance *MemInst,
-                                int32_t Status) {
-  Env.setStatus(Status);
+                                int32_t ExitCode) {
+  Env.setExitCode(ExitCode);
   return Unexpect(ErrCode::Terminated);
 }
 
@@ -2287,7 +2301,7 @@ Expect<uint32_t> WasiSockRecv::body(Runtime::Instance::MemoryInstance *MemInst,
   SysMsgHdr.msg_flags = 0;
 
   /// Store recv bytes length and flags.
-  *RoDataLen = recvmsg(Fd, &SysMsgHdr, SysFlags);
+  *RoDataLen = recvmsg(Entry->Fd, &SysMsgHdr, SysFlags);
   *RoFlags = 0;
   if (SysMsgHdr.msg_flags & MSG_TRUNC) {
     *RoFlags |= __WASI_SOCK_RECV_DATA_TRUNCATED;
@@ -2367,7 +2381,7 @@ Expect<uint32_t> WasiSockSend::body(Runtime::Instance::MemoryInstance *MemInst,
   SysMsgHdr.msg_controllen = 0;
 
   /// Store send bytes length and flags.
-  *SoDataLen = sendmsg(Fd, &SysMsgHdr, 0);
+  *SoDataLen = sendmsg(Entry->Fd, &SysMsgHdr, 0);
 
   if (unlikely(*SoDataLen < 0)) {
     return convertErrNo(errno);
@@ -2403,7 +2417,7 @@ WasiSockShutdown::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
     return __WASI_ENOTCAPABLE;
   }
 
-  if (unlikely(shutdown(Fd, SysFlags) < 0)) {
+  if (unlikely(shutdown(Entry->Fd, SysFlags) < 0)) {
     return convertErrNo(errno);
   }
 

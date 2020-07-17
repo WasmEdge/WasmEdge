@@ -202,7 +202,7 @@ public:
                         uint64_t FsRightsBase, uint64_t FsRightsInheriting);
 };
 
-class WasiFdFilestatGet : public Wasi<WasiFdFdstatGet> {
+class WasiFdFilestatGet : public Wasi<WasiFdFilestatGet> {
 public:
   WasiFdFilestatGet(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
 

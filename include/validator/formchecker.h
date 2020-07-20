@@ -27,8 +27,6 @@ namespace Validator {
 
 enum class VType : uint32_t { Unknown, I32, I64, F32, F64 };
 
-/// TODO: Validator should update due to applying multi-value returns in spec.
-
 class FormChecker {
 public:
   FormChecker() = default;
@@ -41,7 +39,7 @@ public:
 
   /// Adder of contexts
   void addType(const AST::FunctionType &Func);
-  void addFunc(const uint32_t &TypeIdx);
+  void addFunc(const uint32_t TypeIdx, const bool IsImport = false);
   void addTable(const AST::TableType &Tab);
   void addMemory(const AST::MemoryType &Mem);
   void addGlobal(const AST::GlobalType &Glob, const bool IsImport = false);
@@ -54,7 +52,12 @@ public:
   auto &getTables() { return Tables; }
   auto &getMemories() { return Mems; }
   auto &getGlobals() { return Globals; }
+  uint32_t getNumImportFuncs() const { return NumImportFuncs; }
   uint32_t getNumImportGlobals() const { return NumImportGlobals; }
+
+  /// Helper function
+  VType ASTToVType(const ValType &V);
+  ValType VTypeToAST(const VType &V);
 
   struct CtrlFrame {
     CtrlFrame() = default;
@@ -76,10 +79,10 @@ public:
   };
 
 private:
-  /// Checking function
-  Expect<void> checkFunc(const AST::InstrVec &Instrs);
-
   /// Checking expression
+  Expect<void> checkExpr(const AST::InstrVec &Instrs);
+
+  /// Checking instruction list
   Expect<void> checkInstrs(const AST::InstrVec &Instrs);
 
   /// Instruction iteration
@@ -96,9 +99,6 @@ private:
   Expect<void> checkInstr(const AST::UnaryNumericInstruction &Instr);
   Expect<void> checkInstr(const AST::BinaryNumericInstruction &Instr);
   Expect<void> checkInstr(const AST::TruncSatNumericInstruction &Instr);
-
-  /// Helper function
-  VType ASTToVType(const ValType &V);
 
   /// Stack operations
   void pushType(VType);
@@ -119,6 +119,7 @@ private:
   std::vector<ElemType> Tables;
   std::vector<uint32_t> Mems;
   std::vector<std::pair<VType, ValMut>> Globals;
+  uint32_t NumImportFuncs = 0;
   uint32_t NumImportGlobals = 0;
   std::vector<VType> Locals;
   std::vector<VType> Returns;

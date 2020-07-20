@@ -17,6 +17,7 @@ void FormChecker::reset(bool CleanGlobal) {
     Tables.clear();
     Mems.clear();
     Globals.clear();
+    NumImportFuncs = 0;
     NumImportGlobals = 0;
   }
 }
@@ -26,7 +27,7 @@ Expect<void> FormChecker::validate(const AST::InstrVec &Instrs,
   for (ValType Val : RetVals) {
     Returns.push_back(ASTToVType(Val));
   }
-  return checkFunc(Instrs);
+  return checkExpr(Instrs);
 }
 
 Expect<void> FormChecker::validate(const AST::InstrVec &Instrs,
@@ -34,7 +35,7 @@ Expect<void> FormChecker::validate(const AST::InstrVec &Instrs,
   for (VType Val : RetVals) {
     Returns.push_back(Val);
   }
-  return checkFunc(Instrs);
+  return checkExpr(Instrs);
 }
 
 void FormChecker::addType(const AST::FunctionType &Func) {
@@ -48,9 +49,12 @@ void FormChecker::addType(const AST::FunctionType &Func) {
   Types.emplace_back(Param, Ret);
 }
 
-void FormChecker::addFunc(const uint32_t &TypeIdx) {
+void FormChecker::addFunc(const uint32_t TypeIdx, const bool IsImport) {
   if (Types.size() > TypeIdx) {
     Funcs.emplace_back(TypeIdx);
+  }
+  if (IsImport) {
+    NumImportFuncs++;
   }
 }
 
@@ -92,7 +96,22 @@ VType FormChecker::ASTToVType(const ValType &V) {
   }
 }
 
-Expect<void> FormChecker::checkFunc(const AST::InstrVec &Instrs) {
+ValType FormChecker::VTypeToAST(const VType &V) {
+  switch (V) {
+  case VType::I32:
+    return ValType::I32;
+  case VType::I64:
+    return ValType::I64;
+  case VType::F32:
+    return ValType::F32;
+  case VType::F64:
+    return ValType::F64;
+  default:
+    return ValType::I32;
+  }
+}
+
+Expect<void> FormChecker::checkExpr(const AST::InstrVec &Instrs) {
   /// Push ctrl frame ([] -> [Returns])
   pushCtrl({}, Returns);
   if (auto Res = checkInstrs(Instrs); !Res) {
@@ -114,12 +133,20 @@ Expect<void> FormChecker::checkInstrs(const AST::InstrVec &Instrs) {
               if constexpr (std::is_void_v<
                                 typename std::decay_t<decltype(Arg)>::type>) {
                 /// If the Code not matched, validation failed.
-                return Unexpect(ErrCode::ValidationFailed);
+                LOG(ERROR) << ErrCode::InvalidOpCode;
+                LOG(ERROR) << ErrInfo::InfoInstruction(Instr->getOpCode(),
+                                                       Instr->getOffset());
+                return Unexpect(ErrCode::InvalidOpCode);
               } else {
                 /// Check the corresponding instruction.
-                return checkInstr(
+                auto Check = checkInstr(
                     *static_cast<typename std::decay_t<decltype(Arg)>::type *>(
                         Instr.get()));
+                if (!Check) {
+                  LOG(ERROR) << ErrInfo::InfoInstruction(Instr->getOpCode(),
+                                                         Instr->getOffset());
+                }
+                return Check;
               }
             });
         !Res) {
@@ -143,7 +170,8 @@ Expect<void> FormChecker::checkInstr(const AST::ControlInstruction &Instr) {
   default:
     break;
   }
-  return Unexpect(ErrCode::ValidationFailed);
+  LOG(ERROR) << ErrCode::InvalidOpCode;
+  return Unexpect(ErrCode::InvalidOpCode);
 }
 
 Expect<void>
@@ -164,7 +192,10 @@ FormChecker::checkInstr(const AST::BlockControlInstruction &Instr) {
     uint32_t TypeIdx = std::get<uint32_t>(Instr.getBlockType());
     if (Types.size() <= TypeIdx) {
       /// Function type index out of range.
-      return Unexpect(ErrCode::ValidationFailed);
+      LOG(ERROR) << ErrCode::InvalidFuncTypeIdx;
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::FunctionType, TypeIdx, Types.size());
+      return Unexpect(ErrCode::InvalidFuncTypeIdx);
     }
     T1 = Types[TypeIdx].first;
     T2 = Types[TypeIdx].second;
@@ -182,7 +213,8 @@ FormChecker::checkInstr(const AST::BlockControlInstruction &Instr) {
     pushCtrl(T1, T2, (Instr.getOpCode() == OpCode::Loop));
     break;
   default:
-    return Unexpect(ErrCode::ValidationFailed);
+    LOG(ERROR) << ErrCode::InvalidOpCode;
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 
   /// Check block body
@@ -219,7 +251,10 @@ FormChecker::checkInstr(const AST::IfElseControlInstruction &Instr) {
       uint32_t TypeIdx = std::get<uint32_t>(Instr.getBlockType());
       if (Types.size() <= TypeIdx) {
         /// Function type index out of range.
-        return Unexpect(ErrCode::ValidationFailed);
+        LOG(ERROR) << ErrCode::InvalidFuncTypeIdx;
+        LOG(ERROR) << ErrInfo::InfoForbidIndex(
+            ErrInfo::IndexCategory::FunctionType, TypeIdx, Types.size());
+        return Unexpect(ErrCode::InvalidFuncTypeIdx);
       }
       T1 = Types[TypeIdx].first;
       T2 = Types[TypeIdx].second;
@@ -227,7 +262,7 @@ FormChecker::checkInstr(const AST::IfElseControlInstruction &Instr) {
 
     /// Pop I32
     if (auto Res = popType(VType::I32); !Res) {
-      return Unexpect(ErrCode::ValidationFailed);
+      return Unexpect(Res);
     }
     /// Pop and check [t1*]
     if (auto Res = popTypes(T1); !Res) {
@@ -262,14 +297,18 @@ FormChecker::checkInstr(const AST::IfElseControlInstruction &Instr) {
   default:
     break;
   }
-  return Unexpect(ErrCode::ValidationFailed);
+  LOG(ERROR) << ErrCode::InvalidOpCode;
+  return Unexpect(ErrCode::InvalidOpCode);
 }
 
 Expect<void> FormChecker::checkInstr(const AST::BrControlInstruction &Instr) {
   auto N = Instr.getLabelIndex();
   if (CtrlStack.size() <= N) {
     /// Branch out of stack
-    return Unexpect(ErrCode::ValidationFailed);
+    LOG(ERROR) << ErrCode::InvalidLabelIdx;
+    LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Label, N,
+                                           CtrlStack.size());
+    return Unexpect(ErrCode::InvalidLabelIdx);
   }
   switch (Instr.getOpCode()) {
   case OpCode::Br: {
@@ -291,7 +330,8 @@ Expect<void> FormChecker::checkInstr(const AST::BrControlInstruction &Instr) {
   default:
     break;
   }
-  return Unexpect(ErrCode::ValidationFailed);
+  LOG(ERROR) << ErrCode::InvalidOpCode;
+  return Unexpect(ErrCode::InvalidOpCode);
 }
 
 Expect<void>
@@ -301,19 +341,34 @@ FormChecker::checkInstr(const AST::BrTableControlInstruction &Instr) {
     auto M = Instr.getLabelIndex();
     if (CtrlStack.size() <= M) {
       /// Branch out of table index
-      return Unexpect(ErrCode::ValidationFailed);
+      LOG(ERROR) << ErrCode::InvalidLabelIdx;
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Label, M,
+                                             CtrlStack.size());
+      return Unexpect(ErrCode::InvalidLabelIdx);
     }
     for (auto &N : Instr.getLabelTable()) {
       if (CtrlStack.size() <= N) {
         /// Branch out of stack
-        return Unexpect(ErrCode::ValidationFailed);
+        LOG(ERROR) << ErrCode::InvalidLabelIdx;
+        LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Label, N,
+                                               CtrlStack.size());
+        return Unexpect(ErrCode::InvalidLabelIdx);
       }
       Span<const VType> NSpan = getLabelTypes(CtrlStack[N]);
       Span<const VType> MSpan = getLabelTypes(CtrlStack[M]);
       if (std::vector<VType>(NSpan.begin(), NSpan.end()) !=
           std::vector<VType>(MSpan.begin(), MSpan.end())) {
         /// CtrlStack[N].label_types != CtrlStack[M].label_types
-        return Unexpect(ErrCode::ValidationFailed);
+        std::vector<ValType> NList, MList;
+        for (auto &I : NSpan) {
+          NList.push_back(VTypeToAST(I));
+        }
+        for (auto &I : MSpan) {
+          MList.push_back(VTypeToAST(I));
+        }
+        LOG(ERROR) << ErrCode::TypeCheckFailed;
+        LOG(ERROR) << ErrInfo::InfoMismatch(MList, NList);
+        return Unexpect(ErrCode::TypeCheckFailed);
       }
     }
     if (auto Res = popType(VType::I32); !Res) {
@@ -327,7 +382,8 @@ FormChecker::checkInstr(const AST::BrTableControlInstruction &Instr) {
   default:
     break;
   }
-  return Unexpect(ErrCode::ValidationFailed);
+  LOG(ERROR) << ErrCode::InvalidOpCode;
+  return Unexpect(ErrCode::InvalidOpCode);
 }
 
 Expect<void> FormChecker::checkInstr(const AST::CallControlInstruction &Instr) {
@@ -336,20 +392,30 @@ Expect<void> FormChecker::checkInstr(const AST::CallControlInstruction &Instr) {
   case OpCode::Call: {
     if (Funcs.size() <= N) {
       /// Call function index out of range
-      return Unexpect(ErrCode::ValidationFailed);
+      LOG(ERROR) << ErrCode::InvalidFuncIdx;
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function,
+                                             N, Funcs.size());
+      return Unexpect(ErrCode::InvalidFuncIdx);
     }
     return StackTrans(Types[Funcs[N]].first, Types[Funcs[N]].second);
   }
   case OpCode::Call_indirect: {
     if (Tables.size() == 0) {
-      return Unexpect(ErrCode::ValidationFailed);
+      LOG(ERROR) << ErrCode::InvalidTableIdx;
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Table, 0,
+                                             Tables.size());
+      return Unexpect(ErrCode::InvalidTableIdx);
     }
     if (Tables[0] != ElemType::FuncRef) {
-      return Unexpect(ErrCode::ValidationFailed);
+      LOG(ERROR) << ErrCode::InvalidTableIdx;
+      return Unexpect(ErrCode::InvalidTableIdx);
     }
     if (Types.size() <= N) {
       /// Function type index out of range
-      return Unexpect(ErrCode::ValidationFailed);
+      LOG(ERROR) << ErrCode::InvalidFuncTypeIdx;
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::FunctionType, N, Types.size());
+      return Unexpect(ErrCode::InvalidFuncTypeIdx);
     }
     if (auto Res = popType(VType::I32); !Res) {
       return Unexpect(Res);
@@ -359,7 +425,8 @@ Expect<void> FormChecker::checkInstr(const AST::CallControlInstruction &Instr) {
   default:
     break;
   }
-  return Unexpect(ErrCode::ValidationFailed);
+  LOG(ERROR) << ErrCode::InvalidOpCode;
+  return Unexpect(ErrCode::InvalidOpCode);
 }
 
 Expect<void> FormChecker::checkInstr(const AST::ParametricInstruction &Instr) {
@@ -387,7 +454,8 @@ Expect<void> FormChecker::checkInstr(const AST::ParametricInstruction &Instr) {
   default:
     break;
   }
-  return Unexpect(ErrCode::ValidationFailed);
+  LOG(ERROR) << ErrCode::InvalidOpCode;
+  return Unexpect(ErrCode::InvalidOpCode);
 }
 
 Expect<void> FormChecker::checkInstr(const AST::VariableInstruction &Instr) {
@@ -399,7 +467,11 @@ Expect<void> FormChecker::checkInstr(const AST::VariableInstruction &Instr) {
   case OpCode::Local__tee:
     if (Instr.getVariableIndex() >= Locals.size()) {
       /// Local index out of range
-      return Unexpect(ErrCode::ValidationFailed);
+      LOG(ERROR) << ErrCode::InvalidLocalIdx;
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Local,
+                                             Instr.getVariableIndex(),
+                                             Locals.size());
+      return Unexpect(ErrCode::InvalidLocalIdx);
     }
     TExpect = Locals[Instr.getVariableIndex()];
     break;
@@ -407,12 +479,17 @@ Expect<void> FormChecker::checkInstr(const AST::VariableInstruction &Instr) {
   case OpCode::Global__set:
     if (Instr.getVariableIndex() >= Globals.size()) {
       /// Global index out of range
-      return Unexpect(ErrCode::ValidationFailed);
+      LOG(ERROR) << ErrCode::InvalidGlobalIdx;
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Global,
+                                             Instr.getVariableIndex(),
+                                             Locals.size());
+      return Unexpect(ErrCode::InvalidGlobalIdx);
     }
     TExpect = Globals[Instr.getVariableIndex()].first;
     break;
   default:
-    return Unexpect(ErrCode::ValidationFailed);
+    LOG(ERROR) << ErrCode::InvalidOpCode;
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 
   /// Pop type and check is type matching
@@ -421,7 +498,8 @@ Expect<void> FormChecker::checkInstr(const AST::VariableInstruction &Instr) {
     /// Global case, check mutation.
     if (Globals[Instr.getVariableIndex()].second != ValMut::Var) {
       /// Global is immutable
-      return Unexpect(ErrCode::ValidationFailed);
+      LOG(ERROR) << ErrCode::ImmutableGlobal;
+      return Unexpect(ErrCode::ImmutableGlobal);
     }
     // fall through
   case OpCode::Local__set:
@@ -449,7 +527,10 @@ Expect<void> FormChecker::checkInstr(const AST::VariableInstruction &Instr) {
 Expect<void> FormChecker::checkInstr(const AST::MemoryInstruction &Instr) {
   /// Memory[0] must exist
   if (Mems.size() == 0) {
-    return Unexpect(ErrCode::ValidationFailed);
+    LOG(ERROR) << ErrCode::InvalidMemoryIdx;
+    LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, 0,
+                                           Mems.size());
+    return Unexpect(ErrCode::InvalidMemoryIdx);
   }
 
   /// Get bit width
@@ -491,16 +572,22 @@ Expect<void> FormChecker::checkInstr(const AST::MemoryInstruction &Instr) {
   case OpCode::I32__store8:
   case OpCode::I64__store8:
     /// N will be 8 in the end
-    if ((1UL << Instr.getMemoryAlign()) > (N >> 3UL)) {
+
+    if (Instr.getMemoryAlign() > 31 ||
+        (1UL << Instr.getMemoryAlign()) > (N >> 3UL)) {
       /// 2 ^ align needs to <= N / 8
-      return Unexpect(ErrCode::ValidationFailed);
+      LOG(ERROR) << ErrCode::InvalidAlignment;
+      LOG(ERROR) << ErrInfo::InfoMismatch(uint8_t(N >> 3),
+                                          Instr.getMemoryAlign());
+      return Unexpect(ErrCode::InvalidAlignment);
     }
     break;
   case OpCode::Memory__size:
   case OpCode::Memory__grow:
     break;
   default:
-    return Unexpect(ErrCode::ValidationFailed);
+    LOG(ERROR) << ErrCode::InvalidOpCode;
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 
   switch (Instr.getOpCode()) {
@@ -542,7 +629,8 @@ Expect<void> FormChecker::checkInstr(const AST::MemoryInstruction &Instr) {
   default:
     break;
   }
-  return Unexpect(ErrCode::ValidationFailed);
+  LOG(ERROR) << ErrCode::InvalidOpCode;
+  return Unexpect(ErrCode::InvalidOpCode);
 }
 
 Expect<void> FormChecker::checkInstr(const AST::ConstInstruction &Instr) {
@@ -558,7 +646,8 @@ Expect<void> FormChecker::checkInstr(const AST::ConstInstruction &Instr) {
   default:
     break;
   }
-  return Unexpect(ErrCode::ValidationFailed);
+  LOG(ERROR) << ErrCode::InvalidOpCode;
+  return Unexpect(ErrCode::InvalidOpCode);
 }
 
 Expect<void>
@@ -643,7 +732,8 @@ FormChecker::checkInstr(const AST::UnaryNumericInstruction &Instr) {
   default:
     break;
   }
-  return Unexpect(ErrCode::ValidationFailed);
+  LOG(ERROR) << ErrCode::InvalidOpCode;
+  return Unexpect(ErrCode::InvalidOpCode);
 }
 
 Expect<void>
@@ -744,13 +834,15 @@ FormChecker::checkInstr(const AST::BinaryNumericInstruction &Instr) {
   default:
     break;
   }
-  return Unexpect(ErrCode::ValidationFailed);
+  LOG(ERROR) << ErrCode::InvalidOpCode;
+  return Unexpect(ErrCode::InvalidOpCode);
 }
 
 Expect<void>
 FormChecker::checkInstr(const AST::TruncSatNumericInstruction &Instr) {
   if (Instr.getOpCode() != OpCode::Trunc_sat) {
-    return Unexpect(ErrCode::ValidationFailed);
+    LOG(ERROR) << ErrCode::InvalidOpCode;
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 
   switch (Instr.getSubOp()) {
@@ -769,7 +861,8 @@ FormChecker::checkInstr(const AST::TruncSatNumericInstruction &Instr) {
   default:
     break;
   }
-  return Unexpect(ErrCode::ValidationFailed);
+  LOG(ERROR) << ErrCode::InvalidOpCode;
+  return Unexpect(ErrCode::InvalidOpCode);
 }
 
 void FormChecker::pushType(VType V) { ValStack.emplace_front(V); }
@@ -786,7 +879,9 @@ Expect<VType> FormChecker::popType() {
       return VType::Unknown;
     }
     /// Value stack underflow
-    return Unexpect(ErrCode::ValidationFailed);
+    LOG(ERROR) << ErrCode::TypeCheckFailed;
+    LOG(ERROR) << "    Value stack underflow.";
+    return Unexpect(ErrCode::TypeCheckFailed);
   }
   auto Res = ValStack.front();
   ValStack.pop_front();
@@ -806,7 +901,9 @@ Expect<VType> FormChecker::popType(VType E) {
   }
   if (*Res != E) {
     /// Expect value on value stack is not matched
-    return Unexpect(ErrCode::ValidationFailed);
+    LOG(ERROR) << ErrCode::TypeCheckFailed;
+    LOG(ERROR) << ErrInfo::InfoMismatch(VTypeToAST(E), VTypeToAST(*Res));
+    return Unexpect(ErrCode::TypeCheckFailed);
   }
   return *Res;
 }
@@ -828,15 +925,19 @@ void FormChecker::pushCtrl(Span<const VType> In, Span<const VType> Out,
 
 Expect<FormChecker::CtrlFrame> FormChecker::popCtrl() {
   if (CtrlStack.empty()) {
-    /// Ctrl stack is empty when pop.
-    return Unexpect(ErrCode::ValidationFailed);
+    /// Ctrl stack is empty when popping.
+    LOG(ERROR) << ErrCode::TypeCheckFailed;
+    LOG(ERROR) << "    Control stack underflow.";
+    return Unexpect(ErrCode::TypeCheckFailed);
   }
   if (auto Res = popTypes(CtrlStack.front().EndTypes); !Res) {
     return Unexpect(Res);
   }
   if (ValStack.size() != CtrlStack.front().Height) {
     /// Value stack size not matched.
-    return Unexpect(ErrCode::ValidationFailed);
+    LOG(ERROR) << ErrCode::TypeCheckFailed;
+    LOG(ERROR) << "    Value stack underflow.";
+    return Unexpect(ErrCode::TypeCheckFailed);
   }
   auto Head = std::move(CtrlStack.front());
   CtrlStack.pop_front();

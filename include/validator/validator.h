@@ -32,8 +32,7 @@ public:
 
 private:
   /// Validate AST::Types
-  Expect<void> validate(const AST::Limit &Lim, const uint32_t K);
-  Expect<void> validate(const AST::FunctionType &Func);
+  Expect<void> validate(const AST::Limit &Lim);
   Expect<void> validate(const AST::TableType &Tab);
   Expect<void> validate(const AST::MemoryType &Mem);
   /// GlobalType is always valid.
@@ -51,15 +50,15 @@ private:
 
   /// Validate AST::Sections
   Expect<void> validate(const AST::ImportSection &ImportSec);
-  Expect<void> validate(const AST::FunctionSection &FuncSec,
-                        const AST::CodeSection &CodeSec);
+  Expect<void> validate(const AST::FunctionSection &FuncSec);
   Expect<void> validate(const AST::TableSection &TabSec);
   Expect<void> validate(const AST::MemorySection &MemSec);
   Expect<void> validate(const AST::GlobalSection &GlobSec);
-  Expect<void> validate(const AST::ExportSection &ExportSec);
-  Expect<void> validate(const AST::StartSection &StartSec);
   Expect<void> validate(const AST::ElementSection &ElemSec);
+  Expect<void> validate(const AST::CodeSection &CodeSec);
   Expect<void> validate(const AST::DataSection &DataSec);
+  Expect<void> validate(const AST::StartSection &StartSec);
+  Expect<void> validate(const AST::ExportSection &ExportSec);
 
   /// Validate const expression
   Expect<void> validateConstExpr(const AST::InstrVec &Instrs,

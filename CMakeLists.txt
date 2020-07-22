@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.11)
 project(SSVM)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)

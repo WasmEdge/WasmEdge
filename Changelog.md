@@ -1,10 +1,71 @@
+### 0.6.2 (2020-07-22)
+
+Features:
+
+* New target support:
+  * Add aarch64 target support for both ssvm-interpreter and ssvm-aot tools.
+* Wasm spec 1.1 support:
+  * Implement `multi-value return` proposal.
+  * Implement `signed extension` and `saturated convert` instructions.
+    * i32.extend8_s
+    * i32.extend16_s
+    * i64.extend8_s
+    * i64.extend16_s
+    * i64.extend32_s
+    * i32.trunc_sat_f32_s
+    * i32.trunc_sat_f32_u
+    * i32.trunc_sat_f64_s
+    * i32.trunc_sat_f64_u
+    * i64.trunc_sat_f32_s
+    * i64.trunc_sat_f32_u
+    * i64.trunc_sat_f64_s
+    * i64.trunc_sat_f64_u
+* Wasm spec test suites support:
+  * Add [ssvm-unittest](https://github.com/second-state/ssvm-unittest) toolkit for integrating wasm spec test suites.
+  * Enable `assert_invalid` tests
+* Wasi support:
+  * Enable environ variables support:
+    * add `--env` option for environment variables.
+    * allow developers to append more environment variables from a given env list, e.g. `PATH=/usr/bin`, `SHELL=ZSH`.
+  * Enable preopens support:
+    * add `--dir` option for preopens directories.
+    * allow developers to append more preopens directories from a given dir list, e.g. `/sandbox:/real/path`, `/sandbox2:/real/path2`.
+* New Statistics API:
+  * With statistics class, developers can get the following information after each execution:
+    * Total execution time in `us`. (= `Wasm instruction execution time` + `Host function execution time`)
+    * Wasm instruction execution time in `us`.
+    * Host function execution time in `us`. A host function can be a evmc function like `evmc::storage_get`, a wasi function like `random_get`, or any customized host function.
+    * Instruction count. (Total executed instructions in the previous round.)
+    * Total gas cost. (Execution cost by applying ethereum-flavored wasm cost table.)
+    * Instruction per second.
+* Validator:
+  * Support Wasm 1.1 instructions validation.
+  * Support blocktype check which is used in multi-value return proposal.
+* Logging system:
+  * Support 2-byte instructions.
+
+Refactor:
+
+* Remove redundant std::move in return statements.
+
+Fixed Issues:
+
+* Fix std::filesystem link issue in ssvm-aot tool.
+* Fix `-Wreorder` warnings in errinfo.h
+* Fix several implementation errors in wasi functions.
+
+Tools:
+
+* CI: Update base image from Ubuntu 18.04 to Ubuntu 20.04
+
+
 ### 0.6.1 (2020-06-24)
 
 Features:
 
 * Error Logging System
-  * Add information structures to print information when error occurs.
-  * Apply error logging in every phases.
+  * Add information structures to print information when an error occurs.
+  * Apply error logging in every phase.
 
 Refactor:
 * Internal tuple span mechanism
@@ -20,7 +81,7 @@ Refactor:
 Fixed Issues:
 * Instantiation Phase
   * Fixed boundary checking bugs when initializing data sections.
-* Function invokation
+* Function invocation
   * Add dummy frame when invoking function from VM.
 
 ### 0.6.0 (2020-06-08)
@@ -28,17 +89,17 @@ Fixed Issues:
 Features:
 
 * Building System
-  * Add cmake option `SSVM_DISABLE_AOT_RUNTIME` to disable building ahead of time compilation mode.
+  * Add CMake option `SSVM_DISABLE_AOT_RUNTIME` to disable building ahead of time compilation mode.
 * Wasm AST
-  * Add support of multiple partition of sections in wasm module.
+  * Add support of multiple partitions of sections in wasm module.
 * AOT
   * Add SSVM-AOT tools.
 
 Tools:
 
 * SSVM-AOT
-  * Enable to compile and run separatedly.
-  * Enable to run compiled module and normal module with interpreter.
+  * Enable to compile and run separately.
+  * Enable to run compiled module and normal module with the interpreter.
 
 Refactor:
 
@@ -46,13 +107,13 @@ Refactor:
   * Apply C++20 `span` features in host functions.
 * Internal error handling mechanism
   * Apply non-exception version of `expected`.
-* Refine cmake files
-  * Update file copying macro in `CMakeFile` to support resursively copying.
-  * Refine include paths and dependencies in every static libraries.
+* Refine CMake files
+  * Update file copying macro in `CMakeFile` to support recursively copying.
+  * Refine include paths and dependencies in every static library.
   * Modularize static libraries to be included as submodules easier.
 * Interpreter
-  * Use function address in `Store` for invoking instead of exported function name.
-  * Support invokation of a host function.
+  * Use function address in `Store` for invoking instead of the exported function name.
+  * Support invocation of a host function.
 * Host functions
   * Return `Expect` instead of `ErrCode` in host functions.
   * Return function return values in `Expect` class rather than in function parameter.
@@ -71,9 +132,9 @@ Fixed Issues:
   * Add checking Wasm header and version when loading.
 * Validation
   * Fix `export section` checking to support `""` function name.
-  * Fix type transforming when function invokation and returning.
+  * Fix type transforming when function invocation and return.
 * Runtime Data Structure
-  * Fix wrong table resizing when initialization in `table instance`.
+  * Fix the wrong table resizing when initialization in `table instance`.
 * Interpreter
   * Instantiation
     * Fix instantiation steps of `data` and `element sections`.
@@ -82,13 +143,13 @@ Fixed Issues:
   * Engine
     * Fix wrong arity assignment in `loop` instruction.
     * Fix wrong answer issue in `trunc` and `clz` instructions.
-    * Fix logic of `div` instruction in both integer and floating point inputs.
-    * Fix wrong handling of `NaN` oprend in `min` and `max` instructions.
-    * Add dummy frame before function invokation according to Wasm spec.
+    * Fix logic of `div` instruction in both integer and floating-point inputs.
+    * Fix wrong handling of `NaN` operand in `min` and `max` instructions.
+    * Add dummy frame before function invocation according to Wasm spec.
     * Add memory boundary checking when loading value in `memory` instructions.
 * AOT
-  * Fix wrong handling of minimum oprend in `mod` instructions.
-  * Fix wrong handling of `NaN` oprend in `min` and `max` instructions.
+  * Fix wrong handling of the minimum operand in `mod` instructions.
+  * Fix wrong handling of `NaN` operand in `min` and `max` instructions.
 
 Tests:
 
@@ -107,7 +168,7 @@ SSVM 0.5.1 is a bug-fix release from 0.5.0.
 
 * Issues:
   * Set correct reset timing of the interpreter.
-  * Fix data copying in table instance in the instanciation phase.
+  * Fix data copying in table instance in the instantiation phase.
   * Fix label popping in stack manager.
 
 ### 0.5.0 (2020-04-01)
@@ -210,7 +271,7 @@ Features:
 Refactor:
 
 * Host functions:
-  * Use template to generate wasm function type of host function body.
+  * Use the template to generate wasm function type of host function body.
   * Move function module name and function name to host function class.
 
 Tools:
@@ -245,7 +306,7 @@ Fixed issues:
 
 * Change the naming style of JSON format in SSVM proxy mode
   * Use snake case for the keys of JSON files instead
-* Change the arguements and return values formats.
+* Change the arguments and return value formats.
   * Add `argument_types` and `return_types` in input JSON format.
 * Expand home directory path
   * Accept ~ in the file path
@@ -256,10 +317,10 @@ Fixed issues:
 Features:
 
 * WebAssembly Validation
-  * Implement Wasm Validation mechanism. SSVM will validate wasm modules before execution.
+  * Implement the Wasm Validation mechanism. SSVM will validate wasm modules before execution.
 * Snapshot and restore execution state
   * SSVM provides restore mechanism from the previous execution state.
-  * SSVM provides snapshot mechanism to dump the current execution state.
+  * SSVM provides a snapshot mechanism to dump the current execution state.
 * [JSON interface Spec](doc/ssvm-proxy/design_document.md)
   * Initialize and set up SSVM via input JSON format.
   * Retrieve execution results via output JSON format.
@@ -324,3 +385,4 @@ Runtime:
 Test:
 
 * Support ERC20 token contracts
+

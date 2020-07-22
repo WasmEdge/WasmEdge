@@ -18,6 +18,8 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
   for (const auto &ElemSeg : ElemSec.getContent()) {
     /// Run initialize expression.
     if (auto Res = runExpression(StoreMgr, ElemSeg->getInstrs()); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
+      LOG(ERROR) << ErrInfo::InfoAST(ElemSeg->NodeAttr);
       return Unexpect(Res);
     }
 
@@ -35,7 +37,6 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
       LOG(ERROR) << ErrInfo::InfoBoundary(
           Offset, ElemSeg->getFuncIdxes().size(), TabInst->getMin() - 1);
       LOG(ERROR) << ErrInfo::InfoAST(ElemSeg->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(ElemSec.NodeAttr);
       return Unexpect(ErrCode::ElemSegDoesNotFit);
     }
     Offsets.push_back(Offset);

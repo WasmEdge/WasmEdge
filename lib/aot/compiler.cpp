@@ -16,8 +16,8 @@
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
 
 #if LLVM_VERSION_MAJOR >= 10
-#include <llvm/IR/IntrinsicsX86.h>
 #include <llvm/IR/IntrinsicsAArch64.h>
+#include <llvm/IR/IntrinsicsX86.h>
 #include <llvm/Support/Alignment.h>
 #endif
 
@@ -399,12 +399,12 @@ public:
       } else if (Ty->isStructTy()) {
         const auto Count = Ty->getStructNumElements();
         if (Stack.size() < Count) {
-          return Unexpect(ErrCode::ValidationFailed);
+          return Unexpect(ErrCode::TypeCheckFailed);
         }
         Builder.CreateAggregateRet(Stack.data() + Stack.size() - Count, Count);
       } else {
         if (Stack.empty()) {
-          return Unexpect(ErrCode::ValidationFailed);
+          return Unexpect(ErrCode::TypeCheckFailed);
         }
         Builder.CreateRet(Stack.back());
       }
@@ -485,7 +485,7 @@ public:
     switch (Instr.getOpCode()) {
     case OpCode::Br: {
       if (!setLableJumpPHI(Label)) {
-        return Unexpect(ErrCode::ValidationFailed);
+        return Unexpect(ErrCode::InvalidLabelIdx);
       }
       Builder.CreateBr(getLabel(Label));
       Builder.SetInsertPoint(llvm::BasicBlock::Create(VMContext, "br.end", F));
@@ -497,7 +497,7 @@ public:
           Builder.CreateICmpNE(Stack.back(), Builder.getInt32(0));
       Stack.pop_back();
       if (!setLableJumpPHI(Label)) {
-        return Unexpect(ErrCode::ValidationFailed);
+        return Unexpect(ErrCode::InvalidLabelIdx);
       }
       llvm::BasicBlock *Next =
           llvm::BasicBlock::Create(VMContext, "br_if.end", F);
@@ -515,13 +515,13 @@ public:
     switch (Instr.getOpCode()) {
     case OpCode::Br_table: {
       if (!setLableJumpPHI(Instr.getLabelIndex())) {
-        return Unexpect(ErrCode::ValidationFailed);
+        return Unexpect(ErrCode::InvalidLabelIdx);
       }
       llvm::SwitchInst *Switch = Builder.CreateSwitch(
           Stack.back(), getLabel(Instr.getLabelIndex()), LabelTable.size());
       for (size_t I = 0; I < LabelTable.size(); ++I) {
         if (!setLableJumpPHI(LabelTable[I])) {
-          return Unexpect(ErrCode::ValidationFailed);
+          return Unexpect(ErrCode::InvalidLabelIdx);
         }
         Switch->addCase(Builder.getInt32(I), getLabel(LabelTable[I]));
       }
@@ -591,14 +591,14 @@ public:
       break;
     case OpCode::Global__get:
       if (Index >= Context.Globals.size()) {
-        return Unexpect(ErrCode::ValidationFailed);
+        return Unexpect(ErrCode::InvalidGlobalIdx);
       }
       Stack.push_back(Builder.CreateLoad(Context.Globals[Index]));
       break;
     case OpCode::Global__set:
       assert(!Stack.empty());
       if (Index >= Context.Globals.size()) {
-        return Unexpect(ErrCode::ValidationFailed);
+        return Unexpect(ErrCode::InvalidGlobalIdx);
       }
       Builder.CreateStore(Stack.back(), Context.Globals[Index]);
       Stack.pop_back();
@@ -1323,12 +1323,12 @@ public:
     } else if (Ty->isStructTy()) {
       const auto Count = Ty->getStructNumElements();
       if (Stack.size() < Count) {
-        return Unexpect(ErrCode::ValidationFailed);
+        return Unexpect(ErrCode::TypeCheckFailed);
       }
       Builder.CreateAggregateRet(Stack.data() + Stack.size() - Count, Count);
     } else {
       if (Stack.empty()) {
-        return Unexpect(ErrCode::ValidationFailed);
+        return Unexpect(ErrCode::TypeCheckFailed);
       }
       Builder.CreateRet(Stack.back());
     }
@@ -1349,7 +1349,7 @@ private:
     const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
 
     if (Stack.size() < FuncType.getParamTypes().size()) {
-      return Unexpect(ErrCode::ValidationFailed);
+      return Unexpect(ErrCode::TypeCheckFailed);
     }
     auto Begin = Stack.end() - FuncType.getParamTypes().size();
     auto End = Stack.end();
@@ -1376,7 +1376,7 @@ private:
   Expect<void> compileIndirectCallOp(const unsigned int FuncTypeIndex) {
     const auto &FuncType = *Context.FunctionTypes[FuncTypeIndex];
     if (Stack.size() < FuncType.getParamTypes().size()) {
-      return Unexpect(ErrCode::ValidationFailed);
+      return Unexpect(ErrCode::TypeCheckFailed);
     }
     auto Begin = Stack.end() - FuncType.getParamTypes().size() - 1;
     auto End = Stack.end() - 1;
@@ -1437,7 +1437,7 @@ private:
   Expect<void> compileLoadOp(unsigned int Offset, unsigned Alignment,
                              llvm::Type *LoadTy) {
     if (Stack.empty()) {
-      return Unexpect(ErrCode::ValidationFailed);
+      return Unexpect(ErrCode::TypeCheckFailed);
     }
     llvm::Value *Off = Builder.CreateZExt(Stack.back(), Builder.getInt64Ty());
     if (Offset != 0) {
@@ -1554,7 +1554,7 @@ private:
         Nodes.push_back(llvm::UndefValue::get(Type));
       }
     } else if (Incomings.size() == 1) {
-        Nodes = std::move(std::get<0>(Incomings.front()));
+      Nodes = std::move(std::get<0>(Incomings.front()));
     } else {
       const auto &Types = toLLVMTypeVector(Context.Context, RetType);
       for (size_t I = 0; I < Types.size(); ++I) {
@@ -1967,10 +1967,10 @@ Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
       if (auto Res = ImpDesc->getExternalContent<uint32_t>()) {
         TypeIdx = *Res;
       } else {
-        return Unexpect(ErrCode::ValidationFailed);
+        return Unexpect(ErrCode::InvalidFuncIdx);
       }
       if (*TypeIdx >= Context->FunctionTypes.size()) {
-        return Unexpect(ErrCode::ValidationFailed);
+        return Unexpect(ErrCode::InvalidFuncTypeIdx);
       }
       const auto &FuncType = *Context->FunctionTypes[*TypeIdx];
 
@@ -2160,7 +2160,7 @@ Expect<void> Compiler::compile(const AST::GlobalSection &GlobalSec) {
 Expect<void> Compiler::compile(const AST::MemorySection &MemorySection,
                                const AST::DataSection &DataSec) {
   if (MemorySection.getContent().size() != 1) {
-    return Unexpect(ErrCode::ValidationFailed);
+    return Unexpect(ErrCode::MultiMemories);
   }
 
   /*
@@ -2220,6 +2220,9 @@ Expect<void> Compiler::compile(const AST::MemorySection &MemorySection,
 
 Expect<void> Compiler::compile(const AST::TableSection &TableSection,
                                const AST::ElementSection &ElementSection) {
+  if (TableSection.getContent().size() != 1) {
+    return Unexpect(ErrCode::MultiTables);
+  }
   auto &Elements = Context->Elements;
   for (const auto &Element : ElementSection.getContent()) {
     llvm::Constant *Temp =
@@ -2243,7 +2246,7 @@ Expect<void> Compiler::compile(const AST::FunctionSection &FuncSec,
     const auto &TypeIdx = TypeIdxs[I];
     const auto &Code = CodeSegs[I];
     if (TypeIdx >= Context->FunctionTypes.size()) {
-      return Unexpect(ErrCode::ValidationFailed);
+      return Unexpect(ErrCode::InvalidFuncTypeIdx);
     }
     const auto &FuncType = *Context->FunctionTypes[TypeIdx];
     llvm::FunctionType *FTy = toLLVMType(Context->Context, FuncType);

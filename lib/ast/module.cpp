@@ -186,22 +186,22 @@ Expect<void> Module::loadCompiled(LDMgr &Mgr) {
         if (void *Symbol = Mgr.getRawSymbol(Name.c_str())) {
           ExpDesc->setSymbol(Symbol);
         } else {
-          LOG(ERROR) << ErrCode::ValidationFailed;
+          LOG(ERROR) << ErrCode::InvalidGlobalIdx;
           LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Desc_Export);
           LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Sec_Export);
           LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-          return Unexpect(ErrCode::ValidationFailed);
+          return Unexpect(ErrCode::InvalidGlobalIdx);
         }
         break;
       case ExternalType::Table:
       case ExternalType::Memory:
         break;
       default:
-        LOG(ERROR) << ErrCode::ValidationFailed;
+        LOG(ERROR) << ErrCode::InvalidMemoryIdx;
         LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Desc_Export);
         LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Sec_Export);
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-        return Unexpect(ErrCode::ValidationFailed);
+        return Unexpect(ErrCode::InvalidMemoryIdx);
       }
     }
   }

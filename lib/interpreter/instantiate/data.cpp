@@ -18,6 +18,8 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
   for (const auto &DataSeg : DataSec.getContent()) {
     /// Run initialize expression.
     if (auto Res = runExpression(StoreMgr, DataSeg->getInstrs()); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
+      LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
       return Unexpect(Res);
     }
 
@@ -36,7 +38,6 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
           Offset, DataSeg->getData().size(),
           MemInst->getDataPageSize() * MemInst->kPageSize - 1);
       LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(DataSec.NodeAttr);
       return Unexpect(ErrCode::DataSegDoesNotFit);
     }
     Offsets.push_back(Offset);

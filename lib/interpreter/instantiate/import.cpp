@@ -105,7 +105,6 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       LOG(ERROR) << ErrCode::UnknownImport;
       LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
       LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(ImportSec.NodeAttr);
       return Unexpect(ErrCode::UnknownImport);
     }
     if (auto Res = getImportAddr(ExtName, ExtType, *TargetModInst)) {
@@ -113,7 +112,6 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     } else {
       LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
       LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(ImportSec.NodeAttr);
       return Unexpect(Res);
     }
 
@@ -134,7 +132,6 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
                                             TargetType.Returns);
         LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
         LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
-        LOG(ERROR) << ErrInfo::InfoAST(ImportSec.NodeAttr);
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched function address to module instance.
@@ -159,7 +156,6 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
             TargetInst->getMax());
         LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
         LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
-        LOG(ERROR) << ErrInfo::InfoAST(ImportSec.NodeAttr);
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched table address to module instance.
@@ -183,7 +179,6 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
             TargetInst->getMax());
         LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
         LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
-        LOG(ERROR) << ErrInfo::InfoAST(ImportSec.NodeAttr);
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched memory address to module instance.
@@ -204,7 +199,6 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
             TargetInst->getValType(), TargetInst->getValMut());
         LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
         LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
-        LOG(ERROR) << ErrInfo::InfoAST(ImportSec.NodeAttr);
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched global address to module instance.

@@ -33,6 +33,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 
     /// Run initialize expression.
     if (auto Res = runExpression(StoreMgr, GlobSeg->getInstrs()); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
       return Unexpect(Res);
     }
 

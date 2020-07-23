@@ -16,7 +16,7 @@
 ```bash
 $ git clone git@github.com:second-state/SSVM.git
 $ cd SSVM
-$ git checkout 0.6.2
+$ git checkout 0.6.3
 ```
 
 ## Prepare the environment

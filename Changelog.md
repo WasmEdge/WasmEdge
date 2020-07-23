@@ -1,3 +1,12 @@
+### 0.6.3 (2020-07-23)
+
+This is a bug-fix release for the wasi component.
+
+Fixed Issues:
+
+* Change the fd number remap mechanism from static offset to dynamic map.
+
+
 ### 0.6.2 (2020-07-22)
 
 Features:

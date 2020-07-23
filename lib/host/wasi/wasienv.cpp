@@ -39,13 +39,19 @@ namespace Host {
 
 WasiEnvironment::WasiEnvironment() {}
 
-WasiEnvironment::~WasiEnvironment() noexcept {
-  for (const auto &File : FileArray) {
-    if (File.Fd != STDIN_FILENO && File.Fd != STDOUT_FILENO &&
-        File.Fd != STDERR_FILENO) {
-      close(File.Fd);
+WasiEnvironment::~WasiEnvironment() noexcept { fini(); }
+
+void WasiEnvironment::fini() noexcept {
+  for (const auto &File : FileMap) {
+    if (File.second.HostFd != STDIN_FILENO &&
+        File.second.HostFd != STDOUT_FILENO &&
+        File.second.HostFd != STDERR_FILENO) {
+      close(File.second.HostFd);
     }
   }
+  FileMap.clear();
+  Environs.clear();
+  CmdArgs.clear();
 }
 
 void WasiEnvironment::init(Span<const std::string> Dirs,
@@ -53,35 +59,24 @@ void WasiEnvironment::init(Span<const std::string> Dirs,
                            Span<const std::string> Args,
                            Span<const std::string> Envs) {
   using namespace std::string_view_literals;
-  FileArray.clear();
-  FileArray.reserve(4 + Dirs.size());
 
-  /// Add Fd offset to guest fd
-  dup2(STDIN_FILENO, STDIN_FILENO + kGuestFdOffset);
-  dup2(STDOUT_FILENO, STDOUT_FILENO + kGuestFdOffset);
-  dup2(STDERR_FILENO, STDERR_FILENO + kGuestFdOffset);
-
-  FileArray.emplace_back(STDIN_FILENO + kGuestFdOffset, kStdInRights, 0,
-                         "/dev/stdin"sv);
-  FileArray.emplace_back(STDOUT_FILENO + kGuestFdOffset, kStdOutRights, 0,
-                         "/dev/stdout"sv);
-  FileArray.emplace_back(STDERR_FILENO + kGuestFdOffset, kStdErrRights, 0,
-                         "/dev/stderr"sv);
+  emplaceFile(0, STDIN_FILENO, true, kStdInRights, 0, "/dev/stdin"sv);
+  emplaceFile(1, STDOUT_FILENO, true, kStdOutRights, 0, "/dev/stdout"sv);
+  emplaceFile(2, STDERR_FILENO, true, kStdErrRights, 0, "/dev/stderr"sv);
 
   /// Open dir for WASI environment.
-  FileArray.emplace_back(open(".", O_PATH | O_DIRECTORY), kDirectoryRights,
-                         kInheritingDirectoryRights, "."sv);
+  emplaceFile(3, open(".", O_PATH | O_DIRECTORY), true, kDirectoryRights,
+              kInheritingDirectoryRights, "."sv);
+  int NewFd = 4;
   for (const auto &Dir : Dirs) {
     const auto Pos = Dir.find(':');
     if (Pos != std::string::npos) {
       const auto GuestDir = Dir.substr(0, Pos);
       const auto HostDir = Dir.substr(Pos + 1);
-      FileArray.emplace_back(open(HostDir.c_str(), O_PATH | O_DIRECTORY),
-                             kDirectoryRights, kInheritingDirectoryRights,
-                             GuestDir);
+      emplaceFile(NewFd++, open(HostDir.c_str(), O_PATH | O_DIRECTORY), true,
+                  kDirectoryRights, kInheritingDirectoryRights, GuestDir);
     }
   }
-  FileArray.shrink_to_fit();
 
   CmdArgs.resize(Args.size() + 1);
   CmdArgs.front() = std::move(ProgramName);

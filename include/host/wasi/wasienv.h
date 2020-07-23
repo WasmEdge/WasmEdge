@@ -5,6 +5,7 @@
 #include "wasi/core.h"
 
 #include <algorithm>
+#include <map>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -22,7 +23,6 @@ namespace Host {
 
 class WasiEnvironment {
 public:
-  static inline int kGuestFdOffset = 5;
   struct DirFdStat {
     DIR *Dir;
     uint64_t Cookie = 0;
@@ -33,15 +33,16 @@ public:
     ~DirFdStat() noexcept { closedir(Dir); }
   };
   struct File {
-    __wasi_fd_t Fd;
+    int HostFd;
+    bool IsPreopened;
     __wasi_rights_t Rights;
     __wasi_rights_t InheritingRights;
     std::string Path;
     std::optional<DirFdStat> Dir;
 
-    File(__wasi_fd_t F, __wasi_rights_t R, __wasi_rights_t IR,
+    File(int F, bool I, __wasi_rights_t R, __wasi_rights_t IR,
          std::string_view P)
-        : Fd(F), Rights(R), InheritingRights(IR), Path(P) {}
+        : HostFd(F), IsPreopened(I), Rights(R), InheritingRights(IR), Path(P) {}
     bool checkRights(__wasi_rights_t RequiredRights,
                      __wasi_rights_t RequiredInheritingRights = 0) const {
       return (Rights & RequiredRights) == RequiredRights &&
@@ -55,29 +56,33 @@ public:
 
   void init(Span<const std::string> Dirs, std::string ProgramName,
             Span<const std::string> Args, Span<const std::string> Envs);
+  void fini() noexcept;
 
   const std::vector<std::string> &getCmdArgs() const { return CmdArgs; }
   const std::vector<std::string_view> &getEnvirons() const { return Environs; }
   int getExitCode() const { return ExitCode; }
   void setExitCode(int ExitCode) { this->ExitCode = ExitCode; }
 
-  template <typename... Args> void emplaceFile(Args &&... args) {
-    FileArray.emplace_back(std::forward<Args>(args)...);
+  template <typename... Args>
+  void emplaceFile(__wasi_fd_t Fd, Args &&... args) {
+    FileMap.emplace(std::piecewise_construct, std::forward_as_tuple(Fd),
+                    std::forward_as_tuple(std::forward<Args>(args)...));
   }
-  std::vector<File>::iterator getFile(uint32_t Fd) noexcept {
-    return std::find_if(
-        FileArray.begin(), FileArray.end(),
-        [Fd](const File &File) { return File.Fd == Fd + kGuestFdOffset; });
-  }
-  std::vector<File>::iterator getFileEnd() noexcept { return FileArray.end(); }
-  void eraseFile(std::vector<File>::iterator File) noexcept {
-    FileArray.erase(File);
+  using FileIterator = std::map<__wasi_fd_t, File>::iterator;
+  FileIterator getFile(__wasi_fd_t Fd) noexcept { return FileMap.find(Fd); }
+  FileIterator getFileEnd() noexcept { return FileMap.end(); }
+  void eraseFile(FileIterator File) noexcept { FileMap.erase(File); }
+  __wasi_fd_t getNewFd() noexcept { return FileMap.rbegin()->first + 1; }
+  void changeFd(FileIterator File, uint32_t Fd) {
+    auto Node = FileMap.extract(File);
+    Node.key() = Fd;
+    FileMap.insert(std::move(Node));
   }
 
 private:
   std::vector<std::string> CmdArgs;
   std::vector<std::string_view> Environs;
-  std::vector<File> FileArray;
+  std::map<__wasi_fd_t, File> FileMap;
   int ExitCode = 0;
 };
 

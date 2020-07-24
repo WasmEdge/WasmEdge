@@ -65,9 +65,7 @@ void WasiEnvironment::init(Span<const std::string> Dirs,
   emplaceFile(2, STDERR_FILENO, true, kStdErrRights, 0, "/dev/stderr"sv);
 
   /// Open dir for WASI environment.
-  emplaceFile(3, open(".", O_PATH | O_DIRECTORY), true, kDirectoryRights,
-              kInheritingDirectoryRights, "."sv);
-  int NewFd = 4;
+  int NewFd = 3;
   for (const auto &Dir : Dirs) {
     const auto Pos = Dir.find(':');
     if (Pos != std::string::npos) {

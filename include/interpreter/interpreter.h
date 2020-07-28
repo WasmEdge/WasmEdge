@@ -207,8 +207,6 @@ private:
                        const AST::UnaryNumericInstruction &Instr);
   Expect<void> execute(Runtime::StoreManager &StoreMgr,
                        const AST::BinaryNumericInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::TruncSatNumericInstruction &Instr);
   /// @}
 
   /// \name Helper Functions for block controls.

@@ -319,28 +319,20 @@ struct InfoMismatch {
 
 struct InfoInstruction {
   InfoInstruction() = default;
-  InfoInstruction(const OpCode Op, const uint32_t Off, const uint8_t SOp,
-                  const std::vector<ValVariant> &ArgsVec = {},
-                  const std::vector<ValType> &ArgsTypesVec = {},
-                  const bool Signed = false) noexcept
-      : Code(Op), SubOp(SOp), Offset(Off), Args(ArgsVec),
-        ArgsTypes(ArgsTypesVec), HasSubOp(true), IsSigned(Signed) {}
   InfoInstruction(const OpCode Op, const uint32_t Off,
                   const std::vector<ValVariant> &ArgsVec = {},
                   const std::vector<ValType> &ArgsTypesVec = {},
                   const bool Signed = false) noexcept
-      : Code(Op), SubOp(0), Offset(Off), Args(ArgsVec), ArgsTypes(ArgsTypesVec),
-        HasSubOp(false), IsSigned(Signed) {}
+      : Code(Op), Offset(Off), Args(ArgsVec), ArgsTypes(ArgsTypesVec),
+        IsSigned(Signed) {}
 
   friend std::ostream &operator<<(std::ostream &OS,
                                   const struct InfoInstruction &Rhs);
 
   OpCode Code;
-  uint8_t SubOp;
   uint32_t Offset;
   std::vector<ValVariant> Args;
   std::vector<ValType> ArgsTypes;
-  bool HasSubOp;
   bool IsSigned;
 };
 

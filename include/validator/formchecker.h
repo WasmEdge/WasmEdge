@@ -98,7 +98,6 @@ private:
   Expect<void> checkInstr(const AST::ConstInstruction &Instr);
   Expect<void> checkInstr(const AST::UnaryNumericInstruction &Instr);
   Expect<void> checkInstr(const AST::BinaryNumericInstruction &Instr);
-  Expect<void> checkInstr(const AST::TruncSatNumericInstruction &Instr);
 
   /// Stack operations
   void pushType(VType);

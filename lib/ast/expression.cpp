@@ -13,11 +13,9 @@ Expect<void> Expression::loadBinary(FileMgr &Mgr) {
     uint32_t Offset = Mgr.getOffset();
 
     /// Read the opcode and check if error.
-    if (auto Res = Mgr.readByte()) {
-      Code = static_cast<OpCode>(*Res);
+    if (auto Res = loadOpCode(Mgr)) {
+      Code = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
       LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(Res);
     }

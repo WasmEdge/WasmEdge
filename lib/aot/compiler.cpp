@@ -895,6 +895,50 @@ public:
           Builder.CreateTrunc(Stack.back(), Builder.getInt32Ty()),
           Builder.getInt64Ty());
       break;
+    case OpCode::I32__trunc_sat_f32_s:
+      compileSignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+31f)),
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+31f)),
+          Builder.getInt32(INT32_MIN), Builder.getInt32(INT32_MAX));
+      break;
+    case OpCode::I32__trunc_sat_f32_u:
+      compileUnsignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+32f)),
+          Builder.getInt32(UINT32_MAX));
+      break;
+    case OpCode::I32__trunc_sat_f64_s:
+      compileSignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+31)),
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+31)),
+          Builder.getInt32(INT32_MIN), Builder.getInt32(INT32_MAX));
+      break;
+    case OpCode::I32__trunc_sat_f64_u:
+      compileUnsignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+32)),
+          Builder.getInt32(UINT32_MAX));
+      break;
+    case OpCode::I64__trunc_sat_f32_s:
+      compileSignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+63f)),
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+63f)),
+          Builder.getInt64(INT64_MIN), Builder.getInt64(INT64_MAX));
+      break;
+    case OpCode::I64__trunc_sat_f32_u:
+      compileUnsignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+64f)),
+          Builder.getInt64(UINT64_MAX));
+      break;
+    case OpCode::I64__trunc_sat_f64_s:
+      compileSignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+63)),
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+63)),
+          Builder.getInt64(INT64_MIN), Builder.getInt64(INT64_MAX));
+      break;
+    case OpCode::I64__trunc_sat_f64_u:
+      compileUnsignedTruncSat(
+          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+64)),
+          Builder.getInt64(UINT64_MAX));
+      break;
     default:
       __builtin_unreachable();
     }
@@ -1248,61 +1292,6 @@ public:
     PHIRet->addIncoming(IntValue, NotMaxBB);
 
     Stack.back() = PHIRet;
-  }
-  Expect<void> compile(const AST::TruncSatNumericInstruction &Instr) {
-    if (Instr.getOpCode() != OpCode::Trunc_sat) {
-      __builtin_unreachable();
-    }
-
-    switch (Instr.getSubOp()) {
-    case 0x00U: // i32.trunc_sat_f32_s
-      compileSignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+31f)),
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+31f)),
-          Builder.getInt32(INT32_MIN), Builder.getInt32(INT32_MAX));
-      break;
-    case 0x01U: // i32.trunc_sat_f32_u
-      compileUnsignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+32f)),
-          Builder.getInt32(UINT32_MAX));
-      break;
-    case 0x02U: // i32.trunc_sat_f64_s
-      compileSignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+31)),
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+31)),
-          Builder.getInt32(INT32_MIN), Builder.getInt32(INT32_MAX));
-      break;
-    case 0x03U: // i32.trunc_sat_f64_u
-      compileUnsignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+32)),
-          Builder.getInt32(UINT32_MAX));
-      break;
-    case 0x04U: // i64.trunc_sat_f32_s
-      compileSignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+63f)),
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+63f)),
-          Builder.getInt64(INT64_MIN), Builder.getInt64(INT64_MAX));
-      break;
-    case 0x05U: // i64.trunc_sat_f32_u
-      compileUnsignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+64f)),
-          Builder.getInt64(UINT64_MAX));
-      break;
-    case 0x06U: // i64.trunc_sat_f64_s
-      compileSignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+63)),
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+63)),
-          Builder.getInt64(INT64_MIN), Builder.getInt64(INT64_MAX));
-      break;
-    case 0x07U: // i64.trunc_sat_f64_u
-      compileUnsignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+64)),
-          Builder.getInt64(UINT64_MAX));
-      break;
-    default:
-      __builtin_unreachable();
-    }
-    return {};
   }
 
   void updateInstrCount() {

@@ -186,21 +186,12 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoMismatch &Rhs) {
 }
 
 std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
-  OS << "    In instruction: ";
-  if (Rhs.HasSubOp) {
-    switch (Rhs.Code) {
-    case OpCode::Trunc_sat:
-      OS << OpCodeTruncSatStr[Rhs.SubOp];
-      break;
-    /// Preserved for 2-byte OpCode instructions in the future.
-    default:
-      break;
-    }
-  } else {
-    OS << OpCodeStr[Rhs.Code];
+  uint16_t Payload = static_cast<uint16_t>(Rhs.Code);
+  OS << "    In instruction: " << OpCodeStr[Rhs.Code] << " (";
+  if ((Payload >> 8) >= 0xFCU) {
+    OS << Support::convertUIntToHexStr(Payload >> 8, 2) << " ";
   }
-
-  OS << " (" << Support::convertUIntToHexStr(uint32_t(Rhs.Code), 2)
+  OS << Support::convertUIntToHexStr(Payload & 0xFFU, 2)
      << ") , Bytecode offset: " << Support::convertUIntToHexStr(Rhs.Offset);
   if (Rhs.Args.size() > 0) {
     OS << " , Args: [";

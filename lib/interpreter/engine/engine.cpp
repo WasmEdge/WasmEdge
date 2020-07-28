@@ -459,6 +459,22 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     return runExtendOp<int64_t, uint64_t, 16>(Val);
   case OpCode::I64__extend32_s:
     return runExtendOp<int64_t, uint64_t, 32>(Val);
+  case OpCode::I32__trunc_sat_f32_s:
+    return runTruncateSatOp<float, int32_t>(Val);
+  case OpCode::I32__trunc_sat_f32_u:
+    return runTruncateSatOp<float, uint32_t>(Val);
+  case OpCode::I32__trunc_sat_f64_s:
+    return runTruncateSatOp<double, int32_t>(Val);
+  case OpCode::I32__trunc_sat_f64_u:
+    return runTruncateSatOp<double, uint32_t>(Val);
+  case OpCode::I64__trunc_sat_f32_s:
+    return runTruncateSatOp<float, int64_t>(Val);
+  case OpCode::I64__trunc_sat_f32_u:
+    return runTruncateSatOp<float, uint64_t>(Val);
+  case OpCode::I64__trunc_sat_f64_s:
+    return runTruncateSatOp<double, int64_t>(Val);
+  case OpCode::I64__trunc_sat_f64_u:
+    return runTruncateSatOp<double, uint64_t>(Val);
   default:
     LOG(ERROR) << ErrCode::InstrTypeMismatch;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
@@ -629,37 +645,6 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     LOG(ERROR) << ErrCode::InstrTypeMismatch;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
                                            Instr.getOffset());
-    return Unexpect(ErrCode::InstrTypeMismatch);
-  }
-}
-
-Expect<void>
-Interpreter::execute(Runtime::StoreManager &StoreMgr,
-                     const AST::TruncSatNumericInstruction &Instr) {
-  ValVariant &Val = StackMgr.getTop();
-
-  /// Check sub OpCode and run the specific instruction.
-  switch (Instr.getSubOp()) {
-  case 0x00U:
-    return runTruncateSatOp<float, int32_t>(Val);
-  case 0x01U:
-    return runTruncateSatOp<float, uint32_t>(Val);
-  case 0x02U:
-    return runTruncateSatOp<double, int32_t>(Val);
-  case 0x03U:
-    return runTruncateSatOp<double, uint32_t>(Val);
-  case 0x04U:
-    return runTruncateSatOp<float, int64_t>(Val);
-  case 0x05U:
-    return runTruncateSatOp<float, uint64_t>(Val);
-  case 0x06U:
-    return runTruncateSatOp<double, int64_t>(Val);
-  case 0x07U:
-    return runTruncateSatOp<double, uint64_t>(Val);
-  default:
-    LOG(ERROR) << ErrCode::InstrTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
-                                           Instr.getSubOp());
     return Unexpect(ErrCode::InstrTypeMismatch);
   }
 }

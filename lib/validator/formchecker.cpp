@@ -729,6 +729,18 @@ FormChecker::checkInstr(const AST::UnaryNumericInstruction &Instr) {
   case OpCode::I64__extend16_s:
   case OpCode::I64__extend32_s:
     return StackTrans(std::array{VType::I64}, std::array{VType::I64});
+  case OpCode::I32__trunc_sat_f32_s:
+  case OpCode::I32__trunc_sat_f32_u:
+    return StackTrans(std::array{VType::F32}, std::array{VType::I32});
+  case OpCode::I32__trunc_sat_f64_s:
+  case OpCode::I32__trunc_sat_f64_u:
+    return StackTrans(std::array{VType::F64}, std::array{VType::I32});
+  case OpCode::I64__trunc_sat_f32_s:
+  case OpCode::I64__trunc_sat_f32_u:
+    return StackTrans(std::array{VType::F32}, std::array{VType::I64});
+  case OpCode::I64__trunc_sat_f64_s:
+  case OpCode::I64__trunc_sat_f64_u:
+    return StackTrans(std::array{VType::F64}, std::array{VType::I64});
   default:
     break;
   }
@@ -831,33 +843,6 @@ FormChecker::checkInstr(const AST::BinaryNumericInstruction &Instr) {
   case OpCode::F64__copysign:
     return StackTrans(std::array{VType::F64, VType::F64},
                       std::array{VType::F64});
-  default:
-    break;
-  }
-  LOG(ERROR) << ErrCode::InvalidOpCode;
-  return Unexpect(ErrCode::InvalidOpCode);
-}
-
-Expect<void>
-FormChecker::checkInstr(const AST::TruncSatNumericInstruction &Instr) {
-  if (Instr.getOpCode() != OpCode::Trunc_sat) {
-    LOG(ERROR) << ErrCode::InvalidOpCode;
-    return Unexpect(ErrCode::InvalidOpCode);
-  }
-
-  switch (Instr.getSubOp()) {
-  case 0x00U:
-  case 0x01U:
-    return StackTrans(std::array{VType::F32}, std::array{VType::I32});
-  case 0x02U:
-  case 0x03U:
-    return StackTrans(std::array{VType::F64}, std::array{VType::I32});
-  case 0x04U:
-  case 0x05U:
-    return StackTrans(std::array{VType::F32}, std::array{VType::I64});
-  case 0x06U:
-  case 0x07U:
-    return StackTrans(std::array{VType::F64}, std::array{VType::I64});
   default:
     break;
   }

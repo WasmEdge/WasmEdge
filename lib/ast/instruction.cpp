@@ -54,11 +54,9 @@ Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
     uint32_t Offset = Mgr.getOffset();
 
     /// Read the opcode and check if error.
-    if (auto Res = Mgr.readByte()) {
-      Code = static_cast<OpCode>(*Res);
+    if (auto Res = loadOpCode(Mgr)) {
+      Code = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
       LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
@@ -140,11 +138,9 @@ Expect<void> IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
     uint32_t Offset = Mgr.getOffset();
 
     /// Read the opcode and check if error.
-    if (auto Res = Mgr.readByte()) {
-      Code = static_cast<OpCode>(*Res);
+    if (auto Res = loadOpCode(Mgr)) {
+      Code = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
       LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
@@ -370,26 +366,30 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load binary of trunc instructions. See "include/common/ast/instruction.h".
-Expect<void> TruncSatNumericInstruction::loadBinary(FileMgr &Mgr) {
-  /// Read sub OpCode.
-  if (auto Res = Mgr.readByte()) {
-    SubOp = *Res;
+/// OpCode loader. See "include/common/ast/instruction.h".
+Expect<OpCode> loadOpCode(FileMgr &Mgr) {
+  OpCode Code;
+  uint16_t Payload;
+  if (auto B1 = Mgr.readByte()) {
+    Payload = (*B1);
   } else {
-    LOG(ERROR) << Res.error();
+    LOG(ERROR) << B1.error();
     LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
+    return Unexpect(B1);
   }
 
-  /// Check sub OpCode range.
-  if (SubOp > static_cast<uint8_t>(0x07U)) {
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(ErrCode::InvalidGrammar);
+  if (Payload == 0xFCU) {
+    /// 2-bytes OpCode case.
+    if (auto B2 = Mgr.readByte()) {
+      Payload <<= 8;
+      Payload |= (*B2);
+    } else {
+      LOG(ERROR) << B2.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      return Unexpect(B2);
+    }
   }
-  return {};
+  return static_cast<OpCode>(Payload);
 }
 
 /// Instruction node maker. See "include/common/ast/instruction.h".

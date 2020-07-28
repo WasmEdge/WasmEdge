@@ -35,7 +35,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
 protected:
@@ -58,7 +58,7 @@ protected:
   /// \param Mgr the file manager reference.
   /// \param [out] &Vec filled with read data on loadVector success.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   template <typename T>
   Expect<void> loadToVector(FileMgr &Mgr,
                             std::vector<std::unique_ptr<T>> &Vec) {

@@ -31,7 +31,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of instructions vector.

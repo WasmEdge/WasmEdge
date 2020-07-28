@@ -43,7 +43,7 @@ protected:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadExpression(FileMgr &Mgr);
 
   /// Expression node in this segment.
@@ -60,7 +60,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of locals vector.
@@ -86,7 +86,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of table index.
@@ -116,7 +116,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of locals vector.
@@ -143,7 +143,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of memory index.

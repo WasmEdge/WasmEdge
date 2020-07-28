@@ -39,7 +39,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of having max in limit.
@@ -73,7 +73,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of parameter types vector.
@@ -103,7 +103,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of limit.
@@ -133,7 +133,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of element type.
@@ -163,7 +163,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of global type.

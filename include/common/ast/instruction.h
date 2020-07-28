@@ -80,7 +80,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of block type
@@ -113,7 +113,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of block type
@@ -151,7 +151,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Get label index
@@ -180,7 +180,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of label table
@@ -214,7 +214,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of the index
@@ -250,7 +250,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of the index
@@ -279,7 +279,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getters of memory align and offset.
@@ -311,7 +311,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of the constant value.
@@ -361,7 +361,7 @@ public:
   ///
   /// \param Mgr the file manager reference.
   ///
-  /// \returns void when success, ErrMsg when failed.
+  /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of the constant value.
@@ -591,7 +591,7 @@ template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
 /// \param Code the OpCode of instruction to make.
 /// \param Offset the Offset of loaded file or vector.
 ///
-/// \returns unique pointer of instruction node if success, ErrMsg when failed.
+/// \returns unique pointer of instruction node if success, ErrCode when failed.
 Expect<std::unique_ptr<Instruction>> makeInstructionNode(OpCode Code,
                                                          uint32_t Offset);
 
@@ -602,7 +602,7 @@ Expect<std::unique_ptr<Instruction>> makeInstructionNode(OpCode Code,
 ///
 /// \param Instr the instruction to duplicate.
 ///
-/// \returns unique pointer of instruction node if success, ErrMsg when failed.
+/// \returns unique pointer of instruction node if success, ErrCode when failed.
 Expect<std::unique_ptr<Instruction>>
 makeInstructionNode(const Instruction &Instr);
 

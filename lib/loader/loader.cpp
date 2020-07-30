@@ -34,7 +34,7 @@ Expect<std::vector<Byte>> Loader::loadFile(std::string_view FilePath) {
 
   std::vector<Byte> Buf(Size);
   Fin.read(reinterpret_cast<char *>(Buf.data()), Size);
-  if (Fin.gcount() != Size) {
+  if (static_cast<size_t>(Fin.gcount()) != Size) {
     if (Fin.eof()) {
       LOG(ERROR) << ErrCode::EndOfFile;
       LOG(ERROR) << ErrInfo::InfoLoading(Fin.gcount());

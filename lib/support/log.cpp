@@ -188,7 +188,7 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoMismatch &Rhs) {
 std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
   uint16_t Payload = static_cast<uint16_t>(Rhs.Code);
   OS << "    In instruction: " << OpCodeStr[Rhs.Code] << " (";
-  if ((Payload >> 8) >= 0xFCU) {
+  if ((Payload >> 8) >= static_cast<uint16_t>(0xFCU)) {
     OS << Support::convertUIntToHexStr(Payload >> 8, 2) << " ";
   }
   OS << Support::convertUIntToHexStr(Payload & 0xFFU, 2)

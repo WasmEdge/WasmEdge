@@ -46,8 +46,9 @@ static llvm::FunctionType *toLLVMType(llvm::LLVMContext &Context,
 static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &Context,
                                           const SSVM::ValType &ValType);
 static std::vector<llvm::Value *> getUndefValue(llvm::Type *Ty);
-static llvm::Value *packStruct(llvm::IRBuilder<> &Builder, llvm::Value *Vals,
-                               unsigned N);
+/// Unused helper function.
+/// static llvm::Value *packStruct(llvm::IRBuilder<> &Builder, llvm::Value *Vals,
+///                                unsigned N);
 static std::vector<llvm::Value *> unpackStruct(llvm::IRBuilder<> &Builder,
                                                llvm::Value *Struct);
 class FunctionCompiler;
@@ -1567,8 +1568,7 @@ private:
     auto &Entry = *(ControlStack.rbegin() + Index);
     if (const auto &Types = std::get<kReturnType>(Entry);
         !Types.empty() && std::get<kIsForward>(Entry)) {
-      const auto TargetStackSize = std::get<kStackSize>(Entry);
-      assert(Stack.size() - TargetStackSize >= Types.size());
+      assert(Stack.size() - std::get<kStackSize>(Entry) >= Types.size());
       std::vector<llvm::Value *> Values;
       for (size_t I = 0; I < Types.size(); ++I) {
         Values.push_back(Stack[Stack.size() - Types.size() + I]);
@@ -1620,6 +1620,7 @@ static std::vector<llvm::Value *> getUndefValue(llvm::Type *Ty) {
   return Ret;
 }
 
+/* Unused helper function.
 static llvm::Value *packStruct(llvm::IRBuilder<> &Builder, llvm::Value *Vals,
                                unsigned N) {
   llvm::Type *Ty = nullptr;
@@ -1637,6 +1638,7 @@ static llvm::Value *packStruct(llvm::IRBuilder<> &Builder, llvm::Value *Vals,
   }
   return Ret;
 }
+*/
 
 static std::vector<llvm::Value *> unpackStruct(llvm::IRBuilder<> &Builder,
                                                llvm::Value *Struct) {
@@ -1741,7 +1743,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       })
       .and_then([&]() -> Expect<void> {
         /// Compile StartSection (StartSec)
-        if (const AST::ExportSection *ExportSec = Module.getExportSection()) {
+        if (Module.getStartSection()) {
           ;
         }
         return {};

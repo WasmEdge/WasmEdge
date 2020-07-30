@@ -901,7 +901,7 @@ Expect<uint32_t> WasiFdPread::body(Runtime::Instance::MemoryInstance *MemInst,
   uint32_t TotalSize = 0;
   iovec SysIOVS[kIOVSMax];
 
-  for (uint32_t I = 0; I < IOVSLen; ++I) {
+  for (uint32_t I = 0; I < static_cast<uint32_t>(IOVSLen); ++I) {
     __wasi_iovec_t &IOVS = IOVSArray[I];
 
     /// Check for total size overflow.
@@ -1024,7 +1024,7 @@ Expect<uint32_t> WasiFdPwrite::body(Runtime::Instance::MemoryInstance *MemInst,
   int32_t TotalSize = 0;
   iovec SysIOVS[kIOVSMax];
 
-  for (uint32_t I = 0; I < IOVSLen; ++I) {
+  for (uint32_t I = 0; I < static_cast<uint32_t>(IOVSLen); ++I) {
     __wasi_ciovec_t &IOVS = IOVSArray[I];
 
     /// Check for total size overflow.
@@ -1088,7 +1088,7 @@ Expect<uint32_t> WasiFdRead::body(Runtime::Instance::MemoryInstance *MemInst,
   uint32_t TotalSize = 0;
   iovec SysIOVS[kIOVSMax];
 
-  for (uint32_t I = 0; I < IOVSLen; ++I) {
+  for (uint32_t I = 0; I < static_cast<uint32_t>(IOVSLen); ++I) {
     __wasi_iovec_t &IOVS = IOVSArray[I];
 
     /// Check for total size overflow.
@@ -1363,7 +1363,7 @@ Expect<uint32_t> WasiFdWrite::body(Runtime::Instance::MemoryInstance *MemInst,
   int32_t TotalSize = 0;
   iovec SysIOVS[kIOVSMax];
 
-  for (uint32_t I = 0; I < IOVSLen; ++I) {
+  for (uint32_t I = 0; I < static_cast<uint32_t>(IOVSLen); ++I) {
     __wasi_ciovec_t &IOVS = IOVSArray[I];
 
     /// Check for total size overflow.
@@ -2280,7 +2280,7 @@ Expect<uint32_t> WasiSockRecv::body(Runtime::Instance::MemoryInstance *MemInst,
   uint32_t TotalSize = 0;
   iovec SysRiData[kIOVSMax];
 
-  for (uint32_t I = 0; I < RiDataLen; ++I) {
+  for (uint32_t I = 0; I < static_cast<uint32_t>(RiDataLen); ++I) {
     __wasi_iovec_t &RiData = RiDataArray[I];
 
     /// Check for total size overflow.
@@ -2332,7 +2332,6 @@ Expect<uint32_t> WasiSockSend::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_EFAULT;
   }
 
-  int SysFlags = 0;
   if (unlikely(SiFlags != 0)) {
     return __WASI_EINVAL;
   }
@@ -2361,7 +2360,7 @@ Expect<uint32_t> WasiSockSend::body(Runtime::Instance::MemoryInstance *MemInst,
   uint32_t TotalSize = 0;
   iovec SysSiData[kIOVSMax];
 
-  for (uint32_t I = 0; I < SiDataLen; ++I) {
+  for (uint32_t I = 0; I < static_cast<uint32_t>(SiDataLen); ++I) {
     __wasi_ciovec_t &SiData = SiDataArray[I];
 
     /// Check for total size overflow.

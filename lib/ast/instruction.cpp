@@ -368,7 +368,6 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
 
 /// OpCode loader. See "include/common/ast/instruction.h".
 Expect<OpCode> loadOpCode(FileMgr &Mgr) {
-  OpCode Code;
   uint16_t Payload;
   if (auto B1 = Mgr.readByte()) {
     Payload = (*B1);

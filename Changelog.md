@@ -1,3 +1,18 @@
+### 0.6.4 (2020-07-30)
+
+This is a bug-fix release for the warnings.
+
+Fixed Issues:
+
+* Resolved warnings with compilation flag `-Wall`.
+* Add `-Wall` flag in CMakeFile.
+
+Refactor:
+
+* Refactored instruction classes for supporting 2-byte instructions.
+* Refined corresponding switch cases in validator, interpreter, and AOT.
+
+
 ### 0.6.3 (2020-07-23)
 
 This is a bug-fix release for the wasi component.

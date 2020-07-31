@@ -313,5 +313,23 @@ private:
   std::vector<std::unique_ptr<DataSegment>> Content;
 };
 
+/// AST DataCountSection node.
+class DataCountSection : public Section {
+public:
+  /// Getter of content.
+  uint32_t getContent() const { return Content; }
+
+  /// The node type should be ASTNodeAttr::Sec_DataCount.
+  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_DataCount;
+
+protected:
+  /// Overrided content loading of custom section.
+  Expect<void> loadContent(FileMgr &Mgr) override;
+
+private:
+  /// u32 of count of data segments.
+  uint32_t Content;
+};
+
 } // namespace AST
 } // namespace SSVM

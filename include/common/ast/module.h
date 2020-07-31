@@ -59,6 +59,7 @@ public:
   ElementSection *getElementSection() const { return ElementSec.get(); }
   CodeSection *getCodeSection() const { return CodeSec.get(); }
   DataSection *getDataSection() const { return DataSec.get(); }
+  DataCountSection *getDataCountSection() const { return DataCountSec.get(); }
 
   using TrapCodeProxy = uint32_t *;
   using CallProxy = void (*)(const uint32_t FuncIdx, const ValVariant *Args,
@@ -173,6 +174,7 @@ private:
   std::unique_ptr<ElementSection> ElementSec;
   std::unique_ptr<CodeSection> CodeSec;
   std::unique_ptr<DataSection> DataSec;
+  std::unique_ptr<DataCountSection> DataCountSec;
   /// @}
 
   DLSymbol<TrapCodeProxy> TrapCodeProxySymbol;

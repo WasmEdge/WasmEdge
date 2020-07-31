@@ -131,7 +131,7 @@ Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
 
   /// Get function address.
   uint32_t FuncAddr;
-  if (auto Res = TabInst->getElemAddr(retrieveValue<uint32_t>(Idx))) {
+  if (auto Res = TabInst->getRefAddr(retrieveValue<uint32_t>(Idx))) {
     FuncAddr = *Res;
   } else {
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),

@@ -25,7 +25,16 @@
 namespace SSVM {
 namespace Validator {
 
-enum class VType : uint32_t { Unknown, I32, I64, F32, F64 };
+enum class VType : uint8_t { Unknown, I32, I64, F32, F64, FuncRef, ExternRef };
+
+static inline constexpr bool isNumType(const VType V) {
+  return V == VType::I32 || V == VType::I64 || V == VType::F32 ||
+         V == VType::F64 || V == VType::Unknown;
+}
+
+static inline constexpr bool isRefType(const VType V) {
+  return V == VType::FuncRef || V == VType::ExternRef || V == VType::Unknown;
+}
 
 class FormChecker {
 public:
@@ -57,6 +66,8 @@ public:
 
   /// Helper function
   VType ASTToVType(const ValType &V);
+  VType ASTToVType(const NumType &V);
+  VType ASTToVType(const RefType &V);
   ValType VTypeToAST(const VType &V);
 
   struct CtrlFrame {
@@ -119,7 +130,7 @@ private:
   /// Contexts.
   std::vector<std::pair<std::vector<VType>, std::vector<VType>>> Types;
   std::vector<uint32_t> Funcs;
-  std::vector<ElemType> Tables;
+  std::vector<RefType> Tables;
   std::vector<uint32_t> Mems;
   std::vector<std::pair<VType, ValMut>> Globals;
   uint32_t NumImportFuncs = 0;

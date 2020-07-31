@@ -180,7 +180,7 @@ Expect<void> Validator::validate(const AST::GlobalSegment &GlobSeg) {
 
 /// Validate Element segment. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
-  /// Check table index and element type in context.
+  /// Check table index and reference type in context.
   const auto &TableVec = Checker.getTables();
   const auto &FuncVec = Checker.getFunctions();
   if (ElemSeg.getIdx() >= TableVec.size()) {
@@ -189,7 +189,7 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
                                            ElemSeg.getIdx(), TableVec.size());
     return Unexpect(ErrCode::InvalidTableIdx);
   }
-  if (TableVec[ElemSeg.getIdx()] != ElemType::FuncRef) {
+  if (TableVec[ElemSeg.getIdx()] != RefType::FuncRef) {
     LOG(ERROR) << ErrCode::InvalidTableIdx;
     return Unexpect(ErrCode::InvalidTableIdx);
   }

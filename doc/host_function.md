@@ -28,7 +28,7 @@ public:
 } // namespace SSVM
 ```
 
-According to example, return type `Expect<T>` presents the expected return value type `T` of this host function. Types of `Param1` and `Param2` presents argument types of this `host function`. Only WASM built-in types (aka. `uint32_t`, `uint64_t`, `float`, and `double`) are supported in `host functions`. When instantiating, the function signature of `vec(valtype) -> resulttype` is generated and can be imported by WASM modules.
+According to example, return type `Expect<T>` presents the expected return number type `T` of this host function. Types of `Param1` and `Param2` presents argument types of this `host function`. Only WASM built-in types (aka. `uint32_t`, `uint64_t`, `float`, and `double`) are supported in `host functions`. When instantiating, the function signature of `vec(valtype) -> resulttype` is generated and can be imported by WASM modules.
 
 Note: In the current state, only a single value returning is supported.
 
@@ -152,7 +152,7 @@ public:
 
     AST::Limit TabLimit(10, 20); /// Create a limit object of table instance
     /// Add table instance with exporting name
-    addHostTable("table", std::make_unique<Runtime::Instance::TableInstance>(ElemType::FuncRef, TabLimit));
+    addHostTable("table", std::make_unique<Runtime::Instance::TableInstance>(RefType::FuncRef, TabLimit));
 
     AST::Limit MemLimit(1, 2); /// Create a limit object of memory instance
     /// Add memory instance with exporting name

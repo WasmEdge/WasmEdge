@@ -16,7 +16,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   for (const auto &TabType : TabSec.getContent()) {
     /// Make a new table instance.
     auto NewTabInst = std::make_unique<Runtime::Instance::TableInstance>(
-        TabType->getElementType(), *TabType->getLimit());
+        TabType->getReferenceType(), *TabType->getLimit());
 
     /// Insert table instance to store manager.
     uint32_t NewTabInstAddr;

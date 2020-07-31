@@ -79,7 +79,7 @@ public:
 
     AST::Limit TabLimit(10, 20);
     addHostTable("table", std::make_unique<Runtime::Instance::TableInstance>(
-                              ElemType::FuncRef, TabLimit));
+                              RefType::FuncRef, TabLimit));
 
     AST::Limit MemLimit(1, 2);
     addHostMemory("memory", std::make_unique<Runtime::Instance::MemoryInstance>(

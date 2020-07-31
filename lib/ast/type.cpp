@@ -62,7 +62,7 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr) {
 
   /// Read function type (0x60).
   if (auto Res = Mgr.readByte()) {
-    if (static_cast<ElemType>(*Res) != ElemType::Func) {
+    if (*Res != 0x60U) {
       LOG(ERROR) << ErrCode::InvalidGrammar;
       LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
       LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
@@ -92,6 +92,8 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr) {
       case ValType::I64:
       case ValType::F32:
       case ValType::F64:
+      case ValType::FuncRef:
+      case ValType::ExternRef:
         break;
       default:
         LOG(ERROR) << ErrCode::InvalidGrammar;
@@ -125,6 +127,8 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr) {
       case ValType::I64:
       case ValType::F32:
       case ValType::F64:
+      case ValType::FuncRef:
+      case ValType::ExternRef:
         break;
       default:
         LOG(ERROR) << ErrCode::InvalidGrammar;
@@ -152,11 +156,12 @@ Expect<void> MemoryType::loadBinary(FileMgr &Mgr) {
 
 /// Load binary to construct TableType node. See "include/common/ast/type.h".
 Expect<void> TableType::loadBinary(FileMgr &Mgr) {
-  /// Read element type.
+  /// Read reference type.
   if (auto Res = Mgr.readByte()) {
-    Type = static_cast<ElemType>(*Res);
+    Type = static_cast<RefType>(*Res);
     switch (Type) {
-    case ElemType::FuncRef:
+    case RefType::ExternRef:
+    case RefType::FuncRef:
       break;
     default:
       LOG(ERROR) << ErrCode::InvalidGrammar;
@@ -169,12 +174,6 @@ Expect<void> TableType::loadBinary(FileMgr &Mgr) {
     LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
     LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
-  }
-  if (Type != ElemType::FuncRef) {
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(ErrCode::InvalidGrammar);
   }
 
   /// Read limit.
@@ -192,6 +191,8 @@ Expect<void> GlobalType::loadBinary(FileMgr &Mgr) {
     case ValType::I64:
     case ValType::F32:
     case ValType::F64:
+    case ValType::ExternRef:
+    case ValType::FuncRef:
       break;
     default:
       LOG(ERROR) << ErrCode::InvalidGrammar;

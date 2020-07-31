@@ -68,7 +68,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0x04U, 0x74U, 0x65U, 0x73U, 0x74U,               /// Module name: test
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
       0x01U,                                           /// Table type
-      0x70U,                                           /// Element type
+      0x70U,                                           /// Reference type
       0x01U,                                           /// Has min and max
       0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU,               /// Min = 4294967281
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU                /// Max = 4294967295
@@ -95,7 +95,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0x04U, 0x74U, 0x65U, 0x73U, 0x74U,               /// Module name: test
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
       0x03U,                                           /// Global type
-      0x7CU, 0x00U                                     /// Const F64 value type
+      0x7CU, 0x00U                                     /// Const F64 number type
   };
   Mgr.setCode(Vec7);
   SSVM::AST::ImportDesc Imp7;

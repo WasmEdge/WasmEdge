@@ -184,10 +184,10 @@ TEST(TypeTest, LoadMemoryType) {
 }
 
 TEST(TypeTest, LoadTableType) {
-  /// 1. Test load table type, which is element type and limit.
+  /// 1. Test load table type, which is reference type and limit.
   ///
   ///   1.  Load invalid empty table type.
-  ///   2.  Load invalid element type.
+  ///   2.  Load invalid reference type.
   ///   3.  Load invalid types of limit in table type.
   ///   4.  Load limit with only min.
   ///   5.  Load invalid limit with fail of loading max.
@@ -198,7 +198,7 @@ TEST(TypeTest, LoadTableType) {
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
-      0xFFU, /// Unknown element type
+      0xFFU, /// Unknown reference type
       0x00U, /// Limit with only has min
       0x00U  /// Min = 0
   };
@@ -208,7 +208,7 @@ TEST(TypeTest, LoadTableType) {
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
-      0x70U, /// Element type
+      0x70U, /// Reference type
       0x02U, /// Unknown limit type
       0x00U  /// Min = 0
   };
@@ -218,7 +218,7 @@ TEST(TypeTest, LoadTableType) {
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
-      0x70U,                            /// Element type
+      0x70U,                            /// Reference type
       0x00U,                            /// Only has min
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Min = 4294967295
   };
@@ -228,7 +228,7 @@ TEST(TypeTest, LoadTableType) {
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
-      0x70U,                            /// Element type
+      0x70U,                            /// Reference type
       0x01U,                            /// Has min and max
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Min = 4294967295
   };
@@ -238,7 +238,7 @@ TEST(TypeTest, LoadTableType) {
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec6 = {
-      0x70U,                             /// Element type
+      0x70U,                             /// Reference type
       0x01U,                             /// Has min and max
       0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU, /// Min = 4294967281
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  /// Max = 4294967295
@@ -261,7 +261,7 @@ TEST(TypeTest, LoadGlobalType) {
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
-      0x7CU /// F64 value type
+      0x7CU /// F64 number type
   };
   Mgr.setCode(Vec2);
   SSVM::AST::GlobalType Glb2;
@@ -269,7 +269,7 @@ TEST(TypeTest, LoadGlobalType) {
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
-      0x7CU, /// F64 value type
+      0x7CU, /// F64 number type
       0xFFU  /// Invalid mutation type
   };
   Mgr.setCode(Vec3);
@@ -278,7 +278,7 @@ TEST(TypeTest, LoadGlobalType) {
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
-      0x7CU, /// F64 value type
+      0x7CU, /// F64 number type
       0x00U  /// Const mutation
   };
   Mgr.setCode(Vec4);

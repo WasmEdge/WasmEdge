@@ -24,11 +24,13 @@ Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
       /// Value type case.
       ValType VType = static_cast<ValType>((*Res) & 0x7FU);
       switch (VType) {
+      case ValType::None:
       case ValType::I32:
       case ValType::I64:
       case ValType::F32:
       case ValType::F64:
-      case ValType::None:
+      case ValType::ExternRef:
+      case ValType::FuncRef:
         ResType = VType;
         break;
       default:
@@ -107,11 +109,13 @@ Expect<void> IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
       /// Value type case.
       ValType VType = static_cast<ValType>((*Res) & 0x7FU);
       switch (VType) {
+      case ValType::None:
       case ValType::I32:
       case ValType::I64:
       case ValType::F32:
       case ValType::F64:
-      case ValType::None:
+      case ValType::ExternRef:
+      case ValType::FuncRef:
         ResType = VType;
         break;
       default:
@@ -309,7 +313,7 @@ Expect<void> MemoryInstruction::loadBinary(FileMgr &Mgr) {
 
 /// Load const numeric instructions. See "include/common/ast/instruction.h".
 Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
-  /// Read the const number of corresbonding value type.
+  /// Read the const number of corresbonding number type.
   switch (Code) {
   case OpCode::I32__const:
     if (auto Res = Mgr.readS32()) {

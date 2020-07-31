@@ -124,5 +124,19 @@ Expect<void> DataSection::loadContent(FileMgr &Mgr) {
   return Section::loadToVector(Mgr, Content);
 }
 
+/// Load content of data count section. See "include/ast/section.h".
+Expect<void> DataCountSection::loadContent(FileMgr &Mgr) {
+  /// Read u32 of data count.
+  if (auto Res = Mgr.readU32()) {
+    Content = *Res;
+  } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+    return Unexpect(Res);
+  }
+  return {};
+}
+
 } // namespace AST
 } // namespace SSVM

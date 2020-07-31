@@ -165,11 +165,37 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
         return Unexpect(Res);
       }
       break;
+    case 0x0C:
+      if (DataCountSec == nullptr) {
+        DataCountSec = std::make_unique<DataCountSection>();
+      }
+      if (auto Res = DataCountSec->loadBinary(Mgr); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+        return Unexpect(Res);
+      }
+      break;
     default:
       LOG(ERROR) << ErrCode::InvalidGrammar;
       LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
       LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(ErrCode::InvalidGrammar);
+    }
+  }
+
+  /// Verify the data count section and data segments are matched.
+  if (DataCountSec != nullptr) {
+    if (DataSec != nullptr) {
+      if (DataSec->getContent().size() != DataCountSec->getContent()) {
+        LOG(ERROR) << ErrCode::InvalidGrammar;
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+        return Unexpect(ErrCode::InvalidGrammar);
+      }
+    } else {
+      if (DataCountSec->getContent() != 0) {
+        LOG(ERROR) << ErrCode::InvalidGrammar;
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+        return Unexpect(ErrCode::InvalidGrammar);
+      }
     }
   }
   return {};

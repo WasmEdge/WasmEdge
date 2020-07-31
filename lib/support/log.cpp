@@ -198,6 +198,9 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
     OS << " , Args: [";
     for (uint32_t I = 0; I < Rhs.Args.size(); ++I) {
       switch (Rhs.ArgsTypes[I]) {
+      case ValType::None:
+        OS << "none";
+        break;
       case ValType::I32:
         if (Rhs.IsSigned) {
           OS << retrieveValue<int32_t>(Rhs.Args[I]);
@@ -218,6 +221,14 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
       case ValType::F64:
         OS << retrieveValue<double>(Rhs.Args[I]);
         break;
+      case ValType::ExternRef:
+      case ValType::FuncRef:
+        OS << ValTypeStr[Rhs.ArgsTypes[I]];
+        if (isNullRef(Rhs.Args[I])) {
+          OS << ":null";
+        } else {
+          OS << ":" << retrieveRefIdx(Rhs.Args[I]);
+        }
       default:
         break;
       }

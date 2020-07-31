@@ -127,6 +127,7 @@ int main(int Argc, const char *Argv[]) {
         FuncArgs.emplace_back(Value);
         break;
       }
+      /// TODO: FuncRef and ExternRef
       default:
         break;
       }
@@ -155,6 +156,7 @@ int main(int Argc, const char *Argv[]) {
         case SSVM::ValType::F64:
           std::cout << std::get<double>((*Result)[I]) << '\n';
           break;
+        /// TODO: FuncRef and ExternRef
         default:
           break;
         }

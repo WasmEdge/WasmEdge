@@ -28,14 +28,13 @@ namespace Instance {
 class TableInstance {
 public:
   TableInstance() = delete;
-  TableInstance(const ElemType &Elem, const AST::Limit &Lim)
-      : Type(Elem), HasMaxSize(Lim.hasMax()), MinSize(Lim.getMin()),
-        MaxSize(Lim.getMax()), FuncElem(MinSize), FuncElemInit(MinSize, false) {
-  }
+  TableInstance(const RefType &Ref, const AST::Limit &Lim)
+      : Type(Ref), HasMaxSize(Lim.hasMax()), MinSize(Lim.getMin()),
+        MaxSize(Lim.getMax()), Refs(MinSize), RefsInit(MinSize, false) {}
   virtual ~TableInstance() = default;
 
-  /// Getter of element type.
-  ElemType getElementType() const { return Type; }
+  /// Getter of reference type.
+  RefType getReferenceType() const { return Type; }
 
   /// Getter of limit definition.
   bool getHasMax() const { return HasMaxSize; }
@@ -49,9 +48,9 @@ public:
   /// Set the function index initialization list.
   Expect<void> setInitList(const uint32_t Offset, Span<const uint32_t> Addrs) {
     /// Boundary checked during validation.
-    std::copy(Addrs.begin(), Addrs.end(), FuncElem.begin() + Offset);
-    std::fill(FuncElemInit.begin() + Offset,
-              FuncElemInit.begin() + Offset + Addrs.size(), true);
+    std::copy(Addrs.begin(), Addrs.end(), Refs.begin() + Offset);
+    std::fill(RefsInit.begin() + Offset,
+              RefsInit.begin() + Offset + Addrs.size(), true);
     return {};
   }
 
@@ -68,8 +67,8 @@ public:
   }
 
   /// Get the elem address.
-  Expect<uint32_t> getElemAddr(const uint32_t Idx) const {
-    if (Idx >= FuncElem.size()) {
+  Expect<uint32_t> getRefAddr(const uint32_t Idx) const {
+    if (Idx >= Refs.size()) {
       LOG(ERROR) << ErrCode::UndefinedElement;
       LOG(ERROR) << ErrInfo::InfoBoundary(Idx, 1, getBoundIdx());
       return Unexpect(ErrCode::UndefinedElement);
@@ -77,8 +76,8 @@ public:
     if (Symbol) {
       return Symbol[Idx];
     } else {
-      if (FuncElemInit[Idx]) {
-        return FuncElem[Idx];
+      if (RefsInit[Idx]) {
+        return Refs[Idx];
       } else {
         LOG(ERROR) << ErrCode::UninitializedElement;
         return Unexpect(ErrCode::UninitializedElement);
@@ -94,12 +93,12 @@ public:
 private:
   /// \name Data of table instance.
   /// @{
-  const ElemType Type;
+  const RefType Type;
   const bool HasMaxSize;
   const uint32_t MinSize = 0;
   const uint32_t MaxSize = 0;
-  std::vector<uint32_t> FuncElem;
-  std::vector<bool> FuncElemInit;
+  std::vector<uint32_t> Refs;
+  std::vector<bool> RefsInit;
   DLSymbol<uint32_t> Symbol;
   /// @}
 };

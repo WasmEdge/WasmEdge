@@ -136,15 +136,15 @@ public:
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Base.
-  /// Read element type and Limit data.
+  /// Read reference type and Limit data.
   ///
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
-  /// Getter of element type.
-  ElemType getElementType() const { return Type; }
+  /// Getter of reference type.
+  RefType getReferenceType() const { return Type; }
 
   /// Getter of limit.
   const Limit *getLimit() const { return Table.get(); }
@@ -155,7 +155,7 @@ public:
 private:
   /// \name Data of TableType node.
   /// @{
-  ElemType Type;
+  RefType Type;
   std::unique_ptr<Limit> Table;
   /// @}
 };

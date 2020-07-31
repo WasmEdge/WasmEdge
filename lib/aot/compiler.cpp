@@ -228,6 +228,7 @@ static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
     return llvm::Type::getFloatTy(LLContext);
   case ValType::F64:
     return llvm::Type::getDoubleTy(LLContext);
+  /// TODO: FuncRef and ExternRef
   default:
     assert(false);
     __builtin_unreachable();
@@ -283,6 +284,7 @@ static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
     return llvm::ConstantFP::get(llvm::Type::getFloatTy(LLContext), 0.0f);
   case ValType::F64:
     return llvm::ConstantFP::get(llvm::Type::getDoubleTy(LLContext), 0.0);
+  /// TODO: FuncRef and ExternRef
   default:
     assert(false);
     __builtin_unreachable();

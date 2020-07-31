@@ -144,14 +144,14 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       /// Import matching.
       const auto *TargetInst = *StoreMgr.getTable(TargetAddr);
       const auto *TabLim = TabType->getLimit();
-      if (TargetInst->getElementType() != TabType->getElementType() ||
+      if (TargetInst->getReferenceType() != TabType->getReferenceType() ||
           !isLimitMatched(TargetInst->getHasMax(), TargetInst->getMin(),
                           TargetInst->getMax(), TabLim->hasMax(),
                           TabLim->getMin(), TabLim->getMax())) {
         LOG(ERROR) << ErrCode::IncompatibleImportType;
         LOG(ERROR) << ErrInfo::InfoMismatch(
-            TabType->getElementType(), TabLim->hasMax(), TabLim->getMin(),
-            TabLim->getMax(), TargetInst->getElementType(),
+            TabType->getReferenceType(), TabLim->hasMax(), TabLim->getMin(),
+            TabLim->getMax(), TargetInst->getReferenceType(),
             TargetInst->getHasMax(), TargetInst->getMin(),
             TargetInst->getMax());
         LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);

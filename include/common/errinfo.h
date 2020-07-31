@@ -249,15 +249,15 @@ struct InfoMismatch {
         GotParams(GotP), ExpReturns(ExpR), GotReturns(GotR) {}
 
   /// Case 7: unexpected table types
-  InfoMismatch(const ElemType ExpEType, /// Element type
+  InfoMismatch(const RefType ExpRType, /// Reference type
                const bool ExpHasMax, const uint32_t ExpMin,
-               const uint32_t ExpMax,   /// Expect Limit
-               const ElemType GotEType, /// Got element type
+               const uint32_t ExpMax,  /// Expect Limit
+               const RefType GotRType, /// Got reference type
                const bool GotHasMax, const uint32_t GotMin,
                const uint32_t GotMax /// Got limit
                ) noexcept
-      : Category(MismatchCategory::Table), ExpElemType(ExpEType),
-        GotElemType(GotEType), ExpLimHasMax(ExpHasMax), GotLimHasMax(GotHasMax),
+      : Category(MismatchCategory::Table), ExpRefType(ExpRType),
+        GotRefType(GotRType), ExpLimHasMax(ExpHasMax), GotLimHasMax(GotHasMax),
         ExpLimMin(ExpMin), GotLimMin(GotMin), ExpLimMax(ExpMax),
         GotLimMax(GotMax) {}
 
@@ -301,7 +301,7 @@ struct InfoMismatch {
   std::vector<ValType> ExpReturns, GotReturns;
 
   /// Case 7 & 8: unexpected table or memory limit
-  ElemType ExpElemType, GotElemType;
+  RefType ExpRefType, GotRefType;
   bool ExpLimHasMax, GotLimHasMax;
   uint32_t ExpLimMin, GotLimMin;
   uint32_t ExpLimMax, GotLimMax;

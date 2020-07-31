@@ -68,7 +68,7 @@ void FormChecker::addFunc(const uint32_t TypeIdx, const bool IsImport) {
 }
 
 void FormChecker::addTable(const AST::TableType &Tab) {
-  Tables.push_back(Tab.getElementType());
+  Tables.push_back(Tab.getReferenceType());
 }
 
 void FormChecker::addMemory(const AST::MemoryType &Mem) {
@@ -100,6 +100,36 @@ VType FormChecker::ASTToVType(const ValType &V) {
     return VType::F32;
   case ValType::F64:
     return VType::F64;
+  case ValType::FuncRef:
+    return VType::FuncRef;
+  case ValType::ExternRef:
+    return VType::ExternRef;
+  default:
+    return VType::Unknown;
+  }
+}
+
+VType FormChecker::ASTToVType(const NumType &V) {
+  switch (V) {
+  case NumType::I32:
+    return VType::I32;
+  case NumType::I64:
+    return VType::I64;
+  case NumType::F32:
+    return VType::F32;
+  case NumType::F64:
+    return VType::F64;
+  default:
+    return VType::Unknown;
+  }
+}
+
+VType FormChecker::ASTToVType(const RefType &V) {
+  switch (V) {
+  case RefType::FuncRef:
+    return VType::FuncRef;
+  case RefType::ExternRef:
+    return VType::ExternRef;
   default:
     return VType::Unknown;
   }
@@ -115,6 +145,10 @@ ValType FormChecker::VTypeToAST(const VType &V) {
     return ValType::F32;
   case VType::F64:
     return ValType::F64;
+  case VType::FuncRef:
+    return ValType::FuncRef;
+  case VType::ExternRef:
+    return ValType::ExternRef;
   default:
     return ValType::I32;
   }
@@ -388,7 +422,7 @@ Expect<void> FormChecker::checkInstr(const AST::CallControlInstruction &Instr) {
                                              Tables.size());
       return Unexpect(ErrCode::InvalidTableIdx);
     }
-    if (Tables[0] != ElemType::FuncRef) {
+    if (Tables[0] != RefType::FuncRef) {
       LOG(ERROR) << ErrCode::InvalidTableIdx;
       return Unexpect(ErrCode::InvalidTableIdx);
     }

@@ -16,6 +16,7 @@ void passEasyloggingppArgs(int Argc, char *Argv[]) {
 
 void setErrorLoggingLevel() {
   el::Loggers::addFlag(el::LoggingFlag::HierarchicalLogging);
+  el::Loggers::addFlag(el::LoggingFlag::IgnoreSigInt);
   el::Loggers::setLoggingLevel(el::Level::Error);
 }
 

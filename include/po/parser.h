@@ -22,7 +22,7 @@ inline void tolower(std::string &String) {
 template <typename T> struct Parser;
 
 template <> struct Parser<std::string> {
-  static std::string parse(std::string Value) { return std::move(Value); }
+  static std::string parse(std::string Value) { return Value; }
 };
 
 template <> struct Parser<bool> {

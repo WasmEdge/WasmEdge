@@ -65,7 +65,6 @@ private:
                                  Span<const ValType> Returns,
                                  const bool RestrictGlobal = false);
 
-  const uint32_t LIMIT_TABLETYPE = UINT32_MAX; // 2^32-1
   const uint32_t LIMIT_MEMORYTYPE = 1U << 16;
   FormChecker Checker;
 };

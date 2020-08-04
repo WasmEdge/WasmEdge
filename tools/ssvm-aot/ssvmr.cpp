@@ -20,6 +20,9 @@ int main(int Argc, const char *Argv[]) {
   PO::List<std::string> Args(PO::Description("Execution arguments"s),
                              PO::MetaVar("ARG"s));
 
+  PO::Option<PO::Toggle> Reactor(PO::Description(
+      "Enable reactor mode. Reactor mode calls `_initialize` if exported."));
+
   PO::List<std::string> Dir(
       PO::Description(
           "Binding directories into WASI virtual filesystem. Each directories "
@@ -36,6 +39,7 @@ int main(int Argc, const char *Argv[]) {
   if (!PO::ArgumentParser()
            .add_option(SoName)
            .add_option(Args)
+           .add_option("reactor", Reactor)
            .add_option("dir", Dir)
            .add_option("env", Env)
            .parse(Argc, Argv)) {
@@ -53,11 +57,120 @@ int main(int Argc, const char *Argv[]) {
   WasiMod->getEnv().init(Dir.value(), SoName.value(), Args.value(),
                          Env.value());
 
-  if (auto Result = VM.runWasmFile(InputPath, "_start")) {
-    return WasiMod->getEnv().getExitCode();
+  if (!Reactor.value()) {
+    // command mode
+    if (auto Result = VM.runWasmFile(InputPath, "_start")) {
+      return WasiMod->getEnv().getExitCode();
+    } else {
+      std::cout << "Failed. Error code : "
+                << static_cast<uint32_t>(Result.error()) << '\n';
+      return EXIT_FAILURE;
+    }
   } else {
-    std::cout << "Failed. Error code : "
-              << static_cast<uint32_t>(Result.error()) << '\n';
-    return EXIT_FAILURE;
+    // reactor mode
+    if (Args.value().empty()) {
+      std::cout
+          << "A function name is required when reactor mode is enabled.\n";
+    }
+    const auto &FuncName = Args.value().front();
+    if (auto Result = VM.loadWasm(InputPath); !Result) {
+      std::cout << "Failed. Error code : "
+                << static_cast<uint32_t>(Result.error()) << '\n';
+      return EXIT_FAILURE;
+    }
+    if (auto Result = VM.validate(); !Result) {
+      std::cout << "Validation failed. Error code : "
+                << static_cast<uint32_t>(Result.error()) << '\n';
+      return EXIT_FAILURE;
+    }
+    if (auto Result = VM.instantiate(); !Result) {
+      std::cout << "Instantiation failed. Error code : "
+                << static_cast<uint32_t>(Result.error()) << '\n';
+      return EXIT_FAILURE;
+    }
+
+    using namespace std::literals::string_literals;
+    const auto InitFunc = "_initialize"s;
+
+    bool HasInit = false;
+    SSVM::Runtime::Instance::FType FuncType;
+
+    for (const auto &Func : VM.getFunctionList()) {
+      if (Func.first == InitFunc) {
+        if (Func.second.Params.empty() && Func.second.Returns.empty()) {
+          HasInit = true;
+        }
+      } else if (Func.first == FuncName) {
+        FuncType = Func.second;
+      }
+    }
+
+    if (HasInit) {
+      if (auto Result = VM.execute(InitFunc); !Result) {
+        std::cout << "_initialize failed. Error code : "
+                  << static_cast<uint32_t>(Result.error()) << '\n';
+        return EXIT_FAILURE;
+      }
+    }
+
+    if (FuncType.Params.size() != Args.value().size() - 1) {
+      std::cout << "Parameter count mismatch, need " << FuncType.Params.size()
+                << ", gave " << Args.value().size() - 1 << ".\n";
+      return EXIT_FAILURE;
+    }
+
+    std::vector<SSVM::ValVariant> FuncArgs;
+    for (size_t I = 0; I < FuncType.Params.size(); ++I) {
+      switch (FuncType.Params[I]) {
+      case SSVM::ValType::I32: {
+        const uint32_t Value = std::stoll(Args.value()[I + 1]);
+        FuncArgs.emplace_back(Value);
+        break;
+      }
+      case SSVM::ValType::I64: {
+        const uint64_t Value = std::stoll(Args.value()[I + 1]);
+        FuncArgs.emplace_back(Value);
+        break;
+      }
+      case SSVM::ValType::F32: {
+        const float Value = std::stod(Args.value()[I + 1]);
+        FuncArgs.emplace_back(Value);
+        break;
+      }
+      case SSVM::ValType::F64: {
+        const double Value = std::stod(Args.value()[I + 1]);
+        FuncArgs.emplace_back(Value);
+        break;
+      }
+      default:
+        break;
+      }
+    }
+
+    if (auto Result = VM.execute(FuncName, FuncArgs); !Result) {
+      std::cout << FuncName << " failed. Error code : "
+                << static_cast<uint32_t>(Result.error()) << '\n';
+      return EXIT_FAILURE;
+    } else {
+      for (size_t I = 0; I < FuncType.Returns.size(); ++I) {
+        switch (FuncType.Returns[I]) {
+        case SSVM::ValType::I32:
+          std::cout << std::get<uint32_t>((*Result)[I]) << '\n';
+          break;
+        case SSVM::ValType::I64:
+          std::cout << std::get<uint64_t>((*Result)[I]) << '\n';
+          break;
+        case SSVM::ValType::F32:
+          std::cout << std::get<float>((*Result)[I]) << '\n';
+          break;
+        case SSVM::ValType::F64:
+          std::cout << std::get<double>((*Result)[I]) << '\n';
+          break;
+        default:
+          break;
+        }
+      }
+      return EXIT_SUCCESS;
+    }
   }
 }

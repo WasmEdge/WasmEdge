@@ -67,16 +67,15 @@ public:
   static inline constexpr const uint64_t k12G = k4G + k8G;
   MemoryInstance() = delete;
   MemoryInstance(const AST::Limit &Lim)
-      : HasMaxPage(Lim.hasMax()), MinPage(Lim.getMin()), MaxPage(Lim.getMax()),
-        CurrPage(Lim.getMin()) {
+      : HasMaxPage(Lim.hasMax()), MinPage(Lim.getMin()), MaxPage(Lim.getMax()) {
     const auto UsableAddress = getUsableAddress();
     if (UsableAddress == UINT64_C(-1)) {
       LOG(ERROR) << "Unable to find usable memory address";
       return;
     }
     DataPtr = reinterpret_cast<uint8_t *>(UsableAddress);
-    if (CurrPage != 0) {
-      if ((mmap(DataPtr, CurrPage * kPageSize, PROT_READ | PROT_WRITE,
+    if (MinPage != 0) {
+      if ((mmap(DataPtr, MinPage * kPageSize, PROT_READ | PROT_WRITE,
                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0)) ==
           MAP_FAILED) {
         LOG(ERROR) << "mmap failed";
@@ -87,7 +86,7 @@ public:
   ~MemoryInstance() noexcept { munmap(DataPtr, k8G); }
 
   /// Get page size of memory.data
-  uint32_t getDataPageSize() const noexcept { return CurrPage; }
+  uint32_t getDataPageSize() const noexcept { return MinPage; }
 
   /// Getter of limit definition.
   bool getHasMax() const noexcept { return HasMaxPage; }
@@ -102,12 +101,12 @@ public:
   bool checkAccessBound(uint32_t Offset, uint32_t Length) const noexcept {
     const uint64_t AccessLen =
         static_cast<uint64_t>(Offset) + static_cast<uint64_t>(Length);
-    return AccessLen <= CurrPage * kPageSize;
+    return AccessLen <= MinPage * kPageSize;
   }
 
   /// Get boundary index.
   uint32_t getBoundIdx() const noexcept {
-    return CurrPage > 0 ? CurrPage * kPageSize - 1 : 0;
+    return MinPage > 0 ? MinPage * kPageSize - 1 : 0;
   }
 
   /// Grow page
@@ -120,19 +119,19 @@ public:
     if (HasMaxPage) {
       MaxPageCaped = std::min(MaxPage, MaxPageCaped);
     }
-    if (Count + CurrPage > MaxPageCaped) {
+    if (Count + MinPage > MaxPageCaped) {
       return false;
     }
-    if (CurrPage == 0) {
+    if (MinPage == 0) {
       if (mmap(DataPtr, Count * kPageSize, PROT_READ | PROT_WRITE,
                MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {
         return false;
       }
-    } else if (mremap(DataPtr, CurrPage * kPageSize,
-                      (CurrPage + Count) * kPageSize, 0) == MAP_FAILED) {
+    } else if (mremap(DataPtr, MinPage * kPageSize,
+                      (MinPage + Count) * kPageSize, 0) == MAP_FAILED) {
       return false;
     }
-    CurrPage += Count;
+    MinPage += Count;
     return true;
   }
 
@@ -158,8 +157,7 @@ public:
     }
 
     /// Check input data validation.
-    if ((Slice.size() > 0 && Start >= Slice.size()) ||
-        Start + Length > Slice.size()) {
+    if (Start + Length > Slice.size()) {
       LOG(ERROR) << ErrCode::MemoryOutOfBounds;
       LOG(ERROR) << ErrInfo::InfoBoundary(Start, Length, Slice.size() - 1);
       return Unexpect(ErrCode::MemoryOutOfBounds);
@@ -329,10 +327,9 @@ private:
   /// \name Data of memory instance.
   /// @{
   const bool HasMaxPage;
-  const uint32_t MinPage;
+  uint32_t MinPage;
   const uint32_t MaxPage;
   uint8_t *DataPtr = nullptr;
-  uint32_t CurrPage;
   DLSymbol<uint8_t *> Symbol;
   /// @}
 };

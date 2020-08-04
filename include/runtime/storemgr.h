@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "instance/data.h"
+#include "instance/elem.h"
 #include "instance/function.h"
 #include "instance/global.h"
 #include "instance/memory.h"
@@ -25,13 +27,19 @@ namespace SSVM {
 namespace Runtime {
 
 namespace {
-/// Return true if T is entities.
+/// Return true if T is entities which can be imported.
 template <typename T>
-inline constexpr const bool IsEntityV =
+inline constexpr const bool IsImportEntityV =
     std::is_same_v<T, Instance::FunctionInstance> ||
     std::is_same_v<T, Instance::TableInstance> ||
     std::is_same_v<T, Instance::MemoryInstance> ||
     std::is_same_v<T, Instance::GlobalInstance>;
+
+/// Return true if T is entities.
+template <typename T>
+inline constexpr const bool IsEntityV =
+    IsImportEntityV<T> || std::is_same_v<T, Instance::ElementInstance> ||
+    std::is_same_v<T, Instance::DataInstance>;
 
 /// Return true if T is instances.
 template <typename T>
@@ -41,7 +49,9 @@ inline constexpr const bool IsInstanceV =
 
 class StoreManager {
 public:
-  StoreManager() : NumMod(0), NumFunc(0), NumTab(0), NumMem(0), NumGlob(0) {}
+  StoreManager()
+      : NumMod(0), NumFunc(0), NumTab(0), NumMem(0), NumGlob(0), NumElem(0),
+        NumData(0) {}
   ~StoreManager() = default;
 
   /// Import instances and move owner to store manager.
@@ -60,6 +70,12 @@ public:
   }
   uint32_t importGlobal(std::unique_ptr<Instance::GlobalInstance> &Glob) {
     return importInstance(Glob, ImpGlobInsts, GlobInsts);
+  }
+  uint32_t importElement(std::unique_ptr<Instance::ElementInstance> &Elem) {
+    return importInstance(Elem, ImpElemInsts, ElemInsts);
+  }
+  uint32_t importData(std::unique_ptr<Instance::DataInstance> &Data) {
+    return importInstance(Data, ImpDataInsts, DataInsts);
   }
 
   /// Import host instances but not move ownership.
@@ -98,6 +114,14 @@ public:
     ++NumGlob;
     return importInstance(Glob, ImpGlobInsts, GlobInsts);
   }
+  uint32_t pushElement(std::unique_ptr<Instance::ElementInstance> &Elem) {
+    ++NumElem;
+    return importInstance(Elem, ImpElemInsts, ElemInsts);
+  }
+  uint32_t pushData(std::unique_ptr<Instance::DataInstance> &Data) {
+    ++NumData;
+    return importInstance(Data, ImpDataInsts, DataInsts);
+  }
 
   /// Pop temp. module. Dangerous function for used when instantiating only.
   void popModule() {
@@ -123,6 +147,12 @@ public:
   }
   Expect<Instance::GlobalInstance *> getGlobal(const uint32_t Addr) {
     return getInstance(Addr, GlobInsts);
+  }
+  Expect<Instance::ElementInstance *> getElement(const uint32_t Addr) {
+    return getInstance(Addr, ElemInsts);
+  }
+  Expect<Instance::DataInstance *> getData(const uint32_t Addr) {
+    return getInstance(Addr, DataInsts);
   }
 
   /// Get exported instances of instantiated module.
@@ -179,16 +209,22 @@ public:
       NumTab = 0;
       NumMem = 0;
       NumGlob = 0;
+      NumElem = 0;
+      NumData = 0;
       ModInsts.clear();
       FuncInsts.clear();
       TabInsts.clear();
       MemInsts.clear();
       GlobInsts.clear();
+      ElemInsts.clear();
+      DataInsts.clear();
       ImpModInsts.clear();
       ImpFuncInsts.clear();
       ImpTabInsts.clear();
       ImpMemInsts.clear();
       ImpGlobInsts.clear();
+      ImpElemInsts.clear();
+      ImpDataInsts.clear();
     } else {
       while (NumMod > 0) {
         --NumMod;
@@ -215,6 +251,16 @@ public:
         ImpGlobInsts.pop_back();
         GlobInsts.pop_back();
       }
+      while (NumElem > 0) {
+        --NumElem;
+        ImpElemInsts.pop_back();
+        ElemInsts.pop_back();
+      }
+      while (NumData > 0) {
+        --NumData;
+        ImpDataInsts.pop_back();
+        DataInsts.pop_back();
+      }
     }
   }
 
@@ -233,7 +279,7 @@ private:
 
   /// Helper function for importing host instances.
   template <typename T>
-  std::enable_if_t<IsEntityV<T>, uint32_t>
+  std::enable_if_t<IsImportEntityV<T>, uint32_t>
   importHostInstance(T &Inst, std::vector<T *> &InstsVec) {
     uint32_t Addr = InstsVec.size();
     InstsVec.push_back(&Inst);
@@ -258,6 +304,8 @@ private:
   std::vector<std::unique_ptr<Instance::TableInstance>> ImpTabInsts;
   std::vector<std::unique_ptr<Instance::MemoryInstance>> ImpMemInsts;
   std::vector<std::unique_ptr<Instance::GlobalInstance>> ImpGlobInsts;
+  std::vector<std::unique_ptr<Instance::ElementInstance>> ImpElemInsts;
+  std::vector<std::unique_ptr<Instance::DataInstance>> ImpDataInsts;
   /// @}
 
   /// \name Pointers to imported instances from modules or import objects.
@@ -267,6 +315,8 @@ private:
   std::vector<Instance::TableInstance *> TabInsts;
   std::vector<Instance::MemoryInstance *> MemInsts;
   std::vector<Instance::GlobalInstance *> GlobInsts;
+  std::vector<Instance::ElementInstance *> ElemInsts;
+  std::vector<Instance::DataInstance *> DataInsts;
   /// @}
 
   /// \name Data for instantiated module.
@@ -276,6 +326,8 @@ private:
   uint32_t NumTab;
   uint32_t NumMem;
   uint32_t NumGlob;
+  uint32_t NumElem;
+  uint32_t NumData;
   /// @}
 };
 

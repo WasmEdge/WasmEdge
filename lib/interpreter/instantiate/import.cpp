@@ -135,7 +135,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched function address to module instance.
-      ModInst.addFuncAddr(TargetAddr);
+      ModInst.importFunction(TargetAddr);
       break;
     }
     case ExternalType::Table: {
@@ -159,7 +159,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched table address to module instance.
-      ModInst.addTableAddr(TargetAddr);
+      ModInst.importTable(TargetAddr);
       break;
     }
     case ExternalType::Memory: {
@@ -182,7 +182,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched memory address to module instance.
-      ModInst.addMemAddr(TargetAddr);
+      ModInst.importMemory(TargetAddr);
       break;
     }
     case ExternalType::Global: {
@@ -202,7 +202,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched global address to module instance.
-      ModInst.addGlobalAddr(TargetAddr);
+      ModInst.importGlobal(TargetAddr);
       break;
     }
     default:

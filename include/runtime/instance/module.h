@@ -37,15 +37,35 @@ public:
     FuncTypes.emplace_back(Params, Returns);
   }
 
-  /// Map the external instences between Module and Store.
+  /// Register module owns instances with address in Store.
   void addFuncAddr(const uint32_t FuncAddr) { FuncAddrs.push_back(FuncAddr); }
   void addTableAddr(const uint32_t TabAddr) { TableAddrs.push_back(TabAddr); }
   void addMemAddr(const uint32_t MemAddr) { MemAddrs.push_back(MemAddr); }
   void addGlobalAddr(const uint32_t GlobAddr) {
     GlobalAddrs.push_back(GlobAddr);
   }
+  void addElemAddr(const uint32_t ElemAddr) { ElemAddrs.push_back(ElemAddr); }
+  void addDataAddr(const uint32_t DataAddr) { DataAddrs.push_back(DataAddr); }
 
-  /// Exports functions.
+  /// Import instances.
+  void importFunction(const uint32_t FuncAddr) {
+    ImpFuncNum++;
+    addFuncAddr(FuncAddr);
+  }
+  void importTable(const uint32_t TabAddr) {
+    ImpTableNum++;
+    addTableAddr(TabAddr);
+  }
+  void importMemory(const uint32_t MemAddr) {
+    ImpMemNum++;
+    addMemAddr(MemAddr);
+  }
+  void importGlobal(const uint32_t GlobAddr) {
+    ImpGlobalNum++;
+    addGlobalAddr(GlobAddr);
+  }
+
+  /// Export instances.
   void exportFunction(std::string_view Name, const uint32_t Idx) {
     ExpFuncs.emplace(Name, FuncAddrs[Idx]);
   }
@@ -58,6 +78,12 @@ public:
   void exportGlobal(std::string_view Name, const uint32_t Idx) {
     ExpGlobals.emplace(Name, GlobalAddrs[Idx]);
   }
+
+  /// Get import nums.
+  uint32_t getFuncImportNum() const { return ImpFuncNum; }
+  uint32_t getTableImportNum() const { return ImpTableNum; }
+  uint32_t getMemImportNum() const { return ImpMemNum; }
+  uint32_t getGlobalImportNum() const { return ImpGlobalNum; }
 
   /// Get export maps.
   const std::map<std::string, uint32_t, std::less<>> &getFuncExports() const {
@@ -110,12 +136,28 @@ public:
     }
     return GlobalAddrs[Idx];
   }
+  Expect<uint32_t> getElemAddr(const uint32_t Idx) const {
+    if (Idx >= ElemAddrs.size()) {
+      /// Error logging need to be handled in caller.
+      return Unexpect(ErrCode::WrongInstanceIndex);
+    }
+    return ElemAddrs[Idx];
+  }
+  Expect<uint32_t> getDataAddr(const uint32_t Idx) const {
+    if (Idx >= DataAddrs.size()) {
+      /// Error logging need to be handled in caller.
+      return Unexpect(ErrCode::WrongInstanceIndex);
+    }
+    return DataAddrs[Idx];
+  }
 
   /// Get the added external values' numbers.
   uint32_t getFuncNum() const { return FuncAddrs.size(); }
   uint32_t getTableNum() const { return TableAddrs.size(); }
   uint32_t getMemNum() const { return MemAddrs.size(); }
   uint32_t getGlobalNum() const { return GlobalAddrs.size(); }
+  uint32_t getElemNum() const { return ElemAddrs.size(); }
+  uint32_t getDataNum() const { return DataAddrs.size(); }
 
   /// Set start function index and find the address in Store.
   void setStartIdx(const uint32_t Idx) {
@@ -146,6 +188,14 @@ private:
   std::vector<uint32_t> TableAddrs;
   std::vector<uint32_t> MemAddrs;
   std::vector<uint32_t> GlobalAddrs;
+  std::vector<uint32_t> ElemAddrs;
+  std::vector<uint32_t> DataAddrs;
+
+  /// Imports.
+  uint32_t ImpFuncNum = 0;
+  uint32_t ImpTableNum = 0;
+  uint32_t ImpMemNum = 0;
+  uint32_t ImpGlobalNum = 0;
 
   /// Exports.
   std::map<std::string, uint32_t, std::less<>> ExpFuncs;

@@ -14,8 +14,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
                          const AST::GlobalSection &GlobSec) {
   /// Add a temp module to Store with only imported globals for initialization.
   auto TmpMod = std::make_unique<Runtime::Instance::ModuleInstance>("");
-  for (uint32_t I = 0; I < ModInst.getGlobalNum(); ++I) {
-    TmpMod->addGlobalAddr(*ModInst.getGlobalAddr(I));
+  for (uint32_t I = 0; I < ModInst.getGlobalImportNum(); ++I) {
+    TmpMod->importGlobal(*ModInst.getGlobalAddr(I));
   }
 
   /// Insert the temp. module instance to Store.

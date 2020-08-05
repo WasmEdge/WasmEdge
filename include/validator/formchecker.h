@@ -103,8 +103,10 @@ private:
   Expect<void> checkInstr(const AST::BrControlInstruction &Instr);
   Expect<void> checkInstr(const AST::BrTableControlInstruction &Instr);
   Expect<void> checkInstr(const AST::CallControlInstruction &Instr);
+  Expect<void> checkInstr(const AST::ReferenceInstruction &Instr);
   Expect<void> checkInstr(const AST::ParametricInstruction &Instr);
   Expect<void> checkInstr(const AST::VariableInstruction &Instr);
+  Expect<void> checkInstr(const AST::TableInstruction &Instr);
   Expect<void> checkInstr(const AST::MemoryInstruction &Instr);
   Expect<void> checkInstr(const AST::ConstInstruction &Instr);
   Expect<void> checkInstr(const AST::UnaryNumericInstruction &Instr);

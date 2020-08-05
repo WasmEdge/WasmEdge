@@ -257,6 +257,92 @@ Expect<void> CallControlInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
+/// Load reference instructions. See "include/common/ast/instruction.h".
+Expect<void> ReferenceInstruction::loadBinary(FileMgr &Mgr) {
+  /// Read the reftype and funcidx.
+  switch (Code) {
+  case OpCode::Ref__null:
+    if (auto Res = Mgr.readByte()) {
+      Type = static_cast<RefType>(*Res);
+      switch (Type) {
+      case RefType::FuncRef:
+      case RefType::ExternRef:
+        break;
+      default:
+        LOG(ERROR) << ErrCode::InvalidGrammar;
+        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+        return Unexpect(ErrCode::InvalidGrammar);
+      }
+    } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(Res);
+    }
+    break;
+
+  case OpCode::Ref__func:
+    if (auto Res = Mgr.readU32()) {
+      TargetIdx = *Res;
+    } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(Res);
+    }
+    break;
+
+  case OpCode::Ref__is_null:
+  default:
+    break;
+  }
+  return {};
+}
+
+/// Load variable instructions. See "include/common/ast/instruction.h".
+Expect<void> ParametricInstruction::loadBinary(FileMgr &Mgr) {
+  /// Read the valtype vector in select (t*) case.
+  if (Code == OpCode::Select_t) {
+    uint32_t VecCnt = 0;
+    if (auto Res = Mgr.readU32()) {
+      VecCnt = *Res;
+    } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(Res);
+    }
+    for (uint32_t i = 0; i < VecCnt; ++i) {
+      if (auto Res = Mgr.readByte()) {
+        ValType VType = static_cast<ValType>(*Res);
+        switch (VType) {
+        case ValType::None:
+        case ValType::I32:
+        case ValType::I64:
+        case ValType::F32:
+        case ValType::F64:
+        case ValType::ExternRef:
+        case ValType::FuncRef:
+          ValTypeList.push_back(VType);
+          break;
+        default:
+          LOG(ERROR) << ErrCode::InvalidGrammar;
+          LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+          return Unexpect(ErrCode::InvalidGrammar);
+        }
+      } else {
+        LOG(ERROR) << Res.error();
+        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+        return Unexpect(Res);
+      }
+    }
+  }
+  return {};
+}
+
 /// Load variable instructions. See "include/common/ast/instruction.h".
 Expect<void> VariableInstruction::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
@@ -270,14 +356,64 @@ Expect<void> VariableInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
+/// Load binary of table instructions. See "include/common/ast/instruction.h".
+Expect<void> TableInstruction::loadBinary(FileMgr &Mgr) {
+  if (auto Res = Mgr.readU32()) {
+    switch (Code) {
+    case OpCode::Table__get:
+    case OpCode::Table__set:
+    case OpCode::Table__grow:
+    case OpCode::Table__size:
+    case OpCode::Table__fill:
+      TargetIdx = *Res;
+      return {};
+
+    case OpCode::Elem__drop:
+      ElemIdx = *Res;
+      return {};
+
+    case OpCode::Table__copy:
+      TargetIdx = *Res;
+      break;
+    case OpCode::Table__init:
+      ElemIdx = *Res;
+      break;
+    default:
+      break;
+    }
+  } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+    return Unexpect(Res);
+  }
+
+  /// Read second index in table.init and table.copy case.
+  if (auto Res = Mgr.readU32()) {
+    switch (Code) {
+    case OpCode::Table__copy:
+      SourceIdx = *Res;
+      break;
+    case OpCode::Table__init:
+      TargetIdx = *Res;
+      break;
+    default:
+      break;
+    }
+  } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+    return Unexpect(Res);
+  }
+  return {};
+}
+
 /// Load binary of memory instructions. See "include/common/ast/instruction.h".
 Expect<void> MemoryInstruction::loadBinary(FileMgr &Mgr) {
-  /// Read the 0x00 checking code in memory.grow and memory.size cases.
-  if (Code == OpCode::Memory__grow || Code == OpCode::Memory__size) {
+  auto readCheck = [&Mgr]() -> Expect<void> {
     if (auto Res = Mgr.readByte()) {
-      if (*Res == 0x00) {
-        return {};
-      } else {
+      if (*Res != 0x00) {
         LOG(ERROR) << ErrCode::InvalidGrammar;
         LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
         LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
@@ -289,24 +425,63 @@ Expect<void> MemoryInstruction::loadBinary(FileMgr &Mgr) {
       LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
-  }
+    return {};
+  };
 
-  /// Read memory arguments.
-  if (auto Res = Mgr.readU32()) {
-    Align = *Res;
-  } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
-  }
-  if (auto Res = Mgr.readU32()) {
-    Offset = *Res;
-  } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
+  switch (Code) {
+  /// Read the 0x00 checking code in memory.grow, memory.size, memory.fill, and
+  /// memory.copy cases.
+  case OpCode::Memory__copy:
+    if (auto Res = readCheck(); !Res) {
+      return Unexpect(Res);
+    }
+    [[fallthrough]];
+  case OpCode::Memory__grow:
+  case OpCode::Memory__size:
+  case OpCode::Memory__fill:
+    if (auto Res = readCheck(); !Res) {
+      return Unexpect(Res);
+    }
+    break;
+
+  /// Read data index in memory.init and data.drop cases.
+  case OpCode::Memory__init:
+  case OpCode::Data__drop:
+    if (auto Res = Mgr.readU32()) {
+      DataIdx = *Res;
+    } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(Res);
+    }
+    if (Code == OpCode::Memory__init) {
+      /// memory.init has 0x00 code.
+      if (auto Res = readCheck(); !Res) {
+        return Unexpect(Res);
+      }
+    }
+    break;
+
+  default:
+    /// Read memory arguments.
+    if (auto Res = Mgr.readU32()) {
+      Align = *Res;
+    } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(Res);
+    }
+    if (auto Res = Mgr.readU32()) {
+      Offset = *Res;
+    } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(Res);
+    }
+    break;
   }
   return {};
 }

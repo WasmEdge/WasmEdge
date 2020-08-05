@@ -600,12 +600,25 @@ public:
       __builtin_unreachable();
     }
   }
+  Expect<void> compile(const AST::ReferenceInstruction &Instr) {
+    switch (Instr.getOpCode()) {
+    case OpCode::Ref__null:
+    case OpCode::Ref__is_null:
+    case OpCode::Ref__func:
+      /// TODO: Implement this.
+      return Unexpect(ErrCode::InvalidGrammar);
+    default:
+      __builtin_unreachable();
+    }
+    return {};
+  }
   Expect<void> compile(const AST::ParametricInstruction &Instr) {
     switch (Instr.getOpCode()) {
     case OpCode::Drop:
       stackPop();
       break;
-    case OpCode::Select: {
+    case OpCode::Select:
+    case OpCode::Select_t: {
       auto *Cond = Builder.CreateICmpNE(stackPop(), Builder.getInt32(0));
       auto *False = stackPop();
       auto *True = stackPop();
@@ -649,6 +662,23 @@ public:
       __builtin_unreachable();
     }
 
+    return {};
+  }
+  Expect<void> compile(const AST::TableInstruction &Instr) {
+    switch (Instr.getOpCode()) {
+    case OpCode::Table__get:
+    case OpCode::Table__set:
+    case OpCode::Table__init:
+    case OpCode::Elem__drop:
+    case OpCode::Table__copy:
+    case OpCode::Table__grow:
+    case OpCode::Table__size:
+    case OpCode::Table__fill:
+      /// TODO: Implement this.
+      return Unexpect(ErrCode::InvalidGrammar);
+    default:
+      __builtin_unreachable();
+    }
     return {};
   }
   Expect<void> compile(const AST::MemoryInstruction &Instr) {

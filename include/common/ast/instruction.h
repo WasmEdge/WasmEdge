@@ -230,12 +230,67 @@ private:
   uint32_t TableIdx = 0;
 };
 
+/// Derived reference instruction node.
+class ReferenceInstruction : public Instruction {
+public:
+  /// Call base constructor to initialize OpCode.
+  ReferenceInstruction(const OpCode Byte, const uint32_t Off = 0)
+      : Instruction(Byte, Off) {}
+  /// Copy constructor.
+  ReferenceInstruction(const ReferenceInstruction &Instr)
+      : Instruction(Instr.Code, Instr.Offset), Type(Instr.Type),
+        TargetIdx(Instr.TargetIdx) {}
+
+  /// Load binary from file manager.
+  ///
+  /// Inheritted and overrided from Instruction.
+  /// Read the reference type and reference index.
+  ///
+  /// \param Mgr the file manager reference.
+  ///
+  /// \returns void when success, ErrCode when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
+
+  /// Getter of the reference type.
+  RefType getReferenceType() const { return Type; }
+
+  /// Getter of the reference index.
+  uint32_t getTargetIndex() const { return TargetIdx; }
+
+private:
+  /// \name Data of reference instruction: reference index and reference type.
+  /// @{
+  RefType Type = RefType::FuncRef;
+  uint32_t TargetIdx = 0;
+  /// @}
+};
+
 /// Derived parametric instruction node.
 class ParametricInstruction : public Instruction {
 public:
   /// Call base constructor to initialize OpCode.
   ParametricInstruction(const OpCode Byte, const uint32_t Off = 0)
       : Instruction(Byte, Off) {}
+  /// Copy constructor.
+  ParametricInstruction(const ParametricInstruction &Instr)
+      : Instruction(Instr.Code, Instr.Offset), ValTypeList(Instr.ValTypeList) {}
+
+  /// Load binary from file manager.
+  ///
+  /// Inheritted and overrided from Instruction.
+  /// Read the vector of value type in select instruction.
+  ///
+  /// \param Mgr the file manager reference.
+  ///
+  /// \returns void when success, ErrCode when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
+
+  /// Getter of the index
+  Span<const ValType> getValTypeList() const { return ValTypeList; }
+
+private:
+  /// Vector of valtype.
+  std::vector<ValType> ValTypeList;
 };
 
 /// Derived variable instruction node.
@@ -266,6 +321,45 @@ private:
   uint32_t VarIdx = 0;
 };
 
+/// Derived table instruction node.
+class TableInstruction : public Instruction {
+public:
+  /// Call base constructor to initialize OpCode.
+  TableInstruction(const OpCode Byte, const uint32_t Off = 0)
+      : Instruction(Byte, Off) {}
+  /// Copy constructor.
+  TableInstruction(const TableInstruction &Instr)
+      : Instruction(Instr.Code, Instr.Offset), TargetIdx(Instr.TargetIdx),
+        SourceIdx(Instr.SourceIdx), ElemIdx(Instr.ElemIdx) {}
+
+  /// Load binary from file manager.
+  ///
+  /// Inheritted and overrided from Instruction.
+  /// Read the table index or element index.
+  ///
+  /// \param Mgr the file manager reference.
+  ///
+  /// \returns void when success, ErrCode when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
+
+  /// Getter of target table index.
+  uint32_t getTargetIndex() const { return TargetIdx; }
+
+  /// Getter of source table index.
+  uint32_t getSourceIndex() const { return SourceIdx; }
+
+  /// Getter of element instance index.
+  uint32_t getElemIndex() const { return ElemIdx; }
+
+private:
+  /// \name Data of table instruction: element index and table index.
+  /// @{
+  uint32_t TargetIdx = 0;
+  uint32_t SourceIdx = 0;
+  uint32_t ElemIdx = 0;
+  /// @}
+};
+
 /// Derived memory instruction node.
 class MemoryInstruction : public Instruction {
 public:
@@ -275,7 +369,7 @@ public:
   /// Copy constructor.
   MemoryInstruction(const MemoryInstruction &Instr)
       : Instruction(Instr.Code, Instr.Offset), Align(Instr.Align),
-        Offset(Instr.Offset) {}
+        Offset(Instr.Offset), DataIdx(Instr.DataIdx) {}
 
   /// Load binary from file manager.
   ///
@@ -291,11 +385,15 @@ public:
   uint32_t getMemoryAlign() const { return Align; }
   uint32_t getMemoryOffset() const { return Offset; }
 
+  /// Getter of data instance index.
+  uint32_t getDataIndex() const { return DataIdx; }
+
 private:
   /// \name Data of memory instruction: Alignment and offset.
   /// @{
   uint32_t Align = 0;
   uint32_t Offset = 0;
+  uint32_t DataIdx = 0;
   /// @}
 };
 
@@ -375,8 +473,14 @@ template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   case OpCode::Call_indirect:
     return Visitor(Support::tag<CallControlInstruction>());
 
+  case OpCode::Ref__null:
+  case OpCode::Ref__is_null:
+  case OpCode::Ref__func:
+    return Visitor(Support::tag<ReferenceInstruction>());
+
   case OpCode::Drop:
   case OpCode::Select:
+  case OpCode::Select_t:
     return Visitor(Support::tag<ParametricInstruction>());
 
   case OpCode::Local__get:
@@ -385,6 +489,16 @@ template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   case OpCode::Global__get:
   case OpCode::Global__set:
     return Visitor(Support::tag<VariableInstruction>());
+
+  case OpCode::Table__get:
+  case OpCode::Table__set:
+  case OpCode::Table__init:
+  case OpCode::Elem__drop:
+  case OpCode::Table__copy:
+  case OpCode::Table__grow:
+  case OpCode::Table__size:
+  case OpCode::Table__fill:
+    return Visitor(Support::tag<TableInstruction>());
 
   case OpCode::I32__load:
   case OpCode::I64__load:
@@ -411,6 +525,10 @@ template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   case OpCode::I64__store32:
   case OpCode::Memory__size:
   case OpCode::Memory__grow:
+  case OpCode::Memory__init:
+  case OpCode::Data__drop:
+  case OpCode::Memory__copy:
+  case OpCode::Memory__fill:
     return Visitor(Support::tag<MemoryInstruction>());
 
   case OpCode::I32__const:

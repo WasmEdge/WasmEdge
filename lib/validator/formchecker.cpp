@@ -445,11 +445,26 @@ Expect<void> FormChecker::checkInstr(const AST::CallControlInstruction &Instr) {
   return Unexpect(ErrCode::InvalidOpCode);
 }
 
+Expect<void> FormChecker::checkInstr(const AST::ReferenceInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::Ref__null:
+  case OpCode::Ref__is_null:
+  case OpCode::Ref__func:
+    /// TODO: Implement this.
+    return Unexpect(ErrCode::InvalidOpCode);
+  default:
+    LOG(ERROR) << ErrCode::InvalidOpCode;
+    return Unexpect(ErrCode::InvalidOpCode);
+  }
+  return {};
+}
+
 Expect<void> FormChecker::checkInstr(const AST::ParametricInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::Drop:
     return StackTrans(std::array{VType::Unknown}, {});
-  case OpCode::Select: {
+  case OpCode::Select:
+  case OpCode::Select_t: {
     if (auto Res = popType(VType::I32); !Res) {
       return Unexpect(Res);
     }
@@ -536,6 +551,25 @@ Expect<void> FormChecker::checkInstr(const AST::VariableInstruction &Instr) {
     pushType(TExpect);
   default:
     break;
+  }
+  return {};
+}
+
+Expect<void> FormChecker::checkInstr(const AST::TableInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::Table__get:
+  case OpCode::Table__set:
+  case OpCode::Table__init:
+  case OpCode::Elem__drop:
+  case OpCode::Table__copy:
+  case OpCode::Table__grow:
+  case OpCode::Table__size:
+  case OpCode::Table__fill:
+    /// TODO: Implement this.
+    return Unexpect(ErrCode::InvalidOpCode);
+  default:
+    LOG(ERROR) << ErrCode::InvalidOpCode;
+    return Unexpect(ErrCode::InvalidOpCode);
   }
   return {};
 }

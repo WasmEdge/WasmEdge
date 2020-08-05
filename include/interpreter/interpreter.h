@@ -201,9 +201,13 @@ private:
   Expect<void> execute(Runtime::StoreManager &StoreMgr,
                        const AST::CallControlInstruction &Instr);
   Expect<void> execute(Runtime::StoreManager &StoreMgr,
+                       const AST::ReferenceInstruction &Instr);
+  Expect<void> execute(Runtime::StoreManager &StoreMgr,
                        const AST::ParametricInstruction &Instr);
   Expect<void> execute(Runtime::StoreManager &StoreMgr,
                        const AST::VariableInstruction &Instr);
+  Expect<void> execute(Runtime::StoreManager &StoreMgr,
+                       const AST::TableInstruction &Instr);
   Expect<void> execute(Runtime::StoreManager &StoreMgr,
                        const AST::MemoryInstruction &Instr);
   Expect<void> execute(Runtime::StoreManager &StoreMgr,

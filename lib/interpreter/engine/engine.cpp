@@ -255,12 +255,30 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
 }
 
 Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
+                                  const AST::ReferenceInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::Ref__null:
+  case OpCode::Ref__is_null:
+  case OpCode::Ref__func:
+    /// TODO: Implement this.
+    return Unexpect(ErrCode::InstrTypeMismatch);
+  default:
+    LOG(ERROR) << ErrCode::InstrTypeMismatch;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
+    return Unexpect(ErrCode::InstrTypeMismatch);
+  }
+  return {};
+}
+
+Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
                                   const AST::ParametricInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::Drop:
     StackMgr.pop();
     return {};
-  case OpCode::Select: {
+  case OpCode::Select:
+  case OpCode::Select_t: {
     /// Pop the i32 value and select values from stack.
     ValVariant CondVal = StackMgr.pop();
     ValVariant Val2 = StackMgr.pop();
@@ -305,6 +323,28 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
                                            Instr.getOffset());
     return Unexpect(ErrCode::InstrTypeMismatch);
   }
+}
+
+Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
+                                  const AST::TableInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::Table__get:
+  case OpCode::Table__set:
+  case OpCode::Table__init:
+  case OpCode::Elem__drop:
+  case OpCode::Table__copy:
+  case OpCode::Table__grow:
+  case OpCode::Table__size:
+  case OpCode::Table__fill:
+    /// TODO: Implement this.
+    return Unexpect(ErrCode::InstrTypeMismatch);
+  default:
+    LOG(ERROR) << ErrCode::InstrTypeMismatch;
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
+    return Unexpect(ErrCode::InstrTypeMismatch);
+  }
+  return {};
 }
 
 Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
@@ -361,6 +401,12 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     return runMemoryGrowOp(*MemInst);
   case OpCode::Memory__size:
     return runMemorySizeOp(*MemInst);
+  case OpCode::Memory__init:
+  case OpCode::Data__drop:
+  case OpCode::Memory__copy:
+  case OpCode::Memory__fill:
+    /// TODO: Implement this.
+    return Unexpect(ErrCode::InstrTypeMismatch);
   default:
     LOG(ERROR) << ErrCode::InstrTypeMismatch;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),

@@ -272,7 +272,6 @@ public:
         } else {
           Desc = {};
         }
-      } else {
       }
     }
     if (!Desc.empty()) {

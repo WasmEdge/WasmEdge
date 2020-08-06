@@ -19,6 +19,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(BUILD_TESTS "Generate build targets for the ssvm unit tests." OFF)
+option(BUILD_COVERAGE "Generate coverage report. Require BUILD_TESTS." OFF)
+
+if(BUILD_COVERAGE)
+  include(CodeCoverage)
+  append_coverage_compiler_flags()
+endif()
 
 # List of SSVM runtimes
 option(SSVM_DISABLE_AOT_RUNTIME "Disable SSVM LLVM-based ahead of time compilation runtime." OFF)

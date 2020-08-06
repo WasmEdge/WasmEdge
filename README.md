@@ -7,6 +7,9 @@
 * Smart contract runtime engine for leading blockchain platforms. [Polkadot/Substrate](https://github.com/second-state/substrate-ssvm-node) | [CyberMiles](https://docs.secondstate.io/devchain/getting-started/cybermiles-ewasm-testnet)
 
 ![build](https://github.com/second-state/SSVM/workflows/build/badge.svg)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/second-state/SSVM.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/second-state/SSVM/alerts/)
+[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/second-state/SSVM.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/second-state/SSVM/context:cpp)
+[![codecov](https://codecov.io/gh/second-state/SSVM/branch/master/graph/badge.svg)](https://codecov.io/gh/second-state/SSVM)
 
 
 # Getting Started

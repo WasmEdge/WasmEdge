@@ -893,7 +893,7 @@ Expect<uint32_t> WasiFdPread::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_EFAULT;
   }
 
-  uint32_t *const NRead = MemInst->getPointer<uint32_t *>(NReadPtr);
+  int32_t *const NRead = MemInst->getPointer<int32_t *>(NReadPtr);
   if (unlikely(NRead == nullptr)) {
     return __WASI_EFAULT;
   }
@@ -924,7 +924,7 @@ Expect<uint32_t> WasiFdPread::body(Runtime::Instance::MemoryInstance *MemInst,
   /// Store read bytes length.
   *NRead = preadv(Entry->second.HostFd, SysIOVS, IOVSLen, Offset);
 
-  if (unlikely(static_cast<ssize_t>(*NRead) < 0)) {
+  if (unlikely(*NRead < 0)) {
     return convertErrNo(errno);
   }
 
@@ -1016,7 +1016,7 @@ Expect<uint32_t> WasiFdPwrite::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_EFAULT;
   }
 
-  uint32_t *const NWritten = MemInst->getPointer<uint32_t *>(NWrittenPtr);
+  int32_t *const NWritten = MemInst->getPointer<int32_t *>(NWrittenPtr);
   if (unlikely(NWritten == nullptr)) {
     return __WASI_EFAULT;
   }
@@ -1046,7 +1046,7 @@ Expect<uint32_t> WasiFdPwrite::body(Runtime::Instance::MemoryInstance *MemInst,
 
   *NWritten = pwritev(Entry->second.HostFd, SysIOVS, IOVSLen, Offset);
 
-  if (unlikely(static_cast<ssize_t>(*NWritten) < 0)) {
+  if (unlikely(*NWritten < 0)) {
     return convertErrNo(errno);
   }
 
@@ -1080,7 +1080,7 @@ Expect<uint32_t> WasiFdRead::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_EFAULT;
   }
 
-  uint32_t *const NRead = MemInst->getPointer<uint32_t *>(NReadPtr);
+  int32_t *const NRead = MemInst->getPointer<int32_t *>(NReadPtr);
   if (unlikely(NRead == nullptr)) {
     return __WASI_EFAULT;
   }
@@ -1111,7 +1111,7 @@ Expect<uint32_t> WasiFdRead::body(Runtime::Instance::MemoryInstance *MemInst,
   /// Store read bytes length.
   *NRead = readv(Entry->second.HostFd, SysIOVS, IOVSLen);
 
-  if (unlikely(static_cast<ssize_t>(*NRead) < 0)) {
+  if (unlikely(*NRead < 0)) {
     return convertErrNo(errno);
   }
 
@@ -1355,7 +1355,7 @@ Expect<uint32_t> WasiFdWrite::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_EFAULT;
   }
 
-  uint32_t *const NWritten = MemInst->getPointer<uint32_t *>(NWrittenPtr);
+  int32_t *const NWritten = MemInst->getPointer<int32_t *>(NWrittenPtr);
   if (unlikely(NWritten == nullptr)) {
     return __WASI_EFAULT;
   }
@@ -1385,7 +1385,7 @@ Expect<uint32_t> WasiFdWrite::body(Runtime::Instance::MemoryInstance *MemInst,
 
   *NWritten = writev(Entry->second.HostFd, SysIOVS, IOVSLen);
 
-  if (unlikely(static_cast<ssize_t>(*NWritten) < 0)) {
+  if (unlikely(*NWritten < 0)) {
     return convertErrNo(errno);
   }
 
@@ -2266,7 +2266,7 @@ Expect<uint32_t> WasiSockRecv::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_EFAULT;
   }
 
-  uint32_t *const RoDataLen = MemInst->getPointer<uint32_t *>(RoDataLenPtr);
+  int32_t *const RoDataLen = MemInst->getPointer<int32_t *>(RoDataLenPtr);
   if (unlikely(RoDataLen == nullptr)) {
     return __WASI_EFAULT;
   }
@@ -2316,7 +2316,7 @@ Expect<uint32_t> WasiSockRecv::body(Runtime::Instance::MemoryInstance *MemInst,
     *RoFlags |= __WASI_SOCK_RECV_DATA_TRUNCATED;
   }
 
-  if (unlikely(static_cast<ssize_t>(*RoDataLen) < 0)) {
+  if (unlikely(*RoDataLen < 0)) {
     return convertErrNo(errno);
   }
 
@@ -2352,7 +2352,7 @@ Expect<uint32_t> WasiSockSend::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_EFAULT;
   }
 
-  uint32_t *const SoDataLen = MemInst->getPointer<uint32_t *>(SoDataLenPtr);
+  int32_t *const SoDataLen = MemInst->getPointer<int32_t *>(SoDataLenPtr);
   if (unlikely(SoDataLen == nullptr)) {
     return __WASI_EFAULT;
   }
@@ -2391,7 +2391,7 @@ Expect<uint32_t> WasiSockSend::body(Runtime::Instance::MemoryInstance *MemInst,
   /// Store send bytes length and flags.
   *SoDataLen = sendmsg(Entry->second.HostFd, &SysMsgHdr, 0);
 
-  if (unlikely(static_cast<ssize_t>(*SoDataLen) < 0)) {
+  if (unlikely(*SoDataLen < 0)) {
     return convertErrNo(errno);
   }
 

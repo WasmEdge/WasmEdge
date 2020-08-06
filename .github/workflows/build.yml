@@ -104,3 +104,34 @@ jobs:
       run: |
         cd build
         ctest
+
+  build_test_gcc_debug_coverage:
+    runs-on: ubuntu-latest
+    container:
+      image: secondstate/ssvm:ubuntu-build-gcc
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install gcovr
+      run: |
+        apt update
+        apt install -y gcovr
+
+    - name: Setup build folder
+      run: |
+        rm -rf build
+        mkdir build
+
+    - name: Build SSVM using gcc with Debug mode
+      run: |
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DBUILD_COVERAGE=ON
+        make -j2
+
+    - name: Generate coverage report
+      run: |
+        cd build
+        make -j2 codecov
+        wget https://codecov.io/bash -O codecov.bash
+        bash codecov.bash -t ${{ secrets.CODECOV_TOKEN }} -X gcov -X coveragepy -X search -X xcode -X gcovout -f codecov.xml

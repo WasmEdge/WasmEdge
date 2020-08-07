@@ -45,10 +45,6 @@ static llvm::FunctionType *toLLVMType(llvm::LLVMContext &Context,
                                       const SSVM::AST::FunctionType &FuncType);
 static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &Context,
                                           const SSVM::ValType &ValType);
-static std::vector<llvm::Value *> getUndefValue(llvm::Type *Ty);
-/// Unused helper function.
-/// static llvm::Value *packStruct(llvm::IRBuilder<> &Builder, llvm::Value *Vals,
-///                                unsigned N);
 static std::vector<llvm::Value *> unpackStruct(llvm::IRBuilder<> &Builder,
                                                llvm::Value *Struct);
 class FunctionCompiler;
@@ -324,14 +320,53 @@ public:
     }
   }
 
+  explicit FunctionCompiler(AOT::Compiler::CompileContext &Context)
+      : Context(Context), VMContext(Context.Context), F(nullptr),
+        Builder(llvm::BasicBlock::Create(VMContext, "entry", F)) {}
+
   ~FunctionCompiler() noexcept {
     if (!F) {
       delete Builder.GetInsertBlock();
     }
   }
 
+  Expect<void> compile(const AST::CodeSegment &Code,
+                       Span<const ValType> Returns) {
+    llvm::BasicBlock *RetBB = llvm::BasicBlock::Create(VMContext, "ret", F);
+    ControlStack.emplace_back(Stack.size(), RetBB, true,
+                              std::vector(Returns.begin(), Returns.end()), 0);
+
+    if (auto Status = compile(Code.getInstrs()); !Status) {
+      return Unexpect(Status);
+    }
+
+    buildPHI(Returns, leaveBlock(RetBB));
+
+    assert(!isUnreachable());
+    updateInstrCount();
+    auto *Ty = F->getReturnType();
+    if (Ty->isVoidTy()) {
+      Builder.CreateRetVoid();
+    } else if (Ty->isStructTy()) {
+      const unsigned Count = Ty->getStructNumElements();
+      std::vector<llvm::Value *> Ret(Count);
+      for (unsigned I = 0; I < Count; ++I) {
+        const unsigned J = Count - I - 1;
+        Ret[J] = stackPop();
+      }
+      Builder.CreateAggregateRet(Ret.data(), Count);
+    } else {
+      Builder.CreateRet(stackPop());
+    }
+
+    return {};
+  }
+
   Expect<void> compile(const AST::InstrVec &Instrs) {
     for (const auto &Instr : Instrs) {
+      if (isUnreachable()) {
+        return {};
+      }
       auto Res = AST::dispatchInstruction(
           Instr->getOpCode(), [this, &Instr](const auto &&Arg) -> Expect<void> {
             if constexpr (std::is_void_v<
@@ -372,44 +407,18 @@ public:
       Context.callTrap(Builder, Ctx,
                        Builder.getInt32(uint32_t(ErrCode::Unreachable)));
       Builder.CreateUnreachable();
-
-      Builder.SetInsertPoint(
-          llvm::BasicBlock::Create(VMContext, "unreachable.end", F));
-      if (!ControlStack.empty()) {
-        const auto &Entry = ControlStack.back();
-        if (const auto &Types = std::get<kReturnType>(Entry); !Types.empty()) {
-          for (const auto &Type : Types) {
-            Stack.push_back(
-                llvm::UndefValue::get(toLLVMType(Context.Context, Type)));
-          }
-        }
-      } else {
-        for (auto *Undef : getUndefValue(F->getReturnType())) {
-          Stack.push_back(Undef);
-        }
-      }
+      setUnreachable();
       break;
     }
     case OpCode::Nop:
       break;
     case OpCode::Return: {
-      updateInstrCount();
-      auto *Ty = F->getReturnType();
-      if (Ty->isVoidTy()) {
-        Builder.CreateRetVoid();
-      } else if (Ty->isStructTy()) {
-        const auto Count = Ty->getStructNumElements();
-        if (Stack.size() < Count) {
-          return Unexpect(ErrCode::TypeCheckFailed);
-        }
-        Builder.CreateAggregateRet(Stack.data() + Stack.size() - Count, Count);
-      } else {
-        if (Stack.empty()) {
-          return Unexpect(ErrCode::TypeCheckFailed);
-        }
-        Builder.CreateRet(Stack.back());
+      const unsigned int Label = ControlStack.size() - 1;
+      if (!setLableJumpPHI(Label)) {
+        return Unexpect(ErrCode::InvalidLabelIdx);
       }
-      Builder.SetInsertPoint(llvm::BasicBlock::Create(VMContext, "ret.end", F));
+      Builder.CreateBr(getLabel(Label));
+      setUnreachable();
       break;
     }
     default:
@@ -449,10 +458,7 @@ public:
   Expect<void> compile(const AST::IfElseControlInstruction &Instr) {
     switch (Instr.getOpCode()) {
     case OpCode::If: {
-      assert(!Stack.empty());
-      llvm::Value *Cond =
-          Builder.CreateICmpNE(Stack.back(), Builder.getInt32(0));
-      Stack.pop_back();
+      llvm::Value *Cond = Builder.CreateICmpNE(stackPop(), Builder.getInt32(0));
 
       auto *Then = llvm::BasicBlock::Create(VMContext, "then", F);
       auto *Else = llvm::BasicBlock::Create(VMContext, "else", F);
@@ -489,14 +495,11 @@ public:
         return Unexpect(ErrCode::InvalidLabelIdx);
       }
       Builder.CreateBr(getLabel(Label));
-      Builder.SetInsertPoint(llvm::BasicBlock::Create(VMContext, "br.end", F));
+      setUnreachable();
       break;
     }
     case OpCode::Br_if: {
-      assert(!Stack.empty());
-      llvm::Value *Cond =
-          Builder.CreateICmpNE(Stack.back(), Builder.getInt32(0));
-      Stack.pop_back();
+      llvm::Value *Cond = Builder.CreateICmpNE(stackPop(), Builder.getInt32(0));
       if (!setLableJumpPHI(Label)) {
         return Unexpect(ErrCode::InvalidLabelIdx);
       }
@@ -515,21 +518,19 @@ public:
     auto LabelTable = Instr.getLabelTable();
     switch (Instr.getOpCode()) {
     case OpCode::Br_table: {
+      llvm::Value *Value = stackPop();
       if (!setLableJumpPHI(Instr.getLabelIndex())) {
         return Unexpect(ErrCode::InvalidLabelIdx);
       }
       llvm::SwitchInst *Switch = Builder.CreateSwitch(
-          Stack.back(), getLabel(Instr.getLabelIndex()), LabelTable.size());
+          Value, getLabel(Instr.getLabelIndex()), LabelTable.size());
       for (size_t I = 0; I < LabelTable.size(); ++I) {
         if (!setLableJumpPHI(LabelTable[I])) {
           return Unexpect(ErrCode::InvalidLabelIdx);
         }
         Switch->addCase(Builder.getInt32(I), getLabel(LabelTable[I]));
       }
-      llvm::BasicBlock *End =
-          llvm::BasicBlock::Create(VMContext, "switch.end", F);
-      Builder.SetInsertPoint(End);
-
+      setUnreachable();
       break;
     }
     default:
@@ -553,18 +554,13 @@ public:
   Expect<void> compile(const AST::ParametricInstruction &Instr) {
     switch (Instr.getOpCode()) {
     case OpCode::Drop:
-      assert(!Stack.empty());
-      Stack.pop_back();
+      stackPop();
       break;
     case OpCode::Select: {
-      assert(Stack.size() >= 2);
-      llvm::Value *Cond =
-          Builder.CreateICmpNE(Stack.back(), Builder.getInt32(0));
-      Stack.pop_back();
-      llvm::Value *False = Stack.back();
-      Stack.pop_back();
-      llvm::Value *True = Stack.back();
-      Stack.back() = Builder.CreateSelect(Cond, True, False);
+      llvm::Value *Cond = Builder.CreateICmpNE(stackPop(), Builder.getInt32(0));
+      llvm::Value *False = stackPop();
+      llvm::Value *True = stackPop();
+      stackPush(Builder.CreateSelect(Cond, True, False));
       break;
     }
     default:
@@ -580,12 +576,10 @@ public:
     /// Check OpCode and run the specific instruction.
     switch (Instr.getOpCode()) {
     case OpCode::Local__get:
-      Stack.push_back(Builder.CreateLoad(Local[Index]));
+      stackPush(Builder.CreateLoad(Local[Index]));
       break;
     case OpCode::Local__set:
-      assert(!Stack.empty());
-      Builder.CreateStore(Stack.back(), Local[Index]);
-      Stack.pop_back();
+      Builder.CreateStore(stackPop(), Local[Index]);
       break;
     case OpCode::Local__tee:
       Builder.CreateStore(Stack.back(), Local[Index]);
@@ -594,15 +588,13 @@ public:
       if (Index >= Context.Globals.size()) {
         return Unexpect(ErrCode::InvalidGlobalIdx);
       }
-      Stack.push_back(Builder.CreateLoad(Context.Globals[Index]));
+      stackPush(Builder.CreateLoad(Context.Globals[Index]));
       break;
     case OpCode::Global__set:
-      assert(!Stack.empty());
       if (Index >= Context.Globals.size()) {
         return Unexpect(ErrCode::InvalidGlobalIdx);
       }
-      Builder.CreateStore(Stack.back(), Context.Globals[Index]);
-      Stack.pop_back();
+      Builder.CreateStore(stackPop(), Context.Globals[Index]);
       break;
     default:
       __builtin_unreachable();
@@ -679,10 +671,10 @@ public:
       return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
                             Builder.getInt32Ty(), true);
     case OpCode::Memory__size:
-      Stack.push_back(Context.callMemSize(Builder, Ctx));
+      stackPush(Context.callMemSize(Builder, Ctx));
       break;
     case OpCode::Memory__grow:
-      Stack.push_back(Context.callMemGrow(Builder, Ctx, Stack.back()));
+      stackPush(Context.callMemGrow(Builder, Ctx, stackPop()));
       Builder.CreateStore(Builder.CreateLoad(Context.Mem), LocalMemPtr);
       break;
     default:
@@ -693,20 +685,18 @@ public:
   Expect<void> compile(const AST::ConstInstruction &Instr) {
     switch (Instr.getOpCode()) {
     case OpCode::I32__const:
-      Stack.push_back(
-          Builder.getInt32(std::get<uint32_t>(Instr.getConstValue())));
+      stackPush(Builder.getInt32(std::get<uint32_t>(Instr.getConstValue())));
       break;
     case OpCode::I64__const:
-      Stack.push_back(
-          Builder.getInt64(std::get<uint64_t>(Instr.getConstValue())));
+      stackPush(Builder.getInt64(std::get<uint64_t>(Instr.getConstValue())));
       break;
     case OpCode::F32__const:
-      Stack.push_back(llvm::ConstantFP::get(
-          Builder.getFloatTy(), std::get<float>(Instr.getConstValue())));
+      stackPush(llvm::ConstantFP::get(Builder.getFloatTy(),
+                                      std::get<float>(Instr.getConstValue())));
       break;
     case OpCode::F64__const:
-      Stack.push_back(llvm::ConstantFP::get(
-          Builder.getDoubleTy(), std::get<double>(Instr.getConstValue())));
+      stackPush(llvm::ConstantFP::get(Builder.getDoubleTy(),
+                                      std::get<double>(Instr.getConstValue())));
       break;
     default:
       __builtin_unreachable();
@@ -716,59 +706,59 @@ public:
   Expect<void> compile(const AST::UnaryNumericInstruction &Instr) {
     switch (Instr.getOpCode()) {
     case OpCode::I32__eqz:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateICmpEQ(Stack.back(), Builder.getInt32(0)),
-          Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(
+          Builder.CreateICmpEQ(stackPop(), Builder.getInt32(0)),
+          Builder.getInt32Ty()));
       break;
     case OpCode::I64__eqz:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateICmpEQ(Stack.back(), Builder.getInt64(0)),
-          Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(
+          Builder.CreateICmpEQ(stackPop(), Builder.getInt64(0)),
+          Builder.getInt32Ty()));
       break;
     case OpCode::I32__clz:
     case OpCode::I64__clz:
-      Stack.back() = Builder.CreateBinaryIntrinsic(
-          llvm::Intrinsic::ctlz, Stack.back(), Builder.getFalse());
+      stackPush(Builder.CreateBinaryIntrinsic(llvm::Intrinsic::ctlz, stackPop(),
+                                              Builder.getFalse()));
       break;
     case OpCode::I32__ctz:
     case OpCode::I64__ctz:
-      Stack.back() = Builder.CreateBinaryIntrinsic(
-          llvm::Intrinsic::cttz, Stack.back(), Builder.getFalse());
+      stackPush(Builder.CreateBinaryIntrinsic(llvm::Intrinsic::cttz, stackPop(),
+                                              Builder.getFalse()));
       break;
     case OpCode::I32__popcnt:
     case OpCode::I64__popcnt:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ctpop, Stack.back());
+      stackPush(
+          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ctpop, stackPop()));
       break;
     case OpCode::F32__abs:
     case OpCode::F64__abs:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::fabs, Stack.back());
+      stackPush(
+          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::fabs, stackPop()));
       break;
     case OpCode::F32__neg:
     case OpCode::F64__neg:
-      Stack.back() = Builder.CreateFNeg(Stack.back());
+      stackPush(Builder.CreateFNeg(stackPop()));
       break;
     case OpCode::F32__ceil:
     case OpCode::F64__ceil:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ceil, Stack.back());
+      stackPush(
+          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ceil, stackPop()));
       break;
     case OpCode::F32__floor:
     case OpCode::F64__floor:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::floor, Stack.back());
+      stackPush(
+          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::floor, stackPop()));
       break;
     case OpCode::F32__trunc:
     case OpCode::F64__trunc:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Stack.back());
+      stackPush(
+          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, stackPop()));
       break;
     case OpCode::F32__nearest:
     case OpCode::F64__nearest: {
       const bool IsFloat = Instr.getOpCode() == OpCode::F32__nearest;
       const uint32_t VectorSize = IsFloat ? 4 : 2;
-      llvm::Value *Value = Stack.back();
+      llvm::Value *Value = stackPop();
 
 #if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||            \
     defined(_M_X64)
@@ -785,7 +775,7 @@ public:
                                         {Ret, Ret, Builder.getInt32(8)});
         }
         Ret = Builder.CreateExtractElement(Ret, UINT64_C(0));
-        Stack.back() = Ret;
+        stackPush(Ret);
         break;
       }
 #endif
@@ -798,103 +788,103 @@ public:
         Ret = Builder.CreateBinaryIntrinsic(
             llvm::Intrinsic::aarch64_neon_frintn, Ret, Ret);
         Ret = Builder.CreateExtractElement(Ret, UINT64_C(0));
-        Stack.back() = Ret;
+        stackPush(Ret);
         break;
       }
 #endif
 
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, Value);
+      stackPush(
+          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, Value));
       break;
     }
     case OpCode::F32__sqrt:
     case OpCode::F64__sqrt:
-      Stack.back() =
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::sqrt, Stack.back());
+      stackPush(
+          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::sqrt, stackPop()));
       break;
     case OpCode::I32__wrap_i64:
-      Stack.back() = Builder.CreateTrunc(Stack.back(), Builder.getInt32Ty());
+      stackPush(Builder.CreateTrunc(stackPop(), Builder.getInt32Ty()));
       break;
     case OpCode::I32__trunc_f32_s:
     case OpCode::I32__trunc_f64_s:
-      Stack.back() = Builder.CreateFPToSI(Stack.back(), Builder.getInt32Ty());
+      stackPush(Builder.CreateFPToSI(stackPop(), Builder.getInt32Ty()));
       break;
     case OpCode::I32__trunc_f32_u:
     case OpCode::I32__trunc_f64_u:
-      Stack.back() = Builder.CreateFPToUI(Stack.back(), Builder.getInt32Ty());
+      stackPush(Builder.CreateFPToUI(stackPop(), Builder.getInt32Ty()));
       break;
     case OpCode::I64__extend_i32_s:
-      Stack.back() = Builder.CreateSExt(Stack.back(), Builder.getInt64Ty());
+      stackPush(Builder.CreateSExt(stackPop(), Builder.getInt64Ty()));
       break;
     case OpCode::I64__extend_i32_u:
-      Stack.back() = Builder.CreateZExt(Stack.back(), Builder.getInt64Ty());
+      stackPush(Builder.CreateZExt(stackPop(), Builder.getInt64Ty()));
       break;
     case OpCode::I64__trunc_f32_s:
     case OpCode::I64__trunc_f64_s:
-      Stack.back() = Builder.CreateFPToSI(Stack.back(), Builder.getInt64Ty());
+      stackPush(Builder.CreateFPToSI(stackPop(), Builder.getInt64Ty()));
       break;
     case OpCode::I64__trunc_f32_u:
     case OpCode::I64__trunc_f64_u:
-      Stack.back() = Builder.CreateFPToUI(Stack.back(), Builder.getInt64Ty());
+      stackPush(Builder.CreateFPToUI(stackPop(), Builder.getInt64Ty()));
       break;
     case OpCode::F32__convert_i32_s:
     case OpCode::F32__convert_i64_s:
-      Stack.back() = Builder.CreateSIToFP(Stack.back(), Builder.getFloatTy());
+      stackPush(Builder.CreateSIToFP(stackPop(), Builder.getFloatTy()));
       break;
     case OpCode::F32__convert_i32_u:
     case OpCode::F32__convert_i64_u:
-      Stack.back() = Builder.CreateUIToFP(Stack.back(), Builder.getFloatTy());
+      stackPush(Builder.CreateUIToFP(stackPop(), Builder.getFloatTy()));
       break;
     case OpCode::F64__convert_i32_s:
     case OpCode::F64__convert_i64_s:
-      Stack.back() = Builder.CreateSIToFP(Stack.back(), Builder.getDoubleTy());
+      stackPush(Builder.CreateSIToFP(stackPop(), Builder.getDoubleTy()));
       break;
     case OpCode::F64__convert_i32_u:
     case OpCode::F64__convert_i64_u:
-      Stack.back() = Builder.CreateUIToFP(Stack.back(), Builder.getDoubleTy());
+      stackPush(Builder.CreateUIToFP(stackPop(), Builder.getDoubleTy()));
       break;
     case OpCode::F32__demote_f64:
-      Stack.back() = Builder.CreateFPTrunc(Stack.back(), Builder.getFloatTy());
+      stackPush(Builder.CreateFPTrunc(stackPop(), Builder.getFloatTy()));
       break;
     case OpCode::F64__promote_f32:
-      Stack.back() = Builder.CreateFPExt(Stack.back(), Builder.getDoubleTy());
+      stackPush(Builder.CreateFPExt(stackPop(), Builder.getDoubleTy()));
       break;
     case OpCode::I32__reinterpret_f32:
-      Stack.back() = Builder.CreateBitCast(Stack.back(), Builder.getInt32Ty());
+      stackPush(Builder.CreateBitCast(stackPop(), Builder.getInt32Ty()));
       break;
     case OpCode::I64__reinterpret_f64:
-      Stack.back() = Builder.CreateBitCast(Stack.back(), Builder.getInt64Ty());
+      stackPush(Builder.CreateBitCast(stackPop(), Builder.getInt64Ty()));
       break;
     case OpCode::F32__reinterpret_i32:
-      Stack.back() = Builder.CreateBitCast(Stack.back(), Builder.getFloatTy());
+      stackPush(Builder.CreateBitCast(stackPop(), Builder.getFloatTy()));
       break;
     case OpCode::F64__reinterpret_i64:
-      Stack.back() = Builder.CreateBitCast(Stack.back(), Builder.getDoubleTy());
+      stackPush(Builder.CreateBitCast(stackPop(), Builder.getDoubleTy()));
       break;
     case OpCode::I32__extend8_s:
-      Stack.back() = Builder.CreateSExt(
-          Builder.CreateTrunc(Stack.back(), Builder.getInt8Ty()),
-          Builder.getInt32Ty());
+      stackPush(Builder.CreateSExt(
+          Builder.CreateTrunc(stackPop(), Builder.getInt8Ty()),
+          Builder.getInt32Ty()));
       break;
     case OpCode::I32__extend16_s:
-      Stack.back() = Builder.CreateSExt(
-          Builder.CreateTrunc(Stack.back(), Builder.getInt16Ty()),
-          Builder.getInt32Ty());
+      stackPush(Builder.CreateSExt(
+          Builder.CreateTrunc(stackPop(), Builder.getInt16Ty()),
+          Builder.getInt32Ty()));
       break;
     case OpCode::I64__extend8_s:
-      Stack.back() = Builder.CreateSExt(
-          Builder.CreateTrunc(Stack.back(), Builder.getInt8Ty()),
-          Builder.getInt64Ty());
+      stackPush(Builder.CreateSExt(
+          Builder.CreateTrunc(stackPop(), Builder.getInt8Ty()),
+          Builder.getInt64Ty()));
       break;
     case OpCode::I64__extend16_s:
-      Stack.back() = Builder.CreateSExt(
-          Builder.CreateTrunc(Stack.back(), Builder.getInt16Ty()),
-          Builder.getInt64Ty());
+      stackPush(Builder.CreateSExt(
+          Builder.CreateTrunc(stackPop(), Builder.getInt16Ty()),
+          Builder.getInt64Ty()));
       break;
     case OpCode::I64__extend32_s:
-      Stack.back() = Builder.CreateSExt(
-          Builder.CreateTrunc(Stack.back(), Builder.getInt32Ty()),
-          Builder.getInt64Ty());
+      stackPush(Builder.CreateSExt(
+          Builder.CreateTrunc(stackPop(), Builder.getInt32Ty()),
+          Builder.getInt64Ty()));
       break;
     case OpCode::I32__trunc_sat_f32_s:
       compileSignedTruncSat(
@@ -946,111 +936,111 @@ public:
     return {};
   }
   Expect<void> compile(const AST::BinaryNumericInstruction &Instr) {
-    assert(!Stack.empty());
-    llvm::Value *RHS = Stack.back();
-    Stack.pop_back();
+    llvm::Value *RHS = stackPop();
+    llvm::Value *LHS = stackPop();
+
     switch (Instr.getOpCode()) {
     case OpCode::I32__eq:
     case OpCode::I64__eq:
-      Stack.back() = Builder.CreateZExt(Builder.CreateICmpEQ(Stack.back(), RHS),
-                                        Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateICmpEQ(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
     case OpCode::I32__ne:
     case OpCode::I64__ne:
-      Stack.back() = Builder.CreateZExt(Builder.CreateICmpNE(Stack.back(), RHS),
-                                        Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateICmpNE(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
     case OpCode::I32__lt_s:
     case OpCode::I64__lt_s:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateICmpSLT(Stack.back(), RHS), Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateICmpSLT(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
     case OpCode::I32__lt_u:
     case OpCode::I64__lt_u:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateICmpULT(Stack.back(), RHS), Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateICmpULT(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
     case OpCode::I32__gt_s:
     case OpCode::I64__gt_s:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateICmpSGT(Stack.back(), RHS), Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateICmpSGT(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
     case OpCode::I32__gt_u:
     case OpCode::I64__gt_u:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateICmpUGT(Stack.back(), RHS), Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateICmpUGT(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
     case OpCode::I32__le_s:
     case OpCode::I64__le_s:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateICmpSLE(Stack.back(), RHS), Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateICmpSLE(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
     case OpCode::I32__le_u:
     case OpCode::I64__le_u:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateICmpULE(Stack.back(), RHS), Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateICmpULE(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
     case OpCode::I32__ge_s:
     case OpCode::I64__ge_s:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateICmpSGE(Stack.back(), RHS), Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateICmpSGE(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
     case OpCode::I32__ge_u:
     case OpCode::I64__ge_u:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateICmpUGE(Stack.back(), RHS), Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateICmpUGE(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
 
     case OpCode::F32__eq:
     case OpCode::F64__eq:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateFCmpOEQ(Stack.back(), RHS), Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateFCmpOEQ(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
     case OpCode::F32__ne:
     case OpCode::F64__ne:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateFCmpUNE(Stack.back(), RHS), Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateFCmpUNE(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
     case OpCode::F32__lt:
     case OpCode::F64__lt:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateFCmpOLT(Stack.back(), RHS), Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateFCmpOLT(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
     case OpCode::F32__gt:
     case OpCode::F64__gt:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateFCmpOGT(Stack.back(), RHS), Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateFCmpOGT(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
     case OpCode::F32__le:
     case OpCode::F64__le:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateFCmpOLE(Stack.back(), RHS), Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateFCmpOLE(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
     case OpCode::F32__ge:
     case OpCode::F64__ge:
-      Stack.back() = Builder.CreateZExt(
-          Builder.CreateFCmpOGE(Stack.back(), RHS), Builder.getInt32Ty());
+      stackPush(Builder.CreateZExt(Builder.CreateFCmpOGE(LHS, RHS),
+                                   Builder.getInt32Ty()));
       break;
 
     case OpCode::I32__add:
     case OpCode::I64__add:
-      Stack.back() = Builder.CreateAdd(Stack.back(), RHS);
+      stackPush(Builder.CreateAdd(LHS, RHS));
       break;
     case OpCode::I32__sub:
     case OpCode::I64__sub:
-      Stack.back() = Builder.CreateSub(Stack.back(), RHS);
+      stackPush(Builder.CreateSub(LHS, RHS));
       break;
     case OpCode::I32__mul:
     case OpCode::I64__mul:
-      Stack.back() = Builder.CreateMul(Stack.back(), RHS);
+      stackPush(Builder.CreateMul(LHS, RHS));
       break;
     case OpCode::I32__div_s:
     case OpCode::I64__div_s:
-      Stack.back() = Builder.CreateSDiv(Stack.back(), RHS);
+      stackPush(Builder.CreateSDiv(LHS, RHS));
       break;
     case OpCode::I32__div_u:
     case OpCode::I64__div_u:
-      Stack.back() = Builder.CreateUDiv(Stack.back(), RHS);
+      stackPush(Builder.CreateUDiv(LHS, RHS));
       break;
     case OpCode::I32__rem_s:
     case OpCode::I64__rem_s: {
@@ -1072,7 +1062,6 @@ public:
       llvm::BasicBlock *EndBB =
           llvm::BasicBlock::Create(VMContext, "end.overflow", F);
 
-      llvm::Value *LHS = Stack.back();
       llvm::Value *NotOverflow =
           Builder.CreateOr(Builder.CreateICmpNE(LHS, IntMin),
                            Builder.CreateICmpNE(RHS, IntMinusOne));
@@ -1088,77 +1077,72 @@ public:
       Ret->addIncoming(Ret1, NoOverflowBB);
       Ret->addIncoming(IntZero, CurrentBB);
 
-      Stack.back() = Ret;
+      stackPush(Ret);
       break;
     }
     case OpCode::I32__rem_u:
     case OpCode::I64__rem_u:
-      Stack.back() = Builder.CreateURem(Stack.back(), RHS);
+      stackPush(Builder.CreateURem(LHS, RHS));
       break;
     case OpCode::I32__and:
     case OpCode::I64__and:
-      Stack.back() = Builder.CreateAnd(Stack.back(), RHS);
+      stackPush(Builder.CreateAnd(LHS, RHS));
       break;
     case OpCode::I32__or:
     case OpCode::I64__or:
-      Stack.back() = Builder.CreateOr(Stack.back(), RHS);
+      stackPush(Builder.CreateOr(LHS, RHS));
       break;
     case OpCode::I32__xor:
     case OpCode::I64__xor:
-      Stack.back() = Builder.CreateXor(Stack.back(), RHS);
+      stackPush(Builder.CreateXor(LHS, RHS));
       break;
     case OpCode::I32__shl:
     case OpCode::I64__shl:
-      Stack.back() = Builder.CreateShl(Stack.back(), RHS);
+      stackPush(Builder.CreateShl(LHS, RHS));
       break;
     case OpCode::I32__shr_s:
     case OpCode::I64__shr_s:
-      Stack.back() = Builder.CreateAShr(Stack.back(), RHS);
+      stackPush(Builder.CreateAShr(LHS, RHS));
       break;
     case OpCode::I32__shr_u:
     case OpCode::I64__shr_u:
-      Stack.back() = Builder.CreateLShr(Stack.back(), RHS);
+      stackPush(Builder.CreateLShr(LHS, RHS));
       break;
     case OpCode::I32__rotl:
-      Stack.back() =
-          Builder.CreateIntrinsic(llvm::Intrinsic::fshl, {Builder.getInt32Ty()},
-                                  {Stack.back(), Stack.back(), RHS});
+      stackPush(Builder.CreateIntrinsic(
+          llvm::Intrinsic::fshl, {Builder.getInt32Ty()}, {LHS, LHS, RHS}));
       break;
     case OpCode::I32__rotr:
-      Stack.back() =
-          Builder.CreateIntrinsic(llvm::Intrinsic::fshr, {Builder.getInt32Ty()},
-                                  {Stack.back(), Stack.back(), RHS});
+      stackPush(Builder.CreateIntrinsic(
+          llvm::Intrinsic::fshr, {Builder.getInt32Ty()}, {LHS, LHS, RHS}));
       break;
     case OpCode::I64__rotl:
-      Stack.back() =
-          Builder.CreateIntrinsic(llvm::Intrinsic::fshl, {Builder.getInt64Ty()},
-                                  {Stack.back(), Stack.back(), RHS});
+      stackPush(Builder.CreateIntrinsic(
+          llvm::Intrinsic::fshl, {Builder.getInt64Ty()}, {LHS, LHS, RHS}));
       break;
     case OpCode::I64__rotr:
-      Stack.back() =
-          Builder.CreateIntrinsic(llvm::Intrinsic::fshr, {Builder.getInt64Ty()},
-                                  {Stack.back(), Stack.back(), RHS});
+      stackPush(Builder.CreateIntrinsic(
+          llvm::Intrinsic::fshr, {Builder.getInt64Ty()}, {LHS, LHS, RHS}));
       break;
 
     case OpCode::F32__add:
     case OpCode::F64__add:
-      Stack.back() = Builder.CreateFAdd(Stack.back(), RHS);
+      stackPush(Builder.CreateFAdd(LHS, RHS));
       break;
     case OpCode::F32__sub:
     case OpCode::F64__sub:
-      Stack.back() = Builder.CreateFSub(Stack.back(), RHS);
+      stackPush(Builder.CreateFSub(LHS, RHS));
       break;
     case OpCode::F32__mul:
     case OpCode::F64__mul:
-      Stack.back() = Builder.CreateFMul(Stack.back(), RHS);
+      stackPush(Builder.CreateFMul(LHS, RHS));
       break;
     case OpCode::F32__div:
     case OpCode::F64__div:
-      Stack.back() = Builder.CreateFDiv(Stack.back(), RHS);
+      stackPush(Builder.CreateFDiv(LHS, RHS));
       break;
     case OpCode::F32__min:
     case OpCode::F64__min: {
-      llvm::Value *LHS = Stack.back();
       llvm::Type *FpTy = Instr.getOpCode() == OpCode::F32__min
                              ? Builder.getFloatTy()
                              : Builder.getDoubleTy();
@@ -1182,11 +1166,10 @@ public:
 
       llvm::Value *Ret = Builder.CreateSelect(
           UEQ, Builder.CreateSelect(UNO, AddFp, OrFp), MinFp);
-      Stack.back() = Ret;
+      stackPush(Ret);
     } break;
     case OpCode::F32__max:
     case OpCode::F64__max: {
-      llvm::Value *LHS = Stack.back();
       llvm::Type *FpTy = Instr.getOpCode() == OpCode::F32__max
                              ? Builder.getFloatTy()
                              : Builder.getDoubleTy();
@@ -1210,12 +1193,12 @@ public:
 
       llvm::Value *Ret = Builder.CreateSelect(
           UEQ, Builder.CreateSelect(UNO, AddFp, AndFp), MaxFp);
-      Stack.back() = Ret;
+      stackPush(Ret);
     } break;
     case OpCode::F32__copysign:
     case OpCode::F64__copysign:
-      Stack.back() = Builder.CreateBinaryIntrinsic(llvm::Intrinsic::copysign,
-                                                   Stack.back(), RHS);
+      stackPush(
+          Builder.CreateBinaryIntrinsic(llvm::Intrinsic::copysign, LHS, RHS));
       break;
     default:
       __builtin_unreachable();
@@ -1234,7 +1217,7 @@ public:
         llvm::BasicBlock::Create(VMContext, "sats.notmax", F);
     llvm::BasicBlock *EndBB =
         llvm::BasicBlock::Create(VMContext, "sats.end", F);
-    llvm::Value *Value = Stack.back();
+    llvm::Value *Value = stackPop();
 
     Builder.CreateCondBr(Builder.CreateFCmpORD(Value, Value), NormBB, EndBB,
                          Context.Likely);
@@ -1259,7 +1242,7 @@ public:
     PHIRet->addIncoming(MaxInt, NotMinBB);
     PHIRet->addIncoming(IntValue, NotMaxBB);
 
-    Stack.back() = PHIRet;
+    stackPush(PHIRet);
   }
   void compileUnsignedTruncSat(llvm::ConstantFP *MaxFp,
                                llvm::ConstantInt *MaxInt) {
@@ -1270,7 +1253,7 @@ public:
         llvm::BasicBlock::Create(VMContext, "sats.notmax", F);
     llvm::BasicBlock *EndBB =
         llvm::BasicBlock::Create(VMContext, "sats.end", F);
-    llvm::Value *Value = Stack.back();
+    llvm::Value *Value = stackPop();
 
     Builder.CreateCondBr(
         Builder.CreateFCmpOGT(Value,
@@ -1292,7 +1275,7 @@ public:
     PHIRet->addIncoming(MaxInt, NormBB);
     PHIRet->addIncoming(IntValue, NotMaxBB);
 
-    Stack.back() = PHIRet;
+    stackPush(PHIRet);
   }
 
   void updateInstrCount() {
@@ -1305,29 +1288,10 @@ public:
     }
   }
 
-  Expect<void> epilog() {
-    updateInstrCount();
-    auto *Ty = F->getReturnType();
-    if (Ty->isVoidTy()) {
-      Builder.CreateRetVoid();
-    } else if (Ty->isStructTy()) {
-      const auto Count = Ty->getStructNumElements();
-      if (Stack.size() < Count) {
-        return Unexpect(ErrCode::TypeCheckFailed);
-      }
-      Builder.CreateAggregateRet(Stack.data() + Stack.size() - Count, Count);
-    } else {
-      if (Stack.empty()) {
-        return Unexpect(ErrCode::TypeCheckFailed);
-      }
-      Builder.CreateRet(Stack.back());
-    }
-    return {};
-  }
-
   static llvm::Constant *evaluate(const AST::InstrVec &Instrs,
                                   AOT::Compiler::CompileContext &Context) {
-    FunctionCompiler FC(Context, nullptr, {}, false);
+    // XXX: assuming Instrs contains only one constant value instruction
+    FunctionCompiler FC(Context);
     FC.compile(Instrs);
     return llvm::cast<llvm::Constant>(FC.Stack.back());
   }
@@ -1337,26 +1301,25 @@ private:
     const auto &FuncType =
         *Context.FunctionTypes[std::get<0>(Context.Functions[FuncIndex])];
     const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
+    const auto &ParamTypes = FuncType.getParamTypes();
 
-    if (Stack.size() < FuncType.getParamTypes().size()) {
-      return Unexpect(ErrCode::TypeCheckFailed);
+    std::vector<llvm::Value *> Args(ParamTypes.size() + 1);
+    Args[0] = Ctx;
+    for (size_t I = 0; I < ParamTypes.size(); ++I) {
+      const size_t J = ParamTypes.size() - 1 - I;
+      Args[1 + J] = stackPop();
     }
-    auto Begin = Stack.end() - FuncType.getParamTypes().size();
-    auto End = Stack.end();
-    std::vector<llvm::Value *> Args = {Ctx};
-    Args.insert(Args.end(), Begin, End);
 
     llvm::Value *Ret = Builder.CreateCall(Function, Args);
-    Stack.erase(Begin, End);
     llvm::Type *Ty = Function->getReturnType();
     if (Ty->isVoidTy()) {
       // nothing to do
     } else if (Ty->isStructTy()) {
       for (auto *Val : unpackStruct(Builder, Ret)) {
-        Stack.push_back(Val);
+        stackPush(Val);
       }
     } else {
-      Stack.push_back(Ret);
+      stackPush(Ret);
     }
 
     Builder.CreateStore(Builder.CreateLoad(Context.Mem), LocalMemPtr);
@@ -1364,14 +1327,15 @@ private:
   }
 
   Expect<void> compileIndirectCallOp(const unsigned int FuncTypeIndex) {
+    llvm::Value *Value = stackPop();
     const auto &FuncType = *Context.FunctionTypes[FuncTypeIndex];
-    if (Stack.size() < FuncType.getParamTypes().size()) {
-      return Unexpect(ErrCode::TypeCheckFailed);
+    const auto &ParamTypes = FuncType.getParamTypes();
+    std::vector<llvm::Value *> Args(ParamTypes.size() + 1);
+    Args[0] = Ctx;
+    for (size_t I = 0; I < ParamTypes.size(); ++I) {
+      const size_t J = ParamTypes.size() - 1 - I;
+      Args[1 + J] = stackPop();
     }
-    auto Begin = Stack.end() - FuncType.getParamTypes().size() - 1;
-    auto End = Stack.end() - 1;
-    std::vector<llvm::Value *> Args = {Ctx};
-    Args.insert(Args.end(), Begin, End);
 
     std::vector<std::pair<size_t, llvm::Function *>> Table;
     for (uint32_t I = 0; I < Context.Elements.size(); ++I) {
@@ -1384,8 +1348,7 @@ private:
         llvm::BasicBlock::Create(VMContext, "call_indirect.end", F);
     llvm::BasicBlock *Error =
         llvm::BasicBlock::Create(VMContext, "call_indirect.error", F);
-    llvm::SwitchInst *Switch =
-        Builder.CreateSwitch(Stack.back(), Error, Table.size());
+    llvm::SwitchInst *Switch = Builder.CreateSwitch(Value, Error, Table.size());
 
     const bool HasReturnValue = !isVoidReturn(FuncType.getReturnTypes());
     std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
@@ -1413,8 +1376,6 @@ private:
                      Builder.getInt32(uint32_t(ErrCode::Unreachable)));
     Builder.CreateUnreachable();
 
-    Stack.erase(Begin, Stack.end());
-
     Builder.SetInsertPoint(OK);
     if (HasReturnValue) {
       buildPHI(FuncType.getReturnTypes(), ReturnValues);
@@ -1426,10 +1387,7 @@ private:
 
   Expect<void> compileLoadOp(unsigned int Offset, unsigned Alignment,
                              llvm::Type *LoadTy) {
-    if (Stack.empty()) {
-      return Unexpect(ErrCode::TypeCheckFailed);
-    }
-    llvm::Value *Off = Builder.CreateZExt(Stack.back(), Builder.getInt64Ty());
+    llvm::Value *Off = Builder.CreateZExt(stackPop(), Builder.getInt64Ty());
     if (Offset != 0) {
       Off = Builder.CreateAdd(Off, Builder.getInt64(Offset));
     }
@@ -1439,7 +1397,7 @@ private:
         Builder.CreateBitCast(VPtr, llvm::PointerType::getUnqual(LoadTy));
     llvm::LoadInst *LoadInst = Builder.CreateLoad(Ptr);
     LoadInst->setAlignment(Align(UINT64_C(1) << Alignment));
-    Stack.back() = LoadInst;
+    stackPush(LoadInst);
     return {};
   }
   Expect<void> compileLoadOp(unsigned int Offset, unsigned Alignment,
@@ -1457,9 +1415,7 @@ private:
   }
   Expect<void> compileStoreOp(unsigned int Offset, unsigned Alignment,
                               llvm::Type *LoadTy, bool Trunc = false) {
-    assert(Stack.size() >= 2);
-    llvm::Value *V = Stack.back();
-    Stack.pop_back();
+    llvm::Value *V = stackPop();
     if (Trunc) {
       V = Builder.CreateTrunc(V, LoadTy);
     }
@@ -1480,21 +1436,20 @@ private:
   }
 
   std::vector<ValType> resolveBlockType(const BlockType &ResultType) const {
-    return std::visit(overloaded{[](const ValType &Type) {
-                                   if (Type == ValType::None) {
-                                     return std::vector<ValType>{};
-                                   }
-                                   return std::vector<ValType>{Type};
-                                 },
-                                 [this](const uint32_t &Index) {
-                                   const auto &FuncType =
-                                       *Context.FunctionTypes[Index];
-                                   std::vector<ValType> Result(
-                                       FuncType.getReturnTypes().begin(),
-                                       FuncType.getReturnTypes().end());
-                                   return Result;
-                                 }},
-                      ResultType);
+    return std::visit(
+        overloaded{[](const ValType &Type) {
+                     if (Type == ValType::None) {
+                       return std::vector<ValType>{};
+                     }
+                     return std::vector<ValType>{Type};
+                   },
+                   [this](const uint32_t &Index) {
+                     const auto &RetTypes =
+                         Context.FunctionTypes[Index]->getReturnTypes();
+                     return std::vector<ValType>(RetTypes.begin(),
+                                                 RetTypes.end());
+                   }},
+        ResultType);
   }
 
   void enterBlock(llvm::BasicBlock *JumpTarget, bool IsForward,
@@ -1506,30 +1461,34 @@ private:
   std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
   leaveBlock(llvm::BasicBlock *NextTarget) {
     auto &Entry = ControlStack.back();
-    if (const auto &Types = std::get<kReturnType>(Entry); !Types.empty()) {
-      for (size_t I = Stack.size(); I < Types.size(); ++I) {
-        Stack.push_back(
-            llvm::UndefValue::get(toLLVMType(Context.Context, Types[I])));
+    if (!isUnreachable()) {
+      if (const auto &Types = std::get<kReturnType>(Entry); !Types.empty()) {
+        std::vector<llvm::Value *> Rets(Types.size());
+        for (size_t I = 0; I < Types.size(); ++I) {
+          const size_t J = Types.size() - 1 - I;
+          Rets[J] = stackPop();
+        }
+        std::get<kReturnPHI>(Entry).emplace_back(std::move(Rets),
+                                                 Builder.GetInsertBlock());
       }
-      assert(Stack.size() >= Types.size());
-      const auto Begin = Stack.end() - Types.size();
-      const auto End = Stack.end();
-      std::vector<llvm::Value *> Values(Begin, End);
-      Stack.erase(Begin, End);
-      std::get<kReturnPHI>(Entry).emplace_back(std::move(Values),
-                                               Builder.GetInsertBlock());
+      Builder.CreateBr(NextTarget);
     }
-    Builder.CreateBr(NextTarget);
     Builder.SetInsertPoint(NextTarget);
 
-    Stack.erase(Stack.begin() + std::get<kStackSize>(ControlStack.back()),
-                Stack.end());
+    Stack.erase(Stack.begin() + std::get<kStackSize>(Entry), Stack.end());
     std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
-        Result = std::move(std::get<kReturnPHI>(ControlStack.back()));
+        Result = std::move(std::get<kReturnPHI>(Entry));
 
     ControlStack.pop_back();
+    clearUnreachable();
     return Result;
   }
+
+  void setUnreachable() { IsUnreachable = true; }
+
+  void clearUnreachable() { IsUnreachable = false; }
+
+  bool isUnreachable() { return IsUnreachable; }
 
   void buildPHI(
       Span<const ValType> RetType,
@@ -1551,13 +1510,13 @@ private:
         llvm::PHINode *PHIRet = Builder.CreatePHI(Types[I], Incomings.size());
         for (auto &[Value, BB] : Incomings) {
           assert(Value.size() == Types.size());
-          PHIRet->addIncoming(Value[Types.size() - 1 - I], BB);
+          PHIRet->addIncoming(Value[I], BB);
         }
         Nodes.push_back(PHIRet);
       }
     }
     for (auto *Val : Nodes) {
-      Stack.push_back(Val);
+      stackPush(Val);
     }
   }
 
@@ -1568,12 +1527,15 @@ private:
     auto &Entry = *(ControlStack.rbegin() + Index);
     if (const auto &Types = std::get<kReturnType>(Entry);
         !Types.empty() && std::get<kIsForward>(Entry)) {
-      assert(Stack.size() - std::get<kStackSize>(Entry) >= Types.size());
-      std::vector<llvm::Value *> Values;
+      std::vector<llvm::Value *> Values(Types.size());
       for (size_t I = 0; I < Types.size(); ++I) {
-        Values.push_back(Stack[Stack.size() - Types.size() + I]);
+        const size_t J = Types.size() - 1 - I;
+        Values[J] = stackPop();
       }
-      std::get<kReturnPHI>(Entry).emplace_back(Values,
+      for (size_t I = 0; I < Types.size(); ++I) {
+        stackPush(Values[I]);
+      }
+      std::get<kReturnPHI>(Entry).emplace_back(std::move(Values),
                                                Builder.GetInsertBlock());
     }
     return true;
@@ -1583,6 +1545,16 @@ private:
     return std::get<kJumpBlock>(*(ControlStack.rbegin() + Index));
   }
 
+  void stackPush(llvm::Value *Value) { Stack.push_back(Value); }
+  llvm::Value *stackPop() {
+    assert(!ControlStack.empty() || !Stack.empty());
+    assert(ControlStack.empty() ||
+           Stack.size() > std::get<kStackSize>(ControlStack.back()));
+    llvm::Value *Value = Stack.back();
+    Stack.pop_back();
+    return Value;
+  }
+
   AOT::Compiler::CompileContext &Context;
   llvm::LLVMContext &VMContext;
   std::vector<llvm::Value *> Local;
@@ -1590,6 +1562,7 @@ private:
   llvm::Argument *Ctx = nullptr;
   llvm::Value *LocalMemPtr = nullptr;
   llvm::Value *LocalInstrCount = nullptr;
+  bool IsUnreachable = false;
   static inline constexpr size_t kStackSize = 0;
   static inline constexpr size_t kJumpBlock = 1;
   static inline constexpr size_t kIsForward = 2;
@@ -1602,43 +1575,6 @@ private:
   llvm::Function *F;
   llvm::IRBuilder<> Builder;
 };
-
-static std::vector<llvm::Value *> getUndefValue(llvm::Type *Ty) {
-  std::vector<llvm::Value *> Ret;
-  if (Ty->isVoidTy()) {
-    // nothing to do
-  } else if (Ty->isStructTy()) {
-    const unsigned N = Ty->getStructNumElements();
-    Ret.reserve(N);
-    for (unsigned I = 0; I < N; ++I) {
-      Ret.push_back(llvm::UndefValue::get(Ty->getStructElementType(I)));
-    }
-  } else {
-    Ret.reserve(1);
-    Ret.push_back(llvm::UndefValue::get(Ty));
-  }
-  return Ret;
-}
-
-/* Unused helper function.
-static llvm::Value *packStruct(llvm::IRBuilder<> &Builder, llvm::Value *Vals,
-                               unsigned N) {
-  llvm::Type *Ty = nullptr;
-  {
-    std::vector<llvm::Type *> Types;
-    Types.reserve(N);
-    for (unsigned I = 0; I < N; ++I) {
-      Types.push_back((Vals + I)->getType());
-    }
-    Ty = llvm::StructType::create(Types);
-  }
-  llvm::Value *Ret = llvm::UndefValue::get(Ty);
-  for (unsigned I = 0; I < N; ++I) {
-    Ret = Builder.CreateInsertValue(Ret, Vals + I, {I});
-  }
-  return Ret;
-}
-*/
 
 static std::vector<llvm::Value *> unpackStruct(llvm::IRBuilder<> &Builder,
                                                llvm::Value *Struct) {
@@ -2261,11 +2197,9 @@ Expect<void> Compiler::compile(const AST::FunctionSection &FuncSec,
       }
     }
 
+    const auto &ReturnTypes = Context->FunctionTypes[T]->getReturnTypes();
     FunctionCompiler FC(*Context, F, Locals, false);
-    if (auto Status = FC.compile(Code->getInstrs()); !Status) {
-      return Status;
-    }
-    if (auto Status = FC.epilog(); !Status) {
+    if (auto Status = FC.compile(*Code, ReturnTypes); !Status) {
       return Status;
     }
   }

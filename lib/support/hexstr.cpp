@@ -1,4 +1,5 @@
 #include "support/hexstr.h"
+#include <cinttypes>
 
 namespace SSVM {
 namespace Support {
@@ -78,10 +79,9 @@ void convertHexStrToValVec(std::string_view Src, std::vector<uint8_t> &Dst,
 }
 
 std::string convertUIntToHexStr(const uint64_t Num, uint32_t MinLen) {
-  char Buf[16] = {0}, Str[32] = {0};
-  MinLen = (MinLen > 16 ? 16 : MinLen);
-  sprintf(Buf, "0x%%0%dllx", MinLen);
-  sprintf(Str, Buf, Num);
+  char Str[32];
+  const int FieldWidth = std::min(MinLen, UINT32_C(16));
+  std::sprintf(Str, "0x%0*" PRIu64 "x", FieldWidth, Num);
   return Str;
 }
 

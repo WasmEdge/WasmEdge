@@ -51,7 +51,7 @@ TEST(RegressionTest, Issue29) {
   std::vector<foo> v;
   v.emplace_back();
   expected<std::vector<foo>, int> ov = std::move(v);
-  EXPECT_EQ(ov->size(), 1);
+  EXPECT_EQ(ov->size(), UINT32_C(1));
 }
 
 expected<int, std::string> error() {

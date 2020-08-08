@@ -2,6 +2,13 @@
 #include "validator/formchecker.h"
 #include "common/ast/module.h"
 
+namespace {
+template <typename... Ts> struct overloaded : Ts... {
+  using Ts::operator()...;
+};
+template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+} // namespace
+
 namespace SSVM {
 namespace Validator {
 
@@ -40,13 +47,15 @@ Expect<void> FormChecker::validate(const AST::InstrVec &Instrs,
 
 void FormChecker::addType(const AST::FunctionType &Func) {
   std::vector<VType> Param, Ret;
+  Param.reserve(Func.getParamTypes().size());
+  Ret.reserve(Func.getReturnTypes().size());
   for (auto Val : Func.getParamTypes()) {
-    Param.emplace_back(ASTToVType(Val));
+    Param.push_back(ASTToVType(Val));
   }
   for (auto Val : Func.getReturnTypes()) {
-    Ret.emplace_back(ASTToVType(Val));
+    Ret.push_back(ASTToVType(Val));
   }
-  Types.emplace_back(Param, Ret);
+  Types.emplace_back(std::move(Param), std::move(Ret));
 }
 
 void FormChecker::addFunc(const uint32_t TypeIdx, const bool IsImport) {
@@ -59,11 +68,11 @@ void FormChecker::addFunc(const uint32_t TypeIdx, const bool IsImport) {
 }
 
 void FormChecker::addTable(const AST::TableType &Tab) {
-  Tables.emplace_back(Tab.getElementType());
+  Tables.push_back(Tab.getElementType());
 }
 
 void FormChecker::addMemory(const AST::MemoryType &Mem) {
-  Mems.emplace_back(Mems.size());
+  Mems.push_back(Mems.size());
 }
 
 void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
@@ -76,10 +85,10 @@ void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
 }
 
 void FormChecker::addLocal(const ValType &V) {
-  Locals.emplace_back(ASTToVType(V));
+  Locals.push_back(ASTToVType(V));
 }
 
-void FormChecker::addLocal(const VType &V) { Locals.emplace_back(V); }
+void FormChecker::addLocal(const VType &V) { Locals.push_back(V); }
 
 VType FormChecker::ASTToVType(const ValType &V) {
   switch (V) {
@@ -177,28 +186,12 @@ Expect<void> FormChecker::checkInstr(const AST::ControlInstruction &Instr) {
 Expect<void>
 FormChecker::checkInstr(const AST::BlockControlInstruction &Instr) {
   /// Get blocktype [t1*] -> [t2*]
-  std::vector<VType> ResVec;
+  std::vector<VType> Buffer;
   Span<const VType> T1, T2;
-  if (std::holds_alternative<ValType>(Instr.getBlockType())) {
-    /// ValType case. t2* = valtype | none
-    ValType RetType = std::get<ValType>(Instr.getBlockType());
-    if (RetType != ValType::None) {
-      ResVec.emplace_back(ASTToVType(RetType));
-    }
-    T1 = {};
-    T2 = ResVec;
+  if (auto Res = resolveBlockType(Buffer, Instr.getBlockType())) {
+    std::tie(T1, T2) = std::move(*Res);
   } else {
-    /// Type index case. t2* = type[index].returns
-    uint32_t TypeIdx = std::get<uint32_t>(Instr.getBlockType());
-    if (Types.size() <= TypeIdx) {
-      /// Function type index out of range.
-      LOG(ERROR) << ErrCode::InvalidFuncTypeIdx;
-      LOG(ERROR) << ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::FunctionType, TypeIdx, Types.size());
-      return Unexpect(ErrCode::InvalidFuncTypeIdx);
-    }
-    T1 = Types[TypeIdx].first;
-    T2 = Types[TypeIdx].second;
+    return Unexpect(Res);
   }
 
   /// Check type transformation
@@ -236,28 +229,12 @@ FormChecker::checkInstr(const AST::IfElseControlInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::If: {
     /// Get blocktype [t1*] -> [t2*]
-    std::vector<VType> ResVec;
+    std::vector<VType> Buffer;
     Span<const VType> T1, T2;
-    if (std::holds_alternative<ValType>(Instr.getBlockType())) {
-      /// ValType case. t2* = valtype | none
-      ValType RetType = std::get<ValType>(Instr.getBlockType());
-      if (RetType != ValType::None) {
-        ResVec.emplace_back(ASTToVType(RetType));
-      }
-      T1 = {};
-      T2 = ResVec;
+    if (auto Res = resolveBlockType(Buffer, Instr.getBlockType())) {
+      std::tie(T1, T2) = std::move(*Res);
     } else {
-      /// Type index case. t2* = type[index].returns
-      uint32_t TypeIdx = std::get<uint32_t>(Instr.getBlockType());
-      if (Types.size() <= TypeIdx) {
-        /// Function type index out of range.
-        LOG(ERROR) << ErrCode::InvalidFuncTypeIdx;
-        LOG(ERROR) << ErrInfo::InfoForbidIndex(
-            ErrInfo::IndexCategory::FunctionType, TypeIdx, Types.size());
-        return Unexpect(ErrCode::InvalidFuncTypeIdx);
-      }
-      T1 = Types[TypeIdx].first;
-      T2 = Types[TypeIdx].second;
+      return Unexpect(Res);
     }
 
     /// Pop I32
@@ -356,13 +333,15 @@ FormChecker::checkInstr(const AST::BrTableControlInstruction &Instr) {
       }
       Span<const VType> NSpan = getLabelTypes(CtrlStack[N]);
       Span<const VType> MSpan = getLabelTypes(CtrlStack[M]);
-      if (std::vector<VType>(NSpan.begin(), NSpan.end()) !=
-          std::vector<VType>(MSpan.begin(), MSpan.end())) {
+      if (NSpan.size() != MSpan.size() ||
+          !std::equal(NSpan.begin(), NSpan.end(), MSpan.begin())) {
         /// CtrlStack[N].label_types != CtrlStack[M].label_types
         std::vector<ValType> NList, MList;
+        NList.reserve(NSpan.size());
         for (auto &I : NSpan) {
           NList.push_back(VTypeToAST(I));
         }
+        MList.reserve(MSpan.size());
         for (auto &I : MSpan) {
           MList.push_back(VTypeToAST(I));
         }
@@ -542,7 +521,7 @@ Expect<void> FormChecker::checkInstr(const AST::MemoryInstruction &Instr) {
   case OpCode::F64__store:
     /// N will be 64 in the end
     N <<= 1;
-    // fall through
+    [[fallthrough]];
 
   case OpCode::I32__load:
   case OpCode::F32__load:
@@ -553,7 +532,7 @@ Expect<void> FormChecker::checkInstr(const AST::MemoryInstruction &Instr) {
   case OpCode::I64__store32:
     /// N will be 32 in the end
     N <<= 1;
-    // fall through
+    [[fallthrough]];
 
   case OpCode::I32__load16_s:
   case OpCode::I32__load16_u:
@@ -563,7 +542,7 @@ Expect<void> FormChecker::checkInstr(const AST::MemoryInstruction &Instr) {
   case OpCode::I64__store16:
     /// N will be 16 in the end
     N <<= 1;
-    // fall through
+    [[fallthrough]];
 
   case OpCode::I32__load8_s:
   case OpCode::I32__load8_u:
@@ -953,6 +932,34 @@ Expect<void> FormChecker::StackTrans(Span<const VType> Take,
   }
   pushTypes(Put);
   return {};
+}
+
+Expect<std::pair<Span<const VType>, Span<const VType>>>
+FormChecker::resolveBlockType(std::vector<VType> &Buffer, BlockType Type) {
+  using ReturnType = std::pair<Span<const VType>, Span<const VType>>;
+  return std::visit(
+      overloaded{
+          [this, &Buffer](ValType RetType) -> Expect<ReturnType> {
+            /// ValType case. t2* = valtype | none
+            if (RetType != ValType::None) {
+              Buffer.clear();
+              Buffer.reserve(1);
+              Buffer.push_back(ASTToVType(RetType));
+            }
+            return ReturnType{{}, Buffer};
+          },
+          [this](uint32_t TypeIdx) -> Expect<ReturnType> {
+            /// Type index case. t2* = type[index].returns
+            if (Types.size() <= TypeIdx) {
+              /// Function type index out of range.
+              LOG(ERROR) << ErrCode::InvalidFuncTypeIdx;
+              LOG(ERROR) << ErrInfo::InfoForbidIndex(
+                  ErrInfo::IndexCategory::FunctionType, TypeIdx, Types.size());
+              return Unexpect(ErrCode::InvalidFuncTypeIdx);
+            }
+            return ReturnType{Types[TypeIdx].first, Types[TypeIdx].second};
+          }},
+      Type);
 }
 
 } // namespace Validator

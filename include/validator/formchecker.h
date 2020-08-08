@@ -46,7 +46,7 @@ public:
   void addLocal(const ValType &V);
   void addLocal(const VType &V);
 
-  std::deque<VType> result() { return ValStack; };
+  std::vector<VType> result() { return ValStack; };
   auto &getTypes() { return Types; }
   auto &getFunctions() { return Funcs; }
   auto &getTables() { return Tables; }
@@ -128,8 +128,8 @@ private:
   std::vector<VType> Returns;
 
   /// Running stack.
-  std::deque<CtrlFrame> CtrlStack;
-  std::deque<VType> ValStack;
+  std::vector<CtrlFrame> CtrlStack;
+  std::vector<VType> ValStack;
 };
 
 } // namespace Validator

@@ -279,7 +279,7 @@ FormChecker::checkInstr(const AST::IfElseControlInstruction &Instr) {
 }
 
 Expect<void> FormChecker::checkInstr(const AST::BrControlInstruction &Instr) {
-  auto N = Instr.getLabelIndex();
+  const uint32_t N = Instr.getLabelIndex();
   if (CtrlStack.size() <= N) {
     /// Branch out of stack
     LOG(ERROR) << ErrCode::InvalidLabelIdx;
@@ -287,9 +287,10 @@ Expect<void> FormChecker::checkInstr(const AST::BrControlInstruction &Instr) {
                                            CtrlStack.size());
     return Unexpect(ErrCode::InvalidLabelIdx);
   }
+  const uint32_t N_ = CtrlStack.size() - 1 - N;
   switch (Instr.getOpCode()) {
   case OpCode::Br: {
-    if (auto Res = popTypes(getLabelTypes(CtrlStack[N])); !Res) {
+    if (auto Res = popTypes(getLabelTypes(CtrlStack[N_])); !Res) {
       return Unexpect(Res);
     }
     return unreachable();
@@ -298,10 +299,10 @@ Expect<void> FormChecker::checkInstr(const AST::BrControlInstruction &Instr) {
     if (auto Res = popType(VType::I32); !Res) {
       return Unexpect(Res);
     }
-    if (auto Res = popTypes(getLabelTypes(CtrlStack[N])); !Res) {
+    if (auto Res = popTypes(getLabelTypes(CtrlStack[N_])); !Res) {
       return Unexpect(Res);
     }
-    pushTypes(getLabelTypes(CtrlStack[N]));
+    pushTypes(getLabelTypes(CtrlStack[N_]));
     return {};
   }
   default:
@@ -315,7 +316,7 @@ Expect<void>
 FormChecker::checkInstr(const AST::BrTableControlInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::Br_table: {
-    auto M = Instr.getLabelIndex();
+    const uint32_t M = Instr.getLabelIndex();
     if (CtrlStack.size() <= M) {
       /// Branch out of table index
       LOG(ERROR) << ErrCode::InvalidLabelIdx;
@@ -323,7 +324,8 @@ FormChecker::checkInstr(const AST::BrTableControlInstruction &Instr) {
                                              CtrlStack.size());
       return Unexpect(ErrCode::InvalidLabelIdx);
     }
-    for (auto &N : Instr.getLabelTable()) {
+    const uint32_t M_ = CtrlStack.size() - 1 - M;
+    for (const uint32_t &N : Instr.getLabelTable()) {
       if (CtrlStack.size() <= N) {
         /// Branch out of stack
         LOG(ERROR) << ErrCode::InvalidLabelIdx;
@@ -331,11 +333,12 @@ FormChecker::checkInstr(const AST::BrTableControlInstruction &Instr) {
                                                CtrlStack.size());
         return Unexpect(ErrCode::InvalidLabelIdx);
       }
-      Span<const VType> NSpan = getLabelTypes(CtrlStack[N]);
-      Span<const VType> MSpan = getLabelTypes(CtrlStack[M]);
+      const uint32_t N_ = CtrlStack.size() - 1 - N;
+      Span<const VType> NSpan = getLabelTypes(CtrlStack[N_]);
+      Span<const VType> MSpan = getLabelTypes(CtrlStack[M_]);
       if (NSpan.size() != MSpan.size() ||
           !std::equal(NSpan.begin(), NSpan.end(), MSpan.begin())) {
-        /// CtrlStack[N].label_types != CtrlStack[M].label_types
+        /// CtrlStack[N_].label_types != CtrlStack[M_].label_types
         std::vector<ValType> NList, MList;
         NList.reserve(NSpan.size());
         for (auto &I : NSpan) {
@@ -353,7 +356,7 @@ FormChecker::checkInstr(const AST::BrTableControlInstruction &Instr) {
     if (auto Res = popType(VType::I32); !Res) {
       return Unexpect(Res);
     }
-    if (auto Res = popTypes(getLabelTypes(CtrlStack[M])); !Res) {
+    if (auto Res = popTypes(getLabelTypes(CtrlStack[M_])); !Res) {
       return Unexpect(Res);
     }
     return unreachable();
@@ -829,7 +832,7 @@ FormChecker::checkInstr(const AST::BinaryNumericInstruction &Instr) {
   return Unexpect(ErrCode::InvalidOpCode);
 }
 
-void FormChecker::pushType(VType V) { ValStack.emplace_front(V); }
+void FormChecker::pushType(VType V) { ValStack.emplace_back(V); }
 
 void FormChecker::pushTypes(Span<const VType> Input) {
   for (auto Val : Input) {
@@ -838,8 +841,8 @@ void FormChecker::pushTypes(Span<const VType> Input) {
 }
 
 Expect<VType> FormChecker::popType() {
-  if (ValStack.size() == CtrlStack[0].Height) {
-    if (CtrlStack[0].IsUnreachable) {
+  if (ValStack.size() == CtrlStack.back().Height) {
+    if (CtrlStack.back().IsUnreachable) {
       return VType::Unknown;
     }
     /// Value stack underflow
@@ -847,8 +850,8 @@ Expect<VType> FormChecker::popType() {
     LOG(ERROR) << "    Value stack underflow.";
     return Unexpect(ErrCode::TypeCheckFailed);
   }
-  auto Res = ValStack.front();
-  ValStack.pop_front();
+  auto Res = ValStack.back();
+  ValStack.pop_back();
   return Res;
 }
 
@@ -883,7 +886,7 @@ Expect<void> FormChecker::popTypes(Span<const VType> Input) {
 
 void FormChecker::pushCtrl(Span<const VType> In, Span<const VType> Out,
                            bool IsLoopOp) {
-  CtrlStack.emplace_front(In, Out, ValStack.size(), IsLoopOp);
+  CtrlStack.emplace_back(In, Out, ValStack.size(), IsLoopOp);
   pushTypes(In);
 }
 
@@ -894,17 +897,17 @@ Expect<FormChecker::CtrlFrame> FormChecker::popCtrl() {
     LOG(ERROR) << "    Control stack underflow.";
     return Unexpect(ErrCode::TypeCheckFailed);
   }
-  if (auto Res = popTypes(CtrlStack.front().EndTypes); !Res) {
+  if (auto Res = popTypes(CtrlStack.back().EndTypes); !Res) {
     return Unexpect(Res);
   }
-  if (ValStack.size() != CtrlStack.front().Height) {
+  if (ValStack.size() != CtrlStack.back().Height) {
     /// Value stack size not matched.
     LOG(ERROR) << ErrCode::TypeCheckFailed;
     LOG(ERROR) << "    Value stack underflow.";
     return Unexpect(ErrCode::TypeCheckFailed);
   }
-  auto Head = std::move(CtrlStack.front());
-  CtrlStack.pop_front();
+  auto Head = std::move(CtrlStack.back());
+  CtrlStack.pop_back();
   return Head;
 }
 
@@ -916,12 +919,12 @@ Span<const VType> FormChecker::getLabelTypes(const FormChecker::CtrlFrame &F) {
 }
 
 Expect<void> FormChecker::unreachable() {
-  while (ValStack.size() > CtrlStack[0].Height) {
+  while (ValStack.size() > CtrlStack.back().Height) {
     if (auto Res = popType(); !Res) {
       return Unexpect(Res);
     }
   }
-  CtrlStack[0].IsUnreachable = true;
+  CtrlStack.back().IsUnreachable = true;
   return {};
 }
 

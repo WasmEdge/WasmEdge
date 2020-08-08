@@ -341,23 +341,7 @@ public:
     }
 
     buildPHI(Returns, leaveBlock(RetBB));
-
-    assert(!isUnreachable());
-    updateInstrCount();
-    auto *Ty = F->getReturnType();
-    if (Ty->isVoidTy()) {
-      Builder.CreateRetVoid();
-    } else if (Ty->isStructTy()) {
-      const unsigned Count = Ty->getStructNumElements();
-      std::vector<llvm::Value *> Ret(Count);
-      for (unsigned I = 0; I < Count; ++I) {
-        const unsigned J = Count - I - 1;
-        Ret[J] = stackPop();
-      }
-      Builder.CreateAggregateRet(Ret.data(), Count);
-    } else {
-      Builder.CreateRet(stackPop());
-    }
+    compileReturn();
 
     return {};
   }
@@ -413,11 +397,7 @@ public:
     case OpCode::Nop:
       break;
     case OpCode::Return: {
-      const unsigned int Label = ControlStack.size() - 1;
-      if (!setLableJumpPHI(Label)) {
-        return Unexpect(ErrCode::InvalidLabelIdx);
-      }
-      Builder.CreateBr(getLabel(Label));
+      compileReturn();
       setUnreachable();
       break;
     }
@@ -1276,6 +1256,24 @@ public:
     PHIRet->addIncoming(IntValue, NotMaxBB);
 
     stackPush(PHIRet);
+  }
+
+  void compileReturn() {
+    updateInstrCount();
+    auto *Ty = F->getReturnType();
+    if (Ty->isVoidTy()) {
+      Builder.CreateRetVoid();
+    } else if (Ty->isStructTy()) {
+      const unsigned Count = Ty->getStructNumElements();
+      std::vector<llvm::Value *> Ret(Count);
+      for (unsigned I = 0; I < Count; ++I) {
+        const unsigned J = Count - I - 1;
+        Ret[J] = stackPop();
+      }
+      Builder.CreateAggregateRet(Ret.data(), Count);
+    } else {
+      Builder.CreateRet(stackPop());
+    }
   }
 
   void updateInstrCount() {

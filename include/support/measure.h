@@ -13,12 +13,12 @@ namespace Support {
 class Measurement {
 public:
   Measurement(const uint64_t Lim = UINT64_MAX)
-      : CostTab(256, 0ULL), InstrCnt(0), CostLimit(Lim), CostSum(0) {}
+      : CostTab(UINT16_MAX, 0ULL), InstrCnt(0), CostLimit(Lim), CostSum(0) {}
   Measurement(Span<const uint64_t> Tab, const uint64_t Lim = UINT64_MAX)
       : CostTab(Tab.begin(), Tab.end()), InstrCnt(0), CostLimit(Lim),
         CostSum(0) {
-    if (CostTab.size() < 256) {
-      CostTab.resize(256);
+    if (CostTab.size() < UINT16_MAX) {
+      CostTab.resize(UINT16_MAX);
     }
   }
   ~Measurement() = default;
@@ -32,15 +32,13 @@ public:
   /// Setter of cost table.
   void setCostTable(Span<const uint64_t> NewTable) {
     CostTab.assign(NewTable.begin(), NewTable.end());
-    if (CostTab.size() < 256) {
-      CostTab.resize(256);
+    if (CostTab.size() < UINT16_MAX) {
+      CostTab.resize(UINT16_MAX);
     }
   }
 
   /// Adder for instruction costs.
-  bool addInstrCost(OpCode Code) {
-    return addCost(CostTab[static_cast<uint64_t>(Code)]);
-  }
+  bool addInstrCost(OpCode Code) { return addCost(CostTab[uint16_t(Code)]); }
 
   /// Getter reference of cost limit.
   uint64_t &getCostLimit() { return CostLimit; }

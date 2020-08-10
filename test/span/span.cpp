@@ -21,21 +21,21 @@ static_assert(!std::is_default_constructible_v<std::span<int, 1>>);
 
 TEST(SpanTest, Constructors) {
   std::span<int> S;
-  EXPECT_EQ(S.size(), 0);
+  EXPECT_EQ(S.size(), 0U);
   EXPECT_EQ(S.data(), nullptr);
 
   std::span<const int> CS;
-  EXPECT_EQ(CS.size(), 0);
+  EXPECT_EQ(CS.size(), 0U);
   EXPECT_EQ(CS.data(), nullptr);
 }
 
 TEST(SpanTest, ConstructorsWithExtent) {
   std::span<int, 0> S;
-  EXPECT_EQ(S.size(), 0);
+  EXPECT_EQ(S.size(), 0U);
   EXPECT_EQ(S.data(), nullptr);
 
   std::span<const int, 0> CS;
-  EXPECT_EQ(CS.size(), 0);
+  EXPECT_EQ(CS.size(), 0U);
   EXPECT_EQ(CS.data(), nullptr);
 }
 
@@ -68,7 +68,7 @@ TEST(SpanTest, ConstructorsFromPointerAndSize) {
       EXPECT_EQ(Array[Offset], S[0]);
       std::swap(Temp, S[0]);
     }
-    EXPECT_EQ(Array[Offset], Offset + 1);
+    EXPECT_EQ(Array[Offset], int(Offset) + 1);
   }
 }
 
@@ -229,30 +229,30 @@ TEST(SpanTest, First) {
 
   {
     std::span S = Array;
-    EXPECT_EQ(S.size(), 5);
-    EXPECT_EQ(S.first<0>().size(), 0);
-    EXPECT_EQ(S.first(0).size(), 0);
+    EXPECT_EQ(S.size(), 5U);
+    EXPECT_EQ(S.first<0>().size(), 0U);
+    EXPECT_EQ(S.first(0).size(), 0U);
   }
 
   {
     std::span S = Array;
-    EXPECT_EQ(S.size(), 5);
-    EXPECT_EQ(S.first<2>().size(), 2);
-    EXPECT_EQ(S.first(2).size(), 2);
+    EXPECT_EQ(S.size(), 5U);
+    EXPECT_EQ(S.first<2>().size(), 2U);
+    EXPECT_EQ(S.first(2).size(), 2U);
   }
 
   {
     std::span<int> S = Array;
-    EXPECT_EQ(S.size(), 5);
-    EXPECT_EQ(S.first<0>().size(), 0);
-    EXPECT_EQ(S.first(0).size(), 0);
+    EXPECT_EQ(S.size(), 5U);
+    EXPECT_EQ(S.first<0>().size(), 0U);
+    EXPECT_EQ(S.first(0).size(), 0U);
   }
 
   {
     std::span<int> S = Array;
-    EXPECT_EQ(S.size(), 5);
-    EXPECT_EQ(S.first<2>().size(), 2);
-    EXPECT_EQ(S.first(2).size(), 2);
+    EXPECT_EQ(S.size(), 5U);
+    EXPECT_EQ(S.first<2>().size(), 2U);
+    EXPECT_EQ(S.first(2).size(), 2U);
   }
 }
 
@@ -261,30 +261,30 @@ TEST(SpanTest, Last) {
 
   {
     std::span S = Array;
-    EXPECT_EQ(S.size(), 5);
-    EXPECT_EQ(S.last<0>().size(), 0);
-    EXPECT_EQ(S.last(0).size(), 0);
+    EXPECT_EQ(S.size(), 5U);
+    EXPECT_EQ(S.last<0>().size(), 0U);
+    EXPECT_EQ(S.last(0).size(), 0U);
   }
 
   {
     std::span S = Array;
-    EXPECT_EQ(S.size(), 5);
-    EXPECT_EQ(S.last<2>().size(), 2);
-    EXPECT_EQ(S.last(2).size(), 2);
+    EXPECT_EQ(S.size(), 5U);
+    EXPECT_EQ(S.last<2>().size(), 2U);
+    EXPECT_EQ(S.last(2).size(), 2U);
   }
 
   {
     std::span<int> S = Array;
-    EXPECT_EQ(S.size(), 5);
-    EXPECT_EQ(S.last<0>().size(), 0);
-    EXPECT_EQ(S.last(0).size(), 0);
+    EXPECT_EQ(S.size(), 5U);
+    EXPECT_EQ(S.last<0>().size(), 0U);
+    EXPECT_EQ(S.last(0).size(), 0U);
   }
 
   {
     std::span<int> S = Array;
-    EXPECT_EQ(S.size(), 5);
-    EXPECT_EQ(S.last<2>().size(), 2);
-    EXPECT_EQ(S.last(2).size(), 2);
+    EXPECT_EQ(S.size(), 5U);
+    EXPECT_EQ(S.last<2>().size(), 2U);
+    EXPECT_EQ(S.last(2).size(), 2U);
   }
 }
 
@@ -293,34 +293,34 @@ TEST(SpanTest, SubSpan) {
 
   {
     std::span S = Array;
-    EXPECT_EQ(S.size(), 5);
-    EXPECT_EQ((S.subspan<2, 2>().size()), 2);
-    EXPECT_EQ(decltype(S.subspan<2, 2>())::extent, 2);
-    EXPECT_EQ(S.subspan(2, 2).size(), 2);
+    EXPECT_EQ(S.size(), 5U);
+    EXPECT_EQ((S.subspan<2, 2>().size()), 2U);
+    EXPECT_EQ(decltype(S.subspan<2, 2>())::extent, 2U);
+    EXPECT_EQ(S.subspan(2, 2).size(), 2U);
   }
 
   {
     std::span S = Array;
-    EXPECT_EQ(S.size(), 5);
-    EXPECT_EQ((S.subspan<0, 0>().size()), 0);
-    EXPECT_EQ(decltype(S.subspan<0, 0>())::extent, 0);
-    EXPECT_EQ(S.subspan(0, 0).size(), 0);
+    EXPECT_EQ(S.size(), 5U);
+    EXPECT_EQ((S.subspan<0, 0>().size()), 0U);
+    EXPECT_EQ(decltype(S.subspan<0, 0>())::extent, 0U);
+    EXPECT_EQ(S.subspan(0, 0).size(), 0U);
   }
 
   {
     std::span<int> S = Array;
-    EXPECT_EQ(S.size(), 5);
-    EXPECT_EQ((S.subspan<2, 2>().size()), 2);
-    EXPECT_EQ(decltype(S.subspan<2, 2>())::extent, 2);
-    EXPECT_EQ(S.subspan(2, 2).size(), 2);
+    EXPECT_EQ(S.size(), 5U);
+    EXPECT_EQ((S.subspan<2, 2>().size()), 2U);
+    EXPECT_EQ(decltype(S.subspan<2, 2>())::extent, 2U);
+    EXPECT_EQ(S.subspan(2, 2).size(), 2U);
   }
 
   {
     std::span<int> S = Array;
-    EXPECT_EQ(S.size(), 5);
-    EXPECT_EQ((S.subspan<0, 0>().size()), 0);
-    EXPECT_EQ(decltype(S.subspan<0, 0>())::extent, 0);
-    EXPECT_EQ(S.subspan(0, 0).size(), 0);
+    EXPECT_EQ(S.size(), 5U);
+    EXPECT_EQ((S.subspan<0, 0>().size()), 0U);
+    EXPECT_EQ(decltype(S.subspan<0, 0>())::extent, 0U);
+    EXPECT_EQ(S.subspan(0, 0).size(), 0U);
   }
 }
 

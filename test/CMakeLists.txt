@@ -15,6 +15,7 @@ if(BUILD_COVERAGE)
     BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     EXCLUDE
       "${PROJECT_SOURCE_DIR}/thirdparty/*"
+      "${PROJECT_SOURCE_DIR}/test/*"
     )
   setup_target_for_coverage_gcovr_xml(
     NAME codecov
@@ -23,6 +24,7 @@ if(BUILD_COVERAGE)
     BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     EXCLUDE
       "${PROJECT_SOURCE_DIR}/thirdparty/*"
+      "${PROJECT_SOURCE_DIR}/test/*"
     )
 
 endif()

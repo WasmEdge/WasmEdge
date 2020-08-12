@@ -57,6 +57,11 @@ public:
     return AccessLen <= Data.size();
   }
 
+  /// Get boundary index.
+  uint32_t getBoundIdx() const noexcept {
+    return ((Data.size() > 0) ? (Data.size() - 1) : 0);
+  }
+
   /// Grow page
   bool growPage(const uint32_t Count) {
     uint32_t MaxPageCaped = UINT32_C(65536);
@@ -79,7 +84,7 @@ public:
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, Data.size() - 1);
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     return Span<Byte>(&Data[Offset], Length);
@@ -91,7 +96,7 @@ public:
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, Data.size() - 1);
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
 
@@ -117,7 +122,7 @@ public:
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, Data.size() - 1);
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     if (Length > 0) {
@@ -139,7 +144,7 @@ public:
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, Data.size() - 1);
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     if (Length > 0) {
@@ -202,7 +207,7 @@ public:
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, Data.size() - 1);
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     /// Load data to a value.
@@ -249,7 +254,7 @@ public:
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, Data.size() - 1);
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     /// Copy store data to value.

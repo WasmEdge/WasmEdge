@@ -34,9 +34,8 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
     /// Check offset bound.
     if (!MemInst->checkAccessBound(Offset, DataSeg->getData().size())) {
       LOG(ERROR) << ErrCode::DataSegDoesNotFit;
-      LOG(ERROR) << ErrInfo::InfoBoundary(
-          Offset, DataSeg->getData().size(),
-          MemInst->getDataPageSize() * MemInst->kPageSize - 1);
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, DataSeg->getData().size(),
+                                          MemInst->getBoundIdx());
       LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
       return Unexpect(ErrCode::DataSegDoesNotFit);
     }

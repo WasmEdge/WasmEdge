@@ -81,7 +81,7 @@ void convertHexStrToValVec(std::string_view Src, std::vector<uint8_t> &Dst,
 std::string convertUIntToHexStr(const uint64_t Num, uint32_t MinLen) {
   char Str[32];
   const int FieldWidth = std::min(MinLen, UINT32_C(16));
-  std::sprintf(Str, "0x%0*" PRIu64 "x", FieldWidth, Num);
+  std::sprintf(Str, "0x%0*" PRIx64, FieldWidth, Num);
   return Str;
 }
 

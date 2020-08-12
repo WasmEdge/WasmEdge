@@ -35,7 +35,7 @@ Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
     if (!TabInst->checkAccessBound(Offset, ElemSeg->getFuncIdxes().size())) {
       LOG(ERROR) << ErrCode::ElemSegDoesNotFit;
       LOG(ERROR) << ErrInfo::InfoBoundary(
-          Offset, ElemSeg->getFuncIdxes().size(), TabInst->getMin() - 1);
+          Offset, ElemSeg->getFuncIdxes().size(), TabInst->getBoundIdx());
       LOG(ERROR) << ErrInfo::InfoAST(ElemSeg->NodeAttr);
       return Unexpect(ErrCode::ElemSegDoesNotFit);
     }

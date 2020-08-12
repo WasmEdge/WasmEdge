@@ -62,11 +62,16 @@ public:
     return AccessLen <= MinSize;
   }
 
+  /// Get boundary index.
+  uint32_t getBoundIdx() const noexcept {
+    return ((MinSize > 0) ? (MinSize - 1) : 0);
+  }
+
   /// Get the elem address.
   Expect<uint32_t> getElemAddr(const uint32_t Idx) const {
     if (Idx >= FuncElem.size()) {
       LOG(ERROR) << ErrCode::UndefinedElement;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Idx, 1, FuncElem.size() - 1);
+      LOG(ERROR) << ErrInfo::InfoBoundary(Idx, 1, getBoundIdx());
       return Unexpect(ErrCode::UndefinedElement);
     }
     if (Symbol) {

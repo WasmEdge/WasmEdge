@@ -22,7 +22,7 @@ TypeT<T> Interpreter::runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
     LOG(ERROR) << ErrInfo::InfoBoundary(
         retrieveValue<uint32_t>(Val) +
             static_cast<uint64_t>(Instr.getMemoryOffset()),
-        BitWidth / 8);
+        BitWidth / 8, MemInst.getBoundIdx());
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
                                            Instr.getOffset());
     return Unexpect(ErrCode::MemoryOutOfBounds);
@@ -54,7 +54,7 @@ TypeB<T> Interpreter::runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
     LOG(ERROR) << ErrInfo::InfoBoundary(
         retrieveValue<uint32_t>(I) +
             static_cast<uint64_t>(Instr.getMemoryOffset()),
-        BitWidth / 8);
+        BitWidth / 8, MemInst.getBoundIdx());
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
                                            Instr.getOffset());
     return Unexpect(ErrCode::MemoryOutOfBounds);

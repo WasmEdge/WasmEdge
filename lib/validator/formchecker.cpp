@@ -470,10 +470,25 @@ Expect<void> FormChecker::checkInstr(const AST::CallControlInstruction &Instr) {
 Expect<void> FormChecker::checkInstr(const AST::ReferenceInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::Ref__null:
+    return StackTrans({}, std::array{ASTToVType(Instr.getReferenceType())});
   case OpCode::Ref__is_null:
+    if (auto Res = popType()) {
+      if (!isRefType(*Res)) {
+        LOG(ERROR) << ErrCode::TypeCheckFailed;
+        LOG(ERROR) << ErrInfo::InfoMismatch(ValType::FuncRef, VTypeToAST(*Res));
+        return Unexpect(ErrCode::TypeCheckFailed);
+      }
+    } else {
+      return Unexpect(Res);
+    }
+    return StackTrans({}, std::array{VType::I32});
   case OpCode::Ref__func:
-    /// TODO: Implement this.
-    return Unexpect(ErrCode::InvalidOpCode);
+    if (Refs.find(Instr.getTargetIndex()) == Refs.cend()) {
+      /// Undeclared function reference.
+      LOG(ERROR) << ErrCode::InvalidRefIdx;
+      return Unexpect(ErrCode::InvalidRefIdx);
+    }
+    return StackTrans({}, std::array{VType::FuncRef});
   default:
     LOG(ERROR) << ErrCode::InvalidOpCode;
     return Unexpect(ErrCode::InvalidOpCode);
@@ -485,23 +500,59 @@ Expect<void> FormChecker::checkInstr(const AST::ParametricInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::Drop:
     return StackTrans(std::array{VType::Unknown}, {});
-  case OpCode::Select:
-  case OpCode::Select_t: {
+  case OpCode::Select: {
+    /// Pop I32.
     if (auto Res = popType(VType::I32); !Res) {
       return Unexpect(Res);
     }
+    /// Pop T1 and T2.
     VType T1, T2;
     if (auto Res = popType()) {
       T1 = *Res;
     } else {
       return Unexpect(Res);
     }
-    if (auto Res = popType(T1)) {
+    if (auto Res = popType()) {
       T2 = *Res;
     } else {
       return Unexpect(Res);
     }
-    pushType(T2);
+    /// T1 and T2 should be number type.
+    if (!isNumType(T1)) {
+      LOG(ERROR) << ErrCode::TypeCheckFailed;
+      LOG(ERROR) << ErrInfo::InfoMismatch(ValType::I32, VTypeToAST(T1));
+      return Unexpect(ErrCode::TypeCheckFailed);
+    }
+    if (!isNumType(T2)) {
+      LOG(ERROR) << ErrCode::TypeCheckFailed;
+      LOG(ERROR) << ErrInfo::InfoMismatch(VTypeToAST(T1), VTypeToAST(T2));
+      return Unexpect(ErrCode::TypeCheckFailed);
+    }
+    /// Error if t1 != t2 && t1 =/= Unknown && t2 =/= Unknown
+    if (T1 != T2 && T1 != VType::Unknown && T2 != VType::Unknown) {
+      LOG(ERROR) << ErrCode::TypeCheckFailed;
+      LOG(ERROR) << ErrInfo::InfoMismatch(VTypeToAST(T1), VTypeToAST(T2));
+      return Unexpect(ErrCode::TypeCheckFailed);
+    }
+    /// Push value.
+    if (T1 == VType::Unknown) {
+      pushType(T2);
+    } else {
+      pushType(T1);
+    }
+    return {};
+  }
+  case OpCode::Select_t: {
+    /// Note: There may be multiple values choise in the future.
+    if (Instr.getValTypeList().size() != 1) {
+      LOG(ERROR) << ErrCode::InvalidResultArity;
+      return Unexpect(ErrCode::InvalidResultArity);
+    }
+    VType ExpT = ASTToVType(Instr.getValTypeList()[0]);
+    if (auto Res = popTypes(std::array{ExpT, ExpT, VType::I32}); !Res) {
+      return Unexpect(Res);
+    }
+    pushType(ExpT);
     return {};
   }
   default:
@@ -554,7 +605,7 @@ Expect<void> FormChecker::checkInstr(const AST::VariableInstruction &Instr) {
       LOG(ERROR) << ErrCode::ImmutableGlobal;
       return Unexpect(ErrCode::ImmutableGlobal);
     }
-    // fall through
+    [[fallthrough]];
   case OpCode::Local__set:
   case OpCode::Local__tee:
     if (auto Res = popType(TExpect); !Res) {
@@ -578,31 +629,123 @@ Expect<void> FormChecker::checkInstr(const AST::VariableInstruction &Instr) {
 }
 
 Expect<void> FormChecker::checkInstr(const AST::TableInstruction &Instr) {
+  /// Check target table/element index.
+  VType DstRefType = VType::FuncRef;
   switch (Instr.getOpCode()) {
   case OpCode::Table__get:
   case OpCode::Table__set:
   case OpCode::Table__init:
-  case OpCode::Elem__drop:
   case OpCode::Table__copy:
   case OpCode::Table__grow:
   case OpCode::Table__size:
   case OpCode::Table__fill:
-    /// TODO: Implement this.
-    return Unexpect(ErrCode::InvalidOpCode);
+    if (Tables.size() <= Instr.getTargetIndex()) {
+      /// Table index out of range.
+      LOG(ERROR) << ErrCode::InvalidTableIdx;
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Table, Instr.getTargetIndex(), Tables.size());
+      return Unexpect(ErrCode::InvalidTableIdx);
+    }
+    DstRefType = ASTToVType(Tables[Instr.getTargetIndex()]);
+    break;
+  case OpCode::Elem__drop:
+    if (Elems.size() <= Instr.getElemIndex()) {
+      /// Element index out of range.
+      LOG(ERROR) << ErrCode::InvalidElemIdx;
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Element, Instr.getElemIndex(), Elems.size());
+      return Unexpect(ErrCode::InvalidElemIdx);
+    }
+    break;
   default:
     LOG(ERROR) << ErrCode::InvalidOpCode;
     return Unexpect(ErrCode::InvalidOpCode);
+  }
+
+  /// Check source table/element index and do matching.
+  switch (Instr.getOpCode()) {
+  case OpCode::Table__copy:
+    if (Tables.size() <= Instr.getSourceIndex()) {
+      /// Table index out of range.
+      LOG(ERROR) << ErrCode::InvalidTableIdx;
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Table, Instr.getSourceIndex(), Tables.size());
+      return Unexpect(ErrCode::InvalidTableIdx);
+    }
+    if (Tables[Instr.getSourceIndex()] != Tables[Instr.getTargetIndex()]) {
+      /// Reference type not matched.
+      LOG(ERROR) << ErrCode::TypeCheckFailed;
+      LOG(ERROR) << ErrInfo::InfoMismatch(
+          ToValType(Tables[Instr.getTargetIndex()]),
+          ToValType(Tables[Instr.getSourceIndex()]));
+      return Unexpect(ErrCode::TypeCheckFailed);
+    }
+    break;
+  case OpCode::Table__init:
+    if (Elems.size() <= Instr.getElemIndex()) {
+      /// Element index out of range.
+      LOG(ERROR) << ErrCode::InvalidElemIdx;
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Element, Instr.getElemIndex(), Elems.size());
+      return Unexpect(ErrCode::InvalidElemIdx);
+    }
+    if (Elems[Instr.getElemIndex()] != Tables[Instr.getTargetIndex()]) {
+      /// Reference type not matched.
+      LOG(ERROR) << ErrCode::TypeCheckFailed;
+      LOG(ERROR) << ErrInfo::InfoMismatch(
+          ToValType(Tables[Instr.getTargetIndex()]),
+          ToValType(Elems[Instr.getElemIndex()]));
+      return Unexpect(ErrCode::TypeCheckFailed);
+    }
+    break;
+  default:
+    break;
+  }
+
+  /// Transformation.
+  switch (Instr.getOpCode()) {
+  case OpCode::Table__get:
+    return StackTrans(std::array{VType::I32}, std::array{DstRefType});
+  case OpCode::Table__set:
+    return StackTrans(std::array{VType::I32, DstRefType}, {});
+  case OpCode::Table__grow:
+    return StackTrans(std::array{DstRefType, VType::I32},
+                      std::array{VType::I32});
+  case OpCode::Table__size:
+    return StackTrans({}, std::array{VType::I32});
+  case OpCode::Table__fill:
+    return StackTrans(std::array{VType::I32, DstRefType, VType::I32}, {});
+  case OpCode::Table__copy:
+  case OpCode::Table__init:
+    return StackTrans(std::array{VType::I32, VType::I32, VType::I32}, {});
+  case OpCode::Elem__drop:
+    return {};
+  default:
+    break;
   }
   return {};
 }
 
 Expect<void> FormChecker::checkInstr(const AST::MemoryInstruction &Instr) {
-  /// Memory[0] must exist
-  if (Mems.size() == 0) {
+  /// Memory[0] must exist except data.drop instruction.
+  if (Instr.getOpCode() != OpCode::Data__drop && Mems.size() == 0) {
     LOG(ERROR) << ErrCode::InvalidMemoryIdx;
     LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, 0,
                                            Mems.size());
     return Unexpect(ErrCode::InvalidMemoryIdx);
+  }
+  /// Data[x] must exist in memory.init and data.drop instructions.
+  switch (Instr.getOpCode()) {
+  case OpCode::Memory__init:
+  case OpCode::Data__drop:
+    if (Instr.getDataIndex() >= Datas.size()) {
+      /// Data index out of range.
+      LOG(ERROR) << ErrCode::InvalidDataIdx;
+      return Unexpect(ErrCode::InvalidDataIdx);
+    }
+    break;
+  default:
+    break;
   }
 
   /// Get bit width
@@ -656,6 +799,10 @@ Expect<void> FormChecker::checkInstr(const AST::MemoryInstruction &Instr) {
     break;
   case OpCode::Memory__size:
   case OpCode::Memory__grow:
+  case OpCode::Memory__init:
+  case OpCode::Data__drop:
+  case OpCode::Memory__copy:
+  case OpCode::Memory__fill:
     break;
   default:
     LOG(ERROR) << ErrCode::InvalidOpCode;
@@ -698,6 +845,12 @@ Expect<void> FormChecker::checkInstr(const AST::MemoryInstruction &Instr) {
     return StackTrans({}, std::array{VType::I32});
   case OpCode::Memory__grow:
     return StackTrans(std::array{VType::I32}, std::array{VType::I32});
+  case OpCode::Memory__init:
+  case OpCode::Memory__copy:
+  case OpCode::Memory__fill:
+    return StackTrans(std::array{VType::I32, VType::I32, VType::I32}, {});
+  case OpCode::Data__drop:
+    return {};
   default:
     break;
   }

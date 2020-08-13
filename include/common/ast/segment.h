@@ -90,11 +90,22 @@ public:
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
+  /// Element mode enumeration.
+  enum class ElemMode : uint8_t { Passive, Active, Declarative };
+
+  /// Getter of element mode.
+  ElemMode getMode() const { return Mode; }
+
+  /// Getter of reference type.
+  RefType getRefType() const { return Type; }
+
   /// Getter of table index.
   uint32_t getIdx() const { return TableIdx; }
 
-  /// Getter of function indices.
-  Span<const uint32_t> getFuncIdxes() const { return FuncIdxes; }
+  /// Getter of initialization expressions.
+  Span<const std::unique_ptr<Expression>> getInitExprs() const {
+    return InitExprs;
+  }
 
   /// The node type should be ASTNodeAttr::Seg_Element.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Element;
@@ -102,8 +113,10 @@ public:
 private:
   /// \name Data of ElementSegment node.
   /// @{
+  ElemMode Mode = ElemMode::Active;
+  RefType Type = RefType::FuncRef;
   uint32_t TableIdx = 0;
-  std::vector<uint32_t> FuncIdxes;
+  std::vector<std::unique_ptr<Expression>> InitExprs;
   /// @}
 };
 
@@ -147,6 +160,12 @@ public:
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
+  /// Data mode enumeration.
+  enum class DataMode : uint8_t { Passive, Active };
+
+  /// Getter of data mode.
+  DataMode getMode() const { return Mode; }
+
   /// Getter of memory index.
   uint32_t getIdx() const { return MemoryIdx; }
 
@@ -159,6 +178,7 @@ public:
 private:
   /// \name Data of DataSegment node.
   /// @{
+  DataMode Mode = DataMode::Active;
   uint32_t MemoryIdx = 0;
   std::vector<Byte> Data;
   /// @}

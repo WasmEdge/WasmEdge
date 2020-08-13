@@ -55,15 +55,16 @@ TEST(SegmentTest, LoadElementSegment) {
   ///   2.  Load element segment with expression of only End operation and empty
   ///       function indices list.
   ///   3.  Load element segment with expression and function indices list.
+  /// TODO: Add prefix 0x01 ~ 0x07 tests.
   Mgr.clearBuffer();
   SSVM::AST::ElementSegment Seg1;
   EXPECT_FALSE(Seg1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
-      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, /// Table index
-      0x0BU,                             /// Expression
-      0x00U                              /// Function indices list
+      0x00U, /// Prefix 0x00
+      0x0BU, /// Expression
+      0x00U  /// Function indices list
   };
   Mgr.setCode(Vec2);
   SSVM::AST::ElementSegment Seg2;
@@ -71,7 +72,7 @@ TEST(SegmentTest, LoadElementSegment) {
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
-      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, /// Table index
+      0x00U,                             /// Prefix 0x00
       0x45U, 0x46U, 0x47U, 0x0BU,        /// Expression
       0x03U,                             /// Vector length = 3
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, /// vec[0]
@@ -135,15 +136,16 @@ TEST(SegmentTest, LoadDataSegment) {
   ///   2.  Load data segment of expression with only End operation and empty
   ///       initialization data.
   ///   3.  Load data segment with expression and initialization data.
+  /// TODO: Add prefix 0x01 and 0x02 tests.
   Mgr.clearBuffer();
   SSVM::AST::DataSegment Seg1;
   EXPECT_FALSE(Seg1.loadBinary(Mgr));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
-      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, /// Memory index
-      0x0BU,                             /// Expression
-      0x00U                              /// Vector length = 0
+      0x00U, /// Prefix 0x00
+      0x0BU, /// Expression
+      0x00U  /// Vector length = 0
   };
   Mgr.setCode(Vec2);
   SSVM::AST::DataSegment Seg2;
@@ -151,9 +153,9 @@ TEST(SegmentTest, LoadDataSegment) {
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
-      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, /// Memory index
-      0x45U, 0x46U, 0x47U, 0x0BU,        /// Expression
-      0x04U, 0x74U, 0x65U, 0x73U, 0x74U  /// Vector length = 4, "test"
+      0x00U,                            /// Prefix 0x00
+      0x45U, 0x46U, 0x47U, 0x0BU,       /// Expression
+      0x04U, 0x74U, 0x65U, 0x73U, 0x74U /// Vector length = 4, "test"
   };
   Mgr.setCode(Vec3);
   SSVM::AST::DataSegment Seg3;

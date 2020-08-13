@@ -108,7 +108,7 @@ struct SSVM::AOT::Compiler::CompileContext {
       false;
 #endif
   std::vector<const AST::FunctionType *> FunctionTypes;
-  std::vector<unsigned int> Elements;
+  std::vector<uint64_t> Elements;
   std::vector<
       std::tuple<unsigned int, llvm::Function *, SSVM::AST::CodeSegment *>>
       Functions;
@@ -1566,7 +1566,8 @@ private:
 
     std::vector<std::pair<size_t, llvm::Function *>> Table;
     for (uint32_t I = 0; I < Context.Elements.size(); ++I) {
-      const auto FuncIdx = Context.Elements[I];
+      /// TODO: Handle nullptr case.
+      const auto FuncIdx = static_cast<uint32_t>(Context.Elements[I]);
       const auto FuncTypeIndex2 = std::get<0>(Context.Functions[FuncIdx]);
       const auto &FuncType2 = *Context.FunctionTypes[FuncTypeIndex2];
       if (FuncTypeIndex == FuncTypeIndex2 || FuncType == FuncType2) {
@@ -2342,11 +2343,16 @@ Expect<void> Compiler::compile(const AST::TableSection &TableSection,
     }
     const uint64_t Offset =
         llvm::cast<llvm::ConstantInt>(*Temp)->getZExtValue();
-    const auto &FuncIdxes = Element->getFuncIdxes();
-    if (Elements.size() < Offset + FuncIdxes.size()) {
-      Elements.resize(Offset + FuncIdxes.size());
+    /// TODO: Instantiation behavior changed.
+    const auto &InitExprs = Element->getInitExprs();
+    if (Elements.size() < Offset + InitExprs.size()) {
+      Elements.resize(Offset + InitExprs.size());
     }
-    std::copy(FuncIdxes.begin(), FuncIdxes.end(), Elements.begin() + Offset);
+    for (size_t I = 0; I < InitExprs.size(); I++) {
+      auto &RefInstr = *static_cast<AST::ReferenceInstruction *>(
+          InitExprs[I]->getInstrs()[0].get());
+      Elements[Offset + I] = RefInstr.getTargetIndex();
+    }
   }
   return {};
 }

@@ -2332,9 +2332,12 @@ Expect<void> Compiler::compile(const AST::MemorySection &MemorySection,
 
 Expect<void> Compiler::compile(const AST::TableSection &TableSection,
                                const AST::ElementSection &ElementSection) {
+  /// TODO: Multi-table is allowed after this version.
+  /*
   if (TableSection.getContent().size() != 1) {
     return Unexpect(ErrCode::MultiTables);
   }
+  */
   auto &Elements = Context->Elements;
   for (const auto &Element : ElementSection.getContent()) {
     auto Temp = FunctionCompiler::evaluate(Element->getInstrs(), *Context);

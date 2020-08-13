@@ -24,25 +24,32 @@ void FormChecker::reset(bool CleanGlobal) {
     Tables.clear();
     Mems.clear();
     Globals.clear();
+    Datas.clear();
+    Elems.clear();
+    Refs.clear();
     NumImportFuncs = 0;
     NumImportGlobals = 0;
   }
 }
 
 Expect<void> FormChecker::validate(const AST::InstrVec &Instrs,
-                                   Span<const ValType> RetVals) {
-  for (ValType Val : RetVals) {
-    Returns.push_back(ASTToVType(Val));
+                                   std::optional<Span<const ValType>> RetVals) {
+  if (RetVals.has_value()) {
+    for (ValType Val : RetVals.value()) {
+      Returns.push_back(ASTToVType(Val));
+    }
   }
-  return checkExpr(Instrs);
+  return checkExpr(Instrs, !RetVals.has_value());
 }
 
 Expect<void> FormChecker::validate(const AST::InstrVec &Instrs,
-                                   Span<const VType> RetVals) {
-  for (VType Val : RetVals) {
-    Returns.push_back(Val);
+                                   std::optional<Span<const VType>> RetVals) {
+  if (RetVals.has_value()) {
+    for (VType Val : RetVals.value()) {
+      Returns.push_back(Val);
+    }
   }
-  return checkExpr(Instrs);
+  return checkExpr(Instrs, !RetVals.has_value());
 }
 
 void FormChecker::addType(const AST::FunctionType &Func) {
@@ -83,6 +90,16 @@ void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
     NumImportGlobals++;
   }
 }
+
+void FormChecker::addData(const AST::DataSegment &Data) {
+  Datas.emplace_back(Datas.size());
+}
+
+void FormChecker::addElem(const AST::ElementSegment &Elem) {
+  Elems.emplace_back(Elem.getRefType());
+}
+
+void FormChecker::addRef(const uint32_t FuncIdx) { Refs.emplace(FuncIdx); }
 
 void FormChecker::addLocal(const ValType &V) {
   Locals.push_back(ASTToVType(V));
@@ -154,15 +171,20 @@ ValType FormChecker::VTypeToAST(const VType &V) {
   }
 }
 
-Expect<void> FormChecker::checkExpr(const AST::InstrVec &Instrs) {
-  /// Push ctrl frame ([] -> [Returns])
-  pushCtrl({}, Returns);
+Expect<void> FormChecker::checkExpr(const AST::InstrVec &Instrs,
+                                    const bool AnyRetVals) {
+  if (!AnyRetVals) {
+    /// Push ctrl frame ([] -> [Returns])
+    pushCtrl({}, Returns);
+  }
   if (auto Res = checkInstrs(Instrs); !Res) {
     return Unexpect(Res);
   }
-  /// Pop ctrl frame
-  if (auto Res = popCtrl(); !Res) {
-    return Unexpect(Res);
+  if (!AnyRetVals) {
+    /// Pop ctrl frame
+    if (auto Res = popCtrl(); !Res) {
+      return Unexpect(Res);
+    }
   }
   return {};
 }

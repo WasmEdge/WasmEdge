@@ -170,7 +170,7 @@ public:
       : Instruction(Byte, Off) {}
   /// Copy constructor.
   BrTableControlInstruction(const BrTableControlInstruction &Instr)
-      : Instruction(Instr.Code, Instr.Offset), LabelTable(Instr.LabelTable),
+      : Instruction(Instr.Code, Instr.Offset), LabelList(Instr.LabelList),
         LabelIdx(Instr.LabelIdx) {}
 
   /// Load binary from file manager.
@@ -184,7 +184,7 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of label table
-  Span<const uint32_t> getLabelTable() const { return LabelTable; }
+  Span<const uint32_t> getLabelList() const { return LabelList; }
 
   /// Getter of label index
   uint32_t getLabelIndex() const { return LabelIdx; }
@@ -192,7 +192,7 @@ public:
 private:
   /// \name Data of branch instruction: label vector and defalt label.
   /// @{
-  std::vector<uint32_t> LabelTable;
+  std::vector<uint32_t> LabelList;
   uint32_t LabelIdx = 0;
   /// @}
 };
@@ -205,24 +205,29 @@ public:
       : Instruction(Byte, Off) {}
   /// Copy constructor.
   CallControlInstruction(const CallControlInstruction &Instr)
-      : Instruction(Instr.Code, Instr.Offset), FuncIdx(Instr.FuncIdx) {}
+      : Instruction(Instr.Code, Instr.Offset), TargetIdx(Instr.TargetIdx),
+        TableIdx(Instr.TableIdx) {}
 
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Instruction.
-  /// Read the function index.
+  /// Read the function or function type index and table index.
   ///
   /// \param Mgr the file manager reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
-  /// Getter of the index
-  uint32_t getFuncIndex() const { return FuncIdx; }
+  /// Getter of function/functype index
+  uint32_t getTargetIndex() const { return TargetIdx; }
+
+  /// Getter of table index
+  uint32_t getTableIndex() const { return TableIdx; }
 
 private:
-  /// Call function index.
-  uint32_t FuncIdx = 0;
+  /// Call function or function type index.
+  uint32_t TargetIdx = 0;
+  uint32_t TableIdx = 0;
 };
 
 /// Derived parametric instruction node.

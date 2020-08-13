@@ -6,7 +6,7 @@ namespace {
 template <typename... Ts> struct overloaded : Ts... {
   using Ts::operator()...;
 };
-template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+template <typename... Ts> overloaded(Ts...)->overloaded<Ts...>;
 } // namespace
 
 namespace SSVM {
@@ -325,7 +325,7 @@ FormChecker::checkInstr(const AST::BrTableControlInstruction &Instr) {
       return Unexpect(ErrCode::InvalidLabelIdx);
     }
     const uint32_t M_ = CtrlStack.size() - 1 - M;
-    for (const uint32_t &N : Instr.getLabelTable()) {
+    for (const uint32_t &N : Instr.getLabelList()) {
       if (CtrlStack.size() <= N) {
         /// Branch out of stack
         LOG(ERROR) << ErrCode::InvalidLabelIdx;
@@ -369,7 +369,7 @@ FormChecker::checkInstr(const AST::BrTableControlInstruction &Instr) {
 }
 
 Expect<void> FormChecker::checkInstr(const AST::CallControlInstruction &Instr) {
-  auto N = Instr.getFuncIndex();
+  auto N = Instr.getTargetIndex();
   switch (Instr.getOpCode()) {
   case OpCode::Call: {
     if (Funcs.size() <= N) {

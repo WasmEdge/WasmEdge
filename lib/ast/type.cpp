@@ -11,6 +11,16 @@ Expect<void> Limit::loadBinary(FileMgr &Mgr) {
   /// Read limit type.
   if (auto Res = Mgr.readByte()) {
     Type = static_cast<LimitType>(*Res);
+    switch (Type) {
+    case LimitType::HasMin:
+    case LimitType::HasMinMax:
+      break;
+    default:
+      LOG(ERROR) << ErrCode::InvalidGrammar;
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+      return Unexpect(ErrCode::InvalidGrammar);
+    }
   } else {
     LOG(ERROR) << Res.error();
     LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
@@ -145,6 +155,15 @@ Expect<void> TableType::loadBinary(FileMgr &Mgr) {
   /// Read element type.
   if (auto Res = Mgr.readByte()) {
     Type = static_cast<ElemType>(*Res);
+    switch (Type) {
+    case ElemType::FuncRef:
+      break;
+    default:
+      LOG(ERROR) << ErrCode::InvalidGrammar;
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+      return Unexpect(ErrCode::InvalidGrammar);
+    }
   } else {
     LOG(ERROR) << Res.error();
     LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
@@ -168,43 +187,43 @@ Expect<void> GlobalType::loadBinary(FileMgr &Mgr) {
   /// Read value type.
   if (auto Res = Mgr.readByte()) {
     Type = static_cast<ValType>(*Res);
+    switch (Type) {
+    case ValType::I32:
+    case ValType::I64:
+    case ValType::F32:
+    case ValType::F64:
+      break;
+    default:
+      LOG(ERROR) << ErrCode::InvalidGrammar;
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+      return Unexpect(ErrCode::InvalidGrammar);
+    }
   } else {
     LOG(ERROR) << Res.error();
     LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
     LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
-  }
-
-  /// Check value type.
-  switch (Type) {
-  case ValType::I32:
-  case ValType::I64:
-  case ValType::F32:
-  case ValType::F64:
-    break;
-  default:
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(ErrCode::InvalidGrammar);
   }
 
   /// Read mutability.
   if (auto Res = Mgr.readByte()) {
     Mut = static_cast<ValMut>(*Res);
+    switch (Mut) {
+    case ValMut::Const:
+    case ValMut::Var:
+      break;
+    default:
+      LOG(ERROR) << ErrCode::InvalidGrammar;
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+      return Unexpect(ErrCode::InvalidGrammar);
+    }
   } else {
     LOG(ERROR) << Res.error();
     LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
     LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
-  }
-
-  /// Check mutability.
-  if (Mut != ValMut::Const && Mut != ValMut::Var) {
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(ErrCode::InvalidGrammar);
   }
   return {};
 }

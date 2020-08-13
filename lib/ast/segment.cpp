@@ -106,6 +106,18 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr) {
     }
     if (auto Res = Mgr.readByte()) {
       LocalType = static_cast<ValType>(*Res);
+      switch (LocalType) {
+      case ValType::I32:
+      case ValType::I64:
+      case ValType::F32:
+      case ValType::F64:
+        break;
+      default:
+        LOG(ERROR) << ErrCode::InvalidGrammar;
+        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+        return Unexpect(ErrCode::InvalidGrammar);
+      }
     } else {
       LOG(ERROR) << Res.error();
       LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());

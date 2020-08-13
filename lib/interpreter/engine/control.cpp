@@ -98,7 +98,7 @@ Interpreter::runBrTableOp(Runtime::StoreManager &StoreMgr,
   uint32_t Value = retrieveValue<uint32_t>(StackMgr.pop());
 
   /// Do branch.
-  const auto &LabelTable = Instr.getLabelTable();
+  const auto &LabelTable = Instr.getLabelList();
   if (Value < LabelTable.size()) {
     return branchToLabel(StoreMgr, LabelTable[Value]);
   }
@@ -111,7 +111,7 @@ Expect<void> Interpreter::runCallOp(Runtime::StoreManager &StoreMgr,
                                     const AST::CallControlInstruction &Instr) {
   /// Get Function address.
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  const uint32_t FuncAddr = *ModInst->getFuncAddr(Instr.getFuncIndex());
+  const uint32_t FuncAddr = *ModInst->getFuncAddr(Instr.getTargetIndex());
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
   return enterFunction(StoreMgr, *FuncInst);
 }
@@ -124,7 +124,7 @@ Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
 
   /// Get function type at index x.
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  const auto *TargetFuncType = *ModInst->getFuncType(Instr.getFuncIndex());
+  const auto *TargetFuncType = *ModInst->getFuncType(Instr.getTargetIndex());
 
   /// Pop the value i32.const i from the Stack.
   ValVariant Idx = StackMgr.pop();

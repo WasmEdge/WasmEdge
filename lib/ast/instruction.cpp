@@ -205,7 +205,7 @@ Expect<void> BrTableControlInstruction::loadBinary(FileMgr &Mgr) {
   }
   for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readU32()) {
-      LabelTable.push_back(*Res);
+      LabelList.push_back(*Res);
     } else {
       LOG(ERROR) << Res.error();
       LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
@@ -230,7 +230,7 @@ Expect<void> BrTableControlInstruction::loadBinary(FileMgr &Mgr) {
 Expect<void> CallControlInstruction::loadBinary(FileMgr &Mgr) {
   /// Read function index.
   if (auto Res = Mgr.readU32()) {
-    FuncIdx = *Res;
+    TargetIdx = *Res;
   } else {
     LOG(ERROR) << Res.error();
     LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
@@ -238,15 +238,10 @@ Expect<void> CallControlInstruction::loadBinary(FileMgr &Mgr) {
     return Unexpect(Res);
   }
 
-  /// Read the 0x00 checking code in indirect_call case.
+  /// Read the table index in indirect_call case.
   if (Code == OpCode::Call_indirect) {
-    if (auto Res = Mgr.readByte()) {
-      if (*Res != 0x00) {
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-        return Unexpect(ErrCode::InvalidGrammar);
-      }
+    if (auto Res = Mgr.readU32()) {
+      TableIdx = *Res;
     } else {
       LOG(ERROR) << Res.error();
       LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());

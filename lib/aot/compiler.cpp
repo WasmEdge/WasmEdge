@@ -52,7 +52,7 @@ class FunctionCompiler;
 template <typename... Ts> struct overloaded : Ts... {
   using Ts::operator()...;
 };
-template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+template <typename... Ts> overloaded(Ts...)->overloaded<Ts...>;
 
 /// force checking div/rem on zero
 static inline constexpr bool ForceDivCheck = false;
@@ -561,7 +561,7 @@ public:
     return {};
   }
   Expect<void> compile(const AST::BrTableControlInstruction &Instr) {
-    const auto LabelTable = Instr.getLabelTable();
+    const auto LabelTable = Instr.getLabelList();
     switch (Instr.getOpCode()) {
     case OpCode::Br_table: {
       auto *Value = stackPop();
@@ -590,9 +590,9 @@ public:
     writeGas();
     switch (Instr.getOpCode()) {
     case OpCode::Call:
-      return compileCallOp(Instr.getFuncIndex());
+      return compileCallOp(Instr.getTargetIndex());
     case OpCode::Call_indirect: {
-      return compileIndirectCallOp(Instr.getFuncIndex());
+      return compileIndirectCallOp(Instr.getTargetIndex());
     }
     default:
       __builtin_unreachable();

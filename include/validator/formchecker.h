@@ -19,7 +19,8 @@
 #include "common/value.h"
 #include "support/span.h"
 
-#include <deque>
+#include <optional>
+#include <unordered_set>
 #include <vector>
 
 namespace SSVM {
@@ -43,8 +44,9 @@ public:
 
   void reset(bool CleanGlobal = false);
   Expect<void> validate(const AST::InstrVec &Instrs,
-                        Span<const ValType> RetVals);
-  Expect<void> validate(const AST::InstrVec &Instrs, Span<const VType> RetVals);
+                        std::optional<Span<const ValType>> RetVals);
+  Expect<void> validate(const AST::InstrVec &Instrs,
+                        std::optional<Span<const VType>> RetVals);
 
   /// Adder of contexts
   void addType(const AST::FunctionType &Func);
@@ -52,6 +54,9 @@ public:
   void addTable(const AST::TableType &Tab);
   void addMemory(const AST::MemoryType &Mem);
   void addGlobal(const AST::GlobalType &Glob, const bool IsImport = false);
+  void addElem(const AST::ElementSegment &Elem);
+  void addData(const AST::DataSegment &Data);
+  void addRef(const uint32_t FuncIdx);
   void addLocal(const ValType &V);
   void addLocal(const VType &V);
 
@@ -91,7 +96,7 @@ public:
 
 private:
   /// Checking expression
-  Expect<void> checkExpr(const AST::InstrVec &Instrs);
+  Expect<void> checkExpr(const AST::InstrVec &Instrs, const bool AnyRetVals);
 
   /// Checking instruction list
   Expect<void> checkInstrs(const AST::InstrVec &Instrs);
@@ -135,6 +140,9 @@ private:
   std::vector<RefType> Tables;
   std::vector<uint32_t> Mems;
   std::vector<std::pair<VType, ValMut>> Globals;
+  std::vector<RefType> Elems;
+  std::vector<uint32_t> Datas;
+  std::unordered_set<uint32_t> Refs;
   uint32_t NumImportFuncs = 0;
   uint32_t NumImportGlobals = 0;
   std::vector<VType> Locals;

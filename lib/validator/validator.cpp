@@ -522,26 +522,31 @@ Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
 
 /// Validate constant expression. See "include/validator/validator.h".
 Expect<void> Validator::validateConstExpr(const AST::InstrVec &Instrs,
-                                          Span<const ValType> Returns,
-                                          const bool RestrictGlobal) {
+                                          Span<const ValType> Returns) {
   for (auto &Instr : Instrs) {
     /// Only these 5 instructions are constant.
     switch (Instr->getOpCode()) {
-    case OpCode::Global__get:
-      /// For global initialization case, global indices must be imported
-      /// globals.
-      if (RestrictGlobal) {
-        auto GlobInstr = static_cast<AST::VariableInstruction *>(Instr.get());
-        if (GlobInstr->getVariableIndex() >= Checker.getNumImportGlobals()) {
-          LOG(ERROR) << ErrCode::InvalidGlobalIdx;
-          LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Global,
-                                                 GlobInstr->getVariableIndex(),
-                                                 Checker.getNumImportGlobals());
-          LOG(ERROR) << ErrInfo::InfoInstruction(Instr->getOpCode(),
-                                                 Instr->getOffset());
-          return Unexpect(ErrCode::InvalidGlobalIdx);
-        }
+    case OpCode::Global__get: {
+      /// For initialization case, global indices must be imported globals.
+      auto GlobInstr = static_cast<AST::VariableInstruction *>(Instr.get());
+      auto GlobIdx = GlobInstr->getVariableIndex();
+      if (GlobInstr->getVariableIndex() >= Checker.getNumImportGlobals()) {
+        LOG(ERROR) << ErrCode::InvalidGlobalIdx;
+        LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Global,
+                                               GlobIdx,
+                                               Checker.getNumImportGlobals());
+        LOG(ERROR) << ErrInfo::InfoInstruction(GlobInstr->getOpCode(),
+                                               GlobInstr->getOffset());
+        return Unexpect(ErrCode::InvalidGlobalIdx);
       }
+      if (Checker.getGlobals()[GlobIdx].second != ValMut::Const) {
+        LOG(ERROR) << ErrCode::ConstExprRequired;
+        LOG(ERROR) << ErrInfo::InfoInstruction(GlobInstr->getOpCode(),
+                                               GlobInstr->getOffset());
+        return Unexpect(ErrCode::ConstExprRequired);
+      }
+    }
+      // fall through
     case OpCode::I32__const:
     case OpCode::I64__const:
     case OpCode::F32__const:

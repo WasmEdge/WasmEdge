@@ -62,8 +62,7 @@ private:
 
   /// Validate const expression
   Expect<void> validateConstExpr(const AST::InstrVec &Instrs,
-                                 Span<const ValType> Returns,
-                                 const bool RestrictGlobal = false);
+                                 Span<const ValType> Returns);
 
   static inline const uint32_t LIMIT_MEMORYTYPE = 1U << 16;
   FormChecker Checker;

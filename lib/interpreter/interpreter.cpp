@@ -87,8 +87,23 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
 
   /// Check parameter and function type.
   const auto &FuncType = FuncInst->getFuncType();
-  if (FuncType.Params.size() != Params.size()) {
+  if (FuncType.Params.size() > Params.size()) {
+    std::vector<ValType> GotParams;
+    for (auto I = 0; I < Params.size(); ++I) {
+      GotParams.push_back(FuncType.Params[I]);
+    }
     LOG(ERROR) << ErrCode::FuncSigMismatch;
+    LOG(ERROR) << ErrInfo::InfoMismatch(FuncType.Params, FuncType.Returns,
+                                        GotParams, FuncType.Returns);
+    return Unexpect(ErrCode::FuncSigMismatch);
+  } else if (FuncType.Params.size() < Params.size()) {
+    std::vector<ValType> GotParams = FuncType.Params;
+    for (auto I = FuncType.Params.size(); I < Params.size(); ++I) {
+      GotParams.push_back(ValType::I32);
+    }
+    LOG(ERROR) << ErrCode::FuncSigMismatch;
+    LOG(ERROR) << ErrInfo::InfoMismatch(FuncType.Params, FuncType.Returns,
+                                        GotParams, FuncType.Returns);
     return Unexpect(ErrCode::FuncSigMismatch);
   }
 

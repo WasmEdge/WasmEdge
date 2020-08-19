@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
+option(STATIC_BUILD "Link glibcxx library statically." OFF)
 
 find_package(Boost REQUIRED)
 find_package(Filesystem REQUIRED Final Experimental)

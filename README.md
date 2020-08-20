@@ -76,6 +76,13 @@ $ docker run -it --rm \
 (docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make -j
 ```
 
+SSVM requires `libLLVM-10` and `GLIBCXX_3.4.26` or after.
+If users want to build and run `ssvm` interpreter tool without these dependencies, they can set the CMake option `SSVM_DISABLE_AOT_RUNTIME` and `STATIC_BUILD` to `ON`.
+
+```bash
+$ cmake -DCMAKE_BUILD_TYPE=Release -DSSVM_DISABLE_AOT_RUNTIME=ON -DSTATIC_BUILD=ON ..
+```
+
 ## Run built-in tests
 
 The following built-in tests are only available when the build flag `BUILD_TESTS` sets to `ON`.
@@ -91,46 +98,51 @@ $ ctest
 
 To run SSVM with general wasm runtime, users will need to provide the following parameters:
 
-1. Wasm file(`/path/to/wasm/file`)
-2. (Optional) Entry function name, the default value is `main`
-3. (Optional) Argument List, can be one or more arguments.
+1. (Optional) Reactor mode: use `--reactor` to enable reactor mode.
+	* SSVM will execute the function which name should be given in ARG[0].
+	* If there's exported function which names `_initialize`, the function will be executed with the empty parameter at first.
+2. (Optional) Binding directories into WASI virtual filesystem.
+	* Each directory can be specified as `--dir host_path:guest_path`.
+3. (Optional) Environ variables.
+	* Each variable can be specified as `--env NAME=VALUE`.
+4. Wasm file(`/path/to/wasm/file`).
+5. (Optional) Arguments.
+	* In reactor mode, the first argument will be the function name, and the arguments after ARG[0] will be parameters of wasm function ARG[0].
+	* In command mode, the arguments will be parameters of function `_start`.
 
 ### Example: Fibonacci
 
 ```bash
 # cd <path/to/ssvm/build_folder>
 $ cd tools/ssvm
-# ./ssvm wasm_file.wasm [exported_func_name] [args...]
-$ ./ssvm examples/fibonacci.wasm fib 10
-2020-07-22 10:36:27,721 DEBUG [default] [hydai@unknown-host] [SSVM::Expect<void> SSVM::Interpreter::Interpreter::runFunction(SSVM::Runtime::StoreManager&, const SSVM::Runtime::Instance::FunctionInstance&, SSVM::Span<const SSVM::Support::Variant<unsigned int, long unsigned int, float, double> >)] [/home/hydai/workspace/SSVM/lib/interpreter/engine/engine.cpp:104]  Execution succeeded.
-2020-07-22 10:36:27,721 DEBUG [default] [hydai@unknown-host] [SSVM::Expect<void> SSVM::Interpreter::Interpreter::runFunction(SSVM::Runtime::StoreManager&, const SSVM::Runtime::Instance::FunctionInstance&, SSVM::Span<const SSVM::Support::Variant<unsigned int, long unsigned int, float, double> >)] [/home/hydai/workspace/SSVM/lib/interpreter/engine/engine.cpp:120]
- ====================  Statistics  ====================
- Total execution time: 101 us
- Wasm instructions execution time: 101 us
- Host functions execution time: 0 us
- Executed wasm instructions count: 1766
- Gas costs: 1766
- Instructions per second: 17485148
+# ./ssvm [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--] WASM_FILE [ARG ...]
+$ ./ssvm --reactor examples/fibonacci.wasm fib 10
+89
+```
 
- Return value: 89
+When wrong number of parameter given, the following error message is printed.
+
+```bash
+$ ./ssvm --reactor examples/fibonacci.wasm fib 10 10
+2020-08-21 06:30:37,304 ERROR [default] execution failed: function signature mismatch, Code: 0x83
+2020-08-21 06:30:37,304 ERROR [default]     Mismatched function type. Expected: params{i32} returns{i32} , Got: params{i32 , i32} returns{i32}
+2020-08-21 06:30:37,304 ERROR [default]     When executing function name: "fib"
+```
+
+When calling unknown exported function, the following error message is printed.
+
+```bash
+$ ./ssvm --reactor examples/fibonacci.wasm fib2 10
+2020-08-21 06:30:56,981 ERROR [default] ssvm runtime failed: wasm function not found, Code: 0x04
+2020-08-21 06:30:56,981 ERROR [default]     When executing function name: "fib2"
 ```
 
 ### Example: Factorial
 
 ```bash
-# ./ssvm wasm_file.wasm [exported_func_name] [args...]
-$ ./ssvm examples/factorial.wasm fac 5
-2020-07-22 10:37:36,624 DEBUG [default] [hydai@unknown-host] [SSVM::Expect<void> SSVM::Interpreter::Interpreter::runFunction(SSVM::Runtime::StoreManager&, const SSVM::Runtime::Instance::FunctionInstance&, SSVM::Span<const SSVM::Support::Variant<unsigned int, long unsigned int, float, double> >)] [/home/hydai/workspace/SSVM/lib/interpreter/engine/engine.cpp:104]  Execution succeeded.
-2020-07-22 10:37:36,624 DEBUG [default] [hydai@unknown-host] [SSVM::Expect<void> SSVM::Interpreter::Interpreter::runFunction(SSVM::Runtime::StoreManager&, const SSVM::Runtime::Instance::FunctionInstance&, SSVM::Span<const SSVM::Support::Variant<unsigned int, long unsigned int, float, double> >)] [/home/hydai/workspace/SSVM/lib/interpreter/engine/engine.cpp:120]
- ====================  Statistics  ====================
- Total execution time: 107 us
- Wasm instructions execution time: 107 us
- Host functions execution time: 0 us
- Executed wasm instructions count: 55
- Gas costs: 55
- Instructions per second: 514018
-
- Return value: 120
+# ./ssvm [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--] WASM_FILE [ARG ...]
+$ ./ssvm --reactor examples/factorial.wasm fac 5
+120
 ```
 
 # Related tools

@@ -1,3 +1,32 @@
+### 0.6.5 (2020-08-21)
+
+Features:
+
+* Support WebAssembly reactor mode in both `ssvmr` and `ssvm`.
+
+Refactor:
+
+* Use `vector` instead of `deque` in `Validator`.
+
+Fixed Issues:
+
+* Fixed cost table to support 2-byte instructions.
+* Resolved warnings about signed and unsigned comparing.
+* Fixed printing error about hex strings in error messages.
+* Corrected memory boundary logging in error messages.
+* Ignore `SIGINT` when `ssvm` is forced interrupted.
+
+Tests:
+
+* Add ssvm-aot tests.
+
+Tools:
+
+* Updated `ssvm` interpreter.
+  * `ssvm` provides interpreter mode of executing wasm.
+  * The usage of `ssvm` is the same as `ssvmr`.
+  * Added `STATIC_BUILD` mode for linking std::filesystem statically.
+
 ### 0.6.4 (2020-07-30)
 
 This is a bug-fix release for the warnings.

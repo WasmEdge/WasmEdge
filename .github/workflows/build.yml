@@ -133,5 +133,12 @@ jobs:
       run: |
         cd build
         make -j2 codecov
-        wget https://codecov.io/bash -O codecov.bash
-        bash codecov.bash -t ${{ secrets.CODECOV_TOKEN }} -X gcov -X coveragepy -X search -X xcode -X gcovout -f codecov.xml
+
+    - name: Upload coverage report to Codecov
+      uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./build/codecov.xml
+        name: codecov-ssvm
+        fail_ci_if_error: true
+        path_to_write_report: ./build/codecov_report.gz

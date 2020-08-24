@@ -75,7 +75,7 @@ Expect<uint32_t> FileMgrFStream::readU32() {
   char Byte = 0x80;
   while (!Fin.fail() && Byte & 0x80) {
     Fin.get(Byte);
-    Result |= (Byte & 0x7F) << (Offset);
+    Result |= (Byte & UINT32_C(0x7F)) << (Offset);
     Offset += 7;
   }
   if (Fin.fail()) {
@@ -95,7 +95,7 @@ Expect<uint64_t> FileMgrFStream::readU64() {
   char Byte = 0x80;
   while (!Fin.fail() && Byte & 0x80) {
     Fin.get(Byte);
-    Result |= static_cast<uint64_t>(Byte & 0x7F) << (Offset);
+    Result |= (Byte & UINT64_C(0x7F)) << (Offset);
     Offset += 7;
   }
   if (Fin.fail()) {
@@ -115,7 +115,7 @@ Expect<int32_t> FileMgrFStream::readS32() {
   char Byte = 0x80;
   while (!Fin.fail() && Byte & 0x80) {
     Fin.get(Byte);
-    Result |= (Byte & 0x7F) << (Offset);
+    Result |= (Byte & UINT32_C(0x7F)) << (Offset);
     Offset += 7;
   }
   if (Fin.fail()) {
@@ -138,7 +138,7 @@ Expect<int64_t> FileMgrFStream::readS64() {
   char Byte = 0x80;
   while (!Fin.fail() && Byte & 0x80) {
     Fin.get(Byte);
-    Result |= static_cast<int64_t>(Byte & 0x7F) << (Offset);
+    Result |= (Byte & UINT64_C(0x7F)) << (Offset);
     Offset += 7;
   }
   if (Fin.fail()) {
@@ -261,7 +261,7 @@ Expect<uint32_t> FileMgrVector::readU32() {
       return Unexpect(Status);
     }
     Byte = Code[Pos++];
-    Result |= (Byte & 0x7F) << (Offset);
+    Result |= (Byte & UINT32_C(0x7F)) << (Offset);
     Offset += 7;
   }
   return Result;
@@ -278,7 +278,7 @@ Expect<uint64_t> FileMgrVector::readU64() {
       return Unexpect(Status);
     }
     Byte = Code[Pos++];
-    Result |= static_cast<uint64_t>(Byte & 0x7F) << (Offset);
+    Result |= (Byte & UINT64_C(0x7F)) << (Offset);
     Offset += 7;
   }
   return Result;

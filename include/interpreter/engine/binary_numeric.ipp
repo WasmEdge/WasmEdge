@@ -131,7 +131,9 @@ TypeU<T> Interpreter::runRotlOp(ValVariant &Val1,
   /// Let k be i2 modulo N.
   const T K = retrieveValue<T>(Val2) % (sizeof(T) * 8);
   /// Return the result of rotating i1 left by k bits.
-  I1 = (I1 << K) | (I1 >> (sizeof(T) * 8 - K));
+  if (likely(K != 0)) {
+    I1 = (I1 << K) | (I1 >> (sizeof(T) * 8 - K));
+  }
   return {};
 }
 
@@ -142,7 +144,9 @@ TypeU<T> Interpreter::runRotrOp(ValVariant &Val1,
   /// Let k be i2 modulo N.
   const T K = retrieveValue<T>(Val2) % (sizeof(T) * 8);
   /// Return the result of rotating i1 left by k bits.
-  I1 = (I1 >> K) | (I1 << (sizeof(T) * 8 - K));
+  if (likely(K != 0)) {
+    I1 = (I1 >> K) | (I1 << (sizeof(T) * 8 - K));
+  }
   return {};
 }
 

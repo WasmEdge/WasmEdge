@@ -17,6 +17,8 @@
 #include "section.h"
 
 #include <memory>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace SSVM::Interpreter {
@@ -57,18 +59,70 @@ public:
   CodeSection *getCodeSection() const { return CodeSec.get(); }
   DataSection *getDataSection() const { return DataSec.get(); }
 
-  using TrapProxy = void (*)(Interpreter::Interpreter *, uint32_t);
-  using CallProxy = void (*)(Interpreter::Interpreter *, const uint32_t,
-                             const ValVariant *, ValVariant *);
-  using MemGrowProxy = uint32_t (*)(Interpreter::Interpreter *, const uint32_t);
-  using MemSizeProxy = uint32_t (*)(Interpreter::Interpreter *);
-  using Ctor = void (*)(TrapProxy, CallProxy, MemGrowProxy, MemSizeProxy);
+  using TrapCodeProxy = uint32_t *;
+  using CallProxy = void (*)(const uint32_t FuncIdx, const ValVariant *Args,
+                             ValVariant *Rets);
+  using MemGrowProxy = uint32_t (*)(const uint32_t Diff);
 
-  Ctor getCtor() const { return CtorFunc; }
-  void setCtor(Ctor F) { CtorFunc = F; }
+  void setTrapCodeProxySymbol(TrapCodeProxy *Symbol) {
+    TrapCodeProxySymbol = Symbol;
+  }
+  void setCallProxySymbol(CallProxy *Symbol) { CallProxySymbol = Symbol; }
+  void setMemGrowProxySymbol(MemGrowProxy *Symbol) {
+    MemGrowProxySymbol = Symbol;
+  }
+  void setTrapCodeProxy(TrapCodeProxy Pointer) const {
+    if (TrapCodeProxySymbol)
+      *TrapCodeProxySymbol = Pointer;
+  }
+  void setCallProxy(CallProxy Pointer) const {
+    if (CallProxySymbol)
+      *CallProxySymbol = Pointer;
+  }
+  void setMemGrowProxy(MemGrowProxy Pointer) const {
+    if (MemGrowProxySymbol)
+      *MemGrowProxySymbol = Pointer;
+  }
 
   /// The node type should be ASTNodeAttr::Module.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Module;
+
+  /// Mangling outstanding names for ELF symbol name.
+  /// `$` -> `$$`
+  /// `#` -> `$1`
+  /// `@` -> `$2`
+  /// `\0` -> `$0`
+  static std::string toExportName(std::string_view Name) {
+    using namespace std::literals::string_view_literals;
+    const auto NPos = std::string_view::npos;
+    const auto Esc = "$#@\0"sv;
+    std::string Result(1, '$');
+    size_t Cursor = 0;
+    for (size_t Pos = Name.find_first_of(Esc); Pos != NPos;
+         Cursor = Pos + 1, Pos = Name.find_first_of(Esc, Cursor)) {
+      Result += Name.substr(Cursor, Pos - Cursor);
+      switch (Name[Pos]) {
+      case '$':
+        Result += '$';
+        Result += '$';
+        break;
+      case '#':
+        Result += '$';
+        Result += '1';
+        break;
+      case '@':
+        Result += '$';
+        Result += '2';
+        break;
+      case '\0':
+        Result += '$';
+        Result += '0';
+        break;
+      }
+    }
+    Result += Name.substr(Cursor);
+    return Result;
+  }
 
 private:
   /// \name Data of Module node.
@@ -93,7 +147,9 @@ private:
   std::unique_ptr<DataSection> DataSec;
   /// @}
 
-  Ctor CtorFunc = nullptr;
+  TrapCodeProxy *TrapCodeProxySymbol = nullptr;
+  CallProxy *CallProxySymbol = nullptr;
+  MemGrowProxy *MemGrowProxySymbol = nullptr;
 };
 
 } // namespace AST

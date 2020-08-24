@@ -2,6 +2,7 @@
 #include "aot/compiler.h"
 #include "loader/loader.h"
 #include "support/filesystem.h"
+#include "validator/validator.h"
 #include <iostream>
 
 int main(int Argc, char *Argv[]) {
@@ -35,11 +36,22 @@ int main(int Argc, char *Argv[]) {
     return EXIT_FAILURE;
   }
 
-  SSVM::AOT::Compiler Compiler;
-  if (auto Res = Compiler.compile(Data, *Module, OutputPath); !Res) {
-    const auto Err = static_cast<uint32_t>(Res.error());
-    std::cout << "Compile failed. Error code:" << Err << std::endl;
-    return EXIT_FAILURE;
+  {
+    SSVM::Validator::Validator ValidatorEngine;
+    if (auto Res = ValidatorEngine.validate(*Module); !Res) {
+      const auto Err = static_cast<uint32_t>(Res.error());
+      std::cout << "Validate failed. Error code:" << Err << std::endl;
+      return EXIT_FAILURE;
+    }
+  }
+
+  {
+    SSVM::AOT::Compiler Compiler;
+    if (auto Res = Compiler.compile(Data, *Module, OutputPath); !Res) {
+      const auto Err = static_cast<uint32_t>(Res.error());
+      std::cout << "Compile failed. Error code:" << Err << std::endl;
+      return EXIT_FAILURE;
+    }
   }
 
   return EXIT_SUCCESS;

@@ -161,11 +161,10 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
   }
 
-  /// Call Ctor for compiled module
-  if (auto CtorFunc = Mod.getCtor(); CtorFunc != nullptr) {
-    CtorFunc(Interpreter::trapProxy, Interpreter::callProxy,
-             Interpreter::memGrowProxy, Interpreter::memSizeProxy);
-  }
+  /// Setup callbacks for compiled module
+  Mod.setTrapCodeProxy(&Interpreter::TrapCodeProxy);
+  Mod.setCallProxy(&Interpreter::callProxy);
+  Mod.setMemGrowProxy(&Interpreter::memGrowProxy);
 
   /// Instantiate StartSection (StartSec)
   const AST::StartSection *StartSec = Mod.getStartSection();

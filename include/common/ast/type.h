@@ -85,6 +85,12 @@ public:
   /// The node type should be ASTNodeAttr::Type_Function.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Function;
 
+  friend bool operator==(const FunctionType &LHS,
+                         const FunctionType &RHS) noexcept {
+    return LHS.ParamTypes == RHS.ParamTypes &&
+           LHS.ReturnTypes == RHS.ReturnTypes;
+  }
+
 private:
   /// \name Data of FunctionType node.
   /// @{

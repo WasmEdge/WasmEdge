@@ -11,26 +11,55 @@
 namespace SSVM {
 namespace Interpreter {
 
+Interpreter *Interpreter::This = nullptr;
+uint32_t Interpreter::TrapCodeProxy = 0;
+std::jmp_buf *Interpreter::TrapJump = nullptr;
+
 using TimerTag = Support::TimerTag;
 
-void Interpreter::trapProxy(Interpreter *This, uint32_t Status) {
-  This->trap(Status);
+void Interpreter::signalHandler(int Signal, siginfo_t *Siginfo, void *) {
+  int Status;
+  switch (Signal) {
+  case SIGSEGV:
+    Status = int(ErrCode::MemoryOutOfBounds);
+    break;
+  case SIGFPE:
+    assert(Siginfo->si_code == FPE_INTDIV);
+    Status = int(ErrCode::DivideByZero);
+    break;
+  case SIGILL:
+  case SIGABRT:
+    Status = TrapCodeProxy;
+    break;
+  }
+  siglongjmp(*This->TrapJump, Status);
 }
 
-void Interpreter::callProxy(Interpreter *This, const uint32_t FuncIndex,
-                            const ValVariant *Args, ValVariant *Rets) {
+void Interpreter::callProxy(const uint32_t FuncIndex, const ValVariant *Args,
+                            ValVariant *Rets) {
+  {
+    std::signal(SIGILL, SIG_DFL);
+    std::signal(SIGABRT, SIG_DFL);
+    std::signal(SIGFPE, SIG_DFL);
+    std::signal(SIGSEGV, SIG_DFL);
+  }
+  auto SavedTrapJump = TrapJump;
   This->call(FuncIndex, Args, Rets);
+  TrapJump = SavedTrapJump;
+  {
+    struct sigaction Action {};
+    Action.sa_sigaction = &signalHandler;
+    Action.sa_flags = SA_SIGINFO;
+    sigaction(SIGILL, &Action, nullptr);
+    sigaction(SIGABRT, &Action, nullptr);
+    sigaction(SIGFPE, &Action, nullptr);
+    sigaction(SIGSEGV, &Action, nullptr);
+  }
 }
 
-uint32_t Interpreter::memGrowProxy(Interpreter *This, const uint32_t NewSize) {
+uint32_t Interpreter::memGrowProxy(const uint32_t NewSize) {
   return This->memGrow(NewSize);
 }
-
-uint32_t Interpreter::memSizeProxy(Interpreter *This) {
-  return This->memSize();
-}
-
-void Interpreter::trap(uint32_t Status) { std::longjmp(TrapJump, Status); }
 
 void Interpreter::call(const uint32_t FuncIndex, const ValVariant *Args,
                        ValVariant *Rets) {
@@ -44,12 +73,12 @@ void Interpreter::call(const uint32_t FuncIndex, const ValVariant *Args,
   for (unsigned I = 0; I < ParamsSize; ++I) {
     StackMgr.push(Args[I]);
   }
-  auto Res = enterFunction(*CurrentStore, *FuncInst);
+  if (auto Res = enterFunction(*CurrentStore, *FuncInst); !Res) {
+    siglongjmp(*TrapJump, uint32_t(Res.error()));
+    return;
+  }
   for (unsigned I = 0; I < ReturnsSize; ++I) {
     Rets[ReturnsSize - 1 - I] = StackMgr.pop();
-  }
-  if (!Res) {
-    std::longjmp(TrapJump, uint32_t(Res.error()));
   }
 }
 
@@ -61,11 +90,6 @@ uint32_t Interpreter::memGrow(const uint32_t NewSize) {
   } else {
     return -1;
   }
-}
-
-uint32_t Interpreter::memSize() {
-  auto &MemInst = *getMemInstByIdx(*CurrentStore, 0);
-  return MemInst.getDataPageSize();
 }
 
 Expect<void> Interpreter::runExpression(Runtime::StoreManager &StoreMgr,
@@ -783,12 +807,37 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
 
+    sigjmp_buf JumpBuffer;
     CurrentStore = &StoreMgr;
-    if (int Status = setjmp(TrapJump); Status != 0) {
-      return Unexpect(ErrCode(Status));
+    TrapJump = &JumpBuffer;
+
+    const int Status = sigsetjmp(*TrapJump, true);
+    if (Status == 0) {
+      {
+        struct sigaction Action {};
+        Action.sa_sigaction = &signalHandler;
+        Action.sa_flags = SA_SIGINFO;
+        sigaction(SIGILL, &Action, nullptr);
+        sigaction(SIGABRT, &Action, nullptr);
+        sigaction(SIGFPE, &Action, nullptr);
+        sigaction(SIGSEGV, &Action, nullptr);
+      }
+
+      CompiledFunc(Args.data(), Rets.data());
     }
 
-    CompiledFunc(reinterpret_cast<void *>(this), Args.data(), Rets.data());
+    {
+      std::signal(SIGILL, SIG_DFL);
+      std::signal(SIGABRT, SIG_DFL);
+      std::signal(SIGFPE, SIG_DFL);
+      std::signal(SIGSEGV, SIG_DFL);
+    }
+
+    TrapJump = nullptr;
+
+    if (Status != 0) {
+      return Unexpect(ErrCode(Status));
+    }
 
     for (uint32_t I = 0; I < Rets.size(); ++I) {
       StackMgr.push(Rets[I]);

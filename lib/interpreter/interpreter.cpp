@@ -89,7 +89,7 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
   const auto &FuncType = FuncInst->getFuncType();
   if (FuncType.Params.size() > Params.size()) {
     std::vector<ValType> GotParams;
-    for (auto I = 0; I < Params.size(); ++I) {
+    for (size_t I = 0; I < Params.size(); ++I) {
       GotParams.push_back(FuncType.Params[I]);
     }
     LOG(ERROR) << ErrCode::FuncSigMismatch;
@@ -98,7 +98,7 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
     return Unexpect(ErrCode::FuncSigMismatch);
   } else if (FuncType.Params.size() < Params.size()) {
     std::vector<ValType> GotParams = FuncType.Params;
-    for (auto I = FuncType.Params.size(); I < Params.size(); ++I) {
+    for (size_t I = FuncType.Params.size(); I < Params.size(); ++I) {
       GotParams.push_back(ValType::I32);
     }
     LOG(ERROR) << ErrCode::FuncSigMismatch;

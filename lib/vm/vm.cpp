@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/vm.h"
+#include "host/ssvm_process/processmodule.h"
 #include "host/wasi/wasimodule.h"
 #include "support/log.h"
 
@@ -31,6 +32,15 @@ void VM::initVM() {
     ImpObjs.insert({Configure::VMType::Wasi, std::move(WasiMod)});
     CostTab.setCostTable(Configure::VMType::Wasi);
     Measure.setCostTable(CostTab.getCostTable(Configure::VMType::Wasi));
+  }
+  if (Config.hasVMType(Configure::VMType::SSVM_Process)) {
+    /// 1st priority of cost table: SSVM_Process
+    std::unique_ptr<Runtime::ImportObject> ProcMod =
+        std::make_unique<Host::SSVMProcessModule>();
+    InterpreterEngine.registerModule(StoreRef, *ProcMod.get());
+    ImpObjs.insert({Configure::VMType::SSVM_Process, std::move(ProcMod)});
+    CostTab.setCostTable(Configure::VMType::SSVM_Process);
+    Measure.setCostTable(CostTab.getCostTable(Configure::VMType::SSVM_Process));
   }
 }
 

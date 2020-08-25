@@ -11,6 +11,7 @@ set(ssvmLibs
   ssvmValidator
   ssvmInterpreter
   ssvmHostModuleWasi
+  ssvmHostModuleSSVMProcess
 )
 
 if (NOT SSVM_DISABLE_AOT_RUNTIME)

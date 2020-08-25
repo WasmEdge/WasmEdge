@@ -20,19 +20,16 @@ namespace VM {
 
 class CostTable {
 public:
-  CostTable() = default;
+  CostTable() { setCostTable(Configure::VMType::Wasm); };
   ~CostTable() = default;
 
   /// Add default cost table by types.
   bool setCostTable(const Configure::VMType &Type) {
     switch (Type) {
     case Configure::VMType::Wasm:
-      /// Wasm cost table
-      Costs[Type] = std::vector<uint64_t>(256, 1);
-      return true;
     case Configure::VMType::Wasi:
-      /// Wasi cost table
-      Costs[Type] = std::vector<uint64_t>(256, 1);
+    case Configure::VMType::SSVM_Process:
+      Costs[Type] = std::vector<uint64_t>(UINT16_MAX, 1);
       return true;
     default:
       break;
@@ -43,7 +40,7 @@ public:
   /// Set customized cost table.
   bool setCostTable(const Configure::VMType &Type,
                     const std::vector<uint64_t> &Table) {
-    if (Table.size() < 0xFF) {
+    if (Table.size() < UINT16_MAX) {
       return false;
     }
     Costs[Type] = Table;

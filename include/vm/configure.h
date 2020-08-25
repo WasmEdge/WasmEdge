@@ -21,7 +21,7 @@ namespace VM {
 class Configure {
 public:
   /// VM type enum class.
-  enum class VMType : uint8_t { Wasm = 0, Wasi };
+  enum class VMType : uint8_t { Wasm = 0, Wasi, SSVM_Process };
 
   Configure() { Types.insert(VMType::Wasm); }
   ~Configure() = default;

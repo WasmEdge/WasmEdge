@@ -61,19 +61,34 @@ public:
   DataSection *getDataSection() const { return DataSec.get(); }
   DataCountSection *getDataCountSection() const { return DataCountSec.get(); }
 
-  using TrapCodeProxy = uint32_t *;
-  using CallProxy = void (*)(const uint32_t FuncIdx, const ValVariant *Args,
-                             ValVariant *Rets);
-  using MemGrowProxy = uint32_t (*)(const uint32_t Diff);
+  enum class Intrinsics : uint32_t {
+    kCall,
+    kCallIndirect,
+    kMemCopy,
+    kMemFill,
+    kMemGrow,
+    kMemSize,
+    kMemInit,
+    kDataDrop,
+    kTableGet,
+    kTableSet,
+    kTableCopy,
+    kTableFill,
+    kTableGrow,
+    kTableSize,
+    kTableInit,
+    kElemDrop,
+    kRefFunc,
+    kIntrinsicMax,
+  };
+  using TrapCode = uint32_t *;
+  using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];
 
-  void setTrapCodeProxySymbol(DLSymbol<TrapCodeProxy> Symbol) {
-    TrapCodeProxySymbol = std::move(Symbol);
+  void setTrapCodeSymbol(DLSymbol<TrapCode> Symbol) {
+    TrapCodeSymbol = std::move(Symbol);
   }
-  void setCallProxySymbol(DLSymbol<CallProxy> Symbol) {
-    CallProxySymbol = std::move(Symbol);
-  }
-  void setMemGrowProxySymbol(DLSymbol<MemGrowProxy> Symbol) {
-    MemGrowProxySymbol = std::move(Symbol);
+  void setIntrinsicsTableSymbol(DLSymbol<IntrinsicsTable> Symbol) {
+    IntrinsicsTableSymbol = std::move(Symbol);
   }
   void setInstrCountSymbol(DLSymbol<uint64_t *> Symbol) {
     InstrCountSymbol = std::move(Symbol);
@@ -85,17 +100,15 @@ public:
     GasSymbol = std::move(Symbol);
   }
 
-  void setTrapCodeProxy(TrapCodeProxy Pointer) const {
-    if (TrapCodeProxySymbol)
-      *TrapCodeProxySymbol = Pointer;
+  void setTrapCode(TrapCode Pointer) const {
+    if (TrapCodeSymbol)
+      *TrapCodeSymbol = Pointer;
   }
-  void setCallProxy(CallProxy Pointer) const {
-    if (CallProxySymbol)
-      *CallProxySymbol = Pointer;
-  }
-  void setMemGrowProxy(MemGrowProxy Pointer) const {
-    if (MemGrowProxySymbol)
-      *MemGrowProxySymbol = Pointer;
+  void setIntrinsicsTable(const IntrinsicsTable &Table) const {
+    if (IntrinsicsTableSymbol) {
+      std::copy(std::begin(Table), std::end(Table),
+                std::begin(*IntrinsicsTableSymbol));
+    }
   }
   void setInstrCount(uint64_t &InstrCount) const {
     if (InstrCountSymbol) {
@@ -177,9 +190,8 @@ private:
   std::unique_ptr<DataCountSection> DataCountSec;
   /// @}
 
-  DLSymbol<TrapCodeProxy> TrapCodeProxySymbol;
-  DLSymbol<CallProxy> CallProxySymbol;
-  DLSymbol<MemGrowProxy> MemGrowProxySymbol;
+  DLSymbol<TrapCode> TrapCodeSymbol;
+  DLSymbol<IntrinsicsTable> IntrinsicsTableSymbol;
   DLSymbol<uint64_t *> InstrCountSymbol;
   DLSymbol<uint64_t *> CostTableSymbol;
   DLSymbol<uint64_t *> GasSymbol;

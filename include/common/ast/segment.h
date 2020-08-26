@@ -67,6 +67,11 @@ public:
   /// Getter of locals vector.
   const GlobalType *getGlobalType() const { return Global.get(); }
 
+  /// Getter of compiled symbol.
+  const auto &getSymbol() const noexcept { return Symbol; }
+  /// Setter of compiled symbol.
+  void setSymbol(DLSymbol<ValVariant *> S) noexcept { Symbol = std::move(S); }
+
   /// The node type should be ASTNodeAttr::Seg_Global.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Global;
 
@@ -75,6 +80,8 @@ private:
   /// @{
   std::unique_ptr<GlobalType> Global;
   /// @}
+
+  DLSymbol<ValVariant *> Symbol;
 };
 
 /// AST ElementSegment node.

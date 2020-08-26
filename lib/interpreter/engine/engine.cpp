@@ -12,60 +12,81 @@ namespace SSVM {
 namespace Interpreter {
 
 Interpreter *Interpreter::This = nullptr;
-uint32_t Interpreter::TrapCodeProxy = 0;
+uint32_t Interpreter::TrapCode = 0;
 std::jmp_buf *Interpreter::TrapJump = nullptr;
+AST::Module::IntrinsicsTable Interpreter::IntrinsicsTable = {
+#define ENTRY(NAME, FUNC)                                                      \
+  [uint8_t(AST::Module::Intrinsics::NAME)] =                                   \
+      reinterpret_cast<void *>(&Interpreter::FUNC)
+    ENTRY(kCall, call),           ENTRY(kCallIndirect, callIndirect),
+    ENTRY(kMemCopy, memCopy),     ENTRY(kMemFill, memFill),
+    ENTRY(kMemGrow, memGrow),     ENTRY(kMemSize, memSize),
+    ENTRY(kMemInit, memInit),     ENTRY(kDataDrop, dataDrop),
+    ENTRY(kTableGet, tableGet),   ENTRY(kTableSet, tableSet),
+    ENTRY(kTableCopy, tableCopy), ENTRY(kTableFill, tableFill),
+    ENTRY(kTableGrow, tableGrow), ENTRY(kTableSize, tableSize),
+    ENTRY(kTableInit, tableInit), ENTRY(kElemDrop, elemDrop),
+    ENTRY(kRefFunc, refFunc),
+#undef ENTRY
+};
 
 using TimerTag = Support::TimerTag;
 
-void Interpreter::signalHandler(int Signal, siginfo_t *Siginfo, void *) {
+void Interpreter::signalHandler(int Signal, siginfo_t *Siginfo,
+                                void *) noexcept {
   int Status;
   switch (Signal) {
   case SIGSEGV:
-    Status = int(ErrCode::MemoryOutOfBounds);
+    Status = uint8_t(ErrCode::MemoryOutOfBounds);
     break;
   case SIGFPE:
     assert(Siginfo->si_code == FPE_INTDIV);
-    Status = int(ErrCode::DivideByZero);
+    Status = uint8_t(ErrCode::DivideByZero);
     break;
   case SIGILL:
   case SIGABRT:
-    Status = TrapCodeProxy;
+    Status = TrapCode;
     break;
   }
   siglongjmp(*This->TrapJump, Status);
 }
 
-void Interpreter::callProxy(const uint32_t FuncIndex, const ValVariant *Args,
-                            ValVariant *Rets) {
-  {
-    std::signal(SIGILL, SIG_DFL);
-    std::signal(SIGABRT, SIG_DFL);
-    std::signal(SIGFPE, SIG_DFL);
-    std::signal(SIGSEGV, SIG_DFL);
-  }
-  auto SavedTrapJump = TrapJump;
-  This->call(FuncIndex, Args, Rets);
-  TrapJump = SavedTrapJump;
-  {
-    struct sigaction Action {};
-    Action.sa_sigaction = &signalHandler;
-    Action.sa_flags = SA_SIGINFO;
-    sigaction(SIGILL, &Action, nullptr);
-    sigaction(SIGABRT, &Action, nullptr);
-    sigaction(SIGFPE, &Action, nullptr);
-    sigaction(SIGSEGV, &Action, nullptr);
-  }
+void Interpreter::signalEnable() noexcept {
+  struct sigaction Action {};
+  Action.sa_sigaction = &signalHandler;
+  Action.sa_flags = SA_SIGINFO;
+  sigaction(SIGILL, &Action, nullptr);
+  sigaction(SIGABRT, &Action, nullptr);
+  sigaction(SIGFPE, &Action, nullptr);
+  sigaction(SIGSEGV, &Action, nullptr);
 }
 
-uint32_t Interpreter::memGrowProxy(const uint32_t NewSize) {
-  return This->memGrow(NewSize);
+void Interpreter::signalDisable() noexcept {
+  std::signal(SIGILL, SIG_DFL);
+  std::signal(SIGABRT, SIG_DFL);
+  std::signal(SIGFPE, SIG_DFL);
+  std::signal(SIGSEGV, SIG_DFL);
 }
+
+struct Interpreter::SignalEnabler {
+  SignalEnabler() noexcept { Interpreter::signalEnable(); }
+  ~SignalEnabler() noexcept { Interpreter::signalDisable(); }
+};
+
+struct Interpreter::SignalDisabler {
+  SignalDisabler() noexcept { Interpreter::signalDisable(); }
+  ~SignalDisabler() noexcept { Interpreter::signalEnable(); }
+};
 
 void Interpreter::call(const uint32_t FuncIndex, const ValVariant *Args,
                        ValVariant *Rets) {
-  const auto *ModInst = *CurrentStore->getModule(StackMgr.getModuleAddr());
+  SignalDisabler Disabler;
+  auto &Store = *This->CurrentStore;
+  auto &StackMgr = This->StackMgr;
+
+  const auto *ModInst = *Store.getModule(StackMgr.getModuleAddr());
   const uint32_t FuncAddr = *ModInst->getFuncAddr(FuncIndex);
-  const auto *FuncInst = *CurrentStore->getFunction(FuncAddr);
+  const auto *FuncInst = *Store.getFunction(FuncAddr);
   const auto &FuncType = FuncInst->getFuncType();
   const unsigned ParamsSize = FuncType.Params.size();
   const unsigned ReturnsSize = FuncType.Returns.size();
@@ -73,23 +94,210 @@ void Interpreter::call(const uint32_t FuncIndex, const ValVariant *Args,
   for (unsigned I = 0; I < ParamsSize; ++I) {
     StackMgr.push(Args[I]);
   }
-  if (auto Res = enterFunction(*CurrentStore, *FuncInst); !Res) {
-    siglongjmp(*TrapJump, uint32_t(Res.error()));
-    return;
+
+  if (auto Res = This->enterFunction(Store, *FuncInst); unlikely(!Res)) {
+    siglongjmp(*TrapJump, uint8_t(Res.error()));
   }
+  if (auto Res = This->execute(Store); unlikely(!Res)) {
+    siglongjmp(*TrapJump, uint8_t(Res.error()));
+  }
+
+  for (unsigned I = 0; I < ReturnsSize; ++I) {
+    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
+  }
+}
+
+void Interpreter::callIndirect(const uint32_t TableIndex,
+                               const uint32_t FuncTypeIndex,
+                               const uint32_t FuncIndex, const ValVariant *Args,
+                               ValVariant *Rets) {
+  SignalDisabler Disabler;
+  auto &Store = *This->CurrentStore;
+  auto &StackMgr = This->StackMgr;
+
+  const auto *TabInst = This->getTabInstByIdx(Store, TableIndex);
+
+  if (unlikely(FuncIndex >= TabInst->getSize())) {
+    siglongjmp(*TrapJump, uint8_t(ErrCode::UndefinedElement));
+  }
+
+  ValVariant Ref = *TabInst->getRefAddr(FuncIndex);
+  if (unlikely(isNullRef(Ref))) {
+    siglongjmp(*TrapJump, uint8_t(ErrCode::UninitializedElement));
+  }
+  const auto FuncAddr = retrieveFuncIdx(Ref);
+
+  const auto *ModInst = *Store.getModule(StackMgr.getModuleAddr());
+  const auto *TargetFuncType = *ModInst->getFuncType(FuncTypeIndex);
+  const auto *FuncInst = *Store.getFunction(FuncAddr);
+  const auto &FuncType = FuncInst->getFuncType();
+  if (unlikely(*TargetFuncType != FuncType)) {
+    siglongjmp(*TrapJump, uint8_t(ErrCode::IndirectCallTypeMismatch));
+  }
+
+  const unsigned ParamsSize = FuncType.Params.size();
+  const unsigned ReturnsSize = FuncType.Returns.size();
+
+  for (unsigned I = 0; I < ParamsSize; ++I) {
+    StackMgr.push(Args[I]);
+  }
+
+  if (auto Res = This->enterFunction(Store, *FuncInst); unlikely(!Res)) {
+    siglongjmp(*TrapJump, uint8_t(Res.error()));
+  }
+  if (auto Res = This->execute(Store); unlikely(!Res)) {
+    siglongjmp(*TrapJump, uint8_t(Res.error()));
+  }
+
   for (unsigned I = 0; I < ReturnsSize; ++I) {
     Rets[ReturnsSize - 1 - I] = StackMgr.pop();
   }
 }
 
 uint32_t Interpreter::memGrow(const uint32_t NewSize) {
-  auto &MemInst = *getMemInstByIdx(*CurrentStore, 0);
+  SignalDisabler Disabler;
+  auto &MemInst = *This->getMemInstByIdx(*This->CurrentStore, 0);
   const uint32_t CurrPageSize = MemInst.getDataPageSize();
   if (MemInst.growPage(NewSize)) {
     return CurrPageSize;
   } else {
     return -1;
   }
+}
+
+uint32_t Interpreter::memSize() {
+  SignalDisabler Disabler;
+  auto &MemInst = *This->getMemInstByIdx(*This->CurrentStore, 0);
+  return MemInst.getDataPageSize();
+}
+
+void Interpreter::memCopy(const uint32_t Dst, const uint32_t Src,
+                          const uint32_t Len) {
+  SignalDisabler Disabler;
+  auto &MemInst = *This->getMemInstByIdx(*This->CurrentStore, 0);
+
+  if (auto Data = MemInst.getBytes(Src, Len); unlikely(!Data)) {
+    siglongjmp(*TrapJump, uint8_t(Data.error()));
+  } else {
+    if (auto Res = MemInst.setBytes(*Data, Dst, 0, Len); unlikely(!Res)) {
+      siglongjmp(*TrapJump, uint8_t(Res.error()));
+    }
+  }
+}
+
+void Interpreter::memFill(const uint32_t Off, const uint8_t Val,
+                          const uint32_t Len) {
+  SignalDisabler Disabler;
+  auto &MemInst = *This->getMemInstByIdx(*This->CurrentStore, 0);
+  if (auto Res = MemInst.fillBytes(Val, Off, Len); unlikely(!Res)) {
+    siglongjmp(*TrapJump, uint8_t(Res.error()));
+  }
+}
+
+void Interpreter::memInit(const uint32_t DataIdx, const uint32_t Dst,
+                          const uint32_t Src, const uint32_t Len) {
+  SignalDisabler Disabler;
+  auto &MemInst = *This->getMemInstByIdx(*This->CurrentStore, 0);
+  auto &DataInst = *This->getDataInstByIdx(*This->CurrentStore, DataIdx);
+
+  if (auto Res = MemInst.setBytes(DataInst.getData(), Dst, Src, Len);
+      unlikely(!Res)) {
+    siglongjmp(*TrapJump, uint8_t(Res.error()));
+  }
+}
+
+void Interpreter::dataDrop(const uint32_t DataIdx) {
+  SignalDisabler Disabler;
+  auto &DataInst = *This->getDataInstByIdx(*This->CurrentStore, DataIdx);
+  DataInst.clear();
+}
+
+ValVariant Interpreter::tableGet(const uint32_t TableIndex,
+                                 const uint32_t Idx) {
+  SignalDisabler Disabler;
+  auto &TabInst = *This->getTabInstByIdx(*This->CurrentStore, TableIndex);
+  if (auto Res = TabInst.getRefAddr(Idx); unlikely(!Res)) {
+    siglongjmp(*TrapJump, uint8_t(Res.error()));
+  } else {
+    return *Res;
+  }
+}
+
+void Interpreter::tableSet(const uint32_t TableIndex, const uint32_t Idx,
+                           const ValVariant Ref) {
+  SignalDisabler Disabler;
+  auto &TabInst = *This->getTabInstByIdx(*This->CurrentStore, TableIndex);
+  if (auto Res = TabInst.setRefAddr(Idx, Ref); unlikely(!Res)) {
+    siglongjmp(*TrapJump, uint8_t(Res.error()));
+  }
+}
+
+void Interpreter::tableCopy(const uint32_t TableIndexSrc,
+                            const uint32_t TableIndexDst, const uint32_t Dst,
+                            const uint32_t Src, const uint32_t Len) {
+  SignalDisabler Disabler;
+  auto &TabInstSrc = *This->getTabInstByIdx(*This->CurrentStore, TableIndexSrc);
+  auto &TabInstDst = *This->getTabInstByIdx(*This->CurrentStore, TableIndexDst);
+  if (auto Refs = TabInstSrc.getRefs(Src, Len); unlikely(!Refs)) {
+    siglongjmp(*TrapJump, uint8_t(Refs.error()));
+  } else {
+    if (auto Res = TabInstDst.setRefs(*Refs, Dst, 0, Len); unlikely(!Res)) {
+      siglongjmp(*TrapJump, uint8_t(Res.error()));
+    }
+  }
+}
+
+uint32_t Interpreter::tableGrow(const uint32_t TableIndex, const ValVariant Val,
+                                const uint32_t NewSize) {
+  SignalDisabler Disabler;
+  auto &TabInst = *This->getTabInstByIdx(*This->CurrentStore, TableIndex);
+  const uint32_t CurrTableSize = TabInst.getSize();
+  if (likely(TabInst.growTable(NewSize, Val))) {
+    return CurrTableSize;
+  } else {
+    return -1;
+  }
+}
+
+uint32_t Interpreter::tableSize(const uint32_t TableIndex) {
+  SignalDisabler Disabler;
+  auto &TabInst = *This->getTabInstByIdx(*This->CurrentStore, TableIndex);
+  return TabInst.getSize();
+}
+
+void Interpreter::tableFill(const uint32_t TableIndex, const uint32_t Off,
+                            const ValVariant Ref, const uint32_t Len) {
+  SignalDisabler Disabler;
+  auto &TabInst = *This->getTabInstByIdx(*This->CurrentStore, TableIndex);
+  if (auto Res = TabInst.fillRefs(Ref, Off, Len); unlikely(!Res)) {
+    siglongjmp(*TrapJump, uint8_t(Res.error()));
+  }
+}
+
+void Interpreter::tableInit(const uint32_t TableIndex,
+                            const uint32_t ElementIndex, const uint32_t Dst,
+                            const uint32_t Src, const uint32_t Len) {
+  SignalDisabler Disabler;
+  auto &TabInst = *This->getTabInstByIdx(*This->CurrentStore, TableIndex);
+  auto &ElemInst = *This->getElemInstByIdx(*This->CurrentStore, ElementIndex);
+  if (auto Res = TabInst.setRefs(ElemInst.getRefs(), Dst, Src, Len);
+      unlikely(!Res)) {
+    siglongjmp(*TrapJump, uint8_t(Res.error()));
+  }
+}
+
+void Interpreter::elemDrop(const uint32_t ElementIndex) {
+  SignalDisabler Disabler;
+  auto &ElemInst = *This->getElemInstByIdx(*This->CurrentStore, ElementIndex);
+  ElemInst.clear();
+}
+
+ValVariant Interpreter::refFunc(const uint32_t FuncIndex) {
+  SignalDisabler Disabler;
+  const auto *ModInst =
+      *This->CurrentStore->getModule(This->StackMgr.getModuleAddr());
+  const uint32_t FuncAddr = *ModInst->getFuncAddr(FuncIndex);
+  return genFuncRef(FuncAddr);
 }
 
 Expect<void> Interpreter::runExpression(Runtime::StoreManager &StoreMgr,
@@ -862,7 +1070,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     const size_t RetsN = FuncType.Returns.size();
 
     StackMgr.pushFrame(Func.getModuleAddr(), /// Module address
-                       ArgsN,                /// Arguments num
+                       ArgsN,                /// No Arguments in stack
                        RetsN                 /// Returns num
     );
 
@@ -871,34 +1079,18 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
 
     sigjmp_buf JumpBuffer;
     CurrentStore = &StoreMgr;
-    TrapJump = &JumpBuffer;
+    auto OldTrapJump = std::exchange(TrapJump, &JumpBuffer);
 
     const int Status = sigsetjmp(*TrapJump, true);
     if (Status == 0) {
-      {
-        struct sigaction Action {};
-        Action.sa_sigaction = &signalHandler;
-        Action.sa_flags = SA_SIGINFO;
-        sigaction(SIGILL, &Action, nullptr);
-        sigaction(SIGABRT, &Action, nullptr);
-        sigaction(SIGFPE, &Action, nullptr);
-        sigaction(SIGSEGV, &Action, nullptr);
-      }
-
+      SignalEnabler Enabler;
       Wrapper(CompiledFunc.get(), Args.data(), Rets.data());
     }
 
-    {
-      std::signal(SIGILL, SIG_DFL);
-      std::signal(SIGABRT, SIG_DFL);
-      std::signal(SIGFPE, SIG_DFL);
-      std::signal(SIGSEGV, SIG_DFL);
-    }
-
-    TrapJump = nullptr;
+    TrapJump = std::move(OldTrapJump);
 
     if (Status != 0) {
-      return Unexpect(ErrCode(Status));
+      return Unexpect(ErrCode(uint8_t(Status)));
     }
 
     for (uint32_t I = 0; I < Rets.size(); ++I) {

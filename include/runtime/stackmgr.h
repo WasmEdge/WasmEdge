@@ -16,6 +16,7 @@
 #include "support/casting.h"
 #include "support/span.h"
 
+#include <cassert>
 #include <memory>
 #include <vector>
 
@@ -102,8 +103,11 @@ public:
 
   /// Unsafe pop top frame.
   void popFrame() {
+    assert(LabelStack.size() >= FrameStack.back().LStackOff);
     LabelStack.erase(LabelStack.begin() + FrameStack.back().LStackOff,
                      LabelStack.end());
+    assert(ValueStack.size() >=
+           FrameStack.back().VStackOff + FrameStack.back().Arity);
     ValueStack.erase(ValueStack.begin() + FrameStack.back().VStackOff,
                      ValueStack.end() - FrameStack.back().Arity);
     FrameStack.pop_back();

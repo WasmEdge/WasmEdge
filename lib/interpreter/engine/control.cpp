@@ -157,8 +157,7 @@ Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
   /// Check function type.
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
   const auto &FuncType = FuncInst->getFuncType();
-  if (TargetFuncType->Params != FuncType.Params ||
-      TargetFuncType->Returns != FuncType.Returns) {
+  if (*TargetFuncType != FuncType) {
     LOG(ERROR) << ErrCode::IndirectCallTypeMismatch;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},

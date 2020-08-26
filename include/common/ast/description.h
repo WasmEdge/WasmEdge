@@ -67,6 +67,11 @@ public:
     }
   }
 
+  /// Getter of compiled symbol.
+  const auto &getSymbol() const noexcept { return Symbol; }
+  /// Setter of compiled symbol.
+  void setSymbol(DLSymbol<> S) noexcept { Symbol = std::move(S); }
+
   /// The node type should be ASTNodeAttr::Desc_Import.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Desc_Import;
 
@@ -76,6 +81,7 @@ private:
   std::string ModName;
   std::string ExtName;
   ExtContentType ExtContent;
+  DLSymbol<> Symbol;
   /// @}
 };
 
@@ -97,11 +103,6 @@ public:
   /// Getter of external index.
   uint32_t getExternalIndex() const { return ExtIdx; }
 
-  /// Getter of compiled symbol.
-  const auto &getSymbol() const noexcept { return Symbol; }
-  /// Setter of compiled symbol.
-  void setSymbol(DLSymbol<> S) noexcept { Symbol = std::move(S); }
-
   /// The node type should be ASTNodeAttr::Desc_Export.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Desc_Export;
 
@@ -110,7 +111,6 @@ private:
   /// @{
   std::string ExtName;
   uint32_t ExtIdx;
-  DLSymbol<> Symbol;
   /// @}
 };
 

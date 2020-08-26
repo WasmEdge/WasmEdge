@@ -34,27 +34,18 @@ public:
   ValMut getValMut() const { return Mut; }
 
   /// Getter of value.
-  const ValVariant &getValue() const {
-    if (Symbol) {
-      return *Symbol;
-    } else {
-      return Value;
-    }
-  }
+  const ValVariant &getValue() const { return Value; }
 
   /// Getter of value.
-  ValVariant &getValue() {
-    if (Symbol) {
-      return *Symbol;
-    } else {
-      return Value;
-    }
-  }
+  ValVariant &getValue() { return Value; }
 
   /// Getter of symbol
   const auto getSymbol() const noexcept { return Symbol; }
   /// Setter of symbol
-  void setSymbol(DLSymbol<ValVariant> S) noexcept { Symbol = std::move(S); }
+  void setSymbol(DLSymbol<ValVariant *> S) noexcept {
+    Symbol = std::move(S);
+    *Symbol = &Value;
+  }
 
 private:
   /// \name Data of global instance.
@@ -62,7 +53,7 @@ private:
   const ValType Type;
   const ValMut Mut;
   ValVariant Value;
-  DLSymbol<ValVariant> Symbol;
+  DLSymbol<ValVariant *> Symbol;
   /// @}
 };
 

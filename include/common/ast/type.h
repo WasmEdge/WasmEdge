@@ -99,6 +99,11 @@ public:
            LHS.ReturnTypes == RHS.ReturnTypes;
   }
 
+  friend bool operator!=(const FunctionType &LHS,
+                         const FunctionType &RHS) noexcept {
+    return !(LHS == RHS);
+  }
+
 private:
   /// \name Data of FunctionType node.
   /// @{
@@ -158,6 +163,11 @@ public:
   /// Getter of limit.
   const Limit *getLimit() const { return Table.get(); }
 
+  /// Getter of compiled symbol.
+  const DLSymbol<void> &getSymbol() const { return Symbol; }
+  /// Setter of compiled symbol.
+  void setSymbol(DLSymbol<void> S) { Symbol = std::move(S); }
+
   /// The node type should be ASTNodeAttr::Type_Table.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Table;
 
@@ -167,6 +177,8 @@ private:
   RefType Type;
   std::unique_ptr<Limit> Table;
   /// @}
+
+  DLSymbol<void> Symbol;
 };
 
 /// AST GlobalType node.

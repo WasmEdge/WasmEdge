@@ -82,11 +82,9 @@ Loader::parseModule(std::string_view FilePath) {
       return Unexpect(Code);
     }
     if (auto Res = Mod->loadCompiled(LMgr)) {
-      Mod->setTrapCodeProxySymbol(
-          LMgr.getSymbol<AST::Module::TrapCodeProxy>("code"));
-      Mod->setCallProxySymbol(LMgr.getSymbol<AST::Module::CallProxy>("call"));
-      Mod->setMemGrowProxySymbol(
-          LMgr.getSymbol<AST::Module::MemGrowProxy>("memgrow"));
+      Mod->setTrapCodeSymbol(LMgr.getSymbol<AST::Module::TrapCode>("code"));
+      Mod->setIntrinsicsTableSymbol(
+          LMgr.getSymbol<AST::Module::IntrinsicsTable>("intrinsics"));
       Mod->setInstrCountSymbol(LMgr.getSymbol<uint64_t *>("instr"));
       Mod->setCostTableSymbol(LMgr.getSymbol<uint64_t *>("cost"));
       Mod->setGasSymbol(LMgr.getSymbol<uint64_t *>("gas"));

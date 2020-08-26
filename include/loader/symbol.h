@@ -36,25 +36,51 @@ public:
   DLSymbol &operator=(DLSymbol &&) = default;
 
   operator bool() const noexcept { return Symbol != nullptr; }
-  std::add_lvalue_reference_t<T> operator*() const noexcept { return *Symbol; }
-  T *operator->() const noexcept { return Symbol; }
-  std::add_lvalue_reference_t<T> operator[](size_t Index) const noexcept {
-    return Symbol[Index];
-  }
+  auto &operator*() const noexcept { return *Symbol; }
+  auto operator->() const noexcept { return Symbol; }
   template <typename... ArgT>
   auto operator()(ArgT... Args) const
       noexcept(noexcept(this->Symbol(std::forward<ArgT>(Args)...))) {
     return Symbol(std::forward<ArgT>(Args)...);
   }
-  T *get() const noexcept { return Symbol; }
+  auto get() const noexcept { return Symbol; }
+  auto deref() { return DLSymbol<std::remove_pointer_t<T>>(Handle, *Symbol); }
   template <typename U> DLSymbol<U> cast() const & {
     return DLSymbol<U>(Handle, reinterpret_cast<U *>(Symbol));
   }
   template <typename U> DLSymbol<U> cast() && {
     return DLSymbol<U>(Handle, reinterpret_cast<U *>(std::move(Symbol)));
   }
-  auto index(size_t Index) {
-    return DLSymbol<std::remove_pointer_t<T>>(Handle, Symbol[Index]);
+
+private:
+  std::shared_ptr<DLHandle> Handle;
+  T *Symbol = nullptr;
+};
+
+template <typename T> class DLSymbol<T[]> {
+private:
+  friend class DLHandle;
+  template <typename> friend class DLSymbol;
+
+  DLSymbol(std::shared_ptr<DLHandle> H, T (*S)[])
+      : Handle(std::move(H)), Symbol(*S) {}
+
+public:
+  DLSymbol() = default;
+  DLSymbol(const DLSymbol &) = default;
+  DLSymbol &operator=(const DLSymbol &) = default;
+  DLSymbol(DLSymbol &&) = default;
+  DLSymbol &operator=(DLSymbol &&) = default;
+
+  operator bool() const noexcept { return Symbol != nullptr; }
+  auto &operator[](std::size_t Index) const { return Symbol[Index]; }
+  auto get() const noexcept { return Symbol; }
+  auto index(size_t Index) { return DLSymbol<T>(Handle, &Symbol[Index]); }
+  template <typename U> DLSymbol<U> cast() const & {
+    return DLSymbol<U>(Handle, reinterpret_cast<U *>(Symbol));
+  }
+  template <typename U> DLSymbol<U> cast() && {
+    return DLSymbol<U>(Handle, reinterpret_cast<U *>(std::move(Symbol)));
   }
 
 private:

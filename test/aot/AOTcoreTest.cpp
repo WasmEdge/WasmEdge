@@ -79,12 +79,16 @@ TEST_P(CoreTest, TestSuites) {
   T.onValidate = [&VM, &Compile](const std::string &Filename) -> Expect<void> {
     return Compile(Filename)
         .and_then([&](const std::string &SOFilename) -> Expect<void> {
-          return VM.loadWasm(Filename);
+          return VM.loadWasm(SOFilename);
         })
         .and_then([&VM]() { return VM.validate(); });
   };
-  T.onInstantiate = [&VM](const std::string &Filename) -> Expect<void> {
-    return VM.loadWasm(Filename)
+  T.onInstantiate = [&VM,
+                     &Compile](const std::string &Filename) -> Expect<void> {
+    return Compile(Filename)
+        .and_then([&](const std::string &SOFilename) -> Expect<void> {
+          return VM.loadWasm(SOFilename);
+        })
         .and_then([&VM]() { return VM.validate(); })
         .and_then([&VM]() { return VM.instantiate(); });
   };
@@ -163,6 +167,37 @@ TEST_P(CoreTest, TestSuites) {
         if (V1 != V2) {
           return false;
         }
+      } else if (Type == "funcref"sv) {
+        /// Handle reference value case
+        if (E == "null"sv) {
+          return SSVM::isNullRef(G);
+        } else {
+          if (SSVM::isNullRef(G)) {
+            return false;
+          }
+          uint32_t V1 = SSVM::retrieveFuncIdx(G);
+          uint32_t V2 = static_cast<uint32_t>(std::stoul(E));
+          if (V1 != V2) {
+            return false;
+          }
+        }
+      } else if (Type == "externref"sv) {
+        /// Handle reference value case
+        if (E == "null"sv) {
+          return SSVM::isNullRef(G);
+        } else {
+          if (SSVM::isNullRef(G)) {
+            return false;
+          }
+          /// The added 0x1 uint32_t prefix in externref index case will be
+          /// discarded
+          uint32_t V1 = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
+              &SSVM::retrieveExternRef<uint32_t>(G)));
+          uint32_t V2 = static_cast<uint32_t>(std::stoul(E));
+          if (V1 != V2) {
+            return false;
+          }
+        }
       } else {
         assert(false);
       }
@@ -171,7 +206,7 @@ TEST_P(CoreTest, TestSuites) {
   };
   T.onStringContains = [](const std::string &Expected,
                           const std::string &Got) -> bool {
-    if (Got.rfind(Expected, 0) != 0) {
+    if (Expected.rfind(Got, 0) != 0) {
       std::cout << "   ##### expected text : " << Expected << '\n';
       std::cout << "   ######## error text : " << Got << '\n';
       return false;

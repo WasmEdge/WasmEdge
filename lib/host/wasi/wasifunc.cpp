@@ -515,7 +515,8 @@ WasiClockResGet::body(Runtime::Instance::MemoryInstance *MemInst,
 
 Expect<uint32_t>
 WasiClockTimeGet::body(Runtime::Instance::MemoryInstance *MemInst,
-                       uint32_t ClockId, uint64_t Precision, uint32_t TimePtr) {
+                       uint32_t ClockId, uint64_t Precision [[maybe_unused]],
+                       uint32_t TimePtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_EFAULT;
@@ -545,7 +546,7 @@ WasiClockTimeGet::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_EFAULT;
   }
 
-  timespec SysTimespec = timestamp2Timespec(Precision);
+  timespec SysTimespec;
   if (unlikely(clock_gettime(SysClockId, &SysTimespec) != 0)) {
     return convertErrNo(errno);
   }

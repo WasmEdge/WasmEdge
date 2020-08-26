@@ -232,15 +232,15 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
 
   /// Get exports and find function.
   const auto FuncExp = ModInst->getFuncExports();
-  if (FuncExp.find(Func) == FuncExp.cend()) {
+  auto FuncIter = FuncExp.find(Func);
+  if (FuncIter == FuncExp.cend()) {
     LOG(ERROR) << ErrCode::FuncNotFound;
     LOG(ERROR) << ErrInfo::InfoExecuting(Mod, Func);
     return Unexpect(ErrCode::FuncNotFound);
   }
 
   /// Execute function.
-  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second,
-                                          Params)) {
+  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncIter->second, Params)) {
     return Res;
   } else {
     LOG(ERROR) << ErrInfo::InfoExecuting(Mod, Func);

@@ -17,6 +17,7 @@ target_include_directories(ssvmAST
 )
 
 target_link_libraries(ssvmAST
+  PRIVATE
   ssvmLoaderFileMgr
   ssvmSupport
 )

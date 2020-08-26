@@ -390,18 +390,53 @@ private:
 
   /// \name Run compiled functions
   /// @{
-  void call(const uint32_t FuncIndex, const ValVariant *Args, ValVariant *Rets);
-  uint32_t memGrow(const uint32_t NewSize);
 
   /// Pointer to current object.
   static Interpreter *This;
   /// jmp_buf for trap.
   static sigjmp_buf *TrapJump;
-  static uint32_t TrapCodeProxy;
-  static void callProxy(const uint32_t FuncIndex, const ValVariant *Args,
-                        ValVariant *Rets);
-  static uint32_t memGrowProxy(const uint32_t NewSize);
-  static void signalHandler(int Signal, siginfo_t *Siginfo, void *);
+  static uint32_t TrapCode;
+  static AST::Module::IntrinsicsTable IntrinsicsTable;
+
+  static void call(const uint32_t FuncIndex, const ValVariant *Args,
+                   ValVariant *Rets);
+  static void callIndirect(const uint32_t TableIndex,
+                           const uint32_t FuncTypeIndex,
+                           const uint32_t FuncIndex, const ValVariant *Args,
+                           ValVariant *Rets);
+
+  static uint32_t memGrow(const uint32_t NewSize);
+  static uint32_t memSize();
+  static void memCopy(const uint32_t Dst, const uint32_t Src,
+                      const uint32_t Len);
+  static void memFill(const uint32_t Off, const uint8_t Val,
+                      const uint32_t Len);
+  static void memInit(const uint32_t DataIdx, const uint32_t Dst,
+                      const uint32_t Src, const uint32_t Len);
+  static void dataDrop(const uint32_t DataIdx);
+
+  static ValVariant tableGet(const uint32_t TableIndex, const uint32_t Idx);
+  static void tableSet(const uint32_t TableIndex, const uint32_t Idx,
+                       const ValVariant Ref);
+  static void tableCopy(const uint32_t TableIndexSrc,
+                        const uint32_t TableIndexDst, const uint32_t Dst,
+                        const uint32_t Src, const uint32_t Len);
+  static uint32_t tableGrow(const uint32_t TableIndex, const ValVariant Val,
+                            const uint32_t NewSize);
+  static uint32_t tableSize(const uint32_t TableIndex);
+  static void tableFill(const uint32_t TableIndex, const uint32_t Off,
+                        const ValVariant Ref, const uint32_t Len);
+  static void tableInit(const uint32_t TableIndex, const uint32_t ElemIndex,
+                        const uint32_t Dst, const uint32_t Src,
+                        const uint32_t Len);
+  static void elemDrop(const uint32_t ElemIndex);
+  static ValVariant refFunc(const uint32_t FuncIndex);
+
+  static void signalEnable() noexcept;
+  static void signalDisable() noexcept;
+  static void signalHandler(int Signal, siginfo_t *Siginfo, void *) noexcept;
+  struct SignalEnabler;
+  struct SignalDisabler;
   /// @}
 
   enum class InstantiateMode : uint8_t { Instantiate = 0, ImportWasm };

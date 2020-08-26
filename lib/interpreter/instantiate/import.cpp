@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/ast/section.h"
 #include "common/types.h"
+#include "common/value.h"
 #include "interpreter/interpreter.h"
 #include "runtime/instance/function.h"
 #include "runtime/instance/global.h"
@@ -167,7 +168,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       AST::MemoryType *MemType =
           *ImpDesc->getExternalContent<AST::MemoryType>();
       /// Import matching.
-      const auto *TargetInst = *StoreMgr.getMemory(TargetAddr);
+      auto *TargetInst = *StoreMgr.getMemory(TargetAddr);
       const auto *MemLim = MemType->getLimit();
       if (!isLimitMatched(TargetInst->getHasMax(), TargetInst->getMin(),
                           TargetInst->getMax(), MemLim->hasMax(),
@@ -183,6 +184,9 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       }
       /// Set the matched memory address to module instance.
       ModInst.importMemory(TargetAddr);
+      if (auto Symbol = ImpDesc->getSymbol()) {
+        *Symbol.cast<uint8_t *>() = TargetInst->getPointer<uint8_t *>(0);
+      }
       break;
     }
     case ExternalType::Global: {
@@ -190,7 +194,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       AST::GlobalType *GlobType =
           *ImpDesc->getExternalContent<AST::GlobalType>();
       /// Import matching.
-      const auto *TargetInst = *StoreMgr.getGlobal(TargetAddr);
+      auto *TargetInst = *StoreMgr.getGlobal(TargetAddr);
       if (TargetInst->getValType() != GlobType->getValueType() ||
           TargetInst->getValMut() != GlobType->getValueMutation()) {
         LOG(ERROR) << ErrCode::IncompatibleImportType;
@@ -203,6 +207,9 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       }
       /// Set the matched global address to module instance.
       ModInst.importGlobal(TargetAddr);
+      if (auto Symbol = ImpDesc->getSymbol()) {
+        *Symbol.cast<ValVariant *>() = &TargetInst->getValue();
+      }
       break;
     }
     default:

@@ -31,13 +31,22 @@ struct FType {
   FType(Span<const ValType> P, Span<const ValType> R, DLSymbol<Wrapper> S)
       : Params(P.begin(), P.end()), Returns(R.begin(), R.end()),
         Symbol(std::move(S)) {}
-  std::vector<ValType> Params;
-  std::vector<ValType> Returns;
+
+  friend bool operator==(const FType &LHS, const FType &RHS) noexcept {
+    return LHS.Params == RHS.Params && LHS.Returns == RHS.Returns;
+  }
+
+  friend bool operator!=(const FType &LHS, const FType &RHS) noexcept {
+    return !(LHS == RHS);
+  }
 
   /// Getter of symbol
   const auto &getSymbol() const noexcept { return Symbol; }
   /// Setter of symbol
   void setSymbol(DLSymbol<Wrapper> S) { Symbol = std::move(S); }
+
+  std::vector<ValType> Params;
+  std::vector<ValType> Returns;
 
   DLSymbol<Wrapper> Symbol;
 };

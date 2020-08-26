@@ -158,9 +158,8 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   }
 
   /// Setup callbacks for compiled module
-  Mod.setTrapCodeProxy(&Interpreter::TrapCodeProxy);
-  Mod.setCallProxy(&Interpreter::callProxy);
-  Mod.setMemGrowProxy(&Interpreter::memGrowProxy);
+  Mod.setTrapCode(&Interpreter::TrapCode);
+  Mod.setIntrinsicsTable(Interpreter::IntrinsicsTable);
   if (Measure) {
     Mod.setInstrCount(Measure->getInstrCnt());
     Mod.setGas(Measure->getCostSum());

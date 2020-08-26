@@ -131,11 +131,7 @@ public:
       LOG(ERROR) << ErrInfo::InfoBoundary(Idx, 1, getBoundIdx());
       return Unexpect(ErrCode::TableOutOfBounds);
     }
-    if (Symbol) {
-      return genFuncRef(Symbol[Idx]);
-    } else {
-      return Refs[Idx];
-    }
+    return Refs[Idx];
   }
 
   /// Set the elem address.
@@ -145,7 +141,6 @@ public:
       LOG(ERROR) << ErrInfo::InfoBoundary(Idx, 1, getBoundIdx());
       return Unexpect(ErrCode::TableOutOfBounds);
     }
-    /// TODO: Symbol.
     Refs[Idx] = Val;
     return {};
   }
@@ -153,7 +148,10 @@ public:
   /// Getter of symbol
   const auto &getSymbol() const noexcept { return Symbol; }
   /// Setter of symbol
-  void setSymbol(DLSymbol<uint32_t> S) noexcept { Symbol = std::move(S); }
+  void setSymbol(DLSymbol<TableInstance *> S) noexcept {
+    Symbol = std::move(S);
+    *Symbol = this;
+  }
 
 private:
   /// \name Data of table instance.
@@ -162,7 +160,7 @@ private:
   const bool HasMaxSize;
   const uint32_t MaxSize;
   std::vector<ValVariant> Refs;
-  DLSymbol<uint32_t> Symbol;
+  DLSymbol<TableInstance *> Symbol;
   /// @}
 };
 

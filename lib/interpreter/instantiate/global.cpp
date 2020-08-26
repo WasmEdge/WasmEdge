@@ -29,6 +29,10 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     /// Pop result from stack.
     NewGlobInst->getValue() = StackMgr.pop();
 
+    if (auto Symbol = GlobSeg->getSymbol()) {
+      NewGlobInst->setSymbol(std::move(Symbol));
+    }
+
     /// Insert global instance to store manager.
     uint32_t NewGlobInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {

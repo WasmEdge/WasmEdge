@@ -203,49 +203,71 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
 
 /// Load compiled function from loadable manager. See "include/ast/module.h".
 Expect<void> Module::loadCompiled(LDMgr &Mgr) {
-  if (ExportSec) {
-    for (auto &ExpDesc : ExportSec->getContent()) {
-      const std::string Name = toExportName(ExpDesc->getExternalName());
-      switch (ExpDesc->getExternalType()) {
+  if (ImportSec) {
+    for (auto &ImpDesc : ImportSec->getContent()) {
+      const std::string ModName(ImpDesc->getModuleName());
+      const std::string ExtName(ImpDesc->getExternalName());
+      const std::string FullName =
+          AST::Module::toExportName(ModName + '.' + ExtName);
+      switch (ImpDesc->getExternalType()) {
       case ExternalType::Function:
+        break;
+      case ExternalType::Table:
+        break;
       case ExternalType::Global:
-        if (auto Symbol = Mgr.getSymbol(Name.c_str())) {
-          ExpDesc->setSymbol(std::move(Symbol));
+        if (auto Symbol = Mgr.getSymbol(FullName.c_str())) {
+          ImpDesc->setSymbol(std::move(Symbol));
         } else {
           LOG(ERROR) << ErrCode::InvalidGlobalIdx;
-          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Desc_Export);
-          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Sec_Export);
+          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Desc_Import);
+          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Sec_Import);
           LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
           return Unexpect(ErrCode::InvalidGlobalIdx);
         }
         break;
-      case ExternalType::Table:
       case ExternalType::Memory:
+        if (auto Symbol = Mgr.getSymbol(FullName.c_str())) {
+          ImpDesc->setSymbol(std::move(Symbol));
+        } else {
+          LOG(ERROR) << ErrCode::InvalidMemoryIdx;
+          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Desc_Import);
+          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Sec_Import);
+          LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+          return Unexpect(ErrCode::InvalidMemoryIdx);
+        }
         break;
       default:
-        LOG(ERROR) << ErrCode::InvalidMemoryIdx;
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Desc_Export);
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Sec_Export);
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-        return Unexpect(ErrCode::InvalidMemoryIdx);
+        break;
+      }
+    }
+  }
+  if (GlobalSec) {
+    if (auto Symbol = Mgr.getSymbol<ValVariant *[]>("globals")) {
+      const auto &GlobalSecs = GlobalSec->getContent();
+      for (size_t I = 0; I < GlobalSecs.size(); ++I) {
+        GlobalSecs[I]->setSymbol(Symbol.index(I));
       }
     }
   }
   if (TypeSec) {
-    if (auto Symbol = Mgr.getSymbol<FunctionType::Wrapper *>("types")) {
+    if (auto Symbol = Mgr.getSymbol<FunctionType::Wrapper *[]>("types")) {
       const auto &TypeSecs = TypeSec->getContent();
       for (size_t I = 0; I < TypeSecs.size(); ++I) {
-        TypeSecs[I]->setSymbol(Symbol.index(I));
+        TypeSecs[I]->setSymbol(Symbol.index(I).deref());
       }
     }
   }
   if (CodeSec) {
-    if (auto Symbol = Mgr.getSymbol<void *>("codes")) {
+    if (auto Symbol = Mgr.getSymbol<void *[]>("codes")) {
       const auto &CodeSecs = CodeSec->getContent();
       for (size_t I = 0; I < CodeSecs.size(); ++I) {
-        CodeSecs[I]->setSymbol(Symbol.index(I));
+        CodeSecs[I]->setSymbol(Symbol.index(I).deref());
       }
     }
+  }
+  if (TableSec) {
+    auto &TableType = TableSec->getContent().front();
+    TableType->setSymbol(Mgr.getSymbol("table"));
   }
   if (MemorySec) {
     auto &MemType = MemorySec->getContent().front();

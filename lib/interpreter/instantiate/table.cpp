@@ -17,6 +17,10 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     /// Make a new table instance.
     auto NewTabInst = std::make_unique<Runtime::Instance::TableInstance>(
         TabType->getReferenceType(), *TabType->getLimit());
+    if (auto Symbol =
+            TabType->getSymbol().cast<Runtime::Instance::TableInstance *>()) {
+      NewTabInst->setSymbol(Symbol);
+    }
 
     /// Insert table instance to store manager.
     uint32_t NewTabInstAddr;

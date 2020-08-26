@@ -13,6 +13,7 @@
 
 #include "common/ast/module.h"
 #include "common/errcode.h"
+#include "common/version.h"
 #include <cstdint>
 #include <string_view>
 
@@ -21,8 +22,6 @@ namespace AOT {
 
 class Compiler {
 public:
-  static inline uint32_t kVersion = 1;
-
   Expect<void> compile(Span<const Byte> Data, const AST::Module &Module,
                        std::string_view OutputPath);
   Expect<void> compile(const AST::ImportSection &ImportSection);

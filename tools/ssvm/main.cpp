@@ -50,6 +50,7 @@ int main(int Argc, const char *Argv[]) {
   std::string InputPath = std::filesystem::absolute(WasmName.value()).string();
   SSVM::VM::Configure Conf;
   Conf.addVMType(SSVM::VM::Configure::VMType::Wasi);
+  Conf.addVMType(SSVM::VM::Configure::VMType::SSVM_Process);
   SSVM::VM::VM VM(Conf);
 
   SSVM::Host::WasiModule *WasiMod = dynamic_cast<SSVM::Host::WasiModule *>(

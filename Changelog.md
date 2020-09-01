@@ -1,3 +1,22 @@
+### 0.6.6 (2020-09-02)
+
+Features:
+
+* Add option for dumping LLVM IR in `ssvmc`.
+* Add `SSVM_Process` configuration.
+  * VM with this option will import `ssvm_process` host modules.
+  * `ssvm_process` host functions are SSVM extension for executing commands.
+  * This host module is to support wasm compiled from rust with [`rust_process_interface_library` crate.](https://github.com/second-state/rust_process_interface_library).
+* Turn on `SSVM_Process` configuration in both `ssvmr` and `ssvm`.
+
+Refactor:
+
+* Apply `mprotect` memory boundary checking in `memory instance`.
+
+Fixed Issues:
+
+* Prevent undefined behavior on shift operations in interpreter and file manager.
+
 ### 0.6.5 (2020-08-21)
 
 Features:

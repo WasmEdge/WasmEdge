@@ -41,7 +41,7 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
     Func.second->setModuleAddr(ModInstAddr);
     uint32_t Addr = StoreMgr.importHostFunction(*Func.second.get());
     ModInst->addFuncAddr(Addr);
-    ModInst->exportFuncion(Func.first, ModInst->getFuncNum() - 1);
+    ModInst->exportFunction(Func.first, ModInst->getFuncNum() - 1);
   }
   for (auto &Tab : Obj.getTables()) {
     uint32_t Addr = StoreMgr.importHostTable(*Tab.second.get());

@@ -55,7 +55,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
   }
 
-  /// Instantiate Functions in module. (FuncionSec, CodeSec)
+  /// Instantiate Functions in module. (FunctionSec, CodeSec)
   const AST::FunctionSection *FuncSec = Mod.getFunctionSection();
   const AST::CodeSection *CodeSec = Mod.getCodeSection();
   if (FuncSec != nullptr && CodeSec != nullptr) {

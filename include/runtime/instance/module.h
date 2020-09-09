@@ -46,7 +46,7 @@ public:
   }
 
   /// Exports functions.
-  void exportFuncion(std::string_view Name, const uint32_t Idx) {
+  void exportFunction(std::string_view Name, const uint32_t Idx) {
     ExpFuncs.emplace(Name, FuncAddrs[Idx]);
   }
   void exportTable(std::string_view Name, const uint32_t Idx) {

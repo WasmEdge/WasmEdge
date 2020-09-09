@@ -1,3 +1,11 @@
+### 0.6.7 (2020-09-09)
+
+This is a bug-fix release for the ssvm_process component.
+
+Fixed Issues:
+
+* Handle the large size writing to pipe in `ssvm_process`.
+
 ### 0.6.6 (2020-09-02)
 
 Features:

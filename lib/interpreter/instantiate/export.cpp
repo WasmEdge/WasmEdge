@@ -27,7 +27,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     /// Add the name of instances module.
     switch (ExtType) {
     case ExternalType::Function:
-      ModInst.exportFuncion(ExtName, ExtIdx);
+      ModInst.exportFunction(ExtName, ExtIdx);
       if (Symbol) {
         uint32_t Addr = *ModInst.getFuncAddr(ExtIdx);
         auto *Inst = *StoreMgr.getFunction(Addr);

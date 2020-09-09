@@ -1824,7 +1824,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
         return {};
       })
       .and_then([&]() -> Expect<void> {
-        /// compile Functions in module. (FuncionSec, CodeSec)
+        /// compile Functions in module. (FunctionSec, CodeSec)
         if (const AST::FunctionSection *FuncSec = Module.getFunctionSection()) {
           if (const AST::CodeSection *CodeSec = Module.getCodeSection()) {
             return compile(*FuncSec, *CodeSec);

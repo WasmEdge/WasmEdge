@@ -3,6 +3,7 @@
 #include "host/ssvm_process/processfunc.h"
 
 #include <fcntl.h>
+#include <limits.h>
 #include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -150,11 +151,20 @@ SSVMProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
     close(FDStdErr[1]);
 
     /// Send inputs.
-    write(FDStdIn[1], &Env.StdIn[0], Env.StdIn.size());
+    uint32_t WBytes = 0;
+    while (WBytes < Env.StdIn.size()) {
+      uint32_t WriteNum =
+          std::min(static_cast<size_t>(PIPE_BUF), Env.StdIn.size() - WBytes);
+      if (auto Res = write(FDStdIn[1], &Env.StdIn[WBytes], WriteNum); Res > 0) {
+        WBytes += Res;
+      } else {
+        break;
+      }
+    }
     close(FDStdIn[1]);
 
     /// Waiting for child process and get outputs.
-    uint8_t Buf[1024];
+    uint8_t Buf[PIPE_BUF];
     ssize_t RBytes;
     int ChildStat;
     struct timeval TStart, TCurr;

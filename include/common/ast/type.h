@@ -67,6 +67,8 @@ private:
 /// AST FunctionType node.
 class FunctionType : public Base {
 public:
+  using Wrapper = void(void *Function, const ValVariant *Args,
+                       ValVariant *Rets);
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Base.
@@ -83,6 +85,11 @@ public:
   /// Getter of return types vector.
   Span<const ValType> getReturnTypes() const { return ReturnTypes; }
 
+  /// Getter of compiled symbol.
+  const auto &getSymbol() const noexcept { return Symbol; }
+  /// Setter of compiled symbol.
+  void setSymbol(DLSymbol<Wrapper> S) { Symbol = std::move(S); }
+
   /// The node type should be ASTNodeAttr::Type_Function.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Function;
 
@@ -98,6 +105,8 @@ private:
   std::vector<ValType> ParamTypes;
   std::vector<ValType> ReturnTypes;
   /// @}
+
+  DLSymbol<Wrapper> Symbol;
 };
 
 /// AST MemoryType node.

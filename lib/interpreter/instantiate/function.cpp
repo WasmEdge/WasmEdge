@@ -24,6 +24,10 @@ Expect<void> Interpreter::instantiate(
         ModInst.Addr, *FuncType, CodeSegs[I]->getLocals(),
         CodeSegs[I]->getInstrs());
 
+    if (auto Symbol = CodeSegs[I]->getSymbol()) {
+      NewFuncInst->setSymbol(std::move(Symbol));
+    }
+
     /// Insert function instance to store manager.
     uint32_t NewFuncInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {

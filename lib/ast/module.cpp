@@ -210,7 +210,7 @@ Expect<void> Module::loadCompiled(LDMgr &Mgr) {
       case ExternalType::Function:
       case ExternalType::Global:
         if (auto Symbol = Mgr.getSymbol(Name.c_str())) {
-          ExpDesc->setSymbol(Symbol);
+          ExpDesc->setSymbol(std::move(Symbol));
         } else {
           LOG(ERROR) << ErrCode::InvalidGlobalIdx;
           LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Desc_Export);
@@ -228,6 +228,22 @@ Expect<void> Module::loadCompiled(LDMgr &Mgr) {
         LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Sec_Export);
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(ErrCode::InvalidMemoryIdx);
+      }
+    }
+  }
+  if (TypeSec) {
+    if (auto Symbol = Mgr.getSymbol<FunctionType::Wrapper *>("types")) {
+      const auto &TypeSecs = TypeSec->getContent();
+      for (size_t I = 0; I < TypeSecs.size(); ++I) {
+        TypeSecs[I]->setSymbol(Symbol.index(I));
+      }
+    }
+  }
+  if (CodeSec) {
+    if (auto Symbol = Mgr.getSymbol<void *>("codes")) {
+      const auto &CodeSecs = CodeSec->getContent();
+      for (size_t I = 0; I < CodeSecs.size(); ++I) {
+        CodeSecs[I]->setSymbol(Symbol.index(I));
       }
     }
   }

@@ -856,6 +856,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     }
     return Ret;
   } else if (auto CompiledFunc = Func.getSymbol()) {
+    auto Wrapper = Func.getFuncType().getSymbol();
     /// Compiled function case: Push frame with locals and args.
     const size_t ArgsN = FuncType.Params.size();
     const size_t RetsN = FuncType.Returns.size();
@@ -884,7 +885,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
         sigaction(SIGSEGV, &Action, nullptr);
       }
 
-      CompiledFunc(Args.data(), Rets.data());
+      Wrapper(CompiledFunc.get(), Args.data(), Rets.data());
     }
 
     {

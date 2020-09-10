@@ -25,7 +25,7 @@ namespace Instance {
 
 class FunctionInstance {
 public:
-  using CompiledFunction = void(const ValVariant *Args, ValVariant *Rets);
+  using CompiledFunction = void;
 
   FunctionInstance() = delete;
   /// Constructor for native function.

@@ -52,7 +52,7 @@ class FunctionCompiler;
 template <typename... Ts> struct overloaded : Ts... {
   using Ts::operator()...;
 };
-template <typename... Ts> overloaded(Ts...)->overloaded<Ts...>;
+template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 /// force checking div/rem on zero
 static inline constexpr bool ForceDivCheck = false;
@@ -108,6 +108,7 @@ struct SSVM::AOT::Compiler::CompileContext {
       false;
 #endif
   std::vector<const AST::FunctionType *> FunctionTypes;
+  std::vector<llvm::Function *> FunctionWrappers;
   std::vector<uint64_t> Elements;
   std::vector<
       std::tuple<unsigned int, llvm::Function *, SSVM::AST::CodeSegment *>>
@@ -1961,6 +1962,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
         auto Object = llvm::sys::fs::TempFile::create(OPath.native());
         if (!Object) {
           // TODO:return error
+          LOG(ERROR) << "so file creation failed:" << OPath.native();
           llvm::consumeError(Object.takeError());
           return {};
         }
@@ -1968,6 +1970,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
         auto OS = std::make_unique<llvm::raw_fd_ostream>(Object->TmpName, EC);
         if (EC) {
           // TODO:return error
+          LOG(ERROR) << "object file creation failed:" << Object->TmpName;
           llvm::consumeError(Object->discard());
           return {};
         }
@@ -1980,7 +1983,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
               llvm::TargetRegistry::lookupTarget(Triple, Error);
           if (!TheTarget) {
             // TODO:return error
-            llvm::errs() << "lookupTarget failed\n";
+            LOG(ERROR) << "lookupTarget failed";
             llvm::consumeError(Object->discard());
             return {};
           }
@@ -2049,7 +2052,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 #endif
                                       false)) {
             // TODO:return error
-            llvm::errs() << "addPassesToEmitFile failed\n";
+            LOG(ERROR) << "addPassesToEmitFile failed";
             llvm::consumeError(Object->discard());
             return {};
           }
@@ -2099,17 +2102,105 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 }
 
 Expect<void> Compiler::compile(const AST::TypeSection &TypeSection) {
+  auto *WrapperTy = llvm::FunctionType::get(
+      Context->VoidTy,
+      {Context->Int8PtrTy, Context->Int8PtrTy, Context->Int8PtrTy}, false);
+  const auto &FuncTypes = TypeSection.getContent();
+  const auto Size = FuncTypes.size();
+  std::vector<llvm::Constant *> Types;
+  Types.reserve(Size);
+  Context->FunctionTypes.reserve(Size);
+  Context->FunctionWrappers.reserve(Size);
+
   /// Iterate and compile types.
-  for (const auto &FuncType : TypeSection.getContent()) {
-    /// Copy param and return lists to module instance.
-    Context->FunctionTypes.push_back(FuncType.get());
+  for (size_t I = 0; I < Size; ++I) {
+    const auto &FuncType = *FuncTypes[I];
+
+    /// Check function type is unique
+    {
+      bool Unique = true;
+      for (size_t J = 0; J < I; ++J) {
+        const auto &OldFuncType = *Context->FunctionTypes[J];
+        if (OldFuncType == FuncType) {
+          Unique = false;
+          Context->FunctionTypes.push_back(&OldFuncType);
+          auto *F = Context->FunctionWrappers[J];
+          Context->FunctionWrappers.push_back(F);
+          Types.push_back(Types[J]);
+          break;
+        }
+      }
+      if (!Unique) {
+        continue;
+      }
+    }
+
+    /// Create Wrapper
+    auto *F = llvm::Function::Create(
+        WrapperTy, llvm::Function::InternalLinkage,
+        "t" + std::to_string(Context->FunctionTypes.size()), Context->LLModule);
+    {
+      F->addFnAttr(llvm::Attribute::StrictFP);
+      llvm::IRBuilder<> Builder(
+          llvm::BasicBlock::Create(F->getContext(), "entry", F));
+      Builder.setIsFPConstrained(true);
+      Builder.setDefaultConstrainedRounding(RoundingMode::rmToNearest);
+      Builder.setDefaultConstrainedExcept(ExceptionBehavior::ebIgnore);
+      auto *FTy = toLLVMType(Context->LLContext, FuncType);
+      auto *RTy = FTy->getReturnType();
+      const size_t ArgCount = FTy->getNumParams();
+      const size_t RetCount =
+          RTy->isVoidTy()
+              ? 0
+              : (RTy->isStructTy() ? RTy->getStructNumElements() : 1);
+      auto *RawFunc =
+          Builder.CreateBitCast(F->arg_begin(), FTy->getPointerTo());
+      auto *RawArgs = F->arg_begin() + 1;
+      auto *RawRets = F->arg_begin() + 2;
+
+      std::vector<llvm::Value *> Args;
+      Args.reserve(FTy->getNumParams());
+      for (size_t I = 0; I < ArgCount; ++I) {
+        auto *ArgTy = FTy->getParamType(I);
+        llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(RawArgs, I * 8);
+        llvm::Value *Ptr = Builder.CreateBitCast(VPtr, ArgTy->getPointerTo());
+        Args.push_back(Builder.CreateLoad(Ptr));
+      }
+
+      auto Ret = Builder.CreateCall(RawFunc, Args);
+      if (RTy->isVoidTy()) {
+        // nothing to do
+      } else if (RTy->isStructTy()) {
+        auto Rets = unpackStruct(Builder, Ret);
+        for (size_t I = 0; I < RetCount; ++I) {
+          llvm::Value *VPtr =
+              Builder.CreateConstInBoundsGEP1_64(RawRets, I * 8);
+          llvm::Value *Ptr =
+              Builder.CreateBitCast(VPtr, Rets[I]->getType()->getPointerTo());
+          Builder.CreateStore(Rets[I], Ptr);
+        }
+      } else {
+        llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(RawRets, 0);
+        llvm::Value *Ptr =
+            Builder.CreateBitCast(VPtr, Ret->getType()->getPointerTo());
+        Builder.CreateStore(Ret, Ptr);
+      }
+      Builder.CreateRetVoid();
+    }
+    /// Copy wrapper, param and return lists to module instance.
+    Context->FunctionTypes.push_back(&FuncType);
+    Context->FunctionWrappers.push_back(F);
+    Types.push_back(llvm::ConstantExpr::getBitCast(F, Context->Int8PtrTy));
   }
 
+  auto *ArrayTy = llvm::ArrayType::get(Context->Int8PtrTy, Size);
+  new llvm::GlobalVariable(Context->LLModule, ArrayTy, false,
+                           llvm::GlobalValue::ExternalLinkage,
+                           llvm::ConstantArray::get(ArrayTy, Types), "types");
   return {};
 }
 
 Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
-  auto &LLContext = Context->LLContext;
   /// Iterate and compile import descriptions.
   for (const auto &ImpDesc : ImportSec.getContent()) {
     /// Get data from import description.
@@ -2136,13 +2227,13 @@ Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
       }
       const auto &FuncType = *Context->FunctionTypes[*TypeIdx];
 
-      llvm::FunctionType *FTy = toLLVMType(LLContext, FuncType);
+      llvm::FunctionType *FTy = toLLVMType(Context->LLContext, FuncType);
       auto *RTy = FTy->getReturnType();
       auto *F = llvm::Function::Create(FTy, llvm::Function::InternalLinkage,
                                        FullName, Context->LLModule);
       F->addFnAttr(llvm::Attribute::StrictFP);
 
-      auto *Entry = llvm::BasicBlock::Create(LLContext, "entry", F);
+      auto *Entry = llvm::BasicBlock::Create(Context->LLContext, "entry", F);
       llvm::IRBuilder<> Builder(Entry);
       Builder.setIsFPConstrained(true);
       Builder.setDefaultConstrainedRounding(RoundingMode::rmToNearest);
@@ -2226,59 +2317,9 @@ Expect<void> Compiler::compile(const AST::ExportSection &ExportSec) {
   for (const auto &ExpDesc : ExportSec.getContent()) {
     switch (ExpDesc->getExternalType()) {
     case ExternalType::Function: {
-      auto *Wrapper = llvm::Function::Create(
-          llvm::FunctionType::get(
-              Context->VoidTy, {Context->Int8PtrTy, Context->Int8PtrTy}, false),
-          llvm::GlobalValue::ExternalLinkage,
-          AST::Module::toExportName(ExpDesc->getExternalName()),
-          Context->LLModule);
-      Wrapper->addFnAttr(llvm::Attribute::StrictFP);
-      llvm::Argument *RawArgs = Wrapper->arg_begin();
-      llvm::Argument *RawRets = Wrapper->arg_begin() + 1;
-      llvm::IRBuilder<> Builder(
-          llvm::BasicBlock::Create(Wrapper->getContext(), "entry", Wrapper));
-      Builder.setIsFPConstrained(true);
-      Builder.setDefaultConstrainedRounding(RoundingMode::rmToNearest);
-      Builder.setDefaultConstrainedExcept(ExceptionBehavior::ebIgnore);
-      llvm::Function *F =
-          std::get<1>(Context->Functions[ExpDesc->getExternalIndex()]);
-
-      auto *RTy = F->getReturnType();
-      const size_t ArgCount = F->arg_size();
-      const size_t RetCount =
-          RTy->isVoidTy()
-              ? 0
-              : (RTy->isStructTy() ? RTy->getStructNumElements() : 1);
-      std::vector<llvm::Value *> Args;
-      Args.reserve(F->arg_size());
-      for (size_t I = 0; I < ArgCount; ++I) {
-        llvm::Argument *Arg = F->arg_begin() + I;
-        llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(RawArgs, I * 8);
-        llvm::Value *Ptr =
-            Builder.CreateBitCast(VPtr, Arg->getType()->getPointerTo());
-        Args.push_back(Builder.CreateLoad(Ptr));
-      }
-
-      auto Ret = Builder.CreateCall(F, Args);
-      if (RTy->isVoidTy()) {
-        // nothing to do
-      } else if (RTy->isStructTy()) {
-        auto Rets = unpackStruct(Builder, Ret);
-        for (size_t I = 0; I < RetCount; ++I) {
-          llvm::Value *VPtr =
-              Builder.CreateConstInBoundsGEP1_64(RawRets, I * 8);
-          llvm::Value *Ptr =
-              Builder.CreateBitCast(VPtr, Rets[I]->getType()->getPointerTo());
-          Builder.CreateStore(Rets[I], Ptr);
-        }
-      } else {
-        llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(RawRets, 0);
-        llvm::Value *Ptr =
-            Builder.CreateBitCast(VPtr, Ret->getType()->getPointerTo());
-        Builder.CreateStore(Ret, Ptr);
-      }
-      Builder.CreateRetVoid();
-
+      auto *F = std::get<1>(Context->Functions[ExpDesc->getExternalIndex()]);
+      F->setLinkage(llvm::Function::ExternalLinkage);
+      F->setName(AST::Module::toExportName(ExpDesc->getExternalName()));
       break;
     }
     case ExternalType::Global: {
@@ -2365,6 +2406,9 @@ Expect<void> Compiler::compile(const AST::FunctionSection &FuncSec,
   const auto &TypeIdxs = FuncSec.getContent();
   const auto &CodeSegs = CodeSec.getContent();
 
+  std::vector<llvm::Constant *> Codes;
+  Codes.reserve(CodeSegs.size());
+
   for (size_t I = 0; I < TypeIdxs.size() && I < CodeSegs.size(); ++I) {
     const auto &TypeIdx = TypeIdxs[I];
     const auto &Code = CodeSegs[I];
@@ -2380,6 +2424,14 @@ Expect<void> Compiler::compile(const AST::FunctionSection &FuncSec,
     F->addFnAttr(llvm::Attribute::StrictFP);
 
     Context->Functions.emplace_back(TypeIdx, F, Code.get());
+    Codes.push_back(llvm::ConstantExpr::getBitCast(F, Context->Int8PtrTy));
+  }
+
+  {
+    auto *ArrayTy = llvm::ArrayType::get(Context->Int8PtrTy, Codes.size());
+    new llvm::GlobalVariable(Context->LLModule, ArrayTy, false,
+                             llvm::GlobalValue::ExternalLinkage,
+                             llvm::ConstantArray::get(ArrayTy, Codes), "codes");
   }
 
   for (auto [T, F, Code] : Context->Functions) {

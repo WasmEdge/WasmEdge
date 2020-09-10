@@ -41,7 +41,8 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     for (auto &FuncType : FuncTypes) {
       /// Copy param and return lists to module instance.
       ModInst->addFuncType(FuncType->getParamTypes(),
-                           FuncType->getReturnTypes());
+                           FuncType->getReturnTypes(),
+                           FuncType->getSymbol());
     }
   }
 

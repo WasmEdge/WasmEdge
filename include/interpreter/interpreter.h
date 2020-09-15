@@ -244,6 +244,14 @@ private:
   /// Helper function for get global instance by index.
   Runtime::Instance::GlobalInstance *
   getGlobInstByIdx(Runtime::StoreManager &StoreMgr, const uint32_t Idx);
+
+  /// Helper function for get element instance by index.
+  Runtime::Instance::ElementInstance *
+  getElemInstByIdx(Runtime::StoreManager &StoreMgr, const uint32_t Idx);
+
+  /// Helper function for get data instance by index.
+  Runtime::Instance::DataInstance *
+  getDataInstByIdx(Runtime::StoreManager &StoreMgr, const uint32_t Idx);
   /// @}
 
   /// \name Run instructions functions
@@ -274,6 +282,22 @@ private:
                               const uint32_t Idx);
   Expect<void> runGlobalSetOp(Runtime::StoreManager &StoreMgr,
                               const uint32_t Idx);
+  /// ======= Table instructions =======
+  Expect<void> runTableGetOp(Runtime::Instance::TableInstance &TabInst,
+                             const AST::TableInstruction &Instr);
+  Expect<void> runTableSetOp(Runtime::Instance::TableInstance &TabInst,
+                             const AST::TableInstruction &Instr);
+  Expect<void> runTableInitOp(Runtime::Instance::TableInstance &TabInst,
+                              Runtime::Instance::ElementInstance &ElemInst,
+                              const AST::TableInstruction &Instr);
+  Expect<void> runElemDropOp(Runtime::Instance::ElementInstance &ElemInst);
+  Expect<void> runTableCopyOp(Runtime::Instance::TableInstance &TabInstDst,
+                              Runtime::Instance::TableInstance &TabInstSrc,
+                              const AST::TableInstruction &Instr);
+  Expect<void> runTableGrowOp(Runtime::Instance::TableInstance &TabInst);
+  Expect<void> runTableSizeOp(Runtime::Instance::TableInstance &TabInst);
+  Expect<void> runTableFillOp(Runtime::Instance::TableInstance &TabInst,
+                              const AST::TableInstruction &Instr);
   /// ======= Memory instructions =======
   template <typename T>
   TypeT<T> runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
@@ -285,6 +309,14 @@ private:
                       const uint32_t BitWidth = sizeof(T) * 8);
   Expect<void> runMemorySizeOp(Runtime::Instance::MemoryInstance &MemInst);
   Expect<void> runMemoryGrowOp(Runtime::Instance::MemoryInstance &MemInst);
+  Expect<void> runMemoryInitOp(Runtime::Instance::MemoryInstance &MemInst,
+                               Runtime::Instance::DataInstance &DataInst,
+                               const AST::MemoryInstruction &Instr);
+  Expect<void> runDataDropOp(Runtime::Instance::DataInstance &DataInst);
+  Expect<void> runMemoryCopyOp(Runtime::Instance::MemoryInstance &MemInst,
+                               const AST::MemoryInstruction &Instr);
+  Expect<void> runMemoryFillOp(Runtime::Instance::MemoryInstance &MemInst,
+                               const AST::MemoryInstruction &Instr);
   /// ======= Test and Relation Numeric instructions =======
   template <typename T> TypeU<T> runEqzOp(ValVariant &Val) const;
   template <typename T>

@@ -44,26 +44,23 @@ TypeB<T> Interpreter::runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
                                  const AST::MemoryInstruction &Instr,
                                  const uint32_t BitWidth) {
   /// Pop the value t.const c from the Stack
-  ValVariant C = StackMgr.pop();
+  T C = retrieveValue<T>(StackMgr.pop());
 
   /// Calculate EA = i + offset
-  ValVariant I = StackMgr.pop();
-  if (retrieveValue<uint32_t>(I) >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
+  uint32_t I = retrieveValue<uint32_t>(StackMgr.pop());
+  if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     LOG(ERROR) << ErrCode::MemoryOutOfBounds;
     LOG(ERROR) << ErrInfo::InfoBoundary(
-        retrieveValue<uint32_t>(I) +
-            static_cast<uint64_t>(Instr.getMemoryOffset()),
-        BitWidth / 8, MemInst.getBoundIdx());
+        I + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
+        MemInst.getBoundIdx());
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
                                            Instr.getOffset());
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  uint32_t EA = retrieveValue<uint32_t>(I) + Instr.getMemoryOffset();
+  uint32_t EA = I + Instr.getMemoryOffset();
 
   /// Store value to bytes.
-  if (auto Res = MemInst.storeValue(retrieveValue<T>(C), EA, BitWidth / 8);
-      !Res) {
+  if (auto Res = MemInst.storeValue(C, EA, BitWidth / 8); !Res) {
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
                                            Instr.getOffset());
     return Unexpect(Res);

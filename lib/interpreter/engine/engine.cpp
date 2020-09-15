@@ -258,17 +258,29 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
                                   const AST::ReferenceInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::Ref__null:
-  case OpCode::Ref__is_null:
-  case OpCode::Ref__func:
-    /// TODO: Implement this.
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    StackMgr.push(genRefType(Instr.getReferenceType()));
+    return {};
+  case OpCode::Ref__is_null: {
+    ValVariant &Val = StackMgr.getTop();
+    if (isNullRef(Val)) {
+      retrieveValue<uint32_t>(Val) = 1;
+    } else {
+      retrieveValue<uint32_t>(Val) = 0;
+    }
+    return {};
+  }
+  case OpCode::Ref__func: {
+    const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
+    const uint32_t FuncAddr = *ModInst->getFuncAddr(Instr.getTargetIndex());
+    StackMgr.push(genRefType(RefType::FuncRef, FuncAddr));
+    return {};
+  }
   default:
     LOG(ERROR) << ErrCode::InstrTypeMismatch;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
                                            Instr.getOffset());
     return Unexpect(ErrCode::InstrTypeMismatch);
   }
-  return {};
 }
 
 Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
@@ -327,17 +339,33 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
 
 Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
                                   const AST::TableInstruction &Instr) {
+  /// Handle elem.drop case.
+  if (Instr.getOpCode() == OpCode::Elem__drop) {
+    auto *ElemInst = getElemInstByIdx(StoreMgr, Instr.getElemIndex());
+    return runElemDropOp(*ElemInst);
+  }
+
+  /// Other instructions need table instance.
+  auto *TabInst = getTabInstByIdx(StoreMgr, Instr.getTargetIndex());
   switch (Instr.getOpCode()) {
   case OpCode::Table__get:
+    return runTableGetOp(*TabInst, Instr);
   case OpCode::Table__set:
-  case OpCode::Table__init:
-  case OpCode::Elem__drop:
-  case OpCode::Table__copy:
+    return runTableSetOp(*TabInst, Instr);
+  case OpCode::Table__init: {
+    auto *ElemInst = getElemInstByIdx(StoreMgr, Instr.getElemIndex());
+    return runTableInitOp(*TabInst, *ElemInst, Instr);
+  }
+  case OpCode::Table__copy: {
+    auto *TabSrcInst = getTabInstByIdx(StoreMgr, Instr.getSourceIndex());
+    return runTableCopyOp(*TabInst, *TabSrcInst, Instr);
+  }
   case OpCode::Table__grow:
+    return runTableGrowOp(*TabInst);
   case OpCode::Table__size:
+    return runTableSizeOp(*TabInst);
   case OpCode::Table__fill:
-    /// TODO: Implement this.
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    return runTableFillOp(*TabInst, Instr);
   default:
     LOG(ERROR) << ErrCode::InstrTypeMismatch;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
@@ -349,6 +377,13 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
 
 Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
                                   const AST::MemoryInstruction &Instr) {
+  /// Handle data.drop case.
+  if (Instr.getOpCode() == OpCode::Data__drop) {
+    auto *DataInst = getDataInstByIdx(StoreMgr, Instr.getDataIndex());
+    return runDataDropOp(*DataInst);
+  }
+
+  /// Other instructions need memory instance.
   auto *MemInst = getMemInstByIdx(StoreMgr, 0);
   switch (Instr.getOpCode()) {
   case OpCode::I32__load:
@@ -401,12 +436,14 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     return runMemoryGrowOp(*MemInst);
   case OpCode::Memory__size:
     return runMemorySizeOp(*MemInst);
-  case OpCode::Memory__init:
-  case OpCode::Data__drop:
+  case OpCode::Memory__init: {
+    auto *DataInst = getDataInstByIdx(StoreMgr, Instr.getDataIndex());
+    return runMemoryInitOp(*MemInst, *DataInst, Instr);
+  }
   case OpCode::Memory__copy:
+    return runMemoryCopyOp(*MemInst, Instr);
   case OpCode::Memory__fill:
-    /// TODO: Implement this.
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    return runMemoryFillOp(*MemInst, Instr);
   default:
     LOG(ERROR) << ErrCode::InstrTypeMismatch;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
@@ -1001,6 +1038,48 @@ Interpreter::getGlobInstByIdx(Runtime::StoreManager &StoreMgr,
     return nullptr;
   }
   if (auto Res = StoreMgr.getGlobal(GlobAddr)) {
+    return *Res;
+  } else {
+    return nullptr;
+  }
+}
+
+Runtime::Instance::ElementInstance *
+Interpreter::getElemInstByIdx(Runtime::StoreManager &StoreMgr,
+                              const uint32_t Idx) {
+  /// When top frame is dummy frame, cannot find instance.
+  if (StackMgr.isTopDummyFrame()) {
+    return nullptr;
+  }
+  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
+  uint32_t ElemAddr;
+  if (auto Res = ModInst->getElemAddr(Idx)) {
+    ElemAddr = *Res;
+  } else {
+    return nullptr;
+  }
+  if (auto Res = StoreMgr.getElement(ElemAddr)) {
+    return *Res;
+  } else {
+    return nullptr;
+  }
+}
+
+Runtime::Instance::DataInstance *
+Interpreter::getDataInstByIdx(Runtime::StoreManager &StoreMgr,
+                              const uint32_t Idx) {
+  /// When top frame is dummy frame, cannot find instance.
+  if (StackMgr.isTopDummyFrame()) {
+    return nullptr;
+  }
+  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
+  uint32_t DataAddr;
+  if (auto Res = ModInst->getDataAddr(Idx)) {
+    DataAddr = *Res;
+  } else {
+    return nullptr;
+  }
+  if (auto Res = StoreMgr.getData(DataAddr)) {
     return *Res;
   } else {
     return nullptr;

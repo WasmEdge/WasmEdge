@@ -2,6 +2,7 @@
 
 add_library(ssvmInterpreterEngine
   control.cpp
+  table.cpp
   memory.cpp
   variable.cpp
   provider.cpp

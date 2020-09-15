@@ -171,6 +171,23 @@ public:
     return {};
   }
 
+  /// Fill the bytes of Data[Offset : Offset + Length - 1] by Val.
+  Expect<void> fillBytes(const uint8_t Val, const uint32_t Offset,
+                         const uint32_t Length) {
+    /// Check memory boundary.
+    if (!checkAccessBound(Offset, Length)) {
+      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
+      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
+      return Unexpect(ErrCode::MemoryOutOfBounds);
+    }
+
+    /// Copy data.
+    if (Length > 0) {
+      std::fill(DataPtr + Offset, DataPtr + Offset + Length, Val);
+    }
+    return {};
+  }
+
   /// Get an uint8 array from Data[Offset : Offset + Length - 1]
   Expect<void> getArray(uint8_t *Arr, const uint32_t Offset,
                         const uint32_t Length, const bool IsReverse = false) {

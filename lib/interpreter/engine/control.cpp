@@ -128,23 +128,26 @@ Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
   /// Pop the value i32.const i from the Stack.
   uint32_t Idx = retrieveValue<uint32_t>(StackMgr.pop());
 
-  /// Get function address.
-  uint32_t FuncAddr;
-  if (auto Res = TabInst->getRefAddr(Idx)) {
-    if (isNullRef(*Res)) {
-      LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                             Instr.getOffset(), {Idx},
-                                             {ValTypeFromType<uint32_t>()});
-      LOG(ERROR) << ErrCode::UninitializedElement;
-      return Unexpect(ErrCode::UninitializedElement);
-    }
-    FuncAddr = retrieveRefIdx(*Res);
-  } else {
+  /// If idx not small than tab.elem, trap.
+  if (Idx >= TabInst->getSize()) {
+    LOG(ERROR) << ErrCode::UndefinedElement;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
                                            {ValTypeFromType<uint32_t>()});
-    return Unexpect(Res);
+    return Unexpect(ErrCode::UndefinedElement);
   }
+
+  /// Get function address.
+  uint32_t FuncAddr;
+  ValVariant Ref = *TabInst->getRefAddr(Idx);
+  if (isNullRef(Ref)) {
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+                                           {Idx},
+                                           {ValTypeFromType<uint32_t>()});
+    LOG(ERROR) << ErrCode::UninitializedElement;
+    return Unexpect(ErrCode::UninitializedElement);
+  }
+  FuncAddr = retrieveRefIdx(Ref);
 
   /// Check function type.
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);

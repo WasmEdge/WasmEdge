@@ -60,8 +60,6 @@ jobs:
       - name: "Rebuild secondstate/ssvm:ubuntu-base"
         uses: docker/build-push-action@v2
         with:
-          add_git_labels: true
-          always_pull: true
           context: ./utils/docker
           file: utils/docker/Dockerfile.base
           platforms: linux/amd64
@@ -80,9 +78,7 @@ jobs:
       - name: "Rebuild secondstate/ssvm:ubuntu-build-clang"
         uses: docker/build-push-action@v2
         with:
-          add_git_labels: true
-          always_pull: true
-          build_args: BASE=secondstate/ssvm:ubuntu-base
+          build-args: BASE=secondstate/ssvm:ubuntu-base
           context: ./utils/docker
           file: ./utils/docker/Dockerfile.build-clang
           platforms: linux/amd64
@@ -101,9 +97,7 @@ jobs:
       - name: "Rebuild secondstate/ssvm:ubuntu-build-gcc"
         uses: docker/build-push-action@v2
         with:
-          add_git_labels: true
-          always_pull: true
-          build_args: BASE=secondstate/ssvm:ubuntu-base
+          build-args: BASE=secondstate/ssvm:ubuntu-base
           context: ./utils/docker
           file: utils/docker/Dockerfile.build-gcc
           platforms: linux/amd64
@@ -122,9 +116,7 @@ jobs:
       - name: "Rebuild secondstate/ssvm:latest"
         uses: docker/build-push-action@v2
         with:
-          add_git_labels: true
-          always_pull: true
-          build_args: BASE=secondstate/ssvm:ubuntu-base
+          build-args: BASE=secondstate/ssvm:ubuntu-base
           context: ./utils/docker
           file: utils/docker/Dockerfile.build-clang
           platforms: linux/amd64

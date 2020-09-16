@@ -64,7 +64,7 @@ jobs:
           always_pull: true
           context: ./utils/docker
           file: utils/docker/Dockerfile.base
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.prep.outputs.docker_image }}:ubuntu-base
           labels: |
@@ -85,7 +85,7 @@ jobs:
           build_args: BASE=secondstate/ssvm:ubuntu-base
           context: ./utils/docker
           file: ./utils/docker/Dockerfile.build-clang
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.prep.outputs.docker_image }}:ubuntu-build-clang
           labels: |
@@ -106,7 +106,7 @@ jobs:
           build_args: BASE=secondstate/ssvm:ubuntu-base
           context: ./utils/docker
           file: utils/docker/Dockerfile.build-gcc
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.prep.outputs.docker_image }}:ubuntu-build-gcc
           labels: |
@@ -127,7 +127,7 @@ jobs:
           build_args: BASE=secondstate/ssvm:ubuntu-base
           context: ./utils/docker
           file: utils/docker/Dockerfile.build-clang
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.prep.outputs.docker_image }}:latest
           labels: |

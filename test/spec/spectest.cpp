@@ -89,10 +89,25 @@ std::vector<SSVM::ValVariant> parseValueList(const rapidjson::Value &Args) {
   for (const auto &Element : Args.GetArray()) {
     const auto Type = Element["type"].Get<std::string>();
     const auto Value = Element["value"].Get<std::string>();
-    if (Type == "i32"sv || Type == "f32"sv) {
-      Result.emplace_back(uint32_t(std::stoul(Value)));
+    if (Type == "externref"sv) {
+      if (Value == "null"sv) {
+        Result.emplace_back(SSVM::genRefType(SSVM::RefType::ExternRef));
+      } else {
+        Result.emplace_back(
+            SSVM::genRefType(SSVM::RefType::ExternRef,
+                             static_cast<uint32_t>(std::stoul(Value))));
+      }
+    } else if (Type == "funcref"sv) {
+      if (Value == "null"sv) {
+        Result.emplace_back(SSVM::genRefType(SSVM::RefType::FuncRef));
+      } else {
+        Result.emplace_back(SSVM::genRefType(
+            SSVM::RefType::FuncRef, static_cast<uint32_t>(std::stoul(Value))));
+      }
+    } else if (Type == "i32"sv || Type == "f32"sv) {
+      Result.emplace_back(static_cast<uint32_t>(std::stoul(Value)));
     } else if (Type == "i64"sv || Type == "f64"sv) {
-      Result.emplace_back(uint64_t(std::stoull(Value)));
+      Result.emplace_back(static_cast<uint64_t>(std::stoull(Value)));
     } else {
       assert(false);
     }

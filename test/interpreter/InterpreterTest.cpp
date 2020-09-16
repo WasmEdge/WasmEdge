@@ -109,8 +109,8 @@ TEST_P(CoreTest, TestSuites) {
     for (size_t I = 0; I < Expected.size(); ++I) {
       const auto &[Type, E] = Expected[I];
       const auto &G = Got[I];
-      /// Handle NaN case
       if (E.substr(0, 4) == "nan:"sv) {
+        /// Handle NaN case
         /// TODO: nan:canonical and nan:arithmetic
         if (Type == "f32"sv) {
           const float F = std::get<float>(G);
@@ -120,6 +120,20 @@ TEST_P(CoreTest, TestSuites) {
         } else if (Type == "f64"sv) {
           const double D = std::get<double>(G);
           if (!std::isnan(D)) {
+            return false;
+          }
+        }
+      } else if (Type == "externref"sv || Type == "funcref"sv) {
+        /// Handle reference value case
+        if (E == "null"sv) {
+          return SSVM::isNullRef(G);
+        } else {
+          if (SSVM::isNullRef(G)) {
+            return false;
+          }
+          uint32_t V1 = SSVM::retrieveRefIdx(G);
+          uint32_t V2 = static_cast<uint32_t>(std::stoul(E));
+          if (V1 != V2) {
             return false;
           }
         }
@@ -143,7 +157,7 @@ TEST_P(CoreTest, TestSuites) {
   };
   T.onStringContains = [](const std::string &Expected,
                           const std::string &Got) -> bool {
-    if (Got.rfind(Expected, 0) != 0) {
+    if (Expected.rfind(Got, 0) != 0) {
       std::cout << "   ##### expected text : " << Expected << '\n';
       std::cout << "   ######## error text : " << Got << '\n';
       return false;

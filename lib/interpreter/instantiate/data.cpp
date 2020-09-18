@@ -8,59 +8,59 @@
 namespace SSVM {
 namespace Interpreter {
 
-/// Calculate offsets of table initializations.
-Expect<std::vector<uint32_t>>
-Interpreter::resolveExpression(Runtime::StoreManager &StoreMgr,
-                               Runtime::Instance::ModuleInstance &ModInst,
-                               const AST::DataSection &DataSec) {
-  std::vector<uint32_t> Offsets;
-  /// Iterate and evaluate offsets.
+/// Instantiate data instance. See "include/interpreter/interpreter.h".
+Expect<void>
+Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
+                         Runtime::Instance::ModuleInstance &ModInst,
+                         const AST::DataSection &DataSec) {
+  /// A frame with module is pushed into stack outside.
+  /// Instantiate data instances and initialize memory.
   for (const auto &DataSeg : DataSec.getContent()) {
-    /// Run initialize expression.
-    if (auto Res = runExpression(StoreMgr, DataSeg->getInstrs()); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
-      LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
-      return Unexpect(Res);
+    /// Make a new data instance.
+    auto NewDataInst =
+        std::make_unique<Runtime::Instance::DataInstance>(DataSeg->getData());
+
+    /// Insert data instance to store manager.
+    uint32_t NewDataInstAddr;
+    if (InsMode == InstantiateMode::Instantiate) {
+      NewDataInstAddr = StoreMgr.pushData(NewDataInst);
+    } else {
+      NewDataInstAddr = StoreMgr.importData(NewDataInst);
     }
+    ModInst.addDataAddr(NewDataInstAddr);
 
-    /// Pop result from stack.
-    ValVariant PopVal = StackMgr.pop();
-    uint32_t Offset = retrieveValue<uint32_t>(PopVal);
+    /// Initialize memory if data mode is active.
+    if (DataSeg->getMode() == AST::DataSegment::DataMode::Active) {
+      /// Memory index should be 0. Checked in validation phase.
+      auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg->getIdx());
+      auto *DataInst = *StoreMgr.getData(NewDataInstAddr);
 
-    /// Get memory instance.
-    uint32_t MemAddr = *ModInst.getMemAddr(DataSeg->getIdx());
-    auto *MemInst = *StoreMgr.getMemory(MemAddr);
+      /// Run initialize expression.
+      if (auto Res = runExpression(StoreMgr, DataSeg->getInstrs()); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
+        LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
+        return Unexpect(Res);
+      }
+      uint32_t Off = retrieveValue<uint32_t>(StackMgr.pop());
 
-    /// Check offset bound.
-    if (!MemInst->checkAccessBound(Offset, DataSeg->getData().size())) {
-      LOG(ERROR) << ErrCode::DataSegDoesNotFit;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, DataSeg->getData().size(),
-                                          MemInst->getBoundIdx());
-      LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
-      return Unexpect(ErrCode::DataSegDoesNotFit);
+      /// Replace mem[Off : Off + n] with data[0 : n].
+      if (auto Res = MemInst->setBytes(DataInst->getData(), Off, 0,
+                                       DataInst->getData().size());
+          !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
+        return Unexpect(Res);
+      }
+
+      /// Drop the data instance.
+      DataInst->clear();
+
+      /// Operation above is equal to the following instruction sequence:
+      ///   expr(init) -> i32.const off
+      ///   i32.const 0
+      ///   i32.const n
+      ///   memory.init idx
+      ///   data.drop idx
     }
-    Offsets.push_back(Offset);
-  }
-  return Offsets;
-}
-
-/// Initialize memory instance. See "include/interpreter/interpreter.h".
-Expect<void> Interpreter::instantiate(
-    Runtime::StoreManager &StoreMgr, Runtime::Instance::ModuleInstance &ModInst,
-    const AST::DataSection &DataSec, Span<const uint32_t> Offsets) {
-  auto ItDataSeg = DataSec.getContent().begin();
-  auto ItOffset = Offsets.begin();
-  while (ItOffset != Offsets.end()) {
-    /// Get memory instance.
-    uint32_t MemAddr = *ModInst.getMemAddr((*ItDataSeg)->getIdx());
-    auto *MemInst = *StoreMgr.getMemory(MemAddr);
-
-    /// Copy data to memory instance. Boundary checked in resolving expression.
-    const auto &Data = (*ItDataSeg)->getData();
-    MemInst->setBytes(Data, *ItOffset, 0, Data.size());
-
-    ++ItDataSeg;
-    ++ItOffset;
   }
   return {};
 }

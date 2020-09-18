@@ -60,8 +60,8 @@ protected:
   ///
   /// \returns void when success, ErrCode when failed.
   template <typename T>
-  Expect<void> loadToVector(FileMgr &Mgr,
-                            std::vector<std::unique_ptr<T>> &Vec) {
+  Expect<void> loadToVector(FileMgr &Mgr, std::vector<std::unique_ptr<T>> &Vec,
+                            const ASTNodeAttr Node) {
     uint32_t VecCnt = 0;
     /// Read vector size.
     if (auto Res = Mgr.readU32()) {
@@ -69,7 +69,7 @@ protected:
     } else {
       LOG(ERROR) << Res.error();
       LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(Node);
       return Unexpect(Res);
     }
 
@@ -79,7 +79,7 @@ protected:
       if (auto Res = NewContent->loadBinary(Mgr)) {
         Vec.push_back(std::move(NewContent));
       } else {
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+        LOG(ERROR) << ErrInfo::InfoAST(Node);
         return Unexpect(Res);
       }
     }

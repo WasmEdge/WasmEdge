@@ -62,14 +62,17 @@ enum class ErrCode : uint8_t {
   InvalidTableIdx = 0x47,    /// Table index not defined
   InvalidMemoryIdx = 0x48,   /// Memory index not defined
   InvalidGlobalIdx = 0x49,   /// Global index not defined
-  ConstExprRequired = 0x4A,  /// Should be constant expression
-  DupExportName = 0x4B,      /// Export name conflicted
-  ImmutableGlobal = 0x4C,    /// Tried to store to const global value
-  MultiTables = 0x4D,        /// #Tables > 1
-  MultiMemories = 0x4E,      /// #Memories > 1
-  InvalidLimit = 0x4F,       /// Invalid Limit grammar
-  InvalidMemPages = 0x50,    /// Memory pages > 65536
-  InvalidStartFunc = 0x51,   /// Invalid start function signature
+  InvalidElemIdx = 0x4A,     /// Element segment index not defined
+  InvalidDataIdx = 0x4B,     /// Data segment index not defined
+  InvalidRefIdx = 0x4C,      /// Undeclared reference
+  ConstExprRequired = 0x4D,  /// Should be constant expression
+  DupExportName = 0x4E,      /// Export name conflicted
+  ImmutableGlobal = 0x4F,    /// Tried to store to const global value
+  InvalidResultArity = 0x50, /// Invalid result arity in select t* instruction
+  MultiMemories = 0x51,      /// #Memories > 1
+  InvalidLimit = 0x52,       /// Invalid Limit grammar
+  InvalidMemPages = 0x53,    /// Memory pages > 65536
+  InvalidStartFunc = 0x54,   /// Invalid start function signature
   /// Instantiation phase
   ModuleNameConflict = 0x60,     /// Module name conflicted when importing.
   IncompatibleImportType = 0x61, /// Import matching failed
@@ -84,12 +87,13 @@ enum class ErrCode : uint8_t {
   DivideByZero = 0x84,         /// Divide by zero
   IntegerOverflow = 0x85,      /// Integer overflow
   InvalidConvToInt = 0x86,     /// Cannot do convert to integer
-  MemoryOutOfBounds = 0x87,    /// Out of bounds memory access
-  Unreachable = 0x88,          /// Meet an unreachable instruction
-  UninitializedElement = 0x89, /// Uninitialized element in table instance
-  UndefinedElement = 0x8A,     /// Access undefined element in table instances
-  IndirectCallTypeMismatch = 0x8B, /// Func type mismatch in call_indirect
-  ExecutionFailed = 0x8C           /// Host function execution failed
+  TableOutOfBounds = 0x87,     /// Out of bounds table access
+  MemoryOutOfBounds = 0x88,    /// Out of bounds memory access
+  Unreachable = 0x89,          /// Meet an unreachable instruction
+  UninitializedElement = 0x8A, /// Uninitialized element in table instance
+  UndefinedElement = 0x8B,     /// Access undefined element in table instances
+  IndirectCallTypeMismatch = 0x8C, /// Func type mismatch in call_indirect
+  ExecutionFailed = 0x8D           /// Host function execution failed
 };
 
 /// Error code enumeration string mapping.
@@ -117,10 +121,13 @@ static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::InvalidTableIdx, "unknown table"},
     {ErrCode::InvalidMemoryIdx, "unknown memory"},
     {ErrCode::InvalidGlobalIdx, "unknown global"},
+    {ErrCode::InvalidElemIdx, "unknown elem segment"},
+    {ErrCode::InvalidDataIdx, "unknown data segment"},
+    {ErrCode::InvalidRefIdx, "undeclared function reference"},
     {ErrCode::ConstExprRequired, "constant expression required"},
     {ErrCode::DupExportName, "duplicate export name"},
     {ErrCode::ImmutableGlobal, "global is immutable"},
-    {ErrCode::MultiTables, "multiple tables"},
+    {ErrCode::InvalidResultArity, "invalid result arity"},
     {ErrCode::MultiMemories, "multiple memories"},
     {ErrCode::InvalidLimit, "size minimum must not be greater than maximum"},
     {ErrCode::InvalidMemPages,
@@ -140,6 +147,7 @@ static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::DivideByZero, "integer divide by zero"},
     {ErrCode::IntegerOverflow, "integer overflow"},
     {ErrCode::InvalidConvToInt, "invalid conversion to integer"},
+    {ErrCode::TableOutOfBounds, "out of bounds table access"},
     {ErrCode::MemoryOutOfBounds, "out of bounds memory access"},
     {ErrCode::Unreachable, "unreachable"},
     {ErrCode::UninitializedElement, "uninitialized element"},

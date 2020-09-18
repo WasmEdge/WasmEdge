@@ -43,12 +43,12 @@ Expect<void> CustomSection::loadContent(FileMgr &Mgr) {
 
 /// Load vector of type section. See "include/ast/section.h".
 Expect<void> TypeSection::loadContent(FileMgr &Mgr) {
-  return Section::loadToVector(Mgr, Content);
+  return Section::loadToVector(Mgr, Content, NodeAttr);
 }
 
 /// Load vector of import section. See "include/ast/section.h".
 Expect<void> ImportSection::loadContent(FileMgr &Mgr) {
-  return Section::loadToVector(Mgr, Content);
+  return Section::loadToVector(Mgr, Content, NodeAttr);
 }
 
 /// Load vector of function section. See "include/ast/section.h".
@@ -78,22 +78,22 @@ Expect<void> FunctionSection::loadContent(FileMgr &Mgr) {
 
 /// Load vector of table section. See "include/ast/section.h".
 Expect<void> TableSection::loadContent(FileMgr &Mgr) {
-  return Section::loadToVector(Mgr, Content);
+  return Section::loadToVector(Mgr, Content, NodeAttr);
 }
 
 /// Load vector of memory section. See "include/ast/section.h".
 Expect<void> MemorySection::loadContent(FileMgr &Mgr) {
-  return Section::loadToVector(Mgr, Content);
+  return Section::loadToVector(Mgr, Content, NodeAttr);
 }
 
 /// Load vector of global section. See "include/ast/section.h".
 Expect<void> GlobalSection::loadContent(FileMgr &Mgr) {
-  return Section::loadToVector(Mgr, Content);
+  return Section::loadToVector(Mgr, Content, NodeAttr);
 }
 
 /// Load vector of export section. See "include/ast/section.h".
 Expect<void> ExportSection::loadContent(FileMgr &Mgr) {
-  return Section::loadToVector(Mgr, Content);
+  return Section::loadToVector(Mgr, Content, NodeAttr);
 }
 
 /// Load start function index. See "include/ast/section.h".
@@ -111,17 +111,17 @@ Expect<void> StartSection::loadContent(FileMgr &Mgr) {
 
 /// Load vector of element section. See "include/ast/section.h".
 Expect<void> ElementSection::loadContent(FileMgr &Mgr) {
-  return Section::loadToVector(Mgr, Content);
+  return Section::loadToVector(Mgr, Content, NodeAttr);
 }
 
 /// Load vector of code section. See "include/ast/section.h".
 Expect<void> CodeSection::loadContent(FileMgr &Mgr) {
-  return Section::loadToVector(Mgr, Content);
+  return Section::loadToVector(Mgr, Content, NodeAttr);
 }
 
 /// Load vector of data section. See "include/ast/section.h".
 Expect<void> DataSection::loadContent(FileMgr &Mgr) {
-  return Section::loadToVector(Mgr, Content);
+  return Section::loadToVector(Mgr, Content, NodeAttr);
 }
 
 /// Load content of data count section. See "include/ast/section.h".

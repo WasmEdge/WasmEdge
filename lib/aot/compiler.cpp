@@ -1545,7 +1545,7 @@ private:
     }
     auto *OKBB = llvm::BasicBlock::Create(LLContext, "call_indirect.end", F);
     auto *Switch = Builder.CreateSwitch(
-        Value, getTrapBB(ErrCode::UndefinedElement), Table.size());
+        Value, getTrapBB(ErrCode::TableOutOfBounds), Table.size());
 
     const bool HasReturnValue = !isVoidReturn(FuncType.getReturnTypes());
     const bool HasMultipleValule = FuncType.getReturnTypes().size() > 1;

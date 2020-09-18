@@ -47,7 +47,7 @@ Expect<void>
 Interpreter::runIfElseOp(Runtime::StoreManager &StoreMgr,
                          const AST::IfElseControlInstruction &Instr) {
   /// Get condition.
-  ValVariant Cond = StackMgr.pop();
+  uint32_t Cond = retrieveValue<uint32_t>(StackMgr.pop());
 
   /// Get result type for arity.
   uint32_t Locals = 0, Arity = 0;
@@ -63,7 +63,7 @@ Interpreter::runIfElseOp(Runtime::StoreManager &StoreMgr,
   }
 
   /// If non-zero, run if-statement; else, run else-statement.
-  if (retrieveValue<uint32_t>(Cond) != 0) {
+  if (Cond != 0) {
     const auto &IfStatement = Instr.getIfStatement();
     if (!IfStatement.empty()) {
       return enterBlock(Locals, Arity, nullptr, IfStatement);
@@ -84,8 +84,7 @@ Expect<void> Interpreter::runBrOp(Runtime::StoreManager &StoreMgr,
 
 Expect<void> Interpreter::runBrIfOp(Runtime::StoreManager &StoreMgr,
                                     const AST::BrControlInstruction &Instr) {
-  ValVariant Cond = StackMgr.pop();
-  if (retrieveValue<uint32_t>(Cond) != 0) {
+  if (retrieveValue<uint32_t>(StackMgr.pop()) != 0) {
     return runBrOp(StoreMgr, Instr);
   }
   return {};
@@ -120,19 +119,26 @@ Expect<void>
 Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
                                const AST::CallControlInstruction &Instr) {
   /// Get Table Instance
-  const auto *TabInst = getTabInstByIdx(StoreMgr, 0);
+  const auto *TabInst = getTabInstByIdx(StoreMgr, Instr.getTableIndex());
 
   /// Get function type at index x.
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
   const auto *TargetFuncType = *ModInst->getFuncType(Instr.getTargetIndex());
 
   /// Pop the value i32.const i from the Stack.
-  ValVariant Idx = StackMgr.pop();
+  uint32_t Idx = retrieveValue<uint32_t>(StackMgr.pop());
 
   /// Get function address.
   uint32_t FuncAddr;
-  if (auto Res = TabInst->getRefAddr(retrieveValue<uint32_t>(Idx))) {
-    FuncAddr = *Res;
+  if (auto Res = TabInst->getRefAddr(Idx)) {
+    if (isNullRef(*Res)) {
+      LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                             Instr.getOffset(), {Idx},
+                                             {ValTypeFromType<uint32_t>()});
+      LOG(ERROR) << ErrCode::UninitializedElement;
+      return Unexpect(ErrCode::UninitializedElement);
+    }
+    FuncAddr = retrieveRefIdx(*Res);
   } else {
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},

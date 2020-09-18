@@ -66,16 +66,6 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
   }
 
-  /// Instantiate GlobalSection (GlobalSec)
-  const AST::GlobalSection *GlobSec = Mod.getGlobalSection();
-  if (GlobSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *GlobSec); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(GlobSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
-  }
-
   /// Instantiate TableSection (TableSec)
   const AST::TableSection *TabSec = Mod.getTableSection();
   if (TabSec != nullptr) {
@@ -96,66 +86,72 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
   }
 
-  /// Initialize the tables and memories
-  /// Make a new frame {ModInst, locals:none} and push
-  StackMgr.pushFrame(ModInst->Addr, /// Module address
-                     0,             /// Arguments num
-                     0              /// Returns num
-  );
-  std::vector<uint32_t> ElemOffsets, DataOffsets;
+  /// Add a temp module to Store with only imported globals for initialization.
+  auto TmpMod = std::make_unique<Runtime::Instance::ModuleInstance>("");
+  for (uint32_t I = 0; I < ModInst->getGlobalImportNum(); ++I) {
+    TmpMod->importGlobal(*(ModInst->getGlobalAddr(I)));
+  }
+  for (uint32_t I = 0; I < ModInst->getFuncNum(); ++I) {
+    TmpMod->importFunction(*(ModInst->getFuncAddr(I)));
+  }
+  uint32_t TmpModInstAddr = StoreMgr.pushModule(TmpMod);
 
-  /// Resolve offset list of element section.
+  /// Push a new frame {TmpModInst:{globaddrs}, locals:none}
+  StackMgr.pushFrame(TmpModInstAddr, 0, 0);
+
+  /// Instantiate GlobalSection (GlobalSec)
+  const AST::GlobalSection *GlobSec = Mod.getGlobalSection();
+  if (GlobSec != nullptr) {
+    if (auto Res = instantiate(StoreMgr, *ModInst, *GlobSec); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(GlobSec->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+      return Unexpect(Res);
+    }
+  }
+
+  /// Instantiate ElementSection (ElemSec)
   const AST::ElementSection *ElemSec = Mod.getElementSection();
   if (ElemSec != nullptr) {
-    if (auto Res = resolveExpression(StoreMgr, *ModInst, *ElemSec)) {
-      ElemOffsets = std::move(*Res);
-    } else {
+    if (auto Res = instantiate(StoreMgr, *ModInst, *ElemSec); !Res) {
       LOG(ERROR) << ErrInfo::InfoAST(ElemSec->NodeAttr);
       LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);
     }
   }
 
-  /// Resolve offset list of data section.
-  const AST::DataSection *DataSec = Mod.getDataSection();
-  if (DataSec != nullptr) {
-    if (auto Res = resolveExpression(StoreMgr, *ModInst, *DataSec)) {
-      DataOffsets = std::move(*Res);
-    } else {
-      LOG(ERROR) << ErrInfo::InfoAST(DataSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
-  }
-
-  /// Pop Frame.
+  /// Pop frame with temp. module.
   StackMgr.popFrame();
 
-  /// Instantiate initialization of table instances (ElemSec)
-  if (ElemSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *ElemSec, ElemOffsets);
-        !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(ElemSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
-  }
-
-  /// Instantiate initialization of memory instances (DataSec)
-  if (DataSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *DataSec, DataOffsets);
-        !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(DataSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
-  }
+  /// Pop the added temp. module.
+  StoreMgr.popModule();
 
   /// Instantiate ExportSection (ExportSec)
   const AST::ExportSection *ExportSec = Mod.getExportSection();
   if (ExportSec != nullptr) {
     if (auto Res = instantiate(StoreMgr, *ModInst, *ExportSec); !Res) {
       LOG(ERROR) << ErrInfo::InfoAST(ExportSec->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+      return Unexpect(Res);
+    }
+  }
+
+  /// Push a new frame {ModInst, locals:none}
+  StackMgr.pushFrame(ModInst->Addr, 0, 0);
+
+  /// Initialize table with element instances.
+  if (ElemSec != nullptr) {
+    if (auto Res = initTable(StoreMgr, *ModInst, *ElemSec); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(ElemSec->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+      return Unexpect(Res);
+    }
+  }
+
+  /// Instantiate DataSection and initialization memory instances (DataSec)
+  const AST::DataSection *DataSec = Mod.getDataSection();
+  if (DataSec != nullptr) {
+    if (auto Res = instantiate(StoreMgr, *ModInst, *DataSec); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(DataSec->NodeAttr);
       LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);
     }
@@ -181,9 +177,19 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     const uint32_t Addr = *ModInst->getStartAddr();
     const auto *FuncInst = *StoreMgr.getFunction(Addr);
 
-    /// Call runFunction.
-    return runFunction(StoreMgr, *FuncInst, {});
+    /// Execute instruction: call start.func
+    if (auto Res = enterFunction(StoreMgr, *FuncInst); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+      return Unexpect(Res);
+    }
+    if (auto Res = execute(StoreMgr); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+      return Unexpect(Res);
+    }
   }
+
+  /// Pop Frame.
+  StackMgr.popFrame();
   return {};
 }
 

@@ -155,29 +155,20 @@ private:
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::MemorySection &MemSec);
 
-  /// Calculate offsets of table initializations.
-  Expect<std::vector<uint32_t>>
-  resolveExpression(Runtime::StoreManager &StoreMgr,
-                    Runtime::Instance::ModuleInstance &ModInst,
-                    const AST::ElementSection &ElemSec);
-
-  /// Instantiation initialization of Table Instances.
+  /// Instantiation of Element Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
-                           const AST::ElementSection &ElemSec,
-                           Span<const uint32_t> Offsets);
+                           const AST::ElementSection &ElemSec);
 
-  /// Calculate offsets of memory initializations.
-  Expect<std::vector<uint32_t>>
-  resolveExpression(Runtime::StoreManager &StoreMgr,
-                    Runtime::Instance::ModuleInstance &ModInst,
-                    const AST::DataSection &DataSec);
+  /// Initialize table with Element Instances.
+  Expect<void> initTable(Runtime::StoreManager &StoreMgr,
+                         Runtime::Instance::ModuleInstance &ModInst,
+                         const AST::ElementSection &ElemSec);
 
-  /// Instantiation initialization of Memory Instances.
+  /// Instantiation of Data Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
-                           const AST::DataSection &DataSec,
-                           Span<const uint32_t> Offsets);
+                           const AST::DataSection &DataSec);
 
   /// Instantiation of Export Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,

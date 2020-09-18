@@ -84,7 +84,9 @@ enum class IndexCategory : uint8_t {
   Function,
   Table,
   Memory,
-  Global
+  Global,
+  Element,
+  Data
 };
 
 static inline std::unordered_map<IndexCategory, std::string> IndexCategoryStr =
@@ -94,7 +96,9 @@ static inline std::unordered_map<IndexCategory, std::string> IndexCategoryStr =
      {IndexCategory::Function, "function"},
      {IndexCategory::Table, "table"},
      {IndexCategory::Memory, "memory"},
-     {IndexCategory::Global, "global"}};
+     {IndexCategory::Global, "global"},
+     {IndexCategory::Element, "element"},
+     {IndexCategory::Data, "data"}};
 
 /// Information structures.
 struct InfoFile {

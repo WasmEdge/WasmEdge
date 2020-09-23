@@ -19,8 +19,11 @@
 #include "support/span.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
+#include <fstream>
 #include <memory>
+#include <set>
 #include <utility>
 
 #include <linux/mman.h>
@@ -31,20 +34,55 @@ namespace Runtime {
 namespace Instance {
 
 class MemoryInstance {
+private:
+  static uintptr_t getUsableAddress() {
+    /// Parse smaps for available memory region
+    std::set<std::pair<uintptr_t, uintptr_t>> Regions;
+    std::ifstream Smaps("/proc/self/smaps");
+    for (std::string Line; std::getline(Smaps, Line);) {
+      if (std::isdigit(Line.front()) || std::islower(Line.front())) {
+        char *Cursor = nullptr;
+        const uintptr_t Begin = std::strtoull(Line.c_str(), &Cursor, 16);
+        const uintptr_t End = std::strtoull(++Cursor, &Cursor, 16);
+        Regions.emplace(Begin, End);
+      }
+    }
+    for (auto Prev = Regions.cbegin(), Next = std::next(Prev);
+         Next != Regions.cend(); ++Prev, ++Next) {
+      if (Next->first - Prev->second >= k12G) {
+        const auto PaddedBegin = (Prev->second + kPageMask) & ~kPageMask;
+        if (Next->first - PaddedBegin >= k12G) {
+          return PaddedBegin + k4G;
+        }
+      }
+    }
+    return UINT64_C(-1);
+  }
+
 public:
   static inline constexpr const uint64_t kPageSize = UINT64_C(65536);
+  static inline constexpr const uint64_t kPageMask = UINT64_C(65535);
   static inline constexpr const uint64_t k4G = UINT64_C(0x100000000);
   static inline constexpr const uint64_t k8G = UINT64_C(0x200000000);
+  static inline constexpr const uint64_t k12G = k4G + k8G;
   MemoryInstance() = delete;
   MemoryInstance(const AST::Limit &Lim)
       : HasMaxPage(Lim.hasMax()), MinPage(Lim.getMin()), MaxPage(Lim.getMax()),
         CurrPage(Lim.getMin()) {
-    const auto Pages = static_cast<uint8_t *>(
-        mmap(nullptr, k8G, PROT_READ | PROT_WRITE,
-             MAP_PRIVATE | MAP_ANONYMOUS | MAP_UNINITIALIZED, -1, 0));
-    mprotect(Pages + CurrPage * kPageSize, k8G - CurrPage * kPageSize,
-             PROT_NONE);
-    DataPtr = Pages;
+    const auto UsableAddress = getUsableAddress();
+    if (UsableAddress == UINT64_C(-1)) {
+      LOG(ERROR) << "Unable to find usable memory address";
+      return;
+    }
+    DataPtr = reinterpret_cast<uint8_t *>(UsableAddress);
+    if (CurrPage != 0) {
+      if ((mmap(DataPtr, CurrPage * kPageSize, PROT_READ | PROT_WRITE,
+                MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0)) ==
+          MAP_FAILED) {
+        LOG(ERROR) << "mmap failed";
+        return;
+      }
+    }
   }
   ~MemoryInstance() noexcept { munmap(DataPtr, k8G); }
 
@@ -74,6 +112,9 @@ public:
 
   /// Grow page
   bool growPage(const uint32_t Count) {
+    if (Count == 0) {
+      return true;
+    }
     /// Maximum pages count, 65536
     uint32_t MaxPageCaped = k4G / kPageSize;
     if (HasMaxPage) {
@@ -82,8 +123,15 @@ public:
     if (Count + CurrPage > MaxPageCaped) {
       return false;
     }
-    mprotect(DataPtr + CurrPage * kPageSize, Count * kPageSize,
-             PROT_READ | PROT_WRITE);
+    if (CurrPage == 0) {
+      if (mmap(DataPtr, Count * kPageSize, PROT_READ | PROT_WRITE,
+               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {
+        return false;
+      }
+    } else if (mremap(DataPtr, CurrPage * kPageSize,
+                      (CurrPage + Count) * kPageSize, 0) == MAP_FAILED) {
+      return false;
+    }
     CurrPage += Count;
     return true;
   }
@@ -284,7 +332,7 @@ private:
   const uint32_t MinPage;
   const uint32_t MaxPage;
   uint8_t *DataPtr = nullptr;
-  uint32_t CurrPage = 0;
+  uint32_t CurrPage;
   DLSymbol<uint8_t *> Symbol;
   /// @}
 };

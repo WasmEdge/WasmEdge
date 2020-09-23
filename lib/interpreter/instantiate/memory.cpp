@@ -18,7 +18,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     auto NewMemInst = std::make_unique<Runtime::Instance::MemoryInstance>(
         *MemType->getLimit());
     if (auto Symbol = MemType->getSymbol()) {
-      NewMemInst->setSymbol(Symbol);
+      NewMemInst->setSymbol(std::move(Symbol));
     }
 
     /// Insert memory instance to store manager.

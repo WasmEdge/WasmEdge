@@ -22,7 +22,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     const auto ExtType = ExpDesc->getExternalType();
     std::string_view ExtName = ExpDesc->getExternalName();
     const uint32_t ExtIdx = ExpDesc->getExternalIndex();
-    void *Symbol = ExpDesc->getSymbol();
+    auto Symbol = ExpDesc->getSymbol();
 
     /// Add the name of instances module.
     switch (ExtType) {
@@ -31,7 +31,9 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       if (Symbol) {
         uint32_t Addr = *ModInst.getFuncAddr(ExtIdx);
         auto *Inst = *StoreMgr.getFunction(Addr);
-        Inst->setSymbol(Symbol);
+        Inst->setSymbol(
+            std::move(Symbol)
+                .cast<Runtime::Instance::FunctionInstance::CompiledFunction>());
       }
       break;
     case ExternalType::Global:
@@ -39,7 +41,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       if (Symbol) {
         uint32_t Addr = *ModInst.getGlobalAddr(ExtIdx);
         auto *Inst = *StoreMgr.getGlobal(Addr);
-        Inst->setSymbol(Symbol);
+        Inst->setSymbol(std::move(Symbol).cast<ValVariant>());
       }
       break;
     case ExternalType::Memory:
@@ -47,7 +49,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       if (Symbol) {
         uint32_t Addr = *ModInst.getMemAddr(ExtIdx);
         auto *Inst = *StoreMgr.getMemory(Addr);
-        Inst->setSymbol(Symbol);
+        Inst->setSymbol(std::move(Symbol).cast<uint8_t *>());
       }
       break;
     case ExternalType::Table:
@@ -55,7 +57,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       if (Symbol) {
         uint32_t Addr = *ModInst.getTableAddr(ExtIdx);
         auto *Inst = *StoreMgr.getTable(Addr);
-        Inst->setSymbol(Symbol);
+        Inst->setSymbol(std::move(Symbol).cast<uint32_t>());
       }
       break;
     default:

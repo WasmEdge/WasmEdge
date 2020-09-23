@@ -183,7 +183,7 @@ Expect<void> Module::loadCompiled(LDMgr &Mgr) {
       switch (ExpDesc->getExternalType()) {
       case ExternalType::Function:
       case ExternalType::Global:
-        if (void *Symbol = Mgr.getRawSymbol(Name.c_str())) {
+        if (auto Symbol = Mgr.getSymbol(Name.c_str())) {
           ExpDesc->setSymbol(Symbol);
         } else {
           LOG(ERROR) << ErrCode::InvalidGlobalIdx;
@@ -207,7 +207,7 @@ Expect<void> Module::loadCompiled(LDMgr &Mgr) {
   }
   if (MemorySec) {
     auto &MemType = MemorySec->getContent().front();
-    MemType->setSymbol(Mgr.getRawSymbol("mem"));
+    MemType->setSymbol(Mgr.getSymbol<uint8_t *>("mem"));
   }
   return {};
 }

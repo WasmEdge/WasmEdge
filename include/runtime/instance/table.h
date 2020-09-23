@@ -87,9 +87,9 @@ public:
   }
 
   /// Getter of symbol
-  void *getSymbol() const { return Symbol; }
+  const auto &getSymbol() const noexcept { return Symbol; }
   /// Setter of symbol
-  void setSymbol(void *S) { Symbol = reinterpret_cast<uint32_t *>(S); }
+  void setSymbol(DLSymbol<uint32_t> S) noexcept { Symbol = std::move(S); }
 
 private:
   /// \name Data of table instance.
@@ -100,7 +100,7 @@ private:
   const uint32_t MaxSize = 0;
   std::vector<uint32_t> FuncElem;
   std::vector<bool> FuncElemInit;
-  uint32_t *Symbol = nullptr;
+  DLSymbol<uint32_t> Symbol;
   /// @}
 };
 

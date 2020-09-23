@@ -15,9 +15,9 @@
 #include "common/errcode.h"
 #include "common/types.h"
 #include "common/value.h"
+#include "symbol.h"
 
-#include <fstream>
-#include <string>
+#include <string_view>
 #include <vector>
 
 namespace SSVM {
@@ -25,8 +25,6 @@ namespace SSVM {
 /// Loadable manager interface.
 class LDMgr {
 public:
-  ~LDMgr() noexcept;
-
   /// Set the file path.
   Expect<void> setPath(std::string_view FilePath);
 
@@ -37,13 +35,12 @@ public:
   Expect<uint32_t> getVersion();
 
   /// Get symbol.
-  template <typename T> T *getSymbol(const char *Name) {
-    return reinterpret_cast<T *>(getRawSymbol(Name));
+  template <typename T = void> auto getSymbol(const char *Name) noexcept {
+    return Handle->getSymbol<T>(Name);
   }
-  void *getRawSymbol(const char *Name);
 
 private:
-  void *Handler = nullptr;
+  std::shared_ptr<DLHandle> Handle;
 };
 
 } // namespace SSVM

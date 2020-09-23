@@ -13,6 +13,7 @@
 
 #include "common/types.h"
 #include "common/value.h"
+#include "loader/symbol.h"
 
 namespace SSVM {
 namespace Runtime {
@@ -51,9 +52,9 @@ public:
   }
 
   /// Getter of symbol
-  void *getSymbol() const { return Symbol; }
+  const auto getSymbol() const noexcept { return Symbol; }
   /// Setter of symbol
-  void setSymbol(void *S) { Symbol = reinterpret_cast<ValVariant *>(S); }
+  void setSymbol(DLSymbol<ValVariant> S) noexcept { Symbol = std::move(S); }
 
 private:
   /// \name Data of global instance.
@@ -61,7 +62,7 @@ private:
   const ValType Type;
   const ValMut Mut;
   ValVariant Value;
-  ValVariant *Symbol = nullptr;
+  DLSymbol<ValVariant> Symbol;
   /// @}
 };
 

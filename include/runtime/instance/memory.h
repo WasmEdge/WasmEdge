@@ -270,10 +270,10 @@ public:
   }
 
   /// Getter of symbol
-  void *getSymbol() const { return Symbol; }
+  const auto &getSymbol() const noexcept { return Symbol; }
   /// Setter of symbol
-  void setSymbol(void *S) {
-    Symbol = reinterpret_cast<uint8_t **>(S);
+  void setSymbol(DLSymbol<uint8_t *> S) noexcept {
+    Symbol = std::move(S);
     *Symbol = DataPtr;
   }
 
@@ -285,7 +285,7 @@ private:
   const uint32_t MaxPage;
   uint8_t *DataPtr = nullptr;
   uint32_t CurrPage = 0;
-  uint8_t **Symbol = nullptr;
+  DLSymbol<uint8_t *> Symbol;
   /// @}
 };
 

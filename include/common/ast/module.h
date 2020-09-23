@@ -14,6 +14,7 @@
 
 #include "base.h"
 #include "loader/ldmgr.h"
+#include "loader/symbol.h"
 #include "section.h"
 
 #include <memory>
@@ -64,12 +65,14 @@ public:
                              ValVariant *Rets);
   using MemGrowProxy = uint32_t (*)(const uint32_t Diff);
 
-  void setTrapCodeProxySymbol(TrapCodeProxy *Symbol) {
-    TrapCodeProxySymbol = Symbol;
+  void setTrapCodeProxySymbol(DLSymbol<TrapCodeProxy> Symbol) {
+    TrapCodeProxySymbol = std::move(Symbol);
   }
-  void setCallProxySymbol(CallProxy *Symbol) { CallProxySymbol = Symbol; }
-  void setMemGrowProxySymbol(MemGrowProxy *Symbol) {
-    MemGrowProxySymbol = Symbol;
+  void setCallProxySymbol(DLSymbol<CallProxy> Symbol) {
+    CallProxySymbol = std::move(Symbol);
+  }
+  void setMemGrowProxySymbol(DLSymbol<MemGrowProxy> Symbol) {
+    MemGrowProxySymbol = std::move(Symbol);
   }
   void setTrapCodeProxy(TrapCodeProxy Pointer) const {
     if (TrapCodeProxySymbol)
@@ -147,9 +150,9 @@ private:
   std::unique_ptr<DataSection> DataSec;
   /// @}
 
-  TrapCodeProxy *TrapCodeProxySymbol = nullptr;
-  CallProxy *CallProxySymbol = nullptr;
-  MemGrowProxy *MemGrowProxySymbol = nullptr;
+  DLSymbol<TrapCodeProxy> TrapCodeProxySymbol;
+  DLSymbol<CallProxy> CallProxySymbol;
+  DLSymbol<MemGrowProxy> MemGrowProxySymbol;
 };
 
 } // namespace AST

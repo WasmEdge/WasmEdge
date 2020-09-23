@@ -11,20 +11,32 @@
 
 namespace SSVM {
 
-/// Destructor of loadable manager. See "include/loader/ldmgr.h".
-LDMgr::~LDMgr() noexcept {
-  if (Handler != nullptr) {
-    dlclose(Handler);
+/// Open so file. See "include/loader/ldmgr.h".
+std::shared_ptr<DLHandle> DLHandle::open(const char *Path) {
+  auto Result = std::make_shared<DLHandle>();
+  Result->Handle = dlopen(Path, RTLD_LAZY | RTLD_LOCAL);
+  if (!Result->Handle) {
+    Result.reset();
+  }
+  return Result;
+}
+
+/// Get address of a symbol. See "include/loader/ldmgr.h".
+void *DLHandle::getRawSymbol(const char *Name) noexcept {
+  return dlsym(Handle, Name);
+}
+
+/// Close so file. See "include/loader/ldmgr.h".
+DLHandle::~DLHandle() noexcept {
+  if (Handle) {
+    dlclose(Handle);
   }
 }
 
 /// Set path to loadable manager. See "include/loader/ldmgr.h".
 Expect<void> LDMgr::setPath(std::string_view FilePath) {
-  if (Handler != nullptr) {
-    dlclose(Handler);
-  }
-  Handler = dlopen(std::string(FilePath).c_str(), RTLD_LAZY | RTLD_LOCAL);
-  if (Handler == nullptr) {
+  Handle = DLHandle::open(std::string(FilePath).c_str());
+  if (!Handle) {
     LOG(ERROR) << ErrCode::InvalidPath;
     return Unexpect(ErrCode::InvalidPath);
   }
@@ -32,34 +44,27 @@ Expect<void> LDMgr::setPath(std::string_view FilePath) {
 }
 
 Expect<std::vector<Byte>> LDMgr::getWasm() {
-  const auto *const Size = getSymbol<uint32_t>("wasm.size");
-  if (Size == nullptr) {
+  const auto Size = getSymbol<uint32_t>("wasm.size");
+  if (!Size) {
     LOG(ERROR) << ErrCode::InvalidGrammar;
     return Unexpect(ErrCode::InvalidGrammar);
   }
-  const auto *const Code = getSymbol<uint8_t>("wasm.code");
-  if (Code == nullptr) {
+  const auto Code = getSymbol<uint8_t>("wasm.code");
+  if (!Code) {
     LOG(ERROR) << ErrCode::InvalidGrammar;
     return Unexpect(ErrCode::InvalidGrammar);
   }
 
-  return std::vector<Byte>(Code, Code + *Size);
+  return std::vector<Byte>(Code.get(), Code.get() + *Size);
 }
 
 Expect<uint32_t> LDMgr::getVersion() {
-  const auto *const Version = getSymbol<uint32_t>("version");
-  if (Version == nullptr) {
+  const auto Version = getSymbol<uint32_t>("version");
+  if (!Version) {
     LOG(ERROR) << ErrCode::InvalidGrammar;
     return Unexpect(ErrCode::InvalidGrammar);
   }
   return *Version;
-}
-
-void *LDMgr::getRawSymbol(const char *Name) {
-  if (Handler == nullptr) {
-    return nullptr;
-  }
-  return dlsym(Handler, Name);
 }
 
 } // namespace SSVM

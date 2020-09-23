@@ -15,6 +15,7 @@
 #include "base.h"
 #include "expression.h"
 #include "instruction.h"
+#include "loader/symbol.h"
 #include "support/log.h"
 #include "type.h"
 

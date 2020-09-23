@@ -13,6 +13,7 @@
 #pragma once
 
 #include "base.h"
+#include "loader/symbol.h"
 
 #include <memory>
 #include <vector>
@@ -116,9 +117,9 @@ public:
   const Limit *getLimit() const { return Memory.get(); }
 
   /// Getter of compiled symbol.
-  void *getSymbol() const { return Symbol; }
+  const auto &getSymbol() const noexcept { return Symbol; }
   /// Setter of compiled symbol.
-  void setSymbol(void *S) { Symbol = S; }
+  void setSymbol(DLSymbol<uint8_t *> S) noexcept { Symbol = std::move(S); }
 
   /// The node type should be ASTNodeAttr::Type_Memory.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Memory;
@@ -126,7 +127,7 @@ public:
 private:
   /// Data of MemoryType node.
   std::unique_ptr<Limit> Memory;
-  void *Symbol = nullptr;
+  DLSymbol<uint8_t *> Symbol;
 };
 
 /// AST TableType node.

@@ -25,7 +25,7 @@ namespace Instance {
 
 class FunctionInstance {
 public:
-  using CompiledFunction = void (*)(const ValVariant *Args, ValVariant *Rets);
+  using CompiledFunction = void(const ValVariant *Args, ValVariant *Rets);
 
   FunctionInstance() = delete;
   /// Constructor for native function.
@@ -66,9 +66,11 @@ public:
   const AST::InstrVec &getInstrs() const { return Instrs; }
 
   /// Getter of symbol
-  CompiledFunction getSymbol() const { return Symbol; }
+  const auto getSymbol() const noexcept { return Symbol; }
   /// Setter of symbol
-  void setSymbol(void *S) { Symbol = reinterpret_cast<CompiledFunction>(S); }
+  void setSymbol(DLSymbol<CompiledFunction> S) noexcept {
+    Symbol = std::move(S);
+  }
 
   /// Getter of host function.
   HostFunctionBase &getHostFunc() const { return *HostFunc.get(); }
@@ -82,7 +84,7 @@ private:
   uint32_t ModuleAddr;
   const std::vector<std::pair<uint32_t, ValType>> Locals;
   AST::InstrVec Instrs;
-  CompiledFunction Symbol = nullptr;
+  DLSymbol<CompiledFunction> Symbol;
   /// @}
 
   /// \name Data of function instance for host function.

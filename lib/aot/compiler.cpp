@@ -57,6 +57,29 @@ template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 /// force checking div/rem on zero
 static inline constexpr bool ForceDivCheck = false;
 
+/// Translate Compiler::OptimizationLevel to llvm::PassBuilder version
+static inline llvm::PassBuilder::OptimizationLevel
+toLLVMLevel(SSVM::AOT::Compiler::OptimizationLevel Level) {
+  using OL = SSVM::AOT::Compiler::OptimizationLevel;
+  switch (Level) {
+  case OL::O0:
+    return llvm::PassBuilder::O0;
+  case OL::O1:
+    return llvm::PassBuilder::O1;
+  case OL::O2:
+    return llvm::PassBuilder::O2;
+  case OL::O3:
+    return llvm::PassBuilder::O3;
+  case OL::Os:
+    return llvm::PassBuilder::Os;
+  case OL::Oz:
+    return llvm::PassBuilder::Oz;
+  default:
+    assert(false);
+    __builtin_unreachable();
+  }
+}
+
 } // namespace
 
 struct SSVM::AOT::Compiler::CompileContext {
@@ -1860,48 +1883,54 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
                   llvm::None, llvm::CodeGenOpt::Level::Aggressive));
           LLModule->setDataLayout(TM->createDataLayout());
 
-#if LLVM_VERSION_MAJOR >= 9
-          llvm::PassBuilder PB(TM.get(), llvm::PipelineTuningOptions(),
-                               llvm::None);
-#else
-          llvm::PassBuilder PB(TM.get(), llvm::None);
-#endif
-
-          llvm::LoopAnalysisManager LAM(false);
-          llvm::FunctionAnalysisManager FAM(false);
-          llvm::CGSCCAnalysisManager CGAM(false);
-          llvm::ModuleAnalysisManager MAM(false);
-
-          // Register the AA manager first so that our version is the one used.
-          FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
-
-          // Register the target library analysis directly and give it a
-          // customized preset TLI.
-          auto TLII = std::make_unique<llvm::TargetLibraryInfoImpl>(
+          llvm::TargetLibraryInfoImpl TLII(
               llvm::Triple(LLModule->getTargetTriple()));
-          FAM.registerPass([&] { return llvm::TargetLibraryAnalysis(*TLII); });
-#if LLVM_VERSION_MAJOR <= 9
-          MAM.registerPass([&] { return llvm::TargetLibraryAnalysis(*TLII); });
+
+          if (!optNone()) {
+#if LLVM_VERSION_MAJOR >= 9
+            llvm::PassBuilder PB(TM.get(), llvm::PipelineTuningOptions(),
+                                 llvm::None);
+#else
+            llvm::PassBuilder PB(TM.get(), llvm::None);
 #endif
 
-          // Register all the basic analyses with the managers.
-          PB.registerModuleAnalyses(MAM);
-          PB.registerCGSCCAnalyses(CGAM);
-          PB.registerFunctionAnalyses(FAM);
-          PB.registerLoopAnalyses(LAM);
-          PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+            llvm::LoopAnalysisManager LAM(false);
+            llvm::FunctionAnalysisManager FAM(false);
+            llvm::CGSCCAnalysisManager CGAM(false);
+            llvm::ModuleAnalysisManager MAM(false);
 
-          llvm::ModulePassManager MPM(false);
+            // Register the AA manager first so that our version is the one
+            // used.
+            FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
 
-          MPM.addPass(PB.buildPerModuleDefaultPipeline(llvm::PassBuilder::Oz));
-          MPM.addPass(PB.buildPerModuleDefaultPipeline(llvm::PassBuilder::O3));
+            // Register the target library analysis directly and give it a
+            // customized preset TLI.
+            FAM.registerPass(
+                [&] { return llvm::TargetLibraryAnalysis(TLII); });
+#if LLVM_VERSION_MAJOR <= 9
+            MAM.registerPass(
+                [&] { return llvm::TargetLibraryAnalysis(TLII); });
+#endif
+
+            // Register all the basic analyses with the managers.
+            PB.registerModuleAnalyses(MAM);
+            PB.registerCGSCCAnalyses(CGAM);
+            PB.registerFunctionAnalyses(FAM);
+            PB.registerLoopAnalyses(LAM);
+            PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+            llvm::ModulePassManager MPM(false);
+
+            MPM.addPass(PB.buildPerModuleDefaultPipeline(toLLVMLevel(Level)));
+            MPM.run(*LLModule, MAM);
+          }
 
           llvm::legacy::PassManager CodeGenPasses;
           CodeGenPasses.add(llvm::createTargetTransformInfoWrapperPass(
               TM->getTargetIRAnalysis()));
 
           // Add LibraryInfo.
-          CodeGenPasses.add(new llvm::TargetLibraryInfoWrapperPass(*TLII));
+          CodeGenPasses.add(new llvm::TargetLibraryInfoWrapperPass(TLII));
 
           if (TM->addPassesToEmitFile(CodeGenPasses, *OS, nullptr,
 #if LLVM_VERSION_MAJOR >= 10
@@ -1915,8 +1944,6 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
             llvm::consumeError(Object->discard());
             return {};
           }
-
-          MPM.run(*LLModule, MAM);
 
           {
             if (auto *Call = LLModule->getGlobalVariable("call")) {

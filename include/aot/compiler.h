@@ -23,6 +23,26 @@ namespace AOT {
 /// Compiling Module into loadable executable binary.
 class Compiler {
 public:
+  enum class OptimizationLevel {
+    /// Disable as many optimizations as possible.
+    O0,
+    /// Optimize quickly without destroying debuggability.
+    O1,
+    /// Optimize for fast execution as much as possible without triggering
+    /// significant incremental compile time or code size growth.
+    O2,
+    /// Optimize for fast execution as much as possible.
+    O3,
+    /// Optimize for small code size as much as possible without triggering
+    /// significant incremental compile time or execution time slowdowns.
+    Os,
+    /// Optimize for small code size as much as possible.
+    Oz,
+  };
+
+  void setOptimizationLevel(OptimizationLevel Value) { Level = Value; }
+  bool optNone() const { return Level == OptimizationLevel::O0; }
+
   Expect<void> compile(Span<const Byte> Data, const AST::Module &Module,
                        std::string_view OutputPath);
   Expect<void> compile(const AST::ImportSection &ImportSection);
@@ -44,6 +64,7 @@ public:
 private:
   CompileContext *Context = nullptr;
   bool DumpIR = false;
+  OptimizationLevel Level = OptimizationLevel::O3;
 };
 
 } // namespace AOT

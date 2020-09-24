@@ -15,6 +15,6 @@
 
 namespace SSVM {
 
-static inline uint32_t kVersion = 1;
+static inline uint32_t kVersion [[maybe_unused]] = 1;
 
 } // namespace SSVM

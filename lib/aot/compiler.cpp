@@ -517,12 +517,11 @@ public:
       break;
     }
     case OpCode::Br_if: {
-      llvm::Value *Cond = Builder.CreateICmpNE(stackPop(), Builder.getInt32(0));
+      auto *Cond = Builder.CreateICmpNE(stackPop(), Builder.getInt32(0));
       if (!setLableJumpPHI(Label)) {
         return Unexpect(ErrCode::InvalidLabelIdx);
       }
-      llvm::BasicBlock *Next =
-          llvm::BasicBlock::Create(LLContext, "br_if.end", F);
+      auto *Next = llvm::BasicBlock::Create(LLContext, "br_if.end", F);
       Builder.CreateCondBr(Cond, getLabel(Label), Next);
       Builder.SetInsertPoint(Next);
       break;
@@ -536,11 +535,11 @@ public:
     const auto LabelTable = Instr.getLabelTable();
     switch (Instr.getOpCode()) {
     case OpCode::Br_table: {
-      llvm::Value *Value = stackPop();
+      auto *Value = stackPop();
       if (!setLableJumpPHI(Instr.getLabelIndex())) {
         return Unexpect(ErrCode::InvalidLabelIdx);
       }
-      llvm::SwitchInst *Switch = Builder.CreateSwitch(
+      auto *Switch = Builder.CreateSwitch(
           Value, getLabel(Instr.getLabelIndex()), LabelTable.size());
       for (size_t I = 0; I < LabelTable.size(); ++I) {
         if (!setLableJumpPHI(LabelTable[I])) {
@@ -575,9 +574,9 @@ public:
       stackPop();
       break;
     case OpCode::Select: {
-      llvm::Value *Cond = Builder.CreateICmpNE(stackPop(), Builder.getInt32(0));
-      llvm::Value *False = stackPop();
-      llvm::Value *True = stackPop();
+      auto *Cond = Builder.CreateICmpNE(stackPop(), Builder.getInt32(0));
+      auto *False = stackPop();
+      auto *True = stackPop();
       stackPush(Builder.CreateSelect(Cond, True, False));
       break;
     }

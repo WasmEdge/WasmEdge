@@ -333,8 +333,9 @@ public:
   Expect<void> compile(const AST::CodeSegment &Code,
                        Span<const ValType> Returns) {
     auto *RetBB = llvm::BasicBlock::Create(LLContext, "ret", F);
-    ControlStack.emplace_back(Stack.size(), RetBB, true,
-                              std::vector(Returns.begin(), Returns.end()), 0);
+    ControlStack.emplace_back(Stack.size(), RetBB,
+                              std::vector(Returns.begin(), Returns.end()), 0,
+                              std::nullopt);
 
     if (auto Status = compile(Code.getInstrs()); !Status) {
       return Unexpect(Status);
@@ -417,7 +418,7 @@ public:
       auto *EndBlock = llvm::BasicBlock::Create(LLContext, "block.end", F);
       Builder.CreateBr(Block);
 
-      enterBlock(EndBlock, true, Instr.getBlockType());
+      enterBlock(EndBlock, Instr.getBlockType());
       Builder.SetInsertPoint(Block);
       compile(Instr.getBody());
       buildPHI(resolveBlockType(Instr.getBlockType()).second,
@@ -425,12 +426,28 @@ public:
       break;
     }
     case OpCode::Loop: {
+      auto *Curr = Builder.GetInsertBlock();
       auto *Loop = llvm::BasicBlock::Create(LLContext, "loop", F);
       auto *EndLoop = llvm::BasicBlock::Create(LLContext, "loop.end", F);
       Builder.CreateBr(Loop);
 
-      enterBlock(Loop, false, Instr.getBlockType());
       Builder.SetInsertPoint(Loop);
+      std::vector<llvm::PHINode *> PHIArgs;
+      if (auto Type = resolveBlockType(Instr.getBlockType());
+          !Type.first.empty()) {
+        PHIArgs.resize(Type.first.size());
+        for (size_t I = 0; I < PHIArgs.size(); ++I) {
+          const size_t J = PHIArgs.size() - 1 - I;
+          auto *Value = stackPop();
+          PHIArgs[J] = Builder.CreatePHI(Value->getType(), 2);
+          PHIArgs[J]->addIncoming(Value, Curr);
+        }
+        for (auto *PHI : PHIArgs) {
+          stackPush(PHI);
+        }
+      }
+
+      enterBlock(Loop, Instr.getBlockType(), std::move(PHIArgs));
       compile(Instr.getBody());
       buildPHI(resolveBlockType(Instr.getBlockType()).second,
                leaveBlock(EndLoop));
@@ -463,7 +480,7 @@ public:
       for (auto *Value : Args) {
         stackPush(Value);
       }
-      enterBlock(EndIf, true, Instr.getBlockType());
+      enterBlock(EndIf, Instr.getBlockType());
       Builder.SetInsertPoint(Then);
       compile(Instr.getIfStatement());
       auto IfResult = leaveBlock(EndIf);
@@ -471,7 +488,7 @@ public:
       for (auto *Value : Args) {
         stackPush(Value);
       }
-      enterBlock(EndIf, true, Instr.getBlockType());
+      enterBlock(EndIf, Instr.getBlockType());
       Builder.SetInsertPoint(Else);
       compile(Instr.getElseStatement());
       auto ElseResult = leaveBlock(EndIf);
@@ -1582,11 +1599,12 @@ private:
         ResultType);
   }
 
-  void enterBlock(llvm::BasicBlock *JumpTarget, bool IsForward,
-                  const BlockType &ResultType) {
+  void enterBlock(
+      llvm::BasicBlock *JumpTarget, const BlockType &ResultType,
+      std::optional<std::vector<llvm::PHINode *>> PHIArgs = std::nullopt) {
     auto Type = resolveBlockType(ResultType);
     ControlStack.emplace_back(Stack.size() - Type.first.size(), JumpTarget,
-                              IsForward, std::move(Type.second), 0);
+                              std::move(Type.second), 0, std::move(PHIArgs));
   }
 
   std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
@@ -1659,14 +1677,25 @@ private:
       return false;
     }
     auto &Entry = *(ControlStack.rbegin() + Index);
-    if (const auto &Types = std::get<kReturnType>(Entry);
-        !Types.empty() && std::get<kIsForward>(Entry)) {
-      std::vector<llvm::Value *> Values(Types.size());
-      for (size_t I = 0; I < Types.size(); ++I) {
-        const size_t J = Types.size() - 1 - I;
+    if (auto &MaybePHIArgs = std::get<kPHIArgs>(Entry)) {
+      auto &PHIArgs = *MaybePHIArgs;
+      std::vector<llvm::Value *> Values(PHIArgs.size());
+      for (size_t I = 0; I < Values.size(); ++I) {
+        const size_t J = Values.size() - 1 - I;
         Values[J] = stackPop();
       }
-      for (size_t I = 0; I < Types.size(); ++I) {
+      for (size_t I = 0; I < Values.size(); ++I) {
+        PHIArgs[I]->addIncoming(Values[I], Builder.GetInsertBlock());
+        stackPush(Values[I]);
+      }
+    } else if (const auto &Types = std::get<kReturnType>(Entry);
+               !Types.empty()) {
+      std::vector<llvm::Value *> Values(Types.size());
+      for (size_t I = 0; I < Values.size(); ++I) {
+        const size_t J = Values.size() - 1 - I;
+        Values[J] = stackPop();
+      }
+      for (size_t I = 0; I < Values.size(); ++I) {
         stackPush(Values[I]);
       }
       std::get<kReturnPHI>(Entry).emplace_back(std::move(Values),
@@ -1698,12 +1727,13 @@ private:
   bool IsUnreachable = false;
   static inline constexpr size_t kStackSize = 0;
   static inline constexpr size_t kJumpBlock = 1;
-  static inline constexpr size_t kIsForward = 2;
-  static inline constexpr size_t kReturnType = 3;
-  static inline constexpr size_t kReturnPHI = 4;
+  static inline constexpr size_t kReturnType = 2;
+  static inline constexpr size_t kReturnPHI = 3;
+  static inline constexpr size_t kPHIArgs = 4;
   std::vector<std::tuple<
-      size_t, llvm::BasicBlock *, bool, std::vector<ValType>,
-      std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>>>
+      size_t, llvm::BasicBlock *, std::vector<ValType>,
+      std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>,
+      std::optional<std::vector<llvm::PHINode *>>>>
       ControlStack;
   llvm::Function *F;
   llvm::IRBuilder<> Builder;

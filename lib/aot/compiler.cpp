@@ -34,16 +34,16 @@ static inline unsigned Align(unsigned Value) noexcept { return Value; }
 #endif
 
 static bool isVoidReturn(SSVM::Span<const SSVM::ValType> ValTypes);
-static llvm::Type *toLLVMType(llvm::LLVMContext &Context,
+static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
                               const SSVM::ValType &ValType);
 static std::vector<llvm::Type *>
-toLLVMArgsType(llvm::LLVMContext &Context,
+toLLVMArgsType(llvm::LLVMContext &LLContext,
                SSVM::Span<const SSVM::ValType> ValTypes);
-static llvm::Type *toLLVMRetsType(llvm::LLVMContext &Context,
+static llvm::Type *toLLVMRetsType(llvm::LLVMContext &LLContext,
                                   SSVM::Span<const SSVM::ValType> ValTypes);
-static llvm::FunctionType *toLLVMType(llvm::LLVMContext &Context,
+static llvm::FunctionType *toLLVMType(llvm::LLVMContext &LLContext,
                                       const SSVM::AST::FunctionType &FuncType);
-static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &Context,
+static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
                                           const SSVM::ValType &ValType);
 static std::vector<llvm::Value *> unpackStruct(llvm::IRBuilder<> &Builder,
                                                llvm::Value *Struct);
@@ -83,8 +83,17 @@ toLLVMLevel(SSVM::AOT::Compiler::OptimizationLevel Level) {
 } // namespace
 
 struct SSVM::AOT::Compiler::CompileContext {
-  llvm::LLVMContext &Context;
-  llvm::Module &Module;
+  llvm::LLVMContext &LLContext;
+  llvm::Module &LLModule;
+  llvm::Type *VoidTy;
+  llvm::IntegerType *Int8Ty;
+  llvm::IntegerType *Int16Ty;
+  llvm::IntegerType *Int32Ty;
+  llvm::IntegerType *Int64Ty;
+  llvm::Type *FloatTy;
+  llvm::Type *DoubleTy;
+  llvm::PointerType *Int8PtrTy;
+  llvm::PointerType *Int32PtrTy;
   llvm::SubtargetFeatures SubtargetFeatures;
   bool SupportRoundeven =
 #if (defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||           \
@@ -112,52 +121,52 @@ struct SSVM::AOT::Compiler::CompileContext {
   llvm::MDNode *Likely;
   uint32_t MemMin = 1, MemMax = 65536;
   CompileContext(llvm::Module &M)
-      : Context(M.getContext()), Module(M),
+      : LLContext(M.getContext()), LLModule(M),
+        VoidTy(llvm::Type::getVoidTy(LLContext)),
+        Int8Ty(llvm::Type::getInt8Ty(LLContext)),
+        Int16Ty(llvm::Type::getInt16Ty(LLContext)),
+        Int32Ty(llvm::Type::getInt32Ty(LLContext)),
+        Int64Ty(llvm::Type::getInt64Ty(LLContext)),
+        FloatTy(llvm::Type::getFloatTy(LLContext)),
+        DoubleTy(llvm::Type::getDoubleTy(LLContext)),
+        Int8PtrTy(llvm::Type::getInt8PtrTy(LLContext)),
+        Int32PtrTy(llvm::Type::getInt32PtrTy(LLContext)),
         Call(new llvm::GlobalVariable(
-            Module,
-            llvm::FunctionType::get(llvm::Type::getVoidTy(Context),
-                                    {llvm::Type::getInt32Ty(Context),
-                                     llvm::Type::getInt8PtrTy(Context),
-                                     llvm::Type::getInt8PtrTy(Context)},
+            LLModule,
+            llvm::FunctionType::get(VoidTy, {Int32Ty, Int8PtrTy, Int8PtrTy},
                                     false)
                 ->getPointerTo(),
             true, llvm::GlobalVariable::ExternalLinkage, nullptr, "call")),
         MemGrow(new llvm::GlobalVariable(
-            Module,
-            llvm::FunctionType::get(llvm::Type::getInt32Ty(Context),
-                                    {llvm::Type::getInt32Ty(Context)}, false)
-                ->getPointerTo(),
+            LLModule,
+            llvm::FunctionType::get(Int32Ty, {Int32Ty}, false)->getPointerTo(),
             true, llvm::GlobalVariable::ExternalLinkage, nullptr, "memgrow")),
-        Mem(new llvm::GlobalVariable(Module, llvm::Type::getInt8PtrTy(Context),
-                                     true, llvm::GlobalValue::ExternalLinkage,
+        Mem(new llvm::GlobalVariable(LLModule, Int8PtrTy, true,
+                                     llvm::GlobalValue::ExternalLinkage,
                                      nullptr, "mem")),
-        TrapCode(new llvm::GlobalVariable(
-            Module, llvm::Type::getInt32PtrTy(Context), false,
-            llvm::GlobalValue::ExternalLinkage, nullptr, "code")),
-        InstrCount(new llvm::GlobalVariable(
-            Module, llvm::Type::getInt64Ty(Context), false,
-            llvm::GlobalValue::ExternalLinkage, nullptr, "instr")),
+        TrapCode(new llvm::GlobalVariable(LLModule, Int32PtrTy, false,
+                                          llvm::GlobalValue::ExternalLinkage,
+                                          nullptr, "code")),
+        InstrCount(new llvm::GlobalVariable(LLModule, Int64Ty, false,
+                                            llvm::GlobalValue::ExternalLinkage,
+                                            nullptr, "instr")),
         Trap(llvm::Function::Create(
-            llvm::FunctionType::get(llvm::Type::getVoidTy(Context),
-                                    {llvm::Type::getInt32Ty(Context)}, false),
-            llvm::Function::InternalLinkage, "trap", Module)),
+            llvm::FunctionType::get(VoidTy, {Int32Ty}, false),
+            llvm::Function::InternalLinkage, "trap", LLModule)),
         Likely(llvm::MDTuple::getDistinct(
-            Context, {llvm::MDString::get(Context, "branch_weights"),
-                      llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
-                          Context, llvm::APInt(32, 2000))),
-                      llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
-                          Context, llvm::APInt(32, 0)))})) {
+            LLContext, {llvm::MDString::get(LLContext, "branch_weights"),
+                        llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+                            LLContext, llvm::APInt(32, 2000))),
+                        llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+                            LLContext, llvm::APInt(32, 0)))})) {
     Trap->addFnAttr(llvm::Attribute::NoReturn);
-    TrapCode->setInitializer(
-        llvm::ConstantPointerNull::get(llvm::Type::getInt32PtrTy(Context)));
+    TrapCode->setInitializer(llvm::ConstantPointerNull::get(Int32PtrTy));
     InstrCount->setInitializer(
         llvm::ConstantInt::get(InstrCount->getValueType(), 0));
 
     new llvm::GlobalVariable(
-        Module, llvm::Type::getInt32Ty(Context), true,
-        llvm::GlobalValue::ExternalLinkage,
-        llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), kVersion),
-        "version");
+        LLModule, Int32Ty, true, llvm::GlobalValue::ExternalLinkage,
+        llvm::ConstantInt::get(Int32Ty, kVersion), "version");
 
     {
       llvm::StringMap<bool> FeatureMap;
@@ -183,7 +192,7 @@ struct SSVM::AOT::Compiler::CompileContext {
     {
       /// create trap
       llvm::IRBuilder<> Builder(
-          llvm::BasicBlock::Create(Context, "entry", Trap));
+          llvm::BasicBlock::Create(LLContext, "entry", Trap));
       Builder.CreateStore(Trap->arg_begin(), Builder.CreateLoad(TrapCode));
       Builder.CreateIntrinsic(llvm::Intrinsic::trap, {}, {});
       Builder.CreateUnreachable();
@@ -200,17 +209,17 @@ static bool isVoidReturn(Span<const SSVM::ValType> ValTypes) {
          (ValTypes.size() == 1 && ValTypes.front() == ValType::None);
 }
 
-static llvm::Type *toLLVMType(llvm::LLVMContext &Context,
+static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
                               const ValType &ValType) {
   switch (ValType) {
   case ValType::I32:
-    return llvm::Type::getInt32Ty(Context);
+    return llvm::Type::getInt32Ty(LLContext);
   case ValType::I64:
-    return llvm::Type::getInt64Ty(Context);
+    return llvm::Type::getInt64Ty(LLContext);
   case ValType::F32:
-    return llvm::Type::getFloatTy(Context);
+    return llvm::Type::getFloatTy(LLContext);
   case ValType::F64:
-    return llvm::Type::getDoubleTy(Context);
+    return llvm::Type::getDoubleTy(LLContext);
   default:
     assert(false);
     __builtin_unreachable();
@@ -218,54 +227,54 @@ static llvm::Type *toLLVMType(llvm::LLVMContext &Context,
 }
 
 static std::vector<llvm::Type *>
-toLLVMTypeVector(llvm::LLVMContext &Context, Span<const ValType> ValTypes) {
+toLLVMTypeVector(llvm::LLVMContext &LLContext, Span<const ValType> ValTypes) {
   std::vector<llvm::Type *> Result;
   Result.reserve(ValTypes.size());
   for (const auto &Type : ValTypes) {
-    Result.push_back(toLLVMType(Context, Type));
+    Result.push_back(toLLVMType(LLContext, Type));
   }
   return Result;
 }
 
-static std::vector<llvm::Type *> toLLVMArgsType(llvm::LLVMContext &Context,
+static std::vector<llvm::Type *> toLLVMArgsType(llvm::LLVMContext &LLContext,
                                                 Span<const ValType> ValTypes) {
-  return toLLVMTypeVector(Context, ValTypes);
+  return toLLVMTypeVector(LLContext, ValTypes);
 }
 
-static llvm::Type *toLLVMRetsType(llvm::LLVMContext &Context,
+static llvm::Type *toLLVMRetsType(llvm::LLVMContext &LLContext,
                                   Span<const ValType> ValTypes) {
   if (isVoidReturn(ValTypes)) {
-    return llvm::Type::getVoidTy(Context);
+    return llvm::Type::getVoidTy(LLContext);
   }
   if (ValTypes.size() == 1) {
-    return toLLVMType(Context, ValTypes.front());
+    return toLLVMType(LLContext, ValTypes.front());
   }
   std::vector<llvm::Type *> Result;
   Result.reserve(ValTypes.size());
   for (const auto &Type : ValTypes) {
-    Result.push_back(toLLVMType(Context, Type));
+    Result.push_back(toLLVMType(LLContext, Type));
   }
   return llvm::StructType::create(Result);
 }
 
-static llvm::FunctionType *toLLVMType(llvm::LLVMContext &Context,
+static llvm::FunctionType *toLLVMType(llvm::LLVMContext &LLContext,
                                       const AST::FunctionType &FuncType) {
-  auto ArgsTy = toLLVMArgsType(Context, FuncType.getParamTypes());
-  auto RetTy = toLLVMRetsType(Context, FuncType.getReturnTypes());
+  auto ArgsTy = toLLVMArgsType(LLContext, FuncType.getParamTypes());
+  auto RetTy = toLLVMRetsType(LLContext, FuncType.getReturnTypes());
   return llvm::FunctionType::get(RetTy, ArgsTy, false);
 }
 
-static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &Context,
+static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
                                           const ValType &ValType) {
   switch (ValType) {
   case ValType::I32:
-    return llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0);
+    return llvm::ConstantInt::get(llvm::Type::getInt32Ty(LLContext), 0);
   case ValType::I64:
-    return llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), 0);
+    return llvm::ConstantInt::get(llvm::Type::getInt64Ty(LLContext), 0);
   case ValType::F32:
-    return llvm::ConstantFP::get(llvm::Type::getFloatTy(Context), 0.0f);
+    return llvm::ConstantFP::get(llvm::Type::getFloatTy(LLContext), 0.0f);
   case ValType::F64:
-    return llvm::ConstantFP::get(llvm::Type::getDoubleTy(Context), 0.0);
+    return llvm::ConstantFP::get(llvm::Type::getDoubleTy(LLContext), 0.0);
   default:
     assert(false);
     __builtin_unreachable();
@@ -276,15 +285,15 @@ class FunctionCompiler {
 public:
   FunctionCompiler(AOT::Compiler::CompileContext &Context, llvm::Function *F,
                    Span<const ValType> Locals, bool CalculateInstrCount)
-      : Context(Context), VMContext(Context.Context), F(F),
-        Builder(llvm::BasicBlock::Create(VMContext, "entry", F)) {
+      : Context(Context), LLContext(Context.LLContext), F(F),
+        Builder(llvm::BasicBlock::Create(LLContext, "entry", F)) {
     if (F) {
       Builder.setIsFPConstrained(true);
       Builder.setDefaultConstrainedRounding(RoundingMode::rmToNearest);
       Builder.setDefaultConstrainedExcept(ExceptionBehavior::ebIgnore);
 
       if (CalculateInstrCount) {
-        LocalInstrCount = Builder.CreateAlloca(Builder.getInt64Ty());
+        LocalInstrCount = Builder.CreateAlloca(Context.Int64Ty);
         Builder.CreateStore(Builder.getInt64(0), LocalInstrCount);
       }
 
@@ -295,16 +304,16 @@ public:
       }
 
       for (const auto &Type : Locals) {
-        llvm::Value *ArgPtr = Builder.CreateAlloca(toLLVMType(VMContext, Type));
-        Builder.CreateStore(toLLVMConstantZero(VMContext, Type), ArgPtr);
+        llvm::Value *ArgPtr = Builder.CreateAlloca(toLLVMType(LLContext, Type));
+        Builder.CreateStore(toLLVMConstantZero(LLContext, Type), ArgPtr);
         Local.push_back(ArgPtr);
       }
     }
   }
 
   explicit FunctionCompiler(AOT::Compiler::CompileContext &Context)
-      : Context(Context), VMContext(Context.Context), F(nullptr),
-        Builder(llvm::BasicBlock::Create(VMContext, "entry", F)) {}
+      : Context(Context), LLContext(Context.LLContext), F(nullptr),
+        Builder(llvm::BasicBlock::Create(LLContext, "entry", F)) {}
 
   ~FunctionCompiler() noexcept {
     if (!F) {
@@ -316,14 +325,14 @@ public:
     if (auto Iter = TrapBB.find(Error); Iter != TrapBB.end()) {
       return Iter->second;
     }
-    auto *BB = llvm::BasicBlock::Create(VMContext, "trap", F);
+    auto *BB = llvm::BasicBlock::Create(LLContext, "trap", F);
     TrapBB.emplace(Error, BB);
     return BB;
   }
 
   Expect<void> compile(const AST::CodeSegment &Code,
                        Span<const ValType> Returns) {
-    auto *RetBB = llvm::BasicBlock::Create(VMContext, "ret", F);
+    auto *RetBB = llvm::BasicBlock::Create(LLContext, "ret", F);
     ControlStack.emplace_back(Stack.size(), RetBB, true,
                               std::vector(Returns.begin(), Returns.end()), 0);
 
@@ -404,8 +413,8 @@ public:
   Expect<void> compile(const AST::BlockControlInstruction &Instr) {
     switch (Instr.getOpCode()) {
     case OpCode::Block: {
-      auto *Block = llvm::BasicBlock::Create(VMContext, "block", F);
-      auto *EndBlock = llvm::BasicBlock::Create(VMContext, "block.end", F);
+      auto *Block = llvm::BasicBlock::Create(LLContext, "block", F);
+      auto *EndBlock = llvm::BasicBlock::Create(LLContext, "block.end", F);
       Builder.CreateBr(Block);
 
       enterBlock(EndBlock, true, Instr.getBlockType());
@@ -416,8 +425,8 @@ public:
       break;
     }
     case OpCode::Loop: {
-      auto *Loop = llvm::BasicBlock::Create(VMContext, "loop", F);
-      auto *EndLoop = llvm::BasicBlock::Create(VMContext, "loop.end", F);
+      auto *Loop = llvm::BasicBlock::Create(LLContext, "loop", F);
+      auto *EndLoop = llvm::BasicBlock::Create(LLContext, "loop.end", F);
       Builder.CreateBr(Loop);
 
       enterBlock(Loop, false, Instr.getBlockType());
@@ -437,9 +446,9 @@ public:
     case OpCode::If: {
       auto *Cond = Builder.CreateICmpNE(stackPop(), Builder.getInt32(0));
 
-      auto *Then = llvm::BasicBlock::Create(VMContext, "then", F);
-      auto *Else = llvm::BasicBlock::Create(VMContext, "else", F);
-      auto *EndIf = llvm::BasicBlock::Create(VMContext, "if.end", F);
+      auto *Then = llvm::BasicBlock::Create(LLContext, "then", F);
+      auto *Else = llvm::BasicBlock::Create(LLContext, "else", F);
+      auto *EndIf = llvm::BasicBlock::Create(LLContext, "if.end", F);
 
       auto BlockType = resolveBlockType(Instr.getBlockType());
       const auto Arity = BlockType.first.size();
@@ -496,7 +505,7 @@ public:
         return Unexpect(ErrCode::InvalidLabelIdx);
       }
       llvm::BasicBlock *Next =
-          llvm::BasicBlock::Create(VMContext, "br_if.end", F);
+          llvm::BasicBlock::Create(LLContext, "br_if.end", F);
       Builder.CreateCondBr(Cond, getLabel(Label), Next);
       Builder.SetInsertPoint(Next);
       break;
@@ -598,70 +607,70 @@ public:
     switch (Instr.getOpCode()) {
     case OpCode::I32__load:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Builder.getInt32Ty());
+                           Context.Int32Ty);
     case OpCode::I64__load:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Builder.getInt64Ty());
+                           Context.Int64Ty);
     case OpCode::F32__load:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Builder.getFloatTy());
+                           Context.FloatTy);
     case OpCode::F64__load:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Builder.getDoubleTy());
+                           Context.DoubleTy);
     case OpCode::I32__load8_s:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Builder.getInt8Ty(), Builder.getInt32Ty(), true);
+                           Context.Int8Ty, Context.Int32Ty, true);
     case OpCode::I32__load8_u:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Builder.getInt8Ty(), Builder.getInt32Ty(), false);
+                           Context.Int8Ty, Context.Int32Ty, false);
     case OpCode::I32__load16_s:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Builder.getInt16Ty(), Builder.getInt32Ty(), true);
+                           Context.Int16Ty, Context.Int32Ty, true);
     case OpCode::I32__load16_u:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Builder.getInt16Ty(), Builder.getInt32Ty(), false);
+                           Context.Int16Ty, Context.Int32Ty, false);
     case OpCode::I64__load8_s:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Builder.getInt8Ty(), Builder.getInt64Ty(), true);
+                           Context.Int8Ty, Context.Int64Ty, true);
     case OpCode::I64__load8_u:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Builder.getInt8Ty(), Builder.getInt64Ty(), false);
+                           Context.Int8Ty, Context.Int64Ty, false);
     case OpCode::I64__load16_s:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Builder.getInt16Ty(), Builder.getInt64Ty(), true);
+                           Context.Int16Ty, Context.Int64Ty, true);
     case OpCode::I64__load16_u:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Builder.getInt16Ty(), Builder.getInt64Ty(), false);
+                           Context.Int16Ty, Context.Int64Ty, false);
     case OpCode::I64__load32_s:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Builder.getInt32Ty(), Builder.getInt64Ty(), true);
+                           Context.Int32Ty, Context.Int64Ty, true);
     case OpCode::I64__load32_u:
       return compileLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Builder.getInt32Ty(), Builder.getInt64Ty(), false);
+                           Context.Int32Ty, Context.Int64Ty, false);
 
     case OpCode::I32__store:
       return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                            Builder.getInt32Ty());
+                            Context.Int32Ty);
     case OpCode::I64__store:
       return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                            Builder.getInt64Ty());
+                            Context.Int64Ty);
     case OpCode::F32__store:
       return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                            Builder.getFloatTy());
+                            Context.FloatTy);
     case OpCode::F64__store:
       return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                            Builder.getDoubleTy());
+                            Context.DoubleTy);
     case OpCode::I32__store8:
     case OpCode::I64__store8:
       return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                            Builder.getInt8Ty(), true);
+                            Context.Int8Ty, true);
     case OpCode::I32__store16:
     case OpCode::I64__store16:
       return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                            Builder.getInt16Ty(), true);
+                            Context.Int16Ty, true);
     case OpCode::I64__store32:
       return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                            Builder.getInt32Ty(), true);
+                            Context.Int32Ty, true);
     case OpCode::Memory__size:
       stackPush(Builder.CreateCall(Builder.CreateLoad(Context.MemGrow),
                                    {Builder.getInt32(0)}));
@@ -688,12 +697,12 @@ public:
       break;
     case OpCode::F32__const:
       stackPush(llvm::ConstantFP::get(
-          Builder.getFloatTy(),
+          Context.FloatTy,
           llvm::APFloat(std::get<float>(Instr.getConstValue()))));
       break;
     case OpCode::F64__const:
       stackPush(llvm::ConstantFP::get(
-          Builder.getDoubleTy(),
+          Context.DoubleTy,
           llvm::APFloat(std::get<double>(Instr.getConstValue()))));
       break;
     default:
@@ -706,12 +715,12 @@ public:
     case OpCode::I32__eqz:
       stackPush(Builder.CreateZExt(
           Builder.CreateICmpEQ(stackPop(), Builder.getInt32(0)),
-          Builder.getInt32Ty()));
+          Context.Int32Ty));
       break;
     case OpCode::I64__eqz:
       stackPush(Builder.CreateZExt(
           Builder.CreateICmpEQ(stackPop(), Builder.getInt64(0)),
-          Builder.getInt32Ty()));
+          Context.Int32Ty));
       break;
     case OpCode::I32__clz:
     case OpCode::I64__clz:
@@ -801,116 +810,111 @@ public:
           Builder.CreateUnaryIntrinsic(llvm::Intrinsic::sqrt, stackPop()));
       break;
     case OpCode::I32__wrap_i64:
-      stackPush(Builder.CreateTrunc(stackPop(), Builder.getInt32Ty()));
+      stackPush(Builder.CreateTrunc(stackPop(), Context.Int32Ty));
       break;
     case OpCode::I32__trunc_f32_s:
       compileSignedTrunc(
           llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+31f)),
           llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+31f)),
-          Builder.getInt32Ty());
+          Context.Int32Ty);
       break;
     case OpCode::I32__trunc_f64_s:
       compileSignedTrunc(
           llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+31)),
           llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+31)),
-          Builder.getInt32Ty());
+          Context.Int32Ty);
       break;
     case OpCode::I32__trunc_f32_u:
       compileUnsignedTrunc(
           llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+32f)),
-          Builder.getInt32Ty());
+          Context.Int32Ty);
       break;
     case OpCode::I32__trunc_f64_u:
       compileUnsignedTrunc(
           llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+32)),
-          Builder.getInt32Ty());
+          Context.Int32Ty);
       break;
     case OpCode::I64__extend_i32_s:
-      stackPush(Builder.CreateSExt(stackPop(), Builder.getInt64Ty()));
+      stackPush(Builder.CreateSExt(stackPop(), Context.Int64Ty));
       break;
     case OpCode::I64__extend_i32_u:
-      stackPush(Builder.CreateZExt(stackPop(), Builder.getInt64Ty()));
+      stackPush(Builder.CreateZExt(stackPop(), Context.Int64Ty));
       break;
     case OpCode::I64__trunc_f32_s:
       compileSignedTrunc(
           llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+63f)),
           llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+63f)),
-          Builder.getInt64Ty());
+          Context.Int64Ty);
       break;
     case OpCode::I64__trunc_f64_s:
       compileSignedTrunc(
           llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+63)),
           llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+63)),
-          Builder.getInt64Ty());
+          Context.Int64Ty);
       break;
     case OpCode::I64__trunc_f32_u:
       compileUnsignedTrunc(
           llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+64f)),
-          Builder.getInt64Ty());
+          Context.Int64Ty);
       break;
     case OpCode::I64__trunc_f64_u:
       compileUnsignedTrunc(
           llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+64)),
-          Builder.getInt64Ty());
+          Context.Int64Ty);
       break;
     case OpCode::F32__convert_i32_s:
     case OpCode::F32__convert_i64_s:
-      stackPush(Builder.CreateSIToFP(stackPop(), Builder.getFloatTy()));
+      stackPush(Builder.CreateSIToFP(stackPop(), Context.FloatTy));
       break;
     case OpCode::F32__convert_i32_u:
     case OpCode::F32__convert_i64_u:
-      stackPush(Builder.CreateUIToFP(stackPop(), Builder.getFloatTy()));
+      stackPush(Builder.CreateUIToFP(stackPop(), Context.FloatTy));
       break;
     case OpCode::F64__convert_i32_s:
     case OpCode::F64__convert_i64_s:
-      stackPush(Builder.CreateSIToFP(stackPop(), Builder.getDoubleTy()));
+      stackPush(Builder.CreateSIToFP(stackPop(), Context.DoubleTy));
       break;
     case OpCode::F64__convert_i32_u:
     case OpCode::F64__convert_i64_u:
-      stackPush(Builder.CreateUIToFP(stackPop(), Builder.getDoubleTy()));
+      stackPush(Builder.CreateUIToFP(stackPop(), Context.DoubleTy));
       break;
     case OpCode::F32__demote_f64:
-      stackPush(Builder.CreateFPTrunc(stackPop(), Builder.getFloatTy()));
+      stackPush(Builder.CreateFPTrunc(stackPop(), Context.FloatTy));
       break;
     case OpCode::F64__promote_f32:
-      stackPush(Builder.CreateFPExt(stackPop(), Builder.getDoubleTy()));
+      stackPush(Builder.CreateFPExt(stackPop(), Context.DoubleTy));
       break;
     case OpCode::I32__reinterpret_f32:
-      stackPush(Builder.CreateBitCast(stackPop(), Builder.getInt32Ty()));
+      stackPush(Builder.CreateBitCast(stackPop(), Context.Int32Ty));
       break;
     case OpCode::I64__reinterpret_f64:
-      stackPush(Builder.CreateBitCast(stackPop(), Builder.getInt64Ty()));
+      stackPush(Builder.CreateBitCast(stackPop(), Context.Int64Ty));
       break;
     case OpCode::F32__reinterpret_i32:
-      stackPush(Builder.CreateBitCast(stackPop(), Builder.getFloatTy()));
+      stackPush(Builder.CreateBitCast(stackPop(), Context.FloatTy));
       break;
     case OpCode::F64__reinterpret_i64:
-      stackPush(Builder.CreateBitCast(stackPop(), Builder.getDoubleTy()));
+      stackPush(Builder.CreateBitCast(stackPop(), Context.DoubleTy));
       break;
     case OpCode::I32__extend8_s:
       stackPush(Builder.CreateSExt(
-          Builder.CreateTrunc(stackPop(), Builder.getInt8Ty()),
-          Builder.getInt32Ty()));
+          Builder.CreateTrunc(stackPop(), Context.Int8Ty), Context.Int32Ty));
       break;
     case OpCode::I32__extend16_s:
       stackPush(Builder.CreateSExt(
-          Builder.CreateTrunc(stackPop(), Builder.getInt16Ty()),
-          Builder.getInt32Ty()));
+          Builder.CreateTrunc(stackPop(), Context.Int16Ty), Context.Int32Ty));
       break;
     case OpCode::I64__extend8_s:
       stackPush(Builder.CreateSExt(
-          Builder.CreateTrunc(stackPop(), Builder.getInt8Ty()),
-          Builder.getInt64Ty()));
+          Builder.CreateTrunc(stackPop(), Context.Int8Ty), Context.Int64Ty));
       break;
     case OpCode::I64__extend16_s:
       stackPush(Builder.CreateSExt(
-          Builder.CreateTrunc(stackPop(), Builder.getInt16Ty()),
-          Builder.getInt64Ty()));
+          Builder.CreateTrunc(stackPop(), Context.Int16Ty), Context.Int64Ty));
       break;
     case OpCode::I64__extend32_s:
       stackPush(Builder.CreateSExt(
-          Builder.CreateTrunc(stackPop(), Builder.getInt32Ty()),
-          Builder.getInt64Ty()));
+          Builder.CreateTrunc(stackPop(), Context.Int32Ty), Context.Int64Ty));
       break;
     case OpCode::I32__trunc_sat_f32_s:
       compileSignedTruncSat(
@@ -968,84 +972,84 @@ public:
     switch (Instr.getOpCode()) {
     case OpCode::I32__eq:
     case OpCode::I64__eq:
-      stackPush(Builder.CreateZExt(Builder.CreateICmpEQ(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateICmpEQ(LHS, RHS), Context.Int32Ty));
       break;
     case OpCode::I32__ne:
     case OpCode::I64__ne:
-      stackPush(Builder.CreateZExt(Builder.CreateICmpNE(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateICmpNE(LHS, RHS), Context.Int32Ty));
       break;
     case OpCode::I32__lt_s:
     case OpCode::I64__lt_s:
-      stackPush(Builder.CreateZExt(Builder.CreateICmpSLT(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateICmpSLT(LHS, RHS), Context.Int32Ty));
       break;
     case OpCode::I32__lt_u:
     case OpCode::I64__lt_u:
-      stackPush(Builder.CreateZExt(Builder.CreateICmpULT(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateICmpULT(LHS, RHS), Context.Int32Ty));
       break;
     case OpCode::I32__gt_s:
     case OpCode::I64__gt_s:
-      stackPush(Builder.CreateZExt(Builder.CreateICmpSGT(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateICmpSGT(LHS, RHS), Context.Int32Ty));
       break;
     case OpCode::I32__gt_u:
     case OpCode::I64__gt_u:
-      stackPush(Builder.CreateZExt(Builder.CreateICmpUGT(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateICmpUGT(LHS, RHS), Context.Int32Ty));
       break;
     case OpCode::I32__le_s:
     case OpCode::I64__le_s:
-      stackPush(Builder.CreateZExt(Builder.CreateICmpSLE(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateICmpSLE(LHS, RHS), Context.Int32Ty));
       break;
     case OpCode::I32__le_u:
     case OpCode::I64__le_u:
-      stackPush(Builder.CreateZExt(Builder.CreateICmpULE(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateICmpULE(LHS, RHS), Context.Int32Ty));
       break;
     case OpCode::I32__ge_s:
     case OpCode::I64__ge_s:
-      stackPush(Builder.CreateZExt(Builder.CreateICmpSGE(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateICmpSGE(LHS, RHS), Context.Int32Ty));
       break;
     case OpCode::I32__ge_u:
     case OpCode::I64__ge_u:
-      stackPush(Builder.CreateZExt(Builder.CreateICmpUGE(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateICmpUGE(LHS, RHS), Context.Int32Ty));
       break;
 
     case OpCode::F32__eq:
     case OpCode::F64__eq:
-      stackPush(Builder.CreateZExt(Builder.CreateFCmpOEQ(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateFCmpOEQ(LHS, RHS), Context.Int32Ty));
       break;
     case OpCode::F32__ne:
     case OpCode::F64__ne:
-      stackPush(Builder.CreateZExt(Builder.CreateFCmpUNE(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateFCmpUNE(LHS, RHS), Context.Int32Ty));
       break;
     case OpCode::F32__lt:
     case OpCode::F64__lt:
-      stackPush(Builder.CreateZExt(Builder.CreateFCmpOLT(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateFCmpOLT(LHS, RHS), Context.Int32Ty));
       break;
     case OpCode::F32__gt:
     case OpCode::F64__gt:
-      stackPush(Builder.CreateZExt(Builder.CreateFCmpOGT(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateFCmpOGT(LHS, RHS), Context.Int32Ty));
       break;
     case OpCode::F32__le:
     case OpCode::F64__le:
-      stackPush(Builder.CreateZExt(Builder.CreateFCmpOLE(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateFCmpOLE(LHS, RHS), Context.Int32Ty));
       break;
     case OpCode::F32__ge:
     case OpCode::F64__ge:
-      stackPush(Builder.CreateZExt(Builder.CreateFCmpOGE(LHS, RHS),
-                                   Builder.getInt32Ty()));
+      stackPush(
+          Builder.CreateZExt(Builder.CreateFCmpOGE(LHS, RHS), Context.Int32Ty));
       break;
 
     case OpCode::I32__add:
@@ -1072,8 +1076,8 @@ public:
             Is32 ? Builder.getInt32(std::numeric_limits<int32_t>::min())
                  : Builder.getInt64(std::numeric_limits<int64_t>::min());
 
-        auto *NoZeroBB = llvm::BasicBlock::Create(VMContext, "div.nozero", F);
-        auto *OkBB = llvm::BasicBlock::Create(VMContext, "div.ok", F);
+        auto *NoZeroBB = llvm::BasicBlock::Create(LLContext, "div.nozero", F);
+        auto *OkBB = llvm::BasicBlock::Create(LLContext, "div.ok", F);
         Builder.CreateCondBr(Builder.CreateICmpNE(RHS, IntZero), NoZeroBB,
                              getTrapBB(ErrCode::DivideByZero), Context.Likely);
 
@@ -1095,7 +1099,7 @@ public:
         const bool Is32 = Instr.getOpCode() == OpCode::I32__div_u;
         llvm::ConstantInt *IntZero =
             Is32 ? Builder.getInt32(0) : Builder.getInt64(0);
-        auto *OkBB = llvm::BasicBlock::Create(VMContext, "div.ok", F);
+        auto *OkBB = llvm::BasicBlock::Create(LLContext, "div.ok", F);
         Builder.CreateCondBr(Builder.CreateICmpNE(RHS, IntZero), OkBB,
                              getTrapBB(ErrCode::DivideByZero), Context.Likely);
         Builder.SetInsertPoint(OkBB);
@@ -1115,11 +1119,11 @@ public:
           Is32 ? Builder.getInt32(0) : Builder.getInt64(0);
 
       auto *NoOverflowBB =
-          llvm::BasicBlock::Create(VMContext, "no.overflow", F);
-      auto *EndBB = llvm::BasicBlock::Create(VMContext, "end.overflow", F);
+          llvm::BasicBlock::Create(LLContext, "no.overflow", F);
+      auto *EndBB = llvm::BasicBlock::Create(LLContext, "end.overflow", F);
 
       if constexpr (ForceDivCheck) {
-        auto *OkBB = llvm::BasicBlock::Create(VMContext, "rem.ok", F);
+        auto *OkBB = llvm::BasicBlock::Create(LLContext, "rem.ok", F);
         Builder.CreateCondBr(Builder.CreateICmpNE(RHS, IntZero), OkBB,
                              getTrapBB(ErrCode::DivideByZero), Context.Likely);
         Builder.SetInsertPoint(OkBB);
@@ -1149,7 +1153,7 @@ public:
         llvm::ConstantInt *IntZero = Instr.getOpCode() == OpCode::I32__rem_u
                                          ? Builder.getInt32(0)
                                          : Builder.getInt64(0);
-        auto *OkBB = llvm::BasicBlock::Create(VMContext, "rem.ok", F);
+        auto *OkBB = llvm::BasicBlock::Create(LLContext, "rem.ok", F);
         Builder.CreateCondBr(Builder.CreateICmpNE(RHS, IntZero), OkBB,
                              getTrapBB(ErrCode::DivideByZero), Context.Likely);
         Builder.SetInsertPoint(OkBB);
@@ -1181,20 +1185,20 @@ public:
       stackPush(Builder.CreateLShr(LHS, RHS));
       break;
     case OpCode::I32__rotl:
-      stackPush(Builder.CreateIntrinsic(
-          llvm::Intrinsic::fshl, {Builder.getInt32Ty()}, {LHS, LHS, RHS}));
+      stackPush(Builder.CreateIntrinsic(llvm::Intrinsic::fshl,
+                                        {Context.Int32Ty}, {LHS, LHS, RHS}));
       break;
     case OpCode::I32__rotr:
-      stackPush(Builder.CreateIntrinsic(
-          llvm::Intrinsic::fshr, {Builder.getInt32Ty()}, {LHS, LHS, RHS}));
+      stackPush(Builder.CreateIntrinsic(llvm::Intrinsic::fshr,
+                                        {Context.Int32Ty}, {LHS, LHS, RHS}));
       break;
     case OpCode::I64__rotl:
-      stackPush(Builder.CreateIntrinsic(
-          llvm::Intrinsic::fshl, {Builder.getInt64Ty()}, {LHS, LHS, RHS}));
+      stackPush(Builder.CreateIntrinsic(llvm::Intrinsic::fshl,
+                                        {Context.Int64Ty}, {LHS, LHS, RHS}));
       break;
     case OpCode::I64__rotr:
-      stackPush(Builder.CreateIntrinsic(
-          llvm::Intrinsic::fshr, {Builder.getInt64Ty()}, {LHS, LHS, RHS}));
+      stackPush(Builder.CreateIntrinsic(llvm::Intrinsic::fshr,
+                                        {Context.Int64Ty}, {LHS, LHS, RHS}));
       break;
 
     case OpCode::F32__add:
@@ -1215,12 +1219,10 @@ public:
       break;
     case OpCode::F32__min:
     case OpCode::F64__min: {
-      auto *FpTy = Instr.getOpCode() == OpCode::F32__min
-                       ? Builder.getFloatTy()
-                       : Builder.getDoubleTy();
-      auto *IntTy = Instr.getOpCode() == OpCode::F32__min
-                        ? Builder.getInt32Ty()
-                        : Builder.getInt64Ty();
+      auto *FpTy = Instr.getOpCode() == OpCode::F32__min ? Context.FloatTy
+                                                         : Context.DoubleTy;
+      auto *IntTy = Instr.getOpCode() == OpCode::F32__min ? Context.Int32Ty
+                                                          : Context.Int64Ty;
 
       auto *UEQ = Builder.CreateFCmpUEQ(LHS, RHS);
       auto *UNO = Builder.CreateFCmpUNO(LHS, RHS);
@@ -1243,12 +1245,10 @@ public:
     }
     case OpCode::F32__max:
     case OpCode::F64__max: {
-      auto *FpTy = Instr.getOpCode() == OpCode::F32__max
-                       ? Builder.getFloatTy()
-                       : Builder.getDoubleTy();
-      auto *IntTy = Instr.getOpCode() == OpCode::F32__max
-                        ? Builder.getInt32Ty()
-                        : Builder.getInt64Ty();
+      auto *FpTy = Instr.getOpCode() == OpCode::F32__max ? Context.FloatTy
+                                                         : Context.DoubleTy;
+      auto *IntTy = Instr.getOpCode() == OpCode::F32__max ? Context.Int32Ty
+                                                          : Context.Int64Ty;
 
       auto *UEQ = Builder.CreateFCmpUEQ(LHS, RHS);
       auto *UNO = Builder.CreateFCmpUNO(LHS, RHS);
@@ -1281,9 +1281,9 @@ public:
   }
   void compileSignedTrunc(llvm::ConstantFP *MinFp, llvm::ConstantFP *MaxFp,
                           llvm::Type *Type) {
-    auto *NormBB = llvm::BasicBlock::Create(VMContext, "strunc.norm", F);
-    auto *NotMinBB = llvm::BasicBlock::Create(VMContext, "strunc.notmin", F);
-    auto *NotMaxBB = llvm::BasicBlock::Create(VMContext, "strunc.notmax", F);
+    auto *NormBB = llvm::BasicBlock::Create(LLContext, "strunc.norm", F);
+    auto *NotMinBB = llvm::BasicBlock::Create(LLContext, "strunc.notmin", F);
+    auto *NotMaxBB = llvm::BasicBlock::Create(LLContext, "strunc.notmax", F);
     auto *Value = stackPop();
 
     Builder.CreateCondBr(Builder.CreateFCmpORD(Value, Value), NormBB,
@@ -1304,10 +1304,10 @@ public:
                              llvm::ConstantInt *MinInt,
                              llvm::ConstantInt *MaxInt) {
     auto *CurrBB = Builder.GetInsertBlock();
-    auto *NormBB = llvm::BasicBlock::Create(VMContext, "ssat.norm", F);
-    auto *NotMinBB = llvm::BasicBlock::Create(VMContext, "ssat.notmin", F);
-    auto *NotMaxBB = llvm::BasicBlock::Create(VMContext, "ssat.notmax", F);
-    auto *EndBB = llvm::BasicBlock::Create(VMContext, "ssat.end", F);
+    auto *NormBB = llvm::BasicBlock::Create(LLContext, "ssat.norm", F);
+    auto *NotMinBB = llvm::BasicBlock::Create(LLContext, "ssat.notmin", F);
+    auto *NotMaxBB = llvm::BasicBlock::Create(LLContext, "ssat.notmax", F);
+    auto *EndBB = llvm::BasicBlock::Create(LLContext, "ssat.end", F);
     auto *Value = stackPop();
 
     Builder.CreateCondBr(Builder.CreateFCmpORD(Value, Value), NormBB, EndBB,
@@ -1336,9 +1336,9 @@ public:
     stackPush(PHIRet);
   }
   void compileUnsignedTrunc(llvm::ConstantFP *MaxFp, llvm::Type *Type) {
-    auto *NormBB = llvm::BasicBlock::Create(VMContext, "utrunc.norm", F);
-    auto *NotMinBB = llvm::BasicBlock::Create(VMContext, "utrunc.notmin", F);
-    auto *NotMaxBB = llvm::BasicBlock::Create(VMContext, "utrunc.notmax", F);
+    auto *NormBB = llvm::BasicBlock::Create(LLContext, "utrunc.norm", F);
+    auto *NotMinBB = llvm::BasicBlock::Create(LLContext, "utrunc.notmin", F);
+    auto *NotMaxBB = llvm::BasicBlock::Create(LLContext, "utrunc.notmax", F);
     auto *Value = stackPop();
 
     Builder.CreateCondBr(Builder.CreateFCmpORD(Value, Value), NormBB,
@@ -1360,9 +1360,9 @@ public:
   void compileUnsignedTruncSat(llvm::ConstantFP *MaxFp,
                                llvm::ConstantInt *MaxInt) {
     auto *CurrBB = Builder.GetInsertBlock();
-    auto *NormBB = llvm::BasicBlock::Create(VMContext, "usat.norm", F);
-    auto *NotMaxBB = llvm::BasicBlock::Create(VMContext, "usat.notmax", F);
-    auto *EndBB = llvm::BasicBlock::Create(VMContext, "usat.end", F);
+    auto *NormBB = llvm::BasicBlock::Create(LLContext, "usat.norm", F);
+    auto *NotMaxBB = llvm::BasicBlock::Create(LLContext, "usat.notmax", F);
+    auto *EndBB = llvm::BasicBlock::Create(LLContext, "usat.end", F);
     auto *Value = stackPop();
 
     Builder.CreateCondBr(
@@ -1479,7 +1479,7 @@ private:
         Table.emplace_back(I, std::get<1>(Context.Functions[FuncIdx]));
       }
     }
-    auto *OKBB = llvm::BasicBlock::Create(VMContext, "call_indirect.end", F);
+    auto *OKBB = llvm::BasicBlock::Create(LLContext, "call_indirect.end", F);
     auto *Switch = Builder.CreateSwitch(
         Value, getTrapBB(ErrCode::UndefinedElement), Table.size());
 
@@ -1493,7 +1493,7 @@ private:
 
     for (const auto &[Value, Function] : Table) {
       auto *Entry = llvm::BasicBlock::Create(
-          VMContext, "call_indirect." + std::to_string(Value), F);
+          LLContext, "call_indirect." + std::to_string(Value), F);
       Builder.SetInsertPoint(Entry);
 
       auto *Ret = Builder.CreateCall(Function, Args);
@@ -1516,7 +1516,7 @@ private:
 
   Expect<void> compileLoadOp(unsigned Offset, unsigned Alignment,
                              llvm::Type *LoadTy) {
-    auto *Off = Builder.CreateZExt(stackPop(), Builder.getInt64Ty());
+    auto *Off = Builder.CreateZExt(stackPop(), Context.Int64Ty);
     if (Offset != 0) {
       Off = Builder.CreateAdd(Off, Builder.getInt64(Offset));
     }
@@ -1545,7 +1545,7 @@ private:
   Expect<void> compileStoreOp(unsigned Offset, unsigned Alignment,
                               llvm::Type *LoadTy, bool Trunc = false) {
     auto *V = stackPop();
-    auto *Off = Builder.CreateZExt(stackPop(), Builder.getInt64Ty());
+    auto *Off = Builder.CreateZExt(stackPop(), Context.Int64Ty);
     if (Offset != 0) {
       Off = Builder.CreateAdd(Off, Builder.getInt64(Offset));
     }
@@ -1630,7 +1630,7 @@ private:
     }
     std::vector<llvm::Value *> Nodes;
     if (Incomings.size() == 0) {
-      const auto &Types = toLLVMTypeVector(VMContext, RetType);
+      const auto &Types = toLLVMTypeVector(LLContext, RetType);
       Nodes.reserve(Types.size());
       for (llvm::Type *Type : Types) {
         Nodes.push_back(llvm::UndefValue::get(Type));
@@ -1638,7 +1638,7 @@ private:
     } else if (Incomings.size() == 1) {
       Nodes = std::move(std::get<0>(Incomings.front()));
     } else {
-      const auto &Types = toLLVMTypeVector(VMContext, RetType);
+      const auto &Types = toLLVMTypeVector(LLContext, RetType);
       Nodes.reserve(Types.size());
       for (size_t I = 0; I < Types.size(); ++I) {
         auto *PHIRet = Builder.CreatePHI(Types[I], Incomings.size());
@@ -1690,7 +1690,7 @@ private:
   }
 
   AOT::Compiler::CompileContext &Context;
-  llvm::LLVMContext &VMContext;
+  llvm::LLVMContext &LLContext;
   std::vector<llvm::Value *> Local;
   std::vector<llvm::Value *> Stack;
   llvm::Value *LocalInstrCount = nullptr;
@@ -1740,8 +1740,8 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
 
-  llvm::LLVMContext VMContext;
-  auto LLModule = std::make_unique<llvm::Module>(LLPath.native(), VMContext);
+  llvm::LLVMContext LLContext;
+  auto LLModule = std::make_unique<llvm::Module>(LLPath.native(), LLContext);
   LLModule->setTargetTriple(llvm::sys::getProcessTriple());
   CompileContext NewContext(*LLModule);
   struct RAIICleanup {
@@ -1820,16 +1820,16 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       .and_then([&]() -> Expect<void> {
         /// create wasm.code and wasm.size
         {
-          auto *Int32Ty = llvm::Type::getInt32Ty(VMContext);
+          auto *Int32Ty = Context->Int32Ty;
           auto *Content = llvm::ConstantDataArray::getString(
-              VMContext,
+              LLContext,
               llvm::StringRef(reinterpret_cast<const char *>(Data.data()),
                               Data.size()),
               false);
-          new llvm::GlobalVariable(Context->Module, Content->getType(), false,
+          new llvm::GlobalVariable(Context->LLModule, Content->getType(), false,
                                    llvm::GlobalValue::ExternalLinkage, Content,
                                    "wasm.code");
-          new llvm::GlobalVariable(Context->Module, Int32Ty, false,
+          new llvm::GlobalVariable(Context->LLModule, Int32Ty, false,
                                    llvm::GlobalValue::ExternalLinkage,
                                    llvm::ConstantInt::get(Int32Ty, Data.size()),
                                    "wasm.size");
@@ -1905,11 +1905,9 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 
             // Register the target library analysis directly and give it a
             // customized preset TLI.
-            FAM.registerPass(
-                [&] { return llvm::TargetLibraryAnalysis(TLII); });
+            FAM.registerPass([&] { return llvm::TargetLibraryAnalysis(TLII); });
 #if LLVM_VERSION_MAJOR <= 9
-            MAM.registerPass(
-                [&] { return llvm::TargetLibraryAnalysis(TLII); });
+            MAM.registerPass([&] { return llvm::TargetLibraryAnalysis(TLII); });
 #endif
 
             // Register all the basic analyses with the managers.
@@ -2008,7 +2006,7 @@ Expect<void> Compiler::compile(const AST::TypeSection &TypeSection) {
 }
 
 Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
-  auto &VMContext = Context->Context;
+  auto &LLContext = Context->LLContext;
   /// Iterate and compile import descriptions.
   for (const auto &ImpDesc : ImportSec.getContent()) {
     /// Get data from import description.
@@ -2035,13 +2033,13 @@ Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
       }
       const auto &FuncType = *Context->FunctionTypes[*TypeIdx];
 
-      llvm::FunctionType *FTy = toLLVMType(VMContext, FuncType);
+      llvm::FunctionType *FTy = toLLVMType(LLContext, FuncType);
       auto *RTy = FTy->getReturnType();
       auto *F = llvm::Function::Create(FTy, llvm::Function::InternalLinkage,
-                                       FullName, Context->Module);
+                                       FullName, Context->LLModule);
       F->addFnAttr(llvm::Attribute::StrictFP);
 
-      llvm::BasicBlock *Entry = llvm::BasicBlock::Create(VMContext, "entry", F);
+      auto *Entry = llvm::BasicBlock::Create(LLContext, "entry", F);
       llvm::IRBuilder<> Builder(Entry);
       Builder.setIsFPConstrained(true);
       Builder.setDefaultConstrainedRounding(RoundingMode::rmToNearest);
@@ -2053,17 +2051,17 @@ Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
 
       llvm::Value *Args;
       if (ArgSize == 0) {
-        Args = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+        Args = llvm::ConstantPointerNull::get(Context->Int8PtrTy);
       } else {
-        Args = Builder.CreateAlloca(Builder.getInt8Ty(),
+        Args = Builder.CreateAlloca(Context->Int8Ty,
                                     Builder.getInt64(ArgSize * 8));
       }
 
       llvm::Value *Rets;
       if (RetSize == 0) {
-        Rets = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+        Rets = llvm::ConstantPointerNull::get(Context->Int8PtrTy);
       } else {
-        Rets = Builder.CreateAlloca(Builder.getInt8Ty(),
+        Rets = Builder.CreateAlloca(Context->Int8Ty,
                                     Builder.getInt64(RetSize * 8));
       }
 
@@ -2122,18 +2120,15 @@ Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
 }
 
 Expect<void> Compiler::compile(const AST::ExportSection &ExportSec) {
-  auto &VMContext = Context->Context;
   for (const auto &ExpDesc : ExportSec.getContent()) {
     switch (ExpDesc->getExternalType()) {
     case ExternalType::Function: {
       auto *Wrapper = llvm::Function::Create(
-          llvm::FunctionType::get(llvm::Type::getVoidTy(VMContext),
-                                  {llvm::Type::getInt8PtrTy(VMContext),
-                                   llvm::Type::getInt8PtrTy(VMContext)},
-                                  false),
+          llvm::FunctionType::get(
+              Context->VoidTy, {Context->Int8PtrTy, Context->Int8PtrTy}, false),
           llvm::GlobalValue::ExternalLinkage,
           AST::Module::toExportName(ExpDesc->getExternalName()),
-          Context->Module);
+          Context->LLModule);
       Wrapper->addFnAttr(llvm::Attribute::StrictFP);
       llvm::Argument *RawArgs = Wrapper->arg_begin();
       llvm::Argument *RawRets = Wrapper->arg_begin() + 1;
@@ -2214,7 +2209,7 @@ Expect<void> Compiler::compile(const AST::GlobalSection &GlobalSec) {
     const auto &ValType =
         GlobalSec.getContent()[I]->getGlobalType()->getValueType();
     auto *G = new llvm::GlobalVariable(
-        Context->Module, toLLVMType(Context->Context, ValType), false,
+        Context->LLModule, toLLVMType(Context->LLContext, ValType), false,
         llvm::GlobalValue::InternalLinkage, *Temp, "g." + std::to_string(I));
     Context->Globals.push_back(G);
   }
@@ -2267,10 +2262,10 @@ Expect<void> Compiler::compile(const AST::FunctionSection &FuncSec,
     }
     const auto &FuncType = *Context->FunctionTypes[TypeIdx];
     const auto FuncID = Context->Functions.size();
-    auto *FTy = toLLVMType(Context->Context, FuncType);
+    auto *FTy = toLLVMType(Context->LLContext, FuncType);
     auto *F =
         llvm::Function::Create(FTy, llvm::Function::InternalLinkage,
-                               "f" + std::to_string(FuncID), Context->Module);
+                               "f" + std::to_string(FuncID), Context->LLModule);
     F->addFnAttr(llvm::Attribute::StrictFP);
 
     Context->Functions.emplace_back(TypeIdx, F, Code.get());

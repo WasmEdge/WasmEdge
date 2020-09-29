@@ -2,6 +2,7 @@
 
 #include "host/ssvm_process/processfunc.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <sys/select.h>
@@ -142,6 +143,17 @@ SSVMProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
     Argv.push_back(nullptr);
     Envp.push_back(nullptr);
     if (execvpe(Env.Name.c_str(), &Argv[0], &Envp[0]) == -1) {
+      switch (errno) {
+      case EACCES:
+        std::cerr << "Permission denied." << std::endl;
+        break;
+      case ENOENT:
+        std::cerr << "Command not found." << std::endl;
+        break;
+      default:
+        std::cerr << "Unknown error." << std::endl;
+        break;
+      }
       _exit(-1);
     }
   } else {
@@ -188,7 +200,7 @@ SSVMProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
         break;
       } else if (WPID > 0) {
         /// Child process returned.
-        Env.ExitCode = static_cast<uint32_t>(WEXITSTATUS(ChildStat));
+        Env.ExitCode = static_cast<int8_t>(WEXITSTATUS(ChildStat));
         break;
       }
 

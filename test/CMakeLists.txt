@@ -3,9 +3,10 @@
 if (NOT SSVM_DISABLE_AOT_RUNTIME)
   add_subdirectory(aot)
 endif()
+add_subdirectory(spec)
 add_subdirectory(ast)
-add_subdirectory(core)
 add_subdirectory(loader)
+add_subdirectory(interpreter)
 add_subdirectory(expected)
 add_subdirectory(span)
 

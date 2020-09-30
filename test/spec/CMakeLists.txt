@@ -18,20 +18,18 @@ configure_files(
   COPYONLY
 )
 
-add_executable(ssvmCoreTests
-  coreTest.cpp
+add_library(ssvmTestSpec
+  spectest.cpp
 )
 
-add_test(ssvmCoreTests ssvmCoreTests)
+target_include_directories(ssvmTestSpec
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/thirdparty
+)
 
-target_link_libraries(ssvmCoreTests
+target_link_libraries(ssvmTestSpec
   PRIVATE
   std::filesystem
   utilGoogleTest
-  ssvmVM
-)
-
-target_include_directories(ssvmCoreTests  
-  PRIVATE
-  ${Boost_INCLUDE_DIR}
 )

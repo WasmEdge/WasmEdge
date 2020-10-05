@@ -1,3 +1,25 @@
+### 0.6.8 (2020-10-05)
+
+Features:
+
+* Supported loop parameters in AOT.
+* Added optimization level settings in the AOT compiler.
+
+Refactor:
+
+* Applied page based allocation in `memory instance`, instead of preserving 4G at once.
+
+Fixed Issues:
+
+* Fixed error marking stdin, stdout, and stderr file descriptor as pre-opened when initializing WASI environment.
+* Fixed `ssvm_process` error handling when execution commands.
+  * Print error message when command not found or permission denied.
+  * Fixed casting of return codes.
+
+Tests:
+
+* Split the core test to helper class for supporting AOT core tests in the future.
+
 ### 0.6.7 (2020-09-09)
 
 This is a bug-fix release for the ssvm_process component.

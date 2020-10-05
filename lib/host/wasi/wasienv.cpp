@@ -60,9 +60,9 @@ void WasiEnvironment::init(Span<const std::string> Dirs,
                            Span<const std::string> Envs) {
   using namespace std::string_view_literals;
 
-  emplaceFile(0, STDIN_FILENO, true, kStdInRights, 0, "/dev/stdin"sv);
-  emplaceFile(1, STDOUT_FILENO, true, kStdOutRights, 0, "/dev/stdout"sv);
-  emplaceFile(2, STDERR_FILENO, true, kStdErrRights, 0, "/dev/stderr"sv);
+  emplaceFile(0, STDIN_FILENO, false, kStdInRights, 0, "/dev/stdin"sv);
+  emplaceFile(1, STDOUT_FILENO, false, kStdOutRights, 0, "/dev/stdout"sv);
+  emplaceFile(2, STDERR_FILENO, false, kStdErrRights, 0, "/dev/stderr"sv);
 
   /// Open dir for WASI environment.
   int NewFd = 3;

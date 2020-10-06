@@ -157,7 +157,7 @@ TypeFF<TIn, TOut> Interpreter::runPromoteOp(ValVariant &Val) const {
 }
 
 template <typename TIn, typename TOut>
-TypeBB<TIn, TOut> Interpreter::runReinterpretOp(ValVariant &Val) const {
+TypeNN<TIn, TOut> Interpreter::runReinterpretOp(ValVariant &Val) const {
   /// Return ValVariant with type TOut which copy bits of V.
   TOut VOut;
   TIn VIn = retrieveValue<TIn>(Val);

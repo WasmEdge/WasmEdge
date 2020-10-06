@@ -40,7 +40,7 @@ TypeT<T> Interpreter::runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
 }
 
 template <typename T>
-TypeB<T> Interpreter::runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
+TypeN<T> Interpreter::runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
                                  const AST::MemoryInstruction &Instr,
                                  const uint32_t BitWidth) {
   /// Pop the value t.const c from the Stack

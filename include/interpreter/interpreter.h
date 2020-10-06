@@ -47,13 +47,13 @@ using TypeI = typename std::enable_if_t<Support::IsWasmIntV<T>, Expect<void>>;
 /// Accept floating types. (float, double)
 template <typename T>
 using TypeF = typename std::enable_if_t<Support::IsWasmFloatV<T>, Expect<void>>;
-/// Accept all types. (uint32_t, int32_t, uint64_t, int64_t, float, double)
+/// Accept all num types. (uint32_t, int32_t, uint64_t, int64_t, float, double)
 template <typename T>
-using TypeT = typename std::enable_if_t<Support::IsWasmTypeV<T>, Expect<void>>;
-/// Accept Wasm built-in types. (uint32_t, uint64_t, float, double)
+using TypeT = typename std::enable_if_t<Support::IsWasmNumV<T>, Expect<void>>;
+/// Accept Wasm built-in num types. (uint32_t, uint64_t, float, double)
 template <typename T>
-using TypeB =
-    typename std::enable_if_t<Support::IsWasmBuiltInV<T>, Expect<void>>;
+using TypeN =
+    typename std::enable_if_t<Support::IsWasmNativeNumV<T>, Expect<void>>;
 
 /// Accept (unsigned integer types, unsigned integer types).
 template <typename T1, typename T2>
@@ -75,10 +75,10 @@ using TypeIF = typename std::enable_if_t<
 template <typename T1, typename T2>
 using TypeFI = typename std::enable_if_t<
     Support::IsWasmFloatV<T1> && Support::IsWasmIntV<T2>, Expect<void>>;
-/// Accept (Wasm built-in types, Wasm built-in types).
+/// Accept (Wasm built-in num types, Wasm built-in num types).
 template <typename T1, typename T2>
-using TypeBB = typename std::enable_if_t<Support::IsWasmBuiltInV<T1> &&
-                                             Support::IsWasmBuiltInV<T2> &&
+using TypeNN = typename std::enable_if_t<Support::IsWasmNativeNumV<T1> &&
+                                             Support::IsWasmNativeNumV<T2> &&
                                              sizeof(T1) == sizeof(T2),
                                          Expect<void>>;
 
@@ -304,7 +304,7 @@ private:
                      const AST::MemoryInstruction &Instr,
                      const uint32_t BitWidth = sizeof(T) * 8);
   template <typename T>
-  TypeB<T> runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
+  TypeN<T> runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
                       const AST::MemoryInstruction &Instr,
                       const uint32_t BitWidth = sizeof(T) * 8);
   Expect<void> runMemorySizeOp(Runtime::Instance::MemoryInstance &MemInst);
@@ -344,11 +344,11 @@ private:
   template <typename T> TypeF<T> runSqrtOp(ValVariant &Val) const;
   /// ======= Binary Numeric instructions =======
   template <typename T>
-  TypeB<T> runAddOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeN<T> runAddOp(ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T>
-  TypeB<T> runSubOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeN<T> runSubOp(ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T>
-  TypeB<T> runMulOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeN<T> runMulOp(ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T>
   TypeT<T> runDivOp(const AST::BinaryNumericInstruction &Instr,
                     ValVariant &Val1, const ValVariant &Val2) const;
@@ -392,7 +392,7 @@ private:
   template <typename TIn, typename TOut>
   TypeFF<TIn, TOut> runPromoteOp(ValVariant &Val) const;
   template <typename TIn, typename TOut>
-  TypeBB<TIn, TOut> runReinterpretOp(ValVariant &Val) const;
+  TypeNN<TIn, TOut> runReinterpretOp(ValVariant &Val) const;
   /// @}
 
   /// \name Run compiled functions

@@ -263,7 +263,7 @@ public:
   ///
   /// \returns void when success, ErrCode when failed.
   template <typename T>
-  typename std::enable_if_t<Support::IsWasmTypeV<T>, Expect<void>>
+  typename std::enable_if_t<Support::IsWasmNumV<T>, Expect<void>>
   loadValue(T &Value, const uint32_t Offset, const uint32_t Length) {
     /// Check data boundary.
     if (Length > sizeof(T)) {
@@ -310,7 +310,7 @@ public:
   ///
   /// \returns void when success, ErrCode when failed.
   template <typename T>
-  typename std::enable_if_t<Support::IsWasmBuiltInV<T>, Expect<void>>
+  typename std::enable_if_t<Support::IsWasmNativeNumV<T>, Expect<void>>
   storeValue(const T &Value, const uint32_t Offset, const uint32_t Length) {
     /// Check data boundary.
     if (Length > sizeof(T)) {

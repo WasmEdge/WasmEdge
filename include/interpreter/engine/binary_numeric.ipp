@@ -9,7 +9,7 @@ namespace SSVM {
 namespace Interpreter {
 
 template <typename T>
-TypeB<T> Interpreter::runAddOp(ValVariant &Val1, const ValVariant &Val2) const {
+TypeN<T> Interpreter::runAddOp(ValVariant &Val1, const ValVariant &Val2) const {
   /// Integer case: Return the result of (v1 + v2) modulo 2^N.
   /// Floating case: NaN, inf, and zeros are handled.
   retrieveValue<T>(Val1) += retrieveValue<T>(Val2);
@@ -17,7 +17,7 @@ TypeB<T> Interpreter::runAddOp(ValVariant &Val1, const ValVariant &Val2) const {
 }
 
 template <typename T>
-TypeB<T> Interpreter::runSubOp(ValVariant &Val1, const ValVariant &Val2) const {
+TypeN<T> Interpreter::runSubOp(ValVariant &Val1, const ValVariant &Val2) const {
   /// Integer case: Return the result of (v1 - v2) modulo 2^N.
   /// Floating case: NaN, inf, and zeros are handled.
   retrieveValue<T>(Val1) -= retrieveValue<T>(Val2);
@@ -25,7 +25,7 @@ TypeB<T> Interpreter::runSubOp(ValVariant &Val1, const ValVariant &Val2) const {
 }
 
 template <typename T>
-TypeB<T> Interpreter::runMulOp(ValVariant &Val1, const ValVariant &Val2) const {
+TypeN<T> Interpreter::runMulOp(ValVariant &Val1, const ValVariant &Val2) const {
   /// Integer case: Return the result of (v1 * v2) modulo 2^N.
   /// Floating case: NaN, inf, and zeros are handled.
   retrieveValue<T>(Val1) *= retrieveValue<T>(Val2);

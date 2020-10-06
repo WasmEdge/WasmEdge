@@ -41,6 +41,17 @@ static inline std::unordered_map<ValType, std::string> ValTypeStr = {
 /// Block type definition.
 using BlockType = std::variant<ValType, uint32_t>;
 
+/// FuncRef definition.
+struct FuncRef {
+  uint32_t NotNull = 0;
+  uint32_t Idx = 0;
+};
+
+/// ExternRef definition.
+struct ExternRef {
+  uint64_t *Ptr = nullptr;
+};
+
 /// Number types enumeration class.
 enum class NumType : uint8_t { I32 = 0x7F, I64 = 0x7E, F32 = 0x7D, F64 = 0x7C };
 inline constexpr ValType ToValType(const NumType Val) noexcept {

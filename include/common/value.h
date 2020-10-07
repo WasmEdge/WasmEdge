@@ -21,17 +21,19 @@
 namespace SSVM {
 
 /// Definition of number_type.
-using ValVariant = Support::Variant<uint32_t, uint64_t, float, double>;
+using ValVariant =
+    Support::Variant<uint32_t, uint64_t, float, double, FuncRef, ExternRef>;
 using Byte = uint8_t;
 
-/// Reference type pattern:
-/// bits | 0 ---- 15 | 16 ---- 31 | 32 ----------------- 63
-///         is null     Ref Type      u32 reference index
-inline constexpr ValVariant genRefType(const RefType Type) {
-  return (static_cast<uint64_t>(Type) << 32) + (static_cast<uint64_t>(1) << 48);
+/// Reference types helper functions.
+inline constexpr ValVariant genNullRef(const RefType Type) {
+  return static_cast<uint64_t>(0);
 }
-inline constexpr ValVariant genRefType(const RefType Type, const uint32_t Idx) {
-  return (static_cast<uint64_t>(Type) << 32) + Idx;
+inline constexpr ValVariant genFuncRef(const uint32_t Idx) {
+  return FuncRef{1, Idx};
+}
+template <typename T> inline ValVariant genExternRef(T *Ref) {
+  return ExternRef{reinterpret_cast<uint64_t *>(Ref)};
 }
 
 template <typename T> inline ValType ValTypeFromType() noexcept;
@@ -54,6 +56,12 @@ template <> inline ValType ValTypeFromType<float>() noexcept {
 template <> inline ValType ValTypeFromType<double>() noexcept {
   return ValType::F64;
 }
+template <> inline ValType ValTypeFromType<FuncRef>() noexcept {
+  return ValType::FuncRef;
+}
+template <> inline ValType ValTypeFromType<ExternRef>() noexcept {
+  return ValType::ExternRef;
+}
 
 inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   switch (Type) {
@@ -67,9 +75,9 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   case ValType::F64:
     return double(0.0);
   case ValType::FuncRef:
-    return genRefType(RefType::FuncRef);
+    return genNullRef(RefType::FuncRef);
   case ValType::ExternRef:
-    return genRefType(RefType::ExternRef);
+    return genNullRef(RefType::ExternRef);
   }
 }
 
@@ -91,14 +99,14 @@ template <typename T> inline T &&retrieveValue(ValVariant &&Val) {
 }
 
 /// Retrieve references.
-inline constexpr RefType retrieveRefType(const ValVariant &Val) {
-  return static_cast<RefType>((std::get<uint64_t>(Val) >> 32) & 0xFF);
-}
 inline constexpr bool isNullRef(const ValVariant &Val) {
-  return (std::get<uint64_t>(Val) >> 48) > 0;
+  return std::get<uint64_t>(Val) == 0;
 }
-inline constexpr uint32_t retrieveRefIdx(const ValVariant &Val) {
-  return static_cast<uint32_t>(std::get<uint64_t>(Val));
+inline constexpr uint32_t retrieveFuncIdx(const ValVariant &Val) {
+  return std::get<FuncRef>(Val).Idx;
+}
+template <typename T> inline T &retrieveExternRef(const ValVariant &Val) {
+  return *reinterpret_cast<T *>(std::get<ExternRef>(Val).Ptr);
 }
 
 } // namespace SSVM

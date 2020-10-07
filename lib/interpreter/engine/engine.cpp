@@ -258,7 +258,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
                                   const AST::ReferenceInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::Ref__null:
-    StackMgr.push(genRefType(Instr.getReferenceType()));
+    StackMgr.push(genNullRef(Instr.getReferenceType()));
     return {};
   case OpCode::Ref__is_null: {
     ValVariant &Val = StackMgr.getTop();
@@ -272,7 +272,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Ref__func: {
     const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
     const uint32_t FuncAddr = *ModInst->getFuncAddr(Instr.getTargetIndex());
-    StackMgr.push(genRefType(RefType::FuncRef, FuncAddr));
+    StackMgr.push(genFuncRef(FuncAddr));
     return {};
   }
   default:

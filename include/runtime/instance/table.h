@@ -31,7 +31,7 @@ public:
   TableInstance() = delete;
   TableInstance(const RefType &Ref, const AST::Limit &Lim)
       : Type(Ref), HasMaxSize(Lim.hasMax()), MaxSize(Lim.getMax()),
-        Refs(Lim.getMin(), genRefType(Ref)) {}
+        Refs(Lim.getMin(), genNullRef(Ref)) {}
   virtual ~TableInstance() = default;
 
   /// Getter of reference type.
@@ -132,7 +132,7 @@ public:
       return Unexpect(ErrCode::TableOutOfBounds);
     }
     if (Symbol) {
-      return genRefType(Type, Symbol[Idx]);
+      return genFuncRef(Symbol[Idx]);
     } else {
       return Refs[Idx];
     }

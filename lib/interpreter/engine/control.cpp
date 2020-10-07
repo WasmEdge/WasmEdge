@@ -147,7 +147,7 @@ Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
     LOG(ERROR) << ErrCode::UninitializedElement;
     return Unexpect(ErrCode::UninitializedElement);
   }
-  FuncAddr = retrieveRefIdx(Ref);
+  FuncAddr = retrieveFuncIdx(Ref);
 
   /// Check function type.
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);

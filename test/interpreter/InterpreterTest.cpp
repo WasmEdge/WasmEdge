@@ -123,7 +123,7 @@ TEST_P(CoreTest, TestSuites) {
             return false;
           }
         }
-      } else if (Type == "externref"sv || Type == "funcref"sv) {
+      } else if (Type == "funcref"sv) {
         /// Handle reference value case
         if (E == "null"sv) {
           return SSVM::isNullRef(G);
@@ -131,7 +131,24 @@ TEST_P(CoreTest, TestSuites) {
           if (SSVM::isNullRef(G)) {
             return false;
           }
-          uint32_t V1 = SSVM::retrieveRefIdx(G);
+          uint32_t V1 = SSVM::retrieveFuncIdx(G);
+          uint32_t V2 = static_cast<uint32_t>(std::stoul(E));
+          if (V1 != V2) {
+            return false;
+          }
+        }
+      } else if (Type == "externref"sv) {
+        /// Handle reference value case
+        if (E == "null"sv) {
+          return SSVM::isNullRef(G);
+        } else {
+          if (SSVM::isNullRef(G)) {
+            return false;
+          }
+          /// The added 0x1 uint32_t prefix in externref index case will be
+          /// discarded
+          uint32_t V1 = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
+              &SSVM::retrieveExternRef<uint32_t>(G)));
           uint32_t V2 = static_cast<uint32_t>(std::stoul(E));
           if (V1 != V2) {
             return false;

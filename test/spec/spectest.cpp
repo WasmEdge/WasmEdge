@@ -91,18 +91,18 @@ std::vector<SSVM::ValVariant> parseValueList(const rapidjson::Value &Args) {
     const auto Value = Element["value"].Get<std::string>();
     if (Type == "externref"sv) {
       if (Value == "null"sv) {
-        Result.emplace_back(SSVM::genRefType(SSVM::RefType::ExternRef));
+        Result.emplace_back(SSVM::genNullRef(SSVM::RefType::ExternRef));
       } else {
-        Result.emplace_back(
-            SSVM::genRefType(SSVM::RefType::ExternRef,
-                             static_cast<uint32_t>(std::stoul(Value))));
+        /// Add 0x1 uint32_t prefix in this externref index case.
+        Result.emplace_back(SSVM::genExternRef(
+            reinterpret_cast<uint32_t *>(std::stoul(Value) + 0x100000000ULL)));
       }
     } else if (Type == "funcref"sv) {
       if (Value == "null"sv) {
-        Result.emplace_back(SSVM::genRefType(SSVM::RefType::FuncRef));
+        Result.emplace_back(SSVM::genNullRef(SSVM::RefType::FuncRef));
       } else {
-        Result.emplace_back(SSVM::genRefType(
-            SSVM::RefType::FuncRef, static_cast<uint32_t>(std::stoul(Value))));
+        Result.emplace_back(
+            SSVM::genFuncRef(static_cast<uint32_t>(std::stoul(Value))));
       }
     } else if (Type == "i32"sv || Type == "f32"sv) {
       Result.emplace_back(static_cast<uint32_t>(std::stoul(Value)));

@@ -221,13 +221,19 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
       case ValType::F64:
         OS << retrieveValue<double>(Rhs.Args[I]);
         break;
-      case ValType::ExternRef:
       case ValType::FuncRef:
         OS << ValTypeStr[Rhs.ArgsTypes[I]];
         if (isNullRef(Rhs.Args[I])) {
           OS << ":null";
         } else {
-          OS << ":" << retrieveRefIdx(Rhs.Args[I]);
+          OS << ":" << retrieveFuncIdx(Rhs.Args[I]);
+        }
+      case ValType::ExternRef:
+        OS << ValTypeStr[Rhs.ArgsTypes[I]];
+        if (isNullRef(Rhs.Args[I])) {
+          OS << ":null";
+        } else {
+          OS << ":" << &retrieveExternRef<uint64_t>(Rhs.Args[I]);
         }
       default:
         break;

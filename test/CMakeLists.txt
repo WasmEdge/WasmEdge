@@ -7,6 +7,7 @@ add_subdirectory(spec)
 add_subdirectory(ast)
 add_subdirectory(loader)
 add_subdirectory(interpreter)
+add_subdirectory(externref)
 add_subdirectory(expected)
 add_subdirectory(span)
 

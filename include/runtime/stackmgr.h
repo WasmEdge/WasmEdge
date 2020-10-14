@@ -26,12 +26,15 @@ class StackManager {
 public:
   struct Label {
     Label() = delete;
-    Label(const uint32_t S, const uint32_t A,
-          const AST::BlockControlInstruction *Instr)
-        : VStackOff(S), Arity(A), Target(Instr) {}
+    Label(const uint32_t S, const uint32_t A, const AST::InstrVec &Body,
+          const AST::BlockControlInstruction *Cont)
+        : VStackOff(S), Arity(A), Target(Cont), Curr(Body.cbegin()),
+          End(Body.cend()) {}
     uint32_t VStackOff;
     uint32_t Arity;
     const AST::BlockControlInstruction *Target;
+    AST::InstrIter Curr;
+    AST::InstrIter End;
   };
 
   struct Frame {
@@ -97,21 +100,20 @@ public:
     FrameStack.emplace_back(0, ValueStack.size(), LabelStack.size(), 0, true);
   }
 
-  /// Unsafe pop top frame. Return number of popped label.
-  uint32_t popFrame() {
-    uint32_t LabelPopped = LabelStack.size() - FrameStack.back().LStackOff;
+  /// Unsafe pop top frame.
+  void popFrame() {
     LabelStack.erase(LabelStack.begin() + FrameStack.back().LStackOff,
                      LabelStack.end());
     ValueStack.erase(ValueStack.begin() + FrameStack.back().VStackOff,
                      ValueStack.end() - FrameStack.back().Arity);
     FrameStack.pop_back();
-    return LabelPopped;
   }
 
   /// Push a new label entry to stack.
-  void pushLabel(const uint32_t LocalNum = 0, const uint32_t ArityNum = 0,
-                 const AST::BlockControlInstruction *Instr = nullptr) {
-    LabelStack.emplace_back(ValueStack.size() - LocalNum, ArityNum, Instr);
+  void pushLabel(const uint32_t LocalNum, const uint32_t ArityNum,
+                 const AST::InstrVec &Body,
+                 const AST::BlockControlInstruction *Cont = nullptr) {
+    LabelStack.emplace_back(ValueStack.size() - LocalNum, ArityNum, Body, Cont);
   }
 
   /// Unsafe pop top label.
@@ -126,6 +128,27 @@ public:
 
   /// Unsafe leave top label.
   void leaveLabel() { LabelStack.pop_back(); }
+
+  /// Unsafe getter of next instruction to execute.
+  const AST::Instruction *getNextInstr() {
+    if (LabelStack.size() == 0) {
+      return nullptr;
+    }
+    /// Found the next instruction.
+    auto &L = LabelStack.back();
+    if (L.Curr != L.End) {
+      return (*(L.Curr++)).get();
+    }
+
+    /// Meeted end in this label. Go back to last layer.
+    leaveLabel();
+    if (FrameStack.size() > 1 &&
+        FrameStack.back().LStackOff == LabelStack.size()) {
+      /// Noted that there's always a base frame in stack.
+      popFrame();
+    }
+    return getNextInstr();
+  }
 
   /// Unsafe getter of module address.
   uint32_t getModuleAddr() const { return FrameStack.back().ModAddr; }

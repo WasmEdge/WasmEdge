@@ -94,8 +94,7 @@ uint32_t Interpreter::memGrow(const uint32_t NewSize) {
 
 Expect<void> Interpreter::runExpression(Runtime::StoreManager &StoreMgr,
                                         const AST::InstrVec &Instrs) {
-  /// Set instruction vector to instruction provider.
-  InstrPdr.pushInstrs(InstrProvider::SeqType::Expression, Instrs);
+  enterBlock(0, 0, nullptr, Instrs);
   return execute(StoreMgr);
 }
 
@@ -109,7 +108,6 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
   }
 
   /// Reset and push a dummy frame into stack.
-  InstrPdr.reset();
   StackMgr.reset();
   StackMgr.pushDummyFrame();
 
@@ -758,54 +756,39 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
 
 Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr) {
   /// Run instructions until end.
-  while (InstrPdr.getScopeSize() > 0) {
-    const AST::Instruction *Instr = InstrPdr.getNextInstr();
-    if (Instr == nullptr) {
-      /// Pop instruction sequence.
-      if (InstrPdr.getTopScopeType() == InstrProvider::SeqType::FunctionCall) {
-        if (auto Res = leaveFunction(); !Res) {
-          return Unexpect(Res);
-        }
-      } else if (InstrPdr.getTopScopeType() == InstrProvider::SeqType::Block) {
-        if (auto Res = leaveBlock(); !Res) {
-          return Unexpect(Res);
-        }
-      } else {
-        InstrPdr.popInstrs();
-      }
-    } else {
-      OpCode Code = Instr->getOpCode();
-      if (Measure) {
-        Measure->incInstrCnt();
-        /// Add cost. Note: if-else case should be processed additionally.
-        if (!Measure->addInstrCost(Code)) {
-          return Unexpect(ErrCode::CostLimitExceeded);
-        }
-      }
-      /// Run instructions.
-      auto Res = AST::dispatchInstruction(
-          Code, [this, &Instr, &StoreMgr](auto &&Arg) -> Expect<void> {
-            if constexpr (std::is_void_v<
-                              typename std::decay_t<decltype(Arg)>::type>) {
-              /// If the Code not matched, return null pointer.
-              LOG(ERROR) << ErrCode::InstrTypeMismatch;
-              LOG(ERROR) << ErrInfo::InfoInstruction(Instr->getOpCode(),
-                                                     Instr->getOffset());
-              return Unexpect(ErrCode::InstrTypeMismatch);
-            } else {
-              /// Make the instruction node according to Code.
-              return execute(
-                  StoreMgr,
-                  *static_cast<const typename std::decay_t<decltype(Arg)>::type
-                                   *>(Instr));
-            }
-          });
-      if (!Res) {
-        return Unexpect(Res);
+  const AST::Instruction *Instr = StackMgr.getNextInstr();
+  while (Instr != nullptr) {
+    OpCode Code = Instr->getOpCode();
+    if (Measure) {
+      Measure->incInstrCnt();
+      /// Add cost. Note: if-else case should be processed additionally.
+      if (!Measure->addInstrCost(Code)) {
+        return Unexpect(ErrCode::CostLimitExceeded);
       }
     }
+    /// Run instructions.
+    auto Res = AST::dispatchInstruction(
+        Code, [this, &Instr, &StoreMgr](auto &&Arg) -> Expect<void> {
+          if constexpr (std::is_void_v<
+                            typename std::decay_t<decltype(Arg)>::type>) {
+            /// If the Code not matched, return null pointer.
+            LOG(ERROR) << ErrCode::InstrTypeMismatch;
+            LOG(ERROR) << ErrInfo::InfoInstruction(Instr->getOpCode(),
+                                                   Instr->getOffset());
+            return Unexpect(ErrCode::InstrTypeMismatch);
+          } else {
+            /// Make the instruction node according to Code.
+            return execute(
+                StoreMgr,
+                *static_cast<
+                    const typename std::decay_t<decltype(Arg)>::type *>(Instr));
+          }
+        });
+    if (!Res) {
+      return Unexpect(Res);
+    }
+    Instr = StackMgr.getNextInstr();
   }
-  /// Run out the expressions.
   return {};
 }
 
@@ -814,15 +797,13 @@ Expect<void> Interpreter::enterBlock(const uint32_t Locals,
                                      const AST::BlockControlInstruction *Instr,
                                      const AST::InstrVec &Seq) {
   /// Create and push label for block and jump to block body.
-  StackMgr.pushLabel(Locals, Arity, Instr);
-  InstrPdr.pushInstrs(InstrProvider::SeqType::Block, Seq);
+  StackMgr.pushLabel(Locals, Arity, Seq, Instr);
   return {};
 }
 
 Expect<void> Interpreter::leaveBlock() {
   /// Pop label entry and the corresponding instruction sequence.
   StackMgr.leaveLabel();
-  InstrPdr.popInstrs();
   return {};
 }
 
@@ -942,9 +923,6 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
       }
     }
 
-    /// Push function body to instruction provider.
-    InstrPdr.pushInstrs(InstrProvider::SeqType::FunctionCall);
-
     /// Enter function block []->[returns] with label{none}.
     return enterBlock(0, FuncType.Returns.size(), nullptr, Func.getInstrs());
   }
@@ -952,11 +930,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
 
 Expect<void> Interpreter::leaveFunction() {
   /// Pop the frame entry from the Stack.
-  const uint32_t LabelPoped = StackMgr.popFrame();
-  for (uint32_t I = 0; I < LabelPoped; ++I) {
-    InstrPdr.popInstrs();
-  }
-  InstrPdr.popInstrs();
+  StackMgr.popFrame();
   return {};
 }
 
@@ -967,12 +941,6 @@ Expect<void> Interpreter::branchToLabel(Runtime::StoreManager &StoreMgr,
 
   /// Pop L + 1 labels.
   StackMgr.popLabel(Cnt + 1);
-
-  /// Repeat LabelIndex + 1 times
-  for (uint32_t I = 0; I < Cnt + 1; I++) {
-    /// Pop the corresponding instruction sequence.
-    InstrPdr.popInstrs();
-  }
 
   /// Jump to the continuation of Label
   if (ContInstr != nullptr) {

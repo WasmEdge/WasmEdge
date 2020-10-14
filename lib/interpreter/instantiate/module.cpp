@@ -12,10 +12,9 @@ namespace Interpreter {
 Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
                                       const AST::Module &Mod,
                                       std::string_view Name) {
-  /// Reset store manager, stack manager, and instruction provider.
+  /// Reset store manager and stack manager.
   StoreMgr.reset();
   StackMgr.reset();
-  InstrPdr.reset();
 
   /// Check is module name duplicated.
   if (auto Res = StoreMgr.findModule(Name)) {

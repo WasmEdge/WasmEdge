@@ -5,7 +5,6 @@ add_library(ssvmInterpreterEngine
   table.cpp
   memory.cpp
   variable.cpp
-  provider.cpp
   engine.cpp
 )
 

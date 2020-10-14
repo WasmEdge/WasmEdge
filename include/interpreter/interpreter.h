@@ -17,7 +17,6 @@
 #include "common/errcode.h"
 #include "common/statistics.h"
 #include "common/value.h"
-#include "engine/provider.h"
 #include "runtime/importobj.h"
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"
@@ -417,8 +416,6 @@ private:
   InstantiateMode InsMode;
   /// Stack
   Runtime::StackManager StackMgr;
-  /// Instruction provider
-  InstrProvider InstrPdr;
   /// Pointer to measurement.
   Support::Measurement *Measure;
   /// Interpreter statistics

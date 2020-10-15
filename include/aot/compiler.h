@@ -58,13 +58,18 @@ public:
 
   struct CompileContext;
 
-  /// Setter of module name.
   void setDumpIR(bool Value = true) { DumpIR = Value; }
+  void setInstructionCounting(bool Value = true) {
+    InstructionCounting = Value;
+  }
+  void setGasMeasuring(bool Value = true) { GasMeasuring = Value; }
 
 private:
   CompileContext *Context = nullptr;
   bool DumpIR = false;
   OptimizationLevel Level = OptimizationLevel::O3;
+  bool InstructionCounting = false;
+  bool GasMeasuring = false;
 };
 
 } // namespace AOT

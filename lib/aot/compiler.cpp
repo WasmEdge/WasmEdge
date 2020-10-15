@@ -94,6 +94,7 @@ struct SSVM::AOT::Compiler::CompileContext {
   llvm::Type *DoubleTy;
   llvm::PointerType *Int8PtrTy;
   llvm::PointerType *Int32PtrTy;
+  llvm::PointerType *Int64PtrTy;
   llvm::SubtargetFeatures SubtargetFeatures;
   bool SupportRoundeven =
 #if (defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||           \
@@ -112,11 +113,13 @@ struct SSVM::AOT::Compiler::CompileContext {
       std::tuple<unsigned int, llvm::Function *, SSVM::AST::CodeSegment *>>
       Functions;
   std::vector<llvm::GlobalVariable *> Globals;
+  llvm::GlobalVariable *InstrCount;
+  llvm::GlobalVariable *CostTable;
+  llvm::GlobalVariable *Gas;
   llvm::GlobalVariable *Call;
   llvm::GlobalVariable *MemGrow;
   llvm::GlobalVariable *Mem;
   llvm::GlobalVariable *TrapCode;
-  llvm::GlobalVariable *InstrCount;
   llvm::Function *Trap;
   llvm::MDNode *Likely;
   uint32_t MemMin = 1, MemMax = 65536;
@@ -131,6 +134,16 @@ struct SSVM::AOT::Compiler::CompileContext {
         DoubleTy(llvm::Type::getDoubleTy(LLContext)),
         Int8PtrTy(llvm::Type::getInt8PtrTy(LLContext)),
         Int32PtrTy(llvm::Type::getInt32PtrTy(LLContext)),
+        Int64PtrTy(Int64Ty->getPointerTo()),
+        InstrCount(new llvm::GlobalVariable(LLModule, Int64PtrTy, true,
+                                            llvm::GlobalValue::ExternalLinkage,
+                                            nullptr, "instr")),
+        CostTable(new llvm::GlobalVariable(LLModule, Int64PtrTy, true,
+                                           llvm::GlobalValue::ExternalLinkage,
+                                           nullptr, "cost")),
+        Gas(new llvm::GlobalVariable(LLModule, Int64PtrTy, true,
+                                     llvm::GlobalValue::ExternalLinkage,
+                                     nullptr, "gas")),
         Call(new llvm::GlobalVariable(
             LLModule,
             llvm::FunctionType::get(VoidTy, {Int32Ty, Int8PtrTy, Int8PtrTy},
@@ -147,12 +160,9 @@ struct SSVM::AOT::Compiler::CompileContext {
         TrapCode(new llvm::GlobalVariable(LLModule, Int32PtrTy, false,
                                           llvm::GlobalValue::ExternalLinkage,
                                           nullptr, "code")),
-        InstrCount(new llvm::GlobalVariable(LLModule, Int64Ty, false,
-                                            llvm::GlobalValue::ExternalLinkage,
-                                            nullptr, "instr")),
         Trap(llvm::Function::Create(
             llvm::FunctionType::get(VoidTy, {Int32Ty}, false),
-            llvm::Function::InternalLinkage, "trap", LLModule)),
+            llvm::Function::PrivateLinkage, "trap", LLModule)),
         Likely(llvm::MDTuple::getDistinct(
             LLContext, {llvm::MDString::get(LLContext, "branch_weights"),
                         llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
@@ -161,8 +171,6 @@ struct SSVM::AOT::Compiler::CompileContext {
                             LLContext, llvm::APInt(32, 0)))})) {
     Trap->addFnAttr(llvm::Attribute::NoReturn);
     TrapCode->setInitializer(llvm::ConstantPointerNull::get(Int32PtrTy));
-    InstrCount->setInitializer(
-        llvm::ConstantInt::get(InstrCount->getValueType(), 0));
 
     new llvm::GlobalVariable(
         LLModule, Int32Ty, true, llvm::GlobalValue::ExternalLinkage,
@@ -284,7 +292,8 @@ static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
 class FunctionCompiler {
 public:
   FunctionCompiler(AOT::Compiler::CompileContext &Context, llvm::Function *F,
-                   Span<const ValType> Locals, bool CalculateInstrCount)
+                   Span<const ValType> Locals, bool InstructionCounting,
+                   bool GasMeasuring)
       : Context(Context), LLContext(Context.LLContext), F(F),
         Builder(llvm::BasicBlock::Create(LLContext, "entry", F)) {
     if (F) {
@@ -292,9 +301,18 @@ public:
       Builder.setDefaultConstrainedRounding(RoundingMode::rmToNearest);
       Builder.setDefaultConstrainedExcept(ExceptionBehavior::ebIgnore);
 
-      if (CalculateInstrCount) {
+      if (InstructionCounting) {
         LocalInstrCount = Builder.CreateAlloca(Context.Int64Ty);
         Builder.CreateStore(Builder.getInt64(0), LocalInstrCount);
+      }
+
+      if (GasMeasuring) {
+        LocalCostTable = Builder.CreateAlloca(Context.Int64PtrTy);
+        Builder.CreateStore(Builder.CreateLoad(Context.CostTable),
+                            LocalCostTable);
+        LocalGas = Builder.CreateAlloca(Context.Int64Ty);
+        Builder.CreateStore(Builder.CreateLoad(Builder.CreateLoad(Context.Gas)),
+                            LocalGas);
       }
 
       for (llvm::Argument *Arg = F->arg_begin(); Arg != F->arg_end(); ++Arg) {
@@ -347,6 +365,7 @@ public:
     for (auto &[Error, BB] : TrapBB) {
       Builder.SetInsertPoint(BB);
       updateInstrCount();
+      writeGas();
       Builder.CreateCall(Context.Trap, {Builder.getInt32(uint32_t(Error))});
       Builder.CreateUnreachable();
     }
@@ -369,13 +388,23 @@ public:
                                                      Instr->getOffset());
               return Unexpect(ErrCode::InstrTypeMismatch);
             } else {
-              /// Make the instruction node according to Code.
+              /// Update instruction count
               if (LocalInstrCount) {
                 Builder.CreateStore(
                     Builder.CreateAdd(Builder.CreateLoad(LocalInstrCount),
                                       Builder.getInt64(1)),
                     LocalInstrCount);
               }
+              if (LocalGas) {
+                auto *NewGas = Builder.CreateAdd(
+                    Builder.CreateLoad(LocalGas),
+                    Builder.CreateLoad(Builder.CreateInBoundsGEP(
+                        Builder.CreateLoad(LocalCostTable),
+                        {Builder.getInt64(uint16_t(Instr->getOpCode()))})));
+                Builder.CreateStore(NewGas, LocalGas);
+              }
+
+              /// Make the instruction node according to Code.
               if (auto Status = compile(
                       *static_cast<
                           const typename std::decay_t<decltype(Arg)>::type *>(
@@ -558,6 +587,7 @@ public:
   }
   Expect<void> compile(const AST::CallControlInstruction &Instr) {
     updateInstrCount();
+    writeGas();
     switch (Instr.getOpCode()) {
     case OpCode::Call:
       return compileCallOp(Instr.getFuncIndex());
@@ -1406,6 +1436,7 @@ public:
 
   void compileReturn() {
     updateInstrCount();
+    writeGas();
     auto *Ty = F->getReturnType();
     if (Ty->isVoidTy()) {
       Builder.CreateRetVoid();
@@ -1424,11 +1455,25 @@ public:
 
   void updateInstrCount() {
     if (LocalInstrCount) {
-      Builder.CreateStore(
-          Builder.CreateAdd(Builder.CreateLoad(LocalInstrCount),
-                            Builder.CreateLoad(Context.InstrCount)),
-          Context.InstrCount);
+      auto *Ptr = Builder.CreateLoad(Context.InstrCount);
+      Builder.CreateStore(Builder.CreateAdd(Builder.CreateLoad(LocalInstrCount),
+                                            Builder.CreateLoad(Ptr)),
+                          Ptr);
       Builder.CreateStore(Builder.getInt64(0), LocalInstrCount);
+    }
+  }
+
+  void readGas() {
+    if (LocalGas) {
+      Builder.CreateStore(Builder.CreateLoad(Builder.CreateLoad(Context.Gas)),
+                          LocalGas);
+    }
+  }
+
+  void writeGas() {
+    if (LocalGas) {
+      Builder.CreateStore(Builder.CreateLoad(LocalGas),
+                          Builder.CreateLoad(Context.Gas));
     }
   }
 
@@ -1473,6 +1518,7 @@ private:
       stackPush(Ret);
     }
 
+    readGas();
     return {};
   }
 
@@ -1527,6 +1573,7 @@ private:
       buildPHI(FuncType.getReturnTypes(), ReturnValues);
     }
 
+    readGas();
     return {};
   }
 
@@ -1722,6 +1769,8 @@ private:
   std::vector<llvm::Value *> Local;
   std::vector<llvm::Value *> Stack;
   llvm::Value *LocalInstrCount = nullptr;
+  llvm::Value *LocalCostTable = nullptr;
+  llvm::Value *LocalGas = nullptr;
   std::unordered_map<ErrCode, llvm::BasicBlock *> TrapBB;
   bool IsUnreachable = false;
   static inline constexpr size_t kStackSize = 0;
@@ -1973,22 +2022,14 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
           }
 
           {
-            if (auto *Call = LLModule->getGlobalVariable("call")) {
-              Call->setInitializer(llvm::ConstantPointerNull::get(
-                  llvm::cast<llvm::PointerType>(Call->getValueType())));
-              Call->setConstant(false);
-            }
-
-            if (auto *MemGrow = LLModule->getGlobalVariable("memgrow")) {
-              MemGrow->setInitializer(llvm::ConstantPointerNull::get(
-                  llvm::cast<llvm::PointerType>(MemGrow->getValueType())));
-              MemGrow->setConstant(false);
-            }
-
-            if (auto *Mem = LLModule->getGlobalVariable("mem")) {
-              Mem->setInitializer(llvm::ConstantPointerNull::get(
-                  llvm::cast<llvm::PointerType>(Mem->getValueType())));
-              Mem->setConstant(false);
+            for (auto Name : {"instr"sv, "cost"sv, "gas"sv, "call"sv,
+                              "memgrow"sv, "mem"sv}) {
+              if (auto *Var = LLModule->getGlobalVariable(
+                      llvm::StringRef(Name.data(), Name.size()))) {
+                Var->setInitializer(llvm::ConstantPointerNull::get(
+                    llvm::cast<llvm::PointerType>(Var->getValueType())));
+                Var->setConstant(false);
+              }
             }
           }
 
@@ -2313,7 +2354,7 @@ Expect<void> Compiler::compile(const AST::FunctionSection &FuncSec,
     }
 
     const auto &ReturnTypes = Context->FunctionTypes[T]->getReturnTypes();
-    FunctionCompiler FC(*Context, F, Locals, false);
+    FunctionCompiler FC(*Context, F, Locals, InstructionCounting, GasMeasuring);
     if (auto Status = FC.compile(*Code, ReturnTypes); !Status) {
       return Status;
     }

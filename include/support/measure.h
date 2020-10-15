@@ -13,12 +13,13 @@ namespace Support {
 class Measurement {
 public:
   Measurement(const uint64_t Lim = UINT64_MAX)
-      : CostTab(UINT16_MAX, 0ULL), InstrCnt(0), CostLimit(Lim), CostSum(0) {}
+      : CostTab(UINT16_MAX + 1, 0ULL), InstrCnt(0), CostLimit(Lim), CostSum(0) {
+  }
   Measurement(Span<const uint64_t> Tab, const uint64_t Lim = UINT64_MAX)
       : CostTab(Tab.begin(), Tab.end()), InstrCnt(0), CostLimit(Lim),
         CostSum(0) {
-    if (CostTab.size() < UINT16_MAX) {
-      CostTab.resize(UINT16_MAX);
+    if (CostTab.size() < UINT16_MAX + 1) {
+      CostTab.resize(UINT16_MAX + 1);
     }
   }
   ~Measurement() = default;
@@ -29,13 +30,20 @@ public:
   /// Getter of instruction counter.
   uint64_t getInstrCnt() const { return InstrCnt; }
 
+  /// Getter of instruction counter.
+  uint64_t &getInstrCnt() { return InstrCnt; }
+
   /// Setter of cost table.
   void setCostTable(Span<const uint64_t> NewTable) {
     CostTab.assign(NewTable.begin(), NewTable.end());
-    if (CostTab.size() < UINT16_MAX) {
-      CostTab.resize(UINT16_MAX);
+    if (CostTab.size() < UINT16_MAX + 1) {
+      CostTab.resize(UINT16_MAX + 1);
     }
   }
+
+  /// Getter of cost table.
+  Span<const uint64_t> getCostTable() const noexcept { return CostTab; }
+  Span<uint64_t> getCostTable() noexcept { return CostTab; }
 
   /// Adder for instruction costs.
   bool addInstrCost(OpCode Code) { return addCost(CostTab[uint16_t(Code)]); }

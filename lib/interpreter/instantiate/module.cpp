@@ -165,6 +165,11 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   Mod.setTrapCodeProxy(&Interpreter::TrapCodeProxy);
   Mod.setCallProxy(&Interpreter::callProxy);
   Mod.setMemGrowProxy(&Interpreter::memGrowProxy);
+  if (Measure) {
+    Mod.setInstrCount(Measure->getInstrCnt());
+    Mod.setGas(Measure->getCostSum());
+    Mod.setCostTable(Measure->getCostTable());
+  }
 
   /// Instantiate StartSection (StartSec)
   const AST::StartSection *StartSec = Mod.getStartSection();

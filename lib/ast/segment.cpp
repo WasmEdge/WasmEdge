@@ -158,11 +158,13 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr) {
       /// For each element in vec(funcidx), make expr(ref.func idx end).
       auto InitExpr = std::make_unique<Expression>();
       auto RefFunc = std::make_unique<ReferenceInstruction>(OpCode::Ref__func);
+      auto End = std::make_unique<ControlInstruction>(OpCode::End);
       if (auto Res = RefFunc->loadBinary(Mgr); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       InitExpr->getInstrs().push_back(std::move(RefFunc));
+      InitExpr->getInstrs().push_back(std::move(End));
       InitExprs.push_back(std::move(InitExpr));
     }
     break;

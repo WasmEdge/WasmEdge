@@ -50,38 +50,12 @@ Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
     return Unexpect(Res);
   }
 
-  /// Read instructions and make nodes until Opcode::End.
-  while (true) {
-    OpCode Code;
-    uint32_t Offset = Mgr.getOffset();
-
-    /// Read the opcode and check if error.
-    if (auto Res = loadOpCode(Mgr)) {
-      Code = *Res;
-    } else {
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
-    }
-
-    /// When reach end, this block is ended.
-    if (Code == OpCode::End) {
-      break;
-    }
-
-    /// Create the instruction node and load contents.
-    std::unique_ptr<Instruction> NewInst;
-    if (auto Res = makeInstructionNode(Code, Offset)) {
-      NewInst = std::move(*Res);
-    } else {
-      return Unexpect(Res);
-    }
-    if (auto Res = NewInst->loadBinary(Mgr)) {
-      Body.push_back(std::move(NewInst));
-    } else {
-      return Unexpect(Res);
-    }
+  if (auto Res = loadInstrSeq(Mgr)) {
+    Body = std::move(*Res);
+  } else {
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+    return Unexpect(Res);
   }
-
   return {};
 }
 
@@ -136,48 +110,24 @@ Expect<void> IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
   }
 
   /// Read instructions and make nodes until OpCode::End.
-  bool IsElseStatement = false;
-  while (true) {
-    OpCode Code;
-    uint32_t Offset = Mgr.getOffset();
-
-    /// Read the opcode and check if error.
-    if (auto Res = loadOpCode(Mgr)) {
-      Code = *Res;
-    } else {
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
-    }
-
-    /// When reach end, this if-else block is ended.
-    if (Code == OpCode::End) {
-      break;
-    }
-
-    /// If an OpCode::Else read, switch to Else statement.
-    if (Code == OpCode::Else) {
-      IsElseStatement = true;
-      continue;
-    }
-
-    /// Create the instruction node and load contents.
-    std::unique_ptr<Instruction> NewInst;
-    if (auto Res = makeInstructionNode(Code, Offset)) {
-      NewInst = std::move(*Res);
-    } else {
-      return Unexpect(Res);
-    }
-    if (auto Res = NewInst->loadBinary(Mgr)) {
-      if (IsElseStatement) {
-        ElseStatement.push_back(std::move(NewInst));
-      } else {
-        IfStatement.push_back(std::move(NewInst));
-      }
-    } else {
-      return Unexpect(Res);
-    }
+  ssize_t ElsePos = -1;
+  if (auto Res = loadInstrSeq(Mgr, &ElsePos)) {
+    IfStatement = std::move(*Res);
+  } else {
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+    return Unexpect(Res);
   }
-
+  if (ElsePos != -1) {
+    ElseStatement.insert(ElseStatement.end(),
+                         std::make_move_iterator(IfStatement.begin() + ElsePos),
+                         std::make_move_iterator(IfStatement.end()));
+    IfStatement.erase(IfStatement.begin() + ElsePos, IfStatement.end());
+    IfStatement.push_back(std::make_unique<ControlInstruction>(
+        OpCode::End, ElseStatement.back()->getOffset()));
+  } else {
+    ElseStatement.push_back(std::make_unique<ControlInstruction>(
+        OpCode::End, IfStatement.back()->getOffset()));
+  }
   return {};
 }
 
@@ -563,6 +513,55 @@ Expect<OpCode> loadOpCode(FileMgr &Mgr) {
     }
   }
   return static_cast<OpCode>(Payload);
+}
+
+Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, ssize_t *MeasureElseOp) {
+  InstrVec Instrs;
+  bool IsElseOpOccurred = false;
+
+  /// Read opcode until the End code.
+  OpCode Code;
+  do {
+    uint32_t Offset = Mgr.getOffset();
+
+    /// Read the opcode and check if error.
+    if (auto Res = loadOpCode(Mgr)) {
+      Code = *Res;
+    } else {
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(Res);
+    }
+
+    /// Process the Else OpCode.
+    if (Code == OpCode::Else) {
+      if (IsElseOpOccurred || MeasureElseOp == nullptr) {
+        LOG(ERROR) << ErrCode::InvalidGrammar;
+        LOG(ERROR) << ErrInfo::InfoLoading(Offset);
+        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+        return Unexpect(ErrCode::InvalidGrammar);
+      }
+      IsElseOpOccurred = true;
+      *MeasureElseOp = Instrs.size();
+      continue;
+    }
+
+    /// Create the instruction node and load contents.
+    std::unique_ptr<Instruction> NewInst;
+    if (auto Res = makeInstructionNode(Code, Offset)) {
+      NewInst = std::move(*Res);
+    } else {
+      LOG(ERROR) << ErrInfo::InfoLoading(Offset);
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(Res);
+    }
+    if (auto Res = NewInst->loadBinary(Mgr)) {
+      Instrs.push_back(std::move(NewInst));
+    } else {
+      return Unexpect(Res);
+    }
+
+  } while (Code != OpCode::End);
+  return Instrs;
 }
 
 /// Instruction node maker. See "include/common/ast/instruction.h".

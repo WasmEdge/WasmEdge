@@ -449,10 +449,11 @@ public:
 
 template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   switch (Code) {
-    /// The OpCode::End and OpCode::Else will not make nodes.
+    /// The OpCode::Else will not make nodes.
   case OpCode::Unreachable:
   case OpCode::Nop:
   case OpCode::Return:
+  case OpCode::End:
     return Visitor(Support::tag<ControlInstruction>());
 
   case OpCode::Block:
@@ -691,6 +692,19 @@ template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
 ///
 /// \returns OpCode if success, ErrCode when failed.
 Expect<OpCode> loadOpCode(FileMgr &Mgr);
+
+/// Load instructions from file manager.
+///
+/// Read instructions until the End OpCode and return the vector.
+///
+/// \param FileMgr the file manager object to load bytes.
+/// \param MeasureElseOp the pointer to allow Else OpCode in instructions. If
+/// the pointer is nullptr, or the Else OpCode in this instruction sequence
+/// larger than 1, an error will be returned. Once the Else OpCode is loaded,
+/// the position will be assigned into the pointer.
+///
+/// \returns InstrVec if success, ErrCode when failed.
+Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, ssize_t *MeasureElseOp = nullptr);
 
 /// Make the new instruction node.
 ///

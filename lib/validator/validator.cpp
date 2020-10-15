@@ -574,6 +574,7 @@ Validator::validateConstExpr(const AST::InstrVec &Instrs,
     case OpCode::F32__const:
     case OpCode::F64__const:
     case OpCode::Ref__null:
+    case OpCode::End:
       break;
     default:
       LOG(ERROR) << ErrCode::ConstExprRequired;

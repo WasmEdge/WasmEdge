@@ -87,6 +87,9 @@ Loader::parseModule(std::string_view FilePath) {
       Mod->setCallProxySymbol(LMgr.getSymbol<AST::Module::CallProxy>("call"));
       Mod->setMemGrowProxySymbol(
           LMgr.getSymbol<AST::Module::MemGrowProxy>("memgrow"));
+      Mod->setInstrCountSymbol(LMgr.getSymbol<uint64_t *>("instr"));
+      Mod->setCostTableSymbol(LMgr.getSymbol<uint64_t *>("cost"));
+      Mod->setGasSymbol(LMgr.getSymbol<uint64_t *>("gas"));
       return Mod;
     } else {
       LOG(ERROR) << ErrInfo::InfoFile(FilePath);

@@ -74,6 +74,16 @@ public:
   void setMemGrowProxySymbol(DLSymbol<MemGrowProxy> Symbol) {
     MemGrowProxySymbol = std::move(Symbol);
   }
+  void setInstrCountSymbol(DLSymbol<uint64_t *> Symbol) {
+    InstrCountSymbol = std::move(Symbol);
+  }
+  void setCostTableSymbol(DLSymbol<uint64_t *> Symbol) {
+    CostTableSymbol = std::move(Symbol);
+  }
+  void setGasSymbol(DLSymbol<uint64_t *> Symbol) {
+    GasSymbol = std::move(Symbol);
+  }
+
   void setTrapCodeProxy(TrapCodeProxy Pointer) const {
     if (TrapCodeProxySymbol)
       *TrapCodeProxySymbol = Pointer;
@@ -85,6 +95,21 @@ public:
   void setMemGrowProxy(MemGrowProxy Pointer) const {
     if (MemGrowProxySymbol)
       *MemGrowProxySymbol = Pointer;
+  }
+  void setInstrCount(uint64_t &InstrCount) const {
+    if (InstrCountSymbol) {
+      *InstrCountSymbol = &InstrCount;
+    }
+  }
+  void setCostTable(Span<uint64_t> CostTable) const {
+    if (CostTableSymbol) {
+      *CostTableSymbol = CostTable.data();
+    }
+  }
+  void setGas(uint64_t &Gas) const {
+    if (GasSymbol) {
+      *GasSymbol = &Gas;
+    }
   }
 
   /// The node type should be ASTNodeAttr::Module.
@@ -153,6 +178,9 @@ private:
   DLSymbol<TrapCodeProxy> TrapCodeProxySymbol;
   DLSymbol<CallProxy> CallProxySymbol;
   DLSymbol<MemGrowProxy> MemGrowProxySymbol;
+  DLSymbol<uint64_t *> InstrCountSymbol;
+  DLSymbol<uint64_t *> CostTableSymbol;
+  DLSymbol<uint64_t *> GasSymbol;
 };
 
 } // namespace AST

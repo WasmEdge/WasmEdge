@@ -21,10 +21,18 @@ int main(int Argc, const char *Argv[]) {
   PO::Option<PO::Toggle> DumpIR(
       PO::Description("Dump LLVM IR to `wasm.ll` and `wasm-opt.ll`."));
 
+  PO::Option<PO::Toggle> InstructionCounting(PO::Description(
+      "Generate code for counting Wasm instructions executed."));
+
+  PO::Option<PO::Toggle> GasMeasuring(PO::Description(
+      "Generate code for counting gas burned during execution."));
+
   if (!PO::ArgumentParser()
            .add_option(WasmName)
            .add_option(SoName)
            .add_option("dump", DumpIR)
+           .add_option("ic", InstructionCounting)
+           .add_option("gas", GasMeasuring)
            .parse(Argc, Argv)) {
     return 0;
   }
@@ -64,6 +72,12 @@ int main(int Argc, const char *Argv[]) {
     SSVM::AOT::Compiler Compiler;
     if (DumpIR.value()) {
       Compiler.setDumpIR();
+    }
+    if (InstructionCounting.value()) {
+      Compiler.setInstructionCounting();
+    }
+    if (GasMeasuring.value()) {
+      Compiler.setGasMeasuring();
     }
     if (auto Res = Compiler.compile(Data, *Module, OutputPath); !Res) {
       const auto Err = static_cast<uint32_t>(Res.error());

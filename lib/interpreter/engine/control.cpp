@@ -65,12 +65,14 @@ Interpreter::runIfElseOp(Runtime::StoreManager &StoreMgr,
   /// If non-zero, run if-statement; else, run else-statement.
   if (Cond != 0) {
     const auto &IfStatement = Instr.getIfStatement();
-    if (!IfStatement.empty()) {
+    if (IfStatement.size() > 1) {
+      /// At least an End instruction in IfStatement.
       return enterBlock(Locals, Arity, nullptr, IfStatement);
     }
   } else {
     const auto &ElseStatement = Instr.getElseStatement();
-    if (!ElseStatement.empty()) {
+    if (ElseStatement.size() > 1) {
+      /// At least an End instruction in ElseStatement.
       return enterBlock(Locals, Arity, nullptr, ElseStatement);
     }
   }
@@ -104,7 +106,10 @@ Interpreter::runBrTableOp(Runtime::StoreManager &StoreMgr,
   return branchToLabel(StoreMgr, Instr.getLabelIndex());
 }
 
-Expect<void> Interpreter::runReturnOp() { return leaveFunction(); }
+Expect<void> Interpreter::runReturnOp() {
+  StackMgr.popFrame();
+  return {};
+}
 
 Expect<void> Interpreter::runCallOp(Runtime::StoreManager &StoreMgr,
                                     const AST::CallControlInstruction &Instr) {

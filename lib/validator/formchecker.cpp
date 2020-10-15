@@ -226,6 +226,7 @@ Expect<void> FormChecker::checkInstr(const AST::ControlInstruction &Instr) {
   case OpCode::Unreachable:
     return unreachable();
   case OpCode::Nop:
+  case OpCode::End:
     return {};
   case OpCode::Return:
     if (auto Res = popTypes(Returns); !Res) {

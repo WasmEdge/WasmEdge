@@ -173,6 +173,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     return {};
   case OpCode::Return:
     return runReturnOp();
+  case OpCode::End:
+    StackMgr.endExpression();
+    return {};
   default:
     LOG(ERROR) << ErrCode::InstrTypeMismatch;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
@@ -801,12 +804,6 @@ Expect<void> Interpreter::enterBlock(const uint32_t Locals,
   return {};
 }
 
-Expect<void> Interpreter::leaveBlock() {
-  /// Pop label entry and the corresponding instruction sequence.
-  StackMgr.leaveLabel();
-  return {};
-}
-
 Expect<void>
 Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
                            const Runtime::Instance::FunctionInstance &Func) {
@@ -926,12 +923,6 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     /// Enter function block []->[returns] with label{none}.
     return enterBlock(0, FuncType.Returns.size(), nullptr, Func.getInstrs());
   }
-}
-
-Expect<void> Interpreter::leaveFunction() {
-  /// Pop the frame entry from the Stack.
-  StackMgr.popFrame();
-  return {};
 }
 
 Expect<void> Interpreter::branchToLabel(Runtime::StoreManager &StoreMgr,

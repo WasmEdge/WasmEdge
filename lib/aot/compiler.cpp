@@ -431,6 +431,7 @@ public:
       break;
     }
     case OpCode::Nop:
+    case OpCode::End:
       break;
     case OpCode::Return: {
       compileReturn();

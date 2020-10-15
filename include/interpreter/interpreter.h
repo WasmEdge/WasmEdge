@@ -215,15 +215,9 @@ private:
                           const AST::BlockControlInstruction *Instr,
                           const AST::InstrVec &Seq);
 
-  /// Helper function for leaving blocks.
-  Expect<void> leaveBlock();
-
   /// Helper function for calling functions.
   Expect<void> enterFunction(Runtime::StoreManager &StoreMgr,
                              const Runtime::Instance::FunctionInstance &Func);
-
-  /// Helper function for return from functions.
-  Expect<void> leaveFunction();
 
   /// Helper function for branching to label.
   Expect<void> branchToLabel(Runtime::StoreManager &StoreMgr,

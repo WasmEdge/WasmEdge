@@ -134,20 +134,19 @@ public:
     if (LabelStack.size() == 0) {
       return nullptr;
     }
-    /// Found the next instruction.
     auto &L = LabelStack.back();
-    if (L.Curr != L.End) {
-      return (*(L.Curr++)).get();
-    }
+    /// There's always an End instruction before the end of instruction vector.
+    /// Therefore, leaveLabel will occur before iterating out of bounds.
+    return (*(L.Curr++)).get();
+  }
 
-    /// Meeted end in this label. Go back to last layer.
+  void endExpression() {
     leaveLabel();
     if (FrameStack.size() > 1 &&
         FrameStack.back().LStackOff == LabelStack.size()) {
       /// Noted that there's always a base frame in stack.
       popFrame();
     }
-    return getNextInstr();
   }
 
   /// Unsafe getter of module address.

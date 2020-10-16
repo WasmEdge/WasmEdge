@@ -1,3 +1,9 @@
+### 0.6.9 (2020-10-16)
+
+Features:
+
+* Added gas and instruction count measurement in AOT.
+
 ### 0.6.8 (2020-10-05)
 
 Features:

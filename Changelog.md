@@ -1,3 +1,65 @@
+### 0.7.0 (2020-10-16)
+
+Features:
+
+* Applied the [reference types and bulk memory operations](https://webassembly.github.io/reference-types/core/) proposal.
+  * Added the definition of reference types.
+    * Added helper functions for function index to `funcref` conversions.
+    * Added helper functions for reference to `externref` conversions.
+  * Added the following new instructions.
+    * Reference instructions:
+      * ref.null
+      * ref.is_null
+      * ref.func
+    * Table instructions:
+      * table.get
+      * table.set
+      * table.init
+      * elem.drop
+      * table.copy
+      * table.grow
+      * table.size
+      * table.fill
+    * Memory instructions:
+      * memory.init
+      * data.drop
+      * memory.copy
+      * memory.fill
+    * Parametric instructions:
+      * select t
+  * Updated implementation of the following instructions.
+    * call_indirect
+    * select
+  * Applied the new definition of `data count section`, `data segment`, and `element segment`.
+  * Applied validation for `data segment` and `element segment`.
+  * Added the `data instance` and `element instance`.
+  * Applied the new instantiation flow.
+
+Refactor:
+
+* Completed the enumeration value checking in the loading phase.
+* Updated the value type definition.
+  * `ValType` is updated to include `NumType` and `RefType`.
+  * `NumType` is updated to include `i32`, `i64`, `f32`, and `f64`.
+  * `RefType` is updated to include `funcref` and `externref`, which replaced the `ElemType`.
+* Updated error codes according to the test suite for the reference types proposal.
+* Extended validation context for recording `datas`, `elements`, and `refs`.
+* Updated runtime structures.
+  * Fixed minimum pages definition in `memory instance`.
+  * Applied new definitions of `table instance`.
+  * Extended `module instance` for placing `data instance` and `element instance`.
+  * Extended `store` for owning `data instance` and `element instance`.
+* Updated template typename aliasing in `interpreter`.
+
+Tests:
+
+* Applied new test suite for the proposal.
+  * [Official test suite](https://github.com/WebAssembly/reference-types/tree/master/test/core)
+  * [SSVM unit test for reference types](https://github.com/second-state/ssvm-unittest/tree/wasm-ref-types)
+* Supported `funcref` and `externref` types parameters in core tests.
+* Added `externref` tests for testing object binding and samples.
+  * Please see the [document](https://github.com/second-state/SSVM/blob/master/doc/externref.md) for detail.
+
 ### 0.6.9 (2020-10-16)
 
 Features:

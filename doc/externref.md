@@ -347,10 +347,8 @@ $ cd ref-test
 
 2. Clone the SSVM repository
 
-In the current status, users should checkout the `proposal/ref_types` branch:
-
 ```bash
-$ git clone -b proposal/ref_types git@github.com:second-state/SSVM.git
+$ git clone git@github.com:second-state/SSVM.git
 ```
 
 3. Edit the CMakeLists

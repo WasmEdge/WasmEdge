@@ -19,7 +19,7 @@
 ```bash
 $ git clone git@github.com:second-state/SSVM.git
 $ cd SSVM
-$ git checkout 0.6.9
+$ git checkout 0.7.0
 ```
 
 ## Prepare the environment

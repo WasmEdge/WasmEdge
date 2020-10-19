@@ -33,23 +33,19 @@ void FormChecker::reset(bool CleanGlobal) {
 }
 
 Expect<void> FormChecker::validate(const AST::InstrVec &Instrs,
-                                   std::optional<Span<const ValType>> RetVals) {
-  if (RetVals.has_value()) {
-    for (ValType Val : RetVals.value()) {
-      Returns.push_back(ASTToVType(Val));
-    }
+                                   Span<const ValType> RetVals) {
+  for (const ValType &Val : RetVals) {
+    Returns.push_back(ASTToVType(Val));
   }
-  return checkExpr(Instrs, !RetVals.has_value());
+  return checkExpr(Instrs);
 }
 
 Expect<void> FormChecker::validate(const AST::InstrVec &Instrs,
-                                   std::optional<Span<const VType>> RetVals) {
-  if (RetVals.has_value()) {
-    for (VType Val : RetVals.value()) {
-      Returns.push_back(Val);
-    }
+                                   Span<const VType> RetVals) {
+  for (const VType &Val : RetVals) {
+    Returns.push_back(Val);
   }
-  return checkExpr(Instrs, !RetVals.has_value());
+  return checkExpr(Instrs);
 }
 
 void FormChecker::addType(const AST::FunctionType &Func) {
@@ -171,20 +167,15 @@ ValType FormChecker::VTypeToAST(const VType &V) {
   }
 }
 
-Expect<void> FormChecker::checkExpr(const AST::InstrVec &Instrs,
-                                    const bool AnyRetVals) {
-  if (!AnyRetVals) {
-    /// Push ctrl frame ([] -> [Returns])
-    pushCtrl({}, Returns);
-  }
+Expect<void> FormChecker::checkExpr(const AST::InstrVec &Instrs) {
+  /// Push ctrl frame ([] -> [Returns])
+  pushCtrl({}, Returns);
   if (auto Res = checkInstrs(Instrs); !Res) {
     return Unexpect(Res);
   }
-  if (!AnyRetVals) {
-    /// Pop ctrl frame
-    if (auto Res = popCtrl(); !Res) {
-      return Unexpect(Res);
-    }
+  /// Pop ctrl frame
+  if (auto Res = popCtrl(); !Res) {
+    return Unexpect(Res);
   }
   return {};
 }

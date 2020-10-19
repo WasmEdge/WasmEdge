@@ -175,7 +175,9 @@ Expect<void> Validator::validate(const AST::GlobalSegment &GlobSeg) {
 Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
   /// Check initialization expressions are const expressions.
   for (auto &Expr : ElemSeg.getInitExprs()) {
-    if (auto Res = validateConstExpr(Expr->getInstrs()); !Res) {
+    if (auto Res = validateConstExpr(
+            Expr->getInstrs(), std::array{ToValType(ElemSeg.getRefType())});
+        !Res) {
       LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
       return Unexpect(Res);
     }
@@ -525,9 +527,8 @@ Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
 }
 
 /// Validate constant expression. See "include/validator/validator.h".
-Expect<void>
-Validator::validateConstExpr(const AST::InstrVec &Instrs,
-                             std::optional<Span<const ValType>> Returns) {
+Expect<void> Validator::validateConstExpr(const AST::InstrVec &Instrs,
+                                          Span<const ValType> Returns) {
   for (auto &Instr : Instrs) {
     /// Only these 5 instructions are constant.
     switch (Instr->getOpCode()) {

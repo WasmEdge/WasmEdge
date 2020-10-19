@@ -170,14 +170,7 @@ ValType FormChecker::VTypeToAST(const VType &V) {
 Expect<void> FormChecker::checkExpr(const AST::InstrVec &Instrs) {
   /// Push ctrl frame ([] -> [Returns])
   pushCtrl({}, Returns);
-  if (auto Res = checkInstrs(Instrs); !Res) {
-    return Unexpect(Res);
-  }
-  /// Pop ctrl frame
-  if (auto Res = popCtrl(); !Res) {
-    return Unexpect(Res);
-  }
-  return {};
+  return checkInstrs(Instrs);
 }
 
 Expect<void> FormChecker::checkInstrs(const AST::InstrVec &Instrs) {
@@ -217,7 +210,13 @@ Expect<void> FormChecker::checkInstr(const AST::ControlInstruction &Instr) {
   case OpCode::Unreachable:
     return unreachable();
   case OpCode::Nop:
+    return {};
   case OpCode::End:
+    if (auto Res = popCtrl()) {
+      pushTypes((*Res).EndTypes);
+    } else {
+      return Unexpect(Res);
+    }
     return {};
   case OpCode::Return:
     if (auto Res = popTypes(Returns); !Res) {
@@ -262,13 +261,6 @@ FormChecker::checkInstr(const AST::BlockControlInstruction &Instr) {
   if (auto Res = checkInstrs(Instr.getBody()); !Res) {
     return Unexpect(Res);
   }
-
-  /// End of block body
-  if (auto Res = popCtrl()) {
-    pushTypes((*Res).EndTypes);
-  } else {
-    return Unexpect(Res);
-  }
   return {};
 }
 
@@ -302,20 +294,12 @@ FormChecker::checkInstr(const AST::IfElseControlInstruction &Instr) {
     }
 
     /// Check `else` body.
-    if (auto Frame = popCtrl()) {
-      pushCtrl((*Frame).StartTypes, (*Frame).EndTypes);
-      if (auto Res = checkInstrs(Instr.getElseStatement()); !Res) {
+    if (Instr.getElseStatement().size() > 0) {
+      if (auto Res = popTypes(T2); !Res) {
         return Unexpect(Res);
       }
-    } else {
-      return Unexpect(Frame);
-    }
-
-    /// End of `if-else` statement.
-    if (auto Res = popCtrl()) {
-      pushTypes((*Res).EndTypes);
-    } else {
-      return Unexpect(Res);
+      pushCtrl(T1, T2);
+      return checkInstrs(Instr.getElseStatement());
     }
     return {};
   }

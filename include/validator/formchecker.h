@@ -44,9 +44,8 @@ public:
 
   void reset(bool CleanGlobal = false);
   Expect<void> validate(const AST::InstrVec &Instrs,
-                        std::optional<Span<const ValType>> RetVals);
-  Expect<void> validate(const AST::InstrVec &Instrs,
-                        std::optional<Span<const VType>> RetVals);
+                        Span<const ValType> RetVals);
+  Expect<void> validate(const AST::InstrVec &Instrs, Span<const VType> RetVals);
 
   /// Adder of contexts
   void addType(const AST::FunctionType &Func);
@@ -96,7 +95,7 @@ public:
 
 private:
   /// Checking expression
-  Expect<void> checkExpr(const AST::InstrVec &Instrs, const bool AnyRetVals);
+  Expect<void> checkExpr(const AST::InstrVec &Instrs);
 
   /// Checking instruction list
   Expect<void> checkInstrs(const AST::InstrVec &Instrs);

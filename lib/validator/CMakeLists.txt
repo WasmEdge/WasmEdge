@@ -7,7 +7,7 @@ add_library(ssvmValidator
 
 target_link_libraries(ssvmValidator
   PRIVATE
-  ssvmSupport
+  ssvmCommon
 )
 
 target_include_directories(ssvmValidator

@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_library(ssvmSupport
+add_library(ssvmCommon
   hexstr.cpp
   log.cpp
 )
 
-target_link_libraries(ssvmSupport
+target_link_libraries(ssvmCommon
   PRIVATE
   utilLog
 )
 
-target_include_directories(ssvmSupport
+target_include_directories(ssvmCommon
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty

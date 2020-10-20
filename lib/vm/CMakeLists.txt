@@ -5,7 +5,7 @@ add_library(ssvmVM
 )
 
 set(ssvmLibs
-  ssvmSupport
+  ssvmCommon
   ssvmAST
   ssvmLoader
   ssvmValidator

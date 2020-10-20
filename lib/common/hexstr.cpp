@@ -1,4 +1,4 @@
-#include "support/hexstr.h"
+#include "common/hexstr.h"
 #include <cinttypes>
 
 namespace SSVM {

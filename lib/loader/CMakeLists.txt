@@ -13,7 +13,7 @@ target_link_libraries(ssvmLoaderFileMgr
 
 target_link_libraries(ssvmLoaderFileMgr
   PRIVATE
-  ssvmSupport
+  ssvmCommon
 )
 
 target_include_directories(ssvmLoaderFileMgr
@@ -30,7 +30,7 @@ target_link_libraries(ssvmLoader
   PRIVATE
   ssvmAST
   ssvmLoaderFileMgr
-  ssvmSupport
+  ssvmCommon
   PUBLIC
   std::filesystem
 )

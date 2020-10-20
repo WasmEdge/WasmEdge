@@ -6,7 +6,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the enumerations of Wasm VM used types.
+/// This file contains the enumerations of Wasm VM used types and the type
+/// recognition templates.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

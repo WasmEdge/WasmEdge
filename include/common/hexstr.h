@@ -1,4 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
+//===-- ssvm/common/hexstr.h - Hex string formation -----------------------===//
+//
+// Part of the SSVM Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the functions about hex and string conversions.
+///
+//===----------------------------------------------------------------------===//
 #pragma once
 
 #include "span.h"

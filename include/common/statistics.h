@@ -6,8 +6,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definition of statistics information of
-/// interpreteer's runtime.
+/// This file contains the statistics class of interpreter's runtime.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

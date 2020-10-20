@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/support/roundeven.h - rounding to nearest integer ------------===//
+//===-- ssvm/common/roundeven.h - rounding to nearest integer ------------===//
 //
 // Part of the SSVM Project.
 //

@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "aot/compiler.h"
-#include "common/ast/module.h"
+#include "ast/module.h"
 #include "loader/loader.h"
 #include "gtest/gtest.h"
 #include <vector>

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/ast/instruction.h - Inst classes definition------------===//
+//===-- ssvm/ast/instruction.h - Inst classes definition-------------------===//
 //
 // Part of the SSVM Project.
 //

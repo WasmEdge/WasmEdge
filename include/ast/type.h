@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/ast/type.h - type classes definition ------------------===//
+//===-- ssvm/ast/type.h - type classes definition -------------------------===//
 //
 // Part of the SSVM Project.
 //

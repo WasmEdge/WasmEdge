@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "common/ast/module.h"
-#include "common/ast/section.h"
+#include "ast/module.h"
+#include "ast/section.h"
+#include "common/log.h"
 #include "interpreter/interpreter.h"
 #include "runtime/instance/module.h"
-#include "common/log.h"
 
 namespace SSVM {
 namespace Interpreter {
@@ -40,8 +40,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     for (auto &FuncType : FuncTypes) {
       /// Copy param and return lists to module instance.
       ModInst->addFuncType(FuncType->getParamTypes(),
-                           FuncType->getReturnTypes(),
-                           FuncType->getSymbol());
+                           FuncType->getReturnTypes(), FuncType->getSymbol());
     }
   }
 

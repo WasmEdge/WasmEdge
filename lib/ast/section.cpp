@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "common/ast/section.h"
+#include "ast/section.h"
 #include "common/log.h"
 
 namespace SSVM {

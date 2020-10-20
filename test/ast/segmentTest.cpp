@@ -11,7 +11,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "common/ast/segment.h"
+#include "ast/segment.h"
 #include "loader/filemgr.h"
 #include "gtest/gtest.h"
 

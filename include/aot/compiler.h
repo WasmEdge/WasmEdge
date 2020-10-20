@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/ast/module.h"
+#include "ast/module.h"
 #include "common/errcode.h"
 #include "common/version.h"
 #include <cstdint>

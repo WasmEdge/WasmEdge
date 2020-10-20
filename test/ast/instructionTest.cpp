@@ -10,7 +10,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "common/ast/instruction.h"
+#include "ast/instruction.h"
 #include "loader/filemgr.h"
 #include "gtest/gtest.h"
 

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "common/ast/description.h"
+#include "ast/description.h"
 #include "common/log.h"
 
 namespace SSVM {
 namespace AST {
 
-/// Load binary of Import description. See "include/common/ast/description.h".
+/// Load binary of Import description. See "include/ast/description.h".
 Expect<void> ImportDesc::loadBinary(FileMgr &Mgr) {
   /// Read the module name.
   if (auto Res = Mgr.readName()) {
@@ -75,7 +75,7 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load binary of Export description. See "include/common/ast/description.h".
+/// Load binary of Export description. See "include/ast/description.h".
 Expect<void> ExportDesc::loadBinary(FileMgr &Mgr) {
   /// Read external name to export.
   if (auto Res = Mgr.readName()) {

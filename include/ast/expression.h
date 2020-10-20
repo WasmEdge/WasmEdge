@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/ast/expression.h - Expression class definition --------===//
+//===-- ssvm/ast/expression.h - Expression class definition ---------------===//
 //
 // Part of the SSVM Project.
 //

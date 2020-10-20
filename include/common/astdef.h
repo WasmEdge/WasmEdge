@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/ast.h - AST enumeration definition --------------------===//
+//===-- ssvm/common/astdef.h - AST enumeration definition -----------------===//
 //
 // Part of the SSVM Project.
 //

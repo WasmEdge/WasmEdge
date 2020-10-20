@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/ast.h"
+#include "common/astdef.h"
 #include "common/errcode.h"
 #include "common/types.h"
 #include "common/value.h"

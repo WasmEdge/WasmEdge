@@ -398,45 +398,60 @@ private:
   static uint32_t TrapCode;
   static AST::Module::IntrinsicsTable IntrinsicsTable;
 
-  static void call(const uint32_t FuncIndex, const ValVariant *Args,
-                   ValVariant *Rets);
-  static void callIndirect(const uint32_t TableIndex,
-                           const uint32_t FuncTypeIndex,
-                           const uint32_t FuncIndex, const ValVariant *Args,
-                           ValVariant *Rets);
+  Expect<void> call(Runtime::StoreManager &StoreMgr, const uint32_t FuncIndex,
+                    const ValVariant *Args, ValVariant *Rets) noexcept;
+  Expect<void> callIndirect(Runtime::StoreManager &StoreMgr,
+                            const uint32_t TableIndex,
+                            const uint32_t FuncTypeIndex,
+                            const uint32_t FuncIndex, const ValVariant *Args,
+                            ValVariant *Rets) noexcept;
 
-  static uint32_t memGrow(const uint32_t NewSize);
-  static uint32_t memSize();
-  static void memCopy(const uint32_t Dst, const uint32_t Src,
-                      const uint32_t Len);
-  static void memFill(const uint32_t Off, const uint8_t Val,
-                      const uint32_t Len);
-  static void memInit(const uint32_t DataIdx, const uint32_t Dst,
-                      const uint32_t Src, const uint32_t Len);
-  static void dataDrop(const uint32_t DataIdx);
+  Expect<uint32_t> memGrow(Runtime::StoreManager &StoreMgr,
+                           const uint32_t NewSize) noexcept;
+  Expect<uint32_t> memSize(Runtime::StoreManager &StoreMgr) noexcept;
+  Expect<void> memCopy(Runtime::StoreManager &StoreMgr, const uint32_t Dst,
+                       const uint32_t Src, const uint32_t Len) noexcept;
+  Expect<void> memFill(Runtime::StoreManager &StoreMgr, const uint32_t Off,
+                       const uint8_t Val, const uint32_t Len) noexcept;
+  Expect<void> memInit(Runtime::StoreManager &StoreMgr, const uint32_t DataIdx,
+                       const uint32_t Dst, const uint32_t Src,
+                       const uint32_t Len) noexcept;
+  Expect<void> dataDrop(Runtime::StoreManager &StoreMgr,
+                        const uint32_t DataIdx) noexcept;
 
-  static ValVariant tableGet(const uint32_t TableIndex, const uint32_t Idx);
-  static void tableSet(const uint32_t TableIndex, const uint32_t Idx,
-                       const ValVariant Ref);
-  static void tableCopy(const uint32_t TableIndexSrc,
-                        const uint32_t TableIndexDst, const uint32_t Dst,
-                        const uint32_t Src, const uint32_t Len);
-  static uint32_t tableGrow(const uint32_t TableIndex, const ValVariant Val,
-                            const uint32_t NewSize);
-  static uint32_t tableSize(const uint32_t TableIndex);
-  static void tableFill(const uint32_t TableIndex, const uint32_t Off,
-                        const ValVariant Ref, const uint32_t Len);
-  static void tableInit(const uint32_t TableIndex, const uint32_t ElemIndex,
-                        const uint32_t Dst, const uint32_t Src,
-                        const uint32_t Len);
-  static void elemDrop(const uint32_t ElemIndex);
-  static ValVariant refFunc(const uint32_t FuncIndex);
+  Expect<ValVariant> tableGet(Runtime::StoreManager &StoreMgr,
+                              const uint32_t TableIndex,
+                              const uint32_t Idx) noexcept;
+  Expect<void> tableSet(Runtime::StoreManager &StoreMgr,
+                        const uint32_t TableIndex, const uint32_t Idx,
+                        const ValVariant Ref) noexcept;
+  Expect<void> tableCopy(Runtime::StoreManager &StoreMgr,
+                         const uint32_t TableIndexSrc,
+                         const uint32_t TableIndexDst, const uint32_t Dst,
+                         const uint32_t Src, const uint32_t Len) noexcept;
+  Expect<uint32_t> tableGrow(Runtime::StoreManager &StoreMgr,
+                             const uint32_t TableIndex, const ValVariant Val,
+                             const uint32_t NewSize) noexcept;
+  Expect<uint32_t> tableSize(Runtime::StoreManager &StoreMgr,
+                             const uint32_t TableIndex) noexcept;
+  Expect<void> tableFill(Runtime::StoreManager &StoreMgr,
+                         const uint32_t TableIndex, const uint32_t Off,
+                         const ValVariant Ref, const uint32_t Len) noexcept;
+  Expect<void> tableInit(Runtime::StoreManager &StoreMgr,
+                         const uint32_t TableIndex, const uint32_t ElemIndex,
+                         const uint32_t Dst, const uint32_t Src,
+                         const uint32_t Len) noexcept;
+  Expect<void> elemDrop(Runtime::StoreManager &StoreMgr,
+                        const uint32_t ElemIndex) noexcept;
+  Expect<ValVariant> refFunc(Runtime::StoreManager &StoreMgr,
+                             const uint32_t FuncIndex) noexcept;
 
   static void signalEnable() noexcept;
   static void signalDisable() noexcept;
   static void signalHandler(int Signal, siginfo_t *Siginfo, void *) noexcept;
   struct SignalEnabler;
   struct SignalDisabler;
+  template <typename FuncPtr> struct ProxyHelper;
   /// @}
 
   enum class InstantiateMode : uint8_t { Instantiate = 0, ImportWasm };

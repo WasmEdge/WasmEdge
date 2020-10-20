@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/ast/base.h - AST node base class definition -----------===//
+//===-- ssvm/ast/base.h - AST node base class definition ------------------===//
 //
 // Part of the SSVM Project.
 //

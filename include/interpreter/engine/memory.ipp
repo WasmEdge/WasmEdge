@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "common/ast/instruction.h"
+#include "ast/instruction.h"
+#include "common/log.h"
 #include "common/value.h"
 #include "interpreter/interpreter.h"
 #include "runtime/instance/memory.h"
-#include "common/log.h"
 
 #include <cstdint>
 

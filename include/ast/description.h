@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/ast/description.h - Desc classes definition -----------===//
+//===-- ssvm/ast/description.h - Desc classes definition ------------------===//
 //
 // Part of the SSVM Project.
 //

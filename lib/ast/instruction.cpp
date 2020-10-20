@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "common/ast/instruction.h"
+#include "ast/instruction.h"
 #include "common/log.h"
 
 namespace SSVM {
 namespace AST {
 
-/// Copy construtor. See "include/common/ast/instruction.h".
+/// Copy construtor. See "include/ast/instruction.h".
 BlockControlInstruction::BlockControlInstruction(
     const BlockControlInstruction &Instr)
     : Instruction(Instr.Code, Instr.Offset), ResType(Instr.ResType) {
@@ -16,7 +16,7 @@ BlockControlInstruction::BlockControlInstruction(
   }
 }
 
-/// Load binary of block instructions. See "include/common/ast/instruction.h".
+/// Load binary of block instructions. See "include/ast/instruction.h".
 Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
   /// Read the block return type.
   if (auto Res = Mgr.readS32()) {
@@ -59,7 +59,7 @@ Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Copy construtor. See "include/common/ast/instruction.h".
+/// Copy construtor. See "include/ast/instruction.h".
 IfElseControlInstruction::IfElseControlInstruction(
     const IfElseControlInstruction &Instr)
     : Instruction(Instr.Code, Instr.Offset), ResType(Instr.ResType) {
@@ -75,7 +75,7 @@ IfElseControlInstruction::IfElseControlInstruction(
   }
 }
 
-/// Load binary of if-else instructions. See "include/common/ast/instruction.h".
+/// Load binary of if-else instructions. See "include/ast/instruction.h".
 Expect<void> IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
   /// Read the block return type.
   if (auto Res = Mgr.readS32()) {
@@ -131,7 +131,7 @@ Expect<void> IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load binary of branch instructions. See "include/common/ast/instruction.h".
+/// Load binary of branch instructions. See "include/ast/instruction.h".
 Expect<void> BrControlInstruction::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     LabelIdx = *Res;
@@ -144,7 +144,7 @@ Expect<void> BrControlInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load branch table instructions. See "include/common/ast/instruction.h".
+/// Load branch table instructions. See "include/ast/instruction.h".
 Expect<void> BrTableControlInstruction::loadBinary(FileMgr &Mgr) {
   uint32_t VecCnt = 0;
 
@@ -180,7 +180,7 @@ Expect<void> BrTableControlInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load binary of call instructions. See "include/common/ast/instruction.h".
+/// Load binary of call instructions. See "include/ast/instruction.h".
 Expect<void> CallControlInstruction::loadBinary(FileMgr &Mgr) {
   /// Read function index.
   if (auto Res = Mgr.readU32()) {
@@ -207,7 +207,7 @@ Expect<void> CallControlInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load reference instructions. See "include/common/ast/instruction.h".
+/// Load reference instructions. See "include/ast/instruction.h".
 Expect<void> ReferenceInstruction::loadBinary(FileMgr &Mgr) {
   /// Read the reftype and funcidx.
   switch (Code) {
@@ -250,7 +250,7 @@ Expect<void> ReferenceInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load variable instructions. See "include/common/ast/instruction.h".
+/// Load variable instructions. See "include/ast/instruction.h".
 Expect<void> ParametricInstruction::loadBinary(FileMgr &Mgr) {
   /// Read the valtype vector in select (t*) case.
   if (Code == OpCode::Select_t) {
@@ -293,7 +293,7 @@ Expect<void> ParametricInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load variable instructions. See "include/common/ast/instruction.h".
+/// Load variable instructions. See "include/ast/instruction.h".
 Expect<void> VariableInstruction::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     VarIdx = *Res;
@@ -306,7 +306,7 @@ Expect<void> VariableInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load binary of table instructions. See "include/common/ast/instruction.h".
+/// Load binary of table instructions. See "include/ast/instruction.h".
 Expect<void> TableInstruction::loadBinary(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     switch (Code) {
@@ -359,7 +359,7 @@ Expect<void> TableInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load binary of memory instructions. See "include/common/ast/instruction.h".
+/// Load binary of memory instructions. See "include/ast/instruction.h".
 Expect<void> MemoryInstruction::loadBinary(FileMgr &Mgr) {
   auto readCheck = [&Mgr]() -> Expect<void> {
     if (auto Res = Mgr.readByte()) {
@@ -436,7 +436,7 @@ Expect<void> MemoryInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load const numeric instructions. See "include/common/ast/instruction.h".
+/// Load const numeric instructions. See "include/ast/instruction.h".
 Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
   /// Read the const number of corresbonding number type.
   switch (Code) {
@@ -490,7 +490,7 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// OpCode loader. See "include/common/ast/instruction.h".
+/// OpCode loader. See "include/ast/instruction.h".
 Expect<OpCode> loadOpCode(FileMgr &Mgr) {
   uint16_t Payload;
   if (auto B1 = Mgr.readByte()) {
@@ -564,7 +564,7 @@ Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, ssize_t *MeasureElseOp) {
   return Instrs;
 }
 
-/// Instruction node maker. See "include/common/ast/instruction.h".
+/// Instruction node maker. See "include/ast/instruction.h".
 Expect<std::unique_ptr<Instruction>> makeInstructionNode(OpCode Code,
                                                          uint32_t Offset) {
   return dispatchInstruction(
@@ -582,7 +582,7 @@ Expect<std::unique_ptr<Instruction>> makeInstructionNode(OpCode Code,
       });
 }
 
-/// Instruction node duplicater. See "include/common/ast/instruction.h".
+/// Instruction node duplicater. See "include/ast/instruction.h".
 Expect<std::unique_ptr<Instruction>>
 makeInstructionNode(const Instruction &Instr) {
   return dispatchInstruction(

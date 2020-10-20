@@ -12,8 +12,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/ast/instruction.h"
-#include "common/ast/module.h"
+#include "ast/instruction.h"
+#include "ast/module.h"
 #include "common/errcode.h"
 #include "common/measure.h"
 #include "common/statistics.h"

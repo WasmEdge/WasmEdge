@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "common/ast/segment.h"
+#include "ast/segment.h"
 #include "common/log.h"
 
 namespace SSVM {
 namespace AST {
 
-/// Load expression binary in segment. See "include/common/ast/segment.h".
+/// Load expression binary in segment. See "include/ast/segment.h".
 Expect<void> Segment::loadExpression(FileMgr &Mgr) {
   Expr = std::make_unique<Expression>();
   return Expr->loadBinary(Mgr);
 }
 
-/// Load binary of GlobalSegment node. See "include/common/ast/segment.h".
+/// Load binary of GlobalSegment node. See "include/ast/segment.h".
 Expect<void> GlobalSegment::loadBinary(FileMgr &Mgr) {
   /// Read global type node.
   Global = std::make_unique<GlobalType>();
@@ -29,7 +29,7 @@ Expect<void> GlobalSegment::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load binary of ElementSegment node. See "include/common/ast/segment.h".
+/// Load binary of ElementSegment node. See "include/ast/segment.h".
 Expect<void> ElementSegment::loadBinary(FileMgr &Mgr) {
   /// Element segment binary format:
   /// ---------------------------------------------------------------------------
@@ -226,7 +226,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load binary of CodeSegment node. See "include/common/ast/segment.h".
+/// Load binary of CodeSegment node. See "include/ast/segment.h".
 Expect<void> CodeSegment::loadBinary(FileMgr &Mgr) {
   /// Read the code segment size.
   if (auto Res = Mgr.readU32()) {
@@ -293,7 +293,7 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load binary of DataSegment node. See "include/common/ast/segment.h".
+/// Load binary of DataSegment node. See "include/ast/segment.h".
 Expect<void> DataSegment::loadBinary(FileMgr &Mgr) {
   Mode = DataMode::Passive;
   MemoryIdx = 0;

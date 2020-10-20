@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/ast/instruction.h"
+#include "ast/instruction.h"
 #include "module.h"
 #include "runtime/hostfunc.h"
 

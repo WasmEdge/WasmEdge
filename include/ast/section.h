@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/ast/section.h - Section class definition --------------===//
+//===-- ssvm/ast/section.h - Section class definition ---------------------===//
 //
 // Part of the SSVM Project.
 //
@@ -13,9 +13,9 @@
 #pragma once
 
 #include "base.h"
+#include "common/log.h"
 #include "description.h"
 #include "segment.h"
-#include "common/log.h"
 #include "type.h"
 
 #include <memory>

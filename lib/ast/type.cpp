@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "common/ast/type.h"
-#include "common/types.h"
+#include "ast/type.h"
 #include "common/log.h"
+#include "common/types.h"
 
 namespace SSVM {
 namespace AST {
 
-/// Load binary to construct Limit node. See "include/common/ast/type.h".
+/// Load binary to construct Limit node. See "include/ast/type.h".
 Expect<void> Limit::loadBinary(FileMgr &Mgr) {
   /// Read limit type.
   if (auto Res = Mgr.readByte()) {
@@ -56,7 +56,7 @@ Expect<void> Limit::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load binary to construct FunctionType node. See "include/common/ast/type.h".
+/// Load binary to construct FunctionType node. See "include/ast/type.h".
 Expect<void> FunctionType::loadBinary(FileMgr &Mgr) {
   uint32_t VecCnt = 0;
 
@@ -147,14 +147,14 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
-/// Load binary to construct MemoryType node. See "include/common/ast/type.h".
+/// Load binary to construct MemoryType node. See "include/ast/type.h".
 Expect<void> MemoryType::loadBinary(FileMgr &Mgr) {
   /// Read limit.
   Memory = std::make_unique<Limit>();
   return Memory->loadBinary(Mgr);
 }
 
-/// Load binary to construct TableType node. See "include/common/ast/type.h".
+/// Load binary to construct TableType node. See "include/ast/type.h".
 Expect<void> TableType::loadBinary(FileMgr &Mgr) {
   /// Read reference type.
   if (auto Res = Mgr.readByte()) {
@@ -181,7 +181,7 @@ Expect<void> TableType::loadBinary(FileMgr &Mgr) {
   return Table->loadBinary(Mgr);
 }
 
-/// Load binary to construct GlobalType node. See "include/common/ast/type.h".
+/// Load binary to construct GlobalType node. See "include/ast/type.h".
 Expect<void> GlobalType::loadBinary(FileMgr &Mgr) {
   /// Read value type.
   if (auto Res = Mgr.readByte()) {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/ast/type.h"
 #include "common/types.h"
-#include "support/log.h"
+#include "common/log.h"
 
 namespace SSVM {
 namespace AST {

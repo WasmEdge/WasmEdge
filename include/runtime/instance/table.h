@@ -13,9 +13,9 @@
 
 #include "common/ast/type.h"
 #include "common/errcode.h"
+#include "common/log.h"
 #include "common/types.h"
 #include "common/value.h"
-#include "support/log.h"
 #include "support/span.h"
 
 #include <algorithm>

@@ -5,7 +5,7 @@
 #endif
 
 #include "loader/ldmgr.h"
-#include "support/log.h"
+#include "common/log.h"
 
 #include <dlfcn.h>
 

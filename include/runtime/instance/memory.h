@@ -13,9 +13,9 @@
 
 #include "common/ast/type.h"
 #include "common/errcode.h"
+#include "common/log.h"
 #include "common/value.h"
 #include "support/casting.h"
-#include "support/log.h"
 #include "support/span.h"
 
 #include <algorithm>
@@ -263,7 +263,7 @@ public:
   ///
   /// \returns void when success, ErrCode when failed.
   template <typename T>
-  typename std::enable_if_t<Support::IsWasmNumV<T>, Expect<void>>
+  typename std::enable_if_t<IsWasmNumV<T>, Expect<void>>
   loadValue(T &Value, const uint32_t Offset, const uint32_t Length) {
     /// Check data boundary.
     if (Length > sizeof(T)) {
@@ -310,7 +310,7 @@ public:
   ///
   /// \returns void when success, ErrCode when failed.
   template <typename T>
-  typename std::enable_if_t<Support::IsWasmNativeNumV<T>, Expect<void>>
+  typename std::enable_if_t<IsWasmNativeNumV<T>, Expect<void>>
   storeValue(const T &Value, const uint32_t Offset, const uint32_t Length) {
     /// Check data boundary.
     if (Length > sizeof(T)) {

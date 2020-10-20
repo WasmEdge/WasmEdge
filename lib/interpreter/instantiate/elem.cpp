@@ -3,7 +3,7 @@
 #include "interpreter/interpreter.h"
 #include "runtime/instance/module.h"
 #include "runtime/instance/table.h"
-#include "support/log.h"
+#include "common/log.h"
 
 namespace SSVM {
 namespace Interpreter {

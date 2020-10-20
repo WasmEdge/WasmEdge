@@ -2,7 +2,7 @@
 #include "vm/vm.h"
 #include "host/ssvm_process/processmodule.h"
 #include "host/wasi/wasimodule.h"
-#include "support/log.h"
+#include "common/log.h"
 
 namespace SSVM {
 namespace VM {

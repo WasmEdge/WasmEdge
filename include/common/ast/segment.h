@@ -16,7 +16,7 @@
 #include "expression.h"
 #include "instruction.h"
 #include "loader/symbol.h"
-#include "support/log.h"
+#include "common/log.h"
 #include "type.h"
 
 #include <memory>

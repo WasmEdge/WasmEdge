@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "common/ast/instruction.h"
-#include "support/span.h"
+#include "ast/instruction.h"
+#include "span.h"
 #include "time.h"
 
 #include <vector>

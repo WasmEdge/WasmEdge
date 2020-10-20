@@ -9,6 +9,7 @@
 /// This file contents the definition of cost table of instructions.s
 ///
 //===----------------------------------------------------------------------===//
+#pragma once
 
 #include "configure.h"
 

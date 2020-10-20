@@ -1,4 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
+//===-- ssvm/common/timer.h - Timer class definition ----------------------===//
+//
+// Part of the SSVM Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the timer class used by statistics.
+///
+//===----------------------------------------------------------------------===//
 #pragma once
 
 #include <string>

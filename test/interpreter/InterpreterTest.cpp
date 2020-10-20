@@ -13,8 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "../spec/spectest.h"
+#include "common/filesystem.h"
 #include "common/log.h"
-#include "support/filesystem.h"
 #include "vm/configure.h"
 #include "vm/vm.h"
 #include "gtest/gtest.h"

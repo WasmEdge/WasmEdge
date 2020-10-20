@@ -15,10 +15,10 @@
 #pragma once
 
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "runtime/hostfunc.h"
 #include "runtime/importobj.h"
 #include "runtime/instance/memory.h"
-#include "support/filesystem.h"
 #include <functional>
 #include <string_view>
 #include <vector>
@@ -143,7 +143,7 @@ public:
       const std::string &ModName, const std::string &Field);
   std::function<GetCallback> onGet;
 
-/// Helper function to compare return values with expected values.
+  /// Helper function to compare return values with expected values.
   using CompareCallback =
       bool(const std::vector<std::pair<std::string, std::string>> &Expected,
            const std::vector<ValVariant> &Got);

@@ -17,7 +17,6 @@
 #include "common/types.h"
 #include "common/value.h"
 #include "loader/filemgr.h"
-#include "support/variant.h"
 
 #include <memory>
 #include <vector>

@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/value.h - Wasm value variant definition ------------*- C++ -*-===//
+//===-- ssvm/common/value.h - SSVM value variant definition ---------------===//
 //
 // Part of the SSVM Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the value struct of Wasm.
+/// This file contains the value struct used in SSVM.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "support/variant.h"
 #include "types.h"
+#include "variant.h"
 
 #include <cstdint>
 #include <vector>

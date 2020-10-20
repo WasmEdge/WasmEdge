@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast.h"
+#include "astdef.h"
 #include "types.h"
 #include "value.h"
 

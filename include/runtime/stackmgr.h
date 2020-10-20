@@ -12,8 +12,8 @@
 #pragma once
 
 #include "common/ast/instruction.h"
+#include "common/span.h"
 #include "common/value.h"
-#include "support/span.h"
 
 #include <cassert>
 #include <memory>

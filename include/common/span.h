@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/support/span.h - helper class for memory region --------------===//
+//===-- ssvm/common/span.h - Helper template of std::span -----------------===//
 //
 // Part of the SSVM Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents the common-use definitions in Compiler.
+/// This file contents the helper template aliasing of std::span.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

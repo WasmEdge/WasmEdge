@@ -12,8 +12,8 @@
 #pragma once
 
 #include "common/errcode.h"
+#include "common/span.h"
 #include "common/types.h"
-#include "support/span.h"
 #include "type.h"
 
 #include <map>

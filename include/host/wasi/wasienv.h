@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "support/span.h"
+#include "common/span.h"
 #include "wasi/core.h"
 
 #include <algorithm>

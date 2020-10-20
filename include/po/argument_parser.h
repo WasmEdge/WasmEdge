@@ -6,9 +6,9 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/span.h"
 #include "po/list.h"
 #include "po/option.h"
-#include "support/span.h"
 
 #include <functional>
 #include <iostream>
@@ -282,82 +282,81 @@ public:
     }
   }
 
-  private:
-    ArgumentDescriptor *consume_short_options(std::string_view Arg) {
-      ArgumentDescriptor *CurrentDesc = nullptr;
-      for (std::size_t I = 1; I < Arg.size(); ++I) {
-        if (CurrentDesc && CurrentDesc->nargs() == 0) {
-          CurrentDesc->default_value();
-        }
-        std::string_view Option = Arg.substr(I, 1);
-        CurrentDesc = consume_short_option(Option);
+private:
+  ArgumentDescriptor *consume_short_options(std::string_view Arg) {
+    ArgumentDescriptor *CurrentDesc = nullptr;
+    for (std::size_t I = 1; I < Arg.size(); ++I) {
+      if (CurrentDesc && CurrentDesc->nargs() == 0) {
+        CurrentDesc->default_value();
       }
-      return CurrentDesc;
+      std::string_view Option = Arg.substr(I, 1);
+      CurrentDesc = consume_short_option(Option);
     }
-    ArgumentDescriptor *consume_long_option_with_argument(
-        std::string_view Arg) {
-      if (auto Pos = Arg.find('=', 2); Pos != std::string_view::npos) {
-        // long option with argument
-        std::string_view Option = Arg.substr(2, Pos - 2);
-        std::string_view Argument = Arg.substr(Pos + 1);
-        ArgumentDescriptor *CurrentDesc = consume_long_option(Option);
-        if (CurrentDesc) {
-          consume_argument(*CurrentDesc, Argument);
-        } else {
-          using namespace std::literals;
-          throw std::invalid_argument("option "s + std::string(Option) +
-                                      "doesn't need arguments."s);
-        }
-        return nullptr;
+    return CurrentDesc;
+  }
+  ArgumentDescriptor *consume_long_option_with_argument(std::string_view Arg) {
+    if (auto Pos = Arg.find('=', 2); Pos != std::string_view::npos) {
+      // long option with argument
+      std::string_view Option = Arg.substr(2, Pos - 2);
+      std::string_view Argument = Arg.substr(Pos + 1);
+      ArgumentDescriptor *CurrentDesc = consume_long_option(Option);
+      if (CurrentDesc) {
+        consume_argument(*CurrentDesc, Argument);
       } else {
-        // long option without argument
-        std::string_view Option = Arg.substr(2);
-        return consume_long_option(Option);
-      }
-    }
-    ArgumentDescriptor *consume_short_option(std::string_view Option) {
-      auto Iter = ArgumentMap.find(Option);
-      if (Iter == ArgumentMap.end()) {
         using namespace std::literals;
-        throw std::invalid_argument("unknown option: "s + std::string(Option));
+        throw std::invalid_argument("option "s + std::string(Option) +
+                                    "doesn't need arguments."s);
       }
-      ArgumentDescriptor &CurrentDesc = ArgumentDescriptors[Iter->second];
-      if (CurrentDesc.max_nargs() == 0) {
-        CurrentDesc.default_value();
-        return nullptr;
-      }
-      return &CurrentDesc;
+      return nullptr;
+    } else {
+      // long option without argument
+      std::string_view Option = Arg.substr(2);
+      return consume_long_option(Option);
     }
-    ArgumentDescriptor *consume_long_option(std::string_view Option) {
-      auto Iter = ArgumentMap.find(Option);
-      if (Iter == ArgumentMap.end()) {
-        using namespace std::literals;
-        throw std::invalid_argument("unknown option: "s + std::string(Option));
-      }
-      ArgumentDescriptor &CurrentDesc = ArgumentDescriptors[Iter->second];
-      if (CurrentDesc.max_nargs() == 0) {
-        CurrentDesc.default_value();
-        return nullptr;
-      }
-      return &CurrentDesc;
+  }
+  ArgumentDescriptor *consume_short_option(std::string_view Option) {
+    auto Iter = ArgumentMap.find(Option);
+    if (Iter == ArgumentMap.end()) {
+      using namespace std::literals;
+      throw std::invalid_argument("unknown option: "s + std::string(Option));
     }
-    ArgumentDescriptor *consume_argument(ArgumentDescriptor & CurrentDesc,
-                                         std::string_view Argument) {
-      CurrentDesc.value(std::string(Argument));
-      if (++CurrentDesc.nargs() >= CurrentDesc.max_nargs()) {
-        return nullptr;
-      }
-      return &CurrentDesc;
+    ArgumentDescriptor &CurrentDesc = ArgumentDescriptors[Iter->second];
+    if (CurrentDesc.max_nargs() == 0) {
+      CurrentDesc.default_value();
+      return nullptr;
     }
+    return &CurrentDesc;
+  }
+  ArgumentDescriptor *consume_long_option(std::string_view Option) {
+    auto Iter = ArgumentMap.find(Option);
+    if (Iter == ArgumentMap.end()) {
+      using namespace std::literals;
+      throw std::invalid_argument("unknown option: "s + std::string(Option));
+    }
+    ArgumentDescriptor &CurrentDesc = ArgumentDescriptors[Iter->second];
+    if (CurrentDesc.max_nargs() == 0) {
+      CurrentDesc.default_value();
+      return nullptr;
+    }
+    return &CurrentDesc;
+  }
+  ArgumentDescriptor *consume_argument(ArgumentDescriptor &CurrentDesc,
+                                       std::string_view Argument) {
+    CurrentDesc.value(std::string(Argument));
+    if (++CurrentDesc.nargs() >= CurrentDesc.max_nargs()) {
+      return nullptr;
+    }
+    return &CurrentDesc;
+  }
 
-    std::string ProgramName;
-    std::vector<ArgumentDescriptor> ArgumentDescriptors;
-    std::unordered_map<void *, std::size_t> OptionMap;
-    std::unordered_map<std::string_view, std::size_t> ArgumentMap;
-    std::vector<std::size_t> NonpositionalList;
-    std::vector<std::size_t> PositionalList;
-    Option<Toggle> HelpOpt;
-  };
+  std::string ProgramName;
+  std::vector<ArgumentDescriptor> ArgumentDescriptors;
+  std::unordered_map<void *, std::size_t> OptionMap;
+  std::unordered_map<std::string_view, std::size_t> ArgumentMap;
+  std::vector<std::size_t> NonpositionalList;
+  std::vector<std::size_t> PositionalList;
+  Option<Toggle> HelpOpt;
+};
 
 } // namespace PO
 } // namespace SSVM

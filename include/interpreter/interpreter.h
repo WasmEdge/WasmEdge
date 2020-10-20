@@ -38,48 +38,46 @@ namespace {
 /// Template return type aliasing
 /// Accept unsigned integer types. (uint32_t, uint64_t)
 template <typename T>
-using TypeU =
-    typename std::enable_if_t<Support::IsWasmUnsignV<T>, Expect<void>>;
+using TypeU = typename std::enable_if_t<IsWasmUnsignV<T>, Expect<void>>;
 /// Accept integer types. (uint32_t, int32_t, uint64_t, int64_t)
 template <typename T>
-using TypeI = typename std::enable_if_t<Support::IsWasmIntV<T>, Expect<void>>;
+using TypeI = typename std::enable_if_t<IsWasmIntV<T>, Expect<void>>;
 /// Accept floating types. (float, double)
 template <typename T>
-using TypeF = typename std::enable_if_t<Support::IsWasmFloatV<T>, Expect<void>>;
+using TypeF = typename std::enable_if_t<IsWasmFloatV<T>, Expect<void>>;
 /// Accept all num types. (uint32_t, int32_t, uint64_t, int64_t, float, double)
 template <typename T>
-using TypeT = typename std::enable_if_t<Support::IsWasmNumV<T>, Expect<void>>;
+using TypeT = typename std::enable_if_t<IsWasmNumV<T>, Expect<void>>;
 /// Accept Wasm built-in num types. (uint32_t, uint64_t, float, double)
 template <typename T>
-using TypeN =
-    typename std::enable_if_t<Support::IsWasmNativeNumV<T>, Expect<void>>;
+using TypeN = typename std::enable_if_t<IsWasmNativeNumV<T>, Expect<void>>;
 
 /// Accept (unsigned integer types, unsigned integer types).
 template <typename T1, typename T2>
-using TypeUU = typename std::enable_if_t<
-    Support::IsWasmUnsignV<T1> && Support::IsWasmUnsignV<T2>, Expect<void>>;
+using TypeUU = typename std::enable_if_t<IsWasmUnsignV<T1> && IsWasmUnsignV<T2>,
+                                         Expect<void>>;
 /// Accept (integer types, unsigned integer types).
 template <typename T1, typename T2>
-using TypeIU = typename std::enable_if_t<
-    Support::IsWasmIntV<T1> && Support::IsWasmUnsignV<T2>, Expect<void>>;
+using TypeIU = typename std::enable_if_t<IsWasmIntV<T1> && IsWasmUnsignV<T2>,
+                                         Expect<void>>;
 /// Accept (floating types, floating types).
 template <typename T1, typename T2>
-using TypeFF = typename std::enable_if_t<
-    Support::IsWasmFloatV<T1> && Support::IsWasmFloatV<T2>, Expect<void>>;
+using TypeFF = typename std::enable_if_t<IsWasmFloatV<T1> && IsWasmFloatV<T2>,
+                                         Expect<void>>;
 /// Accept (integer types, floating types).
 template <typename T1, typename T2>
-using TypeIF = typename std::enable_if_t<
-    Support::IsWasmIntV<T1> && Support::IsWasmFloatV<T2>, Expect<void>>;
+using TypeIF =
+    typename std::enable_if_t<IsWasmIntV<T1> && IsWasmFloatV<T2>, Expect<void>>;
 /// Accept (floating types, integer types).
 template <typename T1, typename T2>
-using TypeFI = typename std::enable_if_t<
-    Support::IsWasmFloatV<T1> && Support::IsWasmIntV<T2>, Expect<void>>;
+using TypeFI =
+    typename std::enable_if_t<IsWasmFloatV<T1> && IsWasmIntV<T2>, Expect<void>>;
 /// Accept (Wasm built-in num types, Wasm built-in num types).
 template <typename T1, typename T2>
-using TypeNN = typename std::enable_if_t<Support::IsWasmNativeNumV<T1> &&
-                                             Support::IsWasmNativeNumV<T2> &&
-                                             sizeof(T1) == sizeof(T2),
-                                         Expect<void>>;
+using TypeNN =
+    typename std::enable_if_t<IsWasmNativeNumV<T1> && IsWasmNativeNumV<T2> &&
+                                  sizeof(T1) == sizeof(T2),
+                              Expect<void>>;
 
 } // namespace
 

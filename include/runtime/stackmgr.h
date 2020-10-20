@@ -13,7 +13,6 @@
 
 #include "common/ast/instruction.h"
 #include "common/value.h"
-#include "support/casting.h"
 #include "support/span.h"
 
 #include <cassert>

@@ -12,10 +12,10 @@
 #pragma once
 
 #include "common/ast/type.h"
+#include "common/span.h"
 #include "common/types.h"
 #include "common/value.h"
 #include "loader/symbol.h"
-#include "support/span.h"
 
 #include <vector>
 

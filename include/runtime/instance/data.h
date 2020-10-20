@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/span.h"
 #include "common/types.h"
-#include "support/span.h"
 
 #include <vector>
 

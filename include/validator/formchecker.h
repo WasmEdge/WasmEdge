@@ -15,9 +15,9 @@
 #include "common/ast/instruction.h"
 #include "common/ast/module.h"
 #include "common/errcode.h"
+#include "common/span.h"
 #include "common/types.h"
 #include "common/value.h"
-#include "support/span.h"
 
 #include <optional>
 #include <unordered_set>

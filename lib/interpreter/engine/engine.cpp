@@ -14,10 +14,38 @@ namespace Interpreter {
 Interpreter *Interpreter::This = nullptr;
 uint32_t Interpreter::TrapCode = 0;
 std::jmp_buf *Interpreter::TrapJump = nullptr;
+
+struct Interpreter::SignalEnabler {
+  SignalEnabler() noexcept { Interpreter::signalEnable(); }
+  ~SignalEnabler() noexcept { Interpreter::signalDisable(); }
+};
+
+struct Interpreter::SignalDisabler {
+  SignalDisabler() noexcept { Interpreter::signalDisable(); }
+  ~SignalDisabler() noexcept { Interpreter::signalEnable(); }
+};
+
+template <typename RetT, typename... ArgsT>
+struct Interpreter::ProxyHelper<Expect<RetT> (Interpreter::*)(
+    Runtime::StoreManager &, ArgsT...) noexcept> {
+  template <Expect<RetT> (Interpreter::*Func)(Runtime::StoreManager &,
+                                              ArgsT...) noexcept>
+  static RetT proxy(ArgsT... Args) noexcept {
+    Interpreter::SignalDisabler Disabler;
+    if (auto Res = (This->*Func)(*This->CurrentStore, Args...);
+        unlikely(!Res)) {
+      siglongjmp(*TrapJump, uint8_t(Res.error()));
+    } else if constexpr (!std::is_void_v<RetT>) {
+      return *Res;
+    }
+  }
+};
+
 AST::Module::IntrinsicsTable Interpreter::IntrinsicsTable = {
 #define ENTRY(NAME, FUNC)                                                      \
-  [uint8_t(AST::Module::Intrinsics::NAME)] =                                   \
-      reinterpret_cast<void *>(&Interpreter::FUNC)
+  [uint8_t(AST::Module::Intrinsics::NAME)] = reinterpret_cast<void *>(         \
+      &Interpreter::ProxyHelper<decltype(                                      \
+          &Interpreter::FUNC)>::proxy<&Interpreter::FUNC>)
     ENTRY(kCall, call),           ENTRY(kCallIndirect, callIndirect),
     ENTRY(kMemCopy, memCopy),     ENTRY(kMemFill, memFill),
     ENTRY(kMemGrow, memGrow),     ENTRY(kMemSize, memSize),
@@ -68,25 +96,12 @@ void Interpreter::signalDisable() noexcept {
   std::signal(SIGSEGV, SIG_DFL);
 }
 
-struct Interpreter::SignalEnabler {
-  SignalEnabler() noexcept { Interpreter::signalEnable(); }
-  ~SignalEnabler() noexcept { Interpreter::signalDisable(); }
-};
-
-struct Interpreter::SignalDisabler {
-  SignalDisabler() noexcept { Interpreter::signalDisable(); }
-  ~SignalDisabler() noexcept { Interpreter::signalEnable(); }
-};
-
-void Interpreter::call(const uint32_t FuncIndex, const ValVariant *Args,
-                       ValVariant *Rets) {
-  SignalDisabler Disabler;
-  auto &Store = *This->CurrentStore;
-  auto &StackMgr = This->StackMgr;
-
-  const auto *ModInst = *Store.getModule(StackMgr.getModuleAddr());
+Expect<void> Interpreter::call(Runtime::StoreManager &StoreMgr,
+                               const uint32_t FuncIndex, const ValVariant *Args,
+                               ValVariant *Rets) noexcept {
+  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
   const uint32_t FuncAddr = *ModInst->getFuncAddr(FuncIndex);
-  const auto *FuncInst = *Store.getFunction(FuncAddr);
+  const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
   const auto &FuncType = FuncInst->getFuncType();
   const unsigned ParamsSize = FuncType.Params.size();
   const unsigned ReturnsSize = FuncType.Returns.size();
@@ -95,44 +110,44 @@ void Interpreter::call(const uint32_t FuncIndex, const ValVariant *Args,
     StackMgr.push(Args[I]);
   }
 
-  if (auto Res = This->enterFunction(Store, *FuncInst); unlikely(!Res)) {
-    siglongjmp(*TrapJump, uint8_t(Res.error()));
+  if (auto Res = enterFunction(StoreMgr, *FuncInst); unlikely(!Res)) {
+    return Unexpect(Res);
   }
-  if (auto Res = This->execute(Store); unlikely(!Res)) {
-    siglongjmp(*TrapJump, uint8_t(Res.error()));
+  if (auto Res = execute(StoreMgr); unlikely(!Res)) {
+    return Unexpect(Res);
   }
 
   for (unsigned I = 0; I < ReturnsSize; ++I) {
     Rets[ReturnsSize - 1 - I] = StackMgr.pop();
   }
+
+  return {};
 }
 
-void Interpreter::callIndirect(const uint32_t TableIndex,
-                               const uint32_t FuncTypeIndex,
-                               const uint32_t FuncIndex, const ValVariant *Args,
-                               ValVariant *Rets) {
-  SignalDisabler Disabler;
-  auto &Store = *This->CurrentStore;
-  auto &StackMgr = This->StackMgr;
-
-  const auto *TabInst = This->getTabInstByIdx(Store, TableIndex);
+Expect<void> Interpreter::callIndirect(Runtime::StoreManager &StoreMgr,
+                                       const uint32_t TableIndex,
+                                       const uint32_t FuncTypeIndex,
+                                       const uint32_t FuncIndex,
+                                       const ValVariant *Args,
+                                       ValVariant *Rets) noexcept {
+  const auto *TabInst = getTabInstByIdx(StoreMgr, TableIndex);
 
   if (unlikely(FuncIndex >= TabInst->getSize())) {
-    siglongjmp(*TrapJump, uint8_t(ErrCode::UndefinedElement));
+    return Unexpect(ErrCode::UndefinedElement);
   }
 
   ValVariant Ref = *TabInst->getRefAddr(FuncIndex);
   if (unlikely(isNullRef(Ref))) {
-    siglongjmp(*TrapJump, uint8_t(ErrCode::UninitializedElement));
+    return Unexpect(ErrCode::UninitializedElement);
   }
   const auto FuncAddr = retrieveFuncIdx(Ref);
 
-  const auto *ModInst = *Store.getModule(StackMgr.getModuleAddr());
+  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
   const auto *TargetFuncType = *ModInst->getFuncType(FuncTypeIndex);
-  const auto *FuncInst = *Store.getFunction(FuncAddr);
+  const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
   const auto &FuncType = FuncInst->getFuncType();
   if (unlikely(*TargetFuncType != FuncType)) {
-    siglongjmp(*TrapJump, uint8_t(ErrCode::IndirectCallTypeMismatch));
+    return Unexpect(ErrCode::IndirectCallTypeMismatch);
   }
 
   const unsigned ParamsSize = FuncType.Params.size();
@@ -142,21 +157,23 @@ void Interpreter::callIndirect(const uint32_t TableIndex,
     StackMgr.push(Args[I]);
   }
 
-  if (auto Res = This->enterFunction(Store, *FuncInst); unlikely(!Res)) {
-    siglongjmp(*TrapJump, uint8_t(Res.error()));
+  if (auto Res = enterFunction(StoreMgr, *FuncInst); unlikely(!Res)) {
+    return Unexpect(Res);
   }
-  if (auto Res = This->execute(Store); unlikely(!Res)) {
-    siglongjmp(*TrapJump, uint8_t(Res.error()));
+  if (auto Res = execute(StoreMgr); unlikely(!Res)) {
+    return Unexpect(Res);
   }
 
   for (unsigned I = 0; I < ReturnsSize; ++I) {
     Rets[ReturnsSize - 1 - I] = StackMgr.pop();
   }
+
+  return {};
 }
 
-uint32_t Interpreter::memGrow(const uint32_t NewSize) {
-  SignalDisabler Disabler;
-  auto &MemInst = *This->getMemInstByIdx(*This->CurrentStore, 0);
+Expect<uint32_t> Interpreter::memGrow(Runtime::StoreManager &StoreMgr,
+                                      const uint32_t NewSize) noexcept {
+  auto &MemInst = *getMemInstByIdx(StoreMgr, 0);
   const uint32_t CurrPageSize = MemInst.getDataPageSize();
   if (MemInst.growPage(NewSize)) {
     return CurrPageSize;
@@ -165,92 +182,110 @@ uint32_t Interpreter::memGrow(const uint32_t NewSize) {
   }
 }
 
-uint32_t Interpreter::memSize() {
-  SignalDisabler Disabler;
-  auto &MemInst = *This->getMemInstByIdx(*This->CurrentStore, 0);
+Expect<uint32_t>
+Interpreter::memSize(Runtime::StoreManager &StoreMgr) noexcept {
+  auto &MemInst = *getMemInstByIdx(StoreMgr, 0);
   return MemInst.getDataPageSize();
 }
 
-void Interpreter::memCopy(const uint32_t Dst, const uint32_t Src,
-                          const uint32_t Len) {
-  SignalDisabler Disabler;
-  auto &MemInst = *This->getMemInstByIdx(*This->CurrentStore, 0);
+Expect<void> Interpreter::memCopy(Runtime::StoreManager &StoreMgr,
+                                  const uint32_t Dst, const uint32_t Src,
+                                  const uint32_t Len) noexcept {
+  auto &MemInst = *getMemInstByIdx(StoreMgr, 0);
 
   if (auto Data = MemInst.getBytes(Src, Len); unlikely(!Data)) {
-    siglongjmp(*TrapJump, uint8_t(Data.error()));
+    return Unexpect(Data);
   } else {
     if (auto Res = MemInst.setBytes(*Data, Dst, 0, Len); unlikely(!Res)) {
-      siglongjmp(*TrapJump, uint8_t(Res.error()));
+      return Unexpect(Res);
     }
   }
+
+  return {};
 }
 
-void Interpreter::memFill(const uint32_t Off, const uint8_t Val,
-                          const uint32_t Len) {
-  SignalDisabler Disabler;
-  auto &MemInst = *This->getMemInstByIdx(*This->CurrentStore, 0);
+Expect<void> Interpreter::memFill(Runtime::StoreManager &StoreMgr,
+                                  const uint32_t Off, const uint8_t Val,
+                                  const uint32_t Len) noexcept {
+  auto &MemInst = *getMemInstByIdx(StoreMgr, 0);
   if (auto Res = MemInst.fillBytes(Val, Off, Len); unlikely(!Res)) {
-    siglongjmp(*TrapJump, uint8_t(Res.error()));
+    return Unexpect(Res);
   }
+
+  return {};
 }
 
-void Interpreter::memInit(const uint32_t DataIdx, const uint32_t Dst,
-                          const uint32_t Src, const uint32_t Len) {
-  SignalDisabler Disabler;
-  auto &MemInst = *This->getMemInstByIdx(*This->CurrentStore, 0);
-  auto &DataInst = *This->getDataInstByIdx(*This->CurrentStore, DataIdx);
+Expect<void> Interpreter::memInit(Runtime::StoreManager &StoreMgr,
+                                  const uint32_t DataIdx, const uint32_t Dst,
+                                  const uint32_t Src,
+                                  const uint32_t Len) noexcept {
+  auto &MemInst = *getMemInstByIdx(StoreMgr, 0);
+  auto &DataInst = *getDataInstByIdx(StoreMgr, DataIdx);
 
   if (auto Res = MemInst.setBytes(DataInst.getData(), Dst, Src, Len);
       unlikely(!Res)) {
-    siglongjmp(*TrapJump, uint8_t(Res.error()));
+    return Unexpect(Res);
   }
+
+  return {};
 }
 
-void Interpreter::dataDrop(const uint32_t DataIdx) {
-  SignalDisabler Disabler;
-  auto &DataInst = *This->getDataInstByIdx(*This->CurrentStore, DataIdx);
+Expect<void> Interpreter::dataDrop(Runtime::StoreManager &StoreMgr,
+                                   const uint32_t DataIdx) noexcept {
+  auto &DataInst = *getDataInstByIdx(StoreMgr, DataIdx);
   DataInst.clear();
+
+  return {};
 }
 
-ValVariant Interpreter::tableGet(const uint32_t TableIndex,
-                                 const uint32_t Idx) {
-  SignalDisabler Disabler;
-  auto &TabInst = *This->getTabInstByIdx(*This->CurrentStore, TableIndex);
+Expect<ValVariant> Interpreter::tableGet(Runtime::StoreManager &StoreMgr,
+                                         const uint32_t TableIndex,
+                                         const uint32_t Idx) noexcept {
+  auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
   if (auto Res = TabInst.getRefAddr(Idx); unlikely(!Res)) {
-    siglongjmp(*TrapJump, uint8_t(Res.error()));
+    return Unexpect(Res);
   } else {
     return *Res;
   }
+
+  return {};
 }
 
-void Interpreter::tableSet(const uint32_t TableIndex, const uint32_t Idx,
-                           const ValVariant Ref) {
-  SignalDisabler Disabler;
-  auto &TabInst = *This->getTabInstByIdx(*This->CurrentStore, TableIndex);
+Expect<void> Interpreter::tableSet(Runtime::StoreManager &StoreMgr,
+                                   const uint32_t TableIndex,
+                                   const uint32_t Idx,
+                                   const ValVariant Ref) noexcept {
+  auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
   if (auto Res = TabInst.setRefAddr(Idx, Ref); unlikely(!Res)) {
-    siglongjmp(*TrapJump, uint8_t(Res.error()));
+    return Unexpect(Res);
   }
+
+  return {};
 }
 
-void Interpreter::tableCopy(const uint32_t TableIndexSrc,
-                            const uint32_t TableIndexDst, const uint32_t Dst,
-                            const uint32_t Src, const uint32_t Len) {
-  SignalDisabler Disabler;
-  auto &TabInstSrc = *This->getTabInstByIdx(*This->CurrentStore, TableIndexSrc);
-  auto &TabInstDst = *This->getTabInstByIdx(*This->CurrentStore, TableIndexDst);
+Expect<void> Interpreter::tableCopy(Runtime::StoreManager &StoreMgr,
+                                    const uint32_t TableIndexSrc,
+                                    const uint32_t TableIndexDst,
+                                    const uint32_t Dst, const uint32_t Src,
+                                    const uint32_t Len) noexcept {
+  auto &TabInstSrc = *getTabInstByIdx(StoreMgr, TableIndexSrc);
+  auto &TabInstDst = *getTabInstByIdx(StoreMgr, TableIndexDst);
   if (auto Refs = TabInstSrc.getRefs(Src, Len); unlikely(!Refs)) {
-    siglongjmp(*TrapJump, uint8_t(Refs.error()));
+    return Unexpect(Refs);
   } else {
     if (auto Res = TabInstDst.setRefs(*Refs, Dst, 0, Len); unlikely(!Res)) {
-      siglongjmp(*TrapJump, uint8_t(Res.error()));
+      return Unexpect(Res);
     }
   }
+
+  return {};
 }
 
-uint32_t Interpreter::tableGrow(const uint32_t TableIndex, const ValVariant Val,
-                                const uint32_t NewSize) {
-  SignalDisabler Disabler;
-  auto &TabInst = *This->getTabInstByIdx(*This->CurrentStore, TableIndex);
+Expect<uint32_t> Interpreter::tableGrow(Runtime::StoreManager &StoreMgr,
+                                        const uint32_t TableIndex,
+                                        const ValVariant Val,
+                                        const uint32_t NewSize) noexcept {
+  auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
   const uint32_t CurrTableSize = TabInst.getSize();
   if (likely(TabInst.growTable(NewSize, Val))) {
     return CurrTableSize;
@@ -259,43 +294,50 @@ uint32_t Interpreter::tableGrow(const uint32_t TableIndex, const ValVariant Val,
   }
 }
 
-uint32_t Interpreter::tableSize(const uint32_t TableIndex) {
-  SignalDisabler Disabler;
-  auto &TabInst = *This->getTabInstByIdx(*This->CurrentStore, TableIndex);
+Expect<uint32_t> Interpreter::tableSize(Runtime::StoreManager &StoreMgr,
+                                        const uint32_t TableIndex) noexcept {
+  auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
   return TabInst.getSize();
 }
 
-void Interpreter::tableFill(const uint32_t TableIndex, const uint32_t Off,
-                            const ValVariant Ref, const uint32_t Len) {
-  SignalDisabler Disabler;
-  auto &TabInst = *This->getTabInstByIdx(*This->CurrentStore, TableIndex);
+Expect<void> Interpreter::tableFill(Runtime::StoreManager &StoreMgr,
+                                    const uint32_t TableIndex,
+                                    const uint32_t Off, const ValVariant Ref,
+                                    const uint32_t Len) noexcept {
+  auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
   if (auto Res = TabInst.fillRefs(Ref, Off, Len); unlikely(!Res)) {
-    siglongjmp(*TrapJump, uint8_t(Res.error()));
+    return Unexpect(Res);
   }
+
+  return {};
 }
 
-void Interpreter::tableInit(const uint32_t TableIndex,
-                            const uint32_t ElementIndex, const uint32_t Dst,
-                            const uint32_t Src, const uint32_t Len) {
-  SignalDisabler Disabler;
-  auto &TabInst = *This->getTabInstByIdx(*This->CurrentStore, TableIndex);
-  auto &ElemInst = *This->getElemInstByIdx(*This->CurrentStore, ElementIndex);
+Expect<void> Interpreter::tableInit(Runtime::StoreManager &StoreMgr,
+                                    const uint32_t TableIndex,
+                                    const uint32_t ElementIndex,
+                                    const uint32_t Dst, const uint32_t Src,
+                                    const uint32_t Len) noexcept {
+  auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
+  auto &ElemInst = *getElemInstByIdx(StoreMgr, ElementIndex);
   if (auto Res = TabInst.setRefs(ElemInst.getRefs(), Dst, Src, Len);
       unlikely(!Res)) {
-    siglongjmp(*TrapJump, uint8_t(Res.error()));
+    return Unexpect(Res);
   }
+
+  return {};
 }
 
-void Interpreter::elemDrop(const uint32_t ElementIndex) {
-  SignalDisabler Disabler;
-  auto &ElemInst = *This->getElemInstByIdx(*This->CurrentStore, ElementIndex);
+Expect<void> Interpreter::elemDrop(Runtime::StoreManager &StoreMgr,
+                                   const uint32_t ElementIndex) noexcept {
+  auto &ElemInst = *getElemInstByIdx(StoreMgr, ElementIndex);
   ElemInst.clear();
+
+  return {};
 }
 
-ValVariant Interpreter::refFunc(const uint32_t FuncIndex) {
-  SignalDisabler Disabler;
-  const auto *ModInst =
-      *This->CurrentStore->getModule(This->StackMgr.getModuleAddr());
+Expect<ValVariant> Interpreter::refFunc(Runtime::StoreManager &StoreMgr,
+                                        const uint32_t FuncIndex) noexcept {
+  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
   const uint32_t FuncAddr = *ModInst->getFuncAddr(FuncIndex);
   return genFuncRef(FuncAddr);
 }

@@ -1,7 +1,6 @@
+#include "common/log.h"
 #include "common/errinfo.h"
-
-#include "support/hexstr.h"
-#include "support/log.h"
+#include "common/hexstr.h"
 
 #include "easyloggingpp/easylogging++.h"
 

@@ -11,7 +11,7 @@ target_link_libraries(ssvmInterpreter
   PRIVATE
   ssvmInterpreterInstantiate
   ssvmInterpreterEngine
-  ssvmSupport
+  ssvmCommon
 )
 
 target_include_directories(ssvmInterpreter

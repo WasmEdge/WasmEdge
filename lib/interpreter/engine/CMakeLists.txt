@@ -10,7 +10,7 @@ add_library(ssvmInterpreterEngine
 
 target_link_libraries(ssvmInterpreterEngine
   PRIVATE
-  ssvmSupport
+  ssvmCommon
 )
 
 target_include_directories(ssvmInterpreterEngine

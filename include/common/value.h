@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "support/casting.h"
 #include "support/variant.h"
 #include "types.h"
 
@@ -83,19 +82,17 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
 
 /// Retrieve value.
 template <typename T> inline const T &retrieveValue(const ValVariant &Val) {
-  return *reinterpret_cast<const T *>(
-      &std::get<Support::TypeToWasmTypeT<T>>(Val));
+  return *reinterpret_cast<const T *>(&std::get<TypeToWasmTypeT<T>>(Val));
 }
 template <typename T> inline T &retrieveValue(ValVariant &Val) {
-  return *reinterpret_cast<T *>(&std::get<Support::TypeToWasmTypeT<T>>(Val));
+  return *reinterpret_cast<T *>(&std::get<TypeToWasmTypeT<T>>(Val));
 }
 template <typename T> inline const T &&retrieveValue(const ValVariant &&Val) {
-  return std::move(*reinterpret_cast<const T *>(
-      &std::get<Support::TypeToWasmTypeT<T>>(Val)));
+  return std::move(
+      *reinterpret_cast<const T *>(&std::get<TypeToWasmTypeT<T>>(Val)));
 }
 template <typename T> inline T &&retrieveValue(ValVariant &&Val) {
-  return std::move(
-      *reinterpret_cast<T *>(&std::get<Support::TypeToWasmTypeT<T>>(Val)));
+  return std::move(*reinterpret_cast<T *>(&std::get<TypeToWasmTypeT<T>>(Val)));
 }
 
 /// Retrieve references.

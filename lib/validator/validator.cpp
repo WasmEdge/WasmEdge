@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "validator/validator.h"
 #include "common/ast/module.h"
-#include "support/log.h"
+#include "common/log.h"
 
 #include <string>
 #include <unordered_set>

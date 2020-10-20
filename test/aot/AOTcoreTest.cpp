@@ -14,8 +14,8 @@
 
 #include "../spec/spectest.h"
 #include "aot/compiler.h"
+#include "common/log.h"
 #include "support/filesystem.h"
-#include "support/log.h"
 #include "validator/validator.h"
 #include "vm/configure.h"
 #include "vm/vm.h"

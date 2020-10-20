@@ -3,7 +3,7 @@
 #include "common/value.h"
 #include "interpreter/interpreter.h"
 #include "runtime/instance/memory.h"
-#include "support/log.h"
+#include "common/log.h"
 
 #include <cstdint>
 

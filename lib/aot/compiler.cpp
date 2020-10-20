@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "aot/compiler.h"
+#include "common/log.h"
 #include "runtime/instance/memory.h"
 #include "runtime/instance/table.h"
 #include "support/filesystem.h"
-#include "support/log.h"
 #include <lld/Common/Driver.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/IR/IRBuilder.h>
@@ -55,7 +55,7 @@ class FunctionCompiler;
 template <typename... Ts> struct overloaded : Ts... {
   using Ts::operator()...;
 };
-template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+template <typename... Ts> overloaded(Ts...)->overloaded<Ts...>;
 
 /// force checking div/rem on zero
 static inline constexpr bool kForceDivCheck = true;
@@ -1752,7 +1752,7 @@ private:
          FuncIndex, Args, Rets});
 
     if (RetSize == 0) {
-        // nothing to do
+      // nothing to do
     } else if (RetSize == 1) {
       auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Rets, 0);
       auto *Ptr = Builder.CreateBitCast(VPtr, RTy->getPointerTo());

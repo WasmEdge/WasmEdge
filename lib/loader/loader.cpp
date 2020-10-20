@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "loader/loader.h"
+#include "common/log.h"
 #include "common/version.h"
 #include "support/filesystem.h"
-#include "support/log.h"
 
 #include <string_view>
 

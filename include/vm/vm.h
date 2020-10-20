@@ -20,7 +20,7 @@
 #include "loader/loader.h"
 #include "runtime/importobj.h"
 #include "runtime/storemgr.h"
-#include "support/measure.h"
+#include "common/measure.h"
 #include "validator/validator.h"
 
 #include <cstdint>

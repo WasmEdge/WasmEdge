@@ -15,13 +15,13 @@
 #include "common/ast/instruction.h"
 #include "common/ast/module.h"
 #include "common/errcode.h"
+#include "common/measure.h"
 #include "common/statistics.h"
+#include "common/time.h"
 #include "common/value.h"
 #include "runtime/importobj.h"
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"
-#include "support/measure.h"
-#include "support/time.h"
 
 #include <cassert>
 #include <csetjmp>

@@ -20,7 +20,6 @@
 #include <variant>
 
 namespace SSVM {
-namespace Support {
 
 template <typename... Ts> union VariadicUnion {};
 template <typename FirstT, typename... RestT>
@@ -158,55 +157,54 @@ public:
   }
 };
 
-} // namespace Support
 } // namespace SSVM
 
 namespace std {
 
 template <typename T, typename... Types>
-constexpr T &get(SSVM::Support::Variant<Types...> &Variant) {
+constexpr T &get(SSVM::Variant<Types...> &Variant) {
   return Variant.template get<T>();
 }
 
 template <typename T, typename... Types>
-constexpr T &&get(SSVM::Support::Variant<Types...> &&Variant) {
+constexpr T &&get(SSVM::Variant<Types...> &&Variant) {
   return std::move(Variant).template get<T>();
 }
 
 template <typename T, typename... Types>
-constexpr const T &get(const SSVM::Support::Variant<Types...> &Variant) {
+constexpr const T &get(const SSVM::Variant<Types...> &Variant) {
   return Variant.template get<T>();
 }
 
 template <typename T, typename... Types>
-constexpr const T &&get(const SSVM::Support::Variant<Types...> &&Variant) {
+constexpr const T &&get(const SSVM::Variant<Types...> &&Variant) {
   return std::move(Variant).template get<T>();
 }
 
 template <std::size_t I, typename... Types>
 constexpr typename std::variant_alternative_t<I, std::variant<Types...>> &
-get(SSVM::Support::Variant<Types...> &Variant) {
+get(SSVM::Variant<Types...> &Variant) {
   return Variant
       .template get<std::variant_alternative_t<I, std::variant<Types...>>>();
 }
 
 template <std::size_t I, typename... Types>
 constexpr typename std::variant_alternative_t<I, std::variant<Types...>> &
-get(SSVM::Support::Variant<Types...> &&Variant) {
+get(SSVM::Variant<Types...> &&Variant) {
   return std::move(Variant)
       .template get<std::variant_alternative_t<I, std::variant<Types...>>>();
 }
 
 template <std::size_t I, typename... Types>
 constexpr const typename std::variant_alternative_t<I, std::variant<Types...>> &
-get(const SSVM::Support::Variant<Types...> &Variant) {
+get(const SSVM::Variant<Types...> &Variant) {
   return Variant
       .template get<std::variant_alternative_t<I, std::variant<Types...>>>();
 }
 
 template <std::size_t I, typename... Types>
 constexpr const typename std::variant_alternative_t<I, std::variant<Types...>> &
-get(const SSVM::Support::Variant<Types...> &&Variant) {
+get(const SSVM::Variant<Types...> &&Variant) {
   return std::move(Variant)
       .template get<std::variant_alternative_t<I, std::variant<Types...>>>();
 }

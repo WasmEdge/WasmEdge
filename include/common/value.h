@@ -21,7 +21,7 @@ namespace SSVM {
 
 /// Definition of number_type.
 using ValVariant =
-    Support::Variant<uint32_t, uint64_t, float, double, FuncRef, ExternRef>;
+    Variant<uint32_t, uint64_t, float, double, FuncRef, ExternRef>;
 using Byte = uint8_t;
 
 /// Reference types helper functions.

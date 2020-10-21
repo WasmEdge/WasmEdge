@@ -16,6 +16,7 @@
 #include "common/errcode.h"
 #include "common/types.h"
 #include "common/value.h"
+#include "common/variant.h"
 #include "loader/filemgr.h"
 
 #include <memory>
@@ -453,42 +454,42 @@ template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   case OpCode::Nop:
   case OpCode::Return:
   case OpCode::End:
-    return Visitor(Support::tag<ControlInstruction>());
+    return Visitor(tag<ControlInstruction>());
 
   case OpCode::Block:
   case OpCode::Loop:
-    return Visitor(Support::tag<BlockControlInstruction>());
+    return Visitor(tag<BlockControlInstruction>());
 
   case OpCode::If:
-    return Visitor(Support::tag<IfElseControlInstruction>());
+    return Visitor(tag<IfElseControlInstruction>());
 
   case OpCode::Br:
   case OpCode::Br_if:
-    return Visitor(Support::tag<BrControlInstruction>());
+    return Visitor(tag<BrControlInstruction>());
 
   case OpCode::Br_table:
-    return Visitor(Support::tag<BrTableControlInstruction>());
+    return Visitor(tag<BrTableControlInstruction>());
 
   case OpCode::Call:
   case OpCode::Call_indirect:
-    return Visitor(Support::tag<CallControlInstruction>());
+    return Visitor(tag<CallControlInstruction>());
 
   case OpCode::Ref__null:
   case OpCode::Ref__is_null:
   case OpCode::Ref__func:
-    return Visitor(Support::tag<ReferenceInstruction>());
+    return Visitor(tag<ReferenceInstruction>());
 
   case OpCode::Drop:
   case OpCode::Select:
   case OpCode::Select_t:
-    return Visitor(Support::tag<ParametricInstruction>());
+    return Visitor(tag<ParametricInstruction>());
 
   case OpCode::Local__get:
   case OpCode::Local__set:
   case OpCode::Local__tee:
   case OpCode::Global__get:
   case OpCode::Global__set:
-    return Visitor(Support::tag<VariableInstruction>());
+    return Visitor(tag<VariableInstruction>());
 
   case OpCode::Table__get:
   case OpCode::Table__set:
@@ -498,7 +499,7 @@ template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   case OpCode::Table__grow:
   case OpCode::Table__size:
   case OpCode::Table__fill:
-    return Visitor(Support::tag<TableInstruction>());
+    return Visitor(tag<TableInstruction>());
 
   case OpCode::I32__load:
   case OpCode::I64__load:
@@ -529,13 +530,13 @@ template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   case OpCode::Data__drop:
   case OpCode::Memory__copy:
   case OpCode::Memory__fill:
-    return Visitor(Support::tag<MemoryInstruction>());
+    return Visitor(tag<MemoryInstruction>());
 
   case OpCode::I32__const:
   case OpCode::I64__const:
   case OpCode::F32__const:
   case OpCode::F64__const:
-    return Visitor(Support::tag<ConstInstruction>());
+    return Visitor(tag<ConstInstruction>());
 
   case OpCode::I32__eqz:
   case OpCode::I32__clz:
@@ -597,7 +598,7 @@ template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   case OpCode::I64__trunc_sat_f32_u:
   case OpCode::I64__trunc_sat_f64_s:
   case OpCode::I64__trunc_sat_f64_u:
-    return Visitor(Support::tag<UnaryNumericInstruction>());
+    return Visitor(tag<UnaryNumericInstruction>());
 
   case OpCode::I32__eq:
   case OpCode::I32__ne:
@@ -676,10 +677,10 @@ template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   case OpCode::F64__min:
   case OpCode::F64__max:
   case OpCode::F64__copysign:
-    return Visitor(Support::tag<BinaryNumericInstruction>());
+    return Visitor(tag<BinaryNumericInstruction>());
 
   default:
-    return Visitor(Support::tag<void>());
+    return Visitor(tag<void>());
   }
 }
 

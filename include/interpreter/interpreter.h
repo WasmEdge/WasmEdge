@@ -15,9 +15,7 @@
 #include "ast/instruction.h"
 #include "ast/module.h"
 #include "common/errcode.h"
-#include "common/measure.h"
 #include "common/statistics.h"
-#include "common/time.h"
 #include "common/value.h"
 #include "runtime/importobj.h"
 #include "runtime/stackmgr.h"
@@ -84,9 +82,7 @@ using TypeNN =
 /// Executor flow control class.
 class Interpreter {
 public:
-  Interpreter(Support::Measurement *M = nullptr,
-              Statistics::Statistics *S = nullptr)
-      : Measure(M), Stat(S) {
+  Interpreter(Statistics::Statistics *S = nullptr) : Stat(S) {
     assert(This == nullptr);
     This = this;
   }
@@ -458,11 +454,10 @@ private:
   InstantiateMode InsMode;
   /// Stack
   Runtime::StackManager StackMgr;
-  /// Pointer to measurement.
-  Support::Measurement *Measure;
+  /// Store
+  Runtime::StoreManager *CurrentStore;
   /// Interpreter statistics
   Statistics::Statistics *Stat;
-  Runtime::StoreManager *CurrentStore;
 };
 
 } // namespace Interpreter

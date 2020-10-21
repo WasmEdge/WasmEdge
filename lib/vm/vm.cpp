@@ -1,29 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/vm.h"
+#include "common/log.h"
 #include "host/ssvm_process/processmodule.h"
 #include "host/wasi/wasimodule.h"
-#include "common/log.h"
 
 namespace SSVM {
 namespace VM {
 
 VM::VM(Configure &InputConfig)
-    : Config(InputConfig), Stage(VMStage::Inited),
-      InterpreterEngine(&Measure, &Stat),
+    : Config(InputConfig), Stage(VMStage::Inited), InterpreterEngine(&Stat),
       Store(std::make_unique<Runtime::StoreManager>()), StoreRef(*Store.get()) {
   initVM();
 }
 
 VM::VM(Configure &InputConfig, Runtime::StoreManager &S)
-    : Config(InputConfig), Stage(VMStage::Inited),
-      InterpreterEngine(&Measure, &Stat), StoreRef(S) {
+    : Config(InputConfig), Stage(VMStage::Inited), InterpreterEngine(&Stat),
+      StoreRef(S) {
   initVM();
 }
 
 void VM::initVM() {
   /// Set cost table and create import modules from configure.
   CostTab.setCostTable(Configure::VMType::Wasm);
-  Measure.setCostTable(CostTab.getCostTable(Configure::VMType::Wasm));
+  Stat.setCostTable(CostTab.getCostTable(Configure::VMType::Wasm));
   if (Config.hasVMType(Configure::VMType::Wasi)) {
     /// 2nd priority of cost table: Wasi
     std::unique_ptr<Runtime::ImportObject> WasiMod =
@@ -31,7 +30,7 @@ void VM::initVM() {
     InterpreterEngine.registerModule(StoreRef, *WasiMod.get());
     ImpObjs.insert({Configure::VMType::Wasi, std::move(WasiMod)});
     CostTab.setCostTable(Configure::VMType::Wasi);
-    Measure.setCostTable(CostTab.getCostTable(Configure::VMType::Wasi));
+    Stat.setCostTable(CostTab.getCostTable(Configure::VMType::Wasi));
   }
   if (Config.hasVMType(Configure::VMType::SSVM_Process)) {
     /// 1st priority of cost table: SSVM_Process
@@ -40,7 +39,7 @@ void VM::initVM() {
     InterpreterEngine.registerModule(StoreRef, *ProcMod.get());
     ImpObjs.insert({Configure::VMType::SSVM_Process, std::move(ProcMod)});
     CostTab.setCostTable(Configure::VMType::SSVM_Process);
-    Measure.setCostTable(CostTab.getCostTable(Configure::VMType::SSVM_Process));
+    Stat.setCostTable(CostTab.getCostTable(Configure::VMType::SSVM_Process));
   }
 }
 
@@ -251,7 +250,7 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
 void VM::cleanup() {
   Mod.reset();
   StoreRef.reset();
-  Measure.clear();
+  Stat.clear();
   Stage = VMStage::Inited;
 }
 

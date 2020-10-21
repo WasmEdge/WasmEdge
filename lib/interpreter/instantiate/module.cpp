@@ -159,10 +159,10 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Setup callbacks for compiled module
   Mod.setTrapCode(&Interpreter::TrapCode);
   Mod.setIntrinsicsTable(Interpreter::IntrinsicsTable);
-  if (Measure) {
-    Mod.setInstrCount(Measure->getInstrCnt());
-    Mod.setGas(Measure->getCostSum());
-    Mod.setCostTable(Measure->getCostTable());
+  if (Stat) {
+    Mod.setInstrCount(Stat->getInstrCountRef());
+    Mod.setGas(Stat->getTotalCostRef());
+    Mod.setCostTable(Stat->getCostTable());
   }
 
   /// Instantiate StartSection (StartSec)

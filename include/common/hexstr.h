@@ -8,7 +8,6 @@
 #include <vector>
 
 namespace SSVM {
-namespace Support {
 
 uint8_t convertCharToHex(const char C);
 
@@ -28,5 +27,4 @@ void convertHexStrToValVec(std::string_view Src, std::vector<uint8_t> &Dst,
 
 std::string convertUIntToHexStr(const uint64_t Num, uint32_t MinLen = 8);
 
-} // namespace Support
 } // namespace SSVM

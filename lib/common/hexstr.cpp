@@ -2,7 +2,6 @@
 #include <cinttypes>
 
 namespace SSVM {
-namespace Support {
 
 uint8_t convertCharToHex(const char C) {
   if (C >= '0' && C <= '9') {
@@ -85,5 +84,4 @@ std::string convertUIntToHexStr(const uint64_t Num, uint32_t MinLen) {
   return Str;
 }
 
-} // namespace Support
 } // namespace SSVM

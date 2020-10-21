@@ -30,7 +30,7 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoFile &Rhs) {
 }
 
 std::ostream &operator<<(std::ostream &OS, const struct InfoLoading &Rhs) {
-  OS << "    Bytecode offset: " << Support::convertUIntToHexStr(Rhs.Offset);
+  OS << "    Bytecode offset: " << convertUIntToHexStr(Rhs.Offset);
   return OS;
 }
 
@@ -189,10 +189,10 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
   uint16_t Payload = static_cast<uint16_t>(Rhs.Code);
   OS << "    In instruction: " << OpCodeStr[Rhs.Code] << " (";
   if ((Payload >> 8) >= static_cast<uint16_t>(0xFCU)) {
-    OS << Support::convertUIntToHexStr(Payload >> 8, 2) << " ";
+    OS << convertUIntToHexStr(Payload >> 8, 2) << " ";
   }
-  OS << Support::convertUIntToHexStr(Payload & 0xFFU, 2)
-     << ") , Bytecode offset: " << Support::convertUIntToHexStr(Rhs.Offset);
+  OS << convertUIntToHexStr(Payload & 0xFFU, 2)
+     << ") , Bytecode offset: " << convertUIntToHexStr(Rhs.Offset);
   if (Rhs.Args.size() > 0) {
     OS << " , Args: [";
     for (uint32_t I = 0; I < Rhs.Args.size(); ++I) {
@@ -247,11 +247,10 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
 }
 
 std::ostream &operator<<(std::ostream &OS, const struct InfoBoundary &Rhs) {
-  OS << "    Accessing offset from: "
-     << Support::convertUIntToHexStr(Rhs.Offset) << " to: "
-     << Support::convertUIntToHexStr(Rhs.Offset + Rhs.Size -
-                                     (Rhs.Size > 0 ? 1 : 0))
-     << " , Out of boundary: " << Support::convertUIntToHexStr(Rhs.Limit);
+  OS << "    Accessing offset from: " << convertUIntToHexStr(Rhs.Offset)
+     << " to: "
+     << convertUIntToHexStr(Rhs.Offset + Rhs.Size - (Rhs.Size > 0 ? 1 : 0))
+     << " , Out of boundary: " << convertUIntToHexStr(Rhs.Limit);
   return OS;
 }
 

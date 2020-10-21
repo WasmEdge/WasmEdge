@@ -20,7 +20,6 @@
 #include "loader/loader.h"
 #include "runtime/importobj.h"
 #include "runtime/storemgr.h"
-#include "common/measure.h"
 #include "validator/validator.h"
 
 #include <cstdint>
@@ -89,9 +88,6 @@ public:
   /// Getter of store set in VM.
   Runtime::StoreManager &getStoreManager() { return StoreRef; }
 
-  /// Getter of measurement.
-  Support::Measurement &getMeasurement() { return Measure; }
-
   /// Getter of statistics.
   Statistics::Statistics &getStatistics() { return Stat; }
 
@@ -112,7 +108,6 @@ private:
 
   /// VM environment.
   Configure &Config;
-  Support::Measurement Measure;
   Statistics::Statistics Stat;
   VMStage Stage;
 

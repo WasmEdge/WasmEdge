@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "ast/instruction.h"
 #include "common/log.h"
-#include "common/measure.h"
 #include "common/statistics.h"
-#include "common/time.h"
 #include "common/value.h"
 #include "interpreter/interpreter.h"
 
@@ -65,8 +63,6 @@ AST::Module::IntrinsicsTable Interpreter::IntrinsicsTable = {
 #if defined(__clang_major__) && __clang_major__ >= 10
 #pragma clang diagnostic pop
 #endif
-
-using TimerTag = Support::TimerTag;
 
 void Interpreter::signalHandler(int Signal, siginfo_t *Siginfo,
                                 void *) noexcept {
@@ -361,8 +357,8 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
                          const Runtime::Instance::FunctionInstance &Func,
                          Span<const ValVariant> Params) {
   /// Set start time.
-  if (Measure) {
-    Measure->getTimeRecorder().startRecord(TimerTag::Execution);
+  if (Stat) {
+    Stat->startRecordWasm();
   }
 
   /// Reset and push a dummy frame into stack.
@@ -387,16 +383,9 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
   }
 
   /// Print time cost.
-  if (Measure) {
-    uint64_t ExecTime =
-        Measure->getTimeRecorder().stopRecord(TimerTag::Execution);
-    uint64_t HostFuncTime =
-        Measure->getTimeRecorder().getRecord(TimerTag::HostFunc);
+  if (Stat) {
+    Stat->stopRecordWasm();
 
-    Stat->setWasmExecTime(ExecTime);
-    Stat->setHostFuncExecTime(HostFuncTime);
-    Stat->setTotalGasCost(Measure->getCostSum());
-    Stat->setInstrCount(Measure->getInstrCnt());
     LOG(DEBUG) << std::endl
                << " ====================  Statistics  ===================="
                << std::endl
@@ -408,7 +397,7 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
                << Stat->getHostFuncExecTime() << " us" << std::endl
                << " Executed wasm instructions count: " << Stat->getInstrCount()
                << std::endl
-               << " Gas costs: " << Stat->getTotalGasCost() << std::endl
+               << " Gas costs: " << Stat->getTotalCost() << std::endl
                << " Instructions per second: "
                << static_cast<uint64_t>(Stat->getInstrPerSecond()) << std::endl;
   }
@@ -994,10 +983,10 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr) {
   const AST::Instruction *Instr = StackMgr.getNextInstr();
   while (Instr != nullptr) {
     OpCode Code = Instr->getOpCode();
-    if (Measure) {
-      Measure->incInstrCnt();
+    if (Stat) {
+      Stat->incInstrCount();
       /// Add cost. Note: if-else case should be processed additionally.
-      if (!Measure->addInstrCost(Code)) {
+      if (unlikely(!Stat->addInstrCost(Code))) {
         return Unexpect(ErrCode::CostLimitExceeded);
       }
     }
@@ -1046,15 +1035,15 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     /// in current module.
     auto *MemoryInst = getMemInstByIdx(StoreMgr, 0);
 
-    if (Measure) {
+    if (Stat) {
       /// Check host function cost.
-      if (!Measure->addCost(HostFunc.getCost())) {
+      if (unlikely(!Stat->addCost(HostFunc.getCost()))) {
         LOG(ERROR) << ErrCode::CostLimitExceeded;
         return Unexpect(ErrCode::CostLimitExceeded);
       }
       /// Start recording time of running host function.
-      Measure->getTimeRecorder().stopRecord(TimerTag::Execution);
-      Measure->getTimeRecorder().startRecord(TimerTag::HostFunc);
+      Stat->stopRecordWasm();
+      Stat->startRecordHost();
     }
 
     /// Run host function.
@@ -1072,10 +1061,10 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
       StackMgr.push(std::move(R));
     }
 
-    if (Measure) {
+    if (Stat) {
       /// Stop recording time of running host function.
-      Measure->getTimeRecorder().stopRecord(TimerTag::HostFunc);
-      Measure->getTimeRecorder().startRecord(TimerTag::Execution);
+      Stat->stopRecordHost();
+      Stat->startRecordWasm();
     }
 
     if (!Ret && Ret.error() == ErrCode::ExecutionFailed) {

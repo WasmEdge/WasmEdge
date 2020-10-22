@@ -365,9 +365,6 @@ TEST(ExtensionsTest, OrElse) {
     *e = 17;
     return expected<int, eptr>(unexpect, std::move(e));
   };
-  auto failptr = [](eptr e) {
-    return expected<int, eptr>(unexpect, std::move(e));
-  };
   auto failvoid = [](int) {};
   auto failvoidptr = [](const eptr &) { /* don't consume */ };
   auto consumeptr = [](eptr) {};

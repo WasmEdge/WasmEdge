@@ -12,8 +12,8 @@
 #pragma once
 
 #include "errinfo.h"
+#include "hexstr.h"
 #include "support/expected.h"
-#include "support/hexstr.h"
 
 #include <ostream>
 #include <string>

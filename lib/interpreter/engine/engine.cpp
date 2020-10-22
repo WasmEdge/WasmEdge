@@ -41,6 +41,11 @@ struct Interpreter::ProxyHelper<Expect<RetT> (Interpreter::*)(
   }
 };
 
+#if defined(__clang_major__) && __clang_major__ >= 10
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc99-designator"
+#endif
+
 AST::Module::IntrinsicsTable Interpreter::IntrinsicsTable = {
 #define ENTRY(NAME, FUNC)                                                      \
   [uint8_t(AST::Module::Intrinsics::NAME)] = reinterpret_cast<void *>(         \
@@ -57,6 +62,10 @@ AST::Module::IntrinsicsTable Interpreter::IntrinsicsTable = {
     ENTRY(kRefFunc, refFunc),
 #undef ENTRY
 };
+
+#if defined(__clang_major__) && __clang_major__ >= 10
+#pragma clang diagnostic pop
+#endif
 
 using TimerTag = Support::TimerTag;
 

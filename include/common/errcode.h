@@ -12,8 +12,8 @@
 #pragma once
 
 #include "errinfo.h"
+#include "expected.h"
 #include "hexstr.h"
-#include "support/expected.h"
 
 #include <ostream>
 #include <string>
@@ -174,14 +174,12 @@ static inline constexpr bool unlikely(bool V) {
 }
 
 /// Type aliasing for Expected<T, ErrCode>.
-template <typename T> using Expect = Support::Expected<T, ErrCode>;
+template <typename T> using Expect = Expected<T, ErrCode>;
 
 /// Helper function for Unexpected<ErrCode>.
-constexpr auto Unexpect(const ErrCode &Val) {
-  return Support::Unexpected<ErrCode>(Val);
-}
+constexpr auto Unexpect(const ErrCode &Val) { return Unexpected<ErrCode>(Val); }
 template <typename T> constexpr auto Unexpect(const Expect<T> &Val) {
-  return Support::Unexpected<ErrCode>(Val.error());
+  return Unexpected<ErrCode>(Val.error());
 }
 
 } // namespace SSVM

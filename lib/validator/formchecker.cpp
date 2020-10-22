@@ -179,8 +179,8 @@ Expect<void> FormChecker::checkInstrs(const AST::InstrVec &Instrs) {
     if (auto Res = AST::dispatchInstruction(
             Instr->getOpCode(),
             [this, &Instr](auto &&Arg) -> Expect<void> {
-              if constexpr (std::is_void_v<
-                                typename std::decay_t<decltype(Arg)>::type>) {
+              using InstrT = typename std::decay_t<decltype(Arg)>::type;
+              if constexpr (std::is_void_v<InstrT>) {
                 /// If the Code not matched, validation failed.
                 LOG(ERROR) << ErrCode::InvalidOpCode;
                 LOG(ERROR) << ErrInfo::InfoInstruction(Instr->getOpCode(),
@@ -188,9 +188,8 @@ Expect<void> FormChecker::checkInstrs(const AST::InstrVec &Instrs) {
                 return Unexpect(ErrCode::InvalidOpCode);
               } else {
                 /// Check the corresponding instruction.
-                auto Check = checkInstr(
-                    *static_cast<typename std::decay_t<decltype(Arg)>::type *>(
-                        Instr.get()));
+                auto Check =
+                    checkInstr(*static_cast<const InstrT *>(Instr.get()));
                 if (!Check) {
                   LOG(ERROR) << ErrInfo::InfoInstruction(Instr->getOpCode(),
                                                          Instr->getOffset());

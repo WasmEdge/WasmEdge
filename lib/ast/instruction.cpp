@@ -570,15 +570,14 @@ Expect<std::unique_ptr<Instruction>> makeInstructionNode(OpCode Code,
   return dispatchInstruction(
       Code,
       [&Code, &Offset](auto &&Arg) -> Expect<std::unique_ptr<Instruction>> {
-        if constexpr (std::is_void_v<
-                          typename std::decay_t<decltype(Arg)>::type>) {
-          /// If the Code not matched, return null pointer.
+        using InstrT = typename std::decay_t<decltype(Arg)>::type;
+        if constexpr (std::is_void_v<InstrT>) {
+          /// If the Code not matched, return error.
           LOG(ERROR) << ErrCode::InvalidGrammar;
-          return Unexpect(ErrCode::InvalidGrammar);
+          return Unexpect(ErrCode::InvalidOpCode);
         } else {
           /// Make the instruction node according to Code.
-          return std::make_unique<typename std::decay_t<decltype(Arg)>::type>(
-              Code, Offset);
+          return std::make_unique<InstrT>(Code, Offset);
         }
       });
 }

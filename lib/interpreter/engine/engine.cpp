@@ -436,10 +436,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     StackMgr.endExpression();
     return {};
   default:
-    LOG(ERROR) << ErrCode::InstrTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    __builtin_unreachable();
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 }
 
@@ -451,10 +449,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Loop:
     return runLoopOp(StoreMgr, Instr);
   default:
-    LOG(ERROR) << ErrCode::InstrTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    __builtin_unreachable();
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 }
 
@@ -464,10 +460,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::If:
     return runIfElseOp(StoreMgr, Instr);
   default:
-    LOG(ERROR) << ErrCode::InstrTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    __builtin_unreachable();
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 }
 
@@ -479,10 +473,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Br_if:
     return runBrIfOp(StoreMgr, Instr);
   default:
-    LOG(ERROR) << ErrCode::InstrTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    __builtin_unreachable();
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 }
 
@@ -492,10 +484,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Br_table:
     return runBrTableOp(StoreMgr, Instr);
   default:
-    LOG(ERROR) << ErrCode::InstrTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    __builtin_unreachable();
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 }
 
@@ -507,10 +497,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Call_indirect:
     return runCallIndirectOp(StoreMgr, Instr);
   default:
-    LOG(ERROR) << ErrCode::InstrTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    __builtin_unreachable();
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 }
 
@@ -536,10 +524,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     return {};
   }
   default:
-    LOG(ERROR) << ErrCode::InstrTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    __builtin_unreachable();
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 }
 
@@ -565,10 +551,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     return {};
   }
   default:
-    LOG(ERROR) << ErrCode::InstrTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    __builtin_unreachable();
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 }
 
@@ -590,10 +574,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Global__set:
     return runGlobalSetOp(StoreMgr, Index);
   default:
-    LOG(ERROR) << ErrCode::InstrTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    __builtin_unreachable();
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 }
 
@@ -627,10 +609,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Table__fill:
     return runTableFillOp(*TabInst, Instr);
   default:
-    LOG(ERROR) << ErrCode::InstrTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    __builtin_unreachable();
+    return Unexpect(ErrCode::InvalidOpCode);
   }
   return {};
 }
@@ -705,10 +685,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::Memory__fill:
     return runMemoryFillOp(*MemInst, Instr);
   default:
-    LOG(ERROR) << ErrCode::InstrTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    __builtin_unreachable();
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 }
 
@@ -843,10 +821,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::I64__trunc_sat_f64_u:
     return runTruncateSatOp<double, uint64_t>(Val);
   default:
-    LOG(ERROR) << ErrCode::InstrTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    __builtin_unreachable();
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 }
 
@@ -1009,10 +985,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::F64__copysign:
     return runCopysignOp<double>(Val1, Val2);
   default:
-    LOG(ERROR) << ErrCode::InstrTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
-    return Unexpect(ErrCode::InstrTypeMismatch);
+    __builtin_unreachable();
+    return Unexpect(ErrCode::InvalidOpCode);
   }
 }
 
@@ -1031,19 +1005,14 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr) {
     /// Run instructions.
     auto Res = AST::dispatchInstruction(
         Code, [this, &Instr, &StoreMgr](auto &&Arg) -> Expect<void> {
-          if constexpr (std::is_void_v<
-                            typename std::decay_t<decltype(Arg)>::type>) {
-            /// If the Code not matched, return null pointer.
-            LOG(ERROR) << ErrCode::InstrTypeMismatch;
-            LOG(ERROR) << ErrInfo::InfoInstruction(Instr->getOpCode(),
-                                                   Instr->getOffset());
-            return Unexpect(ErrCode::InstrTypeMismatch);
+          using InstrT = typename std::decay_t<decltype(Arg)>::type;
+          if constexpr (std::is_void_v<InstrT>) {
+            /// OpCode was checked in validator
+            __builtin_unreachable();
+            return Unexpect(ErrCode::InvalidOpCode);
           } else {
             /// Make the instruction node according to Code.
-            return execute(
-                StoreMgr,
-                *static_cast<
-                    const typename std::decay_t<decltype(Arg)>::type *>(Instr));
+            return execute(StoreMgr, *static_cast<const InstrT *>(Instr));
           }
         });
     if (!Res) {

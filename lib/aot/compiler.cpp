@@ -384,13 +384,11 @@ public:
       }
       auto Res = AST::dispatchInstruction(
           Instr->getOpCode(), [this, &Instr](const auto &&Arg) -> Expect<void> {
-            if constexpr (std::is_void_v<
-                              typename std::decay_t<decltype(Arg)>::type>) {
-              /// If the Code not matched, return null pointer.
-              LOG(ERROR) << ErrCode::InstrTypeMismatch;
-              LOG(ERROR) << ErrInfo::InfoInstruction(Instr->getOpCode(),
-                                                     Instr->getOffset());
-              return Unexpect(ErrCode::InstrTypeMismatch);
+            using InstrT = typename std::decay_t<decltype(Arg)>::type;
+            if constexpr (std::is_void_v<InstrT>) {
+              /// OpCode was checked in validator
+              __builtin_unreachable();
+              return Unexpect(ErrCode::InvalidOpCode);
             } else {
               /// Update instruction count
               if (LocalInstrCount) {
@@ -409,10 +407,8 @@ public:
               }
 
               /// Make the instruction node according to Code.
-              if (auto Status = compile(
-                      *static_cast<
-                          const typename std::decay_t<decltype(Arg)>::type *>(
-                          Instr.get()));
+              if (auto Status =
+                      compile(*static_cast<const InstrT *>(Instr.get()));
                   !Status) {
                 return Unexpect(Status);
               }

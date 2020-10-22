@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "support/span.h"
+#include "span.h"
 
-#include <cstdio>
-#include <iterator>
 #include <string>
 #include <string_view>
 #include <vector>

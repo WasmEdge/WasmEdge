@@ -57,6 +57,13 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
+      - name: Login to GitHub Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.G_USERNAME }}
+          password: ${{ secrets.G_ACCESS_TOKEN }}
+
       - name: "Rebuild secondstate/ssvm:ubuntu-base"
         uses: docker/build-push-action@v2
         with:
@@ -64,7 +71,9 @@ jobs:
           file: utils/docker/Dockerfile.base
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.prep.outputs.docker_image }}:ubuntu-base
+          tags: |
+            ${{ steps.prep.outputs.docker_image }}:ubuntu-base
+            docker.pkg.github.com/second-state/ssvm:ubuntu-base
           labels: |
             org.opencontainers.image.title=${{ github.event.repository.name }}
             org.opencontainers.image.description=${{ github.event.repository.description }}
@@ -83,7 +92,9 @@ jobs:
           file: ./utils/docker/Dockerfile.build-clang
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.prep.outputs.docker_image }}:ubuntu-build-clang
+          tags: |
+            ${{ steps.prep.outputs.docker_image }}:ubuntu-build-clang
+            docker.pkg.github.com/second-state/ssvm:ubuntu-build-clang
           labels: |
             org.opencontainers.image.title=${{ github.event.repository.name }}
             org.opencontainers.image.description=${{ github.event.repository.description }}
@@ -102,7 +113,9 @@ jobs:
           file: utils/docker/Dockerfile.build-gcc
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.prep.outputs.docker_image }}:ubuntu-build-gcc
+          tags: |
+            ${{ steps.prep.outputs.docker_image }}:ubuntu-build-gcc
+            docker.pkg.github.com/second-state/ssvm:ubuntu-build-gcc
           labels: |
             org.opencontainers.image.title=${{ github.event.repository.name }}
             org.opencontainers.image.description=${{ github.event.repository.description }}
@@ -121,7 +134,9 @@ jobs:
           file: utils/docker/Dockerfile.build-clang
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.prep.outputs.docker_image }}:latest
+          tags: |
+            ${{ steps.prep.outputs.docker_image }}:latest
+            docker.pkg.github.com/second-state/ssvm:latest
           labels: |
             org.opencontainers.image.title=${{ github.event.repository.name }}
             org.opencontainers.image.description=${{ github.event.repository.description }}

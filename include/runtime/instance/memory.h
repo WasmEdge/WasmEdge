@@ -332,13 +332,7 @@ public:
     return {};
   }
 
-  /// Getter of symbol
-  const auto &getSymbol() const noexcept { return Symbol; }
-  /// Setter of symbol
-  void setSymbol(DLSymbol<uint8_t *> S) noexcept {
-    Symbol = std::move(S);
-    *Symbol = DataPtr;
-  }
+  uint8_t *getDataPtr() const noexcept { return DataPtr; }
 
 private:
   /// \name Data of memory instance.
@@ -347,7 +341,6 @@ private:
   uint32_t MinPage;
   const uint32_t MaxPage;
   uint8_t *DataPtr = nullptr;
-  DLSymbol<uint8_t *> Symbol;
   /// @}
 };
 

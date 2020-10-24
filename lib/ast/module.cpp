@@ -203,52 +203,6 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
 
 /// Load compiled function from loadable manager. See "include/ast/module.h".
 Expect<void> Module::loadCompiled(LDMgr &Mgr) {
-  if (ImportSec) {
-    for (auto &ImpDesc : ImportSec->getContent()) {
-      const std::string ModName(ImpDesc->getModuleName());
-      const std::string ExtName(ImpDesc->getExternalName());
-      const std::string FullName =
-          AST::Module::toExportName(ModName + '.' + ExtName);
-      switch (ImpDesc->getExternalType()) {
-      case ExternalType::Function:
-        break;
-      case ExternalType::Table:
-        break;
-      case ExternalType::Global:
-        if (auto Symbol = Mgr.getSymbol(FullName.c_str())) {
-          ImpDesc->setSymbol(std::move(Symbol));
-        } else {
-          LOG(ERROR) << ErrCode::InvalidGlobalIdx;
-          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Desc_Import);
-          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Sec_Import);
-          LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-          return Unexpect(ErrCode::InvalidGlobalIdx);
-        }
-        break;
-      case ExternalType::Memory:
-        if (auto Symbol = Mgr.getSymbol(FullName.c_str())) {
-          ImpDesc->setSymbol(std::move(Symbol));
-        } else {
-          LOG(ERROR) << ErrCode::InvalidMemoryIdx;
-          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Desc_Import);
-          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Sec_Import);
-          LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-          return Unexpect(ErrCode::InvalidMemoryIdx);
-        }
-        break;
-      default:
-        break;
-      }
-    }
-  }
-  if (GlobalSec) {
-    if (auto Symbol = Mgr.getSymbol<ValVariant *[]>("globals")) {
-      const auto &GlobalSecs = GlobalSec->getContent();
-      for (size_t I = 0; I < GlobalSecs.size(); ++I) {
-        GlobalSecs[I]->setSymbol(Symbol.index(I));
-      }
-    }
-  }
   if (TypeSec) {
     if (auto Symbol = Mgr.getSymbol<FunctionType::Wrapper *[]>("types")) {
       const auto &TypeSecs = TypeSec->getContent();
@@ -264,14 +218,6 @@ Expect<void> Module::loadCompiled(LDMgr &Mgr) {
         CodeSecs[I]->setSymbol(Symbol.index(I).deref());
       }
     }
-  }
-  if (TableSec) {
-    auto &TableType = TableSec->getContent().front();
-    TableType->setSymbol(Mgr.getSymbol("table"));
-  }
-  if (MemorySec) {
-    auto &MemType = MemorySec->getContent().front();
-    MemType->setSymbol(Mgr.getSymbol<uint8_t *>("mem"));
   }
   return {};
 }

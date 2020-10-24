@@ -156,13 +156,21 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
   }
 
-  /// Setup callbacks for compiled module
-  Mod.setTrapCode(&Interpreter::TrapCode);
-  Mod.setIntrinsicsTable(Interpreter::IntrinsicsTable);
-  if (Stat) {
-    Mod.setInstrCount(Stat->getInstrCountRef());
-    Mod.setGas(Stat->getTotalCostRef());
-    Mod.setCostTable(Stat->getCostTable());
+  /// Prepare pointers for compiled functions
+  ModInst->MemoryPtr =
+      ModInst->getMemAddr(0)
+          .and_then([&StoreMgr](uint32_t MemAddr) {
+            return StoreMgr.getMemory(MemAddr);
+          })
+          .map([](const Runtime::Instance::MemoryInstance *MemInst) {
+            return MemInst->getDataPtr();
+          })
+          .value_or(nullptr);
+
+  ModInst->GlobalsPtr.reserve(ModInst->getGlobalNum());
+  for (size_t I = 0; I < ModInst->getGlobalNum(); ++I) {
+    ModInst->GlobalsPtr.push_back(
+        &(*StoreMgr.getGlobal(*ModInst->getGlobalAddr(I)))->getValue());
   }
 
   /// Instantiate StartSection (StartSec)
@@ -188,6 +196,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 
   /// Pop Frame.
   StackMgr.popFrame();
+
   return {};
 }
 

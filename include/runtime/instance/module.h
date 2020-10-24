@@ -177,6 +177,12 @@ public:
   /// Module Instance address in store manager.
   uint32_t Addr;
 
+  /// \name Data for compiled functions.
+  /// @{
+  uint8_t *MemoryPtr;
+  std::vector<ValVariant *> GlobalsPtr;
+  /// @}
+
 private:
   /// Module name.
   const std::string ModName;

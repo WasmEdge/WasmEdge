@@ -85,6 +85,11 @@ public:
   Interpreter(Statistics::Statistics *S = nullptr) : Stat(S) {
     assert(This == nullptr);
     This = this;
+    if (Stat) {
+      ExecutionContext.InstrCount = &Stat->getInstrCountRef();
+      ExecutionContext.CostTable = Stat->getCostTable().data();
+      ExecutionContext.Gas = &Stat->getTotalCostRef();
+    }
   }
   ~Interpreter() noexcept { This = nullptr; }
 
@@ -389,9 +394,10 @@ private:
   static Interpreter *This;
   /// jmp_buf for trap.
   static sigjmp_buf *TrapJump;
-  static uint32_t TrapCode;
-  static AST::Module::IntrinsicsTable IntrinsicsTable;
 
+public:
+  Expect<void> trap(Runtime::StoreManager &StoreMgr,
+                    const uint8_t Code) noexcept;
   Expect<void> call(Runtime::StoreManager &StoreMgr, const uint32_t FuncIndex,
                     const ValVariant *Args, ValVariant *Rets) noexcept;
   Expect<void> callIndirect(Runtime::StoreManager &StoreMgr,
@@ -448,16 +454,25 @@ private:
   template <typename FuncPtr> struct ProxyHelper;
   /// @}
 
+private:
   enum class InstantiateMode : uint8_t { Instantiate = 0, ImportWasm };
 
   /// Instantiate mode
   InstantiateMode InsMode;
   /// Stack
   Runtime::StackManager StackMgr;
-  /// Store
-  Runtime::StoreManager *CurrentStore;
   /// Interpreter statistics
   Statistics::Statistics *Stat;
+  /// Store
+  Runtime::StoreManager *CurrentStore;
+  /// Execution context for compiled function
+  struct ExecutionContext {
+    uint8_t *Memory;
+    ValVariant *const *Globals;
+    uint64_t *InstrCount;
+    uint64_t *CostTable;
+    uint64_t *Gas;
+  } ExecutionContext;
 };
 
 } // namespace Interpreter

@@ -386,20 +386,26 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
   if (Stat) {
     Stat->stopRecordWasm();
 
-    LOG(DEBUG) << std::endl
-               << " ====================  Statistics  ===================="
-               << std::endl
-               << " Total execution time: " << Stat->getTotalExecTime() << " us"
-               << std::endl
-               << " Wasm instructions execution time: "
-               << Stat->getWasmExecTime() << " us" << std::endl
-               << " Host functions execution time: "
-               << Stat->getHostFuncExecTime() << " us" << std::endl
-               << " Executed wasm instructions count: " << Stat->getInstrCount()
-               << std::endl
-               << " Gas costs: " << Stat->getTotalCost() << std::endl
-               << " Instructions per second: "
-               << static_cast<uint64_t>(Stat->getInstrPerSecond()) << std::endl;
+    auto Nano = [](auto &&Duration) {
+      return std::chrono::nanoseconds(Duration).count();
+    };
+    LOG(DEBUG) << "\n"
+                  " ====================  Statistics  ====================\n"
+                  " Total execution time: "
+               << Nano(Stat->getTotalExecTime())
+               << " ns\n"
+                  " Wasm instructions execution time: "
+               << Nano(Stat->getWasmExecTime())
+               << " ns\n"
+                  " Host functions execution time: "
+               << Nano(Stat->getHostFuncExecTime())
+               << " ns\n"
+                  " Executed wasm instructions count: "
+               << Stat->getInstrCount() << "\n"
+               << " Gas costs: " << Stat->getTotalCost()
+               << "\n"
+                  " Instructions per second: "
+               << uint64_t(Stat->getInstrPerSecond());
   }
 
   if (Res || Res.error() == ErrCode::Terminated) {

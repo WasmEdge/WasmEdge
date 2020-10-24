@@ -11,64 +11,65 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include <array>
+#include <cassert>
+#include <chrono>
+#include <optional>
 #include <string>
-#include <sys/time.h>
-#include <unordered_map>
 
 namespace SSVM {
 namespace Timer {
 
-enum class TimerTag : uint32_t { Wasm = 1U, HostFunc = 2U };
+enum class TimerTag : uint32_t { Wasm, HostFunc, Max };
 
 class Timer {
 public:
-  void startRecord(const TimerTag TT) {
-    struct timeval TStart;
-    gettimeofday(&TStart, NULL);
-    StartTime.insert(
-        std::pair{TT, (uint64_t)1000000 * TStart.tv_sec + TStart.tv_usec});
+  using Clock = std::chrono::steady_clock;
+
+  constexpr Timer() noexcept { reset(); }
+
+  void startRecord(const TimerTag TT) noexcept {
+    assert(TT < TimerTag::Max);
+    const uint32_t Index = uint32_t(TT);
+    StartTime[Index].emplace(Clock::now());
   }
 
-  uint64_t stopRecord(const TimerTag TT) {
-    std::unordered_map<TimerTag, uint64_t>::iterator It;
-    uint64_t NDiff = 0;
-    if ((It = StartTime.find(TT)) != StartTime.end()) {
-      struct timeval TEnd;
-      gettimeofday(&TEnd, NULL);
-      NDiff = (uint64_t)1000000 * TEnd.tv_sec + TEnd.tv_usec - It->second;
-      StartTime.erase(TT);
+  void stopRecord(const TimerTag TT) noexcept {
+    assert(TT < TimerTag::Max);
+    const uint32_t Index = uint32_t(TT);
+    if (auto &Start = StartTime[Index]) {
+      const auto Diff = Clock::now() - *Start;
+      RecTime[Index] += Diff;
+      Start.reset();
     }
+  }
 
-    It = RecTime.find(TT);
-    if (It != RecTime.end()) {
-      NDiff += It->second;
-      RecTime.insert(std::make_pair(TT, It->second + NDiff));
+  void clearRecord(const TimerTag TT) noexcept {
+    assert(TT < TimerTag::Max);
+    const uint32_t Index = uint32_t(TT);
+    StartTime[Index].reset();
+    RecTime[Index] = Clock::duration::zero();
+  }
+
+  constexpr Clock::duration getRecord(const TimerTag TT) const noexcept {
+    assert(TT < TimerTag::Max);
+    const uint32_t Index = uint32_t(TT);
+    return RecTime[Index];
+  }
+
+  constexpr void reset() noexcept {
+    for (auto &Start : StartTime) {
+      Start.reset();
     }
-    RecTime.insert(std::make_pair(TT, NDiff));
-    return NDiff;
-  }
-
-  void clearRecord(const TimerTag TT) {
-    StartTime.erase(TT);
-    RecTime.erase(TT);
-  }
-
-  uint64_t getRecord(const TimerTag TT) const {
-    auto It = RecTime.find(TT);
-    if (It != RecTime.end()) {
-      return It->second;
+    for (auto &Rec : RecTime) {
+      Rec = Clock::duration::zero();
     }
-    return 0;
-  }
-
-  void reset() {
-    StartTime.clear();
-    RecTime.clear();
   }
 
 private:
-  std::unordered_map<TimerTag, uint64_t> StartTime;
-  std::unordered_map<TimerTag, uint64_t> RecTime;
+  std::array<std::optional<Clock::time_point>, uint32_t(TimerTag::Max)>
+      StartTime{};
+  std::array<Clock::duration, uint32_t(TimerTag::Max)> RecTime{};
 };
 
 } // namespace Timer

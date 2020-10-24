@@ -67,7 +67,7 @@ private:
 /// AST FunctionType node.
 class FunctionType : public Base {
 public:
-  using Wrapper = void(void *Function, const ValVariant *Args,
+  using Wrapper = void(void *ExecCtx, void *Function, const ValVariant *Args,
                        ValVariant *Rets);
   /// Load binary from file manager.
   ///
@@ -130,18 +130,12 @@ public:
   /// Getter of limit.
   const Limit *getLimit() const { return Memory.get(); }
 
-  /// Getter of compiled symbol.
-  const auto &getSymbol() const noexcept { return Symbol; }
-  /// Setter of compiled symbol.
-  void setSymbol(DLSymbol<uint8_t *> S) noexcept { Symbol = std::move(S); }
-
   /// The node type should be ASTNodeAttr::Type_Memory.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Memory;
 
 private:
   /// Data of MemoryType node.
   std::unique_ptr<Limit> Memory;
-  DLSymbol<uint8_t *> Symbol;
 };
 
 /// AST TableType node.
@@ -163,11 +157,6 @@ public:
   /// Getter of limit.
   const Limit *getLimit() const { return Table.get(); }
 
-  /// Getter of compiled symbol.
-  const DLSymbol<void> &getSymbol() const { return Symbol; }
-  /// Setter of compiled symbol.
-  void setSymbol(DLSymbol<void> S) { Symbol = std::move(S); }
-
   /// The node type should be ASTNodeAttr::Type_Table.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Table;
 
@@ -177,8 +166,6 @@ private:
   RefType Type;
   std::unique_ptr<Limit> Table;
   /// @}
-
-  DLSymbol<void> Symbol;
 };
 
 /// AST GlobalType node.

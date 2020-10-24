@@ -184,9 +184,6 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       }
       /// Set the matched memory address to module instance.
       ModInst.importMemory(TargetAddr);
-      if (auto Symbol = ImpDesc->getSymbol()) {
-        *Symbol.cast<uint8_t *>() = TargetInst->getPointer<uint8_t *>(0);
-      }
       break;
     }
     case ExternalType::Global: {
@@ -207,9 +204,6 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       }
       /// Set the matched global address to module instance.
       ModInst.importGlobal(TargetAddr);
-      if (auto Symbol = ImpDesc->getSymbol()) {
-        *Symbol.cast<ValVariant *>() = &TargetInst->getValue();
-      }
       break;
     }
     default:

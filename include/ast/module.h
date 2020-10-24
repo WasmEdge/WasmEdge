@@ -14,7 +14,6 @@
 
 #include "base.h"
 #include "loader/ldmgr.h"
-#include "loader/symbol.h"
 #include "section.h"
 
 #include <memory>
@@ -62,6 +61,7 @@ public:
   DataCountSection *getDataCountSection() const { return DataCountSec.get(); }
 
   enum class Intrinsics : uint32_t {
+    kTrap,
     kCall,
     kCallIndirect,
     kMemCopy,
@@ -81,90 +81,10 @@ public:
     kRefFunc,
     kIntrinsicMax,
   };
-  using TrapCode = uint32_t *;
   using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];
-
-  void setTrapCodeSymbol(DLSymbol<TrapCode> Symbol) {
-    TrapCodeSymbol = std::move(Symbol);
-  }
-  void setIntrinsicsTableSymbol(DLSymbol<IntrinsicsTable> Symbol) {
-    IntrinsicsTableSymbol = std::move(Symbol);
-  }
-  void setInstrCountSymbol(DLSymbol<uint64_t *> Symbol) {
-    InstrCountSymbol = std::move(Symbol);
-  }
-  void setCostTableSymbol(DLSymbol<uint64_t *> Symbol) {
-    CostTableSymbol = std::move(Symbol);
-  }
-  void setGasSymbol(DLSymbol<uint64_t *> Symbol) {
-    GasSymbol = std::move(Symbol);
-  }
-
-  void setTrapCode(TrapCode Pointer) const {
-    if (TrapCodeSymbol)
-      *TrapCodeSymbol = Pointer;
-  }
-  void setIntrinsicsTable(const IntrinsicsTable &Table) const {
-    if (IntrinsicsTableSymbol) {
-      std::copy(std::begin(Table), std::end(Table),
-                std::begin(*IntrinsicsTableSymbol));
-    }
-  }
-  void setInstrCount(uint64_t &InstrCount) const {
-    if (InstrCountSymbol) {
-      *InstrCountSymbol = &InstrCount;
-    }
-  }
-  void setCostTable(Span<uint64_t> CostTable) const {
-    if (CostTableSymbol) {
-      *CostTableSymbol = CostTable.data();
-    }
-  }
-  void setGas(uint64_t &Gas) const {
-    if (GasSymbol) {
-      *GasSymbol = &Gas;
-    }
-  }
 
   /// The node type should be ASTNodeAttr::Module.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Module;
-
-  /// Mangling outstanding names for ELF symbol name.
-  /// `$` -> `$$`
-  /// `#` -> `$1`
-  /// `@` -> `$2`
-  /// `\0` -> `$0`
-  static std::string toExportName(std::string_view Name) {
-    using namespace std::literals::string_view_literals;
-    const auto NPos = std::string_view::npos;
-    const auto Esc = "$#@\0"sv;
-    std::string Result(1, '$');
-    size_t Cursor = 0;
-    for (size_t Pos = Name.find_first_of(Esc); Pos != NPos;
-         Cursor = Pos + 1, Pos = Name.find_first_of(Esc, Cursor)) {
-      Result += Name.substr(Cursor, Pos - Cursor);
-      switch (Name[Pos]) {
-      case '$':
-        Result += '$';
-        Result += '$';
-        break;
-      case '#':
-        Result += '$';
-        Result += '1';
-        break;
-      case '@':
-        Result += '$';
-        Result += '2';
-        break;
-      case '\0':
-        Result += '$';
-        Result += '0';
-        break;
-      }
-    }
-    Result += Name.substr(Cursor);
-    return Result;
-  }
 
 private:
   /// \name Data of Module node.
@@ -189,12 +109,6 @@ private:
   std::unique_ptr<DataSection> DataSec;
   std::unique_ptr<DataCountSection> DataCountSec;
   /// @}
-
-  DLSymbol<TrapCode> TrapCodeSymbol;
-  DLSymbol<IntrinsicsTable> IntrinsicsTableSymbol;
-  DLSymbol<uint64_t *> InstrCountSymbol;
-  DLSymbol<uint64_t *> CostTableSymbol;
-  DLSymbol<uint64_t *> GasSymbol;
 };
 
 } // namespace AST

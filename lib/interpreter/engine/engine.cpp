@@ -9,7 +9,6 @@ namespace SSVM {
 namespace Interpreter {
 
 Interpreter *Interpreter::This = nullptr;
-uint32_t Interpreter::TrapCode = 0;
 std::jmp_buf *Interpreter::TrapJump = nullptr;
 
 struct Interpreter::SignalEnabler {
@@ -43,22 +42,35 @@ struct Interpreter::ProxyHelper<Expect<RetT> (Interpreter::*)(
 #pragma clang diagnostic ignored "-Wc99-designator"
 #endif
 
-AST::Module::IntrinsicsTable Interpreter::IntrinsicsTable = {
+/// Intrinsics table
+extern "C" {
+__attribute__((visibility("default")))
+AST::Module::IntrinsicsTable intrinsics = {
 #define ENTRY(NAME, FUNC)                                                      \
   [uint8_t(AST::Module::Intrinsics::NAME)] = reinterpret_cast<void *>(         \
       &Interpreter::ProxyHelper<decltype(                                      \
           &Interpreter::FUNC)>::proxy<&Interpreter::FUNC>)
-    ENTRY(kCall, call),           ENTRY(kCallIndirect, callIndirect),
-    ENTRY(kMemCopy, memCopy),     ENTRY(kMemFill, memFill),
-    ENTRY(kMemGrow, memGrow),     ENTRY(kMemSize, memSize),
-    ENTRY(kMemInit, memInit),     ENTRY(kDataDrop, dataDrop),
-    ENTRY(kTableGet, tableGet),   ENTRY(kTableSet, tableSet),
-    ENTRY(kTableCopy, tableCopy), ENTRY(kTableFill, tableFill),
-    ENTRY(kTableGrow, tableGrow), ENTRY(kTableSize, tableSize),
-    ENTRY(kTableInit, tableInit), ENTRY(kElemDrop, elemDrop),
+    ENTRY(kTrap, trap),
+    ENTRY(kCall, call),
+    ENTRY(kCallIndirect, callIndirect),
+    ENTRY(kMemCopy, memCopy),
+    ENTRY(kMemFill, memFill),
+    ENTRY(kMemGrow, memGrow),
+    ENTRY(kMemSize, memSize),
+    ENTRY(kMemInit, memInit),
+    ENTRY(kDataDrop, dataDrop),
+    ENTRY(kTableGet, tableGet),
+    ENTRY(kTableSet, tableSet),
+    ENTRY(kTableCopy, tableCopy),
+    ENTRY(kTableFill, tableFill),
+    ENTRY(kTableGrow, tableGrow),
+    ENTRY(kTableSize, tableSize),
+    ENTRY(kTableInit, tableInit),
+    ENTRY(kElemDrop, elemDrop),
     ENTRY(kRefFunc, refFunc),
 #undef ENTRY
 };
+}
 
 #if defined(__clang_major__) && __clang_major__ >= 10
 #pragma clang diagnostic pop
@@ -75,10 +87,8 @@ void Interpreter::signalHandler(int Signal, siginfo_t *Siginfo,
     assert(Siginfo->si_code == FPE_INTDIV);
     Status = uint8_t(ErrCode::DivideByZero);
     break;
-  case SIGILL:
-  case SIGABRT:
-    Status = TrapCode;
-    break;
+  default:
+    __builtin_unreachable();
   }
   siglongjmp(*This->TrapJump, Status);
 }
@@ -87,17 +97,18 @@ void Interpreter::signalEnable() noexcept {
   struct sigaction Action {};
   Action.sa_sigaction = &signalHandler;
   Action.sa_flags = SA_SIGINFO;
-  sigaction(SIGILL, &Action, nullptr);
-  sigaction(SIGABRT, &Action, nullptr);
   sigaction(SIGFPE, &Action, nullptr);
   sigaction(SIGSEGV, &Action, nullptr);
 }
 
 void Interpreter::signalDisable() noexcept {
-  std::signal(SIGILL, SIG_DFL);
-  std::signal(SIGABRT, SIG_DFL);
   std::signal(SIGFPE, SIG_DFL);
   std::signal(SIGSEGV, SIG_DFL);
+}
+
+Expect<void> Interpreter::trap(Runtime::StoreManager &StoreMgr,
+                               const uint8_t Code) noexcept {
+  return Unexpect(ErrCode(Code));
 }
 
 Expect<void> Interpreter::call(Runtime::StoreManager &StoreMgr,
@@ -1091,14 +1102,20 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
 
+    {
+      CurrentStore = &StoreMgr;
+      const auto &ModInst = **StoreMgr.getModule(Func.getModuleAddr());
+      ExecutionContext.Memory = ModInst.MemoryPtr;
+      ExecutionContext.Globals = ModInst.GlobalsPtr.data();
+    }
+
     sigjmp_buf JumpBuffer;
-    CurrentStore = &StoreMgr;
     auto OldTrapJump = std::exchange(TrapJump, &JumpBuffer);
 
     const int Status = sigsetjmp(*TrapJump, true);
     if (Status == 0) {
       SignalEnabler Enabler;
-      Wrapper(CompiledFunc.get(), Args.data(), Rets.data());
+      Wrapper(&ExecutionContext, CompiledFunc.get(), Args.data(), Rets.data());
     }
 
     TrapJump = std::move(OldTrapJump);

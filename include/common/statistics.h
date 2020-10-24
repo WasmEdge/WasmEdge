@@ -16,7 +16,6 @@
 #include "span.h"
 #include "timer.h"
 
-#include <sys/time.h>
 #include <vector>
 
 namespace SSVM {
@@ -45,7 +44,7 @@ public:
 
   /// Getter of instruction per second.
   double getInstrPerSecond() const {
-    return InstrCnt * 1000000.0 / getWasmExecTime();
+    return InstrCnt / std::chrono::duration<double>(getWasmExecTime()).count();
   }
 
   /// Setter and setter of cost table.
@@ -111,13 +110,13 @@ public:
   void stopRecordHost() { TimeRecorder.stopRecord(Timer::TimerTag::HostFunc); }
 
   /// Getter of execution time.
-  uint64_t getWasmExecTime() const {
+  Timer::Timer::Clock::duration getWasmExecTime() const {
     return TimeRecorder.getRecord(Timer::TimerTag::Wasm);
   }
-  uint64_t getHostFuncExecTime() const {
+  Timer::Timer::Clock::duration getHostFuncExecTime() const {
     return TimeRecorder.getRecord(Timer::TimerTag::HostFunc);
   }
-  uint64_t getTotalExecTime() const {
+  Timer::Timer::Clock::duration getTotalExecTime() const {
     return TimeRecorder.getRecord(Timer::TimerTag::Wasm) +
            TimeRecorder.getRecord(Timer::TimerTag::HostFunc);
   }

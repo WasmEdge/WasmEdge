@@ -23,9 +23,9 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     /// Insert data instance to store manager.
     uint32_t NewDataInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewDataInstAddr = StoreMgr.pushData(NewDataInst);
+      NewDataInstAddr = StoreMgr.pushData(std::move(NewDataInst));
     } else {
-      NewDataInstAddr = StoreMgr.importData(NewDataInst);
+      NewDataInstAddr = StoreMgr.importData(std::move(NewDataInst));
     }
     ModInst.addDataAddr(NewDataInstAddr);
 

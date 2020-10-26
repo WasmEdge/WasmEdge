@@ -27,9 +27,9 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Insert the module instance to store manager and retrieve instance.
   uint32_t ModInstAddr;
   if (InsMode == InstantiateMode::Instantiate) {
-    ModInstAddr = StoreMgr.pushModule(NewModInst);
+    ModInstAddr = StoreMgr.pushModule(std::move(NewModInst));
   } else {
-    ModInstAddr = StoreMgr.importModule(NewModInst);
+    ModInstAddr = StoreMgr.importModule(std::move(NewModInst));
   }
   auto *ModInst = *StoreMgr.getModule(ModInstAddr);
 
@@ -93,7 +93,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   for (uint32_t I = 0; I < ModInst->getFuncNum(); ++I) {
     TmpMod->importFunction(*(ModInst->getFuncAddr(I)));
   }
-  uint32_t TmpModInstAddr = StoreMgr.pushModule(TmpMod);
+  uint32_t TmpModInstAddr = StoreMgr.pushModule(std::move(TmpMod));
 
   /// Push a new frame {TmpModInst:{globaddrs}, locals:none}
   StackMgr.pushFrame(TmpModInstAddr, 0, 0);

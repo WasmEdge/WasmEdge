@@ -34,7 +34,7 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
   }
   auto NewModInst =
       std::make_unique<Runtime::Instance::ModuleInstance>(Obj.getModuleName());
-  auto ModInstAddr = StoreMgr.importModule(NewModInst);
+  auto ModInstAddr = StoreMgr.importModule(std::move(NewModInst));
   auto *ModInst = *StoreMgr.getModule(ModInstAddr);
 
   for (auto &Func : Obj.getFuncs()) {

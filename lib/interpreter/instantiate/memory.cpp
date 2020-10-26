@@ -24,9 +24,9 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     /// Insert memory instance to store manager.
     uint32_t NewMemInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewMemInstAddr = StoreMgr.pushMemory(NewMemInst);
+      NewMemInstAddr = StoreMgr.pushMemory(std::move(NewMemInst));
     } else {
-      NewMemInstAddr = StoreMgr.importMemory(NewMemInst);
+      NewMemInstAddr = StoreMgr.importMemory(std::move(NewMemInst));
     }
     ModInst.addMemAddr(NewMemInstAddr);
   }

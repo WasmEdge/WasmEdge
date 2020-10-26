@@ -55,27 +55,27 @@ public:
   ~StoreManager() = default;
 
   /// Import instances and move owner to store manager.
-  uint32_t importModule(std::unique_ptr<Instance::ModuleInstance> &Mod) {
+  uint32_t importModule(std::unique_ptr<Instance::ModuleInstance> Mod) {
     Mod->Addr = ModInsts.size();
-    return importInstance(Mod, ImpModInsts, ModInsts);
+    return importInstance(std::move(Mod), ImpModInsts, ModInsts);
   }
-  uint32_t importFunction(std::unique_ptr<Instance::FunctionInstance> &Func) {
-    return importInstance(Func, ImpFuncInsts, FuncInsts);
+  uint32_t importFunction(std::unique_ptr<Instance::FunctionInstance> Func) {
+    return importInstance(std::move(Func), ImpFuncInsts, FuncInsts);
   }
-  uint32_t importTable(std::unique_ptr<Instance::TableInstance> &Tab) {
-    return importInstance(Tab, ImpTabInsts, TabInsts);
+  uint32_t importTable(std::unique_ptr<Instance::TableInstance> Tab) {
+    return importInstance(std::move(Tab), ImpTabInsts, TabInsts);
   }
-  uint32_t importMemory(std::unique_ptr<Instance::MemoryInstance> &Mem) {
-    return importInstance(Mem, ImpMemInsts, MemInsts);
+  uint32_t importMemory(std::unique_ptr<Instance::MemoryInstance> Mem) {
+    return importInstance(std::move(Mem), ImpMemInsts, MemInsts);
   }
-  uint32_t importGlobal(std::unique_ptr<Instance::GlobalInstance> &Glob) {
-    return importInstance(Glob, ImpGlobInsts, GlobInsts);
+  uint32_t importGlobal(std::unique_ptr<Instance::GlobalInstance> Glob) {
+    return importInstance(std::move(Glob), ImpGlobInsts, GlobInsts);
   }
-  uint32_t importElement(std::unique_ptr<Instance::ElementInstance> &Elem) {
-    return importInstance(Elem, ImpElemInsts, ElemInsts);
+  uint32_t importElement(std::unique_ptr<Instance::ElementInstance> Elem) {
+    return importInstance(std::move(Elem), ImpElemInsts, ElemInsts);
   }
-  uint32_t importData(std::unique_ptr<Instance::DataInstance> &Data) {
-    return importInstance(Data, ImpDataInsts, DataInsts);
+  uint32_t importData(std::unique_ptr<Instance::DataInstance> Data) {
+    return importInstance(std::move(Data), ImpDataInsts, DataInsts);
   }
 
   /// Import host instances but not move ownership.
@@ -93,34 +93,34 @@ public:
   }
 
   /// Insert instances for instantiation and move ownership to store manager.
-  uint32_t pushModule(std::unique_ptr<Instance::ModuleInstance> &Mod) {
+  uint32_t pushModule(std::unique_ptr<Instance::ModuleInstance> Mod) {
     ++NumMod;
     Mod->Addr = ModInsts.size();
-    return importInstance(Mod, ImpModInsts, ModInsts);
+    return importInstance(std::move(Mod), ImpModInsts, ModInsts);
   }
-  uint32_t pushFunction(std::unique_ptr<Instance::FunctionInstance> &Func) {
+  uint32_t pushFunction(std::unique_ptr<Instance::FunctionInstance> Func) {
     ++NumFunc;
-    return importInstance(Func, ImpFuncInsts, FuncInsts);
+    return importInstance(std::move(Func), ImpFuncInsts, FuncInsts);
   }
-  uint32_t pushTable(std::unique_ptr<Instance::TableInstance> &Tab) {
+  uint32_t pushTable(std::unique_ptr<Instance::TableInstance> Tab) {
     ++NumTab;
-    return importInstance(Tab, ImpTabInsts, TabInsts);
+    return importInstance(std::move(Tab), ImpTabInsts, TabInsts);
   }
-  uint32_t pushMemory(std::unique_ptr<Instance::MemoryInstance> &Mem) {
+  uint32_t pushMemory(std::unique_ptr<Instance::MemoryInstance> Mem) {
     ++NumMem;
-    return importInstance(Mem, ImpMemInsts, MemInsts);
+    return importInstance(std::move(Mem), ImpMemInsts, MemInsts);
   }
-  uint32_t pushGlobal(std::unique_ptr<Instance::GlobalInstance> &Glob) {
+  uint32_t pushGlobal(std::unique_ptr<Instance::GlobalInstance> Glob) {
     ++NumGlob;
-    return importInstance(Glob, ImpGlobInsts, GlobInsts);
+    return importInstance(std::move(Glob), ImpGlobInsts, GlobInsts);
   }
-  uint32_t pushElement(std::unique_ptr<Instance::ElementInstance> &Elem) {
+  uint32_t pushElement(std::unique_ptr<Instance::ElementInstance> Elem) {
     ++NumElem;
-    return importInstance(Elem, ImpElemInsts, ElemInsts);
+    return importInstance(std::move(Elem), ImpElemInsts, ElemInsts);
   }
-  uint32_t pushData(std::unique_ptr<Instance::DataInstance> &Data) {
+  uint32_t pushData(std::unique_ptr<Instance::DataInstance> Data) {
     ++NumData;
-    return importInstance(Data, ImpDataInsts, DataInsts);
+    return importInstance(std::move(Data), ImpDataInsts, DataInsts);
   }
 
   /// Pop temp. module. Dangerous function for used when instantiating only.
@@ -268,7 +268,7 @@ private:
   /// Helper function for importing instances and move ownership.
   template <typename T>
   std::enable_if_t<IsInstanceV<T>, uint32_t>
-  importInstance(std::unique_ptr<T> &Inst,
+  importInstance(std::unique_ptr<T> Inst,
                  std::vector<std::unique_ptr<T>> &ImpInstsVec,
                  std::vector<T *> &InstsVec) {
     uint32_t Addr = InstsVec.size();

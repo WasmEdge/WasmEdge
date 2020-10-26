@@ -31,9 +31,9 @@ Expect<void> Interpreter::instantiate(
     /// Insert function instance to store manager.
     uint32_t NewFuncInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewFuncInstAddr = StoreMgr.pushFunction(NewFuncInst);
+      NewFuncInstAddr = StoreMgr.pushFunction(std::move(NewFuncInst));
     } else {
-      NewFuncInstAddr = StoreMgr.importFunction(NewFuncInst);
+      NewFuncInstAddr = StoreMgr.importFunction(std::move(NewFuncInst));
     }
     ModInst.addFuncAddr(NewFuncInstAddr);
   }

@@ -35,9 +35,9 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     /// Insert element instance to store manager.
     uint32_t NewElemInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewElemInstAddr = StoreMgr.pushElement(NewElemInst);
+      NewElemInstAddr = StoreMgr.pushElement(std::move(NewElemInst));
     } else {
-      NewElemInstAddr = StoreMgr.importElement(NewElemInst);
+      NewElemInstAddr = StoreMgr.importElement(std::move(NewElemInst));
     }
     ModInst.addElemAddr(NewElemInstAddr);
   }

@@ -36,9 +36,9 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     /// Insert global instance to store manager.
     uint32_t NewGlobInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewGlobInstAddr = StoreMgr.pushGlobal(NewGlobInst);
+      NewGlobInstAddr = StoreMgr.pushGlobal(std::move(NewGlobInst));
     } else {
-      NewGlobInstAddr = StoreMgr.importGlobal(NewGlobInst);
+      NewGlobInstAddr = StoreMgr.importGlobal(std::move(NewGlobInst));
     }
     ModInst.addGlobalAddr(NewGlobInstAddr);
   }

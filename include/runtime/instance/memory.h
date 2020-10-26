@@ -24,7 +24,6 @@
 #include <cstring>
 #include <fstream>
 #include <memory>
-#include <set>
 #include <utility>
 
 namespace WasmEdge {
@@ -32,7 +31,6 @@ namespace Runtime {
 namespace Instance {
 
 class MemoryInstance {
-
 public:
   static inline constexpr const uint64_t kPageSize = UINT64_C(65536);
   static inline constexpr const uint64_t k4G = UINT64_C(0x100000000);
@@ -95,14 +93,15 @@ public:
     if (HasMaxPage) {
       MaxPageCaped = std::min(MaxPage, MaxPageCaped);
     }
-    if (Count + MinPage > MaxPageCaped) {
+    if (Count > MaxPageCaped - MinPage) {
       return false;
     }
-    if (Count + MinPage > PageLimit) {
+    if (Count > PageLimit - MinPage) {
       spdlog::error("Memory grow page failed -- exceeded limit page size: {}",
                     PageLimit);
       return false;
     }
+
     if (Allocator::resize(DataPtr, MinPage, MinPage + Count) == nullptr) {
       return false;
     }

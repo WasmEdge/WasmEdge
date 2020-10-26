@@ -8,6 +8,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <set>
 
 /// Test: function to pass as function pointer
 uint32_t MulFunc(uint32_t A, uint32_t B) { return A * B; }

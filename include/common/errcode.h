@@ -74,6 +74,7 @@ enum class ErrCode : uint8_t {
   InvalidLimit = 0x53,       /// Invalid Limit grammar
   InvalidMemPages = 0x54,    /// Memory pages > 65536
   InvalidStartFunc = 0x55,   /// Invalid start function signature
+  InvalidLaneIdx = 0x56,     /// Invalid lane index
   /// Instantiation phase
   ModuleNameConflict = 0x60,     /// Module name conflicted when importing.
   IncompatibleImportType = 0x61, /// Import matching failed
@@ -135,6 +136,7 @@ static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::InvalidMemPages,
      "memory size must be at most 65536 pages (4GiB)"},
     {ErrCode::InvalidStartFunc, "start function"},
+    {ErrCode::InvalidLaneIdx, "invalid lane index"},
     /// Instantiation phase
     {ErrCode::ModuleNameConflict, "module name conflict"},
     {ErrCode::IncompatibleImportType, "incompatible import type"},

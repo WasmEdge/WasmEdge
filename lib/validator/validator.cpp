@@ -585,6 +585,7 @@ Expect<void> Validator::validateConstExpr(const AST::InstrVec &Instrs,
     case OpCode::F32__const:
     case OpCode::F64__const:
     case OpCode::Ref__null:
+    case OpCode::V128__const:
     case OpCode::End:
       break;
     default:

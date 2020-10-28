@@ -253,7 +253,7 @@ Expect<void> Interpreter::dataDrop(Runtime::StoreManager &StoreMgr,
   return {};
 }
 
-Expect<ValVariant> Interpreter::tableGet(Runtime::StoreManager &StoreMgr,
+Expect<RefVariant> Interpreter::tableGet(Runtime::StoreManager &StoreMgr,
                                          const uint32_t TableIndex,
                                          const uint32_t Idx) noexcept {
   auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
@@ -269,7 +269,7 @@ Expect<ValVariant> Interpreter::tableGet(Runtime::StoreManager &StoreMgr,
 Expect<void> Interpreter::tableSet(Runtime::StoreManager &StoreMgr,
                                    const uint32_t TableIndex,
                                    const uint32_t Idx,
-                                   const ValVariant Ref) noexcept {
+                                   const RefVariant Ref) noexcept {
   auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
   if (auto Res = TabInst.setRefAddr(Idx, Ref); unlikely(!Res)) {
     return Unexpect(Res);
@@ -298,7 +298,7 @@ Expect<void> Interpreter::tableCopy(Runtime::StoreManager &StoreMgr,
 
 Expect<uint32_t> Interpreter::tableGrow(Runtime::StoreManager &StoreMgr,
                                         const uint32_t TableIndex,
-                                        const ValVariant Val,
+                                        const RefVariant Val,
                                         const uint32_t NewSize) noexcept {
   auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
   const uint32_t CurrTableSize = TabInst.getSize();
@@ -317,7 +317,7 @@ Expect<uint32_t> Interpreter::tableSize(Runtime::StoreManager &StoreMgr,
 
 Expect<void> Interpreter::tableFill(Runtime::StoreManager &StoreMgr,
                                     const uint32_t TableIndex,
-                                    const uint32_t Off, const ValVariant Ref,
+                                    const uint32_t Off, const RefVariant Ref,
                                     const uint32_t Len) noexcept {
   auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
   if (auto Res = TabInst.fillRefs(Ref, Off, Len); unlikely(!Res)) {
@@ -350,7 +350,7 @@ Expect<void> Interpreter::elemDrop(Runtime::StoreManager &StoreMgr,
   return {};
 }
 
-Expect<ValVariant> Interpreter::refFunc(Runtime::StoreManager &StoreMgr,
+Expect<RefVariant> Interpreter::refFunc(Runtime::StoreManager &StoreMgr,
                                         const uint32_t FuncIndex) noexcept {
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
   const uint32_t FuncAddr = *ModInst->getFuncAddr(FuncIndex);
@@ -993,6 +993,989 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     __builtin_unreachable();
     return Unexpect(ErrCode::InvalidOpCode);
   }
+}
+
+Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
+                                  const AST::SIMDMemoryInstruction &Instr) {
+  auto *MemInst = getMemInstByIdx(StoreMgr, 0);
+  switch (Instr.getOpCode()) {
+  case OpCode::V128__load:
+    return runLoadOp(*MemInst, Instr);
+  case OpCode::I16x8__load8x8_s:
+    return runLoadExpandOp<int8_t, int16_t>(*MemInst, Instr);
+  case OpCode::I16x8__load8x8_u:
+    return runLoadExpandOp<uint8_t, uint16_t>(*MemInst, Instr);
+  case OpCode::I32x4__load16x4_s:
+    return runLoadExpandOp<int16_t, int32_t>(*MemInst, Instr);
+  case OpCode::I32x4__load16x4_u:
+    return runLoadExpandOp<uint16_t, uint32_t>(*MemInst, Instr);
+  case OpCode::I64x2__load32x2_s:
+    return runLoadExpandOp<int32_t, int64_t>(*MemInst, Instr);
+  case OpCode::I64x2__load32x2_u:
+    return runLoadExpandOp<uint32_t, uint64_t>(*MemInst, Instr);
+  case OpCode::I8x16__load_splat:
+    return runLoadSplatOp<uint8_t>(*MemInst, Instr);
+  case OpCode::I16x8__load_splat:
+    return runLoadSplatOp<uint16_t>(*MemInst, Instr);
+  case OpCode::I32x4__load_splat:
+    return runLoadSplatOp<uint32_t>(*MemInst, Instr);
+  case OpCode::I64x2__load_splat:
+    return runLoadSplatOp<uint64_t>(*MemInst, Instr);
+  case OpCode::V128__load32_zero:
+    return runLoadOp(*MemInst, Instr, 32);
+  case OpCode::V128__load64_zero:
+    return runLoadOp(*MemInst, Instr, 64);
+  case OpCode::V128__store:
+    return runStoreOp(*MemInst, Instr);
+
+  default:
+    __builtin_unreachable();
+    return Unexpect(ErrCode::InvalidOpCode);
+  }
+}
+
+Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
+                                  const AST::SIMDConstInstruction &Instr) {
+  StackMgr.push(Instr.getConstValue());
+  return {};
+}
+
+Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
+                                  const AST::SIMDShuffleInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::I8x16__shuffle: {
+    ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    std::array<uint8_t, 32> Data;
+    std::array<uint8_t, 16> Result;
+    std::memcpy(&Data[0], &Val1, 16);
+    std::memcpy(&Data[16], &Val2, 16);
+    const auto V3 = Instr.getShuffleValue();
+    for (size_t I = 0; I < 16; ++I) {
+      const uint8_t Index = static_cast<uint8_t>(V3 >> (I * 8));
+      Result[I] = Data[Index];
+    }
+    std::memcpy(&Val1, &Result[0], 16);
+    break;
+  }
+  default:
+    __builtin_unreachable();
+  }
+  return {};
+}
+
+Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
+                                  const AST::SIMDLaneInstruction &Instr) {
+  const auto Index = Instr.getLaneIndex();
+  switch (Instr.getOpCode()) {
+  case OpCode::I8x16__extract_lane_s:
+    return runExtractLaneOp<int8_t, int32_t>(StackMgr.getTop(), Index);
+  case OpCode::I8x16__extract_lane_u:
+    return runExtractLaneOp<uint8_t, uint32_t>(StackMgr.getTop(), Index);
+  case OpCode::I16x8__extract_lane_s:
+    return runExtractLaneOp<int16_t, int32_t>(StackMgr.getTop(), Index);
+  case OpCode::I16x8__extract_lane_u:
+    return runExtractLaneOp<uint16_t, uint32_t>(StackMgr.getTop(), Index);
+  case OpCode::I32x4__extract_lane:
+    return runExtractLaneOp<uint32_t>(StackMgr.getTop(), Index);
+  case OpCode::I64x2__extract_lane:
+    return runExtractLaneOp<uint64_t>(StackMgr.getTop(), Index);
+  case OpCode::F32x4__extract_lane:
+    return runExtractLaneOp<float>(StackMgr.getTop(), Index);
+  case OpCode::F64x2__extract_lane:
+    return runExtractLaneOp<double>(StackMgr.getTop(), Index);
+  default:
+    break;
+  }
+
+  ValVariant Val2 = StackMgr.pop();
+  ValVariant &Val1 = StackMgr.getTop();
+  switch (Instr.getOpCode()) {
+  case OpCode::I8x16__replace_lane:
+    return runReplaceLaneOp<uint32_t, uint8_t>(Val1, Val2, Index);
+  case OpCode::I16x8__replace_lane:
+    return runReplaceLaneOp<uint32_t, uint16_t>(Val1, Val2, Index);
+  case OpCode::I32x4__replace_lane:
+    return runReplaceLaneOp<uint32_t>(Val1, Val2, Index);
+  case OpCode::I64x2__replace_lane:
+    return runReplaceLaneOp<uint64_t>(Val1, Val2, Index);
+  case OpCode::F32x4__replace_lane:
+    return runReplaceLaneOp<float>(Val1, Val2, Index);
+  case OpCode::F64x2__replace_lane:
+    return runReplaceLaneOp<double>(Val1, Val2, Index);
+  default:
+    __builtin_unreachable();
+  }
+}
+
+Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
+                                  const AST::SIMDNumericInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::I8x16__swizzle: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    using uint8x16_t [[gnu::vector_size(16)]] = uint8_t;
+    const uint8x16_t &Index =
+        reinterpret_cast<const uint8x16_t &>(retrieveValue<uint128_t>(Val2));
+    uint8x16_t &Vector =
+        reinterpret_cast<uint8x16_t &>(retrieveValue<uint128_t>(Val1));
+    const uint8x16_t Limit = {16, 16, 16, 16, 16, 16, 16, 16,
+                              16, 16, 16, 16, 16, 16, 16, 16};
+    const uint8x16_t Zero = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    const uint8x16_t Exceed = (Index >= Limit);
+#ifdef __clang__
+    uint8x16_t Result = {
+        Vector[Index[0]],  Vector[Index[1]],  Vector[Index[2]],
+        Vector[Index[3]],  Vector[Index[4]],  Vector[Index[5]],
+        Vector[Index[6]],  Vector[Index[7]],  Vector[Index[8]],
+        Vector[Index[9]],  Vector[Index[10]], Vector[Index[11]],
+        Vector[Index[12]], Vector[Index[13]], Vector[Index[14]],
+        Vector[Index[15]]};
+#else
+    uint8x16_t Result = __builtin_shuffle(Vector, Index);
+#endif
+    Vector = Exceed ? Zero : Result;
+    return {};
+  }
+  case OpCode::I8x16__splat: {
+    ValVariant &Val = StackMgr.getTop();
+    return runSplatOp<uint32_t, uint8_t>(Val);
+  }
+  case OpCode::I16x8__splat: {
+    ValVariant &Val = StackMgr.getTop();
+    return runSplatOp<uint32_t, uint16_t>(Val);
+  }
+  case OpCode::I32x4__splat: {
+    ValVariant &Val = StackMgr.getTop();
+    return runSplatOp<uint32_t>(Val);
+  }
+  case OpCode::I64x2__splat: {
+    ValVariant &Val = StackMgr.getTop();
+    return runSplatOp<uint64_t>(Val);
+  }
+  case OpCode::F32x4__splat: {
+    ValVariant &Val = StackMgr.getTop();
+    return runSplatOp<float>(Val);
+  }
+  case OpCode::F64x2__splat: {
+    ValVariant &Val = StackMgr.getTop();
+    return runSplatOp<double>(Val);
+  }
+
+  case OpCode::I8x16__eq: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorEqOp<uint8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__ne: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorNeOp<uint8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__lt_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLtOp<int8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__lt_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLtOp<uint8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__gt_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGtOp<int8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__gt_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGtOp<uint8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__le_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLeOp<int8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__le_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLeOp<uint8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__ge_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGeOp<int8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__ge_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGeOp<uint8_t>(Val1, Val2);
+  }
+
+  case OpCode::I16x8__eq: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorEqOp<uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__ne: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorNeOp<uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__lt_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLtOp<int16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__lt_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLtOp<uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__gt_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGtOp<int16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__gt_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGtOp<uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__le_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLeOp<int16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__le_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLeOp<uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__ge_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGeOp<int16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__ge_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGeOp<uint16_t>(Val1, Val2);
+  }
+
+  case OpCode::I32x4__eq: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorEqOp<uint32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__ne: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorNeOp<uint32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__lt_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLtOp<int32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__lt_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLtOp<uint32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__gt_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGtOp<int32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__gt_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGtOp<uint32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__le_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLeOp<int32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__le_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLeOp<uint32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__ge_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGeOp<int32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__ge_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGeOp<uint32_t>(Val1, Val2);
+  }
+
+  case OpCode::F32x4__eq: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorEqOp<float>(Val1, Val2);
+  }
+  case OpCode::F32x4__ne: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorNeOp<float>(Val1, Val2);
+  }
+  case OpCode::F32x4__lt: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLtOp<float>(Val1, Val2);
+  }
+  case OpCode::F32x4__gt: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGtOp<float>(Val1, Val2);
+  }
+  case OpCode::F32x4__le: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLeOp<float>(Val1, Val2);
+  }
+  case OpCode::F32x4__ge: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGeOp<float>(Val1, Val2);
+  }
+
+  case OpCode::F64x2__eq: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorEqOp<double>(Val1, Val2);
+  }
+  case OpCode::F64x2__ne: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorNeOp<double>(Val1, Val2);
+  }
+  case OpCode::F64x2__lt: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLtOp<double>(Val1, Val2);
+  }
+  case OpCode::F64x2__gt: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGtOp<double>(Val1, Val2);
+  }
+  case OpCode::F64x2__le: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorLeOp<double>(Val1, Val2);
+  }
+  case OpCode::F64x2__ge: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorGeOp<double>(Val1, Val2);
+  }
+
+  case OpCode::V128__not: {
+    ValVariant &Val = StackMgr.getTop();
+    Val = ~retrieveValue<uint64x2_t>(Val);
+    return {};
+  }
+  case OpCode::V128__and: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    retrieveValue<uint64x2_t>(Val1) &= retrieveValue<uint64x2_t>(Val2);
+    return {};
+  }
+  case OpCode::V128__andnot: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    retrieveValue<uint64x2_t>(Val1) &= ~retrieveValue<uint64x2_t>(Val2);
+    return {};
+  }
+  case OpCode::V128__or: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    retrieveValue<uint64x2_t>(Val1) |= retrieveValue<uint64x2_t>(Val2);
+    return {};
+  }
+  case OpCode::V128__xor: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    retrieveValue<uint64x2_t>(Val1) ^= retrieveValue<uint64x2_t>(Val2);
+    return {};
+  }
+  case OpCode::V128__bitselect: {
+    const uint64x2_t C = retrieveValue<uint64x2_t>(StackMgr.pop());
+    const uint64x2_t Val2 = retrieveValue<uint64x2_t>(StackMgr.pop());
+    uint64x2_t &Val1 = retrieveValue<uint64x2_t>(StackMgr.getTop());
+    Val1 = (Val1 & C) | (Val2 & ~C);
+    return {};
+  }
+
+  case OpCode::I8x16__abs: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorAbsOp<int8_t>(Val);
+  }
+  case OpCode::I8x16__neg: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorNegOp<int8_t>(Val);
+  }
+  case OpCode::I8x16__any_true: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorAnyTrueOp<uint8_t>(Val);
+  }
+  case OpCode::I8x16__all_true: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorAllTrueOp<uint8_t>(Val);
+  }
+  case OpCode::I8x16__bitmask: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorBitMaskOp<uint8_t>(Val);
+  }
+  case OpCode::I8x16__narrow_i16x8_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorNarrowOp<int16_t, int8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__narrow_i16x8_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorNarrowOp<int16_t, uint8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__shl: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorShlOp<uint8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__shr_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorShrOp<int8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__shr_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorShrOp<uint8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__add: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorAddOp<uint8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__add_sat_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorAddSatOp<int8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__add_sat_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorAddSatOp<uint8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__sub: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorSubOp<uint8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__sub_sat_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorSubSatOp<int8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__sub_sat_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorSubSatOp<uint8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__min_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMinOp<int8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__min_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMinOp<uint8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__max_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMaxOp<int8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__max_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMaxOp<uint8_t>(Val1, Val2);
+  }
+  case OpCode::I8x16__avgr_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorAvgrOp<uint8_t, uint16_t>(Val1, Val2);
+  }
+
+  case OpCode::I16x8__abs: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorAbsOp<int16_t>(Val);
+  }
+  case OpCode::I16x8__neg: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorNegOp<int16_t>(Val);
+  }
+  case OpCode::I16x8__any_true: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorAnyTrueOp<uint16_t>(Val);
+  }
+  case OpCode::I16x8__all_true: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorAllTrueOp<uint16_t>(Val);
+  }
+  case OpCode::I16x8__bitmask: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorBitMaskOp<uint16_t>(Val);
+  }
+  case OpCode::I16x8__narrow_i32x4_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorNarrowOp<int32_t, int16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__narrow_i32x4_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorNarrowOp<int32_t, uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__widen_low_i8x16_s: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorWidenLowOp<int8_t, int16_t>(Val);
+  }
+  case OpCode::I16x8__widen_high_i8x16_s: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorWidenHighOp<int8_t, int16_t>(Val);
+  }
+  case OpCode::I16x8__widen_low_i8x16_u: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorWidenLowOp<uint8_t, uint16_t>(Val);
+  }
+  case OpCode::I16x8__widen_high_i8x16_u: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorWidenHighOp<uint8_t, uint16_t>(Val);
+  }
+  case OpCode::I16x8__shl: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorShlOp<uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__shr_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorShrOp<int16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__shr_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorShrOp<uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__add: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorAddOp<uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__add_sat_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorAddSatOp<int16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__add_sat_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorAddSatOp<uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__sub: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorSubOp<uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__sub_sat_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorSubSatOp<int16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__sub_sat_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorSubSatOp<uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__mul: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMulOp<uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__min_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMinOp<int16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__min_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMinOp<uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__max_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMaxOp<int16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__max_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMaxOp<uint16_t>(Val1, Val2);
+  }
+  case OpCode::I16x8__avgr_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorAvgrOp<uint16_t, uint32_t>(Val1, Val2);
+  }
+
+  case OpCode::I32x4__abs: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorAbsOp<int32_t>(Val);
+  }
+  case OpCode::I32x4__neg: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorNegOp<int32_t>(Val);
+  }
+  case OpCode::I32x4__any_true: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorAnyTrueOp<uint32_t>(Val);
+  }
+  case OpCode::I32x4__all_true: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorAllTrueOp<uint32_t>(Val);
+  }
+  case OpCode::I32x4__bitmask: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorBitMaskOp<uint32_t>(Val);
+  }
+  case OpCode::I32x4__widen_low_i16x8_s: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorWidenLowOp<int16_t, int32_t>(Val);
+  }
+  case OpCode::I32x4__widen_high_i16x8_s: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorWidenHighOp<int16_t, int32_t>(Val);
+  }
+  case OpCode::I32x4__widen_low_i16x8_u: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorWidenLowOp<uint16_t, uint32_t>(Val);
+  }
+  case OpCode::I32x4__widen_high_i16x8_u: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorWidenHighOp<uint16_t, uint32_t>(Val);
+  }
+  case OpCode::I32x4__shl: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorShlOp<uint32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__shr_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorShrOp<int32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__shr_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorShrOp<uint32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__add: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorAddOp<uint32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__sub: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorSubOp<uint32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__mul: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMulOp<uint32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__min_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMinOp<int32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__min_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMinOp<uint32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__max_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMaxOp<int32_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__max_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMaxOp<uint32_t>(Val1, Val2);
+  }
+
+  case OpCode::I64x2__neg: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorNegOp<int64_t>(Val);
+  }
+  case OpCode::I64x2__shl: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorShlOp<uint64_t>(Val1, Val2);
+  }
+  case OpCode::I64x2__shr_s: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorShrOp<int64_t>(Val1, Val2);
+  }
+  case OpCode::I64x2__shr_u: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorShrOp<uint64_t>(Val1, Val2);
+  }
+  case OpCode::I64x2__add: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorAddOp<uint64_t>(Val1, Val2);
+  }
+  case OpCode::I64x2__sub: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorSubOp<uint64_t>(Val1, Val2);
+  }
+  case OpCode::I64x2__mul: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMulOp<uint64_t>(Val1, Val2);
+  }
+
+  case OpCode::F32x4__abs: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorAbsOp<float>(Val);
+  }
+  case OpCode::F32x4__neg: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorNegOp<float>(Val);
+  }
+  case OpCode::F32x4__sqrt: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorSqrtOp<float>(Val);
+  }
+  case OpCode::F32x4__add: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorAddOp<float>(Val1, Val2);
+  }
+  case OpCode::F32x4__sub: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorSubOp<float>(Val1, Val2);
+  }
+  case OpCode::F32x4__mul: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMulOp<float>(Val1, Val2);
+  }
+  case OpCode::F32x4__div: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorDivOp<float>(Val1, Val2);
+  }
+  case OpCode::F32x4__min: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorFMinOp<float>(Val1, Val2);
+  }
+  case OpCode::F32x4__max: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorFMaxOp<float>(Val1, Val2);
+  }
+  case OpCode::F32x4__pmin: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMinOp<float>(Val1, Val2);
+  }
+  case OpCode::F32x4__pmax: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMaxOp<float>(Val1, Val2);
+  }
+
+  case OpCode::F64x2__abs: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorAbsOp<double>(Val);
+  }
+  case OpCode::F64x2__neg: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorNegOp<double>(Val);
+  }
+  case OpCode::F64x2__sqrt: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorSqrtOp<double>(Val);
+  }
+  case OpCode::F64x2__add: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorAddOp<double>(Val1, Val2);
+  }
+  case OpCode::F64x2__sub: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorSubOp<double>(Val1, Val2);
+  }
+  case OpCode::F64x2__mul: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMulOp<double>(Val1, Val2);
+  }
+  case OpCode::F64x2__div: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorDivOp<double>(Val1, Val2);
+  }
+  case OpCode::F64x2__min: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorFMinOp<double>(Val1, Val2);
+  }
+  case OpCode::F64x2__max: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorFMaxOp<double>(Val1, Val2);
+  }
+  case OpCode::F64x2__pmin: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMinOp<double>(Val1, Val2);
+  }
+  case OpCode::F64x2__pmax: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMaxOp<double>(Val1, Val2);
+  }
+
+  case OpCode::I32x4__trunc_sat_f32x4_s: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorTruncSatOp<float, int32_t>(Val);
+  }
+  case OpCode::I32x4__trunc_sat_f32x4_u: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorTruncSatOp<float, uint32_t>(Val);
+  }
+  case OpCode::F32x4__convert_i32x4_s: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorConvertOp<int32_t, float>(Val);
+  }
+  case OpCode::F32x4__convert_i32x4_u: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorConvertOp<uint32_t, float>(Val);
+  }
+
+  case OpCode::I8x16__mul: {
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+    return runVectorMulOp<uint8_t>(Val1, Val2);
+  }
+  case OpCode::I32x4__dot_i16x8_s: {
+    /// XXX: Not in testsuite yet
+    using uint16x8_t [[gnu::vector_size(16)]] = uint16_t;
+    using uint32x4_t [[gnu::vector_size(16)]] = uint32_t;
+    using uint32x8_t [[gnu::vector_size(32)]] = uint32_t;
+    const ValVariant Val2 = StackMgr.pop();
+    ValVariant &Val1 = StackMgr.getTop();
+
+    auto &V2 =
+        reinterpret_cast<const uint16x8_t &>(retrieveValue<uint128_t>(Val2));
+    auto &V1 =
+        reinterpret_cast<const uint16x8_t &>(retrieveValue<uint128_t>(Val1));
+    auto &Result =
+        reinterpret_cast<uint32x4_t &>(retrieveValue<uint128_t>(Val1));
+    const auto M = __builtin_convertvector(V1, uint32x8_t) *
+                   __builtin_convertvector(V2, uint32x8_t);
+    const uint32x4_t L = {M[0], M[2], M[4], M[6]};
+    const uint32x4_t R = {M[1], M[3], M[5], M[7]};
+    Result = L + R;
+
+    return {};
+  }
+  case OpCode::I64x2__any_true: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorAnyTrueOp<uint64_t>(Val);
+  }
+  case OpCode::I64x2__all_true: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorAllTrueOp<uint64_t>(Val);
+  }
+  case OpCode::F32x4__qfma:
+  case OpCode::F32x4__qfms:
+  case OpCode::F64x2__qfma:
+  case OpCode::F64x2__qfms:
+    /// XXX: Not in testsuite yet
+    break;
+  case OpCode::F32x4__ceil: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorCeilOp<float>(Val);
+  }
+  case OpCode::F32x4__floor: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorFloorOp<float>(Val);
+  }
+  case OpCode::F32x4__trunc: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorTruncOp<float>(Val);
+  }
+  case OpCode::F32x4__nearest: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorNearestOp<float>(Val);
+  }
+  case OpCode::F64x2__ceil: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorCeilOp<double>(Val);
+  }
+  case OpCode::F64x2__floor: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorFloorOp<double>(Val);
+  }
+  case OpCode::F64x2__trunc: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorTruncOp<double>(Val);
+  }
+  case OpCode::F64x2__nearest: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorNearestOp<double>(Val);
+  }
+  case OpCode::I64x2__trunc_sat_f64x2_s: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorTruncSatOp<double, int64_t>(Val);
+  }
+  case OpCode::I64x2__trunc_sat_f64x2_u: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorTruncSatOp<double, uint64_t>(Val);
+  }
+  case OpCode::F64x2__convert_i64x2_s: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorConvertOp<int64_t, double>(Val);
+  }
+  case OpCode::F64x2__convert_i64x2_u: {
+    ValVariant &Val = StackMgr.getTop();
+    return runVectorConvertOp<uint64_t, double>(Val);
+  }
+
+  default:
+    __builtin_unreachable();
+  }
+  return Unexpect(ErrCode::InvalidOpCode);
 }
 
 Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr) {

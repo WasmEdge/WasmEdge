@@ -27,11 +27,20 @@
 namespace SSVM {
 namespace Validator {
 
-enum class VType : uint8_t { Unknown, I32, I64, F32, F64, FuncRef, ExternRef };
+enum class VType : uint8_t {
+  Unknown,
+  I32,
+  I64,
+  F32,
+  F64,
+  V128,
+  FuncRef,
+  ExternRef
+};
 
 static inline constexpr bool isNumType(const VType V) {
   return V == VType::I32 || V == VType::I64 || V == VType::F32 ||
-         V == VType::F64 || V == VType::Unknown;
+         V == VType::F64 || V == VType::V128 || V == VType::Unknown;
 }
 
 static inline constexpr bool isRefType(const VType V) {
@@ -116,6 +125,11 @@ private:
   Expect<void> checkInstr(const AST::ConstInstruction &Instr);
   Expect<void> checkInstr(const AST::UnaryNumericInstruction &Instr);
   Expect<void> checkInstr(const AST::BinaryNumericInstruction &Instr);
+  Expect<void> checkInstr(const AST::SIMDMemoryInstruction &Instr);
+  Expect<void> checkInstr(const AST::SIMDConstInstruction &Instr);
+  Expect<void> checkInstr(const AST::SIMDShuffleInstruction &Instr);
+  Expect<void> checkInstr(const AST::SIMDLaneInstruction &Instr);
+  Expect<void> checkInstr(const AST::SIMDNumericInstruction &Instr);
 
   /// Stack operations
   void pushType(VType);

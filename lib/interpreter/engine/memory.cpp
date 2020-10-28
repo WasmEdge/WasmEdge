@@ -96,5 +96,63 @@ Interpreter::runMemoryFillOp(Runtime::Instance::MemoryInstance &MemInst,
   }
 }
 
+Expect<void> Interpreter::runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
+                                    const AST::SIMDMemoryInstruction &Instr,
+                                    const uint32_t BitWidth) {
+  /// Calculate EA
+  ValVariant &Val = StackMgr.getTop();
+  if (retrieveValue<uint32_t>(Val) >
+      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
+    LOG(ERROR) << ErrCode::MemoryOutOfBounds;
+    LOG(ERROR) << ErrInfo::InfoBoundary(
+        retrieveValue<uint32_t>(Val) +
+            static_cast<uint64_t>(Instr.getMemoryOffset()),
+        BitWidth / 8, MemInst.getBoundIdx());
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
+    return Unexpect(ErrCode::MemoryOutOfBounds);
+  }
+  uint32_t EA = retrieveValue<uint32_t>(Val) + Instr.getMemoryOffset();
+
+  /// Value = Mem.Data[EA : N / 8]
+  if (auto Res =
+          MemInst.loadValue(retrieveValue<uint128_t>(Val), EA, BitWidth / 8);
+      !Res) {
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
+    return Unexpect(Res);
+  }
+  return {};
+}
+
+Expect<void> Interpreter::runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
+                                     const AST::SIMDMemoryInstruction &Instr) {
+  /// Pop the value t.const c from the Stack
+  uint128_t C = retrieveValue<uint128_t>(StackMgr.pop());
+
+  /// Calculate EA
+  ValVariant &Val = StackMgr.getTop();
+  if (retrieveValue<uint32_t>(Val) >
+      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
+    LOG(ERROR) << ErrCode::MemoryOutOfBounds;
+    LOG(ERROR) << ErrInfo::InfoBoundary(
+        retrieveValue<uint32_t>(Val) +
+            static_cast<uint64_t>(Instr.getMemoryOffset()),
+        16, MemInst.getBoundIdx());
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
+    return Unexpect(ErrCode::MemoryOutOfBounds);
+  }
+  uint32_t EA = retrieveValue<uint32_t>(Val) + Instr.getMemoryOffset();
+
+  /// Store value to bytes.
+  if (auto Res = MemInst.storeValue(C, EA, 16); !Res) {
+    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset());
+    return Unexpect(Res);
+  }
+  return {};
+}
+
 } // namespace Interpreter
 } // namespace SSVM

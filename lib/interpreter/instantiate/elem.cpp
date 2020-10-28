@@ -16,7 +16,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// A frame with temp. module is pushed into stack outside.
   /// Instantiate and initialize elements.
   for (const auto &ElemSeg : ElemSec.getContent()) {
-    std::vector<ValVariant> InitVals;
+    std::vector<RefVariant> InitVals;
     for (const auto &Expr : ElemSeg->getInitExprs()) {
       /// Run init expr of every elements and get the result reference.
       if (auto Res = runExpression(StoreMgr, Expr->getInstrs()); !Res) {
@@ -25,7 +25,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         return Unexpect(Res);
       }
       /// Pop result from stack.
-      InitVals.push_back(StackMgr.pop());
+      InitVals.push_back(retrieveValue<uint64_t>(StackMgr.pop()));
     }
 
     uint32_t Offset = 0;

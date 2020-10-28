@@ -61,6 +61,9 @@ template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 /// force checking div/rem on zero
 static inline constexpr const bool kForceDivCheck = true;
 
+/// Size of a ValVariant
+static inline constexpr const uint32_t kValSize = sizeof(SSVM::ValVariant);
+
 /// Translate Compiler::OptimizationLevel to llvm::PassBuilder version
 static inline llvm::PassBuilder::OptimizationLevel
 toLLVMLevel(SSVM::AOT::Compiler::OptimizationLevel Level) {
@@ -1744,7 +1747,7 @@ private:
       Args = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
     } else {
       Args = Builder.CreateAlloca(Builder.getInt8Ty(),
-                                  Builder.getInt64(ArgSize * 8));
+                                  Builder.getInt64(ArgSize * kValSize));
     }
 
     llvm::Value *Rets;
@@ -1752,13 +1755,13 @@ private:
       Rets = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
     } else {
       Rets = Builder.CreateAlloca(Builder.getInt8Ty(),
-                                  Builder.getInt64(RetSize * 8));
+                                  Builder.getInt64(RetSize * kValSize));
     }
 
     for (unsigned I = 0; I < ArgSize; ++I) {
       const unsigned J = ArgSize - 1 - I;
       auto *Arg = stackPop();
-      auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Args, J * 8);
+      auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Args, J * kValSize);
       Builder.CreateStore(
           Arg, Builder.CreateBitCast(Ptr, Arg->getType()->getPointerTo()));
     }
@@ -1782,7 +1785,7 @@ private:
       stackPush(Builder.CreateLoad(Ptr));
     } else {
       for (unsigned I = 0; I < RetSize; ++I) {
-        auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Rets, I * 8);
+        auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Rets, I * kValSize);
         auto *Ptr = Builder.CreateBitCast(
             VPtr, RTy->getStructElementType(I)->getPointerTo());
         stackPush(Builder.CreateLoad(Ptr));
@@ -2354,7 +2357,8 @@ Expect<void> Compiler::compile(const AST::TypeSection &TypeSection) {
       Args.push_back(ExecCtxPtr);
       for (size_t I = 0; I < ArgCount; ++I) {
         auto *ArgTy = FTy->getParamType(I + 1);
-        llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(RawArgs, I * 8);
+        llvm::Value *VPtr =
+            Builder.CreateConstInBoundsGEP1_64(RawArgs, I * kValSize);
         llvm::Value *Ptr = Builder.CreateBitCast(VPtr, ArgTy->getPointerTo());
         Args.push_back(Builder.CreateLoad(Ptr));
       }
@@ -2366,7 +2370,7 @@ Expect<void> Compiler::compile(const AST::TypeSection &TypeSection) {
         auto Rets = unpackStruct(Builder, Ret);
         for (size_t I = 0; I < RetCount; ++I) {
           llvm::Value *VPtr =
-              Builder.CreateConstInBoundsGEP1_64(RawRets, I * 8);
+              Builder.CreateConstInBoundsGEP1_64(RawRets, I * kValSize);
           llvm::Value *Ptr =
               Builder.CreateBitCast(VPtr, Rets[I]->getType()->getPointerTo());
           Builder.CreateStore(Rets[I], Ptr);
@@ -2439,7 +2443,7 @@ Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
         Args = llvm::ConstantPointerNull::get(Context->Int8PtrTy);
       } else {
         Args = Builder.CreateAlloca(Context->Int8Ty,
-                                    Builder.getInt64(ArgSize * 8));
+                                    Builder.getInt64(ArgSize * kValSize));
       }
 
       llvm::Value *Rets;
@@ -2447,12 +2451,13 @@ Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
         Rets = llvm::ConstantPointerNull::get(Context->Int8PtrTy);
       } else {
         Rets = Builder.CreateAlloca(Context->Int8Ty,
-                                    Builder.getInt64(RetSize * 8));
+                                    Builder.getInt64(RetSize * kValSize));
       }
 
       for (unsigned I = 0; I < ArgSize; ++I) {
         llvm::Argument *Arg = F->arg_begin() + 1 + I;
-        llvm::Value *Ptr = Builder.CreateConstInBoundsGEP1_64(Args, I * 8);
+        llvm::Value *Ptr =
+            Builder.CreateConstInBoundsGEP1_64(Args, I * kValSize);
         Builder.CreateStore(
             Arg, Builder.CreateBitCast(Ptr, Arg->getType()->getPointerTo()));
       }
@@ -2477,7 +2482,8 @@ Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
         std::vector<llvm::Value *> Ret;
         Ret.reserve(RetSize);
         for (unsigned I = 0; I < RetSize; ++I) {
-          llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(Rets, I);
+          llvm::Value *VPtr =
+              Builder.CreateConstInBoundsGEP1_64(Rets, I * kValSize);
           llvm::Value *Ptr = Builder.CreateBitCast(
               VPtr, RTy->getStructElementType(I)->getPointerTo());
           Ret.push_back(Builder.CreateLoad(Ptr));

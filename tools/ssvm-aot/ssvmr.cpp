@@ -40,6 +40,7 @@ int main(int Argc, const char *Argv[]) {
       PO::Description("Enable Bulk-memory operations"));
   PO::Option<PO::Toggle> ReferenceTypes(
       PO::Description("Enable Reference types (externref)"));
+  PO::Option<PO::Toggle> SIMD(PO::Description("Enable SIMD"));
   PO::Option<PO::Toggle> All(PO::Description("Enable all features"));
 
   if (!PO::ArgumentParser()
@@ -50,6 +51,7 @@ int main(int Argc, const char *Argv[]) {
            .add_option("env", Env)
            .add_option("enable-bulk-memory", BulkMemoryOperations)
            .add_option("enable-reference-types", ReferenceTypes)
+           .add_option("enable-simd", SIMD)
            .add_option("enable-all", All)
            .parse(Argc, Argv)) {
     return 0;
@@ -62,9 +64,13 @@ int main(int Argc, const char *Argv[]) {
   if (ReferenceTypes.value()) {
     ProposalConf.addProposal(SSVM::Proposal::ReferenceTypes);
   }
+  if (SIMD.value()) {
+    ProposalConf.addProposal(SSVM::Proposal::SIMD);
+  }
   if (All.value()) {
     ProposalConf.addProposal(SSVM::Proposal::BulkMemoryOperations);
     ProposalConf.addProposal(SSVM::Proposal::ReferenceTypes);
+    ProposalConf.addProposal(SSVM::Proposal::SIMD);
   }
 
   std::string InputPath = std::filesystem::absolute(SoName.value()).string();

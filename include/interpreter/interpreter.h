@@ -213,6 +213,17 @@ private:
                        const AST::UnaryNumericInstruction &Instr);
   Expect<void> execute(Runtime::StoreManager &StoreMgr,
                        const AST::BinaryNumericInstruction &Instr);
+  Expect<void> execute(Runtime::StoreManager &StoreMgr,
+                       const AST::SIMDMemoryInstruction &Instr);
+  Expect<void> execute(Runtime::StoreManager &StoreMgr,
+                       const AST::SIMDConstInstruction &Instr);
+  Expect<void> execute(Runtime::StoreManager &StoreMgr,
+                       const AST::SIMDShuffleInstruction &Instr);
+  Expect<void> execute(Runtime::StoreManager &StoreMgr,
+                       const AST::SIMDLaneInstruction &Instr);
+  Expect<void> execute(Runtime::StoreManager &StoreMgr,
+                       const AST::SIMDNumericInstruction &Instr);
+
   /// @}
 
   /// \name Helper Functions for block controls.
@@ -393,6 +404,88 @@ private:
   TypeFF<TIn, TOut> runPromoteOp(ValVariant &Val) const;
   template <typename TIn, typename TOut>
   TypeNN<TIn, TOut> runReinterpretOp(ValVariant &Val) const;
+  /// ======= SIMD Memory instructions =======
+  Expect<void> runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
+                         const AST::SIMDMemoryInstruction &Instr,
+                         const uint32_t BitWidth = 128);
+  Expect<void> runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
+                          const AST::SIMDMemoryInstruction &Instr);
+  template <typename TIn, typename TOut>
+  Expect<void> runLoadExpandOp(Runtime::Instance::MemoryInstance &MemInst,
+                               const AST::SIMDMemoryInstruction &Instr);
+  template <typename T>
+  Expect<void> runLoadSplatOp(Runtime::Instance::MemoryInstance &MemInst,
+                              const AST::SIMDMemoryInstruction &Instr);
+  /// ======= SIMD Lane instructions =======
+  template <typename TIn, typename TOut = TIn>
+  Expect<void> runExtractLaneOp(ValVariant &Val, const uint8_t Index) const;
+  template <typename TIn, typename TOut = TIn>
+  Expect<void> runReplaceLaneOp(ValVariant &Val1, const ValVariant &Val2,
+                                const uint8_t Index) const;
+  /// ======= SIMD Numeric instructions =======
+  template <typename TIn, typename TOut = TIn>
+  Expect<void> runSplatOp(ValVariant &Val) const;
+  template <typename T>
+  Expect<void> runVectorEqOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorNeOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorLtOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorGtOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorLeOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorGeOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T> Expect<void> runVectorAbsOp(ValVariant &Val) const;
+  template <typename T> Expect<void> runVectorNegOp(ValVariant &Val) const;
+  template <typename T> Expect<void> runVectorSqrtOp(ValVariant &Val) const;
+  template <typename TIn, typename TOut>
+  Expect<void> runVectorTruncSatOp(ValVariant &Val) const;
+  template <typename TIn, typename TOut>
+  Expect<void> runVectorConvertOp(ValVariant &Val) const;
+  template <typename T> Expect<void> runVectorAnyTrueOp(ValVariant &Val) const;
+  template <typename T> Expect<void> runVectorAllTrueOp(ValVariant &Val) const;
+  template <typename T> Expect<void> runVectorBitMaskOp(ValVariant &Val) const;
+  template <typename TIn, typename TOut>
+  Expect<void> runVectorNarrowOp(ValVariant &Val1,
+                                 const ValVariant &Val2) const;
+  template <typename TIn, typename TOut>
+  Expect<void> runVectorWidenLowOp(ValVariant &Val1) const;
+  template <typename TIn, typename TOut>
+  Expect<void> runVectorWidenHighOp(ValVariant &Val1) const;
+  template <typename T>
+  Expect<void> runVectorShlOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorShrOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorAddOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorAddSatOp(ValVariant &Val1,
+                                 const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorSubOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorSubSatOp(ValVariant &Val1,
+                                 const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorMulOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorDivOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorMinOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorMaxOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorFMinOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T>
+  Expect<void> runVectorFMaxOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T, typename ET>
+  Expect<void> runVectorAvgrOp(ValVariant &Val1, const ValVariant &Val2) const;
+  template <typename T> Expect<void> runVectorCeilOp(ValVariant &Val) const;
+  template <typename T> Expect<void> runVectorFloorOp(ValVariant &Val) const;
+  template <typename T> Expect<void> runVectorTruncOp(ValVariant &Val) const;
+  template <typename T> Expect<void> runVectorNearestOp(ValVariant &Val) const;
   /// @}
 
   /// \name Run compiled functions
@@ -427,31 +520,31 @@ public:
   Expect<void> dataDrop(Runtime::StoreManager &StoreMgr,
                         const uint32_t DataIdx) noexcept;
 
-  Expect<ValVariant> tableGet(Runtime::StoreManager &StoreMgr,
+  Expect<RefVariant> tableGet(Runtime::StoreManager &StoreMgr,
                               const uint32_t TableIndex,
                               const uint32_t Idx) noexcept;
   Expect<void> tableSet(Runtime::StoreManager &StoreMgr,
                         const uint32_t TableIndex, const uint32_t Idx,
-                        const ValVariant Ref) noexcept;
+                        const RefVariant Ref) noexcept;
   Expect<void> tableCopy(Runtime::StoreManager &StoreMgr,
                          const uint32_t TableIndexSrc,
                          const uint32_t TableIndexDst, const uint32_t Dst,
                          const uint32_t Src, const uint32_t Len) noexcept;
   Expect<uint32_t> tableGrow(Runtime::StoreManager &StoreMgr,
-                             const uint32_t TableIndex, const ValVariant Val,
+                             const uint32_t TableIndex, const RefVariant Val,
                              const uint32_t NewSize) noexcept;
   Expect<uint32_t> tableSize(Runtime::StoreManager &StoreMgr,
                              const uint32_t TableIndex) noexcept;
   Expect<void> tableFill(Runtime::StoreManager &StoreMgr,
                          const uint32_t TableIndex, const uint32_t Off,
-                         const ValVariant Ref, const uint32_t Len) noexcept;
+                         const RefVariant Ref, const uint32_t Len) noexcept;
   Expect<void> tableInit(Runtime::StoreManager &StoreMgr,
                          const uint32_t TableIndex, const uint32_t ElemIndex,
                          const uint32_t Dst, const uint32_t Src,
                          const uint32_t Len) noexcept;
   Expect<void> elemDrop(Runtime::StoreManager &StoreMgr,
                         const uint32_t ElemIndex) noexcept;
-  Expect<ValVariant> refFunc(Runtime::StoreManager &StoreMgr,
+  Expect<RefVariant> refFunc(Runtime::StoreManager &StoreMgr,
                              const uint32_t FuncIndex) noexcept;
 
   static void signalEnable() noexcept;

@@ -20,6 +20,11 @@
 
 namespace SSVM {
 
+using int128_t = __int128;
+using uint128_t = unsigned __int128;
+using int64x2_t [[gnu::vector_size(16)]] = int64_t;
+using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
+
 namespace {
 /// Remove const, reference, and volitile.
 template <typename T>
@@ -33,18 +38,16 @@ enum class ValType : uint8_t {
   I64 = 0x7E,
   F32 = 0x7D,
   F64 = 0x7C,
+  V128 = 0x7B,
   FuncRef = 0x70,
   ExternRef = 0x6F
 };
 
 static inline std::unordered_map<ValType, std::string> ValTypeStr = {
-    {ValType::None, "none"},
-    {ValType::I32, "i32"},
-    {ValType::I64, "i64"},
-    {ValType::F32, "f32"},
-    {ValType::F64, "f64"},
-    {ValType::FuncRef, "funcref"},
-    {ValType::ExternRef, "externref"}};
+    {ValType::None, "none"},       {ValType::I32, "i32"},
+    {ValType::I64, "i64"},         {ValType::F32, "f32"},
+    {ValType::F64, "f64"},         {ValType::V128, "v128"},
+    {ValType::FuncRef, "funcref"}, {ValType::ExternRef, "externref"}};
 
 /// Block type definition.
 using BlockType = std::variant<ValType, uint32_t>;
@@ -61,7 +64,13 @@ struct ExternRef {
 };
 
 /// Number types enumeration class.
-enum class NumType : uint8_t { I32 = 0x7F, I64 = 0x7E, F32 = 0x7D, F64 = 0x7C };
+enum class NumType : uint8_t {
+  I32 = 0x7F,
+  I64 = 0x7E,
+  F32 = 0x7D,
+  F64 = 0x7C,
+  V128 = 0x7B
+};
 inline constexpr ValType ToValType(const NumType Val) noexcept {
   return static_cast<ValType>(Val);
 }
@@ -99,7 +108,9 @@ static inline std::unordered_map<ExternalType, std::string> ExternalTypeStr = {
 template <typename T>
 struct IsWasmUnsign
     : std::bool_constant<std::is_same_v<RemoveCVRefT<T>, uint32_t> ||
-                         std::is_same_v<RemoveCVRefT<T>, uint64_t>> {};
+                         std::is_same_v<RemoveCVRefT<T>, uint64_t> ||
+                         std::is_same_v<RemoveCVRefT<T>, uint128_t> ||
+                         std::is_same_v<RemoveCVRefT<T>, uint64x2_t>> {};
 template <typename T>
 inline constexpr const bool IsWasmUnsignV = IsWasmUnsign<T>::value;
 
@@ -107,7 +118,9 @@ inline constexpr const bool IsWasmUnsignV = IsWasmUnsign<T>::value;
 template <typename T>
 struct IsWasmSign
     : std::bool_constant<std::is_same_v<RemoveCVRefT<T>, int32_t> ||
-                         std::is_same_v<RemoveCVRefT<T>, int64_t>> {};
+                         std::is_same_v<RemoveCVRefT<T>, int64_t> ||
+                         std::is_same_v<RemoveCVRefT<T>, int128_t> ||
+                         std::is_same_v<RemoveCVRefT<T>, int64x2_t>> {};
 template <typename T>
 inline constexpr const bool IsWasmSignV = IsWasmSign<T>::value;
 
@@ -180,6 +193,8 @@ toUnsigned(T Val) {
 template <typename T> struct TypeToWasmType { using type = T; };
 template <> struct TypeToWasmType<int32_t> { using type = uint32_t; };
 template <> struct TypeToWasmType<int64_t> { using type = uint64_t; };
+template <> struct TypeToWasmType<int128_t> { using type = uint128_t; };
+template <> struct TypeToWasmType<int64x2_t> { using type = uint64x2_t; };
 template <typename T>
 using TypeToWasmTypeT =
     typename std::enable_if_t<IsWasmValV<T>, typename TypeToWasmType<T>::type>;

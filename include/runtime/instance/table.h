@@ -62,7 +62,7 @@ public:
   }
 
   /// Grow table with initialization value.
-  bool growTable(const uint32_t Count, const ValVariant Val) {
+  bool growTable(const uint32_t Count, const RefVariant Val) {
     uint32_t MaxSizeCaped = std::numeric_limits<uint32_t>::max();
     if (HasMaxSize) {
       MaxSizeCaped = std::min(MaxSize, MaxSizeCaped);
@@ -76,7 +76,7 @@ public:
   }
 
   /// Get slice of Refs[Offset : Offset + Length - 1]
-  Expect<Span<const ValVariant>> getRefs(const uint32_t Offset,
+  Expect<Span<const RefVariant>> getRefs(const uint32_t Offset,
                                          const uint32_t Length) const noexcept {
     /// Check access boundary.
     if (!checkAccessBound(Offset, Length)) {
@@ -84,11 +84,11 @@ public:
       LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
       return Unexpect(ErrCode::TableOutOfBounds);
     }
-    return Span<const ValVariant>(Refs.begin() + Offset, Length);
+    return Span<const RefVariant>(Refs.begin() + Offset, Length);
   }
 
   /// Replace the Refs[Offset :] by Slice[Start : Start + Legnth - 1]
-  Expect<void> setRefs(Span<const ValVariant> Slice, const uint32_t Offset,
+  Expect<void> setRefs(Span<const RefVariant> Slice, const uint32_t Offset,
                        const uint32_t Start, const uint32_t Length) {
     /// Check access boundary.
     if (!checkAccessBound(Offset, Length)) {
@@ -110,7 +110,7 @@ public:
   }
 
   /// Fill the Refs[Offset : Offset + Length - 1] by Val.
-  Expect<void> fillRefs(const ValVariant Val, const uint32_t Offset,
+  Expect<void> fillRefs(const RefVariant Val, const uint32_t Offset,
                         const uint32_t Length) {
     /// Check access boundary.
     if (!checkAccessBound(Offset, Length)) {
@@ -125,7 +125,7 @@ public:
   }
 
   /// Get the elem address.
-  Expect<ValVariant> getRefAddr(const uint32_t Idx) const noexcept {
+  Expect<RefVariant> getRefAddr(const uint32_t Idx) const noexcept {
     if (Idx >= Refs.size()) {
       LOG(ERROR) << ErrCode::TableOutOfBounds;
       LOG(ERROR) << ErrInfo::InfoBoundary(Idx, 1, getBoundIdx());
@@ -135,7 +135,7 @@ public:
   }
 
   /// Set the elem address.
-  Expect<void> setRefAddr(const uint32_t Idx, const ValVariant Val) {
+  Expect<void> setRefAddr(const uint32_t Idx, const RefVariant Val) {
     if (Idx >= Refs.size()) {
       LOG(ERROR) << ErrCode::TableOutOfBounds;
       LOG(ERROR) << ErrInfo::InfoBoundary(Idx, 1, getBoundIdx());
@@ -151,7 +151,7 @@ private:
   const RefType Type;
   const bool HasMaxSize;
   const uint32_t MaxSize;
-  std::vector<ValVariant> Refs;
+  std::vector<RefVariant> Refs;
   /// @}
 };
 

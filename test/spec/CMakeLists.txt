@@ -27,6 +27,11 @@ configure_files(
   ${CMAKE_CURRENT_BINARY_DIR}/testSuites/bulk-memory-operations/
   COPYONLY
 )
+configure_files(
+  ${ssvm_unit_test_SOURCE_DIR}/simd/
+  ${CMAKE_CURRENT_BINARY_DIR}/testSuites/simd/
+  COPYONLY
+)
 
 add_library(ssvmTestSpec
   spectest.cpp

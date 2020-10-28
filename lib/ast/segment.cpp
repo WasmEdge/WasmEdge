@@ -266,6 +266,7 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr) {
       case ValType::I64:
       case ValType::F32:
       case ValType::F64:
+      case ValType::V128:
       case ValType::ExternRef:
       case ValType::FuncRef:
         break;

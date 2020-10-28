@@ -25,7 +25,7 @@ class ElementInstance {
 public:
   ElementInstance() = delete;
   ElementInstance(const uint32_t Offset, const RefType EType,
-                  Span<const ValVariant> Init)
+                  Span<const RefVariant> Init)
       : Off(Offset), Type(EType), Refs(Init.begin(), Init.end()) {}
 
   /// Get offset in element instance.
@@ -35,7 +35,7 @@ public:
   RefType getRefType() const { return Type; }
 
   /// Get reference lists in element instance.
-  Span<const ValVariant> getRefs() const noexcept { return Refs; }
+  Span<const RefVariant> getRefs() const noexcept { return Refs; }
 
   /// Clear references in element instance.
   void clear() { Refs.clear(); }
@@ -45,7 +45,7 @@ private:
   /// @{
   const uint32_t Off;
   const RefType Type;
-  std::vector<ValVariant> Refs;
+  std::vector<RefVariant> Refs;
   /// @}
 };
 

@@ -2,9 +2,9 @@
 #include "gtest/gtest.h"
 #include <experimental/expected.hpp>
 
+using std::experimental::bad_expected_access;
 using std::experimental::expected;
 using std::experimental::unexpect;
-using std::experimental::bad_expected_access;
 
 struct move_detector {
   move_detector() = default;

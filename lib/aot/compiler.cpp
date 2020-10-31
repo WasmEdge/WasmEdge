@@ -12,6 +12,7 @@
 #include <llvm/MC/SubtargetFeature.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
+#include <llvm/Support/Host.h>
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
@@ -25,13 +26,31 @@
 
 namespace {
 
+inline void setIsFPConstrained(llvm::IRBuilder<> &Builder) {
+  Builder.setIsFPConstrained(true);
+#if LLVM_VERSION_MAJOR >= 11
+  Builder.setDefaultConstrainedRounding(llvm::RoundingMode::NearestTiesToEven);
+  Builder.setDefaultConstrainedExcept(llvm::fp::ExceptionBehavior::ebIgnore);
+#elif LLVM_VERSION_MAJOR >= 10
+  Builder.setDefaultConstrainedRounding(llvm::fp::RoundingMode::rmToNearest);
+  Builder.setDefaultConstrainedExcept(llvm::fp::ExceptionBehavior::ebIgnore);
+#else
+  Builder.setDefaultConstrainedRounding(
+      llvm::ConstrainedFPIntrinsic::RoundingMode::rmToNearest);
+  Builder.setDefaultConstrainedExcept(
+      llvm::ConstrainedFPIntrinsic::ExceptionBehavior::ebIgnore);
+#endif
+}
+
+#if LLVM_VERSION_MAJOR >= 11
+using ShuffleElement = int;
+#else
+using ShuffleElement = uint32_t;
+#endif
+
 #if LLVM_VERSION_MAJOR >= 10
-using RoundingMode = llvm::fp::RoundingMode;
-using ExceptionBehavior = llvm::fp::ExceptionBehavior;
 using Align = llvm::Align;
 #else
-using RoundingMode = llvm::ConstrainedFPIntrinsic::RoundingMode;
-using ExceptionBehavior = llvm::ConstrainedFPIntrinsic::ExceptionBehavior;
 static inline unsigned Align(unsigned Value) noexcept { return Value; }
 #endif
 
@@ -70,17 +89,17 @@ toLLVMLevel(SSVM::AOT::Compiler::OptimizationLevel Level) {
   using OL = SSVM::AOT::Compiler::OptimizationLevel;
   switch (Level) {
   case OL::O0:
-    return llvm::PassBuilder::O0;
+    return llvm::PassBuilder::OptimizationLevel::O0;
   case OL::O1:
-    return llvm::PassBuilder::O1;
+    return llvm::PassBuilder::OptimizationLevel::O1;
   case OL::O2:
-    return llvm::PassBuilder::O2;
+    return llvm::PassBuilder::OptimizationLevel::O2;
   case OL::O3:
-    return llvm::PassBuilder::O3;
+    return llvm::PassBuilder::OptimizationLevel::O3;
   case OL::Os:
-    return llvm::PassBuilder::Os;
+    return llvm::PassBuilder::OptimizationLevel::Os;
   case OL::Oz:
-    return llvm::PassBuilder::Oz;
+    return llvm::PassBuilder::OptimizationLevel::Oz;
   default:
     assert(false);
     __builtin_unreachable();
@@ -219,16 +238,17 @@ struct SSVM::AOT::Compiler::CompileContext {
   llvm::Value *getGas(llvm::IRBuilder<> &Builder, llvm::LoadInst *ExecCtx) {
     return Builder.CreateExtractValue(ExecCtx, {4});
   }
-  llvm::Value *getIntrinsic(llvm::IRBuilder<> &Builder,
-                            AST::Module::Intrinsics Index,
-                            llvm::FunctionType *Ty) {
+  llvm::FunctionCallee getIntrinsic(llvm::IRBuilder<> &Builder,
+                                    AST::Module::Intrinsics Index,
+                                    llvm::FunctionType *Ty) {
     auto *VPtr = llvm::ConstantExpr::getInBoundsGetElementPtr(
         nullptr, IntrinsicsTable,
         std::array<llvm::Constant *, 2>{
             llvm::ConstantInt::get(Int64Ty, 0),
             llvm::ConstantInt::get(Int64Ty, uint32_t(Index))});
-    return Builder.CreateLoad(llvm::ConstantExpr::getBitCast(
-        VPtr, Ty->getPointerTo()->getPointerTo()));
+    return llvm::FunctionCallee(
+        Ty, Builder.CreateLoad(llvm::ConstantExpr::getBitCast(
+                VPtr, Ty->getPointerTo()->getPointerTo())));
   }
 };
 
@@ -328,10 +348,7 @@ public:
       : Context(Context), LLContext(Context.LLContext), OptNone(OptNone), F(F),
         Builder(llvm::BasicBlock::Create(LLContext, "entry", F)) {
     if (F) {
-      Builder.setIsFPConstrained(true);
-      Builder.setDefaultConstrainedRounding(RoundingMode::rmToNearest);
-      Builder.setDefaultConstrainedExcept(ExceptionBehavior::ebIgnore);
-
+      setIsFPConstrained(Builder);
       ExecCtx = Builder.CreateLoad(F->arg_begin());
 
       if (InstructionCounting) {
@@ -1019,19 +1036,16 @@ public:
 
 #if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||            \
     defined(_M_X64)
-
       if (Context.SupportRoundeven) {
-        llvm::Value *Ret = llvm::UndefValue::get(
-            llvm::VectorType::get(Value->getType(), VectorSize));
-        Ret = Builder.CreateInsertElement(Ret, Value, UINT64_C(0));
-        if (IsFloat) {
-          Ret = Builder.CreateIntrinsic(llvm::Intrinsic::x86_sse41_round_ss, {},
-                                        {Ret, Ret, Builder.getInt32(8)});
-        } else {
-          Ret = Builder.CreateIntrinsic(llvm::Intrinsic::x86_sse41_round_sd, {},
-                                        {Ret, Ret, Builder.getInt32(8)});
-        }
-        Ret = Builder.CreateExtractElement(Ret, UINT64_C(0));
+        const uint64_t kZero = 0;
+        auto *VectorTy =
+            llvm::VectorType::get(Value->getType(), VectorSize, false);
+        llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
+        Ret = Builder.CreateInsertElement(Ret, Value, kZero);
+        auto ID = IsFloat ? llvm::Intrinsic::x86_sse41_round_ss
+                          : llvm::Intrinsic::x86_sse41_round_sd;
+        Ret = Builder.CreateIntrinsic(ID, {}, {Ret, Ret, Builder.getInt32(8)});
+        Ret = Builder.CreateExtractElement(Ret, kZero);
         stackPush(Ret);
         break;
       }
@@ -1039,12 +1053,13 @@ public:
 
 #if defined(__arm__) || defined(__aarch64__)
       if (Context.SupportRoundeven) {
-        llvm::Value *Ret = llvm::UndefValue::get(
-            llvm::VectorType::get(Value->getType(), VectorSize));
-        Ret = Builder.CreateInsertElement(Ret, Value, UINT64_C(0));
+        const uint64_t kZero = 0;
+        auto *VectorTy = llvm::VectorType::get(Value->getType(), VectorSize);
+        llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
+        Ret = Builder.CreateInsertElement(Ret, Value, kZero);
         Ret = Builder.CreateBinaryIntrinsic(
             llvm::Intrinsic::aarch64_neon_frintn, Ret, Ret);
-        Ret = Builder.CreateExtractElement(Ret, UINT64_C(0));
+        Ret = Builder.CreateExtractElement(Ret, kZero);
         stackPush(Ret);
         break;
       }
@@ -1129,7 +1144,27 @@ public:
       stackPush(Builder.CreateUIToFP(stackPop(), Context.DoubleTy));
       break;
     case OpCode::F32__demote_f64:
+#if LLVM_VERSION_MAJOR >= 10
       stackPush(Builder.CreateFPTrunc(stackPop(), Context.FloatTy));
+#else
+    {
+      /// llvm 9 didn't add constrains on fptrunc, do it manually.
+      auto &LLContext = Context.LLContext;
+      auto *Value = stackPop();
+      auto ExceptStr = llvm::ConstrainedFPIntrinsic::ExceptionBehaviorToStr(
+          Builder.getDefaultConstrainedExcept());
+      auto *ExceptMDS = llvm::MDString::get(LLContext, ExceptStr.getValue());
+      auto *ExceptV = llvm::MetadataAsValue::get(LLContext, ExceptMDS);
+      auto RoundingStr = llvm::ConstrainedFPIntrinsic::RoundingModeToStr(
+          Builder.getDefaultConstrainedRounding());
+      auto *RoundingMDS =
+          llvm::MDString::get(Context.LLContext, RoundingStr.getValue());
+      auto *RoundingV = llvm::MetadataAsValue::get(LLContext, RoundingMDS);
+      stackPush(Builder.CreateIntrinsic(
+          llvm::Intrinsic::experimental_constrained_fptrunc,
+          {Context.FloatTy, Value->getType()}, {Value, RoundingV, ExceptV}));
+    }
+#endif
       break;
     case OpCode::F64__promote_f32:
       stackPush(Builder.CreateFPExt(stackPop(), Context.DoubleTy));
@@ -2266,17 +2301,17 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 
     // link
 #ifdef __APPLE__
-        lld::mach_o::link(
+        using lld::mach_o::link;
 #else
-        lld::elf::link(
+        using lld::elf::link;
 #endif
-            std::array{"lld", "--shared", "--gc-sections",
-                       Object->TmpName.c_str(), "-o", Path.u8string().c_str()},
-            false,
+        link(std::array{"lld", "--shared", "--gc-sections",
+                        Object->TmpName.c_str(), "-o", Path.u8string().c_str()},
+             false,
 #if LLVM_VERSION_MAJOR >= 10
-            llvm::outs(), llvm::errs()
+             llvm::outs(), llvm::errs()
 #else
-            llvm::errs()
+             llvm::errs()
 #endif
         );
 
@@ -2336,9 +2371,7 @@ Expect<void> Compiler::compile(const AST::TypeSection &TypeSection) {
 
       llvm::IRBuilder<> Builder(
           llvm::BasicBlock::Create(F->getContext(), "entry", F));
-      Builder.setIsFPConstrained(true);
-      Builder.setDefaultConstrainedRounding(RoundingMode::rmToNearest);
-      Builder.setDefaultConstrainedExcept(ExceptionBehavior::ebIgnore);
+      setIsFPConstrained(Builder);
       auto *FTy = toLLVMType(Context->ExecCtxPtrTy, FuncType);
       auto *RTy = FTy->getReturnType();
       const size_t ArgCount = FTy->getNumParams() - 1;
@@ -2347,8 +2380,8 @@ Expect<void> Compiler::compile(const AST::TypeSection &TypeSection) {
               ? 0
               : (RTy->isStructTy() ? RTy->getStructNumElements() : 1);
       auto *ExecCtxPtr = F->arg_begin();
-      auto *RawFunc =
-          Builder.CreateBitCast(F->arg_begin() + 1, FTy->getPointerTo());
+      auto RawFunc = llvm::FunctionCallee(
+          FTy, Builder.CreateBitCast(F->arg_begin() + 1, FTy->getPointerTo()));
       auto *RawArgs = F->arg_begin() + 2;
       auto *RawRets = F->arg_begin() + 3;
 
@@ -2430,9 +2463,7 @@ Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
 
       auto *Entry = llvm::BasicBlock::Create(Context->LLContext, "entry", F);
       llvm::IRBuilder<> Builder(Entry);
-      Builder.setIsFPConstrained(true);
-      Builder.setDefaultConstrainedRounding(RoundingMode::rmToNearest);
-      Builder.setDefaultConstrainedExcept(ExceptionBehavior::ebIgnore);
+      setIsFPConstrained(Builder);
 
       const auto ArgSize = FuncType.getParamTypes().size();
       const auto RetSize =

@@ -184,7 +184,11 @@ void SpecTest::run(std::string UnitName) {
     /// Manager. Anonymous modules are instantiated in VM.
     if (auto Res = onInvoke(ModName, Field, Params)) {
       /// Check value.
-      EXPECT_TRUE(onCompare(Returns, *Res));
+      if (onCompare(Returns, *Res)) {
+        EXPECT_TRUE(true);
+      } else {
+        EXPECT_TRUE(false);
+      }
     } else {
       EXPECT_TRUE(false);
     }

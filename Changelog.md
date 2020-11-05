@@ -1,3 +1,33 @@
+### 0.7.1 (2020-11-06)
+
+Features:
+
+* Applied the [reference types and bulk memory operations](https://webassembly.github.io/reference-types/core/) proposal for AOT.
+* Support LLVM 11.
+
+Refactor:
+
+* Refactor symbols in AOT.
+  * Removed the symbols in instances.
+  * Added instrinsics table for dynamic linking when running a compiled wasm.
+* Merged the program counter into `stack manager`.
+* Added back the `OpCode::End` instruction.
+* Refactored the validator workflow of checking expressions.
+* Used `std::bitset` for VM configuration.
+* Used `std::array` for cost table storage.
+* Conbined `include/support` into `include/common`.
+  * Merged `support/castng.h` into `common/types.h`.
+  * Merged `Measurement` into `Statistics`.
+  * Renamed `support/time.h` into `common/timer.h`. Used standard steady clock instead.
+  * Renamed `common/ast.h` into `common/astdef.h`.
+  * Moved `common/ast/` to `ast/`.
+  * Removed the `SSVM::Support` namespace.
+
+Tests:
+
+* Applied new test suite of the reference types and bulk memory operation proposal for AOT.
+
+
 ### 0.7.0 (2020-10-16)
 
 Features:

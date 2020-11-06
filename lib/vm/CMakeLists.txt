@@ -14,13 +14,6 @@ set(ssvmLibs
   ssvmHostModuleSSVMProcess
 )
 
-if (NOT SSVM_DISABLE_AOT_RUNTIME)
-  set(ssvmLibs
-    ${ssvmLibs}
-    ssvmAOT
-  )
-endif()
-
 target_link_libraries(ssvmVM
   PRIVATE
   ${ssvmLibs}

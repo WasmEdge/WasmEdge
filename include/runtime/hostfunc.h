@@ -34,7 +34,8 @@ public:
   /// Note: memory instance from module may be nullptr. Need to check if want to
   /// use it in function body.
   virtual Expect<void> run(Instance::MemoryInstance *MemInst,
-                           Span<ValVariant> Args, Span<ValVariant> Rets) = 0;
+                           Span<const ValVariant> Args,
+                           Span<ValVariant> Rets) = 0;
 
   /// Getter of function type.
   const Instance::FType &getFuncType() const { return FuncType; }
@@ -53,7 +54,8 @@ public:
     initializeFuncType();
   }
 
-  Expect<void> run(Instance::MemoryInstance *MemInst, Span<ValVariant> Args,
+  Expect<void> run(Instance::MemoryInstance *MemInst,
+                   Span<const ValVariant> Args,
                    Span<ValVariant> Rets) override {
     using F = FuncTraits<decltype(&T::body)>;
     if (unlikely(F::ArgsN != Args.size())) {

@@ -613,6 +613,25 @@ TEST(WasiTest, ClockTimeGet) {
   Env.fini();
 }
 
+TEST(WasiTest, ProcExit) {
+  SSVM::Host::WasiEnvironment Env;
+  SSVM::Runtime::Instance::MemoryInstance MemInst(SSVM::AST::Limit(1));
+
+  SSVM::Host::WasiProcExit WasiProcExit(Env);
+
+  Env.init({}, "test"s, {}, {});
+  EXPECT_FALSE(WasiProcExit.run(
+      &MemInst, std::array<SSVM::ValVariant, 1>{UINT32_C(0)}, {}));
+  EXPECT_EQ(Env.getExitCode(), INT32_C(0));
+  Env.fini();
+
+  Env.init({}, "test"s, {}, {});
+  EXPECT_FALSE(WasiProcExit.run(
+      &MemInst, std::array<SSVM::ValVariant, 1>{UINT32_C(1)}, {}));
+  EXPECT_EQ(Env.getExitCode(), INT32_C(1));
+  Env.fini();
+}
+
 GTEST_API_ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

@@ -319,6 +319,7 @@ TEST(WasiTest, ClockRes) {
   std::array<SSVM::ValVariant, 1> Errno;
   timespec Timespec;
 
+  Env.init({}, "test"s, {}, {});
   // realtime clock
   {
     int SysErrno = 0;
@@ -326,7 +327,6 @@ TEST(WasiTest, ClockRes) {
       SysErrno = errno;
     }
 
-    Env.init({}, "test"s, {}, {});
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockResGet.run(
         &MemInst,
@@ -337,7 +337,6 @@ TEST(WasiTest, ClockRes) {
       const uint64_t Res = convertTimespec(Timespec);
       EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
     }
-    Env.fini();
   }
 
   // monotonic clock
@@ -347,7 +346,6 @@ TEST(WasiTest, ClockRes) {
       SysErrno = errno;
     }
 
-    Env.init({}, "test"s, {}, {});
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockResGet.run(
         &MemInst,
@@ -358,7 +356,6 @@ TEST(WasiTest, ClockRes) {
       const uint64_t Res = convertTimespec(Timespec);
       EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
     }
-    Env.fini();
   }
 
   // process cputime clock
@@ -368,7 +365,6 @@ TEST(WasiTest, ClockRes) {
       SysErrno = errno;
     }
 
-    Env.init({}, "test"s, {}, {});
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(
         WasiClockResGet.run(&MemInst,
@@ -380,7 +376,6 @@ TEST(WasiTest, ClockRes) {
       const uint64_t Res = convertTimespec(Timespec);
       EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
     }
-    Env.fini();
   }
 
   // thread cputime clock
@@ -390,7 +385,6 @@ TEST(WasiTest, ClockRes) {
       SysErrno = errno;
     }
 
-    Env.init({}, "test"s, {}, {});
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(
         WasiClockResGet.run(&MemInst,
@@ -402,8 +396,28 @@ TEST(WasiTest, ClockRes) {
       const uint64_t Res = convertTimespec(Timespec);
       EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
     }
-    Env.fini();
   }
+
+  // invalid clockid
+  {
+    writeDummyMemoryContent(MemInst);
+    EXPECT_TRUE(WasiClockResGet.run(
+        &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(4), UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EINVAL);
+  }
+
+  // invalid pointer
+  {
+    writeDummyMemoryContent(MemInst);
+    EXPECT_TRUE(WasiClockResGet.run(
+        &MemInst,
+        std::array<SSVM::ValVariant, 2>{__WASI_CLOCK_REALTIME, UINT32_C(65536)},
+        Errno));
+    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  }
+
+  Env.fini();
 }
 
 TEST(WasiTest, ClockTimeGet) {
@@ -414,6 +428,8 @@ TEST(WasiTest, ClockTimeGet) {
   std::array<SSVM::ValVariant, 1> Errno;
   timespec Timespec;
 
+  Env.init({}, "test"s, {}, {});
+
   // realtime clock
   {
     int SysErrno = 0;
@@ -421,7 +437,6 @@ TEST(WasiTest, ClockTimeGet) {
       SysErrno = errno;
     }
 
-    Env.init({}, "test"s, {}, {});
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockTimeGet.run(
         &MemInst,
@@ -433,7 +448,6 @@ TEST(WasiTest, ClockTimeGet) {
       const uint64_t Time = convertTimespec(Timespec);
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
     }
-    Env.fini();
   }
 
   // monotonic clock
@@ -443,7 +457,6 @@ TEST(WasiTest, ClockTimeGet) {
       SysErrno = errno;
     }
 
-    Env.init({}, "test"s, {}, {});
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockTimeGet.run(
         &MemInst,
@@ -455,7 +468,6 @@ TEST(WasiTest, ClockTimeGet) {
       const uint64_t Time = convertTimespec(Timespec);
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
     }
-    Env.fini();
   }
 
   // process cputime clock
@@ -465,7 +477,6 @@ TEST(WasiTest, ClockTimeGet) {
       SysErrno = errno;
     }
 
-    Env.init({}, "test"s, {}, {});
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockTimeGet.run(
         &MemInst,
@@ -477,7 +488,6 @@ TEST(WasiTest, ClockTimeGet) {
       const uint64_t Time = convertTimespec(Timespec);
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
     }
-    Env.fini();
   }
 
   // thread cputime clock
@@ -487,7 +497,6 @@ TEST(WasiTest, ClockTimeGet) {
       SysErrno = errno;
     }
 
-    Env.init({}, "test"s, {}, {});
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockTimeGet.run(
         &MemInst,
@@ -499,8 +508,31 @@ TEST(WasiTest, ClockTimeGet) {
       const uint64_t Time = convertTimespec(Timespec);
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
     }
-    Env.fini();
   }
+
+  // invalid clockid
+  {
+    Env.init({}, "test"s, {}, {});
+    writeDummyMemoryContent(MemInst);
+    EXPECT_TRUE(WasiClockTimeGet.run(
+        &MemInst,
+        std::array<SSVM::ValVariant, 3>{UINT32_C(4), UINT64_C(0), UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EINVAL);
+  }
+
+  // invalid pointer
+  {
+    writeDummyMemoryContent(MemInst);
+    EXPECT_TRUE(WasiClockTimeGet.run(
+        &MemInst,
+        std::array<SSVM::ValVariant, 3>{__WASI_CLOCK_REALTIME, UINT64_C(0),
+                                        UINT32_C(65536)},
+        Errno));
+    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  }
+
+  Env.fini();
 }
 
 GTEST_API_ int main(int argc, char **argv) {

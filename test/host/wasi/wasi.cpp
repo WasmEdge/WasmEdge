@@ -632,6 +632,69 @@ TEST(WasiTest, ProcExit) {
   Env.fini();
 }
 
+TEST(WasiTest, Random) {
+  SSVM::Host::WasiEnvironment Env;
+  SSVM::Runtime::Instance::MemoryInstance MemInst(SSVM::AST::Limit(1));
+
+  SSVM::Host::WasiRandomGet WasiRandomGet(Env);
+  std::array<SSVM::ValVariant, 1> Errno;
+
+  // valid pointer, zero size
+  Env.init({}, "test"s, {}, {});
+  writeDummyMemoryContent(MemInst);
+  EXPECT_TRUE(WasiRandomGet.run(
+      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(0)},
+      Errno));
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
+  Env.fini();
+
+  // valid pointer, size 1
+  {
+    Env.init({}, "test"s, {}, {});
+    writeDummyMemoryContent(MemInst);
+    EXPECT_TRUE(WasiRandomGet.run(
+        &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(1)},
+        Errno));
+    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+    EXPECT_TRUE(std::all_of(MemInst.getPointer<const uint8_t *>(1),
+                            MemInst.getPointer<const uint8_t *>(4),
+                            [](uint8_t x) { return x == UINT8_C(0xa5); }));
+    Env.fini();
+  }
+
+  // valid pointer, size 8
+  {
+    Env.init({}, "test"s, {}, {});
+    writeDummyMemoryContent(MemInst);
+    EXPECT_TRUE(WasiRandomGet.run(
+        &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
+        Errno));
+    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+    EXPECT_NE(*MemInst.getPointer<const uint64_t *>(0),
+              UINT64_C(0xa5a5a5a5a5a5a5a5));
+    EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(8),
+              UINT64_C(0xa5a5a5a5a5a5a5a5));
+    Env.fini();
+  }
+
+  // invalid pointer, zero size
+  Env.init({}, "test"s, {}, {});
+  EXPECT_TRUE(WasiRandomGet.run(
+      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(0)},
+      Errno));
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  Env.fini();
+
+  // invalid pointer, non zero size
+  Env.init({}, "test"s, {}, {});
+  EXPECT_TRUE(WasiRandomGet.run(
+      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(1)},
+      Errno));
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  Env.fini();
+}
+
 GTEST_API_ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

@@ -412,7 +412,7 @@ WasiEnvironGet::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   /// Store **Env.
-  const std::vector<std::string_view> &Environs = Env.getEnvirons();
+  const std::vector<std::string> &Environs = Env.getEnvirons();
   const uint32_t EnvSize = Environs.size() + 1;
   const uint32_t EnvBufSize = CalculateBufferSize(Environs);
 
@@ -461,7 +461,7 @@ WasiEnvironSizesGet::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_EFAULT;
   }
 
-  const std::vector<std::string_view> &Environs = Env.getEnvirons();
+  const std::vector<std::string> &Environs = Env.getEnvirons();
 
   /// Store EnvCnt.
   *EnvCnt = Environs.size();

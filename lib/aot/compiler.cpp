@@ -123,6 +123,8 @@ struct SSVM::AOT::Compiler::CompileContext {
   llvm::StructType *ExecCtxTy;
   llvm::PointerType *ExecCtxPtrTy;
   llvm::SubtargetFeatures SubtargetFeatures;
+
+#if LLVM_VERSION_MAJOR < 11
   bool SupportRoundeven =
 #if (defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||           \
      defined(_M_X64)) &&                                                       \
@@ -134,6 +136,8 @@ struct SSVM::AOT::Compiler::CompileContext {
 #else
       false;
 #endif
+#endif
+
   std::vector<const AST::FunctionType *> FunctionTypes;
   std::vector<llvm::Function *> FunctionWrappers;
   std::vector<std::tuple<uint32_t, llvm::Function *, SSVM::AST::CodeSegment *>>
@@ -187,6 +191,8 @@ struct SSVM::AOT::Compiler::CompileContext {
       llvm::StringMap<bool> FeatureMap;
       llvm::sys::getHostCPUFeatures(FeatureMap);
       for (auto &Feature : FeatureMap) {
+
+#if LLVM_VERSION_MAJOR < 11
         if (!SupportRoundeven && Feature.second) {
           if (llvm::StringSwitch<bool>(Feature.first())
 #if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||            \
@@ -200,6 +206,8 @@ struct SSVM::AOT::Compiler::CompileContext {
             SupportRoundeven = true;
           }
         }
+#endif
+
         SubtargetFeatures.AddFeature(Feature.first(), Feature.second);
       }
     }
@@ -1030,6 +1038,10 @@ public:
       break;
     case OpCode::F32__nearest:
     case OpCode::F64__nearest: {
+#if LLVM_VERSION_MAJOR >= 11
+      stackPush(
+          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven, stackPop()));
+#else
       const bool IsFloat = Instr.getOpCode() == OpCode::F32__nearest;
       const uint32_t VectorSize = IsFloat ? 4 : 2;
       llvm::Value *Value = stackPop();
@@ -1067,6 +1079,7 @@ public:
 
       stackPush(
           Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, Value));
+#endif
       break;
     }
     case OpCode::F32__sqrt:

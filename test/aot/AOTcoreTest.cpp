@@ -44,7 +44,8 @@ TEST_P(CoreTest, TestSuites) {
   SSVM::VM::VM VM(PConf, Conf);
   SSVM::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);
-  auto Compile = [&](const std::string &Filename) -> Expect<std::string> {
+  auto Compile = [&, PConf = std::cref(PConf)](
+                     const std::string &Filename) -> Expect<std::string> {
     SSVM::Loader::Loader Loader(PConf);
     SSVM::Validator::Validator ValidatorEngine(PConf);
     SSVM::AOT::Compiler Compiler;

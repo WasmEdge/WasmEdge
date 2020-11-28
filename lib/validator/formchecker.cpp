@@ -518,6 +518,11 @@ Expect<void> FormChecker::checkInstr(const AST::ParametricInstruction &Instr) {
     return {};
   }
   case OpCode::Select_t: {
+    /// This instruction is for ReferenceTypes proposal.
+    if (!PConf.hasProposal(Proposal::ReferenceTypes)) {
+      LOG(ERROR) << ErrCode::InvalidOpCode;
+      return Unexpect(ErrCode::InvalidOpCode);
+    }
     /// Note: There may be multiple values choise in the future.
     if (Instr.getValTypeList().size() != 1) {
       LOG(ERROR) << ErrCode::InvalidResultArity;

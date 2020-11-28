@@ -1121,7 +1121,9 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     TrapJump = std::move(OldTrapJump);
 
     if (Status != 0) {
-      return Unexpect(ErrCode(uint8_t(Status)));
+      ErrCode Code = static_cast<ErrCode>(Status);
+      LOG(ERROR) << Code;
+      return Unexpect(Code);
     }
 
     for (uint32_t I = 0; I < Rets.size(); ++I) {

@@ -32,7 +32,7 @@
 namespace SSVM {
 namespace detail {
 
-extern "C" inline float roundevenf(float Value) {
+inline float roundevenf(float Value) {
 #if defined(HAVE_BUILTIN_ROUNDEVEN)
   return __builtin_roundevenf(Value);
 #elif defined(__AVX512F__)
@@ -57,7 +57,7 @@ extern "C" inline float roundevenf(float Value) {
 #endif
 }
 
-extern "C" inline double roundeven(double Value) noexcept {
+inline double roundeven(double Value) noexcept {
 #if defined(HAVE_BUILTIN_ROUNDEVEN)
   return __builtin_roundeven(Value);
 #elif defined(__AVX512F__)

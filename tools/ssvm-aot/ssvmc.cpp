@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "aot/compiler.h"
 #include "common/filesystem.h"
+#include "common/proposal.h"
 #include "loader/loader.h"
 #include "po/argument_parser.h"
 #include "validator/validator.h"
@@ -27,19 +28,40 @@ int main(int Argc, const char *Argv[]) {
   PO::Option<PO::Toggle> GasMeasuring(PO::Description(
       "Generate code for counting gas burned during execution."));
 
+  PO::Option<PO::Toggle> BulkMemoryOperations(
+      PO::Description("Enable Bulk-memory operations"));
+  PO::Option<PO::Toggle> ReferenceTypes(
+      PO::Description("Enable Reference types (externref)"));
+  PO::Option<PO::Toggle> All(PO::Description("Enable all features"));
+
   if (!PO::ArgumentParser()
            .add_option(WasmName)
            .add_option(SoName)
            .add_option("dump", DumpIR)
            .add_option("ic", InstructionCounting)
            .add_option("gas", GasMeasuring)
+           .add_option("enable-bulk-memory", BulkMemoryOperations)
+           .add_option("enable-reference-types", ReferenceTypes)
+           .add_option("enable-all", All)
            .parse(Argc, Argv)) {
     return 0;
   }
 
+  SSVM::ProposalConfigure ProposalConf;
+  if (BulkMemoryOperations.value()) {
+    ProposalConf.addProposal(SSVM::Proposal::BulkMemoryOperations);
+  }
+  if (ReferenceTypes.value()) {
+    ProposalConf.addProposal(SSVM::Proposal::ReferenceTypes);
+  }
+  if (All.value()) {
+    ProposalConf.addProposal(SSVM::Proposal::BulkMemoryOperations);
+    ProposalConf.addProposal(SSVM::Proposal::ReferenceTypes);
+  }
+
   std::string InputPath = std::filesystem::absolute(WasmName.value()).string();
   std::string OutputPath = std::filesystem::absolute(SoName.value()).string();
-  SSVM::Loader::Loader Loader;
+  SSVM::Loader::Loader Loader(ProposalConf);
 
   std::vector<SSVM::Byte> Data;
   if (auto Res = Loader.loadFile(InputPath)) {
@@ -60,7 +82,7 @@ int main(int Argc, const char *Argv[]) {
   }
 
   {
-    SSVM::Validator::Validator ValidatorEngine;
+    SSVM::Validator::Validator ValidatorEngine(ProposalConf);
     if (auto Res = ValidatorEngine.validate(*Module); !Res) {
       const auto Err = static_cast<uint32_t>(Res.error());
       std::cout << "Validate failed. Error code:" << Err << std::endl;

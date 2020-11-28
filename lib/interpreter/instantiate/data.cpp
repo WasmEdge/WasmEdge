@@ -48,6 +48,9 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
                                        DataInst->getData().size());
           !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
+        if (Res.error() == ErrCode::MemoryOutOfBounds) {
+          return Unexpect(ErrCode::DataSegDoesNotFit);
+        }
         return Unexpect(Res);
       }
 

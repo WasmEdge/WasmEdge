@@ -34,7 +34,8 @@ namespace {
 
 using namespace std::literals::string_view_literals;
 
-SSVM::Loader::Loader Loader;
+SSVM::ProposalConfigure ProposalConf;
+SSVM::Loader::Loader Loader(ProposalConf);
 
 TEST(WagonTest, Load__add_ex_main) { BODY("add-ex-main"); }
 TEST(WagonTest, Load__add_ex) { BODY("add-ex"); }

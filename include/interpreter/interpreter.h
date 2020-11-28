@@ -15,6 +15,7 @@
 #include "ast/instruction.h"
 #include "ast/module.h"
 #include "common/errcode.h"
+#include "common/proposal.h"
 #include "common/statistics.h"
 #include "common/value.h"
 #include "runtime/importobj.h"
@@ -82,7 +83,9 @@ using TypeNN =
 /// Executor flow control class.
 class Interpreter {
 public:
-  Interpreter(Statistics::Statistics *S = nullptr) : Stat(S) {
+  Interpreter(const ProposalConfigure &PConf,
+              Statistics::Statistics *S = nullptr)
+      : PConf(PConf), Stat(S) {
     assert(This == nullptr);
     This = this;
     if (Stat) {
@@ -457,6 +460,8 @@ public:
 private:
   enum class InstantiateMode : uint8_t { Instantiate = 0, ImportWasm };
 
+  /// Proposal configure
+  const ProposalConfigure &PConf;
   /// Instantiate mode
   InstantiateMode InsMode;
   /// Stack

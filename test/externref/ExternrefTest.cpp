@@ -15,8 +15,9 @@
 namespace {
 
 TEST(ExternRefTest, Ref__Functions) {
+  SSVM::ProposalConfigure PConf(SSVM::Proposal::ReferenceTypes);
   SSVM::VM::Configure Conf;
-  SSVM::VM::VM VM(Conf);
+  SSVM::VM::VM VM(PConf, Conf);
   SSVM::ExternMod ExtMod;
   std::vector<SSVM::ValVariant> FuncArgs;
   VM.registerModule(ExtMod);
@@ -59,8 +60,9 @@ TEST(ExternRefTest, Ref__Functions) {
 }
 
 TEST(ExternRefTest, Ref__STL) {
+  SSVM::ProposalConfigure PConf(SSVM::Proposal::ReferenceTypes);
   SSVM::VM::Configure Conf;
-  SSVM::VM::VM VM(Conf);
+  SSVM::VM::VM VM(PConf, Conf);
   SSVM::ExternMod ExtMod;
   std::vector<SSVM::ValVariant> FuncArgs;
   VM.registerModule(ExtMod);

@@ -12,6 +12,7 @@
 #pragma once
 
 #include "common/errcode.h"
+#include "common/proposal.h"
 #include "common/types.h"
 #include "common/value.h"
 #include "configure.h"
@@ -34,8 +35,9 @@ namespace VM {
 class VM {
 public:
   VM() = delete;
-  VM(Configure &InputConfig);
-  VM(Configure &InputConfig, Runtime::StoreManager &S);
+  VM(const ProposalConfigure &PConf, const Configure &InputConfig);
+  VM(const ProposalConfigure &PConf, const Configure &InputConfig,
+     Runtime::StoreManager &S);
   ~VM() = default;
 
   /// ======= Functions can be called before instantiated stage. =======
@@ -107,7 +109,7 @@ private:
                                               Span<const ValVariant> Params);
 
   /// VM environment.
-  Configure &Config;
+  const Configure &Config;
   Statistics::Statistics Stat;
   VMStage Stage;
 

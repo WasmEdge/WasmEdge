@@ -70,6 +70,9 @@ Expect<void> Interpreter::initTable(Runtime::StoreManager &StoreMgr,
                                       ElemInst->getRefs().size());
           !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(ElemSeg->NodeAttr);
+        if (Res.error() == ErrCode::TableOutOfBounds) {
+          return Unexpect(ErrCode::ElemSegDoesNotFit);
+        }
         return Unexpect(Res);
       }
 

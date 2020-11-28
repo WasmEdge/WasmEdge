@@ -39,14 +39,14 @@ static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
 class CoreTest : public testing::TestWithParam<std::string> {};
 
 TEST_P(CoreTest, TestSuites) {
-  const std::string UnitName = GetParam();
+  const auto [Proposal, PConf, UnitName] = T.resolve(GetParam());
   SSVM::VM::Configure Conf;
-  SSVM::VM::VM VM(Conf);
+  SSVM::VM::VM VM(PConf, Conf);
   SSVM::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);
   auto Compile = [&](const std::string &Filename) -> Expect<std::string> {
-    SSVM::Loader::Loader Loader;
-    SSVM::Validator::Validator ValidatorEngine;
+    SSVM::Loader::Loader Loader(PConf);
+    SSVM::Validator::Validator ValidatorEngine(PConf);
     SSVM::AOT::Compiler Compiler;
     Compiler.setOptimizationLevel(SSVM::AOT::Compiler::OptimizationLevel::O0);
     Compiler.setDumpIR(true);
@@ -214,7 +214,7 @@ TEST_P(CoreTest, TestSuites) {
     return true;
   };
 
-  T.run(UnitName);
+  T.run(Proposal, UnitName);
 }
 
 /// Initiate test suite.

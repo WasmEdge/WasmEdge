@@ -38,13 +38,16 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       }
       Offset = retrieveValue<uint32_t>(StackMgr.pop());
 
-      /// Table index should be 0. Checked in validation phase.
-      auto *TabInst = getTabInstByIdx(StoreMgr, ElemSeg->getIdx());
-      /// Check elements fits.
-      if (!TabInst->checkAccessBound(Offset, InitVals.size())) {
-        LOG(ERROR) << ErrCode::ElemSegDoesNotFit;
-        LOG(ERROR) << ErrInfo::InfoAST(ElemSeg->NodeAttr);
-        return Unexpect(ErrCode::ElemSegDoesNotFit);
+      /// Check boundary unless ReferenceTypes proposal enabled.
+      if (!PConf.hasProposal(Proposal::ReferenceTypes)) {
+        /// Table index should be 0. Checked in validation phase.
+        auto *TabInst = getTabInstByIdx(StoreMgr, ElemSeg->getIdx());
+        /// Check elements fits.
+        if (!TabInst->checkAccessBound(Offset, InitVals.size())) {
+          LOG(ERROR) << ErrCode::ElemSegDoesNotFit;
+          LOG(ERROR) << ErrInfo::InfoAST(ElemSeg->NodeAttr);
+          return Unexpect(ErrCode::ElemSegDoesNotFit);
+        }
       }
     }
 

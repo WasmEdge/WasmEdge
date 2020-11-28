@@ -27,13 +27,16 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       }
       Offset = retrieveValue<uint32_t>(StackMgr.pop());
 
-      /// Memory index should be 0. Checked in validation phase.
-      auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg->getIdx());
-      /// Check data fits.
-      if (!MemInst->checkAccessBound(Offset, DataSeg->getData().size())) {
-        LOG(ERROR) << ErrCode::DataSegDoesNotFit;
-        LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
-        return Unexpect(ErrCode::DataSegDoesNotFit);
+      /// Check boundary unless ReferenceTypes proposal enabled.
+      if (!PConf.hasProposal(Proposal::ReferenceTypes)) {
+        /// Memory index should be 0. Checked in validation phase.
+        auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg->getIdx());
+        /// Check data fits.
+        if (!MemInst->checkAccessBound(Offset, DataSeg->getData().size())) {
+          LOG(ERROR) << ErrCode::DataSegDoesNotFit;
+          LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
+          return Unexpect(ErrCode::DataSegDoesNotFit);
+        }
       }
     }
 

@@ -15,6 +15,7 @@
 #include "ast/instruction.h"
 #include "ast/module.h"
 #include "common/errcode.h"
+#include "common/proposal.h"
 #include "common/span.h"
 #include "common/types.h"
 #include "common/value.h"
@@ -39,7 +40,7 @@ static inline constexpr bool isRefType(const VType V) {
 
 class FormChecker {
 public:
-  FormChecker() = default;
+  FormChecker(const ProposalConfigure &PConf) noexcept : PConf(PConf) {}
   ~FormChecker() = default;
 
   void reset(bool CleanGlobal = false);
@@ -133,6 +134,8 @@ private:
   Expect<std::pair<Span<const VType>, Span<const VType>>>
   resolveBlockType(std::vector<VType> &Buffer, BlockType Type);
 
+  /// Proposal configure
+  const ProposalConfigure &PConf;
   /// Contexts.
   std::vector<std::pair<std::vector<VType>, std::vector<VType>>> Types;
   std::vector<uint32_t> Funcs;

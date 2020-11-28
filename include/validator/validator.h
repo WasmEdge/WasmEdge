@@ -26,7 +26,8 @@ namespace Validator {
 /// Validator flow control class.
 class Validator {
 public:
-  Validator(const ProposalConfigure &PConf) noexcept : PConf(PConf) {}
+  Validator(const ProposalConfigure &PConf) noexcept
+      : PConf(PConf), Checker(PConf) {}
   ~Validator() = default;
 
   /// Validate AST::Module.

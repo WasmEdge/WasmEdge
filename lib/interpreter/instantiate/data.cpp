@@ -27,8 +27,10 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       }
       Offset = retrieveValue<uint32_t>(StackMgr.pop());
 
-      /// Check boundary unless ReferenceTypes proposal enabled.
-      if (!PConf.hasProposal(Proposal::ReferenceTypes)) {
+      /// Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
+      /// enabled.
+      if (!PConf.hasProposal(Proposal::ReferenceTypes) &&
+          !PConf.hasProposal(Proposal::BulkMemoryOperations)) {
         /// Memory index should be 0. Checked in validation phase.
         auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg->getIdx());
         /// Check data fits.

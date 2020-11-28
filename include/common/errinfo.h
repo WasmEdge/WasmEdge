@@ -12,6 +12,7 @@
 #pragma once
 
 #include "astdef.h"
+#include "proposal.h"
 #include "types.h"
 #include "value.h"
 
@@ -353,6 +354,15 @@ struct InfoBoundary {
   uint64_t Offset;
   uint32_t Size;
   uint32_t Limit;
+};
+
+struct InfoProposal {
+  InfoProposal() = default;
+  InfoProposal(Proposal P) noexcept : P(P) {}
+
+  friend std::ostream &operator<<(std::ostream &OS,
+                                  const struct InfoProposal &Rhs);
+  Proposal P;
 };
 
 } // namespace ErrInfo

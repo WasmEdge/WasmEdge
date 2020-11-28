@@ -69,10 +69,11 @@ enum class ErrCode : uint8_t {
   DupExportName = 0x4E,      /// Export name conflicted
   ImmutableGlobal = 0x4F,    /// Tried to store to const global value
   InvalidResultArity = 0x50, /// Invalid result arity in select t* instruction
-  MultiMemories = 0x51,      /// #Memories > 1
-  InvalidLimit = 0x52,       /// Invalid Limit grammar
-  InvalidMemPages = 0x53,    /// Memory pages > 65536
-  InvalidStartFunc = 0x54,   /// Invalid start function signature
+  MultiTables = 0x51,        /// #Tables > 1
+  MultiMemories = 0x52,      /// #Memories > 1
+  InvalidLimit = 0x53,       /// Invalid Limit grammar
+  InvalidMemPages = 0x54,    /// Memory pages > 65536
+  InvalidStartFunc = 0x55,   /// Invalid start function signature
   /// Instantiation phase
   ModuleNameConflict = 0x60,     /// Module name conflicted when importing.
   IncompatibleImportType = 0x61, /// Import matching failed
@@ -128,6 +129,7 @@ static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::DupExportName, "duplicate export name"},
     {ErrCode::ImmutableGlobal, "global is immutable"},
     {ErrCode::InvalidResultArity, "invalid result arity"},
+    {ErrCode::MultiTables, "multiple tables"},
     {ErrCode::MultiMemories, "multiple memories"},
     {ErrCode::InvalidLimit, "size minimum must not be greater than maximum"},
     {ErrCode::InvalidMemPages,

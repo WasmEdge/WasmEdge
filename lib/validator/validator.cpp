@@ -111,6 +111,16 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     }
   }
 
+  /// In current version, memory must be <= 1, unless reference type proposal.
+  if (!PConf.hasProposal(Proposal::ReferenceTypes) &&
+      Checker.getTables().size() > 1) {
+    LOG(ERROR) << ErrCode::MultiTables;
+    LOG(ERROR) << ErrInfo::InfoInstanceBound(ExternalType::Memory,
+                                             Checker.getMemories().size(), 1);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(ErrCode::MultiTables);
+  }
+
   /// In current version, memory must be <= 1.
   if (Checker.getMemories().size() > 1) {
     LOG(ERROR) << ErrCode::MultiMemories;

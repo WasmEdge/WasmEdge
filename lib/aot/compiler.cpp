@@ -1098,7 +1098,8 @@ public:
       break;
     case OpCode::I32__trunc_f64_s:
       compileSignedTrunc(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+31)),
+          llvm::ConstantFP::get(Builder.getContext(),
+                                llvm::APFloat(-0x1.00000001fffffp+31)),
           llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+31)),
           Context.Int32Ty);
       break;

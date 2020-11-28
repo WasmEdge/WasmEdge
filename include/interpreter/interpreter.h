@@ -166,6 +166,11 @@ private:
                          Runtime::Instance::ModuleInstance &ModInst,
                          const AST::ElementSection &ElemSec);
 
+  /// Initialize memory with Data Instances.
+  Expect<void> initMemory(Runtime::StoreManager &StoreMgr,
+                          Runtime::Instance::ModuleInstance &ModInst,
+                          const AST::DataSection &DataSec);
+
   /// Instantiation of Data Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
                            Runtime::Instance::ModuleInstance &ModInst,

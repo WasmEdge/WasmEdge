@@ -14,11 +14,32 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
                          Runtime::Instance::ModuleInstance &ModInst,
                          const AST::DataSection &DataSec) {
   /// A frame with module is pushed into stack outside.
-  /// Instantiate data instances and initialize memory.
+  /// Instantiate data instances.
   for (const auto &DataSeg : DataSec.getContent()) {
+    uint32_t Offset = 0;
+    /// Initialize memory if data mode is active.
+    if (DataSeg->getMode() == AST::DataSegment::DataMode::Active) {
+      /// Run initialize expression.
+      if (auto Res = runExpression(StoreMgr, DataSeg->getInstrs()); !Res) {
+        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
+        LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
+        return Unexpect(Res);
+      }
+      Offset = retrieveValue<uint32_t>(StackMgr.pop());
+
+      /// Memory index should be 0. Checked in validation phase.
+      auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg->getIdx());
+      /// Check data fits.
+      if (!MemInst->checkAccessBound(Offset, DataSeg->getData().size())) {
+        LOG(ERROR) << ErrCode::DataSegDoesNotFit;
+        LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
+        return Unexpect(ErrCode::DataSegDoesNotFit);
+      }
+    }
+
     /// Make a new data instance.
-    auto NewDataInst =
-        std::make_unique<Runtime::Instance::DataInstance>(DataSeg->getData());
+    auto NewDataInst = std::make_unique<Runtime::Instance::DataInstance>(
+        Offset, DataSeg->getData());
 
     /// Insert data instance to store manager.
     uint32_t NewDataInstAddr;
@@ -28,29 +49,31 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       NewDataInstAddr = StoreMgr.importData(std::move(NewDataInst));
     }
     ModInst.addDataAddr(NewDataInstAddr);
+  }
+  return {};
+}
+
+/// Initialize memory with Data Instances. See
+/// "include/interpreter/interpreter.h".
+Expect<void> Interpreter::initMemory(Runtime::StoreManager &StoreMgr,
+                                     Runtime::Instance::ModuleInstance &ModInst,
+                                     const AST::DataSection &DataSec) {
+  /// initialize memory.
+  uint32_t Idx = 0;
+  for (const auto &DataSeg : DataSec.getContent()) {
+    auto *DataInst = getDataInstByIdx(StoreMgr, Idx);
 
     /// Initialize memory if data mode is active.
     if (DataSeg->getMode() == AST::DataSegment::DataMode::Active) {
       /// Memory index should be 0. Checked in validation phase.
       auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg->getIdx());
-      auto *DataInst = *StoreMgr.getData(NewDataInstAddr);
-
-      /// Run initialize expression.
-      if (auto Res = runExpression(StoreMgr, DataSeg->getInstrs()); !Res) {
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
-        LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
-        return Unexpect(Res);
-      }
-      uint32_t Off = retrieveValue<uint32_t>(StackMgr.pop());
+      const uint32_t Off = DataInst->getOffset();
 
       /// Replace mem[Off : Off + n] with data[0 : n].
       if (auto Res = MemInst->setBytes(DataInst->getData(), Off, 0,
                                        DataInst->getData().size());
           !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
-        if (Res.error() == ErrCode::MemoryOutOfBounds) {
-          return Unexpect(ErrCode::DataSegDoesNotFit);
-        }
         return Unexpect(Res);
       }
 
@@ -64,6 +87,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       ///   memory.init idx
       ///   data.drop idx
     }
+    Idx++;
   }
   return {};
 }

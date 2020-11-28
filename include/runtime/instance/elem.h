@@ -24,8 +24,12 @@ namespace Instance {
 class ElementInstance {
 public:
   ElementInstance() = delete;
-  ElementInstance(const RefType EType, Span<const ValVariant> Init)
-      : Type(EType), Refs(Init.begin(), Init.end()) {}
+  ElementInstance(const uint32_t Offset, const RefType EType,
+                  Span<const ValVariant> Init)
+      : Off(Offset), Type(EType), Refs(Init.begin(), Init.end()) {}
+
+  /// Get offset in element instance.
+  uint32_t getOffset() const noexcept { return Off; }
 
   /// Get reference type of element instance.
   RefType getRefType() const { return Type; }
@@ -39,6 +43,7 @@ public:
 private:
   /// \name Data of element instance.
   /// @{
+  const uint32_t Off;
   const RefType Type;
   std::vector<ValVariant> Refs;
   /// @}

@@ -108,16 +108,6 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
   }
 
-  /// Instantiate ElementSection (ElemSec)
-  const AST::ElementSection *ElemSec = Mod.getElementSection();
-  if (ElemSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *ElemSec); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(ElemSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
-  }
-
   /// Pop frame with temp. module.
   StackMgr.popFrame();
 
@@ -137,7 +127,27 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Push a new frame {ModInst, locals:none}
   StackMgr.pushFrame(ModInst->Addr, 0, 0);
 
-  /// Initialize table with element instances.
+  /// Instantiate ElementSection (ElemSec)
+  const AST::ElementSection *ElemSec = Mod.getElementSection();
+  if (ElemSec != nullptr) {
+    if (auto Res = instantiate(StoreMgr, *ModInst, *ElemSec); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(ElemSec->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+      return Unexpect(Res);
+    }
+  }
+
+  /// Instantiate DataSection (DataSec)
+  const AST::DataSection *DataSec = Mod.getDataSection();
+  if (DataSec != nullptr) {
+    if (auto Res = instantiate(StoreMgr, *ModInst, *DataSec); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(DataSec->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+      return Unexpect(Res);
+    }
+  }
+
+  /// initialization table instances
   if (ElemSec != nullptr) {
     if (auto Res = initTable(StoreMgr, *ModInst, *ElemSec); !Res) {
       LOG(ERROR) << ErrInfo::InfoAST(ElemSec->NodeAttr);
@@ -146,10 +156,9 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
   }
 
-  /// Instantiate DataSection and initialization memory instances (DataSec)
-  const AST::DataSection *DataSec = Mod.getDataSection();
+  /// initialization memory instances
   if (DataSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *DataSec); !Res) {
+    if (auto Res = initMemory(StoreMgr, *ModInst, *DataSec); !Res) {
       LOG(ERROR) << ErrInfo::InfoAST(DataSec->NodeAttr);
       LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);

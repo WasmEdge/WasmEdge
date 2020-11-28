@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/proposal.h - proposal consiguration class -------------===//
+//===-- ssvm/common/proposal.h - proposal configuration class -------------===//
 //
 // Part of the SSVM Project.
 //
@@ -13,6 +13,8 @@
 
 #include <bitset>
 #include <cstdint>
+#include <string_view>
+#include <unordered_map>
 
 namespace SSVM {
 
@@ -29,6 +31,9 @@ enum class Proposal : uint8_t {
   Threads,
   Max,
 };
+
+/// Proposal name enumeration string mapping.
+extern const std::unordered_map<Proposal, std::string_view> ProposalStr;
 
 class ProposalConfigure {
 public:

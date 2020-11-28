@@ -445,6 +445,26 @@ Expect<void> FormChecker::checkInstr(const AST::CallControlInstruction &Instr) {
 Expect<void> FormChecker::checkInstr(const AST::ReferenceInstruction &Instr) {
   switch (Instr.getOpCode()) {
   case OpCode::Ref__null:
+  case OpCode::Ref__is_null:
+    /// These instruction is for ReferenceTypes and BulkMemoryOperations
+    /// proposal.
+    if (!PConf.hasProposal(Proposal::ReferenceTypes) &&
+        !PConf.hasProposal(Proposal::BulkMemoryOperations)) {
+      LOG(ERROR) << ErrCode::InvalidOpCode;
+      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
+      return Unexpect(ErrCode::InvalidOpCode);
+    }
+    break;
+  case OpCode::Ref__func:
+    /// Skip this instruction for internal used.
+    break;
+  default:
+    LOG(ERROR) << ErrCode::InvalidOpCode;
+    return Unexpect(ErrCode::InvalidOpCode);
+  }
+
+  switch (Instr.getOpCode()) {
+  case OpCode::Ref__null:
     return StackTrans({}, std::array{ASTToVType(Instr.getReferenceType())});
   case OpCode::Ref__is_null:
     if (auto Res = popType()) {
@@ -465,8 +485,7 @@ Expect<void> FormChecker::checkInstr(const AST::ReferenceInstruction &Instr) {
     }
     return StackTrans({}, std::array{VType::FuncRef});
   default:
-    LOG(ERROR) << ErrCode::InvalidOpCode;
-    return Unexpect(ErrCode::InvalidOpCode);
+    __builtin_unreachable();
   }
   return {};
 }
@@ -521,6 +540,7 @@ Expect<void> FormChecker::checkInstr(const AST::ParametricInstruction &Instr) {
     /// This instruction is for ReferenceTypes proposal.
     if (!PConf.hasProposal(Proposal::ReferenceTypes)) {
       LOG(ERROR) << ErrCode::InvalidOpCode;
+      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
       return Unexpect(ErrCode::InvalidOpCode);
     }
     /// Note: There may be multiple values choise in the future.
@@ -536,10 +556,9 @@ Expect<void> FormChecker::checkInstr(const AST::ParametricInstruction &Instr) {
     return {};
   }
   default:
-    break;
+    LOG(ERROR) << ErrCode::InvalidOpCode;
+    return Unexpect(ErrCode::InvalidOpCode);
   }
-  LOG(ERROR) << ErrCode::InvalidOpCode;
-  return Unexpect(ErrCode::InvalidOpCode);
 }
 
 Expect<void> FormChecker::checkInstr(const AST::VariableInstruction &Instr) {
@@ -609,6 +628,35 @@ Expect<void> FormChecker::checkInstr(const AST::VariableInstruction &Instr) {
 }
 
 Expect<void> FormChecker::checkInstr(const AST::TableInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::Table__get:
+  case OpCode::Table__set:
+  case OpCode::Table__grow:
+  case OpCode::Table__size:
+  case OpCode::Table__fill:
+    /// These instruction is for ReferenceTypes proposal.
+    if (!PConf.hasProposal(Proposal::ReferenceTypes)) {
+      LOG(ERROR) << ErrCode::InvalidOpCode;
+      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
+      return Unexpect(ErrCode::InvalidOpCode);
+    }
+    break;
+  case OpCode::Table__init:
+  case OpCode::Elem__drop:
+  case OpCode::Table__copy:
+    /// These instruction is for ReferenceTypes or BulkMemoryOperations
+    /// proposal.
+    if (!PConf.hasProposal(Proposal::ReferenceTypes) &&
+        !PConf.hasProposal(Proposal::BulkMemoryOperations)) {
+      LOG(ERROR) << ErrCode::InvalidOpCode;
+      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
+      return Unexpect(ErrCode::InvalidOpCode);
+    }
+    break;
+  default:
+    LOG(ERROR) << ErrCode::InvalidOpCode;
+    return Unexpect(ErrCode::InvalidOpCode);
+  }
   /// Check target table/element index.
   VType DstRefType = VType::FuncRef;
   switch (Instr.getOpCode()) {
@@ -638,8 +686,7 @@ Expect<void> FormChecker::checkInstr(const AST::TableInstruction &Instr) {
     }
     break;
   default:
-    LOG(ERROR) << ErrCode::InvalidOpCode;
-    return Unexpect(ErrCode::InvalidOpCode);
+    __builtin_unreachable();
   }
 
   /// Check source table/element index and do matching.
@@ -707,6 +754,24 @@ Expect<void> FormChecker::checkInstr(const AST::TableInstruction &Instr) {
 }
 
 Expect<void> FormChecker::checkInstr(const AST::MemoryInstruction &Instr) {
+  switch (Instr.getOpCode()) {
+  case OpCode::Memory__init:
+  case OpCode::Data__drop:
+  case OpCode::Memory__copy:
+  case OpCode::Memory__fill:
+    /// These instruction is for ReferenceTypes or BulkMemoryOperations
+    /// proposal.
+    if (!PConf.hasProposal(Proposal::ReferenceTypes) &&
+        !PConf.hasProposal(Proposal::BulkMemoryOperations)) {
+      LOG(ERROR) << ErrCode::InvalidOpCode;
+      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
+      return Unexpect(ErrCode::InvalidOpCode);
+    }
+    break;
+  default:
+    break;
+  }
+
   /// Memory[0] must exist except data.drop instruction.
   if (Instr.getOpCode() != OpCode::Data__drop && Mems.size() == 0) {
     LOG(ERROR) << ErrCode::InvalidMemoryIdx;

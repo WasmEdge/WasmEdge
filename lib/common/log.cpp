@@ -254,5 +254,15 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoBoundary &Rhs) {
   return OS;
 }
 
+std::ostream &operator<<(std::ostream &OS, const struct InfoProposal &Rhs) {
+  if (auto Iter = ProposalStr.find(Rhs.P); Iter != ProposalStr.end()) {
+    OS << "    This instruction requires enabling proposal " << Iter->second;
+  } else {
+    OS << "    Unknown proposal, Code "
+       << convertUIntToHexStr(static_cast<uint32_t>(Rhs.P));
+  }
+  return OS;
+}
+
 } // namespace ErrInfo
 } // namespace SSVM

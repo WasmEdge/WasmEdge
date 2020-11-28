@@ -16,6 +16,7 @@
 
 #include "common/errcode.h"
 #include "common/filesystem.h"
+#include "common/proposal.h"
 #include "runtime/hostfunc.h"
 #include "runtime/importobj.h"
 #include "runtime/instance/memory.h"
@@ -120,9 +121,11 @@ public:
   explicit SpecTest(std::filesystem::path Root)
       : TestsuiteRoot(std::move(Root)) {}
 
-  std::vector<std::string> enumerate();
+  std::vector<std::string> enumerate() const;
+  std::tuple<std::string_view, SSVM::ProposalConfigure, std::string>
+  resolve(std::string_view Params) const;
 
-  void run(std::string UnitName);
+  void run(std::string_view Proposal, std::string_view UnitName);
 
   using ModuleCallback = Expect<void>(const std::string &Modname,
                                       const std::string &Filename);

@@ -4,7 +4,7 @@ include(FetchContent)
 FetchContent_Declare(
   ssvm_unit_test
   GIT_REPOSITORY https://github.com/second-state/ssvm-unittest.git
-  GIT_TAG wasm-ref-types
+  GIT_TAG wasm-core
 )
 
 FetchContent_GetProperties(ssvm_unit_test)
@@ -13,8 +13,18 @@ if (NOT ssvm_unit_test_POPULATED)
 endif ()
 
 configure_files(
-  ${ssvm_unit_test_SOURCE_DIR}/core
-  ${CMAKE_CURRENT_BINARY_DIR}/testSuites
+  ${ssvm_unit_test_SOURCE_DIR}/core/
+  ${CMAKE_CURRENT_BINARY_DIR}/testSuites/core/
+  COPYONLY
+)
+configure_files(
+  ${ssvm_unit_test_SOURCE_DIR}/reference-types/
+  ${CMAKE_CURRENT_BINARY_DIR}/testSuites/reference-types/
+  COPYONLY
+)
+configure_files(
+  ${ssvm_unit_test_SOURCE_DIR}/bulk-memory-operations/
+  ${CMAKE_CURRENT_BINARY_DIR}/testSuites/bulk-memory-operations/
   COPYONLY
 )
 

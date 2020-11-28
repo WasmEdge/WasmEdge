@@ -36,21 +36,42 @@ int main(int Argc, const char *Argv[]) {
           "Environ variables. Each variables can specified as --env `NAME=VALUE`."s),
       PO::MetaVar("ENVS"s));
 
+  PO::Option<PO::Toggle> BulkMemoryOperations(
+      PO::Description("Enable Bulk-memory operations"));
+  PO::Option<PO::Toggle> ReferenceTypes(
+      PO::Description("Enable Reference types (externref)"));
+  PO::Option<PO::Toggle> All(PO::Description("Enable all features"));
+
   if (!PO::ArgumentParser()
            .add_option(SoName)
            .add_option(Args)
            .add_option("reactor", Reactor)
            .add_option("dir", Dir)
            .add_option("env", Env)
+           .add_option("enable-bulk-memory", BulkMemoryOperations)
+           .add_option("enable-reference-types", ReferenceTypes)
+           .add_option("enable-all", All)
            .parse(Argc, Argv)) {
     return 0;
+  }
+
+  SSVM::ProposalConfigure ProposalConf;
+  if (BulkMemoryOperations.value()) {
+    ProposalConf.addProposal(SSVM::Proposal::BulkMemoryOperations);
+  }
+  if (ReferenceTypes.value()) {
+    ProposalConf.addProposal(SSVM::Proposal::ReferenceTypes);
+  }
+  if (All.value()) {
+    ProposalConf.addProposal(SSVM::Proposal::BulkMemoryOperations);
+    ProposalConf.addProposal(SSVM::Proposal::ReferenceTypes);
   }
 
   std::string InputPath = std::filesystem::absolute(SoName.value()).string();
   SSVM::VM::Configure Conf;
   Conf.addVMType(SSVM::VM::Configure::VMType::Wasi);
   Conf.addVMType(SSVM::VM::Configure::VMType::SSVM_Process);
-  SSVM::VM::VM VM(Conf);
+  SSVM::VM::VM VM(ProposalConf, Conf);
 
   SSVM::Host::WasiModule *WasiMod = dynamic_cast<SSVM::Host::WasiModule *>(
       VM.getImportModule(SSVM::VM::Configure::VMType::Wasi));

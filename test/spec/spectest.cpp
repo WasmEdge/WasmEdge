@@ -7,7 +7,7 @@
 ///
 /// \file
 /// This file parse and run tests of Wasm test suites extracted by wast2json.
-/// Test Suits: https://github.com/WebAssembly/spec/tree/master/test/core
+/// Test Suits: https://github.com/WebAssembly/testsuite
 /// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
 ///
 //===----------------------------------------------------------------------===//
@@ -127,19 +127,32 @@ parseExpectedList(const rapidjson::Value &Args) {
   return Result;
 }
 
+struct TestsuiteProposal {
+  std::string_view Path;
+  SSVM::ProposalConfigure Conf;
+};
+static const TestsuiteProposal TestsuiteProposals[] = {
+    {"core"sv, {}},
+    {"reference-types"sv, {SSVM::Proposal::ReferenceTypes}},
+    {"bulk-memory-operations"sv, {SSVM::Proposal::BulkMemoryOperations}},
+};
+
 } // namespace
 
 namespace SSVM {
 
-std::vector<std::string> SpecTest::enumerate() {
+std::vector<std::string> SpecTest::enumerate() const {
   std::vector<std::string> Cases;
-  for (const auto &Subdir :
-       std::filesystem::directory_iterator(TestsuiteRoot)) {
-    const auto SubdirPath = Subdir.path();
-    const auto UnitName = SubdirPath.filename().u8string();
-    const auto UnitJson = UnitName + ".json"s;
-    if (std::filesystem::is_regular_file(SubdirPath / UnitJson)) {
-      Cases.push_back(std::move(UnitName));
+  for (const auto Proposal : TestsuiteProposals) {
+    const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;
+    for (const auto &Subdir :
+         std::filesystem::directory_iterator(ProposalRoot)) {
+      const auto SubdirPath = Subdir.path();
+      const auto UnitName = SubdirPath.filename().u8string();
+      const auto UnitJson = UnitName + ".json"s;
+      if (std::filesystem::is_regular_file(SubdirPath / UnitJson)) {
+        Cases.push_back(std::string(Proposal.Path) + ' ' + UnitName);
+      }
     }
   }
   std::sort(Cases.begin(), Cases.end());
@@ -147,9 +160,23 @@ std::vector<std::string> SpecTest::enumerate() {
   return Cases;
 }
 
-void SpecTest::run(std::string UnitName) {
-  LOG(INFO) << UnitName;
-  std::ifstream JSONIS(TestsuiteRoot / UnitName / (UnitName + ".json"s));
+std::tuple<std::string_view, SSVM::ProposalConfigure, std::string>
+SpecTest::resolve(std::string_view Params) const {
+  const auto Pos = Params.find_last_of(' ');
+  const std::string_view ProposalPath = Params.substr(0, Pos);
+  const auto Proposal = *std::find_if(std::begin(TestsuiteProposals),
+                                      std::end(TestsuiteProposals),
+                                      [&ProposalPath](const auto Proposal) {
+                                        return Proposal.Path == ProposalPath;
+                                      });
+  return std::tuple<std::string_view, SSVM::ProposalConfigure, std::string>{
+      Proposal.Path, Proposal.Conf, Params.substr(Pos + 1)};
+}
+
+void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
+  LOG(INFO) << Proposal << ' ' << UnitName;
+  std::ifstream JSONIS(TestsuiteRoot / Proposal / UnitName /
+                       (std::string(UnitName) + ".json"s));
   rapidjson::IStreamWrapper JSONISWrapper(JSONIS);
   rapidjson::Document Doc;
   auto &Allocator = Doc.GetAllocator();
@@ -243,9 +270,9 @@ void SpecTest::run(std::string UnitName) {
     if (const auto Type = Cmd.FindMember("type"s); Type != Cmd.MemberEnd()) {
       switch (resolveCommand(Type->value.Get<std::string>())) {
       case SpecTest::CommandID::Module: {
-        const auto FileName =
-            (TestsuiteRoot / UnitName / Cmd["filename"].Get<std::string>())
-                .u8string();
+        const auto FileName = (TestsuiteRoot / Proposal / UnitName /
+                               Cmd["filename"].Get<std::string>())
+                                  .u8string();
         if (const auto Name = Cmd.FindMember("name"); Name != Cmd.MemberEnd()) {
           /// Module has name. Register module with module name.
           LastModName = Name->value.Get<std::string>();
@@ -300,18 +327,18 @@ void SpecTest::run(std::string UnitName) {
         return;
       }
       case CommandID::AssertInvalid: {
-        const auto Filename =
-            (TestsuiteRoot / UnitName / Cmd["filename"s].Get<std::string>())
-                .u8string();
+        const auto Filename = (TestsuiteRoot / Proposal / UnitName /
+                               Cmd["filename"s].Get<std::string>())
+                                  .u8string();
         const auto &Text = Cmd["text"s].Get<std::string>();
         TrapValidate(Filename, Text);
         return;
       }
       case CommandID::AssertUnlinkable:
       case CommandID::AssertUninstantiable: {
-        const auto Filename =
-            (TestsuiteRoot / UnitName / Cmd["filename"s].Get<std::string>())
-                .u8string();
+        const auto Filename = (TestsuiteRoot / Proposal / UnitName /
+                               Cmd["filename"s].Get<std::string>())
+                                  .u8string();
         const auto &Text = Cmd["text"s].Get<std::string>();
         TrapInstantiate(Filename, Text);
         return;

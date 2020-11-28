@@ -14,6 +14,7 @@
 
 #include "ast/module.h"
 #include "common/errcode.h"
+#include "common/proposal.h"
 #include "formchecker.h"
 
 #include <memory>
@@ -25,7 +26,7 @@ namespace Validator {
 /// Validator flow control class.
 class Validator {
 public:
-  Validator() = default;
+  Validator(const ProposalConfigure &PConf) noexcept : PConf(PConf) {}
   ~Validator() = default;
 
   /// Validate AST::Module.
@@ -66,6 +67,9 @@ private:
                                  Span<const ValType> Returns);
 
   static inline const uint32_t LIMIT_MEMORYTYPE = 1U << 16;
+  /// Proposal configure
+  const ProposalConfigure &PConf;
+  /// Formal checker
   FormChecker Checker;
 };
 

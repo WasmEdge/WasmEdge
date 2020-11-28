@@ -14,6 +14,7 @@
 
 #include "ast/module.h"
 #include "common/errcode.h"
+#include "common/proposal.h"
 
 #include <string>
 #include <vector>
@@ -24,7 +25,7 @@ namespace Loader {
 /// Loader flow control class.
 class Loader {
 public:
-  Loader() = default;
+  Loader(const ProposalConfigure &PConf) : PConf(PConf) {}
   ~Loader() = default;
 
   /// Load data from file path.
@@ -37,6 +38,7 @@ public:
   Expect<std::unique_ptr<AST::Module>> parseModule(Span<const uint8_t> Code);
 
 private:
+  const ProposalConfigure &PConf;
   FileMgrFStream FSMgr;
   FileMgrVector FVMgr;
   LDMgr LMgr;

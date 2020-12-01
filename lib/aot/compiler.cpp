@@ -77,6 +77,10 @@ template <typename... Ts> struct overloaded : Ts... {
 };
 template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
+/// XXX: Misalignment handler not implemented yet, forcing unalignment
+/// force unalignment load/store
+static inline constexpr const bool kForceUnalignment = true;
+
 /// force checking div/rem on zero
 static inline constexpr const bool kForceDivCheck = true;
 
@@ -1847,6 +1851,9 @@ private:
 
   Expect<void> compileLoadOp(unsigned Offset, unsigned Alignment,
                              llvm::Type *LoadTy) {
+    if constexpr (kForceUnalignment) {
+      Alignment = 0;
+    }
     auto *Off = Builder.CreateZExt(stackPop(), Context.Int64Ty);
     if (Offset != 0) {
       Off = Builder.CreateAdd(Off, Builder.getInt64(Offset));
@@ -1875,6 +1882,9 @@ private:
   }
   Expect<void> compileStoreOp(unsigned Offset, unsigned Alignment,
                               llvm::Type *LoadTy, bool Trunc = false) {
+    if constexpr (kForceUnalignment) {
+      Alignment = 0;
+    }
     auto *V = stackPop();
     auto *Off = Builder.CreateZExt(stackPop(), Context.Int64Ty);
     if (Offset != 0) {

@@ -1095,27 +1095,16 @@ public:
       stackPush(Builder.CreateTrunc(stackPop(), Context.Int32Ty));
       break;
     case OpCode::I32__trunc_f32_s:
-      compileSignedTrunc(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+31f)),
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+31f)),
-          Context.Int32Ty);
+      compileSignedTrunc(Context.Int32Ty);
       break;
     case OpCode::I32__trunc_f64_s:
-      compileSignedTrunc(
-          llvm::ConstantFP::get(Builder.getContext(),
-                                llvm::APFloat(-0x1.00000001fffffp+31)),
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+31)),
-          Context.Int32Ty);
+      compileSignedTrunc(Context.Int32Ty);
       break;
     case OpCode::I32__trunc_f32_u:
-      compileUnsignedTrunc(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+32f)),
-          Context.Int32Ty);
+      compileUnsignedTrunc(Context.Int32Ty);
       break;
     case OpCode::I32__trunc_f64_u:
-      compileUnsignedTrunc(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+32)),
-          Context.Int32Ty);
+      compileUnsignedTrunc(Context.Int32Ty);
       break;
     case OpCode::I64__extend_i32_s:
       stackPush(Builder.CreateSExt(stackPop(), Context.Int64Ty));
@@ -1124,26 +1113,16 @@ public:
       stackPush(Builder.CreateZExt(stackPop(), Context.Int64Ty));
       break;
     case OpCode::I64__trunc_f32_s:
-      compileSignedTrunc(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+63f)),
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+63f)),
-          Context.Int64Ty);
+      compileSignedTrunc(Context.Int64Ty);
       break;
     case OpCode::I64__trunc_f64_s:
-      compileSignedTrunc(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+63)),
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+63)),
-          Context.Int64Ty);
+      compileSignedTrunc(Context.Int64Ty);
       break;
     case OpCode::I64__trunc_f32_u:
-      compileUnsignedTrunc(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+64f)),
-          Context.Int64Ty);
+      compileUnsignedTrunc(Context.Int64Ty);
       break;
     case OpCode::I64__trunc_f64_u:
-      compileUnsignedTrunc(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+64)),
-          Context.Int64Ty);
+      compileUnsignedTrunc(Context.Int64Ty);
       break;
     case OpCode::F32__convert_i32_s:
     case OpCode::F32__convert_i64_s:
@@ -1220,48 +1199,28 @@ public:
           Builder.CreateTrunc(stackPop(), Context.Int32Ty), Context.Int64Ty));
       break;
     case OpCode::I32__trunc_sat_f32_s:
-      compileSignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+31f)),
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+31f)),
-          Builder.getInt32(INT32_MIN), Builder.getInt32(INT32_MAX));
+      compileSignedTruncSat(Context.Int32Ty);
       break;
     case OpCode::I32__trunc_sat_f32_u:
-      compileUnsignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+32f)),
-          Builder.getInt32(UINT32_MAX));
+      compileUnsignedTruncSat(Context.Int32Ty);
       break;
     case OpCode::I32__trunc_sat_f64_s:
-      compileSignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+31)),
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+31)),
-          Builder.getInt32(INT32_MIN), Builder.getInt32(INT32_MAX));
+      compileSignedTruncSat(Context.Int32Ty);
       break;
     case OpCode::I32__trunc_sat_f64_u:
-      compileUnsignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+32)),
-          Builder.getInt32(UINT32_MAX));
+      compileUnsignedTruncSat(Context.Int32Ty);
       break;
     case OpCode::I64__trunc_sat_f32_s:
-      compileSignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+63f)),
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+63f)),
-          Builder.getInt64(INT64_MIN), Builder.getInt64(INT64_MAX));
+      compileSignedTruncSat(Context.Int64Ty);
       break;
     case OpCode::I64__trunc_sat_f32_u:
-      compileUnsignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+64f)),
-          Builder.getInt64(UINT64_MAX));
+      compileUnsignedTruncSat(Context.Int64Ty);
       break;
     case OpCode::I64__trunc_sat_f64_s:
-      compileSignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(-0x1p+63)),
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+63)),
-          Builder.getInt64(INT64_MIN), Builder.getInt64(INT64_MAX));
+      compileSignedTruncSat(Context.Int64Ty);
       break;
     case OpCode::I64__trunc_sat_f64_u:
-      compileUnsignedTruncSat(
-          llvm::ConstantFP::get(Builder.getContext(), llvm::APFloat(0x1p+64)),
-          Builder.getInt64(UINT64_MAX));
+      compileUnsignedTruncSat(Context.Int64Ty);
       break;
     default:
       __builtin_unreachable();
@@ -1591,122 +1550,154 @@ public:
     }
     return {};
   }
-  void compileSignedTrunc(llvm::ConstantFP *MinFp, llvm::ConstantFP *MaxFp,
-                          llvm::Type *Type) {
+  void compileSignedTrunc(llvm::IntegerType *IntType) {
+    const auto MinInt = llvm::APInt::getSignedMinValue(IntType->getBitWidth());
+    const auto MaxInt = llvm::APInt::getSignedMaxValue(IntType->getBitWidth());
     auto *NormBB = llvm::BasicBlock::Create(LLContext, "strunc.norm", F);
     auto *NotMinBB = llvm::BasicBlock::Create(LLContext, "strunc.notmin", F);
     auto *NotMaxBB = llvm::BasicBlock::Create(LLContext, "strunc.notmax", F);
     auto *Value = stackPop();
+    auto *FPType = Value->getType();
+    auto *MinFp = llvm::ConstantFP::get(FPType, MinInt.signedRoundToDouble());
+    auto *MaxFp = llvm::ConstantFP::get(FPType, MaxInt.signedRoundToDouble());
+    const bool Precise = IntType->getBitWidth() < FPType->getScalarSizeInBits();
 
     auto *IsNotNan = createLikely(Builder, Builder.CreateFCmpORD(Value, Value));
     Builder.CreateCondBr(IsNotNan, NormBB,
                          getTrapBB(ErrCode::InvalidConvToInt));
 
     Builder.SetInsertPoint(NormBB);
+    auto *Trunc = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Value);
     auto *IsNotUnderflow =
-        createLikely(Builder, Builder.CreateFCmpUGE(Value, MinFp));
+        createLikely(Builder, Builder.CreateFCmpOGE(Trunc, MinFp));
     Builder.CreateCondBr(IsNotUnderflow, NotMinBB,
                          getTrapBB(ErrCode::IntegerOverflow));
 
     Builder.SetInsertPoint(NotMinBB);
-    auto *IsNotOverflow =
-        createLikely(Builder, Builder.CreateFCmpULT(Value, MaxFp));
+    auto *IsNotOverflow = createLikely(
+        Builder,
+        Builder.CreateFCmp(Precise ? llvm::CmpInst::Predicate::FCMP_OLE
+                                   : llvm::CmpInst::Predicate::FCMP_OLT,
+                           Trunc, MaxFp));
     Builder.CreateCondBr(IsNotOverflow, NotMaxBB,
                          getTrapBB(ErrCode::IntegerOverflow));
 
     Builder.SetInsertPoint(NotMaxBB);
-    stackPush(Builder.CreateFPToSI(Value, Type));
+    stackPush(Builder.CreateFPToSI(Trunc, IntType));
   }
-  void compileSignedTruncSat(llvm::ConstantFP *MinFp, llvm::ConstantFP *MaxFp,
-                             llvm::ConstantInt *MinInt,
-                             llvm::ConstantInt *MaxInt) {
+  void compileSignedTruncSat(llvm::IntegerType *IntType) {
+    const auto MinInt = llvm::APInt::getSignedMinValue(IntType->getBitWidth());
+    const auto MaxInt = llvm::APInt::getSignedMaxValue(IntType->getBitWidth());
     auto *CurrBB = Builder.GetInsertBlock();
     auto *NormBB = llvm::BasicBlock::Create(LLContext, "ssat.norm", F);
     auto *NotMinBB = llvm::BasicBlock::Create(LLContext, "ssat.notmin", F);
     auto *NotMaxBB = llvm::BasicBlock::Create(LLContext, "ssat.notmax", F);
     auto *EndBB = llvm::BasicBlock::Create(LLContext, "ssat.end", F);
     auto *Value = stackPop();
+    auto *FPType = Value->getType();
+    auto *MinFp = llvm::ConstantFP::get(FPType, MinInt.signedRoundToDouble());
+    auto *MaxFp = llvm::ConstantFP::get(FPType, MaxInt.signedRoundToDouble());
+    const bool Precise = IntType->getBitWidth() < FPType->getScalarSizeInBits();
 
     auto *IsNotNan = createLikely(Builder, Builder.CreateFCmpORD(Value, Value));
     Builder.CreateCondBr(IsNotNan, NormBB, EndBB);
 
     Builder.SetInsertPoint(NormBB);
+    auto *Trunc = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Value);
     auto *IsNotUnderflow =
-        createLikely(Builder, Builder.CreateFCmpUGT(Value, MinFp));
+        createLikely(Builder, Builder.CreateFCmpOGE(Trunc, MinFp));
     Builder.CreateCondBr(IsNotUnderflow, NotMinBB, EndBB);
 
     Builder.SetInsertPoint(NotMinBB);
-    auto *IsNotOverflow =
-        createLikely(Builder, Builder.CreateFCmpULT(Value, MaxFp));
+    auto *IsNotOverflow = createLikely(
+        Builder,
+        Builder.CreateFCmp(Precise ? llvm::CmpInst::Predicate::FCMP_OLE
+                                   : llvm::CmpInst::Predicate::FCMP_OLT,
+                           Trunc, MaxFp));
     Builder.CreateCondBr(IsNotOverflow, NotMaxBB, EndBB);
 
     Builder.SetInsertPoint(NotMaxBB);
-    auto *Ty = MaxInt->getType();
-    auto *IntValue = Builder.CreateFPToSI(Value, Ty);
+    auto *IntValue = Builder.CreateFPToSI(Trunc, IntType);
     Builder.CreateBr(EndBB);
 
     Builder.SetInsertPoint(EndBB);
-    auto *PHIRet = Builder.CreatePHI(Ty, 4);
-    PHIRet->addIncoming(llvm::ConstantInt::get(Ty, 0), CurrBB);
-    PHIRet->addIncoming(MinInt, NormBB);
-    PHIRet->addIncoming(MaxInt, NotMinBB);
+    auto *PHIRet = Builder.CreatePHI(IntType, 4);
+    PHIRet->addIncoming(llvm::ConstantInt::get(IntType, 0), CurrBB);
+    PHIRet->addIncoming(llvm::ConstantInt::get(IntType, MinInt), NormBB);
+    PHIRet->addIncoming(llvm::ConstantInt::get(IntType, MaxInt), NotMinBB);
     PHIRet->addIncoming(IntValue, NotMaxBB);
 
     stackPush(PHIRet);
   }
-  void compileUnsignedTrunc(llvm::ConstantFP *MaxFp, llvm::Type *Type) {
+  void compileUnsignedTrunc(llvm::IntegerType *IntType) {
+    const auto MinInt = llvm::APInt::getMinValue(IntType->getBitWidth());
+    const auto MaxInt = llvm::APInt::getMaxValue(IntType->getBitWidth());
     auto *NormBB = llvm::BasicBlock::Create(LLContext, "utrunc.norm", F);
     auto *NotMinBB = llvm::BasicBlock::Create(LLContext, "utrunc.notmin", F);
     auto *NotMaxBB = llvm::BasicBlock::Create(LLContext, "utrunc.notmax", F);
     auto *Value = stackPop();
+    auto *FPType = Value->getType();
+    auto *MinFp = llvm::ConstantFP::get(FPType, MinInt.roundToDouble());
+    auto *MaxFp = llvm::ConstantFP::get(FPType, MaxInt.roundToDouble());
+    const bool Precise = IntType->getBitWidth() < FPType->getScalarSizeInBits();
 
     auto *IsNotNan = createLikely(Builder, Builder.CreateFCmpORD(Value, Value));
     Builder.CreateCondBr(IsNotNan, NormBB,
                          getTrapBB(ErrCode::InvalidConvToInt));
 
     Builder.SetInsertPoint(NormBB);
-    auto *IsNotUnderflow = createLikely(
-        Builder, Builder.CreateFCmpOGT(
-                     Value, llvm::ConstantFP::get(Value->getType(), -1.0)));
+    auto *Trunc = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Value);
+    auto *IsNotUnderflow =
+        createLikely(Builder, Builder.CreateFCmpOGE(Trunc, MinFp));
     Builder.CreateCondBr(IsNotUnderflow, NotMinBB,
                          getTrapBB(ErrCode::IntegerOverflow));
 
     Builder.SetInsertPoint(NotMinBB);
-    auto *IsNotOverflow =
-        createLikely(Builder, Builder.CreateFCmpOLT(Value, MaxFp));
+    auto *IsNotOverflow = createLikely(
+        Builder,
+        Builder.CreateFCmp(Precise ? llvm::CmpInst::Predicate::FCMP_OLE
+                                   : llvm::CmpInst::Predicate::FCMP_OLT,
+                           Trunc, MaxFp));
     Builder.CreateCondBr(IsNotOverflow, NotMaxBB,
                          getTrapBB(ErrCode::IntegerOverflow));
 
     Builder.SetInsertPoint(NotMaxBB);
-    stackPush(Builder.CreateFPToUI(Value, Type));
+    stackPush(Builder.CreateFPToUI(Trunc, IntType));
   }
-  void compileUnsignedTruncSat(llvm::ConstantFP *MaxFp,
-                               llvm::ConstantInt *MaxInt) {
+  void compileUnsignedTruncSat(llvm::IntegerType *IntType) {
+    const auto MinInt = llvm::APInt::getMinValue(IntType->getBitWidth());
+    const auto MaxInt = llvm::APInt::getMaxValue(IntType->getBitWidth());
     auto *CurrBB = Builder.GetInsertBlock();
     auto *NormBB = llvm::BasicBlock::Create(LLContext, "usat.norm", F);
     auto *NotMaxBB = llvm::BasicBlock::Create(LLContext, "usat.notmax", F);
     auto *EndBB = llvm::BasicBlock::Create(LLContext, "usat.end", F);
     auto *Value = stackPop();
+    auto *FPType = Value->getType();
+    auto *MinFp = llvm::ConstantFP::get(FPType, MinInt.roundToDouble());
+    auto *MaxFp = llvm::ConstantFP::get(FPType, MaxInt.roundToDouble());
+    const bool Precise = IntType->getBitWidth() < FPType->getScalarSizeInBits();
 
-    auto *IsNotUnderflow = createLikely(
-        Builder, Builder.CreateFCmpOGT(
-                     Value, llvm::ConstantFP::get(Value->getType(), 0.0)));
+    auto *Trunc = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Value);
+    auto *IsNotUnderflow =
+        createLikely(Builder, Builder.CreateFCmpOGE(Trunc, MinFp));
     Builder.CreateCondBr(IsNotUnderflow, NormBB, EndBB);
 
     Builder.SetInsertPoint(NormBB);
-    auto *IsNotOverflow =
-        createLikely(Builder, Builder.CreateFCmpOLT(Value, MaxFp));
+    auto *IsNotOverflow = createLikely(
+        Builder,
+        Builder.CreateFCmp(Precise ? llvm::CmpInst::Predicate::FCMP_OLE
+                                   : llvm::CmpInst::Predicate::FCMP_OLT,
+                           Trunc, MaxFp));
     Builder.CreateCondBr(IsNotOverflow, NotMaxBB, EndBB);
 
     Builder.SetInsertPoint(NotMaxBB);
-    auto *Ty = MaxInt->getType();
-    auto *IntValue = Builder.CreateFPToUI(Value, Ty);
+    auto *IntValue = Builder.CreateFPToUI(Trunc, IntType);
     Builder.CreateBr(EndBB);
 
     Builder.SetInsertPoint(EndBB);
-    auto *PHIRet = Builder.CreatePHI(Ty, 3);
-    PHIRet->addIncoming(llvm::ConstantInt::get(Ty, 0), CurrBB);
-    PHIRet->addIncoming(MaxInt, NormBB);
+    auto *PHIRet = Builder.CreatePHI(IntType, 3);
+    PHIRet->addIncoming(llvm::ConstantInt::get(IntType, MinInt), CurrBB);
+    PHIRet->addIncoming(llvm::ConstantInt::get(IntType, MaxInt), NormBB);
     PHIRet->addIncoming(IntValue, NotMaxBB);
 
     stackPush(PHIRet);

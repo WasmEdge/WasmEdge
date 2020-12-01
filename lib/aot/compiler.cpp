@@ -218,6 +218,8 @@ struct SSVM::AOT::Compiler::CompileContext {
             llvm::Function::PrivateLinkage, "trap", LLModule)) {
     Trap->addFnAttr(llvm::Attribute::StrictFP);
     Trap->addFnAttr(llvm::Attribute::NoReturn);
+    Trap->addFnAttr(llvm::Attribute::Cold);
+    Trap->addFnAttr(llvm::Attribute::NoInline);
 
     new llvm::GlobalVariable(
         LLModule, Int32Ty, true, llvm::GlobalValue::ExternalLinkage,
@@ -476,7 +478,9 @@ public:
       Builder.SetInsertPoint(BB);
       updateInstrCount();
       writeGas();
-      Builder.CreateCall(Context.Trap, {Builder.getInt8(uint8_t(Error))});
+      auto *CallTrap = Builder.CreateCall(
+          Context.Trap, {Builder.getInt8(static_cast<uint8_t>(Error))});
+      CallTrap->setDoesNotReturn();
       Builder.CreateUnreachable();
     }
 

@@ -1970,8 +1970,8 @@ public:
       auto *C = stackPop();
       auto *V2 = stackPop();
       auto *V1 = stackPop();
-      stackPush(Builder.CreateOr(Builder.CreateAnd(V1, C),
-                                 Builder.CreateAnd(V2, Builder.CreateNot(C))));
+      stackPush(Builder.CreateXor(
+          Builder.CreateAnd(Builder.CreateXor(V1, V2), C), V2));
       return {};
     }
 
@@ -2705,26 +2705,30 @@ private:
   }
   Expect<void> compileVectorAnyTrue(llvm::VectorType *VectorTy) {
     return compileVectorReduceIOp(VectorTy, [this, VectorTy](auto *V) {
+      const auto Size = VectorTy->getElementCount().Min;
+      auto *IntType = Builder.getIntNTy(Size);
       auto *Zero = llvm::ConstantAggregateZero::get(VectorTy);
-      auto *C = Builder.CreateICmpNE(V, Zero);
-      return Builder.CreateUnaryIntrinsic(
-          llvm::Intrinsic::experimental_vector_reduce_or, C);
+      auto *Cmp = Builder.CreateBitCast(Builder.CreateICmpNE(V, Zero), IntType);
+      auto *CmpZero = llvm::ConstantInt::get(IntType, 0);
+      return Builder.CreateICmpNE(Cmp, CmpZero);
     });
   }
   Expect<void> compileVectorAllTrue(llvm::VectorType *VectorTy) {
     return compileVectorReduceIOp(VectorTy, [this, VectorTy](auto *V) {
+      const auto Size = VectorTy->getElementCount().Min;
+      auto *IntType = Builder.getIntNTy(Size);
       auto *Zero = llvm::ConstantAggregateZero::get(VectorTy);
-      auto *C = Builder.CreateICmpNE(V, Zero);
-      return Builder.CreateUnaryIntrinsic(
-          llvm::Intrinsic::experimental_vector_reduce_and, C);
+      auto *Cmp = Builder.CreateBitCast(Builder.CreateICmpEQ(V, Zero), IntType);
+      auto *CmpZero = llvm::ConstantInt::get(IntType, 0);
+      return Builder.CreateICmpEQ(Cmp, CmpZero);
     });
   }
   Expect<void> compileVectorBitMask(llvm::VectorType *VectorTy) {
     return compileVectorReduceIOp(VectorTy, [this, VectorTy](auto *V) {
       const auto Size = VectorTy->getElementCount().Min;
+      auto *IntType = Builder.getIntNTy(Size);
       auto *Zero = llvm::ConstantAggregateZero::get(VectorTy);
-      return Builder.CreateBitCast(Builder.CreateICmpSLT(V, Zero),
-                                   Builder.getIntNTy(Size));
+      return Builder.CreateBitCast(Builder.CreateICmpSLT(V, Zero), IntType);
     });
   }
   template <typename Func>

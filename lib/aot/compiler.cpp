@@ -2116,7 +2116,6 @@ public:
     case OpCode::I32x4__max_u:
       return compileVectorVectorUMax(Context.Int32x4Ty);
     case OpCode::I32x4__dot_i16x8_s: {
-      /// XXX: Not in testsuite yet
       auto *ExtendTy =
           llvm::VectorType::getExtendedElementVectorType(Context.Int16x8Ty);
       auto *Undef = llvm::UndefValue::get(ExtendTy);

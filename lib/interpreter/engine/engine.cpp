@@ -1888,23 +1888,22 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     return runVectorMulOp<uint8_t>(Val1, Val2);
   }
   case OpCode::I32x4__dot_i16x8_s: {
-    /// XXX: Not in testsuite yet
-    using uint16x8_t [[gnu::vector_size(16)]] = uint16_t;
-    using uint32x4_t [[gnu::vector_size(16)]] = uint32_t;
-    using uint32x8_t [[gnu::vector_size(32)]] = uint32_t;
+    using int16x8_t [[gnu::vector_size(16)]] = int16_t;
+    using int32x4_t [[gnu::vector_size(16)]] = int32_t;
+    using int32x8_t [[gnu::vector_size(32)]] = int32_t;
     const ValVariant Val2 = StackMgr.pop();
     ValVariant &Val1 = StackMgr.getTop();
 
     auto &V2 =
-        reinterpret_cast<const uint16x8_t &>(retrieveValue<uint128_t>(Val2));
+        reinterpret_cast<const int16x8_t &>(retrieveValue<uint128_t>(Val2));
     auto &V1 =
-        reinterpret_cast<const uint16x8_t &>(retrieveValue<uint128_t>(Val1));
+        reinterpret_cast<const int16x8_t &>(retrieveValue<uint128_t>(Val1));
     auto &Result =
-        reinterpret_cast<uint32x4_t &>(retrieveValue<uint128_t>(Val1));
-    const auto M = __builtin_convertvector(V1, uint32x8_t) *
-                   __builtin_convertvector(V2, uint32x8_t);
-    const uint32x4_t L = {M[0], M[2], M[4], M[6]};
-    const uint32x4_t R = {M[1], M[3], M[5], M[7]};
+        reinterpret_cast<int32x4_t &>(retrieveValue<uint128_t>(Val1));
+    const auto M = __builtin_convertvector(V1, int32x8_t) *
+                   __builtin_convertvector(V2, int32x8_t);
+    const int32x4_t L = {M[0], M[2], M[4], M[6]};
+    const int32x4_t R = {M[1], M[3], M[5], M[7]};
     Result = L + R;
 
     return {};

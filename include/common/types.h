@@ -24,6 +24,14 @@ using int128_t = __int128;
 using uint128_t = unsigned __int128;
 using int64x2_t [[gnu::vector_size(16)]] = int64_t;
 using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
+using int32x4_t [[gnu::vector_size(16)]] = int32_t;
+using uint32x4_t [[gnu::vector_size(16)]] = uint32_t;
+using int16x8_t [[gnu::vector_size(16)]] = int16_t;
+using uint16x8_t [[gnu::vector_size(16)]] = uint16_t;
+using int8x16_t [[gnu::vector_size(16)]] = int8_t;
+using uint8x16_t [[gnu::vector_size(16)]] = uint8_t;
+using doublex2_t [[gnu::vector_size(16)]] = double;
+using floatx4_t [[gnu::vector_size(16)]] = float;
 
 namespace {
 /// Remove const, reference, and volitile.
@@ -110,7 +118,10 @@ struct IsWasmUnsign
     : std::bool_constant<std::is_same_v<RemoveCVRefT<T>, uint32_t> ||
                          std::is_same_v<RemoveCVRefT<T>, uint64_t> ||
                          std::is_same_v<RemoveCVRefT<T>, uint128_t> ||
-                         std::is_same_v<RemoveCVRefT<T>, uint64x2_t>> {};
+                         std::is_same_v<RemoveCVRefT<T>, uint64x2_t> ||
+                         std::is_same_v<RemoveCVRefT<T>, uint32x4_t> ||
+                         std::is_same_v<RemoveCVRefT<T>, uint16x8_t> ||
+                         std::is_same_v<RemoveCVRefT<T>, uint8x16_t>> {};
 template <typename T>
 inline constexpr const bool IsWasmUnsignV = IsWasmUnsign<T>::value;
 
@@ -120,7 +131,10 @@ struct IsWasmSign
     : std::bool_constant<std::is_same_v<RemoveCVRefT<T>, int32_t> ||
                          std::is_same_v<RemoveCVRefT<T>, int64_t> ||
                          std::is_same_v<RemoveCVRefT<T>, int128_t> ||
-                         std::is_same_v<RemoveCVRefT<T>, int64x2_t>> {};
+                         std::is_same_v<RemoveCVRefT<T>, int64x2_t> ||
+                         std::is_same_v<RemoveCVRefT<T>, int32x4_t> ||
+                         std::is_same_v<RemoveCVRefT<T>, int16x8_t> ||
+                         std::is_same_v<RemoveCVRefT<T>, int8x16_t>> {};
 template <typename T>
 inline constexpr const bool IsWasmSignV = IsWasmSign<T>::value;
 
@@ -128,7 +142,9 @@ inline constexpr const bool IsWasmSignV = IsWasmSign<T>::value;
 template <typename T>
 struct IsWasmFloat
     : std::bool_constant<std::is_same_v<RemoveCVRefT<T>, float> ||
-                         std::is_same_v<RemoveCVRefT<T>, double>> {};
+                         std::is_same_v<RemoveCVRefT<T>, double> ||
+                         std::is_same_v<RemoveCVRefT<T>, floatx4_t> ||
+                         std::is_same_v<RemoveCVRefT<T>, doublex2_t>> {};
 template <typename T>
 inline constexpr const bool IsWasmFloatV = IsWasmFloat<T>::value;
 
@@ -195,6 +211,9 @@ template <> struct TypeToWasmType<int32_t> { using type = uint32_t; };
 template <> struct TypeToWasmType<int64_t> { using type = uint64_t; };
 template <> struct TypeToWasmType<int128_t> { using type = uint128_t; };
 template <> struct TypeToWasmType<int64x2_t> { using type = uint64x2_t; };
+template <> struct TypeToWasmType<int32x4_t> { using type = uint32x4_t; };
+template <> struct TypeToWasmType<int16x8_t> { using type = uint16x8_t; };
+template <> struct TypeToWasmType<int8x16_t> { using type = uint8x16_t; };
 template <typename T>
 using TypeToWasmTypeT =
     typename std::enable_if_t<IsWasmValV<T>, typename TypeToWasmType<T>::type>;

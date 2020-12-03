@@ -17,8 +17,8 @@ int main(int Argc, const char *Argv[]) {
   std::ios::sync_with_stdio(false);
   SSVM::Log::setErrorLoggingLevel();
 
-  PO::Option<std::string> WasmName(PO::Description("Wasm file"s),
-                                   PO::MetaVar("WASM_FILE"s));
+  PO::Option<std::string> SoName(PO::Description("Wasm or so file"s),
+                                 PO::MetaVar("WASM_OR_SO"s));
   PO::List<std::string> Args(PO::Description("Execution arguments"s),
                              PO::MetaVar("ARG"s));
 
@@ -46,7 +46,7 @@ int main(int Argc, const char *Argv[]) {
   PO::Option<PO::Toggle> All(PO::Description("Enable all features"));
 
   if (!PO::ArgumentParser()
-           .add_option(WasmName)
+           .add_option(SoName)
            .add_option(Args)
            .add_option("reactor", Reactor)
            .add_option("dir", Dir)
@@ -75,17 +75,16 @@ int main(int Argc, const char *Argv[]) {
     ProposalConf.addProposal(SSVM::Proposal::SIMD);
   }
 
-  std::string InputPath = std::filesystem::absolute(WasmName.value()).string();
+  std::string InputPath = std::filesystem::absolute(SoName.value()).string();
   SSVM::VM::Configure Conf;
   Conf.addVMType(SSVM::VM::Configure::VMType::Wasi);
   Conf.addVMType(SSVM::VM::Configure::VMType::SSVM_Process);
-
   SSVM::VM::VM VM(ProposalConf, Conf);
 
   SSVM::Host::WasiModule *WasiMod = dynamic_cast<SSVM::Host::WasiModule *>(
       VM.getImportModule(SSVM::VM::Configure::VMType::Wasi));
 
-  WasiMod->getEnv().init(Dir.value(), WasmName.value(), Args.value(),
+  WasiMod->getEnv().init(Dir.value(), SoName.value(), Args.value(),
                          Env.value());
 
   if (!Reactor.value()) {
@@ -157,6 +156,7 @@ int main(int Argc, const char *Argv[]) {
         FuncArgs.emplace_back(Value);
         break;
       }
+      /// TODO: FuncRef and ExternRef
       default:
         break;
       }
@@ -185,6 +185,7 @@ int main(int Argc, const char *Argv[]) {
         case SSVM::ValType::F64:
           std::cout << std::get<double>((*Result)[I]) << '\n';
           break;
+        /// TODO: FuncRef and ExternRef
         default:
           break;
         }

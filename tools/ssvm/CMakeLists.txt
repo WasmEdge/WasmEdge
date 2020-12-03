@@ -5,8 +5,24 @@ configure_files(
   COPYONLY
 )
 
+if (NOT SSVM_DISABLE_AOT_RUNTIME)
+  add_executable(ssvmc
+    ssvmc.cpp
+  )
+
+  install(TARGETS ssvmc EXPORT ssvm DESTINATION bin)
+
+  target_link_libraries(ssvmc
+    PRIVATE
+    ssvmLoader
+    ssvmValidator
+    ssvmAOT
+    std::filesystem
+  )
+endif()
+
 add_executable(ssvm
-  main.cpp
+  ssvmr.cpp
 )
 
 install(TARGETS ssvm EXPORT ssvm DESTINATION bin)

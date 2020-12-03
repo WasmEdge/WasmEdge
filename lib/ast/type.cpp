@@ -92,6 +92,7 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr) {
       case ValType::I64:
       case ValType::F32:
       case ValType::F64:
+      case ValType::V128:
       case ValType::FuncRef:
       case ValType::ExternRef:
         break;
@@ -127,6 +128,7 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr) {
       case ValType::I64:
       case ValType::F32:
       case ValType::F64:
+      case ValType::V128:
       case ValType::FuncRef:
       case ValType::ExternRef:
         break;
@@ -191,6 +193,7 @@ Expect<void> GlobalType::loadBinary(FileMgr &Mgr) {
     case ValType::I64:
     case ValType::F32:
     case ValType::F64:
+    case ValType::V128:
     case ValType::ExternRef:
     case ValType::FuncRef:
       break;

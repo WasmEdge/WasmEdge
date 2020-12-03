@@ -29,6 +29,7 @@ Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
       case ValType::I64:
       case ValType::F32:
       case ValType::F64:
+      case ValType::V128:
       case ValType::ExternRef:
       case ValType::FuncRef:
         ResType = VType;
@@ -88,6 +89,7 @@ Expect<void> IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
       case ValType::I64:
       case ValType::F32:
       case ValType::F64:
+      case ValType::V128:
       case ValType::ExternRef:
       case ValType::FuncRef:
         ResType = VType;
@@ -272,6 +274,7 @@ Expect<void> ParametricInstruction::loadBinary(FileMgr &Mgr) {
         case ValType::I64:
         case ValType::F32:
         case ValType::F64:
+        case ValType::V128:
         case ValType::ExternRef:
         case ValType::FuncRef:
           ValTypeList.push_back(VType);
@@ -490,6 +493,82 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
   return {};
 }
 
+/// Load SIMD memory instructions. See "include/ast/instruction.h".
+Expect<void> SIMDMemoryInstruction::loadBinary(FileMgr &Mgr) {
+  /// Read memory arguments.
+  if (auto Res = Mgr.readU32()) {
+    Align = *Res;
+  } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+    return Unexpect(Res);
+  }
+  if (auto Res = Mgr.readU32()) {
+    Offset = *Res;
+  } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+    return Unexpect(Res);
+  }
+
+  return {};
+}
+
+/// Load SIMD const instructions. See "include/ast/instruction.h".
+Expect<void> SIMDConstInstruction::loadBinary(FileMgr &Mgr) {
+  /// Read the constant number in little endian.
+  uint128_t Value = 0;
+  for (uint32_t I = 0; I < 16; ++I) {
+    if (auto Res = Mgr.readByte()) {
+      Value |= uint128_t(*Res) << (I * 8);
+    } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(Res);
+    }
+  }
+  Num = Value;
+
+  return {};
+}
+
+/// Load SIMD shuffle instructions. See "include/ast/instruction.h".
+Expect<void> SIMDShuffleInstruction::loadBinary(FileMgr &Mgr) {
+  /// Read lane indexes.
+  uint128_t Value = 0;
+  for (uint32_t I = 0; I < 16; ++I) {
+    if (auto Res = Mgr.readByte()) {
+      Value |= uint128_t(*Res) << (I * 8);
+    } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(Res);
+    }
+  }
+  Num = Value;
+
+  return {};
+}
+
+/// Load SIMD lane instructions. See "include/ast/instruction.h".
+Expect<void> SIMDLaneInstruction::loadBinary(FileMgr &Mgr) {
+  /// Read lane index.
+  if (auto Res = Mgr.readByte()) {
+    Index = *Res;
+  } else {
+    LOG(ERROR) << Res.error();
+    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+    return Unexpect(Res);
+  }
+
+  return {};
+}
+
 /// OpCode loader. See "include/ast/instruction.h".
 Expect<OpCode> loadOpCode(FileMgr &Mgr) {
   uint16_t Payload;
@@ -506,6 +585,16 @@ Expect<OpCode> loadOpCode(FileMgr &Mgr) {
     if (auto B2 = Mgr.readByte()) {
       Payload <<= 8;
       Payload |= (*B2);
+    } else {
+      LOG(ERROR) << B2.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      return Unexpect(B2);
+    }
+  } else if (Payload == 0xFDU) {
+    /// 2-bytes OpCode case.
+    if (auto B2 = Mgr.readU32()) {
+      Payload <<= 8;
+      Payload += (*B2);
     } else {
       LOG(ERROR) << B2.error();
       LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
@@ -551,6 +640,7 @@ Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, ssize_t *MeasureElseOp) {
       NewInst = std::move(*Res);
     } else {
       LOG(ERROR) << ErrInfo::InfoLoading(Offset);
+      LOG(ERROR) << ErrInfo::InfoInstruction(Code, Offset);
       LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }

@@ -28,7 +28,7 @@ Expect<void>
 Interpreter::runTableSetOp(Runtime::Instance::TableInstance &TabInst,
                            const AST::TableInstruction &Instr) {
   /// Pop Ref from Stack.
-  ValVariant Ref = StackMgr.pop();
+  RefVariant Ref = retrieveValue<uint64_t>(StackMgr.pop());
 
   /// Pop Idx from Stack.
   uint32_t Idx = retrieveValue<uint32_t>(StackMgr.pop());
@@ -105,7 +105,7 @@ Interpreter::runTableGrowOp(Runtime::Instance::TableInstance &TabInst) {
   /// Grow size and push result.
   const uint32_t CurrSize = TabInst.getSize();
 
-  if (TabInst.growTable(N, Val)) {
+  if (TabInst.growTable(N, retrieveValue<uint64_t>(Val))) {
     Val = CurrSize;
   } else {
     Val = static_cast<uint32_t>(-1);
@@ -125,7 +125,7 @@ Interpreter::runTableFillOp(Runtime::Instance::TableInstance &TabInst,
                             const AST::TableInstruction &Instr) {
   /// Pop the length, ref_value, and offset from stack.
   uint32_t Len = retrieveValue<uint32_t>(StackMgr.pop());
-  ValVariant Val = StackMgr.pop();
+  RefVariant Val = retrieveValue<uint64_t>(StackMgr.pop());
   uint32_t Off = retrieveValue<uint32_t>(StackMgr.pop());
 
   /// Fill refs with ref_value.

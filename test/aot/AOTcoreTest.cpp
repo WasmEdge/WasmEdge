@@ -168,6 +168,95 @@ TEST_P(CoreTest, TestSuites) {
         if (V1 != V2) {
           return false;
         }
+      } else if (std::string_view(Type).substr(0, 4) == "v128"sv) {
+        std::vector<std::string_view> Parts;
+        std::string_view Ev = E;
+        for (std::string::size_type Begin = 0, End = Ev.find(' ');
+             Begin != std::string::npos;
+             Begin = 1 + End, End = Ev.find(' ', Begin)) {
+          Parts.push_back(Ev.substr(Begin, End - Begin));
+          if (End == std::string::npos) {
+            break;
+          }
+        }
+        std::string_view LaneType = std::string_view(Type).substr(4);
+        if (LaneType == "f32") {
+          using floatx4_t [[gnu::vector_size(16)]] = float;
+          using uint32x4_t [[gnu::vector_size(16)]] = uint32_t;
+          const auto VF = reinterpret_cast<floatx4_t>(std::get<uint128_t>(G));
+          const auto VI = reinterpret_cast<uint32x4_t>(std::get<uint128_t>(G));
+          for (size_t I = 0; I < 4; ++I) {
+            if (Parts[I].substr(0, 4) == "nan:"sv) {
+              if (!std::isnan(VF[I])) {
+                return false;
+              }
+            } else {
+              const uint32_t V2 = std::stoull(std::string(Parts[I]));
+              const uint32_t V1 = VI[I];
+              if (V1 != V2) {
+                return false;
+              }
+            }
+          }
+        } else if (LaneType == "f64") {
+          using doublex2_t [[gnu::vector_size(16)]] = double;
+          using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
+          const auto VF = reinterpret_cast<doublex2_t>(std::get<uint128_t>(G));
+          const auto VI = reinterpret_cast<uint64x2_t>(std::get<uint128_t>(G));
+          for (size_t I = 0; I < 2; ++I) {
+            if (Parts[I].substr(0, 4) == "nan:"sv) {
+              if (!std::isnan(VF[I])) {
+                return false;
+              }
+            } else {
+              const uint64_t V2 = std::stoull(std::string(Parts[I]));
+              const uint64_t V1 = VI[I];
+              if (V1 != V2) {
+                return false;
+              }
+            }
+          }
+        } else if (LaneType == "i8") {
+          using uint8x16_t [[gnu::vector_size(16)]] = uint8_t;
+          const auto V = reinterpret_cast<uint8x16_t>(std::get<uint128_t>(G));
+          for (size_t I = 0; I < 16; ++I) {
+            const uint8_t V2 = std::stoul(std::string(Parts[I]));
+            const uint8_t V1 = V[I];
+            if (V1 != V2) {
+              return false;
+            }
+          }
+        } else if (LaneType == "i16") {
+          using uint16x8_t [[gnu::vector_size(16)]] = uint16_t;
+          const auto V = reinterpret_cast<uint16x8_t>(std::get<uint128_t>(G));
+          for (size_t I = 0; I < 8; ++I) {
+            const uint16_t V2 = std::stoul(std::string(Parts[I]));
+            const uint16_t V1 = V[I];
+            if (V1 != V2) {
+              return false;
+            }
+          }
+        } else if (LaneType == "i32") {
+          using uint32x4_t [[gnu::vector_size(16)]] = uint32_t;
+          const auto V = reinterpret_cast<uint32x4_t>(std::get<uint128_t>(G));
+          for (size_t I = 0; I < 4; ++I) {
+            const uint32_t V2 = std::stoul(std::string(Parts[I]));
+            const uint32_t V1 = V[I];
+            if (V1 != V2) {
+              return false;
+            }
+          }
+        } else if (LaneType == "i64") {
+          using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
+          const auto V = reinterpret_cast<uint64x2_t>(std::get<uint128_t>(G));
+          for (size_t I = 0; I < 2; ++I) {
+            const uint64_t V2 = std::stoul(std::string(Parts[I]));
+            const uint64_t V1 = V[I];
+            if (V1 != V2) {
+              return false;
+            }
+          }
+        }
       } else if (Type == "funcref"sv) {
         /// Handle reference value case
         if (E == "null"sv) {

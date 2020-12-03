@@ -447,6 +447,134 @@ public:
       : Instruction(Instr.Code, Instr.Offset) {}
 };
 
+/// Derived SIMD instruction node.
+class SIMDMemoryInstruction : public Instruction {
+public:
+  /// Call base constructor to initialize OpCode.
+  SIMDMemoryInstruction(const OpCode Byte, const uint32_t Off = 0)
+      : Instruction(Byte, Off) {}
+  /// Copy constructor.
+  SIMDMemoryInstruction(const SIMDMemoryInstruction &Instr)
+      : Instruction(Instr.Code, Instr.Offset), Align(Instr.Align),
+        Offset(Instr.Offset) {}
+
+  /// Load binary from file manager.
+  ///
+  /// Inheritted and overrided from Instruction.
+  /// Read the memory arguments: alignment and offset.
+  ///
+  /// \param Mgr the file manager reference.
+  ///
+  /// \returns void when success, ErrCode when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
+
+  /// Getters of memory align and offset.
+  uint32_t getMemoryAlign() const { return Align; }
+  uint32_t getMemoryOffset() const { return Offset; }
+
+private:
+  /// \name Data of memory instruction: Alignment and offset.
+  /// @{
+  uint32_t Align = 0;
+  uint32_t Offset = 0;
+  /// @}
+};
+
+/// Derived SIMD instruction node.
+class SIMDConstInstruction : public Instruction {
+public:
+  /// Call base constructor to initialize OpCode.
+  SIMDConstInstruction(const OpCode Byte, const uint32_t Off = 0)
+      : Instruction(Byte, Off) {}
+  /// Copy constructor.
+  SIMDConstInstruction(const SIMDConstInstruction &Instr)
+      : Instruction(Instr.Code, Instr.Offset), Num(Instr.Num) {}
+
+  /// Load binary from file manager.
+  ///
+  /// Inheritted and overrided from Instruction.
+  /// Read the memory arguments: alignment and offset.
+  ///
+  /// \param Mgr the file manager reference.
+  ///
+  /// \returns void when success, ErrCode when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
+
+  /// Getter of the constant value.
+  uint128_t getConstValue() const { return Num; }
+
+private:
+  /// Const value of this instruction.
+  uint128_t Num = 0;
+};
+
+/// Derived SIMD instruction node.
+class SIMDShuffleInstruction : public Instruction {
+public:
+  /// Call base constructor to initialize OpCode.
+  SIMDShuffleInstruction(const OpCode Byte, const uint32_t Off = 0)
+      : Instruction(Byte, Off) {}
+  /// Copy constructor.
+  SIMDShuffleInstruction(const SIMDShuffleInstruction &Instr)
+      : Instruction(Instr.Code, Instr.Offset), Num(Instr.Num) {}
+
+  /// Load binary from file manager.
+  ///
+  /// Inheritted and overrided from Instruction.
+  /// Read the memory arguments: alignment and offset.
+  ///
+  /// \param Mgr the file manager reference.
+  ///
+  /// \returns void when success, ErrCode when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
+
+  /// Getter of the constant value.
+  uint128_t getShuffleValue() const { return Num; }
+
+private:
+  /// Const value of this instruction.
+  uint128_t Num = 0;
+};
+
+/// Derived SIMD instruction node.
+class SIMDLaneInstruction : public Instruction {
+public:
+  /// Call base constructor to initialize OpCode.
+  SIMDLaneInstruction(const OpCode Byte, const uint32_t Off = 0)
+      : Instruction(Byte, Off) {}
+  /// Copy constructor.
+  SIMDLaneInstruction(const SIMDLaneInstruction &Instr)
+      : Instruction(Instr.Code, Instr.Offset), Index(Instr.Index) {}
+
+  /// Load binary from file manager.
+  ///
+  /// Inheritted and overrided from Instruction.
+  /// Read the memory arguments: alignment and offset.
+  ///
+  /// \param Mgr the file manager reference.
+  ///
+  /// \returns void when success, ErrCode when failed.
+  Expect<void> loadBinary(FileMgr &Mgr) override;
+
+  /// Getter of the constant value.
+  uint8_t getLaneIndex() const { return Index; }
+
+private:
+  /// Const value of this instruction.
+  uint8_t Index = 0;
+};
+
+/// Derived SIMD instruction node.
+class SIMDNumericInstruction : public Instruction {
+public:
+  /// Call base constructor to initialize OpCode.
+  SIMDNumericInstruction(const OpCode Byte, const uint32_t Off = 0)
+      : Instruction(Byte, Off) {}
+  /// Copy constructor.
+  SIMDNumericInstruction(const SIMDNumericInstruction &Instr)
+      : Instruction(Instr.Code, Instr.Offset) {}
+};
+
 template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   switch (Code) {
     /// The OpCode::Else will not make nodes.
@@ -678,6 +806,234 @@ template <typename T> auto dispatchInstruction(OpCode Code, T &&Visitor) {
   case OpCode::F64__max:
   case OpCode::F64__copysign:
     return Visitor(tag<BinaryNumericInstruction>());
+
+  case OpCode::V128__load:
+  case OpCode::I16x8__load8x8_s:
+  case OpCode::I16x8__load8x8_u:
+  case OpCode::I32x4__load16x4_s:
+  case OpCode::I32x4__load16x4_u:
+  case OpCode::I64x2__load32x2_s:
+  case OpCode::I64x2__load32x2_u:
+  case OpCode::I8x16__load_splat:
+  case OpCode::I16x8__load_splat:
+  case OpCode::I32x4__load_splat:
+  case OpCode::I64x2__load_splat:
+  case OpCode::V128__load32_zero:
+  case OpCode::V128__load64_zero:
+  case OpCode::V128__store:
+    return Visitor(tag<SIMDMemoryInstruction>());
+
+  case OpCode::V128__const:
+    return Visitor(tag<SIMDConstInstruction>());
+
+  case OpCode::I8x16__shuffle:
+    return Visitor(tag<SIMDShuffleInstruction>());
+
+  case OpCode::I8x16__extract_lane_s:
+  case OpCode::I8x16__extract_lane_u:
+  case OpCode::I8x16__replace_lane:
+  case OpCode::I16x8__extract_lane_s:
+  case OpCode::I16x8__extract_lane_u:
+  case OpCode::I16x8__replace_lane:
+  case OpCode::I32x4__extract_lane:
+  case OpCode::I32x4__replace_lane:
+  case OpCode::I64x2__extract_lane:
+  case OpCode::I64x2__replace_lane:
+  case OpCode::F32x4__extract_lane:
+  case OpCode::F32x4__replace_lane:
+  case OpCode::F64x2__extract_lane:
+  case OpCode::F64x2__replace_lane:
+    return Visitor(tag<SIMDLaneInstruction>());
+
+  case OpCode::I8x16__swizzle:
+  case OpCode::I8x16__splat:
+  case OpCode::I16x8__splat:
+  case OpCode::I32x4__splat:
+  case OpCode::I64x2__splat:
+  case OpCode::F32x4__splat:
+  case OpCode::F64x2__splat:
+
+  case OpCode::I8x16__eq:
+  case OpCode::I8x16__ne:
+  case OpCode::I8x16__lt_s:
+  case OpCode::I8x16__lt_u:
+  case OpCode::I8x16__gt_s:
+  case OpCode::I8x16__gt_u:
+  case OpCode::I8x16__le_s:
+  case OpCode::I8x16__le_u:
+  case OpCode::I8x16__ge_s:
+  case OpCode::I8x16__ge_u:
+
+  case OpCode::I16x8__eq:
+  case OpCode::I16x8__ne:
+  case OpCode::I16x8__lt_s:
+  case OpCode::I16x8__lt_u:
+  case OpCode::I16x8__gt_s:
+  case OpCode::I16x8__gt_u:
+  case OpCode::I16x8__le_s:
+  case OpCode::I16x8__le_u:
+  case OpCode::I16x8__ge_s:
+  case OpCode::I16x8__ge_u:
+
+  case OpCode::I32x4__eq:
+  case OpCode::I32x4__ne:
+  case OpCode::I32x4__lt_s:
+  case OpCode::I32x4__lt_u:
+  case OpCode::I32x4__gt_s:
+  case OpCode::I32x4__gt_u:
+  case OpCode::I32x4__le_s:
+  case OpCode::I32x4__le_u:
+  case OpCode::I32x4__ge_s:
+  case OpCode::I32x4__ge_u:
+
+  case OpCode::F32x4__eq:
+  case OpCode::F32x4__ne:
+  case OpCode::F32x4__lt:
+  case OpCode::F32x4__gt:
+  case OpCode::F32x4__le:
+  case OpCode::F32x4__ge:
+
+  case OpCode::F64x2__eq:
+  case OpCode::F64x2__ne:
+  case OpCode::F64x2__lt:
+  case OpCode::F64x2__gt:
+  case OpCode::F64x2__le:
+  case OpCode::F64x2__ge:
+
+  case OpCode::V128__not:
+  case OpCode::V128__and:
+  case OpCode::V128__andnot:
+  case OpCode::V128__or:
+  case OpCode::V128__xor:
+  case OpCode::V128__bitselect:
+
+  case OpCode::I8x16__abs:
+  case OpCode::I8x16__neg:
+  case OpCode::I8x16__any_true:
+  case OpCode::I8x16__all_true:
+  case OpCode::I8x16__bitmask:
+  case OpCode::I8x16__narrow_i16x8_s:
+  case OpCode::I8x16__narrow_i16x8_u:
+  case OpCode::I8x16__shl:
+  case OpCode::I8x16__shr_s:
+  case OpCode::I8x16__shr_u:
+  case OpCode::I8x16__add:
+  case OpCode::I8x16__add_sat_s:
+  case OpCode::I8x16__add_sat_u:
+  case OpCode::I8x16__sub:
+  case OpCode::I8x16__sub_sat_s:
+  case OpCode::I8x16__sub_sat_u:
+  case OpCode::I8x16__min_s:
+  case OpCode::I8x16__min_u:
+  case OpCode::I8x16__max_s:
+  case OpCode::I8x16__max_u:
+  case OpCode::I8x16__avgr_u:
+
+  case OpCode::I16x8__abs:
+  case OpCode::I16x8__neg:
+  case OpCode::I16x8__any_true:
+  case OpCode::I16x8__all_true:
+  case OpCode::I16x8__bitmask:
+  case OpCode::I16x8__narrow_i32x4_s:
+  case OpCode::I16x8__narrow_i32x4_u:
+  case OpCode::I16x8__widen_low_i8x16_s:
+  case OpCode::I16x8__widen_high_i8x16_s:
+  case OpCode::I16x8__widen_low_i8x16_u:
+  case OpCode::I16x8__widen_high_i8x16_u:
+  case OpCode::I16x8__shl:
+  case OpCode::I16x8__shr_s:
+  case OpCode::I16x8__shr_u:
+  case OpCode::I16x8__add:
+  case OpCode::I16x8__add_sat_s:
+  case OpCode::I16x8__add_sat_u:
+  case OpCode::I16x8__sub:
+  case OpCode::I16x8__sub_sat_s:
+  case OpCode::I16x8__sub_sat_u:
+  case OpCode::I16x8__mul:
+  case OpCode::I16x8__min_s:
+  case OpCode::I16x8__min_u:
+  case OpCode::I16x8__max_s:
+  case OpCode::I16x8__max_u:
+  case OpCode::I16x8__avgr_u:
+
+  case OpCode::I32x4__abs:
+  case OpCode::I32x4__neg:
+  case OpCode::I32x4__any_true:
+  case OpCode::I32x4__all_true:
+  case OpCode::I32x4__bitmask:
+  case OpCode::I32x4__widen_low_i16x8_s:
+  case OpCode::I32x4__widen_high_i16x8_s:
+  case OpCode::I32x4__widen_low_i16x8_u:
+  case OpCode::I32x4__widen_high_i16x8_u:
+  case OpCode::I32x4__shl:
+  case OpCode::I32x4__shr_s:
+  case OpCode::I32x4__shr_u:
+  case OpCode::I32x4__add:
+  case OpCode::I32x4__sub:
+  case OpCode::I32x4__mul:
+  case OpCode::I32x4__min_s:
+  case OpCode::I32x4__min_u:
+  case OpCode::I32x4__max_s:
+  case OpCode::I32x4__max_u:
+
+  case OpCode::I64x2__neg:
+  case OpCode::I64x2__shl:
+  case OpCode::I64x2__shr_s:
+  case OpCode::I64x2__shr_u:
+  case OpCode::I64x2__add:
+  case OpCode::I64x2__sub:
+  case OpCode::I64x2__mul:
+
+  case OpCode::F32x4__abs:
+  case OpCode::F32x4__neg:
+  case OpCode::F32x4__sqrt:
+  case OpCode::F32x4__add:
+  case OpCode::F32x4__sub:
+  case OpCode::F32x4__mul:
+  case OpCode::F32x4__div:
+  case OpCode::F32x4__min:
+  case OpCode::F32x4__max:
+  case OpCode::F32x4__pmin:
+  case OpCode::F32x4__pmax:
+
+  case OpCode::F64x2__abs:
+  case OpCode::F64x2__neg:
+  case OpCode::F64x2__sqrt:
+  case OpCode::F64x2__add:
+  case OpCode::F64x2__sub:
+  case OpCode::F64x2__mul:
+  case OpCode::F64x2__div:
+  case OpCode::F64x2__min:
+  case OpCode::F64x2__max:
+  case OpCode::F64x2__pmin:
+  case OpCode::F64x2__pmax:
+
+  case OpCode::I32x4__trunc_sat_f32x4_s:
+  case OpCode::I32x4__trunc_sat_f32x4_u:
+  case OpCode::F32x4__convert_i32x4_s:
+  case OpCode::F32x4__convert_i32x4_u:
+
+  case OpCode::I8x16__mul:
+  case OpCode::I32x4__dot_i16x8_s:
+  case OpCode::I64x2__any_true:
+  case OpCode::I64x2__all_true:
+  case OpCode::F32x4__qfma:
+  case OpCode::F32x4__qfms:
+  case OpCode::F64x2__qfma:
+  case OpCode::F64x2__qfms:
+  case OpCode::F32x4__ceil:
+  case OpCode::F32x4__floor:
+  case OpCode::F32x4__trunc:
+  case OpCode::F32x4__nearest:
+  case OpCode::F64x2__ceil:
+  case OpCode::F64x2__floor:
+  case OpCode::F64x2__trunc:
+  case OpCode::F64x2__nearest:
+  case OpCode::I64x2__trunc_sat_f64x2_s:
+  case OpCode::I64x2__trunc_sat_f64x2_u:
+  case OpCode::F64x2__convert_i64x2_s:
+  case OpCode::F64x2__convert_i64x2_u:
+    return Visitor(tag<SIMDNumericInstruction>());
 
   default:
     return Visitor(tag<void>());

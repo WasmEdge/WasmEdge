@@ -59,7 +59,7 @@ public:
   void fini() noexcept;
 
   const std::vector<std::string> &getCmdArgs() const { return CmdArgs; }
-  const std::vector<std::string_view> &getEnvirons() const { return Environs; }
+  const std::vector<std::string> &getEnvirons() const { return Environs; }
   int getExitCode() const { return ExitCode; }
   void setExitCode(int ExitCode) { this->ExitCode = ExitCode; }
 
@@ -81,7 +81,7 @@ public:
 
 private:
   std::vector<std::string> CmdArgs;
-  std::vector<std::string_view> Environs;
+  std::vector<std::string> Environs;
   std::map<__wasi_fd_t, File> FileMap;
   int ExitCode = 0;
 };

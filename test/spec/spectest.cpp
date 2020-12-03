@@ -87,27 +87,62 @@ std::vector<SSVM::ValVariant> parseValueList(const rapidjson::Value &Args) {
   std::vector<SSVM::ValVariant> Result;
   Result.reserve(Args.Size());
   for (const auto &Element : Args.GetArray()) {
-    const auto Type = Element["type"].Get<std::string>();
-    const auto Value = Element["value"].Get<std::string>();
-    if (Type == "externref"sv) {
-      if (Value == "null"sv) {
-        Result.emplace_back(SSVM::genNullRef(SSVM::RefType::ExternRef));
+    const auto &Type = Element["type"].Get<std::string>();
+    const auto &ValueNode = Element["value"];
+    if (ValueNode.IsString()) {
+      const auto &Value = ValueNode.Get<std::string>();
+      if (Type == "externref"sv) {
+        if (Value == "null"sv) {
+          Result.emplace_back(SSVM::genNullRef(SSVM::RefType::ExternRef));
+        } else {
+          /// Add 0x1 uint32_t prefix in this externref index case.
+          Result.emplace_back(SSVM::genExternRef(reinterpret_cast<uint32_t *>(
+              std::stoul(Value) + 0x100000000ULL)));
+        }
+      } else if (Type == "funcref"sv) {
+        if (Value == "null"sv) {
+          Result.emplace_back(SSVM::genNullRef(SSVM::RefType::FuncRef));
+        } else {
+          Result.emplace_back(
+              SSVM::genFuncRef(static_cast<uint32_t>(std::stoul(Value))));
+        }
+      } else if (Type == "i32"sv || Type == "f32"sv) {
+        Result.emplace_back(static_cast<uint32_t>(std::stoul(Value)));
+      } else if (Type == "i64"sv || Type == "f64"sv) {
+        Result.emplace_back(static_cast<uint64_t>(std::stoull(Value)));
       } else {
-        /// Add 0x1 uint32_t prefix in this externref index case.
-        Result.emplace_back(SSVM::genExternRef(
-            reinterpret_cast<uint32_t *>(std::stoul(Value) + 0x100000000ULL)));
+        assert(false);
       }
-    } else if (Type == "funcref"sv) {
-      if (Value == "null"sv) {
-        Result.emplace_back(SSVM::genNullRef(SSVM::RefType::FuncRef));
-      } else {
-        Result.emplace_back(
-            SSVM::genFuncRef(static_cast<uint32_t>(std::stoul(Value))));
+    } else if (ValueNode.IsArray()) {
+      SSVM::uint64x2_t I64x2;
+      const auto LaneType = Element["lane_type"].Get<std::string>();
+      if (LaneType == "i64"sv || LaneType == "f64"sv) {
+        for (size_t I = 0; I < 2; ++I) {
+          I64x2[I] = std::stoull(ValueNode[I].Get<std::string>());
+        }
+      } else if (LaneType == "i32"sv || LaneType == "f32"sv) {
+        using uint32x4_t = uint32_t __attribute__((vector_size(16)));
+        uint32x4_t I32x4;
+        for (size_t I = 0; I < 4; ++I) {
+          I32x4[I] = std::stoul(ValueNode[I].Get<std::string>());
+        }
+        I64x2 = reinterpret_cast<SSVM::uint64x2_t>(I32x4);
+      } else if (LaneType == "i16"sv) {
+        using uint16x8_t = uint16_t __attribute__((vector_size(16)));
+        uint16x8_t I16x8;
+        for (size_t I = 0; I < 8; ++I) {
+          I16x8[I] = std::stoul(ValueNode[I].Get<std::string>());
+        }
+        I64x2 = reinterpret_cast<SSVM::uint64x2_t>(I16x8);
+      } else if (LaneType == "i8"sv) {
+        using uint8x16_t = uint8_t __attribute__((vector_size(16)));
+        uint8x16_t I8x16;
+        for (size_t I = 0; I < 16; ++I) {
+          I8x16[I] = std::stoul(ValueNode[I].Get<std::string>());
+        }
+        I64x2 = reinterpret_cast<SSVM::uint64x2_t>(I8x16);
       }
-    } else if (Type == "i32"sv || Type == "f32"sv) {
-      Result.emplace_back(static_cast<uint32_t>(std::stoul(Value)));
-    } else if (Type == "i64"sv || Type == "f64"sv) {
-      Result.emplace_back(static_cast<uint64_t>(std::stoull(Value)));
+      Result.emplace_back(I64x2);
     } else {
       assert(false);
     }
@@ -121,8 +156,22 @@ parseExpectedList(const rapidjson::Value &Args) {
   std::vector<std::pair<std::string, std::string>> Result;
   Result.reserve(Args.Size());
   for (const auto &Element : Args.GetArray()) {
-    Result.emplace_back(Element["type"].Get<std::string>(),
-                        Element["value"].Get<std::string>());
+    const auto &Type = Element["type"].Get<std::string>();
+    const auto &ValueNode = Element["value"];
+    if (ValueNode.IsString()) {
+      Result.emplace_back(Type, ValueNode.Get<std::string>());
+    } else if (ValueNode.IsArray()) {
+      const auto LaneType = Element["lane_type"].Get<std::string>();
+      std::string Value;
+      for (auto Iter = ValueNode.Begin(); Iter != ValueNode.End(); ++Iter) {
+        Value += Iter->Get<std::string>();
+        Value += ' ';
+      }
+      Value.pop_back();
+      Result.emplace_back(Type + LaneType, std::move(Value));
+    } else {
+      assert(false);
+    }
   }
   return Result;
 }
@@ -135,6 +184,7 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"core"sv, {}},
     {"reference-types"sv, {SSVM::Proposal::ReferenceTypes}},
     {"bulk-memory-operations"sv, {SSVM::Proposal::BulkMemoryOperations}},
+    {"simd"sv, {SSVM::Proposal::SIMD}},
 };
 
 } // namespace

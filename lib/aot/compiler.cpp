@@ -17,6 +17,7 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
+#include <numeric>
 
 #if LLVM_VERSION_MAJOR >= 10
 #include <llvm/IR/IntrinsicsAArch64.h>
@@ -119,11 +120,20 @@ struct SSVM::AOT::Compiler::CompileContext {
   llvm::IntegerType *Int16Ty;
   llvm::IntegerType *Int32Ty;
   llvm::IntegerType *Int64Ty;
+  llvm::IntegerType *Int128Ty;
   llvm::Type *FloatTy;
   llvm::Type *DoubleTy;
+  llvm::VectorType *Int8x16Ty;
+  llvm::VectorType *Int16x8Ty;
+  llvm::VectorType *Int32x4Ty;
+  llvm::VectorType *Floatx4Ty;
+  llvm::VectorType *Int64x2Ty;
+  llvm::VectorType *Doublex2Ty;
+  llvm::VectorType *Int128x1Ty;
   llvm::PointerType *Int8PtrTy;
   llvm::PointerType *Int32PtrTy;
   llvm::PointerType *Int64PtrTy;
+  llvm::PointerType *Int128PtrTy;
   llvm::StructType *ExecCtxTy;
   llvm::PointerType *ExecCtxPtrTy;
   llvm::SubtargetFeatures SubtargetFeatures;
@@ -142,6 +152,19 @@ struct SSVM::AOT::Compiler::CompileContext {
 #endif
 #endif
 
+  bool SupportShuffle =
+#if (defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||           \
+     defined(_M_X64)) &&                                                       \
+    (defined(__AVX512F__) || defined(__AVX__) || defined(__SSE4_1__) ||        \
+     defined(__SSE3__))
+      true;
+#elif (defined(__arm__) || defined(__aarch64__)) &&                            \
+    (defined(__ARM_NEON__) || defined(__ARM_NEON) || defined(__ARM_NEON_FP))
+      true;
+#else
+      false;
+#endif
+
   std::vector<const AST::FunctionType *> FunctionTypes;
   std::vector<llvm::Function *> FunctionWrappers;
   std::vector<std::tuple<uint32_t, llvm::Function *, SSVM::AST::CodeSegment *>>
@@ -157,17 +180,26 @@ struct SSVM::AOT::Compiler::CompileContext {
         Int16Ty(llvm::Type::getInt16Ty(LLContext)),
         Int32Ty(llvm::Type::getInt32Ty(LLContext)),
         Int64Ty(llvm::Type::getInt64Ty(LLContext)),
+        Int128Ty(llvm::Type::getInt128Ty(LLContext)),
         FloatTy(llvm::Type::getFloatTy(LLContext)),
         DoubleTy(llvm::Type::getDoubleTy(LLContext)),
+        Int8x16Ty(llvm::VectorType::get(Int8Ty, 16, false)),
+        Int16x8Ty(llvm::VectorType::get(Int16Ty, 8, false)),
+        Int32x4Ty(llvm::VectorType::get(Int32Ty, 4, false)),
+        Floatx4Ty(llvm::VectorType::get(FloatTy, 4, false)),
+        Int64x2Ty(llvm::VectorType::get(Int64Ty, 2, false)),
+        Doublex2Ty(llvm::VectorType::get(DoubleTy, 2, false)),
+        Int128x1Ty(llvm::VectorType::get(Int128Ty, 1, false)),
         Int8PtrTy(llvm::Type::getInt8PtrTy(LLContext)),
         Int32PtrTy(llvm::Type::getInt32PtrTy(LLContext)),
         Int64PtrTy(Int64Ty->getPointerTo()),
+        Int128PtrTy(Int128Ty->getPointerTo()),
         ExecCtxTy(llvm::StructType::create(
             "ExecCtx",
             /// Memory
             Int8PtrTy,
             /// Globals
-            Int64PtrTy->getPointerTo(),
+            Int128PtrTy->getPointerTo(),
             /// InstrCount
             Int64PtrTy,
             /// CostTable
@@ -213,6 +245,20 @@ struct SSVM::AOT::Compiler::CompileContext {
           }
         }
 #endif
+
+        if (!SupportShuffle && Feature.second) {
+          if (llvm::StringSwitch<bool>(Feature.first())
+#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||            \
+    defined(_M_X64)
+                  .Cases("avx512f", "avx", "sse4.1", "sse3", true)
+#endif
+#if defined(__arm__) || defined(__aarch64__)
+                  .Case("neon", true)
+#endif
+                  .Default(false)) {
+            SupportShuffle = true;
+          }
+        }
 
         SubtargetFeatures.AddFeature(Feature.first(), Feature.second);
       }
@@ -284,6 +330,8 @@ static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
   case ValType::FuncRef:
   case ValType::ExternRef:
     return llvm::Type::getInt64Ty(LLContext);
+  case ValType::V128:
+    return llvm::VectorType::get(llvm::Type::getInt64Ty(LLContext), 2, false);
   case ValType::F32:
     return llvm::Type::getFloatTy(LLContext);
   case ValType::F64:
@@ -344,6 +392,9 @@ static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
   case ValType::FuncRef:
   case ValType::ExternRef:
     return llvm::ConstantInt::get(llvm::Type::getInt64Ty(LLContext), 0);
+  case ValType::V128:
+    return llvm::ConstantAggregateZero::get(
+        llvm::VectorType::get(llvm::Type::getInt64Ty(LLContext), 2, false));
   case ValType::F32:
     return llvm::ConstantFP::get(llvm::Type::getFloatTy(LLContext), 0.0f);
   case ValType::F64:
@@ -1554,6 +1605,646 @@ public:
     }
     return {};
   }
+  Expect<void> compile(const AST::SIMDMemoryInstruction &Instr) {
+    switch (Instr.getOpCode()) {
+    case OpCode::V128__load:
+      return compileVectorLoadOp(Instr.getMemoryOffset(),
+                                 Instr.getMemoryAlign(), Context.Int128x1Ty);
+    case OpCode::I16x8__load8x8_s:
+      return compileVectorLoadOp(
+          Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+          llvm::VectorType::get(Context.Int8Ty, 8, false), Context.Int16x8Ty,
+          true);
+    case OpCode::I16x8__load8x8_u:
+      return compileVectorLoadOp(
+          Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+          llvm::VectorType::get(Context.Int8Ty, 8, false), Context.Int16x8Ty,
+          false);
+    case OpCode::I32x4__load16x4_s:
+      return compileVectorLoadOp(
+          Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+          llvm::VectorType::get(Context.Int16Ty, 4, false), Context.Int32x4Ty,
+          true);
+    case OpCode::I32x4__load16x4_u:
+      return compileVectorLoadOp(
+          Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+          llvm::VectorType::get(Context.Int16Ty, 4, false), Context.Int32x4Ty,
+          false);
+    case OpCode::I64x2__load32x2_s:
+      return compileVectorLoadOp(
+          Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+          llvm::VectorType::get(Context.Int32Ty, 2, false), Context.Int64x2Ty,
+          true);
+    case OpCode::I64x2__load32x2_u:
+      return compileVectorLoadOp(
+          Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+          llvm::VectorType::get(Context.Int32Ty, 2, false), Context.Int64x2Ty,
+          false);
+    case OpCode::I8x16__load_splat:
+      return compileSplatLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                                Context.Int8Ty, Context.Int8x16Ty);
+    case OpCode::I16x8__load_splat:
+      return compileSplatLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                                Context.Int16Ty, Context.Int16x8Ty);
+    case OpCode::I32x4__load_splat:
+      return compileSplatLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                                Context.Int32Ty, Context.Int32x4Ty);
+    case OpCode::I64x2__load_splat:
+      return compileSplatLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                                Context.Int64Ty, Context.Int64x2Ty);
+    case OpCode::V128__load32_zero:
+      return compileVectorLoadOp(Instr.getMemoryOffset(),
+                                 Instr.getMemoryAlign(), Context.Int32Ty,
+                                 Context.Int128Ty, false);
+    case OpCode::V128__load64_zero:
+      return compileVectorLoadOp(Instr.getMemoryOffset(),
+                                 Instr.getMemoryAlign(), Context.Int64Ty,
+                                 Context.Int128Ty, false);
+    case OpCode::V128__store:
+      return compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                            Context.Int128x1Ty, false, true);
+    default:
+      __builtin_unreachable();
+    }
+    return {};
+  }
+  Expect<void> compile(const AST::SIMDConstInstruction &Instr) {
+    const auto Value = Instr.getConstValue();
+    uint64_t Lower = uint64_t(Value);
+    uint64_t High = uint64_t(Value >> 64);
+    auto *Vector = llvm::ConstantVector::get(
+        {Builder.getInt64(Lower), Builder.getInt64(High)});
+    stackPush(Builder.CreateBitCast(Vector, Context.Int64x2Ty));
+    return {};
+  }
+  Expect<void> compile(const AST::SIMDShuffleInstruction &Instr) {
+    switch (Instr.getOpCode()) {
+    case OpCode::I8x16__shuffle: {
+      auto *V2 = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
+      auto *V1 = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
+      const auto V3 = Instr.getShuffleValue();
+      std::array<ShuffleElement, 16> Mask;
+      for (size_t I = 0; I < 16; ++I) {
+        Mask[I] = static_cast<uint8_t>(V3 >> (I * 8));
+      }
+      stackPush(Builder.CreateBitCast(Builder.CreateShuffleVector(V1, V2, Mask),
+                                      Context.Int64x2Ty));
+      return {};
+    }
+    default:
+      __builtin_unreachable();
+    }
+    return {};
+  }
+  Expect<void> compile(const AST::SIMDLaneInstruction &Instr) {
+    switch (Instr.getOpCode()) {
+    case OpCode::I8x16__extract_lane_s:
+      return compileExtractLaneOp(Context.Int8x16Ty, Instr.getLaneIndex(),
+                                  Context.Int32Ty, true);
+    case OpCode::I8x16__extract_lane_u:
+      return compileExtractLaneOp(Context.Int8x16Ty, Instr.getLaneIndex(),
+                                  Context.Int32Ty, false);
+    case OpCode::I8x16__replace_lane:
+      return compileReplaceLaneOp(Context.Int8x16Ty, Instr.getLaneIndex());
+    case OpCode::I16x8__extract_lane_s:
+      return compileExtractLaneOp(Context.Int16x8Ty, Instr.getLaneIndex(),
+                                  Context.Int32Ty, true);
+    case OpCode::I16x8__extract_lane_u:
+      return compileExtractLaneOp(Context.Int16x8Ty, Instr.getLaneIndex(),
+                                  Context.Int32Ty, false);
+    case OpCode::I16x8__replace_lane:
+      return compileReplaceLaneOp(Context.Int16x8Ty, Instr.getLaneIndex());
+    case OpCode::I32x4__extract_lane:
+      return compileExtractLaneOp(Context.Int32x4Ty, Instr.getLaneIndex());
+    case OpCode::I32x4__replace_lane:
+      return compileReplaceLaneOp(Context.Int32x4Ty, Instr.getLaneIndex());
+    case OpCode::I64x2__extract_lane:
+      return compileExtractLaneOp(Context.Int64x2Ty, Instr.getLaneIndex());
+    case OpCode::I64x2__replace_lane:
+      return compileReplaceLaneOp(Context.Int64x2Ty, Instr.getLaneIndex());
+    case OpCode::F32x4__extract_lane:
+      return compileExtractLaneOp(Context.Floatx4Ty, Instr.getLaneIndex());
+    case OpCode::F32x4__replace_lane:
+      return compileReplaceLaneOp(Context.Floatx4Ty, Instr.getLaneIndex());
+    case OpCode::F64x2__extract_lane:
+      return compileExtractLaneOp(Context.Doublex2Ty, Instr.getLaneIndex());
+    case OpCode::F64x2__replace_lane:
+      return compileReplaceLaneOp(Context.Doublex2Ty, Instr.getLaneIndex());
+    default:
+      __builtin_unreachable();
+    }
+    return {};
+  }
+  Expect<void> compile(const AST::SIMDNumericInstruction &Instr) {
+    switch (Instr.getOpCode()) {
+    case OpCode::I8x16__swizzle: {
+      auto *Index = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
+      auto *Vector = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
+
+#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||            \
+    defined(_M_X64)
+      if (Context.SupportShuffle) {
+        auto *Magic = Builder.CreateVectorSplat(16, Builder.getInt8(112));
+        auto *Added = Builder.CreateAdd(Index, Magic);
+        auto *NewIndex = Builder.CreateSelect(
+            Builder.CreateICmpUGT(Index, Added),
+            llvm::Constant::getAllOnesValue(Context.Int8x16Ty), Added);
+        stackPush(Builder.CreateBitCast(
+            Builder.CreateIntrinsic(llvm::Intrinsic::x86_ssse3_pshuf_b_128, {},
+                                    {Vector, NewIndex}),
+            Context.Int64x2Ty));
+        return {};
+      }
+#endif
+
+#if defined(__arm__) || defined(__aarch64__)
+      if (Context.SupportShuffle) {
+        stackPush(Builder.CreateBitCast(
+            Builder.CreateIntrinsic(llvm::Intrinsic::aarch64_neon_tbl1, {},
+                                    {Vector, Index}),
+            Context.Int64x2Ty));
+        return {};
+      }
+#endif
+
+      auto *Mask = Builder.CreateVectorSplat(16, Builder.getInt8(15));
+      auto *Zero = Builder.CreateVectorSplat(16, Builder.getInt8(0));
+      auto *IsOver = Builder.CreateICmpUGT(Index, Mask);
+      auto *InboundIndex = Builder.CreateAnd(Index, Mask);
+      auto *Array = Builder.CreateAlloca(Context.Int8Ty, Builder.getInt64(16));
+      for (size_t I = 0; I < 16; ++I) {
+        Builder.CreateStore(Builder.CreateExtractElement(Vector, I),
+                            Builder.CreateConstInBoundsGEP1_64(Array, I));
+      }
+      llvm::Value *Ret = llvm::UndefValue::get(Context.Int8x16Ty);
+      for (size_t I = 0; I < 16; ++I) {
+        auto *Idx = Builder.CreateExtractElement(InboundIndex, I);
+        auto *Value =
+            Builder.CreateLoad(Builder.CreateInBoundsGEP(Array, {Idx}));
+        Ret = Builder.CreateInsertElement(Ret, Value, I);
+      }
+      Ret = Builder.CreateSelect(IsOver, Zero, Ret);
+      stackPush(Builder.CreateBitCast(Ret, Context.Int64x2Ty));
+      return {};
+    }
+    case OpCode::I8x16__splat:
+      return compileSplatOp(Context.Int8x16Ty);
+    case OpCode::I16x8__splat:
+      return compileSplatOp(Context.Int16x8Ty);
+    case OpCode::I32x4__splat:
+      return compileSplatOp(Context.Int32x4Ty);
+    case OpCode::I64x2__splat:
+      return compileSplatOp(Context.Int64x2Ty);
+    case OpCode::F32x4__splat:
+      return compileSplatOp(Context.Floatx4Ty);
+    case OpCode::F64x2__splat:
+      return compileSplatOp(Context.Doublex2Ty);
+
+    case OpCode::I8x16__eq:
+      return compileVectorCompareOp(Context.Int8x16Ty,
+                                    llvm::CmpInst::Predicate::ICMP_EQ);
+    case OpCode::I8x16__ne:
+      return compileVectorCompareOp(Context.Int8x16Ty,
+                                    llvm::CmpInst::Predicate::ICMP_NE);
+    case OpCode::I8x16__lt_s:
+      return compileVectorCompareOp(Context.Int8x16Ty,
+                                    llvm::CmpInst::Predicate::ICMP_SLT);
+    case OpCode::I8x16__lt_u:
+      return compileVectorCompareOp(Context.Int8x16Ty,
+                                    llvm::CmpInst::Predicate::ICMP_ULT);
+    case OpCode::I8x16__gt_s:
+      return compileVectorCompareOp(Context.Int8x16Ty,
+                                    llvm::CmpInst::Predicate::ICMP_SGT);
+    case OpCode::I8x16__gt_u:
+      return compileVectorCompareOp(Context.Int8x16Ty,
+                                    llvm::CmpInst::Predicate::ICMP_UGT);
+    case OpCode::I8x16__le_s:
+      return compileVectorCompareOp(Context.Int8x16Ty,
+                                    llvm::CmpInst::Predicate::ICMP_SLE);
+    case OpCode::I8x16__le_u:
+      return compileVectorCompareOp(Context.Int8x16Ty,
+                                    llvm::CmpInst::Predicate::ICMP_ULE);
+    case OpCode::I8x16__ge_s:
+      return compileVectorCompareOp(Context.Int8x16Ty,
+                                    llvm::CmpInst::Predicate::ICMP_SGE);
+    case OpCode::I8x16__ge_u:
+      return compileVectorCompareOp(Context.Int8x16Ty,
+                                    llvm::CmpInst::Predicate::ICMP_UGE);
+
+    case OpCode::I16x8__eq:
+      return compileVectorCompareOp(Context.Int16x8Ty,
+                                    llvm::CmpInst::Predicate::ICMP_EQ);
+    case OpCode::I16x8__ne:
+      return compileVectorCompareOp(Context.Int16x8Ty,
+                                    llvm::CmpInst::Predicate::ICMP_NE);
+    case OpCode::I16x8__lt_s:
+      return compileVectorCompareOp(Context.Int16x8Ty,
+                                    llvm::CmpInst::Predicate::ICMP_SLT);
+    case OpCode::I16x8__lt_u:
+      return compileVectorCompareOp(Context.Int16x8Ty,
+                                    llvm::CmpInst::Predicate::ICMP_ULT);
+    case OpCode::I16x8__gt_s:
+      return compileVectorCompareOp(Context.Int16x8Ty,
+                                    llvm::CmpInst::Predicate::ICMP_SGT);
+    case OpCode::I16x8__gt_u:
+      return compileVectorCompareOp(Context.Int16x8Ty,
+                                    llvm::CmpInst::Predicate::ICMP_UGT);
+    case OpCode::I16x8__le_s:
+      return compileVectorCompareOp(Context.Int16x8Ty,
+                                    llvm::CmpInst::Predicate::ICMP_SLE);
+    case OpCode::I16x8__le_u:
+      return compileVectorCompareOp(Context.Int16x8Ty,
+                                    llvm::CmpInst::Predicate::ICMP_ULE);
+    case OpCode::I16x8__ge_s:
+      return compileVectorCompareOp(Context.Int16x8Ty,
+                                    llvm::CmpInst::Predicate::ICMP_SGE);
+    case OpCode::I16x8__ge_u:
+      return compileVectorCompareOp(Context.Int16x8Ty,
+                                    llvm::CmpInst::Predicate::ICMP_UGE);
+
+    case OpCode::I32x4__eq:
+      return compileVectorCompareOp(Context.Int32x4Ty,
+                                    llvm::CmpInst::Predicate::ICMP_EQ);
+    case OpCode::I32x4__ne:
+      return compileVectorCompareOp(Context.Int32x4Ty,
+                                    llvm::CmpInst::Predicate::ICMP_NE);
+    case OpCode::I32x4__lt_s:
+      return compileVectorCompareOp(Context.Int32x4Ty,
+                                    llvm::CmpInst::Predicate::ICMP_SLT);
+    case OpCode::I32x4__lt_u:
+      return compileVectorCompareOp(Context.Int32x4Ty,
+                                    llvm::CmpInst::Predicate::ICMP_ULT);
+    case OpCode::I32x4__gt_s:
+      return compileVectorCompareOp(Context.Int32x4Ty,
+                                    llvm::CmpInst::Predicate::ICMP_SGT);
+    case OpCode::I32x4__gt_u:
+      return compileVectorCompareOp(Context.Int32x4Ty,
+                                    llvm::CmpInst::Predicate::ICMP_UGT);
+    case OpCode::I32x4__le_s:
+      return compileVectorCompareOp(Context.Int32x4Ty,
+                                    llvm::CmpInst::Predicate::ICMP_SLE);
+    case OpCode::I32x4__le_u:
+      return compileVectorCompareOp(Context.Int32x4Ty,
+                                    llvm::CmpInst::Predicate::ICMP_ULE);
+    case OpCode::I32x4__ge_s:
+      return compileVectorCompareOp(Context.Int32x4Ty,
+                                    llvm::CmpInst::Predicate::ICMP_SGE);
+    case OpCode::I32x4__ge_u:
+      return compileVectorCompareOp(Context.Int32x4Ty,
+                                    llvm::CmpInst::Predicate::ICMP_UGE);
+
+    case OpCode::F32x4__eq:
+      return compileVectorCompareOp(Context.Floatx4Ty,
+                                    llvm::CmpInst::Predicate::FCMP_OEQ,
+                                    Context.Int32x4Ty);
+    case OpCode::F32x4__ne:
+      return compileVectorCompareOp(Context.Floatx4Ty,
+                                    llvm::CmpInst::Predicate::FCMP_UNE,
+                                    Context.Int32x4Ty);
+    case OpCode::F32x4__lt:
+      return compileVectorCompareOp(Context.Floatx4Ty,
+                                    llvm::CmpInst::Predicate::FCMP_OLT,
+                                    Context.Int32x4Ty);
+    case OpCode::F32x4__gt:
+      return compileVectorCompareOp(Context.Floatx4Ty,
+                                    llvm::CmpInst::Predicate::FCMP_OGT,
+                                    Context.Int32x4Ty);
+    case OpCode::F32x4__le:
+      return compileVectorCompareOp(Context.Floatx4Ty,
+                                    llvm::CmpInst::Predicate::FCMP_OLE,
+                                    Context.Int32x4Ty);
+    case OpCode::F32x4__ge:
+      return compileVectorCompareOp(Context.Floatx4Ty,
+                                    llvm::CmpInst::Predicate::FCMP_OGE,
+                                    Context.Int32x4Ty);
+
+    case OpCode::F64x2__eq:
+      return compileVectorCompareOp(Context.Doublex2Ty,
+                                    llvm::CmpInst::Predicate::FCMP_OEQ,
+                                    Context.Int64x2Ty);
+    case OpCode::F64x2__ne:
+      return compileVectorCompareOp(Context.Doublex2Ty,
+                                    llvm::CmpInst::Predicate::FCMP_UNE,
+                                    Context.Int64x2Ty);
+    case OpCode::F64x2__lt:
+      return compileVectorCompareOp(Context.Doublex2Ty,
+                                    llvm::CmpInst::Predicate::FCMP_OLT,
+                                    Context.Int64x2Ty);
+    case OpCode::F64x2__gt:
+      return compileVectorCompareOp(Context.Doublex2Ty,
+                                    llvm::CmpInst::Predicate::FCMP_OGT,
+                                    Context.Int64x2Ty);
+    case OpCode::F64x2__le:
+      return compileVectorCompareOp(Context.Doublex2Ty,
+                                    llvm::CmpInst::Predicate::FCMP_OLE,
+                                    Context.Int64x2Ty);
+    case OpCode::F64x2__ge:
+      return compileVectorCompareOp(Context.Doublex2Ty,
+                                    llvm::CmpInst::Predicate::FCMP_OGE,
+                                    Context.Int64x2Ty);
+
+    case OpCode::V128__not:
+      Stack.back() = Builder.CreateNot(Stack.back());
+      return {};
+    case OpCode::V128__and: {
+      auto *RHS = stackPop();
+      auto *LHS = stackPop();
+      stackPush(Builder.CreateAnd(LHS, RHS));
+      return {};
+    }
+    case OpCode::V128__andnot: {
+      auto *RHS = stackPop();
+      auto *LHS = stackPop();
+      stackPush(Builder.CreateAnd(LHS, Builder.CreateNot(RHS)));
+      return {};
+    }
+    case OpCode::V128__or: {
+      auto *RHS = stackPop();
+      auto *LHS = stackPop();
+      stackPush(Builder.CreateOr(LHS, RHS));
+      return {};
+    }
+    case OpCode::V128__xor: {
+      auto *RHS = stackPop();
+      auto *LHS = stackPop();
+      stackPush(Builder.CreateXor(LHS, RHS));
+      return {};
+    }
+    case OpCode::V128__bitselect: {
+      auto *C = stackPop();
+      auto *V2 = stackPop();
+      auto *V1 = stackPop();
+      stackPush(Builder.CreateXor(
+          Builder.CreateAnd(Builder.CreateXor(V1, V2), C), V2));
+      return {};
+    }
+
+    case OpCode::I8x16__abs:
+      return compileVectorAbs(Context.Int8x16Ty);
+    case OpCode::I8x16__neg:
+      return compileVectorNeg(Context.Int8x16Ty);
+    case OpCode::I8x16__any_true:
+      return compileVectorAnyTrue(Context.Int8x16Ty);
+    case OpCode::I8x16__all_true:
+      return compileVectorAllTrue(Context.Int8x16Ty);
+    case OpCode::I8x16__bitmask:
+      return compileVectorBitMask(Context.Int8x16Ty);
+    case OpCode::I8x16__narrow_i16x8_s:
+      return compileVectorNarrow(Context.Int16x8Ty, true);
+    case OpCode::I8x16__narrow_i16x8_u:
+      return compileVectorNarrow(Context.Int16x8Ty, false);
+    case OpCode::I8x16__shl:
+      return compileVectorShl(Context.Int8x16Ty);
+    case OpCode::I8x16__shr_s:
+      return compileVectorAShr(Context.Int8x16Ty);
+    case OpCode::I8x16__shr_u:
+      return compileVectorLShr(Context.Int8x16Ty);
+    case OpCode::I8x16__add:
+      return compileVectorVectorAdd(Context.Int8x16Ty);
+    case OpCode::I8x16__add_sat_s:
+      return compileVectorVectorAddSat(Context.Int8x16Ty, true);
+    case OpCode::I8x16__add_sat_u:
+      return compileVectorVectorAddSat(Context.Int8x16Ty, false);
+    case OpCode::I8x16__sub:
+      return compileVectorVectorSub(Context.Int8x16Ty);
+    case OpCode::I8x16__sub_sat_s:
+      return compileVectorVectorSubSat(Context.Int8x16Ty, true);
+    case OpCode::I8x16__sub_sat_u:
+      return compileVectorVectorSubSat(Context.Int8x16Ty, false);
+    case OpCode::I8x16__mul:
+      return compileVectorVectorMul(Context.Int8x16Ty);
+    case OpCode::I8x16__min_s:
+      return compileVectorVectorSMin(Context.Int8x16Ty);
+    case OpCode::I8x16__min_u:
+      return compileVectorVectorUMin(Context.Int8x16Ty);
+    case OpCode::I8x16__max_s:
+      return compileVectorVectorSMax(Context.Int8x16Ty);
+    case OpCode::I8x16__max_u:
+      return compileVectorVectorUMax(Context.Int8x16Ty);
+    case OpCode::I8x16__avgr_u:
+      return compileVectorVectorUAvgr(Context.Int8x16Ty);
+
+    case OpCode::I16x8__abs:
+      return compileVectorAbs(Context.Int16x8Ty);
+    case OpCode::I16x8__neg:
+      return compileVectorNeg(Context.Int16x8Ty);
+    case OpCode::I16x8__any_true:
+      return compileVectorAnyTrue(Context.Int16x8Ty);
+    case OpCode::I16x8__all_true:
+      return compileVectorAllTrue(Context.Int16x8Ty);
+    case OpCode::I16x8__bitmask:
+      return compileVectorBitMask(Context.Int16x8Ty);
+    case OpCode::I16x8__narrow_i32x4_s:
+      return compileVectorNarrow(Context.Int32x4Ty, true);
+    case OpCode::I16x8__narrow_i32x4_u:
+      return compileVectorNarrow(Context.Int32x4Ty, false);
+    case OpCode::I16x8__widen_low_i8x16_s:
+      return compileVectorWiden(Context.Int8x16Ty, true, true);
+    case OpCode::I16x8__widen_high_i8x16_s:
+      return compileVectorWiden(Context.Int8x16Ty, true, false);
+    case OpCode::I16x8__widen_low_i8x16_u:
+      return compileVectorWiden(Context.Int8x16Ty, false, true);
+    case OpCode::I16x8__widen_high_i8x16_u:
+      return compileVectorWiden(Context.Int8x16Ty, false, false);
+    case OpCode::I16x8__shl:
+      return compileVectorShl(Context.Int16x8Ty);
+    case OpCode::I16x8__shr_s:
+      return compileVectorAShr(Context.Int16x8Ty);
+    case OpCode::I16x8__shr_u:
+      return compileVectorLShr(Context.Int16x8Ty);
+    case OpCode::I16x8__add:
+      return compileVectorVectorAdd(Context.Int16x8Ty);
+    case OpCode::I16x8__add_sat_s:
+      return compileVectorVectorAddSat(Context.Int16x8Ty, true);
+    case OpCode::I16x8__add_sat_u:
+      return compileVectorVectorAddSat(Context.Int16x8Ty, false);
+    case OpCode::I16x8__sub:
+      return compileVectorVectorSub(Context.Int16x8Ty);
+    case OpCode::I16x8__sub_sat_s:
+      return compileVectorVectorSubSat(Context.Int16x8Ty, true);
+    case OpCode::I16x8__sub_sat_u:
+      return compileVectorVectorSubSat(Context.Int16x8Ty, false);
+    case OpCode::I16x8__mul:
+      return compileVectorVectorMul(Context.Int16x8Ty);
+    case OpCode::I16x8__min_s:
+      return compileVectorVectorSMin(Context.Int16x8Ty);
+    case OpCode::I16x8__min_u:
+      return compileVectorVectorUMin(Context.Int16x8Ty);
+    case OpCode::I16x8__max_s:
+      return compileVectorVectorSMax(Context.Int16x8Ty);
+    case OpCode::I16x8__max_u:
+      return compileVectorVectorUMax(Context.Int16x8Ty);
+    case OpCode::I16x8__avgr_u:
+      return compileVectorVectorUAvgr(Context.Int16x8Ty);
+
+    case OpCode::I32x4__abs:
+      return compileVectorAbs(Context.Int32x4Ty);
+    case OpCode::I32x4__neg:
+      return compileVectorNeg(Context.Int32x4Ty);
+    case OpCode::I32x4__any_true:
+      return compileVectorAnyTrue(Context.Int32x4Ty);
+    case OpCode::I32x4__all_true:
+      return compileVectorAllTrue(Context.Int32x4Ty);
+    case OpCode::I32x4__bitmask:
+      return compileVectorBitMask(Context.Int32x4Ty);
+    case OpCode::I32x4__widen_low_i16x8_s:
+      return compileVectorWiden(Context.Int16x8Ty, true, true);
+    case OpCode::I32x4__widen_high_i16x8_s:
+      return compileVectorWiden(Context.Int16x8Ty, true, false);
+    case OpCode::I32x4__widen_low_i16x8_u:
+      return compileVectorWiden(Context.Int16x8Ty, false, true);
+    case OpCode::I32x4__widen_high_i16x8_u:
+      return compileVectorWiden(Context.Int16x8Ty, false, false);
+    case OpCode::I32x4__shl:
+      return compileVectorShl(Context.Int32x4Ty);
+    case OpCode::I32x4__shr_s:
+      return compileVectorAShr(Context.Int32x4Ty);
+    case OpCode::I32x4__shr_u:
+      return compileVectorLShr(Context.Int32x4Ty);
+    case OpCode::I32x4__add:
+      return compileVectorVectorAdd(Context.Int32x4Ty);
+    case OpCode::I32x4__sub:
+      return compileVectorVectorSub(Context.Int32x4Ty);
+    case OpCode::I32x4__mul:
+      return compileVectorVectorMul(Context.Int32x4Ty);
+    case OpCode::I32x4__min_s:
+      return compileVectorVectorSMin(Context.Int32x4Ty);
+    case OpCode::I32x4__min_u:
+      return compileVectorVectorUMin(Context.Int32x4Ty);
+    case OpCode::I32x4__max_s:
+      return compileVectorVectorSMax(Context.Int32x4Ty);
+    case OpCode::I32x4__max_u:
+      return compileVectorVectorUMax(Context.Int32x4Ty);
+    case OpCode::I32x4__dot_i16x8_s: {
+      /// XXX: Not in testsuite yet
+      auto *ExtendTy =
+          llvm::VectorType::getExtendedElementVectorType(Context.Int16x8Ty);
+      auto *Undef = llvm::UndefValue::get(ExtendTy);
+      auto *LHS = Builder.CreateSExt(
+          Builder.CreateBitCast(stackPop(), Context.Int16x8Ty), ExtendTy);
+      auto *RHS = Builder.CreateSExt(
+          Builder.CreateBitCast(stackPop(), Context.Int16x8Ty), ExtendTy);
+      auto *M = Builder.CreateMul(LHS, RHS);
+      auto *L = Builder.CreateShuffleVector(
+          M, Undef, std::array<ShuffleElement, 4>{0, 2, 4, 6});
+      auto *R = Builder.CreateShuffleVector(
+          M, Undef, std::array<ShuffleElement, 4>{1, 3, 5, 7});
+      auto *V = Builder.CreateAdd(L, R);
+      stackPush(Builder.CreateBitCast(V, Context.Int64x2Ty));
+      return {};
+    }
+
+    case OpCode::I64x2__neg:
+      return compileVectorNeg(Context.Int64x2Ty);
+    case OpCode::I64x2__any_true:
+      return compileVectorAnyTrue(Context.Int64x2Ty);
+    case OpCode::I64x2__all_true:
+      return compileVectorAllTrue(Context.Int64x2Ty);
+    case OpCode::I64x2__shl:
+      return compileVectorShl(Context.Int64x2Ty);
+    case OpCode::I64x2__shr_s:
+      return compileVectorAShr(Context.Int64x2Ty);
+    case OpCode::I64x2__shr_u:
+      return compileVectorLShr(Context.Int64x2Ty);
+    case OpCode::I64x2__add:
+      return compileVectorVectorAdd(Context.Int64x2Ty);
+    case OpCode::I64x2__sub:
+      return compileVectorVectorSub(Context.Int64x2Ty);
+    case OpCode::I64x2__mul:
+      return compileVectorVectorMul(Context.Int64x2Ty);
+
+    case OpCode::F32x4__abs:
+      return compileVectorFAbs(Context.Floatx4Ty);
+    case OpCode::F32x4__neg:
+      return compileVectorFNeg(Context.Floatx4Ty);
+    case OpCode::F32x4__sqrt:
+      return compileVectorFSqrt(Context.Floatx4Ty);
+    case OpCode::F32x4__add:
+      return compileVectorVectorFAdd(Context.Floatx4Ty);
+    case OpCode::F32x4__sub:
+      return compileVectorVectorFSub(Context.Floatx4Ty);
+    case OpCode::F32x4__mul:
+      return compileVectorVectorFMul(Context.Floatx4Ty);
+    case OpCode::F32x4__div:
+      return compileVectorVectorFDiv(Context.Floatx4Ty);
+    case OpCode::F32x4__min:
+      return compileVectorVectorFMin(Context.Floatx4Ty);
+    case OpCode::F32x4__max:
+      return compileVectorVectorFMax(Context.Floatx4Ty);
+    case OpCode::F32x4__pmin:
+      return compileVectorVectorFPMin(Context.Floatx4Ty);
+    case OpCode::F32x4__pmax:
+      return compileVectorVectorFPMax(Context.Floatx4Ty);
+    case OpCode::F32x4__qfma:
+      return compileVectorVectorVectorQFMA(Context.Floatx4Ty);
+    case OpCode::F32x4__qfms:
+      return compileVectorVectorVectorQFMS(Context.Floatx4Ty);
+    case OpCode::F32x4__ceil:
+      return compileVectorFCeil(Context.Floatx4Ty);
+    case OpCode::F32x4__floor:
+      return compileVectorFFloor(Context.Floatx4Ty);
+    case OpCode::F32x4__trunc:
+      return compileVectorFTrunc(Context.Floatx4Ty);
+    case OpCode::F32x4__nearest:
+      return compileVectorFNearest(Context.Floatx4Ty);
+
+    case OpCode::F64x2__abs:
+      return compileVectorFAbs(Context.Doublex2Ty);
+    case OpCode::F64x2__neg:
+      return compileVectorFNeg(Context.Doublex2Ty);
+    case OpCode::F64x2__sqrt:
+      return compileVectorFSqrt(Context.Doublex2Ty);
+    case OpCode::F64x2__add:
+      return compileVectorVectorFAdd(Context.Doublex2Ty);
+    case OpCode::F64x2__sub:
+      return compileVectorVectorFSub(Context.Doublex2Ty);
+    case OpCode::F64x2__mul:
+      return compileVectorVectorFMul(Context.Doublex2Ty);
+    case OpCode::F64x2__div:
+      return compileVectorVectorFDiv(Context.Doublex2Ty);
+    case OpCode::F64x2__min:
+      return compileVectorVectorFMin(Context.Doublex2Ty);
+    case OpCode::F64x2__max:
+      return compileVectorVectorFMax(Context.Doublex2Ty);
+    case OpCode::F64x2__pmin:
+      return compileVectorVectorFPMin(Context.Doublex2Ty);
+    case OpCode::F64x2__pmax:
+      return compileVectorVectorFPMax(Context.Doublex2Ty);
+    case OpCode::F64x2__qfma:
+      return compileVectorVectorVectorQFMA(Context.Doublex2Ty);
+    case OpCode::F64x2__qfms:
+      return compileVectorVectorVectorQFMS(Context.Doublex2Ty);
+    case OpCode::F64x2__ceil:
+      return compileVectorFCeil(Context.Doublex2Ty);
+    case OpCode::F64x2__floor:
+      return compileVectorFFloor(Context.Doublex2Ty);
+    case OpCode::F64x2__trunc:
+      return compileVectorFTrunc(Context.Doublex2Ty);
+    case OpCode::F64x2__nearest:
+      return compileVectorFNearest(Context.Doublex2Ty);
+
+    case OpCode::I32x4__trunc_sat_f32x4_s:
+      return compileVectorTruncSatS(Context.Floatx4Ty, 32);
+    case OpCode::I32x4__trunc_sat_f32x4_u:
+      return compileVectorTruncSatU(Context.Floatx4Ty, 32);
+    case OpCode::F32x4__convert_i32x4_s:
+      return compileVectorConvertS(Context.Int32x4Ty, Context.Floatx4Ty);
+    case OpCode::F32x4__convert_i32x4_u:
+      return compileVectorConvertU(Context.Int32x4Ty, Context.Floatx4Ty);
+
+    case OpCode::I64x2__trunc_sat_f64x2_s:
+      return compileVectorTruncSatS(Context.Doublex2Ty, 64);
+    case OpCode::I64x2__trunc_sat_f64x2_u:
+      return compileVectorTruncSatU(Context.Doublex2Ty, 64);
+    case OpCode::F64x2__convert_i64x2_s:
+      return compileVectorConvertS(Context.Int64x2Ty, Context.Doublex2Ty);
+    case OpCode::F64x2__convert_i64x2_u:
+      return compileVectorConvertU(Context.Int64x2Ty, Context.Doublex2Ty);
+    default:
+      __builtin_unreachable();
+    }
+    return {};
+  }
   void compileSignedTrunc(llvm::IntegerType *IntType) {
     const auto MinInt = llvm::APInt::getSignedMinValue(IntType->getBitWidth());
     const auto MaxInt = llvm::APInt::getSignedMaxValue(IntType->getBitWidth());
@@ -1794,16 +2485,20 @@ private:
     if (ArgSize == 0) {
       Args = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
     } else {
-      Args = Builder.CreateAlloca(Builder.getInt8Ty(),
-                                  Builder.getInt64(ArgSize * kValSize));
+      auto *Alloca = Builder.CreateAlloca(Builder.getInt8Ty(),
+                                          Builder.getInt64(ArgSize * kValSize));
+      Alloca->setAlignment(Align(kValSize));
+      Args = Alloca;
     }
 
     llvm::Value *Rets;
     if (RetSize == 0) {
       Rets = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
     } else {
-      Rets = Builder.CreateAlloca(Builder.getInt8Ty(),
-                                  Builder.getInt64(RetSize * kValSize));
+      auto *Alloca = Builder.CreateAlloca(Builder.getInt8Ty(),
+                                          Builder.getInt64(RetSize * kValSize));
+      Alloca->setAlignment(Align(kValSize));
+      Rets = Alloca;
     }
 
     for (unsigned I = 0; I < ArgSize; ++I) {
@@ -1875,8 +2570,35 @@ private:
     }
     return {};
   }
+  Expect<void> compileVectorLoadOp(unsigned Offset, unsigned Alignment,
+                                   llvm::Type *LoadTy) {
+    if (auto Ret = compileLoadOp(Offset, Alignment, LoadTy); !Ret) {
+      return Unexpect(Ret);
+    }
+    Stack.back() = Builder.CreateBitCast(Stack.back(), Context.Int64x2Ty);
+    return {};
+  }
+  Expect<void> compileVectorLoadOp(unsigned Offset, unsigned Alignment,
+                                   llvm::Type *LoadTy, llvm::Type *ExtendTy,
+                                   bool Signed) {
+    if (auto Ret = compileLoadOp(Offset, Alignment, LoadTy, ExtendTy, Signed);
+        !Ret) {
+      return Unexpect(Ret);
+    }
+    Stack.back() = Builder.CreateBitCast(Stack.back(), Context.Int64x2Ty);
+    return {};
+  }
+  Expect<void> compileSplatLoadOp(unsigned Offset, unsigned Alignment,
+                                  llvm::Type *LoadTy,
+                                  llvm::VectorType *VectorTy) {
+    if (auto Ret = compileLoadOp(Offset, Alignment, LoadTy); !Ret) {
+      return Unexpect(Ret);
+    }
+    return compileSplatOp(VectorTy);
+  }
   Expect<void> compileStoreOp(unsigned Offset, unsigned Alignment,
-                              llvm::Type *LoadTy, bool Trunc = false) {
+                              llvm::Type *LoadTy, bool Trunc = false,
+                              bool BitCast = false) {
     if constexpr (kForceUnalignment) {
       Alignment = 0;
     }
@@ -1889,12 +2611,489 @@ private:
     if (Trunc) {
       V = Builder.CreateTrunc(V, LoadTy);
     }
+    if (BitCast) {
+      V = Builder.CreateBitCast(V, LoadTy);
+    }
     auto *VPtr =
         Builder.CreateInBoundsGEP(Context.getMemory(Builder, ExecCtx), {Off});
     auto *Ptr = Builder.CreateBitCast(VPtr, LoadTy->getPointerTo());
     auto *StoreInst = Builder.CreateStore(V, Ptr, OptNone);
     StoreInst->setAlignment(Align(UINT64_C(1) << Alignment));
     return {};
+  }
+  Expect<void> compileSplatOp(llvm::VectorType *VectorTy) {
+    const uint32_t kZero = 0;
+    auto *Undef = llvm::UndefValue::get(VectorTy);
+    auto *Zeros = llvm::ConstantAggregateZero::get(llvm::VectorType::get(
+        Context.Int32Ty, VectorTy->getElementCount().Min, false));
+    auto *Value = Builder.CreateTrunc(Stack.back(), VectorTy->getElementType());
+    auto *Vector = Builder.CreateInsertElement(Undef, Value, kZero);
+    Vector = Builder.CreateShuffleVector(Vector, Undef, Zeros);
+
+    Stack.back() = Builder.CreateBitCast(Vector, Context.Int64x2Ty);
+    return {};
+  }
+  Expect<void> compileExtractLaneOp(llvm::VectorType *VectorTy,
+                                    unsigned Index) {
+    auto *Vector = Builder.CreateBitCast(Stack.back(), VectorTy);
+    Stack.back() = Builder.CreateExtractElement(Vector, Index);
+    return {};
+  }
+  Expect<void> compileExtractLaneOp(llvm::VectorType *VectorTy, unsigned Index,
+                                    llvm::Type *ExtendTy, bool Signed) {
+    if (auto Ret = compileExtractLaneOp(VectorTy, Index); !Ret) {
+      return Unexpect(Ret);
+    }
+    if (Signed) {
+      Stack.back() = Builder.CreateSExt(Stack.back(), ExtendTy);
+    } else {
+      Stack.back() = Builder.CreateZExt(Stack.back(), ExtendTy);
+    }
+    return {};
+  }
+  Expect<void> compileReplaceLaneOp(llvm::VectorType *VectorTy,
+                                    unsigned Index) {
+    auto *Value = Builder.CreateTrunc(stackPop(), VectorTy->getElementType());
+    auto *Vector = Stack.back();
+    Stack.back() = Builder.CreateBitCast(
+        Builder.CreateInsertElement(Builder.CreateBitCast(Vector, VectorTy),
+                                    Value, Index),
+        Context.Int64x2Ty);
+    return {};
+  }
+  Expect<void> compileVectorCompareOp(llvm::VectorType *VectorTy,
+                                      llvm::CmpInst::Predicate Predicate) {
+    auto *RHS = stackPop();
+    auto *LHS = stackPop();
+    auto *Result = Builder.CreateSExt(
+        Builder.CreateICmp(Predicate, Builder.CreateBitCast(LHS, VectorTy),
+                           Builder.CreateBitCast(RHS, VectorTy)),
+        VectorTy);
+    stackPush(Builder.CreateBitCast(Result, Context.Int64x2Ty));
+    return {};
+  }
+  Expect<void> compileVectorCompareOp(llvm::VectorType *VectorTy,
+                                      llvm::CmpInst::Predicate Predicate,
+                                      llvm::VectorType *ResultTy) {
+    auto *RHS = stackPop();
+    auto *LHS = stackPop();
+    auto *Result = Builder.CreateSExt(
+        Builder.CreateFCmp(Predicate, Builder.CreateBitCast(LHS, VectorTy),
+                           Builder.CreateBitCast(RHS, VectorTy)),
+        ResultTy);
+    stackPush(Builder.CreateBitCast(Result, Context.Int64x2Ty));
+    return {};
+  }
+  template <typename Func>
+  Expect<void> compileVectorOp(llvm::VectorType *VectorTy, Func &&Op) {
+    auto *V = Builder.CreateBitCast(Stack.back(), VectorTy);
+    Stack.back() = Builder.CreateBitCast(Op(V), Context.Int64x2Ty);
+    return {};
+  }
+  Expect<void> compileVectorAbs(llvm::VectorType *VectorTy) {
+    return compileVectorOp(VectorTy, [this, VectorTy](auto *V) {
+      auto *Zero = llvm::ConstantAggregateZero::get(VectorTy);
+      auto *C = Builder.CreateICmpSLT(V, Zero);
+      return Builder.CreateSelect(C, Builder.CreateNeg(V), V);
+    });
+  }
+  Expect<void> compileVectorNeg(llvm::VectorType *VectorTy) {
+    return compileVectorOp(VectorTy,
+                           [this](auto *V) { return Builder.CreateNeg(V); });
+  }
+  template <typename Func>
+  Expect<void> compileVectorReduceIOp(llvm::VectorType *VectorTy, Func &&Op) {
+    auto *V = Builder.CreateBitCast(Stack.back(), VectorTy);
+    Stack.back() = Builder.CreateZExt(Op(V), Context.Int32Ty);
+    return {};
+  }
+  Expect<void> compileVectorAnyTrue(llvm::VectorType *VectorTy) {
+    return compileVectorReduceIOp(VectorTy, [this, VectorTy](auto *V) {
+      const auto Size = VectorTy->getElementCount().Min;
+      auto *IntType = Builder.getIntNTy(Size);
+      auto *Zero = llvm::ConstantAggregateZero::get(VectorTy);
+      auto *Cmp = Builder.CreateBitCast(Builder.CreateICmpNE(V, Zero), IntType);
+      auto *CmpZero = llvm::ConstantInt::get(IntType, 0);
+      return Builder.CreateICmpNE(Cmp, CmpZero);
+    });
+  }
+  Expect<void> compileVectorAllTrue(llvm::VectorType *VectorTy) {
+    return compileVectorReduceIOp(VectorTy, [this, VectorTy](auto *V) {
+      const auto Size = VectorTy->getElementCount().Min;
+      auto *IntType = Builder.getIntNTy(Size);
+      auto *Zero = llvm::ConstantAggregateZero::get(VectorTy);
+      auto *Cmp = Builder.CreateBitCast(Builder.CreateICmpEQ(V, Zero), IntType);
+      auto *CmpZero = llvm::ConstantInt::get(IntType, 0);
+      return Builder.CreateICmpEQ(Cmp, CmpZero);
+    });
+  }
+  Expect<void> compileVectorBitMask(llvm::VectorType *VectorTy) {
+    return compileVectorReduceIOp(VectorTy, [this, VectorTy](auto *V) {
+      const auto Size = VectorTy->getElementCount().Min;
+      auto *IntType = Builder.getIntNTy(Size);
+      auto *Zero = llvm::ConstantAggregateZero::get(VectorTy);
+      return Builder.CreateBitCast(Builder.CreateICmpSLT(V, Zero), IntType);
+    });
+  }
+  template <typename Func>
+  Expect<void> compileVectorShiftOp(llvm::VectorType *VectorTy, Func &&Op) {
+    const uint64_t Mask = VectorTy->getElementType()->getIntegerBitWidth() - 1;
+    auto *N = Builder.CreateAnd(stackPop(), Builder.getInt32(Mask));
+    auto *RHS = Builder.CreateVectorSplat(
+        VectorTy->getElementCount().Min,
+        Builder.CreateZExtOrTrunc(N, VectorTy->getElementType()));
+    auto *LHS = Builder.CreateBitCast(stackPop(), VectorTy);
+    stackPush(Builder.CreateBitCast(Op(LHS, RHS), Context.Int64x2Ty));
+    return {};
+  }
+  Expect<void> compileVectorShl(llvm::VectorType *VectorTy) {
+    return compileVectorShiftOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      return Builder.CreateShl(LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorLShr(llvm::VectorType *VectorTy) {
+    return compileVectorShiftOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      return Builder.CreateLShr(LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorAShr(llvm::VectorType *VectorTy) {
+    return compileVectorShiftOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      return Builder.CreateAShr(LHS, RHS);
+    });
+  }
+  template <typename Func>
+  Expect<void> compileVectorVectorOp(llvm::VectorType *VectorTy, Func &&Op) {
+    auto *RHS = Builder.CreateBitCast(stackPop(), VectorTy);
+    auto *LHS = Builder.CreateBitCast(stackPop(), VectorTy);
+    stackPush(Builder.CreateBitCast(Op(LHS, RHS), Context.Int64x2Ty));
+    return {};
+  }
+  Expect<void> compileVectorVectorAdd(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      return Builder.CreateAdd(LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorVectorAddSat(llvm::VectorType *VectorTy,
+                                         bool Signed) {
+    auto ID = Signed ? llvm::Intrinsic::sadd_sat : llvm::Intrinsic::uadd_sat;
+    return compileVectorVectorOp(VectorTy, [this, ID](auto *LHS, auto *RHS) {
+      return Builder.CreateBinaryIntrinsic(ID, LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorVectorSub(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      return Builder.CreateSub(LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorVectorSubSat(llvm::VectorType *VectorTy,
+                                         bool Signed) {
+    auto ID = Signed ? llvm::Intrinsic::ssub_sat : llvm::Intrinsic::usub_sat;
+    return compileVectorVectorOp(VectorTy, [this, ID](auto *LHS, auto *RHS) {
+      return Builder.CreateBinaryIntrinsic(ID, LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorVectorMul(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      return Builder.CreateMul(LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorVectorSMin(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      auto *C = Builder.CreateICmpSLE(LHS, RHS);
+      return Builder.CreateSelect(C, LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorVectorUMin(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      auto *C = Builder.CreateICmpULE(LHS, RHS);
+      return Builder.CreateSelect(C, LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorVectorSMax(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      auto *C = Builder.CreateICmpSGE(LHS, RHS);
+      return Builder.CreateSelect(C, LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorVectorUMax(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      auto *C = Builder.CreateICmpUGE(LHS, RHS);
+      return Builder.CreateSelect(C, LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorVectorUAvgr(llvm::VectorType *VectorTy) {
+    auto *ExtendTy = VectorTy->getExtendedElementVectorType(VectorTy);
+    return compileVectorVectorOp(VectorTy, [this, VectorTy,
+                                            ExtendTy](auto *LHS, auto *RHS) {
+      auto *EL = Builder.CreateZExt(LHS, ExtendTy);
+      auto *ER = Builder.CreateZExt(RHS, ExtendTy);
+      auto *One = Builder.CreateZExt(
+          Builder.CreateVectorSplat(ExtendTy->getElementCount().Min,
+                                    Builder.getTrue()),
+          ExtendTy);
+      return Builder.CreateTrunc(
+          Builder.CreateLShr(Builder.CreateAdd(Builder.CreateAdd(EL, ER), One),
+                             One),
+          VectorTy);
+    });
+  }
+  Expect<void> compileVectorNarrow(llvm::VectorType *FromTy, bool Signed) {
+    const auto IntWidth = FromTy->getElementType()->getIntegerBitWidth();
+    auto MinInt = Signed ? llvm::APInt::getSignedMinValue(IntWidth / 2)
+                         : llvm::APInt::getMinValue(IntWidth / 2);
+    MinInt = Signed ? MinInt.sext(IntWidth) : MinInt.zext(IntWidth);
+    auto MaxInt = Signed ? llvm::APInt::getSignedMaxValue(IntWidth / 2)
+                         : llvm::APInt::getMaxValue(IntWidth / 2);
+    MaxInt = Signed ? MaxInt.sext(IntWidth) : MaxInt.zext(IntWidth);
+
+    const auto Count = FromTy->getElementCount().Min;
+    auto *VMin = Builder.CreateVectorSplat(Count, Builder.getInt(MinInt));
+    auto *VMax = Builder.CreateVectorSplat(Count, Builder.getInt(MaxInt));
+
+    auto *TruncTy = llvm::VectorType::getTruncatedElementVectorType(FromTy);
+
+    auto *F2 = Builder.CreateBitCast(stackPop(), FromTy);
+    F2 = Builder.CreateSelect(Builder.CreateICmpSLT(F2, VMin), VMin, F2);
+    F2 = Builder.CreateSelect(Builder.CreateICmpSGT(F2, VMax), VMax, F2);
+    F2 = Builder.CreateTrunc(F2, TruncTy);
+
+    auto *F1 = Builder.CreateBitCast(stackPop(), FromTy);
+    F1 = Builder.CreateSelect(Builder.CreateICmpSLT(F1, VMin), VMin, F1);
+    F1 = Builder.CreateSelect(Builder.CreateICmpSGT(F1, VMax), VMax, F1);
+    F1 = Builder.CreateTrunc(F1, TruncTy);
+
+    std::vector<ShuffleElement> Mask(Count * 2);
+    std::iota(Mask.begin(), Mask.end(), 0);
+    stackPush(Builder.CreateBitCast(Builder.CreateShuffleVector(F1, F2, Mask),
+                                    Context.Int64x2Ty));
+    return {};
+  }
+  Expect<void> compileVectorWiden(llvm::VectorType *FromTy, bool Signed,
+                                  bool Low) {
+    auto *ExtTy = llvm::VectorType::getExtendedElementVectorType(FromTy);
+    const auto Count = FromTy->getElementCount().Min;
+    std::vector<ShuffleElement> Mask(Count / 2);
+    std::iota(Mask.begin(), Mask.end(), Low ? 0 : Count / 2);
+    auto *F = Builder.CreateBitCast(Stack.back(), FromTy);
+    if (Signed) {
+      F = Builder.CreateSExt(F, ExtTy);
+    } else {
+      F = Builder.CreateZExt(F, ExtTy);
+    }
+    F = Builder.CreateShuffleVector(F, llvm::UndefValue::get(ExtTy), Mask);
+    Stack.back() = Builder.CreateBitCast(F, Context.Int64x2Ty);
+    return {};
+  }
+  Expect<void> compileVectorFAbs(llvm::VectorType *VectorTy) {
+    return compileVectorOp(VectorTy, [this](auto *V) {
+      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::fabs, V);
+    });
+  }
+  Expect<void> compileVectorFNeg(llvm::VectorType *VectorTy) {
+    return compileVectorOp(VectorTy,
+                           [this](auto *V) { return Builder.CreateFNeg(V); });
+  }
+  Expect<void> compileVectorFSqrt(llvm::VectorType *VectorTy) {
+    return compileVectorOp(VectorTy, [this](auto *V) {
+      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::sqrt, V);
+    });
+  }
+  Expect<void> compileVectorFCeil(llvm::VectorType *VectorTy) {
+    return compileVectorOp(VectorTy, [this](auto *V) {
+      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ceil, V);
+    });
+  }
+  Expect<void> compileVectorFFloor(llvm::VectorType *VectorTy) {
+    return compileVectorOp(VectorTy, [this](auto *V) {
+      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::floor, V);
+    });
+  }
+  Expect<void> compileVectorFTrunc(llvm::VectorType *VectorTy) {
+    return compileVectorOp(VectorTy, [this](auto *V) {
+      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, V);
+    });
+  }
+  Expect<void> compileVectorFNearest(llvm::VectorType *VectorTy) {
+#if LLVM_VERSION_MAJOR >= 11
+    return compileVectorOp(VectorTy, [this](auto *V) {
+      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven, V);
+    });
+#else
+    const bool IsFloat = VectorTy->getElementType() == Context.FloatTy;
+    return compileVectorOp(VectorTy, [this, IsFloat](auto *V) {
+#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||            \
+    defined(_M_X64)
+      if (Context.SupportRoundeven) {
+        auto ID = IsFloat ? llvm::Intrinsic::x86_sse41_round_ps
+                          : llvm::Intrinsic::x86_sse41_round_pd;
+        return Builder.CreateIntrinsic(ID, {}, {V, Builder.getInt32(8)});
+      }
+#endif
+
+#if defined(__arm__) || defined(__aarch64__)
+      if (Context.SupportRoundeven) {
+        return Builder.CreateBinaryIntrinsic(
+            llvm::Intrinsic::aarch64_neon_frintn, V, V);
+      }
+#endif
+
+      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, V);
+    });
+#endif
+  }
+  Expect<void> compileVectorVectorFAdd(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      return Builder.CreateFAdd(LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorVectorFSub(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      return Builder.CreateFSub(LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorVectorFMul(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      return Builder.CreateFMul(LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorVectorFDiv(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      return Builder.CreateFDiv(LHS, RHS);
+    });
+  }
+  Expect<void> compileVectorVectorFMin(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      auto *LNaN = Builder.CreateFCmpUNO(LHS, LHS);
+      auto *RNaN = Builder.CreateFCmpUNO(RHS, RHS);
+      auto *OLT = Builder.CreateFCmpOLT(LHS, RHS);
+      auto *OGT = Builder.CreateFCmpOGT(LHS, RHS);
+      llvm::Value *Ret = Builder.CreateBitCast(
+          Builder.CreateOr(Builder.CreateBitCast(LHS, Context.Int64x2Ty),
+                           Builder.CreateBitCast(RHS, Context.Int64x2Ty)),
+          LHS->getType());
+      Ret = Builder.CreateSelect(OGT, RHS, Ret);
+      Ret = Builder.CreateSelect(OLT, LHS, Ret);
+      Ret = Builder.CreateSelect(RNaN, RHS, Ret);
+      Ret = Builder.CreateSelect(LNaN, LHS, Ret);
+      return Ret;
+    });
+  }
+  Expect<void> compileVectorVectorFMax(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      auto *LNaN = Builder.CreateFCmpUNO(LHS, LHS);
+      auto *RNaN = Builder.CreateFCmpUNO(RHS, RHS);
+      auto *OLT = Builder.CreateFCmpOLT(LHS, RHS);
+      auto *OGT = Builder.CreateFCmpOGT(LHS, RHS);
+      llvm::Value *Ret = Builder.CreateBitCast(
+          Builder.CreateAnd(Builder.CreateBitCast(LHS, Context.Int64x2Ty),
+                            Builder.CreateBitCast(RHS, Context.Int64x2Ty)),
+          LHS->getType());
+      Ret = Builder.CreateSelect(OLT, RHS, Ret);
+      Ret = Builder.CreateSelect(OGT, LHS, Ret);
+      Ret = Builder.CreateSelect(RNaN, RHS, Ret);
+      Ret = Builder.CreateSelect(LNaN, LHS, Ret);
+      return Ret;
+    });
+  }
+  Expect<void> compileVectorVectorFPMin(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      auto *Cmp = Builder.CreateFCmpOLT(RHS, LHS);
+      return Builder.CreateSelect(Cmp, RHS, LHS);
+    });
+  }
+  Expect<void> compileVectorVectorFPMax(llvm::VectorType *VectorTy) {
+    return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
+      auto *Cmp = Builder.CreateFCmpOGT(RHS, LHS);
+      return Builder.CreateSelect(Cmp, RHS, LHS);
+    });
+  }
+  Expect<void> compileVectorTruncSatS(llvm::VectorType *VectorTy,
+                                      unsigned IntWidth) {
+    return compileVectorOp(VectorTy, [this, VectorTy, IntWidth](auto *V) {
+      const auto Size = VectorTy->getElementCount().Min;
+      auto *FPTy = VectorTy->getElementType();
+      auto *IntZero = Builder.getIntN(IntWidth, 0);
+      auto *IntMin = Builder.getInt(llvm::APInt::getSignedMinValue(IntWidth));
+      auto *IntMax = Builder.getInt(llvm::APInt::getSignedMaxValue(IntWidth));
+      auto *IntZeroV = Builder.CreateVectorSplat(Size, IntZero);
+      auto *IntMinV = Builder.CreateVectorSplat(Size, IntMin);
+      auto *IntMaxV = Builder.CreateVectorSplat(Size, IntMax);
+      auto *FPMin = llvm::ConstantExpr::getSIToFP(IntMin, FPTy);
+      auto *FPMax = llvm::ConstantExpr::getSIToFP(IntMax, FPTy);
+      auto *FPMinV = Builder.CreateVectorSplat(Size, FPMin);
+      auto *FPMaxV = Builder.CreateVectorSplat(Size, FPMax);
+
+      auto *Normal = Builder.CreateFCmpORD(V, V);
+      auto *NotUnder = Builder.CreateFCmpUGE(V, FPMinV);
+      auto *NotOver = Builder.CreateFCmpULT(V, FPMaxV);
+      V = Builder.CreateFPToSI(
+          V, llvm::VectorType::get(Builder.getIntNTy(IntWidth), Size, false));
+      V = Builder.CreateSelect(Normal, V, IntZeroV);
+      V = Builder.CreateSelect(NotUnder, V, IntMinV);
+      V = Builder.CreateSelect(NotOver, V, IntMaxV);
+      return V;
+    });
+  }
+  Expect<void> compileVectorTruncSatU(llvm::VectorType *VectorTy,
+                                      unsigned IntWidth) {
+    return compileVectorOp(VectorTy, [this, VectorTy, IntWidth](auto *V) {
+      const auto Size = VectorTy->getElementCount().Min;
+      auto *FPTy = VectorTy->getElementType();
+      auto *IntMin = Builder.getInt(llvm::APInt::getMinValue(IntWidth));
+      auto *IntMax = Builder.getInt(llvm::APInt::getMaxValue(IntWidth));
+      auto *IntMinV = Builder.CreateVectorSplat(Size, IntMin);
+      auto *IntMaxV = Builder.CreateVectorSplat(Size, IntMax);
+      auto *FPMin = llvm::ConstantExpr::getUIToFP(IntMin, FPTy);
+      auto *FPMax = llvm::ConstantExpr::getUIToFP(IntMax, FPTy);
+      auto *FPMinV = Builder.CreateVectorSplat(Size, FPMin);
+      auto *FPMaxV = Builder.CreateVectorSplat(Size, FPMax);
+
+      auto *NotUnder = Builder.CreateFCmpOGE(V, FPMinV);
+      auto *NotOver = Builder.CreateFCmpULT(V, FPMaxV);
+      V = Builder.CreateFPToUI(
+          V, llvm::VectorType::get(Builder.getIntNTy(IntWidth), Size, false));
+      V = Builder.CreateSelect(NotUnder, V, IntMinV);
+      V = Builder.CreateSelect(NotOver, V, IntMaxV);
+      return V;
+    });
+  }
+  Expect<void> compileVectorConvertS(llvm::VectorType *VectorTy,
+                                     llvm::VectorType *FPVectorTy) {
+    return compileVectorOp(VectorTy, [this, FPVectorTy](auto *V) {
+      return Builder.CreateSIToFP(V, FPVectorTy);
+    });
+  }
+  Expect<void> compileVectorConvertU(llvm::VectorType *VectorTy,
+                                     llvm::VectorType *FPVectorTy) {
+    return compileVectorOp(VectorTy, [this, FPVectorTy](auto *V) {
+      return Builder.CreateUIToFP(V, FPVectorTy);
+    });
+  }
+  template <typename Func>
+  Expect<void> compileVectorVectorVectorOp(llvm::VectorType *VectorTy,
+                                           Func &&Op) {
+    auto *C = Builder.CreateBitCast(stackPop(), VectorTy);
+    auto *B = Builder.CreateBitCast(stackPop(), VectorTy);
+    auto *A = Builder.CreateBitCast(stackPop(), VectorTy);
+    stackPush(Builder.CreateBitCast(Op(A, B, C), Context.Int64x2Ty));
+    return {};
+  }
+  Expect<void> compileVectorVectorVectorQFMA(llvm::VectorType *VectorTy) {
+    /// XXX: Not in testsuite yet
+    return compileVectorVectorVectorOp(
+        VectorTy, [this](auto *A, auto *B, auto *C) {
+          return Builder.CreateIntrinsic(llvm::Intrinsic::fmuladd,
+                                         {A->getType()}, {A, B, C});
+        });
+  }
+  Expect<void> compileVectorVectorVectorQFMS(llvm::VectorType *VectorTy) {
+    /// XXX: Not in testsuite yet
+    return compileVectorVectorVectorOp(
+        VectorTy, [this](auto *A, auto *B, auto *C) {
+          C = Builder.CreateFNeg(C);
+          return Builder.CreateIntrinsic(llvm::Intrinsic::fmuladd,
+                                         {A->getType()}, {A, B, C});
+        });
   }
 
   std::pair<std::vector<ValType>, std::vector<ValType>>
@@ -2492,16 +3691,20 @@ Expect<void> Compiler::compile(const AST::ImportSection &ImportSec) {
       if (ArgSize == 0) {
         Args = llvm::ConstantPointerNull::get(Context->Int8PtrTy);
       } else {
-        Args = Builder.CreateAlloca(Context->Int8Ty,
-                                    Builder.getInt64(ArgSize * kValSize));
+        auto *Alloca = Builder.CreateAlloca(
+            Context->Int8Ty, Builder.getInt64(ArgSize * kValSize));
+        Alloca->setAlignment(Align(kValSize));
+        Args = Alloca;
       }
 
       llvm::Value *Rets;
       if (RetSize == 0) {
         Rets = llvm::ConstantPointerNull::get(Context->Int8PtrTy);
       } else {
-        Rets = Builder.CreateAlloca(Context->Int8Ty,
-                                    Builder.getInt64(RetSize * kValSize));
+        auto *Alloca = Builder.CreateAlloca(
+            Context->Int8Ty, Builder.getInt64(RetSize * kValSize));
+        Alloca->setAlignment(Align(kValSize));
+        Rets = Alloca;
       }
 
       for (unsigned I = 0; I < ArgSize; ++I) {

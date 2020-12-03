@@ -194,5 +194,297 @@ TypeF<T> Interpreter::runCopysignOp(ValVariant &Val1,
   return {};
 }
 
+template <typename TIn, typename TOut>
+Expect<void> Interpreter::runReplaceLaneOp(ValVariant &Val1,
+                                           const ValVariant &Val2,
+                                           const uint8_t Index) const {
+  using VTOut [[gnu::vector_size(16)]] = TOut;
+  VTOut &Result = reinterpret_cast<VTOut &>(retrieveValue<uint128_t>(Val1));
+  Result[Index] = retrieveValue<TIn>(Val2);
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorEqOp(ValVariant &Val1,
+                                        const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  const VT &V2 = reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+
+  V1 = (V1 == V2);
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorNeOp(ValVariant &Val1,
+                                        const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  const VT &V2 = reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+
+  V1 = (V1 != V2);
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorLtOp(ValVariant &Val1,
+                                        const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  const VT &V2 = reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+
+  V1 = (V1 < V2);
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorGtOp(ValVariant &Val1,
+                                        const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  const VT &V2 = reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+
+  V1 = (V1 > V2);
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorLeOp(ValVariant &Val1,
+                                        const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  const VT &V2 = reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+
+  V1 = (V1 <= V2);
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorGeOp(ValVariant &Val1,
+                                        const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  const VT &V2 = reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+
+  V1 = (V1 >= V2);
+  return {};
+}
+
+template <typename TIn, typename TOut>
+Expect<void> Interpreter::runVectorNarrowOp(ValVariant &Val1,
+                                            const ValVariant &Val2) const {
+  static_assert(sizeof(TOut) * 2 == sizeof(TIn));
+  using VTIn [[gnu::vector_size(16)]] = TIn;
+  using HVTOut [[gnu::vector_size(8)]] = TOut;
+  using VTOut [[gnu::vector_size(16)]] = TOut;
+
+  const TIn Min = static_cast<TIn>(std::numeric_limits<TOut>::min());
+  const TIn Max = static_cast<TIn>(std::numeric_limits<TOut>::max());
+  VTIn V1 = reinterpret_cast<const VTIn &>(retrieveValue<uint128_t>(Val1));
+  VTIn V2 = reinterpret_cast<const VTIn &>(retrieveValue<uint128_t>(Val2));
+  V1 = V1 < Min ? Min : V1;
+  V1 = V1 > Max ? Max : V1;
+  V2 = V2 < Min ? Min : V2;
+  V2 = V2 > Max ? Max : V2;
+  const HVTOut HV1 = __builtin_convertvector(V1, HVTOut);
+  const HVTOut HV2 = __builtin_convertvector(V2, HVTOut);
+  VTOut &Result = reinterpret_cast<VTOut &>(retrieveValue<uint128_t>(Val1));
+  if constexpr (sizeof(TOut) == 1) {
+    const VTOut V = {HV1[0], HV1[1], HV1[2], HV1[3], HV1[4], HV1[5],
+                     HV1[6], HV1[7], HV2[0], HV2[1], HV2[2], HV2[3],
+                     HV2[4], HV2[5], HV2[6], HV2[7]};
+    Result = V;
+  } else if constexpr (sizeof(TOut) == 2) {
+    const VTOut V = {HV1[0], HV1[1], HV1[2], HV1[3],
+                     HV2[0], HV2[1], HV2[2], HV2[3]};
+    Result = V;
+  } else if constexpr (sizeof(TOut) == 4) {
+    const VTOut V = {HV1[0], HV1[1], HV2[0], HV2[1]};
+    Result = V;
+  } else if constexpr (sizeof(TOut) == 8) {
+    const VTOut V = {HV1[0], HV2[0]};
+    Result = V;
+  }
+
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorShlOp(ValVariant &Val1,
+                                         const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+  const uint32_t Mask = static_cast<uint32_t>(sizeof(T) * 8 - 1);
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  V1 <<= retrieveValue<uint32_t>(Val2) & Mask;
+
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorShrOp(ValVariant &Val1,
+                                         const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+  const uint32_t Mask = static_cast<uint32_t>(sizeof(T) * 8 - 1);
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  V1 >>= retrieveValue<uint32_t>(Val2) & Mask;
+
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorAddOp(ValVariant &Val1,
+                                         const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  V1 += reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorAddSatOp(ValVariant &Val1,
+                                            const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+  using UVT [[gnu::vector_size(16)]] = std::make_unsigned_t<T>;
+  UVT &V1 = reinterpret_cast<UVT &>(retrieveValue<uint128_t>(Val1));
+  const UVT &V2 = reinterpret_cast<const UVT &>(retrieveValue<uint128_t>(Val2));
+  const UVT Result = V1 + V2;
+
+  if constexpr (std::is_signed_v<T>) {
+    const UVT Limit =
+        (V1 >> (sizeof(T) * 8 - 1)) + std::numeric_limits<T>::max();
+    const VT Over = reinterpret_cast<VT>((V1 ^ V2) | ~(V2 ^ Result));
+    V1 = Over >= 0 ? Limit : Result;
+  } else {
+    V1 = Result | (Result < V1);
+  }
+
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorSubOp(ValVariant &Val1,
+                                         const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  V1 -= reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorSubSatOp(ValVariant &Val1,
+                                            const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+  using UVT [[gnu::vector_size(16)]] = std::make_unsigned_t<T>;
+  UVT &V1 = reinterpret_cast<UVT &>(retrieveValue<uint128_t>(Val1));
+  const UVT &V2 = reinterpret_cast<const UVT &>(retrieveValue<uint128_t>(Val2));
+  const UVT Result = V1 - V2;
+
+  if constexpr (std::is_signed_v<T>) {
+    const UVT Limit =
+        (V1 >> (sizeof(T) * 8 - 1)) + std::numeric_limits<T>::max();
+    const VT Under = reinterpret_cast<VT>((V1 ^ V2) & (V1 ^ Result));
+    V1 = Under < 0 ? Limit : Result;
+  } else {
+    V1 = Result & (Result <= V1);
+  }
+
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorMulOp(ValVariant &Val1,
+                                         const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  V1 *= reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorDivOp(ValVariant &Val1,
+                                         const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  V1 /= reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorMinOp(ValVariant &Val1,
+                                         const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  const VT &V2 = reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+  V1 = V1 > V2 ? V2 : V1;
+
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorMaxOp(ValVariant &Val1,
+                                         const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  const VT &V2 = reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+  V1 = V2 > V1 ? V2 : V1;
+
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorFMinOp(ValVariant &Val1,
+                                          const ValVariant &Val2) const {
+  static_assert(std::is_floating_point_v<T>);
+  using VT [[gnu::vector_size(16)]] = T;
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  const VT &V2 = reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+  VT A = (V1 < V2) ? V1 : V2;
+  VT B = (V2 < V1) ? V2 : V1;
+  V1 = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(A) |
+                            reinterpret_cast<uint64x2_t>(B));
+
+  return {};
+}
+
+template <typename T>
+Expect<void> Interpreter::runVectorFMaxOp(ValVariant &Val1,
+                                          const ValVariant &Val2) const {
+  using VT [[gnu::vector_size(16)]] = T;
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  const VT &V2 = reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+  VT A = (V1 > V2) ? V1 : V2;
+  VT B = (V2 > V1) ? V2 : V1;
+  V1 = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(A) &
+                            reinterpret_cast<uint64x2_t>(B));
+
+  return {};
+}
+
+template <typename T, typename ET>
+Expect<void> Interpreter::runVectorAvgrOp(ValVariant &Val1,
+                                          const ValVariant &Val2) const {
+  static_assert(sizeof(T) * 2 == sizeof(ET));
+  using VT [[gnu::vector_size(16)]] = T;
+  using EVT [[gnu::vector_size(32)]] = ET;
+  VT &V1 = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val1));
+  const VT &V2 = reinterpret_cast<const VT &>(retrieveValue<uint128_t>(Val2));
+  const EVT EV1 = __builtin_convertvector(V1, EVT);
+  const EVT EV2 = __builtin_convertvector(V2, EVT);
+  /// Add 1 for rounding up .5
+  V1 = __builtin_convertvector((EV1 + EV2 + 1) / 2, VT);
+
+  return {};
+}
+
 } // namespace Interpreter
 } // namespace SSVM

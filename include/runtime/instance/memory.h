@@ -284,16 +284,22 @@ public:
         /// Floating case. Do memory copy.
         std::memcpy(&Value, &DataPtr[Offset], sizeof(T));
       } else {
-        uint64_t LoadVal = 0;
-        /// Integer case. Extends to result type.
-        std::memcpy(&LoadVal, &DataPtr[Offset], Length);
-        if (std::is_signed_v<T> && (LoadVal >> (Length * 8 - 1))) {
-          /// Signed extend.
-          for (unsigned int I = Length; I < 8; I++) {
-            LoadVal |= 0xFFULL << (I * 8);
+        if constexpr (sizeof(T) > 8) {
+          static_assert(sizeof(T) == 16);
+          Value = 0;
+          std::memcpy(&Value, &DataPtr[Offset], Length);
+        } else {
+          uint64_t LoadVal = 0;
+          /// Integer case. Extends to result type.
+          std::memcpy(&LoadVal, &DataPtr[Offset], Length);
+          if (std::is_signed_v<T> && (LoadVal >> (Length * 8 - 1))) {
+            /// Signed extend.
+            for (unsigned int I = Length; I < 8; I++) {
+              LoadVal |= 0xFFULL << (I * 8);
+            }
           }
+          Value = static_cast<T>(LoadVal);
         }
-        Value = static_cast<T>(LoadVal);
       }
     }
     return {};

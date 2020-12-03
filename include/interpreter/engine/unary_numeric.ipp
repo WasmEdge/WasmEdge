@@ -201,8 +201,8 @@ Expect<void> Interpreter::runVectorSqrtOp(ValVariant &Val) const {
 template <typename TIn, typename TOut>
 Expect<void> Interpreter::runVectorTruncSatOp(ValVariant &Val) const {
   static_assert(sizeof(TIn) == sizeof(TOut));
-  const TIn FMin = std::numeric_limits<TOut>::min();
-  const TIn FMax = std::numeric_limits<TOut>::max();
+  const TIn FMin = static_cast<TIn>(std::numeric_limits<TOut>::min());
+  const TIn FMax = static_cast<TIn>(std::numeric_limits<TOut>::max());
   const TOut IMin = std::numeric_limits<TOut>::min();
   const TOut IMax = std::numeric_limits<TOut>::max();
   using VTIn [[gnu::vector_size(16)]] = TIn;
@@ -286,7 +286,7 @@ Expect<void> Interpreter::runVectorBitMaskOp(ValVariant &Val) const {
   using UVT [[gnu::vector_size(16)]] = std::make_unsigned_t<T>;
   SVT &Vector = retrieveValue<SVT>(Val);
   const SVT MSB = Vector < 0;
-  const UVT Z = reinterpret_cast<UVT>(MSB);
+  const UVT Z [[maybe_unused]] = reinterpret_cast<UVT>(MSB);
   if constexpr (sizeof(T) == 1) {
     using int16x16_t [[gnu::vector_size(32)]] = int16_t;
     using uint16x16_t [[gnu::vector_size(32)]] = uint16_t;

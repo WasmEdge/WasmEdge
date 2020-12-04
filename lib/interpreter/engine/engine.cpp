@@ -1114,11 +1114,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
   case OpCode::I8x16__swizzle: {
     const ValVariant Val2 = StackMgr.pop();
     ValVariant &Val1 = StackMgr.getTop();
-    using uint8x16_t [[gnu::vector_size(16)]] = uint8_t;
-    const uint8x16_t &Index =
-        reinterpret_cast<const uint8x16_t &>(retrieveValue<uint128_t>(Val2));
-    uint8x16_t &Vector =
-        reinterpret_cast<uint8x16_t &>(retrieveValue<uint128_t>(Val1));
+    const uint8x16_t &Index = retrieveValue<uint8x16_t>(Val2);
+    uint8x16_t &Vector = retrieveValue<uint8x16_t>(Val1);
     const uint8x16_t Limit = {16, 16, 16, 16, 16, 16, 16, 16,
                               16, 16, 16, 16, 16, 16, 16, 16};
     const uint8x16_t Zero = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -1888,18 +1885,13 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     return runVectorMulOp<uint8_t>(Val1, Val2);
   }
   case OpCode::I32x4__dot_i16x8_s: {
-    using int16x8_t [[gnu::vector_size(16)]] = int16_t;
-    using int32x4_t [[gnu::vector_size(16)]] = int32_t;
     using int32x8_t [[gnu::vector_size(32)]] = int32_t;
     const ValVariant Val2 = StackMgr.pop();
     ValVariant &Val1 = StackMgr.getTop();
 
-    auto &V2 =
-        reinterpret_cast<const int16x8_t &>(retrieveValue<uint128_t>(Val2));
-    auto &V1 =
-        reinterpret_cast<const int16x8_t &>(retrieveValue<uint128_t>(Val1));
-    auto &Result =
-        reinterpret_cast<int32x4_t &>(retrieveValue<uint128_t>(Val1));
+    auto &V2 = retrieveValue<int16x8_t>(Val2);
+    auto &V1 = retrieveValue<int16x8_t>(Val1);
+    auto &Result = retrieveValue<int32x4_t>(Val1);
     const auto M = __builtin_convertvector(V1, int32x8_t) *
                    __builtin_convertvector(V2, int32x8_t);
     const int32x4_t L = {M[0], M[2], M[4], M[6]};

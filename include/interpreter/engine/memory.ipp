@@ -101,7 +101,7 @@ Interpreter::runLoadExpandOp(Runtime::Instance::MemoryInstance &MemInst,
 
   VTIn Value;
   std::memcpy(&Value, &Buffer, 8);
-  VTOut &Result = reinterpret_cast<VTOut &>(retrieveValue<uint128_t>(Val));
+  VTOut &Result = retrieveValue<VTOut>(Val);
 
   if constexpr (sizeof(TOut) == 2) {
     Result = VTOut{Value[0], Value[1], Value[2], Value[3],
@@ -143,7 +143,7 @@ Interpreter::runLoadSplatOp(Runtime::Instance::MemoryInstance &MemInst,
   }
   const T Part = Buffer;
 
-  VT &Result = reinterpret_cast<VT &>(retrieveValue<uint128_t>(Val));
+  VT &Result = retrieveValue<VT>(Val);
   if constexpr (sizeof(T) == 1) {
     Result = VT{Part, Part, Part, Part, Part, Part, Part, Part,
                 Part, Part, Part, Part, Part, Part, Part, Part};

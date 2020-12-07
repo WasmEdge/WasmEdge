@@ -75,7 +75,7 @@ int main(int Argc, const char *Argv[]) {
     ProposalConf.addProposal(SSVM::Proposal::SIMD);
   }
 
-  std::string InputPath = std::filesystem::absolute(SoName.value());
+  const auto InputPath = std::filesystem::absolute(SoName.value());
   SSVM::VM::Configure Conf;
   Conf.addVMType(SSVM::VM::Configure::VMType::Wasi);
   Conf.addVMType(SSVM::VM::Configure::VMType::SSVM_Process);
@@ -84,12 +84,13 @@ int main(int Argc, const char *Argv[]) {
   SSVM::Host::WasiModule *WasiMod = dynamic_cast<SSVM::Host::WasiModule *>(
       VM.getImportModule(SSVM::VM::Configure::VMType::Wasi));
 
-  WasiMod->getEnv().init(Dir.value(), SoName.value(), Args.value(),
-                         Env.value());
+  WasiMod->getEnv().init(Dir.value(),
+                         InputPath.filename().replace_extension("wasm"sv),
+                         Args.value(), Env.value());
 
   if (!Reactor.value()) {
     // command mode
-    if (auto Result = VM.runWasmFile(InputPath, "_start")) {
+    if (auto Result = VM.runWasmFile(InputPath.u8string(), "_start")) {
       return WasiMod->getEnv().getExitCode();
     } else {
       return EXIT_FAILURE;
@@ -102,7 +103,7 @@ int main(int Argc, const char *Argv[]) {
       return EXIT_FAILURE;
     }
     const auto &FuncName = Args.value().front();
-    if (auto Result = VM.loadWasm(InputPath); !Result) {
+    if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
       return EXIT_FAILURE;
     }
     if (auto Result = VM.validate(); !Result) {

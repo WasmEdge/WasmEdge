@@ -23,7 +23,7 @@ void setErrorLoggingLevel() {
 
 namespace ErrInfo {
 std::ostream &operator<<(std::ostream &OS, const struct InfoFile &Rhs) {
-  if (Rhs.FileName != "") {
+  if (!Rhs.FileName.empty()) {
     OS << "    File name: " << Rhs.FileName;
   }
   return OS;

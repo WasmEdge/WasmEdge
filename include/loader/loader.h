@@ -14,6 +14,7 @@
 
 #include "ast/module.h"
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "common/proposal.h"
 
 #include <string>
@@ -29,10 +30,11 @@ public:
   ~Loader() = default;
 
   /// Load data from file path.
-  Expect<std::vector<Byte>> loadFile(std::string_view FilePath);
+  Expect<std::vector<Byte>> loadFile(const std::filesystem::path &FilePath);
 
   /// Parse module from file path.
-  Expect<std::unique_ptr<AST::Module>> parseModule(std::string_view FilePath);
+  Expect<std::unique_ptr<AST::Module>>
+  parseModule(const std::filesystem::path &FilePath);
 
   /// Parse module from byte code.
   Expect<std::unique_ptr<AST::Module>> parseModule(Span<const uint8_t> Code);

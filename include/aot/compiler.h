@@ -13,6 +13,7 @@
 
 #include "ast/module.h"
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "common/version.h"
 #include <cstdint>
 #include <string_view>
@@ -44,7 +45,7 @@ public:
   bool optNone() const { return Level == OptimizationLevel::O0; }
 
   Expect<void> compile(Span<const Byte> Data, const AST::Module &Module,
-                       std::string_view OutputPath);
+                       std::filesystem::path OutputPath);
   Expect<void> compile(const AST::ImportSection &ImportSection);
   Expect<void> compile(const AST::ExportSection &ExportSection);
   Expect<void> compile(const AST::TypeSection &TypeSection);

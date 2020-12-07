@@ -75,7 +75,7 @@ int main(int Argc, const char *Argv[]) {
     ProposalConf.addProposal(SSVM::Proposal::SIMD);
   }
 
-  std::string InputPath = std::filesystem::absolute(SoName.value()).string();
+  std::string InputPath = std::filesystem::absolute(SoName.value());
   SSVM::VM::Configure Conf;
   Conf.addVMType(SSVM::VM::Configure::VMType::Wasi);
   Conf.addVMType(SSVM::VM::Configure::VMType::SSVM_Process);

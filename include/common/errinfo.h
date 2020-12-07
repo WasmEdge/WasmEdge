@@ -12,6 +12,7 @@
 #pragma once
 
 #include "astdef.h"
+#include "filesystem.h"
 #include "proposal.h"
 #include "types.h"
 #include "value.h"
@@ -104,11 +105,11 @@ static inline std::unordered_map<IndexCategory, std::string> IndexCategoryStr =
 /// Information structures.
 struct InfoFile {
   InfoFile() = default;
-  InfoFile(std::string_view FName) noexcept : FileName(FName) {}
+  InfoFile(const std::filesystem::path &FName) noexcept : FileName(FName) {}
 
   friend std::ostream &operator<<(std::ostream &OS, const struct InfoFile &Rhs);
 
-  std::string FileName;
+  std::filesystem::path FileName;
 };
 
 struct InfoLoading {

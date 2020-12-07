@@ -9,19 +9,10 @@
 namespace SSVM {
 namespace Loader {
 
-namespace {
-static bool endsWith(std::string_view String, std::string_view Suffix) {
-  std::string_view View(String.data(), String.size());
-  return View.size() >= Suffix.size() &&
-         View.compare(View.size() - Suffix.size(), std::string_view::npos,
-                      Suffix) == 0;
-}
-} // namespace
-
 /// Load data from file path. See "include/loader/loader.h".
-Expect<std::vector<Byte>> Loader::loadFile(std::string_view FilePath) {
-  std::ifstream Fin(std::filesystem::u8path(FilePath),
-                    std::ios::in | std::ios::binary);
+Expect<std::vector<Byte>>
+Loader::loadFile(const std::filesystem::path &FilePath) {
+  std::ifstream Fin(FilePath, std::ios::in | std::ios::binary);
   if (!Fin) {
     LOG(ERROR) << ErrCode::InvalidPath;
     LOG(ERROR) << ErrInfo::InfoFile(FilePath);
@@ -52,9 +43,9 @@ Expect<std::vector<Byte>> Loader::loadFile(std::string_view FilePath) {
 
 /// Parse module from file path. See "include/loader/loader.h".
 Expect<std::unique_ptr<AST::Module>>
-Loader::parseModule(std::string_view FilePath) {
+Loader::parseModule(const std::filesystem::path &FilePath) {
   using namespace std::literals::string_view_literals;
-  if (endsWith(FilePath, ".so"sv)) {
+  if (FilePath.extension() == ".so"sv) {
     if (auto Res = LMgr.setPath(FilePath); !Res) {
       LOG(ERROR) << ErrInfo::InfoFile(FilePath);
       return Unexpect(Res);

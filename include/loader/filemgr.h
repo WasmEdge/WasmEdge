@@ -13,6 +13,7 @@
 #pragma once
 
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "common/types.h"
 #include "common/value.h"
 
@@ -28,7 +29,7 @@ public:
   virtual ~FileMgr() = default;
 
   /// Set the file path.
-  virtual Expect<void> setPath(std::string_view FilePath) = 0;
+  virtual Expect<void> setPath(const std::filesystem::path &FilePath) = 0;
 
   /// Set the binary data.
   virtual Expect<void> setCode(Span<const Byte> CodeData) = 0;
@@ -75,7 +76,7 @@ public:
   virtual ~FileMgrFStream() noexcept;
 
   /// Inheritted from FileMgr.
-  Expect<void> setPath(std::string_view FilePath) override;
+  Expect<void> setPath(const std::filesystem::path &FilePath) override;
   Expect<void> setCode(Span<const Byte> CodeData) override {
     return Unexpect(ErrCode::InvalidPath);
   }
@@ -101,7 +102,7 @@ public:
   FileMgrVector() = default;
 
   /// Inheritted from FileMgr.
-  Expect<void> setPath(std::string_view FilePath) override {
+  Expect<void> setPath(const std::filesystem::path &FilePath) override {
     return Unexpect(ErrCode::InvalidPath);
   }
   Expect<void> setCode(Span<const Byte> CodeData) override;

@@ -45,7 +45,8 @@ void VM::initVM() {
   }
 }
 
-Expect<void> VM::registerModule(std::string_view Name, std::string_view Path) {
+Expect<void> VM::registerModule(std::string_view Name,
+                                const std::filesystem::path &Path) {
   if (Stage == VMStage::Instantiated) {
     /// When registering module, instantiated module in store will be reset.
     /// Therefore the instantiation should restart.
@@ -92,9 +93,9 @@ Expect<void> VM::registerModule(std::string_view Name,
   return InterpreterEngine.registerModule(StoreRef, Module, Name);
 }
 
-Expect<std::vector<ValVariant>> VM::runWasmFile(std::string_view Path,
-                                                std::string_view Func,
-                                                Span<const ValVariant> Params) {
+Expect<std::vector<ValVariant>>
+VM::runWasmFile(const std::filesystem::path &Path, std::string_view Func,
+                Span<const ValVariant> Params) {
   if (Stage == VMStage::Instantiated) {
     /// When running another module, instantiated module in store will be reset.
     /// Therefore the instantiation should restart.
@@ -147,7 +148,7 @@ Expect<std::vector<ValVariant>> VM::runWasmFile(const AST::Module &Module,
   }
 }
 
-Expect<void> VM::loadWasm(std::string_view Path) {
+Expect<void> VM::loadWasm(const std::filesystem::path &Path) {
   /// If not load successfully, the previous status will be reserved.
   if (auto Res = LoaderEngine.parseModule(Path)) {
     Mod = std::move(*Res);

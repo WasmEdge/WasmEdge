@@ -3282,22 +3282,21 @@ namespace SSVM {
 namespace AOT {
 
 Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
-                               std::string_view OutputPath) {
+                               std::filesystem::path OutputPath) {
   namespace fs = std::filesystem;
   using namespace std::literals;
 
   LOG(INFO) << "compile start";
-  const fs::path Path(fs::u8path(OutputPath));
-  fs::path LLPath(Path);
+  fs::path LLPath(OutputPath);
   LLPath.replace_extension("ll"sv);
-  std::filesystem::path OPath(Path);
+  fs::path OPath(OutputPath);
   OPath.replace_extension("%%%%%%%%%%.o"sv);
 
   llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
 
   llvm::LLVMContext LLContext;
-  auto LLModule = std::make_unique<llvm::Module>(LLPath.native(), LLContext);
+  auto LLModule = std::make_unique<llvm::Module>(LLPath.u8string(), LLContext);
   LLModule->setTargetTriple(llvm::sys::getProcessTriple());
   LLModule->setPICLevel(llvm::PICLevel::Level::SmallPIC);
   CompileContext NewContext(*LLModule);
@@ -3404,7 +3403,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
         LOG(INFO) << "optimize start";
 
         // tempfile
-        auto Object = llvm::sys::fs::TempFile::create(OPath.native());
+        auto Object = llvm::sys::fs::TempFile::create(OPath.u8string());
         if (!Object) {
           // TODO:return error
           LOG(ERROR) << "so file creation failed:" << OPath.native();
@@ -3523,7 +3522,8 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
         using lld::elf::link;
 #endif
         link(std::array{"lld", "--shared", "--gc-sections",
-                        Object->TmpName.c_str(), "-o", Path.u8string().c_str()},
+                        Object->TmpName.c_str(), "-o",
+                        OutputPath.u8string().c_str()},
              false,
 #if LLVM_VERSION_MAJOR >= 10
              llvm::outs(), llvm::errs()

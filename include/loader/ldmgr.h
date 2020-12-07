@@ -13,6 +13,7 @@
 #pragma once
 
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "common/types.h"
 #include "common/value.h"
 #include "symbol.h"
@@ -26,7 +27,7 @@ namespace SSVM {
 class LDMgr {
 public:
   /// Set the file path.
-  Expect<void> setPath(std::string_view FilePath);
+  Expect<void> setPath(const std::filesystem::path &FilePath);
 
   /// Read embedded Wasm binary.
   Expect<std::vector<Byte>> getWasm();

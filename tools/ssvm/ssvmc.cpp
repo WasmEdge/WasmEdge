@@ -65,8 +65,8 @@ int main(int Argc, const char *Argv[]) {
     ProposalConf.addProposal(SSVM::Proposal::SIMD);
   }
 
-  std::string InputPath = std::filesystem::absolute(WasmName.value()).string();
-  std::string OutputPath = std::filesystem::absolute(SoName.value()).string();
+  std::filesystem::path InputPath = std::filesystem::absolute(WasmName.value());
+  std::filesystem::path OutputPath = std::filesystem::absolute(SoName.value());
   SSVM::Loader::Loader Loader(ProposalConf);
 
   std::vector<SSVM::Byte> Data;

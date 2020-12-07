@@ -12,6 +12,7 @@
 #pragma once
 
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "common/proposal.h"
 #include "common/types.h"
 #include "common/value.h"
@@ -42,20 +43,21 @@ public:
 
   /// ======= Functions can be called before instantiated stage. =======
   /// Register wasm modules and host modules.
-  Expect<void> registerModule(std::string_view Name, std::string_view Path);
+  Expect<void> registerModule(std::string_view Name,
+                              const std::filesystem::path &Path);
   Expect<void> registerModule(std::string_view Name, Span<const Byte> Code);
   Expect<void> registerModule(const Runtime::ImportObject &Obj);
 
   /// Rapidly load, validate, instantiate, and run wasm function.
   Expect<std::vector<ValVariant>>
-  runWasmFile(std::string_view Path, std::string_view Func,
+  runWasmFile(const std::filesystem::path &Path, std::string_view Func,
               Span<const ValVariant> Params = {});
   Expect<std::vector<ValVariant>>
   runWasmFile(Span<const Byte> Code, std::string_view Func,
               Span<const ValVariant> Params = {});
 
   /// Load given wasm file or wasm bytecode.
-  Expect<void> loadWasm(std::string_view Path);
+  Expect<void> loadWasm(const std::filesystem::path &Path);
   Expect<void> loadWasm(Span<const Byte> Code);
 
   /// ======= Functions can be called after loaded stage. =======

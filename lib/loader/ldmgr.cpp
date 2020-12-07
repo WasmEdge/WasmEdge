@@ -34,8 +34,8 @@ DLHandle::~DLHandle() noexcept {
 }
 
 /// Set path to loadable manager. See "include/loader/ldmgr.h".
-Expect<void> LDMgr::setPath(std::string_view FilePath) {
-  Handle = DLHandle::open(std::string(FilePath).c_str());
+Expect<void> LDMgr::setPath(const std::filesystem::path &FilePath) {
+  Handle = DLHandle::open(FilePath.u8string().c_str());
   if (!Handle) {
     LOG(ERROR) << ErrCode::InvalidPath;
     return Unexpect(ErrCode::InvalidPath);

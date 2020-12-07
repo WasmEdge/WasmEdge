@@ -419,13 +419,13 @@ Expect<void> FormChecker::checkInstr(const AST::CallControlInstruction &Instr) {
     return StackTrans(Types[Funcs[N]].first, Types[Funcs[N]].second);
   }
   case OpCode::Call_indirect: {
-    if (Tables.size() == 0) {
+    if (Tables.size() <= Instr.getTableIndex()) {
       LOG(ERROR) << ErrCode::InvalidTableIdx;
-      LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Table, 0,
-                                             Tables.size());
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Table, Instr.getTableIndex(), Tables.size());
       return Unexpect(ErrCode::InvalidTableIdx);
     }
-    if (Tables[0] != RefType::FuncRef) {
+    if (Tables[Instr.getTableIndex()] != RefType::FuncRef) {
       LOG(ERROR) << ErrCode::InvalidTableIdx;
       return Unexpect(ErrCode::InvalidTableIdx);
     }

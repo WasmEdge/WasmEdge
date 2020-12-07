@@ -1219,9 +1219,16 @@ WasiFdRenumber::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
     return __WASI_ENOTSUP;
   }
 
-  /// Refuse to renumber into existed fd.
-  if (unlikely(Env.getFile(ToFd) != Env.getFileEnd())) {
-    return __WASI_EBADF;
+  /// Close existed fd renumbering into.
+  if (const auto OldEntry = Env.getFile(ToFd);
+      unlikely(OldEntry != Env.getFileEnd())) {
+    if (unlikely(OldEntry->second.IsPreopened)) {
+      return __WASI_ENOTSUP;
+    }
+    if (unlikely(close(OldEntry->second.HostFd) != 0)) {
+      return convertErrNo(errno);
+    }
+    Env.eraseFile(OldEntry);
   }
 
   Env.changeFd(Entry, ToFd);

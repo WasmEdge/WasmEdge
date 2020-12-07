@@ -2096,7 +2096,9 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
 
     if (Status != 0) {
       ErrCode Code = static_cast<ErrCode>(Status);
-      LOG(ERROR) << Code;
+      if (Code != ErrCode::Terminated) {
+        LOG(ERROR) << Code;
+      }
       return Unexpect(Code);
     }
 

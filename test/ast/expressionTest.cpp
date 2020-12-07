@@ -17,6 +17,7 @@
 namespace {
 
 SSVM::FileMgrVector Mgr;
+SSVM::ProposalConfigure PConf;
 
 TEST(ExpressionTest, LoadExpression) {
   /// 1. Test load limit.
@@ -27,7 +28,7 @@ TEST(ExpressionTest, LoadExpression) {
   ///   4.  Load expression with instructions.
   Mgr.clearBuffer();
   SSVM::AST::Expression Exp1;
-  EXPECT_FALSE(Exp1.loadBinary(Mgr));
+  EXPECT_FALSE(Exp1.loadBinary(Mgr, PConf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -35,7 +36,7 @@ TEST(ExpressionTest, LoadExpression) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::Expression Exp2;
-  EXPECT_TRUE(Exp2.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Exp2.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -45,7 +46,7 @@ TEST(ExpressionTest, LoadExpression) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::Expression Exp3;
-  EXPECT_FALSE(Exp3.loadBinary(Mgr));
+  EXPECT_FALSE(Exp3.loadBinary(Mgr, PConf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -54,7 +55,7 @@ TEST(ExpressionTest, LoadExpression) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::Expression Exp4;
-  EXPECT_TRUE(Exp4.loadBinary(Mgr) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Exp4.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
 }
 
 } // namespace

@@ -131,19 +131,17 @@ Expect<void> Interpreter::runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
   uint128_t C = retrieveValue<uint128_t>(StackMgr.pop());
 
   /// Calculate EA
-  ValVariant &Val = StackMgr.getTop();
-  if (retrieveValue<uint32_t>(Val) >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
+  uint32_t I = retrieveValue<uint32_t>(StackMgr.pop());
+  if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     LOG(ERROR) << ErrCode::MemoryOutOfBounds;
     LOG(ERROR) << ErrInfo::InfoBoundary(
-        retrieveValue<uint32_t>(Val) +
-            static_cast<uint64_t>(Instr.getMemoryOffset()),
-        16, MemInst.getBoundIdx());
+        I + static_cast<uint64_t>(Instr.getMemoryOffset()), 16,
+        MemInst.getBoundIdx());
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
                                            Instr.getOffset());
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  uint32_t EA = retrieveValue<uint32_t>(Val) + Instr.getMemoryOffset();
+  uint32_t EA = I + Instr.getMemoryOffset();
 
   /// Store value to bytes.
   if (auto Res = MemInst.storeValue(C, EA, 16); !Res) {

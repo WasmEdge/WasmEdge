@@ -8,7 +8,7 @@ namespace Interpreter {
 
 Expect<void>
 Interpreter::runTableGetOp(Runtime::Instance::TableInstance &TabInst,
-                           const AST::TableInstruction &Instr) {
+                           const AST::Instruction &Instr) {
   /// Pop Idx from Stack.
   uint32_t Idx = retrieveValue<uint32_t>(StackMgr.pop());
 
@@ -26,7 +26,7 @@ Interpreter::runTableGetOp(Runtime::Instance::TableInstance &TabInst,
 
 Expect<void>
 Interpreter::runTableSetOp(Runtime::Instance::TableInstance &TabInst,
-                           const AST::TableInstruction &Instr) {
+                           const AST::Instruction &Instr) {
   /// Pop Ref from Stack.
   RefVariant Ref = retrieveValue<uint64_t>(StackMgr.pop());
 
@@ -46,7 +46,7 @@ Interpreter::runTableSetOp(Runtime::Instance::TableInstance &TabInst,
 Expect<void>
 Interpreter::runTableInitOp(Runtime::Instance::TableInstance &TabInst,
                             Runtime::Instance::ElementInstance &ElemInst,
-                            const AST::TableInstruction &Instr) {
+                            const AST::Instruction &Instr) {
   /// Pop the length, source, and destination from stack.
   uint32_t Len = retrieveValue<uint32_t>(StackMgr.pop());
   uint32_t Src = retrieveValue<uint32_t>(StackMgr.pop());
@@ -73,7 +73,7 @@ Interpreter::runElemDropOp(Runtime::Instance::ElementInstance &ElemInst) {
 Expect<void>
 Interpreter::runTableCopyOp(Runtime::Instance::TableInstance &TabInstDst,
                             Runtime::Instance::TableInstance &TabInstSrc,
-                            const AST::TableInstruction &Instr) {
+                            const AST::Instruction &Instr) {
   /// Pop the length, source, and destination from stack.
   uint32_t Len = retrieveValue<uint32_t>(StackMgr.pop());
   uint32_t Src = retrieveValue<uint32_t>(StackMgr.pop());
@@ -122,7 +122,7 @@ Interpreter::runTableSizeOp(Runtime::Instance::TableInstance &TabInst) {
 
 Expect<void>
 Interpreter::runTableFillOp(Runtime::Instance::TableInstance &TabInst,
-                            const AST::TableInstruction &Instr) {
+                            const AST::Instruction &Instr) {
   /// Pop the length, ref_value, and offset from stack.
   uint32_t Len = retrieveValue<uint32_t>(StackMgr.pop());
   RefVariant Val = retrieveValue<uint64_t>(StackMgr.pop());

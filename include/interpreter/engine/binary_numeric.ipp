@@ -33,8 +33,8 @@ TypeN<T> Interpreter::runMulOp(ValVariant &Val1, const ValVariant &Val2) const {
 }
 
 template <typename T>
-TypeT<T> Interpreter::runDivOp(const AST::BinaryNumericInstruction &Instr,
-                               ValVariant &Val1, const ValVariant &Val2) const {
+TypeT<T> Interpreter::runDivOp(const AST::Instruction &Instr, ValVariant &Val1,
+                               const ValVariant &Val2) const {
   T &V1 = retrieveValue<T>(Val1);
   const T &V2 = retrieveValue<T>(Val2);
   if (!std::is_floating_point_v<T>) {
@@ -65,8 +65,8 @@ TypeT<T> Interpreter::runDivOp(const AST::BinaryNumericInstruction &Instr,
 }
 
 template <typename T>
-TypeI<T> Interpreter::runRemOp(const AST::BinaryNumericInstruction &Instr,
-                               ValVariant &Val1, const ValVariant &Val2) const {
+TypeI<T> Interpreter::runRemOp(const AST::Instruction &Instr, ValVariant &Val1,
+                               const ValVariant &Val2) const {
   T &I1 = retrieveValue<T>(Val1);
   const T &I2 = retrieveValue<T>(Val2);
   /// If i2 is 0, then the result is undefined.
@@ -197,7 +197,7 @@ TypeF<T> Interpreter::runCopysignOp(ValVariant &Val1,
 template <typename TIn, typename TOut>
 Expect<void> Interpreter::runReplaceLaneOp(ValVariant &Val1,
                                            const ValVariant &Val2,
-                                           const uint8_t Index) const {
+                                           const uint32_t Index) const {
   using VTOut [[gnu::vector_size(16)]] = TOut;
   VTOut &Result = retrieveValue<VTOut>(Val1);
   Result[Index] = retrieveValue<TIn>(Val2);

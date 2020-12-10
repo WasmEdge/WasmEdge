@@ -37,9 +37,8 @@ TypeUU<TIn, TOut> Interpreter::runWrapOp(ValVariant &Val) const {
 }
 
 template <typename TIn, typename TOut>
-TypeFI<TIn, TOut>
-Interpreter::runTruncateOp(const AST::UnaryNumericInstruction &Instr,
-                           ValVariant &Val) const {
+TypeFI<TIn, TOut> Interpreter::runTruncateOp(const AST::Instruction &Instr,
+                                             ValVariant &Val) const {
   TIn Z = retrieveValue<TIn>(Val);
   /// If z is a NaN or an infinity, then the result is undefined.
   if (std::isnan(Z)) {

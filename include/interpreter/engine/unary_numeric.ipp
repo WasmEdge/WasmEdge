@@ -96,7 +96,7 @@ template <typename T> TypeF<T> Interpreter::runSqrtOp(ValVariant &Val) const {
 
 template <typename TIn, typename TOut>
 Expect<void> Interpreter::runExtractLaneOp(ValVariant &Val,
-                                           const uint8_t Index) const {
+                                           const uint32_t Index) const {
   using VTIn [[gnu::vector_size(16)]] = TIn;
   VTIn &Result = retrieveValue<VTIn>(Val);
   retrieveValue<TOut>(Val) = Result[Index];

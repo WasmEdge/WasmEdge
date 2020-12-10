@@ -193,11 +193,15 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     const auto *FuncInst = *StoreMgr.getFunction(Addr);
 
     /// Execute instruction: call start.func
-    if (auto Res = enterFunction(StoreMgr, *FuncInst); !Res) {
+    auto Instrs = FuncInst->getInstrs();
+    AST::InstrView::iterator StartIt;
+    if (auto Res = enterFunction(StoreMgr, *FuncInst, Instrs.end() - 1)) {
+      StartIt = *Res;
+    } else {
       LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);
     }
-    if (auto Res = execute(StoreMgr); !Res) {
+    if (auto Res = execute(StoreMgr, StartIt, Instrs.end()); unlikely(!Res)) {
       LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
       return Unexpect(Res);
     }

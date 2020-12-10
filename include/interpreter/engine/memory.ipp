@@ -12,7 +12,7 @@ namespace Interpreter {
 
 template <typename T>
 TypeT<T> Interpreter::runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
-                                const AST::MemoryInstruction &Instr,
+                                const AST::Instruction &Instr,
                                 const uint32_t BitWidth) {
   /// Calculate EA
   ValVariant &Val = StackMgr.getTop();
@@ -41,7 +41,7 @@ TypeT<T> Interpreter::runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
 
 template <typename T>
 TypeN<T> Interpreter::runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
-                                 const AST::MemoryInstruction &Instr,
+                                 const AST::Instruction &Instr,
                                  const uint32_t BitWidth) {
   /// Pop the value t.const c from the Stack
   T C = retrieveValue<T>(StackMgr.pop());
@@ -71,7 +71,7 @@ TypeN<T> Interpreter::runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
 template <typename TIn, typename TOut>
 Expect<void>
 Interpreter::runLoadExpandOp(Runtime::Instance::MemoryInstance &MemInst,
-                             const AST::SIMDMemoryInstruction &Instr) {
+                             const AST::Instruction &Instr) {
   static_assert(sizeof(TOut) == sizeof(TIn) * 2);
   /// Calculate EA
   ValVariant &Val = StackMgr.getTop();
@@ -117,7 +117,7 @@ Interpreter::runLoadExpandOp(Runtime::Instance::MemoryInstance &MemInst,
 template <typename T>
 Expect<void>
 Interpreter::runLoadSplatOp(Runtime::Instance::MemoryInstance &MemInst,
-                            const AST::SIMDMemoryInstruction &Instr) {
+                            const AST::Instruction &Instr) {
   /// Calculate EA
   ValVariant &Val = StackMgr.getTop();
   if (retrieveValue<uint32_t>(Val) >

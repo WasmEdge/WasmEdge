@@ -117,12 +117,17 @@ public:
 private:
   /// Run Wasm bytecode expression for initialization.
   Expect<void> runExpression(Runtime::StoreManager &StoreMgr,
-                             const AST::InstrVec &Instrs);
+                             AST::InstrView Instrs);
 
   /// Run Wasm function.
   Expect<void> runFunction(Runtime::StoreManager &StoreMgr,
                            const Runtime::Instance::FunctionInstance &Func,
                            Span<const ValVariant> Params);
+
+  /// Execute instructions.
+  Expect<void> execute(Runtime::StoreManager &StoreMgr,
+                       const AST::InstrView::iterator Start,
+                       const AST::InstrView::iterator End);
 
   /// \name Functions for instantiation.
   /// @{
@@ -182,64 +187,21 @@ private:
                            const AST::ExportSection &ExportSec);
   /// @}
 
-  /// \name Functions for instruction dispatchers.
-  /// @{
-  Expect<void> execute(Runtime::StoreManager &StoreMgr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::ControlInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::BlockControlInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::IfElseControlInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::BrControlInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::BrTableControlInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::CallControlInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::ReferenceInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::ParametricInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::VariableInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::TableInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::MemoryInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::ConstInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::UnaryNumericInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::BinaryNumericInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::SIMDMemoryInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::SIMDConstInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::SIMDShuffleInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::SIMDLaneInstruction &Instr);
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       const AST::SIMDNumericInstruction &Instr);
-
-  /// @}
-
   /// \name Helper Functions for block controls.
   /// @{
-  /// Helper function for entering blocks.
-  Expect<void> enterBlock(const uint32_t Locals, const uint32_t Arity,
-                          const AST::BlockControlInstruction *Instr,
-                          const AST::InstrVec &Seq);
-
-  /// Helper function for calling functions.
-  Expect<void> enterFunction(Runtime::StoreManager &StoreMgr,
-                             const Runtime::Instance::FunctionInstance &Func);
+  /// Helper function for calling functions. Return the continuation iterator.
+  Expect<AST::InstrView::iterator>
+  enterFunction(Runtime::StoreManager &StoreMgr,
+                const Runtime::Instance::FunctionInstance &Func,
+                const AST::InstrView::iterator From);
 
   /// Helper function for branching to label.
   Expect<void> branchToLabel(Runtime::StoreManager &StoreMgr,
-                             const uint32_t Cnt);
+                             const uint32_t Cnt, AST::InstrView::iterator &PC);
+
+  /// Helper function for getting arity from block type.
+  std::pair<uint32_t, uint32_t> getBlockArity(Runtime::StoreManager &StoreMgr,
+                                              const BlockType &BType);
   /// @}
 
   /// \name Helper Functions for getting instances.
@@ -269,22 +231,30 @@ private:
   /// @{
   /// ======= Control instructions =======
   Expect<void> runBlockOp(Runtime::StoreManager &StoreMgr,
-                          const AST::BlockControlInstruction &Instr);
+                          const AST::Instruction &Instr,
+                          AST::InstrView::iterator &PC);
   Expect<void> runLoopOp(Runtime::StoreManager &StoreMgr,
-                         const AST::BlockControlInstruction &Instr);
+                         const AST::Instruction &Instr,
+                         AST::InstrView::iterator &PC);
   Expect<void> runIfElseOp(Runtime::StoreManager &StoreMgr,
-                           const AST::IfElseControlInstruction &Instr);
+                           const AST::Instruction &Instr,
+                           AST::InstrView::iterator &PC);
   Expect<void> runBrOp(Runtime::StoreManager &StoreMgr,
-                       const AST::BrControlInstruction &Instr);
+                       const AST::Instruction &Instr,
+                       AST::InstrView::iterator &PC);
   Expect<void> runBrIfOp(Runtime::StoreManager &StoreMgr,
-                         const AST::BrControlInstruction &Instr);
+                         const AST::Instruction &Instr,
+                         AST::InstrView::iterator &PC);
   Expect<void> runBrTableOp(Runtime::StoreManager &StoreMgr,
-                            const AST::BrTableControlInstruction &Instr);
-  Expect<void> runReturnOp();
+                            const AST::Instruction &Instr,
+                            AST::InstrView::iterator &PC);
+  Expect<void> runReturnOp(AST::InstrView::iterator &PC);
   Expect<void> runCallOp(Runtime::StoreManager &StoreMgr,
-                         const AST::CallControlInstruction &Instr);
+                         const AST::Instruction &Instr,
+                         AST::InstrView::iterator &PC);
   Expect<void> runCallIndirectOp(Runtime::StoreManager &StoreMgr,
-                                 const AST::CallControlInstruction &Instr);
+                                 const AST::Instruction &Instr,
+                                 AST::InstrView::iterator &PC);
   /// ======= Variable instructions =======
   Expect<void> runLocalGetOp(const uint32_t Idx);
   Expect<void> runLocalSetOp(const uint32_t Idx);
@@ -295,39 +265,39 @@ private:
                               const uint32_t Idx);
   /// ======= Table instructions =======
   Expect<void> runTableGetOp(Runtime::Instance::TableInstance &TabInst,
-                             const AST::TableInstruction &Instr);
+                             const AST::Instruction &Instr);
   Expect<void> runTableSetOp(Runtime::Instance::TableInstance &TabInst,
-                             const AST::TableInstruction &Instr);
+                             const AST::Instruction &Instr);
   Expect<void> runTableInitOp(Runtime::Instance::TableInstance &TabInst,
                               Runtime::Instance::ElementInstance &ElemInst,
-                              const AST::TableInstruction &Instr);
+                              const AST::Instruction &Instr);
   Expect<void> runElemDropOp(Runtime::Instance::ElementInstance &ElemInst);
   Expect<void> runTableCopyOp(Runtime::Instance::TableInstance &TabInstDst,
                               Runtime::Instance::TableInstance &TabInstSrc,
-                              const AST::TableInstruction &Instr);
+                              const AST::Instruction &Instr);
   Expect<void> runTableGrowOp(Runtime::Instance::TableInstance &TabInst);
   Expect<void> runTableSizeOp(Runtime::Instance::TableInstance &TabInst);
   Expect<void> runTableFillOp(Runtime::Instance::TableInstance &TabInst,
-                              const AST::TableInstruction &Instr);
+                              const AST::Instruction &Instr);
   /// ======= Memory instructions =======
   template <typename T>
   TypeT<T> runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
-                     const AST::MemoryInstruction &Instr,
+                     const AST::Instruction &Instr,
                      const uint32_t BitWidth = sizeof(T) * 8);
   template <typename T>
   TypeN<T> runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
-                      const AST::MemoryInstruction &Instr,
+                      const AST::Instruction &Instr,
                       const uint32_t BitWidth = sizeof(T) * 8);
   Expect<void> runMemorySizeOp(Runtime::Instance::MemoryInstance &MemInst);
   Expect<void> runMemoryGrowOp(Runtime::Instance::MemoryInstance &MemInst);
   Expect<void> runMemoryInitOp(Runtime::Instance::MemoryInstance &MemInst,
                                Runtime::Instance::DataInstance &DataInst,
-                               const AST::MemoryInstruction &Instr);
+                               const AST::Instruction &Instr);
   Expect<void> runDataDropOp(Runtime::Instance::DataInstance &DataInst);
   Expect<void> runMemoryCopyOp(Runtime::Instance::MemoryInstance &MemInst,
-                               const AST::MemoryInstruction &Instr);
+                               const AST::Instruction &Instr);
   Expect<void> runMemoryFillOp(Runtime::Instance::MemoryInstance &MemInst,
-                               const AST::MemoryInstruction &Instr);
+                               const AST::Instruction &Instr);
   /// ======= Test and Relation Numeric instructions =======
   template <typename T> TypeU<T> runEqzOp(ValVariant &Val) const;
   template <typename T>
@@ -361,11 +331,11 @@ private:
   template <typename T>
   TypeN<T> runMulOp(ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T>
-  TypeT<T> runDivOp(const AST::BinaryNumericInstruction &Instr,
-                    ValVariant &Val1, const ValVariant &Val2) const;
+  TypeT<T> runDivOp(const AST::Instruction &Instr, ValVariant &Val1,
+                    const ValVariant &Val2) const;
   template <typename T>
-  TypeI<T> runRemOp(const AST::BinaryNumericInstruction &Instr,
-                    ValVariant &Val1, const ValVariant &Val2) const;
+  TypeI<T> runRemOp(const AST::Instruction &Instr, ValVariant &Val1,
+                    const ValVariant &Val2) const;
   template <typename T>
   TypeU<T> runAndOp(ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T>
@@ -390,7 +360,7 @@ private:
   template <typename TIn, typename TOut>
   TypeUU<TIn, TOut> runWrapOp(ValVariant &Val) const;
   template <typename TIn, typename TOut>
-  TypeFI<TIn, TOut> runTruncateOp(const AST::UnaryNumericInstruction &Instr,
+  TypeFI<TIn, TOut> runTruncateOp(const AST::Instruction &Instr,
                                   ValVariant &Val) const;
   template <typename TIn, typename TOut>
   TypeFI<TIn, TOut> runTruncateSatOp(ValVariant &Val) const;
@@ -405,23 +375,18 @@ private:
   template <typename TIn, typename TOut>
   TypeNN<TIn, TOut> runReinterpretOp(ValVariant &Val) const;
   /// ======= SIMD Memory instructions =======
-  Expect<void> runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
-                         const AST::SIMDMemoryInstruction &Instr,
-                         const uint32_t BitWidth = 128);
-  Expect<void> runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
-                          const AST::SIMDMemoryInstruction &Instr);
   template <typename TIn, typename TOut>
   Expect<void> runLoadExpandOp(Runtime::Instance::MemoryInstance &MemInst,
-                               const AST::SIMDMemoryInstruction &Instr);
+                               const AST::Instruction &Instr);
   template <typename T>
   Expect<void> runLoadSplatOp(Runtime::Instance::MemoryInstance &MemInst,
-                              const AST::SIMDMemoryInstruction &Instr);
+                              const AST::Instruction &Instr);
   /// ======= SIMD Lane instructions =======
   template <typename TIn, typename TOut = TIn>
-  Expect<void> runExtractLaneOp(ValVariant &Val, const uint8_t Index) const;
+  Expect<void> runExtractLaneOp(ValVariant &Val, const uint32_t Index) const;
   template <typename TIn, typename TOut = TIn>
   Expect<void> runReplaceLaneOp(ValVariant &Val1, const ValVariant &Val2,
-                                const uint8_t Index) const;
+                                const uint32_t Index) const;
   /// ======= SIMD Numeric instructions =======
   template <typename TIn, typename TOut = TIn>
   Expect<void> runSplatOp(ValVariant &Val) const;

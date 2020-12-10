@@ -455,12 +455,6 @@ private:
 
   /// \name Run compiled functions
   /// @{
-
-  /// Pointer to current object.
-  static Interpreter *This;
-  /// jmp_buf for trap.
-  static sigjmp_buf *TrapJump;
-
 public:
   Expect<void> trap(Runtime::StoreManager &StoreMgr,
                     const uint8_t Code) noexcept;
@@ -515,14 +509,37 @@ public:
   static void signalEnable() noexcept;
   static void signalDisable() noexcept;
   static void signalHandler(int Signal, siginfo_t *Siginfo, void *) noexcept;
-  struct SignalEnabler;
-  struct SignalDisabler;
+  struct SignalEnabler {
+    SignalEnabler() noexcept { Interpreter::signalEnable(); }
+    ~SignalEnabler() noexcept { Interpreter::signalDisable(); }
+  };
+
+  struct SignalDisabler {
+    SignalDisabler() noexcept { Interpreter::signalDisable(); }
+    ~SignalDisabler() noexcept { Interpreter::signalEnable(); }
+  };
   template <typename FuncPtr> struct ProxyHelper;
+
+private:
+  /// Pointer to current object.
+  static Interpreter *This;
+  /// jmp_buf for trap.
+  static sigjmp_buf *TrapJump;
+  /// Store for passing into compiled functions
+  Runtime::StoreManager *CurrentStore;
+  /// Execution context for compiled functions
+  struct ExecutionContext {
+    uint8_t *Memory;
+    ValVariant *const *Globals;
+    uint64_t *InstrCount;
+    uint64_t *CostTable;
+    uint64_t *Gas;
+  } ExecutionContext;
   /// @}
 
 private:
+  /// Instantiation mode
   enum class InstantiateMode : uint8_t { Instantiate = 0, ImportWasm };
-
   /// Proposal configure
   const ProposalConfigure &PConf;
   /// Instantiate mode
@@ -531,16 +548,6 @@ private:
   Runtime::StackManager StackMgr;
   /// Interpreter statistics
   Statistics::Statistics *Stat;
-  /// Store
-  Runtime::StoreManager *CurrentStore;
-  /// Execution context for compiled function
-  struct ExecutionContext {
-    uint8_t *Memory;
-    ValVariant *const *Globals;
-    uint64_t *InstrCount;
-    uint64_t *CostTable;
-    uint64_t *Gas;
-  } ExecutionContext;
 };
 
 } // namespace Interpreter

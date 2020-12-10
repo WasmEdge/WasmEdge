@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 add_library(ssvmInterpreterEngine
+  proxy.cpp
   control.cpp
   table.cpp
   memory.cpp

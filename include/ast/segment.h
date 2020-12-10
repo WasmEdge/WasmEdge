@@ -29,7 +29,8 @@ namespace AST {
 class Segment : public Base {
 public:
   /// Binary loading from file manager. Inheritted from Base.
-  Expect<void> loadBinary(FileMgr &Mgr) override {
+  Expect<void> loadBinary(FileMgr &Mgr,
+                          const ProposalConfigure &PConf) override {
     LOG(ERROR) << ErrCode::InvalidGrammar;
     LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
     return Unexpect(ErrCode::InvalidGrammar);
@@ -44,9 +45,10 @@ protected:
   /// Create the expression node and read data.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadExpression(FileMgr &Mgr);
+  Expect<void> loadExpression(FileMgr &Mgr, const ProposalConfigure &PConf);
 
   /// Expression node in this segment.
   Expression Expr;
@@ -61,9 +63,11 @@ public:
   /// Read the global type and expression.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr) override;
+  Expect<void> loadBinary(FileMgr &Mgr,
+                          const ProposalConfigure &PConf) override;
 
   /// Getter of locals vector.
   const GlobalType &getGlobalType() const { return Global; }
@@ -87,9 +91,11 @@ public:
   /// Read the table index, expression, and function indices.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr) override;
+  Expect<void> loadBinary(FileMgr &Mgr,
+                          const ProposalConfigure &PConf) override;
 
   /// Element mode enumeration.
   enum class ElemMode : uint8_t { Passive, Active, Declarative };
@@ -128,9 +134,11 @@ public:
   /// Read the segment size, locals, and function body.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr) override;
+  Expect<void> loadBinary(FileMgr &Mgr,
+                          const ProposalConfigure &PConf) override;
 
   /// Getter of locals vector.
   Span<const std::pair<uint32_t, ValType>> getLocals() const { return Locals; }
@@ -162,9 +170,11 @@ public:
   /// Read the memory index, offset expression, and initialization data.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr) override;
+  Expect<void> loadBinary(FileMgr &Mgr,
+                          const ProposalConfigure &PConf) override;
 
   /// Data mode enumeration.
   enum class DataMode : uint8_t { Passive, Active };

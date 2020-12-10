@@ -261,7 +261,8 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoBoundary &Rhs) {
 
 std::ostream &operator<<(std::ostream &OS, const struct InfoProposal &Rhs) {
   if (auto Iter = ProposalStr.find(Rhs.P); Iter != ProposalStr.end()) {
-    OS << "    This instruction requires enabling proposal " << Iter->second;
+    OS << "    This instruction or syntax requires enabling proposal "
+       << Iter->second;
   } else {
     OS << "    Unknown proposal, Code "
        << convertUIntToHexStr(static_cast<uint32_t>(Rhs.P));

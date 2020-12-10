@@ -44,9 +44,11 @@ public:
   /// content.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr) override;
+  Expect<void> loadBinary(FileMgr &Mgr,
+                          const ProposalConfigure &PConf) override;
 
   /// Getter of module name.
   std::string_view getModuleName() const { return ModName; }
@@ -83,9 +85,11 @@ public:
   /// Read the export name, external type, and corresponding external index.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr) override;
+  Expect<void> loadBinary(FileMgr &Mgr,
+                          const ProposalConfigure &PConf) override;
 
   /// Getter of external name.
   std::string_view getExternalName() const { return ExtName; }

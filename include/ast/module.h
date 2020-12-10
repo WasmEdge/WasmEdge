@@ -39,9 +39,11 @@ public:
   /// Read Section indices and create Section nodes.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr) override;
+  Expect<void> loadBinary(FileMgr &Mgr,
+                          const ProposalConfigure &PConf) override;
 
   /// Load compiled function from loadable manager.
   Expect<void> loadCompiled(LDMgr &Mgr);

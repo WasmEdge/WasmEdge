@@ -14,6 +14,7 @@
 
 #include "common/astdef.h"
 #include "common/errcode.h"
+#include "common/proposal.h"
 #include "loader/filemgr.h"
 
 namespace SSVM {
@@ -26,7 +27,8 @@ public:
   virtual ~Base() = default;
 
   /// Binary loading from file manager.
-  virtual Expect<void> loadBinary(FileMgr &Mgr) {
+  virtual Expect<void> loadBinary(FileMgr &Mgr,
+                                  const ProposalConfigure &PConf) {
     return Unexpect(ErrCode::InvalidGrammar);
   };
 

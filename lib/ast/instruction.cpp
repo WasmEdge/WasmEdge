@@ -5,7 +5,46 @@
 namespace SSVM {
 namespace AST {
 
-Expect<void> Instruction::loadBinary(FileMgr &Mgr) {
+namespace {
+Expect<void> checkInstrProposals(OpCode Code, const ProposalConfigure &PConf) {
+  if ((Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
+      (Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||
+      (Code >= OpCode::Memory__init && Code <= OpCode::Memory__fill)) {
+    /// These instructions are for ReferenceTypes or BulkMemoryOperations
+    /// proposal.
+    if (!PConf.hasProposal(Proposal::ReferenceTypes) &&
+        !PConf.hasProposal(Proposal::BulkMemoryOperations)) {
+      LOG(ERROR) << ErrCode::InvalidOpCode;
+      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
+      return Unexpect(ErrCode::InvalidOpCode);
+    }
+  } else if (Code == OpCode::Select_t ||
+             (Code >= OpCode::Table__get && Code <= OpCode::Table__set) ||
+             (Code >= OpCode::Table__grow && Code <= OpCode::Table__fill)) {
+    /// These instructions are for ReferenceTypes proposal.
+    if (!PConf.hasProposal(Proposal::ReferenceTypes)) {
+      LOG(ERROR) << ErrCode::InvalidOpCode;
+      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
+      return Unexpect(ErrCode::InvalidOpCode);
+    }
+  } else if (Code >= OpCode::V128__load &&
+             Code <= OpCode::F64x2__convert_i64x2_u) {
+    /// These instructions are for SIMD proposal.
+    if (!PConf.hasProposal(Proposal::SIMD)) {
+      LOG(ERROR) << ErrCode::InvalidOpCode;
+      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::SIMD);
+      return Unexpect(ErrCode::InvalidOpCode);
+    }
+  }
+  return {};
+}
+} // namespace
+
+Expect<void> Instruction::loadBinary(FileMgr &Mgr,
+                                     const ProposalConfigure &PConf) {
+  /// Node: The instruction has checked for the proposals. Need to check their
+  /// immediates.
+
   auto readCheck = [&Mgr](uint8_t Val) -> Expect<void> {
     if (auto Res = Mgr.readByte()) {
       if (*Res != Val) {
@@ -35,6 +74,43 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr) {
     return {};
   };
 
+  auto checkValType = [&Mgr, &PConf](ValType VType) -> Expect<ValType> {
+    if (VType == ValType::V128 && !PConf.hasProposal(Proposal::SIMD)) {
+      LOG(ERROR) << ErrCode::InvalidGrammar;
+      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::SIMD);
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(ErrCode::InvalidGrammar);
+    }
+    if ((VType == ValType::FuncRef &&
+         !PConf.hasProposal(Proposal::ReferenceTypes) &&
+         !PConf.hasProposal(Proposal::BulkMemoryOperations)) ||
+        (VType == ValType::ExternRef &&
+         !PConf.hasProposal(Proposal::ReferenceTypes))) {
+      LOG(ERROR) << ErrCode::InvalidGrammar;
+      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(ErrCode::InvalidGrammar);
+    }
+    switch (VType) {
+    case ValType::None:
+    case ValType::I32:
+    case ValType::I64:
+    case ValType::F32:
+    case ValType::F64:
+    case ValType::V128:
+    case ValType::ExternRef:
+    case ValType::FuncRef:
+      return VType;
+    default:
+      LOG(ERROR) << ErrCode::InvalidGrammar;
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(ErrCode::InvalidGrammar);
+    }
+  };
+
   switch (Code) {
   /// Control instructions.
   case OpCode::Unreachable:
@@ -52,23 +128,10 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr) {
       if (*Res < 0) {
         /// Value type case.
         ValType VType = static_cast<ValType>((*Res) & 0x7FU);
-        switch (VType) {
-        case ValType::None:
-        case ValType::I32:
-        case ValType::I64:
-        case ValType::F32:
-        case ValType::F64:
-        case ValType::V128:
-        case ValType::ExternRef:
-        case ValType::FuncRef:
-          ResType = VType;
-          break;
-        default:
-          LOG(ERROR) << ErrCode::InvalidGrammar;
-          LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-          return Unexpect(ErrCode::InvalidGrammar);
+        if (auto Check = checkValType(VType); !Check) {
+          return Unexpect(Check);
         }
+        ResType = VType;
       } else {
         /// Type index case.
         ResType = static_cast<uint32_t>(*Res);
@@ -113,14 +176,32 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr) {
       return Unexpect(Res);
     }
     /// Read the table index.
-    return readU32(SourceIdx);
+    if (auto Res = readU32(SourceIdx); !Res) {
+      return Unexpect(Res);
+    }
+    if (SourceIdx > 0 && !PConf.hasProposal(Proposal::ReferenceTypes)) {
+      LOG(ERROR) << ErrCode::InvalidGrammar;
+      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(ErrCode::InvalidGrammar);
+    }
+    return {};
 
   /// Reference Instructions.
   case OpCode::Ref__null:
     if (auto Res = Mgr.readByte()) {
       switch (static_cast<RefType>(*Res)) {
-      case RefType::FuncRef:
       case RefType::ExternRef:
+        if (!PConf.hasProposal(Proposal::ReferenceTypes)) {
+          LOG(ERROR) << ErrCode::InvalidGrammar;
+          LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
+          LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+          return Unexpect(ErrCode::InvalidGrammar);
+        }
+        [[fallthrough]];
+      case RefType::FuncRef:
         ReferenceType = static_cast<RefType>(*Res);
         break;
       default:
@@ -154,23 +235,10 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr) {
     for (uint32_t I = 0; I < VecCnt; ++I) {
       if (auto Res = Mgr.readByte()) {
         ValType VType = static_cast<ValType>(*Res);
-        switch (VType) {
-        case ValType::None:
-        case ValType::I32:
-        case ValType::I64:
-        case ValType::F32:
-        case ValType::F64:
-        case ValType::V128:
-        case ValType::ExternRef:
-        case ValType::FuncRef:
-          ValTypeList.push_back(VType);
-          break;
-        default:
-          LOG(ERROR) << ErrCode::InvalidGrammar;
-          LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-          return Unexpect(ErrCode::InvalidGrammar);
+        if (auto Check = checkValType(VType); !Check) {
+          return Unexpect(Check);
         }
+        ValTypeList.push_back(VType);
       } else {
         LOG(ERROR) << Res.error();
         LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
@@ -719,17 +787,7 @@ Expect<OpCode> loadOpCode(FileMgr &Mgr) {
     return Unexpect(B1);
   }
 
-  if (Payload == 0xFCU) {
-    /// 2-bytes OpCode case.
-    if (auto B2 = Mgr.readByte()) {
-      Payload <<= 8;
-      Payload |= (*B2);
-    } else {
-      LOG(ERROR) << B2.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      return Unexpect(B2);
-    }
-  } else if (Payload == 0xFDU) {
+  if (Payload == 0xFCU || Payload == 0xFDU) {
     /// 2-bytes OpCode case.
     if (auto B2 = Mgr.readU32()) {
       Payload <<= 8;
@@ -743,7 +801,7 @@ Expect<OpCode> loadOpCode(FileMgr &Mgr) {
   return static_cast<OpCode>(Payload);
 }
 
-Expect<InstrVec> loadInstrSeq(FileMgr &Mgr) {
+Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const ProposalConfigure &PConf) {
   OpCode Code;
   InstrVec Instrs;
   std::vector<std::pair<OpCode, uint32_t>> BlockStack;
@@ -757,6 +815,11 @@ Expect<InstrVec> loadInstrSeq(FileMgr &Mgr) {
       Code = *Res;
     } else {
       LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(Res);
+    }
+
+    /// Check with proposals.
+    if (auto Res = checkInstrProposals(Code, PConf); !Res) {
       return Unexpect(Res);
     }
 

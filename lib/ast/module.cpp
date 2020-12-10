@@ -6,7 +6,7 @@ namespace SSVM {
 namespace AST {
 
 /// Load binary to construct Module node. See "include/ast/module.h".
-Expect<void> Module::loadBinary(FileMgr &Mgr) {
+Expect<void> Module::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
   /// Read Magic and Version sequences.
   if (auto Res = Mgr.readBytes(4)) {
     Magic = *Res;
@@ -61,7 +61,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
       if (CustomSec == nullptr) {
         CustomSec = std::make_unique<CustomSection>();
       }
-      if (auto Res = CustomSec->loadBinary(Mgr); !Res) {
+      if (auto Res = CustomSec->loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -70,7 +70,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
       if (TypeSec == nullptr) {
         TypeSec = std::make_unique<TypeSection>();
       }
-      if (auto Res = TypeSec->loadBinary(Mgr); !Res) {
+      if (auto Res = TypeSec->loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -79,7 +79,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
       if (ImportSec == nullptr) {
         ImportSec = std::make_unique<ImportSection>();
       }
-      if (auto Res = ImportSec->loadBinary(Mgr); !Res) {
+      if (auto Res = ImportSec->loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -88,7 +88,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
       if (FunctionSec == nullptr) {
         FunctionSec = std::make_unique<FunctionSection>();
       }
-      if (auto Res = FunctionSec->loadBinary(Mgr); !Res) {
+      if (auto Res = FunctionSec->loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -97,7 +97,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
       if (TableSec == nullptr) {
         TableSec = std::make_unique<TableSection>();
       }
-      if (auto Res = TableSec->loadBinary(Mgr); !Res) {
+      if (auto Res = TableSec->loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -106,7 +106,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
       if (MemorySec == nullptr) {
         MemorySec = std::make_unique<MemorySection>();
       }
-      if (auto Res = MemorySec->loadBinary(Mgr); !Res) {
+      if (auto Res = MemorySec->loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -115,7 +115,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
       if (GlobalSec == nullptr) {
         GlobalSec = std::make_unique<GlobalSection>();
       }
-      if (auto Res = GlobalSec->loadBinary(Mgr); !Res) {
+      if (auto Res = GlobalSec->loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -124,7 +124,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
       if (ExportSec == nullptr) {
         ExportSec = std::make_unique<ExportSection>();
       }
-      if (auto Res = ExportSec->loadBinary(Mgr); !Res) {
+      if (auto Res = ExportSec->loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -133,7 +133,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
       if (StartSec == nullptr) {
         StartSec = std::make_unique<StartSection>();
       }
-      if (auto Res = StartSec->loadBinary(Mgr); !Res) {
+      if (auto Res = StartSec->loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -142,7 +142,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
       if (ElementSec == nullptr) {
         ElementSec = std::make_unique<ElementSection>();
       }
-      if (auto Res = ElementSec->loadBinary(Mgr); !Res) {
+      if (auto Res = ElementSec->loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -151,7 +151,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
       if (CodeSec == nullptr) {
         CodeSec = std::make_unique<CodeSection>();
       }
-      if (auto Res = CodeSec->loadBinary(Mgr); !Res) {
+      if (auto Res = CodeSec->loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -160,16 +160,24 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
       if (DataSec == nullptr) {
         DataSec = std::make_unique<DataSection>();
       }
-      if (auto Res = DataSec->loadBinary(Mgr); !Res) {
+      if (auto Res = DataSec->loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x0C:
+      /// This section is for BulkMemoryOperations or ReferenceTypes proposal.
+      if (!PConf.hasProposal(Proposal::BulkMemoryOperations) &&
+          !PConf.hasProposal(Proposal::ReferenceTypes)) {
+        LOG(ERROR) << ErrCode::InvalidGrammar;
+        LOG(ERROR) << ErrInfo::InfoProposal(Proposal::BulkMemoryOperations);
+        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+        return Unexpect(ErrCode::InvalidGrammar);
+      }
       if (DataCountSec == nullptr) {
         DataCountSec = std::make_unique<DataCountSection>();
       }
-      if (auto Res = DataCountSec->loadBinary(Mgr); !Res) {
+      if (auto Res = DataCountSec->loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }

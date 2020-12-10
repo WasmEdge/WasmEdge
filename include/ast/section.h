@@ -35,16 +35,19 @@ public:
   /// Call loadContent() for reading contents.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr) override;
+  Expect<void> loadBinary(FileMgr &Mgr,
+                          const ProposalConfigure &PConf) override;
 
 protected:
   /// Read content size of this section.
   Expect<void> loadSize(FileMgr &Mgr);
 
   /// Read content of this section.
-  virtual Expect<void> loadContent(FileMgr &Mgr) {
+  virtual Expect<void> loadContent(FileMgr &Mgr,
+                                   const ProposalConfigure &PConf) {
     LOG(ERROR) << ErrCode::InvalidGrammar;
     LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(ErrCode::InvalidGrammar);
@@ -57,13 +60,14 @@ protected:
   /// Call loadContent() for reading contents.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   /// \param Node the node type of caller.
   /// \param [out] &Vec filled with read data on loadVector success.
   ///
   /// \returns void when success, ErrCode when failed.
   template <typename T>
-  Expect<void> loadToVector(FileMgr &Mgr, const ASTNodeAttr Node,
-                            std::vector<T> &Vec) {
+  Expect<void> loadToVector(FileMgr &Mgr, const ProposalConfigure &PConf,
+                            const ASTNodeAttr Node, std::vector<T> &Vec) {
     uint32_t VecCnt = 0;
     /// Read vector size.
     if (auto Res = Mgr.readU32()) {
@@ -78,7 +82,7 @@ protected:
     /// Sequently create AST node T and read data.
     for (uint32_t i = 0; i < VecCnt; ++i) {
       T NewContent;
-      if (auto Res = NewContent.loadBinary(Mgr)) {
+      if (auto Res = NewContent.loadBinary(Mgr, PConf)) {
         Vec.push_back(std::move(NewContent));
       } else {
         LOG(ERROR) << ErrInfo::InfoAST(Node);
@@ -100,7 +104,8 @@ public:
 
 protected:
   /// Overrided content loading of custom section.
-  Expect<void> loadContent(FileMgr &Mgr) override;
+  Expect<void> loadContent(FileMgr &Mgr,
+                           const ProposalConfigure &PConf) override;
 
 private:
   /// Vector of raw bytes of content.
@@ -121,7 +126,8 @@ public:
 
 protected:
   /// Overrided content loading of type section.
-  Expect<void> loadContent(FileMgr &Mgr) override;
+  Expect<void> loadContent(FileMgr &Mgr,
+                           const ProposalConfigure &PConf) override;
 
 private:
   /// Vector of FunctionType nodes.
@@ -139,7 +145,8 @@ public:
 
 protected:
   /// Overrided content loading of import section.
-  Expect<void> loadContent(FileMgr &Mgr) override;
+  Expect<void> loadContent(FileMgr &Mgr,
+                           const ProposalConfigure &PConf) override;
 
 private:
   /// Vector of ImportDesc nodes.
@@ -157,7 +164,8 @@ public:
 
 protected:
   /// Overrided content loading of function section.
-  Expect<void> loadContent(FileMgr &Mgr) override;
+  Expect<void> loadContent(FileMgr &Mgr,
+                           const ProposalConfigure &PConf) override;
 
 private:
   /// Vector of function indices.
@@ -175,7 +183,8 @@ public:
 
 protected:
   /// Overrided content loading of table section.
-  Expect<void> loadContent(FileMgr &Mgr) override;
+  Expect<void> loadContent(FileMgr &Mgr,
+                           const ProposalConfigure &PConf) override;
 
 private:
   /// Vector of TableType nodes.
@@ -193,7 +202,8 @@ public:
 
 protected:
   /// Overrided content loading of memory section.
-  Expect<void> loadContent(FileMgr &Mgr) override;
+  Expect<void> loadContent(FileMgr &Mgr,
+                           const ProposalConfigure &PConf) override;
 
 private:
   /// Vector of MemoryType nodes.
@@ -211,7 +221,8 @@ public:
 
 protected:
   /// Overrided content loading of global section.
-  virtual Expect<void> loadContent(FileMgr &Mgr);
+  Expect<void> loadContent(FileMgr &Mgr,
+                           const ProposalConfigure &PConf) override;
 
 private:
   /// Vector of GlobalType nodes.
@@ -229,7 +240,8 @@ public:
 
 protected:
   /// Overrided content loading of export section.
-  virtual Expect<void> loadContent(FileMgr &Mgr);
+  Expect<void> loadContent(FileMgr &Mgr,
+                           const ProposalConfigure &PConf) override;
 
 private:
   /// Vector of ExportDesc nodes.
@@ -247,7 +259,8 @@ public:
 
 protected:
   /// Overrided content loading of start section.
-  virtual Expect<void> loadContent(FileMgr &Mgr);
+  Expect<void> loadContent(FileMgr &Mgr,
+                           const ProposalConfigure &PConf) override;
 
 private:
   /// Start function index.
@@ -265,7 +278,8 @@ public:
 
 protected:
   /// Overrided content loading of element section.
-  virtual Expect<void> loadContent(FileMgr &Mgr);
+  Expect<void> loadContent(FileMgr &Mgr,
+                           const ProposalConfigure &PConf) override;
 
 private:
   /// Vector of ElementSegment nodes.
@@ -286,7 +300,8 @@ public:
 
 protected:
   /// Overrided content loading of code section.
-  virtual Expect<void> loadContent(FileMgr &Mgr);
+  Expect<void> loadContent(FileMgr &Mgr,
+                           const ProposalConfigure &PConf) override;
 
 private:
   /// Vector of CodeSegment nodes.
@@ -304,7 +319,8 @@ public:
 
 protected:
   /// Overrided content loading of data section.
-  virtual Expect<void> loadContent(FileMgr &Mgr);
+  Expect<void> loadContent(FileMgr &Mgr,
+                           const ProposalConfigure &PConf) override;
 
 private:
   /// Vector of DataSegment nodes.
@@ -322,7 +338,8 @@ public:
 
 protected:
   /// Overrided content loading of custom section.
-  Expect<void> loadContent(FileMgr &Mgr) override;
+  Expect<void> loadContent(FileMgr &Mgr,
+                           const ProposalConfigure &PConf) override;
 
 private:
   /// u32 of count of data segments.

@@ -41,7 +41,7 @@ public:
   ~Instruction() noexcept = default;
 
   /// Binary loading from file manager.
-  Expect<void> loadBinary(FileMgr &Mgr);
+  Expect<void> loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf);
 
   /// Getter of OpCode.
   OpCode getOpCode() const { return Code; }
@@ -106,18 +106,20 @@ private:
 /// Read OpCode byte(s) from file manager and return OpCode.
 ///
 /// \param FileMgr the file manager object to load bytes.
+/// \param PConf the proposal configuration reference.
 ///
 /// \returns OpCode if success, ErrCode when failed.
-Expect<OpCode> loadOpCode(FileMgr &Mgr);
+Expect<OpCode> loadOpCode(FileMgr &Mgr, const ProposalConfigure &PConf);
 
 /// Load instructions from file manager.
 ///
 /// Read instructions until the End OpCode and return the vector.
 ///
 /// \param FileMgr the file manager object to load bytes.
+/// \param PConf the proposal configuration reference.
 ///
 /// \returns InstrVec if success, ErrCode when failed.
-Expect<InstrVec> loadInstrSeq(FileMgr &Mgr);
+Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const ProposalConfigure &PConf);
 
 } // namespace AST
 } // namespace SSVM

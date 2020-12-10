@@ -39,9 +39,11 @@ public:
   /// Read Min and Max value of this node.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr) override;
+  Expect<void> loadBinary(FileMgr &Mgr,
+                          const ProposalConfigure &PConf) override;
 
   /// Getter of having max in limit.
   bool hasMax() const { return Type == LimitType::HasMinMax; }
@@ -75,9 +77,11 @@ public:
   /// Read value types of parameter list and return list.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr) override;
+  Expect<void> loadBinary(FileMgr &Mgr,
+                          const ProposalConfigure &PConf) override;
 
   /// Getter of parameter types vector.
   Span<const ValType> getParamTypes() const { return ParamTypes; }
@@ -123,9 +127,11 @@ public:
   /// Read the Limit data of this node.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr) override;
+  Expect<void> loadBinary(FileMgr &Mgr,
+                          const ProposalConfigure &PConf) override;
 
   /// Getter of limit.
   const Limit &getLimit() const { return MemoryLim; }
@@ -147,9 +153,11 @@ public:
   /// Read reference type and Limit data.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr) override;
+  Expect<void> loadBinary(FileMgr &Mgr,
+                          const ProposalConfigure &PConf) override;
 
   /// Getter of reference type.
   RefType getReferenceType() const { return Type; }
@@ -177,9 +185,11 @@ public:
   /// Read value type and mutation.
   ///
   /// \param Mgr the file manager reference.
+  /// \param PConf the proposal configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr) override;
+  Expect<void> loadBinary(FileMgr &Mgr,
+                          const ProposalConfigure &PConf) override;
 
   /// Getter of global type.
   ValType getValueType() const { return Type; }

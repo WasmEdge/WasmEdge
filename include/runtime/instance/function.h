@@ -31,16 +31,9 @@ public:
   /// Constructor for native function.
   FunctionInstance(const uint32_t ModAddr, const FType &Type,
                    Span<const std::pair<uint32_t, ValType>> Locs,
-                   const AST::InstrVec &Expr)
+                   AST::InstrView Expr)
       : IsHostFunction(false), FuncType(Type), ModuleAddr(ModAddr),
-        Locals(Locs.begin(), Locs.end()) {
-    /// Copy instructions
-    for (auto &It : Expr) {
-      if (auto Res = makeInstructionNode(*It.get())) {
-        Instrs.push_back(std::move(*Res));
-      }
-    }
-  }
+        Locals(Locs.begin(), Locs.end()), Instrs(Expr.begin(), Expr.end()) {}
   /// Constructor for host function. Module address will not be used.
   FunctionInstance(std::unique_ptr<HostFunctionBase> &&Func)
       : IsHostFunction(true), FuncType(Func->getFuncType()), ModuleAddr(0),
@@ -63,7 +56,7 @@ public:
   Span<const std::pair<uint32_t, ValType>> getLocals() const { return Locals; }
 
   /// Getter of function body instrs.
-  const AST::InstrVec &getInstrs() const { return Instrs; }
+  AST::InstrView getInstrs() const { return Instrs; }
 
   /// Getter of symbol
   const auto getSymbol() const noexcept { return Symbol; }
@@ -83,7 +76,7 @@ private:
   /// @{
   uint32_t ModuleAddr;
   const std::vector<std::pair<uint32_t, ValType>> Locals;
-  AST::InstrVec Instrs;
+  const AST::InstrVec Instrs;
   DLSymbol<CompiledFunction> Symbol;
   /// @}
 

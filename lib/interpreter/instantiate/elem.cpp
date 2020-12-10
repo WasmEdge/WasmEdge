@@ -17,11 +17,11 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Instantiate and initialize elements.
   for (const auto &ElemSeg : ElemSec.getContent()) {
     std::vector<RefVariant> InitVals;
-    for (const auto &Expr : ElemSeg->getInitExprs()) {
+    for (const auto &Expr : ElemSeg.getInitExprs()) {
       /// Run init expr of every elements and get the result reference.
-      if (auto Res = runExpression(StoreMgr, Expr->getInstrs()); !Res) {
+      if (auto Res = runExpression(StoreMgr, Expr.getInstrs()); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
-        LOG(ERROR) << ErrInfo::InfoAST(ElemSeg->NodeAttr);
+        LOG(ERROR) << ErrInfo::InfoAST(ElemSeg.NodeAttr);
         return Unexpect(Res);
       }
       /// Pop result from stack.
@@ -29,11 +29,11 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
 
     uint32_t Offset = 0;
-    if (ElemSeg->getMode() == AST::ElementSegment::ElemMode::Active) {
+    if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
       /// Run initialize expression.
-      if (auto Res = runExpression(StoreMgr, ElemSeg->getInstrs()); !Res) {
+      if (auto Res = runExpression(StoreMgr, ElemSeg.getInstrs()); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
-        LOG(ERROR) << ErrInfo::InfoAST(ElemSeg->NodeAttr);
+        LOG(ERROR) << ErrInfo::InfoAST(ElemSeg.NodeAttr);
         return Unexpect(Res);
       }
       Offset = retrieveValue<uint32_t>(StackMgr.pop());
@@ -43,11 +43,11 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       if (!PConf.hasProposal(Proposal::ReferenceTypes) &&
           !PConf.hasProposal(Proposal::BulkMemoryOperations)) {
         /// Table index should be 0. Checked in validation phase.
-        auto *TabInst = getTabInstByIdx(StoreMgr, ElemSeg->getIdx());
+        auto *TabInst = getTabInstByIdx(StoreMgr, ElemSeg.getIdx());
         /// Check elements fits.
         if (!TabInst->checkAccessBound(Offset, InitVals.size())) {
           LOG(ERROR) << ErrCode::ElemSegDoesNotFit;
-          LOG(ERROR) << ErrInfo::InfoAST(ElemSeg->NodeAttr);
+          LOG(ERROR) << ErrInfo::InfoAST(ElemSeg.NodeAttr);
           return Unexpect(ErrCode::ElemSegDoesNotFit);
         }
       }
@@ -55,7 +55,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 
     /// Make a new element instance.
     auto NewElemInst = std::make_unique<Runtime::Instance::ElementInstance>(
-        Offset, ElemSeg->getRefType(), InitVals);
+        Offset, ElemSeg.getRefType(), InitVals);
 
     /// Insert element instance to store manager.
     uint32_t NewElemInstAddr;
@@ -78,16 +78,16 @@ Expect<void> Interpreter::initTable(Runtime::StoreManager &StoreMgr,
   uint32_t Idx = 0;
   for (const auto &ElemSeg : ElemSec.getContent()) {
     auto *ElemInst = getElemInstByIdx(StoreMgr, Idx);
-    if (ElemSeg->getMode() == AST::ElementSegment::ElemMode::Active) {
-      /// Table index should be 0. Checked in validation phase.
-      auto *TabInst = getTabInstByIdx(StoreMgr, ElemSeg->getIdx());
+    if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
+      /// Table index is checked in validation phase.
+      auto *TabInst = getTabInstByIdx(StoreMgr, ElemSeg.getIdx());
       const uint32_t Off = ElemInst->getOffset();
 
       /// Replace table[Off : Off + n] with elem[0 : n].
       if (auto Res = TabInst->setRefs(ElemInst->getRefs(), Off, 0,
                                       ElemInst->getRefs().size());
           !Res) {
-        LOG(ERROR) << ErrInfo::InfoAST(ElemSeg->NodeAttr);
+        LOG(ERROR) << ErrInfo::InfoAST(ElemSeg.NodeAttr);
         return Unexpect(Res);
       }
 
@@ -100,7 +100,7 @@ Expect<void> Interpreter::initTable(Runtime::StoreManager &StoreMgr,
       ///   i32.const n
       ///   table.init idx
       ///   elem.drop idx
-    } else if (ElemSeg->getMode() ==
+    } else if (ElemSeg.getMode() ==
                AST::ElementSegment::ElemMode::Declarative) {
       /// Drop the element instance.
       ElemInst->clear();

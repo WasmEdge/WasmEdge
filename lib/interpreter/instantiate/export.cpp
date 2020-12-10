@@ -19,9 +19,9 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Iterate and istantiate export descriptions.
   for (const auto &ExpDesc : ExportSec.getContent()) {
     /// Get data from export description.
-    const auto ExtType = ExpDesc->getExternalType();
-    std::string_view ExtName = ExpDesc->getExternalName();
-    const uint32_t ExtIdx = ExpDesc->getExternalIndex();
+    const auto ExtType = ExpDesc.getExternalType();
+    std::string_view ExtName = ExpDesc.getExternalName();
+    const uint32_t ExtIdx = ExpDesc.getExternalIndex();
 
     /// Add the name of instances module.
     switch (ExtType) {

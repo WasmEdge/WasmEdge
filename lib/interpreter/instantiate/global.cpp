@@ -16,12 +16,12 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Instantiate and initialize globals.
   for (const auto &GlobSeg : GlobSec.getContent()) {
     /// Make a new global instance.
-    auto *GlobType = GlobSeg->getGlobalType();
+    const auto &GlobType = GlobSeg.getGlobalType();
     auto NewGlobInst = std::make_unique<Runtime::Instance::GlobalInstance>(
-        GlobType->getValueType(), GlobType->getValueMutation());
+        GlobType.getValueType(), GlobType.getValueMutation());
 
     /// Run initialize expression.
-    if (auto Res = runExpression(StoreMgr, GlobSeg->getInstrs()); !Res) {
+    if (auto Res = runExpression(StoreMgr, GlobSeg.getInstrs()); !Res) {
       LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
       return Unexpect(Res);
     }

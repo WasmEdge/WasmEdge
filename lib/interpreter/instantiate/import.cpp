@@ -95,9 +95,9 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Iterate and instantiate import descriptions.
   for (const auto &ImpDesc : ImportSec.getContent()) {
     /// Get data from import description and find import module.
-    auto ExtType = ImpDesc->getExternalType();
-    auto ModName = ImpDesc->getModuleName();
-    auto ExtName = ImpDesc->getExternalName();
+    auto ExtType = ImpDesc.getExternalType();
+    auto ModName = ImpDesc.getModuleName();
+    auto ExtName = ImpDesc.getExternalName();
     Runtime::Instance::ModuleInstance *TargetModInst;
     uint32_t TargetAddr;
     if (auto Res = StoreMgr.findModule(ModName)) {
@@ -105,14 +105,14 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     } else {
       LOG(ERROR) << ErrCode::UnknownImport;
       LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
-      LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(ImpDesc.NodeAttr);
       return Unexpect(ErrCode::UnknownImport);
     }
     if (auto Res = getImportAddr(ExtName, ExtType, *TargetModInst)) {
       TargetAddr = *Res;
     } else {
       LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
-      LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(ImpDesc.NodeAttr);
       return Unexpect(Res);
     }
 
@@ -120,11 +120,11 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     switch (ExtType) {
     case ExternalType::Function: {
       /// Get function type index. External type checked in validation.
-      uint32_t *TypeIdx = *ImpDesc->getExternalContent<uint32_t>();
+      uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
       /// Import matching.
       const auto *TargetInst = *StoreMgr.getFunction(TargetAddr);
       const auto &TargetType = TargetInst->getFuncType();
-      const auto *FuncType = *ModInst.getFuncType(*TypeIdx);
+      const auto *FuncType = *ModInst.getFuncType(TypeIdx);
       if (TargetType.Params != FuncType->Params ||
           TargetType.Returns != FuncType->Returns) {
         LOG(ERROR) << ErrCode::IncompatibleImportType;
@@ -132,7 +132,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
                                             TargetType.Params,
                                             TargetType.Returns);
         LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
-        LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
+        LOG(ERROR) << ErrInfo::InfoAST(ImpDesc.NodeAttr);
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched function address to module instance.
@@ -141,22 +141,22 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
     case ExternalType::Table: {
       /// Get table type. External type checked in validation.
-      AST::TableType *TabType = *ImpDesc->getExternalContent<AST::TableType>();
+      const auto &TabType = ImpDesc.getExternalTableType();
       /// Import matching.
       const auto *TargetInst = *StoreMgr.getTable(TargetAddr);
-      const auto *TabLim = TabType->getLimit();
-      if (TargetInst->getReferenceType() != TabType->getReferenceType() ||
+      const auto &TabLim = TabType.getLimit();
+      if (TargetInst->getReferenceType() != TabType.getReferenceType() ||
           !isLimitMatched(TargetInst->getHasMax(), TargetInst->getMin(),
-                          TargetInst->getMax(), TabLim->hasMax(),
-                          TabLim->getMin(), TabLim->getMax())) {
+                          TargetInst->getMax(), TabLim.hasMax(),
+                          TabLim.getMin(), TabLim.getMax())) {
         LOG(ERROR) << ErrCode::IncompatibleImportType;
         LOG(ERROR) << ErrInfo::InfoMismatch(
-            TabType->getReferenceType(), TabLim->hasMax(), TabLim->getMin(),
-            TabLim->getMax(), TargetInst->getReferenceType(),
+            TabType.getReferenceType(), TabLim.hasMax(), TabLim.getMin(),
+            TabLim.getMax(), TargetInst->getReferenceType(),
             TargetInst->getHasMax(), TargetInst->getMin(),
             TargetInst->getMax());
         LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
-        LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
+        LOG(ERROR) << ErrInfo::InfoAST(ImpDesc.NodeAttr);
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched table address to module instance.
@@ -165,21 +165,20 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
     case ExternalType::Memory: {
       /// Get memory type. External type checked in validation.
-      AST::MemoryType *MemType =
-          *ImpDesc->getExternalContent<AST::MemoryType>();
+      const auto &MemType = ImpDesc.getExternalMemoryType();
       /// Import matching.
       auto *TargetInst = *StoreMgr.getMemory(TargetAddr);
-      const auto *MemLim = MemType->getLimit();
+      const auto &MemLim = MemType.getLimit();
       if (!isLimitMatched(TargetInst->getHasMax(), TargetInst->getMin(),
-                          TargetInst->getMax(), MemLim->hasMax(),
-                          MemLim->getMin(), MemLim->getMax())) {
+                          TargetInst->getMax(), MemLim.hasMax(),
+                          MemLim.getMin(), MemLim.getMax())) {
         LOG(ERROR) << ErrCode::IncompatibleImportType;
         LOG(ERROR) << ErrInfo::InfoMismatch(
-            MemLim->hasMax(), MemLim->getMin(), MemLim->getMax(),
+            MemLim.hasMax(), MemLim.getMin(), MemLim.getMax(),
             TargetInst->getHasMax(), TargetInst->getMin(),
             TargetInst->getMax());
         LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
-        LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
+        LOG(ERROR) << ErrInfo::InfoAST(ImpDesc.NodeAttr);
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched memory address to module instance.
@@ -188,18 +187,17 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
     case ExternalType::Global: {
       /// Get global type. External type checked in validation.
-      AST::GlobalType *GlobType =
-          *ImpDesc->getExternalContent<AST::GlobalType>();
+      const auto &GlobType = ImpDesc.getExternalGlobalType();
       /// Import matching.
       auto *TargetInst = *StoreMgr.getGlobal(TargetAddr);
-      if (TargetInst->getValType() != GlobType->getValueType() ||
-          TargetInst->getValMut() != GlobType->getValueMutation()) {
+      if (TargetInst->getValType() != GlobType.getValueType() ||
+          TargetInst->getValMut() != GlobType.getValueMutation()) {
         LOG(ERROR) << ErrCode::IncompatibleImportType;
         LOG(ERROR) << ErrInfo::InfoMismatch(
-            GlobType->getValueType(), GlobType->getValueMutation(),
+            GlobType.getValueType(), GlobType.getValueMutation(),
             TargetInst->getValType(), TargetInst->getValMut());
         LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
-        LOG(ERROR) << ErrInfo::InfoAST(ImpDesc->NodeAttr);
+        LOG(ERROR) << ErrInfo::InfoAST(ImpDesc.NodeAttr);
         return Unexpect(ErrCode::IncompatibleImportType);
       }
       /// Set the matched global address to module instance.

@@ -39,8 +39,8 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     auto FuncTypes = TypeSec->getContent();
     for (auto &FuncType : FuncTypes) {
       /// Copy param and return lists to module instance.
-      ModInst->addFuncType(FuncType->getParamTypes(),
-                           FuncType->getReturnTypes(), FuncType->getSymbol());
+      ModInst->addFuncType(FuncType.getParamTypes(), FuncType.getReturnTypes(),
+                           FuncType.getSymbol());
     }
   }
 
@@ -147,7 +147,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
   }
 
-  /// initialization table instances
+  /// Initialize table instances
   if (ElemSec != nullptr) {
     if (auto Res = initTable(StoreMgr, *ModInst, *ElemSec); !Res) {
       LOG(ERROR) << ErrInfo::InfoAST(ElemSec->NodeAttr);
@@ -156,7 +156,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
   }
 
-  /// initialization memory instances
+  /// Initialize memory instances
   if (DataSec != nullptr) {
     if (auto Res = initMemory(StoreMgr, *ModInst, *DataSec); !Res) {
       LOG(ERROR) << ErrInfo::InfoAST(DataSec->NodeAttr);

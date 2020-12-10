@@ -11,13 +11,13 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include <cassert>
+#include <optional>
+#include <vector>
+
 #include "ast/instruction.h"
 #include "common/span.h"
 #include "common/value.h"
-
-#include <cassert>
-#include <memory>
-#include <vector>
 
 namespace SSVM {
 namespace Runtime {
@@ -26,15 +26,13 @@ class StackManager {
 public:
   struct Label {
     Label() = delete;
-    Label(const uint32_t S, const uint32_t A, const AST::InstrVec &Body,
-          const AST::BlockControlInstruction *Cont)
-        : VStackOff(S), Arity(A), Target(Cont), Curr(Body.cbegin()),
-          End(Body.cend()) {}
+    Label(const uint32_t S, const uint32_t A, AST::InstrView::iterator It,
+          std::optional<AST::InstrView::iterator> ContIt)
+        : VStackOff(S), Arity(A), From(It), Cont(ContIt) {}
     uint32_t VStackOff;
     uint32_t Arity;
-    const AST::BlockControlInstruction *Target;
-    AST::InstrIter Curr;
-    AST::InstrIter End;
+    AST::InstrView::iterator From;
+    std::optional<AST::InstrView::iterator> Cont;
   };
 
   struct Frame {
@@ -114,42 +112,33 @@ public:
 
   /// Push a new label entry to stack.
   void pushLabel(const uint32_t LocalNum, const uint32_t ArityNum,
-                 const AST::InstrVec &Body,
-                 const AST::BlockControlInstruction *Cont = nullptr) {
-    LabelStack.emplace_back(ValueStack.size() - LocalNum, ArityNum, Body, Cont);
+                 AST::InstrView::iterator From,
+                 std::optional<AST::InstrView::iterator> Cont = std::nullopt) {
+    LabelStack.emplace_back(ValueStack.size() - LocalNum, ArityNum, From, Cont);
   }
 
   /// Unsafe pop top label.
-  void popLabel(const uint32_t Cnt = 1) {
+  AST::InstrView::iterator popLabel(const uint32_t Cnt = 1) {
     const auto &L = getLabelWithCount(Cnt - 1);
     ValueStack.erase(ValueStack.begin() + L.VStackOff,
                      ValueStack.end() - L.Arity);
+    auto It = L.From;
     for (uint32_t I = 0; I < Cnt; ++I) {
       LabelStack.pop_back();
     }
+    return It;
   }
 
   /// Unsafe leave top label.
-  void leaveLabel() { LabelStack.pop_back(); }
-
-  /// Unsafe getter of next instruction to execute.
-  const AST::Instruction *getNextInstr() {
-    if (LabelStack.size() == 0) {
-      return nullptr;
-    }
-    auto &L = LabelStack.back();
-    /// There's always an End instruction before the end of instruction vector.
-    /// Therefore, leaveLabel will occur before iterating out of bounds.
-    return (*(L.Curr++)).get();
-  }
-
-  void endExpression() {
-    leaveLabel();
+  AST::InstrView::iterator leaveLabel() {
+    auto It = LabelStack.back().From;
+    LabelStack.pop_back();
     if (FrameStack.size() > 1 &&
         FrameStack.back().LStackOff == LabelStack.size()) {
       /// Noted that there's always a base frame in stack.
       popFrame();
     }
+    return It;
   }
 
   /// Unsafe getter of module address.
@@ -163,6 +152,11 @@ public:
   /// Unsafe getter of the top count of label which index start from 0.
   const Label &getLabelWithCount(const uint32_t Count) const {
     return LabelStack[LabelStack.size() - Count - 1];
+  }
+
+  /// Unsafe getter of the bottom label on the top frame.
+  const Label &getBottomLabel() const {
+    return LabelStack[FrameStack.back().LStackOff];
   }
 
   /// Unsafe checker of top frame is a dummy frame.

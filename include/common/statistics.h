@@ -60,6 +60,9 @@ public:
   /// Adder of instruction costs.
   bool addInstrCost(OpCode Code) { return addCost(CostTab[uint16_t(Code)]); }
 
+  /// Subber of instruction costs.
+  bool subInstrCost(OpCode Code) { return subCost(CostTab[uint16_t(Code)]); }
+
   /// Getter of total gas cost.
   uint64_t getTotalCost() const { return CostSum; }
   uint64_t &getTotalCostRef() { return CostSum; }

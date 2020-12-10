@@ -17,7 +17,7 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   /// Register type definitions into FormChecker.
   if (Mod.getTypeSection()) {
     for (auto &Type : Mod.getTypeSection()->getContent()) {
-      Checker.addType(*Type.get());
+      Checker.addType(Type);
     }
   }
 
@@ -111,12 +111,11 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     }
   }
 
-  /// In current version, memory must be <= 1, unless reference type proposal.
-  if (!PConf.hasProposal(Proposal::ReferenceTypes) &&
-      Checker.getTables().size() > 1) {
+  /// Multiple tables is for ReferenceTypes proposal.
+  if (Checker.getTables().size() > 1 &&
+      !PConf.hasProposal(Proposal::ReferenceTypes)) {
     LOG(ERROR) << ErrCode::MultiTables;
-    LOG(ERROR) << ErrInfo::InfoInstanceBound(ExternalType::Memory,
-                                             Checker.getMemories().size(), 1);
+    LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
     LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
     return Unexpect(ErrCode::MultiTables);
   }
@@ -145,7 +144,7 @@ Expect<void> Validator::validate(const AST::Limit &Lim) {
 /// Validate Table type. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::TableType &Tab) {
   /// Validate table limits.
-  if (auto Res = validate(*Tab.getLimit()); !Res) {
+  if (auto Res = validate(Tab.getLimit()); !Res) {
     return Unexpect(Res);
   }
   return {};
@@ -154,15 +153,14 @@ Expect<void> Validator::validate(const AST::TableType &Tab) {
 /// Validate Memory type. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::MemoryType &Mem) {
   /// Validate memory limits.
-  const auto *Lim = Mem.getLimit();
-  if (auto Res = validate(*Lim); !Res) {
+  const auto &Lim = Mem.getLimit();
+  if (auto Res = validate(Lim); !Res) {
     return Unexpect(Res);
   }
-  if (Lim->getMin() > LIMIT_MEMORYTYPE ||
-      (Lim->hasMax() && Lim->getMax() > LIMIT_MEMORYTYPE)) {
+  if (Lim.getMin() > LIMIT_MEMORYTYPE ||
+      (Lim.hasMax() && Lim.getMax() > LIMIT_MEMORYTYPE)) {
     LOG(ERROR) << ErrCode::InvalidMemPages;
-    LOG(ERROR) << ErrInfo::InfoLimit(Lim->hasMax(), Lim->getMin(),
-                                     Lim->getMax());
+    LOG(ERROR) << ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax());
     return Unexpect(ErrCode::InvalidMemPages);
   }
   return {};
@@ -171,9 +169,9 @@ Expect<void> Validator::validate(const AST::MemoryType &Mem) {
 /// Validate Global segment. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::GlobalSegment &GlobSeg) {
   /// Check global initialization is a const expression.
-  if (auto Res = validateConstExpr(
-          GlobSeg.getInstrs(),
-          std::array{GlobSeg.getGlobalType()->getValueType()});
+  if (auto Res =
+          validateConstExpr(GlobSeg.getInstrs(),
+                            std::array{GlobSeg.getGlobalType().getValueType()});
       !Res) {
     LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
     return Unexpect(Res);
@@ -186,7 +184,7 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
   /// Check initialization expressions are const expressions.
   for (auto &Expr : ElemSeg.getInitExprs()) {
     if (auto Res = validateConstExpr(
-            Expr->getInstrs(), std::array{ToValType(ElemSeg.getRefType())});
+            Expr.getInstrs(), std::array{ToValType(ElemSeg.getRefType())});
         !Res) {
       LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
       return Unexpect(Res);
@@ -270,60 +268,45 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
 /// Validate Import description. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
   switch (ImpDesc.getExternalType()) {
-  case ExternalType::Function:
-    if (auto TId = ImpDesc.getExternalContent<uint32_t>()) {
-      /// Types must exist in context.
-      if (*(*TId) >= Checker.getTypes().size()) {
-        LOG(ERROR) << ErrCode::InvalidFuncTypeIdx;
-        LOG(ERROR) << ErrInfo::InfoForbidIndex(
-            ErrInfo::IndexCategory::FunctionType, *(*TId),
-            Checker.getTypes().size());
-        return Unexpect(ErrCode::InvalidFuncTypeIdx);
-      }
-      Checker.addRef(Checker.getFunctions().size());
-      Checker.addFunc(*(*TId), true);
-    } else {
-      LOG(ERROR) << ErrCode::InvalidFuncIdx;
-      return Unexpect(ErrCode::InvalidFuncIdx);
+  /// External type and the external content are ensured to be matched in
+  /// loader phase.
+  case ExternalType::Function: {
+    const auto TId = ImpDesc.getExternalFuncTypeIdx();
+    /// Function type index must exist in context.
+    if (TId >= Checker.getTypes().size()) {
+      LOG(ERROR) << ErrCode::InvalidFuncTypeIdx;
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::FunctionType, TId, Checker.getTypes().size());
+      return Unexpect(ErrCode::InvalidFuncTypeIdx);
     }
-    break;
-  case ExternalType::Table:
-    if (auto TabType = ImpDesc.getExternalContent<AST::TableType>()) {
-      /// Table type must be valid.
-      if (auto Res = validate(*(*TabType))) {
-        Checker.addTable(*(*TabType));
-      } else {
-        LOG(ERROR) << ErrInfo::InfoAST((*TabType)->NodeAttr);
-        return Unexpect(Res);
-      }
-    } else {
-      LOG(ERROR) << ErrCode::InvalidTableIdx;
-      return Unexpect(ErrCode::InvalidTableIdx);
+    Checker.addRef(Checker.getFunctions().size());
+    Checker.addFunc(TId, true);
+    return {};
+  }
+  case ExternalType::Table: {
+    const auto &TabType = ImpDesc.getExternalTableType();
+    /// Table type must be valid.
+    if (auto Res = validate(TabType); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(TabType.NodeAttr);
+      return Unexpect(Res);
     }
-    break;
-  case ExternalType::Memory:
-    if (auto MemType = ImpDesc.getExternalContent<AST::MemoryType>()) {
-      /// Memory type must be valid.
-      if (auto Res = validate(*(*MemType))) {
-        Checker.addMemory(*(*MemType));
-      } else {
-        LOG(ERROR) << ErrInfo::InfoAST((*MemType)->NodeAttr);
-        return Unexpect(Res);
-      }
-    } else {
-      LOG(ERROR) << ErrCode::InvalidMemoryIdx;
-      return Unexpect(ErrCode::InvalidMemoryIdx);
+    Checker.addTable(TabType);
+    return {};
+  }
+  case ExternalType::Memory: {
+    const auto &MemType = ImpDesc.getExternalMemoryType();
+    /// Memory type must be valid.
+    if (auto Res = validate(MemType); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(MemType.NodeAttr);
+      return Unexpect(Res);
     }
-    break;
+    Checker.addMemory(MemType);
+    return {};
+  }
   case ExternalType::Global:
-    if (auto GlobType = ImpDesc.getExternalContent<AST::GlobalType>()) {
-      /// Global type always is valid.
-      Checker.addGlobal(*(*GlobType), true);
-    } else {
-      LOG(ERROR) << ErrCode::InvalidGlobalIdx;
-      return Unexpect(ErrCode::InvalidGlobalIdx);
-    }
-    break;
+    /// Global type always is valid.
+    Checker.addGlobal(ImpDesc.getExternalGlobalType(), true);
+    return {};
   default:
     break;
   }
@@ -342,7 +325,7 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
       return Unexpect(ErrCode::InvalidFuncIdx);
     }
     Checker.addRef(Id);
-    break;
+    return {};
   case ExternalType::Table:
     if (Id >= Checker.getTables().size()) {
       LOG(ERROR) << ErrCode::InvalidTableIdx;
@@ -350,7 +333,7 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
                                              Checker.getTables().size());
       return Unexpect(ErrCode::InvalidTableIdx);
     }
-    break;
+    return {};
   case ExternalType::Memory:
     if (Id >= Checker.getMemories().size()) {
       LOG(ERROR) << ErrCode::InvalidMemoryIdx;
@@ -358,7 +341,7 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
                                              Checker.getMemories().size());
       return Unexpect(ErrCode::InvalidMemoryIdx);
     }
-    break;
+    return {};
   case ExternalType::Global:
     if (Id >= Checker.getGlobals().size()) {
       LOG(ERROR) << ErrCode::InvalidGlobalIdx;
@@ -366,7 +349,7 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
                                              Checker.getGlobals().size());
       return Unexpect(ErrCode::InvalidGlobalIdx);
     }
-    break;
+    return {};
   default:
     break;
   }
@@ -376,8 +359,8 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
 /// Validate Import section. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::ImportSection &ImportSec) {
   for (auto &ImportDesc : ImportSec.getContent()) {
-    if (auto Res = validate(*ImportDesc.get()); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(ImportDesc->NodeAttr);
+    if (auto Res = validate(ImportDesc); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(ImportDesc.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -405,10 +388,10 @@ Expect<void> Validator::validate(const AST::FunctionSection &FuncSec) {
 /// Validate Table section. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::TableSection &TabSec) {
   for (auto &Tab : TabSec.getContent()) {
-    if (auto Res = validate(*Tab.get())) {
-      Checker.addTable(*Tab.get());
+    if (auto Res = validate(Tab)) {
+      Checker.addTable(Tab);
     } else {
-      LOG(ERROR) << ErrInfo::InfoAST(Tab->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(Tab.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -418,10 +401,10 @@ Expect<void> Validator::validate(const AST::TableSection &TabSec) {
 /// Validate Memory section. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::MemorySection &MemSec) {
   for (auto &Mem : MemSec.getContent()) {
-    if (auto Res = validate(*Mem.get())) {
-      Checker.addMemory(*Mem.get());
+    if (auto Res = validate(Mem)) {
+      Checker.addMemory(Mem);
     } else {
-      LOG(ERROR) << ErrInfo::InfoAST(Mem->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(Mem.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -431,10 +414,10 @@ Expect<void> Validator::validate(const AST::MemorySection &MemSec) {
 /// Validate Global section. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::GlobalSection &GlobSec) {
   for (auto &GlobSeg : GlobSec.getContent()) {
-    if (auto Res = validate(*GlobSeg.get())) {
-      Checker.addGlobal(*GlobSeg.get()->getGlobalType());
+    if (auto Res = validate(GlobSeg)) {
+      Checker.addGlobal(GlobSeg.getGlobalType());
     } else {
-      LOG(ERROR) << ErrInfo::InfoAST(GlobSeg->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(GlobSeg.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -444,10 +427,10 @@ Expect<void> Validator::validate(const AST::GlobalSection &GlobSec) {
 /// Validate Element section. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::ElementSection &ElemSec) {
   for (auto &ElemSeg : ElemSec.getContent()) {
-    if (auto Res = validate(*ElemSeg.get())) {
-      Checker.addElem(*ElemSeg.get());
+    if (auto Res = validate(ElemSeg)) {
+      Checker.addElem(ElemSeg);
     } else {
-      LOG(ERROR) << ErrInfo::InfoAST(ElemSeg->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(ElemSeg.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -469,8 +452,8 @@ Expect<void> Validator::validate(const AST::CodeSection &CodeSec) {
                                              TId, FuncVec.size());
       return Unexpect(ErrCode::InvalidFuncIdx);
     }
-    if (auto Res = validate(*CodeVec[Id].get(), FuncVec[TId]); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(CodeVec[Id]->NodeAttr);
+    if (auto Res = validate(CodeVec[Id], FuncVec[TId]); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(CodeVec[Id].NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -480,10 +463,10 @@ Expect<void> Validator::validate(const AST::CodeSection &CodeSec) {
 /// Validate Data section. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::DataSection &DataSec) {
   for (auto &DataSeg : DataSec.getContent()) {
-    if (auto Res = validate(*DataSeg.get())) {
-      Checker.addData(*DataSeg.get());
+    if (auto Res = validate(DataSeg)) {
+      Checker.addData(DataSeg);
     } else {
-      LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(DataSeg.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -521,15 +504,15 @@ Expect<void> Validator::validate(const AST::StartSection &StartSec) {
 Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
   std::unordered_set<std::string> ExportNames;
   for (auto &ExportDesc : ExportSec.getContent()) {
-    auto Result = ExportNames.emplace(ExportDesc->getExternalName());
+    auto Result = ExportNames.emplace(ExportDesc.getExternalName());
     if (!Result.second) {
       /// Duplicated export name.
       LOG(ERROR) << ErrCode::DupExportName;
-      LOG(ERROR) << ErrInfo::InfoAST(ExportDesc->NodeAttr);
+      LOG(ERROR) << ErrInfo::InfoAST(ExportDesc.NodeAttr);
       return Unexpect(ErrCode::DupExportName);
     }
-    if (auto Res = validate(*ExportDesc.get()); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(ExportDesc->NodeAttr);
+    if (auto Res = validate(ExportDesc); !Res) {
+      LOG(ERROR) << ErrInfo::InfoAST(ExportDesc.NodeAttr);
       return Unexpect(Res);
     }
   }
@@ -537,47 +520,45 @@ Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
 }
 
 /// Validate constant expression. See "include/validator/validator.h".
-Expect<void> Validator::validateConstExpr(const AST::InstrVec &Instrs,
+Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
                                           Span<const ValType> Returns) {
   for (auto &Instr : Instrs) {
     /// Only these 5 instructions are constant.
-    switch (Instr->getOpCode()) {
+    switch (Instr.getOpCode()) {
     case OpCode::Global__get: {
       /// For initialization case, global indices must be imported globals.
-      auto GlobInstr = static_cast<AST::VariableInstruction *>(Instr.get());
-      auto GlobIdx = GlobInstr->getVariableIndex();
+      auto GlobIdx = Instr.getTargetIndex();
       if (GlobIdx >= Checker.getNumImportGlobals()) {
         LOG(ERROR) << ErrCode::InvalidGlobalIdx;
         LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Global,
                                                GlobIdx,
                                                Checker.getNumImportGlobals());
-        LOG(ERROR) << ErrInfo::InfoInstruction(GlobInstr->getOpCode(),
-                                               GlobInstr->getOffset());
+        LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                               Instr.getOffset());
         return Unexpect(ErrCode::InvalidGlobalIdx);
       }
       if (Checker.getGlobals()[GlobIdx].second != ValMut::Const) {
         LOG(ERROR) << ErrCode::ConstExprRequired;
-        LOG(ERROR) << ErrInfo::InfoInstruction(GlobInstr->getOpCode(),
-                                               GlobInstr->getOffset());
+        LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                               Instr.getOffset());
         return Unexpect(ErrCode::ConstExprRequired);
       }
       break;
     }
     case OpCode::Ref__func: {
       /// When in const expression, add the reference into context.
-      auto RefInstr = static_cast<AST::ReferenceInstruction *>(Instr.get());
-      auto FuncIdx = RefInstr->getTargetIndex();
+      auto FuncIdx = Instr.getTargetIndex();
       if (FuncIdx >= Checker.getFunctions().size()) {
         /// Function index out of range.
         LOG(ERROR) << ErrCode::InvalidFuncIdx;
         LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function,
                                                FuncIdx,
                                                Checker.getFunctions().size());
-        LOG(ERROR) << ErrInfo::InfoInstruction(RefInstr->getOpCode(),
-                                               RefInstr->getOffset());
+        LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                               Instr.getOffset());
         return Unexpect(ErrCode::InvalidFuncIdx);
       }
-      Checker.addRef(RefInstr->getTargetIndex());
+      Checker.addRef(Instr.getTargetIndex());
       break;
     }
     case OpCode::I32__const:
@@ -590,8 +571,8 @@ Expect<void> Validator::validateConstExpr(const AST::InstrVec &Instrs,
       break;
     default:
       LOG(ERROR) << ErrCode::ConstExprRequired;
-      LOG(ERROR) << ErrInfo::InfoInstruction(Instr->getOpCode(),
-                                             Instr->getOffset());
+      LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                             Instr.getOffset());
       return Unexpect(ErrCode::ConstExprRequired);
     }
   }

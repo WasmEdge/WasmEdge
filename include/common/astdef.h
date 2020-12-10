@@ -288,6 +288,20 @@ enum class OpCode : uint16_t {
   I64__trunc_sat_f64_s = 0xFC06,
   I64__trunc_sat_f64_u = 0xFC07,
 
+  /// Memory Instructions (part 2)
+  Memory__init = 0xFC08,
+  Data__drop = 0xFC09,
+  Memory__copy = 0xFC0A,
+  Memory__fill = 0xFC0B,
+
+  /// Table Instructions (part 2)
+  Table__init = 0xFC0C,
+  Elem__drop = 0xFC0D,
+  Table__copy = 0xFC0E,
+  Table__grow = 0xFC0F,
+  Table__size = 0xFC10,
+  Table__fill = 0xFC11,
+
   /// SIMD Memory Instructions
   V128__load = 0xFD00,
   I16x8__load8x8_s = 0xFD01,
@@ -515,21 +529,7 @@ enum class OpCode : uint16_t {
   I64x2__trunc_sat_f64x2_s = 0xFE00,
   I64x2__trunc_sat_f64x2_u = 0xFE01,
   F64x2__convert_i64x2_s = 0xFE02,
-  F64x2__convert_i64x2_u = 0xFE03,
-
-  /// Memory Instructions (part 2)
-  Memory__init = 0xFC08,
-  Data__drop = 0xFC09,
-  Memory__copy = 0xFC0A,
-  Memory__fill = 0xFC0B,
-
-  /// Table Instructions (part 2)
-  Table__init = 0xFC0C,
-  Elem__drop = 0xFC0D,
-  Table__copy = 0xFC0E,
-  Table__grow = 0xFC0F,
-  Table__size = 0xFC10,
-  Table__fill = 0xFC11
+  F64x2__convert_i64x2_u = 0xFE03
 };
 
 /// Instruction opcode enumeration string mapping.
@@ -681,6 +681,7 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::F32__trunc, "f32.trunc"},
     {OpCode::F32__nearest, "f32.nearest"},
     {OpCode::F32__sqrt, "f32.sqrt"},
+    {OpCode::F32__add, "f32.add"},
     {OpCode::F32__sub, "f32.sub"},
     {OpCode::F32__mul, "f32.mul"},
     {OpCode::F32__div, "f32.div"},
@@ -694,6 +695,7 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::F64__trunc, "f64.trunc"},
     {OpCode::F64__nearest, "f64.nearest"},
     {OpCode::F64__sqrt, "f64.sqrt"},
+    {OpCode::F64__add, "f64.add"},
     {OpCode::F64__sub, "f64.sub"},
     {OpCode::F64__mul, "f64.mul"},
     {OpCode::F64__div, "f64.div"},
@@ -738,6 +740,20 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::I64__trunc_sat_f32_u, "i64.trunc_sat_f32_u"},
     {OpCode::I64__trunc_sat_f64_s, "i64.trunc_sat_f64_s"},
     {OpCode::I64__trunc_sat_f64_u, "i64.trunc_sat_f64_u"},
+
+    /// Memory Instructions (part 2)
+    {OpCode::Memory__init, "memory.init"},
+    {OpCode::Data__drop, "data.drop"},
+    {OpCode::Memory__copy, "memory.copy"},
+    {OpCode::Memory__fill, "memory.fill"},
+
+    /// Table Instructions (part 2)
+    {OpCode::Table__init, "table.init"},
+    {OpCode::Elem__drop, "elem.drop"},
+    {OpCode::Table__copy, "table.copy"},
+    {OpCode::Table__grow, "table.grow"},
+    {OpCode::Table__size, "table.size"},
+    {OpCode::Table__fill, "table.fill"},
 
     /// SIMD Memory Instructions
     {OpCode::V128__load, "v128.load"},
@@ -966,20 +982,6 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::I64x2__trunc_sat_f64x2_s, "i64x2.trunc_sat_f64x2_s"},
     {OpCode::I64x2__trunc_sat_f64x2_u, "i64x2.trunc_sat_f64x2_u"},
     {OpCode::F64x2__convert_i64x2_s, "f64x2.convert_i64x2_s"},
-    {OpCode::F64x2__convert_i64x2_u, "f64x2.convert_i64x2_u"},
-
-    /// Memory Instructions (part 2)
-    {OpCode::Memory__init, "memory.init"},
-    {OpCode::Data__drop, "data.drop"},
-    {OpCode::Memory__copy, "memory.copy"},
-    {OpCode::Memory__fill, "memory.fill"},
-
-    /// Table Instructions (part 2)
-    {OpCode::Table__init, "table.init"},
-    {OpCode::Elem__drop, "elem.drop"},
-    {OpCode::Table__copy, "table.copy"},
-    {OpCode::Table__grow, "table.grow"},
-    {OpCode::Table__size, "table.size"},
-    {OpCode::Table__fill, "table.fill"}};
+    {OpCode::F64x2__convert_i64x2_u, "f64x2.convert_i64x2_u"}};
 
 } // namespace SSVM

@@ -205,17 +205,17 @@ Expect<void> Module::loadBinary(FileMgr &Mgr) {
 Expect<void> Module::loadCompiled(LDMgr &Mgr) {
   if (TypeSec) {
     if (auto Symbol = Mgr.getSymbol<FunctionType::Wrapper *[]>("types")) {
-      const auto &TypeSecs = TypeSec->getContent();
+      auto &TypeSecs = TypeSec->getContent();
       for (size_t I = 0; I < TypeSecs.size(); ++I) {
-        TypeSecs[I]->setSymbol(Symbol.index(I).deref());
+        TypeSecs[I].setSymbol(Symbol.index(I).deref());
       }
     }
   }
   if (CodeSec) {
     if (auto Symbol = Mgr.getSymbol<void *[]>("codes")) {
-      const auto &CodeSecs = CodeSec->getContent();
+      auto &CodeSecs = CodeSec->getContent();
       for (size_t I = 0; I < CodeSecs.size(); ++I) {
-        CodeSecs[I]->setSymbol(Symbol.index(I).deref());
+        CodeSecs[I].setSymbol(Symbol.index(I).deref());
       }
     }
   }

@@ -12,14 +12,15 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "base.h"
+#include <memory>
+#include <vector>
+
 #include "common/log.h"
+
+#include "base.h"
 #include "description.h"
 #include "segment.h"
 #include "type.h"
-
-#include <memory>
-#include <vector>
 
 namespace SSVM {
 namespace AST {
@@ -56,12 +57,13 @@ protected:
   /// Call loadContent() for reading contents.
   ///
   /// \param Mgr the file manager reference.
+  /// \param Node the node type of caller.
   /// \param [out] &Vec filled with read data on loadVector success.
   ///
   /// \returns void when success, ErrCode when failed.
   template <typename T>
-  Expect<void> loadToVector(FileMgr &Mgr, std::vector<std::unique_ptr<T>> &Vec,
-                            const ASTNodeAttr Node) {
+  Expect<void> loadToVector(FileMgr &Mgr, const ASTNodeAttr Node,
+                            std::vector<T> &Vec) {
     uint32_t VecCnt = 0;
     /// Read vector size.
     if (auto Res = Mgr.readU32()) {
@@ -75,8 +77,8 @@ protected:
 
     /// Sequently create AST node T and read data.
     for (uint32_t i = 0; i < VecCnt; ++i) {
-      auto NewContent = std::make_unique<T>();
-      if (auto Res = NewContent->loadBinary(Mgr)) {
+      T NewContent;
+      if (auto Res = NewContent.loadBinary(Mgr)) {
         Vec.push_back(std::move(NewContent));
       } else {
         LOG(ERROR) << ErrInfo::InfoAST(Node);
@@ -109,9 +111,10 @@ private:
 class TypeSection : public Section {
 public:
   /// Getter of content vector.
-  Span<const std::unique_ptr<FunctionType>> getContent() const {
-    return Content;
-  }
+  Span<const FunctionType> getContent() const { return Content; }
+
+  /// Getter of mutable content vector .
+  std::vector<FunctionType> &getContent() { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Type.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Type;
@@ -122,14 +125,14 @@ protected:
 
 private:
   /// Vector of FunctionType nodes.
-  std::vector<std::unique_ptr<FunctionType>> Content;
+  std::vector<FunctionType> Content;
 };
 
 /// AST ImportSection node.
 class ImportSection : public Section {
 public:
   /// Getter of content vector.
-  Span<const std::unique_ptr<ImportDesc>> getContent() const { return Content; }
+  Span<const ImportDesc> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Import.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Import;
@@ -140,7 +143,7 @@ protected:
 
 private:
   /// Vector of ImportDesc nodes.
-  std::vector<std::unique_ptr<ImportDesc>> Content;
+  std::vector<ImportDesc> Content;
 };
 
 /// AST FunctionSection node.
@@ -165,7 +168,7 @@ private:
 class TableSection : public Section {
 public:
   /// Getter of content vector.
-  Span<const std::unique_ptr<TableType>> getContent() const { return Content; }
+  Span<const TableType> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Table.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Table;
@@ -176,14 +179,14 @@ protected:
 
 private:
   /// Vector of TableType nodes.
-  std::vector<std::unique_ptr<TableType>> Content;
+  std::vector<TableType> Content;
 };
 
 /// AST MemorySection node.
 class MemorySection : public Section {
 public:
   /// Getter of content vector.
-  Span<const std::unique_ptr<MemoryType>> getContent() const { return Content; }
+  Span<const MemoryType> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Memory.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Memory;
@@ -194,16 +197,14 @@ protected:
 
 private:
   /// Vector of MemoryType nodes.
-  std::vector<std::unique_ptr<MemoryType>> Content;
+  std::vector<MemoryType> Content;
 };
 
 /// AST GlobalSection node.
 class GlobalSection : public Section {
 public:
   /// Getter of content vector.
-  Span<const std::unique_ptr<GlobalSegment>> getContent() const {
-    return Content;
-  }
+  Span<const GlobalSegment> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Global.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Global;
@@ -214,14 +215,14 @@ protected:
 
 private:
   /// Vector of GlobalType nodes.
-  std::vector<std::unique_ptr<GlobalSegment>> Content;
+  std::vector<GlobalSegment> Content;
 };
 
 /// AST ExportSection node.
 class ExportSection : public Section {
 public:
   /// Getter of content vector.
-  Span<const std::unique_ptr<ExportDesc>> getContent() const { return Content; }
+  Span<const ExportDesc> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Export.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Export;
@@ -232,7 +233,7 @@ protected:
 
 private:
   /// Vector of ExportDesc nodes.
-  std::vector<std::unique_ptr<ExportDesc>> Content;
+  std::vector<ExportDesc> Content;
 };
 
 /// AST StartSection node.
@@ -257,9 +258,7 @@ private:
 class ElementSection : public Section {
 public:
   /// Getter of content vector.
-  Span<const std::unique_ptr<ElementSegment>> getContent() const {
-    return Content;
-  }
+  Span<const ElementSegment> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Element.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Element;
@@ -270,16 +269,17 @@ protected:
 
 private:
   /// Vector of ElementSegment nodes.
-  std::vector<std::unique_ptr<ElementSegment>> Content;
+  std::vector<ElementSegment> Content;
 };
 
 /// AST CodeSection node.
 class CodeSection : public Section {
 public:
   /// Getter of content vector.
-  Span<const std::unique_ptr<CodeSegment>> getContent() const {
-    return Content;
-  }
+  Span<const CodeSegment> getContent() const { return Content; }
+
+  /// Getter of mutable content vector .
+  std::vector<CodeSegment> &getContent() { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Code.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Code;
@@ -290,16 +290,14 @@ protected:
 
 private:
   /// Vector of CodeSegment nodes.
-  std::vector<std::unique_ptr<CodeSegment>> Content;
+  std::vector<CodeSegment> Content;
 };
 
 /// AST DataSection node.
 class DataSection : public Section {
 public:
   /// Getter of content vector.
-  Span<const std::unique_ptr<DataSegment>> getContent() const {
-    return Content;
-  }
+  Span<const DataSegment> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Data.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Data;
@@ -310,7 +308,7 @@ protected:
 
 private:
   /// Vector of DataSegment nodes.
-  std::vector<std::unique_ptr<DataSegment>> Content;
+  std::vector<DataSegment> Content;
 };
 
 /// AST DataCountSection node.

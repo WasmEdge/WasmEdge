@@ -12,11 +12,13 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "base.h"
-#include "instruction.h"
-
 #include <memory>
 #include <vector>
+
+#include "common/span.h"
+
+#include "base.h"
+#include "instruction.h"
 
 namespace SSVM {
 namespace AST {
@@ -35,13 +37,17 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of instructions vector.
-  InstrVec &getInstrs() { return Instrs; }
+  InstrView getInstrs() const { return Instrs; }
+
+  /// Append instruction.
+  void pushInstr(Instruction &&Instr) { Instrs.push_back(std::move(Instr)); }
+  void pushInstr(const Instruction &Instr) { Instrs.emplace_back(Instr); }
 
   /// The node type should be ASTNodeAttr::Expression.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Expression;
 
 private:
-  /// Instruction set list.
+  /// Instruction sequence.
   InstrVec Instrs;
 };
 

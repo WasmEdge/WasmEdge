@@ -152,8 +152,7 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr) {
 /// Load binary to construct MemoryType node. See "include/ast/type.h".
 Expect<void> MemoryType::loadBinary(FileMgr &Mgr) {
   /// Read limit.
-  Memory = std::make_unique<Limit>();
-  return Memory->loadBinary(Mgr);
+  return MemoryLim.loadBinary(Mgr);
 }
 
 /// Load binary to construct TableType node. See "include/ast/type.h".
@@ -179,8 +178,7 @@ Expect<void> TableType::loadBinary(FileMgr &Mgr) {
   }
 
   /// Read limit.
-  Table = std::make_unique<Limit>();
-  return Table->loadBinary(Mgr);
+  return TableLim.loadBinary(Mgr);
 }
 
 /// Load binary to construct GlobalType node. See "include/ast/type.h".

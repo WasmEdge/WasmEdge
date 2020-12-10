@@ -12,14 +12,15 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "base.h"
-#include "loader/ldmgr.h"
-#include "section.h"
-
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "loader/ldmgr.h"
+
+#include "base.h"
+#include "section.h"
 
 namespace SSVM::Interpreter {
 class Interpreter;

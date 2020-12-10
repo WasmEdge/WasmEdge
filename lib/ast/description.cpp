@@ -42,7 +42,7 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr) {
   case ExternalType::Function: {
     /// Read the function type index.
     if (auto Res = Mgr.readU32()) {
-      ExtContent = std::make_unique<unsigned int>(*Res);
+      FuncTypeIdx = *Res;
     } else {
       LOG(ERROR) << Res.error();
       LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
@@ -52,19 +52,16 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr) {
     break;
   }
   case ExternalType::Table: {
-    /// Read and make table type node.
-    ExtContent = std::make_unique<TableType>();
-    return std::get<1>(ExtContent)->loadBinary(Mgr);
+    /// Read the table type node.
+    return TabType.loadBinary(Mgr);
   }
   case ExternalType::Memory: {
-    /// Read and make memory type node.
-    ExtContent = std::make_unique<MemoryType>();
-    return std::get<2>(ExtContent)->loadBinary(Mgr);
+    /// Read the memory type node.
+    return MemType.loadBinary(Mgr);
   }
   case ExternalType::Global: {
-    /// Read and make global type node.
-    ExtContent = std::make_unique<GlobalType>();
-    return std::get<3>(ExtContent)->loadBinary(Mgr);
+    /// Read the global type node.
+    return GlobType.loadBinary(Mgr);
   }
   default:
     LOG(ERROR) << ErrCode::InvalidGrammar;

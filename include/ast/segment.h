@@ -12,14 +12,15 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "base.h"
+#include <memory>
+
 #include "common/log.h"
+#include "loader/symbol.h"
+
+#include "base.h"
 #include "expression.h"
 #include "instruction.h"
-#include "loader/symbol.h"
 #include "type.h"
-
-#include <memory>
 
 namespace SSVM {
 namespace AST {
@@ -35,7 +36,7 @@ public:
   };
 
   /// Getter of locals vector.
-  InstrVec &getInstrs() const { return Expr->getInstrs(); }
+  InstrView getInstrs() const { return Expr.getInstrs(); }
 
 protected:
   /// Load binary from file manager.
@@ -48,7 +49,7 @@ protected:
   Expect<void> loadExpression(FileMgr &Mgr);
 
   /// Expression node in this segment.
-  std::unique_ptr<Expression> Expr;
+  Expression Expr;
 };
 
 /// AST GlobalSegment node.
@@ -65,7 +66,7 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of locals vector.
-  const GlobalType *getGlobalType() const { return Global.get(); }
+  const GlobalType &getGlobalType() const { return Global; }
 
   /// The node type should be ASTNodeAttr::Seg_Global.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Global;
@@ -73,7 +74,7 @@ public:
 private:
   /// \name Data of GlobalSegment node.
   /// @{
-  std::unique_ptr<GlobalType> Global;
+  GlobalType Global;
   /// @}
 };
 
@@ -103,9 +104,7 @@ public:
   uint32_t getIdx() const { return TableIdx; }
 
   /// Getter of initialization expressions.
-  Span<const std::unique_ptr<Expression>> getInitExprs() const {
-    return InitExprs;
-  }
+  Span<const Expression> getInitExprs() const { return InitExprs; }
 
   /// The node type should be ASTNodeAttr::Seg_Element.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Element;
@@ -116,7 +115,7 @@ private:
   ElemMode Mode = ElemMode::Active;
   RefType Type = RefType::FuncRef;
   uint32_t TableIdx = 0;
-  std::vector<std::unique_ptr<Expression>> InitExprs;
+  std::vector<Expression> InitExprs;
   /// @}
 };
 

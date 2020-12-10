@@ -7,15 +7,13 @@ namespace AST {
 
 /// Load expression binary in segment. See "include/ast/segment.h".
 Expect<void> Segment::loadExpression(FileMgr &Mgr) {
-  Expr = std::make_unique<Expression>();
-  return Expr->loadBinary(Mgr);
+  return Expr.loadBinary(Mgr);
 }
 
 /// Load binary of GlobalSegment node. See "include/ast/segment.h".
 Expect<void> GlobalSegment::loadBinary(FileMgr &Mgr) {
   /// Read global type node.
-  Global = std::make_unique<GlobalType>();
-  if (auto Res = Global->loadBinary(Mgr); !Res) {
+  if (auto Res = Global.loadBinary(Mgr); !Res) {
     LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
@@ -156,16 +154,15 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr) {
     }
     for (uint32_t i = 0; i < VecCnt; ++i) {
       /// For each element in vec(funcidx), make expr(ref.func idx end).
-      auto InitExpr = std::make_unique<Expression>();
-      auto RefFunc = std::make_unique<ReferenceInstruction>(OpCode::Ref__func);
-      auto End = std::make_unique<ControlInstruction>(OpCode::End);
-      if (auto Res = RefFunc->loadBinary(Mgr); !Res) {
+      InitExprs.emplace_back();
+      Instruction RefFunc(OpCode::Ref__func);
+      Instruction End(OpCode::End);
+      if (auto Res = RefFunc.loadBinary(Mgr); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
-      InitExpr->getInstrs().push_back(std::move(RefFunc));
-      InitExpr->getInstrs().push_back(std::move(End));
-      InitExprs.push_back(std::move(InitExpr));
+      InitExprs.back().pushInstr(std::move(RefFunc));
+      InitExprs.back().pushInstr(std::move(End));
     }
     break;
   }
@@ -202,6 +199,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr) {
     uint32_t VecCnt = 0;
     if (auto Res = Mgr.readU32()) {
       VecCnt = *Res;
+      InitExprs.reserve(VecCnt);
     } else {
       LOG(ERROR) << Res.error();
       LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
@@ -209,12 +207,11 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr) {
       return Unexpect(Res);
     }
     for (uint32_t i = 0; i < VecCnt; ++i) {
-      auto InitExpr = std::make_unique<Expression>();
-      if (auto Res = InitExpr->loadBinary(Mgr); !Res) {
+      InitExprs.emplace_back();
+      if (auto Res = InitExprs.back().loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
-      InitExprs.push_back(std::move(InitExpr));
     }
     break;
   }
@@ -242,6 +239,7 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr) {
   uint32_t VecCnt = 0;
   if (auto Res = Mgr.readU32()) {
     VecCnt = *Res;
+    Locals.reserve(VecCnt);
   } else {
     LOG(ERROR) << Res.error();
     LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());

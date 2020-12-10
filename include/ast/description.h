@@ -12,11 +12,13 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/types.h"
-#include "type.h"
-
 #include <string>
 #include <variant>
+
+#include "common/types.h"
+
+#include "base.h"
+#include "type.h"
 
 namespace SSVM {
 namespace AST {
@@ -35,11 +37,6 @@ protected:
 /// Derived import description class.
 class ImportDesc : public Desc {
 public:
-  /// Variant of external type classes.
-  using ExtContentType =
-      std::variant<std::unique_ptr<uint32_t>, std::unique_ptr<TableType>,
-                   std::unique_ptr<MemoryType>, std::unique_ptr<GlobalType>>;
-
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Base.
@@ -57,14 +54,11 @@ public:
   /// Getter of external name.
   std::string_view getExternalName() const { return ExtName; }
 
-  /// Getter of ExtContent.
-  template <typename T> Expect<T *> getExternalContent() const {
-    if (auto Ptr = std::get_if<std::unique_ptr<T>>(&ExtContent)) {
-      return Ptr->get();
-    } else {
-      return Unexpect(ErrCode::IncompatibleImportType);
-    }
-  }
+  /// Getter of external contents.
+  uint32_t getExternalFuncTypeIdx() const { return FuncTypeIdx; }
+  const TableType &getExternalTableType() const { return TabType; }
+  const MemoryType &getExternalMemoryType() const { return MemType; }
+  const GlobalType &getExternalGlobalType() const { return GlobType; }
 
   /// The node type should be ASTNodeAttr::Desc_Import.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Desc_Import;
@@ -74,7 +68,10 @@ private:
   /// @{
   std::string ModName;
   std::string ExtName;
-  ExtContentType ExtContent;
+  uint32_t FuncTypeIdx = 0;
+  TableType TabType;
+  MemoryType MemType;
+  GlobalType GlobType;
   /// @}
 };
 

@@ -12,11 +12,11 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "base.h"
-#include "loader/symbol.h"
-
 #include <memory>
 #include <vector>
+
+#include "base.h"
+#include "loader/symbol.h"
 
 namespace SSVM {
 namespace AST {
@@ -27,7 +27,7 @@ public:
   /// Limit type enumeration class.
   enum class LimitType : uint8_t { HasMin = 0x00, HasMinMax = 0x01 };
 
-  Limit() {}
+  Limit() = default;
   Limit(const uint32_t MinVal) : Type(LimitType::HasMin), Min(MinVal) {}
   Limit(const uint32_t MinVal, const uint32_t MaxVal)
       : Type(LimitType::HasMinMax), Min(MinVal), Max(MaxVal) {}
@@ -58,9 +58,9 @@ public:
 private:
   /// \name Data of Limit node.
   /// @{
-  LimitType Type;
-  uint32_t Min;
-  uint32_t Max;
+  LimitType Type = LimitType::HasMin;
+  uint32_t Min = 0;
+  uint32_t Max = 0;
   /// @}
 };
 
@@ -128,14 +128,14 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr) override;
 
   /// Getter of limit.
-  const Limit *getLimit() const { return Memory.get(); }
+  const Limit &getLimit() const { return MemoryLim; }
 
   /// The node type should be ASTNodeAttr::Type_Memory.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Memory;
 
 private:
   /// Data of MemoryType node.
-  std::unique_ptr<Limit> Memory;
+  Limit MemoryLim;
 };
 
 /// AST TableType node.
@@ -155,7 +155,7 @@ public:
   RefType getReferenceType() const { return Type; }
 
   /// Getter of limit.
-  const Limit *getLimit() const { return Table.get(); }
+  const Limit &getLimit() const { return TableLim; }
 
   /// The node type should be ASTNodeAttr::Type_Table.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Table;
@@ -163,8 +163,8 @@ public:
 private:
   /// \name Data of TableType node.
   /// @{
-  RefType Type;
-  std::unique_ptr<Limit> Table;
+  RefType Type = RefType::FuncRef;
+  Limit TableLim;
   /// @}
 };
 
@@ -193,8 +193,8 @@ public:
 private:
   /// \name Data of GlobalType node.
   /// @{
-  ValType Type;
-  ValMut Mut;
+  ValType Type = ValType::None;
+  ValMut Mut = ValMut::Const;
   /// @}
 };
 

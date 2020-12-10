@@ -5,220 +5,123 @@
 namespace SSVM {
 namespace AST {
 
-/// Copy construtor. See "include/ast/instruction.h".
-BlockControlInstruction::BlockControlInstruction(
-    const BlockControlInstruction &Instr)
-    : Instruction(Instr.Code, Instr.Offset), ResType(Instr.ResType) {
-  for (auto &It : Instr.Body) {
-    if (auto Res = makeInstructionNode(*It.get())) {
-      Body.push_back(std::move(*Res));
-    }
-  }
-}
-
-/// Load binary of block instructions. See "include/ast/instruction.h".
-Expect<void> BlockControlInstruction::loadBinary(FileMgr &Mgr) {
-  /// Read the block return type.
-  if (auto Res = Mgr.readS32()) {
-    if (*Res < 0) {
-      /// Value type case.
-      ValType VType = static_cast<ValType>((*Res) & 0x7FU);
-      switch (VType) {
-      case ValType::None:
-      case ValType::I32:
-      case ValType::I64:
-      case ValType::F32:
-      case ValType::F64:
-      case ValType::V128:
-      case ValType::ExternRef:
-      case ValType::FuncRef:
-        ResType = VType;
-        break;
-      default:
+Expect<void> Instruction::loadBinary(FileMgr &Mgr) {
+  auto readCheck = [&Mgr](uint8_t Val) -> Expect<void> {
+    if (auto Res = Mgr.readByte()) {
+      if (*Res != Val) {
         LOG(ERROR) << ErrCode::InvalidGrammar;
         LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
         LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
         return Unexpect(ErrCode::InvalidGrammar);
       }
     } else {
-      /// Type index case.
-      ResType = static_cast<uint32_t>(*Res);
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(Res);
     }
-  } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
-  }
+    return {};
+  };
 
-  if (auto Res = loadInstrSeq(Mgr)) {
-    Body = std::move(*Res);
-  } else {
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
-  }
-  return {};
-}
-
-/// Copy construtor. See "include/ast/instruction.h".
-IfElseControlInstruction::IfElseControlInstruction(
-    const IfElseControlInstruction &Instr)
-    : Instruction(Instr.Code, Instr.Offset), ResType(Instr.ResType) {
-  for (auto &It : Instr.IfStatement) {
-    if (auto Res = makeInstructionNode(*It.get())) {
-      IfStatement.push_back(std::move(*Res));
-    }
-  }
-  for (auto &It : Instr.ElseStatement) {
-    if (auto Res = makeInstructionNode(*It.get())) {
-      ElseStatement.push_back(std::move(*Res));
-    }
-  }
-}
-
-/// Load binary of if-else instructions. See "include/ast/instruction.h".
-Expect<void> IfElseControlInstruction::loadBinary(FileMgr &Mgr) {
-  /// Read the block return type.
-  if (auto Res = Mgr.readS32()) {
-    if (*Res < 0) {
-      /// Value type case.
-      ValType VType = static_cast<ValType>((*Res) & 0x7FU);
-      switch (VType) {
-      case ValType::None:
-      case ValType::I32:
-      case ValType::I64:
-      case ValType::F32:
-      case ValType::F64:
-      case ValType::V128:
-      case ValType::ExternRef:
-      case ValType::FuncRef:
-        ResType = VType;
-        break;
-      default:
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-        return Unexpect(ErrCode::InvalidGrammar);
-      }
-    } else {
-      /// Type index case.
-      ResType = static_cast<uint32_t>(*Res);
-    }
-  } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
-  }
-
-  /// Read instructions and make nodes until OpCode::End.
-  ssize_t ElsePos = -1;
-  if (auto Res = loadInstrSeq(Mgr, &ElsePos)) {
-    IfStatement = std::move(*Res);
-  } else {
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
-  }
-  if (ElsePos != -1) {
-    ElseStatement.insert(ElseStatement.end(),
-                         std::make_move_iterator(IfStatement.begin() + ElsePos),
-                         std::make_move_iterator(IfStatement.end()));
-    IfStatement.erase(IfStatement.begin() + ElsePos, IfStatement.end());
-    IfStatement.push_back(std::make_unique<ControlInstruction>(
-        OpCode::End, ElseStatement.back()->getOffset()));
-  } else {
-    ElseStatement.push_back(std::make_unique<ControlInstruction>(
-        OpCode::End, IfStatement.back()->getOffset()));
-  }
-  return {};
-}
-
-/// Load binary of branch instructions. See "include/ast/instruction.h".
-Expect<void> BrControlInstruction::loadBinary(FileMgr &Mgr) {
-  if (auto Res = Mgr.readU32()) {
-    LabelIdx = *Res;
-  } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
-  }
-  return {};
-}
-
-/// Load branch table instructions. See "include/ast/instruction.h".
-Expect<void> BrTableControlInstruction::loadBinary(FileMgr &Mgr) {
-  uint32_t VecCnt = 0;
-
-  /// Read the vector of labels.
-  if (auto Res = Mgr.readU32()) {
-    VecCnt = *Res;
-  } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
-  }
-  for (uint32_t i = 0; i < VecCnt; ++i) {
+  auto readU32 = [&Mgr](uint32_t &Dst) -> Expect<void> {
     if (auto Res = Mgr.readU32()) {
-      LabelList.push_back(*Res);
+      Dst = *Res;
     } else {
       LOG(ERROR) << Res.error();
       LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
       LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
-  }
+    return {};
+  };
 
-  /// Read default label.
-  if (auto Res = Mgr.readU32()) {
-    LabelIdx = *Res;
-  } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
-  }
-  return {};
-}
-
-/// Load binary of call instructions. See "include/ast/instruction.h".
-Expect<void> CallControlInstruction::loadBinary(FileMgr &Mgr) {
-  /// Read function index.
-  if (auto Res = Mgr.readU32()) {
-    TargetIdx = *Res;
-  } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
-  }
-
-  /// Read the table index in indirect_call case.
-  if (Code == OpCode::Call_indirect) {
-    if (auto Res = Mgr.readU32()) {
-      TableIdx = *Res;
-    } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
-    }
-  }
-
-  return {};
-}
-
-/// Load reference instructions. See "include/ast/instruction.h".
-Expect<void> ReferenceInstruction::loadBinary(FileMgr &Mgr) {
-  /// Read the reftype and funcidx.
   switch (Code) {
+  /// Control instructions.
+  case OpCode::Unreachable:
+  case OpCode::Nop:
+  case OpCode::Return:
+  case OpCode::End:
+  case OpCode::Else:
+    return {};
+
+  case OpCode::Block:
+  case OpCode::Loop:
+  case OpCode::If:
+    /// Read the block return type.
+    if (auto Res = Mgr.readS32()) {
+      if (*Res < 0) {
+        /// Value type case.
+        ValType VType = static_cast<ValType>((*Res) & 0x7FU);
+        switch (VType) {
+        case ValType::None:
+        case ValType::I32:
+        case ValType::I64:
+        case ValType::F32:
+        case ValType::F64:
+        case ValType::V128:
+        case ValType::ExternRef:
+        case ValType::FuncRef:
+          ResType = VType;
+          break;
+        default:
+          LOG(ERROR) << ErrCode::InvalidGrammar;
+          LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
+          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+          return Unexpect(ErrCode::InvalidGrammar);
+        }
+      } else {
+        /// Type index case.
+        ResType = static_cast<uint32_t>(*Res);
+      }
+    } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(Res);
+    }
+    return {};
+
+  case OpCode::Br:
+  case OpCode::Br_if:
+    return readU32(TargetIdx);
+
+  case OpCode::Br_table: {
+    uint32_t VecCnt = 0;
+    /// Read the vector of labels.
+    if (auto Res = readU32(VecCnt); !Res) {
+      return Unexpect(Res);
+    }
+    LabelList.reserve(VecCnt);
+    for (uint32_t i = 0; i < VecCnt; ++i) {
+      uint32_t Label = 0;
+      if (auto Res = readU32(Label)) {
+        LabelList.push_back(Label);
+      } else {
+        return Unexpect(Res);
+      }
+    }
+    /// Read default label.
+    return readU32(TargetIdx);
+  }
+
+  case OpCode::Call:
+    return readU32(TargetIdx);
+
+  case OpCode::Call_indirect:
+    /// Read function index.
+    if (auto Res = readU32(TargetIdx); !Res) {
+      return Unexpect(Res);
+    }
+    /// Read the table index.
+    return readU32(SourceIdx);
+
+  /// Reference Instructions.
   case OpCode::Ref__null:
     if (auto Res = Mgr.readByte()) {
-      Type = static_cast<RefType>(*Res);
-      switch (Type) {
+      switch (static_cast<RefType>(*Res)) {
       case RefType::FuncRef:
       case RefType::ExternRef:
+        ReferenceType = static_cast<RefType>(*Res);
         break;
       default:
         LOG(ERROR) << ErrCode::InvalidGrammar;
@@ -232,40 +135,23 @@ Expect<void> ReferenceInstruction::loadBinary(FileMgr &Mgr) {
       LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
-    break;
-
-  case OpCode::Ref__func:
-    if (auto Res = Mgr.readU32()) {
-      TargetIdx = *Res;
-    } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
-    }
-    break;
-
+    return {};
   case OpCode::Ref__is_null:
-  default:
-    break;
-  }
-  return {};
-}
+    return {};
+  case OpCode::Ref__func:
+    return readU32(TargetIdx);
 
-/// Load variable instructions. See "include/ast/instruction.h".
-Expect<void> ParametricInstruction::loadBinary(FileMgr &Mgr) {
-  /// Read the valtype vector in select (t*) case.
-  if (Code == OpCode::Select_t) {
+  /// Parametric Instructions.
+  case OpCode::Drop:
+  case OpCode::Select:
+    return {};
+  case OpCode::Select_t: {
     uint32_t VecCnt = 0;
-    if (auto Res = Mgr.readU32()) {
-      VecCnt = *Res;
-    } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+    if (auto Res = readU32(VecCnt); !Res) {
       return Unexpect(Res);
     }
-    for (uint32_t i = 0; i < VecCnt; ++i) {
+    ValTypeList.reserve(VecCnt);
+    for (uint32_t I = 0; I < VecCnt; ++I) {
       if (auto Res = Mgr.readByte()) {
         ValType VType = static_cast<ValType>(*Res);
         switch (VType) {
@@ -292,157 +178,87 @@ Expect<void> ParametricInstruction::loadBinary(FileMgr &Mgr) {
         return Unexpect(Res);
       }
     }
-  }
-  return {};
-}
-
-/// Load variable instructions. See "include/ast/instruction.h".
-Expect<void> VariableInstruction::loadBinary(FileMgr &Mgr) {
-  if (auto Res = Mgr.readU32()) {
-    VarIdx = *Res;
-  } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
-  }
-  return {};
-}
-
-/// Load binary of table instructions. See "include/ast/instruction.h".
-Expect<void> TableInstruction::loadBinary(FileMgr &Mgr) {
-  if (auto Res = Mgr.readU32()) {
-    switch (Code) {
-    case OpCode::Table__get:
-    case OpCode::Table__set:
-    case OpCode::Table__grow:
-    case OpCode::Table__size:
-    case OpCode::Table__fill:
-      TargetIdx = *Res;
-      return {};
-
-    case OpCode::Elem__drop:
-      ElemIdx = *Res;
-      return {};
-
-    case OpCode::Table__copy:
-      TargetIdx = *Res;
-      break;
-    case OpCode::Table__init:
-      ElemIdx = *Res;
-      break;
-    default:
-      break;
-    }
-  } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
+    return {};
   }
 
-  /// Read second index in table.init and table.copy case.
-  if (auto Res = Mgr.readU32()) {
-    switch (Code) {
-    case OpCode::Table__copy:
-      SourceIdx = *Res;
-      break;
-    case OpCode::Table__init:
-      TargetIdx = *Res;
-      break;
-    default:
-      break;
-    }
-  } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
-  }
-  return {};
-}
+  /// Variable Instructions.
+  case OpCode::Local__get:
+  case OpCode::Local__set:
+  case OpCode::Local__tee:
+  case OpCode::Global__get:
+  case OpCode::Global__set:
+    return readU32(TargetIdx);
 
-/// Load binary of memory instructions. See "include/ast/instruction.h".
-Expect<void> MemoryInstruction::loadBinary(FileMgr &Mgr) {
-  auto readCheck = [&Mgr]() -> Expect<void> {
-    if (auto Res = Mgr.readByte()) {
-      if (*Res != 0x00) {
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-        return Unexpect(ErrCode::InvalidGrammar);
-      }
-    } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+  /// Table Instructions.
+  case OpCode::Table__get:
+  case OpCode::Table__set:
+  case OpCode::Table__copy:
+  case OpCode::Table__grow:
+  case OpCode::Table__size:
+  case OpCode::Table__fill:
+    if (auto Res = readU32(TargetIdx); !Res) {
       return Unexpect(Res);
     }
+    if (Code == OpCode::Table__copy) {
+      return readU32(SourceIdx);
+    }
     return {};
-  };
+  case OpCode::Table__init:
+    if (auto Res = readU32(SourceIdx); !Res) {
+      return Unexpect(Res);
+    }
+    [[fallthrough]];
+  case OpCode::Elem__drop:
+    return readU32(TargetIdx);
 
-  switch (Code) {
-  /// Read the 0x00 checking code in memory.grow, memory.size, memory.fill, and
-  /// memory.copy cases.
+  /// Memory Instructions.
+  case OpCode::I32__load:
+  case OpCode::I64__load:
+  case OpCode::F32__load:
+  case OpCode::F64__load:
+  case OpCode::I32__load8_s:
+  case OpCode::I32__load8_u:
+  case OpCode::I32__load16_s:
+  case OpCode::I32__load16_u:
+  case OpCode::I64__load8_s:
+  case OpCode::I64__load8_u:
+  case OpCode::I64__load16_s:
+  case OpCode::I64__load16_u:
+  case OpCode::I64__load32_s:
+  case OpCode::I64__load32_u:
+  case OpCode::I32__store:
+  case OpCode::I64__store:
+  case OpCode::F32__store:
+  case OpCode::F64__store:
+  case OpCode::I32__store8:
+  case OpCode::I32__store16:
+  case OpCode::I64__store8:
+  case OpCode::I64__store16:
+  case OpCode::I64__store32:
+    /// Read memory arguments.
+    if (auto Res = readU32(MemAlign); !Res) {
+      return Unexpect(Res);
+    }
+    return readU32(MemOffset);
+
   case OpCode::Memory__copy:
-    if (auto Res = readCheck(); !Res) {
+    if (auto Res = readCheck(0x00); !Res) {
       return Unexpect(Res);
     }
     [[fallthrough]];
   case OpCode::Memory__grow:
   case OpCode::Memory__size:
   case OpCode::Memory__fill:
-    if (auto Res = readCheck(); !Res) {
-      return Unexpect(Res);
-    }
-    break;
-
-  /// Read data index in memory.init and data.drop cases.
+    return readCheck(0x00);
   case OpCode::Memory__init:
+    if (auto Res = readU32(SourceIdx); !Res) {
+      return Unexpect(Res);
+    }
+    return readCheck(0x00);
   case OpCode::Data__drop:
-    if (auto Res = Mgr.readU32()) {
-      DataIdx = *Res;
-    } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
-    }
-    if (Code == OpCode::Memory__init) {
-      /// memory.init has 0x00 code.
-      if (auto Res = readCheck(); !Res) {
-        return Unexpect(Res);
-      }
-    }
-    break;
+    return readU32(TargetIdx);
 
-  default:
-    /// Read memory arguments.
-    if (auto Res = Mgr.readU32()) {
-      Align = *Res;
-    } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
-    }
-    if (auto Res = Mgr.readU32()) {
-      Offset = *Res;
-    } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
-    }
-    break;
-  }
-  return {};
-}
-
-/// Load const numeric instructions. See "include/ast/instruction.h".
-Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
-  /// Read the const number of corresbonding number type.
-  switch (Code) {
+  /// Const Instructions.
   case OpCode::I32__const:
     if (auto Res = Mgr.readS32()) {
       Num = static_cast<uint32_t>(*Res);
@@ -452,7 +268,7 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
       LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
-    break;
+    return {};
   case OpCode::I64__const:
     if (auto Res = Mgr.readS64()) {
       Num = static_cast<uint64_t>(*Res);
@@ -462,7 +278,7 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
       LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
-    break;
+    return {};
   case OpCode::F32__const:
     if (auto Res = Mgr.readF32()) {
       Num = *Res;
@@ -472,7 +288,7 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
       LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
-    break;
+    return {};
   case OpCode::F64__const:
     if (auto Res = Mgr.readF64()) {
       Num = *Res;
@@ -482,91 +298,414 @@ Expect<void> ConstInstruction::loadBinary(FileMgr &Mgr) {
       LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
-    break;
+    return {};
+
+  /// Unary Numeric Instructions.
+  case OpCode::I32__eqz:
+  case OpCode::I32__clz:
+  case OpCode::I32__ctz:
+  case OpCode::I32__popcnt:
+  case OpCode::I64__eqz:
+  case OpCode::I64__clz:
+  case OpCode::I64__ctz:
+  case OpCode::I64__popcnt:
+  case OpCode::F32__abs:
+  case OpCode::F32__neg:
+  case OpCode::F32__ceil:
+  case OpCode::F32__floor:
+  case OpCode::F32__trunc:
+  case OpCode::F32__nearest:
+  case OpCode::F32__sqrt:
+  case OpCode::F64__abs:
+  case OpCode::F64__neg:
+  case OpCode::F64__ceil:
+  case OpCode::F64__floor:
+  case OpCode::F64__trunc:
+  case OpCode::F64__nearest:
+  case OpCode::F64__sqrt:
+  case OpCode::I32__wrap_i64:
+  case OpCode::I32__trunc_f32_s:
+  case OpCode::I32__trunc_f32_u:
+  case OpCode::I32__trunc_f64_s:
+  case OpCode::I32__trunc_f64_u:
+  case OpCode::I64__extend_i32_s:
+  case OpCode::I64__extend_i32_u:
+  case OpCode::I64__trunc_f32_s:
+  case OpCode::I64__trunc_f32_u:
+  case OpCode::I64__trunc_f64_s:
+  case OpCode::I64__trunc_f64_u:
+  case OpCode::F32__convert_i32_s:
+  case OpCode::F32__convert_i32_u:
+  case OpCode::F32__convert_i64_s:
+  case OpCode::F32__convert_i64_u:
+  case OpCode::F32__demote_f64:
+  case OpCode::F64__convert_i32_s:
+  case OpCode::F64__convert_i32_u:
+  case OpCode::F64__convert_i64_s:
+  case OpCode::F64__convert_i64_u:
+  case OpCode::F64__promote_f32:
+  case OpCode::I32__reinterpret_f32:
+  case OpCode::I64__reinterpret_f64:
+  case OpCode::F32__reinterpret_i32:
+  case OpCode::F64__reinterpret_i64:
+  case OpCode::I32__extend8_s:
+  case OpCode::I32__extend16_s:
+  case OpCode::I64__extend8_s:
+  case OpCode::I64__extend16_s:
+  case OpCode::I64__extend32_s:
+  case OpCode::I32__trunc_sat_f32_s:
+  case OpCode::I32__trunc_sat_f32_u:
+  case OpCode::I32__trunc_sat_f64_s:
+  case OpCode::I32__trunc_sat_f64_u:
+  case OpCode::I64__trunc_sat_f32_s:
+  case OpCode::I64__trunc_sat_f32_u:
+  case OpCode::I64__trunc_sat_f64_s:
+  case OpCode::I64__trunc_sat_f64_u:
+
+  /// Binary Numeric Instructions.
+  case OpCode::I32__eq:
+  case OpCode::I32__ne:
+  case OpCode::I32__lt_s:
+  case OpCode::I32__lt_u:
+  case OpCode::I32__gt_s:
+  case OpCode::I32__gt_u:
+  case OpCode::I32__le_s:
+  case OpCode::I32__le_u:
+  case OpCode::I32__ge_s:
+  case OpCode::I32__ge_u:
+  case OpCode::I64__eq:
+  case OpCode::I64__ne:
+  case OpCode::I64__lt_s:
+  case OpCode::I64__lt_u:
+  case OpCode::I64__gt_s:
+  case OpCode::I64__gt_u:
+  case OpCode::I64__le_s:
+  case OpCode::I64__le_u:
+  case OpCode::I64__ge_s:
+  case OpCode::I64__ge_u:
+  case OpCode::F32__eq:
+  case OpCode::F32__ne:
+  case OpCode::F32__lt:
+  case OpCode::F32__gt:
+  case OpCode::F32__le:
+  case OpCode::F32__ge:
+  case OpCode::F64__eq:
+  case OpCode::F64__ne:
+  case OpCode::F64__lt:
+  case OpCode::F64__gt:
+  case OpCode::F64__le:
+  case OpCode::F64__ge:
+
+  case OpCode::I32__add:
+  case OpCode::I32__sub:
+  case OpCode::I32__mul:
+  case OpCode::I32__div_s:
+  case OpCode::I32__div_u:
+  case OpCode::I32__rem_s:
+  case OpCode::I32__rem_u:
+  case OpCode::I32__and:
+  case OpCode::I32__or:
+  case OpCode::I32__xor:
+  case OpCode::I32__shl:
+  case OpCode::I32__shr_s:
+  case OpCode::I32__shr_u:
+  case OpCode::I32__rotl:
+  case OpCode::I32__rotr:
+  case OpCode::I64__add:
+  case OpCode::I64__sub:
+  case OpCode::I64__mul:
+  case OpCode::I64__div_s:
+  case OpCode::I64__div_u:
+  case OpCode::I64__rem_s:
+  case OpCode::I64__rem_u:
+  case OpCode::I64__and:
+  case OpCode::I64__or:
+  case OpCode::I64__xor:
+  case OpCode::I64__shl:
+  case OpCode::I64__shr_s:
+  case OpCode::I64__shr_u:
+  case OpCode::I64__rotl:
+  case OpCode::I64__rotr:
+  case OpCode::F32__add:
+  case OpCode::F32__sub:
+  case OpCode::F32__mul:
+  case OpCode::F32__div:
+  case OpCode::F32__min:
+  case OpCode::F32__max:
+  case OpCode::F32__copysign:
+  case OpCode::F64__add:
+  case OpCode::F64__sub:
+  case OpCode::F64__mul:
+  case OpCode::F64__div:
+  case OpCode::F64__min:
+  case OpCode::F64__max:
+  case OpCode::F64__copysign:
+    return {};
+
+  /// SIMD Memory Instruction.
+  case OpCode::V128__load:
+  case OpCode::I16x8__load8x8_s:
+  case OpCode::I16x8__load8x8_u:
+  case OpCode::I32x4__load16x4_s:
+  case OpCode::I32x4__load16x4_u:
+  case OpCode::I64x2__load32x2_s:
+  case OpCode::I64x2__load32x2_u:
+  case OpCode::I8x16__load_splat:
+  case OpCode::I16x8__load_splat:
+  case OpCode::I32x4__load_splat:
+  case OpCode::I64x2__load_splat:
+  case OpCode::V128__load32_zero:
+  case OpCode::V128__load64_zero:
+  case OpCode::V128__store:
+    /// Read memory arguments.
+    if (auto Res = readU32(MemAlign); !Res) {
+      return Unexpect(Res);
+    }
+    return readU32(MemOffset);
+
+  /// SIMD Const Instruction.
+  case OpCode::V128__const:
+  /// SIMD Shuffle Instruction.
+  case OpCode::I8x16__shuffle: {
+    /// Read value.
+    uint128_t Value = 0;
+    for (uint32_t I = 0; I < 16; ++I) {
+      if (auto Res = Mgr.readByte()) {
+        Value |= uint128_t(*Res) << (I * 8);
+      } else {
+        LOG(ERROR) << Res.error();
+        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+        return Unexpect(Res);
+      }
+    }
+    Num = Value;
+    return {};
+  }
+
+  /// SIMD Lane Instructions.
+  case OpCode::I8x16__extract_lane_s:
+  case OpCode::I8x16__extract_lane_u:
+  case OpCode::I8x16__replace_lane:
+  case OpCode::I16x8__extract_lane_s:
+  case OpCode::I16x8__extract_lane_u:
+  case OpCode::I16x8__replace_lane:
+  case OpCode::I32x4__extract_lane:
+  case OpCode::I32x4__replace_lane:
+  case OpCode::I64x2__extract_lane:
+  case OpCode::I64x2__replace_lane:
+  case OpCode::F32x4__extract_lane:
+  case OpCode::F32x4__replace_lane:
+  case OpCode::F64x2__extract_lane:
+  case OpCode::F64x2__replace_lane:
+    /// Read lane index.
+    if (auto Res = Mgr.readByte()) {
+      TargetIdx = static_cast<uint32_t>(*Res);
+    } else {
+      LOG(ERROR) << Res.error();
+      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
+      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+      return Unexpect(Res);
+    }
+    return {};
+
+  /// SIMD Numeric Instructions.
+  case OpCode::I8x16__swizzle:
+  case OpCode::I8x16__splat:
+  case OpCode::I16x8__splat:
+  case OpCode::I32x4__splat:
+  case OpCode::I64x2__splat:
+  case OpCode::F32x4__splat:
+  case OpCode::F64x2__splat:
+
+  case OpCode::I8x16__eq:
+  case OpCode::I8x16__ne:
+  case OpCode::I8x16__lt_s:
+  case OpCode::I8x16__lt_u:
+  case OpCode::I8x16__gt_s:
+  case OpCode::I8x16__gt_u:
+  case OpCode::I8x16__le_s:
+  case OpCode::I8x16__le_u:
+  case OpCode::I8x16__ge_s:
+  case OpCode::I8x16__ge_u:
+
+  case OpCode::I16x8__eq:
+  case OpCode::I16x8__ne:
+  case OpCode::I16x8__lt_s:
+  case OpCode::I16x8__lt_u:
+  case OpCode::I16x8__gt_s:
+  case OpCode::I16x8__gt_u:
+  case OpCode::I16x8__le_s:
+  case OpCode::I16x8__le_u:
+  case OpCode::I16x8__ge_s:
+  case OpCode::I16x8__ge_u:
+
+  case OpCode::I32x4__eq:
+  case OpCode::I32x4__ne:
+  case OpCode::I32x4__lt_s:
+  case OpCode::I32x4__lt_u:
+  case OpCode::I32x4__gt_s:
+  case OpCode::I32x4__gt_u:
+  case OpCode::I32x4__le_s:
+  case OpCode::I32x4__le_u:
+  case OpCode::I32x4__ge_s:
+  case OpCode::I32x4__ge_u:
+
+  case OpCode::F32x4__eq:
+  case OpCode::F32x4__ne:
+  case OpCode::F32x4__lt:
+  case OpCode::F32x4__gt:
+  case OpCode::F32x4__le:
+  case OpCode::F32x4__ge:
+
+  case OpCode::F64x2__eq:
+  case OpCode::F64x2__ne:
+  case OpCode::F64x2__lt:
+  case OpCode::F64x2__gt:
+  case OpCode::F64x2__le:
+  case OpCode::F64x2__ge:
+
+  case OpCode::V128__not:
+  case OpCode::V128__and:
+  case OpCode::V128__andnot:
+  case OpCode::V128__or:
+  case OpCode::V128__xor:
+  case OpCode::V128__bitselect:
+
+  case OpCode::I8x16__abs:
+  case OpCode::I8x16__neg:
+  case OpCode::I8x16__any_true:
+  case OpCode::I8x16__all_true:
+  case OpCode::I8x16__bitmask:
+  case OpCode::I8x16__narrow_i16x8_s:
+  case OpCode::I8x16__narrow_i16x8_u:
+  case OpCode::I8x16__shl:
+  case OpCode::I8x16__shr_s:
+  case OpCode::I8x16__shr_u:
+  case OpCode::I8x16__add:
+  case OpCode::I8x16__add_sat_s:
+  case OpCode::I8x16__add_sat_u:
+  case OpCode::I8x16__sub:
+  case OpCode::I8x16__sub_sat_s:
+  case OpCode::I8x16__sub_sat_u:
+  case OpCode::I8x16__min_s:
+  case OpCode::I8x16__min_u:
+  case OpCode::I8x16__max_s:
+  case OpCode::I8x16__max_u:
+  case OpCode::I8x16__avgr_u:
+
+  case OpCode::I16x8__abs:
+  case OpCode::I16x8__neg:
+  case OpCode::I16x8__any_true:
+  case OpCode::I16x8__all_true:
+  case OpCode::I16x8__bitmask:
+  case OpCode::I16x8__narrow_i32x4_s:
+  case OpCode::I16x8__narrow_i32x4_u:
+  case OpCode::I16x8__widen_low_i8x16_s:
+  case OpCode::I16x8__widen_high_i8x16_s:
+  case OpCode::I16x8__widen_low_i8x16_u:
+  case OpCode::I16x8__widen_high_i8x16_u:
+  case OpCode::I16x8__shl:
+  case OpCode::I16x8__shr_s:
+  case OpCode::I16x8__shr_u:
+  case OpCode::I16x8__add:
+  case OpCode::I16x8__add_sat_s:
+  case OpCode::I16x8__add_sat_u:
+  case OpCode::I16x8__sub:
+  case OpCode::I16x8__sub_sat_s:
+  case OpCode::I16x8__sub_sat_u:
+  case OpCode::I16x8__mul:
+  case OpCode::I16x8__min_s:
+  case OpCode::I16x8__min_u:
+  case OpCode::I16x8__max_s:
+  case OpCode::I16x8__max_u:
+  case OpCode::I16x8__avgr_u:
+
+  case OpCode::I32x4__abs:
+  case OpCode::I32x4__neg:
+  case OpCode::I32x4__any_true:
+  case OpCode::I32x4__all_true:
+  case OpCode::I32x4__bitmask:
+  case OpCode::I32x4__widen_low_i16x8_s:
+  case OpCode::I32x4__widen_high_i16x8_s:
+  case OpCode::I32x4__widen_low_i16x8_u:
+  case OpCode::I32x4__widen_high_i16x8_u:
+  case OpCode::I32x4__shl:
+  case OpCode::I32x4__shr_s:
+  case OpCode::I32x4__shr_u:
+  case OpCode::I32x4__add:
+  case OpCode::I32x4__sub:
+  case OpCode::I32x4__mul:
+  case OpCode::I32x4__min_s:
+  case OpCode::I32x4__min_u:
+  case OpCode::I32x4__max_s:
+  case OpCode::I32x4__max_u:
+
+  case OpCode::I64x2__neg:
+  case OpCode::I64x2__shl:
+  case OpCode::I64x2__shr_s:
+  case OpCode::I64x2__shr_u:
+  case OpCode::I64x2__add:
+  case OpCode::I64x2__sub:
+  case OpCode::I64x2__mul:
+
+  case OpCode::F32x4__abs:
+  case OpCode::F32x4__neg:
+  case OpCode::F32x4__sqrt:
+  case OpCode::F32x4__add:
+  case OpCode::F32x4__sub:
+  case OpCode::F32x4__mul:
+  case OpCode::F32x4__div:
+  case OpCode::F32x4__min:
+  case OpCode::F32x4__max:
+  case OpCode::F32x4__pmin:
+  case OpCode::F32x4__pmax:
+
+  case OpCode::F64x2__abs:
+  case OpCode::F64x2__neg:
+  case OpCode::F64x2__sqrt:
+  case OpCode::F64x2__add:
+  case OpCode::F64x2__sub:
+  case OpCode::F64x2__mul:
+  case OpCode::F64x2__div:
+  case OpCode::F64x2__min:
+  case OpCode::F64x2__max:
+  case OpCode::F64x2__pmin:
+  case OpCode::F64x2__pmax:
+
+  case OpCode::I32x4__trunc_sat_f32x4_s:
+  case OpCode::I32x4__trunc_sat_f32x4_u:
+  case OpCode::F32x4__convert_i32x4_s:
+  case OpCode::F32x4__convert_i32x4_u:
+
+  case OpCode::I8x16__mul:
+  case OpCode::I32x4__dot_i16x8_s:
+  case OpCode::I64x2__any_true:
+  case OpCode::I64x2__all_true:
+  case OpCode::F32x4__qfma:
+  case OpCode::F32x4__qfms:
+  case OpCode::F64x2__qfma:
+  case OpCode::F64x2__qfms:
+  case OpCode::F32x4__ceil:
+  case OpCode::F32x4__floor:
+  case OpCode::F32x4__trunc:
+  case OpCode::F32x4__nearest:
+  case OpCode::F64x2__ceil:
+  case OpCode::F64x2__floor:
+  case OpCode::F64x2__trunc:
+  case OpCode::F64x2__nearest:
+  case OpCode::I64x2__trunc_sat_f64x2_s:
+  case OpCode::I64x2__trunc_sat_f64x2_u:
+  case OpCode::F64x2__convert_i64x2_s:
+  case OpCode::F64x2__convert_i64x2_u:
+    return {};
+
   default:
     LOG(ERROR) << ErrCode::InvalidGrammar;
     LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
     LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
     return Unexpect(ErrCode::InvalidGrammar);
   }
-
-  return {};
-}
-
-/// Load SIMD memory instructions. See "include/ast/instruction.h".
-Expect<void> SIMDMemoryInstruction::loadBinary(FileMgr &Mgr) {
-  /// Read memory arguments.
-  if (auto Res = Mgr.readU32()) {
-    Align = *Res;
-  } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
-  }
-  if (auto Res = Mgr.readU32()) {
-    Offset = *Res;
-  } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
-  }
-
-  return {};
-}
-
-/// Load SIMD const instructions. See "include/ast/instruction.h".
-Expect<void> SIMDConstInstruction::loadBinary(FileMgr &Mgr) {
-  /// Read the constant number in little endian.
-  uint128_t Value = 0;
-  for (uint32_t I = 0; I < 16; ++I) {
-    if (auto Res = Mgr.readByte()) {
-      Value |= uint128_t(*Res) << (I * 8);
-    } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
-    }
-  }
-  Num = Value;
-
-  return {};
-}
-
-/// Load SIMD shuffle instructions. See "include/ast/instruction.h".
-Expect<void> SIMDShuffleInstruction::loadBinary(FileMgr &Mgr) {
-  /// Read lane indexes.
-  uint128_t Value = 0;
-  for (uint32_t I = 0; I < 16; ++I) {
-    if (auto Res = Mgr.readByte()) {
-      Value |= uint128_t(*Res) << (I * 8);
-    } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
-    }
-  }
-  Num = Value;
-
-  return {};
-}
-
-/// Load SIMD lane instructions. See "include/ast/instruction.h".
-Expect<void> SIMDLaneInstruction::loadBinary(FileMgr &Mgr) {
-  /// Read lane index.
-  if (auto Res = Mgr.readByte()) {
-    Index = *Res;
-  } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(Res);
-  }
-
-  return {};
 }
 
 /// OpCode loader. See "include/ast/instruction.h".
@@ -604,16 +743,16 @@ Expect<OpCode> loadOpCode(FileMgr &Mgr) {
   return static_cast<OpCode>(Payload);
 }
 
-Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, ssize_t *MeasureElseOp) {
-  InstrVec Instrs;
-  bool IsElseOpOccurred = false;
-
-  /// Read opcode until the End code.
+Expect<InstrVec> loadInstrSeq(FileMgr &Mgr) {
   OpCode Code;
+  InstrVec Instrs;
+  std::vector<std::pair<OpCode, uint32_t>> BlockStack;
+  uint32_t Cnt = 0;
+  bool IsReachEnd = false;
+  /// Read opcode until the End code of the top block.
   do {
-    uint32_t Offset = Mgr.getOffset();
-
     /// Read the opcode and check if error.
+    uint32_t Offset = Mgr.getOffset();
     if (auto Res = loadOpCode(Mgr)) {
       Code = *Res;
     } else {
@@ -621,75 +760,48 @@ Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, ssize_t *MeasureElseOp) {
       return Unexpect(Res);
     }
 
-    /// Process the Else OpCode.
-    if (Code == OpCode::Else) {
-      if (IsElseOpOccurred || MeasureElseOp == nullptr) {
+    /// Process the instructions which contain a block.
+    if (Code == OpCode::Block || Code == OpCode::Loop || Code == OpCode::If) {
+      BlockStack.push_back(std::make_pair(Code, Cnt));
+    } else if (Code == OpCode::Else) {
+      if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::If) {
         LOG(ERROR) << ErrCode::InvalidGrammar;
         LOG(ERROR) << ErrInfo::InfoLoading(Offset);
         LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
         return Unexpect(ErrCode::InvalidGrammar);
       }
-      IsElseOpOccurred = true;
-      *MeasureElseOp = Instrs.size();
-      continue;
+      uint32_t Pos = BlockStack.back().second;
+      if (Instrs[Pos].getJumpElse() > 0) {
+        /// An Else instruction appeared before in this If-block.
+        LOG(ERROR) << ErrCode::InvalidGrammar;
+        LOG(ERROR) << ErrInfo::InfoLoading(Offset);
+        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+        return Unexpect(ErrCode::InvalidGrammar);
+      }
+      Instrs[Pos].setJumpElse(Cnt - Pos);
+    } else if (Code == OpCode::End) {
+      if (BlockStack.size() > 0) {
+        uint32_t Pos = BlockStack.back().second;
+        Instrs[Pos].setJumpEnd(Cnt - Pos);
+        if (BlockStack.back().first == OpCode::If &&
+            Instrs[Pos].getJumpElse() == 0) {
+          /// If block without else. Set the else jump the same as end jump.
+          Instrs[Pos].setJumpElse(Cnt - Pos);
+        }
+        BlockStack.pop_back();
+      } else {
+        IsReachEnd = true;
+      }
     }
 
     /// Create the instruction node and load contents.
-    std::unique_ptr<Instruction> NewInst;
-    if (auto Res = makeInstructionNode(Code, Offset)) {
-      NewInst = std::move(*Res);
-    } else {
-      LOG(ERROR) << ErrInfo::InfoLoading(Offset);
-      LOG(ERROR) << ErrInfo::InfoInstruction(Code, Offset);
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
+    Instrs.emplace_back(Code, Offset);
+    if (auto Res = Instrs.back().loadBinary(Mgr, PConf); !Res) {
       return Unexpect(Res);
     }
-    if (auto Res = NewInst->loadBinary(Mgr)) {
-      Instrs.push_back(std::move(NewInst));
-    } else {
-      return Unexpect(Res);
-    }
-
-  } while (Code != OpCode::End);
+    Cnt++;
+  } while (!IsReachEnd);
   return Instrs;
-}
-
-/// Instruction node maker. See "include/ast/instruction.h".
-Expect<std::unique_ptr<Instruction>> makeInstructionNode(OpCode Code,
-                                                         uint32_t Offset) {
-  return dispatchInstruction(
-      Code,
-      [&Code, &Offset](auto &&Arg) -> Expect<std::unique_ptr<Instruction>> {
-        using InstrT = typename std::decay_t<decltype(Arg)>::type;
-        if constexpr (std::is_void_v<InstrT>) {
-          /// If the Code not matched, return error.
-          LOG(ERROR) << ErrCode::InvalidGrammar;
-          return Unexpect(ErrCode::InvalidOpCode);
-        } else {
-          /// Make the instruction node according to Code.
-          return std::make_unique<InstrT>(Code, Offset);
-        }
-      });
-}
-
-/// Instruction node duplicater. See "include/ast/instruction.h".
-Expect<std::unique_ptr<Instruction>>
-makeInstructionNode(const Instruction &Instr) {
-  return dispatchInstruction(
-      Instr.getOpCode(),
-      [&Instr](auto &&Arg) -> Expect<std::unique_ptr<Instruction>> {
-        if constexpr (std::is_void_v<
-                          typename std::decay_t<decltype(Arg)>::type>) {
-          /// If the Code not matched, return null pointer.
-          LOG(ERROR) << ErrCode::InvalidGrammar;
-          return Unexpect(ErrCode::InvalidGrammar);
-        } else {
-          /// Make the instruction node according to Code.
-          return std::make_unique<typename std::decay_t<decltype(Arg)>::type>(
-              static_cast<const typename std::decay_t<decltype(Arg)>::type &>(
-                  Instr));
-        }
-      });
 }
 
 } // namespace AST

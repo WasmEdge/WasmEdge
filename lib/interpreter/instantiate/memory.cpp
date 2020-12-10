@@ -15,8 +15,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Iterate and istantiate memory types.
   for (const auto &MemType : MemSec.getContent()) {
     /// Make a new memory instance.
-    auto NewMemInst = std::make_unique<Runtime::Instance::MemoryInstance>(
-        *MemType->getLimit());
+    auto NewMemInst =
+        std::make_unique<Runtime::Instance::MemoryInstance>(MemType.getLimit());
 
     /// Insert memory instance to store manager.
     uint32_t NewMemInstAddr;

@@ -21,10 +21,10 @@ Expect<void> Interpreter::instantiate(
     /// Make a new function instance.
     auto *FuncType = *ModInst.getFuncType(TypeIdxs[I]);
     auto NewFuncInst = std::make_unique<Runtime::Instance::FunctionInstance>(
-        ModInst.Addr, *FuncType, CodeSegs[I]->getLocals(),
-        CodeSegs[I]->getInstrs());
+        ModInst.Addr, *FuncType, CodeSegs[I].getLocals(),
+        CodeSegs[I].getInstrs());
 
-    if (auto Symbol = CodeSegs[I]->getSymbol()) {
+    if (auto Symbol = CodeSegs[I].getSymbol()) {
       NewFuncInst->setSymbol(std::move(Symbol));
     }
 

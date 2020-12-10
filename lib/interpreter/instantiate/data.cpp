@@ -18,11 +18,11 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   for (const auto &DataSeg : DataSec.getContent()) {
     uint32_t Offset = 0;
     /// Initialize memory if data mode is active.
-    if (DataSeg->getMode() == AST::DataSegment::DataMode::Active) {
+    if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       /// Run initialize expression.
-      if (auto Res = runExpression(StoreMgr, DataSeg->getInstrs()); !Res) {
+      if (auto Res = runExpression(StoreMgr, DataSeg.getInstrs()); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
-        LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
+        LOG(ERROR) << ErrInfo::InfoAST(DataSeg.NodeAttr);
         return Unexpect(Res);
       }
       Offset = retrieveValue<uint32_t>(StackMgr.pop());
@@ -32,11 +32,11 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       if (!PConf.hasProposal(Proposal::ReferenceTypes) &&
           !PConf.hasProposal(Proposal::BulkMemoryOperations)) {
         /// Memory index should be 0. Checked in validation phase.
-        auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg->getIdx());
+        auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg.getIdx());
         /// Check data fits.
-        if (!MemInst->checkAccessBound(Offset, DataSeg->getData().size())) {
+        if (!MemInst->checkAccessBound(Offset, DataSeg.getData().size())) {
           LOG(ERROR) << ErrCode::DataSegDoesNotFit;
-          LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
+          LOG(ERROR) << ErrInfo::InfoAST(DataSeg.NodeAttr);
           return Unexpect(ErrCode::DataSegDoesNotFit);
         }
       }
@@ -44,7 +44,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 
     /// Make a new data instance.
     auto NewDataInst = std::make_unique<Runtime::Instance::DataInstance>(
-        Offset, DataSeg->getData());
+        Offset, DataSeg.getData());
 
     /// Insert data instance to store manager.
     uint32_t NewDataInstAddr;
@@ -69,16 +69,16 @@ Expect<void> Interpreter::initMemory(Runtime::StoreManager &StoreMgr,
     auto *DataInst = getDataInstByIdx(StoreMgr, Idx);
 
     /// Initialize memory if data mode is active.
-    if (DataSeg->getMode() == AST::DataSegment::DataMode::Active) {
+    if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       /// Memory index should be 0. Checked in validation phase.
-      auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg->getIdx());
+      auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg.getIdx());
       const uint32_t Off = DataInst->getOffset();
 
       /// Replace mem[Off : Off + n] with data[0 : n].
       if (auto Res = MemInst->setBytes(DataInst->getData(), Off, 0,
                                        DataInst->getData().size());
           !Res) {
-        LOG(ERROR) << ErrInfo::InfoAST(DataSeg->NodeAttr);
+        LOG(ERROR) << ErrInfo::InfoAST(DataSeg.NodeAttr);
         return Unexpect(Res);
       }
 

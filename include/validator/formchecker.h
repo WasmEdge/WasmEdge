@@ -12,17 +12,15 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include <unordered_set>
+#include <vector>
+
 #include "ast/instruction.h"
 #include "ast/module.h"
 #include "common/errcode.h"
-#include "common/proposal.h"
 #include "common/span.h"
 #include "common/types.h"
 #include "common/value.h"
-
-#include <optional>
-#include <unordered_set>
-#include <vector>
 
 namespace SSVM {
 namespace Validator {
@@ -49,13 +47,12 @@ static inline constexpr bool isRefType(const VType V) {
 
 class FormChecker {
 public:
-  FormChecker(const ProposalConfigure &PConf) noexcept : PConf(PConf) {}
+  FormChecker() = default;
   ~FormChecker() = default;
 
   void reset(bool CleanGlobal = false);
-  Expect<void> validate(const AST::InstrVec &Instrs,
-                        Span<const ValType> RetVals);
-  Expect<void> validate(const AST::InstrVec &Instrs, Span<const VType> RetVals);
+  Expect<void> validate(AST::InstrView Instrs, Span<const ValType> RetVals);
+  Expect<void> validate(AST::InstrView Instrs, Span<const VType> RetVals);
 
   /// Adder of contexts
   void addType(const AST::FunctionType &Func);
@@ -88,48 +85,30 @@ public:
     CtrlFrame() = default;
     CtrlFrame(struct CtrlFrame &&F)
         : StartTypes(std::move(F.StartTypes)), EndTypes(std::move(F.EndTypes)),
-          Height(F.Height), IsUnreachable(F.IsUnreachable), IsLoop(F.IsLoop) {}
+          Height(F.Height), IsUnreachable(F.IsUnreachable), Code(F.Code) {}
     CtrlFrame(const struct CtrlFrame &F)
         : StartTypes(F.StartTypes), EndTypes(F.EndTypes), Height(F.Height),
-          IsUnreachable(F.IsUnreachable), IsLoop(F.IsLoop) {}
+          IsUnreachable(F.IsUnreachable), Code(F.Code) {}
     CtrlFrame(Span<const VType> In, Span<const VType> Out, size_t H,
-              bool IsLoopOp = false)
+              OpCode Op = OpCode::Unreachable)
         : StartTypes(In.begin(), In.end()), EndTypes(Out.begin(), Out.end()),
-          Height(H), IsUnreachable(false), IsLoop(IsLoopOp) {}
+          Height(H), IsUnreachable(false), Code(Op) {}
     std::vector<VType> StartTypes;
     std::vector<VType> EndTypes;
     size_t Height;
     bool IsUnreachable;
-    bool IsLoop;
+    OpCode Code;
   };
 
 private:
   /// Checking expression
-  Expect<void> checkExpr(const AST::InstrVec &Instrs);
+  Expect<void> checkExpr(AST::InstrView Instrs);
 
   /// Checking instruction list
-  Expect<void> checkInstrs(const AST::InstrVec &Instrs);
+  Expect<void> checkInstrs(AST::InstrView Instrs);
 
   /// Instruction iteration
-  Expect<void> checkInstr(const AST::ControlInstruction &Instr);
-  Expect<void> checkInstr(const AST::BlockControlInstruction &Instr);
-  Expect<void> checkInstr(const AST::IfElseControlInstruction &Instr);
-  Expect<void> checkInstr(const AST::BrControlInstruction &Instr);
-  Expect<void> checkInstr(const AST::BrTableControlInstruction &Instr);
-  Expect<void> checkInstr(const AST::CallControlInstruction &Instr);
-  Expect<void> checkInstr(const AST::ReferenceInstruction &Instr);
-  Expect<void> checkInstr(const AST::ParametricInstruction &Instr);
-  Expect<void> checkInstr(const AST::VariableInstruction &Instr);
-  Expect<void> checkInstr(const AST::TableInstruction &Instr);
-  Expect<void> checkInstr(const AST::MemoryInstruction &Instr);
-  Expect<void> checkInstr(const AST::ConstInstruction &Instr);
-  Expect<void> checkInstr(const AST::UnaryNumericInstruction &Instr);
-  Expect<void> checkInstr(const AST::BinaryNumericInstruction &Instr);
-  Expect<void> checkInstr(const AST::SIMDMemoryInstruction &Instr);
-  Expect<void> checkInstr(const AST::SIMDConstInstruction &Instr);
-  Expect<void> checkInstr(const AST::SIMDShuffleInstruction &Instr);
-  Expect<void> checkInstr(const AST::SIMDLaneInstruction &Instr);
-  Expect<void> checkInstr(const AST::SIMDNumericInstruction &Instr);
+  Expect<void> checkInstr(const AST::Instruction &Instr);
 
   /// Stack operations
   void pushType(VType);
@@ -137,8 +116,8 @@ private:
   Expect<VType> popType();
   Expect<VType> popType(VType E);
   Expect<void> popTypes(Span<const VType> Input);
-  void pushCtrl(Span<const VType> Label, Span<const VType> Out,
-                bool IsLoopOp = false);
+  void pushCtrl(Span<const VType> In, Span<const VType> Out,
+                OpCode Code = OpCode::Unreachable);
   Expect<CtrlFrame> popCtrl();
   Span<const VType> getLabelTypes(const CtrlFrame &F);
   Expect<void> unreachable();
@@ -148,8 +127,6 @@ private:
   Expect<std::pair<Span<const VType>, Span<const VType>>>
   resolveBlockType(std::vector<VType> &Buffer, BlockType Type);
 
-  /// Proposal configure
-  const ProposalConfigure &PConf;
   /// Contexts.
   std::vector<std::pair<std::vector<VType>, std::vector<VType>>> Types;
   std::vector<uint32_t> Funcs;

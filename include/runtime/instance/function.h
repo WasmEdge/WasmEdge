@@ -61,7 +61,7 @@ public:
   /// Getter of symbol
   const auto getSymbol() const noexcept { return Symbol; }
   /// Setter of symbol
-  void setSymbol(DLSymbol<CompiledFunction> S) noexcept {
+  void setSymbol(Loader::Symbol<CompiledFunction> S) noexcept {
     Symbol = std::move(S);
   }
 
@@ -77,7 +77,7 @@ private:
   uint32_t ModuleAddr;
   const std::vector<std::pair<uint32_t, ValType>> Locals;
   const AST::InstrVec Instrs;
-  DLSymbol<CompiledFunction> Symbol;
+  Loader::Symbol<CompiledFunction> Symbol;
   /// @}
 
   /// \name Data of function instance for host function.

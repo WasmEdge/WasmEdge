@@ -1,46 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
-    defined(__TOS_WIN__) || defined(__WINDOWS__)
-#error windows is not supported yet!
-#endif
-
 #include "loader/ldmgr.h"
 #include "common/log.h"
 
-#include <dlfcn.h>
-
 namespace SSVM {
-
-/// Open so file. See "include/loader/ldmgr.h".
-std::shared_ptr<DLHandle> DLHandle::open(const char *Path) {
-  auto Result = std::make_shared<DLHandle>();
-  Result->Handle = dlopen(Path, RTLD_LAZY | RTLD_LOCAL);
-  if (!Result->Handle) {
-    Result.reset();
-  }
-  return Result;
-}
-
-/// Get address of a symbol. See "include/loader/ldmgr.h".
-void *DLHandle::getRawSymbol(const char *Name) noexcept {
-  return dlsym(Handle, Name);
-}
-
-/// Close so file. See "include/loader/ldmgr.h".
-DLHandle::~DLHandle() noexcept {
-  if (Handle) {
-    dlclose(Handle);
-  }
-}
 
 /// Set path to loadable manager. See "include/loader/ldmgr.h".
 Expect<void> LDMgr::setPath(const std::filesystem::path &FilePath) {
-  Handle = DLHandle::open(FilePath.u8string().c_str());
-  if (!Handle) {
-    LOG(ERROR) << ErrCode::InvalidPath;
-    return Unexpect(ErrCode::InvalidPath);
-  }
-  return {};
+  Library = std::make_shared<Loader::SharedLibrary>();
+  return Library->load(FilePath);
 }
 
 Expect<std::vector<Byte>> LDMgr::getWasm() {

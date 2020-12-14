@@ -15,7 +15,6 @@
 #include "common/span.h"
 #include "common/types.h"
 #include "common/value.h"
-#include "loader/symbol.h"
 
 #include <vector>
 
@@ -28,7 +27,7 @@ struct FType {
   using Wrapper = AST::FunctionType::Wrapper;
 
   FType() = default;
-  FType(Span<const ValType> P, Span<const ValType> R, DLSymbol<Wrapper> S)
+  FType(Span<const ValType> P, Span<const ValType> R, Loader::Symbol<Wrapper> S)
       : Params(P.begin(), P.end()), Returns(R.begin(), R.end()),
         Symbol(std::move(S)) {}
 
@@ -43,12 +42,12 @@ struct FType {
   /// Getter of symbol
   const auto &getSymbol() const noexcept { return Symbol; }
   /// Setter of symbol
-  void setSymbol(DLSymbol<Wrapper> S) { Symbol = std::move(S); }
+  void setSymbol(Loader::Symbol<Wrapper> S) { Symbol = std::move(S); }
 
   std::vector<ValType> Params;
   std::vector<ValType> Returns;
 
-  DLSymbol<Wrapper> Symbol;
+  Loader::Symbol<Wrapper> Symbol;
 };
 
 } // namespace Instance

@@ -1,0 +1,55 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  create:
+    name: Create Release
+    runs-on: ubuntu-latest
+    container:
+      image: secondstate/ssvm:ubuntu-build-gcc
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Get version
+        id: prep
+        run: |
+          echo ::set-output name=version::$(git describe --tag)
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: SSVM ${{ steps.prep.outputs.version }}
+          draft: false
+          prerelease: false
+      - name: Build package
+        run: |
+          apt update
+          apt install -y rpm ninja-build
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release .
+          cmake --build build --target package
+      - name: Upload deb package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/SSVM-${{ steps.prep.outputs.version }}-Linux.deb
+          asset_name: SSVM-${{ steps.prep.outputs.version }}.deb
+          asset_content_type: application/vnd.debian.binary-package
+      - name: Upload rpm package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/SSVM-${{ steps.prep.outputs.version }}-Linux.rpm
+          asset_name: SSVM-${{ steps.prep.outputs.version }}.rpm
+          asset_content_type: application/x-rpm
+

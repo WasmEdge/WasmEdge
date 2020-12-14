@@ -34,7 +34,7 @@ public:
 
   /// Copy the function types in type section to module instance.
   void addFuncType(Span<const ValType> Params, Span<const ValType> Returns,
-                   DLSymbol<FType::Wrapper> Symbol) {
+                   Loader::Symbol<FType::Wrapper> Symbol) {
     FuncTypes.emplace_back(Params, Returns, Symbol);
   }
 

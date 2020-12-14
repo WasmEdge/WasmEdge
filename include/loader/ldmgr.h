@@ -16,7 +16,7 @@
 #include "common/filesystem.h"
 #include "common/types.h"
 #include "common/value.h"
-#include "symbol.h"
+#include "shared_library.h"
 
 #include <string_view>
 #include <vector>
@@ -37,11 +37,11 @@ public:
 
   /// Get symbol.
   template <typename T = void> auto getSymbol(const char *Name) noexcept {
-    return Handle->getSymbol<T>(Name);
+    return Library->get<T>(Name);
   }
 
 private:
-  std::shared_ptr<DLHandle> Handle;
+  std::shared_ptr<Loader::SharedLibrary> Library;
 };
 
 } // namespace SSVM

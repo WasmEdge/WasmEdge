@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "base.h"
-#include "loader/symbol.h"
+#include "loader/shared_library.h"
 
 namespace SSVM {
 namespace AST {
@@ -92,7 +92,7 @@ public:
   /// Getter of compiled symbol.
   const auto &getSymbol() const noexcept { return Symbol; }
   /// Setter of compiled symbol.
-  void setSymbol(DLSymbol<Wrapper> S) { Symbol = std::move(S); }
+  void setSymbol(Loader::Symbol<Wrapper> S) { Symbol = std::move(S); }
 
   /// The node type should be ASTNodeAttr::Type_Function.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Function;
@@ -115,7 +115,7 @@ private:
   std::vector<ValType> ReturnTypes;
   /// @}
 
-  DLSymbol<Wrapper> Symbol;
+  Loader::Symbol<Wrapper> Symbol;
 };
 
 /// AST MemoryType node.

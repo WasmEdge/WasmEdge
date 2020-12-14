@@ -3,6 +3,7 @@
 add_library(ssvmLoaderFileMgr
   filemgr.cpp
   ldmgr.cpp
+  shared_library.cpp
 )
 
 target_link_libraries(ssvmLoaderFileMgr

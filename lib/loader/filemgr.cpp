@@ -197,16 +197,12 @@ Expect<double> FileMgrFStream::readF64() {
 
 /// Read a vector of bytes. See "include/loader/filemgr.h".
 Expect<std::string> FileMgrFStream::readName() {
-  std::string Str;
   Expect<uint32_t> Size = readU32();
   if (!Size) {
     return Unexpect(Size);
   }
-  if (*Size > 0) {
-    std::istreambuf_iterator<char> Iter(Fin);
-    std::copy_n(Iter, *Size, std::back_inserter(Str));
-    Iter++;
-  }
+  std::string Str(*Size, '\0');
+  Fin.read(&Str[0], *Size);
   if (Fin.fail()) {
     Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
     return Unexpect(Status);
@@ -362,18 +358,18 @@ Expect<double> FileMgrVector::readF64() {
 
 /// Read a vector of bytes. See "include/loader/filemgr.h".
 Expect<std::string> FileMgrVector::readName() {
-  std::string Str;
   Expect<uint32_t> Size = readU32();
   if (!Size) {
     return Unexpect(Size);
   }
+  std::string Str(*Size, '\0');
   if (*Size > 0) {
     if (Pos + *Size > Code.size()) {
       Pos = Code.size();
       Status = ErrCode::EndOfFile;
       return Unexpect(Status);
     }
-    std::copy_n(Code.begin() + Pos, *Size, std::back_inserter(Str));
+    std::copy_n(Code.begin() + Pos, *Size, Str.begin());
     Pos += *Size;
   }
   return Str;

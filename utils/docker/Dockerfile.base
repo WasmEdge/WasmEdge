@@ -8,6 +8,7 @@ RUN apt update && apt upgrade -y \
 	software-properties-common \
 	wget \
 	cmake \
+	ninja-build \
 	curl \
 	git \
 	libboost-all-dev

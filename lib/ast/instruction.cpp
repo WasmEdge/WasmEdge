@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "ast/instruction.h"
+#include "ast/base.h"
 #include "common/log.h"
 
 namespace SSVM {
 namespace AST {
 
 namespace {
-Expect<void> checkInstrProposals(OpCode Code, const ProposalConfigure &PConf) {
+Expect<void> checkInstrProposals(OpCode Code, const ProposalConfigure &PConf,
+                                 uint32_t Offset) {
   if ((Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
       (Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||
       (Code >= OpCode::Memory__init && Code <= OpCode::Memory__fill)) {
@@ -14,26 +16,23 @@ Expect<void> checkInstrProposals(OpCode Code, const ProposalConfigure &PConf) {
     /// proposal.
     if (!PConf.hasProposal(Proposal::ReferenceTypes) &&
         !PConf.hasProposal(Proposal::BulkMemoryOperations)) {
-      LOG(ERROR) << ErrCode::InvalidOpCode;
-      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
-      return Unexpect(ErrCode::InvalidOpCode);
+      return logNeedProposal(ErrCode::InvalidOpCode, Proposal::ReferenceTypes,
+                             Offset, ASTNodeAttr::Instruction);
     }
   } else if (Code == OpCode::Select_t ||
              (Code >= OpCode::Table__get && Code <= OpCode::Table__set) ||
              (Code >= OpCode::Table__grow && Code <= OpCode::Table__fill)) {
     /// These instructions are for ReferenceTypes proposal.
     if (!PConf.hasProposal(Proposal::ReferenceTypes)) {
-      LOG(ERROR) << ErrCode::InvalidOpCode;
-      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
-      return Unexpect(ErrCode::InvalidOpCode);
+      return logNeedProposal(ErrCode::InvalidOpCode, Proposal::ReferenceTypes,
+                             Offset, ASTNodeAttr::Instruction);
     }
   } else if (Code >= OpCode::V128__load &&
              Code <= OpCode::F64x2__convert_i64x2_u) {
     /// These instructions are for SIMD proposal.
     if (!PConf.hasProposal(Proposal::SIMD)) {
-      LOG(ERROR) << ErrCode::InvalidOpCode;
-      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::SIMD);
-      return Unexpect(ErrCode::InvalidOpCode);
+      return logNeedProposal(ErrCode::InvalidOpCode, Proposal::SIMD, Offset,
+                             ASTNodeAttr::Instruction);
     }
   }
   return {};
@@ -48,16 +47,12 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
   auto readCheck = [&Mgr](uint8_t Val) -> Expect<void> {
     if (auto Res = Mgr.readByte()) {
       if (*Res != Val) {
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-        return Unexpect(ErrCode::InvalidGrammar);
+        return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1,
+                            ASTNodeAttr::Instruction);
       }
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
     }
     return {};
   };
@@ -66,49 +61,10 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
     if (auto Res = Mgr.readU32()) {
       Dst = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
     }
     return {};
-  };
-
-  auto checkValType = [&Mgr, &PConf](ValType VType) -> Expect<ValType> {
-    if (VType == ValType::V128 && !PConf.hasProposal(Proposal::SIMD)) {
-      LOG(ERROR) << ErrCode::InvalidGrammar;
-      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::SIMD);
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(ErrCode::InvalidGrammar);
-    }
-    if ((VType == ValType::FuncRef &&
-         !PConf.hasProposal(Proposal::ReferenceTypes) &&
-         !PConf.hasProposal(Proposal::BulkMemoryOperations)) ||
-        (VType == ValType::ExternRef &&
-         !PConf.hasProposal(Proposal::ReferenceTypes))) {
-      LOG(ERROR) << ErrCode::InvalidGrammar;
-      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(ErrCode::InvalidGrammar);
-    }
-    switch (VType) {
-    case ValType::None:
-    case ValType::I32:
-    case ValType::I64:
-    case ValType::F32:
-    case ValType::F64:
-    case ValType::V128:
-    case ValType::ExternRef:
-    case ValType::FuncRef:
-      return VType;
-    default:
-      LOG(ERROR) << ErrCode::InvalidGrammar;
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(ErrCode::InvalidGrammar);
-    }
   };
 
   switch (Code) {
@@ -128,7 +84,9 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
       if (*Res < 0) {
         /// Value type case.
         ValType VType = static_cast<ValType>((*Res) & 0x7FU);
-        if (auto Check = checkValType(VType); !Check) {
+        if (auto Check = checkValTypeProposals(
+                PConf, VType, Mgr.getOffset() - 1, ASTNodeAttr::Instruction);
+            !Check) {
           return Unexpect(Check);
         }
         ResType = VType;
@@ -137,10 +95,8 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
         ResType = static_cast<uint32_t>(*Res);
       }
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
     }
     return {};
 
@@ -180,41 +136,24 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
       return Unexpect(Res);
     }
     if (SourceIdx > 0 && !PConf.hasProposal(Proposal::ReferenceTypes)) {
-      LOG(ERROR) << ErrCode::InvalidGrammar;
-      LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(ErrCode::InvalidGrammar);
+      return logNeedProposal(ErrCode::InvalidGrammar, Proposal::ReferenceTypes,
+                             Mgr.getOffset() - 1, ASTNodeAttr::Instruction);
     }
     return {};
 
   /// Reference Instructions.
   case OpCode::Ref__null:
     if (auto Res = Mgr.readByte()) {
-      switch (static_cast<RefType>(*Res)) {
-      case RefType::ExternRef:
-        if (!PConf.hasProposal(Proposal::ReferenceTypes)) {
-          LOG(ERROR) << ErrCode::InvalidGrammar;
-          LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
-          LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-          return Unexpect(ErrCode::InvalidGrammar);
-        }
-        [[fallthrough]];
-      case RefType::FuncRef:
-        ReferenceType = static_cast<RefType>(*Res);
-        break;
-      default:
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-        return Unexpect(ErrCode::InvalidGrammar);
+      ReferenceType = static_cast<RefType>(*Res);
+      if (auto Check =
+              checkRefTypeProposals(PConf, ReferenceType, Mgr.getOffset() - 1,
+                                    ASTNodeAttr::Instruction);
+          !Check) {
+        return Unexpect(Check);
       }
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
     }
     return {};
   case OpCode::Ref__is_null:
@@ -235,15 +174,15 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
     for (uint32_t I = 0; I < VecCnt; ++I) {
       if (auto Res = Mgr.readByte()) {
         ValType VType = static_cast<ValType>(*Res);
-        if (auto Check = checkValType(VType); !Check) {
+        if (auto Check = checkValTypeProposals(
+                PConf, VType, Mgr.getOffset() - 1, ASTNodeAttr::Instruction);
+            !Check) {
           return Unexpect(Check);
         }
         ValTypeList.push_back(VType);
       } else {
-        LOG(ERROR) << Res.error();
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-        return Unexpect(Res);
+        return logLoadError(Res.error(), Mgr.getOffset(),
+                            ASTNodeAttr::Instruction);
       }
     }
     return {};
@@ -331,40 +270,32 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
     if (auto Res = Mgr.readS32()) {
       Num = static_cast<uint32_t>(*Res);
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
     }
     return {};
   case OpCode::I64__const:
     if (auto Res = Mgr.readS64()) {
       Num = static_cast<uint64_t>(*Res);
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
     }
     return {};
   case OpCode::F32__const:
     if (auto Res = Mgr.readF32()) {
       Num = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
     }
     return {};
   case OpCode::F64__const:
     if (auto Res = Mgr.readF64()) {
       Num = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
     }
     return {};
 
@@ -541,10 +472,8 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
       if (auto Res = Mgr.readByte()) {
         Value |= uint128_t(*Res) << (I * 8);
       } else {
-        LOG(ERROR) << Res.error();
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-        return Unexpect(Res);
+        return logLoadError(Res.error(), Mgr.getOffset(),
+                            ASTNodeAttr::Instruction);
       }
     }
     Num = Value;
@@ -570,10 +499,8 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
     if (auto Res = Mgr.readByte()) {
       TargetIdx = static_cast<uint32_t>(*Res);
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
     }
     return {};
 
@@ -769,10 +696,8 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
     return {};
 
   default:
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-    return Unexpect(ErrCode::InvalidGrammar);
+    return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1,
+                        ASTNodeAttr::Instruction);
   }
 }
 
@@ -782,9 +707,7 @@ Expect<OpCode> loadOpCode(FileMgr &Mgr) {
   if (auto B1 = Mgr.readByte()) {
     Payload = (*B1);
   } else {
-    LOG(ERROR) << B1.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    return Unexpect(B1);
+    return logLoadError(B1.error(), Mgr.getOffset(), ASTNodeAttr::Instruction);
   }
 
   if (Payload == 0xFCU || Payload == 0xFDU) {
@@ -793,9 +716,8 @@ Expect<OpCode> loadOpCode(FileMgr &Mgr) {
       Payload <<= 8;
       Payload += (*B2);
     } else {
-      LOG(ERROR) << B2.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      return Unexpect(B2);
+      return logLoadError(B2.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
     }
   }
   return static_cast<OpCode>(Payload);
@@ -814,12 +736,12 @@ Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const ProposalConfigure &PConf) {
     if (auto Res = loadOpCode(Mgr)) {
       Code = *Res;
     } else {
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
       return Unexpect(Res);
     }
 
     /// Check with proposals.
-    if (auto Res = checkInstrProposals(Code, PConf); !Res) {
+    if (auto Res = checkInstrProposals(Code, PConf, Mgr.getOffset() - 1);
+        !Res) {
       return Unexpect(Res);
     }
 
@@ -828,18 +750,14 @@ Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const ProposalConfigure &PConf) {
       BlockStack.push_back(std::make_pair(Code, Cnt));
     } else if (Code == OpCode::Else) {
       if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::If) {
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoLoading(Offset);
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-        return Unexpect(ErrCode::InvalidGrammar);
+        return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1,
+                            ASTNodeAttr::Instruction);
       }
       uint32_t Pos = BlockStack.back().second;
       if (Instrs[Pos].getJumpElse() > 0) {
         /// An Else instruction appeared before in this If-block.
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoLoading(Offset);
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-        return Unexpect(ErrCode::InvalidGrammar);
+        return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1,
+                            ASTNodeAttr::Instruction);
       }
       Instrs[Pos].setJumpElse(Cnt - Pos);
     } else if (Code == OpCode::End) {

@@ -73,10 +73,7 @@ protected:
     if (auto Res = Mgr.readU32()) {
       VecCnt = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(Node);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), Node);
     }
 
     /// Sequently create AST node T and read data.

@@ -59,18 +59,14 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr,
   if (auto Res = Mgr.readByte()) {
     Check = *Res;
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   /// Check > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
   if (Check > 0 && !PConf.hasProposal(Proposal::BulkMemoryOperations) &&
       !PConf.hasProposal(Proposal::ReferenceTypes)) {
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoProposal(Proposal::BulkMemoryOperations);
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(ErrCode::InvalidGrammar);
+    return logNeedProposal(ErrCode::InvalidGrammar,
+                           Proposal::BulkMemoryOperations, Mgr.getOffset() - 1,
+                           NodeAttr);
   }
 
   /// Check the prefix byte.
@@ -93,10 +89,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr,
     break;
 
   default:
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(ErrCode::InvalidGrammar);
+    return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
   }
 
   /// Read the table index.
@@ -107,10 +100,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr,
     if (auto Res = Mgr.readU32()) {
       TableIdx = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset() - 1, NodeAttr);
     }
     break;
 
@@ -142,16 +132,11 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr,
   case 0x03:
     if (auto Res = Mgr.readByte()) {
       if (*Res != 0x00U) {
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-        return Unexpect(ErrCode::InvalidGrammar);
+        return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1,
+                            NodeAttr);
       }
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
     [[fallthrough]];
 
@@ -160,10 +145,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr,
     if (auto Res = Mgr.readU32()) {
       VecCnt = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
     for (uint32_t i = 0; i < VecCnt; ++i) {
       /// For each element in vec(funcidx), make expr(ref.func idx end).
@@ -190,29 +172,13 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr,
   case 0x07:
     if (auto Res = Mgr.readByte()) {
       Type = static_cast<RefType>(*Res);
-      switch (Type) {
-      case RefType::ExternRef:
-        if (!PConf.hasProposal(Proposal::ReferenceTypes)) {
-          LOG(ERROR) << ErrCode::InvalidGrammar;
-          LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
-          LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-          LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-          return Unexpect(ErrCode::InvalidGrammar);
-        }
-        [[fallthrough]];
-      case RefType::FuncRef:
-        break;
-      default:
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-        return Unexpect(ErrCode::InvalidGrammar);
+      if (auto Check =
+              checkRefTypeProposals(PConf, Type, Mgr.getOffset() - 1, NodeAttr);
+          !Check) {
+        return Unexpect(Check);
       }
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
     [[fallthrough]];
 
@@ -222,10 +188,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr,
       VecCnt = *Res;
       InitExprs.reserve(VecCnt);
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
     for (uint32_t i = 0; i < VecCnt; ++i) {
       InitExprs.emplace_back();
@@ -251,10 +214,7 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr,
   if (auto Res = Mgr.readU32()) {
     SegSize = *Res;
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
 
   /// Read the vector of local variable counts and types.
@@ -263,10 +223,7 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr,
     VecCnt = *Res;
     Locals.reserve(VecCnt);
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   for (uint32_t i = 0; i < VecCnt; ++i) {
     uint32_t LocalCnt = 0;
@@ -274,51 +231,17 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr,
     if (auto Res = Mgr.readU32()) {
       LocalCnt = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
     if (auto Res = Mgr.readByte()) {
       LocalType = static_cast<ValType>(*Res);
-      if (LocalType == ValType::V128 && !PConf.hasProposal(Proposal::SIMD)) {
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoProposal(Proposal::SIMD);
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-        return Unexpect(ErrCode::InvalidGrammar);
-      }
-      if ((LocalType == ValType::FuncRef &&
-           !PConf.hasProposal(Proposal::ReferenceTypes) &&
-           !PConf.hasProposal(Proposal::BulkMemoryOperations)) ||
-          (LocalType == ValType::ExternRef &&
-           !PConf.hasProposal(Proposal::ReferenceTypes))) {
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-        return Unexpect(ErrCode::InvalidGrammar);
-      }
-      switch (LocalType) {
-      case ValType::I32:
-      case ValType::I64:
-      case ValType::F32:
-      case ValType::F64:
-      case ValType::V128:
-      case ValType::ExternRef:
-      case ValType::FuncRef:
-        break;
-      default:
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-        return Unexpect(ErrCode::InvalidGrammar);
+      if (auto Check = checkValTypeProposals(PConf, LocalType,
+                                             Mgr.getOffset() - 1, NodeAttr);
+          !Check) {
+        return Unexpect(Check);
       }
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
     Locals.push_back(std::make_pair(LocalCnt, LocalType));
   }
@@ -355,18 +278,14 @@ Expect<void> DataSegment::loadBinary(FileMgr &Mgr,
   if (auto Res = Mgr.readByte()) {
     Check = *Res;
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   /// Check > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
   if (Check > 0 && !PConf.hasProposal(Proposal::BulkMemoryOperations) &&
       !PConf.hasProposal(Proposal::ReferenceTypes)) {
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoProposal(Proposal::BulkMemoryOperations);
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(ErrCode::InvalidGrammar);
+    return logNeedProposal(ErrCode::InvalidGrammar,
+                           Proposal::BulkMemoryOperations, Mgr.getOffset() - 1,
+                           NodeAttr);
   }
 
   switch (Check) {
@@ -375,10 +294,7 @@ Expect<void> DataSegment::loadBinary(FileMgr &Mgr,
     if (auto Res = Mgr.readU32()) {
       MemoryIdx = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
     [[fallthrough]];
 
@@ -398,26 +314,17 @@ Expect<void> DataSegment::loadBinary(FileMgr &Mgr,
     if (auto Res = Mgr.readU32()) {
       VecCnt = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
     if (auto Res = Mgr.readBytes(VecCnt)) {
       Data = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
     break;
   }
   default:
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(ErrCode::InvalidGrammar);
+    return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
   }
   return {};
 }

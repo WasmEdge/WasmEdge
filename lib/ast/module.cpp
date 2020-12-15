@@ -12,31 +12,21 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
     Magic = *Res;
     std::vector<Byte> WasmMagic = {0x00, 0x61, 0x73, 0x6D};
     if (Magic != WasmMagic) {
-      LOG(ERROR) << ErrCode::InvalidGrammar;
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 4);
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(ErrCode::InvalidGrammar);
+      return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 4,
+                          NodeAttr);
     }
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   if (auto Res = Mgr.readBytes(4)) {
     Version = *Res;
     std::vector<Byte> WasmVersion = {0x01, 0x00, 0x00, 0x00};
     if (Version != WasmVersion) {
-      LOG(ERROR) << ErrCode::InvalidGrammar;
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 4);
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(ErrCode::InvalidGrammar);
+      return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 4,
+                          NodeAttr);
     }
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
 
   /// Read Section index and create Section nodes.
@@ -49,10 +39,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
       if (Res.error() == ErrCode::EndOfFile) {
         break;
       } else {
-        LOG(ERROR) << Res.error();
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-        return Unexpect(Res);
+        return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
       }
     }
 
@@ -169,10 +156,9 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
       /// This section is for BulkMemoryOperations or ReferenceTypes proposal.
       if (!PConf.hasProposal(Proposal::BulkMemoryOperations) &&
           !PConf.hasProposal(Proposal::ReferenceTypes)) {
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoProposal(Proposal::BulkMemoryOperations);
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-        return Unexpect(ErrCode::InvalidGrammar);
+        return logNeedProposal(ErrCode::InvalidGrammar,
+                               Proposal::BulkMemoryOperations,
+                               Mgr.getOffset() - 1, NodeAttr);
       }
       if (DataCountSec == nullptr) {
         DataCountSec = std::make_unique<DataCountSection>();
@@ -183,10 +169,8 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
       }
       break;
     default:
-      LOG(ERROR) << ErrCode::InvalidGrammar;
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(ErrCode::InvalidGrammar);
+      return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1,
+                          NodeAttr);
     }
   }
 

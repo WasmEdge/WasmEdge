@@ -12,30 +12,21 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr,
   if (auto Res = Mgr.readName()) {
     ModName = *Res;
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
 
   /// Read the external name.
   if (auto Res = Mgr.readName()) {
     ExtName = *Res;
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
 
   /// Read the external type.
   if (auto Res = Mgr.readByte()) {
     ExtType = static_cast<ExternalType>(*Res);
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
 
   /// Make content node according to external type.
@@ -45,10 +36,7 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr,
     if (auto Res = Mgr.readU32()) {
       FuncTypeIdx = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
     break;
   }
@@ -65,10 +53,7 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr,
     return GlobType.loadBinary(Mgr, PConf);
   }
   default:
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(ErrCode::InvalidGrammar);
+    return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
   }
   return {};
 }
@@ -80,20 +65,14 @@ Expect<void> ExportDesc::loadBinary(FileMgr &Mgr,
   if (auto Res = Mgr.readName()) {
     ExtName = *Res;
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
 
   /// Read external type.
   if (auto Res = Mgr.readByte()) {
     ExtType = static_cast<ExternalType>(*Res);
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   switch (ExtType) {
   case ExternalType::Function:
@@ -102,20 +81,14 @@ Expect<void> ExportDesc::loadBinary(FileMgr &Mgr,
   case ExternalType::Global:
     break;
   default:
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(ErrCode::InvalidGrammar);
+    return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
   }
 
   /// Read external index to export.
   if (auto Res = Mgr.readU32()) {
     ExtIdx = *Res;
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   return {};
 }

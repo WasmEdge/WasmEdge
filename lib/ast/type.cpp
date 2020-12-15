@@ -6,42 +6,6 @@
 namespace SSVM {
 namespace AST {
 
-namespace {
-
-Expect<ValType> checkValTypeProposals(ValType VType,
-                                      const ProposalConfigure &PConf) {
-  if (VType == ValType::V128 && !PConf.hasProposal(Proposal::SIMD)) {
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoProposal(Proposal::SIMD);
-    return Unexpect(ErrCode::InvalidGrammar);
-  }
-  if ((VType == ValType::FuncRef &&
-       !PConf.hasProposal(Proposal::ReferenceTypes) &&
-       !PConf.hasProposal(Proposal::BulkMemoryOperations)) ||
-      (VType == ValType::ExternRef &&
-       !PConf.hasProposal(Proposal::ReferenceTypes))) {
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
-    return Unexpect(ErrCode::InvalidGrammar);
-  }
-  switch (VType) {
-  case ValType::None:
-  case ValType::I32:
-  case ValType::I64:
-  case ValType::F32:
-  case ValType::F64:
-  case ValType::V128:
-  case ValType::ExternRef:
-  case ValType::FuncRef:
-    return VType;
-  default:
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    return Unexpect(ErrCode::InvalidGrammar);
-  }
-}
-
-} // namespace
-
 /// Load binary to construct Limit node. See "include/ast/type.h".
 Expect<void> Limit::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
   /// Read limit type.
@@ -52,41 +16,24 @@ Expect<void> Limit::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
     case LimitType::HasMinMax:
       break;
     default:
-      LOG(ERROR) << ErrCode::InvalidGrammar;
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(ErrCode::InvalidGrammar);
+      return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1,
+                          NodeAttr);
     }
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
-  }
-  if (Type != LimitType::HasMin && Type != LimitType::HasMinMax) {
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(ErrCode::InvalidGrammar);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
 
   /// Read min and max number.
   if (auto Res = Mgr.readU32()) {
     Min = *Res;
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   if (Type == LimitType::HasMinMax) {
     if (auto Res = Mgr.readU32()) {
       Max = *Res;
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
   }
   return {};
@@ -100,16 +47,11 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr,
   /// Read function type (0x60).
   if (auto Res = Mgr.readByte()) {
     if (*Res != 0x60U) {
-      LOG(ERROR) << ErrCode::InvalidGrammar;
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(ErrCode::InvalidGrammar);
+      return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1,
+                          NodeAttr);
     }
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
 
   /// Read vector of parameter types.
@@ -117,25 +59,19 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr,
     VecCnt = *Res;
     ParamTypes.reserve(VecCnt);
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readByte()) {
       ValType Type = static_cast<ValType>(*Res);
-      if (auto Check = checkValTypeProposals(Type, PConf); !Check) {
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+      if (auto Check =
+              checkValTypeProposals(PConf, Type, Mgr.getOffset() - 1, NodeAttr);
+          !Check) {
         return Unexpect(Check);
       }
       ParamTypes.push_back(Type);
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
   }
 
@@ -144,25 +80,19 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr,
     VecCnt = *Res;
     ReturnTypes.reserve(VecCnt);
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readByte()) {
       ValType Type = static_cast<ValType>(*Res);
-      if (auto Check = checkValTypeProposals(Type, PConf); !Check) {
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+      if (auto Check =
+              checkValTypeProposals(PConf, Type, Mgr.getOffset() - 1, NodeAttr);
+          !Check) {
         return Unexpect(Check);
       }
       ReturnTypes.push_back(Type);
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
   }
   return {};
@@ -181,29 +111,13 @@ Expect<void> TableType::loadBinary(FileMgr &Mgr,
   /// Read reference type.
   if (auto Res = Mgr.readByte()) {
     Type = static_cast<RefType>(*Res);
-    switch (Type) {
-    case RefType::ExternRef:
-      if (!PConf.hasProposal(Proposal::ReferenceTypes)) {
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
-        LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Instruction);
-        return Unexpect(ErrCode::InvalidGrammar);
-      }
-      [[fallthrough]];
-    case RefType::FuncRef:
-      break;
-    default:
-      LOG(ERROR) << ErrCode::InvalidGrammar;
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(ErrCode::InvalidGrammar);
+    if (auto Check =
+            checkRefTypeProposals(PConf, Type, Mgr.getOffset() - 1, NodeAttr);
+        !Check) {
+      return Unexpect(Check);
     }
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
 
   /// Read limit.
@@ -216,16 +130,13 @@ Expect<void> GlobalType::loadBinary(FileMgr &Mgr,
   /// Read value type.
   if (auto Res = Mgr.readByte()) {
     Type = static_cast<ValType>(*Res);
-    if (auto Check = checkValTypeProposals(Type, PConf); !Check) {
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+    if (auto Check =
+            checkValTypeProposals(PConf, Type, Mgr.getOffset() - 1, NodeAttr);
+        !Check) {
       return Unexpect(Check);
     }
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
 
   /// Read mutability.
@@ -236,16 +147,11 @@ Expect<void> GlobalType::loadBinary(FileMgr &Mgr,
     case ValMut::Var:
       break;
     default:
-      LOG(ERROR) << ErrCode::InvalidGrammar;
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset() - 1);
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(ErrCode::InvalidGrammar);
+      return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1,
+                          NodeAttr);
     }
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   return {};
 }

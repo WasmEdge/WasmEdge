@@ -19,10 +19,7 @@ Expect<void> Section::loadSize(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     ContentSize = *Res;
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   return {};
 }
@@ -34,10 +31,7 @@ Expect<void> CustomSection::loadContent(FileMgr &Mgr,
   if (auto Res = Mgr.readBytes(ContentSize)) {
     Content = *Res;
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   return {};
 }
@@ -64,19 +58,13 @@ Expect<void> FunctionSection::loadContent(FileMgr &Mgr,
     /// A section may be splited into partitions in module.
     Content.reserve(Content.size() + VecCnt);
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readU32()) {
       Content.push_back(*Res);
     } else {
-      LOG(ERROR) << Res.error();
-      LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-      return Unexpect(Res);
+      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
   }
   return {};
@@ -112,10 +100,7 @@ Expect<void> StartSection::loadContent(FileMgr &Mgr,
   if (auto Res = Mgr.readU32()) {
     Content = *Res;
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   return {};
 }
@@ -145,10 +130,7 @@ Expect<void> DataCountSection::loadContent(FileMgr &Mgr,
   if (auto Res = Mgr.readU32()) {
     Content = *Res;
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(Res);
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   return {};
 }

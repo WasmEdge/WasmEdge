@@ -27,6 +27,20 @@
 
 namespace {
 
+/// is x86_64
+#if defined(__x86_64__) || defined(_M_X64)
+static inline constexpr const bool kX86_64 = true;
+#else
+static inline constexpr const bool kX86_64 = false;
+#endif
+
+/// is aarch64
+#if defined(__aarch64__)
+static inline constexpr const bool kAArch64 = true;
+#else
+static inline constexpr const bool kAArch64 = false;
+#endif
+
 inline void setIsFPConstrained(llvm::IRBuilder<> &Builder) {
   Builder.setIsFPConstrained(true);
 #if LLVM_VERSION_MAJOR >= 11
@@ -139,30 +153,20 @@ struct SSVM::AOT::Compiler::CompileContext {
   llvm::SubtargetFeatures SubtargetFeatures;
 
 #if LLVM_VERSION_MAJOR < 11
-  bool SupportRoundeven =
-#if (defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||           \
-     defined(_M_X64)) &&                                                       \
-    (defined(__AVX512F__) || defined(__AVX__) || defined(__SSE4_1__))
-      true;
-#elif (defined(__arm__) || defined(__aarch64__)) &&                            \
-    (defined(__ARM_NEON__) || defined(__ARM_NEON) || defined(__ARM_NEON_FP))
-      true;
+#if defined(__AVX512F__) || defined(__AVX__) || defined(__SSE4_1__) ||         \
+    defined(__ARM_NEON__) || defined(__ARM_NEON) || defined(__ARM_NEON_FP)
+  bool SupportRoundeven = true;
 #else
-      false;
+  bool SupportRoundeven = false;
 #endif
 #endif
 
-  bool SupportShuffle =
-#if (defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||           \
-     defined(_M_X64)) &&                                                       \
-    (defined(__AVX512F__) || defined(__AVX__) || defined(__SSE4_1__) ||        \
-     defined(__SSE3__))
-      true;
-#elif (defined(__arm__) || defined(__aarch64__)) &&                            \
-    (defined(__ARM_NEON__) || defined(__ARM_NEON) || defined(__ARM_NEON_FP))
-      true;
+#if defined(__AVX512F__) || defined(__AVX__) || defined(__SSE4_1__) ||         \
+    defined(__SSE3__) || defined(__ARM_NEON__) || defined(__ARM_NEON) ||       \
+    defined(__ARM_NEON_FP)
+  bool SupportShuffle = true;
 #else
-      false;
+  bool SupportShuffle = false;
 #endif
 
   std::vector<const AST::FunctionType *> FunctionTypes;
@@ -229,33 +233,27 @@ struct SSVM::AOT::Compiler::CompileContext {
       llvm::StringMap<bool> FeatureMap;
       llvm::sys::getHostCPUFeatures(FeatureMap);
       for (auto &Feature : FeatureMap) {
-
 #if LLVM_VERSION_MAJOR < 11
         if (!SupportRoundeven && Feature.second) {
-          if (llvm::StringSwitch<bool>(Feature.first())
-#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||            \
-    defined(_M_X64)
-                  .Cases("avx512f", "avx", "sse4.1", true)
-#endif
-#if defined(__arm__) || defined(__aarch64__)
-                  .Case("neon", true)
-#endif
-                  .Default(false)) {
+          auto Check = llvm::StringSwitch<bool>(Feature.first());
+          if constexpr (kX86_64) {
+            Check.Cases("avx512f", "avx", "sse4.1", true);
+          } else if constexpr (kAArch64) {
+            Check.Case("neon", true);
+          }
+          if (Check.Default(false)) {
             SupportRoundeven = true;
           }
         }
 #endif
-
         if (!SupportShuffle && Feature.second) {
-          if (llvm::StringSwitch<bool>(Feature.first())
-#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||            \
-    defined(_M_X64)
-                  .Cases("avx512f", "avx", "sse4.1", "sse3", true)
-#endif
-#if defined(__arm__) || defined(__aarch64__)
-                  .Case("neon", true)
-#endif
-                  .Default(false)) {
+          auto Check = llvm::StringSwitch<bool>(Feature.first());
+          if constexpr (kX86_64) {
+            Check.Cases("avx512f", "avx", "sse4.1", "sse3", true);
+          } else if constexpr (kAArch64) {
+            Check.Case("neon", true);
+          }
+          if (Check.Default(false)) {
             SupportShuffle = true;
           }
         }
@@ -1105,36 +1103,36 @@ public:
       const uint32_t VectorSize = IsFloat ? 4 : 2;
       llvm::Value *Value = stackPop();
 
-#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||            \
-    defined(_M_X64)
-      if (Context.SupportRoundeven) {
-        const uint64_t kZero = 0;
-        auto *VectorTy =
-            llvm::VectorType::get(Value->getType(), VectorSize, false);
-        llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
-        Ret = Builder.CreateInsertElement(Ret, Value, kZero);
-        auto ID = IsFloat ? llvm::Intrinsic::x86_sse41_round_ss
-                          : llvm::Intrinsic::x86_sse41_round_sd;
-        Ret = Builder.CreateIntrinsic(ID, {}, {Ret, Ret, Builder.getInt32(8)});
-        Ret = Builder.CreateExtractElement(Ret, kZero);
-        stackPush(Ret);
-        break;
+      if constexpr (kX86_64) {
+        if (Context.SupportRoundeven) {
+          const uint64_t kZero = 0;
+          auto *VectorTy =
+              llvm::VectorType::get(Value->getType(), VectorSize, false);
+          llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
+          Ret = Builder.CreateInsertElement(Ret, Value, kZero);
+          auto ID = IsFloat ? llvm::Intrinsic::x86_sse41_round_ss
+                            : llvm::Intrinsic::x86_sse41_round_sd;
+          Ret =
+              Builder.CreateIntrinsic(ID, {}, {Ret, Ret, Builder.getInt32(8)});
+          Ret = Builder.CreateExtractElement(Ret, kZero);
+          stackPush(Ret);
+          break;
+        }
       }
-#endif
 
-#if defined(__arm__) || defined(__aarch64__)
-      if (Context.SupportRoundeven) {
-        const uint64_t kZero = 0;
-        auto *VectorTy = llvm::VectorType::get(Value->getType(), VectorSize);
-        llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
-        Ret = Builder.CreateInsertElement(Ret, Value, kZero);
-        Ret = Builder.CreateBinaryIntrinsic(
-            llvm::Intrinsic::aarch64_neon_frintn, Ret, Ret);
-        Ret = Builder.CreateExtractElement(Ret, kZero);
-        stackPush(Ret);
-        break;
+      if constexpr (kAArch64) {
+        if (Context.SupportRoundeven) {
+          const uint64_t kZero = 0;
+          auto *VectorTy = llvm::VectorType::get(Value->getType(), VectorSize);
+          llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
+          Ret = Builder.CreateInsertElement(Ret, Value, kZero);
+          Ret = Builder.CreateUnaryIntrinsic(
+              llvm::Intrinsic::aarch64_neon_frintn, Ret);
+          Ret = Builder.CreateExtractElement(Ret, kZero);
+          stackPush(Ret);
+          break;
+        }
       }
-#endif
 
       stackPush(
           Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, Value));
@@ -1195,11 +1193,10 @@ public:
     case OpCode::F64__convert_i64_u:
       stackPush(Builder.CreateUIToFP(stackPop(), Context.DoubleTy));
       break;
-    case OpCode::F32__demote_f64:
+    case OpCode::F32__demote_f64: {
 #if LLVM_VERSION_MAJOR >= 10
       stackPush(Builder.CreateFPTrunc(stackPop(), Context.FloatTy));
 #else
-    {
       /// llvm 9 didn't add constrains on fptrunc, do it manually.
       auto &LLContext = Context.LLContext;
       auto *Value = stackPop();
@@ -1215,9 +1212,9 @@ public:
       stackPush(Builder.CreateIntrinsic(
           llvm::Intrinsic::experimental_constrained_fptrunc,
           {Context.FloatTy, Value->getType()}, {Value, RoundingV, ExceptV}));
-    }
 #endif
       break;
+    }
     case OpCode::F64__promote_f32:
       stackPush(Builder.CreateFPExt(stackPop(), Context.DoubleTy));
       break;
@@ -1741,31 +1738,30 @@ public:
       auto *Index = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
       auto *Vector = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
 
-#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||            \
-    defined(_M_X64)
-      if (Context.SupportShuffle) {
-        auto *Magic = Builder.CreateVectorSplat(16, Builder.getInt8(112));
-        auto *Added = Builder.CreateAdd(Index, Magic);
-        auto *NewIndex = Builder.CreateSelect(
-            Builder.CreateICmpUGT(Index, Added),
-            llvm::Constant::getAllOnesValue(Context.Int8x16Ty), Added);
-        stackPush(Builder.CreateBitCast(
-            Builder.CreateIntrinsic(llvm::Intrinsic::x86_ssse3_pshuf_b_128, {},
-                                    {Vector, NewIndex}),
-            Context.Int64x2Ty));
-        return {};
+      if constexpr (kX86_64) {
+        if (Context.SupportShuffle) {
+          auto *Magic = Builder.CreateVectorSplat(16, Builder.getInt8(112));
+          auto *Added = Builder.CreateAdd(Index, Magic);
+          auto *NewIndex = Builder.CreateSelect(
+              Builder.CreateICmpUGT(Index, Added),
+              llvm::Constant::getAllOnesValue(Context.Int8x16Ty), Added);
+          stackPush(Builder.CreateBitCast(
+              Builder.CreateIntrinsic(llvm::Intrinsic::x86_ssse3_pshuf_b_128,
+                                      {}, {Vector, NewIndex}),
+              Context.Int64x2Ty));
+          return {};
+        }
       }
-#endif
 
-#if defined(__arm__) || defined(__aarch64__)
-      if (Context.SupportShuffle) {
-        stackPush(Builder.CreateBitCast(
-            Builder.CreateIntrinsic(llvm::Intrinsic::aarch64_neon_tbl1, {},
-                                    {Vector, Index}),
-            Context.Int64x2Ty));
-        return {};
+      if constexpr (kAArch64) {
+        if (Context.SupportShuffle) {
+          stackPush(Builder.CreateBitCast(
+              Builder.CreateBinaryIntrinsic(llvm::Intrinsic::aarch64_neon_tbl1,
+                                            Vector, Index),
+              Context.Int64x2Ty));
+          return {};
+        }
       }
-#endif
 
       auto *Mask = Builder.CreateVectorSplat(16, Builder.getInt8(15));
       auto *Zero = Builder.CreateVectorSplat(16, Builder.getInt8(0));
@@ -2824,16 +2820,26 @@ private:
     auto *ExtendTy = VectorTy->getExtendedElementVectorType(VectorTy);
     return compileVectorVectorOp(VectorTy, [this, VectorTy,
                                             ExtendTy](auto *LHS, auto *RHS) {
-      auto *EL = Builder.CreateZExt(LHS, ExtendTy);
-      auto *ER = Builder.CreateZExt(RHS, ExtendTy);
-      auto *One = Builder.CreateZExt(
-          Builder.CreateVectorSplat(ExtendTy->getElementCount().Min,
-                                    Builder.getTrue()),
-          ExtendTy);
-      return Builder.CreateTrunc(
-          Builder.CreateLShr(Builder.CreateAdd(Builder.CreateAdd(EL, ER), One),
-                             One),
-          VectorTy);
+      if constexpr (kX86_64) {
+        const auto ID = VectorTy->getElementType()->getIntegerBitWidth() == 8
+                            ? llvm::Intrinsic::x86_sse2_pavg_b
+                            : llvm::Intrinsic::x86_sse2_pavg_w;
+        return Builder.CreateIntrinsic(ID, {}, {LHS, RHS});
+      } else if constexpr (kAArch64) {
+        return Builder.CreateBinaryIntrinsic(
+            llvm::Intrinsic::aarch64_neon_urhadd, LHS, RHS);
+      } else {
+        auto *EL = Builder.CreateZExt(LHS, ExtendTy);
+        auto *ER = Builder.CreateZExt(RHS, ExtendTy);
+        auto *One = Builder.CreateZExt(
+            Builder.CreateVectorSplat(ExtendTy->getElementCount().Min,
+                                      Builder.getTrue()),
+            ExtendTy);
+        return Builder.CreateTrunc(
+            Builder.CreateLShr(
+                Builder.CreateAdd(Builder.CreateAdd(EL, ER), One), One),
+            VectorTy);
+      }
     });
   }
   Expect<void> compileVectorNarrow(llvm::VectorType *FromTy, bool Signed) {
@@ -2920,21 +2926,20 @@ private:
 #else
     const bool IsFloat = VectorTy->getElementType() == Context.FloatTy;
     return compileVectorOp(VectorTy, [this, IsFloat](auto *V) {
-#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||            \
-    defined(_M_X64)
-      if (Context.SupportRoundeven) {
-        auto ID = IsFloat ? llvm::Intrinsic::x86_sse41_round_ps
-                          : llvm::Intrinsic::x86_sse41_round_pd;
-        return Builder.CreateIntrinsic(ID, {}, {V, Builder.getInt32(8)});
+      if constexpr (kX86_64) {
+        if (Context.SupportRoundeven) {
+          auto ID = IsFloat ? llvm::Intrinsic::x86_sse41_round_ps
+                            : llvm::Intrinsic::x86_sse41_round_pd;
+          return Builder.CreateIntrinsic(ID, {}, {V, Builder.getInt32(8)});
+        }
       }
-#endif
 
-#if defined(__arm__) || defined(__aarch64__)
-      if (Context.SupportRoundeven) {
-        return Builder.CreateBinaryIntrinsic(
-            llvm::Intrinsic::aarch64_neon_frintn, V, V);
+      if constexpr (kAArch64) {
+        if (Context.SupportRoundeven) {
+          return Builder.CreateUnaryIntrinsic(
+              llvm::Intrinsic::aarch64_neon_frintn, V);
+        }
       }
-#endif
 
       return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, V);
     });
@@ -3492,13 +3497,13 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
           // Add LibraryInfo.
           CodeGenPasses.add(new llvm::TargetLibraryInfoWrapperPass(TLII));
 
-          if (TM->addPassesToEmitFile(CodeGenPasses, *OS, nullptr,
 #if LLVM_VERSION_MAJOR >= 10
-                                      llvm::CGFT_ObjectFile,
+          using llvm::CGFT_ObjectFile;
 #else
-                                      llvm::TargetMachine::CGFT_ObjectFile,
+          const auto CGFT_ObjectFile = llvm::TargetMachine::CGFT_ObjectFile;
 #endif
-                                      false)) {
+          if (TM->addPassesToEmitFile(CodeGenPasses, *OS, nullptr,
+                                      CGFT_ObjectFile, false)) {
             // TODO:return error
             LOG(ERROR) << "addPassesToEmitFile failed";
             llvm::consumeError(Object->discard());

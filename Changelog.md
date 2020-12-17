@@ -1,3 +1,60 @@
+### 0.7.2 (2020-12-17)
+
+Features:
+
+* Added a cmake option to toggle the compilation of `ssvm` and `ssvmr` tools.
+  * This option is `ON` in default. 
+  * `cmake -DBUILD_TOOLS=Off` to disable the compilation of `tools/ssvm` folder when building.
+* Applied the [Fixed-width SIMD](https://github.com/webassembly/simd) proposal.
+  * Please refer to the [SIMD document](https://github.com/second-state/SSVM/blob/master/doc/simd.md) for more details.
+* Provided options to toggle proposals for the compiler and runtime.
+  * `--enable-bulk-memory` to enable bulk-memory operations proposal.
+  * `--enable-reference-types` to enable reference types proposal.
+  * `--enable-simd` to enable SIMD proposal.
+  * `--enable-all` to enable all supported proposals.
+* Supported `roundeven` intrinsic in LLVM 11.
+
+Fixed issues:
+
+* Used `std::filesystem::path` for all paths.
+* Interpreter
+  * Fixed `call_indirect` table index checking in the validation phase.
+  * Removed redundant `reinterpret_cast` in interpreter.
+* AOT compiler
+  * Forced unalignment in load and store instructions in AOT.
+  * Not to report error in `terminated` case.
+* WASI
+  * Updated size of `linkcount` to `u64`.
+
+Refactor:
+
+* Added `uint128_t` into `SSVM::ValVariant`.
+  * Added number type `v128`.
+* Added `SSVM::RefVariant` for 64bit-width reference variant.
+* Refactor AOT for better performance.
+  * Added code attribute in AOT to speed up normal execution.
+  * Rewrote element-wise boolean operators.
+  * Used vector type in stack and function for better code generation.
+  * Rewrite `trunc` instructions for readability.
+
+Tools:
+
+* Deprecated `ssvmr` tool, since the functionalities are the same as `ssvm` tool.
+  * Please use the tool `tools/ssvm/ssvm` with the same arguments.
+* Combined the tools folder. All tools in `tools/ssvm-aot` are moved into `tools/ssvm` now.
+
+Tests:
+
+* Added Wasi test cases.
+  * Added test cases for `args` functions.
+  * Added test cases for `environ` functions.
+  * Added test cases for `clock` functions.
+  * Added test cases for `proc_exit` and `random_get`.
+* Updated test suites and categorized them into proposals.
+  * Added SIMD proposal test suite.
+  * [Official test suite](https://github.com/WebAssembly/testsuite)
+  * [SSVM unit test in proposals](https://github.com/second-state/ssvm-unittest/tree/wasm-core)
+
 ### 0.7.1 (2020-11-06)
 
 Features:

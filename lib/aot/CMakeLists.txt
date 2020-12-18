@@ -6,7 +6,6 @@ list(APPEND CMAKE_MODULE_PATH ${LLVM_DIR})
 include(LLVMConfig)
 include(AddLLVM)
 
-find_library(LLVM_OPTION LLVMOption PATHS "${LLVM_LIBRARY_DIR}")
 find_library(LLD_COMMON lldCommon PATHS "${LLVM_LIBRARY_DIR}")
 find_library(LLD_CORE lldCore PATHS "${LLVM_LIBRARY_DIR}")
 find_library(LLD_DRIVER lldDriver PATHS "${LLVM_LIBRARY_DIR}")
@@ -21,7 +20,6 @@ endif()
 llvm_add_library(ssvmAOT
   compiler.cpp
   LINK_LIBS
-  ${LLVM_OPTION}
   ${LLD_SYSTEM}
   ${LLD_COMMON}
   ${LLD_CORE}
@@ -32,11 +30,13 @@ llvm_add_library(ssvmAOT
   ${CMAKE_THREAD_LIBS_INIT}
   LINK_COMPONENTS
   core
+  lto
   native
   nativecodegen
+  option
   passes
-  transformutils
   support
+  transformutils
 )
 
 target_include_directories(ssvmAOT

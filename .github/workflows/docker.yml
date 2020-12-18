@@ -7,12 +7,11 @@ on:
     tags:
       - '*.*.*'
   pull_request:
-    branches:
-      - master
     paths:
       - 'utils/docker/**'
+      - '.github/workflows/**'
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "0 0 1 * *"
 
 jobs:
   build-docker-images:

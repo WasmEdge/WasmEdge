@@ -65,14 +65,18 @@ void WasiEnvironment::init(Span<const std::string> Dirs,
   emplaceFile(2, STDERR_FILENO, false, kStdErrRights, 0, "/dev/stderr"sv);
 
   /// Open dir for WASI environment.
+  int Flag = O_DIRECTORY;
+#if defined(O_PATH)
+  Flag |= O_PATH;
+#endif
   int NewFd = 3;
   for (const auto &Dir : Dirs) {
     const auto Pos = Dir.find(':');
     if (Pos != std::string::npos) {
       const auto GuestDir = Dir.substr(0, Pos);
       const auto HostDir = Dir.substr(Pos + 1);
-      emplaceFile(NewFd++, open(HostDir.c_str(), O_PATH | O_DIRECTORY), true,
-                  kDirectoryRights, kInheritingDirectoryRights, GuestDir);
+      emplaceFile(NewFd++, open(HostDir.c_str(), Flag), true, kDirectoryRights,
+                  kInheritingDirectoryRights, GuestDir);
     }
   }
 

@@ -152,13 +152,11 @@ struct SSVM::AOT::Compiler::CompileContext {
   llvm::PointerType *ExecCtxPtrTy;
   llvm::SubtargetFeatures SubtargetFeatures;
 
-#if LLVM_VERSION_MAJOR < 11
 #if defined(__AVX512F__) || defined(__AVX__) || defined(__SSE4_1__) ||         \
     defined(__ARM_NEON__) || defined(__ARM_NEON) || defined(__ARM_NEON_FP)
   bool SupportRoundeven = true;
 #else
   bool SupportRoundeven = false;
-#endif
 #endif
 
 #if defined(__AVX512F__) || defined(__AVX__) || defined(__SSE4_1__) ||         \
@@ -233,7 +231,6 @@ struct SSVM::AOT::Compiler::CompileContext {
       llvm::StringMap<bool> FeatureMap;
       llvm::sys::getHostCPUFeatures(FeatureMap);
       for (auto &Feature : FeatureMap) {
-#if LLVM_VERSION_MAJOR < 11
         if (!SupportRoundeven && Feature.second) {
           auto Check = llvm::StringSwitch<bool>(Feature.first());
           if constexpr (kX86_64) {
@@ -245,7 +242,6 @@ struct SSVM::AOT::Compiler::CompileContext {
             SupportRoundeven = true;
           }
         }
-#endif
         if (!SupportShuffle && Feature.second) {
           auto Check = llvm::StringSwitch<bool>(Feature.first());
           if constexpr (kX86_64) {
@@ -1095,10 +1091,6 @@ public:
       break;
     case OpCode::F32__nearest:
     case OpCode::F64__nearest: {
-#if LLVM_VERSION_MAJOR >= 11
-      stackPush(
-          Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven, stackPop()));
-#else
       const bool IsFloat = Instr.getOpCode() == OpCode::F32__nearest;
       const uint32_t VectorSize = IsFloat ? 4 : 2;
       llvm::Value *Value = stackPop();
@@ -1123,7 +1115,7 @@ public:
       if constexpr (kAArch64) {
         if (Context.SupportRoundeven) {
           const uint64_t kZero = 0;
-          auto *VectorTy = llvm::VectorType::get(Value->getType(), VectorSize);
+          auto *VectorTy = llvm::VectorType::get(Value->getType(), VectorSize, false);
           llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
           Ret = Builder.CreateInsertElement(Ret, Value, kZero);
           Ret = Builder.CreateUnaryIntrinsic(
@@ -1136,7 +1128,6 @@ public:
 
       stackPush(
           Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, Value));
-#endif
       break;
     }
     case OpCode::F32__sqrt:
@@ -2919,11 +2910,6 @@ private:
     });
   }
   Expect<void> compileVectorFNearest(llvm::VectorType *VectorTy) {
-#if LLVM_VERSION_MAJOR >= 11
-    return compileVectorOp(VectorTy, [this](auto *V) {
-      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven, V);
-    });
-#else
     const bool IsFloat = VectorTy->getElementType() == Context.FloatTy;
     return compileVectorOp(VectorTy, [this, IsFloat](auto *V) {
       if constexpr (kX86_64) {
@@ -2943,7 +2929,6 @@ private:
 
       return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, V);
     });
-#endif
   }
   Expect<void> compileVectorVectorFAdd(llvm::VectorType *VectorTy) {
     return compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {

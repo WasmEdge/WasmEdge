@@ -23,7 +23,9 @@
 
 #ifndef __APPLE__
 #include <sys/epoll.h>
+#if __GLIBC_PREREQ(2, 8)
 #include <sys/signalfd.h>
+#endif
 #endif
 
 namespace {
@@ -314,6 +316,20 @@ timestamp2Timespec(__wasi_timestamp_t Timestamp) noexcept {
   Result.tv_nsec = Nano.count();
   return Result;
 }
+
+#if !__GLIBC_PREREQ(2, 6)
+static constexpr timeval
+timestamp2Timeval(__wasi_timestamp_t Timestamp) noexcept {
+  using namespace std::chrono;
+  const auto Total = microseconds(Timestamp);
+  const auto Second = duration_cast<seconds>(Total);
+  const auto Micro = Total - Second;
+  timeval Result{};
+  Result.tv_sec = Second.count();
+  Result.tv_usec = Micro.count();
+  return Result;
+}
+#endif
 
 template <typename Container>
 inline constexpr uint32_t CalculateBufferSize(const Container &Array) {
@@ -841,6 +857,7 @@ WasiFdFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_ENOTCAPABLE;
   }
 
+#if __GLIBC_PREREQ(2, 6)
   timespec SysTimespec[2];
   if (FstFlags & __WASI_FILESTAT_SET_ATIM) {
     SysTimespec[0] = timestamp2Timespec(ATim);
@@ -860,6 +877,14 @@ WasiFdFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
   if (unlikely(futimens(Entry->second.HostFd, SysTimespec) != 0)) {
     return convertErrNo(errno);
   }
+#else
+  timeval SysTimeval[2];
+  SysTimeval[0] = timestamp2Timeval(ATim);
+  SysTimeval[1] = timestamp2Timeval(MTim);
+  if (unlikely(futimes(Entry->second.HostFd, SysTimeval) != 0)) {
+    return convertErrNo(errno);
+  }
+#endif
 
   return __WASI_ESUCCESS;
 }
@@ -922,8 +947,30 @@ Expect<uint32_t> WasiFdPread::body(Runtime::Instance::MemoryInstance *MemInst,
     SysIOVS[I].iov_len = IOVS.buf_len;
   }
 
+#if __GLIBC_PREREQ(2, 10)
   /// Store read bytes length.
   *NRead = preadv(Entry->second.HostFd, SysIOVS, IOVSLen, Offset);
+#else
+  const off_t ErrOffset = -1;
+  const off_t OldOffset = lseek(Entry->second.HostFd, 0, SEEK_CUR);
+  if (OldOffset == ErrOffset) {
+    *NRead = -1;
+    return convertErrNo(errno);
+  }
+  if (lseek(Entry->second.HostFd, Offset, SEEK_SET) == ErrOffset) {
+    *NRead = -1;
+    return convertErrNo(errno);
+  }
+  *NRead = readv(Entry->second.HostFd, SysIOVS, IOVSLen);
+  const int SavedErrNo = errno;
+  if (lseek(Entry->second.HostFd, OldOffset, SEEK_SET) == ErrOffset) {
+    if (*NRead != -1) {
+      *NRead = -1;
+      return convertErrNo(errno);
+    }
+  }
+  errno = SavedErrNo;
+#endif
 
   if (unlikely(*NRead < 0)) {
     return convertErrNo(errno);
@@ -1045,7 +1092,29 @@ Expect<uint32_t> WasiFdPwrite::body(Runtime::Instance::MemoryInstance *MemInst,
     SysIOVS[I].iov_len = IOVS.buf_len;
   }
 
+#if __GLIBC_PREREQ(2, 10)
   *NWritten = pwritev(Entry->second.HostFd, SysIOVS, IOVSLen, Offset);
+#else
+  const off_t ErrOffset = -1;
+  const off_t OldOffset = lseek(Entry->second.HostFd, 0, SEEK_CUR);
+  if (OldOffset == ErrOffset) {
+    *NWritten = -1;
+    return convertErrNo(errno);
+  }
+  if (lseek(Entry->second.HostFd, Offset, SEEK_SET) == ErrOffset) {
+    *NWritten = -1;
+    return convertErrNo(errno);
+  }
+  *NWritten = writev(Entry->second.HostFd, SysIOVS, IOVSLen);
+  const int SavedErrNo = errno;
+  if (lseek(Entry->second.HostFd, OldOffset, SEEK_SET) == ErrOffset) {
+    if (*NWritten != -1) {
+      *NWritten = -1;
+      return convertErrNo(errno);
+    }
+  }
+  errno = SavedErrNo;
+#endif
 
   if (unlikely(*NWritten < 0)) {
     return convertErrNo(errno);
@@ -1516,6 +1585,7 @@ WasiPathFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
   }
   std::string PathStr(Path, PathLen);
 
+#if __GLIBC_PREREQ(2, 6)
   int SysFlags = 0;
   if ((Flags & __WASI_LOOKUP_SYMLINK_FOLLOW) == 0) {
     SysFlags |= AT_SYMLINK_FOLLOW;
@@ -1541,6 +1611,15 @@ WasiPathFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
                          SysFlags) != 0)) {
     return convertErrNo(errno);
   }
+#else
+  timeval SysTimeval[2];
+  SysTimeval[0] = timestamp2Timeval(ATim);
+  SysTimeval[1] = timestamp2Timeval(MTim);
+  if (unlikely(futimesat(Entry->second.HostFd, PathStr.c_str(), SysTimeval) !=
+               0)) {
+    return convertErrNo(errno);
+  }
+#endif
 
   return __WASI_ESUCCESS;
 }
@@ -1903,6 +1982,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
       for (timer_t Timer : Timers) {
         timer_delete(Timer);
       }
+#if __GLIBC_PREREQ(2, 8)
       if (SignalFd >= 0) {
         close(SignalFd);
 
@@ -1911,15 +1991,24 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
         sigaddset(&Mask, SIGRTMIN);
         sigprocmask(SIG_UNBLOCK, &Mask, nullptr);
       }
+#endif
     }
     bool Create() noexcept {
       if (EPollFd >= 0) {
         return true;
       }
+#if __GLIBC_PREREQ(2, 9)
       EPollFd = epoll_create1(EPOLL_CLOEXEC);
+#else
+      EPollFd = epoll_create(1);
+      if (EPollFd >= 0) {
+        fcntl(EPollFd, F_SETFD, FD_CLOEXEC);
+      }
+#endif
       return likely(EPollFd >= 0);
     }
     bool MonitorSignal() noexcept {
+#if __GLIBC_PREREQ(2, 8)
       if (likely(SignalFd >= 0)) {
         return true;
       }
@@ -1942,11 +2031,19 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
         return false;
       }
       return true;
+#else
+      return false;
+#endif
     }
     bool AddFd(int Fd, const __wasi_subscription_t *Pointer,
                bool IsRead) noexcept {
       epoll_event Event;
-      Event.events = (IsRead ? EPOLLIN : EPOLLOUT) | EPOLLRDHUP;
+      Event.events = (IsRead ? EPOLLIN : EPOLLOUT);
+#if defined(EPOLLRDHUP)
+      Event.events |= EPOLLRDHUP;
+#else
+      Event.events |= EPOLLHUP;
+#endif
       Event.data.ptr = const_cast<__wasi_subscription_t *>(Pointer);
       if (unlikely(epoll_ctl(EPollFd, EPOLL_CTL_ADD, Fd, &Event) < 0)) {
         return false;
@@ -1976,11 +2073,15 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
       return true;
     }
     bool Wait() noexcept {
+#if __GLIBC_PREREQ(2, 6)
       sigset_t Mask;
       sigfillset(&Mask);
       sigdelset(&Mask, SIGRTMIN);
       const int Count =
           epoll_pwait(EPollFd, Events.data(), Events.size(), -1, &Mask);
+#else
+      const int Count = epoll_wait(EPollFd, Events.data(), Events.size(), -1);
+#endif
       if (unlikely(Count < 0)) {
         return false;
       }
@@ -1989,7 +2090,9 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
     }
 
     int EPollFd = -1;
+#if __GLIBC_PREREQ(2, 8)
     int SignalFd = -1;
+#endif
     std::vector<timer_t> Timers;
     std::vector<epoll_event> Events;
   };
@@ -2038,6 +2141,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
     ++*NEvents;
   };
 
+#if __GLIBC_PREREQ(2, 8)
   auto RecordClock = [&EventArray,
                       &NEvents](const __wasi_subscription_t &Subscription) {
     EventArray[*NEvents].userdata = Subscription.userdata;
@@ -2045,6 +2149,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
     EventArray[*NEvents].type = Subscription.type;
     ++*NEvents;
   };
+#endif
 
   auto RecordFd = [&EventArray, &NEvents](
                       const __wasi_subscription_t &Subscription,
@@ -2169,12 +2274,14 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
 
       RecordFd(Subscription, NBytes, flags);
     } else {
+#if __GLIBC_PREREQ(2, 8)
       signalfd_siginfo SigInfo;
       while (read(Event.SignalFd, &SigInfo, sizeof(SigInfo)) > 0) {
         const __wasi_subscription_t &Subscription =
             *reinterpret_cast<__wasi_subscription_t *>(SigInfo.ssi_ptr);
         RecordClock(Subscription);
       }
+#endif
     }
   }
 

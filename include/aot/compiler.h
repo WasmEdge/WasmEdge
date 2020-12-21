@@ -46,16 +46,16 @@ public:
 
   Expect<void> compile(Span<const Byte> Data, const AST::Module &Module,
                        std::filesystem::path OutputPath);
-  Expect<void> compile(const AST::ImportSection &ImportSection);
-  Expect<void> compile(const AST::ExportSection &ExportSection);
-  Expect<void> compile(const AST::TypeSection &TypeSection);
-  Expect<void> compile(const AST::GlobalSection &GlobalSection);
-  Expect<void> compile(const AST::MemorySection &MemorySection,
-                       const AST::DataSection &DataSection);
-  Expect<void> compile(const AST::TableSection &TableSection,
-                       const AST::ElementSection &ElementSection);
-  Expect<void> compile(const AST::FunctionSection &FunctionSection,
-                       const AST::CodeSection &CodeSection);
+  void compile(const AST::ImportSection &ImportSection);
+  void compile(const AST::ExportSection &ExportSection);
+  void compile(const AST::TypeSection &TypeSection);
+  void compile(const AST::GlobalSection &GlobalSection);
+  void compile(const AST::MemorySection &MemorySection,
+               const AST::DataSection &DataSection);
+  void compile(const AST::TableSection &TableSection,
+               const AST::ElementSection &ElementSection);
+  void compile(const AST::FunctionSection &FunctionSection,
+               const AST::CodeSection &CodeSection);
 
   struct CompileContext;
 

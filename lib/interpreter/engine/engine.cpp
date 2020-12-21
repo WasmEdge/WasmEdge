@@ -39,8 +39,7 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
   } else {
     return Unexpect(Res);
   }
-  auto Res =
-      execute(StoreMgr, Func.getInstrs().begin(), Func.getInstrs().end());
+  auto Res = execute(StoreMgr, StartIt, Func.getInstrs().end());
 
   if (Res) {
     LOG(DEBUG) << " Execution succeeded.";

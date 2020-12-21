@@ -21,6 +21,7 @@
     auto Data = *Loader.loadFile("../loader/wagonTestData/" NAME ".wasm"sv);   \
     auto Module = *Loader.parseModule(Data);                                   \
     SSVM::AOT::Compiler Compiler;                                              \
+    Compiler.setDumpIR(true);                                                  \
     auto Status = Compiler.compile(Data, *Module,                              \
                                    "../loader/wagonTestData/" NAME ".so"sv);   \
     if (Status) {                                                              \

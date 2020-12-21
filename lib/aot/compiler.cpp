@@ -3474,43 +3474,21 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   RAIICleanup Cleanup(Context, NewContext);
 
   /// Compile Function Types
-  if (const AST::TypeSection *TypeSec = Module.getTypeSection()) {
-    compile(*TypeSec);
-  }
+  compile(Module.getTypeSection());
   /// Compile ImportSection
-  if (const AST::ImportSection *ImportSec = Module.getImportSection()) {
-    compile(*ImportSec);
-  }
+  compile(Module.getImportSection());
   /// Compile GlobalSection
-  if (const AST::GlobalSection *GlobSec = Module.getGlobalSection()) {
-    compile(*GlobSec);
-  }
+  compile(Module.getGlobalSection());
   /// Compile MemorySection (MemorySec, DataSec)
-  if (const AST::MemorySection *MemSec = Module.getMemorySection()) {
-    if (const AST::DataSection *DataSec = Module.getDataSection()) {
-      compile(*MemSec, *DataSec);
-    }
-  }
-  /// Compile TableSection
-  if (const AST::TableSection *TabSec = Module.getTableSection()) {
-    if (const AST::ElementSection *ElemSec = Module.getElementSection()) {
-      compile(*TabSec, *ElemSec);
-    }
-  }
+  compile(Module.getMemorySection(), Module.getDataSection());
+  /// Compile TableSection (TableSec, ElemSec)
+  compile(Module.getTableSection(), Module.getElementSection());
   /// compile Functions in module. (FunctionSec, CodeSec)
-  if (const AST::FunctionSection *FuncSec = Module.getFunctionSection()) {
-    if (const AST::CodeSection *CodeSec = Module.getCodeSection()) {
-      compile(*FuncSec, *CodeSec);
-    }
-  }
+  compile(Module.getFunctionSection(), Module.getCodeSection());
   /// Compile ExportSection
-  if (const AST::ExportSection *ExportSec = Module.getExportSection()) {
-    compile(*ExportSec);
-  }
-  /// Compile StartSection (StartSec)
-  if (Module.getStartSection()) {
-    ;
-  }
+  compile(Module.getExportSection());
+  /// StartSection is not required to compile
+
   /// create wasm.code and wasm.size
   {
     auto *Int32Ty = Context->Int32Ty;
@@ -3678,6 +3656,9 @@ void Compiler::compile(const AST::TypeSection &TypeSection) {
                               false);
   const auto &FuncTypes = TypeSection.getContent();
   const auto Size = FuncTypes.size();
+  if (Size == 0) {
+    return;
+  }
   std::vector<llvm::Constant *> Types;
   Types.reserve(Size);
   Context->FunctionTypes.reserve(Size);
@@ -3907,6 +3888,9 @@ void Compiler::compile(const AST::GlobalSection &GlobalSec) {
 
 void Compiler::compile(const AST::MemorySection &MemorySection,
                        const AST::DataSection &DataSec) {
+  if (MemorySection.getContent().size() == 0) {
+    return;
+  }
   assert(MemorySection.getContent().size() == 1);
   const auto &Limit = MemorySection.getContent().front().getLimit();
   Context->MemMin = Limit.getMin();
@@ -3920,6 +3904,9 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
                        const AST::CodeSection &CodeSec) {
   const auto &TypeIdxs = FuncSec.getContent();
   const auto &CodeSegs = CodeSec.getContent();
+  if (TypeIdxs.size() == 0 || CodeSegs.size() == 0) {
+    return;
+  }
 
   std::vector<llvm::Constant *> Codes;
   Codes.reserve(CodeSegs.size());

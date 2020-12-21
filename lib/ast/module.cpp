@@ -45,109 +45,78 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
 
     switch (NewSectionId) {
     case 0x00:
-      if (CustomSec == nullptr) {
-        CustomSec = std::make_unique<CustomSection>();
-      }
-      if (auto Res = CustomSec->loadBinary(Mgr, PConf); !Res) {
+      /// TODO: Handle the messages in custom section.
+      if (auto Res = CustomSec.loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x01:
-      if (TypeSec == nullptr) {
-        TypeSec = std::make_unique<TypeSection>();
-      }
-      if (auto Res = TypeSec->loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = TypeSec.loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x02:
-      if (ImportSec == nullptr) {
-        ImportSec = std::make_unique<ImportSection>();
-      }
-      if (auto Res = ImportSec->loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = ImportSec.loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x03:
-      if (FunctionSec == nullptr) {
-        FunctionSec = std::make_unique<FunctionSection>();
-      }
-      if (auto Res = FunctionSec->loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = FunctionSec.loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x04:
-      if (TableSec == nullptr) {
-        TableSec = std::make_unique<TableSection>();
-      }
-      if (auto Res = TableSec->loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = TableSec.loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x05:
-      if (MemorySec == nullptr) {
-        MemorySec = std::make_unique<MemorySection>();
-      }
-      if (auto Res = MemorySec->loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = MemorySec.loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x06:
-      if (GlobalSec == nullptr) {
-        GlobalSec = std::make_unique<GlobalSection>();
-      }
-      if (auto Res = GlobalSec->loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = GlobalSec.loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x07:
-      if (ExportSec == nullptr) {
-        ExportSec = std::make_unique<ExportSection>();
-      }
-      if (auto Res = ExportSec->loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = ExportSec.loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x08:
-      if (StartSec == nullptr) {
-        StartSec = std::make_unique<StartSection>();
+      if (StartSec.getContent()) {
+        /// Start section should be unique.
+        logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
       }
-      if (auto Res = StartSec->loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = StartSec.loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x09:
-      if (ElementSec == nullptr) {
-        ElementSec = std::make_unique<ElementSection>();
-      }
-      if (auto Res = ElementSec->loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = ElementSec.loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x0A:
-      if (CodeSec == nullptr) {
-        CodeSec = std::make_unique<CodeSection>();
-      }
-      if (auto Res = CodeSec->loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = CodeSec.loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x0B:
-      if (DataSec == nullptr) {
-        DataSec = std::make_unique<DataSection>();
-      }
-      if (auto Res = DataSec->loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = DataSec.loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -160,10 +129,11 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
                                Proposal::BulkMemoryOperations,
                                Mgr.getOffset() - 1, NodeAttr);
       }
-      if (DataCountSec == nullptr) {
-        DataCountSec = std::make_unique<DataCountSection>();
+      if (DataCountSec.getContent()) {
+        /// Data count section should be unique.
+        logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
       }
-      if (auto Res = DataCountSec->loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = DataCountSec.loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -175,19 +145,11 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
   }
 
   /// Verify the data count section and data segments are matched.
-  if (DataCountSec != nullptr) {
-    if (DataSec != nullptr) {
-      if (DataSec->getContent().size() != DataCountSec->getContent()) {
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-        return Unexpect(ErrCode::InvalidGrammar);
-      }
-    } else {
-      if (DataCountSec->getContent() != 0) {
-        LOG(ERROR) << ErrCode::InvalidGrammar;
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-        return Unexpect(ErrCode::InvalidGrammar);
-      }
+  if (DataCountSec.getContent()) {
+    if (DataSec.getContent().size() != *DataCountSec.getContent()) {
+      LOG(ERROR) << ErrCode::InvalidGrammar;
+      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+      return Unexpect(ErrCode::InvalidGrammar);
     }
   }
   return {};
@@ -195,20 +157,16 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
 
 /// Load compiled function from loadable manager. See "include/ast/module.h".
 Expect<void> Module::loadCompiled(LDMgr &Mgr) {
-  if (TypeSec) {
-    if (auto Symbol = Mgr.getSymbol<FunctionType::Wrapper *[]>("types")) {
-      auto &TypeSecs = TypeSec->getContent();
-      for (size_t I = 0; I < TypeSecs.size(); ++I) {
-        TypeSecs[I].setSymbol(Symbol.index(I).deref());
-      }
+  if (auto Symbol = Mgr.getSymbol<FunctionType::Wrapper *[]>("types")) {
+    auto &FuncTypes = TypeSec.getContent();
+    for (size_t I = 0; I < FuncTypes.size(); ++I) {
+      FuncTypes[I].setSymbol(Symbol.index(I).deref());
     }
   }
-  if (CodeSec) {
-    if (auto Symbol = Mgr.getSymbol<void *[]>("codes")) {
-      auto &CodeSecs = CodeSec->getContent();
-      for (size_t I = 0; I < CodeSecs.size(); ++I) {
-        CodeSecs[I].setSymbol(Symbol.index(I).deref());
-      }
+  if (auto Symbol = Mgr.getSymbol<void *[]>("codes")) {
+    auto &CodeSegs = CodeSec.getContent();
+    for (size_t I = 0; I < CodeSegs.size(); ++I) {
+      CodeSegs[I].setSymbol(Symbol.index(I).deref());
     }
   }
   return {};

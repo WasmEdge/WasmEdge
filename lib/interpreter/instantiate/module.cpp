@@ -34,55 +34,43 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   auto *ModInst = *StoreMgr.getModule(ModInstAddr);
 
   /// Instantiate Function Types in Module Instance. (TypeSec)
-  const AST::TypeSection *TypeSec = Mod.getTypeSection();
-  if (TypeSec != nullptr) {
-    auto FuncTypes = TypeSec->getContent();
-    for (auto &FuncType : FuncTypes) {
-      /// Copy param and return lists to module instance.
-      ModInst->addFuncType(FuncType.getParamTypes(), FuncType.getReturnTypes(),
-                           FuncType.getSymbol());
-    }
+  for (auto &FuncType : Mod.getTypeSection().getContent()) {
+    /// Copy param and return lists to module instance.
+    ModInst->addFuncType(FuncType.getParamTypes(), FuncType.getReturnTypes(),
+                         FuncType.getSymbol());
   }
 
   /// Instantiate ImportSection and do import matching. (ImportSec)
-  const AST::ImportSection *ImportSec = Mod.getImportSection();
-  if (ImportSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *ImportSec); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(ImportSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  const AST::ImportSection &ImportSec = Mod.getImportSection();
+  if (auto Res = instantiate(StoreMgr, *ModInst, ImportSec); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(ImportSec.NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Instantiate Functions in module. (FunctionSec, CodeSec)
-  const AST::FunctionSection *FuncSec = Mod.getFunctionSection();
-  const AST::CodeSection *CodeSec = Mod.getCodeSection();
-  if (FuncSec != nullptr && CodeSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *FuncSec, *CodeSec); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(FuncSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  const AST::FunctionSection &FuncSec = Mod.getFunctionSection();
+  const AST::CodeSection &CodeSec = Mod.getCodeSection();
+  if (auto Res = instantiate(StoreMgr, *ModInst, FuncSec, CodeSec); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(FuncSec.NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Instantiate TableSection (TableSec)
-  const AST::TableSection *TabSec = Mod.getTableSection();
-  if (TabSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *TabSec); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(TabSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  const AST::TableSection &TabSec = Mod.getTableSection();
+  if (auto Res = instantiate(StoreMgr, *ModInst, TabSec); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(TabSec.NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Instantiate MemorySection (MemorySec)
-  const AST::MemorySection *MemSec = Mod.getMemorySection();
-  if (MemSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *MemSec); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(MemSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  const AST::MemorySection &MemSec = Mod.getMemorySection();
+  if (auto Res = instantiate(StoreMgr, *ModInst, MemSec); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(MemSec.NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Add a temp module to Store with only imported globals for initialization.
@@ -99,13 +87,11 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   StackMgr.pushFrame(TmpModInstAddr, 0, 0);
 
   /// Instantiate GlobalSection (GlobalSec)
-  const AST::GlobalSection *GlobSec = Mod.getGlobalSection();
-  if (GlobSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *GlobSec); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(GlobSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  const AST::GlobalSection &GlobSec = Mod.getGlobalSection();
+  if (auto Res = instantiate(StoreMgr, *ModInst, GlobSec); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(GlobSec.NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Pop frame with temp. module.
@@ -115,54 +101,44 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   StoreMgr.popModule();
 
   /// Instantiate ExportSection (ExportSec)
-  const AST::ExportSection *ExportSec = Mod.getExportSection();
-  if (ExportSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *ExportSec); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(ExportSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  const AST::ExportSection &ExportSec = Mod.getExportSection();
+  if (auto Res = instantiate(StoreMgr, *ModInst, ExportSec); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(ExportSec.NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Push a new frame {ModInst, locals:none}
   StackMgr.pushFrame(ModInst->Addr, 0, 0);
 
   /// Instantiate ElementSection (ElemSec)
-  const AST::ElementSection *ElemSec = Mod.getElementSection();
-  if (ElemSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *ElemSec); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(ElemSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  const AST::ElementSection &ElemSec = Mod.getElementSection();
+  if (auto Res = instantiate(StoreMgr, *ModInst, ElemSec); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(ElemSec.NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Instantiate DataSection (DataSec)
-  const AST::DataSection *DataSec = Mod.getDataSection();
-  if (DataSec != nullptr) {
-    if (auto Res = instantiate(StoreMgr, *ModInst, *DataSec); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(DataSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  const AST::DataSection &DataSec = Mod.getDataSection();
+  if (auto Res = instantiate(StoreMgr, *ModInst, DataSec); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(DataSec.NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Initialize table instances
-  if (ElemSec != nullptr) {
-    if (auto Res = initTable(StoreMgr, *ModInst, *ElemSec); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(ElemSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  if (auto Res = initTable(StoreMgr, *ModInst, ElemSec); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(ElemSec.NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Initialize memory instances
-  if (DataSec != nullptr) {
-    if (auto Res = initMemory(StoreMgr, *ModInst, *DataSec); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(DataSec->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  if (auto Res = initMemory(StoreMgr, *ModInst, DataSec); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(DataSec.NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Prepare pointers for compiled functions
@@ -183,10 +159,10 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   }
 
   /// Instantiate StartSection (StartSec)
-  const AST::StartSection *StartSec = Mod.getStartSection();
-  if (StartSec != nullptr) {
+  const AST::StartSection &StartSec = Mod.getStartSection();
+  if (StartSec.getContent()) {
     /// Get the module instance from ID.
-    ModInst->setStartIdx(StartSec->getContent());
+    ModInst->setStartIdx(*StartSec.getContent());
 
     /// Get function instance.
     const uint32_t Addr = *ModInst->getStartAddr();

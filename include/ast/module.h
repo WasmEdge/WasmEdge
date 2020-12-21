@@ -49,19 +49,19 @@ public:
   Expect<void> loadCompiled(LDMgr &Mgr);
 
   /// Getter of pointer to sections.
-  CustomSection *getCustomSection() const { return CustomSec.get(); }
-  TypeSection *getTypeSection() const { return TypeSec.get(); }
-  ImportSection *getImportSection() const { return ImportSec.get(); }
-  FunctionSection *getFunctionSection() const { return FunctionSec.get(); }
-  TableSection *getTableSection() const { return TableSec.get(); }
-  MemorySection *getMemorySection() const { return MemorySec.get(); }
-  GlobalSection *getGlobalSection() const { return GlobalSec.get(); }
-  ExportSection *getExportSection() const { return ExportSec.get(); }
-  StartSection *getStartSection() const { return StartSec.get(); }
-  ElementSection *getElementSection() const { return ElementSec.get(); }
-  CodeSection *getCodeSection() const { return CodeSec.get(); }
-  DataSection *getDataSection() const { return DataSec.get(); }
-  DataCountSection *getDataCountSection() const { return DataCountSec.get(); }
+  const CustomSection &getCustomSection() const { return CustomSec; }
+  const TypeSection &getTypeSection() const { return TypeSec; }
+  const ImportSection &getImportSection() const { return ImportSec; }
+  const FunctionSection &getFunctionSection() const { return FunctionSec; }
+  const TableSection &getTableSection() const { return TableSec; }
+  const MemorySection &getMemorySection() const { return MemorySec; }
+  const GlobalSection &getGlobalSection() const { return GlobalSec; }
+  const ExportSection &getExportSection() const { return ExportSec; }
+  const StartSection &getStartSection() const { return StartSec; }
+  const ElementSection &getElementSection() const { return ElementSec; }
+  const CodeSection &getCodeSection() const { return CodeSec; }
+  const DataSection &getDataSection() const { return DataSec; }
+  const DataCountSection &getDataCountSection() const { return DataCountSec; }
 
   enum class Intrinsics : uint32_t {
     kTrap,
@@ -98,19 +98,19 @@ private:
 
   /// \name Section nodes of Module node.
   /// @{
-  std::unique_ptr<CustomSection> CustomSec;
-  std::unique_ptr<TypeSection> TypeSec;
-  std::unique_ptr<ImportSection> ImportSec;
-  std::unique_ptr<FunctionSection> FunctionSec;
-  std::unique_ptr<TableSection> TableSec;
-  std::unique_ptr<MemorySection> MemorySec;
-  std::unique_ptr<GlobalSection> GlobalSec;
-  std::unique_ptr<ExportSection> ExportSec;
-  std::unique_ptr<StartSection> StartSec;
-  std::unique_ptr<ElementSection> ElementSec;
-  std::unique_ptr<CodeSection> CodeSec;
-  std::unique_ptr<DataSection> DataSec;
-  std::unique_ptr<DataCountSection> DataCountSec;
+  CustomSection CustomSec;
+  TypeSection TypeSec;
+  ImportSection ImportSec;
+  FunctionSection FunctionSec;
+  TableSection TableSec;
+  MemorySection MemorySec;
+  GlobalSection GlobalSec;
+  ExportSection ExportSec;
+  StartSection StartSec;
+  ElementSection ElementSec;
+  CodeSection CodeSec;
+  DataSection DataSec;
+  DataCountSection DataCountSec;
   /// @}
 };
 

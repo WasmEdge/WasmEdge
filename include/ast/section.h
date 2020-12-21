@@ -13,6 +13,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "common/log.h"
@@ -249,7 +250,7 @@ private:
 class StartSection : public Section {
 public:
   /// Getter of content.
-  uint32_t getContent() const { return Content; }
+  std::optional<uint32_t> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Start.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Start;
@@ -261,7 +262,7 @@ protected:
 
 private:
   /// Start function index.
-  uint32_t Content;
+  std::optional<uint32_t> Content = std::nullopt;
 };
 
 /// AST ElementSection node.
@@ -328,7 +329,7 @@ private:
 class DataCountSection : public Section {
 public:
   /// Getter of content.
-  uint32_t getContent() const { return Content; }
+  std::optional<uint32_t> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_DataCount.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_DataCount;
@@ -340,7 +341,7 @@ protected:
 
 private:
   /// u32 of count of data segments.
-  uint32_t Content;
+  std::optional<uint32_t> Content = std::nullopt;
 };
 
 } // namespace AST

@@ -15,100 +15,78 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   Checker.reset(true);
 
   /// Register type definitions into FormChecker.
-  if (Mod.getTypeSection()) {
-    for (auto &Type : Mod.getTypeSection()->getContent()) {
-      Checker.addType(Type);
-    }
+  for (auto &Type : Mod.getTypeSection().getContent()) {
+    Checker.addType(Type);
   }
 
   /// Validate and register import section into FormChecker.
-  if (Mod.getImportSection() != nullptr) {
-    if (auto Res = validate(*Mod.getImportSection()); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.getImportSection()->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  if (auto Res = validate(Mod.getImportSection()); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.getImportSection().NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Validate function section and register functions into FormChecker.
-  if (Mod.getFunctionSection() != nullptr) {
-    if (auto Res = validate(*Mod.getFunctionSection()); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.getFunctionSection()->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  if (auto Res = validate(Mod.getFunctionSection()); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.getFunctionSection().NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Validate table section and register tables into FormChecker.
-  if (Mod.getTableSection() != nullptr) {
-    if (auto Res = validate(*Mod.getTableSection()); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.getTableSection()->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  if (auto Res = validate(Mod.getTableSection()); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.getTableSection().NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Validate memory section and register memories into FormChecker.
-  if (Mod.getMemorySection() != nullptr) {
-    if (auto Res = validate(*Mod.getMemorySection()); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.getMemorySection()->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  if (auto Res = validate(Mod.getMemorySection()); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.getMemorySection().NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Validate global section and register globals into FormChecker.
-  if (Mod.getGlobalSection() != nullptr) {
-    if (auto Res = validate(*Mod.getGlobalSection()); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.getGlobalSection()->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  if (auto Res = validate(Mod.getGlobalSection()); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.getGlobalSection().NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Validate export section.
-  if (Mod.getExportSection() != nullptr) {
-    if (auto Res = validate(*Mod.getExportSection()); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.getExportSection()->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  if (auto Res = validate(Mod.getExportSection()); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.getExportSection().NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Validate start section.
-  if (Mod.getStartSection() != nullptr) {
-    if (auto Res = validate(*Mod.getStartSection()); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.getStartSection()->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  if (auto Res = validate(Mod.getStartSection()); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.getStartSection().NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Validate element section which initialize tables.
-  if (Mod.getElementSection() != nullptr) {
-    if (auto Res = validate(*Mod.getElementSection()); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.getElementSection()->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  if (auto Res = validate(Mod.getElementSection()); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.getElementSection().NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Validate data section which initialize memories.
-  if (Mod.getDataSection() != nullptr) {
-    if (auto Res = validate(*Mod.getDataSection()); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.getDataSection()->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  if (auto Res = validate(Mod.getDataSection()); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.getDataSection().NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Validate code section and expressions.
-  if (Mod.getCodeSection() != nullptr) {
-    if (auto Res = validate(*Mod.getCodeSection()); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.getCodeSection()->NodeAttr);
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
-      return Unexpect(Res);
-    }
+  if (auto Res = validate(Mod.getCodeSection()); !Res) {
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.getCodeSection().NodeAttr);
+    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    return Unexpect(Res);
   }
 
   /// Multiple tables is for ReferenceTypes proposal.
@@ -475,27 +453,29 @@ Expect<void> Validator::validate(const AST::DataSection &DataSec) {
 
 /// Validate Start section. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::StartSection &StartSec) {
-  auto FId = StartSec.getContent();
-  if (FId >= Checker.getFunctions().size()) {
-    LOG(ERROR) << ErrCode::InvalidFuncIdx;
-    LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function,
-                                           FId, Checker.getFunctions().size());
-    return Unexpect(ErrCode::InvalidFuncIdx);
-  }
-  auto TId = Checker.getFunctions()[FId];
-  auto &Type = Checker.getTypes()[TId];
-  if (Type.first.size() != 0 || Type.second.size() != 0) {
-    /// Start function signature should be {}->{}
-    std::vector<ValType> Params, Returns;
-    for (auto &V : Type.first) {
-      Params.push_back(Checker.VTypeToAST(V));
+  if (StartSec.getContent()) {
+    auto FId = *StartSec.getContent();
+    if (FId >= Checker.getFunctions().size()) {
+      LOG(ERROR) << ErrCode::InvalidFuncIdx;
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Function, FId, Checker.getFunctions().size());
+      return Unexpect(ErrCode::InvalidFuncIdx);
     }
-    for (auto &V : Type.second) {
-      Returns.push_back(Checker.VTypeToAST(V));
+    auto TId = Checker.getFunctions()[FId];
+    auto &Type = Checker.getTypes()[TId];
+    if (Type.first.size() != 0 || Type.second.size() != 0) {
+      /// Start function signature should be {}->{}
+      std::vector<ValType> Params, Returns;
+      for (auto &V : Type.first) {
+        Params.push_back(Checker.VTypeToAST(V));
+      }
+      for (auto &V : Type.second) {
+        Returns.push_back(Checker.VTypeToAST(V));
+      }
+      LOG(ERROR) << ErrCode::InvalidStartFunc;
+      LOG(ERROR) << ErrInfo::InfoMismatch({}, {}, Params, Returns);
+      return Unexpect(ErrCode::InvalidStartFunc);
     }
-    LOG(ERROR) << ErrCode::InvalidStartFunc;
-    LOG(ERROR) << ErrInfo::InfoMismatch({}, {}, Params, Returns);
-    return Unexpect(ErrCode::InvalidStartFunc);
   }
   return {};
 }

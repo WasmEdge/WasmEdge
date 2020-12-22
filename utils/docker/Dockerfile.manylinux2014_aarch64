@@ -5,7 +5,7 @@ MAINTAINER hydai hydai@secondstate.io
 
 ADD SHA256SUM build-manylinux.sh /root
 
-RUN cd && yum check-update && yum install -y xz && \
+RUN cd && yum check-update && yum install -y xz openssl-devel && \
     export CPU=$(/opt/python/cp39-cp39/bin/python3 -c \
         'import multiprocessing; print(multiprocessing.cpu_count())') && \
     export CFGFLAGS="--prefix=/toolchain --disable-shared --libdir=/toolchain/lib64" && \
@@ -21,7 +21,7 @@ RUN cd && yum check-update && yum install -y xz && \
         http://isl.gforge.inria.fr/isl-0.23.tar.xz \
         https://github.com/facebook/zstd/releases/download/v1.4.7/zstd-1.4.7.tar.gz \
         https://ftp.gnu.org/gnu/gcc/gcc-10.2.0/gcc-10.2.0.tar.xz \
-        https://github.com/Kitware/CMake/releases/download/v3.13.5/cmake-3.13.5.tar.gz \
+        https://github.com/Kitware/CMake/releases/download/v3.19.2/cmake-3.19.2.tar.gz \
         https://github.com/ninja-build/ninja/archive/v1.10.2.tar.gz \
         https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/llvm-11.0.0.src.tar.xz \
         https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/lld-11.0.0.src.tar.xz && \
@@ -32,7 +32,7 @@ RUN cd && yum check-update && yum install -y xz && \
     xz -dc isl-0.23.tar.xz | tar -xf - && \
     gzip -dc zstd-1.4.7.tar.gz | tar -xf - && \
     xz -dc gcc-10.2.0.tar.xz | tar -xf - && \
-    gzip -dc cmake-3.13.5.tar.gz | tar -xf - && \
+    gzip -dc cmake-3.19.2.tar.gz | tar -xf - && \
     gzip -dc v1.10.2.tar.gz | tar -xf - && \
     xz -dc llvm-11.0.0.src.tar.xz | tar -xf - && \
     xz -dc lld-11.0.0.src.tar.xz | tar -xf - && \
@@ -60,7 +60,7 @@ RUN cd && yum check-update && yum install -y xz && \
         ../ninja-1.10.2/configure.py --bootstrap \
         --with-python=/opt/python/cp39-cp39/bin/python && \
     cp -v ninja /toolchain/bin/ninja && cd - && rm -rf build && \
-    mkdir build && cd build && ../cmake-3.13.5/configure --prefix=/toolchain \
+    mkdir build && cd build && ../cmake-3.19.2/configure --prefix=/toolchain \
         --parallel=$CPU && make -s -j $CPU && make -s install && cd - && rm -rf build && \
     mv -v lld-11.0.0.src lld && \
     cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release \

@@ -29,9 +29,7 @@ public:
 
   /// Binary loading from file manager.
   virtual Expect<void> loadBinary(FileMgr &Mgr,
-                                  const ProposalConfigure &PConf) {
-    return Unexpect(ErrCode::InvalidGrammar);
-  };
+                                  const ProposalConfigure &PConf) = 0;
 
   /// AST node attribute.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Module;

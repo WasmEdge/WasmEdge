@@ -37,7 +37,8 @@ public:
   Instruction(const OpCode Byte, const uint32_t Off = 0)
       : Code(Byte), Offset(Off) {}
   /// Copy constructor.
-  Instruction(const Instruction &Instr) noexcept = default;
+  Instruction(const Instruction &Instr) = default;
+
   ~Instruction() noexcept = default;
 
   /// Binary loading from file manager.

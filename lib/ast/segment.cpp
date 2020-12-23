@@ -5,8 +5,6 @@
 namespace SSVM {
 namespace AST {
 
-/// TODO
-
 /// Load expression binary in segment. See "include/ast/segment.h".
 Expect<void> Segment::loadExpression(FileMgr &Mgr,
                                      const ProposalConfigure &PConf) {

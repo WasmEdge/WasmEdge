@@ -30,7 +30,7 @@ class Instruction;
 using InstrVec = std::vector<Instruction>;
 using InstrView = Span<const Instruction>;
 
-/// Experimental class of Instruction node.
+/// Instruction node class.
 class Instruction {
 public:
   /// Constructor assigns the OpCode.

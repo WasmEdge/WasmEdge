@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 
-find_package(Threads)
 find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}")
 list(APPEND CMAKE_MODULE_PATH ${LLVM_DIR})
 include(LLVMConfig)

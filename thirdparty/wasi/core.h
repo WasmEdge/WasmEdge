@@ -383,37 +383,36 @@ static_assert(alignof(__wasi_iovec_t) == 4, "non-wasi data layout");
 
 typedef struct __wasi_subscription_t {
   __wasi_userdata_t userdata;
-  __wasi_eventtype_t type;
-  union __wasi_subscription_u {
-    struct __wasi_subscription_u_clock_t {
-      __wasi_userdata_t identifier;
-      __wasi_clockid_t clock_id;
-      __wasi_timestamp_t timeout;
-      __wasi_timestamp_t precision;
-      __wasi_subclockflags_t flags;
-    } clock;
-    struct __wasi_subscription_u_fd_readwrite_t {
-      __wasi_fd_t fd;
-    } fd_readwrite;
+  struct __wasi_subscription_u {
+    __wasi_eventtype_t type;
+    union __wasi_subscription_u_u {
+      struct __wasi_subscription_u_clock_t {
+        __wasi_clockid_t clock_id;
+        __wasi_timestamp_t timeout;
+        __wasi_timestamp_t precision;
+        __wasi_subclockflags_t flags;
+      } clock;
+      struct __wasi_subscription_u_fd_readwrite_t {
+        __wasi_fd_t fd;
+      } fd_readwrite;
+    } u;
   } u;
 } __wasi_subscription_t;
 static_assert(offsetof(__wasi_subscription_t, userdata) == 0,
               "non-wasi data layout");
-static_assert(offsetof(__wasi_subscription_t, type) == 8,
+static_assert(offsetof(__wasi_subscription_t, u.type) == 8,
               "non-wasi data layout");
-static_assert(offsetof(__wasi_subscription_t, u.clock.identifier) == 16,
+static_assert(offsetof(__wasi_subscription_t, u.u.clock.clock_id) == 16,
               "non-wasi data layout");
-static_assert(offsetof(__wasi_subscription_t, u.clock.clock_id) == 24,
+static_assert(offsetof(__wasi_subscription_t, u.u.clock.timeout) == 24,
               "non-wasi data layout");
-static_assert(offsetof(__wasi_subscription_t, u.clock.timeout) == 32,
+static_assert(offsetof(__wasi_subscription_t, u.u.clock.precision) == 32,
               "non-wasi data layout");
-static_assert(offsetof(__wasi_subscription_t, u.clock.precision) == 40,
+static_assert(offsetof(__wasi_subscription_t, u.u.clock.flags) == 40,
               "non-wasi data layout");
-static_assert(offsetof(__wasi_subscription_t, u.clock.flags) == 48,
+static_assert(offsetof(__wasi_subscription_t, u.u.fd_readwrite.fd) == 16,
               "non-wasi data layout");
-static_assert(offsetof(__wasi_subscription_t, u.fd_readwrite.fd) == 16,
-              "non-wasi data layout");
-static_assert(sizeof(__wasi_subscription_t) == 56, "non-wasi data layout");
+static_assert(sizeof(__wasi_subscription_t) == 48, "non-wasi data layout");
 static_assert(alignof(__wasi_subscription_t) == 8, "non-wasi data layout");
 
 #ifdef __cplusplus

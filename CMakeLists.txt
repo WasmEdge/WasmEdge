@@ -13,8 +13,10 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 option(STATIC_BUILD "Link glibcxx library statically." OFF)
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Boost REQUIRED)
 find_package(Filesystem REQUIRED Final Experimental)
+find_package(Threads REQUIRED)
 
 if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)

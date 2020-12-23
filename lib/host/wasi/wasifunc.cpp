@@ -5,6 +5,7 @@
 #include "common/log.h"
 #include "runtime/instance/memory.h"
 
+#include <boost/scope_exit.hpp>
 #include <chrono>
 #include <csignal>
 #include <fcntl.h>
@@ -21,10 +22,14 @@
 #include <time.h>
 #include <unistd.h>
 
+// Uncomment these flag to test CentOS 6
+// #undef __GLIBC_MINOR__
+// #define __GLIBC_MINOR__ 5
+
 #ifndef __APPLE__
 #include <sys/epoll.h>
 #if __GLIBC_PREREQ(2, 8)
-#include <sys/signalfd.h>
+#include <sys/timerfd.h>
 #endif
 #endif
 
@@ -878,9 +883,52 @@ WasiFdFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 #else
+  bool NeedNow = false;
+  bool NeedFile = false;
+  if (FstFlags & __WASI_FILESTAT_SET_ATIM) {
+    // Nothing to do.
+  } else if (FstFlags & __WASI_FILESTAT_SET_ATIM_NOW) {
+    NeedNow = true;
+  } else {
+    NeedFile = true;
+  }
+  if (FstFlags & __WASI_FILESTAT_SET_MTIM) {
+    // Nothing to do.
+  } else if (FstFlags & __WASI_FILESTAT_SET_MTIM_NOW) {
+    NeedNow = true;
+  } else {
+    NeedFile = true;
+  }
+
+  timespec Now;
+  if (NeedNow && unlikely(clock_gettime(CLOCK_REALTIME, &Now) != 0)) {
+    return convertErrNo(errno);
+  }
+  struct stat Stat;
+  if (NeedFile && unlikely(fstat(Entry->second.HostFd, &Stat) != 0)) {
+    return convertErrNo(errno);
+  }
+
   timeval SysTimeval[2];
-  SysTimeval[0] = timestamp2Timeval(ATim);
-  SysTimeval[1] = timestamp2Timeval(MTim);
+  if (FstFlags & __WASI_FILESTAT_SET_ATIM) {
+    SysTimeval[0] = timestamp2Timeval(ATim);
+  } else if (FstFlags & __WASI_FILESTAT_SET_ATIM_NOW) {
+    SysTimeval[0].tv_sec = Now.tv_sec;
+    SysTimeval[0].tv_usec = Now.tv_nsec / 1000;
+  } else {
+    SysTimeval[0].tv_sec = Stat.st_atim.tv_sec;
+    SysTimeval[0].tv_usec = Stat.st_atim.tv_nsec / 1000;
+  }
+  if (FstFlags & __WASI_FILESTAT_SET_MTIM) {
+    SysTimeval[1] = timestamp2Timeval(MTim);
+  } else if (FstFlags & __WASI_FILESTAT_SET_MTIM_NOW) {
+    SysTimeval[1].tv_sec = Now.tv_sec;
+    SysTimeval[1].tv_usec = Now.tv_nsec / 1000;
+  } else {
+    SysTimeval[1].tv_sec = Stat.st_atim.tv_sec;
+    SysTimeval[1].tv_usec = Stat.st_atim.tv_nsec / 1000;
+  }
+
   if (unlikely(futimes(Entry->second.HostFd, SysTimeval) != 0)) {
     return convertErrNo(errno);
   }
@@ -1612,11 +1660,45 @@ WasiPathFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 #else
+  int SysFlags = 0;
+  if ((Flags & __WASI_LOOKUP_SYMLINK_FOLLOW) == 0) {
+    SysFlags |= O_NOFOLLOW;
+  }
+  bool NeedNow = false;
+  bool NeedFile = false;
+  if (FstFlags & __WASI_FILESTAT_SET_ATIM) {
+    // Nothing to do.
+  } else if (FstFlags & __WASI_FILESTAT_SET_ATIM_NOW) {
+    NeedNow = true;
+  } else {
+    NeedFile = true;
+  }
+  if (FstFlags & __WASI_FILESTAT_SET_MTIM) {
+    // Nothing to do.
+  } else if (FstFlags & __WASI_FILESTAT_SET_MTIM_NOW) {
+    NeedNow = true;
+  } else {
+    NeedFile = true;
+  }
+
+  int SysFd = openat(Entry->second.HostFd, PathStr.c_str(), Flags);
+  if (SysFd < 0) {
+    return convertErrNo(errno);
+  }
+  BOOST_SCOPE_EXIT_ALL(&) { close(SysFd); };
+  timespec Now;
+  if (NeedNow && unlikely(clock_gettime(CLOCK_REALTIME, &Now) != 0)) {
+    return convertErrNo(errno);
+  }
+  struct stat Stat;
+  if (NeedFile && unlikely(fstat(SysFd, &Stat) != 0)) {
+    return convertErrNo(errno);
+  }
+
   timeval SysTimeval[2];
   SysTimeval[0] = timestamp2Timeval(ATim);
   SysTimeval[1] = timestamp2Timeval(MTim);
-  if (unlikely(futimesat(Entry->second.HostFd, PathStr.c_str(), SysTimeval) !=
-               0)) {
+  if (unlikely(futimes(SysFd, SysTimeval) != 0)) {
     return convertErrNo(errno);
   }
 #endif
@@ -1977,62 +2059,115 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
   }
 
   struct EventPoll {
-    EventPoll(uint32_t MaxEvent) : Events(MaxEvent) {}
-    ~EventPoll() noexcept {
-      for (timer_t Timer : Timers) {
-        timer_delete(Timer);
+    struct Timer {
+      int TimerFd = -1;
+      Timer() noexcept = default;
+      ~Timer() noexcept {
+        if (likely(TimerFd != -1)) {
+          close(TimerFd);
+        }
       }
+      Timer(const Timer &) noexcept = delete;
+      Timer(Timer &&) noexcept = default;
 #if __GLIBC_PREREQ(2, 8)
-      if (SignalFd >= 0) {
-        close(SignalFd);
+      bool create(clockid_t ClockId, __wasi_subclockflags_t Flags,
+                  __wasi_timestamp_t Timeout) noexcept {
+        TimerFd = timerfd_create(ClockId, TFD_NONBLOCK | TFD_CLOEXEC);
+        if (unlikely(TimerFd < 0)) {
+          return false;
+        }
 
-        sigset_t Mask{};
-        sigemptyset(&Mask);
-        sigaddset(&Mask, SIGRTMIN);
-        sigprocmask(SIG_UNBLOCK, &Mask, nullptr);
+        int SysFlags = 0;
+        if (Flags & __WASI_SUBSCRIPTION_CLOCK_ABSTIME) {
+          SysFlags |= TFD_TIMER_ABSTIME;
+        }
+        itimerspec ITimerSpec{timestamp2Timespec(0),
+                              timestamp2Timespec(Timeout)};
+        if (unlikely(timerfd_settime(TimerFd, SysFlags, &ITimerSpec, nullptr) <
+                     0)) {
+          return false;
+        }
+
+        return true;
       }
+#else
+      bool create(clockid_t ClockId, __wasi_subclockflags_t Flags,
+                  __wasi_timestamp_t Timeout) noexcept {
+        int PipeFd[2] = {-1, -1};
+
+        if (unlikely(pipe(PipeFd) != 0)) {
+          return false;
+        }
+
+        timer_t TId;
+        {
+          sigevent Event;
+          Event.sigev_notify = SIGEV_THREAD;
+          Event.sigev_notify_function = &sigevCallback;
+          Event.sigev_value.sival_int = PipeFd[1];
+          Event.sigev_notify_attributes = nullptr;
+
+          if (unlikely(fcntl(PipeFd[0], F_SETFD, FD_CLOEXEC) != 0 ||
+                       fcntl(PipeFd[1], F_SETFD, FD_CLOEXEC) != 0 ||
+                       timer_create(ClockId, &Event, &TId) < 0)) {
+            close(PipeFd[0]);
+            close(PipeFd[1]);
+            return false;
+          }
+        }
+
+        {
+          int SysFlags = 0;
+          if (Flags & __WASI_SUBSCRIPTION_CLOCK_ABSTIME) {
+            SysFlags |= TIMER_ABSTIME;
+          }
+          itimerspec ITimerSpec{timestamp2Timespec(0),
+                                timestamp2Timespec(Timeout)};
+
+          if (unlikely(timer_settime(TId, SysFlags, &ITimerSpec, nullptr) <
+                       0)) {
+            timer_delete(TId);
+            close(PipeFd[0]);
+            close(PipeFd[1]);
+            return false;
+          }
+        }
+
+        TimerFd = PipeFd[0];
+        NotifyFd = PipeFd[1];
+        TimerId = TId;
+        return true;
+      }
+      static void sigevCallback(union sigval Value) noexcept {
+        const uint64_t One = 1;
+        write(Value.sival_int, &One, sizeof(One));
+      }
+      int NotifyFd = -1;
+      timer_t TimerId;
 #endif
-    }
-    bool Create() noexcept {
+    };
+    EventPoll(uint32_t MaxEvent) : Events(MaxEvent) {}
+    ~EventPoll() noexcept = default;
+    bool create() noexcept {
       if (EPollFd >= 0) {
         return true;
       }
 #if __GLIBC_PREREQ(2, 9)
       EPollFd = epoll_create1(EPOLL_CLOEXEC);
-#else
-      EPollFd = epoll_create(1);
-      if (EPollFd >= 0) {
-        fcntl(EPollFd, F_SETFD, FD_CLOEXEC);
-      }
-#endif
       return likely(EPollFd >= 0);
-    }
-    bool MonitorSignal() noexcept {
-#if __GLIBC_PREREQ(2, 8)
-      if (likely(SignalFd >= 0)) {
-        return true;
-      }
-      sigset_t Mask{};
-      sigemptyset(&Mask);
-      sigaddset(&Mask, SIGRTMIN);
-
-      if (unlikely(sigprocmask(SIG_BLOCK, &Mask, nullptr) < 0)) {
-        return false;
-      }
-
-      SignalFd = signalfd(-1, &Mask, SFD_NONBLOCK | SFD_CLOEXEC);
-      if (unlikely(SignalFd < 0)) {
-        return false;
-      }
-      epoll_event Event{};
-      Event.events = EPOLLIN;
-      Event.data.u32 = -1;
-      if (unlikely(epoll_ctl(EPollFd, EPOLL_CTL_ADD, SignalFd, &Event) < 0)) {
-        return false;
-      }
-      return true;
 #else
-      return false;
+      EPollFd = epoll_create(256);
+      if (unlikely(EPollFd < 0)) {
+        return false;
+      }
+
+      if (unlikely(fcntl(EPollFd, F_SETFD, FD_CLOEXEC) != 0)) {
+        close(EPollFd);
+        EPollFd = -1;
+        return false;
+      }
+
+      return true;
 #endif
     }
     bool AddFd(int Fd, const __wasi_subscription_t *Pointer,
@@ -2041,8 +2176,6 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
       Event.events = (IsRead ? EPOLLIN : EPOLLOUT);
 #if defined(EPOLLRDHUP)
       Event.events |= EPOLLRDHUP;
-#else
-      Event.events |= EPOLLHUP;
 #endif
       Event.data.ptr = const_cast<__wasi_subscription_t *>(Pointer);
       if (unlikely(epoll_ctl(EPollFd, EPOLL_CTL_ADD, Fd, &Event) < 0)) {
@@ -2050,37 +2183,35 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
       }
       return true;
     }
-    bool AddTimer(clockid_t ClockId, const __wasi_subscription_t *Pointer,
-                  int flags, __wasi_timestamp_t Timestamp) noexcept {
-      sigevent Event;
-      Event.sigev_notify = SIGEV_SIGNAL;
-      Event.sigev_signo = SIGRTMIN;
-      Event.sigev_value.sival_ptr =
-          const_cast<__wasi_subscription_t *>(Pointer);
-      timer_t TimerId;
-      if (unlikely(timer_create(ClockId, &Event, &TimerId) < 0)) {
+    bool AddTimer(clockid_t ClockId,
+                  const __wasi_subscription_t &Subscription) noexcept {
+      Timers.emplace_back();
+      if (unlikely(!Timers.back().create(ClockId, Subscription.u.u.clock.flags,
+                                         Subscription.u.u.clock.timeout))) {
         return false;
       }
+      const int TimerFd = Timers.back().TimerFd;
 
-      Timers.push_back(std::move(TimerId));
-
-      itimerspec ITimerSpec{timestamp2Timespec(0),
-                            timestamp2Timespec(Timestamp)};
-      if (unlikely(timer_settime(TimerId, 0, &ITimerSpec, nullptr) < 0)) {
+      epoll_event Event;
+      Event.events = EPOLLIN;
+      Event.data.ptr = const_cast<__wasi_subscription_t *>(&Subscription);
+      if (unlikely(epoll_ctl(EPollFd, EPOLL_CTL_ADD, TimerFd, &Event) < 0)) {
         return false;
       }
-
       return true;
     }
     bool Wait() noexcept {
-#if __GLIBC_PREREQ(2, 6)
       sigset_t Mask;
       sigfillset(&Mask);
       sigdelset(&Mask, SIGRTMIN);
+#if __GLIBC_PREREQ(2, 6)
       const int Count =
           epoll_pwait(EPollFd, Events.data(), Events.size(), -1, &Mask);
 #else
+      sigset_t OrigMask;
+      pthread_sigmask(SIG_SETMASK, &Mask, &OrigMask);
       const int Count = epoll_wait(EPollFd, Events.data(), Events.size(), -1);
+      pthread_sigmask(SIG_SETMASK, &Mask, nullptr);
 #endif
       if (unlikely(Count < 0)) {
         return false;
@@ -2090,15 +2221,12 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
     }
 
     int EPollFd = -1;
-#if __GLIBC_PREREQ(2, 8)
-    int SignalFd = -1;
-#endif
-    std::vector<timer_t> Timers;
+    std::vector<Timer> Timers;
     std::vector<epoll_event> Events;
   };
 
   EventPoll Event(NSubscriptions);
-  if (unlikely(!Event.Create())) {
+  if (unlikely(!Event.create())) {
     return convertErrNo(errno);
   }
 
@@ -2126,7 +2254,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
                                      __wasi_errno_t error) {
     EventArray[*NEvents].userdata = Subscription.userdata;
     EventArray[*NEvents].error = error;
-    EventArray[*NEvents].type = Subscription.type;
+    EventArray[*NEvents].type = Subscription.u.type;
     ++*NEvents;
   };
 
@@ -2135,28 +2263,26 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
                                   __wasi_errno_t error) {
     EventArray[*NEvents].userdata = Subscription.userdata;
     EventArray[*NEvents].error = error;
-    EventArray[*NEvents].type = Subscription.type;
+    EventArray[*NEvents].type = Subscription.u.type;
     EventArray[*NEvents].u.fd_readwrite.nbytes = 0;
     EventArray[*NEvents].u.fd_readwrite.flags = 0;
     ++*NEvents;
   };
 
-#if __GLIBC_PREREQ(2, 8)
   auto RecordClock = [&EventArray,
                       &NEvents](const __wasi_subscription_t &Subscription) {
     EventArray[*NEvents].userdata = Subscription.userdata;
     EventArray[*NEvents].error = __WASI_ESUCCESS;
-    EventArray[*NEvents].type = Subscription.type;
+    EventArray[*NEvents].type = Subscription.u.type;
     ++*NEvents;
   };
-#endif
 
   auto RecordFd = [&EventArray, &NEvents](
                       const __wasi_subscription_t &Subscription,
                       __wasi_filesize_t nbytes, __wasi_eventrwflags_t flags) {
     EventArray[*NEvents].userdata = Subscription.userdata;
     EventArray[*NEvents].error = __WASI_ESUCCESS;
-    EventArray[*NEvents].type = Subscription.type;
+    EventArray[*NEvents].type = Subscription.u.type;
     EventArray[*NEvents].u.fd_readwrite.nbytes = nbytes;
     EventArray[*NEvents].u.fd_readwrite.flags = flags;
     ++*NEvents;
@@ -2165,7 +2291,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
   /// Validate types
   for (uint32_t I = 0; I < NSubscriptions; ++I) {
     const __wasi_subscription_t &Subscription = SubscriptionArray[I];
-    switch (Subscription.type) {
+    switch (Subscription.u.type) {
     case __WASI_EVENTTYPE_CLOCK:
     case __WASI_EVENTTYPE_FD_READ:
     case __WASI_EVENTTYPE_FD_WRITE:
@@ -2177,10 +2303,10 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
 
   for (uint32_t I = 0; I < NSubscriptions; ++I) {
     const __wasi_subscription_t &Subscription = SubscriptionArray[I];
-    switch (Subscription.type) {
+    switch (Subscription.u.type) {
     case __WASI_EVENTTYPE_CLOCK: {
       clockid_t SysClockId;
-      switch (Subscription.u.clock.clock_id) {
+      switch (Subscription.u.u.clock.clock_id) {
       case __WASI_CLOCK_REALTIME:
         SysClockId = CLOCK_REALTIME;
         break;
@@ -2198,24 +2324,14 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
         continue;
       }
 
-      if (unlikely(!Event.MonitorSignal())) {
-        RecordClockError(Subscription, convertErrNo(errno));
-        continue;
-      }
-
-      int flags = 0;
-      if (Subscription.u.clock.flags & __WASI_SUBSCRIPTION_CLOCK_ABSTIME) {
-        flags |= TIMER_ABSTIME;
-      }
-      if (unlikely(!Event.AddTimer(SysClockId, &Subscription, flags,
-                                   Subscription.u.clock.timeout))) {
+      if (unlikely(!Event.AddTimer(SysClockId, Subscription))) {
         RecordClockError(Subscription, convertErrNo(errno));
         continue;
       }
       continue;
     }
     case __WASI_EVENTTYPE_FD_READ: {
-      const int Fd = Subscription.u.fd_readwrite.fd;
+      const int Fd = Subscription.u.u.fd_readwrite.fd;
       const auto Entry = Env.getFile(Fd);
       if (unlikely(Entry == Env.getFileEnd())) {
         RecordFdError(Subscription, __WASI_EBADF);
@@ -2233,7 +2349,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
       continue;
     }
     case __WASI_EVENTTYPE_FD_WRITE: {
-      const int Fd = Subscription.u.fd_readwrite.fd;
+      const int Fd = Subscription.u.u.fd_readwrite.fd;
       const auto Entry = Env.getFile(Fd);
       if (unlikely(Entry == Env.getFileEnd())) {
         RecordFdError(Subscription, __WASI_EBADF);
@@ -2260,28 +2376,21 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
   }
 
   for (const epoll_event &SysEvent : Event.Events) {
-    if (SysEvent.data.ptr) {
-      const __wasi_subscription_t &Subscription =
-          *static_cast<__wasi_subscription_t *>(SysEvent.data.ptr);
+    const __wasi_subscription_t &Subscription =
+        *static_cast<__wasi_subscription_t *>(SysEvent.data.ptr);
 
+    if (Subscription.u.type == __WASI_EVENTTYPE_CLOCK) {
+      RecordClock(Subscription);
+    } else {
       __wasi_eventrwflags_t flags = 0;
       if (SysEvent.events & EPOLLHUP) {
         flags |= __WASI_EVENT_FD_READWRITE_HANGUP;
       }
 
       int NBytes = 0;
-      ioctl(Subscription.u.fd_readwrite.fd, FIONREAD, &NBytes);
+      ioctl(Subscription.u.u.fd_readwrite.fd, FIONREAD, &NBytes);
 
       RecordFd(Subscription, NBytes, flags);
-    } else {
-#if __GLIBC_PREREQ(2, 8)
-      signalfd_siginfo SigInfo;
-      while (read(Event.SignalFd, &SigInfo, sizeof(SigInfo)) > 0) {
-        const __wasi_subscription_t &Subscription =
-            *reinterpret_cast<__wasi_subscription_t *>(SigInfo.ssi_ptr);
-        RecordClock(Subscription);
-      }
-#endif
     }
   }
 

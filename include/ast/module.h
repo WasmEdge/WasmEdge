@@ -48,7 +48,7 @@ public:
   /// Load compiled function from loadable manager.
   Expect<void> loadCompiled(LDMgr &Mgr);
 
-  /// Getter of pointer to sections.
+  /// Getters of references of sections.
   const CustomSection &getCustomSection() const { return CustomSec; }
   const TypeSection &getTypeSection() const { return TypeSec; }
   const ImportSection &getImportSection() const { return ImportSec; }

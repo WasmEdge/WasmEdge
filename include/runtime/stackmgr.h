@@ -26,9 +26,9 @@ class StackManager {
 public:
   struct Label {
     Label() = delete;
-    Label(const uint32_t S, const uint32_t A, AST::InstrView::iterator It,
+    Label(const uint32_t S, const uint32_t A, AST::InstrView::iterator FromIt,
           std::optional<AST::InstrView::iterator> ContIt)
-        : VStackOff(S), Arity(A), From(It), Cont(ContIt) {}
+        : VStackOff(S), Arity(A), From(FromIt), Cont(ContIt) {}
     uint32_t VStackOff;
     uint32_t Arity;
     AST::InstrView::iterator From;

@@ -4,15 +4,12 @@ on:
   push:
     tags:
       - '*.*.*'
-    paths:
-      - 'utils/docker/**'
-      - '.github/workflows/**'
   pull_request:
     paths:
       - 'utils/docker/**'
       - '.github/workflows/**'
   schedule:
-    - cron: "0 0 1 * *"
+    - cron: "0 0 * * *"
 
 jobs:
   build-docker-images:

@@ -48,11 +48,7 @@ protected:
 
   /// Read content of this section.
   virtual Expect<void> loadContent(FileMgr &Mgr,
-                                   const ProposalConfigure &PConf) {
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
-    return Unexpect(ErrCode::InvalidGrammar);
-  };
+                                   const ProposalConfigure &PConf) = 0;
 
   /// Template function of reading vector of type T.
   ///
@@ -73,16 +69,16 @@ protected:
     /// Read vector size.
     if (auto Res = Mgr.readU32()) {
       VecCnt = *Res;
+      /// A section may be splited into partitions in module.
+      Vec.reserve(Vec.size() + VecCnt);
     } else {
       return logLoadError(Res.error(), Mgr.getOffset(), Node);
     }
 
     /// Sequently create AST node T and read data.
     for (uint32_t i = 0; i < VecCnt; ++i) {
-      T NewContent;
-      if (auto Res = NewContent.loadBinary(Mgr, PConf)) {
-        Vec.push_back(std::move(NewContent));
-      } else {
+      Vec.emplace_back();
+      if (auto Res = Vec.back().loadBinary(Mgr, PConf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(Node);
         return Unexpect(Res);
       }

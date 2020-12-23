@@ -29,12 +29,8 @@ namespace AST {
 class Segment : public Base {
 public:
   /// Binary loading from file manager. Inheritted from Base.
-  Expect<void> loadBinary(FileMgr &Mgr,
-                          const ProposalConfigure &PConf) override {
-    LOG(ERROR) << ErrCode::InvalidGrammar;
-    LOG(ERROR) << ErrInfo::InfoLoading(Mgr.getOffset());
-    return Unexpect(ErrCode::InvalidGrammar);
-  };
+  virtual Expect<void> loadBinary(FileMgr &Mgr,
+                                  const ProposalConfigure &PConf) = 0;
 
   /// Getter of locals vector.
   InstrView getInstrs() const { return Expr.getInstrs(); }

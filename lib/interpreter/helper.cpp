@@ -62,7 +62,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     }
     /// For host function case, the continuation will be the next.
     return From + 1;
-  } else if (auto CompiledFunc = Func.getSymbol()) {
+  } else if (Func.isCompiledFunction()) {
     auto Wrapper = Func.getFuncType().getSymbol();
     /// Compiled function case: Push frame with locals and args.
     const size_t ArgsN = FuncType.Params.size();
@@ -89,7 +89,8 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     const int Status = sigsetjmp(*TrapJump, true);
     if (Status == 0) {
       SignalEnabler Enabler;
-      Wrapper(&ExecutionContext, CompiledFunc.get(), Args.data(), Rets.data());
+      Wrapper(&ExecutionContext, Func.getSymbol().get(), Args.data(),
+              Rets.data());
     }
 
     TrapJump = std::move(OldTrapJump);

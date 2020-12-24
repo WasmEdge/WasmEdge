@@ -53,16 +53,14 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       }
     }
 
-    /// Make a new element instance.
-    auto NewElemInst = std::make_unique<Runtime::Instance::ElementInstance>(
-        Offset, ElemSeg.getRefType(), InitVals);
-
     /// Insert element instance to store manager.
     uint32_t NewElemInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewElemInstAddr = StoreMgr.pushElement(std::move(NewElemInst));
+      NewElemInstAddr =
+          StoreMgr.pushElement(Offset, ElemSeg.getRefType(), InitVals);
     } else {
-      NewElemInstAddr = StoreMgr.importElement(std::move(NewElemInst));
+      NewElemInstAddr =
+          StoreMgr.importElement(Offset, ElemSeg.getRefType(), InitVals);
     }
     ModInst.addElemAddr(NewElemInstAddr);
   }

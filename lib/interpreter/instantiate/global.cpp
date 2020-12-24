@@ -15,10 +15,17 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// A frame with temp. module is pushed into stack outside.
   /// Instantiate and initialize globals.
   for (const auto &GlobSeg : GlobSec.getContent()) {
-    /// Make a new global instance.
+    /// Insert global instance to store manager.
     const auto &GlobType = GlobSeg.getGlobalType();
-    auto NewGlobInst = std::make_unique<Runtime::Instance::GlobalInstance>(
-        GlobType.getValueType(), GlobType.getValueMutation());
+    uint32_t NewGlobInstAddr;
+    if (InsMode == InstantiateMode::Instantiate) {
+      NewGlobInstAddr = StoreMgr.pushGlobal(GlobType.getValueType(),
+                                            GlobType.getValueMutation());
+    } else {
+      NewGlobInstAddr = StoreMgr.importGlobal(GlobType.getValueType(),
+                                              GlobType.getValueMutation());
+    }
+    ModInst.addGlobalAddr(NewGlobInstAddr);
 
     /// Run initialize expression.
     if (auto Res = runExpression(StoreMgr, GlobSeg.getInstrs()); !Res) {
@@ -27,16 +34,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     }
 
     /// Pop result from stack.
+    auto *NewGlobInst = *StoreMgr.getGlobal(NewGlobInstAddr);
     NewGlobInst->getValue() = StackMgr.pop();
-
-    /// Insert global instance to store manager.
-    uint32_t NewGlobInstAddr;
-    if (InsMode == InstantiateMode::Instantiate) {
-      NewGlobInstAddr = StoreMgr.pushGlobal(std::move(NewGlobInst));
-    } else {
-      NewGlobInstAddr = StoreMgr.importGlobal(std::move(NewGlobInst));
-    }
-    ModInst.addGlobalAddr(NewGlobInstAddr);
   }
   return {};
 }

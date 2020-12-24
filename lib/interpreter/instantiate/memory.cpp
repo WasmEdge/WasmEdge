@@ -14,16 +14,12 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
                          const AST::MemorySection &MemSec) {
   /// Iterate and istantiate memory types.
   for (const auto &MemType : MemSec.getContent()) {
-    /// Make a new memory instance.
-    auto NewMemInst =
-        std::make_unique<Runtime::Instance::MemoryInstance>(MemType.getLimit());
-
     /// Insert memory instance to store manager.
     uint32_t NewMemInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewMemInstAddr = StoreMgr.pushMemory(std::move(NewMemInst));
+      NewMemInstAddr = StoreMgr.pushMemory(MemType.getLimit());
     } else {
-      NewMemInstAddr = StoreMgr.importMemory(std::move(NewMemInst));
+      NewMemInstAddr = StoreMgr.importMemory(MemType.getLimit());
     }
     ModInst.addMemAddr(NewMemInstAddr);
   }

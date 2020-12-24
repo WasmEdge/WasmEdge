@@ -32,13 +32,10 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
     LOG(ERROR) << ErrInfo::InfoRegistering(Obj.getModuleName());
     return Unexpect(ErrCode::ModuleNameConflict);
   }
-  auto NewModInst =
-      std::make_unique<Runtime::Instance::ModuleInstance>(Obj.getModuleName());
-  auto ModInstAddr = StoreMgr.importModule(std::move(NewModInst));
+  auto ModInstAddr = StoreMgr.importModule(Obj.getModuleName());
   auto *ModInst = *StoreMgr.getModule(ModInstAddr);
 
   for (auto &Func : Obj.getFuncs()) {
-    Func.second->setModuleAddr(ModInstAddr);
     uint32_t Addr = StoreMgr.importHostFunction(*Func.second.get());
     ModInst->addFuncAddr(Addr);
     ModInst->exportFunction(Func.first, ModInst->getFuncNum() - 1);

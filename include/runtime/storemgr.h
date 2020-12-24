@@ -55,27 +55,33 @@ public:
   ~StoreManager() = default;
 
   /// Import instances and move owner to store manager.
-  uint32_t importModule(std::unique_ptr<Instance::ModuleInstance> Mod) {
-    Mod->Addr = ModInsts.size();
-    return importInstance(std::move(Mod), ImpModInsts, ModInsts);
+  template <typename... Args> uint32_t importModule(Args &&... Values) {
+    uint32_t ModAddr =
+        importInstance(ImpModInsts, ModInsts, std::forward<Args>(Values)...);
+    ModInsts.back()->Addr = ModAddr;
+    return ModAddr;
   }
-  uint32_t importFunction(std::unique_ptr<Instance::FunctionInstance> Func) {
-    return importInstance(std::move(Func), ImpFuncInsts, FuncInsts);
+  template <typename... Args> uint32_t importFunction(Args &&... Values) {
+    return importInstance(ImpFuncInsts, FuncInsts,
+                          std::forward<Args>(Values)...);
   }
-  uint32_t importTable(std::unique_ptr<Instance::TableInstance> Tab) {
-    return importInstance(std::move(Tab), ImpTabInsts, TabInsts);
+  template <typename... Args> uint32_t importTable(Args &&... Values) {
+    return importInstance(ImpTabInsts, TabInsts, std::forward<Args>(Values)...);
   }
-  uint32_t importMemory(std::unique_ptr<Instance::MemoryInstance> Mem) {
-    return importInstance(std::move(Mem), ImpMemInsts, MemInsts);
+  template <typename... Args> uint32_t importMemory(Args &&... Values) {
+    return importInstance(ImpMemInsts, MemInsts, std::forward<Args>(Values)...);
   }
-  uint32_t importGlobal(std::unique_ptr<Instance::GlobalInstance> Glob) {
-    return importInstance(std::move(Glob), ImpGlobInsts, GlobInsts);
+  template <typename... Args> uint32_t importGlobal(Args &&... Values) {
+    return importInstance(ImpGlobInsts, GlobInsts,
+                          std::forward<Args>(Values)...);
   }
-  uint32_t importElement(std::unique_ptr<Instance::ElementInstance> Elem) {
-    return importInstance(std::move(Elem), ImpElemInsts, ElemInsts);
+  template <typename... Args> uint32_t importElement(Args &&... Values) {
+    return importInstance(ImpElemInsts, ElemInsts,
+                          std::forward<Args>(Values)...);
   }
-  uint32_t importData(std::unique_ptr<Instance::DataInstance> Data) {
-    return importInstance(std::move(Data), ImpDataInsts, DataInsts);
+  template <typename... Args> uint32_t importData(Args &&... Values) {
+    return importInstance(ImpDataInsts, DataInsts,
+                          std::forward<Args>(Values)...);
   }
 
   /// Import host instances but not move ownership.
@@ -93,34 +99,40 @@ public:
   }
 
   /// Insert instances for instantiation and move ownership to store manager.
-  uint32_t pushModule(std::unique_ptr<Instance::ModuleInstance> Mod) {
+  template <typename... Args> uint32_t pushModule(Args &&... Values) {
     ++NumMod;
-    Mod->Addr = ModInsts.size();
-    return importInstance(std::move(Mod), ImpModInsts, ModInsts);
+    uint32_t ModAddr =
+        importInstance(ImpModInsts, ModInsts, std::forward<Args>(Values)...);
+    ModInsts.back()->Addr = ModAddr;
+    return ModAddr;
   }
-  uint32_t pushFunction(std::unique_ptr<Instance::FunctionInstance> Func) {
+  template <typename... Args> uint32_t pushFunction(Args &&... Values) {
     ++NumFunc;
-    return importInstance(std::move(Func), ImpFuncInsts, FuncInsts);
+    return importInstance(ImpFuncInsts, FuncInsts,
+                          std::forward<Args>(Values)...);
   }
-  uint32_t pushTable(std::unique_ptr<Instance::TableInstance> Tab) {
+  template <typename... Args> uint32_t pushTable(Args &&... Values) {
     ++NumTab;
-    return importInstance(std::move(Tab), ImpTabInsts, TabInsts);
+    return importInstance(ImpTabInsts, TabInsts, std::forward<Args>(Values)...);
   }
-  uint32_t pushMemory(std::unique_ptr<Instance::MemoryInstance> Mem) {
+  template <typename... Args> uint32_t pushMemory(Args &&... Values) {
     ++NumMem;
-    return importInstance(std::move(Mem), ImpMemInsts, MemInsts);
+    return importInstance(ImpMemInsts, MemInsts, std::forward<Args>(Values)...);
   }
-  uint32_t pushGlobal(std::unique_ptr<Instance::GlobalInstance> Glob) {
+  template <typename... Args> uint32_t pushGlobal(Args &&... Values) {
     ++NumGlob;
-    return importInstance(std::move(Glob), ImpGlobInsts, GlobInsts);
+    return importInstance(ImpGlobInsts, GlobInsts,
+                          std::forward<Args>(Values)...);
   }
-  uint32_t pushElement(std::unique_ptr<Instance::ElementInstance> Elem) {
+  template <typename... Args> uint32_t pushElement(Args &&... Values) {
     ++NumElem;
-    return importInstance(std::move(Elem), ImpElemInsts, ElemInsts);
+    return importInstance(ImpElemInsts, ElemInsts,
+                          std::forward<Args>(Values)...);
   }
-  uint32_t pushData(std::unique_ptr<Instance::DataInstance> Data) {
+  template <typename... Args> uint32_t pushData(Args &&... Values) {
     ++NumData;
-    return importInstance(std::move(Data), ImpDataInsts, DataInsts);
+    return importInstance(ImpDataInsts, DataInsts,
+                          std::forward<Args>(Values)...);
   }
 
   /// Pop temp. module. Dangerous function for used when instantiating only.
@@ -266,14 +278,13 @@ public:
 
 private:
   /// Helper function for importing instances and move ownership.
-  template <typename T>
+  template <typename T, typename... Args>
   std::enable_if_t<IsInstanceV<T>, uint32_t>
-  importInstance(std::unique_ptr<T> Inst,
-                 std::vector<std::unique_ptr<T>> &ImpInstsVec,
-                 std::vector<T *> &InstsVec) {
+  importInstance(std::vector<std::unique_ptr<T>> &ImpInstsVec,
+                 std::vector<T *> &InstsVec, Args &&... Values) {
     uint32_t Addr = InstsVec.size();
-    InstsVec.push_back(Inst.get());
-    ImpInstsVec.push_back(std::move(Inst));
+    ImpInstsVec.push_back(std::make_unique<T>(std::forward<Args>(Values)...));
+    InstsVec.push_back(ImpInstsVec.back().get());
     return Addr;
   }
 

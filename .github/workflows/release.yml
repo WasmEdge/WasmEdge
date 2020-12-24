@@ -52,19 +52,156 @@ jobs:
           asset_path: build/SSVM-${{ steps.prep.outputs.version }}-Linux.rpm
           asset_name: SSVM-${{ steps.prep.outputs.version }}.rpm
           asset_content_type: application/x-rpm
-      - name: Build manylinux1 package
+      - name: Build manylinux1_x86_64 package
         uses: addnab/docker-run-action@v1
         with:
-          image: secondstate/ssvm:manylinux1
-          run: /root/build-manylinux.sh
+          image: secondstate/ssvm:manylinux1_x86_64
+          run: /toolchain/build-manylinux.sh
           options: -v .:/ssvm --rm
-      - name: Upload manylinux1 rpm package
+      - name: Upload manylinux1_x86_64 rpm package
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: SSVM-manylinux1.rpm
-          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux1.rpm
+          asset_path: SSVM.rpm
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux1_x86_64.rpm
           asset_content_type: application/x-rpm
-
+      - name: Upload manylinux1_x86_64 tar.gz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SSVM.tar.gz
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux1_x86_64.tar.gz
+          asset_content_type: application/x-gzip
+      - name: Upload manylinux1_x86_64 tar.bz2 package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SSVM.tar.bz2
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux1_x86_64.tar.bz2
+          asset_content_type: application/x-bzip2
+      - name: Upload manylinux1_x86_64 tar.xz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SSVM.tar.xz
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux1_x86_64.tar.xz
+          asset_content_type: application/x-xz
+      - name: Upload manylinux1_x86_64 tar.zst package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SSVM.tar.zst
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux1_x86_64.tar.zst
+          asset_content_type: application/zstd
+      - name: Build manylinux2010_x86_64 package
+        uses: addnab/docker-run-action@v1
+        with:
+          image: secondstate/ssvm:manylinux2010_x86_64
+          run: /toolchain/build-manylinux.sh
+          options: -v .:/ssvm --rm
+      - name: Upload manylinux2010_x86_64 rpm package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SSVM.rpm
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux2010_x86_64.rpm
+          asset_content_type: application/x-rpm
+      - name: Upload manylinux2010_x86_64 tar.gz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SSVM.tar.gz
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux2010_x86_64.tar.gz
+          asset_content_type: application/x-gzip
+      - name: Upload manylinux2010_x86_64 tar.bz2 package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SSVM.tar.bz2
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux2010_x86_64.tar.bz2
+          asset_content_type: application/x-bzip2
+      - name: Upload manylinux2010_x86_64 tar.xz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SSVM.tar.xz
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux2010_x86_64.tar.xz
+          asset_content_type: application/x-xz
+      - name: Upload manylinux2010_x86_64 tar.zst package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SSVM.tar.zst
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux2010_x86_64.tar.zst
+          asset_content_type: application/zstd
+      - name: Build manylinux2014_x86_64 package
+        uses: addnab/docker-run-action@v1
+        with:
+          image: secondstate/ssvm:manylinux2014_x86_64
+          run: /toolchain/build-manylinux.sh
+          options: -v .:/ssvm --rm
+      - name: Upload manylinux2014_x86_64 rpm package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SSVM.rpm
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux2014_x86_64.rpm
+          asset_content_type: application/x-rpm
+      - name: Upload manylinux2014_x86_64 tar.gz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SSVM.tar.gz
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux2014_x86_64.tar.gz
+          asset_content_type: application/x-gzip
+      - name: Upload manylinux2014_x86_64 tar.bz2 package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SSVM.tar.bz2
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux2014_x86_64.tar.bz2
+          asset_content_type: application/x-bzip2
+      - name: Upload manylinux2014_x86_64 tar.xz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SSVM.tar.xz
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux2014_x86_64.tar.xz
+          asset_content_type: application/x-xz
+      - name: Upload manylinux2014_x86_64 tar.zst package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SSVM.tar.zst
+          asset_name: SSVM-${{ steps.prep.outputs.version }}-manylinux2014_x86_64.tar.zst
+          asset_content_type: application/zstd

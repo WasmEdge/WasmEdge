@@ -145,6 +145,7 @@ Expect<void> Loader::loadSection(AST::ElementSection &Sec) {
 
 // Load vector of code section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::CodeSection &Sec) {
+  Sec.setOffset(FMgr.getOffset());
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(Sec, [this](AST::CodeSegment &CodeSeg) {
       return loadSegment(CodeSeg);

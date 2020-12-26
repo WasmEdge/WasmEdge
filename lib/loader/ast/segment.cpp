@@ -215,6 +215,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
 
 // Load binary of CodeSegment node. See "include/loader/loader.h".
 Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
+  CodeSeg.setOffset(FMgr.getOffset());
   // Read the code segment size.
   if (auto Res = FMgr.readU32()) {
     CodeSeg.setSegSize(*Res);

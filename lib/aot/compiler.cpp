@@ -17,14 +17,19 @@
 #include <limits>
 #include <lld/Common/Driver.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
+#include <llvm/CodeGen/CommandFlags.h>
+#include <llvm/DebugInfo/DWARF/DWARFContext.h>
+#include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/MC/SubtargetFeature.h>
 #include <llvm/Object/ObjectFile.h>
+#include <llvm/Object/Wasm.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Host.h>
+#include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
@@ -230,6 +235,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   llvm::ArrayType *IntrinsicsTableTy;
   llvm::PointerType *IntrinsicsTablePtrTy;
   llvm::SubtargetFeatures SubtargetFeatures;
+  std::unique_ptr<llvm::DWARFContext> DIContext;
 
 #if defined(__x86_64__)
 #if defined(__XOP__)
@@ -265,10 +271,14 @@ struct WasmEdge::AOT::Compiler::CompileContext {
 #endif
 #endif
 
+  std::unordered_map<uint64_t, llvm::DIType *> DITypes;
+  llvm::StringMap<llvm::DIFile *> DIFiles;
+
   std::vector<const AST::FunctionType *> FunctionTypes;
   std::vector<llvm::Function *> FunctionWrappers;
-  std::vector<std::tuple<uint32_t, llvm::Function *,
-                         const WasmEdge::AST::CodeSegment *>>
+  std::vector<
+      std::tuple<uint32_t, llvm::Function *, const WasmEdge::AST::CodeSegment *,
+                 llvm::DIScope *, const llvm::DWARFDie *>>
       Functions;
   std::vector<llvm::Type *> Globals;
   llvm::GlobalVariable *IntrinsicsTable;
@@ -432,6 +442,92 @@ struct WasmEdge::AOT::Compiler::CompileContext {
           VecT(FType.getReturnTypes().begin(), FType.getReturnTypes().end())};
     }
   }
+
+  llvm::DIFile *getOrCreateFile(llvm::DIBuilder &DIBuilder,
+                                llvm::StringRef Path) {
+    if (auto Iter = DIFiles.find(Path); Iter != DIFiles.end()) {
+      return Iter->second;
+    }
+    auto *DIFile = DIBuilder.createFile(Path, {});
+    DIFiles.insert_or_assign(Path, DIFile);
+    return DIFile;
+  }
+
+  llvm::DIType *getOrCreateType(llvm::DIBuilder &DIBuilder,
+                                const llvm::DWARFDie &Die) {
+    if (auto Iter = DITypes.find(Die.getOffset()); Iter != DITypes.end()) {
+      return Iter->second;
+    }
+    llvm::DIType *DIType = nullptr;
+    switch (Die.getTag()) {
+    case llvm::dwarf::DW_TAG_base_type:
+      DIType = createBasicType(DIBuilder, Die);
+      break;
+    case llvm::dwarf::DW_TAG_array_type:
+      DIType = createArrayType(DIBuilder, Die);
+      break;
+    case llvm::dwarf::DW_TAG_pointer_type:
+      DIType = createPointerType(DIBuilder, Die);
+      break;
+    case llvm::dwarf::DW_TAG_const_type:
+    case llvm::dwarf::DW_TAG_volatile_type:
+    case llvm::dwarf::DW_TAG_restrict_type:
+      DIType = createQualifiedType(DIBuilder, Die, Die.getTag());
+      break;
+    default:
+      break;
+    }
+    if (DIType) {
+      DITypes.emplace(Die.getOffset(), DIType);
+    }
+    return DIType;
+  }
+
+  llvm::DIBasicType *createBasicType(llvm::DIBuilder &DIBuilder,
+                                     const llvm::DWARFDie &Die) {
+    auto Name = llvm::dwarf::toStringRef(Die.find(llvm::dwarf::DW_AT_name));
+    uint64_t SizeInBytes =
+        llvm::dwarf::toUnsigned(Die.find(llvm::dwarf::DW_AT_byte_size), 0);
+    auto Encoding =
+        llvm::dwarf::toUnsigned(Die.find(llvm::dwarf::DW_AT_encoding), 0);
+    return DIBuilder.createBasicType(Name, SizeInBytes * 8, Encoding);
+  }
+
+  llvm::DICompositeType *createArrayType(llvm::DIBuilder &DIBuilder,
+                                         const llvm::DWARFDie &Die) {
+    std::vector<llvm::Metadata *> Subscripts;
+    uint64_t TotalCount = 1;
+    for (auto &Die : Die.children()) {
+      if (Die.getTag() == llvm::dwarf::DW_TAG_subrange_type) {
+        if (auto Count = Die.find(llvm::dwarf::DW_AT_count)) {
+          auto IntCount = Count->getAsUnsignedConstant().getValueOr(1);
+          Subscripts.push_back(DIBuilder.getOrCreateSubrange(0, IntCount));
+          TotalCount *= IntCount;
+        }
+      }
+    }
+    auto Type = getOrCreateType(DIBuilder, Die.getAttributeValueAsReferencedDie(
+                                               llvm::dwarf::DW_AT_type));
+    auto SubscriptArray = DIBuilder.getOrCreateArray(Subscripts);
+    return DIBuilder.createArrayType(Type->getSizeInBits() * TotalCount,
+                                     Type->getAlignInBits(), Type,
+                                     SubscriptArray);
+  }
+
+  llvm::DIDerivedType *createPointerType(llvm::DIBuilder &DIBuilder,
+                                         const llvm::DWARFDie &Die) {
+    auto Type = getOrCreateType(DIBuilder, Die.getAttributeValueAsReferencedDie(
+                                               llvm::dwarf::DW_AT_type));
+    return DIBuilder.createPointerType(Type, 32);
+  }
+
+  llvm::DIDerivedType *createQualifiedType(llvm::DIBuilder &DIBuilder,
+                                           const llvm::DWARFDie &Die,
+                                           llvm::dwarf::Tag Tag) {
+    auto Type = getOrCreateType(DIBuilder, Die.getAttributeValueAsReferencedDie(
+                                               llvm::dwarf::DW_AT_type));
+    return DIBuilder.createQualifiedType(Tag, Type);
+  }
 };
 
 namespace {
@@ -529,13 +625,115 @@ class FunctionCompiler {
   struct Control;
 
 public:
-  FunctionCompiler(AOT::Compiler::CompileContext &Context, llvm::Function *F,
-                   Span<const ValType> Locals, bool Interruptible,
+  FunctionCompiler(AOT::Compiler::CompileContext &Context, llvm::DIBuilder *DIB,
+                   llvm::DIScope *DIScope, const llvm::DWARFDie *D,
+                   llvm::Function *F, Span<const ValType> Locals,
+                   uint32_t CodeOffset, bool Interruptible,
                    bool InstructionCounting, bool GasMeasuring, bool OptNone)
       : Context(Context), LLContext(Context.LLContext),
-        Interruptible(Interruptible), OptNone(OptNone), F(F),
-        Builder(llvm::BasicBlock::Create(LLContext, "entry", F)) {
+        Interruptible(Interruptible), OptNone(OptNone), DWARFDie(D),
+        DIBuilder(DIB), F(F),
+        Builder(llvm::BasicBlock::Create(LLContext, "entry", F)),
+        CodeOffset(CodeOffset) {
     if (F) {
+      std::vector<llvm::DILocalVariable *> DIArgs;
+      if (DIScope && DWARFDie) {
+        DWARFUnit = DWARFDie->getDwarfUnit();
+        LineTable = DWARFUnit->getContext().getLineTableForUnit(DWARFUnit);
+
+        auto Name =
+            llvm::dwarf::toStringRef(DWARFDie->find(llvm::dwarf::DW_AT_name));
+        auto LineNo = llvm::dwarf::toUnsigned(
+            DWARFDie->find(llvm::dwarf::DW_AT_decl_line), 0);
+        std::string File = getFileName(*DWARFDie, llvm::dwarf::DW_AT_decl_file);
+        auto DIFile = Context.getOrCreateFile(*DIBuilder, File);
+        llvm::DINode::DIFlags Flags = llvm::DINode::FlagZero;
+        if (DWARFDie->find(llvm::dwarf::DW_AT_prototyped)) {
+          Flags |= llvm::DINode::FlagPrototyped;
+        }
+        std::vector<std::pair<llvm::DWARFDie, llvm::DIType *>> Args;
+        std::vector<std::pair<llvm::DWARFDie, llvm::DIType *>> Vars;
+        std::vector<llvm::Metadata *> Types;
+        Types.push_back(Context.getOrCreateType(
+            *DIBuilder, DWARFDie->getAttributeValueAsReferencedDie(
+                            llvm::dwarf::DW_AT_type)));
+        for (auto &Die : DWARFDie->children()) {
+          switch (Die.getTag()) {
+          case llvm::dwarf::DW_TAG_formal_parameter: {
+            auto Type = Context.getOrCreateType(
+                *DIBuilder,
+                Die.getAttributeValueAsReferencedDie(llvm::dwarf::DW_AT_type));
+            Args.emplace_back(Die, Type);
+            Types.push_back(Type);
+            break;
+          }
+          case llvm::dwarf::DW_TAG_variable: {
+            auto Type = Context.getOrCreateType(
+                *DIBuilder,
+                Die.getAttributeValueAsReferencedDie(llvm::dwarf::DW_AT_type));
+            Vars.emplace_back(Die, Type);
+            break;
+          }
+          case llvm::dwarf::DW_TAG_lexical_block: {
+            DIBuilder->createLexicalBlock(DIFile, DIFile, 0, 0);
+            break;
+          }
+          default:
+            break;
+          }
+        }
+        DISubprogram = DIBuilder->createFunction(
+            DIScope, Name, Name, DIFile, LineNo,
+            DIBuilder->createSubroutineType(
+                DIBuilder->getOrCreateTypeArray(Types)),
+            LineNo, Flags, llvm::DISubprogram::SPFlagDefinition);
+        F->setSubprogram(DISubprogram);
+        for (unsigned I = 0; I < Args.size(); ++I) {
+          const auto &Die = Args[I].first;
+          auto Type = Args[I].second;
+          auto Name =
+              llvm::dwarf::toStringRef(Die.find(llvm::dwarf::DW_AT_name));
+          auto LineNo = llvm::dwarf::toUnsigned(
+              Die.find(llvm::dwarf::DW_AT_decl_line), 0);
+          std::string File =
+              getFileName(*DWARFDie, llvm::dwarf::DW_AT_decl_file);
+          auto DIFile = Context.getOrCreateFile(*DIBuilder, File);
+          auto DIArg = DIBuilder->createParameterVariable(DISubprogram, Name, I,
+                                                          DIFile, LineNo, Type);
+          DIArgs.push_back(DIArg);
+        }
+        for (unsigned I = 0; I < Vars.size(); ++I) {
+          const auto &Die = Vars[I].first;
+          auto Type = Vars[I].second;
+          auto Name =
+              llvm::dwarf::toStringRef(Die.find(llvm::dwarf::DW_AT_name));
+          auto LineNo = llvm::dwarf::toUnsigned(
+              Die.find(llvm::dwarf::DW_AT_decl_line), 0);
+          std::string File =
+              getFileName(*DWARFDie, llvm::dwarf::DW_AT_decl_file);
+          auto DIFile = Context.getOrCreateFile(*DIBuilder, File);
+          auto DIVar = DIBuilder->createAutoVariable(DISubprogram, Name, DIFile,
+                                                     LineNo, Type);
+          if (auto Loc = Die.getLocations(llvm::dwarf::DW_AT_location)) {
+            for (const auto &Entry : *Loc) {
+              if (Entry.Range) {
+                llvm::DWARFDataExtractor Data(Entry.Expr, true, 4);
+                llvm::DWARFExpression Expression(Data, 4);
+                auto Op = *Expression.begin();
+                switch (Op.getCode()) {
+                case llvm::dwarf::DW_OP_WASM_location: {
+                  DIVars[Entry.Range->LowPC].emplace_back(
+                      DIVar, Op.getRawOperand(0), Op.getRawOperand(1));
+                  break;
+                }
+                case llvm::dwarf::DW_OP_fbreg:
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
       setIsFPConstrained(Builder);
       ExecCtx = Builder.CreateLoad(Context.ExecCtxTy, F->arg_begin());
 
@@ -549,10 +747,19 @@ public:
         Builder.CreateStore(Builder.getInt64(0), LocalGas);
       }
 
+      unsigned Index = 0;
       for (llvm::Argument *Arg = F->arg_begin() + 1; Arg != F->arg_end();
            ++Arg) {
         llvm::Type *Ty = Arg->getType();
         llvm::Value *ArgPtr = Builder.CreateAlloca(Ty);
+        if (DIArgs.size() > Index) {
+          auto *DIArg = DIArgs[Index];
+          DIBuilder->insertDeclare(ArgPtr, DIArg, DIBuilder->createExpression(),
+                                   llvm::DILocation::get(LLContext,
+                                                         DIArg->getLine(), 0,
+                                                         DISubprogram),
+                                   Builder.GetInsertBlock());
+        }
         Builder.CreateStore(Arg, ArgPtr);
         Local.emplace_back(Ty, ArgPtr);
       }
@@ -603,6 +810,55 @@ public:
 
   void compile(AST::InstrView Instrs) {
     auto Dispatch = [this](const AST::Instruction &Instr) -> void {
+      const auto Offset = Instr.getOffset() - CodeOffset;
+      if (LineTable) {
+        llvm::DILineInfo Result;
+        if (LineTable->getFileLineInfoForAddress(
+                {Offset, llvm::object::SectionedAddress::UndefSection},
+                DWARFUnit->getCompilationDir(),
+                llvm::DILineInfoSpecifier::FileLineInfoKind::AbsoluteFilePath,
+                Result)) {
+          // auto *DIScope = Context.getOrCreateFile(*DIBuilder,
+          // Result.FileName);
+          Builder.SetCurrentDebugLocation(llvm::DILocation::get(
+              LLContext, Result.Line, Result.Column, DISubprogram));
+        }
+      }
+      if (auto Iter = DIVars.find(Offset); Iter != DIVars.end()) {
+        for (auto [DIVar, L, I] : Iter->second) {
+          llvm::Value *Storage = nullptr;
+          llvm::Value *Value = nullptr;
+          switch (L) {
+          case 0: // Local
+            if (Local.size() > I) {
+              Storage = Local[I].second;
+            }
+            break;
+          case 1:
+          case 3:
+            Storage = Context.getGlobals(Builder, ExecCtx, I).second;
+            break;
+          case 2:
+            if (Stack.size() > I) {
+              Value = Stack[I];
+            }
+            break;
+          }
+          if (Storage) {
+            DIBuilder->insertDeclare(
+                Storage, DIVar, DIBuilder->createExpression(),
+                llvm::DILocation::get(LLContext, DIVar->getLine(), 0,
+                                      DISubprogram),
+                Builder.GetInsertBlock());
+          } else if (Value) {
+            DIBuilder->insertDbgValueIntrinsic(
+                Value, DIVar, DIBuilder->createExpression(),
+                llvm::DILocation::get(LLContext, DIVar->getLine(), 0,
+                                      DISubprogram),
+                Builder.GetInsertBlock());
+          }
+        }
+      }
       switch (Instr.getOpCode()) {
       case OpCode::Block: {
         auto *Block = llvm::BasicBlock::Create(LLContext, "block", F);
@@ -2929,8 +3185,10 @@ public:
 private:
   void compileCallOp(const unsigned int FuncIndex) {
     const auto &FuncType =
-        *Context.FunctionTypes[std::get<0>(Context.Functions[FuncIndex])];
-    const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
+        *Context
+             .FunctionTypes[std::get<uint32_t>(Context.Functions[FuncIndex])];
+    const auto &Function =
+        std::get<llvm::Function *>(Context.Functions[FuncIndex]);
     const auto &ParamTypes = FuncType.getParamTypes();
 
     std::vector<llvm::Value *> Args(ParamTypes.size() + 1);
@@ -3916,6 +4174,22 @@ private:
     return Value;
   }
 
+  std::string getFileName(const llvm::DWARFDie &DWARFDie,
+                          llvm::dwarf::Attribute Attr) {
+    if (auto Value = DWARFDie.find(Attr)) {
+      auto FileID = llvm::dwarf::toUnsigned(Value).getValue();
+      std::string Result;
+      if (LineTable->getFileNameByIndex(
+              FileID, DWARFUnit->getCompilationDir(),
+              llvm::DILineInfoSpecifier::FileLineInfoKind::AbsoluteFilePath,
+              Result)) {
+        return Result;
+      }
+    }
+
+    return {};
+  }
+
   AOT::Compiler::CompileContext &Context;
   llvm::LLVMContext &LLContext;
   std::vector<std::pair<llvm::Type *, llvm::Value *>> Local;
@@ -3949,9 +4223,17 @@ private:
     Control &operator=(Control &&) = default;
   };
   std::vector<Control> ControlStack;
+  llvm::DISubprogram *DISubprogram = nullptr;
+  const llvm::DWARFDie *DWARFDie = nullptr;
+  llvm::DWARFUnit *DWARFUnit = nullptr;
+  const llvm::DWARFDebugLine::LineTable *LineTable = nullptr;
+  llvm::DIBuilder *DIBuilder;
   llvm::Function *F;
   llvm::LoadInst *ExecCtx;
   llvm::IRBuilder<> Builder;
+  uint32_t CodeOffset = 0;
+  using DIVarDef = std::tuple<llvm::DILocalVariable *, unsigned, uint64_t>;
+  std::unordered_map<uint64_t, std::vector<DIVarDef>> DIVars;
 };
 
 static std::vector<llvm::Value *> unpackStruct(llvm::IRBuilder<> &Builder,
@@ -4312,6 +4594,16 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   };
   RAIICleanup Cleanup(Context, NewContext);
 
+  // Compile DWARF
+  {
+    llvm::MemoryBufferRef Buffer(
+        llvm::StringRef(reinterpret_cast<const char *>(Data.data()),
+                        Data.size()),
+        "wasm"sv);
+    llvm::Error Err = llvm::Error::success();
+    llvm::object::WasmObjectFile Object(Buffer, Err);
+    Context->DIContext = llvm::DWARFContext::create(Object);
+  }
   // Compile Function Types
   compile(Module.getTypeSection());
   // Compile ImportSection
@@ -4378,7 +4670,8 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       return Unexpect(ErrCode::IllegalPath);
     }
 
-    llvm::TargetOptions Options;
+    llvm::TargetOptions Options =
+        llvm::codegen::InitTargetOptionsFromCodeGenFlags();
     llvm::Reloc::Model RM = llvm::Reloc::PIC_;
     llvm::StringRef CPUName("generic");
     if (!Conf.getCompilerConfigure().isGenericBinary()) {
@@ -4680,7 +4973,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
         Builder.CreateAggregateRet(Ret.data(), static_cast<uint32_t>(RetSize));
       }
 
-      Context->Functions.emplace_back(TypeIdx, F, nullptr);
+      Context->Functions.emplace_back(TypeIdx, F, nullptr, nullptr, nullptr);
       break;
     }
     case ExternalType::Table: // Table type
@@ -4731,6 +5024,46 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
     return;
   }
 
+  std::vector<llvm::Constant *> Codes;
+  Codes.reserve(CodeSegs.size());
+  std::map<uint32_t, std::tuple<llvm::DIScope *, llvm::DWARFDie>> DieFunctions;
+
+  llvm::DIBuilder DIBuilder(Context->LLModule);
+  if (Context->DIContext) {
+    Context->LLModule.addModuleFlag(llvm::Module::Warning, "Debug Info Version",
+                                    llvm::DEBUG_METADATA_VERSION);
+    Context->LLModule.addModuleFlag(llvm::Module::Warning, "Dwarf Version", 4);
+    for (auto &CU : Context->DIContext->compile_units()) {
+      auto CUDie = CU->getUnitDIE(false);
+      if (!CUDie) {
+        continue;
+      }
+      auto Language =
+          llvm::dwarf::toUnsigned(CUDie.find(llvm::dwarf::DW_AT_language), 0);
+      auto Path = llvm::dwarf::toStringRef(CUDie.find(llvm::dwarf::DW_AT_name));
+      auto Dir =
+          llvm::dwarf::toStringRef(CUDie.find(llvm::dwarf::DW_AT_comp_dir));
+      auto DIFile = DIBuilder.createFile(Path, Dir);
+      auto Producer =
+          llvm::dwarf::toStringRef(CUDie.find(llvm::dwarf::DW_AT_producer));
+      auto DICU =
+          DIBuilder.createCompileUnit(Language, DIFile, Producer, true, {}, 0);
+      auto DIScope =
+          DIBuilder.createFile(DICU->getFilename(), DICU->getDirectory());
+      for (auto &Die : CUDie.children()) {
+        if (Die.getTag() == llvm::dwarf::DW_TAG_subprogram) {
+          uint64_t LowPC, HighPC, SectionIndex;
+          Die.getLowAndHighPC(LowPC, HighPC, SectionIndex);
+          if (LowPC != 0 || HighPC != 0) {
+            DieFunctions.emplace(std::piecewise_construct,
+                                 std::forward_as_tuple(LowPC),
+                                 std::forward_as_tuple(DIScope, Die));
+          }
+        }
+      }
+    }
+  }
+
   for (size_t I = 0; I < TypeIdxs.size() && I < CodeSegs.size(); ++I) {
     const auto &TypeIdx = TypeIdxs[I];
     const auto &Code = CodeSegs[I];
@@ -4745,10 +5078,18 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
     F->addParamAttr(0, llvm::Attribute::AttrKind::ReadOnly);
     F->addParamAttr(0, llvm::Attribute::AttrKind::NoAlias);
 
-    Context->Functions.emplace_back(TypeIdx, F, &Code);
+    const auto Offset = Code.getOffset() - CodeSec.getOffset() + 2;
+    llvm::DIScope *DIScope = nullptr;
+    const llvm::DWARFDie *DWARFDie = nullptr;
+    if (auto It = DieFunctions.find(Offset); It != DieFunctions.end()) {
+      DIScope = std::get<llvm::DIScope *>(It->second);
+      DWARFDie = &std::get<llvm::DWARFDie>(It->second);
+    }
+    Context->Functions.emplace_back(TypeIdx, F, &Code, DIScope, DWARFDie);
+    Codes.push_back(llvm::ConstantExpr::getBitCast(F, Context->Int8PtrTy));
   }
 
-  for (auto [T, F, Code] : Context->Functions) {
+  for (auto [T, F, Code, S, D] : Context->Functions) {
     if (!Code) {
       continue;
     }
@@ -4759,7 +5100,8 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
         Locals.push_back(Local.second);
       }
     }
-    FunctionCompiler FC(*Context, F, Locals,
+    FunctionCompiler FC(*Context, &DIBuilder, S, D, F, Locals,
+                        CodeSec.getOffset(),
                         Conf.getCompilerConfigure().isInterruptible(),
                         Conf.getStatisticsConfigure().isInstructionCounting(),
                         Conf.getStatisticsConfigure().isCostMeasuring(),
@@ -4768,6 +5110,10 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
     auto Type = Context->resolveBlockType(T);
     FC.compile(*Code, std::move(Type));
     llvm::EliminateUnreachableBlocks(*F);
+  }
+
+  if (Context->DIContext) {
+    DIBuilder.finalize();
   }
 }
 

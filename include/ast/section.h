@@ -189,6 +189,10 @@ private:
 /// AST CodeSection node.
 class CodeSection : public Section {
 public:
+  /// Getter and setter of Offset.
+  uint32_t getOffset() const { return Offset; }
+  void setOffset(uint32_t Off) { Offset = Off; }
+
   /// Getter of content vector.
   Span<const CodeSegment> getContent() const noexcept { return Content; }
   std::vector<CodeSegment> &getContent() noexcept { return Content; }
@@ -196,6 +200,7 @@ public:
 private:
   /// \name Data of CodeSection.
   /// @{
+  uint32_t Offset = 0;
   std::vector<CodeSegment> Content;
   /// @}
 };

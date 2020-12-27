@@ -35,167 +35,167 @@
 
 namespace {
 
-static constexpr uint32_t convertErrNo(int ErrNo) noexcept {
+static constexpr __wasi_errno_t convertErrNo(int ErrNo) noexcept {
   switch (ErrNo) {
   case 0:
-    return __WASI_ESUCCESS;
+    return __WASI_ERRNO_SUCCESS;
   case E2BIG:
-    return __WASI_E2BIG;
+    return __WASI_ERRNO_2BIG;
   case EACCES:
-    return __WASI_EACCES;
+    return __WASI_ERRNO_ACCES;
   case EADDRINUSE:
-    return __WASI_EADDRINUSE;
+    return __WASI_ERRNO_ADDRINUSE;
   case EADDRNOTAVAIL:
-    return __WASI_EADDRNOTAVAIL;
+    return __WASI_ERRNO_ADDRNOTAVAIL;
   case EAFNOSUPPORT:
-    return __WASI_EAFNOSUPPORT;
+    return __WASI_ERRNO_AFNOSUPPORT;
   case EAGAIN:
-    return __WASI_EAGAIN;
+    return __WASI_ERRNO_AGAIN;
   case EALREADY:
-    return __WASI_EALREADY;
+    return __WASI_ERRNO_ALREADY;
   case EBADF:
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   case EBADMSG:
-    return __WASI_EBADMSG;
+    return __WASI_ERRNO_BADMSG;
   case EBUSY:
-    return __WASI_EBUSY;
+    return __WASI_ERRNO_BUSY;
   case ECANCELED:
-    return __WASI_ECANCELED;
+    return __WASI_ERRNO_CANCELED;
   case ECHILD:
-    return __WASI_ECHILD;
+    return __WASI_ERRNO_CHILD;
   case ECONNABORTED:
-    return __WASI_ECONNABORTED;
+    return __WASI_ERRNO_CONNABORTED;
   case ECONNREFUSED:
-    return __WASI_ECONNREFUSED;
+    return __WASI_ERRNO_CONNREFUSED;
   case ECONNRESET:
-    return __WASI_ECONNRESET;
+    return __WASI_ERRNO_CONNRESET;
   case EDEADLK:
-    return __WASI_EDEADLK;
+    return __WASI_ERRNO_DEADLK;
   case EDESTADDRREQ:
-    return __WASI_EDESTADDRREQ;
+    return __WASI_ERRNO_DESTADDRREQ;
   case EDOM:
-    return __WASI_EDOM;
+    return __WASI_ERRNO_DOM;
   case EDQUOT:
-    return __WASI_EDQUOT;
+    return __WASI_ERRNO_DQUOT;
   case EEXIST:
-    return __WASI_EEXIST;
+    return __WASI_ERRNO_EXIST;
   case EFAULT:
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   case EFBIG:
-    return __WASI_EFBIG;
+    return __WASI_ERRNO_FBIG;
   case EHOSTUNREACH:
-    return __WASI_EHOSTUNREACH;
+    return __WASI_ERRNO_HOSTUNREACH;
   case EIDRM:
-    return __WASI_EIDRM;
+    return __WASI_ERRNO_IDRM;
   case EILSEQ:
-    return __WASI_EILSEQ;
+    return __WASI_ERRNO_ILSEQ;
   case EINPROGRESS:
-    return __WASI_EINPROGRESS;
+    return __WASI_ERRNO_INPROGRESS;
   case EINTR:
-    return __WASI_EINTR;
+    return __WASI_ERRNO_INTR;
   case EINVAL:
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   case EIO:
-    return __WASI_EIO;
+    return __WASI_ERRNO_IO;
   case EISCONN:
-    return __WASI_EISCONN;
+    return __WASI_ERRNO_ISCONN;
   case EISDIR:
-    return __WASI_EISDIR;
+    return __WASI_ERRNO_ISDIR;
   case ELOOP:
-    return __WASI_ELOOP;
+    return __WASI_ERRNO_LOOP;
   case EMFILE:
-    return __WASI_EMFILE;
+    return __WASI_ERRNO_MFILE;
   case EMLINK:
-    return __WASI_EMLINK;
+    return __WASI_ERRNO_MLINK;
   case EMSGSIZE:
-    return __WASI_EMSGSIZE;
+    return __WASI_ERRNO_MSGSIZE;
   case EMULTIHOP:
-    return __WASI_EMULTIHOP;
+    return __WASI_ERRNO_MULTIHOP;
   case ENAMETOOLONG:
-    return __WASI_ENAMETOOLONG;
+    return __WASI_ERRNO_NAMETOOLONG;
   case ENETDOWN:
-    return __WASI_ENETDOWN;
+    return __WASI_ERRNO_NETDOWN;
   case ENETRESET:
-    return __WASI_ENETRESET;
+    return __WASI_ERRNO_NETRESET;
   case ENETUNREACH:
-    return __WASI_ENETUNREACH;
+    return __WASI_ERRNO_NETUNREACH;
   case ENFILE:
-    return __WASI_ENFILE;
+    return __WASI_ERRNO_NFILE;
   case ENOBUFS:
-    return __WASI_ENOBUFS;
+    return __WASI_ERRNO_NOBUFS;
   case ENODEV:
-    return __WASI_ENODEV;
+    return __WASI_ERRNO_NODEV;
   case ENOENT:
-    return __WASI_ENOENT;
+    return __WASI_ERRNO_NOENT;
   case ENOEXEC:
-    return __WASI_ENOEXEC;
+    return __WASI_ERRNO_NOEXEC;
   case ENOLCK:
-    return __WASI_ENOLCK;
+    return __WASI_ERRNO_NOLCK;
   case ENOLINK:
-    return __WASI_ENOLINK;
+    return __WASI_ERRNO_NOLINK;
   case ENOMEM:
-    return __WASI_ENOMEM;
+    return __WASI_ERRNO_NOMEM;
   case ENOMSG:
-    return __WASI_ENOMSG;
+    return __WASI_ERRNO_NOMSG;
   case ENOPROTOOPT:
-    return __WASI_ENOPROTOOPT;
+    return __WASI_ERRNO_NOPROTOOPT;
   case ENOSPC:
-    return __WASI_ENOSPC;
+    return __WASI_ERRNO_NOSPC;
   case ENOSYS:
-    return __WASI_ENOSYS;
+    return __WASI_ERRNO_NOSYS;
   case ENOTCONN:
-    return __WASI_ENOTCONN;
+    return __WASI_ERRNO_NOTCONN;
   case ENOTDIR:
-    return __WASI_ENOTDIR;
+    return __WASI_ERRNO_NOTDIR;
   case ENOTEMPTY:
-    return __WASI_ENOTEMPTY;
+    return __WASI_ERRNO_NOTEMPTY;
   case ENOTRECOVERABLE:
-    return __WASI_ENOTRECOVERABLE;
+    return __WASI_ERRNO_NOTRECOVERABLE;
   case ENOTSOCK:
-    return __WASI_ENOTSOCK;
+    return __WASI_ERRNO_NOTSOCK;
   case ENOTSUP:
-    return __WASI_ENOTSUP;
+    return __WASI_ERRNO_NOTSUP;
   case ENOTTY:
-    return __WASI_ENOTTY;
+    return __WASI_ERRNO_NOTTY;
   case ENXIO:
-    return __WASI_ENXIO;
+    return __WASI_ERRNO_NXIO;
   case EOVERFLOW:
-    return __WASI_EOVERFLOW;
+    return __WASI_ERRNO_OVERFLOW;
   case EOWNERDEAD:
-    return __WASI_EOWNERDEAD;
+    return __WASI_ERRNO_OWNERDEAD;
   case EPERM:
-    return __WASI_EPERM;
+    return __WASI_ERRNO_PERM;
   case EPIPE:
-    return __WASI_EPIPE;
+    return __WASI_ERRNO_PIPE;
   case EPROTO:
-    return __WASI_EPROTO;
+    return __WASI_ERRNO_PROTO;
   case EPROTONOSUPPORT:
-    return __WASI_EPROTONOSUPPORT;
+    return __WASI_ERRNO_PROTONOSUPPORT;
   case EPROTOTYPE:
-    return __WASI_EPROTOTYPE;
+    return __WASI_ERRNO_PROTOTYPE;
   case ERANGE:
-    return __WASI_ERANGE;
+    return __WASI_ERRNO_RANGE;
   case EROFS:
-    return __WASI_EROFS;
+    return __WASI_ERRNO_ROFS;
   case ESPIPE:
-    return __WASI_ESPIPE;
+    return __WASI_ERRNO_SPIPE;
   case ESRCH:
-    return __WASI_ESRCH;
+    return __WASI_ERRNO_SRCH;
   case ESTALE:
-    return __WASI_ESTALE;
+    return __WASI_ERRNO_STALE;
   case ETIMEDOUT:
-    return __WASI_ETIMEDOUT;
+    return __WASI_ERRNO_TIMEDOUT;
   case ETXTBSY:
-    return __WASI_ETXTBSY;
+    return __WASI_ERRNO_TXTBSY;
   case EXDEV:
-    return __WASI_EXDEV;
+    return __WASI_ERRNO_XDEV;
   default:
     assert(false);
     __builtin_unreachable();
   }
 }
 
-static constexpr uint32_t statMode2FileType(mode_t Mode) noexcept {
+static constexpr __wasi_filetype_t statMode2FileType(mode_t Mode) noexcept {
   switch (Mode & S_IFMT) {
   case S_IFBLK:
     return __WASI_FILETYPE_BLOCK_DEVICE;
@@ -215,7 +215,7 @@ static constexpr uint32_t statMode2FileType(mode_t Mode) noexcept {
   }
 }
 
-static constexpr uint32_t direntType2FileType(uint8_t Type) noexcept {
+static constexpr __wasi_filetype_t direntType2FileType(uint8_t Type) noexcept {
   switch (Type) {
   case DT_BLK:
     return __WASI_FILETYPE_BLOCK_DEVICE;
@@ -238,65 +238,65 @@ static constexpr uint32_t direntType2FileType(uint8_t Type) noexcept {
 
 static constexpr int signal2SysSignal(uint8_t Signal) noexcept {
   switch (Signal) {
-  case __WASI_SIGHUP:
+  case __WASI_SIGNAL_HUP:
     return SIGHUP;
-  case __WASI_SIGINT:
+  case __WASI_SIGNAL_INT:
     return SIGINT;
-  case __WASI_SIGQUIT:
+  case __WASI_SIGNAL_QUIT:
     return SIGQUIT;
-  case __WASI_SIGILL:
+  case __WASI_SIGNAL_ILL:
     return SIGILL;
-  case __WASI_SIGTRAP:
+  case __WASI_SIGNAL_TRAP:
     return SIGTRAP;
-  case __WASI_SIGABRT:
+  case __WASI_SIGNAL_ABRT:
     return SIGABRT;
-  case __WASI_SIGBUS:
+  case __WASI_SIGNAL_BUS:
     return SIGBUS;
-  case __WASI_SIGFPE:
+  case __WASI_SIGNAL_FPE:
     return SIGFPE;
-  case __WASI_SIGKILL:
+  case __WASI_SIGNAL_KILL:
     return SIGKILL;
-  case __WASI_SIGUSR1:
+  case __WASI_SIGNAL_USR1:
     return SIGUSR1;
-  case __WASI_SIGSEGV:
+  case __WASI_SIGNAL_SEGV:
     return SIGSEGV;
-  case __WASI_SIGUSR2:
+  case __WASI_SIGNAL_USR2:
     return SIGUSR2;
-  case __WASI_SIGPIPE:
+  case __WASI_SIGNAL_PIPE:
     return SIGPIPE;
-  case __WASI_SIGALRM:
+  case __WASI_SIGNAL_ALRM:
     return SIGALRM;
-  case __WASI_SIGTERM:
+  case __WASI_SIGNAL_TERM:
     return SIGTERM;
-  case __WASI_SIGCHLD:
+  case __WASI_SIGNAL_CHLD:
     return SIGCHLD;
-  case __WASI_SIGCONT:
+  case __WASI_SIGNAL_CONT:
     return SIGCONT;
-  case __WASI_SIGSTOP:
+  case __WASI_SIGNAL_STOP:
     return SIGSTOP;
-  case __WASI_SIGTSTP:
+  case __WASI_SIGNAL_TSTP:
     return SIGTSTP;
-  case __WASI_SIGTTIN:
+  case __WASI_SIGNAL_TTIN:
     return SIGTTIN;
-  case __WASI_SIGTTOU:
+  case __WASI_SIGNAL_TTOU:
     return SIGTTOU;
-  case __WASI_SIGURG:
+  case __WASI_SIGNAL_URG:
     return SIGURG;
-  case __WASI_SIGXCPU:
+  case __WASI_SIGNAL_XCPU:
     return SIGXCPU;
-  case __WASI_SIGXFSZ:
+  case __WASI_SIGNAL_XFSZ:
     return SIGXFSZ;
-  case __WASI_SIGVTALRM:
+  case __WASI_SIGNAL_VTALRM:
     return SIGVTALRM;
-  case __WASI_SIGPROF:
+  case __WASI_SIGNAL_PROF:
     return SIGPROF;
-  case __WASI_SIGWINCH:
+  case __WASI_SIGNAL_WINCH:
     return SIGWINCH;
-  case __WASI_SIGPOLL:
+  case __WASI_SIGNAL_POLL:
     return SIGPOLL;
-  case __WASI_SIGPWR:
+  case __WASI_SIGNAL_PWR:
     return SIGPWR;
-  case __WASI_SIGSYS:
+  case __WASI_SIGNAL_SYS:
     return SIGSYS;
   default:
     return 0;
@@ -360,7 +360,7 @@ Expect<uint32_t> WasiArgsGet::body(Runtime::Instance::MemoryInstance *MemInst,
                                    uint32_t ArgvPtr, uint32_t ArgvBufPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   /// Store **Argv.
@@ -371,12 +371,12 @@ Expect<uint32_t> WasiArgsGet::body(Runtime::Instance::MemoryInstance *MemInst,
   /// Check for invalid address.
   uint32_t *const Argv = MemInst->getPointer<uint32_t *>(ArgvPtr, ArgvSize);
   if (unlikely(Argv == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   uint8_t *const ArgvBuf =
       MemInst->getPointer<uint8_t *>(ArgvBufPtr, ArgvBufSize);
   if (unlikely(ArgvBuf == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   uint8_t *ArgvBufEnd = ArgvBuf;
@@ -391,7 +391,7 @@ Expect<uint32_t> WasiArgsGet::body(Runtime::Instance::MemoryInstance *MemInst,
   /// Store nullptr
   Argv[ArgvSize - 1] = UINT32_C(0);
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -399,18 +399,18 @@ WasiArgsSizesGet::body(Runtime::Instance::MemoryInstance *MemInst,
                        uint32_t ArgcPtr, uint32_t ArgvBufSizePtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   /// Check for invalid address.
   uint32_t *const __restrict__ Argc = MemInst->getPointer<uint32_t *>(ArgcPtr);
   if (unlikely(Argc == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   uint32_t *const __restrict__ ArgvBufSize =
       MemInst->getPointer<uint32_t *>(ArgvBufSizePtr);
   if (unlikely(ArgvBufSize == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const std::vector<std::string> &CmdArgs = Env.getCmdArgs();
@@ -421,7 +421,7 @@ WasiArgsSizesGet::body(Runtime::Instance::MemoryInstance *MemInst,
   /// Calculate and store ArgvBufSize.
   *ArgvBufSize = CalculateBufferSize(CmdArgs);
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -429,7 +429,7 @@ WasiEnvironGet::body(Runtime::Instance::MemoryInstance *MemInst,
                      uint32_t EnvPtr, uint32_t EnvBufPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   /// Store **Env.
@@ -440,11 +440,11 @@ WasiEnvironGet::body(Runtime::Instance::MemoryInstance *MemInst,
   /// Check for invalid address.
   uint32_t *const Env = MemInst->getPointer<uint32_t *>(EnvPtr, EnvSize);
   if (unlikely(Env == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   uint8_t *const EnvBuf = MemInst->getPointer<uint8_t *>(EnvBufPtr, EnvBufSize);
   if (unlikely(EnvBuf == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   uint8_t *EnvBufEnd = EnvBuf;
@@ -459,7 +459,7 @@ WasiEnvironGet::body(Runtime::Instance::MemoryInstance *MemInst,
   /// Store nullptr
   Env[EnvSize - 1] = UINT32_C(0);
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -467,19 +467,19 @@ WasiEnvironSizesGet::body(Runtime::Instance::MemoryInstance *MemInst,
                           uint32_t EnvCntPtr, uint32_t EnvBufSizePtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   /// Check for invalid address.
   uint32_t *const __restrict__ EnvCnt =
       MemInst->getPointer<uint32_t *>(EnvCntPtr);
   if (unlikely(EnvCnt == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   uint32_t *const __restrict__ EnvBufSize =
       MemInst->getPointer<uint32_t *>(EnvBufSizePtr);
   if (unlikely(EnvBufSize == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const std::vector<std::string> &Environs = Env.getEnvirons();
@@ -490,7 +490,7 @@ WasiEnvironSizesGet::body(Runtime::Instance::MemoryInstance *MemInst,
   /// Calculate and store EnvBufSize.
   *EnvBufSize = CalculateBufferSize(Environs);
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -498,31 +498,31 @@ WasiClockResGet::body(Runtime::Instance::MemoryInstance *MemInst,
                       uint32_t ClockId, uint32_t ResolutionPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   clockid_t SysClockId;
   switch (ClockId) {
-  case __WASI_CLOCK_REALTIME:
+  case __WASI_CLOCKID_REALTIME:
     SysClockId = CLOCK_REALTIME;
     break;
-  case __WASI_CLOCK_MONOTONIC:
+  case __WASI_CLOCKID_MONOTONIC:
     SysClockId = CLOCK_MONOTONIC;
     break;
-  case __WASI_CLOCK_PROCESS_CPUTIME_ID:
+  case __WASI_CLOCKID_PROCESS_CPUTIME_ID:
     SysClockId = CLOCK_PROCESS_CPUTIME_ID;
     break;
-  case __WASI_CLOCK_THREAD_CPUTIME_ID:
+  case __WASI_CLOCKID_THREAD_CPUTIME_ID:
     SysClockId = CLOCK_THREAD_CPUTIME_ID;
     break;
   default:
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   }
 
   __wasi_timestamp_t *const Resolution =
       MemInst->getPointer<__wasi_timestamp_t *>(ResolutionPtr);
   if (unlikely(Resolution == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   timespec SysTimespec;
@@ -531,7 +531,7 @@ WasiClockResGet::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   *Resolution = timespec2Timestamp(SysTimespec);
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -540,31 +540,31 @@ WasiClockTimeGet::body(Runtime::Instance::MemoryInstance *MemInst,
                        uint32_t TimePtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   clockid_t SysClockId;
   switch (ClockId) {
-  case __WASI_CLOCK_REALTIME:
+  case __WASI_CLOCKID_REALTIME:
     SysClockId = CLOCK_REALTIME;
     break;
-  case __WASI_CLOCK_MONOTONIC:
+  case __WASI_CLOCKID_MONOTONIC:
     SysClockId = CLOCK_MONOTONIC;
     break;
-  case __WASI_CLOCK_PROCESS_CPUTIME_ID:
+  case __WASI_CLOCKID_PROCESS_CPUTIME_ID:
     SysClockId = CLOCK_PROCESS_CPUTIME_ID;
     break;
-  case __WASI_CLOCK_THREAD_CPUTIME_ID:
+  case __WASI_CLOCKID_THREAD_CPUTIME_ID:
     SysClockId = CLOCK_THREAD_CPUTIME_ID;
     break;
   default:
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   }
 
   __wasi_timestamp_t *const Time =
       MemInst->getPointer<__wasi_timestamp_t *>(TimePtr);
   if (unlikely(Time == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   timespec SysTimespec;
@@ -573,7 +573,7 @@ WasiClockTimeGet::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   *Time = timespec2Timestamp(SysTimespec);
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t> WasiFdAdvise::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -600,16 +600,16 @@ Expect<uint32_t> WasiFdAdvise::body(Runtime::Instance::MemoryInstance *MemInst,
     SysAdvise = POSIX_FADV_NOREUSE;
     break;
   default:
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_ADVISE))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_ADVISE))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   if (unlikely(posix_fadvise(Entry->second.HostFd, Offset, Len, SysAdvise) !=
@@ -617,7 +617,7 @@ Expect<uint32_t> WasiFdAdvise::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -625,29 +625,29 @@ WasiFdAllocate::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                      uint64_t Offset, uint64_t Len) {
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_ALLOCATE))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_ALLOCATE))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   if (unlikely(posix_fallocate(Entry->second.HostFd, Offset, Len) != 0)) {
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t> WasiFdClose::body(Runtime::Instance::MemoryInstance *MemInst,
                                    int32_t Fd) {
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
   if (unlikely(Entry->second.IsPreopened)) {
-    return __WASI_ENOTSUP;
+    return __WASI_ERRNO_NOTSUP;
   }
 
   if (unlikely(close(Entry->second.HostFd) != 0)) {
@@ -655,25 +655,25 @@ Expect<uint32_t> WasiFdClose::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   Env.eraseFile(Entry);
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
 WasiFdDatasync::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd) {
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_DATASYNC))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_DATASYNC))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   if (unlikely(fdatasync(Entry->second.HostFd) != 0)) {
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -681,18 +681,18 @@ WasiFdFdstatGet::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                       uint32_t FdStatPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
   __wasi_fdstat_t *const FdStat =
       MemInst->getPointer<__wasi_fdstat_t *>(FdStatPtr);
   if (unlikely(FdStat == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   /// 1. __wasi_fdstat_t.fs_filetype
@@ -710,12 +710,19 @@ WasiFdFdstatGet::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
     if (unlikely(FdFlags < 0)) {
       return convertErrNo(errno);
     }
-    FdStat->fs_flags = 0;
-    FdStat->fs_flags |= ((FdFlags & O_APPEND) ? __WASI_FDFLAG_APPEND : 0);
-    FdStat->fs_flags |= ((FdFlags & O_DSYNC) ? __WASI_FDFLAG_DSYNC : 0);
-    FdStat->fs_flags |= ((FdFlags & O_NONBLOCK) ? __WASI_FDFLAG_NONBLOCK : 0);
-    FdStat->fs_flags |=
-        ((FdFlags & O_SYNC) ? (__WASI_FDFLAG_RSYNC | __WASI_FDFLAG_SYNC) : 0);
+    FdStat->fs_flags = static_cast<__wasi_fdflags_t>(0);
+    if (FdFlags & O_APPEND) {
+      FdStat->fs_flags |= __WASI_FDFLAGS_APPEND;
+    }
+    if (FdFlags & O_DSYNC) {
+      FdStat->fs_flags |= __WASI_FDFLAGS_DSYNC;
+    }
+    if (FdFlags & O_NONBLOCK) {
+      FdStat->fs_flags |= __WASI_FDFLAGS_NONBLOCK;
+    }
+    if (FdFlags & O_SYNC) {
+      FdStat->fs_flags |= __WASI_FDFLAGS_RSYNC | __WASI_FDFLAGS_SYNC;
+    }
   }
 
   /// 3. __wasi_fdstat_t.fs_rights_base
@@ -724,7 +731,7 @@ WasiFdFdstatGet::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   /// 4. __wasi_fdstat_t.fs_rights_inheriting
   FdStat->fs_rights_inheriting = Entry->second.InheritingRights;
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -732,59 +739,64 @@ WasiFdFdstatSetFlags::body(Runtime::Instance::MemoryInstance *MemInst,
                            int32_t Fd, uint32_t FsFlags) {
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
   int SysFlag = 0;
-  __wasi_rights_t AdditionalRequiredRights = 0;
+  __wasi_rights_t AdditionalRequiredRights = static_cast<__wasi_rights_t>(0);
 
-  if (FsFlags & __WASI_FDFLAG_NONBLOCK) {
+  if (FsFlags & __WASI_FDFLAGS_NONBLOCK) {
     SysFlag |= O_NONBLOCK;
   }
-  if (FsFlags & __WASI_FDFLAG_APPEND) {
+  if (FsFlags & __WASI_FDFLAGS_APPEND) {
     SysFlag |= O_APPEND;
   }
-  if (FsFlags & __WASI_FDFLAG_DSYNC) {
+  if (FsFlags & __WASI_FDFLAGS_DSYNC) {
     SysFlag |= O_DSYNC;
-    AdditionalRequiredRights |= __WASI_RIGHT_FD_DATASYNC;
+    AdditionalRequiredRights |= __WASI_RIGHTS_FD_DATASYNC;
   }
-  if (FsFlags & __WASI_FDFLAG_RSYNC) {
-    AdditionalRequiredRights |= __WASI_RIGHT_FD_SYNC;
+  if (FsFlags & __WASI_FDFLAGS_RSYNC) {
+    AdditionalRequiredRights |= __WASI_RIGHTS_FD_SYNC;
     SysFlag |= O_RSYNC;
   }
-  if (FsFlags & __WASI_FDFLAG_SYNC) {
-    AdditionalRequiredRights |= __WASI_RIGHT_FD_SYNC;
+  if (FsFlags & __WASI_FDFLAGS_SYNC) {
+    AdditionalRequiredRights |= __WASI_RIGHTS_FD_SYNC;
     SysFlag |= O_SYNC;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_FDSTAT_SET_FLAGS |
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_FDSTAT_SET_FLAGS |
                                           AdditionalRequiredRights))) {
-    return __WASI_ENOTCAPABLE;
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   if (unlikely(fcntl(Entry->second.HostFd, F_SETFL, SysFlag) != 0)) {
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
 WasiFdFdstatSetRights::body(Runtime::Instance::MemoryInstance *MemInst,
-                            int32_t Fd, uint64_t FsRightsBase,
-                            uint64_t FsRightsInheriting) {
+                            int32_t Fd, uint64_t FsRightsBaseV,
+                            uint64_t FsRightsInheritingV) {
+  const __wasi_rights_t FsRightsBase =
+      static_cast<__wasi_rights_t>(FsRightsBaseV);
+  const __wasi_rights_t FsRightsInheriting =
+      static_cast<__wasi_rights_t>(FsRightsInheritingV);
+
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
   if (unlikely(!Entry->second.checkRights(FsRightsBase, FsRightsInheriting))) {
-    return __WASI_ENOTCAPABLE;
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   Entry->second.Rights = FsRightsBase;
   Entry->second.InheritingRights = FsRightsInheriting;
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -792,21 +804,21 @@ WasiFdFilestatGet::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                         uint32_t FilestatPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_FILESTAT_GET))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_FILESTAT_GET))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   auto *const Filestat = MemInst->getPointer<__wasi_filestat_t *>(FilestatPtr);
   if (unlikely(Filestat == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   struct stat SysFStat;
@@ -815,18 +827,18 @@ WasiFdFilestatGet::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   }
 
   /// Store to memory instance
-  Filestat->st_dev = SysFStat.st_dev;
-  Filestat->st_ino = SysFStat.st_ino;
-  Filestat->st_filetype = statMode2FileType(SysFStat.st_mode);
-  Filestat->st_nlink = SysFStat.st_nlink;
-  Filestat->st_size = SysFStat.st_size;
+  Filestat->dev = SysFStat.st_dev;
+  Filestat->ino = SysFStat.st_ino;
+  Filestat->filetype = statMode2FileType(SysFStat.st_mode);
+  Filestat->nlink = SysFStat.st_nlink;
+  Filestat->size = SysFStat.st_size;
 #ifndef __APPLE__
-  Filestat->st_atim = timespec2Timestamp(SysFStat.st_atim);
-  Filestat->st_mtim = timespec2Timestamp(SysFStat.st_mtim);
-  Filestat->st_ctim = timespec2Timestamp(SysFStat.st_ctim);
+  Filestat->atim = timespec2Timestamp(SysFStat.st_atim);
+  Filestat->mtim = timespec2Timestamp(SysFStat.st_mtim);
+  Filestat->ctim = timespec2Timestamp(SysFStat.st_ctim);
 #endif
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -834,18 +846,19 @@ WasiFdFilestatSetSize::body(Runtime::Instance::MemoryInstance *MemInst,
                             int32_t Fd, uint64_t FileSize) {
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_FILESTAT_SET_SIZE))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(
+          !Entry->second.checkRights(__WASI_RIGHTS_FD_FILESTAT_SET_SIZE))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   if (unlikely(ftruncate(Entry->second.HostFd, FileSize) == -1)) {
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -854,26 +867,26 @@ WasiFdFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
                              uint32_t FstFlags) {
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
   if (unlikely(
-          !Entry->second.checkRights(__WASI_RIGHT_FD_FILESTAT_SET_TIMES))) {
-    return __WASI_ENOTCAPABLE;
+          !Entry->second.checkRights(__WASI_RIGHTS_FD_FILESTAT_SET_TIMES))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
 #if __GLIBC_PREREQ(2, 6)
   timespec SysTimespec[2];
-  if (FstFlags & __WASI_FILESTAT_SET_ATIM) {
+  if (FstFlags & __WASI_FSTFLAGS_ATIM) {
     SysTimespec[0] = timestamp2Timespec(ATim);
-  } else if (FstFlags & __WASI_FILESTAT_SET_ATIM_NOW) {
+  } else if (FstFlags & __WASI_FSTFLAGS_ATIM_NOW) {
     SysTimespec[0].tv_nsec = UTIME_NOW;
   } else {
     SysTimespec[0].tv_nsec = UTIME_OMIT;
   }
-  if (FstFlags & __WASI_FILESTAT_SET_MTIM) {
+  if (FstFlags & __WASI_FSTFLAGS_MTIM) {
     SysTimespec[1] = timestamp2Timespec(MTim);
-  } else if (FstFlags & __WASI_FILESTAT_SET_MTIM_NOW) {
+  } else if (FstFlags & __WASI_FSTFLAGS_MTIM_NOW) {
     SysTimespec[1].tv_nsec = UTIME_NOW;
   } else {
     SysTimespec[1].tv_nsec = UTIME_OMIT;
@@ -885,16 +898,16 @@ WasiFdFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
 #else
   bool NeedNow = false;
   bool NeedFile = false;
-  if (FstFlags & __WASI_FILESTAT_SET_ATIM) {
+  if (FstFlags & __WASI_FSTFLAGS_ATIM) {
     // Nothing to do.
-  } else if (FstFlags & __WASI_FILESTAT_SET_ATIM_NOW) {
+  } else if (FstFlags & __WASI_FSTFLAGS_ATIM_NOW) {
     NeedNow = true;
   } else {
     NeedFile = true;
   }
-  if (FstFlags & __WASI_FILESTAT_SET_MTIM) {
+  if (FstFlags & __WASI_FSTFLAGS_MTIM) {
     // Nothing to do.
-  } else if (FstFlags & __WASI_FILESTAT_SET_MTIM_NOW) {
+  } else if (FstFlags & __WASI_FSTFLAGS_MTIM_NOW) {
     NeedNow = true;
   } else {
     NeedFile = true;
@@ -910,18 +923,18 @@ WasiFdFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   timeval SysTimeval[2];
-  if (FstFlags & __WASI_FILESTAT_SET_ATIM) {
+  if (FstFlags & __WASI_FSTFLAGS_ATIM) {
     SysTimeval[0] = timestamp2Timeval(ATim);
-  } else if (FstFlags & __WASI_FILESTAT_SET_ATIM_NOW) {
+  } else if (FstFlags & __WASI_FSTFLAGS_ATIM_NOW) {
     SysTimeval[0].tv_sec = Now.tv_sec;
     SysTimeval[0].tv_usec = Now.tv_nsec / 1000;
   } else {
     SysTimeval[0].tv_sec = Stat.st_atim.tv_sec;
     SysTimeval[0].tv_usec = Stat.st_atim.tv_nsec / 1000;
   }
-  if (FstFlags & __WASI_FILESTAT_SET_MTIM) {
+  if (FstFlags & __WASI_FSTFLAGS_MTIM) {
     SysTimeval[1] = timestamp2Timeval(MTim);
-  } else if (FstFlags & __WASI_FILESTAT_SET_MTIM_NOW) {
+  } else if (FstFlags & __WASI_FSTFLAGS_MTIM_NOW) {
     SysTimeval[1].tv_sec = Now.tv_sec;
     SysTimeval[1].tv_usec = Now.tv_nsec / 1000;
   } else {
@@ -934,7 +947,7 @@ WasiFdFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 #endif
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t> WasiFdPread::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -943,33 +956,33 @@ Expect<uint32_t> WasiFdPread::body(Runtime::Instance::MemoryInstance *MemInst,
                                    uint32_t NReadPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_READ |
-                                          __WASI_RIGHT_FD_SEEK))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_READ |
+                                          __WASI_RIGHTS_FD_SEEK))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   if (unlikely(IOVSLen < 0 || IOVSLen > kIOVSMax)) {
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   }
 
   /// Check for invalid address.
   __wasi_iovec_t *const IOVSArray =
       MemInst->getPointer<__wasi_iovec_t *>(IOVSPtr, IOVSLen);
   if (unlikely(IOVSArray == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   int32_t *const NRead = MemInst->getPointer<int32_t *>(NReadPtr);
   if (unlikely(NRead == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   uint32_t TotalSize = 0;
@@ -981,7 +994,7 @@ Expect<uint32_t> WasiFdPread::body(Runtime::Instance::MemoryInstance *MemInst,
     /// Check for total size overflow.
     const uint32_t Overflow = std::numeric_limits<int32_t>::max() - TotalSize;
     if (unlikely(IOVS.buf_len > Overflow)) {
-      return __WASI_EINVAL;
+      return __WASI_ERRNO_INVAL;
     }
     TotalSize += IOVS.buf_len;
 
@@ -989,7 +1002,7 @@ Expect<uint32_t> WasiFdPread::body(Runtime::Instance::MemoryInstance *MemInst,
         MemInst->getPointer<uint8_t *>(IOVS.buf, IOVS.buf_len);
     /// Check for invalid address.
     if (unlikely(ReadArr == nullptr)) {
-      return __WASI_EFAULT;
+      return __WASI_ERRNO_FAULT;
     }
     SysIOVS[I].iov_base = ReadArr;
     SysIOVS[I].iov_len = IOVS.buf_len;
@@ -1024,7 +1037,7 @@ Expect<uint32_t> WasiFdPread::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -1032,16 +1045,16 @@ WasiFdPrestatDirName::body(Runtime::Instance::MemoryInstance *MemInst,
                            int32_t Fd, uint32_t PathBufPtr, uint32_t PathLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
   if (unlikely(Entry->second.Path.size() > PathLen)) {
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   }
 
   const auto &Path = Entry->second.Path;
@@ -1049,12 +1062,12 @@ WasiFdPrestatDirName::body(Runtime::Instance::MemoryInstance *MemInst,
   /// Store Path and PathLen.
   char *const PathBuf = MemInst->getPointer<char *>(PathBufPtr, Path.size());
   if (unlikely(PathBuf == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   std::copy(Path.begin(), Path.end(), PathBuf);
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -1062,24 +1075,24 @@ WasiFdPrestatGet::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                        uint32_t PreStatPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
   __wasi_prestat_t *const PreStat =
       MemInst->getPointer<__wasi_prestat_t *>(PreStatPtr);
   if (unlikely(PreStat == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
-  PreStat->pr_type = __WASI_PREOPENTYPE_DIR;
+  PreStat->tag = __WASI_PREOPENTYPE_DIR;
   PreStat->u.dir.pr_name_len = Entry->second.Path.size();
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t> WasiFdPwrite::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -1088,33 +1101,33 @@ Expect<uint32_t> WasiFdPwrite::body(Runtime::Instance::MemoryInstance *MemInst,
                                     uint32_t NWrittenPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_WRITE |
-                                          __WASI_RIGHT_FD_SEEK))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_WRITE |
+                                          __WASI_RIGHTS_FD_SEEK))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   if (unlikely(IOVSLen < 0 || IOVSLen > kIOVSMax)) {
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   }
 
   /// Check for invalid address.
   __wasi_ciovec_t *const IOVSArray =
       MemInst->getPointer<__wasi_ciovec_t *>(IOVSPtr, IOVSLen);
   if (unlikely(IOVSArray == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   int32_t *const NWritten = MemInst->getPointer<int32_t *>(NWrittenPtr);
   if (unlikely(NWritten == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   int32_t TotalSize = 0;
@@ -1126,7 +1139,7 @@ Expect<uint32_t> WasiFdPwrite::body(Runtime::Instance::MemoryInstance *MemInst,
     /// Check for total size overflow.
     const uint32_t Overflow = std::numeric_limits<int32_t>::max() - TotalSize;
     if (unlikely(IOVS.buf_len > Overflow)) {
-      return __WASI_EINVAL;
+      return __WASI_ERRNO_INVAL;
     }
     TotalSize += IOVS.buf_len;
 
@@ -1134,7 +1147,7 @@ Expect<uint32_t> WasiFdPwrite::body(Runtime::Instance::MemoryInstance *MemInst,
         MemInst->getPointer<uint8_t *>(IOVS.buf, IOVS.buf_len);
     /// Check for invalid address.
     if (unlikely(WriteArr == nullptr)) {
-      return __WASI_EFAULT;
+      return __WASI_ERRNO_FAULT;
     }
     SysIOVS[I].iov_base = WriteArr;
     SysIOVS[I].iov_len = IOVS.buf_len;
@@ -1168,7 +1181,7 @@ Expect<uint32_t> WasiFdPwrite::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t> WasiFdRead::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -1176,31 +1189,31 @@ Expect<uint32_t> WasiFdRead::body(Runtime::Instance::MemoryInstance *MemInst,
                                   uint32_t NReadPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_READ))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_READ))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   if (unlikely(IOVSLen < 0 || IOVSLen > kIOVSMax)) {
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   }
 
   __wasi_iovec_t *const IOVSArray =
       MemInst->getPointer<__wasi_iovec_t *>(IOVSPtr, IOVSLen);
   if (unlikely(IOVSArray == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   int32_t *const NRead = MemInst->getPointer<int32_t *>(NReadPtr);
   if (unlikely(NRead == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   uint32_t TotalSize = 0;
@@ -1212,7 +1225,7 @@ Expect<uint32_t> WasiFdRead::body(Runtime::Instance::MemoryInstance *MemInst,
     /// Check for total size overflow.
     const uint32_t Overflow = std::numeric_limits<int32_t>::max() - TotalSize;
     if (unlikely(IOVS.buf_len > Overflow)) {
-      return __WASI_EINVAL;
+      return __WASI_ERRNO_INVAL;
     }
     TotalSize += IOVS.buf_len;
 
@@ -1220,7 +1233,7 @@ Expect<uint32_t> WasiFdRead::body(Runtime::Instance::MemoryInstance *MemInst,
         MemInst->getPointer<uint8_t *>(IOVS.buf, IOVS.buf_len);
     /// Check for invalid address.
     if (unlikely(ReadArr == nullptr)) {
-      return __WASI_EFAULT;
+      return __WASI_ERRNO_FAULT;
     }
     SysIOVS[I].iov_base = ReadArr;
     SysIOVS[I].iov_len = IOVS.buf_len;
@@ -1233,7 +1246,7 @@ Expect<uint32_t> WasiFdRead::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t> WasiFdReadDir::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -1242,31 +1255,31 @@ Expect<uint32_t> WasiFdReadDir::body(Runtime::Instance::MemoryInstance *MemInst,
                                      uint32_t BufUsedSizePtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_READDIR))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_READDIR))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   if (unlikely(BufLen == 0)) {
-    return __WASI_ESUCCESS;
+    return __WASI_ERRNO_SUCCESS;
   }
 
   /// Check for invalid address.
   uint8_t *Buf = MemInst->getPointer<uint8_t *>(BufPtr, BufLen);
   if (unlikely(Buf == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   uint32_t *const BufUsedSize = MemInst->getPointer<uint32_t *>(BufUsedSizePtr);
   if (unlikely(BufUsedSize == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   if (unlikely(!Entry->second.Dir)) {
@@ -1303,7 +1316,7 @@ Expect<uint32_t> WasiFdReadDir::body(Runtime::Instance::MemoryInstance *MemInst,
       if (errno != 0) {
         return convertErrNo(errno);
       }
-      return __WASI_ESUCCESS;
+      return __WASI_ERRNO_SUCCESS;
     }
     Dir.Cookie = SysDirent->d_off;
     std::string_view Name = SysDirent->d_name;
@@ -1320,7 +1333,7 @@ Expect<uint32_t> WasiFdReadDir::body(Runtime::Instance::MemoryInstance *MemInst,
               Dir.Buffer.begin() + sizeof(__wasi_dirent_t));
   } while (BufLen > 0);
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -1328,19 +1341,19 @@ WasiFdRenumber::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                      int32_t ToFd) {
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
   /// Refuse to renumber preopened fd.
   if (unlikely(Entry->second.IsPreopened)) {
-    return __WASI_ENOTSUP;
+    return __WASI_ERRNO_NOTSUP;
   }
 
   /// Close existed fd renumbering into.
   if (const auto OldEntry = Env.getFile(ToFd);
       unlikely(OldEntry != Env.getFileEnd())) {
     if (unlikely(OldEntry->second.IsPreopened)) {
-      return __WASI_ENOTSUP;
+      return __WASI_ERRNO_NOTSUP;
     }
     if (unlikely(close(OldEntry->second.HostFd) != 0)) {
       return convertErrNo(errno);
@@ -1350,7 +1363,7 @@ WasiFdRenumber::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
 
   Env.changeFd(Entry, ToFd);
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<int32_t> WasiFdSeek::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -1358,16 +1371,16 @@ Expect<int32_t> WasiFdSeek::body(Runtime::Instance::MemoryInstance *MemInst,
                                  uint32_t NewOffsetPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_SEEK))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_SEEK))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   /// Check directive whence.
@@ -1383,14 +1396,14 @@ Expect<int32_t> WasiFdSeek::body(Runtime::Instance::MemoryInstance *MemInst,
     SysWhence = SEEK_SET;
     break;
   default:
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   }
 
   /// Check for invalid address.
   __wasi_filedelta_t *NewOffset =
       MemInst->getPointer<__wasi_filedelta_t *>(NewOffsetPtr);
   if (unlikely(NewOffset == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   /// Do lseek.
@@ -1399,48 +1412,48 @@ Expect<int32_t> WasiFdSeek::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t> WasiFdSync::body(Runtime::Instance::MemoryInstance *MemInst,
                                   int32_t Fd) {
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_SYNC))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_SYNC))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   if (unlikely(fsync(Entry->second.HostFd) != 0)) {
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t> WasiFdTell::body(Runtime::Instance::MemoryInstance *MemInst,
                                   int32_t Fd, int32_t OffsetPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_TELL))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_TELL))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   /// Check for invalid address.
   __wasi_filesize_t *Offset =
       MemInst->getPointer<__wasi_filesize_t *>(OffsetPtr);
   if (unlikely(Offset == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   /// Do lseek.
@@ -1449,7 +1462,7 @@ Expect<uint32_t> WasiFdTell::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t> WasiFdWrite::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -1457,32 +1470,32 @@ Expect<uint32_t> WasiFdWrite::body(Runtime::Instance::MemoryInstance *MemInst,
                                    int32_t IOVSLen, uint32_t NWrittenPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_WRITE))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_WRITE))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   if (unlikely(IOVSLen < 0 || IOVSLen > kIOVSMax)) {
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   }
 
   /// Check for invalid address.
   __wasi_ciovec_t *const IOVSArray =
       MemInst->getPointer<__wasi_ciovec_t *>(IOVSPtr, IOVSLen);
   if (unlikely(IOVSArray == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   int32_t *const NWritten = MemInst->getPointer<int32_t *>(NWrittenPtr);
   if (unlikely(NWritten == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   int32_t TotalSize = 0;
@@ -1494,7 +1507,7 @@ Expect<uint32_t> WasiFdWrite::body(Runtime::Instance::MemoryInstance *MemInst,
     /// Check for total size overflow.
     const uint32_t Overflow = std::numeric_limits<int32_t>::max() - TotalSize;
     if (unlikely(IOVS.buf_len > Overflow)) {
-      return __WASI_EINVAL;
+      return __WASI_ERRNO_INVAL;
     }
     TotalSize += IOVS.buf_len;
 
@@ -1502,7 +1515,7 @@ Expect<uint32_t> WasiFdWrite::body(Runtime::Instance::MemoryInstance *MemInst,
         MemInst->getPointer<uint8_t *>(IOVS.buf, IOVS.buf_len);
     /// Check for invalid address.
     if (unlikely(WriteArr == nullptr)) {
-      return __WASI_EFAULT;
+      return __WASI_ERRNO_FAULT;
     }
     SysIOVS[I].iov_base = WriteArr;
     SysIOVS[I].iov_len = IOVS.buf_len;
@@ -1514,7 +1527,7 @@ Expect<uint32_t> WasiFdWrite::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -1522,22 +1535,22 @@ WasiPathCreateDirectory::body(Runtime::Instance::MemoryInstance *MemInst,
                               int32_t Fd, uint32_t PathPtr, uint32_t PathLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
   if (unlikely(
-          !Entry->second.checkRights(__WASI_RIGHT_PATH_CREATE_DIRECTORY))) {
-    return __WASI_ENOTCAPABLE;
+          !Entry->second.checkRights(__WASI_RIGHTS_PATH_CREATE_DIRECTORY))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   char *const Path = MemInst->getPointer<char *>(PathPtr, PathLen);
   if (unlikely(Path == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   std::string PathStr(Path, PathLen);
 
@@ -1545,7 +1558,7 @@ WasiPathCreateDirectory::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -1554,27 +1567,27 @@ WasiPathFilestatGet::body(Runtime::Instance::MemoryInstance *MemInst,
                           uint32_t PathLen, uint32_t FilestatPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_PATH_FILESTAT_GET))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_PATH_FILESTAT_GET))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   __wasi_filestat_t *const Filestat =
       MemInst->getPointer<__wasi_filestat_t *>(FilestatPtr);
   if (unlikely(Filestat == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   char *const Path = MemInst->getPointer<char *>(PathPtr, PathLen);
   if (unlikely(Path == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   std::string PathStr(Path, PathLen);
 
@@ -1582,7 +1595,7 @@ WasiPathFilestatGet::body(Runtime::Instance::MemoryInstance *MemInst,
 
   /// TODO: restrict PathStr on escaping root directory
   int Result;
-  if (Flags & __WASI_LOOKUP_SYMLINK_FOLLOW) {
+  if (Flags & __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW) {
     Result = fstatat(Entry->second.HostFd, PathStr.c_str(), &SysFStat, 0);
   } else {
     Result = fstatat(Entry->second.HostFd, PathStr.c_str(), &SysFStat,
@@ -1592,18 +1605,18 @@ WasiPathFilestatGet::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 
-  Filestat->st_dev = SysFStat.st_dev;
-  Filestat->st_ino = SysFStat.st_ino;
-  Filestat->st_filetype = statMode2FileType(SysFStat.st_mode);
-  Filestat->st_nlink = SysFStat.st_nlink;
-  Filestat->st_size = SysFStat.st_size;
+  Filestat->dev = SysFStat.st_dev;
+  Filestat->ino = SysFStat.st_ino;
+  Filestat->filetype = statMode2FileType(SysFStat.st_mode);
+  Filestat->nlink = SysFStat.st_nlink;
+  Filestat->size = SysFStat.st_size;
 #ifndef __APPLE__
-  Filestat->st_atim = timespec2Timestamp(SysFStat.st_atim);
-  Filestat->st_mtim = timespec2Timestamp(SysFStat.st_mtim);
-  Filestat->st_ctim = timespec2Timestamp(SysFStat.st_ctim);
+  Filestat->atim = timespec2Timestamp(SysFStat.st_atim);
+  Filestat->mtim = timespec2Timestamp(SysFStat.st_mtim);
+  Filestat->ctim = timespec2Timestamp(SysFStat.st_ctim);
 #endif
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -1613,43 +1626,43 @@ WasiPathFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
                                uint32_t FstFlags) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
   if (unlikely(
-          !Entry->second.checkRights(__WASI_RIGHT_PATH_FILESTAT_SET_TIMES))) {
-    return __WASI_ENOTCAPABLE;
+          !Entry->second.checkRights(__WASI_RIGHTS_PATH_FILESTAT_SET_TIMES))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   /// Get file path.
   char *const Path = MemInst->getPointer<char *>(PathPtr, PathLen);
   if (unlikely(Path == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   std::string PathStr(Path, PathLen);
 
 #if __GLIBC_PREREQ(2, 6)
   int SysFlags = 0;
-  if ((Flags & __WASI_LOOKUP_SYMLINK_FOLLOW) == 0) {
+  if ((Flags & __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW) == 0) {
     SysFlags |= AT_SYMLINK_FOLLOW;
   }
 
   timespec SysTimespec[2];
-  if (FstFlags & __WASI_FILESTAT_SET_ATIM) {
+  if (FstFlags & __WASI_FSTFLAGS_ATIM) {
     SysTimespec[0] = timestamp2Timespec(ATim);
-  } else if (FstFlags & __WASI_FILESTAT_SET_ATIM_NOW) {
+  } else if (FstFlags & __WASI_FSTFLAGS_ATIM_NOW) {
     SysTimespec[0].tv_nsec = UTIME_NOW;
   } else {
     SysTimespec[0].tv_nsec = UTIME_OMIT;
   }
-  if (FstFlags & __WASI_FILESTAT_SET_MTIM) {
+  if (FstFlags & __WASI_FSTFLAGS_MTIM) {
     SysTimespec[1] = timestamp2Timespec(MTim);
-  } else if (FstFlags & __WASI_FILESTAT_SET_MTIM_NOW) {
+  } else if (FstFlags & __WASI_FSTFLAGS_MTIM_NOW) {
     SysTimespec[1].tv_nsec = UTIME_NOW;
   } else {
     SysTimespec[1].tv_nsec = UTIME_OMIT;
@@ -1661,21 +1674,21 @@ WasiPathFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 #else
   int SysFlags = 0;
-  if ((Flags & __WASI_LOOKUP_SYMLINK_FOLLOW) == 0) {
+  if ((Flags & __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW) == 0) {
     SysFlags |= O_NOFOLLOW;
   }
   bool NeedNow = false;
   bool NeedFile = false;
-  if (FstFlags & __WASI_FILESTAT_SET_ATIM) {
+  if (FstFlags & __WASI_FSTFLAGS_ATIM) {
     // Nothing to do.
-  } else if (FstFlags & __WASI_FILESTAT_SET_ATIM_NOW) {
+  } else if (FstFlags & __WASI_FSTFLAGS_ATIM_NOW) {
     NeedNow = true;
   } else {
     NeedFile = true;
   }
-  if (FstFlags & __WASI_FILESTAT_SET_MTIM) {
+  if (FstFlags & __WASI_FSTFLAGS_MTIM) {
     // Nothing to do.
-  } else if (FstFlags & __WASI_FILESTAT_SET_MTIM_NOW) {
+  } else if (FstFlags & __WASI_FSTFLAGS_MTIM_NOW) {
     NeedNow = true;
   } else {
     NeedFile = true;
@@ -1703,7 +1716,7 @@ WasiPathFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 #endif
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t> WasiPathLink::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -1713,42 +1726,42 @@ Expect<uint32_t> WasiPathLink::body(Runtime::Instance::MemoryInstance *MemInst,
                                     uint32_t NewPathLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto OldEntry = Env.getFile(OldFd);
   if (unlikely(OldEntry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
   const auto NewEntry = OldFd == NewFd ? OldEntry : Env.getFile(NewFd);
   if (unlikely(NewEntry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!OldEntry->second.checkRights(__WASI_RIGHT_PATH_LINK_SOURCE))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!OldEntry->second.checkRights(__WASI_RIGHTS_PATH_LINK_SOURCE))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
-  if (unlikely(!NewEntry->second.checkRights(__WASI_RIGHT_PATH_LINK_TARGET))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!NewEntry->second.checkRights(__WASI_RIGHTS_PATH_LINK_TARGET))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   const char *const OldPath =
       MemInst->getPointer<const char *>(OldPathPtr, OldPathLen);
   if (unlikely(OldPath == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   const char *const NewPath =
       MemInst->getPointer<const char *>(NewPathPtr, NewPathLen);
   if (unlikely(NewPath == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   std::string OldPathStr(OldPath, OldPathLen);
   std::string NewPathStr(NewPath, NewPathLen);
 
   int SysFlags = 0;
-  if (OldFlags & __WASI_LOOKUP_SYMLINK_FOLLOW) {
+  if (OldFlags & __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW) {
     SysFlags |= AT_SYMLINK_FOLLOW;
   }
 
@@ -1758,92 +1771,97 @@ Expect<uint32_t> WasiPathLink::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t> WasiPathOpen::body(Runtime::Instance::MemoryInstance *MemInst,
                                     int32_t DirFd, uint32_t DirFlags,
                                     uint32_t PathPtr, uint32_t PathLen,
-                                    uint32_t OFlags, uint64_t FsRightsBase,
-                                    uint64_t FsRightsInheriting,
+                                    uint32_t OFlags, uint64_t FsRightsBaseV,
+                                    uint64_t FsRightsInheritingV,
                                     uint32_t FsFlags, uint32_t FdPtr) {
+  const __wasi_rights_t FsRightsBase =
+      static_cast<__wasi_rights_t>(FsRightsBaseV);
+  const __wasi_rights_t FsRightsInheriting =
+      static_cast<__wasi_rights_t>(FsRightsInheritingV);
+
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(DirFd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
   __wasi_fd_t *const Fd = MemInst->getPointer<__wasi_fd_t *>(FdPtr);
   if (unlikely(Fd == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   /// Get file path.
   char *const Path = MemInst->getPointer<char *>(PathPtr, PathLen);
   if (unlikely(Path == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   std::string PathStr(Path, PathLen);
 
-  __wasi_rights_t RequiredRights = __WASI_RIGHT_PATH_OPEN;
+  __wasi_rights_t RequiredRights = __WASI_RIGHTS_PATH_OPEN;
   __wasi_rights_t RequiredInheritingRights = FsRightsBase | FsRightsInheriting;
   const bool Read =
-      (FsRightsBase & (__WASI_RIGHT_FD_READ | __WASI_RIGHT_FD_READDIR)) != 0;
+      (FsRightsBase & (__WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_READDIR)) != 0;
   const bool Write =
       (FsRightsBase &
-       (__WASI_RIGHT_FD_DATASYNC | __WASI_RIGHT_FD_WRITE |
-        __WASI_RIGHT_FD_ALLOCATE | __WASI_RIGHT_FD_FILESTAT_SET_SIZE)) != 0;
+       (__WASI_RIGHTS_FD_DATASYNC | __WASI_RIGHTS_FD_WRITE |
+        __WASI_RIGHTS_FD_ALLOCATE | __WASI_RIGHTS_FD_FILESTAT_SET_SIZE)) != 0;
 
   int Flags = Write ? (Read ? O_RDWR : O_WRONLY) : O_RDONLY;
-  if (OFlags & __WASI_O_CREAT) {
-    RequiredRights |= __WASI_RIGHT_PATH_CREATE_FILE;
+  if (OFlags & __WASI_OFLAGS_CREAT) {
+    RequiredRights |= __WASI_RIGHTS_PATH_CREATE_FILE;
     Flags |= O_CREAT;
   }
-  if (OFlags & __WASI_O_DIRECTORY) {
+  if (OFlags & __WASI_OFLAGS_DIRECTORY) {
     Flags |= O_DIRECTORY;
   }
-  if (OFlags & __WASI_O_EXCL) {
+  if (OFlags & __WASI_OFLAGS_EXCL) {
     Flags |= O_EXCL;
   }
-  if (OFlags & __WASI_O_TRUNC) {
-    RequiredRights |= __WASI_RIGHT_PATH_FILESTAT_SET_SIZE;
+  if (OFlags & __WASI_OFLAGS_TRUNC) {
+    RequiredRights |= __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE;
     Flags |= O_TRUNC;
   }
 
   // Convert file descriptor flags.
-  if ((FsFlags & __WASI_FDFLAG_APPEND) != 0)
+  if ((FsFlags & __WASI_FDFLAGS_APPEND) != 0)
     Flags |= O_APPEND;
-  if ((FsFlags & __WASI_FDFLAG_DSYNC) != 0) {
+  if ((FsFlags & __WASI_FDFLAGS_DSYNC) != 0) {
 #ifdef O_DSYNC
     Flags |= O_DSYNC;
 #else
     Flags |= O_SYNC;
 #endif
   }
-  if ((FsFlags & __WASI_FDFLAG_NONBLOCK) != 0)
+  if ((FsFlags & __WASI_FDFLAGS_NONBLOCK) != 0)
     Flags |= O_NONBLOCK;
-  if ((FsFlags & __WASI_FDFLAG_RSYNC) != 0) {
+  if ((FsFlags & __WASI_FDFLAGS_RSYNC) != 0) {
 #ifdef O_RSYNC
     Flags |= O_RSYNC;
 #else
     Flags |= O_SYNC;
 #endif
   }
-  if ((FsFlags & __WASI_FDFLAG_SYNC) != 0) {
+  if ((FsFlags & __WASI_FDFLAGS_SYNC) != 0) {
     Flags |= O_SYNC;
   }
 
-  if ((DirFlags & __WASI_LOOKUP_SYMLINK_FOLLOW) == 0) {
+  if ((DirFlags & __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW) == 0) {
     Flags |= O_NOFOLLOW;
   }
 
   if (unlikely(!Entry->second.checkRights(RequiredRights,
                                           RequiredInheritingRights))) {
-    return __WASI_ENOTCAPABLE;
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   /// Open file and store Fd.
@@ -1862,7 +1880,7 @@ Expect<uint32_t> WasiPathOpen::body(Runtime::Instance::MemoryInstance *MemInst,
   Env.emplaceFile(*Fd, HostFd, false, FsRightsBase, FsRightsInheriting,
                   NewPathStr);
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -1871,27 +1889,27 @@ WasiPathReadLink::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                        uint32_t BufLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_PATH_READLINK))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_PATH_READLINK))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   char *const Path = MemInst->getPointer<char *>(PathPtr, PathLen);
   if (unlikely(Path == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   std::string PathStr(Path, PathLen);
 
   char *const Buf = MemInst->getPointer<char *>(BufPtr, BufLen);
   if (unlikely(Buf == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   if (unlikely(readlinkat(Entry->second.HostFd, PathStr.c_str(), Buf, BufLen) <
@@ -1899,7 +1917,7 @@ WasiPathReadLink::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -1907,22 +1925,22 @@ WasiPathRemoveDirectory::body(Runtime::Instance::MemoryInstance *MemInst,
                               int32_t Fd, uint32_t PathPtr, uint32_t PathLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
   if (unlikely(
-          !Entry->second.checkRights(__WASI_RIGHT_PATH_REMOVE_DIRECTORY))) {
-    return __WASI_ENOTCAPABLE;
+          !Entry->second.checkRights(__WASI_RIGHTS_PATH_REMOVE_DIRECTORY))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   char *const Path = MemInst->getPointer<char *>(PathPtr, PathLen);
   if (unlikely(Path == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   std::string PathStr(Path, PathLen);
 
@@ -1930,7 +1948,7 @@ WasiPathRemoveDirectory::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -1939,37 +1957,37 @@ WasiPathRename::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                      uint32_t NewPathPtr, uint32_t NewPathLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_PATH_RENAME_SOURCE))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_PATH_RENAME_SOURCE))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   const auto NewEntry = NewFd == Fd ? Entry : Env.getFile(NewFd);
   if (NewFd != Fd) {
     if (unlikely(NewEntry == Env.getFileEnd())) {
-      return __WASI_EBADF;
+      return __WASI_ERRNO_BADF;
     }
 
     if (unlikely(
-            !NewEntry->second.checkRights(__WASI_RIGHT_PATH_RENAME_TARGET))) {
-      return __WASI_ENOTCAPABLE;
+            !NewEntry->second.checkRights(__WASI_RIGHTS_PATH_RENAME_TARGET))) {
+      return __WASI_ERRNO_NOTCAPABLE;
     }
   }
 
   char *const OldPath = MemInst->getPointer<char *>(OldPathPtr, OldPathLen);
   if (unlikely(OldPath == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   char *const NewPath = MemInst->getPointer<char *>(NewPathPtr, NewPathLen);
   if (unlikely(NewPath == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   std::string OldPathStr(OldPath, OldPathLen);
   std::string NewPathStr(NewPath, NewPathLen);
@@ -1979,7 +1997,7 @@ WasiPathRename::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -1988,25 +2006,25 @@ WasiPathSymlink::body(Runtime::Instance::MemoryInstance *MemInst,
                       uint32_t NewPathPtr, uint32_t NewPathLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_PATH_SYMLINK))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_PATH_SYMLINK))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   char *const OldPath = MemInst->getPointer<char *>(OldPathPtr, OldPathLen);
   if (unlikely(OldPath == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   char *const NewPath = MemInst->getPointer<char *>(NewPathPtr, NewPathLen);
   if (unlikely(NewPath == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   std::string OldPathStr(OldPath, OldPathLen);
   std::string NewPathStr(NewPath, NewPathLen);
@@ -2016,7 +2034,7 @@ WasiPathSymlink::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -2024,21 +2042,21 @@ WasiPathUnlinkFile::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                          uint32_t PathPtr, uint32_t PathLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_PATH_UNLINK_FILE))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_PATH_UNLINK_FILE))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   char *const Path = MemInst->getPointer<char *>(PathPtr, PathLen);
   if (unlikely(Path == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   std::string PathStr(Path, PathLen);
 
@@ -2046,7 +2064,7 @@ WasiPathUnlinkFile::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -2055,7 +2073,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
                      uint32_t NEventsPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   struct EventPoll {
@@ -2078,7 +2096,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
         }
 
         int SysFlags = 0;
-        if (Flags & __WASI_SUBSCRIPTION_CLOCK_ABSTIME) {
+        if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
           SysFlags |= TFD_TIMER_ABSTIME;
         }
         itimerspec ITimerSpec{timestamp2Timespec(0),
@@ -2118,7 +2136,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
 
         {
           int SysFlags = 0;
-          if (Flags & __WASI_SUBSCRIPTION_CLOCK_ABSTIME) {
+          if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
             SysFlags |= TIMER_ABSTIME;
           }
           itimerspec ITimerSpec{timestamp2Timespec(0),
@@ -2233,18 +2251,18 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
   const __wasi_subscription_t *const SubscriptionArray =
       MemInst->getPointer<__wasi_subscription_t *>(InPtr, NSubscriptions);
   if (unlikely(SubscriptionArray == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   __wasi_event_t *const EventArray =
       MemInst->getPointer<__wasi_event_t *>(NEventsPtr, NSubscriptions);
   if (unlikely(EventArray == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   uint32_t *const NEvents = MemInst->getPointer<uint32_t *>(NEventsPtr);
   if (unlikely(NEvents == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   *NEvents = 0;
@@ -2254,7 +2272,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
                                      __wasi_errno_t error) {
     EventArray[*NEvents].userdata = Subscription.userdata;
     EventArray[*NEvents].error = error;
-    EventArray[*NEvents].type = Subscription.u.type;
+    EventArray[*NEvents].type = Subscription.u.tag;
     ++*NEvents;
   };
 
@@ -2263,17 +2281,18 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
                                   __wasi_errno_t error) {
     EventArray[*NEvents].userdata = Subscription.userdata;
     EventArray[*NEvents].error = error;
-    EventArray[*NEvents].type = Subscription.u.type;
-    EventArray[*NEvents].u.fd_readwrite.nbytes = 0;
-    EventArray[*NEvents].u.fd_readwrite.flags = 0;
+    EventArray[*NEvents].type = Subscription.u.tag;
+    EventArray[*NEvents].fd_readwrite.nbytes = 0;
+    EventArray[*NEvents].fd_readwrite.flags =
+        static_cast<__wasi_eventrwflags_t>(0);
     ++*NEvents;
   };
 
   auto RecordClock = [&EventArray,
                       &NEvents](const __wasi_subscription_t &Subscription) {
     EventArray[*NEvents].userdata = Subscription.userdata;
-    EventArray[*NEvents].error = __WASI_ESUCCESS;
-    EventArray[*NEvents].type = Subscription.u.type;
+    EventArray[*NEvents].error = __WASI_ERRNO_SUCCESS;
+    EventArray[*NEvents].type = Subscription.u.tag;
     ++*NEvents;
   };
 
@@ -2281,46 +2300,46 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
                       const __wasi_subscription_t &Subscription,
                       __wasi_filesize_t nbytes, __wasi_eventrwflags_t flags) {
     EventArray[*NEvents].userdata = Subscription.userdata;
-    EventArray[*NEvents].error = __WASI_ESUCCESS;
-    EventArray[*NEvents].type = Subscription.u.type;
-    EventArray[*NEvents].u.fd_readwrite.nbytes = nbytes;
-    EventArray[*NEvents].u.fd_readwrite.flags = flags;
+    EventArray[*NEvents].error = __WASI_ERRNO_SUCCESS;
+    EventArray[*NEvents].type = Subscription.u.tag;
+    EventArray[*NEvents].fd_readwrite.nbytes = nbytes;
+    EventArray[*NEvents].fd_readwrite.flags = flags;
     ++*NEvents;
   };
 
   /// Validate types
   for (uint32_t I = 0; I < NSubscriptions; ++I) {
     const __wasi_subscription_t &Subscription = SubscriptionArray[I];
-    switch (Subscription.u.type) {
+    switch (Subscription.u.tag) {
     case __WASI_EVENTTYPE_CLOCK:
     case __WASI_EVENTTYPE_FD_READ:
     case __WASI_EVENTTYPE_FD_WRITE:
       break;
     default:
-      return __WASI_EINVAL;
+      return __WASI_ERRNO_INVAL;
     }
   }
 
   for (uint32_t I = 0; I < NSubscriptions; ++I) {
     const __wasi_subscription_t &Subscription = SubscriptionArray[I];
-    switch (Subscription.u.type) {
+    switch (Subscription.u.tag) {
     case __WASI_EVENTTYPE_CLOCK: {
       clockid_t SysClockId;
-      switch (Subscription.u.u.clock.clock_id) {
-      case __WASI_CLOCK_REALTIME:
+      switch (Subscription.u.u.clock.id) {
+      case __WASI_CLOCKID_REALTIME:
         SysClockId = CLOCK_REALTIME;
         break;
-      case __WASI_CLOCK_MONOTONIC:
+      case __WASI_CLOCKID_MONOTONIC:
         SysClockId = CLOCK_MONOTONIC;
         break;
-      case __WASI_CLOCK_PROCESS_CPUTIME_ID:
+      case __WASI_CLOCKID_PROCESS_CPUTIME_ID:
         SysClockId = CLOCK_PROCESS_CPUTIME_ID;
         break;
-      case __WASI_CLOCK_THREAD_CPUTIME_ID:
+      case __WASI_CLOCKID_THREAD_CPUTIME_ID:
         SysClockId = CLOCK_THREAD_CPUTIME_ID;
         break;
       default:
-        RecordClockError(Subscription, __WASI_EINVAL);
+        RecordClockError(Subscription, __WASI_ERRNO_INVAL);
         continue;
       }
 
@@ -2331,15 +2350,15 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
       continue;
     }
     case __WASI_EVENTTYPE_FD_READ: {
-      const int Fd = Subscription.u.u.fd_readwrite.fd;
+      const int Fd = Subscription.u.u.fd_read.file_descriptor;
       const auto Entry = Env.getFile(Fd);
       if (unlikely(Entry == Env.getFileEnd())) {
-        RecordFdError(Subscription, __WASI_EBADF);
+        RecordFdError(Subscription, __WASI_ERRNO_BADF);
         continue;
       }
-      if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_POLL_FD_READWRITE |
-                                              __WASI_RIGHT_FD_READ))) {
-        RecordFdError(Subscription, __WASI_ENOTCAPABLE);
+      if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_POLL_FD_READWRITE |
+                                              __WASI_RIGHTS_FD_READ))) {
+        RecordFdError(Subscription, __WASI_ERRNO_NOTCAPABLE);
         continue;
       }
       if (unlikely(!Event.AddFd(Fd, &Subscription, true))) {
@@ -2349,15 +2368,15 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
       continue;
     }
     case __WASI_EVENTTYPE_FD_WRITE: {
-      const int Fd = Subscription.u.u.fd_readwrite.fd;
+      const int Fd = Subscription.u.u.fd_write.file_descriptor;
       const auto Entry = Env.getFile(Fd);
       if (unlikely(Entry == Env.getFileEnd())) {
-        RecordFdError(Subscription, __WASI_EBADF);
+        RecordFdError(Subscription, __WASI_ERRNO_BADF);
         continue;
       }
-      if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_POLL_FD_READWRITE |
-                                              __WASI_RIGHT_FD_WRITE))) {
-        RecordFdError(Subscription, __WASI_ENOTCAPABLE);
+      if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_POLL_FD_READWRITE |
+                                              __WASI_RIGHTS_FD_WRITE))) {
+        RecordFdError(Subscription, __WASI_ERRNO_NOTCAPABLE);
         continue;
       }
       if (unlikely(!Event.AddFd(Fd, &Subscription, false))) {
@@ -2379,22 +2398,25 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
     const __wasi_subscription_t &Subscription =
         *static_cast<__wasi_subscription_t *>(SysEvent.data.ptr);
 
-    if (Subscription.u.type == __WASI_EVENTTYPE_CLOCK) {
+    if (Subscription.u.tag == __WASI_EVENTTYPE_CLOCK) {
       RecordClock(Subscription);
     } else {
-      __wasi_eventrwflags_t flags = 0;
+      __wasi_eventrwflags_t flags = static_cast<__wasi_eventrwflags_t>(0);
       if (SysEvent.events & EPOLLHUP) {
-        flags |= __WASI_EVENT_FD_READWRITE_HANGUP;
+        flags |= __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP;
       }
 
+      int Fd = Subscription.u.tag == __WASI_EVENTTYPE_FD_READ
+                   ? Subscription.u.u.fd_read.file_descriptor
+                   : Subscription.u.u.fd_write.file_descriptor;
       int NBytes = 0;
-      ioctl(Subscription.u.u.fd_readwrite.fd, FIONREAD, &NBytes);
+      ioctl(Fd, FIONREAD, &NBytes);
 
       RecordFd(Subscription, NBytes, flags);
     }
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<void> WasiProcExit::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -2410,19 +2432,19 @@ Expect<uint32_t> WasiProcRaise::body(Runtime::Instance::MemoryInstance *MemInst,
   if (unlikely(raise(SysSignal) != 0)) {
     return convertErrNo(errno);
   }
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t> WasiRandomGet::body(Runtime::Instance::MemoryInstance *MemInst,
                                      uint32_t BufPtr, uint32_t BufLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   uint8_t *const Buf = MemInst->getPointer<uint8_t *>(BufPtr, BufLen);
   if (unlikely(Buf == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
   Span<uint8_t> BufSpan(Buf, BufLen);
 
@@ -2435,7 +2457,7 @@ Expect<uint32_t> WasiRandomGet::body(Runtime::Instance::MemoryInstance *MemInst,
     return Distribution(Generator);
   });
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -2444,7 +2466,7 @@ WasiSchedYield::body(Runtime::Instance::MemoryInstance *MemInst) {
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t> WasiSockRecv::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -2454,51 +2476,51 @@ Expect<uint32_t> WasiSockRecv::body(Runtime::Instance::MemoryInstance *MemInst,
                                     uint32_t RoFlagsPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   int SysFlags = 0;
-  if (RiFlags & __WASI_SOCK_RECV_PEEK) {
-    RiFlags &= ~__WASI_SOCK_RECV_PEEK;
+  if (RiFlags & __WASI_RIFLAGS_RECV_PEEK) {
+    RiFlags &= ~__WASI_RIFLAGS_RECV_PEEK;
     SysFlags |= MSG_PEEK;
   }
-  if (RiFlags & __WASI_SOCK_RECV_WAITALL) {
-    RiFlags &= ~__WASI_SOCK_RECV_WAITALL;
+  if (RiFlags & __WASI_RIFLAGS_RECV_WAITALL) {
+    RiFlags &= ~__WASI_RIFLAGS_RECV_WAITALL;
     SysFlags |= MSG_WAITALL;
   }
   if (unlikely(RiFlags != 0)) {
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_READ))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_READ))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   if (unlikely(RiDataLen < 0 || RiDataLen > kIOVSMax)) {
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   }
 
   /// Check for invalid address.
   __wasi_iovec_t *const RiDataArray =
       MemInst->getPointer<__wasi_iovec_t *>(RiDataPtr, RiDataLen);
   if (unlikely(RiDataArray == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   int32_t *const RoDataLen = MemInst->getPointer<int32_t *>(RoDataLenPtr);
   if (unlikely(RoDataLen == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   __wasi_roflags_t *const RoFlags =
       MemInst->getPointer<__wasi_roflags_t *>(RoFlagsPtr);
   if (unlikely(RoFlags == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   uint32_t TotalSize = 0;
@@ -2510,7 +2532,7 @@ Expect<uint32_t> WasiSockRecv::body(Runtime::Instance::MemoryInstance *MemInst,
     /// Check for total size overflow.
     const uint32_t Overflow = std::numeric_limits<int32_t>::max() - TotalSize;
     if (unlikely(RiData.buf_len > Overflow)) {
-      return __WASI_EINVAL;
+      return __WASI_ERRNO_INVAL;
     }
     TotalSize += RiData.buf_len;
 
@@ -2518,7 +2540,7 @@ Expect<uint32_t> WasiSockRecv::body(Runtime::Instance::MemoryInstance *MemInst,
         MemInst->getPointer<uint8_t *>(RiData.buf, RiData.buf_len);
     /// Check for invalid address.
     if (unlikely(RiDataArr == nullptr)) {
-      return __WASI_EFAULT;
+      return __WASI_ERRNO_FAULT;
     }
     SysRiData[I].iov_base = RiDataArr;
     SysRiData[I].iov_len = RiData.buf_len;
@@ -2535,16 +2557,16 @@ Expect<uint32_t> WasiSockRecv::body(Runtime::Instance::MemoryInstance *MemInst,
 
   /// Store recv bytes length and flags.
   *RoDataLen = recvmsg(Entry->second.HostFd, &SysMsgHdr, SysFlags);
-  *RoFlags = 0;
+  *RoFlags = static_cast<__wasi_roflags_t>(0);
   if (SysMsgHdr.msg_flags & MSG_TRUNC) {
-    *RoFlags |= __WASI_SOCK_RECV_DATA_TRUNCATED;
+    *RoFlags |= __WASI_ROFLAGS_RECV_DATA_TRUNCATED;
   }
 
   if (unlikely(*RoDataLen < 0)) {
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t> WasiSockSend::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -2553,32 +2575,32 @@ Expect<uint32_t> WasiSockSend::body(Runtime::Instance::MemoryInstance *MemInst,
                                     uint32_t SoDataLenPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   if (unlikely(SiFlags != 0)) {
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_FD_WRITE))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_FD_WRITE))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   /// Check for invalid address.
   __wasi_ciovec_t *const SiDataArray =
       MemInst->getPointer<__wasi_ciovec_t *>(SiDataPtr, SiDataLen);
   if (unlikely(SiDataArray == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   int32_t *const SoDataLen = MemInst->getPointer<int32_t *>(SoDataLenPtr);
   if (unlikely(SoDataLen == nullptr)) {
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   }
 
   uint32_t TotalSize = 0;
@@ -2590,7 +2612,7 @@ Expect<uint32_t> WasiSockSend::body(Runtime::Instance::MemoryInstance *MemInst,
     /// Check for total size overflow.
     const uint32_t Overflow = std::numeric_limits<int32_t>::max() - TotalSize;
     if (unlikely(SiData.buf_len > Overflow)) {
-      return __WASI_EINVAL;
+      return __WASI_ERRNO_INVAL;
     }
     TotalSize += SiData.buf_len;
 
@@ -2598,7 +2620,7 @@ Expect<uint32_t> WasiSockSend::body(Runtime::Instance::MemoryInstance *MemInst,
         MemInst->getPointer<uint8_t *>(SiData.buf, SiData.buf_len);
     /// Check for invalid address.
     if (unlikely(SiDataArr == nullptr)) {
-      return __WASI_EFAULT;
+      return __WASI_ERRNO_FAULT;
     }
     SysSiData[I].iov_base = SiDataArr;
     SysSiData[I].iov_len = SiData.buf_len;
@@ -2619,7 +2641,7 @@ Expect<uint32_t> WasiSockSend::body(Runtime::Instance::MemoryInstance *MemInst,
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
@@ -2627,33 +2649,33 @@ WasiSockShutdown::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                        uint32_t SdFlags) {
   int SysFlags = 0;
   switch (SdFlags) {
-  case __WASI_SHUT_RD:
+  case __WASI_SDFLAGS_RD:
     SysFlags = SHUT_RD;
     break;
-  case __WASI_SHUT_WR:
+  case __WASI_SDFLAGS_WR:
     SysFlags = SHUT_WR;
     break;
-  case __WASI_SHUT_RD | __WASI_SHUT_WR:
+  case __WASI_SDFLAGS_RD | __WASI_SDFLAGS_WR:
     SysFlags = SHUT_RDWR;
     break;
   default:
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   }
 
   const auto Entry = Env.getFile(Fd);
   if (unlikely(Entry == Env.getFileEnd())) {
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   }
 
-  if (unlikely(!Entry->second.checkRights(__WASI_RIGHT_SOCK_SHUTDOWN))) {
-    return __WASI_ENOTCAPABLE;
+  if (unlikely(!Entry->second.checkRights(__WASI_RIGHTS_SOCK_SHUTDOWN))) {
+    return __WASI_ERRNO_NOTCAPABLE;
   }
 
   if (unlikely(shutdown(Entry->second.HostFd, SysFlags) < 0)) {
     return convertErrNo(errno);
   }
 
-  return __WASI_ESUCCESS;
+  return __WASI_ERRNO_SUCCESS;
 }
 
 } // namespace Host

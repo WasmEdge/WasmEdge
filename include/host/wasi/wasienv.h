@@ -2,7 +2,7 @@
 #pragma once
 
 #include "common/span.h"
-#include "wasi/core.h"
+#include "wasi/api.hpp"
 
 #include <algorithm>
 #include <map>
@@ -44,7 +44,8 @@ public:
          std::string_view P)
         : HostFd(F), IsPreopened(I), Rights(R), InheritingRights(IR), Path(P) {}
     bool checkRights(__wasi_rights_t RequiredRights,
-                     __wasi_rights_t RequiredInheritingRights = 0) const {
+                     __wasi_rights_t RequiredInheritingRights =
+                         static_cast<__wasi_rights_t>(0)) const {
       return (Rights & RequiredRights) == RequiredRights &&
              (InheritingRights & RequiredInheritingRights) ==
                  RequiredInheritingRights;
@@ -63,8 +64,7 @@ public:
   int getExitCode() const { return ExitCode; }
   void setExitCode(int ExitCode) { this->ExitCode = ExitCode; }
 
-  template <typename... Args>
-  void emplaceFile(__wasi_fd_t Fd, Args &&... args) {
+  template <typename... Args> void emplaceFile(__wasi_fd_t Fd, Args &&...args) {
     FileMap.emplace(std::piecewise_construct, std::forward_as_tuple(Fd),
                     std::forward_as_tuple(std::forward<Args>(args)...));
   }

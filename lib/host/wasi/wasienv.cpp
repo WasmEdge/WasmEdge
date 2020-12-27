@@ -5,32 +5,32 @@ extern char **environ;
 
 namespace {
 static inline constexpr const __wasi_rights_t kFileRights =
-    __WASI_RIGHT_FD_DATASYNC | __WASI_RIGHT_FD_READ | __WASI_RIGHT_FD_SEEK |
-    __WASI_RIGHT_FD_FDSTAT_SET_FLAGS | __WASI_RIGHT_FD_SYNC |
-    __WASI_RIGHT_FD_TELL | __WASI_RIGHT_FD_WRITE | __WASI_RIGHT_FD_ADVISE |
-    __WASI_RIGHT_FD_ALLOCATE | __WASI_RIGHT_FD_FILESTAT_GET |
-    __WASI_RIGHT_FD_FILESTAT_SET_SIZE | __WASI_RIGHT_FD_FILESTAT_SET_TIMES |
-    __WASI_RIGHT_POLL_FD_READWRITE;
+    __WASI_RIGHTS_FD_DATASYNC | __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_SEEK |
+    __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS | __WASI_RIGHTS_FD_SYNC |
+    __WASI_RIGHTS_FD_TELL | __WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_FD_ADVISE |
+    __WASI_RIGHTS_FD_ALLOCATE | __WASI_RIGHTS_FD_FILESTAT_GET |
+    __WASI_RIGHTS_FD_FILESTAT_SET_SIZE | __WASI_RIGHTS_FD_FILESTAT_SET_TIMES |
+    __WASI_RIGHTS_POLL_FD_READWRITE;
 static inline constexpr const __wasi_rights_t kDirectoryRights =
-    __WASI_RIGHT_FD_FDSTAT_SET_FLAGS | __WASI_RIGHT_FD_SYNC |
-    __WASI_RIGHT_FD_ADVISE | __WASI_RIGHT_PATH_CREATE_DIRECTORY |
-    __WASI_RIGHT_PATH_CREATE_FILE | __WASI_RIGHT_PATH_LINK_SOURCE |
-    __WASI_RIGHT_PATH_LINK_TARGET | __WASI_RIGHT_PATH_OPEN |
-    __WASI_RIGHT_FD_READDIR | __WASI_RIGHT_PATH_READLINK |
-    __WASI_RIGHT_PATH_RENAME_SOURCE | __WASI_RIGHT_PATH_RENAME_TARGET |
-    __WASI_RIGHT_PATH_FILESTAT_GET | __WASI_RIGHT_PATH_FILESTAT_SET_SIZE |
-    __WASI_RIGHT_PATH_FILESTAT_SET_TIMES | __WASI_RIGHT_FD_FILESTAT_GET |
-    __WASI_RIGHT_FD_FILESTAT_SET_TIMES | __WASI_RIGHT_PATH_SYMLINK |
-    __WASI_RIGHT_PATH_UNLINK_FILE | __WASI_RIGHT_PATH_REMOVE_DIRECTORY |
-    __WASI_RIGHT_POLL_FD_READWRITE;
+    __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS | __WASI_RIGHTS_FD_SYNC |
+    __WASI_RIGHTS_FD_ADVISE | __WASI_RIGHTS_PATH_CREATE_DIRECTORY |
+    __WASI_RIGHTS_PATH_CREATE_FILE | __WASI_RIGHTS_PATH_LINK_SOURCE |
+    __WASI_RIGHTS_PATH_LINK_TARGET | __WASI_RIGHTS_PATH_OPEN |
+    __WASI_RIGHTS_FD_READDIR | __WASI_RIGHTS_PATH_READLINK |
+    __WASI_RIGHTS_PATH_RENAME_SOURCE | __WASI_RIGHTS_PATH_RENAME_TARGET |
+    __WASI_RIGHTS_PATH_FILESTAT_GET | __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE |
+    __WASI_RIGHTS_PATH_FILESTAT_SET_TIMES | __WASI_RIGHTS_FD_FILESTAT_GET |
+    __WASI_RIGHTS_FD_FILESTAT_SET_TIMES | __WASI_RIGHTS_PATH_SYMLINK |
+    __WASI_RIGHTS_PATH_UNLINK_FILE | __WASI_RIGHTS_PATH_REMOVE_DIRECTORY |
+    __WASI_RIGHTS_POLL_FD_READWRITE;
 static inline constexpr const __wasi_rights_t kInheritingDirectoryRights =
     kFileRights | kDirectoryRights;
 static inline constexpr const __wasi_rights_t kStdInRights =
-    __WASI_RIGHT_FD_READ | __WASI_RIGHT_FD_FDSTAT_SET_FLAGS |
-    __WASI_RIGHT_FD_FILESTAT_GET | __WASI_RIGHT_POLL_FD_READWRITE;
+    __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS |
+    __WASI_RIGHTS_FD_FILESTAT_GET | __WASI_RIGHTS_POLL_FD_READWRITE;
 static inline constexpr const __wasi_rights_t kStdOutRights =
-    __WASI_RIGHT_FD_WRITE | __WASI_RIGHT_FD_FDSTAT_SET_FLAGS |
-    __WASI_RIGHT_FD_FILESTAT_GET | __WASI_RIGHT_POLL_FD_READWRITE;
+    __WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS |
+    __WASI_RIGHTS_FD_FILESTAT_GET | __WASI_RIGHTS_POLL_FD_READWRITE;
 static inline constexpr const __wasi_rights_t kStdErrRights = kStdOutRights;
 } // namespace
 
@@ -60,9 +60,12 @@ void WasiEnvironment::init(Span<const std::string> Dirs,
                            Span<const std::string> Envs) {
   using namespace std::string_view_literals;
 
-  emplaceFile(0, STDIN_FILENO, false, kStdInRights, 0, "/dev/stdin"sv);
-  emplaceFile(1, STDOUT_FILENO, false, kStdOutRights, 0, "/dev/stdout"sv);
-  emplaceFile(2, STDERR_FILENO, false, kStdErrRights, 0, "/dev/stderr"sv);
+  emplaceFile(0, STDIN_FILENO, false, kStdInRights,
+              static_cast<__wasi_rights_t>(0), "/dev/stdin"sv);
+  emplaceFile(1, STDOUT_FILENO, false, kStdOutRights,
+              static_cast<__wasi_rights_t>(0), "/dev/stdout"sv);
+  emplaceFile(2, STDERR_FILENO, false, kStdErrRights,
+              static_cast<__wasi_rights_t>(0), "/dev/stderr"sv);
 
   /// Open dir for WASI environment.
   int Flag = O_DIRECTORY;

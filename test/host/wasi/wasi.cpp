@@ -14,157 +14,157 @@ void writeDummyMemoryContent(
 __wasi_errno_t convertErrno(int SysErrno) {
   switch (SysErrno) {
   case 0:
-    return __WASI_ESUCCESS;
+    return __WASI_ERRNO_SUCCESS;
   case E2BIG:
-    return __WASI_E2BIG;
+    return __WASI_ERRNO_2BIG;
   case EACCES:
-    return __WASI_EACCES;
+    return __WASI_ERRNO_ACCES;
   case EADDRINUSE:
-    return __WASI_EADDRINUSE;
+    return __WASI_ERRNO_ADDRINUSE;
   case EADDRNOTAVAIL:
-    return __WASI_EADDRNOTAVAIL;
+    return __WASI_ERRNO_ADDRNOTAVAIL;
   case EAFNOSUPPORT:
-    return __WASI_EAFNOSUPPORT;
+    return __WASI_ERRNO_AFNOSUPPORT;
   case EAGAIN:
-    return __WASI_EAGAIN;
+    return __WASI_ERRNO_AGAIN;
   case EALREADY:
-    return __WASI_EALREADY;
+    return __WASI_ERRNO_ALREADY;
   case EBADF:
-    return __WASI_EBADF;
+    return __WASI_ERRNO_BADF;
   case EBADMSG:
-    return __WASI_EBADMSG;
+    return __WASI_ERRNO_BADMSG;
   case EBUSY:
-    return __WASI_EBUSY;
+    return __WASI_ERRNO_BUSY;
   case ECANCELED:
-    return __WASI_ECANCELED;
+    return __WASI_ERRNO_CANCELED;
   case ECHILD:
-    return __WASI_ECHILD;
+    return __WASI_ERRNO_CHILD;
   case ECONNABORTED:
-    return __WASI_ECONNABORTED;
+    return __WASI_ERRNO_CONNABORTED;
   case ECONNREFUSED:
-    return __WASI_ECONNREFUSED;
+    return __WASI_ERRNO_CONNREFUSED;
   case ECONNRESET:
-    return __WASI_ECONNRESET;
+    return __WASI_ERRNO_CONNRESET;
   case EDEADLK:
-    return __WASI_EDEADLK;
+    return __WASI_ERRNO_DEADLK;
   case EDESTADDRREQ:
-    return __WASI_EDESTADDRREQ;
+    return __WASI_ERRNO_DESTADDRREQ;
   case EDOM:
-    return __WASI_EDOM;
+    return __WASI_ERRNO_DOM;
   case EDQUOT:
-    return __WASI_EDQUOT;
+    return __WASI_ERRNO_DQUOT;
   case EEXIST:
-    return __WASI_EEXIST;
+    return __WASI_ERRNO_EXIST;
   case EFAULT:
-    return __WASI_EFAULT;
+    return __WASI_ERRNO_FAULT;
   case EFBIG:
-    return __WASI_EFBIG;
+    return __WASI_ERRNO_FBIG;
   case EHOSTUNREACH:
-    return __WASI_EHOSTUNREACH;
+    return __WASI_ERRNO_HOSTUNREACH;
   case EIDRM:
-    return __WASI_EIDRM;
+    return __WASI_ERRNO_IDRM;
   case EILSEQ:
-    return __WASI_EILSEQ;
+    return __WASI_ERRNO_ILSEQ;
   case EINPROGRESS:
-    return __WASI_EINPROGRESS;
+    return __WASI_ERRNO_INPROGRESS;
   case EINTR:
-    return __WASI_EINTR;
+    return __WASI_ERRNO_INTR;
   case EINVAL:
-    return __WASI_EINVAL;
+    return __WASI_ERRNO_INVAL;
   case EIO:
-    return __WASI_EIO;
+    return __WASI_ERRNO_IO;
   case EISCONN:
-    return __WASI_EISCONN;
+    return __WASI_ERRNO_ISCONN;
   case EISDIR:
-    return __WASI_EISDIR;
+    return __WASI_ERRNO_ISDIR;
   case ELOOP:
-    return __WASI_ELOOP;
+    return __WASI_ERRNO_LOOP;
   case EMFILE:
-    return __WASI_EMFILE;
+    return __WASI_ERRNO_MFILE;
   case EMLINK:
-    return __WASI_EMLINK;
+    return __WASI_ERRNO_MLINK;
   case EMSGSIZE:
-    return __WASI_EMSGSIZE;
+    return __WASI_ERRNO_MSGSIZE;
   case EMULTIHOP:
-    return __WASI_EMULTIHOP;
+    return __WASI_ERRNO_MULTIHOP;
   case ENAMETOOLONG:
-    return __WASI_ENAMETOOLONG;
+    return __WASI_ERRNO_NAMETOOLONG;
   case ENETDOWN:
-    return __WASI_ENETDOWN;
+    return __WASI_ERRNO_NETDOWN;
   case ENETRESET:
-    return __WASI_ENETRESET;
+    return __WASI_ERRNO_NETRESET;
   case ENETUNREACH:
-    return __WASI_ENETUNREACH;
+    return __WASI_ERRNO_NETUNREACH;
   case ENFILE:
-    return __WASI_ENFILE;
+    return __WASI_ERRNO_NFILE;
   case ENOBUFS:
-    return __WASI_ENOBUFS;
+    return __WASI_ERRNO_NOBUFS;
   case ENODEV:
-    return __WASI_ENODEV;
+    return __WASI_ERRNO_NODEV;
   case ENOENT:
-    return __WASI_ENOENT;
+    return __WASI_ERRNO_NOENT;
   case ENOEXEC:
-    return __WASI_ENOEXEC;
+    return __WASI_ERRNO_NOEXEC;
   case ENOLCK:
-    return __WASI_ENOLCK;
+    return __WASI_ERRNO_NOLCK;
   case ENOLINK:
-    return __WASI_ENOLINK;
+    return __WASI_ERRNO_NOLINK;
   case ENOMEM:
-    return __WASI_ENOMEM;
+    return __WASI_ERRNO_NOMEM;
   case ENOMSG:
-    return __WASI_ENOMSG;
+    return __WASI_ERRNO_NOMSG;
   case ENOPROTOOPT:
-    return __WASI_ENOPROTOOPT;
+    return __WASI_ERRNO_NOPROTOOPT;
   case ENOSPC:
-    return __WASI_ENOSPC;
+    return __WASI_ERRNO_NOSPC;
   case ENOSYS:
-    return __WASI_ENOSYS;
+    return __WASI_ERRNO_NOSYS;
   case ENOTCONN:
-    return __WASI_ENOTCONN;
+    return __WASI_ERRNO_NOTCONN;
   case ENOTDIR:
-    return __WASI_ENOTDIR;
+    return __WASI_ERRNO_NOTDIR;
   case ENOTEMPTY:
-    return __WASI_ENOTEMPTY;
+    return __WASI_ERRNO_NOTEMPTY;
   case ENOTRECOVERABLE:
-    return __WASI_ENOTRECOVERABLE;
+    return __WASI_ERRNO_NOTRECOVERABLE;
   case ENOTSOCK:
-    return __WASI_ENOTSOCK;
+    return __WASI_ERRNO_NOTSOCK;
   case ENOTSUP:
-    return __WASI_ENOTSUP;
+    return __WASI_ERRNO_NOTSUP;
   case ENOTTY:
-    return __WASI_ENOTTY;
+    return __WASI_ERRNO_NOTTY;
   case ENXIO:
-    return __WASI_ENXIO;
+    return __WASI_ERRNO_NXIO;
   case EOVERFLOW:
-    return __WASI_EOVERFLOW;
+    return __WASI_ERRNO_OVERFLOW;
   case EOWNERDEAD:
-    return __WASI_EOWNERDEAD;
+    return __WASI_ERRNO_OWNERDEAD;
   case EPERM:
-    return __WASI_EPERM;
+    return __WASI_ERRNO_PERM;
   case EPIPE:
-    return __WASI_EPIPE;
+    return __WASI_ERRNO_PIPE;
   case EPROTO:
-    return __WASI_EPROTO;
+    return __WASI_ERRNO_PROTO;
   case EPROTONOSUPPORT:
-    return __WASI_EPROTONOSUPPORT;
+    return __WASI_ERRNO_PROTONOSUPPORT;
   case EPROTOTYPE:
-    return __WASI_EPROTOTYPE;
+    return __WASI_ERRNO_PROTOTYPE;
   case ERANGE:
-    return __WASI_ERANGE;
+    return __WASI_ERRNO_RANGE;
   case EROFS:
-    return __WASI_EROFS;
+    return __WASI_ERRNO_ROFS;
   case ESPIPE:
-    return __WASI_ESPIPE;
+    return __WASI_ERRNO_SPIPE;
   case ESRCH:
-    return __WASI_ESRCH;
+    return __WASI_ERRNO_SRCH;
   case ESTALE:
-    return __WASI_ESTALE;
+    return __WASI_ERRNO_STALE;
   case ETIMEDOUT:
-    return __WASI_ETIMEDOUT;
+    return __WASI_ERRNO_TIMEDOUT;
   case ETXTBSY:
-    return __WASI_ETXTBSY;
+    return __WASI_ERRNO_TXTBSY;
   case EXDEV:
-    return __WASI_EXDEV;
+    return __WASI_ERRNO_XDEV;
   default:
     __builtin_unreachable();
   }
@@ -190,14 +190,14 @@ TEST(WasiTest, Args) {
   EXPECT_TRUE(WasiArgsSizesGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(1));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(5));
 
   EXPECT_TRUE(WasiArgsGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(8));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0));
   EXPECT_STREQ(MemInst.getPointer<const char *>(8), "test");
@@ -209,14 +209,14 @@ TEST(WasiTest, Args) {
   EXPECT_TRUE(WasiArgsSizesGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(2));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(9));
 
   EXPECT_TRUE(WasiArgsGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(12)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(12));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(17));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0));
@@ -230,14 +230,14 @@ TEST(WasiTest, Args) {
   EXPECT_TRUE(WasiArgsSizesGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(2));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(6));
 
   EXPECT_TRUE(WasiArgsGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(12)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(12));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(17));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0));
@@ -251,23 +251,23 @@ TEST(WasiTest, Args) {
   EXPECT_TRUE(WasiArgsSizesGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiArgsSizesGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
 
   EXPECT_TRUE(WasiArgsGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiArgsGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
   Env.fini();
 }
@@ -286,14 +286,14 @@ TEST(WasiTest, Envs) {
   EXPECT_TRUE(WasiEnvironSizesGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0));
 
   EXPECT_TRUE(WasiEnvironGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0));
   Env.fini();
 
@@ -303,14 +303,14 @@ TEST(WasiTest, Envs) {
   EXPECT_TRUE(WasiEnvironSizesGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(1));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(4));
 
   EXPECT_TRUE(WasiEnvironGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(8));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0));
   EXPECT_STREQ(MemInst.getPointer<const char *>(8), "a=b");
@@ -322,14 +322,14 @@ TEST(WasiTest, Envs) {
   EXPECT_TRUE(WasiEnvironSizesGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(2));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(19));
 
   EXPECT_TRUE(WasiEnvironGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(12)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(12));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(16));
   EXPECT_STREQ(MemInst.getPointer<const char *>(12), "a=b");
@@ -342,24 +342,24 @@ TEST(WasiTest, Envs) {
   EXPECT_TRUE(WasiEnvironSizesGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironSizesGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
 
   EXPECT_TRUE(WasiEnvironGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
   // success on zero-size write
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0));
   Env.fini();
 
@@ -368,23 +368,23 @@ TEST(WasiTest, Envs) {
   EXPECT_TRUE(WasiEnvironSizesGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironSizesGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
 
   EXPECT_TRUE(WasiEnvironGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
   Env.fini();
 }
@@ -408,7 +408,8 @@ TEST(WasiTest, ClockRes) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockResGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 2>{__WASI_CLOCK_REALTIME, UINT32_C(0)},
+        std::array<SSVM::ValVariant, 2>{
+            static_cast<uint32_t>(__WASI_CLOCKID_REALTIME), UINT32_C(0)},
         Errno));
     EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
@@ -427,7 +428,8 @@ TEST(WasiTest, ClockRes) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockResGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 2>{__WASI_CLOCK_MONOTONIC, UINT32_C(0)},
+        std::array<SSVM::ValVariant, 2>{
+            static_cast<uint32_t>(__WASI_CLOCKID_MONOTONIC), UINT32_C(0)},
         Errno));
     EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
@@ -444,11 +446,12 @@ TEST(WasiTest, ClockRes) {
     }
 
     writeDummyMemoryContent(MemInst);
-    EXPECT_TRUE(
-        WasiClockResGet.run(&MemInst,
-                            std::array<SSVM::ValVariant, 2>{
-                                __WASI_CLOCK_PROCESS_CPUTIME_ID, UINT32_C(0)},
-                            Errno));
+    EXPECT_TRUE(WasiClockResGet.run(
+        &MemInst,
+        std::array<SSVM::ValVariant, 2>{
+            static_cast<uint32_t>(__WASI_CLOCKID_PROCESS_CPUTIME_ID),
+            UINT32_C(0)},
+        Errno));
     EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Res = convertTimespec(Timespec);
@@ -464,11 +467,12 @@ TEST(WasiTest, ClockRes) {
     }
 
     writeDummyMemoryContent(MemInst);
-    EXPECT_TRUE(
-        WasiClockResGet.run(&MemInst,
-                            std::array<SSVM::ValVariant, 2>{
-                                __WASI_CLOCK_THREAD_CPUTIME_ID, UINT32_C(0)},
-                            Errno));
+    EXPECT_TRUE(WasiClockResGet.run(
+        &MemInst,
+        std::array<SSVM::ValVariant, 2>{
+            static_cast<uint32_t>(__WASI_CLOCKID_THREAD_CPUTIME_ID),
+            UINT32_C(0)},
+        Errno));
     EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Res = convertTimespec(Timespec);
@@ -482,7 +486,7 @@ TEST(WasiTest, ClockRes) {
     EXPECT_TRUE(WasiClockResGet.run(
         &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(4), UINT32_C(0)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EINVAL);
+    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_INVAL);
   }
 
   // invalid pointer
@@ -490,9 +494,10 @@ TEST(WasiTest, ClockRes) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockResGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 2>{__WASI_CLOCK_REALTIME, UINT32_C(65536)},
+        std::array<SSVM::ValVariant, 2>{
+            static_cast<uint32_t>(__WASI_CLOCKID_REALTIME), UINT32_C(65536)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   }
 
   Env.fini();
@@ -516,11 +521,12 @@ TEST(WasiTest, ClockTimeGet) {
     }
 
     writeDummyMemoryContent(MemInst);
-    EXPECT_TRUE(WasiClockTimeGet.run(
-        &MemInst,
-        std::array<SSVM::ValVariant, 3>{__WASI_CLOCK_REALTIME, UINT64_C(0),
-                                        UINT32_C(0)},
-        Errno));
+    EXPECT_TRUE(
+        WasiClockTimeGet.run(&MemInst,
+                             std::array<SSVM::ValVariant, 3>{
+                                 static_cast<uint32_t>(__WASI_CLOCKID_REALTIME),
+                                 UINT64_C(0), UINT32_C(0)},
+                             Errno));
     EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Time = convertTimespec(Timespec);
@@ -538,8 +544,9 @@ TEST(WasiTest, ClockTimeGet) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockTimeGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 3>{__WASI_CLOCK_MONOTONIC, UINT64_C(0),
-                                        UINT32_C(0)},
+        std::array<SSVM::ValVariant, 3>{
+            static_cast<uint32_t>(__WASI_CLOCKID_MONOTONIC), UINT64_C(0),
+            UINT32_C(0)},
         Errno));
     EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
@@ -558,8 +565,9 @@ TEST(WasiTest, ClockTimeGet) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockTimeGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 3>{__WASI_CLOCK_PROCESS_CPUTIME_ID,
-                                        UINT64_C(0), UINT32_C(0)},
+        std::array<SSVM::ValVariant, 3>{
+            static_cast<uint32_t>(__WASI_CLOCKID_PROCESS_CPUTIME_ID),
+            UINT64_C(0), UINT32_C(0)},
         Errno));
     EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
@@ -578,8 +586,9 @@ TEST(WasiTest, ClockTimeGet) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockTimeGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 3>{__WASI_CLOCK_THREAD_CPUTIME_ID,
-                                        UINT64_C(0), UINT32_C(0)},
+        std::array<SSVM::ValVariant, 3>{
+            static_cast<uint32_t>(__WASI_CLOCKID_THREAD_CPUTIME_ID),
+            UINT64_C(0), UINT32_C(0)},
         Errno));
     EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
@@ -596,18 +605,19 @@ TEST(WasiTest, ClockTimeGet) {
         &MemInst,
         std::array<SSVM::ValVariant, 3>{UINT32_C(4), UINT64_C(0), UINT32_C(0)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EINVAL);
+    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_INVAL);
   }
 
   // invalid pointer
   {
     writeDummyMemoryContent(MemInst);
-    EXPECT_TRUE(WasiClockTimeGet.run(
-        &MemInst,
-        std::array<SSVM::ValVariant, 3>{__WASI_CLOCK_REALTIME, UINT64_C(0),
-                                        UINT32_C(65536)},
-        Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+    EXPECT_TRUE(
+        WasiClockTimeGet.run(&MemInst,
+                             std::array<SSVM::ValVariant, 3>{
+                                 static_cast<uint32_t>(__WASI_CLOCKID_REALTIME),
+                                 UINT64_C(0), UINT32_C(65536)},
+                             Errno));
+    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   }
 
   Env.fini();
@@ -645,7 +655,7 @@ TEST(WasiTest, Random) {
   EXPECT_TRUE(WasiRandomGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(0)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
   Env.fini();
 
@@ -656,7 +666,7 @@ TEST(WasiTest, Random) {
     EXPECT_TRUE(WasiRandomGet.run(
         &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(1)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
     EXPECT_TRUE(std::all_of(MemInst.getPointer<const uint8_t *>(1),
                             MemInst.getPointer<const uint8_t *>(4),
                             [](uint8_t x) { return x == UINT8_C(0xa5); }));
@@ -670,7 +680,7 @@ TEST(WasiTest, Random) {
     EXPECT_TRUE(WasiRandomGet.run(
         &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
     EXPECT_NE(*MemInst.getPointer<const uint64_t *>(0),
               UINT64_C(0xa5a5a5a5a5a5a5a5));
     EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(8),
@@ -683,7 +693,7 @@ TEST(WasiTest, Random) {
   EXPECT_TRUE(WasiRandomGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(0)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ESUCCESS);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   Env.fini();
 
   // invalid pointer, non zero size
@@ -691,7 +701,7 @@ TEST(WasiTest, Random) {
   EXPECT_TRUE(WasiRandomGet.run(
       &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(1)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_EFAULT);
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   Env.fini();
 }
 

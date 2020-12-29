@@ -16,7 +16,7 @@ Creator: Organization: Second State LCC (contact@secondstate.io)
 PackageName: ssvm
 SPDXID: SPDXRef-ssvm
 PackageOriginator: Organization: Second State LCC (contact@secondstate.io)
-PackageLicenseDeclared: (Apache-2.0)
+PackageLicenseDeclared: Apache-2.0
 FilesAnalyzed: false
 
 PackageName: googletest
@@ -51,8 +51,15 @@ PackageOriginator: Milo Yip
 PackageLicenseDeclared: MIT
 FilesAnalyzed: false
 
+PackageName: wasi-cpp-header
+SPDXID: SPDXRef-wasi-cpp-header
+PackageFileName: ./utils/wasi-cpp-header
+PackageOriginator: Organization: Second State LCC (contact@secondstate.io)
+PackageLicenseDeclared: Apache-2.0
+
 ## Relationships
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-googletest
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-wagon
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-easyloggingpp
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-rapidjson
+Relationship: SPDXRef-ssvm CONTAINS SPDXRef-wasi-cpp-header

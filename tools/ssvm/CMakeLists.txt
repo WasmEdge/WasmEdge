@@ -31,3 +31,15 @@ target_link_libraries(ssvm
   PUBLIC
   ssvmVM
 )
+
+add_executable(ssvm-static
+  ssvmr-static.cpp
+)
+
+install(TARGETS ssvm-static COMPONENT static EXPORT ssvm-static DESTINATION bin)
+
+target_link_libraries(ssvm-static
+  PRIVATE
+  -static
+  ssvmVM
+)

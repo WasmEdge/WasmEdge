@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+#include "aot/version.h"
 #include "aot/compiler.h"
 #include "common/filesystem.h"
 #include "common/log.h"
@@ -227,7 +228,7 @@ struct SSVM::AOT::Compiler::CompileContext {
 
     new llvm::GlobalVariable(
         LLModule, Int32Ty, true, llvm::GlobalValue::ExternalLinkage,
-        llvm::ConstantInt::get(Int32Ty, kVersion), "version");
+        llvm::ConstantInt::get(Int32Ty, kBinaryVersion), "version");
 
     {
       llvm::StringMap<bool> FeatureMap;

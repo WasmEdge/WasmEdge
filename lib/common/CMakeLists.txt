@@ -13,6 +13,7 @@ target_link_libraries(ssvmCommon
 
 target_include_directories(ssvmCommon
   PUBLIC
+  ${PROJECT_BINARY_DIR}/include
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty
 )

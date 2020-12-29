@@ -4,7 +4,8 @@ add_library(ssvmVM
   vm.cpp
 )
 
-set(ssvmLibs
+target_link_libraries(ssvmVM
+  PUBLIC
   ssvmCommon
   ssvmAST
   ssvmLoader
@@ -12,11 +13,6 @@ set(ssvmLibs
   ssvmInterpreter
   ssvmHostModuleWasi
   ssvmHostModuleSSVMProcess
-)
-
-target_link_libraries(ssvmVM
-  PRIVATE
-  ${ssvmLibs}
 )
 
 target_include_directories(ssvmVM

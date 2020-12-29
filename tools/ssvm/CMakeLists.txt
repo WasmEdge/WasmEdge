@@ -28,6 +28,6 @@ add_executable(ssvm
 install(TARGETS ssvm EXPORT ssvm DESTINATION bin)
 
 target_link_libraries(ssvm
-  PRIVATE
+  PUBLIC
   ssvmVM
 )

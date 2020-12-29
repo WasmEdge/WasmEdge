@@ -13,6 +13,7 @@
 #include <functional>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
@@ -21,6 +22,7 @@
 namespace SSVM {
 namespace PO {
 
+using namespace std::literals;
 class ArgumentParser {
 private:
   class ArgumentDescriptor {
@@ -33,18 +35,18 @@ private:
           }),
           DefaultValue([&Opt]() { Opt.default_argument(); }),
           Hidden(Opt.hidden()) {}
-    auto &nargs() { return NArgs; }
-    auto &nargs() const { return NArgs; }
-    auto &options() { return Options; }
-    auto &options() const { return Options; }
+    auto &nargs() noexcept { return NArgs; }
+    auto &nargs() const noexcept { return NArgs; }
+    auto &options() noexcept { return Options; }
+    auto &options() const noexcept { return Options; }
 
-    auto &description() const { return Desc; }
-    auto &meta() const { return Meta; }
-    auto &hidden() const { return Hidden; }
-    auto &min_nargs() const { return MinNArgs; }
-    auto &max_nargs() const { return MaxNArgs; }
-    void value(std::string String) const { Value(std::move(String)); }
-    void default_value() const { DefaultValue(); }
+    auto &description() const noexcept { return Desc; }
+    auto &meta() const noexcept { return Meta; }
+    auto &hidden() const noexcept { return Hidden; }
+    auto &min_nargs() const noexcept { return MinNArgs; }
+    auto &max_nargs() const noexcept { return MaxNArgs; }
+    void value(std::string String) const noexcept { Value(std::move(String)); }
+    void default_value() const noexcept { DefaultValue(); }
 
   private:
     std::string_view Desc;
@@ -59,9 +61,13 @@ private:
   };
 
 public:
-  ArgumentParser() : HelpOpt(Hidden()) {
-    add_option("h", HelpOpt);
-    add_option("help", HelpOpt);
+  ArgumentParser()
+      : HelpOpt(Description("Show this help messages"sv)),
+        VerOpt(Description("Show version infomation"sv)) {
+    add_option("h"sv, HelpOpt);
+    add_option("help"sv, HelpOpt);
+    add_option("v"sv, VerOpt);
+    add_option("version"sv, VerOpt);
   }
 
   template <typename T>
@@ -93,7 +99,6 @@ public:
   }
 
   bool parse(int Argc, const char *Argv[]) noexcept {
-    using namespace std::literals;
     try {
       ProgramName = Argv[0];
       ArgumentDescriptor *CurrentDesc = nullptr;
@@ -141,6 +146,9 @@ public:
         CurrentDesc->default_value();
       }
 
+      if (VerOpt.value()) {
+        return true;
+      }
       for (const auto &Desc : ArgumentDescriptors) {
         if (Desc.nargs() < Desc.min_nargs()) {
           HelpOpt.value() = true;
@@ -156,8 +164,7 @@ public:
       return false;
     }
   }
-  void usage() const {
-    using namespace std::literals;
+  void usage() const noexcept {
     using std::cout;
     cout << "usage: "sv << ProgramName;
     for (const auto &Index : NonpositionalList) {
@@ -224,9 +231,8 @@ public:
     }
     cout << '\n';
   }
-  void help() const {
+  void help() const noexcept {
     usage();
-    using namespace std::literals;
     using std::cout;
     const constexpr std::string_view kIndent = "  "sv;
 
@@ -256,7 +262,8 @@ public:
     }
   }
   void indent_output(const std::string_view kIndent, std::size_t IndentCount,
-                     std::size_t ScreenWidth, std::string_view Desc) const {
+                     std::size_t ScreenWidth,
+                     std::string_view Desc) const noexcept {
     using std::cout;
     const std::size_t Width = ScreenWidth - kIndent.size() * IndentCount;
     while (Desc.size() > Width) {
@@ -281,6 +288,8 @@ public:
       cout << Desc;
     }
   }
+  bool isHelp() const noexcept { return HelpOpt.value(); }
+  bool isVersion() const noexcept { return VerOpt.value(); }
 
 private:
   ArgumentDescriptor *consume_short_options(std::string_view Arg) {
@@ -303,7 +312,6 @@ private:
       if (CurrentDesc) {
         consume_argument(*CurrentDesc, Argument);
       } else {
-        using namespace std::literals;
         throw std::invalid_argument("option "s + std::string(Option) +
                                     "doesn't need arguments."s);
       }
@@ -317,7 +325,6 @@ private:
   ArgumentDescriptor *consume_short_option(std::string_view Option) {
     auto Iter = ArgumentMap.find(Option);
     if (Iter == ArgumentMap.end()) {
-      using namespace std::literals;
       throw std::invalid_argument("unknown option: "s + std::string(Option));
     }
     ArgumentDescriptor &CurrentDesc = ArgumentDescriptors[Iter->second];
@@ -330,7 +337,6 @@ private:
   ArgumentDescriptor *consume_long_option(std::string_view Option) {
     auto Iter = ArgumentMap.find(Option);
     if (Iter == ArgumentMap.end()) {
-      using namespace std::literals;
       throw std::invalid_argument("unknown option: "s + std::string(Option));
     }
     ArgumentDescriptor &CurrentDesc = ArgumentDescriptors[Iter->second];
@@ -356,6 +362,7 @@ private:
   std::vector<std::size_t> NonpositionalList;
   std::vector<std::size_t> PositionalList;
   Option<Toggle> HelpOpt;
+  Option<Toggle> VerOpt;
 };
 
 } // namespace PO

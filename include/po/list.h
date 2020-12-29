@@ -12,6 +12,7 @@
 
 #include <cstdint>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace SSVM {
@@ -19,52 +20,55 @@ namespace PO {
 
 template <typename T, typename ParserT = Parser<T>> class List {
 public:
-  List() {}
+  constexpr List() {}
 
   template <typename... ArgsT>
-  List(Description &&D, ArgsT &&... Args) : List(std::forward<ArgsT>(Args)...) {
+  List(Description &&D, ArgsT &&...Args) : List(std::forward<ArgsT>(Args)...) {
     Desc = std::move(D.Value);
   }
 
   template <typename... ArgsT>
-  List(MetaVar &&M, ArgsT &&... Args) : List(std::forward<ArgsT>(Args)...) {
+  List(MetaVar &&M, ArgsT &&...Args) : List(std::forward<ArgsT>(Args)...) {
     Meta = std::move(M.Value);
   }
 
   template <typename... ArgsT>
-  List(ZeroOrMore &&, ArgsT &&... Args) : List(std::forward<ArgsT>(Args)...) {
+  List(ZeroOrMore &&, ArgsT &&...Args) : List(std::forward<ArgsT>(Args)...) {
     IsOneOrMore = false;
   }
 
   template <typename... ArgsT>
-  List(OneOrMore &&, ArgsT &&... Args) : List(std::forward<ArgsT>(Args)...) {
+  List(OneOrMore &&, ArgsT &&...Args) : List(std::forward<ArgsT>(Args)...) {
     IsOneOrMore = true;
   }
 
   template <typename... ArgsT>
-  List(DefaultValue<T> &&V, ArgsT &&... Args)
+  List(DefaultValue<T> &&V, ArgsT &&...Args)
       : List(std::forward<ArgsT>(Args)...) {
     Default.push_back(std::move(V.Value));
   }
 
   template <typename... ArgsT>
-  List(Hidden &&, ArgsT &&... Args) : List(std::forward<ArgsT>(Args)...) {
+  List(Hidden &&, ArgsT &&...Args) : List(std::forward<ArgsT>(Args)...) {
     Hidden = true;
   }
 
-  std::string_view description() const { return Desc; }
+  std::string_view description() const noexcept { return Desc; }
 
-  std::string_view meta() const { return Meta; }
+  std::string_view meta() const noexcept { return Meta; }
 
-  bool hidden() const { return Hidden; }
+  bool hidden() const noexcept { return Hidden; }
 
-  std::size_t min_narg() const { return IsOneOrMore ? 1 : 0; }
+  std::size_t min_narg() const noexcept { return IsOneOrMore ? 1 : 0; }
 
-  std::size_t max_narg() const { return -1; }
+  std::size_t max_narg() const noexcept { return -1; }
 
-  std::vector<T> &value() { return Store; }
+  const std::vector<T> &value() const noexcept { return Store; }
+  std::vector<T> &value() noexcept { return Store; }
 
-  void default_argument() { Store = std::move(Default); }
+  void default_argument() noexcept(std::is_nothrow_move_constructible_v<T>) {
+    Store = std::move(Default);
+  }
 
   void argument(std::string Argument) {
     Store.push_back(ParserT::parse(std::move(Argument)));

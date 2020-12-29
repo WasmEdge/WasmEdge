@@ -7,22 +7,24 @@
 #pragma once
 
 #include <string>
+#include <type_traits>
 
 namespace SSVM {
 namespace PO {
 
 struct Description {
-  Description(std::string Value) : Value(std::move(Value)) {}
-  std::string Value;
+  Description(std::string_view Value) noexcept : Value(std::move(Value)) {}
+  std::string_view Value;
 };
 
 struct MetaVar {
-  MetaVar(std::string Value) : Value(std::move(Value)) {}
-  std::string Value;
+  MetaVar(std::string_view Value) noexcept : Value(std::move(Value)) {}
+  std::string_view Value;
 };
 
 template <typename T> struct DefaultValue {
-  DefaultValue(T Value) : Value(std::move(Value)) {}
+  DefaultValue(T Value) noexcept(std::is_nothrow_move_constructible_v<T>)
+      : Value(std::move(Value)) {}
   T Value;
 };
 

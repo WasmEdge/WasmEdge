@@ -2,6 +2,7 @@
 #include "aot/compiler.h"
 #include "common/filesystem.h"
 #include "common/proposal.h"
+#include "common/config.h"
 #include "loader/loader.h"
 #include "po/argument_parser.h"
 #include "validator/validator.h"
@@ -14,39 +15,43 @@ int main(int Argc, const char *Argv[]) {
   std::ios::sync_with_stdio(false);
   SSVM::Log::setErrorLoggingLevel();
 
-  PO::Option<std::string> WasmName(PO::Description("Wasm file"s),
-                                   PO::MetaVar("WASM"s));
-  PO::Option<std::string> SoName(PO::Description("Wasm so file"s),
-                                 PO::MetaVar("WASM_SO"s));
+  PO::Option<std::string> WasmName(PO::Description("Wasm file"sv),
+                                   PO::MetaVar("WASM"sv));
+  PO::Option<std::string> SoName(PO::Description("Wasm so file"sv),
+                                 PO::MetaVar("WASM_SO"sv));
 
   PO::Option<PO::Toggle> DumpIR(
-      PO::Description("Dump LLVM IR to `wasm.ll` and `wasm-opt.ll`."));
+      PO::Description("Dump LLVM IR to `wasm.ll` and `wasm-opt.ll`."sv));
 
   PO::Option<PO::Toggle> InstructionCounting(PO::Description(
-      "Generate code for counting Wasm instructions executed."));
+      "Generate code for counting Wasm instructions executed."sv));
 
   PO::Option<PO::Toggle> GasMeasuring(PO::Description(
-      "Generate code for counting gas burned during execution."));
+      "Generate code for counting gas burned during execution."sv));
 
   PO::Option<PO::Toggle> BulkMemoryOperations(
-      PO::Description("Enable Bulk-memory operations"));
+      PO::Description("Enable Bulk-memory operations"sv));
   PO::Option<PO::Toggle> ReferenceTypes(
-      PO::Description("Enable Reference types (externref)"));
-  PO::Option<PO::Toggle> SIMD(PO::Description("Enable SIMD"));
-  PO::Option<PO::Toggle> All(PO::Description("Enable all features"));
+      PO::Description("Enable Reference types (externref)"sv));
+  PO::Option<PO::Toggle> SIMD(PO::Description("Enable SIMD"sv));
+  PO::Option<PO::Toggle> All(PO::Description("Enable all features"sv));
 
-  if (!PO::ArgumentParser()
-           .add_option(WasmName)
+  auto Parser = PO::ArgumentParser();
+  if (!Parser.add_option(WasmName)
            .add_option(SoName)
-           .add_option("dump", DumpIR)
-           .add_option("ic", InstructionCounting)
-           .add_option("gas", GasMeasuring)
-           .add_option("enable-bulk-memory", BulkMemoryOperations)
-           .add_option("enable-reference-types", ReferenceTypes)
-           .add_option("enable-simd", SIMD)
-           .add_option("enable-all", All)
+           .add_option("dump"sv, DumpIR)
+           .add_option("ic"sv, InstructionCounting)
+           .add_option("gas"sv, GasMeasuring)
+           .add_option("enable-bulk-memory"sv, BulkMemoryOperations)
+           .add_option("enable-reference-types"sv, ReferenceTypes)
+           .add_option("enable-simd"sv, SIMD)
+           .add_option("enable-all"sv, All)
            .parse(Argc, Argv)) {
-    return 0;
+    return EXIT_FAILURE;
+  }
+  if (Parser.isVersion()) {
+    std::cout << Argv[0] << " version "sv << SSVM::kVersionString << '\n';
+    return EXIT_SUCCESS;
   }
 
   SSVM::ProposalConfigure ProposalConf;

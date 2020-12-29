@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "loader/loader.h"
+#include "aot/version.h"
+#include "common/config.h"
 #include "common/filesystem.h"
 #include "common/log.h"
-#include "common/version.h"
 
 #include <string_view>
 
@@ -51,8 +52,8 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
       return Unexpect(Res);
     }
     if (auto Res = LMgr.getVersion()) {
-      if (*Res != kVersion) {
-        LOG(ERROR) << ErrInfo::InfoMismatch(kVersion, *Res);
+      if (*Res != AOT::kBinaryVersion) {
+        LOG(ERROR) << ErrInfo::InfoMismatch(AOT::kBinaryVersion, *Res);
         return Unexpect(ErrCode::InvalidVersion);
       }
     } else {

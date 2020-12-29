@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <iostream>
 #include <string>
+#include <type_traits>
 
 namespace SSVM {
 namespace PO {
@@ -24,43 +25,46 @@ template <typename T,
               Parser<std::conditional_t<std::is_same_v<T, Toggle>, bool, T>>>
 class Option {
 public:
-  Option() {}
+  Option() noexcept {}
 
   template <typename... ArgsT>
-  Option(Description &&D, ArgsT &&... Args)
+  Option(Description &&D, ArgsT &&...Args) noexcept
       : Option(std::forward<ArgsT>(Args)...) {
     Desc = std::move(D.Value);
   }
 
   template <typename... ArgsT>
-  Option(MetaVar &&M, ArgsT &&... Args) : Option(std::forward<ArgsT>(Args)...) {
+  Option(MetaVar &&M, ArgsT &&...Args) noexcept
+      : Option(std::forward<ArgsT>(Args)...) {
     Meta = std::move(M.Value);
   }
 
   template <typename... ArgsT>
-  Option(DefaultValue<T> &&V, ArgsT &&... Args)
+  Option(DefaultValue<T> &&V, ArgsT &&...Args) noexcept
       : Option(std::forward<ArgsT>(Args)...) {
     Default.emplace(std::move(V.Value));
   }
 
   template <typename... ArgsT>
-  Option(Hidden &&, ArgsT &&... Args) : Option(std::forward<ArgsT>(Args)...) {
+  Option(Hidden &&, ArgsT &&...Args) noexcept
+      : Option(std::forward<ArgsT>(Args)...) {
     Hidden = true;
   }
 
-  std::string_view description() const { return Desc; }
+  std::string_view description() const noexcept { return Desc; }
 
-  std::string_view meta() const { return Meta; }
+  std::string_view meta() const noexcept { return Meta; }
 
-  bool hidden() const { return Hidden; }
+  bool hidden() const noexcept { return Hidden; }
 
-  std::size_t min_narg() const { return Default.has_value() ? 0 : 1; }
+  std::size_t min_narg() const noexcept { return Default.has_value() ? 0 : 1; }
 
-  std::size_t max_narg() const { return 1; }
+  std::size_t max_narg() const noexcept { return 1; }
 
-  T &value() { return Store; }
+  const T &value() const noexcept { return Store; }
+  T &value() noexcept { return Store; }
 
-  void default_argument() {
+  void default_argument() noexcept(std::is_nothrow_move_constructible_v<T>) {
     Store = std::move(*Default);
     Default.reset();
   }
@@ -72,8 +76,8 @@ public:
 private:
   T Store{};
   std::optional<T> Default{};
-  std::string Desc{};
-  std::string Meta{};
+  std::string_view Desc{};
+  std::string_view Meta{};
   bool Hidden = false;
 };
 
@@ -82,29 +86,31 @@ public:
   Option() {}
 
   template <typename... ArgsT>
-  Option(Description &&D, ArgsT &&... Args)
+  Option(Description &&D, ArgsT &&...Args) noexcept
       : Option(std::forward<ArgsT>(Args)...) {
     Desc = std::move(D.Value);
   }
 
   template <typename... ArgsT>
-  Option(Hidden &&, ArgsT &&... Args) : Option(std::forward<ArgsT>(Args)...) {
+  Option(Hidden &&, ArgsT &&...Args) noexcept
+      : Option(std::forward<ArgsT>(Args)...) {
     Hidden = true;
   }
 
-  std::string_view description() const { return Desc; }
+  std::string_view description() const noexcept { return Desc; }
 
-  std::string_view meta() const { return {}; }
+  std::string_view meta() const noexcept { return {}; }
 
-  bool hidden() const { return Hidden; }
+  bool hidden() const noexcept { return Hidden; }
 
-  std::size_t min_narg() const { return 0; }
+  std::size_t min_narg() const noexcept { return 0; }
 
-  std::size_t max_narg() const { return 0; }
+  std::size_t max_narg() const noexcept { return 0; }
 
-  bool &value() { return Store; }
+  const bool &value() const noexcept { return Store; }
+  bool &value() noexcept { return Store; }
 
-  void default_argument() { Store = true; }
+  void default_argument() noexcept { Store = true; }
 
   void argument(std::string Argument) {
     Store = Parser<bool>::parse(std::move(Argument));
@@ -112,7 +118,7 @@ public:
 
 private:
   bool Store = false;
-  std::string Desc{};
+  std::string_view Desc{};
   bool Hidden = false;
 };
 

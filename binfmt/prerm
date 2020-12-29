@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+if which update-binfmts >/dev/null; then
+ update-binfmts --package ssvm --remove ssvm /usr/bin/ssvm-static
+fi

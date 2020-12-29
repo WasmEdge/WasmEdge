@@ -16,6 +16,39 @@
 
 #ifndef EASYLOGGINGPP_H
 #define EASYLOGGINGPP_H
+
+#if defined(__has_feature)
+# if __has_feature(cxx_exceptions)
+#  define ELPP_ENABLE_EXCEPTIONS 1
+# else
+#  define ELPP_ENABLE_EXCEPTIONS 0
+# endif
+#elif defined(__GNUC__)
+# ifdef __EXCEPTIONS
+#  define ELPP_ENABLE_EXCEPTIONS 1
+# else
+#  define ELPP_ENABLE_EXCEPTIONS 0
+# endif
+#elif defined(_MSC_VER)
+# ifdef _CPPUNWIND
+#  define ELPP_ENABLE_EXCEPTIONS 1
+# else
+#  define ELPP_ENABLE_EXCEPTIONS 0
+# endif
+#endif
+
+#ifndef ELPP_ENABLE_EXCEPTIONS
+# define ELPP_ENABLE_EXCEPTIONS 1
+#endif
+
+#if ELPP_ENABLE_EXCEPTIONS
+# define elpp_try      try
+# define elpp_catch(X) catch(X)
+#else
+# define elpp_try      if (true)
+# define elpp_catch(X) if (false)
+#endif
+
 // Compilers and C++0x/C++11 Evaluation
 #if __cplusplus >= 201103L
 #  define ELPP_CXX11 1
@@ -1970,9 +2003,9 @@ class TypedConfigurations : public base::threading::ThreadSafe {
     ELPP_UNUSED(confName);
     typename std::unordered_map<Level, Conf_T>::const_iterator it = confMap->find(level);
     if (it == confMap->end()) {
-      try {
+      elpp_try {
         return confMap->at(Level::Global);
-      } catch (...) {
+      } elpp_catch (...) {
         ELPP_INTERNAL_ERROR("Unable to get configuration [" << confName << "] for level ["
                             << LevelHelper::convertToString(level) << "]"
                             << std::endl << "Please ensure you have properly configured logger.", false);
@@ -1987,9 +2020,9 @@ class TypedConfigurations : public base::threading::ThreadSafe {
     ELPP_UNUSED(confName);
     typename std::unordered_map<Level, Conf_T>::iterator it = confMap->find(level);
     if (it == confMap->end()) {
-      try {
+      elpp_try {
         return confMap->at(Level::Global);
-      } catch (...) {
+      } elpp_catch (...) {
         ELPP_INTERNAL_ERROR("Unable to get configuration [" << confName << "] for level ["
                             << LevelHelper::convertToString(level) << "]"
                             << std::endl << "Please ensure you have properly configured logger.", false);
@@ -4573,4 +4606,8 @@ el::base::debug::CrashHandler elCrashHandler(ELPP_USE_DEF_CRASH_HANDLER);\
 #else
 #  define START_EASYLOGGINGPP(argc, argv) el::Helpers::setArgs(argc, argv)
 #endif  // defined(ELPP_UNICODE)
+
+#undef elpp_try
+#undef elpp_catch
+#undef ELPP_ENABLE_EXCEPTIONS
 #endif // EASYLOGGINGPP_H

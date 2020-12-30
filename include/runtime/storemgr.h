@@ -35,16 +35,12 @@ inline constexpr const bool IsImportEntityV =
     std::is_same_v<T, Instance::MemoryInstance> ||
     std::is_same_v<T, Instance::GlobalInstance>;
 
-/// Return true if T is entities.
+/// Return true if T is entities which can not be imported.
 template <typename T>
-inline constexpr const bool IsEntityV =
-    IsImportEntityV<T> || std::is_same_v<T, Instance::ElementInstance> ||
-    std::is_same_v<T, Instance::DataInstance>;
-
-/// Return true if T is instances.
-template <typename T>
-inline constexpr const bool IsInstanceV =
-    IsEntityV<T> || std::is_same_v<T, Instance::ModuleInstance>;
+inline constexpr const bool IsNotImportEntityV =
+    std::is_same_v<T, Instance::ElementInstance> ||
+    std::is_same_v<T, Instance::DataInstance> ||
+    std::is_same_v<T, Instance::ModuleInstance>;
 } // namespace
 
 class StoreManager {
@@ -57,8 +53,8 @@ public:
   /// Import instances and move owner to store manager.
   template <typename... Args> uint32_t importModule(Args &&... Values) {
     uint32_t ModAddr =
-        importInstance(ImpModInsts, ModInsts, std::forward<Args>(Values)...);
-    ModInsts.back()->Addr = ModAddr;
+        importInstance(ImpModInsts, std::forward<Args>(Values)...);
+    ImpModInsts.back().Addr = ModAddr;
     return ModAddr;
   }
   template <typename... Args> uint32_t importFunction(Args &&... Values) {
@@ -76,34 +72,32 @@ public:
                           std::forward<Args>(Values)...);
   }
   template <typename... Args> uint32_t importElement(Args &&... Values) {
-    return importInstance(ImpElemInsts, ElemInsts,
-                          std::forward<Args>(Values)...);
+    return importInstance(ImpElemInsts, std::forward<Args>(Values)...);
   }
   template <typename... Args> uint32_t importData(Args &&... Values) {
-    return importInstance(ImpDataInsts, DataInsts,
-                          std::forward<Args>(Values)...);
+    return importInstance(ImpDataInsts, std::forward<Args>(Values)...);
   }
 
   /// Import host instances but not move ownership.
   uint32_t importHostFunction(Instance::FunctionInstance &Func) {
-    return importHostInstance(Func, FuncInsts);
+    return importHostInstance(Func, HostFuncInsts, FuncInsts);
   }
   uint32_t importHostTable(Instance::TableInstance &Tab) {
-    return importHostInstance(Tab, TabInsts);
+    return importHostInstance(Tab, HostTabInsts, TabInsts);
   }
   uint32_t importHostMemory(Instance::MemoryInstance &Mem) {
-    return importHostInstance(Mem, MemInsts);
+    return importHostInstance(Mem, HostMemInsts, MemInsts);
   }
   uint32_t importHostGlobal(Instance::GlobalInstance &Glob) {
-    return importHostInstance(Glob, GlobInsts);
+    return importHostInstance(Glob, HostGlobInsts, GlobInsts);
   }
 
   /// Insert instances for instantiation and move ownership to store manager.
   template <typename... Args> uint32_t pushModule(Args &&... Values) {
     ++NumMod;
     uint32_t ModAddr =
-        importInstance(ImpModInsts, ModInsts, std::forward<Args>(Values)...);
-    ModInsts.back()->Addr = ModAddr;
+        importInstance(ImpModInsts, std::forward<Args>(Values)...);
+    ImpModInsts.back().Addr = ModAddr;
     return ModAddr;
   }
   template <typename... Args> uint32_t pushFunction(Args &&... Values) {
@@ -126,13 +120,11 @@ public:
   }
   template <typename... Args> uint32_t pushElement(Args &&... Values) {
     ++NumElem;
-    return importInstance(ImpElemInsts, ElemInsts,
-                          std::forward<Args>(Values)...);
+    return importInstance(ImpElemInsts, std::forward<Args>(Values)...);
   }
   template <typename... Args> uint32_t pushData(Args &&... Values) {
     ++NumData;
-    return importInstance(ImpDataInsts, DataInsts,
-                          std::forward<Args>(Values)...);
+    return importInstance(ImpDataInsts, std::forward<Args>(Values)...);
   }
 
   /// Pop temp. module. Dangerous function for used when instantiating only.
@@ -140,55 +132,54 @@ public:
     if (NumMod > 0) {
       --NumMod;
       ImpModInsts.pop_back();
-      ModInsts.pop_back();
     }
   }
 
   /// Get instance from store manager by address.
   Expect<Instance::ModuleInstance *> getModule(const uint32_t Addr) {
-    return getInstance(Addr, ModInsts);
+    return getInstance(Addr, ImpModInsts);
   }
   Expect<Instance::FunctionInstance *> getFunction(const uint32_t Addr) {
-    return getInstance(Addr, FuncInsts);
+    return getInstance(Addr, ImpFuncInsts, HostFuncInsts, FuncInsts);
   }
   Expect<Instance::TableInstance *> getTable(const uint32_t Addr) {
-    return getInstance(Addr, TabInsts);
+    return getInstance(Addr, ImpTabInsts, HostTabInsts, TabInsts);
   }
   Expect<Instance::MemoryInstance *> getMemory(const uint32_t Addr) {
-    return getInstance(Addr, MemInsts);
+    return getInstance(Addr, ImpMemInsts, HostMemInsts, MemInsts);
   }
   Expect<Instance::GlobalInstance *> getGlobal(const uint32_t Addr) {
-    return getInstance(Addr, GlobInsts);
+    return getInstance(Addr, ImpGlobInsts, HostGlobInsts, GlobInsts);
   }
   Expect<Instance::ElementInstance *> getElement(const uint32_t Addr) {
-    return getInstance(Addr, ElemInsts);
+    return getInstance(Addr, ImpElemInsts);
   }
   Expect<Instance::DataInstance *> getData(const uint32_t Addr) {
-    return getInstance(Addr, DataInsts);
+    return getInstance(Addr, ImpDataInsts);
   }
 
   /// Get exported instances of instantiated module.
   const std::map<std::string, uint32_t, std::less<>> getFuncExports() const {
     if (NumMod > 0) {
-      return ModInsts.back()->getFuncExports();
+      return ImpModInsts.back().getFuncExports();
     }
     return {};
   }
   const std::map<std::string, uint32_t, std::less<>> getTableExports() const {
     if (NumMod > 0) {
-      return ModInsts.back()->getTableExports();
+      return ImpModInsts.back().getTableExports();
     }
     return {};
   }
   const std::map<std::string, uint32_t, std::less<>> getMemExports() const {
     if (NumMod > 0) {
-      return ModInsts.back()->getMemExports();
+      return ImpModInsts.back().getMemExports();
     }
     return {};
   }
   const std::map<std::string, uint32_t, std::less<>> getGlobalExports() const {
     if (NumMod > 0) {
-      return ModInsts.back()->getGlobalExports();
+      return ImpModInsts.back().getGlobalExports();
     }
     return {};
   }
@@ -196,16 +187,16 @@ public:
   /// Get list of registered modules.
   const std::map<std::string, uint32_t, std::less<>> getModuleList() const {
     std::map<std::string, uint32_t, std::less<>> ModMap;
-    for (uint32_t I = 0; I < ModInsts.size() - NumMod; I++) {
-      ModMap.emplace(ModInsts[I]->getModuleName(), I);
+    for (uint32_t I = 0; I < ImpModInsts.size() - NumMod; I++) {
+      ModMap.emplace(ImpModInsts[I].getModuleName(), I);
     }
     return ModMap;
   }
 
   /// Get active instance of instantiated module.
-  Expect<Instance::ModuleInstance *> getActiveModule() const {
+  Expect<Instance::ModuleInstance *> getActiveModule() {
     if (NumMod > 0) {
-      return ModInsts.back();
+      return &(ImpModInsts.back());
     }
     /// Error logging need to be handled in caller.
     return Unexpect(ErrCode::WrongInstanceAddress);
@@ -213,9 +204,9 @@ public:
 
   /// Find module by name.
   Expect<Instance::ModuleInstance *> findModule(std::string_view Name) {
-    for (uint32_t I = 0; I < ModInsts.size() - NumMod; I++) {
-      if (ModInsts[I]->getModuleName() == Name) {
-        return ModInsts[I];
+    for (uint32_t I = 0; I < ImpModInsts.size() - NumMod; I++) {
+      if (ImpModInsts[I].getModuleName() == Name) {
+        return &ImpModInsts[I];
       }
     }
     /// Error logging need to be handled in caller.
@@ -232,13 +223,6 @@ public:
       NumGlob = 0;
       NumElem = 0;
       NumData = 0;
-      ModInsts.clear();
-      FuncInsts.clear();
-      TabInsts.clear();
-      MemInsts.clear();
-      GlobInsts.clear();
-      ElemInsts.clear();
-      DataInsts.clear();
       ImpModInsts.clear();
       ImpFuncInsts.clear();
       ImpTabInsts.clear();
@@ -246,11 +230,18 @@ public:
       ImpGlobInsts.clear();
       ImpElemInsts.clear();
       ImpDataInsts.clear();
+      HostFuncInsts.clear();
+      HostTabInsts.clear();
+      HostMemInsts.clear();
+      HostGlobInsts.clear();
+      FuncInsts.clear();
+      TabInsts.clear();
+      MemInsts.clear();
+      GlobInsts.clear();
     } else {
       while (NumMod > 0) {
         --NumMod;
         ImpModInsts.pop_back();
-        ModInsts.pop_back();
       }
       while (NumFunc > 0) {
         --NumFunc;
@@ -275,12 +266,10 @@ public:
       while (NumElem > 0) {
         --NumElem;
         ImpElemInsts.pop_back();
-        ElemInsts.pop_back();
       }
       while (NumData > 0) {
         --NumData;
         ImpDataInsts.pop_back();
-        DataInsts.pop_back();
       }
     }
   }
@@ -288,55 +277,87 @@ public:
 private:
   /// Helper function for importing instances and move ownership.
   template <typename T, typename... Args>
-  std::enable_if_t<IsInstanceV<T>, uint32_t>
-  importInstance(std::vector<std::unique_ptr<T>> &ImpInstsVec,
-                 std::vector<T *> &InstsVec, Args &&... Values) {
-    uint32_t Addr = InstsVec.size();
-    ImpInstsVec.push_back(std::make_unique<T>(std::forward<Args>(Values)...));
-    InstsVec.push_back(ImpInstsVec.back().get());
+  std::enable_if_t<IsImportEntityV<T>, uint32_t>
+  importInstance(std::vector<T> &ImpInstsVec,
+                 std::vector<std::pair<bool, uint32_t>> &InstsIdx,
+                 Args &&... Values) {
+    uint32_t Addr = InstsIdx.size();
+    InstsIdx.emplace_back(true, ImpInstsVec.size());
+    ImpInstsVec.emplace_back(std::forward<Args>(Values)...);
+    return Addr;
+  }
+  template <typename T, typename... Args>
+  std::enable_if_t<IsNotImportEntityV<T>, uint32_t>
+  importInstance(std::vector<T> &ImpInstsVec, Args &&... Values) {
+    uint32_t Addr = ImpInstsVec.size();
+    ImpInstsVec.emplace_back(std::forward<Args>(Values)...);
     return Addr;
   }
 
   /// Helper function for importing host instances.
   template <typename T>
   std::enable_if_t<IsImportEntityV<T>, uint32_t>
-  importHostInstance(T &Inst, std::vector<T *> &InstsVec) {
-    uint32_t Addr = InstsVec.size();
+  importHostInstance(T &Inst, std::vector<T *> &InstsVec,
+                     std::vector<std::pair<bool, uint32_t>> &InstsIdx) {
+    uint32_t Addr = InstsIdx.size();
+    InstsIdx.emplace_back(false, InstsVec.size());
     InstsVec.push_back(&Inst);
     return Addr;
   }
 
   /// Helper function for getting instance from instance vector.
   template <typename T>
-  std::enable_if_t<IsInstanceV<T>, Expect<T *>>
-  getInstance(const uint32_t Addr, const std::vector<T *> &InstsVec) {
-    if (Addr >= InstsVec.size()) {
+  std::enable_if_t<IsImportEntityV<T>, Expect<T *>>
+  getInstance(const uint32_t Addr, std::vector<T> &ImpInstsVec,
+              std::vector<T *> &HostInstsVec,
+              std::vector<std::pair<bool, uint32_t>> &InstsIdx) {
+    if (Addr >= InstsIdx.size()) {
       /// Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceAddress);
     }
-    return InstsVec[Addr];
+    if (InstsIdx[Addr].first) {
+      return &ImpInstsVec[InstsIdx[Addr].second];
+    } else {
+      return HostInstsVec[InstsIdx[Addr].second];
+    }
+  }
+  template <typename T>
+  std::enable_if_t<IsNotImportEntityV<T>, Expect<T *>>
+  getInstance(const uint32_t Addr, std::vector<T> &ImpInstsVec) {
+    if (Addr >= ImpInstsVec.size()) {
+      /// Error logging need to be handled in caller.
+      return Unexpect(ErrCode::WrongInstanceAddress);
+    }
+    return &ImpInstsVec[Addr];
   }
 
   /// \name Store owned instances by StoreManager.
   /// @{
-  std::vector<std::unique_ptr<Instance::ModuleInstance>> ImpModInsts;
-  std::vector<std::unique_ptr<Instance::FunctionInstance>> ImpFuncInsts;
-  std::vector<std::unique_ptr<Instance::TableInstance>> ImpTabInsts;
-  std::vector<std::unique_ptr<Instance::MemoryInstance>> ImpMemInsts;
-  std::vector<std::unique_ptr<Instance::GlobalInstance>> ImpGlobInsts;
-  std::vector<std::unique_ptr<Instance::ElementInstance>> ImpElemInsts;
-  std::vector<std::unique_ptr<Instance::DataInstance>> ImpDataInsts;
+  std::vector<Instance::ModuleInstance> ImpModInsts;
+  std::vector<Instance::FunctionInstance> ImpFuncInsts;
+  std::vector<Instance::TableInstance> ImpTabInsts;
+  std::vector<Instance::MemoryInstance> ImpMemInsts;
+  std::vector<Instance::GlobalInstance> ImpGlobInsts;
+  std::vector<Instance::ElementInstance> ImpElemInsts;
+  std::vector<Instance::DataInstance> ImpDataInsts;
   /// @}
 
-  /// \name Pointers to imported instances from modules or import objects.
+  /// \name Pointers to imported instances from host objects.
   /// @{
-  std::vector<Instance::ModuleInstance *> ModInsts;
-  std::vector<Instance::FunctionInstance *> FuncInsts;
-  std::vector<Instance::TableInstance *> TabInsts;
-  std::vector<Instance::MemoryInstance *> MemInsts;
-  std::vector<Instance::GlobalInstance *> GlobInsts;
-  std::vector<Instance::ElementInstance *> ElemInsts;
-  std::vector<Instance::DataInstance *> DataInsts;
+  std::vector<Instance::FunctionInstance *> HostFuncInsts;
+  std::vector<Instance::TableInstance *> HostTabInsts;
+  std::vector<Instance::MemoryInstance *> HostMemInsts;
+  std::vector<Instance::GlobalInstance *> HostGlobInsts;
+  /// @}
+
+  /// \name Indices for instances which may be host or owned.
+  /// @{
+  /// First element: true means owned instance, false means imported instance.
+  /// Second element: index in the corresponding vector.
+  std::vector<std::pair<bool, uint32_t>> FuncInsts;
+  std::vector<std::pair<bool, uint32_t>> TabInsts;
+  std::vector<std::pair<bool, uint32_t>> MemInsts;
+  std::vector<std::pair<bool, uint32_t>> GlobInsts;
   /// @}
 
   /// \name Data for instantiated module.

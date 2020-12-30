@@ -74,6 +74,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 
   /// Add a temp module to Store with only imported globals for initialization.
   uint32_t TmpModInstAddr = StoreMgr.pushModule("");
+  ModInst = *StoreMgr.getModule(ModInstAddr);
   auto *TmpModInst = *StoreMgr.getModule(TmpModInstAddr);
   for (uint32_t I = 0; I < ModInst->getGlobalImportNum(); ++I) {
     TmpModInst->importGlobal(*(ModInst->getGlobalAddr(I)));
@@ -98,6 +99,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 
   /// Pop the added temp. module.
   StoreMgr.popModule();
+  ModInst = *StoreMgr.getModule(ModInstAddr);
 
   /// Instantiate ExportSection (ExportSec)
   const AST::ExportSection &ExportSec = Mod.getExportSection();

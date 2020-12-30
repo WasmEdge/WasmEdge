@@ -66,6 +66,11 @@ public:
   static inline constexpr const uint64_t k8G = UINT64_C(0x200000000);
   static inline constexpr const uint64_t k12G = k4G + k8G;
   MemoryInstance() = delete;
+  MemoryInstance(MemoryInstance &&Inst) noexcept
+      : HasMaxPage(Inst.HasMaxPage), MinPage(Inst.MinPage),
+        MaxPage(Inst.MaxPage), DataPtr(Inst.DataPtr) {
+    Inst.DataPtr = nullptr;
+  }
   MemoryInstance(const AST::Limit &Lim)
       : HasMaxPage(Lim.hasMax()), MinPage(Lim.getMin()), MaxPage(Lim.getMax()) {
     const auto UsableAddress = getUsableAddress();
@@ -83,7 +88,11 @@ public:
       }
     }
   }
-  ~MemoryInstance() noexcept { munmap(DataPtr, k8G); }
+  ~MemoryInstance() noexcept {
+    if (DataPtr) {
+      munmap(DataPtr, MinPage * kPageSize);
+    }
+  }
 
   /// Get page size of memory.data
   uint32_t getDataPageSize() const noexcept { return MinPage; }

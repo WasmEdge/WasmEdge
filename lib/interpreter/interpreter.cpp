@@ -79,7 +79,8 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
   }
 
   /// Check parameter and function type.
-  const auto &FuncType = FuncInst->getFuncType();
+  const auto &ModInst = **StoreMgr.getModule(FuncInst->getModuleAddr());
+  const auto &FuncType = **ModInst.getFuncType(FuncInst->getFuncTypeIndex());
   if (FuncType.Params.size() > Params.size()) {
     std::vector<ValType> GotParams;
     for (size_t I = 0; I < Params.size(); ++I) {

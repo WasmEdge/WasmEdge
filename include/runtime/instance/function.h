@@ -30,23 +30,24 @@ public:
   FunctionInstance() = delete;
   /// Move constructor.
   FunctionInstance(FunctionInstance &&Inst) noexcept
-      : ModuleAddr(Inst.ModuleAddr), FuncType(Inst.FuncType),
+      : ModuleAddr(Inst.ModuleAddr), FuncTypeIdx(Inst.FuncTypeIdx),
         Data(std::move(Inst.Data)) {}
   /// Constructor for native function.
-  FunctionInstance(const uint32_t ModAddr, const FType &Type,
+  FunctionInstance(const uint32_t ModAddr, const uint32_t TypeIdx,
                    Span<const std::pair<uint32_t, ValType>> Locs,
                    AST::InstrView Expr) noexcept
-      : ModuleAddr(ModAddr), FuncType(Type),
+      : ModuleAddr(ModAddr), FuncTypeIdx(TypeIdx),
         Data(std::in_place_type_t<WasmFunction>(), Locs, Expr) {}
   /// Constructor for compiled function.
-  FunctionInstance(const uint32_t ModAddr, const FType &Type,
+  FunctionInstance(const uint32_t ModAddr, const uint32_t TypeIdx,
                    Loader::Symbol<CompiledFunction> S) noexcept
-      : ModuleAddr(ModAddr), FuncType(Type),
+      : ModuleAddr(ModAddr), FuncTypeIdx(TypeIdx),
         Data(std::in_place_type_t<Loader::Symbol<CompiledFunction>>(),
              std::move(S)) {}
-  /// Constructor for host function. Module address will not be used.
+  /// Constructor for host function. Module address and function type index will
+  /// not be used.
   FunctionInstance(std::unique_ptr<HostFunctionBase> &&Func) noexcept
-      : ModuleAddr(0), FuncType(Func->getFuncType()),
+      : ModuleAddr(0), FuncTypeIdx(0),
         Data(std::in_place_type_t<std::unique_ptr<HostFunctionBase>>(),
              std::move(Func)) {}
 
@@ -70,8 +71,8 @@ public:
   /// Getter of module address of this function instance.
   uint32_t getModuleAddr() const { return ModuleAddr; }
 
-  /// Getter of function type.
-  const FType &getFuncType() const { return FuncType; }
+  /// Getter of function type index.
+  uint32_t getFuncTypeIndex() const { return FuncTypeIdx; }
 
   /// Getter of function local variables.
   Span<const std::pair<uint32_t, ValType>> getLocals() const noexcept {
@@ -109,7 +110,7 @@ private:
   /// \name Data of function instance.
   /// @{
   const uint32_t ModuleAddr;
-  const FType &FuncType;
+  const uint32_t FuncTypeIdx;
   std::variant<WasmFunction, Loader::Symbol<CompiledFunction>,
                std::unique_ptr<HostFunctionBase>>
       Data;

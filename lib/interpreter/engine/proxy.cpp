@@ -103,9 +103,16 @@ Expect<void> Interpreter::call(Runtime::StoreManager &StoreMgr,
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
   const uint32_t FuncAddr = *ModInst->getFuncAddr(FuncIndex);
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
-  const auto &FuncType = FuncInst->getFuncType();
-  const unsigned ParamsSize = FuncType.Params.size();
-  const unsigned ReturnsSize = FuncType.Returns.size();
+  unsigned ParamsSize = 0, ReturnsSize = 0;
+  if (FuncInst->isHostFunction()) {
+    const auto &FuncType = FuncInst->getHostFunc().getFuncType();
+    ParamsSize = FuncType.Params.size();
+    ReturnsSize = FuncType.Returns.size();
+  } else {
+    const auto *FuncType = *ModInst->getFuncType(FuncInst->getFuncTypeIndex());
+    ParamsSize = FuncType->Params.size();
+    ReturnsSize = FuncType->Returns.size();
+  }
 
   for (unsigned I = 0; I < ParamsSize; ++I) {
     StackMgr.push(Args[I]);
@@ -147,16 +154,26 @@ Expect<void> Interpreter::callIndirect(Runtime::StoreManager &StoreMgr,
   }
   const auto FuncAddr = retrieveFuncIdx(Ref);
 
-  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  const auto *TargetFuncType = *ModInst->getFuncType(FuncTypeIndex);
+  const auto *ExpModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
+  const auto *ExpFuncType = *ExpModInst->getFuncType(FuncTypeIndex);
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
-  const auto &FuncType = FuncInst->getFuncType();
-  if (unlikely(*TargetFuncType != FuncType)) {
-    return Unexpect(ErrCode::IndirectCallTypeMismatch);
+  unsigned ParamsSize = 0, ReturnsSize = 0;
+  if (FuncInst->isHostFunction()) {
+    const auto &FuncType = FuncInst->getHostFunc().getFuncType();
+    if (unlikely(*ExpFuncType != FuncType)) {
+      return Unexpect(ErrCode::IndirectCallTypeMismatch);
+    }
+    ParamsSize = FuncType.Params.size();
+    ReturnsSize = FuncType.Returns.size();
+  } else {
+    const auto *ModInst = *StoreMgr.getModule(FuncInst->getModuleAddr());
+    const auto *FuncType = *ModInst->getFuncType(FuncInst->getFuncTypeIndex());
+    if (unlikely(*ExpFuncType != *FuncType)) {
+      return Unexpect(ErrCode::IndirectCallTypeMismatch);
+    }
+    ParamsSize = FuncType->Params.size();
+    ReturnsSize = FuncType->Returns.size();
   }
-
-  const unsigned ParamsSize = FuncType.Params.size();
-  const unsigned ReturnsSize = FuncType.Returns.size();
 
   for (unsigned I = 0; I < ParamsSize; ++I) {
     StackMgr.push(Args[I]);

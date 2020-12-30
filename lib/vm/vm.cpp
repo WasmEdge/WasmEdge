@@ -267,8 +267,14 @@ VM::getFunctionList() const {
   std::vector<std::pair<std::string, Runtime::Instance::FType>> Res;
   for (auto &&Func : StoreRef.getFuncExports()) {
     const auto *FuncInst = *StoreRef.getFunction(Func.second);
-    const auto &FuncType = FuncInst->getFuncType();
-    Res.push_back({Func.first, FuncType});
+    if (FuncInst->isHostFunction()) {
+      Res.push_back({Func.first, FuncInst->getHostFunc().getFuncType()});
+    } else {
+      const auto *ModInst = *StoreRef.getModule(FuncInst->getModuleAddr());
+      const auto *FuncType =
+          *ModInst->getFuncType(FuncInst->getFuncTypeIndex());
+      Res.push_back({Func.first, *FuncType});
+    }
   }
   return Res;
 }

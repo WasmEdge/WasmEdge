@@ -118,8 +118,8 @@ Expect<void> Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
   const auto *TabInst = getTabInstByIdx(StoreMgr, Instr.getSourceIndex());
 
   /// Get function type at index x.
-  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  const auto *TargetFuncType = *ModInst->getFuncType(Instr.getTargetIndex());
+  const auto *ExpModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
+  const auto *ExpFuncType = *ExpModInst->getFuncType(Instr.getTargetIndex());
 
   /// Pop the value i32.const i from the Stack.
   uint32_t Idx = retrieveValue<uint32_t>(StackMgr.pop());
@@ -134,30 +134,46 @@ Expect<void> Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
   }
 
   /// Get function address.
-  uint32_t FuncAddr;
   ValVariant Ref = *TabInst->getRefAddr(Idx);
   if (isNullRef(Ref)) {
+    LOG(ERROR) << ErrCode::UninitializedElement;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
                                            {ValTypeFromType<uint32_t>()});
-    LOG(ERROR) << ErrCode::UninitializedElement;
     return Unexpect(ErrCode::UninitializedElement);
   }
-  FuncAddr = retrieveFuncIdx(Ref);
+  uint32_t FuncAddr = retrieveFuncIdx(Ref);
 
   /// Check function type.
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
-  const auto &FuncType = FuncInst->getFuncType();
-  if (*TargetFuncType != FuncType) {
-    LOG(ERROR) << ErrCode::IndirectCallTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
-                                           {Idx},
-                                           {ValTypeFromType<uint32_t>()});
-    LOG(ERROR) << ErrInfo::InfoMismatch(TargetFuncType->Params,
-                                        TargetFuncType->Returns,
-                                        FuncType.Params, FuncType.Returns);
-    return Unexpect(ErrCode::IndirectCallTypeMismatch);
+  if (FuncInst->isHostFunction()) {
+    const auto *FuncType = &FuncInst->getHostFunc().getFuncType();
+    if (*ExpFuncType != *FuncType) {
+      LOG(ERROR) << ErrCode::IndirectCallTypeMismatch;
+      LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                             Instr.getOffset(), {Idx},
+                                             {ValTypeFromType<uint32_t>()});
+      LOG(ERROR) << ErrInfo::InfoMismatch(ExpFuncType->Params,
+                                          ExpFuncType->Returns,
+                                          FuncType->Params, FuncType->Returns);
+      return Unexpect(ErrCode::IndirectCallTypeMismatch);
+    }
+  } else {
+    const auto *ModInst = *StoreMgr.getModule(FuncInst->getModuleAddr());
+    const auto *FuncType = *ModInst->getFuncType(FuncInst->getFuncTypeIndex());
+    if (*ExpFuncType != *FuncType) {
+      LOG(ERROR) << ErrCode::IndirectCallTypeMismatch;
+      LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                             Instr.getOffset(), {Idx},
+                                             {ValTypeFromType<uint32_t>()});
+      LOG(ERROR) << ErrInfo::InfoMismatch(ExpFuncType->Params,
+                                          ExpFuncType->Returns,
+                                          FuncType->Params, FuncType->Returns);
+      return Unexpect(ErrCode::IndirectCallTypeMismatch);
+    }
   }
+
+  /// Enter function and move PC.
   if (auto Res = enterFunction(StoreMgr, *FuncInst, PC); !Res) {
     return Unexpect(Res);
   } else {

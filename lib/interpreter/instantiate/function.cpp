@@ -20,22 +20,21 @@ Expect<void> Interpreter::instantiate(
   for (uint32_t I = 0; I < CodeSegs.size(); ++I) {
     /// Insert function instance to store manager.
     uint32_t NewFuncInstAddr;
-    auto *FuncType = *ModInst.getFuncType(TypeIdxs[I]);
     if (InsMode == InstantiateMode::Instantiate) {
       if (auto Symbol = CodeSegs[I].getSymbol()) {
         NewFuncInstAddr =
-            StoreMgr.pushFunction(ModInst.Addr, *FuncType, std::move(Symbol));
+            StoreMgr.pushFunction(ModInst.Addr, TypeIdxs[I], std::move(Symbol));
       } else {
-        NewFuncInstAddr = StoreMgr.pushFunction(ModInst.Addr, *FuncType,
+        NewFuncInstAddr = StoreMgr.pushFunction(ModInst.Addr, TypeIdxs[I],
                                                 CodeSegs[I].getLocals(),
                                                 CodeSegs[I].getInstrs());
       }
     } else {
       if (auto Symbol = CodeSegs[I].getSymbol()) {
-        NewFuncInstAddr =
-            StoreMgr.importFunction(ModInst.Addr, *FuncType, std::move(Symbol));
+        NewFuncInstAddr = StoreMgr.importFunction(ModInst.Addr, TypeIdxs[I],
+                                                  std::move(Symbol));
       } else {
-        NewFuncInstAddr = StoreMgr.importFunction(ModInst.Addr, *FuncType,
+        NewFuncInstAddr = StoreMgr.importFunction(ModInst.Addr, TypeIdxs[I],
                                                   CodeSegs[I].getLocals(),
                                                   CodeSegs[I].getInstrs());
       }

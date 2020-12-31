@@ -11,6 +11,7 @@ add_subdirectory(host/wasi)
 add_subdirectory(externref)
 add_subdirectory(expected)
 add_subdirectory(span)
+add_subdirectory(po)
 
 if(BUILD_COVERAGE)
   setup_target_for_coverage_gcovr_html(

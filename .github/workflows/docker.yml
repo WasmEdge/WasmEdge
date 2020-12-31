@@ -14,7 +14,7 @@ on:
 jobs:
   build-docker-images:
     name: build-docker-images
-    runs-on: ubuntu-latest
+    runs-on: ssvm
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -131,7 +131,7 @@ jobs:
 
   build-manylinux1_x86_64:
     name: build-manylinux1_x86_64
-    runs-on: ubuntu-latest
+    runs-on: ssvm
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -192,7 +192,7 @@ jobs:
 
   build-manylinux2010_x86_64:
     name: build-manylinux2010_x86_64
-    runs-on: ubuntu-latest
+    runs-on: ssvm
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -253,7 +253,7 @@ jobs:
 
   build-manylinux2014_x86_64:
     name: build-manylinux2014_x86_64
-    runs-on: ubuntu-latest
+    runs-on: ssvm
     steps:
       - name: Checkout code
         uses: actions/checkout@v2

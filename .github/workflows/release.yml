@@ -8,7 +8,7 @@ on:
 jobs:
   create:
     name: Create Release
-    runs-on: ubuntu-latest
+    runs-on: ssvm
     container:
       image: secondstate/ssvm:ubuntu-build-gcc
     steps:

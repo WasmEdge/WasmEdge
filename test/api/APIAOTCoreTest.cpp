@@ -85,6 +85,17 @@ TEST_P(CoreTest, TestSuites) {
           return {};
         });
   };
+  T.onLoad = [&VM, &Compile](const std::string &Filename) -> Expect<void> {
+    return Compile(Filename).and_then(
+        [&](const std::string &SOFilename) -> Expect<void> {
+          WasmEdge_Result Res =
+              WasmEdge_VMLoadWasmFromFile(VM, SOFilename.c_str());
+          if (!WasmEdge_ResultOK(Res)) {
+            return Unexpect(convResult(Res));
+          }
+          return {};
+        });
+  };
   T.onValidate = [&VM, &Compile](const std::string &Filename) -> Expect<void> {
     return Compile(Filename).and_then(
         [&](const std::string &SOFilename) -> Expect<void> {

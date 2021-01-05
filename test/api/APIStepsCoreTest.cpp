@@ -77,6 +77,16 @@ TEST_P(CoreTest, TestSuites) {
     }
     return {};
   };
+  T.onLoad = [&](const std::string &Filename) -> Expect<void> {
+    WasmEdge_ASTModuleContext *ModCxt = nullptr;
+    WasmEdge_Result Res =
+        WasmEdge_LoaderParseFromFile(LoadCxt, &ModCxt, Filename.c_str());
+    if (!WasmEdge_ResultOK(Res)) {
+      return Unexpect(convResult(Res));
+    }
+    WasmEdge_ASTModuleDelete(ModCxt);
+    return {};
+  };
   T.onValidate = [&](const std::string &Filename) -> Expect<void> {
     WasmEdge_ASTModuleContext *ModCxt = nullptr;
     WasmEdge_Result Res =

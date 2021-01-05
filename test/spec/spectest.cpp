@@ -471,6 +471,13 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       EXPECT_TRUE(false);
     }
   };
+  auto TrapLoad = [&](const std::string &Filename, const std::string &Text) {
+    if (auto Res = onLoad(Filename)) {
+      EXPECT_TRUE(false);
+    } else {
+      EXPECT_TRUE(stringContains(Text, WasmEdge::ErrCodeStr[Res.error()]));
+    }
+  };
   auto TrapInvoke = [&](const rapidjson::Value &Action,
                         const std::string &Text) {
     const auto ModName = GetModuleName(Action);
@@ -559,8 +566,16 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         return;
       }
       case CommandID::AssertMalformed: {
-        /// TODO: Wat is not supported in WasmEdge yet.
-        /// TODO: Add processing binary cases.
+        const auto &ModType = Cmd["module_type"s].Get<std::string>();
+        if (ModType != "binary") {
+          /// TODO: Wat is not supported in WasmEdge yet.
+          return;
+        }
+        const auto Filename = (TestsuiteRoot / Proposal / UnitName /
+                               Cmd["filename"s].Get<std::string>())
+                                  .u8string();
+        const auto &Text = Cmd["text"s].Get<std::string>();
+        TrapLoad(Filename, Text);
         return;
       }
       case CommandID::AssertInvalid: {

@@ -46,35 +46,56 @@ enum class ErrCode : uint8_t {
   WrongVMWorkflow = 0x03,   /// Wrong VM's workflow
   FuncNotFound = 0x04,      /// Wasm function not found
   /// Load phase
-  InvalidPath = 0x20,    /// File not found
-  ReadError = 0x21,      /// Error when reading
-  EndOfFile = 0x22,      /// Reach end of file when reading
-  InvalidGrammar = 0x23, /// Parsing error
-  InvalidVersion = 0x24, /// Unsupported version
+  InvalidPath = 0x20,            /// File not found
+  ReadError = 0x21,              /// Error when reading
+  EndOfFile = 0x22,              /// Reach end of file when reading
+  InvalidMagic = 0x23,           /// Not detected magic header
+  InvalidVersion = 0x24,         /// Unsupported version
+  InvalidSection = 0x25,         /// Malformed section ID
+  SectionSizeMismatch = 0x26,    /// Section size mismatched
+  SectionSizeOutOfBounds = 0x27, /// Section size out of bounds
+  JunkSection = 0x28,            /// Junk sections
+  IncompatibleFuncCode = 0x29,   /// Incompatible function and code section
+  IncompatibleDataCount = 0x2A,  /// Incompatible data and datacount section
+  DataCountRequired = 0x2B,      /// Datacount section required
+  UnexpectedEndNode = 0x2C,      /// Unexpected end of sections or functions
+  InvalidImportKind = 0x2D,      /// Malformed import kind
+  ExpectedZeroFlag = 0x2E,       /// Not loaded an expected zero flag
+  InvalidMut = 0x2F,             /// Malformed mutability
+  DupGlobal = 0x30,              /// Global duplicated
+  TooManyLocals = 0x31,          /// Local size too large
+  InvalidElemInstr = 0x32,       /// Invalid instructions in element segments
+  InvalidElemType = 0x33,        /// Malformed element type (Bulk-mem proposal)
+  InvalidRefType = 0x34,     /// Malformed reference type (Ref-types proposal)
+  InvalidElemSegKind = 0x35, /// Invalid element segment kind
+  InvalidUTF8 = 0x36,        /// Invalid utf-8 encoding
+  IntegerTooLarge = 0x37,    /// Invalid too large integer
+  IntegerTooLong = 0x38,     /// Invalid presentation too long integer
+  InvalidOpCode = 0x39,      /// Illegal OpCode
+  InvalidGrammar = 0x3A,     /// Parsing error
   /// Validation phase
-  InvalidOpCode = 0x40,      /// Invalid instruction type
-  InvalidAlignment = 0x41,   /// Alignment > natural
-  TypeCheckFailed = 0x42,    /// Got unexpected type when checking
-  InvalidLabelIdx = 0x43,    /// Branch to unknown label index
-  InvalidLocalIdx = 0x44,    /// Access unknown local index
-  InvalidFuncTypeIdx = 0x45, /// Type index not defined
-  InvalidFuncIdx = 0x46,     /// Function index not defined
-  InvalidTableIdx = 0x47,    /// Table index not defined
-  InvalidMemoryIdx = 0x48,   /// Memory index not defined
-  InvalidGlobalIdx = 0x49,   /// Global index not defined
-  InvalidElemIdx = 0x4A,     /// Element segment index not defined
-  InvalidDataIdx = 0x4B,     /// Data segment index not defined
-  InvalidRefIdx = 0x4C,      /// Undeclared reference
-  ConstExprRequired = 0x4D,  /// Should be constant expression
-  DupExportName = 0x4E,      /// Export name conflicted
-  ImmutableGlobal = 0x4F,    /// Tried to store to const global value
-  InvalidResultArity = 0x50, /// Invalid result arity in select t* instruction
-  MultiTables = 0x51,        /// #Tables > 1
-  MultiMemories = 0x52,      /// #Memories > 1
-  InvalidLimit = 0x53,       /// Invalid Limit grammar
-  InvalidMemPages = 0x54,    /// Memory pages > 65536
-  InvalidStartFunc = 0x55,   /// Invalid start function signature
-  InvalidLaneIdx = 0x56,     /// Invalid lane index
+  InvalidAlignment = 0x40,   /// Alignment > natural
+  TypeCheckFailed = 0x41,    /// Got unexpected type when checking
+  InvalidLabelIdx = 0x42,    /// Branch to unknown label index
+  InvalidLocalIdx = 0x43,    /// Access unknown local index
+  InvalidFuncTypeIdx = 0x44, /// Type index not defined
+  InvalidFuncIdx = 0x45,     /// Function index not defined
+  InvalidTableIdx = 0x46,    /// Table index not defined
+  InvalidMemoryIdx = 0x47,   /// Memory index not defined
+  InvalidGlobalIdx = 0x48,   /// Global index not defined
+  InvalidElemIdx = 0x49,     /// Element segment index not defined
+  InvalidDataIdx = 0x4A,     /// Data segment index not defined
+  InvalidRefIdx = 0x4B,      /// Undeclared reference
+  ConstExprRequired = 0x4C,  /// Should be constant expression
+  DupExportName = 0x4D,      /// Export name conflicted
+  ImmutableGlobal = 0x4E,    /// Tried to store to const global value
+  InvalidResultArity = 0x4F, /// Invalid result arity in select t* instruction
+  MultiTables = 0x50,        /// #Tables > 1 (without Ref-types proposal)
+  MultiMemories = 0x51,      /// #Memories > 1
+  InvalidLimit = 0x52,       /// Invalid Limit grammar
+  InvalidMemPages = 0x53,    /// Memory pages > 65536
+  InvalidStartFunc = 0x54,   /// Invalid start function signature
+  InvalidLaneIdx = 0x55,     /// Invalid lane index
   /// Instantiation phase
   ModuleNameConflict = 0x60,     /// Module name conflicted when importing.
   IncompatibleImportType = 0x61, /// Import matching failed
@@ -109,11 +130,34 @@ static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
     /// Load phase
     {ErrCode::InvalidPath, "invalid path"},
     {ErrCode::ReadError, "read error"},
-    {ErrCode::EndOfFile, "read end of file"},
+    {ErrCode::EndOfFile, "unexpected end"},
+    {ErrCode::InvalidMagic, "magic header not detected"},
+    {ErrCode::InvalidVersion, "unknown binary version"},
+    {ErrCode::InvalidSection, "malformed section id"},
+    {ErrCode::SectionSizeMismatch, "section size mismatch"},
+    {ErrCode::SectionSizeOutOfBounds, "length out of bounds"},
+    {ErrCode::JunkSection, "junk after last section"},
+    {ErrCode::IncompatibleFuncCode,
+     "function and code section have inconsistent lengths"},
+    {ErrCode::IncompatibleDataCount,
+     "data count and data section have inconsistent lengths"},
+    {ErrCode::DataCountRequired, "data count section required"},
+    {ErrCode::UnexpectedEndNode, "unexpected end of section or function"},
+    {ErrCode::InvalidImportKind, "malformed import kind"},
+    {ErrCode::ExpectedZeroFlag, "zero flag expected"},
+    {ErrCode::InvalidMut, "malformed mutability"},
+    {ErrCode::DupGlobal, "duplicate global"},
+    {ErrCode::TooManyLocals, "too many locals"},
+    {ErrCode::InvalidElemInstr, "invalid elem"},
+    {ErrCode::InvalidElemType, "malformed element type"},
+    {ErrCode::InvalidRefType, "malformed reference type"},
+    {ErrCode::InvalidElemSegKind, "invalid elements segment kind"},
+    {ErrCode::InvalidUTF8, "malformed UTF-8 encoding"},
+    {ErrCode::IntegerTooLarge, "integer too large"},
+    {ErrCode::IntegerTooLong, "integer representation too long"},
+    {ErrCode::InvalidOpCode, "illegal opcode"},
     {ErrCode::InvalidGrammar, "invalid wasm grammar"},
-    {ErrCode::InvalidVersion, "invalid version"},
     /// Validation phase
-    {ErrCode::InvalidOpCode, "invalid instruction opcode"},
     {ErrCode::InvalidAlignment, "alignment must not be larger than natural"},
     {ErrCode::TypeCheckFailed, "type mismatch"},
     {ErrCode::InvalidLabelIdx, "unknown label"},

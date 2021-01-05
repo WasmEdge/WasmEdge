@@ -77,6 +77,9 @@ TEST_P(CoreTest, TestSuites) {
           }
         });
   };
+  T.onLoad = [&VM](const std::string &Filename) -> Expect<void> {
+    return VM.loadWasm(Filename);
+  };
   T.onValidate = [&VM, &Compile](const std::string &Filename) -> Expect<void> {
     return Compile(Filename)
         .and_then([&](const std::string &SOFilename) -> Expect<void> {

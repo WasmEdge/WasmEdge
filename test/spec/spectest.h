@@ -57,6 +57,9 @@ public:
                                       const std::string &Filename);
   std::function<ModuleCallback> onModule;
 
+  using LoadCallback = Expect<void>(const std::string &Filename);
+  std::function<LoadCallback> onLoad;
+
   using ValidateCallback = Expect<void>(const std::string &Filename);
   std::function<ValidateCallback> onValidate;
 

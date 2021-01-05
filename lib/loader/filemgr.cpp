@@ -25,6 +25,7 @@ Expect<void> FileMgrFStream::setPath(const std::filesystem::path &FilePath) {
   Fin.open(FilePath, std::ios::in | std::ios::binary);
   if (!Fin.fail()) {
     Status = ErrCode::Success;
+    FSize = std::filesystem::file_size(FilePath);
   }
   if (Status != ErrCode::Success) {
     return Unexpect(Status);
@@ -52,11 +53,9 @@ Expect<std::vector<Byte>> FileMgrFStream::readBytes(size_t SizeToRead) {
     return Unexpect(Status);
   }
   std::vector<Byte> Buf;
+  Buf.resize(SizeToRead);
   if (SizeToRead > 0) {
-    std::istreambuf_iterator<char> Iter(Fin);
-    // TODO: error handling
-    std::copy_n(Iter, SizeToRead, std::back_inserter(Buf));
-    Iter++;
+    Fin.read(reinterpret_cast<char *>(&Buf[0]), SizeToRead);
   }
   if (Fin.fail()) {
     Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
@@ -234,13 +233,14 @@ Expect<Byte> FileMgrVector::readByte() {
 /// Read number of bytes. See "include/loader/filemgr.h".
 Expect<std::vector<Byte>> FileMgrVector::readBytes(size_t SizeToRead) {
   std::vector<Byte> Buf;
+  Buf.resize(SizeToRead);
   if (SizeToRead > 0) {
     if (Pos + SizeToRead > Code.size()) {
       Pos = Code.size();
       Status = ErrCode::EndOfFile;
       return Unexpect(Status);
     }
-    std::copy_n(Code.begin() + Pos, SizeToRead, std::back_inserter(Buf));
+    std::copy_n(Code.begin() + Pos, SizeToRead, Buf.begin());
     Pos += SizeToRead;
   }
   return Buf;

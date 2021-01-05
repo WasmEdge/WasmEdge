@@ -89,11 +89,14 @@ public:
   Expect<float> readF32() override;
   Expect<double> readF64() override;
   Expect<std::string> readName() override;
-  uint32_t getOffset() override { return Fin.tellg(); }
+  uint32_t getOffset() override {
+    return Fin.eof() ? FSize : static_cast<uint32_t>(Fin.tellg());
+  }
 
 private:
   /// file stream.
   std::ifstream Fin;
+  uint32_t FSize = 0;
 };
 
 /// Vector version of file manager.

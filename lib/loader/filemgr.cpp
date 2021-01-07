@@ -73,8 +73,16 @@ Expect<uint32_t> FileMgrFStream::readU32() {
   uint32_t Offset = 0;
   char Byte = 0x80;
   while (!Fin.fail() && Byte & 0x80) {
+    if (Offset >= 32) {
+      Status = ErrCode::IntegerTooLong;
+      return Unexpect(Status);
+    }
     Fin.get(Byte);
     Result |= (Byte & UINT32_C(0x7F)) << (Offset);
+    if (Offset == 28 && (Byte & UINT32_C(0x70)) != 0) {
+      Status = ErrCode::IntegerTooLarge;
+      return Unexpect(Status);
+    }
     Offset += 7;
   }
   if (Fin.fail()) {
@@ -93,8 +101,16 @@ Expect<uint64_t> FileMgrFStream::readU64() {
   uint64_t Offset = 0;
   char Byte = 0x80;
   while (!Fin.fail() && Byte & 0x80) {
+    if (Offset >= 64) {
+      Status = ErrCode::IntegerTooLong;
+      return Unexpect(Status);
+    }
     Fin.get(Byte);
     Result |= (Byte & UINT64_C(0x7F)) << (Offset);
+    if (Offset == 63 && (Byte & UINT32_C(0x7E)) != 0) {
+      Status = ErrCode::IntegerTooLarge;
+      return Unexpect(Status);
+    }
     Offset += 7;
   }
   if (Fin.fail()) {
@@ -113,6 +129,10 @@ Expect<int32_t> FileMgrFStream::readS32() {
   uint32_t Offset = 0;
   char Byte = 0x80;
   while (!Fin.fail() && Byte & 0x80) {
+    if (Offset >= 32) {
+      Status = ErrCode::IntegerTooLong;
+      return Unexpect(Status);
+    }
     Fin.get(Byte);
     Result |= (Byte & UINT32_C(0x7F)) << (Offset);
     Offset += 7;
@@ -120,6 +140,14 @@ Expect<int32_t> FileMgrFStream::readS32() {
   if (Fin.fail()) {
     Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
     return Unexpect(Status);
+  }
+  if (Offset == 35) {
+    /// The signed-extend bits should be the same.
+    if (((Byte & 0x70) != 0x70 && (Byte & 0x70) != 0) ||
+        (Byte & 0x40) >> 6 != (Byte & 0x08) >> 3) {
+      Status = ErrCode::IntegerTooLarge;
+      return Unexpect(Status);
+    }
   }
   if (Byte & 0x40 && Offset < 32) {
     Result |= 0xFFFFFFFF << Offset;
@@ -136,6 +164,10 @@ Expect<int64_t> FileMgrFStream::readS64() {
   uint64_t Offset = 0;
   char Byte = 0x80;
   while (!Fin.fail() && Byte & 0x80) {
+    if (Offset >= 64) {
+      Status = ErrCode::IntegerTooLong;
+      return Unexpect(Status);
+    }
     Fin.get(Byte);
     Result |= (Byte & UINT64_C(0x7F)) << (Offset);
     Offset += 7;
@@ -143,6 +175,14 @@ Expect<int64_t> FileMgrFStream::readS64() {
   if (Fin.fail()) {
     Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
     return Unexpect(Status);
+  }
+  if (Offset == 70) {
+    /// The signed-extend bits should be the same.
+    if (((Byte & 0x7E) != 0x7E && (Byte & 0x7E) != 0) ||
+        (Byte & 0x40) >> 6 != (Byte & 0x01)) {
+      Status = ErrCode::IntegerTooLarge;
+      return Unexpect(Status);
+    }
   }
   if (Byte & 0x40 && Offset < 64) {
     Result |= 0xFFFFFFFFFFFFFFFFULL << Offset;
@@ -252,12 +292,20 @@ Expect<uint32_t> FileMgrVector::readU32() {
   uint32_t Offset = 0;
   uint8_t Byte = 0x80;
   while (Byte & 0x80) {
+    if (Offset >= 32) {
+      Status = ErrCode::IntegerTooLong;
+      return Unexpect(Status);
+    }
     if (Pos >= Code.size()) {
       Status = ErrCode::EndOfFile;
       return Unexpect(Status);
     }
     Byte = Code[Pos++];
     Result |= (Byte & UINT32_C(0x7F)) << (Offset);
+    if (Offset == 28 && (Byte & UINT32_C(0x70)) != 0) {
+      Status = ErrCode::IntegerTooLarge;
+      return Unexpect(Status);
+    }
     Offset += 7;
   }
   return Result;
@@ -269,12 +317,20 @@ Expect<uint64_t> FileMgrVector::readU64() {
   uint64_t Offset = 0;
   uint8_t Byte = 0x80;
   while (Byte & 0x80) {
+    if (Offset >= 64) {
+      Status = ErrCode::IntegerTooLong;
+      return Unexpect(Status);
+    }
     if (Pos >= Code.size()) {
       Status = ErrCode::EndOfFile;
       return Unexpect(Status);
     }
     Byte = Code[Pos++];
     Result |= (Byte & UINT64_C(0x7F)) << (Offset);
+    if (Offset == 63 && (Byte & UINT32_C(0x7E)) != 0) {
+      Status = ErrCode::IntegerTooLarge;
+      return Unexpect(Status);
+    }
     Offset += 7;
   }
   return Result;
@@ -286,6 +342,10 @@ Expect<int32_t> FileMgrVector::readS32() {
   uint32_t Offset = 0;
   uint8_t Byte = 0x80;
   while (Byte & 0x80) {
+    if (Offset >= 32) {
+      Status = ErrCode::IntegerTooLong;
+      return Unexpect(Status);
+    }
     if (Pos >= Code.size()) {
       Status = ErrCode::EndOfFile;
       return Unexpect(Status);
@@ -293,6 +353,14 @@ Expect<int32_t> FileMgrVector::readS32() {
     Byte = Code[Pos++];
     Result |= (Byte & UINT32_C(0x7F)) << Offset;
     Offset += 7;
+  }
+  if (Offset == 35) {
+    /// The signed-extend bits should be the same.
+    if (((Byte & 0x70) != 0x70 && (Byte & 0x70) != 0) ||
+        (Byte & 0x40) >> 6 != (Byte & 0x08) >> 3) {
+      Status = ErrCode::IntegerTooLarge;
+      return Unexpect(Status);
+    }
   }
   if (Byte & 0x40 && Offset < 32) {
     Result |= 0xFFFFFFFF << Offset;
@@ -306,6 +374,10 @@ Expect<int64_t> FileMgrVector::readS64() {
   uint64_t Offset = 0;
   uint8_t Byte = 0x80;
   while (Byte & 0x80) {
+    if (Offset >= 64) {
+      Status = ErrCode::IntegerTooLong;
+      return Unexpect(Status);
+    }
     if (Pos >= Code.size()) {
       Status = ErrCode::EndOfFile;
       return Unexpect(Status);
@@ -313,6 +385,14 @@ Expect<int64_t> FileMgrVector::readS64() {
     Byte = Code[Pos++];
     Result |= (Byte & UINT64_C(0x7F)) << Offset;
     Offset += 7;
+  }
+  if (Offset == 70) {
+    /// The signed-extend bits should be the same.
+    if (((Byte & 0x7E) != 0x7E && (Byte & 0x7E) != 0) ||
+        (Byte & 0x40) >> 6 != (Byte & 0x01)) {
+      Status = ErrCode::IntegerTooLarge;
+      return Unexpect(Status);
+    }
   }
   if (Byte & 0x40 && Offset < 64) {
     Result |= 0xFFFFFFFFFFFFFFFFULL << Offset;

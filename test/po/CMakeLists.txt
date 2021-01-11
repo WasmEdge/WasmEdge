@@ -3,6 +3,8 @@
 add_executable(poTests
   gtest.cpp
   po.cpp
+  help.cpp
+  subcommand.cpp
 )
 
 add_test(poTests poTests)

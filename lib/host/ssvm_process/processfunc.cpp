@@ -66,7 +66,8 @@ SSVMProcessAddStdIn::body(Runtime::Instance::MemoryInstance *MemInst,
     return Unexpect(ErrCode::ExecutionFailed);
   }
 
-  char *Buf = MemInst->getPointer<char *>(BufPtr);
+  uint8_t *Buf = MemInst->getPointer<uint8_t *>(BufPtr);
+  Env.StdIn.reserve(Env.StdIn.size() + BufLen);
   std::copy_n(Buf, BufLen, std::back_inserter(Env.StdIn));
   return {};
 };
@@ -84,6 +85,27 @@ SSVMProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
   Env.StdOut.clear();
   Env.StdErr.clear();
   Env.ExitCode = static_cast<uint32_t>(-1);
+
+  /// Check white list of commands.
+  if (!Env.AllowedAll &&
+      Env.AllowedCmd.find(Env.Name) == Env.AllowedCmd.end()) {
+    std::string Msg = "Permission denied: Command \"";
+    Msg.append(Env.Name);
+    Msg.append("\" is not in the white list. Please use --allow-command=");
+    Msg.append(Env.Name);
+    Msg.append(" or --allow-command-all to add \"");
+    Msg.append(Env.Name);
+    Msg.append("\" command into the white list.\n");
+    Env.Name.clear();
+    Env.Args.clear();
+    Env.Envs.clear();
+    Env.StdIn.clear();
+    Env.StdErr.reserve(Msg.length());
+    std::copy_n(Msg.c_str(), Msg.length(), std::back_inserter(Env.StdErr));
+    Env.ExitCode = static_cast<int8_t>(0xFFU);
+    Env.TimeOut = Env.DEFAULT_TIMEOUT;
+    return Env.ExitCode;
+  }
 
   /// Create pipes for stdin, stdout, and stderr.
   int FDStdIn[2], FDStdOut[2], FDStdErr[2];
@@ -218,11 +240,13 @@ SSVMProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
       if (select(NFD, &FDSet, NULL, NULL, &TSelect) > 0) {
         if (FD_ISSET(FDStdOut[0], &FDSet)) {
           if (RBytes = read(FDStdOut[0], Buf, sizeof(Buf)); RBytes > 0) {
+            Env.StdOut.reserve(Env.StdOut.size() + RBytes);
             std::copy_n(Buf, RBytes, std::back_inserter(Env.StdOut));
           }
         }
         if (FD_ISSET(FDStdErr[0], &FDSet)) {
           if (RBytes = read(FDStdErr[0], Buf, sizeof(Buf)); RBytes > 0) {
+            Env.StdErr.reserve(Env.StdErr.size() + RBytes);
             std::copy_n(Buf, RBytes, std::back_inserter(Env.StdErr));
           }
         }
@@ -234,12 +258,14 @@ SSVMProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
     do {
       RBytes = read(FDStdOut[0], Buf, sizeof(Buf));
       if (RBytes > 0) {
+        Env.StdOut.reserve(Env.StdOut.size() + RBytes);
         std::copy_n(Buf, RBytes, std::back_inserter(Env.StdOut));
       }
     } while (RBytes > 0);
     do {
       RBytes = read(FDStdErr[0], Buf, sizeof(Buf));
       if (RBytes > 0) {
+        Env.StdErr.reserve(Env.StdErr.size() + RBytes);
         std::copy_n(Buf, RBytes, std::back_inserter(Env.StdErr));
       }
     } while (RBytes > 0);

@@ -3,6 +3,7 @@
 #include "common/filesystem.h"
 #include "common/proposal.h"
 #include "common/value.h"
+#include "host/ssvm_process/processmodule.h"
 #include "host/wasi/wasimodule.h"
 #include "po/argument_parser.h"
 #include "vm/configure.h"
@@ -36,7 +37,7 @@ int main(int Argc, const char *Argv[]) {
 
   PO::List<std::string> Env(
       PO::Description(
-          "Environ variables. Each variables can specified as --env `NAME=VALUE`."sv),
+          "Environ variables. Each variable can be specified as --env `NAME=VALUE`."sv),
       PO::MetaVar("ENVS"sv));
 
   PO::Option<PO::Toggle> BulkMemoryOperations(
@@ -45,6 +46,13 @@ int main(int Argc, const char *Argv[]) {
       PO::Description("Enable Reference types (externref)"sv));
   PO::Option<PO::Toggle> SIMD(PO::Description("Enable SIMD"sv));
   PO::Option<PO::Toggle> All(PO::Description("Enable all features"sv));
+
+  PO::List<std::string> AllowCmd(
+      PO::Description(
+          "Allow commands called from ssvm_process host functions. Each command can be specified as --allow-command `COMMAND`."sv),
+      PO::MetaVar("COMMANDS"sv));
+  PO::Option<PO::Toggle> AllowCmdAll(PO::Description(
+      "Allow all commands called from ssvm_process host functions."sv));
 
   auto Parser = PO::ArgumentParser();
   if (!Parser.add_option(SoName)
@@ -56,6 +64,8 @@ int main(int Argc, const char *Argv[]) {
            .add_option("enable-reference-types"sv, ReferenceTypes)
            .add_option("enable-simd"sv, SIMD)
            .add_option("enable-all"sv, All)
+           .add_option("allow-command"sv, AllowCmd)
+           .add_option("allow-command-all"sv, AllowCmdAll)
            .parse(Argc, Argv)) {
     return EXIT_FAILURE;
   }
@@ -88,6 +98,16 @@ int main(int Argc, const char *Argv[]) {
 
   SSVM::Host::WasiModule *WasiMod = dynamic_cast<SSVM::Host::WasiModule *>(
       VM.getImportModule(SSVM::VM::Configure::VMType::Wasi));
+  SSVM::Host::SSVMProcessModule *ProcMod =
+      dynamic_cast<SSVM::Host::SSVMProcessModule *>(
+          VM.getImportModule(SSVM::VM::Configure::VMType::SSVM_Process));
+
+  if (AllowCmdAll.value()) {
+    ProcMod->getEnv().AllowedAll = true;
+  }
+  for (auto &Str : AllowCmd.value()) {
+    ProcMod->getEnv().AllowedCmd.insert(Str);
+  }
 
   WasiMod->getEnv().init(Dir.value(),
                          InputPath.filename().replace_extension("wasm"sv),

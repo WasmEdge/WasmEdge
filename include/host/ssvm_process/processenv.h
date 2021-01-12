@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace SSVM {
@@ -11,6 +12,11 @@ namespace Host {
 
 class SSVMProcessEnvironment {
 public:
+  /// Default timeout in milliseconds.
+  static inline const uint32_t DEFAULT_TIMEOUT = 10000;
+  /// Default polling time in milliseconds.
+  static inline const uint32_t DEFAULT_POLLTIME = 1;
+
   /// Commands
   std::string Name;
   std::vector<std::string> Args;
@@ -22,11 +28,9 @@ public:
   std::vector<uint8_t> StdErr;
 
   /// Configurations
-  /// Default timeout in milliseconds.
-  static inline const uint32_t DEFAULT_TIMEOUT = 10000;
-  /// Default polling time in milliseconds.
-  static inline const uint32_t DEFAULT_POLLTIME = 1;
-  uint32_t TimeOut = DEFAULT_TIMEOUT; /// Timeout in milliseconds.
+  uint32_t TimeOut = DEFAULT_TIMEOUT;         /// Timeout in milliseconds.
+  std::unordered_set<std::string> AllowedCmd; /// Programs in white list.
+  bool AllowedAll = false;                    /// Flag to allow all programs.
 
   /// Results
   uint32_t ExitCode = 0;

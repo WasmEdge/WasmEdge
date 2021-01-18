@@ -159,6 +159,18 @@ TEST(SSVMProcessTest, Run) {
   EXPECT_EQ(SSVM::retrieveValue<int32_t>(RetVal[0]), 1);
   EXPECT_TRUE(Env.StdOut.size() == 0);
   EXPECT_TRUE(Env.StdErr.size() > 0);
+
+  Env.AllowedAll = false;
+  Env.AllowedCmd.clear();
+  Env.AllowedCmd.insert("/bin/echo");
+  Env.Name = "/bin/echo";
+  Env.Args.push_back("123456 test");
+  EXPECT_TRUE(SSVMProcessRun.run(nullptr, {}, RetVal));
+  EXPECT_EQ(SSVM::retrieveValue<int32_t>(RetVal[0]), 0);
+  EXPECT_TRUE(Env.StdOut.size() == 12);
+  EXPECT_TRUE(Env.StdErr.size() == 0);
+  std::string OutStr = "123456 test\n";
+  EXPECT_TRUE(std::equal(Env.StdOut.begin(), Env.StdOut.end(), OutStr.begin()));
 }
 
 TEST(SSVMProcessTest, GetExitCode) {

@@ -15,6 +15,9 @@ jobs:
   build-docker-images:
     name: build-docker-images
     runs-on: ssvm
+    container:
+      image: secondstate/ssvm:ci-image-base
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -53,6 +56,24 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+
+      - name: "Rebuild secondstate/ssvm:ci-image-base"
+        uses: docker/build-push-action@v2
+        with:
+          context: ./utils/docker
+          file: utils/docker/Dockerfile.ci-image-base
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.prep.outputs.docker_image }}:ci-image-base
+          labels: |
+            org.opencontainers.image.title=${{ github.event.repository.name }}
+            org.opencontainers.image.description=${{ github.event.repository.description }}
+            org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            org.opencontainers.image.version=${{ steps.prep.outputs.version }}
+            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=${{ github.event.repository.license.spdx_id }}
 
       - name: "Rebuild secondstate/ssvm:ubuntu-base"
         uses: docker/build-push-action@v2
@@ -132,6 +153,9 @@ jobs:
   build-manylinux1_x86_64:
     name: build-manylinux1_x86_64
     runs-on: ssvm
+    container:
+      image: secondstate/ssvm:ci-image-base
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -193,6 +217,9 @@ jobs:
   build-manylinux2010_x86_64:
     name: build-manylinux2010_x86_64
     runs-on: ssvm
+    container:
+      image: secondstate/ssvm:ci-image-base
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -254,6 +281,9 @@ jobs:
   build-manylinux2014_x86_64:
     name: build-manylinux2014_x86_64
     runs-on: ssvm
+    container:
+      image: secondstate/ssvm:ci-image-base
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2

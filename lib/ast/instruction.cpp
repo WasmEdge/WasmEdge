@@ -104,24 +104,25 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
   case OpCode::Br_if:
     return readU32(TargetIdx);
 
-  case OpCode::Br_table: {
-    uint32_t VecCnt = 0;
-    /// Read the vector of labels.
-    if (auto Res = readU32(VecCnt); !Res) {
-      return Unexpect(Res);
-    }
-    LabelList.reserve(VecCnt);
-    for (uint32_t i = 0; i < VecCnt; ++i) {
-      uint32_t Label = 0;
-      if (auto Res = readU32(Label)) {
-        LabelList.push_back(Label);
-      } else {
-        return Unexpect(Res);
+  case OpCode::Br_table:
+    if (auto Res = Mgr.readU32()) {
+      /// Read the vector of labels.
+      uint32_t VecCnt = *Res;
+      LabelList.reserve(VecCnt);
+      for (uint32_t I = 0; I < VecCnt; ++I) {
+        uint32_t Label = 0;
+        if (auto Res = readU32(Label)) {
+          LabelList.push_back(Label);
+        } else {
+          return Unexpect(Res);
+        }
       }
+      /// Read default label.
+      return readU32(TargetIdx);
+    } else {
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
     }
-    /// Read default label.
-    return readU32(TargetIdx);
-  }
 
   case OpCode::Call:
     return readU32(TargetIdx);
@@ -165,28 +166,30 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
   case OpCode::Drop:
   case OpCode::Select:
     return {};
-  case OpCode::Select_t: {
-    uint32_t VecCnt = 0;
-    if (auto Res = readU32(VecCnt); !Res) {
-      return Unexpect(Res);
-    }
-    ValTypeList.reserve(VecCnt);
-    for (uint32_t I = 0; I < VecCnt; ++I) {
-      if (auto Res = Mgr.readByte()) {
-        ValType VType = static_cast<ValType>(*Res);
-        if (auto Check = checkValTypeProposals(
-                PConf, VType, Mgr.getOffset() - 1, ASTNodeAttr::Instruction);
-            !Check) {
-          return Unexpect(Check);
+  case OpCode::Select_t:
+    if (auto Res = Mgr.readU32()) {
+      /// Read the vector of value types.
+      uint32_t VecCnt = *Res;
+      ValTypeList.reserve(VecCnt);
+      for (uint32_t I = 0; I < VecCnt; ++I) {
+        if (auto T = Mgr.readByte()) {
+          ValType VType = static_cast<ValType>(*T);
+          if (auto Check = checkValTypeProposals(
+                  PConf, VType, Mgr.getOffset() - 1, ASTNodeAttr::Instruction);
+              !Check) {
+            return Unexpect(Check);
+          }
+          ValTypeList.push_back(VType);
+        } else {
+          return logLoadError(Res.error(), Mgr.getOffset(),
+                              ASTNodeAttr::Instruction);
         }
-        ValTypeList.push_back(VType);
-      } else {
-        return logLoadError(Res.error(), Mgr.getOffset(),
-                            ASTNodeAttr::Instruction);
       }
+      return {};
+    } else {
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
     }
-    return {};
-  }
 
   /// Variable Instructions.
   case OpCode::Local__get:

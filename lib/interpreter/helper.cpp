@@ -44,7 +44,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
 
     /// Push returns back to stack.
     for (size_t I = 0; I < ArgsN; ++I) {
-      StackMgr.pop();
+      ValVariant Val [[maybe_unused]] = StackMgr.pop();
     }
     for (auto &R : Rets) {
       StackMgr.push(std::move(R));

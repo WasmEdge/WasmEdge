@@ -46,6 +46,10 @@ Tools:
 
 * Added `binfmt` supporting for `WASM` interpreter.
   * Please use the tool `tools/ssvm/ssvm-static` with the same arguments as `ssvm`.
+* Provided `manylinux*` support for legacy operatoring systems
+  * `manylinux1` is based on CentOS 5.9
+  * `manylinux2010` is based on CentOS 6
+  * `manylinux2014` is based on CentOS 7
 
 Tests:
 

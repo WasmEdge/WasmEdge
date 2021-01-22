@@ -32,7 +32,7 @@ target_link_libraries(ssvm
   ssvmVM
 )
 
-if(BUILD_STATIC_SSVM)
+if(BUILD_TOOL_SSVM_STATIC)
   add_executable(ssvm-static
     ssvmr-static.cpp
     )

@@ -54,6 +54,29 @@ $ sudo apt install -y gcc g++
 $ sudo apt install -y clang
 ```
 
+### Support for legacy operating systems
+
+Our development environment requires `libLLVM-10` and `>=GLIBCXX_3.4.26`.
+
+If users are using the older operating system than Ubuntu 20.04, please use our special docker image to build SSVM.
+If you are looking for the pre-built binaries for the older operatoring system, we also provide several pre-built binaries based on manylinux\* distribution.
+
+
+
+| Portable Linux Built Distributions Tags | Base Image  | Provided Requirements                                                 | Docker Image                            |
+| ---                                     | ---         | ---                                                                   | ---                                     |
+| `manylinux1`                            | CentOS 5.11 | GLIBC <= 2.5<br>CXXABI <= 3.4.8<br>GLIBCXX <= 3.4.9<br>GCC <= 4.2.0   | secondstate/ssvm:manylinux1\_x86\_64    |
+| `manylinux2010`                         | CentOS 6    | GLIBC <= 2.12<br>CXXABI <= 1.3.3<br>GLIBCXX <= 3.4.13<br>GCC <= 4.5.0 | secondstate/ssvm:manylinux2010\_x86\_64 |
+| `manylinux2014`                         | CentOS 7    | GLIBC <= 2.17<br>CXXABI <= 1.3.7<br>GLIBCXX <= 3.4.19<br>GCC <= 4.8.0 | secondstate/ssvm:manylinux2014\_x86\_64 |
+
+### If you don't want to build Ahead-of-Time runtime/compiler
+
+If users don't need Ahead-of-Time runtime/compiler support, they can set the CMake option `SSVM_DISABLE_AOT_RUNTIME` to `ON`.
+
+```bash
+$ cmake -DCMAKE_BUILD_TYPE=Release -DSSVM_DISABLE_AOT_RUNTIME=ON ..
+```
+
 ## Build SSVM
 
 SSVM provides various tools for enabling different runtime environments for optimal performance.
@@ -78,13 +101,6 @@ $ docker run -it --rm \
 (docker)$ cd /root/ssvm
 (docker)$ mkdir -p build && cd build
 (docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make -j
-```
-
-SSVM requires `libLLVM-10` and `GLIBCXX_3.4.26` or after.
-If users want to build and execute the `ssvm` runner tool without these dependencies, they can set the CMake option `SSVM_DISABLE_AOT_RUNTIME` and `STATIC_BUILD` to `ON`.
-
-```bash
-$ cmake -DCMAKE_BUILD_TYPE=Release -DSSVM_DISABLE_AOT_RUNTIME=ON -DSTATIC_BUILD=ON ..
 ```
 
 ## Run built-in tests

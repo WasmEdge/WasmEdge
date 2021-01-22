@@ -34,16 +34,25 @@ jobs:
           apt install -y rpm ninja-build
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release .
           cmake --build build --target package
-      - name: Upload deb package
+      - name: Upload ssvm amd64 deb package
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: build/SSVM-${{ steps.prep.outputs.version }}-Linux.deb
+          asset_path: build/ssvm_${{ steps.prep.outputs.version }}_amd64.deb
           asset_name: SSVM-${{ steps.prep.outputs.version }}.deb
           asset_content_type: application/vnd.debian.binary-package
-      - name: Upload rpm package
+      - name: Upload ssvm-static amd64 deb package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/ssvm-static_${{ steps.prep.outputs.version }}_amd64.deb
+          asset_name: SSVM-static-${{ steps.prep.outputs.version }}.deb
+          asset_content_type: application/vnd.debian.binary-package
+      - name: Upload ssvm rpm package
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -51,6 +60,15 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: build/SSVM-${{ steps.prep.outputs.version }}-Linux.rpm
           asset_name: SSVM-${{ steps.prep.outputs.version }}.rpm
+          asset_content_type: application/x-rpm
+      - name: Upload ssvm-static rpm package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/SSVM-${{ steps.prep.outputs.version }}-Linux-static.rpm
+          asset_name: SSVM-static-${{ steps.prep.outputs.version }}.rpm
           asset_content_type: application/x-rpm
       - name: Build manylinux1_x86_64 package
         uses: addnab/docker-run-action@v1

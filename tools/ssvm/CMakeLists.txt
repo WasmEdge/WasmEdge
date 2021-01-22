@@ -32,14 +32,16 @@ target_link_libraries(ssvm
   ssvmVM
 )
 
-add_executable(ssvm-static
-  ssvmr-static.cpp
-)
+if(BUILD_STATIC_SSVM)
+  add_executable(ssvm-static
+    ssvmr-static.cpp
+    )
 
-install(TARGETS ssvm-static COMPONENT static EXPORT ssvm-static DESTINATION bin)
+  install(TARGETS ssvm-static COMPONENT static EXPORT ssvm-static DESTINATION bin)
 
-target_link_libraries(ssvm-static
-  PRIVATE
-  -static
-  ssvmVM
-)
+  target_link_libraries(ssvm-static
+    PRIVATE
+    -static
+    ssvmVM
+    )
+endif()

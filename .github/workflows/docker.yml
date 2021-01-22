@@ -7,7 +7,7 @@ on:
   pull_request:
     paths:
       - 'utils/docker/**'
-      - '.github/workflows/**'
+      - '.github/workflows/docker.yml'
   schedule:
     - cron: "0 0 * * *"
 

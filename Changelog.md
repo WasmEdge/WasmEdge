@@ -1,3 +1,60 @@
+### 0.7.3 (2021-01-22)
+
+Features:
+
+* Updated the `easylogging++` to v9.97.0.
+  * Disabled the file logging.
+* Initial supported the `WASI` host functions for old system (CentOS 6).
+  * Updated the `WASI` subscription insterface.
+  * Used `pipe` for old `GLIBC`.
+* Added supporting of subcommand in `PO`.
+* Provided options to toggle white lists of `ssvm_process` in `ssvm` tool.
+  * `--allow-command COMMAND` to add a command into white list in `ssvm_process` host functions. 
+  * `--allow-command-all` to allow all commands in `ssvm_process` host functions.
+* Added the documentation of [SSVM ecosystem](https://github.com/second-state/SSVM/blob/master/doc/ecosystem.md).
+
+Fixed issues:
+
+* Fixed the loading issues in `file manager`.
+  * Refined performance and added error handling in `readBytes`.
+  * Fixed `LEB128` and `ULEB128` decoding and error codes.
+* Fixed security issues of executing commands in `ssvm_process` host functions.
+  * Managed a white list for command execution.
+
+Refactor:
+
+* Used vector of instance instead of `std::unique_ptr` in AST nodes.
+* Merged all instruction node classes.
+  * Added `OpCode::Else` instruction.
+  * Serialized the instruction sequences. Move out the block body of `If`, `Block`, and `Loop` instructions.
+* Applied the proposal configuration checking in the loader phase.
+  * Moved the `OpCode` and value type validation of proposal configuration checking to loader phase.
+  * Fixed the logging message.
+  * Added helper functions to clean codes of logging.
+* Refactored the validator for instruction serialization.
+  * Removed the duplicated proposal configuration checking done at the loader phase.
+  * Serialized the instruction iterating when validating.
+* Refactored the `Label` in `stack manager`.
+  * `Label` will record the `from` instruction iterator that causes entering this label.
+  * Removed the `next` instruction getter in `stack manager`.
+* Refactored the instruction iterating mechanism in `interpreter`.
+  * Used the `program counter` to iterate and execute the instructions.
+  * Merged all switch cases of `OpCode`.
+* Moved out `AOT` related proxy codes and helper functions in `interpreter` to dependent files.
+
+Tools:
+
+* Added `binfmt` supporting for `WASM` interpreter.
+  * Please use the tool `tools/ssvm/ssvm-static` with the same arguments as `ssvm`.
+
+Tests:
+
+* Updated file manager tests for `LEB128` and `ULEB128` decoding.
+* Updated AST tests for refactored AST nodes.
+* Updated instruction tests for refactored instruction nodes.
+* Added `PO` tests.
+* Added `ssvm_process` tests.
+
 ### 0.7.2 (2020-12-17)
 
 Features:

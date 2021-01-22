@@ -75,7 +75,7 @@ jobs:
         with:
           image: secondstate/ssvm:manylinux1_x86_64
           run: /toolchain/build-manylinux.sh
-          options: -v .:/ssvm --rm
+          options: -v $GITHUB_WORKSPACE:/ssvm --rm
       - name: Upload manylinux1_x86_64 rpm package
         uses: actions/upload-release-asset@v1
         env:
@@ -126,7 +126,7 @@ jobs:
         with:
           image: secondstate/ssvm:manylinux2010_x86_64
           run: /toolchain/build-manylinux.sh
-          options: -v .:/ssvm --rm
+          options: -v $GITHUB_WORKSPACE:/ssvm --rm
       - name: Upload manylinux2010_x86_64 rpm package
         uses: actions/upload-release-asset@v1
         env:
@@ -177,7 +177,7 @@ jobs:
         with:
           image: secondstate/ssvm:manylinux2014_x86_64
           run: /toolchain/build-manylinux.sh
-          options: -v .:/ssvm --rm
+          options: -v $GITHUB_WORKSPACE:/ssvm --rm
       - name: Upload manylinux2014_x86_64 rpm package
         uses: actions/upload-release-asset@v1
         env:

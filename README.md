@@ -6,6 +6,8 @@
 * A hardware-optimized runtime for ONNX AI models. [ONNC compiler for AI](https://github.com/ONNC/onnc-wasm)
 * Smart contract runtime engine for leading blockchain platforms. [Polkadot/Substrate](https://github.com/second-state/substrate-ssvm-node) | [CyberMiles](https://docs.secondstate.io/devchain/getting-started/cybermiles-ewasm-testnet)
 
+For the information on related tools and the `SSVM` ecosystem, please refer to the [SSVM ecosystem documentation](https://github.com/second-state/SSVM/blob/master/doc/ecosystem.md).
+
 ![build](https://github.com/second-state/SSVM/workflows/build/badge.svg)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/second-state/SSVM.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/second-state/SSVM/alerts/)
 [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/second-state/SSVM.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/second-state/SSVM/context:cpp)
@@ -19,7 +21,7 @@
 ```bash
 $ git clone git@github.com:second-state/SSVM.git
 $ cd SSVM
-$ git checkout 0.7.1
+$ git checkout 0.7.3
 ```
 
 ## Prepare the environment
@@ -41,7 +43,7 @@ $ sudo apt install -y \
 	cmake \
 	libboost-all-dev
 
-# And you will need to install llvm for ssvm-aot tools
+# And you will need to install llvm for ssvmc tool
 $ sudo apt install -y \
 	llvm-dev \
 	liblld-10-dev
@@ -57,14 +59,16 @@ $ sudo apt install -y clang
 SSVM provides various tools for enabling different runtime environments for optimal performance.
 After the build is finished, you can find there are several ssvm related tools:
 
-1. `ssvm` is for general wasm runtime. Interpreter mode.
-2. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
+1. `ssvm` is for general wasm runtime.
+	* `ssvm` executes a `WASM` file in interpreter mode or a compiled WASM `so` file in ahead-of-time compilation mode.
+	* To disable building all tools, you can set the CMake option `BUILD_TOOLS` to `OFF`.
+2. `ssvmc` is for ahead-of-time `WASM` compiler.
+	* `ssvmc` compiles a general `WASM` file into a `so` file.
+	* To disable building the ahead-of-time compiler only, you can set the CMake option `SSVM_DISABLE_AOT_RUNTIME` to `ON`.
+	* To disable building all tools, you can set the CMake option `BUILD_TOOLS` to `OFF`.
+3. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
 	* If you want to try `ssvm-qitc`, please refer to [ONNC-Wasm](https://github.com/ONNC/onnc-wasm) project to set up the working environment and run several examples.
 	* And here is our [tutorial for ONNC-Wasm project(YouTube Video)](https://www.youtube.com/watch?v=cbiPuHMS-iQ).
-3. `ssvm-aot` is for general wasm runtime. AOT compilation mode.
-	* `ssvmc` compiles a general wasm runtime to so file.
-	* `ssvmr` execute a general wasm runtime or so file in WASI environment.
-	* To disable building the ahead of time compilation runtime, you can set the CMake option `SSVM_DISABLE_AOT_RUNTIME` to `OFF`.
 
 ```bash
 # After pulling our ssvm docker image
@@ -77,7 +81,7 @@ $ docker run -it --rm \
 ```
 
 SSVM requires `libLLVM-10` and `GLIBCXX_3.4.26` or after.
-If users want to build and run `ssvm` interpreter tool without these dependencies, they can set the CMake option `SSVM_DISABLE_AOT_RUNTIME` and `STATIC_BUILD` to `ON`.
+If users want to build and execute the `ssvm` runner tool without these dependencies, they can set the CMake option `SSVM_DISABLE_AOT_RUNTIME` and `STATIC_BUILD` to `ON`.
 
 ```bash
 $ cmake -DCMAKE_BUILD_TYPE=Release -DSSVM_DISABLE_AOT_RUNTIME=ON -DSTATIC_BUILD=ON ..
@@ -115,7 +119,7 @@ To run SSVM with general wasm runtime, users will need to provide the following 
 ```bash
 # cd <path/to/ssvm/build_folder>
 $ cd tools/ssvm
-# ./ssvm [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--] WASM_FILE [ARG ...]
+# ./ssvm [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-bulk-memory] [--enable-reference-types] [--enable-simd] [--enable-all] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
 $ ./ssvm --reactor examples/fibonacci.wasm fib 10
 89
 ```
@@ -140,7 +144,7 @@ $ ./ssvm --reactor examples/fibonacci.wasm fib2 10
 ### Example: Factorial
 
 ```bash
-# ./ssvm [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--] WASM_FILE [ARG ...]
+# ./ssvm [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-bulk-memory] [--enable-reference-types] [--enable-simd] [--enable-all] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
 $ ./ssvm --reactor examples/factorial.wasm fac 5
 120
 ```
@@ -162,6 +166,12 @@ It allows Node.js applications to call WebAssembly functions written in Rust or 
 [Why do you want to run WebAssembly on the server-side?](https://www.secondstate.io/articles/why-webassembly-server/?utm_source=github&utm_medium=documents&utm_campaign=Github-ssvm-readme)
 
 The SSVM addon could interact with the wasm files generated by the [ssvmup](https://www.secondstate.io/articles/ssvmup/) compiler tool.
+
+## SSVM-TensorFlow
+
+[SSVM-TensorFlow](https://github.com/second-state/ssvm-tensorflow) provides support for accessing with [TensorFlow C library](https://www.tensorflow.org/install/lang_c).
+
+This project provides a tool that can execute `WASM` with TensorFlow extension compiled from [Rust ssvm_tensorflow_interface](https://crates.io/crates/ssvm_tensorflow_interface).
 
 ## DevChain
 

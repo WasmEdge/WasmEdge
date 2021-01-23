@@ -123,7 +123,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.rpm
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.rpm
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux1_x86_64.rpm
           asset_content_type: application/x-rpm
       - name: Upload manylinux1_x86_64 tar.gz package
@@ -132,7 +132,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.tar.gz
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.gz
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux1_x86_64.tar.gz
           asset_content_type: application/x-gzip
       - name: Upload manylinux1_x86_64 tar.bz2 package
@@ -141,7 +141,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.tar.bz2
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.bz2
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux1_x86_64.tar.bz2
           asset_content_type: application/x-bzip2
       - name: Upload manylinux1_x86_64 tar.xz package
@@ -150,7 +150,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.tar.xz
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.xz
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux1_x86_64.tar.xz
           asset_content_type: application/x-xz
       - name: Upload manylinux1_x86_64 tar.zst package
@@ -159,7 +159,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.tar.zst
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.zst
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux1_x86_64.tar.zst
           asset_content_type: application/zstd
   build_manylinux2010_x86_64:
@@ -195,7 +195,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.rpm
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.rpm
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2010_x86_64.rpm
           asset_content_type: application/x-rpm
       - name: Upload manylinux2010_x86_64 tar.gz package
@@ -204,7 +204,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.tar.gz
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.gz
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2010_x86_64.tar.gz
           asset_content_type: application/x-gzip
       - name: Upload manylinux2010_x86_64 tar.bz2 package
@@ -213,7 +213,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.tar.bz2
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.bz2
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2010_x86_64.tar.bz2
           asset_content_type: application/x-bzip2
       - name: Upload manylinux2010_x86_64 tar.xz package
@@ -222,7 +222,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.tar.xz
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.xz
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2010_x86_64.tar.xz
           asset_content_type: application/x-xz
       - name: Upload manylinux2010_x86_64 tar.zst package
@@ -231,7 +231,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.tar.zst
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.zst
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2010_x86_64.tar.zst
           asset_content_type: application/zstd
   build_manylinux2014_x86_64:
@@ -267,7 +267,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.rpm
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.rpm
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2014_x86_64.rpm
           asset_content_type: application/x-rpm
       - name: Upload manylinux2014_x86_64 tar.gz package
@@ -276,7 +276,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.tar.gz
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.gz
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2014_x86_64.tar.gz
           asset_content_type: application/x-gzip
       - name: Upload manylinux2014_x86_64 tar.bz2 package
@@ -285,7 +285,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.tar.bz2
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.bz2
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2014_x86_64.tar.bz2
           asset_content_type: application/x-bzip2
       - name: Upload manylinux2014_x86_64 tar.xz package
@@ -294,7 +294,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.tar.xz
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.xz
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2014_x86_64.tar.xz
           asset_content_type: application/x-xz
       - name: Upload manylinux2014_x86_64 tar.zst package
@@ -303,6 +303,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: SSVM-${{ needs.create.outputs.version }}-Linux.tar.zst
+          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.zst
           asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2014_x86_64.tar.zst
           asset_content_type: application/zstd

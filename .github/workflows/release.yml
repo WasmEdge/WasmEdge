@@ -107,7 +107,7 @@ jobs:
           export CC=gcc
           export CXX=g++
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_SSVM_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
           cmake --build build
           cmake --build build --target package
   upload_manylinux1_x86_64_package:
@@ -179,7 +179,7 @@ jobs:
           export CC=gcc
           export CXX=g++
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_SSVM_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
           cmake --build build
           cmake --build build --target package
   upload_manylinux2010_x86_64_package:
@@ -251,7 +251,7 @@ jobs:
           export CC=gcc
           export CXX=g++
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_SSVM_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
           cmake --build build
           cmake --build build --target package
   upload_manylinux2014_x86_64_package:

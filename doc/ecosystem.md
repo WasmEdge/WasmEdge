@@ -2,7 +2,7 @@
 
 ![SSVM architecture](architecture.png)
 
-## Instroduction
+## Introduction
 
 **SSVM** is a high performance and enterprise-ready WebAssembly (WASM) Virtual Machine for cloud, AI, and Blockchain applications. The `SSVM` ecosystem can be separated into the above layers.
 

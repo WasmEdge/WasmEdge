@@ -6,7 +6,7 @@ project(SSVM)
 find_program(GIT_CMD git)
 execute_process(COMMAND
   ${GIT_CMD} describe --match "*[0-9].[0-9]*" --tag
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   OUTPUT_VARIABLE CPACK_PACKAGE_VERSION
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
@@ -39,7 +39,7 @@ option(BUILD_COVERAGE "Generate coverage report. Require BUILD_TESTS." OFF)
 option(BUILD_TOOLS "Generate ssvm and ssvmc tools." ON)
 option(BUILD_TOOL_SSVM_STATIC "Generate ssvm-static tool" ON)
 set(BUILD_PACKAGE "DEB;RPM" CACHE STRING "Package generate types")
-set(CPACK_PROJECT_CONFIG_FILE ${CMAKE_SOURCE_DIR}/cmake/cpack_config.cmake)
+set(CPACK_PROJECT_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cpack_config.cmake)
 
 if(BUILD_COVERAGE)
   include(CodeCoverage)
@@ -92,7 +92,7 @@ set(CPACK_DEBIAN_PACKAGE_DEPENDS libllvm10)
 set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION ON)
 if(BUILD_TOOL_SSVM_STATIC)
   set(CPACK_DEBIAN_STATIC_PACKAGE_RECOMMENDS "binfmt-support | systemd")
-  set(CPACK_DEBIAN_STATIC_PACKAGE_CONTROL_EXTRA "${CMAKE_SOURCE_DIR}/binfmt/postinst;${CMAKE_SOURCE_DIR}/binfmt/prerm")
+  set(CPACK_DEBIAN_STATIC_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/binfmt/postinst;${CMAKE_CURRENT_SOURCE_DIR}/binfmt/prerm")
 endif()
 set(CPACK_GENERATOR "${BUILD_PACKAGE}")
 set(CPACK_PACKAGE_DESCRIPTION "SSVM is a high performance, extensible, and hardware optimized WebAssembly Virtual Machine for cloud, AI, and blockchain applications.")

@@ -108,7 +108,7 @@ include(CMakeParseArguments)
 find_program( GCOV_PATH gcov )
 find_program( LCOV_PATH  NAMES lcov lcov.bat lcov.exe lcov.perl)
 find_program( GENHTML_PATH NAMES genhtml genhtml.perl genhtml.bat )
-find_program( GCOVR_PATH gcovr PATHS ${CMAKE_SOURCE_DIR}/scripts/test)
+find_program( GCOVR_PATH gcovr PATHS ${CMAKE_CURRENT_SOURCE_DIR}/scripts/test)
 find_program( CPPFILT_PATH NAMES c++filt )
 
 if(NOT GCOV_PATH)

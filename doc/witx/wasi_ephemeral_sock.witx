@@ -1,0 +1,53 @@
+;; WASI Sockets.
+;;
+;; Some content here is derived from [CloudABI](https://github.com/NuxiNL/cloudabi)
+;; and [WASI ephemeral phases](https://github.com/WebAssembly/WASI/blob/snapshot-01/phases/ephemeral).
+;;
+;; This is a `witx` file. See [here](https://github.com/WebAssembly/WASI/tree/master/docs/witx.md)
+;; for an explanation of what that means.
+
+(use "typenames.witx")
+
+(module $wasi_ephemeral_sock
+  ;;; Linear memory to be accessed by WASI functions that need it.
+  (import "memory" (memory))
+
+  ;;; Receive a message from a socket.
+  ;;; Note: This is similar to `recv` in POSIX, though it also supports reading
+  ;;; the data into multiple buffers in the manner of `readv`.
+  (@interface func (export "recv")
+    (param $fd $fd)
+    ;;; List of scatter/gather vectors to which to store data.
+    (param $ri_data $iovec_array)
+    ;;; Message flags.
+    (param $ri_flags $riflags)
+    (result $error $errno)
+    ;;; Number of bytes stored in ri_data.
+    (result $ro_datalen $size)
+    ;;; Message flags.
+    (result $ro_flags $roflags)
+  )
+
+  ;;; Send a message on a socket.
+  ;;; Note: This is similar to `send` in POSIX, though it also supports writing
+  ;;; the data from multiple buffers in the manner of `writev`.
+  (@interface func (export "send")
+    (param $fd $fd)
+    ;;; List of scatter/gather vectors to which to retrieve data
+    (param $si_data $ciovec_array)
+    ;;; Message flags.
+    (param $si_flags $siflags)
+    (result $error $errno)
+    ;;; Number of bytes transmitted.
+    (result $so_datalen $size)
+  )
+
+  ;;; Shut down socket send and receive channels.
+  ;;; Note: This is similar to `shutdown` in POSIX.
+  (@interface func (export "shutdown")
+    (param $fd $fd)
+    ;;; Which channels on the socket to shut down.
+    (param $how $sdflags)
+    (result $error $errno)
+  )
+)

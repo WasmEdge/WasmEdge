@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/config.h - configure ----------------------------------===//
+//===-- ssvm/common/version.h - Version information -----------------------===//
 //
 // Part of the SSVM Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains config that passed from configure stage.
+/// This file contains version information that passed from configure stage.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

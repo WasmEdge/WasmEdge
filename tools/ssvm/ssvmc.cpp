@@ -2,7 +2,7 @@
 #include "aot/compiler.h"
 #include "common/filesystem.h"
 #include "common/proposal.h"
-#include "common/config.h"
+#include "common/version.h"
 #include "loader/loader.h"
 #include "po/argument_parser.h"
 #include "validator/validator.h"

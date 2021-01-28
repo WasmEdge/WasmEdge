@@ -24,8 +24,6 @@
 #include "runtime/importobj.h"
 #include "runtime/storemgr.h"
 
-#include "costtable.h"
-
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -120,7 +118,6 @@ private:
   std::unique_ptr<Runtime::StoreManager> Store;
   Runtime::StoreManager &StoreRef;
   std::map<HostRegistration, std::unique_ptr<Runtime::ImportObject>> ImpObjs;
-  CostTable CostTab;
 };
 
 } // namespace VM

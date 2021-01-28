@@ -11,8 +11,6 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "configure.h"
-
 #include <array>
 #include <vector>
 
@@ -21,40 +19,22 @@ namespace VM {
 
 class CostTable {
 public:
-  CostTable() { setCostTable(Configure::VMType::Wasm); };
+  CostTable() { Costs.assign(UINT16_MAX + 1, 1); };
   ~CostTable() = default;
 
-  /// Add default cost table by types.
-  bool setCostTable(const Configure::VMType &Type) {
-    if (Type >= Configure::VMType::Max) {
-      return false;
-    }
-    Costs[uint8_t(Type)].assign(UINT16_MAX + 1, 1);
-    return true;
-  }
-
   /// Set customized cost table.
-  bool setCostTable(Configure::VMType Type, std::vector<uint64_t> Table) {
-    if (Table.size() <= UINT16_MAX) {
-      return false;
+  void setCostTable(Span<const uint64_t> Table) {
+    Costs.assign(Table.begin(), Table.end());
+    if (Costs.size() <= UINT16_MAX) {
+      Costs.resize(UINT16_MAX + 1, 0ULL);
     }
-    if (Type >= Configure::VMType::Max) {
-      Type = Configure::VMType::Wasm;
-    }
-    Costs[uint8_t(Type)] = std::move(Table);
-    return true;
   }
 
-  /// Get cost table reference by types.
-  const std::vector<uint64_t> &getCostTable(Configure::VMType Type) {
-    if (Type >= Configure::VMType::Max) {
-      Type = Configure::VMType::Wasm;
-    }
-    return Costs[uint8_t(Type)];
-  }
+  /// Get cost table array.
+  Span<const uint64_t> getCostTable() { return Costs; }
 
 private:
-  std::array<std::vector<uint64_t>, uint8_t(Configure::VMType::Max)> Costs;
+  std::vector<uint64_t> Costs;
 };
 
 } // namespace VM

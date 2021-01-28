@@ -12,13 +12,15 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "../spec/spectest.h"
-#include "aot/compiler.h"
+#include "common/configure.h"
 #include "common/filesystem.h"
 #include "common/log.h"
+
+#include "aot/compiler.h"
 #include "validator/validator.h"
-#include "vm/configure.h"
 #include "vm/vm.h"
+
+#include "../spec/spectest.h"
 #include "gtest/gtest.h"
 
 #include <algorithm>
@@ -39,15 +41,14 @@ static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
 class CoreTest : public testing::TestWithParam<std::string> {};
 
 TEST_P(CoreTest, TestSuites) {
-  const auto [Proposal, PConf, UnitName] = T.resolve(GetParam());
-  SSVM::VM::Configure Conf;
-  SSVM::VM::VM VM(PConf, Conf);
+  const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
+  SSVM::VM::VM VM(Conf);
   SSVM::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);
-  auto Compile = [&, PConf = std::cref(PConf)](
+  auto Compile = [&, Conf = std::cref(Conf)](
                      const std::string &Filename) -> Expect<std::string> {
-    SSVM::Loader::Loader Loader(PConf);
-    SSVM::Validator::Validator ValidatorEngine(PConf);
+    SSVM::Loader::Loader Loader(Conf);
+    SSVM::Validator::Validator ValidatorEngine(Conf);
     SSVM::AOT::Compiler Compiler;
     Compiler.setOptimizationLevel(SSVM::AOT::Compiler::OptimizationLevel::O0);
     Compiler.setDumpIR(true);

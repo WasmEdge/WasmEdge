@@ -181,11 +181,11 @@ private:
 Users can register host modules via `SSVM::VM::registerModule()` API.
 
 ```cpp
-#include "vm/configure.h"
+#include "common/configure.h"
 #include "vm/vm.h"
 #include <vector>
 
-SSVM::VM::Configure Conf;
+SSVM::Configure Conf;
 SSVM::VM::VM VM(Conf);
 std::vector<uint8_t> Data;
 SSVM::Host::TestModule TestMod(Data);

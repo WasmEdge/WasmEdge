@@ -81,11 +81,11 @@ Assume that the above `wat` is translated and stored into `test.wasm` binary fil
 First, the host functions are needed to be registered into SSVM.
 
 ```cpp
-#include "vm/configure.h"
+#include "common/configure.h"
 #include "vm/vm.h"
 #include <vector>
 
-SSVM::VM::Configure Conf;
+SSVM::Configure Conf;
 SSVM::VM::VM VM(Conf);
 SSVM::ExternMod ExtMod;
 VM.registerModule(ExtMod);
@@ -208,7 +208,7 @@ Assume that the above host function is in a host module `SSVM::ExternMod`.
 Then users can allocate a VM and register this host module instance and instantiate the Wasm module.
 
 ```cpp
-SSVM::VM::Configure Conf;
+SSVM::Configure Conf;
 SSVM::VM::VM VM(Conf);
 SSVM::ExternMod ExtMod;
 VM.registerModule(ExtMod);
@@ -265,10 +265,10 @@ The host module should be implemented and registered into SSVM before executing 
 
 ```cpp
 #include "common/errcode.h"
+#include "common/configure.h"
 #include "runtime/hostfunc.h"
 #include "runtime/importobj.h"
 #include "runtime/instance/memory.h"
-#include "vm/configure.h"
 #include "vm/vm.h"
 
 #include <iostream>
@@ -308,7 +308,7 @@ public:
 } // namespace SSVM
 
 int main() {
-  SSVM::VM::Configure Conf;
+  SSVM::Configure Conf;
   SSVM::VM::VM VM(Conf);
   SSVM::Log::setErrorLoggingLevel();
 

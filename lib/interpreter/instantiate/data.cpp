@@ -29,8 +29,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 
       /// Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
       /// enabled.
-      if (!PConf.hasProposal(Proposal::ReferenceTypes) &&
-          !PConf.hasProposal(Proposal::BulkMemoryOperations)) {
+      if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
+          !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
         /// Memory index should be 0. Checked in validation phase.
         auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg.getIdx());
         /// Check data fits.

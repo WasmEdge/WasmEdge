@@ -6,8 +6,7 @@ namespace SSVM {
 namespace AST {
 
 /// Load binary of Import description. See "include/ast/description.h".
-Expect<void> ImportDesc::loadBinary(FileMgr &Mgr,
-                                    const ProposalConfigure &PConf) {
+Expect<void> ImportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read the module name.
   if (auto Res = Mgr.readName()) {
     ModName = *Res;
@@ -42,15 +41,15 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr,
   }
   case ExternalType::Table: {
     /// Read the table type node.
-    return TabType.loadBinary(Mgr, PConf);
+    return TabType.loadBinary(Mgr, Conf);
   }
   case ExternalType::Memory: {
     /// Read the memory type node.
-    return MemType.loadBinary(Mgr, PConf);
+    return MemType.loadBinary(Mgr, Conf);
   }
   case ExternalType::Global: {
     /// Read the global type node.
-    return GlobType.loadBinary(Mgr, PConf);
+    return GlobType.loadBinary(Mgr, Conf);
   }
   default:
     return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
@@ -59,8 +58,7 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr,
 }
 
 /// Load binary of Export description. See "include/ast/description.h".
-Expect<void> ExportDesc::loadBinary(FileMgr &Mgr,
-                                    const ProposalConfigure &PConf) {
+Expect<void> ExportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read external name to export.
   if (auto Res = Mgr.readName()) {
     ExtName = *Res;

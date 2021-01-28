@@ -17,7 +17,7 @@
 namespace {
 
 SSVM::FileMgrVector Mgr;
-SSVM::ProposalConfigure PConf;
+SSVM::Configure Conf;
 
 TEST(TypeTest, LoadLimit) {
   /// 1. Test load limit.
@@ -29,7 +29,7 @@ TEST(TypeTest, LoadLimit) {
   ///   5.  Load limit with min and max.
   Mgr.clearBuffer();
   SSVM::AST::Limit Lim1;
-  EXPECT_FALSE(Lim1.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Lim1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -38,7 +38,7 @@ TEST(TypeTest, LoadLimit) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::Limit Lim2;
-  EXPECT_FALSE(Lim2.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Lim2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -47,7 +47,7 @@ TEST(TypeTest, LoadLimit) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::Limit Lim3;
-  EXPECT_TRUE(Lim3.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Lim3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -56,7 +56,7 @@ TEST(TypeTest, LoadLimit) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::Limit Lim4;
-  EXPECT_FALSE(Lim4.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Lim4.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
@@ -66,7 +66,7 @@ TEST(TypeTest, LoadLimit) {
   };
   Mgr.setCode(Vec5);
   SSVM::AST::Limit Lim5;
-  EXPECT_TRUE(Lim5.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Lim5.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
 TEST(TypeTest, LoadFunctionType) {
@@ -80,14 +80,14 @@ TEST(TypeTest, LoadFunctionType) {
   ///   6.  Load function type with parameters and result.
   Mgr.clearBuffer();
   SSVM::AST::FunctionType Fun1;
-  EXPECT_FALSE(Fun1.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Fun1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {0xFFU, /// Invalid function type header
                                      0x00U, 0x00U};
   Mgr.setCode(Vec2);
   SSVM::AST::FunctionType Fun2;
-  EXPECT_FALSE(Fun2.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Fun2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -97,7 +97,7 @@ TEST(TypeTest, LoadFunctionType) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::FunctionType Fun3;
-  EXPECT_TRUE(Fun3.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Fun3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -108,7 +108,7 @@ TEST(TypeTest, LoadFunctionType) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::FunctionType Fun4;
-  EXPECT_TRUE(Fun4.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Fun4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
@@ -119,7 +119,7 @@ TEST(TypeTest, LoadFunctionType) {
   };
   Mgr.setCode(Vec5);
   SSVM::AST::FunctionType Fun5;
-  EXPECT_TRUE(Fun5.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Fun5.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec6 = {
@@ -131,7 +131,7 @@ TEST(TypeTest, LoadFunctionType) {
   };
   Mgr.setCode(Vec6);
   SSVM::AST::FunctionType Fun6;
-  EXPECT_TRUE(Fun6.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Fun6.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
 TEST(TypeTest, LoadMemoryType) {
@@ -144,7 +144,7 @@ TEST(TypeTest, LoadMemoryType) {
   ///   5.  Load limit with min and max.
   Mgr.clearBuffer();
   SSVM::AST::MemoryType Mem1;
-  EXPECT_FALSE(Mem1.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Mem1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -153,7 +153,7 @@ TEST(TypeTest, LoadMemoryType) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::MemoryType Mem2;
-  EXPECT_FALSE(Mem2.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Mem2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -162,7 +162,7 @@ TEST(TypeTest, LoadMemoryType) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::MemoryType Mem3;
-  EXPECT_TRUE(Mem3.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Mem3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -171,7 +171,7 @@ TEST(TypeTest, LoadMemoryType) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::MemoryType Mem4;
-  EXPECT_FALSE(Mem4.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Mem4.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
@@ -181,7 +181,7 @@ TEST(TypeTest, LoadMemoryType) {
   };
   Mgr.setCode(Vec5);
   SSVM::AST::MemoryType Mem5;
-  EXPECT_TRUE(Mem5.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Mem5.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
 TEST(TypeTest, LoadTableType) {
@@ -195,7 +195,7 @@ TEST(TypeTest, LoadTableType) {
   ///   6.  Load limit with min and max.
   Mgr.clearBuffer();
   SSVM::AST::TableType Tab1;
-  EXPECT_FALSE(Tab1.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Tab1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -205,7 +205,7 @@ TEST(TypeTest, LoadTableType) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::TableType Tab2;
-  EXPECT_FALSE(Tab2.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Tab2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -215,7 +215,7 @@ TEST(TypeTest, LoadTableType) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::TableType Tab3;
-  EXPECT_FALSE(Tab3.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Tab3.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -225,7 +225,7 @@ TEST(TypeTest, LoadTableType) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::TableType Tab4;
-  EXPECT_TRUE(Tab4.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Tab4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
@@ -235,7 +235,7 @@ TEST(TypeTest, LoadTableType) {
   };
   Mgr.setCode(Vec5);
   SSVM::AST::TableType Tab5;
-  EXPECT_FALSE(Tab5.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Tab5.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec6 = {
@@ -246,7 +246,7 @@ TEST(TypeTest, LoadTableType) {
   };
   Mgr.setCode(Vec6);
   SSVM::AST::TableType Tab6;
-  EXPECT_TRUE(Tab6.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Tab6.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
 TEST(TypeTest, LoadGlobalType) {
@@ -258,7 +258,7 @@ TEST(TypeTest, LoadGlobalType) {
   ///   4.  Load valid global type.
   Mgr.clearBuffer();
   SSVM::AST::GlobalType Glb1;
-  EXPECT_FALSE(Glb1.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Glb1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -266,7 +266,7 @@ TEST(TypeTest, LoadGlobalType) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::GlobalType Glb2;
-  EXPECT_FALSE(Glb2.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Glb2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -275,7 +275,7 @@ TEST(TypeTest, LoadGlobalType) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::GlobalType Glb3;
-  EXPECT_FALSE(Glb3.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Glb3.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -284,7 +284,7 @@ TEST(TypeTest, LoadGlobalType) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::GlobalType Glb4;
-  EXPECT_TRUE(Glb4.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Glb4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
 } // namespace

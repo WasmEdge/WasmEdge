@@ -7,15 +7,15 @@ namespace SSVM {
 namespace AST {
 
 namespace {
-Expect<void> checkInstrProposals(OpCode Code, const ProposalConfigure &PConf,
+Expect<void> checkInstrProposals(OpCode Code, const Configure &Conf,
                                  uint32_t Offset) {
   if ((Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
       (Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||
       (Code >= OpCode::Memory__init && Code <= OpCode::Memory__fill)) {
     /// These instructions are for ReferenceTypes or BulkMemoryOperations
     /// proposal.
-    if (!PConf.hasProposal(Proposal::ReferenceTypes) &&
-        !PConf.hasProposal(Proposal::BulkMemoryOperations)) {
+    if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
+        !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
       return logNeedProposal(ErrCode::InvalidOpCode, Proposal::ReferenceTypes,
                              Offset, ASTNodeAttr::Instruction);
     }
@@ -23,14 +23,14 @@ Expect<void> checkInstrProposals(OpCode Code, const ProposalConfigure &PConf,
              (Code >= OpCode::Table__get && Code <= OpCode::Table__set) ||
              (Code >= OpCode::Table__grow && Code <= OpCode::Table__fill)) {
     /// These instructions are for ReferenceTypes proposal.
-    if (!PConf.hasProposal(Proposal::ReferenceTypes)) {
+    if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logNeedProposal(ErrCode::InvalidOpCode, Proposal::ReferenceTypes,
                              Offset, ASTNodeAttr::Instruction);
     }
   } else if (Code >= OpCode::V128__load &&
              Code <= OpCode::F64x2__convert_i64x2_u) {
     /// These instructions are for SIMD proposal.
-    if (!PConf.hasProposal(Proposal::SIMD)) {
+    if (!Conf.hasProposal(Proposal::SIMD)) {
       return logNeedProposal(ErrCode::InvalidOpCode, Proposal::SIMD, Offset,
                              ASTNodeAttr::Instruction);
     }
@@ -39,8 +39,7 @@ Expect<void> checkInstrProposals(OpCode Code, const ProposalConfigure &PConf,
 }
 } // namespace
 
-Expect<void> Instruction::loadBinary(FileMgr &Mgr,
-                                     const ProposalConfigure &PConf) {
+Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Node: The instruction has checked for the proposals. Need to check their
   /// immediates.
 
@@ -84,8 +83,8 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
       if (*Res < 0) {
         /// Value type case.
         ValType VType = static_cast<ValType>((*Res) & 0x7FU);
-        if (auto Check = checkValTypeProposals(
-                PConf, VType, Mgr.getOffset() - 1, ASTNodeAttr::Instruction);
+        if (auto Check = checkValTypeProposals(Conf, VType, Mgr.getOffset() - 1,
+                                               ASTNodeAttr::Instruction);
             !Check) {
           return Unexpect(Check);
         }
@@ -136,7 +135,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
     if (auto Res = readU32(SourceIdx); !Res) {
       return Unexpect(Res);
     }
-    if (SourceIdx > 0 && !PConf.hasProposal(Proposal::ReferenceTypes)) {
+    if (SourceIdx > 0 && !Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logNeedProposal(ErrCode::InvalidGrammar, Proposal::ReferenceTypes,
                              Mgr.getOffset() - 1, ASTNodeAttr::Instruction);
     }
@@ -147,7 +146,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
     if (auto Res = Mgr.readByte()) {
       ReferenceType = static_cast<RefType>(*Res);
       if (auto Check =
-              checkRefTypeProposals(PConf, ReferenceType, Mgr.getOffset() - 1,
+              checkRefTypeProposals(Conf, ReferenceType, Mgr.getOffset() - 1,
                                     ASTNodeAttr::Instruction);
           !Check) {
         return Unexpect(Check);
@@ -175,7 +174,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr,
         if (auto T = Mgr.readByte()) {
           ValType VType = static_cast<ValType>(*T);
           if (auto Check = checkValTypeProposals(
-                  PConf, VType, Mgr.getOffset() - 1, ASTNodeAttr::Instruction);
+                  Conf, VType, Mgr.getOffset() - 1, ASTNodeAttr::Instruction);
               !Check) {
             return Unexpect(Check);
           }
@@ -726,7 +725,7 @@ Expect<OpCode> loadOpCode(FileMgr &Mgr) {
   return static_cast<OpCode>(Payload);
 }
 
-Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const ProposalConfigure &PConf) {
+Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const Configure &Conf) {
   OpCode Code;
   InstrVec Instrs;
   std::vector<std::pair<OpCode, uint32_t>> BlockStack;
@@ -743,8 +742,7 @@ Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const ProposalConfigure &PConf) {
     }
 
     /// Check with proposals.
-    if (auto Res = checkInstrProposals(Code, PConf, Mgr.getOffset() - 1);
-        !Res) {
+    if (auto Res = checkInstrProposals(Code, Conf, Mgr.getOffset() - 1); !Res) {
       return Unexpect(Res);
     }
 
@@ -780,7 +778,7 @@ Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const ProposalConfigure &PConf) {
 
     /// Create the instruction node and load contents.
     Instrs.emplace_back(Code, Offset);
-    if (auto Res = Instrs.back().loadBinary(Mgr, PConf); !Res) {
+    if (auto Res = Instrs.back().loadBinary(Mgr, Conf); !Res) {
       return Unexpect(Res);
     }
     Cnt++;

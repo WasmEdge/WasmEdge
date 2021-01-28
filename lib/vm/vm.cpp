@@ -7,34 +7,33 @@
 namespace SSVM {
 namespace VM {
 
-VM::VM(const ProposalConfigure &PConf, const Configure &InputConfig)
-    : Config(InputConfig), Stage(VMStage::Inited), LoaderEngine(PConf),
-      ValidatorEngine(PConf), InterpreterEngine(PConf, &Stat),
+VM::VM(const Configure &Conf)
+    : Config(Conf), Stage(VMStage::Inited), LoaderEngine(Conf),
+      ValidatorEngine(Conf), InterpreterEngine(Conf, &Stat),
       Store(std::make_unique<Runtime::StoreManager>()), StoreRef(*Store.get()) {
   initVM();
 }
 
-VM::VM(const ProposalConfigure &PConf, const Configure &InputConfig,
-       Runtime::StoreManager &S)
-    : Config(InputConfig), Stage(VMStage::Inited), LoaderEngine(PConf),
-      ValidatorEngine(PConf), InterpreterEngine(PConf, &Stat), StoreRef(S) {
+VM::VM(const Configure &Conf, Runtime::StoreManager &S)
+    : Config(Conf), Stage(VMStage::Inited), LoaderEngine(Conf),
+      ValidatorEngine(Conf), InterpreterEngine(Conf, &Stat), StoreRef(S) {
   initVM();
 }
 
 void VM::initVM() {
   /// Set cost table and create import modules from configure.
   Stat.setCostTable(CostTab.getCostTable());
-  if (Config.hasVMType(Configure::VMType::Wasi)) {
+  if (Config.hasHostRegistration(HostRegistration::Wasi)) {
     std::unique_ptr<Runtime::ImportObject> WasiMod =
         std::make_unique<Host::WasiModule>();
     InterpreterEngine.registerModule(StoreRef, *WasiMod.get());
-    ImpObjs.insert({Configure::VMType::Wasi, std::move(WasiMod)});
+    ImpObjs.insert({HostRegistration::Wasi, std::move(WasiMod)});
   }
-  if (Config.hasVMType(Configure::VMType::SSVM_Process)) {
+  if (Config.hasHostRegistration(HostRegistration::SSVM_Process)) {
     std::unique_ptr<Runtime::ImportObject> ProcMod =
         std::make_unique<Host::SSVMProcessModule>();
     InterpreterEngine.registerModule(StoreRef, *ProcMod.get());
-    ImpObjs.insert({Configure::VMType::SSVM_Process, std::move(ProcMod)});
+    ImpObjs.insert({HostRegistration::SSVM_Process, std::move(ProcMod)});
   }
 }
 
@@ -261,7 +260,7 @@ VM::getFunctionList() const {
   return Res;
 }
 
-Runtime::ImportObject *VM::getImportModule(const Configure::VMType Type) {
+Runtime::ImportObject *VM::getImportModule(const HostRegistration Type) {
   if (ImpObjs.find(Type) != ImpObjs.cend()) {
     return ImpObjs[Type].get();
   }

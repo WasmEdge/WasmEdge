@@ -11,18 +11,20 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/configure.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
-#include "common/proposal.h"
 #include "common/types.h"
 #include "common/value.h"
-#include "configure.h"
-#include "costtable.h"
+
 #include "interpreter/interpreter.h"
 #include "loader/loader.h"
+#include "validator/validator.h"
+
 #include "runtime/importobj.h"
 #include "runtime/storemgr.h"
-#include "validator/validator.h"
+
+#include "costtable.h"
 
 #include <cstdint>
 #include <memory>
@@ -36,9 +38,8 @@ namespace VM {
 class VM {
 public:
   VM() = delete;
-  VM(const ProposalConfigure &PConf, const Configure &InputConfig);
-  VM(const ProposalConfigure &PConf, const Configure &InputConfig,
-     Runtime::StoreManager &S);
+  VM(const Configure &Conf);
+  VM(const Configure &Conf, Runtime::StoreManager &S);
   ~VM() = default;
 
   /// ======= Functions can be called before instantiated stage. =======
@@ -87,7 +88,7 @@ public:
   getFunctionList() const;
 
   /// Get import objects by configurations.
-  Runtime::ImportObject *getImportModule(const Configure::VMType Type);
+  Runtime::ImportObject *getImportModule(const HostRegistration Type);
 
   /// Getter of store set in VM.
   Runtime::StoreManager &getStoreManager() { return StoreRef; }
@@ -118,7 +119,7 @@ private:
   std::unique_ptr<AST::Module> Mod;
   std::unique_ptr<Runtime::StoreManager> Store;
   Runtime::StoreManager &StoreRef;
-  std::map<Configure::VMType, std::unique_ptr<Runtime::ImportObject>> ImpObjs;
+  std::map<HostRegistration, std::unique_ptr<Runtime::ImportObject>> ImpObjs;
   CostTable CostTab;
 };
 

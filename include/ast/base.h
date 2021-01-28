@@ -13,9 +13,9 @@
 #pragma once
 
 #include "common/astdef.h"
+#include "common/configure.h"
 #include "common/errcode.h"
 #include "common/log.h"
-#include "common/proposal.h"
 #include "loader/filemgr.h"
 
 namespace SSVM {
@@ -28,8 +28,7 @@ public:
   virtual ~Base() = default;
 
   /// Binary loading from file manager.
-  virtual Expect<void> loadBinary(FileMgr &Mgr,
-                                  const ProposalConfigure &PConf) = 0;
+  virtual Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) = 0;
 
   /// AST node attribute.
   const ASTNodeAttr NodeAttr = ASTNodeAttr::Module;
@@ -54,17 +53,17 @@ inline auto logNeedProposal(ErrCode Code, Proposal Prop, uint32_t Off,
 }
 
 /// Helper function of checking the valid value types.
-inline Expect<ValType> checkValTypeProposals(const ProposalConfigure &PConf,
+inline Expect<ValType> checkValTypeProposals(const Configure &Conf,
                                              ValType VType, uint32_t Off,
                                              ASTNodeAttr Node) {
-  if (VType == ValType::V128 && !PConf.hasProposal(Proposal::SIMD)) {
+  if (VType == ValType::V128 && !Conf.hasProposal(Proposal::SIMD)) {
     return logNeedProposal(ErrCode::InvalidGrammar, Proposal::SIMD, Off, Node);
   }
   if ((VType == ValType::FuncRef &&
-       !PConf.hasProposal(Proposal::ReferenceTypes) &&
-       !PConf.hasProposal(Proposal::BulkMemoryOperations)) ||
+       !Conf.hasProposal(Proposal::ReferenceTypes) &&
+       !Conf.hasProposal(Proposal::BulkMemoryOperations)) ||
       (VType == ValType::ExternRef &&
-       !PConf.hasProposal(Proposal::ReferenceTypes))) {
+       !Conf.hasProposal(Proposal::ReferenceTypes))) {
     return logNeedProposal(ErrCode::InvalidGrammar, Proposal::ReferenceTypes,
                            Off, Node);
   }
@@ -84,12 +83,12 @@ inline Expect<ValType> checkValTypeProposals(const ProposalConfigure &PConf,
 }
 
 /// Helper function of checking the valid reference types.
-inline Expect<RefType> checkRefTypeProposals(const ProposalConfigure &PConf,
+inline Expect<RefType> checkRefTypeProposals(const Configure &Conf,
                                              RefType RType, uint32_t Off,
                                              ASTNodeAttr Node) {
   switch (RType) {
   case RefType::ExternRef:
-    if (!PConf.hasProposal(Proposal::ReferenceTypes)) {
+    if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logNeedProposal(ErrCode::InvalidGrammar, Proposal::ReferenceTypes,
                              Off, Node);
     }

@@ -12,8 +12,8 @@
 #pragma once
 
 #include "astdef.h"
+#include "configure.h"
 #include "filesystem.h"
-#include "proposal.h"
 #include "types.h"
 #include "value.h"
 

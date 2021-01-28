@@ -91,7 +91,7 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
 
   /// Multiple tables is for ReferenceTypes proposal.
   if (Checker.getTables().size() > 1 &&
-      !PConf.hasProposal(Proposal::ReferenceTypes)) {
+      !Conf.hasProposal(Proposal::ReferenceTypes)) {
     LOG(ERROR) << ErrCode::MultiTables;
     LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
     LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);

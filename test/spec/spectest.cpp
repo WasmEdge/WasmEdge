@@ -178,7 +178,7 @@ parseExpectedList(const rapidjson::Value &Args) {
 
 struct TestsuiteProposal {
   std::string_view Path;
-  SSVM::ProposalConfigure Conf;
+  SSVM::Configure Conf;
 };
 static const TestsuiteProposal TestsuiteProposals[] = {
     {"core"sv, {}},
@@ -210,7 +210,7 @@ std::vector<std::string> SpecTest::enumerate() const {
   return Cases;
 }
 
-std::tuple<std::string_view, SSVM::ProposalConfigure, std::string>
+std::tuple<std::string_view, SSVM::Configure, std::string>
 SpecTest::resolve(std::string_view Params) const {
   const auto Pos = Params.find_last_of(' ');
   const std::string_view ProposalPath = Params.substr(0, Pos);
@@ -219,7 +219,7 @@ SpecTest::resolve(std::string_view Params) const {
                                       [&ProposalPath](const auto Proposal) {
                                         return Proposal.Path == ProposalPath;
                                       });
-  return std::tuple<std::string_view, SSVM::ProposalConfigure, std::string>{
+  return std::tuple<std::string_view, SSVM::Configure, std::string>{
       Proposal.Path, Proposal.Conf, Params.substr(Pos + 1)};
 }
 

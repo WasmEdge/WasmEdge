@@ -3,7 +3,7 @@
 add_library(ssvmCommon
   hexstr.cpp
   log.cpp
-  proposal.cpp
+  configure.cpp
 )
 
 target_link_libraries(ssvmCommon

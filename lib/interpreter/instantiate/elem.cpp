@@ -40,8 +40,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 
       /// Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
       /// enabled.
-      if (!PConf.hasProposal(Proposal::ReferenceTypes) &&
-          !PConf.hasProposal(Proposal::BulkMemoryOperations)) {
+      if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
+          !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
         /// Table index should be 0. Checked in validation phase.
         auto *TabInst = getTabInstByIdx(StoreMgr, ElemSeg.getIdx());
         /// Check elements fits.

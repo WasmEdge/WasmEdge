@@ -6,7 +6,7 @@ namespace SSVM {
 namespace AST {
 
 /// Load binary to construct Module node. See "include/ast/module.h".
-Expect<void> Module::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
+Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read Magic and Version sequences.
   if (auto Res = Mgr.readBytes(4)) {
     Magic = *Res;
@@ -46,49 +46,49 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
     switch (NewSectionId) {
     case 0x00:
       /// TODO: Handle the messages in custom section.
-      if (auto Res = CustomSec.loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = CustomSec.loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x01:
-      if (auto Res = TypeSec.loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = TypeSec.loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x02:
-      if (auto Res = ImportSec.loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = ImportSec.loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x03:
-      if (auto Res = FunctionSec.loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = FunctionSec.loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x04:
-      if (auto Res = TableSec.loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = TableSec.loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x05:
-      if (auto Res = MemorySec.loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = MemorySec.loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x06:
-      if (auto Res = GlobalSec.loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = GlobalSec.loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x07:
-      if (auto Res = ExportSec.loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = ExportSec.loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -98,33 +98,33 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
         /// Start section should be unique.
         logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
       }
-      if (auto Res = StartSec.loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = StartSec.loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x09:
-      if (auto Res = ElementSec.loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = ElementSec.loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x0A:
-      if (auto Res = CodeSec.loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = CodeSec.loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x0B:
-      if (auto Res = DataSec.loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = DataSec.loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
       break;
     case 0x0C:
       /// This section is for BulkMemoryOperations or ReferenceTypes proposal.
-      if (!PConf.hasProposal(Proposal::BulkMemoryOperations) &&
-          !PConf.hasProposal(Proposal::ReferenceTypes)) {
+      if (!Conf.hasProposal(Proposal::BulkMemoryOperations) &&
+          !Conf.hasProposal(Proposal::ReferenceTypes)) {
         return logNeedProposal(ErrCode::InvalidGrammar,
                                Proposal::BulkMemoryOperations,
                                Mgr.getOffset() - 1, NodeAttr);
@@ -133,7 +133,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
         /// Data count section should be unique.
         logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
       }
-      if (auto Res = DataCountSec.loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = DataCountSec.loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }

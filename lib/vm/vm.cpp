@@ -21,8 +21,7 @@ VM::VM(const Configure &Conf, Runtime::StoreManager &S)
 }
 
 void VM::initVM() {
-  /// Set cost table and create import modules from configure.
-  Stat.setCostTable(CostTab.getCostTable());
+  /// Create import modules from configuration.
   if (Config.hasHostRegistration(HostRegistration::Wasi)) {
     std::unique_ptr<Runtime::ImportObject> WasiMod =
         std::make_unique<Host::WasiModule>();

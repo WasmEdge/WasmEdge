@@ -18,7 +18,7 @@
 namespace {
 
 SSVM::FileMgrVector Mgr;
-SSVM::ProposalConfigure PConf;
+SSVM::Configure Conf;
 
 TEST(SegmentTest, LoadGlobalSegment) {
   /// 1. Test load global segment.
@@ -28,7 +28,7 @@ TEST(SegmentTest, LoadGlobalSegment) {
   ///   3.  Load global segment with non-empty expression.
   Mgr.clearBuffer();
   SSVM::AST::GlobalSegment Seg1;
-  EXPECT_FALSE(Seg1.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Seg1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -37,7 +37,7 @@ TEST(SegmentTest, LoadGlobalSegment) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::GlobalSegment Seg2;
-  EXPECT_TRUE(Seg2.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Seg2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -46,7 +46,7 @@ TEST(SegmentTest, LoadGlobalSegment) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::GlobalSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Seg3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
 TEST(SegmentTest, LoadElementSegment) {
@@ -59,7 +59,7 @@ TEST(SegmentTest, LoadElementSegment) {
   /// TODO: Add prefix 0x01 ~ 0x07 tests.
   Mgr.clearBuffer();
   SSVM::AST::ElementSegment Seg1;
-  EXPECT_FALSE(Seg1.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Seg1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -69,7 +69,7 @@ TEST(SegmentTest, LoadElementSegment) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::ElementSegment Seg2;
-  EXPECT_TRUE(Seg2.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Seg2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -82,7 +82,7 @@ TEST(SegmentTest, LoadElementSegment) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::ElementSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Seg3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
 TEST(SegmentTest, LoadCodeSegment) {
@@ -95,7 +95,7 @@ TEST(SegmentTest, LoadCodeSegment) {
   ///   4.  Load code segment with expression and local lists.
   Mgr.clearBuffer();
   SSVM::AST::CodeSegment Seg1;
-  EXPECT_FALSE(Seg1.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Seg1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -103,7 +103,7 @@ TEST(SegmentTest, LoadCodeSegment) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::CodeSegment Seg2;
-  EXPECT_FALSE(Seg2.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Seg2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -113,7 +113,7 @@ TEST(SegmentTest, LoadCodeSegment) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::CodeSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Seg3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
@@ -127,7 +127,7 @@ TEST(SegmentTest, LoadCodeSegment) {
   };
   Mgr.setCode(Vec4);
   SSVM::AST::CodeSegment Seg4;
-  EXPECT_TRUE(Seg4.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Seg4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
 TEST(SegmentTest, LoadDataSegment) {
@@ -140,7 +140,7 @@ TEST(SegmentTest, LoadDataSegment) {
   /// TODO: Add prefix 0x01 and 0x02 tests.
   Mgr.clearBuffer();
   SSVM::AST::DataSegment Seg1;
-  EXPECT_FALSE(Seg1.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Seg1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
@@ -150,7 +150,7 @@ TEST(SegmentTest, LoadDataSegment) {
   };
   Mgr.setCode(Vec2);
   SSVM::AST::DataSegment Seg2;
-  EXPECT_TRUE(Seg2.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Seg2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
@@ -160,7 +160,7 @@ TEST(SegmentTest, LoadDataSegment) {
   };
   Mgr.setCode(Vec3);
   SSVM::AST::DataSegment Seg3;
-  EXPECT_TRUE(Seg3.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Seg3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
 } // namespace

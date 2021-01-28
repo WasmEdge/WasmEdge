@@ -13,9 +13,9 @@
 #pragma once
 
 #include "ast/module.h"
+#include "common/configure.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
-#include "common/proposal.h"
 
 #include <string>
 #include <vector>
@@ -26,7 +26,7 @@ namespace Loader {
 /// Loader flow control class.
 class Loader {
 public:
-  Loader(const ProposalConfigure &PConf) : PConf(PConf) {}
+  Loader(const Configure &Conf) : Conf(Conf) {}
   ~Loader() = default;
 
   /// Load data from file path.
@@ -40,7 +40,7 @@ public:
   Expect<std::unique_ptr<AST::Module>> parseModule(Span<const uint8_t> Code);
 
 private:
-  const ProposalConfigure &PConf;
+  const Configure &Conf;
   FileMgrFStream FSMgr;
   FileMgrVector FVMgr;
   LDMgr LMgr;

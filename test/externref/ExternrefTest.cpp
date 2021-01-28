@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "ExternrefTest.h"
+#include "common/configure.h"
 #include "common/value.h"
-#include "vm/configure.h"
 #include "vm/vm.h"
+
+#include "ExternrefTest.h"
 #include "gtest/gtest.h"
 
 #include <iostream>
@@ -15,9 +16,9 @@
 namespace {
 
 TEST(ExternRefTest, Ref__Functions) {
-  SSVM::ProposalConfigure PConf(SSVM::Proposal::ReferenceTypes);
-  SSVM::VM::Configure Conf;
-  SSVM::VM::VM VM(PConf, Conf);
+  SSVM::Configure Conf;
+  Conf.addProposal(SSVM::Proposal::ReferenceTypes);
+  SSVM::VM::VM VM(Conf);
   SSVM::ExternMod ExtMod;
   std::vector<SSVM::ValVariant> FuncArgs;
   VM.registerModule(ExtMod);
@@ -60,9 +61,9 @@ TEST(ExternRefTest, Ref__Functions) {
 }
 
 TEST(ExternRefTest, Ref__STL) {
-  SSVM::ProposalConfigure PConf(SSVM::Proposal::ReferenceTypes);
-  SSVM::VM::Configure Conf;
-  SSVM::VM::VM VM(PConf, Conf);
+  SSVM::Configure Conf;
+  Conf.addProposal(SSVM::Proposal::ReferenceTypes);
+  SSVM::VM::VM VM(Conf);
   SSVM::ExternMod ExtMod;
   std::vector<SSVM::ValVariant> FuncArgs;
   VM.registerModule(ExtMod);

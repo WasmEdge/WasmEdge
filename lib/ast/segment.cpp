@@ -6,22 +6,20 @@ namespace SSVM {
 namespace AST {
 
 /// Load expression binary in segment. See "include/ast/segment.h".
-Expect<void> Segment::loadExpression(FileMgr &Mgr,
-                                     const ProposalConfigure &PConf) {
-  return Expr.loadBinary(Mgr, PConf);
+Expect<void> Segment::loadExpression(FileMgr &Mgr, const Configure &Conf) {
+  return Expr.loadBinary(Mgr, Conf);
 }
 
 /// Load binary of GlobalSegment node. See "include/ast/segment.h".
-Expect<void> GlobalSegment::loadBinary(FileMgr &Mgr,
-                                       const ProposalConfigure &PConf) {
+Expect<void> GlobalSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read global type node.
-  if (auto Res = Global.loadBinary(Mgr, PConf); !Res) {
+  if (auto Res = Global.loadBinary(Mgr, Conf); !Res) {
     LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
 
   /// Read the expression.
-  if (auto Res = Segment::loadExpression(Mgr, PConf); !Res) {
+  if (auto Res = Segment::loadExpression(Mgr, Conf); !Res) {
     LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
@@ -30,8 +28,7 @@ Expect<void> GlobalSegment::loadBinary(FileMgr &Mgr,
 }
 
 /// Load binary of ElementSegment node. See "include/ast/segment.h".
-Expect<void> ElementSegment::loadBinary(FileMgr &Mgr,
-                                        const ProposalConfigure &PConf) {
+Expect<void> ElementSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Element segment binary format:
   /// ---------------------------------------------------------------------------
   ///  byte | TableIdx | OffExpr | ElemKind | RefType | vec(FuncIdx) | vec(expr)
@@ -60,8 +57,8 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr,
     return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   /// Check > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
-  if (Check > 0 && !PConf.hasProposal(Proposal::BulkMemoryOperations) &&
-      !PConf.hasProposal(Proposal::ReferenceTypes)) {
+  if (Check > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations) &&
+      !Conf.hasProposal(Proposal::ReferenceTypes)) {
     return logNeedProposal(ErrCode::InvalidGrammar,
                            Proposal::BulkMemoryOperations, Mgr.getOffset() - 1,
                            NodeAttr);
@@ -112,7 +109,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr,
   case 0x02:
   case 0x04:
   case 0x06:
-    if (auto Res = Segment::loadExpression(Mgr, PConf); !Res) {
+    if (auto Res = Segment::loadExpression(Mgr, Conf); !Res) {
       LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(Res);
     }
@@ -150,7 +147,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr,
       InitExprs.emplace_back();
       Instruction RefFunc(OpCode::Ref__func);
       Instruction End(OpCode::End);
-      if (auto Res = RefFunc.loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = RefFunc.loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -171,7 +168,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr,
     if (auto Res = Mgr.readByte()) {
       Type = static_cast<RefType>(*Res);
       if (auto Check =
-              checkRefTypeProposals(PConf, Type, Mgr.getOffset() - 1, NodeAttr);
+              checkRefTypeProposals(Conf, Type, Mgr.getOffset() - 1, NodeAttr);
           !Check) {
         return Unexpect(Check);
       }
@@ -190,7 +187,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr,
     }
     for (uint32_t i = 0; i < VecCnt; ++i) {
       InitExprs.emplace_back();
-      if (auto Res = InitExprs.back().loadBinary(Mgr, PConf); !Res) {
+      if (auto Res = InitExprs.back().loadBinary(Mgr, Conf); !Res) {
         LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
         return Unexpect(Res);
       }
@@ -206,8 +203,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr,
 }
 
 /// Load binary of CodeSegment node. See "include/ast/segment.h".
-Expect<void> CodeSegment::loadBinary(FileMgr &Mgr,
-                                     const ProposalConfigure &PConf) {
+Expect<void> CodeSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read the code segment size.
   if (auto Res = Mgr.readU32()) {
     SegSize = *Res;
@@ -233,7 +229,7 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr,
     }
     if (auto Res = Mgr.readByte()) {
       LocalType = static_cast<ValType>(*Res);
-      if (auto Check = checkValTypeProposals(PConf, LocalType,
+      if (auto Check = checkValTypeProposals(Conf, LocalType,
                                              Mgr.getOffset() - 1, NodeAttr);
           !Check) {
         return Unexpect(Check);
@@ -245,7 +241,7 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr,
   }
 
   /// Read function body.
-  if (auto Res = Segment::loadExpression(Mgr, PConf); !Res) {
+  if (auto Res = Segment::loadExpression(Mgr, Conf); !Res) {
     LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
     return Unexpect(Res);
   }
@@ -254,8 +250,7 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr,
 }
 
 /// Load binary of DataSegment node. See "include/ast/segment.h".
-Expect<void> DataSegment::loadBinary(FileMgr &Mgr,
-                                     const ProposalConfigure &PConf) {
+Expect<void> DataSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   Mode = DataMode::Passive;
   MemoryIdx = 0;
 
@@ -279,8 +274,8 @@ Expect<void> DataSegment::loadBinary(FileMgr &Mgr,
     return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
   /// Check > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
-  if (Check > 0 && !PConf.hasProposal(Proposal::BulkMemoryOperations) &&
-      !PConf.hasProposal(Proposal::ReferenceTypes)) {
+  if (Check > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations) &&
+      !Conf.hasProposal(Proposal::ReferenceTypes)) {
     return logNeedProposal(ErrCode::InvalidGrammar,
                            Proposal::BulkMemoryOperations, Mgr.getOffset() - 1,
                            NodeAttr);
@@ -298,7 +293,7 @@ Expect<void> DataSegment::loadBinary(FileMgr &Mgr,
 
   case 0x00: /// 0x00 expr vec(byte) , Active
     /// Read the offset expression.
-    if (auto Res = Segment::loadExpression(Mgr, PConf); !Res) {
+    if (auto Res = Segment::loadExpression(Mgr, Conf); !Res) {
       LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
       return Unexpect(Res);
     }

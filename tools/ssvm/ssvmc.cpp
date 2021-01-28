@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "aot/compiler.h"
+#include "common/configure.h"
 #include "common/filesystem.h"
-#include "common/proposal.h"
 #include "common/version.h"
 #include "loader/loader.h"
 #include "po/argument_parser.h"
@@ -54,25 +54,25 @@ int main(int Argc, const char *Argv[]) {
     return EXIT_SUCCESS;
   }
 
-  SSVM::ProposalConfigure ProposalConf;
+  SSVM::Configure Conf;
   if (BulkMemoryOperations.value()) {
-    ProposalConf.addProposal(SSVM::Proposal::BulkMemoryOperations);
+    Conf.addProposal(SSVM::Proposal::BulkMemoryOperations);
   }
   if (ReferenceTypes.value()) {
-    ProposalConf.addProposal(SSVM::Proposal::ReferenceTypes);
+    Conf.addProposal(SSVM::Proposal::ReferenceTypes);
   }
   if (SIMD.value()) {
-    ProposalConf.addProposal(SSVM::Proposal::SIMD);
+    Conf.addProposal(SSVM::Proposal::SIMD);
   }
   if (All.value()) {
-    ProposalConf.addProposal(SSVM::Proposal::BulkMemoryOperations);
-    ProposalConf.addProposal(SSVM::Proposal::ReferenceTypes);
-    ProposalConf.addProposal(SSVM::Proposal::SIMD);
+    Conf.addProposal(SSVM::Proposal::BulkMemoryOperations);
+    Conf.addProposal(SSVM::Proposal::ReferenceTypes);
+    Conf.addProposal(SSVM::Proposal::SIMD);
   }
 
   std::filesystem::path InputPath = std::filesystem::absolute(WasmName.value());
   std::filesystem::path OutputPath = std::filesystem::absolute(SoName.value());
-  SSVM::Loader::Loader Loader(ProposalConf);
+  SSVM::Loader::Loader Loader(Conf);
 
   std::vector<SSVM::Byte> Data;
   if (auto Res = Loader.loadFile(InputPath)) {
@@ -93,7 +93,7 @@ int main(int Argc, const char *Argv[]) {
   }
 
   {
-    SSVM::Validator::Validator ValidatorEngine(ProposalConf);
+    SSVM::Validator::Validator ValidatorEngine(Conf);
     if (auto Res = ValidatorEngine.validate(*Module); !Res) {
       const auto Err = static_cast<uint32_t>(Res.error());
       std::cout << "Validate failed. Error code:" << Err << std::endl;

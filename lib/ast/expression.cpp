@@ -6,9 +6,8 @@ namespace SSVM {
 namespace AST {
 
 /// Load to construct Expression node. See "include/ast/expression.h".
-Expect<void> Expression::loadBinary(FileMgr &Mgr,
-                                    const ProposalConfigure &PConf) {
-  if (auto Res = loadInstrSeq(Mgr, PConf)) {
+Expect<void> Expression::loadBinary(FileMgr &Mgr, const Configure &Conf) {
+  if (auto Res = loadInstrSeq(Mgr, Conf)) {
     Instrs = std::move(*Res);
   } else {
     LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);

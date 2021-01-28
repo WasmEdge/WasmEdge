@@ -84,7 +84,7 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
       LOG(ERROR) << ErrInfo::InfoFile(FilePath);
       return Unexpect(Res);
     }
-    if (auto Res = Mod->loadBinary(FSMgr, PConf)) {
+    if (auto Res = Mod->loadBinary(FSMgr, Conf)) {
       return Mod;
     } else {
       LOG(ERROR) << ErrInfo::InfoFile(FilePath);
@@ -100,7 +100,7 @@ Loader::parseModule(Span<const uint8_t> Code) {
   if (auto Res = FVMgr.setCode(Code); !Res) {
     return Unexpect(Res);
   }
-  if (auto Res = Mod->loadBinary(FVMgr, PConf)) {
+  if (auto Res = Mod->loadBinary(FVMgr, Conf)) {
     return Mod;
   } else {
     return Unexpect(Res);

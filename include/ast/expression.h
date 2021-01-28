@@ -32,11 +32,10 @@ public:
   /// Read and make Instruction nodes until the OpCode of End.
   ///
   /// \param Mgr the file manager reference.
-  /// \param PConf the proposal configuration reference.
+  /// \param Conf the SSVM configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr,
-                          const ProposalConfigure &PConf) override;
+  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
 
   /// Getter of instructions vector.
   InstrView getInstrs() const { return Instrs; }

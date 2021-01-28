@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
+#include "common/configure.h"
 #include "common/filesystem.h"
-#include "common/proposal.h"
 #include "common/value.h"
 #include "host/wasi/wasimodule.h"
-#include "vm/configure.h"
 #include "vm/vm.h"
 
 #include <cstdlib>
@@ -15,11 +14,6 @@ int main(int Argc, const char *Argv[], const char *Env[]) {
   std::ios::sync_with_stdio(false);
   SSVM::Log::setErrorLoggingLevel();
 
-  SSVM::ProposalConfigure ProposalConf;
-  ProposalConf.addProposal(SSVM::Proposal::BulkMemoryOperations);
-  ProposalConf.addProposal(SSVM::Proposal::ReferenceTypes);
-  ProposalConf.addProposal(SSVM::Proposal::SIMD);
-
   /// check Argv[0] is the wasm file
   if (std::filesystem::u8path(Argv[0]).extension() != ".wasm") {
     ++Argv;
@@ -27,13 +21,16 @@ int main(int Argc, const char *Argv[], const char *Env[]) {
   }
   const auto InputPath =
       std::filesystem::absolute(std::filesystem::u8path(Argv[0]));
-  SSVM::VM::Configure Conf;
-  Conf.addVMType(SSVM::VM::Configure::VMType::Wasi);
-  Conf.addVMType(SSVM::VM::Configure::VMType::SSVM_Process);
-  SSVM::VM::VM VM(ProposalConf, Conf);
+  SSVM::Configure Conf;
+  Conf.addHostRegistration(SSVM::HostRegistration::Wasi);
+  Conf.addHostRegistration(SSVM::HostRegistration::SSVM_Process);
+  Conf.addProposal(SSVM::Proposal::BulkMemoryOperations);
+  Conf.addProposal(SSVM::Proposal::ReferenceTypes);
+  Conf.addProposal(SSVM::Proposal::SIMD);
+  SSVM::VM::VM VM(Conf);
 
   SSVM::Host::WasiModule *WasiMod = dynamic_cast<SSVM::Host::WasiModule *>(
-      VM.getImportModule(SSVM::VM::Configure::VMType::Wasi));
+      VM.getImportModule(SSVM::HostRegistration::Wasi));
 
   int Envc = 0;
   for (const char **EnvP = Env; *EnvP != nullptr; ++EnvP) {

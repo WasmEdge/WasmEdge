@@ -15,8 +15,8 @@
 #include <memory>
 
 #include "ast/module.h"
+#include "common/configure.h"
 #include "common/errcode.h"
-#include "common/proposal.h"
 #include "formchecker.h"
 
 namespace SSVM {
@@ -25,7 +25,7 @@ namespace Validator {
 /// Validator flow control class.
 class Validator {
 public:
-  Validator(const ProposalConfigure &PConf) noexcept : PConf(PConf) {}
+  Validator(const Configure &Conf) noexcept : Conf(Conf) {}
   ~Validator() = default;
 
   /// Validate AST::Module.
@@ -67,7 +67,7 @@ private:
 
   static inline const uint32_t LIMIT_MEMORYTYPE = 1U << 16;
   /// Proposal configure
-  const ProposalConfigure &PConf;
+  const Configure &Conf;
   /// Formal checker
   FormChecker Checker;
 };

@@ -17,13 +17,13 @@
 namespace {
 
 SSVM::FileMgrVector Mgr;
-SSVM::ProposalConfigure PConf;
+SSVM::Configure Conf;
 
 TEST(ModuleTest, LoadInvalidModule) {
   /// 1. Test load empty file
   Mgr.clearBuffer();
   SSVM::AST::Module Mod;
-  EXPECT_FALSE(Mod.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Mod.loadBinary(Mgr, Conf));
 }
 
 TEST(ModuleTest, LoadEmptyModule) {
@@ -33,7 +33,7 @@ TEST(ModuleTest, LoadEmptyModule) {
   std::vector<unsigned char> Vec = {0x00U, 0x61U, 0x73U, 0x6DU,
                                     0x01U, 0x00U, 0x00U, 0x00U};
   Mgr.setCode(Vec);
-  EXPECT_TRUE(Mod.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Mod.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
 TEST(ModuleTest, LoadValidSecModule) {
@@ -57,7 +57,7 @@ TEST(ModuleTest, LoadValidSecModule) {
       0x0BU, 0x81U, 0x80U, 0x80U, 0x80U, 0x00U, 0x00U  /// Data section
   };
   Mgr.setCode(Vec);
-  EXPECT_TRUE(Mod.loadBinary(Mgr, PConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Mod.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
 TEST(ModuleTest, LoadInvalidSecModule) {
@@ -82,7 +82,7 @@ TEST(ModuleTest, LoadInvalidSecModule) {
       0x0DU, 0x81U, 0x80U, 0x80U, 0x80U, 0x00U, 0x00U  /// Invalid section
   };
   Mgr.setCode(Vec);
-  EXPECT_FALSE(Mod.loadBinary(Mgr, PConf));
+  EXPECT_FALSE(Mod.loadBinary(Mgr, Conf));
 }
 
 } // namespace

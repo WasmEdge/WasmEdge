@@ -7,7 +7,7 @@ namespace SSVM {
 namespace AST {
 
 /// Load binary to construct Limit node. See "include/ast/type.h".
-Expect<void> Limit::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
+Expect<void> Limit::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read limit type.
   if (auto Res = Mgr.readByte()) {
     Type = static_cast<LimitType>(*Res);
@@ -40,8 +40,7 @@ Expect<void> Limit::loadBinary(FileMgr &Mgr, const ProposalConfigure &PConf) {
 }
 
 /// Load binary to construct FunctionType node. See "include/ast/type.h".
-Expect<void> FunctionType::loadBinary(FileMgr &Mgr,
-                                      const ProposalConfigure &PConf) {
+Expect<void> FunctionType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   uint32_t VecCnt = 0;
 
   /// Read function type (0x60).
@@ -65,7 +64,7 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr,
     if (auto Res = Mgr.readByte()) {
       ValType Type = static_cast<ValType>(*Res);
       if (auto Check =
-              checkValTypeProposals(PConf, Type, Mgr.getOffset() - 1, NodeAttr);
+              checkValTypeProposals(Conf, Type, Mgr.getOffset() - 1, NodeAttr);
           !Check) {
         return Unexpect(Check);
       }
@@ -86,7 +85,7 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr,
     if (auto Res = Mgr.readByte()) {
       ValType Type = static_cast<ValType>(*Res);
       if (auto Check =
-              checkValTypeProposals(PConf, Type, Mgr.getOffset() - 1, NodeAttr);
+              checkValTypeProposals(Conf, Type, Mgr.getOffset() - 1, NodeAttr);
           !Check) {
         return Unexpect(Check);
       }
@@ -99,20 +98,18 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr,
 }
 
 /// Load binary to construct MemoryType node. See "include/ast/type.h".
-Expect<void> MemoryType::loadBinary(FileMgr &Mgr,
-                                    const ProposalConfigure &PConf) {
+Expect<void> MemoryType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read limit.
-  return MemoryLim.loadBinary(Mgr, PConf);
+  return MemoryLim.loadBinary(Mgr, Conf);
 }
 
 /// Load binary to construct TableType node. See "include/ast/type.h".
-Expect<void> TableType::loadBinary(FileMgr &Mgr,
-                                   const ProposalConfigure &PConf) {
+Expect<void> TableType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read reference type.
   if (auto Res = Mgr.readByte()) {
     Type = static_cast<RefType>(*Res);
     if (auto Check =
-            checkRefTypeProposals(PConf, Type, Mgr.getOffset() - 1, NodeAttr);
+            checkRefTypeProposals(Conf, Type, Mgr.getOffset() - 1, NodeAttr);
         !Check) {
       return Unexpect(Check);
     }
@@ -121,17 +118,16 @@ Expect<void> TableType::loadBinary(FileMgr &Mgr,
   }
 
   /// Read limit.
-  return TableLim.loadBinary(Mgr, PConf);
+  return TableLim.loadBinary(Mgr, Conf);
 }
 
 /// Load binary to construct GlobalType node. See "include/ast/type.h".
-Expect<void> GlobalType::loadBinary(FileMgr &Mgr,
-                                    const ProposalConfigure &PConf) {
+Expect<void> GlobalType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read value type.
   if (auto Res = Mgr.readByte()) {
     Type = static_cast<ValType>(*Res);
     if (auto Check =
-            checkValTypeProposals(PConf, Type, Mgr.getOffset() - 1, NodeAttr);
+            checkValTypeProposals(Conf, Type, Mgr.getOffset() - 1, NodeAttr);
         !Check) {
       return Unexpect(Check);
     }

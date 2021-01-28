@@ -17,12 +17,12 @@
 namespace {
 
 SSVM::FileMgrFStream Mgr;
-SSVM::ProposalConfigure PConf;
+SSVM::Configure Conf;
 
 TEST(EthereumTest, Load__token) {
   SSVM::AST::Module Mod;
   ASSERT_TRUE(Mgr.setPath("ethereumTestData/token.wasm"));
-  ASSERT_TRUE(Mod.loadBinary(Mgr, PConf));
+  ASSERT_TRUE(Mod.loadBinary(Mgr, Conf));
 }
 
 } // namespace

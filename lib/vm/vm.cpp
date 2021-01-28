@@ -23,25 +23,18 @@ VM::VM(const ProposalConfigure &PConf, const Configure &InputConfig,
 
 void VM::initVM() {
   /// Set cost table and create import modules from configure.
-  CostTab.setCostTable(Configure::VMType::Wasm);
-  Stat.setCostTable(CostTab.getCostTable(Configure::VMType::Wasm));
+  Stat.setCostTable(CostTab.getCostTable());
   if (Config.hasVMType(Configure::VMType::Wasi)) {
-    /// 2nd priority of cost table: Wasi
     std::unique_ptr<Runtime::ImportObject> WasiMod =
         std::make_unique<Host::WasiModule>();
     InterpreterEngine.registerModule(StoreRef, *WasiMod.get());
     ImpObjs.insert({Configure::VMType::Wasi, std::move(WasiMod)});
-    CostTab.setCostTable(Configure::VMType::Wasi);
-    Stat.setCostTable(CostTab.getCostTable(Configure::VMType::Wasi));
   }
   if (Config.hasVMType(Configure::VMType::SSVM_Process)) {
-    /// 1st priority of cost table: SSVM_Process
     std::unique_ptr<Runtime::ImportObject> ProcMod =
         std::make_unique<Host::SSVMProcessModule>();
     InterpreterEngine.registerModule(StoreRef, *ProcMod.get());
     ImpObjs.insert({Configure::VMType::SSVM_Process, std::move(ProcMod)});
-    CostTab.setCostTable(Configure::VMType::SSVM_Process);
-    Stat.setCostTable(CostTab.getCostTable(Configure::VMType::SSVM_Process));
   }
 }
 

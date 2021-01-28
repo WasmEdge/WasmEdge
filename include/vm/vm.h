@@ -95,12 +95,6 @@ public:
   /// Getter of statistics.
   Statistics::Statistics &getStatistics() { return Stat; }
 
-  /// Getter of service name.
-  std::string &getServiceName() { return ServiceName; }
-
-  /// Getter of UUID.
-  uint64_t &getUUID() { return UUID; }
-
 private:
   enum class VMStage : uint8_t { Inited, Loaded, Validated, Instantiated };
 
@@ -126,10 +120,6 @@ private:
   Runtime::StoreManager &StoreRef;
   std::map<Configure::VMType, std::unique_ptr<Runtime::ImportObject>> ImpObjs;
   CostTable CostTab;
-
-  /// Identification
-  std::string ServiceName;
-  uint64_t UUID;
 };
 
 } // namespace VM

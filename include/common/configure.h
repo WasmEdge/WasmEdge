@@ -71,11 +71,16 @@ public:
     return Hosts.test(static_cast<uint8_t>(Host));
   }
 
+  void setMaxMemoryPage(const uint32_t Page) noexcept { MaxMemPage = Page; }
+
+  uint32_t getMaxMemoryPage() const noexcept { return MaxMemPage; }
+
 private:
   void addSet(const Proposal P) noexcept { addProposal(P); }
   void addSet(const HostRegistration H) noexcept { addHostRegistration(H); }
   std::bitset<static_cast<uint8_t>(Proposal::Max)> Proposals;
   std::bitset<static_cast<uint8_t>(HostRegistration::Max)> Hosts;
+  uint32_t MaxMemPage = 65536;
 };
 
 } // namespace SSVM

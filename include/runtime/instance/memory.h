@@ -68,14 +68,22 @@ public:
   MemoryInstance() = delete;
   MemoryInstance(MemoryInstance &&Inst) noexcept
       : HasMaxPage(Inst.HasMaxPage), MinPage(Inst.MinPage),
-        MaxPage(Inst.MaxPage), DataPtr(Inst.DataPtr) {
+        MaxPage(Inst.MaxPage), DataPtr(Inst.DataPtr),
+        PageLimit(Inst.PageLimit) {
     Inst.DataPtr = nullptr;
   }
-  MemoryInstance(const AST::Limit &Lim)
-      : HasMaxPage(Lim.hasMax()), MinPage(Lim.getMin()), MaxPage(Lim.getMax()) {
+  MemoryInstance(const AST::Limit &Lim, const uint32_t PageLim = 65536)
+      : HasMaxPage(Lim.hasMax()), MinPage(Lim.getMin()), MaxPage(Lim.getMax()),
+        PageLimit(PageLim) {
     const auto UsableAddress = getUsableAddress();
     if (UsableAddress == UINT64_C(-1)) {
       LOG(ERROR) << "Unable to find usable memory address";
+      return;
+    }
+    if (MinPage > PageLimit) {
+      LOG(ERROR)
+          << "Create memory instance failed -- exceeded limit page size: "
+          << PageLimit;
       return;
     }
     DataPtr = reinterpret_cast<uint8_t *>(UsableAddress);
@@ -129,6 +137,11 @@ public:
       MaxPageCaped = std::min(MaxPage, MaxPageCaped);
     }
     if (Count + MinPage > MaxPageCaped) {
+      return false;
+    }
+    if (Count + MinPage > PageLimit) {
+      LOG(ERROR) << "Memory grow page failed -- exceeded limit page size: "
+                 << PageLimit;
       return false;
     }
     if (MinPage == 0) {
@@ -356,6 +369,7 @@ private:
   uint32_t MinPage;
   const uint32_t MaxPage;
   uint8_t *DataPtr = nullptr;
+  const uint32_t PageLimit;
   /// @}
 };
 

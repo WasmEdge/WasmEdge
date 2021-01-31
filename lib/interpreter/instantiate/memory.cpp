@@ -17,9 +17,11 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     /// Insert memory instance to store manager.
     uint32_t NewMemInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewMemInstAddr = StoreMgr.pushMemory(MemType.getLimit());
+      NewMemInstAddr =
+          StoreMgr.pushMemory(MemType.getLimit(), Conf.getMaxMemoryPage());
     } else {
-      NewMemInstAddr = StoreMgr.importMemory(MemType.getLimit());
+      NewMemInstAddr =
+          StoreMgr.importMemory(MemType.getLimit(), Conf.getMaxMemoryPage());
     }
     ModInst.addMemAddr(NewMemInstAddr);
   }

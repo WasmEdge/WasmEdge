@@ -46,6 +46,11 @@ int main(int Argc, const char *Argv[]) {
   PO::Option<PO::Toggle> SIMD(PO::Description("Enable SIMD"sv));
   PO::Option<PO::Toggle> All(PO::Description("Enable all features"sv));
 
+  PO::List<int> MemLim(
+      PO::Description(
+          "Limitation of pages(as size of 64 KiB) in every memory instance. Upper bound can be specified as --memory-page-limit `PAGE_COUNT`."sv),
+      PO::MetaVar("PAGE_COUNT"sv));
+
   PO::List<std::string> AllowCmd(
       PO::Description(
           "Allow commands called from ssvm_process host functions. Each command can be specified as --allow-command `COMMAND`."sv),
@@ -63,6 +68,7 @@ int main(int Argc, const char *Argv[]) {
            .add_option("enable-reference-types"sv, ReferenceTypes)
            .add_option("enable-simd"sv, SIMD)
            .add_option("enable-all"sv, All)
+           .add_option("memory-page-limit"sv, MemLim)
            .add_option("allow-command"sv, AllowCmd)
            .add_option("allow-command-all"sv, AllowCmdAll)
            .parse(Argc, Argv)) {
@@ -87,6 +93,9 @@ int main(int Argc, const char *Argv[]) {
     Conf.addProposal(SSVM::Proposal::BulkMemoryOperations);
     Conf.addProposal(SSVM::Proposal::ReferenceTypes);
     Conf.addProposal(SSVM::Proposal::SIMD);
+  }
+  if (MemLim.value().size() > 0) {
+    Conf.setMaxMemoryPage(MemLim.value().back());
   }
 
   Conf.addHostRegistration(SSVM::HostRegistration::Wasi);

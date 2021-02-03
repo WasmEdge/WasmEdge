@@ -13,6 +13,36 @@
   ;;; Linear memory to be accessed by WASI functions that need it.
   (import "memory" (memory))
 
+  ;;; Open a socket.
+  ;;; Note: This is similar to `socket` with `PF_INET` in POSIX.
+  (@interface func (export "open")
+    ;;; Some descriptor.
+    ;;; TODO: Describe more about the capability for the descriptor?
+    (param $capability $fd)
+    (param $af $address_family)
+    (param $socktype $sock_type)
+    (result $error $errno)
+    (result $fd $fd)
+  )
+
+  ;;; Close a socket.
+  ;;; Note: This is currently an alias for `fd_close`.
+  ;;; Note: This is similar to `close` in POSIX.
+  (@interface func (export "close")
+    (param $fd $fd)
+    (result $error $errno)
+  )
+
+  ;;; Bind a name to a socket.
+  ;;; Note: This is similar to `bind` in POSIX.
+  (@interface func (export "bind")
+    (param $fd $fd)
+    ;;; The pointer to and length of the buffer for address.
+    (param $addr_buf (@witx pointer u8))
+    (param $addr_buf_len $size)
+    (result $error $errno)
+  )
+
   ;;; Receive a message from a socket.
   ;;; Note: This is similar to `recv` in POSIX.
   ;;; Note: This is identical to `recvfrom` with a null pointer passed as its

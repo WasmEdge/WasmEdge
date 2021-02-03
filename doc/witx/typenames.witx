@@ -280,8 +280,12 @@
     $poll_fd_readwrite
     ;;; The right to invoke `sock_recv`.
     $sock_recv
+    ;;; The right to invoke `sock_recv_from`.
+    $sock_recv_from
     ;;; The right to invoke `sock_send`.
     $sock_send
+    ;;; The right to invoke `sock_send_to`.
+    $sock_send_to
     ;;; The right to invoke `sock_shutdown`.
     $sock_shutdown
   )

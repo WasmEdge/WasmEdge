@@ -1,7 +1,8 @@
 ;; Type names used by low-level WASI interfaces.
 ;;
-;; Some content here is derived from [CloudABI](https://github.com/NuxiNL/cloudabi)
-;; and [WASI ephemeral phases](https://github.com/WebAssembly/WASI/blob/snapshot-01/phases/ephemeral).
+;; Some content here is derived from [CloudABI](https://github.com/NuxiNL/cloudabi),
+;; [WASI ephemeral phases](https://github.com/WebAssembly/WASI/blob/snapshot-01/phases/ephemeral),
+;; and [WASI PR#312](https://github.com/WebAssembly/WASI/pull/312).
 ;;
 ;; This is a `witx` file. See [here](https://github.com/WebAssembly/WASI/tree/master/docs/witx.md)
 ;; for an explanation of what that means.
@@ -277,6 +278,10 @@
     ;;; If `rights::fd_read` is set, includes the right to invoke `poll_oneoff` to subscribe to `eventtype::fd_read`.
     ;;; If `rights::fd_write` is set, includes the right to invoke `poll_oneoff` to subscribe to `eventtype::fd_write`.
     $poll_fd_readwrite
+    ;;; The right to invoke `sock_recv`.
+    $sock_recv
+    ;;; The right to invoke `sock_send`.
+    $sock_send
     ;;; The right to invoke `sock_shutdown`.
     $sock_shutdown
   )

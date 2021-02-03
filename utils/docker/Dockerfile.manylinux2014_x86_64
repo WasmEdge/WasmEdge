@@ -5,7 +5,7 @@ MAINTAINER hydai hydai@secondstate.io
 
 ADD SHA256SUM build-manylinux.sh /root
 
-RUN cd && yum check-update && yum install -y xz openssl-devel && \
+RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-build && \
     export CPU=$(/opt/python/cp39-cp39/bin/python3 -c \
         'import multiprocessing; print(multiprocessing.cpu_count())') && \
     export CFGFLAGS="--prefix=/toolchain --disable-shared --libdir=/toolchain/lib64" && \

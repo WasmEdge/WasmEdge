@@ -101,8 +101,6 @@ jobs:
         run: |
           curl -s -L -O --remote-name-all https://dl.bintray.com/boostorg/release/1.75.0/source/boost_1_75_0.tar.bz2
           bzip2 -dc boost_1_75_0.tar.bz2 | tar -xf -
-          yum check-update
-          yum install -y rpm-build
           export PATH="/toolchain/bin:$PATH"
           export CC=gcc
           export CXX=g++
@@ -173,8 +171,6 @@ jobs:
         run: |
           curl -s -L -O --remote-name-all https://dl.bintray.com/boostorg/release/1.75.0/source/boost_1_75_0.tar.bz2
           bzip2 -dc boost_1_75_0.tar.bz2 | tar -xf -
-          yum check-update
-          yum install -y rpm-build
           export PATH="/toolchain/bin:$PATH"
           export CC=gcc
           export CXX=g++
@@ -245,8 +241,6 @@ jobs:
         run: |
           curl -s -L -O --remote-name-all https://dl.bintray.com/boostorg/release/1.75.0/source/boost_1_75_0.tar.bz2
           bzip2 -dc boost_1_75_0.tar.bz2 | tar -xf -
-          yum check-update
-          yum install -y rpm-build
           export PATH="/toolchain/bin:$PATH"
           export CC=gcc
           export CXX=g++

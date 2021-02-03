@@ -1,7 +1,8 @@
 ;; WASI Sockets.
 ;;
-;; Some content here is derived from [CloudABI](https://github.com/NuxiNL/cloudabi)
-;; and [WASI ephemeral phases](https://github.com/WebAssembly/WASI/blob/snapshot-01/phases/ephemeral).
+;; Some content here is derived from [CloudABI](https://github.com/NuxiNL/cloudabi),
+;; [WASI ephemeral phases](https://github.com/WebAssembly/WASI/blob/snapshot-01/phases/ephemeral),
+;; and [WASI PR#312](https://github.com/WebAssembly/WASI/pull/312).
 ;;
 ;; This is a `witx` file. See [here](https://github.com/WebAssembly/WASI/tree/master/docs/witx.md)
 ;; for an explanation of what that means.
@@ -13,33 +14,31 @@
   (import "memory" (memory))
 
   ;;; Receive a message from a socket.
-  ;;; Note: This is similar to `recv` in POSIX, though it also supports reading
-  ;;; the data into multiple buffers in the manner of `readv`.
+  ;;; Note: This is similar to `recv` in POSIX.
   (@interface func (export "recv")
     (param $fd $fd)
-    ;;; List of scatter/gather vectors to which to store data.
-    (param $ri_data $iovec_array)
+    ;;; The pointer to and length of the buffer for data received.
+    (param $buf (@witx pointer u8))
+    (param $buf_len $size)
     ;;; Message flags.
-    (param $ri_flags $riflags)
+    (param $flags $riflags)
     (result $error $errno)
-    ;;; Number of bytes stored in ri_data.
-    (result $ro_datalen $size)
-    ;;; Message flags.
-    (result $ro_flags $roflags)
+    ;;; Number of bytes used in the buffer.
+    (result $bufused $size)
   )
 
-  ;;; Send a message on a socket.
-  ;;; Note: This is similar to `send` in POSIX, though it also supports writing
-  ;;; the data from multiple buffers in the manner of `writev`.
+  ;;; Send a message from a socket.
+  ;;; Note: This is similar to `send` in POSIX.
   (@interface func (export "send")
     (param $fd $fd)
-    ;;; List of scatter/gather vectors to which to retrieve data
-    (param $si_data $ciovec_array)
+    ;;; The pointer to and length of the buffer for data.
+    (param $buf (@witx pointer u8))
+    (param $buf_len $size)
     ;;; Message flags.
-    (param $si_flags $siflags)
+    (param $_flags $siflags)
     (result $error $errno)
     ;;; Number of bytes transmitted.
-    (result $so_datalen $size)
+    (result $bufused $size)
   )
 
   ;;; Shut down socket send and receive channels.

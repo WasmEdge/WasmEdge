@@ -9,7 +9,7 @@ on:
       - 'utils/docker/**'
       - '.github/workflows/docker.yml'
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "0 0 1 * *"
 
 jobs:
   build-docker-images:

@@ -106,23 +106,18 @@ private:
       }
     }
 
-    bool parse(int Argc, const char *Argv[], int ArgP,
-               const bool &VerOpt) noexcept {
+    bool parse(Span<const char *> ProgramNamePrefix, int Argc,
+               const char *Argv[], int ArgP, const bool &VerOpt) noexcept {
       try {
-        ProgramNames = Span<const char *>(Argv, ArgP + 1);
-        if (!SubCommandMap.empty() && ArgP + 1 < Argc) {
-          if (auto Iter = SubCommandMap.find(Argv[ArgP + 1]);
-              Iter != SubCommandMap.end()) {
-            auto &Child = this[Iter->second];
-            Child.SC->select();
-            return Child.parse(Argc, Argv, ArgP + 1, VerOpt);
-          }
-        }
+        ProgramNames.reserve(ProgramNamePrefix.size() + 1);
+        ProgramNames.assign(ProgramNamePrefix.begin(), ProgramNamePrefix.end());
+        ProgramNames.push_back(Argv[ArgP]);
         ArgumentDescriptor *CurrentDesc = nullptr;
+        bool FirstNonOption = true;
         bool Escaped = false;
         auto PositionalIter = PositionalList.cbegin();
-        for (std::string_view Arg :
-             Span<const char *>(Argv + ArgP + 1, Argc - ArgP - 1)) {
+        for (int ArgI = ArgP + 1; ArgI < Argc; ++ArgI) {
+          std::string_view Arg = Argv[ArgI];
           if (!Escaped && Arg.size() >= 2 && Arg[0] == '-') {
             if (Arg[1] == '-') {
               if (Arg.size() == 2) {
@@ -146,6 +141,17 @@ private:
             CurrentDesc = nullptr;
           } else {
             // no more options
+            if (FirstNonOption) {
+              FirstNonOption = false;
+              if (!SubCommandMap.empty()) {
+                if (auto Iter = SubCommandMap.find(Arg);
+                    Iter != SubCommandMap.end()) {
+                  auto &Child = this[Iter->second];
+                  Child.SC->select();
+                  return Child.parse(ProgramNames, Argc, Argv, ArgI, VerOpt);
+                }
+              }
+            }
             Escaped = true;
             if (CurrentDesc) {
               CurrentDesc = consume_argument(*CurrentDesc, Arg);
@@ -400,7 +406,7 @@ private:
 
     SubCommand *SC = nullptr;
     std::vector<std::string_view> SubCommandNames;
-    Span<const char *> ProgramNames;
+    std::vector<const char *> ProgramNames;
     std::vector<ArgumentDescriptor> ArgumentDescriptors;
     std::unordered_map<void *, std::size_t> OptionMap;
     std::unordered_map<std::string_view, std::size_t> ArgumentMap;
@@ -449,7 +455,8 @@ public:
   }
 
   bool parse(int Argc, const char *Argv[]) noexcept {
-    return SubCommandDescriptors.front().parse(Argc, Argv, 0, VerOpt.value()) ||
+    return SubCommandDescriptors.front().parse({}, Argc, Argv, 0,
+                                               VerOpt.value()) ||
            VerOpt.value();
   }
   void usage() const noexcept { SubCommandDescriptors.front().usage(); }

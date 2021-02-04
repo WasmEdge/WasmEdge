@@ -105,3 +105,109 @@ TEST(SubCommands, Nested3) {
   std::array Args = {"test", "s2"};
   EXPECT_FALSE(Parser.parse(Args.size(), Args.data()));
 }
+
+TEST(SubCommands, NestedOption1) {
+  Option<Toggle> T1;
+  Option<Toggle> T2;
+  Option<Toggle> T3;
+  SubCommand S1(Description("s1"sv));
+  SubCommand S2(Description("s2"sv));
+  ArgumentParser Parser;
+  Parser.add_option("t1"sv, T1)
+      .begin_subcommand(S1, "s1"sv)
+      .add_option("t2"sv, T2)
+      .begin_subcommand(S2, "s2"sv)
+      .add_option("t3"sv, T3)
+      .end_subcommand()
+      .end_subcommand();
+  std::array Args = {"test", "--t1", "s1"};
+  EXPECT_TRUE(Parser.parse(Args.size(), Args.data()));
+  EXPECT_TRUE(T1.value());
+  EXPECT_FALSE(T2.value());
+  EXPECT_FALSE(T3.value());
+  EXPECT_TRUE(S1.is_selected());
+}
+
+TEST(SubCommands, NestedOption2) {
+  Option<Toggle> T1;
+  Option<Toggle> T2;
+  Option<Toggle> T3;
+  SubCommand S1(Description("s1"sv));
+  SubCommand S2(Description("s2"sv));
+  ArgumentParser Parser;
+  Parser.add_option("t1"sv, T1)
+      .begin_subcommand(S1, "s1"sv)
+      .add_option("t2"sv, T2)
+      .begin_subcommand(S2, "s2"sv)
+      .add_option("t3"sv, T3)
+      .end_subcommand()
+      .end_subcommand();
+  std::array Args = {"test", "s1", "--t1"};
+  EXPECT_FALSE(Parser.parse(Args.size(), Args.data()));
+}
+
+TEST(SubCommands, NestedOption3) {
+  Option<Toggle> T1;
+  Option<Toggle> T2;
+  Option<Toggle> T3;
+  SubCommand S1(Description("s1"sv));
+  SubCommand S2(Description("s2"sv));
+  ArgumentParser Parser;
+  Parser.add_option("t1"sv, T1)
+      .begin_subcommand(S1, "s1"sv)
+      .add_option("t2"sv, T2)
+      .begin_subcommand(S2, "s2"sv)
+      .add_option("t3"sv, T3)
+      .end_subcommand()
+      .end_subcommand();
+  std::array Args = {"test", "s1"};
+  EXPECT_TRUE(Parser.parse(Args.size(), Args.data()));
+  EXPECT_FALSE(T1.value());
+  EXPECT_FALSE(T2.value());
+  EXPECT_FALSE(T3.value());
+  EXPECT_TRUE(S1.is_selected());
+}
+
+TEST(SubCommands, NestedOption4) {
+  Option<Toggle> T1;
+  Option<Toggle> T2;
+  Option<Toggle> T3;
+  SubCommand S1(Description("s1"sv));
+  SubCommand S2(Description("s2"sv));
+  ArgumentParser Parser;
+  Parser.add_option("t1"sv, T1)
+      .begin_subcommand(S1, "s1"sv)
+      .add_option("t2"sv, T2)
+      .begin_subcommand(S2, "s2"sv)
+      .add_option("t3"sv, T3)
+      .end_subcommand()
+      .end_subcommand();
+  std::array Args = {"test", "s1", "--t2"};
+  EXPECT_TRUE(Parser.parse(Args.size(), Args.data()));
+  EXPECT_FALSE(T1.value());
+  EXPECT_TRUE(T2.value());
+  EXPECT_FALSE(T3.value());
+  EXPECT_TRUE(S1.is_selected());
+}
+
+TEST(SubCommands, NestedOption5) {
+  Option<Toggle> T1;
+  Option<Toggle> T2;
+  Option<Toggle> T3;
+  SubCommand S1(Description("s1"sv));
+  SubCommand S2(Description("s2"sv));
+  ArgumentParser Parser;
+  Parser.add_option("t1"sv, T1)
+      .begin_subcommand(S1, "s1"sv)
+      .add_option("t2"sv, T2)
+      .begin_subcommand(S2, "s2"sv)
+      .add_option("t3"sv, T3)
+      .end_subcommand()
+      .end_subcommand();
+  std::array Args = {"test", "--t1", "s1", "--t2"};
+  EXPECT_TRUE(Parser.parse(Args.size(), Args.data()));
+  EXPECT_TRUE(T1.value());
+  EXPECT_TRUE(T2.value());
+  EXPECT_FALSE(T3.value());
+  EXPECT_TRUE(S1.is_selected());
+}

@@ -41,8 +41,6 @@ struct FType {
 
   /// Getter of symbol
   const auto &getSymbol() const noexcept { return Symbol; }
-  /// Setter of symbol
-  void setSymbol(Loader::Symbol<Wrapper> S) { Symbol = std::move(S); }
 
   std::vector<ValType> Params;
   std::vector<ValType> Returns;

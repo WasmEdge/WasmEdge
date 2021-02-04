@@ -14,16 +14,14 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
                          const AST::TableSection &TabSec) {
   /// Iterate and instantiate table types.
   for (const auto &TabType : TabSec.getContent()) {
-    /// Make a new table instance.
-    auto NewTabInst = std::make_unique<Runtime::Instance::TableInstance>(
-        TabType.getReferenceType(), TabType.getLimit());
-
     /// Insert table instance to store manager.
     uint32_t NewTabInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewTabInstAddr = StoreMgr.pushTable(std::move(NewTabInst));
+      NewTabInstAddr =
+          StoreMgr.pushTable(TabType.getReferenceType(), TabType.getLimit());
     } else {
-      NewTabInstAddr = StoreMgr.importTable(std::move(NewTabInst));
+      NewTabInstAddr =
+          StoreMgr.importTable(TabType.getReferenceType(), TabType.getLimit());
     }
     ModInst.addTableAddr(NewTabInstAddr);
   }

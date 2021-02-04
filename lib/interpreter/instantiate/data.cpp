@@ -42,16 +42,12 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       }
     }
 
-    /// Make a new data instance.
-    auto NewDataInst = std::make_unique<Runtime::Instance::DataInstance>(
-        Offset, DataSeg.getData());
-
     /// Insert data instance to store manager.
     uint32_t NewDataInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewDataInstAddr = StoreMgr.pushData(std::move(NewDataInst));
+      NewDataInstAddr = StoreMgr.pushData(Offset, DataSeg.getData());
     } else {
-      NewDataInstAddr = StoreMgr.importData(std::move(NewDataInst));
+      NewDataInstAddr = StoreMgr.importData(Offset, DataSeg.getData());
     }
     ModInst.addDataAddr(NewDataInstAddr);
   }

@@ -22,14 +22,13 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
     return Unexpect(ErrCode::ModuleNameConflict);
   }
-  auto NewModInst = std::make_unique<Runtime::Instance::ModuleInstance>(Name);
 
   /// Insert the module instance to store manager and retrieve instance.
   uint32_t ModInstAddr;
   if (InsMode == InstantiateMode::Instantiate) {
-    ModInstAddr = StoreMgr.pushModule(std::move(NewModInst));
+    ModInstAddr = StoreMgr.pushModule(Name);
   } else {
-    ModInstAddr = StoreMgr.importModule(std::move(NewModInst));
+    ModInstAddr = StoreMgr.importModule(Name);
   }
   auto *ModInst = *StoreMgr.getModule(ModInstAddr);
 
@@ -74,14 +73,14 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   }
 
   /// Add a temp module to Store with only imported globals for initialization.
-  auto TmpMod = std::make_unique<Runtime::Instance::ModuleInstance>("");
+  uint32_t TmpModInstAddr = StoreMgr.pushModule("");
+  auto *TmpModInst = *StoreMgr.getModule(TmpModInstAddr);
   for (uint32_t I = 0; I < ModInst->getGlobalImportNum(); ++I) {
-    TmpMod->importGlobal(*(ModInst->getGlobalAddr(I)));
+    TmpModInst->importGlobal(*(ModInst->getGlobalAddr(I)));
   }
   for (uint32_t I = 0; I < ModInst->getFuncNum(); ++I) {
-    TmpMod->importFunction(*(ModInst->getFuncAddr(I)));
+    TmpModInst->importFunction(*(ModInst->getFuncAddr(I)));
   }
-  uint32_t TmpModInstAddr = StoreMgr.pushModule(std::move(TmpMod));
 
   /// Push a new frame {TmpModInst:{globaddrs}, locals:none}
   StackMgr.pushFrame(TmpModInstAddr, 0, 0);

@@ -18,22 +18,27 @@ Expect<void> Interpreter::instantiate(
 
   /// Iterate through code segments to make function instances.
   for (uint32_t I = 0; I < CodeSegs.size(); ++I) {
-    /// Make a new function instance.
-    auto *FuncType = *ModInst.getFuncType(TypeIdxs[I]);
-    auto NewFuncInst = std::make_unique<Runtime::Instance::FunctionInstance>(
-        ModInst.Addr, *FuncType, CodeSegs[I].getLocals(),
-        CodeSegs[I].getInstrs());
-
-    if (auto Symbol = CodeSegs[I].getSymbol()) {
-      NewFuncInst->setSymbol(std::move(Symbol));
-    }
-
     /// Insert function instance to store manager.
     uint32_t NewFuncInstAddr;
+    auto *FuncType = *ModInst.getFuncType(TypeIdxs[I]);
     if (InsMode == InstantiateMode::Instantiate) {
-      NewFuncInstAddr = StoreMgr.pushFunction(std::move(NewFuncInst));
+      if (auto Symbol = CodeSegs[I].getSymbol()) {
+        NewFuncInstAddr =
+            StoreMgr.pushFunction(ModInst.Addr, *FuncType, std::move(Symbol));
+      } else {
+        NewFuncInstAddr = StoreMgr.pushFunction(ModInst.Addr, *FuncType,
+                                                CodeSegs[I].getLocals(),
+                                                CodeSegs[I].getInstrs());
+      }
     } else {
-      NewFuncInstAddr = StoreMgr.importFunction(std::move(NewFuncInst));
+      if (auto Symbol = CodeSegs[I].getSymbol()) {
+        NewFuncInstAddr =
+            StoreMgr.importFunction(ModInst.Addr, *FuncType, std::move(Symbol));
+      } else {
+        NewFuncInstAddr = StoreMgr.importFunction(ModInst.Addr, *FuncType,
+                                                  CodeSegs[I].getLocals(),
+                                                  CodeSegs[I].getInstrs());
+      }
     }
     ModInst.addFuncAddr(NewFuncInstAddr);
   }

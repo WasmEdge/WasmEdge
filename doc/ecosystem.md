@@ -9,6 +9,7 @@
 * Core: The [SSVM core project](https://github.com/second-state/ssvm).
 * Plug-in: The extensions of `WASM` host functions with their dependencies.
   * [SSVM-TensorFlow](https://github.com/second-state/ssvm-tensorflow) contains the host function extensions which access to [TensorFlow C library](https://www.tensorflow.org/install/lang_c).
+  * [SSVM-Image](https://github.com/second-state/ssvm-image) contains the host function extensions about `JPEG` and `PNG` image decodings.
   * [SSVM-Storage](https://github.com/second-state/ssvm-storage) contains the host function extensions which access to [Rust storage library](https://github.com/second-state/rust_native_storage_library).
   * [SSVM-EVMC](https://github.com/second-state/ssvm-evmc) contains the host function extensions that are compatible with [Ethereum Environment Interface](https://github.com/ewasm/design/blob/master/eth_interface.md).
 * Tools: The executables or shared libraries.
@@ -22,7 +23,8 @@
 ## Releasing Steps
 
 1. [SSVM core](https://github.com/second-state/ssvm) Releases.
-2. Release a new version of tools and libraries with updating to the new `SSVM core`.
+2. Release a new version of plug-ins, tools, and libraries with updating to the new `SSVM core`.
+    * [SSVM-Image](https://github.com/second-state/ssvm-image)
     * [SSVM-TensorFlow](https://github.com/second-state/ssvm-tensorflow)
     * [SSVM-Storage](https://github.com/second-state/ssvm-storage)
     * [SSVM-EVMC](https://github.com/second-state/ssvm-evmc)

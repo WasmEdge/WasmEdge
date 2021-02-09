@@ -58,7 +58,6 @@ Expect<void> VM::registerModule(std::string_view Name, Span<const Byte> Code) {
     Stage = VMStage::Validated;
   }
   /// Load module.
-  std::unique_ptr<AST::Module> LoadedMod;
   if (auto Res = LoaderEngine.parseModule(Code)) {
     return registerModule(Name, *(*Res).get());
   } else {
@@ -77,6 +76,11 @@ Expect<void> VM::registerModule(const Runtime::ImportObject &Obj) {
 
 Expect<void> VM::registerModule(std::string_view Name,
                                 const AST::Module &Module) {
+  if (Stage == VMStage::Instantiated) {
+    /// When registering module, instantiated module in store will be reset.
+    /// Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
   /// Validate module.
   if (auto Res = ValidatorEngine.validate(Module); !Res) {
     return Unexpect(Res);
@@ -119,6 +123,11 @@ Expect<std::vector<ValVariant>> VM::runWasmFile(Span<const Byte> Code,
 Expect<std::vector<ValVariant>> VM::runWasmFile(const AST::Module &Module,
                                                 std::string_view Func,
                                                 Span<const ValVariant> Params) {
+  if (Stage == VMStage::Instantiated) {
+    /// When running another module, instantiated module in store will be reset.
+    /// Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
   if (auto Res = ValidatorEngine.validate(Module); !Res) {
     return Unexpect(Res);
   }
@@ -158,6 +167,12 @@ Expect<void> VM::loadWasm(Span<const Byte> Code) {
   } else {
     return Unexpect(Res);
   }
+  return {};
+}
+
+Expect<void> VM::loadWasm(const AST::Module &Module) {
+  Mod = std::make_unique<AST::Module>(Module);
+  Stage = VMStage::Loaded;
   return {};
 }
 

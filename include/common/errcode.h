@@ -116,7 +116,8 @@ enum class ErrCode : uint8_t {
   UninitializedElement = 0x8A, /// Uninitialized element in table instance
   UndefinedElement = 0x8B,     /// Access undefined element in table instances
   IndirectCallTypeMismatch = 0x8C, /// Func type mismatch in call_indirect
-  ExecutionFailed = 0x8D           /// Host function execution failed
+  ExecutionFailed = 0x8D,          /// Host function execution failed
+  RefTypeMismatch = 0x8E           /// Reference type not match
 };
 
 /// Error code enumeration string mapping.
@@ -201,7 +202,8 @@ static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::UninitializedElement, "uninitialized element"},
     {ErrCode::UndefinedElement, "undefined element"},
     {ErrCode::IndirectCallTypeMismatch, "indirect call type mismatch"},
-    {ErrCode::ExecutionFailed, "host function failed"}};
+    {ErrCode::ExecutionFailed, "host function failed"},
+    {ErrCode::RefTypeMismatch, "reference type mismatch"}};
 
 static inline WasmPhase getErrCodePhase(ErrCode Code) {
   return static_cast<WasmPhase>((static_cast<uint8_t>(Code) & 0xF0) >> 5);

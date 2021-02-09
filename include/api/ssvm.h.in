@@ -1,0 +1,2222 @@
+// SPDX-License-Identifier: Apache-2.0
+//===-- ssvm/api/ssvm.h - SSVM C API --------------------------------------===//
+//
+// Part of the SSVM Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the function declarations of SSVM C API.
+///
+//===----------------------------------------------------------------------===//
+
+#ifndef __SSVM_C_API_H__
+#define __SSVM_C_API_H__
+
+#if defined(_WIN32)
+#ifdef SSVM_COMPILE_LIBRARY
+#define SSVM_CAPI_EXPORT __declspec(dllexport)
+#else
+#define SSVM_CAPI_EXPORT __declspec(dllimport)
+#endif /// SSVM_COMPILE_LIBRARY
+#else
+#define SSVM_CAPI_EXPORT __attribute__((visibility("default")))
+#endif /// _WIN32
+
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/// SSVM version.
+#define SSVM_VERSION "${CPACK_PACKAGE_VERSION}"
+#define SSVM_VERSION_MAJOR ${SSVM_VERSION_MAJOR}
+#define SSVM_VERSION_MINOR ${SSVM_VERSION_MINOR}
+#define SSVM_VERSION_PATCH ${SSVM_VERSION_PATCH}
+
+/// WASM Value type enumeration.
+enum SSVM_ValType {
+  SSVM_ValType_I32 = 0x7FU,
+  SSVM_ValType_I64 = 0x7EU,
+  SSVM_ValType_F32 = 0x7DU,
+  SSVM_ValType_F64 = 0x7CU,
+  SSVM_ValType_V128 = 0x7BU,
+  SSVM_ValType_FuncRef = 0x70U,
+  SSVM_ValType_ExternRef = 0x6FU
+};
+
+/// WASM Reference type enumeration.
+enum SSVM_RefType {
+  SSVM_RefType_FuncRef = 0x70U,
+  SSVM_RefType_ExternRef = 0x6FU
+};
+
+/// WASM Mutability enumeration.
+enum SSVM_Mutability {
+  SSVM_Mutability_Const = 0x00U,
+  SSVM_Mutability_Var = 0x01U
+};
+
+/// SSVM WASM value struct.
+typedef struct SSVM_Value {
+  unsigned __int128 Value;
+  /// The value type is used in the parameters of invoking functions. For the
+  /// return values of invoking functions, this member will always be
+  /// `SSVM_ValType_I32`. Users should use APIs to retrieve the WASM function's
+  /// `SSVM_FunctionTypeContext` to get the actual return list value types, and
+  /// then use the corresponding `SSVM_ValueGet` functions to retrieve the
+  /// value.
+  enum SSVM_ValType Type;
+} SSVM_Value;
+
+/// SSVM string struct.
+typedef struct SSVM_String {
+  uint32_t Length;
+  const char *Buf;
+} SSVM_String;
+
+/// Opaque struct of WASM execution result.
+typedef struct SSVM_Result {
+  uint8_t Code;
+} SSVM_Result;
+#define SSVM_Result_Success (SSVM_Result){.Code = 0x00};
+#define SSVM_Result_Terminate (SSVM_Result){.Code = 0x01};
+#define SSVM_Result_Fail (SSVM_Result){.Code = 0x02};
+
+/// Struct of WASM limit.
+typedef struct SSVM_Limit {
+  /// Boolean to describe has max value or not.
+  bool HasMax;
+  /// Minimum value.
+  uint32_t Min;
+  /// Maximum value. Will be ignored if the `HasMax` is false.
+  uint32_t Max;
+} SSVM_Limit;
+
+/// WASM Proposal enumeration.
+/// This enum is copied from "include/common/configure.h" and should be the
+/// same.
+enum SSVM_Proposal {
+  SSVM_Proposal_BulkMemoryOperations = 0,
+  SSVM_Proposal_ReferenceTypes,
+  SSVM_Proposal_SIMD,
+  SSVM_Proposal_TailCall,
+  SSVM_Proposal_Annotations,
+  SSVM_Proposal_Memory64,
+  SSVM_Proposal_Threads,
+  SSVM_Proposal_ExceptionHandling,
+  SSVM_Proposal_FunctionReferences
+};
+
+/// Host Module Registration enumeration.
+enum SSVM_HostRegistration {
+  SSVM_HostRegistration_Wasi = 0,
+  SSVM_HostRegistration_SSVM_Process
+};
+
+/// Opaque struct of SSVM configure.
+typedef struct SSVM_ConfigureContext SSVM_ConfigureContext;
+
+/// Opaque struct of SSVM statistics.
+typedef struct SSVM_StatisticsContext SSVM_StatisticsContext;
+
+/// Opaque struct of SSVM AST module.
+typedef struct SSVM_ASTModuleContext SSVM_ASTModuleContext;
+
+/// Opaque struct of SSVM loader.
+typedef struct SSVM_LoaderContext SSVM_LoaderContext;
+
+/// Opaque struct of SSVM validator.
+typedef struct SSVM_ValidatorContext SSVM_ValidatorContext;
+
+/// Opaque struct of SSVM interpreter.
+typedef struct SSVM_InterpreterContext SSVM_InterpreterContext;
+
+/// Opaque struct of SSVM store.
+typedef struct SSVM_StoreContext SSVM_StoreContext;
+
+/// Opaque struct of SSVM function type.
+typedef struct SSVM_FunctionTypeContext SSVM_FunctionTypeContext;
+
+/// Opaque struct of SSVM function instance.
+typedef struct SSVM_FunctionInstanceContext SSVM_FunctionInstanceContext;
+
+/// Opaque struct of SSVM host function.
+typedef struct SSVM_HostFunctionContext SSVM_HostFunctionContext;
+
+/// Opaque struct of SSVM table instance.
+typedef struct SSVM_TableInstanceContext SSVM_TableInstanceContext;
+
+/// Opaque struct of SSVM memory instance.
+typedef struct SSVM_MemoryInstanceContext SSVM_MemoryInstanceContext;
+
+/// Opaque struct of SSVM global instance.
+typedef struct SSVM_GlobalInstanceContext SSVM_GlobalInstanceContext;
+
+/// Opaque struct of SSVM import object.
+typedef struct SSVM_ImportObjectContext SSVM_ImportObjectContext;
+
+/// Opaque struct of SSVM VM.
+typedef struct SSVM_VMContext SSVM_VMContext;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/// >>>>>>>> SSVM version functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Get the version string of the SSVM C API.
+///
+/// The returned string must __NOT__ be freed.
+///
+/// \returns NULL-terminated C string of version.
+SSVM_CAPI_EXPORT extern const char *SSVM_VersionGet();
+
+/// Get the major version value of the SSVM C API.
+///
+/// \returns Value of the major version.
+SSVM_CAPI_EXPORT extern uint32_t SSVM_VersionGetMajor();
+
+/// Get the minor version value of the SSVM C API.
+///
+/// \returns Value of the minor version.
+SSVM_CAPI_EXPORT extern uint32_t SSVM_VersionGetMinor();
+
+/// Get the patch version value of the SSVM C API.
+///
+/// \returns Value of the patch version.
+SSVM_CAPI_EXPORT extern uint32_t SSVM_VersionGetPatch();
+
+/// <<<<<<<< SSVM version functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM logging functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Set the logging system to filter to error level.
+SSVM_CAPI_EXPORT extern void SSVM_LogSetErrorLevel();
+
+/// Set the logging system to filter to debug level.
+SSVM_CAPI_EXPORT extern void SSVM_LogSetDebugLevel();
+
+/// <<<<<<<< SSVM logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM value functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Generate the I32 WASM value.
+///
+/// \param Val the I32 value.
+///
+/// \returns SSVM_Value struct with the I32 value.
+SSVM_CAPI_EXPORT extern SSVM_Value SSVM_ValueGenI32(const int32_t Val);
+
+/// Generate the I64 WASM value.
+///
+/// \param Val the I64 value.
+///
+/// \returns SSVM_Value struct with the I64 value.
+SSVM_CAPI_EXPORT extern SSVM_Value SSVM_ValueGenI64(const int64_t Val);
+
+/// Generate the F32 WASM value.
+///
+/// \param Val the F32 value.
+///
+/// \returns SSVM_Value struct with the F32 value.
+SSVM_CAPI_EXPORT extern SSVM_Value SSVM_ValueGenF32(const float Val);
+
+/// Generate the F64 WASM value.
+///
+/// \param Val the F64 value.
+///
+/// \returns SSVM_Value struct with the F64 value.
+SSVM_CAPI_EXPORT extern SSVM_Value SSVM_ValueGenF64(const double Val);
+
+/// Generate the V128 WASM value.
+///
+/// \param Val the V128 value.
+///
+/// \returns SSVM_Value struct with the V128 value.
+SSVM_CAPI_EXPORT extern SSVM_Value SSVM_ValueGenV128(const __int128 Val);
+
+/// Generate the NULL reference WASM value.
+///
+/// The values generated by this function are only meaningful when the
+/// `SSVM_Proposal_BulkMemoryOperations` or the `SSVM_Proposal_ReferenceTypes`
+/// turns on in configuration.
+///
+/// \param T the reference type.
+///
+/// \returns SSVM_Value struct with the NULL reference.
+SSVM_CAPI_EXPORT extern SSVM_Value
+SSVM_ValueGenNullRef(const enum SSVM_RefType T);
+
+/// Generate the function reference WASM value.
+///
+/// The values generated by this function are only meaningful when the
+/// `SSVM_Proposal_BulkMemoryOperations` or the `SSVM_Proposal_ReferenceTypes`
+/// turns on in configuration.
+///
+/// \param Index the function index.
+///
+/// \returns SSVM_Value struct with the function reference.
+SSVM_CAPI_EXPORT extern SSVM_Value SSVM_ValueGenFuncRef(const uint32_t Index);
+
+/// Generate the function reference WASM value.
+///
+/// The values generated by this function are only meaningful when the
+/// `SSVM_Proposal_ReferenceTypes` turns on in configuration.
+///
+/// \param Ref the reference to the external object.
+///
+/// \returns SSVM_Value struct with the external reference.
+SSVM_CAPI_EXPORT extern SSVM_Value SSVM_ValueGenExternRef(void *Ref);
+
+/// Retrieve the I32 value from the WASM value.
+///
+/// \param Val the SSVM_Value struct.
+///
+/// \returns I32 value in the input struct.
+SSVM_CAPI_EXPORT extern int32_t SSVM_ValueGetI32(const SSVM_Value Val);
+
+/// Retrieve the I64 value from the WASM value.
+///
+/// \param Val the SSVM_Value struct.
+///
+/// \returns I64 value in the input struct.
+SSVM_CAPI_EXPORT extern int64_t SSVM_ValueGetI64(const SSVM_Value Val);
+
+/// Retrieve the F32 value from the WASM value.
+///
+/// \param Val the SSVM_Value struct.
+///
+/// \returns F32 value in the input struct.
+SSVM_CAPI_EXPORT extern float SSVM_ValueGetF32(const SSVM_Value Val);
+
+/// Retrieve the F64 value from the WASM value.
+///
+/// \param Val the SSVM_Value struct.
+///
+/// \returns F64 value in the input struct.
+SSVM_CAPI_EXPORT extern double SSVM_ValueGetF64(const SSVM_Value Val);
+
+/// Retrieve the V128 value from the WASM value.
+///
+/// \param Val the SSVM_Value struct.
+///
+/// \returns V128 value in the input struct.
+SSVM_CAPI_EXPORT extern __int128 SSVM_ValueGetV128(const SSVM_Value Val);
+
+/// Specify the WASM value is a null reference or not.
+///
+/// \param Val the SSVM_Value struct.
+///
+/// \returns true if the value is a null reference, false if not.
+SSVM_CAPI_EXPORT extern bool SSVM_ValueIsNullRef(const SSVM_Value Val);
+
+/// Retrieve the function index from the WASM value.
+///
+/// \param Val the SSVM_Value struct.
+///
+/// \returns function index in the input struct.
+SSVM_CAPI_EXPORT extern uint32_t SSVM_ValueGetFuncIdx(const SSVM_Value Val);
+
+/// Retrieve the external reference from the WASM value.
+///
+/// \param Val the SSVM_Value struct.
+///
+/// \returns external reference in the input struct.
+SSVM_CAPI_EXPORT extern void *SSVM_ValueGetExternRef(const SSVM_Value Val);
+
+/// <<<<<<<< SSVM value functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// <<<<<<<< SSVM string functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// Creation of the SSVM_String with the C string.
+///
+/// The caller owns the object and should call `SSVM_StringDelete` to free it.
+/// This function only supports the C string with NULL termination. If the input
+/// string may have `\0` character, please use the `SSVM_StringCreateByBuffer`
+/// instead.
+///
+/// \param Str the NULL-terminated C string to copy into the SSVM_String object.
+///
+/// \returns pointer to the context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_String SSVM_StringCreateByCString(const char *Str);
+
+/// Creation of the SSVM_String with the buffer and its length.
+///
+/// The caller owns the object and should call `SSVM_StringDelete` to free it.
+///
+/// \param Buf the buffer to copy into the SSVM_String object.
+/// \param Len the buffer length.
+///
+/// \returns pointer to the context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_String
+SSVM_StringCreateByBuffer(const char *Buf, const uint32_t Len);
+
+/// Create the SSVM_String wraps to the buffer.
+///
+/// This function creates a SSVM_String object which wraps to the input buffer.
+/// The caller should guarantee the life cycle of the input buffer, and should
+/// __NOT__ call the `SSVM_StringDelete`.
+///
+/// \param Buf the buffer to copy into the SSVM_String object.
+/// \param Len the buffer length.
+///
+/// \returns pointer to the context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_String SSVM_StringWrap(const char *Buf,
+                                                    const uint32_t Len);
+
+/// Compare the two SSVM_String objects.
+///
+/// \param Str1 the first SSVM_String object to compare.
+/// \param Str2 the second SSVM_String object to compare.
+///
+/// \returns true if the content of two SSVM_String objects are the same, false
+/// if not.
+SSVM_CAPI_EXPORT extern bool SSVM_StringIsEqual(const SSVM_String Str1,
+                                                const SSVM_String Str2);
+
+/// Deletion of the SSVM_String.
+///
+/// After calling this function, the resources in the SSVM_String object will be
+/// released and the object should __NOT__ be used.
+///
+/// \param Str the SSVM_String object to delete.
+SSVM_CAPI_EXPORT extern void SSVM_StringDelete(SSVM_String Str);
+
+/// >>>>>>>> SSVM string functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// >>>>>>>> SSVM result functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Check the result is a success or not.
+///
+/// \param Res the SSVM_Result struct.
+///
+/// \returns true if the error code is SSVM_Result_Success or
+/// SSVM_Result_Terminate, false for others.
+SSVM_CAPI_EXPORT extern bool SSVM_ResultOK(const SSVM_Result Res);
+
+/// Get the result code.
+///
+/// \param Res the SSVM_Result struct.
+///
+/// \returns corresponding result code.
+SSVM_CAPI_EXPORT extern uint32_t SSVM_ResultGetCode(const SSVM_Result Res);
+
+/// Get the result message.
+///
+/// The returned string must __NOT__ be freed.
+///
+/// \param Res the SSVM_Result struct.
+///
+/// \returns NULL-terminated C string of the corresponding error message.
+SSVM_CAPI_EXPORT extern const char *
+SSVM_ResultGetMessage(const SSVM_Result Res);
+
+/// <<<<<<<< SSVM result functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM configure functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the SSVM_ConfigureContext.
+///
+/// The caller owns the object and should call `SSVM_ConfigureDelete` to free
+/// it.
+///
+/// \returns pointer to the context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_ConfigureContext *SSVM_ConfigureCreate();
+
+/// Add a proposal setting into the SSVM_ConfigureContext.
+///
+/// For turning on a specific WASM proposal in SSVM_VMContext, you can set the
+/// proposal value into the SSVM_ConfigureContext and create VM with this
+/// context.
+/// ```c
+/// SSVM_ConfigureContext *Conf = SSVM_ConfigureCreate();
+/// SSVM_ConfigureAddProposal(Conf, SSVM_Proposal_BulkMemoryOperations);
+/// SSVM_ConfigureAddProposal(Conf, SSVM_Proposal_ReferenceTypes);
+/// SSVM_ConfigureAddProposal(Conf, SSVM_Proposal_SIMD);
+/// SSVM_VMContext *VM = SSVM_VMCreate(Conf, NULL);
+/// ```
+///
+/// \param Cxt the SSVM_ConfigureContext to add the proposal value.
+/// \param Prop the proposal value.
+SSVM_CAPI_EXPORT extern void
+SSVM_ConfigureAddProposal(SSVM_ConfigureContext *Cxt,
+                          const enum SSVM_Proposal Prop);
+
+/// Remove a proposal setting in the SSVM_ConfigureContext.
+///
+/// \param Cxt the SSVM_ConfigureContext to remove the proposal.
+/// \param Prop the proposal value.
+SSVM_CAPI_EXPORT extern void
+SSVM_ConfigureRemoveProposal(SSVM_ConfigureContext *Cxt,
+                             const enum SSVM_Proposal Prop);
+
+/// Check if a proposal setting exists in the SSVM_ConfigureContext or not.
+///
+/// \param Cxt the SSVM_ConfigureContext to check the proposal value.
+/// \param Prop the proposal value.
+///
+/// \returns true if the proposal setting exists, false if not.
+SSVM_CAPI_EXPORT extern bool
+SSVM_ConfigureHasProposal(const SSVM_ConfigureContext *Cxt,
+                          const enum SSVM_Proposal Prop);
+
+/// Add a host pre-registration setting into SSVM_ConfigureContext.
+///
+/// For turning on the Wasi support in SSVM_VMContext, you can set the host
+/// pre-registration value into the SSVM_ConfigureContext and create VM with
+/// this context.
+/// ```c
+/// SSVM_ConfigureContext *Conf = SSVM_ConfigureCreate();
+/// SSVM_ConfigureAddHostRegistration(Conf, SSVM_HostRegistration_Wasi);
+/// SSVM_VMContext *VM = SSVM_VMCreate(Conf, NULL);
+/// ```
+///
+/// \param Cxt the SSVM_ConfigureContext to add host pre-registration.
+/// \param Host the host pre-registration value.
+SSVM_CAPI_EXPORT extern void
+SSVM_ConfigureAddHostRegistration(SSVM_ConfigureContext *Cxt,
+                                  const enum SSVM_HostRegistration Host);
+
+/// Remove a host pre-registration setting in the SSVM_ConfigureContext.
+///
+/// \param Cxt the SSVM_ConfigureContext to remove the host pre-registration.
+/// \param Prop the host pre-registration value.
+SSVM_CAPI_EXPORT extern void
+SSVM_ConfigureRemoveHostRegistration(SSVM_ConfigureContext *Cxt,
+                                     const enum SSVM_HostRegistration Host);
+
+/// Check if a host pre-registration setting exists in the SSVM_ConfigureContext
+/// or not.
+///
+/// \param Cxt the SSVM_ConfigureContext to check the host pre-registration.
+/// \param Prop the host pre-registration value.
+///
+/// \returns true if the host pre-registration setting exists, false if not.
+SSVM_CAPI_EXPORT extern bool
+SSVM_ConfigureHasHostRegistration(const SSVM_ConfigureContext *Cxt,
+                                  const enum SSVM_HostRegistration Host);
+
+/// Set the page limit of memory instances.
+///
+/// Limit the page count (64KiB per page) in memory instances.
+///
+/// \param Cxt the SSVM_ConfigureContext to set the maximum page count.
+/// \param Page the maximum page count.
+SSVM_CAPI_EXPORT extern void
+SSVM_ConfigureSetMaxMemoryPage(SSVM_ConfigureContext *Cxt, const uint32_t Page);
+
+/// Get the page limit of memory instances.
+///
+/// \param Cxt the SSVM_ConfigureContext to get the maximum page count setting.
+///
+/// \returns the page count limitation value.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_ConfigureGetMaxMemoryPage(const SSVM_ConfigureContext *Cxt);
+
+/// Deletion of the SSVM_ConfigureContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the SSVM_ConfigureContext to delete.
+SSVM_CAPI_EXPORT extern void SSVM_ConfigureDelete(SSVM_ConfigureContext *Cxt);
+
+/// <<<<<<<< SSVM configure functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM statistics functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the SSVM_StatisticsContext.
+///
+/// The caller owns the object and should call `SSVM_StatisticsDelete` to free
+/// it.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_StatisticsContext *SSVM_StatisticsCreate();
+
+/// Get the instruction count in execution.
+///
+/// \param Cxt the SSVM_StatisticsContext to get data.
+///
+/// \returns the instruction count in total execution.
+SSVM_CAPI_EXPORT extern uint64_t
+SSVM_StatisticsGetInstrCount(const SSVM_StatisticsContext *Cxt);
+
+/// Get the instruction count per second in execution.
+///
+/// \param Cxt the SSVM_StatisticsContext to get data.
+///
+/// \returns the instruction count per second.
+SSVM_CAPI_EXPORT extern double
+SSVM_StatisticsGetInstrPerSecond(const SSVM_StatisticsContext *Cxt);
+
+/// Get the total cost in execution.
+///
+/// \param Cxt the SSVM_StatisticsContext to get data.
+///
+/// \returns the total cost.
+SSVM_CAPI_EXPORT extern uint64_t
+SSVM_StatisticsGetTotalCost(const SSVM_StatisticsContext *Cxt);
+
+/// Set the costs of instructions.
+///
+/// \param Cxt the SSVM_StatisticsContext to set the cost table.
+/// \param CostArr the cost table array.
+/// \param Len the length of the cost table array.
+SSVM_CAPI_EXPORT extern void
+SSVM_StatisticsSetCostTable(SSVM_StatisticsContext *Cxt, uint64_t *CostArr,
+                            const uint32_t Len);
+
+/// Set the cost limit in execution.
+///
+/// The WASM execution will be aborted if the instruction costs exceeded the
+/// limit and the ErrCode::CostLimitExceeded will be returned.
+///
+/// \param Cxt the SSVM_StatisticsContext to set the cost table.
+/// \param Limit the cost limit.
+SSVM_CAPI_EXPORT extern void
+SSVM_StatisticsSetCostLimit(SSVM_StatisticsContext *Cxt, const uint64_t Limit);
+
+/// Deletion of the SSVM_StatisticsContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the SSVM_StatisticsContext to delete.
+SSVM_CAPI_EXPORT extern void SSVM_StatisticsDelete(SSVM_StatisticsContext *Cxt);
+
+/// <<<<<<<< SSVM statistics functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM AST module functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Deletion of the SSVM_ASTModuleContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the SSVM_ASTModuleContext to delete.
+SSVM_CAPI_EXPORT extern void SSVM_ASTModuleDelete(SSVM_ASTModuleContext *Cxt);
+
+/// <<<<<<<< SSVM AST module functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM loader functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the SSVM_LoaderContext.
+///
+/// The caller owns the object and should call `SSVM_LoaderDelete` to free it.
+///
+/// \param ConfCxt the SSVM_ConfigureContext as the configuration of Loader.
+/// NULL for the default configuration.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_LoaderContext *
+SSVM_LoaderCreate(const SSVM_ConfigureContext *ConfCxt);
+
+/// Load and parse the WASM module from a WASM file into SSVM_ASTModuleContext.
+///
+/// Load and parse the WASM module from the file path, and return a
+/// SSVM_ASTModuleContext as result. The caller owns the SSVM_ASTModuleContext
+/// object and should call `SSVM_ASTModuleDelete` to free it.
+///
+/// \param Cxt the SSVM_LoaderContext.
+/// \param [out] Module the output SSVM_ASTModuleContext if succeeded.
+/// \param Path the NULL-terminated C string of the WASM file path.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_LoaderParseFromFile(SSVM_LoaderContext *Cxt,
+                         SSVM_ASTModuleContext **Module, const char *Path);
+
+/// Load and parse the WASM module from a buffer into SSVM_ASTModuleContext.
+///
+/// Load and parse the WASM module from a buffer, and return a
+/// SSVM_ASTModuleContext as result. The caller owns the SSVM_ASTModuleContext
+/// object and should call `SSVM_ASTModuleDelete` to free it.
+///
+/// \param Cxt the SSVM_LoaderContext.
+/// \param [out] Module the output SSVM_ASTModuleContext if succeeded.
+/// \param Buf the buffer of WASM binary.
+/// \param BufLen the length of the buffer.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_LoaderParseFromBuffer(SSVM_LoaderContext *Cxt,
+                           SSVM_ASTModuleContext **Module, const uint8_t *Buf,
+                           const uint32_t BufLen);
+
+/// Deletion of the SSVM_LoaderContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the SSVM_LoaderContext to delete.
+SSVM_CAPI_EXPORT extern void SSVM_LoaderDelete(SSVM_LoaderContext *Cxt);
+
+/// <<<<<<<< SSVM loader functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM validator functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the SSVM_ValidatorContext.
+///
+/// The caller owns the object and should call `SSVM_ValidatorDelete` to free
+/// it.
+///
+/// \param ConfCxt the SSVM_ConfigureContext as the configuration of Validator.
+/// NULL for the default configuration.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_ValidatorContext *
+SSVM_ValidatorCreate(const SSVM_ConfigureContext *ConfCxt);
+
+/// Validate the SSVM AST Module.
+///
+/// \param Cxt the SSVM_ValidatorContext.
+/// \param ModuleCxt the SSVM_ASTModuleContext to validate.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_ValidatorValidate(SSVM_ValidatorContext *Cxt,
+                       const SSVM_ASTModuleContext *ModuleCxt);
+
+/// Deletion of the SSVM_ValidatorContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the SSVM_ValidatorContext to delete.
+SSVM_CAPI_EXPORT extern void SSVM_ValidatorDelete(SSVM_ValidatorContext *Cxt);
+
+/// <<<<<<<< SSVM validator functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM interpreter functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the SSVM_InterpreterContext.
+///
+/// The caller owns the object and should call `SSVM_InterpreterDelete` to free
+/// it.
+///
+/// \param ConfCxt the SSVM_ConfigureContext as the configuration of
+/// Interpreter. NULL for the default configuration.
+/// \param StatCxt the SSVM_StatisticsContext as the statistics object set into
+/// Interpreter. The statistics will refer to this context, and the life cycle
+/// should be ensured until the interpreter context is deleted. NULL for not
+/// doing the statistics.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_InterpreterContext *
+SSVM_InterpreterCreate(const SSVM_ConfigureContext *ConfCxt,
+                       SSVM_StatisticsContext *StatCxt);
+
+/// Instantiate SSVM AST Module into a store.
+///
+/// Instantiate the SSVM AST Module as an active anonymous module in store. You
+/// can call `SSVM_StoreGetActiveModule` to retrieve the active module instance.
+///
+/// \param Cxt the SSVM_InterpreterContext to instantiate the module.
+/// \param StoreCxt the SSVM_StoreContext to store the instantiated module.
+/// \param ASTCxt the SSVM AST Module context generated by loader or compiler.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_InterpreterInstantiate(SSVM_InterpreterContext *Cxt,
+                            SSVM_StoreContext *StoreCxt,
+                            const SSVM_ASTModuleContext *ASTCxt);
+
+/// Register and instantiate SSVM import object into a store.
+///
+/// Instantiate the instances in SSVM import object context and register into a
+/// store with their exported name and the host module name.
+///
+/// \param Cxt the SSVM_InterpreterContext to instantiate the module.
+/// \param StoreCxt the SSVM_StoreContext to store the instantiated module.
+/// \param ImportCxt the SSVM_ImportObjectContext to register.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_InterpreterRegisterImport(SSVM_InterpreterContext *Cxt,
+                               SSVM_StoreContext *StoreCxt,
+                               const SSVM_ImportObjectContext *ImportCxt);
+
+/// Register and instantiate SSVM AST Module into a store.
+///
+/// Instantiate the instances in SSVM AST Module and register into a store with
+/// their exported name and module name.
+///
+/// \param Cxt the SSVM_InterpreterContext to instantiate the module.
+/// \param StoreCxt the SSVM_StoreContext to store the instantiated module.
+/// \param ASTCxt the SSVM AST Module context generated by loader or compiler.
+/// \param ModuleName the module name SSVM_String for all exported instances.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result SSVM_InterpreterRegisterModule(
+    SSVM_InterpreterContext *Cxt, SSVM_StoreContext *StoreCxt,
+    const SSVM_ASTModuleContext *ASTCxt, SSVM_String ModuleName);
+
+/// Invoke a WASM function by name.
+///
+/// After instantiating a WASM module, the WASM module is registered as the
+/// anonymous module in the store context. Then you can repeatedly call this
+/// function to invoke exported WASM functions by their names until the store
+/// context is reset or a new WASM module is registered or instantiated. For
+/// calling the functions in registered WASM modules with names in store, please
+/// use `SSVM_InterpreterInvokeRegistered` instead.
+///
+/// \param Cxt the SSVM_InterpreterContext.
+/// \param StoreCxt the SSVM_StoreContext which the module instantiated in.
+/// \param FuncName the function name SSVM_String.
+/// \param Params the SSVM_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+/// \param [out] Returns the SSVM_Value buffer to fill the return values.
+/// \param ReturnLen the return buffer length.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_InterpreterInvoke(SSVM_InterpreterContext *Cxt,
+                       SSVM_StoreContext *StoreCxt, const SSVM_String FuncName,
+                       const SSVM_Value *Params, const uint32_t ParamLen,
+                       SSVM_Value *Returns, const uint32_t ReturnLen);
+
+/// Invoke a WASM function by its module name and function name.
+///
+/// After registering a WASM module, the WASM module is registered with its name
+/// in the store context. Then you can repeatedly call this function to invoke
+/// exported WASM functions by their module names and function names until the
+/// store context is reset.
+///
+/// \param Cxt the SSVM_InterpreterContext.
+/// \param StoreCxt the SSVM_StoreContext which the module instantiated in.
+/// \param ModuleName the module name SSVM_String.
+/// \param FuncName the function name SSVM_String.
+/// \param Params the SSVM_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+/// \param [out] Returns the SSVM_Value buffer to fill the return values.
+/// \param ReturnLen the return buffer length.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result SSVM_InterpreterInvokeRegistered(
+    SSVM_InterpreterContext *Cxt, SSVM_StoreContext *StoreCxt,
+    const SSVM_String ModuleName, const SSVM_String FuncName,
+    const SSVM_Value *Params, const uint32_t ParamLen, SSVM_Value *Returns,
+    const uint32_t ReturnLen);
+
+/// Deletion of the SSVM_InterpreterContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the SSVM_InterpreterContext to delete.
+SSVM_CAPI_EXPORT extern void
+SSVM_InterpreterDelete(SSVM_InterpreterContext *Cxt);
+
+/// <<<<<<<< SSVM interpreter functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM store functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the SSVM_StoreContext.
+///
+/// The caller owns the object and should call `SSVM_StoreDelete` to free
+/// it.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_StoreContext *SSVM_StoreCreate();
+
+/// Get the function instance context by the function name.
+///
+/// After instantiating a WASM module, the WASM module is registered into the
+/// store context as an anonymous module. Then you can call this function to get
+/// the exported function instance context of the anonymous module by the
+/// function name. If you want to get the exported function of registered named
+/// modules in the store context, please call `SSVM_StoreFindFunctionRegistered`
+/// instead.
+/// The result function instance context links to the function instance in the
+/// store context and owned by the store context.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param Name the function name SSVM_String.
+///
+/// \returns pointer to the function instance context. NULL if not found.
+SSVM_CAPI_EXPORT extern SSVM_FunctionInstanceContext *
+SSVM_StoreFindFunction(SSVM_StoreContext *Cxt, const SSVM_String Name);
+
+/// Get the function instance context by the function name and the module name.
+///
+/// After registering a WASM module, you can call this function to get the
+/// exported function instance context by the module name and the function name.
+/// The result function instance context links to the function instance in the
+/// store context and owned by the store context.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param ModuleName the module name SSVM_String.
+/// \param FuncName the function name SSVM_String.
+///
+/// \returns pointer to the function instance context. NULL if not found.
+SSVM_CAPI_EXPORT extern SSVM_FunctionInstanceContext *
+SSVM_StoreFindFunctionRegistered(SSVM_StoreContext *Cxt,
+                                 const SSVM_String ModuleName,
+                                 const SSVM_String FuncName);
+
+/// Get the table instance context by the table name.
+///
+/// After instantiating a WASM module, the WASM module is registered into the
+/// store context as an anonymous module. Then you can call this function to get
+/// the exported table instance context of the anonymous module by the table
+/// name. If you want to get the exported table of registered named modules in
+/// the store context, please call `SSVM_StoreFindTableRegistered` instead.
+/// The result table instance context links to the table instance in the store
+/// context and owned by the store context. The caller should __NOT__ call the
+/// `SSVM_TableInstanceDelete`.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param Name the table name SSVM_String.
+///
+/// \returns pointer to the table instance context. NULL if not found.
+SSVM_CAPI_EXPORT extern SSVM_TableInstanceContext *
+SSVM_StoreFindTable(SSVM_StoreContext *Cxt, const SSVM_String Name);
+
+/// Get the table instance context by the table name and the module name.
+///
+/// After registering a WASM module, you can call this function to get the
+/// exported table instance context by the module name and the table name.
+/// The result table instance context links to the table instance in the store
+/// context and owned by the store context. The caller should __NOT__ call the
+/// `SSVM_TableInstanceDelete`.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param ModuleName the module name SSVM_String.
+/// \param TableName the table name SSVM_String.
+///
+/// \returns pointer to the table instance context. NULL if not found.
+SSVM_CAPI_EXPORT extern SSVM_TableInstanceContext *
+SSVM_StoreFindTableRegistered(SSVM_StoreContext *Cxt,
+                              const SSVM_String ModuleName,
+                              const SSVM_String TableName);
+
+/// Get the memory instance context by the memory name.
+///
+/// After instantiating a WASM module, the WASM module is registered into the
+/// store context as an anonymous module. Then you can call this function to get
+/// the exported memory instance context of the anonymous module by the memory
+/// name. If you want to get the exported memory of registered named modules in
+/// the store context, please call `SSVM_StoreFindMemoryRegistered` instead.
+/// The result memory instance context links to the memory instance in the store
+/// context and owned by the store context. The caller should __NOT__ call the
+/// `SSVM_MemoryInstanceDelete`.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param Name the memory name SSVM_String.
+///
+/// \returns pointer to the memory instance context. NULL if not found.
+SSVM_CAPI_EXPORT extern SSVM_MemoryInstanceContext *
+SSVM_StoreFindMemory(SSVM_StoreContext *Cxt, const SSVM_String Name);
+
+/// Get the memory instance context by the memory name and the module name.
+///
+/// After registering a WASM module, you can call this function to get the
+/// exported memory instance context by the module name and the memory name.
+/// The result memory instance context links to the memory instance in the store
+/// context and owned by the store context. The caller should __NOT__ call the
+/// `SSVM_MemoryInstanceDelete`.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param ModuleName the module name SSVM_String.
+/// \param MemoryName the memory name SSVM_String.
+///
+/// \returns pointer to the memory instance context. NULL if not found.
+SSVM_CAPI_EXPORT extern SSVM_MemoryInstanceContext *
+SSVM_StoreFindMemoryRegistered(SSVM_StoreContext *Cxt,
+                               const SSVM_String ModuleName,
+                               const SSVM_String MemoryName);
+
+/// Get the global instance context by the instance address.
+///
+/// After instantiating a WASM module, the WASM module is registered into the
+/// store context as an anonymous module. Then you can call this function to get
+/// the exported global instance context of the anonymous module by the global
+/// name. If you want to get the exported global of registered named modules in
+/// the store context, please call `SSVM_StoreFindGlobalRegistered` instead.
+/// The result global instance context links to the global instance in the store
+/// context and owned by the store context. The caller should __NOT__ call the
+/// `SSVM_GlobalInstanceDelete`.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param Name the global name SSVM_String.
+///
+/// \returns pointer to the global instance context. NULL if not found.
+SSVM_CAPI_EXPORT extern SSVM_GlobalInstanceContext *
+SSVM_StoreFindGlobal(SSVM_StoreContext *Cxt, const SSVM_String Name);
+
+/// Get the global instance context by the global name and the module name.
+///
+/// After registering a WASM module, you can call this function to get the
+/// exported global instance context by the module name and the global name.
+/// The result global instance context links to the global instance in the store
+/// context and owned by the store context. The caller should __NOT__ call the
+/// `SSVM_GlobalInstanceDelete`.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param ModuleName the module name SSVM_String.
+/// \param GlobalName the global name SSVM_String.
+///
+/// \returns pointer to the global instance context. NULL if not found.
+SSVM_CAPI_EXPORT extern SSVM_GlobalInstanceContext *
+SSVM_StoreFindGlobalRegistered(SSVM_StoreContext *Cxt,
+                               const SSVM_String ModuleName,
+                               const SSVM_String GlobalName);
+
+/// Get the length of exported function list in store.
+///
+/// If you want to get the function list of the registered named modules in the
+/// store context, please call `SSVM_StoreListFunctionRegisteredLength` instead.
+///
+/// \param Cxt the SSVM_StoreContext.
+///
+/// \returns length of the exported function list.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListFunctionLength(const SSVM_StoreContext *Cxt);
+
+/// List the exported function names.
+///
+/// After instantiating a WASM module, the WASM module is registered into the
+/// store context as an anonymous module. Then you can call this function to get
+/// the exported function list of the anonymous module. If you want to get the
+/// function list of the registered named modules in the store context, please
+/// call `SSVM_StoreListFunctionRegistered` instead.
+/// The returned function names are created and stored into the `Names` array,
+/// and the caller should call the `SSVM_StringDelete` to delete them. If the
+/// `Names` buffer length is smaller than the result of the exported function
+/// list size, the overflowed return values will be discarded.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param [out] Names the output SSVM_String buffer of the function names.
+/// \param Len the buffer length.
+///
+/// \returns actual exported function list size.
+SSVM_CAPI_EXPORT extern uint32_t SSVM_StoreListFunction(SSVM_StoreContext *Cxt,
+                                                        SSVM_String *Names,
+                                                        const uint32_t Len);
+
+/// Get the exported function list length of the registered module in store.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param ModuleName the module name SSVM_String.
+///
+/// \returns the exported function list length of the module.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListFunctionRegisteredLength(const SSVM_StoreContext *Cxt,
+                                       const SSVM_String ModuleName);
+
+/// List the exported function names of the registered module.
+///
+/// After registering a WASM module, you can call this function to get the
+/// exported function list of the registered module by the module name.
+/// The returned function names are created and stored into the `Names` array,
+/// and the caller should call the `SSVM_StringDelete` to delete them. If the
+/// `Names` buffer length is smaller than the result of the exported function
+/// list size, the overflowed return values will be discarded.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param ModuleName the module name SSVM_String.
+/// \param [out] Names the output SSVM_String buffer of the function names.
+/// \param Len the buffer length.
+///
+/// \returns actual exported function list size of the module.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListFunctionRegistered(SSVM_StoreContext *Cxt,
+                                 const SSVM_String ModuleName,
+                                 SSVM_String *Names, const uint32_t Len);
+
+/// Get the length of exported table list in store.
+///
+/// If you want to get the table list of the registered named modules in the
+/// store context, please call `SSVM_StoreListTableRegisteredLength` instead.
+///
+/// \param Cxt the SSVM_StoreContext.
+///
+/// \returns length of the exported table list.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListTableLength(const SSVM_StoreContext *Cxt);
+
+/// List the exported table names.
+///
+/// After instantiating a WASM module, the WASM module is registered into the
+/// store context as an anonymous module. Then you can call this function to get
+/// the exported table list of the anonymous module. If you want to get the
+/// table list of the registered named modules in the store context, please
+/// call `SSVM_StoreListTableRegistered` instead.
+/// The returned table names are created and stored into the `Names` array,
+/// and the caller should call the `SSVM_StringDelete` to delete them. If the
+/// `Names` buffer length is smaller than the result of the exported table
+/// list size, the overflowed return values will be discarded.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param [out] Names the output SSVM_String buffer of the table names.
+/// \param Len the buffer length.
+///
+/// \returns actual exported table list size.
+SSVM_CAPI_EXPORT extern uint32_t SSVM_StoreListTable(SSVM_StoreContext *Cxt,
+                                                     SSVM_String *Names,
+                                                     const uint32_t Len);
+
+/// Get the exported table list length of the registered module in store.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param ModuleName the module name SSVM_String.
+///
+/// \returns the exported table list length of the module.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListTableRegisteredLength(const SSVM_StoreContext *Cxt,
+                                    const SSVM_String ModuleName);
+
+/// List the exported table names of the registered module.
+///
+/// After registering a WASM module, you can call this function to get the
+/// exported table list of the registered module by the module name.
+/// The returned table names are created and stored into the `Names` array,
+/// and the caller should call the `SSVM_StringDelete` to delete them. If the
+/// `Names` buffer length is smaller than the result of the exported table
+/// list size, the overflowed return values will be discarded.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param ModuleName the module name SSVM_String.
+/// \param [out] Names the output SSVM_String buffer of the table names.
+/// \param Len the buffer length.
+///
+/// \returns actual exported table list size of the module.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListTableRegistered(SSVM_StoreContext *Cxt,
+                              const SSVM_String ModuleName, SSVM_String *Names,
+                              const uint32_t Len);
+
+/// Get the length of exported memory list in store.
+///
+/// If you want to get the memory list of the registered named modules in the
+/// store context, please call `SSVM_StoreListMemoryRegisteredLength` instead.
+///
+/// \param Cxt the SSVM_StoreContext.
+///
+/// \returns length of the exported memory list.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListMemoryLength(const SSVM_StoreContext *Cxt);
+
+/// List the exported memory names.
+///
+/// After instantiating a WASM module, the WASM module is registered into the
+/// store context as an anonymous module. Then you can call this function to get
+/// the exported memory list of the anonymous module. If you want to get the
+/// memory list of the registered named modules in the store context, please
+/// call `SSVM_StoreListMemoryRegistered` instead.
+/// The returned memory names are created and stored into the `Names` array,
+/// and the caller should call the `SSVM_StringDelete` to delete them. If the
+/// `Names` buffer length is smaller than the result of the exported memory
+/// list size, the overflowed return values will be discarded.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param [out] Names the output SSVM_String buffer of the memory names.
+/// \param Len the buffer length.
+///
+/// \returns actual exported memory list size.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListMemory(const SSVM_StoreContext *Cxt, SSVM_String *Names,
+                     const uint32_t Len);
+
+/// Get the exported memory list length of the registered module in store.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param ModuleName the module name SSVM_String.
+///
+/// \returns the exported memory list length of the module.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListMemoryRegisteredLength(const SSVM_StoreContext *Cxt,
+                                     const SSVM_String ModuleName);
+
+/// List the exported memory names of the registered module.
+///
+/// After registering a WASM module, you can call this function to get the
+/// exported memory list of the registered module by the module name.
+/// The returned memory names are created and stored into the `Names` array,
+/// and the caller should call the `SSVM_StringDelete` to delete them. If the
+/// `Names` buffer length is smaller than the result of the exported memory
+/// list size, the overflowed return values will be discarded.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param ModuleName the module name SSVM_String.
+/// \param [out] Names the output SSVM_String buffer of the memory names.
+/// \param Len the buffer length.
+///
+/// \returns actual exported memory list size of the module.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListMemoryRegistered(SSVM_StoreContext *Cxt,
+                               const SSVM_String ModuleName, SSVM_String *Names,
+                               const uint32_t Len);
+
+/// Get the length of exported global list in store.
+///
+/// If you want to get the global list of the registered named modules in the
+/// store context, please call `SSVM_StoreListGlobalRegisteredLength` instead.
+///
+/// \param Cxt the SSVM_StoreContext.
+///
+/// \returns length of the exported global list.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListGlobalLength(const SSVM_StoreContext *Cxt);
+
+/// List the exported global names.
+///
+/// After instantiating a WASM module, the WASM module is registered into the
+/// store context as an anonymous module. Then you can call this function to get
+/// the exported global list of the anonymous module. If you want to get the
+/// global list of the registered named modules in the store context, please
+/// call `SSVM_StoreListGlobalRegistered` instead.
+/// The returned global names are created and stored into the `Names` array,
+/// and the caller should call the `SSVM_StringDelete` to delete them. If the
+/// `Names` buffer length is smaller than the result of the exported global
+/// list size, the overflowed return values will be discarded.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param [out] Names the output SSVM_String buffer of the global names.
+/// \param Len the buffer length.
+///
+/// \returns actual exported global list size.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListGlobal(const SSVM_StoreContext *Cxt, SSVM_String *Names,
+                     const uint32_t Len);
+
+/// Get the exported global list length of the registered module in store.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param ModuleName the module name SSVM_String.
+///
+/// \returns the exported global list length of the module.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListGlobalRegisteredLength(const SSVM_StoreContext *Cxt,
+                                     const SSVM_String ModuleName);
+
+/// List the exported global names of the registered module.
+///
+/// After registering a WASM module, you can call this function to get the
+/// exported global list of the registered module by the module name.
+/// The returned global names are created and stored into the `Names` array,
+/// and the caller should call the `SSVM_StringDelete` to delete them. If the
+/// `Names` buffer length is smaller than the result of the exported global
+/// list size, the overflowed return values will be discarded.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param ModuleName the module name SSVM_String.
+/// \param [out] Names the output SSVM_String buffer of the global names.
+/// \param Len the buffer length.
+///
+/// \returns actual exported global list size of the module.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListGlobalRegistered(SSVM_StoreContext *Cxt,
+                               const SSVM_String ModuleName, SSVM_String *Names,
+                               const uint32_t Len);
+
+/// Get the length of registered module list in store.
+///
+/// \param Cxt the SSVM_StoreContext.
+///
+/// \returns length of registered named module list.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_StoreListModuleLength(const SSVM_StoreContext *Cxt);
+
+/// List the registered module names.
+///
+/// This function will list all registered module names.
+/// The returned module names are created and stored in `Names` array, and the
+/// caller should call `SSVM_StringDelete` to delete them. If the `Names` buffer
+/// length is smaller than the result of the registered named module list size,
+/// the overflowed return values will be discarded.
+///
+/// \param Cxt the SSVM_StoreContext.
+/// \param [out] Names the output names SSVM_String buffer of named modules.
+/// \param Len the buffer length.
+///
+/// \returns actual registered named module list size.
+SSVM_CAPI_EXPORT extern uint32_t SSVM_StoreListModule(SSVM_StoreContext *Cxt,
+                                                      SSVM_String *Names,
+                                                      const uint32_t Len);
+
+/// Deletion of the SSVM_StoreContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the SSVM_StoreContext to delete.
+SSVM_CAPI_EXPORT extern void SSVM_StoreDelete(SSVM_StoreContext *Cxt);
+
+/// <<<<<<<< SSVM store functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM function type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the SSVM_FunctionTypeContext.
+///
+/// The caller owns the object and should call `SSVM_FunctionTypeDelete` to free
+/// it.
+///
+/// \param ParamList the value types list of parameters. NULL if the length is
+/// 0.
+/// \param ParamLen the ParamList buffer length.
+/// \param ReturnList the value types list of returns. NULL if the length is 0.
+/// \param ReturnLen the ReturnList buffer length.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_FunctionTypeContext *SSVM_FunctionTypeCreate(
+    const enum SSVM_ValType *ParamList, const uint32_t ParamLen,
+    const enum SSVM_ValType *ReturnList, const uint32_t ReturnLen);
+
+/// Get the parameter types list length from the SSVM_FunctionTypeContext.
+///
+/// \param Cxt the SSVM_FunctionTypeContext.
+///
+/// \returns the parameter types list length.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_FunctionTypeGetParametersLength(const SSVM_FunctionTypeContext *Cxt);
+
+/// Get the parameter types list from the SSVM_FunctionTypeContext.
+///
+/// If the `List` buffer length is smaller than the length of the parameter type
+/// list, the overflowed values will be discarded.
+///
+/// \param Cxt the SSVM_FunctionTypeContext.
+/// \param [out] List the SSVM_ValType buffer to fill the parameter value types.
+/// \param Len the value type buffer length.
+///
+/// \returns the actual parameter types list length.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_FunctionTypeGetParameters(const SSVM_FunctionTypeContext *Cxt,
+                               enum SSVM_ValType *List, const uint32_t Len);
+
+/// Get the return types list length from the SSVM_FunctionTypeContext.
+///
+/// \param Cxt the SSVM_FunctionTypeContext.
+///
+/// \returns the return types list length.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_FunctionTypeGetReturnsLength(const SSVM_FunctionTypeContext *Cxt);
+
+/// Get the return types list from the SSVM_FunctionTypeContext.
+///
+/// If the `List` buffer length is smaller than the length of the return type
+/// list, the overflowed values will be discarded.
+///
+/// \param Cxt the SSVM_FunctionTypeContext.
+/// \param [out] List the SSVM_ValType buffer to fill the return value types.
+/// \param Len the value type buffer length.
+///
+/// \returns the actual return types list length.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_FunctionTypeGetReturns(const SSVM_FunctionTypeContext *Cxt,
+                            enum SSVM_ValType *List, const uint32_t Len);
+
+/// Deletion of the SSVM_FunctionTypeContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the SSVM_FunctionTypeContext to delete.
+SSVM_CAPI_EXPORT extern void
+SSVM_FunctionTypeDelete(SSVM_FunctionTypeContext *Cxt);
+
+/// <<<<<<<< SSVM function type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM function instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Get the function type context of the function instance.
+///
+/// The function type context links to the function type in the function
+/// instance context and owned by the context. The caller should __NOT__ call
+/// the `SSVM_FunctionTypeDelete`.
+///
+/// \param Cxt the SSVM_FunctionInstanceContext.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern const SSVM_FunctionTypeContext *
+SSVM_FunctionInstanceGetFunctionType(const SSVM_FunctionInstanceContext *Cxt);
+
+/// <<<<<<<< SSVM function instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM host function functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+typedef SSVM_Result (*SSVM_HostFunc_t)(void *Data,
+                                       SSVM_MemoryInstanceContext *MemCxt,
+                                       const SSVM_Value *Params,
+                                       SSVM_Value *Returns);
+/// Creation of the SSVM_HostFunctionContext.
+///
+/// The caller owns the object and should call `SSVM_HostFunctionDelete` to
+/// free it if the returned object is not added into a
+/// `SSVM_ImportObjectContext`. The following is an example to create a host
+/// function context.
+/// ```c
+/// SSVM_Result FuncAdd(void *Data, SSVM_MemoryInstanceContext *MemCxt,
+///                     const SSVM_Value *In, SSVM_Value *Out) {
+///   /// Function to return A + B.
+///   int32_t A = SSVM_ValueGetI32(In[0]);
+///   int32_t B = SSVM_ValueGetI32(In[1]);
+///   Out[0] = SSVM_ValueGenI32(A + B);
+///   /// Return execution status
+///   return SSVM_Result_Success;
+/// }
+///
+/// enum SSVM_ValType Params[2] = {SSVM_ValType_I32, SSVM_ValType_I32};
+/// enum SSVM_ValType Returns[1] = {SSVM_ValType_I32};
+/// SSVM_FunctionTypeContext *FuncType =
+///     SSVM_FunctionTypeCreate(Params, 2, Returns, 1);
+/// SSVM_HostFunctionContext *HostFunc =
+///     SSVM_HostFunctionCreate(FuncType, FuncAdd, 0);
+/// SSVM_FunctionTypeDelete(FuncType);
+/// ...
+/// ```
+///
+/// \param Type the function type context to describe the host function
+/// signature.
+/// \param HostFunc the host function pointer. The host function signature must
+/// be as following:
+/// ```c
+/// typedef SSVM_Result (*SSVM_HostFunc_t)(void *Data,
+///                                        SSVM_MemoryInstanceContext *MemCxt,
+///                                        const SSVM_Value *Params,
+///                                        SSVM_Value *Returns);
+/// ```
+/// The `Data` is the pointer to the data passed into the import object through
+/// `SSVM_ImportObjectCreate()`. The `Params` is the input parameters array with
+/// length guaranteed to be the same as the parameter types in the `Type`. The
+/// `Returns` is the output results array with length guaranteed to be the same
+/// as the result types in the `Type`. The return value is `SSVM_Result` for the
+/// execution status.
+/// \param Cost the function cost in statistics. Pass 0 if the calculation is
+/// not needed.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_HostFunctionContext *
+SSVM_HostFunctionCreate(const SSVM_FunctionTypeContext *Type,
+                        SSVM_HostFunc_t HostFunc, const uint64_t Cost);
+
+typedef SSVM_Result (*SSVM_WrapFunc_t)(void *This, void *Data,
+                                       SSVM_MemoryInstanceContext *MemCxt,
+                                       const SSVM_Value *Params,
+                                       const uint32_t ParamLen,
+                                       SSVM_Value *Returns,
+                                       const uint32_t ReturnLen);
+/// Creation of the SSVM_HostFunctionContext.
+///
+/// This function is for the languages which cannot pass the function pointer of
+/// the host function into this shared library directly. The caller owns the
+/// object and should call `SSVM_HostFunctionDelete` to free it if the returned
+/// object is not added into a `SSVM_ImportObjectContext`. The following is an
+/// example to create a host function context for other languages.
+/// ```c
+/// /// `RealFunc` is the pointer to the function in other languages.
+///
+/// SSVM_Result FuncAddWrap(void *This, void *Data,
+///                         SSVM_MemoryInstanceContext *MemCxt,
+///                         const SSVM_Value *In, const uint32_t InLen,
+///                         SSVM_Value *Out, const uint32_t OutLen) {
+///   /// Wrapper function of host function to return A + B.
+///
+///   /// `This` is the same as `RealFunc`.
+///   int32_t A = SSVM_ValueGetI32(In[0]);
+///   int32_t B = SSVM_ValueGetI32(In[1]);
+///
+///   /// Call the function of `This` in the host language ...
+///   int32_t Result = ...;
+///
+///   Out[0] = Result;
+///   /// Return the execution status
+///   return SSVM_Result_Success;
+/// }
+///
+/// enum SSVM_ValType Params[2] = {SSVM_ValType_I32, SSVM_ValType_I32};
+/// enum SSVM_ValType Returns[1] = {SSVM_ValType_I32};
+/// SSVM_FunctionTypeContext *FuncType =
+///     SSVM_FunctionTypeCreate(Params, 2, Returns, 1);
+/// SSVM_HostFunctionContext *HostFunc =
+///     SSVM_HostFunctionCreateBinding(FuncType, FuncAddWrap, RealFunc, 0);
+/// SSVM_FunctionTypeDelete(FuncType);
+/// ...
+/// ```
+///
+/// \param Type the function type context to describe the host function
+/// signature.
+/// \param WrapFunc the wrapper function pointer. The wrapper function signature
+/// must be as following:
+/// ```c
+/// typedef SSVM_Result (*SSVM_WrapFunc_t)(void *This, void *Data,
+///                                        SSVM_MemoryInstanceContext *MemCxt,
+///                                        const SSVM_Value *Params,
+///                                        const uint32_t ParamLen,
+///                                        SSVM_Value *Returns,
+///                                        const uint32_t ReturnLen);
+/// ```
+/// The `This` is the pointer the same as the `Binding` parameter of this
+/// function. The `Data` is the pointer to the data passed into the import
+/// object through `SSVM_ImportObjectCreate()`. The `Params` is the input
+/// parameters array with length guaranteed to be the same as the parameter
+/// types in the `Type`, and the `ParamLen` is the length of the array. The
+/// `Returns` is the output results array with length guaranteed to be the same
+/// as the result types in the `Type`, and the `ReturnLen` is the length of the
+/// array. The return value is `SSVM_Result` for the execution status.
+/// \param Binding the `this` pointer of the host function target or the
+/// function indexing maintained by the caller which can specify the host
+/// function. When invoking the host function, this pointer will be the first
+/// argument of the wrapper function.
+/// \param Cost the function cost in statistics. Pass 0 if the calculation is
+/// not needed.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_HostFunctionContext *
+SSVM_HostFunctionCreateBinding(const SSVM_FunctionTypeContext *Type,
+                               SSVM_WrapFunc_t WrapFunc, void *Binding,
+                               const uint64_t Cost);
+
+/// Deletion of the SSVM_HostFunctionContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the SSVM_HostFunctionContext to delete.
+SSVM_CAPI_EXPORT extern void
+SSVM_HostFunctionDelete(SSVM_HostFunctionContext *Cxt);
+
+/// <<<<<<<< SSVM host function functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM table instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the SSVM_TableInstanceContext.
+///
+/// The caller owns the object and should call `SSVM_TableInstanceDelete` to
+/// free it.
+///
+/// \param RefType the reference type of the table instance context.
+/// \param Limit the limit struct to initialize the table instance context.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_TableInstanceContext *
+SSVM_TableInstanceCreate(const enum SSVM_RefType RefType,
+                         const SSVM_Limit Limit);
+
+/// Get the reference type from a table instance.
+///
+/// \param Cxt the SSVM_TableInstanceContext.
+///
+/// \returns the reference type of the table instance.
+SSVM_CAPI_EXPORT extern enum SSVM_RefType
+SSVM_TableInstanceGetRefType(const SSVM_TableInstanceContext *Cxt);
+
+/// Get the reference value in a table instance.
+///
+/// \param Cxt the SSVM_TableInstanceContext.
+/// \param [out] Data the result reference value.
+/// \param Offset the reference value offset (index) in the table instance.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_TableInstanceGetData(const SSVM_TableInstanceContext *Cxt,
+                          SSVM_Value *Data, const uint32_t Offset);
+
+/// Set the reference value into a table instance.
+///
+/// \param Cxt the SSVM_TableInstanceContext.
+/// \param Data the reference value to set into the table instance.
+/// \param Offset the reference value offset (index) in the table instance.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_TableInstanceSetData(SSVM_TableInstanceContext *Cxt, SSVM_Value Data,
+                          const uint32_t Offset);
+
+/// Get the size of a table instance.
+///
+/// \param Cxt the SSVM_TableInstanceContext.
+///
+/// \returns the size of the table instance.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_TableInstanceGetSize(const SSVM_TableInstanceContext *Cxt);
+
+/// Grow a table instance with a size.
+///
+/// \param Cxt the SSVM_TableInstanceContext.
+/// \param Size the count of reference values to grow in the table instance.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_TableInstanceGrow(SSVM_TableInstanceContext *Cxt, const uint32_t Size);
+
+/// Deletion of the SSVM_TableInstanceContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the SSVM_TableInstanceContext to delete.
+SSVM_CAPI_EXPORT extern void
+SSVM_TableInstanceDelete(SSVM_TableInstanceContext *Cxt);
+
+/// <<<<<<<< SSVM table instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM memory instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the SSVM_MemoryInstanceContext.
+///
+/// The caller owns the object and should call `SSVM_MemoryInstanceDelete` to
+/// free it.
+///
+/// \param Limit the limit struct to initialize the memory instance context.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_MemoryInstanceContext *
+SSVM_MemoryInstanceCreate(const SSVM_Limit Limit);
+
+/// Get the data pointer in a memory instance.
+///
+/// \param Cxt the SSVM_MemoryInstanceContext.
+/// \param [out] Data the result data buffer of copying destination.
+/// \param Offset the data start offset in the memory instance.
+/// \param Length the requested data length. If the `Offset + Length` is larger
+/// than the data size in the memory instance, this function will failed.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_MemoryInstanceGetData(const SSVM_MemoryInstanceContext *Cxt, uint8_t *Data,
+                           const uint32_t Offset, const uint32_t Length);
+
+/// Copy and set data into a memory instance.
+///
+/// \param Cxt the SSVM_MemoryInstanceContext.
+/// \param Data the data buffer to copy.
+/// \param Offset the data start offset in the memory instance.
+/// \param Length the data buffer length. If the `Offset + Length` is larger
+/// than the data size in the memory instance, this function will failed.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_MemoryInstanceSetData(SSVM_MemoryInstanceContext *Cxt, uint8_t *Data,
+                           const uint32_t Offset, const uint32_t Length);
+
+/// Get the current page size (64 KiB of each page) of a memory instance.
+///
+/// \param Cxt the SSVM_MemoryInstanceContext.
+///
+/// \returns the page size of the memory instance.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_MemoryInstanceGetPageSize(const SSVM_MemoryInstanceContext *Cxt);
+
+/// Grow a memory instance with a page size.
+///
+/// \param Cxt the SSVM_MemoryInstanceContext.
+/// \param Page the page count to grow in the memory instance.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_MemoryInstanceGrowPage(SSVM_MemoryInstanceContext *Cxt,
+                            const uint32_t Page);
+
+/// Deletion of the SSVM_MemoryInstanceContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the SSVM_MemoryInstanceContext to delete.
+SSVM_CAPI_EXPORT extern void
+SSVM_MemoryInstanceDelete(SSVM_MemoryInstanceContext *Cxt);
+
+/// <<<<<<<< SSVM memory instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM global instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the SSVM_GlobalInstanceContext.
+///
+/// The caller owns the object and should call `SSVM_GlobalInstanceDelete` to
+/// free it.
+///
+/// \param Value the initial value with its value type of the global instance.
+/// \param Mut the mutation of the global instance.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_GlobalInstanceContext *
+SSVM_GlobalInstanceCreate(const SSVM_Value Value,
+                          const enum SSVM_Mutability Mut);
+
+/// Get the value type from a global instance.
+///
+/// \param Cxt the SSVM_GlobalInstanceContext.
+///
+/// \returns the value type of the global instance.
+SSVM_CAPI_EXPORT extern enum SSVM_ValType
+SSVM_GlobalInstanceGetValType(const SSVM_GlobalInstanceContext *Cxt);
+
+/// Get the mutability from a global instance.
+///
+/// \param Cxt the SSVM_GlobalInstanceContext.
+///
+/// \returns the mutability of the global instance.
+SSVM_CAPI_EXPORT extern enum SSVM_Mutability
+SSVM_GlobalInstanceGetMutability(const SSVM_GlobalInstanceContext *Cxt);
+
+/// Get the value from a global instance.
+///
+/// \param Cxt the SSVM_GlobalInstanceContext.
+///
+/// \returns the current value of the global instance.
+SSVM_CAPI_EXPORT extern SSVM_Value
+SSVM_GlobalInstanceGetValue(const SSVM_GlobalInstanceContext *Cxt);
+
+/// Set the value from a global instance.
+///
+/// This function will do nothing if the global context is set as the `Const`
+/// mutation or the value type not matched.
+///
+/// \param Cxt the SSVM_GlobalInstanceContext.
+/// \param Value the value to set into the global context.
+SSVM_CAPI_EXPORT extern void
+SSVM_GlobalInstanceSetValue(SSVM_GlobalInstanceContext *Cxt,
+                            const SSVM_Value Value);
+
+/// Deletion of the SSVM_GlobalInstanceContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the SSVM_GlobalInstanceContext to delete.
+SSVM_CAPI_EXPORT extern void
+SSVM_GlobalInstanceDelete(SSVM_GlobalInstanceContext *Cxt);
+
+/// <<<<<<<< SSVM global instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// <<<<<<<< SSVM import object functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// Creation of the SSVM_ImportObjectContext.
+///
+/// The caller owns the object and should call `SSVM_ImportObjectDelete` to free
+/// it.
+///
+/// \param ModuleName the module name SSVM_String of this host module to import.
+/// \param Data the additional object, such as the pointer to a data structure,
+/// to pass to the all host functions added into this import object. The caller
+/// should guarantee the life cycle of the object. NULL if the additional data
+/// object is not needed.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_ImportObjectContext *
+SSVM_ImportObjectCreate(const SSVM_String ModuleName, void *Data);
+
+/// Creation of the SSVM_ImportObjectContext for the WASI specification.
+///
+/// This function will create a WASI host module that contains the WASI host
+/// functions and initialize it. The caller owns the object and should call
+/// `SSVM_ImportObjectDelete` to free it.
+///
+/// \param Args the command line arguments. The first argument suggests being
+/// the program name. NULL if the length is 0.
+/// \param ArgLen the length of the command line arguments.
+/// \param Envs the environment variables in the format `ENV=VALUE`. NULL if the
+/// length is 0.
+/// \param EnvLen the length of the environment variables.
+/// \param Dirs the directory mappings in the format `PATH1:PATH2`. NULL if the
+/// length is 0.
+/// \param DirLen the length of the directory mappings.
+/// \param Preopens the directory paths to preopen. NULL if the length is 0.
+/// \param PreopenLen the length of the directory paths to preopen.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_ImportObjectContext *SSVM_ImportObjectCreateWASI(
+    const char *const *Args, const uint32_t ArgLen, const char *const *Envs,
+    const uint32_t EnvLen, const char *const *Dirs, const uint32_t DirLen,
+    const char *const *Preopens, const uint32_t PreopenLen);
+
+/// Initialize the SSVM_ImportObjectContext for the WASI specification.
+///
+/// This function will initialize the WASI host module with the parameters.
+///
+/// \param Cxt the SSVM_ImportObjectContext of WASI import object.
+/// \param Args the command line arguments. The first argument suggests being
+/// the program name. NULL if the length is 0.
+/// \param ArgLen the length of the command line arguments.
+/// \param Envs the environment variables in the format `ENV=VALUE`. NULL if the
+/// length is 0.
+/// \param EnvLen the length of the environment variables.
+/// \param Dirs the directory mappings in the format `PATH1:PATH2`. NULL if the
+/// length is 0.
+/// \param DirLen the length of the directory mappings.
+/// \param Preopens the directory paths to preopen. NULL if the length is 0.
+/// \param PreopenLen the length of the directory paths to preopen.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern void SSVM_ImportObjectInitWASI(
+    SSVM_ImportObjectContext *Cxt, const char *const *Args,
+    const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
+    const char *const *Dirs, const uint32_t DirLen, const char *const *Preopens,
+    const uint32_t PreopenLen);
+
+/// Add a host function context into a SSVM_ImportObjectContext.
+///
+/// Move the host function context into the import object. The caller should
+/// __NOT__ access or delete the host function context after calling this
+/// function.
+///
+/// \param Cxt the SSVM_ImportObjectContext to add the host function.
+/// \param Name the host function name SSVM_String.
+/// \param HostFuncCxt the SSVM_HostFunctionContext to add.
+SSVM_CAPI_EXPORT extern void
+SSVM_ImportObjectAddHostFunction(SSVM_ImportObjectContext *Cxt,
+                                 const SSVM_String Name,
+                                 SSVM_HostFunctionContext *HostFuncCxt);
+
+/// Add a table instance context into a SSVM_ImportObjectContext.
+///
+/// Move the table instance context into the import object. The caller should
+/// __NOT__ access or delete the table instance context after calling this
+/// function.
+///
+/// \param Cxt the SSVM_ImportObjectContext to add the table instance.
+/// \param Name the export table name SSVM_String.
+/// \param TableCxt the SSVM_TableInstanceContext to add.
+SSVM_CAPI_EXPORT extern void
+SSVM_ImportObjectAddTable(SSVM_ImportObjectContext *Cxt, const SSVM_String Name,
+                          SSVM_TableInstanceContext *TableCxt);
+
+/// Add a memory instance context into a SSVM_ImportObjectContext.
+///
+/// Move the memory instance context into the import object. The caller should
+/// __NOT__ access or delete the memory instance context after calling this
+/// function.
+///
+/// \param Cxt the SSVM_ImportObjectContext to add the memory instance.
+/// \param Name the export memory name SSVM_String.
+/// \param MemoryCxt the SSVM_MemoryInstanceContext to add.
+SSVM_CAPI_EXPORT extern void
+SSVM_ImportObjectAddMemory(SSVM_ImportObjectContext *Cxt,
+                           const SSVM_String Name,
+                           SSVM_MemoryInstanceContext *MemoryCxt);
+
+/// Add a global instance context into a SSVM_ImportObjectContext.
+///
+/// Move the global instance context into the import object. The caller should
+/// __NOT__ access or delete the global instance context after calling this
+/// function.
+///
+/// \param Cxt the SSVM_ImportObjectContext to add the global instance.
+/// \param Name the export global name SSVM_String.
+/// \param GlobalCxt the SSVM_GlobalInstanceContext to add.
+SSVM_CAPI_EXPORT extern void
+SSVM_ImportObjectAddGlobal(SSVM_ImportObjectContext *Cxt,
+                           const SSVM_String Name,
+                           SSVM_GlobalInstanceContext *GlobalCxt);
+
+/// Deletion of the SSVM_ImportObjectContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the SSVM_ImportObjectContext to delete.
+SSVM_CAPI_EXPORT extern void
+SSVM_ImportObjectDelete(SSVM_ImportObjectContext *Cxt);
+
+/// >>>>>>>> SSVM import object functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// >>>>>>>> SSVM VM functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the SSVM_VMContext.
+///
+/// The caller owns the object and should call `SSVM_VMDelete` to free it.
+///
+/// \param ConfCxt the SSVM_ConfigureContext as the configuration of VM. NULL
+/// for the default configuration.
+/// \param StoreCxt the SSVM_StoreContext as the external WASM store of VM. The
+/// instantiation and execution will refer to this store context, and the life
+/// cycle should be ensured until the VM context is deleted. NULL for the
+/// default store owned by SSVM_VMContext.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_VMContext *
+SSVM_VMCreate(const SSVM_ConfigureContext *ConfCxt,
+              SSVM_StoreContext *StoreCxt);
+
+/// Register and instantiate WASM into the store in VM from a WASM file.
+///
+/// Load a WASM file from the path, and register all exported instances and
+/// instantiate them into the store in VM with their exported name and module
+/// name.
+///
+/// \param Cxt the SSVM_VMContext which contains the store.
+/// \param ModuleName the SSVM_String of module name for all exported instances.
+/// \param Path the NULL-terminated C string of the WASM
+/// file path.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_VMRegisterModuleFromFile(SSVM_VMContext *Cxt, const SSVM_String ModuleName,
+                              const char *Path);
+
+/// Register and instantiate WASM into the store in VM from a buffer.
+///
+/// Load a WASM module from a buffer, and register all exported instances and
+/// instantiate them into the store in VM with their exported name and module
+/// name.
+///
+/// \param Cxt the SSVM_VMContext which contains the store.
+/// \param ModuleName the SSVM_String of module name for all exported instances.
+/// \param Buf the buffer of WASM binary.
+/// \param BufLen the length of the buffer.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_VMRegisterModuleFromBuffer(SSVM_VMContext *Cxt,
+                                const SSVM_String ModuleName,
+                                const uint8_t *Buf, const uint32_t BufLen);
+
+/// Register and instantiate SSVM import object into the store in VM.
+///
+/// Instantiate the instances in SSVM import object context and register them
+/// into the store in VM with their exported name and the host module name.
+///
+/// \param Cxt the SSVM_VMContext which contains the store.
+/// \param ImportCxt the SSVM_ImportObjectContext to register.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_VMRegisterModuleFromImport(SSVM_VMContext *Cxt,
+                                const SSVM_ImportObjectContext *ImportCxt);
+
+/// Register and instantiate WASM into the store in VM from a SSVM AST Module.
+///
+/// Load from the SSVM AST Module, and register all exported instances and
+/// instantiate them into the store in VM with their exported name and module
+/// name.
+///
+/// \param Cxt the SSVM_VMContext which contains the store.
+/// \param ModuleName the SSVM_String of module name for all exported instances.
+/// \param ASTCxt the SSVM AST Module context generated by loader or compiler.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_VMRegisterModuleFromASTModule(SSVM_VMContext *Cxt,
+                                   const SSVM_String ModuleName,
+                                   const SSVM_ASTModuleContext *ASTCxt);
+
+/// Instantiate the WASM module from a WASM file and invoke a function by name.
+///
+/// This is the function to invoke a WASM function rapidly.
+/// Load and instantiate the WASM module from the file path, and then invoke a
+/// function by name and parameters. If the `Returns` buffer length is smaller
+/// than the arity of the function, the overflowed return values will be
+/// discarded.
+///
+/// \param Cxt the SSVM_VMContext.
+/// \param Path the NULL-terminated C string of the WASM file path.
+/// \param FuncName the function name SSVM_String.
+/// \param Params the SSVM_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+/// \param [out] Returns the SSVM_Value buffer to fill the return values.
+/// \param ReturnLen the return buffer length.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_VMRunWasmFromFile(SSVM_VMContext *Cxt, const char *Path,
+                       const SSVM_String FuncName, const SSVM_Value *Params,
+                       const uint32_t ParamLen, SSVM_Value *Returns,
+                       const uint32_t ReturnLen);
+
+/// Instantiate the WASM module from a buffer and invoke a function by name.
+///
+/// This is the function to invoke a WASM function rapidly.
+/// Load and instantiate the WASM module from a buffer, and then invoke a
+/// function by name and parameters. If the `Returns` buffer length is smaller
+/// than the arity of the function, the overflowed return values will be
+/// discarded.
+///
+/// \param Cxt the SSVM_VMContext.
+/// \param Buf the buffer of WASM binary.
+/// \param BufLen the length of the buffer.
+/// \param FuncName the function name SSVM_String.
+/// \param Params the SSVM_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+/// \param [out] Returns the SSVM_Value buffer to fill the return values.
+/// \param ReturnLen the return buffer length.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_VMRunWasmFromBuffer(SSVM_VMContext *Cxt, const uint8_t *Buf,
+                         const uint32_t BufLen, const SSVM_String FuncName,
+                         const SSVM_Value *Params, const uint32_t ParamLen,
+                         SSVM_Value *Returns, const uint32_t ReturnLen);
+
+/// Instantiate the WASM module from a SSVM AST Module and invoke a function by
+/// name.
+///
+/// This is the function to invoke a WASM function rapidly.
+/// Load and instantiate the WASM module from the SSVM AST Module, and then
+/// invoke the function by name and parameters. If the `Returns` buffer length
+/// is smaller than the arity of the function, the overflowed return values will
+/// be discarded.
+///
+/// \param Cxt the SSVM_VMContext.
+/// \param ASTCxt the SSVM AST Module context generated by loader or compiler.
+/// \param FuncName the function name SSVM_String.
+/// \param Params the SSVM_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+/// \param [out] Returns the SSVM_Value buffer to fill the return values.
+/// \param ReturnLen the return buffer length.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result SSVM_VMRunWasmFromASTModule(
+    SSVM_VMContext *Cxt, const SSVM_ASTModuleContext *ASTCxt,
+    const SSVM_String FuncName, const SSVM_Value *Params,
+    const uint32_t ParamLen, SSVM_Value *Returns, const uint32_t ReturnLen);
+
+/// Load the WASM module from a WASM file.
+///
+/// This is the first step to invoke a WASM function step by step.
+/// Load and parse the WASM module from the file path. You can then call
+/// `SSVM_VMValidate` for the next step.
+///
+/// \param Cxt the SSVM_VMContext.
+/// \param Path the NULL-terminated C string of the WASM file path.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result SSVM_VMLoadWasmFromFile(SSVM_VMContext *Cxt,
+                                                            const char *Path);
+
+/// Load the WASM module from a buffer.
+///
+/// This is the first step to invoke a WASM function step by step.
+/// Load and parse the WASM module from a buffer. You can then call
+/// `SSVM_VMValidate` for the next step.
+///
+/// \param Cxt the SSVM_VMContext.
+/// \param Buf the buffer of WASM binary.
+/// \param BufLen the length of the buffer.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_VMLoadWasmFromBuffer(SSVM_VMContext *Cxt, const uint8_t *Buf,
+                          const uint32_t BufLen);
+
+/// Load the WASM module from loaded SSVM AST Module.
+///
+/// This is the first step to invoke a WASM function step by step.
+/// Copy the loaded SSVM AST Module context into VM. The VM context has no
+/// dependency on the input AST Module context. You can then call
+/// `SSVM_VMValidate` for the next step.
+///
+/// \param Cxt the SSVM_VMContext.
+/// \param ASTCxt the SSVM AST Module context generated by loader or compiler.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_VMLoadWasmFromASTModule(SSVM_VMContext *Cxt,
+                             const SSVM_ASTModuleContext *ASTCxt);
+
+/// Validate the WASM module loaded into the VM context.
+///
+/// This is the second step to invoke a WASM function step by step.
+/// After loading a WASM module into VM context, You can call this function to
+/// validate it. And you can then call `SSVM_VMInstantiate` for the next step.
+/// Note that only validated WASM modules can be instantiated in the VM context.
+///
+/// \param Cxt the SSVM_VMContext.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result SSVM_VMValidate(SSVM_VMContext *Cxt);
+
+/// Instantiate the validated WASM module in the VM context.
+///
+/// This is the third step to invoke a WASM function step by step.
+/// After validating a WASM module in the VM context, You can call this function
+/// to instantiate it. And you can then call `SSVM_VMExecute` for invoking the
+/// exported function in this WASM module.
+///
+/// \param Cxt the SSVM_VMContext.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result SSVM_VMInstantiate(SSVM_VMContext *Cxt);
+
+/// Invoke a WASM function by name.
+///
+/// This is the final step to invoke a WASM function step by step.
+/// After instantiating a WASM module in the VM context, the WASM module is
+/// registered into the store in the VM context as an anonymous module. Then you
+/// can repeatedly call this function to invoke the exported WASM functions by
+/// their names until the VM context is reset or a new WASM module is registered
+/// or loaded. For calling the functions in registered WASM modules with module
+/// names, please use `SSVM_VMExecuteRegistered` instead. If the `Returns`
+/// buffer length is smaller than the arity of the function, the overflowed
+/// return values will be discarded.
+///
+/// \param Cxt the SSVM_VMContext.
+/// \param FuncName the function name SSVM_String.
+/// \param Params the SSVM_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+/// \param [out] Returns the SSVM_Value buffer to fill the return values.
+/// \param ReturnLen the return buffer length.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_VMExecute(SSVM_VMContext *Cxt, const SSVM_String FuncName,
+               const SSVM_Value *Params, const uint32_t ParamLen,
+               SSVM_Value *Returns, const uint32_t ReturnLen);
+
+/// Invoke a WASM function by its module name and function name.
+///
+/// After registering a WASM module in the VM context, you can repeatedly call
+/// this function to invoke exported WASM functions by their module names and
+/// function names until the VM context is reset. If the `Returns` buffer length
+/// is smaller than the arity of the function, the overflowed return values will
+/// be discarded.
+///
+/// \param Cxt the SSVM_VMContext.
+/// \param ModuleName the module name SSVM_String.
+/// \param FuncName the function name SSVM_String.
+/// \param Params the SSVM_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+/// \param [out] Returns the SSVM_Value buffer to fill the return values.
+/// \param ReturnLen the return buffer length.
+///
+/// \returns SSVM_Result. Call `SSVM_ResultGetMessage` for the error message.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_VMExecuteRegistered(SSVM_VMContext *Cxt, const SSVM_String ModuleName,
+                         const SSVM_String FuncName, const SSVM_Value *Params,
+                         const uint32_t ParamLen, SSVM_Value *Returns,
+                         const uint32_t ReturnLen);
+
+/// Get the function type by function name.
+///
+/// After instantiating a WASM module in the VM context, the WASM module is
+/// registered into the store in the VM context as an anonymous module. Then you
+/// can call this function to get the function type by the exported function
+/// name until the VM context is reset or a new WASM module is registered or
+/// loaded. For getting the function type of functions in registered WASM
+/// modules with module names, please use `SSVM_VMGetFunctionTypeRegistered`
+/// instead.
+/// The caller owns the returned function type context, and should call the
+/// `SSVM_FunctionTypeDelete` to delete it.
+///
+/// \param Cxt the SSVM_VMContext.
+/// \param FuncName the function name SSVM_String.
+///
+/// \returns the function type. NULL if the function not found.
+SSVM_CAPI_EXPORT extern SSVM_FunctionTypeContext *
+SSVM_VMGetFunctionType(SSVM_VMContext *Cxt, const SSVM_String FuncName);
+
+/// Get the function type by function name.
+///
+/// After registering a WASM module in the VM context, you can call this
+/// function to get the function type by the functions' exported module names
+/// and function names until the VM context is reset.
+/// The caller owns the returned function type context, and should call the
+/// `SSVM_FunctionTypeDelete` to delete it.
+///
+/// \param Cxt the SSVM_VMContext.
+/// \param ModuleName the module name SSVM_String.
+/// \param FuncName the function name SSVM_String.
+///
+/// \returns the function type. NULL if the function not found.
+SSVM_CAPI_EXPORT extern SSVM_FunctionTypeContext *
+SSVM_VMGetFunctionTypeRegistered(SSVM_VMContext *Cxt,
+                                 const SSVM_String ModuleName,
+                                 const SSVM_String FuncName);
+
+/// Reset of SSVM_VMContext.
+///
+/// After calling this function, the statistics, loaded module, and the
+/// instances in the store except registered instances will be cleared.
+///
+/// \param Cxt the SSVM_VMContext to reset.
+SSVM_CAPI_EXPORT extern void SSVM_VMCleanup(SSVM_VMContext *Cxt);
+
+/// Get the length of exported function list.
+///
+/// \param Cxt the SSVM_VMContext.
+///
+/// \returns length of exported function list.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_VMGetFunctionListLength(SSVM_VMContext *Cxt);
+
+/// Get the exported function list.
+///
+/// The returned function names are created and stored in `Names` array, and
+/// the caller should call `SSVM_StringDelete` to delete them. The function type
+/// contexts of the corresponding function names are allocated and stored in
+/// `FuncTypes` array, and the caller should call `SSVM_FunctionTypeDelete` to
+/// delete them. If the `Names` and `FuncTypes` buffer lengths are smaller than
+/// the result of the exported function list size, the overflowed return values
+/// will be discarded.
+///
+/// \param Cxt the SSVM_VMContext.
+/// \param [out] Names the output names SSVM_String buffer of exported
+/// functions. Can be NULL if names are not needed.
+/// \param [out] FuncTypes the function type contexts buffer. Can be NULL if
+/// function types are not needed.
+/// \param Len the buffer length.
+///
+/// \returns actual exported function list size.
+SSVM_CAPI_EXPORT extern uint32_t
+SSVM_VMGetFunctionList(SSVM_VMContext *Cxt, SSVM_String *Names,
+                       SSVM_FunctionTypeContext **FuncTypes,
+                       const uint32_t Len);
+
+/// Get the import object corresponding to the SSVM_HostRegistration settings.
+///
+/// When creating the VM context with configuration, the host module will be
+/// registered according to the SSVM_HostRegistration settings added into the
+/// SSVM_ConfigureContext. You can call this function to get the
+/// SSVM_ImportObjectContext corresponding to the settings. The import object
+/// context links to the context owned by the VM context. The caller should
+/// __NOT__ call the `SSVM_ImportObjectDelete`.
+///
+/// ```c
+/// SSVM_ConfigureContext *Conf = SSVM_ConfigureCreate();
+/// SSVM_ConfigureAddHostRegistration(Conf, SSVM_HostRegistration_Wasi);
+/// SSVM_ConfigureAddHostRegistration(Conf, SSVM_HostRegistration_SSVM_Process);
+/// SSVM_VMContext *VM = SSVM_VMCreate(Conf, NULL);
+/// SSVM_ImportObjectContext *WasiMod =
+///     SSVM_VMGetImportModuleContext(VM, SSVM_HostRegistration_Wasi);
+/// SSVM_ImportObjectContext *ProcessMod =
+///     SSVM_VMGetImportModuleContext(VM, SSVM_HostRegistration_SSVM_Process);
+/// ```
+///
+/// \param Cxt the SSVM_VMContext.
+/// \param Reg the host registration value to get the import module.
+///
+/// \returns pointer to the import module context. NULL if not found.
+SSVM_CAPI_EXPORT extern SSVM_ImportObjectContext *
+SSVM_VMGetImportModuleContext(SSVM_VMContext *Cxt,
+                              const enum SSVM_HostRegistration Reg);
+
+/// Get the store context used in the SSVM_VMContext.
+///
+/// The store context links to the store in the VM context and owned by the VM
+/// context. The caller should __NOT__ call the `SSVM_StoreDelete`.
+///
+/// \param Cxt the SSVM_VMContext.
+///
+/// \returns pointer to the store context.
+SSVM_CAPI_EXPORT extern SSVM_StoreContext *
+SSVM_VMGetStoreContext(SSVM_VMContext *Cxt);
+
+/// Get the statistics context used in the SSVM_VMContext.
+///
+/// The statistics context links to the statistics in the VM context and owned
+/// by the VM context. The caller should __NOT__ call the
+/// `SSVM_StatisticsDelete`.
+///
+/// \param Cxt the SSVM_VMContext.
+///
+/// \returns pointer to the statistics context.
+SSVM_CAPI_EXPORT extern SSVM_StatisticsContext *
+SSVM_VMGetStatisticsContext(SSVM_VMContext *Cxt);
+
+/// Deletion of the SSVM_VMContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the SSVM_VMContext to delete.
+SSVM_CAPI_EXPORT extern void SSVM_VMDelete(SSVM_VMContext *Cxt);
+
+/// <<<<<<<< SSVM VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+#ifdef __cplusplus
+} /// extern "C"
+#endif
+
+#endif /// __SSVM_C_API_H__

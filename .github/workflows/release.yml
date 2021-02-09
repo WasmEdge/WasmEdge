@@ -8,7 +8,7 @@ on:
 jobs:
   create:
     name: Create Release
-    runs-on: ssvm
+    runs-on: ubuntu-latest
     container:
       image: secondstate/ssvm:ubuntu-build-gcc
     outputs:
@@ -35,7 +35,7 @@ jobs:
   build_amd64:
     name: Build SSVM on amd64 platform
     needs: create
-    runs-on: ssvm
+    runs-on: ubuntu-latest
     container:
       image: secondstate/ssvm:ubuntu-build-gcc
     steps:
@@ -50,7 +50,7 @@ jobs:
   upload_amd64_package:
     name: Upload SSVM amd64 package
     needs: [create, build_amd64]
-    runs-on: ssvm
+    runs-on: ubuntu-latest
     container:
       image: secondstate/ssvm:ubuntu-build-gcc
     steps:
@@ -93,7 +93,7 @@ jobs:
   build_manylinux1_x86_64:
     name: Build SSVM on manylinux1_x86_64 platform
     needs: [create, upload_amd64_package]
-    runs-on: ssvm
+    runs-on: ubuntu-latest
     container:
       image: secondstate/ssvm:manylinux1_x86_64
     steps:
@@ -111,7 +111,7 @@ jobs:
   upload_manylinux1_x86_64_package:
     name: Upload SSVM manylinux1 x86_64 package
     needs: [create, build_manylinux1_x86_64]
-    runs-on: ssvm
+    runs-on: ubuntu-latest
     container:
       image: secondstate/ssvm:ubuntu-build-gcc
     steps:
@@ -163,7 +163,7 @@ jobs:
   build_manylinux2010_x86_64:
     name: Build SSVM on manylinux2010_x86_64 platform
     needs: [create, upload_manylinux1_x86_64_package]
-    runs-on: ssvm
+    runs-on: ubuntu-latest
     container:
       image: secondstate/ssvm:manylinux2010_x86_64
     steps:
@@ -181,7 +181,7 @@ jobs:
   upload_manylinux2010_x86_64_package:
     name: Upload SSVM manylinux2010 x86_64 package
     needs: [create, build_manylinux2010_x86_64]
-    runs-on: ssvm
+    runs-on: ubuntu-latest
     container:
       image: secondstate/ssvm:ubuntu-build-gcc
     steps:
@@ -233,7 +233,7 @@ jobs:
   build_manylinux2014_x86_64:
     name: Build SSVM on manylinux2014_x86_64 platform
     needs: [create, upload_manylinux2010_x86_64_package]
-    runs-on: ssvm
+    runs-on: ubuntu-latest
     container:
       image: secondstate/ssvm:manylinux2014_x86_64
     steps:
@@ -251,7 +251,7 @@ jobs:
   upload_manylinux2014_x86_64_package:
     name: Upload SSVM manylinux2014 x86_64 package
     needs: [create, build_manylinux2014_x86_64]
-    runs-on: ssvm
+    runs-on: ubuntu-latest
     container:
       image: secondstate/ssvm:ubuntu-build-gcc
     steps:

@@ -105,7 +105,7 @@ private:
   void initVM();
 
   /// VM environment.
-  const Configure &Config;
+  const Configure Conf;
   Statistics::Statistics Stat;
   VMStage Stage;
 

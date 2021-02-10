@@ -8,27 +8,27 @@ namespace SSVM {
 namespace VM {
 
 VM::VM(const Configure &Conf)
-    : Config(Conf), Stage(VMStage::Inited), LoaderEngine(Conf),
+    : Conf(Conf), Stage(VMStage::Inited), LoaderEngine(Conf),
       ValidatorEngine(Conf), InterpreterEngine(Conf, &Stat),
       Store(std::make_unique<Runtime::StoreManager>()), StoreRef(*Store.get()) {
   initVM();
 }
 
 VM::VM(const Configure &Conf, Runtime::StoreManager &S)
-    : Config(Conf), Stage(VMStage::Inited), LoaderEngine(Conf),
+    : Conf(Conf), Stage(VMStage::Inited), LoaderEngine(Conf),
       ValidatorEngine(Conf), InterpreterEngine(Conf, &Stat), StoreRef(S) {
   initVM();
 }
 
 void VM::initVM() {
   /// Create import modules from configuration.
-  if (Config.hasHostRegistration(HostRegistration::Wasi)) {
+  if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
     std::unique_ptr<Runtime::ImportObject> WasiMod =
         std::make_unique<Host::WasiModule>();
     InterpreterEngine.registerModule(StoreRef, *WasiMod.get());
     ImpObjs.insert({HostRegistration::Wasi, std::move(WasiMod)});
   }
-  if (Config.hasHostRegistration(HostRegistration::SSVM_Process)) {
+  if (Conf.hasHostRegistration(HostRegistration::SSVM_Process)) {
     std::unique_ptr<Runtime::ImportObject> ProcMod =
         std::make_unique<Host::SSVMProcessModule>();
     InterpreterEngine.registerModule(StoreRef, *ProcMod.get());

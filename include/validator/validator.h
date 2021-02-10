@@ -67,7 +67,7 @@ private:
 
   static inline const uint32_t LIMIT_MEMORYTYPE = 1U << 16;
   /// Proposal configure
-  const Configure &Conf;
+  const Configure Conf;
   /// Formal checker
   FormChecker Checker;
 };

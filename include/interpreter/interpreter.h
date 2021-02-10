@@ -540,7 +540,7 @@ private:
   /// Instantiation mode enumeration class
   enum class InstantiateMode : uint8_t { Instantiate = 0, ImportWasm };
   /// SSVM configuration
-  const Configure &Conf;
+  const Configure Conf;
   /// Instantiation mode
   InstantiateMode InsMode;
   /// Stack

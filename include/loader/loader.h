@@ -40,7 +40,7 @@ public:
   Expect<std::unique_ptr<AST::Module>> parseModule(Span<const uint8_t> Code);
 
 private:
-  const Configure &Conf;
+  const Configure Conf;
   FileMgrFStream FSMgr;
   FileMgrVector FVMgr;
   LDMgr LMgr;

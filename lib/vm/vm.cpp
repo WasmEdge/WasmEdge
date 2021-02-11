@@ -196,8 +196,7 @@ Expect<void> VM::instantiate() {
     LOG(ERROR) << ErrCode::WrongVMWorkflow;
     return Unexpect(ErrCode::WrongVMWorkflow);
   }
-  if (auto Res =
-          InterpreterEngine.instantiateModule(StoreRef, *Mod.get(), "")) {
+  if (auto Res = InterpreterEngine.instantiateModule(StoreRef, *Mod.get())) {
     Stage = VMStage::Instantiated;
     return {};
   } else {
@@ -209,15 +208,15 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Func,
                                             Span<const ValVariant> Params) {
   /// Check exports for finding function address.
   const auto FuncExp = StoreRef.getFuncExports();
-  if (FuncExp.find(Func) == FuncExp.cend()) {
+  const auto FuncIter = FuncExp.find(Func);
+  if (FuncIter == FuncExp.cend()) {
     LOG(ERROR) << ErrCode::FuncNotFound;
     LOG(ERROR) << ErrInfo::InfoExecuting("", Func);
     return Unexpect(ErrCode::FuncNotFound);
   }
 
   /// Execute function.
-  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second,
-                                          Params)) {
+  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncIter->second, Params)) {
     return Res;
   } else {
     LOG(ERROR) << ErrInfo::InfoExecuting("", Func);
@@ -240,7 +239,7 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
 
   /// Get exports and find function.
   const auto FuncExp = ModInst->getFuncExports();
-  auto FuncIter = FuncExp.find(Func);
+  const auto FuncIter = FuncExp.find(Func);
   if (FuncIter == FuncExp.cend()) {
     LOG(ERROR) << ErrCode::FuncNotFound;
     LOG(ERROR) << ErrInfo::InfoExecuting(Mod, Func);

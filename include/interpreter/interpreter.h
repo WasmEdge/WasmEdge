@@ -95,10 +95,9 @@ public:
   }
   ~Interpreter() noexcept { This = nullptr; }
 
-  /// Instantiate Wasm Module.
+  /// Instantiate Wasm Module as the anonymous active module.
   Expect<void> instantiateModule(Runtime::StoreManager &StoreMgr,
-                                 const AST::Module &Mod,
-                                 std::string_view Name = {});
+                                 const AST::Module &Mod);
 
   /// Register host module.
   Expect<void> registerModule(Runtime::StoreManager &StoreMgr,

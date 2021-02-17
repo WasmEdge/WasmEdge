@@ -13,6 +13,12 @@ void passEasyloggingppArgs(int Argc, char *Argv[]) {
   START_EASYLOGGINGPP(Argc, Argv);
 }
 
+void setDebugLoggingLevel() {
+  el::Loggers::addFlag(el::LoggingFlag::HierarchicalLogging);
+  el::Loggers::addFlag(el::LoggingFlag::IgnoreSigInt);
+  el::Loggers::setLoggingLevel(el::Level::Debug);
+}
+
 void setErrorLoggingLevel() {
   el::Loggers::addFlag(el::LoggingFlag::HierarchicalLogging);
   el::Loggers::addFlag(el::LoggingFlag::IgnoreSigInt);

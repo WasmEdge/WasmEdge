@@ -74,6 +74,9 @@ public:
     std::fill_n(Refs.end() - Count, Count, Val);
     return true;
   }
+  bool growTable(const uint32_t Count) {
+    return growTable(Count, genNullRef(Type));
+  }
 
   /// Get slice of Refs[Offset : Offset + Length - 1]
   Expect<Span<const RefVariant>> getRefs(const uint32_t Offset,

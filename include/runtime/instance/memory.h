@@ -158,7 +158,8 @@ public:
   }
 
   /// Get slice of Data[Offset : Offset + Length - 1]
-  Expect<Span<Byte>> getBytes(const uint32_t Offset, const uint32_t Length) {
+  Expect<Span<Byte>> getBytes(const uint32_t Offset,
+                              const uint32_t Length) const noexcept {
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       LOG(ERROR) << ErrCode::MemoryOutOfBounds;
@@ -212,7 +213,8 @@ public:
 
   /// Get an uint8 array from Data[Offset : Offset + Length - 1]
   Expect<void> getArray(uint8_t *Arr, const uint32_t Offset,
-                        const uint32_t Length, const bool IsReverse = false) {
+                        const uint32_t Length,
+                        const bool IsReverse = false) const noexcept {
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       LOG(ERROR) << ErrCode::MemoryOutOfBounds;
@@ -286,7 +288,8 @@ public:
   /// \returns void when success, ErrCode when failed.
   template <typename T>
   typename std::enable_if_t<IsWasmNumV<T>, Expect<void>>
-  loadValue(T &Value, const uint32_t Offset, const uint32_t Length) {
+  loadValue(T &Value, const uint32_t Offset,
+            const uint32_t Length) const noexcept {
     /// Check data boundary.
     if (Length > sizeof(T)) {
       LOG(ERROR) << ErrCode::MemoryOutOfBounds;

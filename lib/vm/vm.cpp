@@ -8,27 +8,27 @@ namespace SSVM {
 namespace VM {
 
 VM::VM(const Configure &Conf)
-    : Config(Conf), Stage(VMStage::Inited), LoaderEngine(Conf),
+    : Conf(Conf), Stage(VMStage::Inited), LoaderEngine(Conf),
       ValidatorEngine(Conf), InterpreterEngine(Conf, &Stat),
       Store(std::make_unique<Runtime::StoreManager>()), StoreRef(*Store.get()) {
   initVM();
 }
 
 VM::VM(const Configure &Conf, Runtime::StoreManager &S)
-    : Config(Conf), Stage(VMStage::Inited), LoaderEngine(Conf),
+    : Conf(Conf), Stage(VMStage::Inited), LoaderEngine(Conf),
       ValidatorEngine(Conf), InterpreterEngine(Conf, &Stat), StoreRef(S) {
   initVM();
 }
 
 void VM::initVM() {
   /// Create import modules from configuration.
-  if (Config.hasHostRegistration(HostRegistration::Wasi)) {
+  if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
     std::unique_ptr<Runtime::ImportObject> WasiMod =
         std::make_unique<Host::WasiModule>();
     InterpreterEngine.registerModule(StoreRef, *WasiMod.get());
     ImpObjs.insert({HostRegistration::Wasi, std::move(WasiMod)});
   }
-  if (Config.hasHostRegistration(HostRegistration::SSVM_Process)) {
+  if (Conf.hasHostRegistration(HostRegistration::SSVM_Process)) {
     std::unique_ptr<Runtime::ImportObject> ProcMod =
         std::make_unique<Host::SSVMProcessModule>();
     InterpreterEngine.registerModule(StoreRef, *ProcMod.get());
@@ -58,7 +58,6 @@ Expect<void> VM::registerModule(std::string_view Name, Span<const Byte> Code) {
     Stage = VMStage::Validated;
   }
   /// Load module.
-  std::unique_ptr<AST::Module> LoadedMod;
   if (auto Res = LoaderEngine.parseModule(Code)) {
     return registerModule(Name, *(*Res).get());
   } else {
@@ -77,6 +76,11 @@ Expect<void> VM::registerModule(const Runtime::ImportObject &Obj) {
 
 Expect<void> VM::registerModule(std::string_view Name,
                                 const AST::Module &Module) {
+  if (Stage == VMStage::Instantiated) {
+    /// When registering module, instantiated module in store will be reset.
+    /// Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
   /// Validate module.
   if (auto Res = ValidatorEngine.validate(Module); !Res) {
     return Unexpect(Res);
@@ -119,6 +123,11 @@ Expect<std::vector<ValVariant>> VM::runWasmFile(Span<const Byte> Code,
 Expect<std::vector<ValVariant>> VM::runWasmFile(const AST::Module &Module,
                                                 std::string_view Func,
                                                 Span<const ValVariant> Params) {
+  if (Stage == VMStage::Instantiated) {
+    /// When running another module, instantiated module in store will be reset.
+    /// Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
   if (auto Res = ValidatorEngine.validate(Module); !Res) {
     return Unexpect(Res);
   }
@@ -161,6 +170,12 @@ Expect<void> VM::loadWasm(Span<const Byte> Code) {
   return {};
 }
 
+Expect<void> VM::loadWasm(const AST::Module &Module) {
+  Mod = std::make_unique<AST::Module>(Module);
+  Stage = VMStage::Loaded;
+  return {};
+}
+
 Expect<void> VM::validate() {
   if (Stage < VMStage::Loaded) {
     /// When module is not loaded, not validate.
@@ -181,8 +196,7 @@ Expect<void> VM::instantiate() {
     LOG(ERROR) << ErrCode::WrongVMWorkflow;
     return Unexpect(ErrCode::WrongVMWorkflow);
   }
-  if (auto Res =
-          InterpreterEngine.instantiateModule(StoreRef, *Mod.get(), "")) {
+  if (auto Res = InterpreterEngine.instantiateModule(StoreRef, *Mod.get())) {
     Stage = VMStage::Instantiated;
     return {};
   } else {
@@ -194,15 +208,15 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Func,
                                             Span<const ValVariant> Params) {
   /// Check exports for finding function address.
   const auto FuncExp = StoreRef.getFuncExports();
-  if (FuncExp.find(Func) == FuncExp.cend()) {
+  const auto FuncIter = FuncExp.find(Func);
+  if (FuncIter == FuncExp.cend()) {
     LOG(ERROR) << ErrCode::FuncNotFound;
     LOG(ERROR) << ErrInfo::InfoExecuting("", Func);
     return Unexpect(ErrCode::FuncNotFound);
   }
 
   /// Execute function.
-  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second,
-                                          Params)) {
+  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncIter->second, Params)) {
     return Res;
   } else {
     LOG(ERROR) << ErrInfo::InfoExecuting("", Func);
@@ -225,7 +239,7 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
 
   /// Get exports and find function.
   const auto FuncExp = ModInst->getFuncExports();
-  auto FuncIter = FuncExp.find(Func);
+  const auto FuncIter = FuncExp.find(Func);
   if (FuncIter == FuncExp.cend()) {
     LOG(ERROR) << ErrCode::FuncNotFound;
     LOG(ERROR) << ErrInfo::InfoExecuting(Mod, Func);

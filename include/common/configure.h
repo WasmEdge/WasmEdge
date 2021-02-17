@@ -35,7 +35,7 @@ enum class Proposal : uint8_t {
 };
 
 /// Host Module Registration enum class.
-enum class HostRegistration : uint8_t { Wasi, SSVM_Process, Max };
+enum class HostRegistration : uint8_t { Wasi = 0, SSVM_Process, Max };
 
 /// Proposal name enumeration string mapping.
 extern const std::unordered_map<Proposal, std::string_view> ProposalStr;

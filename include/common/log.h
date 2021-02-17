@@ -18,6 +18,8 @@ namespace Log {
 
 void passEasyloggingppArgs(int Argc, char *Argv[]);
 
+void setDebugLoggingLevel();
+
 void setErrorLoggingLevel();
 
 extern el::base::type::StoragePointer elStorage;

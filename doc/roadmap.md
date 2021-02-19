@@ -19,6 +19,7 @@ Please open an issue to track any initiative on the roadmap of SSVM (Usually dri
 ### Current Roadmap 
 
 The following table includes the current roadmap for SSVM. If you have any questions or would like to contribute to SSVM, please create an issue to discuss with our team. If you don't know where to start, we are always looking for contributors that will help us reduce technical, automation, and documentation debt. Please take the timelines & dates as proposals and goals. Priorities and requirements change based on community feedback, roadblocks encountered, community contributions, etc. 
+
 Last Updated: February 2021 
 
 
@@ -29,15 +30,15 @@ Last Updated: February 2021
 |Tool chain	|SSVM C API	|Q1 / 2021	|
 |Host support	|Compile SSVM itself into WASM	|Q1 / 2021	|
 |VM extension	|wasi-socket	|Q2 / 2021	|
-|VM Extension	|support Tengine in SSVM inference API	|Q2 / 2021	|
+|VM Extension	|Support Tengine in SSVM inference API	|Q2 / 2021	|
 |Host support	|Support YoMo framework	|Q2 /2021	|
 |Tool chain	|Support Rust API in Ewasm	|Q2 / 2021	|
 |Host support	|Support for QNX Windriver Linux	|Q2 / 2021	|
 |Host support	|Support for Kube Edge	|Q2 / 2021	|
 |VM Extension	|PaddlePaddle support	|Q2 / 2021	|
 |Host support	|Resource constraints and allocations	|Q2 / 2021	|
-|Tool chain	|improve the Rust compilier to support SIMD	|Q3 / 2021	|
-|VM Extension	|support ONNX in SSVM inference API	|Q3 / 2021	|
+|Tool chain	|Improve the Rust compilier to support SIMD	|Q3 / 2021	|
+|VM Extension	|Support ONNX in SSVM inference API	|Q3 / 2021	|
 |Host support	|Run SSVM in SGX	|Q3 / 2021	|
 |Tool chain	|Bindgen for JS, Python, Golang, and Rust based on interface types	|Q3 /2021	|
 |VM Extension	|Support AWS a1 SDK	|Q4 / 2021	|

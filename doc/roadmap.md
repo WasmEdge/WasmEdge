@@ -36,9 +36,6 @@ Last Updated: February 2021
 |Host support	|Support for Kube Edge	|Q2 / 2021	|
 |VM Extension	|PaddlePaddle support	|Q2 / 2021	|
 |Host support	|Resource constraints and allocations	|Q2 / 2021	|
-|Tool chain	|Support Rust API in Ewasm	|Q2 / 2021	|
-|Host support	|Support for QNX Windriver Linux	|Q2 / 2021	|
-|Host support	|Support for Kube Edge	|Q2 / 2021	|
 |Tool chain	|improve the Rust compilier to support SIMD	|Q3 / 2021	|
 |VM Extension	|support ONNX in SSVM inference API	|Q3 / 2021	|
 |Host support	|Run SSVM in SGX	|Q3 / 2021	|

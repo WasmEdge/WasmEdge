@@ -2221,6 +2221,8 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
     bool Wait() noexcept {
       sigset_t Mask;
       sigfillset(&Mask);
+      sigdelset(&Mask, SIGINT);
+      sigdelset(&Mask, SIGTERM);
       sigdelset(&Mask, SIGRTMIN);
 #if __GLIBC_PREREQ(2, 6)
       const int Count =

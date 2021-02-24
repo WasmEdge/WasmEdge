@@ -667,6 +667,14 @@
   )
 )
 
+;;; Socket address
+(typename $address
+  (struct
+    (field $buf (@witx pointer u8))
+    (field $buf_len $size)
+  )
+)
+
 ;;; Socket type
 (typename $sock_type
   (enum u8

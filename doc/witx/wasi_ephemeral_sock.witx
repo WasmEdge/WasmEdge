@@ -37,9 +37,8 @@
   ;;; Note: This is similar to `bind` in POSIX.
   (@interface func (export "bind")
     (param $fd $fd)
-    ;;; The pointer to and length of the buffer for address.
-    (param $addr_buf (@witx pointer u8))
-    (param $addr_buf_len $size)
+    ;;; The pointer to the address.
+    (param $addr (@witx pointer $address))
     (result $error $errno)
   )
 
@@ -66,9 +65,8 @@
     ;;; The pointer to and length of the buffer for data received.
     (param $buf (@witx pointer u8))
     (param $buf_len $size)
-    ;;; The pointer to and length of the buffer for source address.
-    (param $addr_buf (@witx pointer u8))
-    (param $addr_buf_len $size)
+    ;;; The pointer to the source address.
+    (param $addr (@witx pointer $address))
     ;;; Message flags.
     (param $flags $riflags)
     (result $error $errno)
@@ -98,9 +96,8 @@
     ;;; The pointer to and length of the buffer for data.
     (param $buf (@witx pointer u8))
     (param $buf_len $size)
-    ;;; The pointer to and length of the buffer for destination address.
-    (param $addr_buf (@witx pointer u8))
-    (param $addr_buf_len $size)
+    ;;; The pointer to the destination address.
+    (param $addr (@witx pointer $address))
     ;;; Message flags.
     (param $_flags $siflags)
     (result $error $errno)

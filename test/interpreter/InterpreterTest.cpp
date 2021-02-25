@@ -17,6 +17,7 @@
 #include "common/log.h"
 #include "vm/vm.h"
 
+#include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
 #include "gtest/gtest.h"
 

@@ -64,7 +64,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     return From + 1;
   } else if (Func.isCompiledFunction()) {
     /// Compiled function case: Push frame with locals and args.
-    const auto &ModInst = **StoreMgr.getModule(Func.getModuleAddr());
+    auto &ModInst = **StoreMgr.getModule(Func.getModuleAddr());
     const auto &FuncType = **ModInst.getFuncType(Func.getFuncTypeIndex());
     const size_t ArgsN = FuncType.Params.size();
     const size_t RetsN = FuncType.Returns.size();
@@ -74,13 +74,27 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
                        RetsN                 /// Returns num
     );
 
+    /// Prepare global variables vector
+    const auto GlobalNum = ModInst.getGlobalNum();
+    auto &GlobalsPtr = ModInst.GlobalsPtr;
+    if (GlobalNum > 0 &&
+        (GlobalsPtr.empty() ||
+         GlobalsPtr.front() !=
+             &(*StoreMgr.getGlobal(*ModInst.getGlobalAddr(0)))->getValue())) {
+      GlobalsPtr.resize(GlobalNum);
+      for (size_t I = 0; I < GlobalNum; ++I) {
+        GlobalsPtr[I] =
+            &(*StoreMgr.getGlobal(*ModInst.getGlobalAddr(I)))->getValue();
+      }
+    }
+
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
 
     {
       CurrentStore = &StoreMgr;
       ExecutionContext.Memory = ModInst.MemoryPtr;
-      ExecutionContext.Globals = ModInst.GlobalsPtr.data();
+      ExecutionContext.Globals = GlobalsPtr.data();
     }
 
     sigjmp_buf JumpBuffer;

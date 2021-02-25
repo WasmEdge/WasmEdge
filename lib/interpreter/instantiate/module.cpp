@@ -153,12 +153,6 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
           })
           .value_or(nullptr);
 
-  ModInst->GlobalsPtr.reserve(ModInst->getGlobalNum());
-  for (size_t I = 0; I < ModInst->getGlobalNum(); ++I) {
-    ModInst->GlobalsPtr.push_back(
-        &(*StoreMgr.getGlobal(*ModInst->getGlobalAddr(I)))->getValue());
-  }
-
   /// Instantiate StartSection (StartSec)
   const AST::StartSection &StartSec = Mod.getStartSection();
   if (StartSec.getContent()) {

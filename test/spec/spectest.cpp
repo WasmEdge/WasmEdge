@@ -21,7 +21,10 @@
 #define RAPIDJSON_NEON 1
 #endif
 
+#include "common/log.h"
+
 #include "spectest.h"
+
 #include "rapidjson/document.h"
 #include "rapidjson/istreamwrapper.h"
 #include "gtest/gtest.h"
@@ -316,7 +319,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
 
   /// Command processing. Return true for expected result.
   auto RunCommand = [&](const rapidjson::Value &Cmd) {
-    /// Line number in wast: It->GetObject()["line"].GetInt()
+    /// Line number in wast: Cmd["line"].Get<uint32_t>()
     if (const auto Type = Cmd.FindMember("type"s); Type != Cmd.MemberEnd()) {
       switch (resolveCommand(Type->value.Get<std::string>())) {
       case SpecTest::CommandID::Module: {

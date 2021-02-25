@@ -56,8 +56,10 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
       Stat->startRecordWasm();
     }
 
-    if (!Ret && Ret.error() == ErrCode::ExecutionFailed) {
-      LOG(ERROR) << Ret.error();
+    if (!Ret) {
+      if (Ret.error() == ErrCode::ExecutionFailed) {
+        LOG(ERROR) << Ret.error();
+      }
       return Unexpect(Ret);
     }
     /// For host function case, the continuation will be the next.

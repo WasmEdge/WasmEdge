@@ -30,7 +30,7 @@ jobs:
 
     - name: Test SSVM
       run: |
-        cmake --build build --target test
+        LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target test
 
   build_test_gcc_release:
     runs-on: ubuntu-latest
@@ -53,7 +53,7 @@ jobs:
 
     - name: Test SSVM
       run: |
-        cmake --build build --target test
+        LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target test
 
   build_test_clang_debug:
     runs-on: ubuntu-latest
@@ -76,7 +76,7 @@ jobs:
 
     - name: Test SSVM
       run: |
-        cmake --build build --target test
+        LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target test
 
   build_test_clang_release:
     runs-on: ubuntu-latest
@@ -99,7 +99,7 @@ jobs:
 
     - name: Test SSVM
       run: |
-        cmake --build build --target test
+        LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target test
 
   build_test_gcc_debug_coverage:
     runs-on: ubuntu-latest
@@ -123,7 +123,7 @@ jobs:
 
     - name: Generate coverage report
       run: |
-        cmake --build build --target codecov
+        LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target codecov
 
     - name: Upload coverage report to Codecov
       uses: codecov/codecov-action@v1

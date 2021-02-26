@@ -1,5 +1,24 @@
 # SPDX-License-Identifier: Apache-2.0
 
+configure_files(
+  ${CMAKE_CURRENT_SOURCE_DIR}/apiTestData
+  ${CMAKE_CURRENT_BINARY_DIR}/apiTestData
+  COPYONLY
+)
+
+add_executable(ssvmAPIUnitTests
+  APIUnitTest.cpp
+)
+
+add_test(ssvmAPIUnitTests ssvmAPIUnitTests)
+
+target_link_libraries(ssvmAPIUnitTests
+  PRIVATE
+  std::filesystem
+  utilGoogleTest
+  ssvm_c
+)
+
 add_executable(ssvmAPIVMCoreTests
   hostfunc_c.c
   helper.cpp

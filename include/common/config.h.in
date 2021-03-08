@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0
+//===-- ssvm/common/config.h - Configure information ----------------------===//
+//
+// Part of the SSVM Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains configure information that passed from configure stage.
+///
+//===----------------------------------------------------------------------===//
+#pragma once
+
+#include <string_view>
+
+namespace SSVM {
+
+using namespace std::literals::string_view_literals;
+
+#cmakedefine CMAKE_INSTALL_FULL_LOCALSTATEDIR                                  \
+    "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@"
+static inline constexpr std::string_view kCacheRoot [[maybe_unused]] =
+    CMAKE_INSTALL_FULL_LOCALSTATEDIR "/cache/ssvm"sv;
+#undef CMAKE_INSTALL_FULL_LOCALSTATEDIR
+
+} // namespace SSVM

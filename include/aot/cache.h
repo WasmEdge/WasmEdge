@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0
+//===-- ssvm/aot/cache.h - Cache class definition -------------------------===//
+//
+// Part of the SSVM Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file is the definition class of Cache class.
+///
+//===----------------------------------------------------------------------===//
+#pragma once
+
+#include "ast/module.h"
+#include "common/errcode.h"
+#include "common/filesystem.h"
+#include <cstdint>
+#include <string_view>
+
+namespace SSVM {
+namespace AOT {
+
+/// Caching compiled module.
+class Cache {
+public:
+  enum class StorageScope {
+    Global,
+    Local,
+  };
+  static Expect<std::filesystem::path>
+  getPath(Span<const Byte> Data, StorageScope Scope, std::string_view Key = {});
+  static Expect<void> clear(StorageScope Scope, std::string_view Key = {});
+};
+
+} // namespace AOT
+} // namespace SSVM

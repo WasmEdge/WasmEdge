@@ -51,6 +51,8 @@ if(BUILD_COVERAGE)
   append_coverage_compiler_flags()
 endif()
 
+include(GNUInstallDirs)
+
 # List of SSVM runtimes
 option(SSVM_DISABLE_AOT_RUNTIME "Disable SSVM LLVM-based ahead of time compilation runtime." OFF)
 

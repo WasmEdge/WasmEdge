@@ -18,6 +18,7 @@ endif()
 
 llvm_add_library(ssvmAOT
   compiler.cpp
+  cache.cpp
   LINK_LIBS
   ssvmCommon
   ${LLD_SYSTEM}

@@ -28,13 +28,13 @@ using ValVariant =
 using Byte = uint8_t;
 
 /// Reference types helper functions.
-inline constexpr RefVariant genNullRef(const RefType Type) {
+inline constexpr RefVariant genNullRef(const RefType Type) noexcept {
   return UINT64_C(0);
 }
-inline constexpr RefVariant genFuncRef(const uint32_t Idx) {
+inline constexpr RefVariant genFuncRef(const uint32_t Idx) noexcept {
   return FuncRef{1, Idx};
 }
-template <typename T> inline RefVariant genExternRef(T *Ref) {
+template <typename T> inline RefVariant genExternRef(T *Ref) noexcept {
   return ExternRef{reinterpret_cast<uint64_t *>(Ref)};
 }
 

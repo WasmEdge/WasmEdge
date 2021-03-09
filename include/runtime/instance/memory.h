@@ -72,7 +72,7 @@ public:
         PageLimit(Inst.PageLimit) {
     Inst.DataPtr = nullptr;
   }
-  MemoryInstance(const AST::Limit &Lim, const uint32_t PageLim = 65536)
+  MemoryInstance(const AST::Limit &Lim, const uint32_t PageLim = 65536) noexcept
       : HasMaxPage(Lim.hasMax()), MinPage(Lim.getMin()), MaxPage(Lim.getMax()),
         PageLimit(PageLim) {
     const auto UsableAddress = getUsableAddress();

@@ -24,8 +24,8 @@ namespace AST {
 /// Base class of AST node.
 class Base {
 public:
-  Base() = default;
-  virtual ~Base() = default;
+  Base() noexcept = default;
+  virtual ~Base() noexcept = default;
 
   /// Binary loading from file manager.
   virtual Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) = 0;

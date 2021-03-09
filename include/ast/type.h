@@ -27,9 +27,10 @@ public:
   /// Limit type enumeration class.
   enum class LimitType : uint8_t { HasMin = 0x00, HasMinMax = 0x01 };
 
-  Limit() = default;
-  Limit(const uint32_t MinVal) : Type(LimitType::HasMin), Min(MinVal) {}
-  Limit(const uint32_t MinVal, const uint32_t MaxVal)
+  Limit() noexcept = default;
+  Limit(const uint32_t MinVal) noexcept
+      : Type(LimitType::HasMin), Min(MinVal) {}
+  Limit(const uint32_t MinVal, const uint32_t MaxVal) noexcept
       : Type(LimitType::HasMinMax), Min(MinVal), Max(MaxVal) {}
 
   /// Load binary from file manager.

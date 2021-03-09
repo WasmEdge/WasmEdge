@@ -29,7 +29,7 @@ namespace Instance {
 class TableInstance {
 public:
   TableInstance() = delete;
-  TableInstance(const RefType &Ref, const AST::Limit &Lim)
+  TableInstance(const RefType &Ref, const AST::Limit &Lim) noexcept
       : Type(Ref), HasMaxSize(Lim.hasMax()), MaxSize(Lim.getMax()),
         Refs(Lim.getMin(), genNullRef(Ref)) {}
   virtual ~TableInstance() = default;

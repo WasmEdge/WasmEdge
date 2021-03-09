@@ -23,10 +23,10 @@ namespace Statistics {
 
 class Statistics {
 public:
-  Statistics(const uint64_t Lim = UINT64_MAX)
+  Statistics(const uint64_t Lim = UINT64_MAX) noexcept
       : CostTab(UINT16_MAX + 1, 1ULL), InstrCnt(0), CostLimit(Lim), CostSum(0) {
   }
-  Statistics(Span<const uint64_t> Tab, const uint64_t Lim = UINT64_MAX)
+  Statistics(Span<const uint64_t> Tab, const uint64_t Lim = UINT64_MAX) noexcept
       : CostTab(Tab.begin(), Tab.end()), InstrCnt(0), CostLimit(Lim),
         CostSum(0) {
     if (CostTab.size() < UINT16_MAX + 1) {
@@ -48,7 +48,7 @@ public:
   }
 
   /// Setter and setter of cost table.
-  void setCostTable(Span<const uint64_t> NewTable) {
+  void setCostTable(Span<const uint64_t> NewTable) noexcept {
     CostTab.assign(NewTable.begin(), NewTable.end());
     if (unlikely(CostTab.size() < UINT16_MAX + 1)) {
       CostTab.resize(UINT16_MAX + 1, 0ULL);
@@ -92,34 +92,40 @@ public:
   }
 
   /// Clear measurement data for instructions.
-  void clear() {
+  void clear() noexcept {
     TimeRecorder.reset();
     InstrCnt = 0;
     CostSum = 0;
   }
 
   /// Start recording wasm time.
-  void startRecordWasm() { TimeRecorder.startRecord(Timer::TimerTag::Wasm); }
+  void startRecordWasm() noexcept {
+    TimeRecorder.startRecord(Timer::TimerTag::Wasm);
+  }
 
   /// Stop recording wasm time.
-  void stopRecordWasm() { TimeRecorder.stopRecord(Timer::TimerTag::Wasm); }
+  void stopRecordWasm() noexcept {
+    TimeRecorder.stopRecord(Timer::TimerTag::Wasm);
+  }
 
   /// Start recording host function time.
-  void startRecordHost() {
+  void startRecordHost() noexcept {
     TimeRecorder.startRecord(Timer::TimerTag::HostFunc);
   }
 
   /// Stop recording host function time.
-  void stopRecordHost() { TimeRecorder.stopRecord(Timer::TimerTag::HostFunc); }
+  void stopRecordHost() noexcept {
+    TimeRecorder.stopRecord(Timer::TimerTag::HostFunc);
+  }
 
   /// Getter of execution time.
-  Timer::Timer::Clock::duration getWasmExecTime() const {
+  Timer::Timer::Clock::duration getWasmExecTime() const noexcept {
     return TimeRecorder.getRecord(Timer::TimerTag::Wasm);
   }
-  Timer::Timer::Clock::duration getHostFuncExecTime() const {
+  Timer::Timer::Clock::duration getHostFuncExecTime() const noexcept {
     return TimeRecorder.getRecord(Timer::TimerTag::HostFunc);
   }
-  Timer::Timer::Clock::duration getTotalExecTime() const {
+  Timer::Timer::Clock::duration getTotalExecTime() const noexcept {
     return TimeRecorder.getRecord(Timer::TimerTag::Wasm) +
            TimeRecorder.getRecord(Timer::TimerTag::HostFunc);
   }

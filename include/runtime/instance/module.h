@@ -27,7 +27,7 @@ namespace Instance {
 
 class ModuleInstance {
 public:
-  ModuleInstance(std::string_view Name) : ModName(Name) {}
+  ModuleInstance(std::string_view Name) noexcept : ModName(Name) {}
   ~ModuleInstance() = default;
 
   std::string_view getModuleName() const { return ModName; }

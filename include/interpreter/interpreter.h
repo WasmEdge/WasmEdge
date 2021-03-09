@@ -83,7 +83,8 @@ using TypeNN =
 /// Executor flow control class.
 class Interpreter {
 public:
-  Interpreter(const Configure &Conf, Statistics::Statistics *S = nullptr)
+  Interpreter(const Configure &Conf,
+              Statistics::Statistics *S = nullptr) noexcept
       : Conf(Conf), Stat(S) {
     assert(This == nullptr);
     This = this;

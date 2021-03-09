@@ -25,7 +25,7 @@ class ElementInstance {
 public:
   ElementInstance() = delete;
   ElementInstance(const uint32_t Offset, const RefType EType,
-                  Span<const RefVariant> Init)
+                  Span<const RefVariant> Init) noexcept
       : Off(Offset), Type(EType), Refs(Init.begin(), Init.end()) {}
 
   /// Get offset in element instance.

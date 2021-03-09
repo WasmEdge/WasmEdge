@@ -22,7 +22,7 @@ class GlobalInstance {
 public:
   GlobalInstance() = delete;
   GlobalInstance(const ValType ValueType, const ValMut Mutibility,
-                 const ValVariant Val = uint32_t(0))
+                 const ValVariant Val = uint32_t(0)) noexcept
       : Type(ValueType), Mut(Mutibility), Value(Val) {}
   virtual ~GlobalInstance() = default;
 

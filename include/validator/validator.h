@@ -26,7 +26,7 @@ namespace Validator {
 class Validator {
 public:
   Validator(const Configure &Conf) noexcept : Conf(Conf) {}
-  ~Validator() = default;
+  ~Validator() noexcept = default;
 
   /// Validate AST::Module.
   Expect<void> validate(const AST::Module &Mod);

@@ -26,8 +26,9 @@ namespace Instance {
 struct FType {
   using Wrapper = AST::FunctionType::Wrapper;
 
-  FType() = default;
-  FType(Span<const ValType> P, Span<const ValType> R, Loader::Symbol<Wrapper> S)
+  FType() noexcept = default;
+  FType(Span<const ValType> P, Span<const ValType> R,
+        Loader::Symbol<Wrapper> S) noexcept
       : Params(P.begin(), P.end()), Returns(R.begin(), R.end()),
         Symbol(std::move(S)) {}
 

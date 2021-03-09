@@ -34,7 +34,7 @@ using InstrView = Span<const Instruction>;
 class Instruction {
 public:
   /// Constructor assigns the OpCode.
-  Instruction(const OpCode Byte, const uint32_t Off = 0)
+  Instruction(const OpCode Byte, const uint32_t Off = 0) noexcept
       : Code(Byte), Offset(Off) {}
   /// Copy constructor.
   Instruction(const Instruction &Instr) = default;

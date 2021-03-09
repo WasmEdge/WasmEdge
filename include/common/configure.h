@@ -42,7 +42,7 @@ extern const std::unordered_map<Proposal, std::string_view> ProposalStr;
 
 class Configure {
 public:
-  Configure() = default;
+  Configure() noexcept = default;
   template <typename... ArgsT> Configure(ArgsT... Args) noexcept {
     (addSet(Args), ...);
   }

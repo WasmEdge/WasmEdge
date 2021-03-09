@@ -26,8 +26,8 @@ namespace Loader {
 /// Loader flow control class.
 class Loader {
 public:
-  Loader(const Configure &Conf) : Conf(Conf) {}
-  ~Loader() = default;
+  Loader(const Configure &Conf) noexcept : Conf(Conf) {}
+  ~Loader() noexcept = default;
 
   /// Load data from file path.
   Expect<std::vector<Byte>> loadFile(const std::filesystem::path &FilePath);

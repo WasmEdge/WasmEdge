@@ -193,6 +193,15 @@ public:
     return {};
   }
 
+  /// Get list of registered modules.
+  const std::map<std::string, uint32_t, std::less<>> getModuleList() const {
+    std::map<std::string, uint32_t, std::less<>> ModMap;
+    for (uint32_t I = 0; I < ModInsts.size() - NumMod; I++) {
+      ModMap.emplace(ModInsts[I]->getModuleName(), I);
+    }
+    return ModMap;
+  }
+
   /// Get active instance of instantiated module.
   Expect<Instance::ModuleInstance *> getActiveModule() const {
     if (NumMod > 0) {
@@ -204,9 +213,9 @@ public:
 
   /// Find module by name.
   Expect<Instance::ModuleInstance *> findModule(std::string_view Name) {
-    for (auto It : ModInsts) {
-      if (It->getModuleName() == Name) {
-        return It;
+    for (uint32_t I = 0; I < ModInsts.size() - NumMod; I++) {
+      if (ModInsts[I]->getModuleName() == Name) {
+        return ModInsts[I];
       }
     }
     /// Error logging need to be handled in caller.

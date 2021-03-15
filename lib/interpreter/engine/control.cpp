@@ -134,16 +134,15 @@ Expect<void> Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
   }
 
   /// Get function address.
-  uint32_t FuncAddr;
   ValVariant Ref = *TabInst->getRefAddr(Idx);
   if (isNullRef(Ref)) {
+    LOG(ERROR) << ErrCode::UninitializedElement;
     LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
                                            {ValTypeFromType<uint32_t>()});
-    LOG(ERROR) << ErrCode::UninitializedElement;
     return Unexpect(ErrCode::UninitializedElement);
   }
-  FuncAddr = retrieveFuncIdx(Ref);
+  uint32_t FuncAddr = retrieveFuncIdx(Ref);
 
   /// Check function type.
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);

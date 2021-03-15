@@ -29,7 +29,7 @@ public:
   };
   static Expect<std::filesystem::path>
   getPath(Span<const Byte> Data, StorageScope Scope, std::string_view Key = {});
-  static Expect<void> clear(StorageScope Scope, std::string_view Key = {});
+  static void clear(StorageScope Scope, std::string_view Key = {});
 };
 
 } // namespace AOT

@@ -17,10 +17,12 @@ else()
 endif()
 
 llvm_add_library(ssvmAOT
-  compiler.cpp
+  blake3.cpp
   cache.cpp
+  compiler.cpp
   LINK_LIBS
   ssvmCommon
+  utilBlake3
   ${LLD_SYSTEM}
   ${LLD_COMMON}
   ${LLD_CORE}
@@ -48,6 +50,8 @@ target_include_directories(ssvmAOT
 
 target_include_directories(ssvmAOT
   PUBLIC
+  ${PROJECT_BINARY_DIR}/include
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty
+  ${PROJECT_SOURCE_DIR}/thirdparty/blake3
 )

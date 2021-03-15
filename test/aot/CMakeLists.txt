@@ -34,3 +34,15 @@ target_link_libraries(ssvmAOTCoreTests
   ssvmAOT
   ssvmVM
 )
+
+add_executable(ssvmAOTBlake3Tests
+  AOTBlake3Test.cpp
+)
+
+add_test(ssvmAOTBlake3Tests ssvmAOTBlake3Tests)
+
+target_link_libraries(ssvmAOTBlake3Tests
+  PRIVATE
+  utilGoogleTest
+  ssvmAOT
+)

@@ -35,6 +35,9 @@
 
 namespace {
 
+bool SigTermRecieved = false;
+void sigtermHandler(int) noexcept { SigTermRecieved = true; }
+
 static constexpr __wasi_errno_t convertErrNo(int ErrNo) noexcept {
   switch (ErrNo) {
   case 0:
@@ -2221,9 +2224,9 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
     bool Wait() noexcept {
       sigset_t Mask;
       sigfillset(&Mask);
-      sigdelset(&Mask, SIGINT);
       sigdelset(&Mask, SIGTERM);
       sigdelset(&Mask, SIGRTMIN);
+      signal(SIGTERM, &sigtermHandler);
 #if __GLIBC_PREREQ(2, 6)
       const int Count =
           epoll_pwait(EPollFd, Events.data(), Events.size(), -1, &Mask);
@@ -2233,6 +2236,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
       const int Count = epoll_wait(EPollFd, Events.data(), Events.size(), -1);
       pthread_sigmask(SIG_SETMASK, &Mask, nullptr);
 #endif
+      signal(SIGTERM, SIG_DFL);
       if (unlikely(Count < 0)) {
         return false;
       }
@@ -2393,6 +2397,9 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
   }
 
   if (unlikely(!Event.Wait())) {
+    if (SigTermRecieved) {
+      return __WASI_ERRNO_INTR;
+    }
     return convertErrNo(errno);
   }
 

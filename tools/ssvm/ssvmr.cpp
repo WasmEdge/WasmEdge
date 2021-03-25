@@ -166,27 +166,32 @@ int main(int Argc, const char *Argv[]) {
     }
 
     std::vector<SSVM::ValVariant> FuncArgs;
+    std::vector<SSVM::ValType> FuncArgTypes;
     for (size_t I = 0;
          I < FuncType.Params.size() && I + 1 < Args.value().size(); ++I) {
       switch (FuncType.Params[I]) {
       case SSVM::ValType::I32: {
         const uint32_t Value = std::stoll(Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
+        FuncArgTypes.emplace_back(SSVM::ValType::I32);
         break;
       }
       case SSVM::ValType::I64: {
         const uint64_t Value = std::stoll(Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
+        FuncArgTypes.emplace_back(SSVM::ValType::I64);
         break;
       }
       case SSVM::ValType::F32: {
         const float Value = std::stod(Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
+        FuncArgTypes.emplace_back(SSVM::ValType::F32);
         break;
       }
       case SSVM::ValType::F64: {
         const double Value = std::stod(Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
+        FuncArgTypes.emplace_back(SSVM::ValType::F64);
         break;
       }
       /// TODO: FuncRef and ExternRef
@@ -199,10 +204,11 @@ int main(int Argc, const char *Argv[]) {
            ++I) {
         const uint64_t Value = std::stoll(Args.value()[I]);
         FuncArgs.emplace_back(Value);
+        FuncArgTypes.emplace_back(SSVM::ValType::F64);
       }
     }
 
-    if (auto Result = VM.execute(FuncName, FuncArgs)) {
+    if (auto Result = VM.execute(FuncName, FuncArgs, FuncArgTypes)) {
       /// Print results.
       for (size_t I = 0; I < FuncType.Returns.size(); ++I) {
         switch (FuncType.Returns[I]) {

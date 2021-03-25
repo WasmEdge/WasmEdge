@@ -21,6 +21,7 @@ TEST(ExternRefTest, Ref__Functions) {
   SSVM::VM::VM VM(Conf);
   SSVM::ExternMod ExtMod;
   std::vector<SSVM::ValVariant> FuncArgs;
+  std::vector<SSVM::ValType> FuncArgTypes;
   VM.registerModule(ExtMod);
   ASSERT_TRUE(VM.loadWasm("externrefTestData/funcs.wasm"));
   ASSERT_TRUE(VM.validate());
@@ -33,28 +34,35 @@ TEST(ExternRefTest, Ref__Functions) {
 
   /// Test 1: call add -- 1234 + 5678
   FuncArgs = {SSVM::genExternRef(&AC), 1234U, 5678U};
-  auto Res1 = VM.execute("call_add", FuncArgs);
+  FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::I32,
+                  SSVM::ValType::I32};
+  auto Res1 = VM.execute("call_add", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res1);
   EXPECT_EQ((*Res1).size(), 1U);
   EXPECT_EQ(std::get<uint32_t>((*Res1)[0]), 6912U);
 
   /// Test 2: call mul -- 789 * 4321
   FuncArgs = {SSVM::genExternRef(MulFunc), 789U, 4321U};
-  auto Res2 = VM.execute("call_mul", FuncArgs);
+  FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::I32,
+                  SSVM::ValType::I32};
+  auto Res2 = VM.execute("call_mul", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res2);
   EXPECT_EQ((*Res1).size(), 1U);
   EXPECT_EQ(std::get<uint32_t>((*Res2)[0]), 3409269U);
 
   /// Test 3: call square -- 8256^2
   FuncArgs = {SSVM::genExternRef(&SS), 8256U};
-  auto Res3 = VM.execute("call_square", FuncArgs);
+  FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::I32};
+  auto Res3 = VM.execute("call_square", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res3);
   EXPECT_EQ((*Res1).size(), 1U);
   EXPECT_EQ(std::get<uint32_t>((*Res3)[0]), 68161536U);
 
   /// Test 4: call sum and square -- (210 + 654)^2
   FuncArgs = {SSVM::genExternRef(&AC), SSVM::genExternRef(&SS), 210U, 654U};
-  auto Res4 = VM.execute("call_add_square", FuncArgs);
+  FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::ExternRef,
+                  SSVM::ValType::I32, SSVM::ValType::I32};
+  auto Res4 = VM.execute("call_add_square", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res4);
   EXPECT_EQ((*Res1).size(), 1U);
   EXPECT_EQ(std::get<uint32_t>((*Res4)[0]), 746496U);
@@ -66,6 +74,7 @@ TEST(ExternRefTest, Ref__STL) {
   SSVM::VM::VM VM(Conf);
   SSVM::ExternMod ExtMod;
   std::vector<SSVM::ValVariant> FuncArgs;
+  std::vector<SSVM::ValType> FuncArgTypes;
   VM.registerModule(ExtMod);
   ASSERT_TRUE(VM.loadWasm("externrefTestData/stl.wasm"));
   ASSERT_TRUE(VM.validate());
@@ -81,14 +90,16 @@ TEST(ExternRefTest, Ref__STL) {
   /// Test 1: call ostream << std::string
   STLStr = "hello world!";
   FuncArgs = {SSVM::genExternRef(&STLSS), SSVM::genExternRef(&STLStr)};
-  auto Res1 = VM.execute("call_ostream_str", FuncArgs);
+  FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::ExternRef};
+  auto Res1 = VM.execute("call_ostream_str", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res1);
   EXPECT_EQ((*Res1).size(), 0U);
   EXPECT_EQ(STLSS.str(), "hello world!");
 
   /// Test 2: call ostream << uint32_t
   FuncArgs = {SSVM::genExternRef(&STLSS), 123456U};
-  auto Res2 = VM.execute("call_ostream_u32", FuncArgs);
+  FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::I32};
+  auto Res2 = VM.execute("call_ostream_u32", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res2);
   EXPECT_EQ((*Res2).size(), 0U);
   EXPECT_EQ(STLSS.str(), "hello world!123456");
@@ -98,7 +109,9 @@ TEST(ExternRefTest, Ref__STL) {
   STLStrVal = "1";
   FuncArgs = {SSVM::genExternRef(&STLMap), SSVM::genExternRef(&STLStrKey),
               SSVM::genExternRef(&STLStrVal)};
-  auto Res3 = VM.execute("call_map_insert", FuncArgs);
+  FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::ExternRef,
+                  SSVM::ValType::ExternRef};
+  auto Res3 = VM.execute("call_map_insert", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res3);
   EXPECT_EQ((*Res3).size(), 0U);
   EXPECT_NE(STLMap.find(STLStrKey), STLMap.end());
@@ -107,21 +120,24 @@ TEST(ExternRefTest, Ref__STL) {
   /// Test 4: call map erase {key}
   STLStrKey = "one";
   FuncArgs = {SSVM::genExternRef(&STLMap), SSVM::genExternRef(&STLStrKey)};
-  auto Res4 = VM.execute("call_map_erase", FuncArgs);
+  FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::ExternRef};
+  auto Res4 = VM.execute("call_map_erase", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res4);
   EXPECT_EQ((*Res4).size(), 0U);
   EXPECT_EQ(STLMap.find(STLStrKey), STLMap.end());
 
   /// Test 5: call set insert {key}
   FuncArgs = {SSVM::genExternRef(&STLSet), 3456U};
-  auto Res5 = VM.execute("call_set_insert", FuncArgs);
+  FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::I32};
+  auto Res5 = VM.execute("call_set_insert", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res5);
   EXPECT_EQ((*Res5).size(), 0U);
   EXPECT_NE(STLSet.find(3456U), STLSet.end());
 
   /// Test 6: call set erase {key}
   FuncArgs = {SSVM::genExternRef(&STLSet), 3456U};
-  auto Res6 = VM.execute("call_set_erase", FuncArgs);
+  FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::I32};
+  auto Res6 = VM.execute("call_set_erase", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res6);
   EXPECT_EQ((*Res6).size(), 0U);
   EXPECT_EQ(STLSet.find(3456U), STLSet.end());
@@ -129,7 +145,8 @@ TEST(ExternRefTest, Ref__STL) {
   /// Test 7: call vector push {val}
   STLVec = {10, 20, 30, 40, 50, 60, 70, 80, 90};
   FuncArgs = {SSVM::genExternRef(&STLVec), 100U};
-  auto Res7 = VM.execute("call_vector_push", FuncArgs);
+  FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::I32};
+  auto Res7 = VM.execute("call_vector_push", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res7);
   EXPECT_EQ((*Res7).size(), 0U);
   EXPECT_EQ(STLVec.size(), 10U);
@@ -139,7 +156,8 @@ TEST(ExternRefTest, Ref__STL) {
   auto ItBegin = STLVec.begin() + 3;
   auto ItEnd = STLVec.end() - 2;
   FuncArgs = {SSVM::genExternRef(&ItBegin), SSVM::genExternRef(&ItEnd)};
-  auto Res8 = VM.execute("call_vector_sum", FuncArgs);
+  FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::ExternRef};
+  auto Res8 = VM.execute("call_vector_sum", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res8);
   EXPECT_EQ((*Res8).size(), 1U);
   EXPECT_EQ(std::get<uint32_t>((*Res8)[0]), 40U + 50U + 60U + 70U + 80U);

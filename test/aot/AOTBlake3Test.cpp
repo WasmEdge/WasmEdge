@@ -6,7 +6,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents unit tests of loading WASM in Wagon project.
+/// This file contents unit tests of calculating blake3 hash.
 ///
 //===----------------------------------------------------------------------===//
 

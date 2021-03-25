@@ -105,7 +105,8 @@ Noted that `MulFunc` is a function definition in above, which is: `uint32_t MulF
 
 ```cpp
 std::vector<SSVM::ValVariant> FuncArgs = {SSVM::genExternRef(MulFunc), 789U, 4321U};
-std::vector<SSVM::ValVariant> Returns = *(VM.execute("call_mul", FuncArgs));
+std::vector<SSVM::ValType> FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::I32, SSVM::ValType::I32};
+std::vector<SSVM::ValVariant> Returns = *(VM.execute("call_mul", FuncArgs, FuncArgTypes));
 std::cout << std::get<uint32_t>(Returns[0]); // will print 3409269
 ```
 
@@ -130,7 +131,8 @@ Then users can pass the object into SSVM by using `SSVM::genExternRef()` API.
 
 ```cpp
 std::vector<SSVM::ValVariant> FuncArgs = {SSVM::genExternRef(&AC), 1234U, 5678U};
-std::vector<SSVM::ValVariant> Returns = *(VM.execute("call_add", FuncArgs));
+std::vector<SSVM::ValType> FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::I32, SSVM::ValType::I32};
+std::vector<SSVM::ValVariant> Returns = *(VM.execute("call_add", FuncArgs, FuncArgTypes));
 std::cout << std::get<uint32_t>(Returns[0]); // will print 6912
 ```
 
@@ -165,7 +167,8 @@ Then users can pass the object into SSVM by using `SSVM::genExternRef()` API.
 
 ```cpp
 std::vector<SSVM::ValVariant> FuncArgs = {SSVM::genExternRef(&SS), 1024U};
-std::vector<SSVM::ValVariant> Returns = *(VM.execute("call_square", FuncArgs));
+std::vector<SSVM::ValType> FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::I32};
+std::vector<SSVM::ValVariant> Returns = *(VM.execute("call_square", FuncArgs, FuncArgTypes));
 std::cout << std::get<uint32_t>(Returns[0]); // will print 1048576
 ```
 
@@ -222,7 +225,8 @@ Last, pass the `std::cout` and a `std::string` object by external references.
 ```cpp
 std::string PrintStr("Hello world!");
 std::vector<SSVM::ValVariant> FuncArgs = {SSVM::genExternRef(&std::cout), SSVM::genExternRef(&PrintStr)};
-VM.execute("call_ostream_str", FuncArgs);
+std::vector<SSVM::ValType> FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::ExternRef};
+VM.execute("call_ostream_str", FuncArgs, FuncArgTypes);
 /// Will get "Hello world!" in stdout.
 ```
 
@@ -323,9 +327,10 @@ int main() {
 
   /// Arguments are: reference to std::cout, reference to multiply function, and 123 and 456 to multiply
   std::vector<SSVM::ValVariant> FuncArgs = {SSVM::genExternRef(&std::cout), SSVM::genExternRef(MulFunc), 123U, 456U};
+  std::vector<SSVM::ValType> FuncArgTypes = {SSVM::ValType::ExternRef, SSVM::ValType::ExternRef, SSVM::ValType::I32, SSVM::ValType::I32};
 
   /// Call Wasm function
-  if (VM.execute("print_mul", FuncArgs)) {
+  if (VM.execute("print_mul", FuncArgs, FuncArgTypes)) {
     /// Success case, we will get "56088" in stdout.
     return EXIT_SUCCESS;
   } else {

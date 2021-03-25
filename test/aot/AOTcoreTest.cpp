@@ -100,11 +100,11 @@ TEST_P(CoreTest, TestSuites) {
     if (!ModName.empty()) {
       /// Invoke function of named module. Named modules are registered in
       /// Store Manager.
-      return VM.execute(ModName, Field, Params);
+      return VM.execute(ModName, Field, Params, ParamTypes);
     } else {
       /// Invoke function of anonymous module. Anonymous modules are
       /// instantiated in VM.
-      return VM.execute(Field, Params);
+      return VM.execute(Field, Params, ParamTypes);
     }
   };
   /// Helper function to get values.

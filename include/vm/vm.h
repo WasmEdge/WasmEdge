@@ -51,13 +51,16 @@ public:
   /// Rapidly load, validate, instantiate, and run wasm function.
   Expect<std::vector<ValVariant>>
   runWasmFile(const std::filesystem::path &Path, std::string_view Func,
-              Span<const ValVariant> Params = {});
+              Span<const ValVariant> Params = {},
+              Span<const ValType> ParamTypes = {});
   Expect<std::vector<ValVariant>>
   runWasmFile(Span<const Byte> Code, std::string_view Func,
-              Span<const ValVariant> Params = {});
+              Span<const ValVariant> Params = {},
+              Span<const ValType> ParamTypes = {});
   Expect<std::vector<ValVariant>>
   runWasmFile(const AST::Module &Module, std::string_view Func,
-              Span<const ValVariant> Params = {});
+              Span<const ValVariant> Params = {},
+              Span<const ValType> ParamTypes = {});
 
   /// Load given wasm file, wasm bytecode, or wasm module.
   Expect<void> loadWasm(const std::filesystem::path &Path);
@@ -75,12 +78,14 @@ public:
   /// ======= Functions can be called after instantiated stage. =======
   /// Execute wasm with given input.
   Expect<std::vector<ValVariant>> execute(std::string_view Func,
-                                          Span<const ValVariant> Params = {});
+                                          Span<const ValVariant> Params = {},
+                                          Span<const ValType> ParamTypes = {});
 
   /// Execute function of registered module with given input.
   Expect<std::vector<ValVariant>> execute(std::string_view Mod,
                                           std::string_view Func,
-                                          Span<const ValVariant> Params = {});
+                                          Span<const ValVariant> Params = {},
+                                          Span<const ValType> ParamTypes = {});
 
   /// ======= Functions which are stageless. =======
   /// Clean up VM status

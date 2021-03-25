@@ -35,6 +35,18 @@ target_link_libraries(ssvmAOTCoreTests
   ssvmVM
 )
 
+add_executable(ssvmAOTCacheTests
+  AOTCacheTest.cpp
+)
+
+add_test(ssvmAOTCacheTests ssvmAOTCacheTests)
+
+target_link_libraries(ssvmAOTCacheTests
+  PRIVATE
+  utilGoogleTest
+  ssvmAOT
+)
+
 add_executable(ssvmAOTBlake3Tests
   AOTBlake3Test.cpp
 )

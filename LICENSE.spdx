@@ -52,6 +52,14 @@ PackageOriginator: Milo Yip
 PackageLicenseDeclared: MIT
 FilesAnalyzed: false
 
+PackageName: blake3
+SPDXID: SPDXRef-blake3
+PackageFileName: ./thirdparty/blake3
+PackageHomePage: https://github.com/BLAKE3-team/BLAKE3
+PackageOriginator: Samuel Neves and Jack O'Connor
+PackageLicenseDeclared: Apache-2.0
+FilesAnalyzed: false
+
 PackageName: wasi-cpp-header
 SPDXID: SPDXRef-wasi-cpp-header
 PackageFileName: ./utils/wasi-cpp-header
@@ -63,4 +71,5 @@ Relationship: SPDXRef-ssvm CONTAINS SPDXRef-googletest
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-wagon
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-easyloggingpp
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-rapidjson
+Relationship: SPDXRef-ssvm CONTAINS SPDXRef-blake3
 Relationship: SPDXRef-ssvm CONTAINS SPDXRef-wasi-cpp-header

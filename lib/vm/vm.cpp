@@ -90,7 +90,7 @@ Expect<void> VM::registerModule(std::string_view Name,
 
 Expect<std::vector<ValVariant>>
 VM::runWasmFile(const std::filesystem::path &Path, std::string_view Func,
-                Span<const ValVariant> Params) {
+                Span<const ValVariant> Params, Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
     /// When running another module, instantiated module in store will be reset.
     /// Therefore the instantiation should restart.
@@ -98,15 +98,15 @@ VM::runWasmFile(const std::filesystem::path &Path, std::string_view Func,
   }
   /// Load module.
   if (auto Res = LoaderEngine.parseModule(Path)) {
-    return runWasmFile(*(*Res).get(), Func, Params);
+    return runWasmFile(*(*Res).get(), Func, Params, ParamTypes);
   } else {
     return Unexpect(Res);
   }
 }
 
-Expect<std::vector<ValVariant>> VM::runWasmFile(Span<const Byte> Code,
-                                                std::string_view Func,
-                                                Span<const ValVariant> Params) {
+Expect<std::vector<ValVariant>>
+VM::runWasmFile(Span<const Byte> Code, std::string_view Func,
+                Span<const ValVariant> Params, Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
     /// When running another module, instantiated module in store will be reset.
     /// Therefore the instantiation should restart.
@@ -114,15 +114,15 @@ Expect<std::vector<ValVariant>> VM::runWasmFile(Span<const Byte> Code,
   }
   /// Load module.
   if (auto Res = LoaderEngine.parseModule(Code)) {
-    return runWasmFile(*(*Res).get(), Func, Params);
+    return runWasmFile(*(*Res).get(), Func, Params, ParamTypes);
   } else {
     return Unexpect(Res);
   }
 }
 
-Expect<std::vector<ValVariant>> VM::runWasmFile(const AST::Module &Module,
-                                                std::string_view Func,
-                                                Span<const ValVariant> Params) {
+Expect<std::vector<ValVariant>>
+VM::runWasmFile(const AST::Module &Module, std::string_view Func,
+                Span<const ValVariant> Params, Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
     /// When running another module, instantiated module in store will be reset.
     /// Therefore the instantiation should restart.
@@ -141,7 +141,7 @@ Expect<std::vector<ValVariant>> VM::runWasmFile(const AST::Module &Module,
     return Unexpect(ErrCode::FuncNotFound);
   }
   if (auto Res = InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second,
-                                          Params)) {
+                                          Params, ParamTypes)) {
     return *Res;
   } else {
     return Unexpect(Res);
@@ -205,7 +205,8 @@ Expect<void> VM::instantiate() {
 }
 
 Expect<std::vector<ValVariant>> VM::execute(std::string_view Func,
-                                            Span<const ValVariant> Params) {
+                                            Span<const ValVariant> Params,
+                                            Span<const ValType> ParamTypes) {
   /// Check exports for finding function address.
   const auto FuncExp = StoreRef.getFuncExports();
   const auto FuncIter = FuncExp.find(Func);
@@ -216,7 +217,8 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Func,
   }
 
   /// Execute function.
-  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncIter->second, Params)) {
+  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncIter->second, Params,
+                                          ParamTypes)) {
     return Res;
   } else {
     LOG(ERROR) << ErrInfo::InfoExecuting("", Func);
@@ -226,7 +228,8 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Func,
 
 Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
                                             std::string_view Func,
-                                            Span<const ValVariant> Params) {
+                                            Span<const ValVariant> Params,
+                                            Span<const ValType> ParamTypes) {
   /// Get module instance.
   Runtime::Instance::ModuleInstance *ModInst;
   if (auto Res = StoreRef.findModule(Mod)) {
@@ -247,7 +250,8 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
   }
 
   /// Execute function.
-  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncIter->second, Params)) {
+  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncIter->second, Params,
+                                          ParamTypes)) {
     return Res;
   } else {
     LOG(ERROR) << ErrInfo::InfoExecuting(Mod, Func);

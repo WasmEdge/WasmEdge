@@ -69,7 +69,8 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
 /// Invoke function. See "include/interpreter/interpreter.h".
 Expect<std::vector<ValVariant>>
 Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
-                    Span<const ValVariant> Params) {
+                    Span<const ValVariant> Params,
+                    Span<const ValType> ParamTypes) {
   /// Check and get function address from store manager.
   Runtime::Instance::FunctionInstance *FuncInst;
   if (auto Res = StoreMgr.getFunction(FuncAddr)) {
@@ -80,23 +81,12 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
 
   /// Check parameter and function type.
   const auto &FuncType = FuncInst->getFuncType();
-  if (FuncType.Params.size() > Params.size()) {
-    std::vector<ValType> GotParams;
-    for (size_t I = 0; I < Params.size(); ++I) {
-      GotParams.push_back(FuncType.Params[I]);
-    }
+  std::vector<ValType> GotParamTypes(ParamTypes.begin(), ParamTypes.end());
+  GotParamTypes.resize(Params.size(), ValType::I32);
+  if (FuncType.Params != GotParamTypes) {
     LOG(ERROR) << ErrCode::FuncSigMismatch;
     LOG(ERROR) << ErrInfo::InfoMismatch(FuncType.Params, FuncType.Returns,
-                                        GotParams, FuncType.Returns);
-    return Unexpect(ErrCode::FuncSigMismatch);
-  } else if (FuncType.Params.size() < Params.size()) {
-    std::vector<ValType> GotParams = FuncType.Params;
-    for (size_t I = FuncType.Params.size(); I < Params.size(); ++I) {
-      GotParams.push_back(ValType::I32);
-    }
-    LOG(ERROR) << ErrCode::FuncSigMismatch;
-    LOG(ERROR) << ErrInfo::InfoMismatch(FuncType.Params, FuncType.Returns,
-                                        GotParams, FuncType.Returns);
+                                        GotParamTypes, FuncType.Returns);
     return Unexpect(ErrCode::FuncSigMismatch);
   }
 

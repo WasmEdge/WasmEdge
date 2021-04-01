@@ -212,7 +212,7 @@ public:
   }
 
   /// Find module by name.
-  Expect<Instance::ModuleInstance *> findModule(std::string_view Name) {
+  Expect<Instance::ModuleInstance *> findModule(std::string_view Name) const {
     for (uint32_t I = 0; I < ModInsts.size() - NumMod; I++) {
       if (ModInsts[I]->getModuleName() == Name) {
         return ModInsts[I];

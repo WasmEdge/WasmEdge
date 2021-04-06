@@ -42,14 +42,6 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     std::vector<ValVariant> Rets(RetsN);
     auto Ret = HostFunc.run(MemoryInst, std::move(Args), Rets);
 
-    /// Push returns back to stack.
-    for (size_t I = 0; I < ArgsN; ++I) {
-      ValVariant Val [[maybe_unused]] = StackMgr.pop();
-    }
-    for (auto &R : Rets) {
-      StackMgr.push(std::move(R));
-    }
-
     if (Stat) {
       /// Stop recording time of running host function.
       Stat->stopRecordHost();
@@ -62,6 +54,15 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
       }
       return Unexpect(Ret);
     }
+
+    /// Push returns back to stack.
+    for (size_t I = 0; I < ArgsN; ++I) {
+      ValVariant Val [[maybe_unused]] = StackMgr.pop();
+    }
+    for (auto &R : Rets) {
+      StackMgr.push(std::move(R));
+    }
+
     /// For host function case, the continuation will be the next.
     return From + 1;
   } else if (Func.isCompiledFunction()) {

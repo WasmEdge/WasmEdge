@@ -41,7 +41,8 @@ int main(int Argc, const char *Argv[], const char *Env[]) {
                          std::vector<std::string>(Env, Env + Envc));
 
   // command mode
-  if (auto Result = VM.runWasmFile(InputPath.u8string(), "_start")) {
+  if (auto Result = VM.runWasmFile(InputPath.u8string(), "_start");
+      Result || Result.error() == SSVM::ErrCode::Terminated) {
     return WasiMod->getEnv().getExitCode();
   } else {
     return EXIT_FAILURE;

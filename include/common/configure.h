@@ -21,17 +21,18 @@
 namespace SSVM {
 
 /// Wasm Proposal enum class.
+/// This enum is also duplicated to "include/api/ssvm.h" and should be the same.
 enum class Proposal : uint8_t {
-  Annotations = 0,
-  BulkMemoryOperations,
-  ExceptionHandling,
-  FunctionReferences,
-  Memory64,
+  BulkMemoryOperations = 0,
   ReferenceTypes,
   SIMD,
   TailCall,
+  Annotations,
+  Memory64,
   Threads,
-  Max,
+  ExceptionHandling,
+  FunctionReferences,
+  Max
 };
 
 /// Host Module Registration enum class.

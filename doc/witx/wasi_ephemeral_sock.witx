@@ -18,7 +18,7 @@
   (@interface func (export "open")
     ;;; Some descriptor.
     ;;; TODO: Describe more about the capability for the descriptor?
-    (param $capability $fd)
+    ;;; (param $capability $fd)
     (param $af $address_family)
     (param $socktype $sock_type)
     (result $error $errno)
@@ -38,6 +38,14 @@
   (@interface func (export "bind")
     (param $fd $fd)
     ;;; The pointer to the address.
+    (param $addr (@witx pointer $address))
+    (result $error $errno)
+  )
+
+  ;;; Initiate connection to a socket
+  ;;; Note: This is similar to `connect` in POSIX.
+  (@interface func (export "connect")
+    (param $fd $fd)
     (param $addr (@witx pointer $address))
     (result $error $errno)
   )

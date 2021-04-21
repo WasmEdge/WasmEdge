@@ -18,25 +18,25 @@
   (@interface func (export "open")
     ;;; Some descriptor.
     ;;; TODO: Describe more about the capability for the descriptor?
-    ;;; (param $capability $fd)
+    ;;; (param $capability $sock_d)
     (param $af $address_family)
     (param $socktype $sock_type)
     (result $error $errno)
-    (result $fd $fd)
+    (result $fd $sock_d)
   )
 
   ;;; Close a socket.
   ;;; Note: This is currently an alias for `fd_close`.
   ;;; Note: This is similar to `close` in POSIX.
   (@interface func (export "close")
-    (param $fd $fd)
+    (param $fd $sock_d)
     (result $error $errno)
   )
 
   ;;; Bind a name to a socket.
   ;;; Note: This is similar to `bind` in POSIX.
   (@interface func (export "bind")
-    (param $fd $fd)
+    (param $fd $sock_d)
     ;;; The pointer to the address.
     (param $addr (@witx pointer $address))
     (result $error $errno)
@@ -45,7 +45,7 @@
   ;;; Initiate connection to a socket
   ;;; Note: This is similar to `connect` in POSIX.
   (@interface func (export "connect")
-    (param $fd $fd)
+    (param $fd $sock_d)
     (param $addr (@witx pointer $address))
     (result $error $errno)
   )
@@ -55,7 +55,7 @@
   ;;; Note: This is identical to `recvfrom` with a null pointer passed as its
   ;;; as its address in POSIX.
   (@interface func (export "recv")
-    (param $fd $fd)
+    (param $fd $sock_d)
     ;;; The pointer to and length of the buffer for data received.
     (param $buf (@witx pointer u8))
     (param $buf_len $size)
@@ -69,7 +69,7 @@
   ;;; Receive a message from a socket.
   ;;; Note: This is similar to `recvfrom` in POSIX.
   (@interface func (export "recv_from")
-    (param $fd $fd)
+    (param $fd $sock_d)
     ;;; The pointer to and length of the buffer for data received.
     (param $buf (@witx pointer u8))
     (param $buf_len $size)
@@ -86,7 +86,7 @@
   ;;; Note: This is similar to `send` in POSIX.
   ;;; Note: This may be used only when the socket is in a connected state.
   (@interface func (export "send")
-    (param $fd $fd)
+    (param $fd $sock_d)
     ;;; The pointer to and length of the buffer for data.
     (param $buf (@witx pointer u8))
     (param $buf_len $size)
@@ -100,7 +100,7 @@
   ;;; Send a message from a socket.
   ;;; Note: This is similar to `sendto` in POSIX.
   (@interface func (export "send_to")
-    (param $fd $fd)
+    (param $fd $sock_d)
     ;;; The pointer to and length of the buffer for data.
     (param $buf (@witx pointer u8))
     (param $buf_len $size)
@@ -116,7 +116,7 @@
   ;;; Shut down socket send and receive channels.
   ;;; Note: This is similar to `shutdown` in POSIX.
   (@interface func (export "shutdown")
-    (param $fd $fd)
+    (param $fd $sock_d)
     ;;; Which channels on the socket to shut down.
     (param $how $sdflags)
     (result $error $errno)

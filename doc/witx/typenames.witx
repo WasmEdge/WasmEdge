@@ -297,8 +297,16 @@
   )
 )
 
+;;; TODO: apply WASI#421 after witx (crate) is updated.
+;;; (resource $fd)
+;;; (typename $fd (handle $fd))
+;;; (typename $sock_d (handle $fd))
+
 ;;; A file descriptor handle.
 (typename $fd (handle))
+
+;;; A socket descriptor is currently an alias type of a typical file descriptor.
+(typename $sock_d $fd)
 
 ;;; A region of memory for scatter/gather reads.
 (typename $iovec

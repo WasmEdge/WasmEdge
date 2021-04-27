@@ -352,22 +352,40 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(D);
     }
   case OpCode::Br_table:
+    if (auto Res = popType(VType::I32); !Res) {
+      return Unexpect(Res);
+    }
     if (auto M = checkCtrlStackDepth(Instr.getTargetIndex())) {
       /// M is the last M element of control stack.
+      auto MTypes = getLabelTypes(CtrlStack[*M]);
       for (const uint32_t &L : Instr.getLabelList()) {
         if (auto N = checkCtrlStackDepth(L)) {
           /// N is the last N element of control stack.
-          if (auto Res = checkTypesMatching(getLabelTypes(CtrlStack[*M]),
-                                            getLabelTypes(CtrlStack[*N]));
-              !Res) {
-            return Unexpect(Res);
+          auto NTypes = getLabelTypes(CtrlStack[*N]);
+          if (MTypes.size() != NTypes.size()) {
+            return checkTypesMatching(MTypes, NTypes);
           }
+          /// Push the popped types.
+          std::vector<VType> TypeBuf(NTypes.size());
+          for (int32_t Idx = NTypes.size() - 1; Idx >= 0; Idx--) {
+            /// Cannot use popTypes() here because we need the popped value.
+            if (auto Res = popType(NTypes[Idx])) {
+              /// Have to check is `VType::Unknown` occured for the case of
+              /// `unreachable` instruction appeared before the `br_table`
+              /// instruction.
+              if (CtrlStack.back().IsUnreachable) {
+                TypeBuf[Idx] = VType::Unknown;
+              } else {
+                TypeBuf[Idx] = *Res;
+              }
+            } else {
+              return Unexpect(Res);
+            }
+          }
+          pushTypes(TypeBuf);
         } else {
           return Unexpect(N);
         }
-      }
-      if (auto Res = popType(VType::I32); !Res) {
-        return Unexpect(Res);
       }
       if (auto Res = popTypes(getLabelTypes(CtrlStack[*M])); !Res) {
         return Unexpect(Res);
@@ -524,7 +542,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   }
   case OpCode::Global__set:
     /// Global case, check mutation.
-    if (Globals[Instr.getTargetIndex()].second != ValMut::Var) {
+    if (Instr.getTargetIndex() < Globals.size() &&
+        Globals[Instr.getTargetIndex()].second != ValMut::Var) {
       /// Global is immutable
       LOG(ERROR) << ErrCode::ImmutableGlobal;
       return Unexpect(ErrCode::ImmutableGlobal);

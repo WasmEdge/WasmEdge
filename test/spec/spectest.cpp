@@ -201,8 +201,6 @@ struct TestsuiteProposal {
 };
 static const TestsuiteProposal TestsuiteProposals[] = {
     {"core"sv, {}},
-    {"reference-types"sv, {SSVM::Proposal::ReferenceTypes}},
-    {"bulk-memory-operations"sv, {SSVM::Proposal::BulkMemoryOperations}},
     {"simd"sv, {SSVM::Proposal::SIMD}},
 };
 

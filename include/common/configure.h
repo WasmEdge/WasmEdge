@@ -43,7 +43,10 @@ extern const std::unordered_map<Proposal, std::string_view> ProposalStr;
 
 class Configure {
 public:
-  Configure() noexcept = default;
+  Configure() noexcept {
+    addProposal(Proposal::BulkMemoryOperations);
+    addProposal(Proposal::ReferenceTypes);
+  };
   template <typename... ArgsT> Configure(ArgsT... Args) noexcept {
     (addSet(Args), ...);
   }

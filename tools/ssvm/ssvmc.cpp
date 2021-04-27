@@ -30,9 +30,9 @@ int main(int Argc, const char *Argv[]) {
       "Generate code for counting gas burned during execution."sv));
 
   PO::Option<PO::Toggle> BulkMemoryOperations(
-      PO::Description("Enable Bulk-memory operations"sv));
+      PO::Description("Disable Bulk-memory operations"sv));
   PO::Option<PO::Toggle> ReferenceTypes(
-      PO::Description("Enable Reference types (externref)"sv));
+      PO::Description("Disable Reference types (externref)"sv));
   PO::Option<PO::Toggle> SIMD(PO::Description("Enable SIMD"sv));
   PO::Option<PO::Toggle> All(PO::Description("Enable all features"sv));
 
@@ -42,8 +42,8 @@ int main(int Argc, const char *Argv[]) {
            .add_option("dump"sv, DumpIR)
            .add_option("ic"sv, InstructionCounting)
            .add_option("gas"sv, GasMeasuring)
-           .add_option("enable-bulk-memory"sv, BulkMemoryOperations)
-           .add_option("enable-reference-types"sv, ReferenceTypes)
+           .add_option("disable-bulk-memory"sv, BulkMemoryOperations)
+           .add_option("disable-reference-types"sv, ReferenceTypes)
            .add_option("enable-simd"sv, SIMD)
            .add_option("enable-all"sv, All)
            .parse(Argc, Argv)) {
@@ -56,10 +56,10 @@ int main(int Argc, const char *Argv[]) {
 
   SSVM::Configure Conf;
   if (BulkMemoryOperations.value()) {
-    Conf.addProposal(SSVM::Proposal::BulkMemoryOperations);
+    Conf.removeProposal(SSVM::Proposal::BulkMemoryOperations);
   }
   if (ReferenceTypes.value()) {
-    Conf.addProposal(SSVM::Proposal::ReferenceTypes);
+    Conf.removeProposal(SSVM::Proposal::ReferenceTypes);
   }
   if (SIMD.value()) {
     Conf.addProposal(SSVM::Proposal::SIMD);

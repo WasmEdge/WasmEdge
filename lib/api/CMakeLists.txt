@@ -6,6 +6,7 @@ add_library(ssvm_c SHARED
 
 target_link_libraries(ssvm_c
   PUBLIC
+  ssvmAOT
   ssvmVM
 )
 

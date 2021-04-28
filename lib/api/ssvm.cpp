@@ -10,6 +10,7 @@
 #include "common/statistics.h"
 #include "common/value.h"
 
+#include "aot/compiler.h"
 #include "ast/module.h"
 #include "host/wasi/wasimodule.h"
 #include "interpreter/interpreter.h"
@@ -31,6 +32,15 @@ struct SSVM_ASTModuleContext {
   SSVM_ASTModuleContext(std::unique_ptr<SSVM::AST::Module> Mod) noexcept
       : Module(std::move(Mod)) {}
   std::unique_ptr<SSVM::AST::Module> Module;
+};
+
+/// SSVM_CompilerContext implementation.
+struct SSVM_CompilerContext {
+  SSVM_CompilerContext(const SSVM::Configure &Conf) noexcept
+      : Load(Conf), Valid(Conf) {}
+  SSVM::AOT::Compiler Compiler;
+  SSVM::Loader::Loader Load;
+  SSVM::Validator::Validator Valid;
 };
 
 /// SSVM_LoaderContext implementation.
@@ -171,13 +181,6 @@ inline SSVM_Result wrap(T &&Proc, U &&Then, CxtT *... Cxts) noexcept {
     }
   } else {
     return genSSVM_Result(ErrCode::WrongVMWorkflow);
-  }
-}
-
-/// Helper template function for deletion.
-template <typename T> inline constexpr void deleteIf(T *Cxt) noexcept {
-  if (Cxt) {
-    delete Cxt;
   }
 }
 
@@ -510,7 +513,7 @@ uint32_t SSVM_ConfigureGetMaxMemoryPage(const SSVM_ConfigureContext *Cxt) {
   return 0;
 }
 
-void SSVM_ConfigureDelete(SSVM_ConfigureContext *Cxt) { deleteIf(Cxt); }
+void SSVM_ConfigureDelete(SSVM_ConfigureContext *Cxt) { delete Cxt; }
 
 /// <<<<<<<< SSVM configure functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -556,16 +559,57 @@ void SSVM_StatisticsSetCostLimit(SSVM_StatisticsContext *Cxt,
 }
 
 void SSVM_StatisticsDelete(SSVM_StatisticsContext *Cxt) {
-  deleteIf(fromStatCxt(Cxt));
+  delete fromStatCxt(Cxt);
 }
 
 /// <<<<<<<< SSVM statistics functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> SSVM AST module functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-void SSVM_ASTModuleDelete(SSVM_ASTModuleContext *Cxt) { deleteIf(Cxt); }
+void SSVM_ASTModuleDelete(SSVM_ASTModuleContext *Cxt) { delete Cxt; }
 
 /// <<<<<<<< SSVM AST module functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM AOT compiler functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+SSVM_CompilerContext *
+SSVM_CompilerCreate(const SSVM_ConfigureContext *ConfCxt) {
+  if (ConfCxt) {
+    return new SSVM_CompilerContext(ConfCxt->Conf);
+  } else {
+    return new SSVM_CompilerContext(SSVM::Configure());
+  }
+}
+
+SSVM_Result SSVM_CompilerCompile(SSVM_CompilerContext *Cxt, const char *InPath,
+                                 const char *OutPath) {
+  return wrap(
+      [&]() -> SSVM::Expect<void> {
+        std::filesystem::path InputPath = std::filesystem::absolute(InPath);
+        std::filesystem::path OutputPath = std::filesystem::absolute(OutPath);
+        std::vector<SSVM::Byte> Data;
+        std::unique_ptr<SSVM::AST::Module> Module;
+        if (auto Res = Cxt->Load.loadFile(InputPath)) {
+          Data = std::move(*Res);
+        } else {
+          return Unexpect(Res);
+        }
+        if (auto Res = Cxt->Load.parseModule(Data)) {
+          Module = std::move(*Res);
+        } else {
+          return Unexpect(Res);
+        }
+        if (auto Res = Cxt->Valid.validate(*Module); !Res) {
+          return Unexpect(Res);
+        }
+        return Cxt->Compiler.compile(Data, *Module, OutputPath);
+      },
+      EmptyThen, Cxt);
+}
+
+void SSVM_CompilerDelete(SSVM_CompilerContext *Cxt) { delete Cxt; }
+
+/// <<<<<<<< SSVM AOT compiler functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> SSVM loader functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -596,7 +640,7 @@ SSVM_Result SSVM_LoaderParseFromBuffer(SSVM_LoaderContext *Cxt,
       Cxt, Module);
 }
 
-void SSVM_LoaderDelete(SSVM_LoaderContext *Cxt) { deleteIf(Cxt); }
+void SSVM_LoaderDelete(SSVM_LoaderContext *Cxt) { delete Cxt; }
 
 /// <<<<<<<< SSVM loader functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -617,7 +661,7 @@ SSVM_Result SSVM_ValidatorValidate(SSVM_ValidatorContext *Cxt,
               EmptyThen, Cxt, ModuleCxt);
 }
 
-void SSVM_ValidatorDelete(SSVM_ValidatorContext *Cxt) { deleteIf(Cxt); }
+void SSVM_ValidatorDelete(SSVM_ValidatorContext *Cxt) { delete Cxt; }
 
 /// <<<<<<<< SSVM validator functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -737,7 +781,7 @@ SSVM_Result SSVM_InterpreterInvokeRegistered(
       StoreCxt);
 }
 
-void SSVM_InterpreterDelete(SSVM_InterpreterContext *Cxt) { deleteIf(Cxt); }
+void SSVM_InterpreterDelete(SSVM_InterpreterContext *Cxt) { delete Cxt; }
 
 /// <<<<<<<< SSVM interpreter functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -1021,7 +1065,7 @@ uint32_t SSVM_StoreListModule(SSVM_StoreContext *Cxt, SSVM_String *Names,
   return 0;
 }
 
-void SSVM_StoreDelete(SSVM_StoreContext *Cxt) { deleteIf(fromStoreCxt(Cxt)); }
+void SSVM_StoreDelete(SSVM_StoreContext *Cxt) { delete fromStoreCxt(Cxt); }
 
 /// <<<<<<<< SSVM store functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -1086,7 +1130,7 @@ uint32_t SSVM_FunctionTypeGetReturns(const SSVM_FunctionTypeContext *Cxt,
   return 0;
 }
 
-void SSVM_FunctionTypeDelete(SSVM_FunctionTypeContext *Cxt) { deleteIf(Cxt); }
+void SSVM_FunctionTypeDelete(SSVM_FunctionTypeContext *Cxt) { delete Cxt; }
 
 /// <<<<<<<< SSVM function type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -1125,7 +1169,7 @@ SSVM_HostFunctionCreateBinding(const SSVM_FunctionTypeContext *Type,
 }
 
 void SSVM_HostFunctionDelete(SSVM_HostFunctionContext *Cxt) {
-  deleteIf(fromHostFuncCxt(Cxt));
+  delete fromHostFuncCxt(Cxt);
 }
 
 /// <<<<<<<< SSVM host function functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1203,7 +1247,7 @@ SSVM_Result SSVM_TableInstanceGrow(SSVM_TableInstanceContext *Cxt,
 }
 
 void SSVM_TableInstanceDelete(SSVM_TableInstanceContext *Cxt) {
-  deleteIf(fromTabCxt(Cxt));
+  delete fromTabCxt(Cxt);
 }
 
 /// <<<<<<<< SSVM table instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1262,7 +1306,7 @@ SSVM_Result SSVM_MemoryInstanceGrowPage(SSVM_MemoryInstanceContext *Cxt,
 }
 
 void SSVM_MemoryInstanceDelete(SSVM_MemoryInstanceContext *Cxt) {
-  deleteIf(fromMemCxt(Cxt));
+  delete fromMemCxt(Cxt);
 }
 
 /// <<<<<<<< SSVM memory instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1313,7 +1357,7 @@ void SSVM_GlobalInstanceSetValue(SSVM_GlobalInstanceContext *Cxt,
 }
 
 void SSVM_GlobalInstanceDelete(SSVM_GlobalInstanceContext *Cxt) {
-  deleteIf(fromGlobCxt(Cxt));
+  delete fromGlobCxt(Cxt);
 }
 
 /// <<<<<<<< SSVM global instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1422,7 +1466,7 @@ void SSVM_ImportObjectAddGlobal(SSVM_ImportObjectContext *Cxt,
 }
 
 void SSVM_ImportObjectDelete(SSVM_ImportObjectContext *Cxt) {
-  deleteIf(fromImpObjCxt(Cxt));
+  delete fromImpObjCxt(Cxt);
 }
 
 /// >>>>>>>> SSVM import object functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -1676,7 +1720,7 @@ SSVM_StatisticsContext *SSVM_VMGetStatisticsContext(SSVM_VMContext *Cxt) {
   return nullptr;
 }
 
-void SSVM_VMDelete(SSVM_VMContext *Cxt) { deleteIf(Cxt); }
+void SSVM_VMDelete(SSVM_VMContext *Cxt) { delete Cxt; }
 
 /// <<<<<<<< SSVM VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

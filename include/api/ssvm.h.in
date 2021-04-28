@@ -123,6 +123,9 @@ typedef struct SSVM_StatisticsContext SSVM_StatisticsContext;
 /// Opaque struct of SSVM AST module.
 typedef struct SSVM_ASTModuleContext SSVM_ASTModuleContext;
 
+/// Opaque struct of SSVM AOT compiler.
+typedef struct SSVM_CompilerContext SSVM_CompilerContext;
+
 /// Opaque struct of SSVM loader.
 typedef struct SSVM_LoaderContext SSVM_LoaderContext;
 
@@ -598,6 +601,41 @@ SSVM_CAPI_EXPORT extern void SSVM_StatisticsDelete(SSVM_StatisticsContext *Cxt);
 SSVM_CAPI_EXPORT extern void SSVM_ASTModuleDelete(SSVM_ASTModuleContext *Cxt);
 
 /// <<<<<<<< SSVM AST module functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> SSVM AOT compiler functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the SSVM_CompilerContext.
+///
+/// The caller owns the object and should call `SSVM_CompilerDelete` to free it.
+///
+/// \param ConfCxt the SSVM_ConfigureContext as the configuration of Loader.
+/// NULL for the default configuration.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_CompilerContext *
+SSVM_CompilerCreate(const SSVM_ConfigureContext *ConfCxt);
+
+/// Creation of the SSVM_CompilerContext.
+///
+/// The caller owns the object and should call `SSVM_CompilerDelete` to free it.
+///
+/// \param ConfCxt the SSVM_ConfigureContext as the configuration of Loader.
+/// NULL for the default configuration.
+///
+/// \returns pointer to context, NULL if failed.
+SSVM_CAPI_EXPORT extern SSVM_Result
+SSVM_CompilerCompile(SSVM_CompilerContext *Cxt, const char *InPath,
+                     const char *OutPath);
+
+/// Deletion of the SSVM_CompilerContext.
+///
+/// After calling this function, the context will be freed and should
+/// __NOT__ be used.
+///
+/// \param Cxt the SSVM_CompilerContext to delete.
+SSVM_CAPI_EXPORT extern void SSVM_CompilerDelete(SSVM_CompilerContext *Cxt);
+
+/// <<<<<<<< SSVM AOT compiler functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> SSVM loader functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

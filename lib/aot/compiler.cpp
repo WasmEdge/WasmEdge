@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "aot/version.h"
 #include "aot/compiler.h"
+#include "aot/version.h"
 #include "common/filesystem.h"
 #include "common/log.h"
 #include "runtime/instance/memory.h"
@@ -2101,9 +2101,6 @@ public:
       case OpCode::I8x16__sub_sat_u:
         compileVectorVectorSubSat(Context.Int8x16Ty, false);
         break;
-      case OpCode::I8x16__mul:
-        compileVectorVectorMul(Context.Int8x16Ty);
-        break;
       case OpCode::I8x16__min_s:
         compileVectorVectorSMin(Context.Int8x16Ty);
         break;
@@ -2197,6 +2194,18 @@ public:
       case OpCode::I16x8__avgr_u:
         compileVectorVectorUAvgr(Context.Int16x8Ty);
         break;
+      case OpCode::I16x8__extmul_low_i8x16_s:
+        compileVectorExtMul(Context.Int8x16Ty, true, true);
+        break;
+      case OpCode::I16x8__extmul_high_i8x16_s:
+        compileVectorExtMul(Context.Int8x16Ty, true, false);
+        break;
+      case OpCode::I16x8__extmul_low_i8x16_u:
+        compileVectorExtMul(Context.Int8x16Ty, false, true);
+        break;
+      case OpCode::I16x8__extmul_high_i8x16_u:
+        compileVectorExtMul(Context.Int8x16Ty, false, false);
+        break;
       case OpCode::I32x4__abs:
         compileVectorAbs(Context.Int32x4Ty);
         break;
@@ -2254,6 +2263,18 @@ public:
       case OpCode::I32x4__max_u:
         compileVectorVectorUMax(Context.Int32x4Ty);
         break;
+      case OpCode::I32x4__extmul_low_i16x8_s:
+        compileVectorExtMul(Context.Int16x8Ty, true, true);
+        break;
+      case OpCode::I32x4__extmul_high_i16x8_s:
+        compileVectorExtMul(Context.Int16x8Ty, true, false);
+        break;
+      case OpCode::I32x4__extmul_low_i16x8_u:
+        compileVectorExtMul(Context.Int16x8Ty, false, true);
+        break;
+      case OpCode::I32x4__extmul_high_i16x8_u:
+        compileVectorExtMul(Context.Int16x8Ty, false, false);
+        break;
       case OpCode::I32x4__dot_i16x8_s: {
         auto *ExtendTy =
             llvm::VectorType::getExtendedElementVectorType(Context.Int16x8Ty);
@@ -2297,6 +2318,18 @@ public:
         break;
       case OpCode::I64x2__mul:
         compileVectorVectorMul(Context.Int64x2Ty);
+        break;
+      case OpCode::I64x2__extmul_low_i32x4_s:
+        compileVectorExtMul(Context.Int32x4Ty, true, true);
+        break;
+      case OpCode::I64x2__extmul_high_i32x4_s:
+        compileVectorExtMul(Context.Int32x4Ty, true, false);
+        break;
+      case OpCode::I64x2__extmul_low_i32x4_u:
+        compileVectorExtMul(Context.Int32x4Ty, false, true);
+        break;
+      case OpCode::I64x2__extmul_high_i32x4_u:
+        compileVectorExtMul(Context.Int32x4Ty, false, false);
         break;
       case OpCode::F32x4__abs:
         compileVectorFAbs(Context.Floatx4Ty);
@@ -3066,6 +3099,25 @@ private:
     }
     F = Builder.CreateShuffleVector(F, llvm::UndefValue::get(ExtTy), Mask);
     Stack.back() = Builder.CreateBitCast(F, Context.Int64x2Ty);
+  }
+  void compileVectorExtMul(llvm::VectorType *FromTy, bool Signed, bool Low) {
+    auto *ExtTy = llvm::VectorType::getExtendedElementVectorType(FromTy);
+    const auto Count = FromTy->getElementCount().Min;
+    std::vector<ShuffleElement> Mask(Count / 2);
+    std::iota(Mask.begin(), Mask.end(), Low ? 0 : Count / 2);
+    auto Extend = [this, FromTy, Signed, ExtTy, &Mask](llvm::Value *F) {
+      F = Builder.CreateBitCast(F, FromTy);
+      if (Signed) {
+        F = Builder.CreateSExt(F, ExtTy);
+      } else {
+        F = Builder.CreateZExt(F, ExtTy);
+      }
+      return Builder.CreateShuffleVector(F, llvm::UndefValue::get(ExtTy), Mask);
+    };
+    auto *RHS = Extend(stackPop());
+    auto *LHS = Extend(stackPop());
+    stackPush(
+        Builder.CreateBitCast(Builder.CreateMul(RHS, LHS), Context.Int64x2Ty));
   }
   void compileVectorFAbs(llvm::VectorType *VectorTy) {
     compileVectorOp(VectorTy, [this](auto *V) {

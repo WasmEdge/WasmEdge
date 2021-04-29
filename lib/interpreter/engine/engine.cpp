@@ -1220,6 +1220,22 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       ValVariant Rhs = StackMgr.pop();
       return runVectorAvgrOp<uint16_t, uint32_t>(StackMgr.getTop(), Rhs);
     }
+    case OpCode::I16x8__extmul_low_i8x16_s: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorExtMulLowOp<int8_t, int16_t>(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I16x8__extmul_high_i8x16_s: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorExtMulHighOp<int8_t, int16_t>(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I16x8__extmul_low_i8x16_u: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorExtMulLowOp<uint8_t, uint16_t>(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I16x8__extmul_high_i8x16_u: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorExtMulHighOp<uint8_t, uint16_t>(StackMgr.getTop(), Rhs);
+    }
 
     case OpCode::I32x4__abs:
       return runVectorAbsOp<int32_t>(StackMgr.getTop());
@@ -1279,6 +1295,22 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       ValVariant Rhs = StackMgr.pop();
       return runVectorMaxOp<uint32_t>(StackMgr.getTop(), Rhs);
     }
+    case OpCode::I32x4__extmul_low_i16x8_s: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorExtMulLowOp<int16_t, int32_t>(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I32x4__extmul_high_i16x8_s: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorExtMulHighOp<int16_t, int32_t>(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I32x4__extmul_low_i16x8_u: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorExtMulLowOp<uint16_t, uint32_t>(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I32x4__extmul_high_i16x8_u: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorExtMulHighOp<uint16_t, uint32_t>(StackMgr.getTop(), Rhs);
+    }
 
     case OpCode::I64x2__neg:
       return runVectorNegOp<int64_t>(StackMgr.getTop());
@@ -1305,6 +1337,22 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::I64x2__mul: {
       ValVariant Rhs = StackMgr.pop();
       return runVectorMulOp<uint64_t>(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I64x2__extmul_low_i32x4_s: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorExtMulLowOp<int32_t, int64_t>(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I64x2__extmul_high_i32x4_s: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorExtMulHighOp<int32_t, int64_t>(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I64x2__extmul_low_i32x4_u: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorExtMulLowOp<uint32_t, uint64_t>(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I64x2__extmul_high_i32x4_u: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorExtMulHighOp<uint32_t, uint64_t>(StackMgr.getTop(), Rhs);
     }
 
     case OpCode::F32x4__abs:
@@ -1394,10 +1442,6 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::F32x4__convert_i32x4_u:
       return runVectorConvertOp<uint32_t, float>(StackMgr.getTop());
 
-    case OpCode::I8x16__mul: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMulOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
     case OpCode::I32x4__dot_i16x8_s: {
       using int32x8_t [[gnu::vector_size(32)]] = int32_t;
       const ValVariant Val2 = StackMgr.pop();

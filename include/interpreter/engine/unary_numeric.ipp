@@ -124,7 +124,7 @@ Expect<void> Interpreter::runSplatOp(ValVariant &Val) const {
 template <typename TIn, typename TOut>
 Expect<void> Interpreter::runVectorWidenLowOp(ValVariant &Val) const {
   static_assert(sizeof(TIn) * 2 == sizeof(TOut));
-  static_assert(sizeof(TIn) == 1 || sizeof(TIn) == 2);
+  static_assert(sizeof(TIn) == 1 || sizeof(TIn) == 2 || sizeof(TIn) == 4);
   using VTIn [[gnu::vector_size(16)]] = TIn;
   using HVTIn [[gnu::vector_size(8)]] = TIn;
   using VTOut [[gnu::vector_size(16)]] = TOut;
@@ -135,6 +135,8 @@ Expect<void> Interpreter::runVectorWidenLowOp(ValVariant &Val) const {
         HVTIn{V[0], V[1], V[2], V[3], V[4], V[5], V[6], V[7]}, VTOut);
   } else if constexpr (sizeof(TIn) == 2) {
     Result = __builtin_convertvector(HVTIn{V[0], V[1], V[2], V[3]}, VTOut);
+  } else if constexpr (sizeof(TIn) == 4) {
+    Result = __builtin_convertvector(HVTIn{V[0], V[1]}, VTOut);
   }
   return {};
 }
@@ -142,7 +144,7 @@ Expect<void> Interpreter::runVectorWidenLowOp(ValVariant &Val) const {
 template <typename TIn, typename TOut>
 Expect<void> Interpreter::runVectorWidenHighOp(ValVariant &Val) const {
   static_assert(sizeof(TIn) * 2 == sizeof(TOut));
-  static_assert(sizeof(TIn) == 1 || sizeof(TIn) == 2);
+  static_assert(sizeof(TIn) == 1 || sizeof(TIn) == 2 || sizeof(TIn) == 4);
   using VTIn [[gnu::vector_size(16)]] = TIn;
   using HVTIn [[gnu::vector_size(8)]] = TIn;
   using VTOut [[gnu::vector_size(16)]] = TOut;
@@ -153,6 +155,8 @@ Expect<void> Interpreter::runVectorWidenHighOp(ValVariant &Val) const {
         HVTIn{V[8], V[9], V[10], V[11], V[12], V[13], V[14], V[15]}, VTOut);
   } else if constexpr (sizeof(TIn) == 2) {
     Result = __builtin_convertvector(HVTIn{V[4], V[5], V[6], V[7]}, VTOut);
+  } else if constexpr (sizeof(TIn) == 4) {
+    Result = __builtin_convertvector(HVTIn{V[2], V[3]}, VTOut);
   }
   return {};
 }

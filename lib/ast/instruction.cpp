@@ -617,6 +617,10 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::I16x8__max_s:
   case OpCode::I16x8__max_u:
   case OpCode::I16x8__avgr_u:
+  case OpCode::I16x8__extmul_low_i8x16_s:
+  case OpCode::I16x8__extmul_high_i8x16_s:
+  case OpCode::I16x8__extmul_low_i8x16_u:
+  case OpCode::I16x8__extmul_high_i8x16_u:
 
   case OpCode::I32x4__abs:
   case OpCode::I32x4__neg:
@@ -637,6 +641,10 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::I32x4__min_u:
   case OpCode::I32x4__max_s:
   case OpCode::I32x4__max_u:
+  case OpCode::I32x4__extmul_low_i16x8_s:
+  case OpCode::I32x4__extmul_high_i16x8_s:
+  case OpCode::I32x4__extmul_low_i16x8_u:
+  case OpCode::I32x4__extmul_high_i16x8_u:
 
   case OpCode::I64x2__neg:
   case OpCode::I64x2__shl:
@@ -645,6 +653,10 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::I64x2__add:
   case OpCode::I64x2__sub:
   case OpCode::I64x2__mul:
+  case OpCode::I64x2__extmul_low_i32x4_s:
+  case OpCode::I64x2__extmul_high_i32x4_s:
+  case OpCode::I64x2__extmul_low_i32x4_u:
+  case OpCode::I64x2__extmul_high_i32x4_u:
 
   case OpCode::F32x4__abs:
   case OpCode::F32x4__neg:
@@ -675,7 +687,6 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::F32x4__convert_i32x4_s:
   case OpCode::F32x4__convert_i32x4_u:
 
-  case OpCode::I8x16__mul:
   case OpCode::I32x4__dot_i16x8_s:
   case OpCode::I64x2__any_true:
   case OpCode::I64x2__all_true:

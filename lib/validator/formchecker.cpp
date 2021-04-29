@@ -1129,6 +1129,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I16x8__max_s:
   case OpCode::I16x8__max_u:
   case OpCode::I16x8__avgr_u:
+  case OpCode::I16x8__extmul_low_i8x16_s:
+  case OpCode::I16x8__extmul_high_i8x16_s:
+  case OpCode::I16x8__extmul_low_i8x16_u:
+  case OpCode::I16x8__extmul_high_i8x16_u:
   case OpCode::I32x4__add:
   case OpCode::I32x4__sub:
   case OpCode::I32x4__mul:
@@ -1136,9 +1140,17 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I32x4__min_u:
   case OpCode::I32x4__max_s:
   case OpCode::I32x4__max_u:
+  case OpCode::I32x4__extmul_low_i16x8_s:
+  case OpCode::I32x4__extmul_high_i16x8_s:
+  case OpCode::I32x4__extmul_low_i16x8_u:
+  case OpCode::I32x4__extmul_high_i16x8_u:
   case OpCode::I64x2__add:
   case OpCode::I64x2__sub:
   case OpCode::I64x2__mul:
+  case OpCode::I64x2__extmul_low_i32x4_s:
+  case OpCode::I64x2__extmul_high_i32x4_s:
+  case OpCode::I64x2__extmul_low_i32x4_u:
+  case OpCode::I64x2__extmul_high_i32x4_u:
   case OpCode::F32x4__add:
   case OpCode::F32x4__sub:
   case OpCode::F32x4__mul:
@@ -1155,7 +1167,6 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F64x2__max:
   case OpCode::F64x2__pmin:
   case OpCode::F64x2__pmax:
-  case OpCode::I8x16__mul:
   case OpCode::I32x4__dot_i16x8_s:
     return StackTrans(std::array{VType::V128, VType::V128},
                       std::array{VType::V128});

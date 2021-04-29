@@ -1093,6 +1093,12 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I32x4__trunc_sat_f32x4_u:
   case OpCode::F32x4__convert_i32x4_s:
   case OpCode::F32x4__convert_i32x4_u:
+  case OpCode::I32x4__trunc_sat_f64x2_s_zero:
+  case OpCode::I32x4__trunc_sat_f64x2_u_zero:
+  case OpCode::F64x2__convert_low_i32x4_s:
+  case OpCode::F64x2__convert_low_i32x4_u:
+  case OpCode::F32x4__demote_f64x2_zero:
+  case OpCode::F64x2__promote_low_f32x4:
   case OpCode::F32x4__ceil:
   case OpCode::F32x4__floor:
   case OpCode::F32x4__trunc:
@@ -1101,10 +1107,6 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F64x2__floor:
   case OpCode::F64x2__trunc:
   case OpCode::F64x2__nearest:
-  case OpCode::I64x2__trunc_sat_f64x2_s:
-  case OpCode::I64x2__trunc_sat_f64x2_u:
-  case OpCode::F64x2__convert_i64x2_s:
-  case OpCode::F64x2__convert_i64x2_u:
     return StackTrans(std::array{VType::V128}, std::array{VType::V128});
   case OpCode::I8x16__swizzle:
   case OpCode::I8x16__eq:
@@ -1225,10 +1227,6 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return StackTrans(std::array{VType::V128, VType::V128},
                       std::array{VType::V128});
   case OpCode::V128__bitselect:
-  case OpCode::F32x4__qfma:
-  case OpCode::F32x4__qfms:
-  case OpCode::F64x2__qfma:
-  case OpCode::F64x2__qfms:
     return StackTrans(std::array{VType::V128, VType::V128, VType::V128},
                       std::array{VType::V128});
   case OpCode::V128__any_true:

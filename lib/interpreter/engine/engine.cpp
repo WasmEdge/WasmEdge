@@ -1477,6 +1477,18 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       return runVectorConvertOp<int32_t, float>(StackMgr.getTop());
     case OpCode::F32x4__convert_i32x4_u:
       return runVectorConvertOp<uint32_t, float>(StackMgr.getTop());
+    case OpCode::I32x4__trunc_sat_f64x2_s_zero:
+      return runVectorTruncSatOp<double, int32_t>(StackMgr.getTop());
+    case OpCode::I32x4__trunc_sat_f64x2_u_zero:
+      return runVectorTruncSatOp<double, uint32_t>(StackMgr.getTop());
+    case OpCode::F64x2__convert_low_i32x4_s:
+      return runVectorConvertOp<int32_t, double>(StackMgr.getTop());
+    case OpCode::F64x2__convert_low_i32x4_u:
+      return runVectorConvertOp<uint32_t, double>(StackMgr.getTop());
+    case OpCode::F32x4__demote_f64x2_zero:
+      return runVectorDemoteOp(StackMgr.getTop());
+    case OpCode::F64x2__promote_low_f32x4:
+      return runVectorPromoteOp(StackMgr.getTop());
 
     case OpCode::I32x4__dot_i16x8_s: {
       using int32x8_t [[gnu::vector_size(32)]] = int32_t;
@@ -1494,12 +1506,6 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
 
       return {};
     }
-    case OpCode::F32x4__qfma:
-    case OpCode::F32x4__qfms:
-    case OpCode::F64x2__qfma:
-    case OpCode::F64x2__qfms:
-      /// XXX: Not in testsuite yet
-      return Unexpect(ErrCode::InvalidOpCode);
     case OpCode::F32x4__ceil:
       return runVectorCeilOp<float>(StackMgr.getTop());
     case OpCode::F32x4__floor:
@@ -1516,14 +1522,6 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       return runVectorTruncOp<double>(StackMgr.getTop());
     case OpCode::F64x2__nearest:
       return runVectorNearestOp<double>(StackMgr.getTop());
-    case OpCode::I64x2__trunc_sat_f64x2_s:
-      return runVectorTruncSatOp<double, int64_t>(StackMgr.getTop());
-    case OpCode::I64x2__trunc_sat_f64x2_u:
-      return runVectorTruncSatOp<double, uint64_t>(StackMgr.getTop());
-    case OpCode::F64x2__convert_i64x2_s:
-      return runVectorConvertOp<int64_t, double>(StackMgr.getTop());
-    case OpCode::F64x2__convert_i64x2_u:
-      return runVectorConvertOp<uint64_t, double>(StackMgr.getTop());
 
     default:
       return {};

@@ -2421,12 +2421,6 @@ public:
       case OpCode::F32x4__pmax:
         compileVectorVectorFPMax(Context.Floatx4Ty);
         break;
-      case OpCode::F32x4__qfma:
-        compileVectorVectorVectorQFMA(Context.Floatx4Ty);
-        break;
-      case OpCode::F32x4__qfms:
-        compileVectorVectorVectorQFMS(Context.Floatx4Ty);
-        break;
       case OpCode::F32x4__ceil:
         compileVectorFCeil(Context.Floatx4Ty);
         break;
@@ -2472,12 +2466,6 @@ public:
       case OpCode::F64x2__pmax:
         compileVectorVectorFPMax(Context.Doublex2Ty);
         break;
-      case OpCode::F64x2__qfma:
-        compileVectorVectorVectorQFMA(Context.Doublex2Ty);
-        break;
-      case OpCode::F64x2__qfms:
-        compileVectorVectorVectorQFMS(Context.Doublex2Ty);
-        break;
       case OpCode::F64x2__ceil:
         compileVectorFCeil(Context.Doublex2Ty);
         break;
@@ -2491,29 +2479,36 @@ public:
         compileVectorFNearest(Context.Doublex2Ty);
         break;
       case OpCode::I32x4__trunc_sat_f32x4_s:
-        compileVectorTruncSatS(Context.Floatx4Ty, 32);
+        compileVectorTruncSatS(Context.Floatx4Ty, 32, false);
         break;
       case OpCode::I32x4__trunc_sat_f32x4_u:
-        compileVectorTruncSatU(Context.Floatx4Ty, 32);
+        compileVectorTruncSatU(Context.Floatx4Ty, 32, false);
         break;
       case OpCode::F32x4__convert_i32x4_s:
-        compileVectorConvertS(Context.Int32x4Ty, Context.Floatx4Ty);
+        compileVectorConvertS(Context.Int32x4Ty, Context.Floatx4Ty, false);
         break;
       case OpCode::F32x4__convert_i32x4_u:
-        compileVectorConvertU(Context.Int32x4Ty, Context.Floatx4Ty);
+        compileVectorConvertU(Context.Int32x4Ty, Context.Floatx4Ty, false);
         break;
-      case OpCode::I64x2__trunc_sat_f64x2_s:
-        compileVectorTruncSatS(Context.Doublex2Ty, 64);
+      case OpCode::I32x4__trunc_sat_f64x2_s_zero:
+        compileVectorTruncSatS(Context.Doublex2Ty, 32, true);
         break;
-      case OpCode::I64x2__trunc_sat_f64x2_u:
-        compileVectorTruncSatU(Context.Doublex2Ty, 64);
+      case OpCode::I32x4__trunc_sat_f64x2_u_zero:
+        compileVectorTruncSatU(Context.Doublex2Ty, 32, true);
         break;
-      case OpCode::F64x2__convert_i64x2_s:
-        compileVectorConvertS(Context.Int64x2Ty, Context.Doublex2Ty);
+      case OpCode::F64x2__convert_low_i32x4_s:
+        compileVectorConvertS(Context.Int32x4Ty, Context.Doublex2Ty, true);
         break;
-      case OpCode::F64x2__convert_i64x2_u:
-        compileVectorConvertU(Context.Int64x2Ty, Context.Doublex2Ty);
+      case OpCode::F64x2__convert_low_i32x4_u:
+        compileVectorConvertU(Context.Int32x4Ty, Context.Doublex2Ty, true);
         break;
+      case OpCode::F32x4__demote_f64x2_zero:
+        compileVectorDemote();
+        break;
+      case OpCode::F64x2__promote_low_f32x4:
+        compileVectorPromote();
+        break;
+
       default:
         assert(false);
       }
@@ -3354,16 +3349,16 @@ private:
       return Builder.CreateSelect(Cmp, RHS, LHS);
     });
   }
-  void compileVectorTruncSatS(llvm::VectorType *VectorTy, unsigned IntWidth) {
-    compileVectorOp(VectorTy, [this, VectorTy, IntWidth](auto *V) {
+  void compileVectorTruncSatS(llvm::VectorType *VectorTy, unsigned IntWidth,
+                              bool PadZero) {
+    compileVectorOp(VectorTy, [this, VectorTy, IntWidth, PadZero](auto *V) {
       const auto Size = VectorTy->getElementCount().Min;
       auto *FPTy = VectorTy->getElementType();
-      auto *IntZero = Builder.getIntN(IntWidth, 0);
       auto *IntMin = Builder.getInt(llvm::APInt::getSignedMinValue(IntWidth));
       auto *IntMax = Builder.getInt(llvm::APInt::getSignedMaxValue(IntWidth));
-      auto *IntZeroV = Builder.CreateVectorSplat(Size, IntZero);
       auto *IntMinV = Builder.CreateVectorSplat(Size, IntMin);
       auto *IntMaxV = Builder.CreateVectorSplat(Size, IntMax);
+      auto *IntZeroV = llvm::ConstantAggregateZero::get(IntMinV->getType());
       auto *FPMin = llvm::ConstantExpr::getSIToFP(IntMin, FPTy);
       auto *FPMax = llvm::ConstantExpr::getSIToFP(IntMax, FPTy);
       auto *FPMinV = Builder.CreateVectorSplat(Size, FPMin);
@@ -3377,11 +3372,17 @@ private:
       V = Builder.CreateSelect(Normal, V, IntZeroV);
       V = Builder.CreateSelect(NotUnder, V, IntMinV);
       V = Builder.CreateSelect(NotOver, V, IntMaxV);
+      if (PadZero) {
+        std::vector<ShuffleElement> Mask(Size * 2);
+        std::iota(Mask.begin(), Mask.end(), 0);
+        V = Builder.CreateShuffleVector(V, IntZeroV, Mask);
+      }
       return V;
     });
   }
-  void compileVectorTruncSatU(llvm::VectorType *VectorTy, unsigned IntWidth) {
-    compileVectorOp(VectorTy, [this, VectorTy, IntWidth](auto *V) {
+  void compileVectorTruncSatU(llvm::VectorType *VectorTy, unsigned IntWidth,
+                              bool PadZero) {
+    compileVectorOp(VectorTy, [this, VectorTy, IntWidth, PadZero](auto *V) {
       const auto Size = VectorTy->getElementCount().Min;
       auto *FPTy = VectorTy->getElementType();
       auto *IntMin = Builder.getInt(llvm::APInt::getMinValue(IntWidth));
@@ -3399,41 +3400,57 @@ private:
           V, llvm::VectorType::get(Builder.getIntNTy(IntWidth), Size, false));
       V = Builder.CreateSelect(NotUnder, V, IntMinV);
       V = Builder.CreateSelect(NotOver, V, IntMaxV);
+      if (PadZero) {
+        auto *IntZeroV = llvm::ConstantAggregateZero::get(IntMinV->getType());
+        std::vector<ShuffleElement> Mask(Size * 2);
+        std::iota(Mask.begin(), Mask.end(), 0);
+        V = Builder.CreateShuffleVector(V, IntZeroV, Mask);
+      }
       return V;
     });
   }
   void compileVectorConvertS(llvm::VectorType *VectorTy,
-                             llvm::VectorType *FPVectorTy) {
-    compileVectorOp(VectorTy, [this, FPVectorTy](auto *V) {
+                             llvm::VectorType *FPVectorTy, bool Low) {
+    compileVectorOp(VectorTy, [this, VectorTy, FPVectorTy, Low](auto *V) {
+      if (Low) {
+        const auto Size = VectorTy->getElementCount().Min / 2;
+        std::vector<ShuffleElement> Mask(Size);
+        std::iota(Mask.begin(), Mask.end(), 0);
+        V = Builder.CreateShuffleVector(V, llvm::UndefValue::get(VectorTy),
+                                        Mask);
+      }
       return Builder.CreateSIToFP(V, FPVectorTy);
     });
   }
   void compileVectorConvertU(llvm::VectorType *VectorTy,
-                             llvm::VectorType *FPVectorTy) {
-    compileVectorOp(VectorTy, [this, FPVectorTy](auto *V) {
+                             llvm::VectorType *FPVectorTy, bool Low) {
+    compileVectorOp(VectorTy, [this, VectorTy, FPVectorTy, Low](auto *V) {
+      if (Low) {
+        const auto Size = VectorTy->getElementCount().Min / 2;
+        std::vector<ShuffleElement> Mask(Size);
+        std::iota(Mask.begin(), Mask.end(), 0);
+        V = Builder.CreateShuffleVector(V, llvm::UndefValue::get(VectorTy),
+                                        Mask);
+      }
       return Builder.CreateUIToFP(V, FPVectorTy);
     });
   }
-  template <typename Func>
-  void compileVectorVectorVectorOp(llvm::VectorType *VectorTy, Func &&Op) {
-    auto *C = Builder.CreateBitCast(stackPop(), VectorTy);
-    auto *B = Builder.CreateBitCast(stackPop(), VectorTy);
-    auto *A = Builder.CreateBitCast(stackPop(), VectorTy);
-    stackPush(Builder.CreateBitCast(Op(A, B, C), Context.Int64x2Ty));
-  }
-  void compileVectorVectorVectorQFMA(llvm::VectorType *VectorTy) {
-    /// XXX: Not in testsuite yet
-    compileVectorVectorVectorOp(VectorTy, [this](auto *A, auto *B, auto *C) {
-      return Builder.CreateIntrinsic(llvm::Intrinsic::fmuladd, {A->getType()},
-                                     {A, B, C});
+  void compileVectorDemote() {
+    compileVectorOp(Context.Doublex2Ty, [this](auto *V) {
+      auto *Demoted = Builder.CreateFPTrunc(
+          V, llvm::VectorType::get(Context.FloatTy, 2, false));
+      auto *ZeroV = llvm::ConstantAggregateZero::get(Demoted->getType());
+      return Builder.CreateShuffleVector(
+          Demoted, ZeroV, std::array<ShuffleElement, 4>{0, 1, 2, 3});
     });
   }
-  void compileVectorVectorVectorQFMS(llvm::VectorType *VectorTy) {
-    /// XXX: Not in testsuite yet
-    compileVectorVectorVectorOp(VectorTy, [this](auto *A, auto *B, auto *C) {
-      C = Builder.CreateFNeg(C);
-      return Builder.CreateIntrinsic(llvm::Intrinsic::fmuladd, {A->getType()},
-                                     {A, B, C});
+  void compileVectorPromote() {
+    compileVectorOp(Context.Floatx4Ty, [this](auto *V) {
+      auto *UndefV = llvm::UndefValue::get(V->getType());
+      auto *Low = Builder.CreateShuffleVector(
+          V, UndefV, std::array<ShuffleElement, 2>{0, 1});
+      return Builder.CreateFPExt(
+          Low, llvm::VectorType::get(Context.DoubleTy, 2, false));
     });
   }
 

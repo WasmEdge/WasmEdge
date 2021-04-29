@@ -621,6 +621,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::I16x8__extmul_high_i8x16_s:
   case OpCode::I16x8__extmul_low_i8x16_u:
   case OpCode::I16x8__extmul_high_i8x16_u:
+  case OpCode::I16x8__q15mulr_sat_s:
 
   case OpCode::I32x4__abs:
   case OpCode::I32x4__neg:

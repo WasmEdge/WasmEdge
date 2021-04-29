@@ -425,6 +425,8 @@ private:
   template <typename TIn, typename TOut>
   Expect<void> runVectorExtMulHighOp(ValVariant &Val1,
                                      const ValVariant &Val2) const;
+  inline Expect<void> runVectorQ15MulSatOp(ValVariant &Val1,
+                                           const ValVariant &Val2) const;
   template <typename T>
   Expect<void> runVectorShlOp(ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T>

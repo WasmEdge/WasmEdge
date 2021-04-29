@@ -1133,6 +1133,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I16x8__extmul_high_i8x16_s:
   case OpCode::I16x8__extmul_low_i8x16_u:
   case OpCode::I16x8__extmul_high_i8x16_u:
+  case OpCode::I16x8__q15mulr_sat_s:
   case OpCode::I32x4__add:
   case OpCode::I32x4__sub:
   case OpCode::I32x4__mul:

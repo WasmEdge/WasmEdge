@@ -543,5 +543,20 @@ Expect<void> Interpreter::runVectorExtMulHighOp(ValVariant &Val1,
   return {};
 }
 
+inline Expect<void>
+Interpreter::runVectorQ15MulSatOp(ValVariant &Val1,
+                                  const ValVariant &Val2) const {
+  using int32x8_t [[gnu::vector_size(32)]] = int32_t;
+  const auto &V1 = retrieveValue<int16x8_t>(Val1);
+  const auto &V2 = retrieveValue<int16x8_t>(Val2);
+  auto &Result = retrieveValue<int16x8_t>(Val1);
+  const auto EV1 = __builtin_convertvector(V1, int32x8_t);
+  const auto EV2 = __builtin_convertvector(V2, int32x8_t);
+  const auto ER = (EV1 * EV2 + INT32_C(0x4000)) >> INT32_C(15);
+  const auto ERSat = ER > INT32_C(0x7fff) ? INT32_C(0x7fff) : ER;
+  Result = __builtin_convertvector(ERSat, int16x8_t);
+  return {};
+}
+
 } // namespace Interpreter
 } // namespace SSVM

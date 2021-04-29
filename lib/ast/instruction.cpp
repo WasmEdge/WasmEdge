@@ -462,7 +462,36 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = readU32(MemAlign); !Res) {
       return Unexpect(Res);
     }
-    return readU32(MemOffset);
+    if (auto Res = readU32(MemOffset); !Res) {
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    return {};
+  case OpCode::V128__load8_lane:
+  case OpCode::V128__load16_lane:
+  case OpCode::V128__load32_lane:
+  case OpCode::V128__load64_lane:
+  case OpCode::V128__store8_lane:
+  case OpCode::V128__store16_lane:
+  case OpCode::V128__store32_lane:
+  case OpCode::V128__store64_lane:
+    /// Read memory arguments.
+    if (auto Res = readU32(MemAlign); !Res) {
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    if (auto Res = readU32(MemOffset); !Res) {
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    /// Read lane index.
+    if (auto Res = Mgr.readByte()) {
+      TargetIdx = static_cast<uint32_t>(*Res);
+    } else {
+      return logLoadError(Res.error(), Mgr.getOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    return {};
 
   /// SIMD Const Instruction.
   case OpCode::V128__const:

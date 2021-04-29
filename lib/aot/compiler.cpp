@@ -1705,6 +1705,46 @@ public:
         compileStoreOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
                        Context.Int128x1Ty, false, true);
         break;
+      case OpCode::V128__load8_lane:
+        compileLoadLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                          Instr.getTargetIndex(), Context.Int8Ty,
+                          Context.Int8x16Ty);
+        break;
+      case OpCode::V128__load16_lane:
+        compileLoadLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                          Instr.getTargetIndex(), Context.Int16Ty,
+                          Context.Int16x8Ty);
+        break;
+      case OpCode::V128__load32_lane:
+        compileLoadLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                          Instr.getTargetIndex(), Context.Int32Ty,
+                          Context.Int32x4Ty);
+        break;
+      case OpCode::V128__load64_lane:
+        compileLoadLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                          Instr.getTargetIndex(), Context.Int64Ty,
+                          Context.Int64x2Ty);
+        break;
+      case OpCode::V128__store8_lane:
+        compileStoreLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Instr.getTargetIndex(), Context.Int8Ty,
+                           Context.Int8x16Ty);
+        break;
+      case OpCode::V128__store16_lane:
+        compileStoreLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Instr.getTargetIndex(), Context.Int16Ty,
+                           Context.Int16x8Ty);
+        break;
+      case OpCode::V128__store32_lane:
+        compileStoreLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Instr.getTargetIndex(), Context.Int32Ty,
+                           Context.Int32x4Ty);
+        break;
+      case OpCode::V128__store64_lane:
+        compileStoreLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
+                           Instr.getTargetIndex(), Context.Int64Ty,
+                           Context.Int64x2Ty);
+        break;
       case OpCode::V128__const: {
         const auto Value = retrieveValue<uint64x2_t>(Instr.getNum());
         auto *Vector = llvm::ConstantVector::get(
@@ -2824,6 +2864,23 @@ private:
                           llvm::Type *LoadTy, llvm::VectorType *VectorTy) {
     compileLoadOp(Offset, Alignment, LoadTy);
     compileSplatOp(VectorTy);
+  }
+  void compileLoadLaneOp(unsigned Offset, unsigned Alignment, unsigned Index,
+                         llvm::Type *LoadTy, llvm::VectorType *VectorTy) {
+    auto *Vector = stackPop();
+    compileLoadOp(Offset, Alignment, LoadTy);
+    auto *Value = Stack.back();
+    Stack.back() = Builder.CreateBitCast(
+        Builder.CreateInsertElement(Builder.CreateBitCast(Vector, VectorTy),
+                                    Value, Index),
+        Context.Int64x2Ty);
+  }
+  void compileStoreLaneOp(unsigned Offset, unsigned Alignment, unsigned Index,
+                          llvm::Type *LoadTy, llvm::VectorType *VectorTy) {
+    auto *Vector = Stack.back();
+    Stack.back() = Builder.CreateExtractElement(
+        Builder.CreateBitCast(Vector, VectorTy), Index);
+    compileStoreOp(Offset, Alignment, LoadTy);
   }
   void compileStoreOp(unsigned Offset, unsigned Alignment, llvm::Type *LoadTy,
                       bool Trunc = false, bool BitCast = false) {

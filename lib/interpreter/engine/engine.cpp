@@ -1320,6 +1320,14 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       return runVectorNegOp<int64_t>(StackMgr.getTop());
     case OpCode::I64x2__bitmask:
       return runVectorBitMaskOp<uint64_t>(StackMgr.getTop());
+    case OpCode::I64x2__widen_low_i32x4_s:
+      return runVectorWidenLowOp<int32_t, int64_t>(StackMgr.getTop());
+    case OpCode::I64x2__widen_high_i32x4_s:
+      return runVectorWidenHighOp<int32_t, int64_t>(StackMgr.getTop());
+    case OpCode::I64x2__widen_low_i32x4_u:
+      return runVectorWidenLowOp<uint32_t, uint64_t>(StackMgr.getTop());
+    case OpCode::I64x2__widen_high_i32x4_u:
+      return runVectorWidenHighOp<uint32_t, uint64_t>(StackMgr.getTop());
     case OpCode::I64x2__shl: {
       ValVariant Rhs = StackMgr.pop();
       return runVectorShlOp<uint64_t>(StackMgr.getTop(), Rhs);

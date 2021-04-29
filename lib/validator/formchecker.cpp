@@ -1189,6 +1189,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I32x4__bitmask:
   case OpCode::I64x2__any_true:
   case OpCode::I64x2__all_true:
+  case OpCode::I64x2__bitmask:
     return StackTrans(std::array{VType::V128}, std::array{VType::I32});
   case OpCode::I8x16__shl:
   case OpCode::I8x16__shr_s:

@@ -2206,6 +2206,9 @@ public:
       case OpCode::I16x8__extmul_high_i8x16_u:
         compileVectorExtMul(Context.Int8x16Ty, false, false);
         break;
+      case OpCode::I16x8__q15mulr_sat_s:
+        compileVectorVectorQ15MulSat();
+        break;
       case OpCode::I32x4__abs:
         compileVectorAbs(Context.Int32x4Ty);
         break;
@@ -2997,6 +3000,48 @@ private:
     compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {
       return Builder.CreateMul(LHS, RHS);
     });
+  }
+  void compileVectorVectorQ15MulSat() {
+    compileVectorVectorOp(
+        Context.Int16x8Ty, [this](auto *LHS, auto *RHS) -> llvm::Value * {
+#if defined(__x86_64__)
+          if (Context.SupportSSSE3) {
+            auto *Result = Builder.CreateIntrinsic(
+                llvm::Intrinsic::x86_ssse3_pmul_hr_sw_128, {}, {LHS, RHS});
+            auto *IntMaxV = Builder.CreateVectorSplat(
+                8, Builder.getInt16(UINT16_C(0x8000)));
+            auto *NotOver = Builder.CreateSExt(
+                Builder.CreateICmpEQ(Result, IntMaxV), Context.Int16x8Ty);
+            return Builder.CreateXor(Result, NotOver);
+          }
+#endif
+
+#if defined(__aarch64__)
+          if (Context.SupportNEON) {
+            return Builder.CreateBinaryIntrinsic(
+                llvm::Intrinsic::aarch64_neon_sqrdmulh, LHS, RHS);
+          }
+#endif
+
+          auto *ExtTy =
+              llvm::VectorType::getExtendedElementVectorType(Context.Int16x8Ty);
+          auto *Offset =
+              Builder.CreateVectorSplat(8, Builder.getInt32(UINT32_C(0x4000)));
+          auto *Shift =
+              Builder.CreateVectorSplat(8, Builder.getInt32(UINT32_C(15)));
+          auto *ExtLHS = Builder.CreateSExt(LHS, ExtTy);
+          auto *ExtRHS = Builder.CreateSExt(RHS, ExtTy);
+          auto *Result = Builder.CreateTrunc(
+              Builder.CreateAShr(
+                  Builder.CreateAdd(Builder.CreateMul(ExtLHS, ExtRHS), Offset),
+                  Shift),
+              Context.Int16x8Ty);
+          auto *IntMaxV =
+              Builder.CreateVectorSplat(8, Builder.getInt16(UINT16_C(0x8000)));
+          auto *NotOver = Builder.CreateSExt(
+              Builder.CreateICmpEQ(Result, IntMaxV), Context.Int16x8Ty);
+          return Builder.CreateXor(Result, NotOver);
+        });
   }
   void compileVectorVectorSMin(llvm::VectorType *VectorTy) {
     compileVectorVectorOp(VectorTy, [this](auto *LHS, auto *RHS) {

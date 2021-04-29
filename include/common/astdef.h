@@ -455,6 +455,7 @@ enum class OpCode : uint16_t {
   I16x8__extmul_high_i8x16_s = 0xFD9D,
   I16x8__extmul_low_i8x16_u = 0xFD9E,
   I16x8__extmul_high_i8x16_u = 0xFD9F,
+  I16x8__q15mulr_sat_s = 0xFD82,
 
   I32x4__abs = 0xFDA0,
   I32x4__neg = 0xFDA1,
@@ -919,6 +920,7 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::I16x8__extmul_high_i8x16_s, "i16x8.extmul_high_i8x16_s"},
     {OpCode::I16x8__extmul_low_i8x16_u, "i16x8.extmul_low_i8x16_u"},
     {OpCode::I16x8__extmul_high_i8x16_u, "i16x8.extmul_high_i8x16_u"},
+    {OpCode::I16x8__q15mulr_sat_s, "i16x8.q15mulr_sat_s"},
 
     {OpCode::I32x4__abs, "i32x4.abs"},
     {OpCode::I32x4__neg, "i32x4.neg"},

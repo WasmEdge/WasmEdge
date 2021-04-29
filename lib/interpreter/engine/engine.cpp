@@ -1236,6 +1236,10 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       ValVariant Rhs = StackMgr.pop();
       return runVectorExtMulHighOp<uint8_t, uint16_t>(StackMgr.getTop(), Rhs);
     }
+    case OpCode::I16x8__q15mulr_sat_s: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorQ15MulSatOp(StackMgr.getTop(), Rhs);
+    }
 
     case OpCode::I32x4__abs:
       return runVectorAbsOp<int32_t>(StackMgr.getTop());

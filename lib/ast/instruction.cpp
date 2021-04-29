@@ -568,10 +568,10 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::V128__or:
   case OpCode::V128__xor:
   case OpCode::V128__bitselect:
+  case OpCode::V128__any_true:
 
   case OpCode::I8x16__abs:
   case OpCode::I8x16__neg:
-  case OpCode::I8x16__any_true:
   case OpCode::I8x16__all_true:
   case OpCode::I8x16__bitmask:
   case OpCode::I8x16__narrow_i16x8_s:
@@ -593,7 +593,6 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 
   case OpCode::I16x8__abs:
   case OpCode::I16x8__neg:
-  case OpCode::I16x8__any_true:
   case OpCode::I16x8__all_true:
   case OpCode::I16x8__bitmask:
   case OpCode::I16x8__narrow_i32x4_s:
@@ -625,7 +624,6 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 
   case OpCode::I32x4__abs:
   case OpCode::I32x4__neg:
-  case OpCode::I32x4__any_true:
   case OpCode::I32x4__all_true:
   case OpCode::I32x4__bitmask:
   case OpCode::I32x4__widen_low_i16x8_s:
@@ -694,7 +692,6 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::F32x4__convert_i32x4_u:
 
   case OpCode::I32x4__dot_i16x8_s:
-  case OpCode::I64x2__any_true:
   case OpCode::I64x2__all_true:
   case OpCode::F32x4__qfma:
   case OpCode::F32x4__qfms:

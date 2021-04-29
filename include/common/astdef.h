@@ -402,10 +402,10 @@ enum class OpCode : uint16_t {
   V128__or = 0xFD50,
   V128__xor = 0xFD51,
   V128__bitselect = 0xFD52,
+  V128__any_true = 0xFD53,
 
   I8x16__abs = 0xFD60,
   I8x16__neg = 0xFD61,
-  I8x16__any_true = 0xFD62,
   I8x16__all_true = 0xFD63,
   I8x16__bitmask = 0xFD64,
   I8x16__narrow_i16x8_s = 0xFD65,
@@ -427,7 +427,6 @@ enum class OpCode : uint16_t {
 
   I16x8__abs = 0xFD80,
   I16x8__neg = 0xFD81,
-  I16x8__any_true = 0xFD82,
   I16x8__all_true = 0xFD83,
   I16x8__bitmask = 0xFD84,
   I16x8__narrow_i32x4_s = 0xFD85,
@@ -459,7 +458,6 @@ enum class OpCode : uint16_t {
 
   I32x4__abs = 0xFDA0,
   I32x4__neg = 0xFDA1,
-  I32x4__any_true = 0xFDA2,
   I32x4__all_true = 0xFDA3,
   I32x4__bitmask = 0xFDA4,
   I32x4__widen_low_i16x8_s = 0xFDA7,
@@ -529,7 +527,6 @@ enum class OpCode : uint16_t {
 
   /// Non-standard SIMD Instructions
   I32x4__dot_i16x8_s = 0xFDBA,
-  I64x2__any_true = 0xFDC2,
   I64x2__all_true = 0xFDC3,
   F32x4__qfma = 0xFDB4,
   F32x4__qfms = 0xFDD4,
@@ -872,10 +869,10 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::V128__or, "v128.or"},
     {OpCode::V128__xor, "v128.xor"},
     {OpCode::V128__bitselect, "v128.bitselect"},
+    {OpCode::V128__any_true, "v128.any_true"},
 
     {OpCode::I8x16__abs, "i8x16.abs"},
     {OpCode::I8x16__neg, "i8x16.neg"},
-    {OpCode::I8x16__any_true, "i8x16.any_true"},
     {OpCode::I8x16__all_true, "i8x16.all_true"},
     {OpCode::I8x16__bitmask, "i8x16.bitmask"},
     {OpCode::I8x16__narrow_i16x8_s, "i8x16.narrow_i16x8_s"},
@@ -897,7 +894,6 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
 
     {OpCode::I16x8__abs, "i16x8.abs"},
     {OpCode::I16x8__neg, "i16x8.neg"},
-    {OpCode::I16x8__any_true, "i16x8.any_true"},
     {OpCode::I16x8__all_true, "i16x8.all_true"},
     {OpCode::I16x8__bitmask, "i16x8.bitmask"},
     {OpCode::I16x8__narrow_i32x4_s, "i16x8.narrow_i32x4_s"},
@@ -929,7 +925,6 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
 
     {OpCode::I32x4__abs, "i32x4.abs"},
     {OpCode::I32x4__neg, "i32x4.neg"},
-    {OpCode::I32x4__any_true, "i32x4.any_true"},
     {OpCode::I32x4__all_true, "i32x4.all_true"},
     {OpCode::I32x4__bitmask, "i32x4.bitmask"},
     {OpCode::I32x4__widen_low_i16x8_s, "i32x4.widen_low_i16x8_s"},
@@ -999,7 +994,6 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
 
     /// Non-standard SIMD Instructions
     {OpCode::I32x4__dot_i16x8_s, "i32x4.dot_i16x8_s"},
-    {OpCode::I64x2__any_true, "i64x2.any_true"},
     {OpCode::I64x2__all_true, "i64x2.all_true"},
     {OpCode::F32x4__qfma, "f32x4.qfma"},
     {OpCode::F32x4__qfms, "f32x4.qfms"},

@@ -2053,14 +2053,14 @@ public:
             Builder.CreateAnd(Builder.CreateXor(V1, V2), C), V2));
         break;
       }
+      case OpCode::V128__any_true:
+        compileVectorAnyTrue();
+        break;
       case OpCode::I8x16__abs:
         compileVectorAbs(Context.Int8x16Ty);
         break;
       case OpCode::I8x16__neg:
         compileVectorNeg(Context.Int8x16Ty);
-        break;
-      case OpCode::I8x16__any_true:
-        compileVectorAnyTrue(Context.Int8x16Ty);
         break;
       case OpCode::I8x16__all_true:
         compileVectorAllTrue(Context.Int8x16Ty);
@@ -2121,9 +2121,6 @@ public:
         break;
       case OpCode::I16x8__neg:
         compileVectorNeg(Context.Int16x8Ty);
-        break;
-      case OpCode::I16x8__any_true:
-        compileVectorAnyTrue(Context.Int16x8Ty);
         break;
       case OpCode::I16x8__all_true:
         compileVectorAllTrue(Context.Int16x8Ty);
@@ -2214,9 +2211,6 @@ public:
         break;
       case OpCode::I32x4__neg:
         compileVectorNeg(Context.Int32x4Ty);
-        break;
-      case OpCode::I32x4__any_true:
-        compileVectorAnyTrue(Context.Int32x4Ty);
         break;
       case OpCode::I32x4__all_true:
         compileVectorAllTrue(Context.Int32x4Ty);
@@ -2312,9 +2306,6 @@ public:
         break;
       case OpCode::I64x2__widen_high_i32x4_u:
         compileVectorWiden(Context.Int32x4Ty, false, false);
-        break;
-      case OpCode::I64x2__any_true:
-        compileVectorAnyTrue(Context.Int64x2Ty);
         break;
       case OpCode::I64x2__all_true:
         compileVectorAllTrue(Context.Int64x2Ty);
@@ -2930,14 +2921,11 @@ private:
     auto *V = Builder.CreateBitCast(Stack.back(), VectorTy);
     Stack.back() = Builder.CreateZExt(Op(V), Context.Int32Ty);
   }
-  void compileVectorAnyTrue(llvm::VectorType *VectorTy) {
-    compileVectorReduceIOp(VectorTy, [this, VectorTy](auto *V) {
-      const auto Size = VectorTy->getElementCount().Min;
-      auto *IntType = Builder.getIntNTy(Size);
-      auto *Zero = llvm::ConstantAggregateZero::get(VectorTy);
-      auto *Cmp = Builder.CreateBitCast(Builder.CreateICmpNE(V, Zero), IntType);
-      auto *CmpZero = llvm::ConstantInt::get(IntType, 0);
-      return Builder.CreateICmpNE(Cmp, CmpZero);
+  void compileVectorAnyTrue() {
+    compileVectorReduceIOp(Context.Int128x1Ty, [this](auto *V) {
+      auto *Zero = llvm::ConstantAggregateZero::get(Context.Int128x1Ty);
+      return Builder.CreateBitCast(Builder.CreateICmpNE(V, Zero),
+                                   Builder.getInt1Ty());
     });
   }
   void compileVectorAllTrue(llvm::VectorType *VectorTy) {

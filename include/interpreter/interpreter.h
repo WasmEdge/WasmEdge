@@ -409,7 +409,7 @@ private:
   Expect<void> runVectorTruncSatOp(ValVariant &Val) const;
   template <typename TIn, typename TOut>
   Expect<void> runVectorConvertOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorAnyTrueOp(ValVariant &Val) const;
+  inline Expect<void> runVectorAnyTrueOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorAllTrueOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorBitMaskOp(ValVariant &Val) const;
   template <typename TIn, typename TOut>

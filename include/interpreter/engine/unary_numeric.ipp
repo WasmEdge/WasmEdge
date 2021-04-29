@@ -242,22 +242,10 @@ Expect<void> Interpreter::runVectorConvertOp(ValVariant &Val) const {
   return {};
 }
 
-template <typename T>
-Expect<void> Interpreter::runVectorAnyTrueOp(ValVariant &Val) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &Vector = retrieveValue<VT>(Val);
-  VT Z = Vector != 0;
-  uint32_t Result;
-  if constexpr (sizeof(T) == 1) {
-    Result = Z[0] || Z[1] || Z[2] || Z[3] || Z[4] || Z[5] || Z[6] || Z[7] ||
-             Z[8] || Z[9] || Z[10] || Z[11] || Z[12] || Z[13] || Z[14] || Z[15];
-  } else if constexpr (sizeof(T) == 2) {
-    Result = Z[0] || Z[1] || Z[2] || Z[3] || Z[4] || Z[5] || Z[6] || Z[7];
-  } else if constexpr (sizeof(T) == 4) {
-    Result = Z[0] || Z[1] || Z[2] || Z[3];
-  } else if constexpr (sizeof(T) == 8) {
-    Result = Z[0] || Z[1];
-  }
+inline Expect<void> Interpreter::runVectorAnyTrueOp(ValVariant &Val) const {
+  auto &Vector = retrieveValue<uint128_t>(Val);
+  const uint128_t Zero = 0;
+  const uint32_t Result = (Vector != Zero);
   retrieveValue<uint32_t>(Val) = Result;
 
   return {};

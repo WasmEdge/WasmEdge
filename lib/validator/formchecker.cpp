@@ -1182,16 +1182,13 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F64x2__qfms:
     return StackTrans(std::array{VType::V128, VType::V128, VType::V128},
                       std::array{VType::V128});
-  case OpCode::I8x16__any_true:
+  case OpCode::V128__any_true:
   case OpCode::I8x16__all_true:
   case OpCode::I8x16__bitmask:
-  case OpCode::I16x8__any_true:
   case OpCode::I16x8__all_true:
   case OpCode::I16x8__bitmask:
-  case OpCode::I32x4__any_true:
   case OpCode::I32x4__all_true:
   case OpCode::I32x4__bitmask:
-  case OpCode::I64x2__any_true:
   case OpCode::I64x2__all_true:
   case OpCode::I64x2__bitmask:
     return StackTrans(std::array{VType::V128}, std::array{VType::I32});

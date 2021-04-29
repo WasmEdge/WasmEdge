@@ -1058,13 +1058,13 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       Val1 = (Val1 & C) | (Val2 & ~C);
       return {};
     }
+    case OpCode::V128__any_true:
+      return runVectorAnyTrueOp(StackMgr.getTop());
 
     case OpCode::I8x16__abs:
       return runVectorAbsOp<int8_t>(StackMgr.getTop());
     case OpCode::I8x16__neg:
       return runVectorNegOp<int8_t>(StackMgr.getTop());
-    case OpCode::I8x16__any_true:
-      return runVectorAnyTrueOp<uint8_t>(StackMgr.getTop());
     case OpCode::I8x16__all_true:
       return runVectorAllTrueOp<uint8_t>(StackMgr.getTop());
     case OpCode::I8x16__bitmask:
@@ -1138,8 +1138,6 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       return runVectorAbsOp<int16_t>(StackMgr.getTop());
     case OpCode::I16x8__neg:
       return runVectorNegOp<int16_t>(StackMgr.getTop());
-    case OpCode::I16x8__any_true:
-      return runVectorAnyTrueOp<uint16_t>(StackMgr.getTop());
     case OpCode::I16x8__all_true:
       return runVectorAllTrueOp<uint16_t>(StackMgr.getTop());
     case OpCode::I16x8__bitmask:
@@ -1245,8 +1243,6 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       return runVectorAbsOp<int32_t>(StackMgr.getTop());
     case OpCode::I32x4__neg:
       return runVectorNegOp<int32_t>(StackMgr.getTop());
-    case OpCode::I32x4__any_true:
-      return runVectorAnyTrueOp<uint32_t>(StackMgr.getTop());
     case OpCode::I32x4__all_true:
       return runVectorAllTrueOp<uint32_t>(StackMgr.getTop());
     case OpCode::I32x4__bitmask:
@@ -1472,8 +1468,6 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
 
       return {};
     }
-    case OpCode::I64x2__any_true:
-      return runVectorAnyTrueOp<uint64_t>(StackMgr.getTop());
     case OpCode::I64x2__all_true:
       return runVectorAllTrueOp<uint64_t>(StackMgr.getTop());
     case OpCode::F32x4__qfma:

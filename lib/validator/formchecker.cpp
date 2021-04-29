@@ -271,6 +271,33 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return StackTrans(Take, Put);
   };
 
+  /// Helper lambda for checking memory alignment, lane index and perform
+  /// transformation.
+  auto checkAlignLaneAndTrans =
+      [this, &Instr](const uint32_t N, Span<const VType> Take,
+                     Span<const VType> Put) -> Expect<void> {
+    if (Mems.size() == 0) {
+      LOG(ERROR) << ErrCode::InvalidMemoryIdx;
+      LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, 0,
+                                             Mems.size());
+      return Unexpect(ErrCode::InvalidMemoryIdx);
+    }
+    if (Instr.getMemoryAlign() > 31 ||
+        (1UL << Instr.getMemoryAlign()) > (N >> 3UL)) {
+      /// 2 ^ align needs to <= N / 8
+      LOG(ERROR) << ErrCode::InvalidAlignment;
+      LOG(ERROR) << ErrInfo::InfoMismatch(static_cast<uint8_t>(N >> 3),
+                                          Instr.getMemoryAlign());
+      return Unexpect(ErrCode::InvalidAlignment);
+    }
+    const uint32_t I = 128 / N;
+    if (Instr.getTargetIndex() >= I) {
+      LOG(ERROR) << ErrCode::InvalidLaneIdx;
+      return Unexpect(ErrCode::InvalidLaneIdx);
+    }
+    return StackTrans(Take, Put);
+  };
+
   switch (Instr.getOpCode()) {
   /// Control instructions.
   case OpCode::Unreachable:
@@ -946,6 +973,26 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                               std::array{VType::V128});
   case OpCode::V128__store:
     return checkAlignAndTrans(128, std::array{VType::I32, VType::V128}, {});
+  case OpCode::V128__load8_lane:
+    return checkAlignLaneAndTrans(8, std::array{VType::I32, VType::V128},
+                                  std::array{VType::V128});
+  case OpCode::V128__load16_lane:
+    return checkAlignLaneAndTrans(16, std::array{VType::I32, VType::V128},
+                                  std::array{VType::V128});
+  case OpCode::V128__load32_lane:
+    return checkAlignLaneAndTrans(32, std::array{VType::I32, VType::V128},
+                                  std::array{VType::V128});
+  case OpCode::V128__load64_lane:
+    return checkAlignLaneAndTrans(64, std::array{VType::I32, VType::V128},
+                                  std::array{VType::V128});
+  case OpCode::V128__store8_lane:
+    return checkAlignLaneAndTrans(8, std::array{VType::I32, VType::V128}, {});
+  case OpCode::V128__store16_lane:
+    return checkAlignLaneAndTrans(16, std::array{VType::I32, VType::V128}, {});
+  case OpCode::V128__store32_lane:
+    return checkAlignLaneAndTrans(32, std::array{VType::I32, VType::V128}, {});
+  case OpCode::V128__store64_lane:
+    return checkAlignLaneAndTrans(64, std::array{VType::I32, VType::V128}, {});
 
   /// SIMD Const Instruction.
   case OpCode::V128__const:

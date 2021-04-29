@@ -317,6 +317,14 @@ enum class OpCode : uint16_t {
   V128__load32_zero = 0xFD5C,
   V128__load64_zero = 0xFD5D,
   V128__store = 0xFD0B,
+  V128__load8_lane = 0xFD54,
+  V128__load16_lane = 0xFD55,
+  V128__load32_lane = 0xFD56,
+  V128__load64_lane = 0xFD57,
+  V128__store8_lane = 0xFD58,
+  V128__store16_lane = 0xFD59,
+  V128__store32_lane = 0xFD5A,
+  V128__store64_lane = 0xFD5B,
 
   /// SIMD Const Instructions
   V128__const = 0xFD0C,
@@ -784,6 +792,14 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::V128__load32_zero, "v128.load32_zero"},
     {OpCode::V128__load64_zero, "v128.load64_zero"},
     {OpCode::V128__store, "v128.store"},
+    {OpCode::V128__load8_lane, "v128.load8_lane"},
+    {OpCode::V128__load16_lane, "v128.load16_lane"},
+    {OpCode::V128__load32_lane, "v128.load32_lane"},
+    {OpCode::V128__load64_lane, "v128.load64_lane"},
+    {OpCode::V128__store8_lane, "v128.store8_lane"},
+    {OpCode::V128__store16_lane, "v128.store16_lane"},
+    {OpCode::V128__store32_lane, "v128.store32_lane"},
+    {OpCode::V128__store64_lane, "v128.store64_lane"},
 
     /// SIMD Const Instructions
     {OpCode::V128__const, "v128.const"},

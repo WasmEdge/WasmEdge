@@ -739,6 +739,22 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       return runLoadOp<uint128_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 64);
     case OpCode::V128__store:
       return runStoreOp<uint128_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::V128__load8_lane:
+      return runLoadLaneOp<uint8_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::V128__load16_lane:
+      return runLoadLaneOp<uint16_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::V128__load32_lane:
+      return runLoadLaneOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::V128__load64_lane:
+      return runLoadLaneOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::V128__store8_lane:
+      return runStoreLaneOp<uint8_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::V128__store16_lane:
+      return runStoreLaneOp<uint16_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::V128__store32_lane:
+      return runStoreLaneOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::V128__store64_lane:
+      return runStoreLaneOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
 
     /// SIMD Const Instructions
     case OpCode::V128__const:

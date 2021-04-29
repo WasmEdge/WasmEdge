@@ -381,6 +381,12 @@ private:
   template <typename T>
   Expect<void> runLoadSplatOp(Runtime::Instance::MemoryInstance &MemInst,
                               const AST::Instruction &Instr);
+  template <typename T>
+  Expect<void> runLoadLaneOp(Runtime::Instance::MemoryInstance &MemInst,
+                             const AST::Instruction &Instr);
+  template <typename T>
+  Expect<void> runStoreLaneOp(Runtime::Instance::MemoryInstance &MemInst,
+                              const AST::Instruction &Instr);
   /// ======= SIMD Lane instructions =======
   template <typename TIn, typename TOut = TIn>
   Expect<void> runExtractLaneOp(ValVariant &Val, const uint32_t Index) const;

@@ -204,7 +204,7 @@ Expect<void> Interpreter::runVectorSqrtOp(ValVariant &Val) const {
 
 template <typename TIn, typename TOut>
 Expect<void> Interpreter::runVectorTruncSatOp(ValVariant &Val) const {
-  static_assert(sizeof(TIn) == sizeof(TOut));
+  static_assert((sizeof(TIn) == 4 || sizeof(TIn) == 8) && sizeof(TOut) == 4);
   const TIn FMin = static_cast<TIn>(std::numeric_limits<TOut>::min());
   const TIn FMax = static_cast<TIn>(std::numeric_limits<TOut>::max());
   const TOut IMin = std::numeric_limits<TOut>::min();
@@ -213,7 +213,7 @@ Expect<void> Interpreter::runVectorTruncSatOp(ValVariant &Val) const {
   using VTOut [[gnu::vector_size(16)]] = TOut;
   auto &V = retrieveValue<VTIn>(Val);
   auto &Result = retrieveValue<VTOut>(Val);
-  if constexpr (sizeof(TIn) == 4) {
+  if constexpr (sizeof(TIn) == sizeof(TOut)) {
     VTIn X = {std::trunc(V[0]), std::trunc(V[1]), std::trunc(V[2]),
               std::trunc(V[3])};
     VTOut Y = __builtin_convertvector(X, VTOut);
@@ -221,24 +221,48 @@ Expect<void> Interpreter::runVectorTruncSatOp(ValVariant &Val) const {
     Y = X <= FMin ? IMin : Y;
     Y = X >= FMax ? IMax : Y;
     Result = Y;
-  } else if constexpr (sizeof(TIn) == 8) {
+  } else {
+    using TOut2 = std::conditional_t<std::is_signed_v<TOut>, int64_t, uint64_t>;
+    using VTOut2 [[gnu::vector_size(16)]] = TOut2;
     VTIn X = {std::trunc(V[0]), std::trunc(V[1])};
-    VTOut Y = __builtin_convertvector(X, VTOut);
+    VTOut2 Y = __builtin_convertvector(X, VTOut2);
     Y = X <= FMin ? IMin : Y;
     Y = X >= FMax ? IMax : Y;
-    Result = Y;
+    using VTOut22 [[gnu::vector_size(32)]] = TOut2;
+    VTOut22 T = {Y[0], Y[1], 0, 0};
+    Result = __builtin_convertvector(T, VTOut);
   }
   return {};
 }
 
 template <typename TIn, typename TOut>
 Expect<void> Interpreter::runVectorConvertOp(ValVariant &Val) const {
-  static_assert(sizeof(TIn) == sizeof(TOut));
+  static_assert((sizeof(TIn) == 4 && (sizeof(TOut) == 4 || sizeof(TOut) == 8)));
   using VTIn [[gnu::vector_size(16)]] = TIn;
   using VTOut [[gnu::vector_size(16)]] = TOut;
   auto &V = retrieveValue<VTIn>(Val);
   auto &Result = retrieveValue<VTOut>(Val);
-  Result = __builtin_convertvector(V, VTOut);
+  if constexpr (sizeof(TIn) == sizeof(TOut)) {
+    Result = __builtin_convertvector(V, VTOut);
+  } else {
+    using VTIn2 [[gnu::vector_size(8)]] = TIn;
+    VTIn2 X = {V[0], V[1]};
+    Result = __builtin_convertvector(X, VTOut);
+  }
+  return {};
+}
+
+inline Expect<void> Interpreter::runVectorDemoteOp(ValVariant &Val) const {
+  const auto V = retrieveValue<doublex2_t>(Val);
+  retrieveValue<floatx4_t>(Val) =
+      floatx4_t{static_cast<float>(V[0]), static_cast<float>(V[1]), 0, 0};
+  return {};
+}
+
+inline Expect<void> Interpreter::runVectorPromoteOp(ValVariant &Val) const {
+  const auto V = retrieveValue<floatx4_t>(Val);
+  retrieveValue<doublex2_t>(Val) =
+      doublex2_t{static_cast<double>(V[0]), static_cast<double>(V[1])};
   return {};
 }
 

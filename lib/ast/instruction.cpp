@@ -649,6 +649,10 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 
   case OpCode::I64x2__neg:
   case OpCode::I64x2__bitmask:
+  case OpCode::I64x2__widen_low_i32x4_s:
+  case OpCode::I64x2__widen_high_i32x4_s:
+  case OpCode::I64x2__widen_low_i32x4_u:
+  case OpCode::I64x2__widen_high_i32x4_u:
   case OpCode::I64x2__shl:
   case OpCode::I64x2__shr_s:
   case OpCode::I64x2__shr_u:

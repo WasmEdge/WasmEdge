@@ -2301,6 +2301,18 @@ public:
       case OpCode::I64x2__bitmask:
         compileVectorBitMask(Context.Int64x2Ty);
         break;
+      case OpCode::I64x2__widen_low_i32x4_s:
+        compileVectorWiden(Context.Int32x4Ty, true, true);
+        break;
+      case OpCode::I64x2__widen_high_i32x4_s:
+        compileVectorWiden(Context.Int32x4Ty, true, false);
+        break;
+      case OpCode::I64x2__widen_low_i32x4_u:
+        compileVectorWiden(Context.Int32x4Ty, false, true);
+        break;
+      case OpCode::I64x2__widen_high_i32x4_u:
+        compileVectorWiden(Context.Int32x4Ty, false, false);
+        break;
       case OpCode::I64x2__any_true:
         compileVectorAnyTrue(Context.Int64x2Ty);
         break;

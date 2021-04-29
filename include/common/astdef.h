@@ -483,6 +483,10 @@ enum class OpCode : uint16_t {
 
   I64x2__neg = 0xFDC1,
   I64x2__bitmask = 0xFDC4,
+  I64x2__widen_low_i32x4_s = 0xFDC7,
+  I64x2__widen_high_i32x4_s = 0xFDC8,
+  I64x2__widen_low_i32x4_u = 0xFDC9,
+  I64x2__widen_high_i32x4_u = 0xFDCA,
   I64x2__shl = 0xFDCB,
   I64x2__shr_s = 0xFDCC,
   I64x2__shr_u = 0xFDCD,
@@ -949,6 +953,10 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
 
     {OpCode::I64x2__neg, "i64x2.neg"},
     {OpCode::I64x2__bitmask, "i64x2.bitmask"},
+    {OpCode::I64x2__widen_low_i32x4_s, "i64x2.widen_low_i32x4_s"},
+    {OpCode::I64x2__widen_high_i32x4_s, "i64x2.widen_high_i32x4_s"},
+    {OpCode::I64x2__widen_low_i32x4_u, "i64x2.widen_low_i32x4_u"},
+    {OpCode::I64x2__widen_high_i32x4_u, "i64x2.widen_high_i32x4_u"},
     {OpCode::I64x2__shl, "i64x2.shl"},
     {OpCode::I64x2__shr_s, "i64x2.shr_s"},
     {OpCode::I64x2__shr_u, "i64x2.shr_u"},

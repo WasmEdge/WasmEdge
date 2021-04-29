@@ -1318,6 +1318,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
 
     case OpCode::I64x2__neg:
       return runVectorNegOp<int64_t>(StackMgr.getTop());
+    case OpCode::I64x2__bitmask:
+      return runVectorBitMaskOp<uint64_t>(StackMgr.getTop());
     case OpCode::I64x2__shl: {
       ValVariant Rhs = StackMgr.pop();
       return runVectorShlOp<uint64_t>(StackMgr.getTop(), Rhs);

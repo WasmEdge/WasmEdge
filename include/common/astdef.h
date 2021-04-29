@@ -390,6 +390,9 @@ enum class OpCode : uint16_t {
   I32x4__ge_s = 0xFD3F,
   I32x4__ge_u = 0xFD40,
 
+  I64x2__eq = 0xFDD6,
+  I64x2__ne = 0xFDD7,
+
   F32x4__eq = 0xFD41,
   F32x4__ne = 0xFD42,
   F32x4__lt = 0xFD43,
@@ -488,6 +491,7 @@ enum class OpCode : uint16_t {
   I32x4__extmul_high_i16x8_u = 0xFDBF,
 
   I64x2__neg = 0xFDC1,
+  I64x2__all_true = 0xFDC3,
   I64x2__bitmask = 0xFDC4,
   I64x2__widen_low_i32x4_s = 0xFDC7,
   I64x2__widen_high_i32x4_s = 0xFDC8,
@@ -535,7 +539,6 @@ enum class OpCode : uint16_t {
 
   /// Non-standard SIMD Instructions
   I32x4__dot_i16x8_s = 0xFDBA,
-  I64x2__all_true = 0xFDC3,
   F32x4__qfma = 0xFDB4,
   F32x4__qfms = 0xFDD4,
   F64x2__qfma = 0xFDFE,
@@ -865,6 +868,9 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::I32x4__ge_s, "i32x4.ge_s"},
     {OpCode::I32x4__ge_u, "i32x4.ge_u"},
 
+    {OpCode::I64x2__eq, "i64x2.eq"},
+    {OpCode::I64x2__ne, "i64x2.ne"},
+
     {OpCode::F32x4__eq, "f32x4.eq"},
     {OpCode::F32x4__ne, "f32x4.ne"},
     {OpCode::F32x4__lt, "f32x4.lt"},
@@ -963,6 +969,7 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::I32x4__extmul_high_i16x8_u, "i32x4.extmul_high_i16x8_u"},
 
     {OpCode::I64x2__neg, "i64x2.neg"},
+    {OpCode::I64x2__all_true, "i64x2.all_true"},
     {OpCode::I64x2__bitmask, "i64x2.bitmask"},
     {OpCode::I64x2__widen_low_i32x4_s, "i64x2.widen_low_i32x4_s"},
     {OpCode::I64x2__widen_high_i32x4_s, "i64x2.widen_high_i32x4_s"},
@@ -1010,7 +1017,6 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
 
     /// Non-standard SIMD Instructions
     {OpCode::I32x4__dot_i16x8_s, "i32x4.dot_i16x8_s"},
-    {OpCode::I64x2__all_true, "i64x2.all_true"},
     {OpCode::F32x4__qfma, "f32x4.qfma"},
     {OpCode::F32x4__qfms, "f32x4.qfms"},
     {OpCode::F64x2__qfma, "f64x2.qfma"},

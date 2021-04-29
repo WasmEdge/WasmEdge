@@ -989,6 +989,14 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       ValVariant Rhs = StackMgr.pop();
       return runVectorGeOp<uint32_t>(StackMgr.getTop(), Rhs);
     }
+    case OpCode::I64x2__eq: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorEqOp<uint64_t>(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I64x2__ne: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorNeOp<uint64_t>(StackMgr.getTop(), Rhs);
+    }
     case OpCode::F32x4__eq: {
       ValVariant Rhs = StackMgr.pop();
       return runVectorEqOp<float>(StackMgr.getTop(), Rhs);
@@ -1330,6 +1338,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
 
     case OpCode::I64x2__neg:
       return runVectorNegOp<int64_t>(StackMgr.getTop());
+    case OpCode::I64x2__all_true:
+      return runVectorAllTrueOp<uint64_t>(StackMgr.getTop());
     case OpCode::I64x2__bitmask:
       return runVectorBitMaskOp<uint64_t>(StackMgr.getTop());
     case OpCode::I64x2__widen_low_i32x4_s:
@@ -1484,8 +1494,6 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
 
       return {};
     }
-    case OpCode::I64x2__all_true:
-      return runVectorAllTrueOp<uint64_t>(StackMgr.getTop());
     case OpCode::F32x4__qfma:
     case OpCode::F32x4__qfms:
     case OpCode::F64x2__qfma:

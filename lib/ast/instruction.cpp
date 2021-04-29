@@ -686,6 +686,9 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::I64x2__add:
   case OpCode::I64x2__sub:
   case OpCode::I64x2__mul:
+  case OpCode::I64x2__eq:
+  case OpCode::I64x2__ne:
+  case OpCode::I64x2__all_true:
   case OpCode::I64x2__extmul_low_i32x4_s:
   case OpCode::I64x2__extmul_high_i32x4_s:
   case OpCode::I64x2__extmul_low_i32x4_u:
@@ -721,7 +724,6 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::F32x4__convert_i32x4_u:
 
   case OpCode::I32x4__dot_i16x8_s:
-  case OpCode::I64x2__all_true:
   case OpCode::F32x4__qfma:
   case OpCode::F32x4__qfms:
   case OpCode::F64x2__qfma:

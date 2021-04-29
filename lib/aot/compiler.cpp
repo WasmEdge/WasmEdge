@@ -1998,6 +1998,14 @@ public:
         compileVectorCompareOp(Context.Int32x4Ty,
                                llvm::CmpInst::Predicate::ICMP_UGE);
         break;
+      case OpCode::I64x2__eq:
+        compileVectorCompareOp(Context.Int64x2Ty,
+                               llvm::CmpInst::Predicate::ICMP_EQ);
+        break;
+      case OpCode::I64x2__ne:
+        compileVectorCompareOp(Context.Int64x2Ty,
+                               llvm::CmpInst::Predicate::ICMP_NE);
+        break;
       case OpCode::F32x4__eq:
         compileVectorCompareOp(Context.Floatx4Ty,
                                llvm::CmpInst::Predicate::FCMP_OEQ,
@@ -2332,6 +2340,9 @@ public:
       case OpCode::I64x2__neg:
         compileVectorNeg(Context.Int64x2Ty);
         break;
+      case OpCode::I64x2__all_true:
+        compileVectorAllTrue(Context.Int64x2Ty);
+        break;
       case OpCode::I64x2__bitmask:
         compileVectorBitMask(Context.Int64x2Ty);
         break;
@@ -2346,9 +2357,6 @@ public:
         break;
       case OpCode::I64x2__widen_high_i32x4_u:
         compileVectorWiden(Context.Int32x4Ty, false, false);
-        break;
-      case OpCode::I64x2__all_true:
-        compileVectorAllTrue(Context.Int64x2Ty);
         break;
       case OpCode::I64x2__shl:
         compileVectorShl(Context.Int64x2Ty);

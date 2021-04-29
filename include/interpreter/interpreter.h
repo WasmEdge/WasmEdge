@@ -416,9 +416,15 @@ private:
   Expect<void> runVectorNarrowOp(ValVariant &Val1,
                                  const ValVariant &Val2) const;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorWidenLowOp(ValVariant &Val1) const;
+  Expect<void> runVectorWidenLowOp(ValVariant &Val) const;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorWidenHighOp(ValVariant &Val1) const;
+  Expect<void> runVectorWidenHighOp(ValVariant &Val) const;
+  template <typename TIn, typename TOut>
+  Expect<void> runVectorExtMulLowOp(ValVariant &Val1,
+                                    const ValVariant &Val2) const;
+  template <typename TIn, typename TOut>
+  Expect<void> runVectorExtMulHighOp(ValVariant &Val1,
+                                     const ValVariant &Val2) const;
   template <typename T>
   Expect<void> runVectorShlOp(ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T>

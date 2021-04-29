@@ -479,5 +479,69 @@ Expect<void> Interpreter::runVectorAvgrOp(ValVariant &Val1,
   return {};
 }
 
+template <typename TIn, typename TOut>
+Expect<void> Interpreter::runVectorExtMulLowOp(ValVariant &Val1,
+                                               const ValVariant &Val2) const {
+  static_assert(sizeof(TIn) * 2 == sizeof(TOut));
+  static_assert(sizeof(TIn) == 1 || sizeof(TIn) == 2 || sizeof(TIn) == 4);
+  using VTIn [[gnu::vector_size(16)]] = TIn;
+  using HVTIn [[gnu::vector_size(8)]] = TIn;
+  using VTOut [[gnu::vector_size(16)]] = TOut;
+  const VTIn &V1 = retrieveValue<VTIn>(Val1);
+  const VTIn &V2 = retrieveValue<VTIn>(Val2);
+  VTOut &Result = retrieveValue<VTOut>(Val1);
+  if constexpr (sizeof(TIn) == 1) {
+    const VTOut E1 = __builtin_convertvector(
+        HVTIn{V1[0], V1[1], V1[2], V1[3], V1[4], V1[5], V1[6], V1[7]}, VTOut);
+    const VTOut E2 = __builtin_convertvector(
+        HVTIn{V2[0], V2[1], V2[2], V2[3], V2[4], V2[5], V2[6], V2[7]}, VTOut);
+    Result = E1 * E2;
+  } else if constexpr (sizeof(TIn) == 2) {
+    const VTOut E1 =
+        __builtin_convertvector(HVTIn{V1[0], V1[1], V1[2], V1[3]}, VTOut);
+    const VTOut E2 =
+        __builtin_convertvector(HVTIn{V2[0], V2[1], V2[2], V2[3]}, VTOut);
+    Result = E1 * E2;
+  } else if constexpr (sizeof(TIn) == 4) {
+    const VTOut E1 = __builtin_convertvector(HVTIn{V1[0], V1[1]}, VTOut);
+    const VTOut E2 = __builtin_convertvector(HVTIn{V2[0], V2[1]}, VTOut);
+    Result = E1 * E2;
+  }
+  return {};
+}
+
+template <typename TIn, typename TOut>
+Expect<void> Interpreter::runVectorExtMulHighOp(ValVariant &Val1,
+                                                const ValVariant &Val2) const {
+  static_assert(sizeof(TIn) * 2 == sizeof(TOut));
+  static_assert(sizeof(TIn) == 1 || sizeof(TIn) == 2 || sizeof(TIn) == 4);
+  using VTIn [[gnu::vector_size(16)]] = TIn;
+  using HVTIn [[gnu::vector_size(8)]] = TIn;
+  using VTOut [[gnu::vector_size(16)]] = TOut;
+  const VTIn &V1 = retrieveValue<VTIn>(Val1);
+  const VTIn &V2 = retrieveValue<VTIn>(Val2);
+  VTOut &Result = retrieveValue<VTOut>(Val1);
+  if constexpr (sizeof(TIn) == 1) {
+    const VTOut E1 = __builtin_convertvector(
+        HVTIn{V1[8], V1[9], V1[10], V1[11], V1[12], V1[13], V1[14], V1[15]},
+        VTOut);
+    const VTOut E2 = __builtin_convertvector(
+        HVTIn{V2[8], V2[9], V2[10], V2[11], V2[12], V2[13], V2[14], V2[15]},
+        VTOut);
+    Result = E1 * E2;
+  } else if constexpr (sizeof(TIn) == 2) {
+    const VTOut E1 =
+        __builtin_convertvector(HVTIn{V1[4], V1[5], V1[6], V1[7]}, VTOut);
+    const VTOut E2 =
+        __builtin_convertvector(HVTIn{V2[4], V2[5], V2[6], V2[7]}, VTOut);
+    Result = E1 * E2;
+  } else if constexpr (sizeof(TIn) == 4) {
+    const VTOut E1 = __builtin_convertvector(HVTIn{V1[2], V1[3]}, VTOut);
+    const VTOut E2 = __builtin_convertvector(HVTIn{V2[2], V2[3]}, VTOut);
+    Result = E1 * E2;
+  }
+  return {};
+}
+
 } // namespace Interpreter
 } // namespace SSVM

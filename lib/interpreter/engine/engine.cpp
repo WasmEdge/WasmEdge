@@ -997,6 +997,22 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       ValVariant Rhs = StackMgr.pop();
       return runVectorNeOp<uint64_t>(StackMgr.getTop(), Rhs);
     }
+    case OpCode::I64x2__lt_s: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorLtOp<int64_t>(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I64x2__gt_s: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorGtOp<int64_t>(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I64x2__le_s: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorLeOp<int64_t>(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I64x2__ge_s: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorGeOp<int64_t>(StackMgr.getTop(), Rhs);
+    }
     case OpCode::F32x4__eq: {
       ValVariant Rhs = StackMgr.pop();
       return runVectorEqOp<float>(StackMgr.getTop(), Rhs);

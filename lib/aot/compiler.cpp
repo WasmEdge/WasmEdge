@@ -1647,49 +1647,49 @@ public:
         compileVectorLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
                             Context.Int128x1Ty);
         break;
-      case OpCode::I16x8__load8x8_s:
+      case OpCode::V128__load8x8_s:
         compileVectorLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
                             llvm::VectorType::get(Context.Int8Ty, 8, false),
                             Context.Int16x8Ty, true);
         break;
-      case OpCode::I16x8__load8x8_u:
+      case OpCode::V128__load8x8_u:
         compileVectorLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
                             llvm::VectorType::get(Context.Int8Ty, 8, false),
                             Context.Int16x8Ty, false);
         break;
-      case OpCode::I32x4__load16x4_s:
+      case OpCode::V128__load16x4_s:
         compileVectorLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
                             llvm::VectorType::get(Context.Int16Ty, 4, false),
                             Context.Int32x4Ty, true);
         break;
-      case OpCode::I32x4__load16x4_u:
+      case OpCode::V128__load16x4_u:
         compileVectorLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
                             llvm::VectorType::get(Context.Int16Ty, 4, false),
                             Context.Int32x4Ty, false);
         break;
-      case OpCode::I64x2__load32x2_s:
+      case OpCode::V128__load32x2_s:
         compileVectorLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
                             llvm::VectorType::get(Context.Int32Ty, 2, false),
                             Context.Int64x2Ty, true);
         break;
-      case OpCode::I64x2__load32x2_u:
+      case OpCode::V128__load32x2_u:
         compileVectorLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
                             llvm::VectorType::get(Context.Int32Ty, 2, false),
                             Context.Int64x2Ty, false);
         break;
-      case OpCode::I8x16__load_splat:
+      case OpCode::V128__load8_splat:
         compileSplatLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
                            Context.Int8Ty, Context.Int8x16Ty);
         break;
-      case OpCode::I16x8__load_splat:
+      case OpCode::V128__load16_splat:
         compileSplatLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
                            Context.Int16Ty, Context.Int16x8Ty);
         break;
-      case OpCode::I32x4__load_splat:
+      case OpCode::V128__load32_splat:
         compileSplatLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
                            Context.Int32Ty, Context.Int32x4Ty);
         break;
-      case OpCode::I64x2__load_splat:
+      case OpCode::V128__load64_splat:
         compileSplatLoadOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
                            Context.Int64Ty, Context.Int64x2Ty);
         break;

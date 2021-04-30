@@ -707,31 +707,31 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     /// SIMD Memory Instructions
     case OpCode::V128__load:
       return runLoadOp<uint128_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
-    case OpCode::I16x8__load8x8_s:
+    case OpCode::V128__load8x8_s:
       return runLoadExpandOp<int8_t, int16_t>(*getMemInstByIdx(StoreMgr, 0),
                                               Instr);
-    case OpCode::I16x8__load8x8_u:
+    case OpCode::V128__load8x8_u:
       return runLoadExpandOp<uint8_t, uint16_t>(*getMemInstByIdx(StoreMgr, 0),
                                                 Instr);
-    case OpCode::I32x4__load16x4_s:
+    case OpCode::V128__load16x4_s:
       return runLoadExpandOp<int16_t, int32_t>(*getMemInstByIdx(StoreMgr, 0),
                                                Instr);
-    case OpCode::I32x4__load16x4_u:
+    case OpCode::V128__load16x4_u:
       return runLoadExpandOp<uint16_t, uint32_t>(*getMemInstByIdx(StoreMgr, 0),
                                                  Instr);
-    case OpCode::I64x2__load32x2_s:
+    case OpCode::V128__load32x2_s:
       return runLoadExpandOp<int32_t, int64_t>(*getMemInstByIdx(StoreMgr, 0),
                                                Instr);
-    case OpCode::I64x2__load32x2_u:
+    case OpCode::V128__load32x2_u:
       return runLoadExpandOp<uint32_t, uint64_t>(*getMemInstByIdx(StoreMgr, 0),
                                                  Instr);
-    case OpCode::I8x16__load_splat:
+    case OpCode::V128__load8_splat:
       return runLoadSplatOp<uint8_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
-    case OpCode::I16x8__load_splat:
+    case OpCode::V128__load16_splat:
       return runLoadSplatOp<uint16_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
-    case OpCode::I32x4__load_splat:
+    case OpCode::V128__load32_splat:
       return runLoadSplatOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
-    case OpCode::I64x2__load_splat:
+    case OpCode::V128__load64_splat:
       return runLoadSplatOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
     case OpCode::V128__load32_zero:
       return runLoadOp<uint128_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 32);

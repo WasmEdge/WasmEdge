@@ -30,17 +30,8 @@
 namespace {
 
 /// is x86_64
-#if defined(__x86_64__) || defined(_M_X64)
-static inline constexpr const bool kX86_64 = true;
-#else
-static inline constexpr const bool kX86_64 = false;
-#endif
-
-/// is aarch64
-#if defined(__aarch64__)
-static inline constexpr const bool kAArch64 = true;
-#else
-static inline constexpr const bool kAArch64 = false;
+#if defined(_M_X64) && !defined(__x86_64__)
+#define __x86_64__ 1
 #endif
 
 inline void setIsFPConstrained(llvm::IRBuilder<> &Builder) {
@@ -154,19 +145,32 @@ struct SSVM::AOT::Compiler::CompileContext {
   llvm::PointerType *ExecCtxPtrTy;
   llvm::SubtargetFeatures SubtargetFeatures;
 
-#if defined(__AVX512F__) || defined(__AVX__) || defined(__SSE4_1__) ||         \
-    defined(__ARM_NEON__) || defined(__ARM_NEON) || defined(__ARM_NEON_FP)
-  bool SupportRoundeven = true;
+#if defined(__x86_64__)
+#if defined(__SSE4_1__)
+  bool SupportSSE4_1 = true;
 #else
-  bool SupportRoundeven = false;
+  bool SupportSSE4_1 = false;
 #endif
 
-#if defined(__AVX512F__) || defined(__AVX__) || defined(__SSE4_1__) ||         \
-    defined(__SSE3__) || defined(__ARM_NEON__) || defined(__ARM_NEON) ||       \
-    defined(__ARM_NEON_FP)
-  bool SupportShuffle = true;
+#if defined(__SSSE3__)
+  bool SupportSSSE3 = true;
 #else
-  bool SupportShuffle = false;
+  bool SupportSSSE3 = false;
+#endif
+
+#if defined(__SSE2__)
+  bool SupportSSE2 = true;
+#else
+  bool SupportSSE2 = false;
+#endif
+#endif
+
+#if defined(__aarch64__)
+#if defined(__ARM_NEON__) || defined(__ARM_NEON) || defined(__ARM_NEON_FP)
+  bool SupportNEON = true;
+#else
+  bool SupportNEON = false;
+#endif
 #endif
 
   std::vector<const AST::FunctionType *> FunctionTypes;
@@ -234,27 +238,22 @@ struct SSVM::AOT::Compiler::CompileContext {
       llvm::StringMap<bool> FeatureMap;
       llvm::sys::getHostCPUFeatures(FeatureMap);
       for (auto &Feature : FeatureMap) {
-        if (!SupportRoundeven && Feature.second) {
-          auto Check = llvm::StringSwitch<bool>(Feature.first());
-          if constexpr (kX86_64) {
-            Check.Cases("avx512f", "avx", "sse4.1", true);
-          } else if constexpr (kAArch64) {
-            Check.Case("neon", true);
+        if (Feature.second) {
+#if defined(__x86_64__)
+          if (!SupportSSE4_1 && Feature.first() == "sse4.1") {
+            SupportSSE4_1 = true;
           }
-          if (Check.Default(false)) {
-            SupportRoundeven = true;
+          if (!SupportSSSE3 && Feature.first() == "ssse3") {
+            SupportSSSE3 = true;
           }
-        }
-        if (!SupportShuffle && Feature.second) {
-          auto Check = llvm::StringSwitch<bool>(Feature.first());
-          if constexpr (kX86_64) {
-            Check.Cases("avx512f", "avx", "sse4.1", "sse3", true);
-          } else if constexpr (kAArch64) {
-            Check.Case("neon", true);
+          if (!SupportSSE2 && Feature.first() == "sse2") {
+            SupportSSE2 = true;
           }
-          if (Check.Default(false)) {
-            SupportShuffle = true;
+#elif defined(__aarch64__)
+          if (!SupportNEON && Feature.first() == "neon") {
+            SupportNEON = true;
           }
+#endif
         }
 
         SubtargetFeatures.AddFeature(Feature.first(), Feature.second);
@@ -1041,37 +1040,36 @@ public:
         const uint32_t VectorSize = IsFloat ? 4 : 2;
         llvm::Value *Value = stackPop();
 
-        if constexpr (kX86_64) {
-          if (Context.SupportRoundeven) {
-            const uint64_t kZero = 0;
-            auto *VectorTy =
-                llvm::VectorType::get(Value->getType(), VectorSize, false);
-            llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
-            Ret = Builder.CreateInsertElement(Ret, Value, kZero);
-            auto ID = IsFloat ? llvm::Intrinsic::x86_sse41_round_ss
-                              : llvm::Intrinsic::x86_sse41_round_sd;
-            Ret = Builder.CreateIntrinsic(ID, {},
-                                          {Ret, Ret, Builder.getInt32(8)});
-            Ret = Builder.CreateExtractElement(Ret, kZero);
-            stackPush(Ret);
-            break;
-          }
+#if defined(__x86_64__)
+        if (Context.SupportSSE4_1) {
+          const uint64_t kZero = 0;
+          auto *VectorTy =
+              llvm::VectorType::get(Value->getType(), VectorSize, false);
+          llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
+          Ret = Builder.CreateInsertElement(Ret, Value, kZero);
+          auto ID = IsFloat ? llvm::Intrinsic::x86_sse41_round_ss
+                            : llvm::Intrinsic::x86_sse41_round_sd;
+          Ret =
+              Builder.CreateIntrinsic(ID, {}, {Ret, Ret, Builder.getInt32(8)});
+          Ret = Builder.CreateExtractElement(Ret, kZero);
+          stackPush(Ret);
+          break;
         }
+#endif
 
-        if constexpr (kAArch64) {
-          if (Context.SupportRoundeven) {
-            const uint64_t kZero = 0;
-            auto *VectorTy =
-                llvm::VectorType::get(Value->getType(), VectorSize);
-            llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
-            Ret = Builder.CreateInsertElement(Ret, Value, kZero);
-            Ret = Builder.CreateUnaryIntrinsic(
-                llvm::Intrinsic::aarch64_neon_frintn, Ret);
-            Ret = Builder.CreateExtractElement(Ret, kZero);
-            stackPush(Ret);
-            break;
-          }
+#if defined(__aarch64__)
+        if (Context.SupportNEON) {
+          const uint64_t kZero = 0;
+          auto *VectorTy = llvm::VectorType::get(Value->getType(), VectorSize);
+          llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
+          Ret = Builder.CreateInsertElement(Ret, Value, kZero);
+          Ret = Builder.CreateUnaryIntrinsic(
+              llvm::Intrinsic::aarch64_neon_frintn, Ret);
+          Ret = Builder.CreateExtractElement(Ret, kZero);
+          stackPush(Ret);
+          break;
         }
+#endif
 
         stackPush(
             Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, Value));
@@ -1776,30 +1774,30 @@ public:
         auto *Index = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
         auto *Vector = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
 
-        if constexpr (kX86_64) {
-          if (Context.SupportShuffle) {
-            auto *Magic = Builder.CreateVectorSplat(16, Builder.getInt8(112));
-            auto *Added = Builder.CreateAdd(Index, Magic);
-            auto *NewIndex = Builder.CreateSelect(
-                Builder.CreateICmpUGT(Index, Added),
-                llvm::Constant::getAllOnesValue(Context.Int8x16Ty), Added);
-            stackPush(Builder.CreateBitCast(
-                Builder.CreateIntrinsic(llvm::Intrinsic::x86_ssse3_pshuf_b_128,
-                                        {}, {Vector, NewIndex}),
-                Context.Int64x2Ty));
-            break;
-          }
+#if defined(__x86_64__)
+        if (Context.SupportSSSE3) {
+          auto *Magic = Builder.CreateVectorSplat(16, Builder.getInt8(112));
+          auto *Added = Builder.CreateAdd(Index, Magic);
+          auto *NewIndex = Builder.CreateSelect(
+              Builder.CreateICmpUGT(Index, Added),
+              llvm::Constant::getAllOnesValue(Context.Int8x16Ty), Added);
+          stackPush(Builder.CreateBitCast(
+              Builder.CreateIntrinsic(llvm::Intrinsic::x86_ssse3_pshuf_b_128,
+                                      {}, {Vector, NewIndex}),
+              Context.Int64x2Ty));
+          break;
         }
+#endif
 
-        if constexpr (kAArch64) {
-          if (Context.SupportShuffle) {
-            stackPush(Builder.CreateBitCast(
-                Builder.CreateBinaryIntrinsic(
-                    llvm::Intrinsic::aarch64_neon_tbl1, Vector, Index),
-                Context.Int64x2Ty));
-            break;
-          }
+#if defined(__aarch64__)
+        if (Context.SupportNEON) {
+          stackPush(Builder.CreateBitCast(
+              Builder.CreateBinaryIntrinsic(llvm::Intrinsic::aarch64_neon_tbl1,
+                                            Vector, Index),
+              Context.Int64x2Ty));
+          break;
         }
+#endif
 
         auto *Mask = Builder.CreateVectorSplat(16, Builder.getInt8(15));
         auto *Zero = Builder.CreateVectorSplat(16, Builder.getInt8(0));
@@ -2993,29 +2991,37 @@ private:
   }
   void compileVectorVectorUAvgr(llvm::VectorType *VectorTy) {
     auto *ExtendTy = VectorTy->getExtendedElementVectorType(VectorTy);
-    compileVectorVectorOp(VectorTy, [this, VectorTy, ExtendTy](auto *LHS,
-                                                               auto *RHS) {
-      if constexpr (kX86_64) {
-        const auto ID = VectorTy->getElementType()->getIntegerBitWidth() == 8
-                            ? llvm::Intrinsic::x86_sse2_pavg_b
-                            : llvm::Intrinsic::x86_sse2_pavg_w;
-        return Builder.CreateIntrinsic(ID, {}, {LHS, RHS});
-      } else if constexpr (kAArch64) {
-        return Builder.CreateBinaryIntrinsic(
-            llvm::Intrinsic::aarch64_neon_urhadd, LHS, RHS);
-      } else {
-        auto *EL = Builder.CreateZExt(LHS, ExtendTy);
-        auto *ER = Builder.CreateZExt(RHS, ExtendTy);
-        auto *One = Builder.CreateZExt(
-            Builder.CreateVectorSplat(ExtendTy->getElementCount().Min,
-                                      Builder.getTrue()),
-            ExtendTy);
-        return Builder.CreateTrunc(
-            Builder.CreateLShr(
-                Builder.CreateAdd(Builder.CreateAdd(EL, ER), One), One),
-            VectorTy);
-      }
-    });
+    compileVectorVectorOp(
+        VectorTy,
+        [this, VectorTy, ExtendTy](auto *LHS, auto *RHS) -> llvm::Value * {
+#if defined(__x86_64__)
+          if (Context.SupportSSE2) {
+            const auto ID =
+                VectorTy->getElementType()->getIntegerBitWidth() == 8
+                    ? llvm::Intrinsic::x86_sse2_pavg_b
+                    : llvm::Intrinsic::x86_sse2_pavg_w;
+            return Builder.CreateIntrinsic(ID, {}, {LHS, RHS});
+          }
+#endif
+
+#if defined(__aarch64__)
+          if (Context.SupportNEON) {
+            return Builder.CreateBinaryIntrinsic(
+                llvm::Intrinsic::aarch64_neon_urhadd, LHS, RHS);
+          }
+#endif
+
+          auto *EL = Builder.CreateZExt(LHS, ExtendTy);
+          auto *ER = Builder.CreateZExt(RHS, ExtendTy);
+          auto *One = Builder.CreateZExt(
+              Builder.CreateVectorSplat(ExtendTy->getElementCount().Min,
+                                        Builder.getTrue()),
+              ExtendTy);
+          return Builder.CreateTrunc(
+              Builder.CreateLShr(
+                  Builder.CreateAdd(Builder.CreateAdd(EL, ER), One), One),
+              VectorTy);
+        });
   }
   void compileVectorNarrow(llvm::VectorType *FromTy, bool Signed) {
     const auto IntWidth = FromTy->getElementType()->getIntegerBitWidth();
@@ -3098,20 +3104,20 @@ private:
 #else
     const bool IsFloat = VectorTy->getElementType() == Context.FloatTy;
     compileVectorOp(VectorTy, [this, IsFloat](auto *V) {
-      if constexpr (kX86_64) {
-        if (Context.SupportRoundeven) {
-          auto ID = IsFloat ? llvm::Intrinsic::x86_sse41_round_ps
-                            : llvm::Intrinsic::x86_sse41_round_pd;
-          return Builder.CreateIntrinsic(ID, {}, {V, Builder.getInt32(8)});
-        }
+#if defined(__x86_64__)
+      if (Context.SupportSSE4_1) {
+        auto ID = IsFloat ? llvm::Intrinsic::x86_sse41_round_ps
+                          : llvm::Intrinsic::x86_sse41_round_pd;
+        return Builder.CreateIntrinsic(ID, {}, {V, Builder.getInt32(8)});
       }
+#endif
 
-      if constexpr (kAArch64) {
-        if (Context.SupportRoundeven) {
-          return Builder.CreateUnaryIntrinsic(
-              llvm::Intrinsic::aarch64_neon_frintn, V);
-        }
+#if defined(__aarch64__)
+      if (Context.SupportNEON) {
+        return Builder.CreateUnaryIntrinsic(
+            llvm::Intrinsic::aarch64_neon_frintn, V);
       }
+#endif
 
       return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, V);
     });

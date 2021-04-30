@@ -1089,6 +1089,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       return runVectorAbsOp<int8_t>(StackMgr.getTop());
     case OpCode::I8x16__neg:
       return runVectorNegOp<int8_t>(StackMgr.getTop());
+    case OpCode::I8x16__popcnt:
+      return runVectorPopcntOp(StackMgr.getTop());
     case OpCode::I8x16__all_true:
       return runVectorAllTrueOp<uint8_t>(StackMgr.getTop());
     case OpCode::I8x16__bitmask:

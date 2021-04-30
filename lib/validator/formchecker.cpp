@@ -1066,6 +1066,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::V128__not:
   case OpCode::I8x16__abs:
   case OpCode::I8x16__neg:
+  case OpCode::I8x16__popcnt:
   case OpCode::I16x8__abs:
   case OpCode::I16x8__neg:
   case OpCode::I16x8__widen_low_i8x16_s:

@@ -492,6 +492,7 @@ enum class OpCode : uint16_t {
   I32x4__min_u = 0xFDB7,
   I32x4__max_s = 0xFDB8,
   I32x4__max_u = 0xFDB9,
+  I32x4__dot_i16x8_s = 0xFDBA,
   I32x4__extmul_low_i16x8_s = 0xFDBC,
   I32x4__extmul_high_i16x8_s = 0xFDBD,
   I32x4__extmul_low_i16x8_u = 0xFDBE,
@@ -529,6 +530,10 @@ enum class OpCode : uint16_t {
   F32x4__max = 0xFDE9,
   F32x4__pmin = 0xFDEA,
   F32x4__pmax = 0xFDEB,
+  F32x4__ceil = 0xFD67,
+  F32x4__floor = 0xFD68,
+  F32x4__trunc = 0xFD69,
+  F32x4__nearest = 0xFD6A,
 
   F64x2__abs = 0xFDEC,
   F64x2__neg = 0xFDED,
@@ -541,6 +546,10 @@ enum class OpCode : uint16_t {
   F64x2__max = 0xFDF5,
   F64x2__pmin = 0xFDF6,
   F64x2__pmax = 0xFDF7,
+  F64x2__ceil = 0xFD74,
+  F64x2__floor = 0xFD75,
+  F64x2__trunc = 0xFD7A,
+  F64x2__nearest = 0xFD94,
 
   I32x4__trunc_sat_f32x4_s = 0xFDF8,
   I32x4__trunc_sat_f32x4_u = 0xFDF9,
@@ -551,18 +560,7 @@ enum class OpCode : uint16_t {
   F64x2__convert_low_i32x4_s = 0xFDFE,
   F64x2__convert_low_i32x4_u = 0xFDFF,
   F32x4__demote_f64x2_zero = 0xFD5E,
-  F64x2__promote_low_f32x4 = 0xFD5F,
-
-  /// Non-standard SIMD Instructions
-  I32x4__dot_i16x8_s = 0xFDBA,
-  F32x4__ceil = 0xFD67,
-  F32x4__floor = 0xFD68,
-  F32x4__trunc = 0xFD69,
-  F32x4__nearest = 0xFD6A,
-  F64x2__ceil = 0xFD74,
-  F64x2__floor = 0xFD75,
-  F64x2__trunc = 0xFD7A,
-  F64x2__nearest = 0xFD94
+  F64x2__promote_low_f32x4 = 0xFD5F
 };
 
 /// Instruction opcode enumeration string mapping.
@@ -978,6 +976,7 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::I32x4__min_u, "i32x4.min_u"},
     {OpCode::I32x4__max_s, "i32x4.max_s"},
     {OpCode::I32x4__max_u, "i32x4.max_u"},
+    {OpCode::I32x4__dot_i16x8_s, "i32x4.dot_i16x8_s"},
     {OpCode::I32x4__extmul_low_i16x8_s, "i32x4.extmul_low_i16x8_s"},
     {OpCode::I32x4__extmul_high_i16x8_s, "i32x4.extmul_high_i16x8_s"},
     {OpCode::I32x4__extmul_low_i16x8_u, "i32x4.extmul_low_i16x8_u"},
@@ -1015,6 +1014,10 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::F32x4__max, "f32x4.max"},
     {OpCode::F32x4__pmin, "f32x4.pmin"},
     {OpCode::F32x4__pmax, "f32x4.pmax"},
+    {OpCode::F32x4__ceil, "f32x4.ceil"},
+    {OpCode::F32x4__floor, "f32x4.floor"},
+    {OpCode::F32x4__trunc, "f32x4.trunc"},
+    {OpCode::F32x4__nearest, "f32x4.nearest"},
 
     {OpCode::F64x2__abs, "f64x2.abs"},
     {OpCode::F64x2__neg, "f64x2.neg"},
@@ -1027,6 +1030,10 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::F64x2__max, "f64x2.max"},
     {OpCode::F64x2__pmin, "f64x2.pmin"},
     {OpCode::F64x2__pmax, "f64x2.pmax"},
+    {OpCode::F64x2__ceil, "f64x2.ceil"},
+    {OpCode::F64x2__floor, "f64x2.floor"},
+    {OpCode::F64x2__trunc, "f64x2.trunc"},
+    {OpCode::F64x2__nearest, "f64x2.nearest"},
 
     {OpCode::I32x4__trunc_sat_f32x4_s, "i32x4.trunc_sat_f32x4_s"},
     {OpCode::I32x4__trunc_sat_f32x4_u, "i32x4.trunc_sat_f32x4_u"},
@@ -1037,17 +1044,6 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::F64x2__convert_low_i32x4_s, "f64x2.convert_low_i32x4_s"},
     {OpCode::F64x2__convert_low_i32x4_u, "f64x2.convert_low_i32x4_u"},
     {OpCode::F32x4__demote_f64x2_zero, "f32x4.demote_f64x2_zero"},
-    {OpCode::F64x2__promote_low_f32x4, "f64x2.promote_low_f32x4"},
-
-    /// Non-standard SIMD Instructions
-    {OpCode::I32x4__dot_i16x8_s, "i32x4.dot_i16x8_s"},
-    {OpCode::F32x4__ceil, "f32x4.ceil"},
-    {OpCode::F32x4__floor, "f32x4.floor"},
-    {OpCode::F32x4__trunc, "f32x4.trunc"},
-    {OpCode::F32x4__nearest, "f32x4.nearest"},
-    {OpCode::F64x2__ceil, "f64x2.ceil"},
-    {OpCode::F64x2__floor, "f64x2.floor"},
-    {OpCode::F64x2__trunc, "f64x2.trunc"},
-    {OpCode::F64x2__nearest, "f64x2.nearest"}};
+    {OpCode::F64x2__promote_low_f32x4, "f64x2.promote_low_f32x4"}};
 
 } // namespace SSVM

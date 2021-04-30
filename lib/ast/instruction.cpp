@@ -445,16 +445,16 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 
   /// SIMD Memory Instruction.
   case OpCode::V128__load:
-  case OpCode::I16x8__load8x8_s:
-  case OpCode::I16x8__load8x8_u:
-  case OpCode::I32x4__load16x4_s:
-  case OpCode::I32x4__load16x4_u:
-  case OpCode::I64x2__load32x2_s:
-  case OpCode::I64x2__load32x2_u:
-  case OpCode::I8x16__load_splat:
-  case OpCode::I16x8__load_splat:
-  case OpCode::I32x4__load_splat:
-  case OpCode::I64x2__load_splat:
+  case OpCode::V128__load8x8_s:
+  case OpCode::V128__load8x8_u:
+  case OpCode::V128__load16x4_s:
+  case OpCode::V128__load16x4_u:
+  case OpCode::V128__load32x2_s:
+  case OpCode::V128__load32x2_u:
+  case OpCode::V128__load8_splat:
+  case OpCode::V128__load16_splat:
+  case OpCode::V128__load32_splat:
+  case OpCode::V128__load64_splat:
   case OpCode::V128__load32_zero:
   case OpCode::V128__load64_zero:
   case OpCode::V128__store:

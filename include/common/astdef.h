@@ -499,6 +499,7 @@ enum class OpCode : uint16_t {
   I32x4__extadd_pairwise_i16x8_s = 0xFD7E,
   I32x4__extadd_pairwise_i16x8_u = 0xFD7F,
 
+  I64x2__abs = 0xFDC0,
   I64x2__neg = 0xFDC1,
   I64x2__all_true = 0xFDC3,
   I64x2__bitmask = 0xFDC4,
@@ -984,6 +985,7 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::I32x4__extadd_pairwise_i16x8_s, "i32x4.extadd_pairwise_i16x8_s"},
     {OpCode::I32x4__extadd_pairwise_i16x8_u, "i32x4.extadd_pairwise_i16x8_u"},
 
+    {OpCode::I64x2__abs, "i64x2.abs"},
     {OpCode::I64x2__neg, "i64x2.neg"},
     {OpCode::I64x2__all_true, "i64x2.all_true"},
     {OpCode::I64x2__bitmask, "i64x2.bitmask"},

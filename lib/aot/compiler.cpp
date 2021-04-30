@@ -2377,6 +2377,9 @@ public:
         stackPush(Builder.CreateBitCast(V, Context.Int64x2Ty));
         break;
       }
+      case OpCode::I64x2__abs:
+        compileVectorAbs(Context.Int64x2Ty);
+        break;
       case OpCode::I64x2__neg:
         compileVectorNeg(Context.Int64x2Ty);
         break;

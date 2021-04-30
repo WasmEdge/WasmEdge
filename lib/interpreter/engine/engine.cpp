@@ -1264,6 +1264,10 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       ValVariant Rhs = StackMgr.pop();
       return runVectorQ15MulSatOp(StackMgr.getTop(), Rhs);
     }
+    case OpCode::I16x8__extadd_pairwise_i8x16_s:
+      return runVectorExtAddPairwiseOp<int8_t, int16_t>(StackMgr.getTop());
+    case OpCode::I16x8__extadd_pairwise_i8x16_u:
+      return runVectorExtAddPairwiseOp<uint8_t, uint16_t>(StackMgr.getTop());
 
     case OpCode::I32x4__abs:
       return runVectorAbsOp<int32_t>(StackMgr.getTop());
@@ -1337,6 +1341,10 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       ValVariant Rhs = StackMgr.pop();
       return runVectorExtMulHighOp<uint16_t, uint32_t>(StackMgr.getTop(), Rhs);
     }
+    case OpCode::I32x4__extadd_pairwise_i16x8_s:
+      return runVectorExtAddPairwiseOp<int16_t, int32_t>(StackMgr.getTop());
+    case OpCode::I32x4__extadd_pairwise_i16x8_u:
+      return runVectorExtAddPairwiseOp<uint16_t, uint32_t>(StackMgr.getTop());
 
     case OpCode::I64x2__neg:
       return runVectorNegOp<int64_t>(StackMgr.getTop());

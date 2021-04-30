@@ -146,6 +146,12 @@ struct SSVM::AOT::Compiler::CompileContext {
   llvm::SubtargetFeatures SubtargetFeatures;
 
 #if defined(__x86_64__)
+#if defined(__XOP__)
+  bool SupportXOP = true;
+#else
+  bool SupportXOP = false;
+#endif
+
 #if defined(__SSE4_1__)
   bool SupportSSE4_1 = true;
 #else
@@ -240,6 +246,9 @@ struct SSVM::AOT::Compiler::CompileContext {
       for (auto &Feature : FeatureMap) {
         if (Feature.second) {
 #if defined(__x86_64__)
+          if (!SupportXOP && Feature.first() == "xop") {
+            SupportXOP = true;
+          }
           if (!SupportSSE4_1 && Feature.first() == "sse4.1") {
             SupportSSE4_1 = true;
           }
@@ -2257,6 +2266,12 @@ public:
       case OpCode::I16x8__q15mulr_sat_s:
         compileVectorVectorQ15MulSat();
         break;
+      case OpCode::I16x8__extadd_pairwise_i8x16_s:
+        compileVectorExtAddPairwise(Context.Int8x16Ty, true);
+        break;
+      case OpCode::I16x8__extadd_pairwise_i8x16_u:
+        compileVectorExtAddPairwise(Context.Int8x16Ty, false);
+        break;
       case OpCode::I32x4__abs:
         compileVectorAbs(Context.Int32x4Ty);
         break;
@@ -2322,6 +2337,12 @@ public:
         break;
       case OpCode::I32x4__extmul_high_i16x8_u:
         compileVectorExtMul(Context.Int16x8Ty, false, false);
+        break;
+      case OpCode::I32x4__extadd_pairwise_i16x8_s:
+        compileVectorExtAddPairwise(Context.Int16x8Ty, true);
+        break;
+      case OpCode::I32x4__extadd_pairwise_i16x8_u:
+        compileVectorExtAddPairwise(Context.Int16x8Ty, false);
         break;
       case OpCode::I32x4__dot_i16x8_s: {
         auto *ExtendTy =
@@ -3234,6 +3255,70 @@ private:
     auto *LHS = Extend(stackPop());
     stackPush(
         Builder.CreateBitCast(Builder.CreateMul(RHS, LHS), Context.Int64x2Ty));
+  }
+  void compileVectorExtAddPairwise(llvm::VectorType *VectorTy, bool Signed) {
+    compileVectorOp(
+        VectorTy, [this, VectorTy, Signed](auto *V) -> llvm::Value * {
+          auto *ExtTy = llvm::VectorType::getHalfElementsVectorType(
+              llvm::VectorType::getExtendedElementVectorType(VectorTy));
+          const auto Count = VectorTy->getElementCount().Min;
+#if defined(__x86_64__)
+          if (Context.SupportXOP) {
+            const auto ID = Count == 16
+                                ? (Signed ? llvm::Intrinsic::x86_xop_vphaddbw
+                                          : llvm::Intrinsic::x86_xop_vphaddubw)
+                                : (Signed ? llvm::Intrinsic::x86_xop_vphaddwd
+                                          : llvm::Intrinsic::x86_xop_vphadduwd);
+            return Builder.CreateUnaryIntrinsic(ID, V);
+          }
+          if (Context.SupportSSSE3 && Count == 16) {
+            if (Signed) {
+              return Builder.CreateIntrinsic(
+                  llvm::Intrinsic::x86_ssse3_pmadd_ub_sw_128, {},
+                  {Builder.CreateVectorSplat(16, Builder.getInt8(1)), V});
+            } else {
+              return Builder.CreateIntrinsic(
+                  llvm::Intrinsic::x86_ssse3_pmadd_ub_sw_128, {},
+                  {V, Builder.CreateVectorSplat(16, Builder.getInt8(1))});
+            }
+          }
+          if (Context.SupportSSE2 && Count == 8) {
+            if (Signed) {
+              return Builder.CreateIntrinsic(
+                  llvm::Intrinsic::x86_sse2_pmadd_wd, {},
+                  {V, Builder.CreateVectorSplat(8, Builder.getInt16(1))});
+            } else {
+              V = Builder.CreateXor(
+                  V, Builder.CreateVectorSplat(8, Builder.getInt16(0x8000)));
+              V = Builder.CreateIntrinsic(
+                  llvm::Intrinsic::x86_sse2_pmadd_wd, {},
+                  {V, Builder.CreateVectorSplat(8, Builder.getInt16(1))});
+              return Builder.CreateAdd(
+                  V, Builder.CreateVectorSplat(4, Builder.getInt32(0x10000)));
+            }
+          }
+#endif
+
+#if defined(__aarch64__)
+          if (Context.SupportNEON) {
+            const auto ID = Signed ? llvm::Intrinsic::aarch64_neon_saddlp
+                                   : llvm::Intrinsic::aarch64_neon_uaddlp;
+            return Builder.CreateIntrinsic(ID, {ExtTy, VectorTy}, {V});
+          }
+#endif
+
+          const auto Width = VectorTy->getElementType()->getIntegerBitWidth();
+          auto *EV = Builder.CreateBitCast(V, ExtTy);
+          llvm::Value *L, *R;
+          if (Signed) {
+            L = Builder.CreateAShr(EV, Width);
+            R = Builder.CreateAShr(Builder.CreateShl(EV, Width), Width);
+          } else {
+            L = Builder.CreateLShr(EV, Width);
+            R = Builder.CreateLShr(Builder.CreateShl(EV, Width), Width);
+          }
+          return Builder.CreateAdd(L, R);
+        });
   }
   void compileVectorFAbs(llvm::VectorType *VectorTy) {
     compileVectorOp(VectorTy, [this](auto *V) {

@@ -467,6 +467,8 @@ enum class OpCode : uint16_t {
   I16x8__extmul_low_i8x16_u = 0xFD9E,
   I16x8__extmul_high_i8x16_u = 0xFD9F,
   I16x8__q15mulr_sat_s = 0xFD82,
+  I16x8__extadd_pairwise_i8x16_s = 0xFD7C,
+  I16x8__extadd_pairwise_i8x16_u = 0xFD7D,
 
   I32x4__abs = 0xFDA0,
   I32x4__neg = 0xFDA1,
@@ -490,6 +492,8 @@ enum class OpCode : uint16_t {
   I32x4__extmul_high_i16x8_s = 0xFDBD,
   I32x4__extmul_low_i16x8_u = 0xFDBE,
   I32x4__extmul_high_i16x8_u = 0xFDBF,
+  I32x4__extadd_pairwise_i16x8_s = 0xFD7E,
+  I32x4__extadd_pairwise_i16x8_u = 0xFD7F,
 
   I64x2__neg = 0xFDC1,
   I64x2__all_true = 0xFDC3,
@@ -944,6 +948,8 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::I16x8__extmul_low_i8x16_u, "i16x8.extmul_low_i8x16_u"},
     {OpCode::I16x8__extmul_high_i8x16_u, "i16x8.extmul_high_i8x16_u"},
     {OpCode::I16x8__q15mulr_sat_s, "i16x8.q15mulr_sat_s"},
+    {OpCode::I16x8__extadd_pairwise_i8x16_s, "i16x8.extadd_pairwise_i8x16_s"},
+    {OpCode::I16x8__extadd_pairwise_i8x16_u, "i16x8.extadd_pairwise_i8x16_u"},
 
     {OpCode::I32x4__abs, "i32x4.abs"},
     {OpCode::I32x4__neg, "i32x4.neg"},
@@ -967,6 +973,8 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::I32x4__extmul_high_i16x8_s, "i32x4.extmul_high_i16x8_s"},
     {OpCode::I32x4__extmul_low_i16x8_u, "i32x4.extmul_low_i16x8_u"},
     {OpCode::I32x4__extmul_high_i16x8_u, "i32x4.extmul_high_i16x8_u"},
+    {OpCode::I32x4__extadd_pairwise_i16x8_s, "i32x4.extadd_pairwise_i16x8_s"},
+    {OpCode::I32x4__extadd_pairwise_i16x8_u, "i32x4.extadd_pairwise_i16x8_u"},
 
     {OpCode::I64x2__neg, "i64x2.neg"},
     {OpCode::I64x2__all_true, "i64x2.all_true"},

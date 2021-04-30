@@ -161,6 +161,20 @@ Expect<void> Interpreter::runVectorWidenHighOp(ValVariant &Val) const {
   return {};
 }
 
+template <typename TIn, typename TOut>
+Expect<void> Interpreter::runVectorExtAddPairwiseOp(ValVariant &Val) const {
+  static_assert(sizeof(TIn) * 2 == sizeof(TOut));
+  using VTOut [[gnu::vector_size(16)]] = TOut;
+  const auto Size = sizeof(TIn) * 8;
+  const VTOut &V = retrieveValue<VTOut>(Val);
+  VTOut &Result = retrieveValue<VTOut>(Val);
+  const auto L = V >> Size;
+  const auto R = (V << Size) >> Size;
+  Result = L + R;
+
+  return {};
+}
+
 template <typename T>
 Expect<void> Interpreter::runVectorAbsOp(ValVariant &Val) const {
   using VT [[gnu::vector_size(16)]] = T;

@@ -2110,6 +2110,9 @@ public:
       case OpCode::I8x16__neg:
         compileVectorNeg(Context.Int8x16Ty);
         break;
+      case OpCode::I8x16__popcnt:
+        compileVectorPopcnt();
+        break;
       case OpCode::I8x16__all_true:
         compileVectorAllTrue(Context.Int8x16Ty);
         break;
@@ -2975,6 +2978,11 @@ private:
   }
   void compileVectorNeg(llvm::VectorType *VectorTy) {
     compileVectorOp(VectorTy, [this](auto *V) { return Builder.CreateNeg(V); });
+  }
+  void compileVectorPopcnt() {
+    compileVectorOp(Context.Int8x16Ty, [this](auto *V) {
+      return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::ctpop, V);
+    });
   }
   template <typename Func>
   void compileVectorReduceIOp(llvm::VectorType *VectorTy, Func &&Op) {

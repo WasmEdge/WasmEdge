@@ -417,6 +417,7 @@ enum class OpCode : uint16_t {
 
   I8x16__abs = 0xFD60,
   I8x16__neg = 0xFD61,
+  I8x16__popcnt = 0xFD62,
   I8x16__all_true = 0xFD63,
   I8x16__bitmask = 0xFD64,
   I8x16__narrow_i16x8_s = 0xFD65,
@@ -893,6 +894,7 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
 
     {OpCode::I8x16__abs, "i8x16.abs"},
     {OpCode::I8x16__neg, "i8x16.neg"},
+    {OpCode::I8x16__popcnt, "i8x16.popcnt"},
     {OpCode::I8x16__all_true, "i8x16.all_true"},
     {OpCode::I8x16__bitmask, "i8x16.bitmask"},
     {OpCode::I8x16__narrow_i16x8_s, "i8x16.narrow_i16x8_s"},

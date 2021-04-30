@@ -189,6 +189,15 @@ Expect<void> Interpreter::runVectorNegOp(ValVariant &Val) const {
   return {};
 }
 
+inline Expect<void> Interpreter::runVectorPopcntOp(ValVariant &Val) const {
+  auto &Result = retrieveValue<uint8x16_t>(Val);
+  Result -= ((Result >> UINT8_C(1)) & UINT8_C(0x55));
+  Result = (Result & UINT8_C(0x33)) + ((Result >> UINT8_C(2)) & UINT8_C(0x33));
+  Result += Result >> UINT8_C(4);
+  Result &= UINT8_C(0x0f);
+  return {};
+}
+
 template <typename T>
 Expect<void> Interpreter::runVectorSqrtOp(ValVariant &Val) const {
   using VT [[gnu::vector_size(16)]] = T;

@@ -410,6 +410,7 @@ private:
   Expect<void> runVectorGeOp(ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T> Expect<void> runVectorAbsOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorNegOp(ValVariant &Val) const;
+  inline Expect<void> runVectorPopcntOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorSqrtOp(ValVariant &Val) const;
   template <typename TIn, typename TOut>
   Expect<void> runVectorTruncSatOp(ValVariant &Val) const;

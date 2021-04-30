@@ -601,6 +601,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 
   case OpCode::I8x16__abs:
   case OpCode::I8x16__neg:
+  case OpCode::I8x16__popcnt:
   case OpCode::I8x16__all_true:
   case OpCode::I8x16__bitmask:
   case OpCode::I8x16__narrow_i16x8_s:

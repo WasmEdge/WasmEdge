@@ -679,6 +679,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::I32x4__extadd_pairwise_i16x8_s:
   case OpCode::I32x4__extadd_pairwise_i16x8_u:
 
+  case OpCode::I64x2__abs:
   case OpCode::I64x2__neg:
   case OpCode::I64x2__bitmask:
   case OpCode::I64x2__widen_low_i32x4_s:

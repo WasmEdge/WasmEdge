@@ -1362,6 +1362,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::I32x4__extadd_pairwise_i16x8_u:
       return runVectorExtAddPairwiseOp<uint16_t, uint32_t>(StackMgr.getTop());
 
+    case OpCode::I64x2__abs:
+      return runVectorAbsOp<int64_t>(StackMgr.getTop());
     case OpCode::I64x2__neg:
       return runVectorNegOp<int64_t>(StackMgr.getTop());
     case OpCode::I64x2__all_true:

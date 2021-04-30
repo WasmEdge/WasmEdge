@@ -1192,14 +1192,14 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       ValVariant Rhs = StackMgr.pop();
       return runVectorNarrowOp<int32_t, uint16_t>(StackMgr.getTop(), Rhs);
     }
-    case OpCode::I16x8__widen_low_i8x16_s:
-      return runVectorWidenLowOp<int8_t, int16_t>(StackMgr.getTop());
-    case OpCode::I16x8__widen_high_i8x16_s:
-      return runVectorWidenHighOp<int8_t, int16_t>(StackMgr.getTop());
-    case OpCode::I16x8__widen_low_i8x16_u:
-      return runVectorWidenLowOp<uint8_t, uint16_t>(StackMgr.getTop());
-    case OpCode::I16x8__widen_high_i8x16_u:
-      return runVectorWidenHighOp<uint8_t, uint16_t>(StackMgr.getTop());
+    case OpCode::I16x8__extend_low_i8x16_s:
+      return runVectorExtendLowOp<int8_t, int16_t>(StackMgr.getTop());
+    case OpCode::I16x8__extend_high_i8x16_s:
+      return runVectorExtendHighOp<int8_t, int16_t>(StackMgr.getTop());
+    case OpCode::I16x8__extend_low_i8x16_u:
+      return runVectorExtendLowOp<uint8_t, uint16_t>(StackMgr.getTop());
+    case OpCode::I16x8__extend_high_i8x16_u:
+      return runVectorExtendHighOp<uint8_t, uint16_t>(StackMgr.getTop());
     case OpCode::I16x8__shl: {
       ValVariant Rhs = StackMgr.pop();
       return runVectorShlOp<uint16_t>(StackMgr.getTop(), Rhs);
@@ -1293,14 +1293,14 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       return runVectorAllTrueOp<uint32_t>(StackMgr.getTop());
     case OpCode::I32x4__bitmask:
       return runVectorBitMaskOp<uint32_t>(StackMgr.getTop());
-    case OpCode::I32x4__widen_low_i16x8_s:
-      return runVectorWidenLowOp<int16_t, int32_t>(StackMgr.getTop());
-    case OpCode::I32x4__widen_high_i16x8_s:
-      return runVectorWidenHighOp<int16_t, int32_t>(StackMgr.getTop());
-    case OpCode::I32x4__widen_low_i16x8_u:
-      return runVectorWidenLowOp<uint16_t, uint32_t>(StackMgr.getTop());
-    case OpCode::I32x4__widen_high_i16x8_u:
-      return runVectorWidenHighOp<uint16_t, uint32_t>(StackMgr.getTop());
+    case OpCode::I32x4__extend_low_i16x8_s:
+      return runVectorExtendLowOp<int16_t, int32_t>(StackMgr.getTop());
+    case OpCode::I32x4__extend_high_i16x8_s:
+      return runVectorExtendHighOp<int16_t, int32_t>(StackMgr.getTop());
+    case OpCode::I32x4__extend_low_i16x8_u:
+      return runVectorExtendLowOp<uint16_t, uint32_t>(StackMgr.getTop());
+    case OpCode::I32x4__extend_high_i16x8_u:
+      return runVectorExtendHighOp<uint16_t, uint32_t>(StackMgr.getTop());
     case OpCode::I32x4__shl: {
       ValVariant Rhs = StackMgr.pop();
       return runVectorShlOp<uint32_t>(StackMgr.getTop(), Rhs);
@@ -1370,14 +1370,14 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       return runVectorAllTrueOp<uint64_t>(StackMgr.getTop());
     case OpCode::I64x2__bitmask:
       return runVectorBitMaskOp<uint64_t>(StackMgr.getTop());
-    case OpCode::I64x2__widen_low_i32x4_s:
-      return runVectorWidenLowOp<int32_t, int64_t>(StackMgr.getTop());
-    case OpCode::I64x2__widen_high_i32x4_s:
-      return runVectorWidenHighOp<int32_t, int64_t>(StackMgr.getTop());
-    case OpCode::I64x2__widen_low_i32x4_u:
-      return runVectorWidenLowOp<uint32_t, uint64_t>(StackMgr.getTop());
-    case OpCode::I64x2__widen_high_i32x4_u:
-      return runVectorWidenHighOp<uint32_t, uint64_t>(StackMgr.getTop());
+    case OpCode::I64x2__extend_low_i32x4_s:
+      return runVectorExtendLowOp<int32_t, int64_t>(StackMgr.getTop());
+    case OpCode::I64x2__extend_high_i32x4_s:
+      return runVectorExtendHighOp<int32_t, int64_t>(StackMgr.getTop());
+    case OpCode::I64x2__extend_low_i32x4_u:
+      return runVectorExtendLowOp<uint32_t, uint64_t>(StackMgr.getTop());
+    case OpCode::I64x2__extend_high_i32x4_u:
+      return runVectorExtendHighOp<uint32_t, uint64_t>(StackMgr.getTop());
     case OpCode::I64x2__shl: {
       ValVariant Rhs = StackMgr.pop();
       return runVectorShlOp<uint64_t>(StackMgr.getTop(), Rhs);

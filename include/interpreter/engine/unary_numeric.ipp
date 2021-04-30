@@ -122,7 +122,7 @@ Expect<void> Interpreter::runSplatOp(ValVariant &Val) const {
 }
 
 template <typename TIn, typename TOut>
-Expect<void> Interpreter::runVectorWidenLowOp(ValVariant &Val) const {
+Expect<void> Interpreter::runVectorExtendLowOp(ValVariant &Val) const {
   static_assert(sizeof(TIn) * 2 == sizeof(TOut));
   static_assert(sizeof(TIn) == 1 || sizeof(TIn) == 2 || sizeof(TIn) == 4);
   using VTIn [[gnu::vector_size(16)]] = TIn;
@@ -142,7 +142,7 @@ Expect<void> Interpreter::runVectorWidenLowOp(ValVariant &Val) const {
 }
 
 template <typename TIn, typename TOut>
-Expect<void> Interpreter::runVectorWidenHighOp(ValVariant &Val) const {
+Expect<void> Interpreter::runVectorExtendHighOp(ValVariant &Val) const {
   static_assert(sizeof(TIn) * 2 == sizeof(TOut));
   static_assert(sizeof(TIn) == 1 || sizeof(TIn) == 2 || sizeof(TIn) == 4);
   using VTIn [[gnu::vector_size(16)]] = TIn;

@@ -2210,17 +2210,17 @@ public:
       case OpCode::I16x8__narrow_i32x4_u:
         compileVectorNarrow(Context.Int32x4Ty, false);
         break;
-      case OpCode::I16x8__widen_low_i8x16_s:
-        compileVectorWiden(Context.Int8x16Ty, true, true);
+      case OpCode::I16x8__extend_low_i8x16_s:
+        compileVectorExtend(Context.Int8x16Ty, true, true);
         break;
-      case OpCode::I16x8__widen_high_i8x16_s:
-        compileVectorWiden(Context.Int8x16Ty, true, false);
+      case OpCode::I16x8__extend_high_i8x16_s:
+        compileVectorExtend(Context.Int8x16Ty, true, false);
         break;
-      case OpCode::I16x8__widen_low_i8x16_u:
-        compileVectorWiden(Context.Int8x16Ty, false, true);
+      case OpCode::I16x8__extend_low_i8x16_u:
+        compileVectorExtend(Context.Int8x16Ty, false, true);
         break;
-      case OpCode::I16x8__widen_high_i8x16_u:
-        compileVectorWiden(Context.Int8x16Ty, false, false);
+      case OpCode::I16x8__extend_high_i8x16_u:
+        compileVectorExtend(Context.Int8x16Ty, false, false);
         break;
       case OpCode::I16x8__shl:
         compileVectorShl(Context.Int16x8Ty);
@@ -2300,17 +2300,17 @@ public:
       case OpCode::I32x4__bitmask:
         compileVectorBitMask(Context.Int32x4Ty);
         break;
-      case OpCode::I32x4__widen_low_i16x8_s:
-        compileVectorWiden(Context.Int16x8Ty, true, true);
+      case OpCode::I32x4__extend_low_i16x8_s:
+        compileVectorExtend(Context.Int16x8Ty, true, true);
         break;
-      case OpCode::I32x4__widen_high_i16x8_s:
-        compileVectorWiden(Context.Int16x8Ty, true, false);
+      case OpCode::I32x4__extend_high_i16x8_s:
+        compileVectorExtend(Context.Int16x8Ty, true, false);
         break;
-      case OpCode::I32x4__widen_low_i16x8_u:
-        compileVectorWiden(Context.Int16x8Ty, false, true);
+      case OpCode::I32x4__extend_low_i16x8_u:
+        compileVectorExtend(Context.Int16x8Ty, false, true);
         break;
-      case OpCode::I32x4__widen_high_i16x8_u:
-        compileVectorWiden(Context.Int16x8Ty, false, false);
+      case OpCode::I32x4__extend_high_i16x8_u:
+        compileVectorExtend(Context.Int16x8Ty, false, false);
         break;
       case OpCode::I32x4__shl:
         compileVectorShl(Context.Int32x4Ty);
@@ -2389,17 +2389,17 @@ public:
       case OpCode::I64x2__bitmask:
         compileVectorBitMask(Context.Int64x2Ty);
         break;
-      case OpCode::I64x2__widen_low_i32x4_s:
-        compileVectorWiden(Context.Int32x4Ty, true, true);
+      case OpCode::I64x2__extend_low_i32x4_s:
+        compileVectorExtend(Context.Int32x4Ty, true, true);
         break;
-      case OpCode::I64x2__widen_high_i32x4_s:
-        compileVectorWiden(Context.Int32x4Ty, true, false);
+      case OpCode::I64x2__extend_high_i32x4_s:
+        compileVectorExtend(Context.Int32x4Ty, true, false);
         break;
-      case OpCode::I64x2__widen_low_i32x4_u:
-        compileVectorWiden(Context.Int32x4Ty, false, true);
+      case OpCode::I64x2__extend_low_i32x4_u:
+        compileVectorExtend(Context.Int32x4Ty, false, true);
         break;
-      case OpCode::I64x2__widen_high_i32x4_u:
-        compileVectorWiden(Context.Int32x4Ty, false, false);
+      case OpCode::I64x2__extend_high_i32x4_u:
+        compileVectorExtend(Context.Int32x4Ty, false, false);
         break;
       case OpCode::I64x2__shl:
         compileVectorShl(Context.Int64x2Ty);
@@ -3242,7 +3242,7 @@ private:
     stackPush(Builder.CreateBitCast(Builder.CreateShuffleVector(F1, F2, Mask),
                                     Context.Int64x2Ty));
   }
-  void compileVectorWiden(llvm::VectorType *FromTy, bool Signed, bool Low) {
+  void compileVectorExtend(llvm::VectorType *FromTy, bool Signed, bool Low) {
     auto *ExtTy = llvm::VectorType::getExtendedElementVectorType(FromTy);
     const auto Count = FromTy->getElementCount().Min;
     std::vector<ShuffleElement> Mask(Count / 2);

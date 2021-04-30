@@ -627,10 +627,10 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::I16x8__bitmask:
   case OpCode::I16x8__narrow_i32x4_s:
   case OpCode::I16x8__narrow_i32x4_u:
-  case OpCode::I16x8__widen_low_i8x16_s:
-  case OpCode::I16x8__widen_high_i8x16_s:
-  case OpCode::I16x8__widen_low_i8x16_u:
-  case OpCode::I16x8__widen_high_i8x16_u:
+  case OpCode::I16x8__extend_low_i8x16_s:
+  case OpCode::I16x8__extend_high_i8x16_s:
+  case OpCode::I16x8__extend_low_i8x16_u:
+  case OpCode::I16x8__extend_high_i8x16_u:
   case OpCode::I16x8__shl:
   case OpCode::I16x8__shr_s:
   case OpCode::I16x8__shr_u:
@@ -658,10 +658,10 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::I32x4__neg:
   case OpCode::I32x4__all_true:
   case OpCode::I32x4__bitmask:
-  case OpCode::I32x4__widen_low_i16x8_s:
-  case OpCode::I32x4__widen_high_i16x8_s:
-  case OpCode::I32x4__widen_low_i16x8_u:
-  case OpCode::I32x4__widen_high_i16x8_u:
+  case OpCode::I32x4__extend_low_i16x8_s:
+  case OpCode::I32x4__extend_high_i16x8_s:
+  case OpCode::I32x4__extend_low_i16x8_u:
+  case OpCode::I32x4__extend_high_i16x8_u:
   case OpCode::I32x4__shl:
   case OpCode::I32x4__shr_s:
   case OpCode::I32x4__shr_u:
@@ -682,10 +682,10 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::I64x2__abs:
   case OpCode::I64x2__neg:
   case OpCode::I64x2__bitmask:
-  case OpCode::I64x2__widen_low_i32x4_s:
-  case OpCode::I64x2__widen_high_i32x4_s:
-  case OpCode::I64x2__widen_low_i32x4_u:
-  case OpCode::I64x2__widen_high_i32x4_u:
+  case OpCode::I64x2__extend_low_i32x4_s:
+  case OpCode::I64x2__extend_high_i32x4_s:
+  case OpCode::I64x2__extend_low_i32x4_u:
+  case OpCode::I64x2__extend_high_i32x4_u:
   case OpCode::I64x2__shl:
   case OpCode::I64x2__shr_s:
   case OpCode::I64x2__shr_u:

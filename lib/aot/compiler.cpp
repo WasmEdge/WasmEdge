@@ -2015,6 +2015,22 @@ public:
         compileVectorCompareOp(Context.Int64x2Ty,
                                llvm::CmpInst::Predicate::ICMP_NE);
         break;
+      case OpCode::I64x2__lt_s:
+        compileVectorCompareOp(Context.Int64x2Ty,
+                               llvm::CmpInst::Predicate::ICMP_SLT);
+        break;
+      case OpCode::I64x2__gt_s:
+        compileVectorCompareOp(Context.Int64x2Ty,
+                               llvm::CmpInst::Predicate::ICMP_SGT);
+        break;
+      case OpCode::I64x2__le_s:
+        compileVectorCompareOp(Context.Int64x2Ty,
+                               llvm::CmpInst::Predicate::ICMP_SLE);
+        break;
+      case OpCode::I64x2__ge_s:
+        compileVectorCompareOp(Context.Int64x2Ty,
+                               llvm::CmpInst::Predicate::ICMP_SGE);
+        break;
       case OpCode::F32x4__eq:
         compileVectorCompareOp(Context.Floatx4Ty,
                                llvm::CmpInst::Predicate::FCMP_OEQ,

@@ -392,6 +392,10 @@ enum class OpCode : uint16_t {
 
   I64x2__eq = 0xFDD6,
   I64x2__ne = 0xFDD7,
+  I64x2__lt_s = 0xFDD8,
+  I64x2__gt_s = 0xFDD9,
+  I64x2__le_s = 0xFDDA,
+  I64x2__ge_s = 0xFDDB,
 
   F32x4__eq = 0xFD41,
   F32x4__ne = 0xFD42,
@@ -873,6 +877,10 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
 
     {OpCode::I64x2__eq, "i64x2.eq"},
     {OpCode::I64x2__ne, "i64x2.ne"},
+    {OpCode::I64x2__lt_s, "i64x2.lt_s"},
+    {OpCode::I64x2__gt_s, "i64x2.gt_s"},
+    {OpCode::I64x2__le_s, "i64x2.le_s"},
+    {OpCode::I64x2__ge_s, "i64x2.ge_s"},
 
     {OpCode::F32x4__eq, "f32x4.eq"},
     {OpCode::F32x4__ne, "f32x4.ne"},

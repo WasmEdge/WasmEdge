@@ -693,6 +693,10 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::I64x2__mul:
   case OpCode::I64x2__eq:
   case OpCode::I64x2__ne:
+  case OpCode::I64x2__lt_s:
+  case OpCode::I64x2__gt_s:
+  case OpCode::I64x2__le_s:
+  case OpCode::I64x2__ge_s:
   case OpCode::I64x2__all_true:
   case OpCode::I64x2__extmul_low_i32x4_s:
   case OpCode::I64x2__extmul_high_i32x4_s:

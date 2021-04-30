@@ -1146,6 +1146,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I32x4__ge_u:
   case OpCode::I64x2__eq:
   case OpCode::I64x2__ne:
+  case OpCode::I64x2__lt_s:
+  case OpCode::I64x2__gt_s:
+  case OpCode::I64x2__le_s:
+  case OpCode::I64x2__ge_s:
   case OpCode::F32x4__eq:
   case OpCode::F32x4__ne:
   case OpCode::F32x4__lt:

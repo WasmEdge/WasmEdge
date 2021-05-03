@@ -2,7 +2,7 @@
 #include "ast/description.h"
 #include "common/log.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AST {
 
 /// Load binary of Import description. See "include/ast/description.h".
@@ -92,4 +92,4 @@ Expect<void> ExportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 }
 
 } // namespace AST
-} // namespace SSVM
+} // namespace WasmEdge

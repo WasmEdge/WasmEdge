@@ -8,8 +8,8 @@ add_test(wasiTests wasiTests)
 
 target_link_libraries(wasiTests
   PRIVATE
-  ssvmAST
-  ssvmHostModuleWasi
+  wasmedgeAST
+  wasmedgeHostModuleWasi
   utilGoogleTest
 )
 

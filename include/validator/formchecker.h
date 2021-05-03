@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/validator/formchecker.h - Form checking class definition -----===//
+//===-- wasmedge/validator/formchecker.h - Form checking class definition -===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -22,7 +22,7 @@
 #include "common/types.h"
 #include "common/value.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Validator {
 
 enum class VType : uint8_t {
@@ -147,4 +147,4 @@ private:
 };
 
 } // namespace Validator
-} // namespace SSVM
+} // namespace WasmEdge

@@ -5,17 +5,17 @@
 #include "processenv.h"
 #include "runtime/hostfunc.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Host {
 
-template <typename T> class SSVMProcess : public Runtime::HostFunction<T> {
+template <typename T> class WasmEdgeProcess : public Runtime::HostFunction<T> {
 public:
-  SSVMProcess(SSVMProcessEnvironment &HostEnv)
+  WasmEdgeProcess(WasmEdgeProcessEnvironment &HostEnv)
       : Runtime::HostFunction<T>(0), Env(HostEnv) {}
 
 protected:
-  SSVMProcessEnvironment &Env;
+  WasmEdgeProcessEnvironment &Env;
 };
 
 } // namespace Host
-} // namespace SSVM
+} // namespace WasmEdge

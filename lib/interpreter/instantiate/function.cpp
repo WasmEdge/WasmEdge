@@ -4,7 +4,7 @@
 #include "interpreter/interpreter.h"
 #include "runtime/instance/module.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 /// Instantiate function instance. See "include/interpreter/interpreter.h".
@@ -46,4 +46,4 @@ Expect<void> Interpreter::instantiate(
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

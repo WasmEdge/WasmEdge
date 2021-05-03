@@ -3,7 +3,7 @@
 #include "common/config.h"
 #include "common/defines.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AOT {
 
 namespace {}
@@ -19,4 +19,4 @@ void Blake3::finalize(Span<Byte> Output) noexcept {
 }
 
 } // namespace AOT
-} // namespace SSVM
+} // namespace WasmEdge

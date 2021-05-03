@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/api/hostfunc_c.h - Spec test host functions for C API ---===//
+//===-- wasmedge/test/api/hostfunc_c.h - Spec test host functions for C API ==//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -15,37 +15,45 @@
 #ifndef __HOSTFUNC_C_H__
 #define __HOSTFUNC_C_H__
 
-#include "api/ssvm.h"
+#include "api/wasmedge.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /// Function type: {} -> {}
-SSVM_Result SpecTestPrint(void *Data, SSVM_MemoryInstanceContext *MemCxt,
-                          const SSVM_Value *In, SSVM_Value *Out);
+WasmEdge_Result SpecTestPrint(void *Data,
+                              WasmEdge_MemoryInstanceContext *MemCxt,
+                              const WasmEdge_Value *In, WasmEdge_Value *Out);
 
 /// Function type: {i32} -> {}
-SSVM_Result SpecTestPrintI32(void *Data, SSVM_MemoryInstanceContext *MemCxt,
-                             const SSVM_Value *In, SSVM_Value *Out);
+WasmEdge_Result SpecTestPrintI32(void *Data,
+                                 WasmEdge_MemoryInstanceContext *MemCxt,
+                                 const WasmEdge_Value *In, WasmEdge_Value *Out);
 
 /// Function type: {f32} -> {}
-SSVM_Result SpecTestPrintF32(void *Data, SSVM_MemoryInstanceContext *MemCxt,
-                             const SSVM_Value *In, SSVM_Value *Out);
+WasmEdge_Result SpecTestPrintF32(void *Data,
+                                 WasmEdge_MemoryInstanceContext *MemCxt,
+                                 const WasmEdge_Value *In, WasmEdge_Value *Out);
 
 /// Function type: {f64} -> {}
-SSVM_Result SpecTestPrintF64(void *Data, SSVM_MemoryInstanceContext *MemCxt,
-                             const SSVM_Value *In, SSVM_Value *Out);
+WasmEdge_Result SpecTestPrintF64(void *Data,
+                                 WasmEdge_MemoryInstanceContext *MemCxt,
+                                 const WasmEdge_Value *In, WasmEdge_Value *Out);
 
 /// Function type: {i32, f32} -> {}
-SSVM_Result SpecTestPrintI32F32(void *Data, SSVM_MemoryInstanceContext *MemCxt,
-                                const SSVM_Value *In, SSVM_Value *Out);
+WasmEdge_Result SpecTestPrintI32F32(void *Data,
+                                    WasmEdge_MemoryInstanceContext *MemCxt,
+                                    const WasmEdge_Value *In,
+                                    WasmEdge_Value *Out);
 
 /// Function type: {f64, f64} -> {}
-SSVM_Result SpecTestPrintF64F64(void *Data, SSVM_MemoryInstanceContext *MemCxt,
-                                const SSVM_Value *In, SSVM_Value *Out);
+WasmEdge_Result SpecTestPrintF64F64(void *Data,
+                                    WasmEdge_MemoryInstanceContext *MemCxt,
+                                    const WasmEdge_Value *In,
+                                    WasmEdge_Value *Out);
 
-SSVM_ImportObjectContext *createSpecTestModule();
+WasmEdge_ImportObjectContext *createSpecTestModule();
 
 #ifdef __cplusplus
 } /// extern "C"

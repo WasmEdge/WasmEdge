@@ -6,12 +6,12 @@
 #include "common/hexstr.h"
 #include "common/log.h"
 
-#if SSVM_OS_LINUX || SSVM_OS_MACOS
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <pwd.h>
 #include <unistd.h>
 #endif
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AOT {
 
 namespace {
@@ -20,9 +20,9 @@ std::filesystem::path getRoot(Cache::StorageScope Scope) {
   case Cache::StorageScope::Global:
     return std::filesystem::u8path(kCacheRoot);
   case Cache::StorageScope::Local: {
-#if SSVM_OS_LINUX || SSVM_OS_MACOS
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
     const struct passwd *PassWd = getpwuid(getuid());
-    return std::filesystem::u8path(PassWd->pw_dir) / ".ssvm/cache"sv;
+    return std::filesystem::u8path(PassWd->pw_dir) / ".wasmedge/cache"sv;
 #else
     return {};
 #endif
@@ -61,4 +61,4 @@ void Cache::clear(Cache::StorageScope Scope, std::string_view Key) {
 }
 
 } // namespace AOT
-} // namespace SSVM
+} // namespace WasmEdge

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 cmake_minimum_required(VERSION 3.9.4)
-project(SSVM)
+project(WasmEdge)
 
 find_program(GIT_CMD git)
 execute_process(COMMAND
@@ -39,10 +39,10 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 set(CMAKE_SKIP_RPATH ON)
 
-option(BUILD_TESTS "Generate build targets for the ssvm unit tests." OFF)
+option(BUILD_TESTS "Generate build targets for the wasmedge unit tests." OFF)
 option(BUILD_COVERAGE "Generate coverage report. Require BUILD_TESTS." OFF)
-option(BUILD_TOOLS "Generate ssvm and ssvmc tools." ON)
-option(BUILD_TOOL_SSVM_STATIC "Generate ssvm-static tool" ON)
+option(BUILD_TOOLS "Generate wasmedge and wasmedgec tools." ON)
+option(BUILD_TOOL_WASMEDGE_STATIC "Generate wasmedge-static tool" ON)
 set(BUILD_PACKAGE "DEB;RPM" CACHE STRING "Package generate types")
 set(CPACK_PROJECT_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cpack_config.cmake)
 
@@ -53,8 +53,8 @@ endif()
 
 include(GNUInstallDirs)
 
-# List of SSVM runtimes
-option(SSVM_DISABLE_AOT_RUNTIME "Disable SSVM LLVM-based ahead of time compilation runtime." OFF)
+# List of WasmEdge runtimes
+option(WASMEDGE_DISABLE_AOT_RUNTIME "Disable WasmEdge LLVM-based ahead of time compilation runtime." OFF)
 
 # Macro for copying directory.
 macro(configure_files srcDir destDir)
@@ -90,19 +90,19 @@ set(CPACK_ARCHIVE_${CMAKE_INSTALL_DEFAULT_COMPONENT_NAME_UPCASE}_FILE_NAME "${CP
 set(CPACK_RPM_COMPONENT_INSTALL ON)
 set(CPACK_RPM_MAIN_COMPONENT ${CMAKE_INSTALL_DEFAULT_COMPONENT_NAME})
 set(CPACK_DEB_COMPONENT_INSTALL ON)
-set(CPACK_DEBIAN_${CMAKE_INSTALL_DEFAULT_COMPONENT_NAME_UPCASE}_PACKAGE_NAME ssvm)
+set(CPACK_DEBIAN_${CMAKE_INSTALL_DEFAULT_COMPONENT_NAME_UPCASE}_PACKAGE_NAME wasmedge)
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 set(CPACK_DEBIAN_COMPRESSION_TYPE xz)
-set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/second-state/SSVM/")
+set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/WasmEdge/WasmEdge/")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEP ON)
 set(CPACK_DEBIAN_PACKAGE_DEPENDS libllvm10)
 set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION ON)
-if(BUILD_TOOL_SSVM_STATIC)
+if(BUILD_TOOL_WASMEDGE_STATIC)
   set(CPACK_DEBIAN_STATIC_PACKAGE_RECOMMENDS "binfmt-support | systemd")
   set(CPACK_DEBIAN_STATIC_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/binfmt/postinst;${CMAKE_CURRENT_SOURCE_DIR}/binfmt/prerm")
 endif()
 set(CPACK_GENERATOR "${BUILD_PACKAGE}")
-set(CPACK_PACKAGE_DESCRIPTION "SSVM is a high performance, extensible, and hardware optimized WebAssembly Virtual Machine for cloud, AI, and blockchain applications.")
+set(CPACK_PACKAGE_DESCRIPTION "WasmEdge is a high performance, extensible, and hardware optimized WebAssembly Virtual Machine for cloud, AI, and blockchain applications.")
 
 if(BUILD_TESTS)
   include(CTest)
@@ -113,7 +113,7 @@ add_subdirectory(include)
 add_subdirectory(lib)
 add_subdirectory(thirdparty)
 if(BUILD_TOOLS)
-  if(BUILD_TOOL_SSVM_STATIC)
+  if(BUILD_TOOL_WASMEDGE_STATIC)
     add_subdirectory(binfmt)
   endif()
   add_subdirectory(tools)
@@ -121,7 +121,7 @@ endif()
 
 include(CPack)
 include(CPackComponent)
-if(BUILD_TOOL_SSVM_STATIC)
+if(BUILD_TOOL_WASMEDGE_STATIC)
   cpack_add_component_group(static)
   cpack_add_component(static GROUP static)
   cpack_add_component(static_debian GROUP static)

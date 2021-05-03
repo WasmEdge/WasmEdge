@@ -8,7 +8,7 @@
 #include "runtime/instance/module.h"
 #include "runtime/instance/table.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 /// Instantiate exports. See "include/interpreter/interpreter.h".
@@ -45,4 +45,4 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

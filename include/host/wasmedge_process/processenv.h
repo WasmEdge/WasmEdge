@@ -7,10 +7,10 @@
 #include <unordered_set>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Host {
 
-class SSVMProcessEnvironment {
+class WasmEdgeProcessEnvironment {
 public:
   /// Default timeout in milliseconds.
   static inline const uint32_t DEFAULT_TIMEOUT = 10000;
@@ -37,4 +37,4 @@ public:
 };
 
 } // namespace Host
-} // namespace SSVM
+} // namespace WasmEdge

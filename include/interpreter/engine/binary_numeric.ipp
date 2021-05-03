@@ -5,7 +5,7 @@
 
 #include <cmath>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 template <typename T>
@@ -559,4 +559,4 @@ Interpreter::runVectorQ15MulSatOp(ValVariant &Val1,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/base.h - AST node base class definition ------------------===//
+//===-- wasmedge/ast/base.h - AST node base class definition --------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -18,7 +18,7 @@
 #include "common/log.h"
 #include "loader/filemgr.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AST {
 
 /// Base class of AST node.
@@ -101,4 +101,4 @@ inline Expect<RefType> checkRefTypeProposals(const Configure &Conf,
 }
 
 } // namespace AST
-} // namespace SSVM
+} // namespace WasmEdge

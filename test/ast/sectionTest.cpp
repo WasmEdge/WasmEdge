@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/ast/sectionTest.cpp - AST section unit tests ------------===//
+//===-- wasmedge/test/ast/sectionTest.cpp - AST section unit tests --------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -16,8 +16,8 @@
 
 namespace {
 
-SSVM::FileMgrVector Mgr;
-SSVM::Configure Conf;
+WasmEdge::FileMgrVector Mgr;
+WasmEdge::Configure Conf;
 
 TEST(SectionTest, LoadCustomSection) {
   /// 1. Test load custom section.
@@ -26,7 +26,7 @@ TEST(SectionTest, LoadCustomSection) {
   ///   2.  Load custom section without contents.
   ///   3.  Load custom section with contents.
   Mgr.clearBuffer();
-  SSVM::AST::CustomSection Sec1;
+  WasmEdge::AST::CustomSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -34,7 +34,7 @@ TEST(SectionTest, LoadCustomSection) {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::CustomSection Sec2;
+  WasmEdge::AST::CustomSection Sec2;
   EXPECT_TRUE(Sec2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -43,7 +43,7 @@ TEST(SectionTest, LoadCustomSection) {
       0x00U, 0xFFU, 0xEEU, 0xDDU, 0xCCU, 0xBBU, 0xAAU /// Content
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::CustomSection Sec3;
+  WasmEdge::AST::CustomSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -55,7 +55,7 @@ TEST(SectionTest, LoadTypeSection) {
   ///   3.  Load type section with zero vector length.
   ///   4.  Load type section with contents.
   Mgr.clearBuffer();
-  SSVM::AST::TypeSection Sec1;
+  WasmEdge::AST::TypeSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -63,7 +63,7 @@ TEST(SectionTest, LoadTypeSection) {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::TypeSection Sec2;
+  WasmEdge::AST::TypeSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -72,7 +72,7 @@ TEST(SectionTest, LoadTypeSection) {
       0x00U                              /// Vector length = 0
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::TypeSection Sec3;
+  WasmEdge::AST::TypeSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -84,7 +84,7 @@ TEST(SectionTest, LoadTypeSection) {
       0x60U, 0x02U, 0x7EU, 0x7FU, 0x01U, 0x7EU  /// vec[2]
   };
   Mgr.setCode(Vec4);
-  SSVM::AST::TypeSection Sec4;
+  WasmEdge::AST::TypeSection Sec4;
   EXPECT_TRUE(Sec4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -96,7 +96,7 @@ TEST(SectionTest, LoadImportSection) {
   ///   3.  Load import section with zero vector length.
   ///   4.  Load import section with contents.
   Mgr.clearBuffer();
-  SSVM::AST::ImportSection Sec1;
+  WasmEdge::AST::ImportSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -104,7 +104,7 @@ TEST(SectionTest, LoadImportSection) {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::ImportSection Sec2;
+  WasmEdge::AST::ImportSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -113,7 +113,7 @@ TEST(SectionTest, LoadImportSection) {
       0x00U                              /// Vector length = 0
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::ImportSection Sec3;
+  WasmEdge::AST::ImportSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -134,7 +134,7 @@ TEST(SectionTest, LoadImportSection) {
       0x03U, 0x7CU, 0x00U                              /// Global type
   };
   Mgr.setCode(Vec4);
-  SSVM::AST::ImportSection Sec4;
+  WasmEdge::AST::ImportSection Sec4;
   EXPECT_TRUE(Sec4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -146,7 +146,7 @@ TEST(SectionTest, LoadFunctionSection) {
   ///   3.  Load function section with zero vector length.
   ///   4.  Load function section with contents.
   Mgr.clearBuffer();
-  SSVM::AST::FunctionSection Sec1;
+  WasmEdge::AST::FunctionSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -154,7 +154,7 @@ TEST(SectionTest, LoadFunctionSection) {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::FunctionSection Sec2;
+  WasmEdge::AST::FunctionSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -163,7 +163,7 @@ TEST(SectionTest, LoadFunctionSection) {
       0x00U,                             /// Vector length = 0
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::FunctionSection Sec3;
+  WasmEdge::AST::FunctionSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -175,7 +175,7 @@ TEST(SectionTest, LoadFunctionSection) {
       0xB9U, 0x60U                       /// vec[2]
   };
   Mgr.setCode(Vec4);
-  SSVM::AST::FunctionSection Sec4;
+  WasmEdge::AST::FunctionSection Sec4;
   EXPECT_TRUE(Sec4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -187,7 +187,7 @@ TEST(SectionTest, LoadTableSection) {
   ///   3.  Load table section with zero vector length.
   ///   4.  Load table section with contents.
   Mgr.clearBuffer();
-  SSVM::AST::TableSection Sec1;
+  WasmEdge::AST::TableSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -195,7 +195,7 @@ TEST(SectionTest, LoadTableSection) {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::TableSection Sec2;
+  WasmEdge::AST::TableSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -204,7 +204,7 @@ TEST(SectionTest, LoadTableSection) {
       0x00U                              /// Vector length = 0
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::TableSection Sec3;
+  WasmEdge::AST::TableSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -216,7 +216,7 @@ TEST(SectionTest, LoadTableSection) {
       0x70U, 0x01U, 0x00U, 0x0DU         /// vec[2]
   };
   Mgr.setCode(Vec4);
-  SSVM::AST::TableSection Sec4;
+  WasmEdge::AST::TableSection Sec4;
   EXPECT_TRUE(Sec4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -228,7 +228,7 @@ TEST(SectionTest, LoadMemorySection) {
   ///   3.  Load memory section with zero vector length.
   ///   4.  Load memory section with contents.
   Mgr.clearBuffer();
-  SSVM::AST::MemorySection Sec1;
+  WasmEdge::AST::MemorySection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -236,7 +236,7 @@ TEST(SectionTest, LoadMemorySection) {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::MemorySection Sec2;
+  WasmEdge::AST::MemorySection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -245,7 +245,7 @@ TEST(SectionTest, LoadMemorySection) {
       0x00U                              /// Vector length = 0
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::MemorySection Sec3;
+  WasmEdge::AST::MemorySection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -257,7 +257,7 @@ TEST(SectionTest, LoadMemorySection) {
       0x01U, 0x00U, 0x0DU                /// vec[2]
   };
   Mgr.setCode(Vec4);
-  SSVM::AST::MemorySection Sec4;
+  WasmEdge::AST::MemorySection Sec4;
   EXPECT_TRUE(Sec4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -269,7 +269,7 @@ TEST(SectionTest, LoadGlobalSection) {
   ///   3.  Load global section with zero vector length.
   ///   4.  Load global section with contents.
   Mgr.clearBuffer();
-  SSVM::AST::GlobalSection Sec1;
+  WasmEdge::AST::GlobalSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -277,7 +277,7 @@ TEST(SectionTest, LoadGlobalSection) {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::GlobalSection Sec2;
+  WasmEdge::AST::GlobalSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -286,7 +286,7 @@ TEST(SectionTest, LoadGlobalSection) {
       0x00U                              /// Vector length = 0
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::GlobalSection Sec3;
+  WasmEdge::AST::GlobalSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -298,7 +298,7 @@ TEST(SectionTest, LoadGlobalSection) {
       0x7EU, 0x01U, 0x46U, 0x47U, 0x0BU  /// vec[2]
   };
   Mgr.setCode(Vec4);
-  SSVM::AST::GlobalSection Sec4;
+  WasmEdge::AST::GlobalSection Sec4;
   EXPECT_TRUE(Sec4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -310,7 +310,7 @@ TEST(SectionTest, LoadExportSection) {
   ///   3.  Load export section with zero vector length.
   ///   4.  Load export section with contents.
   Mgr.clearBuffer();
-  SSVM::AST::ExportSection Sec1;
+  WasmEdge::AST::ExportSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -318,7 +318,7 @@ TEST(SectionTest, LoadExportSection) {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::ExportSection Sec2;
+  WasmEdge::AST::ExportSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -327,7 +327,7 @@ TEST(SectionTest, LoadExportSection) {
       0x00U                              /// Vector length = 0
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::ExportSection Sec3;
+  WasmEdge::AST::ExportSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -345,7 +345,7 @@ TEST(SectionTest, LoadExportSection) {
       0x02U, 0xFBU, 0xFFU, 0xFFU, 0xFFU, 0x0FU         /// Memory type and idx
   };
   Mgr.setCode(Vec4);
-  SSVM::AST::ExportSection Sec4;
+  WasmEdge::AST::ExportSection Sec4;
   EXPECT_TRUE(Sec4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -356,7 +356,7 @@ TEST(SectionTest, LoadStartSection) {
   ///   2.  Load start section without contents.
   ///   3.  Load start section with contents.
   Mgr.clearBuffer();
-  SSVM::AST::StartSection Sec1;
+  WasmEdge::AST::StartSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -364,7 +364,7 @@ TEST(SectionTest, LoadStartSection) {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::StartSection Sec2;
+  WasmEdge::AST::StartSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -373,7 +373,7 @@ TEST(SectionTest, LoadStartSection) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  /// Content
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::StartSection Sec3;
+  WasmEdge::AST::StartSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -385,7 +385,7 @@ TEST(SectionTest, LoadElementSection) {
   ///   3.  Load element section with zero vector length.
   ///   4.  Load element section with contents.
   Mgr.clearBuffer();
-  SSVM::AST::ElementSection Sec1;
+  WasmEdge::AST::ElementSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -393,7 +393,7 @@ TEST(SectionTest, LoadElementSection) {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::ElementSection Sec2;
+  WasmEdge::AST::ElementSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -402,7 +402,7 @@ TEST(SectionTest, LoadElementSection) {
       0x00U                              /// Vector length = 0
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::ElementSection Sec3;
+  WasmEdge::AST::ElementSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -423,7 +423,7 @@ TEST(SectionTest, LoadElementSection) {
       0x03U, 0x03U, 0x06U, 0x09U  /// Vec(3)
   };
   Mgr.setCode(Vec4);
-  SSVM::AST::ElementSection Sec4;
+  WasmEdge::AST::ElementSection Sec4;
   EXPECT_TRUE(Sec4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -435,7 +435,7 @@ TEST(SectionTest, LoadCodeSection) {
   ///   3.  Load code section with zero vector length.
   ///   4.  Load code section with contents.
   Mgr.clearBuffer();
-  SSVM::AST::CodeSection Sec1;
+  WasmEdge::AST::CodeSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -443,7 +443,7 @@ TEST(SectionTest, LoadCodeSection) {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::CodeSection Sec2;
+  WasmEdge::AST::CodeSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -452,7 +452,7 @@ TEST(SectionTest, LoadCodeSection) {
       0x00U                              /// Vector length = 0
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::CodeSection Sec3;
+  WasmEdge::AST::CodeSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -473,7 +473,7 @@ TEST(SectionTest, LoadCodeSection) {
       0x45U, 0x46U, 0x47U, 0x0BU         /// Expression
   };
   Mgr.setCode(Vec4);
-  SSVM::AST::CodeSection Sec4;
+  WasmEdge::AST::CodeSection Sec4;
   EXPECT_TRUE(Sec4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -485,7 +485,7 @@ TEST(SectionTest, LoadDataSection) {
   ///   3.  Load data section with zero vector length.
   ///   4.  Load data section with contents.
   Mgr.clearBuffer();
-  SSVM::AST::DataSection Sec1;
+  WasmEdge::AST::DataSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -493,7 +493,7 @@ TEST(SectionTest, LoadDataSection) {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::DataSection Sec2;
+  WasmEdge::AST::DataSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -502,7 +502,7 @@ TEST(SectionTest, LoadDataSection) {
       0x00U                              /// Vector length = 0
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::DataSection Sec3;
+  WasmEdge::AST::DataSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -523,8 +523,8 @@ TEST(SectionTest, LoadDataSection) {
       0x04U, 0x74U, 0x65U, 0x73U, 0x74U  /// Vector length = 4, "test"
   };
   Mgr.setCode(Vec4);
-  SSVM::AST::DataSection Sec4;
-  Conf.addProposal(SSVM::Proposal::BulkMemoryOperations);
+  WasmEdge::AST::DataSection Sec4;
+  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
   EXPECT_TRUE(Sec4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 

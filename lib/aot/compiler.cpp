@@ -62,18 +62,20 @@ using Align = llvm::Align;
 static inline unsigned Align(unsigned Value) noexcept { return Value; }
 #endif
 
-static bool isVoidReturn(SSVM::Span<const SSVM::ValType> ValTypes);
+static bool isVoidReturn(WasmEdge::Span<const WasmEdge::ValType> ValTypes);
 static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
-                              const SSVM::ValType &ValType);
+                              const WasmEdge::ValType &ValType);
 static std::vector<llvm::Type *>
 toLLVMArgsType(llvm::PointerType *ExecCtxPtrTy,
-               SSVM::Span<const SSVM::ValType> ValTypes);
-static llvm::Type *toLLVMRetsType(llvm::LLVMContext &LLContext,
-                                  SSVM::Span<const SSVM::ValType> ValTypes);
-static llvm::FunctionType *toLLVMType(llvm::PointerType *ExecCtxPtrTy,
-                                      const SSVM::AST::FunctionType &FuncType);
+               WasmEdge::Span<const WasmEdge::ValType> ValTypes);
+static llvm::Type *
+toLLVMRetsType(llvm::LLVMContext &LLContext,
+               WasmEdge::Span<const WasmEdge::ValType> ValTypes);
+static llvm::FunctionType *
+toLLVMType(llvm::PointerType *ExecCtxPtrTy,
+           const WasmEdge::AST::FunctionType &FuncType);
 static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
-                                          const SSVM::ValType &ValType);
+                                          const WasmEdge::ValType &ValType);
 static std::vector<llvm::Value *> unpackStruct(llvm::IRBuilder<> &Builder,
                                                llvm::Value *Struct);
 static llvm::Value *createLikely(llvm::IRBuilder<> &Builder,
@@ -93,12 +95,12 @@ static inline constexpr const bool kForceUnalignment = true;
 static inline constexpr const bool kForceDivCheck = true;
 
 /// Size of a ValVariant
-static inline constexpr const uint32_t kValSize = sizeof(SSVM::ValVariant);
+static inline constexpr const uint32_t kValSize = sizeof(WasmEdge::ValVariant);
 
 /// Translate Compiler::OptimizationLevel to llvm::PassBuilder version
 static inline llvm::PassBuilder::OptimizationLevel
-toLLVMLevel(SSVM::AOT::Compiler::OptimizationLevel Level) {
-  using OL = SSVM::AOT::Compiler::OptimizationLevel;
+toLLVMLevel(WasmEdge::AOT::Compiler::OptimizationLevel Level) {
+  using OL = WasmEdge::AOT::Compiler::OptimizationLevel;
   switch (Level) {
   case OL::O0:
     return llvm::PassBuilder::OptimizationLevel::O0;
@@ -119,7 +121,7 @@ toLLVMLevel(SSVM::AOT::Compiler::OptimizationLevel Level) {
 }
 } // namespace
 
-struct SSVM::AOT::Compiler::CompileContext {
+struct WasmEdge::AOT::Compiler::CompileContext {
   llvm::LLVMContext &LLContext;
   llvm::Module &LLModule;
   llvm::Type *VoidTy;
@@ -181,8 +183,8 @@ struct SSVM::AOT::Compiler::CompileContext {
 
   std::vector<const AST::FunctionType *> FunctionTypes;
   std::vector<llvm::Function *> FunctionWrappers;
-  std::vector<
-      std::tuple<uint32_t, llvm::Function *, const SSVM::AST::CodeSegment *>>
+  std::vector<std::tuple<uint32_t, llvm::Function *,
+                         const WasmEdge::AST::CodeSegment *>>
       Functions;
   std::vector<llvm::Type *> Globals;
   llvm::GlobalVariable *IntrinsicsTable;
@@ -340,9 +342,9 @@ struct SSVM::AOT::Compiler::CompileContext {
 
 namespace {
 
-using namespace SSVM;
+using namespace WasmEdge;
 
-static bool isVoidReturn(Span<const SSVM::ValType> ValTypes) {
+static bool isVoidReturn(Span<const WasmEdge::ValType> ValTypes) {
   return ValTypes.empty() ||
          (ValTypes.size() == 1 && ValTypes.front() == ValType::None);
 }
@@ -3742,7 +3744,7 @@ static llvm::Value *createLikely(llvm::IRBuilder<> &Builder,
 
 } // namespace
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AOT {
 
 Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
@@ -4257,4 +4259,4 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
 }
 
 } // namespace AOT
-} // namespace SSVM
+} // namespace WasmEdge

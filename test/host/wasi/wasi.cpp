@@ -8,7 +8,7 @@ using namespace std::literals;
 
 namespace {
 void writeDummyMemoryContent(
-    SSVM::Runtime::Instance::MemoryInstance &MemInst) noexcept {
+    WasmEdge::Runtime::Instance::MemoryInstance &MemInst) noexcept {
   std::fill_n(MemInst.getPointer<uint8_t *>(0), 64, UINT8_C(0xa5));
 }
 __wasi_errno_t convertErrno(int SysErrno) {
@@ -177,27 +177,27 @@ uint64_t convertTimespec(const timespec &Timespec) noexcept {
 } // namespace
 
 TEST(WasiTest, Args) {
-  SSVM::Host::WasiEnvironment Env;
-  SSVM::Runtime::Instance::MemoryInstance MemInst(SSVM::AST::Limit(1));
+  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
 
-  SSVM::Host::WasiArgsSizesGet WasiArgsSizesGet(Env);
-  SSVM::Host::WasiArgsGet WasiArgsGet(Env);
-  std::array<SSVM::ValVariant, 1> Errno;
+  WasmEdge::Host::WasiArgsSizesGet WasiArgsSizesGet(Env);
+  WasmEdge::Host::WasiArgsGet WasiArgsGet(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
 
   // args: test\0
   Env.init({}, "test"s, {}, {});
   writeDummyMemoryContent(MemInst);
   EXPECT_TRUE(WasiArgsSizesGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(1));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(5));
 
   EXPECT_TRUE(WasiArgsGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(8));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0));
   EXPECT_STREQ(MemInst.getPointer<const char *>(8), "test");
@@ -207,16 +207,16 @@ TEST(WasiTest, Args) {
   Env.init({}, "test"s, std::array{"abc"s}, {});
   writeDummyMemoryContent(MemInst);
   EXPECT_TRUE(WasiArgsSizesGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(2));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(9));
 
   EXPECT_TRUE(WasiArgsGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(12)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(12)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(12));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(17));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0));
@@ -228,16 +228,16 @@ TEST(WasiTest, Args) {
   Env.init({}, "test"s, std::array{""s}, {});
   writeDummyMemoryContent(MemInst);
   EXPECT_TRUE(WasiArgsSizesGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(2));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(6));
 
   EXPECT_TRUE(WasiArgsGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(12)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(12)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(12));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(17));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0));
@@ -249,51 +249,51 @@ TEST(WasiTest, Args) {
   Env.init({}, "test"s, {}, {});
   writeDummyMemoryContent(MemInst);
   EXPECT_TRUE(WasiArgsSizesGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(4)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiArgsSizesGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
 
   EXPECT_TRUE(WasiArgsGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(8)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiArgsGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
   Env.fini();
 }
 
 TEST(WasiTest, Envs) {
-  SSVM::Host::WasiEnvironment Env;
-  SSVM::Runtime::Instance::MemoryInstance MemInst(SSVM::AST::Limit(1));
+  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
 
-  SSVM::Host::WasiEnvironSizesGet WasiEnvironSizesGet(Env);
-  SSVM::Host::WasiEnvironGet WasiEnvironGet(Env);
-  std::array<SSVM::ValVariant, 1> Errno;
+  WasmEdge::Host::WasiEnvironSizesGet WasiEnvironSizesGet(Env);
+  WasmEdge::Host::WasiEnvironGet WasiEnvironGet(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
 
   // envs:
   Env.init({}, "test"s, {}, {});
   writeDummyMemoryContent(MemInst);
   EXPECT_TRUE(WasiEnvironSizesGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0));
 
   EXPECT_TRUE(WasiEnvironGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0));
   Env.fini();
 
@@ -301,16 +301,16 @@ TEST(WasiTest, Envs) {
   Env.init({}, "test"s, {}, std::array{"a=b"s});
   writeDummyMemoryContent(MemInst);
   EXPECT_TRUE(WasiEnvironSizesGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(1));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(4));
 
   EXPECT_TRUE(WasiEnvironGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(8));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0));
   EXPECT_STREQ(MemInst.getPointer<const char *>(8), "a=b");
@@ -320,16 +320,16 @@ TEST(WasiTest, Envs) {
   Env.init({}, "test"s, {}, std::array{"a=b"s, "TEST=TEST=TEST"s});
   writeDummyMemoryContent(MemInst);
   EXPECT_TRUE(WasiEnvironSizesGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(2));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(19));
 
   EXPECT_TRUE(WasiEnvironGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(12)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(12)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(12));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(16));
   EXPECT_STREQ(MemInst.getPointer<const char *>(12), "a=b");
@@ -340,61 +340,61 @@ TEST(WasiTest, Envs) {
   Env.init({}, "test"s, {}, {});
   writeDummyMemoryContent(MemInst);
   EXPECT_TRUE(WasiEnvironSizesGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(4)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironSizesGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
 
   EXPECT_TRUE(WasiEnvironGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(8)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
   // success on zero-size write
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0));
   Env.fini();
 
   Env.init({}, "test"s, {}, std::array{"a=b"s});
   writeDummyMemoryContent(MemInst);
   EXPECT_TRUE(WasiEnvironSizesGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(4)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironSizesGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
 
   EXPECT_TRUE(WasiEnvironGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(8)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
   Env.fini();
 }
 
 TEST(WasiTest, ClockRes) {
-  SSVM::Host::WasiEnvironment Env;
-  SSVM::Runtime::Instance::MemoryInstance MemInst(SSVM::AST::Limit(1));
+  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
 
-  SSVM::Host::WasiClockResGet WasiClockResGet(Env);
-  std::array<SSVM::ValVariant, 1> Errno;
+  WasmEdge::Host::WasiClockResGet WasiClockResGet(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
   timespec Timespec;
 
   Env.init({}, "test"s, {}, {});
@@ -408,10 +408,10 @@ TEST(WasiTest, ClockRes) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockResGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 2>{
+        std::array<WasmEdge::ValVariant, 2>{
             static_cast<uint32_t>(__WASI_CLOCKID_REALTIME), UINT32_C(0)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Res = convertTimespec(Timespec);
       EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
@@ -428,10 +428,10 @@ TEST(WasiTest, ClockRes) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockResGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 2>{
+        std::array<WasmEdge::ValVariant, 2>{
             static_cast<uint32_t>(__WASI_CLOCKID_MONOTONIC), UINT32_C(0)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Res = convertTimespec(Timespec);
       EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
@@ -448,11 +448,11 @@ TEST(WasiTest, ClockRes) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockResGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 2>{
+        std::array<WasmEdge::ValVariant, 2>{
             static_cast<uint32_t>(__WASI_CLOCKID_PROCESS_CPUTIME_ID),
             UINT32_C(0)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Res = convertTimespec(Timespec);
       EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
@@ -469,11 +469,11 @@ TEST(WasiTest, ClockRes) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockResGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 2>{
+        std::array<WasmEdge::ValVariant, 2>{
             static_cast<uint32_t>(__WASI_CLOCKID_THREAD_CPUTIME_ID),
             UINT32_C(0)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Res = convertTimespec(Timespec);
       EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
@@ -484,9 +484,9 @@ TEST(WasiTest, ClockRes) {
   {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockResGet.run(
-        &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(4), UINT32_C(0)},
+        &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(4), UINT32_C(0)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_INVAL);
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_INVAL);
   }
 
   // invalid pointer
@@ -494,21 +494,21 @@ TEST(WasiTest, ClockRes) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockResGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 2>{
+        std::array<WasmEdge::ValVariant, 2>{
             static_cast<uint32_t>(__WASI_CLOCKID_REALTIME), UINT32_C(65536)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   }
 
   Env.fini();
 }
 
 TEST(WasiTest, ClockTimeGet) {
-  SSVM::Host::WasiEnvironment Env;
-  SSVM::Runtime::Instance::MemoryInstance MemInst(SSVM::AST::Limit(1));
+  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
 
-  SSVM::Host::WasiClockTimeGet WasiClockTimeGet(Env);
-  std::array<SSVM::ValVariant, 1> Errno;
+  WasmEdge::Host::WasiClockTimeGet WasiClockTimeGet(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
   timespec Timespec;
 
   Env.init({}, "test"s, {}, {});
@@ -523,11 +523,11 @@ TEST(WasiTest, ClockTimeGet) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(
         WasiClockTimeGet.run(&MemInst,
-                             std::array<SSVM::ValVariant, 3>{
+                             std::array<WasmEdge::ValVariant, 3>{
                                  static_cast<uint32_t>(__WASI_CLOCKID_REALTIME),
                                  UINT64_C(0), UINT32_C(0)},
                              Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Time = convertTimespec(Timespec);
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
@@ -544,11 +544,11 @@ TEST(WasiTest, ClockTimeGet) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockTimeGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 3>{
+        std::array<WasmEdge::ValVariant, 3>{
             static_cast<uint32_t>(__WASI_CLOCKID_MONOTONIC), UINT64_C(0),
             UINT32_C(0)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Time = convertTimespec(Timespec);
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
@@ -565,11 +565,11 @@ TEST(WasiTest, ClockTimeGet) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockTimeGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 3>{
+        std::array<WasmEdge::ValVariant, 3>{
             static_cast<uint32_t>(__WASI_CLOCKID_PROCESS_CPUTIME_ID),
             UINT64_C(0), UINT32_C(0)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Time = convertTimespec(Timespec);
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
@@ -586,11 +586,11 @@ TEST(WasiTest, ClockTimeGet) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockTimeGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 3>{
+        std::array<WasmEdge::ValVariant, 3>{
             static_cast<uint32_t>(__WASI_CLOCKID_THREAD_CPUTIME_ID),
             UINT64_C(0), UINT32_C(0)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Time = convertTimespec(Timespec);
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
@@ -603,9 +603,9 @@ TEST(WasiTest, ClockTimeGet) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiClockTimeGet.run(
         &MemInst,
-        std::array<SSVM::ValVariant, 3>{UINT32_C(4), UINT64_C(0), UINT32_C(0)},
+        std::array<WasmEdge::ValVariant, 3>{UINT32_C(4), UINT64_C(0), UINT32_C(0)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_INVAL);
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_INVAL);
   }
 
   // invalid pointer
@@ -613,49 +613,49 @@ TEST(WasiTest, ClockTimeGet) {
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(
         WasiClockTimeGet.run(&MemInst,
-                             std::array<SSVM::ValVariant, 3>{
+                             std::array<WasmEdge::ValVariant, 3>{
                                  static_cast<uint32_t>(__WASI_CLOCKID_REALTIME),
                                  UINT64_C(0), UINT32_C(65536)},
                              Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   }
 
   Env.fini();
 }
 
 TEST(WasiTest, ProcExit) {
-  SSVM::Host::WasiEnvironment Env;
-  SSVM::Runtime::Instance::MemoryInstance MemInst(SSVM::AST::Limit(1));
+  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
 
-  SSVM::Host::WasiProcExit WasiProcExit(Env);
+  WasmEdge::Host::WasiProcExit WasiProcExit(Env);
 
   Env.init({}, "test"s, {}, {});
   EXPECT_FALSE(WasiProcExit.run(
-      &MemInst, std::array<SSVM::ValVariant, 1>{UINT32_C(0)}, {}));
+      &MemInst, std::array<WasmEdge::ValVariant, 1>{UINT32_C(0)}, {}));
   EXPECT_EQ(Env.getExitCode(), INT32_C(0));
   Env.fini();
 
   Env.init({}, "test"s, {}, {});
   EXPECT_FALSE(WasiProcExit.run(
-      &MemInst, std::array<SSVM::ValVariant, 1>{UINT32_C(1)}, {}));
+      &MemInst, std::array<WasmEdge::ValVariant, 1>{UINT32_C(1)}, {}));
   EXPECT_EQ(Env.getExitCode(), INT32_C(1));
   Env.fini();
 }
 
 TEST(WasiTest, Random) {
-  SSVM::Host::WasiEnvironment Env;
-  SSVM::Runtime::Instance::MemoryInstance MemInst(SSVM::AST::Limit(1));
+  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
 
-  SSVM::Host::WasiRandomGet WasiRandomGet(Env);
-  std::array<SSVM::ValVariant, 1> Errno;
+  WasmEdge::Host::WasiRandomGet WasiRandomGet(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
 
   // valid pointer, zero size
   Env.init({}, "test"s, {}, {});
   writeDummyMemoryContent(MemInst);
   EXPECT_TRUE(WasiRandomGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(0)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(0)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
   Env.fini();
 
@@ -664,9 +664,9 @@ TEST(WasiTest, Random) {
     Env.init({}, "test"s, {}, {});
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiRandomGet.run(
-        &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(1)},
+        &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(1)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
     EXPECT_TRUE(std::all_of(MemInst.getPointer<const uint8_t *>(1),
                             MemInst.getPointer<const uint8_t *>(4),
                             [](uint8_t x) { return x == UINT8_C(0xa5); }));
@@ -678,9 +678,9 @@ TEST(WasiTest, Random) {
     Env.init({}, "test"s, {}, {});
     writeDummyMemoryContent(MemInst);
     EXPECT_TRUE(WasiRandomGet.run(
-        &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
+        &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
         Errno));
-    EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
     EXPECT_NE(*MemInst.getPointer<const uint64_t *>(0),
               UINT64_C(0xa5a5a5a5a5a5a5a5));
     EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(8),
@@ -691,17 +691,17 @@ TEST(WasiTest, Random) {
   // invalid pointer, zero size
   Env.init({}, "test"s, {}, {});
   EXPECT_TRUE(WasiRandomGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(0)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(0)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
   Env.fini();
 
   // invalid pointer, non zero size
   Env.init({}, "test"s, {}, {});
   EXPECT_TRUE(WasiRandomGet.run(
-      &MemInst, std::array<SSVM::ValVariant, 2>{UINT32_C(65536), UINT32_C(1)},
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(1)},
       Errno));
-  EXPECT_EQ(SSVM::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   Env.fini();
 }
 

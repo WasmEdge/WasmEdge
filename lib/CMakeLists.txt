@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 add_subdirectory(ast)
-if (NOT SSVM_DISABLE_AOT_RUNTIME)
+if (NOT WASMEDGE_DISABLE_AOT_RUNTIME)
   add_subdirectory(aot)
 endif()
 add_subdirectory(common)

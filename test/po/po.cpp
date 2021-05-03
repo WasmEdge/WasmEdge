@@ -8,7 +8,7 @@
 #include <numeric>
 #include <vector>
 
-using namespace SSVM::PO;
+using namespace WasmEdge::PO;
 
 struct Param {
   bool R;

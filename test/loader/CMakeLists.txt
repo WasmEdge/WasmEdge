@@ -1,22 +1,22 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_executable(ssvmLoaderFileMgrTests
+add_executable(wasmedgeLoaderFileMgrTests
   filemgrTest.cpp
 )
 
-add_test(ssvmLoaderFileMgrTests ssvmLoaderFileMgrTests)
+add_test(wasmedgeLoaderFileMgrTests wasmedgeLoaderFileMgrTests)
 
-add_executable(ssvmLoaderWagonTests
+add_executable(wasmedgeLoaderWagonTests
   wagonTest.cpp
 )
 
-add_test(ssvmLoaderWagonTests ssvmLoaderWagonTests)
+add_test(wasmedgeLoaderWagonTests wasmedgeLoaderWagonTests)
 
-add_executable(ssvmLoaderEthereumTests
+add_executable(wasmedgeLoaderEthereumTests
   ethereumTest.cpp
 )
 
-add_test(ssvmLoaderEthereumTests ssvmLoaderEthereumTests)
+add_test(wasmedgeLoaderEthereumTests wasmedgeLoaderEthereumTests)
 
 configure_files(
   ${CMAKE_CURRENT_SOURCE_DIR}/filemgrTestData
@@ -34,22 +34,22 @@ configure_files(
   COPYONLY
 )
 
-target_link_libraries(ssvmLoaderFileMgrTests
+target_link_libraries(wasmedgeLoaderFileMgrTests
   PRIVATE
   utilGoogleTest
-  ssvmLoaderFileMgr
+  wasmedgeLoaderFileMgr
 )
 
-target_link_libraries(ssvmLoaderWagonTests
+target_link_libraries(wasmedgeLoaderWagonTests
   PRIVATE
   utilGoogleTest
-  ssvmLoaderFileMgr
-  ssvmAST
+  wasmedgeLoaderFileMgr
+  wasmedgeAST
 )
 
-target_link_libraries(ssvmLoaderEthereumTests
+target_link_libraries(wasmedgeLoaderEthereumTests
   PRIVATE
   utilGoogleTest
-  ssvmLoaderFileMgr
-  ssvmAST
+  wasmedgeLoaderFileMgr
+  wasmedgeAST
 )

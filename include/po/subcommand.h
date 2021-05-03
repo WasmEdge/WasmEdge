@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/po/subcommand.h - SubCommand ---------------------------------===//
+//===-- wasmedge/po/subcommand.h - SubCommand -----------------------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -10,7 +10,7 @@
 #include <string_view>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace PO {
 
 using namespace std::literals;
@@ -32,4 +32,4 @@ private:
 };
 
 } // namespace PO
-} // namespace SSVM
+} // namespace WasmEdge

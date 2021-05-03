@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/types.h - Types definition ------------------*- C++ -*-===//
+//===-- wasmedge/common/types.h - Types definition ------------------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -18,7 +18,7 @@
 #include <unordered_map>
 #include <variant>
 
-namespace SSVM {
+namespace WasmEdge {
 
 using int128_t = __int128;
 using uint128_t = unsigned __int128;
@@ -218,4 +218,4 @@ template <typename T>
 using TypeToWasmTypeT =
     typename std::enable_if_t<IsWasmValV<T>, typename TypeToWasmType<T>::type>;
 
-} // namespace SSVM
+} // namespace WasmEdge

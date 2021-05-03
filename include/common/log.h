@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/log.h - Logging system --------------------------------===//
+//===-- wasmedge/common/log.h - Logging system ----------------------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -13,7 +13,7 @@
 
 #include "easyloggingpp/easylogging++.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Log {
 
 void passEasyloggingppArgs(int Argc, char *Argv[]);
@@ -26,4 +26,4 @@ extern el::base::type::StoragePointer elStorage;
 extern el::base::debug::CrashHandler elCrashHandler;
 
 } // namespace Log
-} // namespace SSVM
+} // namespace WasmEdge

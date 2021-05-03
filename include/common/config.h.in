@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/config.h - Configure information ----------------------===//
+//===-- wasmedge/common/config.h - Configure information ------------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -13,14 +13,14 @@
 
 #include <string_view>
 
-namespace SSVM {
+namespace WasmEdge {
 
 using namespace std::literals::string_view_literals;
 
 #cmakedefine CMAKE_INSTALL_FULL_LOCALSTATEDIR                                  \
     "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@"
 static inline constexpr std::string_view kCacheRoot [[maybe_unused]] =
-    CMAKE_INSTALL_FULL_LOCALSTATEDIR "/cache/ssvm"sv;
+    CMAKE_INSTALL_FULL_LOCALSTATEDIR "/cache/wasmedge"sv;
 #undef CMAKE_INSTALL_FULL_LOCALSTATEDIR
 
-} // namespace SSVM
+} // namespace WasmEdge

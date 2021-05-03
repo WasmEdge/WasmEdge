@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/type.h - type classes definition -------------------------===//
+//===-- wasmedge/ast/type.h - type classes definition ---------------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -18,7 +18,7 @@
 #include "base.h"
 #include "loader/shared_library.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AST {
 
 /// AST Limit node.
@@ -40,7 +40,7 @@ public:
   /// Read Min and Max value of this node.
   ///
   /// \param Mgr the file manager reference.
-  /// \param Conf the SSVM configuration reference.
+  /// \param Conf the WasmEdge configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
@@ -77,7 +77,7 @@ public:
   /// Read value types of parameter list and return list.
   ///
   /// \param Mgr the file manager reference.
-  /// \param Conf the SSVM configuration reference.
+  /// \param Conf the WasmEdge configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
@@ -126,7 +126,7 @@ public:
   /// Read the Limit data of this node.
   ///
   /// \param Mgr the file manager reference.
-  /// \param Conf the SSVM configuration reference.
+  /// \param Conf the WasmEdge configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
@@ -151,7 +151,7 @@ public:
   /// Read reference type and Limit data.
   ///
   /// \param Mgr the file manager reference.
-  /// \param Conf the SSVM configuration reference.
+  /// \param Conf the WasmEdge configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
@@ -182,7 +182,7 @@ public:
   /// Read value type and mutation.
   ///
   /// \param Mgr the file manager reference.
-  /// \param Conf the SSVM configuration reference.
+  /// \param Conf the WasmEdge configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
@@ -205,4 +205,4 @@ private:
 };
 
 } // namespace AST
-} // namespace SSVM
+} // namespace WasmEdge

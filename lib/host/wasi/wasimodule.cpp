@@ -4,7 +4,7 @@
 
 #include <memory>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Host {
 
 WasiModule::WasiModule() : ImportObject("wasi_snapshot_preview1") {
@@ -64,4 +64,4 @@ WasiModule::WasiModule() : ImportObject("wasi_snapshot_preview1") {
 }
 
 } // namespace Host
-} // namespace SSVM
+} // namespace WasmEdge

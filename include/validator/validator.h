@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/validator/validator.h - validator class definition -----------===//
+//===-- wasmedge/validator/validator.h - validator class definition -------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -19,7 +19,7 @@
 #include "common/errcode.h"
 #include "formchecker.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Validator {
 
 /// Validator flow control class.
@@ -73,4 +73,4 @@ private:
 };
 
 } // namespace Validator
-} // namespace SSVM
+} // namespace WasmEdge

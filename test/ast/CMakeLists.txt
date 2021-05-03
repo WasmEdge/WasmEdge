@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_executable(ssvmASTTests
+add_executable(wasmedgeASTTests
   moduleTest.cpp
   sectionTest.cpp
   descriptionTest.cpp
@@ -10,11 +10,11 @@ add_executable(ssvmASTTests
   instructionTest.cpp
 )
 
-add_test(ssvmASTTests ssvmASTTests)
+add_test(wasmedgeASTTests wasmedgeASTTests)
 
-target_link_libraries(ssvmASTTests
+target_link_libraries(wasmedgeASTTests
   PRIVATE
   utilGoogleTest
-  ssvmLoaderFileMgr
-  ssvmAST
+  wasmedgeLoaderFileMgr
+  wasmedgeAST
 )

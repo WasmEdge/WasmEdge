@@ -5,7 +5,7 @@
 If you are interested in enabling the SIMD proposal will improve how much performance of the applications, please refer to our [wasm32-wasi benchmark](https://github.com/second-state/wasm32-wasi-benchmark/tree/simd) for more information.
 In our benchmark, the Mandelbrot Set application can have **2.65x** speedup.
 
-## SSVM SIMD Example
+## WasmEdge SIMD Example
 
 ### C language Code - Mandelbrot Set
 
@@ -165,20 +165,20 @@ emcc -g -Oz --llvm-lto 1 -s STANDALONE_WASM -s INITIAL_MEMORY=32MB -s MAXIMUM_ME
   mandelbrot-simd.c -o mandelbrot-simd.wasm
 ```
 
-### Run with ssvm
+### Run with wasmedge
 
 #### Interpreter mode
 
 ```bash
-$ ssvm --enable-simd mandelbrot-simd.wasm 15000
+$ wasmedge --enable-simd mandelbrot-simd.wasm 15000
 ```
 
 #### Ahead-of-Time mode
 
 ```bash
-# Compile wasm-simd with ssvm aot compiler
-$ ssvmc --enable-simd mandelbrot-simd.wasm mandelbrot-simd.so
-# Run the native binary with ssvm
-$ ssvm --enable-simd mandelbrot-simd.so 15000
+# Compile wasm-simd with wasmedge aot compiler
+$ wasmedgec --enable-simd mandelbrot-simd.wasm mandelbrot-simd.so
+# Run the native binary with wasmedge
+$ wasmedge --enable-simd mandelbrot-simd.so 15000
 ```
 

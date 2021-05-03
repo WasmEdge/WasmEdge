@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/aot/compiler.h - Compiler class definition -------------------===//
+//===-- wasmedge/aot/compiler.h - Compiler class definition ---------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AOT {
 
 /// Compiling Module into loadable executable binary.
@@ -73,4 +73,4 @@ private:
 };
 
 } // namespace AOT
-} // namespace SSVM
+} // namespace WasmEdge

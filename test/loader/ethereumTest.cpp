@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/loader/ethereumTest.cpp - Ethereum related wasm tests ---===//
+//===-- wasmedge/test/loader/ethereumTest.cpp - Ethereum related wasm tests ==//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -16,11 +16,11 @@
 
 namespace {
 
-SSVM::FileMgrFStream Mgr;
-SSVM::Configure Conf;
+WasmEdge::FileMgrFStream Mgr;
+WasmEdge::Configure Conf;
 
 TEST(EthereumTest, Load__token) {
-  SSVM::AST::Module Mod;
+  WasmEdge::AST::Module Mod;
   ASSERT_TRUE(Mgr.setPath("ethereumTestData/token.wasm"));
   ASSERT_TRUE(Mod.loadBinary(Mgr, Conf));
 }

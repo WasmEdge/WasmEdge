@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/runtime/instance/table.h - Table Instance definition ---------===//
+//===-- wasmedge/runtime/instance/table.h - Table Instance definition -----===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -22,7 +22,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
@@ -160,4 +160,4 @@ private:
 
 } // namespace Instance
 } // namespace Runtime
-} // namespace SSVM
+} // namespace WasmEdge

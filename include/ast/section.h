@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/section.h - Section class definition ---------------------===//
+//===-- wasmedge/ast/section.h - Section class definition -----------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -23,7 +23,7 @@
 #include "segment.h"
 #include "type.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AST {
 
 /// Section's base class.
@@ -36,7 +36,7 @@ public:
   /// Call loadContent() for reading contents.
   ///
   /// \param Mgr the file manager reference.
-  /// \param Conf the SSVM configuration reference.
+  /// \param Conf the WasmEdge configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
@@ -326,4 +326,4 @@ private:
 };
 
 } // namespace AST
-} // namespace SSVM
+} // namespace WasmEdge

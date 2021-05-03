@@ -3,7 +3,7 @@
 #include "common/value.h"
 #include "interpreter/interpreter.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 Expect<void>
@@ -139,4 +139,4 @@ Interpreter::runTableFillOp(Runtime::Instance::TableInstance &TabInst,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

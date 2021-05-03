@@ -2,7 +2,7 @@
 #include "common/value.h"
 #include "interpreter/interpreter.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 template <typename T> TypeU<T> Interpreter::runEqzOp(ValVariant &Val) const {
@@ -60,4 +60,4 @@ TypeT<T> Interpreter::runGeOp(ValVariant &Val1, const ValVariant &Val2) const {
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

@@ -6,7 +6,7 @@
 
 #include <string_view>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Loader {
 
 /// Load data from file path. See "include/loader/loader.h".
@@ -108,4 +108,4 @@ Loader::parseModule(Span<const uint8_t> Code) {
 }
 
 } // namespace Loader
-} // namespace SSVM
+} // namespace WasmEdge

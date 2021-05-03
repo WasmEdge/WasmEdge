@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/aot/cache.h - Cache class definition -------------------------===//
+//===-- wasmedge/aot/cache.h - Cache class definition ---------------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AOT {
 
 /// Caching compiled module.
@@ -33,4 +33,4 @@ public:
 };
 
 } // namespace AOT
-} // namespace SSVM
+} // namespace WasmEdge

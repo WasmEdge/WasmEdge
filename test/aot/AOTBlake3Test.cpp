@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/aot/AOTBlake3Test.cpp - blake3 hash unit tests ----------===//
+//===-- wasmedge/test/aot/AOTBlake3Test.cpp - blake3 hash unit tests ------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -18,17 +18,17 @@
 namespace {
 
 using namespace std::literals::string_view_literals;
-using HashArray = std::array<SSVM::Byte, 32>;
+using HashArray = std::array<WasmEdge::Byte, 32>;
 
 TEST(Blake3Test, Empty) {
   const auto Expect =
       "\xaf\x13\x49\xb9\xf5\xf9\xa1\xa6\xa0\x40\x4d\xea\x36\xdc\xc9\x49\x9b\xcb"
       "\x25\xc9\xad\xc1\x12\xb7\xcc\x9a\x93\xca\xe4\x1f\x32\x62"sv;
-  SSVM::AOT::Blake3 Blake3;
+  WasmEdge::AOT::Blake3 Blake3;
   HashArray Output;
   Blake3.finalize(Output);
   for (size_t I = 0; I < Output.size(); ++I) {
-    EXPECT_EQ(Output[I], static_cast<SSVM::Byte>(Expect[I]));
+    EXPECT_EQ(Output[I], static_cast<WasmEdge::Byte>(Expect[I]));
   }
 }
 
@@ -37,13 +37,13 @@ TEST(Blake3Test, Small) {
   const auto Expect =
       "\x17\x76\x2f\xdd\xd9\x69\xa4\x53\x92\x5d\x65\x71\x7a\xc3\xee\xa2\x13\x20"
       "\xb6\x6b\x54\x34\x2f\xde\x15\x12\x8d\x6c\xaf\x21\x21\x5f"sv;
-  SSVM::AOT::Blake3 Blake3;
+  WasmEdge::AOT::Blake3 Blake3;
   HashArray Output;
-  Blake3.update(std::span(reinterpret_cast<const SSVM::Byte *>(Data.data()),
+  Blake3.update(std::span(reinterpret_cast<const WasmEdge::Byte *>(Data.data()),
                           Data.size()));
   Blake3.finalize(Output);
   for (size_t I = 0; I < Output.size(); ++I) {
-    EXPECT_EQ(Output[I], static_cast<SSVM::Byte>(Expect[I]));
+    EXPECT_EQ(Output[I], static_cast<WasmEdge::Byte>(Expect[I]));
   }
 }
 
@@ -56,13 +56,13 @@ TEST(Blake3Test, Large) {
   const auto Expect =
       "\xe2\xf3\x57\x6d\xb1\x65\xc4\xc0\x43\x3f\xad\x18\x53\x34\x85\xf7\xeb\x00"
       "\x83\x3b\x33\x45\x7a\xf5\x96\x73\x73\x35\x05\xd1\x4f\x12"sv;
-  SSVM::AOT::Blake3 Blake3;
+  WasmEdge::AOT::Blake3 Blake3;
   HashArray Output;
-  Blake3.update(std::span(reinterpret_cast<const SSVM::Byte *>(Data.data()),
+  Blake3.update(std::span(reinterpret_cast<const WasmEdge::Byte *>(Data.data()),
                           Data.size()));
   Blake3.finalize(Output);
   for (size_t I = 0; I < Output.size(); ++I) {
-    EXPECT_EQ(Output[I], static_cast<SSVM::Byte>(Expect[I]));
+    EXPECT_EQ(Output[I], static_cast<WasmEdge::Byte>(Expect[I]));
   }
 }
 

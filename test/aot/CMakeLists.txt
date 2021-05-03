@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_executable(ssvmAOTWagonTests
+add_executable(wasmedgeAOTWagonTests
   AOTwagonTest.cpp
 )
 
-add_test(ssvmAOTWagonTests ssvmAOTWagonTests)
+add_test(wasmedgeAOTWagonTests wasmedgeAOTWagonTests)
 
 configure_files(
   ${CMAKE_CURRENT_SOURCE_DIR}/../loader/wagonTestData
@@ -12,49 +12,49 @@ configure_files(
   COPYONLY
 )
 
-target_link_libraries(ssvmAOTWagonTests
+target_link_libraries(wasmedgeAOTWagonTests
   PRIVATE
   utilGoogleTest
-  ssvmLoader
-  ssvmAOT
+  wasmedgeLoader
+  wasmedgeAOT
 )
 
-add_executable(ssvmAOTCoreTests
+add_executable(wasmedgeAOTCoreTests
   AOTcoreTest.cpp
 )
 
-add_test(ssvmAOTCoreTests ssvmAOTCoreTests)
+add_test(wasmedgeAOTCoreTests wasmedgeAOTCoreTests)
 
-target_link_libraries(ssvmAOTCoreTests
+target_link_libraries(wasmedgeAOTCoreTests
   PRIVATE
   std::filesystem
   utilGoogleTest
-  ssvmTestSpec
-  ssvmLoader
-  ssvmAOT
-  ssvmVM
+  wasmedgeTestSpec
+  wasmedgeLoader
+  wasmedgeAOT
+  wasmedgeVM
 )
 
-add_executable(ssvmAOTCacheTests
+add_executable(wasmedgeAOTCacheTests
   AOTCacheTest.cpp
 )
 
-add_test(ssvmAOTCacheTests ssvmAOTCacheTests)
+add_test(wasmedgeAOTCacheTests wasmedgeAOTCacheTests)
 
-target_link_libraries(ssvmAOTCacheTests
+target_link_libraries(wasmedgeAOTCacheTests
   PRIVATE
   utilGoogleTest
-  ssvmAOT
+  wasmedgeAOT
 )
 
-add_executable(ssvmAOTBlake3Tests
+add_executable(wasmedgeAOTBlake3Tests
   AOTBlake3Test.cpp
 )
 
-add_test(ssvmAOTBlake3Tests ssvmAOTBlake3Tests)
+add_test(wasmedgeAOTBlake3Tests wasmedgeAOTBlake3Tests)
 
-target_link_libraries(ssvmAOTBlake3Tests
+target_link_libraries(wasmedgeAOTBlake3Tests
   PRIVATE
   utilGoogleTest
-  ssvmAOT
+  wasmedgeAOT
 )

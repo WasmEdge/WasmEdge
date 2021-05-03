@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/spec/spectest.h - Wasm test suites ----------------------===//
+//===-- wasmedge/test/spec/spectest.h - Wasm test suites ------------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -22,7 +22,7 @@
 #include <string_view>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 
 class SpecTest {
 public:
@@ -44,7 +44,7 @@ public:
       : TestsuiteRoot(std::move(Root)) {}
 
   std::vector<std::string> enumerate() const;
-  std::tuple<std::string_view, SSVM::Configure, std::string>
+  std::tuple<std::string_view, WasmEdge::Configure, std::string>
   resolve(std::string_view Params) const;
   bool compare(const std::vector<std::pair<std::string, std::string>> &Expected,
                const std::vector<ValVariant> &Got) const;
@@ -77,4 +77,4 @@ private:
   std::filesystem::path TestsuiteRoot;
 };
 
-} // namespace SSVM
+} // namespace WasmEdge

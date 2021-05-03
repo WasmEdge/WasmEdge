@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/aot/AOTCacheTest.cpp - aot cache unit tests -------------===//
+//===-- wasmedge/test/aot/AOTCacheTest.cpp - aot cache unit tests ---------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -23,10 +23,10 @@ using namespace std::literals::string_view_literals;
 
 TEST(CacheTest, GlobalEmpty) {
   const auto Path =
-      SSVM::AOT::Cache::getPath({}, SSVM::AOT::Cache::StorageScope::Global);
+      WasmEdge::AOT::Cache::getPath({}, WasmEdge::AOT::Cache::StorageScope::Global);
   EXPECT_TRUE(Path);
   auto Root = *Path;
-  while (Root.filename().u8string() != "ssvm"sv) {
+  while (Root.filename().u8string() != "wasmedge"sv) {
     ASSERT_TRUE(Root.has_parent_path());
     Root = Root.parent_path();
   }
@@ -40,10 +40,10 @@ TEST(CacheTest, GlobalEmpty) {
 
 TEST(CacheTest, LocalEmpty) {
   const auto Path =
-      SSVM::AOT::Cache::getPath({}, SSVM::AOT::Cache::StorageScope::Local);
+      WasmEdge::AOT::Cache::getPath({}, WasmEdge::AOT::Cache::StorageScope::Local);
   EXPECT_TRUE(Path);
   auto Root = *Path;
-  while (Root.filename().u8string() != ".ssvm"sv) {
+  while (Root.filename().u8string() != ".wasmedge"sv) {
     ASSERT_TRUE(Root.has_parent_path());
     Root = Root.parent_path();
   }
@@ -57,11 +57,11 @@ TEST(CacheTest, LocalEmpty) {
 }
 
 TEST(CacheTest, GlobalKey) {
-  const auto Path = SSVM::AOT::Cache::getPath(
-      {}, SSVM::AOT::Cache::StorageScope::Global, "key"s);
+  const auto Path = WasmEdge::AOT::Cache::getPath(
+      {}, WasmEdge::AOT::Cache::StorageScope::Global, "key"s);
   EXPECT_TRUE(Path);
   auto Root = *Path;
-  while (Root.filename().u8string() != "ssvm"sv) {
+  while (Root.filename().u8string() != "wasmedge"sv) {
     ASSERT_TRUE(Root.has_parent_path());
     Root = Root.parent_path();
   }
@@ -74,11 +74,11 @@ TEST(CacheTest, GlobalKey) {
 }
 
 TEST(CacheTest, LocalKey) {
-  const auto Path = SSVM::AOT::Cache::getPath(
-      {}, SSVM::AOT::Cache::StorageScope::Local, "key"s);
+  const auto Path = WasmEdge::AOT::Cache::getPath(
+      {}, WasmEdge::AOT::Cache::StorageScope::Local, "key"s);
   EXPECT_TRUE(Path);
   auto Root = *Path;
-  while (Root.filename().u8string() != ".ssvm"sv) {
+  while (Root.filename().u8string() != ".wasmedge"sv) {
     ASSERT_TRUE(Root.has_parent_path());
     Root = Root.parent_path();
   }

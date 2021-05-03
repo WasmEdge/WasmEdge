@@ -1,10 +1,10 @@
 # Customized Host Functions
 
-[Host functions](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) are functions outside WebAssembly and passed to WASM modules as imports. The following steps give an example of registering a `host module` into SSVM runtime.
+[Host functions](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) are functions outside WebAssembly and passed to WASM modules as imports. The following steps give an example of registering a `host module` into WasmEdge runtime.
 
 ## Definitions of Host Instances
 
-SSVM supports registering `host function`, `memory`, `table`, and `global` instances as imports.
+WasmEdge supports registering `host function`, `memory`, `table`, and `global` instances as imports.
 For more details, samples can be found in `include/host/wasi/` and `test/core/spectest.h`. 
 
 ### Functions
@@ -16,7 +16,7 @@ A simple host function class can be declared as follows:
 #include "runtime/hostfunc.h"
 #include "runtime/instance/memory.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Host {
 
 class TestHost : public Runtime::HostFunction<TestHost> {
@@ -25,7 +25,7 @@ public:
 };
 
 } // namespace Host
-} // namespace SSVM
+} // namespace WasmEdge
 ```
 
 According to example, return type `Expect<T>` presents the expected return number type `T` of this host function. Types of `Param1` and `Param2` presents argument types of this `host function`. Only WASM built-in types (aka. `uint32_t`, `uint64_t`, `float`, and `double`) are supported in `host functions`. When instantiating, the function signature of `vec(valtype) -> resulttype` is generated and can be imported by WASM modules.
@@ -40,7 +40,7 @@ Another situation is passing environments or information which need to be access
 #include "runtime/instance/memory.h"
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Host {
 
 template <typename T> class TestCluster : public Runtime::HostFunction<T> {
@@ -70,7 +70,7 @@ public:
 };
 
 } // namespace Host
-} // namespace SSVM
+} // namespace WasmEdge
 ```
 
 ### Tables, Memories, and Globals
@@ -79,7 +79,7 @@ To create a `host table`, `memory`, and `global` instance, the only way is to cr
 
 ## Host Modules
 
-`Host module` is an object which can be registered into SSVM runtime. `Host module` contains `host functions`, `tables`, `memories`, `globals`, and other user-customized data. SSVM provides API to register `host modules`. After registering, these host instances in the `host module` can be imported by WASM modules.
+`Host module` is an object which can be registered into WasmEdge runtime. `Host module` contains `host functions`, `tables`, `memories`, `globals`, and other user-customized data. WasmEdge provides API to register `host modules`. After registering, these host instances in the `host module` can be imported by WASM modules.
 
 ### Declaration
 
@@ -90,7 +90,7 @@ To create a `host table`, `memory`, and `global` instance, the only way is to cr
 #include "runtime/hostfunc.h"
 #include "runtime/importobj.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Host {
 
 class TestModule : public Runtime::ImportObject {
@@ -100,7 +100,7 @@ public:
 };
 
 } // namespace Host
-} // namespace SSVM
+} // namespace WasmEdge
 ```
 
 ### Add Instances
@@ -114,7 +114,7 @@ public:
 #include <memory>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Host {
 
 template <typename T> class TestCluster : public Runtime::HostFunction<T> {
@@ -171,37 +171,37 @@ private:
 };
 
 } // namespace Host
-} // namespace SSVM
+} // namespace WasmEdge
 ```
 
 `Host module` supplies `getFuncs()`, `getTables()`, `getMems()`, and `getGlobals()` to search registered instances by unique exporting name. For more details, APIs can be found in `include/runtime/importobj.h`.
 
-### Register Host Modules to SSVM
+### Register Host Modules to WasmEdge
 
-Users can register host modules via `SSVM::VM::registerModule()` API.
+Users can register host modules via `WasmEdge::VM::registerModule()` API.
 
 ```cpp
 #include "common/configure.h"
 #include "vm/vm.h"
 #include <vector>
 
-SSVM::Configure Conf;
-SSVM::VM::VM VM(Conf);
+WasmEdge::Configure Conf;
+WasmEdge::VM::VM VM(Conf);
 std::vector<uint8_t> Data;
-SSVM::Host::TestModule TestMod(Data);
+WasmEdge::Host::TestModule TestMod(Data);
 VM.registerModule(TestMod);
 ```
 
 ### Link Libraries And Include Directories in CMakeFile
 
-For finding headers from SSVM include directories and linking static libraries, some settings are necessary for CMakeFile:
+For finding headers from WasmEdge include directories and linking static libraries, some settings are necessary for CMakeFile:
 
 ```
-add_library(ssvmHostModuleTest  # Static library name of host modules
+add_library(wasmedgeHostModuleTest  # Static library name of host modules
   test.cpp  # Path to host modules cpp files
 )
 
-target_include_directories(ssvmHostModuleTest
+target_include_directories(wasmedgeHostModuleTest
   PUBLIC
   ${Boost_INCLUDE_DIRS}
   ${PROJECT_SOURCE_DIR}/include
@@ -223,4 +223,4 @@ From our mechanism, `Expect<T>` declared in `include/common/errcode.h` is used a
 
 ### Forcing Termination
 
-SSVM provides a method for terminating WASM execution in host functions. Developers can return `ErrCode::Terminated` to trigger the forcing termination of the current execution and the execution result will be set as successful.
+WasmEdge provides a method for terminating WASM execution in host functions. Developers can return `ErrCode::Terminated` to trigger the forcing termination of the current execution and the execution result will be set as successful.

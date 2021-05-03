@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/vm/vm.h - VM execution flow class definition -----------------===//
+//===-- wasmedge/vm/vm.h - VM execution flow class definition -------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace VM {
 
 /// VM execution flow class
@@ -127,4 +127,4 @@ private:
 };
 
 } // namespace VM
-} // namespace SSVM
+} // namespace WasmEdge

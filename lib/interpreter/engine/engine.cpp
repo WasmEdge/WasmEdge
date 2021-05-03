@@ -5,7 +5,7 @@
 #include "common/value.h"
 #include "interpreter/interpreter.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 Expect<void> Interpreter::runExpression(Runtime::StoreManager &StoreMgr,
@@ -1574,4 +1574,4 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

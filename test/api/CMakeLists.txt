@@ -6,72 +6,72 @@ configure_files(
   COPYONLY
 )
 
-add_library(ssvmAPITestHelpers
+add_library(wasmedgeAPITestHelpers
   hostfunc_c.c
   helper.cpp
 )
 
-target_include_directories(ssvmAPITestHelpers
+target_include_directories(wasmedgeAPITestHelpers
   PUBLIC
   ${PROJECT_BINARY_DIR}/include
   ${PROJECT_SOURCE_DIR}/include
 )
 
-add_executable(ssvmAPIUnitTests
+add_executable(wasmedgeAPIUnitTests
   APIUnitTest.cpp
 )
 
-add_test(ssvmAPIUnitTests ssvmAPIUnitTests)
+add_test(wasmedgeAPIUnitTests wasmedgeAPIUnitTests)
 
-target_link_libraries(ssvmAPIUnitTests
+target_link_libraries(wasmedgeAPIUnitTests
   PRIVATE
   std::filesystem
   utilGoogleTest
-  ssvmAPITestHelpers
-  ssvm_c
+  wasmedgeAPITestHelpers
+  wasmedge_c
 )
 
-add_executable(ssvmAPIVMCoreTests
+add_executable(wasmedgeAPIVMCoreTests
   APIVMCoreTest.cpp
 )
 
-add_test(ssvmAPIVMCoreTests ssvmAPIVMCoreTests)
+add_test(wasmedgeAPIVMCoreTests wasmedgeAPIVMCoreTests)
 
-target_link_libraries(ssvmAPIVMCoreTests
+target_link_libraries(wasmedgeAPIVMCoreTests
   PRIVATE
   std::filesystem
   utilGoogleTest
-  ssvmTestSpec
-  ssvmAPITestHelpers
-  ssvm_c
+  wasmedgeTestSpec
+  wasmedgeAPITestHelpers
+  wasmedge_c
 )
 
-add_executable(ssvmAPIStepsCoreTests
+add_executable(wasmedgeAPIStepsCoreTests
   APIStepsCoreTest.cpp
 )
 
-add_test(ssvmAPIStepsCoreTests ssvmAPIStepsCoreTests)
+add_test(wasmedgeAPIStepsCoreTests wasmedgeAPIStepsCoreTests)
 
-target_link_libraries(ssvmAPIStepsCoreTests
+target_link_libraries(wasmedgeAPIStepsCoreTests
   PRIVATE
   std::filesystem
   utilGoogleTest
-  ssvmTestSpec
-  ssvmAPITestHelpers
-  ssvm_c
+  wasmedgeTestSpec
+  wasmedgeAPITestHelpers
+  wasmedge_c
 )
 
-if (NOT SSVM_DISABLE_AOT_RUNTIME)
-  add_executable(ssvmAPIAOTCoreTests
+if (NOT WASMEDGE_DISABLE_AOT_RUNTIME)
+  add_executable(wasmedgeAPIAOTCoreTests
     APIAOTCoreTest.cpp
   )
-  add_test(ssvmAPIAOTCoreTests ssvmAPIAOTCoreTests)
-  target_link_libraries(ssvmAPIAOTCoreTests
+  add_test(wasmedgeAPIAOTCoreTests wasmedgeAPIAOTCoreTests)
+  target_link_libraries(wasmedgeAPIAOTCoreTests
     PRIVATE
     std::filesystem
     utilGoogleTest
-    ssvmTestSpec
-    ssvmAPITestHelpers
-    ssvm_c
+    wasmedgeTestSpec
+    wasmedgeAPITestHelpers
+    wasmedge_c
   )
 endif()

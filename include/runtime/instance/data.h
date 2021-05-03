@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/runtime/instance/data.h - Data Instance definition -----------===//
+//===-- wasmedge/runtime/instance/data.h - Data Instance definition -------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -16,7 +16,7 @@
 
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
@@ -45,4 +45,4 @@ private:
 
 } // namespace Instance
 } // namespace Runtime
-} // namespace SSVM
+} // namespace WasmEdge

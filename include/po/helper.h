@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/po/helper.h - Helper for Initialize Option -------------------===//
+//===-- wasmedge/po/helper.h - Helper for Initialize Option ---------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -9,7 +9,7 @@
 #include <string>
 #include <type_traits>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace PO {
 
 struct Description {
@@ -34,4 +34,4 @@ struct OneOrMore {};
 struct Hidden {};
 
 } // namespace PO
-} // namespace SSVM
+} // namespace WasmEdge

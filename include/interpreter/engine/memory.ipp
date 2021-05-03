@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 template <typename T>
@@ -222,4 +222,4 @@ Interpreter::runStoreLaneOp(Runtime::Instance::MemoryInstance &MemInst,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

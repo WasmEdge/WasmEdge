@@ -2,7 +2,7 @@
 #include "ast/section.h"
 #include "common/log.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AST {
 
 /// Load binary to construct Section node. See "include/ast/section.h".
@@ -124,4 +124,4 @@ Expect<void> DataCountSection::loadContent(FileMgr &Mgr,
 }
 
 } // namespace AST
-} // namespace SSVM
+} // namespace WasmEdge

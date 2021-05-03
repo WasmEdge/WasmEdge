@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/loader/filemgr.h - File Manager definition -------------------===//
+//===-- wasmedge/loader/filemgr.h - File Manager definition ---------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 
 /// File manager interface.
 class FileMgr {
@@ -133,4 +133,4 @@ private:
   uint32_t Pos = 0;
 };
 
-} // namespace SSVM
+} // namespace WasmEdge

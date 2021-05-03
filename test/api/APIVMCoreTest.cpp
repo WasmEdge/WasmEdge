@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/api/APIVMCoreTest.cpp - SSVM C API core tests -----------===//
+//===-- wasmedge/test/api/APIVMCoreTest.cpp - WasmEdge C API core tests ---===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -12,7 +12,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "api/ssvm.h"
+#include "api/wasmedge.h"
 
 #include "../spec/spectest.h"
 #include "helper.h"
@@ -29,7 +29,7 @@
 
 namespace {
 using namespace std::literals;
-using namespace SSVM;
+using namespace WasmEdge;
 static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
 
 /// Parameterized testing class.
@@ -37,56 +37,57 @@ class CoreTest : public testing::TestWithParam<std::string> {};
 
 TEST_P(CoreTest, TestSuites) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
-  SSVM_ConfigureContext *ConfCxt = createConf(Conf);
-  SSVM_VMContext *VM = SSVM_VMCreate(ConfCxt, nullptr);
-  SSVM_ConfigureDelete(ConfCxt);
-  SSVM_ImportObjectContext *TestModCxt = createSpecTestModule();
-  SSVM_VMRegisterModuleFromImport(VM, TestModCxt);
+  WasmEdge_ConfigureContext *ConfCxt = createConf(Conf);
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(ConfCxt, nullptr);
+  WasmEdge_ConfigureDelete(ConfCxt);
+  WasmEdge_ImportObjectContext *TestModCxt = createSpecTestModule();
+  WasmEdge_VMRegisterModuleFromImport(VM, TestModCxt);
 
   T.onModule = [&VM](const std::string &ModName,
                      const std::string &Filename) -> Expect<void> {
-    SSVM_Result Res;
+    WasmEdge_Result Res;
     if (!ModName.empty()) {
-      SSVM_String ModStr = SSVM_StringWrap(ModName.data(), ModName.length());
-      Res = SSVM_VMRegisterModuleFromFile(VM, ModStr, Filename.c_str());
+      WasmEdge_String ModStr =
+          WasmEdge_StringWrap(ModName.data(), ModName.length());
+      Res = WasmEdge_VMRegisterModuleFromFile(VM, ModStr, Filename.c_str());
     } else {
-      Res = SSVM_VMLoadWasmFromFile(VM, Filename.c_str());
-      if (!SSVM_ResultOK(Res)) {
+      Res = WasmEdge_VMLoadWasmFromFile(VM, Filename.c_str());
+      if (!WasmEdge_ResultOK(Res)) {
         return Unexpect(convResult(Res));
       }
-      Res = SSVM_VMValidate(VM);
-      if (!SSVM_ResultOK(Res)) {
+      Res = WasmEdge_VMValidate(VM);
+      if (!WasmEdge_ResultOK(Res)) {
         return Unexpect(convResult(Res));
       }
-      Res = SSVM_VMInstantiate(VM);
+      Res = WasmEdge_VMInstantiate(VM);
     }
-    if (!SSVM_ResultOK(Res)) {
+    if (!WasmEdge_ResultOK(Res)) {
       return Unexpect(convResult(Res));
     }
     return {};
   };
   T.onValidate = [&VM](const std::string &Filename) -> Expect<void> {
-    SSVM_Result Res = SSVM_VMLoadWasmFromFile(VM, Filename.c_str());
-    if (!SSVM_ResultOK(Res)) {
+    WasmEdge_Result Res = WasmEdge_VMLoadWasmFromFile(VM, Filename.c_str());
+    if (!WasmEdge_ResultOK(Res)) {
       return Unexpect(convResult(Res));
     }
-    Res = SSVM_VMValidate(VM);
-    if (!SSVM_ResultOK(Res)) {
+    Res = WasmEdge_VMValidate(VM);
+    if (!WasmEdge_ResultOK(Res)) {
       return Unexpect(convResult(Res));
     }
     return {};
   };
   T.onInstantiate = [&VM](const std::string &Filename) -> Expect<void> {
-    SSVM_Result Res = SSVM_VMLoadWasmFromFile(VM, Filename.c_str());
-    if (!SSVM_ResultOK(Res)) {
+    WasmEdge_Result Res = WasmEdge_VMLoadWasmFromFile(VM, Filename.c_str());
+    if (!WasmEdge_ResultOK(Res)) {
       return Unexpect(convResult(Res));
     }
-    Res = SSVM_VMValidate(VM);
-    if (!SSVM_ResultOK(Res)) {
+    Res = WasmEdge_VMValidate(VM);
+    if (!WasmEdge_ResultOK(Res)) {
       return Unexpect(convResult(Res));
     }
-    Res = SSVM_VMInstantiate(VM);
-    if (!SSVM_ResultOK(Res)) {
+    Res = WasmEdge_VMInstantiate(VM);
+    if (!WasmEdge_ResultOK(Res)) {
       return Unexpect(convResult(Res));
     }
     return {};
@@ -96,41 +97,44 @@ TEST_P(CoreTest, TestSuites) {
                      const std::vector<ValVariant> &Params,
                      const std::vector<ValType> &ParamTypes)
       -> Expect<std::vector<ValVariant>> {
-    SSVM_Result Res;
-    std::vector<SSVM_Value> CParams = convFromValVec(Params, ParamTypes);
-    std::vector<SSVM_Value> CReturns;
-    SSVM_String FieldStr = SSVM_StringWrap(Field.data(), Field.length());
+    WasmEdge_Result Res;
+    std::vector<WasmEdge_Value> CParams = convFromValVec(Params, ParamTypes);
+    std::vector<WasmEdge_Value> CReturns;
+    WasmEdge_String FieldStr =
+        WasmEdge_StringWrap(Field.data(), Field.length());
     if (!ModName.empty()) {
       /// Invoke function of named module. Named modules are registered in
       /// Store Manager.
       /// Get the function type to specify the return nums.
-      SSVM_String ModStr = SSVM_StringWrap(ModName.data(), ModName.length());
-      SSVM_FunctionTypeContext *FuncType =
-          SSVM_VMGetFunctionTypeRegistered(VM, ModStr, FieldStr);
+      WasmEdge_String ModStr =
+          WasmEdge_StringWrap(ModName.data(), ModName.length());
+      WasmEdge_FunctionTypeContext *FuncType =
+          WasmEdge_VMGetFunctionTypeRegistered(VM, ModStr, FieldStr);
       if (FuncType == nullptr) {
         return Unexpect(ErrCode::FuncNotFound);
       }
-      CReturns.resize(SSVM_FunctionTypeGetReturnsLength(FuncType));
-      SSVM_FunctionTypeDelete(FuncType);
+      CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
+      WasmEdge_FunctionTypeDelete(FuncType);
       /// Execute.
-      Res = SSVM_VMExecuteRegistered(VM, ModStr, FieldStr, &CParams[0],
-                                     CParams.size(), &CReturns[0],
-                                     CReturns.size());
+      Res = WasmEdge_VMExecuteRegistered(VM, ModStr, FieldStr, &CParams[0],
+                                         CParams.size(), &CReturns[0],
+                                         CReturns.size());
     } else {
       /// Invoke function of anonymous module. Anonymous modules are
       /// instantiated in VM.
       /// Get function type to specify the return nums.
-      SSVM_FunctionTypeContext *FuncType = SSVM_VMGetFunctionType(VM, FieldStr);
+      WasmEdge_FunctionTypeContext *FuncType =
+          WasmEdge_VMGetFunctionType(VM, FieldStr);
       if (FuncType == nullptr) {
         return Unexpect(ErrCode::FuncNotFound);
       }
-      CReturns.resize(SSVM_FunctionTypeGetReturnsLength(FuncType));
-      SSVM_FunctionTypeDelete(FuncType);
+      CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
+      WasmEdge_FunctionTypeDelete(FuncType);
       /// Execute.
-      Res = SSVM_VMExecute(VM, FieldStr, &CParams[0], CParams.size(),
-                           &CReturns[0], CReturns.size());
+      Res = WasmEdge_VMExecute(VM, FieldStr, &CParams[0], CParams.size(),
+                               &CReturns[0], CReturns.size());
     }
-    if (!SSVM_ResultOK(Res)) {
+    if (!WasmEdge_ResultOK(Res)) {
       return Unexpect(convResult(Res));
     }
     return convToValVec(CReturns);
@@ -139,21 +143,24 @@ TEST_P(CoreTest, TestSuites) {
   T.onGet = [&VM](const std::string &ModName,
                   const std::string &Field) -> Expect<std::vector<ValVariant>> {
     /// Get global instance.
-    SSVM_StoreContext *StoreCxt = SSVM_VMGetStoreContext(VM);
-    SSVM_String ModStr = SSVM_StringWrap(ModName.data(), ModName.length());
-    SSVM_String FieldStr = SSVM_StringWrap(Field.data(), Field.length());
-    SSVM_GlobalInstanceContext *GlobCxt =
-        SSVM_StoreFindGlobalRegistered(StoreCxt, ModStr, FieldStr);
+    WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VM);
+    WasmEdge_String ModStr =
+        WasmEdge_StringWrap(ModName.data(), ModName.length());
+    WasmEdge_String FieldStr =
+        WasmEdge_StringWrap(Field.data(), Field.length());
+    WasmEdge_GlobalInstanceContext *GlobCxt =
+        WasmEdge_StoreFindGlobalRegistered(StoreCxt, ModStr, FieldStr);
     if (GlobCxt == nullptr) {
       return Unexpect(ErrCode::WrongInstanceAddress);
     }
-    return std::vector<ValVariant>{SSVM_GlobalInstanceGetValue(GlobCxt).Value};
+    return std::vector<ValVariant>{
+        WasmEdge_GlobalInstanceGetValue(GlobCxt).Value};
   };
 
   T.run(Proposal, UnitName);
 
-  SSVM_VMDelete(VM);
-  SSVM_ImportObjectDelete(TestModCxt);
+  WasmEdge_VMDelete(VM);
+  WasmEdge_ImportObjectDelete(TestModCxt);
 }
 
 /// Initiate test suite.
@@ -161,7 +168,7 @@ INSTANTIATE_TEST_SUITE_P(TestUnit, CoreTest, testing::ValuesIn(T.enumerate()));
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {
-  SSVM_LogSetErrorLevel();
+  WasmEdge_LogSetErrorLevel();
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

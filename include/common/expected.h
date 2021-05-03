@@ -3,7 +3,7 @@
 
 #include "experimental/expected.hpp"
 
-namespace SSVM {
+namespace WasmEdge {
 
 /// Type aliasing of expected class.
 template <typename T, typename E>
@@ -12,4 +12,4 @@ using Expected = std::experimental::expected<T, E>;
 /// Type aliasing of unexpected class.
 template <typename E> using Unexpected = std::experimental::unexpected<E>;
 
-} // namespace SSVM
+} // namespace WasmEdge

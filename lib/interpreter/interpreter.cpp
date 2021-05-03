@@ -5,7 +5,7 @@
 #include "common/log.h"
 #include "runtime/instance/module.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 /// Instantiate Wasm Module. See "include/interpreter/interpreter.h".
@@ -105,4 +105,4 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/ast/descriptionTest.cpp - AST description unit tests ----===//
+//===-- wasmedge/test/ast/descriptionTest.cpp - AST description unit tests ===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -17,8 +17,8 @@
 
 namespace {
 
-SSVM::FileMgrVector Mgr;
-SSVM::Configure Conf;
+WasmEdge::FileMgrVector Mgr;
+WasmEdge::Configure Conf;
 
 TEST(DescriptionTest, LoadImportDesc) {
   /// 1. Test load import description.
@@ -31,7 +31,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   ///   6.  Load import description of memory type.
   ///   7.  Load import description of global type.
   Mgr.clearBuffer();
-  SSVM::AST::ImportDesc Imp1;
+  WasmEdge::AST::ImportDesc Imp1;
   EXPECT_FALSE(Imp1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -41,7 +41,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0x00U, 0x00U /// function type and index
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::ImportDesc Imp2;
+  WasmEdge::AST::ImportDesc Imp2;
   EXPECT_TRUE(Imp2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -51,7 +51,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0x00U, 0x00U /// function type and index
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::ImportDesc Imp3;
+  WasmEdge::AST::ImportDesc Imp3;
   EXPECT_TRUE(Imp3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -61,7 +61,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0x04U, 0x00U                                     /// Invalid external type
   };
   Mgr.setCode(Vec4);
-  SSVM::AST::ImportDesc Imp4;
+  WasmEdge::AST::ImportDesc Imp4;
   EXPECT_FALSE(Imp4.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -75,7 +75,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU                /// Max = 4294967295
   };
   Mgr.setCode(Vec5);
-  SSVM::AST::ImportDesc Imp5;
+  WasmEdge::AST::ImportDesc Imp5;
   EXPECT_TRUE(Imp5.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -88,7 +88,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU                /// Max = 4294967295
   };
   Mgr.setCode(Vec6);
-  SSVM::AST::ImportDesc Imp6;
+  WasmEdge::AST::ImportDesc Imp6;
   EXPECT_TRUE(Imp6.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -99,7 +99,7 @@ TEST(DescriptionTest, LoadImportDesc) {
       0x7CU, 0x00U                                     /// Const F64 number type
   };
   Mgr.setCode(Vec7);
-  SSVM::AST::ImportDesc Imp7;
+  WasmEdge::AST::ImportDesc Imp7;
   EXPECT_TRUE(Imp7.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -112,7 +112,7 @@ TEST(DescriptionTest, LoadExportDesc) {
   ///   4.  Load export description with invalid external type.
   ///   5.  Load export description of table type.
   Mgr.clearBuffer();
-  SSVM::AST::ExportDesc Exp1;
+  WasmEdge::AST::ExportDesc Exp1;
   EXPECT_FALSE(Exp1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -121,7 +121,7 @@ TEST(DescriptionTest, LoadExportDesc) {
       0x00U, 0x00U /// function type and index
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::ExportDesc Exp2;
+  WasmEdge::AST::ExportDesc Exp2;
   EXPECT_TRUE(Exp2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -130,7 +130,7 @@ TEST(DescriptionTest, LoadExportDesc) {
       0x00U, 0x00U /// function type and index
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::ExportDesc Exp3;
+  WasmEdge::AST::ExportDesc Exp3;
   EXPECT_TRUE(Exp3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -139,7 +139,7 @@ TEST(DescriptionTest, LoadExportDesc) {
       0x04U, 0x00U                                     /// Invalid external type
   };
   Mgr.setCode(Vec4);
-  SSVM::AST::ExportDesc Exp4;
+  WasmEdge::AST::ExportDesc Exp4;
   EXPECT_FALSE(Exp4.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -148,7 +148,7 @@ TEST(DescriptionTest, LoadExportDesc) {
       0x01U, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Table type and table index
   };
   Mgr.setCode(Vec5);
-  SSVM::AST::ExportDesc Exp5;
+  WasmEdge::AST::ExportDesc Exp5;
   EXPECT_TRUE(Exp5.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 

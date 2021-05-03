@@ -3,8 +3,8 @@
 #include "common/filesystem.h"
 #include "common/value.h"
 #include "common/version.h"
-#include "host/ssvm_process/processmodule.h"
 #include "host/wasi/wasimodule.h"
+#include "host/wasmedge_process/processmodule.h"
 #include "po/argument_parser.h"
 #include "vm/vm.h"
 
@@ -12,11 +12,11 @@
 #include <iostream>
 
 int main(int Argc, const char *Argv[]) {
-  namespace PO = SSVM::PO;
+  namespace PO = WasmEdge::PO;
   using namespace std::literals;
 
   std::ios::sync_with_stdio(false);
-  SSVM::Log::setErrorLoggingLevel();
+  WasmEdge::Log::setErrorLoggingLevel();
 
   PO::Option<std::string> SoName(PO::Description("Wasm or so file"sv),
                                  PO::MetaVar("WASM_OR_SO"sv));
@@ -53,10 +53,10 @@ int main(int Argc, const char *Argv[]) {
 
   PO::List<std::string> AllowCmd(
       PO::Description(
-          "Allow commands called from ssvm_process host functions. Each command can be specified as --allow-command `COMMAND`."sv),
+          "Allow commands called from wasmedge_process host functions. Each command can be specified as --allow-command `COMMAND`."sv),
       PO::MetaVar("COMMANDS"sv));
   PO::Option<PO::Toggle> AllowCmdAll(PO::Description(
-      "Allow all commands called from ssvm_process host functions."sv));
+      "Allow all commands called from wasmedge_process host functions."sv));
 
   auto Parser = PO::ArgumentParser();
   if (!Parser.add_option(SoName)
@@ -75,37 +75,38 @@ int main(int Argc, const char *Argv[]) {
     return EXIT_FAILURE;
   }
   if (Parser.isVersion()) {
-    std::cout << Argv[0] << " version "sv << SSVM::kVersionString << '\n';
+    std::cout << Argv[0] << " version "sv << WasmEdge::kVersionString << '\n';
     return EXIT_SUCCESS;
   }
 
-  SSVM::Configure Conf;
+  WasmEdge::Configure Conf;
   if (BulkMemoryOperations.value()) {
-    Conf.removeProposal(SSVM::Proposal::BulkMemoryOperations);
+    Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
   }
   if (ReferenceTypes.value()) {
-    Conf.removeProposal(SSVM::Proposal::ReferenceTypes);
+    Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
   }
   if (SIMD.value()) {
-    Conf.addProposal(SSVM::Proposal::SIMD);
+    Conf.addProposal(WasmEdge::Proposal::SIMD);
   }
   if (All.value()) {
-    Conf.addProposal(SSVM::Proposal::SIMD);
+    Conf.addProposal(WasmEdge::Proposal::SIMD);
   }
   if (MemLim.value().size() > 0) {
     Conf.setMaxMemoryPage(MemLim.value().back());
   }
 
-  Conf.addHostRegistration(SSVM::HostRegistration::Wasi);
-  Conf.addHostRegistration(SSVM::HostRegistration::SSVM_Process);
+  Conf.addHostRegistration(WasmEdge::HostRegistration::Wasi);
+  Conf.addHostRegistration(WasmEdge::HostRegistration::WasmEdge_Process);
   const auto InputPath = std::filesystem::absolute(SoName.value());
-  SSVM::VM::VM VM(Conf);
+  WasmEdge::VM::VM VM(Conf);
 
-  SSVM::Host::WasiModule *WasiMod = dynamic_cast<SSVM::Host::WasiModule *>(
-      VM.getImportModule(SSVM::HostRegistration::Wasi));
-  SSVM::Host::SSVMProcessModule *ProcMod =
-      dynamic_cast<SSVM::Host::SSVMProcessModule *>(
-          VM.getImportModule(SSVM::HostRegistration::SSVM_Process));
+  WasmEdge::Host::WasiModule *WasiMod =
+      dynamic_cast<WasmEdge::Host::WasiModule *>(
+          VM.getImportModule(WasmEdge::HostRegistration::Wasi));
+  WasmEdge::Host::WasmEdgeProcessModule *ProcMod =
+      dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(
+          VM.getImportModule(WasmEdge::HostRegistration::WasmEdge_Process));
 
   if (AllowCmdAll.value()) {
     ProcMod->getEnv().AllowedAll = true;
@@ -121,7 +122,7 @@ int main(int Argc, const char *Argv[]) {
   if (!Reactor.value()) {
     // command mode
     if (auto Result = VM.runWasmFile(InputPath.u8string(), "_start");
-        Result || Result.error() == SSVM::ErrCode::Terminated) {
+        Result || Result.error() == WasmEdge::ErrCode::Terminated) {
       return WasiMod->getEnv().getExitCode();
     } else {
       return EXIT_FAILURE;
@@ -148,7 +149,7 @@ int main(int Argc, const char *Argv[]) {
     const auto InitFunc = "_initialize"s;
 
     bool HasInit = false;
-    SSVM::Runtime::Instance::FType FuncType;
+    WasmEdge::Runtime::Instance::FType FuncType;
 
     for (const auto &Func : VM.getFunctionList()) {
       if (Func.first == InitFunc) {
@@ -164,33 +165,33 @@ int main(int Argc, const char *Argv[]) {
       }
     }
 
-    std::vector<SSVM::ValVariant> FuncArgs;
-    std::vector<SSVM::ValType> FuncArgTypes;
+    std::vector<WasmEdge::ValVariant> FuncArgs;
+    std::vector<WasmEdge::ValType> FuncArgTypes;
     for (size_t I = 0;
          I < FuncType.Params.size() && I + 1 < Args.value().size(); ++I) {
       switch (FuncType.Params[I]) {
-      case SSVM::ValType::I32: {
+      case WasmEdge::ValType::I32: {
         const uint32_t Value = std::stoll(Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(SSVM::ValType::I32);
+        FuncArgTypes.emplace_back(WasmEdge::ValType::I32);
         break;
       }
-      case SSVM::ValType::I64: {
+      case WasmEdge::ValType::I64: {
         const uint64_t Value = std::stoll(Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(SSVM::ValType::I64);
+        FuncArgTypes.emplace_back(WasmEdge::ValType::I64);
         break;
       }
-      case SSVM::ValType::F32: {
+      case WasmEdge::ValType::F32: {
         const float Value = std::stod(Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(SSVM::ValType::F32);
+        FuncArgTypes.emplace_back(WasmEdge::ValType::F32);
         break;
       }
-      case SSVM::ValType::F64: {
+      case WasmEdge::ValType::F64: {
         const double Value = std::stod(Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(SSVM::ValType::F64);
+        FuncArgTypes.emplace_back(WasmEdge::ValType::F64);
         break;
       }
       /// TODO: FuncRef and ExternRef
@@ -203,7 +204,7 @@ int main(int Argc, const char *Argv[]) {
            ++I) {
         const uint64_t Value = std::stoll(Args.value()[I]);
         FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(SSVM::ValType::F64);
+        FuncArgTypes.emplace_back(WasmEdge::ValType::F64);
       }
     }
 
@@ -211,16 +212,16 @@ int main(int Argc, const char *Argv[]) {
       /// Print results.
       for (size_t I = 0; I < FuncType.Returns.size(); ++I) {
         switch (FuncType.Returns[I]) {
-        case SSVM::ValType::I32:
+        case WasmEdge::ValType::I32:
           std::cout << std::get<uint32_t>((*Result)[I]) << '\n';
           break;
-        case SSVM::ValType::I64:
+        case WasmEdge::ValType::I64:
           std::cout << std::get<uint64_t>((*Result)[I]) << '\n';
           break;
-        case SSVM::ValType::F32:
+        case WasmEdge::ValType::F32:
           std::cout << std::get<float>((*Result)[I]) << '\n';
           break;
-        case SSVM::ValType::F64:
+        case WasmEdge::ValType::F64:
           std::cout << std::get<double>((*Result)[I]) << '\n';
           break;
         /// TODO: FuncRef and ExternRef

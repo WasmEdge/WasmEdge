@@ -23,7 +23,7 @@ struct SquareStruct {
   uint32_t operator()(uint32_t Val) const { return Val * Val; }
 };
 
-namespace SSVM {
+namespace WasmEdge {
 /// Host function to access class as reference
 class ExternClassAdd : public Runtime::HostFunction<ExternClassAdd> {
 public:
@@ -167,4 +167,4 @@ public:
   }
   virtual ~ExternMod() = default;
 };
-} // namespace SSVM
+} // namespace WasmEdge

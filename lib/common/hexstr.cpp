@@ -1,7 +1,7 @@
 #include "common/hexstr.h"
 #include <cinttypes>
 
-namespace SSVM {
+namespace WasmEdge {
 
 uint8_t convertCharToHex(const char C) {
   if (C >= '0' && C <= '9') {
@@ -84,4 +84,4 @@ std::string convertUIntToHexStr(const uint64_t Num, uint32_t MinLen) {
   return Str;
 }
 
-} // namespace SSVM
+} // namespace WasmEdge

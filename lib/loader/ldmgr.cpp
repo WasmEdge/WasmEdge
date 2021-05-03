@@ -2,7 +2,7 @@
 #include "loader/ldmgr.h"
 #include "common/log.h"
 
-namespace SSVM {
+namespace WasmEdge {
 
 /// Set path to loadable manager. See "include/loader/ldmgr.h".
 Expect<void> LDMgr::setPath(const std::filesystem::path &FilePath) {
@@ -34,4 +34,4 @@ Expect<uint32_t> LDMgr::getVersion() {
   return *Version;
 }
 
-} // namespace SSVM
+} // namespace WasmEdge

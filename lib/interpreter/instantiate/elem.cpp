@@ -5,7 +5,7 @@
 #include "runtime/instance/module.h"
 #include "runtime/instance/table.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 /// Instantiate element instance. See "include/interpreter/interpreter.h".
@@ -109,4 +109,4 @@ Expect<void> Interpreter::initTable(Runtime::StoreManager &StoreMgr,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

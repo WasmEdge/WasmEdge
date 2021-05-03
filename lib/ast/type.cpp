@@ -3,7 +3,7 @@
 #include "common/log.h"
 #include "common/types.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AST {
 
 /// Load binary to construct Limit node. See "include/ast/type.h".
@@ -153,4 +153,4 @@ Expect<void> GlobalType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 }
 
 } // namespace AST
-} // namespace SSVM
+} // namespace WasmEdge

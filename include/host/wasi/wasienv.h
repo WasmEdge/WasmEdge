@@ -18,7 +18,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Host {
 
 class WasiEnvironment {
@@ -87,4 +87,4 @@ private:
 };
 
 } // namespace Host
-} // namespace SSVM
+} // namespace WasmEdge

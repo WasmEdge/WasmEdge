@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/errinfo.h - Error information definition --------------===//
+//===-- wasmedge/common/errinfo.h - Error information definition ----------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the enumerations of SSVM error infomation.
+/// This file contains the enumerations of WasmEdge error infomation.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -23,7 +23,7 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace ErrInfo {
 
 /// Error info type enumeration class.
@@ -367,4 +367,4 @@ struct InfoProposal {
 };
 
 } // namespace ErrInfo
-} // namespace SSVM
+} // namespace WasmEdge

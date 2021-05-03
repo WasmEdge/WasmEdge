@@ -16,12 +16,12 @@ else()
   find_library(LLD_SYSTEM lldELF PATHS "${LLVM_LIBRARY_DIR}")
 endif()
 
-llvm_add_library(ssvmAOT
+llvm_add_library(wasmedgeAOT
   blake3.cpp
   cache.cpp
   compiler.cpp
   LINK_LIBS
-  ssvmCommon
+  wasmedgeCommon
   utilBlake3
   ${LLD_SYSTEM}
   ${LLD_COMMON}
@@ -42,13 +42,13 @@ llvm_add_library(ssvmAOT
   transformutils
 )
 
-target_include_directories(ssvmAOT
+target_include_directories(wasmedgeAOT
   SYSTEM
   PRIVATE
   "${LLVM_INCLUDE_DIR}"
 )
 
-target_include_directories(ssvmAOT
+target_include_directories(wasmedgeAOT
   PUBLIC
   ${PROJECT_BINARY_DIR}/include
   ${PROJECT_SOURCE_DIR}/include

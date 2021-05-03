@@ -3,7 +3,7 @@
 #include "common/value.h"
 #include "interpreter/interpreter.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 Expect<void>
@@ -97,4 +97,4 @@ Interpreter::runMemoryFillOp(Runtime::Instance::MemoryInstance &MemInst,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

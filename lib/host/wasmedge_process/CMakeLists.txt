@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_library(ssvmHostModuleSSVMProcess
+add_library(wasmedgeHostModuleWasmEdgeProcess
   processfunc.cpp
   processmodule.cpp
 )
 
-target_include_directories(ssvmHostModuleSSVMProcess
+target_include_directories(wasmedgeHostModuleWasmEdgeProcess
   PUBLIC
   ${Boost_INCLUDE_DIRS}
   ${PROJECT_SOURCE_DIR}/include

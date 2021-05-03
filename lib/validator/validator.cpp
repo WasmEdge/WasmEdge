@@ -6,7 +6,7 @@
 #include <string>
 #include <unordered_set>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Validator {
 
 /// Validate Module. See "include/validator/validator.h".
@@ -562,4 +562,4 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
 }
 
 } // namespace Validator
-} // namespace SSVM
+} // namespace WasmEdge

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/aot/AOTwagonTest.cpp - wagon wasm compiling unit tests --===//
+//===-- wasmedge/test/aot/AOTwagonTest.cpp - wagon wasm compiling unit tests =//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -20,14 +20,14 @@
   do {                                                                         \
     auto Data = *Loader.loadFile("../loader/wagonTestData/" NAME ".wasm"sv);   \
     auto Module = *Loader.parseModule(Data);                                   \
-    SSVM::AOT::Compiler Compiler;                                              \
+    WasmEdge::AOT::Compiler Compiler;                                          \
     Compiler.setDumpIR(true);                                                  \
     auto Status = Compiler.compile(Data, *Module,                              \
                                    "../loader/wagonTestData/" NAME ".so"sv);   \
     if (Status) {                                                              \
       ASSERT_TRUE(Status);                                                     \
     } else {                                                                   \
-      ASSERT_EQ(Status.error(), SSVM::ErrCode::Success);                       \
+      ASSERT_EQ(Status.error(), WasmEdge::ErrCode::Success);                   \
     }                                                                          \
   } while (false)
 
@@ -35,8 +35,8 @@ namespace {
 
 using namespace std::literals::string_view_literals;
 
-SSVM::Configure Conf;
-SSVM::Loader::Loader Loader(Conf);
+WasmEdge::Configure Conf;
+WasmEdge::Loader::Loader Loader(Conf);
 
 TEST(WagonTest, Load__add_ex_main) { BODY("add-ex-main"); }
 TEST(WagonTest, Load__add_ex) { BODY("add-ex"); }

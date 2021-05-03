@@ -10,13 +10,13 @@
 #include "runtime/instance/module.h"
 #include "runtime/instance/table.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 namespace {
 template <typename... Args>
 auto logMatchError(std::string_view ModName, std::string_view ExtName,
-                   ExternalType ExtType, ASTNodeAttr Node, Args &&... Values) {
+                   ExternalType ExtType, ASTNodeAttr Node, Args &&...Values) {
   LOG(ERROR) << ErrCode::IncompatibleImportType;
   LOG(ERROR) << ErrInfo::InfoMismatch(std::forward<Args>(Values)...);
   LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
@@ -209,4 +209,4 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

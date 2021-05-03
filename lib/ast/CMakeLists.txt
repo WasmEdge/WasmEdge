@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_library(ssvmAST
+add_library(wasmedgeAST
   module.cpp
   section.cpp
   description.cpp
@@ -10,14 +10,14 @@ add_library(ssvmAST
   instruction.cpp
 )
 
-target_include_directories(ssvmAST
+target_include_directories(wasmedgeAST
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty
 )
 
-target_link_libraries(ssvmAST
+target_link_libraries(wasmedgeAST
   PRIVATE
-  ssvmLoaderFileMgr
-  ssvmCommon
+  wasmedgeLoaderFileMgr
+  wasmedgeCommon
 )

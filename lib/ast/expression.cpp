@@ -2,7 +2,7 @@
 #include "ast/expression.h"
 #include "common/log.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AST {
 
 /// Load to construct Expression node. See "include/ast/expression.h".
@@ -17,4 +17,4 @@ Expect<void> Expression::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 }
 
 } // namespace AST
-} // namespace SSVM
+} // namespace WasmEdge

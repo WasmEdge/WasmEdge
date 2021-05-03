@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/timer.h - Timer class definition ----------------------===//
+//===-- wasmedge/common/timer.h - Timer class definition ------------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -17,7 +17,7 @@
 #include <optional>
 #include <string>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Timer {
 
 enum class TimerTag : uint32_t { Wasm, HostFunc, Max };
@@ -73,4 +73,4 @@ private:
 };
 
 } // namespace Timer
-} // namespace SSVM
+} // namespace WasmEdge

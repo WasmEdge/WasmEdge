@@ -1,4 +1,4 @@
-ARG BASE=secondstate/ssvm:ubuntu-base
+ARG BASE=secondstate/wasmedge:ubuntu-base
 FROM ${BASE}
 
 RUN apt update && apt install -y \

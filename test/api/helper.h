@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/api/helper.h - Spec test helpers for C API --------------===//
+//===-- wasmedge/test/api/helper.h - Spec test helpers for C API ----------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -14,17 +14,17 @@
 #pragma once
 
 #include "../spec/spectest.h"
-#include "api/ssvm.h"
+#include "api/wasmedge.h"
 
-namespace SSVM {
+namespace WasmEdge {
 
-SSVM_ConfigureContext *createConf(const Configure &Conf);
+WasmEdge_ConfigureContext *createConf(const Configure &Conf);
 
-ErrCode convResult(SSVM_Result Res);
+ErrCode convResult(WasmEdge_Result Res);
 
-std::vector<ValVariant> convToValVec(const std::vector<SSVM_Value> &CVals);
+std::vector<ValVariant> convToValVec(const std::vector<WasmEdge_Value> &CVals);
 
-std::vector<SSVM_Value> convFromValVec(const std::vector<ValVariant> &Vals,
-                                       const std::vector<ValType> &Types);
+std::vector<WasmEdge_Value> convFromValVec(const std::vector<ValVariant> &Vals,
+                                           const std::vector<ValType> &Types);
 
-} // namespace SSVM
+} // namespace WasmEdge

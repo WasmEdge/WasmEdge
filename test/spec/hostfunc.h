@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/spec/hostfunc.h - Spec test host functions --------------===//
+//===-- wasmedge/test/spec/hostfunc.h - Spec test host functions ----------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -19,7 +19,7 @@
 #include "runtime/importobj.h"
 #include "runtime/instance/memory.h"
 
-namespace SSVM {
+namespace WasmEdge {
 
 class SpecTestPrint : public Runtime::HostFunction<SpecTestPrint> {
 public:
@@ -97,4 +97,4 @@ public:
   virtual ~SpecTestModule() = default;
 };
 
-} // namespace SSVM
+} // namespace WasmEdge

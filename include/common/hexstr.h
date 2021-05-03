@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/hexstr.h - Hex string formation -----------------------===//
+//===-- wasmedge/common/hexstr.h - Hex string formation -------------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -17,7 +17,7 @@
 #include <string_view>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 
 uint8_t convertCharToHex(const char C);
 
@@ -37,4 +37,4 @@ void convertHexStrToValVec(std::string_view Src, std::vector<uint8_t> &Dst,
 
 std::string convertUIntToHexStr(const uint64_t Num, uint32_t MinLen = 8);
 
-} // namespace SSVM
+} // namespace WasmEdge

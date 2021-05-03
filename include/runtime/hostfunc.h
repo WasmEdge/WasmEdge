@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/runtime/hostfunc.h - host function interface -----------------===//
+//===-- wasmedge/runtime/hostfunc.h - host function interface -------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -21,7 +21,7 @@
 #include <tuple>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Runtime {
 
 class HostFunctionBase {
@@ -156,4 +156,4 @@ private:
 };
 
 } // namespace Runtime
-} // namespace SSVM
+} // namespace WasmEdge

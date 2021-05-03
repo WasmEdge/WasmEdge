@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "vm/vm.h"
 #include "common/log.h"
-#include "host/ssvm_process/processmodule.h"
 #include "host/wasi/wasimodule.h"
+#include "host/wasmedge_process/processmodule.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace VM {
 
 VM::VM(const Configure &Conf)
@@ -28,11 +28,11 @@ void VM::initVM() {
     InterpreterEngine.registerModule(StoreRef, *WasiMod.get());
     ImpObjs.insert({HostRegistration::Wasi, std::move(WasiMod)});
   }
-  if (Conf.hasHostRegistration(HostRegistration::SSVM_Process)) {
+  if (Conf.hasHostRegistration(HostRegistration::WasmEdge_Process)) {
     std::unique_ptr<Runtime::ImportObject> ProcMod =
-        std::make_unique<Host::SSVMProcessModule>();
+        std::make_unique<Host::WasmEdgeProcessModule>();
     InterpreterEngine.registerModule(StoreRef, *ProcMod.get());
-    ImpObjs.insert({HostRegistration::SSVM_Process, std::move(ProcMod)});
+    ImpObjs.insert({HostRegistration::WasmEdge_Process, std::move(ProcMod)});
   }
 }
 
@@ -285,4 +285,4 @@ Runtime::ImportObject *VM::getImportModule(const HostRegistration Type) {
 }
 
 } // namespace VM
-} // namespace SSVM
+} // namespace WasmEdge

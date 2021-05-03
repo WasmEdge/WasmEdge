@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_executable(ssvmInterpreterCoreTests
+add_executable(wasmedgeInterpreterCoreTests
   InterpreterTest.cpp
 )
 
-add_test(ssvmInterpreterCoreTests ssvmInterpreterCoreTests)
+add_test(wasmedgeInterpreterCoreTests wasmedgeInterpreterCoreTests)
 
-target_link_libraries(ssvmInterpreterCoreTests
+target_link_libraries(wasmedgeInterpreterCoreTests
   PRIVATE
   std::filesystem
   utilGoogleTest
-  ssvmTestSpec
-  ssvmVM
+  wasmedgeTestSpec
+  wasmedgeVM
 )

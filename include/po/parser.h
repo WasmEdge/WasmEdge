@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/po/parser.h - Single Argument parser -------------------------===//
+//===-- wasmedge/po/parser.h - Single Argument parser ---------------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -11,7 +11,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace PO {
 
 inline void tolower(std::string &String) {
@@ -101,4 +101,4 @@ template <> struct Parser<long double> {
 };
 
 } // namespace PO
-} // namespace SSVM
+} // namespace WasmEdge

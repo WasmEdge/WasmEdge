@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/po/argument_parser.h - Argument parser -----------------------===//
+//===-- wasmedge/po/argument_parser.h - Argument parser -------------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace PO {
 
 using namespace std::literals;
@@ -471,4 +471,4 @@ private:
 };
 
 } // namespace PO
-} // namespace SSVM
+} // namespace WasmEdge

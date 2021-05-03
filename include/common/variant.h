@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/variant.h - Unsafe variant implementation -------------===//
+//===-- wasmedge/common/variant.h - Unsafe variant implementation ---------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -19,7 +19,7 @@
 #include <utility>
 #include <variant>
 
-namespace SSVM {
+namespace WasmEdge {
 
 template <typename... Ts> union VariadicUnion {};
 template <typename FirstT, typename... RestT>
@@ -27,13 +27,13 @@ union VariadicUnion<FirstT, RestT...> {
   constexpr VariadicUnion() : Rest() {}
 
   template <typename... Args>
-  constexpr VariadicUnion(std::in_place_index_t<0>, Args &&... Values)
+  constexpr VariadicUnion(std::in_place_index_t<0>, Args &&...Values)
       : First() {
     ::new (&First) FirstT(std::forward<Args>(Values)...);
   }
 
   template <std::size_t N, typename... Args>
-  constexpr VariadicUnion(std::in_place_index_t<N>, Args &&... Values)
+  constexpr VariadicUnion(std::in_place_index_t<N>, Args &&...Values)
       : Rest(std::in_place_index<N - 1>, std::forward<Args>(Values)...) {}
 
   template <typename T> constexpr const T &get() const &noexcept {
@@ -131,12 +131,12 @@ public:
                 std::forward<T>(Value)) {}
 
   template <std::size_t N, typename... Args>
-  constexpr Variant(std::in_place_index_t<N> In, Args &&... Values) noexcept
+  constexpr Variant(std::in_place_index_t<N> In, Args &&...Values) noexcept
       : Storage(In, std::forward<Args>(Values)...) {}
 
   template <typename T, typename = std::enable_if_t<accept_type<T>>,
             typename... Args>
-  constexpr Variant(std::in_place_type_t<T>, Args &&... Values) noexcept
+  constexpr Variant(std::in_place_type_t<T>, Args &&...Values) noexcept
       : Variant(std::in_place_index_t<index_of_v<T, Types...>>(),
                 std::forward<Args>(Values)...) {}
 
@@ -157,54 +157,54 @@ public:
   }
 };
 
-} // namespace SSVM
+} // namespace WasmEdge
 
 namespace std {
 
 template <typename T, typename... Types>
-constexpr T &get(SSVM::Variant<Types...> &Variant) {
+constexpr T &get(WasmEdge::Variant<Types...> &Variant) {
   return Variant.template get<T>();
 }
 
 template <typename T, typename... Types>
-constexpr T &&get(SSVM::Variant<Types...> &&Variant) {
+constexpr T &&get(WasmEdge::Variant<Types...> &&Variant) {
   return std::move(Variant).template get<T>();
 }
 
 template <typename T, typename... Types>
-constexpr const T &get(const SSVM::Variant<Types...> &Variant) {
+constexpr const T &get(const WasmEdge::Variant<Types...> &Variant) {
   return Variant.template get<T>();
 }
 
 template <typename T, typename... Types>
-constexpr const T &&get(const SSVM::Variant<Types...> &&Variant) {
+constexpr const T &&get(const WasmEdge::Variant<Types...> &&Variant) {
   return std::move(Variant).template get<T>();
 }
 
 template <std::size_t I, typename... Types>
 constexpr typename std::variant_alternative_t<I, std::variant<Types...>> &
-get(SSVM::Variant<Types...> &Variant) {
+get(WasmEdge::Variant<Types...> &Variant) {
   return Variant
       .template get<std::variant_alternative_t<I, std::variant<Types...>>>();
 }
 
 template <std::size_t I, typename... Types>
 constexpr typename std::variant_alternative_t<I, std::variant<Types...>> &
-get(SSVM::Variant<Types...> &&Variant) {
+get(WasmEdge::Variant<Types...> &&Variant) {
   return std::move(Variant)
       .template get<std::variant_alternative_t<I, std::variant<Types...>>>();
 }
 
 template <std::size_t I, typename... Types>
 constexpr const typename std::variant_alternative_t<I, std::variant<Types...>> &
-get(const SSVM::Variant<Types...> &Variant) {
+get(const WasmEdge::Variant<Types...> &Variant) {
   return Variant
       .template get<std::variant_alternative_t<I, std::variant<Types...>>>();
 }
 
 template <std::size_t I, typename... Types>
 constexpr const typename std::variant_alternative_t<I, std::variant<Types...>> &
-get(const SSVM::Variant<Types...> &&Variant) {
+get(const WasmEdge::Variant<Types...> &&Variant) {
   return std::move(Variant)
       .template get<std::variant_alternative_t<I, std::variant<Types...>>>();
 }

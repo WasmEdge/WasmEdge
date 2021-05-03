@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/statistics.h - Interpreter statistics definition ------===//
+//===-- wasmedge/common/statistics.h - Interpreter statistics definition --===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -18,7 +18,7 @@
 
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Statistics {
 
 class Statistics {
@@ -139,4 +139,4 @@ private:
 };
 
 } // namespace Statistics
-} // namespace SSVM
+} // namespace WasmEdge

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/loader/loader.h - Loader flow control class definition -------===//
+//===-- wasmedge/loader/loader.h - Loader flow control class definition ---===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Loader {
 
 /// Loader flow control class.
@@ -47,4 +47,4 @@ private:
 };
 
 } // namespace Loader
-} // namespace SSVM
+} // namespace WasmEdge

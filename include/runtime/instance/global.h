@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/runtime/instance/global.h - Global Instance definition -------===//
+//===-- wasmedge/runtime/instance/global.h - Global Instance definition ---===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -14,7 +14,7 @@
 #include "common/types.h"
 #include "common/value.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
@@ -49,4 +49,4 @@ private:
 
 } // namespace Instance
 } // namespace Runtime
-} // namespace SSVM
+} // namespace WasmEdge

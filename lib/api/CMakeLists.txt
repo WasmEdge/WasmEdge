@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_library(ssvm_c SHARED
-  ssvm.cpp
+add_library(wasmedge_c SHARED
+  wasmedge.cpp
 )
 
-target_link_libraries(ssvm_c
+target_link_libraries(wasmedge_c
   PUBLIC
-  ssvmAOT
-  ssvmVM
+  wasmedgeAOT
+  wasmedgeVM
 )
 
-target_include_directories(ssvm_c
+target_include_directories(wasmedge_c
   PUBLIC
   ${PROJECT_BINARY_DIR}/include
 )

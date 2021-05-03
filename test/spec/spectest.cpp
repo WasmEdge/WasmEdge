@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/spec/spectest.cpp - Wasm test suites --------------------===//
+//===-- wasmedge/test/spec/spectest.cpp - Wasm test suites ----------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -34,7 +34,7 @@
 namespace {
 
 using namespace std::literals;
-using namespace SSVM;
+using namespace WasmEdge;
 
 /// Preprocessing for set up aliasing.
 void resolveRegister(std::map<std::string, std::string> &Alias,
@@ -88,10 +88,10 @@ SpecTest::CommandID resolveCommand(std::string_view Name) {
 }
 
 /// Helper function to parse parameters from json to vector of value.
-std::pair<std::vector<SSVM::ValVariant>, std::vector<SSVM::ValType>>
+std::pair<std::vector<WasmEdge::ValVariant>, std::vector<WasmEdge::ValType>>
 parseValueList(const rapidjson::Value &Args) {
-  std::vector<SSVM::ValVariant> Result;
-  std::vector<SSVM::ValType> ResultTypes;
+  std::vector<WasmEdge::ValVariant> Result;
+  std::vector<WasmEdge::ValType> ResultTypes;
   Result.reserve(Args.Size());
   ResultTypes.reserve(Args.Size());
   for (const auto &Element : Args.GetArray()) {
@@ -101,38 +101,40 @@ parseValueList(const rapidjson::Value &Args) {
       const auto &Value = ValueNode.Get<std::string>();
       if (Type == "externref"sv) {
         if (Value == "null"sv) {
-          Result.emplace_back(SSVM::genNullRef(SSVM::RefType::ExternRef));
+          Result.emplace_back(
+              WasmEdge::genNullRef(WasmEdge::RefType::ExternRef));
         } else {
           /// Add 0x1 uint32_t prefix in this externref index case.
-          Result.emplace_back(SSVM::genExternRef(reinterpret_cast<uint32_t *>(
-              std::stoul(Value) + 0x100000000ULL)));
+          Result.emplace_back(
+              WasmEdge::genExternRef(reinterpret_cast<uint32_t *>(
+                  std::stoul(Value) + 0x100000000ULL)));
         }
-        ResultTypes.emplace_back(SSVM::ValType::ExternRef);
+        ResultTypes.emplace_back(WasmEdge::ValType::ExternRef);
       } else if (Type == "funcref"sv) {
         if (Value == "null"sv) {
-          Result.emplace_back(SSVM::genNullRef(SSVM::RefType::FuncRef));
+          Result.emplace_back(WasmEdge::genNullRef(WasmEdge::RefType::FuncRef));
         } else {
           Result.emplace_back(
-              SSVM::genFuncRef(static_cast<uint32_t>(std::stoul(Value))));
+              WasmEdge::genFuncRef(static_cast<uint32_t>(std::stoul(Value))));
         }
-        ResultTypes.emplace_back(SSVM::ValType::FuncRef);
+        ResultTypes.emplace_back(WasmEdge::ValType::FuncRef);
       } else if (Type == "i32"sv) {
         Result.emplace_back(static_cast<uint32_t>(std::stoul(Value)));
-        ResultTypes.emplace_back(SSVM::ValType::I32);
+        ResultTypes.emplace_back(WasmEdge::ValType::I32);
       } else if (Type == "f32"sv) {
         Result.emplace_back(static_cast<uint32_t>(std::stoul(Value)));
-        ResultTypes.emplace_back(SSVM::ValType::F32);
+        ResultTypes.emplace_back(WasmEdge::ValType::F32);
       } else if (Type == "i64"sv) {
         Result.emplace_back(static_cast<uint64_t>(std::stoull(Value)));
-        ResultTypes.emplace_back(SSVM::ValType::I64);
+        ResultTypes.emplace_back(WasmEdge::ValType::I64);
       } else if (Type == "f64"sv) {
         Result.emplace_back(static_cast<uint64_t>(std::stoull(Value)));
-        ResultTypes.emplace_back(SSVM::ValType::F64);
+        ResultTypes.emplace_back(WasmEdge::ValType::F64);
       } else {
         assert(false);
       }
     } else if (ValueNode.IsArray()) {
-      SSVM::uint64x2_t I64x2;
+      WasmEdge::uint64x2_t I64x2;
       const auto LaneType = Element["lane_type"].Get<std::string>();
       if (LaneType == "i64"sv || LaneType == "f64"sv) {
         for (size_t I = 0; I < 2; ++I) {
@@ -144,24 +146,24 @@ parseValueList(const rapidjson::Value &Args) {
         for (size_t I = 0; I < 4; ++I) {
           I32x4[I] = std::stoul(ValueNode[I].Get<std::string>());
         }
-        I64x2 = reinterpret_cast<SSVM::uint64x2_t>(I32x4);
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I32x4);
       } else if (LaneType == "i16"sv) {
         using uint16x8_t = uint16_t __attribute__((vector_size(16)));
         uint16x8_t I16x8;
         for (size_t I = 0; I < 8; ++I) {
           I16x8[I] = std::stoul(ValueNode[I].Get<std::string>());
         }
-        I64x2 = reinterpret_cast<SSVM::uint64x2_t>(I16x8);
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I16x8);
       } else if (LaneType == "i8"sv) {
         using uint8x16_t = uint8_t __attribute__((vector_size(16)));
         uint8x16_t I8x16;
         for (size_t I = 0; I < 16; ++I) {
           I8x16[I] = std::stoul(ValueNode[I].Get<std::string>());
         }
-        I64x2 = reinterpret_cast<SSVM::uint64x2_t>(I8x16);
+        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I8x16);
       }
       Result.emplace_back(I64x2);
-      ResultTypes.emplace_back(SSVM::ValType::V128);
+      ResultTypes.emplace_back(WasmEdge::ValType::V128);
     } else {
       assert(false);
     }
@@ -197,16 +199,16 @@ parseExpectedList(const rapidjson::Value &Args) {
 
 struct TestsuiteProposal {
   std::string_view Path;
-  SSVM::Configure Conf;
+  WasmEdge::Configure Conf;
 };
 static const TestsuiteProposal TestsuiteProposals[] = {
     {"core"sv, {}},
-    {"simd"sv, {SSVM::Proposal::SIMD}},
+    {"simd"sv, {WasmEdge::Proposal::SIMD}},
 };
 
 } // namespace
 
-namespace SSVM {
+namespace WasmEdge {
 
 std::vector<std::string> SpecTest::enumerate() const {
   std::vector<std::string> Cases;
@@ -227,7 +229,7 @@ std::vector<std::string> SpecTest::enumerate() const {
   return Cases;
 }
 
-std::tuple<std::string_view, SSVM::Configure, std::string>
+std::tuple<std::string_view, WasmEdge::Configure, std::string>
 SpecTest::resolve(std::string_view Params) const {
   const auto Pos = Params.find_last_of(' ');
   const std::string_view ProposalPath = Params.substr(0, Pos);
@@ -236,7 +238,7 @@ SpecTest::resolve(std::string_view Params) const {
                                       [&ProposalPath](const auto Proposal) {
                                         return Proposal.Path == ProposalPath;
                                       });
-  return std::tuple<std::string_view, SSVM::Configure, std::string>{
+  return std::tuple<std::string_view, WasmEdge::Configure, std::string>{
       Proposal.Path, Proposal.Conf, Params.substr(Pos + 1)};
 }
 
@@ -266,12 +268,12 @@ bool SpecTest::compare(
     } else if (Type == "funcref"sv) {
       /// Handle reference value case
       if (E == "null"sv) {
-        return SSVM::isNullRef(G);
+        return WasmEdge::isNullRef(G);
       } else {
-        if (SSVM::isNullRef(G)) {
+        if (WasmEdge::isNullRef(G)) {
           return false;
         }
-        uint32_t V1 = SSVM::retrieveFuncIdx(G);
+        uint32_t V1 = WasmEdge::retrieveFuncIdx(G);
         uint32_t V2 = static_cast<uint32_t>(std::stoul(E));
         if (V1 != V2) {
           return false;
@@ -280,15 +282,15 @@ bool SpecTest::compare(
     } else if (Type == "externref"sv) {
       /// Handle reference value case
       if (E == "null"sv) {
-        return SSVM::isNullRef(G);
+        return WasmEdge::isNullRef(G);
       } else {
-        if (SSVM::isNullRef(G)) {
+        if (WasmEdge::isNullRef(G)) {
           return false;
         }
         /// The added 0x1 uint32_t prefix in externref index case will be
         /// discarded
-        uint32_t V1 = static_cast<uint32_t>(
-            reinterpret_cast<uintptr_t>(&SSVM::retrieveExternRef<uint32_t>(G)));
+        uint32_t V1 = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
+            &WasmEdge::retrieveExternRef<uint32_t>(G)));
         uint32_t V2 = static_cast<uint32_t>(std::stoul(E));
         if (V1 != V2) {
           return false;
@@ -483,7 +485,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       EXPECT_TRUE(false);
     } else {
       /// Check value.
-      EXPECT_TRUE(stringContains(Text, SSVM::ErrCodeStr[Res.error()]));
+      EXPECT_TRUE(stringContains(Text, WasmEdge::ErrCodeStr[Res.error()]));
     }
   };
   auto TrapValidate = [&](const std::string &Filename,
@@ -491,7 +493,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     if (auto Res = onValidate(Filename); Res) {
       EXPECT_TRUE(false);
     } else {
-      EXPECT_TRUE(stringContains(Text, SSVM::ErrCodeStr[Res.error()]));
+      EXPECT_TRUE(stringContains(Text, WasmEdge::ErrCodeStr[Res.error()]));
     }
   };
   auto TrapInstantiate = [&](const std::string &Filename,
@@ -499,7 +501,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     if (auto Res = onInstantiate(Filename); Res) {
       EXPECT_TRUE(false);
     } else {
-      EXPECT_TRUE(stringContains(Text, SSVM::ErrCodeStr[Res.error()]));
+      EXPECT_TRUE(stringContains(Text, WasmEdge::ErrCodeStr[Res.error()]));
     }
   };
 
@@ -561,7 +563,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         return;
       }
       case CommandID::AssertMalformed: {
-        /// TODO: Wat is not supported in SSVM yet.
+        /// TODO: Wat is not supported in WasmEdge yet.
         /// TODO: Add processing binary cases.
         return;
       }
@@ -605,4 +607,4 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
   }
 }
 
-} // namespace SSVM
+} // namespace WasmEdge

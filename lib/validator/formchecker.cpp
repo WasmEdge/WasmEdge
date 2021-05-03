@@ -9,7 +9,7 @@ template <typename... Ts> struct overloaded : Ts... {
 template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 } // namespace
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Validator {
 
 void FormChecker::reset(bool CleanGlobal) {
@@ -1403,4 +1403,4 @@ FormChecker::resolveBlockType(std::vector<VType> &Buffer, BlockType Type) {
 }
 
 } // namespace Validator
-} // namespace SSVM
+} // namespace WasmEdge

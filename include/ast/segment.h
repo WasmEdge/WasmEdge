@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/segment.h - segment classes definition -------------------===//
+//===-- wasmedge/ast/segment.h - segment classes definition ---------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -22,7 +22,7 @@
 #include "instruction.h"
 #include "type.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AST {
 
 /// Segment's base class.
@@ -40,7 +40,7 @@ protected:
   /// Create the expression node and read data.
   ///
   /// \param Mgr the file manager reference.
-  /// \param Conf the SSVM configuration reference.
+  /// \param Conf the WasmEdge configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadExpression(FileMgr &Mgr, const Configure &Conf);
@@ -58,7 +58,7 @@ public:
   /// Read the global type and expression.
   ///
   /// \param Mgr the file manager reference.
-  /// \param Conf the SSVM configuration reference.
+  /// \param Conf the WasmEdge configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
@@ -85,7 +85,7 @@ public:
   /// Read the table index, expression, and function indices.
   ///
   /// \param Mgr the file manager reference.
-  /// \param Conf the SSVM configuration reference.
+  /// \param Conf the WasmEdge configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
@@ -127,7 +127,7 @@ public:
   /// Read the segment size, locals, and function body.
   ///
   /// \param Mgr the file manager reference.
-  /// \param Conf the SSVM configuration reference.
+  /// \param Conf the WasmEdge configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
@@ -162,7 +162,7 @@ public:
   /// Read the memory index, offset expression, and initialization data.
   ///
   /// \param Mgr the file manager reference.
-  /// \param Conf the SSVM configuration reference.
+  /// \param Conf the WasmEdge configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
@@ -192,4 +192,4 @@ private:
 };
 
 } // namespace AST
-} // namespace SSVM
+} // namespace WasmEdge

@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_library(ssvmValidator
+add_library(wasmedgeValidator
   formchecker.cpp
   validator.cpp
 )
 
-target_link_libraries(ssvmValidator
+target_link_libraries(wasmedgeValidator
   PRIVATE
-  ssvmCommon
+  wasmedgeCommon
 )
 
-target_include_directories(ssvmValidator
+target_include_directories(wasmedgeValidator
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty

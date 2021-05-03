@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/api/helper.cpp - Spec test helpers for C API ------------===//
+//===-- wasmedge/test/api/helper.cpp - Spec test helpers for C API --------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -14,7 +14,7 @@
 
 #include "helper.h"
 
-namespace SSVM {
+namespace WasmEdge {
 
 static Proposal ProposalList[] = {Proposal::Annotations,
                                   Proposal::BulkMemoryOperations,
@@ -26,32 +26,36 @@ static Proposal ProposalList[] = {Proposal::Annotations,
                                   Proposal::TailCall,
                                   Proposal::Threads};
 
-SSVM_ConfigureContext *createConf(const Configure &Conf) {
-  auto *Cxt = SSVM_ConfigureCreate();
+WasmEdge_ConfigureContext *createConf(const Configure &Conf) {
+  auto *Cxt = WasmEdge_ConfigureCreate();
   for (auto &I : ProposalList) {
     if (Conf.hasProposal(I)) {
-      SSVM_ConfigureAddProposal(Cxt, static_cast<SSVM_Proposal>(I));
+      WasmEdge_ConfigureAddProposal(Cxt, static_cast<WasmEdge_Proposal>(I));
     }
   }
   return Cxt;
 }
 
-ErrCode convResult(SSVM_Result Res) { return static_cast<ErrCode>(Res.Code); }
+ErrCode convResult(WasmEdge_Result Res) {
+  return static_cast<ErrCode>(Res.Code);
+}
 
-std::vector<ValVariant> convToValVec(const std::vector<SSVM_Value> &CVals) {
+std::vector<ValVariant> convToValVec(const std::vector<WasmEdge_Value> &CVals) {
   std::vector<ValVariant> Vals(CVals.size());
-  std::transform(CVals.cbegin(), CVals.cend(), Vals.begin(),
-                 [](const SSVM_Value &Val) { return ValVariant(Val.Value); });
+  std::transform(
+      CVals.cbegin(), CVals.cend(), Vals.begin(),
+      [](const WasmEdge_Value &Val) { return ValVariant(Val.Value); });
   return Vals;
 }
-std::vector<SSVM_Value> convFromValVec(const std::vector<ValVariant> &Vals,
-                                       const std::vector<ValType> &Types) {
-  std::vector<SSVM_Value> CVals(Vals.size());
+std::vector<WasmEdge_Value> convFromValVec(const std::vector<ValVariant> &Vals,
+                                           const std::vector<ValType> &Types) {
+  std::vector<WasmEdge_Value> CVals(Vals.size());
   for (uint32_t I = 0; I < Vals.size(); I++) {
-    CVals[I] = SSVM_Value{.Value = retrieveValue<unsigned __int128>(Vals[I]),
-                          .Type = static_cast<SSVM_ValType>(Types[I])};
+    CVals[I] =
+        WasmEdge_Value{.Value = retrieveValue<unsigned __int128>(Vals[I]),
+                       .Type = static_cast<WasmEdge_ValType>(Types[I])};
   }
   return CVals;
 }
 
-} // namespace SSVM
+} // namespace WasmEdge

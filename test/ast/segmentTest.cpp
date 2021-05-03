@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/ast/segmentTest.cpp - AST segment unit tests ------------===//
+//===-- wasmedge/test/ast/segmentTest.cpp - AST segment unit tests --------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -17,8 +17,8 @@
 
 namespace {
 
-SSVM::FileMgrVector Mgr;
-SSVM::Configure Conf;
+WasmEdge::FileMgrVector Mgr;
+WasmEdge::Configure Conf;
 
 TEST(SegmentTest, LoadGlobalSegment) {
   /// 1. Test load global segment.
@@ -27,7 +27,7 @@ TEST(SegmentTest, LoadGlobalSegment) {
   ///   2.  Load global segment with expression of only End operation.
   ///   3.  Load global segment with non-empty expression.
   Mgr.clearBuffer();
-  SSVM::AST::GlobalSegment Seg1;
+  WasmEdge::AST::GlobalSegment Seg1;
   EXPECT_FALSE(Seg1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -36,7 +36,7 @@ TEST(SegmentTest, LoadGlobalSegment) {
       0x0BU        /// Expression.
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::GlobalSegment Seg2;
+  WasmEdge::AST::GlobalSegment Seg2;
   EXPECT_TRUE(Seg2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -45,7 +45,7 @@ TEST(SegmentTest, LoadGlobalSegment) {
       0x45U, 0x46U, 0x47U, 0x0BU /// Expression
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::GlobalSegment Seg3;
+  WasmEdge::AST::GlobalSegment Seg3;
   EXPECT_TRUE(Seg3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -58,7 +58,7 @@ TEST(SegmentTest, LoadElementSegment) {
   ///   3.  Load element segment with expression and function indices list.
   /// TODO: Add prefix 0x01 ~ 0x07 tests.
   Mgr.clearBuffer();
-  SSVM::AST::ElementSegment Seg1;
+  WasmEdge::AST::ElementSegment Seg1;
   EXPECT_FALSE(Seg1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -68,7 +68,7 @@ TEST(SegmentTest, LoadElementSegment) {
       0x00U  /// Function indices list
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::ElementSegment Seg2;
+  WasmEdge::AST::ElementSegment Seg2;
   EXPECT_TRUE(Seg2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -81,7 +81,7 @@ TEST(SegmentTest, LoadElementSegment) {
       0xB9U, 0x60U                       /// vec[2]
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::ElementSegment Seg3;
+  WasmEdge::AST::ElementSegment Seg3;
   EXPECT_TRUE(Seg3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -94,7 +94,7 @@ TEST(SegmentTest, LoadCodeSegment) {
   ///       operation.
   ///   4.  Load code segment with expression and local lists.
   Mgr.clearBuffer();
-  SSVM::AST::CodeSegment Seg1;
+  WasmEdge::AST::CodeSegment Seg1;
   EXPECT_FALSE(Seg1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -102,7 +102,7 @@ TEST(SegmentTest, LoadCodeSegment) {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Code segment size
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::CodeSegment Seg2;
+  WasmEdge::AST::CodeSegment Seg2;
   EXPECT_FALSE(Seg2.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -112,7 +112,7 @@ TEST(SegmentTest, LoadCodeSegment) {
       0x0BU                              /// Expression
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::CodeSegment Seg3;
+  WasmEdge::AST::CodeSegment Seg3;
   EXPECT_TRUE(Seg3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -126,7 +126,7 @@ TEST(SegmentTest, LoadCodeSegment) {
       0x45U, 0x46U, 0x47U, 0x0BU                /// Expression
   };
   Mgr.setCode(Vec4);
-  SSVM::AST::CodeSegment Seg4;
+  WasmEdge::AST::CodeSegment Seg4;
   EXPECT_TRUE(Seg4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
@@ -139,7 +139,7 @@ TEST(SegmentTest, LoadDataSegment) {
   ///   3.  Load data segment with expression and initialization data.
   /// TODO: Add prefix 0x01 and 0x02 tests.
   Mgr.clearBuffer();
-  SSVM::AST::DataSegment Seg1;
+  WasmEdge::AST::DataSegment Seg1;
   EXPECT_FALSE(Seg1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -149,7 +149,7 @@ TEST(SegmentTest, LoadDataSegment) {
       0x00U  /// Vector length = 0
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::DataSegment Seg2;
+  WasmEdge::AST::DataSegment Seg2;
   EXPECT_TRUE(Seg2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -159,7 +159,7 @@ TEST(SegmentTest, LoadDataSegment) {
       0x04U, 0x74U, 0x65U, 0x73U, 0x74U /// Vector length = 4, "test"
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::DataSegment Seg3;
+  WasmEdge::AST::DataSegment Seg3;
   EXPECT_TRUE(Seg3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 

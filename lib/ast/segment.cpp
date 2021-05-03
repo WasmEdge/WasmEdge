@@ -2,7 +2,7 @@
 #include "ast/segment.h"
 #include "common/log.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AST {
 
 /// Load expression binary in segment. See "include/ast/segment.h".
@@ -323,4 +323,4 @@ Expect<void> DataSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 }
 
 } // namespace AST
-} // namespace SSVM
+} // namespace WasmEdge

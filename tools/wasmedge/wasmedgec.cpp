@@ -9,11 +9,11 @@
 #include <iostream>
 
 int main(int Argc, const char *Argv[]) {
-  namespace PO = SSVM::PO;
+  namespace PO = WasmEdge::PO;
   using namespace std::literals;
 
   std::ios::sync_with_stdio(false);
-  SSVM::Log::setErrorLoggingLevel();
+  WasmEdge::Log::setErrorLoggingLevel();
 
   PO::Option<std::string> WasmName(PO::Description("Wasm file"sv),
                                    PO::MetaVar("WASM"sv));
@@ -50,31 +50,31 @@ int main(int Argc, const char *Argv[]) {
     return EXIT_FAILURE;
   }
   if (Parser.isVersion()) {
-    std::cout << Argv[0] << " version "sv << SSVM::kVersionString << '\n';
+    std::cout << Argv[0] << " version "sv << WasmEdge::kVersionString << '\n';
     return EXIT_SUCCESS;
   }
 
-  SSVM::Configure Conf;
+  WasmEdge::Configure Conf;
   if (BulkMemoryOperations.value()) {
-    Conf.removeProposal(SSVM::Proposal::BulkMemoryOperations);
+    Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
   }
   if (ReferenceTypes.value()) {
-    Conf.removeProposal(SSVM::Proposal::ReferenceTypes);
+    Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
   }
   if (SIMD.value()) {
-    Conf.addProposal(SSVM::Proposal::SIMD);
+    Conf.addProposal(WasmEdge::Proposal::SIMD);
   }
   if (All.value()) {
-    Conf.addProposal(SSVM::Proposal::BulkMemoryOperations);
-    Conf.addProposal(SSVM::Proposal::ReferenceTypes);
-    Conf.addProposal(SSVM::Proposal::SIMD);
+    Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
+    Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+    Conf.addProposal(WasmEdge::Proposal::SIMD);
   }
 
   std::filesystem::path InputPath = std::filesystem::absolute(WasmName.value());
   std::filesystem::path OutputPath = std::filesystem::absolute(SoName.value());
-  SSVM::Loader::Loader Loader(Conf);
+  WasmEdge::Loader::Loader Loader(Conf);
 
-  std::vector<SSVM::Byte> Data;
+  std::vector<WasmEdge::Byte> Data;
   if (auto Res = Loader.loadFile(InputPath)) {
     Data = std::move(*Res);
   } else {
@@ -83,7 +83,7 @@ int main(int Argc, const char *Argv[]) {
     return EXIT_FAILURE;
   }
 
-  std::unique_ptr<SSVM::AST::Module> Module;
+  std::unique_ptr<WasmEdge::AST::Module> Module;
   if (auto Res = Loader.parseModule(Data)) {
     Module = std::move(*Res);
   } else {
@@ -93,7 +93,7 @@ int main(int Argc, const char *Argv[]) {
   }
 
   {
-    SSVM::Validator::Validator ValidatorEngine(Conf);
+    WasmEdge::Validator::Validator ValidatorEngine(Conf);
     if (auto Res = ValidatorEngine.validate(*Module); !Res) {
       const auto Err = static_cast<uint32_t>(Res.error());
       std::cout << "Validate failed. Error code:" << Err << std::endl;
@@ -102,7 +102,7 @@ int main(int Argc, const char *Argv[]) {
   }
 
   {
-    SSVM::AOT::Compiler Compiler;
+    WasmEdge::AOT::Compiler Compiler;
     if (DumpIR.value()) {
       Compiler.setDumpIR();
     }

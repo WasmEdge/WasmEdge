@@ -5,7 +5,7 @@
 #include "runtime/hostfunc.h"
 #include "wasienv.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Host {
 
 template <typename T> class Wasi : public Runtime::HostFunction<T> {
@@ -17,4 +17,4 @@ protected:
 };
 
 } // namespace Host
-} // namespace SSVM
+} // namespace WasmEdge

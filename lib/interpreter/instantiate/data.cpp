@@ -5,7 +5,7 @@
 #include "runtime/instance/memory.h"
 #include "runtime/instance/module.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 /// Instantiate data instance. See "include/interpreter/interpreter.h".
@@ -94,4 +94,4 @@ Expect<void> Interpreter::initMemory(Runtime::StoreManager &StoreMgr,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

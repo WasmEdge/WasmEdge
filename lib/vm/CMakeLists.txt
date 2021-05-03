@@ -1,21 +1,21 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_library(ssvmVM
+add_library(wasmedgeVM
   vm.cpp
 )
 
-target_link_libraries(ssvmVM
+target_link_libraries(wasmedgeVM
   PUBLIC
-  ssvmCommon
-  ssvmAST
-  ssvmLoader
-  ssvmValidator
-  ssvmInterpreter
-  ssvmHostModuleWasi
-  ssvmHostModuleSSVMProcess
+  wasmedgeCommon
+  wasmedgeAST
+  wasmedgeLoader
+  wasmedgeValidator
+  wasmedgeInterpreter
+  wasmedgeHostModuleWasi
+  wasmedgeHostModuleWasmEdgeProcess
 )
 
-target_include_directories(ssvmVM
+target_include_directories(wasmedgeVM
   PUBLIC
   ${Boost_INCLUDE_DIRS}
   ${PROJECT_SOURCE_DIR}/include

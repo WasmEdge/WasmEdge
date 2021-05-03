@@ -4,7 +4,7 @@
 #include "interpreter/interpreter.h"
 #include <cmath>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 template <typename T> TypeU<T> Interpreter::runClzOp(ValVariant &Val) const {
@@ -85,7 +85,7 @@ template <typename T> TypeF<T> Interpreter::runTruncOp(ValVariant &Val) const {
 
 template <typename T>
 TypeF<T> Interpreter::runNearestOp(ValVariant &Val) const {
-  Val = SSVM::roundeven(T(retrieveValue<T>(Val)));
+  Val = WasmEdge::roundeven(T(retrieveValue<T>(Val)));
   return {};
 }
 
@@ -407,13 +407,13 @@ Expect<void> Interpreter::runVectorNearestOp(ValVariant &Val) const {
   using VT [[gnu::vector_size(16)]] = T;
   VT &Result = retrieveValue<VT>(Val);
   if constexpr (sizeof(T) == 4) {
-    Result = VT{SSVM::roundeven(Result[0]), SSVM::roundeven(Result[1]),
-                SSVM::roundeven(Result[2]), SSVM::roundeven(Result[3])};
+    Result = VT{WasmEdge::roundeven(Result[0]), WasmEdge::roundeven(Result[1]),
+                WasmEdge::roundeven(Result[2]), WasmEdge::roundeven(Result[3])};
   } else if constexpr (sizeof(T) == 8) {
-    Result = VT{SSVM::roundeven(Result[0]), SSVM::roundeven(Result[1])};
+    Result = VT{WasmEdge::roundeven(Result[0]), WasmEdge::roundeven(Result[1])};
   }
   return {};
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

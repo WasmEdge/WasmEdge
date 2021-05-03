@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/interpreter/interpreter.h - Interpreter class definition -----===//
+//===-- wasmedge/interpreter/interpreter.h - Interpreter class definition -===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -29,7 +29,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 namespace {
@@ -559,7 +559,7 @@ private:
 private:
   /// Instantiation mode enumeration class
   enum class InstantiateMode : uint8_t { Instantiate = 0, ImportWasm };
-  /// SSVM configuration
+  /// WasmEdge configuration
   const Configure Conf;
   /// Instantiation mode
   InstantiateMode InsMode;
@@ -570,7 +570,7 @@ private:
 };
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge
 
 #include "engine/binary_numeric.ipp"
 #include "engine/cast_numeric.ipp"

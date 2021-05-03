@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/core/coreTest.cpp - Wasm test suites --------------------===//
+//===-- wasmedge/test/core/coreTest.cpp - Wasm test suites ----------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -29,7 +29,7 @@
 namespace {
 
 using namespace std::literals;
-using namespace SSVM;
+using namespace WasmEdge;
 static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
 
 /// Parameterized testing class.
@@ -37,8 +37,8 @@ class CoreTest : public testing::TestWithParam<std::string> {};
 
 TEST_P(CoreTest, TestSuites) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
-  SSVM::VM::VM VM(Conf);
-  SSVM::SpecTestModule SpecTestMod;
+  WasmEdge::VM::VM VM(Conf);
+  WasmEdge::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);
   T.onModule = [&VM](const std::string &ModName,
                      const std::string &Filename) -> Expect<void> {
@@ -78,7 +78,7 @@ TEST_P(CoreTest, TestSuites) {
                   const std::string &Field) -> Expect<std::vector<ValVariant>> {
     /// Get module instance.
     auto &Store = VM.getStoreManager();
-    SSVM::Runtime::Instance::ModuleInstance *ModInst = nullptr;
+    WasmEdge::Runtime::Instance::ModuleInstance *ModInst = nullptr;
     if (ModName.empty()) {
       ModInst = *Store.getActiveModule();
     } else {
@@ -97,7 +97,7 @@ TEST_P(CoreTest, TestSuites) {
     uint32_t GlobAddr = Globs.find(Field)->second;
     auto *GlobInst = *Store.getGlobal(GlobAddr);
 
-    return std::vector<SSVM::ValVariant>{GlobInst->getValue()};
+    return std::vector<WasmEdge::ValVariant>{GlobInst->getValue()};
   };
 
   T.run(Proposal, UnitName);
@@ -108,7 +108,7 @@ INSTANTIATE_TEST_SUITE_P(TestUnit, CoreTest, testing::ValuesIn(T.enumerate()));
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {
-  SSVM::Log::setErrorLoggingLevel();
+  WasmEdge::Log::setErrorLoggingLevel();
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

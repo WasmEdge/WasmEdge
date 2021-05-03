@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/runtime/stackmgr.h - Stack Manager definition ----------------===//
+//===-- wasmedge/runtime/stackmgr.h - Stack Manager definition ------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -19,7 +19,7 @@
 #include "common/span.h"
 #include "common/value.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Runtime {
 
 class StackManager {
@@ -179,4 +179,4 @@ private:
 };
 
 } // namespace Runtime
-} // namespace SSVM
+} // namespace WasmEdge

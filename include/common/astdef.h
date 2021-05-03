@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/astdef.h - AST enumeration definition -----------------===//
+//===-- wasmedge/common/astdef.h - AST enumeration definition -------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -16,7 +16,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace SSVM {
+namespace WasmEdge {
 
 /// AST node attributes enumeration class.
 enum class ASTNodeAttr : uint8_t {
@@ -1046,4 +1046,4 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::F32x4__demote_f64x2_zero, "f32x4.demote_f64x2_zero"},
     {OpCode::F64x2__promote_low_f32x4, "f64x2.promote_low_f32x4"}};
 
-} // namespace SSVM
+} // namespace WasmEdge

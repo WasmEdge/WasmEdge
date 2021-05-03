@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/ast/expressionTest.cpp - AST expression unit tests ------===//
+//===-- wasmedge/test/ast/expressionTest.cpp - AST expression unit tests---===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -16,8 +16,8 @@
 
 namespace {
 
-SSVM::FileMgrVector Mgr;
-SSVM::Configure Conf;
+WasmEdge::FileMgrVector Mgr;
+WasmEdge::Configure Conf;
 
 TEST(ExpressionTest, LoadExpression) {
   /// 1. Test load limit.
@@ -27,7 +27,7 @@ TEST(ExpressionTest, LoadExpression) {
   ///   3.  Load expression with invalid operations.
   ///   4.  Load expression with instructions.
   Mgr.clearBuffer();
-  SSVM::AST::Expression Exp1;
+  WasmEdge::AST::Expression Exp1;
   EXPECT_FALSE(Exp1.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -35,7 +35,7 @@ TEST(ExpressionTest, LoadExpression) {
       0x0BU /// OpCode End.
   };
   Mgr.setCode(Vec2);
-  SSVM::AST::Expression Exp2;
+  WasmEdge::AST::Expression Exp2;
   EXPECT_TRUE(Exp2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
   Mgr.clearBuffer();
@@ -45,7 +45,7 @@ TEST(ExpressionTest, LoadExpression) {
       0x0BU                /// OpCode End.
   };
   Mgr.setCode(Vec3);
-  SSVM::AST::Expression Exp3;
+  WasmEdge::AST::Expression Exp3;
   EXPECT_FALSE(Exp3.loadBinary(Mgr, Conf));
 
   Mgr.clearBuffer();
@@ -54,7 +54,7 @@ TEST(ExpressionTest, LoadExpression) {
       0x0BU                /// OpCode End.
   };
   Mgr.setCode(Vec4);
-  SSVM::AST::Expression Exp4;
+  WasmEdge::AST::Expression Exp4;
   EXPECT_TRUE(Exp4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 

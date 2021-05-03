@@ -1,42 +1,42 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_library(ssvmLoaderFileMgr
+add_library(wasmedgeLoaderFileMgr
   filemgr.cpp
   ldmgr.cpp
   shared_library.cpp
 )
 
-target_link_libraries(ssvmLoaderFileMgr
+target_link_libraries(wasmedgeLoaderFileMgr
   PUBLIC
   dl
   std::filesystem
 )
 
-target_link_libraries(ssvmLoaderFileMgr
+target_link_libraries(wasmedgeLoaderFileMgr
   PRIVATE
-  ssvmCommon
+  wasmedgeCommon
 )
 
-target_include_directories(ssvmLoaderFileMgr
+target_include_directories(wasmedgeLoaderFileMgr
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty
 )
 
-add_library(ssvmLoader
+add_library(wasmedgeLoader
   loader.cpp
 )
 
-target_link_libraries(ssvmLoader
+target_link_libraries(wasmedgeLoader
   PRIVATE
-  ssvmAST
-  ssvmLoaderFileMgr
-  ssvmCommon
+  wasmedgeAST
+  wasmedgeLoaderFileMgr
+  wasmedgeCommon
   PUBLIC
   std::filesystem
 )
 
-target_include_directories(ssvmLoader
+target_include_directories(wasmedgeLoader
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty

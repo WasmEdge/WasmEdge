@@ -1,5 +1,5 @@
 #!/bin/sh
 set -e
 if which update-binfmts >/dev/null; then
- update-binfmts --package ssvm --remove ssvm /usr/bin/ssvm-static
+ update-binfmts --package wasmedge --remove wasmedge /usr/bin/wasmedge-static
 fi

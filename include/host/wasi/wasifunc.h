@@ -97,7 +97,7 @@ struct itimerspec {
 #define timer_delete(...) ((uint32_t)0)
 #endif
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Host {
 
 class WasiArgsGet : public Wasi<WasiArgsGet> {
@@ -473,4 +473,4 @@ public:
 };
 
 } // namespace Host
-} // namespace SSVM
+} // namespace WasmEdge

@@ -34,7 +34,7 @@ static inline constexpr const __wasi_rights_t kStdOutRights =
 static inline constexpr const __wasi_rights_t kStdErrRights = kStdOutRights;
 } // namespace
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Host {
 
 WasiEnvironment::WasiEnvironment() {}
@@ -94,4 +94,4 @@ void WasiEnvironment::init(Span<const std::string> Dirs,
 }
 
 } // namespace Host
-} // namespace SSVM
+} // namespace WasmEdge

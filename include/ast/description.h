@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/description.h - Desc classes definition ------------------===//
+//===-- wasmedge/ast/description.h - Desc classes definition --------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -20,7 +20,7 @@
 #include "base.h"
 #include "type.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AST {
 
 /// Base class of Desc node.
@@ -44,7 +44,7 @@ public:
   /// content.
   ///
   /// \param Mgr the file manager reference.
-  /// \param Conf the SSVM configuration reference.
+  /// \param Conf the WasmEdge configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
@@ -84,7 +84,7 @@ public:
   /// Read the export name, external type, and corresponding external index.
   ///
   /// \param Mgr the file manager reference.
-  /// \param Conf the SSVM configuration reference.
+  /// \param Conf the WasmEdge configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
@@ -107,4 +107,4 @@ private:
 };
 
 } // namespace AST
-} // namespace SSVM
+} // namespace WasmEdge

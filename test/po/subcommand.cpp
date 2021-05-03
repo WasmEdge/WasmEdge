@@ -9,7 +9,7 @@
 #include <numeric>
 #include <vector>
 
-using namespace SSVM::PO;
+using namespace WasmEdge::PO;
 using namespace std::literals;
 
 TEST(SubCommands, Simple1) {

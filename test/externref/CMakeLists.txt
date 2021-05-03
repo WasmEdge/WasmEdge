@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_executable(ssvmExternrefTests
+add_executable(wasmedgeExternrefTests
   ExternrefTest.cpp
 )
 
-add_test(ssvmExternrefTests ssvmExternrefTests)
+add_test(wasmedgeExternrefTests wasmedgeExternrefTests)
 
 configure_files(
   ${CMAKE_CURRENT_SOURCE_DIR}/externrefTestData
@@ -12,8 +12,8 @@ configure_files(
   COPYONLY
 )
 
-target_link_libraries(ssvmExternrefTests
+target_link_libraries(wasmedgeExternrefTests
   PRIVATE
   utilGoogleTest
-  ssvmVM
+  wasmedgeVM
 )

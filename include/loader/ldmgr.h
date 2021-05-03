@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/loader/ldmgr.h - Loadable Manager definition -----------------===//
+//===-- wasmedge/loader/ldmgr.h - Loadable Manager definition -------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -21,7 +21,7 @@
 #include <string_view>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 
 /// Loadable manager interface.
 class LDMgr {
@@ -32,7 +32,7 @@ public:
   /// Read embedded Wasm binary.
   Expect<std::vector<Byte>> getWasm();
 
-  /// Read ssvm version.
+  /// Read wasmedge version.
   Expect<uint32_t> getVersion();
 
   /// Get symbol.
@@ -44,4 +44,4 @@ private:
   std::shared_ptr<Loader::SharedLibrary> Library;
 };
 
-} // namespace SSVM
+} // namespace WasmEdge

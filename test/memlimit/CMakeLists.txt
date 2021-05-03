@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_executable(ssvmMemLimitTests
+add_executable(wasmedgeMemLimitTests
   MemLimitTest.cpp
 )
 
-add_test(ssvmMemLimitTests ssvmMemLimitTests)
+add_test(wasmedgeMemLimitTests wasmedgeMemLimitTests)
 
-target_link_libraries(ssvmMemLimitTests
+target_link_libraries(wasmedgeMemLimitTests
   PRIVATE
   utilGoogleTest
-  ssvmVM
+  wasmedgeVM
 )

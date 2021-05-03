@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_library(ssvmInterpreter
+add_library(wasmedgeInterpreter
   instantiate/import.cpp
   instantiate/function.cpp
   instantiate/global.cpp
@@ -20,12 +20,12 @@ add_library(ssvmInterpreter
   interpreter.cpp
 )
 
-target_link_libraries(ssvmInterpreter
+target_link_libraries(wasmedgeInterpreter
   PRIVATE
-  ssvmCommon
+  wasmedgeCommon
 )
 
-target_include_directories(ssvmInterpreter
+target_include_directories(wasmedgeInterpreter
   PUBLIC
   ${Boost_INCLUDE_DIRS}
   ${PROJECT_SOURCE_DIR}/include

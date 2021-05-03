@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/runtime/instance/type.h - Function type definition -----------===//
+//===-- wasmedge/runtime/instance/type.h - Function type definition -------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -18,7 +18,7 @@
 
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
@@ -50,4 +50,4 @@ struct FType {
 
 } // namespace Instance
 } // namespace Runtime
-} // namespace SSVM
+} // namespace WasmEdge

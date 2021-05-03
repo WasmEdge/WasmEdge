@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Host {
 
 class WasiModule : public Runtime::ImportObject {
@@ -20,4 +20,4 @@ private:
 };
 
 } // namespace Host
-} // namespace SSVM
+} // namespace WasmEdge

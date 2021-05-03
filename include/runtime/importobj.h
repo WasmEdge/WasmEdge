@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/runtime/importobj.h - Import object interface ----------------===//
+//===-- wasmedge/runtime/importobj.h - Import object interface ------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -23,7 +23,7 @@
 #include <string>
 #include <string_view>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Runtime {
 
 class ImportObject {
@@ -88,4 +88,4 @@ protected:
 };
 
 } // namespace Runtime
-} // namespace SSVM
+} // namespace WasmEdge

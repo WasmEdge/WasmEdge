@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/runtime/instance/memory.h - Memory Instance definition --=----===//
+//===-- wasmedge/runtime/instance/memory.h - Memory Instance definition ---===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -29,7 +29,7 @@
 #include <linux/mman.h>
 #include <sys/mman.h>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
@@ -378,4 +378,4 @@ private:
 
 } // namespace Instance
 } // namespace Runtime
-} // namespace SSVM
+} // namespace WasmEdge

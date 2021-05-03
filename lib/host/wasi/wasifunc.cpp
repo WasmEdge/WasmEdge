@@ -356,7 +356,7 @@ constexpr const int32_t kIOVSMax = 1024;
 
 } // namespace
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Host {
 
 Expect<uint32_t> WasiArgsGet::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -2688,4 +2688,4 @@ WasiSockShutdown::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
 }
 
 } // namespace Host
-} // namespace SSVM
+} // namespace WasmEdge

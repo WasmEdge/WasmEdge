@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/po/option.h - Option -----------------------------------------===//
+//===-- wasmedge/po/option.h - Option -------------------------------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -14,7 +14,7 @@
 #include <string>
 #include <type_traits>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace PO {
 
 struct Toggle {};
@@ -122,4 +122,4 @@ private:
 };
 
 } // namespace PO
-} // namespace SSVM
+} // namespace WasmEdge

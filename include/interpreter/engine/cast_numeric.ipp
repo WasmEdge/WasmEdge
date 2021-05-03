@@ -6,7 +6,7 @@
 #include <cmath>
 #include <cstring>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 /// Helper for types transform
@@ -166,4 +166,4 @@ TypeNN<TIn, TOut> Interpreter::runReinterpretOp(ValVariant &Val) const {
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

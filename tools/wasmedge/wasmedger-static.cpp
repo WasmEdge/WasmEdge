@@ -12,7 +12,7 @@ int main(int Argc, const char *Argv[], const char *Env[]) {
   using namespace std::literals;
 
   std::ios::sync_with_stdio(false);
-  SSVM::Log::setErrorLoggingLevel();
+  WasmEdge::Log::setErrorLoggingLevel();
 
   /// check Argv[0] is the wasm file
   if (std::filesystem::u8path(Argv[0]).extension() != ".wasm") {
@@ -21,16 +21,17 @@ int main(int Argc, const char *Argv[], const char *Env[]) {
   }
   const auto InputPath =
       std::filesystem::absolute(std::filesystem::u8path(Argv[0]));
-  SSVM::Configure Conf;
-  Conf.addHostRegistration(SSVM::HostRegistration::Wasi);
-  Conf.addHostRegistration(SSVM::HostRegistration::SSVM_Process);
-  Conf.addProposal(SSVM::Proposal::BulkMemoryOperations);
-  Conf.addProposal(SSVM::Proposal::ReferenceTypes);
-  Conf.addProposal(SSVM::Proposal::SIMD);
-  SSVM::VM::VM VM(Conf);
+  WasmEdge::Configure Conf;
+  Conf.addHostRegistration(WasmEdge::HostRegistration::Wasi);
+  Conf.addHostRegistration(WasmEdge::HostRegistration::WasmEdge_Process);
+  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+  Conf.addProposal(WasmEdge::Proposal::SIMD);
+  WasmEdge::VM::VM VM(Conf);
 
-  SSVM::Host::WasiModule *WasiMod = dynamic_cast<SSVM::Host::WasiModule *>(
-      VM.getImportModule(SSVM::HostRegistration::Wasi));
+  WasmEdge::Host::WasiModule *WasiMod =
+      dynamic_cast<WasmEdge::Host::WasiModule *>(
+          VM.getImportModule(WasmEdge::HostRegistration::Wasi));
 
   int Envc = 0;
   for (const char **EnvP = Env; *EnvP != nullptr; ++EnvP) {
@@ -42,7 +43,7 @@ int main(int Argc, const char *Argv[], const char *Env[]) {
 
   // command mode
   if (auto Result = VM.runWasmFile(InputPath.u8string(), "_start");
-      Result || Result.error() == SSVM::ErrCode::Terminated) {
+      Result || Result.error() == WasmEdge::ErrCode::Terminated) {
     return WasiMod->getEnv().getExitCode();
   } else {
     return EXIT_FAILURE;

@@ -7,7 +7,7 @@
 
 /// Error logging of file manager need to be handled in caller.
 
-namespace SSVM {
+namespace WasmEdge {
 
 /// Destructor of file manager. See "include/loader/filemgr.h".
 FileMgrFStream::~FileMgrFStream() noexcept {
@@ -455,4 +455,4 @@ Expect<std::string> FileMgrVector::readName() {
   return Str;
 }
 
-} // namespace SSVM
+} // namespace WasmEdge

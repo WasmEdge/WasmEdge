@@ -5,7 +5,7 @@
 #include "common/value.h"
 #include "interpreter/interpreter.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 Expect<AST::InstrView::iterator>
@@ -280,4 +280,4 @@ Interpreter::getDataInstByIdx(Runtime::StoreManager &StoreMgr,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

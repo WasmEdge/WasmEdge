@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/ast/module.h - Module class definition -----------------------===//
+//===-- wasmedge/ast/module.h - Module class definition -------------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -22,11 +22,11 @@
 #include "base.h"
 #include "section.h"
 
-namespace SSVM::Interpreter {
+namespace WasmEdge::Interpreter {
 class Interpreter;
-} // namespace SSVM::Interpreter
+} // namespace WasmEdge::Interpreter
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AST {
 
 /// AST Module node.
@@ -39,7 +39,7 @@ public:
   /// Read Section indices and create Section nodes.
   ///
   /// \param Mgr the file manager reference.
-  /// \param Conf the SSVM configuration reference.
+  /// \param Conf the WasmEdge configuration reference.
   ///
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
@@ -114,4 +114,4 @@ private:
 };
 
 } // namespace AST
-} // namespace SSVM
+} // namespace WasmEdge

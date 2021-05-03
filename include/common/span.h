@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/span.h - Helper template of std::span -----------------===//
+//===-- wasmedge/common/span.h - Helper template of std::span -------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -12,9 +12,9 @@
 #pragma once
 #include "experimental/span.hpp"
 
-namespace SSVM {
+namespace WasmEdge {
 
 template <typename T, std::size_t N = std::dynamic_extent>
 using Span = std::span<T, N>;
 
-} // namespace SSVM
+} // namespace WasmEdge

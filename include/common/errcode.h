@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/errcode.h - Error code definition ---------------------===//
+//===-- wasmedge/common/errcode.h - Error code definition -----------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the enumerations of SSVM error code and handler.
+/// This file contains the enumerations of WasmEdge error code and handler.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -19,11 +19,11 @@
 #include <string>
 #include <unordered_map>
 
-namespace SSVM {
+namespace WasmEdge {
 
 /// Wasm runtime phasing enumeration class.
 enum class WasmPhase : uint8_t {
-  SSVM = 0x00,
+  WasmEdge = 0x00,
   Loading = 0x01,
   Validation = 0x02,
   Instantiation = 0x03,
@@ -32,7 +32,7 @@ enum class WasmPhase : uint8_t {
 
 /// Wasm runtime phasing enumeration string mapping.
 static inline std::unordered_map<WasmPhase, std::string> WasmPhaseStr = {
-    {WasmPhase::SSVM, "ssvm runtime"},
+    {WasmPhase::WasmEdge, "wasmedge runtime"},
     {WasmPhase::Loading, "loading"},
     {WasmPhase::Validation, "validation"},
     {WasmPhase::Instantiation, "instantiation"},
@@ -122,7 +122,7 @@ enum class ErrCode : uint8_t {
 
 /// Error code enumeration string mapping.
 static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
-    /// SSVM runtime
+    /// WasmEdge runtime
     {ErrCode::Success, "success"},
     {ErrCode::Terminated, "terminated"},
     {ErrCode::CostLimitExceeded, "cost limit exceeded"},
@@ -231,4 +231,4 @@ template <typename T> constexpr auto Unexpect(const Expect<T> &Val) {
   return Unexpected<ErrCode>(Val.error());
 }
 
-} // namespace SSVM
+} // namespace WasmEdge

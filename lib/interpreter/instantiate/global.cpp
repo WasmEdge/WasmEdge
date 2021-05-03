@@ -4,7 +4,7 @@
 #include "interpreter/interpreter.h"
 #include "runtime/instance/module.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 /// Instantiate global instance. See "include/interpreter/interpreter.h".
@@ -41,4 +41,4 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

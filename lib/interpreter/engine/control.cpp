@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 Expect<void> Interpreter::runBlockOp(Runtime::StoreManager &StoreMgr,
@@ -166,4 +166,4 @@ Expect<void> Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

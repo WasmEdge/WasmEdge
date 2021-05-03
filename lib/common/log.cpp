@@ -6,7 +6,7 @@
 
 INITIALIZE_EASYLOGGINGPP
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Log {
 
 void passEasyloggingppArgs(int Argc, char *Argv[]) {
@@ -277,4 +277,4 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoProposal &Rhs) {
 }
 
 } // namespace ErrInfo
-} // namespace SSVM
+} // namespace WasmEdge

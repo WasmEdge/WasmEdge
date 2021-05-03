@@ -2,7 +2,7 @@
 #include "ast/module.h"
 #include "common/log.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AST {
 
 /// Load binary to construct Module node. See "include/ast/module.h".
@@ -173,4 +173,4 @@ Expect<void> Module::loadCompiled(LDMgr &Mgr) {
 }
 
 } // namespace AST
-} // namespace SSVM
+} // namespace WasmEdge

@@ -7,14 +7,14 @@
 SPDXVersion: SPDX-2.1
 DataLicense: CC0-1.0
 SPDXID: SPDXRef-DOCUMENT
-DocumentNamespace: https://secondstate.io/ssvm
+DocumentNamespace: https://wasmedge.org/
 DocumentName: LICENSE.spdx
 
 Creator: Organization: Second State INC (contact@secondstate.io)
 
 ## Package Information
-PackageName: ssvm
-SPDXID: SPDXRef-ssvm
+PackageName: wasmedge
+SPDXID: SPDXRef-wasmedge
 PackageOriginator: Organization: Second State INC (contact@secondstate.io)
 PackageLicenseDeclared: Apache-2.0
 FilesAnalyzed: false
@@ -67,9 +67,9 @@ PackageOriginator: Organization: Second State INC (contact@secondstate.io)
 PackageLicenseDeclared: Apache-2.0
 
 ## Relationships
-Relationship: SPDXRef-ssvm CONTAINS SPDXRef-googletest
-Relationship: SPDXRef-ssvm CONTAINS SPDXRef-wagon
-Relationship: SPDXRef-ssvm CONTAINS SPDXRef-easyloggingpp
-Relationship: SPDXRef-ssvm CONTAINS SPDXRef-rapidjson
-Relationship: SPDXRef-ssvm CONTAINS SPDXRef-blake3
-Relationship: SPDXRef-ssvm CONTAINS SPDXRef-wasi-cpp-header
+Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-googletest
+Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-wagon
+Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-easyloggingpp
+Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-rapidjson
+Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-blake3
+Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-wasi-cpp-header

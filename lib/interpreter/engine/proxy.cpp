@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "interpreter/interpreter.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 Interpreter *Interpreter::This = nullptr;
@@ -352,4 +352,4 @@ Expect<RefVariant> Interpreter::refFunc(Runtime::StoreManager &StoreMgr,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

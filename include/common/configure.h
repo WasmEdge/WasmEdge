@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/configure.h - Configuration class ---------------------===//
+//===-- wasmedge/common/configure.h - Configuration class -----------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -18,10 +18,11 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace SSVM {
+namespace WasmEdge {
 
 /// Wasm Proposal enum class.
-/// This enum is also duplicated to "include/api/ssvm.h" and should be the same.
+/// This enum is also duplicated to "include/api/wasmedge.h" and should be the
+/// same.
 enum class Proposal : uint8_t {
   BulkMemoryOperations = 0,
   ReferenceTypes,
@@ -36,7 +37,7 @@ enum class Proposal : uint8_t {
 };
 
 /// Host Module Registration enum class.
-enum class HostRegistration : uint8_t { Wasi = 0, SSVM_Process, Max };
+enum class HostRegistration : uint8_t { Wasi = 0, WasmEdge_Process, Max };
 
 /// Proposal name enumeration string mapping.
 extern const std::unordered_map<Proposal, std::string_view> ProposalStr;
@@ -87,4 +88,4 @@ private:
   uint32_t MaxMemPage = 65536;
 };
 
-} // namespace SSVM
+} // namespace WasmEdge

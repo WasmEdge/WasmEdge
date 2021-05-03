@@ -3,7 +3,7 @@
 #include "ast/base.h"
 #include "common/log.h"
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AST {
 
 namespace {
@@ -840,4 +840,4 @@ Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const Configure &Conf) {
 }
 
 } // namespace AST
-} // namespace SSVM
+} // namespace WasmEdge

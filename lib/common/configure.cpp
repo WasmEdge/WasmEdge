@@ -1,5 +1,5 @@
 #include "common/configure.h"
-namespace SSVM {
+namespace WasmEdge {
 
 using namespace std::literals::string_view_literals;
 /// Proposal name enumeration string mapping.
@@ -14,4 +14,4 @@ const std::unordered_map<Proposal, std::string_view> ProposalStr = {
     {Proposal::TailCall, "tail-call"sv},
     {Proposal::Threads, "threads"sv}};
 
-} // namespace SSVM
+} // namespace WasmEdge

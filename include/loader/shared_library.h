@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/loader/shared_library.h - Shared library definition ----------===//
+//===-- wasmedge/loader/shared_library.h - Shared library definition ------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -16,11 +16,11 @@
 #include "common/filesystem.h"
 #include <memory>
 
-#if SSVM_OS_WINDOWS
+#if WASMEDGE_OS_WINDOWS
 #include <boost/winapi/dll.hpp>
 #endif
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Loader {
 
 class SharedLibrary;
@@ -99,7 +99,7 @@ class SharedLibrary : public std::enable_shared_from_this<SharedLibrary> {
   SharedLibrary &operator=(SharedLibrary &&) = delete;
 
 public:
-#if SSVM_OS_WINDOWS
+#if WASMEDGE_OS_WINDOWS
   using NativeHandle = boost::winapi::HMODULE_;
 #else
   using NativeHandle = void *;
@@ -121,4 +121,4 @@ private:
 };
 
 } // namespace Loader
-} // namespace SSVM
+} // namespace WasmEdge

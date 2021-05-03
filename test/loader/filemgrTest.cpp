@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/test/loader/filemgrTest.cpp - file manager unit tests --------===//
+//===-- wasmedge/test/loader/filemgrTest.cpp - file manager unit tests ----===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -19,8 +19,8 @@
 
 namespace {
 
-SSVM::FileMgrFStream FMgr;
-SSVM::FileMgrVector VMgr;
+WasmEdge::FileMgrFStream FMgr;
+WasmEdge::FileMgrVector VMgr;
 
 TEST(FileManagerTest, File__SetPath) {
   /// 1. Test opening data file.
@@ -47,7 +47,7 @@ TEST(FileManagerTest, File__SetPath) {
 
 TEST(FileManagerTest, File__ReadByte) {
   /// 2. Test unsigned char reading.
-  SSVM::Expect<uint8_t> ReadByte;
+  WasmEdge::Expect<uint8_t> ReadByte;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readByteTest.bin"));
   EXPECT_EQ(0U, FMgr.getOffset());
   ASSERT_TRUE(ReadByte = FMgr.readByte());
@@ -76,7 +76,7 @@ TEST(FileManagerTest, File__ReadByte) {
 
 TEST(FileManagerTest, File__ReadBytes) {
   /// 3. Test unsigned char list reading.
-  SSVM::Expect<std::vector<uint8_t>> ReadBytes;
+  WasmEdge::Expect<std::vector<uint8_t>> ReadBytes;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readByteTest.bin"));
   EXPECT_EQ(0U, FMgr.getOffset());
   ASSERT_TRUE(ReadBytes = FMgr.readBytes(1));
@@ -99,7 +99,7 @@ TEST(FileManagerTest, File__ReadBytes) {
 
 TEST(FileManagerTest, File__ReadUnsigned32) {
   /// 4. Test unsigned 32bit integer decoding.
-  SSVM::Expect<uint32_t> ReadNum;
+  WasmEdge::Expect<uint32_t> ReadNum;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readU32Test.bin"));
   EXPECT_EQ(0U, FMgr.getOffset());
   ASSERT_TRUE(ReadNum = FMgr.readU32());
@@ -128,7 +128,7 @@ TEST(FileManagerTest, File__ReadUnsigned32) {
 
 TEST(FileManagerTest, File__ReadUnsigned64) {
   /// 5. Test unsigned 64bit integer decoding.
-  SSVM::Expect<uint64_t> ReadNum;
+  WasmEdge::Expect<uint64_t> ReadNum;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readU64Test.bin"));
   EXPECT_EQ(0U, FMgr.getOffset());
   ASSERT_TRUE(ReadNum = FMgr.readU64());
@@ -157,7 +157,7 @@ TEST(FileManagerTest, File__ReadUnsigned64) {
 
 TEST(FileManagerTest, File__ReadSigned32) {
   /// 6. Test signed 32bit integer decoding.
-  SSVM::Expect<int32_t> ReadNum;
+  WasmEdge::Expect<int32_t> ReadNum;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readS32Test.bin"));
   EXPECT_EQ(0U, FMgr.getOffset());
   ASSERT_TRUE(ReadNum = FMgr.readS32());
@@ -186,7 +186,7 @@ TEST(FileManagerTest, File__ReadSigned32) {
 
 TEST(FileManagerTest, File__ReadSigned64) {
   /// 7. Test signed 64bit integer decoding.
-  SSVM::Expect<int64_t> ReadNum;
+  WasmEdge::Expect<int64_t> ReadNum;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readS64Test.bin"));
   EXPECT_EQ(0U, FMgr.getOffset());
   ASSERT_TRUE(ReadNum = FMgr.readS64());
@@ -225,7 +225,7 @@ TEST(FileManagerTest, File__ReadFloat32) {
   ///   7.  log(0) : +inf
   ///   8.  1.0 / 0.0 : +inf
   ///   9.  -1.0 / 0.0 : -inf
-  SSVM::Expect<float> ReadNum;
+  WasmEdge::Expect<float> ReadNum;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readF32Test.bin"));
   EXPECT_EQ(0U, FMgr.getOffset());
   ASSERT_TRUE(ReadNum = FMgr.readF32());
@@ -262,7 +262,7 @@ TEST(FileManagerTest, File__ReadFloat64) {
   ///   7.  log(0) : +inf
   ///   8.  1.0 / 0.0 : +inf
   ///   9.  -1.0 / 0.0 : -inf
-  SSVM::Expect<double> ReadNum;
+  WasmEdge::Expect<double> ReadNum;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readF64Test.bin"));
   EXPECT_EQ(0U, FMgr.getOffset());
   ASSERT_TRUE(ReadNum = FMgr.readF64());
@@ -289,7 +289,7 @@ TEST(FileManagerTest, File__ReadFloat64) {
 
 TEST(FileManagerTest, File__ReadName) {
   /// 10. Test utf-8 string reading.
-  SSVM::Expect<std::string> ReadStr;
+  WasmEdge::Expect<std::string> ReadStr;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readNameTest.bin"));
   EXPECT_EQ(0U, FMgr.getOffset());
   ASSERT_TRUE(ReadStr = FMgr.readName());
@@ -306,71 +306,71 @@ TEST(FileManagerTest, File__ReadName) {
 
 TEST(FileManagerTest, File__ReadUnsigned32TooLong) {
   /// 11. Test unsigned 32bit integer decoding in too long case.
-  SSVM::Expect<uint32_t> ReadNum;
+  WasmEdge::Expect<uint32_t> ReadNum;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readU32TestTooLong.bin"));
   ASSERT_FALSE(ReadNum = FMgr.readU32());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadUnsigned32TooLarge) {
   /// 12. Test unsigned 32bit integer decoding in too large case.
-  SSVM::Expect<uint32_t> ReadNum;
+  WasmEdge::Expect<uint32_t> ReadNum;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readU32TestTooLarge.bin"));
   ASSERT_FALSE(ReadNum = FMgr.readU32());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadSigned32TooLong) {
   /// 13. Test signed 32bit integer decoding in too long case.
-  SSVM::Expect<int32_t> ReadNum;
+  WasmEdge::Expect<int32_t> ReadNum;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readS32TestTooLong.bin"));
   ASSERT_FALSE(ReadNum = FMgr.readS32());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadSigned32TooLarge) {
   /// 14. Test signed 32bit integer decoding in too large case.
-  SSVM::Expect<int32_t> ReadNum;
+  WasmEdge::Expect<int32_t> ReadNum;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readS32TestTooLarge.bin"));
   ASSERT_FALSE(ReadNum = FMgr.readS32());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadUnsigned64TooLong) {
   /// 15. Test unsigned 64bit integer decoding in too long case.
-  SSVM::Expect<uint64_t> ReadNum;
+  WasmEdge::Expect<uint64_t> ReadNum;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readU64TestTooLong.bin"));
   ASSERT_FALSE(ReadNum = FMgr.readU64());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadUnsigned64TooLarge) {
   /// 16. Test unsigned 64bit integer decoding in too large case.
-  SSVM::Expect<uint64_t> ReadNum;
+  WasmEdge::Expect<uint64_t> ReadNum;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readU64TestTooLarge.bin"));
   ASSERT_FALSE(ReadNum = FMgr.readU64());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadSigned64TooLong) {
   /// 17. Test signed 64bit integer decoding in too long case.
-  SSVM::Expect<int64_t> ReadNum;
+  WasmEdge::Expect<int64_t> ReadNum;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readS64TestTooLong.bin"));
   ASSERT_FALSE(ReadNum = FMgr.readS64());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadSigned64TooLarge) {
   /// 18. Test signed 64bit integer decoding in too large case.
-  SSVM::Expect<int64_t> ReadNum;
+  WasmEdge::Expect<int64_t> ReadNum;
   ASSERT_TRUE(FMgr.setPath("filemgrTestData/readS64TestTooLarge.bin"));
   ASSERT_FALSE(ReadNum = FMgr.readS64());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadByte) {
   /// 19. Test unsigned char reading.
-  SSVM::Expect<uint8_t> ReadByte;
+  WasmEdge::Expect<uint8_t> ReadByte;
   ASSERT_TRUE(VMgr.setCode(std::array<uint8_t, 10>{
       0x00, 0xFF, 0x1F, 0x2E, 0x3D, 0x4C, 0x5B, 0x6A, 0x79, 0x88}));
   EXPECT_EQ(0U, VMgr.getOffset());
@@ -400,7 +400,7 @@ TEST(FileManagerTest, Vector__ReadByte) {
 
 TEST(FileManagerTest, Vector__ReadBytes) {
   /// 20. Test unsigned char list reading.
-  SSVM::Expect<std::vector<uint8_t>> ReadBytes;
+  WasmEdge::Expect<std::vector<uint8_t>> ReadBytes;
   ASSERT_TRUE(VMgr.setCode(std::array<uint8_t, 10>{
       0x00, 0xFF, 0x1F, 0x2E, 0x3D, 0x4C, 0x5B, 0x6A, 0x79, 0x88}));
   EXPECT_EQ(0U, VMgr.getOffset());
@@ -424,7 +424,7 @@ TEST(FileManagerTest, Vector__ReadBytes) {
 
 TEST(FileManagerTest, Vector__ReadUnsigned32) {
   /// 21. Test unsigned 32bit integer decoding.
-  SSVM::Expect<uint32_t> ReadNum;
+  WasmEdge::Expect<uint32_t> ReadNum;
   ASSERT_TRUE(VMgr.setCode(std::array<uint8_t, 36>{
       0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x07, 0x80, 0x80, 0x80, 0x80, 0x08, 0xFF,
       0xFF, 0xFF, 0xFF, 0x0F, 0x84, 0xAD, 0xF4, 0x4E, 0x86, 0x01, 0x9C, 0x8C,
@@ -456,7 +456,7 @@ TEST(FileManagerTest, Vector__ReadUnsigned32) {
 
 TEST(FileManagerTest, Vector__ReadUnsigned64) {
   /// 22. Test unsigned 64bit integer decoding.
-  SSVM::Expect<uint64_t> ReadNum;
+  WasmEdge::Expect<uint64_t> ReadNum;
   ASSERT_TRUE(VMgr.setCode(std::array<uint8_t, 69>{
       0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F, 0x80, 0x80,
       0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -491,7 +491,7 @@ TEST(FileManagerTest, Vector__ReadUnsigned64) {
 
 TEST(FileManagerTest, Vector__ReadSigned32) {
   /// 23. Test signed 32bit integer decoding.
-  SSVM::Expect<int32_t> ReadNum;
+  WasmEdge::Expect<int32_t> ReadNum;
   ASSERT_TRUE(VMgr.setCode(std::array<uint8_t, 30>{
       0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x07, 0x80, 0x80, 0x80, 0x80,
       0x78, 0x7F, 0x01, 0x86, 0x01, 0xFE, 0xB1, 0xEE, 0xD9, 0x7E,
@@ -523,7 +523,7 @@ TEST(FileManagerTest, Vector__ReadSigned32) {
 
 TEST(FileManagerTest, Vector__ReadSigned64) {
   /// 24. Test signed 64bit integer decoding.
-  SSVM::Expect<int64_t> ReadNum;
+  WasmEdge::Expect<int64_t> ReadNum;
   ASSERT_TRUE(VMgr.setCode(std::array<uint8_t, 63>{
       0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
       0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7F, 0x7F,
@@ -568,7 +568,7 @@ TEST(FileManagerTest, Vector__ReadFloat32) {
   ///   7.  log(0) : +inf
   ///   8.  1.0 / 0.0 : +inf
   ///   9.  -1.0 / 0.0 : -inf
-  SSVM::Expect<float> ReadNum;
+  WasmEdge::Expect<float> ReadNum;
   ASSERT_TRUE(VMgr.setCode(std::array<uint8_t, 36>{
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0xC0, 0xFF,
       0x00, 0x00, 0xC0, 0xFF, 0x00, 0x00, 0xC0, 0x7F, 0x00, 0x00, 0xC0, 0x7F,
@@ -608,7 +608,7 @@ TEST(FileManagerTest, Vector__ReadFloat64) {
   ///   7.  log(0) : +inf
   ///   8.  1.0 / 0.0 : +inf
   ///   9.  -1.0 / 0.0 : -inf
-  SSVM::Expect<double> ReadNum;
+  WasmEdge::Expect<double> ReadNum;
   ASSERT_TRUE(VMgr.setCode(std::array<uint8_t, 72>{
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
       0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0xFF,
@@ -641,7 +641,7 @@ TEST(FileManagerTest, Vector__ReadFloat64) {
 
 TEST(FileManagerTest, Vector__ReadName) {
   /// 27. Test utf-8 string reading.
-  SSVM::Expect<std::string> ReadStr;
+  WasmEdge::Expect<std::string> ReadStr;
   ASSERT_TRUE(VMgr.setCode(
       std::array<uint8_t, 15>{0x00, 0x04, 0x74, 0x65, 0x73, 0x74, 0x01, 0x20,
                               0x06, 0x4C, 0x6F, 0x61, 0x64, 0x65, 0x72}));
@@ -660,74 +660,74 @@ TEST(FileManagerTest, Vector__ReadName) {
 
 TEST(FileManagerTest, Vector__ReadUnsigned32TooLong) {
   /// 28. Test unsigned 32bit integer decoding in too long case.
-  SSVM::Expect<uint32_t> ReadNum;
+  WasmEdge::Expect<uint32_t> ReadNum;
   ASSERT_TRUE(
       VMgr.setCode(std::array<uint8_t, 6>{0x80, 0x80, 0x80, 0x80, 0x80, 0x00}));
   ASSERT_FALSE(ReadNum = VMgr.readU32());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadUnsigned32TooLarge) {
   /// 29. Test unsigned 32bit integer decoding in too large case.
-  SSVM::Expect<uint32_t> ReadNum;
+  WasmEdge::Expect<uint32_t> ReadNum;
   ASSERT_TRUE(
       VMgr.setCode(std::array<uint8_t, 5>{0x80, 0x80, 0x80, 0x80, 0x1F}));
   ASSERT_FALSE(ReadNum = VMgr.readU32());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadSigned32TooLong) {
   /// 30. Test signed 32bit integer decoding in too long case.
-  SSVM::Expect<int32_t> ReadNum;
+  WasmEdge::Expect<int32_t> ReadNum;
   ASSERT_TRUE(
       VMgr.setCode(std::array<uint8_t, 6>{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
   ASSERT_FALSE(ReadNum = VMgr.readS32());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadSigned32TooLarge) {
   /// 31. Test signed 32bit integer decoding in too large case.
-  SSVM::Expect<int32_t> ReadNum;
+  WasmEdge::Expect<int32_t> ReadNum;
   ASSERT_TRUE(
       VMgr.setCode(std::array<uint8_t, 5>{0xFF, 0xFF, 0xFF, 0xFF, 0x4F}));
   ASSERT_FALSE(ReadNum = VMgr.readS32());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadUnsigned64TooLong) {
   /// 32. Test unsigned 64bit integer decoding in too long case.
-  SSVM::Expect<uint64_t> ReadNum;
+  WasmEdge::Expect<uint64_t> ReadNum;
   ASSERT_TRUE(VMgr.setCode(std::array<uint8_t, 11>{
       0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00}));
   ASSERT_FALSE(ReadNum = VMgr.readU64());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadUnsigned64TooLarge) {
   /// 33. Test unsigned 64bit integer decoding in too large case.
-  SSVM::Expect<uint64_t> ReadNum;
+  WasmEdge::Expect<uint64_t> ReadNum;
   ASSERT_TRUE(VMgr.setCode(std::array<uint8_t, 10>{
       0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7E}));
   ASSERT_FALSE(ReadNum = VMgr.readU64());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadSigned64TooLong) {
   /// 34. Test signed 64bit integer decoding in too long case.
-  SSVM::Expect<int64_t> ReadNum;
+  WasmEdge::Expect<int64_t> ReadNum;
   ASSERT_TRUE(VMgr.setCode(std::array<uint8_t, 11>{
       0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
   ASSERT_FALSE(ReadNum = VMgr.readS64());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadSigned64TooLarge) {
   /// 35. Test signed 64bit integer decoding in too large case.
-  SSVM::Expect<int64_t> ReadNum;
+  WasmEdge::Expect<int64_t> ReadNum;
   ASSERT_TRUE(VMgr.setCode(std::array<uint8_t, 10>{
       0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x41}));
   ASSERT_FALSE(ReadNum = VMgr.readS64());
-  EXPECT_EQ(SSVM::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
 }
 } // namespace
 

@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Interpreter {
 
 Expect<void> Interpreter::runLocalGetOp(const uint32_t Idx) {
@@ -42,4 +42,4 @@ Expect<void> Interpreter::runGlobalSetOp(Runtime::StoreManager &StoreMgr,
 }
 
 } // namespace Interpreter
-} // namespace SSVM
+} // namespace WasmEdge

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/po/list.h - Option list --------------------------------------===//
+//===-- wasmedge/po/list.h - Option list ----------------------------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -14,7 +14,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace PO {
 
 template <typename T, typename ParserT = Parser<T>> class List {
@@ -83,4 +83,4 @@ private:
 };
 
 } // namespace PO
-} // namespace SSVM
+} // namespace WasmEdge

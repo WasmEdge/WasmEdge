@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-#include "host/ssvm_process/processfunc.h"
+#include "host/wasmedge_process/processfunc.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -11,12 +11,12 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Host {
 
 Expect<void>
-SSVMProcessSetProgName::body(Runtime::Instance::MemoryInstance *MemInst,
-                             uint32_t NamePtr, uint32_t NameLen) {
+WasmEdgeProcessSetProgName::body(Runtime::Instance::MemoryInstance *MemInst,
+                                 uint32_t NamePtr, uint32_t NameLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
@@ -27,8 +27,9 @@ SSVMProcessSetProgName::body(Runtime::Instance::MemoryInstance *MemInst,
   return {};
 }
 
-Expect<void> SSVMProcessAddArg::body(Runtime::Instance::MemoryInstance *MemInst,
-                                     uint32_t ArgPtr, uint32_t ArgLen) {
+Expect<void>
+WasmEdgeProcessAddArg::body(Runtime::Instance::MemoryInstance *MemInst,
+                            uint32_t ArgPtr, uint32_t ArgLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
@@ -41,9 +42,10 @@ Expect<void> SSVMProcessAddArg::body(Runtime::Instance::MemoryInstance *MemInst,
   return {};
 };
 
-Expect<void> SSVMProcessAddEnv::body(Runtime::Instance::MemoryInstance *MemInst,
-                                     uint32_t EnvNamePtr, uint32_t EnvNameLen,
-                                     uint32_t EnvValPtr, uint32_t EnvValLen) {
+Expect<void>
+WasmEdgeProcessAddEnv::body(Runtime::Instance::MemoryInstance *MemInst,
+                            uint32_t EnvNamePtr, uint32_t EnvNameLen,
+                            uint32_t EnvValPtr, uint32_t EnvValLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
@@ -59,8 +61,8 @@ Expect<void> SSVMProcessAddEnv::body(Runtime::Instance::MemoryInstance *MemInst,
 };
 
 Expect<void>
-SSVMProcessAddStdIn::body(Runtime::Instance::MemoryInstance *MemInst,
-                          uint32_t BufPtr, uint32_t BufLen) {
+WasmEdgeProcessAddStdIn::body(Runtime::Instance::MemoryInstance *MemInst,
+                              uint32_t BufPtr, uint32_t BufLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
@@ -73,14 +75,14 @@ SSVMProcessAddStdIn::body(Runtime::Instance::MemoryInstance *MemInst,
 };
 
 Expect<void>
-SSVMProcessSetTimeOut::body(Runtime::Instance::MemoryInstance *MemInst,
-                            uint32_t Time) {
+WasmEdgeProcessSetTimeOut::body(Runtime::Instance::MemoryInstance *MemInst,
+                                uint32_t Time) {
   Env.TimeOut = Time;
   return {};
 };
 
 Expect<uint32_t>
-SSVMProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
+WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
   /// Clear outputs.
   Env.StdOut.clear();
   Env.StdErr.clear();
@@ -283,18 +285,18 @@ SSVMProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
 };
 
 Expect<uint32_t>
-SSVMProcessGetExitCode::body(Runtime::Instance::MemoryInstance *MemInst) {
+WasmEdgeProcessGetExitCode::body(Runtime::Instance::MemoryInstance *MemInst) {
   return Env.ExitCode;
 };
 
 Expect<uint32_t>
-SSVMProcessGetStdOutLen::body(Runtime::Instance::MemoryInstance *MemInst) {
+WasmEdgeProcessGetStdOutLen::body(Runtime::Instance::MemoryInstance *MemInst) {
   return Env.StdOut.size();
 };
 
 Expect<void>
-SSVMProcessGetStdOut::body(Runtime::Instance::MemoryInstance *MemInst,
-                           uint32_t BufPtr) {
+WasmEdgeProcessGetStdOut::body(Runtime::Instance::MemoryInstance *MemInst,
+                               uint32_t BufPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
@@ -306,13 +308,13 @@ SSVMProcessGetStdOut::body(Runtime::Instance::MemoryInstance *MemInst,
 };
 
 Expect<uint32_t>
-SSVMProcessGetStdErrLen::body(Runtime::Instance::MemoryInstance *MemInst) {
+WasmEdgeProcessGetStdErrLen::body(Runtime::Instance::MemoryInstance *MemInst) {
   return Env.StdErr.size();
 };
 
 Expect<void>
-SSVMProcessGetStdErr::body(Runtime::Instance::MemoryInstance *MemInst,
-                           uint32_t BufPtr) {
+WasmEdgeProcessGetStdErr::body(Runtime::Instance::MemoryInstance *MemInst,
+                               uint32_t BufPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
@@ -324,4 +326,4 @@ SSVMProcessGetStdErr::body(Runtime::Instance::MemoryInstance *MemInst,
 };
 
 } // namespace Host
-} // namespace SSVM
+} // namespace WasmEdge

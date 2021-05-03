@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/value.h - SSVM value variant definition ---------------===//
+//===-- wasmedge/common/value.h - WasmEdge value variant definition -------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the value struct used in SSVM.
+/// This file contains the value struct used in WasmEdge.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 
 /// Definition of number_type.
 using RefVariant = Variant<uint64_t, FuncRef, ExternRef>;
@@ -117,4 +117,4 @@ template <typename T> inline T &retrieveExternRef(const ValVariant &Val) {
   return *reinterpret_cast<T *>(std::get<ExternRef>(Val).Ptr);
 }
 
-} // namespace SSVM
+} // namespace WasmEdge

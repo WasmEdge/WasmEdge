@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/aot/blake3.h - Blake3 hash class definition ------------------===//
+//===-- wasmedge/aot/blake3.h - Blake3 hash class definition --------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace AOT {
 
 /// Hash data with blake3 algorithm.
@@ -32,4 +32,4 @@ private:
 };
 
 } // namespace AOT
-} // namespace SSVM
+} // namespace WasmEdge

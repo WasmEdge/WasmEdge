@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/filesystem.h - std::filesystem seletion ---------------===//
+//===-- wasmedge/common/filesystem.h - std::filesystem seletion -----------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///

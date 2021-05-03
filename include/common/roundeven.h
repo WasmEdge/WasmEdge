@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/common/roundeven.h - rounding to nearest integer ------------===//
+//===-- wasmedge/common/roundeven.h - rounding to nearest integer ---------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -29,7 +29,7 @@
 #define __builtin_is_constant_evaluated() false
 #endif
 
-namespace SSVM {
+namespace WasmEdge {
 namespace detail {
 
 inline float roundevenf(float Value) {
@@ -87,4 +87,4 @@ inline double roundeven(double Value) noexcept {
 using detail::roundeven;
 inline float roundeven(float Value) { return detail::roundevenf(Value); }
 
-} // namespace SSVM
+} // namespace WasmEdge

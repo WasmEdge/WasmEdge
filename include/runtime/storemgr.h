@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- ssvm/runtime/storemgr.h - Store Manager definition ----------------===//
+//===-- wasmedge/runtime/storemgr.h - Store Manager definition ------------===//
 //
-// Part of the SSVM Project.
+// Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -23,7 +23,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace SSVM {
+namespace WasmEdge {
 namespace Runtime {
 
 namespace {
@@ -55,31 +55,31 @@ public:
   ~StoreManager() = default;
 
   /// Import instances and move owner to store manager.
-  template <typename... Args> uint32_t importModule(Args &&... Values) {
+  template <typename... Args> uint32_t importModule(Args &&...Values) {
     uint32_t ModAddr =
         importInstance(ImpModInsts, ModInsts, std::forward<Args>(Values)...);
     ModInsts.back()->Addr = ModAddr;
     return ModAddr;
   }
-  template <typename... Args> uint32_t importFunction(Args &&... Values) {
+  template <typename... Args> uint32_t importFunction(Args &&...Values) {
     return importInstance(ImpFuncInsts, FuncInsts,
                           std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t importTable(Args &&... Values) {
+  template <typename... Args> uint32_t importTable(Args &&...Values) {
     return importInstance(ImpTabInsts, TabInsts, std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t importMemory(Args &&... Values) {
+  template <typename... Args> uint32_t importMemory(Args &&...Values) {
     return importInstance(ImpMemInsts, MemInsts, std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t importGlobal(Args &&... Values) {
+  template <typename... Args> uint32_t importGlobal(Args &&...Values) {
     return importInstance(ImpGlobInsts, GlobInsts,
                           std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t importElement(Args &&... Values) {
+  template <typename... Args> uint32_t importElement(Args &&...Values) {
     return importInstance(ImpElemInsts, ElemInsts,
                           std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t importData(Args &&... Values) {
+  template <typename... Args> uint32_t importData(Args &&...Values) {
     return importInstance(ImpDataInsts, DataInsts,
                           std::forward<Args>(Values)...);
   }
@@ -99,37 +99,37 @@ public:
   }
 
   /// Insert instances for instantiation and move ownership to store manager.
-  template <typename... Args> uint32_t pushModule(Args &&... Values) {
+  template <typename... Args> uint32_t pushModule(Args &&...Values) {
     ++NumMod;
     uint32_t ModAddr =
         importInstance(ImpModInsts, ModInsts, std::forward<Args>(Values)...);
     ModInsts.back()->Addr = ModAddr;
     return ModAddr;
   }
-  template <typename... Args> uint32_t pushFunction(Args &&... Values) {
+  template <typename... Args> uint32_t pushFunction(Args &&...Values) {
     ++NumFunc;
     return importInstance(ImpFuncInsts, FuncInsts,
                           std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t pushTable(Args &&... Values) {
+  template <typename... Args> uint32_t pushTable(Args &&...Values) {
     ++NumTab;
     return importInstance(ImpTabInsts, TabInsts, std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t pushMemory(Args &&... Values) {
+  template <typename... Args> uint32_t pushMemory(Args &&...Values) {
     ++NumMem;
     return importInstance(ImpMemInsts, MemInsts, std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t pushGlobal(Args &&... Values) {
+  template <typename... Args> uint32_t pushGlobal(Args &&...Values) {
     ++NumGlob;
     return importInstance(ImpGlobInsts, GlobInsts,
                           std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t pushElement(Args &&... Values) {
+  template <typename... Args> uint32_t pushElement(Args &&...Values) {
     ++NumElem;
     return importInstance(ImpElemInsts, ElemInsts,
                           std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t pushData(Args &&... Values) {
+  template <typename... Args> uint32_t pushData(Args &&...Values) {
     ++NumData;
     return importInstance(ImpDataInsts, DataInsts,
                           std::forward<Args>(Values)...);
@@ -290,7 +290,7 @@ private:
   template <typename T, typename... Args>
   std::enable_if_t<IsInstanceV<T>, uint32_t>
   importInstance(std::vector<std::unique_ptr<T>> &ImpInstsVec,
-                 std::vector<T *> &InstsVec, Args &&... Values) {
+                 std::vector<T *> &InstsVec, Args &&...Values) {
     uint32_t Addr = InstsVec.size();
     ImpInstsVec.push_back(std::make_unique<T>(std::forward<Args>(Values)...));
     InstsVec.push_back(ImpInstsVec.back().get());
@@ -352,4 +352,4 @@ private:
 };
 
 } // namespace Runtime
-} // namespace SSVM
+} // namespace WasmEdge

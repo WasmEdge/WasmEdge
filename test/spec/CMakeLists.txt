@@ -2,38 +2,38 @@
 
 include(FetchContent)
 FetchContent_Declare(
-  ssvm_unit_test
+  wasmedge_unit_test
   GIT_REPOSITORY https://github.com/second-state/ssvm-unittest.git
   GIT_TAG wasm-dev
 )
 
-FetchContent_GetProperties(ssvm_unit_test)
-if (NOT ssvm_unit_test_POPULATED)
-    FetchContent_Populate(ssvm_unit_test)
+FetchContent_GetProperties(wasmedge_unit_test)
+if (NOT wasmedge_unit_test_POPULATED)
+    FetchContent_Populate(wasmedge_unit_test)
 endif ()
 
 configure_files(
-  ${ssvm_unit_test_SOURCE_DIR}/core/
+  ${wasmedge_unit_test_SOURCE_DIR}/core/
   ${CMAKE_CURRENT_BINARY_DIR}/testSuites/core/
   COPYONLY
 )
 configure_files(
-  ${ssvm_unit_test_SOURCE_DIR}/simd/
+  ${wasmedge_unit_test_SOURCE_DIR}/simd/
   ${CMAKE_CURRENT_BINARY_DIR}/testSuites/simd/
   COPYONLY
 )
 
-add_library(ssvmTestSpec
+add_library(wasmedgeTestSpec
   spectest.cpp
 )
 
-target_include_directories(ssvmTestSpec
+target_include_directories(wasmedgeTestSpec
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty
 )
 
-target_link_libraries(ssvmTestSpec
+target_link_libraries(wasmedgeTestSpec
   PRIVATE
   std::filesystem
   utilGoogleTest

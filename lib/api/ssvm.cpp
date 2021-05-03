@@ -581,7 +581,7 @@ SSVM_Result SSVM_LoaderParseFromFile(SSVM_LoaderContext *Cxt,
                                      SSVM_ASTModuleContext **Module,
                                      const char *Path) {
   return wrap(
-      [&]() { return Cxt->Load.parseModule(Path); },
+      [&]() { return Cxt->Load.parseModule(std::filesystem::absolute(Path)); },
       [&](auto &&Res) { *Module = new SSVM_ASTModuleContext(std::move(*Res)); },
       Cxt, Module);
 }
@@ -1450,7 +1450,10 @@ SSVM_Result SSVM_VMRegisterModuleFromFile(SSVM_VMContext *Cxt,
                                           const SSVM_String ModuleName,
                                           const char *Path) {
   return wrap(
-      [&]() { return Cxt->VM.registerModule(genStrView(ModuleName), Path); },
+      [&]() {
+        return Cxt->VM.registerModule(genStrView(ModuleName),
+                                      std::filesystem::absolute(Path));
+      },
       EmptyThen, Cxt);
 }
 
@@ -1494,7 +1497,8 @@ SSVM_Result SSVM_VMRunWasmFromFile(SSVM_VMContext *Cxt, const char *Path,
   auto ParamPair = genParamPair(Params, ParamLen);
   return wrap(
       [&]() {
-        return Cxt->VM.runWasmFile(Path, genStrView(FuncName), ParamPair.first,
+        return Cxt->VM.runWasmFile(std::filesystem::absolute(Path),
+                                   genStrView(FuncName), ParamPair.first,
                                    ParamPair.second);
       },
       [&](auto Res) { fillSSVM_ValueArr(*Res, Returns, ReturnLen); }, Cxt);
@@ -1529,7 +1533,9 @@ SSVM_Result SSVM_VMRunWasmFromASTModule(
 }
 
 SSVM_Result SSVM_VMLoadWasmFromFile(SSVM_VMContext *Cxt, const char *Path) {
-  return wrap([&]() { return Cxt->VM.loadWasm(Path); }, EmptyThen, Cxt);
+  return wrap(
+      [&]() { return Cxt->VM.loadWasm(std::filesystem::absolute(Path)); },
+      EmptyThen, Cxt);
 }
 
 SSVM_Result SSVM_VMLoadWasmFromBuffer(SSVM_VMContext *Cxt, const uint8_t *Buf,

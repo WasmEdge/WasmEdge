@@ -6,6 +6,17 @@ configure_files(
   COPYONLY
 )
 
+add_library(ssvmAPITestHelpers
+  hostfunc_c.c
+  helper.cpp
+)
+
+target_include_directories(ssvmAPITestHelpers
+  PUBLIC
+  ${PROJECT_BINARY_DIR}/include
+  ${PROJECT_SOURCE_DIR}/include
+)
+
 add_executable(ssvmAPIUnitTests
   APIUnitTest.cpp
 )
@@ -16,12 +27,11 @@ target_link_libraries(ssvmAPIUnitTests
   PRIVATE
   std::filesystem
   utilGoogleTest
+  ssvmAPITestHelpers
   ssvm_c
 )
 
 add_executable(ssvmAPIVMCoreTests
-  hostfunc_c.c
-  helper.cpp
   APIVMCoreTest.cpp
 )
 
@@ -32,12 +42,11 @@ target_link_libraries(ssvmAPIVMCoreTests
   std::filesystem
   utilGoogleTest
   ssvmTestSpec
+  ssvmAPITestHelpers
   ssvm_c
 )
 
 add_executable(ssvmAPIStepsCoreTests
-  hostfunc_c.c
-  helper.cpp
   APIStepsCoreTest.cpp
 )
 
@@ -48,5 +57,21 @@ target_link_libraries(ssvmAPIStepsCoreTests
   std::filesystem
   utilGoogleTest
   ssvmTestSpec
+  ssvmAPITestHelpers
   ssvm_c
 )
+
+if (NOT SSVM_DISABLE_AOT_RUNTIME)
+  add_executable(ssvmAPIAOTCoreTests
+    APIAOTCoreTest.cpp
+  )
+  add_test(ssvmAPIAOTCoreTests ssvmAPIAOTCoreTests)
+  target_link_libraries(ssvmAPIAOTCoreTests
+    PRIVATE
+    std::filesystem
+    utilGoogleTest
+    ssvmTestSpec
+    ssvmAPITestHelpers
+    ssvm_c
+  )
+endif()

@@ -37,7 +37,10 @@ struct SSVM_ASTModuleContext {
 /// SSVM_CompilerContext implementation.
 struct SSVM_CompilerContext {
   SSVM_CompilerContext(const SSVM::Configure &Conf) noexcept
-      : Load(Conf), Valid(Conf) {}
+      : Load(Conf), Valid(Conf) {
+    /// Set optimization level to O0 until the compiler option APIs ready.
+    Compiler.setOptimizationLevel(SSVM::AOT::Compiler::OptimizationLevel::O0);
+  }
   SSVM::AOT::Compiler Compiler;
   SSVM::Loader::Loader Load;
   SSVM::Validator::Validator Valid;

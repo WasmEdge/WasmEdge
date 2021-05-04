@@ -25,7 +25,7 @@ $ cd WasmEdge
 $ git checkout 0.7.3
 ```
 
-Notes: Note the WasmEdge team builds lots of extensions of Server-side WebAssembly, see [TensorFlow](https://github.com/WasmEdge/WasmEdge-tensorflow), [Storage](https://github.com/WasmEdge/WasmEdge-storage), [Command interface](https://github.com/WasmEdge/WasmEdge_process_interface), [Ethereum](https://github.com/WasmEdge/WasmEdge-evmc), [Substrate](https://github.com/second-state/substrate-ssvm-node). If you want to contribue the extensions, please go to those repositories. 
+Notes: Note the WasmEdge team builds lots of extensions of Server-side WebAssembly, see [TensorFlow](https://github.com/second-state/SSVM-tensorflow), [Storage](https://github.com/second-state/SSVM-storage), [Command interface](https://github.com/second-state/ssvm_process_interface), [Ethereum](https://github.com/second-state/SSVM-evmc), [Substrate](https://github.com/second-state/substrate-ssvm-node). If you want to contribue the extensions, please go to those repositories. 
 
 
 ### Setup Development Environment 
@@ -44,7 +44,7 @@ If you are using the older operating system than Ubuntu 20.04, please use our sp
 
 
 ```
-$ docker pull secondstate/wasmedge
+$ docker pull wasmedge/wasmedge
 ```
 
 
@@ -99,7 +99,7 @@ Write code on the new branch in your fork.
 # After pulling our wasmedge docker image
 $ docker run -it --rm \
     -v <path/to/your/wasmedge/source/folder>:/root/wasmedge \
-    secondstate/wasmedge:latest
+    wasmedge/wasmedge:latest
 (docker)$ cd /root/wasmedge
 (docker)$ mkdir -p build && cd build
 (docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make -j

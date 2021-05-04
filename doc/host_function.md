@@ -223,4 +223,4 @@ From our mechanism, `Expect<T>` declared in `include/common/errcode.h` is used a
 
 ### Forcing Termination
 
-WasmEdge provides a method for terminating WASM execution in host functions. Developers can return `ErrCode::Terminated` to trigger the forcing termination of the current execution and the execution result will be set as successful.
+WasmEdge provides a method for terminating WASM execution in host functions. Developers can return `ErrCode::Terminated` to trigger the forcing termination of the current execution and pass the `ErrCode::Terminated` to the caller of the host functions.

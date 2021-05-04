@@ -12,14 +12,14 @@ jobs:
   build_test_gcc_debug:
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ubuntu-build-gcc
+      image: wasmedge/wasmedge:ubuntu-build-gcc
 
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
 
-    - name: Build SSVM using gcc with Debug mode
+    - name: Build WasmEdge using gcc with Debug mode
       run: |
         if ! command ninja; then
           apt update
@@ -28,21 +28,21 @@ jobs:
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON .
         cmake --build build
 
-    - name: Test SSVM
+    - name: Test WasmEdge
       run: |
         LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target test
 
   build_test_gcc_release:
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ubuntu-build-gcc
+      image: wasmedge/wasmedge:ubuntu-build-gcc
 
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
 
-    - name: Build SSVM using gcc with Release mode
+    - name: Build WasmEdge using gcc with Release mode
       run: |
         if ! command ninja; then
           apt update
@@ -51,21 +51,21 @@ jobs:
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .
         cmake --build build
 
-    - name: Test SSVM
+    - name: Test WasmEdge
       run: |
         LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target test
 
   build_test_clang_debug:
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ubuntu-build-clang
+      image: wasmedge/wasmedge:ubuntu-build-clang
 
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
 
-    - name: Build SSVM using clang with Debug mode
+    - name: Build WasmEdge using clang with Debug mode
       run: |
         if ! command ninja; then
           apt update
@@ -74,21 +74,21 @@ jobs:
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON .
         cmake --build build
 
-    - name: Test SSVM
+    - name: Test WasmEdge
       run: |
         LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target test
 
   build_test_clang_release:
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ubuntu-build-clang
+      image: wasmedge/wasmedge:ubuntu-build-clang
 
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
 
-    - name: Build SSVM using clang with Release mode
+    - name: Build WasmEdge using clang with Release mode
       run: |
         if ! command ninja; then
           apt update
@@ -97,14 +97,14 @@ jobs:
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .
         cmake --build build
 
-    - name: Test SSVM
+    - name: Test WasmEdge
       run: |
         LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target test
 
   build_test_gcc_debug_coverage:
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ubuntu-build-gcc
+      image: wasmedge/wasmedge:ubuntu-build-gcc
 
     steps:
     - uses: actions/checkout@v2
@@ -116,7 +116,7 @@ jobs:
         apt update
         apt install -y gcovr ninja-build
 
-    - name: Build SSVM using gcc with Debug mode
+    - name: Build WasmEdge using gcc with Debug mode
       run: |
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DBUILD_COVERAGE=ON .
         cmake --build build
@@ -130,6 +130,6 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: ./build/codecov.xml
-        name: codecov-ssvm
+        name: codecov-wasmedge
         fail_ci_if_error: true
         path_to_write_report: ./build/codecov_report.gz

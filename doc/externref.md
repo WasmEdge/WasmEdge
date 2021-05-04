@@ -405,7 +405,7 @@ For more details about building a project with WasmEdge, please read this [WasmE
 ```bash
 $ mkdir build
 $ cd build
-$ cmake -DWASMEDGE_DISABLE_AOT_RUNTIME=On .. # Only interpreter supports reference types now.
+$ cmake ..
 $ make -j
 ```
 

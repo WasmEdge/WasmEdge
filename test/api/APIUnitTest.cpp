@@ -344,6 +344,31 @@ TEST(APICoreTest, Configure) {
   EXPECT_TRUE(true);
 }
 
+TEST(APICoreTest, Compiler) {
+  SSVM_ConfigureContext *Conf = SSVM_ConfigureCreate();
+
+  /// Compiler creation and deletion
+  SSVM_CompilerContext *Compiler = SSVM_CompilerCreate(nullptr);
+  EXPECT_NE(Compiler, nullptr);
+  SSVM_CompilerDelete(nullptr);
+  EXPECT_TRUE(true);
+  SSVM_CompilerDelete(Compiler);
+  EXPECT_TRUE(true);
+  Compiler = SSVM_CompilerCreate(Conf);
+
+  /// Compile file
+  EXPECT_TRUE(SSVM_ResultOK(SSVM_CompilerCompile(Compiler, TPath, "test.so")));
+  /// File not found
+  EXPECT_FALSE(SSVM_ResultOK(
+      SSVM_CompilerCompile(Compiler, "not_exist.wasm", "not_exist.wasm.so")));
+  /// Parse failed
+  EXPECT_FALSE(SSVM_ResultOK(SSVM_CompilerCompile(
+      Compiler, "../spec/testSuites/core/binary/binary.4.wasm", "binary.so")));
+
+  SSVM_CompilerDelete(Compiler);
+  SSVM_ConfigureDelete(Conf);
+}
+
 TEST(APICoreTest, Loader) {
   SSVM_ConfigureContext *Conf = SSVM_ConfigureCreate();
   SSVM_ConfigureAddProposal(Conf, SSVM_Proposal_ReferenceTypes);

@@ -10,7 +10,7 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ubuntu-build-gcc
+      image: wasmedge/wasmedge:ubuntu-build-gcc
     outputs:
       version: ${{ steps.prep.outputs.version }}
       upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -28,74 +28,74 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
-          release_name: SSVM ${{ steps.prep.outputs.version }}
+          release_name: WasmEdge ${{ steps.prep.outputs.version }}
           body_path: .CurrentChangelog.md
           draft: false
           prerelease: false
   build_amd64:
-    name: Build SSVM on amd64 platform
+    name: Build WasmEdge on amd64 platform
     needs: create
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ubuntu-build-gcc
+      image: wasmedge/wasmedge:ubuntu-build-gcc
     steps:
       - name: Build package
         run: |
           apt update
           apt install -y rpm ninja-build
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_SSVM_STATIC=ON -DBUILD_PACKAGE="TGZ;DEB;RPM" .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=ON -DBUILD_PACKAGE="TGZ;DEB;RPM" .
           cmake --build build
           cmake --build build --target package
   upload_amd64_package:
-    name: Upload SSVM amd64 package
+    name: Upload WasmEdge amd64 package
     needs: [create, build_amd64]
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ubuntu-build-gcc
+      image: wasmedge/wasmedge:ubuntu-build-gcc
     steps:
-      - name: Upload ssvm amd64 deb package
+      - name: Upload WasmEdge amd64 deb package
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/ssvm_${{ needs.create.outputs.version }}_amd64.deb
-          asset_name: SSVM-${{ needs.create.outputs.version }}.deb
+          asset_path: build/wasmedge_${{ needs.create.outputs.version }}_amd64.deb
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}.deb
           asset_content_type: application/vnd.debian.binary-package
-      - name: Upload ssvm-static amd64 deb package
+      - name: Upload wasmedge-static amd64 deb package
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/ssvm-static_${{ needs.create.outputs.version }}_amd64.deb
-          asset_name: SSVM-static-${{ needs.create.outputs.version }}.deb
+          asset_path: build/wasmedge-static_${{ needs.create.outputs.version }}_amd64.deb
+          asset_name: WasmEdge-static-${{ needs.create.outputs.version }}.deb
           asset_content_type: application/vnd.debian.binary-package
-      - name: Upload ssvm rpm package
+      - name: Upload wasmedge rpm package
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.rpm
-          asset_name: SSVM-${{ needs.create.outputs.version }}.rpm
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.rpm
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}.rpm
           asset_content_type: application/x-rpm
-      - name: Upload ssvm-static rpm package
+      - name: Upload wasmedge-static rpm package
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux-static.rpm
-          asset_name: SSVM-static-${{ needs.create.outputs.version }}.rpm
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux-static.rpm
+          asset_name: WasmEdge-static-${{ needs.create.outputs.version }}.rpm
           asset_content_type: application/x-rpm
   build_manylinux1_x86_64:
-    name: Build SSVM on manylinux1_x86_64 platform
+    name: Build WasmEdge on manylinux1_x86_64 platform
     needs: [create, upload_amd64_package]
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:manylinux1_x86_64
+      image: wasmedge/wasmedge:manylinux1_x86_64
     steps:
       - name: Build manylinux1_x86_64 package
         run: |
@@ -105,15 +105,15 @@ jobs:
           export CC=gcc
           export CXX=g++
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_SSVM_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
           cmake --build build
           cmake --build build --target package
   upload_manylinux1_x86_64_package:
-    name: Upload SSVM manylinux1 x86_64 package
+    name: Upload WasmEdge manylinux1 x86_64 package
     needs: [create, build_manylinux1_x86_64]
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ubuntu-build-gcc
+      image: wasmedge/wasmedge:ubuntu-build-gcc
     steps:
       - name: Upload manylinux1_x86_64 rpm package
         uses: actions/upload-release-asset@v1
@@ -121,8 +121,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.rpm
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux1_x86_64.rpm
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.rpm
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux1_x86_64.rpm
           asset_content_type: application/x-rpm
       - name: Upload manylinux1_x86_64 tar.gz package
         uses: actions/upload-release-asset@v1
@@ -130,8 +130,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.gz
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux1_x86_64.tar.gz
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.gz
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux1_x86_64.tar.gz
           asset_content_type: application/x-gzip
       - name: Upload manylinux1_x86_64 tar.bz2 package
         uses: actions/upload-release-asset@v1
@@ -139,8 +139,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.bz2
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux1_x86_64.tar.bz2
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.bz2
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux1_x86_64.tar.bz2
           asset_content_type: application/x-bzip2
       - name: Upload manylinux1_x86_64 tar.xz package
         uses: actions/upload-release-asset@v1
@@ -148,8 +148,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.xz
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux1_x86_64.tar.xz
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.xz
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux1_x86_64.tar.xz
           asset_content_type: application/x-xz
       - name: Upload manylinux1_x86_64 tar.zst package
         uses: actions/upload-release-asset@v1
@@ -157,15 +157,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.zst
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux1_x86_64.tar.zst
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.zst
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux1_x86_64.tar.zst
           asset_content_type: application/zstd
   build_manylinux2010_x86_64:
-    name: Build SSVM on manylinux2010_x86_64 platform
+    name: Build WasmEdge on manylinux2010_x86_64 platform
     needs: [create, upload_manylinux1_x86_64_package]
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:manylinux2010_x86_64
+      image: wasmedge/wasmedge:manylinux2010_x86_64
     steps:
       - name: Build manylinux2010_x86_64 package
         run: |
@@ -175,15 +175,15 @@ jobs:
           export CC=gcc
           export CXX=g++
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_SSVM_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
           cmake --build build
           cmake --build build --target package
   upload_manylinux2010_x86_64_package:
-    name: Upload SSVM manylinux2010 x86_64 package
+    name: Upload WasmEdge manylinux2010 x86_64 package
     needs: [create, build_manylinux2010_x86_64]
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ubuntu-build-gcc
+      image: wasmedge/wasmedge:ubuntu-build-gcc
     steps:
       - name: Upload manylinux2010_x86_64 rpm package
         uses: actions/upload-release-asset@v1
@@ -191,8 +191,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.rpm
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2010_x86_64.rpm
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.rpm
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux2010_x86_64.rpm
           asset_content_type: application/x-rpm
       - name: Upload manylinux2010_x86_64 tar.gz package
         uses: actions/upload-release-asset@v1
@@ -200,8 +200,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.gz
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2010_x86_64.tar.gz
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.gz
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux2010_x86_64.tar.gz
           asset_content_type: application/x-gzip
       - name: Upload manylinux2010_x86_64 tar.bz2 package
         uses: actions/upload-release-asset@v1
@@ -209,8 +209,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.bz2
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2010_x86_64.tar.bz2
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.bz2
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux2010_x86_64.tar.bz2
           asset_content_type: application/x-bzip2
       - name: Upload manylinux2010_x86_64 tar.xz package
         uses: actions/upload-release-asset@v1
@@ -218,8 +218,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.xz
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2010_x86_64.tar.xz
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.xz
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux2010_x86_64.tar.xz
           asset_content_type: application/x-xz
       - name: Upload manylinux2010_x86_64 tar.zst package
         uses: actions/upload-release-asset@v1
@@ -227,15 +227,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.zst
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2010_x86_64.tar.zst
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.zst
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux2010_x86_64.tar.zst
           asset_content_type: application/zstd
   build_manylinux2014_x86_64:
-    name: Build SSVM on manylinux2014_x86_64 platform
+    name: Build WasmEdge on manylinux2014_x86_64 platform
     needs: [create, upload_manylinux2010_x86_64_package]
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:manylinux2014_x86_64
+      image: wasmedge/wasmedge:manylinux2014_x86_64
     steps:
       - name: Build manylinux2014_x86_64 package
         run: |
@@ -245,15 +245,15 @@ jobs:
           export CC=gcc
           export CXX=g++
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_SSVM_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
           cmake --build build
           cmake --build build --target package
   upload_manylinux2014_x86_64_package:
-    name: Upload SSVM manylinux2014 x86_64 package
+    name: Upload WasmEdge manylinux2014 x86_64 package
     needs: [create, build_manylinux2014_x86_64]
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ubuntu-build-gcc
+      image: wasmedge/wasmedge:ubuntu-build-gcc
     steps:
       - name: Upload manylinux2014_x86_64 rpm package
         uses: actions/upload-release-asset@v1
@@ -261,8 +261,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.rpm
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2014_x86_64.rpm
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.rpm
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux2014_x86_64.rpm
           asset_content_type: application/x-rpm
       - name: Upload manylinux2014_x86_64 tar.gz package
         uses: actions/upload-release-asset@v1
@@ -270,8 +270,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.gz
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2014_x86_64.tar.gz
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.gz
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux2014_x86_64.tar.gz
           asset_content_type: application/x-gzip
       - name: Upload manylinux2014_x86_64 tar.bz2 package
         uses: actions/upload-release-asset@v1
@@ -279,8 +279,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.bz2
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2014_x86_64.tar.bz2
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.bz2
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux2014_x86_64.tar.bz2
           asset_content_type: application/x-bzip2
       - name: Upload manylinux2014_x86_64 tar.xz package
         uses: actions/upload-release-asset@v1
@@ -288,8 +288,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.xz
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2014_x86_64.tar.xz
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.xz
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux2014_x86_64.tar.xz
           asset_content_type: application/x-xz
       - name: Upload manylinux2014_x86_64 tar.zst package
         uses: actions/upload-release-asset@v1
@@ -297,6 +297,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create.outputs.upload_url }}
-          asset_path: build/SSVM-${{ needs.create.outputs.version }}-Linux.tar.zst
-          asset_name: SSVM-${{ needs.create.outputs.version }}-manylinux2014_x86_64.tar.zst
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.zst
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux2014_x86_64.tar.zst
           asset_content_type: application/zstd

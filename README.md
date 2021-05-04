@@ -1,6 +1,6 @@
 # Introduction
 
-**WasmEdge** is a high performance and enterprise-ready WebAssembly (WASM) Virtual Machine for cloud, AI, and Blockchain applications. Its use cases include the following.
+**WasmEdge** (formerly SSVM) is a high performance and enterprise-ready WebAssembly (WASM) Virtual Machine for cloud, AI, and Blockchain applications. Its use cases include the following.
 
 * A high performance and secure runtime for Rust functions in Node.js applications. [Getting started](https://www.secondstate.io/articles/getting-started-with-rust-function/) | [VSCode Codespaces](https://www.secondstate.io/articles/getting-started-rust-nodejs-vscode/) | [Tensorflow](https://www.secondstate.io/articles/artificial-intelligence/) | [Privacy computing @ Mozilla Open Labs](https://hackernoon.com/second-state-releases-scalable-privacy-service-at-mozilla-open-labs-b15u3wh7)
 * A hardware-optimized runtime for ONNX AI models. [ONNC compiler for AI](https://github.com/ONNC/onnc-wasm)
@@ -31,7 +31,7 @@ $ git checkout 0.7.3
 Our docker image use `ubuntu 20.04` as the base.
 
 ```bash
-$ docker pull secondstate/wasmedge
+$ docker pull wasmedge/wasmedge
 ```
 
 ### Or setup the environment manually
@@ -65,9 +65,9 @@ If you are looking for the pre-built binaries for the older operatoring system, 
 
 | Portable Linux Built Distributions Tags | Base Image  | Provided Requirements                                                 | Docker Image                            |
 | ---                                     | ---         | ---                                                                   | ---                                     |
-| `manylinux1`                            | CentOS 5.11 | GLIBC <= 2.5<br>CXXABI <= 3.4.8<br>GLIBCXX <= 3.4.9<br>GCC <= 4.2.0   | secondstate/wasmedge:manylinux1\_x86\_64    |
-| `manylinux2010`                         | CentOS 6    | GLIBC <= 2.12<br>CXXABI <= 1.3.3<br>GLIBCXX <= 3.4.13<br>GCC <= 4.5.0 | secondstate/wasmedge:manylinux2010\_x86\_64 |
-| `manylinux2014`                         | CentOS 7    | GLIBC <= 2.17<br>CXXABI <= 1.3.7<br>GLIBCXX <= 3.4.19<br>GCC <= 4.8.0 | secondstate/wasmedge:manylinux2014\_x86\_64 |
+| `manylinux1`                            | CentOS 5.11 | GLIBC <= 2.5<br>CXXABI <= 3.4.8<br>GLIBCXX <= 3.4.9<br>GCC <= 4.2.0   | wasmedge/wasmedge:manylinux1\_x86\_64    |
+| `manylinux2010`                         | CentOS 6    | GLIBC <= 2.12<br>CXXABI <= 1.3.3<br>GLIBCXX <= 3.4.13<br>GCC <= 4.5.0 | wasmedge/wasmedge:manylinux2010\_x86\_64 |
+| `manylinux2014`                         | CentOS 7    | GLIBC <= 2.17<br>CXXABI <= 1.3.7<br>GLIBCXX <= 3.4.19<br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_x86\_64 |
 
 ### If you don't want to build Ahead-of-Time runtime/compiler
 
@@ -89,15 +89,15 @@ After the build is finished, you can find there are several wasmedge related too
 	* `wasmedgec` compiles a general `WASM` file into a `so` file.
 	* To disable building the ahead-of-time compiler only, you can set the CMake option `WASMEDGE_DISABLE_AOT_RUNTIME` to `ON`.
 	* To disable building all tools, you can set the CMake option `BUILD_TOOLS` to `OFF`.
-3. `wasmedge-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
-	* If you want to try `wasmedge-qitc`, please refer to [ONNC-Wasm](https://github.com/ONNC/onnc-wasm) project to set up the working environment and run several examples.
+3. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
+	* If you want to try `ssvm-qitc`, please refer to [ONNC-Wasm](https://github.com/ONNC/onnc-wasm) project to set up the working environment and run several examples.
 	* And here is our [tutorial for ONNC-Wasm project(YouTube Video)](https://www.youtube.com/watch?v=cbiPuHMS-iQ).
 
 ```bash
 # After pulling our wasmedge docker image
 $ docker run -it --rm \
     -v <path/to/your/wasmedge/source/folder>:/root/wasmedge \
-    secondstate/wasmedge:latest
+    wasmedge/wasmedge:latest
 (docker)$ cd /root/wasmedge
 (docker)$ mkdir -p build && cd build
 (docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make -j
@@ -167,15 +167,15 @@ $ ./wasmedge --reactor examples/factorial.wasm fac 5
 
 # Related tools
 
-## WasmEdge-EVMC
+## SSVM-EVMC
 
-[WasmEdge-EVMC](https://github.com/second-state/wasmedge-evmc) provides support for Ewasm runtime which is compatible with [EVMC](https://github.com/ethereum/evmc).
+[SSVM-EVMC](https://github.com/second-state/ssvm-evmc) provides support for Ewasm runtime which is compatible with [EVMC](https://github.com/ethereum/evmc).
 
 This project provides a shared library that can initialize and execute by the EVMC interface.
 
-## WasmEdge nodejs addon
+## SSVM nodejs addon
 
-[WasmEdge-napi](https://github.com/WasmEdge/WasmEdge-napi) provides support for accessing WasmEdge as a Node.js addon.
+[SSVM-napi](https://github.com/second-state/ssvm-napi) provides support for accessing WasmEdge as a Node.js addon.
 
 It allows Node.js applications to call WebAssembly functions written in Rust or other high-performance languages.
 
@@ -183,17 +183,17 @@ It allows Node.js applications to call WebAssembly functions written in Rust or 
 
 The WasmEdge addon could interact with the wasm files generated by the [ssvmup](https://www.secondstate.io/articles/ssvmup/) compiler tool.
 
-## WasmEdge-TensorFlow
+## SSVM-TensorFlow
 
-[WasmEdge-TensorFlow](https://github.com/second-state/wasmedge-tensorflow) provides support for accessing with [TensorFlow C library](https://www.tensorflow.org/install/lang_c).
+[SSVM-TensorFlow](https://github.com/second-state/ssvm-tensorflow) provides support for accessing with [TensorFlow C library](https://www.tensorflow.org/install/lang_c).
 
-This project provides a tool that can execute `WASM` with TensorFlow extension compiled from [Rust wasmedge_tensorflow_interface](https://crates.io/crates/wasmedge_tensorflow_interface).
+This project provides a tool that can execute `WASM` with TensorFlow extension compiled from [Rust ssvm_tensorflow_interface](https://crates.io/crates/ssvm_tensorflow_interface).
 
 ## DevChain
 
 [The Second State DevChain](https://github.com/second-state/devchain) features a powerful and easy-to-use virtual machine that can quickly get you started with the smart contract and DApp development.
 
-WasmEdge-evmc is integrated into our DevChain. [Click here to learn how to run an ewasm smart contract on a real blockchain.](https://docs.secondstate.io/devchain/getting-started/run-an-ewasm-smart-contract?utm_source=github&utm_medium=documents&utm_campaign=Github-ssvm-readme)
+SSVM-evmc is integrated into our DevChain. [Click here to learn how to run an ewasm smart contract on a real blockchain.](https://docs.secondstate.io/devchain/getting-started/run-an-ewasm-smart-contract?utm_source=github&utm_medium=documents&utm_campaign=Github-ssvm-readme)
 
 ## Customized Host Functions
 

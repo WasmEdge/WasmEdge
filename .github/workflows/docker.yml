@@ -16,7 +16,7 @@ jobs:
     name: build-docker-images
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ci-image-base
+      image: wasmedge/wasmedge:ci-image-base
 
     steps:
       - name: Checkout code
@@ -25,7 +25,7 @@ jobs:
       - name: Prepare docker env
         id: prep
         run: |
-          DOCKER_IMAGE=secondstate/ssvm
+          DOCKER_IMAGE=wasmedge/wasmedge
           VERSION=noop
           if [ "${{ github.event_name }}" = "schedule" ]; then
           VERSION=nightly
@@ -57,7 +57,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - name: "Rebuild secondstate/ssvm:ci-image-base"
+      - name: "Rebuild wasmedge/wasmedge:ci-image-base"
         uses: docker/build-push-action@v2
         with:
           context: ./utils/docker
@@ -75,7 +75,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.licenses=${{ github.event.repository.license.spdx_id }}
 
-      - name: "Rebuild secondstate/ssvm:ubuntu-base"
+      - name: "Rebuild wasmedge/wasmedge:ubuntu-base"
         uses: docker/build-push-action@v2
         with:
           context: ./utils/docker
@@ -93,10 +93,10 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.licenses=${{ github.event.repository.license.spdx_id }}
 
-      - name: "Rebuild secondstate/ssvm:ubuntu-build-clang"
+      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-clang"
         uses: docker/build-push-action@v2
         with:
-          build-args: BASE=secondstate/ssvm:ubuntu-base
+          build-args: BASE=wasmedge/wasmedge:ubuntu-base
           context: ./utils/docker
           file: ./utils/docker/Dockerfile.build-clang
           platforms: linux/amd64
@@ -112,10 +112,10 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.licenses=${{ github.event.repository.license.spdx_id }}
 
-      - name: "Rebuild secondstate/ssvm:ubuntu-build-gcc"
+      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-gcc"
         uses: docker/build-push-action@v2
         with:
-          build-args: BASE=secondstate/ssvm:ubuntu-base
+          build-args: BASE=wasmedge/wasmedge:ubuntu-base
           context: ./utils/docker
           file: utils/docker/Dockerfile.build-gcc
           platforms: linux/amd64
@@ -131,10 +131,10 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.licenses=${{ github.event.repository.license.spdx_id }}
 
-      - name: "Rebuild secondstate/ssvm:latest"
+      - name: "Rebuild wasmedge/wasmedge:latest"
         uses: docker/build-push-action@v2
         with:
-          build-args: BASE=secondstate/ssvm:ubuntu-base
+          build-args: BASE=wasmedge/wasmedge:ubuntu-base
           context: ./utils/docker
           file: utils/docker/Dockerfile.build-clang
           platforms: linux/amd64
@@ -154,7 +154,7 @@ jobs:
     name: build-manylinux1_x86_64
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ci-image-base
+      image: wasmedge/wasmedge:ci-image-base
 
     steps:
       - name: Checkout code
@@ -163,7 +163,7 @@ jobs:
       - name: Prepare docker env
         id: prep
         run: |
-          DOCKER_IMAGE=secondstate/ssvm
+          DOCKER_IMAGE=wasmedge/wasmedge
           VERSION=noop
           if [ "${{ github.event_name }}" = "schedule" ]; then
           VERSION=nightly
@@ -195,7 +195,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - name: "Rebuild secondstate/ssvm:manylinux1_x86_64"
+      - name: "Rebuild wasmedge/wasmedge:manylinux1_x86_64"
         uses: docker/build-push-action@v2
         with:
           build-args: BASE=quay.io/pypa/manylinux1_x86_64
@@ -218,7 +218,7 @@ jobs:
     name: build-manylinux2010_x86_64
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ci-image-base
+      image: wasmedge/wasmedge:ci-image-base
 
     steps:
       - name: Checkout code
@@ -227,7 +227,7 @@ jobs:
       - name: Prepare docker env
         id: prep
         run: |
-          DOCKER_IMAGE=secondstate/ssvm
+          DOCKER_IMAGE=wasmedge/wasmedge
           VERSION=noop
           if [ "${{ github.event_name }}" = "schedule" ]; then
           VERSION=nightly
@@ -259,7 +259,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - name: "Rebuild secondstate/ssvm:manylinux2010_x86_64"
+      - name: "Rebuild wasmedge/wasmedge:manylinux2010_x86_64"
         uses: docker/build-push-action@v2
         with:
           build-args: BASE=quay.io/pypa/manylinux2010_x86_64
@@ -282,7 +282,7 @@ jobs:
     name: build-manylinux2014_x86_64
     runs-on: ubuntu-latest
     container:
-      image: secondstate/ssvm:ci-image-base
+      image: wasmedge/wasmedge:ci-image-base
 
     steps:
       - name: Checkout code
@@ -291,7 +291,7 @@ jobs:
       - name: Prepare docker env
         id: prep
         run: |
-          DOCKER_IMAGE=secondstate/ssvm
+          DOCKER_IMAGE=wasmedge/wasmedge
           VERSION=noop
           if [ "${{ github.event_name }}" = "schedule" ]; then
           VERSION=nightly
@@ -323,7 +323,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - name: "Rebuild secondstate/ssvm:manylinux2014_x86_64"
+      - name: "Rebuild wasmedge/wasmedge:manylinux2014_x86_64"
         uses: docker/build-push-action@v2
         with:
           build-args: BASE=quay.io/pypa/manylinux2014_x86_64

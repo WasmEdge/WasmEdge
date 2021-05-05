@@ -27,7 +27,7 @@ target_link_libraries(ssvmInterpreter
 
 target_include_directories(ssvmInterpreter
   PUBLIC
-  ${Boost_INCLUDE_DIR}
+  ${Boost_INCLUDE_DIRS}
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty
 )

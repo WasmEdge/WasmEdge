@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
+if(WASMEDGE_DISABLE_AOT_RUNTIME)
+  add_definitions(-DWASMEDGE_DISABLE_AOT_RUNTIME)
+endif()
+
 configure_files(
   ${CMAKE_CURRENT_SOURCE_DIR}/apiTestData
   ${CMAKE_CURRENT_BINARY_DIR}/apiTestData

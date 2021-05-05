@@ -22,7 +22,7 @@ WasmEdge is hosted by the Cloud Native Computing Foundation (CNCF) as a sandbox 
 ```bash
 $ git clone git@github.com:WasmEdge/WasmEdge.git
 $ cd WasmEdge
-$ git checkout 0.7.3
+$ git checkout 0.8.0
 ```
 
 ## Prepare the environment
@@ -116,7 +116,7 @@ Users can use these tests to verify the correctness of WasmEdge binaries.
 
 ```bash
 $ cd <path/to/wasmedge/build_folder>
-$ ctest
+$ LD_LIBRARY_PATH=$(pwd)/lib/api ctest
 ```
 
 ## Run wasmedge (WasmEdge with general wasm runtime)

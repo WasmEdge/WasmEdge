@@ -7,7 +7,7 @@
 * A hardware-optimized runtime for ONNX AI models. [ONNC compiler for AI](https://github.com/ONNC/onnc-wasm)
 * Smart contract runtime engine for leading blockchain platforms. [Polkadot/Substrate](https://github.com/second-state/substrate-ssvm-node) | [CyberMiles](https://docs.secondstate.io/devchain/getting-started/cybermiles-ewasm-testnet)
 
-For the information on related tools and the `WasmEdge` ecosystem, please refer to the [WasmEdge ecosystem documentation](https://github.com/WasmEdge/WasmEdge/blob/master/doc/ecosystem.md).
+WasmEdge is hosted by the Cloud Native Computing Foundation (CNCF) as a sandbox project. For the information on related tools and the `WasmEdge` ecosystem, please refer to the [WasmEdge ecosystem documentation](https://github.com/WasmEdge/WasmEdge/blob/master/doc/ecosystem.md).
 
 ![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/alerts/)

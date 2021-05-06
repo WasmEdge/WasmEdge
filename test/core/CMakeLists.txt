@@ -33,5 +33,5 @@ target_link_libraries(ssvmCoreTests
 
 target_include_directories(ssvmCoreTests  
   PRIVATE
-  ${Boost_INCLUDE_DIR}
+  ${Boost_INCLUDE_DIRS}
 )

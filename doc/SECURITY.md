@@ -1,7 +1,6 @@
 ### Reporting a vulnerability
 For all WasmEdge security-related defects, please send an email to security@secondstate.io. You will receive an acknowledgement mail within 24 hours. After that, we will give a detailed response about the subsequent process within 48 hours. Please do not submit security vulnerabilities directly as Github Issues.
 
-If you want to, you can choose to use the PGP public key provided by us to encrypt the content of the mail. The public key is provided at the end of this document.
 
 ### Disclosure policy
 For known public security vulnerabilities, we will disclose the disclosure as soon as possible after receiving the report. Vulnerabilities discovered for the first time will be disclosed in accordance with the following process:

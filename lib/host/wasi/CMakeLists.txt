@@ -18,6 +18,11 @@ target_link_libraries(wasmedgeHostModuleWasi
   Threads::Threads
 )
 
+target_link_libraries(wasmedgeHostModuleWasi
+  PRIVATE
+  wasmedgeSystem
+)
+
 if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
   target_link_libraries(wasmedgeHostModuleWasi
     PUBLIC

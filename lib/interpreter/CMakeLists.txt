@@ -23,6 +23,7 @@ add_library(wasmedgeInterpreter
 target_link_libraries(wasmedgeInterpreter
   PRIVATE
   wasmedgeCommon
+  wasmedgeSystem
 )
 
 target_include_directories(wasmedgeInterpreter

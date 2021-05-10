@@ -65,8 +65,6 @@ int main(int Argc, const char *Argv[]) {
     Conf.addProposal(WasmEdge::Proposal::SIMD);
   }
   if (All.value()) {
-    Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
-    Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
     Conf.addProposal(WasmEdge::Proposal::SIMD);
   }
 

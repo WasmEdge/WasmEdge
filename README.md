@@ -90,7 +90,11 @@ After the build is finished, you can find there are several wasmedge related too
 	* `wasmedgec` compiles a general `WASM` file into a `so` file.
 	* To disable building the ahead-of-time compiler only, you can set the CMake option `WASMEDGE_DISABLE_AOT_RUNTIME` to `ON`.
 	* To disable building all tools, you can set the CMake option `BUILD_TOOLS` to `OFF`.
-3. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
+3. `libwasmedge_c.so` is the WasmEdge C API shared library.
+	* `libwasmedge_c.so` provides C API for the ahead-of-time compiler and the WASM runtime.
+	* The APIs about the ahead-of-time compiler will always return failed if the CMake option `WASMEDGE_DISABLE_AOT_RUNTIME` is set as `ON`.
+	* To disable building the shared library only, you can set the CMake option `WASMEDGE_DISABLE_SHARED_LIB` to `ON`.
+4. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
 	* If you want to try `ssvm-qitc`, please refer to [ONNC-Wasm](https://github.com/ONNC/onnc-wasm) project to set up the working environment and run several examples.
 	* And here is our [tutorial for ONNC-Wasm project(YouTube Video)](https://www.youtube.com/watch?v=cbiPuHMS-iQ).
 

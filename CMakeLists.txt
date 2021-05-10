@@ -53,8 +53,9 @@ endif()
 
 include(GNUInstallDirs)
 
-# List of WasmEdge runtimes
+# List of WasmEdge options
 option(WASMEDGE_DISABLE_AOT_RUNTIME "Disable WasmEdge LLVM-based ahead of time compilation runtime." OFF)
+option(WASMEDGE_DISABLE_SHARED_LIB "Disable WasmEdge shared library compilation." OFF)
 
 # Macro for copying directory.
 macro(configure_files srcDir destDir)

@@ -7,7 +7,7 @@ add_library(ssvmHostModuleSSVMProcess
 
 target_include_directories(ssvmHostModuleSSVMProcess
   PUBLIC
-  ${Boost_INCLUDE_DIR}
+  ${Boost_INCLUDE_DIRS}
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty
 )

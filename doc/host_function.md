@@ -203,7 +203,7 @@ add_library(ssvmHostModuleTest  # Static library name of host modules
 
 target_include_directories(ssvmHostModuleTest
   PUBLIC
-  ${Boost_INCLUDE_DIR}
+  ${Boost_INCLUDE_DIRS}
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty
 )

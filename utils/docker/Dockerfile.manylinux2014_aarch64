@@ -3,7 +3,7 @@ FROM quay.io/pypa/manylinux2014_aarch64
 
 MAINTAINER hydai hydai@secondstate.io
 
-ADD SHA256SUM build-manylinux.sh /root
+ADD SHA256SUM build-manylinux.sh /root/
 
 RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-build && \
     export CPU=$(/opt/python/cp39-cp39/bin/python3 -c \

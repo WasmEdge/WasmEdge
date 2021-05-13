@@ -36,7 +36,7 @@ struct WasmEdge_ASTModuleContext {
 
 /// WasmEdge_CompilerContext implementation.
 struct WasmEdge_CompilerContext {
-#ifndef WASMEDGE_DISABLE_AOT_RUNTIME
+#ifdef BUILD_AOT_RUNTIME
   WasmEdge_CompilerContext(const WasmEdge::Configure &Conf) noexcept
       : Load(Conf), Valid(Conf) {
     /// Set optimization level to O0 until the compiler option APIs ready.
@@ -616,23 +616,21 @@ void WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt) { delete Cxt; }
 
 WasmEdge_CompilerContext *
 WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt) {
-#ifdef WASMEDGE_DISABLE_AOT_RUNTIME
-  return nullptr;
-#else
+#ifdef BUILD_AOT_RUNTIME
   if (ConfCxt) {
     return new WasmEdge_CompilerContext(ConfCxt->Conf);
   } else {
     return new WasmEdge_CompilerContext(WasmEdge::Configure());
   }
+#else
+  return nullptr;
 #endif
 }
 
 WasmEdge_Result WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt,
                                          const char *InPath,
                                          const char *OutPath) {
-#ifdef WASMEDGE_DISABLE_AOT_RUNTIME
-  return WasmEdge_Result_Fail;
-#else
+#ifdef BUILD_AOT_RUNTIME
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         std::filesystem::path InputPath = std::filesystem::absolute(InPath);
@@ -655,6 +653,9 @@ WasmEdge_Result WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt,
         return Cxt->Compiler.compile(Data, *Module, OutputPath);
       },
       EmptyThen, Cxt);
+#else
+  return WasmEdge_Result{
+      .Code = static_cast<uint8_t>(WasmEdge::ErrCode::AOTDisabled)};
 #endif
 }
 

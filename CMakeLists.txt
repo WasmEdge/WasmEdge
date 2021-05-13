@@ -39,8 +39,11 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 set(CMAKE_SKIP_RPATH ON)
 
+# List of WasmEdge options
 option(BUILD_TESTS "Generate build targets for the wasmedge unit tests." OFF)
 option(BUILD_COVERAGE "Generate coverage report. Require BUILD_TESTS." OFF)
+option(BUILD_AOT_RUNTIME "Enable WasmEdge LLVM-based ahead of time compilation runtime." ON)
+option(BUILD_SHARED_LIB "Generate the WasmEdge shared library." ON)
 option(BUILD_TOOLS "Generate wasmedge and wasmedgec tools." ON)
 option(BUILD_TOOL_WASMEDGE_STATIC "Generate wasmedge-static tool" ON)
 set(BUILD_PACKAGE "DEB;RPM" CACHE STRING "Package generate types")
@@ -52,10 +55,6 @@ if(BUILD_COVERAGE)
 endif()
 
 include(GNUInstallDirs)
-
-# List of WasmEdge options
-option(WASMEDGE_DISABLE_AOT_RUNTIME "Disable WasmEdge LLVM-based ahead of time compilation runtime." OFF)
-option(WASMEDGE_DISABLE_SHARED_LIB "Disable WasmEdge shared library compilation." OFF)
 
 # Macro for copying directory.
 macro(configure_files srcDir destDir)

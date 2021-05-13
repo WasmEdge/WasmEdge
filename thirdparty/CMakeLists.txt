@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 add_subdirectory(easyloggingpp)
 
-if (NOT WASMEDGE_DISABLE_AOT_RUNTIME)
+if (BUILD_AOT_RUNTIME)
   add_subdirectory(blake3)
 endif()
 

@@ -85,6 +85,15 @@ jobs:
           asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux-static.rpm
           asset_name: WasmEdge-static-${{ needs.create.outputs.version }}.rpm
           asset_content_type: application/x-rpm
+      - name: Upload wasmedge tar.gz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create.outputs.upload_url }}
+          asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.gz
+          asset_name: WasmEdge-${{ needs.create.outputs.version }}.tar.gz
+          asset_content_type: application/x-gzip
   build_and_upload_manylinux1_x86_64_package:
     name: Build WasmEdge on manylinux1_x86_64 platform and upload WasmEdge manylinux1 x86_64 package
     needs: create

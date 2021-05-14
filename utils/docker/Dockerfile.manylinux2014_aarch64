@@ -3,7 +3,7 @@ FROM quay.io/pypa/manylinux2014_aarch64
 
 MAINTAINER hydai hydai@secondstate.io
 
-ADD SHA256SUM build-manylinux.sh /root/
+ADD SHA256SUM llvm-fix-missing-include.patch build-manylinux.sh /root/
 
 RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-build && \
     export CPU=$(/opt/python/cp39-cp39/bin/python3 -c \
@@ -18,31 +18,32 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
         https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.xz \
         https://ftp.gnu.org/gnu/mpfr/mpfr-4.1.0.tar.xz \
         https://ftp.gnu.org/gnu/mpc/mpc-1.2.1.tar.gz \
-        http://isl.gforge.inria.fr/isl-0.23.tar.xz \
-        https://github.com/facebook/zstd/releases/download/v1.4.7/zstd-1.4.7.tar.gz \
-        https://ftp.gnu.org/gnu/gcc/gcc-10.2.0/gcc-10.2.0.tar.xz \
-        https://github.com/Kitware/CMake/releases/download/v3.19.2/cmake-3.19.2.tar.gz \
+        http://isl.gforge.inria.fr/isl-0.24.tar.xz \
+        https://github.com/facebook/zstd/releases/download/v1.4.9/zstd-1.4.9.tar.gz \
+        https://ftp.gnu.org/gnu/gcc/gcc-11.1.0/gcc-11.1.0.tar.xz \
+        https://github.com/Kitware/CMake/releases/download/v3.20.2/cmake-3.20.2.tar.gz \
         https://github.com/ninja-build/ninja/archive/v1.10.2.tar.gz \
-        https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/llvm-11.0.0.src.tar.xz \
-        https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/lld-11.0.0.src.tar.xz && \
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-11.1.0/llvm-11.1.0.src.tar.xz \
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-11.1.0/lld-11.1.0.src.tar.xz && \
     sha256sum -c SHA256SUM && \
     xz -dc gmp-6.2.1.tar.xz | tar -xf - && \
     xz -dc mpfr-4.1.0.tar.xz | tar -xf - && \
     gzip -dc mpc-1.2.1.tar.gz | tar -xf - && \
-    xz -dc isl-0.23.tar.xz | tar -xf - && \
-    gzip -dc zstd-1.4.7.tar.gz | tar -xf - && \
-    xz -dc gcc-10.2.0.tar.xz | tar -xf - && \
-    gzip -dc cmake-3.19.2.tar.gz | tar -xf - && \
+    xz -dc isl-0.24.tar.xz | tar -xf - && \
+    gzip -dc zstd-1.4.9.tar.gz | tar -xf - && \
+    xz -dc gcc-11.1.0.tar.xz | tar -xf - && \
+    gzip -dc cmake-3.20.2.tar.gz | tar -xf - && \
     gzip -dc v1.10.2.tar.gz | tar -xf - && \
-    xz -dc llvm-11.0.0.src.tar.xz | tar -xf - && \
-    xz -dc lld-11.0.0.src.tar.xz | tar -xf - && \
+    xz -dc llvm-11.1.0.src.tar.xz | tar -xf - && \
+    xz -dc lld-11.1.0.src.tar.xz | tar -xf - && \
+    cd llvm-11.1.0.src && patch -p1 < ../llvm-fix-missing-include.patch && cd - && \
     mkdir build && cd build && ../gmp-6.2.1/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
     mkdir build && cd build && ../mpfr-4.1.0/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
     mkdir build && cd build && ../mpc-1.2.1/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
-    mkdir build && cd build && ../isl-0.23/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
+    mkdir build && cd build && ../isl-0.24/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
     export ZSTDFLAGS="PREFIX=/toolchain LIBDIR=/toolchain/lib64 SED_ERE_OPT=--regexp-extended" && \
-    cd zstd-1.4.7 && make -s $ZSTDFLAGS -j 1 && make -s $ZSTDFLAGS install && rm -f /toolchain/lib64/libzstd.so* && cd - && \
-    mkdir build && cd build && ../gcc-10.2.0/configure --prefix=/toolchain --libdir=/toolchain/lib64 \
+    cd zstd-1.4.9 && make -s $ZSTDFLAGS -j 1 && make -s $ZSTDFLAGS install && rm -f /toolchain/lib64/libzstd.so* && cd - && \
+    mkdir build && cd build && ../gcc-11.1.0/configure --prefix=/toolchain --libdir=/toolchain/lib64 \
         --with-gmp=/toolchain --with-gmp-lib=/toolchain/lib64 \
         --with-zstd=/toolchain --with-zstd-lib=/toolchain/lib64 \
         --disable-libmpx --disable-libsanitizer --disable-libunwind-exceptions \
@@ -52,23 +53,23 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
         --with-default-libstdcxx-abi="gcc4-compatible" \
         --with-gcc-major-version-only --with-linker-hash-style="gnu" && \
     make -s -j $CPU && make -s install && cd - && rm -rf build && \
-    mv -v /toolchain/lib64/libstdc++.so.6.0.28 /toolchain/lib64/libstdc++.so.6.0.28.backup && \
+    mv -v /toolchain/lib64/libstdc++.so.6.0.29 /toolchain/lib64/libstdc++.so.6.0.29.backup && \
     echo -e "OUTPUT_FORMAT(elf64-aarch64)\nINPUT ( libstdc++.so.6.0.19 libstdc++.a )" \
-       > /toolchain/lib64/libstdc++.so.6.0.28 && \
+       > /toolchain/lib64/libstdc++.so.6.0.29 && \
     export PATH="/toolchain/bin:$PATH" && \
     mkdir build && cd build && /opt/python/cp39-cp39/bin/python \
         ../ninja-1.10.2/configure.py --bootstrap \
         --with-python=/opt/python/cp39-cp39/bin/python && \
     cp -v ninja /toolchain/bin/ninja && cd - && rm -rf build && \
-    mkdir build && cd build && ../cmake-3.19.2/configure --prefix=/toolchain \
+    mkdir build && cd build && ../cmake-3.20.2/configure --prefix=/toolchain \
         --parallel=$CPU && make -s -j $CPU && make -s install && cd - && rm -rf build && \
-    mv -v lld-11.0.0.src lld && \
+    mv -v lld-11.1.0.src lld && \
     cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/toolchain \
         -DPython3_ROOT_DIR=/opt/python/cp39-cp39 -DLLVM_LIBDIR_SUFFIX=64 \
         -DLLVM_TARGETS_TO_BUILD="AArch64" -DLLVM_ENABLE_PROJECTS=lld \
         -DLLVM_DEFAULT_TARGET_TRIPLE="aarch64-redhat-linux-gnu" \
-        llvm-11.0.0.src && cmake --build build --target install && rm -rf build && \
+        llvm-11.1.0.src && cmake --build build --target install && rm -rf build && \
     mv build-manylinux.sh /toolchain/bin/ && \
     rm -rf *
 

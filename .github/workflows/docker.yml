@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - '*.*.*'
+    paths:
+      - 'utils/docker/**'
+      - '.github/workflows/docker.yml'
   pull_request:
     paths:
       - 'utils/docker/**'

@@ -154,7 +154,7 @@ jobs:
         export CPPFLAGS=-I/toolchain/include
         export LDFLAGS=-L/toolchain/lib64
         rm -rf build
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_ROOT=./boost_1_75_0/ .
         cmake --build build
         cmake --build build --target package
 
@@ -176,7 +176,7 @@ jobs:
         export CPPFLAGS=-I/toolchain/include
         export LDFLAGS=-L/toolchain/lib64
         rm -rf build
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_ROOT=./boost_1_75_0/ .
         cmake --build build
         cmake --build build --target package
 
@@ -198,6 +198,6 @@ jobs:
         export CPPFLAGS=-I/toolchain/include
         export LDFLAGS=-L/toolchain/lib64
         rm -rf build
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_ROOT=./boost_1_75_0/ .
         cmake --build build
         cmake --build build --target package

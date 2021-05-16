@@ -1,13 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
-if (NOT WASMEDGE_DISABLE_AOT_RUNTIME)
+if (BUILD_AOT_RUNTIME)
   add_subdirectory(aot)
 endif()
 add_subdirectory(spec)
 add_subdirectory(ast)
 add_subdirectory(loader)
 add_subdirectory(interpreter)
-add_subdirectory(api)
+if (BUILD_SHARED_LIB)
+  add_subdirectory(api)
+endif()
 add_subdirectory(host/wasmedge_process)
 add_subdirectory(host/wasi)
 add_subdirectory(externref)

@@ -32,13 +32,15 @@ jobs:
           body_path: .CurrentChangelog.md
           draft: false
           prerelease: false
-  build_amd64:
-    name: Build WasmEdge on amd64 platform
+  build_and_upload_amd64_package:
+    name: Build WasmEdge on amd64 platform and upload WasmEdge amd64 package
     needs: create
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:ubuntu-build-gcc
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
       - name: Build package
         run: |
           apt update
@@ -47,13 +49,6 @@ jobs:
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=ON -DBUILD_PACKAGE="TGZ;DEB;RPM" .
           cmake --build build
           cmake --build build --target package
-  upload_amd64_package:
-    name: Upload WasmEdge amd64 package
-    needs: [create, build_amd64]
-    runs-on: ubuntu-latest
-    container:
-      image: wasmedge/wasmedge:ubuntu-build-gcc
-    steps:
       - name: Upload WasmEdge amd64 deb package
         uses: actions/upload-release-asset@v1
         env:
@@ -90,31 +85,26 @@ jobs:
           asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux-static.rpm
           asset_name: WasmEdge-static-${{ needs.create.outputs.version }}.rpm
           asset_content_type: application/x-rpm
-  build_manylinux1_x86_64:
-    name: Build WasmEdge on manylinux1_x86_64 platform
-    needs: [create, upload_amd64_package]
+  build_and_upload_manylinux1_x86_64_package:
+    name: Build WasmEdge on manylinux1_x86_64 platform and upload WasmEdge manylinux1 x86_64 package
+    needs: create
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:manylinux1_x86_64
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v1
       - name: Build manylinux1_x86_64 package
         run: |
-          curl -s -L -O --remote-name-all https://dl.bintray.com/boostorg/release/1.75.0/source/boost_1_75_0.tar.bz2
+          curl -s -L -O --remote-name-all https://boostorg.jfrog.io/artifactory/main/release/1.75.0/source/boost_1_75_0.tar.bz2
           bzip2 -dc boost_1_75_0.tar.bz2 | tar -xf -
           export PATH="/toolchain/bin:$PATH"
           export CC=gcc
           export CXX=g++
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_ROOT=./boost_1_75_0/ .
           cmake --build build
           cmake --build build --target package
-  upload_manylinux1_x86_64_package:
-    name: Upload WasmEdge manylinux1 x86_64 package
-    needs: [create, build_manylinux1_x86_64]
-    runs-on: ubuntu-latest
-    container:
-      image: wasmedge/wasmedge:ubuntu-build-gcc
-    steps:
       - name: Upload manylinux1_x86_64 rpm package
         uses: actions/upload-release-asset@v1
         env:
@@ -160,31 +150,26 @@ jobs:
           asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.zst
           asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux1_x86_64.tar.zst
           asset_content_type: application/zstd
-  build_manylinux2010_x86_64:
-    name: Build WasmEdge on manylinux2010_x86_64 platform
-    needs: [create, upload_manylinux1_x86_64_package]
+  build_and_upload_manylinux2010_x86_64_package:
+    name: Build WasmEdge on manylinux2010_x86_64 platform and upload WasmEdge manylinux2010 x86_64 package
+    needs: create
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:manylinux2010_x86_64
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v1
       - name: Build manylinux2010_x86_64 package
         run: |
-          curl -s -L -O --remote-name-all https://dl.bintray.com/boostorg/release/1.75.0/source/boost_1_75_0.tar.bz2
+          curl -s -L -O --remote-name-all https://boostorg.jfrog.io/artifactory/main/release/1.75.0/source/boost_1_75_0.tar.bz2
           bzip2 -dc boost_1_75_0.tar.bz2 | tar -xf -
           export PATH="/toolchain/bin:$PATH"
           export CC=gcc
           export CXX=g++
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_ROOT=./boost_1_75_0/ .
           cmake --build build
           cmake --build build --target package
-  upload_manylinux2010_x86_64_package:
-    name: Upload WasmEdge manylinux2010 x86_64 package
-    needs: [create, build_manylinux2010_x86_64]
-    runs-on: ubuntu-latest
-    container:
-      image: wasmedge/wasmedge:ubuntu-build-gcc
-    steps:
       - name: Upload manylinux2010_x86_64 rpm package
         uses: actions/upload-release-asset@v1
         env:
@@ -230,31 +215,26 @@ jobs:
           asset_path: build/WasmEdge-${{ needs.create.outputs.version }}-Linux.tar.zst
           asset_name: WasmEdge-${{ needs.create.outputs.version }}-manylinux2010_x86_64.tar.zst
           asset_content_type: application/zstd
-  build_manylinux2014_x86_64:
-    name: Build WasmEdge on manylinux2014_x86_64 platform
-    needs: [create, upload_manylinux2010_x86_64_package]
+  build_and_upload_manylinux2014_x86_64_package:
+    name: Build WasmEdge on manylinux2014_x86_64 platform and upload WasmEdge manylinux2014 x86_64 package
+    needs: create
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:manylinux2014_x86_64
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
       - name: Build manylinux2014_x86_64 package
         run: |
-          curl -s -L -O --remote-name-all https://dl.bintray.com/boostorg/release/1.75.0/source/boost_1_75_0.tar.bz2
+          curl -s -L -O --remote-name-all https://boostorg.jfrog.io/artifactory/main/release/1.75.0/source/boost_1_75_0.tar.bz2
           bzip2 -dc boost_1_75_0.tar.bz2 | tar -xf -
           export PATH="/toolchain/bin:$PATH"
           export CC=gcc
           export CXX=g++
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBOOST_INCLUDEDIR=./boost_1_75_0/ .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_ROOT=./boost_1_75_0/ .
           cmake --build build
           cmake --build build --target package
-  upload_manylinux2014_x86_64_package:
-    name: Upload WasmEdge manylinux2014 x86_64 package
-    needs: [create, build_manylinux2014_x86_64]
-    runs-on: ubuntu-latest
-    container:
-      image: wasmedge/wasmedge:ubuntu-build-gcc
-    steps:
       - name: Upload manylinux2014_x86_64 rpm package
         uses: actions/upload-release-asset@v1
         env:

@@ -2,11 +2,12 @@
 
 **WasmEdge** (formerly SSVM) is a high performance and enterprise-ready WebAssembly (WASM) Virtual Machine for cloud, AI, and Blockchain applications. Its use cases include the following.
 
-* A high performance and secure runtime for Rust functions in Node.js applications. [Getting started](https://www.secondstate.io/articles/getting-started-with-rust-function/) | [VSCode Codespaces](https://www.secondstate.io/articles/getting-started-rust-nodejs-vscode/) | [Tensorflow](https://www.secondstate.io/articles/artificial-intelligence/) | [Privacy computing @ Mozilla Open Labs](https://hackernoon.com/second-state-releases-scalable-privacy-service-at-mozilla-open-labs-b15u3wh7)
+* A high performance runtime for Rust function-as-a-service (FaaS). [Getting started](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/) | [Tensorflow inference](https://www.secondstate.io/articles/wasi-tensorflow/) | [Tencent Serverless](https://github.com/second-state/tencent-tensorflow-scf) | [Rust on Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/)
+* An embedded runtime for serverless functions in SaaS and PaaS platforms. [Serverless Reactor for messaging apps](http://reactor.secondstate.info/) | [Plugin for IoT streaming framework YoMo](https://github.com/second-state/yomo-flow-ssvm-example)
 * A hardware-optimized runtime for ONNX AI models. [ONNC compiler for AI](https://github.com/ONNC/onnc-wasm)
 * Smart contract runtime engine for leading blockchain platforms. [Polkadot/Substrate](https://github.com/second-state/substrate-ssvm-node) | [CyberMiles](https://docs.secondstate.io/devchain/getting-started/cybermiles-ewasm-testnet)
 
-For the information on related tools and the `WasmEdge` ecosystem, please refer to the [WasmEdge ecosystem documentation](https://github.com/WasmEdge/WasmEdge/blob/master/doc/ecosystem.md).
+WasmEdge is hosted by the Cloud Native Computing Foundation (CNCF) as a sandbox project. For the information on related tools and the `WasmEdge` ecosystem, please refer to the [WasmEdge ecosystem documentation](https://github.com/WasmEdge/WasmEdge/blob/master/doc/ecosystem.md).
 
 ![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/alerts/)
@@ -21,7 +22,7 @@ For the information on related tools and the `WasmEdge` ecosystem, please refer 
 ```bash
 $ git clone git@github.com:WasmEdge/WasmEdge.git
 $ cd WasmEdge
-$ git checkout 0.7.3
+$ git checkout 0.8.0
 ```
 
 ## Prepare the environment
@@ -71,10 +72,10 @@ If you are looking for the pre-built binaries for the older operatoring system, 
 
 ### If you don't want to build Ahead-of-Time runtime/compiler
 
-If users don't need Ahead-of-Time runtime/compiler support, they can set the CMake option `WASMEDGE_DISABLE_AOT_RUNTIME` to `ON`.
+If users don't need Ahead-of-Time runtime/compiler support, they can set the CMake option `BUILD_AOT_RUNTIME` to `OFF`.
 
 ```bash
-$ cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_DISABLE_AOT_RUNTIME=ON ..
+$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_AOT_RUNTIME=OFF ..
 ```
 
 ## Build WasmEdge
@@ -87,9 +88,13 @@ After the build is finished, you can find there are several wasmedge related too
 	* To disable building all tools, you can set the CMake option `BUILD_TOOLS` to `OFF`.
 2. `wasmedgec` is for ahead-of-time `WASM` compiler.
 	* `wasmedgec` compiles a general `WASM` file into a `so` file.
-	* To disable building the ahead-of-time compiler only, you can set the CMake option `WASMEDGE_DISABLE_AOT_RUNTIME` to `ON`.
+	* To disable building the ahead-of-time compiler only, you can set the CMake option `BUILD_AOT_RUNTIME` to `OFF`.
 	* To disable building all tools, you can set the CMake option `BUILD_TOOLS` to `OFF`.
-3. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
+3. `libwasmedge_c.so` is the WasmEdge C API shared library.
+	* `libwasmedge_c.so` provides C API for the ahead-of-time compiler and the WASM runtime.
+	* The APIs about the ahead-of-time compiler will always return failed if the CMake option `BUILD_AOT_RUNTIME` is set as `OFF`.
+	* To disable building the shared library only, you can set the CMake option `BUILD_SHARED_LIB` to `OFF`.
+4. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
 	* If you want to try `ssvm-qitc`, please refer to [ONNC-Wasm](https://github.com/ONNC/onnc-wasm) project to set up the working environment and run several examples.
 	* And here is our [tutorial for ONNC-Wasm project(YouTube Video)](https://www.youtube.com/watch?v=cbiPuHMS-iQ).
 
@@ -111,7 +116,7 @@ Users can use these tests to verify the correctness of WasmEdge binaries.
 
 ```bash
 $ cd <path/to/wasmedge/build_folder>
-$ ctest
+$ LD_LIBRARY_PATH=$(pwd)/lib/api ctest
 ```
 
 ## Run wasmedge (WasmEdge with general wasm runtime)
@@ -167,6 +172,12 @@ $ ./wasmedge --reactor examples/factorial.wasm fac 5
 
 # Related tools
 
+Note: Some of those tools are stilling using WasmEdge's old name "SSVM". We are renaming those repos, artifacts, and docs when we make new releases on those projects.
+
+## rustwasmc
+
+The [rustwasmc](https://github.com/second-state/rustwasmc) is a one-stop tool for building Rust functions into WebAssembly for deployment on the WasmEdge Runtime.
+
 ## SSVM-EVMC
 
 [SSVM-EVMC](https://github.com/second-state/ssvm-evmc) provides support for Ewasm runtime which is compatible with [EVMC](https://github.com/ethereum/evmc).
@@ -181,7 +192,7 @@ It allows Node.js applications to call WebAssembly functions written in Rust or 
 
 [Why do you want to run WebAssembly on the server-side?](https://www.secondstate.io/articles/why-webassembly-server/?utm_source=github&utm_medium=documents&utm_campaign=Github-ssvm-readme)
 
-The WasmEdge addon could interact with the wasm files generated by the [ssvmup](https://www.secondstate.io/articles/ssvmup/) compiler tool.
+The WasmEdge addon could interact with the wasm files generated by the [rustwasmc](https://www.secondstate.io/articles/rustwasmc/) compiler tool.
 
 ## SSVM-TensorFlow
 

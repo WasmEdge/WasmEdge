@@ -42,9 +42,11 @@ static inline std::unordered_map<WasmPhase, std::string> WasmPhaseStr = {
 enum class ErrCode : uint8_t {
   Success = 0x00,
   Terminated = 0x01,        /// Exit and return success.
-  CostLimitExceeded = 0x02, /// Exceeded cost limit (out of gas).
-  WrongVMWorkflow = 0x03,   /// Wrong VM's workflow
-  FuncNotFound = 0x04,      /// Wasm function not found
+  RuntimeError = 0x02,      /// Generic runtime error.
+  CostLimitExceeded = 0x03, /// Exceeded cost limit (out of gas).
+  WrongVMWorkflow = 0x04,   /// Wrong VM's workflow
+  FuncNotFound = 0x05,      /// Wasm function not found
+  AOTDisabled = 0x06,       /// AOT runtime is disabled
   /// Load phase
   InvalidPath = 0x20,            /// File not found
   ReadError = 0x21,              /// Error when reading
@@ -125,9 +127,11 @@ static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
     /// WasmEdge runtime
     {ErrCode::Success, "success"},
     {ErrCode::Terminated, "terminated"},
+    {ErrCode::RuntimeError, "generic runtime error"},
     {ErrCode::CostLimitExceeded, "cost limit exceeded"},
     {ErrCode::WrongVMWorkflow, "wrong VM workflow"},
     {ErrCode::FuncNotFound, "wasm function not found"},
+    {ErrCode::AOTDisabled, "AOT runtime is disabled in this build"},
     /// Load phase
     {ErrCode::InvalidPath, "invalid path"},
     {ErrCode::ReadError, "read error"},

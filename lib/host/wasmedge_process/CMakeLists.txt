@@ -5,6 +5,11 @@ add_library(wasmedgeHostModuleWasmEdgeProcess
   processmodule.cpp
 )
 
+target_link_libraries(wasmedgeHostModuleWasmEdgeProcess
+  PRIVATE
+  wasmedgeSystem
+)
+
 target_include_directories(wasmedgeHostModuleWasmEdgeProcess
   PUBLIC
   ${Boost_INCLUDE_DIRS}

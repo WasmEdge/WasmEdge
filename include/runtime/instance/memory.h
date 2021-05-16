@@ -17,6 +17,7 @@
 #include "common/span.h"
 #include "common/types.h"
 #include "common/value.h"
+#include "system/allocator.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -26,45 +27,15 @@
 #include <set>
 #include <utility>
 
-#include <linux/mman.h>
-#include <sys/mman.h>
-
 namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
 class MemoryInstance {
-private:
-  static uintptr_t getUsableAddress() {
-    /// Parse smaps for available memory region
-    std::set<std::pair<uintptr_t, uintptr_t>> Regions;
-    std::ifstream Smaps("/proc/self/smaps");
-    for (std::string Line; std::getline(Smaps, Line);) {
-      if (std::isdigit(Line.front()) || std::islower(Line.front())) {
-        char *Cursor = nullptr;
-        const uintptr_t Begin = std::strtoull(Line.c_str(), &Cursor, 16);
-        const uintptr_t End = std::strtoull(++Cursor, &Cursor, 16);
-        Regions.emplace(Begin, End);
-      }
-    }
-    for (auto Prev = Regions.cbegin(), Next = std::next(Prev);
-         Next != Regions.cend(); ++Prev, ++Next) {
-      if (Next->first - Prev->second >= k12G) {
-        const auto PaddedBegin = (Prev->second + kPageMask) & ~kPageMask;
-        if (Next->first - PaddedBegin >= k12G) {
-          return PaddedBegin + k4G;
-        }
-      }
-    }
-    return UINT64_C(-1);
-  }
 
 public:
   static inline constexpr const uint64_t kPageSize = UINT64_C(65536);
-  static inline constexpr const uint64_t kPageMask = UINT64_C(65535);
   static inline constexpr const uint64_t k4G = UINT64_C(0x100000000);
-  static inline constexpr const uint64_t k8G = UINT64_C(0x200000000);
-  static inline constexpr const uint64_t k12G = k4G + k8G;
   MemoryInstance() = delete;
   MemoryInstance(MemoryInstance &&Inst) noexcept
       : HasMaxPage(Inst.HasMaxPage), MinPage(Inst.MinPage),
@@ -72,35 +43,23 @@ public:
         PageLimit(Inst.PageLimit) {
     Inst.DataPtr = nullptr;
   }
-  MemoryInstance(const AST::Limit &Lim, const uint32_t PageLim = 65536) noexcept
+  MemoryInstance(const AST::Limit &Lim,
+                 const uint32_t PageLim = UINT32_C(65536)) noexcept
       : HasMaxPage(Lim.hasMax()), MinPage(Lim.getMin()), MaxPage(Lim.getMax()),
         PageLimit(PageLim) {
-    const auto UsableAddress = getUsableAddress();
-    if (UsableAddress == UINT64_C(-1)) {
-      LOG(ERROR) << "Unable to find usable memory address";
-      return;
-    }
     if (MinPage > PageLimit) {
       LOG(ERROR)
           << "Create memory instance failed -- exceeded limit page size: "
           << PageLimit;
       return;
     }
-    DataPtr = reinterpret_cast<uint8_t *>(UsableAddress);
-    if (MinPage != 0) {
-      if ((mmap(DataPtr, MinPage * kPageSize, PROT_READ | PROT_WRITE,
-                MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0)) ==
-          MAP_FAILED) {
-        LOG(ERROR) << "mmap failed";
-        return;
-      }
+    DataPtr = Allocator::allocate(MinPage);
+    if (DataPtr == nullptr) {
+      LOG(ERROR) << "Unable to find usable memory address";
+      return;
     }
   }
-  ~MemoryInstance() noexcept {
-    if (DataPtr) {
-      munmap(DataPtr, MinPage * kPageSize);
-    }
-  }
+  ~MemoryInstance() noexcept { Allocator::release(DataPtr, MinPage); }
 
   /// Get page size of memory.data
   uint32_t getDataPageSize() const noexcept { return MinPage; }
@@ -144,13 +103,7 @@ public:
                  << PageLimit;
       return false;
     }
-    if (MinPage == 0) {
-      if (mmap(DataPtr, Count * kPageSize, PROT_READ | PROT_WRITE,
-               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {
-        return false;
-      }
-    } else if (mremap(DataPtr, MinPage * kPageSize,
-                      (MinPage + Count) * kPageSize, 0) == MAP_FAILED) {
+    if (Allocator::resize(DataPtr, MinPage, MinPage + Count) == nullptr) {
       return false;
     }
     MinPage += Count;

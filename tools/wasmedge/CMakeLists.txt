@@ -5,7 +5,7 @@ configure_files(
   COPYONLY
 )
 
-if (NOT WASMEDGE_DISABLE_AOT_RUNTIME)
+if (BUILD_AOT_RUNTIME)
   add_executable(wasmedgec
     wasmedgec.cpp
   )

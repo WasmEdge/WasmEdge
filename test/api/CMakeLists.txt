@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
+if(BUILD_AOT_RUNTIME)
+  add_definitions(-DBUILD_AOT_RUNTIME)
+endif()
+
 configure_files(
   ${CMAKE_CURRENT_SOURCE_DIR}/apiTestData
   ${CMAKE_CURRENT_BINARY_DIR}/apiTestData
@@ -61,7 +65,7 @@ target_link_libraries(wasmedgeAPIStepsCoreTests
   wasmedge_c
 )
 
-if (NOT WASMEDGE_DISABLE_AOT_RUNTIME)
+if (BUILD_AOT_RUNTIME)
   add_executable(wasmedgeAPIAOTCoreTests
     APIAOTCoreTest.cpp
   )

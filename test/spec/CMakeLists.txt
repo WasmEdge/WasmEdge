@@ -3,8 +3,8 @@
 include(FetchContent)
 FetchContent_Declare(
   wasmedge_unit_test
-  GIT_REPOSITORY https://github.com/second-state/ssvm-unittest.git
-  GIT_TAG wasm-dev
+  GIT_REPOSITORY https://github.com/second-state/WasmEdge-unittest
+  GIT_TAG wasm-dev-0.8.0
 )
 
 FetchContent_GetProperties(wasmedge_unit_test)

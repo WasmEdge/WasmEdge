@@ -39,8 +39,11 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 set(CMAKE_SKIP_RPATH ON)
 
+# List of WasmEdge options
 option(BUILD_TESTS "Generate build targets for the wasmedge unit tests." OFF)
 option(BUILD_COVERAGE "Generate coverage report. Require BUILD_TESTS." OFF)
+option(BUILD_AOT_RUNTIME "Enable WasmEdge LLVM-based ahead of time compilation runtime." ON)
+option(BUILD_SHARED_LIB "Generate the WasmEdge shared library." ON)
 option(BUILD_TOOLS "Generate wasmedge and wasmedgec tools." ON)
 option(BUILD_TOOL_WASMEDGE_STATIC "Generate wasmedge-static tool" ON)
 set(BUILD_PACKAGE "DEB;RPM" CACHE STRING "Package generate types")
@@ -52,9 +55,6 @@ if(BUILD_COVERAGE)
 endif()
 
 include(GNUInstallDirs)
-
-# List of WasmEdge runtimes
-option(WASMEDGE_DISABLE_AOT_RUNTIME "Disable WasmEdge LLVM-based ahead of time compilation runtime." OFF)
 
 # Macro for copying directory.
 macro(configure_files srcDir destDir)
@@ -89,6 +89,7 @@ set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
 set(CPACK_ARCHIVE_${CMAKE_INSTALL_DEFAULT_COMPONENT_NAME_UPCASE}_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}")
 set(CPACK_RPM_COMPONENT_INSTALL ON)
 set(CPACK_RPM_MAIN_COMPONENT ${CMAKE_INSTALL_DEFAULT_COMPONENT_NAME})
+set(CPACK_RPM_PACKAGE_LICENSE "Apache 2.0")
 set(CPACK_DEB_COMPONENT_INSTALL ON)
 set(CPACK_DEBIAN_${CMAKE_INSTALL_DEFAULT_COMPONENT_NAME_UPCASE}_PACKAGE_NAME wasmedge)
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)

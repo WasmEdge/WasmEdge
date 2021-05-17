@@ -146,17 +146,7 @@ jobs:
 
     - name: Build manylinux2014_x86_64 package
       run: |
-        curl -s -L -O --remote-name-all https://boostorg.jfrog.io/artifactory/main/release/1.75.0/source/boost_1_75_0.tar.bz2
-        bzip2 -dc boost_1_75_0.tar.bz2 | tar -xf -
-        export PATH="/toolchain/bin:$PATH"
-        export CC=gcc
-        export CXX=g++
-        export CPPFLAGS=-I/toolchain/include
-        export LDFLAGS=-L/toolchain/lib64
-        rm -rf build
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_ROOT=./boost_1_75_0/ .
-        cmake --build build
-        cmake --build build --target package
+        bash utils/docker/build-manylinux.sh
 
   build_manylinux2010_x86_64:
     name: Build WasmEdge using g++ on manylinux2010_x86_64 platform
@@ -168,17 +158,7 @@ jobs:
 
     - name: Build manylinux2010_x86_64 package
       run: |
-        curl -s -L -O --remote-name-all https://boostorg.jfrog.io/artifactory/main/release/1.75.0/source/boost_1_75_0.tar.bz2
-        bzip2 -dc boost_1_75_0.tar.bz2 | tar -xf -
-        export PATH="/toolchain/bin:$PATH"
-        export CC=gcc
-        export CXX=g++
-        export CPPFLAGS=-I/toolchain/include
-        export LDFLAGS=-L/toolchain/lib64
-        rm -rf build
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_ROOT=./boost_1_75_0/ .
-        cmake --build build
-        cmake --build build --target package
+        bash utils/docker/build-manylinux.sh
 
   build_manylinux1_x86_64:
     name: Build WasmEdge using g++ on manylinux1_x86_64 platform
@@ -190,14 +170,4 @@ jobs:
 
     - name: Build manylinux1_x86_64 package
       run: |
-        curl -s -L -O --remote-name-all https://boostorg.jfrog.io/artifactory/main/release/1.75.0/source/boost_1_75_0.tar.bz2
-        bzip2 -dc boost_1_75_0.tar.bz2 | tar -xf -
-        export PATH="/toolchain/bin:$PATH"
-        export CC=gcc
-        export CXX=g++
-        export CPPFLAGS=-I/toolchain/include
-        export LDFLAGS=-L/toolchain/lib64
-        rm -rf build
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOL_WASMEDGE_STATIC=OFF -DBUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_ROOT=./boost_1_75_0/ .
-        cmake --build build
-        cmake --build build --target package
+        bash utils/docker/build-manylinux.sh

@@ -3,7 +3,7 @@ FROM quay.io/pypa/manylinux2014_aarch64
 
 MAINTAINER hydai hydai@secondstate.io
 
-ADD SHA256SUM llvm-fix-missing-include.patch build-manylinux.sh /root/
+ADD SHA256SUM llvm-fix-missing-include.patch /root/
 
 RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-build && \
     export CPU=$(/opt/python/cp39-cp39/bin/python3 -c \
@@ -70,7 +70,6 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
         -DLLVM_TARGETS_TO_BUILD="AArch64" -DLLVM_ENABLE_PROJECTS=lld \
         -DLLVM_DEFAULT_TARGET_TRIPLE="aarch64-redhat-linux-gnu" \
         llvm-11.1.0.src && cmake --build build --target install && rm -rf build && \
-    mv build-manylinux.sh /toolchain/bin/ && \
     rm -rf *
 
 RUN yum clean all

@@ -74,3 +74,6 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
     rm -rf *
 
 RUN yum clean all
+ENV PATH /toolchain/bin:$PATH
+ENV CC gcc
+ENV CXX g++

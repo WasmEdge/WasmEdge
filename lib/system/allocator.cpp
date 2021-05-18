@@ -61,49 +61,27 @@ namespace WasmEdge {
 
 namespace {
 static inline constexpr const uint64_t kPageSize = UINT64_C(65536);
-static inline constexpr const uint64_t kPageMask = UINT64_C(65535);
 static inline constexpr const uint64_t k4G = UINT64_C(0x100000000);
-static inline constexpr const uint64_t k8G = UINT64_C(0x200000000);
-static inline constexpr const uint64_t k12G = k4G + k8G;
+static inline constexpr const uint64_t k12G = UINT64_C(0x300000000);
 
-#if ALLOC_MMAP
-static std::mutex Mutex;
-static std::set<std::pair<uintptr_t, uintptr_t>> Regions;
-#endif
 } // namespace
 
 uint8_t *Allocator::allocate(uint32_t PageCount) noexcept {
 #if ALLOC_MMAP
-  /// Parse smaps for available memory region
-  std::unique_lock Lock(Mutex);
-
-  if (unlikely(Regions.empty())) {
-    std::ifstream Smaps("/proc/self/smaps");
-    for (std::string Line; std::getline(Smaps, Line);) {
-      if (std::isdigit(Line.front()) || std::islower(Line.front())) {
-        char *Cursor = nullptr;
-        const uintptr_t Begin = std::strtoull(Line.c_str(), &Cursor, 16);
-        const uintptr_t End = std::strtoull(++Cursor, &Cursor, 16);
-        Regions.emplace(Begin, End);
-      }
-    }
+  auto Reserved = reinterpret_cast<uint8_t *>(
+      mmap(nullptr, k12G, PROT_NONE,
+           MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0));
+  if (Reserved == MAP_FAILED) {
+    return nullptr;
   }
-
-  for (auto Prev = Regions.cbegin(), Next = std::next(Prev);
-       Next != Regions.cend(); ++Prev, ++Next) {
-    if (Next->first - Prev->second >= k12G) {
-      const auto PaddedBegin = (Prev->second + kPageMask) & ~kPageMask;
-      if (Next->first - PaddedBegin >= k12G) {
-        uint8_t *Pointer = reinterpret_cast<uint8_t *>(PaddedBegin + k4G);
-        if (PageCount != 0 && resize(Pointer, 0, PageCount) == nullptr) {
-          continue;
-        }
-        Regions.emplace(PaddedBegin, PaddedBegin + k12G);
-        return Pointer;
-      }
-    }
+  if (PageCount == 0) {
+    return Reserved + k4G;
   }
-  return nullptr;
+  auto Pointer = resize(Reserved + k4G, 0, PageCount);
+  if (Pointer == nullptr) {
+    return nullptr;
+  }
+  return Pointer;
 #elif MAP_WINAPI
   auto Reserved = reinterpret_cast<uint8_t *>(
       boost::winapi::VirtualAlloc(nullptr, k12G, boost::winapi::MEM_RESERVE_,
@@ -120,7 +98,7 @@ uint8_t *Allocator::allocate(uint32_t PageCount) noexcept {
   }
   return Pointer;
 #elif MAP_STUB
-  return std::malloc(kPageSize);
+  return std::malloc(kPageSize * PageCount);
 #endif
 }
 
@@ -128,16 +106,10 @@ uint8_t *Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
                            uint32_t NewPageCount) noexcept {
   assert(NewPageCount > OldPageCount);
 #if ALLOC_MMAP
-  if (OldPageCount == 0) {
-    if (mmap(Pointer, NewPageCount * kPageSize, PROT_READ | PROT_WRITE,
-             MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {
-      return nullptr;
-    }
-  } else {
-    if (mremap(Pointer, OldPageCount * kPageSize, NewPageCount * kPageSize,
-               0) == MAP_FAILED) {
-      return nullptr;
-    }
+  if (mmap(Pointer + OldPageCount * kPageSize,
+           (NewPageCount - OldPageCount) * kPageSize, PROT_READ | PROT_WRITE,
+           MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {
+    return nullptr;
   }
   return Pointer;
 #elif MAP_WINAPI
@@ -149,7 +121,7 @@ uint8_t *Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
   }
   return Pointer;
 #elif MAP_STUB
-  return std::realloc(Pointer, PageCount * kPageSize);
+  return std::realloc(Pointer, NewPageCount * kPageSize);
 #endif
 }
 
@@ -158,10 +130,7 @@ void Allocator::release(uint8_t *Pointer, uint32_t PageCount) noexcept {
   if (Pointer == nullptr) {
     return;
   }
-  std::unique_lock Lock(Mutex);
-  const auto PaddedBegin = reinterpret_cast<uintptr_t>(Pointer) - k4G;
-  Regions.erase(std::pair(PaddedBegin, PaddedBegin + k12G));
-  munmap(Pointer, PageCount * kPageSize);
+  munmap(Pointer - k4G, k12G);
 #elif MAP_WINAPI
   boost::winapi::VirtualFree(Pointer - k4G, 0, boost::winapi::MEM_RELEASE_);
 #elif MAP_STUB

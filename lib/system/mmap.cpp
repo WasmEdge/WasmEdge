@@ -23,8 +23,10 @@
 #include <unistd.h>
 #elif MAP_WINAPI
 #include <boost/winapi/access_rights.hpp>
+#include <boost/winapi/file_management.hpp>
 #include <boost/winapi/file_mapping.hpp>
 #include <boost/winapi/handles.hpp>
+#include <boost/winapi/page_protection_flags.hpp>
 #endif
 
 namespace WasmEdge {
@@ -81,7 +83,7 @@ struct Implement {
     boost::winapi::LARGE_INTEGER_ Size;
     boost::winapi::GetFileSizeEx(File, &Size);
 
-    Map = boost::winapi::create_file_mapping(
+    Map = boost::winapi::CreateFileMappingW(
         File, nullptr, boost::winapi::PAGE_READONLY_, Size.HighPart,
         Size.LowPart, nullptr);
     if (Map == nullptr) {
@@ -100,10 +102,10 @@ struct Implement {
       boost::winapi::UnmapViewOfFile(Address);
     }
     if (Map) {
-      boost::winapi::close_handle(Map);
+      boost::winapi::CloseHandle(Map);
     }
     if (File) {
-      boost::winapi::close_handle(File);
+      boost::winapi::CloseHandle(File);
     }
   }
   bool ok() const noexcept { return Address != nullptr; }

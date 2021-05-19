@@ -17,7 +17,7 @@ target_include_directories(wasmedgeAST
 )
 
 target_link_libraries(wasmedgeAST
-  PRIVATE
+  PUBLIC
   wasmedgeLoaderFileMgr
   wasmedgeCommon
 )

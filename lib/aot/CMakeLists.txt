@@ -22,6 +22,7 @@ llvm_add_library(wasmedgeAOT
   compiler.cpp
   LINK_LIBS
   wasmedgeCommon
+  wasmedgeAST
   utilBlake3
   ${LLD_SYSTEM}
   ${LLD_COMMON}
@@ -45,7 +46,7 @@ llvm_add_library(wasmedgeAOT
 target_include_directories(wasmedgeAOT
   SYSTEM
   PRIVATE
-  "${LLVM_INCLUDE_DIR}"
+  ${LLVM_INCLUDE_DIR}
 )
 
 target_include_directories(wasmedgeAOT

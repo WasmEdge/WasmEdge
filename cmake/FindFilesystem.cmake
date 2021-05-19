@@ -185,8 +185,7 @@ if(CXX_FILESYSTEM_HAVE_FS)
     ]] code @ONLY)
 
     # Try to compile a simple filesystem program without any linker flags
-    set(CXX_FILESYSTEM_NO_LINK_NEEDED off)
-    # check_cxx_source_compiles("${code}" CXX_FILESYSTEM_NO_LINK_NEEDED)
+    check_cxx_source_compiles("${code}" CXX_FILESYSTEM_NO_LINK_NEEDED)
 
     set(can_link ${CXX_FILESYSTEM_NO_LINK_NEEDED})
 

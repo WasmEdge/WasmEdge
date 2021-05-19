@@ -14,10 +14,6 @@
 
 #include <boost/align/aligned_allocator.hpp>
 
-#include <dirent.h>
-#include <fcntl.h>
-#include <unistd.h>
-
 namespace WasmEdge {
 namespace Host {
 

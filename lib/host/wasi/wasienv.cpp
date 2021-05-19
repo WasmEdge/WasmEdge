@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "host/wasi/wasienv.h"
+#include "common/defines.h"
 
-extern char **environ;
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#include <dirent.h>
+#include <fcntl.h>
+#include <unistd.h>
+#elif WASMEDGE_OS_WINDOWS
+
+#endif
 
 namespace {
 static inline constexpr const __wasi_rights_t kFileRights =

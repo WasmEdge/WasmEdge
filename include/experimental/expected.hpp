@@ -1541,13 +1541,13 @@ public:
   constexpr const_lvalue_reference_type operator*() const & {
     return impl_base::val();
   }
-  constexpr lvalue_reference_type operator*() & { return impl_base::val(); };
+  constexpr lvalue_reference_type operator*() & { return impl_base::val(); }
   constexpr const_rvalue_reference_type operator*() const && {
     return move(impl_base::val());
-  };
+  }
   constexpr rvalue_reference_type operator*() && {
     return move(impl_base::val());
-  };
+  }
   constexpr explicit operator bool() const noexcept { return has_value(); }
   using impl_base::error;
   using impl_base::has_value;

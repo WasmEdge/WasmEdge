@@ -106,7 +106,7 @@ private:
 ///
 /// Read OpCode byte(s) from file manager and return OpCode.
 ///
-/// \param FileMgr the file manager object to load bytes.
+/// \param Mgr the file manager object to load bytes.
 /// \param Conf the WasmEdge configuration reference.
 ///
 /// \returns OpCode if success, ErrCode when failed.
@@ -116,7 +116,7 @@ Expect<OpCode> loadOpCode(FileMgr &Mgr, const Configure &Conf);
 ///
 /// Read instructions until the End OpCode and return the vector.
 ///
-/// \param FileMgr the file manager object to load bytes.
+/// \param Mgr the file manager object to load bytes.
 /// \param Conf the WasmEdge configuration reference.
 ///
 /// \returns InstrVec if success, ErrCode when failed.

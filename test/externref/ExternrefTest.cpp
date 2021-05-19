@@ -59,7 +59,8 @@ TEST(ExternRefTest, Ref__Functions) {
   EXPECT_EQ(std::get<uint32_t>((*Res3)[0]), 68161536U);
 
   /// Test 4: call sum and square -- (210 + 654)^2
-  FuncArgs = {WasmEdge::genExternRef(&AC), WasmEdge::genExternRef(&SS), 210U, 654U};
+  FuncArgs = {WasmEdge::genExternRef(&AC), WasmEdge::genExternRef(&SS), 210U,
+              654U};
   FuncArgTypes = {WasmEdge::ValType::ExternRef, WasmEdge::ValType::ExternRef,
                   WasmEdge::ValType::I32, WasmEdge::ValType::I32};
   auto Res4 = VM.execute("call_add_square", FuncArgs, FuncArgTypes);
@@ -107,7 +108,8 @@ TEST(ExternRefTest, Ref__STL) {
   /// Test 3: call map insert {key, val}
   STLStrKey = "one";
   STLStrVal = "1";
-  FuncArgs = {WasmEdge::genExternRef(&STLMap), WasmEdge::genExternRef(&STLStrKey),
+  FuncArgs = {WasmEdge::genExternRef(&STLMap),
+              WasmEdge::genExternRef(&STLStrKey),
               WasmEdge::genExternRef(&STLStrVal)};
   FuncArgTypes = {WasmEdge::ValType::ExternRef, WasmEdge::ValType::ExternRef,
                   WasmEdge::ValType::ExternRef};
@@ -119,7 +121,8 @@ TEST(ExternRefTest, Ref__STL) {
 
   /// Test 4: call map erase {key}
   STLStrKey = "one";
-  FuncArgs = {WasmEdge::genExternRef(&STLMap), WasmEdge::genExternRef(&STLStrKey)};
+  FuncArgs = {WasmEdge::genExternRef(&STLMap),
+              WasmEdge::genExternRef(&STLStrKey)};
   FuncArgTypes = {WasmEdge::ValType::ExternRef, WasmEdge::ValType::ExternRef};
   auto Res4 = VM.execute("call_map_erase", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res4);

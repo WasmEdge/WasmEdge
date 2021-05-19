@@ -22,8 +22,8 @@ using namespace std::literals::string_literals;
 using namespace std::literals::string_view_literals;
 
 TEST(CacheTest, GlobalEmpty) {
-  const auto Path =
-      WasmEdge::AOT::Cache::getPath({}, WasmEdge::AOT::Cache::StorageScope::Global);
+  const auto Path = WasmEdge::AOT::Cache::getPath(
+      {}, WasmEdge::AOT::Cache::StorageScope::Global);
   EXPECT_TRUE(Path);
   auto Root = *Path;
   while (Root.filename().u8string() != "wasmedge"sv) {
@@ -39,8 +39,8 @@ TEST(CacheTest, GlobalEmpty) {
 }
 
 TEST(CacheTest, LocalEmpty) {
-  const auto Path =
-      WasmEdge::AOT::Cache::getPath({}, WasmEdge::AOT::Cache::StorageScope::Local);
+  const auto Path = WasmEdge::AOT::Cache::getPath(
+      {}, WasmEdge::AOT::Cache::StorageScope::Local);
   EXPECT_TRUE(Path);
   auto Root = *Path;
   while (Root.filename().u8string() != ".wasmedge"sv) {

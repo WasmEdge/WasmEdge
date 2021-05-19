@@ -48,7 +48,8 @@ TEST_P(CoreTest, TestSuites) {
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
     WasmEdge::AOT::Compiler Compiler;
-    Compiler.setOptimizationLevel(WasmEdge::AOT::Compiler::OptimizationLevel::O0);
+    Compiler.setOptimizationLevel(
+        WasmEdge::AOT::Compiler::OptimizationLevel::O0);
     Compiler.setDumpIR(true);
     auto Path = std::filesystem::u8path(Filename);
     Path.replace_extension(std::filesystem::u8path(".so"sv));

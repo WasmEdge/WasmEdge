@@ -31,9 +31,12 @@ public:
         B(Description("b option"sv), DefaultValue<int>(-1)),
         C(Description("c option"sv), DefaultValue<int>(0), ZeroOrMore()),
         F(Description("f option"sv), ZeroOrMore()) {
-    Parser.add_option("a"sv, A).add_option("a-option"sv, A)
-        .add_option("b"sv, B).add_option("b_option"sv, B)
-        .add_option("c"sv, C).add_option("coption"sv, C)
+    Parser.add_option("a"sv, A)
+        .add_option("a-option"sv, A)
+        .add_option("b"sv, B)
+        .add_option("b_option"sv, B)
+        .add_option("c"sv, C)
+        .add_option("coption"sv, C)
         .add_option(F);
   }
   Option<Toggle> A;

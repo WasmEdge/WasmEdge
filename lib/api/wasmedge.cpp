@@ -99,7 +99,7 @@ struct WasmEdge_ImportObjectContext {};
 /// WasmEdge_VMContext implementation.
 struct WasmEdge_VMContext {
   template <typename... Args>
-  WasmEdge_VMContext(Args &&... Vals) noexcept
+  WasmEdge_VMContext(Args &&...Vals) noexcept
       : VM(std::forward<Args>(Vals)...) {}
   WasmEdge::VM::VM VM;
 };
@@ -183,11 +183,11 @@ template <typename T> inline bool isContext(T *Cxt) noexcept {
   return (Cxt != nullptr);
 }
 template <typename T, typename... Args>
-inline bool isContext(T *Cxt, Args *... Cxts) noexcept {
+inline bool isContext(T *Cxt, Args *...Cxts) noexcept {
   return isContext(Cxt) && isContext(Cxts...);
 }
 template <typename T, typename U, typename... CxtT>
-inline WasmEdge_Result wrap(T &&Proc, U &&Then, CxtT *... Cxts) noexcept {
+inline WasmEdge_Result wrap(T &&Proc, U &&Then, CxtT *...Cxts) noexcept {
   if (isContext(Cxts...)) {
     if (auto Res = Proc()) {
       Then(Res);

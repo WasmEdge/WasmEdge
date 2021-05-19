@@ -171,7 +171,7 @@ int main(int Argc, const char *Argv[]) {
          I < FuncType.Params.size() && I + 1 < Args.value().size(); ++I) {
       switch (FuncType.Params[I]) {
       case WasmEdge::ValType::I32: {
-        const uint32_t Value = std::stoll(Args.value()[I + 1]);
+        const uint32_t Value = std::stol(Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
         FuncArgTypes.emplace_back(WasmEdge::ValType::I32);
         break;
@@ -183,7 +183,7 @@ int main(int Argc, const char *Argv[]) {
         break;
       }
       case WasmEdge::ValType::F32: {
-        const float Value = std::stod(Args.value()[I + 1]);
+        const float Value = std::stof(Args.value()[I + 1]);
         FuncArgs.emplace_back(Value);
         FuncArgTypes.emplace_back(WasmEdge::ValType::F32);
         break;

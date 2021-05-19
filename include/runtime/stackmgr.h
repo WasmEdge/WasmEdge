@@ -57,7 +57,7 @@ public:
     ValueStack.reserve(2048U);
     LabelStack.reserve(64U);
     FrameStack.reserve(16U);
-  };
+  }
   ~StackManager() = default;
 
   /// Getter of stack size.

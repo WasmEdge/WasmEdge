@@ -66,7 +66,7 @@ public:
   void addLocal(const ValType &V);
   void addLocal(const VType &V);
 
-  std::vector<VType> result() { return ValStack; };
+  std::vector<VType> result() { return ValStack; }
   auto &getTypes() { return Types; }
   auto &getFunctions() { return Funcs; }
   auto &getTables() { return Tables; }

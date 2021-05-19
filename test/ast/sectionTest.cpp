@@ -16,7 +16,7 @@
 
 namespace {
 
-WasmEdge::FileMgrVector Mgr;
+WasmEdge::FileMgr Mgr;
 WasmEdge::Configure Conf;
 
 TEST(SectionTest, LoadCustomSection) {
@@ -25,11 +25,9 @@ TEST(SectionTest, LoadCustomSection) {
   ///   1.  Load invalid empty section.
   ///   2.  Load custom section without contents.
   ///   3.  Load custom section with contents.
-  Mgr.clearBuffer();
   WasmEdge::AST::CustomSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
@@ -37,7 +35,6 @@ TEST(SectionTest, LoadCustomSection) {
   WasmEdge::AST::CustomSection Sec2;
   EXPECT_TRUE(Sec2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x87U, 0x80U, 0x80U, 0x80U, 0x00U,              /// Content size = 7
       0x00U, 0xFFU, 0xEEU, 0xDDU, 0xCCU, 0xBBU, 0xAAU /// Content
@@ -54,11 +51,9 @@ TEST(SectionTest, LoadTypeSection) {
   ///   2.  Load type section without contents.
   ///   3.  Load type section with zero vector length.
   ///   4.  Load type section with contents.
-  Mgr.clearBuffer();
   WasmEdge::AST::TypeSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
@@ -66,7 +61,6 @@ TEST(SectionTest, LoadTypeSection) {
   WasmEdge::AST::TypeSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x81U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 1
       0x00U                              /// Vector length = 0
@@ -75,7 +69,6 @@ TEST(SectionTest, LoadTypeSection) {
   WasmEdge::AST::TypeSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x93U, 0x80U, 0x80U, 0x80U, 0x00U,        /// Content size = 19
       0x03U,                                    /// Vector length = 3
@@ -95,11 +88,9 @@ TEST(SectionTest, LoadImportSection) {
   ///   2.  Load import section without contents.
   ///   3.  Load import section with zero vector length.
   ///   4.  Load import section with contents.
-  Mgr.clearBuffer();
   WasmEdge::AST::ImportSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
@@ -107,7 +98,6 @@ TEST(SectionTest, LoadImportSection) {
   WasmEdge::AST::ImportSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x81U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 1
       0x00U                              /// Vector length = 0
@@ -116,7 +106,6 @@ TEST(SectionTest, LoadImportSection) {
   WasmEdge::AST::ImportSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0xAEU, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 46
       0x03U,                             /// Vector length = 3
@@ -145,11 +134,9 @@ TEST(SectionTest, LoadFunctionSection) {
   ///   2.  Load function section without contents.
   ///   3.  Load function section with zero vector length.
   ///   4.  Load function section with contents.
-  Mgr.clearBuffer();
   WasmEdge::AST::FunctionSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
@@ -157,7 +144,6 @@ TEST(SectionTest, LoadFunctionSection) {
   WasmEdge::AST::FunctionSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x81U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 1
       0x00U,                             /// Vector length = 0
@@ -166,7 +152,6 @@ TEST(SectionTest, LoadFunctionSection) {
   WasmEdge::AST::FunctionSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x89U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 9
       0x03U,                             /// Vector length = 3
@@ -186,11 +171,9 @@ TEST(SectionTest, LoadTableSection) {
   ///   2.  Load table section without contents.
   ///   3.  Load table section with zero vector length.
   ///   4.  Load table section with contents.
-  Mgr.clearBuffer();
   WasmEdge::AST::TableSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
@@ -198,7 +181,6 @@ TEST(SectionTest, LoadTableSection) {
   WasmEdge::AST::TableSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x81U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 1
       0x00U                              /// Vector length = 0
@@ -207,7 +189,6 @@ TEST(SectionTest, LoadTableSection) {
   WasmEdge::AST::TableSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x8DU, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 13
       0x03U,                             /// Vector length = 3
@@ -227,11 +208,9 @@ TEST(SectionTest, LoadMemorySection) {
   ///   2.  Load memory section without contents.
   ///   3.  Load memory section with zero vector length.
   ///   4.  Load memory section with contents.
-  Mgr.clearBuffer();
   WasmEdge::AST::MemorySection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
@@ -239,7 +218,6 @@ TEST(SectionTest, LoadMemorySection) {
   WasmEdge::AST::MemorySection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x81U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 1
       0x00U                              /// Vector length = 0
@@ -248,7 +226,6 @@ TEST(SectionTest, LoadMemorySection) {
   WasmEdge::AST::MemorySection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x8AU, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 10
       0x03U,                             /// Vector length = 3
@@ -268,11 +245,9 @@ TEST(SectionTest, LoadGlobalSection) {
   ///   2.  Load global section without contents.
   ///   3.  Load global section with zero vector length.
   ///   4.  Load global section with contents.
-  Mgr.clearBuffer();
   WasmEdge::AST::GlobalSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
@@ -280,7 +255,6 @@ TEST(SectionTest, LoadGlobalSection) {
   WasmEdge::AST::GlobalSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x81U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 1
       0x00U                              /// Vector length = 0
@@ -289,7 +263,6 @@ TEST(SectionTest, LoadGlobalSection) {
   WasmEdge::AST::GlobalSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x8DU, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 13
       0x03U,                             /// Vector length = 3
@@ -309,11 +282,9 @@ TEST(SectionTest, LoadExportSection) {
   ///   2.  Load export section without contents.
   ///   3.  Load export section with zero vector length.
   ///   4.  Load export section with contents.
-  Mgr.clearBuffer();
   WasmEdge::AST::ExportSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
@@ -321,7 +292,6 @@ TEST(SectionTest, LoadExportSection) {
   WasmEdge::AST::ExportSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x81U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 1
       0x00U                              /// Vector length = 0
@@ -330,7 +300,6 @@ TEST(SectionTest, LoadExportSection) {
   WasmEdge::AST::ExportSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0xA8U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 40
       0x03U,                             /// Vector length = 3
@@ -355,11 +324,9 @@ TEST(SectionTest, LoadStartSection) {
   ///   1.  Load invalid empty section.
   ///   2.  Load start section without contents.
   ///   3.  Load start section with contents.
-  Mgr.clearBuffer();
   WasmEdge::AST::StartSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
@@ -367,7 +334,6 @@ TEST(SectionTest, LoadStartSection) {
   WasmEdge::AST::StartSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x85U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 5
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  /// Content
@@ -384,11 +350,9 @@ TEST(SectionTest, LoadElementSection) {
   ///   2.  Load element section without contents.
   ///   3.  Load element section with zero vector length.
   ///   4.  Load element section with contents.
-  Mgr.clearBuffer();
   WasmEdge::AST::ElementSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
@@ -396,7 +360,6 @@ TEST(SectionTest, LoadElementSection) {
   WasmEdge::AST::ElementSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x81U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 1
       0x00U                              /// Vector length = 0
@@ -405,7 +368,6 @@ TEST(SectionTest, LoadElementSection) {
   WasmEdge::AST::ElementSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x9CU, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 28
       0x03U,                             /// Vector length = 3
@@ -434,11 +396,9 @@ TEST(SectionTest, LoadCodeSection) {
   ///   2.  Load code section without contents.
   ///   3.  Load code section with zero vector length.
   ///   4.  Load code section with contents.
-  Mgr.clearBuffer();
   WasmEdge::AST::CodeSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
@@ -446,7 +406,6 @@ TEST(SectionTest, LoadCodeSection) {
   WasmEdge::AST::CodeSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x81U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 1
       0x00U                              /// Vector length = 0
@@ -455,7 +414,6 @@ TEST(SectionTest, LoadCodeSection) {
   WasmEdge::AST::CodeSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0xABU, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 43
       0x03U,                             /// Vector length = 3
@@ -484,11 +442,9 @@ TEST(SectionTest, LoadDataSection) {
   ///   2.  Load data section without contents.
   ///   3.  Load data section with zero vector length.
   ///   4.  Load data section with contents.
-  Mgr.clearBuffer();
   WasmEdge::AST::DataSection Sec1;
   EXPECT_FALSE(Sec1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Content size = 0
   };
@@ -496,7 +452,6 @@ TEST(SectionTest, LoadDataSection) {
   WasmEdge::AST::DataSection Sec2;
   EXPECT_FALSE(Sec2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x81U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 1
       0x00U                              /// Vector length = 0
@@ -505,7 +460,6 @@ TEST(SectionTest, LoadDataSection) {
   WasmEdge::AST::DataSection Sec3;
   EXPECT_TRUE(Sec3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0xA0U, 0x80U, 0x80U, 0x80U, 0x00U, /// Content size = 43
       0x03U,                             /// Vector length = 3

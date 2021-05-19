@@ -16,8 +16,8 @@
 #include "common/filesystem.h"
 #include "common/types.h"
 #include "common/value.h"
-
-#include <fstream>
+#include "system/mmap.h"
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -26,111 +26,69 @@ namespace WasmEdge {
 /// File manager interface.
 class FileMgr {
 public:
-  virtual ~FileMgr() = default;
-
   /// Set the file path.
-  virtual Expect<void> setPath(const std::filesystem::path &FilePath) = 0;
+  Expect<void> setPath(const std::filesystem::path &FilePath);
 
   /// Set the binary data.
-  virtual Expect<void> setCode(Span<const Byte> CodeData) = 0;
+  Expect<void> setCode(Span<const Byte> CodeData);
+
+  /// Set the binary data.
+  Expect<void> setCode(std::vector<Byte> CodeData);
 
   /// Read one byte.
-  virtual Expect<Byte> readByte() = 0;
+  Expect<Byte> readByte();
 
   /// Read number of bytes into a vector.
-  virtual Expect<std::vector<Byte>> readBytes(size_t SizeToRead) = 0;
+  Expect<std::vector<Byte>> readBytes(size_t SizeToRead);
+
+  /// Read number of bytes into a vector.
+  Expect<void> readBytes(Span<Byte> Buffer);
 
   /// Read an unsigned int.
-  virtual Expect<uint32_t> readU32() = 0;
+  Expect<uint32_t> readU32();
 
   /// Read an unsigned long long int.
-  virtual Expect<uint64_t> readU64() = 0;
+  Expect<uint64_t> readU64();
 
   /// Read a signed int.
-  virtual Expect<int32_t> readS32() = 0;
+  Expect<int32_t> readS32();
 
   /// Read a signed long long int.
-  virtual Expect<int64_t> readS64() = 0;
+  Expect<int64_t> readS64();
 
   /// Read a float.
-  virtual Expect<float> readF32() = 0;
+  Expect<float> readF32();
 
   /// Read a double.
-  virtual Expect<double> readF64() = 0;
+  Expect<double> readF64();
 
   /// Read a string, which is size(unsigned int) + bytes.
-  virtual Expect<std::string> readName() = 0;
+  Expect<std::string> readName();
 
   /// Get current offset.
-  virtual uint32_t getOffset() = 0;
+  uint64_t getOffset() const { return Pos; }
 
-protected:
-  /// File manager status.
-  ErrCode Status = ErrCode::InvalidPath;
-};
+  /// Get remain size.
+  uint64_t getRemainSize() const { return Size - Pos; }
 
-/// File stream version of file manager.
-class FileMgrFStream : public FileMgr {
-public:
-  FileMgrFStream() = default;
-  virtual ~FileMgrFStream() noexcept;
-
-  /// Inheritted from FileMgr.
-  Expect<void> setPath(const std::filesystem::path &FilePath) override;
-  Expect<void> setCode(Span<const Byte> CodeData) override {
-    return Unexpect(ErrCode::InvalidPath);
-  }
-  Expect<Byte> readByte() override;
-  Expect<std::vector<Byte>> readBytes(size_t SizeToRead) override;
-  Expect<uint32_t> readU32() override;
-  Expect<uint64_t> readU64() override;
-  Expect<int32_t> readS32() override;
-  Expect<int64_t> readS64() override;
-  Expect<float> readF32() override;
-  Expect<double> readF64() override;
-  Expect<std::string> readName() override;
-  uint32_t getOffset() override {
-    return Fin.eof() ? FSize : static_cast<uint32_t>(Fin.tellg());
-  }
-
-private:
-  /// file stream.
-  std::ifstream Fin;
-  uint32_t FSize = 0;
-};
-
-/// Vector version of file manager.
-class FileMgrVector : public FileMgr {
-public:
-  FileMgrVector() = default;
-
-  /// Inheritted from FileMgr.
-  Expect<void> setPath(const std::filesystem::path &FilePath) override {
-    return Unexpect(ErrCode::InvalidPath);
-  }
-  Expect<void> setCode(Span<const Byte> CodeData) override;
-  Expect<Byte> readByte() override;
-  Expect<std::vector<Byte>> readBytes(size_t SizeToRead) override;
-  Expect<uint32_t> readU32() override;
-  Expect<uint64_t> readU64() override;
-  Expect<int32_t> readS32() override;
-  Expect<int64_t> readS64() override;
-  Expect<float> readF32() override;
-  Expect<double> readF64() override;
-  Expect<std::string> readName() override;
-  uint32_t getOffset() override { return Pos; }
-
-  uint32_t getRemainSize() const { return Code.size() - Pos; }
-  void clearBuffer() {
-    Code.clear();
-    Pos = 0;
+  /// Reset status
+  void reset() {
     Status = ErrCode::EndOfFile;
+    Pos = 0;
+    Size = 0;
+    Data = nullptr;
+    Map.reset();
+    DataHolder.reset();
   }
 
 private:
-  /// Reference to input vector.
-  std::vector<Byte> Code;
-  uint32_t Pos = 0;
+  /// File manager status.
+  ErrCode Status = ErrCode::EndOfFile;
+  uint64_t Pos;
+  uint64_t Size;
+  const Byte *Data;
+  std::optional<MMap> Map;
+  std::optional<std::vector<Byte>> DataHolder;
 };
 
 } // namespace WasmEdge

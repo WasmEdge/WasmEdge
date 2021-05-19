@@ -17,7 +17,7 @@
 
 namespace {
 
-WasmEdge::FileMgrVector Mgr;
+WasmEdge::FileMgr Mgr;
 WasmEdge::Configure Conf;
 
 TEST(DescriptionTest, LoadImportDesc) {
@@ -30,11 +30,9 @@ TEST(DescriptionTest, LoadImportDesc) {
   ///   5.  Load import description of table type.
   ///   6.  Load import description of memory type.
   ///   7.  Load import description of global type.
-  Mgr.clearBuffer();
   WasmEdge::AST::ImportDesc Imp1;
   EXPECT_FALSE(Imp1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x00U,       /// Empty module name
       0x00U,       /// Empty external name
@@ -44,7 +42,6 @@ TEST(DescriptionTest, LoadImportDesc) {
   WasmEdge::AST::ImportDesc Imp2;
   EXPECT_TRUE(Imp2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x04U, 0x74U, 0x65U, 0x73U, 0x74U,               /// Module name: test
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
@@ -54,7 +51,6 @@ TEST(DescriptionTest, LoadImportDesc) {
   WasmEdge::AST::ImportDesc Imp3;
   EXPECT_TRUE(Imp3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x04U, 0x74U, 0x65U, 0x73U, 0x74U,               /// Module name: test
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
@@ -64,7 +60,6 @@ TEST(DescriptionTest, LoadImportDesc) {
   WasmEdge::AST::ImportDesc Imp4;
   EXPECT_FALSE(Imp4.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
       0x04U, 0x74U, 0x65U, 0x73U, 0x74U,               /// Module name: test
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
@@ -78,7 +73,6 @@ TEST(DescriptionTest, LoadImportDesc) {
   WasmEdge::AST::ImportDesc Imp5;
   EXPECT_TRUE(Imp5.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec6 = {
       0x04U, 0x74U, 0x65U, 0x73U, 0x74U,               /// Module name: test
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
@@ -91,7 +85,6 @@ TEST(DescriptionTest, LoadImportDesc) {
   WasmEdge::AST::ImportDesc Imp6;
   EXPECT_TRUE(Imp6.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec7 = {
       0x04U, 0x74U, 0x65U, 0x73U, 0x74U,               /// Module name: test
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
@@ -111,11 +104,9 @@ TEST(DescriptionTest, LoadExportDesc) {
   ///   3.  Load export description with non-empty module name.
   ///   4.  Load export description with invalid external type.
   ///   5.  Load export description of table type.
-  Mgr.clearBuffer();
   WasmEdge::AST::ExportDesc Exp1;
   EXPECT_FALSE(Exp1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x00U,       /// Empty external name
       0x00U, 0x00U /// function type and index
@@ -124,7 +115,6 @@ TEST(DescriptionTest, LoadExportDesc) {
   WasmEdge::AST::ExportDesc Exp2;
   EXPECT_TRUE(Exp2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
       0x00U, 0x00U /// function type and index
@@ -133,7 +123,6 @@ TEST(DescriptionTest, LoadExportDesc) {
   WasmEdge::AST::ExportDesc Exp3;
   EXPECT_TRUE(Exp3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
       0x04U, 0x00U                                     /// Invalid external type
@@ -142,7 +131,6 @@ TEST(DescriptionTest, LoadExportDesc) {
   WasmEdge::AST::ExportDesc Exp4;
   EXPECT_FALSE(Exp4.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
       0x01U, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Table type and table index

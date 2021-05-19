@@ -16,7 +16,7 @@
 
 namespace {
 
-WasmEdge::FileMgrFStream Mgr;
+WasmEdge::FileMgr Mgr;
 WasmEdge::Configure Conf;
 
 TEST(WagonTest, Load__add_ex_main) {

@@ -41,8 +41,7 @@ public:
 
 private:
   const Configure Conf;
-  FileMgrFStream FSMgr;
-  FileMgrVector FVMgr;
+  FileMgr FMgr;
   LDMgr LMgr;
 };
 

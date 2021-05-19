@@ -16,7 +16,7 @@
 
 namespace {
 
-WasmEdge::FileMgrVector Mgr;
+WasmEdge::FileMgr Mgr;
 WasmEdge::Configure Conf;
 
 TEST(TypeTest, LoadLimit) {
@@ -27,11 +27,9 @@ TEST(TypeTest, LoadLimit) {
   ///   3.  Load limit with only min.
   ///   4.  Load invalid limit with fail of loading max.
   ///   5.  Load limit with min and max.
-  Mgr.clearBuffer();
   WasmEdge::AST::Limit Lim1;
   EXPECT_FALSE(Lim1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x02U, /// Unknown limit type
       0x00U  /// Min = 0
@@ -40,7 +38,6 @@ TEST(TypeTest, LoadLimit) {
   WasmEdge::AST::Limit Lim2;
   EXPECT_FALSE(Lim2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x00U,                            /// Only has min
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Min = 4294967295
@@ -49,7 +46,6 @@ TEST(TypeTest, LoadLimit) {
   WasmEdge::AST::Limit Lim3;
   EXPECT_TRUE(Lim3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x01U,                            /// Has min and max
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Min = 4294967295
@@ -58,7 +54,6 @@ TEST(TypeTest, LoadLimit) {
   WasmEdge::AST::Limit Lim4;
   EXPECT_FALSE(Lim4.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
       0x01U,                             /// Has min and max
       0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU, /// Min = 4294967281
@@ -78,18 +73,15 @@ TEST(TypeTest, LoadFunctionType) {
   ///   4.  Load non-void parameter function type.
   ///   5.  Load non-void result function type.
   ///   6.  Load function type with parameters and result.
-  Mgr.clearBuffer();
   WasmEdge::AST::FunctionType Fun1;
   EXPECT_FALSE(Fun1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {0xFFU, /// Invalid function type header
                                      0x00U, 0x00U};
   Mgr.setCode(Vec2);
   WasmEdge::AST::FunctionType Fun2;
   EXPECT_FALSE(Fun2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x60U, /// Function type header
       0x00U, /// Parameter length = 0
@@ -99,7 +91,6 @@ TEST(TypeTest, LoadFunctionType) {
   WasmEdge::AST::FunctionType Fun3;
   EXPECT_TRUE(Fun3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x60U,                      /// Function type header
       0x04U,                      /// Parameter length = 4
@@ -110,7 +101,6 @@ TEST(TypeTest, LoadFunctionType) {
   WasmEdge::AST::FunctionType Fun4;
   EXPECT_TRUE(Fun4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
       0x60U, /// Function type header
       0x00U, /// Parameter length = 0
@@ -121,7 +111,6 @@ TEST(TypeTest, LoadFunctionType) {
   WasmEdge::AST::FunctionType Fun5;
   EXPECT_TRUE(Fun5.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec6 = {
       0x60U,                      /// Function type header
       0x04U,                      /// Parameter length = 4
@@ -142,11 +131,9 @@ TEST(TypeTest, LoadMemoryType) {
   ///   3.  Load limit with only min.
   ///   4.  Load invalid limit with fail of loading max.
   ///   5.  Load limit with min and max.
-  Mgr.clearBuffer();
   WasmEdge::AST::MemoryType Mem1;
   EXPECT_FALSE(Mem1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x02U, /// Unknown limit type
       0x00U  /// Min = 0
@@ -155,7 +142,6 @@ TEST(TypeTest, LoadMemoryType) {
   WasmEdge::AST::MemoryType Mem2;
   EXPECT_FALSE(Mem2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x00U,                            /// Only has min
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Min = 4294967295
@@ -164,7 +150,6 @@ TEST(TypeTest, LoadMemoryType) {
   WasmEdge::AST::MemoryType Mem3;
   EXPECT_TRUE(Mem3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x01U,                            /// Has min and max
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Min = 4294967295
@@ -173,7 +158,6 @@ TEST(TypeTest, LoadMemoryType) {
   WasmEdge::AST::MemoryType Mem4;
   EXPECT_FALSE(Mem4.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
       0x01U,                             /// Has min and max
       0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU, /// Min = 4294967281
@@ -193,11 +177,9 @@ TEST(TypeTest, LoadTableType) {
   ///   4.  Load limit with only min.
   ///   5.  Load invalid limit with fail of loading max.
   ///   6.  Load limit with min and max.
-  Mgr.clearBuffer();
   WasmEdge::AST::TableType Tab1;
   EXPECT_FALSE(Tab1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0xFFU, /// Unknown reference type
       0x00U, /// Limit with only has min
@@ -207,7 +189,6 @@ TEST(TypeTest, LoadTableType) {
   WasmEdge::AST::TableType Tab2;
   EXPECT_FALSE(Tab2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x70U, /// Reference type
       0x02U, /// Unknown limit type
@@ -217,7 +198,6 @@ TEST(TypeTest, LoadTableType) {
   WasmEdge::AST::TableType Tab3;
   EXPECT_FALSE(Tab3.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x70U,                            /// Reference type
       0x00U,                            /// Only has min
@@ -227,7 +207,6 @@ TEST(TypeTest, LoadTableType) {
   WasmEdge::AST::TableType Tab4;
   EXPECT_TRUE(Tab4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
       0x70U,                            /// Reference type
       0x01U,                            /// Has min and max
@@ -237,7 +216,6 @@ TEST(TypeTest, LoadTableType) {
   WasmEdge::AST::TableType Tab5;
   EXPECT_FALSE(Tab5.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec6 = {
       0x70U,                             /// Reference type
       0x01U,                             /// Has min and max
@@ -256,11 +234,9 @@ TEST(TypeTest, LoadGlobalType) {
   ///   2.  Load invalid global type without mutation.
   ///   3.  Load invalid mutation of global type.
   ///   4.  Load valid global type.
-  Mgr.clearBuffer();
   WasmEdge::AST::GlobalType Glb1;
   EXPECT_FALSE(Glb1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x7CU /// F64 number type
   };
@@ -268,7 +244,6 @@ TEST(TypeTest, LoadGlobalType) {
   WasmEdge::AST::GlobalType Glb2;
   EXPECT_FALSE(Glb2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x7CU, /// F64 number type
       0xFFU  /// Invalid mutation type
@@ -277,7 +252,6 @@ TEST(TypeTest, LoadGlobalType) {
   WasmEdge::AST::GlobalType Glb3;
   EXPECT_FALSE(Glb3.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x7CU, /// F64 number type
       0x00U  /// Const mutation

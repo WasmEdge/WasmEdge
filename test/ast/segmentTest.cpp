@@ -17,7 +17,7 @@
 
 namespace {
 
-WasmEdge::FileMgrVector Mgr;
+WasmEdge::FileMgr Mgr;
 WasmEdge::Configure Conf;
 
 TEST(SegmentTest, LoadGlobalSegment) {
@@ -26,11 +26,9 @@ TEST(SegmentTest, LoadGlobalSegment) {
   ///   1.  Load invalid empty global segment.
   ///   2.  Load global segment with expression of only End operation.
   ///   3.  Load global segment with non-empty expression.
-  Mgr.clearBuffer();
   WasmEdge::AST::GlobalSegment Seg1;
   EXPECT_FALSE(Seg1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x7FU, 0x00, /// Global type.
       0x0BU        /// Expression.
@@ -39,7 +37,6 @@ TEST(SegmentTest, LoadGlobalSegment) {
   WasmEdge::AST::GlobalSegment Seg2;
   EXPECT_TRUE(Seg2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x7FU, 0x00U,              /// Table index
       0x45U, 0x46U, 0x47U, 0x0BU /// Expression
@@ -57,11 +54,9 @@ TEST(SegmentTest, LoadElementSegment) {
   ///       function indices list.
   ///   3.  Load element segment with expression and function indices list.
   /// TODO: Add prefix 0x01 ~ 0x07 tests.
-  Mgr.clearBuffer();
   WasmEdge::AST::ElementSegment Seg1;
   EXPECT_FALSE(Seg1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x00U, /// Prefix 0x00
       0x0BU, /// Expression
@@ -71,7 +66,6 @@ TEST(SegmentTest, LoadElementSegment) {
   WasmEdge::AST::ElementSegment Seg2;
   EXPECT_TRUE(Seg2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x00U,                             /// Prefix 0x00
       0x45U, 0x46U, 0x47U, 0x0BU,        /// Expression
@@ -93,11 +87,9 @@ TEST(SegmentTest, LoadCodeSegment) {
   ///   3.  Load code segment of empty locals and expression with only End
   ///       operation.
   ///   4.  Load code segment with expression and local lists.
-  Mgr.clearBuffer();
   WasmEdge::AST::CodeSegment Seg1;
   EXPECT_FALSE(Seg1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x80U, 0x80U, 0x80U, 0x80U, 0x00U /// Code segment size
   };
@@ -105,7 +97,6 @@ TEST(SegmentTest, LoadCodeSegment) {
   WasmEdge::AST::CodeSegment Seg2;
   EXPECT_FALSE(Seg2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x82U, 0x80U, 0x80U, 0x80U, 0x00U, /// Code segment size
       0x00U,                             /// Vector length = 0
@@ -115,7 +106,6 @@ TEST(SegmentTest, LoadCodeSegment) {
   WasmEdge::AST::CodeSegment Seg3;
   EXPECT_TRUE(Seg3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x95U, 0x80U, 0x80U, 0x80U, 0x00U,        /// Code segment size
       0x04U,                                    /// Vector length = 4
@@ -138,11 +128,9 @@ TEST(SegmentTest, LoadDataSegment) {
   ///       initialization data.
   ///   3.  Load data segment with expression and initialization data.
   /// TODO: Add prefix 0x01 and 0x02 tests.
-  Mgr.clearBuffer();
   WasmEdge::AST::DataSegment Seg1;
   EXPECT_FALSE(Seg1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x00U, /// Prefix 0x00
       0x0BU, /// Expression
@@ -152,7 +140,6 @@ TEST(SegmentTest, LoadDataSegment) {
   WasmEdge::AST::DataSegment Seg2;
   EXPECT_TRUE(Seg2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x00U,                            /// Prefix 0x00
       0x45U, 0x46U, 0x47U, 0x0BU,       /// Expression

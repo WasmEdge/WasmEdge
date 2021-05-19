@@ -16,19 +16,17 @@
 
 namespace {
 
-WasmEdge::FileMgrVector Mgr;
+WasmEdge::FileMgr Mgr;
 WasmEdge::Configure Conf;
 
 TEST(ModuleTest, LoadInvalidModule) {
   /// 1. Test load empty file
-  Mgr.clearBuffer();
   WasmEdge::AST::Module Mod;
   EXPECT_FALSE(Mod.loadBinary(Mgr, Conf));
 }
 
 TEST(ModuleTest, LoadEmptyModule) {
   /// 2. Test load empty module
-  Mgr.clearBuffer();
   WasmEdge::AST::Module Mod;
   std::vector<unsigned char> Vec = {0x00U, 0x61U, 0x73U, 0x6DU,
                                     0x01U, 0x00U, 0x00U, 0x00U};
@@ -38,7 +36,6 @@ TEST(ModuleTest, LoadEmptyModule) {
 
 TEST(ModuleTest, LoadValidSecModule) {
   /// 3. Test load module with valid empty sections
-  Mgr.clearBuffer();
   WasmEdge::AST::Module Mod;
   std::vector<unsigned char> Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU,                      /// Magic
@@ -62,7 +59,6 @@ TEST(ModuleTest, LoadValidSecModule) {
 
 TEST(ModuleTest, LoadInvalidSecModule) {
   /// 4. Test load module with invalid sections
-  Mgr.clearBuffer();
   WasmEdge::AST::Module Mod;
   std::vector<unsigned char> Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU,                      /// Magic

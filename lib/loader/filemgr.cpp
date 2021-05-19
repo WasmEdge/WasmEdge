@@ -9,251 +9,48 @@
 
 namespace WasmEdge {
 
-/// Destructor of file manager. See "include/loader/filemgr.h".
-FileMgrFStream::~FileMgrFStream() noexcept {
-  if (Fin.is_open()) {
-    Fin.close();
-  }
-}
-
 /// Set path to file manager. See "include/loader/filemgr.h".
-Expect<void> FileMgrFStream::setPath(const std::filesystem::path &FilePath) {
-  if (Fin.is_open()) {
-    Fin.close();
-    Status = ErrCode::InvalidPath;
-  }
-  Fin.open(FilePath, std::ios::in | std::ios::binary);
-  if (!Fin.fail()) {
-    Status = ErrCode::Success;
-    FSize = std::filesystem::file_size(FilePath);
-  }
-  if (Status != ErrCode::Success) {
-    return Unexpect(Status);
-  }
-  return {};
-}
-
-/// Read one byte. See "include/loader/filemgr.h".
-Expect<Byte> FileMgrFStream::readByte() {
-  if (Status != ErrCode::Success) {
-    return Unexpect(Status);
-  }
-  char Buf = 0;
-  Fin.get(Buf);
-  if (Fin.fail()) {
-    Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
-    return Unexpect(Status);
-  }
-  return static_cast<unsigned char>(Buf);
-}
-
-/// Read number of bytes. See "include/loader/filemgr.h".
-Expect<std::vector<Byte>> FileMgrFStream::readBytes(size_t SizeToRead) {
-  if (Status != ErrCode::Success) {
-    return Unexpect(Status);
-  }
-  std::vector<Byte> Buf;
-  Buf.resize(SizeToRead);
-  if (SizeToRead > 0) {
-    Fin.read(reinterpret_cast<char *>(&Buf[0]), SizeToRead);
-  }
-  if (Fin.fail()) {
-    Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
-    return Unexpect(Status);
-  }
-  return Buf;
-}
-
-/// Decode and read an unsigned int. See "include/loader/filemgr.h".
-Expect<uint32_t> FileMgrFStream::readU32() {
-  if (Status != ErrCode::Success) {
-    return Unexpect(Status);
-  }
-  uint32_t Result = 0;
-  uint32_t Offset = 0;
-  char Byte = 0x80;
-  while (!Fin.fail() && Byte & 0x80) {
-    if (Offset >= 32) {
-      Status = ErrCode::IntegerTooLong;
+Expect<void> FileMgr::setPath(const std::filesystem::path &FilePath) {
+  reset();
+  std::error_code ErrCode;
+  Size = std::filesystem::file_size(FilePath, ErrCode);
+  if (likely(!ErrCode)) {
+    if (!MMap::supported()) {
+      Status = ErrCode::InvalidPath;
       return Unexpect(Status);
     }
-    Fin.get(Byte);
-    Result |= (Byte & UINT32_C(0x7F)) << (Offset);
-    if (Offset == 28 && (Byte & UINT32_C(0x70)) != 0) {
-      Status = ErrCode::IntegerTooLarge;
-      return Unexpect(Status);
+    Map.emplace(FilePath);
+    if (auto *Pointer = Map->address(); likely(Pointer)) {
+      Data = reinterpret_cast<const Byte *>(Pointer);
+      Status = ErrCode::Success;
+      return {};
     }
-    Offset += 7;
+    Map.reset();
   }
-  if (Fin.fail()) {
-    Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
-    return Unexpect(Status);
-  }
-  return Result;
-}
-
-/// Decode and read an unsigned long long int. See "include/loader/filemgr.h".
-Expect<uint64_t> FileMgrFStream::readU64() {
-  if (Status != ErrCode::Success) {
-    return Unexpect(Status);
-  }
-  uint64_t Result = 0;
-  uint64_t Offset = 0;
-  char Byte = 0x80;
-  while (!Fin.fail() && Byte & 0x80) {
-    if (Offset >= 64) {
-      Status = ErrCode::IntegerTooLong;
-      return Unexpect(Status);
-    }
-    Fin.get(Byte);
-    Result |= (Byte & UINT64_C(0x7F)) << (Offset);
-    if (Offset == 63 && (Byte & UINT32_C(0x7E)) != 0) {
-      Status = ErrCode::IntegerTooLarge;
-      return Unexpect(Status);
-    }
-    Offset += 7;
-  }
-  if (Fin.fail()) {
-    Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
-    return Unexpect(Status);
-  }
-  return Result;
-}
-
-/// Decode and read a signed int. See "include/loader/filemgr.h".
-Expect<int32_t> FileMgrFStream::readS32() {
-  if (Status != ErrCode::Success) {
-    return Unexpect(Status);
-  }
-  int32_t Result = 0;
-  uint32_t Offset = 0;
-  char Byte = 0x80;
-  while (!Fin.fail() && Byte & 0x80) {
-    if (Offset >= 32) {
-      Status = ErrCode::IntegerTooLong;
-      return Unexpect(Status);
-    }
-    Fin.get(Byte);
-    Result |= (Byte & UINT32_C(0x7F)) << (Offset);
-    Offset += 7;
-  }
-  if (Fin.fail()) {
-    Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
-    return Unexpect(Status);
-  }
-  if (Offset == 35) {
-    /// The signed-extend bits should be the same.
-    if (((Byte & 0x70) != 0x70 && (Byte & 0x70) != 0) ||
-        (Byte & 0x40) >> 6 != (Byte & 0x08) >> 3) {
-      Status = ErrCode::IntegerTooLarge;
-      return Unexpect(Status);
-    }
-  }
-  if (Byte & 0x40 && Offset < 32) {
-    Result |= 0xFFFFFFFF << Offset;
-  }
-  return Result;
-}
-
-/// Decode and read a signed long long int. See "include/loader/filemgr.h".
-Expect<int64_t> FileMgrFStream::readS64() {
-  if (Status != ErrCode::Success) {
-    return Unexpect(Status);
-  }
-  int64_t Result = 0;
-  uint64_t Offset = 0;
-  char Byte = 0x80;
-  while (!Fin.fail() && Byte & 0x80) {
-    if (Offset >= 64) {
-      Status = ErrCode::IntegerTooLong;
-      return Unexpect(Status);
-    }
-    Fin.get(Byte);
-    Result |= (Byte & UINT64_C(0x7F)) << (Offset);
-    Offset += 7;
-  }
-  if (Fin.fail()) {
-    Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
-    return Unexpect(Status);
-  }
-  if (Offset == 70) {
-    /// The signed-extend bits should be the same.
-    if (((Byte & 0x7E) != 0x7E && (Byte & 0x7E) != 0) ||
-        (Byte & 0x40) >> 6 != (Byte & 0x01)) {
-      Status = ErrCode::IntegerTooLarge;
-      return Unexpect(Status);
-    }
-  }
-  if (Byte & 0x40 && Offset < 64) {
-    Result |= 0xFFFFFFFFFFFFFFFFULL << Offset;
-  }
-  return Result;
-}
-
-/// Copy bytes to a float. See "include/loader/filemgr.h".
-Expect<float> FileMgrFStream::readF32() {
-  if (Status != ErrCode::Success) {
-    return Unexpect(Status);
-  }
-  union {
-    uint32_t U;
-    float F;
-  } Val;
-  Val.U = 0;
-  char Byte = 0x00;
-  for (int i = 0; i < 4; i++) {
-    Fin.get(Byte);
-    if (Fin.fail()) {
-      Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
-      return Unexpect(Status);
-    }
-    Val.U |= (Byte & 0xFF) << (i * 8);
-  }
-  return Val.F;
-}
-
-/// Copy bytes to a double. See "include/loader/filemgr.h".
-Expect<double> FileMgrFStream::readF64() {
-  if (Status != ErrCode::Success) {
-    return Unexpect(Status);
-  }
-  union {
-    uint64_t U;
-    double D;
-  } Val;
-  Val.U = 0;
-  char Byte = 0x00;
-  for (int i = 0; i < 8; i++) {
-    Fin.get(Byte);
-    if (Fin.fail()) {
-      Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
-      return Unexpect(Status);
-    }
-    Val.U |= static_cast<uint64_t>(Byte & 0xFF) << (i * 8);
-  }
-  return Val.D;
-}
-
-/// Read a vector of bytes. See "include/loader/filemgr.h".
-Expect<std::string> FileMgrFStream::readName() {
-  Expect<uint32_t> Size = readU32();
-  if (!Size) {
-    return Unexpect(Size);
-  }
-  std::string Str(*Size, '\0');
-  Fin.read(&Str[0], *Size);
-  if (Fin.fail()) {
-    Status = Fin.eof() ? ErrCode::EndOfFile : ErrCode::ReadError;
-    return Unexpect(Status);
-  }
-  return Str;
+  Status = ErrCode::InvalidPath;
+  return Unexpect(Status);
 }
 
 /// Set code data. See "include/loader/filemgr.h".
-Expect<void> FileMgrVector::setCode(Span<const Byte> CodeData) {
-  Code.assign(CodeData.begin(), CodeData.end());
-  Pos = 0;
-  if (Code.size() == 0) {
+Expect<void> FileMgr::setCode(Span<const Byte> CodeData) {
+  reset();
+  Data = CodeData.data();
+  Size = CodeData.size();
+  if (Size == 0) {
+    Status = ErrCode::EndOfFile;
+    return Unexpect(Status);
+  }
+  Status = ErrCode::Success;
+  return {};
+}
+
+/// Set code data. See "include/loader/filemgr.h".
+Expect<void> FileMgr::setCode(std::vector<Byte> CodeData) {
+  reset();
+  DataHolder.emplace(std::move(CodeData));
+  Data = DataHolder->data();
+  Size = DataHolder->size();
+  if (Size == 0) {
     Status = ErrCode::EndOfFile;
     return Unexpect(Status);
   }
@@ -262,47 +59,65 @@ Expect<void> FileMgrVector::setCode(Span<const Byte> CodeData) {
 }
 
 /// Read one byte. See "include/loader/filemgr.h".
-Expect<Byte> FileMgrVector::readByte() {
-  if (Pos >= Code.size()) {
+Expect<Byte> FileMgr::readByte() {
+  if (unlikely(Status != ErrCode::Success)) {
+    return Unexpect(Status);
+  }
+  if (unlikely(Pos >= Size)) {
     Status = ErrCode::EndOfFile;
     return Unexpect(Status);
   }
-  return Code[Pos++];
+  return Data[Pos++];
 }
 
 /// Read number of bytes. See "include/loader/filemgr.h".
-Expect<std::vector<Byte>> FileMgrVector::readBytes(size_t SizeToRead) {
-  std::vector<Byte> Buf;
-  Buf.resize(SizeToRead);
-  if (SizeToRead > 0) {
-    if (Pos + SizeToRead > Code.size()) {
-      Pos = Code.size();
-      Status = ErrCode::EndOfFile;
-      return Unexpect(Status);
-    }
-    std::copy_n(Code.begin() + Pos, SizeToRead, Buf.begin());
-    Pos += SizeToRead;
+Expect<std::vector<Byte>> FileMgr::readBytes(size_t SizeToRead) {
+  std::vector<Byte> Buf(SizeToRead);
+  if (auto Res = readBytes(Buf); unlikely(!Res)) {
+    return Unexpect(Res);
   }
   return Buf;
 }
 
-/// Decode and read an unsigned int. See "include/loader/filemgr.h".
-Expect<uint32_t> FileMgrVector::readU32() {
-  uint32_t Result = 0;
-  uint32_t Offset = 0;
-  uint8_t Byte = 0x80;
-  while (Byte & 0x80) {
-    if (Offset >= 32) {
-      Status = ErrCode::IntegerTooLong;
-      return Unexpect(Status);
-    }
-    if (Pos >= Code.size()) {
+/// Read number of bytes. See "include/loader/filemgr.h".
+Expect<void> FileMgr::readBytes(Span<Byte> Buffer) {
+  if (unlikely(Status != ErrCode::Success)) {
+    return Unexpect(Status);
+  }
+  auto SizeToRead = Buffer.size();
+  if (likely(SizeToRead > 0)) {
+    if (Pos + SizeToRead > Size) {
+      SizeToRead = Size - Pos;
+      Pos = Size;
       Status = ErrCode::EndOfFile;
       return Unexpect(Status);
     }
-    Byte = Code[Pos++];
+    std::copy_n(Data + Pos, SizeToRead, Buffer.begin());
+    Pos += SizeToRead;
+  }
+  return {};
+}
+
+/// Decode and read an unsigned int. See "include/loader/filemgr.h".
+Expect<uint32_t> FileMgr::readU32() {
+  if (unlikely(Status != ErrCode::Success)) {
+    return Unexpect(Status);
+  }
+  uint32_t Result = 0;
+  uint32_t Offset = 0;
+  Byte Byte = 0x80;
+  while (Byte & 0x80) {
+    if (unlikely(Offset >= 32)) {
+      Status = ErrCode::IntegerTooLong;
+      return Unexpect(Status);
+    }
+    if (auto Res = readByte(); unlikely(!Res)) {
+      return Unexpect(Res);
+    } else {
+      Byte = *Res;
+    }
     Result |= (Byte & UINT32_C(0x7F)) << (Offset);
-    if (Offset == 28 && (Byte & UINT32_C(0x70)) != 0) {
+    if (Offset == 28 && unlikely((Byte & UINT32_C(0x70)) != 0)) {
       Status = ErrCode::IntegerTooLarge;
       return Unexpect(Status);
     }
@@ -312,22 +127,25 @@ Expect<uint32_t> FileMgrVector::readU32() {
 }
 
 /// Decode and read an unsigned long long int. See "include/loader/filemgr.h".
-Expect<uint64_t> FileMgrVector::readU64() {
+Expect<uint64_t> FileMgr::readU64() {
+  if (Status != ErrCode::Success) {
+    return Unexpect(Status);
+  }
   uint64_t Result = 0;
   uint64_t Offset = 0;
-  uint8_t Byte = 0x80;
+  Byte Byte = 0x80;
   while (Byte & 0x80) {
-    if (Offset >= 64) {
+    if (unlikely(Offset >= 64)) {
       Status = ErrCode::IntegerTooLong;
       return Unexpect(Status);
     }
-    if (Pos >= Code.size()) {
-      Status = ErrCode::EndOfFile;
-      return Unexpect(Status);
+    if (auto Res = readByte(); unlikely(!Res)) {
+      return Unexpect(Res);
+    } else {
+      Byte = *Res;
     }
-    Byte = Code[Pos++];
     Result |= (Byte & UINT64_C(0x7F)) << (Offset);
-    if (Offset == 63 && (Byte & UINT32_C(0x7E)) != 0) {
+    if (Offset == 63 && unlikely((Byte & UINT32_C(0x7E)) != 0)) {
       Status = ErrCode::IntegerTooLarge;
       return Unexpect(Status);
     }
@@ -337,74 +155,78 @@ Expect<uint64_t> FileMgrVector::readU64() {
 }
 
 /// Decode and read a signed int. See "include/loader/filemgr.h".
-Expect<int32_t> FileMgrVector::readS32() {
+Expect<int32_t> FileMgr::readS32() {
+  if (Status != ErrCode::Success) {
+    return Unexpect(Status);
+  }
   int32_t Result = 0;
   uint32_t Offset = 0;
-  uint8_t Byte = 0x80;
+  Byte Byte = 0x80;
   while (Byte & 0x80) {
-    if (Offset >= 32) {
+    if (unlikely(Offset >= 32)) {
       Status = ErrCode::IntegerTooLong;
       return Unexpect(Status);
     }
-    if (Pos >= Code.size()) {
-      Status = ErrCode::EndOfFile;
-      return Unexpect(Status);
+    if (auto Res = readByte(); unlikely(!Res)) {
+      return Unexpect(Res);
+    } else {
+      Byte = *Res;
     }
-    Byte = Code[Pos++];
-    Result |= (Byte & UINT32_C(0x7F)) << Offset;
+    Result |= (Byte & UINT32_C(0x7F)) << (Offset);
     Offset += 7;
   }
   if (Offset == 35) {
     /// The signed-extend bits should be the same.
-    if (((Byte & 0x70) != 0x70 && (Byte & 0x70) != 0) ||
-        (Byte & 0x40) >> 6 != (Byte & 0x08) >> 3) {
+    if (unlikely(((Byte & 0x70) != 0x70 && (Byte & 0x70) != 0) ||
+                 (Byte & 0x40) >> 6 != (Byte & 0x08) >> 3)) {
       Status = ErrCode::IntegerTooLarge;
       return Unexpect(Status);
     }
   }
   if (Byte & 0x40 && Offset < 32) {
-    Result |= 0xFFFFFFFF << Offset;
+    Result |= INT32_C(0xFFFFFFFF) << Offset;
   }
   return Result;
 }
 
 /// Decode and read a signed long long int. See "include/loader/filemgr.h".
-Expect<int64_t> FileMgrVector::readS64() {
+Expect<int64_t> FileMgr::readS64() {
+  if (Status != ErrCode::Success) {
+    return Unexpect(Status);
+  }
   int64_t Result = 0;
   uint64_t Offset = 0;
-  uint8_t Byte = 0x80;
+  Byte Byte = 0x80;
   while (Byte & 0x80) {
-    if (Offset >= 64) {
+    if (unlikely(Offset >= 64)) {
       Status = ErrCode::IntegerTooLong;
       return Unexpect(Status);
     }
-    if (Pos >= Code.size()) {
-      Status = ErrCode::EndOfFile;
-      return Unexpect(Status);
+    if (auto Res = readByte(); unlikely(!Res)) {
+      return Unexpect(Res);
+    } else {
+      Byte = *Res;
     }
-    Byte = Code[Pos++];
-    Result |= (Byte & UINT64_C(0x7F)) << Offset;
+    Result |= (Byte & UINT64_C(0x7F)) << (Offset);
     Offset += 7;
   }
   if (Offset == 70) {
     /// The signed-extend bits should be the same.
-    if (((Byte & 0x7E) != 0x7E && (Byte & 0x7E) != 0) ||
-        (Byte & 0x40) >> 6 != (Byte & 0x01)) {
+    if (unlikely(((Byte & 0x7E) != 0x7E && (Byte & 0x7E) != 0) ||
+                 (Byte & 0x40) >> 6 != (Byte & 0x01))) {
       Status = ErrCode::IntegerTooLarge;
       return Unexpect(Status);
     }
   }
   if (Byte & 0x40 && Offset < 64) {
-    Result |= 0xFFFFFFFFFFFFFFFFULL << Offset;
+    Result |= INT64_C(0xFFFFFFFFFFFFFFFF) << Offset;
   }
   return Result;
 }
 
 /// Copy bytes to a float. See "include/loader/filemgr.h".
-Expect<float> FileMgrVector::readF32() {
-  if (Pos + 4 > Code.size()) {
-    Pos = Code.size();
-    Status = ErrCode::EndOfFile;
+Expect<float> FileMgr::readF32() {
+  if (Status != ErrCode::Success) {
     return Unexpect(Status);
   }
   union {
@@ -412,17 +234,21 @@ Expect<float> FileMgrVector::readF32() {
     float F;
   } Val;
   Val.U = 0;
-  for (int i = 0; i < 4; i++) {
-    Val.U |= (Code[Pos++] & 0xFF) << (i * 8);
+  Byte Byte = 0x00;
+  for (uint32_t I = 0; I < 4; I++) {
+    if (auto Res = readByte(); unlikely(!Res)) {
+      return Unexpect(Res);
+    } else {
+      Byte = *Res;
+    }
+    Val.U |= static_cast<uint32_t>(Byte & 0xFF) << (I * UINT32_C(8));
   }
   return Val.F;
 }
 
 /// Copy bytes to a double. See "include/loader/filemgr.h".
-Expect<double> FileMgrVector::readF64() {
-  if (Pos + 8 > Code.size()) {
-    Pos = Code.size();
-    Status = ErrCode::EndOfFile;
+Expect<double> FileMgr::readF64() {
+  if (Status != ErrCode::Success) {
     return Unexpect(Status);
   }
   union {
@@ -430,27 +256,34 @@ Expect<double> FileMgrVector::readF64() {
     double D;
   } Val;
   Val.U = 0;
-  for (int i = 0; i < 8; i++) {
-    Val.U |= static_cast<uint64_t>(Code[Pos++] & 0xFF) << (i * 8);
+  Byte Byte = 0x00;
+  for (uint32_t I = 0; I < 8; I++) {
+    if (auto Res = readByte(); unlikely(!Res)) {
+      return Unexpect(Res);
+    } else {
+      Byte = *Res;
+    }
+    Val.U |= static_cast<uint64_t>(Byte & 0xFF) << (I * UINT32_C(8));
   }
   return Val.D;
 }
 
 /// Read a vector of bytes. See "include/loader/filemgr.h".
-Expect<std::string> FileMgrVector::readName() {
-  Expect<uint32_t> Size = readU32();
-  if (!Size) {
-    return Unexpect(Size);
+Expect<std::string> FileMgr::readName() {
+  if (unlikely(Status != ErrCode::Success)) {
+    return Unexpect(Status);
   }
-  std::string Str(*Size, '\0');
-  if (*Size > 0) {
-    if (Pos + *Size > Code.size()) {
-      Pos = Code.size();
-      Status = ErrCode::EndOfFile;
-      return Unexpect(Status);
-    }
-    std::copy_n(Code.begin() + Pos, *Size, Str.begin());
-    Pos += *Size;
+  uint32_t SizeToRead;
+  if (auto Res = readU32(); unlikely(!Res)) {
+    return Unexpect(Res);
+  } else {
+    SizeToRead = *Res;
+  }
+  std::string Str(SizeToRead, '\0');
+  if (auto Res = readBytes(
+          Span<Byte>(reinterpret_cast<Byte *>(Str.data()), Str.size()));
+      unlikely(!Res)) {
+    return Unexpect(Res);
   }
   return Str;
 }

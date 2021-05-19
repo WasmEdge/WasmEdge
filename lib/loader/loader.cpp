@@ -80,11 +80,11 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
     }
   } else {
     auto Mod = std::make_unique<AST::Module>();
-    if (auto Res = FSMgr.setPath(FilePath); !Res) {
+    if (auto Res = FMgr.setPath(FilePath); !Res) {
       LOG(ERROR) << ErrInfo::InfoFile(FilePath);
       return Unexpect(Res);
     }
-    if (auto Res = Mod->loadBinary(FSMgr, Conf)) {
+    if (auto Res = Mod->loadBinary(FMgr, Conf)) {
       return Mod;
     } else {
       LOG(ERROR) << ErrInfo::InfoFile(FilePath);
@@ -97,10 +97,10 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
 Expect<std::unique_ptr<AST::Module>>
 Loader::parseModule(Span<const uint8_t> Code) {
   auto Mod = std::make_unique<AST::Module>();
-  if (auto Res = FVMgr.setCode(Code); !Res) {
+  if (auto Res = FMgr.setCode(Code); !Res) {
     return Unexpect(Res);
   }
-  if (auto Res = Mod->loadBinary(FVMgr, Conf)) {
+  if (auto Res = Mod->loadBinary(FMgr, Conf)) {
     return Mod;
   } else {
     return Unexpect(Res);

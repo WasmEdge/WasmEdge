@@ -16,7 +16,7 @@
 
 namespace {
 
-WasmEdge::FileMgrVector Mgr;
+WasmEdge::FileMgr Mgr;
 WasmEdge::Configure Conf;
 
 TEST(ExpressionTest, LoadExpression) {
@@ -26,11 +26,9 @@ TEST(ExpressionTest, LoadExpression) {
   ///   2.  Load expression with only end operation.
   ///   3.  Load expression with invalid operations.
   ///   4.  Load expression with instructions.
-  Mgr.clearBuffer();
   WasmEdge::AST::Expression Exp1;
   EXPECT_FALSE(Exp1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x0BU /// OpCode End.
   };
@@ -38,7 +36,6 @@ TEST(ExpressionTest, LoadExpression) {
   WasmEdge::AST::Expression Exp2;
   EXPECT_TRUE(Exp2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x45U, 0x46U, 0x47U, /// Valid OpCodes.
       0xEDU, 0xEEU, 0xEFU, /// Invalid OpCodes.
@@ -48,7 +45,6 @@ TEST(ExpressionTest, LoadExpression) {
   WasmEdge::AST::Expression Exp3;
   EXPECT_FALSE(Exp3.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x45U, 0x46U, 0x47U, /// Valid OpCodes.
       0x0BU                /// OpCode End.

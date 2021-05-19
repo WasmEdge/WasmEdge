@@ -17,7 +17,7 @@
 
 namespace {
 
-WasmEdge::FileMgrVector Mgr;
+WasmEdge::FileMgr Mgr;
 WasmEdge::Configure Conf;
 
 TEST(InstructionTest, LoadBlockControlInstruction) {
@@ -32,11 +32,9 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
   ///   6.  Load block with instructions.
   ///   7.  Load loop with instructions.
 
-  Mgr.clearBuffer();
   WasmEdge::AST::Expression Exp1;
   EXPECT_FALSE(Exp1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x02U, /// OpCode Block.
       0x40U, /// Block type.
@@ -47,7 +45,6 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
   WasmEdge::AST::Expression Exp2;
   EXPECT_TRUE(Exp2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x03U, /// OpCode Loop.
       0x40U, /// Block type.
@@ -58,7 +55,6 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
   WasmEdge::AST::Expression Exp3;
   EXPECT_TRUE(Exp3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x02U,               /// OpCode Block.
       0x40U,               /// Block type.
@@ -71,7 +67,6 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
   WasmEdge::AST::Expression Exp4;
   EXPECT_FALSE(Exp4.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
       0x03U,               /// OpCode Loop.
       0x40U,               /// Block type.
@@ -84,7 +79,6 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
   WasmEdge::AST::Expression Exp5;
   EXPECT_FALSE(Exp5.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec6 = {
       0x02U,               /// OpCode Block.
       0x40U,               /// Block type.
@@ -96,7 +90,6 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
   WasmEdge::AST::Expression Exp6;
   EXPECT_TRUE(Exp6.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec7 = {
       0x03U,               /// OpCode Loop.
       0x40U,               /// Block type.
@@ -120,11 +113,9 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   ///   6.  Load if statement with instructions.
   ///   7.  Load if and else statements with instructions.
 
-  Mgr.clearBuffer();
   WasmEdge::AST::Expression Exp1;
   EXPECT_FALSE(Exp1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x04U, /// OpCode If.
       0x40U, /// Block type.
@@ -135,7 +126,6 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   WasmEdge::AST::Expression Exp2;
   EXPECT_TRUE(Exp2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x04U, /// OpCode If.
       0x40U, /// Block type.
@@ -147,7 +137,6 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   WasmEdge::AST::Expression Exp3;
   EXPECT_TRUE(Exp3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x04U,               /// OpCode If.
       0x40U,               /// Block type.
@@ -159,7 +148,6 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   WasmEdge::AST::Expression Exp4;
   EXPECT_FALSE(Exp4.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
       0x04U,               /// OpCode If.
       0x40U,               /// Block type.
@@ -173,7 +161,6 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   WasmEdge::AST::Expression Exp5;
   EXPECT_FALSE(Exp5.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec6 = {
       0x04U,               /// OpCode If.
       0x40U,               /// Block type.
@@ -185,7 +172,6 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
   WasmEdge::AST::Expression Exp6;
   EXPECT_TRUE(Exp6.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec7 = {
       0x04U,               /// OpCode If.
       0x40U,               /// Block type.
@@ -208,21 +194,17 @@ TEST(InstructionTest, LoadBrControlInstruction) {
   WasmEdge::OpCode Op1 = WasmEdge::OpCode::Br;
   WasmEdge::OpCode Op2 = WasmEdge::OpCode::Br_if;
 
-  Mgr.clearBuffer();
   WasmEdge::AST::Instruction Ins1(Op1);
   EXPECT_FALSE(Ins1.loadBinary(Mgr, Conf));
-  Mgr.clearBuffer();
   WasmEdge::AST::Instruction Ins2(Op2);
   EXPECT_FALSE(Ins2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Label index.
   };
   Mgr.setCode(Vec2);
   WasmEdge::AST::Instruction Ins3(Op1);
   EXPECT_TRUE(Ins3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
-  Mgr.clearBuffer();
   Mgr.setCode(Vec2);
   WasmEdge::AST::Instruction Ins4(Op2);
   EXPECT_TRUE(Ins4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
@@ -236,11 +218,9 @@ TEST(InstructionTest, LoadBrTableControlInstruction) {
   ///   3.  Load instruction with label vector.
   WasmEdge::OpCode Op = WasmEdge::OpCode::Br_table;
 
-  Mgr.clearBuffer();
   WasmEdge::AST::Instruction Ins1(Op);
   EXPECT_FALSE(Ins1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0x00U,                            /// Vector length = 0
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Label index.
@@ -249,7 +229,6 @@ TEST(InstructionTest, LoadBrTableControlInstruction) {
   WasmEdge::AST::Instruction Ins2(Op);
   EXPECT_TRUE(Ins2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0x03U,                             /// Vector length = 3
       0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU, /// vec[0]
@@ -271,14 +250,11 @@ TEST(InstructionTest, LoadCallControlInstruction) {
   WasmEdge::OpCode Op1 = WasmEdge::OpCode::Call;
   WasmEdge::OpCode Op2 = WasmEdge::OpCode::Call_indirect;
 
-  Mgr.clearBuffer();
   WasmEdge::AST::Instruction Ins1(Op1);
   EXPECT_FALSE(Ins1.loadBinary(Mgr, Conf));
-  Mgr.clearBuffer();
   WasmEdge::AST::Instruction Ins2(Op2);
   EXPECT_FALSE(Ins2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Function index.
   };
@@ -286,7 +262,6 @@ TEST(InstructionTest, LoadCallControlInstruction) {
   WasmEdge::AST::Instruction Ins3(Op1);
   EXPECT_TRUE(Ins3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, /// Type index.
       0x00U                              /// 0x00 for ending
@@ -303,11 +278,9 @@ TEST(InstructionTest, LoadVariableInstruction) {
   ///   2.  Load valid empty local or global index.
   WasmEdge::OpCode Op = WasmEdge::OpCode::Local__get;
 
-  Mgr.clearBuffer();
   WasmEdge::AST::Instruction Ins1(Op);
   EXPECT_FALSE(Ins1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Local index.
   };
@@ -326,14 +299,11 @@ TEST(InstructionTest, LoadMemoryInstruction) {
   WasmEdge::OpCode Op1 = WasmEdge::OpCode::I32__load;
   WasmEdge::OpCode Op2 = WasmEdge::OpCode::Memory__grow;
 
-  Mgr.clearBuffer();
   WasmEdge::AST::Instruction Ins1(Op1);
   EXPECT_FALSE(Ins1.loadBinary(Mgr, Conf));
-  Mgr.clearBuffer();
   WasmEdge::AST::Instruction Ins2(Op2);
   EXPECT_FALSE(Ins2.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0xFFU /// Invalid memory size instruction content.
   };
@@ -341,7 +311,6 @@ TEST(InstructionTest, LoadMemoryInstruction) {
   WasmEdge::AST::Instruction Ins3(Op2);
   EXPECT_FALSE(Ins3.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, /// Align.
       0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  /// Offset.
@@ -350,7 +319,6 @@ TEST(InstructionTest, LoadMemoryInstruction) {
   WasmEdge::AST::Instruction Ins4(Op1);
   EXPECT_TRUE(Ins4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0x00U /// Memory size instruction content.
   };
@@ -372,11 +340,9 @@ TEST(InstructionTest, LoadConstInstruction) {
   WasmEdge::OpCode Op3 = WasmEdge::OpCode::F32__const;
   WasmEdge::OpCode Op4 = WasmEdge::OpCode::F64__const;
 
-  Mgr.clearBuffer();
   WasmEdge::AST::Instruction Ins1(Op1);
   EXPECT_FALSE(Ins1.loadBinary(Mgr, Conf));
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec2 = {
       0xC0U, 0xBBU, 0x78U /// I32 -123456.
   };
@@ -384,7 +350,6 @@ TEST(InstructionTest, LoadConstInstruction) {
   WasmEdge::AST::Instruction Ins2(Op1);
   EXPECT_TRUE(Ins2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec3 = {
       0xC2U, 0x8EU, 0xF6U, 0xF2U, 0xDDU, 0x7CU /// I64 -112233445566
   };
@@ -392,7 +357,6 @@ TEST(InstructionTest, LoadConstInstruction) {
   WasmEdge::AST::Instruction Ins3(Op2);
   EXPECT_TRUE(Ins3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec4 = {
       0xDA, 0x0F, 0x49, 0xC0 /// F32 -3.1415926
   };
@@ -400,7 +364,6 @@ TEST(InstructionTest, LoadConstInstruction) {
   WasmEdge::AST::Instruction Ins4(Op3);
   EXPECT_TRUE(Ins4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 
-  Mgr.clearBuffer();
   std::vector<unsigned char> Vec5 = {
       0x18, 0x2D, 0x44, 0x54, 0xFB, 0x21, 0x09, 0xC0 /// F64 -3.1415926535897932
   };

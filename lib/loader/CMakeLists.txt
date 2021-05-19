@@ -7,6 +7,8 @@ add_library(wasmedgeLoaderFileMgr
 )
 
 target_link_libraries(wasmedgeLoaderFileMgr
+  PRIVATE
+  wasmedgeSystem
   PUBLIC
   dl
   std::filesystem

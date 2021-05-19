@@ -115,9 +115,10 @@ int main(int Argc, const char *Argv[]) {
     ProcMod->getEnv().AllowedCmd.insert(Str);
   }
 
-  WasiMod->getEnv().init(Dir.value(),
-                         InputPath.filename().replace_extension("wasm"sv),
-                         Args.value(), Env.value());
+  WasiMod->getEnv().init(
+      Dir.value(),
+      InputPath.filename().replace_extension(std::filesystem::u8path("wasm"sv)),
+      Args.value(), Env.value());
 
   if (!Reactor.value()) {
     // command mode

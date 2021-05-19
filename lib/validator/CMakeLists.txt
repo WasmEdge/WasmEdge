@@ -6,8 +6,9 @@ add_library(wasmedgeValidator
 )
 
 target_link_libraries(wasmedgeValidator
-  PRIVATE
+  PUBLIC
   wasmedgeCommon
+  wasmedgeAST
 )
 
 target_include_directories(wasmedgeValidator

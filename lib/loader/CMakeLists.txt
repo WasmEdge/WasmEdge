@@ -7,16 +7,11 @@ add_library(wasmedgeLoaderFileMgr
 )
 
 target_link_libraries(wasmedgeLoaderFileMgr
-  PRIVATE
-  wasmedgeSystem
   PUBLIC
+  wasmedgeCommon
+  wasmedgeSystem
   dl
   std::filesystem
-)
-
-target_link_libraries(wasmedgeLoaderFileMgr
-  PRIVATE
-  wasmedgeCommon
 )
 
 target_include_directories(wasmedgeLoaderFileMgr
@@ -30,11 +25,10 @@ add_library(wasmedgeLoader
 )
 
 target_link_libraries(wasmedgeLoader
-  PRIVATE
+  PUBLIC
+  wasmedgeCommon
   wasmedgeAST
   wasmedgeLoaderFileMgr
-  wasmedgeCommon
-  PUBLIC
   std::filesystem
 )
 

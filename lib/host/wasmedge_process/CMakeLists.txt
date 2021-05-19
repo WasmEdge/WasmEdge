@@ -6,8 +6,8 @@ add_library(wasmedgeHostModuleWasmEdgeProcess
 )
 
 target_link_libraries(wasmedgeHostModuleWasmEdgeProcess
-  PRIVATE
-  wasmedgeSystem
+  PUBLIC
+  wasmedgeAST
 )
 
 target_include_directories(wasmedgeHostModuleWasmEdgeProcess

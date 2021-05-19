@@ -2954,12 +2954,12 @@ private:
     StoreInst->setAlignment(Align(UINT64_C(1) << Alignment));
   }
   void compileSplatOp(llvm::VectorType *VectorTy) {
-    const uint32_t kZero = 0;
     auto *Undef = llvm::UndefValue::get(VectorTy);
     auto *Zeros = llvm::ConstantAggregateZero::get(llvm::VectorType::get(
         Context.Int32Ty, VectorTy->getElementCount().Min, false));
     auto *Value = Builder.CreateTrunc(Stack.back(), VectorTy->getElementType());
-    auto *Vector = Builder.CreateInsertElement(Undef, Value, kZero);
+    auto *Vector =
+        Builder.CreateInsertElement(Undef, Value, Builder.getInt64(0));
     Vector = Builder.CreateShuffleVector(Vector, Undef, Zeros);
 
     Stack.back() = Builder.CreateBitCast(Vector, Context.Int64x2Ty);

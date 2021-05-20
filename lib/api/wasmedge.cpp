@@ -13,6 +13,7 @@
 #include "aot/compiler.h"
 #include "ast/module.h"
 #include "host/wasi/wasimodule.h"
+#include "host/wasmedge_process/processmodule.h"
 #include "interpreter/interpreter.h"
 #include "loader/loader.h"
 #include "runtime/storemgr.h"
@@ -99,7 +100,7 @@ struct WasmEdge_ImportObjectContext {};
 /// WasmEdge_VMContext implementation.
 struct WasmEdge_VMContext {
   template <typename... Args>
-  WasmEdge_VMContext(Args &&...Vals) noexcept
+  WasmEdge_VMContext(Args &&... Vals) noexcept
       : VM(std::forward<Args>(Vals)...) {}
   WasmEdge::VM::VM VM;
 };
@@ -183,11 +184,11 @@ template <typename T> inline bool isContext(T *Cxt) noexcept {
   return (Cxt != nullptr);
 }
 template <typename T, typename... Args>
-inline bool isContext(T *Cxt, Args *...Cxts) noexcept {
+inline bool isContext(T *Cxt, Args *... Cxts) noexcept {
   return isContext(Cxt) && isContext(Cxts...);
 }
 template <typename T, typename U, typename... CxtT>
-inline WasmEdge_Result wrap(T &&Proc, U &&Then, CxtT *...Cxts) noexcept {
+inline WasmEdge_Result wrap(T &&Proc, U &&Then, CxtT *... Cxts) noexcept {
   if (isContext(Cxts...)) {
     if (auto Res = Proc()) {
       Then(Res);
@@ -1504,6 +1505,36 @@ void WasmEdge_ImportObjectInitWASI(
   }
   auto &WasiEnv = WasiMod->getEnv();
   WasiEnv.init(DirVec, ProgName, ArgVec, EnvVec);
+}
+
+WasmEdge_ImportObjectContext *
+WasmEdge_ImportObjectCreateWasmEdgeProcess(const char *const *AllowedCmds,
+                                           const uint32_t CmdsLen,
+                                           const bool AllowAll) {
+  auto *ProcMod = new WasmEdge::Host::WasmEdgeProcessModule();
+  WasmEdge_ImportObjectInitWasmEdgeProcess(toImpObjCxt(ProcMod), AllowedCmds,
+                                           CmdsLen, AllowAll);
+  return toImpObjCxt(ProcMod);
+}
+
+void WasmEdge_ImportObjectInitWasmEdgeProcess(WasmEdge_ImportObjectContext *Cxt,
+                                              const char *const *AllowedCmds,
+                                              const uint32_t CmdsLen,
+                                              const bool AllowAll) {
+  if (!Cxt) {
+    return;
+  }
+  auto *ProcMod =
+      dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(fromImpObjCxt(Cxt));
+  auto &ProcEnv = ProcMod->getEnv();
+  ProcEnv.AllowedAll = AllowAll;
+  if (AllowAll) {
+    ProcEnv.AllowedCmd.clear();
+  } else {
+    for (uint32_t I = 0; I < CmdsLen; I++) {
+      ProcEnv.AllowedCmd.insert(AllowedCmds[I]);
+    }
+  }
 }
 
 void WasmEdge_ImportObjectAddHostFunction(

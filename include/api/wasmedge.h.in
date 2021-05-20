@@ -1844,13 +1844,48 @@ WasmEdge_ImportObjectCreateWASI(const char *const *Args, const uint32_t ArgLen,
 /// \param DirLen the length of the directory mappings.
 /// \param Preopens the directory paths to preopen. NULL if the length is 0.
 /// \param PreopenLen the length of the directory paths to preopen.
-///
-/// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ImportObjectInitWASI(
     WasmEdge_ImportObjectContext *Cxt, const char *const *Args,
     const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
     const char *const *Dirs, const uint32_t DirLen, const char *const *Preopens,
     const uint32_t PreopenLen);
+
+/// Creation of the WasmEdge_ImportObjectContext for the wasmedge_process
+/// specification.
+///
+/// This function will create a wasmedge_process host module that contains the
+/// wasmedge_process host functions and initialize it. The caller owns the
+/// object and should call `WasmEdge_ImportObjectDelete` to free it.
+///
+/// \param AllowedCmds the allowed commands white list. NULL if the length is 0.
+/// \param CmdsLen the length of the allowed commands white list.
+/// \param AllowAll the boolean value to allow all commands. `false` is
+/// suggested. If this value is `true`, the allowed commands white list will not
+/// be recorded and all commands can be executed by wasmedge_process.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ImportObjectContext *
+WasmEdge_ImportObjectCreateWasmEdgeProcess(const char *const *AllowedCmds,
+                                           const uint32_t CmdsLen,
+                                           const bool AllowAll);
+
+/// Initialize the WasmEdge_ImportObjectContext for the wasmedge_process
+/// specification.
+///
+/// This function will initialize the wasmedge_process host module with the
+/// parameters.
+///
+/// \param Cxt the WasmEdge_ImportObjectContext of wasmedge_process import
+/// object.
+/// \param AllowedCmds the allowed commands white list. NULL if the
+/// length is 0.
+/// \param CmdsLen the length of the allowed commands white list.
+/// \param AllowAll the boolean value to allow all commands. `false` is
+/// suggested. If this value is `true`, the allowed commands white list will not
+/// be recorded and all commands can be executed by wasmedge_process.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ImportObjectInitWasmEdgeProcess(
+    WasmEdge_ImportObjectContext *Cxt, const char *const *AllowedCmds,
+    const uint32_t CmdsLen, const bool AllowAll);
 
 /// Add a host function context into a WasmEdge_ImportObjectContext.
 ///

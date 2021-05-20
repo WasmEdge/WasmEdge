@@ -1254,6 +1254,8 @@ TEST(APICoreTest, Instance) {
 
 TEST(APICoreTest, ImportObject) {
   WasmEdge_String HostName = WasmEdge_StringCreateByCString("extern");
+  WasmEdge_ConfigureContext *Conf = nullptr;
+  WasmEdge_VMContext *VM = nullptr;
   WasmEdge_ImportObjectContext *ImpObj = nullptr;
   WasmEdge_FunctionTypeContext *HostFType = nullptr;
   WasmEdge_HostFunctionContext *HostFunc = nullptr;
@@ -1362,9 +1364,9 @@ TEST(APICoreTest, ImportObject) {
   WasmEdge_ImportObjectDelete(ImpObj);
 
   /// Initialize WASI in VM.
-  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  Conf = WasmEdge_ConfigureCreate();
   WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
-  WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, nullptr);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
   WasmEdge_ConfigureDelete(Conf);
   ImpObj =
       WasmEdge_VMGetImportModuleContext(VM, WasmEdge_HostRegistration_Wasi);
@@ -1373,6 +1375,35 @@ TEST(APICoreTest, ImportObject) {
                                 4);
   EXPECT_TRUE(true);
   WasmEdge_ImportObjectInitWASI(ImpObj, Args, 2, Envs, 3, Dirs, 1, Preopens, 4);
+  EXPECT_TRUE(true);
+  WasmEdge_VMDelete(VM);
+
+  /// Create wasmedge_process.
+  ImpObj = WasmEdge_ImportObjectCreateWasmEdgeProcess(Args, 2, false);
+  EXPECT_NE(ImpObj, nullptr);
+  WasmEdge_ImportObjectDelete(ImpObj);
+  ImpObj = WasmEdge_ImportObjectCreateWasmEdgeProcess(nullptr, 0, false);
+  EXPECT_NE(ImpObj, nullptr);
+  WasmEdge_ImportObjectDelete(ImpObj);
+  ImpObj = WasmEdge_ImportObjectCreateWasmEdgeProcess(Args, 2, true);
+  EXPECT_NE(ImpObj, nullptr);
+  WasmEdge_ImportObjectDelete(ImpObj);
+  ImpObj = WasmEdge_ImportObjectCreateWasmEdgeProcess(nullptr, 0, true);
+  EXPECT_NE(ImpObj, nullptr);
+  WasmEdge_ImportObjectDelete(ImpObj);
+
+  /// Initialize wasmedge_process in VM.
+  Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureAddHostRegistration(
+      Conf, WasmEdge_HostRegistration_WasmEdge_Process);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_ConfigureDelete(Conf);
+  ImpObj = WasmEdge_VMGetImportModuleContext(
+      VM, WasmEdge_HostRegistration_WasmEdge_Process);
+  EXPECT_NE(ImpObj, nullptr);
+  WasmEdge_ImportObjectInitWasmEdgeProcess(nullptr, Args, 2, false);
+  EXPECT_TRUE(true);
+  WasmEdge_ImportObjectInitWasmEdgeProcess(ImpObj, Args, 2, false);
   EXPECT_TRUE(true);
   WasmEdge_VMDelete(VM);
 }

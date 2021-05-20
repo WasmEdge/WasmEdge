@@ -1,3 +1,11 @@
+### 0.8.1 (2021-05-21)
+
+Features:
+
+* Exported new functions in C API to import the `wasmedge_process` module.
+  * `WasmEdge_ImportObjectCreateWasmEdgeProcess()` can create and initialize the `wasmedge_process` import object.
+  * `WasmEdge_ImportObjectInitWasmEdgeProcess()` can initialize the given `wasmedge_process` import object.
+
 ### 0.8.0 (2021-05-13)
 
 Breaking changes:

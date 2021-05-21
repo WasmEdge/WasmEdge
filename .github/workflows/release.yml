@@ -30,7 +30,7 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: WasmEdge ${{ steps.prep.outputs.version }}
           body_path: .CurrentChangelog.md
-          draft: false
+          draft: true
           prerelease: false
   build_and_upload_amd64_package:
     name: Build WasmEdge on amd64 platform and upload WasmEdge amd64 package

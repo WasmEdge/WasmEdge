@@ -2,52 +2,21 @@
 #pragma once
 
 #include "common/span.h"
+#include "host/wasi/vfs-linux.h"
+#include "host/wasi/vfs-macos.h"
+#include "host/wasi/vfs-windows.h"
+#include "host/wasi/vfs.h"
 #include "wasi/api.hpp"
-
-#include <algorithm>
 #include <map>
-#include <mutex>
-#include <optional>
 #include <string>
-#include <string_view>
+#include <tuple>
 #include <vector>
-
-#include <boost/align/aligned_allocator.hpp>
 
 namespace WasmEdge {
 namespace Host {
 
 class WasiEnvironment {
 public:
-  struct DirFdStat {
-    DIR *Dir;
-    uint64_t Cookie = 0;
-    std::vector<uint8_t, boost::alignment::aligned_allocator<
-                             uint8_t, alignof(__wasi_dirent_t)>>
-        Buffer;
-    DirFdStat(DIR *D) noexcept : Dir(D) {}
-    ~DirFdStat() noexcept { closedir(Dir); }
-  };
-  struct File {
-    int HostFd;
-    bool IsPreopened;
-    __wasi_rights_t Rights;
-    __wasi_rights_t InheritingRights;
-    std::string Path;
-    std::optional<DirFdStat> Dir;
-
-    File(int F, bool I, __wasi_rights_t R, __wasi_rights_t IR,
-         std::string_view P)
-        : HostFd(F), IsPreopened(I), Rights(R), InheritingRights(IR), Path(P) {}
-    bool checkRights(__wasi_rights_t RequiredRights,
-                     __wasi_rights_t RequiredInheritingRights =
-                         static_cast<__wasi_rights_t>(0)) const {
-      return (Rights & RequiredRights) == RequiredRights &&
-             (InheritingRights & RequiredInheritingRights) ==
-                 RequiredInheritingRights;
-    }
-  };
-
   WasiEnvironment();
   virtual ~WasiEnvironment() noexcept;
 
@@ -64,7 +33,7 @@ public:
     FileMap.emplace(std::piecewise_construct, std::forward_as_tuple(Fd),
                     std::forward_as_tuple(std::forward<Args>(args)...));
   }
-  using FileIterator = std::map<__wasi_fd_t, File>::iterator;
+  using FileIterator = std::map<__wasi_fd_t, WasiFile>::iterator;
   FileIterator getFile(__wasi_fd_t Fd) noexcept { return FileMap.find(Fd); }
   FileIterator getFileEnd() noexcept { return FileMap.end(); }
   void eraseFile(FileIterator File) noexcept { FileMap.erase(File); }
@@ -78,7 +47,7 @@ public:
 private:
   std::vector<std::string> CmdArgs;
   std::vector<std::string> Environs;
-  std::map<__wasi_fd_t, File> FileMap;
+  std::map<__wasi_fd_t, WasiFile> FileMap;
   int ExitCode = 0;
 };
 

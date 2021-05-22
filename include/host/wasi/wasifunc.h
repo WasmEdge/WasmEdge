@@ -274,7 +274,7 @@ public:
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                         uint32_t BufPtr, uint32_t BufLen, uint64_t Cookie,
-                        uint32_t BufUsedSize);
+                        uint32_t BufUsedSizePtr);
 };
 
 class WasiFdRenumber : public Wasi<WasiFdRenumber> {
@@ -370,7 +370,7 @@ public:
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                         uint32_t PathPtr, uint32_t PathLen, uint32_t BufPtr,
-                        uint32_t BufLen);
+                        uint32_t BufLen, uint32_t BufUsedPtr);
 };
 
 class WasiPathRemoveDirectory : public Wasi<WasiPathRemoveDirectory> {
@@ -385,9 +385,10 @@ class WasiPathRename : public Wasi<WasiPathRename> {
 public:
   WasiPathRename(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
 
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-                        uint32_t OldPathPtr, uint32_t OldPathLen, int32_t NewFd,
-                        uint32_t NewPathPtr, uint32_t NewPathLen);
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+                        int32_t OldFd, uint32_t OldPathPtr, uint32_t OldPathLen,
+                        int32_t NewFd, uint32_t NewPathPtr,
+                        uint32_t NewPathLen);
 };
 
 class WasiPathSymlink : public Wasi<WasiPathSymlink> {

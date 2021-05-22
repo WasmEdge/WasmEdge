@@ -6,6 +6,23 @@ Features:
   * `WasmEdge_ImportObjectCreateWasmEdgeProcess()` can create and initialize the `wasmedge_process` import object.
   * `WasmEdge_ImportObjectInitWasmEdgeProcess()` can initialize the given `wasmedge_process` import object.
 
+Refactor:
+
+* Update manylinux* dockerfiles
+  * Upgrade gcc to 11.1.0
+  * Upgrade llvm to 11.1.0
+  * Upgrade boost to 1.76
+  * Move environment variable to Dockerfile
+  * Use helper script to build
+* Add memory mapped file helper, `MMap` for linux
+  * Use `mmap` with `MAP_NORESERVE` for overcommited allocation
+  * Use `MMap` for file loading
+  * Merge `FileMgr` variants into one class
+* Adjust build scripts
+  * Set job pools for ninja generator
+  * Check for newer compilers in `std::filesystem`
+  * Adjust library dependency
+
 ### 0.8.0 (2021-05-13)
 
 Breaking changes:

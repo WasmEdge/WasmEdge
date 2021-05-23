@@ -824,6 +824,127 @@ TEST(WasiTest, Directory) {
   }
 }
 
+TEST(WasiTest, SymbolicLink) {
+  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+
+  WasmEdge::Host::WasiPathSymlink WasiPathSymlink(Env);
+  WasmEdge::Host::WasiPathUnlinkFile WasiPathUnlinkFile(Env);
+  WasmEdge::Host::WasiPathFilestatGet WasiPathFilestatGet(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  const uint32_t Fd = 3;
+  uint32_t OldPathPtr = 65536;
+  uint32_t NewPathPtr = 65552;
+
+  // invalid pointer, zero size
+  {
+    Env.init(std::array{"/:."s}, "test"s, {}, {});
+    EXPECT_TRUE(WasiPathSymlink.run(
+        &MemInst,
+        std::array<WasmEdge::ValVariant, 5>{OldPathPtr, UINT32_C(0), Fd,
+                                            NewPathPtr, UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+    Env.fini();
+  }
+
+  // invalid pointer, non zero size
+  {
+    Env.init(std::array{"/:."s}, "test"s, {}, {});
+    EXPECT_TRUE(WasiPathSymlink.run(
+        &MemInst,
+        std::array<WasmEdge::ValVariant, 5>{OldPathPtr, UINT32_C(0), Fd,
+                                            NewPathPtr, UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+    Env.fini();
+  }
+
+  OldPathPtr = 0;
+  NewPathPtr = 16;
+  // zero size path
+  {
+    Env.init(std::array{"/:."s}, "test"s, {}, {});
+    const auto OldPath = ""sv;
+    const auto NewPath = ""sv;
+    const uint32_t OldPathSize = OldPath.size();
+    const uint32_t NewPathSize = NewPath.size();
+    writeString(MemInst, OldPath, OldPathPtr);
+    writeString(MemInst, NewPath, NewPathPtr);
+    EXPECT_TRUE(WasiPathSymlink.run(
+        &MemInst,
+        std::array<WasmEdge::ValVariant, 5>{OldPathPtr, OldPathSize, Fd,
+                                            NewPathPtr, NewPathSize},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_NOENT);
+    Env.fini();
+  }
+
+  // exists file
+  {
+    Env.init(std::array{"/:."s}, "test"s, {}, {});
+    const auto OldPath = "."sv;
+    const auto NewPath = "."sv;
+    const uint32_t OldPathSize = OldPath.size();
+    const uint32_t NewPathSize = NewPath.size();
+    writeString(MemInst, OldPath, OldPathPtr);
+    writeString(MemInst, NewPath, NewPathPtr);
+    EXPECT_TRUE(WasiPathSymlink.run(
+        &MemInst,
+        std::array<WasmEdge::ValVariant, 5>{OldPathPtr, OldPathSize, Fd,
+                                            NewPathPtr, NewPathSize},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_EXIST);
+    Env.fini();
+  }
+
+  // create symbolic link, check type and remove normal symbolic link
+  {
+    Env.init(std::array{"/:."s}, "test"s, {}, {});
+    const auto OldPath = "."sv;
+    const auto NewPath = "tmp"sv;
+    const uint32_t OldPathSize = OldPath.size();
+    const uint32_t NewPathSize = NewPath.size();
+    writeString(MemInst, OldPath, OldPathPtr);
+    writeString(MemInst, NewPath, NewPathPtr);
+    EXPECT_TRUE(WasiPathSymlink.run(
+        &MemInst,
+        std::array<WasmEdge::ValVariant, 5>{OldPathPtr, OldPathSize, Fd,
+                                            NewPathPtr, NewPathSize},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+
+    const uint32_t FilestatPtr = 32;
+    const auto &Filestat =
+        *MemInst.getPointer<const __wasi_filestat_t *>(FilestatPtr);
+
+    EXPECT_TRUE(WasiPathFilestatGet.run(
+        &MemInst,
+        std::array<WasmEdge::ValVariant, 5>{
+            Fd, static_cast<uint32_t>(0), NewPathPtr, NewPathSize, FilestatPtr},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Filestat.filetype, __WASI_FILETYPE_SYMBOLIC_LINK);
+
+    EXPECT_TRUE(WasiPathFilestatGet.run(
+        &MemInst,
+        std::array<WasmEdge::ValVariant, 5>{
+            Fd, static_cast<uint32_t>(__WASI_LOOKUPFLAGS_SYMLINK_FOLLOW),
+            NewPathPtr, NewPathSize, FilestatPtr},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Filestat.filetype, __WASI_FILETYPE_DIRECTORY);
+
+    EXPECT_TRUE(WasiPathUnlinkFile.run(
+        &MemInst,
+        std::array<WasmEdge::ValVariant, 3>{Fd, NewPathPtr, NewPathSize},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
+}
+
 GTEST_API_ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

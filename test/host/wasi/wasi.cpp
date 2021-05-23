@@ -7,11 +7,18 @@
 using namespace std::literals;
 
 namespace {
+
 void writeDummyMemoryContent(
     WasmEdge::Runtime::Instance::MemoryInstance &MemInst) noexcept {
   std::fill_n(MemInst.getPointer<uint8_t *>(0), 64, UINT8_C(0xa5));
 }
-__wasi_errno_t convertErrno(int SysErrno) {
+
+void writeString(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
+                 std::string_view String, uint32_t Ptr) noexcept {
+  std::copy(String.begin(), String.end(), MemInst.getPointer<uint8_t *>(Ptr));
+}
+
+__wasi_errno_t convertErrno(int SysErrno) noexcept {
   switch (SysErrno) {
   case 0:
     return __WASI_ERRNO_SUCCESS;
@@ -725,6 +732,96 @@ TEST(WasiTest, Random) {
       Errno));
   EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
   Env.fini();
+}
+
+TEST(WasiTest, Directory) {
+  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+
+  WasmEdge::Host::WasiPathCreateDirectory WasiPathCreateDirectory(Env);
+  WasmEdge::Host::WasiPathRemoveDirectory WasiPathRemoveDirectory(Env);
+  WasmEdge::Host::WasiPathFilestatGet WasiPathFilestatGet(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  const uint32_t Fd = 3;
+  uint32_t PathPtr = 65536;
+
+  // invalid pointer, zero size
+  {
+    Env.init(std::array{"/:."s}, "test"s, {}, {});
+    EXPECT_TRUE(WasiPathCreateDirectory.run(
+        &MemInst, std::array<WasmEdge::ValVariant, 3>{Fd, PathPtr, UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_NOENT);
+    Env.fini();
+  }
+
+  // invalid pointer, non zero size
+  {
+    Env.init(std::array{"/:."s}, "test"s, {}, {});
+    EXPECT_TRUE(WasiPathCreateDirectory.run(
+        &MemInst, std::array<WasmEdge::ValVariant, 3>{Fd, PathPtr, UINT32_C(1)},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+    Env.fini();
+  }
+
+  PathPtr = 0;
+  // zero size path
+  {
+    Env.init(std::array{"/:."s}, "test"s, {}, {});
+    const auto Path = ""sv;
+    const uint32_t PathSize = Path.size();
+    writeString(MemInst, Path, PathPtr);
+    EXPECT_TRUE(WasiPathCreateDirectory.run(
+        &MemInst, std::array<WasmEdge::ValVariant, 3>{Fd, PathPtr, PathSize},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_NOENT);
+    Env.fini();
+  }
+
+  // exists directory
+  {
+    Env.init(std::array{"/:."s}, "test"s, {}, {});
+    const auto Path = "."sv;
+    const uint32_t PathSize = Path.size();
+    writeString(MemInst, Path, PathPtr);
+    EXPECT_TRUE(WasiPathCreateDirectory.run(
+        &MemInst, std::array<WasmEdge::ValVariant, 3>{Fd, PathPtr, PathSize},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_EXIST);
+    Env.fini();
+  }
+
+  // create directory, check type and remove normal directory
+  {
+    Env.init(std::array{"/:."s}, "test"s, {}, {});
+    const auto Path = "tmp"sv;
+    const uint32_t PathSize = Path.size();
+    writeString(MemInst, Path, PathPtr);
+    EXPECT_TRUE(WasiPathCreateDirectory.run(
+        &MemInst, std::array<WasmEdge::ValVariant, 3>{Fd, PathPtr, PathSize},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+
+    const uint32_t FilestatPtr = 8;
+    EXPECT_TRUE(WasiPathFilestatGet.run(
+        &MemInst,
+        std::array<WasmEdge::ValVariant, 5>{
+            Fd, static_cast<uint32_t>(__WASI_LOOKUPFLAGS_SYMLINK_FOLLOW),
+            PathPtr, PathSize, FilestatPtr},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    const auto &Filestat =
+        *MemInst.getPointer<const __wasi_filestat_t *>(FilestatPtr);
+    EXPECT_EQ(Filestat.filetype, __WASI_FILETYPE_DIRECTORY);
+
+    EXPECT_TRUE(WasiPathRemoveDirectory.run(
+        &MemInst, std::array<WasmEdge::ValVariant, 3>{Fd, PathPtr, PathSize},
+        Errno));
+    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
 }
 
 GTEST_API_ int main(int argc, char **argv) {

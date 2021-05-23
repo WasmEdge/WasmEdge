@@ -172,7 +172,7 @@ public:
       return std::nullopt;
     }
     return {StartAddr};
-  };
+  }
 
   /// Module Instance address in store manager.
   uint32_t Addr;

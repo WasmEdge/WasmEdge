@@ -47,7 +47,7 @@ public:
   Configure() noexcept {
     addProposal(Proposal::BulkMemoryOperations);
     addProposal(Proposal::ReferenceTypes);
-  };
+  }
   template <typename... ArgsT> Configure(ArgsT... Args) noexcept {
     (addSet(Args), ...);
   }

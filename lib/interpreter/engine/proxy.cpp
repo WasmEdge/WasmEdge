@@ -256,8 +256,6 @@ Expect<RefVariant> Interpreter::tableGet(Runtime::StoreManager &StoreMgr,
   } else {
     return *Res;
   }
-
-  return {};
 }
 
 Expect<void> Interpreter::tableSet(Runtime::StoreManager &StoreMgr,

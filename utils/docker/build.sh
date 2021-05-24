@@ -24,6 +24,7 @@ function docker_build
 
 # Build all images.
 docker_build Dockerfile.base            ubuntu-base
+docker_build Dockerfile.ci-image-base   ci-image-base
 docker_build Dockerfile.build-clang     ubuntu-build-clang  \
     --build-arg "BASE=${NAME}:ubuntu-base"
 docker_build Dockerfile.build-clang     latest              \

@@ -21,6 +21,9 @@
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <numeric>
 
+#if LLVM_VERSION_MAJOR >= 12
+#include <llvm/Analysis/AliasAnalysis.h>
+#endif
 #if LLVM_VERSION_MAJOR >= 10
 #include <llvm/IR/IntrinsicsAArch64.h>
 #include <llvm/IR/IntrinsicsX86.h>
@@ -61,6 +64,13 @@ using Align = llvm::Align;
 #else
 static inline unsigned Align(unsigned Value) noexcept { return Value; }
 #endif
+static inline auto elementCount(llvm::VectorType *VectorTy) noexcept {
+#if LLVM_VERSION_MAJOR >= 12
+  return VectorTy->getElementCount().getKnownMinValue();
+#else
+  return VectorTy->getElementCount().Min;
+#endif
+}
 
 static bool isVoidReturn(WasmEdge::Span<const WasmEdge::ValType> ValTypes);
 static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
@@ -2955,8 +2965,8 @@ private:
   }
   void compileSplatOp(llvm::VectorType *VectorTy) {
     auto *Undef = llvm::UndefValue::get(VectorTy);
-    auto *Zeros = llvm::ConstantAggregateZero::get(llvm::VectorType::get(
-        Context.Int32Ty, VectorTy->getElementCount().Min, false));
+    auto *Zeros = llvm::ConstantAggregateZero::get(
+        llvm::VectorType::get(Context.Int32Ty, elementCount(VectorTy), false));
     auto *Value = Builder.CreateTrunc(Stack.back(), VectorTy->getElementType());
     auto *Vector =
         Builder.CreateInsertElement(Undef, Value, Builder.getInt64(0));
@@ -3040,7 +3050,7 @@ private:
   }
   void compileVectorAllTrue(llvm::VectorType *VectorTy) {
     compileVectorReduceIOp(VectorTy, [this, VectorTy](auto *V) {
-      const auto Size = VectorTy->getElementCount().Min;
+      const auto Size = elementCount(VectorTy);
       auto *IntType = Builder.getIntNTy(Size);
       auto *Zero = llvm::ConstantAggregateZero::get(VectorTy);
       auto *Cmp = Builder.CreateBitCast(Builder.CreateICmpEQ(V, Zero), IntType);
@@ -3050,7 +3060,7 @@ private:
   }
   void compileVectorBitMask(llvm::VectorType *VectorTy) {
     compileVectorReduceIOp(VectorTy, [this, VectorTy](auto *V) {
-      const auto Size = VectorTy->getElementCount().Min;
+      const auto Size = elementCount(VectorTy);
       auto *IntType = Builder.getIntNTy(Size);
       auto *Zero = llvm::ConstantAggregateZero::get(VectorTy);
       return Builder.CreateBitCast(Builder.CreateICmpSLT(V, Zero), IntType);
@@ -3061,7 +3071,7 @@ private:
     const uint64_t Mask = VectorTy->getElementType()->getIntegerBitWidth() - 1;
     auto *N = Builder.CreateAnd(stackPop(), Builder.getInt32(Mask));
     auto *RHS = Builder.CreateVectorSplat(
-        VectorTy->getElementCount().Min,
+        elementCount(VectorTy),
         Builder.CreateZExtOrTrunc(N, VectorTy->getElementType()));
     auto *LHS = Builder.CreateBitCast(stackPop(), VectorTy);
     stackPush(Builder.CreateBitCast(Op(LHS, RHS), Context.Int64x2Ty));
@@ -3204,10 +3214,10 @@ private:
 
           auto *EL = Builder.CreateZExt(LHS, ExtendTy);
           auto *ER = Builder.CreateZExt(RHS, ExtendTy);
-          auto *One = Builder.CreateZExt(
-              Builder.CreateVectorSplat(ExtendTy->getElementCount().Min,
-                                        Builder.getTrue()),
-              ExtendTy);
+          auto *One =
+              Builder.CreateZExt(Builder.CreateVectorSplat(
+                                     elementCount(ExtendTy), Builder.getTrue()),
+                                 ExtendTy);
           return Builder.CreateTrunc(
               Builder.CreateLShr(
                   Builder.CreateAdd(Builder.CreateAdd(EL, ER), One), One),
@@ -3223,7 +3233,7 @@ private:
                          : llvm::APInt::getMaxValue(IntWidth / 2);
     MaxInt = Signed ? MaxInt.sext(IntWidth) : MaxInt.zext(IntWidth);
 
-    const auto Count = FromTy->getElementCount().Min;
+    const auto Count = elementCount(FromTy);
     auto *VMin = Builder.CreateVectorSplat(Count, Builder.getInt(MinInt));
     auto *VMax = Builder.CreateVectorSplat(Count, Builder.getInt(MaxInt));
 
@@ -3246,7 +3256,7 @@ private:
   }
   void compileVectorExtend(llvm::VectorType *FromTy, bool Signed, bool Low) {
     auto *ExtTy = llvm::VectorType::getExtendedElementVectorType(FromTy);
-    const auto Count = FromTy->getElementCount().Min;
+    const auto Count = elementCount(FromTy);
     std::vector<ShuffleElement> Mask(Count / 2);
     std::iota(Mask.begin(), Mask.end(), Low ? 0 : Count / 2);
     auto *F = Builder.CreateBitCast(Stack.back(), FromTy);
@@ -3260,7 +3270,7 @@ private:
   }
   void compileVectorExtMul(llvm::VectorType *FromTy, bool Signed, bool Low) {
     auto *ExtTy = llvm::VectorType::getExtendedElementVectorType(FromTy);
-    const auto Count = FromTy->getElementCount().Min;
+    const auto Count = elementCount(FromTy);
     std::vector<ShuffleElement> Mask(Count / 2);
     std::iota(Mask.begin(), Mask.end(), Low ? 0 : Count / 2);
     auto Extend = [this, FromTy, Signed, ExtTy, &Mask](llvm::Value *F) {
@@ -3282,7 +3292,7 @@ private:
         VectorTy, [this, VectorTy, Signed](auto *V) -> llvm::Value * {
           auto *ExtTy = llvm::VectorType::getHalfElementsVectorType(
               llvm::VectorType::getExtendedElementVectorType(VectorTy));
-          const auto Count = VectorTy->getElementCount().Min;
+          const auto Count = elementCount(VectorTy);
 #if defined(__x86_64__)
           if (Context.SupportXOP) {
             const auto ID = Count == 16
@@ -3466,7 +3476,7 @@ private:
   void compileVectorTruncSatS(llvm::VectorType *VectorTy, unsigned IntWidth,
                               bool PadZero) {
     compileVectorOp(VectorTy, [this, VectorTy, IntWidth, PadZero](auto *V) {
-      const auto Size = VectorTy->getElementCount().Min;
+      const auto Size = elementCount(VectorTy);
       auto *FPTy = VectorTy->getElementType();
       auto *IntMin = Builder.getInt(llvm::APInt::getSignedMinValue(IntWidth));
       auto *IntMax = Builder.getInt(llvm::APInt::getSignedMaxValue(IntWidth));
@@ -3497,7 +3507,7 @@ private:
   void compileVectorTruncSatU(llvm::VectorType *VectorTy, unsigned IntWidth,
                               bool PadZero) {
     compileVectorOp(VectorTy, [this, VectorTy, IntWidth, PadZero](auto *V) {
-      const auto Size = VectorTy->getElementCount().Min;
+      const auto Size = elementCount(VectorTy);
       auto *FPTy = VectorTy->getElementType();
       auto *IntMin = Builder.getInt(llvm::APInt::getMinValue(IntWidth));
       auto *IntMax = Builder.getInt(llvm::APInt::getMaxValue(IntWidth));
@@ -3527,7 +3537,7 @@ private:
                              llvm::VectorType *FPVectorTy, bool Low) {
     compileVectorOp(VectorTy, [this, VectorTy, FPVectorTy, Low](auto *V) {
       if (Low) {
-        const auto Size = VectorTy->getElementCount().Min / 2;
+        const auto Size = elementCount(VectorTy) / 2;
         std::vector<ShuffleElement> Mask(Size);
         std::iota(Mask.begin(), Mask.end(), 0);
         V = Builder.CreateShuffleVector(V, llvm::UndefValue::get(VectorTy),
@@ -3540,7 +3550,7 @@ private:
                              llvm::VectorType *FPVectorTy, bool Low) {
     compileVectorOp(VectorTy, [this, VectorTy, FPVectorTy, Low](auto *V) {
       if (Low) {
-        const auto Size = VectorTy->getElementCount().Min / 2;
+        const auto Size = elementCount(VectorTy) / 2;
         std::vector<ShuffleElement> Mask(Size);
         std::iota(Mask.begin(), Mask.end(), 0);
         V = Builder.CreateShuffleVector(V, llvm::UndefValue::get(VectorTy),
@@ -3860,7 +3870,10 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     llvm::TargetLibraryInfoImpl TLII(llvm::Triple(LLModule->getTargetTriple()));
 
     {
-#if LLVM_VERSION_MAJOR >= 9
+#if LLVM_VERSION_MAJOR >= 12
+      llvm::PassBuilder PB(false, TM.get(), llvm::PipelineTuningOptions(),
+                           llvm::None);
+#elif LLVM_VERSION_MAJOR >= 9
       llvm::PassBuilder PB(TM.get(), llvm::PipelineTuningOptions(), llvm::None);
 #else
       llvm::PassBuilder PB(TM.get(), llvm::None);

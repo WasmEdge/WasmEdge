@@ -1,3 +1,5 @@
+# Build and test from source
+
 Please follow this guide to build and test WasmEdge from source code.
 
 ## Get Source Code
@@ -101,3 +103,7 @@ Users can use these tests to verify the correctness of WasmEdge binaries.
 $ cd <path/to/wasmedge/build_folder>
 $ LD_LIBRARY_PATH=$(pwd)/lib/api ctest
 ```
+
+## Run applications
+
+Next, follow [this guide](run.md) to run WebAssembly bytecode programs in `wasmedge`.

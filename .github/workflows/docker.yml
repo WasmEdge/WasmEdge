@@ -1,5 +1,9 @@
 name: docker
 
+concurrency:
+  group: docker-${{ github.head_ref }}
+  cancel-in-progress: true
+
 on:
   push:
     tags:

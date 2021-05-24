@@ -1,5 +1,9 @@
 name: doc
 
+concurrency:
+  group: doc-${{ github.head_ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:

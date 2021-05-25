@@ -38,6 +38,19 @@ second
 state
 ```
 
+### Example: Add
+
+The `add.wasm` WebAssembly program contains a `add()` function. Checkout its Rust [source code project](https://github.com/second-state/wasm-learning/tree/master/cli/add). We use `wasmedge` in reactor mode to call the `add()` with two integer input parameters.
+
+```bash
+# cd <path/to/wasmedge/build_folder>
+$ cd tools/wasmedge
+$ ./wasmedge --reactor examples/add.wasm add 2 2
+4
+```
+
+> WebAssembly only supports a few simple data types. To call a wasm function with complex input parameters and return values in reactor mode, you will need the [rustwasmc](https://github.com/second-state/rustwasmc) compiler toolchain to generate wasm functions that can be embedded into [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or [Golang](https://github.com/second-state/yomo-flow-ssvm-example) programs.
+
 ### Example: Fibonacci
 
 The `fibonacci.wasm` WebAssembly program contains a `fib()` function which takes a single integer as input parameter. We use `wasmedge` in reactor mode to call the exported function.

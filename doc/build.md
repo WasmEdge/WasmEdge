@@ -5,7 +5,7 @@ Please follow this guide to build and test WasmEdge from source code.
 ## Get Source Code
 
 ```bash
-$ git clone git@github.com:WasmEdge/WasmEdge.git
+$ git clone https://github.com/WasmEdge/WasmEdge.git
 $ cd WasmEdge
 $ git checkout 0.8.0
 ```
@@ -14,7 +14,7 @@ $ git checkout 0.8.0
 
 ### Use our docker image
 
-Our docker image use `ubuntu 20.04` as the base.
+Our docker image use `ubuntu 21.04` as the base.
 
 ```bash
 $ docker pull wasmedge/wasmedge
@@ -32,7 +32,7 @@ $ sudo apt install -y \
 # And you will need to install llvm for wasmedgec tool
 $ sudo apt install -y \
 	llvm-dev \
-	liblld-10-dev
+	liblld-12-dev
 
 # WasmEdge supports both clang++ and g++ compilers
 # You can choose one of them for building this project
@@ -42,7 +42,7 @@ $ sudo apt install -y clang
 
 ### Support for legacy operating systems
 
-Our development environment requires `libLLVM-10` and `>=GLIBCXX_3.4.26`.
+Our development environment requires `libLLVM-12` and `>=GLIBCXX_3.4.26`.
 
 If users are using the older operating system than Ubuntu 20.04, please use our special docker image to build WasmEdge.
 If you are looking for the pre-built binaries for the older operatoring system, we also provide several pre-built binaries based on manylinux\* distribution.

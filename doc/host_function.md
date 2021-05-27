@@ -5,7 +5,7 @@
 ## Definitions of Host Instances
 
 WasmEdge supports registering `host function`, `memory`, `table`, and `global` instances as imports.
-For more details, samples can be found in `include/host/wasi/` and `test/core/spectest.h`. 
+For more details, samples can be found in `include/host/wasi/` and `test/core/spectest.h`.
 
 ### Functions
 

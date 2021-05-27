@@ -1,5 +1,5 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
-// 
+//
 // Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
@@ -7,9 +7,9 @@
 //
 // http://opensource.org/licenses/MIT
 //
-// Unless required by applicable law or agreed to in writing, software distributed 
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
 #ifndef RAPIDJSON_INTERNAL_REGEX_H_
@@ -102,9 +102,9 @@ class GenericRegexSearch;
     - \c \\t Tab (U+0009)
     - \c \\v Vertical tab (U+000B)
 
-    \note This is a Thompson NFA engine, implemented with reference to 
-        Cox, Russ. "Regular Expression Matching Can Be Simple And Fast (but is slow in Java, Perl, PHP, Python, Ruby,...).", 
-        https://swtch.com/~rsc/regexp/regexp1.html 
+    \note This is a Thompson NFA engine, implemented with reference to
+        Cox, Russ. "Regular Expression Matching Can Be Simple And Fast (but is slow in Java, Perl, PHP, Python, Ruby,...).",
+        https://swtch.com/~rsc/regexp/regexp1.html
 */
 template <typename Encoding, typename Allocator = CrtAllocator>
 class GenericRegex {
@@ -113,9 +113,9 @@ public:
     typedef typename Encoding::Ch Ch;
     template <typename, typename> friend class GenericRegexSearch;
 
-    GenericRegex(const Ch* source, Allocator* allocator = 0) : 
-        ownAllocator_(allocator ? 0 : RAPIDJSON_NEW(Allocator)()), allocator_(allocator ? allocator : ownAllocator_), 
-        states_(allocator_, 256), ranges_(allocator_, 256), root_(kRegexInvalidState), stateCount_(), rangeCount_(), 
+    GenericRegex(const Ch* source, Allocator* allocator = 0) :
+        ownAllocator_(allocator ? 0 : RAPIDJSON_NEW(Allocator)()), allocator_(allocator ? allocator : ownAllocator_),
+        states_(allocator_, 256), ranges_(allocator_, 256), root_(kRegexInvalidState), stateCount_(), rangeCount_(),
         anchorBegin_(), anchorEnd_()
     {
         GenericStringStream<Encoding> ss(source);
@@ -147,7 +147,7 @@ private:
     static const unsigned kRangeNegationFlag = 0x80000000;
 
     struct Range {
-        unsigned start; // 
+        unsigned start; //
         unsigned end;
         SizeType next;
     };
@@ -402,7 +402,7 @@ private:
                 }
                 return false;
 
-            default: 
+            default:
                 // syntax error (e.g. unclosed kLeftParenthesis)
                 return false;
         }
@@ -550,7 +550,7 @@ private:
         }
         return false;
     }
-    
+
     SizeType NewRange(unsigned codepoint) {
         Range* r = ranges_.template Push<Range>();
         r->start = r->end = codepoint;
@@ -608,7 +608,7 @@ public:
     typedef typename RegexType::EncodingType Encoding;
     typedef typename Encoding::Ch Ch;
 
-    GenericRegexSearch(const RegexType& regex, Allocator* allocator = 0) : 
+    GenericRegexSearch(const RegexType& regex, Allocator* allocator = 0) :
         regex_(regex), allocator_(allocator), ownAllocator_(0),
         state0_(allocator, 0), state1_(allocator, 0), stateSet_()
     {
@@ -667,7 +667,7 @@ private:
             for (const SizeType* s = current->template Bottom<SizeType>(); s != current->template End<SizeType>(); ++s) {
                 const State& sr = regex_.GetState(*s);
                 if (sr.codepoint == codepoint ||
-                    sr.codepoint == RegexType::kAnyCharacterClass || 
+                    sr.codepoint == RegexType::kAnyCharacterClass ||
                     (sr.codepoint == RegexType::kRangeCharacterClass && MatchRange(sr.rangeStart, codepoint)))
                 {
                     matched = AddState(*next, sr.out) || matched;

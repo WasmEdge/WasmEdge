@@ -1,5 +1,5 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
-// 
+//
 // Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
@@ -7,9 +7,9 @@
 //
 // http://opensource.org/licenses/MIT
 //
-// Unless required by applicable law or agreed to in writing, software distributed 
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
 #ifndef RAPIDJSON_WRITER_H_
@@ -52,7 +52,7 @@ RAPIDJSON_NAMESPACE_BEGIN
 ///////////////////////////////////////////////////////////////////////////////
 // WriteFlag
 
-/*! \def RAPIDJSON_WRITE_DEFAULT_FLAGS 
+/*! \def RAPIDJSON_WRITE_DEFAULT_FLAGS
     \ingroup RAPIDJSON_CONFIG
     \brief User-defined kWriteDefaultFlags definition.
 
@@ -76,7 +76,7 @@ enum WriteFlag {
 
     User may programmatically calls the functions of a writer to generate JSON text.
 
-    On the other side, a writer can also be passed to objects that generates events, 
+    On the other side, a writer can also be passed to objects that generates events,
 
     for example Reader::Parse() and Document::Accept().
 
@@ -99,7 +99,7 @@ public:
         \param levelDepth Initial capacity of stack.
     */
     explicit
-    Writer(OutputStream& os, StackAllocator* stackAllocator = 0, size_t levelDepth = kDefaultLevelDepth) : 
+    Writer(OutputStream& os, StackAllocator* stackAllocator = 0, size_t levelDepth = kDefaultLevelDepth) :
         os_(&os), level_stack_(stackAllocator, levelDepth * sizeof(Level)), maxDecimalPlaces_(kDefaultMaxDecimalPlaces), hasRoot_(false) {}
 
     explicit
@@ -153,7 +153,7 @@ public:
     /*!
         This setting truncates the output with specified number of decimal places.
 
-        For example, 
+        For example,
 
         \code
         writer.SetMaxDecimalPlaces(3);
@@ -258,7 +258,7 @@ public:
     //! Simpler but slower overload.
     bool String(const Ch* const& str) { return String(str, internal::StrLen(str)); }
     bool Key(const Ch* const& str) { return Key(str, internal::StrLen(str)); }
-    
+
     //@}
 
     //! Write a raw JSON value.
@@ -425,7 +425,7 @@ protected:
                     PutUnsafe(*os_, hexDigits[(trail >> 12) & 15]);
                     PutUnsafe(*os_, hexDigits[(trail >>  8) & 15]);
                     PutUnsafe(*os_, hexDigits[(trail >>  4) & 15]);
-                    PutUnsafe(*os_, hexDigits[(trail      ) & 15]);                    
+                    PutUnsafe(*os_, hexDigits[(trail      ) & 15]);
                 }
             }
             else if ((sizeof(Ch) == 1 || static_cast<unsigned>(c) < 256) && RAPIDJSON_UNLIKELY(escape[static_cast<unsigned char>(c)]))  {
@@ -439,7 +439,7 @@ protected:
                     PutUnsafe(*os_, hexDigits[static_cast<unsigned char>(c) & 0xF]);
                 }
             }
-            else if (RAPIDJSON_UNLIKELY(!(writeFlags & kWriteValidateEncodingFlag ? 
+            else if (RAPIDJSON_UNLIKELY(!(writeFlags & kWriteValidateEncodingFlag ?
                 Transcoder<SourceEncoding, TargetEncoding>::Validate(is, *os_) :
                 Transcoder<SourceEncoding, TargetEncoding>::TranscodeUnsafe(is, *os_))))
                 return false;
@@ -462,7 +462,7 @@ protected:
         GenericStringStream<SourceEncoding> is(json);
         while (RAPIDJSON_LIKELY(is.Tell() < length)) {
             RAPIDJSON_ASSERT(is.Peek() != '\0');
-            if (RAPIDJSON_UNLIKELY(!(writeFlags & kWriteValidateEncodingFlag ? 
+            if (RAPIDJSON_UNLIKELY(!(writeFlags & kWriteValidateEncodingFlag ?
                 Transcoder<SourceEncoding, TargetEncoding>::Validate(is, *os_) :
                 Transcoder<SourceEncoding, TargetEncoding>::TranscodeUnsafe(is, *os_))))
                 return false;
@@ -475,7 +475,7 @@ protected:
         if (RAPIDJSON_LIKELY(level_stack_.GetSize() != 0)) { // this value is not at root
             Level* level = level_stack_.template Top<Level>();
             if (level->valueCount > 0) {
-                if (level->inArray) 
+                if (level->inArray)
                     os_->Put(','); // add comma if it is not the first element in array
                 else  // in object
                     os_->Put((level->valueCount % 2 == 0) ? ',' : ':');
@@ -563,7 +563,7 @@ inline bool Writer<StringBuffer>::WriteDouble(double d) {
         PutUnsafe(*os_, 'i'); PutUnsafe(*os_, 'n'); PutUnsafe(*os_, 'i'); PutUnsafe(*os_, 't'); PutUnsafe(*os_, 'y');
         return true;
     }
-    
+
     char *buffer = os_->Push(25);
     char* end = internal::dtoa(d, buffer, maxDecimalPlaces_);
     os_->Pop(static_cast<size_t>(25 - (end - buffer)));

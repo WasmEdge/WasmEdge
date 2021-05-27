@@ -1,5 +1,5 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
-// 
+//
 // Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
@@ -7,9 +7,9 @@
 //
 // http://opensource.org/licenses/MIT
 //
-// Unless required by applicable law or agreed to in writing, software distributed 
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
 #ifndef RAPIDJSON_STRTOD_
@@ -130,14 +130,14 @@ inline bool StrtodFast(double d, int p, double* result) {
 // Compute an approximation and see if it is within 1/2 ULP
 inline bool StrtodDiyFp(const char* decimals, int dLen, int dExp, double* result) {
     uint64_t significand = 0;
-    int i = 0;   // 2^64 - 1 = 18446744073709551615, 1844674407370955161 = 0x1999999999999999    
+    int i = 0;   // 2^64 - 1 = 18446744073709551615, 1844674407370955161 = 0x1999999999999999
     for (; i < dLen; i++) {
         if (significand  >  RAPIDJSON_UINT64_C2(0x19999999, 0x99999999) ||
             (significand == RAPIDJSON_UINT64_C2(0x19999999, 0x99999999) && decimals[i] > '5'))
             break;
         significand = significand * 10u + static_cast<unsigned>(decimals[i] - '0');
     }
-    
+
     if (i < dLen && decimals[i] >= '5') // Rounding
         significand++;
 
@@ -184,7 +184,7 @@ inline bool StrtodDiyFp(const char* decimals, int dLen, int dExp, double* result
     if (precisionSize + kUlpShift >= 64) {
         int scaleExp = (precisionSize + kUlpShift) - 63;
         v.f >>= scaleExp;
-        v.e += scaleExp; 
+        v.e += scaleExp;
         error = (error >> scaleExp) + 1 + kUlp;
         precisionSize -= scaleExp;
     }

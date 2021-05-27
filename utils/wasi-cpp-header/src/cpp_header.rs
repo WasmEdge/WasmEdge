@@ -84,14 +84,11 @@ fn print_datatype(ret: &mut String, nt: &NamedType) {
 
     match &nt.tref {
         TypeRef::Value(v) => match &**v {
-            Type::Enum(e) => print_enum(ret, &nt.name, e),
-            Type::Int(i) => print_int(ret, &nt.name, i),
-            Type::Flags(f) => print_flags(ret, &nt.name, f),
-            Type::Struct(s) => print_struct(ret, &nt.name, s),
-            Type::Union(u) => print_union(ret, &nt.name, u),
+            Type::Record(s) => print_record(ret, &nt.name, s),
+            Type::Variant(u) => print_variant(ret, &nt.name, u),
             Type::Handle(h) => print_handle(ret, &nt.name, h),
             Type::Builtin { .. }
-            | Type::Array { .. }
+            | Type::List { .. }
             | Type::Pointer { .. }
             | Type::ConstPointer { .. } => print_alias(ret, &nt.name, &nt.tref),
         },
@@ -100,8 +97,8 @@ fn print_datatype(ret: &mut String, nt: &NamedType) {
 }
 
 fn print_alias(ret: &mut String, name: &Id, dest: &TypeRef) {
-    match &*dest.type_() {
-        Type::Array(_) => {
+    match &**dest.type_() {
+        Type::List(_) => {
             // Don't emit arrays as top-level types; instead we special-case
             // them in places like parameter lists so that we can pass them
             // as pointer and length pairs.
@@ -130,17 +127,17 @@ fn print_alias(ret: &mut String, name: &Id, dest: &TypeRef) {
     }
 }
 
-fn print_enum(ret: &mut String, name: &Id, e: &EnumDatatype) {
+fn print_enum(ret: &mut String, name: &Id, v: &Variant) {
     ret.push_str(&format!(
         "enum __wasi_{}_t : {} {{\n",
         ident_name(name),
-        intrepr_name(e.repr)
+        intrepr_name(v.tag_repr)
     ));
 
-    for (index, variant) in e.variants.iter().enumerate() {
-        if !variant.docs.is_empty() {
+    for (index, case) in v.cases.iter().enumerate() {
+        if !case.docs.is_empty() {
             ret.push_str("  /**\n");
-            for line in variant.docs.lines() {
+            for line in case.docs.lines() {
                 ret.push_str(&format!("   * {}\n", line));
             }
             ret.push_str("   */\n");
@@ -148,7 +145,7 @@ fn print_enum(ret: &mut String, name: &Id, e: &EnumDatatype) {
         ret.push_str(&format!(
             "  __WASI_{}_{} = {},\n",
             ident_name(&name).to_shouty_snake_case(),
-            ident_name(&variant.name).to_shouty_snake_case(),
+            ident_name(&case.name).to_shouty_snake_case(),
             index
         ));
         ret.push_str("\n");
@@ -158,105 +155,60 @@ fn print_enum(ret: &mut String, name: &Id, e: &EnumDatatype) {
     ret.push_str(&format!(
         "static_assert(sizeof(__wasi_{}_t) == {}, \"witx calculated size\");\n",
         ident_name(name),
-        e.repr.mem_size()
+        v.tag_repr.mem_size()
     ));
     ret.push_str(&format!(
         "static_assert(alignof(__wasi_{}_t) == {}, \"witx calculated align\");\n",
         ident_name(name),
-        e.repr.mem_align()
+        v.tag_repr.mem_align()
     ));
 
     ret.push_str("\n");
 }
 
-fn print_int(ret: &mut String, name: &Id, i: &IntDatatype) {
-    ret.push_str(&format!(
-        "enum __wasi_{}_t : {} {{\n",
-        ident_name(name),
-        intrepr_name(i.repr)
-    ));
-
-    for (index, const_) in i.consts.iter().enumerate() {
-        if !const_.docs.is_empty() {
-            ret.push_str("  /**\n");
-            for line in const_.docs.lines() {
-                ret.push_str(&format!("   * {}\n", line));
-            }
-            ret.push_str("   */\n");
-        }
+fn print_record(ret: &mut String, name: &Id, s: &RecordDatatype) {
+    if let Some(repr) = s.bitflags_repr() {
         ret.push_str(&format!(
-            "  __WASI_{}_{} = {},\n",
-            ident_name(&name).to_shouty_snake_case(),
-            ident_name(&const_.name).to_shouty_snake_case(),
-            index
+            "enum __wasi_{}_t : {} {{\n",
+            ident_name(name),
+            intrepr_name(repr)
         ));
         ret.push_str("\n");
-    }
-    ret.push_str("};\n");
-
-    ret.push_str(&format!(
-        "static_assert(sizeof(__wasi_{}_t) == {}, \"witx calculated size\");\n",
-        ident_name(name),
-        i.repr.mem_size()
-    ));
-    ret.push_str(&format!(
-        "static_assert(alignof(__wasi_{}_t) == {}, \"witx calculated align\");\n",
-        ident_name(name),
-        i.repr.mem_align()
-    ));
-
-    ret.push_str("\n");
-}
-
-fn print_flags(ret: &mut String, name: &Id, f: &FlagsDatatype) {
-    ret.push_str(&format!(
-        "enum __wasi_{}_t : {} {{\n",
-        ident_name(name),
-        intrepr_name(f.repr)
-    ));
-    ret.push_str("\n");
-
-    for (index, flag) in f.flags.iter().enumerate() {
-        if !flag.docs.is_empty() {
-            ret.push_str("  /**\n");
-            for line in flag.docs.lines() {
-                ret.push_str(&format!("   * {}\n", line));
+        for (i, member) in s.members.iter().enumerate() {
+            if !member.docs.is_empty() {
+                ret.push_str("  /**\n");
+                for line in member.docs.lines() {
+                    ret.push_str(&format!("   * {}\n", line));
+                }
+                ret.push_str("   */\n");
             }
-            ret.push_str("   */\n");
+            ret.push_str(&format!(
+                "  __WASI_{}_{} = 1 << {},\n",
+                ident_name(name).to_shouty_snake_case(),
+                ident_name(&member.name).to_shouty_snake_case(),
+                i,
+            ));
+            ret.push_str("\n");
         }
         ret.push_str(&format!(
-            "  __WASI_{}_{} = {},\n",
-            ident_name(name).to_shouty_snake_case(),
-            ident_name(&flag.name).to_shouty_snake_case(),
-            1u128 << index
+            "}};\nDEFINE_ENUM_OPERATORS(__wasi_{}_t)\n\n",
+            ident_name(name)
+        ));
+        ret.push_str(&format!(
+            "static_assert(sizeof(__wasi_{}_t) == {}, \"witx calculated size\");\n",
+            ident_name(name),
+            repr.mem_size()
+        ));
+        ret.push_str(&format!(
+            "static_assert(alignof(__wasi_{}_t) == {}, \"witx calculated align\");\n",
+            ident_name(name),
+            repr.mem_align()
         ));
         ret.push_str("\n");
+        return;
     }
-    ret.push_str(&format!(
-        "}};\nDEFINE_ENUM_OPERATORS(__wasi_{}_t)\n\n",
-        ident_name(name)
-    ));
 
-    ret.push_str(&format!(
-        "static_assert(sizeof(__wasi_{}_t) == {}, \"witx calculated size\");\n",
-        ident_name(name),
-        f.repr.mem_size(),
-    ));
-    ret.push_str(&format!(
-        "static_assert(alignof(__wasi_{}_t) == {}, \"witx calculated align\");\n",
-        ident_name(name),
-        f.repr.mem_align(),
-    ));
-
-    ret.push_str("\n");
-}
-
-fn print_struct(ret: &mut String, name: &Id, s: &StructDatatype) {
-    ret.push_str(&format!(
-        "using __wasi_{}_t = struct __wasi_{}_t {{\n",
-        ident_name(name),
-        ident_name(name)
-    ));
+    ret.push_str(&format!("struct __wasi_{}_t {{\n", ident_name(name)));
 
     for member in &s.members {
         if !member.docs.is_empty() {
@@ -300,18 +252,18 @@ fn print_struct(ret: &mut String, name: &Id, s: &StructDatatype) {
     ret.push_str("\n");
 }
 
-fn print_union(ret: &mut String, name: &Id, u: &UnionDatatype) {
-    ret.push_str(&format!(
-        "using __wasi_{}_u_t = union __wasi_{}_u_t {{\n",
-        ident_name(name),
-        ident_name(name)
-    ));
+fn print_variant(ret: &mut String, name: &Id, v: &Variant) {
+    if v.is_enum() {
+        return print_enum(ret, name, v);
+    }
 
-    for variant in &u.variants {
-        if let Some(ref tref) = variant.tref {
-            if !variant.docs.is_empty() {
+    ret.push_str(&format!("union __wasi_{}_u_t {{\n", ident_name(name)));
+
+    for case in &v.cases {
+        if let Some(tref) = &case.tref {
+            if !case.docs.is_empty() {
                 ret.push_str("  /**\n");
-                for line in variant.docs.lines() {
+                for line in case.docs.lines() {
                     ret.push_str(&format!("  * {}\n", line));
                 }
                 ret.push_str("  */\n");
@@ -319,57 +271,41 @@ fn print_union(ret: &mut String, name: &Id, u: &UnionDatatype) {
             ret.push_str(&format!(
                 "  {} {};\n",
                 typeref_name(tref),
-                ident_name(&variant.name)
+                ident_name(&case.name)
             ));
         }
     }
-    ret.push_str(&format!("}};\n"));
+    ret.push_str("};\n");
 
-    ret.push_str(&format!(
-        "using __wasi_{}_t = struct __wasi_{}_t {{\n",
-        ident_name(name),
-        ident_name(name)
-    ));
-
-    ret.push_str(&format!("  {} tag;\n", namedtype_name(&u.tag)));
+    ret.push_str(&format!("struct __wasi_{}_t {{\n", ident_name(name)));
+    ret.push_str(&format!("  {} tag;\n", intrepr_name(v.tag_repr)));
     ret.push_str(&format!("  __wasi_{}_u_t u;\n", ident_name(name)));
-
-    ret.push_str(&format!("}};\n"));
-    ret.push_str("\n");
+    ret.push_str("};\n\n");
 
     ret.push_str(&format!(
         "static_assert(sizeof(__wasi_{}_t) == {}, \"witx calculated size\");\n",
         ident_name(name),
-        u.mem_size()
+        v.mem_size()
     ));
     ret.push_str(&format!(
         "static_assert(alignof(__wasi_{}_t) == {}, \"witx calculated align\");\n",
         ident_name(name),
-        u.mem_align()
+        v.mem_align()
     ));
-
-    let l = u.union_layout();
     ret.push_str(&format!(
         "static_assert(offsetof(__wasi_{}_t, u) == {}, \"witx calculated union offset\");\n",
         ident_name(name),
-        l.contents_offset,
-    ));
-    ret.push_str(&format!(
-        "static_assert(sizeof(__wasi_{}_u_t) == {}, \"witx calculated union size\");\n",
-        ident_name(name),
-        l.contents_size,
-    ));
-    ret.push_str(&format!(
-        "static_assert(alignof(__wasi_{}_u_t) == {}, \"witx calculated union align\");\n",
-        ident_name(name),
-        l.contents_align,
+        v.payload_offset()
     ));
 
     ret.push_str("\n");
 }
 
 fn print_handle(ret: &mut String, name: &Id, h: &HandleDatatype) {
-    ret.push_str(&format!("using __wasi_{}_t = int32_t;\n\n", ident_name(name)));
+    ret.push_str(&format!(
+        "using __wasi_{}_t = int32_t;\n\n",
+        ident_name(name)
+    ));
 
     ret.push_str(&format!(
         "static_assert(sizeof(__wasi_{}_t) == {}, \"witx calculated size\");\n",
@@ -391,13 +327,17 @@ fn ident_name(i: &Id) -> String {
 
 fn builtin_type_name(b: BuiltinType) -> &'static str {
     match b {
-        BuiltinType::String | BuiltinType::Char8 => {
+        BuiltinType::U8 { lang_c_char: true } => {
             panic!("no type name for string or char8 builtins")
         }
-        BuiltinType::USize => "size_t",
-        BuiltinType::U8 => "uint8_t",
+        BuiltinType::U8 { lang_c_char: false } => "uint8_t",
         BuiltinType::U16 => "uint16_t",
-        BuiltinType::U32 => "uint32_t",
+        BuiltinType::U32 {
+            lang_ptr_size: true,
+        } => "size_t",
+        BuiltinType::U32 {
+            lang_ptr_size: false,
+        } => "uint32_t",
         BuiltinType::U64 => "uint64_t",
         BuiltinType::S8 => "int8_t",
         BuiltinType::S16 => "int16_t",
@@ -405,12 +345,13 @@ fn builtin_type_name(b: BuiltinType) -> &'static str {
         BuiltinType::S64 => "int64_t",
         BuiltinType::F32 => "float",
         BuiltinType::F64 => "double",
+        BuiltinType::Char => "char32_t",
     }
 }
 
 fn typeref_name(tref: &TypeRef) -> String {
-    match &*tref.type_() {
-        Type::Builtin(BuiltinType::String) | Type::Builtin(BuiltinType::Char8) | Type::Array(_) => {
+    match &**tref.type_() {
+        Type::Builtin(BuiltinType::U8 { lang_c_char: true }) | Type::List(_) => {
             panic!("unsupported grammar: cannot construct name of string or array",)
         }
         _ => {}
@@ -419,27 +360,22 @@ fn typeref_name(tref: &TypeRef) -> String {
     match tref {
         TypeRef::Name(named_type) => namedtype_name(&named_type),
         TypeRef::Value(anon_type) => match &**anon_type {
-            Type::Array(_) => unreachable!("arrays excluded above"),
+            Type::List(_) => unreachable!("lists excluded above"),
             Type::Builtin(b) => builtin_type_name(*b).to_string(),
             Type::Pointer(p) => format!("{}_ptr", typeref_name(&*p)),
             Type::ConstPointer(p) => format!("const_{}_ptr", typeref_name(&*p)),
-            Type::Int(i) => format!("{}", intrepr_name(i.repr)),
-            Type::Struct { .. }
-            | Type::Union { .. }
-            | Type::Enum { .. }
-            | Type::Flags { .. }
-            | Type::Handle { .. } => unreachable!(
-                "wasi should not have anonymous structs, unions, enums, flags, handles"
-            ),
+            Type::Record { .. } | Type::Variant { .. } | Type::Handle { .. } => {
+                unreachable!("wasi should not have anonymous record, variant, handles")
+            }
         },
     }
 }
 
 fn namedtype_name(named_type: &NamedType) -> String {
-    match &*named_type.type_() {
-        Type::Pointer(p) => format!("{} *", typeref_name(&*p)),
-        Type::ConstPointer(p) => format!("const {} *", typeref_name(&*p)),
-        Type::Array(_) => unreachable!("arrays excluded above"),
+    match &**named_type.type_() {
+        Type::Pointer(p) => format!("{}_ptr", typeref_name(&*p)),
+        Type::ConstPointer(p) => format!("const_{}_ptr", typeref_name(&*p)),
+        Type::List(_) => unreachable!("arrays excluded above"),
         _ => format!("__wasi_{}_t", named_type.name.as_str()),
     }
 }

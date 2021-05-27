@@ -1,14 +1,13 @@
 
 # Quick start guides
 
-🤖 [Build](doc/build.md) and [contribute to](doc/contribution.md) WasmEdge
-⌨️  Run a standalone Wasm program [from CLI](doc/run.md) or [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) or Golang
-💭 [Deploy a Wasm function](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/) as a web service (FaaS)
-🛠 [Embed a user-defined Wasm function](http://reactor.secondstate.info/docs/user-create-a-bot.html) in a SaaS platform
-🔩 [Embed a Wasm function](https://www.secondstate.io/articles/getting-started-with-rust-function/) in your Node.js web app
-🔌 [Embed a Wasm function](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_PassBytes) in your Golang app
+🤖 [Build](doc/build.md) and [contribute to](doc/contribution.md) WasmEdge\
+⌨️  Run a standalone Wasm program [from CLI](doc/run.md) or [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) or [Golang](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)\
+💭 [Deploy a Wasm function](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/) as a web service (FaaS)\
+🛠 [Embed a user-defined Wasm function](http://reactor.secondstate.info/docs/user-create-a-bot.html) in a SaaS platform\
+🔩 [Embed a Wasm function](https://www.secondstate.io/articles/getting-started-with-rust-function/) in your Node.js web app\
+🔌 [Embed a Wasm function](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_PassBytes) in your Golang app\
 🔗 [Deploy a Wasm function](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) as a blockchain smart contract
-
 
 ![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/alerts/)

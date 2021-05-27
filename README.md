@@ -1,14 +1,13 @@
 
 # Quick start guides
 
-🤖 [Build](doc/build.md) and [contribute to](doc/contribution.md) WasmEdge
-⌨️  Run a standalone Wasm program [from CLI](doc/run.md) or [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) or Golang
-💭 [Deploy a Wasm function](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/) as a web service (FaaS)
-🛠 [Embed a user-defined Wasm function](http://reactor.secondstate.info/docs/user-create-a-bot.html) in a SaaS platform
-🔩 [Embed a Wasm function](https://www.secondstate.io/articles/getting-started-with-rust-function/) in your Node.js web app
-🔌 [Embed a Wasm function](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_PassBytes) in your Golang app
+🤖 [Build](doc/build.md) and [contribute to](doc/contribution.md) WasmEdge\
+⌨️  Run a standalone Wasm program [from CLI](doc/run.md) or [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) or [Golang](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)\
+💭 [Deploy a Wasm function](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/) as a web service (FaaS)\
+🛠 [Embed a user-defined Wasm function](http://reactor.secondstate.info/docs/user-create-a-bot.html) in a SaaS platform\
+🔩 [Embed a Wasm function](https://www.secondstate.io/articles/getting-started-with-rust-function/) in your Node.js web app\
+🔌 [Embed a Wasm function](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_PassBytes) in your Golang app\
 🔗 [Deploy a Wasm function](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) as a blockchain smart contract
-
 
 ![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/alerts/)
@@ -24,7 +23,7 @@ The most important use case for WasmEdge is to safely execute user-defined or co
 
 WasmEdge provides a well-defined execution sandbox for its contained Wasm bytecode program. The bytecode program cannot access operating system resources (e.g., file system, sockets, environment variables, processes) without explicit permissions from the VM's runner. The runner specifies the system resources the VM can access in the VM's configuration options upon starting up (a.k.a capability-based security model).
 
-WasmEdge also provides memory protection for its contained bytecode program. If the program attempts to access memory outside of the region allocated to the VM, the VM will terminate with an error message.
+WasmEdge also provides memory protection for its contained bytecode program. If the program attempts to access memory outside of the region allocated to the VM, the VM will terminate with an error message. 
 
 WasmEdge and its contained wasm program can be started from the CLI as a new process, or from a existing process. If started from an existing process (e.g., from a running [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or [Golang](https://github.com/second-state/wasmedge-go) program), the VM will simply run inside the process as a function. It is also possible to start a WasmEdge VM instance as a thread. Currently, WasmEdge is not yet thread-safe, meaning that VM instances running in different threads in the same process will potentially be able to access each other's memory. In the future, we plan to make WasmEdge thread safe.
 
@@ -46,12 +45,12 @@ In fact, the extensions to WasmEdge are implemented using native host functions.
 
 # Manage WasmEdge VM instances
 
-With the [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), you can write a program to start, stop, and manage WasmEdge VM instances in your own applications. For example,
+With the [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), you can write a program to start, stop, and manage WasmEdge VM instances in your own applications. For example, 
 
-* When WasmEdge functions are embedded in [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or in the [Feishu messenger](http://reactor.secondstate.info/docs/user-create-a-bot.html), the VM is launched by the application when there is an incoming request.
-* When WasmEdge functions are plugged into a data flow engine like [YoMo](https://github.com/yomorun/yomo-flow-ssvm-example), the VM is launched when a new data point flows through the system.
+* When WasmEdge functions are embedded in [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or in the [Feishu messenger](http://reactor.secondstate.info/docs/user-create-a-bot.html), the VM is launched by the application when there is an incoming request. 
+* When WasmEdge functions are plugged into a data flow engine like [YoMo](https://github.com/yomorun/yomo-flow-ssvm-example), the VM is launched when a new data point flows through the system. 
 
-If you are interested in using Kubernetes to manage WasmEdge VMs, you can install our custom [runw](https://github.com/second-state/runw) utilities. They could load Wasm bytecode program files as if they are Docker images, and then start, run, and stop the VM instances based on configured policies.
+If you are interested in using Kubernetes to manage WasmEdge VMs, you can install our custom [runw](https://github.com/second-state/runw) utilities. They could load Wasm bytecode program files as if they are Docker images, and then start, run, and stop the VM instances based on configured policies. 
 
 # Support wasm standard extensions
 
@@ -62,7 +61,7 @@ WasmEdge supports optional WebAssembly features and proposals. Those proposals a
 * [Bulk memory operations](https://github.com/WebAssembly/bulk-memory-operations/blob/master/proposals/bulk-memory-operations/Overview.md). The WebAssembly program sees faster memory access and performs better with bulk memory operations.
 * [SIMD (Single instruction, multiple data)](https://github.com/second-state/SSVM/blob/master/doc/simd.md). For modern devices with multiple CPU cores, the SIMD allows data processing programs to take advantage of the CPUs fully. SIMD could significantly enhance the performance of data applications.
 
-Meanwhile, the WasmEdge team is [exploring the wasi-socket proposal](https://github.com/second-state/w13e_wasi_socket) to support network access in WebAssembly programs.
+Meanwhile, the WasmEdge team is [exploring the wasi-socket proposal](https://github.com/second-state/w13e_wasi_socket) to support network access in WebAssembly programs. 
 
 # WasmEdge extensions
 
@@ -77,19 +76,19 @@ A key differentiator of WasmEdge from other WebAssembly VMs is its support for n
 
 # Use cases
 
-WasmEdge enables software products to be extended and customized by their users. With WasmEdge, any software product can build a developer ecosystem. Here are some specific use cases from our customers and partners.
+WasmEdge enables software products to be extended and customized by their users. With WasmEdge, any software product can build a developer ecosystem. Here are some specific use cases from our customers and partners. 
 
-* A *Jamstack application* consists of a static frontend with JavaScript to interact with backend APIs. It is a very popular [modern web application architecture](https://jamstack.org/). The frontend static files can be distributed over CDNs, and the backend functions can be hosted on edge nodes. The [cloud-based WasmEdge](https://www.secondstate.io/faas/) hosts secure and high performance backend serverless functions for Jamstack apps especially on the Edge cloud.
+* A *Jamstack application* consists of a static frontend with JavaScript to interact with backend APIs. It is a very popular [modern web application architecture](https://jamstack.org/). The frontend static files can be distributed over CDNs, and the backend functions can be hosted on edge nodes. The [cloud-based WasmEdge](https://www.secondstate.io/faas/) hosts secure and high performance backend serverless functions for Jamstack apps especially on the Edge cloud. 
   * Example: [add a watermark to any image on your web app](https://second-state.github.io/wasm-learning/faas/watermark/html/index.html).
   * Example: [serverless Tensorflow functions for Tencent Cloud](https://github.com/second-state/tencent-tensorflow-scf).
 * *SaaS applications* often need be tailored or customized “on the edge” for customer requirements. With WasmEdge, SaaS applications can directly embed and execute user-submitted code as part of the workflow (eg as a callback function to handle events from the SaaS app).
   * Example: [the Lark / Feishu application platform could embed user-submitted  serverless functions via WasmEdge to respond to messages (ie conversation bot)](http://reactor.secondstate.info/docs/user-create-a-bot.html).
   * Example: [WasmEdge runs custom code to process events in IoT streaming data framework YoMo](https://github.com/yomorun/yomo-flow-ssvm-example).
-* WasmEdge is adapted to run on a variety of embedded and real time operating systems for *edge devices*. That allows developers to write high performance applications once, in Rust or C, and run them safely on many edge device platforms.
+* WasmEdge is adapted to run on a variety of embedded and real time operating systems for *edge devices*. That allows developers to write high performance applications once, in Rust or C, and run them safely on many edge device platforms. 
   * Example: [RISC-V stack from RIOS Lab](https://rioslab.org/).
   * Ongoing: Porting WasmEdge to the SeL4 real-time OS
   * Upcoming: WasmEdge could be used as a RTOS code runtime for software modules in autonomous cars.
-* *Blockchain smart contracts* are user submitted code executed by all nodes in the network. WasmEdge is a smart contract execution engine on leading blockchain projects.
+* *Blockchain smart contracts* are user submitted code executed by all nodes in the network. WasmEdge is a smart contract execution engine on leading blockchain projects. 
   * Example: [Ethereum flavored WASM smart contracts on Substrate and Polkadot](https://github.com/ParaState/substrate-ssvm-node).
 
 ## Community

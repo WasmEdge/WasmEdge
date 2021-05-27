@@ -138,7 +138,7 @@ Features:
   * Used `pipe` for old `GLIBC`.
 * Added supporting of subcommand in `PO`.
 * Provided options to toggle white lists of `ssvm_process` in `ssvm` tool.
-  * `--allow-command COMMAND` to add a command into white list in `ssvm_process` host functions. 
+  * `--allow-command COMMAND` to add a command into white list in `ssvm_process` host functions.
   * `--allow-command-all` to allow all commands in `ssvm_process` host functions.
 * Added the documentation of [SSVM ecosystem](https://github.com/second-state/SSVM/blob/master/doc/ecosystem.md).
 
@@ -193,7 +193,7 @@ Tests:
 Features:
 
 * Added a cmake option to toggle the compilation of `ssvm` and `ssvmr` tools.
-  * This option is `ON` in default. 
+  * This option is `ON` in default.
   * `cmake -DBUILD_TOOLS=Off` to disable the compilation of `tools/ssvm` folder when building.
 * Applied the [Fixed-width SIMD](https://github.com/webassembly/simd) proposal.
   * Please refer to the [SIMD document](https://github.com/second-state/SSVM/blob/master/doc/simd.md) for more details.

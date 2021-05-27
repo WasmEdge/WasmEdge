@@ -2,7 +2,7 @@
 
 There are several ways to run compiled WebAssembly programs in the WasmEdge VM. In this article, we will cover the most straighforward -- to run a WebAssembly program from the Linux command line (CLI).
 
-* If the WebAssembly program contains a `main()` function, `wasmedge` would execute it as a standalone program in the command mode. 
+* If the WebAssembly program contains a `main()` function, `wasmedge` would execute it as a standalone program in the command mode.
 * If the WebAssembly program contains one or more public functions, `wasmedge` could execute individual functions in the reactor mode.
 
 ## Command line options
@@ -92,7 +92,7 @@ $ ./wasmedge --reactor examples/factorial.wasm fac 5
 
 ## More ways to run WasmEdge
 
-We have so far demonstrated that it is easy to run WasmEdge from the CLI. But in most real world applications, you probably want to embed WasmEdge in another application or host platform. 
+We have so far demonstrated that it is easy to run WasmEdge from the CLI. But in most real world applications, you probably want to embed WasmEdge in another application or host platform.
 
 * Embed a standalone program (i.e., with `main()` function) in another platform.
   * [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example)

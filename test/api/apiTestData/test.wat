@@ -20,10 +20,10 @@
   (export "func-host-div" (func $f-e-div))
   (export "tab-func" (table $t-f))
   (export "tab-ext" (table $t-e))
-  (export "mem" (memory $m)) 
+  (export "mem" (memory $m))
   (export "glob-mut-i32" (global $g-mi))
   (export "glob-const-f32" (global $g-cf))
-  
+
   (func $f-1 (result i32) (i32.const 1))
   (func $f-2 (result i32) (i32.const 2))
   (func $f-3 (result i32) (i32.const 3))
@@ -59,14 +59,14 @@
     ;; Div the value by the argument.
     (call $e-f-div (table.get $t-e (i32.const 3)) (local.get 0))
   )
-  
+
   (table $t-f 10 funcref)
   (elem (table $t-f) (i32.const 2) $f-1 $f-2 $f-3 $f-4)
   (table $t-e 10 externref)
-  
+
   (memory $m 1 3)
   (data (i32.const 10) "\00\01\02\03\04\05\06\07\08\09")
-  
+
   (global $g-mi (mut i32) (i32.const 142))
   (global $g-cf f32 (f32.const 789.12))
 )

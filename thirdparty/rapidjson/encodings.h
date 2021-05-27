@@ -1,5 +1,5 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
-// 
+//
 // Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
@@ -7,9 +7,9 @@
 //
 // http://opensource.org/licenses/MIT
 //
-// Unless required by applicable law or agreed to in writing, software distributed 
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
 #ifndef RAPIDJSON_ENCODINGS_H_
@@ -100,7 +100,7 @@ struct UTF8 {
 
     template<typename OutputStream>
     static void Encode(OutputStream& os, unsigned codepoint) {
-        if (codepoint <= 0x7F) 
+        if (codepoint <= 0x7F)
             os.Put(static_cast<Ch>(codepoint & 0xFF));
         else if (codepoint <= 0x7FF) {
             os.Put(static_cast<Ch>(0xC0 | ((codepoint >> 6) & 0xFF)));
@@ -122,7 +122,7 @@ struct UTF8 {
 
     template<typename OutputStream>
     static void EncodeUnsafe(OutputStream& os, unsigned codepoint) {
-        if (codepoint <= 0x7F) 
+        if (codepoint <= 0x7F)
             PutUnsafe(os, static_cast<Ch>(codepoint & 0xFF));
         else if (codepoint <= 0x7FF) {
             PutUnsafe(os, static_cast<Ch>(0xC0 | ((codepoint >> 6) & 0xFF)));
@@ -276,7 +276,7 @@ struct UTF16 {
     static void Encode(OutputStream& os, unsigned codepoint) {
         RAPIDJSON_STATIC_ASSERT(sizeof(typename OutputStream::Ch) >= 2);
         if (codepoint <= 0xFFFF) {
-            RAPIDJSON_ASSERT(codepoint < 0xD800 || codepoint > 0xDFFF); // Code point itself cannot be surrogate pair 
+            RAPIDJSON_ASSERT(codepoint < 0xD800 || codepoint > 0xDFFF); // Code point itself cannot be surrogate pair
             os.Put(static_cast<typename OutputStream::Ch>(codepoint));
         }
         else {
@@ -292,7 +292,7 @@ struct UTF16 {
     static void EncodeUnsafe(OutputStream& os, unsigned codepoint) {
         RAPIDJSON_STATIC_ASSERT(sizeof(typename OutputStream::Ch) >= 2);
         if (codepoint <= 0xFFFF) {
-            RAPIDJSON_ASSERT(codepoint < 0xD800 || codepoint > 0xDFFF); // Code point itself cannot be surrogate pair 
+            RAPIDJSON_ASSERT(codepoint < 0xD800 || codepoint > 0xDFFF); // Code point itself cannot be surrogate pair
             PutUnsafe(os, static_cast<typename OutputStream::Ch>(codepoint));
         }
         else {
@@ -406,7 +406,7 @@ struct UTF16BE : UTF16<CharType> {
 ///////////////////////////////////////////////////////////////////////////////
 // UTF32
 
-//! UTF-32 encoding. 
+//! UTF-32 encoding.
 /*! http://en.wikipedia.org/wiki/UTF-32
     \tparam CharType Type for storing 32-bit UTF-32 data. Default is unsigned. C++11 may use char32_t instead.
     \note implements Encoding concept
@@ -498,7 +498,7 @@ struct UTF32BE : UTF32<CharType> {
     static CharType TakeBOM(InputByteStream& is) {
         RAPIDJSON_STATIC_ASSERT(sizeof(typename InputByteStream::Ch) == 1);
         CharType c = Take(is);
-        return static_cast<uint32_t>(c) == 0x0000FEFFu ? Take(is) : c; 
+        return static_cast<uint32_t>(c) == 0x0000FEFFu ? Take(is) : c;
     }
 
     template <typename InputByteStream>
@@ -694,13 +694,13 @@ struct Transcoder<Encoding, Encoding> {
         os.Put(is.Take());  // Just copy one code unit. This semantic is different from primary template class.
         return true;
     }
-    
+
     template<typename InputStream, typename OutputStream>
     static RAPIDJSON_FORCEINLINE bool TranscodeUnsafe(InputStream& is, OutputStream& os) {
         PutUnsafe(os, is.Take());  // Just copy one code unit. This semantic is different from primary template class.
         return true;
     }
-    
+
     template<typename InputStream, typename OutputStream>
     static RAPIDJSON_FORCEINLINE bool Validate(InputStream& is, OutputStream& os) {
         return Encoding::Validate(is, os);  // source/target encoding are the same

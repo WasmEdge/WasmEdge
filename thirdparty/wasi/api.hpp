@@ -513,162 +513,162 @@ enum __wasi_rights_t : uint64_t {
    * If `path_open` is set, includes the right to invoke
    * `path_open` with `fdflags::dsync`.
    */
-  __WASI_RIGHTS_FD_DATASYNC = 1,
+  __WASI_RIGHTS_FD_DATASYNC = 1 << 0,
 
   /**
    * The right to invoke `fd_read` and `sock_recv`.
    * If `rights::fd_seek` is set, includes the right to invoke `fd_pread`.
    */
-  __WASI_RIGHTS_FD_READ = 2,
+  __WASI_RIGHTS_FD_READ = 1 << 1,
 
   /**
    * The right to invoke `fd_seek`. This flag implies `rights::fd_tell`.
    */
-  __WASI_RIGHTS_FD_SEEK = 4,
+  __WASI_RIGHTS_FD_SEEK = 1 << 2,
 
   /**
    * The right to invoke `fd_fdstat_set_flags`.
    */
-  __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS = 8,
+  __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS = 1 << 3,
 
   /**
    * The right to invoke `fd_sync`.
    * If `path_open` is set, includes the right to invoke
    * `path_open` with `fdflags::rsync` and `fdflags::dsync`.
    */
-  __WASI_RIGHTS_FD_SYNC = 16,
+  __WASI_RIGHTS_FD_SYNC = 1 << 4,
 
   /**
    * The right to invoke `fd_seek` in such a way that the file offset
    * remains unaltered (i.e., `whence::cur` with offset zero), or to
    * invoke `fd_tell`.
    */
-  __WASI_RIGHTS_FD_TELL = 32,
+  __WASI_RIGHTS_FD_TELL = 1 << 5,
 
   /**
    * The right to invoke `fd_write` and `sock_send`.
    * If `rights::fd_seek` is set, includes the right to invoke `fd_pwrite`.
    */
-  __WASI_RIGHTS_FD_WRITE = 64,
+  __WASI_RIGHTS_FD_WRITE = 1 << 6,
 
   /**
    * The right to invoke `fd_advise`.
    */
-  __WASI_RIGHTS_FD_ADVISE = 128,
+  __WASI_RIGHTS_FD_ADVISE = 1 << 7,
 
   /**
    * The right to invoke `fd_allocate`.
    */
-  __WASI_RIGHTS_FD_ALLOCATE = 256,
+  __WASI_RIGHTS_FD_ALLOCATE = 1 << 8,
 
   /**
    * The right to invoke `path_create_directory`.
    */
-  __WASI_RIGHTS_PATH_CREATE_DIRECTORY = 512,
+  __WASI_RIGHTS_PATH_CREATE_DIRECTORY = 1 << 9,
 
   /**
    * If `path_open` is set, the right to invoke `path_open` with
    * `oflags::creat`.
    */
-  __WASI_RIGHTS_PATH_CREATE_FILE = 1024,
+  __WASI_RIGHTS_PATH_CREATE_FILE = 1 << 10,
 
   /**
    * The right to invoke `path_link` with the file descriptor as the
    * source directory.
    */
-  __WASI_RIGHTS_PATH_LINK_SOURCE = 2048,
+  __WASI_RIGHTS_PATH_LINK_SOURCE = 1 << 11,
 
   /**
    * The right to invoke `path_link` with the file descriptor as the
    * target directory.
    */
-  __WASI_RIGHTS_PATH_LINK_TARGET = 4096,
+  __WASI_RIGHTS_PATH_LINK_TARGET = 1 << 12,
 
   /**
    * The right to invoke `path_open`.
    */
-  __WASI_RIGHTS_PATH_OPEN = 8192,
+  __WASI_RIGHTS_PATH_OPEN = 1 << 13,
 
   /**
    * The right to invoke `fd_readdir`.
    */
-  __WASI_RIGHTS_FD_READDIR = 16384,
+  __WASI_RIGHTS_FD_READDIR = 1 << 14,
 
   /**
    * The right to invoke `path_readlink`.
    */
-  __WASI_RIGHTS_PATH_READLINK = 32768,
+  __WASI_RIGHTS_PATH_READLINK = 1 << 15,
 
   /**
    * The right to invoke `path_rename` with the file descriptor as the source
    * directory.
    */
-  __WASI_RIGHTS_PATH_RENAME_SOURCE = 65536,
+  __WASI_RIGHTS_PATH_RENAME_SOURCE = 1 << 16,
 
   /**
    * The right to invoke `path_rename` with the file descriptor as the target
    * directory.
    */
-  __WASI_RIGHTS_PATH_RENAME_TARGET = 131072,
+  __WASI_RIGHTS_PATH_RENAME_TARGET = 1 << 17,
 
   /**
    * The right to invoke `path_filestat_get`.
    */
-  __WASI_RIGHTS_PATH_FILESTAT_GET = 262144,
+  __WASI_RIGHTS_PATH_FILESTAT_GET = 1 << 18,
 
   /**
    * The right to change a file's size (there is no `path_filestat_set_size`).
    * If `path_open` is set, includes the right to invoke `path_open` with
    * `oflags::trunc`.
    */
-  __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE = 524288,
+  __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE = 1 << 19,
 
   /**
    * The right to invoke `path_filestat_set_times`.
    */
-  __WASI_RIGHTS_PATH_FILESTAT_SET_TIMES = 1048576,
+  __WASI_RIGHTS_PATH_FILESTAT_SET_TIMES = 1 << 20,
 
   /**
    * The right to invoke `fd_filestat_get`.
    */
-  __WASI_RIGHTS_FD_FILESTAT_GET = 2097152,
+  __WASI_RIGHTS_FD_FILESTAT_GET = 1 << 21,
 
   /**
    * The right to invoke `fd_filestat_set_size`.
    */
-  __WASI_RIGHTS_FD_FILESTAT_SET_SIZE = 4194304,
+  __WASI_RIGHTS_FD_FILESTAT_SET_SIZE = 1 << 22,
 
   /**
    * The right to invoke `fd_filestat_set_times`.
    */
-  __WASI_RIGHTS_FD_FILESTAT_SET_TIMES = 8388608,
+  __WASI_RIGHTS_FD_FILESTAT_SET_TIMES = 1 << 23,
 
   /**
    * The right to invoke `path_symlink`.
    */
-  __WASI_RIGHTS_PATH_SYMLINK = 16777216,
+  __WASI_RIGHTS_PATH_SYMLINK = 1 << 24,
 
   /**
    * The right to invoke `path_remove_directory`.
    */
-  __WASI_RIGHTS_PATH_REMOVE_DIRECTORY = 33554432,
+  __WASI_RIGHTS_PATH_REMOVE_DIRECTORY = 1 << 25,
 
   /**
    * The right to invoke `path_unlink_file`.
    */
-  __WASI_RIGHTS_PATH_UNLINK_FILE = 67108864,
+  __WASI_RIGHTS_PATH_UNLINK_FILE = 1 << 26,
 
   /**
    * If `rights::fd_read` is set, includes the right to invoke `poll_oneoff` to
    * subscribe to `eventtype::fd_read`. If `rights::fd_write` is set, includes
    * the right to invoke `poll_oneoff` to subscribe to `eventtype::fd_write`.
    */
-  __WASI_RIGHTS_POLL_FD_READWRITE = 134217728,
+  __WASI_RIGHTS_POLL_FD_READWRITE = 1 << 27,
 
   /**
    * The right to invoke `sock_shutdown`.
    */
-  __WASI_RIGHTS_SOCK_SHUTDOWN = 268435456,
+  __WASI_RIGHTS_SOCK_SHUTDOWN = 1 << 28,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_rights_t)
@@ -687,7 +687,7 @@ static_assert(alignof(__wasi_fd_t) == 4, "witx calculated align");
 /**
  * A region of memory for scatter/gather reads.
  */
-using __wasi_iovec_t = struct __wasi_iovec_t {
+struct __wasi_iovec_t {
   /**
    * The address of the buffer to be filled.
    */
@@ -707,7 +707,7 @@ static_assert(offsetof(__wasi_iovec_t, buf_len) == 4, "witx calculated offset");
 /**
  * A region of memory for scatter/gather writes.
  */
-using __wasi_ciovec_t = struct __wasi_ciovec_t {
+struct __wasi_ciovec_t {
   /**
    * The address of the buffer to be written.
    */
@@ -834,7 +834,7 @@ static_assert(alignof(__wasi_filetype_t) == 1, "witx calculated align");
 /**
  * A directory entry.
  */
-using __wasi_dirent_t = struct __wasi_dirent_t {
+struct __wasi_dirent_t {
   /**
    * The offset of the next directory entry stored in this directory.
    */
@@ -915,30 +915,30 @@ enum __wasi_fdflags_t : uint16_t {
   /**
    * Append mode: Data written to the file is always appended to the file's end.
    */
-  __WASI_FDFLAGS_APPEND = 1,
+  __WASI_FDFLAGS_APPEND = 1 << 0,
 
   /**
    * Write according to synchronized I/O data integrity completion. Only the
    * data stored in the file is synchronized.
    */
-  __WASI_FDFLAGS_DSYNC = 2,
+  __WASI_FDFLAGS_DSYNC = 1 << 1,
 
   /**
    * Non-blocking mode.
    */
-  __WASI_FDFLAGS_NONBLOCK = 4,
+  __WASI_FDFLAGS_NONBLOCK = 1 << 2,
 
   /**
    * Synchronized read I/O operations.
    */
-  __WASI_FDFLAGS_RSYNC = 8,
+  __WASI_FDFLAGS_RSYNC = 1 << 3,
 
   /**
    * Write according to synchronized I/O file integrity completion. In
    * addition to synchronizing the data stored in the file, the implementation
    * may also synchronously update the file's metadata.
    */
-  __WASI_FDFLAGS_SYNC = 16,
+  __WASI_FDFLAGS_SYNC = 1 << 4,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_fdflags_t)
@@ -949,7 +949,7 @@ static_assert(alignof(__wasi_fdflags_t) == 2, "witx calculated align");
 /**
  * File descriptor attributes.
  */
-using __wasi_fdstat_t = struct __wasi_fdstat_t {
+struct __wasi_fdstat_t {
   /**
    * File type.
    */
@@ -1001,25 +1001,25 @@ enum __wasi_fstflags_t : uint16_t {
    * Adjust the last data access timestamp to the value stored in
    * `filestat::atim`.
    */
-  __WASI_FSTFLAGS_ATIM = 1,
+  __WASI_FSTFLAGS_ATIM = 1 << 0,
 
   /**
    * Adjust the last data access timestamp to the time of clock
    * `clockid::realtime`.
    */
-  __WASI_FSTFLAGS_ATIM_NOW = 2,
+  __WASI_FSTFLAGS_ATIM_NOW = 1 << 1,
 
   /**
    * Adjust the last data modification timestamp to the value stored in
    * `filestat::mtim`.
    */
-  __WASI_FSTFLAGS_MTIM = 4,
+  __WASI_FSTFLAGS_MTIM = 1 << 2,
 
   /**
    * Adjust the last data modification timestamp to the time of clock
    * `clockid::realtime`.
    */
-  __WASI_FSTFLAGS_MTIM_NOW = 8,
+  __WASI_FSTFLAGS_MTIM_NOW = 1 << 3,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_fstflags_t)
@@ -1036,7 +1036,7 @@ enum __wasi_lookupflags_t : uint32_t {
    * As long as the resolved path corresponds to a symbolic link, it is
    * expanded.
    */
-  __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW = 1,
+  __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW = 1 << 0,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_lookupflags_t)
@@ -1052,22 +1052,22 @@ enum __wasi_oflags_t : uint16_t {
   /**
    * Create file if it does not exist.
    */
-  __WASI_OFLAGS_CREAT = 1,
+  __WASI_OFLAGS_CREAT = 1 << 0,
 
   /**
    * Fail if not a directory.
    */
-  __WASI_OFLAGS_DIRECTORY = 2,
+  __WASI_OFLAGS_DIRECTORY = 1 << 1,
 
   /**
    * Fail if file already exists.
    */
-  __WASI_OFLAGS_EXCL = 4,
+  __WASI_OFLAGS_EXCL = 1 << 2,
 
   /**
    * Truncate file to size 0.
    */
-  __WASI_OFLAGS_TRUNC = 8,
+  __WASI_OFLAGS_TRUNC = 1 << 3,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_oflags_t)
@@ -1086,7 +1086,7 @@ static_assert(alignof(__wasi_linkcount_t) == 8, "witx calculated align");
 /**
  * File attributes.
  */
-using __wasi_filestat_t = struct __wasi_filestat_t {
+struct __wasi_filestat_t {
   /**
    * Device ID of device containing the file.
    */
@@ -1190,7 +1190,7 @@ enum __wasi_eventrwflags_t : uint16_t {
   /**
    * The peer of this socket has closed or disconnected.
    */
-  __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP = 1,
+  __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP = 1 << 0,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_eventrwflags_t)
@@ -1202,7 +1202,7 @@ static_assert(alignof(__wasi_eventrwflags_t) == 2, "witx calculated align");
  * The contents of an `event` when type is `eventtype::fd_read` or
  * `eventtype::fd_write`.
  */
-using __wasi_event_fd_readwrite_t = struct __wasi_event_fd_readwrite_t {
+struct __wasi_event_fd_readwrite_t {
   /**
    * The number of bytes available for reading or writing.
    */
@@ -1226,7 +1226,7 @@ static_assert(offsetof(__wasi_event_fd_readwrite_t, flags) == 8,
 /**
  * An event that occurred.
  */
-using __wasi_event_t = struct __wasi_event_t {
+struct __wasi_event_t {
   /**
    * User-provided value that got attached to `subscription::userdata`.
    */
@@ -1272,7 +1272,7 @@ enum __wasi_subclockflags_t : uint16_t {
    * provided in `subscription_clock::timeout` relative to the
    * current time value of clock `subscription_clock::id`.
    */
-  __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME = 1,
+  __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME = 1 << 0,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_subclockflags_t)
@@ -1283,7 +1283,7 @@ static_assert(alignof(__wasi_subclockflags_t) == 2, "witx calculated align");
 /**
  * The contents of a `subscription` when type is `eventtype::clock`.
  */
-using __wasi_subscription_clock_t = struct __wasi_subscription_clock_t {
+struct __wasi_subscription_clock_t {
   /**
    * The clock against which to compare the timestamp.
    */
@@ -1323,8 +1323,7 @@ static_assert(offsetof(__wasi_subscription_clock_t, flags) == 24,
  * The contents of a `subscription` when type is type is
  * `eventtype::fd_read` or `eventtype::fd_write`.
  */
-using __wasi_subscription_fd_readwrite_t =
-    struct __wasi_subscription_fd_readwrite_t {
+struct __wasi_subscription_fd_readwrite_t {
   /**
    * The file descriptor on which to wait for it to become ready for reading or
    * writing.
@@ -1343,12 +1342,12 @@ static_assert(offsetof(__wasi_subscription_fd_readwrite_t, file_descriptor) ==
 /**
  * The contents of a `subscription`.
  */
-using __wasi_subscription_u_u_t = union __wasi_subscription_u_u_t {
+union __wasi_subscription_u_u_t {
   __wasi_subscription_clock_t clock;
   __wasi_subscription_fd_readwrite_t fd_read;
   __wasi_subscription_fd_readwrite_t fd_write;
 };
-using __wasi_subscription_u_t = struct __wasi_subscription_u_t {
+struct __wasi_subscription_u_t {
   __wasi_eventtype_t tag;
   __wasi_subscription_u_u_t u;
 };
@@ -1357,15 +1356,11 @@ static_assert(sizeof(__wasi_subscription_u_t) == 40, "witx calculated size");
 static_assert(alignof(__wasi_subscription_u_t) == 8, "witx calculated align");
 static_assert(offsetof(__wasi_subscription_u_t, u) == 8,
               "witx calculated union offset");
-static_assert(sizeof(__wasi_subscription_u_u_t) == 32,
-              "witx calculated union size");
-static_assert(alignof(__wasi_subscription_u_u_t) == 8,
-              "witx calculated union align");
 
 /**
  * Subscription to an event.
  */
-using __wasi_subscription_t = struct __wasi_subscription_t {
+struct __wasi_subscription_t {
   /**
    * User-provided value that is attached to the subscription in the
    * implementation and returned through `event::userdata`.
@@ -1595,13 +1590,13 @@ enum __wasi_riflags_t : uint16_t {
   /**
    * Returns the message without removing it from the socket's receive queue.
    */
-  __WASI_RIFLAGS_RECV_PEEK = 1,
+  __WASI_RIFLAGS_RECV_PEEK = 1 << 0,
 
   /**
    * On byte-stream sockets, block until the full amount of data can be
    * returned.
    */
-  __WASI_RIFLAGS_RECV_WAITALL = 2,
+  __WASI_RIFLAGS_RECV_WAITALL = 1 << 1,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_riflags_t)
@@ -1617,7 +1612,7 @@ enum __wasi_roflags_t : uint16_t {
   /**
    * Returned by `sock_recv`: Message data has been truncated.
    */
-  __WASI_ROFLAGS_RECV_DATA_TRUNCATED = 1,
+  __WASI_ROFLAGS_RECV_DATA_TRUNCATED = 1 << 0,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_roflags_t)
@@ -1642,12 +1637,12 @@ enum __wasi_sdflags_t : uint8_t {
   /**
    * Disables further receive operations.
    */
-  __WASI_SDFLAGS_RD = 1,
+  __WASI_SDFLAGS_RD = 1 << 0,
 
   /**
    * Disables further send operations.
    */
-  __WASI_SDFLAGS_WR = 2,
+  __WASI_SDFLAGS_WR = 1 << 1,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_sdflags_t)
@@ -1671,7 +1666,7 @@ static_assert(alignof(__wasi_preopentype_t) == 1, "witx calculated align");
 /**
  * The contents of a $prestat when type is `preopentype::dir`.
  */
-using __wasi_prestat_dir_t = struct __wasi_prestat_dir_t {
+struct __wasi_prestat_dir_t {
   /**
    * The length of the directory name for use with `fd_prestat_dir_name`.
    */
@@ -1686,10 +1681,10 @@ static_assert(offsetof(__wasi_prestat_dir_t, pr_name_len) == 0,
 /**
  * Information about a pre-opened capability.
  */
-using __wasi_prestat_u_t = union __wasi_prestat_u_t {
+union __wasi_prestat_u_t {
   __wasi_prestat_dir_t dir;
 };
-using __wasi_prestat_t = struct __wasi_prestat_t {
+struct __wasi_prestat_t {
   __wasi_preopentype_t tag;
   __wasi_prestat_u_t u;
 };
@@ -1698,5 +1693,3 @@ static_assert(sizeof(__wasi_prestat_t) == 8, "witx calculated size");
 static_assert(alignof(__wasi_prestat_t) == 4, "witx calculated align");
 static_assert(offsetof(__wasi_prestat_t, u) == 4,
               "witx calculated union offset");
-static_assert(sizeof(__wasi_prestat_u_t) == 4, "witx calculated union size");
-static_assert(alignof(__wasi_prestat_u_t) == 4, "witx calculated union align");

@@ -1,0 +1,20 @@
+--- a/api.hpp
++++ b/api.hpp
+@@ -1348,7 +1348,7 @@ union __wasi_subscription_u_u_t {
+   __wasi_subscription_fd_readwrite_t fd_write;
+ };
+ struct __wasi_subscription_u_t {
+-  uint8_t tag;
++  __wasi_eventtype_t tag;
+   __wasi_subscription_u_u_t u;
+ };
+
+@@ -1685,7 +1685,7 @@ union __wasi_prestat_u_t {
+   __wasi_prestat_dir_t dir;
+ };
+ struct __wasi_prestat_t {
+-  uint8_t tag;
++  __wasi_preopentype_t tag;
+   __wasi_prestat_u_t u;
+ };
+

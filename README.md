@@ -1,13 +1,14 @@
-# Introduction
 
-**WasmEdge** (formerly SSVM) is a high performance and enterprise-ready WebAssembly (WASM) Virtual Machine for cloud, AI, and Blockchain applications. Its use cases include the following.
+# Quick start guides
 
-* A high performance runtime for Rust function-as-a-service (FaaS). [Getting started](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/) | [Tensorflow inference](https://www.secondstate.io/articles/wasi-tensorflow/) | [Tencent Serverless](https://github.com/second-state/tencent-tensorflow-scf) | [Rust on Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/)
-* An embedded runtime for serverless functions in SaaS and PaaS platforms. [Serverless Reactor for messaging apps](http://reactor.secondstate.info/) | [Plugin for IoT streaming framework YoMo](https://github.com/second-state/yomo-flow-ssvm-example)
-* A hardware-optimized runtime for ONNX AI models. [ONNC compiler for AI](https://github.com/ONNC/onnc-wasm)
-* Smart contract runtime engine for leading blockchain platforms. [Polkadot/Substrate](https://github.com/second-state/substrate-ssvm-node) | [CyberMiles](https://docs.secondstate.io/devchain/getting-started/cybermiles-ewasm-testnet)
+🤖 [Build](doc/build.md) and [contribute to](doc/contribution.md) WasmEdge
+⌨️  Run a standalone Wasm program [from CLI](doc/run.md) or [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) or Golang
+💭 [Deploy a Wasm function](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/) as a web service (FaaS)
+🛠 [Embed a user-defined Wasm function](http://reactor.secondstate.info/docs/user-create-a-bot.html) in a SaaS platform
+🔩 [Embed a Wasm function](https://www.secondstate.io/articles/getting-started-with-rust-function/) in your Node.js web app
+🔌 [Embed a Wasm function](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_PassBytes) in your Golang app
+🔗 [Deploy a Wasm function](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) as a blockchain smart contract
 
-WasmEdge is hosted by the Cloud Native Computing Foundation (CNCF) as a sandbox project. For the information on related tools and the `WasmEdge` ecosystem, please refer to the [WasmEdge ecosystem documentation](https://github.com/WasmEdge/WasmEdge/blob/master/doc/ecosystem.md).
 
 ![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/alerts/)
@@ -15,203 +16,94 @@ WasmEdge is hosted by the Cloud Native Computing Foundation (CNCF) as a sandbox 
 [![codecov](https://codecov.io/gh/WasmEdge/WasmEdge/branch/master/graph/badge.svg)](https://codecov.io/gh/WasmEdge/WasmEdge)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_shield)
 
+# Introduction
 
-# Getting Started
+WasmEdge (previously known as SSVM) is a high-performance WebAssembly (Wasm) VM optimized for Edge Computing, including Edge Clouds and Software Defined Vehicles. In its AOT mode, WasmEdge is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403) on the market today.
 
-## Get Source Code
+The most important use case for WasmEdge is to safely execute user-defined or community-contributed code as plug-ins in a software product (e.g., a SaaS, a car OS, an edge node, or even a blockchain node). It enables third-party developers, vendors, suppliers, and community members to extend and customize the software product. With WasmEdge, a software product could become a host platform.
 
-```bash
-$ git clone https://github.com/WasmEdge/WasmEdge.git
-$ cd WasmEdge
-$ git checkout 0.8.0
-```
+WasmEdge provides a well-defined execution sandbox for its contained Wasm bytecode program. The bytecode program cannot access operating system resources (e.g., file system, sockets, environment variables, processes) without explicit permissions from the VM's runner. The runner specifies the system resources the VM can access in the VM's configuration options upon starting up (a.k.a capability-based security model).
 
-## Prepare the environment
+WasmEdge also provides memory protection for its contained bytecode program. If the program attempts to access memory outside of the region allocated to the VM, the VM will terminate with an error message. 
 
-### Use our docker image
+WasmEdge and its contained wasm program can be started from the CLI as a new process, or from a existing process. If started from an existing process (e.g., from a running [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or [Golang](https://github.com/second-state/wasmedge-go) program), the VM will simply run inside the process as a function. It is also possible to start a WasmEdge VM instance as a thread. Currently, WasmEdge is not yet thread-safe, meaning that VM instances running in different threads in the same process will potentially be able to access each other's memory. In the future, we plan to make WasmEdge thread safe.
 
-Our docker image use `ubuntu 21.04` as the base.
+# Embed WasmEdge into a host application
 
-```bash
-$ docker pull wasmedge/wasmedge
-```
+A major use case of WasmEdge is to start an VM instance from a host application. In general, you can use the [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in) to do so.
 
-### Or setup the environment manually
+However, the Wasm spec, and the [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), only supports very limited data types as  input parameters and return values for the contained Wasm bytecode functions. In order to pass complex data types, such as a string of an array, as call arguments into the contained function, you should use the bindgen solution provided by the [rustwasmc](https://github.com/second-state/rustwasmc) toolchain.
 
-```bash
-# Tools and libraries
-$ sudo apt install -y \
-	software-properties-common \
-	cmake \
-	libboost-all-dev
+We currently [supports bindgen in the Node.js host environment](https://www.secondstate.io/articles/getting-started-with-rust-function/). We are working on bindgen support in Golang and Rust-based host applications.
 
-# And you will need to install llvm for wasmedgec tool
-$ sudo apt install -y \
-	llvm-dev \
-	liblld-12-dev
+# Call native host functions from WasmEdge
 
-# WasmEdge supports both clang++ and g++ compilers
-# You can choose one of them for building this project
-$ sudo apt install -y gcc g++
-$ sudo apt install -y clang
-```
+Sometimes, the Wasm bytecode alone could prove too limiting for some applications. WasmEdge provides a [host function API](https://github.com/WasmEdge/WasmEdge/blob/master/doc/host_function.md) that allows Wasm bytecode programs to load and call native library functions from the underlying host operating system.
 
-### Support for legacy operating systems
+> The host functions break the Wasm sandbox. But the sandbox breaking is done with explicit permission from the system’s operator.
 
-Our development environment requires `libLLVM-12` and `>=GLIBCXX_3.4.26`.
+In fact, the extensions to WasmEdge are implemented using native host functions. For example, the [Tensorflow extension](https://www.secondstate.io/articles/wasi-tensorflow/) allows Wasm bytecode to make calls to the native Tensorflow library functions.
 
-If users are using the older operating system than Ubuntu 21.04, please use our special docker image to build WasmEdge.
-If you are looking for the pre-built binaries for the older operatoring system, we also provide several pre-built binaries based on manylinux\* distribution.
+# Manage WasmEdge VM instances
 
+With the [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), you can write a program to start, stop, and manage WasmEdge VM instances in your own applications. For example, 
 
+* When WasmEdge functions are embedded in [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or in the [Feishu messenger](http://reactor.secondstate.info/docs/user-create-a-bot.html), the VM is launched by the application when there is an incoming request. 
+* When WasmEdge functions are plugged into a data flow engine like [YoMo](https://github.com/yomorun/yomo-flow-ssvm-example), the VM is launched when a new data point flows through the system. 
 
-| Portable Linux Built Distributions Tags | Base Image  | Provided Requirements                                                 | Docker Image                            |
-| ---                                     | ---         | ---                                                                   | ---                                     |
-| `manylinux1`                            | CentOS 5.11 | GLIBC <= 2.5<br>CXXABI <= 3.4.8<br>GLIBCXX <= 3.4.9<br>GCC <= 4.2.0   | wasmedge/wasmedge:manylinux1\_x86\_64    |
-| `manylinux2010`                         | CentOS 6    | GLIBC <= 2.12<br>CXXABI <= 1.3.3<br>GLIBCXX <= 3.4.13<br>GCC <= 4.5.0 | wasmedge/wasmedge:manylinux2010\_x86\_64 |
-| `manylinux2014`                         | CentOS 7    | GLIBC <= 2.17<br>CXXABI <= 1.3.7<br>GLIBCXX <= 3.4.19<br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_x86\_64 |
+If you are interested in using Kubernetes to manage WasmEdge VMs, you can install our custom [runw](https://github.com/second-state/runw) utilities. They could load Wasm bytecode program files as if they are Docker images, and then start, run, and stop the VM instances based on configured policies. 
 
-### If you don't want to build Ahead-of-Time runtime/compiler
+# Support wasm standard extensions
 
-If users don't need Ahead-of-Time runtime/compiler support, they can set the CMake option `BUILD_AOT_RUNTIME` to `OFF`.
+WasmEdge supports optional WebAssembly features and proposals. Those proposals are likely to become official WebAssembly specifications in the future. WasmEdge supports the following proposals.
 
-```bash
-$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_AOT_RUNTIME=OFF ..
-```
+* [WASI (WebAssembly Systems Interface) spec](https://github.com/WebAssembly/WASI). WasmEdge has supported the WASI spec for WebAssembly programs to interact with the host Linux operating system securely.
+* [Reference Types](https://webassembly.github.io/reference-types/core/). It allows WebAssembly programs to exchange data with host applications and operating systems.
+* [Bulk memory operations](https://github.com/WebAssembly/bulk-memory-operations/blob/master/proposals/bulk-memory-operations/Overview.md). The WebAssembly program sees faster memory access and performs better with bulk memory operations.
+* [SIMD (Single instruction, multiple data)](https://github.com/second-state/SSVM/blob/master/doc/simd.md). For modern devices with multiple CPU cores, the SIMD allows data processing programs to take advantage of the CPUs fully. SIMD could significantly enhance the performance of data applications.
 
-## Build WasmEdge
+Meanwhile, the WasmEdge team is [exploring the wasi-socket proposal](https://github.com/second-state/w13e_wasi_socket) to support network access in WebAssembly programs. 
 
-WasmEdge provides various tools for enabling different runtime environments for optimal performance.
-After the build is finished, you can find there are several wasmedge related tools:
+# WasmEdge extensions
 
-1. `wasmedge` is for general wasm runtime.
-	* `wasmedge` executes a `WASM` file in interpreter mode or a compiled WASM `so` file in ahead-of-time compilation mode.
-	* To disable building all tools, you can set the CMake option `BUILD_TOOLS` to `OFF`.
-2. `wasmedgec` is for ahead-of-time `WASM` compiler.
-	* `wasmedgec` compiles a general `WASM` file into a `so` file.
-	* To disable building the ahead-of-time compiler only, you can set the CMake option `BUILD_AOT_RUNTIME` to `OFF`.
-	* To disable building all tools, you can set the CMake option `BUILD_TOOLS` to `OFF`.
-3. `libwasmedge_c.so` is the WasmEdge C API shared library.
-	* `libwasmedge_c.so` provides C API for the ahead-of-time compiler and the WASM runtime.
-	* The APIs about the ahead-of-time compiler will always return failed if the CMake option `BUILD_AOT_RUNTIME` is set as `OFF`.
-	* To disable building the shared library only, you can set the CMake option `BUILD_SHARED_LIB` to `OFF`.
-4. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
-	* If you want to try `ssvm-qitc`, please refer to [ONNC-Wasm](https://github.com/ONNC/onnc-wasm) project to set up the working environment and run several examples.
-	* And here is our [tutorial for ONNC-Wasm project(YouTube Video)](https://www.youtube.com/watch?v=cbiPuHMS-iQ).
+A key differentiator of WasmEdge from other WebAssembly VMs is its support for non-standard extensions. The WASI spec provides a mechanism for developers to extend WebAssembly VMs efficiently and securely. The WasmEdge team created the following WASI-like extensions based on real-world customer demands.
 
-```bash
-# After pulling our wasmedge docker image
-$ docker run -it --rm \
-    -v <path/to/your/wasmedge/source/folder>:/root/wasmedge \
-    wasmedge/wasmedge:latest
-(docker)$ cd /root/wasmedge
-(docker)$ mkdir -p build && cd build
-(docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make -j
-```
+* [Tensorflow](https://github.com/second-state/wasmedge-tensorflow). Developers can write Tensorflow inference functions using [a simple Rust API](https://crates.io/crates/ssvm_tensorflow_interface), and then run the function securely and at native speed inside WasmEdge.
+* Other AI frameworks. Besides Tensorflow, the Second State team is building WASI-like extensions for AI frameworks such as ONNX and Tengine for WasmEdge.
+* [Storage](https://github.com/second-state/wasmedge-storage). The WasmEdge [storage interface](https://github.com/second-state/rust_native_storage_library) allows WebAssembly programs to read and write a key value store.
+* [Command interface](https://github.com/second-state/wasmedge_process_interface). WasmEdge enables webassembly functions execute native commands in the host operating system. It supports passing arguments, environment variables, STDIN / STDOUT pipes, and security policies for host access.
+* [Ethereum](https://github.com/second-state/wasmedge-evmc). The WasmEdge Ewasm extension supports Ethereum smart contracts compiled to WebAssembly. It is a leading implementation for Ethereum flavored WebAssembly (Ewasm).
+* [Substrate](https://github.com/second-state/substrate-ssvm-node). The [Pallet](https://github.com/second-state/pallet-ssvm) allows WasmEdge to act as an Ethereum smart contract execution engine on any Substrate based blockchains.
 
-## Run built-in tests
+# Use cases
 
-The following built-in tests are only available when the build flag `BUILD_TESTS` sets to `ON`.
+WasmEdge enables software products to be extended and customized by their users. With WasmEdge, any software product can build a developer ecosystem. Here are some specific use cases from our customers and partners. 
 
-Users can use these tests to verify the correctness of WasmEdge binaries.
+* A *Jamstack application* consists of a static frontend with JavaScript to interact with backend APIs. It is a very popular [modern web application architecture](https://jamstack.org/). The frontend static files can be distributed over CDNs, and the backend functions can be hosted on edge nodes. The [cloud-based WasmEdge](https://www.secondstate.io/faas/) hosts secure and high performance backend serverless functions for Jamstack apps especially on the Edge cloud. 
+  * Example: [add a watermark to any image on your web app](https://second-state.github.io/wasm-learning/faas/watermark/html/index.html).
+  * Example: [serverless Tensorflow functions for Tencent Cloud](https://github.com/second-state/tencent-tensorflow-scf).
+* *SaaS applications* often need be tailored or customized “on the edge” for customer requirements. With WasmEdge, SaaS applications can directly embed and execute user-submitted code as part of the workflow (eg as a callback function to handle events from the SaaS app).
+  * Example: [the Lark / Feishu application platform could embed user-submitted  serverless functions via WasmEdge to respond to messages (ie conversation bot)](http://reactor.secondstate.info/docs/user-create-a-bot.html).
+  * Example: [WasmEdge runs custom code to process events in IoT streaming data framework YoMo](https://github.com/yomorun/yomo-flow-ssvm-example).
+* WasmEdge is adapted to run on a variety of embedded and real time operating systems for *edge devices*. That allows developers to write high performance applications once, in Rust or C, and run them safely on many edge device platforms. 
+  * Example: [RISC-V stack from RIOS Lab](https://rioslab.org/).
+  * Ongoing: Porting WasmEdge to the SeL4 real-time OS
+  * Upcoming: WasmEdge could be used as a RTOS code runtime for software modules in autonomous cars.
+* *Blockchain smart contracts* are user submitted code executed by all nodes in the network. WasmEdge is a smart contract execution engine on leading blockchain projects. 
+  * Example: [Ethereum flavored WASM smart contracts on Substrate and Polkadot](https://github.com/ParaState/substrate-ssvm-node).
 
-```bash
-$ cd <path/to/wasmedge/build_folder>
-$ LD_LIBRARY_PATH=$(pwd)/lib/api ctest
-```
+## Community
 
-## Run wasmedge (WasmEdge with general wasm runtime)
+### Contributing
 
-To run WasmEdge with general wasm runtime, users will need to provide the following parameters:
+If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTION](doc/contribution.md) document for details.
 
-1. (Optional) Reactor mode: use `--reactor` to enable reactor mode.
-	* WasmEdge will execute the function which name should be given in ARG[0].
-	* If there's exported function which names `_initialize`, the function will be executed with the empty parameter at first.
-2. (Optional) Binding directories into WASI virtual filesystem.
-	* Each directory can be specified as `--dir host_path:guest_path`.
-3. (Optional) Environ variables.
-	* Each variable can be specified as `--env NAME=VALUE`.
-4. Wasm file(`/path/to/wasm/file`).
-5. (Optional) Arguments.
-	* In reactor mode, the first argument will be the function name, and the arguments after ARG[0] will be parameters of wasm function ARG[0].
-	* In command mode, the arguments will be parameters of function `_start`.
+### Contact
 
-### Example: Fibonacci
+If you have any questions, feel free to open a GitHub issue on a related project or to join the following channels:
 
-```bash
-# cd <path/to/wasmedge/build_folder>
-$ cd tools/wasmedge
-# ./wasmedge [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-bulk-memory] [--enable-reference-types] [--enable-simd] [--enable-all] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
-$ ./wasmedge --reactor examples/fibonacci.wasm fib 10
-89
-```
-
-When wrong number of parameter given, the following error message is printed.
-
-```bash
-$ ./wasmedge --reactor examples/fibonacci.wasm fib 10 10
-2020-08-21 06:30:37,304 ERROR [default] execution failed: function signature mismatch, Code: 0x83
-2020-08-21 06:30:37,304 ERROR [default]     Mismatched function type. Expected: params{i32} returns{i32} , Got: params{i32 , i32} returns{i32}
-2020-08-21 06:30:37,304 ERROR [default]     When executing function name: "fib"
-```
-
-When calling unknown exported function, the following error message is printed.
-
-```bash
-$ ./wasmedge --reactor examples/fibonacci.wasm fib2 10
-2020-08-21 06:30:56,981 ERROR [default] wasmedge runtime failed: wasm function not found, Code: 0x04
-2020-08-21 06:30:56,981 ERROR [default]     When executing function name: "fib2"
-```
-
-### Example: Factorial
-
-```bash
-# ./wasmedge [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-bulk-memory] [--enable-reference-types] [--enable-simd] [--enable-all] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
-$ ./wasmedge --reactor examples/factorial.wasm fac 5
-120
-```
-
-# Related tools
-
-Note: Some of those tools are stilling using WasmEdge's old name "SSVM". We are renaming those repos, artifacts, and docs when we make new releases on those projects.
-
-## rustwasmc
-
-The [rustwasmc](https://github.com/second-state/rustwasmc) is a one-stop tool for building Rust functions into WebAssembly for deployment on the WasmEdge Runtime.
-
-## SSVM-EVMC
-
-[SSVM-EVMC](https://github.com/second-state/ssvm-evmc) provides support for Ewasm runtime which is compatible with [EVMC](https://github.com/ethereum/evmc).
-
-This project provides a shared library that can initialize and execute by the EVMC interface.
-
-## SSVM nodejs addon
-
-[SSVM-napi](https://github.com/second-state/ssvm-napi) provides support for accessing WasmEdge as a Node.js addon.
-
-It allows Node.js applications to call WebAssembly functions written in Rust or other high-performance languages.
-
-[Why do you want to run WebAssembly on the server-side?](https://www.secondstate.io/articles/why-webassembly-server/?utm_source=github&utm_medium=documents&utm_campaign=Github-ssvm-readme)
-
-The WasmEdge addon could interact with the wasm files generated by the [rustwasmc](https://www.secondstate.io/articles/rustwasmc/) compiler tool.
-
-## SSVM-TensorFlow
-
-[SSVM-TensorFlow](https://github.com/second-state/ssvm-tensorflow) provides support for accessing with [TensorFlow C library](https://www.tensorflow.org/install/lang_c).
-
-This project provides a tool that can execute `WASM` with TensorFlow extension compiled from [Rust ssvm_tensorflow_interface](https://crates.io/crates/ssvm_tensorflow_interface).
-
-## DevChain
-
-[The Second State DevChain](https://github.com/second-state/devchain) features a powerful and easy-to-use virtual machine that can quickly get you started with the smart contract and DApp development.
-
-SSVM-evmc is integrated into our DevChain. [Click here to learn how to run an ewasm smart contract on a real blockchain.](https://docs.secondstate.io/devchain/getting-started/run-an-ewasm-smart-contract?utm_source=github&utm_medium=documents&utm_campaign=Github-ssvm-readme)
-
-## Customized Host Functions
-
-[Design document](https://github.com/WasmEdge/WasmEdge/tree/master/doc/host_function.md) shows how to register customized host functions into WasmEdge and execute with wasm files.
-
-
+* Mailing list: Send an email to [WasmEdge@googlegroups.com](https://groups.google.com/g/wasmedge/)
+* Slack: Join the #WasmEdge channel on the [CNCF Slack](https://slack.cncf.io/)
 
 ## License
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_large)

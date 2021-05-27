@@ -4192,8 +4192,6 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
       Context->Globals.push_back(Type);
       break;
     }
-    default:
-      break;
     }
   }
 }

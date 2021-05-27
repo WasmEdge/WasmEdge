@@ -29,7 +29,7 @@ namespace AST {
 class Segment : public Base {
 public:
   /// Binary loading from file manager. Inheritted from Base.
-  virtual Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) = 0;
+  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override = 0;
 
   /// Getter of locals vector.
   InstrView getInstrs() const { return Expr.getInstrs(); }

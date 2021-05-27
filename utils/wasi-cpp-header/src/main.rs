@@ -7,7 +7,7 @@ use clap::{Arg, SubCommand};
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
-use wasi_cpp_header::{generate, snapshot_witx_files, wasi_api_header_path};
+use wasi_cpp_header::generate;
 
 pub fn run<P: AsRef<Path>, Q: AsRef<Path>>(inputs: &[P], output: Q) -> Result<()> {
     let cpp_header = generate(inputs)?;
@@ -35,11 +35,7 @@ fn main() -> Result<()> {
         )
         .get_matches();
 
-    if matches.subcommand_matches("generate-api").is_some() {
-        let inputs = snapshot_witx_files()?;
-        let output = wasi_api_header_path();
-        run(&inputs, &output)?;
-    } else if let Some(generate) = matches.subcommand_matches("generate") {
+    if let Some(generate) = matches.subcommand_matches("generate") {
         let inputs = generate
             .values_of("inputs")
             .expect("required inputs arg")

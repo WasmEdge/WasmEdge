@@ -36,20 +36,20 @@ configure_files(
 
 target_link_libraries(wasmedgeLoaderFileMgrTests
   PRIVATE
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeLoaderFileMgr
 )
 
 target_link_libraries(wasmedgeLoaderWagonTests
   PRIVATE
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeLoaderFileMgr
   wasmedgeAST
 )
 
 target_link_libraries(wasmedgeLoaderEthereumTests
   PRIVATE
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeLoaderFileMgr
   wasmedgeAST
 )

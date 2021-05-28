@@ -8,9 +8,9 @@ add_test(wasmedgeProcessTests wasmedgeProcessTests)
 
 target_link_libraries(wasmedgeProcessTests
   PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeAST
   wasmedgeHostModuleWasmEdgeProcess
-  utilGoogleTest
 )
 
 target_include_directories(wasmedgeProcessTests

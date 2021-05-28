@@ -8,7 +8,7 @@ add_test(spanTests spanTests)
 
 target_link_libraries(spanTests
   PRIVATE
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
 )
 
 target_include_directories(spanTests

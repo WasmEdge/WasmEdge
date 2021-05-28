@@ -36,5 +36,5 @@ target_include_directories(wasmedgeTestSpec
 target_link_libraries(wasmedgeTestSpec
   PRIVATE
   std::filesystem
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
 )

@@ -22,6 +22,8 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 
+include(FetchContent)
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Boost REQUIRED)
 find_package(Filesystem REQUIRED Final Experimental)

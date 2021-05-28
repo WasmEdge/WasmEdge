@@ -14,6 +14,6 @@ configure_files(
 
 target_link_libraries(wasmedgeExternrefTests
   PRIVATE
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeVM
 )

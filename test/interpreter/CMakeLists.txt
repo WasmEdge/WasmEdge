@@ -9,7 +9,7 @@ add_test(wasmedgeInterpreterCoreTests wasmedgeInterpreterCoreTests)
 target_link_libraries(wasmedgeInterpreterCoreTests
   PRIVATE
   std::filesystem
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeTestSpec
   wasmedgeVM
 )

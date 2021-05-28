@@ -19,7 +19,7 @@ add_test(expectedTests expectedTests)
 
 target_link_libraries(expectedTests
   PRIVATE
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
 )
 
 target_include_directories(expectedTests

@@ -30,7 +30,7 @@ add_test(wasmedgeAPIUnitTests wasmedgeAPIUnitTests)
 target_link_libraries(wasmedgeAPIUnitTests
   PRIVATE
   std::filesystem
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeAPITestHelpers
   wasmedge_c
 )
@@ -44,7 +44,7 @@ add_test(wasmedgeAPIVMCoreTests wasmedgeAPIVMCoreTests)
 target_link_libraries(wasmedgeAPIVMCoreTests
   PRIVATE
   std::filesystem
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeTestSpec
   wasmedgeAPITestHelpers
   wasmedge_c
@@ -59,7 +59,7 @@ add_test(wasmedgeAPIStepsCoreTests wasmedgeAPIStepsCoreTests)
 target_link_libraries(wasmedgeAPIStepsCoreTests
   PRIVATE
   std::filesystem
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeTestSpec
   wasmedgeAPITestHelpers
   wasmedge_c
@@ -73,7 +73,7 @@ if (BUILD_AOT_RUNTIME)
   target_link_libraries(wasmedgeAPIAOTCoreTests
     PRIVATE
     std::filesystem
-    utilGoogleTest
+    ${GTEST_BOTH_LIBRARIES}
     wasmedgeTestSpec
     wasmedgeAPITestHelpers
     wasmedge_c

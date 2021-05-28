@@ -8,9 +8,9 @@ add_test(wasiTests wasiTests)
 
 target_link_libraries(wasiTests
   PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeAST
   wasmedgeHostModuleWasi
-  utilGoogleTest
 )
 
 target_include_directories(wasiTests

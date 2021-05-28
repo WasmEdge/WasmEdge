@@ -379,7 +379,6 @@ add_executable(reftest  # executable name of this example
 target_include_directories(reftest
   PUBLIC
   WasmEdge/include
-  WasmEdge/thirdparty
 )
 
 target_link_libraries(reftest

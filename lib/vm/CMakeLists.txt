@@ -19,5 +19,4 @@ target_include_directories(wasmedgeVM
   PUBLIC
   ${Boost_INCLUDE_DIRS}
   ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/thirdparty
 )

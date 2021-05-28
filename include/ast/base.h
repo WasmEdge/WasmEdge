@@ -36,19 +36,19 @@ public:
 
 /// Helper function of logging error when loading.
 inline auto logLoadError(ErrCode Code, uint32_t Off, ASTNodeAttr Node) {
-  LOG(ERROR) << Code;
-  LOG(ERROR) << ErrInfo::InfoLoading(Off);
-  LOG(ERROR) << ErrInfo::InfoAST(Node);
+  spdlog::error(Code);
+  spdlog::error(ErrInfo::InfoLoading(Off));
+  spdlog::error(ErrInfo::InfoAST(Node));
   return Unexpect(Code);
 }
 
 /// Helper function of logging error when needing enabling proposal.
 inline auto logNeedProposal(ErrCode Code, Proposal Prop, uint32_t Off,
                             ASTNodeAttr Node) {
-  LOG(ERROR) << Code;
-  LOG(ERROR) << ErrInfo::InfoProposal(Prop);
-  LOG(ERROR) << ErrInfo::InfoLoading(Off);
-  LOG(ERROR) << ErrInfo::InfoAST(Node);
+  spdlog::error(Code);
+  spdlog::error(ErrInfo::InfoProposal(Prop));
+  spdlog::error(ErrInfo::InfoLoading(Off));
+  spdlog::error(ErrInfo::InfoAST(Node));
   return Unexpect(Code);
 }
 

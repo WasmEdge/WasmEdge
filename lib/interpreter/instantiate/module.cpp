@@ -18,8 +18,8 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 
   /// Check is module name duplicated.
   if (auto Res = StoreMgr.findModule(Name)) {
-    LOG(ERROR) << ErrCode::ModuleNameConflict;
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrCode::ModuleNameConflict);
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(ErrCode::ModuleNameConflict);
   }
 
@@ -42,8 +42,8 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Instantiate ImportSection and do import matching. (ImportSec)
   const AST::ImportSection &ImportSec = Mod.getImportSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, ImportSec); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(ImportSec.NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(ImportSec.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
@@ -51,24 +51,24 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   const AST::FunctionSection &FuncSec = Mod.getFunctionSection();
   const AST::CodeSection &CodeSec = Mod.getCodeSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, FuncSec, CodeSec); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(FuncSec.NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(FuncSec.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Instantiate TableSection (TableSec)
   const AST::TableSection &TabSec = Mod.getTableSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, TabSec); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(TabSec.NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(TabSec.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Instantiate MemorySection (MemorySec)
   const AST::MemorySection &MemSec = Mod.getMemorySection();
   if (auto Res = instantiate(StoreMgr, *ModInst, MemSec); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(MemSec.NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(MemSec.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
@@ -88,8 +88,8 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Instantiate GlobalSection (GlobalSec)
   const AST::GlobalSection &GlobSec = Mod.getGlobalSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, GlobSec); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(GlobSec.NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(GlobSec.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
@@ -102,8 +102,8 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Instantiate ExportSection (ExportSec)
   const AST::ExportSection &ExportSec = Mod.getExportSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, ExportSec); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(ExportSec.NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(ExportSec.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
@@ -113,30 +113,30 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Instantiate ElementSection (ElemSec)
   const AST::ElementSection &ElemSec = Mod.getElementSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, ElemSec); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(ElemSec.NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(ElemSec.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Instantiate DataSection (DataSec)
   const AST::DataSection &DataSec = Mod.getDataSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, DataSec); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(DataSec.NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(DataSec.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Initialize table instances
   if (auto Res = initTable(StoreMgr, *ModInst, ElemSec); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(ElemSec.NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(ElemSec.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Initialize memory instances
   if (auto Res = initMemory(StoreMgr, *ModInst, DataSec); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(DataSec.NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(DataSec.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
@@ -173,11 +173,11 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     if (auto Res = enterFunction(StoreMgr, *FuncInst, Instrs.end() - 1)) {
       StartIt = *Res;
     } else {
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+      spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
       return Unexpect(Res);
     }
     if (auto Res = execute(StoreMgr, StartIt, Instrs.end()); unlikely(!Res)) {
-      LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+      spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
       return Unexpect(Res);
     }
   }

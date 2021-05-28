@@ -20,8 +20,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     for (const auto &Expr : ElemSeg.getInitExprs()) {
       /// Run init expr of every elements and get the result reference.
       if (auto Res = runExpression(StoreMgr, Expr.getInstrs()); !Res) {
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
-        LOG(ERROR) << ErrInfo::InfoAST(ElemSeg.NodeAttr);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
+        spdlog::error(ErrInfo::InfoAST(ElemSeg.NodeAttr));
         return Unexpect(Res);
       }
       /// Pop result from stack.
@@ -32,8 +32,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
       /// Run initialize expression.
       if (auto Res = runExpression(StoreMgr, ElemSeg.getInstrs()); !Res) {
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
-        LOG(ERROR) << ErrInfo::InfoAST(ElemSeg.NodeAttr);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
+        spdlog::error(ErrInfo::InfoAST(ElemSeg.NodeAttr));
         return Unexpect(Res);
       }
       Offset = retrieveValue<uint32_t>(StackMgr.pop());
@@ -46,8 +46,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         auto *TabInst = getTabInstByIdx(StoreMgr, ElemSeg.getIdx());
         /// Check elements fits.
         if (!TabInst->checkAccessBound(Offset, InitVals.size())) {
-          LOG(ERROR) << ErrCode::ElemSegDoesNotFit;
-          LOG(ERROR) << ErrInfo::InfoAST(ElemSeg.NodeAttr);
+          spdlog::error(ErrCode::ElemSegDoesNotFit);
+          spdlog::error(ErrInfo::InfoAST(ElemSeg.NodeAttr));
           return Unexpect(ErrCode::ElemSegDoesNotFit);
         }
       }
@@ -85,7 +85,7 @@ Expect<void> Interpreter::initTable(Runtime::StoreManager &StoreMgr,
       if (auto Res = TabInst->setRefs(ElemInst->getRefs(), Off, 0,
                                       ElemInst->getRefs().size());
           !Res) {
-        LOG(ERROR) << ErrInfo::InfoAST(ElemSeg.NodeAttr);
+        spdlog::error(ErrInfo::InfoAST(ElemSeg.NodeAttr));
         return Unexpect(Res);
       }
 

@@ -13,7 +13,6 @@ add_library(wasmedgeAST
 target_include_directories(wasmedgeAST
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/thirdparty
 )
 
 target_link_libraries(wasmedgeAST

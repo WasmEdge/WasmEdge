@@ -42,9 +42,9 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
   auto Res = execute(StoreMgr, StartIt, Func.getInstrs().end());
 
   if (Res) {
-    LOG(DEBUG) << " Execution succeeded.";
+    spdlog::debug(" Execution succeeded.");
   } else if (Res.error() == ErrCode::Terminated) {
-    LOG(DEBUG) << " Terminated.";
+    spdlog::debug(" Terminated.");
   }
 
   /// Print time cost.
@@ -54,23 +54,18 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
     auto Nano = [](auto &&Duration) {
       return std::chrono::nanoseconds(Duration).count();
     };
-    LOG(DEBUG) << "\n"
+    spdlog::debug("\n"
                   " ====================  Statistics  ====================\n"
-                  " Total execution time: "
-               << Nano(Stat->getTotalExecTime())
-               << " ns\n"
-                  " Wasm instructions execution time: "
-               << Nano(Stat->getWasmExecTime())
-               << " ns\n"
-                  " Host functions execution time: "
-               << Nano(Stat->getHostFuncExecTime())
-               << " ns\n"
-                  " Executed wasm instructions count: "
-               << Stat->getInstrCount() << "\n"
-               << " Gas costs: " << Stat->getTotalCost()
-               << "\n"
-                  " Instructions per second: "
-               << uint64_t(Stat->getInstrPerSecond());
+                  " Total execution time: {} ns\n"
+                  " Wasm instructions execution time: {} ns\n"
+                  " Host functions execution time: {} ns\n"
+                  " Executed wasm instructions count: {}\n"
+                  " Gas costs: {}\n"
+                  " Instructions per second: {}",
+                  Nano(Stat->getTotalExecTime()), Nano(Stat->getWasmExecTime()),
+                  Nano(Stat->getHostFuncExecTime()), Stat->getInstrCount(),
+                  Stat->getTotalCost(),
+                  static_cast<uint64_t>(Stat->getInstrPerSecond()));
   }
 
   if (Res || Res.error() == ErrCode::Terminated) {
@@ -90,9 +85,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     switch (Instr.getOpCode()) {
     /// Control instructions.
     case OpCode::Unreachable:
-      LOG(ERROR) << ErrCode::Unreachable;
-      LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                             Instr.getOffset());
+      spdlog::error(ErrCode::Unreachable);
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
       return Unexpect(ErrCode::Unreachable);
     case OpCode::Nop:
       return {};

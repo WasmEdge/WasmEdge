@@ -11,7 +11,7 @@ add_test(poTests poTests)
 
 target_link_libraries(poTests
   PRIVATE
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
 )
 
 target_include_directories(poTests

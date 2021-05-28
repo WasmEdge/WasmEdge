@@ -8,6 +8,6 @@ add_test(wasmedgeMemLimitTests wasmedgeMemLimitTests)
 
 target_link_libraries(wasmedgeMemLimitTests
   PRIVATE
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeVM
 )

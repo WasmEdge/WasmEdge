@@ -14,7 +14,7 @@ configure_files(
 
 target_link_libraries(wasmedgeAOTWagonTests
   PRIVATE
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeLoader
   wasmedgeAOT
 )
@@ -28,7 +28,7 @@ add_test(wasmedgeAOTCoreTests wasmedgeAOTCoreTests)
 target_link_libraries(wasmedgeAOTCoreTests
   PRIVATE
   std::filesystem
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeTestSpec
   wasmedgeLoader
   wasmedgeAOT
@@ -43,7 +43,7 @@ add_test(wasmedgeAOTCacheTests wasmedgeAOTCacheTests)
 
 target_link_libraries(wasmedgeAOTCacheTests
   PRIVATE
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeAOT
 )
 
@@ -55,6 +55,6 @@ add_test(wasmedgeAOTBlake3Tests wasmedgeAOTBlake3Tests)
 
 target_link_libraries(wasmedgeAOTBlake3Tests
   PRIVATE
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeAOT
 )

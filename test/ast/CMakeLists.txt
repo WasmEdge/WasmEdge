@@ -14,7 +14,7 @@ add_test(wasmedgeASTTests wasmedgeASTTests)
 
 target_link_libraries(wasmedgeASTTests
   PRIVATE
-  utilGoogleTest
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeLoaderFileMgr
   wasmedgeAST
 )

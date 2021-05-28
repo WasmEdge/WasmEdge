@@ -136,8 +136,8 @@ VM::runWasmFile(const AST::Module &Module, std::string_view Func,
   }
   const auto FuncExp = StoreRef.getFuncExports();
   if (FuncExp.find(Func) == FuncExp.cend()) {
-    LOG(ERROR) << ErrCode::FuncNotFound;
-    LOG(ERROR) << ErrInfo::InfoExecuting("", Func);
+    spdlog::error(ErrCode::FuncNotFound);
+    spdlog::error(ErrInfo::InfoExecuting("", Func));
     return Unexpect(ErrCode::FuncNotFound);
   }
   if (auto Res = InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second,
@@ -179,7 +179,7 @@ Expect<void> VM::loadWasm(const AST::Module &Module) {
 Expect<void> VM::validate() {
   if (Stage < VMStage::Loaded) {
     /// When module is not loaded, not validate.
-    LOG(ERROR) << ErrCode::WrongVMWorkflow;
+    spdlog::error(ErrCode::WrongVMWorkflow);
     return Unexpect(ErrCode::WrongVMWorkflow);
   }
   if (auto Res = ValidatorEngine.validate(*Mod.get())) {
@@ -193,7 +193,7 @@ Expect<void> VM::validate() {
 Expect<void> VM::instantiate() {
   if (Stage < VMStage::Validated) {
     /// When module is not validated, not instantiate.
-    LOG(ERROR) << ErrCode::WrongVMWorkflow;
+    spdlog::error(ErrCode::WrongVMWorkflow);
     return Unexpect(ErrCode::WrongVMWorkflow);
   }
   if (auto Res = InterpreterEngine.instantiateModule(StoreRef, *Mod.get())) {
@@ -211,8 +211,8 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Func,
   const auto FuncExp = StoreRef.getFuncExports();
   const auto FuncIter = FuncExp.find(Func);
   if (FuncIter == FuncExp.cend()) {
-    LOG(ERROR) << ErrCode::FuncNotFound;
-    LOG(ERROR) << ErrInfo::InfoExecuting("", Func);
+    spdlog::error(ErrCode::FuncNotFound);
+    spdlog::error(ErrInfo::InfoExecuting("", Func));
     return Unexpect(ErrCode::FuncNotFound);
   }
 
@@ -221,7 +221,7 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Func,
                                           ParamTypes)) {
     return Res;
   } else {
-    LOG(ERROR) << ErrInfo::InfoExecuting("", Func);
+    spdlog::error(ErrInfo::InfoExecuting("", Func));
     return Unexpect(Res);
   }
 }
@@ -235,8 +235,8 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
   if (auto Res = StoreRef.findModule(Mod)) {
     ModInst = *Res;
   } else {
-    LOG(ERROR) << Res.error();
-    LOG(ERROR) << ErrInfo::InfoExecuting(Mod, Func);
+    spdlog::error(Res.error());
+    spdlog::error(ErrInfo::InfoExecuting(Mod, Func));
     return Unexpect(Res);
   }
 
@@ -244,8 +244,8 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
   const auto FuncExp = ModInst->getFuncExports();
   const auto FuncIter = FuncExp.find(Func);
   if (FuncIter == FuncExp.cend()) {
-    LOG(ERROR) << ErrCode::FuncNotFound;
-    LOG(ERROR) << ErrInfo::InfoExecuting(Mod, Func);
+    spdlog::error(ErrCode::FuncNotFound);
+    spdlog::error(ErrInfo::InfoExecuting(Mod, Func));
     return Unexpect(ErrCode::FuncNotFound);
   }
 
@@ -254,7 +254,7 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
                                           ParamTypes)) {
     return Res;
   } else {
-    LOG(ERROR) << ErrInfo::InfoExecuting(Mod, Func);
+    spdlog::error(ErrInfo::InfoExecuting(Mod, Func));
     return Unexpect(Res);
   }
 }

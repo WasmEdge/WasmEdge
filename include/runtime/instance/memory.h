@@ -48,14 +48,14 @@ public:
       : HasMaxPage(Lim.hasMax()), MinPage(Lim.getMin()), MaxPage(Lim.getMax()),
         PageLimit(PageLim) {
     if (MinPage > PageLimit) {
-      LOG(ERROR)
-          << "Create memory instance failed -- exceeded limit page size: "
-          << PageLimit;
+      spdlog::error(
+          "Create memory instance failed -- exceeded limit page size: {}",
+          PageLimit);
       return;
     }
     DataPtr = Allocator::allocate(MinPage);
     if (DataPtr == nullptr) {
-      LOG(ERROR) << "Unable to find usable memory address";
+      spdlog::error("Unable to find usable memory address");
       return;
     }
   }
@@ -99,8 +99,8 @@ public:
       return false;
     }
     if (Count + MinPage > PageLimit) {
-      LOG(ERROR) << "Memory grow page failed -- exceeded limit page size: "
-                 << PageLimit;
+      spdlog::error("Memory grow page failed -- exceeded limit page size: {}",
+                    PageLimit);
       return false;
     }
     if (Allocator::resize(DataPtr, MinPage, MinPage + Count) == nullptr) {
@@ -115,8 +115,8 @@ public:
                               const uint32_t Length) const noexcept {
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
-      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
+      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     return Span<Byte>(&DataPtr[Offset], Length);
@@ -127,15 +127,15 @@ public:
                         const uint32_t Start, const uint32_t Length) {
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
-      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
+      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
 
     /// Check input data validation.
     if (Start + Length > Slice.size()) {
-      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Start, Length, Slice.size() - 1);
+      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
 
@@ -152,8 +152,8 @@ public:
                          const uint32_t Length) {
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
-      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
+      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
 
@@ -170,8 +170,8 @@ public:
                         const bool IsReverse = false) const noexcept {
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
-      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
+      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     if (Length > 0) {
@@ -190,8 +190,8 @@ public:
                         const uint32_t Length, const bool IsReverse = false) {
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
-      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
+      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     if (Length > 0) {
@@ -245,15 +245,15 @@ public:
             const uint32_t Length) const noexcept {
     /// Check data boundary.
     if (Length > sizeof(T)) {
-      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length,
-                                          Offset + sizeof(T) - 1);
+      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(
+          ErrInfo::InfoBoundary(Offset, Length, Offset + sizeof(T) - 1));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
-      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
+      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     /// Load data to a value.
@@ -298,15 +298,15 @@ public:
   storeValue(const T &Value, const uint32_t Offset, const uint32_t Length) {
     /// Check data boundary.
     if (Length > sizeof(T)) {
-      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length,
-                                          Offset + sizeof(T) - 1);
+      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(
+          ErrInfo::InfoBoundary(Offset, Length, Offset + sizeof(T) - 1));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     /// Check memory boundary.
     if (!checkAccessBound(Offset, Length)) {
-      LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
+      spdlog::error(ErrCode::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     /// Copy store data to value.

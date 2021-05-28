@@ -41,8 +41,8 @@ Interpreter::runMemoryInitOp(Runtime::Instance::MemoryInstance &MemInst,
   if (auto Res = MemInst.setBytes(DataInst.getData(), Dst, Src, Len)) {
     return {};
   } else {
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
   }
 }
@@ -67,13 +67,13 @@ Interpreter::runMemoryCopyOp(Runtime::Instance::MemoryInstance &MemInst,
     if (auto Res = MemInst.setBytes(*Data, Dst, 0, Len)) {
       return {};
     } else {
-      LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                             Instr.getOffset());
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
       return Unexpect(Res);
     }
   } else {
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Data);
   }
 }
@@ -90,8 +90,8 @@ Interpreter::runMemoryFillOp(Runtime::Instance::MemoryInstance &MemInst,
   if (auto Res = MemInst.fillBytes(Val, Off, Len)) {
     return {};
   } else {
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
   }
 }

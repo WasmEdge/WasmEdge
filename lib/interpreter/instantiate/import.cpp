@@ -17,18 +17,18 @@ namespace {
 template <typename... Args>
 auto logMatchError(std::string_view ModName, std::string_view ExtName,
                    ExternalType ExtType, ASTNodeAttr Node, Args &&...Values) {
-  LOG(ERROR) << ErrCode::IncompatibleImportType;
-  LOG(ERROR) << ErrInfo::InfoMismatch(std::forward<Args>(Values)...);
-  LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
-  LOG(ERROR) << ErrInfo::InfoAST(Node);
+  spdlog::error(ErrCode::IncompatibleImportType);
+  spdlog::error(ErrInfo::InfoMismatch(std::forward<Args>(Values)...));
+  spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
+  spdlog::error(ErrInfo::InfoAST(Node));
   return Unexpect(ErrCode::IncompatibleImportType);
 }
 
 auto logUnknownError(std::string_view ModName, std::string_view ExtName,
                      ExternalType ExtType, ASTNodeAttr Node) {
-  LOG(ERROR) << ErrCode::UnknownImport;
-  LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
-  LOG(ERROR) << ErrInfo::InfoAST(Node);
+  spdlog::error(ErrCode::UnknownImport);
+  spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
+  spdlog::error(ErrInfo::InfoAST(Node));
   return Unexpect(ErrCode::UnknownImport);
 }
 
@@ -122,8 +122,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
                                  *TargetModInst)) {
       TargetAddr = *Res;
     } else {
-      LOG(ERROR) << ErrInfo::InfoLinking(ModName, ExtName, ExtType);
-      LOG(ERROR) << ErrInfo::InfoAST(ImpDesc.NodeAttr);
+      spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
+      spdlog::error(ErrInfo::InfoAST(ImpDesc.NodeAttr));
       return Unexpect(Res);
     }
 

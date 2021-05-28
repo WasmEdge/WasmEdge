@@ -7,6 +7,7 @@
 #include <limits.h>
 #include <sys/select.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -173,13 +174,13 @@ WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
 #endif
       switch (errno) {
       case EACCES:
-        std::cerr << "Permission denied." << std::endl;
+        spdlog::error("Permission denied.");
         break;
       case ENOENT:
-        std::cerr << "Command not found." << std::endl;
+        spdlog::error("Command not found.");
         break;
       default:
-        std::cerr << "Unknown error." << std::endl;
+        spdlog::error("Unknown error.");
         break;
       }
       _exit(-1);

@@ -21,15 +21,13 @@
 #define RAPIDJSON_NEON 1
 #endif
 
-#include <cmath>
-
-#include "common/log.h"
-
 #include "spectest.h"
-
+#include "common/log.h"
 #include "rapidjson/document.h"
 #include "rapidjson/istreamwrapper.h"
 #include "gtest/gtest.h"
+#include <cmath>
+#include <fstream>
 
 namespace {
 
@@ -407,15 +405,15 @@ bool SpecTest::compare(
 bool SpecTest::stringContains(const std::string &Expected,
                               const std::string &Got) const {
   if (Expected.rfind(Got, 0) != 0) {
-    std::cout << "   ##### expected text : " << Expected << '\n';
-    std::cout << "   ######## error text : " << Got << '\n';
+    spdlog::error("   ##### expected text : {}", Expected);
+    spdlog::error("   ######## error text : {}", Got);
     return false;
   }
   return true;
 }
 
 void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
-  LOG(INFO) << Proposal << ' ' << UnitName;
+  spdlog::info("{} {}", Proposal, UnitName);
   std::ifstream JSONIS(TestsuiteRoot / Proposal / UnitName /
                        (std::string(UnitName) + ".json"s));
   rapidjson::IStreamWrapper JSONISWrapper(JSONIS);

@@ -77,7 +77,7 @@ protected:
     for (uint32_t i = 0; i < VecCnt; ++i) {
       Vec.emplace_back();
       if (auto Res = Vec.back().loadBinary(Mgr, Conf); !Res) {
-        LOG(ERROR) << ErrInfo::InfoAST(Node);
+        spdlog::error(ErrInfo::InfoAST(Node));
         return Unexpect(Res);
       }
     }

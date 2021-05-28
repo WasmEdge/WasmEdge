@@ -100,7 +100,7 @@ struct WasmEdge_ImportObjectContext {};
 /// WasmEdge_VMContext implementation.
 struct WasmEdge_VMContext {
   template <typename... Args>
-  WasmEdge_VMContext(Args &&... Vals) noexcept
+  WasmEdge_VMContext(Args &&...Vals) noexcept
       : VM(std::forward<Args>(Vals)...) {}
   WasmEdge::VM::VM VM;
 };
@@ -184,11 +184,11 @@ template <typename T> inline bool isContext(T *Cxt) noexcept {
   return (Cxt != nullptr);
 }
 template <typename T, typename... Args>
-inline bool isContext(T *Cxt, Args *... Cxts) noexcept {
+inline bool isContext(T *Cxt, Args *...Cxts) noexcept {
   return isContext(Cxt) && isContext(Cxts...);
 }
 template <typename T, typename U, typename... CxtT>
-inline WasmEdge_Result wrap(T &&Proc, U &&Then, CxtT *... Cxts) noexcept {
+inline WasmEdge_Result wrap(T &&Proc, U &&Then, CxtT *...Cxts) noexcept {
   if (isContext(Cxts...)) {
     if (auto Res = Proc()) {
       Then(Res);
@@ -794,9 +794,9 @@ WasmEdge_Result WasmEdge_InterpreterInvoke(WasmEdge_InterpreterContext *Cxt,
         const auto FuncExp = fromStoreCxt(StoreCxt)->getFuncExports();
         const auto FuncIter = FuncExp.find(genStrView(FuncName));
         if (FuncIter == FuncExp.cend()) {
-          LOG(ERROR) << WasmEdge::ErrCode::FuncNotFound;
-          LOG(ERROR) << WasmEdge::ErrInfo::InfoExecuting("",
-                                                         genStrView(FuncName));
+          spdlog::error(WasmEdge::ErrCode::FuncNotFound);
+          spdlog::error(
+              WasmEdge::ErrInfo::InfoExecuting("", genStrView(FuncName)));
           return Unexpect(WasmEdge::ErrCode::FuncNotFound);
         }
         return Cxt->Interp.invoke(*fromStoreCxt(StoreCxt), FuncIter->second,
@@ -821,8 +821,8 @@ WasmEdge_Result WasmEdge_InterpreterInvokeRegistered(
         if (auto Res = fromStoreCxt(StoreCxt)->findModule(ModStr)) {
           ModInst = *Res;
         } else {
-          LOG(ERROR) << Res.error();
-          LOG(ERROR) << WasmEdge::ErrInfo::InfoExecuting(ModStr, FuncStr);
+          spdlog::error(Res.error());
+          spdlog::error(WasmEdge::ErrInfo::InfoExecuting(ModStr, FuncStr));
           return Unexpect(Res);
         }
 
@@ -830,8 +830,8 @@ WasmEdge_Result WasmEdge_InterpreterInvokeRegistered(
         const auto FuncExp = ModInst->getFuncExports();
         const auto FuncIter = FuncExp.find(FuncStr);
         if (FuncIter == FuncExp.cend()) {
-          LOG(ERROR) << WasmEdge::ErrCode::FuncNotFound;
-          LOG(ERROR) << WasmEdge::ErrInfo::InfoExecuting(ModStr, FuncStr);
+          spdlog::error(WasmEdge::ErrCode::FuncNotFound);
+          spdlog::error(WasmEdge::ErrInfo::InfoExecuting(ModStr, FuncStr));
           return Unexpect(WasmEdge::ErrCode::FuncNotFound);
         }
         return Cxt->Interp.invoke(*fromStoreCxt(StoreCxt), FuncIter->second,
@@ -1293,10 +1293,10 @@ WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
       [&]() -> WasmEdge::Expect<void> {
         WasmEdge::RefType expType = fromTabCxt(Cxt)->getReferenceType();
         if (expType != static_cast<WasmEdge::RefType>(Data.Type)) {
-          LOG(ERROR) << WasmEdge::ErrCode::RefTypeMismatch;
-          LOG(ERROR) << WasmEdge::ErrInfo::InfoMismatch(
+          spdlog::error(WasmEdge::ErrCode::RefTypeMismatch);
+          spdlog::error(WasmEdge::ErrInfo::InfoMismatch(
               static_cast<WasmEdge::ValType>(expType),
-              static_cast<WasmEdge::ValType>(Data.Type));
+              static_cast<WasmEdge::ValType>(Data.Type)));
           return Unexpect(WasmEdge::ErrCode::RefTypeMismatch);
         }
         return fromTabCxt(Cxt)->setRefAddr(

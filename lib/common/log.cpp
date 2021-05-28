@@ -2,27 +2,15 @@
 #include "common/errinfo.h"
 #include "common/hexstr.h"
 
-#include "easyloggingpp/easylogging++.h"
-
-INITIALIZE_EASYLOGGINGPP
-
 namespace WasmEdge {
 namespace Log {
 
-void passEasyloggingppArgs(int Argc, char *Argv[]) {
-  START_EASYLOGGINGPP(Argc, Argv);
-}
-
 void setDebugLoggingLevel() {
-  el::Loggers::addFlag(el::LoggingFlag::HierarchicalLogging);
-  el::Loggers::addFlag(el::LoggingFlag::IgnoreSigInt);
-  el::Loggers::setLoggingLevel(el::Level::Debug);
+  spdlog::set_level(spdlog::level::debug);
 }
 
 void setErrorLoggingLevel() {
-  el::Loggers::addFlag(el::LoggingFlag::HierarchicalLogging);
-  el::Loggers::addFlag(el::LoggingFlag::IgnoreSigInt);
-  el::Loggers::setLoggingLevel(el::Level::Error);
+  spdlog::set_level(spdlog::level::err);
 }
 
 } // namespace Log

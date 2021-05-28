@@ -16,9 +16,9 @@ Interpreter::runTableGetOp(Runtime::Instance::TableInstance &TabInst,
   if (auto Res = TabInst.getRefAddr(Idx)) {
     StackMgr.push(*Res);
   } else {
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
-                                           {ValTypeFromType<uint32_t>()});
+                                           {ValTypeFromType<uint32_t>()}));
     return Unexpect(Res);
   }
   return {};
@@ -35,9 +35,9 @@ Interpreter::runTableSetOp(Runtime::Instance::TableInstance &TabInst,
 
   /// Set table[Idx] with Ref.
   if (auto Res = TabInst.setRefAddr(Idx, Ref); !Res) {
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
-                                           {ValTypeFromType<uint32_t>()});
+                                           {ValTypeFromType<uint32_t>()}));
     return Unexpect(Res);
   }
   return {};
@@ -56,8 +56,8 @@ Interpreter::runTableInitOp(Runtime::Instance::TableInstance &TabInst,
   if (auto Res = TabInst.setRefs(ElemInst.getRefs(), Dst, Src, Len)) {
     return {};
   } else {
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
   }
   return {};
@@ -84,13 +84,13 @@ Interpreter::runTableCopyOp(Runtime::Instance::TableInstance &TabInstDst,
     if (auto Res = TabInstDst.setRefs(*Refs, Dst, 0, Len)) {
       return {};
     } else {
-      LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                             Instr.getOffset());
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
       return Unexpect(Res);
     }
   } else {
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Refs);
   }
   return {};
@@ -132,8 +132,8 @@ Interpreter::runTableFillOp(Runtime::Instance::TableInstance &TabInst,
   if (auto Res = TabInst.fillRefs(Val, Off, Len)) {
     return {};
   } else {
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
   }
 }

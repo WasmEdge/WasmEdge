@@ -40,7 +40,7 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
     xz -dc llvm-12.0.0.src.tar.xz | tar -xf - && \
     xz -dc lld-12.0.0.src.tar.xz | tar -xf - && \
     xz -dc libunwind-12.0.0.src.tar.xz | tar -xf - && \
-    mkdir build && cd build && ../gmp-6.2.1/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
+    mkdir build && cd build && ../gmp-6.2.1/configure --build=aarch64-redhat-linux-gnu $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
     mkdir build && cd build && ../mpfr-4.1.0/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
     mkdir build && cd build && ../mpc-1.2.1/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
     mkdir build && cd build && ../isl-0.24/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \

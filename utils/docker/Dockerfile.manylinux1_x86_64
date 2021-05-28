@@ -43,7 +43,7 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
     cd gcc-11.1.0 && patch -p1 < ../gcc-4.8.2-gcc-11.patch && cd - && \
     cd llvm-12.0.0.src && patch -p1 < ../llvm-glibc-2.5.patch && cd - && \
     cd cmake-3.20.2 && patch -p1 < ../cmake-glibc-2.5.patch && cd - && \
-    mkdir build && cd build && ../gmp-6.2.1/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
+    mkdir build && cd build && ../gmp-6.2.1/configure --build=x86_64-pc-linux-gnu $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
     mkdir build && cd build && ../mpfr-4.1.0/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
     mkdir build && cd build && ../mpc-1.2.1/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
     mkdir build && cd build && ../isl-0.24/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \

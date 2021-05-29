@@ -372,4 +372,97 @@ TEST(InstructionTest, LoadConstInstruction) {
   EXPECT_TRUE(Ins5.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
 }
 
+TEST(InstructionTest, ValTypeProposal) {
+  /// 9. Test ValType from disabled proposals
+  ///
+  ///   1.  Load if instruction.
+  ///   2.  Load select_t instruction.
+  WasmEdge::Configure SimdConf(WasmEdge::Proposal::SIMD);
+  WasmEdge::Configure RefSimdConf(WasmEdge::Proposal::ReferenceTypes,
+                                  WasmEdge::Proposal::SIMD);
+  WasmEdge::Configure MVPConf;
+  MVPConf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  MVPConf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
+
+  WasmEdge::AST::Expression Exp1;
+  std::vector<unsigned char> Vec1 = {
+      0x04U,                      /// OpCode If.
+      0x7BU,                      /// Block type V128.
+      0xFDU, 0x0CU,               /// OpCode V128__const.
+      0x01U, 0x00U, 0x00U, 0x00U, /// 1.
+      0x00U, 0x00U, 0x00U, 0x00U, /// 0.
+      0x00U, 0x00U, 0x00U, 0x00U, /// 0.
+      0x00U, 0x00U, 0x00U, 0x00U, /// 0.
+      0x05U,                      /// OpCode Else.
+      0xFDU, 0x0CU,               /// OpCode V128__const.
+      0x02U, 0x00U, 0x00U, 0x00U, /// 2.
+      0x00U, 0x00U, 0x00U, 0x00U, /// 0.
+      0x00U, 0x00U, 0x00U, 0x00U, /// 0.
+      0x00U, 0x00U, 0x00U, 0x00U, /// 0.
+      0x0BU,                      /// OpCode End.
+      0x0BU,                      /// Expression End.
+  };
+  Mgr.setCode(Vec1);
+  EXPECT_FALSE(Exp1.loadBinary(Mgr, Conf));
+
+  Mgr.setCode(Vec1);
+  EXPECT_TRUE(Exp1.loadBinary(Mgr, SimdConf) && Mgr.getRemainSize() == 0);
+
+  WasmEdge::AST::Expression Exp2;
+  std::vector<unsigned char> Vec2 = {
+      0x04U,        /// OpCode If.
+      0x70U,        /// Block type FuncRef.
+      0xD0U, 0x70U, /// OpCode Ref__null func.
+      0x05U,        /// OpCode Else.
+      0xD0U, 0x70U, /// OpCode Ref__null func.
+      0x0BU,        /// OpCode End.
+      0x0BU,        /// Expression End.
+  };
+  Mgr.setCode(Vec2);
+  EXPECT_FALSE(Exp2.loadBinary(Mgr, MVPConf));
+
+  Mgr.setCode(Vec2);
+  EXPECT_TRUE(Exp2.loadBinary(Mgr, Conf));
+  EXPECT_TRUE(Mgr.getRemainSize() == 0);
+
+  WasmEdge::AST::Expression Exp3;
+  std::vector<unsigned char> Vec3 = {
+      0xFDU, 0x0CU,               /// OpCode V128__const.
+      0x01U, 0x00U, 0x00U, 0x00U, /// 1.
+      0x00U, 0x00U, 0x00U, 0x00U, /// 0.
+      0x00U, 0x00U, 0x00U, 0x00U, /// 0.
+      0x00U, 0x00U, 0x00U, 0x00U, /// 0.
+      0xFDU, 0x0CU,               /// OpCode V128__const.
+      0x02U, 0x00U, 0x00U, 0x00U, /// 2.
+      0x00U, 0x00U, 0x00U, 0x00U, /// 0.
+      0x00U, 0x00U, 0x00U, 0x00U, /// 0.
+      0x00U, 0x00U, 0x00U, 0x00U, /// 0.
+      0x41U, 0x01U,               /// OpCode I32__const 1.
+      0x1CU,                      /// OpCode Select_t.
+      0x01U, 0x7BU,               /// Select type V128.
+      0x0BU,                      /// Expression End.
+  };
+  Mgr.setCode(Vec3);
+  EXPECT_FALSE(Exp3.loadBinary(Mgr, Conf));
+
+  Mgr.setCode(Vec3);
+  EXPECT_TRUE(Exp3.loadBinary(Mgr, RefSimdConf) && Mgr.getRemainSize() == 0);
+
+  WasmEdge::AST::Expression Exp4;
+  std::vector<unsigned char> Vec4 = {
+      0xD0U, 0x70U, /// OpCode Ref__null func.
+      0xD0U, 0x70U, /// OpCode Ref__null func.
+      0x41U, 0x01U, /// OpCode I32__const 1.
+      0x1CU,        /// OpCode Select_t.
+      0x01U, 0x70U, /// Select type FuncRef.
+      0x0BU,        /// Expression End.
+  };
+  Mgr.setCode(Vec4);
+  EXPECT_FALSE(Exp4.loadBinary(Mgr, MVPConf));
+
+  Mgr.setCode(Vec4);
+  EXPECT_TRUE(Exp4.loadBinary(Mgr, Conf));
+  EXPECT_TRUE(Mgr.getRemainSize() == 0);
+}
+
 } // namespace

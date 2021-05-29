@@ -16,9 +16,6 @@ target_include_directories(wasmedgeHostModuleWasi
 target_link_libraries(wasmedgeHostModuleWasi
   PUBLIC
   Threads::Threads
-)
-
-target_link_libraries(wasmedgeHostModuleWasi
   PRIVATE
   wasmedgeSystem
 )

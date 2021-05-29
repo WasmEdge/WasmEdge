@@ -4,6 +4,7 @@
 #include "common/filesystem.h"
 #include "common/log.h"
 
+#include <fstream>
 #include <string_view>
 
 namespace WasmEdge {
@@ -14,8 +15,8 @@ Expect<std::vector<Byte>>
 Loader::loadFile(const std::filesystem::path &FilePath) {
   std::ifstream Fin(FilePath, std::ios::in | std::ios::binary);
   if (!Fin) {
-    LOG(ERROR) << ErrCode::InvalidPath;
-    LOG(ERROR) << ErrInfo::InfoFile(FilePath);
+    spdlog::error(ErrCode::InvalidPath);
+    spdlog::error(ErrInfo::InfoFile(FilePath));
     return Unexpect(ErrCode::InvalidPath);
   }
 
@@ -27,14 +28,14 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
   Fin.read(reinterpret_cast<char *>(Buf.data()), Size);
   if (static_cast<size_t>(Fin.gcount()) != Size) {
     if (Fin.eof()) {
-      LOG(ERROR) << ErrCode::EndOfFile;
-      LOG(ERROR) << ErrInfo::InfoLoading(Fin.gcount());
-      LOG(ERROR) << ErrInfo::InfoFile(FilePath);
+      spdlog::error(ErrCode::EndOfFile);
+      spdlog::error(ErrInfo::InfoLoading(Fin.gcount()));
+      spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(ErrCode::EndOfFile);
     } else {
-      LOG(ERROR) << ErrCode::ReadError;
-      LOG(ERROR) << ErrInfo::InfoLoading(Fin.gcount());
-      LOG(ERROR) << ErrInfo::InfoFile(FilePath);
+      spdlog::error(ErrCode::ReadError);
+      spdlog::error(ErrInfo::InfoLoading(Fin.gcount()));
+      spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(ErrCode::ReadError);
     }
   }
@@ -47,16 +48,16 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
   using namespace std::literals::string_view_literals;
   if (FilePath.extension() == ".so"sv) {
     if (auto Res = LMgr.setPath(FilePath); !Res) {
-      LOG(ERROR) << ErrInfo::InfoFile(FilePath);
+      spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }
     if (auto Res = LMgr.getVersion()) {
       if (*Res != AOT::kBinaryVersion) {
-        LOG(ERROR) << ErrInfo::InfoMismatch(AOT::kBinaryVersion, *Res);
+        spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, *Res));
         return Unexpect(ErrCode::InvalidVersion);
       }
     } else {
-      LOG(ERROR) << ErrInfo::InfoFile(FilePath);
+      spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }
 
@@ -65,29 +66,29 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
       if (auto Res = parseModule(*Code)) {
         Mod = std::move(*Res);
       } else {
-        LOG(ERROR) << ErrInfo::InfoFile(FilePath);
+        spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
       }
     } else {
-      LOG(ERROR) << ErrInfo::InfoFile(FilePath);
+      spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Code);
     }
     if (auto Res = Mod->loadCompiled(LMgr)) {
       return Mod;
     } else {
-      LOG(ERROR) << ErrInfo::InfoFile(FilePath);
+      spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }
   } else {
     auto Mod = std::make_unique<AST::Module>();
     if (auto Res = FMgr.setPath(FilePath); !Res) {
-      LOG(ERROR) << ErrInfo::InfoFile(FilePath);
+      spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }
     if (auto Res = Mod->loadBinary(FMgr, Conf)) {
       return Mod;
     } else {
-      LOG(ERROR) << ErrInfo::InfoFile(FilePath);
+      spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }
   }

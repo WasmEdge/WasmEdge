@@ -27,7 +27,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     if (Stat) {
       /// Check host function cost.
       if (unlikely(!Stat->addCost(HostFunc.getCost()))) {
-        LOG(ERROR) << ErrCode::CostLimitExceeded;
+        spdlog::error(ErrCode::CostLimitExceeded);
         return Unexpect(ErrCode::CostLimitExceeded);
       }
       /// Start recording time of running host function.
@@ -50,7 +50,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
 
     if (!Ret) {
       if (Ret.error() == ErrCode::ExecutionFailed) {
-        LOG(ERROR) << Ret.error();
+        spdlog::error(Ret.error());
       }
       return Unexpect(Ret);
     }
@@ -101,7 +101,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     if (Status != 0) {
       ErrCode Code = static_cast<ErrCode>(Status);
       if (Code != ErrCode::Terminated) {
-        LOG(ERROR) << Code;
+        spdlog::error(Code);
       }
       return Unexpect(Code);
     }

@@ -14,5 +14,4 @@ target_link_libraries(wasmedgeValidator
 target_include_directories(wasmedgeValidator
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/thirdparty
 )

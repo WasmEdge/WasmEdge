@@ -3762,7 +3762,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   namespace fs = std::filesystem;
   using namespace std::literals;
 
-  LOG(INFO) << "compile start";
+  spdlog::info("compile start");
   fs::path LLPath(OutputPath);
   LLPath.replace_extension("ll"sv);
   fs::path OPath(OutputPath);
@@ -3825,15 +3825,15 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     LLModule->print(OS, nullptr);
   }
 
-  LOG(INFO) << "verify start";
+  spdlog::info("verify start");
   llvm::verifyModule(*LLModule, &llvm::errs());
-  LOG(INFO) << "optimize start";
+  spdlog::info("optimize start");
 
   // tempfile
   auto Object = llvm::sys::fs::TempFile::create(OPath.u8string());
   if (!Object) {
     // TODO:return error
-    LOG(ERROR) << "so file creation failed:" << OPath.native();
+    spdlog::error("so file creation failed:{}", OPath.native());
     llvm::consumeError(Object.takeError());
     return Unexpect(ErrCode::InvalidPath);
   }
@@ -3841,7 +3841,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   auto OS = std::make_unique<llvm::raw_fd_ostream>(Object->TmpName, EC);
   if (EC) {
     // TODO:return error
-    LOG(ERROR) << "object file creation failed:" << Object->TmpName;
+    spdlog::error("object file creation failed:{}", Object->TmpName);
     llvm::consumeError(Object->discard());
     return Unexpect(ErrCode::InvalidPath);
   }
@@ -3854,7 +3854,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
         llvm::TargetRegistry::lookupTarget(Triple, Error);
     if (!TheTarget) {
       // TODO:return error
-      LOG(ERROR) << "lookupTarget failed";
+      spdlog::error("lookupTarget failed");
       llvm::consumeError(Object->discard());
       return Unexpect(ErrCode::InvalidPath);
     }
@@ -3927,7 +3927,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     if (TM->addPassesToEmitFile(CodeGenPasses, *OS, nullptr, CGFT_ObjectFile,
                                 false)) {
       // TODO:return error
-      LOG(ERROR) << "addPassesToEmitFile failed";
+      spdlog::error("addPassesToEmitFile failed");
       llvm::consumeError(Object->discard());
       return Unexpect(ErrCode::InvalidPath);
     }
@@ -3938,7 +3938,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       llvm::raw_fd_ostream OS(Fd, true);
       LLModule->print(OS, nullptr);
     }
-    LOG(INFO) << "codegen start";
+    spdlog::info("codegen start");
     CodeGenPasses.run(*LLModule);
   }
 
@@ -3959,7 +3959,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   );
 
   llvm::consumeError(Object->discard());
-  LOG(INFO) << "compile done";
+  spdlog::info("compile done");
 
   return {};
 }

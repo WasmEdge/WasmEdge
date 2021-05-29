@@ -11,19 +11,16 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "easyloggingpp/easylogging++.h"
+#define SPDLOG_NO_EXCEPTIONS 1
+#include "spdlog/spdlog.h"
+#include "spdlog/fmt/ostr.h"
 
 namespace WasmEdge {
 namespace Log {
 
-void passEasyloggingppArgs(int Argc, char *Argv[]);
-
 void setDebugLoggingLevel();
 
 void setErrorLoggingLevel();
-
-extern el::base::type::StoragePointer elStorage;
-extern el::base::debug::CrashHandler elCrashHandler;
 
 } // namespace Log
 } // namespace WasmEdge

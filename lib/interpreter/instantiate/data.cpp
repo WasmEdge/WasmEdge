@@ -21,8 +21,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       /// Run initialize expression.
       if (auto Res = runExpression(StoreMgr, DataSeg.getInstrs()); !Res) {
-        LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
-        LOG(ERROR) << ErrInfo::InfoAST(DataSeg.NodeAttr);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
+        spdlog::error(ErrInfo::InfoAST(DataSeg.NodeAttr));
         return Unexpect(Res);
       }
       Offset = retrieveValue<uint32_t>(StackMgr.pop());
@@ -35,8 +35,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg.getIdx());
         /// Check data fits.
         if (!MemInst->checkAccessBound(Offset, DataSeg.getData().size())) {
-          LOG(ERROR) << ErrCode::DataSegDoesNotFit;
-          LOG(ERROR) << ErrInfo::InfoAST(DataSeg.NodeAttr);
+          spdlog::error(ErrCode::DataSegDoesNotFit);
+          spdlog::error(ErrInfo::InfoAST(DataSeg.NodeAttr));
           return Unexpect(ErrCode::DataSegDoesNotFit);
         }
       }
@@ -74,7 +74,7 @@ Expect<void> Interpreter::initMemory(Runtime::StoreManager &StoreMgr,
       if (auto Res = MemInst->setBytes(DataInst->getData(), Off, 0,
                                        DataInst->getData().size());
           !Res) {
-        LOG(ERROR) << ErrInfo::InfoAST(DataSeg.NodeAttr);
+        spdlog::error(ErrInfo::InfoAST(DataSeg.NodeAttr));
         return Unexpect(Res);
       }
 

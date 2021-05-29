@@ -53,6 +53,5 @@ target_include_directories(wasmedgeAOT
   PUBLIC
   ${PROJECT_BINARY_DIR}/include
   ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/thirdparty
   ${PROJECT_SOURCE_DIR}/thirdparty/blake3
 )

@@ -24,8 +24,8 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
   StoreMgr.reset();
   /// Check is module name duplicated.
   if (auto Res = StoreMgr.findModule(Obj.getModuleName())) {
-    LOG(ERROR) << ErrCode::ModuleNameConflict;
-    LOG(ERROR) << ErrInfo::InfoRegistering(Obj.getModuleName());
+    spdlog::error(ErrCode::ModuleNameConflict);
+    spdlog::error(ErrInfo::InfoRegistering(Obj.getModuleName()));
     return Unexpect(ErrCode::ModuleNameConflict);
   }
   auto ModInstAddr = StoreMgr.importModule(Obj.getModuleName());
@@ -60,7 +60,7 @@ Expect<void> Interpreter::registerModule(Runtime::StoreManager &StoreMgr,
                                          std::string_view Name) {
   InsMode = InstantiateMode::ImportWasm;
   if (auto Res = instantiate(StoreMgr, Mod, Name); !Res) {
-    LOG(ERROR) << ErrInfo::InfoRegistering(Name);
+    spdlog::error(ErrInfo::InfoRegistering(Name));
     return Unexpect(Res);
   }
   return {};
@@ -84,9 +84,9 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
   std::vector<ValType> GotParamTypes(ParamTypes.begin(), ParamTypes.end());
   GotParamTypes.resize(Params.size(), ValType::I32);
   if (FuncType.Params != GotParamTypes) {
-    LOG(ERROR) << ErrCode::FuncSigMismatch;
-    LOG(ERROR) << ErrInfo::InfoMismatch(FuncType.Params, FuncType.Returns,
-                                        GotParamTypes, FuncType.Returns);
+    spdlog::error(ErrCode::FuncSigMismatch);
+    spdlog::error(ErrInfo::InfoMismatch(FuncType.Params, FuncType.Returns,
+                                        GotParamTypes, FuncType.Returns));
     return Unexpect(ErrCode::FuncSigMismatch);
   }
 

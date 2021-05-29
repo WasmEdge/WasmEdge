@@ -42,15 +42,15 @@ TypeFI<TIn, TOut> Interpreter::runTruncateOp(const AST::Instruction &Instr,
   TIn Z = retrieveValue<TIn>(Val);
   /// If z is a NaN or an infinity, then the result is undefined.
   if (std::isnan(Z)) {
-    LOG(ERROR) << ErrCode::InvalidConvToInt;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
-                                           {Val}, {ValTypeFromType<TIn>()});
+    spdlog::error(ErrCode::InvalidConvToInt);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+                                           {Val}, {ValTypeFromType<TIn>()}));
     return Unexpect(ErrCode::InvalidConvToInt);
   }
   if (std::isinf(Z)) {
-    LOG(ERROR) << ErrCode::IntegerOverflow;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
-                                           {Val}, {ValTypeFromType<TIn>()});
+    spdlog::error(ErrCode::IntegerOverflow);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+                                           {Val}, {ValTypeFromType<TIn>()}));
     return Unexpect(ErrCode::IntegerOverflow);
   }
   /// If trunc(z) is out of range of target type, then the result is undefined.
@@ -60,19 +60,19 @@ TypeFI<TIn, TOut> Interpreter::runTruncateOp(const AST::Instruction &Instr,
   if (sizeof(TIn) > sizeof(TOut)) {
     /// Floating precision is better than integer case.
     if (Z < ValTOutMin || Z > ValTOutMax) {
-      LOG(ERROR) << ErrCode::IntegerOverflow;
-      LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+      spdlog::error(ErrCode::IntegerOverflow);
+      spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
                                              Instr.getOffset(), {Val},
-                                             {ValTypeFromType<TIn>()});
+                                             {ValTypeFromType<TIn>()}));
       return Unexpect(ErrCode::IntegerOverflow);
     }
   } else {
     /// Floating precision is worse than integer case.
     if (Z < ValTOutMin || Z >= ValTOutMax) {
-      LOG(ERROR) << ErrCode::IntegerOverflow;
-      LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
+      spdlog::error(ErrCode::IntegerOverflow);
+      spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
                                              Instr.getOffset(), {Val},
-                                             {ValTypeFromType<TIn>()});
+                                             {ValTypeFromType<TIn>()}));
       return Unexpect(ErrCode::IntegerOverflow);
     }
   }

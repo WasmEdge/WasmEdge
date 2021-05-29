@@ -10,7 +10,7 @@ Expect<void> Expression::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   if (auto Res = loadInstrSeq(Mgr, Conf)) {
     Instrs = std::move(*Res);
   } else {
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(NodeAttr));
     return Unexpect(Res);
   }
   return {};

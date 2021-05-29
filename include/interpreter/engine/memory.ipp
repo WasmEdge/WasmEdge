@@ -18,13 +18,13 @@ TypeT<T> Interpreter::runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
   ValVariant &Val = StackMgr.getTop();
   if (retrieveValue<uint32_t>(Val) >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-    LOG(ERROR) << ErrInfo::InfoBoundary(
+    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrInfo::InfoBoundary(
         retrieveValue<uint32_t>(Val) +
             static_cast<uint64_t>(Instr.getMemoryOffset()),
-        BitWidth / 8, MemInst.getBoundIdx());
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+        BitWidth / 8, MemInst.getBoundIdx()));
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
   uint32_t EA = retrieveValue<uint32_t>(Val) + Instr.getMemoryOffset();
@@ -32,8 +32,8 @@ TypeT<T> Interpreter::runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
   /// Value = Mem.Data[EA : N / 8]
   if (auto Res = MemInst.loadValue(retrieveValue<T>(Val), EA, BitWidth / 8);
       !Res) {
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
   }
   return {};
@@ -49,20 +49,20 @@ TypeN<T> Interpreter::runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
   /// Calculate EA = i + offset
   uint32_t I = retrieveValue<uint32_t>(StackMgr.pop());
   if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-    LOG(ERROR) << ErrInfo::InfoBoundary(
+    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrInfo::InfoBoundary(
         I + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
-        MemInst.getBoundIdx());
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+        MemInst.getBoundIdx()));
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
   uint32_t EA = I + Instr.getMemoryOffset();
 
   /// Store value to bytes.
   if (auto Res = MemInst.storeValue(C, EA, BitWidth / 8); !Res) {
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
   }
   return {};
@@ -77,13 +77,13 @@ Interpreter::runLoadExpandOp(Runtime::Instance::MemoryInstance &MemInst,
   ValVariant &Val = StackMgr.getTop();
   if (retrieveValue<uint32_t>(Val) >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-    LOG(ERROR) << ErrInfo::InfoBoundary(
+    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrInfo::InfoBoundary(
         retrieveValue<uint32_t>(Val) +
             static_cast<uint64_t>(Instr.getMemoryOffset()),
-        8, MemInst.getBoundIdx());
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+        8, MemInst.getBoundIdx()));
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
   uint32_t EA = retrieveValue<uint32_t>(Val) + Instr.getMemoryOffset();
@@ -91,8 +91,8 @@ Interpreter::runLoadExpandOp(Runtime::Instance::MemoryInstance &MemInst,
   /// Value = Mem.Data[EA : N / 8]
   uint64_t Buffer;
   if (auto Res = MemInst.loadValue(Buffer, EA, 8); !Res) {
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
   }
 
@@ -122,13 +122,13 @@ Interpreter::runLoadSplatOp(Runtime::Instance::MemoryInstance &MemInst,
   ValVariant &Val = StackMgr.getTop();
   if (retrieveValue<uint32_t>(Val) >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-    LOG(ERROR) << ErrInfo::InfoBoundary(
+    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrInfo::InfoBoundary(
         retrieveValue<uint32_t>(Val) +
             static_cast<uint64_t>(Instr.getMemoryOffset()),
-        sizeof(T), MemInst.getBoundIdx());
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+        sizeof(T), MemInst.getBoundIdx()));
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
   uint32_t EA = retrieveValue<uint32_t>(Val) + Instr.getMemoryOffset();
@@ -137,8 +137,8 @@ Interpreter::runLoadSplatOp(Runtime::Instance::MemoryInstance &MemInst,
   using VT [[gnu::vector_size(16)]] = T;
   uint64_t Buffer;
   if (auto Res = MemInst.loadValue(Buffer, EA, sizeof(T)); !Res) {
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
   }
   const T Part = Buffer;
@@ -168,12 +168,12 @@ Interpreter::runLoadLaneOp(Runtime::Instance::MemoryInstance &MemInst,
   ValVariant &Val = StackMgr.getTop();
   const uint32_t Offset = retrieveValue<uint32_t>(Val);
   if (Offset > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-    LOG(ERROR) << ErrInfo::InfoBoundary(
+    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrInfo::InfoBoundary(
         Offset + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(T),
-        MemInst.getBoundIdx());
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+        MemInst.getBoundIdx()));
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
   const uint32_t EA = Offset + Instr.getMemoryOffset();
@@ -181,8 +181,8 @@ Interpreter::runLoadLaneOp(Runtime::Instance::MemoryInstance &MemInst,
   /// Value = Mem.Data[EA : N / 8]
   uint64_t Buffer;
   if (auto Res = MemInst.loadValue(Buffer, EA, sizeof(T)); !Res) {
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
   }
 
@@ -202,20 +202,20 @@ Interpreter::runStoreLaneOp(Runtime::Instance::MemoryInstance &MemInst,
   /// Calculate EA = i + offset
   uint32_t I = retrieveValue<uint32_t>(StackMgr.pop());
   if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    LOG(ERROR) << ErrCode::MemoryOutOfBounds;
-    LOG(ERROR) << ErrInfo::InfoBoundary(
+    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrInfo::InfoBoundary(
         I + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(T),
-        MemInst.getBoundIdx());
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+        MemInst.getBoundIdx()));
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
   uint32_t EA = I + Instr.getMemoryOffset();
 
   /// Store value to bytes.
   if (auto Res = MemInst.storeValue(C, EA, sizeof(T)); !Res) {
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                           Instr.getOffset());
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
   }
   return {};

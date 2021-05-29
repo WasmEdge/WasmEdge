@@ -40,20 +40,20 @@ TypeT<T> Interpreter::runDivOp(const AST::Instruction &Instr, ValVariant &Val1,
   if (!std::is_floating_point_v<T>) {
     if (V2 == 0) {
       /// Integer case: If v2 is 0, then the result is undefined.
-      LOG(ERROR) << ErrCode::DivideByZero;
-      LOG(ERROR) << ErrInfo::InfoInstruction(
+      spdlog::error(ErrCode::DivideByZero);
+      spdlog::error(ErrInfo::InfoInstruction(
           Instr.getOpCode(), Instr.getOffset(), {Val1, Val2},
-          {ValTypeFromType<T>(), ValTypeFromType<T>()}, std::is_signed_v<T>);
+          {ValTypeFromType<T>(), ValTypeFromType<T>()}, std::is_signed_v<T>));
       return Unexpect(ErrCode::DivideByZero);
     }
     if (std::is_signed_v<T> && V1 == std::numeric_limits<T>::min() &&
         V2 == static_cast<T>(-1)) {
       /// Signed Integer case: If signed(v1) / signed(v2) is 2^(N − 1), then the
       /// result is undefined.
-      LOG(ERROR) << ErrCode::IntegerOverflow;
-      LOG(ERROR) << ErrInfo::InfoInstruction(
+      spdlog::error(ErrCode::IntegerOverflow);
+      spdlog::error(ErrInfo::InfoInstruction(
           Instr.getOpCode(), Instr.getOffset(), {Val1, Val2},
-          {ValTypeFromType<T>(), ValTypeFromType<T>()}, true);
+          {ValTypeFromType<T>(), ValTypeFromType<T>()}, true));
       return Unexpect(ErrCode::IntegerOverflow);
     }
   }
@@ -71,10 +71,10 @@ TypeI<T> Interpreter::runRemOp(const AST::Instruction &Instr, ValVariant &Val1,
   const T &I2 = retrieveValue<T>(Val2);
   /// If i2 is 0, then the result is undefined.
   if (I2 == 0) {
-    LOG(ERROR) << ErrCode::DivideByZero;
-    LOG(ERROR) << ErrInfo::InfoInstruction(
+    spdlog::error(ErrCode::DivideByZero);
+    spdlog::error(ErrInfo::InfoInstruction(
         Instr.getOpCode(), Instr.getOffset(), {Val1, Val2},
-        {ValTypeFromType<T>(), ValTypeFromType<T>()}, std::is_signed_v<T>);
+        {ValTypeFromType<T>(), ValTypeFromType<T>()}, std::is_signed_v<T>));
     return Unexpect(ErrCode::DivideByZero);
   }
   /// Else, return the i1 % i2. Signed case is handled.

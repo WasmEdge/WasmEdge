@@ -126,20 +126,20 @@ Expect<void> Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
 
   /// If idx not small than tab.elem, trap.
   if (Idx >= TabInst->getSize()) {
-    LOG(ERROR) << ErrCode::UndefinedElement;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+    spdlog::error(ErrCode::UndefinedElement);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
-                                           {ValTypeFromType<uint32_t>()});
+                                           {ValTypeFromType<uint32_t>()}));
     return Unexpect(ErrCode::UndefinedElement);
   }
 
   /// Get function address.
   ValVariant Ref = *TabInst->getRefAddr(Idx);
   if (isNullRef(Ref)) {
-    LOG(ERROR) << ErrCode::UninitializedElement;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+    spdlog::error(ErrCode::UninitializedElement);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
-                                           {ValTypeFromType<uint32_t>()});
+                                           {ValTypeFromType<uint32_t>()}));
     return Unexpect(ErrCode::UninitializedElement);
   }
   uint32_t FuncAddr = retrieveFuncIdx(Ref);
@@ -148,13 +148,13 @@ Expect<void> Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
   const auto &FuncType = FuncInst->getFuncType();
   if (*TargetFuncType != FuncType) {
-    LOG(ERROR) << ErrCode::IndirectCallTypeMismatch;
-    LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+    spdlog::error(ErrCode::IndirectCallTypeMismatch);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
-                                           {ValTypeFromType<uint32_t>()});
-    LOG(ERROR) << ErrInfo::InfoMismatch(TargetFuncType->Params,
+                                           {ValTypeFromType<uint32_t>()}));
+    spdlog::error(ErrInfo::InfoMismatch(TargetFuncType->Params,
                                         TargetFuncType->Returns,
-                                        FuncType.Params, FuncType.Returns);
+                                        FuncType.Params, FuncType.Returns));
     return Unexpect(ErrCode::IndirectCallTypeMismatch);
   }
   if (auto Res = enterFunction(StoreMgr, *FuncInst, PC); !Res) {

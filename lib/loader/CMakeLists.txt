@@ -17,7 +17,6 @@ target_link_libraries(wasmedgeLoaderFileMgr
 target_include_directories(wasmedgeLoaderFileMgr
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/thirdparty
 )
 
 add_library(wasmedgeLoader
@@ -35,5 +34,4 @@ target_link_libraries(wasmedgeLoader
 target_include_directories(wasmedgeLoader
   PUBLIC
   ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/thirdparty
 )

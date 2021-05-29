@@ -9,7 +9,7 @@ WasmEdge is developed in the open, and is constantly being improved by our **use
 
 This guide provides information on filing issues and guidelines for open source contributors. **Please leave comments / suggestions if you find something is missing or incorrect.**
 
-
+If you are looking for ideas for contribution, [here is a wish list](wish_list.md) of items we'd like to get some help with!
 
 ## Getting Started
 

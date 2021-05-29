@@ -21,89 +21,89 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
 
   /// Validate and register import section into FormChecker.
   if (auto Res = validate(Mod.getImportSection()); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.getImportSection().NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(Mod.getImportSection().NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Validate function section and register functions into FormChecker.
   if (auto Res = validate(Mod.getFunctionSection()); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.getFunctionSection().NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(Mod.getFunctionSection().NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Validate table section and register tables into FormChecker.
   if (auto Res = validate(Mod.getTableSection()); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.getTableSection().NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(Mod.getTableSection().NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Validate memory section and register memories into FormChecker.
   if (auto Res = validate(Mod.getMemorySection()); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.getMemorySection().NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(Mod.getMemorySection().NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Validate global section and register globals into FormChecker.
   if (auto Res = validate(Mod.getGlobalSection()); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.getGlobalSection().NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(Mod.getGlobalSection().NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Validate export section.
   if (auto Res = validate(Mod.getExportSection()); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.getExportSection().NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(Mod.getExportSection().NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Validate start section.
   if (auto Res = validate(Mod.getStartSection()); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.getStartSection().NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(Mod.getStartSection().NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Validate element section which initialize tables.
   if (auto Res = validate(Mod.getElementSection()); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.getElementSection().NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(Mod.getElementSection().NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Validate data section which initialize memories.
   if (auto Res = validate(Mod.getDataSection()); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.getDataSection().NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(Mod.getDataSection().NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Validate code section and expressions.
   if (auto Res = validate(Mod.getCodeSection()); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.getCodeSection().NodeAttr);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(Mod.getCodeSection().NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(Res);
   }
 
   /// Multiple tables is for ReferenceTypes proposal.
   if (Checker.getTables().size() > 1 &&
       !Conf.hasProposal(Proposal::ReferenceTypes)) {
-    LOG(ERROR) << ErrCode::MultiTables;
-    LOG(ERROR) << ErrInfo::InfoProposal(Proposal::ReferenceTypes);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrCode::MultiTables);
+    spdlog::error(ErrInfo::InfoProposal(Proposal::ReferenceTypes));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(ErrCode::MultiTables);
   }
 
   /// In current version, memory must be <= 1.
   if (Checker.getMemories().size() > 1) {
-    LOG(ERROR) << ErrCode::MultiMemories;
-    LOG(ERROR) << ErrInfo::InfoInstanceBound(ExternalType::Memory,
-                                             Checker.getMemories().size(), 1);
-    LOG(ERROR) << ErrInfo::InfoAST(Mod.NodeAttr);
+    spdlog::error(ErrCode::MultiMemories);
+    spdlog::error(ErrInfo::InfoInstanceBound(ExternalType::Memory,
+                                             Checker.getMemories().size(), 1));
+    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(ErrCode::MultiMemories);
   }
   return {};
@@ -112,8 +112,8 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
 /// Validate Limit type. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::Limit &Lim) {
   if (Lim.hasMax() && Lim.getMin() > Lim.getMax()) {
-    LOG(ERROR) << ErrCode::InvalidLimit;
-    LOG(ERROR) << ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax());
+    spdlog::error(ErrCode::InvalidLimit);
+    spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
     return Unexpect(ErrCode::InvalidLimit);
   }
   return {};
@@ -137,8 +137,8 @@ Expect<void> Validator::validate(const AST::MemoryType &Mem) {
   }
   if (Lim.getMin() > LIMIT_MEMORYTYPE ||
       (Lim.hasMax() && Lim.getMax() > LIMIT_MEMORYTYPE)) {
-    LOG(ERROR) << ErrCode::InvalidMemPages;
-    LOG(ERROR) << ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax());
+    spdlog::error(ErrCode::InvalidMemPages);
+    spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
     return Unexpect(ErrCode::InvalidMemPages);
   }
   return {};
@@ -151,7 +151,7 @@ Expect<void> Validator::validate(const AST::GlobalSegment &GlobSeg) {
           validateConstExpr(GlobSeg.getInstrs(),
                             std::array{GlobSeg.getGlobalType().getValueType()});
       !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
     return Unexpect(Res);
   }
   return {};
@@ -164,7 +164,7 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
     if (auto Res = validateConstExpr(
             Expr.getInstrs(), std::array{ToValType(ElemSeg.getRefType())});
         !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
     }
   }
@@ -174,21 +174,21 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
     /// Check table index and reference type in context.
     const auto &TableVec = Checker.getTables();
     if (ElemSeg.getIdx() >= TableVec.size()) {
-      LOG(ERROR) << ErrCode::InvalidTableIdx;
-      LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Table,
-                                             ElemSeg.getIdx(), TableVec.size());
+      spdlog::error(ErrCode::InvalidTableIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Table, ElemSeg.getIdx(), TableVec.size()));
       return Unexpect(ErrCode::InvalidTableIdx);
     }
     if (TableVec[ElemSeg.getIdx()] != ElemSeg.getRefType()) {
       /// Reference type not matched.
-      LOG(ERROR) << ErrCode::InvalidTableIdx;
+      spdlog::error(ErrCode::InvalidTableIdx);
       return Unexpect(ErrCode::InvalidTableIdx);
     }
     /// Check table initialization is a const expression.
     if (auto Res =
             validateConstExpr(ElemSeg.getInstrs(), std::array{ValType::I32});
         !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
     }
   }
@@ -214,7 +214,7 @@ Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
   if (auto Res = Checker.validate(CodeSeg.getInstrs(),
                                   Checker.getTypes()[TypeIdx].second);
       !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
     return Unexpect(Res);
   }
   return {};
@@ -226,16 +226,16 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
     /// Check memory index in context.
     const auto &MemVec = Checker.getMemories();
     if (DataSeg.getIdx() >= MemVec.size()) {
-      LOG(ERROR) << ErrCode::InvalidMemoryIdx;
-      LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory,
-                                             DataSeg.getIdx(), MemVec.size());
+      spdlog::error(ErrCode::InvalidMemoryIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory,
+                                             DataSeg.getIdx(), MemVec.size()));
       return Unexpect(ErrCode::InvalidMemoryIdx);
     }
     /// Check memory initialization is a const expression.
     if (auto Res =
             validateConstExpr(DataSeg.getInstrs(), std::array{ValType::I32});
         !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(ASTNodeAttr::Expression);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
     }
   }
@@ -252,9 +252,10 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
     const auto TId = ImpDesc.getExternalFuncTypeIdx();
     /// Function type index must exist in context.
     if (TId >= Checker.getTypes().size()) {
-      LOG(ERROR) << ErrCode::InvalidFuncTypeIdx;
-      LOG(ERROR) << ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::FunctionType, TId, Checker.getTypes().size());
+      spdlog::error(ErrCode::InvalidFuncTypeIdx);
+      spdlog::error(
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::FunctionType, TId,
+                                   Checker.getTypes().size()));
       return Unexpect(ErrCode::InvalidFuncTypeIdx);
     }
     Checker.addRef(Checker.getFunctions().size());
@@ -265,7 +266,7 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
     const auto &TabType = ImpDesc.getExternalTableType();
     /// Table type must be valid.
     if (auto Res = validate(TabType); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(TabType.NodeAttr);
+      spdlog::error(ErrInfo::InfoAST(TabType.NodeAttr));
       return Unexpect(Res);
     }
     Checker.addTable(TabType);
@@ -275,7 +276,7 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
     const auto &MemType = ImpDesc.getExternalMemoryType();
     /// Memory type must be valid.
     if (auto Res = validate(MemType); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(MemType.NodeAttr);
+      spdlog::error(ErrInfo::InfoAST(MemType.NodeAttr));
       return Unexpect(Res);
     }
     Checker.addMemory(MemType);
@@ -297,34 +298,34 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
   switch (ExpDesc.getExternalType()) {
   case ExternalType::Function:
     if (Id >= Checker.getFunctions().size()) {
-      LOG(ERROR) << ErrCode::InvalidFuncIdx;
-      LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function,
-                                             Id, Checker.getFunctions().size());
+      spdlog::error(ErrCode::InvalidFuncIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Function, Id, Checker.getFunctions().size()));
       return Unexpect(ErrCode::InvalidFuncIdx);
     }
     Checker.addRef(Id);
     return {};
   case ExternalType::Table:
     if (Id >= Checker.getTables().size()) {
-      LOG(ERROR) << ErrCode::InvalidTableIdx;
-      LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Table, Id,
-                                             Checker.getTables().size());
+      spdlog::error(ErrCode::InvalidTableIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Table, Id,
+                                             Checker.getTables().size()));
       return Unexpect(ErrCode::InvalidTableIdx);
     }
     return {};
   case ExternalType::Memory:
     if (Id >= Checker.getMemories().size()) {
-      LOG(ERROR) << ErrCode::InvalidMemoryIdx;
-      LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, Id,
-                                             Checker.getMemories().size());
+      spdlog::error(ErrCode::InvalidMemoryIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, Id,
+                                             Checker.getMemories().size()));
       return Unexpect(ErrCode::InvalidMemoryIdx);
     }
     return {};
   case ExternalType::Global:
     if (Id >= Checker.getGlobals().size()) {
-      LOG(ERROR) << ErrCode::InvalidGlobalIdx;
-      LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Global, Id,
-                                             Checker.getGlobals().size());
+      spdlog::error(ErrCode::InvalidGlobalIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Global, Id,
+                                             Checker.getGlobals().size()));
       return Unexpect(ErrCode::InvalidGlobalIdx);
     }
     return {};
@@ -338,7 +339,7 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
 Expect<void> Validator::validate(const AST::ImportSection &ImportSec) {
   for (auto &ImportDesc : ImportSec.getContent()) {
     if (auto Res = validate(ImportDesc); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(ImportDesc.NodeAttr);
+      spdlog::error(ErrInfo::InfoAST(ImportDesc.NodeAttr));
       return Unexpect(Res);
     }
   }
@@ -353,9 +354,9 @@ Expect<void> Validator::validate(const AST::FunctionSection &FuncSec) {
   /// Check if type id of function is valid in context.
   for (auto &TId : FuncVec) {
     if (TId >= TypeVec.size()) {
-      LOG(ERROR) << ErrCode::InvalidFuncTypeIdx;
-      LOG(ERROR) << ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::FunctionType, TId, TypeVec.size());
+      spdlog::error(ErrCode::InvalidFuncTypeIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::FunctionType, TId, TypeVec.size()));
       return Unexpect(ErrCode::InvalidFuncTypeIdx);
     }
     Checker.addFunc(TId);
@@ -369,7 +370,7 @@ Expect<void> Validator::validate(const AST::TableSection &TabSec) {
     if (auto Res = validate(Tab)) {
       Checker.addTable(Tab);
     } else {
-      LOG(ERROR) << ErrInfo::InfoAST(Tab.NodeAttr);
+      spdlog::error(ErrInfo::InfoAST(Tab.NodeAttr));
       return Unexpect(Res);
     }
   }
@@ -382,7 +383,7 @@ Expect<void> Validator::validate(const AST::MemorySection &MemSec) {
     if (auto Res = validate(Mem)) {
       Checker.addMemory(Mem);
     } else {
-      LOG(ERROR) << ErrInfo::InfoAST(Mem.NodeAttr);
+      spdlog::error(ErrInfo::InfoAST(Mem.NodeAttr));
       return Unexpect(Res);
     }
   }
@@ -395,7 +396,7 @@ Expect<void> Validator::validate(const AST::GlobalSection &GlobSec) {
     if (auto Res = validate(GlobSeg)) {
       Checker.addGlobal(GlobSeg.getGlobalType());
     } else {
-      LOG(ERROR) << ErrInfo::InfoAST(GlobSeg.NodeAttr);
+      spdlog::error(ErrInfo::InfoAST(GlobSeg.NodeAttr));
       return Unexpect(Res);
     }
   }
@@ -408,7 +409,7 @@ Expect<void> Validator::validate(const AST::ElementSection &ElemSec) {
     if (auto Res = validate(ElemSeg)) {
       Checker.addElem(ElemSeg);
     } else {
-      LOG(ERROR) << ErrInfo::InfoAST(ElemSeg.NodeAttr);
+      spdlog::error(ErrInfo::InfoAST(ElemSeg.NodeAttr));
       return Unexpect(Res);
     }
   }
@@ -425,13 +426,13 @@ Expect<void> Validator::validate(const AST::CodeSection &CodeSec) {
     /// Added functions contains imported functions.
     uint32_t TId = Id + Checker.getNumImportFuncs();
     if (TId >= FuncVec.size()) {
-      LOG(ERROR) << ErrCode::InvalidFuncIdx;
-      LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function,
-                                             TId, FuncVec.size());
+      spdlog::error(ErrCode::InvalidFuncIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function,
+                                             TId, FuncVec.size()));
       return Unexpect(ErrCode::InvalidFuncIdx);
     }
     if (auto Res = validate(CodeVec[Id], FuncVec[TId]); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(CodeVec[Id].NodeAttr);
+      spdlog::error(ErrInfo::InfoAST(CodeVec[Id].NodeAttr));
       return Unexpect(Res);
     }
   }
@@ -444,7 +445,7 @@ Expect<void> Validator::validate(const AST::DataSection &DataSec) {
     if (auto Res = validate(DataSeg)) {
       Checker.addData(DataSeg);
     } else {
-      LOG(ERROR) << ErrInfo::InfoAST(DataSeg.NodeAttr);
+      spdlog::error(ErrInfo::InfoAST(DataSeg.NodeAttr));
       return Unexpect(Res);
     }
   }
@@ -456,9 +457,10 @@ Expect<void> Validator::validate(const AST::StartSection &StartSec) {
   if (StartSec.getContent()) {
     auto FId = *StartSec.getContent();
     if (FId >= Checker.getFunctions().size()) {
-      LOG(ERROR) << ErrCode::InvalidFuncIdx;
-      LOG(ERROR) << ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::Function, FId, Checker.getFunctions().size());
+      spdlog::error(ErrCode::InvalidFuncIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function,
+                                             FId,
+                                             Checker.getFunctions().size()));
       return Unexpect(ErrCode::InvalidFuncIdx);
     }
     auto TId = Checker.getFunctions()[FId];
@@ -472,8 +474,8 @@ Expect<void> Validator::validate(const AST::StartSection &StartSec) {
       for (auto &V : Type.second) {
         Returns.push_back(Checker.VTypeToAST(V));
       }
-      LOG(ERROR) << ErrCode::InvalidStartFunc;
-      LOG(ERROR) << ErrInfo::InfoMismatch({}, {}, Params, Returns);
+      spdlog::error(ErrCode::InvalidStartFunc);
+      spdlog::error(ErrInfo::InfoMismatch({}, {}, Params, Returns));
       return Unexpect(ErrCode::InvalidStartFunc);
     }
   }
@@ -487,12 +489,12 @@ Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
     auto Result = ExportNames.emplace(ExportDesc.getExternalName());
     if (!Result.second) {
       /// Duplicated export name.
-      LOG(ERROR) << ErrCode::DupExportName;
-      LOG(ERROR) << ErrInfo::InfoAST(ExportDesc.NodeAttr);
+      spdlog::error(ErrCode::DupExportName);
+      spdlog::error(ErrInfo::InfoAST(ExportDesc.NodeAttr));
       return Unexpect(ErrCode::DupExportName);
     }
     if (auto Res = validate(ExportDesc); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(ExportDesc.NodeAttr);
+      spdlog::error(ErrInfo::InfoAST(ExportDesc.NodeAttr));
       return Unexpect(Res);
     }
   }
@@ -509,18 +511,18 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
       /// For initialization case, global indices must be imported globals.
       auto GlobIdx = Instr.getTargetIndex();
       if (GlobIdx >= Checker.getNumImportGlobals()) {
-        LOG(ERROR) << ErrCode::InvalidGlobalIdx;
-        LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Global,
+        spdlog::error(ErrCode::InvalidGlobalIdx);
+        spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Global,
                                                GlobIdx,
-                                               Checker.getNumImportGlobals());
-        LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                               Instr.getOffset());
+                                               Checker.getNumImportGlobals()));
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return Unexpect(ErrCode::InvalidGlobalIdx);
       }
       if (Checker.getGlobals()[GlobIdx].second != ValMut::Const) {
-        LOG(ERROR) << ErrCode::ConstExprRequired;
-        LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                               Instr.getOffset());
+        spdlog::error(ErrCode::ConstExprRequired);
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return Unexpect(ErrCode::ConstExprRequired);
       }
       break;
@@ -530,12 +532,12 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
       auto FuncIdx = Instr.getTargetIndex();
       if (FuncIdx >= Checker.getFunctions().size()) {
         /// Function index out of range.
-        LOG(ERROR) << ErrCode::InvalidFuncIdx;
-        LOG(ERROR) << ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function,
+        spdlog::error(ErrCode::InvalidFuncIdx);
+        spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function,
                                                FuncIdx,
-                                               Checker.getFunctions().size());
-        LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                               Instr.getOffset());
+                                               Checker.getFunctions().size()));
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return Unexpect(ErrCode::InvalidFuncIdx);
       }
       Checker.addRef(Instr.getTargetIndex());
@@ -550,9 +552,9 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
     case OpCode::End:
       break;
     default:
-      LOG(ERROR) << ErrCode::ConstExprRequired;
-      LOG(ERROR) << ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                             Instr.getOffset());
+      spdlog::error(ErrCode::ConstExprRequired);
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
       return Unexpect(ErrCode::ConstExprRequired);
     }
   }

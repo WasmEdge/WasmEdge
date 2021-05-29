@@ -83,8 +83,8 @@ public:
                                          const uint32_t Length) const noexcept {
     /// Check access boundary.
     if (!checkAccessBound(Offset, Length)) {
-      LOG(ERROR) << ErrCode::TableOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
+      spdlog::error(ErrCode::TableOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::TableOutOfBounds);
     }
     return Span<const RefVariant>(Refs.begin() + Offset, Length);
@@ -95,15 +95,15 @@ public:
                        const uint32_t Start, const uint32_t Length) {
     /// Check access boundary.
     if (!checkAccessBound(Offset, Length)) {
-      LOG(ERROR) << ErrCode::TableOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
+      spdlog::error(ErrCode::TableOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::TableOutOfBounds);
     }
 
     /// Check input data validation.
     if (Start + Length > Slice.size()) {
-      LOG(ERROR) << ErrCode::TableOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Start, Length, Slice.size() - 1);
+      spdlog::error(ErrCode::TableOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Start, Length, Slice.size() - 1));
       return Unexpect(ErrCode::TableOutOfBounds);
     }
 
@@ -117,8 +117,8 @@ public:
                         const uint32_t Length) {
     /// Check access boundary.
     if (!checkAccessBound(Offset, Length)) {
-      LOG(ERROR) << ErrCode::TableOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Offset, Length, getBoundIdx());
+      spdlog::error(ErrCode::TableOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::TableOutOfBounds);
     }
 
@@ -130,8 +130,8 @@ public:
   /// Get the elem address.
   Expect<RefVariant> getRefAddr(const uint32_t Idx) const noexcept {
     if (Idx >= Refs.size()) {
-      LOG(ERROR) << ErrCode::TableOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Idx, 1, getBoundIdx());
+      spdlog::error(ErrCode::TableOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getBoundIdx()));
       return Unexpect(ErrCode::TableOutOfBounds);
     }
     return Refs[Idx];
@@ -140,8 +140,8 @@ public:
   /// Set the elem address.
   Expect<void> setRefAddr(const uint32_t Idx, const RefVariant Val) {
     if (Idx >= Refs.size()) {
-      LOG(ERROR) << ErrCode::TableOutOfBounds;
-      LOG(ERROR) << ErrInfo::InfoBoundary(Idx, 1, getBoundIdx());
+      spdlog::error(ErrCode::TableOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getBoundIdx()));
       return Unexpect(ErrCode::TableOutOfBounds);
     }
     Refs[Idx] = Val;

@@ -14,13 +14,13 @@ Expect<void> Segment::loadExpression(FileMgr &Mgr, const Configure &Conf) {
 Expect<void> GlobalSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read global type node.
   if (auto Res = Global.loadBinary(Mgr, Conf); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(NodeAttr));
     return Unexpect(Res);
   }
 
   /// Read the expression.
   if (auto Res = Segment::loadExpression(Mgr, Conf); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(NodeAttr));
     return Unexpect(Res);
   }
 
@@ -110,7 +110,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case 0x04:
   case 0x06:
     if (auto Res = Segment::loadExpression(Mgr, Conf); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+      spdlog::error(ErrInfo::InfoAST(NodeAttr));
       return Unexpect(Res);
     }
     break;
@@ -148,7 +148,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       Instruction RefFunc(OpCode::Ref__func);
       Instruction End(OpCode::End);
       if (auto Res = RefFunc.loadBinary(Mgr, Conf); !Res) {
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+        spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
       InitExprs.back().pushInstr(std::move(RefFunc));
@@ -188,7 +188,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     for (uint32_t i = 0; i < VecCnt; ++i) {
       InitExprs.emplace_back();
       if (auto Res = InitExprs.back().loadBinary(Mgr, Conf); !Res) {
-        LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+        spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
     }
@@ -242,7 +242,7 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 
   /// Read function body.
   if (auto Res = Segment::loadExpression(Mgr, Conf); !Res) {
-    LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+    spdlog::error(ErrInfo::InfoAST(NodeAttr));
     return Unexpect(Res);
   }
 
@@ -294,7 +294,7 @@ Expect<void> DataSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case 0x00: /// 0x00 expr vec(byte) , Active
     /// Read the offset expression.
     if (auto Res = Segment::loadExpression(Mgr, Conf); !Res) {
-      LOG(ERROR) << ErrInfo::InfoAST(NodeAttr);
+      spdlog::error(ErrInfo::InfoAST(NodeAttr));
       return Unexpect(Res);
     }
     Mode = DataMode::Active;

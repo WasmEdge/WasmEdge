@@ -1,5 +1,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
+find_package(spdlog)
+if(spdlog_FOUND)
+else()
+  FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG        v1.8.5
+  )
+  set(BUILD_GMOCK OFF)
+  FetchContent_MakeAvailable(spdlog)
+endif()
+
 add_library(wasmedgeCommon
   hexstr.cpp
   log.cpp
@@ -7,13 +19,12 @@ add_library(wasmedgeCommon
 )
 
 target_link_libraries(wasmedgeCommon
-  PRIVATE
-  utilLog
+  PUBLIC
+  spdlog::spdlog
 )
 
 target_include_directories(wasmedgeCommon
   PUBLIC
   ${PROJECT_BINARY_DIR}/include
   ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/thirdparty
 )

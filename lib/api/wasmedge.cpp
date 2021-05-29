@@ -1477,6 +1477,9 @@ void WasmEdge_ImportObjectInitWASI(
   }
   auto *WasiMod =
       dynamic_cast<WasmEdge::Host::WasiModule *>(fromImpObjCxt(Cxt));
+  if (!WasiMod) {
+    return;
+  }
   std::vector<std::string> ArgVec, EnvVec, DirVec;
   std::string ProgName;
   if (Args) {
@@ -1526,6 +1529,9 @@ void WasmEdge_ImportObjectInitWasmEdgeProcess(WasmEdge_ImportObjectContext *Cxt,
   }
   auto *ProcMod =
       dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(fromImpObjCxt(Cxt));
+  if (!ProcMod) {
+    return;
+  }
   auto &ProcEnv = ProcMod->getEnv();
   ProcEnv.AllowedAll = AllowAll;
   if (AllowAll) {

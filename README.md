@@ -97,7 +97,7 @@ WasmEdge enables software products to be extended and customized by their users.
 
 ### Contributing
 
-If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTION](doc/contribution.md) document for details.
+If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTION](doc/contribution.md) document for details. If you are looking for ideas, checkout our [wish list](doc/wish_list.md)!
 
 ### Contact
 

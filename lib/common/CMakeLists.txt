@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-find_package(spdlog)
+find_package(spdlog QUIET)
 if(spdlog_FOUND)
 else()
   FetchContent_Declare(

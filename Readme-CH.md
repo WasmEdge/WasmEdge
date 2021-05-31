@@ -1,110 +1,116 @@
 
 # 快速开始指引
 
-🤖 [Build](doc/build.md)  [contribute to](doc/contribution.md) WasmEdge\
-⌨️  跑一个独立的Wasm程序 [从 CLI](doc/run.md) or [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example)  [Golang](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)\
+🤖 [创建](doc/build.md)  [贡献](doc/contribution.md) WasmEdge\
+⌨️  [从 CLI](doc/run.md)或 [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example)  [Golang](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)跑一个独立的Wasm程序\
 💭 [部署一个 Wasm 函数](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/)即web服务 (FaaS)\
 🛠 [嵌入一个用户定义的 Wasm 函数](http://reactor.secondstate.info/docs/user-create-a-bot.html)在  SaaS 平台上\
 🔩 [嵌入一个 Wasm 函数](https://www.secondstate.io/articles/getting-started-with-rust-function/)在你的 Node.js web app\
-🔌 [嵌入一个 Wasm 函数](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_PassBytes) in your Golang app\
+🔌 [嵌入一个 Wasm 函数](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_PassBytes)在你的 Golang app\
 🔗 [嵌入一个 Wasm 函数](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a)即区块链智能合约 
 
 ![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/alerts/)
-[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/context:cpp)
+[![全部警报](https://img.shields.io/lgtm/alerts/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/alerts/)
+[![语言等级：C/C++](https://img.shields.io/lgtm/grade/cpp/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/context:cpp)
 [![codecov](https://codecov.io/gh/WasmEdge/WasmEdge/branch/master/graph/badge.svg)](https://codecov.io/gh/WasmEdge/WasmEdge)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_shield)
 
 # 介绍
 
-WasmEdge (previously known as SSVM) is a high-performance WebAssembly (Wasm) VM optimized for Edge Computing, including Edge Clouds and Software Defined Vehicles. In its AOT mode, WasmEdge is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403) on the market today.
+WasmEdge (之前名为 SSVM) 是为边缘计算优化的高性能 WebAssembly (Wasm) 虚拟机，包括了边缘云和软件定义的汽车。在AOT模式下, WasmEdge 是目前市场上 [最快的 Wasm 虚拟机](https://ieeexplore.ieee.org/document/9214403)。
 
-WasmEdge is an official sandbox project hosted by [CNCF](https://www.cncf.io/) (Cloud Native Computing Foundation).
+WasmEdge 是一个 [CNCF](https://www.cncf.io/) (Cloud Native Computing Foundation云原生计算基金会)托管的官方沙河项目。
 
-The most important use case for WasmEdge is to safely execute user-defined or community-contributed code as plug-ins in a software product (e.g., a SaaS, a car OS, an edge node, or even a blockchain node). It enables third-party developers, vendors, suppliers, and community members to extend and customize the software product. With WasmEdge, a software product could become a host platform.
+WasmEdge 的最重要应用是在一个软件产品（例如，SaaS、汽车操作系统、边缘节点，甚至区块链节点）中安全地执行用户定义或者社区贡献点代码。它使第三方开发者，软件提供商，供应商和社区成员能够扩展和定制软件产品。 使用了 WasmEdge，软件产品可以成为托管平台。
 
-WasmEdge provides a well-defined execution sandbox for its contained Wasm bytecode program. The bytecode program cannot access operating system resources (e.g., file system, sockets, environment variables, processes) without explicit permissions from the VM's runner. The runner specifies the system resources the VM can access in the VM's configuration options upon starting up (a.k.a capability-based security model).
+WasmEdge 为其包含的 Wasm 字节码程序提供了一个定义良好的执行沙箱。 没有虚拟机运行程序的明确许可，字节码程序无法访问操作系统资源（例如，文件系统、套接字、环境变量、进程）。 运行器在虚拟机的配置选项中指定虚拟机启动时可以访问的系统资源(即基于能力的安全模型）。
 
-WasmEdge also provides memory protection for its contained bytecode program. If the program attempts to access memory outside of the region allocated to the VM, the VM will terminate with an error message. 
+WasmEdge 还为其包含的字节码程序提供内存保护。 如果程序尝试访问分配给虚拟机的区域之外的内存，则虚拟机将终止并显示一条错误消息。
 
-WasmEdge and its contained wasm program can be started from the CLI as a new process, or from a existing process. If started from an existing process (e.g., from a running [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or [Golang](https://github.com/second-state/wasmedge-go) program), the VM will simply run inside the process as a function. It is also possible to start a WasmEdge VM instance as a thread. Currently, WasmEdge is not yet thread-safe, meaning that VM instances running in different threads in the same process will potentially be able to access each other's memory. In the future, we plan to make WasmEdge thread safe.
+WasmEdge 及其包含的 wasm 程序可以作为新进程或从现有进程从 CLI 启动。 如果从现有进程启动（例如，从正在运行的 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 或 [Golang](https:// github.com/second-state/wasmedge-go) 程序），虚拟机将简单地作为一个函数在进程内运行。 也可以将 WasmEdge 虚拟机实例作为线程启动。 目前，WasmEdge 还不是线程安全的，这意味着在同一进程中的不同线程中运行的虚拟机实例可能能够访问彼此的内存。 未来，我们计划使 WasmEdge 达到线程安全。
 
-# Embed WasmEdge into a host application
 
-A major use case of WasmEdge is to start an VM instance from a host application. In general, you can use the [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in) to do so.
+# 将 WasmEdge 嵌入 host 应用
 
-However, the Wasm spec, and the [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), only supports very limited data types as  input parameters and return values for the contained Wasm bytecode functions. In order to pass complex data types, such as a string of an array, as call arguments into the contained function, you should use the bindgen solution provided by the [rustwasmc](https://github.com/second-state/rustwasmc) toolchain.
+WasmEdge 的一个主要应用场景是从一个托管应用启动一个虚拟机实例。一般而言，你可以使用 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in) 做到这一点。
 
-We currently [supports bindgen in the Node.js host environment](https://www.secondstate.io/articles/getting-started-with-rust-function/). We are working on bindgen support in Golang and Rust-based host applications.
+可是， Wasm spec, 和 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), 仅支持非常有限的数据类型作为包含的 Wasm 字节码函数的输入参数和返回值。 如果要将复杂的数据类型（例如数组的字符串）作为调用参数传递给所包含的函数，应该使用 [rustwasmc](https://github.com/second-state/rustwasmc) 提供的 bindgen 解决方案 ) 工具链。
 
-# 从 WasmEdge调用本地 host 程序
+我们目前[支持 Node.js 托管环境中的bindgen](https://www.secondstate.io/articles/getting-started-with-rust-function/). 我们正在致力于在 Golang 和基于 Rust 的托管应用程序中支持 bindgen。
 
-Sometimes, the Wasm bytecode alone could prove too limiting for some applications. WasmEdge provides a [host function API](https://github.com/WasmEdge/WasmEdge/blob/master/doc/host_function.md) that allows Wasm bytecode programs to load and call native library functions from the underlying host operating system.
+# 从 WasmEdge调用原声 host 程序
 
-> The host functions break the Wasm sandbox. But the sandbox breaking is done with explicit permission from the system’s operator.
+有时， Wasm 字节码本身被证明对有些应用来说限制太多。 WasmEdge 提供一个 [托管函数 API](https://github.com/WasmEdge/WasmEdge/blob/master/doc/host_function.md)这允许 Wasm 字节码程序从底层托管操作系统加载和调用原生库函数。
 
-In fact, the extensions to WasmEdge are implemented using native host functions. For example, the [Tensorflow extension](https://www.secondstate.io/articles/wasi-tensorflow/) allows Wasm bytecode to make calls to the native Tensorflow library functions.
+>主机功能破坏了Wasm沙箱。 但是沙箱破坏是在系统操作员的明确许可下完成的。
+
+事实上，对 WasmEdge 的扩展是使用原生托管函数实现的。 例如，[Tensorflow 扩展](https://www.secondstate.io/articles/wasi-tensorflow/) 允许 Wasm 字节码调用原生 Tensorflow 库函数。
 
 # 管理 WasmEdge 虚拟机实例
 
-With the [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), you can write a program to start, stop, and manage WasmEdge VM instances in your own applications. For example, 
+有了 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), 您可以编写程序来启动、停止和管理您自己的应用程序中的WasmEdge VM实例。例如 
 
-* When WasmEdge functions are embedded in [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or in the [Feishu messenger](http://reactor.secondstate.info/docs/user-create-a-bot.html), the VM is launched by the application when there is an incoming request. 
-* When WasmEdge functions are plugged into a data flow engine like [YoMo](https://github.com/yomorun/yomo-flow-ssvm-example), the VM is launched when a new data point flows through the system. 
+* 当 WasmEdge 函数嵌入在了 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 或者在 [飞书](http://reactor.secondstate.info/docs/user-create-a-bot.html), 当有传入请求时，虚拟机由应用程序启动。
+* 当 WasmEdge 函数被插入到像 [YoMo](https://github.com/yomorun/yomo-flow-ssvm-example) 这样的数据流引擎中时，当一个新的数据点流经系统时，VM 就会启动。
 
-If you are interested in using Kubernetes to manage WasmEdge VMs, you can install our custom [runw](https://github.com/second-state/runw) utilities. They could load Wasm bytecode program files as if they are Docker images, and then start, run, and stop the VM instances based on configured policies. 
+如果您有兴趣使用 Kubernetes 来管理 WasmEdge VM，您可以安装我们的自定义 [runw](https://github.com/second-state/runw) 实用程序。 他们可以像加载 Docker 镜像一样加载 Wasm 字节码程序文件，然后根据配置的策略启动、运行和停止 VM 实例。
 
 # 支持 wasm 标准接口
 
-WasmEdge supports optional WebAssembly features and proposals. Those proposals are likely to become official WebAssembly specifications in the future. WasmEdge supports the following proposals.
+WasmEdge supports optional WebAssembly features and proposals. Those proposals are likely to become official WebAssembly specifications in the future. WasmEdge supports the following proposals.WasmEdge 支持可选的 WebAssembly 功能和提案。 这些提议很可能在未来成为官方的 WebAssembly 规范。 WasmEdge 支持以下提议。
 
 * [WASI (WebAssembly 系统接口) spec](https://github.com/WebAssembly/WASI). WasmEdge has supported the WASI spec for WebAssembly programs to interact with the host Linux operating system securely.
-* [Reference Types](https://webassembly.github.io/reference-types/core/). It allows WebAssembly programs to exchange data with host applications and operating systems.
-* [Bulk memory operations](https://github.com/WebAssembly/bulk-memory-operations/blob/master/proposals/bulk-memory-operations/Overview.md). The WebAssembly program sees faster memory access and performs better with bulk memory operations.
-* [SIMD (Single instruction, multiple data)](https://github.com/second-state/SSVM/blob/master/doc/simd.md). For modern devices with multiple CPU cores, the SIMD allows data processing programs to take advantage of the CPUs fully. SIMD could significantly enhance the performance of data applications.
+* [Reference Types](https://webassembly.github.io/reference-types/core/). 它允许 WebAssembly 程序来与 host应用交换数据和操作系统。 
+* [Bulk memory operations](https://github.com/WebAssembly/bulk-memory-operations/blob/master/proposals/bulk-memory-operations/Overview.md). WebAssembly 程序内存访问更快并在大容量内存操作中表现更好。
+* [SIMD (Single instruction, multiple data)](https://github.com/second-state/SSVM/blob/master/doc/simd.md). For modern devices with multiple CPU cores, the SIMD allows data processing programs to take advantage of the CPUs fully. SIMD could significantly enhance the performance of data applications.对于具有多个 CPU 内核的现代设备，SIMD 允许数据处理程序充分利用 CPU。 SIMD 可以显着提高数据应用程序的性能。
 
-Meanwhile, the WasmEdge team is [exploring the wasi-socket proposal](https://github.com/second-state/w13e_wasi_socket) to support network access in WebAssembly programs. 
+同时， WasmEdge 团队正[探索wasi-socket提案](https://github.com/second-state/w13e_wasi_socket) 支持 WebAssembly 程序中的网络访问。 
 
-# WasmEdge extensions
+# WasmEdge 扩展
 
-A key differentiator of WasmEdge from other WebAssembly VMs is its support for non-standard extensions. The WASI spec provides a mechanism for developers to extend WebAssembly VMs efficiently and securely. The WasmEdge team created the following WASI-like extensions based on real-world customer demands.
+A key differentiator of WasmEdge from other与其它的 WebAssembly VMs 的关键区别是它对非标准扩展的支持。WASI spec provides a mechanism for developers to extend WebAssembly VMs efficiently and securely. The WasmEdge team created the following WASI-like extensions based on real-world customer demands.WASI 规范为开发人员提供了一种有效且安全地扩展 WebAssembly VM 的机制。 WasmEdge 团队根据现实世界的客户需求创建了以下类似 WASI 的扩展。
 
-* [Tensorflow](https://github.com/second-state/wasmedge-tensorflow). Developers can write Tensorflow inference functions using [a simple Rust API](https://crates.io/crates/ssvm_tensorflow_interface), and then run the function securely and at native speed inside WasmEdge.
+* [Tensorflow](https://github.com/second-state/wasmedge-tensorflow). 开发者可以使用 [一个简单的 Rust API](https://crates.io/crates/ssvm_tensorflow_interface) 编写 Tensorflow 推理函数，然后在 WasmEdge 内以本机速度安全地运行该函数。
+* 其他AI框架。除了 Tensorflow，Second State 团队还在为 AI 框架（如 ONNX 和用于 WasmEdge 的 Tengine）构建类似 WASI 的扩展。
+* [存储](https://github.com/second-state/wasmedge-storage)。 WasmEdge [存储接口](https://github.com/second-state/rust_native_storage_library) 允许 WebAssembly 程序读取和写入键值存储。
+* [命令界面](https://github.com/second-state/wasmedge_process_interface)。 WasmEdge 使 webassembly 功能能够在主机操作系统中执行本机命令。它支持传递参数、环境变量、STDIN/STDOUT pipes和主机访问的安全策略。
+* [以太坊](https://github.com/second-state/wasmedge-evmc)。 WasmEdge Ewasm 扩展支持编译为 WebAssembly 的以太坊智能合约。它是以太坊风格的 WebAssembly (Ewasm) 的领先实现。
+* [Substrate]（https://github.com/second-state/substrate-ssvm-node）。 [Pallet](https://github.com/second-state/pallet-ssvm) 允许 WasmEdge 在任何基于 Substrate 的区块链上充当以太坊智能合约执行引擎。Developers can write Tensorflow inference functions using [a simple Rust API](https://crates.io/crates/ssvm_tensorflow_interface), and then run the function securely and at native speed inside WasmEdge.
 * Other AI frameworks. Besides Tensorflow, the Second State team is building WASI-like extensions for AI frameworks such as ONNX and Tengine for WasmEdge.
 * [Storage](https://github.com/second-state/wasmedge-storage). The WasmEdge [storage interface](https://github.com/second-state/rust_native_storage_library) allows WebAssembly programs to read and write a key value store.
 * [Command interface](https://github.com/second-state/wasmedge_process_interface). WasmEdge enables webassembly functions execute native commands in the host operating system. It supports passing arguments, environment variables, STDIN / STDOUT pipes, and security policies for host access.
 * [Ethereum](https://github.com/second-state/wasmedge-evmc). The WasmEdge Ewasm extension supports Ethereum smart contracts compiled to WebAssembly. It is a leading implementation for Ethereum flavored WebAssembly (Ewasm).
 * [Substrate](https://github.com/second-state/substrate-ssvm-node). The [Pallet](https://github.com/second-state/pallet-ssvm) allows WasmEdge to act as an Ethereum smart contract execution engine on any Substrate based blockchains.
 
-# Use cases
+# 应用场景
 
-WasmEdge enables software products to be extended and customized by their users. With WasmEdge, any software product can build a developer ecosystem. Here are some specific use cases from our customers and partners. 
+WasmEdge 染软件产品能够扩展并为用户做定制。有了 WasmEdge，任何软件都能建立开发者生态。 下面是来自客户和合作伙伴的具体的应用场景。
 
-* A *Jamstack application* consists of a static frontend with JavaScript to interact with backend APIs. It is a very popular [modern web application architecture](https://jamstack.org/). The frontend static files can be distributed over CDNs, and the backend functions can be hosted on edge nodes. The [cloud-based WasmEdge](https://www.secondstate.io/faas/) hosts secure and high performance backend serverless functions for Jamstack apps especially on the Edge cloud. 
-  * Example: [add a watermark to any image on your web app](https://second-state.github.io/wasm-learning/faas/watermark/html/index.html).
-  * Example: [serverless Tensorflow functions for Tencent Cloud](https://github.com/second-state/tencent-tensorflow-scf).
-* *SaaS applications* often need be tailored or customized “on the edge” for customer requirements. With WasmEdge, SaaS applications can directly embed and execute user-submitted code as part of the workflow (eg as a callback function to handle events from the SaaS app).
-  * Example: [the Lark / Feishu application platform could embed user-submitted  serverless functions via WasmEdge to respond to messages (ie conversation bot)](http://reactor.secondstate.info/docs/user-create-a-bot.html).
-  * Example: [WasmEdge runs custom code to process events in IoT streaming data framework YoMo](https://github.com/yomorun/yomo-flow-ssvm-example).
-* WasmEdge is adapted to run on a variety of embedded and real time operating systems for *edge devices*. That allows developers to write high performance applications once, in Rust or C, and run them safely on many edge device platforms. 
-  * Example: [RISC-V stack from RIOS Lab](https://rioslab.org/).
-  * Ongoing: Porting WasmEdge to the SeL4 real-time OS
-  * Upcoming: WasmEdge could be used as a RTOS code runtime for software modules in autonomous cars.
-* *Blockchain smart contracts* are user submitted code executed by all nodes in the network. WasmEdge is a smart contract execution engine on leading blockchain projects. 
-  * Example: [Ethereum flavored WASM smart contracts on Substrate and Polkadot](https://github.com/ParaState/substrate-ssvm-node).
+* *Jamstack 应用* 由带有 JavaScript 的静态前端组成，用于与后端 API 进行交互。是一个流行的 [现代web应用程序架构](https://jamstack.org/)。前端静态文件可以通过 CDN 分发，后端功能可以托管在边缘节点上。 [基于云的 WasmEdge](https://www.secondstate.io/faas/) 为Jamstack app 托管安全且高性能的后端 Serverless 函数，特别是在边缘云上。 
+  * 案例：[在你的web app上的任意图片上增加水印](https://second-state.github.io/wasm-learning/faas/watermark/html/index.html).
+  * 案例：[用于腾讯云的serverless Tensorflow函数](https://github.com/second-state/tencent-tensorflow-scf).
+* * SaaS应用程序*通常需要根据客户要求“在边缘”进行定制或定制。 使用 WasmEdge，SaaS 应用程序可以直接嵌入和执行用户提交的代码作为工作流的一部分（例如作为处理来自 SaaS 应用程序的事件的回调函数）。
+  * 案例：[飞书 (https://app.feishu.cn/app/cli_a08fe99f8169900d) 应用平台可以通过 WasmEdge嵌入用户提交的 serverless 函数来回复消息 (例如聊天机器人)。](http://reactor.secondstate.info/docs/user-create-a-bot.html).
+  * 案例: [WasmEdge运行自定义代码来处理IoT流数据框架YoMo中的事件。](https://github.com/yomorun/yomo-flow-ssvm-example).
+* WasmEdge 被调整为在适用边缘设备的各种嵌入式和实时操作系统。 这让开发者只需使用 Rust 或 C 编写一次高性能应用程序，就能在许多边缘设备平台上安全地运行。 
+  * 案例： [RIOS Lab示例：RIOS 实验室的 RISC-V 堆栈](https://rioslab.org/).
+  * 进行中：将 WasmEdge 移植到 SeL4 实时操作系统
+  * 计划中： WasmEdge 可用作自动驾驶汽车中软件模块的 RTOS 代码运行环境。
+* * 区块链智能合约*是用户提交代码，由网络中的所有节点执行。 WasmEdge 是头部区块链项目的智能合约执行引擎。
+  * 案例: [在 Substrate 和 Polkadot以太坊风格的 WASM 智能合约](https://github.com/ParaState/substrate-ssvm-node).
 
 ## 社区
 
 ### 贡献
 
-If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTION](doc/contribution.md) document for details. If you are looking for ideas, checkout our [wish list](doc/wish_list.md)!
+如果您想为 WasmEdge 项目做出贡献，请参阅我们的 [CONTRIBUTION](doc/contribution.md) 文档了解详情。 想要获得灵感，可查看[需求清单](doc/wish_list.md)!
 
 ### 联系
 
 如有任何疑问，请随时在相关项目上提GitHub issue，或：
 
 * 发送邮件至 [WasmEdge@googlegroups.com](https://groups.google.com/g/wasmedge/)
-* Slack: 加入 #WasmEdge 频道： [CNCF Slack](https://slack.cncf.io/)
+* Slack: 加入 #WasmEdge 组群： [CNCF Slack](https://slack.cncf.io/)
 
 ## License
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_large)

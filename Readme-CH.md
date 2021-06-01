@@ -21,13 +21,13 @@ WasmEdge (之前名为 SSVM) 是为边缘计算优化的高性能 WebAssembly (W
 
 WasmEdge 是一个 [CNCF](https://www.cncf.io/) (Cloud Native Computing Foundation云原生计算基金会)托管的官方沙盒项目。
 
-WasmEdge 的最重要应用是在一个软件产品（例如，SaaS、汽车操作系统、边缘节点，甚至区块链节点）中安全地执行用户定义或者社区贡献点代码。它使第三方开发者、软件提供商、供应商和社区成员能够扩展和定制软件产品。 使用了 WasmEdge，软件产品可以成为托管平台。
+WasmEdge 的最重要应用是在一个软件产品（例如，SaaS、汽车操作系统、边缘节点，甚至区块链节点）中安全地执行用户定义或者社区贡献的代码。它使第三方开发者、软件提供商、供应商和社区成员能够扩展和定制软件产品。 使用了 WasmEdge，软件产品可以成为托管平台。
 
-WasmEdge 为其包含的 Wasm 字节码程序提供了一个定义良好的执行沙箱。没有虚拟机运行程序的明确许可，字节码程序无法访问操作系统资源（例如，文件系统、套接字、环境变量、进程）。运行器在虚拟机的配置选项中指定虚拟机启动时可以访问的系统资源(即基于能力的安全模型）。
+WasmEdge 为其包含的 Wasm 程序提供了一个定义良好的执行沙箱。没有虚拟机runner 的明确许可，wasm 程序无法访问操作系统资源（例如，文件系统、套接字、环境变量、进程）。runner 在虚拟机的配置选项中指定虚拟机启动时可以访问的系统资源(即基于能力的安全模型）。
 
-WasmEdge 还为其包含的字节码程序提供内存保护。 如果程序尝试访问分配给虚拟机的区域之外的内存，则虚拟机将终止并显示一条错误消息。
+WasmEdge 还为其运行的 wasm 程序提供内存保护。 如果程序尝试访问分配给虚拟机的区域之外的内存，则虚拟机将终止并显示一条错误消息。
 
-WasmEdge 及其包含的 wasm 程序可以作为新进程或从现有进程从 CLI 启动。 如果从现有进程启动（例如，从正在运行的 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 或 [Golang](https://github.com/second-state/wasmedge-go) 程序），虚拟机将简单地作为一个函数在进程内运行。 也可以将 WasmEdge 虚拟机实例作为线程启动。 目前，WasmEdge 还不是线程安全的，这意味着在同一进程中的不同线程中运行的虚拟机实例可能能够访问彼此的内存。 未来，我们计划让 WasmEdge 做到线程安全。
+WasmEdge 及其运行的 wasm 程序可以作为新进程或从现有进程从 CLI 启动。 如果从现有进程启动（例如，从正在运行的 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 或 [Golang](https://github.com/second-state/wasmedge-go) 程序），虚拟机将简单地作为一个函数在进程内运行。 也可以将 WasmEdge 虚拟机实例作为线程启动。 目前，WasmEdge 还不是线程安全的，这意味着在同一进程中的不同线程中运行的虚拟机实例可能能够访问彼此的内存。 未来，我们计划让 WasmEdge 做到线程安全。
 
 
 # 将 WasmEdge 嵌入 host 应用
@@ -36,13 +36,13 @@ WasmEdge 的一个主要应用场景是从一个 host 应用程序启动一个�
 
 可是， Wasm spec, 和 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), 仅支持非常有限的数据类型作为包含的 Wasm 字节码函数的输入参数和返回值。 如果要将复杂的数据类型（例如数组的字符串）作为调用参数传递给所包含的函数，应该使用 [rustwasmc](https://github.com/second-state/rustwasmc) 工具链提供的 bindgen 解决方案。
 
-我们目前[支持 Node.js host环境中的bindgen](https://www.secondstate.io/articles/getting-started-with-rust-function/). 我们正在致力于在 Golang 和基于 Rust 的 host 应用程序中支持 bindgen。
+我们目前[支持 Node.js 环境中的bindgen](https://www.secondstate.io/articles/getting-started-with-rust-function/). 我们正在致力于在 Golang 和基于 Rust 的 host 应用程序中支持 bindgen。
 
-# 从 WasmEdge调用原声 host 程序
+# 从 WasmEdge调用原生 host 程序
 
 有时， Wasm 字节码本身被证明对有些应用来说限制太多。 WasmEdge 提供一个 [host 函数 API](https://github.com/WasmEdge/WasmEdge/blob/master/doc/host_function.md)这允许 Wasm 字节码程序从底层 host 操作系统加载和调用原生库函数。
 
->主机功能破坏了Wasm沙箱。 但是沙箱破坏是在系统操作员的明确许可下完成的。
+>此功能破坏了Wasm沙箱。 但是沙箱破坏是在系统操作员的明确许可下完成的。
 
 事实上，对 WasmEdge 的扩展是使用原生 host 函数实现的。 例如，[Tensorflow 扩展](https://www.secondstate.io/articles/wasi-tensorflow/) 允许 Wasm 字节码调用原生 Tensorflow 库函数。
 

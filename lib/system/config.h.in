@@ -12,4 +12,5 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#cmakedefine HAVE_MMAP
+#cmakedefine HAVE_MMAP @HAVE_MMAP@
+#cmakedefine HAVE_PWD_H @HAVE_PWD_H@

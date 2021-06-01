@@ -32,19 +32,19 @@ WasmEdge 及其包含的 wasm 程序可以作为新进程或从现有进程从 C
 
 # 将 WasmEdge 嵌入 host 应用
 
-WasmEdge 的一个主要应用场景是从一个托管应用启动一个虚拟机实例。一般而言，你可以使用 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in) 做到这一点。
+WasmEdge 的一个主要应用场景是从一个 host 应用程序启动一个虚拟机实例。一般而言，你可以使用 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in) 做到这一点。
 
 可是， Wasm spec, 和 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), 仅支持非常有限的数据类型作为包含的 Wasm 字节码函数的输入参数和返回值。 如果要将复杂的数据类型（例如数组的字符串）作为调用参数传递给所包含的函数，应该使用 [rustwasmc](https://github.com/second-state/rustwasmc) 工具链提供的 bindgen 解决方案。
 
-我们目前[支持 Node.js 托管环境中的bindgen](https://www.secondstate.io/articles/getting-started-with-rust-function/). 我们正在致力于在 Golang 和基于 Rust 的托管应用程序中支持 bindgen。
+我们目前[支持 Node.js host环境中的bindgen](https://www.secondstate.io/articles/getting-started-with-rust-function/). 我们正在致力于在 Golang 和基于 Rust 的 host 应用程序中支持 bindgen。
 
 # 从 WasmEdge调用原声 host 程序
 
-有时， Wasm 字节码本身被证明对有些应用来说限制太多。 WasmEdge 提供一个 [托管函数 API](https://github.com/WasmEdge/WasmEdge/blob/master/doc/host_function.md)这允许 Wasm 字节码程序从底层托管操作系统加载和调用原生库函数。
+有时， Wasm 字节码本身被证明对有些应用来说限制太多。 WasmEdge 提供一个 [host 函数 API](https://github.com/WasmEdge/WasmEdge/blob/master/doc/host_function.md)这允许 Wasm 字节码程序从底层 host 操作系统加载和调用原生库函数。
 
 >主机功能破坏了Wasm沙箱。 但是沙箱破坏是在系统操作员的明确许可下完成的。
 
-事实上，对 WasmEdge 的扩展是使用原生托管函数实现的。 例如，[Tensorflow 扩展](https://www.secondstate.io/articles/wasi-tensorflow/) 允许 Wasm 字节码调用原生 Tensorflow 库函数。
+事实上，对 WasmEdge 的扩展是使用原生 host 函数实现的。 例如，[Tensorflow 扩展](https://www.secondstate.io/articles/wasi-tensorflow/) 允许 Wasm 字节码调用原生 Tensorflow 库函数。
 
 # 管理 WasmEdge 虚拟机实例
 
@@ -93,7 +93,7 @@ WasmEdge 染软件产品能够扩展并为用户做定制。有了 WasmEdge，�
   * 进行中：将 WasmEdge 移植到 SeL4 实时操作系统。
   * 计划中： WasmEdge 可用作自动驾驶汽车中软件模块的 RTOS 代码运行环境。
 * * 区块链智能合约* 是用户提交代码，由网络中的所有节点执行。 WasmEdge 得到头部的区块链项目采用，作为智能合约执行引擎。
-  * 案例: [在 Substrate 和 Polkadot以太坊风格的 WASM 智能合约](https://github.com/ParaState/substrate-ssvm-node).
+  * 案例: [Substrate 和 Polkadot 上的 EWASM 智能合约](https://github.com/ParaState/substrate-ssvm-node).
 
 ## 社区
 

@@ -27,7 +27,7 @@ WasmEdge 为其包含的 Wasm 字节码程序提供了一个定义良好的执�
 
 WasmEdge 还为其包含的字节码程序提供内存保护。 如果程序尝试访问分配给虚拟机的区域之外的内存，则虚拟机将终止并显示一条错误消息。
 
-WasmEdge 及其包含的 wasm 程序可以作为新进程或从现有进程从 CLI 启动。 如果从现有进程启动（例如，从正在运行的 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 或 [Golang](https:// github.com/second-state/wasmedge-go) 程序），虚拟机将简单地作为一个函数在进程内运行。 也可以将 WasmEdge 虚拟机实例作为线程启动。 目前，WasmEdge 还不是线程安全的，这意味着在同一进程中的不同线程中运行的虚拟机实例可能能够访问彼此的内存。 未来，我们计划让 WasmEdge 做到线程安全。
+WasmEdge 及其包含的 wasm 程序可以作为新进程或从现有进程从 CLI 启动。 如果从现有进程启动（例如，从正在运行的 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 或 [Golang](https://github.com/second-state/wasmedge-go) 程序），虚拟机将简单地作为一个函数在进程内运行。 也可以将 WasmEdge 虚拟机实例作为线程启动。 目前，WasmEdge 还不是线程安全的，这意味着在同一进程中的不同线程中运行的虚拟机实例可能能够访问彼此的内存。 未来，我们计划让 WasmEdge 做到线程安全。
 
 
 # 将 WasmEdge 嵌入 host 应用
@@ -75,7 +75,7 @@ WasmEdge 与其它的 WebAssembly 虚拟机的关键区别是它对非标准扩�
 * [存储](https://github.com/second-state/wasmedge-storage)。 WasmEdge [存储接口](https://github.com/second-state/rust_native_storage_library) 允许 WebAssembly 程序读取和写入键值存储。
 * [命令界面](https://github.com/second-state/wasmedge_process_interface)。WasmEdge 让 Webassembly 功能可以执行宿主机操作系统的本地命令。它支持传递参数、环境变量、STDIN/STDOUT pipes 和宿主机访问的安全策略。
 * [以太坊](https://github.com/second-state/wasmedge-evmc)。 WasmEdge Ewasm 扩展支持编译为 WebAssembly 的以太坊智能合约。它是以太坊风格的 WebAssembly (Ewasm) 的领先实现。
-* [Substrate]（https://github.com/second-state/substrate-ssvm-node）。 [Pallet](https://github.com/second-state/pallet-ssvm) 让 WasmEdge 能在任何基于 Substrate 的区块链上充当以太坊智能合约执行引擎。
+* [Substrate](https://github.com/second-state/substrate-ssvm-node)。 [Pallet](https://github.com/second-state/pallet-ssvm) 让 WasmEdge 能在任何基于 Substrate 的区块链上充当以太坊智能合约执行引擎。
 
 
 # 应用场景

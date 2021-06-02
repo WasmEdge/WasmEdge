@@ -8,6 +8,8 @@ on:
   push:
     tags:
       - '*.*.*'
+    branch:
+      - master
     paths:
       - 'utils/docker/**'
       - '.github/workflows/docker.yml'
@@ -45,10 +47,6 @@ jobs:
           fi
           elif [[ $GITHUB_REF == refs/pull/* ]]; then
           VERSION=pr-${{ github.event.number }}
-          fi
-          if [[ $VERSION =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-          MINOR=${VERSION%.*}
-          MAJOR=${MINOR%.*}
           fi
           echo ::set-output name=version::${VERSION}
           echo ::set-output name=docker_image::${DOCKER_IMAGE}
@@ -184,10 +182,6 @@ jobs:
           elif [[ $GITHUB_REF == refs/pull/* ]]; then
           VERSION=pr-${{ github.event.number }}
           fi
-          if [[ $VERSION =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-          MINOR=${VERSION%.*}
-          MAJOR=${MINOR%.*}
-          fi
           echo ::set-output name=version::${VERSION}
           echo ::set-output name=docker_image::${DOCKER_IMAGE}
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -248,10 +242,6 @@ jobs:
           elif [[ $GITHUB_REF == refs/pull/* ]]; then
           VERSION=pr-${{ github.event.number }}
           fi
-          if [[ $VERSION =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-          MINOR=${VERSION%.*}
-          MAJOR=${MINOR%.*}
-          fi
           echo ::set-output name=version::${VERSION}
           echo ::set-output name=docker_image::${DOCKER_IMAGE}
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -311,10 +301,6 @@ jobs:
           fi
           elif [[ $GITHUB_REF == refs/pull/* ]]; then
           VERSION=pr-${{ github.event.number }}
-          fi
-          if [[ $VERSION =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-          MINOR=${VERSION%.*}
-          MAJOR=${MINOR%.*}
           fi
           echo ::set-output name=version::${VERSION}
           echo ::set-output name=docker_image::${DOCKER_IMAGE}

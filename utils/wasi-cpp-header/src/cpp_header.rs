@@ -183,7 +183,7 @@ fn print_record(ret: &mut String, name: &Id, s: &RecordDatatype) {
                 ret.push_str("   */\n");
             }
             ret.push_str(&format!(
-                "  __WASI_{}_{} = 1 << {},\n",
+                "  __WASI_{}_{} = 1ULL << {},\n",
                 ident_name(name).to_shouty_snake_case(),
                 ident_name(&member.name).to_shouty_snake_case(),
                 i,

@@ -80,7 +80,7 @@ WasmEdge 与其它的 WebAssembly 虚拟机的关键区别是它对非标准扩�
 
 # 应用场景
 
-WasmEdge 染软件产品能够扩展并为用户做定制。有了 WasmEdge，任何软件都能建立开发者生态。 下面是来自客户和合作伙伴的具体的应用场景。
+WasmEdge 软件产品能够扩展并为用户做定制。有了 WasmEdge，任何软件都能建立开发者生态。 下面是来自客户和合作伙伴的具体的应用场景。
 
 * *Jamstack 应用* 由带有 JavaScript 的静态前端组成，用于与后端 API 进行交互。这是现在流行的[现代web应用程序架构](https://jamstack.org/)。前端静态文件可以通过 CDN 分发，后端函数可以托管在边缘节点上。 [基于云的 WasmEdge](https://www.secondstate.io/faas/) 为Jamstack app 托管安全且高性能的后端 Serverless 函数，特别是在边缘云上。 
   * 案例：[给web app上的任意图片增加水印](https://second-state.github.io/wasm-learning/faas/watermark/html/index.html).

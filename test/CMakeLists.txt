@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-find_package(GTest)
+find_package(GTest QUIET)
 if(GTest_FOUND)
   set(GTEST_BOTH_LIBRARIES "${GTEST_BOTH_LIBRARIES};Threads::Threads")
 else()

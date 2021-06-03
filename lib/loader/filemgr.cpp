@@ -285,6 +285,67 @@ Expect<std::string> FileMgr::readName() {
       unlikely(!Res)) {
     return Unexpect(Res);
   }
+
+  /// UTF-8 validation.
+  bool Valid = true;
+  for (uint32_t I = 0; I < Str.size() && Valid; ++I) {
+    char C = Str.data()[I];
+    uint32_t N = 0;
+    if ((C & '\x80') == 0) {
+      /// 0xxxxxxx, 7 bits UCS, ASCII
+      N = 0;
+    } else if ((C & '\xE0') == '\xC0') {
+      /// 110xxxxx, 11 bits UCS, U+80 to U+7FF
+      N = 1;
+    } else if ((C & '\xF0') == '\xE0') {
+      /// 1110xxxx, 16 bits UCS, U+800 to U+D7FF and U+E000 to U+FFFF
+      N = 2;
+    } else if ((C & '\xF8') == '\xF0') {
+      /// 11110xxx, 21 bits UCS, U+10000 to U+10FFFF
+      N = 3;
+    } else {
+      Valid = false;
+    }
+
+    /// Need to have N more bytes
+    if (I + N >= Str.size()) {
+      Valid = false;
+    }
+    /// Invalid ranges
+    if (N == 1 && (C & '\xDE') == '\xC0') {
+      /// 11 bits UCS, U+0 to U+80, FAIL
+      Valid = false;
+    } else if (N == 2 &&
+               ((C == '\xE0' && (Str.data()[I + 1] & '\xA0') == '\x80') ||
+                /// 16 bits UCS, U+0 to U+7FF, FAIL
+                (C == '\xED' && (Str.data()[I + 1] & '\xA0') == '\xA0')
+                /// 16 bits UCS, U+D800 to U+DFFF, FAIL
+                )) {
+      Valid = false;
+    } else if (N == 3 &&
+               ((C == '\xF0' && (Str.data()[I + 1] & '\xB0') == '\x80') ||
+                /// 21 bits UCS, U+0 to U+FFFF, FAIL
+                (C == '\xF4' && (Str.data()[I + 1] & '\xB0') != '\x80') ||
+                /// 21 bits UCS, U+110000 to U+13FFFF, FAIL
+                (C != '\xF4' && (C & '\xF4') == '\xF4')
+                /// 21 bits UCS, U+140000 to U+1FFFFF, FAIL
+                )) {
+      Valid = false;
+    }
+
+    for (uint32_t J = 0; J < N && Valid; ++J) {
+      /// N bytes needs to match 10xxxxxx
+      if ((Str.data()[I + J + 1] & '\xC0') != '\x80') {
+        Valid = false;
+      }
+    }
+    I += N;
+  }
+
+  if (!Valid) {
+    Status = ErrCode::InvalidUTF8;
+    return Unexpect(Status);
+  }
   return Str;
 }
 

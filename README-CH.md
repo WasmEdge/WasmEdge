@@ -85,7 +85,7 @@ WasmEdge 与其它的 WebAssembly 虚拟机的关键区别是它对非标准扩�
   * 案例：[基于腾讯云的serverless Tensorflow函数](https://github.com/second-state/tencent-tensorflow-scf).
 * *SaaS 应用程序* 通常需要根据客户要求“在边缘”进行定制或定制。 使用 WasmEdge，SaaS 应用程序可以直接嵌入和执行用户提交的代码作为工作流的一部分（例如作为处理来自 SaaS 应用程序的事件的回调函数）。
   * 案例：[飞书应用平台](http://reactor.secondstate.info/docs/user-create-a-bot.html)可以通过 WasmEdge 嵌入用户提交的 serverless 函数来回复消息（例如[聊天机器人](https://app.feishu.cn/app/cli_a08fe99f8169900d)）。
-  * 案例: [WasmEdge运行自定义代码来处理IoT流数据框架YoMo中的事件。](https://github.com/yomorun/yomo-flow-ssvm-example)
+  * 案例：[WasmEdge运行自定义代码来处理IoT流数据框架YoMo中的事件。](https://github.com/yomorun/yomo-flow-ssvm-example)
 * WasmEdge 被调整为适用*边缘设备*的各种嵌入式和实时操作系统。 这让开发者只需用 Rust 或 C 编写一次高性能应用程序，就能在许多边缘设备平台上安全地运行。 
   * 案例： [RIOS Lab示例：RIOS 实验室的 RISC-V 堆栈](https://rioslab.org/)。
   * 进行中：将 WasmEdge 移植到 SeL4 实时操作系统。

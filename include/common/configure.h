@@ -80,12 +80,19 @@ public:
 
   uint32_t getMaxMemoryPage() const noexcept { return MaxMemPage; }
 
+  void addDataCountSection() noexcept { HasDataCountSection = true; }
+
+  bool hasDataCountSection() const noexcept { return HasDataCountSection; }
+
 private:
   void addSet(const Proposal P) noexcept { addProposal(P); }
   void addSet(const HostRegistration H) noexcept { addHostRegistration(H); }
   std::bitset<static_cast<uint8_t>(Proposal::Max)> Proposals;
   std::bitset<static_cast<uint8_t>(HostRegistration::Max)> Hosts;
   uint32_t MaxMemPage = 65536;
+
+  /// Used in AST::Module only.
+  bool HasDataCountSection = false;
 };
 
 } // namespace WasmEdge

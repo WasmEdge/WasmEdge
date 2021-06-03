@@ -57,7 +57,7 @@ WasmEdge 的一个主要应用场景是从一个 host 应用程序启动一个�
 
 # 支持 wasm 标准接口
 
-WasmEdge 支持可选的 WebAssembly 功能和提案。 这些提议很可能在未来成为官方的 WebAssembly 规范。 WasmEdge 支持以下提案。
+WasmEdge 支持可选的 WebAssembly 特性和提案。 这些提议很可能在未来成为官方的 WebAssembly 规范。 WasmEdge 支持以下提案。
 
 * [WASI (WebAssembly 系统接口) spec](https://github.com/WebAssembly/WASI). WasmEdge 支持 WebAssembly 程序的 WASI 规范，以安全地与宿主机 Linux 操作系统交互。
 * [Reference Types](https://webassembly.github.io/reference-types/core/). 它允许 WebAssembly 程序来与 host应用交换数据和操作系统。 
@@ -82,9 +82,9 @@ WasmEdge 与其它的 WebAssembly 虚拟机的关键区别是它对非标准扩�
 
 WasmEdge 染软件产品能够扩展并为用户做定制。有了 WasmEdge，任何软件都能建立开发者生态。 下面是来自客户和合作伙伴的具体的应用场景。
 
-* *Jamstack 应用* 由带有 JavaScript 的静态前端组成，用于与后端 API 进行交互。是一个流行的 [现代web应用程序架构](https://jamstack.org/)。前端静态文件可以通过 CDN 分发，后端功能可以托管在边缘节点上。 [基于云的 WasmEdge](https://www.secondstate.io/faas/) 为Jamstack app 托管安全且高性能的后端 Serverless 函数，特别是在边缘云上。 
-  * 案例：[在你的web app上的任意图片上增加水印](https://second-state.github.io/wasm-learning/faas/watermark/html/index.html).
-  * 案例：[用于腾讯云的serverless Tensorflow函数](https://github.com/second-state/tencent-tensorflow-scf).
+* *Jamstack 应用* 由带有 JavaScript 的静态前端组成，用于与后端 API 进行交互。这是现在流行的[现代web应用程序架构](https://jamstack.org/)。前端静态文件可以通过 CDN 分发，后端函数可以托管在边缘节点上。 [基于云的 WasmEdge](https://www.secondstate.io/faas/) 为Jamstack app 托管安全且高性能的后端 Serverless 函数，特别是在边缘云上。 
+  * 案例：[给web app上的任意图片增加水印](https://second-state.github.io/wasm-learning/faas/watermark/html/index.html).
+  * 案例：[基于腾讯云的serverless Tensorflow函数](https://github.com/second-state/tencent-tensorflow-scf).
 * * SaaS应用程序*通常需要根据客户要求“在边缘”进行定制或定制。 使用 WasmEdge，SaaS 应用程序可以直接嵌入和执行用户提交的代码作为工作流的一部分（例如作为处理来自 SaaS 应用程序的事件的回调函数）。
   * 案例：[飞书(https://app.feishu.cn/app/cli_a08fe99f8169900d)应用平台可以通过 WasmEdge嵌入用户提交的 serverless 函数来回复消息（例如聊天机器人）。](http://reactor.secondstate.info/docs/user-create-a-bot.html).
   * 案例: [WasmEdge运行自定义代码来处理IoT流数据框架YoMo中的事件。](https://github.com/yomorun/yomo-flow-ssvm-example).

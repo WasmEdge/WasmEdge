@@ -25,9 +25,25 @@ endif()
 include(FetchContent)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Boost REQUIRED)
 find_package(Filesystem REQUIRED Final Experimental)
 find_package(Threads REQUIRED)
+
+find_package(Boost QUIET)
+if(${Boost_FOUND})
+else()
+  FetchContent_Declare(
+    Boost
+    URL https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.bz2
+    URL_HASH SHA256=f0397ba6e982c4450f27bf32a2a83292aba035b827a5623a14636ea583318c41
+  )
+  set(BOOST_ENABLE_CMAKE ON)
+  set(BOOST_RUNTIME_LINK static)
+  set(BUILD_TESTING OFF)
+  FetchContent_MakeAvailable(Boost)
+  add_library(Boost_boost INTERFACE)
+  add_library(Boost::boost ALIAS Boost_boost)
+  target_include_directories(Boost_boost INTERFACE ${Boost_SOURCE_DIR})
+endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
@@ -105,8 +121,7 @@ set(CPACK_DEBIAN_${CMAKE_INSTALL_DEFAULT_COMPONENT_NAME_UPCASE}_PACKAGE_NAME was
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 set(CPACK_DEBIAN_COMPRESSION_TYPE xz)
 set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/WasmEdge/WasmEdge/")
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEP ON)
-set(CPACK_DEBIAN_PACKAGE_DEPENDS libllvm10)
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION ON)
 if(BUILD_TOOL_WASMEDGE_STATIC)
   set(CPACK_DEBIAN_STATIC_PACKAGE_RECOMMENDS "binfmt-support | systemd")

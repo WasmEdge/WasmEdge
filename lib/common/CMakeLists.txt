@@ -7,6 +7,7 @@ else()
     spdlog
     GIT_REPOSITORY https://github.com/gabime/spdlog.git
     GIT_TAG        v1.8.5
+    GIT_SHALLOW    TRUE
   )
   set(BUILD_GMOCK OFF)
   FetchContent_MakeAvailable(spdlog)

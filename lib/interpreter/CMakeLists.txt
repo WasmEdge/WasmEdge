@@ -29,6 +29,5 @@ target_link_libraries(wasmedgeInterpreter
 
 target_include_directories(wasmedgeInterpreter
   PUBLIC
-  ${Boost_INCLUDE_DIRS}
   ${PROJECT_SOURCE_DIR}/include
 )

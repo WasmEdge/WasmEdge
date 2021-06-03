@@ -26,9 +26,15 @@ Expect<void> Section::loadSize(FileMgr &Mgr) {
 
 /// Load content of custom section. See "include/ast/section.h".
 Expect<void> CustomSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
-  /// Read all raw bytes.
-  if (auto Res = Mgr.readBytes(ContentSize)) {
-    Content = *Res;
+  /// Read name.
+  if (auto Res = Mgr.readName()) {
+    Content = std::vector<uint8_t>((*Res).begin(), (*Res).end());
+  } else {
+    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+  }
+  /// Read remain bytes.
+  if (auto Res = Mgr.readBytes(ContentSize - Content.size())) {
+    Content.insert(Content.end(), (*Res).begin(), (*Res).end());
   } else {
     return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }

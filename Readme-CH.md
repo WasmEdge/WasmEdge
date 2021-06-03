@@ -85,14 +85,14 @@ WasmEdge 染软件产品能够扩展并为用户做定制。有了 WasmEdge，�
 * *Jamstack 应用* 由带有 JavaScript 的静态前端组成，用于与后端 API 进行交互。这是现在流行的[现代web应用程序架构](https://jamstack.org/)。前端静态文件可以通过 CDN 分发，后端函数可以托管在边缘节点上。 [基于云的 WasmEdge](https://www.secondstate.io/faas/) 为Jamstack app 托管安全且高性能的后端 Serverless 函数，特别是在边缘云上。 
   * 案例：[给web app上的任意图片增加水印](https://second-state.github.io/wasm-learning/faas/watermark/html/index.html).
   * 案例：[基于腾讯云的serverless Tensorflow函数](https://github.com/second-state/tencent-tensorflow-scf).
-* * SaaS应用程序*通常需要根据客户要求“在边缘”进行定制或定制。 使用 WasmEdge，SaaS 应用程序可以直接嵌入和执行用户提交的代码作为工作流的一部分（例如作为处理来自 SaaS 应用程序的事件的回调函数）。
+* *SaaS 应用程序* 通常需要根据客户要求“在边缘”进行定制或定制。 使用 WasmEdge，SaaS 应用程序可以直接嵌入和执行用户提交的代码作为工作流的一部分（例如作为处理来自 SaaS 应用程序的事件的回调函数）。
   * 案例：[飞书(https://app.feishu.cn/app/cli_a08fe99f8169900d)应用平台可以通过 WasmEdge嵌入用户提交的 serverless 函数来回复消息（例如聊天机器人）。](http://reactor.secondstate.info/docs/user-create-a-bot.html).
   * 案例: [WasmEdge运行自定义代码来处理IoT流数据框架YoMo中的事件。](https://github.com/yomorun/yomo-flow-ssvm-example).
-* WasmEdge 被调整为在适用边缘设备的各种嵌入式和实时操作系统。 这让开发者只需使用 Rust 或 C 编写一次高性能应用程序，就能在许多边缘设备平台上安全地运行。 
+* WasmEdge 被调整为在适用*边缘设备*的各种嵌入式和实时操作系统。 这让开发者只需使用 Rust 或 C 编写一次高性能应用程序，就能在许多边缘设备平台上安全地运行。 
   * 案例： [RIOS Lab示例：RIOS 实验室的 RISC-V 堆栈](https://rioslab.org/)。
   * 进行中：将 WasmEdge 移植到 SeL4 实时操作系统。
   * 计划中： WasmEdge 可用作自动驾驶汽车中软件模块的 RTOS 代码运行环境。
-* * 区块链智能合约* 是用户提交代码，由网络中的所有节点执行。 WasmEdge 得到头部的区块链项目采用，作为智能合约执行引擎。
+* *区块链智能合约* 是用户提交代码，由网络中的所有节点执行。 WasmEdge 得到头部的区块链项目采用，作为智能合约执行引擎。
   * 案例: [Substrate 和 Polkadot 上的 EWASM 智能合约](https://github.com/ParaState/substrate-ssvm-node).
 
 ## 社区

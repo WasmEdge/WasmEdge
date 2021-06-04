@@ -12,8 +12,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     Magic = *Res;
     std::vector<Byte> WasmMagic = {0x00, 0x61, 0x73, 0x6D};
     if (Magic != WasmMagic) {
-      return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 4,
-                          NodeAttr);
+      return logLoadError(ErrCode::InvalidMagic, Mgr.getOffset() - 4, NodeAttr);
     }
   } else {
     return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
@@ -22,7 +21,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     Version = *Res;
     std::vector<Byte> WasmVersion = {0x01, 0x00, 0x00, 0x00};
     if (Version != WasmVersion) {
-      return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 4,
+      return logLoadError(ErrCode::InvalidVersion, Mgr.getOffset() - 4,
                           NodeAttr);
     }
   } else {
@@ -40,7 +39,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readByte()) {
       NewSectionId = *Res;
     } else {
-      if (Res.error() == ErrCode::EndOfFile) {
+      if (Res.error() == ErrCode::UnexpectedEnd) {
         break;
       } else {
         return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
@@ -99,8 +98,8 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       break;
     case 0x08:
       if (StartSec.getContent()) {
-        /// Start section should be unique.
-        logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
+        return logLoadError(ErrCode::JunkSection, Mgr.getOffset() - 1,
+                            NodeAttr);
       }
       if (auto Res = StartSec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
@@ -129,13 +128,12 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       /// This section is for BulkMemoryOperations or ReferenceTypes proposal.
       if (!CopyConf.hasProposal(Proposal::BulkMemoryOperations) &&
           !CopyConf.hasProposal(Proposal::ReferenceTypes)) {
-        return logNeedProposal(ErrCode::InvalidGrammar,
+        return logNeedProposal(ErrCode::InvalidSection,
                                Proposal::BulkMemoryOperations,
                                Mgr.getOffset() - 1, NodeAttr);
       }
       if (DataCountSec.getContent()) {
-        /// Data count section should be unique.
-        logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
+        logLoadError(ErrCode::JunkSection, Mgr.getOffset() - 1, NodeAttr);
       }
       if (auto Res = DataCountSec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
@@ -144,17 +142,24 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       CopyConf.addDataCountSection();
       break;
     default:
-      return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1,
+      return logLoadError(ErrCode::InvalidSection, Mgr.getOffset() - 1,
                           NodeAttr);
     }
+  }
+
+  /// Verify the function section and code section are matched.
+  if (FunctionSec.getContent().size() != CodeSec.getContent().size()) {
+    spdlog::error(ErrCode::IncompatibleFuncCode);
+    spdlog::error(ErrInfo::InfoAST(NodeAttr));
+    return Unexpect(ErrCode::IncompatibleFuncCode);
   }
 
   /// Verify the data count section and data segments are matched.
   if (DataCountSec.getContent()) {
     if (DataSec.getContent().size() != *DataCountSec.getContent()) {
-      spdlog::error(ErrCode::InvalidGrammar);
+      spdlog::error(ErrCode::IncompatibleDataCount);
       spdlog::error(ErrInfo::InfoAST(NodeAttr));
-      return Unexpect(ErrCode::InvalidGrammar);
+      return Unexpect(ErrCode::IncompatibleDataCount);
     }
   }
   return {};

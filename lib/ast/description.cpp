@@ -52,7 +52,8 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     return GlobType.loadBinary(Mgr, Conf);
   }
   default:
-    return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
+    return logLoadError(ErrCode::InvalidImportKind, Mgr.getOffset() - 1,
+                        NodeAttr);
   }
   return {};
 }
@@ -79,7 +80,8 @@ Expect<void> ExportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case ExternalType::Global:
     break;
   default:
-    return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
+    return logLoadError(ErrCode::InvalidExportKind, Mgr.getOffset() - 1,
+                        NodeAttr);
   }
 
   /// Read external index to export.

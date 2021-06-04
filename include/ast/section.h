@@ -63,6 +63,7 @@ protected:
   template <typename T>
   Expect<void> loadToVector(FileMgr &Mgr, const Configure &Conf,
                             const ASTNodeAttr Node, std::vector<T> &Vec) {
+    auto StartOffset = Mgr.getOffset();
     uint32_t VecCnt = 0;
     /// Read vector size.
     if (auto Res = Mgr.readU32()) {
@@ -80,6 +81,11 @@ protected:
         spdlog::error(ErrInfo::InfoAST(Node));
         return Unexpect(Res);
       }
+    }
+    /// Check the read size match the section size.
+    auto EndOffset = Mgr.getOffset();
+    if (EndOffset - StartOffset != ContentSize) {
+      return logLoadError(ErrCode::SectionSizeMismatch, EndOffset, Node);
     }
     return {};
   }

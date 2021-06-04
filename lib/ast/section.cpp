@@ -8,10 +8,16 @@ namespace AST {
 /// Load binary to construct Section node. See "include/ast/section.h".
 Expect<void> Section::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   if (auto Res = loadSize(Mgr)) {
-    return loadContent(Mgr, Conf);
+    Mgr.setSectionSize(ContentSize);
+    auto ResContent = loadContent(Mgr, Conf);
+    Mgr.unsetSectionSize();
+    if (!ResContent) {
+      return Unexpect(ResContent);
+    }
   } else {
     return Unexpect(Res);
   }
+  return {};
 }
 
 /// Load content size. See "include/ast/section.h".
@@ -27,13 +33,15 @@ Expect<void> Section::loadSize(FileMgr &Mgr) {
 /// Load content of custom section. See "include/ast/section.h".
 Expect<void> CustomSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
   /// Read name.
+  auto ReadSize = Mgr.getOffset();
   if (auto Res = Mgr.readName()) {
     Content = std::vector<uint8_t>((*Res).begin(), (*Res).end());
   } else {
     return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
   }
+  ReadSize = Mgr.getOffset() - ReadSize;
   /// Read remain bytes.
-  if (auto Res = Mgr.readBytes(ContentSize - Content.size())) {
+  if (auto Res = Mgr.readBytes(ContentSize - ReadSize)) {
     Content.insert(Content.end(), (*Res).begin(), (*Res).end());
   } else {
     return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
@@ -53,6 +61,7 @@ Expect<void> ImportSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
 
 /// Load vector of function section. See "include/ast/section.h".
 Expect<void> FunctionSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
+  auto StartOffset = Mgr.getOffset();
   uint32_t VecCnt = 0;
   /// Read vector count.
   if (auto Res = Mgr.readU32()) {
@@ -68,6 +77,11 @@ Expect<void> FunctionSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
     } else {
       return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
     }
+  }
+  /// Check the read size match the section size.
+  auto EndOffset = Mgr.getOffset();
+  if (EndOffset - StartOffset != ContentSize) {
+    return logLoadError(ErrCode::SectionSizeMismatch, EndOffset, NodeAttr);
   }
   return {};
 }
@@ -94,10 +108,16 @@ Expect<void> ExportSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
 
 /// Load start function index. See "include/ast/section.h".
 Expect<void> StartSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
+  auto StartOffset = Mgr.getOffset();
   if (auto Res = Mgr.readU32()) {
     Content = *Res;
   } else {
     return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+  }
+  /// Check the read size match the section size.
+  auto EndOffset = Mgr.getOffset();
+  if (EndOffset - StartOffset != ContentSize) {
+    return logLoadError(ErrCode::SectionSizeMismatch, EndOffset, NodeAttr);
   }
   return {};
 }
@@ -120,11 +140,17 @@ Expect<void> DataSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
 /// Load content of data count section. See "include/ast/section.h".
 Expect<void> DataCountSection::loadContent(FileMgr &Mgr,
                                            const Configure &Conf) {
+  auto StartOffset = Mgr.getOffset();
   /// Read u32 of data count.
   if (auto Res = Mgr.readU32()) {
     Content = *Res;
   } else {
     return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+  }
+  /// Check the read size match the section size.
+  auto EndOffset = Mgr.getOffset();
+  if (EndOffset - StartOffset != ContentSize) {
+    return logLoadError(ErrCode::SectionSizeMismatch, EndOffset, NodeAttr);
   }
   return {};
 }

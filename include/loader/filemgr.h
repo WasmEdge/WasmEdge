@@ -41,9 +41,6 @@ public:
   /// Read number of bytes into a vector.
   Expect<std::vector<Byte>> readBytes(size_t SizeToRead);
 
-  /// Read number of bytes into a vector.
-  Expect<void> readBytes(Span<Byte> Buffer);
-
   /// Read an unsigned int.
   Expect<uint32_t> readU32();
 
@@ -66,28 +63,66 @@ public:
   Expect<std::string> readName();
 
   /// Get current offset.
-  uint64_t getOffset() const { return Pos; }
+  uint64_t getOffset() const noexcept { return Pos; }
+
+  /// Get last succeeded read offset.
+  uint64_t getLastOffset() const noexcept { return LastPos; }
 
   /// Get remain size.
-  uint64_t getRemainSize() const { return Size - Pos; }
+  uint64_t getRemainSize() const noexcept { return Size - Pos; }
+
+  /// Set limit read section size.
+  void setSectionSize(uint64_t SecSize) {
+    if (likely(UINT64_MAX - Pos >= SecSize)) {
+      SecPos = std::min(Pos + SecSize, Size);
+    } else {
+      SecPos = std::min(UINT64_MAX - Pos, Size);
+    }
+  }
+
+  /// Unset limit read section size.
+  void unsetSectionSize() { SecPos.reset(); }
 
   /// Reset status
   void reset() {
-    Status = ErrCode::EndOfFile;
+    Status = ErrCode::UnexpectedEnd;
+    LastPos = 0;
     Pos = 0;
     Size = 0;
     Data = nullptr;
-    Map.reset();
+    FileMap.reset();
     DataHolder.reset();
   }
 
 private:
+  /// Helper function for reading number of bytes into a vector.
+  Expect<void> readBytes(Span<Byte> Buffer);
+
+  /// Helper function for checking boundary.
+  Expect<void> testRead(uint64_t Read);
+
   /// File manager status.
-  ErrCode Status = ErrCode::EndOfFile;
+  ErrCode Status = ErrCode::UnexpectedEnd;
+
+  /// Last succeeded read start or read failed offset.
+  /// Will be set to the read error or EOF offset when read failed, or set to
+  /// the u32, u64, s32, s64, f32, f64, name, or bytes start offset when read
+  /// succeeded or syntax error.
+  uint64_t LastPos;
+
+  /// Section limit offset. If a value is set, it will return an 'UnexpectedEnd'
+  /// if the read offset cross this value.
+  std::optional<uint64_t> SecPos;
+
+  /// Current read offset.
   uint64_t Pos;
+
+  /// File or vector size.
   uint64_t Size;
+
+  /// File or data management.
   const Byte *Data;
-  std::optional<MMap> Map;
+  std::optional<MMap> FileMap;
   std::optional<std::vector<Byte>> DataHolder;
 };
 

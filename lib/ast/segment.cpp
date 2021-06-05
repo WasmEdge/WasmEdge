@@ -54,13 +54,13 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   if (auto Res = Mgr.readU32()) {
     Check = *Res;
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   /// Check > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
   if (Check > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations) &&
       !Conf.hasProposal(Proposal::ReferenceTypes)) {
     return logNeedProposal(ErrCode::ExpectedZeroByte,
-                           Proposal::BulkMemoryOperations, Mgr.getOffset() - 1,
+                           Proposal::BulkMemoryOperations, Mgr.getLastOffset(),
                            NodeAttr);
   }
 
@@ -85,7 +85,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 
   default:
     /// TODO: Correctness the error code once there's spec test.
-    return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
+    return logLoadError(ErrCode::InvalidGrammar, Mgr.getLastOffset(), NodeAttr);
   }
 
   /// Read the table index.
@@ -96,7 +96,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readU32()) {
       TableIdx = *Res;
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset() - 1, NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
     break;
 
@@ -128,11 +128,11 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case 0x03:
     if (auto Res = Mgr.readByte()) {
       if (*Res != 0x00U) {
-        return logLoadError(ErrCode::ExpectedZeroByte, Mgr.getOffset() - 1,
+        return logLoadError(ErrCode::ExpectedZeroByte, Mgr.getLastOffset(),
                             NodeAttr);
       }
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
     [[fallthrough]];
 
@@ -141,7 +141,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readU32()) {
       VecCnt = *Res;
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
     for (uint32_t i = 0; i < VecCnt; ++i) {
       /// For each element in vec(funcidx), make expr(ref.func idx end).
@@ -169,12 +169,12 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readByte()) {
       Type = static_cast<RefType>(*Res);
       if (auto Check =
-              checkRefTypeProposals(Conf, Type, Mgr.getOffset() - 1, NodeAttr);
+              checkRefTypeProposals(Conf, Type, Mgr.getLastOffset(), NodeAttr);
           !Check) {
         return Unexpect(Check);
       }
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
     [[fallthrough]];
 
@@ -184,7 +184,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       VecCnt = *Res;
       InitExprs.reserve(VecCnt);
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
     for (uint32_t i = 0; i < VecCnt; ++i) {
       InitExprs.emplace_back();
@@ -218,7 +218,7 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   if (auto Res = Mgr.readU32()) {
     SegSize = *Res;
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
 
   /// Read the vector of local variable counts and types.
@@ -227,7 +227,7 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     VecCnt = *Res;
     Locals.reserve(VecCnt);
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   uint32_t TotalLocalCnt = 0;
   for (uint32_t i = 0; i < VecCnt; ++i) {
@@ -236,23 +236,24 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readU32()) {
       LocalCnt = *Res;
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
     /// Total local variables should not more than 2^32.
     if (UINT32_MAX - TotalLocalCnt < LocalCnt) {
-      return logLoadError(ErrCode::TooManyLocals, Mgr.getOffset(), NodeAttr);
+      return logLoadError(ErrCode::TooManyLocals, Mgr.getLastOffset(),
+                          NodeAttr);
     }
     TotalLocalCnt += LocalCnt;
     /// Read the number type.
     if (auto Res = Mgr.readByte()) {
       LocalType = static_cast<ValType>(*Res);
       if (auto Check = checkValTypeProposals(Conf, LocalType,
-                                             Mgr.getOffset() - 1, NodeAttr);
+                                             Mgr.getLastOffset(), NodeAttr);
           !Check) {
         return Unexpect(Check);
       }
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
     Locals.push_back(std::make_pair(LocalCnt, LocalType));
   }
@@ -288,13 +289,13 @@ Expect<void> DataSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   if (auto Res = Mgr.readU32()) {
     Check = *Res;
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   /// Check > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
   if (Check > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations) &&
       !Conf.hasProposal(Proposal::ReferenceTypes)) {
     return logNeedProposal(ErrCode::ExpectedZeroByte,
-                           Proposal::BulkMemoryOperations, Mgr.getOffset() - 1,
+                           Proposal::BulkMemoryOperations, Mgr.getLastOffset(),
                            NodeAttr);
   }
 
@@ -304,7 +305,7 @@ Expect<void> DataSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readU32()) {
       MemoryIdx = *Res;
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
     [[fallthrough]];
 
@@ -324,18 +325,18 @@ Expect<void> DataSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readU32()) {
       VecCnt = *Res;
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
     if (auto Res = Mgr.readBytes(VecCnt)) {
       Data = *Res;
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
     break;
   }
   default:
     /// TODO: Correctness the error code once there's spec test.
-    return logLoadError(ErrCode::InvalidGrammar, Mgr.getOffset() - 1, NodeAttr);
+    return logLoadError(ErrCode::InvalidGrammar, Mgr.getLastOffset(), NodeAttr);
   }
   return {};
 }

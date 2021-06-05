@@ -46,11 +46,11 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   auto readCheck = [&Mgr](uint8_t Val) -> Expect<void> {
     if (auto Res = Mgr.readByte()) {
       if (*Res != Val) {
-        return logLoadError(ErrCode::ExpectedZeroByte, Mgr.getOffset() - 1,
+        return logLoadError(ErrCode::ExpectedZeroByte, Mgr.getLastOffset(),
                             ASTNodeAttr::Instruction);
       }
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     return {};
@@ -60,7 +60,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readU32()) {
       Dst = *Res;
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     return {};
@@ -83,7 +83,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       if (*Res < 0) {
         /// Value type case.
         ValType VType = static_cast<ValType>((*Res) & INT32_C(0x7F));
-        if (auto Check = checkValTypeProposals(Conf, VType, Mgr.getOffset() - 1,
+        if (auto Check = checkValTypeProposals(Conf, VType, Mgr.getLastOffset(),
                                                ASTNodeAttr::Instruction);
             !Check) {
           return Unexpect(Check);
@@ -94,7 +94,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
         ResType = static_cast<uint32_t>(*Res);
       }
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     return {};
@@ -119,7 +119,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       /// Read default label.
       return readU32(TargetIdx);
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
 
@@ -127,21 +127,20 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     return readU32(TargetIdx);
 
   case OpCode::Call_indirect: {
-    /// Read function index.
+    /// Read the type index.
     if (auto Res = readU32(TargetIdx); !Res) {
       return Unexpect(Res);
     }
-    uint32_t SizeSrcIdx = Mgr.getOffset();
+    uint32_t SrcIdxOffset = Mgr.getOffset();
     /// Read the table index.
     if (auto Res = readU32(SourceIdx); !Res) {
       return Unexpect(Res);
     }
-    SizeSrcIdx = Mgr.getOffset() - SizeSrcIdx;
-    if ((SourceIdx > 0 || SizeSrcIdx > 1) &&
+    if ((SourceIdx > 0 || Mgr.getOffset() - SrcIdxOffset > 1) &&
         !Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logNeedProposal(
-          ErrCode::ExpectedZeroByte, Proposal::ReferenceTypes,
-          Mgr.getOffset() - SizeSrcIdx, ASTNodeAttr::Instruction);
+      return logNeedProposal(ErrCode::ExpectedZeroByte,
+                             Proposal::ReferenceTypes, Mgr.getLastOffset(),
+                             ASTNodeAttr::Instruction);
     }
     return {};
   }
@@ -151,13 +150,13 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readByte()) {
       ReferenceType = static_cast<RefType>(*Res);
       if (auto Check =
-              checkRefTypeProposals(Conf, ReferenceType, Mgr.getOffset() - 1,
+              checkRefTypeProposals(Conf, ReferenceType, Mgr.getLastOffset(),
                                     ASTNodeAttr::Instruction);
           !Check) {
         return Unexpect(Check);
       }
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     return {};
@@ -179,19 +178,19 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
         if (auto T = Mgr.readByte()) {
           ValType VType = static_cast<ValType>(*T);
           if (auto Check = checkValTypeProposals(
-                  Conf, VType, Mgr.getOffset() - 1, ASTNodeAttr::Instruction);
+                  Conf, VType, Mgr.getLastOffset(), ASTNodeAttr::Instruction);
               !Check) {
             return Unexpect(Check);
           }
           ValTypeList.push_back(VType);
         } else {
-          return logLoadError(Res.error(), Mgr.getOffset(),
+          return logLoadError(Res.error(), Mgr.getLastOffset(),
                               ASTNodeAttr::Instruction);
         }
       }
       return {};
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
 
@@ -275,7 +274,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     return readCheck(0x00);
   case OpCode::Data__drop:
     if (!Conf.hasDataCountSection()) {
-      return logLoadError(ErrCode::DataCountRequired, Mgr.getOffset(),
+      return logLoadError(ErrCode::DataCountRequired, Offset,
                           ASTNodeAttr::Instruction);
     }
     return readU32(TargetIdx);
@@ -285,7 +284,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readS32()) {
       Num.emplace<uint32_t>(static_cast<uint32_t>(*Res));
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     return {};
@@ -293,7 +292,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readS64()) {
       Num.emplace<uint64_t>(static_cast<uint64_t>(*Res));
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     return {};
@@ -301,7 +300,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readF32()) {
       Num.emplace<float>(*Res);
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     return {};
@@ -309,7 +308,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readF64()) {
       Num.emplace<double>(*Res);
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     return {};
@@ -476,7 +475,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       return Unexpect(Res);
     }
     if (auto Res = readU32(MemOffset); !Res) {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     return {};
@@ -490,18 +489,18 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::V128__store64_lane:
     /// Read memory arguments.
     if (auto Res = readU32(MemAlign); !Res) {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     if (auto Res = readU32(MemOffset); !Res) {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     /// Read lane index.
     if (auto Res = Mgr.readByte()) {
       TargetIdx = static_cast<uint32_t>(*Res);
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     return {};
@@ -516,7 +515,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       if (auto Res = Mgr.readByte()) {
         Value |= uint128_t(*Res) << (I * 8);
       } else {
-        return logLoadError(Res.error(), Mgr.getOffset(),
+        return logLoadError(Res.error(), Mgr.getLastOffset(),
                             ASTNodeAttr::Instruction);
       }
     }
@@ -543,7 +542,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readByte()) {
       TargetIdx = static_cast<uint32_t>(*Res);
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(),
+      return logLoadError(Res.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     return {};
@@ -764,7 +763,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     return {};
 
   default:
-    return logLoadError(ErrCode::InvalidOpCode, Mgr.getOffset() - 1,
+    return logLoadError(ErrCode::InvalidOpCode, Offset,
                         ASTNodeAttr::Instruction);
   }
 }
@@ -775,7 +774,8 @@ Expect<OpCode> loadOpCode(FileMgr &Mgr) {
   if (auto B1 = Mgr.readByte()) {
     Payload = (*B1);
   } else {
-    return logLoadError(B1.error(), Mgr.getOffset(), ASTNodeAttr::Instruction);
+    return logLoadError(B1.error(), Mgr.getLastOffset(),
+                        ASTNodeAttr::Instruction);
   }
 
   if (Payload == 0xFCU || Payload == 0xFDU) {
@@ -784,7 +784,7 @@ Expect<OpCode> loadOpCode(FileMgr &Mgr) {
       Payload <<= 8;
       Payload += (*B2);
     } else {
-      return logLoadError(B2.error(), Mgr.getOffset(),
+      return logLoadError(B2.error(), Mgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
   }
@@ -808,7 +808,7 @@ Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const Configure &Conf) {
     }
 
     /// Check with proposals.
-    if (auto Res = checkInstrProposals(Code, Conf, Mgr.getOffset() - 1); !Res) {
+    if (auto Res = checkInstrProposals(Code, Conf, Offset); !Res) {
       return Unexpect(Res);
     }
 
@@ -818,13 +818,13 @@ Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const Configure &Conf) {
     } else if (Code == OpCode::Else) {
       if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::If) {
         /// An Else instruction appeared outside the If-block.
-        return logLoadError(ErrCode::InvalidOpCode, Mgr.getOffset() - 1,
+        return logLoadError(ErrCode::InvalidOpCode, Offset,
                             ASTNodeAttr::Instruction);
       }
       uint32_t Pos = BlockStack.back().second;
       if (Instrs[Pos].getJumpElse() > 0) {
         /// An Else instruction appeared before in this If-block.
-        return logLoadError(ErrCode::InvalidOpCode, Mgr.getOffset() - 1,
+        return logLoadError(ErrCode::InvalidOpCode, Offset,
                             ASTNodeAttr::Instruction);
       }
       Instrs[Pos].setJumpElse(Cnt - Pos);

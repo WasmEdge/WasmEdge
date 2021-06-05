@@ -11,21 +11,21 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   if (auto Res = Mgr.readName()) {
     ModName = *Res;
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
 
   /// Read the external name.
   if (auto Res = Mgr.readName()) {
     ExtName = *Res;
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
 
   /// Read the external type.
   if (auto Res = Mgr.readByte()) {
     ExtType = static_cast<ExternalType>(*Res);
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
 
   /// Make content node according to external type.
@@ -35,7 +35,7 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readU32()) {
       FuncTypeIdx = *Res;
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
     break;
   }
@@ -52,7 +52,7 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     return GlobType.loadBinary(Mgr, Conf);
   }
   default:
-    return logLoadError(ErrCode::InvalidImportKind, Mgr.getOffset() - 1,
+    return logLoadError(ErrCode::InvalidImportKind, Mgr.getLastOffset(),
                         NodeAttr);
   }
   return {};
@@ -64,14 +64,14 @@ Expect<void> ExportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   if (auto Res = Mgr.readName()) {
     ExtName = *Res;
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
 
   /// Read external type.
   if (auto Res = Mgr.readByte()) {
     ExtType = static_cast<ExternalType>(*Res);
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   switch (ExtType) {
   case ExternalType::Function:
@@ -80,7 +80,7 @@ Expect<void> ExportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case ExternalType::Global:
     break;
   default:
-    return logLoadError(ErrCode::InvalidExportKind, Mgr.getOffset() - 1,
+    return logLoadError(ErrCode::InvalidExportKind, Mgr.getLastOffset(),
                         NodeAttr);
   }
 
@@ -88,7 +88,7 @@ Expect<void> ExportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   if (auto Res = Mgr.readU32()) {
     ExtIdx = *Res;
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   return {};
 }

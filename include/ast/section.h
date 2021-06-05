@@ -71,7 +71,7 @@ protected:
       /// A section may be splited into partitions in module.
       Vec.reserve(Vec.size() + VecCnt);
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), Node);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), Node);
     }
 
     /// Sequently create AST node T and read data.

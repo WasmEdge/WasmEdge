@@ -25,7 +25,7 @@ Expect<void> Section::loadSize(FileMgr &Mgr) {
   if (auto Res = Mgr.readU32()) {
     ContentSize = *Res;
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   return {};
 }
@@ -37,14 +37,14 @@ Expect<void> CustomSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
   if (auto Res = Mgr.readName()) {
     Content = std::vector<uint8_t>((*Res).begin(), (*Res).end());
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   ReadSize = Mgr.getOffset() - ReadSize;
   /// Read remain bytes.
   if (auto Res = Mgr.readBytes(ContentSize - ReadSize)) {
     Content.insert(Content.end(), (*Res).begin(), (*Res).end());
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   return {};
 }
@@ -69,13 +69,13 @@ Expect<void> FunctionSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
     /// A section may be splited into partitions in module.
     Content.reserve(Content.size() + VecCnt);
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readU32()) {
       Content.push_back(*Res);
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
   }
   /// Check the read size match the section size.
@@ -112,7 +112,7 @@ Expect<void> StartSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
   if (auto Res = Mgr.readU32()) {
     Content = *Res;
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   /// Check the read size match the section size.
   auto EndOffset = Mgr.getOffset();
@@ -145,7 +145,7 @@ Expect<void> DataCountSection::loadContent(FileMgr &Mgr,
   if (auto Res = Mgr.readU32()) {
     Content = *Res;
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   /// Check the read size match the section size.
   auto EndOffset = Mgr.getOffset();

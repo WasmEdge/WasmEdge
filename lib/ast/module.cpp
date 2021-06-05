@@ -12,20 +12,20 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     Magic = *Res;
     std::vector<Byte> WasmMagic = {0x00, 0x61, 0x73, 0x6D};
     if (Magic != WasmMagic) {
-      return logLoadError(ErrCode::InvalidMagic, Mgr.getOffset() - 4, NodeAttr);
+      return logLoadError(ErrCode::InvalidMagic, Mgr.getLastOffset(), NodeAttr);
     }
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   if (auto Res = Mgr.readBytes(4)) {
     Version = *Res;
     std::vector<Byte> WasmVersion = {0x01, 0x00, 0x00, 0x00};
     if (Version != WasmVersion) {
-      return logLoadError(ErrCode::InvalidVersion, Mgr.getOffset() - 4,
+      return logLoadError(ErrCode::InvalidVersion, Mgr.getLastOffset(),
                           NodeAttr);
     }
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
 
   /// Copy the configure to set `HasDataCountSection` flag if read the datacount
@@ -42,7 +42,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       if (Res.error() == ErrCode::UnexpectedEnd) {
         break;
       } else {
-        return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+        return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
       }
     }
 
@@ -98,7 +98,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       break;
     case 0x08:
       if (StartSec.getContent()) {
-        return logLoadError(ErrCode::JunkSection, Mgr.getOffset() - 1,
+        return logLoadError(ErrCode::JunkSection, Mgr.getLastOffset(),
                             NodeAttr);
       }
       if (auto Res = StartSec.loadBinary(Mgr, CopyConf); !Res) {
@@ -130,10 +130,10 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
           !CopyConf.hasProposal(Proposal::ReferenceTypes)) {
         return logNeedProposal(ErrCode::InvalidSection,
                                Proposal::BulkMemoryOperations,
-                               Mgr.getOffset() - 1, NodeAttr);
+                               Mgr.getLastOffset(), NodeAttr);
       }
       if (DataCountSec.getContent()) {
-        logLoadError(ErrCode::JunkSection, Mgr.getOffset() - 1, NodeAttr);
+        logLoadError(ErrCode::JunkSection, Mgr.getLastOffset(), NodeAttr);
       }
       if (auto Res = DataCountSec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
@@ -142,7 +142,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       CopyConf.addDataCountSection();
       break;
     default:
-      return logLoadError(ErrCode::InvalidSection, Mgr.getOffset() - 1,
+      return logLoadError(ErrCode::InvalidSection, Mgr.getLastOffset(),
                           NodeAttr);
     }
   }

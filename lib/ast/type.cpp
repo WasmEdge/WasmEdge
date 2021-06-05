@@ -18,28 +18,28 @@ Expect<void> Limit::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     default:
       if (*Res == 0x80 || *Res == 0x81) {
         /// LEB128 cases will fail.
-        return logLoadError(ErrCode::IntegerTooLong, Mgr.getOffset() - 1,
+        return logLoadError(ErrCode::IntegerTooLong, Mgr.getLastOffset(),
                             NodeAttr);
       } else {
-        return logLoadError(ErrCode::IntegerTooLarge, Mgr.getOffset() - 1,
+        return logLoadError(ErrCode::IntegerTooLarge, Mgr.getLastOffset(),
                             NodeAttr);
       }
     }
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
 
   /// Read min and max number.
   if (auto Res = Mgr.readU32()) {
     Min = *Res;
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   if (Type == LimitType::HasMinMax) {
     if (auto Res = Mgr.readU32()) {
       Max = *Res;
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
   }
   return {};
@@ -52,11 +52,11 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read function type (0x60).
   if (auto Res = Mgr.readByte()) {
     if (*Res != 0x60U) {
-      return logLoadError(ErrCode::IntegerTooLong, Mgr.getOffset() - 1,
+      return logLoadError(ErrCode::IntegerTooLong, Mgr.getLastOffset(),
                           NodeAttr);
     }
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
 
   /// Read vector of parameter types.
@@ -64,19 +64,19 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     VecCnt = *Res;
     ParamTypes.reserve(VecCnt);
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readByte()) {
       ValType Type = static_cast<ValType>(*Res);
       if (auto Check =
-              checkValTypeProposals(Conf, Type, Mgr.getOffset() - 1, NodeAttr);
+              checkValTypeProposals(Conf, Type, Mgr.getLastOffset(), NodeAttr);
           !Check) {
         return Unexpect(Check);
       }
       ParamTypes.push_back(Type);
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
   }
 
@@ -85,19 +85,19 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     VecCnt = *Res;
     ReturnTypes.reserve(VecCnt);
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readByte()) {
       ValType Type = static_cast<ValType>(*Res);
       if (auto Check =
-              checkValTypeProposals(Conf, Type, Mgr.getOffset() - 1, NodeAttr);
+              checkValTypeProposals(Conf, Type, Mgr.getLastOffset(), NodeAttr);
           !Check) {
         return Unexpect(Check);
       }
       ReturnTypes.push_back(Type);
     } else {
-      return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
   }
   return {};
@@ -115,12 +115,12 @@ Expect<void> TableType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   if (auto Res = Mgr.readByte()) {
     Type = static_cast<RefType>(*Res);
     if (auto Check =
-            checkRefTypeProposals(Conf, Type, Mgr.getOffset() - 1, NodeAttr);
+            checkRefTypeProposals(Conf, Type, Mgr.getLastOffset(), NodeAttr);
         !Check) {
       return Unexpect(Check);
     }
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
 
   /// Read limit.
@@ -133,12 +133,12 @@ Expect<void> GlobalType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   if (auto Res = Mgr.readByte()) {
     Type = static_cast<ValType>(*Res);
     if (auto Check =
-            checkValTypeProposals(Conf, Type, Mgr.getOffset() - 1, NodeAttr);
+            checkValTypeProposals(Conf, Type, Mgr.getLastOffset(), NodeAttr);
         !Check) {
       return Unexpect(Check);
     }
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
 
   /// Read mutability.
@@ -149,10 +149,10 @@ Expect<void> GlobalType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     case ValMut::Var:
       break;
     default:
-      return logLoadError(ErrCode::InvalidMut, Mgr.getOffset() - 1, NodeAttr);
+      return logLoadError(ErrCode::InvalidMut, Mgr.getLastOffset(), NodeAttr);
     }
   } else {
-    return logLoadError(Res.error(), Mgr.getOffset(), NodeAttr);
+    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
   return {};
 }

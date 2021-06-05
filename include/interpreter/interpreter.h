@@ -23,7 +23,6 @@
 #include "runtime/storemgr.h"
 
 #include <cassert>
-#include <csetjmp>
 #include <csignal>
 #include <memory>
 #include <type_traits>
@@ -525,25 +524,11 @@ public:
   Expect<RefVariant> refFunc(Runtime::StoreManager &StoreMgr,
                              const uint32_t FuncIndex) noexcept;
 
-  static void signalEnable() noexcept;
-  static void signalDisable() noexcept;
-  static void signalHandler(int Signal, siginfo_t *Siginfo, void *) noexcept;
-  struct SignalEnabler {
-    SignalEnabler() noexcept { Interpreter::signalEnable(); }
-    ~SignalEnabler() noexcept { Interpreter::signalDisable(); }
-  };
-
-  struct SignalDisabler {
-    SignalDisabler() noexcept { Interpreter::signalDisable(); }
-    ~SignalDisabler() noexcept { Interpreter::signalEnable(); }
-  };
   template <typename FuncPtr> struct ProxyHelper;
 
 private:
   /// Pointer to current object.
-  static Interpreter *This;
-  /// jmp_buf for trap.
-  static sigjmp_buf *TrapJump;
+  static thread_local Interpreter *This;
   /// Store for passing into compiled functions
   Runtime::StoreManager *CurrentStore;
   /// Execution context for compiled functions

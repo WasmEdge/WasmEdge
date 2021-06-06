@@ -26,6 +26,8 @@ TEST(ExpressionTest, LoadExpression) {
   ///   2.  Load expression with only end operation.
   ///   3.  Load expression with invalid operations.
   ///   4.  Load expression with instructions.
+  ///   5.  Load expression with instructions not in proposals.
+  Mgr.setCode(std::vector<uint8_t>());
   WasmEdge::AST::Expression Exp1;
   EXPECT_FALSE(Exp1.loadBinary(Mgr, Conf));
 
@@ -52,6 +54,17 @@ TEST(ExpressionTest, LoadExpression) {
   Mgr.setCode(Vec4);
   WasmEdge::AST::Expression Exp4;
   EXPECT_TRUE(Exp4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
+
+  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
+  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+
+  std::vector<unsigned char> Vec5 = {
+      0x25U, 0x00U, /// Table_get.
+      0x0BU         /// OpCode End.
+  };
+  Mgr.setCode(Vec5);
+  WasmEdge::AST::Expression Exp5;
+  EXPECT_FALSE(Exp5.loadBinary(Mgr, Conf));
 }
 
 } // namespace

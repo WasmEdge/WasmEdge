@@ -30,6 +30,7 @@ TEST(DescriptionTest, LoadImportDesc) {
   ///   5.  Load import description of table type.
   ///   6.  Load import description of memory type.
   ///   7.  Load import description of global type.
+  Mgr.setCode(std::vector<uint8_t>());
   WasmEdge::AST::ImportDesc Imp1;
   EXPECT_FALSE(Imp1.loadBinary(Mgr, Conf));
 
@@ -104,6 +105,7 @@ TEST(DescriptionTest, LoadExportDesc) {
   ///   3.  Load export description with non-empty module name.
   ///   4.  Load export description with invalid external type.
   ///   5.  Load export description of table type.
+  Mgr.setCode(std::vector<uint8_t>());
   WasmEdge::AST::ExportDesc Exp1;
   EXPECT_FALSE(Exp1.loadBinary(Mgr, Conf));
 

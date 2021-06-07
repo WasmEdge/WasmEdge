@@ -12,8 +12,3 @@ target_link_libraries(wasiTests
   wasmedgeAST
   wasmedgeHostModuleWasi
 )
-
-target_include_directories(wasiTests
-  PRIVATE
-  ${PROJECT_SOURCE_DIR}/include
-)

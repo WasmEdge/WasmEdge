@@ -11,8 +11,6 @@ add_library(wasmedgeSystem
 
 target_include_directories(wasmedgeSystem
   PUBLIC
-  ${PROJECT_BINARY_DIR}/include
-  ${PROJECT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 

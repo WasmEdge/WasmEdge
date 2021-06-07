@@ -26,8 +26,3 @@ target_link_libraries(wasmedgeInterpreter
   wasmedgeAST
   wasmedgeSystem
 )
-
-target_include_directories(wasmedgeInterpreter
-  PUBLIC
-  ${PROJECT_SOURCE_DIR}/include
-)

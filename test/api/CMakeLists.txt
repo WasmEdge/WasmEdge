@@ -15,10 +15,9 @@ add_library(wasmedgeAPITestHelpers
   helper.cpp
 )
 
-target_include_directories(wasmedgeAPITestHelpers
+target_link_libraries(wasmedgeAPITestHelpers
   PUBLIC
-  ${PROJECT_BINARY_DIR}/include
-  ${PROJECT_SOURCE_DIR}/include
+  wasmedge_c
 )
 
 add_executable(wasmedgeAPIUnitTests

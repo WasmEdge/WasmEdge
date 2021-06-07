@@ -2,8 +2,8 @@
 #include "gtest/gtest.h"
 #include <experimental/expected.hpp>
 
-using std::experimental::expected;
-using std::experimental::unexpect;
+using cxx20::expected;
+using cxx20::unexpect;
 
 TEST(ExtensionsTest, Map) {
   auto mul2 = [](int a) { return a * 2; };

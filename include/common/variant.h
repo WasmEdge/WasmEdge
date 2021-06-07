@@ -157,10 +157,6 @@ public:
   }
 };
 
-} // namespace WasmEdge
-
-namespace std {
-
 template <typename T, typename... Types>
 constexpr T &get(WasmEdge::Variant<Types...> &Variant) {
   return Variant.template get<T>();
@@ -209,4 +205,4 @@ get(const WasmEdge::Variant<Types...> &&Variant) {
       .template get<std::variant_alternative_t<I, std::variant<Types...>>>();
 }
 
-} // namespace std
+} // namespace WasmEdge

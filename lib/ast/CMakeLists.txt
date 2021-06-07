@@ -10,11 +10,6 @@ add_library(wasmedgeAST
   instruction.cpp
 )
 
-target_include_directories(wasmedgeAST
-  PUBLIC
-  ${PROJECT_SOURCE_DIR}/include
-)
-
 target_link_libraries(wasmedgeAST
   PUBLIC
   wasmedgeLoaderFileMgr

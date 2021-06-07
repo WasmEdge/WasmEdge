@@ -38,12 +38,6 @@ add_library(wasmedgeTestSpec
   spectest.cpp
 )
 
-target_include_directories(wasmedgeTestSpec
-  PUBLIC
-  ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/thirdparty
-)
-
 target_link_libraries(wasmedgeTestSpec
   PRIVATE
   rapidjson

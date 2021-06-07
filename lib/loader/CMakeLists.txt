@@ -14,11 +14,6 @@ target_link_libraries(wasmedgeLoaderFileMgr
   std::filesystem
 )
 
-target_include_directories(wasmedgeLoaderFileMgr
-  PUBLIC
-  ${PROJECT_SOURCE_DIR}/include
-)
-
 add_library(wasmedgeLoader
   loader.cpp
 )
@@ -30,9 +25,4 @@ target_link_libraries(wasmedgeLoader
   wasmedgeLoaderFileMgr
   Boost::boost
   std::filesystem
-)
-
-target_include_directories(wasmedgeLoader
-  PUBLIC
-  ${PROJECT_SOURCE_DIR}/include
 )

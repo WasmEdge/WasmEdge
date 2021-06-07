@@ -9,8 +9,3 @@ target_link_libraries(wasmedgeHostModuleWasmEdgeProcess
   PUBLIC
   wasmedgeAST
 )
-
-target_include_directories(wasmedgeHostModuleWasmEdgeProcess
-  PUBLIC
-  ${PROJECT_SOURCE_DIR}/include
-)

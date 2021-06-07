@@ -10,8 +10,3 @@ target_link_libraries(wasmedgeValidator
   wasmedgeCommon
   wasmedgeAST
 )
-
-target_include_directories(wasmedgeValidator
-  PUBLIC
-  ${PROJECT_SOURCE_DIR}/include
-)

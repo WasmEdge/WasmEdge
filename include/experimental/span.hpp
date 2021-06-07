@@ -224,12 +224,12 @@ struct span : public detail::span_storage<T, Extent> {
 
 template <class It, class EndOrSize>
 span(It, EndOrSize)
-    ->span<remove_pointer_t<decltype(to_address(declval<It>()))>>;
-template <class T, size_t N> span(T (&)[N])->span<T, N>;
-template <class T, size_t N> span(array<T, N> &)->span<T, N>;
-template <class T, size_t N> span(const array<T, N> &)->span<const T, N>;
+    -> span<remove_pointer_t<decltype(to_address(declval<It>()))>>;
+template <class T, size_t N> span(T (&)[N]) -> span<T, N>;
+template <class T, size_t N> span(array<T, N> &) -> span<T, N>;
+template <class T, size_t N> span(const array<T, N> &) -> span<const T, N>;
 template <class R>
-span(R &&)->span<remove_pointer_t<decltype(data(declval<R>()))>>;
+span(R &&) -> span<remove_pointer_t<decltype(data(declval<R>()))>>;
 
 template <class T, size_t N> auto as_bytes(span<T, N> s) noexcept {
   constexpr size_t NewExtend =

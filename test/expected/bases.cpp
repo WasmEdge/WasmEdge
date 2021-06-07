@@ -4,8 +4,8 @@
 #include <string>
 #include <type_traits>
 
-using std::experimental::expected;
-using std::experimental::unexpected;
+using cxx20::expected;
+using cxx20::unexpected;
 
 TEST(BaseTest, Triviality) {
   EXPECT_TRUE((std::is_trivially_copy_constructible_v<expected<int, int>>));

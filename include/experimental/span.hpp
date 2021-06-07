@@ -19,7 +19,8 @@
 #include <limits>
 #include <type_traits>
 
-namespace std {
+namespace cxx20 {
+using namespace std;
 
 inline constexpr size_t dynamic_extent = numeric_limits<size_t>::max();
 template <class T, size_t Extent = dynamic_extent> struct span;
@@ -244,4 +245,4 @@ template <class T, size_t N> auto as_writable_bytes(span<T, N> s) noexcept {
                                s.size_bytes());
 }
 
-} // namespace std
+} // namespace cxx20

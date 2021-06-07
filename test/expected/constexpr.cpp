@@ -2,9 +2,10 @@
 #include "gtest/gtest.h"
 #include <array>
 #include <experimental/expected.hpp>
-using std::experimental::expected;
-using std::experimental::unexpect;
-using std::experimental::unexpected;
+
+using cxx20::expected;
+using cxx20::unexpect;
+using cxx20::unexpected;
 
 TEST(ConstexprTest, Constexpr) {
   EXPECT_EQ(([]() { return *expected<int, int>(5); }()), 5);

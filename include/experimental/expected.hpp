@@ -55,8 +55,8 @@
 # define m_throw_exception_again
 #endif
 
-namespace std::experimental {
-inline namespace fundamentals_v3 {
+namespace cxx20 {
+using namespace std;
 
 template <class T, class E> class expected;
 template <class E> class unexpected;
@@ -1553,25 +1553,25 @@ public:
   using impl_base::has_value;
   constexpr const_lvalue_reference_type value() const & {
     if (!has_value()) {
-      m_throw(bad_expected_access<E>(error()));
+      throw(bad_expected_access<E>(error()));
     }
     return impl_base::val();
   }
   constexpr const_rvalue_reference_type value() const && {
     if (!has_value()) {
-      m_throw(bad_expected_access<E>(move(error())));
+      throw(bad_expected_access<E>(move(error())));
     }
     return move(impl_base::val());
   }
   constexpr lvalue_reference_type value() & {
     if (!has_value()) {
-      m_throw(bad_expected_access<E>(error()));
+      throw(bad_expected_access<E>(error()));
     }
     return impl_base::val();
   }
   constexpr rvalue_reference_type value() && {
     if (!has_value()) {
-      m_throw(bad_expected_access<E>(move(error())));
+      throw(bad_expected_access<E>(move(error())));
     }
     return move(impl_base::val());
   }
@@ -1742,8 +1742,7 @@ void swap(unexpected<E1> &x, unexpected<E1> &y) noexcept(NoExcept) {
 template <class E1, enable_if_t<!is_swappable_v<E1>> * = nullptr>
 void swap(unexpected<E1> &x, unexpected<E1> &y) = delete;
 
-} // namespace fundamentals_v3
-} // namespace std::experimental
+} // namespace cxx20
 
 #undef m_try
 #undef m_catch

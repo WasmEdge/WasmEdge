@@ -39,8 +39,8 @@ TEST(Blake3Test, Small) {
       "\xb6\x6b\x54\x34\x2f\xde\x15\x12\x8d\x6c\xaf\x21\x21\x5f"sv;
   WasmEdge::AOT::Blake3 Blake3;
   HashArray Output;
-  Blake3.update(std::span(reinterpret_cast<const WasmEdge::Byte *>(Data.data()),
-                          Data.size()));
+  Blake3.update(cxx20::span(
+      reinterpret_cast<const WasmEdge::Byte *>(Data.data()), Data.size()));
   Blake3.finalize(Output);
   for (size_t I = 0; I < Output.size(); ++I) {
     EXPECT_EQ(Output[I], static_cast<WasmEdge::Byte>(Expect[I]));
@@ -58,8 +58,8 @@ TEST(Blake3Test, Large) {
       "\x83\x3b\x33\x45\x7a\xf5\x96\x73\x73\x35\x05\xd1\x4f\x12"sv;
   WasmEdge::AOT::Blake3 Blake3;
   HashArray Output;
-  Blake3.update(std::span(reinterpret_cast<const WasmEdge::Byte *>(Data.data()),
-                          Data.size()));
+  Blake3.update(cxx20::span(
+      reinterpret_cast<const WasmEdge::Byte *>(Data.data()), Data.size()));
   Blake3.finalize(Output);
   for (size_t I = 0; I < Output.size(); ++I) {
     EXPECT_EQ(Output[I], static_cast<WasmEdge::Byte>(Expect[I]));

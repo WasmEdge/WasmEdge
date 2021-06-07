@@ -14,7 +14,7 @@
 
 namespace WasmEdge {
 
-template <typename T, std::size_t N = std::dynamic_extent>
-using Span = std::span<T, N>;
+template <typename T, std::size_t N = cxx20::dynamic_extent>
+using Span = cxx20::span<T, N>;
 
 } // namespace WasmEdge

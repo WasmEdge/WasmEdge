@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+#include <bitset>
+
 #include "ast/module.h"
 #include "common/log.h"
 
@@ -31,6 +33,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Copy the configure to set `HasDataCountSection` flag if read the datacount
   /// section.
   Configure CopyConf = Conf;
+  std::bitset<0x0DU> Secs;
 
   /// Read Section index and create Section nodes.
   while (true) {
@@ -46,9 +49,14 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       }
     }
 
+    /// Sections except the custom section should be unique.
+    if (NewSectionId > 0x00U && NewSectionId < 0x0DU &&
+        Secs.test(NewSectionId)) {
+      return logLoadError(ErrCode::JunkSection, Mgr.getLastOffset(), NodeAttr);
+    }
+
     switch (NewSectionId) {
     case 0x00:
-      /// TODO: Handle the messages in custom section.
       if (auto Res = CustomSec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
@@ -59,70 +67,77 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
+      Secs.set(NewSectionId);
       break;
     case 0x02:
       if (auto Res = ImportSec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
+      Secs.set(NewSectionId);
       break;
     case 0x03:
       if (auto Res = FunctionSec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
+      Secs.set(NewSectionId);
       break;
     case 0x04:
       if (auto Res = TableSec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
+      Secs.set(NewSectionId);
       break;
     case 0x05:
       if (auto Res = MemorySec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
+      Secs.set(NewSectionId);
       break;
     case 0x06:
       if (auto Res = GlobalSec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
+      Secs.set(NewSectionId);
       break;
     case 0x07:
       if (auto Res = ExportSec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
+      Secs.set(NewSectionId);
       break;
     case 0x08:
-      if (StartSec.getContent()) {
-        return logLoadError(ErrCode::JunkSection, Mgr.getLastOffset(),
-                            NodeAttr);
-      }
       if (auto Res = StartSec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
+      Secs.set(NewSectionId);
       break;
     case 0x09:
       if (auto Res = ElementSec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
+      Secs.set(NewSectionId);
       break;
     case 0x0A:
       if (auto Res = CodeSec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
+      Secs.set(NewSectionId);
       break;
     case 0x0B:
       if (auto Res = DataSec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
+      Secs.set(NewSectionId);
       break;
     case 0x0C:
       /// This section is for BulkMemoryOperations or ReferenceTypes proposal.
@@ -132,14 +147,12 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
                                Proposal::BulkMemoryOperations,
                                Mgr.getLastOffset(), NodeAttr);
       }
-      if (DataCountSec.getContent()) {
-        logLoadError(ErrCode::JunkSection, Mgr.getLastOffset(), NodeAttr);
-      }
       if (auto Res = DataCountSec.loadBinary(Mgr, CopyConf); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
       CopyConf.addDataCountSection();
+      Secs.set(NewSectionId);
       break;
     default:
       return logLoadError(ErrCode::InvalidSection, Mgr.getLastOffset(),

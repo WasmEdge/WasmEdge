@@ -38,28 +38,28 @@ union VariadicUnion<FirstT, RestT...> {
 
   template <typename T> constexpr const T &get() const &noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
-      return *reinterpret_cast<const FirstT *>(&First);
+      return *std::launder(reinterpret_cast<const FirstT *>(&First));
     } else {
       return Rest.template get<T>();
     }
   }
   template <typename T> constexpr T &get() &noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
-      return *reinterpret_cast<FirstT *>(&First);
+      return *std::launder(reinterpret_cast<FirstT *>(&First));
     } else {
       return Rest.template get<T>();
     }
   }
   template <typename T> constexpr const T &&get() const &&noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
-      return std::move(*reinterpret_cast<const FirstT *>(&First));
+      return std::move(*std::launder(reinterpret_cast<const FirstT *>(&First)));
     } else {
       return std::move(Rest).template get<T>();
     }
   }
   template <typename T> constexpr T &&get() &&noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
-      return std::move(*reinterpret_cast<FirstT *>(&First));
+      return std::move(*std::launder(reinterpret_cast<FirstT *>(&First)));
     } else {
       return std::move(Rest).template get<T>();
     }

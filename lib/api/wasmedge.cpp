@@ -1301,7 +1301,7 @@ WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
         }
         return fromTabCxt(Cxt)->setRefAddr(
             Offset,
-            std::get<WasmEdge::RefVariant>(WasmEdge::ValVariant(Data.Value)));
+            WasmEdge::ValVariant(Data.Value).get<WasmEdge::RefVariant>());
       },
       EmptyThen, Cxt);
 }

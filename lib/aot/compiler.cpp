@@ -989,18 +989,18 @@ public:
         break;
       }
       case OpCode::I32__const:
-        stackPush(Builder.getInt32(std::get<uint32_t>(Instr.getNum())));
+        stackPush(Builder.getInt32(Instr.getNum().get<uint32_t>()));
         break;
       case OpCode::I64__const:
-        stackPush(Builder.getInt64(std::get<uint64_t>(Instr.getNum())));
+        stackPush(Builder.getInt64(Instr.getNum().get<uint64_t>()));
         break;
       case OpCode::F32__const:
         stackPush(llvm::ConstantFP::get(
-            Context.FloatTy, llvm::APFloat(std::get<float>(Instr.getNum()))));
+            Context.FloatTy, llvm::APFloat(Instr.getNum().get<float>())));
         break;
       case OpCode::F64__const:
         stackPush(llvm::ConstantFP::get(
-            Context.DoubleTy, llvm::APFloat(std::get<double>(Instr.getNum()))));
+            Context.DoubleTy, llvm::APFloat(Instr.getNum().get<double>())));
         break;
       case OpCode::I32__eqz:
         stackPush(Builder.CreateZExt(

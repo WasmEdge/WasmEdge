@@ -214,16 +214,16 @@ int main(int Argc, const char *Argv[]) {
       for (size_t I = 0; I < FuncType.Returns.size(); ++I) {
         switch (FuncType.Returns[I]) {
         case WasmEdge::ValType::I32:
-          std::cout << std::get<uint32_t>((*Result)[I]) << '\n';
+          std::cout << (*Result)[I].get<uint32_t>() << '\n';
           break;
         case WasmEdge::ValType::I64:
-          std::cout << std::get<uint64_t>((*Result)[I]) << '\n';
+          std::cout << (*Result)[I].get<uint64_t>() << '\n';
           break;
         case WasmEdge::ValType::F32:
-          std::cout << std::get<float>((*Result)[I]) << '\n';
+          std::cout << (*Result)[I].get<float>() << '\n';
           break;
         case WasmEdge::ValType::F64:
-          std::cout << std::get<double>((*Result)[I]) << '\n';
+          std::cout << (*Result)[I].get<double>() << '\n';
           break;
         /// TODO: FuncRef and ExternRef
         default:

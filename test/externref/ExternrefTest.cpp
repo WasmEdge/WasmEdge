@@ -39,7 +39,7 @@ TEST(ExternRefTest, Ref__Functions) {
   auto Res1 = VM.execute("call_add", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res1);
   EXPECT_EQ((*Res1).size(), 1U);
-  EXPECT_EQ(std::get<uint32_t>((*Res1)[0]), 6912U);
+  EXPECT_EQ((*Res1)[0].get<uint32_t>(), 6912U);
 
   /// Test 2: call mul -- 789 * 4321
   FuncArgs = {WasmEdge::genExternRef(MulFunc), 789U, 4321U};
@@ -48,7 +48,7 @@ TEST(ExternRefTest, Ref__Functions) {
   auto Res2 = VM.execute("call_mul", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res2);
   EXPECT_EQ((*Res1).size(), 1U);
-  EXPECT_EQ(std::get<uint32_t>((*Res2)[0]), 3409269U);
+  EXPECT_EQ((*Res2)[0].get<uint32_t>(), 3409269U);
 
   /// Test 3: call square -- 8256^2
   FuncArgs = {WasmEdge::genExternRef(&SS), 8256U};
@@ -56,7 +56,7 @@ TEST(ExternRefTest, Ref__Functions) {
   auto Res3 = VM.execute("call_square", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res3);
   EXPECT_EQ((*Res1).size(), 1U);
-  EXPECT_EQ(std::get<uint32_t>((*Res3)[0]), 68161536U);
+  EXPECT_EQ((*Res3)[0].get<uint32_t>(), 68161536U);
 
   /// Test 4: call sum and square -- (210 + 654)^2
   FuncArgs = {WasmEdge::genExternRef(&AC), WasmEdge::genExternRef(&SS), 210U,
@@ -66,7 +66,7 @@ TEST(ExternRefTest, Ref__Functions) {
   auto Res4 = VM.execute("call_add_square", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res4);
   EXPECT_EQ((*Res1).size(), 1U);
-  EXPECT_EQ(std::get<uint32_t>((*Res4)[0]), 746496U);
+  EXPECT_EQ((*Res4)[0].get<uint32_t>(), 746496U);
 }
 
 TEST(ExternRefTest, Ref__STL) {
@@ -163,7 +163,7 @@ TEST(ExternRefTest, Ref__STL) {
   auto Res8 = VM.execute("call_vector_sum", FuncArgs, FuncArgTypes);
   ASSERT_TRUE(Res8);
   EXPECT_EQ((*Res8).size(), 1U);
-  EXPECT_EQ(std::get<uint32_t>((*Res8)[0]), 40U + 50U + 60U + 70U + 80U);
+  EXPECT_EQ((*Res8)[0].get<uint32_t>(), 40U + 50U + 60U + 70U + 80U);
 }
 
 } // namespace

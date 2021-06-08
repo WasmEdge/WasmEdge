@@ -95,28 +95,28 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
 
 /// Retrieve value.
 template <typename T> inline const T &retrieveValue(const ValVariant &Val) {
-  return *reinterpret_cast<const T *>(&std::get<TypeToWasmTypeT<T>>(Val));
+  return *reinterpret_cast<const T *>(&Val.get<TypeToWasmTypeT<T>>());
 }
 template <typename T> inline T &retrieveValue(ValVariant &Val) {
-  return *reinterpret_cast<T *>(&std::get<TypeToWasmTypeT<T>>(Val));
+  return *reinterpret_cast<T *>(&Val.get<TypeToWasmTypeT<T>>());
 }
 template <typename T> inline const T &&retrieveValue(const ValVariant &&Val) {
   return std::move(
-      *reinterpret_cast<const T *>(&std::get<TypeToWasmTypeT<T>>(Val)));
+      *reinterpret_cast<const T *>(&Val.get<TypeToWasmTypeT<T>>()));
 }
 template <typename T> inline T &&retrieveValue(ValVariant &&Val) {
-  return std::move(*reinterpret_cast<T *>(&std::get<TypeToWasmTypeT<T>>(Val)));
+  return std::move(*reinterpret_cast<T *>(&Val.get<TypeToWasmTypeT<T>>()));
 }
 
 /// Retrieve references.
 inline constexpr bool isNullRef(const ValVariant &Val) {
-  return std::get<uint64_t>(Val) == 0;
+  return Val.get<uint64_t>() == 0;
 }
 inline constexpr uint32_t retrieveFuncIdx(const ValVariant &Val) {
-  return std::get<FuncRef>(Val).Idx;
+  return Val.get<FuncRef>().Idx;
 }
 template <typename T> inline T &retrieveExternRef(const ValVariant &Val) {
-  return *reinterpret_cast<T *>(std::get<ExternRef>(Val).Ptr);
+  return *reinterpret_cast<T *>(Val.get<ExternRef>().Ptr);
 }
 
 } // namespace WasmEdge

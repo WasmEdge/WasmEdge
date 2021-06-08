@@ -1006,7 +1006,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     /// Check all lane index < 32 by masking
     const uint128_t Mask = reinterpret_cast<uint128_t>(
         uint64x2_t{0xe0e0e0e0e0e0e0e0, 0xe0e0e0e0e0e0e0e0});
-    const uint128_t Result = std::get<uint128_t>(Instr.getNum()) & Mask;
+    const uint128_t Result = Instr.getNum().get<uint128_t>() & Mask;
     if (Result != 0) {
       spdlog::error(ErrCode::InvalidLaneIdx);
       return Unexpect(ErrCode::InvalidLaneIdx);

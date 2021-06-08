@@ -107,7 +107,7 @@ Noted that `MulFunc` is a function definition in above, which is: `uint32_t MulF
 std::vector<WasmEdge::ValVariant> FuncArgs = {WasmEdge::genExternRef(MulFunc), 789U, 4321U};
 std::vector<WasmEdge::ValType> FuncArgTypes = {WasmEdge::ValType::ExternRef, WasmEdge::ValType::I32, WasmEdge::ValType::I32};
 std::vector<WasmEdge::ValVariant> Returns = *(VM.execute("call_mul", FuncArgs, FuncArgTypes));
-std::cout << std::get<uint32_t>(Returns[0]); // will print 3409269
+std::cout << Returns[0].get<uint32_t>(); // will print 3409269
 ```
 
 ## Passing Objects
@@ -133,7 +133,7 @@ Then users can pass the object into WasmEdge by using `WasmEdge::genExternRef()`
 std::vector<WasmEdge::ValVariant> FuncArgs = {WasmEdge::genExternRef(&AC), 1234U, 5678U};
 std::vector<WasmEdge::ValType> FuncArgTypes = {WasmEdge::ValType::ExternRef, WasmEdge::ValType::I32, WasmEdge::ValType::I32};
 std::vector<WasmEdge::ValVariant> Returns = *(VM.execute("call_add", FuncArgs, FuncArgTypes));
-std::cout << std::get<uint32_t>(Returns[0]); // will print 6912
+std::cout << Returns[0].get<uint32_t>(); // will print 6912
 ```
 
 In the host function which would access the object by reference, users can use "`retrieveExternRef`" API to retrieve the reference to the object.
@@ -169,7 +169,7 @@ Then users can pass the object into WasmEdge by using `WasmEdge::genExternRef()`
 std::vector<WasmEdge::ValVariant> FuncArgs = {WasmEdge::genExternRef(&SS), 1024U};
 std::vector<WasmEdge::ValType> FuncArgTypes = {WasmEdge::ValType::ExternRef, WasmEdge::ValType::I32};
 std::vector<WasmEdge::ValVariant> Returns = *(VM.execute("call_square", FuncArgs, FuncArgTypes));
-std::cout << std::get<uint32_t>(Returns[0]); // will print 1048576
+std::cout << Returns[0].get<uint32_t>(); // will print 1048576
 ```
 
 In the host function which would access the object by reference, users can use "`retrieveExternRef`" API to retrieve the reference to the object, and the reference is a functor.

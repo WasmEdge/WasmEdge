@@ -131,16 +131,16 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::Ref__is_null: {
       ValVariant &Val = StackMgr.getTop();
       if (isNullRef(Val)) {
-        retrieveValue<uint32_t>(Val) = 1;
+        Val.emplace<uint32_t>(1);
       } else {
-        retrieveValue<uint32_t>(Val) = 0;
+        Val.emplace<uint32_t>(0);
       }
       return {};
     }
     case OpCode::Ref__func: {
       const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
       const uint32_t FuncAddr = *ModInst->getFuncAddr(Instr.getTargetIndex());
-      StackMgr.push(genFuncRef(FuncAddr));
+      StackMgr.push(FuncRef(FuncAddr));
       return {};
     }
 
@@ -156,7 +156,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       ValVariant Val1 = StackMgr.pop();
 
       /// Select the value.
-      if (retrieveValue<uint32_t>(CondVal) == 0) {
+      if (CondVal.get<uint32_t>() == 0) {
         StackMgr.push(Val2);
       } else {
         StackMgr.push(Val1);
@@ -764,7 +764,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       std::array<uint8_t, 16> Result;
       std::memcpy(&Data[0], &Val1, 16);
       std::memcpy(&Data[16], &Val2, 16);
-      const auto V3 = retrieveValue<uint128_t>(Instr.getNum());
+      const auto V3 = Instr.getNum().get<uint128_t>();
       for (size_t I = 0; I < 16; ++I) {
         const uint8_t Index = static_cast<uint8_t>(V3 >> (I * 8));
         Result[I] = Data[Index];
@@ -832,8 +832,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::I8x16__swizzle: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
-      const uint8x16_t &Index = retrieveValue<uint8x16_t>(Val2);
-      uint8x16_t &Vector = retrieveValue<uint8x16_t>(Val1);
+      const uint8x16_t &Index = Val2.get<uint8x16_t>();
+      uint8x16_t &Vector = Val1.get<uint8x16_t>();
       const uint8x16_t Limit = {16, 16, 16, 16, 16, 16, 16, 16,
                                 16, 16, 16, 16, 16, 16, 16, 16};
       const uint8x16_t Zero = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -1058,38 +1058,38 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     }
 
     case OpCode::V128__not: {
-      ValVariant &Val = StackMgr.getTop();
-      Val = ~retrieveValue<uint64x2_t>(Val);
+      auto &Val = StackMgr.getTop().get<uint64x2_t>();
+      Val = ~Val;
       return {};
     }
     case OpCode::V128__and: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
-      retrieveValue<uint64x2_t>(Val1) &= retrieveValue<uint64x2_t>(Val2);
+      Val1.get<uint64x2_t>() &= Val2.get<uint64x2_t>();
       return {};
     }
     case OpCode::V128__andnot: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
-      retrieveValue<uint64x2_t>(Val1) &= ~retrieveValue<uint64x2_t>(Val2);
+      Val1.get<uint64x2_t>() &= ~Val2.get<uint64x2_t>();
       return {};
     }
     case OpCode::V128__or: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
-      retrieveValue<uint64x2_t>(Val1) |= retrieveValue<uint64x2_t>(Val2);
+      Val1.get<uint64x2_t>() |= Val2.get<uint64x2_t>();
       return {};
     }
     case OpCode::V128__xor: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
-      retrieveValue<uint64x2_t>(Val1) ^= retrieveValue<uint64x2_t>(Val2);
+      Val1.get<uint64x2_t>() ^= Val2.get<uint64x2_t>();
       return {};
     }
     case OpCode::V128__bitselect: {
-      const uint64x2_t C = retrieveValue<uint64x2_t>(StackMgr.pop());
-      const uint64x2_t Val2 = retrieveValue<uint64x2_t>(StackMgr.pop());
-      uint64x2_t &Val1 = retrieveValue<uint64x2_t>(StackMgr.getTop());
+      const uint64x2_t C = StackMgr.pop().get<uint64x2_t>();
+      const uint64x2_t Val2 = StackMgr.pop().get<uint64x2_t>();
+      uint64x2_t &Val1 = StackMgr.getTop().get<uint64x2_t>();
       Val1 = (Val1 & C) | (Val2 & ~C);
       return {};
     }
@@ -1518,14 +1518,13 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
 
-      auto &V2 = retrieveValue<int16x8_t>(Val2);
-      auto &V1 = retrieveValue<int16x8_t>(Val1);
-      auto &Result = retrieveValue<int32x4_t>(Val1);
+      auto &V2 = Val2.get<int16x8_t>();
+      auto &V1 = Val1.get<int16x8_t>();
       const auto M = __builtin_convertvector(V1, int32x8_t) *
                      __builtin_convertvector(V2, int32x8_t);
       const int32x4_t L = {M[0], M[2], M[4], M[6]};
       const int32x4_t R = {M[1], M[3], M[5], M[7]};
-      Result = L + R;
+      Val1.emplace<int32x4_t>(L + R);
 
       return {};
     }

@@ -10,11 +10,11 @@ Expect<void>
 Interpreter::runTableGetOp(Runtime::Instance::TableInstance &TabInst,
                            const AST::Instruction &Instr) {
   /// Pop Idx from Stack.
-  uint32_t Idx = retrieveValue<uint32_t>(StackMgr.pop());
+  uint32_t Idx = StackMgr.pop().get<uint32_t>();
 
   /// Get table[Idx] and push to Stack.
   if (auto Res = TabInst.getRefAddr(Idx)) {
-    StackMgr.push(*Res);
+    StackMgr.push(Res->get<UnknownRef>());
   } else {
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
@@ -28,10 +28,10 @@ Expect<void>
 Interpreter::runTableSetOp(Runtime::Instance::TableInstance &TabInst,
                            const AST::Instruction &Instr) {
   /// Pop Ref from Stack.
-  RefVariant Ref = retrieveValue<uint64_t>(StackMgr.pop());
+  RefVariant Ref = StackMgr.pop().get<UnknownRef>();
 
   /// Pop Idx from Stack.
-  uint32_t Idx = retrieveValue<uint32_t>(StackMgr.pop());
+  uint32_t Idx = StackMgr.pop().get<uint32_t>();
 
   /// Set table[Idx] with Ref.
   if (auto Res = TabInst.setRefAddr(Idx, Ref); !Res) {
@@ -48,9 +48,9 @@ Interpreter::runTableInitOp(Runtime::Instance::TableInstance &TabInst,
                             Runtime::Instance::ElementInstance &ElemInst,
                             const AST::Instruction &Instr) {
   /// Pop the length, source, and destination from stack.
-  uint32_t Len = retrieveValue<uint32_t>(StackMgr.pop());
-  uint32_t Src = retrieveValue<uint32_t>(StackMgr.pop());
-  uint32_t Dst = retrieveValue<uint32_t>(StackMgr.pop());
+  uint32_t Len = StackMgr.pop().get<uint32_t>();
+  uint32_t Src = StackMgr.pop().get<uint32_t>();
+  uint32_t Dst = StackMgr.pop().get<uint32_t>();
 
   /// Replace tab[Dst : Dst + Len] with elem[Src : Src + Len].
   if (auto Res = TabInst.setRefs(ElemInst.getRefs(), Dst, Src, Len)) {
@@ -75,9 +75,9 @@ Interpreter::runTableCopyOp(Runtime::Instance::TableInstance &TabInstDst,
                             Runtime::Instance::TableInstance &TabInstSrc,
                             const AST::Instruction &Instr) {
   /// Pop the length, source, and destination from stack.
-  uint32_t Len = retrieveValue<uint32_t>(StackMgr.pop());
-  uint32_t Src = retrieveValue<uint32_t>(StackMgr.pop());
-  uint32_t Dst = retrieveValue<uint32_t>(StackMgr.pop());
+  uint32_t Len = StackMgr.pop().get<uint32_t>();
+  uint32_t Src = StackMgr.pop().get<uint32_t>();
+  uint32_t Dst = StackMgr.pop().get<uint32_t>();
 
   /// Replace tab_dst[Dst : Dst + Len] with tab_src[Src : Src + Len].
   if (auto Refs = TabInstSrc.getRefs(Src, Len)) {
@@ -99,16 +99,16 @@ Interpreter::runTableCopyOp(Runtime::Instance::TableInstance &TabInstDst,
 Expect<void>
 Interpreter::runTableGrowOp(Runtime::Instance::TableInstance &TabInst) {
   /// Pop N for growing size, Val for init ref value.
-  uint32_t N = retrieveValue<uint32_t>(StackMgr.pop());
+  uint32_t N = StackMgr.pop().get<uint32_t>();
   ValVariant &Val = StackMgr.getTop();
 
   /// Grow size and push result.
   const uint32_t CurrSize = TabInst.getSize();
 
-  if (TabInst.growTable(N, retrieveValue<uint64_t>(Val))) {
-    Val = CurrSize;
+  if (TabInst.growTable(N, Val.get<UnknownRef>())) {
+    Val.emplace<uint32_t>(CurrSize);
   } else {
-    Val = static_cast<uint32_t>(-1);
+    Val.emplace<int32_t>(INT32_C(-1));
   }
   return {};
 }
@@ -124,9 +124,9 @@ Expect<void>
 Interpreter::runTableFillOp(Runtime::Instance::TableInstance &TabInst,
                             const AST::Instruction &Instr) {
   /// Pop the length, ref_value, and offset from stack.
-  uint32_t Len = retrieveValue<uint32_t>(StackMgr.pop());
-  RefVariant Val = retrieveValue<uint64_t>(StackMgr.pop());
-  uint32_t Off = retrieveValue<uint32_t>(StackMgr.pop());
+  uint32_t Len = StackMgr.pop().get<uint32_t>();
+  RefVariant Val = StackMgr.pop().get<UnknownRef>();
+  uint32_t Off = StackMgr.pop().get<uint32_t>();
 
   /// Fill refs with ref_value.
   if (auto Res = TabInst.fillRefs(Val, Off, Len)) {

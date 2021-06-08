@@ -25,7 +25,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         spdlog::error(ErrInfo::InfoAST(DataSeg.NodeAttr));
         return Unexpect(Res);
       }
-      Offset = retrieveValue<uint32_t>(StackMgr.pop());
+      Offset = StackMgr.pop().get<uint32_t>();
 
       /// Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
       /// enabled.

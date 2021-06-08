@@ -38,8 +38,8 @@ __attribute__((visibility("default")))
 AST::Module::IntrinsicsTable intrinsics = {
 #define ENTRY(NAME, FUNC)                                                      \
   [uint8_t(AST::Module::Intrinsics::NAME)] = reinterpret_cast<void *>(         \
-      &Interpreter::ProxyHelper<decltype(                                      \
-          &Interpreter::FUNC)>::proxy<&Interpreter::FUNC>)
+      &Interpreter::ProxyHelper<decltype(&Interpreter::FUNC)>::proxy<          \
+          &Interpreter::FUNC>)
     ENTRY(kTrap, trap),
     ENTRY(kCall, call),
     ENTRY(kCallIndirect, callIndirect),
@@ -115,7 +115,7 @@ Expect<void> Interpreter::callIndirect(Runtime::StoreManager &StoreMgr,
     return Unexpect(ErrCode::UndefinedElement);
   }
 
-  ValVariant Ref = *TabInst->getRefAddr(FuncIndex);
+  RefVariant Ref = *TabInst->getRefAddr(FuncIndex);
   if (unlikely(isNullRef(Ref))) {
     return Unexpect(ErrCode::UninitializedElement);
   }
@@ -320,7 +320,7 @@ Expect<RefVariant> Interpreter::refFunc(Runtime::StoreManager &StoreMgr,
                                         const uint32_t FuncIndex) noexcept {
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
   const uint32_t FuncAddr = *ModInst->getFuncAddr(FuncIndex);
-  return genFuncRef(FuncAddr);
+  return FuncRef(FuncAddr);
 }
 
 } // namespace Interpreter

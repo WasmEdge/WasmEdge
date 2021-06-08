@@ -128,15 +128,16 @@ private:
 
   template <typename Tuple, typename SpanT, size_t... Indices>
   static Tuple toTuple(SpanT &&Args, std::index_sequence<Indices...>) {
-    return Tuple(retrieveValue<std::tuple_element_t<Indices, Tuple>>(
-        std::forward<SpanT>(Args)[Indices])...);
+    return Tuple(std::forward<SpanT>(Args)[Indices]
+                     .template get<std::tuple_element_t<Indices, Tuple>>()...);
   }
 
   template <typename Tuple, typename SpanT, size_t... Indices>
   static void fromTuple(SpanT &&Rets, Tuple &&V,
                         std::index_sequence<Indices...>) {
-    ((retrieveValue<std::tuple_element_t<Indices, Tuple>>(std::forward<SpanT>(
-          Rets)[Indices]) = std::get<Indices>(std::forward<Tuple>(V))),
+    (std::forward<SpanT>(Rets)[Indices]
+         .template emplace<std::tuple_element_t<Indices, Tuple>>(
+             std::get<Indices>(std::forward<Tuple>(V))),
      ...);
   }
 

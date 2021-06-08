@@ -25,7 +25,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         return Unexpect(Res);
       }
       /// Pop result from stack.
-      InitVals.push_back(retrieveValue<uint64_t>(StackMgr.pop()));
+      InitVals.push_back(StackMgr.pop().get<UnknownRef>());
     }
 
     uint32_t Offset = 0;
@@ -36,7 +36,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         spdlog::error(ErrInfo::InfoAST(ElemSeg.NodeAttr));
         return Unexpect(Res);
       }
-      Offset = retrieveValue<uint32_t>(StackMgr.pop());
+      Offset = StackMgr.pop().get<uint32_t>();
 
       /// Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
       /// enabled.

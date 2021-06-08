@@ -32,14 +32,14 @@ using TypeFromBytesT = typename TypeFromBytes<T, B>::type;
 
 template <typename TIn, typename TOut>
 TypeUU<TIn, TOut> Interpreter::runWrapOp(ValVariant &Val) const {
-  Val = static_cast<TOut>(retrieveValue<TIn>(Val));
+  Val.emplace<TOut>(static_cast<TOut>(Val.get<TIn>()));
   return {};
 }
 
 template <typename TIn, typename TOut>
 TypeFI<TIn, TOut> Interpreter::runTruncateOp(const AST::Instruction &Instr,
                                              ValVariant &Val) const {
-  TIn Z = retrieveValue<TIn>(Val);
+  TIn Z = Val.get<TIn>();
   /// If z is a NaN or an infinity, then the result is undefined.
   if (std::isnan(Z)) {
     spdlog::error(ErrCode::InvalidConvToInt);
@@ -77,23 +77,23 @@ TypeFI<TIn, TOut> Interpreter::runTruncateOp(const AST::Instruction &Instr,
     }
   }
   /// Else, return trunc(z). Signed case handled.
-  retrieveValue<TOut>(Val) = Z;
+  Val.emplace<TOut>(Z);
   return {};
 }
 
 template <typename TIn, typename TOut>
 TypeFI<TIn, TOut> Interpreter::runTruncateSatOp(ValVariant &Val) const {
-  TIn Z = retrieveValue<TIn>(Val);
+  TIn Z = Val.get<TIn>();
   if (std::isnan(Z)) {
     /// If z is a NaN, return 0.
-    retrieveValue<TOut>(Val) = 0;
+    Val.emplace<TOut>(0);
   } else if (std::isinf(Z)) {
     if (Z < std::numeric_limits<TIn>::lowest()) {
       /// If z is -inf, return min limit.
-      retrieveValue<TOut>(Val) = std::numeric_limits<TOut>::min();
+      Val.emplace<TOut>(std::numeric_limits<TOut>::min());
     } else {
       /// If z is +inf, return max limit.
-      retrieveValue<TOut>(Val) = std::numeric_limits<TOut>::max();
+      Val.emplace<TOut>(std::numeric_limits<TOut>::max());
     }
   } else {
     Z = std::trunc(Z);
@@ -102,20 +102,20 @@ TypeFI<TIn, TOut> Interpreter::runTruncateSatOp(ValVariant &Val) const {
     if (sizeof(TIn) > sizeof(TOut)) {
       /// Floating precision is better than integer case.
       if (Z < ValTOutMin) {
-        retrieveValue<TOut>(Val) = std::numeric_limits<TOut>::min();
+        Val.emplace<TOut>(std::numeric_limits<TOut>::min());
       } else if (Z > ValTOutMax) {
-        retrieveValue<TOut>(Val) = std::numeric_limits<TOut>::max();
+        Val.emplace<TOut>(std::numeric_limits<TOut>::max());
       } else {
-        retrieveValue<TOut>(Val) = Z;
+        Val.emplace<TOut>(Z);
       }
     } else {
       /// Floating precision is worse than integer case.
       if (Z < ValTOutMin) {
-        retrieveValue<TOut>(Val) = std::numeric_limits<TOut>::min();
+        Val.emplace<TOut>(std::numeric_limits<TOut>::min());
       } else if (Z >= ValTOutMax) {
-        retrieveValue<TOut>(Val) = std::numeric_limits<TOut>::max();
+        Val.emplace<TOut>(std::numeric_limits<TOut>::max());
       } else {
-        retrieveValue<TOut>(Val) = Z;
+        Val.emplace<TOut>(Z);
       }
     }
   }
@@ -126,10 +126,9 @@ template <typename TIn, typename TOut, size_t B>
 TypeIU<TIn, TOut> Interpreter::runExtendOp(ValVariant &Val) const {
   /// Return i extend to TOut. Signed case handled.
   if (B == sizeof(TIn) * 8) {
-    retrieveValue<TOut>(Val) = retrieveValue<TIn>(Val);
+    Val.emplace<TOut>(Val.get<TIn>());
   } else {
-    retrieveValue<TOut>(Val) =
-        static_cast<TypeFromBytesT<TIn, B>>(retrieveValue<TIn>(Val));
+    Val.emplace<TOut>(static_cast<TypeFromBytesT<TIn, B>>(Val.get<TIn>()));
   }
   return {};
 }
@@ -137,21 +136,21 @@ TypeIU<TIn, TOut> Interpreter::runExtendOp(ValVariant &Val) const {
 template <typename TIn, typename TOut>
 TypeIF<TIn, TOut> Interpreter::runConvertOp(ValVariant &Val) const {
   /// Return i convert to TOut. Signed case handled.
-  retrieveValue<TOut>(Val) = retrieveValue<TIn>(Val);
+  Val.emplace<TOut>(Val.get<TIn>());
   return {};
 }
 
 template <typename TIn, typename TOut>
 TypeFF<TIn, TOut> Interpreter::runDemoteOp(ValVariant &Val) const {
   /// Return i convert to TOut. (NaN, inf, and zeros handled)
-  retrieveValue<TOut>(Val) = retrieveValue<TIn>(Val);
+  Val.emplace<TOut>(Val.get<TIn>());
   return {};
 }
 
 template <typename TIn, typename TOut>
 TypeFF<TIn, TOut> Interpreter::runPromoteOp(ValVariant &Val) const {
   /// Return i convert to TOut. (NaN, inf, and zeros handled)
-  retrieveValue<TOut>(Val) = retrieveValue<TIn>(Val);
+  Val.emplace<TOut>(Val.get<TIn>());
   return {};
 }
 
@@ -159,9 +158,9 @@ template <typename TIn, typename TOut>
 TypeNN<TIn, TOut> Interpreter::runReinterpretOp(ValVariant &Val) const {
   /// Return ValVariant with type TOut which copy bits of V.
   TOut VOut;
-  TIn VIn = retrieveValue<TIn>(Val);
+  TIn VIn = Val.get<TIn>();
   std::memcpy(&VOut, &VIn, sizeof(TIn));
-  retrieveValue<TOut>(Val) = VOut;
+  Val.emplace<TOut>(VOut);
   return {};
 }
 

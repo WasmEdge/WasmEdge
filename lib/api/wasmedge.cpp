@@ -117,7 +117,7 @@ inline constexpr WasmEdge_Result genWasmEdge_Result(ErrCode Code) noexcept {
 /// Helper functions for returning a WasmEdge_Value by various values.
 template <typename T> inline WasmEdge_Value genWasmEdge_Value(T Val) noexcept {
   return WasmEdge_Value{
-      .Value = retrieveValue<unsigned __int128>(ValVariant(toUnsigned(Val))),
+      .Value = ValVariant(Val).unwrap(),
       .Type = static_cast<WasmEdge_ValType>(WasmEdge::ValTypeFromType<T>())};
 }
 template <>
@@ -127,12 +127,7 @@ inline constexpr WasmEdge_Value genWasmEdge_Value(__int128 Val) noexcept {
 }
 inline WasmEdge_Value genWasmEdge_Value(ValVariant Val,
                                         WasmEdge_ValType T) noexcept {
-  return WasmEdge_Value{.Value = retrieveValue<unsigned __int128>(Val),
-                        .Type = T};
-}
-inline WasmEdge_Value genWasmEdge_Value(RefVariant Val,
-                                        WasmEdge_ValType T) noexcept {
-  return genWasmEdge_Value(ValVariant(Val), T);
+  return WasmEdge_Value{.Value = Val.unwrap(), .Type = T};
 }
 
 /// Helper function for converting a WasmEdge_Value array to a ValVariant
@@ -147,8 +142,34 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
   VVec.resize(Len);
   TVec.resize(Len);
   for (uint32_t I = 0; I < Len; I++) {
-    VVec[I] = Val[I].Value;
     TVec[I] = static_cast<ValType>(Val[I].Type);
+    switch (TVec[I]) {
+    case ValType::I32:
+      VVec[I] = ValVariant::wrap<uint32_t>(Val[I].Value);
+      break;
+    case ValType::I64:
+      VVec[I] = ValVariant::wrap<uint64_t>(Val[I].Value);
+      break;
+    case ValType::F32:
+      VVec[I] = ValVariant::wrap<float>(Val[I].Value);
+      break;
+    case ValType::F64:
+      VVec[I] = ValVariant::wrap<double>(Val[I].Value);
+      break;
+    case ValType::V128:
+      VVec[I] = ValVariant::wrap<unsigned __int128>(Val[I].Value);
+      break;
+    case ValType::FuncRef:
+      VVec[I] = ValVariant::wrap<FuncRef>(Val[I].Value);
+      break;
+    case ValType::ExternRef:
+      VVec[I] = ValVariant::wrap<ExternRef>(Val[I].Value);
+      break;
+    case ValType::None:
+    default:
+      // TODO: Return error
+      __builtin_unreachable();
+    }
   }
   return {VVec, TVec};
 }
@@ -260,7 +281,7 @@ public:
     std::vector<WasmEdge_Value> Params(FuncType.Params.size()),
         Returns(FuncType.Returns.size());
     for (uint32_t I = 0; I < Args.size(); I++) {
-      Params[I].Value = retrieveValue<__int128>(Args[I]);
+      Params[I].Value = Args[I].get<__int128>();
       Params[I].Type = static_cast<WasmEdge_ValType>(FuncType.Params[I]);
     }
     WasmEdge_Value *PPtr = Params.size() ? (&Params[0]) : nullptr;
@@ -385,46 +406,46 @@ WasmEdge_Value WasmEdge_ValueGenNullRef(const WasmEdge_RefType T) {
 }
 
 WasmEdge_Value WasmEdge_ValueGenFuncRef(const uint32_t Index) {
-  return genWasmEdge_Value(WasmEdge::genFuncRef(Index),
-                           WasmEdge_ValType_FuncRef);
+  return genWasmEdge_Value(WasmEdge::FuncRef(Index), WasmEdge_ValType_FuncRef);
 }
 
 WasmEdge_Value WasmEdge_ValueGenExternRef(void *Ref) {
-  return genWasmEdge_Value(WasmEdge::genExternRef(Ref),
+  return genWasmEdge_Value(WasmEdge::ExternRef(Ref),
                            WasmEdge_ValType_ExternRef);
 }
 
 int32_t WasmEdge_ValueGetI32(const WasmEdge_Value Val) {
-  return WasmEdge::retrieveValue<int32_t>(WasmEdge::ValVariant(Val.Value));
+  return WasmEdge::ValVariant::wrap<int32_t>(Val.Value).get<int32_t>();
 }
 
 int64_t WasmEdge_ValueGetI64(const WasmEdge_Value Val) {
-  return WasmEdge::retrieveValue<int64_t>(WasmEdge::ValVariant(Val.Value));
+  return WasmEdge::ValVariant::wrap<int64_t>(Val.Value).get<int64_t>();
 }
 
 float WasmEdge_ValueGetF32(const WasmEdge_Value Val) {
-  return WasmEdge::retrieveValue<float>(WasmEdge::ValVariant(Val.Value));
+  return WasmEdge::ValVariant::wrap<float>(Val.Value).get<float>();
 }
 
 double WasmEdge_ValueGetF64(const WasmEdge_Value Val) {
-  return WasmEdge::retrieveValue<double>(WasmEdge::ValVariant(Val.Value));
+  return WasmEdge::ValVariant::wrap<double>(Val.Value).get<double>();
 }
 
 __int128 WasmEdge_ValueGetV128(const WasmEdge_Value Val) {
-  return WasmEdge::retrieveValue<__int128>(WasmEdge::ValVariant(Val.Value));
+  return WasmEdge::ValVariant::wrap<__int128>(Val.Value).get<__int128>();
 }
 
 bool WasmEdge_ValueIsNullRef(const WasmEdge_Value Val) {
-  return WasmEdge::isNullRef(WasmEdge::ValVariant(Val.Value));
+  return WasmEdge::isNullRef(WasmEdge::ValVariant::wrap<UnknownRef>(Val.Value));
 }
 
 uint32_t WasmEdge_ValueGetFuncIdx(const WasmEdge_Value Val) {
-  return WasmEdge::retrieveFuncIdx(WasmEdge::ValVariant(Val.Value));
+  return WasmEdge::retrieveFuncIdx(
+      WasmEdge::ValVariant::wrap<FuncRef>(Val.Value));
 }
 
 void *WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) {
   return &WasmEdge::retrieveExternRef<uint32_t>(
-      WasmEdge::ValVariant(Val.Value));
+      WasmEdge::ValVariant::wrap<ExternRef>(Val.Value));
 }
 
 /// <<<<<<<< WasmEdge value functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1279,9 +1300,10 @@ WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
                               WasmEdge_Value *Data, const uint32_t Offset) {
   return wrap([&]() { return fromTabCxt(Cxt)->getRefAddr(Offset); },
               [&](auto &&Res) {
-                *Data = genWasmEdge_Value(
-                    *Res, static_cast<WasmEdge_ValType>(
-                              fromTabCxt(Cxt)->getReferenceType()));
+                *Data =
+                    genWasmEdge_Value(Res->template get<UnknownRef>(),
+                                      static_cast<WasmEdge_ValType>(
+                                          fromTabCxt(Cxt)->getReferenceType()));
               },
               Cxt, Data);
 }
@@ -1300,8 +1322,7 @@ WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
           return Unexpect(WasmEdge::ErrCode::RefTypeMismatch);
         }
         return fromTabCxt(Cxt)->setRefAddr(
-            Offset,
-            WasmEdge::ValVariant(Data.Value).get<WasmEdge::RefVariant>());
+            Offset, WasmEdge::ValVariant(Data.Value).get<UnknownRef>());
       },
       EmptyThen, Cxt);
 }

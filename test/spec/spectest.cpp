@@ -103,17 +103,15 @@ parseValueList(const rapidjson::Value &Args) {
               WasmEdge::genNullRef(WasmEdge::RefType::ExternRef));
         } else {
           /// Add 0x1 uint32_t prefix in this externref index case.
-          Result.emplace_back(
-              WasmEdge::genExternRef(reinterpret_cast<uint32_t *>(
-                  std::stoul(Value) + 0x100000000ULL)));
+          Result.emplace_back(WasmEdge::ExternRef(
+              reinterpret_cast<void *>(std::stoul(Value) + 0x100000000ULL)));
         }
         ResultTypes.emplace_back(WasmEdge::ValType::ExternRef);
       } else if (Type == "funcref"sv) {
         if (Value == "null"sv) {
           Result.emplace_back(WasmEdge::genNullRef(WasmEdge::RefType::FuncRef));
         } else {
-          Result.emplace_back(
-              WasmEdge::genFuncRef(static_cast<uint32_t>(std::stoul(Value))));
+          Result.emplace_back(WasmEdge::FuncRef(std::stoul(Value)));
         }
         ResultTypes.emplace_back(WasmEdge::ValType::FuncRef);
       } else if (Type == "i32"sv) {

@@ -270,7 +270,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Const Instructions.
   case OpCode::I32__const:
     if (auto Res = Mgr.readS32()) {
-      Num = static_cast<uint32_t>(*Res);
+      Num.emplace<uint32_t>(static_cast<uint32_t>(*Res));
     } else {
       return logLoadError(Res.error(), Mgr.getOffset(),
                           ASTNodeAttr::Instruction);
@@ -278,7 +278,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     return {};
   case OpCode::I64__const:
     if (auto Res = Mgr.readS64()) {
-      Num = static_cast<uint64_t>(*Res);
+      Num.emplace<uint64_t>(static_cast<uint64_t>(*Res));
     } else {
       return logLoadError(Res.error(), Mgr.getOffset(),
                           ASTNodeAttr::Instruction);
@@ -286,7 +286,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     return {};
   case OpCode::F32__const:
     if (auto Res = Mgr.readF32()) {
-      Num = *Res;
+      Num.emplace<float>(*Res);
     } else {
       return logLoadError(Res.error(), Mgr.getOffset(),
                           ASTNodeAttr::Instruction);
@@ -294,7 +294,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     return {};
   case OpCode::F64__const:
     if (auto Res = Mgr.readF64()) {
-      Num = *Res;
+      Num.emplace<double>(*Res);
     } else {
       return logLoadError(Res.error(), Mgr.getOffset(),
                           ASTNodeAttr::Instruction);
@@ -507,7 +507,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
                             ASTNodeAttr::Instruction);
       }
     }
-    Num = Value;
+    Num.emplace<uint128_t>(Value);
     return {};
   }
 

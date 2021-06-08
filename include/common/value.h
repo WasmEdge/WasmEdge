@@ -20,22 +20,17 @@
 namespace WasmEdge {
 
 /// Definition of number_type.
-using RefVariant = Variant<uint64_t, FuncRef, ExternRef>;
+using RefVariant = Variant<UnknownRef, FuncRef, ExternRef>;
 using ValVariant =
-    Variant<uint32_t, uint64_t, uint128_t, uint64x2_t, uint32x4_t, uint16x8_t,
-            uint8x16_t, floatx4_t, doublex2_t, float, double, RefVariant,
+    Variant<uint32_t, int32_t, uint64_t, int64_t, float, double, uint128_t,
+            int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,
+            int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t, UnknownRef,
             FuncRef, ExternRef>;
 using Byte = uint8_t;
 
 /// Reference types helper functions.
-inline constexpr RefVariant genNullRef(const RefType /*Type*/) noexcept {
-  return UINT64_C(0);
-}
-inline constexpr RefVariant genFuncRef(const uint32_t Idx) noexcept {
-  return FuncRef{1, Idx};
-}
-template <typename T> inline RefVariant genExternRef(T *Ref) noexcept {
-  return ExternRef{reinterpret_cast<uint64_t *>(Ref)};
+inline constexpr UnknownRef genNullRef(const RefType /*Type*/) noexcept {
+  return UnknownRef();
 }
 
 template <typename T> inline ValType ValTypeFromType() noexcept;
@@ -93,30 +88,30 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   }
 }
 
-/// Retrieve value.
-template <typename T> inline const T &retrieveValue(const ValVariant &Val) {
-  return *reinterpret_cast<const T *>(&Val.get<TypeToWasmTypeT<T>>());
-}
-template <typename T> inline T &retrieveValue(ValVariant &Val) {
-  return *reinterpret_cast<T *>(&Val.get<TypeToWasmTypeT<T>>());
-}
-template <typename T> inline const T &&retrieveValue(const ValVariant &&Val) {
-  return std::move(
-      *reinterpret_cast<const T *>(&Val.get<TypeToWasmTypeT<T>>()));
-}
-template <typename T> inline T &&retrieveValue(ValVariant &&Val) {
-  return std::move(*reinterpret_cast<T *>(&Val.get<TypeToWasmTypeT<T>>()));
-}
-
 /// Retrieve references.
 inline constexpr bool isNullRef(const ValVariant &Val) {
-  return Val.get<uint64_t>() == 0;
+  return Val.get<UnknownRef>().Value == 0;
+}
+inline constexpr bool isNullRef(const RefVariant &Val) {
+  return Val.get<UnknownRef>().Value == 0;
 }
 inline constexpr uint32_t retrieveFuncIdx(const ValVariant &Val) {
   return Val.get<FuncRef>().Idx;
 }
+inline constexpr uint32_t retrieveFuncIdx(const RefVariant &Val) {
+  return Val.get<FuncRef>().Idx;
+}
+inline constexpr uint32_t retrieveFuncIdx(const FuncRef &Val) {
+  return Val.Idx;
+}
 template <typename T> inline T &retrieveExternRef(const ValVariant &Val) {
   return *reinterpret_cast<T *>(Val.get<ExternRef>().Ptr);
+}
+template <typename T> inline T &retrieveExternRef(const RefVariant &Val) {
+  return *reinterpret_cast<T *>(Val.get<ExternRef>().Ptr);
+}
+template <typename T> inline T &retrieveExternRef(const ExternRef &Val) {
+  return *reinterpret_cast<T *>(Val.Ptr);
 }
 
 } // namespace WasmEdge

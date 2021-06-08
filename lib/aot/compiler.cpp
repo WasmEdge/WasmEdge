@@ -1767,7 +1767,7 @@ public:
                            Context.Int64x2Ty);
         break;
       case OpCode::V128__const: {
-        const auto Value = retrieveValue<uint64x2_t>(Instr.getNum());
+        const auto Value = Instr.getNum().get<uint64x2_t>();
         auto *Vector = llvm::ConstantVector::get(
             {Builder.getInt64(Value[0]), Builder.getInt64(Value[1])});
         stackPush(Builder.CreateBitCast(Vector, Context.Int64x2Ty));
@@ -1776,7 +1776,7 @@ public:
       case OpCode::I8x16__shuffle: {
         auto *V2 = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
         auto *V1 = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
-        const auto V3 = retrieveValue<uint128_t>(Instr.getNum());
+        const auto V3 = Instr.getNum().get<uint128_t>();
         std::array<ShuffleElement, 16> Mask;
         for (size_t I = 0; I < 16; ++I) {
           Mask[I] = static_cast<uint8_t>(V3 >> (I * 8));

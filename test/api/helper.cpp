@@ -51,9 +51,8 @@ std::vector<WasmEdge_Value> convFromValVec(const std::vector<ValVariant> &Vals,
                                            const std::vector<ValType> &Types) {
   std::vector<WasmEdge_Value> CVals(Vals.size());
   for (uint32_t I = 0; I < Vals.size(); I++) {
-    CVals[I] =
-        WasmEdge_Value{.Value = retrieveValue<unsigned __int128>(Vals[I]),
-                       .Type = static_cast<WasmEdge_ValType>(Types[I])};
+    CVals[I] = WasmEdge_Value{.Value = Vals[I].get<unsigned __int128>(),
+                              .Type = static_cast<WasmEdge_ValType>(Types[I])};
   }
   return CVals;
 }

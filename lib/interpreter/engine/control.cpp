@@ -35,7 +35,7 @@ Expect<void> Interpreter::runIfElseOp(Runtime::StoreManager &StoreMgr,
                                       const AST::Instruction &Instr,
                                       AST::InstrView::iterator &PC) {
   /// Get condition.
-  uint32_t Cond = retrieveValue<uint32_t>(StackMgr.pop());
+  uint32_t Cond = StackMgr.pop().get<uint32_t>();
 
   /// Get result type for arity.
   auto BlockSig = getBlockArity(StoreMgr, Instr.getBlockType());
@@ -70,7 +70,7 @@ Expect<void> Interpreter::runBrOp(Runtime::StoreManager &StoreMgr,
 Expect<void> Interpreter::runBrIfOp(Runtime::StoreManager &StoreMgr,
                                     const AST::Instruction &Instr,
                                     AST::InstrView::iterator &PC) {
-  if (retrieveValue<uint32_t>(StackMgr.pop()) != 0) {
+  if (StackMgr.pop().get<uint32_t>() != 0) {
     return runBrOp(StoreMgr, Instr, PC);
   }
   return {};
@@ -80,7 +80,7 @@ Expect<void> Interpreter::runBrTableOp(Runtime::StoreManager &StoreMgr,
                                        const AST::Instruction &Instr,
                                        AST::InstrView::iterator &PC) {
   /// Get value on top of stack.
-  uint32_t Value = retrieveValue<uint32_t>(StackMgr.pop());
+  uint32_t Value = StackMgr.pop().get<uint32_t>();
 
   /// Do branch.
   const auto &LabelTable = Instr.getLabelList();
@@ -122,7 +122,7 @@ Expect<void> Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
   const auto *TargetFuncType = *ModInst->getFuncType(Instr.getTargetIndex());
 
   /// Pop the value i32.const i from the Stack.
-  uint32_t Idx = retrieveValue<uint32_t>(StackMgr.pop());
+  uint32_t Idx = StackMgr.pop().get<uint32_t>();
 
   /// If idx not small than tab.elem, trap.
   if (Idx >= TabInst->getSize()) {
@@ -134,7 +134,7 @@ Expect<void> Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
   }
 
   /// Get function address.
-  ValVariant Ref = *TabInst->getRefAddr(Idx);
+  ValVariant Ref = TabInst->getRefAddr(Idx)->get<UnknownRef>();
   if (isNullRef(Ref)) {
     spdlog::error(ErrCode::UninitializedElement);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),

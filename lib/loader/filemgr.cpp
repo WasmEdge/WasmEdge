@@ -116,7 +116,7 @@ Expect<uint32_t> FileMgr::readU32() {
     } else {
       Byte = *Res;
     }
-    Result |= (Byte & UINT32_C(0x7F)) << (Offset);
+    Result |= (Byte & UINT32_C(0x7F)) << Offset;
     if (Offset == 28 && unlikely((Byte & UINT32_C(0x70)) != 0)) {
       Status = ErrCode::IntegerTooLarge;
       return Unexpect(Status);
@@ -144,7 +144,7 @@ Expect<uint64_t> FileMgr::readU64() {
     } else {
       Byte = *Res;
     }
-    Result |= (Byte & UINT64_C(0x7F)) << (Offset);
+    Result |= (Byte & UINT64_C(0x7F)) << Offset;
     if (Offset == 63 && unlikely((Byte & UINT32_C(0x7E)) != 0)) {
       Status = ErrCode::IntegerTooLarge;
       return Unexpect(Status);
@@ -172,7 +172,8 @@ Expect<int32_t> FileMgr::readS32() {
     } else {
       Byte = *Res;
     }
-    Result |= (Byte & UINT32_C(0x7F)) << (Offset);
+    const int32_t Mask = Offset == 28 ? INT32_C(0x0F) : INT32_C(0x7F);
+    Result |= (Byte & Mask) << Offset;
     Offset += 7;
   }
   if (Offset == 35) {
@@ -184,7 +185,7 @@ Expect<int32_t> FileMgr::readS32() {
     }
   }
   if (Byte & 0x40 && Offset < 32) {
-    Result |= INT32_C(0xFFFFFFFF) << Offset;
+    Result |= static_cast<int32_t>(UINT32_C(0xFFFFFFFF) << Offset);
   }
   return Result;
 }
@@ -207,7 +208,8 @@ Expect<int64_t> FileMgr::readS64() {
     } else {
       Byte = *Res;
     }
-    Result |= (Byte & UINT64_C(0x7F)) << (Offset);
+    const int64_t Mask = Offset == 63 ? INT64_C(0x01) : INT64_C(0x7F);
+    Result |= (Byte & Mask) << Offset;
     Offset += 7;
   }
   if (Offset == 70) {
@@ -219,7 +221,7 @@ Expect<int64_t> FileMgr::readS64() {
     }
   }
   if (Byte & 0x40 && Offset < 64) {
-    Result |= INT64_C(0xFFFFFFFFFFFFFFFF) << Offset;
+    Result |= static_cast<int64_t>(UINT64_C(0xFFFFFFFFFFFFFFFF) << Offset);
   }
   return Result;
 }
@@ -229,11 +231,7 @@ Expect<float> FileMgr::readF32() {
   if (Status != ErrCode::Success) {
     return Unexpect(Status);
   }
-  union {
-    uint32_t U;
-    float F;
-  } Val;
-  Val.U = 0;
+  uint32_t Buf = 0;
   Byte Byte = 0x00;
   for (uint32_t I = 0; I < 4; I++) {
     if (auto Res = readByte(); unlikely(!Res)) {
@@ -241,9 +239,12 @@ Expect<float> FileMgr::readF32() {
     } else {
       Byte = *Res;
     }
-    Val.U |= static_cast<uint32_t>(Byte & 0xFF) << (I * UINT32_C(8));
+    Buf |= (Byte & UINT32_C(0xFF)) << (I * UINT32_C(8));
   }
-  return Val.F;
+  float Result;
+  static_assert(sizeof(Buf) == sizeof(Result));
+  std::memcpy(&Result, &Buf, sizeof(Result));
+  return Result;
 }
 
 /// Copy bytes to a double. See "include/loader/filemgr.h".
@@ -251,11 +252,7 @@ Expect<double> FileMgr::readF64() {
   if (Status != ErrCode::Success) {
     return Unexpect(Status);
   }
-  union {
-    uint64_t U;
-    double D;
-  } Val;
-  Val.U = 0;
+  uint64_t Buf = 0;
   Byte Byte = 0x00;
   for (uint32_t I = 0; I < 8; I++) {
     if (auto Res = readByte(); unlikely(!Res)) {
@@ -263,9 +260,12 @@ Expect<double> FileMgr::readF64() {
     } else {
       Byte = *Res;
     }
-    Val.U |= static_cast<uint64_t>(Byte & 0xFF) << (I * UINT32_C(8));
+    Buf |= (Byte & UINT64_C(0xFF)) << (I * UINT64_C(8));
   }
-  return Val.D;
+  double Result;
+  static_assert(sizeof(Buf) == sizeof(Result));
+  std::memcpy(&Result, &Buf, sizeof(Result));
+  return Result;
 }
 
 /// Read a vector of bytes. See "include/loader/filemgr.h".

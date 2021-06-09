@@ -37,7 +37,7 @@ TypeT<T> Interpreter::runDivOp(const AST::Instruction &Instr, ValVariant &Val1,
                                const ValVariant &Val2) const {
   T &V1 = Val1.get<T>();
   const T &V2 = Val2.get<T>();
-  if (!std::is_floating_point_v<T>) {
+  if constexpr (!std::is_floating_point_v<T>) {
     if (V2 == 0) {
       /// Integer case: If v2 is 0, then the result is undefined.
       spdlog::error(ErrCode::DivideByZero);
@@ -56,6 +56,8 @@ TypeT<T> Interpreter::runDivOp(const AST::Instruction &Instr, ValVariant &Val1,
           {ValTypeFromType<T>(), ValTypeFromType<T>()}, true));
       return Unexpect(ErrCode::IntegerOverflow);
     }
+  } else {
+    static_assert(std::numeric_limits<T>::is_iec559, "Unsupported platform!");
   }
   /// Else, return the result of v1 / v2.
   /// Integer case: truncated toward zero.
@@ -111,7 +113,7 @@ TypeU<T> Interpreter::runXorOp(ValVariant &Val1, const ValVariant &Val2) const {
 template <typename T>
 TypeU<T> Interpreter::runShlOp(ValVariant &Val1, const ValVariant &Val2) const {
   /// Return the result of i1 << (i2 modulo N), modulo 2^N.
-  Val1.get<T>() <<= (Val2.get<T>() % (sizeof(T) * 8));
+  Val1.get<T>() <<= (Val2.get<T>() % static_cast<T>(sizeof(T) * 8));
   return {};
 }
 
@@ -120,7 +122,7 @@ TypeI<T> Interpreter::runShrOp(ValVariant &Val1, const ValVariant &Val2) const {
   /// Return the result of i1 >> (i2 modulo N).
   /// In signed case, extended with the sign bit of i1.
   /// In unsigned case, extended with 0 bits.
-  Val1.get<T>() >>= (Val2.get<T>() % (sizeof(T) * 8));
+  Val1.get<T>() >>= (Val2.get<T>() % static_cast<T>(sizeof(T) * 8));
   return {};
 }
 
@@ -129,10 +131,10 @@ TypeU<T> Interpreter::runRotlOp(ValVariant &Val1,
                                 const ValVariant &Val2) const {
   T &I1 = Val1.get<T>();
   /// Let k be i2 modulo N.
-  const T K = Val2.get<T>() % (sizeof(T) * 8);
+  const T K = Val2.get<T>() % static_cast<T>(sizeof(T) * 8);
   /// Return the result of rotating i1 left by k bits.
   if (likely(K != 0)) {
-    I1 = (I1 << K) | (I1 >> (sizeof(T) * 8 - K));
+    I1 = (I1 << K) | (I1 >> static_cast<T>(sizeof(T) * 8 - K));
   }
   return {};
 }
@@ -142,10 +144,10 @@ TypeU<T> Interpreter::runRotrOp(ValVariant &Val1,
                                 const ValVariant &Val2) const {
   T &I1 = Val1.get<T>();
   /// Let k be i2 modulo N.
-  const T K = Val2.get<T>() % (sizeof(T) * 8);
+  const T K = Val2.get<T>() % static_cast<T>(sizeof(T) * 8);
   /// Return the result of rotating i1 left by k bits.
   if (likely(K != 0)) {
-    I1 = (I1 >> K) | (I1 << (sizeof(T) * 8 - K));
+    I1 = (I1 >> K) | (I1 << static_cast<T>(sizeof(T) * 8 - K));
   }
   return {};
 }
@@ -200,7 +202,7 @@ Expect<void> Interpreter::runReplaceLaneOp(ValVariant &Val1,
                                            const uint32_t Index) const {
   using VTOut [[gnu::vector_size(16)]] = TOut;
   VTOut &Result = Val1.get<VTOut>();
-  Result[Index] = Val2.get<TIn>();
+  Result[Index] = static_cast<TOut>(Val2.get<TIn>());
   return {};
 }
 

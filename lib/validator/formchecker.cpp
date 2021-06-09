@@ -394,7 +394,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
           }
           /// Push the popped types.
           std::vector<VType> TypeBuf(NTypes.size());
-          for (int32_t Idx = NTypes.size() - 1; Idx >= 0; Idx--) {
+          for (uint32_t IdxN = NTypes.size(); IdxN >= 1; --IdxN) {
+            const uint32_t Idx = IdxN - 1;
             /// Cannot use popTypes() here because we need the popped value.
             if (auto Res = popType(NTypes[Idx])) {
               /// Have to check is `VType::Unknown` occured for the case of

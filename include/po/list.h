@@ -10,6 +10,7 @@
 #include "po/parser.h"
 
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -60,7 +61,9 @@ public:
 
   std::size_t min_narg() const noexcept { return IsOneOrMore ? 1 : 0; }
 
-  std::size_t max_narg() const noexcept { return -1; }
+  std::size_t max_narg() const noexcept {
+    return std::numeric_limits<std::size_t>::max();
+  }
 
   const std::vector<T> &value() const noexcept { return Store; }
   std::vector<T> &value() noexcept { return Store; }

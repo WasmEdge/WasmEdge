@@ -34,7 +34,7 @@ Interpreter::runFunction(Runtime::StoreManager &StoreMgr,
 
   /// Enter and execute function.
   AST::InstrView::iterator StartIt;
-  if (auto Res = enterFunction(StoreMgr, Func, Func.getInstrs().end() - 1)) {
+  if (auto Res = enterFunction(StoreMgr, Func, Func.getInstrs().end())) {
     StartIt = *Res;
   } else {
     return Unexpect(Res);
@@ -839,13 +839,14 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       const uint8x16_t Zero = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
       const uint8x16_t Exceed = (Index >= Limit);
 #ifdef __clang__
-      uint8x16_t Result = {
-          Vector[Index[0]],  Vector[Index[1]],  Vector[Index[2]],
-          Vector[Index[3]],  Vector[Index[4]],  Vector[Index[5]],
-          Vector[Index[6]],  Vector[Index[7]],  Vector[Index[8]],
-          Vector[Index[9]],  Vector[Index[10]], Vector[Index[11]],
-          Vector[Index[12]], Vector[Index[13]], Vector[Index[14]],
-          Vector[Index[15]]};
+      uint8x16_t Result = {Vector[Index[0] & 0xF],  Vector[Index[1] & 0xF],
+                           Vector[Index[2] & 0xF],  Vector[Index[3] & 0xF],
+                           Vector[Index[4] & 0xF],  Vector[Index[5] & 0xF],
+                           Vector[Index[6] & 0xF],  Vector[Index[7] & 0xF],
+                           Vector[Index[8] & 0xF],  Vector[Index[9] & 0xF],
+                           Vector[Index[10] & 0xF], Vector[Index[11] & 0xF],
+                           Vector[Index[12] & 0xF], Vector[Index[13] & 0xF],
+                           Vector[Index[14] & 0xF], Vector[Index[15] & 0xF]};
 #else
       uint8x16_t Result = __builtin_shuffle(Vector, Index);
 #endif

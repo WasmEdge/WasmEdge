@@ -65,7 +65,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     /// For host function case, the continuation will be the next.
-    return From + 1;
+    return From;
   } else if (Func.isCompiledFunction()) {
     auto Wrapper = Func.getFuncType().getSymbol();
     /// Compiled function case: Push frame with locals and args.
@@ -106,7 +106,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
 
     StackMgr.popFrame();
     /// For compiled function case, the continuation will be the next.
-    return From + 1;
+    return From;
   } else {
     /// Native function case: Push frame with locals and args.
     StackMgr.pushFrame(Func.getModuleAddr(),   /// Module address
@@ -122,7 +122,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     /// Enter function block []->[returns] with label{none}.
-    StackMgr.pushLabel(0, FuncType.Returns.size(), From);
+    StackMgr.pushLabel(0, FuncType.Returns.size(), From - 1);
     /// For native function case, the continuation will be the start of
     /// function body.
     return Func.getInstrs().begin();

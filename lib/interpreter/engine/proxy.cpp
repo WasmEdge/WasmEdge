@@ -113,7 +113,7 @@ Expect<void> Interpreter::call(Runtime::StoreManager &StoreMgr,
 
   auto Instrs = FuncInst->getInstrs();
   AST::InstrView::iterator StartIt;
-  if (auto Res = enterFunction(StoreMgr, *FuncInst, Instrs.end() - 1)) {
+  if (auto Res = enterFunction(StoreMgr, *FuncInst, Instrs.end())) {
     StartIt = *Res;
   } else {
     return Unexpect(Res);
@@ -164,7 +164,7 @@ Expect<void> Interpreter::callIndirect(Runtime::StoreManager &StoreMgr,
 
   auto Instrs = FuncInst->getInstrs();
   AST::InstrView::iterator StartIt;
-  if (auto Res = enterFunction(StoreMgr, *FuncInst, Instrs.end() - 1)) {
+  if (auto Res = enterFunction(StoreMgr, *FuncInst, Instrs.end())) {
     StartIt = *Res;
   } else {
     return Unexpect(Res);

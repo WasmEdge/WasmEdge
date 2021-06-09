@@ -170,7 +170,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     /// Execute instruction: call start.func
     auto Instrs = FuncInst->getInstrs();
     AST::InstrView::iterator StartIt;
-    if (auto Res = enterFunction(StoreMgr, *FuncInst, Instrs.end() - 1)) {
+    if (auto Res = enterFunction(StoreMgr, *FuncInst, Instrs.end())) {
       StartIt = *Res;
     } else {
       spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));

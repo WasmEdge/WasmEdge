@@ -103,7 +103,7 @@ Expect<void> Interpreter::runCallOp(Runtime::StoreManager &StoreMgr,
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
   const uint32_t FuncAddr = *ModInst->getFuncAddr(Instr.getTargetIndex());
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
-  if (auto Res = enterFunction(StoreMgr, *FuncInst, PC); !Res) {
+  if (auto Res = enterFunction(StoreMgr, *FuncInst, PC + 1); !Res) {
     return Unexpect(Res);
   } else {
     PC = (*Res) - 1;
@@ -157,7 +157,7 @@ Expect<void> Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
                                         FuncType.Params, FuncType.Returns));
     return Unexpect(ErrCode::IndirectCallTypeMismatch);
   }
-  if (auto Res = enterFunction(StoreMgr, *FuncInst, PC); !Res) {
+  if (auto Res = enterFunction(StoreMgr, *FuncInst, PC + 1); !Res) {
     return Unexpect(Res);
   } else {
     PC = (*Res) - 1;

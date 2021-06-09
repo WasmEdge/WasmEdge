@@ -58,7 +58,7 @@ public:
 
   /// Get boundary index.
   uint32_t getBoundIdx() const noexcept {
-    return ((Refs.size() > 0) ? (Refs.size() - 1) : 0);
+    return std::max<uint32_t>(Refs.size(), 1) - 1;
   }
 
   /// Grow table with initialization value.
@@ -103,7 +103,8 @@ public:
     /// Check input data validation.
     if (Start + Length > Slice.size()) {
       spdlog::error(ErrCode::TableOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Start, Length, Slice.size() - 1));
+      spdlog::error(ErrInfo::InfoBoundary(
+          Start, Length, std::max<uint32_t>(Slice.size(), 1) - 1));
       return Unexpect(ErrCode::TableOutOfBounds);
     }
 

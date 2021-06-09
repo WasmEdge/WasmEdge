@@ -82,7 +82,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = Mgr.readS32()) {
       if (*Res < 0) {
         /// Value type case.
-        ValType VType = static_cast<ValType>((*Res) & 0x7FU);
+        ValType VType = static_cast<ValType>((*Res) & INT32_C(0x7F));
         if (auto Check = checkValTypeProposals(Conf, VType, Mgr.getOffset() - 1,
                                                ASTNodeAttr::Instruction);
             !Check) {

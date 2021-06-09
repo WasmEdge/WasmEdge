@@ -664,7 +664,7 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   /// Call mul: (-30) * (-66)
   FuncName = WasmEdge_StringCreateByCString("func-host-mul");
   P[0] = WasmEdge_ValueGenI32(-66);
-  TestValue = -30;
+  TestValue = static_cast<uint32_t>(-30);
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_InterpreterInvoke(Interp, Store, FuncName, P, 1, R, 1)));
   EXPECT_EQ(1980, WasmEdge_ValueGetI32(R[0]));
@@ -672,7 +672,7 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   /// Call div: (-9999) / (1234)
   FuncName = WasmEdge_StringCreateByCString("func-host-div");
   P[0] = WasmEdge_ValueGenI32(1234);
-  TestValue = -9999;
+  TestValue = static_cast<uint32_t>(-9999);
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_InterpreterInvoke(Interp, Store, FuncName, P, 1, R, 1)));
   EXPECT_EQ(-8, WasmEdge_ValueGetI32(R[0]));

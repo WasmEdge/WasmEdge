@@ -1390,11 +1390,14 @@ public:
           const bool Is32 = Instr.getOpCode() == OpCode::I32__div_s;
           llvm::ConstantInt *IntZero =
               Is32 ? Builder.getInt32(0) : Builder.getInt64(0);
-          llvm::ConstantInt *IntMinusOne = Is32 ? Builder.getInt32(int32_t(-1))
-                                                : Builder.getInt64(int64_t(-1));
+          llvm::ConstantInt *IntMinusOne =
+              Is32 ? Builder.getInt32(static_cast<uint32_t>(INT32_C(-1)))
+                   : Builder.getInt64(static_cast<uint64_t>(INT64_C(-1)));
           llvm::ConstantInt *IntMin =
-              Is32 ? Builder.getInt32(std::numeric_limits<int32_t>::min())
-                   : Builder.getInt64(std::numeric_limits<int64_t>::min());
+              Is32 ? Builder.getInt32(static_cast<uint32_t>(
+                         std::numeric_limits<int32_t>::min()))
+                   : Builder.getInt64(static_cast<uint64_t>(
+                         std::numeric_limits<int64_t>::min()));
 
           auto *NoZeroBB = llvm::BasicBlock::Create(LLContext, "div.nozero", F);
           auto *OkBB = llvm::BasicBlock::Create(LLContext, "div.ok", F);
@@ -1442,11 +1445,14 @@ public:
         llvm::Value *LHS = stackPop();
         // handle INT32_MIN % -1
         const bool Is32 = Instr.getOpCode() == OpCode::I32__rem_s;
-        llvm::ConstantInt *IntMinusOne = Is32 ? Builder.getInt32(int32_t(-1))
-                                              : Builder.getInt64(int64_t(-1));
+        llvm::ConstantInt *IntMinusOne =
+            Is32 ? Builder.getInt32(static_cast<uint32_t>(INT32_C(-1)))
+                 : Builder.getInt64(static_cast<uint64_t>(INT64_C(-1)));
         llvm::ConstantInt *IntMin =
-            Is32 ? Builder.getInt32(std::numeric_limits<int32_t>::min())
-                 : Builder.getInt64(std::numeric_limits<int64_t>::min());
+            Is32 ? Builder.getInt32(static_cast<uint32_t>(
+                       std::numeric_limits<int32_t>::min()))
+                 : Builder.getInt64(static_cast<uint64_t>(
+                       std::numeric_limits<int64_t>::min()));
         llvm::ConstantInt *IntZero =
             Is32 ? Builder.getInt32(0) : Builder.getInt64(0);
 

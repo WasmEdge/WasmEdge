@@ -12,8 +12,3 @@ target_link_libraries(wasmedgeProcessTests
   wasmedgeAST
   wasmedgeHostModuleWasmEdgeProcess
 )
-
-target_include_directories(wasmedgeProcessTests
-  PRIVATE
-  ${PROJECT_SOURCE_DIR}/include
-)

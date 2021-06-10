@@ -5,11 +5,7 @@
 #include "common/defines.h"
 #include "common/hexstr.h"
 #include "common/log.h"
-
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
-#include <pwd.h>
-#include <unistd.h>
-#endif
+#include "system/path.h"
 
 namespace WasmEdge {
 namespace AOT {
@@ -20,12 +16,10 @@ std::filesystem::path getRoot(Cache::StorageScope Scope) {
   case Cache::StorageScope::Global:
     return std::filesystem::u8path(kCacheRoot);
   case Cache::StorageScope::Local: {
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
-    const struct passwd *PassWd = getpwuid(getuid());
-    return std::filesystem::u8path(PassWd->pw_dir) / ".wasmedge/cache"sv;
-#else
+    if (const auto Home = Path::home(); !Home.empty()) {
+      return Home / ".wasmedge/cache"sv;
+    }
     return {};
-#endif
   }
   default:
     __builtin_unreachable();

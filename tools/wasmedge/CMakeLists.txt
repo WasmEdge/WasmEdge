@@ -15,6 +15,7 @@ if (BUILD_AOT_RUNTIME)
   target_link_libraries(wasmedgec
     PRIVATE
     wasmedgeLoader
+    wasmedgeCommon
     wasmedgeValidator
     wasmedgeAOT
     std::filesystem
@@ -28,7 +29,7 @@ add_executable(wasmedge
 install(TARGETS wasmedge EXPORT wasmedge DESTINATION bin)
 
 target_link_libraries(wasmedge
-  PUBLIC
+  PRIVATE
   wasmedgeVM
 )
 
@@ -41,7 +42,7 @@ if(BUILD_TOOL_WASMEDGE_STATIC)
 
   target_link_libraries(wasmedge-static
     PRIVATE
-    -static
     wasmedgeVM
-    )
+    -static
+  )
 endif()

@@ -6,11 +6,22 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/second-state/WasmEdge-unittest
   GIT_TAG wasm-dev-0.8.0
 )
+FetchContent_MakeAvailable(wasmedge_unit_test)
 
-FetchContent_GetProperties(wasmedge_unit_test)
-if (NOT wasmedge_unit_test_POPULATED)
-    FetchContent_Populate(wasmedge_unit_test)
-endif ()
+FetchContent_Declare(
+  rapidjson
+  GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
+  GIT_TAG        17aa824c928ea111e9b12a61e06d98335ce98f15
+  GIT_SHALLOW    TRUE
+)
+set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "Build rapidjson documentation." FORCE)
+set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "Build rapidjson examples." FORCE)
+set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "Build rapidjson perftests and unittests." FORCE)
+set(RAPIDJSON_BUILD_CXX11 OFF CACHE BOOL "Build rapidjson with C++11" FORCE)
+set(RAPIDJSON_BUILD_CXX17 ON CACHE BOOL "Build rapidjson with C++17" FORCE)
+FetchContent_MakeAvailable(rapidjson)
+add_library(rapidjson INTERFACE)
+target_include_directories(rapidjson INTERFACE ${rapidjson_SOURCE_DIR}/include)
 
 configure_files(
   ${wasmedge_unit_test_SOURCE_DIR}/core/
@@ -27,14 +38,10 @@ add_library(wasmedgeTestSpec
   spectest.cpp
 )
 
-target_include_directories(wasmedgeTestSpec
-  PUBLIC
-  ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/thirdparty
-)
-
 target_link_libraries(wasmedgeTestSpec
   PRIVATE
+  rapidjson
+  PUBLIC
   std::filesystem
   wasmedgeCommon
   ${GTEST_BOTH_LIBRARIES}

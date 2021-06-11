@@ -184,7 +184,7 @@ uint64_t convertTimespec(const timespec &Timespec) noexcept {
 } // namespace
 
 TEST(WasiTest, Args) {
-  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
 
   WasmEdge::Host::WasiArgsSizesGet WasiArgsSizesGet(Env);
@@ -284,7 +284,7 @@ TEST(WasiTest, Args) {
 }
 
 TEST(WasiTest, Envs) {
-  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
 
   WasmEdge::Host::WasiEnvironSizesGet WasiEnvironSizesGet(Env);
@@ -409,7 +409,7 @@ TEST(WasiTest, Envs) {
 }
 
 TEST(WasiTest, ClockRes) {
-  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
 
   WasmEdge::Host::WasiClockResGet WasiClockResGet(Env);
@@ -523,7 +523,7 @@ TEST(WasiTest, ClockRes) {
 }
 
 TEST(WasiTest, ClockTimeGet) {
-  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
 
   WasmEdge::Host::WasiClockTimeGet WasiClockTimeGet(Env);
@@ -643,7 +643,7 @@ TEST(WasiTest, ClockTimeGet) {
 }
 
 TEST(WasiTest, ProcExit) {
-  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
 
   WasmEdge::Host::WasiProcExit WasiProcExit(Env);
@@ -662,7 +662,7 @@ TEST(WasiTest, ProcExit) {
 }
 
 TEST(WasiTest, Random) {
-  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
 
   WasmEdge::Host::WasiRandomGet WasiRandomGet(Env);
@@ -727,7 +727,7 @@ TEST(WasiTest, Random) {
 }
 
 TEST(WasiTest, Directory) {
-  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
 
   WasmEdge::Host::WasiPathCreateDirectory WasiPathCreateDirectory(Env);
@@ -817,7 +817,7 @@ TEST(WasiTest, Directory) {
 }
 
 TEST(WasiTest, SymbolicLink) {
-  WasmEdge::Host::WasiEnvironment Env;
+  WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
 
   WasmEdge::Host::WasiPathSymlink WasiPathSymlink(Env);

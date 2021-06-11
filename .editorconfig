@@ -7,7 +7,7 @@ indent_size = 2
 indent_style = space
 insert_final_newline = true
 
-[**.{c,cc,cpp,h,hpp,ipp,in,cmake,S,rs,sh,toml,wat,witx,txt,spdx,patch}]
+[**.{c,cc,cpp,mm,h,hpp,ipp,in,cmake,S,rs,sh,toml,wat,witx,txt,spdx,patch}]
 charset = utf-8
 end_of_line = lf
 indent_size = 2

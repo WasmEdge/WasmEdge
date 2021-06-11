@@ -1,9 +1,21 @@
 # SPDX-License-Identifier: Apache-2.0
 
+if(APPLE)
+  set(MACOS_MM macos.mm)
+else()
+  set(MACOS_MM)
+endif()
+
 add_library(wasmedgeHostModuleWasi
-  wasienv.cpp
+  clock-linux.cpp
+  environ-linux.cpp
+  environ.cpp
+  inode-linux.cpp
+  vfs.cpp
+  vinode.cpp
   wasifunc.cpp
   wasimodule.cpp
+  ${MACOS_MM}
 )
 
 target_include_directories(wasmedgeHostModuleWasi

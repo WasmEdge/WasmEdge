@@ -6,8 +6,7 @@
 namespace WasmEdge {
 
 /// Type aliasing of expected class.
-template <typename T, typename E>
-using Expected = cxx20::expected<T, E>;
+template <typename T, typename E> using Expected = cxx20::expected<T, E>;
 
 /// Type aliasing of unexpected class.
 template <typename E> using Unexpected = cxx20::unexpected<E>;

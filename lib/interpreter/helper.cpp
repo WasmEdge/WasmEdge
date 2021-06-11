@@ -4,6 +4,7 @@
 #include "common/statistics.h"
 #include "common/value.h"
 #include "interpreter/interpreter.h"
+#include "system/fault.h"
 
 namespace WasmEdge {
 namespace Interpreter {
@@ -86,24 +87,17 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
       ExecutionContext.Globals = ModInst.GlobalsPtr.data();
     }
 
-    sigjmp_buf JumpBuffer;
-    auto OldTrapJump = std::exchange(TrapJump, &JumpBuffer);
-
-    const int Status = sigsetjmp(*TrapJump, true);
-    if (Status == 0) {
-      SignalEnabler Enabler;
+    {
+      Fault FaultHandler;
+      if (auto Err = PREPARE_FAULT(FaultHandler);
+          unlikely(Err != ErrCode::Success)) {
+        if (Err != ErrCode::Terminated) {
+          spdlog::error(Err);
+        }
+        return Unexpect(Err);
+      }
       Wrapper(&ExecutionContext, Func.getSymbol().get(), Args.data(),
               Rets.data());
-    }
-
-    TrapJump = std::move(OldTrapJump);
-
-    if (Status != 0) {
-      ErrCode Code = static_cast<ErrCode>(Status);
-      if (Code != ErrCode::Terminated) {
-        spdlog::error(Code);
-      }
-      return Unexpect(Code);
     }
 
     for (uint32_t I = 0; I < Rets.size(); ++I) {

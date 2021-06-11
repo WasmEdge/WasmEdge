@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "interpreter/interpreter.h"
+#include "system/fault.h"
 
 namespace WasmEdge {
 namespace Interpreter {
 
-Interpreter *Interpreter::This = nullptr;
-std::jmp_buf *Interpreter::TrapJump = nullptr;
+thread_local Interpreter *Interpreter::This = nullptr;
 
 template <typename RetT, typename... ArgsT>
 struct Interpreter::ProxyHelper<Expect<RetT> (Interpreter::*)(
@@ -13,11 +13,15 @@ struct Interpreter::ProxyHelper<Expect<RetT> (Interpreter::*)(
   template <Expect<RetT> (Interpreter::*Func)(Runtime::StoreManager &,
                                               ArgsT...) noexcept>
   static RetT proxy(ArgsT... Args) noexcept {
-    Interpreter::SignalDisabler Disabler;
-    if (auto Res = (This->*Func)(*This->CurrentStore, Args...);
-        unlikely(!Res)) {
-      siglongjmp(*TrapJump, uint8_t(Res.error()));
-    } else if constexpr (!std::is_void_v<RetT>) {
+    Expect<RetT> Res;
+    {
+      FaultBlocker Blocker;
+      Res = (This->*Func)(*This->CurrentStore, Args...);
+    }
+    if (unlikely(!Res)) {
+      Fault::emitFault(Res.error());
+    }
+    if constexpr (!std::is_void_v<RetT>) {
       return *Res;
     }
   }
@@ -61,36 +65,6 @@ AST::Module::IntrinsicsTable intrinsics = {
 #if defined(__clang_major__) && __clang_major__ >= 10
 #pragma clang diagnostic pop
 #endif
-
-void Interpreter::signalHandler(int Signal, siginfo_t *Siginfo,
-                                void *) noexcept {
-  int Status;
-  switch (Signal) {
-  case SIGSEGV:
-    Status = uint8_t(ErrCode::MemoryOutOfBounds);
-    break;
-  case SIGFPE:
-    assert(Siginfo->si_code == FPE_INTDIV);
-    Status = uint8_t(ErrCode::DivideByZero);
-    break;
-  default:
-    __builtin_unreachable();
-  }
-  siglongjmp(*This->TrapJump, Status);
-}
-
-void Interpreter::signalEnable() noexcept {
-  struct sigaction Action {};
-  Action.sa_sigaction = &signalHandler;
-  Action.sa_flags = SA_SIGINFO;
-  sigaction(SIGFPE, &Action, nullptr);
-  sigaction(SIGSEGV, &Action, nullptr);
-}
-
-void Interpreter::signalDisable() noexcept {
-  std::signal(SIGFPE, SIG_DFL);
-  std::signal(SIGSEGV, SIG_DFL);
-}
 
 Expect<void> Interpreter::trap(Runtime::StoreManager &StoreMgr,
                                const uint8_t Code) noexcept {

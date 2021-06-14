@@ -1659,6 +1659,39 @@ WasiSockConnect::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   return __WASI_ERRNO_SUCCESS;
 }
 
+Expect<uint32_t> WasiSockConnect::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
+                        uint32_t AddressStringPtr, uint32_t AddressStringLen){
+  /// Check memory instance from module.
+  if (MemInst == nullptr || Fd < 0) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  char *const AddrString =
+        MemInst->getPointer<char *>(AddressStringPtr, sizeof(char *));
+
+  std::string address_and_port(AddrString, AddressStringLen);
+  std::stringstream ss(address_and_port);
+  std::string address, port;
+  getline(ss, address, ':');
+  getline(ss, port);
+
+  struct sockaddr_in myaddr;
+  myaddr.sin_family = AF_INET;
+  myaddr.sin_port = htons(stoi(port));
+  if(inet_aton(address.c_str(), &myaddr.sin_addr) < 0){
+    return __WASI_ERRNO_FAULT;
+  }
+
+  int result = connect(Fd, (struct sockaddr*)&myaddr, sizeof(myaddr));
+  spdlog::error("connect: {0}:{1} result: {2}", address, port, result); 
+
+  if (unlikely(result < 0)) {
+    return convertErrNo(errno);
+  }
+
+  return __WASI_ERRNO_SUCCESS;
+}
+
 Expect<uint32_t> WasiSockRecv::body(Runtime::Instance::MemoryInstance *MemInst,
                                     int32_t Fd, uint32_t RiDataPtr,
                                     uint32_t RiDataLen, uint32_t RiFlags,

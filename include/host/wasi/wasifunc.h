@@ -399,6 +399,14 @@ public:
                         uint32_t AddressStringPtr, uint32_t AddressStringLen);
 };
 
+class WasiSockConnect : public Wasi<WasiSockConnect> {
+public:
+  WasiSockConnect(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
+                        uint32_t AddressStringPtr, uint32_t AddressStringLen);
+};
+
 class WasiSockRecv : public Wasi<WasiSockRecv> {
 public:
   WasiSockRecv(WASI::Environ &HostEnv) : Wasi(HostEnv) {}

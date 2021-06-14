@@ -59,8 +59,6 @@ WasiModule::WasiModule() : ImportObject("wasi_snapshot_preview1") {
   addHostFunc("random_get", std::make_unique<WasiRandomGet>(Env));
   addHostFunc("sock_open", std::make_unique<WasiSockOpen>(Env));
   addHostFunc("sock_bind", std::make_unique<WasiSockBind>(Env));
-  addHostFunc("sock_listen", std::make_unique<WasiSockListen>(Env));
-  addHostFunc("sock_accept", std::make_unique<WasiSockAccept>(Env));
   addHostFunc("sock_connect", std::make_unique<WasiSockConnect>(Env));
   addHostFunc("sock_recv", std::make_unique<WasiSockRecv>(Env));
   addHostFunc("sock_send", std::make_unique<WasiSockSend>(Env));

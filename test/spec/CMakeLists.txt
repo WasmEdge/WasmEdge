@@ -11,7 +11,7 @@ FetchContent_MakeAvailable(wasmedge_unit_test)
 FetchContent_Declare(
   rapidjson
   GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
-  GIT_TAG        17aa824c928ea111e9b12a61e06d98335ce98f15
+  GIT_TAG        master
   GIT_SHALLOW    TRUE
 )
 set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "Build rapidjson documentation." FORCE)

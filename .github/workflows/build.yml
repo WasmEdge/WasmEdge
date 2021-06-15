@@ -120,6 +120,10 @@ jobs:
         apt update
         apt install -y gcovr ninja-build
 
+    - name: Install rustup
+      run: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --target wasm32-wasi
+
     - name: Build WasmEdge using gcc with Debug mode
       run: |
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DBUILD_COVERAGE=ON .

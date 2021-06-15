@@ -12,3 +12,10 @@ target_link_libraries(wasiTests
   wasmedgeAST
   wasmedgeHostModuleWasi
 )
+
+if(BUILD_COVERAGE)
+  add_test(
+    NAME wasi-test
+    COMMAND bash -c "[ -e \"$HOME/.cargo/env\" ] && . \"$HOME/.cargo/env\"; \"${PROJECT_SOURCE_DIR}\"/utils/wasi-test/run-wasi-test.sh \"${PROJECT_BINARY_DIR}/tools/wasmedge\""
+  )
+endif()

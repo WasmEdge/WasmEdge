@@ -1,0 +1,43 @@
+From a33de43ac84703faa5a0ee4d7403360e0efb1922 Mon Sep 17 00:00:00 2001
+From: Shen-Ta Hsieh <ibmibmibm.tw@gmail.com>
+Date: Sat, 19 Jun 2021 10:03:12 +0800
+Subject: [PATCH] [PATCH] Disable other tests except wasmedge
+
+---
+ compat.py | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/compat.py b/compat.py
+index 9341520..da54714 100755
+--- a/compat.py
++++ b/compat.py
+@@ -28,8 +28,14 @@ def load_config(filepath):
+     return config
+ 
+ def test(cmd, config, cwd):
++    print(' '.join(cmd))
+     result = subprocess.run(cmd, cwd=cwd, encoding='utf8', input=config.get('stdin'), timeout=config.get('timeout', 5), capture_output=True)
+-    assert_result(result, config)
++    try:
++        assert_result(result, config)
++    except:
++        print('==stderr==')
++        print(result.stderr)
++        raise
+ 
+ def test_deno(filepath, config, cwd):
+     cmd = ['deno', 'run']
+@@ -202,10 +208,6 @@ def main():
+     inputs.extend(sorted(glob.glob("target/wasm32-wasi/**/*.wasm")))
+ 
+     tests = {
+-            "deno": test_deno,
+-            "node": test_node,
+-            "wasmer": test_wasmer,
+-            "wasmtime": test_wasmtime,
+             "wasmedge": test_wasmedge,
+     }
+ 
+-- 
+2.31.1
+

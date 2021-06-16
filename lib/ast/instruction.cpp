@@ -264,7 +264,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case OpCode::Memory__fill:
     return readCheck(0x00);
   case OpCode::Memory__init:
-    if (!Conf.hasDataCountSection()) {
+    if (!Conf.getRuntimeConfigure().hasDataCountSection()) {
       return logLoadError(ErrCode::DataCountRequired, Offset,
                           ASTNodeAttr::Instruction);
     }
@@ -273,7 +273,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     }
     return readCheck(0x00);
   case OpCode::Data__drop:
-    if (!Conf.hasDataCountSection()) {
+    if (!Conf.getRuntimeConfigure().hasDataCountSection()) {
       return logLoadError(ErrCode::DataCountRequired, Offset,
                           ASTNodeAttr::Instruction);
     }

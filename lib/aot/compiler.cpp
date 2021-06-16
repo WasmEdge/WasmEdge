@@ -109,8 +109,8 @@ static inline constexpr const uint32_t kValSize = sizeof(WasmEdge::ValVariant);
 
 /// Translate Compiler::OptimizationLevel to llvm::PassBuilder version
 static inline llvm::PassBuilder::OptimizationLevel
-toLLVMLevel(WasmEdge::AOT::Compiler::OptimizationLevel Level) {
-  using OL = WasmEdge::AOT::Compiler::OptimizationLevel;
+toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) {
+  using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
   switch (Level) {
   case OL::O0:
     return llvm::PassBuilder::OptimizationLevel::O0;
@@ -3824,7 +3824,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
         llvm::ConstantInt::get(Int32Ty, Data.size()), "wasm.size");
   }
 
-  if (DumpIR) {
+  if (Conf.getCompilerConfigure().isDumpIR()) {
     int Fd;
     llvm::sys::fs::openFileForWrite("wasm.ll", Fd);
     llvm::raw_fd_ostream OS(Fd, true);
@@ -3909,10 +3909,11 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
       llvm::ModulePassManager MPM(false);
-      if (optNone()) {
+      if (Conf.getCompilerConfigure().getOptimizationLevel() == CompilerConfigure::OptimizationLevel::O0) {
         MPM.addPass(llvm::AlwaysInlinerPass(false));
       } else {
-        MPM.addPass(PB.buildPerModuleDefaultPipeline(toLLVMLevel(Level)));
+        MPM.addPass(PB.buildPerModuleDefaultPipeline(
+            toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel())));
       }
 
       MPM.run(*LLModule, MAM);
@@ -3938,7 +3939,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       return Unexpect(ErrCode::InvalidPath);
     }
 
-    if (DumpIR) {
+    if (Conf.getCompilerConfigure().isDumpIR()) {
       int Fd;
       llvm::sys::fs::openFileForWrite("wasm-opt.ll", Fd);
       llvm::raw_fd_ostream OS(Fd, true);
@@ -4269,8 +4270,10 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
         Locals.push_back(Local.second);
       }
     }
-    FunctionCompiler FC(*Context, F, Locals, InstructionCounting, GasMeasuring,
-                        optNone());
+    FunctionCompiler FC(*Context, F, Locals, Conf.getCompilerConfigure().isInstructionCounting(),
+                        Conf.getCompilerConfigure().isCostMeasuring(),
+                        Conf.getCompilerConfigure().getOptimizationLevel() ==
+                            CompilerConfigure::OptimizationLevel::O0);
     auto Type = Context->resolveBlockType(T);
     FC.compile(*Code, std::move(Type));
     llvm::EliminateUnreachableBlocks(*F);

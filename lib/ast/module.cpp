@@ -151,7 +151,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
-      CopyConf.addDataCountSection();
+      CopyConf.getRuntimeConfigure().addDataCountSection();
       Secs.set(NewSectionId);
       break;
     default:

@@ -39,11 +39,7 @@ struct WasmEdge_ASTModuleContext {
 struct WasmEdge_CompilerContext {
 #ifdef BUILD_AOT_RUNTIME
   WasmEdge_CompilerContext(const WasmEdge::Configure &Conf) noexcept
-      : Load(Conf), Valid(Conf) {
-    /// Set optimization level to O0 until the compiler option APIs ready.
-    Compiler.setOptimizationLevel(
-        WasmEdge::AOT::Compiler::OptimizationLevel::O0);
-  }
+      : Compiler(Conf), Load(Conf), Valid(Conf) {}
   WasmEdge::AOT::Compiler Compiler;
   WasmEdge::Loader::Loader Load;
   WasmEdge::Validator::Validator Valid;
@@ -562,16 +558,79 @@ bool WasmEdge_ConfigureHasHostRegistration(
 void WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
                                         const uint32_t Page) {
   if (Cxt) {
-    Cxt->Conf.setMaxMemoryPage(Page);
+    Cxt->Conf.getRuntimeConfigure().setMaxMemoryPage(Page);
   }
 }
 
 uint32_t
 WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt) {
   if (Cxt) {
-    return Cxt->Conf.getMaxMemoryPage();
+    return Cxt->Conf.getRuntimeConfigure().getMaxMemoryPage();
   }
   return 0;
+}
+
+void WasmEdge_ConfigureCompilerSetOptimizationLevel(
+    WasmEdge_ConfigureContext *Cxt,
+    const enum WasmEdge_CompilerOptimizationLevel Level) {
+  if (Cxt) {
+    Cxt->Conf.getCompilerConfigure().setOptimizationLevel(
+        static_cast<WasmEdge::CompilerConfigure::OptimizationLevel>(Level));
+  }
+}
+
+enum WasmEdge_CompilerOptimizationLevel
+WasmEdge_ConfigureCompilerGetOptimizationLevel(
+    const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return static_cast<WasmEdge_CompilerOptimizationLevel>(
+        Cxt->Conf.getCompilerConfigure().getOptimizationLevel());
+  }
+  return WasmEdge_CompilerOptimizationLevel_O0;
+}
+
+void WasmEdge_ConfigureCompilerSetDumpIR(WasmEdge_ConfigureContext *Cxt,
+                                         const bool IsDump) {
+  if (Cxt) {
+    Cxt->Conf.getCompilerConfigure().setDumpIR(IsDump);
+  }
+}
+
+bool WasmEdge_ConfigureCompilerIsDumpIR(const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getCompilerConfigure().isDumpIR();
+  }
+  return false;
+}
+
+void WasmEdge_ConfigureCompilerSetInstructionCounting(
+    WasmEdge_ConfigureContext *Cxt, const bool IsCount) {
+  if (Cxt) {
+    Cxt->Conf.getCompilerConfigure().setInstructionCounting(IsCount);
+  }
+}
+
+bool WasmEdge_ConfigureCompilerIsInstructionCounting(
+    const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getCompilerConfigure().isInstructionCounting();
+  }
+  return false;
+}
+
+void WasmEdge_ConfigureCompilerSetCostMeasuring(WasmEdge_ConfigureContext *Cxt,
+                                                const bool IsMeasure) {
+  if (Cxt) {
+    Cxt->Conf.getCompilerConfigure().setCostMeasuring(IsMeasure);
+  }
+}
+
+bool WasmEdge_ConfigureCompilerIsCostMeasuring(
+    const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getCompilerConfigure().isCostMeasuring();
+  }
+  return false;
 }
 
 void WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt) { delete Cxt; }

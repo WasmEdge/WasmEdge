@@ -114,6 +114,24 @@ enum WasmEdge_HostRegistration {
   WasmEdge_HostRegistration_WasmEdge_Process
 };
 
+/// AOT compiler optimization level enumeration.
+enum WasmEdge_CompilerOptimizationLevel {
+  /// Disable as many optimizations as possible.
+  WasmEdge_CompilerOptimizationLevel_O0 = 0,
+  /// Optimize quickly without destroying debuggability.
+  WasmEdge_CompilerOptimizationLevel_O1,
+  /// Optimize for fast execution as much as possible without triggering
+  /// significant incremental compile time or code size growth.
+  WasmEdge_CompilerOptimizationLevel_O2,
+  /// Optimize for fast execution as much as possible.
+  WasmEdge_CompilerOptimizationLevel_O3,
+  /// Optimize for small code size as much as possible without triggering
+  /// significant incremental compile time or execution time slowdowns.
+  WasmEdge_CompilerOptimizationLevel_Os,
+  /// Optimize for small code size as much as possible.
+  WasmEdge_CompilerOptimizationLevel_Oz
+};
+
 /// Opaque struct of WasmEdge configure.
 typedef struct WasmEdge_ConfigureContext WasmEdge_ConfigureContext;
 
@@ -538,6 +556,78 @@ WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
 /// \returns the page count limitation value.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the optimization level of AOT compiler.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the optimization level.
+/// \param Level the AOT compiler optimization level.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetOptimizationLevel(
+    WasmEdge_ConfigureContext *Cxt,
+    const enum WasmEdge_CompilerOptimizationLevel Level);
+
+/// Get the optimization level of AOT compiler.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the optimization level.
+///
+/// \returns the AOT compiler optimization level.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_CompilerOptimizationLevel
+WasmEdge_ConfigureCompilerGetOptimizationLevel(
+    const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the dump IR boolean value of AOT compiler.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param IsDump the boolean value to determine to dump IR or not when
+/// compilation in AOT compiler.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureCompilerSetDumpIR(WasmEdge_ConfigureContext *Cxt,
+                                    const bool IsDump);
+
+/// Get the dump IR boolean value of AOT compiler.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to dump IR or not when compilation
+/// in AOT compiler.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ConfigureCompilerIsDumpIR(const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the instruction counting supporting boolean value of AOT compiler.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param IsCount the boolean value to determine to support instruction
+/// counting when execution or not after compilation by the AOT compiler.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureCompilerSetInstructionCounting(WasmEdge_ConfigureContext *Cxt,
+                                                 const bool IsCount);
+
+/// Get the instruction counting supporting boolean value of AOT compiler.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to support instruction counting when
+/// execution or not after compilation by the AOT compiler.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ConfigureCompilerIsInstructionCounting(
+    const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the cost measuring supporting boolean value of AOT compiler.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param IsMeasure the boolean value to determine to support cost measuring
+/// when execution or not after compilation by the AOT compiler.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureCompilerSetCostMeasuring(WasmEdge_ConfigureContext *Cxt,
+                                           const bool IsMeasure);
+
+/// Get the cost measuring supporting boolean value of AOT compiler.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to support cost measuring when
+/// execution or not after compilation by the AOT compiler.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ConfigureCompilerIsCostMeasuring(const WasmEdge_ConfigureContext *Cxt);
 
 /// Deletion of the WasmEdge_ConfigureContext.
 ///

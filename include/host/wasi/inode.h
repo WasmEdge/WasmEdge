@@ -7,8 +7,9 @@
 #include <functional>
 #include <optional>
 #include <string_view>
+#include <vector>
 
-#if WASMEDGE_OS_LINUX
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <dirent.h>
 #include <sys/stat.h>
 
@@ -43,30 +44,6 @@ struct FdHolder {
   int Fd = -1;
 };
 
-struct TimerHolder {
-  TimerHolder(const TimerHolder &) = delete;
-  TimerHolder &operator=(const TimerHolder &) = delete;
-  TimerHolder(TimerHolder &&RHS) noexcept {
-    using std::swap;
-    swap(Id, RHS.Id);
-  }
-  TimerHolder &operator=(TimerHolder &&RHS) noexcept {
-    using std::swap;
-    swap(Id, RHS.Id);
-    return *this;
-  }
-
-  constexpr TimerHolder() = default;
-  explicit constexpr TimerHolder(timer_t T) noexcept : Id(T) {}
-  ~TimerHolder() noexcept { reset(); }
-  void reset() noexcept;
-  void emplace(timer_t NewId) noexcept {
-    reset();
-    Id = NewId;
-  }
-  std::optional<timer_t> Id;
-};
-
 struct DirHolder {
   DirHolder(const DirHolder &) = delete;
   DirHolder &operator=(const DirHolder &) = delete;
@@ -97,6 +74,32 @@ struct DirHolder {
   std::vector<uint8_t, boost::alignment::aligned_allocator<
                            uint8_t, alignof(__wasi_dirent_t)>>
       Buffer;
+};
+#endif
+
+#if WASMEDGE_OS_LINUX
+struct TimerHolder {
+  TimerHolder(const TimerHolder &) = delete;
+  TimerHolder &operator=(const TimerHolder &) = delete;
+  TimerHolder(TimerHolder &&RHS) noexcept {
+    using std::swap;
+    swap(Id, RHS.Id);
+  }
+  TimerHolder &operator=(TimerHolder &&RHS) noexcept {
+    using std::swap;
+    swap(Id, RHS.Id);
+    return *this;
+  }
+
+  constexpr TimerHolder() = default;
+  explicit constexpr TimerHolder(timer_t T) noexcept : Id(T) {}
+  ~TimerHolder() noexcept { reset(); }
+  void reset() noexcept;
+  void emplace(timer_t NewId) noexcept {
+    reset();
+    Id = NewId;
+  }
+  std::optional<timer_t> Id;
 };
 #endif
 

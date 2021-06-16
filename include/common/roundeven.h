@@ -22,8 +22,12 @@
 #define __has_builtin(x) 0
 #endif
 
+#if defined(__GLIBC_PREREQ)
 #if __GLIBC_PREREQ(2, 26) && __has_builtin(__builtin_roundeven)
 #define HAVE_BUILTIN_ROUNDEVEN 1
+#elif defined(__clang__) && __has_builtin(__builtin_roundeven)
+#define HAVE_BUILTIN_ROUNDEVEN 1
+#endif
 #endif
 #if !__has_builtin(__builtin_is_constant_evaluated)
 #define __builtin_is_constant_evaluated() false

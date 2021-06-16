@@ -26,7 +26,9 @@ namespace Loader {
 /// Loader flow control class.
 class Loader {
 public:
-  Loader(const Configure &Conf) noexcept : Conf(Conf) {}
+  Loader(const Configure &Conf,
+         const AST::Module::IntrinsicsTable *IT = nullptr) noexcept
+      : Conf(Conf), LMgr(IT) {}
   ~Loader() noexcept = default;
 
   /// Load data from file path.

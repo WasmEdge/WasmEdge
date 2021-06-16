@@ -38,13 +38,17 @@ public:
   RefType getReferenceType() const noexcept { return Type; }
 
   /// Get size of table.refs
-  uint32_t getSize() const noexcept { return Refs.size(); }
+  uint32_t getSize() const noexcept {
+    return static_cast<uint32_t>(Refs.size());
+  }
 
   /// Getter of limit definition.
   bool getHasMax() const noexcept { return HasMaxSize; }
 
   /// Getter of limit definition.
-  uint32_t getMin() const noexcept { return Refs.size(); }
+  uint32_t getMin() const noexcept {
+    return static_cast<uint32_t>(Refs.size());
+  }
 
   /// Getter of limit definition.
   uint32_t getMax() const noexcept { return MaxSize; }

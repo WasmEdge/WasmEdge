@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "ast/instruction.h"
+#include "common/defines.h"
 #include "common/log.h"
 #include "common/statistics.h"
 #include "common/value.h"
@@ -37,8 +38,8 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     /// Run host function.
-    const size_t ArgsN = FuncType.Params.size();
-    const size_t RetsN = FuncType.Returns.size();
+    const uint32_t ArgsN = static_cast<uint32_t>(FuncType.Params.size());
+    const uint32_t RetsN = static_cast<uint32_t>(FuncType.Returns.size());
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
     auto Ret = HostFunc.run(MemoryInst, std::move(Args), Rets);
@@ -57,7 +58,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     /// Push returns back to stack.
-    for (size_t I = 0; I < ArgsN; ++I) {
+    for (uint32_t I = 0; I < ArgsN; ++I) {
       ValVariant Val [[maybe_unused]] = StackMgr.pop();
     }
     for (auto &R : Rets) {
@@ -69,8 +70,8 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
   } else if (Func.isCompiledFunction()) {
     auto Wrapper = Func.getFuncType().getSymbol();
     /// Compiled function case: Push frame with locals and args.
-    const size_t ArgsN = FuncType.Params.size();
-    const size_t RetsN = FuncType.Returns.size();
+    const auto ArgsN = static_cast<uint32_t>(FuncType.Params.size());
+    const auto RetsN = static_cast<uint32_t>(FuncType.Returns.size());
 
     StackMgr.pushFrame(Func.getModuleAddr(), /// Module address
                        ArgsN,                /// No Arguments in stack

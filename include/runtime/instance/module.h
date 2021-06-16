@@ -153,12 +153,22 @@ public:
   }
 
   /// Get the added external values' numbers.
-  uint32_t getFuncNum() const { return FuncAddrs.size(); }
-  uint32_t getTableNum() const { return TableAddrs.size(); }
-  uint32_t getMemNum() const { return MemAddrs.size(); }
-  uint32_t getGlobalNum() const { return GlobalAddrs.size(); }
-  uint32_t getElemNum() const { return ElemAddrs.size(); }
-  uint32_t getDataNum() const { return DataAddrs.size(); }
+  uint32_t getFuncNum() const {
+    return static_cast<uint32_t>(FuncAddrs.size());
+  }
+  uint32_t getTableNum() const {
+    return static_cast<uint32_t>(TableAddrs.size());
+  }
+  uint32_t getMemNum() const { return static_cast<uint32_t>(MemAddrs.size()); }
+  uint32_t getGlobalNum() const {
+    return static_cast<uint32_t>(GlobalAddrs.size());
+  }
+  uint32_t getElemNum() const {
+    return static_cast<uint32_t>(ElemAddrs.size());
+  }
+  uint32_t getDataNum() const {
+    return static_cast<uint32_t>(DataAddrs.size());
+  }
 
   /// Set start function index and find the address in Store.
   void setStartIdx(const uint32_t Idx) {

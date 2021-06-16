@@ -16,6 +16,10 @@
 #include <boost/align/aligned_allocator.hpp>
 #endif
 
+#if WASMEDGE_OS_WINDOWS
+#include <boost/winapi/basic_types.hpp>
+#endif
+
 namespace WasmEdge {
 namespace Host {
 namespace WASI {
@@ -103,11 +107,42 @@ struct TimerHolder {
 };
 #endif
 
+#if WASMEDGE_OS_WINDOWS
+struct HandleHolder {
+  HandleHolder(const HandleHolder &) = delete;
+  HandleHolder &operator=(const HandleHolder &) = delete;
+  HandleHolder(HandleHolder &&RHS) noexcept
+      : Handle(std::exchange(RHS.Handle, nullptr)) {}
+  HandleHolder &operator=(HandleHolder &&RHS) noexcept {
+    using std::swap;
+    swap(Handle, RHS.Handle);
+    return *this;
+  }
+
+  constexpr HandleHolder() noexcept = default;
+  ~HandleHolder() noexcept { reset(); }
+  explicit constexpr HandleHolder(boost::winapi::HANDLE_ Handle) noexcept
+      : Handle(Handle) {}
+  constexpr bool ok() const noexcept { return Handle != nullptr; }
+  void reset() noexcept;
+  boost::winapi::HANDLE_ release() noexcept {
+    return std::exchange(Handle, nullptr);
+  }
+  void emplace(boost::winapi::HANDLE_ NewHandle) noexcept {
+    reset();
+    Handle = NewHandle;
+  }
+  boost::winapi::HANDLE_ Handle = nullptr;
+};
+#endif
+
 class Poller;
 
 class INode
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
     : public FdHolder
+#elif WASMEDGE_OS_WINDOWS
+    : public HandleHolder
 #endif
 {
 public:
@@ -502,6 +537,10 @@ private:
   DirHolder Dir;
 
   WasiExpect<void> updateStat() const noexcept;
+
+#elif WASMEDGE_OS_WINDOWS
+public:
+  using HandleHolder::HandleHolder;
 #endif
 };
 

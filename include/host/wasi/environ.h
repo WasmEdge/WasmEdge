@@ -821,7 +821,7 @@ public:
       const auto ValueSpan =
           cxx20::as_bytes(cxx20::span<const uint32_t, 1>(&Value, 1));
       const auto Size = std::min(BufferSpan.size(), ValueSpan.size());
-      std::copy(ValueSpan.begin(), ValueSpan.end(), BufferSpan.begin());
+      std::copy_n(ValueSpan.begin(), Size, BufferSpan.begin());
       BufferSpan = BufferSpan.subspan(Size);
     }
 

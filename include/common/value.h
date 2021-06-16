@@ -68,7 +68,6 @@ template <> inline ValType ValTypeFromType<ExternRef>() noexcept {
 
 inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   switch (Type) {
-  default:
   case ValType::I32:
     return uint32_t(0U);
   case ValType::I64:

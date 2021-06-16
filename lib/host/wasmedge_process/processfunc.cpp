@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <signal.h>
 #include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -167,8 +168,12 @@ WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
                    [](std::string &S) { return S.data(); });
     Argv.push_back(nullptr);
     Envp.push_back(nullptr);
+#if defined(__GLIBC_PREREQ)
 #if __GLIBC_PREREQ(2, 11)
     if (execvpe(Env.Name.c_str(), &Argv[0], &Envp[0]) == -1) {
+#else
+    if (execve(Env.Name.c_str(), &Argv[0], &Envp[0]) == -1) {
+#endif
 #else
     if (execve(Env.Name.c_str(), &Argv[0], &Envp[0]) == -1) {
 #endif

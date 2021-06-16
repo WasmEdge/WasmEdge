@@ -3,6 +3,7 @@
 #if WASMEDGE_OS_MACOS
 
 #include "common/errcode.h"
+#include "host/wasi/environ.h"
 #include "host/wasi/inode.h"
 #include "host/wasi/vfs.h"
 #include "macos.h"
@@ -37,7 +38,7 @@ constexpr int openFlags(__wasi_oflags_t OpenFlags, __wasi_fdflags_t FdFlags,
   } else if (VFSFlags & VFS::Write) {
     Flags |= O_WRONLY;
   } else {
-    Flags |= O_PATH;
+    Flags |= O_RDONLY;
   }
 
   if (OpenFlags & __WASI_OFLAGS_CREAT) {
@@ -79,13 +80,6 @@ void FdHolder::reset() noexcept {
   }
 }
 
-void TimerHolder::reset() noexcept {
-  if (likely(Id.has_value())) {
-    timer_delete(*Id);
-    Id.reset();
-  }
-}
-
 void DirHolder::reset() noexcept {
   if (likely(Dir != nullptr)) {
     closedir(Dir);
@@ -121,13 +115,16 @@ WasiExpect<void> INode::fdAdvise(__wasi_filesize_t Offset,
 
 WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
                                    __wasi_filesize_t Len) const noexcept {
+  if (Len > std::numeric_limits<int64_t>::max()) {
+    return WasiUnexpect(__WASI_ERRNO_NOSPC);
+  }
   const auto OldOffset = ::lseek(Fd, 0, SEEK_CUR);
   if (OldOffset < 0) {
-    return WasiUnexpect(convertErrNo(errno));
+    return WasiUnexpect(fromErrNo(errno));
   }
-  const auto EofOffset ::lseek(Fd, 0, SEEK_END);
+  const auto EofOffset = ::lseek(Fd, 0, SEEK_END);
   if (EofOffset < 0 || ::lseek(Fd, OldOffset, SEEK_SET) < 0) {
-    return WasiUnexpect(convertErrNo(errno));
+    return WasiUnexpect(fromErrNo(errno));
   }
   if (Len <= EofOffset && Offset <= EofOffset - Len) {
     /// File is already large enough.
@@ -135,11 +132,12 @@ WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
   }
 
   /// Try to allocate contiguous space.
-  fstore_t Store = {F_ALLOCATECONTIG, F_PEOFPOSMODE, 0, Len, 0};
-  if (auto Res = ::fcntl(fd, F_PREALLOCATE, &Store); unlikely(Res < 0)) {
+  fstore_t Store = {F_ALLOCATECONTIG, F_PEOFPOSMODE, 0,
+                    static_cast<int64_t>(Len), 0};
+  if (auto Res = ::fcntl(Fd, F_PREALLOCATE, &Store); unlikely(Res < 0)) {
     /// Try to allocate sparse space.
     Store.fst_flags = F_ALLOCATEALL;
-    if (auto Res = ::fcntl(fd, F_PREALLOCATE, &Store); unlikely(Res < 0)) {
+    if (auto Res = ::fcntl(Fd, F_PREALLOCATE, &Store); unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
   }
@@ -199,7 +197,7 @@ INode::fdFdstatSetFlags(__wasi_fdflags_t FdFlags) const noexcept {
     SysFlag |= O_DSYNC;
   }
   if (FdFlags & __WASI_FDFLAGS_RSYNC) {
-    SysFlag |= O_RSYNC;
+    SysFlag |= O_SYNC;
   }
   if (FdFlags & __WASI_FDFLAGS_SYNC) {
     SysFlag |= O_SYNC;
@@ -223,9 +221,9 @@ INode::fdFilestatGet(__wasi_filestat_t &Filestat) const noexcept {
   Filestat.filetype = unsafeFiletype();
   Filestat.nlink = Stat->st_nlink;
   Filestat.size = Stat->st_size;
-  Filestat.atim = fromTimespec(Stat->st_atim);
-  Filestat.mtim = fromTimespec(Stat->st_mtim);
-  Filestat.ctim = fromTimespec(Stat->st_ctim);
+  Filestat.atim = fromTimespec(Stat->st_atimespec);
+  Filestat.mtim = fromTimespec(Stat->st_mtimespec);
+  Filestat.ctim = fromTimespec(Stat->st_ctimespec);
 
   return {};
 }
@@ -292,7 +290,7 @@ INode::fdFilestatSetTimes(__wasi_timestamp_t ATim, __wasi_timestamp_t MTim,
   timespec Now;
   if (NeedNow) {
     if (auto Res = ::clock_gettime(CLOCK_REALTIME, &Now); unlikely(Res != 0)) {
-      return WasiUnexpect(convertErrNo(errno));
+      return WasiUnexpect(fromErrNo(errno));
     }
   }
 
@@ -302,18 +300,18 @@ INode::fdFilestatSetTimes(__wasi_timestamp_t ATim, __wasi_timestamp_t MTim,
   } else if (FstFlags & __WASI_FSTFLAGS_ATIM_NOW) {
     SysTimeval[0] = toTimeval(Now);
   } else {
-    SysTimeval[0] = toTimeval(Stat->st_atim);
+    SysTimeval[0] = toTimeval(Stat->st_atimespec);
   }
   if (FstFlags & __WASI_FSTFLAGS_MTIM) {
     SysTimeval[1] = toTimeval(MTim);
   } else if (FstFlags & __WASI_FSTFLAGS_MTIM_NOW) {
     SysTimeval[1] = toTimeval(Now);
   } else {
-    SysTimeval[1] = toTimeval(Stat->st_mtim);
+    SysTimeval[1] = toTimeval(Stat->st_mtimespec);
   }
 
   if (auto Res = ::futimes(Fd, SysTimeval); unlikely(Res != 0)) {
-    return WasiUnexpect(convertErrNo(errno));
+    return WasiUnexpect(fromErrNo(errno));
   }
 
   return {};
@@ -332,17 +330,17 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
 
   const auto OldOffset = ::lseek(Fd, 0, SEEK_CUR);
   if (OldOffset < 0) {
-    return WasiUnexpect(convertErrNo(errno));
+    return WasiUnexpect(fromErrNo(errno));
   }
   if (::lseek(Fd, Offset, SEEK_SET) < 0) {
-    return WasiUnexpect(convertErrNo(errno));
+    return WasiUnexpect(fromErrNo(errno));
   }
   if (auto Res = ::readv(Fd, SysIOVs, SysIOVsSize); unlikely(Res < 0)) {
     ::lseek(Fd, OldOffset, SEEK_SET);
-    return WasiUnexpect(convertErrNo(errno));
+    return WasiUnexpect(fromErrNo(errno));
   } else {
     if (::lseek(Fd, OldOffset, SEEK_SET) < 0) {
-      return WasiUnexpect(convertErrNo(errno));
+      return WasiUnexpect(fromErrNo(errno));
     }
     NRead = Res;
   }
@@ -363,17 +361,17 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
 
   const auto OldOffset = ::lseek(Fd, 0, SEEK_CUR);
   if (OldOffset < 0) {
-    return WasiUnexpect(convertErrNo(errno));
+    return WasiUnexpect(fromErrNo(errno));
   }
   if (::lseek(Fd, Offset, SEEK_SET) < 0) {
-    return WasiUnexpect(convertErrNo(errno));
+    return WasiUnexpect(fromErrNo(errno));
   }
   if (auto Res = ::writev(Fd, SysIOVs, SysIOVsSize); unlikely(Res < 0)) {
     ::lseek(Fd, OldOffset, SEEK_SET);
-    return WasiUnexpect(convertErrNo(errno));
+    return WasiUnexpect(fromErrNo(errno));
   } else {
     if (::lseek(Fd, OldOffset, SEEK_SET) < 0) {
-      return WasiUnexpect(convertErrNo(errno));
+      return WasiUnexpect(fromErrNo(errno));
     }
     NWritten = Res;
   }
@@ -442,7 +440,7 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
       // End of entries
       break;
     }
-    Dir.Cookie = SysDirent->d_off;
+    Dir.Cookie = SysDirent->d_seekoff;
     std::string_view Name = SysDirent->d_name;
 
     Dir.Buffer.resize(sizeof(__wasi_dirent_t) + Name.size());
@@ -531,9 +529,9 @@ INode::pathFilestatGet(std::string Path,
   Filestat.filetype = fromFileType(SysFStat.st_mode);
   Filestat.nlink = SysFStat.st_nlink;
   Filestat.size = SysFStat.st_size;
-  Filestat.atim = fromTimespec(SysFStat.st_atim);
-  Filestat.mtim = fromTimespec(SysFStat.st_mtim);
-  Filestat.ctim = fromTimespec(SysFStat.st_ctim);
+  Filestat.atim = fromTimespec(SysFStat.st_atimespec);
+  Filestat.mtim = fromTimespec(SysFStat.st_mtimespec);
+  Filestat.ctim = fromTimespec(SysFStat.st_ctimespec);
 
   return {};
 }
@@ -584,22 +582,22 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
     NeedFile = true;
   }
 
-  FdHolder Target(::openat(Fd, PathStr.c_str(), O_RDONLY));
+  FdHolder Target(::openat(Fd, Path.c_str(), O_RDONLY));
   if (unlikely(!Target.ok())) {
-    return WasiUnexpect(convertErrNo(errno));
+    return WasiUnexpect(fromErrNo(errno));
   }
 
   struct stat SysStat;
   if (NeedFile) {
     if (auto Res = ::fstat(Target.Fd, &SysStat); unlikely(Res != 0)) {
-      return WasiUnexpect(convertErrNo(errno));
+      return WasiUnexpect(fromErrNo(errno));
     }
   }
 
   timespec Now;
   if (NeedNow) {
     if (auto Res = ::clock_gettime(CLOCK_REALTIME, &Now); unlikely(Res != 0)) {
-      return WasiUnexpect(convertErrNo(errno));
+      return WasiUnexpect(fromErrNo(errno));
     }
   }
 
@@ -609,18 +607,18 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
   } else if (FstFlags & __WASI_FSTFLAGS_ATIM_NOW) {
     SysTimeval[0] = toTimeval(Now);
   } else {
-    SysTimeval[0] = toTimeval(SysStat.st_atim);
+    SysTimeval[0] = toTimeval(SysStat.st_atimespec);
   }
   if (FstFlags & __WASI_FSTFLAGS_MTIM) {
     SysTimeval[1] = toTimeval(MTim);
   } else if (FstFlags & __WASI_FSTFLAGS_MTIM_NOW) {
     SysTimeval[1] = toTimeval(Now);
   } else {
-    SysTimeval[1] = toTimeval(SysStat.st_mtim);
+    SysTimeval[1] = toTimeval(SysStat.st_mtimespec);
   }
 
   if (auto Res = ::futimes(Target.Fd, SysTimeval); unlikely(Res != 0)) {
-    return WasiUnexpect(convertErrNo(errno));
+    return WasiUnexpect(fromErrNo(errno));
   }
 
   return {};
@@ -658,19 +656,6 @@ WasiExpect<void> INode::pathReadlink(std::string Path,
   }
 
   return {};
-}
-
-WasiExpect<std::vector<char>> INode::pathReadlink() const {
-  std::vector<char> Buffer;
-  if (auto Res = filesize(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    Buffer.resize(*Res);
-  }
-  if (auto Res = pathReadlink({}, Buffer); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
-  return std::move(Buffer);
 }
 
 WasiExpect<void> INode::pathRemoveDirectory(std::string Path) const noexcept {
@@ -881,16 +866,16 @@ WasiExpect<void> Poller::clock(__wasi_clockid_t Clock,
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }
 
-  int Flags = NOTE_NSECONDS;
+  int SysFlags = NOTE_NSECONDS;
   if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
-    Flags |= NOTE_ABSTIME;
+    // TODO: Implement
   }
 
-  struct kevent Event;
-  EV_SET(&Event, 0, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_ONESHOT, Flags,
-         Timeout, Event.size() - 1);
+  struct kevent KEvent;
+  EV_SET(&KEvent, 0, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_ONESHOT, SysFlags,
+         Timeout, reinterpret_cast<void *>(Events.size() - 1));
 
-  if (const auto Ret = ::kevent(Fd, &Event, 1, nullptr, 0, nullptr);
+  if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
       unlikely(Ret < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
@@ -898,7 +883,7 @@ WasiExpect<void> Poller::clock(__wasi_clockid_t Clock,
   return {};
 }
 
-WasiExpect<void> Poller::read(const INode &Fd,
+WasiExpect<void> Poller::read(const INode &Node,
                               __wasi_userdata_t UserData) noexcept {
   try {
     Events.push_back(
@@ -907,19 +892,19 @@ WasiExpect<void> Poller::read(const INode &Fd,
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }
 
-  struct kevent Event;
-  EV_SET(&Event, Fd, EVFILT_READ, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0,
-         Event.size() - 1);
+  struct kevent KEvent;
+  EV_SET(&KEvent, Node.Fd, EVFILT_READ, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0,
+         reinterpret_cast<void *>(Events.size() - 1));
 
-  if (const auto Ret = ::kevent(Fd, &Event, 1, nullptr, 0, nullptr);
+  if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
       unlikely(Ret < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
 
-  return __WASI_ERRNO_SUCCESS;
+  return {};
 }
 
-WasiExpect<void> Poller::write(const INode &Fd,
+WasiExpect<void> Poller::write(const INode &Node,
                                __wasi_userdata_t UserData) noexcept {
   try {
     Events.push_back(
@@ -928,32 +913,33 @@ WasiExpect<void> Poller::write(const INode &Fd,
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }
 
-  struct kevent Event;
-  EV_SET(&Event, Fd, EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0,
-         Event.size() - 1);
+  struct kevent KEvent;
+  EV_SET(&KEvent, Node.Fd, EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, 0,
+         reinterpret_cast<void *>(Events.size() - 1));
 
-  if (const auto Ret = ::kevent(Fd, &Event, 1, nullptr, 0, nullptr);
+  if (const auto Ret = ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
       unlikely(Ret < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
 
-  return __WASI_ERRNO_SUCCESS;
+  return {};
 }
 
 WasiExpect<void> Poller::wait(CallbackType Callback) noexcept {
-  std::vector<struct kevent> KQueueEvents;
+  std::vector<struct kevent> KEvents;
   try {
-    KQueueEvents.resize(Events.size());
+    KEvents.resize(Events.size());
   } catch (std::bad_alloc &) {
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }
-  const auto Count = ::kevent(Fd, nullptr, 0, Events.data(), Entries, nullptr);
+  const auto Count =
+      ::kevent(Fd, nullptr, 0, KEvents.data(), KEvents.size(), nullptr);
   if (unlikely(Count < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
 
   for (int I = 0; I < Count; ++I) {
-    auto &KEvent = KQueueEvents[I];
+    auto &KEvent = KEvents[I];
     const auto Index = reinterpret_cast<size_t>(KEvent.udata);
     __wasi_filesize_t NBytes = 0;
     auto Flags = static_cast<__wasi_eventrwflags_t>(0);

@@ -15,18 +15,27 @@ if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
   set_source_files_properties(blake3_sse41.c PROPERTIES COMPILE_FLAGS -msse4.1)
   set(SIMD_DEFS)
 
-  if (CMAKE_ASM-ATT_COMPILER_ID STREQUAL "GNU")
+  if(CMAKE_ASM-ATT_COMPILER_ID STREQUAL "GNU")
     execute_process(
       COMMAND ${CMAKE_ASM-ATT_COMPILER} --help
       OUTPUT_VARIABLE _gas_help
     )
-    if(_gas_help MATCHES "avx512vl")
-      set(SIMD_FILES ${SIMD_FILES} blake3_avx512.c blake3_avx512_x86-64_unix.S)
-      set_source_files_properties(blake3_avx512.c PROPERTIES COMPILE_FLAGS "-mavx512f -mavx512vl")
+    if(_gas_help MATCHES "avx512vl" OR _gas_help MATCHES "llvm")
+      set(BLAKE3_AVX512 ON)
     else()
-      set(SIMD_DEFS ${SIMD_DEFS} -DBLAKE3_NO_AVX512)
+      set(BLAKE3_AVX512 OFF)
     endif()
+  elseif(CMAKE_ASM-ATT_COMPILER_ID STREQUAL "Clang")
+    set(BLAKE3_AVX512 ON)
   endif()
+
+  if(BLAKE3_AVX512)
+    set(SIMD_FILES ${SIMD_FILES} blake3_avx512.c blake3_avx512_x86-64_unix.S)
+    set_source_files_properties(blake3_avx512.c PROPERTIES COMPILE_FLAGS "-mavx512f -mavx512vl")
+  else()
+    set(SIMD_DEFS ${SIMD_DEFS} -DBLAKE3_NO_AVX512)
+  endif()
+
 elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
   set(SIMD_FILES
     blake3_neon.c

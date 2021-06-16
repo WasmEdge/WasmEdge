@@ -552,6 +552,10 @@ private:
   Runtime::StackManager StackMgr;
   /// Interpreter statistics
   Statistics::Statistics *Stat;
+
+public:
+  /// Callbacks for compiled modules;
+  static const AST::Module::IntrinsicsTable Intrinsics;
 };
 
 } // namespace Interpreter

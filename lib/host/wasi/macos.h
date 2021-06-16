@@ -4,6 +4,7 @@
 #error
 #endif
 
+#define _DARWIN_C_SOURCE
 #include "common/errcode.h"
 #include "wasi/api.hpp"
 #include <Availability.h>
@@ -16,6 +17,8 @@
 #include <sys/event.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
@@ -217,7 +220,6 @@ fromTimespec(const timespec &Time) noexcept {
   return Result.count();
 }
 
-#if !__GLIBC_PREREQ(2, 6)
 inline constexpr timeval toTimeval(__wasi_timestamp_t Timestamp) noexcept {
   using namespace std::chrono;
   const auto Total = duration_cast<microseconds>(nanoseconds(Timestamp));
@@ -235,26 +237,6 @@ inline constexpr timeval toTimeval(timespec Timespec) noexcept {
   Result.tv_usec =
       duration_cast<microseconds>(nanoseconds(Timespec.tv_nsec)).count();
   return Result;
-}
-#endif
-
-inline constexpr int toAdvice(__wasi_advice_t Advice) noexcept {
-  switch (Advice) {
-  case __WASI_ADVICE_NORMAL:
-    return POSIX_FADV_NORMAL;
-  case __WASI_ADVICE_SEQUENTIAL:
-    return POSIX_FADV_SEQUENTIAL;
-  case __WASI_ADVICE_RANDOM:
-    return POSIX_FADV_RANDOM;
-  case __WASI_ADVICE_WILLNEED:
-    return POSIX_FADV_WILLNEED;
-  case __WASI_ADVICE_DONTNEED:
-    return POSIX_FADV_DONTNEED;
-  case __WASI_ADVICE_NOREUSE:
-    return POSIX_FADV_NOREUSE;
-  default:
-    __builtin_unreachable();
-  }
 }
 
 inline constexpr __wasi_filetype_t fromFileType(mode_t Mode) noexcept {

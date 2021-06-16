@@ -33,9 +33,7 @@ struct Interpreter::ProxyHelper<Expect<RetT> (Interpreter::*)(
 #endif
 
 /// Intrinsics table
-extern "C" {
-__attribute__((visibility("default")))
-AST::Module::IntrinsicsTable intrinsics = {
+const AST::Module::IntrinsicsTable Interpreter::Intrinsics = {
 #define ENTRY(NAME, FUNC)                                                      \
   [uint8_t(AST::Module::Intrinsics::NAME)] = reinterpret_cast<void *>(         \
       &Interpreter::ProxyHelper<decltype(&Interpreter::FUNC)>::proxy<          \
@@ -60,7 +58,6 @@ AST::Module::IntrinsicsTable intrinsics = {
     ENTRY(kRefFunc, refFunc),
 #undef ENTRY
 };
-}
 
 #if defined(__clang_major__) && __clang_major__ >= 10
 #pragma clang diagnostic pop

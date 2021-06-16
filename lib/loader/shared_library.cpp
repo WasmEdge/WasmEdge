@@ -22,6 +22,7 @@ Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
   Handle = ::dlopen(Path.c_str(), RTLD_LAZY | RTLD_LOCAL);
 #endif
   if (!Handle) {
+    spdlog::error(::dlerror());
     return Unexpect(ErrCode::InvalidPath);
   }
   return {};

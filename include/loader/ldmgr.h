@@ -26,6 +26,8 @@ namespace WasmEdge {
 /// Loadable manager interface.
 class LDMgr {
 public:
+  LDMgr(const void *IT = nullptr) : Intrinsics(IT) {}
+
   /// Set the file path.
   Expect<void> setPath(const std::filesystem::path &FilePath);
 
@@ -42,6 +44,7 @@ public:
 
 private:
   std::shared_ptr<Loader::SharedLibrary> Library;
+  const void *Intrinsics;
 };
 
 } // namespace WasmEdge

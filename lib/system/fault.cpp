@@ -33,6 +33,7 @@ thread_local Fault *localHandler = nullptr;
     pthread_sigmask(SIG_UNBLOCK, &Set, nullptr);
   }
   switch (Signal) {
+  case SIGBUS:
   case SIGSEGV:
     Fault::emitFault(ErrCode::MemoryOutOfBounds);
   case SIGFPE:
@@ -48,11 +49,13 @@ void enableHandler() noexcept {
   Action.sa_sigaction = &signalHandler;
   Action.sa_flags = SA_SIGINFO;
   sigaction(SIGFPE, &Action, nullptr);
+  sigaction(SIGBUS, &Action, nullptr);
   sigaction(SIGSEGV, &Action, nullptr);
 }
 
 void disableHandler() noexcept {
   std::signal(SIGFPE, SIG_DFL);
+  std::signal(SIGBUS, SIG_DFL);
   std::signal(SIGSEGV, SIG_DFL);
 }
 

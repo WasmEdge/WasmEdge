@@ -8,7 +8,8 @@ namespace WasmEdge {
 namespace VM {
 
 VM::VM(const Configure &Conf)
-    : Conf(Conf), Stage(VMStage::Inited), LoaderEngine(Conf),
+    : Conf(Conf), Stage(VMStage::Inited),
+      LoaderEngine(Conf, &Interpreter::Interpreter::Intrinsics),
       ValidatorEngine(Conf), InterpreterEngine(Conf, &Stat),
       Store(std::make_unique<Runtime::StoreManager>()), StoreRef(*Store.get()) {
   initVM();

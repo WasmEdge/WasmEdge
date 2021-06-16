@@ -8,9 +8,12 @@ endif()
 
 add_library(wasmedgeHostModuleWasi
   clock-linux.cpp
+  clock-macos.cpp
   environ-linux.cpp
+  environ-macos.cpp
   environ.cpp
   inode-linux.cpp
+  inode-macos.cpp
   vfs.cpp
   vinode.cpp
   wasifunc.cpp
@@ -30,7 +33,7 @@ target_link_libraries(wasmedgeHostModuleWasi
   wasmedgeSystem
 )
 
-if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
+if(NOT APPLE)
   target_link_libraries(wasmedgeHostModuleWasi
     PUBLIC
     rt

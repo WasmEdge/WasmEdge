@@ -42,7 +42,7 @@ else()
   FetchContent_MakeAvailable(Boost)
   add_library(Boost_boost INTERFACE)
   add_library(Boost::boost ALIAS Boost_boost)
-  target_include_directories(Boost_boost INTERFACE ${Boost_SOURCE_DIR})
+  target_include_directories(Boost_boost INTERFACE ${boost_SOURCE_DIR})
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo)

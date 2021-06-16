@@ -198,6 +198,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
       Functions;
   std::vector<llvm::Type *> Globals;
   llvm::GlobalVariable *IntrinsicsTable;
+  llvm::Function *Init;
   llvm::Function *Trap;
   uint32_t MemMin = 1, MemMax = 65536;
   CompileContext(llvm::Module &M)
@@ -237,12 +238,20 @@ struct WasmEdge::AOT::Compiler::CompileContext {
         IntrinsicsTable(new llvm::GlobalVariable(
             LLModule,
             llvm::ArrayType::get(
-                Int8PtrTy, uint32_t(AST::Module::Intrinsics::kIntrinsicMax)),
-            true, llvm::GlobalVariable::ExternalLinkage, nullptr,
+                Int8PtrTy, uint32_t(AST::Module::Intrinsics::kIntrinsicMax))
+                ->getPointerTo(),
+            false, llvm::GlobalVariable::PrivateLinkage, nullptr,
             "intrinsics")),
+        Init(llvm::Function::Create(
+            llvm::FunctionType::get(VoidTy, {IntrinsicsTable->getValueType()},
+                                    false),
+            llvm::Function::ExternalLinkage, "init", LLModule)),
         Trap(llvm::Function::Create(
             llvm::FunctionType::get(VoidTy, {Int8Ty}, false),
             llvm::Function::PrivateLinkage, "trap", LLModule)) {
+    IntrinsicsTable->setInitializer(llvm::ConstantPointerNull::get(
+        llvm::cast<llvm::PointerType>(IntrinsicsTable->getValueType())));
+    Init->addFnAttr(llvm::Attribute::StrictFP);
     Trap->addFnAttr(llvm::Attribute::StrictFP);
     Trap->addFnAttr(llvm::Attribute::NoReturn);
     Trap->addFnAttr(llvm::Attribute::Cold);
@@ -279,6 +288,14 @@ struct WasmEdge::AOT::Compiler::CompileContext {
 
         SubtargetFeatures.AddFeature(Feature.first(), Feature.second);
       }
+    }
+
+    {
+      /// create init
+      llvm::IRBuilder<> Builder(
+          llvm::BasicBlock::Create(LLContext, "entry", Init));
+      Builder.CreateStore(Init->arg_begin(), IntrinsicsTable);
+      Builder.CreateRetVoid();
     }
 
     {
@@ -319,14 +336,13 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   llvm::FunctionCallee getIntrinsic(llvm::IRBuilder<> &Builder,
                                     AST::Module::Intrinsics Index,
                                     llvm::FunctionType *Ty) {
-    auto *VPtr = llvm::ConstantExpr::getInBoundsGetElementPtr(
-        nullptr, IntrinsicsTable,
-        std::array<llvm::Constant *, 2>{
-            llvm::ConstantInt::get(Int64Ty, 0),
-            llvm::ConstantInt::get(Int64Ty, uint32_t(Index))});
-    return llvm::FunctionCallee(
-        Ty, Builder.CreateLoad(llvm::ConstantExpr::getBitCast(
-                VPtr, Ty->getPointerTo()->getPointerTo())));
+    const auto Value = static_cast<uint32_t>(Index);
+    auto *IT = Builder.CreateLoad(IntrinsicsTable);
+    IT->setMetadata(llvm::LLVMContext::MD_invariant_load,
+                    llvm::MDNode::get(LLContext, {}));
+    auto *VPtr = Builder.CreateConstInBoundsGEP2_64(IT, 0, Value);
+    auto *Ptr = Builder.CreateBitCast(VPtr, Ty->getPointerTo()->getPointerTo());
+    return llvm::FunctionCallee(Ty, Builder.CreateLoad(Ptr));
   }
   std::pair<std::vector<ValType>, std::vector<ValType>>
   resolveBlockType(const BlockType &Type) const {
@@ -3780,7 +3796,11 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   llvm::LLVMContext LLContext;
   auto LLModule = std::make_unique<llvm::Module>(LLPath.u8string(), LLContext);
   LLModule->setTargetTriple(llvm::sys::getProcessTriple());
+#if WASMEDGE_OS_MACOS
+  LLModule->setPICLevel(llvm::PICLevel::Level::BigPIC);
+#elif WASMEDGE_OS_LINUX | WASMEDGE_OS_WINDOWS
   LLModule->setPICLevel(llvm::PICLevel::Level::SmallPIC);
+#endif
   CompileContext NewContext(*LLModule);
   struct RAIICleanup {
     RAIICleanup(CompileContext *&Context, CompileContext &NewContext)
@@ -3853,14 +3873,14 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   }
 
   // optimize + codegen
+  llvm::Triple Triple(LLModule->getTargetTriple());
   {
     std::string Error;
-    std::string Triple = LLModule->getTargetTriple();
     const llvm::Target *TheTarget =
-        llvm::TargetRegistry::lookupTarget(Triple, Error);
+        llvm::TargetRegistry::lookupTarget(Triple.getTriple(), Error);
     if (!TheTarget) {
       // TODO:return error
-      spdlog::error("lookupTarget failed");
+      spdlog::error("lookupTarget failed:{}", Error);
       llvm::consumeError(Object->discard());
       return Unexpect(ErrCode::InvalidPath);
     }
@@ -3868,12 +3888,12 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     llvm::TargetOptions Options;
     llvm::Reloc::Model RM = llvm::Reloc::PIC_;
     std::unique_ptr<llvm::TargetMachine> TM(TheTarget->createTargetMachine(
-        Triple, llvm::sys::getHostCPUName(),
+        Triple.str(), llvm::sys::getHostCPUName(),
         Context->SubtargetFeatures.getString(), Options, RM, llvm::None,
         llvm::CodeGenOpt::Level::Aggressive));
     LLModule->setDataLayout(TM->createDataLayout());
 
-    llvm::TargetLibraryInfoImpl TLII(llvm::Triple(LLModule->getTargetTriple()));
+    llvm::TargetLibraryInfoImpl TLII(Triple);
 
     {
 #if LLVM_VERSION_MAJOR >= 12
@@ -3949,19 +3969,40 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     CodeGenPasses.run(*LLModule);
   }
 
+  // close and flush object file
+  OS->close();
+
   // link
-#ifdef __APPLE__
-  using lld::mach_o::link;
+#if WASMEDGE_OS_MACOS
+  lld::mach_o::link(
+      std::array {
+        "lld", "-arch",
+#if defined(__x86_64__)
+            "x86_64",
+#elif defined(__aarch64__)
+            (Triple.isArm64e() ? "arm64e" : "arm64"),
 #else
-  using lld::elf::link;
+#error Unsupported platform!
 #endif
-  link(std::array{"lld", "--shared", "--gc-sections", Object->TmpName.c_str(),
-                  "-o", OutputPath.u8string().c_str()},
-       false,
+            "-dylib", "-demangle", "-syslibroot",
+            "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+            "-no_version_load_command", Object->TmpName.c_str(), "-o",
+            OutputPath.u8string().c_str(), "-lSystem"
+      },
+#elif WASMEDGE_OS_LINUX
+  lld::elf::link(
+      std::array{"lld", "--shared", "--gc-sections", Object->TmpName.c_str(),
+                 "-o", OutputPath.u8string().c_str()},
+#elif WASMEDGE_OS_WINDOWS
+  lld::coff::link(
+      std::array{"lld", "--shared", "--gc-sections", Object->TmpName.c_str(),
+                 "-o", OutputPath.u8string().c_str()},
+#endif
+      false,
 #if LLVM_VERSION_MAJOR >= 10
-       llvm::outs(), llvm::errs()
+      llvm::outs(), llvm::errs()
 #else
-       llvm::errs()
+      llvm::errs()
 #endif
   );
 

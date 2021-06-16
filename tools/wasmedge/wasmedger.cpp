@@ -93,7 +93,7 @@ int main(int Argc, const char *Argv[]) {
     Conf.addProposal(WasmEdge::Proposal::SIMD);
   }
   if (MemLim.value().size() > 0) {
-    Conf.setMaxMemoryPage(MemLim.value().back());
+    Conf.getRuntimeConfigure().setMaxMemoryPage(MemLim.value().back());
   }
 
   Conf.addHostRegistration(WasmEdge::HostRegistration::Wasi);

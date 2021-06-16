@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 cmake_minimum_required(VERSION 3.9.4)
+cmake_policy(SET CMP0091 NEW)
 project(WasmEdge)
 
 find_program(GIT_CMD git)
@@ -16,7 +17,7 @@ if(GIT_VERSION_NOT_FOUND AND NOT GIT_VERSION_NOT_FOUND EQUAL 0)
   set(CPACK_PACKAGE_VERSION "0.0.0-unreleased")
 endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo)
@@ -66,6 +67,41 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   add_compile_options(-Wno-psabi -Wno-c++20-designator -Wno-keyword-macro -Wno-c99-extensions)
 endif()
 
+if(WIN32)
+  add_definitions(-D_ENABLE_EXTENDED_ALIGNED_STORAGE -DNOMINMAX -D_ITERATOR_DEBUG_LEVEL=0)
+  add_compile_options(
+    "/arch:x64"
+    "/EHa"
+    -Wno-c++98-compat
+    -Wno-c++98-compat-pedantic
+    -Wno-covered-switch-default
+    -Wno-ctad-maybe-unsupported
+    -Wno-disabled-macro-expansion
+    -Wno-documentation-unknown-command
+    -Wno-exit-time-destructors
+    -Wno-float-equal
+    -Wno-global-constructors
+    -Wno-gnu-zero-variadic-macro-arguments
+    -Wno-implicit-float-conversion
+    -Wno-implicit-int-conversion
+    -Wno-newline-eof
+    -Wno-nonportable-system-include-path
+    -Wno-return-std-move-in-c++11
+    -Wno-shadow-field
+    -Wno-shadow-field-in-constructor
+    -Wno-shorten-64-to-32
+    -Wno-sign-conversion
+    -Wno-signed-enum-bitfield
+    -Wno-suggest-destructor-override
+    -Wno-suggest-override
+    -Wno-switch-enum
+    -Wno-undefined-func-template
+    -Wno-unreachable-code-break
+    -Wno-unused-command-line-argument
+    -Wno-unused-parameter
+  )
+endif()
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)

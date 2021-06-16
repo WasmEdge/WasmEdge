@@ -46,7 +46,7 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
 Expect<std::unique_ptr<AST::Module>>
 Loader::parseModule(const std::filesystem::path &FilePath) {
   using namespace std::literals::string_view_literals;
-  if (FilePath.extension() == ".so"sv) {
+  if (FilePath.extension() == ".so"sv || FilePath.extension() == ".dll"sv) {
     if (auto Res = LMgr.setPath(FilePath); !Res) {
       spdlog::error(Res.error());
       spdlog::error(ErrInfo::InfoFile(FilePath));

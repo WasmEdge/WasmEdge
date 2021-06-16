@@ -2,6 +2,7 @@
 
 #include "host/wasmedge_process/processfunc.h"
 
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -12,6 +13,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#elif WASMEDGE_OS_WINDOWS
+#endif
 
 namespace WasmEdge {
 namespace Host {
@@ -19,6 +22,7 @@ namespace Host {
 Expect<void>
 WasmEdgeProcessSetProgName::body(Runtime::Instance::MemoryInstance *MemInst,
                                  uint32_t NamePtr, uint32_t NameLen) {
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
@@ -27,11 +31,15 @@ WasmEdgeProcessSetProgName::body(Runtime::Instance::MemoryInstance *MemInst,
   char *Buf = MemInst->getPointer<char *>(NamePtr);
   std::copy_n(Buf, NameLen, std::back_inserter(Env.Name));
   return {};
+#elif WASMEDGE_OS_WINDOWS
+  return Unexpect(ErrCode::ExecutionFailed);
+#endif
 }
 
 Expect<void>
 WasmEdgeProcessAddArg::body(Runtime::Instance::MemoryInstance *MemInst,
                             uint32_t ArgPtr, uint32_t ArgLen) {
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
@@ -42,12 +50,16 @@ WasmEdgeProcessAddArg::body(Runtime::Instance::MemoryInstance *MemInst,
   std::copy_n(Buf, ArgLen, std::back_inserter(NewArg));
   Env.Args.push_back(std::move(NewArg));
   return {};
+#elif WASMEDGE_OS_WINDOWS
+  return Unexpect(ErrCode::ExecutionFailed);
+#endif
 }
 
 Expect<void>
 WasmEdgeProcessAddEnv::body(Runtime::Instance::MemoryInstance *MemInst,
                             uint32_t EnvNamePtr, uint32_t EnvNameLen,
                             uint32_t EnvValPtr, uint32_t EnvValLen) {
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
@@ -60,11 +72,15 @@ WasmEdgeProcessAddEnv::body(Runtime::Instance::MemoryInstance *MemInst,
   std::copy_n(ValBuf, EnvValLen, std::back_inserter(NewVal));
   Env.Envs.emplace(std::move(NewEnv), std::move(NewVal));
   return {};
+#elif WASMEDGE_OS_WINDOWS
+  return Unexpect(ErrCode::ExecutionFailed);
+#endif
 }
 
 Expect<void>
 WasmEdgeProcessAddStdIn::body(Runtime::Instance::MemoryInstance *MemInst,
                               uint32_t BufPtr, uint32_t BufLen) {
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
@@ -74,16 +90,24 @@ WasmEdgeProcessAddStdIn::body(Runtime::Instance::MemoryInstance *MemInst,
   Env.StdIn.reserve(Env.StdIn.size() + BufLen);
   std::copy_n(Buf, BufLen, std::back_inserter(Env.StdIn));
   return {};
+#elif WASMEDGE_OS_WINDOWS
+  return Unexpect(ErrCode::ExecutionFailed);
+#endif
 }
 
 Expect<void>
 WasmEdgeProcessSetTimeOut::body(Runtime::Instance::MemoryInstance *,
                                 uint32_t Time) {
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
   Env.TimeOut = Time;
   return {};
+#elif WASMEDGE_OS_WINDOWS
+  return Unexpect(ErrCode::ExecutionFailed);
+#endif
 }
 
 Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
   /// Clear outputs.
   Env.StdOut.clear();
   Env.StdErr.clear();
@@ -287,21 +311,33 @@ Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
   Env.StdIn.clear();
   Env.TimeOut = Env.DEFAULT_TIMEOUT;
   return Env.ExitCode;
+#elif WASMEDGE_OS_WINDOWS
+  return Unexpect(ErrCode::ExecutionFailed);
+#endif
 }
 
 Expect<uint32_t>
 WasmEdgeProcessGetExitCode::body(Runtime::Instance::MemoryInstance *) {
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
   return Env.ExitCode;
+#elif WASMEDGE_OS_WINDOWS
+  return Unexpect(ErrCode::ExecutionFailed);
+#endif
 }
 
 Expect<uint32_t>
 WasmEdgeProcessGetStdOutLen::body(Runtime::Instance::MemoryInstance *) {
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
   return Env.StdOut.size();
+#elif WASMEDGE_OS_WINDOWS
+  return Unexpect(ErrCode::ExecutionFailed);
+#endif
 }
 
 Expect<void>
 WasmEdgeProcessGetStdOut::body(Runtime::Instance::MemoryInstance *MemInst,
                                uint32_t BufPtr) {
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
@@ -310,16 +346,24 @@ WasmEdgeProcessGetStdOut::body(Runtime::Instance::MemoryInstance *MemInst,
   char *Buf = MemInst->getPointer<char *>(BufPtr);
   std::copy_n(Env.StdOut.begin(), Env.StdOut.size(), Buf);
   return {};
+#elif WASMEDGE_OS_WINDOWS
+  return Unexpect(ErrCode::ExecutionFailed);
+#endif
 }
 
 Expect<uint32_t>
 WasmEdgeProcessGetStdErrLen::body(Runtime::Instance::MemoryInstance *) {
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
   return Env.StdErr.size();
+#elif WASMEDGE_OS_WINDOWS
+  return Unexpect(ErrCode::ExecutionFailed);
+#endif
 }
 
 Expect<void>
 WasmEdgeProcessGetStdErr::body(Runtime::Instance::MemoryInstance *MemInst,
                                uint32_t BufPtr) {
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
@@ -328,6 +372,9 @@ WasmEdgeProcessGetStdErr::body(Runtime::Instance::MemoryInstance *MemInst,
   char *Buf = MemInst->getPointer<char *>(BufPtr);
   std::copy_n(Env.StdErr.begin(), Env.StdErr.size(), Buf);
   return {};
+#elif WASMEDGE_OS_WINDOWS
+  return Unexpect(ErrCode::ExecutionFailed);
+#endif
 }
 
 } // namespace Host

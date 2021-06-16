@@ -3840,6 +3840,15 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
         llvm::ConstantInt::get(Int32Ty, Data.size()), "wasm.size");
   }
 
+  /// set dllexport
+  {
+    for (auto &GO : LLModule->global_objects()) {
+      if (GO.hasExternalLinkage()) {
+        GO.setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
+      }
+    }
+  }
+
   if (Conf.getCompilerConfigure().isDumpIR()) {
     int Fd;
     llvm::sys::fs::openFileForWrite("wasm.ll", Fd);
@@ -3859,14 +3868,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     llvm::consumeError(Object.takeError());
     return Unexpect(ErrCode::InvalidPath);
   }
-  std::error_code EC;
-  auto OS = std::make_unique<llvm::raw_fd_ostream>(Object->TmpName, EC);
-  if (EC) {
-    // TODO:return error
-    spdlog::error("object file creation failed:{}", Object->TmpName);
-    llvm::consumeError(Object->discard());
-    return Unexpect(ErrCode::InvalidPath);
-  }
+  auto OS = std::make_unique<llvm::raw_fd_ostream>(Object->FD, false);
 
   // optimize + codegen
   llvm::Triple Triple(LLModule->getTargetTriple());
@@ -3965,8 +3967,11 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     CodeGenPasses.run(*LLModule);
   }
 
-  // close and flush object file
-  OS->close();
+  // flush object file
+  OS->flush();
+  const auto ObjectName = Object->TmpName;
+  llvm::consumeError(Object->keep());
+  OS.reset();
 
   // link
 #if WASMEDGE_OS_MACOS
@@ -3982,17 +3987,18 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 #endif
             "-dylib", "-demangle", "-syslibroot",
             "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-            "-no_version_load_command", Object->TmpName.c_str(), "-o",
+            "-no_version_load_command", ObjectName.c_str(), "-o",
             OutputPath.u8string().c_str(), "-lSystem"
       },
 #elif WASMEDGE_OS_LINUX
   lld::elf::link(
-      std::array{"lld", "--shared", "--gc-sections", Object->TmpName.c_str(),
-                 "-o", OutputPath.u8string().c_str()},
+      std::array{"lld", "--shared", "--gc-sections", ObjectName.c_str(), "-o",
+                 OutputPath.u8string().c_str()},
 #elif WASMEDGE_OS_WINDOWS
   lld::coff::link(
-      std::array{"lld", "--shared", "--gc-sections", Object->TmpName.c_str(),
-                 "-o", OutputPath.u8string().c_str()},
+      std::array{"lld", "-dll", "-defaultlib:libcmt", "-defaultlib:oldnames",
+                 "-nologo", ObjectName.c_str(),
+                 ("-out:" + OutputPath.u8string()).c_str()},
 #endif
       false,
 #if LLVM_VERSION_MAJOR >= 10
@@ -4002,7 +4008,8 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 #endif
   );
 
-  llvm::consumeError(Object->discard());
+  // llvm::consumeError(Object->discard());
+  llvm::sys::fs::remove(ObjectName);
   spdlog::info("compile done");
 
   return {};

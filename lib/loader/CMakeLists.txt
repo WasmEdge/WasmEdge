@@ -10,9 +10,15 @@ target_link_libraries(wasmedgeLoaderFileMgr
   PUBLIC
   wasmedgeCommon
   wasmedgeSystem
-  dl
   std::filesystem
 )
+
+if(NOT WIN32)
+  target_link_libraries(wasmedgeLoaderFileMgr
+    PUBLIC
+    dl
+  )
+endif()
 
 add_library(wasmedgeLoader
   loader.cpp

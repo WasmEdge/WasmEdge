@@ -39,6 +39,8 @@ TEST_P(CoreTest, TestSuites) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   WasmEdge_ConfigureContext *ConfCxt = createConf(Conf);
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(ConfCxt, nullptr);
+  WasmEdge_ConfigureCompilerSetOptimizationLevel(
+      ConfCxt, WasmEdge_CompilerOptimizationLevel_O0);
   WasmEdge_CompilerContext *CompilerCxt = WasmEdge_CompilerCreate(ConfCxt);
   WasmEdge_ConfigureDelete(ConfCxt);
   WasmEdge_ImportObjectContext *TestModCxt = createSpecTestModule();

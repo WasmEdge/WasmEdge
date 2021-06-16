@@ -488,7 +488,7 @@ TEST(InstructionTest, LoadMemoryInstruction) {
   EXPECT_FALSE(Ins6.loadBinary(Mgr, Conf));
 
   Mgr.setCode(std::vector<uint8_t>());
-  Conf.addDataCountSection();
+  Conf.getRuntimeConfigure().addDataCountSection();
   WasmEdge::AST::Instruction Ins7(WasmEdge::OpCode::Memory__init);
   EXPECT_FALSE(Ins7.loadBinary(Mgr, Conf));
 }

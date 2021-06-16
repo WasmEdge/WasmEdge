@@ -100,16 +100,16 @@ int main(int Argc, const char *Argv[]) {
   }
 
   {
-    WasmEdge::AOT::Compiler Compiler;
     if (DumpIR.value()) {
-      Compiler.setDumpIR();
+      Conf.getCompilerConfigure().setDumpIR(true);
     }
     if (InstructionCounting.value()) {
-      Compiler.setInstructionCounting();
+      Conf.getCompilerConfigure().setInstructionCounting(true);
     }
     if (GasMeasuring.value()) {
-      Compiler.setGasMeasuring();
+      Conf.getCompilerConfigure().setCostMeasuring(true);
     }
+    WasmEdge::AOT::Compiler Compiler(Conf);
     if (auto Res = Compiler.compile(Data, *Module, OutputPath); !Res) {
       const auto Err = static_cast<uint32_t>(Res.error());
       std::cout << "Compile failed. Error code:" << Err << std::endl;

@@ -36,11 +36,73 @@ enum class Proposal : uint8_t {
   Max
 };
 
+/// Wasm Proposal name enumeration string mapping.
+extern const std::unordered_map<Proposal, std::string_view> ProposalStr;
+
 /// Host Module Registration enum class.
 enum class HostRegistration : uint8_t { Wasi = 0, WasmEdge_Process, Max };
 
-/// Proposal name enumeration string mapping.
-extern const std::unordered_map<Proposal, std::string_view> ProposalStr;
+class CompilerConfigure {
+public:
+  /// AOT compiler optimization level enum class.
+  enum class OptimizationLevel : uint8_t {
+    /// Disable as many optimizations as possible.
+    O0,
+    /// Optimize quickly without destroying debuggability.
+    O1,
+    /// Optimize for fast execution as much as possible without triggering
+    /// significant incremental compile time or code size growth.
+    O2,
+    /// Optimize for fast execution as much as possible.
+    O3,
+    /// Optimize for small code size as much as possible without triggering
+    /// significant incremental compile time or execution time slowdowns.
+    Os,
+    /// Optimize for small code size as much as possible.
+    Oz
+  };
+  void setOptimizationLevel(OptimizationLevel Level) noexcept {
+    OptLevel = Level;
+  }
+
+  OptimizationLevel getOptimizationLevel() const noexcept { return OptLevel; }
+
+  void setDumpIR(bool IsDump) noexcept { DumpIR = IsDump; }
+
+  bool isDumpIR() const noexcept { return DumpIR; }
+
+  void setInstructionCounting(bool IsCount) noexcept {
+    InstrCounting = IsCount;
+  }
+
+  bool isInstructionCounting() const noexcept { return InstrCounting; }
+
+  void setCostMeasuring(bool IsMeasure) noexcept { CostMeasuring = IsMeasure; }
+
+  bool isCostMeasuring() const noexcept { return CostMeasuring; }
+
+private:
+  OptimizationLevel OptLevel = OptimizationLevel::O3;
+  bool DumpIR = false;
+  bool InstrCounting = false;
+  bool CostMeasuring = false;
+};
+
+class RuntimeConfigure {
+public:
+  void setMaxMemoryPage(const uint32_t Page) noexcept { MaxMemPage = Page; }
+
+  uint32_t getMaxMemoryPage() const noexcept { return MaxMemPage; }
+
+  void addDataCountSection() noexcept { HasDataCountSection = true; }
+
+  bool hasDataCountSection() const noexcept { return HasDataCountSection; }
+
+private:
+  uint32_t MaxMemPage = 65536;
+  /// Used in AST::Module only.
+  bool HasDataCountSection = false;
+};
 
 class Configure {
 public:
@@ -76,23 +138,24 @@ public:
     return Hosts.test(static_cast<uint8_t>(Host));
   }
 
-  void setMaxMemoryPage(const uint32_t Page) noexcept { MaxMemPage = Page; }
+  const CompilerConfigure &getCompilerConfigure() const noexcept {
+    return CompilerConf;
+  }
+  CompilerConfigure &getCompilerConfigure() noexcept { return CompilerConf; }
 
-  uint32_t getMaxMemoryPage() const noexcept { return MaxMemPage; }
-
-  void addDataCountSection() noexcept { HasDataCountSection = true; }
-
-  bool hasDataCountSection() const noexcept { return HasDataCountSection; }
+  const RuntimeConfigure &getRuntimeConfigure() const noexcept {
+    return RuntimeConf;
+  }
+  RuntimeConfigure &getRuntimeConfigure() noexcept { return RuntimeConf; }
 
 private:
   void addSet(const Proposal P) noexcept { addProposal(P); }
   void addSet(const HostRegistration H) noexcept { addHostRegistration(H); }
   std::bitset<static_cast<uint8_t>(Proposal::Max)> Proposals;
   std::bitset<static_cast<uint8_t>(HostRegistration::Max)> Hosts;
-  uint32_t MaxMemPage = 65536;
 
-  /// Used in AST::Module only.
-  bool HasDataCountSection = false;
+  CompilerConfigure CompilerConf;
+  RuntimeConfigure RuntimeConf;
 };
 
 } // namespace WasmEdge

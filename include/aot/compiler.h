@@ -23,25 +23,7 @@ namespace AOT {
 /// Compiling Module into loadable executable binary.
 class Compiler {
 public:
-  enum class OptimizationLevel {
-    /// Disable as many optimizations as possible.
-    O0,
-    /// Optimize quickly without destroying debuggability.
-    O1,
-    /// Optimize for fast execution as much as possible without triggering
-    /// significant incremental compile time or code size growth.
-    O2,
-    /// Optimize for fast execution as much as possible.
-    O3,
-    /// Optimize for small code size as much as possible without triggering
-    /// significant incremental compile time or execution time slowdowns.
-    Os,
-    /// Optimize for small code size as much as possible.
-    Oz,
-  };
-
-  void setOptimizationLevel(OptimizationLevel Value) { Level = Value; }
-  bool optNone() const { return Level == OptimizationLevel::O0; }
+  Compiler(const Configure &Conf) noexcept : Context(nullptr), Conf(Conf) {}
 
   Expect<void> compile(Span<const Byte> Data, const AST::Module &Module,
                        std::filesystem::path OutputPath);
@@ -58,18 +40,9 @@ public:
 
   struct CompileContext;
 
-  void setDumpIR(bool Value = true) { DumpIR = Value; }
-  void setInstructionCounting(bool Value = true) {
-    InstructionCounting = Value;
-  }
-  void setGasMeasuring(bool Value = true) { GasMeasuring = Value; }
-
 private:
-  CompileContext *Context = nullptr;
-  bool DumpIR = false;
-  OptimizationLevel Level = OptimizationLevel::O3;
-  bool InstructionCounting = false;
-  bool GasMeasuring = false;
+  CompileContext *Context;
+  const Configure Conf;
 };
 
 } // namespace AOT

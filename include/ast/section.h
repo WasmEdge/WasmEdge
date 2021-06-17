@@ -57,7 +57,7 @@ protected:
   /// \param Mgr the file manager reference.
   /// \param Conf the proposal configuration reference.
   /// \param Node the node type of caller.
-  /// \param [out] &Vec filled with read data on loadVector success.
+  /// \param [out] Vec filled with read data on loadVector success.
   ///
   /// \returns void when success, ErrCode when failed.
   template <typename T>

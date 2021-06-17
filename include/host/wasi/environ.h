@@ -229,7 +229,7 @@ public:
   /// Note: This returns similar flags to `fsync(fd, F_GETFL)` in POSIX, as well
   ///
   /// as additional fields.
-  /// @param[out] FdStat
+  /// @param[out] FdStat Result.
   /// @return Nothing or WASI error
   WasiExpect<void> fdFdstatGet(__wasi_fd_t Fd,
                                __wasi_fdstat_t &FdStat) const noexcept {
@@ -280,7 +280,7 @@ public:
 
   /// Return the attributes of an open file.
   ///
-  /// @param[out] Filestat
+  /// @param[out] Filestat Result.
   /// @return Nothing or WASI error
   WasiExpect<void> fdFilestatGet(__wasi_fd_t Fd,
                                  __wasi_filestat_t &Filestat) const noexcept {
@@ -512,8 +512,6 @@ public:
   ///
   /// Note: This is similar to `fsync` in POSIX.
   ///
-  /// @param[out] Size The new offset of the file descriptor, relative to the
-  /// start of the file.
   /// @return Nothing or WASI error
   WasiExpect<void> fdSync(__wasi_fd_t Fd) const noexcept {
     auto Node = getNodeOrNull(Fd);
@@ -563,7 +561,6 @@ public:
   ///
   /// Note: This is similar to `mkdirat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path at which to create the directory.
@@ -577,7 +574,6 @@ public:
   ///
   /// Note: This is similar to `stat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path of the file or directory to inspect.
@@ -595,7 +591,6 @@ public:
   ///
   /// Note: This is similar to `utimensat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path of the file or directory to inspect.
@@ -618,7 +613,6 @@ public:
   ///
   /// Note: This is similar to `linkat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Old The working directory at which the resolution of the old
   /// path starts.
   /// @param[in] OldPath The source path from which to link.
@@ -647,7 +641,6 @@ public:
   ///
   /// Note: This is similar to `openat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The relative path of the file or directory to open,
@@ -701,7 +694,6 @@ public:
   ///
   /// Note: This is similar to `readlinkat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path of the symbolic link from which to read.
@@ -720,7 +712,6 @@ public:
   ///
   /// Note: This is similar to `unlinkat(fd, path, AT_REMOVEDIR)` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path to a directory to remove.
@@ -734,7 +725,6 @@ public:
   ///
   /// Note: This is similar to `renameat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Old The working directory at which the resolution of the old
   /// path starts.
   /// @param[in] OldPath The source path of the file or directory to rename.
@@ -755,7 +745,6 @@ public:
   ///
   /// Note: This is similar to `symlinkat` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] OldPath The contents of the symbolic link.
   /// @param[in] New The working directory at which the resolution of the new
   /// path starts.
@@ -774,7 +763,6 @@ public:
   ///
   /// Note: This is similar to `unlinkat(fd, path, 0)` in POSIX.
   ///
-  /// @param[in] FS The filesystem.
   /// @param[in] Fd The working directory at which the resolution of the path
   /// starts.
   /// @param[in] Path The path to a file to unlink.
@@ -794,7 +782,7 @@ public:
   /// termination of the program. The meanings of other values is dependent on
   /// the environment.
   ///
-  /// @param[in] ExitCode The exit code returned by the process.
+  /// @param[in] Code The exit code returned by the process.
   void procExit(__wasi_exitcode_t Code) noexcept { ExitCode = Code; }
 
   /// Send a signal to the process of the calling thread.

@@ -107,7 +107,7 @@ public:
   /// Note: This returns similar flags to `fsync(fd, F_GETFL)` in POSIX, as well
   ///
   /// as additional fields.
-  /// @param[out] FdStat
+  /// @param[out] FdStat Result.
   /// @return Nothing or WASI error
   WasiExpect<void> fdFdstatGet(__wasi_fdstat_t &FdStat) const noexcept {
     FdStat.fs_rights_base = FsRightsBase;
@@ -145,24 +145,24 @@ public:
   /// This can only be used to remove rights, and returns `errno::notcapable` if
   /// called in a way that would attempt to add rights
   ///
-  /// @param[in] FsRightsBase The desired rights of the file descriptor.
-  /// @param[in] FsRightsInheriting The desired rights of the file descriptor.
+  /// @param[in] RightsBase The desired rights of the file descriptor.
+  /// @param[in] RightsInheriting The desired rights of the file descriptor.
   /// @return Nothing or WASI error
   WasiExpect<void>
-  fdFdstatSetRights(__wasi_rights_t FsRightsBase,
-                    __wasi_rights_t FsRightsInheriting) noexcept {
-    if (!can(FsRightsBase, FsRightsInheriting)) {
+  fdFdstatSetRights(__wasi_rights_t RightsBase,
+                    __wasi_rights_t RightsInheriting) noexcept {
+    if (!can(RightsBase, RightsInheriting)) {
       return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
     }
-    this->FsRightsBase = FsRightsBase;
-    this->FsRightsInheriting = FsRightsInheriting;
+    FsRightsBase = RightsBase;
+    FsRightsInheriting = RightsInheriting;
 
     return {};
   }
 
   /// Return the attributes of an open file.
   ///
-  /// @param[out] Filestat
+  /// @param[out] Filestat Result.
   /// @return Nothing or WASI error
   WasiExpect<void> fdFilestatGet(__wasi_filestat_t &Filestat) const noexcept {
     if (!can(__WASI_RIGHTS_FD_FILESTAT_GET)) {
@@ -300,8 +300,6 @@ public:
   ///
   /// Note: This is similar to `fsync` in POSIX.
   ///
-  /// @param[out] Size The new offset of the file descriptor, relative to the
-  /// start of the file.
   /// @return Nothing or WASI error
   WasiExpect<void> fdSync() const noexcept {
     if (!can(__WASI_RIGHTS_FD_SYNC)) {
@@ -626,8 +624,8 @@ private:
 
   /// Resolve path until last element.
   /// @param[in] FS Filesystem.
-  /// @param[in, out] Fd Fd. Return parent of last part if found.
-  /// @param[in, out] Path path. Return last part of path if found.
+  /// @param[in,out] Fd Fd. Return parent of last part if found.
+  /// @param[in,out] Path path. Return last part of path if found.
   /// @param[in] LookupFlags WASI lookup flags.
   /// @param[in] VFSFlags Internal lookup flags.
   /// @param[in] LinkCount Counting symbolic link lookup times.

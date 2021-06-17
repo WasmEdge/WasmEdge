@@ -23,9 +23,21 @@
 #define ALLOC_WINAPI 1
 #endif
 
+#ifndef ALLOC_MMAP
+#define ALLOC_MMAP 0
+#endif
+
+#ifndef ALLOC_STUB
+#define ALLOC_STUB 0
+#endif
+
+#ifndef ALLOC_WINAPI
+#define ALLOC_WINAPI 0
+#endif
+
 #if ALLOC_MMAP
 #include <sys/mman.h>
-#elif MAP_WINAPI
+#elif ALLOC_WINAPI
 #include <boost/winapi/basic_types.hpp>
 #include <boost/winapi/page_protection_flags.hpp>
 #if !defined(BOOST_USE_WINDOWS_H)
@@ -45,12 +57,10 @@ using ::VirtualFree;
 #if defined(BOOST_USE_WINDOWS_H)
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_COMMIT_ = MEM_COMMIT;
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_RESERVE_ = MEM_RESERVE;
-BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_DECOMMIT_ = MEM_DECOMMIT;
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_RELEASE_ = MEM_RELEASE;
 #else
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_COMMIT_ = 0x00001000;
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_RESERVE_ = 0x00002000;
-BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_DECOMMIT_ = 0x00004000;
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_RELEASE_ = 0x00008000;
 #endif
 } // namespace winapi
@@ -82,7 +92,7 @@ uint8_t *Allocator::allocate(uint32_t PageCount) noexcept {
     return nullptr;
   }
   return Pointer;
-#elif MAP_WINAPI
+#elif ALLOC_WINAPI
   auto Reserved = reinterpret_cast<uint8_t *>(
       boost::winapi::VirtualAlloc(nullptr, k12G, boost::winapi::MEM_RESERVE_,
                                   boost::winapi::PAGE_NOACCESS_));
@@ -97,7 +107,7 @@ uint8_t *Allocator::allocate(uint32_t PageCount) noexcept {
     return nullptr;
   }
   return Pointer;
-#elif MAP_STUB
+#elif ALLOC_STUB
   return std::malloc(kPageSize * PageCount);
 #endif
 }
@@ -112,7 +122,7 @@ uint8_t *Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
     return nullptr;
   }
   return Pointer;
-#elif MAP_WINAPI
+#elif ALLOC_WINAPI
   if (boost::winapi::VirtualAlloc(Pointer + OldPageCount * kPageSize,
                                   (NewPageCount - OldPageCount) * kPageSize,
                                   boost::winapi::MEM_COMMIT_,
@@ -120,20 +130,20 @@ uint8_t *Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
     return nullptr;
   }
   return Pointer;
-#elif MAP_STUB
+#elif ALLOC_STUB
   return std::realloc(Pointer, NewPageCount * kPageSize);
 #endif
 }
 
-void Allocator::release(uint8_t *Pointer, uint32_t PageCount) noexcept {
+void Allocator::release(uint8_t *Pointer, uint32_t) noexcept {
 #if ALLOC_MMAP
   if (Pointer == nullptr) {
     return;
   }
   munmap(Pointer - k4G, k12G);
-#elif MAP_WINAPI
+#elif ALLOC_WINAPI
   boost::winapi::VirtualFree(Pointer - k4G, 0, boost::winapi::MEM_RELEASE_);
-#elif MAP_STUB
+#elif ALLOC_STUB
   return std::free(Pointer);
 #endif
 }

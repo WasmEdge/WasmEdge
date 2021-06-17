@@ -348,19 +348,19 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   resolveBlockType(const BlockType &Type) const {
     using VecT = std::vector<ValType>;
     using RetT = std::pair<VecT, VecT>;
-    return std::visit(overloaded{[](const ValType &Type) -> RetT {
-                                   if (Type == ValType::None) {
+    return std::visit(overloaded{[](const ValType &VType) -> RetT {
+                                   if (VType == ValType::None) {
                                      return RetT{};
                                    }
-                                   return RetT{{}, {Type}};
+                                   return RetT{{}, {VType}};
                                  },
                                  [this](const uint32_t &Index) -> RetT {
-                                   const auto &Type = *FunctionTypes[Index];
+                                   const auto &FType = *FunctionTypes[Index];
                                    return RetT{
-                                       VecT(Type.getParamTypes().begin(),
-                                            Type.getParamTypes().end()),
-                                       VecT(Type.getReturnTypes().begin(),
-                                            Type.getReturnTypes().end())};
+                                       VecT(FType.getParamTypes().begin(),
+                                            FType.getParamTypes().end()),
+                                       VecT(FType.getReturnTypes().begin(),
+                                            FType.getReturnTypes().end())};
                                  }},
                       Type);
   }
@@ -450,7 +450,7 @@ static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
     return llvm::ConstantAggregateZero::get(
         llvm::VectorType::get(llvm::Type::getInt64Ty(LLContext), 2, false));
   case ValType::F32:
-    return llvm::ConstantFP::get(llvm::Type::getFloatTy(LLContext), 0.0f);
+    return llvm::ConstantFP::get(llvm::Type::getFloatTy(LLContext), 0.0);
   case ValType::F64:
     return llvm::ConstantFP::get(llvm::Type::getDoubleTy(LLContext), 0.0);
   default:
@@ -496,10 +496,6 @@ public:
       }
     }
   }
-
-  explicit FunctionCompiler(AOT::Compiler::CompileContext &Context)
-      : Context(Context), LLContext(Context.LLContext), F(nullptr),
-        Builder(llvm::BasicBlock::Create(LLContext, "entry", F)) {}
 
   ~FunctionCompiler() noexcept {
     if (!F) {
@@ -3281,28 +3277,28 @@ private:
     const auto Count = elementCount(FromTy);
     std::vector<ShuffleElement> Mask(Count / 2);
     std::iota(Mask.begin(), Mask.end(), Low ? 0 : Count / 2);
-    auto *F = Builder.CreateBitCast(Stack.back(), FromTy);
+    auto *R = Builder.CreateBitCast(Stack.back(), FromTy);
     if (Signed) {
-      F = Builder.CreateSExt(F, ExtTy);
+      R = Builder.CreateSExt(R, ExtTy);
     } else {
-      F = Builder.CreateZExt(F, ExtTy);
+      R = Builder.CreateZExt(R, ExtTy);
     }
-    F = Builder.CreateShuffleVector(F, llvm::UndefValue::get(ExtTy), Mask);
-    Stack.back() = Builder.CreateBitCast(F, Context.Int64x2Ty);
+    R = Builder.CreateShuffleVector(R, llvm::UndefValue::get(ExtTy), Mask);
+    Stack.back() = Builder.CreateBitCast(R, Context.Int64x2Ty);
   }
   void compileVectorExtMul(llvm::VectorType *FromTy, bool Signed, bool Low) {
     auto *ExtTy = llvm::VectorType::getExtendedElementVectorType(FromTy);
     const auto Count = elementCount(FromTy);
     std::vector<ShuffleElement> Mask(Count / 2);
     std::iota(Mask.begin(), Mask.end(), Low ? 0 : Count / 2);
-    auto Extend = [this, FromTy, Signed, ExtTy, &Mask](llvm::Value *F) {
-      F = Builder.CreateBitCast(F, FromTy);
+    auto Extend = [this, FromTy, Signed, ExtTy, &Mask](llvm::Value *R) {
+      R = Builder.CreateBitCast(R, FromTy);
       if (Signed) {
-        F = Builder.CreateSExt(F, ExtTy);
+        R = Builder.CreateSExt(R, ExtTy);
       } else {
-        F = Builder.CreateZExt(F, ExtTy);
+        R = Builder.CreateZExt(R, ExtTy);
       }
-      return Builder.CreateShuffleVector(F, llvm::UndefValue::get(ExtTy), Mask);
+      return Builder.CreateShuffleVector(R, llvm::UndefValue::get(ExtTy), Mask);
     };
     auto *RHS = Extend(stackPop());
     auto *LHS = Extend(stackPop());
@@ -3836,11 +3832,11 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
         llvm::StringRef(reinterpret_cast<const char *>(Data.data()),
                         Data.size()),
         false);
-    new llvm::GlobalVariable(Context->LLModule, Content->getType(), false,
+    new llvm::GlobalVariable(*LLModule, Content->getType(), false,
                              llvm::GlobalValue::ExternalLinkage, Content,
                              "wasm.code");
     new llvm::GlobalVariable(
-        Context->LLModule, Int32Ty, false, llvm::GlobalValue::ExternalLinkage,
+        *LLModule, Int32Ty, false, llvm::GlobalValue::ExternalLinkage,
         llvm::ConstantInt::get(Int32Ty, Data.size()), "wasm.size");
   }
 
@@ -3859,7 +3855,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   auto Object = llvm::sys::fs::TempFile::create(OPath.u8string());
   if (!Object) {
     // TODO:return error
-    spdlog::error("so file creation failed:{}", OPath.native());
+    spdlog::error("so file creation failed:{}", OPath.u8string());
     llvm::consumeError(Object.takeError());
     return Unexpect(ErrCode::InvalidPath);
   }
@@ -3962,8 +3958,8 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     if (Conf.getCompilerConfigure().isDumpIR()) {
       int Fd;
       llvm::sys::fs::openFileForWrite("wasm-opt.ll", Fd);
-      llvm::raw_fd_ostream OS(Fd, true);
-      LLModule->print(OS, nullptr);
+      llvm::raw_fd_ostream LLOS(Fd, true);
+      LLModule->print(LLOS, nullptr);
     }
     spdlog::info("codegen start");
     CodeGenPasses.run(*LLModule);
@@ -4082,10 +4078,10 @@ void Compiler::compile(const AST::TypeSection &TypeSection) {
       std::vector<llvm::Value *> Args;
       Args.reserve(FTy->getNumParams());
       Args.push_back(ExecCtxPtr);
-      for (size_t I = 0; I < ArgCount; ++I) {
-        auto *ArgTy = FTy->getParamType(I + 1);
+      for (size_t J = 0; J < ArgCount; ++J) {
+        auto *ArgTy = FTy->getParamType(J + 1);
         llvm::Value *VPtr =
-            Builder.CreateConstInBoundsGEP1_64(RawArgs, I * kValSize);
+            Builder.CreateConstInBoundsGEP1_64(RawArgs, J * kValSize);
         llvm::Value *Ptr = Builder.CreateBitCast(VPtr, ArgTy->getPointerTo());
         Args.push_back(Builder.CreateLoad(Ptr));
       }
@@ -4095,12 +4091,12 @@ void Compiler::compile(const AST::TypeSection &TypeSection) {
         // nothing to do
       } else if (RTy->isStructTy()) {
         auto Rets = unpackStruct(Builder, Ret);
-        for (size_t I = 0; I < RetCount; ++I) {
+        for (size_t J = 0; J < RetCount; ++J) {
           llvm::Value *VPtr =
-              Builder.CreateConstInBoundsGEP1_64(RawRets, I * kValSize);
+              Builder.CreateConstInBoundsGEP1_64(RawRets, J * kValSize);
           llvm::Value *Ptr =
-              Builder.CreateBitCast(VPtr, Rets[I]->getType()->getPointerTo());
-          Builder.CreateStore(Rets[I], Ptr);
+              Builder.CreateBitCast(VPtr, Rets[J]->getType()->getPointerTo());
+          Builder.CreateStore(Rets[J], Ptr);
         }
       } else {
         llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(RawRets, 0);
@@ -4240,7 +4236,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
   }
 }
 
-void Compiler::compile(const AST::ExportSection &ExportSec) {}
+void Compiler::compile(const AST::ExportSection &) {}
 
 void Compiler::compile(const AST::GlobalSection &GlobalSec) {
   for (const auto &Global : GlobalSec.getContent()) {
@@ -4251,7 +4247,7 @@ void Compiler::compile(const AST::GlobalSection &GlobalSec) {
 }
 
 void Compiler::compile(const AST::MemorySection &MemorySection,
-                       const AST::DataSection &DataSec) {
+                       const AST::DataSection &) {
   if (MemorySection.getContent().size() == 0) {
     return;
   }
@@ -4261,8 +4257,8 @@ void Compiler::compile(const AST::MemorySection &MemorySection,
   Context->MemMax = Limit.hasMax() ? Limit.getMax() : 65536;
 }
 
-void Compiler::compile(const AST::TableSection &TableSection,
-                       const AST::ElementSection &ElementSection) {}
+void Compiler::compile(const AST::TableSection &, const AST::ElementSection &) {
+}
 
 void Compiler::compile(const AST::FunctionSection &FuncSec,
                        const AST::CodeSection &CodeSec) {

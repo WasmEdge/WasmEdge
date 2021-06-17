@@ -23,7 +23,7 @@ std::atomic_uint handlerCount = 0;
 thread_local Fault *localHandler = nullptr;
 
 #if defined(SA_SIGINFO)
-[[noreturn]] void signalHandler(int Signal, siginfo_t *Siginfo,
+[[noreturn]] void signalHandler(int Signal, siginfo_t *Siginfo [[maybe_unused]],
                                 void *) noexcept {
   {
     // Unblock current signal
@@ -66,13 +66,10 @@ LONG vectoredExceptionHandler(EXCEPTION_POINTERS *ExceptionInfo) {
   switch (Code) {
   case EXCEPTION_INT_DIVIDE_BY_ZERO:
     Fault::emitFault(ErrCode::DivideByZero);
-    break;
   case EXCEPTION_INT_OVERFLOW:
     Fault::emitFault(ErrCode::IntegerOverflow);
-    break;
   case EXCEPTION_ACCESS_VIOLATION:
     Fault::emitFault(ErrCode::MemoryOutOfBounds);
-    break;
   }
   return EXCEPTION_CONTINUE_EXECUTION;
 }
@@ -80,7 +77,7 @@ LONG vectoredExceptionHandler(EXCEPTION_POINTERS *ExceptionInfo) {
 void *HandlerHandle = nullptr;
 
 void enableHandler() noexcept {
-  HandlerHandle = AddVectoredExceptionHandler(1, &Handler);
+  HandlerHandle = AddVectoredExceptionHandler(1, &vectoredExceptionHandler);
 }
 
 void disableHandler() noexcept {

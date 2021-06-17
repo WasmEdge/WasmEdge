@@ -814,9 +814,15 @@ public:
   WasiExpect<void> randomGet(Span<uint8_t> Buffer) const noexcept {
     std::random_device Device;
     std::default_random_engine Engine(Device());
-    std::uniform_int_distribution<uint8_t> Distribution;
-    for (auto &C : Buffer) {
-      C = Distribution(Engine);
+    std::uniform_int_distribution<uint32_t> Distribution;
+    auto BufferSpan = cxx20::as_writable_bytes(Buffer);
+    while (!BufferSpan.empty()) {
+      const uint32_t Value = Distribution(Engine);
+      const auto ValueSpan =
+          cxx20::as_bytes(cxx20::span<const uint32_t, 1>(&Value, 1));
+      const auto Size = std::min(BufferSpan.size(), ValueSpan.size());
+      std::copy(ValueSpan.begin(), ValueSpan.end(), BufferSpan.begin());
+      BufferSpan = BufferSpan.subspan(Size);
     }
 
     return {};
@@ -886,11 +892,13 @@ public:
         "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"sv;
     std::random_device Device;
     std::default_random_engine Engine(Device());
-    std::uniform_int_distribution<uint8_t> Distribution(0, Charset.size() - 1);
-    std::array<char, 6> Buffer;
-    for (auto &C : Buffer) {
-      C = Charset[Distribution(Engine)];
-    }
+    std::uniform_int_distribution<uint32_t> Distribution(0, Charset.size() - 1);
+    std::array<char, 8> Buffer;
+    std::array<uint32_t, 2> Values = {Distribution(Engine),
+                                      Distribution(Engine)};
+    auto ValuesSpan = cxx20::as_bytes(cxx20::span(Values));
+    std::copy(ValuesSpan.begin(), ValuesSpan.end(),
+              cxx20::as_writable_bytes(cxx20::span(Buffer)).begin());
     return std::string(Buffer.data(), Buffer.size());
   }
 

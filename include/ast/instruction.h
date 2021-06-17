@@ -110,7 +110,7 @@ private:
 /// \param Conf the WasmEdge configuration reference.
 ///
 /// \returns OpCode if success, ErrCode when failed.
-Expect<OpCode> loadOpCode(FileMgr &Mgr, const Configure &Conf);
+extern Expect<OpCode> loadOpCode(FileMgr &Mgr, const Configure &Conf);
 
 /// Load instructions from file manager.
 ///
@@ -120,7 +120,7 @@ Expect<OpCode> loadOpCode(FileMgr &Mgr, const Configure &Conf);
 /// \param Conf the WasmEdge configuration reference.
 ///
 /// \returns InstrVec if success, ErrCode when failed.
-Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const Configure &Conf);
+extern Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const Configure &Conf);
 
 } // namespace AST
 } // namespace WasmEdge

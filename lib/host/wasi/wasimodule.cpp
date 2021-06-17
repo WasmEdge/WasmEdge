@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "host/wasi/wasimodule.h"
 #include "host/wasi/wasifunc.h"
-
 #include <memory>
 
 namespace WasmEdge {

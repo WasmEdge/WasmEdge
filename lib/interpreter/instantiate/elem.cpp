@@ -70,7 +70,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 /// Initialize table with Element Instances. See
 /// "include/interpreter/interpreter.h".
 Expect<void> Interpreter::initTable(Runtime::StoreManager &StoreMgr,
-                                    Runtime::Instance::ModuleInstance &ModInst,
+                                    Runtime::Instance::ModuleInstance &,
                                     const AST::ElementSection &ElemSec) {
   /// Initialize tables.
   uint32_t Idx = 0;

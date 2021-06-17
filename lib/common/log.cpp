@@ -222,6 +222,7 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
         } else {
           OS << ":" << retrieveFuncIdx(Rhs.Args[I]);
         }
+        break;
       case ValType::ExternRef:
         OS << ValTypeStr[Rhs.ArgsTypes[I]];
         if (isNullRef(Rhs.Args[I])) {
@@ -229,6 +230,7 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
         } else {
           OS << ":" << &Rhs.Args[I].get<uint64_t>();
         }
+        break;
       default:
         break;
       }

@@ -157,12 +157,14 @@ template <typename T>
 TypeF<T> Interpreter::runMinOp(ValVariant &Val1, const ValVariant &Val2) const {
   T &Z1 = Val1.get<T>();
   const T &Z2 = Val2.get<T>();
+  const T kZero = 0.0;
   /// TODO: canonical and arithmetical NaN
   if (std::isnan(Z2)) {
     Z1 = Z2;
-  } else if (Z1 == 0.0 && Z2 == 0.0 && std::signbit(Z1) != std::signbit(Z2)) {
+  } else if (Z1 == kZero && Z2 == kZero &&
+             std::signbit(Z1) != std::signbit(Z2)) {
     /// If both z1 and z2 are zeroes of opposite signs, then return -0.0.
-    Z1 = -0.0;
+    Z1 = -kZero;
   } else if (!std::isnan(Z1)) {
     /// Else return the min of z1 and z2. (Inf case are handled.)
     Z1 = std::min(Z1, Z2);
@@ -174,12 +176,14 @@ template <typename T>
 TypeF<T> Interpreter::runMaxOp(ValVariant &Val1, const ValVariant &Val2) const {
   T &Z1 = Val1.get<T>();
   const T &Z2 = Val2.get<T>();
+  const T kZero = 0.0;
   /// TODO: canonical and arithmetical NaN
   if (std::isnan(Z2)) {
     Z1 = Z2;
-  } else if (Z1 == 0.0 && Z2 == 0.0 && std::signbit(Z1) != std::signbit(Z2)) {
+  } else if (Z1 == kZero && Z2 == kZero &&
+             std::signbit(Z1) != std::signbit(Z2)) {
     /// If both z1 and z2 are zeroes of opposite signs, then return +0.0.
-    Z1 = 0.0;
+    Z1 = kZero;
   } else if (!std::isnan(Z1)) {
     /// Else return the max of z1 and z2. (Inf case are handled.)
     Z1 = std::max(Z1, Z2);

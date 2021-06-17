@@ -42,7 +42,7 @@ WasmEdgeProcessAddArg::body(Runtime::Instance::MemoryInstance *MemInst,
   std::copy_n(Buf, ArgLen, std::back_inserter(NewArg));
   Env.Args.push_back(std::move(NewArg));
   return {};
-};
+}
 
 Expect<void>
 WasmEdgeProcessAddEnv::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -60,7 +60,7 @@ WasmEdgeProcessAddEnv::body(Runtime::Instance::MemoryInstance *MemInst,
   std::copy_n(ValBuf, EnvValLen, std::back_inserter(NewVal));
   Env.Envs.emplace(std::move(NewEnv), std::move(NewVal));
   return {};
-};
+}
 
 Expect<void>
 WasmEdgeProcessAddStdIn::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -74,17 +74,16 @@ WasmEdgeProcessAddStdIn::body(Runtime::Instance::MemoryInstance *MemInst,
   Env.StdIn.reserve(Env.StdIn.size() + BufLen);
   std::copy_n(Buf, BufLen, std::back_inserter(Env.StdIn));
   return {};
-};
+}
 
 Expect<void>
-WasmEdgeProcessSetTimeOut::body(Runtime::Instance::MemoryInstance *MemInst,
+WasmEdgeProcessSetTimeOut::body(Runtime::Instance::MemoryInstance *,
                                 uint32_t Time) {
   Env.TimeOut = Time;
   return {};
-};
+}
 
-Expect<uint32_t>
-WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
+Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
   /// Clear outputs.
   Env.StdOut.clear();
   Env.StdErr.clear();
@@ -288,17 +287,17 @@ WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
   Env.StdIn.clear();
   Env.TimeOut = Env.DEFAULT_TIMEOUT;
   return Env.ExitCode;
-};
+}
 
 Expect<uint32_t>
-WasmEdgeProcessGetExitCode::body(Runtime::Instance::MemoryInstance *MemInst) {
+WasmEdgeProcessGetExitCode::body(Runtime::Instance::MemoryInstance *) {
   return Env.ExitCode;
-};
+}
 
 Expect<uint32_t>
-WasmEdgeProcessGetStdOutLen::body(Runtime::Instance::MemoryInstance *MemInst) {
+WasmEdgeProcessGetStdOutLen::body(Runtime::Instance::MemoryInstance *) {
   return Env.StdOut.size();
-};
+}
 
 Expect<void>
 WasmEdgeProcessGetStdOut::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -311,12 +310,12 @@ WasmEdgeProcessGetStdOut::body(Runtime::Instance::MemoryInstance *MemInst,
   char *Buf = MemInst->getPointer<char *>(BufPtr);
   std::copy_n(Env.StdOut.begin(), Env.StdOut.size(), Buf);
   return {};
-};
+}
 
 Expect<uint32_t>
-WasmEdgeProcessGetStdErrLen::body(Runtime::Instance::MemoryInstance *MemInst) {
+WasmEdgeProcessGetStdErrLen::body(Runtime::Instance::MemoryInstance *) {
   return Env.StdErr.size();
-};
+}
 
 Expect<void>
 WasmEdgeProcessGetStdErr::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -329,7 +328,7 @@ WasmEdgeProcessGetStdErr::body(Runtime::Instance::MemoryInstance *MemInst,
   char *Buf = MemInst->getPointer<char *>(BufPtr);
   std::copy_n(Env.StdErr.begin(), Env.StdErr.size(), Buf);
   return {};
-};
+}
 
 } // namespace Host
 } // namespace WasmEdge

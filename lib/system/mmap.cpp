@@ -16,6 +16,16 @@
 #define MAP_WINAPI 1
 #endif
 
+#ifndef MAP_MMAP
+#define MAP_MMAP 0
+#endif
+#ifndef MAP_STUB
+#define MAP_STUB 0
+#endif
+#ifndef MAP_WINAPI
+#define MAP_WINAPI 0
+#endif
+
 #if MAP_MMAP
 #include <fcntl.h>
 #include <sys/mman.h>

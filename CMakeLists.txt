@@ -57,6 +57,15 @@ if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo
   endif()
 endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+
+add_compile_options(-Wall -Wextra -Werror -Wno-error=pedantic)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  add_compile_options(-Wno-psabi)
+endif()
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  add_compile_options(-Wno-psabi -Wno-c++20-designator -Wno-keyword-macro -Wno-c99-extensions)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)

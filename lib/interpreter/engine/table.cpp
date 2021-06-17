@@ -60,7 +60,6 @@ Interpreter::runTableInitOp(Runtime::Instance::TableInstance &TabInst,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
   }
-  return {};
 }
 
 Expect<void>
@@ -93,7 +92,6 @@ Interpreter::runTableCopyOp(Runtime::Instance::TableInstance &TabInstDst,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Refs);
   }
-  return {};
 }
 
 Expect<void>

@@ -196,7 +196,7 @@ inline constexpr void fillWasmEdge_ValueArr(Span<const ValVariant> Vec,
 }
 
 /// Helper template to run and return result.
-auto EmptyThen = [](auto &&Res) noexcept {};
+auto EmptyThen = [](auto &&) noexcept {};
 template <typename T> inline bool isContext(T *Cxt) noexcept {
   return (Cxt != nullptr);
 }

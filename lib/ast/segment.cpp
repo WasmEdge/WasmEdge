@@ -166,40 +166,39 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   case 0x05:
   case 0x06:
   case 0x07:
-    if (auto Res = Mgr.readByte()) {
-      Type = static_cast<RefType>(*Res);
-      if (auto Check =
-              checkRefTypeProposals(Conf, Type, Mgr.getLastOffset(), NodeAttr);
-          !Check) {
-        return Unexpect(Check);
-      }
-    } else {
+    if (auto Res = Mgr.readByte(); unlikely(!Res)) {
       return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
+    } else {
+      Type = static_cast<RefType>(*Res);
+    }
+    if (auto Res =
+            checkRefTypeProposals(Conf, Type, Mgr.getLastOffset(), NodeAttr);
+        unlikely(!Res)) {
+      return Unexpect(Res);
     }
     [[fallthrough]];
 
   case 0x04: {
     uint32_t VecCnt = 0;
-    if (auto Res = Mgr.readU32()) {
-      VecCnt = *Res;
-      InitExprs.reserve(VecCnt);
-    } else {
+    if (auto Res = Mgr.readU32(); unlikely(!Res)) {
       return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
+    } else {
+      VecCnt = *Res;
     }
+    InitExprs.reserve(VecCnt);
     for (uint32_t i = 0; i < VecCnt; ++i) {
       InitExprs.emplace_back();
-      if (auto Res = InitExprs.back().loadBinary(Mgr, Conf)) {
-        for (auto &Instr : InitExprs.back().getInstrs()) {
-          OpCode Code = Instr.getOpCode();
-          if (Code != OpCode::Ref__func && Code != OpCode::Ref__null &&
-              Code != OpCode::End) {
-            return logLoadError(ErrCode::InvalidOpCode, Instr.getOffset(),
-                                NodeAttr);
-          }
-        }
-      } else {
+      if (auto Res = InitExprs.back().loadBinary(Mgr, Conf); unlikely(!Res)) {
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res.error());
+      }
+      for (auto &Instr : InitExprs.back().getInstrs()) {
+        OpCode Code = Instr.getOpCode();
+        if (Code != OpCode::Ref__func && Code != OpCode::Ref__null &&
+            Code != OpCode::End) {
+          return logLoadError(ErrCode::InvalidOpCode, Instr.getOffset(),
+                              NodeAttr);
+        }
       }
     }
     break;
@@ -233,10 +232,10 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   for (uint32_t i = 0; i < VecCnt; ++i) {
     uint32_t LocalCnt = 0;
     ValType LocalType = ValType::None;
-    if (auto Res = Mgr.readU32()) {
-      LocalCnt = *Res;
-    } else {
+    if (auto Res = Mgr.readU32(); unlikely(!Res)) {
       return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
+    } else {
+      LocalCnt = *Res;
     }
     /// Total local variables should not more than 2^32.
     if (UINT32_MAX - TotalLocalCnt < LocalCnt) {
@@ -245,21 +244,21 @@ Expect<void> CodeSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     }
     TotalLocalCnt += LocalCnt;
     /// Read the number type.
-    if (auto Res = Mgr.readByte()) {
-      LocalType = static_cast<ValType>(*Res);
-      if (auto Check = checkValTypeProposals(Conf, LocalType,
-                                             Mgr.getLastOffset(), NodeAttr);
-          !Check) {
-        return Unexpect(Check);
-      }
-    } else {
+    if (auto Res = Mgr.readByte(); unlikely(!Res)) {
       return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
+    } else {
+      LocalType = static_cast<ValType>(*Res);
+    }
+    if (auto Res = checkValTypeProposals(Conf, LocalType, Mgr.getLastOffset(),
+                                         NodeAttr);
+        unlikely(!Res)) {
+      return Unexpect(Res);
     }
     Locals.push_back(std::make_pair(LocalCnt, LocalType));
   }
 
   /// Read function body.
-  if (auto Res = Segment::loadExpression(Mgr, Conf); !Res) {
+  if (auto Res = Segment::loadExpression(Mgr, Conf); unlikely(!Res)) {
     spdlog::error(ErrInfo::InfoAST(NodeAttr));
     return Unexpect(Res);
   }

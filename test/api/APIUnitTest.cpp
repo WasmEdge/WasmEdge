@@ -47,7 +47,7 @@ char *Preopens[] = {&PreopensVec[0], &PreopensVec[12], &PreopensVec[21],
                     &PreopensVec[32]};
 char TPath[] = "apiTestData/test.wasm";
 
-WasmEdge_Result ExternAdd(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+WasmEdge_Result ExternAdd(void *, WasmEdge_MemoryInstanceContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   /// {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -56,7 +56,7 @@ WasmEdge_Result ExternAdd(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternSub(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+WasmEdge_Result ExternSub(void *, WasmEdge_MemoryInstanceContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   /// {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -65,7 +65,7 @@ WasmEdge_Result ExternSub(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternMul(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+WasmEdge_Result ExternMul(void *, WasmEdge_MemoryInstanceContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   /// {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -74,7 +74,7 @@ WasmEdge_Result ExternMul(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternDiv(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+WasmEdge_Result ExternDiv(void *, WasmEdge_MemoryInstanceContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   /// {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -83,15 +83,15 @@ WasmEdge_Result ExternDiv(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternTerm(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
-                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
+WasmEdge_Result ExternTerm(void *, WasmEdge_MemoryInstanceContext *,
+                           const WasmEdge_Value *, WasmEdge_Value *Out) {
   /// {} -> {i32}
   Out[0] = WasmEdge_ValueGenI32(1234);
   return WasmEdge_Result_Terminate;
 }
 
-WasmEdge_Result ExternFail(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
-                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
+WasmEdge_Result ExternFail(void *, WasmEdge_MemoryInstanceContext *,
+                           const WasmEdge_Value *, WasmEdge_Value *Out) {
   /// {} -> {i32}
   Out[0] = WasmEdge_ValueGenI32(5678);
   return WasmEdge_Result_Fail;
@@ -99,8 +99,8 @@ WasmEdge_Result ExternFail(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
 
 WasmEdge_Result ExternWrap(void *This, void *Data,
                            WasmEdge_MemoryInstanceContext *MemCxt,
-                           const WasmEdge_Value *In, const uint32_t InLen,
-                           WasmEdge_Value *Out, const uint32_t OutLen) {
+                           const WasmEdge_Value *In, const uint32_t,
+                           WasmEdge_Value *Out, const uint32_t) {
   using HostFuncType =
       WasmEdge_Result(void *, WasmEdge_MemoryInstanceContext *,
                       const WasmEdge_Value *, WasmEdge_Value *);
@@ -1088,7 +1088,8 @@ TEST(APICoreTest, Instance) {
 
   /// Table instance creation
   WasmEdge_TableInstanceContext *TabCxt = WasmEdge_TableInstanceCreate(
-      WasmEdge_RefType_ExternRef, WasmEdge_Limit{.HasMax = false, .Min = 10});
+      WasmEdge_RefType_ExternRef,
+      WasmEdge_Limit{.HasMax = false, .Min = 10, .Max = 0});
   EXPECT_NE(TabCxt, nullptr);
   WasmEdge_TableInstanceDelete(TabCxt);
   EXPECT_TRUE(true);
@@ -1151,8 +1152,8 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(true);
 
   /// Memory instance creation
-  WasmEdge_MemoryInstanceContext *MemCxt =
-      WasmEdge_MemoryInstanceCreate(WasmEdge_Limit{.HasMax = false, .Min = 1});
+  WasmEdge_MemoryInstanceContext *MemCxt = WasmEdge_MemoryInstanceCreate(
+      WasmEdge_Limit{.HasMax = false, .Min = 1, .Max = 0});
   EXPECT_NE(MemCxt, nullptr);
   WasmEdge_MemoryInstanceDelete(MemCxt);
   EXPECT_TRUE(true);

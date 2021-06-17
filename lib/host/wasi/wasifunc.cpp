@@ -17,12 +17,13 @@ namespace Host {
 namespace {
 
 template <typename Container>
-inline constexpr uint32_t calculateBufferSize(const Container &Array) noexcept {
-  uint32_t Lengths[std::size(Array)];
-  std::transform(
-      std::begin(Array), std::end(Array), Lengths,
-      [](const auto &String) -> uint32_t { return std::size(String) + 1; });
-  return std::accumulate(Lengths, Lengths + std::size(Array), UINT32_C(0));
+inline uint32_t calculateBufferSize(const Container &Array) noexcept {
+  std::vector<uint32_t> Lengths(Array.size());
+  std::transform(Array.begin(), Array.end(), Lengths.begin(),
+                 [](const auto &String) -> uint32_t {
+                   return String.size() + UINT32_C(1);
+                 });
+  return std::accumulate(Lengths.begin(), Lengths.end(), UINT32_C(0));
 }
 
 template <typename T> struct WasiRawType {
@@ -420,7 +421,7 @@ WasiClockTimeGet::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiFdAdvise::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> WasiFdAdvise::body(Runtime::Instance::MemoryInstance *,
                                     int32_t Fd, uint64_t Offset, uint64_t Len,
                                     uint32_t Advice) {
   __wasi_advice_t WasiAdvice;
@@ -441,9 +442,9 @@ Expect<uint32_t> WasiFdAdvise::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiFdAllocate::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-                     uint64_t Offset, uint64_t Len) {
+Expect<uint32_t> WasiFdAllocate::body(Runtime::Instance::MemoryInstance *,
+                                      int32_t Fd, uint64_t Offset,
+                                      uint64_t Len) {
   const __wasi_fd_t WasiFd = Fd;
   const __wasi_filesize_t WasiOffset = Offset;
   const __wasi_filesize_t WasiLen = Len;
@@ -454,7 +455,7 @@ WasiFdAllocate::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   return __WASI_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiFdClose::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> WasiFdClose::body(Runtime::Instance::MemoryInstance *,
                                    int32_t Fd) {
   const __wasi_fd_t WasiFd = Fd;
 
@@ -464,8 +465,8 @@ Expect<uint32_t> WasiFdClose::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiFdDatasync::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd) {
+Expect<uint32_t> WasiFdDatasync::body(Runtime::Instance::MemoryInstance *,
+                                      int32_t Fd) {
   const __wasi_fd_t WasiFd = Fd;
 
   if (auto Res = Env.fdDatasync(WasiFd); unlikely(!Res)) {
@@ -495,9 +496,8 @@ WasiFdFdstatGet::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   return __WASI_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiFdFdstatSetFlags::body(Runtime::Instance::MemoryInstance *MemInst,
-                           int32_t Fd, uint32_t FsFlags) {
+Expect<uint32_t> WasiFdFdstatSetFlags::body(Runtime::Instance::MemoryInstance *,
+                                            int32_t Fd, uint32_t FsFlags) {
   __wasi_fdflags_t WasiFdFlags;
   if (auto Res = cast<__wasi_fdflags_t>(FsFlags); unlikely(!Res)) {
     return Res.error();
@@ -514,8 +514,8 @@ WasiFdFdstatSetFlags::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 
 Expect<uint32_t>
-WasiFdFdstatSetRights::body(Runtime::Instance::MemoryInstance *MemInst,
-                            int32_t Fd, uint64_t FsRightsBase,
+WasiFdFdstatSetRights::body(Runtime::Instance::MemoryInstance *, int32_t Fd,
+                            uint64_t FsRightsBase,
                             uint64_t FsRightsInheriting) {
   __wasi_rights_t WasiFsRightsBase;
   if (auto Res = cast<__wasi_rights_t>(FsRightsBase); unlikely(!Res)) {
@@ -563,8 +563,8 @@ WasiFdFilestatGet::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
 }
 
 Expect<uint32_t>
-WasiFdFilestatSetSize::body(Runtime::Instance::MemoryInstance *MemInst,
-                            int32_t Fd, uint64_t Size) {
+WasiFdFilestatSetSize::body(Runtime::Instance::MemoryInstance *, int32_t Fd,
+                            uint64_t Size) {
   const __wasi_fd_t WasiFd = Fd;
   const __wasi_filesize_t WasiSize = Size;
 
@@ -575,9 +575,8 @@ WasiFdFilestatSetSize::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 
 Expect<uint32_t>
-WasiFdFilestatSetTimes::body(Runtime::Instance::MemoryInstance *MemInst,
-                             int32_t Fd, uint64_t ATim, uint64_t MTim,
-                             uint32_t FstFlags) {
+WasiFdFilestatSetTimes::body(Runtime::Instance::MemoryInstance *, int32_t Fd,
+                             uint64_t ATim, uint64_t MTim, uint32_t FstFlags) {
   __wasi_fstflags_t WasiFstFlags;
   if (auto Res = cast<__wasi_fstflags_t>(FstFlags); unlikely(!Res)) {
     return Res.error();
@@ -848,9 +847,8 @@ Expect<uint32_t> WasiFdReadDir::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiFdRenumber::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-                     int32_t ToFd) {
+Expect<uint32_t> WasiFdRenumber::body(Runtime::Instance::MemoryInstance *,
+                                      int32_t Fd, int32_t ToFd) {
   const __wasi_fd_t WasiFd = Fd;
   const __wasi_fd_t WasiToFd = ToFd;
 
@@ -891,7 +889,7 @@ Expect<int32_t> WasiFdSeek::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiFdSync::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> WasiFdSync::body(Runtime::Instance::MemoryInstance *,
                                   int32_t Fd) {
   const __wasi_fd_t WasiFd = Fd;
 
@@ -1371,7 +1369,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
   }
 
   auto *const EventArray =
-      MemInst->getPointer<__wasi_event_t *>(NEventsPtr, WasiNSub);
+      MemInst->getPointer<__wasi_event_t *>(OutPtr, WasiNSub);
   if (unlikely(EventArray == nullptr)) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1401,7 +1399,6 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
           (EventType &
            (__WASI_EVENTTYPE_FD_READ | __WASI_EVENTTYPE_FD_WRITE))) {
         Event.fd_readwrite.nbytes = NBytes;
-        ;
         Event.fd_readwrite.flags = Flags;
       }
       ++EventCount;
@@ -1477,13 +1474,13 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
   return __WASI_ERRNO_SUCCESS;
 }
 
-Expect<void> WasiProcExit::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<void> WasiProcExit::body(Runtime::Instance::MemoryInstance *,
                                 int32_t ExitCode) {
   Env.procExit(ExitCode);
   return Unexpect(ErrCode::Terminated);
 }
 
-Expect<uint32_t> WasiProcRaise::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> WasiProcRaise::body(Runtime::Instance::MemoryInstance *,
                                      int32_t Signal) {
   __wasi_signal_t WasiSignal;
   if (auto Res = cast<__wasi_signal_t>(Signal); unlikely(!Res)) {
@@ -1518,8 +1515,7 @@ Expect<uint32_t> WasiRandomGet::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiSchedYield::body(Runtime::Instance::MemoryInstance *MemInst) {
+Expect<uint32_t> WasiSchedYield::body(Runtime::Instance::MemoryInstance *) {
   if (auto Res = Env.schedYield(); unlikely(!Res)) {
     return Res.error();
   }
@@ -1662,9 +1658,8 @@ Expect<uint32_t> WasiSockSend::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiSockShutdown::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-                       uint32_t SdFlags) {
+Expect<uint32_t> WasiSockShutdown::body(Runtime::Instance::MemoryInstance *,
+                                        int32_t Fd, uint32_t SdFlags) {
   __wasi_sdflags_t WasiSdFlags;
   if (auto Res = cast<__wasi_sdflags_t>(SdFlags); unlikely(!Res)) {
     return Res.error();

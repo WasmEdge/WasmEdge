@@ -13,6 +13,9 @@ namespace WASI {
 WasiExpect<void> Environ::procRaise(__wasi_signal_t Signal) const noexcept {
   int SysSignal;
   switch (Signal) {
+  case __WASI_SIGNAL_NONE:
+    SysSignal = 0;
+    break;
   case __WASI_SIGNAL_HUP:
     SysSignal = SIGHUP;
     break;
@@ -104,8 +107,7 @@ WasiExpect<void> Environ::procRaise(__wasi_signal_t Signal) const noexcept {
     SysSignal = SIGSYS;
     break;
   default:
-    SysSignal = 0;
-    break;
+    return WasiUnexpect(__WASI_ERRNO_NOTSUP);
   }
   if (auto Res = std::raise(SysSignal); Res != 0) {
     return WasiUnexpect(fromErrNo(errno));

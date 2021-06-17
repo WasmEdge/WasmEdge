@@ -63,7 +63,7 @@ const AST::Module::IntrinsicsTable Interpreter::Intrinsics = {
 #pragma clang diagnostic pop
 #endif
 
-Expect<void> Interpreter::trap(Runtime::StoreManager &StoreMgr,
+Expect<void> Interpreter::trap(Runtime::StoreManager &,
                                const uint8_t Code) noexcept {
   return Unexpect(ErrCode(Code));
 }

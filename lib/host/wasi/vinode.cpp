@@ -5,6 +5,7 @@
 #include "host/wasi/environ.h"
 #include "host/wasi/vfs.h"
 #include <cassert>
+#include <numeric>
 
 using namespace std::literals;
 
@@ -382,7 +383,7 @@ VINode::resolvePath(VFS &FS, std::shared_ptr<VINode> &Fd,
       if (!Part.empty() && Part[0] == '.') {
         if (Part.size() == 1) {
           if (LastPart) {
-            return std::move(Buffer);
+            return Buffer;
           }
           Path = Remain;
           continue;
@@ -396,7 +397,7 @@ VINode::resolvePath(VFS &FS, std::shared_ptr<VINode> &Fd,
           Path = Remain;
           if (LastPart) {
             Path = "."sv;
-            return std::move(Buffer);
+            return Buffer;
           }
           continue;
         }
@@ -404,7 +405,7 @@ VINode::resolvePath(VFS &FS, std::shared_ptr<VINode> &Fd,
 
       if (LastPart && !(LookupFlags & __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW)) {
         Path = Part;
-        return std::move(Buffer);
+        return Buffer;
       }
 
       __wasi_filestat_t Filestat;
@@ -412,7 +413,7 @@ VINode::resolvePath(VFS &FS, std::shared_ptr<VINode> &Fd,
           unlikely(!Res)) {
         if (LastPart) {
           Path = Part;
-          return std::move(Buffer);
+          return Buffer;
         }
         return WasiUnexpect(Res);
       }
@@ -443,7 +444,7 @@ VINode::resolvePath(VFS &FS, std::shared_ptr<VINode> &Fd,
 
       if (LastPart) {
         Path = Part;
-        return std::move(Buffer);
+        return Buffer;
       }
 
       if (Filestat.filetype != __WASI_FILETYPE_DIRECTORY) {

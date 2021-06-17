@@ -19,10 +19,11 @@
 #define BODY(NAME)                                                             \
   do {                                                                         \
     auto Data = *Loader.loadFile("../loader/wagonTestData/" NAME ".wasm"sv);   \
-    auto Module = *Loader.parseModule(Data);                                   \
+    auto Module = Loader.parseModule(Data);                                    \
+    ASSERT_TRUE(Module);                                                       \
     Conf.getCompilerConfigure().setDumpIR(true);                               \
     WasmEdge::AOT::Compiler Compiler(Conf);                                    \
-    auto Status = Compiler.compile(Data, *Module,                              \
+    auto Status = Compiler.compile(Data, **Module,                             \
                                    "../loader/wagonTestData/" NAME ".so"sv);   \
     if (Status) {                                                              \
       ASSERT_TRUE(Status);                                                     \

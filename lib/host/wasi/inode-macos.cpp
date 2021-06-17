@@ -851,7 +851,7 @@ WasiExpect<void> INode::updateStat() const noexcept {
   return {};
 }
 
-Poller::Poller(__wasi_size_t Count) noexcept : FdHolder(::kqueue()) {
+Poller::Poller(__wasi_size_t Count) : FdHolder(::kqueue()) {
   Events.reserve(Count);
 }
 

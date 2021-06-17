@@ -227,17 +227,17 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Func,
   }
 }
 
-Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
+Expect<std::vector<ValVariant>> VM::execute(std::string_view ModName,
                                             std::string_view Func,
                                             Span<const ValVariant> Params,
                                             Span<const ValType> ParamTypes) {
   /// Get module instance.
   Runtime::Instance::ModuleInstance *ModInst;
-  if (auto Res = StoreRef.findModule(Mod)) {
+  if (auto Res = StoreRef.findModule(ModName)) {
     ModInst = *Res;
   } else {
     spdlog::error(Res.error());
-    spdlog::error(ErrInfo::InfoExecuting(Mod, Func));
+    spdlog::error(ErrInfo::InfoExecuting(ModName, Func));
     return Unexpect(Res);
   }
 
@@ -246,7 +246,7 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
   const auto FuncIter = FuncExp.find(Func);
   if (FuncIter == FuncExp.cend()) {
     spdlog::error(ErrCode::FuncNotFound);
-    spdlog::error(ErrInfo::InfoExecuting(Mod, Func));
+    spdlog::error(ErrInfo::InfoExecuting(ModName, Func));
     return Unexpect(ErrCode::FuncNotFound);
   }
 
@@ -255,7 +255,7 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Mod,
                                           ParamTypes)) {
     return Res;
   } else {
-    spdlog::error(ErrInfo::InfoExecuting(Mod, Func));
+    spdlog::error(ErrInfo::InfoExecuting(ModName, Func));
     return Unexpect(Res);
   }
 }

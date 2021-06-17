@@ -77,7 +77,7 @@ TypeFI<TIn, TOut> Interpreter::runTruncateOp(const AST::Instruction &Instr,
     }
   }
   /// Else, return trunc(z). Signed case handled.
-  Val.emplace<TOut>(Z);
+  Val.emplace<TOut>(static_cast<TOut>(Z));
   return {};
 }
 
@@ -106,7 +106,7 @@ TypeFI<TIn, TOut> Interpreter::runTruncateSatOp(ValVariant &Val) const {
       } else if (Z > ValTOutMax) {
         Val.emplace<TOut>(std::numeric_limits<TOut>::max());
       } else {
-        Val.emplace<TOut>(Z);
+        Val.emplace<TOut>(static_cast<TOut>(Z));
       }
     } else {
       /// Floating precision is worse than integer case.
@@ -115,7 +115,7 @@ TypeFI<TIn, TOut> Interpreter::runTruncateSatOp(ValVariant &Val) const {
       } else if (Z >= ValTOutMax) {
         Val.emplace<TOut>(std::numeric_limits<TOut>::max());
       } else {
-        Val.emplace<TOut>(Z);
+        Val.emplace<TOut>(static_cast<TOut>(Z));
       }
     }
   }
@@ -150,7 +150,7 @@ TypeFF<TIn, TOut> Interpreter::runDemoteOp(ValVariant &Val) const {
 template <typename TIn, typename TOut>
 TypeFF<TIn, TOut> Interpreter::runPromoteOp(ValVariant &Val) const {
   /// Return i convert to TOut. (NaN, inf, and zeros handled)
-  Val.emplace<TOut>(Val.get<TIn>());
+  Val.emplace<TOut>(static_cast<TOut>(Val.get<TIn>()));
   return {};
 }
 

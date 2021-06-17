@@ -74,7 +74,7 @@ void FormChecker::addTable(const AST::TableType &Tab) {
   Tables.push_back(Tab.getReferenceType());
 }
 
-void FormChecker::addMemory(const AST::MemoryType &Mem) {
+void FormChecker::addMemory(const AST::MemoryType &) {
   Mems.push_back(Mems.size());
 }
 
@@ -87,7 +87,7 @@ void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
   }
 }
 
-void FormChecker::addData(const AST::DataSegment &Data) {
+void FormChecker::addData(const AST::DataSegment &) {
   Datas.emplace_back(Datas.size());
 }
 

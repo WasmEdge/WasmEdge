@@ -10,8 +10,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef __WASMEDGE_C_API_H__
-#define __WASMEDGE_C_API_H__
+#ifndef WASMEDGE_C_API_H
+#define WASMEDGE_C_API_H
 
 #if defined(_WIN32)
 #ifdef WASMEDGE_COMPILE_LIBRARY
@@ -79,9 +79,9 @@ typedef struct WasmEdge_String {
 typedef struct WasmEdge_Result {
   uint8_t Code;
 } WasmEdge_Result;
-#define WasmEdge_Result_Success (WasmEdge_Result){.Code = 0x00};
-#define WasmEdge_Result_Terminate (WasmEdge_Result){.Code = 0x01};
-#define WasmEdge_Result_Fail (WasmEdge_Result){.Code = 0x02};
+#define WasmEdge_Result_Success ((WasmEdge_Result){.Code = 0x00})
+#define WasmEdge_Result_Terminate ((WasmEdge_Result){.Code = 0x01})
+#define WasmEdge_Result_Fail ((WasmEdge_Result){.Code = 0x02})
 
 /// Struct of WASM limit.
 typedef struct WasmEdge_Limit {
@@ -2463,4 +2463,4 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt);
 } /// extern "C"
 #endif
 
-#endif /// __WASMEDGE_C_API_H__
+#endif /// WASMEDGE_C_API_H

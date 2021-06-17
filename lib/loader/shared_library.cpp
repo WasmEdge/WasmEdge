@@ -44,7 +44,8 @@ void *SharedLibrary::getSymbolAddr(const char *Name) const noexcept {
     return nullptr;
   }
 #if WASMEDGE_OS_WINDOWS
-  return boost::winapi::get_proc_address(Handle, Name);
+  return reinterpret_cast<void *>(
+      boost::winapi::get_proc_address(Handle, Name));
 #else
   return ::dlsym(Handle, Name);
 #endif

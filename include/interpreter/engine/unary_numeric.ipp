@@ -12,7 +12,7 @@ template <typename T> TypeU<T> Interpreter::runClzOp(ValVariant &Val) const {
   /// Return the count of leading zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
-    T Mask = (T)0x1U << (sizeof(T) * 8 - 1);
+    T Mask = static_cast<T>(0x1U) << (sizeof(T) * 8 - 1);
     while ((I & Mask) == 0U) {
       Cnt++;
       I <<= 1;
@@ -29,7 +29,7 @@ template <typename T> TypeU<T> Interpreter::runCtzOp(ValVariant &Val) const {
   /// Return the count of trailing zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
-    T Mask = (T)0x1U;
+    T Mask = static_cast<T>(0x1U);
     while ((I & Mask) == 0U) {
       Cnt++;
       I >>= 1;
@@ -46,7 +46,7 @@ template <typename T> TypeU<T> Interpreter::runPopcntOp(ValVariant &Val) const {
   /// Return the count of non-zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
-    T Mask = (T)0x1U;
+    T Mask = static_cast<T>(0x1U);
     while (I != 0U) {
       if (I & Mask) {
         Cnt++;

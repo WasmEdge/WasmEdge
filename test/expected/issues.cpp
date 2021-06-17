@@ -18,7 +18,7 @@ TEST(RegressionTest, Issue1) { getInt1(); }
 
 expected<int, int> operation1() { return 42; }
 
-expected<std::string, int> operation2(int const val) { return "Bananas"; }
+expected<std::string, int> operation2(int const) { return "Bananas"; }
 
 TEST(RegressionTest, Issue17) {
   auto const intermediate_result = operation1();
@@ -76,7 +76,7 @@ TEST(RegressionTest, Issue31) {
 TEST(RegressionTest, Issue33) {
   expected<void, int> res{unexpect, 0};
   EXPECT_FALSE(res);
-  res = res.map_error([](int i) { return 42; });
+  res = res.map_error([](int) { return 42; });
   EXPECT_EQ(res.error(), 42);
 }
 
@@ -106,9 +106,9 @@ TEST(RegressionTest, Issue43) {
 
 using MaybeDataPtr = expected<int, std::unique_ptr<int>>;
 
-MaybeDataPtr test(int i) noexcept { return std::move(i); }
+MaybeDataPtr test(int i) noexcept { return i; }
 
-MaybeDataPtr test2(int i) noexcept { return std::move(i); }
+MaybeDataPtr test2(int i) noexcept { return i; }
 
 TEST(RegressionTest, Issue49) { auto m = test(10).and_then(test2); }
 

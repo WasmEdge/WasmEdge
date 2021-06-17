@@ -86,6 +86,7 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   case ValType::None:
     __builtin_unreachable();
   }
+  __builtin_unreachable();
 }
 
 /// Retrieve references.

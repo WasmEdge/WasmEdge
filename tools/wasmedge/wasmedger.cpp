@@ -117,7 +117,9 @@ int main(int Argc, const char *Argv[]) {
 
   WasiMod->getEnv().init(
       Dir.value(),
-      InputPath.filename().replace_extension(std::filesystem::u8path("wasm"sv)),
+      InputPath.filename()
+          .replace_extension(std::filesystem::u8path("wasm"sv))
+          .u8string(),
       Args.value(), Env.value());
 
   if (!Reactor.value()) {

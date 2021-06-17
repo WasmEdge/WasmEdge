@@ -13,7 +13,7 @@ namespace Interpreter {
 
 /// Instantiate exports. See "include/interpreter/interpreter.h".
 Expect<void>
-Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
+Interpreter::instantiate(Runtime::StoreManager &,
                          Runtime::Instance::ModuleInstance &ModInst,
                          const AST::ExportSection &ExportSec) {
   /// Iterate and istantiate export descriptions.

@@ -57,7 +57,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 /// Initialize memory with Data Instances. See
 /// "include/interpreter/interpreter.h".
 Expect<void> Interpreter::initMemory(Runtime::StoreManager &StoreMgr,
-                                     Runtime::Instance::ModuleInstance &ModInst,
+                                     Runtime::Instance::ModuleInstance &,
                                      const AST::DataSection &DataSec) {
   /// initialize memory.
   uint32_t Idx = 0;

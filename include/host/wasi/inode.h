@@ -519,6 +519,8 @@ public:
   Poller(Poller &&RHS) noexcept = default;
   Poller &operator=(Poller &&RHS) noexcept = default;
 
+  explicit Poller(__wasi_size_t Count);
+
   WasiExpect<void> clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
                          __wasi_timestamp_t Precision,
                          __wasi_subclockflags_t Flags,
@@ -534,9 +536,6 @@ private:
   std::vector<__wasi_event_t> Events;
 
 #if WASMEDGE_OS_LINUX
-public:
-  explicit Poller(__wasi_size_t Count) noexcept;
-
 private:
   struct Timer : public FdHolder {
     Timer(const Timer &) = delete;
@@ -556,9 +555,6 @@ private:
   };
 
   std::vector<Timer> Timers;
-#elif WASMEDGE_OS_MACOS
-public:
-  explicit Poller(__wasi_size_t Count) noexcept;
 #endif
 };
 

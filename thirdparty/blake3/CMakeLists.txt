@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-enable_language(ASM-ATT)
+enable_language(ASM-ATT OPTIONAL)
 
 if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
   set(SIMD_FILES

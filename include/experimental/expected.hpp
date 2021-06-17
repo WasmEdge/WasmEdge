@@ -44,9 +44,6 @@
 #endif
 
 #if M_ENABLE_EXCEPTIONS
-# define try      try
-# define catch(X) catch(X)
-# define throw(X) throw X
 # define throw_exception_again throw
 #else
 # define try      if (true)

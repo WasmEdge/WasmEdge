@@ -21,8 +21,7 @@ WasiExpect<void> Clock::clockResGet(__wasi_clockid_t Id,
   return {};
 }
 
-WasiExpect<void> Clock::clockTimeGet(__wasi_clockid_t Id,
-                                     __wasi_timestamp_t Precision,
+WasiExpect<void> Clock::clockTimeGet(__wasi_clockid_t Id, __wasi_timestamp_t,
                                      __wasi_timestamp_t &Time) noexcept {
   timespec SysTimespec;
   if (auto Res = ::clock_gettime(toClockId(Id), &SysTimespec);

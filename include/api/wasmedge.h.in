@@ -523,7 +523,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureAddHostRegistration(
 /// Remove a host pre-registration setting in the WasmEdge_ConfigureContext.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to remove the host
-/// pre-registration. \param Prop the host pre-registration value.
+/// pre-registration. \param Host the host pre-registration value.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureRemoveHostRegistration(
     WasmEdge_ConfigureContext *Cxt, const enum WasmEdge_HostRegistration Host);
 
@@ -531,7 +531,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureRemoveHostRegistration(
 /// WasmEdge_ConfigureContext or not.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to check the host pre-registration.
-/// \param Prop the host pre-registration value.
+/// \param Host the host pre-registration value.
 ///
 /// \returns true if the host pre-registration setting exists, false if not.
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureHasHostRegistration(
@@ -726,9 +726,6 @@ WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt);
 /// The caller owns the object and should call `WasmEdge_CompilerDelete` to free
 /// it.
 ///
-/// \param ConfCxt the WasmEdge_ConfigureContext as the configuration of Loader.
-/// NULL for the default configuration.
-///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_CompilerContext *
 WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt);
@@ -737,9 +734,6 @@ WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt);
 ///
 /// The caller owns the object and should call `WasmEdge_CompilerDelete` to free
 /// it.
-///
-/// \param ConfCxt the WasmEdge_ConfigureContext as the configuration of Loader.
-/// NULL for the default configuration.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result

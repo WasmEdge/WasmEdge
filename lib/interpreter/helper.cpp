@@ -108,10 +108,12 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     /// For compiled function case, the continuation will be the next.
     return From;
   } else {
+    const auto ArgsN = static_cast<uint32_t>(FuncType.Params.size());
+    const auto RetsN = static_cast<uint32_t>(FuncType.Returns.size());
     /// Native function case: Push frame with locals and args.
-    StackMgr.pushFrame(Func.getModuleAddr(),   /// Module address
-                       FuncType.Params.size(), /// Arguments num
-                       FuncType.Returns.size() /// Returns num
+    StackMgr.pushFrame(Func.getModuleAddr(), /// Module address
+                       ArgsN,                /// Arguments num
+                       RetsN                 /// Returns num
     );
 
     /// Push local variables to stack.

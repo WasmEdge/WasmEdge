@@ -168,7 +168,7 @@ public:
   /// Note: This returns similar flags to `fsync(fd, F_GETFL)` in POSIX, as well
   ///
   /// as additional fields.
-  /// @param[out] FdStat
+  /// @param[out] FdStat Result.
   /// @return Nothing or WASI error
   WasiExpect<void> fdFdstatGet(__wasi_fdstat_t &FdStat) const noexcept;
 
@@ -182,7 +182,7 @@ public:
 
   /// Return the attributes of an open file.
   ///
-  /// @param[out] Filestat
+  /// @param[out] Filestat Result.
   /// @return Nothing or WASI error
   WasiExpect<void> fdFilestatGet(__wasi_filestat_t &Filestat) const noexcept;
 
@@ -280,8 +280,6 @@ public:
   ///
   /// Note: This is similar to `fsync` in POSIX.
   ///
-  /// @param[out] Size The new offset of the file descriptor, relative to the
-  /// start of the file.
   /// @return Nothing or WASI error
   WasiExpect<void> fdSync() const noexcept;
 

@@ -22,9 +22,9 @@ public:
 
   /// Flags for open path
   enum VFSFlags : uint8_t {
-    Read = 1,       //< Open for read.
-    Write = 2,      //< Open for write.
-    AllowEmpty = 4, //< Allow empty path for self reference.
+    Read = 1,       ///< Open for read.
+    Write = 2,      ///< Open for write.
+    AllowEmpty = 4, ///< Allow empty path for self reference.
   };
 };
 

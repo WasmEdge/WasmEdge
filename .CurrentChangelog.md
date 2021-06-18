@@ -27,7 +27,7 @@ Fixed issues:
 
 Refactor:
 
-* Updated manylinux* dockerfiles.
+* Updated manylinux\* dockerfiles.
   * Upgraded gcc to `11.1.0`.
   * Upgraded llvm to `11.1.0`.
   * Upgraded boost to `1.76`.

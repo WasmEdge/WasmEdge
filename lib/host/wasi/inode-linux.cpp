@@ -923,7 +923,7 @@ static void sigevCallback(union sigval Value) noexcept {
 
 WasiExpect<void> Poller::Timer::create(__wasi_clockid_t Clock,
                                        __wasi_timestamp_t Timeout,
-                                       __wasi_timestamp_t Precision,
+                                       __wasi_timestamp_t,
                                        __wasi_subclockflags_t Flags) noexcept {
   FdHolder Timer, Notify;
   {

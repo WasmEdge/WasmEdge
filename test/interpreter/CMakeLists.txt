@@ -6,6 +6,11 @@ add_executable(wasmedgeInterpreterCoreTests
 
 add_test(wasmedgeInterpreterCoreTests wasmedgeInterpreterCoreTests)
 
+target_compile_options(wasmedgeInterpreterCoreTests
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
+
 target_link_libraries(wasmedgeInterpreterCoreTests
   PRIVATE
   std::filesystem

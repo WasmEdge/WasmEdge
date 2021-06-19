@@ -86,7 +86,7 @@ public:
   using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];
 
   /// The node type should be ASTNodeAttr::Module.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Module;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Module;
 
 private:
   /// \name Data of Module node.

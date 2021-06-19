@@ -98,7 +98,7 @@ protected:
 class CustomSection : public Section {
 public:
   /// The node type should be ASTNodeAttr::Sec_Custom.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Custom;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Custom;
 
 protected:
   /// Overrided content loading of custom section.
@@ -119,7 +119,7 @@ public:
   std::vector<FunctionType> &getContent() { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Type.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Type;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Type;
 
 protected:
   /// Overrided content loading of type section.
@@ -137,7 +137,7 @@ public:
   Span<const ImportDesc> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Import.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Import;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Import;
 
 protected:
   /// Overrided content loading of import section.
@@ -155,7 +155,8 @@ public:
   Span<const uint32_t> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Function.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Function;
+  static inline constexpr const ASTNodeAttr NodeAttr =
+      ASTNodeAttr::Sec_Function;
 
 protected:
   /// Overrided content loading of function section.
@@ -173,7 +174,7 @@ public:
   Span<const TableType> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Table.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Table;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Table;
 
 protected:
   /// Overrided content loading of table section.
@@ -191,7 +192,7 @@ public:
   Span<const MemoryType> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Memory.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Memory;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Memory;
 
 protected:
   /// Overrided content loading of memory section.
@@ -209,7 +210,7 @@ public:
   Span<const GlobalSegment> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Global.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Global;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Global;
 
 protected:
   /// Overrided content loading of global section.
@@ -227,7 +228,7 @@ public:
   Span<const ExportDesc> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Export.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Export;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Export;
 
 protected:
   /// Overrided content loading of export section.
@@ -245,7 +246,7 @@ public:
   std::optional<uint32_t> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Start.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Start;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Start;
 
 protected:
   /// Overrided content loading of start section.
@@ -263,7 +264,7 @@ public:
   Span<const ElementSegment> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Element.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Element;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Element;
 
 protected:
   /// Overrided content loading of element section.
@@ -284,7 +285,7 @@ public:
   std::vector<CodeSegment> &getContent() { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Code.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Code;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Code;
 
 protected:
   /// Overrided content loading of code section.
@@ -302,7 +303,7 @@ public:
   Span<const DataSegment> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_Data.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Data;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Data;
 
 protected:
   /// Overrided content loading of data section.
@@ -320,7 +321,8 @@ public:
   std::optional<uint32_t> getContent() const { return Content; }
 
   /// The node type should be ASTNodeAttr::Sec_DataCount.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_DataCount;
+  static inline constexpr const ASTNodeAttr NodeAttr =
+      ASTNodeAttr::Sec_DataCount;
 
 protected:
   /// Overrided content loading of custom section.

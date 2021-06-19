@@ -59,7 +59,8 @@ public:
   WasiExpect<void> argsGet(Span<uint8_t_ptr> Argv,
                            Span<uint8_t> ArgvBuffer) const noexcept {
     for (const auto &Argument : Arguments) {
-      const auto Size = Argument.size() + 1;
+      const __wasi_size_t Size =
+          static_cast<__wasi_size_t>(Argument.size()) + UINT32_C(1);
       std::copy_n(Argument.begin(), Size, ArgvBuffer.begin());
       ArgvBuffer = ArgvBuffer.subspan(Size);
       Argv[1] = Argv[0] + Size;
@@ -77,10 +78,10 @@ public:
   /// @return Nothing or WASI error
   WasiExpect<void> argsSizesGet(__wasi_size_t &Argc,
                                 __wasi_size_t &ArgvSize) const noexcept {
-    Argc = Arguments.size();
+    Argc = static_cast<__wasi_size_t>(Arguments.size());
     ArgvSize = 0;
     for (const auto &Argument : Arguments) {
-      ArgvSize += Argument.size() + 1;
+      ArgvSize += static_cast<__wasi_size_t>(Argument.size()) + UINT32_C(1);
     }
 
     return {};
@@ -100,7 +101,8 @@ public:
   WasiExpect<void> environGet(Span<uint8_t_ptr> Env,
                               Span<uint8_t> EnvBuffer) const noexcept {
     for (const auto &EnvironVariable : EnvironVariables) {
-      const auto Size = EnvironVariable.size() + 1;
+      const __wasi_size_t Size =
+          static_cast<__wasi_size_t>(EnvironVariable.size()) + UINT32_C(1);
       std::copy_n(EnvironVariable.begin(), Size, EnvBuffer.begin());
       EnvBuffer = EnvBuffer.subspan(Size);
       Env[1] = Env[0] + Size;
@@ -118,10 +120,11 @@ public:
   /// @return Nothing or WASI error
   WasiExpect<void> environSizesGet(__wasi_size_t &Envc,
                                    __wasi_size_t &EnvSize) const noexcept {
-    Envc = EnvironVariables.size();
+    Envc = static_cast<__wasi_size_t>(EnvironVariables.size());
     EnvSize = 0;
     for (const auto &EnvironVariable : EnvironVariables) {
-      EnvSize += EnvironVariable.size() + 1;
+      EnvSize +=
+          static_cast<__wasi_size_t>(EnvironVariable.size()) + UINT32_C(1);
     }
 
     return {};
@@ -199,7 +202,7 @@ public:
   ///
   /// @return Nothing or WASI error
   WasiExpect<void> fdClose(__wasi_fd_t Fd) noexcept {
-    std::unique_lock lock(FdMutex);
+    std::unique_lock<std::shared_mutex> lock(FdMutex);
     if (auto It = FdMap.find(Fd); It == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else if (It->second->isPreopened()) {
@@ -363,7 +366,7 @@ public:
         return WasiUnexpect(__WASI_ERRNO_INVAL);
       } else {
         PreStat.tag = __WASI_PREOPENTYPE_DIR;
-        PreStat.u.dir.pr_name_len = Path.size();
+        PreStat.u.dir.pr_name_len = static_cast<__wasi_size_t>(Path.size());
       }
     }
     return {};
@@ -472,7 +475,7 @@ public:
   /// @param[in] To The file descriptor to overwrite.
   /// @return Nothing or WASI error
   WasiExpect<void> fdRenumber(__wasi_fd_t Fd, __wasi_fd_t To) noexcept {
-    std::unique_lock lock(FdMutex);
+    std::unique_lock<std::shared_mutex> lock(FdMutex);
     if (auto It = FdMap.find(Fd); It == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else if (auto It2 = FdMap.find(To); It2 == FdMap.end()) {
@@ -684,7 +687,7 @@ public:
     __wasi_fd_t NewFd;
     while (!Success) {
       NewFd = Distribution(Engine);
-      std::unique_lock lock(FdMutex);
+      std::unique_lock<std::shared_mutex> lock(FdMutex);
       Success = FdMap.emplace(NewFd, Node).second;
     }
     return NewFd;
@@ -914,7 +917,7 @@ private:
   friend class EVPoller;
 
   std::shared_ptr<VINode> getNodeOrNull(__wasi_fd_t Fd) const {
-    std::shared_lock lock(FdMutex);
+    std::shared_lock<std::shared_mutex> lock(FdMutex);
     if (auto It = FdMap.find(Fd); It != FdMap.end()) {
       return It->second;
     }

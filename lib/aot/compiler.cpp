@@ -681,11 +681,14 @@ public:
       }
       case OpCode::Br_table: {
         const auto &LabelTable = Instr.getLabelList();
+        assert(LabelTable.size() <= std::numeric_limits<uint32_t>::max());
+        const uint32_t LabelTableSize =
+            static_cast<uint32_t>(LabelTable.size());
         auto *Value = stackPop();
         setLableJumpPHI(Instr.getTargetIndex());
         auto *Switch = Builder.CreateSwitch(
-            Value, getLabel(Instr.getTargetIndex()), LabelTable.size());
-        for (size_t I = 0; I < LabelTable.size(); ++I) {
+            Value, getLabel(Instr.getTargetIndex()), LabelTableSize);
+        for (uint32_t I = 0; I < LabelTableSize; ++I) {
           setLableJumpPHI(LabelTable[I]);
           Switch->addCase(Builder.getInt32(I), getLabel(LabelTable[I]));
         }
@@ -1065,7 +1068,7 @@ public:
         break;
       case OpCode::F32__nearest:
       case OpCode::F64__nearest: {
-#if LLVM_VERSION_MAJOR >= 11
+#if LLVM_VERSION_MAJOR >= 11 && !WASMEDGE_OS_WINDOWS
         stackPush(Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven,
                                                stackPop()));
 #else
@@ -2840,8 +2843,9 @@ private:
     auto *FTy = toLLVMType(Context.ExecCtxPtrTy, FuncType);
     auto *RTy = FTy->getReturnType();
 
-    const auto ArgSize = FuncType.getParamTypes().size();
-    const auto RetSize = RTy->isVoidTy() ? 0 : FuncType.getReturnTypes().size();
+    const size_t ArgSize = FuncType.getParamTypes().size();
+    const size_t RetSize =
+        RTy->isVoidTy() ? 0 : FuncType.getReturnTypes().size();
 
     llvm::Value *Args;
     if (ArgSize == 0) {
@@ -2863,8 +2867,8 @@ private:
       Rets = Alloca;
     }
 
-    for (unsigned I = 0; I < ArgSize; ++I) {
-      const unsigned J = ArgSize - 1 - I;
+    for (size_t I = 0; I < ArgSize; ++I) {
+      const size_t J = ArgSize - 1 - I;
       auto *Arg = stackPop();
       auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Args, J * kValSize);
       Builder.CreateStore(
@@ -3086,7 +3090,7 @@ private:
   }
   template <typename Func>
   void compileVectorShiftOp(llvm::VectorType *VectorTy, Func &&Op) {
-    const uint64_t Mask = VectorTy->getElementType()->getIntegerBitWidth() - 1;
+    const uint32_t Mask = VectorTy->getElementType()->getIntegerBitWidth() - 1;
     auto *N = Builder.CreateAnd(stackPop(), Builder.getInt32(Mask));
     auto *RHS = Builder.CreateVectorSplat(
         elementCount(VectorTy),
@@ -3631,7 +3635,8 @@ private:
       Builder.CreateUnreachable();
     }
     Builder.SetInsertPoint(NextBlock);
-    Stack.erase(Stack.begin() + Entry.StackSize, Stack.end());
+    Stack.erase(Stack.begin() + static_cast<int64_t>(Entry.StackSize),
+                Stack.end());
     clearUnreachable();
     return Entry;
   }
@@ -3662,7 +3667,8 @@ private:
       const auto &Types = toLLVMTypeVector(LLContext, RetType);
       Nodes.reserve(Types.size());
       for (size_t I = 0; I < Types.size(); ++I) {
-        auto *PHIRet = Builder.CreatePHI(Types[I], Incomings.size());
+        auto *PHIRet = Builder.CreatePHI(
+            Types[I], static_cast<uint32_t>(Incomings.size()));
         for (auto &[Value, BB] : Incomings) {
           assert(Value.size() == Types.size());
           PHIRet->addIncoming(Value[I], BB);
@@ -3927,7 +3933,8 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
       llvm::ModulePassManager MPM(false);
-      if (Conf.getCompilerConfigure().getOptimizationLevel() == CompilerConfigure::OptimizationLevel::O0) {
+      if (Conf.getCompilerConfigure().getOptimizationLevel() ==
+          CompilerConfigure::OptimizationLevel::O0) {
         MPM.addPass(llvm::AlwaysInlinerPass(false));
       } else {
         MPM.addPass(PB.buildPerModuleDefaultPipeline(
@@ -4086,7 +4093,7 @@ void Compiler::compile(const AST::TypeSection &TypeSection) {
       Args.reserve(FTy->getNumParams());
       Args.push_back(ExecCtxPtr);
       for (size_t J = 0; J < ArgCount; ++J) {
-        auto *ArgTy = FTy->getParamType(J + 1);
+        auto *ArgTy = FTy->getParamType(static_cast<uint32_t>(J + 1));
         llvm::Value *VPtr =
             Builder.CreateConstInBoundsGEP1_64(RawArgs, J * kValSize);
         llvm::Value *Ptr = Builder.CreateBitCast(VPtr, ArgTy->getPointerTo());
@@ -4135,7 +4142,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
     switch (ExtType) {
     case ExternalType::Function: /// Function type index
     {
-      const auto FuncID = Context->Functions.size();
+      const auto FuncID = static_cast<uint32_t>(Context->Functions.size());
       /// Get the function type index in module.
       uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
       assert(TypeIdx < Context->FunctionTypes.size());
@@ -4212,7 +4219,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
               VPtr, RTy->getStructElementType(I)->getPointerTo());
           Ret.push_back(Builder.CreateLoad(Ptr));
         }
-        Builder.CreateAggregateRet(Ret.data(), RetSize);
+        Builder.CreateAggregateRet(Ret.data(), static_cast<uint32_t>(RetSize));
       }
 
       Context->Functions.emplace_back(TypeIdx, F, nullptr);
@@ -4314,7 +4321,8 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
         Locals.push_back(Local.second);
       }
     }
-    FunctionCompiler FC(*Context, F, Locals, Conf.getCompilerConfigure().isInstructionCounting(),
+    FunctionCompiler FC(*Context, F, Locals,
+                        Conf.getCompilerConfigure().isInstructionCounting(),
                         Conf.getCompilerConfigure().isCostMeasuring(),
                         Conf.getCompilerConfigure().getOptimizationLevel() ==
                             CompilerConfigure::OptimizationLevel::O0);

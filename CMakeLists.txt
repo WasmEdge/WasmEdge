@@ -59,46 +59,40 @@ if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo
 endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
-add_compile_options(-Wall -Wextra -Werror -Wno-error=pedantic)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  add_compile_options(-Wno-psabi)
-endif()
+list(APPEND WASMEDGE_CFLAGS
+  -Wall
+  -Wextra
+  -Werror
+  -Wno-error=pedantic
+  -Wno-psabi
+)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  add_compile_options(-Wno-psabi -Wno-c++20-designator -Wno-keyword-macro -Wno-c99-extensions)
+  list(APPEND WASMEDGE_CFLAGS
+    -Wno-c++20-designator
+    -Wno-c99-extensions
+    -Wno-covered-switch-default
+    -Wno-documentation-unknown-command
+    -Wno-keyword-macro
+    -Wno-newline-eof
+    -Wno-return-std-move-in-c++11
+    -Wno-shadow-field-in-constructor
+    -Wno-signed-enum-bitfield
+    -Wno-switch-enum
+    -Wno-undefined-func-template
+  )
 endif()
 
 if(WIN32)
   add_definitions(-D_ENABLE_EXTENDED_ALIGNED_STORAGE -DNOMINMAX -D_ITERATOR_DEBUG_LEVEL=0)
-  add_compile_options(
-    "/arch:x64"
+  list(APPEND WASMEDGE_CFLAGS
     "/EHa"
     -Wno-c++98-compat
     -Wno-c++98-compat-pedantic
-    -Wno-covered-switch-default
-    -Wno-ctad-maybe-unsupported
-    -Wno-disabled-macro-expansion
-    -Wno-documentation-unknown-command
     -Wno-exit-time-destructors
-    -Wno-float-equal
     -Wno-global-constructors
-    -Wno-gnu-zero-variadic-macro-arguments
-    -Wno-implicit-float-conversion
-    -Wno-implicit-int-conversion
-    -Wno-newline-eof
+    -Wno-used-but-marked-unused
     -Wno-nonportable-system-include-path
-    -Wno-return-std-move-in-c++11
-    -Wno-shadow-field
-    -Wno-shadow-field-in-constructor
-    -Wno-shorten-64-to-32
-    -Wno-sign-conversion
-    -Wno-signed-enum-bitfield
-    -Wno-suggest-destructor-override
-    -Wno-suggest-override
-    -Wno-switch-enum
-    -Wno-undefined-func-template
-    -Wno-unreachable-code-break
-    -Wno-unused-command-line-argument
-    -Wno-unused-parameter
+    -Wno-float-equal
   )
 endif()
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")

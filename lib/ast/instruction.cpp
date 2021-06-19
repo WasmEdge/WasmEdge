@@ -9,7 +9,7 @@ namespace AST {
 namespace {
 
 Expect<void> checkInstrProposals(OpCode Code, const Configure &Conf,
-                                 uint32_t Offset) {
+                                 uint64_t Offset) {
   if ((Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
       (Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||
       (Code >= OpCode::Memory__init && Code <= OpCode::Memory__fill)) {
@@ -132,7 +132,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     if (auto Res = readU32(TargetIdx); !Res) {
       return Unexpect(Res);
     }
-    uint32_t SrcIdxOffset = Mgr.getOffset();
+    uint64_t SrcIdxOffset = Mgr.getOffset();
     /// Read the table index.
     if (auto Res = readU32(SourceIdx); !Res) {
       return Unexpect(Res);
@@ -801,7 +801,7 @@ Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const Configure &Conf) {
   /// Read opcode until the End code of the top block.
   do {
     /// Read the opcode and check if error.
-    uint32_t Offset = Mgr.getOffset();
+    uint64_t Offset = Mgr.getOffset();
     if (auto Res = loadOpCode(Mgr, Conf)) {
       Code = *Res;
     } else {

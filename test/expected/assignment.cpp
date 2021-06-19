@@ -2,16 +2,13 @@
 #include "gtest/gtest.h"
 #include <experimental/expected.hpp>
 
-using cxx20::expected;
-using cxx20::unexpected;
-
 TEST(AssignmentTest, SimpleAssignment) {
-  expected<int, int> e1 = 42;
-  expected<int, int> e2 = 17;
-  expected<int, int> e3 = 21;
-  expected<int, int> e4 = unexpected(42);
-  expected<int, int> e5 = unexpected(17);
-  expected<int, int> e6 = unexpected(21);
+  cxx20::expected<int, int> e1 = 42;
+  cxx20::expected<int, int> e2 = 17;
+  cxx20::expected<int, int> e3 = 21;
+  cxx20::expected<int, int> e4 = cxx20::unexpected(42);
+  cxx20::expected<int, int> e5 = cxx20::unexpected(17);
+  cxx20::expected<int, int> e6 = cxx20::unexpected(21);
 
   e1 = e2;
   EXPECT_TRUE(e1);
@@ -29,12 +26,12 @@ TEST(AssignmentTest, SimpleAssignment) {
   EXPECT_TRUE(e1);
   EXPECT_EQ(*e1, 42);
 
-  auto unex = unexpected(12);
+  auto unex = cxx20::unexpected(12);
   e1 = unex;
   EXPECT_FALSE(e1);
   EXPECT_EQ(e1.error(), 12);
 
-  e1 = unexpected(42);
+  e1 = cxx20::unexpected(42);
   EXPECT_FALSE(e1);
   EXPECT_EQ(e1.error(), 42);
 
@@ -57,23 +54,24 @@ TEST(AssignmentTest, SimpleAssignment) {
 
 TEST(AssignmentTest, AssignmentDeletion) {
   struct has_all {
-    has_all() noexcept = default;
+    [[maybe_unused]] has_all() noexcept = default;
     has_all(const has_all &) noexcept = default;
-    has_all(has_all &&) noexcept = default;
+    [[maybe_unused]] has_all(has_all &&) noexcept = default;
     has_all &operator=(const has_all &) noexcept = default;
   };
 
-  EXPECT_TRUE((std::is_assignable_v<expected<has_all, has_all> &,
-                                    expected<has_all, has_all>>));
+  EXPECT_TRUE((std::is_assignable_v<cxx20::expected<has_all, has_all> &,
+                                    cxx20::expected<has_all, has_all>>));
 
   struct except_move {
-    except_move() noexcept = default;
+    [[maybe_unused]] except_move() noexcept = default;
     except_move(const except_move &) noexcept = default;
-    except_move(except_move &&) noexcept(false) {}
+    [[maybe_unused]] except_move(except_move &&) noexcept(false) {}
     except_move &operator=(const except_move &) noexcept = default;
   };
-  EXPECT_FALSE((std::is_assignable_v<expected<except_move, except_move> &,
-                                     expected<except_move, except_move>>));
+  EXPECT_FALSE(
+      (std::is_assignable_v<cxx20::expected<except_move, except_move> &,
+                            cxx20::expected<except_move, except_move>>));
 }
 
 TEST(AssignmentTest, AssignmentThrowRecovery) {
@@ -81,15 +79,15 @@ TEST(AssignmentTest, AssignmentThrowRecovery) {
     int v;
     throw_move(int v) noexcept : v(v) {}
     throw_move(const throw_move &) noexcept = default;
-    throw_move(throw_move &&) noexcept(false) { throw 0; }
+    [[noreturn]] throw_move(throw_move &&) noexcept(false) { throw 0; }
     throw_move &operator=(const throw_move &) noexcept = default;
     throw_move &operator=(throw_move &&) noexcept(false) { throw 0; }
   };
 
   {
-    expected<throw_move, int> e1 = 1;
-    expected<throw_move, int> e2 = 2;
-    expected<throw_move, int> e3 = unexpected(3);
+    cxx20::expected<throw_move, int> e1 = 1;
+    cxx20::expected<throw_move, int> e2 = 2;
+    cxx20::expected<throw_move, int> e3 = cxx20::unexpected(3);
 
     EXPECT_TRUE(e1);
     EXPECT_EQ(e1->v, 1);
@@ -111,9 +109,9 @@ TEST(AssignmentTest, AssignmentThrowRecovery) {
   }
 
   {
-    expected<throw_move, int> e1 = 1;
-    expected<throw_move, int> e2 = 2;
-    expected<throw_move, int> e3 = unexpected(3);
+    cxx20::expected<throw_move, int> e1 = 1;
+    cxx20::expected<throw_move, int> e2 = 2;
+    cxx20::expected<throw_move, int> e3 = cxx20::unexpected(3);
 
     EXPECT_TRUE(e1);
     EXPECT_EQ(e1->v, 1);

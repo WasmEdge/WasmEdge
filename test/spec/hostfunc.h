@@ -88,7 +88,7 @@ public:
                   std::make_unique<Runtime::Instance::GlobalInstance>(
                       ValType::F64, ValMut::Const, double(666)));
   }
-  virtual ~SpecTestModule() = default;
+  ~SpecTestModule() noexcept override = default;
 };
 
 } // namespace WasmEdge

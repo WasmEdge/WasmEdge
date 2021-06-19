@@ -70,7 +70,7 @@ WasmEdge_Result SpecTestPrintF64F64(void *Data __attribute__((unused)),
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_ImportObjectContext *createSpecTestModule() {
+WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   WasmEdge_String HostName;
   WasmEdge_FunctionTypeContext *HostFType = NULL;
   WasmEdge_HostFunctionContext *HostFunc = NULL;

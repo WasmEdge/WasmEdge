@@ -5,6 +5,11 @@ add_library(wasmedgeHostModuleWasmEdgeProcess
   processmodule.cpp
 )
 
+target_compile_options(wasmedgeHostModuleWasmEdgeProcess
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
+
 target_link_libraries(wasmedgeHostModuleWasmEdgeProcess
   PUBLIC
   wasmedgeAST

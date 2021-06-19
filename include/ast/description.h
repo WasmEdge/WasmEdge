@@ -62,7 +62,7 @@ public:
   const GlobalType &getExternalGlobalType() const { return GlobType; }
 
   /// The node type should be ASTNodeAttr::Desc_Import.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Desc_Import;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Desc_Import;
 
 private:
   /// \name Data of ImportDesc: Module name, External name, and content node.
@@ -96,7 +96,7 @@ public:
   uint32_t getExternalIndex() const { return ExtIdx; }
 
   /// The node type should be ASTNodeAttr::Desc_Export.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Desc_Export;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Desc_Export;
 
 private:
   /// \name Data of ExportDesc: External name and external index.

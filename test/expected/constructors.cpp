@@ -5,10 +5,6 @@
 #include <type_traits>
 #include <vector>
 
-using cxx20::expected;
-using cxx20::unexpect;
-using cxx20::unexpected;
-
 struct takes_init_and_variadic {
   std::vector<int> v;
   std::tuple<int, int> t;
@@ -19,45 +15,46 @@ struct takes_init_and_variadic {
 
 TEST(ConstructorsTest, Constructors) {
   {
-    expected<int, int> e;
+    cxx20::expected<int, int> e;
     EXPECT_TRUE(e);
     EXPECT_EQ(e, 0);
   }
 
   {
-    expected<int, int> e = unexpected(0);
+    cxx20::expected<int, int> e = cxx20::unexpected(0);
     EXPECT_FALSE(e);
     EXPECT_EQ(e.error(), 0);
   }
 
   {
-    expected<int, int> e(unexpect, 0);
+    cxx20::expected<int, int> e(cxx20::unexpect, 0);
     EXPECT_FALSE(e);
     EXPECT_EQ(e.error(), 0);
   }
 
   {
-    expected<int, int> e(std::in_place, 42);
+    cxx20::expected<int, int> e(std::in_place, 42);
     EXPECT_TRUE(e);
     EXPECT_EQ(e, 42);
   }
 
   {
-    expected<std::vector<int>, int> e(std::in_place, {0, 1});
+    cxx20::expected<std::vector<int>, int> e(std::in_place, {0, 1});
     EXPECT_TRUE(e);
     EXPECT_EQ((*e)[0], 0);
     EXPECT_EQ((*e)[1], 1);
   }
 
   {
-    expected<std::tuple<int, int>, int> e(std::in_place, 0, 1);
+    cxx20::expected<std::tuple<int, int>, int> e(std::in_place, 0, 1);
     EXPECT_TRUE(e);
     EXPECT_EQ(std::get<0>(*e), 0);
     EXPECT_EQ(std::get<1>(*e), 1);
   }
 
   {
-    expected<takes_init_and_variadic, int> e(std::in_place, {0, 1}, 2, 3);
+    cxx20::expected<takes_init_and_variadic, int> e(std::in_place, {0, 1}, 2,
+                                                    3);
     EXPECT_TRUE(e);
     EXPECT_EQ(e->v[0], 0);
     EXPECT_EQ(e->v[1], 1);
@@ -66,7 +63,7 @@ TEST(ConstructorsTest, Constructors) {
   }
 
   {
-    expected<int, int> e;
+    cxx20::expected<int, int> e;
     EXPECT_TRUE(std::is_default_constructible_v<decltype(e)>);
     EXPECT_TRUE(std::is_copy_constructible_v<decltype(e)>);
     EXPECT_TRUE(std::is_move_constructible_v<decltype(e)>);
@@ -79,7 +76,7 @@ TEST(ConstructorsTest, Constructors) {
   }
 
   {
-    expected<int, std::string> e;
+    cxx20::expected<int, std::string> e;
     EXPECT_TRUE(std::is_default_constructible_v<decltype(e)>);
     EXPECT_TRUE(std::is_copy_constructible_v<decltype(e)>);
     EXPECT_TRUE(std::is_move_constructible_v<decltype(e)>);
@@ -92,7 +89,7 @@ TEST(ConstructorsTest, Constructors) {
   }
 
   {
-    expected<std::string, int> e;
+    cxx20::expected<std::string, int> e;
     EXPECT_TRUE(std::is_default_constructible_v<decltype(e)>);
     EXPECT_TRUE(std::is_copy_constructible_v<decltype(e)>);
     EXPECT_TRUE(std::is_move_constructible_v<decltype(e)>);
@@ -105,7 +102,7 @@ TEST(ConstructorsTest, Constructors) {
   }
 
   {
-    expected<std::string, std::string> e;
+    cxx20::expected<std::string, std::string> e;
     EXPECT_TRUE(std::is_default_constructible_v<decltype(e)>);
     EXPECT_TRUE(std::is_copy_constructible_v<decltype(e)>);
     EXPECT_TRUE(std::is_move_constructible_v<decltype(e)>);
@@ -118,12 +115,12 @@ TEST(ConstructorsTest, Constructors) {
   }
 
   {
-    expected<void, int> e;
+    cxx20::expected<void, int> e;
     EXPECT_TRUE(e);
   }
 
   {
-    expected<void, int> e(unexpect, 42);
+    cxx20::expected<void, int> e(cxx20::unexpect, 42);
     EXPECT_FALSE(e);
     EXPECT_EQ(e.error(), 42);
   }

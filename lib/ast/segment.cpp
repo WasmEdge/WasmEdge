@@ -50,7 +50,7 @@ Expect<void> ElementSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// vec(expr): reference init list, vec(expr)
 
   /// Read the checking byte.
-  uint8_t Check;
+  uint32_t Check;
   if (auto Res = Mgr.readU32()) {
     Check = *Res;
   } else {
@@ -284,7 +284,7 @@ Expect<void> DataSegment::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// vec(byte): init data, vec(u8)
 
   /// Read the checking byte.
-  uint8_t Check;
+  uint32_t Check;
   if (auto Res = Mgr.readU32()) {
     Check = *Res;
   } else {

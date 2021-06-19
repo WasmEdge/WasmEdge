@@ -12,6 +12,11 @@ configure_files(
   COPYONLY
 )
 
+target_compile_options(wasmedgeExternrefTests
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
+
 target_link_libraries(wasmedgeExternrefTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}

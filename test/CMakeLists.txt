@@ -11,7 +11,32 @@ else()
     GIT_SHALLOW    TRUE
   )
   set(BUILD_GMOCK OFF)
+  get_property(
+    compile_options
+    DIRECTORY
+    PROPERTY COMPILE_OPTIONS
+  )
+  set_property(
+    DIRECTORY
+    APPEND
+    PROPERTY COMPILE_OPTIONS
+    ${WASMEDGE_CFLAGS}
+    -Wno-language-extension-token
+    -Wno-missing-noreturn
+    -Wno-shift-sign-overflow
+    -Wno-suggest-destructor-override
+    -Wno-suggest-override
+    -Wno-undef
+    -Wno-unused-member-function
+    -Wno-zero-as-null-pointer-constant
+  )
   FetchContent_MakeAvailable(GTest)
+  set_property(
+    DIRECTORY
+    PROPERTY COMPILE_OPTIONS
+    ${compile_options}
+  )
+  unset(compile_options)
   set(GTEST_BOTH_LIBRARIES "gtest;gtest_main")
 endif()
 

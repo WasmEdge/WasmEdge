@@ -5,9 +5,6 @@
 #include <tuple>
 #include <vector>
 
-using cxx20::expected;
-using cxx20::unexpected;
-
 namespace {
 struct takes_init_and_variadic {
   std::vector<int> v;
@@ -20,14 +17,14 @@ struct takes_init_and_variadic {
 
 TEST(EmplaceTest, Emplace) {
   {
-    expected<std::unique_ptr<int>, int> e;
+    cxx20::expected<std::unique_ptr<int>, int> e;
     e.emplace(new int{42});
     EXPECT_TRUE(e);
     EXPECT_EQ(**e, 42);
   }
 
   {
-    expected<std::vector<int>, int> e;
+    cxx20::expected<std::vector<int>, int> e;
     e.emplace({0, 1});
     EXPECT_TRUE(e);
     EXPECT_EQ((*e)[0], 0);
@@ -35,7 +32,7 @@ TEST(EmplaceTest, Emplace) {
   }
 
   {
-    expected<std::tuple<int, int>, int> e;
+    cxx20::expected<std::tuple<int, int>, int> e;
     e.emplace(2, 3);
     EXPECT_TRUE(e);
     EXPECT_EQ(std::get<0>(*e), 2);
@@ -43,7 +40,7 @@ TEST(EmplaceTest, Emplace) {
   }
 
   {
-    expected<takes_init_and_variadic, int> e = unexpected(0);
+    cxx20::expected<takes_init_and_variadic, int> e = cxx20::unexpected(0);
     e.emplace({0, 1}, 2, 3);
     EXPECT_TRUE(e);
     EXPECT_EQ(e->v[0], 0);

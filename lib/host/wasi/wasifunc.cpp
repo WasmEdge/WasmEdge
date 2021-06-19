@@ -17,11 +17,12 @@ namespace Host {
 namespace {
 
 template <typename Container>
-inline uint32_t calculateBufferSize(const Container &Array) noexcept {
-  std::vector<uint32_t> Lengths(Array.size());
+inline __wasi_size_t calculateBufferSize(const Container &Array) noexcept {
+  std::vector<__wasi_size_t> Lengths(Array.size());
   std::transform(Array.begin(), Array.end(), Lengths.begin(),
-                 [](const auto &String) -> uint32_t {
-                   return String.size() + UINT32_C(1);
+                 [](const auto &String) -> __wasi_size_t {
+                   return static_cast<__wasi_size_t>(String.size()) +
+                          UINT32_C(1);
                  });
   return std::accumulate(Lengths.begin(), Lengths.end(), UINT32_C(0));
 }
@@ -36,12 +37,12 @@ template <> struct WasiRawType<uint64_t> { using Type = uint64_t; };
 
 template <typename T> using WasiRawTypeT = typename WasiRawType<T>::Type;
 
-template <typename T> WASI::WasiExpect<T> cast(WasiRawTypeT<T>) noexcept;
+template <typename T> WASI::WasiExpect<T> cast(uint64_t) noexcept;
 
 template <>
 WASI::WasiExpect<__wasi_clockid_t>
-cast<__wasi_clockid_t>(WasiRawTypeT<__wasi_clockid_t> ClockId) noexcept {
-  switch (ClockId) {
+cast<__wasi_clockid_t>(uint64_t ClockId) noexcept {
+  switch (static_cast<WasiRawTypeT<__wasi_clockid_t>>(ClockId)) {
   case __WASI_CLOCKID_REALTIME:
   case __WASI_CLOCKID_MONOTONIC:
   case __WASI_CLOCKID_PROCESS_CPUTIME_ID:
@@ -54,8 +55,8 @@ cast<__wasi_clockid_t>(WasiRawTypeT<__wasi_clockid_t> ClockId) noexcept {
 
 template <>
 WASI::WasiExpect<__wasi_advice_t>
-cast<__wasi_advice_t>(WasiRawTypeT<__wasi_advice_t> Advice) noexcept {
-  switch (Advice) {
+cast<__wasi_advice_t>(uint64_t Advice) noexcept {
+  switch (WasiRawTypeT<__wasi_advice_t>(Advice)) {
   case __WASI_ADVICE_NORMAL:
   case __WASI_ADVICE_SEQUENTIAL:
   case __WASI_ADVICE_RANDOM:
@@ -70,8 +71,8 @@ cast<__wasi_advice_t>(WasiRawTypeT<__wasi_advice_t> Advice) noexcept {
 
 template <>
 WASI::WasiExpect<__wasi_whence_t>
-cast<__wasi_whence_t>(WasiRawTypeT<__wasi_whence_t> Whence) noexcept {
-  switch (Whence) {
+cast<__wasi_whence_t>(uint64_t Whence) noexcept {
+  switch (WasiRawTypeT<__wasi_whence_t>(Whence)) {
   case __WASI_WHENCE_SET:
   case __WASI_WHENCE_CUR:
   case __WASI_WHENCE_END:
@@ -83,8 +84,8 @@ cast<__wasi_whence_t>(WasiRawTypeT<__wasi_whence_t> Whence) noexcept {
 
 template <>
 WASI::WasiExpect<__wasi_eventtype_t>
-cast<__wasi_eventtype_t>(WasiRawTypeT<__wasi_eventtype_t> Eventtype) noexcept {
-  switch (Eventtype) {
+cast<__wasi_eventtype_t>(uint64_t Eventtype) noexcept {
+  switch (WasiRawTypeT<__wasi_eventtype_t>(Eventtype)) {
   case __WASI_EVENTTYPE_CLOCK:
   case __WASI_EVENTTYPE_FD_READ:
   case __WASI_EVENTTYPE_FD_WRITE:
@@ -96,8 +97,8 @@ cast<__wasi_eventtype_t>(WasiRawTypeT<__wasi_eventtype_t> Eventtype) noexcept {
 
 template <>
 WASI::WasiExpect<__wasi_signal_t>
-cast<__wasi_signal_t>(WasiRawTypeT<__wasi_signal_t> Signal) noexcept {
-  switch (Signal) {
+cast<__wasi_signal_t>(uint64_t Signal) noexcept {
+  switch (WasiRawTypeT<__wasi_signal_t>(Signal)) {
   case __WASI_SIGNAL_NONE:
   case __WASI_SIGNAL_HUP:
   case __WASI_SIGNAL_INT:
@@ -137,7 +138,7 @@ cast<__wasi_signal_t>(WasiRawTypeT<__wasi_signal_t> Signal) noexcept {
 
 template <>
 WASI::WasiExpect<__wasi_rights_t>
-cast<__wasi_rights_t>(WasiRawTypeT<__wasi_rights_t> Rights) noexcept {
+cast<__wasi_rights_t>(uint64_t Rights) noexcept {
   const auto Mask =
       __WASI_RIGHTS_FD_DATASYNC | __WASI_RIGHTS_FD_READ |
       __WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS |
@@ -157,7 +158,7 @@ cast<__wasi_rights_t>(WasiRawTypeT<__wasi_rights_t> Rights) noexcept {
       __WASI_RIGHTS_SOCK_CLOSE | __WASI_RIGHTS_SOCK_BIND |
       __WASI_RIGHTS_SOCK_RECV | __WASI_RIGHTS_SOCK_RECV_FROM |
       __WASI_RIGHTS_SOCK_SEND | __WASI_RIGHTS_SOCK_SEND_TO;
-  if ((Rights & ~Mask) == 0) {
+  if ((WasiRawTypeT<__wasi_rights_t>(Rights) & ~Mask) == 0) {
     return static_cast<__wasi_rights_t>(Rights);
   }
   return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
@@ -165,11 +166,11 @@ cast<__wasi_rights_t>(WasiRawTypeT<__wasi_rights_t> Rights) noexcept {
 
 template <>
 WASI::WasiExpect<__wasi_fdflags_t>
-cast<__wasi_fdflags_t>(WasiRawTypeT<__wasi_fdflags_t> FdFlags) noexcept {
+cast<__wasi_fdflags_t>(uint64_t FdFlags) noexcept {
   const auto Mask = __WASI_FDFLAGS_APPEND | __WASI_FDFLAGS_DSYNC |
                     __WASI_FDFLAGS_NONBLOCK | __WASI_FDFLAGS_RSYNC |
                     __WASI_FDFLAGS_SYNC;
-  if ((FdFlags & ~Mask) == 0) {
+  if ((WasiRawTypeT<__wasi_fdflags_t>(FdFlags) & ~Mask) == 0) {
     return static_cast<__wasi_fdflags_t>(FdFlags);
   }
   return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
@@ -177,20 +178,20 @@ cast<__wasi_fdflags_t>(WasiRawTypeT<__wasi_fdflags_t> FdFlags) noexcept {
 
 template <>
 WASI::WasiExpect<__wasi_fstflags_t>
-cast<__wasi_fstflags_t>(WasiRawTypeT<__wasi_fstflags_t> FdFlags) noexcept {
+cast<__wasi_fstflags_t>(uint64_t FdFlags) noexcept {
   const auto Mask = __WASI_FSTFLAGS_ATIM | __WASI_FSTFLAGS_ATIM_NOW |
                     __WASI_FSTFLAGS_MTIM | __WASI_FSTFLAGS_MTIM_NOW;
-  if ((FdFlags & ~Mask) == 0) {
+  if ((WasiRawTypeT<__wasi_fstflags_t>(FdFlags) & ~Mask) == 0) {
     return static_cast<__wasi_fstflags_t>(FdFlags);
   }
   return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
 }
 
 template <>
-WASI::WasiExpect<__wasi_lookupflags_t> cast<__wasi_lookupflags_t>(
-    WasiRawTypeT<__wasi_lookupflags_t> LookupFlags) noexcept {
+WASI::WasiExpect<__wasi_lookupflags_t>
+cast<__wasi_lookupflags_t>(uint64_t LookupFlags) noexcept {
   const auto Mask = __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW;
-  if ((LookupFlags & ~Mask) == 0) {
+  if ((WasiRawTypeT<__wasi_lookupflags_t>(LookupFlags) & ~Mask) == 0) {
     return static_cast<__wasi_lookupflags_t>(LookupFlags);
   }
   return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
@@ -198,20 +199,20 @@ WASI::WasiExpect<__wasi_lookupflags_t> cast<__wasi_lookupflags_t>(
 
 template <>
 WASI::WasiExpect<__wasi_oflags_t>
-cast<__wasi_oflags_t>(WasiRawTypeT<__wasi_oflags_t> OFlags) noexcept {
+cast<__wasi_oflags_t>(uint64_t OFlags) noexcept {
   const auto Mask = __WASI_OFLAGS_CREAT | __WASI_OFLAGS_DIRECTORY |
                     __WASI_OFLAGS_EXCL | __WASI_OFLAGS_TRUNC;
-  if ((OFlags & ~Mask) == 0) {
+  if ((WasiRawTypeT<__wasi_oflags_t>(OFlags) & ~Mask) == 0) {
     return static_cast<__wasi_oflags_t>(OFlags);
   }
   return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
 }
 
 template <>
-WASI::WasiExpect<__wasi_subclockflags_t> cast<__wasi_subclockflags_t>(
-    WasiRawTypeT<__wasi_subclockflags_t> SubClockFlags) noexcept {
+WASI::WasiExpect<__wasi_subclockflags_t>
+cast<__wasi_subclockflags_t>(uint64_t SubClockFlags) noexcept {
   const auto Mask = __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME;
-  if ((SubClockFlags & ~Mask) == 0) {
+  if ((WasiRawTypeT<__wasi_subclockflags_t>(SubClockFlags) & ~Mask) == 0) {
     return static_cast<__wasi_subclockflags_t>(SubClockFlags);
   }
   return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
@@ -219,9 +220,9 @@ WASI::WasiExpect<__wasi_subclockflags_t> cast<__wasi_subclockflags_t>(
 
 template <>
 WASI::WasiExpect<__wasi_riflags_t>
-cast<__wasi_riflags_t>(WasiRawTypeT<__wasi_riflags_t> RiFlags) noexcept {
+cast<__wasi_riflags_t>(uint64_t RiFlags) noexcept {
   const auto Mask = __WASI_RIFLAGS_RECV_PEEK | __WASI_RIFLAGS_RECV_WAITALL;
-  if ((RiFlags & ~Mask) == 0) {
+  if ((WasiRawTypeT<__wasi_riflags_t>(RiFlags) & ~Mask) == 0) {
     return static_cast<__wasi_riflags_t>(RiFlags);
   }
   return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
@@ -229,9 +230,9 @@ cast<__wasi_riflags_t>(WasiRawTypeT<__wasi_riflags_t> RiFlags) noexcept {
 
 template <>
 WASI::WasiExpect<__wasi_siflags_t>
-cast<__wasi_siflags_t>(WasiRawTypeT<__wasi_siflags_t> SiFlags) noexcept {
+cast<__wasi_siflags_t>(uint64_t SiFlags) noexcept {
   const auto Mask = 0;
-  if ((SiFlags & ~Mask) == 0) {
+  if ((WasiRawTypeT<__wasi_siflags_t>(SiFlags) & ~Mask) == 0) {
     return static_cast<__wasi_siflags_t>(SiFlags);
   }
   return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
@@ -239,9 +240,9 @@ cast<__wasi_siflags_t>(WasiRawTypeT<__wasi_siflags_t> SiFlags) noexcept {
 
 template <>
 WASI::WasiExpect<__wasi_sdflags_t>
-cast<__wasi_sdflags_t>(WasiRawTypeT<__wasi_sdflags_t> SdFlags) noexcept {
+cast<__wasi_sdflags_t>(uint64_t SdFlags) noexcept {
   const auto Mask = __WASI_SDFLAGS_RD | __WASI_SDFLAGS_WR;
-  if ((SdFlags & ~Mask) == 0) {
+  if ((WasiRawTypeT<__wasi_sdflags_t>(SdFlags) & ~Mask) == 0) {
     return static_cast<__wasi_sdflags_t>(SdFlags);
   }
   return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
@@ -258,7 +259,8 @@ Expect<uint32_t> WasiArgsGet::body(Runtime::Instance::MemoryInstance *MemInst,
 
   /// Store **Argv.
   const auto &Arguments = Env.getArguments();
-  const uint32_t ArgvSize = Arguments.size() + 1;
+  const uint32_t ArgvSize =
+      static_cast<uint32_t>(Arguments.size()) + UINT32_C(1);
   const uint32_t ArgvBufSize = calculateBufferSize(Arguments);
 
   /// Check for invalid address.
@@ -316,7 +318,8 @@ WasiEnvironGet::body(Runtime::Instance::MemoryInstance *MemInst,
 
   /// Store **Env.
   const auto &EnvironVariables = Env.getEnvironVariables();
-  const uint32_t EnvSize = EnvironVariables.size() + 1;
+  const uint32_t EnvSize =
+      static_cast<uint32_t>(EnvironVariables.size()) + UINT32_C(1);
   const uint32_t EnvBufSize = calculateBufferSize(EnvironVariables);
 
   /// Check for invalid address.
@@ -1475,13 +1478,13 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
 }
 
 Expect<void> WasiProcExit::body(Runtime::Instance::MemoryInstance *,
-                                int32_t ExitCode) {
+                                uint32_t ExitCode) {
   Env.procExit(ExitCode);
   return Unexpect(ErrCode::Terminated);
 }
 
 Expect<uint32_t> WasiProcRaise::body(Runtime::Instance::MemoryInstance *,
-                                     int32_t Signal) {
+                                     uint32_t Signal) {
   __wasi_signal_t WasiSignal;
   if (auto Res = cast<__wasi_signal_t>(Signal); unlikely(!Res)) {
     return Res.error();

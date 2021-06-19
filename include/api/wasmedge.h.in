@@ -13,7 +13,8 @@
 #ifndef WASMEDGE_C_API_H
 #define WASMEDGE_C_API_H
 
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||              \
+    defined(__TOS_WIN__) || defined(__WINDOWS__)
 #ifdef WASMEDGE_COMPILE_LIBRARY
 #define WASMEDGE_CAPI_EXPORT __declspec(dllexport)
 #else
@@ -192,32 +193,32 @@ extern "C" {
 /// The returned string must __NOT__ be freed.
 ///
 /// \returns NULL-terminated C string of version.
-WASMEDGE_CAPI_EXPORT extern const char *WasmEdge_VersionGet();
+WASMEDGE_CAPI_EXPORT extern const char *WasmEdge_VersionGet(void);
 
 /// Get the major version value of the WasmEdge C API.
 ///
 /// \returns Value of the major version.
-WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetMajor();
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetMajor(void);
 
 /// Get the minor version value of the WasmEdge C API.
 ///
 /// \returns Value of the minor version.
-WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetMinor();
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetMinor(void);
 
 /// Get the patch version value of the WasmEdge C API.
 ///
 /// \returns Value of the patch version.
-WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetPatch();
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetPatch(void);
 
 /// <<<<<<<< WasmEdge version functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> WasmEdge logging functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Set the logging system to filter to error level.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetErrorLevel();
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetErrorLevel(void);
 
 /// Set the logging system to filter to debug level.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetDebugLevel();
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetDebugLevel(void);
 
 /// <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -465,7 +466,7 @@ WasmEdge_ResultGetMessage(const WasmEdge_Result Res);
 ///
 /// \returns pointer to the context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ConfigureContext *
-WasmEdge_ConfigureCreate();
+WasmEdge_ConfigureCreate(void);
 
 /// Add a proposal setting into the WasmEdge_ConfigureContext.
 ///
@@ -649,7 +650,7 @@ WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_StatisticsContext *
-WasmEdge_StatisticsCreate();
+WasmEdge_StatisticsCreate(void);
 
 /// Get the instruction count in execution.
 ///
@@ -987,7 +988,7 @@ WasmEdge_InterpreterDelete(WasmEdge_InterpreterContext *Cxt);
 /// it.
 ///
 /// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_StoreContext *WasmEdge_StoreCreate();
+WASMEDGE_CAPI_EXPORT extern WasmEdge_StoreContext *WasmEdge_StoreCreate(void);
 
 /// Get the function instance context by the function name.
 ///

@@ -37,90 +37,92 @@ INode INode::stdErr() noexcept {
   return INode(winapi::GetStdHandle(winapi::STD_ERROR_HANDLE_));
 }
 
-WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
-                              __wasi_fdflags_t FdFlags,
-                              uint8_t VFSFlags) noexcept {
+WasiExpect<INode> INode::open(std::string, __wasi_oflags_t, __wasi_fdflags_t,
+                              uint8_t) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::fdAdvise(__wasi_filesize_t Offset,
-                                 __wasi_filesize_t Len,
-                                 __wasi_advice_t Advice) const noexcept {
+WasiExpect<void> INode::fdAdvise(__wasi_filesize_t, __wasi_filesize_t,
+                                 __wasi_advice_t) const noexcept {
   return {};
 }
 
-WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
-                                   __wasi_filesize_t Len) const noexcept {
+WasiExpect<void> INode::fdAllocate(__wasi_filesize_t,
+                                   __wasi_filesize_t) const noexcept {
   return {};
 }
 
 WasiExpect<void> INode::fdDatasync() const noexcept { return {}; }
 
-WasiExpect<void> INode::fdFdstatGet(__wasi_fdstat_t &FdStat) const noexcept {
+WasiExpect<void> INode::fdFdstatGet(__wasi_fdstat_t &) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void>
-INode::fdFdstatSetFlags(__wasi_fdflags_t FdFlags) const noexcept {
+WasiExpect<void> INode::fdFdstatSetFlags(__wasi_fdflags_t) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void>
-INode::fdFilestatGet(__wasi_filestat_t &Filestat) const noexcept {
+WasiExpect<void> INode::fdFilestatGet(__wasi_filestat_t &) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void>
-INode::fdFilestatSetSize(__wasi_filesize_t Size) const noexcept {
+WasiExpect<void> INode::fdFilestatSetSize(__wasi_filesize_t) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void>
-INode::fdFilestatSetTimes(__wasi_timestamp_t ATim, __wasi_timestamp_t MTim,
-                          __wasi_fstflags_t FstFlags) const noexcept {
+WasiExpect<void> INode::fdFilestatSetTimes(__wasi_timestamp_t,
+                                           __wasi_timestamp_t,
+                                           __wasi_fstflags_t) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
-                                __wasi_filesize_t Offset,
-                                __wasi_size_t &NRead) const noexcept {
+WasiExpect<void> INode::fdPread(Span<Span<uint8_t>>, __wasi_filesize_t,
+                                __wasi_size_t &) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
-                                 __wasi_filesize_t Offset,
-                                 __wasi_size_t &NWritten) const noexcept {
+WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>>, __wasi_filesize_t,
+                                 __wasi_size_t &) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
 WasiExpect<void> INode::fdRead(Span<Span<uint8_t>> IOVs,
                                __wasi_size_t &NRead) const noexcept {
+  NRead = 0;
+  for (auto IOV : IOVs) {
+    winapi::DWORD_ NumberOfBytesRead = 0;
+    if (!winapi::ReadFile(Handle, IOV.data(), static_cast<uint32_t>(IOV.size()),
+                          &NumberOfBytesRead, nullptr)) {
+      return WasiUnexpect(fromLastError(winapi::GetLastError()));
+    }
+    NRead += NumberOfBytesRead;
+  }
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
-                                  __wasi_dircookie_t Cookie,
-                                  __wasi_size_t &Size) noexcept {
+WasiExpect<void> INode::fdReaddir(Span<uint8_t>, __wasi_dircookie_t,
+                                  __wasi_size_t &) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::fdSeek(__wasi_filedelta_t Offset,
-                               __wasi_whence_t Whence,
-                               __wasi_filesize_t &Size) const noexcept {
+WasiExpect<void> INode::fdSeek(__wasi_filedelta_t, __wasi_whence_t,
+                               __wasi_filesize_t &) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
 WasiExpect<void> INode::fdSync() const noexcept { return {}; }
 
-WasiExpect<void> INode::fdTell(__wasi_filesize_t &Size) const noexcept {
+WasiExpect<void> INode::fdTell(__wasi_filesize_t &) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
 WasiExpect<void> INode::fdWrite(Span<Span<const uint8_t>> IOVs,
                                 __wasi_size_t &NWritten) const noexcept {
+  NWritten = 0;
   for (auto IOV : IOVs) {
     winapi::DWORD_ NumberOfBytesWritten = 0;
-    if (!winapi::WriteFile(Handle, IOV.data(), IOV.size(),
+    if (!winapi::WriteFile(Handle, IOV.data(),
+                           static_cast<uint32_t>(IOV.size()),
                            &NumberOfBytesWritten, nullptr)) {
       return WasiUnexpect(fromLastError(winapi::GetLastError()));
     }
@@ -129,76 +131,68 @@ WasiExpect<void> INode::fdWrite(Span<Span<const uint8_t>> IOVs,
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::pathCreateDirectory(std::string Path) const noexcept {
+WasiExpect<void> INode::pathCreateDirectory(std::string) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void>
-INode::pathFilestatGet(std::string Path,
-                       __wasi_filestat_t &Filestat) const noexcept {
+WasiExpect<void> INode::pathFilestatGet(std::string,
+                                        __wasi_filestat_t &) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void>
-INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
-                            __wasi_timestamp_t MTim,
-                            __wasi_fstflags_t FstFlags) const noexcept {
+WasiExpect<void> INode::pathFilestatSetTimes(std::string, __wasi_timestamp_t,
+                                             __wasi_timestamp_t,
+                                             __wasi_fstflags_t) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::pathLink(const INode &Old, std::string OldPath,
-                                 const INode &New,
-                                 std::string NewPath) noexcept {
+WasiExpect<void> INode::pathLink(const INode &, std::string, const INode &,
+                                 std::string) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<INode> INode::pathOpen(std::string Path, __wasi_oflags_t OpenFlags,
-                                  __wasi_fdflags_t FdFlags,
-                                  uint8_t VFSFlags) const noexcept {
+WasiExpect<INode> INode::pathOpen(std::string, __wasi_oflags_t,
+                                  __wasi_fdflags_t, uint8_t) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::pathReadlink(std::string Path,
-                                     Span<char> Buffer) const noexcept {
+WasiExpect<void> INode::pathReadlink(std::string, Span<char>) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::pathRemoveDirectory(std::string Path) const noexcept {
+WasiExpect<void> INode::pathRemoveDirectory(std::string) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::pathRename(const INode &Old, std::string OldPath,
-                                   const INode &New,
-                                   std::string NewPath) noexcept {
+WasiExpect<void> INode::pathRename(const INode &, std::string, const INode &,
+                                   std::string) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::pathSymlink(std::string OldPath,
-                                    std::string NewPath) const noexcept {
+WasiExpect<void> INode::pathSymlink(std::string, std::string) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::pathUnlinkFile(std::string Path) const noexcept {
+WasiExpect<void> INode::pathUnlinkFile(std::string) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<Poller> INode::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
+WasiExpect<Poller> INode::pollOneoff(__wasi_size_t) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>> RiData,
-                                 __wasi_riflags_t RiFlags, __wasi_size_t &NRead,
-                                 __wasi_roflags_t &RoFlags) const noexcept {
+WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>>, __wasi_riflags_t,
+                                 __wasi_size_t &,
+                                 __wasi_roflags_t &) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>> SiData,
-                                 __wasi_siflags_t SiFlags,
-                                 __wasi_size_t &NWritten) const noexcept {
+WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>>, __wasi_siflags_t,
+                                 __wasi_size_t &) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
+WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
@@ -220,25 +214,21 @@ bool INode::canBrowse() const noexcept { return false; }
 
 Poller::Poller(__wasi_size_t Count) { Events.reserve(Count); }
 
-WasiExpect<void> Poller::clock(__wasi_clockid_t Clock,
-                               __wasi_timestamp_t Timeout,
-                               __wasi_timestamp_t Precision,
-                               __wasi_subclockflags_t Flags,
-                               __wasi_userdata_t UserData) noexcept {
+WasiExpect<void> Poller::clock(__wasi_clockid_t, __wasi_timestamp_t,
+                               __wasi_timestamp_t, __wasi_subclockflags_t,
+                               __wasi_userdata_t) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> Poller::read(const INode &Fd,
-                              __wasi_userdata_t UserData) noexcept {
+WasiExpect<void> Poller::read(const INode &, __wasi_userdata_t) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> Poller::write(const INode &Fd,
-                               __wasi_userdata_t UserData) noexcept {
+WasiExpect<void> Poller::write(const INode &, __wasi_userdata_t) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> Poller::wait(CallbackType Callback) noexcept {
+WasiExpect<void> Poller::wait(CallbackType) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 

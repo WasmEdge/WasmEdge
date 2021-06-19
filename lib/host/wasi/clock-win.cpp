@@ -37,7 +37,7 @@ WasiExpect<void> Clock::clockResGet(__wasi_clockid_t Id,
   switch (Id) {
   case __WASI_CLOCKID_REALTIME:
   case __WASI_CLOCKID_MONOTONIC:
-    Resolution = getResolution().count();
+    Resolution = static_cast<__wasi_timestamp_t>(getResolution().count());
     return {};
   default:
     return WasiUnexpect(__WASI_ERRNO_NOSYS);
@@ -54,7 +54,7 @@ WasiExpect<void> Clock::clockTimeGet(__wasi_clockid_t Id,
     winapi::LARGE_INTEGER_ SysNow;
     winapi::GetSystemTimePreciseAsFileTime(
         reinterpret_cast<winapi::FILETIME_ *>(&SysNow));
-    Time = fromFileTyime(SysNow.QuadPart);
+    Time = fromFileTyime(static_cast<uint64_t>(SysNow.QuadPart));
     return {};
   }
   default:

@@ -131,9 +131,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::Ref__is_null: {
       ValVariant &Val = StackMgr.getTop();
       if (isNullRef(Val)) {
-        Val.emplace<uint32_t>(1);
+        Val.emplace<uint32_t>(UINT32_C(1));
       } else {
-        Val.emplace<uint32_t>(0);
+        Val.emplace<uint32_t>(UINT32_C(0));
       }
       return {};
     }

@@ -69,9 +69,9 @@ BOOST_CONSTEXPR_OR_CONST DWORD_ STD_INPUT_HANDLE_ = STD_INPUT_HANDLE;
 BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = STD_OUTPUT_HANDLE;
 BOOST_CONSTEXPR_OR_CONST DWORD_ STD_ERROR_HANDLE_ = STD_ERROR_HANDLE;
 #else
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_INPUT_HANDLE_ = -10;
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = -11;
-BOOST_CONSTEXPR_OR_CONST DWORD_ STD_ERROR_HANDLE_ = -12;
+BOOST_CONSTEXPR_OR_CONST DWORD_ STD_INPUT_HANDLE_ = static_cast<DWORD_>(-10);
+BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = static_cast<DWORD_>(-11);
+BOOST_CONSTEXPR_OR_CONST DWORD_ STD_ERROR_HANDLE_ = static_cast<DWORD_>(-12);
 #endif
 
 BOOST_FORCEINLINE NTSTATUS_ NtOpenFile(PHANDLE_ FileHandle,
@@ -493,13 +493,13 @@ constexpr const HundredNS kWinUnixTimeBaseDiff(Days(134774));
 
 inline constexpr __wasi_timestamp_t fromFileTyime(uint64_t Value) noexcept {
   NS Time = HundredNS(Value) - kWinUnixTimeBaseDiff;
-  return Time.count();
+  return static_cast<__wasi_timestamp_t>(Time.count());
 }
 
 inline constexpr uint64_t toFileTyime(__wasi_timestamp_t Value) noexcept {
   HundredNS Time =
       std::chrono::duration_cast<HundredNS>(NS(Value)) + kWinUnixTimeBaseDiff;
-  return Time.count();
+  return static_cast<uint64_t>(Time.count());
 }
 
 inline constexpr int toWhence(__wasi_whence_t Whence) noexcept {

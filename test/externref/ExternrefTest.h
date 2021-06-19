@@ -9,8 +9,10 @@
 #include <cstdlib>
 #include <iostream>
 
+namespace {
 /// Test: function to pass as function pointer
-uint32_t MulFunc(uint32_t A, uint32_t B) { return A * B; }
+inline uint32_t MulFunc(uint32_t A, uint32_t B) { return A * B; }
+} // namespace
 
 /// Test: class to pass as reference
 class AddClass {
@@ -165,6 +167,6 @@ public:
     addHostFunc("stl_vector_push", std::make_unique<ExternSTLVectorPush>());
     addHostFunc("stl_vector_sum", std::make_unique<ExternSTLVectorSum>());
   }
-  virtual ~ExternMod() = default;
+  ~ExternMod() override = default;
 };
 } // namespace WasmEdge

@@ -5,6 +5,11 @@ add_library(wasmedgeValidator
   validator.cpp
 )
 
+target_compile_options(wasmedgeValidator
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
+
 target_link_libraries(wasmedgeValidator
   PUBLIC
   wasmedgeCommon

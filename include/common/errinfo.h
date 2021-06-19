@@ -114,12 +114,12 @@ struct InfoFile {
 
 struct InfoLoading {
   InfoLoading() = default;
-  InfoLoading(const uint32_t Off) noexcept : Offset(Off) {}
+  InfoLoading(const uint64_t Off) noexcept : Offset(Off) {}
 
   friend std::ostream &operator<<(std::ostream &OS,
                                   const struct InfoLoading &Rhs);
 
-  uint32_t Offset;
+  uint64_t Offset;
 };
 
 struct InfoAST {
@@ -325,7 +325,7 @@ struct InfoMismatch {
 
 struct InfoInstruction {
   InfoInstruction() = default;
-  InfoInstruction(const OpCode Op, const uint32_t Off,
+  InfoInstruction(const OpCode Op, const uint64_t Off,
                   const std::vector<ValVariant> &ArgsVec = {},
                   const std::vector<ValType> &ArgsTypesVec = {},
                   const bool Signed = false) noexcept
@@ -336,7 +336,7 @@ struct InfoInstruction {
                                   const struct InfoInstruction &Rhs);
 
   OpCode Code;
-  uint32_t Offset;
+  uint64_t Offset;
   std::vector<ValVariant> Args;
   std::vector<ValType> ArgsTypes;
   bool IsSigned;

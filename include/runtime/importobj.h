@@ -33,7 +33,7 @@ public:
 
   ImportObject() = delete;
   ImportObject(std::string_view Name) : ModName(Name) {}
-  virtual ~ImportObject() = default;
+  virtual ~ImportObject() noexcept = default;
 
   std::string_view getModuleName() const { return ModName; }
 

@@ -31,11 +31,11 @@ public:
   virtual Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) = 0;
 
   /// AST node attribute.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Module;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Module;
 };
 
 /// Helper function of logging error when loading.
-inline auto logLoadError(ErrCode Code, uint32_t Off, ASTNodeAttr Node) {
+inline auto logLoadError(ErrCode Code, uint64_t Off, ASTNodeAttr Node) {
   spdlog::error(Code);
   spdlog::error(ErrInfo::InfoLoading(Off));
   spdlog::error(ErrInfo::InfoAST(Node));
@@ -43,7 +43,7 @@ inline auto logLoadError(ErrCode Code, uint32_t Off, ASTNodeAttr Node) {
 }
 
 /// Helper function of logging error when needing enabling proposal.
-inline auto logNeedProposal(ErrCode Code, Proposal Prop, uint32_t Off,
+inline auto logNeedProposal(ErrCode Code, Proposal Prop, uint64_t Off,
                             ASTNodeAttr Node) {
   spdlog::error(Code);
   spdlog::error(ErrInfo::InfoProposal(Prop));
@@ -54,7 +54,7 @@ inline auto logNeedProposal(ErrCode Code, Proposal Prop, uint32_t Off,
 
 /// Helper function of checking the valid value types.
 inline Expect<ValType> checkValTypeProposals(const Configure &Conf,
-                                             ValType VType, uint32_t Off,
+                                             ValType VType, uint64_t Off,
                                              ASTNodeAttr Node) {
   if (VType == ValType::V128 && !Conf.hasProposal(Proposal::SIMD)) {
     return logNeedProposal(ErrCode::InvalidValType, Proposal::SIMD, Off, Node);
@@ -84,7 +84,7 @@ inline Expect<ValType> checkValTypeProposals(const Configure &Conf,
 
 /// Helper function of checking the valid reference types.
 inline Expect<RefType> checkRefTypeProposals(const Configure &Conf,
-                                             RefType RType, uint32_t Off,
+                                             RefType RType, uint64_t Off,
                                              ASTNodeAttr Node) {
   switch (RType) {
   case RefType::ExternRef:

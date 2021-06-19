@@ -101,8 +101,9 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   /// In current version, memory must be <= 1.
   if (Checker.getMemories().size() > 1) {
     spdlog::error(ErrCode::MultiMemories);
-    spdlog::error(ErrInfo::InfoInstanceBound(ExternalType::Memory,
-                                             Checker.getMemories().size(), 1));
+    spdlog::error(ErrInfo::InfoInstanceBound(
+        ExternalType::Memory,
+        static_cast<uint32_t>(Checker.getMemories().size()), 1));
     spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(ErrCode::MultiMemories);
   }
@@ -176,7 +177,8 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
     if (ElemSeg.getIdx() >= TableVec.size()) {
       spdlog::error(ErrCode::InvalidTableIdx);
       spdlog::error(ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::Table, ElemSeg.getIdx(), TableVec.size()));
+          ErrInfo::IndexCategory::Table, ElemSeg.getIdx(),
+          static_cast<uint32_t>(TableVec.size())));
       return Unexpect(ErrCode::InvalidTableIdx);
     }
     if (TableVec[ElemSeg.getIdx()] != ElemSeg.getRefType()) {
@@ -227,8 +229,9 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
     const auto &MemVec = Checker.getMemories();
     if (DataSeg.getIdx() >= MemVec.size()) {
       spdlog::error(ErrCode::InvalidMemoryIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory,
-                                             DataSeg.getIdx(), MemVec.size()));
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Memory, DataSeg.getIdx(),
+          static_cast<uint32_t>(MemVec.size())));
       return Unexpect(ErrCode::InvalidMemoryIdx);
     }
     /// Check memory initialization is a const expression.
@@ -253,12 +256,12 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
     /// Function type index must exist in context.
     if (TId >= Checker.getTypes().size()) {
       spdlog::error(ErrCode::InvalidFuncTypeIdx);
-      spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::FunctionType, TId,
-                                   Checker.getTypes().size()));
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::FunctionType, TId,
+          static_cast<uint32_t>(Checker.getTypes().size())));
       return Unexpect(ErrCode::InvalidFuncTypeIdx);
     }
-    Checker.addRef(Checker.getFunctions().size());
+    Checker.addRef(static_cast<uint32_t>(Checker.getFunctions().size()));
     Checker.addFunc(TId, true);
     return {};
   }
@@ -300,7 +303,8 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
     if (Id >= Checker.getFunctions().size()) {
       spdlog::error(ErrCode::InvalidFuncIdx);
       spdlog::error(ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::Function, Id, Checker.getFunctions().size()));
+          ErrInfo::IndexCategory::Function, Id,
+          static_cast<uint32_t>(Checker.getFunctions().size())));
       return Unexpect(ErrCode::InvalidFuncIdx);
     }
     Checker.addRef(Id);
@@ -308,24 +312,27 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
   case ExternalType::Table:
     if (Id >= Checker.getTables().size()) {
       spdlog::error(ErrCode::InvalidTableIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Table, Id,
-                                             Checker.getTables().size()));
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Table, Id,
+          static_cast<uint32_t>(Checker.getTables().size())));
       return Unexpect(ErrCode::InvalidTableIdx);
     }
     return {};
   case ExternalType::Memory:
     if (Id >= Checker.getMemories().size()) {
       spdlog::error(ErrCode::InvalidMemoryIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, Id,
-                                             Checker.getMemories().size()));
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Memory, Id,
+          static_cast<uint32_t>(Checker.getMemories().size())));
       return Unexpect(ErrCode::InvalidMemoryIdx);
     }
     return {};
   case ExternalType::Global:
     if (Id >= Checker.getGlobals().size()) {
       spdlog::error(ErrCode::InvalidGlobalIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Global, Id,
-                                             Checker.getGlobals().size()));
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Global, Id,
+          static_cast<uint32_t>(Checker.getGlobals().size())));
       return Unexpect(ErrCode::InvalidGlobalIdx);
     }
     return {};
@@ -355,8 +362,9 @@ Expect<void> Validator::validate(const AST::FunctionSection &FuncSec) {
   for (auto &TId : FuncVec) {
     if (TId >= TypeVec.size()) {
       spdlog::error(ErrCode::InvalidFuncTypeIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::FunctionType, TId, TypeVec.size()));
+      spdlog::error(
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::FunctionType, TId,
+                                   static_cast<uint32_t>(TypeVec.size())));
       return Unexpect(ErrCode::InvalidFuncTypeIdx);
     }
     Checker.addFunc(TId);
@@ -422,13 +430,14 @@ Expect<void> Validator::validate(const AST::CodeSection &CodeSec) {
   const auto &FuncVec = Checker.getFunctions();
 
   /// Validate function body.
-  for (size_t Id = 0; Id < CodeVec.size(); ++Id) {
+  for (uint32_t Id = 0; Id < static_cast<uint32_t>(CodeVec.size()); ++Id) {
     /// Added functions contains imported functions.
-    uint32_t TId = Id + Checker.getNumImportFuncs();
-    if (TId >= FuncVec.size()) {
+    uint32_t TId = Id + static_cast<uint32_t>(Checker.getNumImportFuncs());
+    if (TId >= static_cast<uint32_t>(FuncVec.size())) {
       spdlog::error(ErrCode::InvalidFuncIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function,
-                                             TId, FuncVec.size()));
+      spdlog::error(
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function, TId,
+                                   static_cast<uint32_t>(FuncVec.size())));
       return Unexpect(ErrCode::InvalidFuncIdx);
     }
     if (auto Res = validate(CodeVec[Id], FuncVec[TId]); !Res) {
@@ -458,9 +467,9 @@ Expect<void> Validator::validate(const AST::StartSection &StartSec) {
     auto FId = *StartSec.getContent();
     if (FId >= Checker.getFunctions().size()) {
       spdlog::error(ErrCode::InvalidFuncIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function,
-                                             FId,
-                                             Checker.getFunctions().size()));
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Function, FId,
+          static_cast<uint32_t>(Checker.getFunctions().size())));
       return Unexpect(ErrCode::InvalidFuncIdx);
     }
     auto TId = Checker.getFunctions()[FId];
@@ -512,9 +521,9 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
       auto GlobIdx = Instr.getTargetIndex();
       if (GlobIdx >= Checker.getNumImportGlobals()) {
         spdlog::error(ErrCode::InvalidGlobalIdx);
-        spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Global,
-                                               GlobIdx,
-                                               Checker.getNumImportGlobals()));
+        spdlog::error(ErrInfo::InfoForbidIndex(
+            ErrInfo::IndexCategory::Global, GlobIdx,
+            static_cast<uint32_t>(Checker.getNumImportGlobals())));
         spdlog::error(
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return Unexpect(ErrCode::InvalidGlobalIdx);
@@ -533,9 +542,9 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
       if (FuncIdx >= Checker.getFunctions().size()) {
         /// Function index out of range.
         spdlog::error(ErrCode::InvalidFuncIdx);
-        spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function,
-                                               FuncIdx,
-                                               Checker.getFunctions().size()));
+        spdlog::error(ErrInfo::InfoForbidIndex(
+            ErrInfo::IndexCategory::Function, FuncIdx,
+            static_cast<uint32_t>(Checker.getFunctions().size())));
         spdlog::error(
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return Unexpect(ErrCode::InvalidFuncIdx);

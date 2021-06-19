@@ -17,6 +17,11 @@ add_executable(expectedTests
 
 add_test(expectedTests expectedTests)
 
+target_compile_options(expectedTests
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
+
 target_link_libraries(expectedTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}

@@ -19,6 +19,11 @@ add_library(wasmedgeCommon
   configure.cpp
 )
 
+target_compile_options(wasmedgeCommon
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
+
 target_link_libraries(wasmedgeCommon
   PUBLIC
   spdlog::spdlog

@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
+#include "common/defines.h"
+#include "gtest/gtest.h"
+
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+
 #include "host/wasi/wasibase.h"
 #include "host/wasi/wasifunc.h"
-#include "gtest/gtest.h"
 #include <string>
 #include <vector>
 using namespace std::literals;
@@ -936,6 +940,8 @@ TEST(WasiTest, SymbolicLink) {
     Env.fini();
   }
 }
+
+#endif
 
 GTEST_API_ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);

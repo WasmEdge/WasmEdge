@@ -36,8 +36,8 @@ struct Interpreter::ProxyHelper<Expect<RetT> (Interpreter::*)(
 const AST::Module::IntrinsicsTable Interpreter::Intrinsics = {
 #define ENTRY(NAME, FUNC)                                                      \
   [uint8_t(AST::Module::Intrinsics::NAME)] = reinterpret_cast<void *>(         \
-      &Interpreter::ProxyHelper<decltype(&Interpreter::FUNC)>::proxy<          \
-          &Interpreter::FUNC>)
+      &Interpreter::ProxyHelper<decltype(                                      \
+          &Interpreter::FUNC)>::proxy<&Interpreter::FUNC>)
     ENTRY(kTrap, trap),
     ENTRY(kCall, call),
     ENTRY(kCallIndirect, callIndirect),
@@ -75,10 +75,10 @@ Expect<void> Interpreter::call(Runtime::StoreManager &StoreMgr,
   const uint32_t FuncAddr = *ModInst->getFuncAddr(FuncIndex);
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
   const auto &FuncType = FuncInst->getFuncType();
-  const unsigned ParamsSize = FuncType.Params.size();
-  const unsigned ReturnsSize = FuncType.Returns.size();
+  const uint32_t ParamsSize = static_cast<uint32_t>(FuncType.Params.size());
+  const uint32_t ReturnsSize = static_cast<uint32_t>(FuncType.Returns.size());
 
-  for (unsigned I = 0; I < ParamsSize; ++I) {
+  for (uint32_t I = 0; I < ParamsSize; ++I) {
     StackMgr.push(Args[I]);
   }
 
@@ -93,7 +93,7 @@ Expect<void> Interpreter::call(Runtime::StoreManager &StoreMgr,
     return Unexpect(Res);
   }
 
-  for (unsigned I = 0; I < ReturnsSize; ++I) {
+  for (uint32_t I = 0; I < ReturnsSize; ++I) {
     Rets[ReturnsSize - 1 - I] = StackMgr.pop();
   }
 
@@ -126,10 +126,10 @@ Expect<void> Interpreter::callIndirect(Runtime::StoreManager &StoreMgr,
     return Unexpect(ErrCode::IndirectCallTypeMismatch);
   }
 
-  const unsigned ParamsSize = FuncType.Params.size();
-  const unsigned ReturnsSize = FuncType.Returns.size();
+  const uint32_t ParamsSize = static_cast<uint32_t>(FuncType.Params.size());
+  const uint32_t ReturnsSize = static_cast<uint32_t>(FuncType.Returns.size());
 
-  for (unsigned I = 0; I < ParamsSize; ++I) {
+  for (uint32_t I = 0; I < ParamsSize; ++I) {
     StackMgr.push(Args[I]);
   }
 
@@ -144,7 +144,7 @@ Expect<void> Interpreter::callIndirect(Runtime::StoreManager &StoreMgr,
     return Unexpect(Res);
   }
 
-  for (unsigned I = 0; I < ReturnsSize; ++I) {
+  for (uint32_t I = 0; I < ReturnsSize; ++I) {
     Rets[ReturnsSize - 1 - I] = StackMgr.pop();
   }
 
@@ -158,7 +158,7 @@ Expect<uint32_t> Interpreter::memGrow(Runtime::StoreManager &StoreMgr,
   if (MemInst.growPage(NewSize)) {
     return CurrPageSize;
   } else {
-    return -1;
+    return static_cast<uint32_t>(-1);
   }
 }
 
@@ -268,7 +268,7 @@ Expect<uint32_t> Interpreter::tableGrow(Runtime::StoreManager &StoreMgr,
   if (likely(TabInst.growTable(NewSize, Val))) {
     return CurrTableSize;
   } else {
-    return -1;
+    return static_cast<uint32_t>(-1);
   }
 }
 

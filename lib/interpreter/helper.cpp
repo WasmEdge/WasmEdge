@@ -125,7 +125,8 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     /// Enter function block []->[returns] with label{none}.
-    StackMgr.pushLabel(0, FuncType.Returns.size(), From - 1);
+    StackMgr.pushLabel(0, static_cast<uint32_t>(FuncType.Returns.size()),
+                       From - 1);
     /// For native function case, the continuation will be the start of
     /// function body.
     return Func.getInstrs().begin();
@@ -142,8 +143,8 @@ Interpreter::getBlockArity(Runtime::StoreManager &StoreMgr,
     /// Get function type at index x.
     const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
     const auto *FuncType = *ModInst->getFuncType(std::get<uint32_t>(BType));
-    Locals = FuncType->Params.size();
-    Arity = FuncType->Returns.size();
+    Locals = static_cast<uint32_t>(FuncType->Params.size());
+    Arity = static_cast<uint32_t>(FuncType->Returns.size());
   }
   return {Locals, Arity};
 }

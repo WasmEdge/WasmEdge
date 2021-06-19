@@ -326,7 +326,8 @@ class WasiProcExit : public Wasi<WasiProcExit> {
 public:
   WasiProcExit(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Status);
+  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst,
+                    uint32_t Status);
 };
 
 class WasiProcRaise : public Wasi<WasiProcRaise> {
@@ -334,7 +335,7 @@ public:
   WasiProcRaise(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        int32_t Signal);
+                        uint32_t Signal);
 };
 
 class WasiRandomGet : public Wasi<WasiRandomGet> {

@@ -29,7 +29,7 @@ namespace AST {
 class Segment : public Base {
 public:
   /// Binary loading from file manager. Inheritted from Base.
-  virtual Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) = 0;
+  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override = 0;
 
   /// Getter of locals vector.
   InstrView getInstrs() const { return Expr.getInstrs(); }
@@ -67,7 +67,7 @@ public:
   const GlobalType &getGlobalType() const { return Global; }
 
   /// The node type should be ASTNodeAttr::Seg_Global.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Global;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Global;
 
 private:
   /// \name Data of GlobalSegment node.
@@ -106,7 +106,7 @@ public:
   Span<const Expression> getInitExprs() const { return InitExprs; }
 
   /// The node type should be ASTNodeAttr::Seg_Element.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Element;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Element;
 
 private:
   /// \name Data of ElementSegment node.
@@ -141,7 +141,7 @@ public:
   void setSymbol(Loader::Symbol<void> S) noexcept { Symbol = std::move(S); }
 
   /// The node type should be ASTNodeAttr::Seg_Code.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Code;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Code;
 
 private:
   /// \name Data of CodeSegment node.
@@ -180,7 +180,7 @@ public:
   Span<const Byte> getData() const { return Data; }
 
   /// The node type should be ASTNodeAttr::Seg_Data.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Data;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Data;
 
 private:
   /// \name Data of DataSegment node.

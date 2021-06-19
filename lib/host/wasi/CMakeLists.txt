@@ -25,6 +25,11 @@ add_library(wasmedgeHostModuleWasi
   ${MACOS_MM}
 )
 
+target_compile_options(wasmedgeHostModuleWasi
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
+
 target_include_directories(wasmedgeHostModuleWasi
   PUBLIC
   ${PROJECT_SOURCE_DIR}/thirdparty

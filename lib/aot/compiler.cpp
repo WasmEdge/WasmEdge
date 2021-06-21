@@ -5,6 +5,7 @@
 #include "common/log.h"
 #include "runtime/instance/memory.h"
 #include "runtime/instance/table.h"
+#include <cstdlib>
 #include <lld/Common/Driver.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/IR/IRBuilder.h>
@@ -28,6 +29,10 @@
 #include <llvm/IR/IntrinsicsAArch64.h>
 #include <llvm/IR/IntrinsicsX86.h>
 #include <llvm/Support/Alignment.h>
+#endif
+
+#if WASMEDGE_OS_MACOS
+#include <unistd.h>
 #endif
 
 namespace {
@@ -1068,7 +1073,7 @@ public:
         break;
       case OpCode::F32__nearest:
       case OpCode::F64__nearest: {
-#if LLVM_VERSION_MAJOR >= 11 && !WASMEDGE_OS_WINDOWS
+#if LLVM_VERSION_MAJOR >= 11 && WASMEDGE_OS_LINUX
         stackPush(Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven,
                                                stackPop()));
 #else
@@ -1096,7 +1101,8 @@ public:
 #if defined(__aarch64__)
         if (Context.SupportNEON) {
           const uint64_t kZero = 0;
-          auto *VectorTy = llvm::VectorType::get(Value->getType(), VectorSize);
+          auto *VectorTy =
+              llvm::VectorType::get(Value->getType(), VectorSize, false);
           llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
           Ret = Builder.CreateInsertElement(Ret, Value, kZero);
           Ret = Builder.CreateUnaryIntrinsic(
@@ -3314,8 +3320,8 @@ private:
         VectorTy, [this, VectorTy, Signed](auto *V) -> llvm::Value * {
           auto *ExtTy = llvm::VectorType::getHalfElementsVectorType(
               llvm::VectorType::getExtendedElementVectorType(VectorTy));
-          const auto Count = elementCount(VectorTy);
 #if defined(__x86_64__)
+          const auto Count = elementCount(VectorTy);
           if (Context.SupportXOP) {
             const auto ID = Count == 16
                                 ? (Signed ? llvm::Intrinsic::x86_xop_vphaddbw
@@ -3403,15 +3409,15 @@ private:
     });
   }
   void compileVectorFNearest(llvm::VectorType *VectorTy) {
-#if LLVM_VERSION_MAJOR >= 11
+#if LLVM_VERSION_MAJOR >= 11 && WASMEDGE_OS_LINUX
     compileVectorOp(VectorTy, [this](auto *V) {
       return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven, V);
     });
 #else
-    const bool IsFloat = VectorTy->getElementType() == Context.FloatTy;
-    compileVectorOp(VectorTy, [this, IsFloat](auto *V) {
+    compileVectorOp(VectorTy, [&](auto *V) {
 #if defined(__x86_64__)
       if (Context.SupportSSE4_1) {
+        const bool IsFloat = VectorTy->getElementType() == Context.FloatTy;
         auto ID = IsFloat ? llvm::Intrinsic::x86_sse41_round_ps
                           : llvm::Intrinsic::x86_sse41_round_pd;
         return Builder.CreateIntrinsic(ID, {}, {V, Builder.getInt32(8)});
@@ -3988,14 +3994,14 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 #if defined(__x86_64__)
             "x86_64",
 #elif defined(__aarch64__)
-            (Triple.isArm64e() ? "arm64e" : "arm64"),
+            "arm64",
 #else
 #error Unsupported platform!
 #endif
-            "-dylib", "-demangle", "-syslibroot",
+            "-dylib", "-demangle", "-macosx_version_min", "10.0.0",
+            "-sdk_version", "11.3", "-syslibroot",
             "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-            "-no_version_load_command", ObjectName.c_str(), "-o",
-            OutputPath.u8string().c_str(), "-lSystem"
+            ObjectName.c_str(), "-o", OutputPath.u8string().c_str(), "-lSystem"
       },
 #elif WASMEDGE_OS_LINUX
   lld::elf::link(
@@ -4018,6 +4024,26 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   // llvm::consumeError(Object->discard());
   llvm::sys::fs::remove(ObjectName);
   spdlog::info("compile done");
+
+#if WASMEDGE_OS_MACOS
+  // codesign
+  {
+    pid_t PID = ::fork();
+    if (PID == -1) {
+      spdlog::error("codesign error on fork:{}", std::strerror(errno));
+    } else if (PID == 0) {
+      execlp("/usr/bin/codesign", "codesign", "-s", "-",
+             OutputPath.u8string().c_str(), nullptr);
+      std::exit(256);
+    } else {
+      int ChildStat;
+      waitpid(PID, &ChildStat, 0);
+      if (const int Status = WEXITSTATUS(ChildStat); Status != 0) {
+        spdlog::error("codesign exited with status {}", Status);
+      }
+    }
+  }
+#endif
 
   return {};
 }

@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "common/configure.h"
+#include "common/defines.h"
 #include "common/filesystem.h"
 #include "common/log.h"
 
@@ -28,6 +29,14 @@
 #include <memory>
 #include <string>
 #include <vector>
+
+#if WASMEDGE_OS_LINUX
+#define EXTENSION ".so"sv
+#elif WASMEDGE_OS_MACOS
+#define EXTENSION ".dylib"sv
+#elif WASMEDGE_OS_WINDOWS
+#define EXTENSION ".dll"sv
+#endif
 
 namespace {
 
@@ -53,7 +62,7 @@ TEST_P(CoreTest, TestSuites) {
     CopyConf.getCompilerConfigure().setDumpIR(true);
     WasmEdge::AOT::Compiler Compiler(CopyConf);
     auto Path = std::filesystem::u8path(Filename);
-    Path.replace_extension(std::filesystem::u8path(".so"sv));
+    Path.replace_extension(std::filesystem::u8path(EXTENSION));
     const auto SOPath = Path.u8string();
     auto Data = *Loader.loadFile(Filename);
     auto Module = *Loader.parseModule(Data);

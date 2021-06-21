@@ -7,6 +7,14 @@
 #include <fstream>
 #include <string_view>
 
+#if WASMEDGE_OS_LINUX
+#define EXTENSION ".so"sv
+#elif WASMEDGE_OS_MACOS
+#define EXTENSION ".dylib"sv
+#elif WASMEDGE_OS_WINDOWS
+#define EXTENSION ".dll"sv
+#endif
+
 namespace WasmEdge {
 namespace Loader {
 
@@ -58,7 +66,7 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
 Expect<std::unique_ptr<AST::Module>>
 Loader::parseModule(const std::filesystem::path &FilePath) {
   using namespace std::literals::string_view_literals;
-  if (FilePath.extension() == ".so"sv || FilePath.extension() == ".dll"sv) {
+  if (FilePath.extension() == EXTENSION) {
     if (auto Res = LMgr.setPath(FilePath); !Res) {
       spdlog::error(Res.error());
       spdlog::error(ErrInfo::InfoFile(FilePath));

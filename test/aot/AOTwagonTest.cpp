@@ -12,9 +12,18 @@
 
 #include "aot/compiler.h"
 #include "ast/module.h"
+#include "common/defines.h"
 #include "loader/loader.h"
 #include "gtest/gtest.h"
 #include <vector>
+
+#if WASMEDGE_OS_LINUX
+#define EXTENSION ".so"sv
+#elif WASMEDGE_OS_MACOS
+#define EXTENSION ".dylib"sv
+#elif WASMEDGE_OS_WINDOWS
+#define EXTENSION ".dll"sv
+#endif
 
 #define BODY(NAME)                                                             \
   do {                                                                         \
@@ -24,7 +33,7 @@
     Conf.getCompilerConfigure().setDumpIR(true);                               \
     WasmEdge::AOT::Compiler Compiler(Conf);                                    \
     auto Status = Compiler.compile(Data, **Module,                             \
-                                   "../loader/wagonTestData/" NAME ".so"sv);   \
+                                   "../loader/wagonTestData/" NAME EXTENSION); \
     if (Status) {                                                              \
       ASSERT_TRUE(Status);                                                     \
     } else {                                                                   \

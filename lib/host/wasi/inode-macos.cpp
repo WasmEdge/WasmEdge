@@ -106,9 +106,8 @@ WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
   }
 }
 
-WasiExpect<void> INode::fdAdvise(__wasi_filesize_t Offset,
-                                 __wasi_filesize_t Len,
-                                 __wasi_advice_t Advice) const noexcept {
+WasiExpect<void> INode::fdAdvise(__wasi_filesize_t, __wasi_filesize_t,
+                                 __wasi_advice_t) const noexcept {
   /// Not supported, just ignore it.
   return {};
 }
@@ -126,7 +125,8 @@ WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
   if (EofOffset < 0 || ::lseek(Fd, OldOffset, SEEK_SET) < 0) {
     return WasiUnexpect(fromErrNo(errno));
   }
-  if (Len <= EofOffset && Offset <= EofOffset - Len) {
+  if (Len <= static_cast<__wasi_filesize_t>(EofOffset) &&
+      Offset <= static_cast<__wasi_filesize_t>(EofOffset) - Len) {
     /// File is already large enough.
     return {};
   }
@@ -752,7 +752,7 @@ WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>> RiData,
 }
 
 WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>> SiData,
-                                 __wasi_siflags_t SiFlags,
+                                 __wasi_siflags_t,
                                  __wasi_size_t &NWritten) const noexcept {
   int SysSiFlags = 0;
 
@@ -855,13 +855,14 @@ Poller::Poller(__wasi_size_t Count) : FdHolder(::kqueue()) {
   Events.reserve(Count);
 }
 
-WasiExpect<void> Poller::clock(__wasi_clockid_t Clock,
-                               __wasi_timestamp_t Timeout,
-                               __wasi_timestamp_t Precision,
-                               __wasi_subclockflags_t Flags,
+WasiExpect<void> Poller::clock(__wasi_clockid_t, __wasi_timestamp_t Timeout,
+                               __wasi_timestamp_t, __wasi_subclockflags_t Flags,
                                __wasi_userdata_t UserData) noexcept {
   try {
-    Events.push_back({UserData, __WASI_ERRNO_SUCCESS, __WASI_EVENTTYPE_CLOCK});
+    Events.push_back({UserData,
+                      __WASI_ERRNO_SUCCESS,
+                      __WASI_EVENTTYPE_CLOCK,
+                      {0, static_cast<__wasi_eventrwflags_t>(0)}});
   } catch (std::bad_alloc &) {
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }
@@ -886,8 +887,10 @@ WasiExpect<void> Poller::clock(__wasi_clockid_t Clock,
 WasiExpect<void> Poller::read(const INode &Node,
                               __wasi_userdata_t UserData) noexcept {
   try {
-    Events.push_back(
-        {UserData, __WASI_ERRNO_SUCCESS, __WASI_EVENTTYPE_FD_READ});
+    Events.push_back({UserData,
+                      __WASI_ERRNO_SUCCESS,
+                      __WASI_EVENTTYPE_FD_READ,
+                      {0, static_cast<__wasi_eventrwflags_t>(0)}});
   } catch (std::bad_alloc &) {
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }
@@ -907,8 +910,10 @@ WasiExpect<void> Poller::read(const INode &Node,
 WasiExpect<void> Poller::write(const INode &Node,
                                __wasi_userdata_t UserData) noexcept {
   try {
-    Events.push_back(
-        {UserData, __WASI_ERRNO_SUCCESS, __WASI_EVENTTYPE_FD_WRITE});
+    Events.push_back({UserData,
+                      __WASI_ERRNO_SUCCESS,
+                      __WASI_EVENTTYPE_FD_WRITE,
+                      {0, static_cast<__wasi_eventrwflags_t>(0)}});
   } catch (std::bad_alloc &) {
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }

@@ -69,6 +69,7 @@ target_compile_options(utilBlake3
   -Wno-pointer-sign
   -Wno-shorten-64-to-32
   -Wno-sign-conversion
+  -Wno-unused-function
 )
 
 target_include_directories(utilBlake3

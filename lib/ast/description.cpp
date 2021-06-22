@@ -52,7 +52,7 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     return GlobType.loadBinary(Mgr, Conf);
   }
   default:
-    return logLoadError(ErrCode::InvalidImportKind, Mgr.getLastOffset(),
+    return logLoadError(ErrCode::MalformedImportKind, Mgr.getLastOffset(),
                         NodeAttr);
   }
   return {};
@@ -80,7 +80,7 @@ Expect<void> ExportDesc::loadBinary(FileMgr &Mgr, const Configure &) {
   case ExternalType::Global:
     break;
   default:
-    return logLoadError(ErrCode::InvalidExportKind, Mgr.getLastOffset(),
+    return logLoadError(ErrCode::MalformedExportKind, Mgr.getLastOffset(),
                         NodeAttr);
   }
 

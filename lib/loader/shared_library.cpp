@@ -44,7 +44,7 @@ Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
 #else
     spdlog::error("load library failed:{}", ::dlerror());
 #endif
-    return Unexpect(ErrCode::InvalidPath);
+    return Unexpect(ErrCode::IllegalPath);
   }
   return {};
 }

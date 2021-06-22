@@ -15,24 +15,24 @@ Expect<void> checkInstrProposals(OpCode Code, const Configure &Conf,
       (Code >= OpCode::Memory__init && Code <= OpCode::Memory__fill)) {
     /// These instructions are for ReferenceTypes or BulkMemoryOperations
     /// proposal.
-    if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
-        !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
-      return logNeedProposal(ErrCode::InvalidOpCode, Proposal::ReferenceTypes,
+    if (unlikely(!Conf.hasProposal(Proposal::ReferenceTypes)) &&
+        unlikely(!Conf.hasProposal(Proposal::BulkMemoryOperations))) {
+      return logNeedProposal(ErrCode::IllegalOpCode, Proposal::ReferenceTypes,
                              Offset, ASTNodeAttr::Instruction);
     }
   } else if (Code == OpCode::Select_t ||
              (Code >= OpCode::Table__get && Code <= OpCode::Table__set) ||
              (Code >= OpCode::Table__grow && Code <= OpCode::Table__fill)) {
     /// These instructions are for ReferenceTypes proposal.
-    if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logNeedProposal(ErrCode::InvalidOpCode, Proposal::ReferenceTypes,
+    if (unlikely(!Conf.hasProposal(Proposal::ReferenceTypes))) {
+      return logNeedProposal(ErrCode::IllegalOpCode, Proposal::ReferenceTypes,
                              Offset, ASTNodeAttr::Instruction);
     }
   } else if (Code >= OpCode::V128__load &&
              Code <= OpCode::F64x2__convert_low_i32x4_u) {
     /// These instructions are for SIMD proposal.
     if (!Conf.hasProposal(Proposal::SIMD)) {
-      return logNeedProposal(ErrCode::InvalidOpCode, Proposal::SIMD, Offset,
+      return logNeedProposal(ErrCode::IllegalOpCode, Proposal::SIMD, Offset,
                              ASTNodeAttr::Instruction);
     }
   }
@@ -764,7 +764,7 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     return {};
 
   default:
-    return logLoadError(ErrCode::InvalidOpCode, Offset,
+    return logLoadError(ErrCode::IllegalOpCode, Offset,
                         ASTNodeAttr::Instruction);
   }
 }
@@ -819,13 +819,13 @@ Expect<InstrVec> loadInstrSeq(FileMgr &Mgr, const Configure &Conf) {
     } else if (Code == OpCode::Else) {
       if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::If) {
         /// An Else instruction appeared outside the If-block.
-        return logLoadError(ErrCode::InvalidOpCode, Offset,
+        return logLoadError(ErrCode::IllegalOpCode, Offset,
                             ASTNodeAttr::Instruction);
       }
       uint32_t Pos = BlockStack.back().second;
       if (Instrs[Pos].getJumpElse() > 0) {
         /// An Else instruction appeared before in this If-block.
-        return logLoadError(ErrCode::InvalidOpCode, Offset,
+        return logLoadError(ErrCode::IllegalOpCode, Offset,
                             ASTNodeAttr::Instruction);
       }
       Instrs[Pos].setJumpElse(Cnt - Pos);

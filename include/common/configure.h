@@ -24,7 +24,11 @@ namespace WasmEdge {
 /// This enum is also duplicated to "include/api/wasmedge.h" and should be the
 /// same.
 enum class Proposal : uint8_t {
-  BulkMemoryOperations = 0,
+  ImportExportMutGlobals = 0,
+  NonTrapFloatToIntConversions,
+  SignExtensionOperators,
+  MultiValue,
+  BulkMemoryOperations,
   ReferenceTypes,
   SIMD,
   TailCall,
@@ -114,6 +118,10 @@ private:
 class Configure {
 public:
   Configure() noexcept {
+    addProposal(Proposal::ImportExportMutGlobals);
+    addProposal(Proposal::NonTrapFloatToIntConversions);
+    addProposal(Proposal::SignExtensionOperators);
+    addProposal(Proposal::MultiValue);
     addProposal(Proposal::BulkMemoryOperations);
     addProposal(Proposal::ReferenceTypes);
   }

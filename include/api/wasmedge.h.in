@@ -276,7 +276,11 @@ typedef struct WasmEdge_Limit {
 /// This enum is copied from "include/common/configure.h" and should be the
 /// same.
 enum WasmEdge_Proposal {
-  WasmEdge_Proposal_BulkMemoryOperations = 0,
+  WasmEdge_Proposal_ImportExportMutGlobals = 0,
+  WasmEdge_Proposal_NonTrapFloatToIntConversions,
+  WasmEdge_Proposal_SignExtensionOperators,
+  WasmEdge_Proposal_MultiValue,
+  WasmEdge_Proposal_BulkMemoryOperations,
   WasmEdge_Proposal_ReferenceTypes,
   WasmEdge_Proposal_SIMD,
   WasmEdge_Proposal_TailCall,

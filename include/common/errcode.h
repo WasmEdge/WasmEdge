@@ -49,31 +49,31 @@ enum class ErrCode : uint8_t {
   FuncNotFound = 0x05,      /// Wasm function not found
   AOTDisabled = 0x06,       /// AOT runtime is disabled
   /// Load phase
-  InvalidPath = 0x20,           /// File not found
+  IllegalPath = 0x20,           /// File not found
   ReadError = 0x21,             /// Error when reading
   UnexpectedEnd = 0x22,         /// Reach end of file when reading
-  InvalidMagic = 0x23,          /// Not detected magic header
-  InvalidVersion = 0x24,        /// Unsupported version
-  InvalidSection = 0x25,        /// Malformed section ID
+  MalformedMagic = 0x23,        /// Not detected magic header
+  MalformedVersion = 0x24,      /// Unsupported version
+  MalformedSection = 0x25,      /// Malformed section ID
   SectionSizeMismatch = 0x26,   /// Section size mismatched
   NameSizeOutOfBounds = 0x27,   /// Name size out of bounds
   JunkSection = 0x28,           /// Junk sections
   IncompatibleFuncCode = 0x29,  /// Incompatible function and code section
   IncompatibleDataCount = 0x2A, /// Incompatible data and datacount section
   DataCountRequired = 0x2B,     /// Datacount section required
-  InvalidImportKind = 0x2C,     /// Malformed import kind
-  InvalidExportKind = 0x2D,     /// Malformed export kind
+  MalformedImportKind = 0x2C,   /// Malformed import kind
+  MalformedExportKind = 0x2D,   /// Malformed export kind
   ExpectedZeroByte = 0x2E,      /// Not loaded an expected zero byte
   InvalidMut = 0x2F,            /// Malformed mutability
   TooManyLocals = 0x30,         /// Local size too large
-  InvalidValType = 0x31,        /// Malformed value type
-  InvalidElemType = 0x32,       /// Malformed element type (Bulk-mem proposal)
-  InvalidRefType = 0x33,  /// Malformed reference type (Ref-types proposal)
-  InvalidUTF8 = 0x34,     /// Invalid utf-8 encoding
-  IntegerTooLarge = 0x35, /// Invalid too large integer
-  IntegerTooLong = 0x36,  /// Invalid presentation too long integer
-  InvalidOpCode = 0x37,   /// Illegal OpCode
-  InvalidGrammar = 0x38,  /// Parsing error
+  MalformedValType = 0x31,      /// Malformed value type
+  MalformedElemType = 0x32,     /// Malformed element type (Bulk-mem proposal)
+  MalformedRefType = 0x33, /// Malformed reference type (Ref-types proposal)
+  MalformedUTF8 = 0x34,    /// Invalid utf-8 encoding
+  IntegerTooLarge = 0x35,  /// Invalid too large integer
+  IntegerTooLong = 0x36,   /// Invalid presentation too long integer
+  IllegalOpCode = 0x37,    /// Illegal OpCode
+  IllegalGrammar = 0x38,   /// Parsing error
   /// Validation phase
   InvalidAlignment = 0x40,   /// Alignment > natural
   TypeCheckFailed = 0x41,    /// Got unexpected type when checking
@@ -132,12 +132,12 @@ static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::FuncNotFound, "wasm function not found"},
     {ErrCode::AOTDisabled, "AOT runtime is disabled in this build"},
     /// Load phase
-    {ErrCode::InvalidPath, "invalid path"},
+    {ErrCode::IllegalPath, "invalid path"},
     {ErrCode::ReadError, "read error"},
     {ErrCode::UnexpectedEnd, "unexpected end"},
-    {ErrCode::InvalidMagic, "magic header not detected"},
-    {ErrCode::InvalidVersion, "unknown binary version"},
-    {ErrCode::InvalidSection, "malformed section id"},
+    {ErrCode::MalformedMagic, "magic header not detected"},
+    {ErrCode::MalformedVersion, "unknown binary version"},
+    {ErrCode::MalformedSection, "malformed section id"},
     {ErrCode::SectionSizeMismatch, "section size mismatch"},
     {ErrCode::NameSizeOutOfBounds, "length out of bounds"},
     {ErrCode::JunkSection, "junk after last section"},
@@ -146,19 +146,19 @@ static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::IncompatibleDataCount,
      "data count and data section have inconsistent lengths"},
     {ErrCode::DataCountRequired, "data count section required"},
-    {ErrCode::InvalidImportKind, "malformed import kind"},
-    {ErrCode::InvalidExportKind, "malformed export kind"},
+    {ErrCode::MalformedImportKind, "malformed import kind"},
+    {ErrCode::MalformedExportKind, "malformed export kind"},
     {ErrCode::ExpectedZeroByte, "zero byte expected"},
     {ErrCode::InvalidMut, "malformed mutability"},
     {ErrCode::TooManyLocals, "too many locals"},
-    {ErrCode::InvalidValType, "malformed value type"},
-    {ErrCode::InvalidElemType, "malformed element type"},
-    {ErrCode::InvalidRefType, "malformed reference type"},
-    {ErrCode::InvalidUTF8, "malformed UTF-8 encoding"},
+    {ErrCode::MalformedValType, "malformed value type"},
+    {ErrCode::MalformedElemType, "malformed element type"},
+    {ErrCode::MalformedRefType, "malformed reference type"},
+    {ErrCode::MalformedUTF8, "malformed UTF-8 encoding"},
     {ErrCode::IntegerTooLarge, "integer too large"},
     {ErrCode::IntegerTooLong, "integer representation too long"},
-    {ErrCode::InvalidOpCode, "illegal opcode"},
-    {ErrCode::InvalidGrammar, "invalid wasm grammar"},
+    {ErrCode::IllegalOpCode, "illegal opcode"},
+    {ErrCode::IllegalGrammar, "invalid wasm grammar"},
     /// Validation phase
     {ErrCode::InvalidAlignment, "alignment must not be larger than natural"},
     {ErrCode::TypeCheckFailed, "type mismatch"},

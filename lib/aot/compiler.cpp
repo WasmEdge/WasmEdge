@@ -3879,7 +3879,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     // TODO:return error
     spdlog::error("so file creation failed:{}", OPath.u8string());
     llvm::consumeError(Object.takeError());
-    return Unexpect(ErrCode::InvalidPath);
+    return Unexpect(ErrCode::IllegalPath);
   }
   auto OS = std::make_unique<llvm::raw_fd_ostream>(Object->FD, false);
 
@@ -3893,7 +3893,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       // TODO:return error
       spdlog::error("lookupTarget failed:{}", Error);
       llvm::consumeError(Object->discard());
-      return Unexpect(ErrCode::InvalidPath);
+      return Unexpect(ErrCode::IllegalPath);
     }
 
     llvm::TargetOptions Options;
@@ -3971,7 +3971,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       // TODO:return error
       spdlog::error("addPassesToEmitFile failed");
       llvm::consumeError(Object->discard());
-      return Unexpect(ErrCode::InvalidPath);
+      return Unexpect(ErrCode::IllegalPath);
     }
 
     if (Conf.getCompilerConfigure().isDumpIR()) {

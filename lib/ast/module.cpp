@@ -14,7 +14,8 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     Magic = *Res;
     std::vector<Byte> WasmMagic = {0x00, 0x61, 0x73, 0x6D};
     if (Magic != WasmMagic) {
-      return logLoadError(ErrCode::InvalidMagic, Mgr.getLastOffset(), NodeAttr);
+      return logLoadError(ErrCode::MalformedMagic, Mgr.getLastOffset(),
+                          NodeAttr);
     }
   } else {
     return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
@@ -23,7 +24,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     Version = *Res;
     std::vector<Byte> WasmVersion = {0x01, 0x00, 0x00, 0x00};
     if (Version != WasmVersion) {
-      return logLoadError(ErrCode::InvalidVersion, Mgr.getLastOffset(),
+      return logLoadError(ErrCode::MalformedVersion, Mgr.getLastOffset(),
                           NodeAttr);
     }
   } else {
@@ -143,7 +144,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       /// This section is for BulkMemoryOperations or ReferenceTypes proposal.
       if (!CopyConf.hasProposal(Proposal::BulkMemoryOperations) &&
           !CopyConf.hasProposal(Proposal::ReferenceTypes)) {
-        return logNeedProposal(ErrCode::InvalidSection,
+        return logNeedProposal(ErrCode::MalformedSection,
                                Proposal::BulkMemoryOperations,
                                Mgr.getLastOffset(), NodeAttr);
       }
@@ -155,7 +156,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       Secs.set(NewSectionId);
       break;
     default:
-      return logLoadError(ErrCode::InvalidSection, Mgr.getLastOffset(),
+      return logLoadError(ErrCode::MalformedSection, Mgr.getLastOffset(),
                           NodeAttr);
     }
   }

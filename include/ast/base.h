@@ -57,14 +57,15 @@ inline Expect<ValType> checkValTypeProposals(const Configure &Conf,
                                              ValType VType, uint64_t Off,
                                              ASTNodeAttr Node) {
   if (VType == ValType::V128 && !Conf.hasProposal(Proposal::SIMD)) {
-    return logNeedProposal(ErrCode::InvalidValType, Proposal::SIMD, Off, Node);
+    return logNeedProposal(ErrCode::MalformedValType, Proposal::SIMD, Off,
+                           Node);
   }
   if ((VType == ValType::FuncRef &&
        !Conf.hasProposal(Proposal::ReferenceTypes) &&
        !Conf.hasProposal(Proposal::BulkMemoryOperations)) ||
       (VType == ValType::ExternRef &&
        !Conf.hasProposal(Proposal::ReferenceTypes))) {
-    return logNeedProposal(ErrCode::InvalidElemType, Proposal::ReferenceTypes,
+    return logNeedProposal(ErrCode::MalformedElemType, Proposal::ReferenceTypes,
                            Off, Node);
   }
   switch (VType) {
@@ -78,7 +79,7 @@ inline Expect<ValType> checkValTypeProposals(const Configure &Conf,
   case ValType::FuncRef:
     return VType;
   default:
-    return logLoadError(ErrCode::InvalidValType, Off, Node);
+    return logLoadError(ErrCode::MalformedValType, Off, Node);
   }
 }
 
@@ -89,17 +90,17 @@ inline Expect<RefType> checkRefTypeProposals(const Configure &Conf,
   switch (RType) {
   case RefType::ExternRef:
     if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logNeedProposal(ErrCode::InvalidElemType, Proposal::ReferenceTypes,
-                             Off, Node);
+      return logNeedProposal(ErrCode::MalformedElemType,
+                             Proposal::ReferenceTypes, Off, Node);
     }
     [[fallthrough]];
   case RefType::FuncRef:
     return RType;
   default:
     if (Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logLoadError(ErrCode::InvalidRefType, Off, Node);
+      return logLoadError(ErrCode::MalformedRefType, Off, Node);
     } else {
-      return logLoadError(ErrCode::InvalidElemType, Off, Node);
+      return logLoadError(ErrCode::MalformedElemType, Off, Node);
     }
   }
 }

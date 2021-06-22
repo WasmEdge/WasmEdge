@@ -10,9 +10,25 @@ namespace {
 
 Expect<void> checkInstrProposals(OpCode Code, const Configure &Conf,
                                  uint64_t Offset) {
-  if ((Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
-      (Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||
-      (Code >= OpCode::Memory__init && Code <= OpCode::Memory__fill)) {
+  if (Code >= OpCode::I32__trunc_sat_f32_s &&
+      Code <= OpCode::I64__trunc_sat_f64_u) {
+    /// These instructions are for NonTrapFloatToIntConversions proposal.
+    if (unlikely(!Conf.hasProposal(Proposal::NonTrapFloatToIntConversions))) {
+      return logNeedProposal(ErrCode::IllegalOpCode,
+                             Proposal::NonTrapFloatToIntConversions, Offset,
+                             ASTNodeAttr::Instruction);
+    }
+  } else if (Code >= OpCode::I32__extend8_s &&
+             Code <= OpCode::I64__extend32_s) {
+    /// These instructions are for SignExtensionOperators proposal.
+    if (unlikely(!Conf.hasProposal(Proposal::SignExtensionOperators))) {
+      return logNeedProposal(ErrCode::IllegalOpCode,
+                             Proposal::SignExtensionOperators, Offset,
+                             ASTNodeAttr::Instruction);
+    }
+  } else if ((Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
+             (Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||
+             (Code >= OpCode::Memory__init && Code <= OpCode::Memory__fill)) {
     /// These instructions are for ReferenceTypes or BulkMemoryOperations
     /// proposal.
     if (unlikely(!Conf.hasProposal(Proposal::ReferenceTypes)) &&
@@ -93,6 +109,11 @@ Expect<void> Instruction::loadBinary(FileMgr &Mgr, const Configure &Conf) {
         ResType = VType;
       } else {
         /// Type index case.
+        if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
+          return logNeedProposal(ErrCode::MalformedValType,
+                                 Proposal::MultiValue, Mgr.getLastOffset(),
+                                 ASTNodeAttr::Instruction);
+        }
         ResType = static_cast<uint32_t>(*Res);
       }
     } else {

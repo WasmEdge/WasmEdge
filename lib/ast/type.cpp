@@ -87,6 +87,10 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   } else {
     return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
+  if (unlikely(!Conf.hasProposal(Proposal::MultiValue)) && VecCnt > 1) {
+    return logNeedProposal(ErrCode::MalformedValType, Proposal::MultiValue,
+                           Mgr.getLastOffset(), NodeAttr);
+  }
   for (uint32_t i = 0; i < VecCnt; ++i) {
     if (auto Res = Mgr.readByte()) {
       ValType Type = static_cast<ValType>(*Res);

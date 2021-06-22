@@ -49,7 +49,17 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   }
   case ExternalType::Global: {
     /// Read the global type node.
-    return GlobType.loadBinary(Mgr, Conf);
+    if (auto Res = GlobType.loadBinary(Mgr, Conf); !Res) {
+      return Unexpect(Res.error());
+    }
+    /// Import the mutable globals are for ImportExportMutGlobals proposal.
+    if (GlobType.getValueMutation() == ValMut::Var &&
+        unlikely(!Conf.hasProposal(Proposal::ImportExportMutGlobals))) {
+      return logNeedProposal(ErrCode::InvalidMut,
+                             Proposal::ImportExportMutGlobals,
+                             Mgr.getLastOffset(), NodeAttr);
+    }
+    return {};
   }
   default:
     return logLoadError(ErrCode::MalformedImportKind, Mgr.getLastOffset(),

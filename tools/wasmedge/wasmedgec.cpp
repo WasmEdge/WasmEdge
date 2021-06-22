@@ -20,36 +20,48 @@ int main(int Argc, const char *Argv[]) {
   PO::Option<std::string> SoName(PO::Description("Wasm so file"sv),
                                  PO::MetaVar("WASM_SO"sv));
 
-  PO::Option<PO::Toggle> GenericBinary(
+  PO::Option<PO::Toggle> ConfGenericBinary(
       PO::Description("Generate a generic binary"sv));
 
-  PO::Option<PO::Toggle> DumpIR(
+  PO::Option<PO::Toggle> ConfDumpIR(
       PO::Description("Dump LLVM IR to `wasm.ll` and `wasm-opt.ll`."sv));
 
-  PO::Option<PO::Toggle> InstructionCounting(PO::Description(
+  PO::Option<PO::Toggle> ConfInstructionCounting(PO::Description(
       "Generate code for counting Wasm instructions executed."sv));
 
-  PO::Option<PO::Toggle> GasMeasuring(PO::Description(
+  PO::Option<PO::Toggle> ConfGasMeasuring(PO::Description(
       "Generate code for counting gas burned during execution."sv));
 
-  PO::Option<PO::Toggle> BulkMemoryOperations(
-      PO::Description("Disable Bulk-memory operations"sv));
-  PO::Option<PO::Toggle> ReferenceTypes(
-      PO::Description("Disable Reference types (externref)"sv));
-  PO::Option<PO::Toggle> SIMD(PO::Description("Enable SIMD"sv));
-  PO::Option<PO::Toggle> All(PO::Description("Enable all features"sv));
+  PO::Option<PO::Toggle> PropMutGlobals(
+      PO::Description("Disable Import/Export of mutable globals proposal"sv));
+  PO::Option<PO::Toggle> PropNonTrapF2IConvs(PO::Description(
+      "Disable Non-trapping float-to-int conversions proposal"sv));
+  PO::Option<PO::Toggle> PropSignExtendOps(
+      PO::Description("Disable Sign-extension operators proposal"sv));
+  PO::Option<PO::Toggle> PropMultiValue(
+      PO::Description("Disable Multi-value proposal"sv));
+  PO::Option<PO::Toggle> PropBulkMemOps(
+      PO::Description("Disable Bulk memory operations proposal"sv));
+  PO::Option<PO::Toggle> PropRefTypes(
+      PO::Description("Disable Reference types proposal"sv));
+  PO::Option<PO::Toggle> PropSIMD(PO::Description("Enable SIMD proposal"sv));
+  PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
 
   auto Parser = PO::ArgumentParser();
   if (!Parser.add_option(WasmName)
            .add_option(SoName)
-           .add_option("dump"sv, DumpIR)
-           .add_option("ic"sv, InstructionCounting)
-           .add_option("gas"sv, GasMeasuring)
-           .add_option("generic-binary"sv, GenericBinary)
-           .add_option("disable-bulk-memory"sv, BulkMemoryOperations)
-           .add_option("disable-reference-types"sv, ReferenceTypes)
-           .add_option("enable-simd"sv, SIMD)
-           .add_option("enable-all"sv, All)
+           .add_option("dump"sv, ConfDumpIR)
+           .add_option("ic"sv, ConfInstructionCounting)
+           .add_option("gas"sv, ConfGasMeasuring)
+           .add_option("generic-binary"sv, ConfGenericBinary)
+           .add_option("disable-import-export-mut-globals"sv, PropMutGlobals)
+           .add_option("disable-non-trap-float-to-int"sv, PropNonTrapF2IConvs)
+           .add_option("disable-sign-extension-operators"sv, PropSignExtendOps)
+           .add_option("disable-multi-value"sv, PropMultiValue)
+           .add_option("disable-bulk-memory"sv, PropBulkMemOps)
+           .add_option("disable-reference-types"sv, PropRefTypes)
+           .add_option("enable-simd"sv, PropSIMD)
+           .add_option("enable-all"sv, PropAll)
            .parse(Argc, Argv)) {
     return EXIT_FAILURE;
   }
@@ -59,16 +71,28 @@ int main(int Argc, const char *Argv[]) {
   }
 
   WasmEdge::Configure Conf;
-  if (BulkMemoryOperations.value()) {
+  if (PropMutGlobals.value()) {
+    Conf.removeProposal(WasmEdge::Proposal::ImportExportMutGlobals);
+  }
+  if (PropNonTrapF2IConvs.value()) {
+    Conf.removeProposal(WasmEdge::Proposal::NonTrapFloatToIntConversions);
+  }
+  if (PropSignExtendOps.value()) {
+    Conf.removeProposal(WasmEdge::Proposal::SignExtensionOperators);
+  }
+  if (PropMultiValue.value()) {
+    Conf.removeProposal(WasmEdge::Proposal::MultiValue);
+  }
+  if (PropBulkMemOps.value()) {
     Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
   }
-  if (ReferenceTypes.value()) {
+  if (PropRefTypes.value()) {
     Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
   }
-  if (SIMD.value()) {
+  if (PropSIMD.value()) {
     Conf.addProposal(WasmEdge::Proposal::SIMD);
   }
-  if (All.value()) {
+  if (PropAll.value()) {
     Conf.addProposal(WasmEdge::Proposal::SIMD);
   }
 
@@ -104,16 +128,16 @@ int main(int Argc, const char *Argv[]) {
   }
 
   {
-    if (DumpIR.value()) {
+    if (ConfDumpIR.value()) {
       Conf.getCompilerConfigure().setDumpIR(true);
     }
-    if (InstructionCounting.value()) {
+    if (ConfInstructionCounting.value()) {
       Conf.getCompilerConfigure().setInstructionCounting(true);
     }
-    if (GasMeasuring.value()) {
+    if (ConfGasMeasuring.value()) {
       Conf.getCompilerConfigure().setCostMeasuring(true);
     }
-    if (GenericBinary.value()) {
+    if (ConfGenericBinary.value()) {
       Conf.getCompilerConfigure().setGenericBinary(true);
     }
     WasmEdge::AOT::Compiler Compiler(Conf);

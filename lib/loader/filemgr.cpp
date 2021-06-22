@@ -16,7 +16,7 @@ Expect<void> FileMgr::setPath(const std::filesystem::path &FilePath) {
   Size = std::filesystem::file_size(FilePath, ErrCode);
   if (likely(!ErrCode)) {
     if (!MMap::supported()) {
-      Status = ErrCode::InvalidPath;
+      Status = ErrCode::IllegalPath;
       return Unexpect(Status);
     }
     FileMap.emplace(FilePath);
@@ -30,7 +30,7 @@ Expect<void> FileMgr::setPath(const std::filesystem::path &FilePath) {
     }
     return {};
   }
-  Status = ErrCode::InvalidPath;
+  Status = ErrCode::IllegalPath;
   return Unexpect(Status);
 }
 
@@ -394,7 +394,7 @@ Expect<std::string> FileMgr::readName() {
   }
 
   if (!Valid) {
-    Status = ErrCode::InvalidUTF8;
+    Status = ErrCode::MalformedUTF8;
     return Unexpect(Status);
   }
   return Str;

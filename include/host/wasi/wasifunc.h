@@ -357,8 +357,8 @@ class WasiSockOpen : public Wasi<WasiSockOpen> {
 public:
   WasiSockOpen(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t AddressFamily,
-                        int32_t SockType, uint32_t RoFd);
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+                        int32_t AddressFamily, int32_t SockType, uint32_t RoFd);
 };
 
 class WasiSockClose : public Wasi<WasiSockClose> {
@@ -380,15 +380,16 @@ class WasiSockListen : public Wasi<WasiSockListen> {
 public:
   WasiSockListen(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd, uint32_t Backlog);
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
+                        uint32_t Backlog);
 };
-
 
 class WasiSockAccept : public Wasi<WasiSockAccept> {
 public:
   WasiSockAccept(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd, int32_t Port, uint32_t RoFdPtr);
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
+                        int32_t Port, uint32_t RoFdPtr);
 };
 
 class WasiSockConnect : public Wasi<WasiSockConnect> {
@@ -396,15 +397,7 @@ public:
   WasiSockConnect(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-                        uint32_t AddressStringPtr, uint32_t AddressStringLen);
-};
-
-class WasiSockConnect : public Wasi<WasiSockConnect> {
-public:
-  WasiSockConnect(WasiEnvironment &HostEnv) : Wasi(HostEnv) {}
-
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-                        uint32_t AddressStringPtr, uint32_t AddressStringLen);
+                        uint32_t AddressPtr, uint32_t Port);
 };
 
 class WasiSockRecv : public Wasi<WasiSockRecv> {
@@ -422,8 +415,9 @@ public:
   WasiSockRecvFrom(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-                        uint32_t RiDataPtr, int32_t RiDataLen, uint32_t AddressPtr,
-                        uint32_t RiFlags, uint32_t RoDataLenPtr);
+                        uint32_t RiDataPtr, int32_t RiDataLen,
+                        uint32_t AddressPtr, uint32_t RiFlags,
+                        uint32_t RoDataLenPtr);
 };
 
 class WasiSockSend : public Wasi<WasiSockSend> {
@@ -440,8 +434,9 @@ public:
   WasiSockSendTo(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-                        uint32_t SiDataPtr, int32_t SiDataLen, uint32_t AddressPtr,
-                        uint32_t SiFlags, uint32_t SoDataLenPtr);
+                        uint32_t SiDataPtr, int32_t SiDataLen,
+                        uint32_t AddressPtr, uint32_t SiFlags,
+                        uint32_t SoDataLenPtr);
 };
 
 class WasiSockShutdown : public Wasi<WasiSockShutdown> {

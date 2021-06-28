@@ -2,10 +2,10 @@
 #include "gtest/gtest.h"
 #include <experimental/expected.hpp>
 
-using std::experimental::expected;
-using std::experimental::unexpect;
-using std::experimental::unexpect_t;
-using std::experimental::unexpected;
+using cxx20::expected;
+using cxx20::unexpect;
+using cxx20::unexpect_t;
+using cxx20::unexpected;
 
 TEST(NoExceptTest, NoThrow) {
   using T = expected<int, int>;

@@ -50,6 +50,9 @@ TEST_P(CoreTest, TestSuites) {
           .and_then([&VM]() { return VM.instantiate(); });
     }
   };
+  T.onLoad = [&VM](const std::string &Filename) -> Expect<void> {
+    return VM.loadWasm(Filename);
+  };
   T.onValidate = [&VM](const std::string &Filename) -> Expect<void> {
     return VM.loadWasm(Filename).and_then([&VM]() { return VM.validate(); });
   };

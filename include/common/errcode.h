@@ -48,33 +48,31 @@ enum class ErrCode : uint8_t {
   FuncNotFound = 0x05,      /// Wasm function not found
   AOTDisabled = 0x06,       /// AOT runtime is disabled
   /// Load phase
-  InvalidPath = 0x20,            /// File not found
-  ReadError = 0x21,              /// Error when reading
-  EndOfFile = 0x22,              /// Reach end of file when reading
-  InvalidMagic = 0x23,           /// Not detected magic header
-  InvalidVersion = 0x24,         /// Unsupported version
-  InvalidSection = 0x25,         /// Malformed section ID
-  SectionSizeMismatch = 0x26,    /// Section size mismatched
-  SectionSizeOutOfBounds = 0x27, /// Section size out of bounds
-  JunkSection = 0x28,            /// Junk sections
-  IncompatibleFuncCode = 0x29,   /// Incompatible function and code section
-  IncompatibleDataCount = 0x2A,  /// Incompatible data and datacount section
-  DataCountRequired = 0x2B,      /// Datacount section required
-  UnexpectedEndNode = 0x2C,      /// Unexpected end of sections or functions
-  InvalidImportKind = 0x2D,      /// Malformed import kind
-  ExpectedZeroFlag = 0x2E,       /// Not loaded an expected zero flag
-  InvalidMut = 0x2F,             /// Malformed mutability
-  DupGlobal = 0x30,              /// Global duplicated
-  TooManyLocals = 0x31,          /// Local size too large
-  InvalidElemInstr = 0x32,       /// Invalid instructions in element segments
-  InvalidElemType = 0x33,        /// Malformed element type (Bulk-mem proposal)
-  InvalidRefType = 0x34,     /// Malformed reference type (Ref-types proposal)
-  InvalidElemSegKind = 0x35, /// Invalid element segment kind
-  InvalidUTF8 = 0x36,        /// Invalid utf-8 encoding
-  IntegerTooLarge = 0x37,    /// Invalid too large integer
-  IntegerTooLong = 0x38,     /// Invalid presentation too long integer
-  InvalidOpCode = 0x39,      /// Illegal OpCode
-  InvalidGrammar = 0x3A,     /// Parsing error
+  InvalidPath = 0x20,           /// File not found
+  ReadError = 0x21,             /// Error when reading
+  UnexpectedEnd = 0x22,         /// Reach end of file when reading
+  InvalidMagic = 0x23,          /// Not detected magic header
+  InvalidVersion = 0x24,        /// Unsupported version
+  InvalidSection = 0x25,        /// Malformed section ID
+  SectionSizeMismatch = 0x26,   /// Section size mismatched
+  NameSizeOutOfBounds = 0x27,   /// Name size out of bounds
+  JunkSection = 0x28,           /// Junk sections
+  IncompatibleFuncCode = 0x29,  /// Incompatible function and code section
+  IncompatibleDataCount = 0x2A, /// Incompatible data and datacount section
+  DataCountRequired = 0x2B,     /// Datacount section required
+  InvalidImportKind = 0x2C,     /// Malformed import kind
+  InvalidExportKind = 0x2D,     /// Malformed export kind
+  ExpectedZeroByte = 0x2E,      /// Not loaded an expected zero byte
+  InvalidMut = 0x2F,            /// Malformed mutability
+  TooManyLocals = 0x30,         /// Local size too large
+  InvalidValType = 0x31,        /// Malformed value type
+  InvalidElemType = 0x32,       /// Malformed element type (Bulk-mem proposal)
+  InvalidRefType = 0x33,  /// Malformed reference type (Ref-types proposal)
+  InvalidUTF8 = 0x34,     /// Invalid utf-8 encoding
+  IntegerTooLarge = 0x35, /// Invalid too large integer
+  IntegerTooLong = 0x36,  /// Invalid presentation too long integer
+  InvalidOpCode = 0x37,   /// Illegal OpCode
+  InvalidGrammar = 0x38,  /// Parsing error
   /// Validation phase
   InvalidAlignment = 0x40,   /// Alignment > natural
   TypeCheckFailed = 0x41,    /// Got unexpected type when checking
@@ -135,28 +133,26 @@ static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
     /// Load phase
     {ErrCode::InvalidPath, "invalid path"},
     {ErrCode::ReadError, "read error"},
-    {ErrCode::EndOfFile, "unexpected end"},
+    {ErrCode::UnexpectedEnd, "unexpected end"},
     {ErrCode::InvalidMagic, "magic header not detected"},
     {ErrCode::InvalidVersion, "unknown binary version"},
     {ErrCode::InvalidSection, "malformed section id"},
     {ErrCode::SectionSizeMismatch, "section size mismatch"},
-    {ErrCode::SectionSizeOutOfBounds, "length out of bounds"},
+    {ErrCode::NameSizeOutOfBounds, "length out of bounds"},
     {ErrCode::JunkSection, "junk after last section"},
     {ErrCode::IncompatibleFuncCode,
      "function and code section have inconsistent lengths"},
     {ErrCode::IncompatibleDataCount,
      "data count and data section have inconsistent lengths"},
     {ErrCode::DataCountRequired, "data count section required"},
-    {ErrCode::UnexpectedEndNode, "unexpected end of section or function"},
     {ErrCode::InvalidImportKind, "malformed import kind"},
-    {ErrCode::ExpectedZeroFlag, "zero flag expected"},
+    {ErrCode::InvalidExportKind, "malformed export kind"},
+    {ErrCode::ExpectedZeroByte, "zero byte expected"},
     {ErrCode::InvalidMut, "malformed mutability"},
-    {ErrCode::DupGlobal, "duplicate global"},
     {ErrCode::TooManyLocals, "too many locals"},
-    {ErrCode::InvalidElemInstr, "invalid elem"},
+    {ErrCode::InvalidValType, "malformed value type"},
     {ErrCode::InvalidElemType, "malformed element type"},
     {ErrCode::InvalidRefType, "malformed reference type"},
-    {ErrCode::InvalidElemSegKind, "invalid elements segment kind"},
     {ErrCode::InvalidUTF8, "malformed UTF-8 encoding"},
     {ErrCode::IntegerTooLarge, "integer too large"},
     {ErrCode::IntegerTooLong, "integer representation too long"},

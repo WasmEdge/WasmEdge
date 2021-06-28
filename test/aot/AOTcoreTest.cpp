@@ -45,12 +45,13 @@ TEST_P(CoreTest, TestSuites) {
   VM.registerModule(SpecTestMod);
   auto Compile = [&, Conf = std::cref(Conf)](
                      const std::string &Filename) -> Expect<std::string> {
+    WasmEdge::Configure CopyConf = Conf;
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
-    WasmEdge::AOT::Compiler Compiler;
-    Compiler.setOptimizationLevel(
-        WasmEdge::AOT::Compiler::OptimizationLevel::O0);
-    Compiler.setDumpIR(true);
+    CopyConf.getCompilerConfigure().setOptimizationLevel(
+        WasmEdge::CompilerConfigure::OptimizationLevel::O0);
+    CopyConf.getCompilerConfigure().setDumpIR(true);
+    WasmEdge::AOT::Compiler Compiler(CopyConf);
     auto Path = std::filesystem::u8path(Filename);
     Path.replace_extension(std::filesystem::u8path(".so"sv));
     const auto SOPath = Path.u8string();
@@ -76,6 +77,9 @@ TEST_P(CoreTest, TestSuites) {
                 .and_then([&VM]() { return VM.instantiate(); });
           }
         });
+  };
+  T.onLoad = [&VM](const std::string &Filename) -> Expect<void> {
+    return VM.loadWasm(Filename);
   };
   T.onValidate = [&VM, &Compile](const std::string &Filename) -> Expect<void> {
     return Compile(Filename)

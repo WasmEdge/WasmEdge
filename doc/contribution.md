@@ -22,7 +22,6 @@ Fork the WasmEdge repository on GitHub to your personal account.
 ```
 $ git clone git@github.com:WasmEdge/WasmEdge.git
 $ cd WasmEdge
-$ git checkout 0.8.0
 ```
 
 Notes: Note the WasmEdge team builds lots of extensions of Server-side WebAssembly, see [TensorFlow](https://github.com/second-state/SSVM-tensorflow), [Storage](https://github.com/second-state/SSVM-storage), [Command interface](https://github.com/second-state/ssvm_process_interface), [Ethereum](https://github.com/second-state/SSVM-evmc), [Substrate](https://github.com/second-state/substrate-ssvm-node). If you want to contribue the extensions, please go to those repositories.

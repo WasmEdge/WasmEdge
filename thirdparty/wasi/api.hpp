@@ -513,162 +513,197 @@ enum __wasi_rights_t : uint64_t {
    * If `path_open` is set, includes the right to invoke
    * `path_open` with `fdflags::dsync`.
    */
-  __WASI_RIGHTS_FD_DATASYNC = 1 << 0,
+  __WASI_RIGHTS_FD_DATASYNC = 1ULL << 0,
 
   /**
    * The right to invoke `fd_read` and `sock_recv`.
    * If `rights::fd_seek` is set, includes the right to invoke `fd_pread`.
    */
-  __WASI_RIGHTS_FD_READ = 1 << 1,
+  __WASI_RIGHTS_FD_READ = 1ULL << 1,
 
   /**
    * The right to invoke `fd_seek`. This flag implies `rights::fd_tell`.
    */
-  __WASI_RIGHTS_FD_SEEK = 1 << 2,
+  __WASI_RIGHTS_FD_SEEK = 1ULL << 2,
 
   /**
    * The right to invoke `fd_fdstat_set_flags`.
    */
-  __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS = 1 << 3,
+  __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS = 1ULL << 3,
 
   /**
    * The right to invoke `fd_sync`.
    * If `path_open` is set, includes the right to invoke
    * `path_open` with `fdflags::rsync` and `fdflags::dsync`.
    */
-  __WASI_RIGHTS_FD_SYNC = 1 << 4,
+  __WASI_RIGHTS_FD_SYNC = 1ULL << 4,
 
   /**
    * The right to invoke `fd_seek` in such a way that the file offset
    * remains unaltered (i.e., `whence::cur` with offset zero), or to
    * invoke `fd_tell`.
    */
-  __WASI_RIGHTS_FD_TELL = 1 << 5,
+  __WASI_RIGHTS_FD_TELL = 1ULL << 5,
 
   /**
    * The right to invoke `fd_write` and `sock_send`.
    * If `rights::fd_seek` is set, includes the right to invoke `fd_pwrite`.
    */
-  __WASI_RIGHTS_FD_WRITE = 1 << 6,
+  __WASI_RIGHTS_FD_WRITE = 1ULL << 6,
 
   /**
    * The right to invoke `fd_advise`.
    */
-  __WASI_RIGHTS_FD_ADVISE = 1 << 7,
+  __WASI_RIGHTS_FD_ADVISE = 1ULL << 7,
 
   /**
    * The right to invoke `fd_allocate`.
    */
-  __WASI_RIGHTS_FD_ALLOCATE = 1 << 8,
+  __WASI_RIGHTS_FD_ALLOCATE = 1ULL << 8,
 
   /**
    * The right to invoke `path_create_directory`.
    */
-  __WASI_RIGHTS_PATH_CREATE_DIRECTORY = 1 << 9,
+  __WASI_RIGHTS_PATH_CREATE_DIRECTORY = 1ULL << 9,
 
   /**
    * If `path_open` is set, the right to invoke `path_open` with
    * `oflags::creat`.
    */
-  __WASI_RIGHTS_PATH_CREATE_FILE = 1 << 10,
+  __WASI_RIGHTS_PATH_CREATE_FILE = 1ULL << 10,
 
   /**
    * The right to invoke `path_link` with the file descriptor as the
    * source directory.
    */
-  __WASI_RIGHTS_PATH_LINK_SOURCE = 1 << 11,
+  __WASI_RIGHTS_PATH_LINK_SOURCE = 1ULL << 11,
 
   /**
    * The right to invoke `path_link` with the file descriptor as the
    * target directory.
    */
-  __WASI_RIGHTS_PATH_LINK_TARGET = 1 << 12,
+  __WASI_RIGHTS_PATH_LINK_TARGET = 1ULL << 12,
 
   /**
    * The right to invoke `path_open`.
    */
-  __WASI_RIGHTS_PATH_OPEN = 1 << 13,
+  __WASI_RIGHTS_PATH_OPEN = 1ULL << 13,
 
   /**
    * The right to invoke `fd_readdir`.
    */
-  __WASI_RIGHTS_FD_READDIR = 1 << 14,
+  __WASI_RIGHTS_FD_READDIR = 1ULL << 14,
 
   /**
    * The right to invoke `path_readlink`.
    */
-  __WASI_RIGHTS_PATH_READLINK = 1 << 15,
+  __WASI_RIGHTS_PATH_READLINK = 1ULL << 15,
 
   /**
    * The right to invoke `path_rename` with the file descriptor as the source
    * directory.
    */
-  __WASI_RIGHTS_PATH_RENAME_SOURCE = 1 << 16,
+  __WASI_RIGHTS_PATH_RENAME_SOURCE = 1ULL << 16,
 
   /**
    * The right to invoke `path_rename` with the file descriptor as the target
    * directory.
    */
-  __WASI_RIGHTS_PATH_RENAME_TARGET = 1 << 17,
+  __WASI_RIGHTS_PATH_RENAME_TARGET = 1ULL << 17,
 
   /**
    * The right to invoke `path_filestat_get`.
    */
-  __WASI_RIGHTS_PATH_FILESTAT_GET = 1 << 18,
+  __WASI_RIGHTS_PATH_FILESTAT_GET = 1ULL << 18,
 
   /**
    * The right to change a file's size (there is no `path_filestat_set_size`).
    * If `path_open` is set, includes the right to invoke `path_open` with
    * `oflags::trunc`.
    */
-  __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE = 1 << 19,
+  __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE = 1ULL << 19,
 
   /**
    * The right to invoke `path_filestat_set_times`.
    */
-  __WASI_RIGHTS_PATH_FILESTAT_SET_TIMES = 1 << 20,
+  __WASI_RIGHTS_PATH_FILESTAT_SET_TIMES = 1ULL << 20,
 
   /**
    * The right to invoke `fd_filestat_get`.
    */
-  __WASI_RIGHTS_FD_FILESTAT_GET = 1 << 21,
+  __WASI_RIGHTS_FD_FILESTAT_GET = 1ULL << 21,
 
   /**
    * The right to invoke `fd_filestat_set_size`.
    */
-  __WASI_RIGHTS_FD_FILESTAT_SET_SIZE = 1 << 22,
+  __WASI_RIGHTS_FD_FILESTAT_SET_SIZE = 1ULL << 22,
 
   /**
    * The right to invoke `fd_filestat_set_times`.
    */
-  __WASI_RIGHTS_FD_FILESTAT_SET_TIMES = 1 << 23,
+  __WASI_RIGHTS_FD_FILESTAT_SET_TIMES = 1ULL << 23,
 
   /**
    * The right to invoke `path_symlink`.
    */
-  __WASI_RIGHTS_PATH_SYMLINK = 1 << 24,
+  __WASI_RIGHTS_PATH_SYMLINK = 1ULL << 24,
 
   /**
    * The right to invoke `path_remove_directory`.
    */
-  __WASI_RIGHTS_PATH_REMOVE_DIRECTORY = 1 << 25,
+  __WASI_RIGHTS_PATH_REMOVE_DIRECTORY = 1ULL << 25,
 
   /**
    * The right to invoke `path_unlink_file`.
    */
-  __WASI_RIGHTS_PATH_UNLINK_FILE = 1 << 26,
+  __WASI_RIGHTS_PATH_UNLINK_FILE = 1ULL << 26,
 
   /**
    * If `rights::fd_read` is set, includes the right to invoke `poll_oneoff` to
    * subscribe to `eventtype::fd_read`. If `rights::fd_write` is set, includes
    * the right to invoke `poll_oneoff` to subscribe to `eventtype::fd_write`.
    */
-  __WASI_RIGHTS_POLL_FD_READWRITE = 1 << 27,
+  __WASI_RIGHTS_POLL_FD_READWRITE = 1ULL << 27,
 
   /**
    * The right to invoke `sock_shutdown`.
    */
-  __WASI_RIGHTS_SOCK_SHUTDOWN = 1 << 28,
+  __WASI_RIGHTS_SOCK_SHUTDOWN = 1ULL << 28,
+
+  /**
+   * The right to invoke `sock_open`.
+   */
+  __WASI_RIGHTS_SOCK_OPEN = 1ULL << 29,
+
+  /**
+   * The right to invoke `sock_close`.
+   */
+  __WASI_RIGHTS_SOCK_CLOSE = 1ULL << 30,
+
+  /**
+   * The right to invoke `sock_bind`.
+   */
+  __WASI_RIGHTS_SOCK_BIND = 1ULL << 31,
+
+  /**
+   * The right to invoke `sock_recv`.
+   */
+  __WASI_RIGHTS_SOCK_RECV = 1ULL << 32,
+
+  /**
+   * The right to invoke `sock_recv_from`.
+   */
+  __WASI_RIGHTS_SOCK_RECV_FROM = 1ULL << 33,
+
+  /**
+   * The right to invoke `sock_send`.
+   */
+  __WASI_RIGHTS_SOCK_SEND = 1ULL << 34,
+
+  /**
+   * The right to invoke `sock_send_to`.
+   */
+  __WASI_RIGHTS_SOCK_SEND_TO = 1ULL << 35,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_rights_t)
@@ -683,6 +718,14 @@ using __wasi_fd_t = int32_t;
 
 static_assert(sizeof(__wasi_fd_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_fd_t) == 4, "witx calculated align");
+
+/**
+ * A socket descriptor is currently an alias type of a typical file descriptor.
+ */
+using __wasi_sock_d_t = __wasi_fd_t;
+
+static_assert(sizeof(__wasi_sock_d_t) == 4, "witx calculated size");
+static_assert(alignof(__wasi_sock_d_t) == 4, "witx calculated align");
 
 /**
  * A region of memory for scatter/gather reads.
@@ -915,30 +958,30 @@ enum __wasi_fdflags_t : uint16_t {
   /**
    * Append mode: Data written to the file is always appended to the file's end.
    */
-  __WASI_FDFLAGS_APPEND = 1 << 0,
+  __WASI_FDFLAGS_APPEND = 1ULL << 0,
 
   /**
    * Write according to synchronized I/O data integrity completion. Only the
    * data stored in the file is synchronized.
    */
-  __WASI_FDFLAGS_DSYNC = 1 << 1,
+  __WASI_FDFLAGS_DSYNC = 1ULL << 1,
 
   /**
    * Non-blocking mode.
    */
-  __WASI_FDFLAGS_NONBLOCK = 1 << 2,
+  __WASI_FDFLAGS_NONBLOCK = 1ULL << 2,
 
   /**
    * Synchronized read I/O operations.
    */
-  __WASI_FDFLAGS_RSYNC = 1 << 3,
+  __WASI_FDFLAGS_RSYNC = 1ULL << 3,
 
   /**
    * Write according to synchronized I/O file integrity completion. In
    * addition to synchronizing the data stored in the file, the implementation
    * may also synchronously update the file's metadata.
    */
-  __WASI_FDFLAGS_SYNC = 1 << 4,
+  __WASI_FDFLAGS_SYNC = 1ULL << 4,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_fdflags_t)
@@ -1001,25 +1044,25 @@ enum __wasi_fstflags_t : uint16_t {
    * Adjust the last data access timestamp to the value stored in
    * `filestat::atim`.
    */
-  __WASI_FSTFLAGS_ATIM = 1 << 0,
+  __WASI_FSTFLAGS_ATIM = 1ULL << 0,
 
   /**
    * Adjust the last data access timestamp to the time of clock
    * `clockid::realtime`.
    */
-  __WASI_FSTFLAGS_ATIM_NOW = 1 << 1,
+  __WASI_FSTFLAGS_ATIM_NOW = 1ULL << 1,
 
   /**
    * Adjust the last data modification timestamp to the value stored in
    * `filestat::mtim`.
    */
-  __WASI_FSTFLAGS_MTIM = 1 << 2,
+  __WASI_FSTFLAGS_MTIM = 1ULL << 2,
 
   /**
    * Adjust the last data modification timestamp to the time of clock
    * `clockid::realtime`.
    */
-  __WASI_FSTFLAGS_MTIM_NOW = 1 << 3,
+  __WASI_FSTFLAGS_MTIM_NOW = 1ULL << 3,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_fstflags_t)
@@ -1036,7 +1079,7 @@ enum __wasi_lookupflags_t : uint32_t {
    * As long as the resolved path corresponds to a symbolic link, it is
    * expanded.
    */
-  __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW = 1 << 0,
+  __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW = 1ULL << 0,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_lookupflags_t)
@@ -1052,22 +1095,22 @@ enum __wasi_oflags_t : uint16_t {
   /**
    * Create file if it does not exist.
    */
-  __WASI_OFLAGS_CREAT = 1 << 0,
+  __WASI_OFLAGS_CREAT = 1ULL << 0,
 
   /**
    * Fail if not a directory.
    */
-  __WASI_OFLAGS_DIRECTORY = 1 << 1,
+  __WASI_OFLAGS_DIRECTORY = 1ULL << 1,
 
   /**
    * Fail if file already exists.
    */
-  __WASI_OFLAGS_EXCL = 1 << 2,
+  __WASI_OFLAGS_EXCL = 1ULL << 2,
 
   /**
    * Truncate file to size 0.
    */
-  __WASI_OFLAGS_TRUNC = 1 << 3,
+  __WASI_OFLAGS_TRUNC = 1ULL << 3,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_oflags_t)
@@ -1190,7 +1233,7 @@ enum __wasi_eventrwflags_t : uint16_t {
   /**
    * The peer of this socket has closed or disconnected.
    */
-  __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP = 1 << 0,
+  __WASI_EVENTRWFLAGS_FD_READWRITE_HANGUP = 1ULL << 0,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_eventrwflags_t)
@@ -1272,7 +1315,7 @@ enum __wasi_subclockflags_t : uint16_t {
    * provided in `subscription_clock::timeout` relative to the
    * current time value of clock `subscription_clock::id`.
    */
-  __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME = 1 << 0,
+  __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME = 1ULL << 0,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_subclockflags_t)
@@ -1583,6 +1626,45 @@ static_assert(sizeof(__wasi_signal_t) == 1, "witx calculated size");
 static_assert(alignof(__wasi_signal_t) == 1, "witx calculated align");
 
 /**
+ * Socket address family
+ */
+enum __wasi_address_family_t : uint8_t {
+  __WASI_ADDRESS_FAMILY_INET4 = 0,
+
+  __WASI_ADDRESS_FAMILY_INET6 = 1,
+
+};
+static_assert(sizeof(__wasi_address_family_t) == 1, "witx calculated size");
+static_assert(alignof(__wasi_address_family_t) == 1, "witx calculated align");
+
+/**
+ * Socket address
+ */
+struct __wasi_address_t {
+  uint8_t_ptr buf;
+
+  __wasi_size_t buf_len;
+};
+
+static_assert(sizeof(__wasi_address_t) == 8, "witx calculated size");
+static_assert(alignof(__wasi_address_t) == 4, "witx calculated align");
+static_assert(offsetof(__wasi_address_t, buf) == 0, "witx calculated offset");
+static_assert(offsetof(__wasi_address_t, buf_len) == 4,
+              "witx calculated offset");
+
+/**
+ * Socket type
+ */
+enum __wasi_sock_type_t : uint8_t {
+  __WASI_SOCK_TYPE_SOCK_DGRAM = 0,
+
+  __WASI_SOCK_TYPE_SOCK_STREAM = 1,
+
+};
+static_assert(sizeof(__wasi_sock_type_t) == 1, "witx calculated size");
+static_assert(alignof(__wasi_sock_type_t) == 1, "witx calculated align");
+
+/**
  * Flags provided to `sock_recv`.
  */
 enum __wasi_riflags_t : uint16_t {
@@ -1590,13 +1672,13 @@ enum __wasi_riflags_t : uint16_t {
   /**
    * Returns the message without removing it from the socket's receive queue.
    */
-  __WASI_RIFLAGS_RECV_PEEK = 1 << 0,
+  __WASI_RIFLAGS_RECV_PEEK = 1ULL << 0,
 
   /**
    * On byte-stream sockets, block until the full amount of data can be
    * returned.
    */
-  __WASI_RIFLAGS_RECV_WAITALL = 1 << 1,
+  __WASI_RIFLAGS_RECV_WAITALL = 1ULL << 1,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_riflags_t)
@@ -1612,7 +1694,7 @@ enum __wasi_roflags_t : uint16_t {
   /**
    * Returned by `sock_recv`: Message data has been truncated.
    */
-  __WASI_ROFLAGS_RECV_DATA_TRUNCATED = 1 << 0,
+  __WASI_ROFLAGS_RECV_DATA_TRUNCATED = 1ULL << 0,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_roflags_t)
@@ -1637,12 +1719,12 @@ enum __wasi_sdflags_t : uint8_t {
   /**
    * Disables further receive operations.
    */
-  __WASI_SDFLAGS_RD = 1 << 0,
+  __WASI_SDFLAGS_RD = 1ULL << 0,
 
   /**
    * Disables further send operations.
    */
-  __WASI_SDFLAGS_WR = 1 << 1,
+  __WASI_SDFLAGS_WR = 1ULL << 1,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_sdflags_t)

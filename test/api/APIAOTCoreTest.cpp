@@ -39,6 +39,8 @@ TEST_P(CoreTest, TestSuites) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   WasmEdge_ConfigureContext *ConfCxt = createConf(Conf);
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(ConfCxt, nullptr);
+  WasmEdge_ConfigureCompilerSetOptimizationLevel(
+      ConfCxt, WasmEdge_CompilerOptimizationLevel_O0);
   WasmEdge_CompilerContext *CompilerCxt = WasmEdge_CompilerCreate(ConfCxt);
   WasmEdge_ConfigureDelete(ConfCxt);
   WasmEdge_ImportObjectContext *TestModCxt = createSpecTestModule();
@@ -79,6 +81,17 @@ TEST_P(CoreTest, TestSuites) {
             }
             Res = WasmEdge_VMInstantiate(VM);
           }
+          if (!WasmEdge_ResultOK(Res)) {
+            return Unexpect(convResult(Res));
+          }
+          return {};
+        });
+  };
+  T.onLoad = [&VM, &Compile](const std::string &Filename) -> Expect<void> {
+    return Compile(Filename).and_then(
+        [&](const std::string &SOFilename) -> Expect<void> {
+          WasmEdge_Result Res =
+              WasmEdge_VMLoadWasmFromFile(VM, SOFilename.c_str());
           if (!WasmEdge_ResultOK(Res)) {
             return Unexpect(convResult(Res));
           }

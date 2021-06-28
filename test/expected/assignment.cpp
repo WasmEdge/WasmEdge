@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: CC0-1.0
 #include "gtest/gtest.h"
 #include <experimental/expected.hpp>
-using std::experimental::expected;
-using std::experimental::unexpected;
+
+using cxx20::expected;
+using cxx20::unexpected;
 
 TEST(AssignmentTest, SimpleAssignment) {
   expected<int, int> e1 = 42;

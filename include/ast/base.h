@@ -57,14 +57,14 @@ inline Expect<ValType> checkValTypeProposals(const Configure &Conf,
                                              ValType VType, uint32_t Off,
                                              ASTNodeAttr Node) {
   if (VType == ValType::V128 && !Conf.hasProposal(Proposal::SIMD)) {
-    return logNeedProposal(ErrCode::InvalidGrammar, Proposal::SIMD, Off, Node);
+    return logNeedProposal(ErrCode::InvalidValType, Proposal::SIMD, Off, Node);
   }
   if ((VType == ValType::FuncRef &&
        !Conf.hasProposal(Proposal::ReferenceTypes) &&
        !Conf.hasProposal(Proposal::BulkMemoryOperations)) ||
       (VType == ValType::ExternRef &&
        !Conf.hasProposal(Proposal::ReferenceTypes))) {
-    return logNeedProposal(ErrCode::InvalidGrammar, Proposal::ReferenceTypes,
+    return logNeedProposal(ErrCode::InvalidElemType, Proposal::ReferenceTypes,
                            Off, Node);
   }
   switch (VType) {
@@ -78,7 +78,7 @@ inline Expect<ValType> checkValTypeProposals(const Configure &Conf,
   case ValType::FuncRef:
     return VType;
   default:
-    return logLoadError(ErrCode::InvalidGrammar, Off, Node);
+    return logLoadError(ErrCode::InvalidValType, Off, Node);
   }
 }
 
@@ -89,14 +89,18 @@ inline Expect<RefType> checkRefTypeProposals(const Configure &Conf,
   switch (RType) {
   case RefType::ExternRef:
     if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logNeedProposal(ErrCode::InvalidGrammar, Proposal::ReferenceTypes,
+      return logNeedProposal(ErrCode::InvalidElemType, Proposal::ReferenceTypes,
                              Off, Node);
     }
     [[fallthrough]];
   case RefType::FuncRef:
     return RType;
   default:
-    return logLoadError(ErrCode::InvalidGrammar, Off, Node);
+    if (Conf.hasProposal(Proposal::ReferenceTypes)) {
+      return logLoadError(ErrCode::InvalidRefType, Off, Node);
+    } else {
+      return logLoadError(ErrCode::InvalidElemType, Off, Node);
+    }
   }
 }
 

@@ -8,15 +8,13 @@ add_library(wasmedgeHostModuleWasi
 
 target_include_directories(wasmedgeHostModuleWasi
   PUBLIC
-  ${Boost_INCLUDE_DIRS}
-  ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty
 )
 
 target_link_libraries(wasmedgeHostModuleWasi
   PUBLIC
   Threads::Threads
-  PRIVATE
+  Boost::boost
   wasmedgeSystem
 )
 

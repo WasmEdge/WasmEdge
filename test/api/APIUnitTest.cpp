@@ -352,6 +352,27 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureSetMaxMemoryPage(Conf, 1234U);
   EXPECT_NE(WasmEdge_ConfigureGetMaxMemoryPage(ConfNull), 1234U);
   EXPECT_EQ(WasmEdge_ConfigureGetMaxMemoryPage(Conf), 1234U);
+  /// Tests for AOT conpiler configurations.
+  WasmEdge_ConfigureCompilerSetOptimizationLevel(
+      ConfNull, WasmEdge_CompilerOptimizationLevel_Os);
+  WasmEdge_ConfigureCompilerSetOptimizationLevel(
+      Conf, WasmEdge_CompilerOptimizationLevel_Os);
+  EXPECT_NE(WasmEdge_ConfigureCompilerGetOptimizationLevel(ConfNull),
+            WasmEdge_CompilerOptimizationLevel_Os);
+  EXPECT_EQ(WasmEdge_ConfigureCompilerGetOptimizationLevel(Conf),
+            WasmEdge_CompilerOptimizationLevel_Os);
+  WasmEdge_ConfigureCompilerSetDumpIR(ConfNull, true);
+  WasmEdge_ConfigureCompilerSetDumpIR(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureCompilerIsDumpIR(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureCompilerIsDumpIR(Conf), true);
+  WasmEdge_ConfigureCompilerSetInstructionCounting(ConfNull, true);
+  WasmEdge_ConfigureCompilerSetInstructionCounting(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureCompilerIsInstructionCounting(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureCompilerIsInstructionCounting(Conf), true);
+  WasmEdge_ConfigureCompilerSetCostMeasuring(ConfNull, true);
+  WasmEdge_ConfigureCompilerSetCostMeasuring(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureCompilerIsCostMeasuring(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureCompilerIsCostMeasuring(Conf), true);
   /// Test to delete nullptr.
   WasmEdge_ConfigureDelete(ConfNull);
   EXPECT_TRUE(true);
@@ -664,7 +685,7 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   /// Call mul: (-30) * (-66)
   FuncName = WasmEdge_StringCreateByCString("func-host-mul");
   P[0] = WasmEdge_ValueGenI32(-66);
-  TestValue = -30;
+  TestValue = static_cast<uint32_t>(-30);
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_InterpreterInvoke(Interp, Store, FuncName, P, 1, R, 1)));
   EXPECT_EQ(1980, WasmEdge_ValueGetI32(R[0]));
@@ -672,7 +693,7 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   /// Call div: (-9999) / (1234)
   FuncName = WasmEdge_StringCreateByCString("func-host-div");
   P[0] = WasmEdge_ValueGenI32(1234);
-  TestValue = -9999;
+  TestValue = static_cast<uint32_t>(-9999);
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_InterpreterInvoke(Interp, Store, FuncName, P, 1, R, 1)));
   EXPECT_EQ(-8, WasmEdge_ValueGetI32(R[0]));

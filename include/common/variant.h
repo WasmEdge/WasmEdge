@@ -25,6 +25,11 @@ template <typename... Ts> union VariadicUnion {};
 template <typename FirstT, typename... RestT>
 union VariadicUnion<FirstT, RestT...> {
   constexpr VariadicUnion() : Rest() {}
+  ~VariadicUnion() noexcept = default;
+  constexpr VariadicUnion(const VariadicUnion &) = default;
+  constexpr VariadicUnion(VariadicUnion &&) = default;
+  constexpr VariadicUnion &operator=(const VariadicUnion &) = default;
+  constexpr VariadicUnion &operator=(VariadicUnion &&) = default;
 
   template <typename... Args>
   constexpr VariadicUnion(std::in_place_index_t<0>, Args &&...Values)
@@ -38,36 +43,58 @@ union VariadicUnion<FirstT, RestT...> {
 
   template <typename T> constexpr const T &get() const &noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
-      return *reinterpret_cast<const FirstT *>(&First);
+      return *std::launder(reinterpret_cast<const FirstT *>(&First));
     } else {
       return Rest.template get<T>();
     }
   }
   template <typename T> constexpr T &get() &noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
-      return *reinterpret_cast<FirstT *>(&First);
+      return *std::launder(reinterpret_cast<FirstT *>(&First));
     } else {
       return Rest.template get<T>();
     }
   }
   template <typename T> constexpr const T &&get() const &&noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
-      return std::move(*reinterpret_cast<const FirstT *>(&First));
+      return std::move(*std::launder(reinterpret_cast<const FirstT *>(&First)));
     } else {
       return std::move(Rest).template get<T>();
     }
   }
   template <typename T> constexpr T &&get() &&noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
-      return std::move(*reinterpret_cast<FirstT *>(&First));
+      return std::move(*std::launder(reinterpret_cast<FirstT *>(&First)));
     } else {
       return std::move(Rest).template get<T>();
+    }
+  }
+
+  template <typename T, typename... Args>
+  constexpr T &emplace(Args &&...Values) &noexcept {
+    if constexpr (std::is_same_v<T, FirstT>) {
+      ::new (&First) FirstT(std::forward<Args>(Values)...);
+      return *std::launder(reinterpret_cast<FirstT *>(&First));
+    } else {
+      return Rest.template emplace<T>(std::forward<Args>(Values)...);
+    }
+  }
+
+  template <typename T, typename... Args>
+  constexpr T &emplace(Args &&...Values) &&noexcept {
+    if constexpr (std::is_same_v<T, FirstT>) {
+      ::new (&First) FirstT(std::forward<Args>(Values)...);
+      return std::move(*std::launder(reinterpret_cast<FirstT *>(&First)));
+    } else {
+      return std::move(Rest).template emplace<T>(std::forward<Args>(Values)...);
     }
   }
 
   std::aligned_storage_t<sizeof(FirstT), alignof(FirstT)> First;
   VariadicUnion<RestT...> Rest;
 };
+
+namespace detail {
 
 template <typename T> struct tag { using type = T; };
 
@@ -96,6 +123,17 @@ struct index_of<T, FirstT, RestT...>
                                               ? 0
                                               : index_of_v<T, RestT...> + 1> {};
 
+template <typename... Ts> struct biggest_type;
+template <typename FirstT, typename... RestT>
+struct biggest_type<FirstT, RestT...> {
+  using rest_type = typename biggest_type<RestT...>::type;
+  using type = typename std::conditional_t<sizeof(rest_type) <= sizeof(FirstT),
+                                           FirstT, rest_type>;
+};
+template <typename FirstT> struct biggest_type<FirstT> { using type = FirstT; };
+
+} // namespace detail
+
 template <typename... Types> class Variant {
   static_assert(sizeof...(Types) > 0,
                 "variant must have at least one alternative");
@@ -103,14 +141,17 @@ template <typename... Types> class Variant {
                 "variant must have no reference alternative");
   static_assert(!(std::is_void_v<Types> || ...),
                 "variant must have no void alternative");
+  static_assert((std::is_trivially_copyable_v<Types> && ...),
+                "variant must be trivially copyable");
   static_assert((std::is_trivially_destructible_v<Types> && ...),
                 "variant must be trivially destructible");
 
   template <typename T>
-  static constexpr bool not_self = !std::is_same_v<remove_cvref_t<T>, Variant>;
+  static constexpr bool not_self =
+      !std::is_same_v<detail::remove_cvref_t<T>, Variant>;
   template <typename T>
   static constexpr bool
-      accept_type = (std::is_same_v<remove_cvref_t<T>, Types> || ...);
+      accept_type = (std::is_same_v<detail::remove_cvref_t<T>, Types> || ...);
 
   VariadicUnion<Types...> Storage;
 
@@ -122,13 +163,14 @@ public:
   constexpr Variant &operator=(Variant &&) noexcept = default;
   ~Variant() noexcept = default;
 
-  template <typename T,
-            typename = std::enable_if_t<not_in_place_tag<T> && not_self<T>>>
+  template <typename T, typename = std::enable_if_t<
+                            detail::not_in_place_tag<T> && not_self<T>>>
   constexpr Variant(T &&Value) noexcept
-      : Variant(std::in_place_index_t<std::variant<tag<Types>...>(
-                                          tag<remove_cvref_t<T>>())
-                                          .index()>(),
-                std::forward<T>(Value)) {}
+      : Variant(
+            std::in_place_index_t<std::variant<detail::tag<Types>...>(
+                                      detail::tag<detail::remove_cvref_t<T>>())
+                                      .index()>(),
+            std::forward<T>(Value)) {}
 
   template <std::size_t N, typename... Args>
   constexpr Variant(std::in_place_index_t<N> In, Args &&...Values) noexcept
@@ -137,7 +179,7 @@ public:
   template <typename T, typename = std::enable_if_t<accept_type<T>>,
             typename... Args>
   constexpr Variant(std::in_place_type_t<T>, Args &&...Values) noexcept
-      : Variant(std::in_place_index_t<index_of_v<T, Types...>>(),
+      : Variant(std::in_place_index_t<detail::index_of_v<T, Types...>>(),
                 std::forward<Args>(Values)...) {}
 
   template <typename T> constexpr T &get() &noexcept {
@@ -155,58 +197,34 @@ public:
   template <typename T> constexpr const T &&get() const &&noexcept {
     return std::move(Storage).template get<T>();
   }
+
+  template <typename T, typename... Args>
+  constexpr T &emplace(Args &&...Values) &noexcept {
+    return Storage.template emplace<T>(std::forward<Args>(Values)...);
+  }
+
+  template <typename T, typename... Args>
+  constexpr T &&emplace(Args &&...Values) &&noexcept {
+    return std::move(Storage).template emplace<T>(
+        std::forward<Args>(Values)...);
+  }
+
+  template <typename T>
+  static constexpr Variant
+  wrap(typename detail::biggest_type<Types...>::type Buffer) noexcept {
+    static_assert(std::is_trivially_copyable_v<Variant>);
+    Variant Result{T{}};
+    std::memcpy(static_cast<void *>(&Result), &Buffer, sizeof(Buffer));
+    return Result;
+  }
+
+  constexpr typename detail::biggest_type<Types...>::type
+  unwrap() const noexcept {
+    static_assert(std::is_trivially_copyable_v<Variant>);
+    typename detail::biggest_type<Types...>::type Result;
+    std::memcpy(&Result, static_cast<const void *>(this), sizeof(Result));
+    return Result;
+  }
 };
 
 } // namespace WasmEdge
-
-namespace std {
-
-template <typename T, typename... Types>
-constexpr T &get(WasmEdge::Variant<Types...> &Variant) {
-  return Variant.template get<T>();
-}
-
-template <typename T, typename... Types>
-constexpr T &&get(WasmEdge::Variant<Types...> &&Variant) {
-  return std::move(Variant).template get<T>();
-}
-
-template <typename T, typename... Types>
-constexpr const T &get(const WasmEdge::Variant<Types...> &Variant) {
-  return Variant.template get<T>();
-}
-
-template <typename T, typename... Types>
-constexpr const T &&get(const WasmEdge::Variant<Types...> &&Variant) {
-  return std::move(Variant).template get<T>();
-}
-
-template <std::size_t I, typename... Types>
-constexpr typename std::variant_alternative_t<I, std::variant<Types...>> &
-get(WasmEdge::Variant<Types...> &Variant) {
-  return Variant
-      .template get<std::variant_alternative_t<I, std::variant<Types...>>>();
-}
-
-template <std::size_t I, typename... Types>
-constexpr typename std::variant_alternative_t<I, std::variant<Types...>> &
-get(WasmEdge::Variant<Types...> &&Variant) {
-  return std::move(Variant)
-      .template get<std::variant_alternative_t<I, std::variant<Types...>>>();
-}
-
-template <std::size_t I, typename... Types>
-constexpr const typename std::variant_alternative_t<I, std::variant<Types...>> &
-get(const WasmEdge::Variant<Types...> &Variant) {
-  return Variant
-      .template get<std::variant_alternative_t<I, std::variant<Types...>>>();
-}
-
-template <std::size_t I, typename... Types>
-constexpr const typename std::variant_alternative_t<I, std::variant<Types...>> &
-get(const WasmEdge::Variant<Types...> &&Variant) {
-  return std::move(Variant)
-      .template get<std::variant_alternative_t<I, std::variant<Types...>>>();
-}
-
-} // namespace std

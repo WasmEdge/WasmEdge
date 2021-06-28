@@ -4,6 +4,7 @@
 #include "common/statistics.h"
 #include "common/value.h"
 #include "interpreter/interpreter.h"
+#include "system/fault.h"
 
 namespace WasmEdge {
 namespace Interpreter {
@@ -64,7 +65,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     /// For host function case, the continuation will be the next.
-    return From + 1;
+    return From;
   } else if (Func.isCompiledFunction()) {
     auto Wrapper = Func.getFuncType().getSymbol();
     /// Compiled function case: Push frame with locals and args.
@@ -86,24 +87,17 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
       ExecutionContext.Globals = ModInst.GlobalsPtr.data();
     }
 
-    sigjmp_buf JumpBuffer;
-    auto OldTrapJump = std::exchange(TrapJump, &JumpBuffer);
-
-    const int Status = sigsetjmp(*TrapJump, true);
-    if (Status == 0) {
-      SignalEnabler Enabler;
+    {
+      Fault FaultHandler;
+      if (auto Err = PREPARE_FAULT(FaultHandler);
+          unlikely(Err != ErrCode::Success)) {
+        if (Err != ErrCode::Terminated) {
+          spdlog::error(Err);
+        }
+        return Unexpect(Err);
+      }
       Wrapper(&ExecutionContext, Func.getSymbol().get(), Args.data(),
               Rets.data());
-    }
-
-    TrapJump = std::move(OldTrapJump);
-
-    if (Status != 0) {
-      ErrCode Code = static_cast<ErrCode>(Status);
-      if (Code != ErrCode::Terminated) {
-        spdlog::error(Code);
-      }
-      return Unexpect(Code);
     }
 
     for (uint32_t I = 0; I < Rets.size(); ++I) {
@@ -112,7 +106,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
 
     StackMgr.popFrame();
     /// For compiled function case, the continuation will be the next.
-    return From + 1;
+    return From;
   } else {
     /// Native function case: Push frame with locals and args.
     StackMgr.pushFrame(Func.getModuleAddr(),   /// Module address
@@ -128,7 +122,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     /// Enter function block []->[returns] with label{none}.
-    StackMgr.pushLabel(0, FuncType.Returns.size(), From);
+    StackMgr.pushLabel(0, FuncType.Returns.size(), From - 1);
     /// For native function case, the continuation will be the start of
     /// function body.
     return Func.getInstrs().begin();

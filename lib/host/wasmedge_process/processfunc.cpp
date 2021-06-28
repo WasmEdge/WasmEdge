@@ -105,7 +105,7 @@ WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
     Env.StdIn.clear();
     Env.StdErr.reserve(Msg.length());
     std::copy_n(Msg.c_str(), Msg.length(), std::back_inserter(Env.StdErr));
-    Env.ExitCode = static_cast<int8_t>(0xFFU);
+    Env.ExitCode = static_cast<int32_t>(INT8_C(-1));
     Env.TimeOut = Env.DEFAULT_TIMEOUT;
     return Env.ExitCode;
   }

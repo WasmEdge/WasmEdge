@@ -4,9 +4,9 @@
 #include <memory>
 #include <string>
 
-using std::experimental::expected;
-using std::experimental::unexpect;
-using std::experimental::unexpected;
+using cxx20::expected;
+using cxx20::unexpect;
+using cxx20::unexpected;
 
 expected<int, std::string> getInt3(int val) { return val; }
 

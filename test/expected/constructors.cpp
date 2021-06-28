@@ -5,9 +5,9 @@
 #include <type_traits>
 #include <vector>
 
-using std::experimental::expected;
-using std::experimental::unexpect;
-using std::experimental::unexpected;
+using cxx20::expected;
+using cxx20::unexpect;
+using cxx20::unexpected;
 
 struct takes_init_and_variadic {
   std::vector<int> v;

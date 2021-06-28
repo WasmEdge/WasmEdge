@@ -1,27 +1,65 @@
-### 0.8.1 (2021-05-21)
+### 0.8.1 (2021-06-18)
 
 Features:
 
 * Exported new functions in C API to import the `wasmedge_process` module.
   * `WasmEdge_ImportObjectCreateWasmEdgeProcess()` can create and initialize the `wasmedge_process` import object.
   * `WasmEdge_ImportObjectInitWasmEdgeProcess()` can initialize the given `wasmedge_process` import object.
+* Exported new AOT compiler configuration setting C APIs.
+  * Users can set the options about AOT optimization level, dump IR, and instruction counting and cost measuring in execution after compilation to the AOT compiler through C APIs.
+* Updated error codes according to the [newest test suite of WebAssembly](https://github.com/WebAssembly/spec/tree/master/test/core).
+  * Applied the correct error message when trapping in the loading phase.
+* Implemented the UTF-8 decoding in file manager.
+* Implemented the basic name section parsing in custom sections.
+* Added memory-mapped file helper, `MMap` for Linux.
+  * Used `mmap` with `MAP_NORESERVE` for overcommited allocation.
+  * Used `MMap` for file loading.
+  * Merged `FileMgr` variants into one class.
+
+Fixed issues:
+
+* Applied the UTF-8 decoding.
+  * Check the UTF-8 validation in custom sections, export sections, and import sections.
+* Detected the redundant sections in modules.
+  * Fixed this issue hence the sections rather than the custom section should be unique.
+* Corrected the logging of data offset in the file while trap occurred in the loading phase.
+  * Updated to the correct offset according to the refactored file manager.
 
 Refactor:
 
-* Update manylinux* dockerfiles
-  * Upgrade gcc to 11.1.0
-  * Upgrade llvm to 11.1.0
-  * Upgrade boost to 1.76
-  * Move environment variable to Dockerfile
-  * Use helper script to build
-* Add memory mapped file helper, `MMap` for linux
-  * Use `mmap` with `MAP_NORESERVE` for overcommited allocation
-  * Use `MMap` for file loading
-  * Merge `FileMgr` variants into one class
-* Adjust build scripts
-  * Set job pools for ninja generator
-  * Check for newer compilers in `std::filesystem`
-  * Adjust library dependency
+* Updated manylinux\* dockerfiles.
+  * Upgraded gcc to `11.1.0`.
+  * Upgraded llvm to `11.1.0`.
+  * Upgraded boost to `1.76`.
+  * Moved environment variables to Dockerfile.
+  * Used helper scripts to build.
+* Moved the options of the AOT compiler into the `Configure` class.
+* Refactor the file manager for supporting the `Unexpected end` loading malformed test cases.
+  * Added the `setSectionSize` function to specify the reading boundary before the end of the file.
+* Adjusted build scripts.
+  * Set job pools for ninja generator.
+  * Checked for newer compilers in `std::filesystem`.
+  * Adjusted library dependency.
+
+Documentations:
+
+* Updated the [WasmEdge ecosystem](https://github.com/WasmEdge/WasmEdge/blob/master/doc/ecosystem.md) document.
+  * Renamed the `SSVM` related projects into `WasmEdge`.
+
+Tools:
+
+* Updated the `wasmedgec` AOT compiler tool for API changes of the `Configure`.
+
+Tests:
+
+* Turn on the `assert_malformed` tests for WASM binary in spec tests.
+  * Apply the interpreter tests.
+  * Apply the AOT tests.
+  * Apply the API tests.
+* Updated the API unit tests for the new `Configure` APIs.
+* Updated the AST and loader unit tests.
+  * Added test cases of file manager to raise the coverage.
+  * Added test cases of every AST node to raise the coverage.
 
 ### 0.8.0 (2021-05-13)
 

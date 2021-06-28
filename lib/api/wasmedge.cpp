@@ -39,11 +39,7 @@ struct WasmEdge_ASTModuleContext {
 struct WasmEdge_CompilerContext {
 #ifdef BUILD_AOT_RUNTIME
   WasmEdge_CompilerContext(const WasmEdge::Configure &Conf) noexcept
-      : Load(Conf), Valid(Conf) {
-    /// Set optimization level to O0 until the compiler option APIs ready.
-    Compiler.setOptimizationLevel(
-        WasmEdge::AOT::Compiler::OptimizationLevel::O0);
-  }
+      : Compiler(Conf), Load(Conf), Valid(Conf) {}
   WasmEdge::AOT::Compiler Compiler;
   WasmEdge::Loader::Loader Load;
   WasmEdge::Validator::Validator Valid;
@@ -117,7 +113,7 @@ inline constexpr WasmEdge_Result genWasmEdge_Result(ErrCode Code) noexcept {
 /// Helper functions for returning a WasmEdge_Value by various values.
 template <typename T> inline WasmEdge_Value genWasmEdge_Value(T Val) noexcept {
   return WasmEdge_Value{
-      .Value = retrieveValue<unsigned __int128>(ValVariant(toUnsigned(Val))),
+      .Value = ValVariant(Val).unwrap(),
       .Type = static_cast<WasmEdge_ValType>(WasmEdge::ValTypeFromType<T>())};
 }
 template <>
@@ -127,12 +123,7 @@ inline constexpr WasmEdge_Value genWasmEdge_Value(__int128 Val) noexcept {
 }
 inline WasmEdge_Value genWasmEdge_Value(ValVariant Val,
                                         WasmEdge_ValType T) noexcept {
-  return WasmEdge_Value{.Value = retrieveValue<unsigned __int128>(Val),
-                        .Type = T};
-}
-inline WasmEdge_Value genWasmEdge_Value(RefVariant Val,
-                                        WasmEdge_ValType T) noexcept {
-  return genWasmEdge_Value(ValVariant(Val), T);
+  return WasmEdge_Value{.Value = Val.unwrap(), .Type = T};
 }
 
 /// Helper function for converting a WasmEdge_Value array to a ValVariant
@@ -147,8 +138,34 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
   VVec.resize(Len);
   TVec.resize(Len);
   for (uint32_t I = 0; I < Len; I++) {
-    VVec[I] = Val[I].Value;
     TVec[I] = static_cast<ValType>(Val[I].Type);
+    switch (TVec[I]) {
+    case ValType::I32:
+      VVec[I] = ValVariant::wrap<uint32_t>(Val[I].Value);
+      break;
+    case ValType::I64:
+      VVec[I] = ValVariant::wrap<uint64_t>(Val[I].Value);
+      break;
+    case ValType::F32:
+      VVec[I] = ValVariant::wrap<float>(Val[I].Value);
+      break;
+    case ValType::F64:
+      VVec[I] = ValVariant::wrap<double>(Val[I].Value);
+      break;
+    case ValType::V128:
+      VVec[I] = ValVariant::wrap<unsigned __int128>(Val[I].Value);
+      break;
+    case ValType::FuncRef:
+      VVec[I] = ValVariant::wrap<FuncRef>(Val[I].Value);
+      break;
+    case ValType::ExternRef:
+      VVec[I] = ValVariant::wrap<ExternRef>(Val[I].Value);
+      break;
+    case ValType::None:
+    default:
+      // TODO: Return error
+      __builtin_unreachable();
+    }
   }
   return {VVec, TVec};
 }
@@ -260,7 +277,7 @@ public:
     std::vector<WasmEdge_Value> Params(FuncType.Params.size()),
         Returns(FuncType.Returns.size());
     for (uint32_t I = 0; I < Args.size(); I++) {
-      Params[I].Value = retrieveValue<__int128>(Args[I]);
+      Params[I].Value = Args[I].get<__int128>();
       Params[I].Type = static_cast<WasmEdge_ValType>(FuncType.Params[I]);
     }
     WasmEdge_Value *PPtr = Params.size() ? (&Params[0]) : nullptr;
@@ -385,46 +402,46 @@ WasmEdge_Value WasmEdge_ValueGenNullRef(const WasmEdge_RefType T) {
 }
 
 WasmEdge_Value WasmEdge_ValueGenFuncRef(const uint32_t Index) {
-  return genWasmEdge_Value(WasmEdge::genFuncRef(Index),
-                           WasmEdge_ValType_FuncRef);
+  return genWasmEdge_Value(WasmEdge::FuncRef(Index), WasmEdge_ValType_FuncRef);
 }
 
 WasmEdge_Value WasmEdge_ValueGenExternRef(void *Ref) {
-  return genWasmEdge_Value(WasmEdge::genExternRef(Ref),
+  return genWasmEdge_Value(WasmEdge::ExternRef(Ref),
                            WasmEdge_ValType_ExternRef);
 }
 
 int32_t WasmEdge_ValueGetI32(const WasmEdge_Value Val) {
-  return WasmEdge::retrieveValue<int32_t>(WasmEdge::ValVariant(Val.Value));
+  return WasmEdge::ValVariant::wrap<int32_t>(Val.Value).get<int32_t>();
 }
 
 int64_t WasmEdge_ValueGetI64(const WasmEdge_Value Val) {
-  return WasmEdge::retrieveValue<int64_t>(WasmEdge::ValVariant(Val.Value));
+  return WasmEdge::ValVariant::wrap<int64_t>(Val.Value).get<int64_t>();
 }
 
 float WasmEdge_ValueGetF32(const WasmEdge_Value Val) {
-  return WasmEdge::retrieveValue<float>(WasmEdge::ValVariant(Val.Value));
+  return WasmEdge::ValVariant::wrap<float>(Val.Value).get<float>();
 }
 
 double WasmEdge_ValueGetF64(const WasmEdge_Value Val) {
-  return WasmEdge::retrieveValue<double>(WasmEdge::ValVariant(Val.Value));
+  return WasmEdge::ValVariant::wrap<double>(Val.Value).get<double>();
 }
 
 __int128 WasmEdge_ValueGetV128(const WasmEdge_Value Val) {
-  return WasmEdge::retrieveValue<__int128>(WasmEdge::ValVariant(Val.Value));
+  return WasmEdge::ValVariant::wrap<__int128>(Val.Value).get<__int128>();
 }
 
 bool WasmEdge_ValueIsNullRef(const WasmEdge_Value Val) {
-  return WasmEdge::isNullRef(WasmEdge::ValVariant(Val.Value));
+  return WasmEdge::isNullRef(WasmEdge::ValVariant::wrap<UnknownRef>(Val.Value));
 }
 
 uint32_t WasmEdge_ValueGetFuncIdx(const WasmEdge_Value Val) {
-  return WasmEdge::retrieveFuncIdx(WasmEdge::ValVariant(Val.Value));
+  return WasmEdge::retrieveFuncIdx(
+      WasmEdge::ValVariant::wrap<FuncRef>(Val.Value));
 }
 
 void *WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) {
   return &WasmEdge::retrieveExternRef<uint32_t>(
-      WasmEdge::ValVariant(Val.Value));
+      WasmEdge::ValVariant::wrap<ExternRef>(Val.Value));
 }
 
 /// <<<<<<<< WasmEdge value functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -541,16 +558,79 @@ bool WasmEdge_ConfigureHasHostRegistration(
 void WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
                                         const uint32_t Page) {
   if (Cxt) {
-    Cxt->Conf.setMaxMemoryPage(Page);
+    Cxt->Conf.getRuntimeConfigure().setMaxMemoryPage(Page);
   }
 }
 
 uint32_t
 WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt) {
   if (Cxt) {
-    return Cxt->Conf.getMaxMemoryPage();
+    return Cxt->Conf.getRuntimeConfigure().getMaxMemoryPage();
   }
   return 0;
+}
+
+void WasmEdge_ConfigureCompilerSetOptimizationLevel(
+    WasmEdge_ConfigureContext *Cxt,
+    const enum WasmEdge_CompilerOptimizationLevel Level) {
+  if (Cxt) {
+    Cxt->Conf.getCompilerConfigure().setOptimizationLevel(
+        static_cast<WasmEdge::CompilerConfigure::OptimizationLevel>(Level));
+  }
+}
+
+enum WasmEdge_CompilerOptimizationLevel
+WasmEdge_ConfigureCompilerGetOptimizationLevel(
+    const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return static_cast<WasmEdge_CompilerOptimizationLevel>(
+        Cxt->Conf.getCompilerConfigure().getOptimizationLevel());
+  }
+  return WasmEdge_CompilerOptimizationLevel_O0;
+}
+
+void WasmEdge_ConfigureCompilerSetDumpIR(WasmEdge_ConfigureContext *Cxt,
+                                         const bool IsDump) {
+  if (Cxt) {
+    Cxt->Conf.getCompilerConfigure().setDumpIR(IsDump);
+  }
+}
+
+bool WasmEdge_ConfigureCompilerIsDumpIR(const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getCompilerConfigure().isDumpIR();
+  }
+  return false;
+}
+
+void WasmEdge_ConfigureCompilerSetInstructionCounting(
+    WasmEdge_ConfigureContext *Cxt, const bool IsCount) {
+  if (Cxt) {
+    Cxt->Conf.getCompilerConfigure().setInstructionCounting(IsCount);
+  }
+}
+
+bool WasmEdge_ConfigureCompilerIsInstructionCounting(
+    const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getCompilerConfigure().isInstructionCounting();
+  }
+  return false;
+}
+
+void WasmEdge_ConfigureCompilerSetCostMeasuring(WasmEdge_ConfigureContext *Cxt,
+                                                const bool IsMeasure) {
+  if (Cxt) {
+    Cxt->Conf.getCompilerConfigure().setCostMeasuring(IsMeasure);
+  }
+}
+
+bool WasmEdge_ConfigureCompilerIsCostMeasuring(
+    const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getCompilerConfigure().isCostMeasuring();
+  }
+  return false;
 }
 
 void WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt) { delete Cxt; }
@@ -1279,9 +1359,10 @@ WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
                               WasmEdge_Value *Data, const uint32_t Offset) {
   return wrap([&]() { return fromTabCxt(Cxt)->getRefAddr(Offset); },
               [&](auto &&Res) {
-                *Data = genWasmEdge_Value(
-                    *Res, static_cast<WasmEdge_ValType>(
-                              fromTabCxt(Cxt)->getReferenceType()));
+                *Data =
+                    genWasmEdge_Value(Res->template get<UnknownRef>(),
+                                      static_cast<WasmEdge_ValType>(
+                                          fromTabCxt(Cxt)->getReferenceType()));
               },
               Cxt, Data);
 }
@@ -1300,8 +1381,7 @@ WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
           return Unexpect(WasmEdge::ErrCode::RefTypeMismatch);
         }
         return fromTabCxt(Cxt)->setRefAddr(
-            Offset,
-            std::get<WasmEdge::RefVariant>(WasmEdge::ValVariant(Data.Value)));
+            Offset, WasmEdge::ValVariant(Data.Value).get<UnknownRef>());
       },
       EmptyThen, Cxt);
 }

@@ -5,8 +5,8 @@
 #include <tuple>
 #include <vector>
 
-using std::experimental::expected;
-using std::experimental::unexpected;
+using cxx20::expected;
+using cxx20::unexpected;
 
 namespace {
 struct takes_init_and_variadic {

@@ -109,8 +109,8 @@ static inline constexpr const uint32_t kValSize = sizeof(WasmEdge::ValVariant);
 
 /// Translate Compiler::OptimizationLevel to llvm::PassBuilder version
 static inline llvm::PassBuilder::OptimizationLevel
-toLLVMLevel(WasmEdge::AOT::Compiler::OptimizationLevel Level) {
-  using OL = WasmEdge::AOT::Compiler::OptimizationLevel;
+toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) {
+  using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
   switch (Level) {
   case OL::O0:
     return llvm::PassBuilder::OptimizationLevel::O0;
@@ -989,18 +989,18 @@ public:
         break;
       }
       case OpCode::I32__const:
-        stackPush(Builder.getInt32(std::get<uint32_t>(Instr.getNum())));
+        stackPush(Builder.getInt32(Instr.getNum().get<uint32_t>()));
         break;
       case OpCode::I64__const:
-        stackPush(Builder.getInt64(std::get<uint64_t>(Instr.getNum())));
+        stackPush(Builder.getInt64(Instr.getNum().get<uint64_t>()));
         break;
       case OpCode::F32__const:
         stackPush(llvm::ConstantFP::get(
-            Context.FloatTy, llvm::APFloat(std::get<float>(Instr.getNum()))));
+            Context.FloatTy, llvm::APFloat(Instr.getNum().get<float>())));
         break;
       case OpCode::F64__const:
         stackPush(llvm::ConstantFP::get(
-            Context.DoubleTy, llvm::APFloat(std::get<double>(Instr.getNum()))));
+            Context.DoubleTy, llvm::APFloat(Instr.getNum().get<double>())));
         break;
       case OpCode::I32__eqz:
         stackPush(Builder.CreateZExt(
@@ -1390,11 +1390,14 @@ public:
           const bool Is32 = Instr.getOpCode() == OpCode::I32__div_s;
           llvm::ConstantInt *IntZero =
               Is32 ? Builder.getInt32(0) : Builder.getInt64(0);
-          llvm::ConstantInt *IntMinusOne = Is32 ? Builder.getInt32(int32_t(-1))
-                                                : Builder.getInt64(int64_t(-1));
+          llvm::ConstantInt *IntMinusOne =
+              Is32 ? Builder.getInt32(static_cast<uint32_t>(INT32_C(-1)))
+                   : Builder.getInt64(static_cast<uint64_t>(INT64_C(-1)));
           llvm::ConstantInt *IntMin =
-              Is32 ? Builder.getInt32(std::numeric_limits<int32_t>::min())
-                   : Builder.getInt64(std::numeric_limits<int64_t>::min());
+              Is32 ? Builder.getInt32(static_cast<uint32_t>(
+                         std::numeric_limits<int32_t>::min()))
+                   : Builder.getInt64(static_cast<uint64_t>(
+                         std::numeric_limits<int64_t>::min()));
 
           auto *NoZeroBB = llvm::BasicBlock::Create(LLContext, "div.nozero", F);
           auto *OkBB = llvm::BasicBlock::Create(LLContext, "div.ok", F);
@@ -1442,11 +1445,14 @@ public:
         llvm::Value *LHS = stackPop();
         // handle INT32_MIN % -1
         const bool Is32 = Instr.getOpCode() == OpCode::I32__rem_s;
-        llvm::ConstantInt *IntMinusOne = Is32 ? Builder.getInt32(int32_t(-1))
-                                              : Builder.getInt64(int64_t(-1));
+        llvm::ConstantInt *IntMinusOne =
+            Is32 ? Builder.getInt32(static_cast<uint32_t>(INT32_C(-1)))
+                 : Builder.getInt64(static_cast<uint64_t>(INT64_C(-1)));
         llvm::ConstantInt *IntMin =
-            Is32 ? Builder.getInt32(std::numeric_limits<int32_t>::min())
-                 : Builder.getInt64(std::numeric_limits<int64_t>::min());
+            Is32 ? Builder.getInt32(static_cast<uint32_t>(
+                       std::numeric_limits<int32_t>::min()))
+                 : Builder.getInt64(static_cast<uint64_t>(
+                       std::numeric_limits<int64_t>::min()));
         llvm::ConstantInt *IntZero =
             Is32 ? Builder.getInt32(0) : Builder.getInt64(0);
 
@@ -1767,7 +1773,7 @@ public:
                            Context.Int64x2Ty);
         break;
       case OpCode::V128__const: {
-        const auto Value = retrieveValue<uint64x2_t>(Instr.getNum());
+        const auto Value = Instr.getNum().get<uint64x2_t>();
         auto *Vector = llvm::ConstantVector::get(
             {Builder.getInt64(Value[0]), Builder.getInt64(Value[1])});
         stackPush(Builder.CreateBitCast(Vector, Context.Int64x2Ty));
@@ -1776,7 +1782,7 @@ public:
       case OpCode::I8x16__shuffle: {
         auto *V2 = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
         auto *V1 = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
-        const auto V3 = retrieveValue<uint128_t>(Instr.getNum());
+        const auto V3 = Instr.getNum().get<uint128_t>();
         std::array<ShuffleElement, 16> Mask;
         for (size_t I = 0; I < 16; ++I) {
           Mask[I] = static_cast<uint8_t>(V3 >> (I * 8));
@@ -3818,7 +3824,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
         llvm::ConstantInt::get(Int32Ty, Data.size()), "wasm.size");
   }
 
-  if (DumpIR) {
+  if (Conf.getCompilerConfigure().isDumpIR()) {
     int Fd;
     llvm::sys::fs::openFileForWrite("wasm.ll", Fd);
     llvm::raw_fd_ostream OS(Fd, true);
@@ -3903,10 +3909,11 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
       llvm::ModulePassManager MPM(false);
-      if (optNone()) {
+      if (Conf.getCompilerConfigure().getOptimizationLevel() == CompilerConfigure::OptimizationLevel::O0) {
         MPM.addPass(llvm::AlwaysInlinerPass(false));
       } else {
-        MPM.addPass(PB.buildPerModuleDefaultPipeline(toLLVMLevel(Level)));
+        MPM.addPass(PB.buildPerModuleDefaultPipeline(
+            toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel())));
       }
 
       MPM.run(*LLModule, MAM);
@@ -3932,7 +3939,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       return Unexpect(ErrCode::InvalidPath);
     }
 
-    if (DumpIR) {
+    if (Conf.getCompilerConfigure().isDumpIR()) {
       int Fd;
       llvm::sys::fs::openFileForWrite("wasm-opt.ll", Fd);
       llvm::raw_fd_ostream OS(Fd, true);
@@ -4263,8 +4270,10 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
         Locals.push_back(Local.second);
       }
     }
-    FunctionCompiler FC(*Context, F, Locals, InstructionCounting, GasMeasuring,
-                        optNone());
+    FunctionCompiler FC(*Context, F, Locals, Conf.getCompilerConfigure().isInstructionCounting(),
+                        Conf.getCompilerConfigure().isCostMeasuring(),
+                        Conf.getCompilerConfigure().getOptimizationLevel() ==
+                            CompilerConfigure::OptimizationLevel::O0);
     auto Type = Context->resolveBlockType(T);
     FC.compile(*Code, std::move(Type));
     llvm::EliminateUnreachableBlocks(*F);

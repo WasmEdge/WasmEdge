@@ -4,4 +4,4 @@ version = "0.0.0"
 edition = "2018"
 
 [dependencies]
-witx = "^0.8.8"
+witx = "0.9.0"

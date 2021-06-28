@@ -5,13 +5,9 @@
 namespace WasmEdge {
 namespace Log {
 
-void setDebugLoggingLevel() {
-  spdlog::set_level(spdlog::level::debug);
-}
+void setDebugLoggingLevel() { spdlog::set_level(spdlog::level::debug); }
 
-void setErrorLoggingLevel() {
-  spdlog::set_level(spdlog::level::err);
-}
+void setErrorLoggingLevel() { spdlog::set_level(spdlog::level::err); }
 
 } // namespace Log
 
@@ -196,26 +192,26 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
         break;
       case ValType::I32:
         if (Rhs.IsSigned) {
-          OS << retrieveValue<int32_t>(Rhs.Args[I]);
+          OS << Rhs.Args[I].get<int32_t>();
         } else {
-          OS << retrieveValue<uint32_t>(Rhs.Args[I]);
+          OS << Rhs.Args[I].get<uint32_t>();
         }
         break;
       case ValType::I64:
         if (Rhs.IsSigned) {
-          OS << retrieveValue<int64_t>(Rhs.Args[I]);
+          OS << Rhs.Args[I].get<int64_t>();
         } else {
-          OS << retrieveValue<uint64_t>(Rhs.Args[I]);
+          OS << Rhs.Args[I].get<uint64_t>();
         }
         break;
       case ValType::F32:
-        OS << retrieveValue<float>(Rhs.Args[I]);
+        OS << Rhs.Args[I].get<float>();
         break;
       case ValType::F64:
-        OS << retrieveValue<double>(Rhs.Args[I]);
+        OS << Rhs.Args[I].get<double>();
         break;
       case ValType::V128: {
-        const auto Value = retrieveValue<uint64x2_t>(Rhs.Args[I]);
+        const auto Value = Rhs.Args[I].get<uint64x2_t>();
         OS << std::hex << Value[0] << Value[1];
         break;
       }
@@ -231,7 +227,7 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
         if (isNullRef(Rhs.Args[I])) {
           OS << ":null";
         } else {
-          OS << ":" << &retrieveExternRef<uint64_t>(Rhs.Args[I]);
+          OS << ":" << &Rhs.Args[I].get<uint64_t>();
         }
       default:
         break;

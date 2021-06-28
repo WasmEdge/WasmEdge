@@ -29,7 +29,7 @@ int main(int Argc, const char *Argv[]) {
   PO::List<std::string> Dir(
       PO::Description(
           "Binding directories into WASI virtual filesystem. Each directories "
-          "can specified as --dir `host_path:guest_path`, where `guest_path` "
+          "can specified as --dir `guest_path:host_path`, where `guest_path` "
           "specifies the path that will correspond to `host_path` for calls "
           "like `fopen` in the guest."sv),
       PO::MetaVar("PREOPEN_DIRS"sv));

@@ -60,15 +60,25 @@ static inline std::unordered_map<ValType, std::string> ValTypeStr = {
 /// Block type definition.
 using BlockType = std::variant<ValType, uint32_t>;
 
+/// UnknownRef definition.
+struct UnknownRef {
+  uint64_t Value = 0;
+  UnknownRef() = default;
+};
+
 /// FuncRef definition.
 struct FuncRef {
   uint32_t NotNull = 0;
   uint32_t Idx = 0;
+  FuncRef() = default;
+  FuncRef(uint32_t I) : NotNull(1), Idx(I) {}
 };
 
 /// ExternRef definition.
 struct ExternRef {
-  uint64_t *Ptr = nullptr;
+  void *Ptr = nullptr;
+  ExternRef() = default;
+  template <typename T> ExternRef(T *P) : Ptr(reinterpret_cast<void *>(P)) {}
 };
 
 /// Number types enumeration class.

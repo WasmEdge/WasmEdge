@@ -8,7 +8,7 @@ namespace WasmEdge {
 namespace Interpreter {
 
 template <typename T> TypeU<T> Interpreter::runClzOp(ValVariant &Val) const {
-  T I = retrieveValue<T>(Val);
+  T I = Val.get<T>();
   /// Return the count of leading zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
@@ -17,15 +17,15 @@ template <typename T> TypeU<T> Interpreter::runClzOp(ValVariant &Val) const {
       Cnt++;
       I <<= 1;
     }
-    Val = Cnt;
+    Val.get<T>() = Cnt;
   } else {
-    Val = static_cast<T>(sizeof(T) * 8);
+    Val.get<T>() = static_cast<T>(sizeof(T) * 8);
   }
   return {};
 }
 
 template <typename T> TypeU<T> Interpreter::runCtzOp(ValVariant &Val) const {
-  T I = retrieveValue<T>(Val);
+  T I = Val.get<T>();
   /// Return the count of trailing zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
@@ -34,15 +34,15 @@ template <typename T> TypeU<T> Interpreter::runCtzOp(ValVariant &Val) const {
       Cnt++;
       I >>= 1;
     }
-    Val = Cnt;
+    Val.get<T>() = Cnt;
   } else {
-    Val = static_cast<T>(sizeof(T) * 8);
+    Val.get<T>() = static_cast<T>(sizeof(T) * 8);
   }
   return {};
 }
 
 template <typename T> TypeU<T> Interpreter::runPopcntOp(ValVariant &Val) const {
-  T I = retrieveValue<T>(Val);
+  T I = Val.get<T>();
   /// Return the count of non-zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
@@ -53,44 +53,44 @@ template <typename T> TypeU<T> Interpreter::runPopcntOp(ValVariant &Val) const {
       }
       I >>= 1;
     }
-    Val = Cnt;
+    Val.get<T>() = Cnt;
   }
   return {};
 }
 
 template <typename T> TypeF<T> Interpreter::runAbsOp(ValVariant &Val) const {
-  Val = std::fabs(retrieveValue<T>(Val));
+  Val.get<T>() = std::fabs(Val.get<T>());
   return {};
 }
 
 template <typename T> TypeF<T> Interpreter::runNegOp(ValVariant &Val) const {
-  Val = -retrieveValue<T>(Val);
+  Val.get<T>() = -Val.get<T>();
   return {};
 }
 
 template <typename T> TypeF<T> Interpreter::runCeilOp(ValVariant &Val) const {
-  Val = std::ceil(retrieveValue<T>(Val));
+  Val.get<T>() = std::ceil(Val.get<T>());
   return {};
 }
 
 template <typename T> TypeF<T> Interpreter::runFloorOp(ValVariant &Val) const {
-  Val = std::floor(retrieveValue<T>(Val));
+  Val.get<T>() = std::floor(Val.get<T>());
   return {};
 }
 
 template <typename T> TypeF<T> Interpreter::runTruncOp(ValVariant &Val) const {
-  Val = std::trunc(retrieveValue<T>(Val));
+  Val.get<T>() = std::trunc(Val.get<T>());
   return {};
 }
 
 template <typename T>
 TypeF<T> Interpreter::runNearestOp(ValVariant &Val) const {
-  Val = WasmEdge::roundeven(T(retrieveValue<T>(Val)));
+  Val.get<T>() = WasmEdge::roundeven(Val.get<T>());
   return {};
 }
 
 template <typename T> TypeF<T> Interpreter::runSqrtOp(ValVariant &Val) const {
-  Val = std::sqrt(retrieveValue<T>(Val));
+  Val.get<T>() = std::sqrt(Val.get<T>());
   return {};
 }
 
@@ -98,25 +98,24 @@ template <typename TIn, typename TOut>
 Expect<void> Interpreter::runExtractLaneOp(ValVariant &Val,
                                            const uint32_t Index) const {
   using VTIn [[gnu::vector_size(16)]] = TIn;
-  VTIn &Result = retrieveValue<VTIn>(Val);
-  retrieveValue<TOut>(Val) = Result[Index];
+  const TOut Result = Val.get<VTIn>()[Index];
+  Val.emplace<TOut>(Result);
   return {};
 }
 
 template <typename TIn, typename TOut>
 Expect<void> Interpreter::runSplatOp(ValVariant &Val) const {
-  const TOut Part = static_cast<TOut>(retrieveValue<TIn>(Val));
+  const TOut Part = static_cast<TOut>(Val.get<TIn>());
   using VTOut [[gnu::vector_size(16)]] = TOut;
-  VTOut &Result = retrieveValue<VTOut>(Val);
   if constexpr (sizeof(TOut) == 1) {
-    Result = VTOut{Part, Part, Part, Part, Part, Part, Part, Part,
-                   Part, Part, Part, Part, Part, Part, Part, Part};
+    Val.emplace<VTOut>(VTOut{Part, Part, Part, Part, Part, Part, Part, Part,
+                             Part, Part, Part, Part, Part, Part, Part, Part});
   } else if constexpr (sizeof(TOut) == 2) {
-    Result = VTOut{Part, Part, Part, Part, Part, Part, Part, Part};
+    Val.emplace<VTOut>(VTOut{Part, Part, Part, Part, Part, Part, Part, Part});
   } else if constexpr (sizeof(TOut) == 4) {
-    Result = VTOut{Part, Part, Part, Part};
+    Val.emplace<VTOut>(VTOut{Part, Part, Part, Part});
   } else if constexpr (sizeof(TOut) == 8) {
-    Result = VTOut{Part, Part};
+    Val.emplace<VTOut>(VTOut{Part, Part});
   }
   return {};
 }
@@ -128,15 +127,15 @@ Expect<void> Interpreter::runVectorExtendLowOp(ValVariant &Val) const {
   using VTIn [[gnu::vector_size(16)]] = TIn;
   using HVTIn [[gnu::vector_size(8)]] = TIn;
   using VTOut [[gnu::vector_size(16)]] = TOut;
-  const VTIn &V = retrieveValue<VTIn>(Val);
-  VTOut &Result = retrieveValue<VTOut>(Val);
+  const VTIn &V = Val.get<VTIn>();
   if constexpr (sizeof(TIn) == 1) {
-    Result = __builtin_convertvector(
-        HVTIn{V[0], V[1], V[2], V[3], V[4], V[5], V[6], V[7]}, VTOut);
+    Val.emplace<VTOut>(__builtin_convertvector(
+        HVTIn{V[0], V[1], V[2], V[3], V[4], V[5], V[6], V[7]}, VTOut));
   } else if constexpr (sizeof(TIn) == 2) {
-    Result = __builtin_convertvector(HVTIn{V[0], V[1], V[2], V[3]}, VTOut);
+    Val.emplace<VTOut>(
+        __builtin_convertvector(HVTIn{V[0], V[1], V[2], V[3]}, VTOut));
   } else if constexpr (sizeof(TIn) == 4) {
-    Result = __builtin_convertvector(HVTIn{V[0], V[1]}, VTOut);
+    Val.emplace<VTOut>(__builtin_convertvector(HVTIn{V[0], V[1]}, VTOut));
   }
   return {};
 }
@@ -148,15 +147,15 @@ Expect<void> Interpreter::runVectorExtendHighOp(ValVariant &Val) const {
   using VTIn [[gnu::vector_size(16)]] = TIn;
   using HVTIn [[gnu::vector_size(8)]] = TIn;
   using VTOut [[gnu::vector_size(16)]] = TOut;
-  const VTIn &V = retrieveValue<VTIn>(Val);
-  VTOut &Result = retrieveValue<VTOut>(Val);
+  const VTIn &V = Val.get<VTIn>();
   if constexpr (sizeof(TIn) == 1) {
-    Result = __builtin_convertvector(
-        HVTIn{V[8], V[9], V[10], V[11], V[12], V[13], V[14], V[15]}, VTOut);
+    Val.emplace<VTOut>(__builtin_convertvector(
+        HVTIn{V[8], V[9], V[10], V[11], V[12], V[13], V[14], V[15]}, VTOut));
   } else if constexpr (sizeof(TIn) == 2) {
-    Result = __builtin_convertvector(HVTIn{V[4], V[5], V[6], V[7]}, VTOut);
+    Val.emplace<VTOut>(
+        __builtin_convertvector(HVTIn{V[4], V[5], V[6], V[7]}, VTOut));
   } else if constexpr (sizeof(TIn) == 4) {
-    Result = __builtin_convertvector(HVTIn{V[2], V[3]}, VTOut);
+    Val.emplace<VTOut>(__builtin_convertvector(HVTIn{V[2], V[3]}, VTOut));
   }
   return {};
 }
@@ -166,11 +165,10 @@ Expect<void> Interpreter::runVectorExtAddPairwiseOp(ValVariant &Val) const {
   static_assert(sizeof(TIn) * 2 == sizeof(TOut));
   using VTOut [[gnu::vector_size(16)]] = TOut;
   const auto Size = sizeof(TIn) * 8;
-  const VTOut &V = retrieveValue<VTOut>(Val);
-  VTOut &Result = retrieveValue<VTOut>(Val);
+  const VTOut &V = Val.get<VTOut>();
   const auto L = V >> Size;
   const auto R = (V << Size) >> Size;
-  Result = L + R;
+  Val.emplace<VTOut>(L + R);
 
   return {};
 }
@@ -178,7 +176,7 @@ Expect<void> Interpreter::runVectorExtAddPairwiseOp(ValVariant &Val) const {
 template <typename T>
 Expect<void> Interpreter::runVectorAbsOp(ValVariant &Val) const {
   using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = retrieveValue<VT>(Val);
+  VT &Result = Val.get<VT>();
   if constexpr (std::is_floating_point_v<T>) {
     if constexpr (sizeof(T) == 4) {
       using IVT [[gnu::vector_size(16)]] = uint32_t;
@@ -198,13 +196,13 @@ Expect<void> Interpreter::runVectorAbsOp(ValVariant &Val) const {
 template <typename T>
 Expect<void> Interpreter::runVectorNegOp(ValVariant &Val) const {
   using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = retrieveValue<VT>(Val);
+  VT &Result = Val.get<VT>();
   Result = -Result;
   return {};
 }
 
 inline Expect<void> Interpreter::runVectorPopcntOp(ValVariant &Val) const {
-  auto &Result = retrieveValue<uint8x16_t>(Val);
+  auto &Result = Val.get<uint8x16_t>();
   Result -= ((Result >> UINT8_C(1)) & UINT8_C(0x55));
   Result = (Result & UINT8_C(0x33)) + ((Result >> UINT8_C(2)) & UINT8_C(0x33));
   Result += Result >> UINT8_C(4);
@@ -215,7 +213,7 @@ inline Expect<void> Interpreter::runVectorPopcntOp(ValVariant &Val) const {
 template <typename T>
 Expect<void> Interpreter::runVectorSqrtOp(ValVariant &Val) const {
   using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = retrieveValue<VT>(Val);
+  VT &Result = Val.get<VT>();
   if constexpr (sizeof(T) == 4) {
     Result = VT{std::sqrt(Result[0]), std::sqrt(Result[1]),
                 std::sqrt(Result[2]), std::sqrt(Result[3])};
@@ -234,8 +232,7 @@ Expect<void> Interpreter::runVectorTruncSatOp(ValVariant &Val) const {
   const TOut IMax = std::numeric_limits<TOut>::max();
   using VTIn [[gnu::vector_size(16)]] = TIn;
   using VTOut [[gnu::vector_size(16)]] = TOut;
-  auto &V = retrieveValue<VTIn>(Val);
-  auto &Result = retrieveValue<VTOut>(Val);
+  auto &V = Val.get<VTIn>();
   if constexpr (sizeof(TIn) == sizeof(TOut)) {
     VTIn X = {std::trunc(V[0]), std::trunc(V[1]), std::trunc(V[2]),
               std::trunc(V[3])};
@@ -243,7 +240,7 @@ Expect<void> Interpreter::runVectorTruncSatOp(ValVariant &Val) const {
     Y = X == X ? Y : 0;
     Y = X <= FMin ? IMin : Y;
     Y = X >= FMax ? IMax : Y;
-    Result = Y;
+    Val.emplace<VTOut>(Y);
   } else {
     using TOut2 = std::conditional_t<std::is_signed_v<TOut>, int64_t, uint64_t>;
     using VTOut2 [[gnu::vector_size(16)]] = TOut2;
@@ -253,7 +250,7 @@ Expect<void> Interpreter::runVectorTruncSatOp(ValVariant &Val) const {
     Y = X >= FMax ? IMax : Y;
     using VTOut22 [[gnu::vector_size(32)]] = TOut2;
     VTOut22 T = {Y[0], Y[1], 0, 0};
-    Result = __builtin_convertvector(T, VTOut);
+    Val.emplace<VTOut>(__builtin_convertvector(T, VTOut));
   }
   return {};
 }
@@ -263,37 +260,36 @@ Expect<void> Interpreter::runVectorConvertOp(ValVariant &Val) const {
   static_assert((sizeof(TIn) == 4 && (sizeof(TOut) == 4 || sizeof(TOut) == 8)));
   using VTIn [[gnu::vector_size(16)]] = TIn;
   using VTOut [[gnu::vector_size(16)]] = TOut;
-  auto &V = retrieveValue<VTIn>(Val);
-  auto &Result = retrieveValue<VTOut>(Val);
+  auto &V = Val.get<VTIn>();
   if constexpr (sizeof(TIn) == sizeof(TOut)) {
-    Result = __builtin_convertvector(V, VTOut);
+    Val.emplace<VTOut>(__builtin_convertvector(V, VTOut));
   } else {
     using VTIn2 [[gnu::vector_size(8)]] = TIn;
     VTIn2 X = {V[0], V[1]};
-    Result = __builtin_convertvector(X, VTOut);
+    Val.emplace<VTOut>(__builtin_convertvector(X, VTOut));
   }
   return {};
 }
 
 inline Expect<void> Interpreter::runVectorDemoteOp(ValVariant &Val) const {
-  const auto V = retrieveValue<doublex2_t>(Val);
-  retrieveValue<floatx4_t>(Val) =
-      floatx4_t{static_cast<float>(V[0]), static_cast<float>(V[1]), 0, 0};
+  const auto V = Val.get<doublex2_t>();
+  Val.emplace<floatx4_t>(
+      floatx4_t{static_cast<float>(V[0]), static_cast<float>(V[1]), 0, 0});
   return {};
 }
 
 inline Expect<void> Interpreter::runVectorPromoteOp(ValVariant &Val) const {
-  const auto V = retrieveValue<floatx4_t>(Val);
-  retrieveValue<doublex2_t>(Val) =
-      doublex2_t{static_cast<double>(V[0]), static_cast<double>(V[1])};
+  const auto V = Val.get<floatx4_t>();
+  Val.emplace<doublex2_t>(
+      doublex2_t{static_cast<double>(V[0]), static_cast<double>(V[1])});
   return {};
 }
 
 inline Expect<void> Interpreter::runVectorAnyTrueOp(ValVariant &Val) const {
-  auto &Vector = retrieveValue<uint128_t>(Val);
+  auto &Vector = Val.get<uint128_t>();
   const uint128_t Zero = 0;
   const uint32_t Result = (Vector != Zero);
-  retrieveValue<uint32_t>(Val) = Result;
+  Val.emplace<uint32_t>(Result);
 
   return {};
 }
@@ -301,7 +297,7 @@ inline Expect<void> Interpreter::runVectorAnyTrueOp(ValVariant &Val) const {
 template <typename T>
 Expect<void> Interpreter::runVectorAllTrueOp(ValVariant &Val) const {
   using VT [[gnu::vector_size(16)]] = T;
-  VT &Vector = retrieveValue<VT>(Val);
+  VT &Vector = Val.get<VT>();
   VT Z = Vector != 0;
   uint32_t Result;
   if constexpr (sizeof(T) == 1) {
@@ -314,7 +310,7 @@ Expect<void> Interpreter::runVectorAllTrueOp(ValVariant &Val) const {
   } else if constexpr (sizeof(T) == 8) {
     Result = Z[0] && Z[1];
   }
-  retrieveValue<uint32_t>(Val) = Result;
+  Val.emplace<uint32_t>(Result);
 
   return {};
 }
@@ -323,7 +319,7 @@ template <typename T>
 Expect<void> Interpreter::runVectorBitMaskOp(ValVariant &Val) const {
   using SVT [[gnu::vector_size(16)]] = std::make_signed_t<T>;
   using UVT [[gnu::vector_size(16)]] = std::make_unsigned_t<T>;
-  SVT &Vector = retrieveValue<SVT>(Val);
+  SVT &Vector = Val.get<SVT>();
   const SVT MSB = Vector < 0;
   const UVT Z [[maybe_unused]] = reinterpret_cast<UVT>(MSB);
   if constexpr (sizeof(T) == 1) {
@@ -338,26 +334,26 @@ Expect<void> Interpreter::runVectorBitMaskOp(ValVariant &Val) const {
     const uint16_t Result = V[0] | V[1] | V[2] | V[3] | V[4] | V[5] | V[6] |
                             V[7] | V[8] | V[9] | V[10] | V[11] | V[12] | V[13] |
                             V[14] | V[15];
-    retrieveValue<uint32_t>(Val) = Result;
+    Val.emplace<uint32_t>(Result);
   } else if constexpr (sizeof(T) == 2) {
     const uint16x8_t Mask = {0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80};
     using uint8x8_t [[gnu::vector_size(8)]] = uint8_t;
     const uint8x8_t V = __builtin_convertvector(Z & Mask, uint8x8_t);
     const uint8_t Result =
         V[0] | V[1] | V[2] | V[3] | V[4] | V[5] | V[6] | V[7];
-    retrieveValue<uint32_t>(Val) = Result;
+    Val.emplace<uint32_t>(Result);
   } else if constexpr (sizeof(T) == 4) {
     const uint32x4_t Mask = {0x1, 0x2, 0x4, 0x8};
     using uint8x4_t [[gnu::vector_size(4)]] = uint8_t;
     const uint8x4_t V = __builtin_convertvector(Z & Mask, uint8x4_t);
     const uint8_t Result = V[0] | V[1] | V[2] | V[3];
-    retrieveValue<uint32_t>(Val) = Result;
+    Val.emplace<uint32_t>(Result);
   } else if constexpr (sizeof(T) == 8) {
     const uint64x2_t Mask = {0x1, 0x2};
     using uint8x2_t [[gnu::vector_size(2)]] = uint8_t;
     const uint8x2_t V = __builtin_convertvector(Z & Mask, uint8x2_t);
     const uint8_t Result = V[0] | V[1];
-    retrieveValue<uint32_t>(Val) = Result;
+    Val.emplace<uint32_t>(Result);
   }
 
   return {};
@@ -366,7 +362,7 @@ Expect<void> Interpreter::runVectorBitMaskOp(ValVariant &Val) const {
 template <typename T>
 Expect<void> Interpreter::runVectorCeilOp(ValVariant &Val) const {
   using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = retrieveValue<VT>(Val);
+  VT &Result = Val.get<VT>();
   if constexpr (sizeof(T) == 4) {
     Result = VT{std::ceil(Result[0]), std::ceil(Result[1]),
                 std::ceil(Result[2]), std::ceil(Result[3])};
@@ -379,7 +375,7 @@ Expect<void> Interpreter::runVectorCeilOp(ValVariant &Val) const {
 template <typename T>
 Expect<void> Interpreter::runVectorFloorOp(ValVariant &Val) const {
   using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = retrieveValue<VT>(Val);
+  VT &Result = Val.get<VT>();
   if constexpr (sizeof(T) == 4) {
     Result = VT{std::floor(Result[0]), std::floor(Result[1]),
                 std::floor(Result[2]), std::floor(Result[3])};
@@ -392,7 +388,7 @@ Expect<void> Interpreter::runVectorFloorOp(ValVariant &Val) const {
 template <typename T>
 Expect<void> Interpreter::runVectorTruncOp(ValVariant &Val) const {
   using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = retrieveValue<VT>(Val);
+  VT &Result = Val.get<VT>();
   if constexpr (sizeof(T) == 4) {
     Result = VT{std::trunc(Result[0]), std::trunc(Result[1]),
                 std::trunc(Result[2]), std::trunc(Result[3])};
@@ -405,7 +401,7 @@ Expect<void> Interpreter::runVectorTruncOp(ValVariant &Val) const {
 template <typename T>
 Expect<void> Interpreter::runVectorNearestOp(ValVariant &Val) const {
   using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = retrieveValue<VT>(Val);
+  VT &Result = Val.get<VT>();
   if constexpr (sizeof(T) == 4) {
     Result = VT{WasmEdge::roundeven(Result[0]), WasmEdge::roundeven(Result[1]),
                 WasmEdge::roundeven(Result[2]), WasmEdge::roundeven(Result[3])};

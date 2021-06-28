@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-find_package(GTest)
+find_package(GTest QUIET)
 if(GTest_FOUND)
   set(GTEST_BOTH_LIBRARIES "${GTEST_BOTH_LIBRARIES};Threads::Threads")
 else()
@@ -8,6 +8,7 @@ else()
     GTest
     GIT_REPOSITORY https://github.com/google/googletest.git
     GIT_TAG        release-1.10.0
+    GIT_SHALLOW    TRUE
   )
   set(BUILD_GMOCK OFF)
   FetchContent_MakeAvailable(GTest)

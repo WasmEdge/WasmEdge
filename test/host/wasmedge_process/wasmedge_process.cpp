@@ -143,7 +143,7 @@ TEST(WasmEdgeProcessTest, Run) {
 
   Env.Name = "c++";
   EXPECT_TRUE(WasmEdgeProcessRun.run(nullptr, {}, RetVal));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(RetVal[0]), -1);
+  EXPECT_EQ(RetVal[0].get<int32_t>(), -1);
   EXPECT_TRUE(Env.StdOut.size() == 0);
   EXPECT_TRUE(Env.StdErr.size() > 0);
   std::string ErrStr =
@@ -155,7 +155,7 @@ TEST(WasmEdgeProcessTest, Run) {
   Env.AllowedAll = true;
   Env.Name = "c++";
   EXPECT_TRUE(WasmEdgeProcessRun.run(nullptr, {}, RetVal));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(RetVal[0]), 1);
+  EXPECT_EQ(RetVal[0].get<int32_t>(), 1);
   EXPECT_TRUE(Env.StdOut.size() == 0);
   EXPECT_TRUE(Env.StdErr.size() > 0);
 
@@ -163,7 +163,7 @@ TEST(WasmEdgeProcessTest, Run) {
   Env.AllowedCmd.insert("c++");
   Env.Name = "c++";
   EXPECT_TRUE(WasmEdgeProcessRun.run(nullptr, {}, RetVal));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(RetVal[0]), 1);
+  EXPECT_EQ(RetVal[0].get<int32_t>(), 1);
   EXPECT_TRUE(Env.StdOut.size() == 0);
   EXPECT_TRUE(Env.StdErr.size() > 0);
 
@@ -173,7 +173,7 @@ TEST(WasmEdgeProcessTest, Run) {
   Env.Name = "/bin/echo";
   Env.Args.push_back("123456 test");
   EXPECT_TRUE(WasmEdgeProcessRun.run(nullptr, {}, RetVal));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(RetVal[0]), 0);
+  EXPECT_EQ(RetVal[0].get<int32_t>(), 0);
   EXPECT_TRUE(Env.StdOut.size() == 12);
   EXPECT_TRUE(Env.StdErr.size() == 0);
   std::string OutStr = "123456 test\n";
@@ -186,7 +186,7 @@ TEST(WasmEdgeProcessTest, GetExitCode) {
   std::array<WasmEdge::ValVariant, 1> RetVal;
 
   EXPECT_TRUE(WasmEdgeProcessGetExitCode.run(nullptr, {}, RetVal));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(RetVal[0]), 0);
+  EXPECT_EQ(RetVal[0].get<int32_t>(), 0);
 }
 
 TEST(WasmEdgeProcessTest, GetStdOut) {
@@ -202,9 +202,9 @@ TEST(WasmEdgeProcessTest, GetStdOut) {
   Env.AllowedCmd.insert("echo");
   Env.Args.push_back("$(pwd)");
   EXPECT_TRUE(WasmEdgeProcessRun.run(nullptr, {}, RetVal));
-  EXPECT_EQ(WasmEdge::retrieveValue<uint32_t>(RetVal[0]), 0U);
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
   EXPECT_TRUE(WasmEdgeProcessGetStdOutLen.run(nullptr, {}, RetVal));
-  uint32_t Len = WasmEdge::retrieveValue<uint32_t>(RetVal[0]);
+  uint32_t Len = RetVal[0].get<uint32_t>();
   EXPECT_TRUE(Len > 0U);
   EXPECT_FALSE(WasmEdgeProcessGetStdOut.run(
       nullptr, std::array<WasmEdge::ValVariant, 1>{UINT32_C(0)}, {}));
@@ -226,9 +226,9 @@ TEST(WasmEdgeProcessTest, GetStdErr) {
   Env.Name = "c++";
   Env.AllowedCmd.insert("c++");
   EXPECT_TRUE(WasmEdgeProcessRun.run(nullptr, {}, RetVal));
-  EXPECT_NE(WasmEdge::retrieveValue<uint32_t>(RetVal[0]), 0U);
+  EXPECT_NE(RetVal[0].get<uint32_t>(), 0U);
   EXPECT_TRUE(WasmEdgeProcessGetStdErrLen.run(nullptr, {}, RetVal));
-  uint32_t Len = WasmEdge::retrieveValue<uint32_t>(RetVal[0]);
+  uint32_t Len = RetVal[0].get<uint32_t>();
   EXPECT_TRUE(Len > 0);
   EXPECT_FALSE(WasmEdgeProcessGetStdErr.run(
       nullptr, std::array<WasmEdge::ValVariant, 1>{UINT32_C(0)}, {}));

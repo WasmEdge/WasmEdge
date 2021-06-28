@@ -14,9 +14,3 @@ target_link_libraries(wasmedgeVM
   wasmedgeHostModuleWasi
   wasmedgeHostModuleWasmEdgeProcess
 )
-
-target_include_directories(wasmedgeVM
-  PUBLIC
-  ${Boost_INCLUDE_DIRS}
-  ${PROJECT_SOURCE_DIR}/include
-)

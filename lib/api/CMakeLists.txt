@@ -25,11 +25,6 @@ if (BUILD_AOT_RUNTIME)
   )
 endif()
 
-target_include_directories(wasmedge_c
-  PUBLIC
-  ${PROJECT_BINARY_DIR}/include
-)
-
 install(TARGETS wasmedge_c
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

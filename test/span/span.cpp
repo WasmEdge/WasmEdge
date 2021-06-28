@@ -3,51 +3,51 @@
 #include "gtest/gtest.h"
 #include <vector>
 
-static_assert(!std::detail::is_compatible_element_v<int, unsigned int>);
-static_assert(std::detail::is_generic_range_v<std::vector<int> &>);
-static_assert(std::detail::is_compatible_range_v<int, std::vector<int> &>);
-static_assert(!std::detail::is_compatible_range_v<int, int>);
+static_assert(!cxx20::detail::is_compatible_element_v<int, unsigned int>);
+static_assert(cxx20::detail::is_generic_range_v<std::vector<int> &>);
+static_assert(cxx20::detail::is_compatible_range_v<int, std::vector<int> &>);
+static_assert(!cxx20::detail::is_compatible_range_v<int, int>);
 static_assert(
-    std::detail::is_compatible_iterator_v<int, std::vector<int>::iterator>);
+    cxx20::detail::is_compatible_iterator_v<int, std::vector<int>::iterator>);
 static_assert(
-    std::is_same_v<decltype(std::span(std::initializer_list<int>{1, 2})),
-                   std::span<const int>>);
-static_assert(std::is_same_v<decltype(std::span(std::array<int, 2>{1, 2})),
-                             std::span<const int>>);
+    std::is_same_v<decltype(cxx20::span(std::initializer_list<int>{1, 2})),
+                   cxx20::span<const int>>);
+static_assert(std::is_same_v<decltype(cxx20::span(std::array<int, 2>{1, 2})),
+                             cxx20::span<const int>>);
 
-static_assert(std::is_default_constructible_v<std::span<int>>);
-static_assert(std::is_default_constructible_v<std::span<int, 0>>);
-static_assert(!std::is_default_constructible_v<std::span<int, 1>>);
+static_assert(std::is_default_constructible_v<cxx20::span<int>>);
+static_assert(std::is_default_constructible_v<cxx20::span<int, 0>>);
+static_assert(!std::is_default_constructible_v<cxx20::span<int, 1>>);
 
 TEST(SpanTest, Constructors) {
-  std::span<int> S;
+  cxx20::span<int> S;
   EXPECT_EQ(S.size(), 0U);
   EXPECT_EQ(S.data(), nullptr);
 
-  std::span<const int> CS;
+  cxx20::span<const int> CS;
   EXPECT_EQ(CS.size(), 0U);
   EXPECT_EQ(CS.data(), nullptr);
 }
 
 TEST(SpanTest, ConstructorsWithExtent) {
-  std::span<int, 0> S;
+  cxx20::span<int, 0> S;
   EXPECT_EQ(S.size(), 0U);
   EXPECT_EQ(S.data(), nullptr);
 
-  std::span<const int, 0> CS;
+  cxx20::span<const int, 0> CS;
   EXPECT_EQ(CS.size(), 0U);
   EXPECT_EQ(CS.data(), nullptr);
 }
 
 TEST(SpanTest, Size) {
-  std::span<int> S1;
+  cxx20::span<int> S1;
   EXPECT_EQ(sizeof(S1), sizeof(int *) + sizeof(ptrdiff_t));
 
   int Array[1] = {1};
-  std::span<int, 1> S2 = Array;
+  cxx20::span<int, 1> S2 = Array;
   EXPECT_EQ(sizeof(S2), sizeof(int *));
 
-  std::span<int, 0> S3;
+  cxx20::span<int, 0> S3;
   EXPECT_EQ(sizeof(S3), sizeof(int *));
 }
 
@@ -55,7 +55,7 @@ TEST(SpanTest, ConstructorsFromPointerAndSize) {
   int Array[4] = {1, 2, 3, 4};
   for (std::size_t Offset = 0; Offset < std::size(Array) - 1; ++Offset) {
     for (std::size_t Size = 1; Size < std::size(Array) - Offset; ++Size) {
-      std::span S(std::data(Array) + Offset, Size);
+      cxx20::span S(std::data(Array) + Offset, Size);
       EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, int>));
       EXPECT_EQ(S.size(), Size);
       EXPECT_EQ(S.data(), std::data(Array) + Offset);
@@ -76,7 +76,7 @@ TEST(SpanTest, ConstructorsFromConstPointerAndSize) {
   const int Array[4] = {1, 2, 3, 4};
   for (std::size_t Offset = 0; Offset < std::size(Array) - 1; ++Offset) {
     for (std::size_t Size = 1; Size < std::size(Array) - Offset; ++Size) {
-      std::span S(std::data(Array) + Offset, Size);
+      cxx20::span S(std::data(Array) + Offset, Size);
       EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const int>));
       EXPECT_EQ(S.size(), Size);
       EXPECT_EQ(S.data(), std::data(Array) + Offset);
@@ -90,7 +90,7 @@ TEST(SpanTest, ConstructorsFromConstPointerAndSize) {
 
 TEST(SpanTest, ConstructorsFromArray) {
   int Array[] = {1, 2, 3, 4};
-  std::span S(Array);
+  cxx20::span S(Array);
   EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, int>));
   EXPECT_EQ(S.size(), std::size(Array));
   EXPECT_EQ(S.data(), std::data(Array));
@@ -103,7 +103,7 @@ TEST(SpanTest, ConstructorsFromArray) {
 
 TEST(SpanTest, ConstructorsFromConstArray) {
   const int Array[] = {1, 2, 3, 4};
-  std::span S(Array);
+  cxx20::span S(Array);
   EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const int>));
   EXPECT_EQ(S.size(), std::size(Array));
   EXPECT_EQ(S.data(), std::data(Array));
@@ -114,7 +114,7 @@ TEST(SpanTest, ConstructorsFromConstArray) {
 
 TEST(SpanTest, ConstructorsFromStdArray) {
   std::array Array = {1, 2, 3, 4};
-  std::span S(Array);
+  cxx20::span S(Array);
   EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, int>));
   EXPECT_EQ(S.size(), std::size(Array));
   EXPECT_EQ(S.data(), std::data(Array));
@@ -127,7 +127,7 @@ TEST(SpanTest, ConstructorsFromStdArray) {
 
 TEST(SpanTest, ConstructorsFromConstStdArray) {
   const std::array Array = {1, 2, 3, 4};
-  std::span S(Array);
+  cxx20::span S(Array);
   EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const int>));
   EXPECT_EQ(S.size(), std::size(Array));
   EXPECT_EQ(S.data(), std::data(Array));
@@ -138,7 +138,7 @@ TEST(SpanTest, ConstructorsFromConstStdArray) {
 
 TEST(SpanTest, ConstructorsFromStdVector) {
   std::vector Vector = {1, 2, 3, 4};
-  std::span S(Vector);
+  cxx20::span S(Vector);
   EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, int>));
   EXPECT_EQ(S.size(), std::size(Vector));
   EXPECT_EQ(S.data(), std::data(Vector));
@@ -151,7 +151,7 @@ TEST(SpanTest, ConstructorsFromStdVector) {
 
 TEST(SpanTest, ConstructorsFromConstStdVector) {
   const std::vector Vector = {1, 2, 3, 4};
-  std::span S(Vector);
+  cxx20::span S(Vector);
   EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const int>));
   EXPECT_EQ(S.size(), std::size(Vector));
   EXPECT_EQ(S.data(), std::data(Vector));
@@ -163,7 +163,7 @@ TEST(SpanTest, ConstructorsFromConstStdVector) {
 TEST(SpanTest, ConstructorsFromStdString) {
   using namespace std::literals;
   std::string String = "hello world"s;
-  std::span S(String);
+  cxx20::span S(String);
   EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, char>));
   EXPECT_EQ(S.size(), std::size(String));
   EXPECT_EQ(S.data(), std::data(String));
@@ -177,7 +177,7 @@ TEST(SpanTest, ConstructorsFromStdString) {
 TEST(SpanTest, ConstructorsFromConstStdString) {
   using namespace std::literals;
   const std::string String = "hello world"s;
-  std::span S(String);
+  cxx20::span S(String);
   EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const char>));
   EXPECT_EQ(S.size(), std::size(String));
   EXPECT_EQ(S.data(), std::data(String));
@@ -189,7 +189,7 @@ TEST(SpanTest, ConstructorsFromConstStdString) {
 TEST(SpanTest, ConstructorsFromStdStringView) {
   using namespace std::literals;
   std::string_view String = "hello world"sv;
-  std::span S(String);
+  cxx20::span S(String);
   EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const char>));
   EXPECT_EQ(S.size(), std::size(String));
   EXPECT_EQ(S.data(), std::data(String));
@@ -199,13 +199,13 @@ TEST(SpanTest, ConstructorsFromStdStringView) {
 }
 
 TEST(SpanTest, Convertible) {
-  std::span<int> IS;
+  cxx20::span<int> IS;
 
-  std::span<const int> CIS = IS;
+  cxx20::span<const int> CIS = IS;
   EXPECT_EQ(IS.size(), CIS.size());
   EXPECT_EQ(IS.data(), CIS.data());
 
-  std::span<const int> CIS2(IS);
+  cxx20::span<const int> CIS2(IS);
   EXPECT_EQ(IS.size(), CIS2.size());
   EXPECT_EQ(IS.data(), CIS2.data());
 }
@@ -213,10 +213,10 @@ TEST(SpanTest, Convertible) {
 TEST(SpanTest, CopyAssignment) {
   int Array[] = {1, 2, 3};
 
-  std::span<int> S1;
+  cxx20::span<int> S1;
   EXPECT_TRUE(S1.empty());
 
-  std::span<int> S2 = Array;
+  cxx20::span<int> S2 = Array;
   EXPECT_EQ(S2.data(), std::data(Array));
   EXPECT_EQ(S2.size(), std::size(Array));
 
@@ -228,28 +228,28 @@ TEST(SpanTest, First) {
   int Array[] = {1, 2, 3, 4, 5};
 
   {
-    std::span S = Array;
+    cxx20::span S = Array;
     EXPECT_EQ(S.size(), 5U);
     EXPECT_EQ(S.first<0>().size(), 0U);
     EXPECT_EQ(S.first(0).size(), 0U);
   }
 
   {
-    std::span S = Array;
+    cxx20::span S = Array;
     EXPECT_EQ(S.size(), 5U);
     EXPECT_EQ(S.first<2>().size(), 2U);
     EXPECT_EQ(S.first(2).size(), 2U);
   }
 
   {
-    std::span<int> S = Array;
+    cxx20::span<int> S = Array;
     EXPECT_EQ(S.size(), 5U);
     EXPECT_EQ(S.first<0>().size(), 0U);
     EXPECT_EQ(S.first(0).size(), 0U);
   }
 
   {
-    std::span<int> S = Array;
+    cxx20::span<int> S = Array;
     EXPECT_EQ(S.size(), 5U);
     EXPECT_EQ(S.first<2>().size(), 2U);
     EXPECT_EQ(S.first(2).size(), 2U);
@@ -260,28 +260,28 @@ TEST(SpanTest, Last) {
   int Array[] = {1, 2, 3, 4, 5};
 
   {
-    std::span S = Array;
+    cxx20::span S = Array;
     EXPECT_EQ(S.size(), 5U);
     EXPECT_EQ(S.last<0>().size(), 0U);
     EXPECT_EQ(S.last(0).size(), 0U);
   }
 
   {
-    std::span S = Array;
+    cxx20::span S = Array;
     EXPECT_EQ(S.size(), 5U);
     EXPECT_EQ(S.last<2>().size(), 2U);
     EXPECT_EQ(S.last(2).size(), 2U);
   }
 
   {
-    std::span<int> S = Array;
+    cxx20::span<int> S = Array;
     EXPECT_EQ(S.size(), 5U);
     EXPECT_EQ(S.last<0>().size(), 0U);
     EXPECT_EQ(S.last(0).size(), 0U);
   }
 
   {
-    std::span<int> S = Array;
+    cxx20::span<int> S = Array;
     EXPECT_EQ(S.size(), 5U);
     EXPECT_EQ(S.last<2>().size(), 2U);
     EXPECT_EQ(S.last(2).size(), 2U);
@@ -292,7 +292,7 @@ TEST(SpanTest, SubSpan) {
   int Array[] = {1, 2, 3, 4, 5};
 
   {
-    std::span S = Array;
+    cxx20::span S = Array;
     EXPECT_EQ(S.size(), 5U);
     EXPECT_EQ((S.subspan<2, 2>().size()), 2U);
     EXPECT_EQ(decltype(S.subspan<2, 2>())::extent, 2U);
@@ -300,7 +300,7 @@ TEST(SpanTest, SubSpan) {
   }
 
   {
-    std::span S = Array;
+    cxx20::span S = Array;
     EXPECT_EQ(S.size(), 5U);
     EXPECT_EQ((S.subspan<0, 0>().size()), 0U);
     EXPECT_EQ(decltype(S.subspan<0, 0>())::extent, 0U);
@@ -308,7 +308,7 @@ TEST(SpanTest, SubSpan) {
   }
 
   {
-    std::span<int> S = Array;
+    cxx20::span<int> S = Array;
     EXPECT_EQ(S.size(), 5U);
     EXPECT_EQ((S.subspan<2, 2>().size()), 2U);
     EXPECT_EQ(decltype(S.subspan<2, 2>())::extent, 2U);
@@ -316,7 +316,7 @@ TEST(SpanTest, SubSpan) {
   }
 
   {
-    std::span<int> S = Array;
+    cxx20::span<int> S = Array;
     EXPECT_EQ(S.size(), 5U);
     EXPECT_EQ((S.subspan<0, 0>().size()), 0U);
     EXPECT_EQ(decltype(S.subspan<0, 0>())::extent, 0U);
@@ -327,7 +327,7 @@ TEST(SpanTest, SubSpan) {
 TEST(SpanTest, Iterator) {
   int Array[] = {1, 2, 3, 4};
   {
-    std::span S = Array;
+    cxx20::span S = Array;
     auto It1 = S.begin();
     EXPECT_EQ(It1, It1);
     EXPECT_EQ(It1, S.begin());
@@ -344,7 +344,7 @@ TEST(SpanTest, Iterator) {
     EXPECT_LE(It2, S.end());
   }
   {
-    std::span<int> S = Array;
+    cxx20::span<int> S = Array;
     auto It1 = S.begin();
     EXPECT_EQ(It1, It1);
     EXPECT_EQ(It1, S.begin());
@@ -371,8 +371,8 @@ TEST(SpanTest, BeginEnd) {
   EXPECT_NE(Array1[2], Array2[2]);
   EXPECT_NE(Array1[3], Array2[3]);
 
-  std::span S1 = Array1;
-  std::span S2 = Array2;
+  cxx20::span S1 = Array1;
+  cxx20::span S2 = Array2;
   std::copy(S1.begin(), S1.end(), S2.begin());
 
   EXPECT_EQ(Array1[0], Array2[0]);
@@ -391,12 +391,12 @@ TEST(SpanTest, BeginEnd) {
 TEST(SpanTest, FrontBack) {
   int Array[4] = {1, 2, 3, 4};
   {
-    std::span S(Array);
+    cxx20::span S(Array);
     EXPECT_EQ(S.front(), *std::begin(Array));
     EXPECT_EQ(S.back(), *std::rbegin(Array));
   }
   {
-    std::span<int> S(Array);
+    cxx20::span<int> S(Array);
     EXPECT_EQ(S.front(), *std::begin(Array));
     EXPECT_EQ(S.back(), *std::rbegin(Array));
   }
@@ -405,16 +405,16 @@ TEST(SpanTest, FrontBack) {
 TEST(SpanTest, AsBytes) {
   int Array[4] = {1, 2, 3, 4};
   {
-    std::span S = Array;
-    auto B = std::as_bytes(S);
+    cxx20::span S = Array;
+    auto B = cxx20::as_bytes(S);
     EXPECT_EQ(B.size(), sizeof(int) * S.size());
     EXPECT_EQ(B.size(), S.size_bytes());
     EXPECT_EQ(static_cast<const void *>(B.data()),
               static_cast<const void *>(S.data()));
   }
   {
-    std::span<int> S = Array;
-    auto B = std::as_bytes(S);
+    cxx20::span<int> S = Array;
+    auto B = cxx20::as_bytes(S);
     EXPECT_EQ(B.size(), sizeof(int) * S.size());
     EXPECT_EQ(B.size(), S.size_bytes());
     EXPECT_EQ(static_cast<const void *>(B.data()),
@@ -426,10 +426,10 @@ TEST(SpanTest, AsWritableBytes) {
   const int Array1[4] = {1, 2, 3, 4};
   {
     int Array2[4] = {5, 6, 7, 8};
-    std::span S1 = Array1;
-    std::span S2 = Array2;
-    auto B1 = std::as_bytes(S1);
-    auto B2 = std::as_writable_bytes(S2);
+    cxx20::span S1 = Array1;
+    cxx20::span S2 = Array2;
+    auto B1 = cxx20::as_bytes(S1);
+    auto B2 = cxx20::as_writable_bytes(S2);
     EXPECT_NE(Array1[0], Array2[0]);
     EXPECT_NE(Array1[1], Array2[1]);
     EXPECT_NE(Array1[2], Array2[2]);
@@ -442,14 +442,14 @@ TEST(SpanTest, AsWritableBytes) {
   }
   {
     int Array2[4] = {5, 6, 7, 8};
-    std::span<const int> S1 = Array1;
-    std::span<int> S2 = Array2;
+    cxx20::span<const int> S1 = Array1;
+    cxx20::span<int> S2 = Array2;
     EXPECT_NE(Array1[0], Array2[0]);
     EXPECT_NE(Array1[1], Array2[1]);
     EXPECT_NE(Array1[2], Array2[2]);
     EXPECT_NE(Array1[3], Array2[3]);
-    auto B1 = std::as_bytes(S1);
-    auto B2 = std::as_writable_bytes(S2);
+    auto B1 = cxx20::as_bytes(S1);
+    auto B2 = cxx20::as_writable_bytes(S2);
     std::copy(B1.begin(), B1.end(), B2.begin());
     EXPECT_EQ(Array1[0], Array2[0]);
     EXPECT_EQ(Array1[1], Array2[1]);

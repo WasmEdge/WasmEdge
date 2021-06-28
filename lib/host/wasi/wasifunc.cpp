@@ -5,7 +5,6 @@
 #include "common/log.h"
 #include "runtime/instance/memory.h"
 
-#include <boost/scope_exit.hpp>
 #include <chrono>
 #include <csignal>
 #include <fcntl.h>
@@ -31,6 +30,9 @@
 #if __GLIBC_PREREQ(2, 8)
 #include <sys/timerfd.h>
 #endif
+#endif
+#if !__GLIBC_PREREQ(2, 6)
+#include <boost/scope_exit.hpp>
 #endif
 
 namespace {

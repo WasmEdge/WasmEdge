@@ -21,8 +21,7 @@
     ;;; (param $capability $sock_d)
     (param $af $address_family)
     (param $socktype $sock_type)
-    (result $error $errno)
-    (result $fd $sock_d)
+    (result $error (expected $sock_d (error $errno)))
   )
 
   ;;; Close a socket.
@@ -30,7 +29,7 @@
   ;;; Note: This is similar to `close` in POSIX.
   (@interface func (export "close")
     (param $fd $sock_d)
-    (result $error $errno)
+    (result $error (expected (error $errno)))
   )
 
   ;;; Bind a name to a socket.
@@ -39,7 +38,7 @@
     (param $fd $sock_d)
     ;;; The pointer to the address.
     (param $addr (@witx pointer $address))
-    (result $error $errno)
+    (result $error (expected (error $errno)))
   )
 
   ;;; Initiate connection to a socket
@@ -47,7 +46,7 @@
   (@interface func (export "connect")
     (param $fd $sock_d)
     (param $addr (@witx pointer $address))
-    (result $error $errno)
+    (result $error (expected (error $errno)))
   )
 
   ;;; Receive a message from a socket.
@@ -61,9 +60,8 @@
     (param $buf_len $size)
     ;;; Message flags.
     (param $flags $riflags)
-    (result $error $errno)
     ;;; Number of bytes used in the buffer.
-    (result $bufused $size)
+    (result $error (expected $size (error $errno)))
   )
 
   ;;; Receive a message from a socket.
@@ -77,9 +75,8 @@
     (param $addr (@witx pointer $address))
     ;;; Message flags.
     (param $flags $riflags)
-    (result $error $errno)
     ;;; Number of bytes used in the buffer.
-    (result $bufused $size)
+    (result $error (expected $size (error $errno)))
   )
 
   ;;; Send a message from a socket.
@@ -92,9 +89,8 @@
     (param $buf_len $size)
     ;;; Message flags.
     (param $_flags $siflags)
-    (result $error $errno)
     ;;; Number of bytes transmitted.
-    (result $bufused $size)
+    (result $error (expected $size (error $errno)))
   )
 
   ;;; Send a message from a socket.
@@ -108,9 +104,8 @@
     (param $addr (@witx pointer $address))
     ;;; Message flags.
     (param $_flags $siflags)
-    (result $error $errno)
     ;;; Number of bytes transmitted.
-    (result $bufused $size)
+    (result $error (expected $size (error $errno)))
   )
 
   ;;; Shut down socket send and receive channels.
@@ -119,6 +114,6 @@
     (param $fd $sock_d)
     ;;; Which channels on the socket to shut down.
     (param $how $sdflags)
-    (result $error $errno)
+    (result $error (expected (error $errno)))
   )
 )

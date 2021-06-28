@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- wasmedge/common/span.h - Helper template of std::span -------------===//
+//===-- wasmedge/system/path.h - Get system directory path ----------------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents the helper template aliasing of std::span.
+/// This file contains helper to get system path for various operating system.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
-#include "experimental/span.hpp"
+#include "common/filesystem.h"
 
 namespace WasmEdge {
 
-template <typename T, std::size_t N = cxx20::dynamic_extent>
-using Span = cxx20::span<T, N>;
+class Path {
+public:
+  static std::filesystem::path home() noexcept;
+};
 
 } // namespace WasmEdge

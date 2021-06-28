@@ -10,6 +10,7 @@ pub fn generate<P: AsRef<Path>>(inputs: &[P]) -> Result<String> {
     // TODO: drop the anyhow! part once witx switches to anyhow.
     let doc = load(&inputs).map_err(|e| match e {
         WitxError::Parse(err) => anyhow!(err),
+        WitxError::Validation(err) => anyhow!(err),
         e => anyhow!(e.to_string()),
     })?;
 

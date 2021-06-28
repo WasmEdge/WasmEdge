@@ -197,14 +197,14 @@ TEST(WasiTest, Args) {
   EXPECT_TRUE(WasiArgsSizesGet.run(
       &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(1));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(5));
 
   EXPECT_TRUE(WasiArgsGet.run(
       &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(8));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0));
   EXPECT_STREQ(MemInst.getPointer<const char *>(8), "test");
@@ -216,14 +216,14 @@ TEST(WasiTest, Args) {
   EXPECT_TRUE(WasiArgsSizesGet.run(
       &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(2));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(9));
 
   EXPECT_TRUE(WasiArgsGet.run(
       &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(12)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(12));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(17));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0));
@@ -237,14 +237,14 @@ TEST(WasiTest, Args) {
   EXPECT_TRUE(WasiArgsSizesGet.run(
       &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(2));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(6));
 
   EXPECT_TRUE(WasiArgsGet.run(
       &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(12)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(12));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(17));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0));
@@ -259,26 +259,26 @@ TEST(WasiTest, Args) {
       &MemInst,
       std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiArgsSizesGet.run(
       &MemInst,
       std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
 
   EXPECT_TRUE(WasiArgsGet.run(
       &MemInst,
       std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiArgsGet.run(
       &MemInst,
       std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
   Env.fini();
 }
@@ -297,14 +297,14 @@ TEST(WasiTest, Envs) {
   EXPECT_TRUE(WasiEnvironSizesGet.run(
       &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0));
 
   EXPECT_TRUE(WasiEnvironGet.run(
       &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0));
   Env.fini();
 
@@ -314,14 +314,14 @@ TEST(WasiTest, Envs) {
   EXPECT_TRUE(WasiEnvironSizesGet.run(
       &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(1));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(4));
 
   EXPECT_TRUE(WasiEnvironGet.run(
       &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(8));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0));
   EXPECT_STREQ(MemInst.getPointer<const char *>(8), "a=b");
@@ -333,14 +333,14 @@ TEST(WasiTest, Envs) {
   EXPECT_TRUE(WasiEnvironSizesGet.run(
       &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(2));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(19));
 
   EXPECT_TRUE(WasiEnvironGet.run(
       &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(12)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(12));
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(16));
   EXPECT_STREQ(MemInst.getPointer<const char *>(12), "a=b");
@@ -354,27 +354,27 @@ TEST(WasiTest, Envs) {
       &MemInst,
       std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironSizesGet.run(
       &MemInst,
       std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
 
   EXPECT_TRUE(WasiEnvironGet.run(
       &MemInst,
       std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironGet.run(
       &MemInst,
       std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
   // success on zero-size write
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0));
   Env.fini();
 
@@ -384,26 +384,26 @@ TEST(WasiTest, Envs) {
       &MemInst,
       std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(4)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironSizesGet.run(
       &MemInst,
       std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
 
   EXPECT_TRUE(WasiEnvironGet.run(
       &MemInst,
       std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(8)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironGet.run(
       &MemInst,
       std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(65536)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
   Env.fini();
 }
@@ -430,8 +430,7 @@ TEST(WasiTest, ClockRes) {
         std::array<WasmEdge::ValVariant, 2>{
             static_cast<uint32_t>(__WASI_CLOCKID_REALTIME), UINT32_C(0)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]),
-              convertErrno(SysErrno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Res = convertTimespec(Timespec);
       EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
@@ -451,8 +450,7 @@ TEST(WasiTest, ClockRes) {
         std::array<WasmEdge::ValVariant, 2>{
             static_cast<uint32_t>(__WASI_CLOCKID_MONOTONIC), UINT32_C(0)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]),
-              convertErrno(SysErrno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Res = convertTimespec(Timespec);
       EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
@@ -473,8 +471,7 @@ TEST(WasiTest, ClockRes) {
             static_cast<uint32_t>(__WASI_CLOCKID_PROCESS_CPUTIME_ID),
             UINT32_C(0)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]),
-              convertErrno(SysErrno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Res = convertTimespec(Timespec);
       EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
@@ -495,8 +492,7 @@ TEST(WasiTest, ClockRes) {
             static_cast<uint32_t>(__WASI_CLOCKID_THREAD_CPUTIME_ID),
             UINT32_C(0)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]),
-              convertErrno(SysErrno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Res = convertTimespec(Timespec);
       EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
@@ -509,7 +505,7 @@ TEST(WasiTest, ClockRes) {
     EXPECT_TRUE(WasiClockResGet.run(
         &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(4), UINT32_C(0)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_INVAL);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_INVAL);
   }
 
   // invalid pointer
@@ -520,7 +516,7 @@ TEST(WasiTest, ClockRes) {
         std::array<WasmEdge::ValVariant, 2>{
             static_cast<uint32_t>(__WASI_CLOCKID_REALTIME), UINT32_C(65536)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   }
 
   Env.fini();
@@ -550,8 +546,7 @@ TEST(WasiTest, ClockTimeGet) {
                                  static_cast<uint32_t>(__WASI_CLOCKID_REALTIME),
                                  UINT64_C(0), UINT32_C(0)},
                              Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]),
-              convertErrno(SysErrno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Time = convertTimespec(Timespec);
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
@@ -572,8 +567,7 @@ TEST(WasiTest, ClockTimeGet) {
             static_cast<uint32_t>(__WASI_CLOCKID_MONOTONIC), UINT64_C(0),
             UINT32_C(0)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]),
-              convertErrno(SysErrno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Time = convertTimespec(Timespec);
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
@@ -594,8 +588,7 @@ TEST(WasiTest, ClockTimeGet) {
             static_cast<uint32_t>(__WASI_CLOCKID_PROCESS_CPUTIME_ID),
             UINT64_C(0), UINT32_C(0)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]),
-              convertErrno(SysErrno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Time = convertTimespec(Timespec);
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
@@ -616,8 +609,7 @@ TEST(WasiTest, ClockTimeGet) {
             static_cast<uint32_t>(__WASI_CLOCKID_THREAD_CPUTIME_ID),
             UINT64_C(0), UINT32_C(0)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]),
-              convertErrno(SysErrno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Time = convertTimespec(Timespec);
       EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
@@ -632,7 +624,7 @@ TEST(WasiTest, ClockTimeGet) {
                                      std::array<WasmEdge::ValVariant, 3>{
                                          UINT32_C(4), UINT64_C(0), UINT32_C(0)},
                                      Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_INVAL);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_INVAL);
   }
 
   // invalid pointer
@@ -644,7 +636,7 @@ TEST(WasiTest, ClockTimeGet) {
                                  static_cast<uint32_t>(__WASI_CLOCKID_REALTIME),
                                  UINT64_C(0), UINT32_C(65536)},
                              Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   }
 
   Env.fini();
@@ -682,7 +674,7 @@ TEST(WasiTest, Random) {
   EXPECT_TRUE(WasiRandomGet.run(
       &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(0)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
   Env.fini();
 
@@ -693,7 +685,7 @@ TEST(WasiTest, Random) {
     EXPECT_TRUE(WasiRandomGet.run(
         &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(1)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     EXPECT_TRUE(std::all_of(MemInst.getPointer<const uint8_t *>(1),
                             MemInst.getPointer<const uint8_t *>(4),
                             [](uint8_t x) { return x == UINT8_C(0xa5); }));
@@ -707,7 +699,7 @@ TEST(WasiTest, Random) {
     EXPECT_TRUE(WasiRandomGet.run(
         &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(8)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     EXPECT_NE(*MemInst.getPointer<const uint64_t *>(0),
               UINT64_C(0xa5a5a5a5a5a5a5a5));
     EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(8),
@@ -721,7 +713,7 @@ TEST(WasiTest, Random) {
       &MemInst,
       std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(0)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   Env.fini();
 
   // invalid pointer, non zero size
@@ -730,7 +722,7 @@ TEST(WasiTest, Random) {
       &MemInst,
       std::array<WasmEdge::ValVariant, 2>{UINT32_C(65536), UINT32_C(1)},
       Errno));
-  EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   Env.fini();
 }
 
@@ -752,7 +744,7 @@ TEST(WasiTest, Directory) {
     EXPECT_TRUE(WasiPathCreateDirectory.run(
         &MemInst, std::array<WasmEdge::ValVariant, 3>{Fd, PathPtr, UINT32_C(0)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_NOENT);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOENT);
     Env.fini();
   }
 
@@ -762,7 +754,7 @@ TEST(WasiTest, Directory) {
     EXPECT_TRUE(WasiPathCreateDirectory.run(
         &MemInst, std::array<WasmEdge::ValVariant, 3>{Fd, PathPtr, UINT32_C(1)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
     Env.fini();
   }
 
@@ -776,7 +768,7 @@ TEST(WasiTest, Directory) {
     EXPECT_TRUE(WasiPathCreateDirectory.run(
         &MemInst, std::array<WasmEdge::ValVariant, 3>{Fd, PathPtr, PathSize},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_NOENT);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOENT);
     Env.fini();
   }
 
@@ -789,7 +781,7 @@ TEST(WasiTest, Directory) {
     EXPECT_TRUE(WasiPathCreateDirectory.run(
         &MemInst, std::array<WasmEdge::ValVariant, 3>{Fd, PathPtr, PathSize},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_EXIST);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_EXIST);
     Env.fini();
   }
 
@@ -802,7 +794,7 @@ TEST(WasiTest, Directory) {
     EXPECT_TRUE(WasiPathCreateDirectory.run(
         &MemInst, std::array<WasmEdge::ValVariant, 3>{Fd, PathPtr, PathSize},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
     const uint32_t FilestatPtr = 8;
     EXPECT_TRUE(WasiPathFilestatGet.run(
@@ -811,7 +803,7 @@ TEST(WasiTest, Directory) {
             Fd, static_cast<uint32_t>(__WASI_LOOKUPFLAGS_SYMLINK_FOLLOW),
             PathPtr, PathSize, FilestatPtr},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     const auto &Filestat =
         *MemInst.getPointer<const __wasi_filestat_t *>(FilestatPtr);
     EXPECT_EQ(Filestat.filetype, __WASI_FILETYPE_DIRECTORY);
@@ -819,7 +811,7 @@ TEST(WasiTest, Directory) {
     EXPECT_TRUE(WasiPathRemoveDirectory.run(
         &MemInst, std::array<WasmEdge::ValVariant, 3>{Fd, PathPtr, PathSize},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     Env.fini();
   }
 }
@@ -845,7 +837,7 @@ TEST(WasiTest, SymbolicLink) {
         std::array<WasmEdge::ValVariant, 5>{OldPathPtr, UINT32_C(0), Fd,
                                             NewPathPtr, UINT32_C(0)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
     Env.fini();
   }
 
@@ -857,7 +849,7 @@ TEST(WasiTest, SymbolicLink) {
         std::array<WasmEdge::ValVariant, 5>{OldPathPtr, UINT32_C(0), Fd,
                                             NewPathPtr, UINT32_C(0)},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_FAULT);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
     Env.fini();
   }
 
@@ -877,7 +869,7 @@ TEST(WasiTest, SymbolicLink) {
         std::array<WasmEdge::ValVariant, 5>{OldPathPtr, OldPathSize, Fd,
                                             NewPathPtr, NewPathSize},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_NOENT);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOENT);
     Env.fini();
   }
 
@@ -895,7 +887,7 @@ TEST(WasiTest, SymbolicLink) {
         std::array<WasmEdge::ValVariant, 5>{OldPathPtr, OldPathSize, Fd,
                                             NewPathPtr, NewPathSize},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_EXIST);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_EXIST);
     Env.fini();
   }
 
@@ -913,7 +905,7 @@ TEST(WasiTest, SymbolicLink) {
         std::array<WasmEdge::ValVariant, 5>{OldPathPtr, OldPathSize, Fd,
                                             NewPathPtr, NewPathSize},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
     const uint32_t FilestatPtr = 32;
     const auto &Filestat =
@@ -924,7 +916,7 @@ TEST(WasiTest, SymbolicLink) {
         std::array<WasmEdge::ValVariant, 5>{
             Fd, static_cast<uint32_t>(0), NewPathPtr, NewPathSize, FilestatPtr},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     EXPECT_EQ(Filestat.filetype, __WASI_FILETYPE_SYMBOLIC_LINK);
 
     EXPECT_TRUE(WasiPathFilestatGet.run(
@@ -933,14 +925,14 @@ TEST(WasiTest, SymbolicLink) {
             Fd, static_cast<uint32_t>(__WASI_LOOKUPFLAGS_SYMLINK_FOLLOW),
             NewPathPtr, NewPathSize, FilestatPtr},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     EXPECT_EQ(Filestat.filetype, __WASI_FILETYPE_DIRECTORY);
 
     EXPECT_TRUE(WasiPathUnlinkFile.run(
         &MemInst,
         std::array<WasmEdge::ValVariant, 3>{Fd, NewPathPtr, NewPathSize},
         Errno));
-    EXPECT_EQ(WasmEdge::retrieveValue<int32_t>(Errno[0]), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     Env.fini();
   }
 }

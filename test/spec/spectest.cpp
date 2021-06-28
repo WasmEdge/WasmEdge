@@ -103,17 +103,15 @@ parseValueList(const rapidjson::Value &Args) {
               WasmEdge::genNullRef(WasmEdge::RefType::ExternRef));
         } else {
           /// Add 0x1 uint32_t prefix in this externref index case.
-          Result.emplace_back(
-              WasmEdge::genExternRef(reinterpret_cast<uint32_t *>(
-                  std::stoul(Value) + 0x100000000ULL)));
+          Result.emplace_back(WasmEdge::ExternRef(
+              reinterpret_cast<void *>(std::stoul(Value) + 0x100000000ULL)));
         }
         ResultTypes.emplace_back(WasmEdge::ValType::ExternRef);
       } else if (Type == "funcref"sv) {
         if (Value == "null"sv) {
           Result.emplace_back(WasmEdge::genNullRef(WasmEdge::RefType::FuncRef));
         } else {
-          Result.emplace_back(
-              WasmEdge::genFuncRef(static_cast<uint32_t>(std::stoul(Value))));
+          Result.emplace_back(WasmEdge::FuncRef(std::stoul(Value)));
         }
         ResultTypes.emplace_back(WasmEdge::ValType::FuncRef);
       } else if (Type == "i32"sv) {
@@ -253,12 +251,12 @@ bool SpecTest::compare(
       /// Handle NaN case
       /// TODO: nan:canonical and nan:arithmetic
       if (Type == "f32"sv) {
-        const float F = std::get<float>(G);
+        const float F = G.get<float>();
         if (!std::isnan(F)) {
           return false;
         }
       } else if (Type == "f64"sv) {
-        const double D = std::get<double>(G);
+        const double D = G.get<double>();
         if (!std::isnan(D)) {
           return false;
         }
@@ -296,13 +294,13 @@ bool SpecTest::compare(
       }
     } else if (Type == "i32"sv || Type == "f32"sv) {
       const uint32_t V1 = uint32_t(std::stoul(E));
-      const uint32_t V2 = std::get<uint32_t>(G);
+      const uint32_t V2 = G.get<uint32_t>();
       if (V1 != V2) {
         return false;
       }
     } else if (Type == "i64"sv || Type == "f64"sv) {
       const uint64_t V2 = uint64_t(std::stoull(E));
-      const uint64_t V1 = std::get<uint64_t>(G);
+      const uint64_t V1 = G.get<uint64_t>();
       if (V1 != V2) {
         return false;
       }
@@ -321,8 +319,8 @@ bool SpecTest::compare(
       if (LaneType == "f32") {
         using floatx4_t [[gnu::vector_size(16)]] = float;
         using uint32x4_t [[gnu::vector_size(16)]] = uint32_t;
-        const auto VF = reinterpret_cast<floatx4_t>(std::get<uint128_t>(G));
-        const auto VI = reinterpret_cast<uint32x4_t>(std::get<uint128_t>(G));
+        const auto VF = reinterpret_cast<floatx4_t>(G.get<uint128_t>());
+        const auto VI = reinterpret_cast<uint32x4_t>(G.get<uint128_t>());
         for (size_t I = 0; I < 4; ++I) {
           if (Parts[I].substr(0, 4) == "nan:"sv) {
             if (!std::isnan(VF[I])) {
@@ -339,8 +337,8 @@ bool SpecTest::compare(
       } else if (LaneType == "f64") {
         using doublex2_t [[gnu::vector_size(16)]] = double;
         using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
-        const auto VF = reinterpret_cast<doublex2_t>(std::get<uint128_t>(G));
-        const auto VI = reinterpret_cast<uint64x2_t>(std::get<uint128_t>(G));
+        const auto VF = reinterpret_cast<doublex2_t>(G.get<uint128_t>());
+        const auto VI = reinterpret_cast<uint64x2_t>(G.get<uint128_t>());
         for (size_t I = 0; I < 2; ++I) {
           if (Parts[I].substr(0, 4) == "nan:"sv) {
             if (!std::isnan(VF[I])) {
@@ -356,7 +354,7 @@ bool SpecTest::compare(
         }
       } else if (LaneType == "i8") {
         using uint8x16_t [[gnu::vector_size(16)]] = uint8_t;
-        const auto V = reinterpret_cast<uint8x16_t>(std::get<uint128_t>(G));
+        const auto V = reinterpret_cast<uint8x16_t>(G.get<uint128_t>());
         for (size_t I = 0; I < 16; ++I) {
           const uint8_t V2 = std::stoul(std::string(Parts[I]));
           const uint8_t V1 = V[I];
@@ -366,7 +364,7 @@ bool SpecTest::compare(
         }
       } else if (LaneType == "i16") {
         using uint16x8_t [[gnu::vector_size(16)]] = uint16_t;
-        const auto V = reinterpret_cast<uint16x8_t>(std::get<uint128_t>(G));
+        const auto V = reinterpret_cast<uint16x8_t>(G.get<uint128_t>());
         for (size_t I = 0; I < 8; ++I) {
           const uint16_t V2 = std::stoul(std::string(Parts[I]));
           const uint16_t V1 = V[I];
@@ -376,7 +374,7 @@ bool SpecTest::compare(
         }
       } else if (LaneType == "i32") {
         using uint32x4_t [[gnu::vector_size(16)]] = uint32_t;
-        const auto V = reinterpret_cast<uint32x4_t>(std::get<uint128_t>(G));
+        const auto V = reinterpret_cast<uint32x4_t>(G.get<uint128_t>());
         for (size_t I = 0; I < 4; ++I) {
           const uint32_t V2 = std::stoul(std::string(Parts[I]));
           const uint32_t V1 = V[I];
@@ -386,7 +384,7 @@ bool SpecTest::compare(
         }
       } else if (LaneType == "i64") {
         using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
-        const auto V = reinterpret_cast<uint64x2_t>(std::get<uint128_t>(G));
+        const auto V = reinterpret_cast<uint64x2_t>(G.get<uint128_t>());
         for (size_t I = 0; I < 2; ++I) {
           const uint64_t V2 = std::stoul(std::string(Parts[I]));
           const uint64_t V1 = V[I];
@@ -471,6 +469,13 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       EXPECT_TRUE(compare(Returns, *Res));
     } else {
       EXPECT_TRUE(false);
+    }
+  };
+  auto TrapLoad = [&](const std::string &Filename, const std::string &Text) {
+    if (auto Res = onLoad(Filename)) {
+      EXPECT_TRUE(false);
+    } else {
+      EXPECT_TRUE(stringContains(Text, WasmEdge::ErrCodeStr[Res.error()]));
     }
   };
   auto TrapInvoke = [&](const rapidjson::Value &Action,
@@ -561,8 +566,16 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         return;
       }
       case CommandID::AssertMalformed: {
-        /// TODO: Wat is not supported in WasmEdge yet.
-        /// TODO: Add processing binary cases.
+        const auto &ModType = Cmd["module_type"s].Get<std::string>();
+        if (ModType != "binary") {
+          /// TODO: Wat is not supported in WasmEdge yet.
+          return;
+        }
+        const auto Filename = (TestsuiteRoot / Proposal / UnitName /
+                               Cmd["filename"s].Get<std::string>())
+                                  .u8string();
+        const auto &Text = Cmd["text"s].Get<std::string>();
+        TrapLoad(Filename, Text);
         return;
       }
       case CommandID::AssertInvalid: {

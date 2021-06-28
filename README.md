@@ -1,12 +1,13 @@
+[中文文档](README-en.md)
 
 # Quick start guides
 
 🤖 [Build](doc/build.md) and [contribute to](doc/contribution.md) WasmEdge\
-⌨️  Run a standalone Wasm program [from CLI](doc/run.md) or [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) or [Golang](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)\
+⌨️  Run a standalone Wasm program [from CLI](doc/run.md) or [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) or [Golang](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ReadFile) or [CRI-O / Docker](https://github.com/second-state/runw/blob/master/README.md)\
 💭 [Deploy a Wasm function](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/) as a web service (FaaS)\
 🛠 [Embed a user-defined Wasm function](http://reactor.secondstate.info/docs/user-create-a-bot.html) in a SaaS platform\
 🔩 [Embed a Wasm function](https://www.secondstate.io/articles/getting-started-with-rust-function/) in your Node.js web app\
-🔌 [Embed a Wasm function](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_PassBytes) in your Golang app\
+🔌 [Embed a Wasm function](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_Mobilenet) in your Golang app\
 🔗 [Deploy a Wasm function](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) as a blockchain smart contract
 
 ![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
@@ -27,7 +28,7 @@ WasmEdge provides a well-defined execution sandbox for its contained Wasm byteco
 
 WasmEdge also provides memory protection for its contained bytecode program. If the program attempts to access memory outside of the region allocated to the VM, the VM will terminate with an error message. 
 
-WasmEdge and its contained wasm program can be started from the CLI as a new process, or from a existing process. If started from an existing process (e.g., from a running [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or [Golang](https://github.com/second-state/wasmedge-go) program), the VM will simply run inside the process as a function. It is also possible to start a WasmEdge VM instance as a thread. Currently, WasmEdge is not yet thread-safe, meaning that VM instances running in different threads in the same process will potentially be able to access each other's memory. In the future, we plan to make WasmEdge thread safe.
+WasmEdge and its contained wasm program can be started from the CLI as a new process, or from a existing process. If started from an existing process (e.g., from a running [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or [Golang](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_Mobilenet) program), the VM will simply run inside the process as a function. It is also possible to start a WasmEdge VM instance as a thread. Currently, WasmEdge is not yet thread-safe, meaning that VM instances running in different threads in the same process will potentially be able to access each other's memory. In the future, we plan to make WasmEdge thread safe.
 
 # Embed WasmEdge into a host application
 
@@ -35,7 +36,7 @@ A major use case of WasmEdge is to start an VM instance from a host application.
 
 However, the Wasm spec, and the [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), only supports very limited data types as  input parameters and return values for the contained Wasm bytecode functions. In order to pass complex data types, such as a string of an array, as call arguments into the contained function, you should use the bindgen solution provided by the [rustwasmc](https://github.com/second-state/rustwasmc) toolchain.
 
-We currently [supports bindgen in the Node.js host environment](https://www.secondstate.io/articles/getting-started-with-rust-function/). We are working on bindgen support in Golang and Rust-based host applications.
+We currently supports bindgen in the [Node.js host environment](https://www.secondstate.io/articles/getting-started-with-rust-function/) and in [Golang environment](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_Mobilenet). We are working on [supporting interface types](https://github.com/WasmEdge/WasmEdge/issues/264) in place of bindgen for future releases.
 
 # Call native host functions from WasmEdge
 
@@ -49,10 +50,9 @@ In fact, the extensions to WasmEdge are implemented using native host functions.
 
 With the [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), you can write a program to start, stop, and manage WasmEdge VM instances in your own applications. For example, 
 
-* When WasmEdge functions are embedded in [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or in the [Feishu messenger](http://reactor.secondstate.info/docs/user-create-a-bot.html), the VM is launched by the application when there is an incoming request. 
-* When WasmEdge functions are plugged into a data flow engine like [YoMo](https://github.com/yomorun/yomo-flow-ssvm-example), the VM is launched when a new data point flows through the system. 
-
-If you are interested in using Kubernetes to manage WasmEdge VMs, you can install our custom [runw](https://github.com/second-state/runw) utilities. They could load Wasm bytecode program files as if they are Docker images, and then start, run, and stop the VM instances based on configured policies. 
+* When WasmEdge functions are embedded in [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or in [Slack](http://reactor.secondstate.info/en/docs/user-create-a-bot.html), the VM is launched by the application when there is an incoming request. 
+* When WasmEdge functions are plugged into a data flow engine like [YoMo](https://github.com/yomorun/yomo-flow-ssvm-example), the VM is launched when a new data point flows through the system.
+* As an OCI compliant runtime, WasmEdge applications could be managed by Docker tools such as CRI-O and Docker Hub. [See how](https://github.com/second-state/runw) We are currently working on Kubernetes support.
 
 # Support wasm standard extensions
 

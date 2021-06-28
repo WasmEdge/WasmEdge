@@ -5,7 +5,7 @@
 🤖 [Build](doc/build.md) and [contribute to](doc/contribution.md) WasmEdge\
 ⌨️  Run a standalone Wasm program [from CLI](doc/run.md) or [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) or [Golang](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ReadFile) or [CRI-O / Docker](https://github.com/second-state/runw/blob/master/README.md)\
 💭 [Deploy a Wasm function](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/) as a web service (FaaS)\
-🛠 [Embed a user-defined Wasm function](http://reactor.secondstate.info/docs/user-create-a-bot.html) in a SaaS platform\
+🛠 [Embed a user-defined Wasm function](http://reactor.secondstate.info/en/docs/user_guideline.html) in a SaaS platform\
 🔩 [Embed a Wasm function](https://www.secondstate.io/articles/getting-started-with-rust-function/) in your Node.js web app\
 🔌 [Embed a Wasm function](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_Mobilenet) in your Golang app\
 🔗 [Deploy a Wasm function](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) as a blockchain smart contract
@@ -50,7 +50,7 @@ In fact, the extensions to WasmEdge are implemented using native host functions.
 
 With the [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), you can write a program to start, stop, and manage WasmEdge VM instances in your own applications. For example, 
 
-* When WasmEdge functions are embedded in [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or in [Slack](http://reactor.secondstate.info/en/docs/user-create-a-bot.html), the VM is launched by the application when there is an incoming request. 
+* When WasmEdge functions are embedded in [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or in [Slack](http://reactor.secondstate.info/en/docs/user_guideline.html), the VM is launched by the application when there is an incoming request. 
 * When WasmEdge functions are plugged into a data flow engine like [YoMo](https://github.com/yomorun/yomo-flow-ssvm-example), the VM is launched when a new data point flows through the system.
 * As an OCI compliant runtime, WasmEdge applications could be managed by Docker tools such as CRI-O and Docker Hub. [See how](https://github.com/second-state/runw) We are currently working on Kubernetes support.
 

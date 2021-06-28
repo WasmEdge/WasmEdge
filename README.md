@@ -1,4 +1,5 @@
 
+test
 # Quick start guides
 
 🤖 [Build](doc/build.md) and [contribute to](doc/contribution.md) WasmEdge\

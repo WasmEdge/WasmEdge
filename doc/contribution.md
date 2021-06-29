@@ -3,7 +3,7 @@
 
 ## Welcome
 
-[**WasmEdge**](https://github.com/WasmEdge/WasmEdge) is a high performance and enterprise-ready WebAssembly (WASM) Virtual Machine for cloud, AI, and Blockchain applications.
+[**WasmEdge**](https://github.com/WasmEdge/WasmEdge) (previously known as SSVM) is a high-performance WebAssembly (Wasm) VM optimized for Edge Computing, including Edge Clouds and Software Defined Vehicles.
 
 WasmEdge is developed in the open, and is constantly being improved by our **users, contributors, and maintainers**. It is because of you that we can bring great software to the community.
 

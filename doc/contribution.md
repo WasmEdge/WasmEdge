@@ -11,6 +11,8 @@ This guide provides information on filing issues and guidelines for open source 
 
 If you are looking for ideas for contribution, [here is a wish list](wish_list.md) of items we'd like to get some help with!
 
+> The WasmEdge project adopts [DCO](https://community.openhab.org/t/dco-check-signing-off-with-github-web-editor-explanation/83330) to manage all contributions. Please make sure you add your `sign-off-statement` throught the `-s` flag or the GitHub Web UI before committing the pull request message.
+
 ## Getting Started
 
 

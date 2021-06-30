@@ -417,6 +417,21 @@ WasmEdge_StringWrap(const char *Buf, const uint32_t Len);
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_StringIsEqual(const WasmEdge_String Str1, const WasmEdge_String Str2);
 
+/// Copy the content of WasmEdge_String object to the buffer.
+///
+/// This function copy at most `Len` characters from the WasmEdge_String object
+/// to the destination buffer. If the string length is less than `Len`
+/// characters long, the remainder of the buffer is filled with `\0' characters.
+/// Otherwise, the destination is not terminated.
+///
+/// \param Str the source WasmEdge_String object to copy.
+/// \param Buf the buffer to fill the string content.
+/// \param Len the buffer length.
+///
+/// \returns the copied length of string.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_StringCopy(const WasmEdge_String Str, char *Buf, const uint32_t Len);
+
 /// Deletion of the WasmEdge_String.
 ///
 /// After calling this function, the resources in the WasmEdge_String object

@@ -84,7 +84,7 @@ WasmEdge enables software products to be extended and customized by their users.
   * Example: [add a watermark to any image on your web app](https://second-state.github.io/wasm-learning/faas/watermark/html/index.html).
   * Example: [serverless Tensorflow functions for Tencent Cloud](https://github.com/second-state/tencent-tensorflow-scf).
 * *SaaS applications* often need be tailored or customized “on the edge” for customer requirements. With WasmEdge, SaaS applications can directly embed and execute user-submitted code as part of the workflow (eg as a callback function to handle events from the SaaS app).
-  * Example: [the Lark / Feishu application platform could embed user-submitted  serverless functions via WasmEdge to respond to messages (ie conversation bot)](http://reactor.secondstate.info/docs/user-create-a-bot.html).
+  * Example: [the Slack / Feishu application platform could embed user-submitted serverless functions via WasmEdge to respond to messages (ie conversation bot)](http://reactor.secondstate.info/en/docs/user-create-a-bot.html).
   * Example: [WasmEdge runs custom code to process events in IoT streaming data framework YoMo](https://github.com/yomorun/yomo-wasmedge-tensorflow).
 * WasmEdge is adapted to run on a variety of embedded and real time operating systems for *edge devices*. That allows developers to write high performance applications once, in Rust or C, and run them safely on many edge device platforms. 
   * Example: [RISC-V stack from RIOS Lab](https://rioslab.org/).

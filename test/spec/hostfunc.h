@@ -23,42 +23,36 @@ namespace WasmEdge {
 
 class SpecTestPrint : public Runtime::HostFunction<SpecTestPrint> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst) { return {}; }
+  Expect<void> body(Runtime::Instance::MemoryInstance *) { return {}; }
 };
 
 class SpecTestPrintI32 : public Runtime::HostFunction<SpecTestPrintI32> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, uint32_t Val) {
+  Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t) {
     return {};
   }
 };
 
 class SpecTestPrintF32 : public Runtime::HostFunction<SpecTestPrintF32> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, float Val) {
-    return {};
-  }
+  Expect<void> body(Runtime::Instance::MemoryInstance *, float) { return {}; }
 };
 
 class SpecTestPrintF64 : public Runtime::HostFunction<SpecTestPrintF64> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, double Val) {
-    return {};
-  }
+  Expect<void> body(Runtime::Instance::MemoryInstance *, double) { return {}; }
 };
 
 class SpecTestPrintI32F32 : public Runtime::HostFunction<SpecTestPrintI32F32> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, uint32_t Val1,
-                    float Val2) {
+  Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t, float) {
     return {};
   }
 };
 
 class SpecTestPrintF64F64 : public Runtime::HostFunction<SpecTestPrintF64F64> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, double IVal,
-                    double Val2) {
+  Expect<void> body(Runtime::Instance::MemoryInstance *, double, double) {
     return {};
   }
 };
@@ -94,7 +88,7 @@ public:
                   std::make_unique<Runtime::Instance::GlobalInstance>(
                       ValType::F64, ValMut::Const, double(666)));
   }
-  virtual ~SpecTestModule() = default;
+  ~SpecTestModule() noexcept override = default;
 };
 
 } // namespace WasmEdge

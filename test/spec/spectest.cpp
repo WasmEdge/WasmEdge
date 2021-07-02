@@ -386,7 +386,7 @@ bool SpecTest::compare(
         using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
         const auto V = reinterpret_cast<uint64x2_t>(G.get<uint128_t>());
         for (size_t I = 0; I < 2; ++I) {
-          const uint64_t V2 = std::stoul(std::string(Parts[I]));
+          const uint64_t V2 = std::stoull(std::string(Parts[I]));
           const uint64_t V1 = V[I];
           if (V1 != V2) {
             return false;
@@ -438,7 +438,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
   };
 
   auto Invoke = [&](const rapidjson::Value &Action,
-                    const rapidjson::Value &Expected) {
+                    const rapidjson::Value &Expected, uint64_t LineNumber) {
     const auto ModName = GetModuleName(Action);
     const auto Field = Action["field"s].Get<std::string>();
     const auto Params = parseValueList(Action["args"s]);
@@ -451,15 +451,15 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       if (compare(Returns, *Res)) {
         EXPECT_TRUE(true);
       } else {
-        EXPECT_TRUE(false);
+        EXPECT_NE(LineNumber, LineNumber);
       }
     } else {
-      EXPECT_TRUE(false);
+      EXPECT_NE(LineNumber, LineNumber);
     }
   };
   /// Helper function to get values.
   auto Get = [&](const rapidjson::Value &Action,
-                 const rapidjson::Value &Expected) {
+                 const rapidjson::Value &Expected, uint64_t LineNumber) {
     const auto ModName = GetModuleName(Action);
     const auto Field = Action["field"s].Get<std::string>();
     const auto Returns = parseExpectedList(Expected);
@@ -468,7 +468,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       /// Check value.
       EXPECT_TRUE(compare(Returns, *Res));
     } else {
-      EXPECT_TRUE(false);
+      EXPECT_NE(LineNumber, LineNumber);
     }
   };
   auto TrapLoad = [&](const std::string &Filename, const std::string &Text) {
@@ -478,14 +478,14 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       EXPECT_TRUE(stringContains(Text, WasmEdge::ErrCodeStr[Res.error()]));
     }
   };
-  auto TrapInvoke = [&](const rapidjson::Value &Action,
-                        const std::string &Text) {
+  auto TrapInvoke = [&](const rapidjson::Value &Action, const std::string &Text,
+                        uint64_t LineNumber) {
     const auto ModName = GetModuleName(Action);
     const auto Field = Action["field"s].Get<std::string>();
     const auto Params = parseValueList(Action["args"s]);
 
     if (auto Res = onInvoke(ModName, Field, Params.first, Params.second)) {
-      EXPECT_TRUE(false);
+      EXPECT_NE(LineNumber, LineNumber);
     } else {
       /// Check value.
       EXPECT_TRUE(stringContains(Text, WasmEdge::ErrCodeStr[Res.error()]));
@@ -517,6 +517,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         const auto FileName = (TestsuiteRoot / Proposal / UnitName /
                                Cmd["filename"].Get<std::string>())
                                   .u8string();
+        const uint64_t LineNumber = Cmd["line"].Get<uint64_t>();
         if (const auto Name = Cmd.FindMember("name"); Name != Cmd.MemberEnd()) {
           /// Module has name. Register module with module name.
           LastModName = Name->value.Get<std::string>();
@@ -527,14 +528,15 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         if (onModule(LastModName, FileName)) {
           EXPECT_TRUE(true);
         } else {
-          EXPECT_TRUE(false);
+          EXPECT_NE(LineNumber, LineNumber);
         }
         return;
       }
       case CommandID::Action: {
         const auto &Action = Cmd["action"s];
         const auto &Expected = Cmd["expected"s];
-        Invoke(Action, Expected);
+        const uint64_t LineNumber = Cmd["line"].Get<uint64_t>();
+        Invoke(Action, Expected, LineNumber);
         return;
       }
       case CommandID::Register: {
@@ -545,11 +547,12 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         const auto &Action = Cmd["action"s];
         const auto &Expected = Cmd["expected"s];
         const auto ActType = Action["type"].Get<std::string>();
+        const uint64_t LineNumber = Cmd["line"].Get<uint64_t>();
         if (ActType == "invoke"sv) {
-          Invoke(Action, Expected);
+          Invoke(Action, Expected, LineNumber);
           return;
         } else if (ActType == "get"sv) {
-          Get(Action, Expected);
+          Get(Action, Expected, LineNumber);
           return;
         }
         EXPECT_TRUE(false);
@@ -558,7 +561,8 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       case CommandID::AssertTrap: {
         const auto &Action = Cmd["action"s];
         const auto &Text = Cmd["text"s].Get<std::string>();
-        TrapInvoke(Action, Text);
+        const uint64_t LineNumber = Cmd["line"].Get<uint64_t>();
+        TrapInvoke(Action, Text, LineNumber);
         return;
       }
       case CommandID::AssertExhaustion: {

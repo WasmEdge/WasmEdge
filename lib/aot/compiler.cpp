@@ -5,6 +5,7 @@
 #include "common/log.h"
 #include "runtime/instance/memory.h"
 #include "runtime/instance/table.h"
+#include <cstdlib>
 #include <lld/Common/Driver.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/IR/IRBuilder.h>
@@ -28,6 +29,10 @@
 #include <llvm/IR/IntrinsicsAArch64.h>
 #include <llvm/IR/IntrinsicsX86.h>
 #include <llvm/Support/Alignment.h>
+#endif
+
+#if WASMEDGE_OS_MACOS
+#include <unistd.h>
 #endif
 
 namespace {
@@ -198,6 +203,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
       Functions;
   std::vector<llvm::Type *> Globals;
   llvm::GlobalVariable *IntrinsicsTable;
+  llvm::Function *Init;
   llvm::Function *Trap;
   uint32_t MemMin = 1, MemMax = 65536;
   CompileContext(llvm::Module &M)
@@ -237,12 +243,20 @@ struct WasmEdge::AOT::Compiler::CompileContext {
         IntrinsicsTable(new llvm::GlobalVariable(
             LLModule,
             llvm::ArrayType::get(
-                Int8PtrTy, uint32_t(AST::Module::Intrinsics::kIntrinsicMax)),
-            true, llvm::GlobalVariable::ExternalLinkage, nullptr,
+                Int8PtrTy, uint32_t(AST::Module::Intrinsics::kIntrinsicMax))
+                ->getPointerTo(),
+            false, llvm::GlobalVariable::PrivateLinkage, nullptr,
             "intrinsics")),
+        Init(llvm::Function::Create(
+            llvm::FunctionType::get(VoidTy, {IntrinsicsTable->getValueType()},
+                                    false),
+            llvm::Function::ExternalLinkage, "init", LLModule)),
         Trap(llvm::Function::Create(
             llvm::FunctionType::get(VoidTy, {Int8Ty}, false),
             llvm::Function::PrivateLinkage, "trap", LLModule)) {
+    IntrinsicsTable->setInitializer(llvm::ConstantPointerNull::get(
+        llvm::cast<llvm::PointerType>(IntrinsicsTable->getValueType())));
+    Init->addFnAttr(llvm::Attribute::StrictFP);
     Trap->addFnAttr(llvm::Attribute::StrictFP);
     Trap->addFnAttr(llvm::Attribute::NoReturn);
     Trap->addFnAttr(llvm::Attribute::Cold);
@@ -279,6 +293,14 @@ struct WasmEdge::AOT::Compiler::CompileContext {
 
         SubtargetFeatures.AddFeature(Feature.first(), Feature.second);
       }
+    }
+
+    {
+      /// create init
+      llvm::IRBuilder<> Builder(
+          llvm::BasicBlock::Create(LLContext, "entry", Init));
+      Builder.CreateStore(Init->arg_begin(), IntrinsicsTable);
+      Builder.CreateRetVoid();
     }
 
     {
@@ -319,32 +341,31 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   llvm::FunctionCallee getIntrinsic(llvm::IRBuilder<> &Builder,
                                     AST::Module::Intrinsics Index,
                                     llvm::FunctionType *Ty) {
-    auto *VPtr = llvm::ConstantExpr::getInBoundsGetElementPtr(
-        nullptr, IntrinsicsTable,
-        std::array<llvm::Constant *, 2>{
-            llvm::ConstantInt::get(Int64Ty, 0),
-            llvm::ConstantInt::get(Int64Ty, uint32_t(Index))});
-    return llvm::FunctionCallee(
-        Ty, Builder.CreateLoad(llvm::ConstantExpr::getBitCast(
-                VPtr, Ty->getPointerTo()->getPointerTo())));
+    const auto Value = static_cast<uint32_t>(Index);
+    auto *IT = Builder.CreateLoad(IntrinsicsTable);
+    IT->setMetadata(llvm::LLVMContext::MD_invariant_load,
+                    llvm::MDNode::get(LLContext, {}));
+    auto *VPtr = Builder.CreateConstInBoundsGEP2_64(IT, 0, Value);
+    auto *Ptr = Builder.CreateBitCast(VPtr, Ty->getPointerTo()->getPointerTo());
+    return llvm::FunctionCallee(Ty, Builder.CreateLoad(Ptr));
   }
   std::pair<std::vector<ValType>, std::vector<ValType>>
   resolveBlockType(const BlockType &Type) const {
     using VecT = std::vector<ValType>;
     using RetT = std::pair<VecT, VecT>;
-    return std::visit(overloaded{[](const ValType &Type) -> RetT {
-                                   if (Type == ValType::None) {
+    return std::visit(overloaded{[](const ValType &VType) -> RetT {
+                                   if (VType == ValType::None) {
                                      return RetT{};
                                    }
-                                   return RetT{{}, {Type}};
+                                   return RetT{{}, {VType}};
                                  },
                                  [this](const uint32_t &Index) -> RetT {
-                                   const auto &Type = *FunctionTypes[Index];
+                                   const auto &FType = *FunctionTypes[Index];
                                    return RetT{
-                                       VecT(Type.getParamTypes().begin(),
-                                            Type.getParamTypes().end()),
-                                       VecT(Type.getReturnTypes().begin(),
-                                            Type.getReturnTypes().end())};
+                                       VecT(FType.getParamTypes().begin(),
+                                            FType.getParamTypes().end()),
+                                       VecT(FType.getReturnTypes().begin(),
+                                            FType.getReturnTypes().end())};
                                  }},
                       Type);
   }
@@ -434,7 +455,7 @@ static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
     return llvm::ConstantAggregateZero::get(
         llvm::VectorType::get(llvm::Type::getInt64Ty(LLContext), 2, false));
   case ValType::F32:
-    return llvm::ConstantFP::get(llvm::Type::getFloatTy(LLContext), 0.0f);
+    return llvm::ConstantFP::get(llvm::Type::getFloatTy(LLContext), 0.0);
   case ValType::F64:
     return llvm::ConstantFP::get(llvm::Type::getDoubleTy(LLContext), 0.0);
   default:
@@ -480,10 +501,6 @@ public:
       }
     }
   }
-
-  explicit FunctionCompiler(AOT::Compiler::CompileContext &Context)
-      : Context(Context), LLContext(Context.LLContext), F(nullptr),
-        Builder(llvm::BasicBlock::Create(LLContext, "entry", F)) {}
 
   ~FunctionCompiler() noexcept {
     if (!F) {
@@ -669,11 +686,14 @@ public:
       }
       case OpCode::Br_table: {
         const auto &LabelTable = Instr.getLabelList();
+        assert(LabelTable.size() <= std::numeric_limits<uint32_t>::max());
+        const uint32_t LabelTableSize =
+            static_cast<uint32_t>(LabelTable.size());
         auto *Value = stackPop();
         setLableJumpPHI(Instr.getTargetIndex());
         auto *Switch = Builder.CreateSwitch(
-            Value, getLabel(Instr.getTargetIndex()), LabelTable.size());
-        for (size_t I = 0; I < LabelTable.size(); ++I) {
+            Value, getLabel(Instr.getTargetIndex()), LabelTableSize);
+        for (uint32_t I = 0; I < LabelTableSize; ++I) {
           setLableJumpPHI(LabelTable[I]);
           Switch->addCase(Builder.getInt32(I), getLabel(LabelTable[I]));
         }
@@ -1053,7 +1073,7 @@ public:
         break;
       case OpCode::F32__nearest:
       case OpCode::F64__nearest: {
-#if LLVM_VERSION_MAJOR >= 11
+#if LLVM_VERSION_MAJOR >= 11 && WASMEDGE_OS_LINUX
         stackPush(Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven,
                                                stackPop()));
 #else
@@ -1081,7 +1101,8 @@ public:
 #if defined(__aarch64__)
         if (Context.SupportNEON) {
           const uint64_t kZero = 0;
-          auto *VectorTy = llvm::VectorType::get(Value->getType(), VectorSize);
+          auto *VectorTy =
+              llvm::VectorType::get(Value->getType(), VectorSize, false);
           llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
           Ret = Builder.CreateInsertElement(Ret, Value, kZero);
           Ret = Builder.CreateUnaryIntrinsic(
@@ -2828,8 +2849,9 @@ private:
     auto *FTy = toLLVMType(Context.ExecCtxPtrTy, FuncType);
     auto *RTy = FTy->getReturnType();
 
-    const auto ArgSize = FuncType.getParamTypes().size();
-    const auto RetSize = RTy->isVoidTy() ? 0 : FuncType.getReturnTypes().size();
+    const size_t ArgSize = FuncType.getParamTypes().size();
+    const size_t RetSize =
+        RTy->isVoidTy() ? 0 : FuncType.getReturnTypes().size();
 
     llvm::Value *Args;
     if (ArgSize == 0) {
@@ -2851,8 +2873,8 @@ private:
       Rets = Alloca;
     }
 
-    for (unsigned I = 0; I < ArgSize; ++I) {
-      const unsigned J = ArgSize - 1 - I;
+    for (size_t I = 0; I < ArgSize; ++I) {
+      const size_t J = ArgSize - 1 - I;
       auto *Arg = stackPop();
       auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Args, J * kValSize);
       Builder.CreateStore(
@@ -3074,7 +3096,7 @@ private:
   }
   template <typename Func>
   void compileVectorShiftOp(llvm::VectorType *VectorTy, Func &&Op) {
-    const uint64_t Mask = VectorTy->getElementType()->getIntegerBitWidth() - 1;
+    const uint32_t Mask = VectorTy->getElementType()->getIntegerBitWidth() - 1;
     auto *N = Builder.CreateAnd(stackPop(), Builder.getInt32(Mask));
     auto *RHS = Builder.CreateVectorSplat(
         elementCount(VectorTy),
@@ -3265,28 +3287,28 @@ private:
     const auto Count = elementCount(FromTy);
     std::vector<ShuffleElement> Mask(Count / 2);
     std::iota(Mask.begin(), Mask.end(), Low ? 0 : Count / 2);
-    auto *F = Builder.CreateBitCast(Stack.back(), FromTy);
+    auto *R = Builder.CreateBitCast(Stack.back(), FromTy);
     if (Signed) {
-      F = Builder.CreateSExt(F, ExtTy);
+      R = Builder.CreateSExt(R, ExtTy);
     } else {
-      F = Builder.CreateZExt(F, ExtTy);
+      R = Builder.CreateZExt(R, ExtTy);
     }
-    F = Builder.CreateShuffleVector(F, llvm::UndefValue::get(ExtTy), Mask);
-    Stack.back() = Builder.CreateBitCast(F, Context.Int64x2Ty);
+    R = Builder.CreateShuffleVector(R, llvm::UndefValue::get(ExtTy), Mask);
+    Stack.back() = Builder.CreateBitCast(R, Context.Int64x2Ty);
   }
   void compileVectorExtMul(llvm::VectorType *FromTy, bool Signed, bool Low) {
     auto *ExtTy = llvm::VectorType::getExtendedElementVectorType(FromTy);
     const auto Count = elementCount(FromTy);
     std::vector<ShuffleElement> Mask(Count / 2);
     std::iota(Mask.begin(), Mask.end(), Low ? 0 : Count / 2);
-    auto Extend = [this, FromTy, Signed, ExtTy, &Mask](llvm::Value *F) {
-      F = Builder.CreateBitCast(F, FromTy);
+    auto Extend = [this, FromTy, Signed, ExtTy, &Mask](llvm::Value *R) {
+      R = Builder.CreateBitCast(R, FromTy);
       if (Signed) {
-        F = Builder.CreateSExt(F, ExtTy);
+        R = Builder.CreateSExt(R, ExtTy);
       } else {
-        F = Builder.CreateZExt(F, ExtTy);
+        R = Builder.CreateZExt(R, ExtTy);
       }
-      return Builder.CreateShuffleVector(F, llvm::UndefValue::get(ExtTy), Mask);
+      return Builder.CreateShuffleVector(R, llvm::UndefValue::get(ExtTy), Mask);
     };
     auto *RHS = Extend(stackPop());
     auto *LHS = Extend(stackPop());
@@ -3298,8 +3320,8 @@ private:
         VectorTy, [this, VectorTy, Signed](auto *V) -> llvm::Value * {
           auto *ExtTy = llvm::VectorType::getHalfElementsVectorType(
               llvm::VectorType::getExtendedElementVectorType(VectorTy));
-          const auto Count = elementCount(VectorTy);
 #if defined(__x86_64__)
+          const auto Count = elementCount(VectorTy);
           if (Context.SupportXOP) {
             const auto ID = Count == 16
                                 ? (Signed ? llvm::Intrinsic::x86_xop_vphaddbw
@@ -3387,15 +3409,15 @@ private:
     });
   }
   void compileVectorFNearest(llvm::VectorType *VectorTy) {
-#if LLVM_VERSION_MAJOR >= 11
+#if LLVM_VERSION_MAJOR >= 11 && WASMEDGE_OS_LINUX
     compileVectorOp(VectorTy, [this](auto *V) {
       return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven, V);
     });
 #else
-    const bool IsFloat = VectorTy->getElementType() == Context.FloatTy;
-    compileVectorOp(VectorTy, [this, IsFloat](auto *V) {
+    compileVectorOp(VectorTy, [&](auto *V) {
 #if defined(__x86_64__)
       if (Context.SupportSSE4_1) {
+        const bool IsFloat = VectorTy->getElementType() == Context.FloatTy;
         auto ID = IsFloat ? llvm::Intrinsic::x86_sse41_round_ps
                           : llvm::Intrinsic::x86_sse41_round_pd;
         return Builder.CreateIntrinsic(ID, {}, {V, Builder.getInt32(8)});
@@ -3619,7 +3641,8 @@ private:
       Builder.CreateUnreachable();
     }
     Builder.SetInsertPoint(NextBlock);
-    Stack.erase(Stack.begin() + Entry.StackSize, Stack.end());
+    Stack.erase(Stack.begin() + static_cast<int64_t>(Entry.StackSize),
+                Stack.end());
     clearUnreachable();
     return Entry;
   }
@@ -3650,7 +3673,8 @@ private:
       const auto &Types = toLLVMTypeVector(LLContext, RetType);
       Nodes.reserve(Types.size());
       for (size_t I = 0; I < Types.size(); ++I) {
-        auto *PHIRet = Builder.CreatePHI(Types[I], Incomings.size());
+        auto *PHIRet = Builder.CreatePHI(
+            Types[I], static_cast<uint32_t>(Incomings.size()));
         for (auto &[Value, BB] : Incomings) {
           assert(Value.size() == Types.size());
           PHIRet->addIncoming(Value[I], BB);
@@ -3780,7 +3804,11 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   llvm::LLVMContext LLContext;
   auto LLModule = std::make_unique<llvm::Module>(LLPath.u8string(), LLContext);
   LLModule->setTargetTriple(llvm::sys::getProcessTriple());
+#if WASMEDGE_OS_MACOS
+  LLModule->setPICLevel(llvm::PICLevel::Level::BigPIC);
+#elif WASMEDGE_OS_LINUX | WASMEDGE_OS_WINDOWS
   LLModule->setPICLevel(llvm::PICLevel::Level::SmallPIC);
+#endif
   CompileContext NewContext(*LLModule);
   struct RAIICleanup {
     RAIICleanup(CompileContext *&Context, CompileContext &NewContext)
@@ -3816,12 +3844,21 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
         llvm::StringRef(reinterpret_cast<const char *>(Data.data()),
                         Data.size()),
         false);
-    new llvm::GlobalVariable(Context->LLModule, Content->getType(), false,
+    new llvm::GlobalVariable(*LLModule, Content->getType(), false,
                              llvm::GlobalValue::ExternalLinkage, Content,
                              "wasm.code");
     new llvm::GlobalVariable(
-        Context->LLModule, Int32Ty, false, llvm::GlobalValue::ExternalLinkage,
+        *LLModule, Int32Ty, false, llvm::GlobalValue::ExternalLinkage,
         llvm::ConstantInt::get(Int32Ty, Data.size()), "wasm.size");
+  }
+
+  /// set dllexport
+  {
+    for (auto &GO : LLModule->global_objects()) {
+      if (GO.hasExternalLinkage()) {
+        GO.setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
+      }
+    }
   }
 
   if (Conf.getCompilerConfigure().isDumpIR()) {
@@ -3839,28 +3876,21 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   auto Object = llvm::sys::fs::TempFile::create(OPath.u8string());
   if (!Object) {
     // TODO:return error
-    spdlog::error("so file creation failed:{}", OPath.native());
+    spdlog::error("so file creation failed:{}", OPath.u8string());
     llvm::consumeError(Object.takeError());
     return Unexpect(ErrCode::InvalidPath);
   }
-  std::error_code EC;
-  auto OS = std::make_unique<llvm::raw_fd_ostream>(Object->TmpName, EC);
-  if (EC) {
-    // TODO:return error
-    spdlog::error("object file creation failed:{}", Object->TmpName);
-    llvm::consumeError(Object->discard());
-    return Unexpect(ErrCode::InvalidPath);
-  }
+  auto OS = std::make_unique<llvm::raw_fd_ostream>(Object->FD, false);
 
   // optimize + codegen
+  llvm::Triple Triple(LLModule->getTargetTriple());
   {
     std::string Error;
-    std::string Triple = LLModule->getTargetTriple();
     const llvm::Target *TheTarget =
-        llvm::TargetRegistry::lookupTarget(Triple, Error);
+        llvm::TargetRegistry::lookupTarget(Triple.getTriple(), Error);
     if (!TheTarget) {
       // TODO:return error
-      spdlog::error("lookupTarget failed");
+      spdlog::error("lookupTarget failed:{}", Error);
       llvm::consumeError(Object->discard());
       return Unexpect(ErrCode::InvalidPath);
     }
@@ -3868,12 +3898,12 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     llvm::TargetOptions Options;
     llvm::Reloc::Model RM = llvm::Reloc::PIC_;
     std::unique_ptr<llvm::TargetMachine> TM(TheTarget->createTargetMachine(
-        Triple, llvm::sys::getHostCPUName(),
+        Triple.str(), llvm::sys::getHostCPUName(),
         Context->SubtargetFeatures.getString(), Options, RM, llvm::None,
         llvm::CodeGenOpt::Level::Aggressive));
     LLModule->setDataLayout(TM->createDataLayout());
 
-    llvm::TargetLibraryInfoImpl TLII(llvm::Triple(LLModule->getTargetTriple()));
+    llvm::TargetLibraryInfoImpl TLII(Triple);
 
     {
 #if LLVM_VERSION_MAJOR >= 12
@@ -3909,7 +3939,8 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
       llvm::ModulePassManager MPM(false);
-      if (Conf.getCompilerConfigure().getOptimizationLevel() == CompilerConfigure::OptimizationLevel::O0) {
+      if (Conf.getCompilerConfigure().getOptimizationLevel() ==
+          CompilerConfigure::OptimizationLevel::O0) {
         MPM.addPass(llvm::AlwaysInlinerPass(false));
       } else {
         MPM.addPass(PB.buildPerModuleDefaultPipeline(
@@ -3942,31 +3973,77 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     if (Conf.getCompilerConfigure().isDumpIR()) {
       int Fd;
       llvm::sys::fs::openFileForWrite("wasm-opt.ll", Fd);
-      llvm::raw_fd_ostream OS(Fd, true);
-      LLModule->print(OS, nullptr);
+      llvm::raw_fd_ostream LLOS(Fd, true);
+      LLModule->print(LLOS, nullptr);
     }
     spdlog::info("codegen start");
     CodeGenPasses.run(*LLModule);
   }
 
+  // flush object file
+  OS->flush();
+  const auto ObjectName = Object->TmpName;
+  llvm::consumeError(Object->keep());
+  OS.reset();
+
   // link
-#ifdef __APPLE__
-  using lld::mach_o::link;
+#if WASMEDGE_OS_MACOS
+  lld::mach_o::link(
+      std::array {
+        "lld", "-arch",
+#if defined(__x86_64__)
+            "x86_64",
+#elif defined(__aarch64__)
+            "arm64",
 #else
-  using lld::elf::link;
+#error Unsupported platform!
 #endif
-  link(std::array{"lld", "--shared", "--gc-sections", Object->TmpName.c_str(),
-                  "-o", OutputPath.u8string().c_str()},
-       false,
+            "-dylib", "-demangle", "-macosx_version_min", "10.0.0",
+            "-sdk_version", "11.3", "-syslibroot",
+            "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+            ObjectName.c_str(), "-o", OutputPath.u8string().c_str(), "-lSystem"
+      },
+#elif WASMEDGE_OS_LINUX
+  lld::elf::link(
+      std::array{"lld", "--shared", "--gc-sections", ObjectName.c_str(), "-o",
+                 OutputPath.u8string().c_str()},
+#elif WASMEDGE_OS_WINDOWS
+  lld::coff::link(
+      std::array{"lld", "-dll", "-defaultlib:libcmt", "-defaultlib:oldnames",
+                 "-nologo", ObjectName.c_str(),
+                 ("-out:" + OutputPath.u8string()).c_str()},
+#endif
+      false,
 #if LLVM_VERSION_MAJOR >= 10
-       llvm::outs(), llvm::errs()
+      llvm::outs(), llvm::errs()
 #else
-       llvm::errs()
+      llvm::errs()
 #endif
   );
 
-  llvm::consumeError(Object->discard());
+  // llvm::consumeError(Object->discard());
+  llvm::sys::fs::remove(ObjectName);
   spdlog::info("compile done");
+
+#if WASMEDGE_OS_MACOS
+  // codesign
+  {
+    pid_t PID = ::fork();
+    if (PID == -1) {
+      spdlog::error("codesign error on fork:{}", std::strerror(errno));
+    } else if (PID == 0) {
+      execlp("/usr/bin/codesign", "codesign", "-s", "-",
+             OutputPath.u8string().c_str(), nullptr);
+      std::exit(256);
+    } else {
+      int ChildStat;
+      waitpid(PID, &ChildStat, 0);
+      if (const int Status = WEXITSTATUS(ChildStat); Status != 0) {
+        spdlog::error("codesign exited with status {}", Status);
+      }
+    }
+  }
+#endif
 
   return {};
 }
@@ -4041,10 +4118,10 @@ void Compiler::compile(const AST::TypeSection &TypeSection) {
       std::vector<llvm::Value *> Args;
       Args.reserve(FTy->getNumParams());
       Args.push_back(ExecCtxPtr);
-      for (size_t I = 0; I < ArgCount; ++I) {
-        auto *ArgTy = FTy->getParamType(I + 1);
+      for (size_t J = 0; J < ArgCount; ++J) {
+        auto *ArgTy = FTy->getParamType(static_cast<uint32_t>(J + 1));
         llvm::Value *VPtr =
-            Builder.CreateConstInBoundsGEP1_64(RawArgs, I * kValSize);
+            Builder.CreateConstInBoundsGEP1_64(RawArgs, J * kValSize);
         llvm::Value *Ptr = Builder.CreateBitCast(VPtr, ArgTy->getPointerTo());
         Args.push_back(Builder.CreateLoad(Ptr));
       }
@@ -4054,12 +4131,12 @@ void Compiler::compile(const AST::TypeSection &TypeSection) {
         // nothing to do
       } else if (RTy->isStructTy()) {
         auto Rets = unpackStruct(Builder, Ret);
-        for (size_t I = 0; I < RetCount; ++I) {
+        for (size_t J = 0; J < RetCount; ++J) {
           llvm::Value *VPtr =
-              Builder.CreateConstInBoundsGEP1_64(RawRets, I * kValSize);
+              Builder.CreateConstInBoundsGEP1_64(RawRets, J * kValSize);
           llvm::Value *Ptr =
-              Builder.CreateBitCast(VPtr, Rets[I]->getType()->getPointerTo());
-          Builder.CreateStore(Rets[I], Ptr);
+              Builder.CreateBitCast(VPtr, Rets[J]->getType()->getPointerTo());
+          Builder.CreateStore(Rets[J], Ptr);
         }
       } else {
         llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(RawRets, 0);
@@ -4091,7 +4168,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
     switch (ExtType) {
     case ExternalType::Function: /// Function type index
     {
-      const auto FuncID = Context->Functions.size();
+      const auto FuncID = static_cast<uint32_t>(Context->Functions.size());
       /// Get the function type index in module.
       uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
       assert(TypeIdx < Context->FunctionTypes.size());
@@ -4168,7 +4245,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
               VPtr, RTy->getStructElementType(I)->getPointerTo());
           Ret.push_back(Builder.CreateLoad(Ptr));
         }
-        Builder.CreateAggregateRet(Ret.data(), RetSize);
+        Builder.CreateAggregateRet(Ret.data(), static_cast<uint32_t>(RetSize));
       }
 
       Context->Functions.emplace_back(TypeIdx, F, nullptr);
@@ -4199,7 +4276,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
   }
 }
 
-void Compiler::compile(const AST::ExportSection &ExportSec) {}
+void Compiler::compile(const AST::ExportSection &) {}
 
 void Compiler::compile(const AST::GlobalSection &GlobalSec) {
   for (const auto &Global : GlobalSec.getContent()) {
@@ -4210,7 +4287,7 @@ void Compiler::compile(const AST::GlobalSection &GlobalSec) {
 }
 
 void Compiler::compile(const AST::MemorySection &MemorySection,
-                       const AST::DataSection &DataSec) {
+                       const AST::DataSection &) {
   if (MemorySection.getContent().size() == 0) {
     return;
   }
@@ -4220,8 +4297,8 @@ void Compiler::compile(const AST::MemorySection &MemorySection,
   Context->MemMax = Limit.hasMax() ? Limit.getMax() : 65536;
 }
 
-void Compiler::compile(const AST::TableSection &TableSection,
-                       const AST::ElementSection &ElementSection) {}
+void Compiler::compile(const AST::TableSection &, const AST::ElementSection &) {
+}
 
 void Compiler::compile(const AST::FunctionSection &FuncSec,
                        const AST::CodeSection &CodeSec) {
@@ -4270,7 +4347,8 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
         Locals.push_back(Local.second);
       }
     }
-    FunctionCompiler FC(*Context, F, Locals, Conf.getCompilerConfigure().isInstructionCounting(),
+    FunctionCompiler FC(*Context, F, Locals,
+                        Conf.getCompilerConfigure().isInstructionCounting(),
                         Conf.getCompilerConfigure().isCostMeasuring(),
                         Conf.getCompilerConfigure().getOptimizationLevel() ==
                             CompilerConfigure::OptimizationLevel::O0);

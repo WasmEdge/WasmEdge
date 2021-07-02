@@ -69,8 +69,9 @@ TEST(CacheTest, GlobalKey) {
   const auto Part = std::filesystem::proximate(*Path, Root, ErrCode);
   EXPECT_FALSE(ErrCode);
   EXPECT_EQ(
-      Part.u8string(),
-      "key/af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"s);
+      Part.filename().u8string(),
+      "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"s);
+  EXPECT_EQ(Part.parent_path().filename().u8string(), "key"s);
 }
 
 TEST(CacheTest, LocalKey) {
@@ -78,7 +79,8 @@ TEST(CacheTest, LocalKey) {
       {}, WasmEdge::AOT::Cache::StorageScope::Local, "key"s);
   EXPECT_TRUE(Path);
   auto Root = *Path;
-  while (Root.filename().u8string() != ".wasmedge"sv) {
+  while (Root.filename().u8string() != ".wasmedge"sv &&
+         Root.filename().u8string() != "wasmedge"sv) {
     ASSERT_TRUE(Root.has_parent_path());
     Root = Root.parent_path();
   }
@@ -87,8 +89,9 @@ TEST(CacheTest, LocalKey) {
   const auto Part = std::filesystem::proximate(*Path, Root, ErrCode);
   EXPECT_FALSE(ErrCode);
   EXPECT_EQ(
-      Part.u8string(),
-      "key/af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"s);
+      Part.filename().u8string(),
+      "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"s);
+  EXPECT_EQ(Part.parent_path().filename().u8string(), "key"s);
 }
 
 } // namespace

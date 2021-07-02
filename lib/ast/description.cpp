@@ -59,7 +59,7 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 }
 
 /// Load binary of Export description. See "include/ast/description.h".
-Expect<void> ExportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
+Expect<void> ExportDesc::loadBinary(FileMgr &Mgr, const Configure &) {
   /// Read external name to export.
   if (auto Res = Mgr.readName()) {
     ExtName = *Res;

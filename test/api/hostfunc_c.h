@@ -12,8 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef __HOSTFUNC_C_H__
-#define __HOSTFUNC_C_H__
+#ifndef HOSTFUNC_C_H
+#define HOSTFUNC_C_H
 
 #include "api/wasmedge.h"
 
@@ -53,10 +53,10 @@ WasmEdge_Result SpecTestPrintF64F64(void *Data,
                                     const WasmEdge_Value *In,
                                     WasmEdge_Value *Out);
 
-WasmEdge_ImportObjectContext *createSpecTestModule();
+WasmEdge_ImportObjectContext *createSpecTestModule(void);
 
 #ifdef __cplusplus
 } /// extern "C"
 #endif
 
-#endif /// __HOSTFUNC_C_H__
+#endif /// HOSTFUNC_C_H

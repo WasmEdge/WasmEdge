@@ -47,7 +47,7 @@ char *Preopens[] = {&PreopensVec[0], &PreopensVec[12], &PreopensVec[21],
                     &PreopensVec[32]};
 char TPath[] = "apiTestData/test.wasm";
 
-WasmEdge_Result ExternAdd(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+WasmEdge_Result ExternAdd(void *, WasmEdge_MemoryInstanceContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   /// {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -56,7 +56,7 @@ WasmEdge_Result ExternAdd(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternSub(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+WasmEdge_Result ExternSub(void *, WasmEdge_MemoryInstanceContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   /// {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -65,7 +65,7 @@ WasmEdge_Result ExternSub(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternMul(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+WasmEdge_Result ExternMul(void *, WasmEdge_MemoryInstanceContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   /// {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -74,7 +74,7 @@ WasmEdge_Result ExternMul(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternDiv(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+WasmEdge_Result ExternDiv(void *, WasmEdge_MemoryInstanceContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   /// {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -83,15 +83,15 @@ WasmEdge_Result ExternDiv(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternTerm(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
-                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
+WasmEdge_Result ExternTerm(void *, WasmEdge_MemoryInstanceContext *,
+                           const WasmEdge_Value *, WasmEdge_Value *Out) {
   /// {} -> {i32}
   Out[0] = WasmEdge_ValueGenI32(1234);
   return WasmEdge_Result_Terminate;
 }
 
-WasmEdge_Result ExternFail(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
-                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
+WasmEdge_Result ExternFail(void *, WasmEdge_MemoryInstanceContext *,
+                           const WasmEdge_Value *, WasmEdge_Value *Out) {
   /// {} -> {i32}
   Out[0] = WasmEdge_ValueGenI32(5678);
   return WasmEdge_Result_Fail;
@@ -99,8 +99,8 @@ WasmEdge_Result ExternFail(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
 
 WasmEdge_Result ExternWrap(void *This, void *Data,
                            WasmEdge_MemoryInstanceContext *MemCxt,
-                           const WasmEdge_Value *In, const uint32_t InLen,
-                           WasmEdge_Value *Out, const uint32_t OutLen) {
+                           const WasmEdge_Value *In, const uint32_t,
+                           WasmEdge_Value *Out, const uint32_t) {
   using HostFuncType =
       WasmEdge_Result(void *, WasmEdge_MemoryInstanceContext *,
                       const WasmEdge_Value *, WasmEdge_Value *);
@@ -259,8 +259,8 @@ TEST(APICoreTest, Value) {
   EXPECT_EQ(WasmEdge_ValueGetI64(Val), INT64_MAX);
   Val = WasmEdge_ValueGenF32(1 / 0.0f);
   EXPECT_EQ(WasmEdge_ValueGetF32(Val), 1 / 0.0f);
-  Val = WasmEdge_ValueGenF64(-1 / 0.0f);
-  EXPECT_EQ(WasmEdge_ValueGetF64(Val), -1 / 0.0f);
+  Val = WasmEdge_ValueGenF64(-1 / 0.0);
+  EXPECT_EQ(WasmEdge_ValueGetF64(Val), -1 / 0.0);
   Val = WasmEdge_ValueGenV128(static_cast<__int128>(INT64_MAX) * 2 + 1);
   EXPECT_EQ(WasmEdge_ValueGetV128(Val),
             static_cast<__int128>(INT64_MAX) * 2 + 1);
@@ -440,23 +440,25 @@ TEST(APICoreTest, Loader) {
 
   /// Parse from buffer
   std::ifstream Wasm(TPath, std::ios::binary | std::ios::ate);
-  std::vector<uint8_t> Buf(Wasm.tellg());
+  Wasm.seekg(0, std::ios::end);
+  std::vector<uint8_t> Buf(static_cast<uint32_t>(Wasm.tellg()));
   Wasm.seekg(0, std::ios::beg);
-  EXPECT_TRUE(Wasm.read(reinterpret_cast<char *>(Buf.data()), Buf.size()));
+  EXPECT_TRUE(Wasm.read(reinterpret_cast<char *>(Buf.data()),
+                        static_cast<uint32_t>(Buf.size())));
   Wasm.close();
   Mod = nullptr;
-  EXPECT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_LoaderParseFromBuffer(Loader, ModPtr, Buf.data(), Buf.size())));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
+      Loader, ModPtr, Buf.data(), static_cast<uint32_t>(Buf.size()))));
   EXPECT_NE(Mod, nullptr);
   WasmEdge_ASTModuleDelete(Mod);
-  EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_LoaderParseFromBuffer(nullptr, ModPtr, Buf.data(), Buf.size())));
-  EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_LoaderParseFromBuffer(Loader, nullptr, Buf.data(), Buf.size())));
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
+      nullptr, ModPtr, Buf.data(), static_cast<uint32_t>(Buf.size()))));
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
+      Loader, nullptr, Buf.data(), static_cast<uint32_t>(Buf.size()))));
   EXPECT_FALSE(WasmEdge_ResultOK(
       WasmEdge_LoaderParseFromBuffer(Loader, ModPtr, nullptr, 0)));
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
-      nullptr, nullptr, Buf.data(), Buf.size())));
+      nullptr, nullptr, Buf.data(), static_cast<uint32_t>(Buf.size()))));
 
   /// AST module deletion
   WasmEdge_ASTModuleDelete(nullptr);
@@ -1088,7 +1090,8 @@ TEST(APICoreTest, Instance) {
 
   /// Table instance creation
   WasmEdge_TableInstanceContext *TabCxt = WasmEdge_TableInstanceCreate(
-      WasmEdge_RefType_ExternRef, WasmEdge_Limit{.HasMax = false, .Min = 10});
+      WasmEdge_RefType_ExternRef,
+      WasmEdge_Limit{.HasMax = false, .Min = 10, .Max = 0});
   EXPECT_NE(TabCxt, nullptr);
   WasmEdge_TableInstanceDelete(TabCxt);
   EXPECT_TRUE(true);
@@ -1151,8 +1154,8 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(true);
 
   /// Memory instance creation
-  WasmEdge_MemoryInstanceContext *MemCxt =
-      WasmEdge_MemoryInstanceCreate(WasmEdge_Limit{.HasMax = false, .Min = 1});
+  WasmEdge_MemoryInstanceContext *MemCxt = WasmEdge_MemoryInstanceCreate(
+      WasmEdge_Limit{.HasMax = false, .Min = 1, .Max = 0});
   EXPECT_NE(MemCxt, nullptr);
   WasmEdge_MemoryInstanceDelete(MemCxt);
   EXPECT_TRUE(true);
@@ -1257,7 +1260,7 @@ TEST(APICoreTest, Instance) {
   WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val);
   Val = WasmEdge_GlobalInstanceGetValue(GlobVCxt);
   EXPECT_EQ(WasmEdge_ValueGetI64(Val), 88888888888LL);
-  Val = WasmEdge_ValueGenF32(12.345);
+  Val = WasmEdge_ValueGenF32(12.345f);
   WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val);
   Val = WasmEdge_GlobalInstanceGetValue(GlobVCxt);
   EXPECT_EQ(WasmEdge_ValueGetI64(Val), 88888888888LL);
@@ -1442,9 +1445,10 @@ TEST(APICoreTest, VM) {
 
   /// WASM from file
   std::ifstream Wasm(TPath, std::ios::binary | std::ios::ate);
-  std::vector<uint8_t> Buf(Wasm.tellg());
+  std::vector<uint8_t> Buf(static_cast<uint32_t>(Wasm.tellg()));
   Wasm.seekg(0, std::ios::beg);
-  EXPECT_TRUE(Wasm.read(reinterpret_cast<char *>(Buf.data()), Buf.size()));
+  EXPECT_TRUE(Wasm.read(reinterpret_cast<char *>(Buf.data()),
+                        static_cast<uint32_t>(Buf.size())));
   Wasm.close();
 
   /// Load and validate to wasm AST
@@ -1491,11 +1495,11 @@ TEST(APICoreTest, VM) {
   /// VM register module from buffer
   ModName = WasmEdge_StringCreateByCString("reg-wasm-buffer");
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBuffer(
-      nullptr, ModName, Buf.data(), Buf.size())));
+      nullptr, ModName, Buf.data(), static_cast<uint32_t>(Buf.size()))));
   EXPECT_FALSE(WasmEdge_ResultOK(
       WasmEdge_VMRegisterModuleFromBuffer(VM, ModName, nullptr, 0)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBuffer(
-      VM, ModName, Buf.data(), Buf.size())));
+      VM, ModName, Buf.data(), static_cast<uint32_t>(Buf.size()))));
   WasmEdge_StringDelete(ModName);
 
   /// VM register module from AST module
@@ -1561,41 +1565,51 @@ TEST(APICoreTest, VM) {
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
-      VM, Buf.data(), Buf.size(), FuncName, P, 2, R, 2)));
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2, R,
+      2)));
   EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
   EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
-      nullptr, Buf.data(), Buf.size(), FuncName, P, 2, R, 2)));
+      nullptr, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2, R,
+      2)));
   EXPECT_FALSE(WasmEdge_ResultOK(
       WasmEdge_VMRunWasmFromBuffer(VM, nullptr, 0, FuncName, P, 2, R, 2)));
   /// Function type mismatch
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
-      VM, Buf.data(), Buf.size(), FuncName, P, 1, R, 2)));
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 1, R,
+      2)));
   /// Function type mismatch
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
-      VM, Buf.data(), Buf.size(), FuncName, nullptr, 0, R, 2)));
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, nullptr, 0,
+      R, 2)));
   /// Function type mismatch
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
-      VM, Buf.data(), Buf.size(), FuncName, nullptr, 2, R, 2)));
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, nullptr, 2,
+      R, 2)));
   /// Function type mismatch
   P[0] = WasmEdge_ValueGenI64(123);
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
-      VM, Buf.data(), Buf.size(), FuncName, P, 2, R, 2)));
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2, R,
+      2)));
   P[0] = WasmEdge_ValueGenI32(123);
   /// Function not found
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
-      VM, Buf.data(), Buf.size(), FuncName2, P, 2, R, 2)));
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName2, P, 2, R,
+      2)));
   /// Discard result
   R[0] = WasmEdge_ValueGenI32(0);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
-      VM, Buf.data(), Buf.size(), FuncName, P, 2, R, 1)));
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2, R,
+      1)));
   EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
   /// Discard result
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
-      VM, Buf.data(), Buf.size(), FuncName, P, 2, nullptr, 0)));
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2,
+      nullptr, 0)));
   /// Discard result
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
-      VM, Buf.data(), Buf.size(), FuncName, P, 2, nullptr, 1)));
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2,
+      nullptr, 1)));
 
   /// VM run wasm from AST module
   R[0] = WasmEdge_ValueGenI32(0);
@@ -1643,10 +1657,10 @@ TEST(APICoreTest, VM) {
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromFile(VM, "file")));
 
   /// VM load wasm from buffer
-  EXPECT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_VMLoadWasmFromBuffer(VM, Buf.data(), Buf.size())));
-  EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_VMLoadWasmFromBuffer(nullptr, Buf.data(), Buf.size())));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()))));
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(
+      nullptr, Buf.data(), static_cast<uint32_t>(Buf.size()))));
   EXPECT_FALSE(
       WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(VM, nullptr, 0)));
 

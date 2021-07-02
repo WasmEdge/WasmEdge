@@ -38,13 +38,17 @@ public:
   RefType getReferenceType() const noexcept { return Type; }
 
   /// Get size of table.refs
-  uint32_t getSize() const noexcept { return Refs.size(); }
+  uint32_t getSize() const noexcept {
+    return static_cast<uint32_t>(Refs.size());
+  }
 
   /// Getter of limit definition.
   bool getHasMax() const noexcept { return HasMaxSize; }
 
   /// Getter of limit definition.
-  uint32_t getMin() const noexcept { return Refs.size(); }
+  uint32_t getMin() const noexcept {
+    return static_cast<uint32_t>(Refs.size());
+  }
 
   /// Getter of limit definition.
   uint32_t getMax() const noexcept { return MaxSize; }
@@ -58,7 +62,8 @@ public:
 
   /// Get boundary index.
   uint32_t getBoundIdx() const noexcept {
-    return std::max<uint32_t>(Refs.size(), 1) - 1;
+    return std::max(static_cast<uint32_t>(Refs.size()), UINT32_C(1)) -
+           UINT32_C(1);
   }
 
   /// Grow table with initialization value.
@@ -104,7 +109,9 @@ public:
     if (Start + Length > Slice.size()) {
       spdlog::error(ErrCode::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(
-          Start, Length, std::max<uint32_t>(Slice.size(), 1) - 1));
+          Start, Length,
+          std::max(static_cast<uint32_t>(Slice.size()), UINT32_C(1)) -
+              UINT32_C(1)));
       return Unexpect(ErrCode::TableOutOfBounds);
     }
 

@@ -12,6 +12,11 @@ configure_files(
   COPYONLY
 )
 
+target_compile_options(wasmedgeAOTWagonTests
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
+
 target_link_libraries(wasmedgeAOTWagonTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
@@ -24,6 +29,11 @@ add_executable(wasmedgeAOTCoreTests
 )
 
 add_test(wasmedgeAOTCoreTests wasmedgeAOTCoreTests)
+
+target_compile_options(wasmedgeAOTCoreTests
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
 
 target_link_libraries(wasmedgeAOTCoreTests
   PRIVATE
@@ -41,6 +51,11 @@ add_executable(wasmedgeAOTCacheTests
 
 add_test(wasmedgeAOTCacheTests wasmedgeAOTCacheTests)
 
+target_compile_options(wasmedgeAOTCacheTests
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
+
 target_link_libraries(wasmedgeAOTCacheTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
@@ -52,6 +67,11 @@ add_executable(wasmedgeAOTBlake3Tests
 )
 
 add_test(wasmedgeAOTBlake3Tests wasmedgeAOTBlake3Tests)
+
+target_compile_options(wasmedgeAOTBlake3Tests
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
 
 target_link_libraries(wasmedgeAOTBlake3Tests
   PRIVATE

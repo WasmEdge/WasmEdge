@@ -7,7 +7,7 @@ namespace WasmEdge {
 namespace AST {
 
 /// Load binary to construct Limit node. See "include/ast/type.h".
-Expect<void> Limit::loadBinary(FileMgr &Mgr, const Configure &Conf) {
+Expect<void> Limit::loadBinary(FileMgr &Mgr, const Configure &) {
   /// Read limit type.
   if (auto Res = Mgr.readByte()) {
     Type = static_cast<LimitType>(*Res);

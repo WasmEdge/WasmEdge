@@ -7,12 +7,28 @@
 #include <fstream>
 #include <string_view>
 
+#if WASMEDGE_OS_LINUX
+#define EXTENSION ".so"sv
+#elif WASMEDGE_OS_MACOS
+#define EXTENSION ".dylib"sv
+#elif WASMEDGE_OS_WINDOWS
+#define EXTENSION ".dll"sv
+#endif
+
 namespace WasmEdge {
 namespace Loader {
 
 /// Load data from file path. See "include/loader/loader.h".
 Expect<std::vector<Byte>>
 Loader::loadFile(const std::filesystem::path &FilePath) {
+  std::error_code EC;
+  size_t FileSize = std::filesystem::file_size(FilePath, EC);
+  if (EC) {
+    spdlog::error(ErrCode::InvalidPath);
+    spdlog::error(ErrInfo::InfoFile(FilePath));
+    return Unexpect(ErrCode::InvalidPath);
+  }
+
   std::ifstream Fin(FilePath, std::ios::in | std::ios::binary);
   if (!Fin) {
     spdlog::error(ErrCode::InvalidPath);
@@ -20,24 +36,28 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
     return Unexpect(ErrCode::InvalidPath);
   }
 
-  Fin.seekg(0, std::ios::end);
-  const size_t Size = Fin.tellg();
-  Fin.seekg(0, std::ios::beg);
-
-  std::vector<Byte> Buf(Size);
-  Fin.read(reinterpret_cast<char *>(Buf.data()), Size);
-  if (static_cast<size_t>(Fin.gcount()) != Size) {
-    if (Fin.eof()) {
-      spdlog::error(ErrCode::UnexpectedEnd);
-      spdlog::error(ErrInfo::InfoLoading(Fin.gcount()));
-      spdlog::error(ErrInfo::InfoFile(FilePath));
-      return Unexpect(ErrCode::UnexpectedEnd);
-    } else {
-      spdlog::error(ErrCode::ReadError);
-      spdlog::error(ErrInfo::InfoLoading(Fin.gcount()));
-      spdlog::error(ErrInfo::InfoFile(FilePath));
-      return Unexpect(ErrCode::ReadError);
+  std::vector<Byte> Buf(FileSize);
+  size_t Index = 0;
+  while (FileSize > 0) {
+    const uint32_t BlockSize = static_cast<uint32_t>(
+        std::min<size_t>(FileSize, std::numeric_limits<uint32_t>::max()));
+    Fin.read(reinterpret_cast<char *>(Buf.data()) + Index, BlockSize);
+    const uint32_t ReadCount = static_cast<uint32_t>(Fin.gcount());
+    if (ReadCount != BlockSize) {
+      if (Fin.eof()) {
+        spdlog::error(ErrCode::UnexpectedEnd);
+        spdlog::error(ErrInfo::InfoLoading(ReadCount));
+        spdlog::error(ErrInfo::InfoFile(FilePath));
+        return Unexpect(ErrCode::UnexpectedEnd);
+      } else {
+        spdlog::error(ErrCode::ReadError);
+        spdlog::error(ErrInfo::InfoLoading(ReadCount));
+        spdlog::error(ErrInfo::InfoFile(FilePath));
+        return Unexpect(ErrCode::ReadError);
+      }
     }
+    Index += static_cast<size_t>(BlockSize);
+    FileSize -= static_cast<size_t>(BlockSize);
   }
   return Buf;
 }
@@ -46,7 +66,7 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
 Expect<std::unique_ptr<AST::Module>>
 Loader::parseModule(const std::filesystem::path &FilePath) {
   using namespace std::literals::string_view_literals;
-  if (FilePath.extension() == ".so"sv) {
+  if (FilePath.extension() == EXTENSION) {
     if (auto Res = LMgr.setPath(FilePath); !Res) {
       spdlog::error(Res.error());
       spdlog::error(ErrInfo::InfoFile(FilePath));

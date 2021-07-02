@@ -1,22 +1,41 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "system/path.h"
+#include "common/defines.h"
+#include "common/errcode.h"
 #include "config.h"
 
-#if HAVE_PWD_H
+#if defined(HAVE_PWD_H)
 #include <pwd.h>
 #include <unistd.h>
+#elif WASMEDGE_OS_WINDOWS
+#include <shlobj_core.h>
 #endif
 
 namespace WasmEdge {
 
 std::filesystem::path Path::home() noexcept {
-#if HAVE_PWD_H
   using namespace std::literals::string_view_literals;
-  const struct passwd *PassWd = getpwuid(getuid());
-  return std::filesystem::u8path(PassWd->pw_dir) / ".wasmedge/cache"sv;
-#else
-  return {};
+  std::filesystem::path Home;
+#if defined(HAVE_PWD_H)
+  {
+    const struct passwd *PassWd = getpwuid(getuid());
+    Home = std::filesystem::u8path(PassWd->pw_dir);
+  }
+#elif WASMEDGE_OS_WINDOWS
+  {
+    wchar_t *Path;
+    if (auto Res = ::SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_CREATE,
+                                          nullptr, &Path);
+        likely(Res == S_OK)) {
+      Home = Path;
+      ::CoTaskMemFree(Path);
+    }
+  }
 #endif
+  if (!Home.empty()) {
+    return Home / std::filesystem::u8path(".wasmedge"sv);
+  }
+  return {};
 }
 
 } // namespace WasmEdge

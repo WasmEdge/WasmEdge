@@ -13,7 +13,7 @@ The options and flags for the `wasmedge` command are as follows.
 	* WasmEdge will execute the function which name should be given in ARG[0].
 	* If there's exported function which names `_initialize`, the function will be executed with the empty parameter at first.
 2. (Optional) Binding directories into WASI virtual filesystem.
-	* Each directory can be specified as `--dir host_path:guest_path`.
+	* Each directory can be specified as `--dir guest_path:host_path`.
 3. (Optional) Environ variables.
 	* Each variable can be specified as `--env NAME=VALUE`.
 4. Wasm file(`/path/to/wasm/file`).

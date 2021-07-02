@@ -12,6 +12,9 @@ find_library(LLD_READERWRITER lldReaderWriter PATHS "${LLVM_LIBRARY_DIR}")
 find_library(LLD_YAML lldYAML PATHS "${LLVM_LIBRARY_DIR}")
 if(APPLE)
   find_library(LLD_SYSTEM lldMachO PATHS "${LLVM_LIBRARY_DIR}")
+elseif(WIN32)
+  find_library(LLD_SYSTEM lldCOFF PATHS "${LLVM_LIBRARY_DIR}")
+  set(EXTRA_COMPONENTS DebugInfoPDB LibDriver WindowsManifest)
 else()
   find_library(LLD_SYSTEM lldELF PATHS "${LLVM_LIBRARY_DIR}")
 endif()
@@ -41,6 +44,12 @@ llvm_add_library(wasmedgeAOT
   passes
   support
   transformutils
+  ${EXTRA_COMPONENTS}
+)
+
+target_compile_options(wasmedgeAOT
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
 )
 
 target_include_directories(wasmedgeAOT

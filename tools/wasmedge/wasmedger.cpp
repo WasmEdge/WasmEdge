@@ -29,7 +29,7 @@ int main(int Argc, const char *Argv[]) {
   PO::List<std::string> Dir(
       PO::Description(
           "Binding directories into WASI virtual filesystem. Each directories "
-          "can specified as --dir `host_path:guest_path`, where `guest_path` "
+          "can specified as --dir `guest_path:host_path`, where `guest_path` "
           "specifies the path that will correspond to `host_path` for calls "
           "like `fopen` in the guest."sv),
       PO::MetaVar("PREOPEN_DIRS"sv));
@@ -93,7 +93,8 @@ int main(int Argc, const char *Argv[]) {
     Conf.addProposal(WasmEdge::Proposal::SIMD);
   }
   if (MemLim.value().size() > 0) {
-    Conf.getRuntimeConfigure().setMaxMemoryPage(MemLim.value().back());
+    Conf.getRuntimeConfigure().setMaxMemoryPage(
+        static_cast<uint32_t>(MemLim.value().back()));
   }
 
   Conf.addHostRegistration(WasmEdge::HostRegistration::Wasi);
@@ -117,14 +118,16 @@ int main(int Argc, const char *Argv[]) {
 
   WasiMod->getEnv().init(
       Dir.value(),
-      InputPath.filename().replace_extension(std::filesystem::u8path("wasm"sv)),
+      InputPath.filename()
+          .replace_extension(std::filesystem::u8path("wasm"sv))
+          .u8string(),
       Args.value(), Env.value());
 
   if (!Reactor.value()) {
     // command mode
     if (auto Result = VM.runWasmFile(InputPath.u8string(), "_start");
         Result || Result.error() == WasmEdge::ErrCode::Terminated) {
-      return WasiMod->getEnv().getExitCode();
+      return static_cast<int>(WasiMod->getEnv().getExitCode());
     } else {
       return EXIT_FAILURE;
     }
@@ -172,13 +175,15 @@ int main(int Argc, const char *Argv[]) {
          I < FuncType.Params.size() && I + 1 < Args.value().size(); ++I) {
       switch (FuncType.Params[I]) {
       case WasmEdge::ValType::I32: {
-        const uint32_t Value = std::stol(Args.value()[I + 1]);
+        const uint32_t Value =
+            static_cast<uint32_t>(std::stol(Args.value()[I + 1]));
         FuncArgs.emplace_back(Value);
         FuncArgTypes.emplace_back(WasmEdge::ValType::I32);
         break;
       }
       case WasmEdge::ValType::I64: {
-        const uint64_t Value = std::stoll(Args.value()[I + 1]);
+        const uint64_t Value =
+            static_cast<uint64_t>(std::stoll(Args.value()[I + 1]));
         FuncArgs.emplace_back(Value);
         FuncArgTypes.emplace_back(WasmEdge::ValType::I64);
         break;
@@ -203,7 +208,8 @@ int main(int Argc, const char *Argv[]) {
     if (FuncType.Params.size() + 1 < Args.value().size()) {
       for (size_t I = FuncType.Params.size() + 1; I < Args.value().size();
            ++I) {
-        const uint64_t Value = std::stoll(Args.value()[I]);
+        const uint64_t Value =
+            static_cast<uint64_t>(std::stoll(Args.value()[I]));
         FuncArgs.emplace_back(Value);
         FuncArgTypes.emplace_back(WasmEdge::ValType::F64);
       }

@@ -12,7 +12,7 @@ template <typename T> TypeU<T> Interpreter::runClzOp(ValVariant &Val) const {
   /// Return the count of leading zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
-    T Mask = (T)0x1U << (sizeof(T) * 8 - 1);
+    T Mask = static_cast<T>(0x1U) << (sizeof(T) * 8 - 1);
     while ((I & Mask) == 0U) {
       Cnt++;
       I <<= 1;
@@ -29,7 +29,7 @@ template <typename T> TypeU<T> Interpreter::runCtzOp(ValVariant &Val) const {
   /// Return the count of trailing zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
-    T Mask = (T)0x1U;
+    T Mask = static_cast<T>(0x1U);
     while ((I & Mask) == 0U) {
       Cnt++;
       I >>= 1;
@@ -46,7 +46,7 @@ template <typename T> TypeU<T> Interpreter::runPopcntOp(ValVariant &Val) const {
   /// Return the count of non-zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
-    T Mask = (T)0x1U;
+    T Mask = static_cast<T>(0x1U);
     while (I != 0U) {
       if (I & Mask) {
         Cnt++;
@@ -107,11 +107,8 @@ template <typename TIn, typename TOut>
 Expect<void> Interpreter::runSplatOp(ValVariant &Val) const {
   const TOut Part = static_cast<TOut>(Val.get<TIn>());
   using VTOut [[gnu::vector_size(16)]] = TOut;
-  if constexpr (sizeof(TOut) == 1) {
-    Val.emplace<VTOut>(VTOut{Part, Part, Part, Part, Part, Part, Part, Part,
-                             Part, Part, Part, Part, Part, Part, Part, Part});
-  } else if constexpr (sizeof(TOut) == 2) {
-    Val.emplace<VTOut>(VTOut{Part, Part, Part, Part, Part, Part, Part, Part});
+  if constexpr (!std::is_floating_point_v<TOut>) {
+    Val.emplace<VTOut>(VTOut{} + Part);
   } else if constexpr (sizeof(TOut) == 4) {
     Val.emplace<VTOut>(VTOut{Part, Part, Part, Part});
   } else if constexpr (sizeof(TOut) == 8) {
@@ -180,15 +177,15 @@ Expect<void> Interpreter::runVectorAbsOp(ValVariant &Val) const {
   if constexpr (std::is_floating_point_v<T>) {
     if constexpr (sizeof(T) == 4) {
       using IVT [[gnu::vector_size(16)]] = uint32_t;
-      IVT Mask = {0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff};
+      IVT Mask = IVT{} + UINT32_C(0x7fffffff);
       Result = reinterpret_cast<VT>(reinterpret_cast<IVT>(Result) & Mask);
     } else {
       using IVT [[gnu::vector_size(16)]] = uint64_t;
-      IVT Mask = {UINT64_C(0x7fffffffffffffff), UINT64_C(0x7fffffffffffffff)};
+      IVT Mask = IVT{} + UINT64_C(0x7fffffffffffffff);
       Result = reinterpret_cast<VT>(reinterpret_cast<IVT>(Result) & Mask);
     }
   } else {
-    Result = Result > 0 ? Result : -Result;
+    Result = detail::vectorSelect(Result > 0, Result, -Result);
   }
   return {};
 }
@@ -226,28 +223,30 @@ Expect<void> Interpreter::runVectorSqrtOp(ValVariant &Val) const {
 template <typename TIn, typename TOut>
 Expect<void> Interpreter::runVectorTruncSatOp(ValVariant &Val) const {
   static_assert((sizeof(TIn) == 4 || sizeof(TIn) == 8) && sizeof(TOut) == 4);
-  const TIn FMin = static_cast<TIn>(std::numeric_limits<TOut>::min());
-  const TIn FMax = static_cast<TIn>(std::numeric_limits<TOut>::max());
-  const TOut IMin = std::numeric_limits<TOut>::min();
-  const TOut IMax = std::numeric_limits<TOut>::max();
   using VTIn [[gnu::vector_size(16)]] = TIn;
   using VTOut [[gnu::vector_size(16)]] = TOut;
+  const VTIn FMin = VTIn{} + static_cast<TIn>(std::numeric_limits<TOut>::min());
+  const VTIn FMax = VTIn{} + static_cast<TIn>(std::numeric_limits<TOut>::max());
   auto &V = Val.get<VTIn>();
   if constexpr (sizeof(TIn) == sizeof(TOut)) {
+    const VTOut IMin = VTOut{} + std::numeric_limits<TOut>::min();
+    const VTOut IMax = VTOut{} + std::numeric_limits<TOut>::max();
     VTIn X = {std::trunc(V[0]), std::trunc(V[1]), std::trunc(V[2]),
               std::trunc(V[3])};
     VTOut Y = __builtin_convertvector(X, VTOut);
-    Y = X == X ? Y : 0;
-    Y = X <= FMin ? IMin : Y;
-    Y = X >= FMax ? IMax : Y;
+    Y = detail::vectorSelect(X == X, Y, VTOut{});
+    Y = detail::vectorSelect(X <= FMin, IMin, Y);
+    Y = detail::vectorSelect(X >= FMax, IMax, Y);
     Val.emplace<VTOut>(Y);
   } else {
     using TOut2 = std::conditional_t<std::is_signed_v<TOut>, int64_t, uint64_t>;
     using VTOut2 [[gnu::vector_size(16)]] = TOut2;
+    const VTOut2 IMin = VTOut2{} + std::numeric_limits<TOut>::min();
+    const VTOut2 IMax = VTOut2{} + std::numeric_limits<TOut>::max();
     VTIn X = {std::trunc(V[0]), std::trunc(V[1])};
     VTOut2 Y = __builtin_convertvector(X, VTOut2);
-    Y = X <= FMin ? IMin : Y;
-    Y = X >= FMax ? IMax : Y;
+    Y = detail::vectorSelect(X <= FMin, IMin, Y);
+    Y = detail::vectorSelect(X >= FMax, IMax, Y);
     using VTOut22 [[gnu::vector_size(32)]] = TOut2;
     VTOut22 T = {Y[0], Y[1], 0, 0};
     Val.emplace<VTOut>(__builtin_convertvector(T, VTOut));

@@ -12,8 +12,8 @@
 #pragma once
 
 #define SPDLOG_NO_EXCEPTIONS 1
-#include "spdlog/spdlog.h"
 #include "spdlog/fmt/ostr.h"
+#include "spdlog/spdlog.h"
 
 namespace WasmEdge {
 namespace Log {

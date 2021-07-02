@@ -131,9 +131,9 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::Ref__is_null: {
       ValVariant &Val = StackMgr.getTop();
       if (isNullRef(Val)) {
-        Val.emplace<uint32_t>(1);
+        Val.emplace<uint32_t>(UINT32_C(1));
       } else {
-        Val.emplace<uint32_t>(0);
+        Val.emplace<uint32_t>(UINT32_C(0));
       }
       return {};
     }
@@ -834,9 +834,8 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
       ValVariant &Val1 = StackMgr.getTop();
       const uint8x16_t &Index = Val2.get<uint8x16_t>();
       uint8x16_t &Vector = Val1.get<uint8x16_t>();
-      const uint8x16_t Limit = {16, 16, 16, 16, 16, 16, 16, 16,
-                                16, 16, 16, 16, 16, 16, 16, 16};
-      const uint8x16_t Zero = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+      const uint8x16_t Limit = uint8x16_t{} + 16;
+      const uint8x16_t Zero = uint8x16_t{};
       const uint8x16_t Exceed = (Index >= Limit);
 #ifdef __clang__
       uint8x16_t Result = {Vector[Index[0] & 0xF],  Vector[Index[1] & 0xF],
@@ -850,7 +849,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
 #else
       uint8x16_t Result = __builtin_shuffle(Vector, Index);
 #endif
-      Vector = Exceed ? Zero : Result;
+      Vector = detail::vectorSelect(Exceed, Zero, Result);
       return {};
     }
     case OpCode::I8x16__splat:

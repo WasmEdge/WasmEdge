@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/log.h"
 #include "common/value.h"
+#include "interpreter/engine/vector_helper.h"
 #include "interpreter/interpreter.h"
 
 #include <cmath>
@@ -156,12 +157,14 @@ template <typename T>
 TypeF<T> Interpreter::runMinOp(ValVariant &Val1, const ValVariant &Val2) const {
   T &Z1 = Val1.get<T>();
   const T &Z2 = Val2.get<T>();
+  const T kZero = 0.0;
   /// TODO: canonical and arithmetical NaN
   if (std::isnan(Z2)) {
     Z1 = Z2;
-  } else if (Z1 == 0.0 && Z2 == 0.0 && std::signbit(Z1) != std::signbit(Z2)) {
+  } else if (Z1 == kZero && Z2 == kZero &&
+             std::signbit(Z1) != std::signbit(Z2)) {
     /// If both z1 and z2 are zeroes of opposite signs, then return -0.0.
-    Z1 = -0.0;
+    Z1 = -kZero;
   } else if (!std::isnan(Z1)) {
     /// Else return the min of z1 and z2. (Inf case are handled.)
     Z1 = std::min(Z1, Z2);
@@ -173,12 +176,14 @@ template <typename T>
 TypeF<T> Interpreter::runMaxOp(ValVariant &Val1, const ValVariant &Val2) const {
   T &Z1 = Val1.get<T>();
   const T &Z2 = Val2.get<T>();
+  const T kZero = 0.0;
   /// TODO: canonical and arithmetical NaN
   if (std::isnan(Z2)) {
     Z1 = Z2;
-  } else if (Z1 == 0.0 && Z2 == 0.0 && std::signbit(Z1) != std::signbit(Z2)) {
+  } else if (Z1 == kZero && Z2 == kZero &&
+             std::signbit(Z1) != std::signbit(Z2)) {
     /// If both z1 and z2 are zeroes of opposite signs, then return +0.0.
-    Z1 = 0.0;
+    Z1 = kZero;
   } else if (!std::isnan(Z1)) {
     /// Else return the max of z1 and z2. (Inf case are handled.)
     Z1 = std::max(Z1, Z2);
@@ -287,14 +292,14 @@ Expect<void> Interpreter::runVectorNarrowOp(ValVariant &Val1,
   using HVTOut [[gnu::vector_size(8)]] = TOut;
   using VTOut [[gnu::vector_size(16)]] = TOut;
 
-  const TIn Min = static_cast<TIn>(std::numeric_limits<TOut>::min());
-  const TIn Max = static_cast<TIn>(std::numeric_limits<TOut>::max());
+  const VTIn Min = VTIn{} + static_cast<TIn>(std::numeric_limits<TOut>::min());
+  const VTIn Max = VTIn{} + static_cast<TIn>(std::numeric_limits<TOut>::max());
   VTIn V1 = Val1.get<VTIn>();
   VTIn V2 = Val2.get<VTIn>();
-  V1 = V1 < Min ? Min : V1;
-  V1 = V1 > Max ? Max : V1;
-  V2 = V2 < Min ? Min : V2;
-  V2 = V2 > Max ? Max : V2;
+  V1 = detail::vectorSelect(V1 < Min, Min, V1);
+  V1 = detail::vectorSelect(V1 > Max, Max, V1);
+  V2 = detail::vectorSelect(V2 < Min, Min, V2);
+  V2 = detail::vectorSelect(V2 > Max, Max, V2);
   const HVTOut HV1 = __builtin_convertvector(V1, HVTOut);
   const HVTOut HV2 = __builtin_convertvector(V2, HVTOut);
   if constexpr (sizeof(TOut) == 1) {
@@ -354,7 +359,7 @@ Expect<void> Interpreter::runVectorAddSatOp(ValVariant &Val1,
     const UVT Limit =
         (V1 >> (sizeof(T) * 8 - 1)) + std::numeric_limits<T>::max();
     const VT Over = reinterpret_cast<VT>((V1 ^ V2) | ~(V2 ^ Result));
-    V1 = Over >= 0 ? Limit : Result;
+    V1 = detail::vectorSelect(Over >= 0, Limit, Result);
   } else {
     V1 = Result | (Result < V1);
   }
@@ -385,7 +390,7 @@ Expect<void> Interpreter::runVectorSubSatOp(ValVariant &Val1,
     const UVT Limit =
         (V1 >> (sizeof(T) * 8 - 1)) + std::numeric_limits<T>::max();
     const VT Under = reinterpret_cast<VT>((V1 ^ V2) & (V1 ^ Result));
-    V1 = Under < 0 ? Limit : Result;
+    V1 = detail::vectorSelect(Under < 0, Limit, Result);
   } else {
     V1 = Result & (Result <= V1);
   }
@@ -419,7 +424,7 @@ Expect<void> Interpreter::runVectorMinOp(ValVariant &Val1,
   using VT [[gnu::vector_size(16)]] = T;
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
-  V1 = V1 > V2 ? V2 : V1;
+  V1 = detail::vectorSelect(V1 > V2, V2, V1);
 
   return {};
 }
@@ -430,7 +435,7 @@ Expect<void> Interpreter::runVectorMaxOp(ValVariant &Val1,
   using VT [[gnu::vector_size(16)]] = T;
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
-  V1 = V2 > V1 ? V2 : V1;
+  V1 = detail::vectorSelect(V2 > V1, V2, V1);
 
   return {};
 }
@@ -442,8 +447,8 @@ Expect<void> Interpreter::runVectorFMinOp(ValVariant &Val1,
   using VT [[gnu::vector_size(16)]] = T;
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
-  VT A = (V1 < V2) ? V1 : V2;
-  VT B = (V2 < V1) ? V2 : V1;
+  VT A = detail::vectorSelect(V1 < V2, V1, V2);
+  VT B = detail::vectorSelect(V2 < V1, V2, V1);
   V1 = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(A) |
                             reinterpret_cast<uint64x2_t>(B));
 
@@ -456,8 +461,8 @@ Expect<void> Interpreter::runVectorFMaxOp(ValVariant &Val1,
   using VT [[gnu::vector_size(16)]] = T;
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
-  VT A = (V1 > V2) ? V1 : V2;
-  VT B = (V2 > V1) ? V2 : V1;
+  VT A = detail::vectorSelect(V1 > V2, V1, V2);
+  VT B = detail::vectorSelect(V2 > V1, V2, V1);
   V1 = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(A) &
                             reinterpret_cast<uint64x2_t>(B));
 
@@ -551,7 +556,8 @@ Interpreter::runVectorQ15MulSatOp(ValVariant &Val1,
   const auto EV1 = __builtin_convertvector(V1, int32x8_t);
   const auto EV2 = __builtin_convertvector(V2, int32x8_t);
   const auto ER = (EV1 * EV2 + INT32_C(0x4000)) >> INT32_C(15);
-  const auto ERSat = ER > INT32_C(0x7fff) ? INT32_C(0x7fff) : ER;
+  const int32x8_t Cap = int32x8_t{} + INT32_C(0x7fff);
+  const auto ERSat = detail::vectorSelect(ER > Cap, Cap, ER);
   Val1.emplace<int16x8_t>(__builtin_convertvector(ERSat, int16x8_t));
   return {};
 }

@@ -2,15 +2,19 @@
 
 #include "host/wasmedge_process/processfunc.h"
 
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <signal.h>
 #include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#elif WASMEDGE_OS_WINDOWS
+#endif
 
 namespace WasmEdge {
 namespace Host {
@@ -41,7 +45,7 @@ WasmEdgeProcessAddArg::body(Runtime::Instance::MemoryInstance *MemInst,
   std::copy_n(Buf, ArgLen, std::back_inserter(NewArg));
   Env.Args.push_back(std::move(NewArg));
   return {};
-};
+}
 
 Expect<void>
 WasmEdgeProcessAddEnv::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -59,7 +63,7 @@ WasmEdgeProcessAddEnv::body(Runtime::Instance::MemoryInstance *MemInst,
   std::copy_n(ValBuf, EnvValLen, std::back_inserter(NewVal));
   Env.Envs.emplace(std::move(NewEnv), std::move(NewVal));
   return {};
-};
+}
 
 Expect<void>
 WasmEdgeProcessAddStdIn::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -73,17 +77,17 @@ WasmEdgeProcessAddStdIn::body(Runtime::Instance::MemoryInstance *MemInst,
   Env.StdIn.reserve(Env.StdIn.size() + BufLen);
   std::copy_n(Buf, BufLen, std::back_inserter(Env.StdIn));
   return {};
-};
+}
 
 Expect<void>
-WasmEdgeProcessSetTimeOut::body(Runtime::Instance::MemoryInstance *MemInst,
+WasmEdgeProcessSetTimeOut::body(Runtime::Instance::MemoryInstance *,
                                 uint32_t Time) {
   Env.TimeOut = Time;
   return {};
-};
+}
 
-Expect<uint32_t>
-WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
+Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
   /// Clear outputs.
   Env.StdOut.clear();
   Env.StdErr.clear();
@@ -167,8 +171,12 @@ WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
                    [](std::string &S) { return S.data(); });
     Argv.push_back(nullptr);
     Envp.push_back(nullptr);
+#if defined(__GLIBC_PREREQ)
 #if __GLIBC_PREREQ(2, 11)
     if (execvpe(Env.Name.c_str(), &Argv[0], &Envp[0]) == -1) {
+#else
+    if (execve(Env.Name.c_str(), &Argv[0], &Envp[0]) == -1) {
+#endif
 #else
     if (execve(Env.Name.c_str(), &Argv[0], &Envp[0]) == -1) {
 #endif
@@ -283,17 +291,21 @@ WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *MemInst) {
   Env.StdIn.clear();
   Env.TimeOut = Env.DEFAULT_TIMEOUT;
   return Env.ExitCode;
-};
+#elif WASMEDGE_OS_WINDOWS
+  spdlog::error("wasmedge_process doesn't support windows now.");
+  return Unexpect(ErrCode::ExecutionFailed);
+#endif
+}
 
 Expect<uint32_t>
-WasmEdgeProcessGetExitCode::body(Runtime::Instance::MemoryInstance *MemInst) {
+WasmEdgeProcessGetExitCode::body(Runtime::Instance::MemoryInstance *) {
   return Env.ExitCode;
-};
+}
 
 Expect<uint32_t>
-WasmEdgeProcessGetStdOutLen::body(Runtime::Instance::MemoryInstance *MemInst) {
-  return Env.StdOut.size();
-};
+WasmEdgeProcessGetStdOutLen::body(Runtime::Instance::MemoryInstance *) {
+  return static_cast<uint32_t>(Env.StdOut.size());
+}
 
 Expect<void>
 WasmEdgeProcessGetStdOut::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -306,12 +318,12 @@ WasmEdgeProcessGetStdOut::body(Runtime::Instance::MemoryInstance *MemInst,
   char *Buf = MemInst->getPointer<char *>(BufPtr);
   std::copy_n(Env.StdOut.begin(), Env.StdOut.size(), Buf);
   return {};
-};
+}
 
 Expect<uint32_t>
-WasmEdgeProcessGetStdErrLen::body(Runtime::Instance::MemoryInstance *MemInst) {
-  return Env.StdErr.size();
-};
+WasmEdgeProcessGetStdErrLen::body(Runtime::Instance::MemoryInstance *) {
+  return static_cast<uint32_t>(Env.StdErr.size());
+}
 
 Expect<void>
 WasmEdgeProcessGetStdErr::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -324,7 +336,7 @@ WasmEdgeProcessGetStdErr::body(Runtime::Instance::MemoryInstance *MemInst,
   char *Buf = MemInst->getPointer<char *>(BufPtr);
   std::copy_n(Env.StdErr.begin(), Env.StdErr.size(), Buf);
   return {};
-};
+}
 
 } // namespace Host
 } // namespace WasmEdge

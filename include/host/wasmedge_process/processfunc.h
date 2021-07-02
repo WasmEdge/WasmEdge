@@ -13,24 +13,24 @@ namespace Host {
 class WasmEdgeProcessSetProgName
     : public WasmEdgeProcess<WasmEdgeProcessSetProgName> {
 public:
-  WasmEdgeProcessSetProgName(WasmEdgeProcessEnvironment &Env)
-      : WasmEdgeProcess(Env) {}
+  WasmEdgeProcessSetProgName(WasmEdgeProcessEnvironment &HostEnv)
+      : WasmEdgeProcess(HostEnv) {}
   Expect<void> body(Runtime::Instance::MemoryInstance *MemInst,
                     uint32_t NamePtr, uint32_t NameLen);
 };
 
 class WasmEdgeProcessAddArg : public WasmEdgeProcess<WasmEdgeProcessAddArg> {
 public:
-  WasmEdgeProcessAddArg(WasmEdgeProcessEnvironment &Env)
-      : WasmEdgeProcess(Env) {}
+  WasmEdgeProcessAddArg(WasmEdgeProcessEnvironment &HostEnv)
+      : WasmEdgeProcess(HostEnv) {}
   Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, uint32_t ArgPtr,
                     uint32_t ArgLen);
 };
 
 class WasmEdgeProcessAddEnv : public WasmEdgeProcess<WasmEdgeProcessAddEnv> {
 public:
-  WasmEdgeProcessAddEnv(WasmEdgeProcessEnvironment &Env)
-      : WasmEdgeProcess(Env) {}
+  WasmEdgeProcessAddEnv(WasmEdgeProcessEnvironment &HostEnv)
+      : WasmEdgeProcess(HostEnv) {}
   Expect<void> body(Runtime::Instance::MemoryInstance *MemInst,
                     uint32_t EnvNamePtr, uint32_t EnvNameLen,
                     uint32_t EnvValPtr, uint32_t EnvValLen);
@@ -39,8 +39,8 @@ public:
 class WasmEdgeProcessAddStdIn
     : public WasmEdgeProcess<WasmEdgeProcessAddStdIn> {
 public:
-  WasmEdgeProcessAddStdIn(WasmEdgeProcessEnvironment &Env)
-      : WasmEdgeProcess(Env) {}
+  WasmEdgeProcessAddStdIn(WasmEdgeProcessEnvironment &HostEnv)
+      : WasmEdgeProcess(HostEnv) {}
   Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, uint32_t BufPtr,
                     uint32_t BufLen);
 };
@@ -48,38 +48,39 @@ public:
 class WasmEdgeProcessSetTimeOut
     : public WasmEdgeProcess<WasmEdgeProcessSetTimeOut> {
 public:
-  WasmEdgeProcessSetTimeOut(WasmEdgeProcessEnvironment &Env)
-      : WasmEdgeProcess(Env) {}
+  WasmEdgeProcessSetTimeOut(WasmEdgeProcessEnvironment &HostEnv)
+      : WasmEdgeProcess(HostEnv) {}
   Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, uint32_t Time);
 };
 
 class WasmEdgeProcessRun : public WasmEdgeProcess<WasmEdgeProcessRun> {
 public:
-  WasmEdgeProcessRun(WasmEdgeProcessEnvironment &Env) : WasmEdgeProcess(Env) {}
+  WasmEdgeProcessRun(WasmEdgeProcessEnvironment &HostEnv)
+      : WasmEdgeProcess(HostEnv) {}
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst);
 };
 
 class WasmEdgeProcessGetExitCode
     : public WasmEdgeProcess<WasmEdgeProcessGetExitCode> {
 public:
-  WasmEdgeProcessGetExitCode(WasmEdgeProcessEnvironment &Env)
-      : WasmEdgeProcess(Env) {}
+  WasmEdgeProcessGetExitCode(WasmEdgeProcessEnvironment &HostEnv)
+      : WasmEdgeProcess(HostEnv) {}
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst);
 };
 
 class WasmEdgeProcessGetStdOutLen
     : public WasmEdgeProcess<WasmEdgeProcessGetStdOutLen> {
 public:
-  WasmEdgeProcessGetStdOutLen(WasmEdgeProcessEnvironment &Env)
-      : WasmEdgeProcess(Env) {}
+  WasmEdgeProcessGetStdOutLen(WasmEdgeProcessEnvironment &HostEnv)
+      : WasmEdgeProcess(HostEnv) {}
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst);
 };
 
 class WasmEdgeProcessGetStdOut
     : public WasmEdgeProcess<WasmEdgeProcessGetStdOut> {
 public:
-  WasmEdgeProcessGetStdOut(WasmEdgeProcessEnvironment &Env)
-      : WasmEdgeProcess(Env) {}
+  WasmEdgeProcessGetStdOut(WasmEdgeProcessEnvironment &HostEnv)
+      : WasmEdgeProcess(HostEnv) {}
   Expect<void> body(Runtime::Instance::MemoryInstance *MemInst,
                     uint32_t BufPtr);
 };
@@ -87,16 +88,16 @@ public:
 class WasmEdgeProcessGetStdErrLen
     : public WasmEdgeProcess<WasmEdgeProcessGetStdErrLen> {
 public:
-  WasmEdgeProcessGetStdErrLen(WasmEdgeProcessEnvironment &Env)
-      : WasmEdgeProcess(Env) {}
+  WasmEdgeProcessGetStdErrLen(WasmEdgeProcessEnvironment &HostEnv)
+      : WasmEdgeProcess(HostEnv) {}
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst);
 };
 
 class WasmEdgeProcessGetStdErr
     : public WasmEdgeProcess<WasmEdgeProcessGetStdErr> {
 public:
-  WasmEdgeProcessGetStdErr(WasmEdgeProcessEnvironment &Env)
-      : WasmEdgeProcess(Env) {}
+  WasmEdgeProcessGetStdErr(WasmEdgeProcessEnvironment &HostEnv)
+      : WasmEdgeProcess(HostEnv) {}
   Expect<void> body(Runtime::Instance::MemoryInstance *MemInst,
                     uint32_t BufPtr);
 };

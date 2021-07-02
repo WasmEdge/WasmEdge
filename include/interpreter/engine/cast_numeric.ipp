@@ -77,7 +77,7 @@ TypeFI<TIn, TOut> Interpreter::runTruncateOp(const AST::Instruction &Instr,
     }
   }
   /// Else, return trunc(z). Signed case handled.
-  Val.emplace<TOut>(Z);
+  Val.emplace<TOut>(static_cast<TOut>(Z));
   return {};
 }
 
@@ -86,7 +86,7 @@ TypeFI<TIn, TOut> Interpreter::runTruncateSatOp(ValVariant &Val) const {
   TIn Z = Val.get<TIn>();
   if (std::isnan(Z)) {
     /// If z is a NaN, return 0.
-    Val.emplace<TOut>(0);
+    Val.emplace<TOut>(static_cast<TOut>(0));
   } else if (std::isinf(Z)) {
     if (Z < std::numeric_limits<TIn>::lowest()) {
       /// If z is -inf, return min limit.
@@ -106,7 +106,7 @@ TypeFI<TIn, TOut> Interpreter::runTruncateSatOp(ValVariant &Val) const {
       } else if (Z > ValTOutMax) {
         Val.emplace<TOut>(std::numeric_limits<TOut>::max());
       } else {
-        Val.emplace<TOut>(Z);
+        Val.emplace<TOut>(static_cast<TOut>(Z));
       }
     } else {
       /// Floating precision is worse than integer case.
@@ -115,7 +115,7 @@ TypeFI<TIn, TOut> Interpreter::runTruncateSatOp(ValVariant &Val) const {
       } else if (Z >= ValTOutMax) {
         Val.emplace<TOut>(std::numeric_limits<TOut>::max());
       } else {
-        Val.emplace<TOut>(Z);
+        Val.emplace<TOut>(static_cast<TOut>(Z));
       }
     }
   }
@@ -126,9 +126,10 @@ template <typename TIn, typename TOut, size_t B>
 TypeIU<TIn, TOut> Interpreter::runExtendOp(ValVariant &Val) const {
   /// Return i extend to TOut. Signed case handled.
   if (B == sizeof(TIn) * 8) {
-    Val.emplace<TOut>(Val.get<TIn>());
+    Val.emplace<TOut>(static_cast<TOut>(Val.get<TIn>()));
   } else {
-    Val.emplace<TOut>(static_cast<TypeFromBytesT<TIn, B>>(Val.get<TIn>()));
+    Val.emplace<TOut>(
+        static_cast<TOut>(static_cast<TypeFromBytesT<TIn, B>>(Val.get<TIn>())));
   }
   return {};
 }
@@ -136,21 +137,21 @@ TypeIU<TIn, TOut> Interpreter::runExtendOp(ValVariant &Val) const {
 template <typename TIn, typename TOut>
 TypeIF<TIn, TOut> Interpreter::runConvertOp(ValVariant &Val) const {
   /// Return i convert to TOut. Signed case handled.
-  Val.emplace<TOut>(Val.get<TIn>());
+  Val.emplace<TOut>(static_cast<TOut>(Val.get<TIn>()));
   return {};
 }
 
 template <typename TIn, typename TOut>
 TypeFF<TIn, TOut> Interpreter::runDemoteOp(ValVariant &Val) const {
   /// Return i convert to TOut. (NaN, inf, and zeros handled)
-  Val.emplace<TOut>(Val.get<TIn>());
+  Val.emplace<TOut>(static_cast<TOut>(Val.get<TIn>()));
   return {};
 }
 
 template <typename TIn, typename TOut>
 TypeFF<TIn, TOut> Interpreter::runPromoteOp(ValVariant &Val) const {
   /// Return i convert to TOut. (NaN, inf, and zeros handled)
-  Val.emplace<TOut>(Val.get<TIn>());
+  Val.emplace<TOut>(static_cast<TOut>(Val.get<TIn>()));
   return {};
 }
 

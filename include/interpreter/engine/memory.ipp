@@ -136,7 +136,7 @@ Interpreter::runLoadSplatOp(Runtime::Instance::MemoryInstance &MemInst,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
   }
-  const T Part = Buffer;
+  const T Part = static_cast<T>(Buffer);
 
   if constexpr (sizeof(T) == 1) {
     Val.emplace<VT>(VT{Part, Part, Part, Part, Part, Part, Part, Part, Part,
@@ -180,7 +180,7 @@ Interpreter::runLoadLaneOp(Runtime::Instance::MemoryInstance &MemInst,
     return Unexpect(Res);
   }
 
-  Result[Instr.getTargetIndex()] = Buffer;
+  Result[Instr.getTargetIndex()] = static_cast<T>(Buffer);
   Val.emplace<VT>(Result);
   return {};
 }

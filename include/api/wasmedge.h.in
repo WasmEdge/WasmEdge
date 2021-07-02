@@ -10,10 +10,11 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef __WASMEDGE_C_API_H__
-#define __WASMEDGE_C_API_H__
+#ifndef WASMEDGE_C_API_H
+#define WASMEDGE_C_API_H
 
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||              \
+    defined(__TOS_WIN__) || defined(__WINDOWS__)
 #ifdef WASMEDGE_COMPILE_LIBRARY
 #define WASMEDGE_CAPI_EXPORT __declspec(dllexport)
 #else
@@ -79,9 +80,9 @@ typedef struct WasmEdge_String {
 typedef struct WasmEdge_Result {
   uint8_t Code;
 } WasmEdge_Result;
-#define WasmEdge_Result_Success (WasmEdge_Result){.Code = 0x00};
-#define WasmEdge_Result_Terminate (WasmEdge_Result){.Code = 0x01};
-#define WasmEdge_Result_Fail (WasmEdge_Result){.Code = 0x02};
+#define WasmEdge_Result_Success ((WasmEdge_Result){.Code = 0x00})
+#define WasmEdge_Result_Terminate ((WasmEdge_Result){.Code = 0x01})
+#define WasmEdge_Result_Fail ((WasmEdge_Result){.Code = 0x02})
 
 /// Struct of WASM limit.
 typedef struct WasmEdge_Limit {
@@ -192,32 +193,32 @@ extern "C" {
 /// The returned string must __NOT__ be freed.
 ///
 /// \returns NULL-terminated C string of version.
-WASMEDGE_CAPI_EXPORT extern const char *WasmEdge_VersionGet();
+WASMEDGE_CAPI_EXPORT extern const char *WasmEdge_VersionGet(void);
 
 /// Get the major version value of the WasmEdge C API.
 ///
 /// \returns Value of the major version.
-WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetMajor();
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetMajor(void);
 
 /// Get the minor version value of the WasmEdge C API.
 ///
 /// \returns Value of the minor version.
-WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetMinor();
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetMinor(void);
 
 /// Get the patch version value of the WasmEdge C API.
 ///
 /// \returns Value of the patch version.
-WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetPatch();
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetPatch(void);
 
 /// <<<<<<<< WasmEdge version functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> WasmEdge logging functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Set the logging system to filter to error level.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetErrorLevel();
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetErrorLevel(void);
 
 /// Set the logging system to filter to debug level.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetDebugLevel();
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetDebugLevel(void);
 
 /// <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -465,7 +466,7 @@ WasmEdge_ResultGetMessage(const WasmEdge_Result Res);
 ///
 /// \returns pointer to the context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ConfigureContext *
-WasmEdge_ConfigureCreate();
+WasmEdge_ConfigureCreate(void);
 
 /// Add a proposal setting into the WasmEdge_ConfigureContext.
 ///
@@ -523,7 +524,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureAddHostRegistration(
 /// Remove a host pre-registration setting in the WasmEdge_ConfigureContext.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to remove the host
-/// pre-registration. \param Prop the host pre-registration value.
+/// pre-registration. \param Host the host pre-registration value.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureRemoveHostRegistration(
     WasmEdge_ConfigureContext *Cxt, const enum WasmEdge_HostRegistration Host);
 
@@ -531,7 +532,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureRemoveHostRegistration(
 /// WasmEdge_ConfigureContext or not.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to check the host pre-registration.
-/// \param Prop the host pre-registration value.
+/// \param Host the host pre-registration value.
 ///
 /// \returns true if the host pre-registration setting exists, false if not.
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureHasHostRegistration(
@@ -649,7 +650,7 @@ WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_StatisticsContext *
-WasmEdge_StatisticsCreate();
+WasmEdge_StatisticsCreate(void);
 
 /// Get the instruction count in execution.
 ///
@@ -726,9 +727,6 @@ WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt);
 /// The caller owns the object and should call `WasmEdge_CompilerDelete` to free
 /// it.
 ///
-/// \param ConfCxt the WasmEdge_ConfigureContext as the configuration of Loader.
-/// NULL for the default configuration.
-///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_CompilerContext *
 WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt);
@@ -737,9 +735,6 @@ WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt);
 ///
 /// The caller owns the object and should call `WasmEdge_CompilerDelete` to free
 /// it.
-///
-/// \param ConfCxt the WasmEdge_ConfigureContext as the configuration of Loader.
-/// NULL for the default configuration.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
@@ -993,7 +988,7 @@ WasmEdge_InterpreterDelete(WasmEdge_InterpreterContext *Cxt);
 /// it.
 ///
 /// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_StoreContext *WasmEdge_StoreCreate();
+WASMEDGE_CAPI_EXPORT extern WasmEdge_StoreContext *WasmEdge_StoreCreate(void);
 
 /// Get the function instance context by the function name.
 ///
@@ -2469,4 +2464,4 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt);
 } /// extern "C"
 #endif
 
-#endif /// __WASMEDGE_C_API_H__
+#endif /// WASMEDGE_C_API_H

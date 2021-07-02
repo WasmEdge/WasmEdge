@@ -20,6 +20,11 @@ add_library(wasmedgeInterpreter
   interpreter.cpp
 )
 
+target_compile_options(wasmedgeInterpreter
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
+
 target_link_libraries(wasmedgeInterpreter
   PUBLIC
   wasmedgeCommon

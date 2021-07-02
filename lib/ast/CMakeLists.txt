@@ -10,8 +10,14 @@ add_library(wasmedgeAST
   instruction.cpp
 )
 
+target_compile_options(wasmedgeAST
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
+
 target_link_libraries(wasmedgeAST
   PUBLIC
   wasmedgeLoaderFileMgr
   wasmedgeCommon
+  wasmedgeLoaderFileMgr
 )

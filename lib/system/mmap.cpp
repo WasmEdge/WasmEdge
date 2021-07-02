@@ -6,22 +6,12 @@
 #include <memory>
 #include <tuple>
 
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #ifdef HAVE_MMAP
-#define MAP_MMAP 1
-#else
-#define MAP_STUB 1
-#endif
-#elif WASMEDGE_OS_WINDOWS
-#define MAP_WINAPI 1
-#endif
-
-#if MAP_MMAP
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#elif MAP_WINAPI
+#elif WASMEDGE_OS_WINDOWS
 #include <boost/winapi/access_rights.hpp>
 #include <boost/winapi/file_management.hpp>
 #include <boost/winapi/file_mapping.hpp>
@@ -32,7 +22,7 @@
 namespace WasmEdge {
 
 namespace {
-#if MAP_MMAP
+#ifdef HAVE_MMAP
 static inline bool kSupported = true;
 struct Implement {
   void *Address = MAP_FAILED;
@@ -64,7 +54,7 @@ struct Implement {
   }
   bool ok() const noexcept { return Address != MAP_FAILED; }
 };
-#elif MAP_WINAPI
+#elif WASMEDGE_OS_WINDOWS
 static inline bool kSupported = true;
 struct Implement {
   void *Address = nullptr;
@@ -84,8 +74,9 @@ struct Implement {
     boost::winapi::GetFileSizeEx(File, &Size);
 
     Map = boost::winapi::CreateFileMappingW(
-        File, nullptr, boost::winapi::PAGE_READONLY_, Size.HighPart,
-        Size.LowPart, nullptr);
+        File, nullptr, boost::winapi::PAGE_READONLY_,
+        static_cast<boost::winapi::ULONG_>(Size.HighPart), Size.LowPart,
+        nullptr);
     if (Map == nullptr) {
       Map = boost::winapi::invalid_handle_value;
       return;
@@ -110,7 +101,7 @@ struct Implement {
   }
   bool ok() const noexcept { return Address != nullptr; }
 };
-#elif MAP_STUB
+#else
 static inline bool kSupported = false;
 struct Implement {
   Implement(const std::filesystem::path &Path) noexcept = default;

@@ -7,7 +7,7 @@ using cxx20::unexpect;
 
 TEST(ExtensionsTest, Map) {
   auto mul2 = [](int a) { return a * 2; };
-  auto ret_void = [](int a) {};
+  auto ret_void = [](int) {};
 
   {
     expected<int, int> e = 21;
@@ -132,7 +132,7 @@ TEST(ExtensionsTest, Map) {
 
 TEST(ExtensionsTest, MapError) {
   auto mul2 = [](int a) { return a * 2; };
-  auto ret_void = [](int a) {};
+  auto ret_void = [](int) {};
 
   {
     expected<int, int> e = 21;
@@ -240,8 +240,8 @@ TEST(ExtensionsTest, MapError) {
 }
 
 TEST(ExtensionsTest, AndThen) {
-  auto succeed = [](int a) { return expected<int, int>(21 * 2); };
-  auto fail = [](int a) { return expected<int, int>(unexpect, 17); };
+  auto succeed = [](int) { return expected<int, int>(21 * 2); };
+  auto fail = [](int) { return expected<int, int>(unexpect, 17); };
 
   {
     expected<int, int> e = 21;
@@ -358,9 +358,9 @@ TEST(ExtensionsTest, AndThen) {
 
 TEST(ExtensionsTest, OrElse) {
   using eptr = std::unique_ptr<int>;
-  auto succeed = [](int a) { return expected<int, int>(21 * 2); };
-  auto succeedptr = [](eptr e) { return expected<int, eptr>(21 * 2); };
-  auto fail = [](int a) { return expected<int, int>(unexpect, 17); };
+  auto succeed = [](int) { return expected<int, int>(21 * 2); };
+  auto succeedptr = [](eptr) { return expected<int, eptr>(21 * 2); };
+  auto fail = [](int) { return expected<int, int>(unexpect, 17); };
   auto efail = [](eptr e) {
     *e = 17;
     return expected<int, eptr>(unexpect, std::move(e));
@@ -556,9 +556,7 @@ struct F {
 TEST(ExtensionsTest, Issue14) {
   auto res = expected<S, F>{unexpect, F{}};
 
-  res.map_error([](F f) {
-
-  });
+  res.map_error([](F) {});
 }
 
 TEST(ExtensionsTest, Issue32) {

@@ -31,7 +31,7 @@ Expect<void> Section::loadSize(FileMgr &Mgr) {
 }
 
 /// Load content of custom section. See "include/ast/section.h".
-Expect<void> CustomSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
+Expect<void> CustomSection::loadContent(FileMgr &Mgr, const Configure &) {
   /// Read name.
   auto ReadSize = Mgr.getOffset();
   if (auto Res = Mgr.readName()) {
@@ -60,7 +60,7 @@ Expect<void> ImportSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
 }
 
 /// Load vector of function section. See "include/ast/section.h".
-Expect<void> FunctionSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
+Expect<void> FunctionSection::loadContent(FileMgr &Mgr, const Configure &) {
   auto StartOffset = Mgr.getOffset();
   uint32_t VecCnt = 0;
   /// Read vector count.
@@ -107,7 +107,7 @@ Expect<void> ExportSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
 }
 
 /// Load start function index. See "include/ast/section.h".
-Expect<void> StartSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
+Expect<void> StartSection::loadContent(FileMgr &Mgr, const Configure &) {
   auto StartOffset = Mgr.getOffset();
   if (auto Res = Mgr.readU32()) {
     Content = *Res;
@@ -138,8 +138,7 @@ Expect<void> DataSection::loadContent(FileMgr &Mgr, const Configure &Conf) {
 }
 
 /// Load content of data count section. See "include/ast/section.h".
-Expect<void> DataCountSection::loadContent(FileMgr &Mgr,
-                                           const Configure &Conf) {
+Expect<void> DataCountSection::loadContent(FileMgr &Mgr, const Configure &) {
   auto StartOffset = Mgr.getOffset();
   /// Read u32 of data count.
   if (auto Res = Mgr.readU32()) {

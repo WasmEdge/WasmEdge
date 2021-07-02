@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include "host/wasi/environ.h"
 #include "runtime/importobj.h"
-#include "wasienv.h"
-
-#include <cstdint>
 
 namespace WasmEdge {
 namespace Host {
@@ -13,10 +11,10 @@ class WasiModule : public Runtime::ImportObject {
 public:
   WasiModule();
 
-  WasiEnvironment &getEnv() { return Env; }
+  WASI::Environ &getEnv() { return Env; }
 
 private:
-  WasiEnvironment Env;
+  WASI::Environ Env;
 };
 
 } // namespace Host

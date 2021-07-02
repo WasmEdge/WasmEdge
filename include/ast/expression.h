@@ -45,7 +45,7 @@ public:
   void pushInstr(const Instruction &Instr) { Instrs.emplace_back(Instr); }
 
   /// The node type should be ASTNodeAttr::Expression.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Expression;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Expression;
 
 private:
   /// Instruction sequence.

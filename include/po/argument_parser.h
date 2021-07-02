@@ -107,7 +107,7 @@ private:
     }
 
     bool parse(Span<const char *> ProgramNamePrefix, int Argc,
-               const char *Argv[], int ArgP, const bool &VerOpt) noexcept {
+               const char *Argv[], int ArgP, const bool &VersionOpt) noexcept {
       try {
         ProgramNames.reserve(ProgramNamePrefix.size() + 1);
         ProgramNames.assign(ProgramNamePrefix.begin(), ProgramNamePrefix.end());
@@ -148,7 +148,8 @@ private:
                     Iter != SubCommandMap.end()) {
                   auto &Child = this[Iter->second];
                   Child.SC->select();
-                  return Child.parse(ProgramNames, Argc, Argv, ArgI, VerOpt);
+                  return Child.parse(ProgramNames, Argc, Argv, ArgI,
+                                     VersionOpt);
                 }
               }
             }
@@ -170,7 +171,7 @@ private:
           CurrentDesc->default_value();
         }
 
-        if (VerOpt) {
+        if (VersionOpt) {
           return true;
         }
         if (!HelpOpt->value()) {

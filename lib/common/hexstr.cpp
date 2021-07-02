@@ -1,34 +1,32 @@
 #include "common/hexstr.h"
 #include <cinttypes>
+#include <spdlog/fmt/fmt.h>
 
 namespace WasmEdge {
 
 uint8_t convertCharToHex(const char C) {
   if (C >= '0' && C <= '9') {
-    return C - '0';
+    return static_cast<uint8_t>(C - '0') + UINT8_C(0);
   }
   if (C >= 'a' && C <= 'f') {
-    return (C - 'a') + 10;
+    return static_cast<uint8_t>(C - 'a') + UINT8_C(10);
   }
   if (C >= 'A' && C <= 'F') {
-    return (C - 'A') + 10;
+    return static_cast<uint8_t>(C - 'A') + UINT8_C(10);
   }
-  return 0U;
+  return UINT8_C(0);
 }
 
 void convertBytesToHexStr(Span<const uint8_t> Src, std::string &Dst,
                           const uint32_t Padding, const bool IsLittleEndian) {
   Dst.clear();
-  char Buf[3] = {0};
   if (IsLittleEndian) {
     for (auto It = Src.rbegin(); It != Src.rend(); It++) {
-      std::snprintf(Buf, 3, "%02x", *It);
-      Dst += Buf;
+      Dst += fmt::format("{:02x}", *It);
     }
   } else {
     for (auto It = Src.begin(); It != Src.end(); It++) {
-      std::snprintf(Buf, 3, "%02x", *It);
-      Dst += Buf;
+      Dst += fmt::format("{:02x}", *It);
     }
   }
   if (Dst.length() < Padding) {
@@ -59,15 +57,15 @@ void convertHexStrToBytes(std::string_view Src, std::vector<uint8_t> &Dst,
   }
   if (IsLittleEndian) {
     for (auto It = S.crbegin(); It != S.crend(); It += 2) {
-      char CL = *It;
-      char CH = *(It + 1);
-      Dst.push_back(convertCharToHex(CL) + (convertCharToHex(CH) << 4));
+      uint8_t CL = convertCharToHex(*It);
+      uint8_t CH = convertCharToHex(*(It + 1)) * static_cast<uint8_t>(16);
+      Dst.push_back(CL + CH);
     }
   } else {
     for (auto It = S.cbegin(); It != S.cend(); It += 2) {
-      char CH = *It;
-      char CL = *(It + 1);
-      Dst.push_back(convertCharToHex(CL) + (convertCharToHex(CH) << 4));
+      uint8_t CH = convertCharToHex(*It) * static_cast<uint8_t>(16);
+      uint8_t CL = convertCharToHex(*(It + 1));
+      Dst.push_back(CL + CH);
     }
   }
 }
@@ -78,10 +76,7 @@ void convertHexStrToValVec(std::string_view Src, std::vector<uint8_t> &Dst,
 }
 
 std::string convertUIntToHexStr(const uint64_t Num, uint32_t MinLen) {
-  char Str[32];
-  const int FieldWidth = std::min(MinLen, UINT32_C(16));
-  std::sprintf(Str, "0x%0*" PRIx64, FieldWidth, Num);
-  return Str;
+  return fmt::format("0x{:0{}x}", Num, std::min(MinLen, UINT32_C(16)));
 }
 
 } // namespace WasmEdge

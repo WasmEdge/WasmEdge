@@ -115,7 +115,7 @@ public:
 
 private:
   T *m_data;
-  ptrdiff_t m_size;
+  size_t m_size;
 };
 
 } // namespace detail

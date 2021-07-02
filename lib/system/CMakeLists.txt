@@ -13,6 +13,11 @@ add_library(wasmedgeSystem
   path.cpp
 )
 
+target_compile_options(wasmedgeSystem
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
+
 target_include_directories(wasmedgeSystem
   PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}

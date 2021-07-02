@@ -17,7 +17,7 @@ std::filesystem::path getRoot(Cache::StorageScope Scope) {
     return std::filesystem::u8path(kCacheRoot);
   case Cache::StorageScope::Local: {
     if (const auto Home = Path::home(); !Home.empty()) {
-      return Home / ".wasmedge/cache"sv;
+      return Home / "cache"sv;
     }
     return {};
   }

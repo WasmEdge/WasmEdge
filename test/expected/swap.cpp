@@ -2,10 +2,6 @@
 #include "gtest/gtest.h"
 #include <experimental/expected.hpp>
 
-using cxx20::expected;
-using cxx20::unexpect;
-using cxx20::unexpected;
-
 struct no_throw {
   no_throw(std::string i) : i(i) {}
   std::string i;
@@ -36,32 +32,32 @@ template <class T1, class T2> void swap_test() {
 
   using std::swap;
   {
-    expected<T1, T2> a{s1};
-    expected<T1, T2> b{s2};
+    cxx20::expected<T1, T2> a{s1};
+    cxx20::expected<T1, T2> b{s2};
     swap(a, b);
     EXPECT_EQ(a->i, s2);
     EXPECT_EQ(b->i, s1);
   }
 
   {
-    expected<T1, T2> a{s1};
-    expected<T1, T2> b{unexpected<T2>(s2)};
+    cxx20::expected<T1, T2> a{s1};
+    cxx20::expected<T1, T2> b{cxx20::unexpected<T2>(s2)};
     swap(a, b);
     EXPECT_EQ(a.error().i, s2);
     EXPECT_EQ(b->i, s1);
   }
 
   {
-    expected<T1, T2> a{unexpected<T2>(s1)};
-    expected<T1, T2> b{s2};
+    cxx20::expected<T1, T2> a{cxx20::unexpected<T2>(s1)};
+    cxx20::expected<T1, T2> b{s2};
     swap(a, b);
     EXPECT_EQ(a->i, s2);
     EXPECT_EQ(b.error().i, s1);
   }
 
   {
-    expected<T1, T2> a{unexpected<T2>(s1)};
-    expected<T1, T2> b{unexpected<T2>(s2)};
+    cxx20::expected<T1, T2> a{cxx20::unexpected<T2>(s1)};
+    cxx20::expected<T1, T2> b{cxx20::unexpected<T2>(s2)};
     swap(a, b);
     EXPECT_EQ(a.error().i, s2);
     EXPECT_EQ(b.error().i, s1);
@@ -76,8 +72,8 @@ TEST(SwapTest, Swap) {
 
   std::string s1 = "abcdefghijklmnopqrstuvwxyz";
   std::string s2 = "zyxwvutsrqponmlkjihgfedcbaxxx";
-  expected<no_throw, willthrow_move<true>> a{s1};
-  expected<no_throw, willthrow_move<true>> b{unexpect, s2};
+  cxx20::expected<no_throw, willthrow_move<true>> a{s1};
+  cxx20::expected<no_throw, willthrow_move<true>> b{cxx20::unexpect, s2};
 
   EXPECT_ANY_THROW(swap(a, b));
 
@@ -86,8 +82,9 @@ TEST(SwapTest, Swap) {
 }
 
 TEST(SwapTest, Compile) {
-  EXPECT_TRUE((std::is_swappable_v<expected<no_throw, no_throw>>));
-  EXPECT_TRUE((std::is_swappable_v<expected<no_throw, canthrow_move>>));
-  EXPECT_TRUE((std::is_swappable_v<expected<canthrow_move, no_throw>>));
-  EXPECT_FALSE((std::is_swappable_v<expected<canthrow_move, canthrow_move>>));
+  EXPECT_TRUE((std::is_swappable_v<cxx20::expected<no_throw, no_throw>>));
+  EXPECT_TRUE((std::is_swappable_v<cxx20::expected<no_throw, canthrow_move>>));
+  EXPECT_TRUE((std::is_swappable_v<cxx20::expected<canthrow_move, no_throw>>));
+  EXPECT_FALSE(
+      (std::is_swappable_v<cxx20::expected<canthrow_move, canthrow_move>>));
 }

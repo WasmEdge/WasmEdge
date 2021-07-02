@@ -55,7 +55,7 @@ public:
   uint32_t getMax() const { return Max; }
 
   /// The node type should be ASTNodeAttr::Type_Limit.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Limit;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Limit;
 
 private:
   /// \name Data of Limit node.
@@ -94,7 +94,8 @@ public:
   void setSymbol(Loader::Symbol<Wrapper> S) { Symbol = std::move(S); }
 
   /// The node type should be ASTNodeAttr::Type_Function.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Function;
+  static inline constexpr const ASTNodeAttr NodeAttr =
+      ASTNodeAttr::Type_Function;
 
   friend bool operator==(const FunctionType &LHS,
                          const FunctionType &RHS) noexcept {
@@ -135,7 +136,7 @@ public:
   const Limit &getLimit() const { return MemoryLim; }
 
   /// The node type should be ASTNodeAttr::Type_Memory.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Memory;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Memory;
 
 private:
   /// Data of MemoryType node.
@@ -163,7 +164,7 @@ public:
   const Limit &getLimit() const { return TableLim; }
 
   /// The node type should be ASTNodeAttr::Type_Table.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Table;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Table;
 
 private:
   /// \name Data of TableType node.
@@ -194,7 +195,7 @@ public:
   ValMut getValueMutation() const { return Mut; }
 
   /// The node type should be ASTNodeAttr::Type_Global.
-  const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Global;
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Global;
 
 private:
   /// \name Data of GlobalType node.

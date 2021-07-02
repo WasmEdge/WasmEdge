@@ -1,21 +1,43 @@
 # SPDX-License-Identifier: Apache-2.0
+enable_language(ASM-ATT OPTIONAL)
 
-if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
   set(SIMD_FILES
     blake3_avx2.c
-    blake3_avx512.c
     blake3_sse2.c
     blake3_sse41.c
     blake3_avx2_x86-64_unix.S
-    blake3_avx512_x86-64_unix.S
     blake3_sse2_x86-64_unix.S
     blake3_sse41_x86-64_unix.S
   )
   set_source_files_properties(blake3_avx2.c PROPERTIES COMPILE_FLAGS -mavx2)
-  set_source_files_properties(blake3_avx512.c PROPERTIES COMPILE_FLAGS "-mavx512f -mavx512vl")
   set_source_files_properties(blake3_sse2.c PROPERTIES COMPILE_FLAGS -msse2)
   set_source_files_properties(blake3_sse41.c PROPERTIES COMPILE_FLAGS -msse4.1)
   set(SIMD_DEFS)
+
+  if(CMAKE_ASM-ATT_COMPILER_ID STREQUAL "GNU")
+    execute_process(
+      COMMAND ${CMAKE_ASM-ATT_COMPILER} --help
+      OUTPUT_VARIABLE _gas_help
+    )
+    if(_gas_help MATCHES "avx512vl" OR _gas_help MATCHES "llvm")
+      set(BLAKE3_AVX512 ON)
+    else()
+      set(BLAKE3_AVX512 OFF)
+    endif()
+  elseif(CMAKE_ASM-ATT_COMPILER_ID STREQUAL "Clang")
+    set(BLAKE3_AVX512 ON)
+  elseif(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(BLAKE3_AVX512 ON)
+  endif()
+
+  if(BLAKE3_AVX512)
+    set(SIMD_FILES ${SIMD_FILES} blake3_avx512.c blake3_avx512_x86-64_unix.S)
+    set_source_files_properties(blake3_avx512.c PROPERTIES COMPILE_FLAGS "-mavx512f -mavx512vl")
+  else()
+    set(SIMD_DEFS ${SIMD_DEFS} -DBLAKE3_NO_AVX512)
+  endif()
+
 elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
   set(SIMD_FILES
     blake3_neon.c
@@ -33,6 +55,21 @@ add_library(utilBlake3
   blake3_dispatch.c
   blake3_portable.c
   ${SIMD_FILES}
+)
+
+target_compile_options(utilBlake3
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+  -Wno-assign-enum
+  -Wno-cast-align
+  -Wno-cast-qual
+  -Wno-implicit-int-conversion
+  -Wno-language-extension-token
+  -Wno-missing-prototypes
+  -Wno-pointer-sign
+  -Wno-shorten-64-to-32
+  -Wno-sign-conversion
+  -Wno-unused-function
 )
 
 target_include_directories(utilBlake3

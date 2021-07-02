@@ -34,7 +34,8 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         /// Memory index should be 0. Checked in validation phase.
         auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg.getIdx());
         /// Check data fits.
-        if (!MemInst->checkAccessBound(Offset, DataSeg.getData().size())) {
+        if (!MemInst->checkAccessBound(
+                Offset, static_cast<uint32_t>(DataSeg.getData().size()))) {
           spdlog::error(ErrCode::DataSegDoesNotFit);
           spdlog::error(ErrInfo::InfoAST(DataSeg.NodeAttr));
           return Unexpect(ErrCode::DataSegDoesNotFit);
@@ -57,7 +58,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
 /// Initialize memory with Data Instances. See
 /// "include/interpreter/interpreter.h".
 Expect<void> Interpreter::initMemory(Runtime::StoreManager &StoreMgr,
-                                     Runtime::Instance::ModuleInstance &ModInst,
+                                     Runtime::Instance::ModuleInstance &,
                                      const AST::DataSection &DataSec) {
   /// initialize memory.
   uint32_t Idx = 0;
@@ -71,8 +72,9 @@ Expect<void> Interpreter::initMemory(Runtime::StoreManager &StoreMgr,
       const uint32_t Off = DataInst->getOffset();
 
       /// Replace mem[Off : Off + n] with data[0 : n].
-      if (auto Res = MemInst->setBytes(DataInst->getData(), Off, 0,
-                                       DataInst->getData().size());
+      if (auto Res = MemInst->setBytes(
+              DataInst->getData(), Off, 0,
+              static_cast<uint32_t>(DataInst->getData().size()));
           !Res) {
         spdlog::error(ErrInfo::InfoAST(DataSeg.NodeAttr));
         return Unexpect(Res);

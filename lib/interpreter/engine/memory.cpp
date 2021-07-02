@@ -16,14 +16,15 @@ Interpreter::runMemorySizeOp(Runtime::Instance::MemoryInstance &MemInst) {
 Expect<void>
 Interpreter::runMemoryGrowOp(Runtime::Instance::MemoryInstance &MemInst) {
   /// Pop N for growing page size.
-  int32_t &N = StackMgr.getTop().get<int32_t>();
+  uint32_t &N = StackMgr.getTop().get<uint32_t>();
 
   /// Grow page and push result.
-  const int32_t CurrPageSize = MemInst.getDataPageSize();
+  const uint32_t CurrPageSize =
+      static_cast<uint32_t>(MemInst.getDataPageSize());
   if (MemInst.growPage(N)) {
     N = CurrPageSize;
   } else {
-    N = INT32_C(-1);
+    N = static_cast<uint32_t>(-1);
   }
   return {};
 }

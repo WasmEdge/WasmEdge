@@ -291,7 +291,7 @@ private:
   std::enable_if_t<IsInstanceV<T>, uint32_t>
   importInstance(std::vector<std::unique_ptr<T>> &ImpInstsVec,
                  std::vector<T *> &InstsVec, Args &&...Values) {
-    uint32_t Addr = InstsVec.size();
+    const auto Addr = static_cast<uint32_t>(InstsVec.size());
     ImpInstsVec.push_back(std::make_unique<T>(std::forward<Args>(Values)...));
     InstsVec.push_back(ImpInstsVec.back().get());
     return Addr;
@@ -301,7 +301,7 @@ private:
   template <typename T>
   std::enable_if_t<IsImportEntityV<T>, uint32_t>
   importHostInstance(T &Inst, std::vector<T *> &InstsVec) {
-    uint32_t Addr = InstsVec.size();
+    const auto Addr = static_cast<uint32_t>(InstsVec.size());
     InstsVec.push_back(&Inst);
     return Addr;
   }
@@ -310,7 +310,7 @@ private:
   template <typename T>
   std::enable_if_t<IsInstanceV<T>, Expect<T *>>
   getInstance(const uint32_t Addr, const std::vector<T *> &InstsVec) {
-    if (Addr >= InstsVec.size()) {
+    if (Addr >= static_cast<uint32_t>(InstsVec.size())) {
       /// Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceAddress);
     }

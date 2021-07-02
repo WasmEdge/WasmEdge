@@ -47,8 +47,8 @@ TEST_P(CoreTest, TestSuites) {
                      const std::string &Filename) -> Expect<void> {
     WasmEdge_Result Res;
     if (!ModName.empty()) {
-      WasmEdge_String ModStr =
-          WasmEdge_StringWrap(ModName.data(), ModName.length());
+      WasmEdge_String ModStr = WasmEdge_StringWrap(
+          ModName.data(), static_cast<uint32_t>(ModName.length()));
       Res = WasmEdge_VMRegisterModuleFromFile(VM, ModStr, Filename.c_str());
     } else {
       Res = WasmEdge_VMLoadWasmFromFile(VM, Filename.c_str());
@@ -107,14 +107,14 @@ TEST_P(CoreTest, TestSuites) {
     WasmEdge_Result Res;
     std::vector<WasmEdge_Value> CParams = convFromValVec(Params, ParamTypes);
     std::vector<WasmEdge_Value> CReturns;
-    WasmEdge_String FieldStr =
-        WasmEdge_StringWrap(Field.data(), Field.length());
+    WasmEdge_String FieldStr = WasmEdge_StringWrap(
+        Field.data(), static_cast<uint32_t>(Field.length()));
     if (!ModName.empty()) {
       /// Invoke function of named module. Named modules are registered in
       /// Store Manager.
       /// Get the function type to specify the return nums.
-      WasmEdge_String ModStr =
-          WasmEdge_StringWrap(ModName.data(), ModName.length());
+      WasmEdge_String ModStr = WasmEdge_StringWrap(
+          ModName.data(), static_cast<uint32_t>(ModName.length()));
       WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_VMGetFunctionTypeRegistered(VM, ModStr, FieldStr);
       if (FuncType == nullptr) {
@@ -123,9 +123,10 @@ TEST_P(CoreTest, TestSuites) {
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
       WasmEdge_FunctionTypeDelete(FuncType);
       /// Execute.
-      Res = WasmEdge_VMExecuteRegistered(VM, ModStr, FieldStr, &CParams[0],
-                                         CParams.size(), &CReturns[0],
-                                         CReturns.size());
+      Res = WasmEdge_VMExecuteRegistered(
+          VM, ModStr, FieldStr, &CParams[0],
+          static_cast<uint32_t>(CParams.size()), &CReturns[0],
+          static_cast<uint32_t>(CReturns.size()));
     } else {
       /// Invoke function of anonymous module. Anonymous modules are
       /// instantiated in VM.
@@ -138,8 +139,9 @@ TEST_P(CoreTest, TestSuites) {
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
       WasmEdge_FunctionTypeDelete(FuncType);
       /// Execute.
-      Res = WasmEdge_VMExecute(VM, FieldStr, &CParams[0], CParams.size(),
-                               &CReturns[0], CReturns.size());
+      Res = WasmEdge_VMExecute(
+          VM, FieldStr, &CParams[0], static_cast<uint32_t>(CParams.size()),
+          &CReturns[0], static_cast<uint32_t>(CReturns.size()));
     }
     if (!WasmEdge_ResultOK(Res)) {
       return Unexpect(convResult(Res));
@@ -151,10 +153,10 @@ TEST_P(CoreTest, TestSuites) {
                   const std::string &Field) -> Expect<std::vector<ValVariant>> {
     /// Get global instance.
     WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VM);
-    WasmEdge_String ModStr =
-        WasmEdge_StringWrap(ModName.data(), ModName.length());
-    WasmEdge_String FieldStr =
-        WasmEdge_StringWrap(Field.data(), Field.length());
+    WasmEdge_String ModStr = WasmEdge_StringWrap(
+        ModName.data(), static_cast<uint32_t>(ModName.length()));
+    WasmEdge_String FieldStr = WasmEdge_StringWrap(
+        Field.data(), static_cast<uint32_t>(Field.length()));
     WasmEdge_GlobalInstanceContext *GlobCxt =
         WasmEdge_StoreFindGlobalRegistered(StoreCxt, ModStr, FieldStr);
     if (GlobCxt == nullptr) {

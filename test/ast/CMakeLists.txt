@@ -12,6 +12,11 @@ add_executable(wasmedgeASTTests
 
 add_test(wasmedgeASTTests wasmedgeASTTests)
 
+target_compile_options(wasmedgeASTTests
+  PRIVATE
+  ${WASMEDGE_CFLAGS}
+)
+
 target_link_libraries(wasmedgeASTTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}

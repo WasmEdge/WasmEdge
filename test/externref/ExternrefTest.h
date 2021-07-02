@@ -9,8 +9,10 @@
 #include <cstdlib>
 #include <iostream>
 
+namespace {
 /// Test: function to pass as function pointer
-uint32_t MulFunc(uint32_t A, uint32_t B) { return A * B; }
+inline uint32_t MulFunc(uint32_t A, uint32_t B) { return A * B; }
+} // namespace
 
 /// Test: class to pass as reference
 class AddClass {
@@ -27,8 +29,8 @@ namespace WasmEdge {
 /// Host function to access class as reference
 class ExternClassAdd : public Runtime::HostFunction<ExternClassAdd> {
 public:
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        ExternRef Ref, uint32_t A, uint32_t B) {
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *, ExternRef Ref,
+                        uint32_t A, uint32_t B) {
     auto &Obj = retrieveExternRef<AddClass>(Ref);
     return Obj.add(A, B);
   }
@@ -37,8 +39,8 @@ public:
 /// Host function to call function as function pointer
 class ExternFuncMul : public Runtime::HostFunction<ExternFuncMul> {
 public:
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        ExternRef Ref, uint32_t A, uint32_t B) {
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *, ExternRef Ref,
+                        uint32_t A, uint32_t B) {
     auto &Obj = retrieveExternRef<decltype(MulFunc)>(Ref);
     return Obj(A, B);
   }
@@ -47,8 +49,8 @@ public:
 /// Host function to call functor as reference
 class ExternFunctorSquare : public Runtime::HostFunction<ExternFunctorSquare> {
 public:
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        ExternRef Ref, uint32_t Val) {
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *, ExternRef Ref,
+                        uint32_t Val) {
     auto &Obj = retrieveExternRef<SquareStruct>(Ref);
     return Obj(Val);
   }
@@ -57,7 +59,7 @@ public:
 /// Host function to output std::string through std::ostream
 class ExternSTLOStreamStr : public Runtime::HostFunction<ExternSTLOStreamStr> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, ExternRef RefOS,
+  Expect<void> body(Runtime::Instance::MemoryInstance *, ExternRef RefOS,
                     ExternRef RefStr) {
     retrieveExternRef<std::ostream>(RefOS)
         << retrieveExternRef<std::string>(RefStr);
@@ -68,7 +70,7 @@ public:
 /// Host function to output uint32_t through std::ostream
 class ExternSTLOStreamU32 : public Runtime::HostFunction<ExternSTLOStreamU32> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, ExternRef RefOS,
+  Expect<void> body(Runtime::Instance::MemoryInstance *, ExternRef RefOS,
                     uint32_t Val) {
     retrieveExternRef<std::ostream>(RefOS) << Val;
     return {};
@@ -78,8 +80,8 @@ public:
 /// Host function to insert {key, val} to std::map<std::string, std::string>
 class ExternSTLMapInsert : public Runtime::HostFunction<ExternSTLMapInsert> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst,
-                    ExternRef RefMap, ExternRef RefKey, ExternRef RefVal) {
+  Expect<void> body(Runtime::Instance::MemoryInstance *, ExternRef RefMap,
+                    ExternRef RefKey, ExternRef RefVal) {
     auto &Map = retrieveExternRef<std::map<std::string, std::string>>(RefMap);
     auto &Key = retrieveExternRef<std::string>(RefKey);
     auto &Val = retrieveExternRef<std::string>(RefVal);
@@ -91,8 +93,8 @@ public:
 /// Host function to erase std::map<std::string, std::string> with key
 class ExternSTLMapErase : public Runtime::HostFunction<ExternSTLMapErase> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst,
-                    ExternRef RefMap, ExternRef RefKey) {
+  Expect<void> body(Runtime::Instance::MemoryInstance *, ExternRef RefMap,
+                    ExternRef RefKey) {
     auto &Map = retrieveExternRef<std::map<std::string, std::string>>(RefMap);
     auto &Key = retrieveExternRef<std::string>(RefKey);
     Map.erase(Key);
@@ -103,8 +105,8 @@ public:
 /// Host function to insert key to std::set<uint32_t>
 class ExternSTLSetInsert : public Runtime::HostFunction<ExternSTLSetInsert> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst,
-                    ExternRef RefSet, uint32_t Val) {
+  Expect<void> body(Runtime::Instance::MemoryInstance *, ExternRef RefSet,
+                    uint32_t Val) {
     auto &Set = retrieveExternRef<std::set<uint32_t>>(RefSet);
     Set.insert(Val);
     return {};
@@ -114,8 +116,8 @@ public:
 /// Host function to erase std::set<uint32_t> with key
 class ExternSTLSetErase : public Runtime::HostFunction<ExternSTLSetErase> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst,
-                    ExternRef RefSet, uint32_t Val) {
+  Expect<void> body(Runtime::Instance::MemoryInstance *, ExternRef RefSet,
+                    uint32_t Val) {
     auto &Set = retrieveExternRef<std::set<uint32_t>>(RefSet);
     Set.erase(Val);
     return {};
@@ -125,8 +127,8 @@ public:
 /// Host function to push value into std::vector<uint32_t>
 class ExternSTLVectorPush : public Runtime::HostFunction<ExternSTLVectorPush> {
 public:
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst,
-                    ExternRef RefVec, uint32_t Val) {
+  Expect<void> body(Runtime::Instance::MemoryInstance *, ExternRef RefVec,
+                    uint32_t Val) {
     auto &Vec = retrieveExternRef<std::vector<uint32_t>>(RefVec);
     Vec.push_back(Val);
     return {};
@@ -136,7 +138,7 @@ public:
 /// Host function to summarize value in slice of std::vector<uint32_t>
 class ExternSTLVectorSum : public Runtime::HostFunction<ExternSTLVectorSum> {
 public:
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *,
                         ExternRef RefItBegin, ExternRef RefItEnd) {
     auto &It = retrieveExternRef<std::vector<uint32_t>::iterator>(RefItBegin);
     auto &ItEnd = retrieveExternRef<std::vector<uint32_t>::iterator>(RefItEnd);
@@ -165,6 +167,6 @@ public:
     addHostFunc("stl_vector_push", std::make_unique<ExternSTLVectorPush>());
     addHostFunc("stl_vector_sum", std::make_unique<ExternSTLVectorSum>());
   }
-  virtual ~ExternMod() = default;
+  ~ExternMod() override = default;
 };
 } // namespace WasmEdge

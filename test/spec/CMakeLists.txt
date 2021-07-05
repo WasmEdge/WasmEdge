@@ -23,18 +23,18 @@ FetchContent_MakeAvailable(rapidjson)
 add_library(rapidjson INTERFACE)
 target_include_directories(rapidjson INTERFACE ${rapidjson_SOURCE_DIR}/include)
 
-configure_files(
-  ${wasmedge_unit_test_SOURCE_DIR}/core/
-  ${CMAKE_CURRENT_BINARY_DIR}/testSuites/core/
-  COPYONLY
+file(COPY
+  ${wasmedge_unit_test_SOURCE_DIR}/core
+  DESTINATION
+  ${CMAKE_CURRENT_BINARY_DIR}/testSuites
 )
-configure_files(
-  ${wasmedge_unit_test_SOURCE_DIR}/simd/
-  ${CMAKE_CURRENT_BINARY_DIR}/testSuites/simd/
-  COPYONLY
+file(COPY
+  ${wasmedge_unit_test_SOURCE_DIR}/simd
+  DESTINATION
+  ${CMAKE_CURRENT_BINARY_DIR}/testSuites
 )
 
-add_library(wasmedgeTestSpec
+wasmedge_add_library(wasmedgeTestSpec
   spectest.cpp
 )
 

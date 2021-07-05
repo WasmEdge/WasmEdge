@@ -9,19 +9,16 @@ else()
     GIT_TAG        v1.8.5
     GIT_SHALLOW    TRUE
   )
+  set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "Build shared library")
   set(BUILD_GMOCK OFF)
   FetchContent_MakeAvailable(spdlog)
+  wasmedge_setup_target(spdlog)
 endif()
 
-add_library(wasmedgeCommon
+wasmedge_add_library(wasmedgeCommon
   hexstr.cpp
   log.cpp
   configure.cpp
-)
-
-target_compile_options(wasmedgeCommon
-  PRIVATE
-  ${WASMEDGE_CFLAGS}
 )
 
 target_link_libraries(wasmedgeCommon

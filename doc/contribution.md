@@ -103,11 +103,11 @@ $ docker run -it --rm \
     wasmedge/wasmedge:latest
 (docker)$ cd /root/wasmedge
 (docker)$ mkdir -p build && cd build
-(docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make -j
+(docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .. && make -j
 ```
 
 **Run tests**
-The following built-in tests are only available when the build flag BUILD_TESTS sets to ON.
+The following built-in tests are only available when the build flag WASMEDGE_BUILD_TESTS sets to ON.
 You can use these tests to verify the correctness of WasmEdge binaries.
 
 

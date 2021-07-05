@@ -56,10 +56,10 @@ If you are looking for the pre-built binaries for the older operatoring system, 
 
 ### If you don't want to build Ahead-of-Time runtime/compiler
 
-If users don't need Ahead-of-Time runtime/compiler support, they can set the CMake option `BUILD_AOT_RUNTIME` to `OFF`.
+If users don't need Ahead-of-Time runtime/compiler support, they can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
 
 ```bash
-$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_AOT_RUNTIME=OFF ..
+$ cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
 ```
 
 ## Build WasmEdge
@@ -69,15 +69,15 @@ After the build is finished, you can find there are several wasmedge related too
 
 1. `wasmedge` is for general wasm runtime.
 	* `wasmedge` executes a `WASM` file in interpreter mode or a compiled WASM `so` file in ahead-of-time compilation mode.
-	* To disable building all tools, you can set the CMake option `BUILD_TOOLS` to `OFF`.
+	* To disable building all tools, you can set the CMake option `WASMEDGE_BUILD_TOOLS` to `OFF`.
 2. `wasmedgec` is for ahead-of-time `WASM` compiler.
 	* `wasmedgec` compiles a general `WASM` file into a `so` file.
-	* To disable building the ahead-of-time compiler only, you can set the CMake option `BUILD_AOT_RUNTIME` to `OFF`.
-	* To disable building all tools, you can set the CMake option `BUILD_TOOLS` to `OFF`.
+	* To disable building the ahead-of-time compiler only, you can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
+	* To disable building all tools, you can set the CMake option `WASMEDGE_BUILD_TOOLS` to `OFF`.
 3. `libwasmedge_c.so` is the WasmEdge C API shared library.
 	* `libwasmedge_c.so` provides C API for the ahead-of-time compiler and the WASM runtime.
-	* The APIs about the ahead-of-time compiler will always return failed if the CMake option `BUILD_AOT_RUNTIME` is set as `OFF`.
-	* To disable building the shared library only, you can set the CMake option `BUILD_SHARED_LIB` to `OFF`.
+	* The APIs about the ahead-of-time compiler will always return failed if the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` is set as `OFF`.
+	* To disable building the shared library only, you can set the CMake option `WASMEDGE_BUILD_SHARED_LIB` to `OFF`.
 4. `ssvm-qitc` is for AI application, supporting ONNC runtime for AI model in ONNX format.
 	* If you want to try `ssvm-qitc`, please refer to [ONNC-Wasm](https://github.com/ONNC/onnc-wasm) project to set up the working environment and run several examples.
 	* And here is our [tutorial for ONNC-Wasm project(YouTube Video)](https://www.youtube.com/watch?v=cbiPuHMS-iQ).
@@ -89,12 +89,12 @@ $ docker run -it --rm \
     wasmedge/wasmedge:latest
 (docker)$ cd /root/wasmedge
 (docker)$ mkdir -p build && cd build
-(docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. && make -j
+(docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .. && make -j
 ```
 
 ## Run built-in tests
 
-The following built-in tests are only available when the build flag `BUILD_TESTS` sets to `ON`.
+The following built-in tests are only available when the build flag `WASMEDGE_BUILD_TESTS` sets to `ON`.
 
 Users can use these tests to verify the correctness of WasmEdge binaries.
 

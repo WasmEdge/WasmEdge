@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_executable(wasiTests
+wasmedge_add_executable(wasiTests
   wasi.cpp
 )
 
@@ -13,7 +13,7 @@ target_link_libraries(wasiTests
   wasmedgeHostModuleWasi
 )
 
-if(BUILD_COVERAGE)
+if(WASMEDGE_BUILD_COVERAGE)
   add_test(
     NAME wasi-test
     COMMAND bash -c "[ -e \"$HOME/.cargo/env\" ] && . \"$HOME/.cargo/env\"; \"${PROJECT_SOURCE_DIR}\"/utils/wasi-test/run-wasi-test.sh \"${PROJECT_BINARY_DIR}/tools/wasmedge\""

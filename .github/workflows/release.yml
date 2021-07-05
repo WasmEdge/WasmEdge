@@ -50,7 +50,7 @@ jobs:
           apt update
           apt install -y rpm ninja-build
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_PACKAGE="TGZ;DEB;RPM" .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
           cmake --build build
           cmake --build build --target package
       - name: Upload deb package

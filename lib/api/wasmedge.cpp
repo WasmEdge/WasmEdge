@@ -37,7 +37,7 @@ struct WasmEdge_ASTModuleContext {
 
 /// WasmEdge_CompilerContext implementation.
 struct WasmEdge_CompilerContext {
-#ifdef BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_BUILD_AOT_RUNTIME
   WasmEdge_CompilerContext(const WasmEdge::Configure &Conf) noexcept
       : Compiler(Conf), Load(Conf), Valid(Conf) {}
   WasmEdge::AOT::Compiler Compiler;
@@ -752,7 +752,7 @@ WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_CompilerContext *
 WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt) {
-#ifdef BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_BUILD_AOT_RUNTIME
   if (ConfCxt) {
     return new WasmEdge_CompilerContext(ConfCxt->Conf);
   } else {
@@ -765,7 +765,7 @@ WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompile(
     WasmEdge_CompilerContext *Cxt, const char *InPath, const char *OutPath) {
-#ifdef BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_BUILD_AOT_RUNTIME
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         std::filesystem::path InputPath = std::filesystem::absolute(InPath);

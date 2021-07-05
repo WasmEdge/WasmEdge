@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_executable(wasmedgeMemLimitTests
+wasmedge_add_executable(wasmedgeMemLimitTests
   MemLimitTest.cpp
 )
 

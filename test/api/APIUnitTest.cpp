@@ -386,7 +386,7 @@ TEST(APICoreTest, Configure) {
   EXPECT_TRUE(true);
 }
 
-#ifdef BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_BUILD_AOT_RUNTIME
 TEST(APICoreTest, Compiler) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
 

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_library(wasmedgeLoaderFileMgr
+wasmedge_add_library(wasmedgeLoaderFileMgr
   filemgr.cpp
   ldmgr.cpp
   shared_library.cpp
@@ -13,11 +13,6 @@ target_link_libraries(wasmedgeLoaderFileMgr
   std::filesystem
 )
 
-target_compile_options(wasmedgeLoaderFileMgr
-  PRIVATE
-  ${WASMEDGE_CFLAGS}
-)
-
 if(NOT WIN32)
   target_link_libraries(wasmedgeLoaderFileMgr
     PUBLIC
@@ -25,13 +20,8 @@ if(NOT WIN32)
   )
 endif()
 
-add_library(wasmedgeLoader
+wasmedge_add_library(wasmedgeLoader
   loader.cpp
-)
-
-target_compile_options(wasmedgeLoader
-  PRIVATE
-  ${WASMEDGE_CFLAGS}
 )
 
 target_link_libraries(wasmedgeLoader

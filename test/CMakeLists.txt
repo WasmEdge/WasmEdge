@@ -40,14 +40,14 @@ else()
   set(GTEST_BOTH_LIBRARIES "gtest;gtest_main")
 endif()
 
-if (BUILD_AOT_RUNTIME)
+if (WASMEDGE_BUILD_AOT_RUNTIME)
   add_subdirectory(aot)
 endif()
 add_subdirectory(spec)
 add_subdirectory(ast)
 add_subdirectory(loader)
 add_subdirectory(interpreter)
-if (BUILD_SHARED_LIB)
+if (WASMEDGE_BUILD_SHARED_LIB)
   add_subdirectory(api)
 endif()
 add_subdirectory(host/wasmedge_process)
@@ -58,7 +58,7 @@ add_subdirectory(span)
 add_subdirectory(po)
 add_subdirectory(memlimit)
 
-if(BUILD_COVERAGE)
+if(WASMEDGE_BUILD_COVERAGE)
   setup_target_for_coverage_gcovr_html(
     NAME coverage
     EXECUTABLE ctest -j ${PROCESSOR_COUNT}

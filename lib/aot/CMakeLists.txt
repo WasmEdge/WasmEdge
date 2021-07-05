@@ -47,10 +47,7 @@ llvm_add_library(wasmedgeAOT
   ${EXTRA_COMPONENTS}
 )
 
-target_compile_options(wasmedgeAOT
-  PRIVATE
-  ${WASMEDGE_CFLAGS}
-)
+wasmedge_setup_target(wasmedgeAOT)
 
 target_include_directories(wasmedgeAOT
   SYSTEM

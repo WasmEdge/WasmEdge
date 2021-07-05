@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_executable(wasmedgeLoaderFileMgrTests
+wasmedge_add_executable(wasmedgeLoaderFileMgrTests
   filemgrTest.cpp
 )
 
 add_test(wasmedgeLoaderFileMgrTests wasmedgeLoaderFileMgrTests)
 
-configure_files(
+file(COPY
   ${CMAKE_CURRENT_SOURCE_DIR}/filemgrTestData
-  ${CMAKE_CURRENT_BINARY_DIR}/filemgrTestData
-  COPYONLY
+  DESTINATION
+  ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 target_link_libraries(wasmedgeLoaderFileMgrTests

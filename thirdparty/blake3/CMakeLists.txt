@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 enable_language(ASM-ATT OPTIONAL)
 
-if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
   set(SIMD_FILES
     blake3_avx2.c
     blake3_sse2.c
@@ -38,7 +38,7 @@ if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL 
     set(SIMD_DEFS ${SIMD_DEFS} -DBLAKE3_NO_AVX512)
   endif()
 
-elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
   set(SIMD_FILES
     blake3_neon.c
   )
@@ -50,7 +50,7 @@ else()
   set(SIMD_DEFS)
 endif()
 
-add_library(utilBlake3
+wasmedge_add_library(utilBlake3
   blake3.c
   blake3_dispatch.c
   blake3_portable.c
@@ -59,7 +59,6 @@ add_library(utilBlake3
 
 target_compile_options(utilBlake3
   PRIVATE
-  ${WASMEDGE_CFLAGS}
   -Wno-assign-enum
   -Wno-cast-align
   -Wno-cast-qual

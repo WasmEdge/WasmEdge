@@ -6,7 +6,7 @@ else()
   set(MACOS_MM)
 endif()
 
-add_library(wasmedgeHostModuleWasi
+wasmedge_add_library(wasmedgeHostModuleWasi
   clock-linux.cpp
   clock-macos.cpp
   clock-win.cpp
@@ -23,11 +23,6 @@ add_library(wasmedgeHostModuleWasi
   wasimodule.cpp
   win.cpp
   ${MACOS_MM}
-)
-
-target_compile_options(wasmedgeHostModuleWasi
-  PRIVATE
-  ${WASMEDGE_CFLAGS}
 )
 
 target_include_directories(wasmedgeHostModuleWasi

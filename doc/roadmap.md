@@ -20,28 +20,24 @@ Please open an issue to track any initiative on the roadmap of WasmEdge (Usually
 
 The following table includes the current roadmap for WasmEdge. If you have any questions or would like to contribute to WasmEdge, please create an issue to discuss with our team. If you don't know where to start, we are always looking for contributors that will help us reduce technical, automation, and documentation debt. Please take the timelines & dates as proposals and goals. Priorities and requirements change based on community feedback, roadblocks encountered, community contributions, etc.
 
-Last Updated: February 2021
+Last Updated: July 2021
 
 
 |Theme	|Description	|Timeline	|
 |---	|---	|---	|
-|Host support	|Support the OCI (Open Container Initiative) specification	|Q1 / 2021	|
-|Host support	|Kubernetes integration	|Q1 / 2021	|
 |Tool chain	|WasmEdge C API	|Q1 / 2021	|
-|Host support	|Compile WasmEdge itself into WASM	|Q1 / 2021	|
-|VM extension	|wasi-socket	|Q2 / 2021	|
-|VM Extension	|Support Tengine in WasmEdge inference API	|Q2 / 2021	|
-|Host support	|Support YoMo framework	|Q2 /2021	|
-|Tool chain	|Support Rust API in Ewasm	|Q2 / 2021	|
-|Host support	|Support for QNX Windriver Linux	|Q2 / 2021	|
-|Host support	|Support for Kube Edge	|Q2 / 2021	|
-|VM Extension	|PaddlePaddle support	|Q2 / 2021	|
-|Host support	|Resource constraints and allocations	|Q2 / 2021	|
-|Tool chain	|Improve the Rust compilier to support SIMD	|Q3 / 2021	|
-|VM Extension	|Support ONNX in WasmEdge inference API	|Q3 / 2021	|
-|Host support	|Run WasmEdge in SGX	|Q3 / 2021	|
-|Tool chain	|Bindgen for JS, Python, Golang, and Rust based on interface types	|Q3 /2021	|
-|VM Extension	|Support AWS a1 SDK	|Q4 / 2021	|
-|Tool chain	|Support full Solidity language spec in SOLL	|Q4 /2021	|
-|Tool chain	|Support Fe language in SOLL	|Q4 /2021	|
-
+|Host support	|Support the OCI (Open Container Initiative) specification	|Q2 / 2021	|
+|Tool chain	|Bindgen for Golang (WasmEdge-go)	|Q2 / 2021	|
+|Host support	|Support YoMo framework with WasmEdge-go	|Q2 / 2021	|
+|VM extension	|Support WASI on macos and Windows	|Q3 / 2021	|
+|VM extension	|Support wasi-socket proposal	|Q3 / 2021	|
+|Tool chain	|Support Rust API in Ewasm (SewUp) 	|Q3 / 2021	|
+|Host support	|Kubernetes integration	|Q3 / 2021	|
+|Host support	|Resource constraints and allocations	|Q3 / 2021	|
+|VM extension	|Create custom binary format for AoT compiler	|Q3 / 2021|
+|VM extension	|Support Wasm-C-API proposal	|Q3 / 2021|
+|VM extension	|Support Threads proposal	|Q3 / 2021|
+|VM extension	|Support Tail-Call proposal	|Q3 / 2021|
+|Host support	|Compile WasmEdge itself into WASM	|Q4 / 2021	|
+|VM Extension	|Support Tengine in WasmEdge inference API	|Q4 / 2021	|
+|Tool chain	|Bindgen for JS, Python, Golang, and Rust based on interface types	|Q4 /2021	|

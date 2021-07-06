@@ -1,4 +1,4 @@
-[中文文档](README-zh.md)
+[中文文档](README-zh.md) [正體中文文件](README-zh-TW.md)
 
 # Quick start guides
 

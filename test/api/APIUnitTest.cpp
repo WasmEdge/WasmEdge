@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <initializer_list>
 #include <string>
@@ -291,6 +292,11 @@ TEST(APICoreTest, String) {
   EXPECT_TRUE(WasmEdge_StringIsEqual(Str3, Str4));
   WasmEdge_String Str5 = WasmEdge_StringWrap(CStr, 13);
   EXPECT_FALSE(WasmEdge_StringIsEqual(Str3, Str5));
+  char Buf[256];
+  EXPECT_EQ(WasmEdge_StringCopy(Str3, nullptr, 0), 0U);
+  EXPECT_EQ(WasmEdge_StringCopy(Str3, Buf, 5), 5U);
+  EXPECT_EQ(std::strncmp(Str3.Buf, Buf, 5), 0);
+  EXPECT_EQ(WasmEdge_StringCopy(Str3, Buf, 256), 11U);
   WasmEdge_StringDelete(Str1);
   WasmEdge_StringDelete(Str2);
   WasmEdge_StringDelete(Str3);

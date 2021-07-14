@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasmedge/wasmedge.h"
+#include "wasm/wasm.h"
 
 #include "common/defines.h"
 #include "driver/compiler.h"

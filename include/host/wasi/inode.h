@@ -471,6 +471,18 @@ public:
   /// @return Poll helper or WASI error
   static WasiExpect<Poller> pollOneoff(__wasi_size_t NSubscriptions) noexcept;
 
+  static WasiExpect<INode> sockOpen(__wasi_address_family_t SysDomain,
+                                    __wasi_sock_type_t SockType) noexcept;
+
+  WasiExpect<void> sockBind(unsigned char Address[4], uint16_t Port) noexcept;
+
+  WasiExpect<void> sockListen(uint32_t Backlog) noexcept;
+
+  WasiExpect<INode> sockAccept(uint16_t Port) noexcept;
+
+  WasiExpect<void> sockConnect(unsigned char Address[4],
+                               uint16_t Port) noexcept;
+
   /// Receive a message from a socket.
   ///
   /// Note: This is similar to `recv` in POSIX, though it also supports reading

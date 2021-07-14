@@ -10,6 +10,7 @@
 #include "host/wasi/vinode.h"
 #include "wasi/api.hpp"
 #include <csignal>
+#include <iostream>
 #include <mutex>
 #include <random>
 #include <shared_mutex>
@@ -829,6 +830,82 @@ public:
     }
 
     return {};
+  }
+
+  WasiExpect<__wasi_fd_t> sockOpen(__wasi_address_family_t SysDomain,
+                                   __wasi_sock_type_t SockType) noexcept {
+
+    auto Node = getNodeOrNull(-1);
+
+    if (auto Res = VINode::sockOpen(FS, SysDomain, SockType); unlikely(!Res)) {
+      return WasiUnexpect(Res);
+    } else {
+      Node = std::move(*Res);
+    }
+
+    std::random_device Device;
+    std::default_random_engine Engine(Device());
+    std::uniform_int_distribution<__wasi_fd_t> Distribution(0, 0x7FFFFFFF);
+    bool Success = false;
+    __wasi_fd_t NewFd;
+    while (!Success) {
+      NewFd = Distribution(Engine);
+      std::unique_lock<std::shared_mutex> lock(FdMutex);
+      Success = FdMap.emplace(NewFd, Node).second;
+    }
+    return NewFd;
+  }
+
+  WasiExpect<void> sockBind(__wasi_fd_t Fd, unsigned char Address[4],
+                            uint16_t Port) noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockBind(Address, Port);
+    }
+  }
+
+  WasiExpect<void> sockListen(__wasi_fd_t Fd, uint32_t Backlog) noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockListen(Backlog);
+    }
+  }
+
+  WasiExpect<__wasi_fd_t> sockAccept(__wasi_fd_t Fd, uint16_t Port) noexcept {
+    auto Node = getNodeOrNull(Fd);
+    auto NewNode = getNodeOrNull(-1);
+
+    if (auto Res = Node->sockAccept(Port); unlikely(!Res)) {
+      return WasiUnexpect(Res);
+    } else {
+      NewNode = std::move(*Res);
+    }
+
+    std::random_device Device;
+    std::default_random_engine Engine(Device());
+    std::uniform_int_distribution<__wasi_fd_t> Distribution(0, 0x7FFFFFFF);
+    bool Success = false;
+    __wasi_fd_t NewFd;
+    while (!Success) {
+      NewFd = Distribution(Engine);
+      std::unique_lock<std::shared_mutex> lock(FdMutex);
+      Success = FdMap.emplace(NewFd, NewNode).second;
+    }
+    return NewFd;
+  }
+
+  WasiExpect<void> sockConnect(__wasi_fd_t Fd, unsigned char Address[4],
+                               uint16_t Port) noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockConnect(Address, Port);
+    }
   }
 
   /// Receive a message from a socket.

@@ -6,6 +6,7 @@
 #include "host/wasi/vfs.h"
 #include <cassert>
 #include <numeric>
+#include <string>
 
 using namespace std::literals;
 
@@ -316,6 +317,32 @@ WasiExpect<void> VINode::pathUnlinkFile(VFS &FS, std::shared_ptr<VINode> Fd,
   }
 
   return Fd->Node.pathUnlinkFile(std::string(Path));
+}
+
+WasiExpect<std::shared_ptr<VINode>>
+VINode::sockOpen(VFS &FS, __wasi_address_family_t SysDomain,
+                 __wasi_sock_type_t SockType) {
+  if (auto Res = INode::sockOpen(SysDomain, SockType); unlikely(!Res)) {
+    return WasiUnexpect(Res);
+  } else {
+    __wasi_rights_t Rights = __WASI_RIGHTS_SOCK_OPEN |
+                             __WASI_RIGHTS_SOCK_CLOSE |
+                             __WASI_RIGHTS_SOCK_SHUTDOWN;
+    return std::make_shared<VINode>(FS, std::move(*Res), Rights, Rights,
+                                    std::string(""));
+  }
+}
+
+WasiExpect<std::shared_ptr<VINode>> VINode::sockAccept(uint16_t Port) {
+  // return Node.sockAccept(Port);
+
+  if (auto Res = Node.sockAccept(Port); unlikely(!Res)) {
+    return WasiUnexpect(Res);
+  } else {
+    __wasi_rights_t Rights = __WASI_RIGHTS_SOCK_SHUTDOWN;
+    return std::make_shared<VINode>(FS, std::move(*Res), Rights, Rights,
+                                    std::string(""));
+  }
 }
 
 WasiExpect<std::shared_ptr<VINode>>

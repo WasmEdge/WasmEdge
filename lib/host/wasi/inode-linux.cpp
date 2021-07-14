@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/defines.h"
+#include <cstdint>
+#include <netinet/in.h>
 #if WASMEDGE_OS_LINUX
 
 #include "common/errcode.h"
@@ -7,6 +9,7 @@
 #include "host/wasi/inode.h"
 #include "host/wasi/vfs.h"
 #include "linux.h"
+#include <iostream>
 
 namespace WasmEdge {
 namespace Host {
@@ -746,6 +749,101 @@ WasiExpect<Poller> INode::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
   } catch (std::bad_alloc &) {
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }
+}
+
+WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
+                                  __wasi_sock_type_t SockType) noexcept {
+
+  int SysProtocol = IPPROTO_TCP;
+
+  int SysDomain = 0;
+  int SysType = 0;
+
+  switch (AddressFamily) {
+  case __WASI_ADDRESS_FAMILY_INET4:
+    SysDomain = AF_INET;
+    break;
+  case __WASI_ADDRESS_FAMILY_INET6:
+    SysDomain = AF_INET6;
+    break;
+  default:
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  switch (SockType) {
+  case __WASI_SOCK_TYPE_SOCK_DGRAM:
+    SysType = SOCK_DGRAM;
+    break;
+  case __WASI_SOCK_TYPE_SOCK_STREAM:
+    SysType = SOCK_STREAM;
+    break;
+  default:
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  // spdlog::debug("open socket fd: {0}", Fd);
+
+  if (auto NewFd = ::socket(SysDomain, SysType, SysProtocol);
+      unlikely(NewFd < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  } else {
+    INode New(NewFd);
+    return New;
+  }
+}
+
+WasiExpect<void> INode::sockBind(unsigned char Address[4],
+                                 uint16_t Port) noexcept {
+
+  struct sockaddr_in ServerAddr;
+  ServerAddr.sin_family = AF_INET;
+  ServerAddr.sin_port = htons(Port);
+  ServerAddr.sin_addr = *((in_addr *)(Address));
+
+  if (auto Res = ::bind(Fd, (struct sockaddr *)&ServerAddr, sizeof(ServerAddr));
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+  return {};
+}
+
+WasiExpect<void> INode::sockListen(uint32_t Backlog) noexcept {
+  if (auto Res = ::listen(Fd, Backlog); unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+  return {};
+}
+
+WasiExpect<INode> INode::sockAccept(uint16_t Port) noexcept {
+  struct sockaddr_in ServerSocketAddr;
+  ServerSocketAddr.sin_family = AF_INET;
+  ServerSocketAddr.sin_addr.s_addr = INADDR_ANY;
+  ServerSocketAddr.sin_port = htons(Port);
+  unsigned int clilen = sizeof(ServerSocketAddr);
+
+  if (auto NewFd = ::accept(Fd, (struct sockaddr *)&ServerSocketAddr, &clilen);
+      unlikely(NewFd < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  } else {
+    INode New(NewFd);
+    return New;
+  }
+}
+
+WasiExpect<void> INode::sockConnect(unsigned char Address[4],
+                                    uint16_t Port) noexcept {
+
+  struct sockaddr_in ClientSocketAddr;
+  ClientSocketAddr.sin_family = AF_INET;
+  ClientSocketAddr.sin_port = htons(Port);
+  ClientSocketAddr.sin_addr = *((in_addr *)(Address));
+
+  if (auto Res = ::connect(Fd, (struct sockaddr *)&ClientSocketAddr,
+                           sizeof(ClientSocketAddr));
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+  return {};
 }
 
 WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>> RiData,

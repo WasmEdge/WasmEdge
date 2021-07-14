@@ -64,3 +64,4 @@ docs/_build
 .vs
 # clangd index
 .clangd
+.cache

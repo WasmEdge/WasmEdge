@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+#include "wasm/wasm.h"
 #include "wasmedge/wasmedge.h"
 #include "wasm/wasm.h"
 

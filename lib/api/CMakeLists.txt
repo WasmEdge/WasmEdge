@@ -35,10 +35,13 @@ set(WASMEDGE_CAPI_HEADERS
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/int128.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/dense_enum_map.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/spare_enum_map.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/wasm/wasm.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/wasm/wasm.hh
 )
 
 # Object library of the C API wrapper.
 wasmedge_add_library(wasmedgeCAPI OBJECT
+  wasm_c.cpp
   wasmedge.cpp
 )
 
@@ -146,6 +149,9 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   )
   install(FILES ${WASMEDGE_CAPI_HEADERS}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wasmedge
+  )
+  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/wasm/wasm.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
 endif()

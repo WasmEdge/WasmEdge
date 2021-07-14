@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "wasmedge/wasmedge.h"
+#include "wasm/wasm.h"
 
 #include "aot/compiler.h"
 #include "host/wasi/wasimodule.h"

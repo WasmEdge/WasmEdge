@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "api/wasmedge.h"
+#include "wasm/wasm.h"
 
 #include "common/errcode.h"
 #include "common/log.h"

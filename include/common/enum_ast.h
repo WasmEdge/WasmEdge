@@ -52,7 +52,8 @@ enum class ASTNodeAttr : uint8_t {
   Type_Table,
   Type_Global,
   Expression,
-  Instruction
+  Instruction,
+  Sec_AOT,
 };
 
 /// AST node attributes enumeration string mapping.

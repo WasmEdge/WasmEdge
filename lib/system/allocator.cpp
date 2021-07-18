@@ -26,6 +26,9 @@ BOOST_SYMBOL_IMPORT boost::winapi::LPVOID_ BOOST_WINAPI_WINAPI_CC VirtualAlloc(
 BOOST_SYMBOL_IMPORT boost::winapi::BOOL_ BOOST_WINAPI_WINAPI_CC
 VirtualFree(boost::winapi::LPVOID_ lpAddress, boost::winapi::SIZE_T_ dwSize,
             boost::winapi::DWORD_ dwFreeType);
+BOOST_SYMBOL_IMPORT boost::winapi::BOOL_ BOOST_WINAPI_WINAPI_CC VirtualProtect(
+    boost::winapi::LPVOID_ lpAddress, boost::winapi::SIZE_T_ dwSize,
+    boost::winapi::DWORD_ flNewProtect, boost::winapi::PDWORD_ lpflOldProtect);
 }
 #endif
 namespace boost {
@@ -36,10 +39,16 @@ using ::VirtualFree;
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_COMMIT_ = MEM_COMMIT;
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_RESERVE_ = MEM_RESERVE;
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_RELEASE_ = MEM_RELEASE;
+BOOST_CONSTEXPR_OR_CONST DWORD_ PAGE_EXECUTE_READ_ = PAGE_EXECUTE_READ;
+BOOST_CONSTEXPR_OR_CONST DWORD_ PAGE_READONLY_ = PAGE_READONLY;
+BOOST_CONSTEXPR_OR_CONST DWORD_ PAGE_READWRITE_ = PAGE_READWRITE;
 #else
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_COMMIT_ = 0x00001000;
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_RESERVE_ = 0x00002000;
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_RELEASE_ = 0x00008000;
+BOOST_CONSTEXPR_OR_CONST DWORD_ PAGE_EXECUTE_READ_ = 0x20;
+BOOST_CONSTEXPR_OR_CONST DWORD_ PAGE_READONLY_ = 0x02;
+BOOST_CONSTEXPR_OR_CONST DWORD_ PAGE_READWRITE_ = 0x04;
 #endif
 } // namespace winapi
 } // namespace boost
@@ -135,6 +144,73 @@ void Allocator::release(uint8_t *Pointer, uint32_t) noexcept {
   boost::winapi::VirtualFree(Pointer - k4G, 0, boost::winapi::MEM_RELEASE_);
 #else
   return std::free(Pointer);
+#endif
+}
+
+uint8_t *Allocator::allocate_chunk(uint64_t Size) noexcept {
+#if defined(HAVE_MMAP)
+  if (auto Pointer = mmap(nullptr, Size, PROT_READ | PROT_WRITE,
+                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+      unlikely(Pointer == MAP_FAILED)) {
+    return nullptr;
+  } else {
+    return reinterpret_cast<uint8_t *>(Pointer);
+  }
+#elif WASMEDGE_OS_WINDOWS
+  if (auto Pointer =
+          boost::winapi::VirtualAlloc(nullptr, Size, boost::winapi::MEM_COMMIT_,
+                                      boost::winapi::PAGE_READWRITE_);
+      unlikely(Pointer == nullptr)) {
+    return nullptr;
+  } else {
+    return Pointer;
+  }
+#else
+  return std::malloc(Size);
+#endif
+}
+
+void Allocator::release_chunk(uint8_t *Pointer, uint64_t Size) noexcept {
+#if defined(HAVE_MMAP)
+  munmap(Pointer, Size);
+#elif WASMEDGE_OS_WINDOWS
+  boost::winapi::VirtualFree(Pointer, 0, boost::winapi::MEM_RELEASE_);
+#else
+  return std::free(Pointer);
+#endif
+}
+
+bool Allocator::set_chunk_executable(uint8_t *Pointer, uint64_t Size) noexcept {
+#if defined(HAVE_MMAP)
+  return mprotect(Pointer, Size, PROT_EXEC | PROT_READ) == 0;
+#elif WASMEDGE_OS_WINDOWS
+  return boost::winapi::VirtualProtect(
+             Pointer, Size, boost::winapi::PAGE_EXECUTE_READ_, nullptr) == TRUE;
+#else
+  return true;
+#endif
+}
+
+bool Allocator::set_chunk_readable(uint8_t *Pointer, uint64_t Size) noexcept {
+#if defined(HAVE_MMAP)
+  return mprotect(Pointer, Size, PROT_READ) == 0;
+#elif WASMEDGE_OS_WINDOWS
+  return boost::winapi::VirtualProtect(
+             Pointer, Size, boost::winapi::PAGE_READONLY_, nullptr) == TRUE;
+#else
+  return true;
+#endif
+}
+
+bool Allocator::set_chunk_readable_writable(uint8_t *Pointer,
+                                            uint64_t Size) noexcept {
+#if defined(HAVE_MMAP)
+  return mprotect(Pointer, Size, PROT_READ | PROT_WRITE) == 0;
+#elif WASMEDGE_OS_WINDOWS
+  return boost::winapi::VirtualProtect(
+             Pointer, Size, boost::winapi::PAGE_READWRITE_, nullptr) == TRUE;
+#else
+  return true;
 #endif
 }
 

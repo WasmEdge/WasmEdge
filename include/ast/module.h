@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "loader/ldmgr.h"
+#include "loader/shared_library.h"
 
 #include "base.h"
 #include "section.h"
@@ -48,7 +49,9 @@ public:
   Expect<void> loadCompiled(LDMgr &Mgr);
 
   /// Getters of references of sections.
-  const CustomSection &getCustomSection() const { return CustomSec; }
+  const std::vector<CustomSection> &getCustomSections() const {
+    return CustomSecs;
+  }
   const TypeSection &getTypeSection() const { return TypeSec; }
   const ImportSection &getImportSection() const { return ImportSec; }
   const FunctionSection &getFunctionSection() const { return FunctionSec; }
@@ -61,6 +64,7 @@ public:
   const CodeSection &getCodeSection() const { return CodeSec; }
   const DataSection &getDataSection() const { return DataSec; }
   const DataCountSection &getDataCountSection() const { return DataCountSec; }
+  const AOTSection &getAOTSection() const { return AOTSec; }
 
   enum class Intrinsics : uint32_t {
     kTrap,
@@ -85,6 +89,13 @@ public:
   };
   using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];
 
+  /// Getter of compiled symbol.
+  const auto &getSymbol() const noexcept { return Symbol; }
+  /// Setter of compiled symbol.
+  void setSymbol(Loader::Symbol<const IntrinsicsTable *> S) noexcept {
+    Symbol = std::move(S);
+  }
+
   /// The node type should be ASTNodeAttr::Module.
   static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Module;
 
@@ -97,7 +108,7 @@ private:
 
   /// \name Section nodes of Module node.
   /// @{
-  CustomSection CustomSec;
+  std::vector<CustomSection> CustomSecs;
   TypeSection TypeSec;
   ImportSection ImportSec;
   FunctionSection FunctionSec;
@@ -111,6 +122,9 @@ private:
   DataSection DataSec;
   DataCountSection DataCountSec;
   /// @}
+  AOTSection AOTSec;
+
+  Loader::Symbol<const IntrinsicsTable *> Symbol;
 };
 
 } // namespace AST

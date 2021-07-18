@@ -66,8 +66,19 @@ public:
 
   bool isCostMeasuring() const noexcept { return CostMeasuring; }
 
+  /// AOT compiler output binary format.
+  enum class OutputFormat : uint8_t {
+    /// Native dynamic library format.
+    Native,
+    /// Webassembly format with custom section.
+    Wasm,
+  };
+  void setOutputFormat(OutputFormat Format) noexcept { OFormat = Format; }
+  OutputFormat getOutputFormat() const noexcept { return OFormat; }
+
 private:
   OptimizationLevel OptLevel = OptimizationLevel::O3;
+  OutputFormat OFormat = OutputFormat::Native;
   bool DumpIR = false;
   bool InstrCounting = false;
   bool CostMeasuring = false;

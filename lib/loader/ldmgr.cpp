@@ -11,13 +11,13 @@ Expect<void> LDMgr::setPath(const std::filesystem::path &FilePath) {
     return Unexpect(Res);
   }
 
-  const auto Table = getSymbol<void(const void *)>("init");
-  if (unlikely(!Table)) {
+  const auto IntrinsicsTable = getSymbol<const void *>("intrinsics");
+  if (unlikely(!IntrinsicsTable)) {
     spdlog::error(ErrCode::IllegalGrammar);
     return Unexpect(ErrCode::IllegalGrammar);
   }
 
-  Table(Intrinsics);
+  *IntrinsicsTable = Intrinsics;
   return {};
 }
 

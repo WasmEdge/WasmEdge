@@ -108,6 +108,9 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
       return Unexpect(Res);
     }
     if (auto Res = Mod->loadBinary(FMgr, Conf)) {
+      if (auto &Symbol = Mod->getSymbol()) {
+        *Symbol = IntrinsicsTable;
+      }
       return Mod;
     } else {
       spdlog::error(ErrInfo::InfoFile(FilePath));

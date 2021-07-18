@@ -28,7 +28,7 @@ class Loader {
 public:
   Loader(const Configure &Conf,
          const AST::Module::IntrinsicsTable *IT = nullptr) noexcept
-      : Conf(Conf), LMgr(IT) {}
+      : Conf(Conf), LMgr(IT), IntrinsicsTable(IT) {}
   ~Loader() noexcept = default;
 
   /// Load data from file path.
@@ -45,6 +45,7 @@ private:
   const Configure Conf;
   FileMgr FMgr;
   LDMgr LMgr;
+  const AST::Module::IntrinsicsTable *IntrinsicsTable;
 };
 
 } // namespace Loader

@@ -32,9 +32,9 @@ WasmEdge and its contained wasm program can be started from the CLI as a new pro
 
 # Embed WasmEdge into a host application
 
-A major use case of WasmEdge is to start an VM instance from a host application. In general, you can use the [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in) to do so.
+A major use case of WasmEdge is to start an VM instance from a host application. In general, you can use the [WasmEdge C API](doc/c_api.md) to do so. You can also refer to the [quick start guide](doc/c_api_quick_start.md) of the WasmEdge C API.
 
-However, the Wasm spec, and the [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), only supports very limited data types as  input parameters and return values for the contained Wasm bytecode functions. In order to pass complex data types, such as a string of an array, as call arguments into the contained function, you should use the bindgen solution provided by the [rustwasmc](https://github.com/second-state/rustwasmc) toolchain.
+However, the Wasm spec, and the [WasmEdge C API](doc/c_api.md), only supports very limited data types as input parameters and return values for the contained Wasm bytecode functions. In order to pass complex data types, such as a string of an array, as call arguments into the contained function, you should use the bindgen solution provided by the [rustwasmc](https://github.com/second-state/rustwasmc) toolchain.
 
 We currently supports bindgen in the [Node.js host environment](https://www.secondstate.io/articles/getting-started-with-rust-function/) and in [Golang environment](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_Mobilenet). We are working on [supporting interface types](https://github.com/WasmEdge/WasmEdge/issues/264) in place of bindgen for future releases.
 

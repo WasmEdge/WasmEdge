@@ -48,7 +48,7 @@ WasmEdge 的一个主要应用场景是从一个 host 应用程序启动一个�
 
 # 管理 WasmEdge 虚拟机实例
 
-有了 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), 您可以编写程序来启动、停止和管理您自己的应用程序中的 WasmEdge 虚拟机实例。例如 
+有了 [WasmEdge C API](doc/c_api.md), 您可以编写程序来启动、停止和管理您自己的应用程序中的 WasmEdge 虚拟机实例。您也可以参阅[WasmEdge C API 快速开始指引](doc/c_api_quick_start.md)。例如 
 
 * 当 WasmEdge 函数嵌入在了 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 或者在 [飞书](http://reactor.secondstate.info/docs/user-create-a-bot.html), 当有传入请求时，虚拟机由应用程序启动。
 * 当 WasmEdge 函数被插入到像 [YoMo](https://github.com/yomorun/yomo-flow-ssvm-example) 这样的数据流引擎中时，当一个新的数据点流经系统时，虚拟机就会启动。

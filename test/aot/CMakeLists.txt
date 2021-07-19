@@ -1,29 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_executable(wasmedgeAOTWagonTests
-  AOTwagonTest.cpp
-)
-
-add_test(wasmedgeAOTWagonTests wasmedgeAOTWagonTests)
-
-configure_files(
-  ${CMAKE_CURRENT_SOURCE_DIR}/../loader/wagonTestData
-  ${CMAKE_CURRENT_BINARY_DIR}/../loader/wagonTestData
-  COPYONLY
-)
-
-target_compile_options(wasmedgeAOTWagonTests
-  PRIVATE
-  ${WASMEDGE_CFLAGS}
-)
-
-target_link_libraries(wasmedgeAOTWagonTests
-  PRIVATE
-  ${GTEST_BOTH_LIBRARIES}
-  wasmedgeLoader
-  wasmedgeAOT
-)
-
 add_executable(wasmedgeAOTCoreTests
   AOTcoreTest.cpp
 )

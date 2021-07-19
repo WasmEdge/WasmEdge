@@ -395,7 +395,7 @@ WasmEdge_StringCreateByBuffer(const char *Buf, const uint32_t Len);
 
 /// Create the WasmEdge_String wraps to the buffer.
 ///
-/// This function creates a WasmEdge_String object which wraps to the input
+/// This function creates a `WasmEdge_String` object which wraps to the input
 /// buffer. The caller should guarantee the life cycle of the input buffer, and
 /// should __NOT__ call the `WasmEdge_StringDelete`.
 ///
@@ -418,8 +418,8 @@ WasmEdge_StringIsEqual(const WasmEdge_String Str1, const WasmEdge_String Str2);
 
 /// Copy the content of WasmEdge_String object to the buffer.
 ///
-/// This function copy at most `Len` characters from the WasmEdge_String object
-/// to the destination buffer. If the string length is less than `Len`
+/// This function copy at most `Len` characters from the `WasmEdge_String`
+/// object to the destination buffer. If the string length is less than `Len`
 /// characters long, the remainder of the buffer is filled with `\0' characters.
 /// Otherwise, the destination is not terminated.
 ///
@@ -521,9 +521,9 @@ WasmEdge_ConfigureHasProposal(const WasmEdge_ConfigureContext *Cxt,
 
 /// Add a host pre-registration setting into WasmEdge_ConfigureContext.
 ///
-/// For turning on the Wasi support in WasmEdge_VMContext, you can set the host
-/// pre-registration value into the WasmEdge_ConfigureContext and create VM with
-/// this context.
+/// For turning on the Wasi support in `WasmEdge_VMContext`, you can set the
+/// host pre-registration value into the `WasmEdge_ConfigureContext` and create
+/// VM with this context.
 /// ```c
 /// WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
 /// WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
@@ -780,13 +780,13 @@ WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern WasmEdge_LoaderContext *
 WasmEdge_LoaderCreate(const WasmEdge_ConfigureContext *ConfCxt);
 
-/// Load and parse the WASM module from a WASM file into
+/// Load and parse the WASM module from a WASM file into a
 /// WasmEdge_ASTModuleContext.
 ///
 /// Load and parse the WASM module from the file path, and return a
-/// WasmEdge_ASTModuleContext as result. The caller owns the
-/// WasmEdge_ASTModuleContext object and should call `WasmEdge_ASTModuleDelete`
-/// to free it.
+/// `WasmEdge_ASTModuleContext` as result. The caller owns the
+/// `WasmEdge_ASTModuleContext` object and should call
+/// `WasmEdge_ASTModuleDelete` to free it.
 ///
 /// \param Cxt the WasmEdge_LoaderContext.
 /// \param [out] Module the output WasmEdge_ASTModuleContext if succeeded.
@@ -2073,7 +2073,7 @@ WasmEdge_ImportObjectDelete(WasmEdge_ImportObjectContext *Cxt);
 /// \param StoreCxt the WasmEdge_StoreContext as the external WASM store of VM.
 /// The instantiation and execution will refer to this store context, and the
 /// life cycle should be ensured until the VM context is deleted. NULL for the
-/// default store owned by WasmEdge_VMContext.
+/// default store owned by `WasmEdge_VMContext`.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_VMContext *
@@ -2428,22 +2428,23 @@ WasmEdge_VMGetFunctionList(WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
 /// settings.
 ///
 /// When creating the VM context with configuration, the host module will be
-/// registered according to the WasmEdge_HostRegistration settings added into
-/// the WasmEdge_ConfigureContext. You can call this function to get the
-/// WasmEdge_ImportObjectContext corresponding to the settings. The import
+/// registered according to the `WasmEdge_HostRegistration` settings added into
+/// the `WasmEdge_ConfigureContext`. You can call this function to get the
+/// `WasmEdge_ImportObjectContext` corresponding to the settings. The import
 /// object context links to the context owned by the VM context. The caller
 /// should __NOT__ call the `WasmEdge_ImportObjectDelete`.
 ///
 /// ```c
 /// WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
 /// WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
-/// WasmEdge_ConfigureAddHostRegistration(Conf,
-/// WasmEdge_HostRegistration_WasmEdge_Process); WasmEdge_VMContext *VM =
-/// WasmEdge_VMCreate(Conf, NULL); WasmEdge_ImportObjectContext *WasiMod =
+/// WasmEdge_ConfigureAddHostRegistration(
+///     Conf, WasmEdge_HostRegistration_WasmEdge_Process);
+/// WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, NULL);
+/// WasmEdge_ImportObjectContext *WasiMod =
 ///     WasmEdge_VMGetImportModuleContext(VM, WasmEdge_HostRegistration_Wasi);
 /// WasmEdge_ImportObjectContext *ProcessMod =
-///     WasmEdge_VMGetImportModuleContext(VM,
-///     WasmEdge_HostRegistration_WasmEdge_Process);
+///     WasmEdge_VMGetImportModuleContext(
+///         VM, WasmEdge_HostRegistration_WasmEdge_Process);
 /// ```
 ///
 /// \param Cxt the WasmEdge_VMContext.

@@ -49,11 +49,13 @@ WasmEdge 的一個主要應用場景是從一個 host 應用程式啟動一個�
 
 # 管理 WasmEdge 虛擬機器實例
 
-有了 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in) ，您可以編寫程式來啟動、停止和管理您自己的應用程式中的 WasmEdge 虛擬機器實例。例如：
+有了 [WasmEdge C API](doc/c_api.md) ，您可以編寫程式來啟動、停止和管理您自己的應用程式中的 WasmEdge 虛擬機器實例。例如：
 
 * 當在 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 或者在 [飛書](http://reactor.secondstate.info/docs/user-create-a-bot.html) 上嵌入了 WasmEdge 函式，可以在當有傳入請求時，由應用程式啟動虛擬機器。
 * 當 WasmEdge 函式被外掛到像 [YoMo](https://github.com/yomorun/yomo-flow-ssvm-example) 這樣的資料流引擎中時，虛擬機器可以在一個新的資料點流經系統時啟動。
 * 作為一個相容於 OCI 的執行體， WasmEdge 應用程式可以由像是 CRI-O 與 Docker Hub 的 Docker 工具來管理。 [由此觀看](https://github.com/second-state/runw) 我們正在進行的對 Kubernetes 的支援。
+
+您也可以參閱 [WasmEdge C API 快速開始指南](doc/c_api_quick_start.md) 。
 
 # 支援 wasm 標準擴充
 

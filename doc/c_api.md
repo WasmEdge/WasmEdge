@@ -593,11 +593,12 @@ WasmEdge provides the following built-in pre-registrations.
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
     WasmEdge_ConfigureAddHostRegistration(ConfCxt, WasmEdge_HostRegistration_Wasi);
     WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(ConfCxt, NULL);
-    /* This API can retrieve the pre-registration import objects from the VM context. */
+    /* The following API can retrieve the pre-registration import objects from the VM context. */
     /* This API will return `NULL` if the corresponding pre-registration is not set into the configuration. */
     WasmEdge_ImportObjectContext *WasiObject =
       WasmEdge_VMGetImportModuleContext(VMCxt, WasmEdge_HostRegistration_Wasi);
-    /* WasmEdge_ImportObjectInitWASI() API can initialize the WASI. */
+    /* Initialize the WASI. */
+    WasmEdge_ImportObjectInitWASI(WasiObject, /* ... ignored */ );
     WasmEdge_VMDelete(VMCxt);
     WasmEdge_ConfigureDelete(ConfCxt);
     ```
@@ -608,6 +609,22 @@ WasmEdge provides the following built-in pre-registrations.
 
     This pre-registration is for the process interface for WasmEdge on `Rust` sources.
     After turning on this pre-registration, the VM will support the `wasmedge_process` host functions.
+
+    ```c
+    WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
+    WasmEdge_ConfigureAddHostRegistration(ConfCxt, WasmEdge_HostRegistration_WasmEdge_Process);
+    WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(ConfCxt, NULL);
+    /* The following API can retrieve the pre-registration import objects from the VM context. */
+    /* This API will return `NULL` if the corresponding pre-registration is not set into the configuration. */
+    WasmEdge_ImportObjectContext *ProcObject =
+      WasmEdge_VMGetImportModuleContext(VMCxt, WasmEdge_HostRegistration_WasmEdge_Process);
+    /* Initialize the WasmEdge_Process. */
+    WasmEdge_ImportObjectInitWasmEdgeProcess(ProcObject, /* ... ignored */ );
+    WasmEdge_VMDelete(VMCxt);
+    WasmEdge_ConfigureDelete(ConfCxt);
+    ```
+
+    And also can create the WasmEdge_Process import object from API. The details will be introduced in the [Host Functions](#Host-Functions) and the [Host Module Registrations](#Host-Module-Registrations).
 
 ### Host Module Registrations
 
@@ -1414,6 +1431,16 @@ In WasmEdge, developers can create the `Host Function`, `Memory`, `Table`, and `
     `WasmEdge_ImportObjectCreateWASI()` API can create and initialize the `WASI` import object.
     `WasmEdge_ImportObjectCreateWasmEdgeProcess()` API can create and initializae the `wasmedge_process` import object.
     Developers can create these import object contexts and register them into the `Store` or `VM` contexts rather than adjust the settings in the `Configure` contexts.
+
+    ```c
+    WasmEdge_ImportObjectContext *WasiObj = WasmEdge_ImportObjectCreateWASI( /* ... ignored */ );
+    WasmEdge_ImportObjectContext *ProcObj = WasmEdge_ImportObjectCreateWasmEdgeProcess( /* ... ignored */ );
+    WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(NULL, NULL);
+    /* Register the WASI and WasmEdge_Process into the VM context. */
+    WasmEdge_VMRegisterModuleFromImport(VMCxt, WasiObj);
+    WasmEdge_VMRegisterModuleFromImport(VMCxt, ProcObj);
+    WasmEdge_VMDelete(VMCxt);
+    ```
 
 4. Example
 

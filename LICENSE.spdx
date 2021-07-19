@@ -19,15 +19,6 @@ PackageOriginator: Organization: Second State INC (contact@secondstate.io)
 PackageLicenseDeclared: Apache-2.0
 FilesAnalyzed: false
 
-## Third Party Package Information
-PackageName: wagon
-SPDXID: SPDXRef-wagon
-PackageFileName: ./test/loader/wagonTestData
-PackageHomePage: https://github.com/go-interpreter/wagon
-PackageLicenseDeclared: BSD-3-Clause
-FilesAnalyzed: false
-PackageComment: <text>Only for testing.</text>
-
 PackageName: blake3
 SPDXID: SPDXRef-blake3
 PackageFileName: ./thirdparty/blake3
@@ -43,6 +34,5 @@ PackageOriginator: Organization: Second State INC (contact@secondstate.io)
 PackageLicenseDeclared: Apache-2.0
 
 ## Relationships
-Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-wagon
 Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-blake3
 Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-wasi-cpp-header

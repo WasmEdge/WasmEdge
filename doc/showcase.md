@@ -6,6 +6,6 @@ Once the PR is accepted, we will ship you some awesome WasmEdge SWAG so that you
 
 | Company/Project | What issues does WasmEdge solve | API/SDK | Any URL could show the work(Blog, Video, GitHub Repo,etc) | Date | Any insight want to share with the community(Optional) |
 |-----------------|---------------------------------|---------|-----------------------------------------------------------|------|--------------------------------------------------------|
-|    YoMo         |   WebAssembly runtime           |  API    |  https://github.com/yomorun/yomo-wasmedge-tensorflow      |22/6/2021| best choice for edge computing
+|    YoMo         |  Lightweight runtime for smart factories |  Golang |  https://github.com/yomorun/yomo-wasmedge-tensorflow   |22/6/2021| best choice for edge computing
 |                 |                                 |         |                                                           |      |                                                        |
 |                 |                                 |         |                                                           |      |                                                        |

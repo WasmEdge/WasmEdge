@@ -1,3 +1,32 @@
+### 0.8.2 (unrelease)
+
+Features:
+
+* WASI support:
+  * Support WASI on macOS(Intel & M1)
+  * Support WASI on Windows 10
+* C API:
+  * Add the API about convert `WasmEdge_String` to C string
+* AOT:
+  * Add `--generic-binary` to generate generic binary and disable using host features
+
+Fixed issues:
+
+* Ensure every platform defines is defined
+* Disable blake3 AVX512 support on old platform
+* Avoid vector ternary operator in AOT, which is unspoorted by clang on mac
+* The preopen should be `--dir guest_path:host_path`
+
+Refactor:
+
+* Refactor WASI VFS architecture
+
+Tests:
+
+* Add wasi-test for testing basic WASI interface
+* Add C API unit test of string copy.
+* Remove unnecessary Wagon and Ethereum tests
+
 ### 0.8.1 (2021-06-18)
 
 Features:

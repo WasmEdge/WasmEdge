@@ -9,7 +9,6 @@
 #include "host/wasi/inode.h"
 #include "host/wasi/vfs.h"
 #include "linux.h"
-#include <iostream>
 
 namespace WasmEdge {
 namespace Host {
@@ -781,8 +780,6 @@ WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
     return WasiUnexpect(fromErrNo(errno));
   }
 
-  // spdlog::debug("open socket fd: {0}", Fd);
-
   if (auto NewFd = ::socket(SysDomain, SysType, SysProtocol);
       unlikely(NewFd < 0)) {
     return WasiUnexpect(fromErrNo(errno));
@@ -792,11 +789,18 @@ WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
   }
 }
 
-WasiExpect<void> INode::sockBind(unsigned char Address[4],
+WasiExpect<void> INode::sockBind(unsigned char *Address, uint8_t AddressLength,
                                  uint16_t Port) noexcept {
 
   struct sockaddr_in ServerAddr;
-  ServerAddr.sin_family = AF_INET;
+
+  if (AddressLength == 4) {
+    ServerAddr.sin_family = AF_INET;
+  } else if (AddressLength == 6) {
+    ServerAddr.sin_family = AF_INET6;
+  } else {
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
   ServerAddr.sin_port = htons(Port);
   ServerAddr.sin_addr = *((in_addr *)(Address));
 
@@ -821,7 +825,8 @@ WasiExpect<INode> INode::sockAccept(uint16_t Port) noexcept {
   ServerSocketAddr.sin_port = htons(Port);
   unsigned int clilen = sizeof(ServerSocketAddr);
 
-  if (auto NewFd = ::accept(Fd, (struct sockaddr *)&ServerSocketAddr, &clilen);
+  if (auto NewFd = ::accept(
+          Fd, reinterpret_cast<struct sockaddr *>(&ServerSocketAddr), &clilen);
       unlikely(NewFd < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
@@ -830,11 +835,19 @@ WasiExpect<INode> INode::sockAccept(uint16_t Port) noexcept {
   }
 }
 
-WasiExpect<void> INode::sockConnect(unsigned char Address[4],
+WasiExpect<void> INode::sockConnect(unsigned char *Address,
+                                    uint8_t AddressLength,
                                     uint16_t Port) noexcept {
 
   struct sockaddr_in ClientSocketAddr;
-  ClientSocketAddr.sin_family = AF_INET;
+
+  if (AddressLength == 4) {
+    ClientSocketAddr.sin_family = AF_INET;
+  } else if (AddressLength == 6) {
+    ClientSocketAddr.sin_family = AF_INET6;
+  } else {
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
   ClientSocketAddr.sin_port = htons(Port);
   ClientSocketAddr.sin_addr = *((in_addr *)(Address));
 

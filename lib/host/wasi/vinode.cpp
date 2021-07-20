@@ -329,7 +329,7 @@ VINode::sockOpen(VFS &FS, __wasi_address_family_t SysDomain,
                              __WASI_RIGHTS_SOCK_CLOSE |
                              __WASI_RIGHTS_SOCK_SHUTDOWN;
     return std::make_shared<VINode>(FS, std::move(*Res), Rights, Rights,
-                                    std::string(""));
+                                    std::string(""s));
   }
 }
 

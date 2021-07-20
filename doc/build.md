@@ -7,7 +7,6 @@ Please follow this guide to build and test WasmEdge from source code.
 ```bash
 $ git clone https://github.com/WasmEdge/WasmEdge.git
 $ cd WasmEdge
-$ git checkout 0.8.1
 ```
 
 ## Prepare the environment

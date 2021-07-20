@@ -105,6 +105,7 @@ If you have any questions, feel free to open a GitHub issue on a related project
 
 * Mailing list: Send an email to [WasmEdge@googlegroups.com](https://groups.google.com/g/wasmedge/)
 * Slack: Join the #WasmEdge channel on the [CNCF Slack](https://slack.cncf.io/)
+* Twitter: Follow @realwasmedge on [Twitter](https://twitter.com/realwasmedge)
 
 ## License
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_large)

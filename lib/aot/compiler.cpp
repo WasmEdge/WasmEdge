@@ -206,7 +206,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   llvm::Function *Init;
   llvm::Function *Trap;
   uint32_t MemMin = 1, MemMax = 65536;
-  CompileContext(llvm::Module &M)
+  CompileContext(llvm::Module &M, bool IsGenericBinary)
       : LLContext(M.getContext()), LLModule(M),
         VoidTy(llvm::Type::getVoidTy(LLContext)),
         Int8Ty(llvm::Type::getInt8Ty(LLContext)),
@@ -266,7 +266,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
         LLModule, Int32Ty, true, llvm::GlobalValue::ExternalLinkage,
         llvm::ConstantInt::get(Int32Ty, kBinaryVersion), "version");
 
-    {
+    if (!IsGenericBinary) {
       llvm::StringMap<bool> FeatureMap;
       llvm::sys::getHostCPUFeatures(FeatureMap);
       for (auto &Feature : FeatureMap) {
@@ -3809,7 +3809,8 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 #elif WASMEDGE_OS_LINUX | WASMEDGE_OS_WINDOWS
   LLModule->setPICLevel(llvm::PICLevel::Level::SmallPIC);
 #endif
-  CompileContext NewContext(*LLModule);
+  CompileContext NewContext(*LLModule,
+                            Conf.getCompilerConfigure().isGenericBinary());
   struct RAIICleanup {
     RAIICleanup(CompileContext *&Context, CompileContext &NewContext)
         : Context(Context) {

@@ -71,6 +71,12 @@ public:
 
   bool isDumpIR() const noexcept { return DumpIR; }
 
+  void setGenericBinary(bool IsGenericBinary) noexcept {
+    GenericBinary = IsGenericBinary;
+  }
+
+  bool isGenericBinary() const noexcept { return GenericBinary; }
+
   void setInstructionCounting(bool IsCount) noexcept {
     InstrCounting = IsCount;
   }
@@ -86,6 +92,7 @@ private:
   bool DumpIR = false;
   bool InstrCounting = false;
   bool CostMeasuring = false;
+  bool GenericBinary = false;
 };
 
 class RuntimeConfigure {

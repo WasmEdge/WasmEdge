@@ -103,8 +103,11 @@ public:
                     PageLimit);
       return false;
     }
-    if (Allocator::resize(DataPtr, MinPage, MinPage + Count) == nullptr) {
+    if (auto NewPtr = Allocator::resize(DataPtr, MinPage, MinPage + Count);
+        NewPtr == nullptr) {
       return false;
+    } else {
+      DataPtr = NewPtr;
     }
     MinPage += Count;
     return true;

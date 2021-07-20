@@ -317,10 +317,14 @@ bool SpecTest::compare(
       }
       std::string_view LaneType = std::string_view(Type).substr(4);
       if (LaneType == "f32") {
+        using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
         using floatx4_t [[gnu::vector_size(16)]] = float;
         using uint32x4_t [[gnu::vector_size(16)]] = uint32_t;
-        const auto VF = reinterpret_cast<floatx4_t>(G.get<uint128_t>());
-        const auto VI = reinterpret_cast<uint32x4_t>(G.get<uint128_t>());
+        const uint64x2_t V64 = {
+            static_cast<uint64_t>(G.get<uint128_t>()),
+            static_cast<uint64_t>(G.get<uint128_t>() >> 64U)};
+        const auto VF = reinterpret_cast<floatx4_t>(V64);
+        const auto VI = reinterpret_cast<uint32x4_t>(V64);
         for (size_t I = 0; I < 4; ++I) {
           if (Parts[I].substr(0, 4) == "nan:"sv) {
             if (!std::isnan(VF[I])) {
@@ -337,8 +341,11 @@ bool SpecTest::compare(
       } else if (LaneType == "f64") {
         using doublex2_t [[gnu::vector_size(16)]] = double;
         using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
-        const auto VF = reinterpret_cast<doublex2_t>(G.get<uint128_t>());
-        const auto VI = reinterpret_cast<uint64x2_t>(G.get<uint128_t>());
+        const uint64x2_t V64 = {
+            static_cast<uint64_t>(G.get<uint128_t>()),
+            static_cast<uint64_t>(G.get<uint128_t>() >> 64U)};
+        const auto VF = reinterpret_cast<doublex2_t>(V64);
+        const auto VI = reinterpret_cast<uint64x2_t>(V64);
         for (size_t I = 0; I < 2; ++I) {
           if (Parts[I].substr(0, 4) == "nan:"sv) {
             if (!std::isnan(VF[I])) {
@@ -354,7 +361,10 @@ bool SpecTest::compare(
         }
       } else if (LaneType == "i8") {
         using uint8x16_t [[gnu::vector_size(16)]] = uint8_t;
-        const auto V = reinterpret_cast<uint8x16_t>(G.get<uint128_t>());
+        const uint64x2_t V64 = {
+            static_cast<uint64_t>(G.get<uint128_t>()),
+            static_cast<uint64_t>(G.get<uint128_t>() >> 64U)};
+        const auto V = reinterpret_cast<uint8x16_t>(V64);
         for (size_t I = 0; I < 16; ++I) {
           const uint8_t V2 = std::stoul(std::string(Parts[I]));
           const uint8_t V1 = V[I];
@@ -364,7 +374,10 @@ bool SpecTest::compare(
         }
       } else if (LaneType == "i16") {
         using uint16x8_t [[gnu::vector_size(16)]] = uint16_t;
-        const auto V = reinterpret_cast<uint16x8_t>(G.get<uint128_t>());
+        const uint64x2_t V64 = {
+            static_cast<uint64_t>(G.get<uint128_t>()),
+            static_cast<uint64_t>(G.get<uint128_t>() >> 64U)};
+        const auto V = reinterpret_cast<uint16x8_t>(V64);
         for (size_t I = 0; I < 8; ++I) {
           const uint16_t V2 = std::stoul(std::string(Parts[I]));
           const uint16_t V1 = V[I];
@@ -374,7 +387,10 @@ bool SpecTest::compare(
         }
       } else if (LaneType == "i32") {
         using uint32x4_t [[gnu::vector_size(16)]] = uint32_t;
-        const auto V = reinterpret_cast<uint32x4_t>(G.get<uint128_t>());
+        const uint64x2_t V64 = {
+            static_cast<uint64_t>(G.get<uint128_t>()),
+            static_cast<uint64_t>(G.get<uint128_t>() >> 64U)};
+        const auto V = reinterpret_cast<uint32x4_t>(V64);
         for (size_t I = 0; I < 4; ++I) {
           const uint32_t V2 = std::stoul(std::string(Parts[I]));
           const uint32_t V1 = V[I];
@@ -384,7 +400,8 @@ bool SpecTest::compare(
         }
       } else if (LaneType == "i64") {
         using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
-        const auto V = reinterpret_cast<uint64x2_t>(G.get<uint128_t>());
+        const uint64x2_t V = {static_cast<uint64_t>(G.get<uint128_t>()),
+                              static_cast<uint64_t>(G.get<uint128_t>() >> 64U)};
         for (size_t I = 0; I < 2; ++I) {
           const uint64_t V2 = std::stoull(std::string(Parts[I]));
           const uint64_t V1 = V[I];

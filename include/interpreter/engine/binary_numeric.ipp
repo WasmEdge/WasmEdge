@@ -123,7 +123,8 @@ TypeI<T> Interpreter::runShrOp(ValVariant &Val1, const ValVariant &Val2) const {
   /// Return the result of i1 >> (i2 modulo N).
   /// In signed case, extended with the sign bit of i1.
   /// In unsigned case, extended with 0 bits.
-  Val1.get<T>() >>= (Val2.get<T>() % static_cast<T>(sizeof(T) * 8));
+  using UT = std::make_unsigned_t<T>;
+  Val1.get<T>() >>= (Val2.get<UT>() % static_cast<T>(sizeof(T) * 8));
   return {};
 }
 

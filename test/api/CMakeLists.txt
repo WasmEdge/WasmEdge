@@ -10,6 +10,23 @@ file(COPY
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+wasmedge_add_executable(wasmedgeAPIWasmCUnitTests
+  APIWasmCUnitTest.cpp
+)
+
+add_test(wasmedgeAPIWasmCUnitTests wasmedgeAPIWasmCUnitTests)
+
+target_include_directories(wasmedgeAPIWasmCUnitTests
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/thirdparty/wasm
+)
+
+target_link_libraries(wasmedgeAPIWasmCUnitTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedge_c
+)
+
 wasmedge_add_library(wasmedgeAPITestHelpers
   hostfunc_c.c
   helper.cpp

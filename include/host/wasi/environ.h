@@ -10,7 +10,7 @@
 #include "host/wasi/vinode.h"
 #include "wasi/api.hpp"
 #include <csignal>
-#include <iostream>
+#include <cstdint>
 #include <mutex>
 #include <random>
 #include <shared_mutex>
@@ -856,13 +856,13 @@ public:
     return NewFd;
   }
 
-  WasiExpect<void> sockBind(__wasi_fd_t Fd, unsigned char Address[4],
-                            uint16_t Port) noexcept {
+  WasiExpect<void> sockBind(__wasi_fd_t Fd, unsigned char *Address,
+                            uint8_t AddressLength, uint16_t Port) noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockBind(Address, Port);
+      return Node->sockBind(Address, AddressLength, Port);
     }
   }
 
@@ -898,13 +898,13 @@ public:
     return NewFd;
   }
 
-  WasiExpect<void> sockConnect(__wasi_fd_t Fd, unsigned char Address[4],
-                               uint16_t Port) noexcept {
+  WasiExpect<void> sockConnect(__wasi_fd_t Fd, unsigned char *Address,
+                               uint8_t AddressLength, uint16_t Port) noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockConnect(Address, Port);
+      return Node->sockConnect(Address, AddressLength, Port);
     }
   }
 

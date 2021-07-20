@@ -20,6 +20,9 @@ int main(int Argc, const char *Argv[]) {
   PO::Option<std::string> SoName(PO::Description("Wasm so file"sv),
                                  PO::MetaVar("WASM_SO"sv));
 
+  PO::Option<PO::Toggle> GenericBinary(
+      PO::Description("Generate a generic binary"sv));
+
   PO::Option<PO::Toggle> DumpIR(
       PO::Description("Dump LLVM IR to `wasm.ll` and `wasm-opt.ll`."sv));
 
@@ -42,6 +45,7 @@ int main(int Argc, const char *Argv[]) {
            .add_option("dump"sv, DumpIR)
            .add_option("ic"sv, InstructionCounting)
            .add_option("gas"sv, GasMeasuring)
+           .add_option("generic-binary"sv, GenericBinary)
            .add_option("disable-bulk-memory"sv, BulkMemoryOperations)
            .add_option("disable-reference-types"sv, ReferenceTypes)
            .add_option("enable-simd"sv, SIMD)
@@ -108,6 +112,9 @@ int main(int Argc, const char *Argv[]) {
     }
     if (GasMeasuring.value()) {
       Conf.getCompilerConfigure().setCostMeasuring(true);
+    }
+    if (GenericBinary.value()) {
+      Conf.getCompilerConfigure().setGenericBinary(true);
     }
     WasmEdge::AOT::Compiler Compiler(Conf);
     if (auto Res = Compiler.compile(Data, *Module, OutputPath); !Res) {

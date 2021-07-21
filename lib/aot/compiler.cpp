@@ -3898,10 +3898,13 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
 
     llvm::TargetOptions Options;
     llvm::Reloc::Model RM = llvm::Reloc::PIC_;
+    llvm::StringRef CPUName("generic");
+    if (!Conf.getCompilerConfigure().isGenericBinary()) {
+      CPUName = llvm::sys::getHostCPUName();
+    }
     std::unique_ptr<llvm::TargetMachine> TM(TheTarget->createTargetMachine(
-        Triple.str(), llvm::sys::getHostCPUName(),
-        Context->SubtargetFeatures.getString(), Options, RM, llvm::None,
-        llvm::CodeGenOpt::Level::Aggressive));
+        Triple.str(), CPUName, Context->SubtargetFeatures.getString(), Options,
+        RM, llvm::None, llvm::CodeGenOpt::Level::Aggressive));
     LLModule->setDataLayout(TM->createDataLayout());
 
     llvm::TargetLibraryInfoImpl TLII(Triple);

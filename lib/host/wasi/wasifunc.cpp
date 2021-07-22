@@ -1579,7 +1579,7 @@ Expect<uint32_t> WasiSockBind::body(Runtime::Instance::MemoryInstance *MemInst,
   __wasi_address_t *InnerAddress = MemInst->getPointer<__wasi_address_t *>(
       AddressPtr, sizeof(__wasi_address_t));
 
-  if (InnerAddress->buf_len != 4 && InnerAddress->buf_len != 6) {
+  if (InnerAddress->buf_len != 4 && InnerAddress->buf_len != 16) {
     return __WASI_ERRNO_INVAL;
   }
 
@@ -1662,7 +1662,7 @@ WasiSockConnect::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 4 && InnerAddress->buf_len != 6) {
+  if (InnerAddress->buf_len != 4 && InnerAddress->buf_len != 16) {
     return __WASI_ERRNO_INVAL;
   }
 

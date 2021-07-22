@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/defines.h"
 #include <cstdint>
+#include <cstring>
 #include <netinet/in.h>
 #if WASMEDGE_OS_LINUX
 
@@ -792,21 +793,28 @@ WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
 WasiExpect<void> INode::sockBind(unsigned char *Address, uint8_t AddressLength,
                                  uint16_t Port) noexcept {
 
-  struct sockaddr_in ServerAddr;
-
   if (AddressLength == 4) {
+    struct sockaddr_in ServerAddr;
     ServerAddr.sin_family = AF_INET;
-  } else if (AddressLength == 6) {
-    ServerAddr.sin_family = AF_INET6;
-  } else {
-    return WasiUnexpect(__WASI_ERRNO_INVAL);
-  }
-  ServerAddr.sin_port = htons(Port);
-  ServerAddr.sin_addr = *((in_addr *)(Address));
+    ServerAddr.sin_port = htons(Port);
+    std::memcpy(&ServerAddr.sin_addr.s_addr, Address, sizeof(uint32_t));
 
-  if (auto Res = ::bind(Fd, (struct sockaddr *)&ServerAddr, sizeof(ServerAddr));
-      unlikely(Res < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
+    if (auto Res =
+            ::bind(Fd, (struct sockaddr *)&ServerAddr, sizeof(ServerAddr));
+        unlikely(Res < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
+  } else if (AddressLength == 16) {
+    struct sockaddr_in6 ServerAddr;
+
+    ServerAddr.sin6_family = AF_INET6;
+    ServerAddr.sin6_port = htons(Port);
+    std::memcpy(ServerAddr.sin6_addr.s6_addr, Address, sizeof(in6_addr));
+    if (auto Res =
+            ::bind(Fd, (struct sockaddr *)&ServerAddr, sizeof(ServerAddr));
+        unlikely(Res < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
   }
   return {};
 }
@@ -838,23 +846,28 @@ WasiExpect<INode> INode::sockAccept(uint16_t Port) noexcept {
 WasiExpect<void> INode::sockConnect(unsigned char *Address,
                                     uint8_t AddressLength,
                                     uint16_t Port) noexcept {
-
-  struct sockaddr_in ClientSocketAddr;
-
   if (AddressLength == 4) {
+    struct sockaddr_in ClientSocketAddr;
     ClientSocketAddr.sin_family = AF_INET;
-  } else if (AddressLength == 6) {
-    ClientSocketAddr.sin_family = AF_INET6;
-  } else {
-    return WasiUnexpect(__WASI_ERRNO_INVAL);
-  }
-  ClientSocketAddr.sin_port = htons(Port);
-  ClientSocketAddr.sin_addr = *((in_addr *)(Address));
+    ClientSocketAddr.sin_port = htons(Port);
+    std::memcpy(&ClientSocketAddr.sin_addr.s_addr, Address, sizeof(uint32_t));
 
-  if (auto Res = ::connect(Fd, (struct sockaddr *)&ClientSocketAddr,
-                           sizeof(ClientSocketAddr));
-      unlikely(Res < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
+    if (auto Res = ::connect(Fd, (struct sockaddr *)&ClientSocketAddr,
+                             sizeof(ClientSocketAddr));
+        unlikely(Res < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
+  } else if (AddressLength == 16) {
+    struct sockaddr_in6 ClientSocketAddr;
+
+    ClientSocketAddr.sin6_family = AF_INET6;
+    ClientSocketAddr.sin6_port = htons(Port);
+    std::memcpy(ClientSocketAddr.sin6_addr.s6_addr, Address, sizeof(in6_addr));
+    if (auto Res = ::bind(Fd, (struct sockaddr *)&ClientSocketAddr,
+                          sizeof(ClientSocketAddr));
+        unlikely(Res < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
   }
   return {};
 }

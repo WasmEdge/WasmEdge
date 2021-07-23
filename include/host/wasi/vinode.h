@@ -531,7 +531,7 @@ public:
   sockOpen(VFS &FS, __wasi_address_family_t SysDomain,
            __wasi_sock_type_t SockType);
 
-  WasiExpect<void> sockBind(unsigned char *Address, uint8_t AddressLength, uint16_t Port) noexcept {
+  WasiExpect<void> sockBind(uint8_t *Address, uint8_t AddressLength, uint16_t Port) noexcept {
     return Node.sockBind(Address, AddressLength, Port);
   }
 
@@ -541,7 +541,7 @@ public:
 
   WasiExpect<std::shared_ptr<VINode>> sockAccept(uint16_t Port);
 
-  WasiExpect<void> sockConnect(unsigned char *Address, uint8_t AddressLength,
+  WasiExpect<void> sockConnect(uint8_t *Address, uint8_t AddressLength,
                                uint16_t Port) noexcept {
     return Node.sockConnect(Address, AddressLength, Port);
   }

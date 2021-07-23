@@ -767,7 +767,7 @@ WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
     SysDomain = AF_INET6;
     break;
   default:
-    return WasiUnexpect(fromErrNo(errno));
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
 
   switch (SockType) {
@@ -778,7 +778,7 @@ WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
     SysType = SOCK_STREAM;
     break;
   default:
-    return WasiUnexpect(fromErrNo(errno));
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
 
   if (auto NewFd = ::socket(SysDomain, SysType, SysProtocol);
@@ -790,17 +790,17 @@ WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
   }
 }
 
-WasiExpect<void> INode::sockBind(unsigned char *Address, uint8_t AddressLength,
+WasiExpect<void> INode::sockBind(uint8_t *Address, uint8_t AddressLength,
                                  uint16_t Port) noexcept {
 
   if (AddressLength == 4) {
     struct sockaddr_in ServerAddr;
     ServerAddr.sin_family = AF_INET;
     ServerAddr.sin_port = htons(Port);
-    std::memcpy(&ServerAddr.sin_addr.s_addr, Address, sizeof(uint32_t));
+    std::memcpy(&ServerAddr.sin_addr.s_addr, Address, AddressLength);
 
-    if (auto Res =
-            ::bind(Fd, (struct sockaddr *)&ServerAddr, sizeof(ServerAddr));
+    if (auto Res = ::bind(Fd, reinterpret_cast<struct sockaddr *>(&ServerAddr),
+                          sizeof(ServerAddr));
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
@@ -809,9 +809,9 @@ WasiExpect<void> INode::sockBind(unsigned char *Address, uint8_t AddressLength,
 
     ServerAddr.sin6_family = AF_INET6;
     ServerAddr.sin6_port = htons(Port);
-    std::memcpy(ServerAddr.sin6_addr.s6_addr, Address, sizeof(in6_addr));
-    if (auto Res =
-            ::bind(Fd, (struct sockaddr *)&ServerAddr, sizeof(ServerAddr));
+    std::memcpy(ServerAddr.sin6_addr.s6_addr, Address, AddressLength);
+    if (auto Res = ::bind(Fd, reinterpret_cast<struct sockaddr *>(&ServerAddr),
+                          sizeof(ServerAddr));
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
@@ -831,10 +831,11 @@ WasiExpect<INode> INode::sockAccept(uint16_t Port) noexcept {
   ServerSocketAddr.sin_family = AF_INET;
   ServerSocketAddr.sin_addr.s_addr = INADDR_ANY;
   ServerSocketAddr.sin_port = htons(Port);
-  unsigned int clilen = sizeof(ServerSocketAddr);
+  socklen_t AddressLen = sizeof(ServerSocketAddr);
 
-  if (auto NewFd = ::accept(
-          Fd, reinterpret_cast<struct sockaddr *>(&ServerSocketAddr), &clilen);
+  if (auto NewFd =
+          ::accept(Fd, reinterpret_cast<struct sockaddr *>(&ServerSocketAddr),
+                   &AddressLen);
       unlikely(NewFd < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
@@ -843,17 +844,18 @@ WasiExpect<INode> INode::sockAccept(uint16_t Port) noexcept {
   }
 }
 
-WasiExpect<void> INode::sockConnect(unsigned char *Address,
+WasiExpect<void> INode::sockConnect(uint8_t *Address,
                                     uint8_t AddressLength,
                                     uint16_t Port) noexcept {
   if (AddressLength == 4) {
     struct sockaddr_in ClientSocketAddr;
     ClientSocketAddr.sin_family = AF_INET;
     ClientSocketAddr.sin_port = htons(Port);
-    std::memcpy(&ClientSocketAddr.sin_addr.s_addr, Address, sizeof(uint32_t));
+    std::memcpy(&ClientSocketAddr.sin_addr.s_addr, Address, AddressLength);
 
-    if (auto Res = ::connect(Fd, (struct sockaddr *)&ClientSocketAddr,
-                             sizeof(ClientSocketAddr));
+    if (auto Res = ::connect(
+            Fd, reinterpret_cast<struct sockaddr *>(&ClientSocketAddr),
+            sizeof(ClientSocketAddr));
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
@@ -862,9 +864,10 @@ WasiExpect<void> INode::sockConnect(unsigned char *Address,
 
     ClientSocketAddr.sin6_family = AF_INET6;
     ClientSocketAddr.sin6_port = htons(Port);
-    std::memcpy(ClientSocketAddr.sin6_addr.s6_addr, Address, sizeof(in6_addr));
-    if (auto Res = ::bind(Fd, (struct sockaddr *)&ClientSocketAddr,
-                          sizeof(ClientSocketAddr));
+    std::memcpy(ClientSocketAddr.sin6_addr.s6_addr, Address, AddressLength);
+    if (auto Res =
+            ::bind(Fd, reinterpret_cast<struct sockaddr *>(&ClientSocketAddr),
+                   sizeof(ClientSocketAddr));
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }

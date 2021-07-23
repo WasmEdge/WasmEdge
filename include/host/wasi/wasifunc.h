@@ -361,13 +361,6 @@ public:
                         int32_t AddressFamily, int32_t SockType, uint32_t RoFd);
 };
 
-class WasiSockClose : public Wasi<WasiSockClose> {
-public:
-  WasiSockClose(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
-
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd);
-};
-
 class WasiSockBind : public Wasi<WasiSockBind> {
 public:
   WasiSockBind(WASI::Environ &HostEnv) : Wasi(HostEnv) {}

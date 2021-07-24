@@ -1,6 +1,7 @@
 
 # 快速開始指引
 
+🚀 [安裝](doc/install.md) WasmEdge\
 🤖 [從原始碼編譯 WasmEdge](doc/build.md)\
 🤖 [貢獻 WasmEdge](doc/contribution.md)\
 ⌨️ [從 CLI](doc/run.md)  或 [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) 或 [Golang](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn) 執行一個獨立的 Wasm 程式\

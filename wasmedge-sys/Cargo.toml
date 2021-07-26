@@ -1,0 +1,9 @@
+[package]
+name = "wasmedge-sys"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+
+[build-dependencies]
+bindgen = { version = "0.59.1", default-features = false, features = ["runtime"] }

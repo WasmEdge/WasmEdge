@@ -1,6 +1,7 @@
 
 # 快速开始指引
 
+🚀 [安装](doc/install.md) WasmEdge\
 🤖 [从源码编译](doc/build.md)  [贡献](doc/contribution.md) WasmEdge\
 ⌨️  [从 CLI](doc/run.md)或 [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example)  [Golang](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)跑一个独立的 Wasm 程序\
 💭 [部署一个 Wasm 函数](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/)即 web 服务 (FaaS)\

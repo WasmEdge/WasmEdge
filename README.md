@@ -2,6 +2,7 @@
 
 # Quick start guides
 
+🚀 [Install](doc/install.md) WasmEdge \
 🤖 [Build](doc/build.md) and [contribute to](doc/contribution.md) WasmEdge\
 ⌨️  Run a standalone Wasm program [from CLI](doc/run.md) or [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) or [Golang](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ReadFile) or [CRI-O / Docker](https://github.com/second-state/runw/blob/master/README.md)\
 💭 [Deploy a Wasm function](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/) as a web service (FaaS)\

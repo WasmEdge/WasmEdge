@@ -1,5 +1,0 @@
-#!/bin/sh
-set -e
-if which update-binfmts >/dev/null; then
- update-binfmts --import wasmedge || true
-fi

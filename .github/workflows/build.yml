@@ -91,6 +91,26 @@ jobs:
         fail_ci_if_error: true
         path_to_write_report: ./build/codecov_report.gz
 
+  build_ubuntu_legacy:
+    strategy:
+      matrix:
+        include:
+          - name: 20.04
+            docker_tag: ubuntu2004_x86_64
+    name: Build WasmEdge on Ubuntu ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    container:
+      image: wasmedge/wasmedge:${{ matrix.docker_tag }}
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Build and test WasmEdge
+      run: |
+        bash utils/docker/test-ubuntu.sh
+
   build_manylinux:
     strategy:
       matrix:

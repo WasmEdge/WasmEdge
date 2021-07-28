@@ -2,6 +2,8 @@
 name = "wasmedge-sys"
 version = "0.1.0"
 edition = "2018"
+description = "WasmEdge Runtime is a high-performance, extensible, and hardware optimized WebAssembly Virtual Machine for automotive, cloud, AI, and blockchain applications."
+license = "Apache-2.0"
 
 [dependencies]
 

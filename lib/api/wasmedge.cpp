@@ -751,7 +751,8 @@ WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt) {
 /// >>>>>>>> WasmEdge AOT compiler functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_CompilerContext *
-WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt) {
+WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt
+                        [[maybe_unused]]) {
 #ifdef WASMEDGE_BUILD_AOT_RUNTIME
   if (ConfCxt) {
     return new WasmEdge_CompilerContext(ConfCxt->Conf);
@@ -764,7 +765,8 @@ WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompile(
-    WasmEdge_CompilerContext *Cxt, const char *InPath, const char *OutPath) {
+    WasmEdge_CompilerContext *Cxt [[maybe_unused]],
+    const char *InPath [[maybe_unused]], const char *OutPath [[maybe_unused]]) {
 #ifdef WASMEDGE_BUILD_AOT_RUNTIME
   return wrap(
       [&]() -> WasmEdge::Expect<void> {

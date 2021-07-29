@@ -23,9 +23,9 @@
 #include <unistd.h>
 
 // socket include
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 
 #if __GLIBC_PREREQ(2, 8)
 #include <sys/timerfd.h>

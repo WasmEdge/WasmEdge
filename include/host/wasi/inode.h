@@ -474,7 +474,8 @@ public:
   static WasiExpect<INode> sockOpen(__wasi_address_family_t SysDomain,
                                     __wasi_sock_type_t SockType) noexcept;
 
-  WasiExpect<void> sockBind(uint8_t *Address, uint8_t AddressLength, uint16_t Port) noexcept;
+  WasiExpect<void> sockBind(uint8_t *Address, uint8_t AddressLength,
+                            uint16_t Port) noexcept;
 
   WasiExpect<void> sockListen(uint32_t Backlog) noexcept;
 

@@ -9,12 +9,12 @@ on:
     branches:
       - master
     paths-ignore:
-      - 'doc/**'
+      - 'docs/**'
   pull_request:
     branches:
       - master
     paths-ignore:
-      - 'doc/**'
+      - 'docs/**'
 
 jobs:
   build_ubuntu:

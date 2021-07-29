@@ -72,7 +72,7 @@ Refactor:
 
 Documentations:
 
-* Updated the [WasmEdge ecosystem](https://github.com/WasmEdge/WasmEdge/blob/master/doc/ecosystem.md) document.
+* Updated the [WasmEdge ecosystem](https://github.com/WasmEdge/WasmEdge/blob/master/docs/ecosystem.md) document.
   * Renamed the `SSVM` related projects into `WasmEdge`.
 
 Tools:
@@ -158,11 +158,11 @@ Refactor:
 Documentations:
 
 * Added [release process](https://github.com/WasmEdge/WasmEdge/blob/master/ReleaseProcess.md) document.
-* Added [contribution](https://github.com/WasmEdge/WasmEdge/blob/master/doc/contribution.md) document.
-* Added [code of conduct](https://github.com/WasmEdge/WasmEdge/blob/master/doc/code_of_conduct.md) document.
-* Added [roadmap](https://github.com/WasmEdge/WasmEdge/blob/master/doc/roadmap.md) document.
-* Updated [external references](https://github.com/WasmEdge/WasmEdge/blob/master/doc/externref.md) document for the VM API changes.
-* Updated the [WasmEdge ecosystem](https://github.com/WasmEdge/WasmEdge/blob/master/doc/ecosystem.md) document.
+* Added [contributing](https://github.com/WasmEdge/WasmEdge/blob/master/docs/CONTRIBUTING.md) document.
+* Added [code of conduct](https://github.com/WasmEdge/WasmEdge/blob/master/docs/code_of_conduct.md) document.
+* Added [roadmap](https://github.com/WasmEdge/WasmEdge/blob/master/docs/roadmap.md) document.
+* Updated [external references](https://github.com/WasmEdge/WasmEdge/blob/master/docs/externref.md) document for the VM API changes.
+* Updated the [WasmEdge ecosystem](https://github.com/WasmEdge/WasmEdge/blob/master/docs/ecosystem.md) document.
 * Added scripts to generate witx documents.
   * Cherry-pick `wasi_ephemeral_sock` APIs from `wasi_snapshot_preview1`.
 
@@ -207,7 +207,7 @@ Features:
 * Provided options to toggle white lists of `ssvm_process` in `ssvm` tool.
   * `--allow-command COMMAND` to add a command into white list in `ssvm_process` host functions.
   * `--allow-command-all` to allow all commands in `ssvm_process` host functions.
-* Added the documentation of [SSVM ecosystem](https://github.com/second-state/SSVM/blob/master/doc/ecosystem.md).
+* Added the documentation of [SSVM ecosystem](https://github.com/second-state/SSVM/blob/master/docs/ecosystem.md).
 
 Fixed issues:
 
@@ -263,7 +263,7 @@ Features:
   * This option is `ON` in default.
   * `cmake -DBUILD_TOOLS=Off` to disable the compilation of `tools/ssvm` folder when building.
 * Applied the [Fixed-width SIMD](https://github.com/webassembly/simd) proposal.
-  * Please refer to the [SIMD document](https://github.com/second-state/SSVM/blob/master/doc/simd.md) for more details.
+  * Please refer to the [SIMD document](https://github.com/second-state/SSVM/blob/master/docs/simd.md) for more details.
 * Provided options to toggle proposals for the compiler and runtime.
   * `--enable-bulk-memory` to enable bulk-memory operations proposal.
   * `--enable-reference-types` to enable reference types proposal.
@@ -402,7 +402,7 @@ Tests:
   * [SSVM unit test for reference types](https://github.com/second-state/ssvm-unittest/tree/wasm-ref-types)
 * Supported `funcref` and `externref` types parameters in core tests.
 * Added `externref` tests for testing object binding and samples.
-  * Please see the [document](https://github.com/second-state/SSVM/blob/master/doc/externref.md) for detail.
+  * Please see the [document](https://github.com/second-state/SSVM/blob/master/docs/externref.md) for detail.
 
 ### 0.6.9 (2020-10-16)
 
@@ -691,7 +691,7 @@ Features:
 
 * Ethereum environment interface
   * Implemented all EEI functions.
-  * For more details, please refer to [Ewasm functions design document](doc/evm/design_document.md)
+  * For more details, please refer to [Ewasm functions design document](docs/evm/design_document.md)
 * Validation
   * Completed validations for wasm sections.
   * Completed checkings in const expressions.
@@ -779,7 +779,7 @@ Features:
 
 * Ethereum environment interface implementation
   * Add EVMC library.
-  * [Ewasm functions implemented](doc/evm/design_document.md)
+  * [Ewasm functions implemented](docs/evm/design_document.md)
   * Update gas costs of Ewasm functions.
 
 Refactor:
@@ -835,7 +835,7 @@ Features:
 * Snapshot and restore execution state
   * SSVM provides restore mechanism from the previous execution state.
   * SSVM provides a snapshot mechanism to dump the current execution state.
-* [JSON interface Spec](doc/ssvm-proxy/design_document.md)
+* [JSON interface Spec](docs/ssvm-proxy/design_document.md)
   * Initialize and set up SSVM via input JSON format.
   * Retrieve execution results via output JSON format.
 

@@ -26,14 +26,14 @@ $ git clone git@github.com:WasmEdge/WasmEdge.git
 $ cd WasmEdge
 ```
 
-Notes: Note the WasmEdge team builds lots of extensions of Server-side WebAssembly, see [TensorFlow](https://github.com/second-state/SSVM-tensorflow), [Storage](https://github.com/second-state/SSVM-storage), [Command interface](https://github.com/second-state/ssvm_process_interface), [Ethereum](https://github.com/second-state/SSVM-evmc), [Substrate](https://github.com/second-state/substrate-ssvm-node). If you want to contribue the extensions, please go to those repositories.
+Notes: Note the WasmEdge team builds lots of extensions of Server-side WebAssembly, see [TensorFlow](https://github.com/second-state/WasmEdge-tensorflow), [Storage](https://github.com/second-state/WasmEdge-storage), [Command interface](https://github.com/second-state/wasmedge_process_interface), [Ethereum](https://github.com/second-state/WasmEdge-evmc), [Substrate](https://github.com/second-state/substrate-ssvm-node). If you want to contribue the extensions, please go to those repositories.
 
 
 ### Setup Development Environment
 
 The WasmEdge is developed on Ubuntu 20.04 to take advantage of advanced LLVM features for the AOT compiler. The WasmEdge team also builds and releases statically linked WasmEdge binaries for older Linux distributions.
 
-Our development environment requires libLLVM-10 and >=GLIBCXX_3.4.26.
+Our development environment requires libLLVM-10 and >=GLIBCXX\_3.4.26.
 
 If you are using the older operating system than Ubuntu 20.04, please use our special docker image to build WasmEdge. If you are looking for the pre-built binaries for the older operatoring system, we also provide several pre-built binaries based on manylinux* distribution.
 

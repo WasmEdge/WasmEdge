@@ -1,6 +1,6 @@
 Share your success story with the WasmEdge community!
 
-If you have successfully embedded WasmEdge into your applications (see tutorials for [Golang](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/) and [C](https://github.com/WasmEdge/WasmEdge/blob/master/doc/c_api_quick_start.md)), please add to the form below via a PR to this repo. Make sure that you sign off your commit message with [DCO](https://www.secondstate.io/articles/dco/) in the PR!
+If you have successfully embedded WasmEdge into your applications (see tutorials for [Golang](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/) and [C](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api_quick_start.md)), please add to the form below via a PR to this repo. Make sure that you sign off your commit message with [DCO](https://www.secondstate.io/articles/dco/) in the PR!
 
 Once the PR is accepted, we will ship you some awesome WasmEdge SWAG so that you can brag to your real world friends. :)
 

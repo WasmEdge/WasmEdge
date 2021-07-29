@@ -12,7 +12,7 @@ ENV CPPFLAGS -I/toolchain/include
 ENV LDFLAGS -L/toolchain/lib64
 ENV PKG_CONFIG_PATH /toolchain/lib64/pkgconfig
 
-RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-build dpkg && \
+RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-build && \
     export CPU=$(/opt/python/cp39-cp39/bin/python3 -c \
         'import multiprocessing; print(multiprocessing.cpu_count())') && \
     export CFGFLAGS="--prefix=/toolchain --disable-shared --libdir=/toolchain/lib64" && \
@@ -55,7 +55,7 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
         --enable-linker-build-id --enable-lto --enable-plugin --enable-threads=posix \
         --with-default-libstdcxx-abi="gcc4-compatible" \
         --with-gcc-major-version-only --with-linker-hash-style="gnu" \
-        --with-arch="x86-64" --with-tune="generic" && \
+        --with-arch="armv8-a" && \
     make -s -j $CPU && make -s install && cd - && rm -rf build && \
     mv -v /toolchain/lib64/libstdc++.so.6.0.29 /toolchain/lib64/libstdc++.so.6.0.29.backup && \
     echo -e "OUTPUT_FORMAT(elf64-aarch64)\nINPUT ( libstdc++.so.6.0.19 libstdc++.a )" \

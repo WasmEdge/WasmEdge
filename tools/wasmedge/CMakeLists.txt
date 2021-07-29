@@ -32,17 +32,3 @@ target_link_libraries(wasmedge
   PRIVATE
   wasmedgeVM
 )
-
-if(WASMEDGE_BUILD_TOOL_WASMEDGE_STATIC)
-  wasmedge_add_executable(wasmedge-static
-    wasmedger-static.cpp
-  )
-
-  install(TARGETS wasmedge-static COMPONENT static EXPORT wasmedge-static DESTINATION bin)
-
-  target_link_libraries(wasmedge-static
-    PRIVATE
-    wasmedgeVM
-    -static
-  )
-endif()

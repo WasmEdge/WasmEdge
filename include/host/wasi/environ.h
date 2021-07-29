@@ -10,6 +10,7 @@
 #include "host/wasi/vinode.h"
 #include "wasi/api.hpp"
 #include <csignal>
+#include <cstdint>
 #include <mutex>
 #include <random>
 #include <shared_mutex>
@@ -680,17 +681,7 @@ public:
       Node = std::move(*Res);
     }
 
-    std::random_device Device;
-    std::default_random_engine Engine(Device());
-    std::uniform_int_distribution<__wasi_fd_t> Distribution(0, 0x7FFFFFFF);
-    bool Success = false;
-    __wasi_fd_t NewFd;
-    while (!Success) {
-      NewFd = Distribution(Engine);
-      std::unique_lock<std::shared_mutex> lock(FdMutex);
-      Success = FdMap.emplace(NewFd, Node).second;
-    }
-    return NewFd;
+    return generateRandomFdToNode(Node);
   }
 
   /// Read the contents of a symbolic link.
@@ -831,6 +822,62 @@ public:
     return {};
   }
 
+  WasiExpect<__wasi_fd_t> sockOpen(__wasi_address_family_t AddressFamily,
+                                   __wasi_sock_type_t SockType) noexcept {
+
+    std::shared_ptr<VINode> Node;
+    if (auto Res = VINode::sockOpen(FS, AddressFamily, SockType);
+        unlikely(!Res)) {
+      return WasiUnexpect(Res);
+    } else {
+      Node = std::move(*Res);
+    }
+
+    return generateRandomFdToNode(Node);
+  }
+
+  WasiExpect<void> sockBind(__wasi_fd_t Fd, uint8_t *Address,
+                            uint8_t AddressLength, uint16_t Port) noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockBind(Address, AddressLength, Port);
+    }
+  }
+
+  WasiExpect<void> sockListen(__wasi_fd_t Fd, uint32_t Backlog) noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockListen(Backlog);
+    }
+  }
+
+  WasiExpect<__wasi_fd_t> sockAccept(__wasi_fd_t Fd, uint16_t Port) noexcept {
+    auto Node = getNodeOrNull(Fd);
+    std::shared_ptr<VINode> NewNode;
+
+    if (auto Res = Node->sockAccept(Port); unlikely(!Res)) {
+      return WasiUnexpect(Res);
+    } else {
+      NewNode = std::move(*Res);
+    }
+
+    return generateRandomFdToNode(NewNode);
+  }
+
+  WasiExpect<void> sockConnect(__wasi_fd_t Fd, uint8_t *Address,
+                               uint8_t AddressLength, uint16_t Port) noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockConnect(Address, AddressLength, Port);
+    }
+  }
+
   /// Receive a message from a socket.
   ///
   /// Note: This is similar to `recv` in POSIX, though it also supports reading
@@ -922,6 +969,20 @@ private:
       return It->second;
     }
     return {};
+  }
+
+  WasiExpect<__wasi_fd_t> generateRandomFdToNode(std::shared_ptr<VINode> Node) {
+    std::random_device Device;
+    std::default_random_engine Engine(Device());
+    std::uniform_int_distribution<__wasi_fd_t> Distribution(0, 0x7FFFFFFF);
+    bool Success = false;
+    __wasi_fd_t NewFd;
+    while (!Success) {
+      NewFd = Distribution(Engine);
+      std::unique_lock<std::shared_mutex> lock(FdMutex);
+      Success = FdMap.emplace(NewFd, Node).second;
+    }
+    return NewFd;
   }
 };
 

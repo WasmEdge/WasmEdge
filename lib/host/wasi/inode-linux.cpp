@@ -844,8 +844,7 @@ WasiExpect<INode> INode::sockAccept(uint16_t Port) noexcept {
   }
 }
 
-WasiExpect<void> INode::sockConnect(uint8_t *Address,
-                                    uint8_t AddressLength,
+WasiExpect<void> INode::sockConnect(uint8_t *Address, uint8_t AddressLength,
                                     uint16_t Port) noexcept {
   if (AddressLength == 4) {
     struct sockaddr_in ClientSocketAddr;

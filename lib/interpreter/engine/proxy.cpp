@@ -36,8 +36,8 @@ struct Interpreter::ProxyHelper<Expect<RetT> (Interpreter::*)(
 const AST::Module::IntrinsicsTable Interpreter::Intrinsics = {
 #define ENTRY(NAME, FUNC)                                                      \
   [uint8_t(AST::Module::Intrinsics::NAME)] = reinterpret_cast<void *>(         \
-      &Interpreter::ProxyHelper<decltype(                                      \
-          &Interpreter::FUNC)>::proxy<&Interpreter::FUNC>)
+      &Interpreter::ProxyHelper<decltype(&Interpreter::FUNC)>::proxy<          \
+          &Interpreter::FUNC>)
     ENTRY(kTrap, trap),
     ENTRY(kCall, call),
     ENTRY(kCallIndirect, callIndirect),

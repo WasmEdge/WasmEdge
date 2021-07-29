@@ -531,7 +531,8 @@ public:
   sockOpen(VFS &FS, __wasi_address_family_t SysDomain,
            __wasi_sock_type_t SockType);
 
-  WasiExpect<void> sockBind(uint8_t *Address, uint8_t AddressLength, uint16_t Port) noexcept {
+  WasiExpect<void> sockBind(uint8_t *Address, uint8_t AddressLength,
+                            uint16_t Port) noexcept {
     return Node.sockBind(Address, AddressLength, Port);
   }
 

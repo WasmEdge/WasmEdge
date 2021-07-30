@@ -10,10 +10,19 @@ extraction:
         - liblld-9-dev
         - libtbb-dev
         - llvm-9-dev
+    after_prepare:
+      - "mkdir custom_tools"
+      - "wget --quiet -O - https://cmake.org/files/v3.20/cmake-3.20.2-linux-x86_64.tar.gz | tar --strip-components=1 -xz -C custom_tools"
+      - "wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip"
+      - "unzip ninja-linux.zip && mv ninja custom_tools/bin"
+      - "export PATH=$(pwd)/custom_tools/bin:${PATH}"
+      - "cd $LGTM_SRC/"
+      - cmake --version
+      - ninja --version
     configure:
       command:
-        - cmake -GNinja -H. -Bbuild -DCMAKE_BUILD_TYPE=Debug
+        - cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug .
     index:
       build_command:
-        - ninja -C build
+        - cmake --build build
 

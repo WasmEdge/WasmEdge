@@ -48,7 +48,7 @@ jobs:
 
     - name: Build
       run: |
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON .
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug .
         cmake --build build
 
     - name: Perform CodeQL Analysis

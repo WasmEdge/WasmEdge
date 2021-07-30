@@ -48,10 +48,6 @@ jobs:
 
     - name: Build
       run: |
-        if ! command ninja; then
-          apt update
-          apt install -y ninja-build
-        fi
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON .
         cmake --build build
 

@@ -34,10 +34,6 @@ jobs:
 
     - name: Build WasmEdge using clang with Debug mode
       run: |
-        if ! command ninja; then
-          apt update
-          apt install -y ninja-build
-        fi
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIB=ON .
         cmake --build build
 

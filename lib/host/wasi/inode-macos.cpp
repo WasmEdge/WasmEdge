@@ -648,11 +648,13 @@ WasiExpect<INode> INode::pathOpen(std::string Path, __wasi_oflags_t OpenFlags,
   }
 }
 
-WasiExpect<void> INode::pathReadlink(std::string Path,
-                                     Span<char> Buffer) const noexcept {
+WasiExpect<void> INode::pathReadlink(std::string Path, Span<char> Buffer,
+                                     __wasi_size_t &NRead) const noexcept {
   if (auto Res = ::readlinkat(Fd, Path.c_str(), Buffer.data(), Buffer.size());
       unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
+  } else {
+    NRead = Res;
   }
 
   return {};

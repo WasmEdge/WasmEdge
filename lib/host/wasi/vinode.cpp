@@ -231,8 +231,8 @@ VINode::pathOpen(VFS &FS, std::shared_ptr<VINode> Fd, std::string_view Path,
 }
 
 WasiExpect<void> VINode::pathReadlink(VFS &FS, std::shared_ptr<VINode> Fd,
-                                      std::string_view Path,
-                                      Span<char> Buffer) {
+                                      std::string_view Path, Span<char> Buffer,
+                                      __wasi_size_t &NRead) {
   std::vector<char> PathBuffer;
   if (auto Res = resolvePath(FS, Fd, Path); unlikely(!Res)) {
     return WasiUnexpect(Res);
@@ -242,7 +242,7 @@ WasiExpect<void> VINode::pathReadlink(VFS &FS, std::shared_ptr<VINode> Fd,
     PathBuffer = std::move(*Res);
   }
 
-  return Fd->Node.pathReadlink(std::string(Path), Buffer);
+  return Fd->Node.pathReadlink(std::string(Path), Buffer, NRead);
 }
 
 WasiExpect<void> VINode::pathRemoveDirectory(VFS &FS,
@@ -454,7 +454,9 @@ VINode::resolvePath(VFS &FS, std::shared_ptr<VINode> &Fd,
         }
 
         std::vector<char> NewBuffer(Filestat.size);
-        if (auto Res = Fd->Node.pathReadlink(std::string(Part), NewBuffer);
+        __wasi_size_t NRead;
+        if (auto Res =
+                Fd->Node.pathReadlink(std::string(Part), NewBuffer, NRead);
             unlikely(!Res)) {
           return WasiUnexpect(Res);
         } else {

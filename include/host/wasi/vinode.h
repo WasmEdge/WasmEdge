@@ -453,10 +453,11 @@ public:
   /// @param[in] Path The path of the symbolic link from which to read.
   /// @param[out] Buffer The buffer to which to write the contents of the
   /// symbolic link.
+  /// @param[out] NRead The number of bytes read.
   /// @return Nothing or WASI error.
   static WasiExpect<void> pathReadlink(VFS &FS, std::shared_ptr<VINode> Fd,
-                                       std::string_view Path,
-                                       Span<char> Buffer);
+                                       std::string_view Path, Span<char> Buffer,
+                                       __wasi_size_t &NRead);
 
   /// Remove a directory.
   ///

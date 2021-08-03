@@ -693,11 +693,12 @@ public:
   /// @param[in] Path The path of the symbolic link from which to read.
   /// @param[out] Buffer The buffer to which to write the contents of the
   /// symbolic link.
+  /// @param[out] NRead The number of bytes read.
   /// @return Nothing or WASI error.
   WasiExpect<void> pathReadlink(__wasi_fd_t Fd, std::string_view Path,
-                                Span<char> Buffer) {
+                                Span<char> Buffer, __wasi_size_t &NRead) {
     auto Node = getNodeOrNull(Fd);
-    return VINode::pathReadlink(FS, std::move(Node), Path, Buffer);
+    return VINode::pathReadlink(FS, std::move(Node), Path, Buffer, NRead);
   }
 
   /// Remove a directory.

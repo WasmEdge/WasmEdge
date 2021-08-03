@@ -156,7 +156,8 @@ WasiExpect<INode> INode::pathOpen(std::string, __wasi_oflags_t,
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::pathReadlink(std::string, Span<char>) const noexcept {
+WasiExpect<void> INode::pathReadlink(std::string, Span<char>,
+                                     __wasi_size_t &) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 

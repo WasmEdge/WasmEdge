@@ -7,9 +7,15 @@ concurrency:
 on:
   push:
     branches: [ master ]
+    paths-ignore:
+      - 'doc/**'
+      - '**.md'
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [ master ]
+    paths-ignore:
+      - 'doc/**'
+      - '**.md'
   schedule:
     - cron: '15 18 * * 6'
 
@@ -48,7 +54,7 @@ jobs:
 
     - name: Build
       run: |
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON .
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug .
         cmake --build build
 
     - name: Perform CodeQL Analysis

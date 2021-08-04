@@ -2,10 +2,6 @@ ARG BASE=wasmedge/wasmedge:ubuntu-base
 FROM ${BASE}
 
 RUN apt update && apt install -y \
-	llvm-dev \
-	liblld-12-dev
-
-RUN apt update && apt install -y \
 	gcc \
 	g++
 

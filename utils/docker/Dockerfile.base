@@ -6,14 +6,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt update && apt upgrade -y \
 	&& apt install -y \
 	software-properties-common \
+	dpkg-dev \
 	wget \
 	cmake \
 	ninja-build \
 	curl \
 	git \
-	libboost-all-dev
-
-RUN curl -sL https://deb.nodesource.com/setup_14.x | bash \
-	&& apt install -y nodejs
+	libboost-all-dev \
+	llvm-dev \
+	liblld-12-dev
 
 RUN rm -rf /var/lib/apt/lists/*

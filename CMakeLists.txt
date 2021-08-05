@@ -53,6 +53,7 @@ option(WASMEDGE_BUILD_TESTS "Generate build targets for the wasmedge unit tests.
 option(WASMEDGE_BUILD_COVERAGE "Generate coverage report. Require WASMEDGE_BUILD_TESTS." OFF)
 option(WASMEDGE_BUILD_AOT_RUNTIME "Enable WasmEdge LLVM-based ahead of time compilation runtime." ON)
 option(WASMEDGE_BUILD_SHARED_LIB "Generate the WasmEdge shared library." ON)
+option(WASMEDGE_BUILD_STATIC_LIB "Generate the WasmEdge static library." ON)
 option(WASMEDGE_BUILD_TOOLS "Generate wasmedge and wasmedgec tools." ON)
 set(WASMEDGE_BUILD_PACKAGE "DEB;RPM" CACHE STRING "Package generate types")
 set(CPACK_PROJECT_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cpack_config.cmake)

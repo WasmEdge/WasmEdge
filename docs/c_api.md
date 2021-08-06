@@ -166,7 +166,7 @@ The `WasmEdge_String` object is for the instance names when invoking a WASM func
     WasmEdge_String Str = WasmEdge_StringCreateByCString("test_wasmedge_string");
     uint32_t StrLength = WasmEdge_StringCopy(Str, Buf, sizeof(Buf));
     /* StrLength will be 20 */
-    printf("String: %d\n", Buf);
+    printf("String: %s\n", Buf);
     /* Will print "test_wasmedge_string". */
     ```
 

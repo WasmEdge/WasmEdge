@@ -9,17 +9,43 @@ $ git clone https://github.com/WasmEdge/WasmEdge.git
 $ cd WasmEdge
 ```
 
-## Prepare the environment
+## Check Dependencies
 
-### Use our docker image
+WasmEdge will try to use the latest LLVM release to create our nightly build. 
+If you want to build from source, you may need to install these dependencies 
+by yourself or using our docker images which provides several Linux distribution 
+support.
 
-Our docker image use `ubuntu 21.04` as the base.
+- LLVM 12.0.0 (>= 10.0.0)
+- GCC 11.1.0 (>= 9.4.0)
+
+## Prepare the Environment
+
+### Docker Images
+
+Repository on dockerhub `wasmedge/wasmedge`
+
+You can use the following commands to get our latest docker image:
 
 ```bash
-$ docker pull wasmedge/wasmedge
+$ docker pull wasmedge/wasmedge # Equals to wasmedge/wasmedge:latest
 ```
 
-### Or setup the environment manually
+#### Available Tags
+
+| tag name                | arch    | based operating system | LLVM version | ENVs                  | compatibility            | comments                                                                            |
+| ---                     | ---     | ---                    | ---          | ---                   | ---                      | ---                                                                                 |
+| `latest`                | x86\_64 | Ubuntu 21.04           | 12.0.0       | CC=clang, CXX=clang++ | Ubuntu 21.04+            | This is for CI, will always use the latest Ubuntu release                           |
+| `ubuntu-build-gcc`      | x86\_64 | Ubuntu 21.04           | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 21.04+            | This is for CI, will always use the latest Ubuntu release                           |
+| `ubuntu-build-clang`    | x86\_64 | Ubuntu 21.04           | 12.0.0       | CC=clang, CXX=clang++ | Ubuntu 21.04+            | This is for CI, will always use the latest Ubuntu release                           |
+| `ubuntu2004_x86_64`     | x86\_64 | Ubuntu 20.04 LTS       | 10.0.0       | CC=gcc, CXX=g++       | Ubuntu 20.04+            | This is for developers who familiar with Ubuntu 20.04 LTS release                   |
+| `manylinux2014_x86_64`  | x86\_64 | CentOS 7, 7.9.2009     | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | This is for developers who familiar with CentOS on x86\_64 architecture             |
+| `manylinux2014_aarch64` | aarch64 | CentOS 7, 7.9.2009     | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | This is for developers who familiar with CentOS on aarch64 architecture             |
+| `manylinux2010_x86_64`  | x86\_64 | CentOS 6, 6.10         | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 6+ | This is for developers who familiar with legacy system on x86\_64 architecture, EOL |
+| `manylinux1_x86_64`     | x86\_64 | CentOS 5, 5.11         | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 5+ | This is for developers who familiar with legacy system on x86\_64 architecture, EOL |
+
+
+### Install dependencies on Ubuntu 21.04 manually
 
 ```bash
 # Tools and libraries
@@ -30,29 +56,31 @@ $ sudo apt install -y \
 
 # And you will need to install llvm for wasmedgec tool
 $ sudo apt install -y \
-	llvm-dev \
+	llvm-12-dev \
 	liblld-12-dev
 
 # WasmEdge supports both clang++ and g++ compilers
 # You can choose one of them for building this project
+# If you prefer GCC
 $ sudo apt install -y gcc g++
+# Else you can choose clang
 $ sudo apt install -y clang
 ```
 
 ### Support for legacy operating systems
 
-Our development environment requires `libLLVM-12` and `>=GLIBCXX_3.4.26`.
+Our development environment requires `libLLVM-12` and `>=GLIBCXX_3.4.33`.
 
-If users are using the older operating system than Ubuntu 20.04, please use our special docker image to build WasmEdge.
+If users are using the older operating system than Ubuntu 21.04, please use our special docker image to build WasmEdge.
 If you are looking for the pre-built binaries for the older operatoring system, we also provide several pre-built binaries based on manylinux\* distribution.
 
 
-
-| Portable Linux Built Distributions Tags | Base Image  | Provided Requirements                                                 | Docker Image                            |
-| ---                                     | ---         | ---                                                                   | ---                                     |
+| Portable Linux Built Distributions Tags | Base Image  | Provided Requirements                                                 | Docker Image                             |
+| ---                                     | ---         | ---                                                                   | ---                                      |
 | `manylinux1`                            | CentOS 5.11 | GLIBC <= 2.5<br>CXXABI <= 3.4.8<br>GLIBCXX <= 3.4.9<br>GCC <= 4.2.0   | wasmedge/wasmedge:manylinux1\_x86\_64    |
-| `manylinux2010`                         | CentOS 6    | GLIBC <= 2.12<br>CXXABI <= 1.3.3<br>GLIBCXX <= 3.4.13<br>GCC <= 4.5.0 | wasmedge/wasmedge:manylinux2010\_x86\_64 |
-| `manylinux2014`                         | CentOS 7    | GLIBC <= 2.17<br>CXXABI <= 1.3.7<br>GLIBCXX <= 3.4.19<br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_x86\_64 |
+| `manylinux2010`                         | CentOS 6.10 | GLIBC <= 2.12<br>CXXABI <= 1.3.3<br>GLIBCXX <= 3.4.13<br>GCC <= 4.5.0 | wasmedge/wasmedge:manylinux2010\_x86\_64 |
+| `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17<br>CXXABI <= 1.3.7<br>GLIBCXX <= 3.4.19<br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_x86\_64 |
+| `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17<br>CXXABI <= 1.3.7<br>GLIBCXX <= 3.4.19<br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_aarch64 |
 
 ### If you don't want to build Ahead-of-Time runtime/compiler
 

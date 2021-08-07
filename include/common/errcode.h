@@ -39,6 +39,7 @@ static inline std::unordered_map<WasmPhase, std::string> WasmPhaseStr = {
     {WasmPhase::Execution, "execution"}};
 
 /// Error code enumeration class.
+// Remember to keep in sync with `wasmedge.h.in`!
 enum class ErrCode : uint8_t {
   Success = 0x00,
   Terminated = 0x01,        /// Exit and return success.

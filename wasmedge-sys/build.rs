@@ -12,9 +12,7 @@ fn main() {
                 .to_str()
                 .unwrap_or_else(|| panic!("`{}` must be a utf-8 path", header.display())),
         )
-        .default_enum_style(bindgen::EnumVariation::Rust {
-            non_exhaustive: true,
-        })
+        .prepend_enum_name(false) // The API already prepends the name.
         .dynamic_link_require_all(true)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .generate()

@@ -1,7 +1,7 @@
 use wasmedge_sys as ffi;
 
 /// A polymorphic Wasm primitive type.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Value {
     I32(i32),
     I64(i64),
@@ -44,23 +44,39 @@ impl From<ffi::WasmEdge_Value> for Value {
     }
 }
 
-macro_rules! impl_value_conversions {
-    ($( $name:ident($ty:ty) ),+ $(,)?) => {
+macro_rules! impl_from_prim_conversions {
+    ($( [$($ty:ty),+] => $name:ident),+ $(,)?) => {
         $(
-        impl From<$ty> for Value {
-            fn from(value: $ty) -> Self {
-                Self::$name(value)
-            }
-        }
+            $(
+                impl From<$ty> for Value {
+                    fn from(value: $ty) -> Self {
+                        Self::$name(value as _)
+                    }
+                }
+            )+
         )+
+    }
+}
 
+impl_from_prim_conversions! {
+    [i8, u8, i16, u16, i32] => I32,
+    [u32, i64] => I64,
+    [f32] => F32,
+    [f64] => F64,
+}
+
+macro_rules! impl_to_prim_conversions {
+    ($( [$($name:ident),+] => $ty:ty),+ $(,)?) => {
         impl Value {
             paste::paste! {
                 $(
-                    #[doc = "Returns the `" $ty "` value, if that's the contained type."]
+                    #[doc = "Returns a `" $ty "`, if it can be converted from the value type."]
                     pub fn [<as_ $ty>](&self) -> Option<$ty> {
+                        #[allow(unreachable_patterns)]
                         match self {
-                            Self::$name(value) => Some(*value),
+                            $(
+                                Self::$name(value) => Some(*value as _),
+                            )+
                             _ => None
                         }
                     }
@@ -70,9 +86,10 @@ macro_rules! impl_value_conversions {
     }
 }
 
-impl_value_conversions! {
-    I32(i32),
-    I64(i64),
-    F32(f32),
-    F64(f64),
+impl_to_prim_conversions! {
+    [I32, F32] => i32,
+    [I32, F64] => u32,
+    [I32, I64, F32, F64] => i64,
+    [F32] => f32,
+    [F32, F64] => f64,
 }

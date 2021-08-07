@@ -208,7 +208,7 @@ namespace WasmEdge {
 
 std::vector<std::string> SpecTest::enumerate() const {
   std::vector<std::string> Cases;
-  for (const auto Proposal : TestsuiteProposals) {
+  for (const auto &Proposal : TestsuiteProposals) {
     const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;
     for (const auto &Subdir :
          std::filesystem::directory_iterator(ProposalRoot)) {

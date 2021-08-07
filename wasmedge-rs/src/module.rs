@@ -10,7 +10,7 @@ pub struct Module {
 }
 
 impl Module {
-    pub fn load_from_file<'a>(
+    pub fn load_from_file(
         path: impl AsRef<std::path::Path>,
         config: &crate::config::Config,
     ) -> Result<Self, Error> {
@@ -19,21 +19,31 @@ impl Module {
             .map_err(|e| Error::Path(path.to_string_lossy().to_string(), Box::new(e)))?;
         let ctx = unsafe {
             let loader = ffi::WasmEdge_LoaderCreate(config.ctx);
-            let mut ctx = std::ptr::null_mut();
+
+            let mut ctx: *mut ffi::WasmEdge_ASTModuleContext = std::ptr::null_mut();
+
             ffi::decode_result(ffi::WasmEdge_LoaderParseFromFile(
                 loader,
                 &mut ctx as *mut _,
                 path_cstr.as_ptr(),
             ))
             .map_err(Error::Load)?;
-            ctx
-        };
+
+            if ctx.is_null() {
+                Err(Error::Unknown)
+            } else {
+                Ok(ctx)
+            }
+        }?;
         Ok(Self { ctx })
     }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("an unknown error occured")]
+    Unknown,
+
     #[error("`{0}` is not a valid path: {1}")]
     Path(String, Box<dyn std::error::Error>),
 

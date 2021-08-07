@@ -40,7 +40,7 @@ jobs:
 
     - name: Build WasmEdge using clang with Debug mode
       run: |
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIB=ON .
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_SHARED_LIB=ON .
         cmake --build build
 
     - name: Clippy

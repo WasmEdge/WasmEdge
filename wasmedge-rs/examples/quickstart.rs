@@ -1,5 +1,6 @@
 //! Usage: [DY]LD_LIBRARY_PATH="$(git rev-parse --show-toplevel)/build/lib/api" cargo run --example quickstart
 
+#[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()

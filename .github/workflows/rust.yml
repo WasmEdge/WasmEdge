@@ -44,7 +44,10 @@ jobs:
         cmake --build build
 
     - name: Clippy
-      run: cargo clippy --profile test -- -D warnings -D clippy::dbg_macro
+      run: cargo clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
 
     - name: Test
-      run: cargo test --locked
+      run: |
+        export LD_LIBRARY_PATH="$(pwd)/build/lib/api"
+        cargo test --lib --examples --locked
+        cargo test --doc --locked

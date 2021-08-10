@@ -39,8 +39,9 @@ public:
 
   void addHostFunc(std::string_view Name,
                    std::unique_ptr<HostFunctionBase> &&Func) {
-    Funcs.emplace(Name, std::make_unique<Runtime::Instance::FunctionInstance>(
-                            std::move(Func)));
+    Funcs.insert_or_assign(
+        std::string(Name),
+        std::make_unique<Runtime::Instance::FunctionInstance>(std::move(Func)));
   }
 
   void addHostTable(std::string_view Name,
@@ -49,7 +50,7 @@ public:
   }
   void addHostTable(std::string_view Name,
                     std::unique_ptr<Instance::TableInstance> &Tab) {
-    Tabs.emplace(Name, std::move(Tab));
+    Tabs.insert_or_assign(std::string(Name), std::move(Tab));
   }
 
   void addHostMemory(std::string_view Name,
@@ -58,7 +59,7 @@ public:
   }
   void addHostMemory(std::string_view Name,
                      std::unique_ptr<Instance::MemoryInstance> &Mem) {
-    Mems.emplace(Name, std::move(Mem));
+    Mems.insert_or_assign(std::string(Name), std::move(Mem));
   }
 
   void addHostGlobal(std::string_view Name,
@@ -67,7 +68,7 @@ public:
   }
   void addHostGlobal(std::string_view Name,
                      std::unique_ptr<Instance::GlobalInstance> &Glob) {
-    Globs.emplace(Name, std::move(Glob));
+    Globs.insert_or_assign(std::string(Name), std::move(Glob));
   }
 
   const InstMap<Instance::FunctionInstance> &getFuncs() const { return Funcs; }

@@ -68,16 +68,16 @@ public:
 
   /// Export instances.
   void exportFunction(std::string_view Name, const uint32_t Idx) {
-    ExpFuncs.emplace(Name, FuncAddrs[Idx]);
+    ExpFuncs.insert_or_assign(std::string(Name), FuncAddrs[Idx]);
   }
   void exportTable(std::string_view Name, const uint32_t Idx) {
-    ExpTables.emplace(Name, TableAddrs[Idx]);
+    ExpTables.insert_or_assign(std::string(Name), TableAddrs[Idx]);
   }
   void exportMemory(std::string_view Name, const uint32_t Idx) {
-    ExpMems.emplace(Name, MemAddrs[Idx]);
+    ExpMems.insert_or_assign(std::string(Name), MemAddrs[Idx]);
   }
   void exportGlobal(std::string_view Name, const uint32_t Idx) {
-    ExpGlobals.emplace(Name, GlobalAddrs[Idx]);
+    ExpGlobals.insert_or_assign(std::string(Name), GlobalAddrs[Idx]);
   }
 
   /// Get import nums.

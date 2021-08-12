@@ -38,6 +38,6 @@ jobs:
     - name: Run header check
       run: |
         apt update
-        apt install python
+        apt install python -y
         python ./.github/scripts/conf-header.py
 

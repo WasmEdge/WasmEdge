@@ -39,83 +39,160 @@
 // Gen Based: include/common/errcode.h
 enum WasmEdge_ErrCode {
   WasmEdge_ErrCode_Success = 0x00,
-  WasmEdge_ErrCode_Terminated = 0x01,        /// Exit and return success.
-  WasmEdge_ErrCode_RuntimeError = 0x02,      /// Generic runtime error.
-  WasmEdge_ErrCode_CostLimitExceeded = 0x03, /// Exceeded cost limit (out of gas).
-  WasmEdge_ErrCode_WrongVMWorkflow = 0x04,   /// Wrong VM's workflow
-  WasmEdge_ErrCode_FuncNotFound = 0x05,      /// Wasm function not found
-  WasmEdge_ErrCode_AOTDisabled = 0x06,       /// AOT runtime is disabled
+  /// Exit and return success.
+  WasmEdge_ErrCode_Terminated = 0x01,
+  /// Generic runtime error.
+  WasmEdge_ErrCode_RuntimeError = 0x02,
+  /// Exceeded cost limit (out of gas).
+  WasmEdge_ErrCode_CostLimitExceeded = 0x03,
+  /// Wrong VM's workflow
+  WasmEdge_ErrCode_WrongVMWorkflow = 0x04,
+  /// Wasm function not found
+  WasmEdge_ErrCode_FuncNotFound = 0x05,
+  /// AOT runtime is disabled
+  WasmEdge_ErrCode_AOTDisabled = 0x06,
+
   /// Load phase
-  WasmEdge_ErrCode_InvalidPath = 0x20,           /// File not found
-  WasmEdge_ErrCode_ReadError = 0x21,             /// Error when reading
-  WasmEdge_ErrCode_UnexpectedEnd = 0x22,         /// Reach end of file when reading
-  WasmEdge_ErrCode_InvalidMagic = 0x23,          /// Not detected magic header
-  WasmEdge_ErrCode_InvalidVersion = 0x24,        /// Unsupported version
-  WasmEdge_ErrCode_InvalidSection = 0x25,        /// Malformed section ID
-  WasmEdge_ErrCode_SectionSizeMismatch = 0x26,   /// Section size mismatched
-  WasmEdge_ErrCode_NameSizeOutOfBounds = 0x27,   /// Name size out of bounds
-  WasmEdge_ErrCode_JunkSection = 0x28,           /// Junk sections
-  WasmEdge_ErrCode_IncompatibleFuncCode = 0x29,  /// Incompatible function and code section
-  WasmEdge_ErrCode_IncompatibleDataCount = 0x2A, /// Incompatible data and datacount section
-  WasmEdge_ErrCode_DataCountRequired = 0x2B,     /// Datacount section required
-  WasmEdge_ErrCode_InvalidImportKind = 0x2C,     /// Malformed import kind
-  WasmEdge_ErrCode_InvalidExportKind = 0x2D,     /// Malformed export kind
-  WasmEdge_ErrCode_ExpectedZeroByte = 0x2E,      /// Not loaded an expected zero byte
-  WasmEdge_ErrCode_InvalidMut = 0x2F,            /// Malformed mutability
-  WasmEdge_ErrCode_TooManyLocals = 0x30,         /// Local size too large
-  WasmEdge_ErrCode_InvalidValType = 0x31,        /// Malformed value type
-  WasmEdge_ErrCode_InvalidElemType = 0x32,       /// Malformed element type (Bulk-mem proposal)
-  WasmEdge_ErrCode_InvalidRefType = 0x33,  /// Malformed reference type (Ref-types proposal)
-  WasmEdge_ErrCode_InvalidUTF8 = 0x34,     /// Invalid utf-8 encoding
-  WasmEdge_ErrCode_IntegerTooLarge = 0x35, /// Invalid too large integer
-  WasmEdge_ErrCode_IntegerTooLong = 0x36,  /// Invalid presentation too long integer
-  WasmEdge_ErrCode_InvalidOpCode = 0x37,   /// Illegal OpCode
-  WasmEdge_ErrCode_InvalidGrammar = 0x38,  /// Parsing error
+  /// File not found
+  WasmEdge_ErrCode_InvalidPath = 0x20,
+  /// Error when reading
+  WasmEdge_ErrCode_ReadError = 0x21,
+  /// Reach end of file when reading
+  WasmEdge_ErrCode_UnexpectedEnd = 0x22,
+  /// Not detected magic header
+  WasmEdge_ErrCode_InvalidMagic = 0x23,
+  /// Unsupported version
+  WasmEdge_ErrCode_InvalidVersion = 0x24,
+  /// Malformed section ID
+  WasmEdge_ErrCode_InvalidSection = 0x25,
+  /// Section size mismatched
+  WasmEdge_ErrCode_SectionSizeMismatch = 0x26,
+  /// Name size out of bounds
+  WasmEdge_ErrCode_NameSizeOutOfBounds = 0x27,
+  /// Junk sections
+  WasmEdge_ErrCode_JunkSection = 0x28,
+  /// Incompatible function and code section
+  WasmEdge_ErrCode_IncompatibleFuncCode = 0x29,
+  /// Incompatible data and datacount section
+  WasmEdge_ErrCode_IncompatibleDataCount = 0x2A,
+  /// Datacount section required
+  WasmEdge_ErrCode_DataCountRequired = 0x2B,
+  /// Malformed import kind
+  WasmEdge_ErrCode_InvalidImportKind = 0x2C,
+  /// Malformed export kind
+  WasmEdge_ErrCode_InvalidExportKind = 0x2D,
+  /// Not loaded an expected zero byte
+  WasmEdge_ErrCode_ExpectedZeroByte = 0x2E,
+  /// Malformed mutability
+  WasmEdge_ErrCode_InvalidMut = 0x2F,
+  /// Local size too large
+  WasmEdge_ErrCode_TooManyLocals = 0x30,
+  /// Malformed value type
+  WasmEdge_ErrCode_InvalidValType = 0x31,
+  /// Malformed element type (Bulk-mem proposal)
+  WasmEdge_ErrCode_InvalidElemType = 0x32,
+  /// Malformed reference type (Ref-types proposal)
+  WasmEdge_ErrCode_InvalidRefType = 0x33,
+  /// Invalid utf-8 encoding
+  WasmEdge_ErrCode_InvalidUTF8 = 0x34,
+  /// Invalid too large integer
+  WasmEdge_ErrCode_IntegerTooLarge = 0x35,
+  /// Invalid presentation too long integer
+  WasmEdge_ErrCode_IntegerTooLong = 0x36,
+  /// Illegal OpCode
+  WasmEdge_ErrCode_InvalidOpCode = 0x37,
+  /// Parsing error
+  WasmEdge_ErrCode_InvalidGrammar = 0x38,
+
   /// Validation phase
-  WasmEdge_ErrCode_InvalidAlignment = 0x40,   /// Alignment > natural
-  WasmEdge_ErrCode_TypeCheckFailed = 0x41,    /// Got unexpected type when checking
-  WasmEdge_ErrCode_InvalidLabelIdx = 0x42,    /// Branch to unknown label index
-  WasmEdge_ErrCode_InvalidLocalIdx = 0x43,    /// Access unknown local index
-  WasmEdge_ErrCode_InvalidFuncTypeIdx = 0x44, /// Type index not defined
-  WasmEdge_ErrCode_InvalidFuncIdx = 0x45,     /// Function index not defined
-  WasmEdge_ErrCode_InvalidTableIdx = 0x46,    /// Table index not defined
-  WasmEdge_ErrCode_InvalidMemoryIdx = 0x47,   /// Memory index not defined
-  WasmEdge_ErrCode_InvalidGlobalIdx = 0x48,   /// Global index not defined
-  WasmEdge_ErrCode_InvalidElemIdx = 0x49,     /// Element segment index not defined
-  WasmEdge_ErrCode_InvalidDataIdx = 0x4A,     /// Data segment index not defined
-  WasmEdge_ErrCode_InvalidRefIdx = 0x4B,      /// Undeclared reference
-  WasmEdge_ErrCode_ConstExprRequired = 0x4C,  /// Should be constant expression
-  WasmEdge_ErrCode_DupExportName = 0x4D,      /// Export name conflicted
-  WasmEdge_ErrCode_ImmutableGlobal = 0x4E,    /// Tried to store to const global value
-  WasmEdge_ErrCode_InvalidResultArity = 0x4F, /// Invalid result arity in select t* instruction
-  WasmEdge_ErrCode_MultiTables = 0x50,        /// #Tables > 1 (without Ref-types proposal)
-  WasmEdge_ErrCode_MultiMemories = 0x51,      /// #Memories > 1
-  WasmEdge_ErrCode_InvalidLimit = 0x52,       /// Invalid Limit grammar
-  WasmEdge_ErrCode_InvalidMemPages = 0x53,    /// Memory pages > 65536
-  WasmEdge_ErrCode_InvalidStartFunc = 0x54,   /// Invalid start function signature
-  WasmEdge_ErrCode_InvalidLaneIdx = 0x55,     /// Invalid lane index
+  /// Alignment > natural
+  WasmEdge_ErrCode_InvalidAlignment = 0x40,
+  /// Got unexpected type when checking
+  WasmEdge_ErrCode_TypeCheckFailed = 0x41,
+  /// Branch to unknown label index
+  WasmEdge_ErrCode_InvalidLabelIdx = 0x42,
+  /// Access unknown local index
+  WasmEdge_ErrCode_InvalidLocalIdx = 0x43,
+  /// Type index not defined
+  WasmEdge_ErrCode_InvalidFuncTypeIdx = 0x44,
+  /// Function index not defined
+  WasmEdge_ErrCode_InvalidFuncIdx = 0x45,
+  /// Table index not defined
+  WasmEdge_ErrCode_InvalidTableIdx = 0x46,
+  /// Memory index not defined
+  WasmEdge_ErrCode_InvalidMemoryIdx = 0x47,
+  /// Global index not defined
+  WasmEdge_ErrCode_InvalidGlobalIdx = 0x48,
+  /// Element segment index not defined
+  WasmEdge_ErrCode_InvalidElemIdx = 0x49,
+  /// Data segment index not defined
+  WasmEdge_ErrCode_InvalidDataIdx = 0x4A,
+  /// Undeclared reference
+  WasmEdge_ErrCode_InvalidRefIdx = 0x4B,
+  /// Should be constant expression
+  WasmEdge_ErrCode_ConstExprRequired = 0x4C,
+  /// Export name conflicted
+  WasmEdge_ErrCode_DupExportName = 0x4D,
+  /// Tried to store to const global value
+  WasmEdge_ErrCode_ImmutableGlobal = 0x4E,
+  /// Invalid result arity in select t* instruction
+  WasmEdge_ErrCode_InvalidResultArity = 0x4F,
+  /// #Tables > 1 (without Ref-types proposal)
+  WasmEdge_ErrCode_MultiTables = 0x50,
+  /// #Memories > 1
+  WasmEdge_ErrCode_MultiMemories = 0x51,
+  /// Invalid Limit grammar
+  WasmEdge_ErrCode_InvalidLimit = 0x52,
+  /// Memory pages > 65536
+  WasmEdge_ErrCode_InvalidMemPages = 0x53,
+  /// Invalid start function signature
+  WasmEdge_ErrCode_InvalidStartFunc = 0x54,
+  /// Invalid lane index
+  WasmEdge_ErrCode_InvalidLaneIdx = 0x55,
+
   /// Instantiation phase
-  WasmEdge_ErrCode_ModuleNameConflict = 0x60,     /// Module name conflicted when importing.
-  WasmEdge_ErrCode_IncompatibleImportType = 0x61, /// Import matching failed
-  WasmEdge_ErrCode_UnknownImport = 0x62,          /// Unknown import instances
-  WasmEdge_ErrCode_DataSegDoesNotFit = 0x63,      /// Init failed when instantiating data segment
-  WasmEdge_ErrCode_ElemSegDoesNotFit = 0x64, /// Init failed when instantiating element segment
+  /// Module name conflicted when importing.
+  WasmEdge_ErrCode_ModuleNameConflict = 0x60,
+  /// Import matching failed
+  WasmEdge_ErrCode_IncompatibleImportType = 0x61,
+  /// Unknown import instances
+  WasmEdge_ErrCode_UnknownImport = 0x62,
+  /// Init failed when instantiating data segment
+  WasmEdge_ErrCode_DataSegDoesNotFit = 0x63,
+  /// Init failed when instantiating element segment
+  WasmEdge_ErrCode_ElemSegDoesNotFit = 0x64,
+
   /// Execution phase
-  WasmEdge_ErrCode_WrongInstanceAddress = 0x80, /// Wrong access of instances addresses
-  WasmEdge_ErrCode_WrongInstanceIndex = 0x81,   /// Wrong access of instances indices
-  WasmEdge_ErrCode_InstrTypeMismatch = 0x82,    /// Instruction type not match
-  WasmEdge_ErrCode_FuncSigMismatch = 0x83,      /// Function signature not match when invoking
-  WasmEdge_ErrCode_DivideByZero = 0x84,         /// Divide by zero
-  WasmEdge_ErrCode_IntegerOverflow = 0x85,      /// Integer overflow
-  WasmEdge_ErrCode_InvalidConvToInt = 0x86,     /// Cannot do convert to integer
-  WasmEdge_ErrCode_TableOutOfBounds = 0x87,     /// Out of bounds table access
-  WasmEdge_ErrCode_MemoryOutOfBounds = 0x88,    /// Out of bounds memory access
-  WasmEdge_ErrCode_Unreachable = 0x89,          /// Meet an unreachable instruction
-  WasmEdge_ErrCode_UninitializedElement = 0x8A, /// Uninitialized element in table instance
-  WasmEdge_ErrCode_UndefinedElement = 0x8B,     /// Access undefined element in table instances
-  WasmEdge_ErrCode_IndirectCallTypeMismatch = 0x8C, /// Func type mismatch in call_indirect
-  WasmEdge_ErrCode_ExecutionFailed = 0x8D,          /// Host function execution failed
-  WasmEdge_ErrCode_RefTypeMismatch = 0x8E           /// Reference type not match
+  /// Wrong access of instances addresses
+  WasmEdge_ErrCode_WrongInstanceAddress = 0x80,
+  /// Wrong access of instances indices
+  WasmEdge_ErrCode_WrongInstanceIndex = 0x81,
+  /// Instruction type not match
+  WasmEdge_ErrCode_InstrTypeMismatch = 0x82,
+  /// Function signature not match when invoking
+  WasmEdge_ErrCode_FuncSigMismatch = 0x83,
+  /// Divide by zero
+  WasmEdge_ErrCode_DivideByZero = 0x84,
+  /// Integer overflow
+  WasmEdge_ErrCode_IntegerOverflow = 0x85,
+  /// Cannot do convert to integer
+  WasmEdge_ErrCode_InvalidConvToInt = 0x86,
+  /// Out of bounds table access
+  WasmEdge_ErrCode_TableOutOfBounds = 0x87,
+  /// Out of bounds memory access
+  WasmEdge_ErrCode_MemoryOutOfBounds = 0x88,
+  /// Meet an unreachable instruction
+  WasmEdge_ErrCode_Unreachable = 0x89,
+  /// Uninitialized element in table instance
+  WasmEdge_ErrCode_UninitializedElement = 0x8A,
+  /// Access undefined element in table instances
+  WasmEdge_ErrCode_UndefinedElement = 0x8B,
+  /// Func type mismatch in call_indirect
+  WasmEdge_ErrCode_IndirectCallTypeMismatch = 0x8C,
+  /// Host function execution failed
+  WasmEdge_ErrCode_ExecutionFailed = 0x8D,
+  /// Reference type not match
+  WasmEdge_ErrCode_RefTypeMismatch = 0x8E
 };
 
 /// WASM Value type enumeration.
@@ -1856,7 +1933,7 @@ WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryInstanceContext *
 WasmEdge_MemoryInstanceCreate(const WasmEdge_Limit Limit);
 
-/// Get the data pointer in a memory instance.
+/// Copy the data to the output buffer from a memory instance.
 ///
 /// \param Cxt the WasmEdge_MemoryInstanceContext.
 /// \param [out] Data the result data buffer of copying destination.
@@ -1871,7 +1948,7 @@ WasmEdge_MemoryInstanceGetData(const WasmEdge_MemoryInstanceContext *Cxt,
                                uint8_t *Data, const uint32_t Offset,
                                const uint32_t Length);
 
-/// Copy and set data into a memory instance.
+/// Copy the data into a memory instance from the input buffer.
 ///
 /// \param Cxt the WasmEdge_MemoryInstanceContext.
 /// \param Data the data buffer to copy.
@@ -1885,6 +1962,31 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_MemoryInstanceSetData(WasmEdge_MemoryInstanceContext *Cxt,
                                uint8_t *Data, const uint32_t Offset,
                                const uint32_t Length);
+
+/// Get the data pointer in a memory instance.
+///
+/// \param Cxt the WasmEdge_MemoryInstanceContext.
+/// \param Offset the data start offset in the memory instance.
+/// \param Length the requested data length. If the `Offset + Length` is larger
+/// than the data size in the memory instance, this function will return NULL.
+///
+/// \returns the pointer to data with the start offset. NULL if failed.
+WASMEDGE_CAPI_EXPORT extern uint8_t *
+WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
+                                  const uint32_t Offset, const uint32_t Length);
+
+/// Get the const data pointer in a const memory instance.
+///
+/// \param Cxt the WasmEdge_MemoryInstanceContext.
+/// \param Offset the data start offset in the memory instance.
+/// \param Length the requested data length. If the `Offset + Length` is larger
+/// than the data size in the memory instance, this function will return NULL.
+///
+/// \returns the pointer to data with the start offset. NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const uint8_t *
+WasmEdge_MemoryInstanceGetPointerConst(
+    const WasmEdge_MemoryInstanceContext *Cxt, const uint32_t Offset,
+    const uint32_t Length);
 
 /// Get the current page size (64 KiB of each page) of a memory instance.
 ///

@@ -1206,6 +1206,21 @@ TEST(APICoreTest, Instance) {
   EXPECT_FALSE(WasmEdge_ResultOK(
       WasmEdge_MemoryInstanceGetData(MemCxt, DataGet.data(), 65530, 10)));
 
+  /// Memory instance get pointer
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointer(nullptr, 100, 10));
+  EXPECT_NE(nullptr, WasmEdge_MemoryInstanceGetPointer(MemCxt, 100, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointer(MemCxt, 65536, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointer(MemCxt, 65530, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointerConst(nullptr, 100, 10));
+  EXPECT_NE(nullptr, WasmEdge_MemoryInstanceGetPointerConst(MemCxt, 100, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointerConst(MemCxt, 65536, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointerConst(MemCxt, 65530, 10));
+  EXPECT_TRUE(std::equal(DataSet.cbegin(), DataSet.cend(),
+                         WasmEdge_MemoryInstanceGetPointer(MemCxt, 100, 10)));
+  EXPECT_TRUE(
+      std::equal(DataSet.cbegin(), DataSet.cend(),
+                 WasmEdge_MemoryInstanceGetPointerConst(MemCxt, 100, 10)));
+
   /// Memory instance get size and grow
   EXPECT_EQ(WasmEdge_MemoryInstanceGetPageSize(MemCxt), 1U);
   EXPECT_EQ(WasmEdge_MemoryInstanceGetPageSize(nullptr), 0U);

@@ -1500,13 +1500,31 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGetData(
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceSetData(
     WasmEdge_MemoryInstanceContext *Cxt, uint8_t *Data, const uint32_t Offset,
     const uint32_t Length) {
-
   return wrap(
       [&]() {
         return fromMemCxt(Cxt)->setBytes(genSpan(Data, Length), Offset, 0,
                                          Length);
       },
       EmptyThen, Cxt, Data);
+}
+
+WASMEDGE_CAPI_EXPORT uint8_t *
+WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
+                                  const uint32_t Offset,
+                                  const uint32_t Length) {
+  if (Cxt) {
+    return fromMemCxt(Cxt)->getPointer<uint8_t *>(Offset, Length);
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT const uint8_t *WasmEdge_MemoryInstanceGetPointerConst(
+    const WasmEdge_MemoryInstanceContext *Cxt, const uint32_t Offset,
+    const uint32_t Length) {
+  if (Cxt) {
+    return fromMemCxt(Cxt)->getPointer<const uint8_t *>(Offset, Length);
+  }
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t

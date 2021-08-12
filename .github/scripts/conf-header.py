@@ -81,7 +81,7 @@ def sync_enums(force_update):
             header_values = get_enum_from(header, enum_name)
             if len(values) != len(header_values):                
                 if not force_update:
-                    print "wasmedge.h.in is not synced"
+                    print "wasmedge.h.in is not synced: ", enum_name
                     print "Please run conf-header.py with option --update and commit changes"
                     exit(1)
                 print "update ... ", enum_name

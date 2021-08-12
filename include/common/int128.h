@@ -22,6 +22,8 @@ using uint128_t = unsigned __int128;
 
 #include <boost/predef/other/endian.h>
 #include <cstdint>
+#include <limits>
+#include <stdexcept>
 
 #if !BOOST_ENDIAN_LITTLE_BYTE
 #error unsupported endian!

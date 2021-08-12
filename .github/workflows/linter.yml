@@ -35,4 +35,9 @@ jobs:
     - name: Run clang-format
       run: |
         bash ./.github/scripts/clang-format.sh `which clang-format-12`
+    - name: Run header check
+      run: |
+        apt update
+        apt install python
+        python ./.github/scripts/conf-header.py
 

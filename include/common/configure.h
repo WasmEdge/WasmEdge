@@ -47,7 +47,7 @@ public:
   /// AOT compiler optimization level enum class.
   enum class OptimizationLevel : uint8_t {
     /// Disable as many optimizations as possible.
-    O0,
+    O0 = 0,
     /// Optimize quickly without destroying debuggability.
     O1,
     /// Optimize for fast execution as much as possible without triggering

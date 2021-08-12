@@ -36,6 +36,7 @@
 #define WASMEDGE_VERSION_PATCH ${WASMEDGE_VERSION_PATCH}
 
 /// Error code enumeration.
+// Gen Based: include/common/errcode.h
 enum WasmEdge_ErrCode {
   WasmEdge_ErrCode_Success = 0x00,
   WasmEdge_ErrCode_Terminated = 0x01,        /// Exit and return success.
@@ -118,26 +119,29 @@ enum WasmEdge_ErrCode {
 };
 
 /// WASM Value type enumeration.
+// Gen Based: include/common/types.h
 enum WasmEdge_ValType {
-  WasmEdge_ValType_I32 = 0x7FU,
-  WasmEdge_ValType_I64 = 0x7EU,
-  WasmEdge_ValType_F32 = 0x7DU,
-  WasmEdge_ValType_F64 = 0x7CU,
-  WasmEdge_ValType_V128 = 0x7BU,
-  WasmEdge_ValType_FuncRef = 0x70U,
-  WasmEdge_ValType_ExternRef = 0x6FU
-};
-
-/// WASM Reference type enumeration.
-enum WasmEdge_RefType {
-  WasmEdge_RefType_FuncRef = 0x70U,
-  WasmEdge_RefType_ExternRef = 0x6FU
+  WasmEdge_ValType_None = 0x40,
+  WasmEdge_ValType_I32 = 0x7F,
+  WasmEdge_ValType_I64 = 0x7E,
+  WasmEdge_ValType_F32 = 0x7D,
+  WasmEdge_ValType_F64 = 0x7C,
+  WasmEdge_ValType_V128 = 0x7B,
+  WasmEdge_ValType_FuncRef = 0x70,
+  WasmEdge_ValType_ExternRef = 0x6F
 };
 
 /// WASM Mutability enumeration.
 enum WasmEdge_Mutability {
   WasmEdge_Mutability_Const = 0x00U,
   WasmEdge_Mutability_Var = 0x01U
+};
+
+/// WASM Reference type enumeration.
+// Gen Based: include/common/types.h
+enum WasmEdge_RefType {
+  WasmEdge_RefType_ExternRef = 0x6F,
+  WasmEdge_RefType_FuncRef = 0x70
 };
 
 /// WasmEdge WASM value struct.
@@ -179,6 +183,7 @@ typedef struct WasmEdge_Limit {
 /// WASM Proposal enumeration.
 /// This enum is copied from "include/common/configure.h" and should be the
 /// same.
+// Gen Based: include/common/configure.h
 enum WasmEdge_Proposal {
   WasmEdge_Proposal_BulkMemoryOperations = 0,
   WasmEdge_Proposal_ReferenceTypes,
@@ -188,16 +193,21 @@ enum WasmEdge_Proposal {
   WasmEdge_Proposal_Memory64,
   WasmEdge_Proposal_Threads,
   WasmEdge_Proposal_ExceptionHandling,
-  WasmEdge_Proposal_FunctionReferences
+  WasmEdge_Proposal_FunctionReferences,
+  WasmEdge_Proposal_Max
 };
 
 /// Host Module Registration enumeration.
+// Gen Based: include/common/configure.h
 enum WasmEdge_HostRegistration {
   WasmEdge_HostRegistration_Wasi = 0,
-  WasmEdge_HostRegistration_WasmEdge_Process
+  WasmEdge_HostRegistration_WasmEdge_Process,
+  WasmEdge_HostRegistration_Max
 };
 
 /// AOT compiler optimization level enumeration.
+// Gen Prev: WasmEdge_Compiler
+// Gen Based: include/common/configure.h
 enum WasmEdge_CompilerOptimizationLevel {
   /// Disable as many optimizations as possible.
   WasmEdge_CompilerOptimizationLevel_O0 = 0,

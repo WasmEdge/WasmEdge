@@ -137,13 +137,6 @@ enum WasmEdge_Mutability {
   WasmEdge_Mutability_Var = 0x01U
 };
 
-/// WASM Reference type enumeration.
-// Gen Based: include/common/types.h
-enum WasmEdge_RefType {
-  WasmEdge_RefType_ExternRef = 0x6F,
-  WasmEdge_RefType_FuncRef = 0x70
-};
-
 /// WasmEdge WASM value struct.
 typedef struct WasmEdge_Value {
   unsigned __int128 Value;

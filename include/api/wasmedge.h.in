@@ -131,6 +131,13 @@ enum WasmEdge_ValType {
   WasmEdge_ValType_ExternRef = 0x6F
 };
 
+// WASM Reference type enumeration.
+// Gen Based: include/common/types.h
+enum WasmEdge_RefType {
+  WasmEdge_RefType_ExternRef = 0x6F,
+  WasmEdge_RefType_FuncRef = 0x70
+};
+
 /// WASM Mutability enumeration.
 enum WasmEdge_Mutability {
   WasmEdge_Mutability_Const = 0x00U,

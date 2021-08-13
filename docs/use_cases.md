@@ -15,18 +15,25 @@ Featuring AOT optimization, WasmEdge is the fastest WebAssembly runtime on the m
 WasmEdge can be embedded into cloud-native infrastructure via its SDKs in [C](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md), [Golang](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/), [Rust](https://github.com/WasmEdge/WasmEdge/tree/master/wasmedge-rs), and [JavaScript](https://www.secondstate.io/articles/getting-started-with-rust-function/). It is also an OCI compliant runtime that can be directly [managed by CRI-O and Docker tools](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/) as a lightweight and high-performance alternative to Docker. 
 
 
-1. Dapr (Distributed Application Runtime)
+### Dapr (Distributed Application Runtime)
 
 * Tutorial(ongoing)
 * [Code template](https://github.com/second-state/dapr-wasm)
 
 
 
-2. Service mesh (work in progress): Linkerd, MOSN, and Envoy
+### Service mesh (work in progress): 
+
+* Linkerd
+* MOSN
+* Envoy
 
 
 
-3. Orchestration and management (work in progress): Kubernetes, KubeEdge, SuperEdge
+### Orchestration and management (work in progress): 
+* Kubernetes
+* KubeEdge
+* SuperEdge
 
 
 
@@ -35,7 +42,7 @@ WasmEdge can be embedded into cloud-native infrastructure via its SDKs in [C](ht
 
 WasmEdge can act as a cloud-native JavaScript runtime by embedding a JS execution engine or interpreter. It is faster and lighter than running a JS engine inside Docker. It also allows embedding JS into other high-performance languages (eg, Rust) or using Rust to implement JS functions. 
 
-* Example(ongoing)
+* [Example](https://github.com/WasmEdge/WasmEdge/blob/master/docs/run_javascript.md)
 * [WasmEdge’s QuickJS extension](https://github.com/second-state/quickjs-wasi)
 
 

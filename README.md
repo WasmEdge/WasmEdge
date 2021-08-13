@@ -2,8 +2,9 @@
 
 # Quick start guides
 
-🤖 [Build](doc/build.md) and [contribute to](doc/contribution.md) WasmEdge\
-⌨️  Run a standalone Wasm program [from CLI](doc/run.md) or [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) or [Golang](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ReadFile) or [CRI-O / Docker](https://github.com/second-state/runw/blob/master/README.md)\
+🚀 [Install](docs/install.md) WasmEdge \
+🤖 [Build](docs/build.md) and [contribute to](docs/CONTRIBUTING.md) WasmEdge\
+⌨️  Run a standalone Wasm program [from CLI](docs/run.md) or [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) or [Golang](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ReadFile) or [CRI-O / Docker](https://github.com/second-state/runw/blob/master/README.md)\
 💭 [Deploy a Wasm function](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/) as a web service (FaaS)\
 🛠 [Embed a user-defined Wasm function](http://reactor.secondstate.info/en/docs/user_guideline.html) in a SaaS platform\
 🔩 [Embed a Wasm function](https://www.secondstate.io/articles/getting-started-with-rust-function/) in your Node.js web app\
@@ -32,15 +33,15 @@ WasmEdge and its contained wasm program can be started from the CLI as a new pro
 
 # Embed WasmEdge into a host application
 
-A major use case of WasmEdge is to start an VM instance from a host application. In general, you can use the [WasmEdge C API](doc/c_api.md) to do so. You can also refer to the [quick start guide](doc/c_api_quick_start.md) of the WasmEdge C API.
+A major use case of WasmEdge is to start an VM instance from a host application. In general, you can use the [WasmEdge C API](docs/c_api.md) to do so. You can also refer to the [quick start guide](docs/c_api_quick_start.md) of the WasmEdge C API.
 
-However, the Wasm spec, and the [WasmEdge C API](doc/c_api.md), only supports very limited data types as input parameters and return values for the contained Wasm bytecode functions. In order to pass complex data types, such as a string of an array, as call arguments into the contained function, you should use the bindgen solution provided by the [rustwasmc](https://github.com/second-state/rustwasmc) toolchain.
+However, the Wasm spec, and the [WasmEdge C API](docs/c_api.md), only supports very limited data types as input parameters and return values for the contained Wasm bytecode functions. In order to pass complex data types, such as a string of an array, as call arguments into the contained function, you should use the bindgen solution provided by the [rustwasmc](https://github.com/second-state/rustwasmc) toolchain.
 
 We currently supports bindgen in the [Node.js host environment](https://www.secondstate.io/articles/getting-started-with-rust-function/) and in [Golang environment](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_Mobilenet). We are working on [supporting interface types](https://github.com/WasmEdge/WasmEdge/issues/264) in place of bindgen for future releases.
 
 # Call native host functions from WasmEdge
 
-Sometimes, the Wasm bytecode alone could prove too limiting for some applications. WasmEdge provides a [host function API](https://github.com/WasmEdge/WasmEdge/blob/master/doc/host_function.md) that allows Wasm bytecode programs to load and call native library functions from the underlying host operating system.
+Sometimes, the Wasm bytecode alone could prove too limiting for some applications. WasmEdge provides a [host function API](https://github.com/WasmEdge/WasmEdge/blob/master/docs/host_function.md) that allows Wasm bytecode programs to load and call native library functions from the underlying host operating system.
 
 > The host functions break the Wasm sandbox. But the sandbox breaking is done with explicit permission from the system’s operator.
 
@@ -61,7 +62,7 @@ WasmEdge supports optional WebAssembly features and proposals. Those proposals a
 * [WASI (WebAssembly Systems Interface) spec](https://github.com/WebAssembly/WASI). WasmEdge has supported the WASI spec for WebAssembly programs to interact with the host Linux operating system securely.
 * [Reference Types](https://webassembly.github.io/reference-types/core/). It allows WebAssembly programs to exchange data with host applications and operating systems.
 * [Bulk memory operations](https://github.com/WebAssembly/bulk-memory-operations/blob/master/proposals/bulk-memory-operations/Overview.md). The WebAssembly program sees faster memory access and performs better with bulk memory operations.
-* [SIMD (Single instruction, multiple data)](https://github.com/second-state/SSVM/blob/master/doc/simd.md). For modern devices with multiple CPU cores, the SIMD allows data processing programs to take advantage of the CPUs fully. SIMD could significantly enhance the performance of data applications.
+* [SIMD (Single instruction, multiple data)](https://github.com/second-state/SSVM/blob/master/docs/simd.md). For modern devices with multiple CPU cores, the SIMD allows data processing programs to take advantage of the CPUs fully. SIMD could significantly enhance the performance of data applications.
 
 Meanwhile, the WasmEdge team is [exploring the wasi-socket proposal](https://github.com/second-state/w13e_wasi_socket) to support network access in WebAssembly programs. 
 
@@ -97,7 +98,7 @@ WasmEdge enables software products to be extended and customized by their users.
 
 ### Contributing
 
-If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTION](doc/contribution.md) document for details. If you are looking for ideas, checkout our [wish list](doc/wish_list.md)!
+If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTING](docs/CONTRIBUTING.md) document for details. If you are looking for ideas, checkout our [wish list](docs/wish_list.md)!
 
 ### Contact
 

@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "int128.h"
 #include <cstdint>
 #include <string>
 #include <type_traits>
@@ -20,8 +21,6 @@
 
 namespace WasmEdge {
 
-using int128_t = __int128;
-using uint128_t = unsigned __int128;
 using int64x2_t [[gnu::vector_size(16)]] = int64_t;
 using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
 using int32x4_t [[gnu::vector_size(16)]] = int32_t;
@@ -76,6 +75,9 @@ struct FuncRef {
 
 /// ExternRef definition.
 struct ExternRef {
+#if __INTPTR_WIDTH__ == 32
+  const uint32_t Padding = -1;
+#endif
   void *Ptr = nullptr;
   ExternRef() = default;
   template <typename T> ExternRef(T *P) : Ptr(reinterpret_cast<void *>(P)) {}

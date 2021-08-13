@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_executable(expectedTests
+wasmedge_add_executable(expectedTests
   assignment.cpp
   bases.cpp
   constexpr.cpp
@@ -16,11 +16,6 @@ add_executable(expectedTests
 )
 
 add_test(expectedTests expectedTests)
-
-target_compile_options(expectedTests
-  PRIVATE
-  ${WASMEDGE_CFLAGS}
-)
 
 target_link_libraries(expectedTests
   PRIVATE

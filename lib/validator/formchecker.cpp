@@ -1016,10 +1016,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   /// SIMD Shuffle Instruction.
   case OpCode::I8x16__shuffle: {
     /// Check all lane index < 32 by masking
-    const uint128_t Mask = reinterpret_cast<uint128_t>(
-        uint64x2_t{0xe0e0e0e0e0e0e0e0, 0xe0e0e0e0e0e0e0e0});
+    const uint128_t Mask = (uint128_t(0xe0e0e0e0e0e0e0e0U) << 64U) |
+                           uint128_t(0xe0e0e0e0e0e0e0e0U);
     const uint128_t Result = Instr.getNum().get<uint128_t>() & Mask;
-    if (Result != 0) {
+    if (Result) {
       spdlog::error(ErrCode::InvalidLaneIdx);
       return Unexpect(ErrCode::InvalidLaneIdx);
     }

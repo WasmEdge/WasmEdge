@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_library(wasmedgeInterpreter
+wasmedge_add_library(wasmedgeInterpreter
   instantiate/import.cpp
   instantiate/function.cpp
   instantiate/global.cpp
@@ -18,11 +18,6 @@ add_library(wasmedgeInterpreter
   engine/engine.cpp
   helper.cpp
   interpreter.cpp
-)
-
-target_compile_options(wasmedgeInterpreter
-  PRIVATE
-  ${WASMEDGE_CFLAGS}
 )
 
 target_link_libraries(wasmedgeInterpreter

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_library(wasmedgeAST
+wasmedge_add_library(wasmedgeAST
   module.cpp
   section.cpp
   description.cpp
@@ -8,11 +8,6 @@ add_library(wasmedgeAST
   type.cpp
   expression.cpp
   instruction.cpp
-)
-
-target_compile_options(wasmedgeAST
-  PRIVATE
-  ${WASMEDGE_CFLAGS}
 )
 
 target_link_libraries(wasmedgeAST

@@ -1,0 +1,7 @@
+# Global rule:
+*               @WasmEdge/devs
+.github/        @WasmEdge/devs @hydai
+cmake/          @WasmEdge/devs @ibmibmibm
+docs/           @WasmEdge/devs @hydai
+**/aot/         @WasmEdge/devs @ibmibmibm
+**/api/         @WasmEdge/devs @q82419

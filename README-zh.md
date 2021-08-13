@@ -1,8 +1,9 @@
 
 # 快速开始指引
 
-🤖 [从源码编译](doc/build.md)  [贡献](doc/contribution.md) WasmEdge\
-⌨️  [从 CLI](doc/run.md)或 [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example)  [Golang](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)跑一个独立的 Wasm 程序\
+🚀 [安装](docs/install.md) WasmEdge\
+🤖 [从源码编译](docs/build.md)  [贡献](docs/contribution.md) WasmEdge\
+⌨️  [从 CLI](docs/run.md)或 [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example)  [Golang](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)跑一个独立的 Wasm 程序\
 💭 [部署一个 Wasm 函数](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/)即 web 服务 (FaaS)\
 🛠 [嵌入一个用户定义的 Wasm 函数](http://reactor.secondstate.info/docs/user-create-a-bot.html)在  SaaS 平台上\
 🔩 [嵌入一个 Wasm 函数](https://www.secondstate.io/articles/getting-started-with-rust-function/)在你的 Node.js web app 里\
@@ -40,7 +41,7 @@ WasmEdge 的一个主要应用场景是从一个 host 应用程序启动一个�
 
 # 从 WasmEdge调用原生 host 程序
 
-有时， Wasm 字节码本身被证明对有些应用来说限制太多。 WasmEdge 提供一个 [host 函数 API](https://github.com/WasmEdge/WasmEdge/blob/master/doc/host_function.md)这允许 Wasm 字节码程序从底层 host 操作系统加载和调用原生库函数。
+有时， Wasm 字节码本身被证明对有些应用来说限制太多。 WasmEdge 提供一个 [host 函数 API](https://github.com/WasmEdge/WasmEdge/blob/master/docs/host_function.md)这允许 Wasm 字节码程序从底层 host 操作系统加载和调用原生库函数。
 
 >此功能破坏了Wasm沙箱。 但是沙箱破坏是在系统操作员的明确许可下完成的。
 
@@ -48,7 +49,7 @@ WasmEdge 的一个主要应用场景是从一个 host 应用程序启动一个�
 
 # 管理 WasmEdge 虚拟机实例
 
-有了 [WasmEdge C API](doc/c_api.md), 您可以编写程序来启动、停止和管理您自己的应用程序中的 WasmEdge 虚拟机实例。您也可以参阅[WasmEdge C API 快速开始指引](doc/c_api_quick_start.md)。例如 
+有了 [WasmEdge C API](docs/c_api.md), 您可以编写程序来启动、停止和管理您自己的应用程序中的 WasmEdge 虚拟机实例。您也可以参阅[WasmEdge C API 快速开始指引](docs/c_api_quick_start.md)。例如 
 
 * 当 WasmEdge 函数嵌入在了 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 或者在 [飞书](http://reactor.secondstate.info/docs/user-create-a-bot.html), 当有传入请求时，虚拟机由应用程序启动。
 * 当 WasmEdge 函数被插入到像 [YoMo](https://github.com/yomorun/yomo-flow-ssvm-example) 这样的数据流引擎中时，当一个新的数据点流经系统时，虚拟机就会启动。
@@ -62,7 +63,7 @@ WasmEdge 支持可选的 WebAssembly 特性和提案。 这些提议很可能在
 * [WASI (WebAssembly 系统接口) spec](https://github.com/WebAssembly/WASI). WasmEdge 支持 WebAssembly 程序的 WASI 规范，以安全地与宿主机 Linux 操作系统交互。
 * [Reference Types](https://webassembly.github.io/reference-types/core/). 它允许 WebAssembly 程序来与 host应用交换数据和操作系统。 
 * [Bulk memory operations](https://github.com/WebAssembly/bulk-memory-operations/blob/master/proposals/bulk-memory-operations/Overview.md). WebAssembly 程序内存访问更快并在大容量内存操作中表现更好。
-* [SIMD (Single instruction, multiple data)](https://github.com/second-state/SSVM/blob/master/doc/simd.md)。 对于具有多个 CPU 内核的现代设备，SIMD 允许数据处理程序充分利用 CPU。 SIMD 可以显着提高数据应用程序的性能。
+* [SIMD (Single instruction, multiple data)](https://github.com/second-state/SSVM/blob/master/docs/simd.md)。 对于具有多个 CPU 内核的现代设备，SIMD 允许数据处理程序充分利用 CPU。 SIMD 可以显着提高数据应用程序的性能。
 
 同时， WasmEdge 团队正[探索wasi-socket提案](https://github.com/second-state/w13e_wasi_socket) 支持 WebAssembly 程序中的网络访问。 
 
@@ -98,7 +99,7 @@ WasmEdge 与其它的 WebAssembly 虚拟机的关键区别是它对非标准扩�
 
 ### 贡献
 
-如果您想为 WasmEdge 项目做出贡献，请参阅我们的 [CONTRIBUTION](doc/contribution.md) 文档了解详情。 想要获得灵感，可查看[需求清单](doc/wish_list.md)!
+如果您想为 WasmEdge 项目做出贡献，请参阅我们的 [CONTRIBUTING](docs/CONTRIBUTING.md) 文档了解详情。 想要获得灵感，可查看[需求清单](docs/wish_list.md)!
 
 ### 联系
 

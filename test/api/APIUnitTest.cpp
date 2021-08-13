@@ -386,7 +386,7 @@ TEST(APICoreTest, Configure) {
   EXPECT_TRUE(true);
 }
 
-#ifdef BUILD_AOT_RUNTIME
+#ifdef WASMEDGE_BUILD_AOT_RUNTIME
 TEST(APICoreTest, Compiler) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
 
@@ -1205,6 +1205,21 @@ TEST(APICoreTest, Instance) {
       WasmEdge_MemoryInstanceGetData(MemCxt, DataGet.data(), 65536, 10)));
   EXPECT_FALSE(WasmEdge_ResultOK(
       WasmEdge_MemoryInstanceGetData(MemCxt, DataGet.data(), 65530, 10)));
+
+  /// Memory instance get pointer
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointer(nullptr, 100, 10));
+  EXPECT_NE(nullptr, WasmEdge_MemoryInstanceGetPointer(MemCxt, 100, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointer(MemCxt, 65536, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointer(MemCxt, 65530, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointerConst(nullptr, 100, 10));
+  EXPECT_NE(nullptr, WasmEdge_MemoryInstanceGetPointerConst(MemCxt, 100, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointerConst(MemCxt, 65536, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointerConst(MemCxt, 65530, 10));
+  EXPECT_TRUE(std::equal(DataSet.cbegin(), DataSet.cend(),
+                         WasmEdge_MemoryInstanceGetPointer(MemCxt, 100, 10)));
+  EXPECT_TRUE(
+      std::equal(DataSet.cbegin(), DataSet.cend(),
+                 WasmEdge_MemoryInstanceGetPointerConst(MemCxt, 100, 10)));
 
   /// Memory instance get size and grow
   EXPECT_EQ(WasmEdge_MemoryInstanceGetPageSize(MemCxt), 1U);

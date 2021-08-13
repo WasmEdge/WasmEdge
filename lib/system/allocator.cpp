@@ -13,7 +13,7 @@
 #include <string>
 #include <utility>
 
-#if defined(HAVE_MMAP)
+#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
 #include <sys/mman.h>
 #elif WASMEDGE_OS_WINDOWS
 #include <boost/winapi/basic_types.hpp>
@@ -55,7 +55,7 @@ static inline constexpr const uint64_t k12G = UINT64_C(0x300000000);
 } // namespace
 
 uint8_t *Allocator::allocate(uint32_t PageCount) noexcept {
-#if defined(HAVE_MMAP)
+#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
   auto Reserved = reinterpret_cast<uint8_t *>(
       mmap(nullptr, k12G, PROT_NONE,
            MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0));
@@ -86,14 +86,19 @@ uint8_t *Allocator::allocate(uint32_t PageCount) noexcept {
   }
   return Pointer;
 #else
-  return std::malloc(kPageSize * PageCount);
+  auto Result = reinterpret_cast<uint8_t *>(std::malloc(kPageSize * PageCount));
+  if (Result == nullptr) {
+    return nullptr;
+  }
+  std::memset(Result, 0, kPageSize * PageCount);
+  return Result;
 #endif
 }
 
 uint8_t *Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
                            uint32_t NewPageCount) noexcept {
   assert(NewPageCount > OldPageCount);
-#if defined(HAVE_MMAP)
+#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
   if (mmap(Pointer + OldPageCount * kPageSize,
            (NewPageCount - OldPageCount) * kPageSize, PROT_READ | PROT_WRITE,
            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {
@@ -109,12 +114,19 @@ uint8_t *Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
   }
   return Pointer;
 #else
-  return std::realloc(Pointer, NewPageCount * kPageSize);
+  auto Result = reinterpret_cast<uint8_t *>(
+      std::realloc(Pointer, NewPageCount * kPageSize));
+  if (Result == nullptr) {
+    return nullptr;
+  }
+  std::memset(Result + OldPageCount * kPageSize, 0,
+              (NewPageCount - OldPageCount) * kPageSize);
+  return Result;
 #endif
 }
 
 void Allocator::release(uint8_t *Pointer, uint32_t) noexcept {
-#if defined(HAVE_MMAP)
+#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
   if (Pointer == nullptr) {
     return;
   }

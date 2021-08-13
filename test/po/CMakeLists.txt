@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_executable(poTests
+wasmedge_add_executable(poTests
   gtest.cpp
   po.cpp
   help.cpp

@@ -1,23 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
-if(BUILD_AOT_RUNTIME)
-  add_definitions(-DBUILD_AOT_RUNTIME)
+if(WASMEDGE_BUILD_AOT_RUNTIME)
+  add_definitions(-DWASMEDGE_BUILD_AOT_RUNTIME)
 endif()
 
-configure_files(
+file(COPY
   ${CMAKE_CURRENT_SOURCE_DIR}/apiTestData
-  ${CMAKE_CURRENT_BINARY_DIR}/apiTestData
-  COPYONLY
+  DESTINATION
+  ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-add_library(wasmedgeAPITestHelpers
+wasmedge_add_library(wasmedgeAPITestHelpers
   hostfunc_c.c
   helper.cpp
-)
-
-target_compile_options(wasmedgeAPITestHelpers
-  PRIVATE
-  ${WASMEDGE_CFLAGS}
 )
 
 target_link_libraries(wasmedgeAPITestHelpers
@@ -25,16 +20,11 @@ target_link_libraries(wasmedgeAPITestHelpers
   wasmedge_c
 )
 
-add_executable(wasmedgeAPIUnitTests
+wasmedge_add_executable(wasmedgeAPIUnitTests
   APIUnitTest.cpp
 )
 
 add_test(wasmedgeAPIUnitTests wasmedgeAPIUnitTests)
-
-target_compile_options(wasmedgeAPIUnitTests
-  PRIVATE
-  ${WASMEDGE_CFLAGS}
-)
 
 target_link_libraries(wasmedgeAPIUnitTests
   PRIVATE
@@ -44,16 +34,11 @@ target_link_libraries(wasmedgeAPIUnitTests
   wasmedge_c
 )
 
-add_executable(wasmedgeAPIVMCoreTests
+wasmedge_add_executable(wasmedgeAPIVMCoreTests
   APIVMCoreTest.cpp
 )
 
 add_test(wasmedgeAPIVMCoreTests wasmedgeAPIVMCoreTests)
-
-target_compile_options(wasmedgeAPIVMCoreTests
-  PRIVATE
-  ${WASMEDGE_CFLAGS}
-)
 
 target_link_libraries(wasmedgeAPIVMCoreTests
   PRIVATE
@@ -64,16 +49,11 @@ target_link_libraries(wasmedgeAPIVMCoreTests
   wasmedge_c
 )
 
-add_executable(wasmedgeAPIStepsCoreTests
+wasmedge_add_executable(wasmedgeAPIStepsCoreTests
   APIStepsCoreTest.cpp
 )
 
 add_test(wasmedgeAPIStepsCoreTests wasmedgeAPIStepsCoreTests)
-
-target_compile_options(wasmedgeAPIStepsCoreTests
-  PRIVATE
-  ${WASMEDGE_CFLAGS}
-)
 
 target_link_libraries(wasmedgeAPIStepsCoreTests
   PRIVATE
@@ -84,17 +64,12 @@ target_link_libraries(wasmedgeAPIStepsCoreTests
   wasmedge_c
 )
 
-if (BUILD_AOT_RUNTIME)
-  add_executable(wasmedgeAPIAOTCoreTests
+if (WASMEDGE_BUILD_AOT_RUNTIME)
+  wasmedge_add_executable(wasmedgeAPIAOTCoreTests
     APIAOTCoreTest.cpp
   )
 
   add_test(wasmedgeAPIAOTCoreTests wasmedgeAPIAOTCoreTests)
-
-  target_compile_options(wasmedgeAPIAOTCoreTests
-    PRIVATE
-    ${WASMEDGE_CFLAGS}
-  )
 
   target_link_libraries(wasmedgeAPIAOTCoreTests
     PRIVATE

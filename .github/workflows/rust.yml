@@ -1,0 +1,53 @@
+name: rust
+
+concurrency:
+  group: rust-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'doc/**'
+      - '**.md'
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - 'doc/**'
+      - '**.md'
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    container:
+      image: wasmedge/wasmedge:ubuntu-build-clang
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
+
+    - name: Rustfmt
+      run: cargo fmt --all -- --check
+
+    - name: Build WasmEdge using clang with Debug mode
+      run: |
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_SHARED_LIB=ON .
+        cmake --build build
+
+    - name: Clippy
+      run: cargo clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+
+    - name: Test
+      run: |
+        export LD_LIBRARY_PATH="$(pwd)/build/lib/api"
+        cargo test --lib --examples --locked
+        cargo test --doc --locked

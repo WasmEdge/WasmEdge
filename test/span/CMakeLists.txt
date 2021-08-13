@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_executable(spanTests
+wasmedge_add_executable(spanTests
   span.cpp
 )
 

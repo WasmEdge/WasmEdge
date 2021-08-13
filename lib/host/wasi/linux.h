@@ -16,12 +16,16 @@
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
-#include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+// socket include
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 
 #if __GLIBC_PREREQ(2, 8)
 #include <sys/timerfd.h>

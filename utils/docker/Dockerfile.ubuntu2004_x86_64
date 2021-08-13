@@ -1,0 +1,26 @@
+FROM ubuntu:20.04
+
+MAINTAINER hydai hydai@secondstate.io
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt update && apt upgrade -y \
+	&& apt install -y \
+	software-properties-common \
+	wget \
+	cmake \
+	ninja-build \
+	curl \
+	git \
+	dpkg-dev \
+	libboost-all-dev \
+	llvm-10-dev \
+	liblld-10-dev \
+	gcc \
+	rpm \
+	dpkg-dev \
+	g++
+
+RUN rm -rf /var/lib/apt/lists/*
+
+ENV CC=gcc
+ENV CXX=g++

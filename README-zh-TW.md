@@ -1,9 +1,10 @@
 
 # 快速開始指引
 
-🤖 [從原始碼編譯 WasmEdge](doc/build.md)\
-🤖 [貢獻 WasmEdge](doc/contribution.md)\
-⌨️ [從 CLI](doc/run.md)  或 [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) 或 [Golang](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn) 執行一個獨立的 Wasm 程式\
+🚀 [安裝](docs/install.md) WasmEdge\
+🤖 [從原始碼編譯 WasmEdge](docs/build.md)\
+🤖 [貢獻 WasmEdge](docs/contribution.md)\
+⌨️ [從 CLI](docs/run.md)  或 [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) 或 [Golang](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn) 執行一個獨立的 Wasm 程式\
 💭 發佈一個 [Wasm 函式即 web 服務 (FaaS)](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/)\
 🛠 [在 SaaS 平台上嵌入使用者自定義 Wasm 函式](http://reactor.secondstate.info/docs/user-create-a-bot.html)\
 🔩 [在 Node.js 網頁應用程式裡嵌入 Wasm 函式](https://www.secondstate.io/articles/getting-started-with-rust-function/)\
@@ -41,7 +42,7 @@ WasmEdge 的一個主要應用場景是從一個 host 應用程式啟動一個�
 
 # 從 WasmEdge 呼叫原生 host 函式
 
-開發者或許會認為如果僅有 Wasm bytecode 本身的功能對有些應用程式來說有太多的限制。 WasmEdge 提供一個 [host 函式 API](https://github.com/WasmEdge/WasmEdge/blob/master/doc/host_function.md) 。這允許 Wasm bytecode 應用程式從底層 host 作業系統載入和呼叫原生函式庫的函式。
+開發者或許會認為如果僅有 Wasm bytecode 本身的功能對有些應用程式來說有太多的限制。 WasmEdge 提供一個 [host 函式 API](https://github.com/WasmEdge/WasmEdge/blob/master/docs/host_function.md) 。這允許 Wasm bytecode 應用程式從底層 host 作業系統載入和呼叫原生函式庫的函式。
 
 >此功能破壞了 Wasm 沙箱。 但是這個沙箱破壞是在系統管理員明確權限下完成的。
 
@@ -49,13 +50,13 @@ WasmEdge 的一個主要應用場景是從一個 host 應用程式啟動一個�
 
 # 管理 WasmEdge 虛擬機器實例
 
-有了 [WasmEdge C API](doc/c_api.md) ，您可以編寫程式來啟動、停止和管理您自己的應用程式中的 WasmEdge 虛擬機器實例。例如：
+有了 [WasmEdge C API](docs/c_api.md) ，您可以編寫程式來啟動、停止和管理您自己的應用程式中的 WasmEdge 虛擬機器實例。例如：
 
 * 當在 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 或者在 [飛書](http://reactor.secondstate.info/docs/user-create-a-bot.html) 上嵌入了 WasmEdge 函式，可以在當有傳入請求時，由應用程式啟動虛擬機器。
 * 當 WasmEdge 函式被外掛到像 [YoMo](https://github.com/yomorun/yomo-flow-ssvm-example) 這樣的資料流引擎中時，虛擬機器可以在一個新的資料點流經系統時啟動。
 * 作為一個相容於 OCI 的執行體， WasmEdge 應用程式可以由像是 CRI-O 與 Docker Hub 的 Docker 工具來管理。 [由此觀看](https://github.com/second-state/runw) 我們正在進行的對 Kubernetes 的支援。
 
-您也可以參閱 [WasmEdge C API 快速開始指南](doc/c_api_quick_start.md) 。
+您也可以參閱 [WasmEdge C API 快速開始指南](docs/c_api_quick_start.md) 。
 
 # 支援 wasm 標準擴充
 
@@ -64,7 +65,7 @@ WasmEdge 支持可選用的 WebAssembly 新特性和提案。這些提案很可�
 * [WASI (WebAssembly 系統介面) spec](https://github.com/WebAssembly/WASI) 。 WasmEdge 支援 WebAssembly 應用程式的 WASI 標準，以安全地與 host Linux 作業系統互動。
 * [Reference Types](https://webassembly.github.io/reference-types/core/) 。它允許 WebAssembly 應用程式來與 host 應用程式和作業系統交換資料。
 * [Bulk memory operations](https://github.com/WebAssembly/bulk-memory-operations/blob/master/proposals/bulk-memory-operations/Overview.md) 。 能使 WebAssembly 應用程式的記憶體讀寫更快並在大容量記憶體操作中表現更好。
-* [SIMD (Single instruction, multiple data)](https://github.com/second-state/SSVM/blob/master/doc/simd.md) 。對於具有多個 CPU 核心的現代設備， SIMD 允許資料處理應用程式充分利用 CPU 。 SIMD 可以顯著提高資料應用程式的性能。
+* [SIMD (Single instruction, multiple data)](https://github.com/second-state/SSVM/blob/master/docs/simd.md) 。對於具有多個 CPU 核心的現代設備， SIMD 允許資料處理應用程式充分利用 CPU 。 SIMD 可以顯著提高資料應用程式的性能。
 
 同時， WasmEdge 團隊正 [探索wasi-socket提案](https://github.com/second-state/w13e_wasi_socket) 以支援 WebAssembly 應用程式中的網路存取。
 
@@ -100,7 +101,7 @@ WasmEdge 與其它的 WebAssembly 虛擬機器的關鍵區別是它對非標準�
 
 ### 貢獻
 
-如果您想為 WasmEdge 專案做出貢獻，請參閱我們的 [CONTRIBUTION](doc/contribution.md) 文件瞭解詳情。 想要獲得靈感，可查看 [需求清單](doc/wish_list.md)!
+如果您想為 WasmEdge 專案做出貢獻，請參閱我們的 [CONTRIBUTING](docs/CONTRIBUTING.md) 文件瞭解詳情。 想要獲得靈感，可查看 [需求清單](docs/wish_list.md)!
 
 ### 聯繫
 

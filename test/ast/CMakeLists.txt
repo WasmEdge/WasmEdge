@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-add_executable(wasmedgeASTTests
+wasmedge_add_executable(wasmedgeASTTests
   moduleTest.cpp
   sectionTest.cpp
   descriptionTest.cpp
@@ -11,11 +11,6 @@ add_executable(wasmedgeASTTests
 )
 
 add_test(wasmedgeASTTests wasmedgeASTTests)
-
-target_compile_options(wasmedgeASTTests
-  PRIVATE
-  ${WASMEDGE_CFLAGS}
-)
 
 target_link_libraries(wasmedgeASTTests
   PRIVATE

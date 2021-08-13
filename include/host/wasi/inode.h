@@ -414,9 +414,10 @@ public:
   /// @param[in] Path The path of the symbolic link from which to read.
   /// @param[out] Buffer The buffer to which to write the contents of the
   /// symbolic link.
+  /// @param[out] NRead The number of bytes read.
   /// @return Nothing or WASI error.
-  WasiExpect<void> pathReadlink(std::string Path,
-                                Span<char> Buffer) const noexcept;
+  WasiExpect<void> pathReadlink(std::string Path, Span<char> Buffer,
+                                __wasi_size_t &NRead) const noexcept;
 
   /// Remove a directory.
   ///
@@ -470,6 +471,19 @@ public:
   /// @param[in] NSubscriptions Both the number of subscriptions and events.
   /// @return Poll helper or WASI error
   static WasiExpect<Poller> pollOneoff(__wasi_size_t NSubscriptions) noexcept;
+
+  static WasiExpect<INode> sockOpen(__wasi_address_family_t SysDomain,
+                                    __wasi_sock_type_t SockType) noexcept;
+
+  WasiExpect<void> sockBind(uint8_t *Address, uint8_t AddressLength,
+                            uint16_t Port) noexcept;
+
+  WasiExpect<void> sockListen(uint32_t Backlog) noexcept;
+
+  WasiExpect<INode> sockAccept(uint16_t Port) noexcept;
+
+  WasiExpect<void> sockConnect(uint8_t *Address, uint8_t AddressLength,
+                               uint16_t Port) noexcept;
 
   /// Receive a message from a socket.
   ///

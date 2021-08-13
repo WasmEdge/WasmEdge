@@ -103,8 +103,11 @@ public:
                     PageLimit);
       return false;
     }
-    if (Allocator::resize(DataPtr, MinPage, MinPage + Count) == nullptr) {
+    if (auto NewPtr = Allocator::resize(DataPtr, MinPage, MinPage + Count);
+        NewPtr == nullptr) {
       return false;
+    } else {
+      DataPtr = NewPtr;
     }
     MinPage += Count;
     return true;
@@ -208,7 +211,7 @@ public:
   /// Get pointer to specific offset of memory or null.
   template <typename T>
   typename std::enable_if_t<std::is_pointer_v<T>, T>
-  getPointerOrNull(const uint32_t Offset) {
+  getPointerOrNull(const uint32_t Offset) const {
     if (Offset == 0 ||
         !checkAccessBound(Offset, sizeof(std::remove_pointer_t<T>))) {
       return nullptr;
@@ -219,7 +222,7 @@ public:
   /// Get pointer to specific offset of memory.
   template <typename T>
   typename std::enable_if_t<std::is_pointer_v<T>, T>
-  getPointer(const uint32_t Offset, const uint32_t Size = 1) {
+  getPointer(const uint32_t Offset, const uint32_t Size = 1) const {
     using Type = std::remove_pointer_t<T>;
     uint32_t ByteSize = static_cast<uint32_t>(sizeof(Type)) * Size;
     if (!checkAccessBound(Offset, ByteSize)) {

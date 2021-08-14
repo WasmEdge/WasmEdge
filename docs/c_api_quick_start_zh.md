@@ -1,18 +1,18 @@
 # WasmEdge C API 文档
 
-文档[WasmEdge C API](../include/api/wasmedge.h.in)里提供了访问WasmEdge运行时的接口。以下内容是关于如何使用WasmEdge C API的简单说明。如果要了解WasmEdge C API的更多细节，请参考[完整的文档](c_api.md)。
+文档 [WasmEdge C API](../include/api/wasmedge.h.in) 里提供了访问 WasmEdge 运行时的接口。以下内容是关于如何使用 WasmEdge C API 的简单说明。如果要了解 WasmEdge C API 的更多细节，请参考[完整的文档](c_api.md)。
 
-## WasmEdge运行时快速指南
+## WasmEdge 运行时快速指南
 
-以下是运行一个WASM文件的示例。
-假设WASM文件[`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm)已经被拷贝到当前目录，并且C文件`test_wasmedge.c`的源代码如下所示：
+以下是运行一个 WASM 文件的示例。
+假设 WASM 文件[`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm)已经被拷贝到当前目录，并且C文件`test_wasmedge.c`的源代码如下所示：
 
 ```c
 #include <wasmedge.h>
 #include <stdio.h>
 int main(int Argc, const char* Argv[]) {
-  /* 创建配置上下文以及WASI支持。 */
-  /* 除非你需要使用WASI，否则这步不是必须的。 */
+  /* 创建配置上下文以及 WASI 支持。 */
+  /* 除非你需要使用 WASI，否则这步不是必须的。 */
   WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
   WasmEdge_ConfigureAddHostRegistration(ConfCxt, WasmEdge_HostRegistration_Wasi);
   /* 创建VM的时候可以提供空的配置。*/
@@ -23,7 +23,7 @@ int main(int Argc, const char* Argv[]) {
   WasmEdge_Value Returns[1];
   /* 要调用的函数名。 */
   WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
-  /* 运行文件里的WASM函数。 */
+  /* 运行文件里的 WASM 函数。 */
   WasmEdge_Result Res = WasmEdge_VMRunWasmFromFile(VMCxt, Argv[1], FuncName, Params, 1, Returns, 1);
 
   if (WasmEdge_ResultOK(Res)) {
@@ -48,11 +48,11 @@ $ ./test_wasmedge fibonacci.wasm
 Get result: 5702887
 ```
 
-如果要了解API的细节，请参考[API头文件](../include/api/wasmedge.h.in).
+如果要了解 API 的细节，请参考 [API 头文件](../include/api/wasmedge.h.in).
 
-## WasmEdge AOT编译器快速指南
+## WasmEdge AOT 编译器快速指南
 
-假设WASM文件 [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) 已经被拷贝到当前目录，并且C文件`test_wasmedge_compiler.c`的代码如下所示：
+假设 WASM 文件 [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) 已经被拷贝到当前目录，并且C文件`test_wasmedge_compiler.c`的代码如下所示：
 
 ```c
 #include <wasmedge.h>
@@ -66,7 +66,7 @@ int main(int Argc, const char* Argv[]) {
 
   /* 创建编译器上下文。配置上下文可以为空。 */
   WasmEdge_CompilerContext *CompilerCxt = WasmEdge_CompilerCreate(ConfCxt);
-  /* 根据指定的输入和输出路径来编译WASM文件。 */
+  /* 根据指定的输入和输出路径来编译 WASM 文件。 */
   Res = WasmEdge_CompilerCompile(CompilerCxt, Argv[1], Argv[2]);
   if (!WasmEdge_ResultOK(Res)) {
       printf("Compilation failed: %s\n", WasmEdge_ResultGetMessage(Res));
@@ -91,8 +91,8 @@ $ ./test_wasmedge_compiler fibonacci.wasm fibonacci.wasm.so
 [2021-07-02 11:08:08.706] [info] compile done
 ```
 
-编译后的的WASM文件也可以直接作为WasmEdge运行时的输入。
-以下是解释模式和AOT模式的一个对比：
+编译后的的 WASM 文件也可以直接作为 WasmEdge 运行时的输入。
+以下是解释模式和 AOT 模式的一个对比：
 
 ```bash
 $ time ./test_wasmedge fibonacci.wasm
@@ -110,4 +110,4 @@ user	0m0.022s
 sys	0m0.011s
 ```
 
-如果要了解这些API的细节，请参考[API头文件](../include/api/wasmedge.h.in)。
+如果要了解这些 API 的细节，请参考[ API 头文件](../include/api/wasmedge.h.in)。

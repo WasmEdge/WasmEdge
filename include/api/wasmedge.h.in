@@ -1957,7 +1957,7 @@ WasmEdge_MemoryInstanceGetData(const WasmEdge_MemoryInstanceContext *Cxt,
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_MemoryInstanceSetData(WasmEdge_MemoryInstanceContext *Cxt,
-                               uint8_t *Data, const uint32_t Offset,
+                               const uint8_t *Data, const uint32_t Offset,
                                const uint32_t Length);
 
 /// Get the data pointer in a memory instance.

@@ -1498,8 +1498,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGetData(
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceSetData(
-    WasmEdge_MemoryInstanceContext *Cxt, uint8_t *Data, const uint32_t Offset,
-    const uint32_t Length) {
+    WasmEdge_MemoryInstanceContext *Cxt, const uint8_t *Data,
+    const uint32_t Offset, const uint32_t Length) {
   return wrap(
       [&]() {
         return fromMemCxt(Cxt)->setBytes(genSpan(Data, Length), Offset, 0,

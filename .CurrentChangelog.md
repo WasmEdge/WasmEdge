@@ -1,4 +1,4 @@
-### 0.8.2 (unrelease)
+### 0.8.2 (2021-08-25)
 
 Features:
 
@@ -7,7 +7,8 @@ Features:
   * Supported WASI on Windows 10.
   * Supported WASI Socket functions on Linux.
 * C API:
-  * Added the static library `libwasmedge_c.a`.
+  * Supported 32-bit environment.
+  * Added the static library target `libwasmedge_c.a` (`OFF` by default).
   * Added the `ErrCode` to C declarations.
   * Added the API about converting `WasmEdge_String` to C string.
   * Added the API to get data pointer from the `WasmEdge_MemoryInstanceContext`.
@@ -27,22 +28,29 @@ Fixed issues:
 
 * Ensured every platform defines is defined.
 * Disabled blake3 AVX512 support on old platforms.
-* Avoided vector ternary operator in AOT, which is unspoorted by clang on mac.
+* Avoided vector ternary operator in AOT, which is unsupported by clang on mac.
 * The preopen should be `--dir guest_path:host_path`.
 * Fixed usused variables error in API libraries when AOT build is disabled.
-* Fixed the signature error of `wasi_snapshot_preview1::path_read_link`.
-  * Fixed the signature error with the lost read size output.
-  * Added the `Out` comments for parameters with receiving outputs.
+* Fixed the WASI function signature error.
+  * `wasi_snapshot_preview1::path_read_link`
+    * Fixed the signature error with the lost read size output.
+    * Added the `Out` comments for parameters with receiving outputs.
+  * `wasi_snapshot_preview1::path_filestat_set_times`
+    * Corrected the time signature to the `u64`.
 
 Misc:
 
 * Changed all CMake global properties to target specified properties.
   * Added namespace to all cmake options.
+* Added the CMake option `WASMEDGE_FORCE_DISABLE_LTO` to forcibly disable link time optimization (`OFF` by default).
+  * WasmEdge project enables LTO by default in Release/RelWithDeb build. If you would like to disable the LTO forcibly, please turn on the `WASMEDGE_FORCE_DISABLE_LTO` option.
 * Installed `dpkg-dev` in docker images to enable `dpkg-shlibdeps` when creating the deb release.
 
 Refactor:
 
 * Refactored the WASI VFS architecture.
+* Simplified the memory indexing in validator.
+* Renamed the file names in interpreter.
 * Replaced the instances when registering host instances with existing names.
 
 Documentations:

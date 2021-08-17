@@ -5,7 +5,7 @@
 ## WasmEdge 运行时快速指南
 
 以下是运行一个 WASM 文件的示例。
-假设 WASM 文件[`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm)已经被拷贝到当前目录，并且C文件`test_wasmedge.c`的源代码如下所示：
+假设 WASM 文件[`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm)已经被拷贝到当前目录，并且 C 文件 `test_wasmedge.c` 的源代码如下所示：
 
 ```c
 #include <wasmedge.h>
@@ -40,7 +40,7 @@ int main(int Argc, const char* Argv[]) {
 }
 ```
 
-接下来你可以编译并且运行它：（索引从0开始的情况下，斐波那契数列的的第32个数值是5702887）
+接下来你可以编译并且运行它：（索引从 0 开始的情况下，斐波那契数列的的第 32 个数值是 5702887 ）
 
 ```bash
 $ gcc test_wasmedge.c -lwasmedge_c -o test_wasmedge
@@ -52,7 +52,7 @@ Get result: 5702887
 
 ## WasmEdge AOT 编译器快速指南
 
-假设 WASM 文件 [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) 已经被拷贝到当前目录，并且C文件`test_wasmedge_compiler.c`的代码如下所示：
+假设 WASM 文件 [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) 已经被拷贝到当前目录，并且 C 文件 `test_wasmedge_compiler.c` 的代码如下所示：
 
 ```c
 #include <wasmedge.h>
@@ -79,7 +79,7 @@ int main(int Argc, const char* Argv[]) {
 }
 ```
 
-接下来你可以编译和运行它（输出的文件是"fibonacci.wasm.so"）：
+接下来你可以编译和运行它（输出的文件是 "fibonacci.wasm.so" ）：
 
 ```bash
 $ gcc test_wasmedge_compiler.c -lwasmedge_c -o test_wasmedge_compiler

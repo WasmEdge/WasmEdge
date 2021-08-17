@@ -17,7 +17,7 @@ wasmedge_add_library(wasmedgeAPITestHelpers
 
 target_link_libraries(wasmedgeAPITestHelpers
   PUBLIC
-  wasmedge_c
+  wasmedge_c_shared
 )
 
 wasmedge_add_executable(wasmedgeAPIUnitTests
@@ -31,7 +31,7 @@ target_link_libraries(wasmedgeAPIUnitTests
   std::filesystem
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeAPITestHelpers
-  wasmedge_c
+  wasmedge_c_shared
 )
 
 wasmedge_add_executable(wasmedgeAPIVMCoreTests
@@ -46,7 +46,7 @@ target_link_libraries(wasmedgeAPIVMCoreTests
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeTestSpec
   wasmedgeAPITestHelpers
-  wasmedge_c
+  wasmedge_c_shared
 )
 
 wasmedge_add_executable(wasmedgeAPIStepsCoreTests
@@ -61,7 +61,7 @@ target_link_libraries(wasmedgeAPIStepsCoreTests
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeTestSpec
   wasmedgeAPITestHelpers
-  wasmedge_c
+  wasmedge_c_shared
 )
 
 if (WASMEDGE_BUILD_AOT_RUNTIME)
@@ -77,6 +77,6 @@ if (WASMEDGE_BUILD_AOT_RUNTIME)
     ${GTEST_BOTH_LIBRARIES}
     wasmedgeTestSpec
     wasmedgeAPITestHelpers
-    wasmedge_c
+    wasmedge_c_shared
   )
 endif()

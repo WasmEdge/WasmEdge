@@ -7,7 +7,7 @@ Features:
   * Supported WASI on Windows 10.
   * Supported WASI Socket functions on Linux.
 * C API:
-  * Added the static library `libwasmedge_c.a`.
+  * Added the static library target `libwasmedge_c.a` (`OFF` by default).
   * Added the `ErrCode` to C declarations.
   * Added the API about converting `WasmEdge_String` to C string.
   * Added the API to get data pointer from the `WasmEdge_MemoryInstanceContext`.
@@ -38,6 +38,8 @@ Misc:
 
 * Changed all CMake global properties to target specified properties.
   * Added namespace to all cmake options.
+* Added the CMake option `WASMEDGE_FORCE_DISABLE_LTO` to forcibly disable link time optimization (`OFF` by default).
+  * WasmEdge project enables LTO by default in Release/RelWithDeb build. If you would like to disable the LTO forcibly, please turn on the `WASMEDGE_FORCE_DISABLE_LTO` option.
 * Installed `dpkg-dev` in docker images to enable `dpkg-shlibdeps` when creating the deb release.
 
 Refactor:

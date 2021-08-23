@@ -15,6 +15,7 @@
 
 #include "../spec/spectest.h"
 #include "api/wasmedge.h"
+#include "common/int128.h"
 
 namespace WasmEdge {
 

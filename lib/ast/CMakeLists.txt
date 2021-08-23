@@ -14,5 +14,4 @@ target_link_libraries(wasmedgeAST
   PUBLIC
   wasmedgeLoaderFileMgr
   wasmedgeCommon
-  wasmedgeLoaderFileMgr
 )

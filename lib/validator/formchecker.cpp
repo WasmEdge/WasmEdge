@@ -22,7 +22,7 @@ void FormChecker::reset(bool CleanGlobal) {
     Types.clear();
     Funcs.clear();
     Tables.clear();
-    Mems.clear();
+    Mems = 0;
     Globals.clear();
     Datas.clear();
     Elems.clear();
@@ -74,9 +74,7 @@ void FormChecker::addTable(const AST::TableType &Tab) {
   Tables.push_back(Tab.getReferenceType());
 }
 
-void FormChecker::addMemory(const AST::MemoryType &) {
-  Mems.push_back(static_cast<uint32_t>(Mems.size()));
-}
+void FormChecker::addMemory(const AST::MemoryType &) { Mems++; }
 
 void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
   /// Type in global is comfirmed in loading phase.
@@ -210,11 +208,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   /// Helper lambda for checking memory index and perform transformation.
   auto checkMemAndTrans = [this](uint32_t N, Span<const VType> Take,
                                  Span<const VType> Put) -> Expect<void> {
-    if (Mems.size() <= N) {
+    if (Mems <= N) {
       spdlog::error(ErrCode::InvalidMemoryIdx);
       spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, 0,
-                                   static_cast<uint32_t>(Mems.size())));
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, N, Mems));
       return Unexpect(ErrCode::InvalidMemoryIdx);
     }
     return StackTrans(Take, Put);
@@ -224,11 +221,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   auto checkAlignAndTrans = [this,
                              &Instr](uint32_t N, Span<const VType> Take,
                                      Span<const VType> Put) -> Expect<void> {
-    if (Mems.size() == 0) {
+    if (Mems == 0) {
       spdlog::error(ErrCode::InvalidMemoryIdx);
       spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, 0,
-                                   static_cast<uint32_t>(Mems.size())));
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, 0, Mems));
       return Unexpect(ErrCode::InvalidMemoryIdx);
     }
     if (Instr.getMemoryAlign() > 31 ||
@@ -279,11 +275,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   auto checkAlignLaneAndTrans =
       [this, &Instr](const uint32_t N, Span<const VType> Take,
                      Span<const VType> Put) -> Expect<void> {
-    if (Mems.size() == 0) {
+    if (Mems == 0) {
       spdlog::error(ErrCode::InvalidMemoryIdx);
       spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, 0,
-                                   static_cast<uint32_t>(Mems.size())));
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, 0, Mems));
       return Unexpect(ErrCode::InvalidMemoryIdx);
     }
     if (Instr.getMemoryAlign() > 31 ||
@@ -737,11 +732,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return checkMemAndTrans(0, std::array{VType::I32}, std::array{VType::I32});
   case OpCode::Memory__init:
     /// Check target memory index to initialize. Memory[0] must exist.
-    if (Mems.size() == 0) {
+    if (Mems == 0) {
       spdlog::error(ErrCode::InvalidMemoryIdx);
       spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, 0,
-                                   static_cast<uint32_t>(Mems.size())));
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, 0, Mems));
       return Unexpect(ErrCode::InvalidMemoryIdx);
     }
     /// Check source data index for initialization.

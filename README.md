@@ -4,7 +4,7 @@
 
 🚀 [Install](docs/install.md) WasmEdge \
 🤖 [Build](docs/build.md) and [contribute to](docs/CONTRIBUTING.md) WasmEdge \
-⌨️ Run a standalone Wasm program [from CLI](docs/run.md) \
+⌨️ [Run](docs/run.md) a standalone Wasm program or a [JavaScript program](docs/run_javascript.md) from CLI \
 🔌 Embed a Wasm function in your [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/), [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/), or [Rust](https://github.com/super-node/WasmEdge/tree/master/wasmedge-rs) apps \
 🛠 Manage and orchestrate Wasm runtimes using [Docker tools](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/), [data streaming frameworks](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/), and [blockchains](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) \
 💭 Checkout the [use cases](docs/use_cases.md) of WasmEdge
@@ -24,11 +24,11 @@ WasmEdge is an official sandbox project hosted by [CNCF](https://www.cncf.io/) (
 
 The most important use case for WasmEdge is to safely execute user-defined or community-contributed code as plug-ins in a software product (e.g., a SaaS, a car OS, an edge node, or even a blockchain node). It enables third-party developers, vendors, suppliers, and community members to extend and customize the software product. With WasmEdge, a software product could become a host platform.
 
-WasmEdge provides a well-defined execution sandbox for its contained Wasm bytecode program. The bytecode program cannot access operating system resources (e.g., file system, sockets, environment variables, processes) without explicit permissions from the VM's runner. The runner specifies the system resources the VM can access in the VM's configuration options upon starting up (a.k.a capability-based security model).
+WasmEdge provides a well-defined execution sandbox for its contained Wasm bytecode program. The bytecode program cannot access operating system resources (e.g., file system, sockets, environment variables, processes) without explicit permissions from the VM's runner. The runner specifies the system resources the VM can access in the VM's configuration options upon starting up (a.k.a capability-based security model). WasmEdge also provides memory protection for its contained bytecode program. If the program attempts to access memory outside of the region allocated to the VM, the VM will terminate with an error message.
 
-WasmEdge also provides memory protection for its contained bytecode program. If the program attempts to access memory outside of the region allocated to the VM, the VM will terminate with an error message. 
+WasmEdge can run standard WebAssembly bytecode programs compiled from C/C++, Rust, Swift, AssemblyScript, or Kotlin source code. It also [runs JavaScript](docs/run_javascript.md) through an embedded [QuickJS engine](https://github.com/second-state/wasmedge-quickjs). WasmEdge extensions to WebAssembly are typically available as [Rust SDKs](https://www.secondstate.io/articles/wasi-tensorflow/) or [JavaScript APIs](docs/run_javascript.md).
 
-WasmEdge and its contained wasm program can be started from the CLI as a new process, or from a existing process. If started from an existing process (e.g., from a running [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or [Golang](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_Mobilenet) program), the VM will simply run inside the process as a function. It is also possible to start a WasmEdge VM instance as a thread. Currently, WasmEdge is not yet thread-safe, meaning that VM instances running in different threads in the same process will potentially be able to access each other's memory. In the future, we plan to make WasmEdge thread safe.
+WasmEdge and its contained wasm program can be started from the CLI as a new process, or from a existing process. If started from an existing process (e.g., from a running [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/) or [Rust](https://github.com/super-node/WasmEdge/tree/master/wasmedge-rs) program), the VM will simply run inside the process as a function. It is also possible to start a WasmEdge VM instance as a thread. Currently, WasmEdge is not yet thread-safe, meaning that VM instances running in different threads in the same process will potentially be able to access each other's memory. In the future, we plan to make WasmEdge thread safe.
 
 # Embed WasmEdge into a host application
 
@@ -36,23 +36,18 @@ A major use case of WasmEdge is to start an VM instance from a host application.
 
 However, the Wasm spec, and the [WasmEdge C API](docs/c_api.md), only supports very limited data types as input parameters and return values for the contained Wasm bytecode functions. In order to pass complex data types, such as a string of an array, as call arguments into the contained function, you should use the bindgen solution provided by the [rustwasmc](https://github.com/second-state/rustwasmc) toolchain.
 
-We currently supports bindgen in the [Node.js host environment](https://www.secondstate.io/articles/getting-started-with-rust-function/) and in [Golang environment](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_Mobilenet). We are working on [supporting interface types](https://github.com/WasmEdge/WasmEdge/issues/264) in place of bindgen for future releases.
+We currently supports bindgen in the [Node.js host environment](https://www.secondstate.io/articles/getting-started-with-rust-function/) and in [Go environment](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/). We are working on [supporting interface types](https://github.com/WasmEdge/WasmEdge/issues/264) in place of bindgen for future releases.
 
 # Call native host functions from WasmEdge
 
 Sometimes, the Wasm bytecode alone could prove too limiting for some applications. WasmEdge provides a [host function API](https://github.com/WasmEdge/WasmEdge/blob/master/docs/host_function.md) that allows Wasm bytecode programs to load and call native library functions from the underlying host operating system.
 
+Alternatively, you can register external functions as callbacks from the WasmEdge runtime. [Here is an example](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ExternRef) to register external functions in Go.
+
 > The host functions break the Wasm sandbox. But the sandbox breaking is done with explicit permission from the system’s operator.
 
 In fact, the extensions to WasmEdge are implemented using native host functions. For example, the [Tensorflow extension](https://www.secondstate.io/articles/wasi-tensorflow/) allows Wasm bytecode to make calls to the native Tensorflow library functions.
 
-# Manage WasmEdge VM instances
-
-With the [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), you can write a program to start, stop, and manage WasmEdge VM instances in your own applications. For example, 
-
-* When WasmEdge functions are embedded in [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or in [Slack](http://reactor.secondstate.info/en/docs/user_guideline.html), the VM is launched by the application when there is an incoming request. 
-* When WasmEdge functions are plugged into a data flow engine like [YoMo](https://github.com/yomorun/yomo-flow-ssvm-example), the VM is launched when a new data point flows through the system.
-* As an OCI compliant runtime, WasmEdge applications could be managed by Docker tools such as CRI-O and Docker Hub. [See how](https://github.com/second-state/runw) We are currently working on Kubernetes support.
 
 # Support wasm standard extensions
 
@@ -71,6 +66,7 @@ A key differentiator of WasmEdge from other WebAssembly VMs is its support for n
 
 * [Tensorflow](https://github.com/second-state/wasmedge-tensorflow). Developers can write Tensorflow inference functions using [a simple Rust API](https://crates.io/crates/ssvm_tensorflow_interface), and then run the function securely and at native speed inside WasmEdge.
 * Other AI frameworks. Besides Tensorflow, the Second State team is building WASI-like extensions for AI frameworks such as ONNX and Tengine for WasmEdge.
+* [Image processing](https://github.com/second-state/WasmEdge-image). WasmEdge uses native libraries to manipulate images for computer vision tasks.
 * [KV Storage](https://github.com/second-state/wasmedge-storage). The WasmEdge [storage interface](https://github.com/second-state/rust_native_storage_library) allows WebAssembly programs to read and write a key value store.
 * [Command interface](https://github.com/second-state/wasmedge_process_interface). WasmEdge enables webassembly functions execute native commands in the host operating system. It supports passing arguments, environment variables, STDIN / STDOUT pipes, and security policies for host access.
 * [Ethereum](https://github.com/second-state/wasmedge-evmc). The WasmEdge Ewasm extension supports Ethereum smart contracts compiled to WebAssembly. It is a leading implementation for Ethereum flavored WebAssembly (Ewasm).

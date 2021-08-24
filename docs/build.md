@@ -39,6 +39,7 @@ $ docker pull wasmedge/wasmedge # Equals to wasmedge/wasmedge:latest
 | `ubuntu-build-gcc`      | x86\_64 | Ubuntu 21.04           | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 21.04+            | This is for CI, will always use the latest Ubuntu release                           |
 | `ubuntu-build-clang`    | x86\_64 | Ubuntu 21.04           | 12.0.0       | CC=clang, CXX=clang++ | Ubuntu 21.04+            | This is for CI, will always use the latest Ubuntu release                           |
 | `ubuntu2004_x86_64`     | x86\_64 | Ubuntu 20.04 LTS       | 10.0.0       | CC=gcc, CXX=g++       | Ubuntu 20.04+            | This is for developers who familiar with Ubuntu 20.04 LTS release                   |
+| `ubuntu2104_armv7l`     | armhf   | Ubuntu 21.04           | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 21.04+            | This is for armhf release                                                           |
 | `manylinux2014_x86_64`  | x86\_64 | CentOS 7, 7.9.2009     | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | This is for developers who familiar with CentOS on x86\_64 architecture             |
 | `manylinux2014_aarch64` | aarch64 | CentOS 7, 7.9.2009     | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | This is for developers who familiar with CentOS on aarch64 architecture             |
 | `manylinux2010_x86_64`  | x86\_64 | CentOS 6, 6.10         | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 6+ | This is for developers who familiar with legacy system on x86\_64 architecture, EOL |
@@ -101,7 +102,6 @@ After the build is finished, you can find there are several wasmedge related too
 2. `wasmedgec` is for ahead-of-time `WASM` compiler.
 	* `wasmedgec` compiles a general `WASM` file into a `so` file.
 	* To disable building the ahead-of-time compiler only, you can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
-	* To disable building all tools, you can set the CMake option `WASMEDGE_BUILD_TOOLS` to `OFF`.
 3. `libwasmedge_c.so` is the WasmEdge C API shared library.
 	* `libwasmedge_c.so` provides C API for the ahead-of-time compiler and the WASM runtime.
 	* The APIs about the ahead-of-time compiler will always return failed if the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` is set as `OFF`.

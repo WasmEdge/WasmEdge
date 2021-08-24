@@ -17,7 +17,7 @@ Features:
   * Enabled Ubuntu 20.04 x86\_64 build.
   * Enabled Ubuntu 21.04 x86\_64 build.
   * Enabled manylinux2014 aarch64 build.
-  * Enabled ubuntu arm32 build.
+  * Enabled Ubuntu 21.04 arm32 build.
 * Rust supports:
   * Added the `wasmedge-sys` and `wasmedge-rs` crates.
   * Added the wrapper types to rust.

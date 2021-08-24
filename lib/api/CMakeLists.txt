@@ -5,6 +5,26 @@ if(WASMEDGE_BUILD_AOT_RUNTIME)
   add_definitions(-DWASMEDGE_BUILD_AOT_RUNTIME)
 endif()
 
+# Helper function to construct commands and dependencies.
+function(wasmedge_add_static_lib_component_command target)
+  list(APPEND CMDS
+    COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
+    COMMAND ${CMAKE_AR} -x $<TARGET_FILE:${target}> --output=objs/${target}
+  )
+  set(WASMEDGE_STATIC_LIB_CMDS ${WASMEDGE_STATIC_LIB_CMDS} ${CMDS} PARENT_SCOPE)
+  set(WASMEDGE_STATIC_LIB_DEPS ${WASMEDGE_STATIC_LIB_DEPS} ${target} PARENT_SCOPE)
+endfunction()
+
+# Helper function to construct commands about collecting libraries with paths.
+function(wasmedge_add_libs_component_command target target_path)
+  list(APPEND CMDS
+    COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
+    COMMAND ${CMAKE_AR} -x ${target_path}/lib${target}.a --output=objs/${target}
+  )
+  set(WASMEDGE_STATIC_LIB_CMDS ${WASMEDGE_STATIC_LIB_CMDS} ${CMDS} PARENT_SCOPE)
+endfunction()
+
+# Object library of the C API wrapper.
 wasmedge_add_library(wasmedgeCAPI OBJECT
   wasmedge.cpp
 )
@@ -48,68 +68,60 @@ endif()
 
 if(WASMEDGE_BUILD_STATIC_LIB)
 
-  add_custom_target(wasmedge_c_static_runtime ALL
-    COMMAND ${CMAKE_COMMAND} -E make_directory objs/spdlog
-    COMMAND ${CMAKE_AR} -x $<TARGET_FILE:spdlog::spdlog> --output=objs/spdlog
-    COMMAND ${CMAKE_COMMAND} -E make_directory objs/wasmedgeSystem
-    COMMAND ${CMAKE_AR} -x $<TARGET_FILE:wasmedgeSystem> --output=objs/wasmedgeSystem
-    COMMAND ${CMAKE_COMMAND} -E make_directory objs/wasmedgeCommon
-    COMMAND ${CMAKE_AR} -x $<TARGET_FILE:wasmedgeCommon> --output=objs/wasmedgeCommon
-    COMMAND ${CMAKE_COMMAND} -E make_directory objs/wasmedgeLoaderFileMgr
-    COMMAND ${CMAKE_AR} -x $<TARGET_FILE:wasmedgeLoaderFileMgr> --output=objs/wasmedgeLoaderFileMgr
-    COMMAND ${CMAKE_COMMAND} -E make_directory objs/wasmedgeAST
-    COMMAND ${CMAKE_AR} -x $<TARGET_FILE:wasmedgeAST> --output=objs/wasmedgeAST
-    COMMAND ${CMAKE_COMMAND} -E make_directory objs/wasmedgeLoader
-    COMMAND ${CMAKE_AR} -x $<TARGET_FILE:wasmedgeLoader> --output=objs/wasmedgeLoader
-    COMMAND ${CMAKE_COMMAND} -E make_directory objs/wasmedgeValidator
-    COMMAND ${CMAKE_AR} -x $<TARGET_FILE:wasmedgeValidator> --output=objs/wasmedgeValidator
-    COMMAND ${CMAKE_COMMAND} -E make_directory objs/wasmedgeInterpreter
-    COMMAND ${CMAKE_AR} -x $<TARGET_FILE:wasmedgeInterpreter> --output=objs/wasmedgeInterpreter
-    COMMAND ${CMAKE_COMMAND} -E make_directory objs/wasmedgeHostModuleWasi
-    COMMAND ${CMAKE_AR} -x $<TARGET_FILE:wasmedgeHostModuleWasi> --output=objs/wasmedgeHostModuleWasi
-    COMMAND ${CMAKE_COMMAND} -E make_directory objs/wasmedgeHostModuleWasmEdgeProcess
-    COMMAND ${CMAKE_AR} -x $<TARGET_FILE:wasmedgeHostModuleWasmEdgeProcess> --output=objs/wasmedgeHostModuleWasmEdgeProcess
-    COMMAND ${CMAKE_COMMAND} -E make_directory objs/wasmedgeVM
-    COMMAND ${CMAKE_AR} -x $<TARGET_FILE:wasmedgeVM> --output=objs/wasmedgeVM
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    DEPENDS 
-    spdlog::spdlog
-    wasmedgeSystem
-    wasmedgeCommon
-    wasmedgeLoaderFileMgr
-    wasmedgeAST
-    wasmedgeLoader
-    wasmedgeValidator
-    wasmedgeInterpreter
-    wasmedgeHostModuleWasi
-    wasmedgeHostModuleWasmEdgeProcess
-    wasmedgeVM
-    wasmedgeCAPI
-  )
+  wasmedge_add_static_lib_component_command(spdlog::spdlog)
+  wasmedge_add_static_lib_component_command(wasmedgeSystem)
+  wasmedge_add_static_lib_component_command(wasmedgeCommon)
+  wasmedge_add_static_lib_component_command(wasmedgeLoaderFileMgr)
+  wasmedge_add_static_lib_component_command(wasmedgeAST)
+  wasmedge_add_static_lib_component_command(wasmedgeLoader)
+  wasmedge_add_static_lib_component_command(wasmedgeValidator)
+  wasmedge_add_static_lib_component_command(wasmedgeInterpreter)
+  wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasi)
+  wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasmEdgeProcess)
+  wasmedge_add_static_lib_component_command(wasmedgeVM)
 
   if (WASMEDGE_BUILD_AOT_RUNTIME)
-    add_custom_target(wasmedge_c_static ALL
-      COMMAND ${CMAKE_COMMAND} -E make_directory objs/utilBlake3
-      COMMAND ${CMAKE_AR} -x $<TARGET_FILE:utilBlake3> --output=objs/utilBlake3
-      COMMAND ${CMAKE_COMMAND} -E make_directory objs/wasmedgeAOT
-      COMMAND ${CMAKE_AR} -x $<TARGET_FILE:wasmedgeAOT> --output=objs/wasmedgeAOT
-      COMMAND ${CMAKE_AR} -qcs libwasmedge_c.a $<TARGET_OBJECTS:wasmedgeCAPI> objs/*/*.o
-      COMMAND ${CMAKE_COMMAND} -E rm -rf objs
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      DEPENDS
-      utilBlake3
-      wasmedgeAOT
-      wasmedge_c_static_runtime
+    # Pack the LLVM and lld static libraries.
+    find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}")
+    execute_process(
+      COMMAND ${LLVM_BINARY_DIR}/bin/llvm-config --libs --link-static
+      core lto native nativecodegen option passes support transformutils all-targets
+      OUTPUT_VARIABLE WASMEDGE_LLVM_LINK_LIBS
     )
-  else()
-    add_custom_target(wasmedge_c_static ALL
-      COMMAND ${CMAKE_AR} -qcs libwasmedge_c.a $<TARGET_OBJECTS:wasmedgeCAPI> objs/*/*.o
-      COMMAND ${CMAKE_COMMAND} -E rm -rf objs
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      DEPENDS
-      wasmedge_c_static_runtime
-    )
+    string(REPLACE "-l" "" WASMEDGE_LLVM_LINK_LIBS ${WASMEDGE_LLVM_LINK_LIBS})
+    string(REGEX REPLACE "[\r\n]" "" WASMEDGE_LLVM_LINK_LIBS ${WASMEDGE_LLVM_LINK_LIBS})
+    string(REPLACE " " "\;" WASMEDGE_LLVM_LINK_LIBS ${WASMEDGE_LLVM_LINK_LIBS})
+    set(WASMEDGE_LLVM_LINK_LIBS ${WASMEDGE_LLVM_LINK_LIBS})
+    foreach(LIB_NAME IN LISTS WASMEDGE_LLVM_LINK_LIBS)
+      wasmedge_add_libs_component_command(${LIB_NAME} ${LLVM_LIBRARY_DIR})
+    endforeach()
+    wasmedge_add_libs_component_command("lldELF" ${LLVM_LIBRARY_DIR})
+    wasmedge_add_libs_component_command("lldCommon" ${LLVM_LIBRARY_DIR})
+    wasmedge_add_libs_component_command("lldCore" ${LLVM_LIBRARY_DIR})
+    wasmedge_add_libs_component_command("lldDriver" ${LLVM_LIBRARY_DIR})
+    wasmedge_add_libs_component_command("lldReaderWriter" ${LLVM_LIBRARY_DIR})
+    wasmedge_add_libs_component_command("lldYAML" ${LLVM_LIBRARY_DIR})
+
+    # Pack the zlib.
+    get_filename_component(ZLIB_PATH "${ZLIB_LIBRARIES}" DIRECTORY)
+    wasmedge_add_libs_component_command("z" ${ZLIB_PATH})
+
+    # Pack the tinfo.
+    wasmedge_add_libs_component_command("tinfo" ${ZLIB_PATH})
+  
+    wasmedge_add_static_lib_component_command(utilBlake3)
+    wasmedge_add_static_lib_component_command(wasmedgeAOT)
   endif()
+
+  add_custom_target(wasmedge_c_static ALL
+    ${WASMEDGE_STATIC_LIB_CMDS}
+    COMMAND ${CMAKE_AR} -qcs libwasmedge_c.a $<TARGET_OBJECTS:wasmedgeCAPI> objs/*/*.o
+    COMMAND ${CMAKE_COMMAND} -E rm -rf objs
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS
+    ${WASMEDGE_STATIC_LIB_DEPS}
+    wasmedgeCAPI
+  )
 
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libwasmedge_c.a
     DESTINATION ${CMAKE_INSTALL_LIBDIR}

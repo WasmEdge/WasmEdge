@@ -65,12 +65,6 @@ if(WASMEDGE_BUILD_STATIC_LIB)
     COMMAND ${CMAKE_AR} -x $<TARGET_FILE:wasmedgeValidator> --output=objs/wasmedgeValidator
     COMMAND ${CMAKE_COMMAND} -E make_directory objs/wasmedgeInterpreter
     COMMAND ${CMAKE_AR} -x $<TARGET_FILE:wasmedgeInterpreter> --output=objs/wasmedgeInterpreter
-    COMMAND ${CMAKE_AR} -xN 1 $<TARGET_FILE:wasmedgeInterpreter> memory.cpp.o --output=objs/wasmedgeInterpreter
-    COMMAND ${CMAKE_COMMAND} -E rename objs/wasmedgeInterpreter/memory.cpp.o objs/wasmedgeInterpreter/instantiate_memory.cpp.o
-    COMMAND ${CMAKE_AR} -xN 2 $<TARGET_FILE:wasmedgeInterpreter> memory.cpp.o --output=objs/wasmedgeInterpreter
-    COMMAND ${CMAKE_AR} -xN 1 $<TARGET_FILE:wasmedgeInterpreter> table.cpp.o --output=objs/wasmedgeInterpreter
-    COMMAND ${CMAKE_COMMAND} -E rename objs/wasmedgeInterpreter/table.cpp.o objs/wasmedgeInterpreter/instantiate_table.cpp.o
-    COMMAND ${CMAKE_AR} -xN 2 $<TARGET_FILE:wasmedgeInterpreter> table.cpp.o --output=objs/wasmedgeInterpreter
     COMMAND ${CMAKE_COMMAND} -E make_directory objs/wasmedgeHostModuleWasi
     COMMAND ${CMAKE_AR} -x $<TARGET_FILE:wasmedgeHostModuleWasi> --output=objs/wasmedgeHostModuleWasi
     COMMAND ${CMAKE_COMMAND} -E make_directory objs/wasmedgeHostModuleWasmEdgeProcess

@@ -7,7 +7,7 @@ WasmEdge is a cloud-native WebAssembly runtime hosted by the CNCF. It is widely 
 
 ## 1 Cloud-native runtime (as a lightweight Docker alternative) 
 
-WasmEdge can be embedded into cloud-native infrastructure via its SDKs in [C](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md), [Golang](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/), [Rust](https://github.com/WasmEdge/WasmEdge/tree/master/wasmedge-rs), and [JavaScript](https://www.secondstate.io/articles/getting-started-with-rust-function/). It is also an OCI compliant runtime that can be directly [managed by CRI-O and Docker tools](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/) as a lightweight and high-performance alternative to Docker. 
+WasmEdge can be embedded into cloud-native infrastructure via its SDKs in [C](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md), [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/), [Rust](https://github.com/WasmEdge/WasmEdge/tree/master/wasmedge-rs), and [JavaScript](https://www.secondstate.io/articles/getting-started-with-rust-function/). It is also an OCI compliant runtime that can be directly [managed by CRI-O and Docker tools](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/) as a lightweight and high-performance alternative to Docker. 
 
 ### 1.1 Dapr (Distributed Application Runtime)
 
@@ -33,10 +33,10 @@ In order for WebAssembly to be widely adopted by developers as a runtime, it mus
 
 ### 2.1 JavaScript
 
-WasmEdge can act as a cloud-native JavaScript runtime by embedding a JS execution engine or interpreter. It is faster and lighter than running a JS engine inside Docker. It also allows embedding JS into other high-performance languages (eg, Rust) or using Rust to implement JS functions. 
+WasmEdge can act as a cloud-native JavaScript runtime by embedding a JS execution engine or interpreter. It is faster and lighter than running a JS engine inside Docker. WasmEdge supports JS APIs to access native extension functions such as network sockets and tensorflow inference. It also allows embedding JS into other high-performance languages (eg, Rust) or using Rust to implement JS functions. 
 
-* [Example](https://github.com/WasmEdge/WasmEdge/blob/master/docs/run_javascript.md)
-* [WasmEdge’s QuickJS extension](https://github.com/second-state/quickjs-wasi)
+* [Docs](https://github.com/WasmEdge/WasmEdge/blob/master/docs/run_javascript.md)
+* [WasmEdge’s embedded QuickJS engine](https://github.com/second-state/wasmedge-quickjs)
 
 ### 2.2 DSL for image classification
 
@@ -55,12 +55,12 @@ WasmEdge works with existing serverless or Jamstack platforms to provide a high-
 
 ### 3.1 AWS Lambda 
 
-* Tutorial(ongoing)
+* Tutorial (ongoing)
 * [Code template](https://github.com/second-state/aws-lambda-wasm-runtime)
 
 ### 3.2 Tencent Serverless Functions 
 
-* [Tutorial](https://my.oschina.net/u/4532842/blog/5172639)[(In Chinese)](https://my.oschina.net/u/4532842/blog/5172639)
+* [Tutorial in Chinese](https://my.oschina.net/u/4532842/blog/5172639)
 * [Code template](https://github.com/second-state/tencent-scf-wasm-runtime)
 
 ### 3.3 Vercel 

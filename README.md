@@ -6,7 +6,7 @@
 
 <div align="center">
   
-![WasmEdge Logo](docs/wasmedge_logo.jpeg)
+![WasmEdge Logo](/docs/wasmedge-runtime-logo.png)
 
 WasmEdge (previously known as SSVM) is a high-performance WebAssembly (Wasm) runtime optimized for cloud native and edge computing applications. In its AOT mode, WasmEdge is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403) on the market today. WasmEdge is an official sandbox project hosted by [CNCF](https://www.cncf.io/) (Cloud Native Computing Foundation).
   

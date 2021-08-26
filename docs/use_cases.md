@@ -72,7 +72,7 @@ WasmEdge works with existing serverless or Jamstack platforms to provide a high-
 
 ### AWS Lambda 
 
-* Tutorial (ongoing)
+* [Tutorial](https://www.cncf.io/blog/2021/08/25/webassembly-serverless-functions-in-aws-lambda/)
 * [Code template](https://github.com/second-state/aws-lambda-wasm-runtime)
 
 ### Tencent Serverless Functions 

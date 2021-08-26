@@ -5,6 +5,26 @@ WasmEdge is a cloud-native WebAssembly runtime hosted by the CNCF. It is widely 
 * Paper: [A Lightweight Design for High-performance Serverless Computing](https://arxiv.org/abs/2010.07115), published on IEEE Software, Jan 2021. https://arxiv.org/abs/2010.07115
 * Article: [Performance Analysis for Arm vs. x86 CPUs in the Cloud](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/), published on infoQ.com, Jan 2021. https://www.infoq.com/articles/arm-vs-x86-cloud-performance/
 
+## Table of contents
+
+* [Cloud-native runtime](#cloud-native-runtime-as-a-lightweight-docker-alternative)
+  * [Dapr](#dapr-distributed-application-runtime)
+* [JavaScript or DSL runtime](#javascript-or-dsl-runtime)
+  * [JavaScript](#javascript)
+  * [DSL for image classification](#dsl-for-image-classification)
+* [Serverless function-as-a-service in public clouds](#serverless-function-as-a-service-in-public-clouds)
+  * [AWS Lambda](#aws-lambda)
+  * [Tencent Serverless Functions](#tencent-serverless-functions)
+  * [Vercel Serverless Functions](#vercel-serverless-functions)
+  * [Netlify Functions](#netlify-functions)
+  * [Second State Functions](#second-state-functions)
+* [Software defined vehicles and AIoT](#software-defined-vehicles-and-aiot)
+  * [YoMo Flow](#yomo-flow)
+* [Reactive functions for SaaS](#reactive-functions-for-saas)
+  * [Slack](#slack)
+  * [Lark](#lark)
+
+
 ## Cloud-native runtime (as a lightweight Docker alternative) 
 
 WasmEdge can be embedded into cloud-native infrastructure via its SDKs in [C](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md), [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/), [Rust](https://github.com/WasmEdge/WasmEdge/tree/master/wasmedge-rs), and [JavaScript](https://www.secondstate.io/articles/getting-started-with-rust-function/). It is also an OCI compliant runtime that can be directly [managed by CRI-O and Docker tools](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/) as a lightweight and high-performance alternative to Docker. 
@@ -78,7 +98,7 @@ WasmEdge works with existing serverless or Jamstack platforms to provide a high-
 * [Tutorials](https://www.secondstate.io/faas/)
 
 
-## Automotive and smart factory applications 
+## Software defined vehicles and AIoT
 
 WasmEdge is ideally suited to run on mission-critical edge devices or edge networks.
 
@@ -102,7 +122,9 @@ WasmEdge can support customized SaaS extensions or applications using serverless
 
 * [Build a serverless chatbot for Slack](http://reactor.secondstate.info/en/docs/user_guideline.html)
 
-### Lark (飞书 aka the Chinese Slack)
+### Lark
+
+It is also known as 飞书 aka the Chinese Slack. It is created by Byte Dance, the parent company of Tiktok.
 
 * [Build a serverless chatbot for Lark](http://reactor.secondstate.info/zh/docs/user_guideline.html)
 

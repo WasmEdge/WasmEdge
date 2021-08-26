@@ -2,9 +2,6 @@
 
 WasmEdge is a cloud-native WebAssembly runtime hosted by the CNCF. It is widely used in edge computing, automotive, Jamstack, serverless, SaaS, service mesh, and even blockchain applications. Featuring AOT compiler optimization, WasmEdge is the fastest WebAssembly runtime on the market today. 
 
-* Paper: [A Lightweight Design for High-performance Serverless Computing](https://arxiv.org/abs/2010.07115), published on IEEE Software, Jan 2021. https://arxiv.org/abs/2010.07115
-* Article: [Performance Analysis for Arm vs. x86 CPUs in the Cloud](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/), published on infoQ.com, Jan 2021. https://www.infoq.com/articles/arm-vs-x86-cloud-performance/
-
 ## Table of contents
 
 * [Cloud-native runtime](#cloud-native-runtime-as-a-lightweight-docker-alternative)

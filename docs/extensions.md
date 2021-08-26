@@ -1,6 +1,6 @@
 The WasmEdge Runtime supports all standard WebAssembly features, proposed WebAssembly extensions, as well as its own set of extensions specifically designed for cloud and edge applications.
 
-> If you want to WasmEdge applications to access your own native libraries, you can do that by registering a host function from the WasmEdge [C](c_api.md#Host-Functions) or [Go](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ExternRef) API.
+> If you want WasmEdge applications to call native libraries, you can do that by registering a host function from the WasmEdge [C](c_api.md#Host-Functions) or [Go](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ExternRef) API.
 
 # WebAssembly standard extensions
 

@@ -8,22 +8,23 @@ A major use case of WasmEdge is to start an VM instance from a host application.
 * Embed WasmEdge functions into a Go application using the [WasmEdge Go API](https://github.com/second-state/WasmEdge-go). Here is a [tutorial](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/) and are some [examples](https://github.com/second-state/WasmEdge-go-examples)!
 * Embed WasmEdge functions into a Rust application using the [WasmEdge Rust crate](../wasmedge-rs).
 * Embed WasmEdge functions into a Node.js application using the NAPI. Here is a [tutorial](https://www.secondstate.io/articles/getting-started-with-rust-function/).
+* Embed WasmEdge functions into any application by spawning a new process. See examples for [Vercel Serverless Functions](https://www.secondstate.io/articles/vercel-wasmedge-webassembly-rust/) and [AWS Lambda]().
 
-However, the WebAssembly spec only supports very limited data types as input parameters and return values for the WebAssembly bytecode functions. In order to pass complex data types, such as a string of an array, as call arguments into Rust-based WasmEdge function, you should use the bindgen solution provided by the [rustwasmc](https://github.com/second-state/rustwasmc) toolchain.
-
-We currently supports bindgen in the [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) and in [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/). We are working on [supporting interface types](https://github.com/WasmEdge/WasmEdge/issues/264) in place of bindgen for future releases.
+However, the WebAssembly spec only supports very limited data types as input parameters and return values for the WebAssembly bytecode functions. In order to pass complex data types, such as a string of an array, as call arguments into Rust-based WasmEdge function, you should use the bindgen solution provided by the [rustwasmc](https://github.com/second-state/rustwasmc) toolchain. We currently supports bindgen in the [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) and in [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/). We are working on [supporting interface types](https://github.com/WasmEdge/WasmEdge/issues/264) in place of bindgen for future releases.
 
 # Use WasmEdge as a Docker-like container
 
+WasmEdge provides an OCI compliant interface. You can use container tools, such as CRI-O, Docker Hub, and Kubernetes, to orchestrate and manage WasmEdge runtimes.
+
+* [Manage WasmEdge with CRI-O and Docker Hub](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/).
 
 
 # Call native host functions from WasmEdge
 
-Sometimes, the Wasm bytecode alone could prove too limiting for some applications. WasmEdge provides a [host function API](https://github.com/WasmEdge/WasmEdge/blob/master/docs/host_function.md) that allows Wasm bytecode programs to load and call native library functions from the underlying host operating system.
+A key feature of WasmEdge is its extensibility. WasmEdge APIs allow developers to register "host functions" from any shared library into a WasmEdge instance, and then call these functions from the WebAssembly bytecode program. 
 
-Alternatively, you can register external functions as callbacks from the WasmEdge runtime. [Here is an example](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ExternRef) to register external functions in Go.
+* The WasmEdge C API supports a [host function API](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md#Host-Functions).
+* The WasmEdge Go API supports [external functions](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ExternRef).
 
-> The host functions break the Wasm sandbox. But the sandbox breaking is done with explicit permission from the system’s operator.
-
-In fact, the extensions to WasmEdge are implemented using native host functions. For example, the [Tensorflow extension](https://www.secondstate.io/articles/wasi-tensorflow/) allows Wasm bytecode to make calls to the native Tensorflow library functions.
+The host functions break the Wasm sandbox to access the underly OS or hardware. But the sandbox breaking is done with explicit permission from the system’s operator.
 

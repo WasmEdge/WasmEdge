@@ -22,6 +22,13 @@ string(REPLACE "." ";" WASMEDGE_VERSION_LIST ${WASMEDGE_VERSION_STRING})
 list(GET WASMEDGE_VERSION_LIST 0 WASMEDGE_VERSION_MAJOR)
 list(GET WASMEDGE_VERSION_LIST 1 WASMEDGE_VERSION_MINOR)
 list(GET WASMEDGE_VERSION_LIST 2 WASMEDGE_VERSION_PATCH)
+
+# Check the MMAP and PWD exists.
+include(CheckCXXSymbolExists)
+check_cxx_symbol_exists(mmap sys/mman.h HAVE_MMAP)
+include(CheckIncludeFileCXX)
+CHECK_INCLUDE_FILE_CXX(pwd.h HAVE_PWD_H)
+
 configure_file(common/config.h.in common/config.h)
 configure_file(common/version.h.in common/version.h)
 configure_file(api/wasmedge.h.in api/wasmedge.h)

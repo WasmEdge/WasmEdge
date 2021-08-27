@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "system/allocator.h"
+#include "common/config.h"
 #include "common/defines.h"
 #include "common/errcode.h"
-#include "config.h"
 #include <cassert>
 #include <cctype>
 #include <cstdlib>

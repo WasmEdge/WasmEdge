@@ -23,4 +23,7 @@ static inline constexpr std::string_view kCacheRoot [[maybe_unused]] =
     CMAKE_INSTALL_FULL_LOCALSTATEDIR "/cache/wasmedge"sv;
 #undef CMAKE_INSTALL_FULL_LOCALSTATEDIR
 
+#cmakedefine HAVE_MMAP @HAVE_MMAP@
+#cmakedefine HAVE_PWD_H @HAVE_PWD_H@
+
 } // namespace WasmEdge

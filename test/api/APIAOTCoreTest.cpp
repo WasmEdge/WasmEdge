@@ -12,7 +12,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "api/wasmedge.h"
+#include "wasmedge/wasmedge.h"
 
 #include "../spec/spectest.h"
 #include "helper.h"

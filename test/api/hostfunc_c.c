@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "hostfunc_c.h"
-#include "api/wasmedge.h"
+#include "wasmedge/wasmedge.h"
 
 WasmEdge_Result SpecTestPrint(void *Data __attribute__((unused)),
                               WasmEdge_MemoryInstanceContext *MemCxt

@@ -15,7 +15,7 @@
 #ifndef HOSTFUNC_C_H
 #define HOSTFUNC_C_H
 
-#include "api/wasmedge.h"
+#include "wasmedge/wasmedge.h"
 
 #ifdef __cplusplus
 extern "C" {

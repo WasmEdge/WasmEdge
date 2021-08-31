@@ -1,6 +1,6 @@
 # WasmEdge C API 文档
 
-文档 [WasmEdge C API](../include/api/wasmedge.h.in) 里提供了访问 WasmEdge 运行时的接口。以下内容是关于如何使用 WasmEdge C API 的简单说明。如果要了解 WasmEdge C API 的更多细节，请参考[完整的文档](c_api.md)。
+文档 [WasmEdge C API](../include/api/wasmedge/wasmedge.h) 里提供了访问 WasmEdge 运行时的接口。以下内容是关于如何使用 WasmEdge C API 的简单说明。如果要了解 WasmEdge C API 的更多细节，请参考[完整的文档](c_api.md)。
 
 ## WasmEdge 运行时快速指南
 
@@ -8,7 +8,7 @@
 假设 WASM 文件[`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm)已经被拷贝到当前目录，并且 C 文件 `test_wasmedge.c` 的源代码如下所示：
 
 ```c
-#include <wasmedge.h>
+#include <wasmedge/wasmedge.h>
 #include <stdio.h>
 int main(int Argc, const char* Argv[]) {
   /* 创建配置上下文以及 WASI 支持。 */
@@ -48,14 +48,14 @@ $ ./test_wasmedge fibonacci.wasm
 Get result: 5702887
 ```
 
-如果要了解 API 的细节，请参考 [API 头文件](../include/api/wasmedge.h.in).
+如果要了解 API 的细节，请参考 [API 头文件](../include/api/wasmedge/wasmedge.h).
 
 ## WasmEdge AOT 编译器快速指南
 
 假设 WASM 文件 [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) 已经被拷贝到当前目录，并且 C 文件 `test_wasmedge_compiler.c` 的代码如下所示：
 
 ```c
-#include <wasmedge.h>
+#include <wasmedge/wasmedge.h>
 #include <stdio.h>
 int main(int Argc, const char* Argv[]) {
   /* 创建配置上下文。 */
@@ -110,4 +110,4 @@ user	0m0.022s
 sys	0m0.011s
 ```
 
-如果要了解这些 API 的细节，请参考[ API 头文件](../include/api/wasmedge.h.in)。
+如果要了解这些 API 的细节，请参考[ API 头文件](../include/api/wasmedge/wasmedge.h)。

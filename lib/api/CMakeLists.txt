@@ -24,6 +24,12 @@ function(wasmedge_add_libs_component_command target target_path)
   set(WASMEDGE_STATIC_LIB_CMDS ${WASMEDGE_STATIC_LIB_CMDS} ${CMDS} PARENT_SCOPE)
 endfunction()
 
+set(WASMEDGE_CAPI_HEADERS
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge.h
+  ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/version.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/int128.h
+)
+
 # Object library of the C API wrapper.
 wasmedge_add_library(wasmedgeCAPI OBJECT
   wasmedge.cpp
@@ -41,14 +47,20 @@ if (WASMEDGE_BUILD_AOT_RUNTIME)
   )
 endif()
 
+target_include_directories(wasmedgeCAPI
+  PUBLIC
+  ${PROJECT_BINARY_DIR}/include/api
+  ${PROJECT_SOURCE_DIR}/include/api
+)
+
 if(WASMEDGE_BUILD_SHARED_LIB)
 
   wasmedge_add_library(wasmedge_c_shared SHARED
-    ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge.h
+    ../../include/api/wasmedge/wasmedge.h
   )
 
   set_target_properties(wasmedge_c_shared PROPERTIES
-    PUBLIC_HEADER ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge.h
+    PUBLIC_HEADER "${WASMEDGE_CAPI_HEADERS}"
     MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
   )
 
@@ -61,7 +73,7 @@ if(WASMEDGE_BUILD_SHARED_LIB)
 
   install(TARGETS wasmedge_c_shared
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wasmedge
   )
 
 endif()
@@ -126,8 +138,8 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libwasmedge_c.a
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge.h
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  install(FILES ${WASMEDGE_CAPI_HEADERS}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wasmedge
   )
 
 endif()

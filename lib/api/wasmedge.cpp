@@ -2,7 +2,7 @@
 #include <cstring>
 #include <vector>
 
-#include "api/wasmedge.h"
+#include "wasmedge/wasmedge.h"
 
 #include "common/errcode.h"
 #include "common/log.h"

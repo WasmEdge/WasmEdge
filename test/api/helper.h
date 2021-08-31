@@ -14,8 +14,8 @@
 #pragma once
 
 #include "../spec/spectest.h"
-#include "api/wasmedge.h"
 #include "common/int128.h"
+#include "wasmedge/wasmedge.h"
 
 namespace WasmEdge {
 

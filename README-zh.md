@@ -34,9 +34,9 @@ WasmEdge 及其运行的 wasm 程序可以作为新进程或从现有进程从 C
 
 # 将 WasmEdge 嵌入 host 应用
 
-WasmEdge 的一个主要应用场景是从一个 host 应用程序启动一个虚拟机实例。一般而言，你可以使用 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in) 做到这一点。
+WasmEdge 的一个主要应用场景是从一个 host 应用程序启动一个虚拟机实例。一般而言，你可以使用 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) 做到这一点。
 
-可是， Wasm spec 和 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in), 仅支持非常有限的数据类型作为包含的 Wasm 字节码函数的输入参数和返回值。 如果要将复杂的数据类型（例如数组的字符串）作为调用参数传递给所包含的函数，应该使用 [rustwasmc](https://github.com/second-state/rustwasmc) 工具链提供的 bindgen 解决方案。
+可是， Wasm spec 和 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h), 仅支持非常有限的数据类型作为包含的 Wasm 字节码函数的输入参数和返回值。 如果要将复杂的数据类型（例如数组的字符串）作为调用参数传递给所包含的函数，应该使用 [rustwasmc](https://github.com/second-state/rustwasmc) 工具链提供的 bindgen 解决方案。
 
 我们目前[支持 Node.js 环境中的bindgen](https://www.secondstate.io/articles/getting-started-with-rust-function/). 我们正在致力于在 Golang 和基于 Rust 的 host 应用程序中支持 bindgen。
 

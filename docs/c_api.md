@@ -1,6 +1,6 @@
 # WasmEdge C API Documentation
 
-[WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge.
+[WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge.
 
 ## Table of Contents
 
@@ -51,8 +51,8 @@ Or developers can install the shared library step-by-step (take the `manylinux20
 ```bash
 $ wget https://github.com/WasmEdge/WasmEdge/releases/download/0.8.1/WasmEdge-0.8.1-manylinux2014_x86_64.tar.gz
 $ tar -xzf WasmEdge-0.8.1-manylinux2014_x86_64.tar.gz
-# Copy the header to /usr/local/include
-$ sudo cp WasmEdge-0.8.1-Linux/include/wasmedge.h /usr/local/include/
+# Copy the headers to /usr/local/include
+$ sudo cp -r WasmEdge-0.8.1-Linux/include /usr/local/include
 # Copy the shared library to /usr/local/lib
 $ sudo cp WasmEdge-0.8.1-Linux/lib64/libwasmedge_c.so /usr/local/lib/
 $ sudo ldconfig
@@ -65,7 +65,7 @@ After the installation of WasmEdge, the following guide can help you to test for
 1. Prepare the test C file (and assumed saved as `test.c`):
 
     ```c
-    #include <wasmedge.h>
+    #include <wasmedge/wasmedge.h>
     #include <stdio.h>
     int main() {
       printf("WasmEdge version: %s\n", WasmEdge_VersionGet());
@@ -95,7 +95,7 @@ In this partition, we will introduce the utilities and concepts of WasmEdge shar
 The `Version` related APIs provide developers to check for the WasmEdge shared library version.
 
 ```c
-#include <wasmedge.h>
+#include <wasmedge/wasmedge.h>
 printf("WasmEdge version: %s\n", WasmEdge_VersionGet());
 printf("WasmEdge version major: %u\n", WasmEdge_VersionGetMajor());
 printf("WasmEdge version minor: %u\n", WasmEdge_VersionGetMinor());
@@ -405,7 +405,7 @@ This example uses the [fibonacci.wasm](../tools/wasmedge/examples/fibonacci.wasm
     Assume that the WASM file [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test.c` is as following:
 
     ```c
-    #include <wasmedge.h>
+    #include <wasmedge/wasmedge.h>
     #include <stdio.h>
     int main() {
       /* Create the configure context and add the WASI support. */
@@ -454,7 +454,7 @@ This example uses the [fibonacci.wasm](../tools/wasmedge/examples/fibonacci.wasm
     Besides the above example, developers can run the WASM functions step-by-step with `VM` context APIs:
 
     ```c
-    #include <wasmedge.h>
+    #include <wasmedge/wasmedge.h>
     #include <stdio.h>
     int main() {
       /* Create the configure context and add the WASI support. */
@@ -676,7 +676,7 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     Assume that the C file `test.c` is as follows:
 
     ```c
-    #include <wasmedge.h>
+    #include <wasmedge/wasmedge.h>
     #include <stdio.h>
     int main() {
       WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(NULL, NULL);
@@ -768,7 +768,7 @@ The `VM` context supplies the APIs to retrieve the instances.
     Assume that the WASM file [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test.c` is as following:
 
     ```c
-    #include <wasmedge.h>
+    #include <wasmedge/wasmedge.h>
     #include <stdio.h>
     int main() {
       WasmEdge_StoreContext *StoreCxt = WasmEdge_StoreCreate();
@@ -844,7 +844,7 @@ Besides the WASM execution through the [`VM` context](#WasmEdge-VM), developers 
 Assume that the WASM file [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test.c` is as following:
 
 ```c
-#include <wasmedge.h>
+#include <wasmedge/wasmedge.h>
 #include <stdio.h>
 int main() {
   /* Create the configure context. This step is not necessary because we didn't adjust any setting. */
@@ -1460,7 +1460,7 @@ In WasmEdge, developers can create the `Host Function`, `Memory`, `Table`, and `
     And the `test.c` as following:
 
     ```c
-    #include <wasmedge.h>
+    #include <wasmedge/wasmedge.h>
     #include <stdio.h>
 
     /* Host function body definition. */
@@ -1562,7 +1562,7 @@ The WasmEdge AOT (ahead-of-time) compiler compiles the WASM files for running in
 Assume that the WASM file [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test.c` is as following:
 
 ```c
-#include <wasmedge.h>
+#include <wasmedge/wasmedge.h>
 #include <stdio.h>
 int main() {
   /* Create the configure context. */

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "api/wasmedge.h"
+#include "wasmedge/wasmedge.h"
 #include "gtest/gtest.h"
 
 #include <cstdint>
@@ -266,9 +266,9 @@ TEST(APICoreTest, Value) {
   EXPECT_EQ(WasmEdge_ValueGetV128(Val),
             static_cast<int128_t>(INT64_MAX) * 2 + 1);
 #else
-  int128_t V = {.Low=UINT64_MAX, .High=INT64_MAX};
+  int128_t V = {.Low = UINT64_MAX, .High = INT64_MAX};
   Val = WasmEdge_ValueGenV128(V);
-  EXPECT_TRUE( 0 == std::memcmp( &V, &Val, sizeof(V) ) );
+  EXPECT_TRUE(0 == std::memcmp(&V, &Val, sizeof(V)));
 #endif
   Val = WasmEdge_ValueGenNullRef(WasmEdge_RefType_FuncRef);
   EXPECT_TRUE(WasmEdge_ValueIsNullRef(Val));

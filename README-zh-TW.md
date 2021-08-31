@@ -35,9 +35,9 @@ WasmEdge 及其執行的 Wasm 應用程式可以作為新應用程序或以現�
 
 # 將 WasmEdge 嵌入 host 應用程式
 
-WasmEdge 的一個主要應用場景是從一個 host 應用程式啟動一個虛擬機器實例，你可以使用 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in) 做到這一點。
+WasmEdge 的一個主要應用場景是從一個 host 應用程式啟動一個虛擬機器實例，你可以使用 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) 做到這一點。
 
-可是， Wasm 說明文件和 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge.h.in) 僅在 Wasm bytecode 函式的輸入參數和回傳值支援非常有限的資料型態。如果要將複雜的資料型態（例如字串的陣列）作為引數傳遞給 Wasm 函式，應該使用 [rustwasmc](https://github.com/second-state/rustwasmc) 工具鏈提供的 bindgen 解決方案。
+可是， Wasm 說明文件和 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) 僅在 Wasm bytecode 函式的輸入參數和回傳值支援非常有限的資料型態。如果要將複雜的資料型態（例如字串的陣列）作為引數傳遞給 Wasm 函式，應該使用 [rustwasmc](https://github.com/second-state/rustwasmc) 工具鏈提供的 bindgen 解決方案。
 
 我們目前 [支援 Node.js 環境中的 bindgen](https://www.secondstate.io/articles/getting-started-with-rust-function/) 。我們正在致力於在 Golang 和基於 Rust 的 host 應用程式中支援 bindgen。
 

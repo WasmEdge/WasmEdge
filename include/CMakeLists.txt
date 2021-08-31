@@ -31,7 +31,7 @@ CHECK_INCLUDE_FILE_CXX(pwd.h HAVE_PWD_H)
 
 configure_file(common/config.h.in common/config.h)
 configure_file(common/version.h.in common/version.h)
-configure_file(api/wasmedge.h.in api/wasmedge.h)
+configure_file(api/wasmedge/version.h.in api/wasmedge/version.h)
 unset(WASMEDGE_VERSION_STRING)
 unset(WASMEDGE_VERSION_LIST)
 unset(WASMEDGE_VERSION_MAJOR)

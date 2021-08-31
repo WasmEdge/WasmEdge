@@ -47,6 +47,7 @@ autoconf/autom4te.cache
 /.idea
 # (Rust) Cargo lockfile, not published with libraries.
 Cargo.lock
+bindings/rust/target
 
 #==============================================================================#
 # Directories to ignore (do not add trailing '/'s, they skip symlinks).

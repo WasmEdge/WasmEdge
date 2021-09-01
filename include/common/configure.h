@@ -12,39 +12,14 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "enum_configure.h"
+
 #include <bitset>
 #include <cstdint>
 #include <initializer_list>
 #include <string_view>
-#include <unordered_map>
 
 namespace WasmEdge {
-
-/// Wasm Proposal enum class.
-/// This enum is also duplicated to "include/api/wasmedge.h" and should be the
-/// same.
-enum class Proposal : uint8_t {
-  ImportExportMutGlobals = 0,
-  NonTrapFloatToIntConversions,
-  SignExtensionOperators,
-  MultiValue,
-  BulkMemoryOperations,
-  ReferenceTypes,
-  SIMD,
-  TailCall,
-  Annotations,
-  Memory64,
-  Threads,
-  ExceptionHandling,
-  FunctionReferences,
-  Max
-};
-
-/// Wasm Proposal name enumeration string mapping.
-extern const std::unordered_map<Proposal, std::string_view> ProposalStr;
-
-/// Host Module Registration enum class.
-enum class HostRegistration : uint8_t { Wasi = 0, WasmEdge_Process, Max };
 
 class CompilerConfigure {
 public:

@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/astdef.h"
-#include "common/errcode.h"
+#include "enum_ast.h"
+#include "errcode.h"
 #include "span.h"
 #include "timer.h"
 

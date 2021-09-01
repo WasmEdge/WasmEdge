@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "common/hexstr.h"
 #include <cinttypes>
 #include <spdlog/fmt/fmt.h>

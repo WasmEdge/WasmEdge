@@ -12,11 +12,11 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "enum_types.h"
 #include "int128.h"
+
 #include <cstdint>
-#include <string>
 #include <type_traits>
-#include <unordered_map>
 #include <variant>
 
 namespace WasmEdge {
@@ -32,31 +32,7 @@ using uint8x16_t [[gnu::vector_size(16)]] = uint8_t;
 using doublex2_t [[gnu::vector_size(16)]] = double;
 using floatx4_t [[gnu::vector_size(16)]] = float;
 
-namespace {
-/// Remove const, reference, and volitile.
-template <typename T>
-using RemoveCVRefT = std::remove_cv_t<std::remove_reference_t<T>>;
-} // namespace
-
-/// Value types enumeration class.
-enum class ValType : uint8_t {
-  None = 0x40,
-  I32 = 0x7F,
-  I64 = 0x7E,
-  F32 = 0x7D,
-  F64 = 0x7C,
-  V128 = 0x7B,
-  FuncRef = 0x70,
-  ExternRef = 0x6F
-};
-
-static inline std::unordered_map<ValType, std::string> ValTypeStr = {
-    {ValType::None, "none"},       {ValType::I32, "i32"},
-    {ValType::I64, "i64"},         {ValType::F32, "f32"},
-    {ValType::F64, "f64"},         {ValType::V128, "v128"},
-    {ValType::FuncRef, "funcref"}, {ValType::ExternRef, "externref"}};
-
-/// Block type definition.
+/// BlockType definition.
 using BlockType = std::variant<ValType, uint32_t>;
 
 /// UnknownRef definition.
@@ -83,47 +59,24 @@ struct ExternRef {
   template <typename T> ExternRef(T *P) : Ptr(reinterpret_cast<void *>(P)) {}
 };
 
-/// Number types enumeration class.
-enum class NumType : uint8_t {
-  I32 = 0x7F,
-  I64 = 0x7E,
-  F32 = 0x7D,
-  F64 = 0x7C,
-  V128 = 0x7B
-};
+/// NumType and RefType conversions.
 inline constexpr ValType ToValType(const NumType Val) noexcept {
   return static_cast<ValType>(Val);
 }
-
-/// Reference types enumeration class.
-enum class RefType : uint8_t { ExternRef = 0x6F, FuncRef = 0x70 };
 inline constexpr ValType ToValType(const RefType Val) noexcept {
   return static_cast<ValType>(Val);
 }
 
-/// Value mutability enumeration class.
-enum class ValMut : uint8_t { Const = 0x00, Var = 0x01 };
-
-static inline std::unordered_map<ValMut, std::string> ValMutStr = {
-    {ValMut::Const, "const"}, {ValMut::Var, "var"}};
-
-/// External type enumeration class.
-enum class ExternalType : uint8_t {
-  Function = 0x00U,
-  Table = 0x01U,
-  Memory = 0x02U,
-  Global = 0x03U
-};
-
-static inline std::unordered_map<ExternalType, std::string> ExternalTypeStr = {
-    {ExternalType::Function, "function"},
-    {ExternalType::Table, "table"},
-    {ExternalType::Memory, "memory"},
-    {ExternalType::Global, "global"}};
-
 ///
-/// The following are const expressions to checking types.
+/// The followings are const expressions to checking types.
 ///
+
+namespace {
+/// Remove const, reference, and volitile.
+template <typename T>
+using RemoveCVRefT = std::remove_cv_t<std::remove_reference_t<T>>;
+} // namespace
+
 /// Return true if Wasm unsign (uint32_t and uint64_t).
 template <typename T>
 struct IsWasmUnsign

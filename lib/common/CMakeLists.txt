@@ -18,7 +18,7 @@ endif()
 wasmedge_add_library(wasmedgeCommon
   hexstr.cpp
   log.cpp
-  configure.cpp
+  errinfo.cpp
 )
 
 target_link_libraries(wasmedgeCommon

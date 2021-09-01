@@ -2,9 +2,7 @@
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let module_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap()
+    let module_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
         .join("tools/wasmedge/examples/fibonacci.wasm");
 
     let config = wedge::Config::default();

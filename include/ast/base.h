@@ -12,9 +12,10 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/astdef.h"
 #include "common/configure.h"
+#include "common/enum_ast.h"
 #include "common/errcode.h"
+#include "common/errinfo.h"
 #include "common/log.h"
 #include "loader/filemgr.h"
 

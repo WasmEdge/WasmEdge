@@ -17,6 +17,7 @@
 #include "common/configure.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
+#include "common/value.h"
 
 #include <functional>
 #include <string_view>

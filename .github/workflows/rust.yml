@@ -48,13 +48,15 @@ jobs:
     - name: Clippy
       run: |
         cd bindings/rust/
-        export WASMEDGE_SRC_DIR="$(pwd)/../../"
+        export WASMEDGE_DIR="$(pwd)/../../"
+        export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
         cargo clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
 
     - name: Test
       run: |
         cd bindings/rust/
-        export WASMEDGE_SRC_DIR="$(pwd)/../../"
+        export WASMEDGE_DIR="$(pwd)/../../"
+        export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
         export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
         cargo test --lib --examples --locked
         cargo test --doc --locked

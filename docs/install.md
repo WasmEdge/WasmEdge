@@ -1,9 +1,9 @@
 # Install WasmEdge
 
-* Quickstart
-* What's installed
-* Install WasmEdge for Node.js
-* Install a Docker / k8s compatible WasmEdge "container"
+* [Quickstart](#quickstart)
+* [What's installed](#whats-installed)
+* [Install WasmEdge for Node.js](#install-wasmedge-for-nodejs)
+* [Install a Docker / k8s compatible WasmEdge "container"](#install-a-docker--k8s-compatible-wasmedge-container)
 
 ## Quickstart
 
@@ -21,7 +21,7 @@ If you would like to install WasmEdge with its [Tensorflow and image processing 
 $ sudo ./install_wasmedge.sh /usr/local --enable-ext
 ```
 
-You can now use WasmEdge from the [CLI](run.md), or launch it from an application. To update WasmEdge to a new release, just re-run the above command to write over the old files.
+**That's it!** You can now use WasmEdge from the [CLI](run.md), or launch it from an application. To update WasmEdge to a new release, just re-run the above command to write over the old files.
 
 ## What's installed
 

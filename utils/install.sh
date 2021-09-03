@@ -1,0 +1,300 @@
+#!/bin/bash
+set -e
+
+RED=$'\e[0;31m'
+GREEN=$'\e[0;32m'
+NC=$'\e[0m' # No Color
+
+VERSION="0.8.1"
+VERSION_TF="0.8.0"
+IPATH="/usr/local"
+EXT="none"
+VERBOSE=0
+
+usage() {
+    cat <<EOF
+    Usage: $0 -p </path/to/install> [-V]
+    WasmEdge installation, uninstallation and extensions install.
+    Mandatory arguments to long options are mandatory for short options too.
+
+    -h, -help,          --help                      Display help
+
+    -p, -path,          --path=[/usr/local]         Prefix / Path to install
+
+    -v, -version,       --version=VERSION           Set and Download specific 
+                                                    version of WasmEdge
+
+    -e, -extension,     --extension=[tf|image|all|none]  
+                                                    Enable extension support 
+                                                    i.e Tensorflow (tf) 
+                                                        or Image (image)
+
+    -V, -verbose,       --verbose                   Run script in verbose mode.
+                                                    Will print out each step 
+                                                    of execution.
+
+    Example:
+    ./$0 -p $IPATH -e all -v $VERSION --verbose
+
+    About:
+
+    - wasmedgec is the AOT compiler that compiles WebAssembly bytecode programs 
+      (wasm programs) into native code (so program) on your deployment machine.
+    
+    - wasmedge is the runtime that executes the wasm program or the AOT compiled
+      so program.
+
+    - wasmedgec-tensorflow is the AOT compiler that compiles WebAssembly 
+      bytecode programs (wasm programs) into native code (so program) on your 
+      deployment machine. It is aware of WamsEdge's Tensorflow extension API.
+    
+    - wasmedge-tensorflow-lite is the runtime that executes the wasm program or 
+      the AOT compiled so program with the Tensorflow Lite library.
+
+EOF
+    exit 1
+}
+
+make_dirs() {
+    for var in "$@"; do
+        if [ ! -d "$IPATH/$var" ]; then
+            mkdir -p "$IPATH/$var"
+        fi
+    done
+}
+
+install() {
+    local dir=$1
+    shift
+    for var in "$@"; do
+        echo "${GREEN}Installing $dir in $IPATH/$var ${NC}"
+        if [ $var = "lib" ]; then
+            mv $IPATH/$dir/lib64/* $IPATH/$var
+        else
+            mv $IPATH/$dir/$var/* $IPATH/$var
+        fi
+    done
+}
+
+wasmedge_deps_install() {
+    set +e
+    apt update
+    for var in "$@"; do
+        PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $var | grep "install ok installed")
+        echo Checking for $var: $PKG_OK
+        if [ "" = "$PKG_OK" ]; then
+            echo "No $var. Setting up $var."
+            apt -y install $var
+        fi
+    done
+    set -e
+}
+
+get_wasmedge_release() {
+    echo "Fetching WasmEdge-$1"
+    wget -q -c --show-progress https://github.com/WasmEdge/WasmEdge/releases/download/$1/WasmEdge-$1-manylinux2014_x86_64.tar.gz
+    tar -C $IPATH -xzf WasmEdge-$1-manylinux2014_x86_64.tar.gz
+}
+
+wasmedge_post_install() {
+    rm -f WasmEdge-$1-manylinux2014_x86_64.tar.gz
+    rm -rf $IPATH/WasmEdge-$1-Linux
+    ldconfig
+}
+
+wasmedge_checks() {
+    for var in "$@"; do
+        V=$($var --version)
+        if [ "$V" = "$var version $VERSION" ]; then
+            echo "${GREEN}Installed $var successfully in $IPATH/bin ${NC}"
+        else
+            echo "${RED}ERROR INSTALLING $var $VERSION"
+            echo "Output $V  ${NC}"
+            exit 1
+        fi
+    done
+}
+
+get_wasmedge_image_deps() {
+    echo "Fetching WasmEdge-image-deps-$VERSION"
+    wget -q -c --show-progress https://github.com/second-state/WasmEdge-image/releases/download/$VERSION/WasmEdge-image-deps-$VERSION-manylinux1_x86_64.tar.gz
+
+    tar -C $IPATH/lib -zxvf WasmEdge-image-deps-$VERSION-manylinux1_x86_64.tar.gz
+    rm -f WasmEdge-image-deps-$VERSION-manylinux1_x86_64.tar.gz
+    ln -sf libjpeg.so.8.3.0 $IPATH/lib/libjpeg.so
+    ln -sf libjpeg.so.8.3.0 $IPATH/lib/libjpeg.so.8
+    ln -sf libpng16.so.16.37.0 $IPATH/lib/libpng.so
+    ln -sf libpng16.so.16.37.0 $IPATH/lib/libpng16.so
+    ln -sf libpng16.so.16.37.0 $IPATH/lib/libpng16.so.16
+    ldconfig
+}
+
+install_wasmedge_image() {
+    echo "Fetching WasmEdge-image-$VERSION"
+    wget -q -c --show-progress https://github.com/second-state/WasmEdge-image/releases/download/$VERSION/WasmEdge-image-$VERSION-manylinux2014_x86_64.tar.gz
+    tar -C $IPATH -xzf WasmEdge-image-$VERSION-manylinux2014_x86_64.tar.gz
+    rm -f WasmEdge-image-$VERSION-manylinux2014_x86_64.tar.gz
+    ldconfig
+}
+
+get_wasmedge_tensorflow_deps() {
+    echo "Fetching WasmEdge-tensorflow-deps-TF-$VERSION_TF"
+    wget -q -c --show-progress https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF/WasmEdge-tensorflow-deps-TF-$VERSION_TF-manylinux2014_x86_64.tar.gz
+
+    echo "Fetching WasmEdge-tensorflow-deps-TFLite-$VERSION_TF"
+    wget -q -c --show-progress https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF-manylinux2014_x86_64.tar.gz
+
+    tar -C $IPATH/lib -zxvf WasmEdge-tensorflow-deps-TF-$VERSION_TF-manylinux2014_x86_64.tar.gz
+    tar -C $IPATH/lib -zxvf WasmEdge-tensorflow-deps-TFLite-$VERSION_TF-manylinux2014_x86_64.tar.gz
+    rm -f WasmEdge-tensorflow-deps-TF-$VERSION_TF-manylinux2014_x86_64.tar.gz
+    rm -f WasmEdge-tensorflow-deps-TFLite-$VERSION_TF-manylinux2014_x86_64.tar.gz
+    ln -sf libtensorflow.so.2.4.0 $IPATH/lib/libtensorflow.so.2
+    ln -sf libtensorflow.so.2 $IPATH/lib/libtensorflow.so
+    ln -sf libtensorflow_framework.so.2.4.0 $IPATH/lib/libtensorflow_framework.so.2
+    ln -sf libtensorflow_framework.so.2 $IPATH/lib/libtensorflow_framework.so
+    ldconfig
+}
+
+install_wasmedge_tensorflow() {
+    echo "Fetching WasmEdge-tensorflow-$VERSION"
+    wget -q -c --show-progress https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION/WasmEdge-tensorflow-$VERSION-manylinux2014_x86_64.tar.gz
+
+    echo "Fetching WasmEdge-tensorflowlite-$VERSION"
+    wget -q -c --show-progress https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION/WasmEdge-tensorflowlite-$VERSION-manylinux2014_x86_64.tar.gz
+
+    echo "Fetching WasmEdge-tensorflow-tools-$VERSION"
+    wget -q -c --show-progress https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/$VERSION/WasmEdge-tensorflow-tools-$VERSION-manylinux2014_x86_64.tar.gz
+
+    tar -C $IPATH -xzf WasmEdge-tensorflow-$VERSION-manylinux2014_x86_64.tar.gz
+    rm -f WasmEdge-tensorflow-$VERSION-manylinux2014_x86_64.tar.gz
+
+    tar -C $IPATH -xzf WasmEdge-tensorflowlite-$VERSION-manylinux2014_x86_64.tar.gz
+    rm -f WasmEdge-tensorflowlite-$VERSION-manylinux2014_x86_64.tar.gz
+
+    tar -C $IPATH/bin -xzf WasmEdge-tensorflow-tools-$VERSION-manylinux2014_x86_64.tar.gz
+    rm -f $IPATH/bin/download_dependencies_all.sh \
+        $IPATH/bin/download_dependencies_tf.sh \
+        $IPATH/bin/download_dependencies_tflite.sh
+    rm -f WasmEdge-tensorflow-tools-$VERSION-manylinux2014_x86_64.tar.gz
+
+    ldconfig
+}
+
+main() {
+
+    # getopt is in the util-linux package,
+    # it'll probably be fine, but it's of course a good thing to keep in mind.
+
+    options=$(getopt -l "extension:,help,path:,version:,verbose" -o "e:hp:v:V" -a -- "$@")
+
+    eval set -- "$options"
+
+    local default=0
+
+    while true; do
+        case $1 in
+        -e | --extension)
+            shift
+            EXT=$1
+            ;;
+        -h | --help)
+            usage
+            exit 0
+            ;;
+        -v | --version)
+            shift
+            VERSION=$1
+            ;;
+        -V | --verbose)
+            VERBOSE=1
+            ;;
+        -p | --path)
+            shift
+            IPATH=$1
+            default=1
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            echo "Internal error!"
+            exit 1
+            ;;
+        esac
+        shift
+    done
+
+    if [ ! $default == 1 ]; then
+        while true; do
+            echo "No path provided"
+            read -p "Do you wish to install this program in $IPATH?" yn
+            case $yn in
+            [Yy]*)
+                break
+                ;;
+            [Nn]*) exit 1 ;;
+            *) echo "Please answer [Y/N | y/n]" ;;
+            esac
+        done
+    fi
+
+    if [ ! $VERBOSE == 0 ]; then
+        echo "Verbose Mode"
+        set -xv
+    fi
+
+    if [ -d $IPATH ]; then
+        echo "WasmEdge Installation at $IPATH"
+        make_dirs "include" "lib" "bin"
+        wasmedge_deps_install software-properties-common \
+            wget \
+            cmake \
+            ninja-build \
+            curl \
+            git \
+            dpkg-dev \
+            libboost-all-dev \
+            llvm-12-dev \
+            liblld-12-dev \
+            gcc \
+            g++
+
+        get_wasmedge_release $VERSION
+        install WasmEdge-$VERSION-Linux "include" "lib" "bin"
+        wasmedge_post_install $VERSION
+        wasmedge_checks "wasmedge" "wasmedgec"
+    else
+        echo "Installation path invalid"
+        exit 1
+    fi
+
+    if [ "$EXT" = "image" ]; then
+        echo "Image Extensions"
+        get_wasmedge_image_deps
+        install_wasmedge_image
+    elif [ "$EXT" = "tf" ]; then
+        echo "Tensorflow Extensions"
+        get_wasmedge_tensorflow_deps
+        install_wasmedge_tensorflow
+        wasmedge_checks wasmedge-tensorflow \
+            wasmedgec-tensorflow \
+            wasmedge-tensorflow-lite
+    elif [ "$EXT" = "all" ]; then
+        echo "Image & Tensorflow extensions"
+        get_wasmedge_image_deps
+        install_wasmedge_image
+        get_wasmedge_tensorflow_deps
+        install_wasmedge_tensorflow
+        wasmedge_checks wasmedge-tensorflow \
+            wasmedgec-tensorflow \
+            wasmedge-tensorflow-lite
+    elif [ "$EXT" = "none" ]; then
+        echo "No extensions to be installed"
+    else
+        echo "Invalid extension"
+    fi
+
+}
+
+main "$@"

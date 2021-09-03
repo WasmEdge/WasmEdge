@@ -47,8 +47,7 @@ fn find_wasmedge() -> Paths {
         lib_dir = lib_dir.or_else(|| Some(prefix.join("lib")));
     }
 
-    let build_dir =
-        env_path!("CARGO_MANIFEST_DIR").and_then(|d| d.parent().map(|d| d.join("build")));
+    let build_dir = env_path!("WASMEDGE_SRC_DIR").map(|d| d.join("build"));
     if let Some((build_dir, found_inc_dir)) = contains_wasmedge_h(build_dir, "include/api") {
         inc_dir = inc_dir.or(Some(found_inc_dir));
         lib_dir = lib_dir.or_else(|| Some(build_dir.join("lib/api")));

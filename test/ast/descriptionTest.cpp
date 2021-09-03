@@ -30,6 +30,8 @@ TEST(DescriptionTest, LoadImportDesc) {
   ///   5.  Load import description of table type.
   ///   6.  Load import description of memory type.
   ///   7.  Load import description of global type.
+  ///   8.  Load invalid import description of global type without Mut-Globals
+  ///       proposal.
   Mgr.setCode(std::vector<uint8_t>());
   WasmEdge::AST::ImportDesc Imp1;
   EXPECT_FALSE(Imp1.loadBinary(Mgr, Conf));
@@ -95,6 +97,20 @@ TEST(DescriptionTest, LoadImportDesc) {
   Mgr.setCode(Vec7);
   WasmEdge::AST::ImportDesc Imp7;
   EXPECT_TRUE(Imp7.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
+
+  Conf.removeProposal(WasmEdge::Proposal::ImportExportMutGlobals);
+
+  std::vector<unsigned char> Vec8 = {
+      0x04U, 0x74U, 0x65U, 0x73U, 0x74U,               /// Module name: test
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, /// External name: Loader
+      0x03U,                                           /// Global type
+      0x7CU, 0x01U                                     /// Mut F64 number type
+  };
+  Mgr.setCode(Vec8);
+  WasmEdge::AST::ImportDesc Imp8;
+  EXPECT_FALSE(Imp8.loadBinary(Mgr, Conf));
+
+  Conf.addProposal(WasmEdge::Proposal::ImportExportMutGlobals);
 }
 
 TEST(DescriptionTest, LoadExportDesc) {

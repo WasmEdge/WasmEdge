@@ -84,6 +84,8 @@ TEST(TypeTest, LoadFunctionType) {
   ///       proposal.
   ///   14. Load invalid results with invalid value types without Ref-Types
   ///       proposal.
+  ///   15. Load invalid function type with multi-value returns without
+  ///       Multi-Value proposal.
   Mgr.setCode(std::vector<uint8_t>());
   WasmEdge::AST::FunctionType Fun1;
   EXPECT_FALSE(Fun1.loadBinary(Mgr, Conf));
@@ -116,7 +118,7 @@ TEST(TypeTest, LoadFunctionType) {
   std::vector<unsigned char> Vec5 = {
       0x60U, /// Function type header
       0x00U, /// Parameter length = 0
-      0x01U, /// Result length = 1 (must be <= 1 now)
+      0x01U, /// Result length = 1
       0x7CU  /// Result list
   };
   Mgr.setCode(Vec5);
@@ -225,6 +227,21 @@ TEST(TypeTest, LoadFunctionType) {
 
   Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
   Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+
+  Conf.removeProposal(WasmEdge::Proposal::MultiValue);
+
+  std::vector<unsigned char> Vec15 = {
+      0x60U,                      /// Function type header
+      0x04U,                      /// Parameter length = 4
+      0x7CU, 0x7DU, 0x7EU, 0x7FU, /// Parameter list
+      0x02U,                      /// Result length = 2
+      0x7CU, 0x7DU                /// Result list
+  };
+  Mgr.setCode(Vec15);
+  WasmEdge::AST::FunctionType Fun15;
+  EXPECT_FALSE(Fun15.loadBinary(Mgr, Conf));
+
+  Conf.addProposal(WasmEdge::Proposal::MultiValue);
 }
 
 TEST(TypeTest, LoadMemoryType) {

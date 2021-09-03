@@ -547,18 +547,20 @@ TEST(InstructionTest, LoadConstInstruction) {
   EXPECT_FALSE(Ins6.loadBinary(Mgr, Conf));
 }
 
-TEST(InstructionTest, ValTypeProposal) {
-  /// 12. Test ValType from disabled proposals
+TEST(InstructionTest, Proposals) {
+  /// 12. Test ValTypes and instructions with disabled proposals
   ///
-  ///   1.  Load if instruction.
-  ///   2.  Load select_t instruction.
-  WasmEdge::Configure SimdConf(WasmEdge::Proposal::SIMD);
-  WasmEdge::Configure RefSimdConf(WasmEdge::Proposal::ReferenceTypes,
-                                  WasmEdge::Proposal::SIMD);
-  WasmEdge::Configure MVPConf;
-  MVPConf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  MVPConf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-
+  ///   1.  Load if instruction with/without SIMD proposal.
+  ///   2.  Load if instruction with reference instructions with/without
+  ///       Ref-Types and Bulk-Mem proposals.
+  ///   3.  Load select_t instruction with/without SIMD proposal.
+  ///   4.  Load select_t instruction with reference instructions with/without
+  ///       Ref-Types and Bulk-Mem proposals.
+  ///   5.  Load if instruction with BlockType as result type with/without
+  ///       Multi-Value proposal.
+  ///   6.  Load saturating truncation instructions with/without NonTrap-Conv
+  ///       proposal.
+  ///   7.  Load sign extension instructions with/without Sign-Ext proposal.
   WasmEdge::AST::Expression Exp1;
   std::vector<unsigned char> Vec1 = {
       0x04U,                      /// OpCode If.
@@ -579,9 +581,10 @@ TEST(InstructionTest, ValTypeProposal) {
   };
   Mgr.setCode(Vec1);
   EXPECT_FALSE(Exp1.loadBinary(Mgr, Conf));
-
+  Conf.addProposal(WasmEdge::Proposal::SIMD);
   Mgr.setCode(Vec1);
-  EXPECT_TRUE(Exp1.loadBinary(Mgr, SimdConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Exp1.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
+  Conf.removeProposal(WasmEdge::Proposal::SIMD);
 
   WasmEdge::AST::Expression Exp2;
   std::vector<unsigned char> Vec2 = {
@@ -594,11 +597,13 @@ TEST(InstructionTest, ValTypeProposal) {
       0x0BU,        /// Expression End.
   };
   Mgr.setCode(Vec2);
-  EXPECT_FALSE(Exp2.loadBinary(Mgr, MVPConf));
-
+  EXPECT_TRUE(Exp2.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
+  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
   Mgr.setCode(Vec2);
-  EXPECT_TRUE(Exp2.loadBinary(Mgr, Conf));
-  EXPECT_TRUE(Mgr.getRemainSize() == 0);
+  EXPECT_FALSE(Exp2.loadBinary(Mgr, Conf));
+  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
 
   WasmEdge::AST::Expression Exp3;
   std::vector<unsigned char> Vec3 = {
@@ -619,9 +624,10 @@ TEST(InstructionTest, ValTypeProposal) {
   };
   Mgr.setCode(Vec3);
   EXPECT_FALSE(Exp3.loadBinary(Mgr, Conf));
-
+  Conf.addProposal(WasmEdge::Proposal::SIMD);
   Mgr.setCode(Vec3);
-  EXPECT_TRUE(Exp3.loadBinary(Mgr, RefSimdConf) && Mgr.getRemainSize() == 0);
+  EXPECT_TRUE(Exp3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
+  Conf.removeProposal(WasmEdge::Proposal::SIMD);
 
   WasmEdge::AST::Expression Exp4;
   std::vector<unsigned char> Vec4 = {
@@ -633,11 +639,59 @@ TEST(InstructionTest, ValTypeProposal) {
       0x0BU,        /// Expression End.
   };
   Mgr.setCode(Vec4);
-  EXPECT_FALSE(Exp4.loadBinary(Mgr, MVPConf));
-
+  EXPECT_TRUE(Exp4.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
+  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
   Mgr.setCode(Vec4);
-  EXPECT_TRUE(Exp4.loadBinary(Mgr, Conf));
-  EXPECT_TRUE(Mgr.getRemainSize() == 0);
+  EXPECT_FALSE(Exp4.loadBinary(Mgr, Conf));
+  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
+
+  WasmEdge::AST::Expression Exp5;
+  std::vector<unsigned char> Vec5 = {
+      0x04U,        /// OpCode If.
+      0x01U,        /// Block type function index 1.
+      0xD0U, 0x70U, /// OpCode Ref__null func.
+      0x05U,        /// OpCode Else.
+      0xD0U, 0x70U, /// OpCode Ref__null func.
+      0x0BU,        /// OpCode End.
+      0x0BU,        /// Expression End.
+  };
+  Mgr.setCode(Vec5);
+  EXPECT_TRUE(Exp5.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
+  Conf.removeProposal(WasmEdge::Proposal::MultiValue);
+  Mgr.setCode(Vec5);
+  EXPECT_FALSE(Exp5.loadBinary(Mgr, Conf));
+  Conf.addProposal(WasmEdge::Proposal::MultiValue);
+
+  WasmEdge::AST::Expression Exp6;
+  std::vector<unsigned char> Vec6 = {
+      0xFCU, 0x00U, /// OpCode I32__trunc_sat_f32_s.
+      0xFCU, 0x01U, /// OpCode I32__trunc_sat_f32_u.
+      0x0BU,        /// Expression End.
+  };
+  Mgr.setCode(Vec6);
+  EXPECT_TRUE(Exp6.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
+  Conf.removeProposal(WasmEdge::Proposal::NonTrapFloatToIntConversions);
+  Mgr.setCode(Vec6);
+  EXPECT_FALSE(Exp6.loadBinary(Mgr, Conf));
+  Conf.addProposal(WasmEdge::Proposal::NonTrapFloatToIntConversions);
+
+  WasmEdge::AST::Expression Exp7;
+  std::vector<unsigned char> Vec7 = {
+      0xC0U, /// OpCode I32__extend8_s.
+      0xC1U, /// OpCode I32__extend16_s.
+      0xC2U, /// OpCode I64__extend8_s.
+      0xC3U, /// OpCode I64__extend16_s.
+      0xC4U, /// OpCode I64__extend32_s.
+      0x0BU, /// Expression End.
+  };
+  Mgr.setCode(Vec7);
+  EXPECT_TRUE(Exp7.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
+  Conf.removeProposal(WasmEdge::Proposal::SignExtensionOperators);
+  Mgr.setCode(Vec7);
+  EXPECT_FALSE(Exp7.loadBinary(Mgr, Conf));
+  Conf.addProposal(WasmEdge::Proposal::SignExtensionOperators);
 }
 
 TEST(InstructionTest, LoadSIMDInstruction) {

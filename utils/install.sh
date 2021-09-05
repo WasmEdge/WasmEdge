@@ -139,7 +139,7 @@ wasmedge_deps_install() {
         fi
     done
     set -e
-    if [ "$DEBIAN_FRONTEND"= "noninteractive" && $DEB_F_SET]; then
+    if [ "$DEBIAN_FRONTEND" = "noninteractive" ] && [ $DEB_F_SET -eq 1 ]; then
         unset DEBIAN_FRONTEND
     fi
 }

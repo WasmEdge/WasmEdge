@@ -5,6 +5,17 @@ RED=$'\e[0;31m'
 GREEN=$'\e[0;32m'
 YELLOW=$'\e[0;33m'
 NC=$'\e[0m' # No Color
+DEB_F_SET=0
+
+if ! command -v git &>/dev/null; then
+    echo "${YELLOW}git could not be found${NC}"
+    if [ $DEBIAN_FRONTEND="" ]; then
+        export DEBIAN_FRONTEND="noninteractive"
+        DEB_F_SET=1
+    fi
+    apt update
+    apt install -y git
+fi
 
 VERSION=$(git -c 'versionsort.suffix=-' \
     ls-remote --exit-code --refs --sort='version:refname' --tags https://github.com/WasmEdge/WasmEdge.git '*.*.*' |
@@ -128,6 +139,9 @@ wasmedge_deps_install() {
         fi
     done
     set -e
+    if [ "$DEBIAN_FRONTEND"= "noninteractive" && $DEB_F_SET]; then
+        unset DEBIAN_FRONTEND
+    fi
 }
 
 get_wasmedge_release() {

@@ -157,23 +157,17 @@ wasmedge_post_install() {
 }
 
 wasmedge_checks() {
+    # Check only MAJOR.MINOR.PATCH
     local version=$1
     shift
     for var in "$@"; do
-        V=$($var --version)
-        if [ "$V" = "$var version $version" ]; then
-            echo "${GREEN}Installed $var successfully in $IPATH/bin ${NC}"
+        local V=$($var --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
+        local V_=$(echo $version | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
+        if [ $V = $V_ ]; then
+            echo "${GREEN}Installation of $var-$version successfull${NC}"
         else
-            output=$(echo "$V" | grep "$var version")
-            if [ ! "$output" = "" ]; then
-                echo "${YELLOW}Version strings mismatch for $var"
-                echo "Found $output"
-                echo "Initially chosen $version${NC}"
-            else
-                echo "${RED}ERROR INSTALLING $var $version"
-                echo "Found $V  ${NC}"
-                exit 1
-            fi
+            echo "${YELLOW}version $V_ does not match $V for $var-$version${NC}"
+            exit 1
         fi
     done
 }

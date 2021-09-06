@@ -1,6 +1,6 @@
 # Run WasmEdge from CLI
 
-After [installing the WasmEdge VM for CLI](install.md), there are several ways to run compiled WebAssembly programs. In this article, we will cover the most straighforward -- to run a WebAssembly program from the Linux command line (CLI).
+After [installing WasmEdge](install.md), there are several ways to run compiled WebAssembly programs. In this article, we will cover the most straighforward -- to run a WebAssembly program from the Linux command line (CLI).
 
 * If the WebAssembly program contains a `main()` function, `wasmedge` would execute it as a standalone program in the command mode.
 * If the WebAssembly program contains one or more public functions, `wasmedge` could execute individual functions in the reactor mode.
@@ -30,9 +30,9 @@ Here are some examples on how use the `wasmedge` command to run WebAssembly prog
 The `hello.wasm` WebAssembly program contains a `main()` function. Checkout its Rust [source code project](https://github.com/second-state/wasm-learning/tree/master/cli/hello). It prints out `hello` followed by the command line arguments. We use `wasmedge` in command mode to run the standalone program.
 
 ```bash
-# cd <path/to/wasmedge/build_folder>
+# cd <path/to/WasmEdge>
 $ cd tools/wasmedge
-$ ./wasmedge examples/hello.wasm second state
+$ wasmedge examples/hello.wasm second state
 hello
 second
 state
@@ -43,9 +43,9 @@ state
 The `add.wasm` WebAssembly program contains a `add()` function. Checkout its Rust [source code project](https://github.com/second-state/wasm-learning/tree/master/cli/add). We use `wasmedge` in reactor mode to call the `add()` with two integer input parameters.
 
 ```bash
-# cd <path/to/wasmedge/build_folder>
+# cd <path/to/WasmEdge>
 $ cd tools/wasmedge
-$ ./wasmedge --reactor examples/add.wasm add 2 2
+$ wasmedge --reactor examples/add.wasm add 2 2
 4
 ```
 
@@ -56,17 +56,17 @@ $ ./wasmedge --reactor examples/add.wasm add 2 2
 The `fibonacci.wasm` WebAssembly program contains a `fib()` function which takes a single integer as input parameter. We use `wasmedge` in reactor mode to call the exported function.
 
 ```bash
-# cd <path/to/wasmedge/build_folder>
+# cd <path/to/WasmEdge>
 $ cd tools/wasmedge
-# ./wasmedge [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-bulk-memory] [--enable-reference-types] [--enable-simd] [--enable-all] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
-$ ./wasmedge --reactor examples/fibonacci.wasm fib 10
+# wasmedge [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-bulk-memory] [--enable-reference-types] [--enable-simd] [--enable-all] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
+$ wasmedge --reactor examples/fibonacci.wasm fib 10
 89
 ```
 
 When wrong number of parameter given, the following error message is printed.
 
 ```bash
-$ ./wasmedge --reactor examples/fibonacci.wasm fib 10 10
+$ wasmedge --reactor examples/fibonacci.wasm fib 10 10
 2020-08-21 06:30:37,304 ERROR [default] execution failed: function signature mismatch, Code: 0x83
 2020-08-21 06:30:37,304 ERROR [default]     Mismatched function type. Expected: params{i32} returns{i32} , Got: params{i32 , i32} returns{i32}
 2020-08-21 06:30:37,304 ERROR [default]     When executing function name: "fib"
@@ -75,7 +75,7 @@ $ ./wasmedge --reactor examples/fibonacci.wasm fib 10 10
 When calling unknown exported function, the following error message is printed.
 
 ```bash
-$ ./wasmedge --reactor examples/fibonacci.wasm fib2 10
+$ wasmedge --reactor examples/fibonacci.wasm fib2 10
 2020-08-21 06:30:56,981 ERROR [default] wasmedge runtime failed: wasm function not found, Code: 0x04
 2020-08-21 06:30:56,981 ERROR [default]     When executing function name: "fib2"
 ```
@@ -85,8 +85,8 @@ $ ./wasmedge --reactor examples/fibonacci.wasm fib2 10
 The `factorial.wasm` WebAssembly program contains a `fac()` function which takes a single integer as input parameter. We use `wasmedge` in reactor mode to call the exported function.
 
 ```bash
-# ./wasmedge [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-bulk-memory] [--enable-reference-types] [--enable-simd] [--enable-all] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
-$ ./wasmedge --reactor examples/factorial.wasm fac 5
+# wasmedge [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-bulk-memory] [--enable-reference-types] [--enable-simd] [--enable-all] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
+$ wasmedge --reactor examples/factorial.wasm fac 5
 120
 ```
 

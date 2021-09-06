@@ -7,8 +7,8 @@ There are several ways to install WasmEdge depending on your use cases. In this 
 To use WasmEdge from the [command line](run.md) or from container-based serverless runtimes (e.g. [Vercel](https://github.com/second-state/vercel-wasm-runtime) or [Netlify](https://github.com/second-state/netlify-wasm-runtime)), you need to install the standalone WasmEdge virtual machine binary program on top of the operating system. You can get WasmEdge release package from its GitHub repository. The example below shows how to install WasmEdge on a typical x86-based Linux system. You can choose a package that meets your own operating system and CPU requirements.
 
 ```
-$ curl -sSfL https://github.com/WasmEdge/WasmEdge/releases/download/0.8.2-rc.2/WasmEdge-0.8.2-rc.2-manylinux2014_x86_64.tar.gz -o ./WasmEdge.tar.gz
-$ tar --strip-components 2 -xzvf WasmEdge.tar.gz WasmEdge-0.8.2-rc.2-Linux/bin
+$ curl -sSfL https://github.com/WasmEdge/WasmEdge/releases/download/0.8.2/WasmEdge-0.8.2-manylinux2014_x86_64.tar.gz -o ./WasmEdge.tar.gz
+$ tar --strip-components 2 -xzvf WasmEdge.tar.gz WasmEdge-0.8.2-Linux/bin
 ```
 
 After installation, you will get two binary programs.

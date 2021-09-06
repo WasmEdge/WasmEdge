@@ -131,7 +131,7 @@ private:
   std::vector<std::pair<std::vector<VType>, std::vector<VType>>> Types;
   std::vector<uint32_t> Funcs;
   std::vector<RefType> Tables;
-  std::vector<uint32_t> Mems;
+  uint32_t Mems = 0;
   std::vector<std::pair<VType, ValMut>> Globals;
   std::vector<RefType> Elems;
   std::vector<uint32_t> Datas;

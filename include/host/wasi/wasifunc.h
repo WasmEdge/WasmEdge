@@ -251,7 +251,7 @@ public:
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                         uint32_t Flags, uint32_t PathPtr, uint32_t PathLen,
-                        uint32_t ATim, uint32_t MTim, uint32_t FstFlags);
+                        uint64_t ATim, uint64_t MTim, uint32_t FstFlags);
 };
 
 class WasiPathLink : public Wasi<WasiPathLink> {

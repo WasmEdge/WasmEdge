@@ -36,7 +36,9 @@ jobs:
         components: rustfmt, clippy
 
     - name: Rustfmt
-      run: cargo fmt --all -- --check
+      run: |
+        cd bindings/rust/
+        cargo fmt --all -- --check
 
     - name: Build WasmEdge using clang with Debug mode
       run: |
@@ -44,10 +46,15 @@ jobs:
         cmake --build build
 
     - name: Clippy
-      run: cargo clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+      run: |
+        cd bindings/rust/
+        export WASMEDGE_SRC_DIR="$(pwd)/../../"
+        cargo clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
 
     - name: Test
       run: |
-        export LD_LIBRARY_PATH="$(pwd)/build/lib/api"
+        cd bindings/rust/
+        export WASMEDGE_SRC_DIR="$(pwd)/../../"
+        export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
         cargo test --lib --examples --locked
         cargo test --doc --locked

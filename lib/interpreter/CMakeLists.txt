@@ -11,10 +11,10 @@ wasmedge_add_library(wasmedgeInterpreter
   instantiate/export.cpp
   instantiate/module.cpp
   engine/proxy.cpp
-  engine/control.cpp
-  engine/table.cpp
-  engine/memory.cpp
-  engine/variable.cpp
+  engine/controlInstr.cpp
+  engine/tableInstr.cpp
+  engine/memoryInstr.cpp
+  engine/variableInstr.cpp
   engine/engine.cpp
   helper.cpp
   interpreter.cpp

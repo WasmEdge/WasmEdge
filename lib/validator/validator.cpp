@@ -99,11 +99,10 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   }
 
   /// In current version, memory must be <= 1.
-  if (Checker.getMemories().size() > 1) {
+  if (Checker.getMemories() > 1) {
     spdlog::error(ErrCode::MultiMemories);
-    spdlog::error(ErrInfo::InfoInstanceBound(
-        ExternalType::Memory,
-        static_cast<uint32_t>(Checker.getMemories().size()), 1));
+    spdlog::error(ErrInfo::InfoInstanceBound(ExternalType::Memory,
+                                             Checker.getMemories(), 1));
     spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
     return Unexpect(ErrCode::MultiMemories);
   }
@@ -226,12 +225,11 @@ Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
 Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
   if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
     /// Check memory index in context.
-    const auto &MemVec = Checker.getMemories();
-    if (DataSeg.getIdx() >= MemVec.size()) {
+    const auto &MemNum = Checker.getMemories();
+    if (DataSeg.getIdx() >= MemNum) {
       spdlog::error(ErrCode::InvalidMemoryIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::Memory, DataSeg.getIdx(),
-          static_cast<uint32_t>(MemVec.size())));
+      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory,
+                                             DataSeg.getIdx(), MemNum));
       return Unexpect(ErrCode::InvalidMemoryIdx);
     }
     /// Check memory initialization is a const expression.
@@ -319,11 +317,10 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
     }
     return {};
   case ExternalType::Memory:
-    if (Id >= Checker.getMemories().size()) {
+    if (Id >= Checker.getMemories()) {
       spdlog::error(ErrCode::InvalidMemoryIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::Memory, Id,
-          static_cast<uint32_t>(Checker.getMemories().size())));
+      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, Id,
+                                             Checker.getMemories()));
       return Unexpect(ErrCode::InvalidMemoryIdx);
     }
     return {};

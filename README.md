@@ -8,7 +8,7 @@
   
 ![WasmEdge Logo](/docs/wasmedge-runtime-logo.png)
 
-WasmEdge (previously known as SSVM) is a lightweight, high-performance, and extensible WebAssembly (Wasm) runtime for cloud native, edge, and decentralized applications. It is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403) on the market today. WasmEdge is an official sandbox project hosted by [CNCF](https://www.cncf.io/) (Cloud Native Computing Foundation). Its [use cases](docs/use_cases.md) include serverless apps, embedded functions, microservices, smart contracts, and IoT devices.
+WasmEdge (previously known as SSVM) is a lightweight, high-performance, and extensible WebAssembly runtime for cloud native, edge, and decentralized applications. It is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403) today. WasmEdge is an official sandbox project hosted by the [CNCF](https://www.cncf.io/). Its [use cases](docs/use_cases.md) include serverless apps, embedded functions, microservices, smart contracts, and IoT devices.
 
 ![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/alerts/)

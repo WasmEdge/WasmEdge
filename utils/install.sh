@@ -42,9 +42,21 @@ VERSION_TF_TOOLS=$(git -c 'versionsort.suffix=-' \
     tail --lines=1 |
     cut --delimiter='/' --fields=3)
 
-IPATH="/usr/local"
+IPATH="$HOME/.wasmedge"
 EXT="none"
 VERBOSE=0
+
+ENV="#!/bin/sh
+# wasmedge shell setup
+# affix colons on either side of \$PATH to simplify matching
+case ":\${PATH}:" in
+    *:"$IPATH/bin":*)
+        ;;
+    *)
+        # Prepending path in case a system-installed rustc needs to be overridden
+        export PATH="$IPATH/bin:\$PATH"
+        ;;
+esac"
 
 usage() {
     cat <<EOF
@@ -96,6 +108,9 @@ EOF
 }
 
 on_exit() {
+    if [ ! $default == 1 ]; then
+        rm -rf $IPATH
+    fi
     cat <<EOF
 ${RED}
     Please see --help
@@ -161,7 +176,7 @@ wasmedge_checks() {
     local version=$1
     shift
     for var in "$@"; do
-        local V=$($var --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
+        local V=$($IPATH/bin/$var --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
         local V_=$(echo $version | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
         if [ $V = $V_ ]; then
             echo "${GREEN}Installation of $var-$version successfull${NC}"
@@ -307,17 +322,10 @@ main() {
     done
 
     if [ ! $default == 1 ]; then
-        while true; do
-            echo "No path provided"
-            read -p "Do you wish to install this program in $IPATH?" yn
-            case $yn in
-            [Yy]*)
-                break
-                ;;
-            [Nn]*) exit 1 ;;
-            *) echo "Please answer [Y/N | y/n]" ;;
-            esac
-        done
+        echo "${YELLOW}No path provided"
+        echo "Installing in $IPATH${NC}"
+        mkdir -p $IPATH
+        echo "$ENV" >$IPATH/env
     fi
 
     if [ ! $VERBOSE == 0 ]; then
@@ -377,7 +385,25 @@ main() {
     fi
 
     trap - EXIT
+    end_message
+}
 
+end_message() {
+    if [ ! $default == 1 ]; then
+        echo ""
+        echo "${GREEN}source $IPATH/env${NC} to use wasmedge binaries"
+    else
+        case ":${PATH}:" in
+        *:"$IPATH/bin":*)
+            echo "WasmEdge binaries accessible"
+            ;;
+        *)
+            echo "Add $IPATH/bin to your PATH using following command"
+            echo "export PATH=$IPATH/bin:\$PATH"
+            ;;
+        esac
+
+    fi
 }
 
 main "$@"

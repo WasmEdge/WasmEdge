@@ -7,6 +7,11 @@ YELLOW=$'\e[0;33m'
 NC=$'\e[0m' # No Color
 DEB_F_SET=0
 
+if [[ $EUID -ne 0 ]]; then
+    echo "${RED}This script must be run as root${NC}"
+    exit 1
+fi
+
 if ! command -v git &>/dev/null; then
     echo "${YELLOW}git could not be found${NC}"
     if [ $DEBIAN_FRONTEND="" ]; then
@@ -15,6 +20,12 @@ if ! command -v git &>/dev/null; then
     fi
     apt update
     apt install -y git
+fi
+
+if command -v sudo &>/dev/null; then
+    HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
+else
+    echo "${YELLOW}sudo could not be found${NC}"
 fi
 
 VERSION=$(git -c 'versionsort.suffix=-' \

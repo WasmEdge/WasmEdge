@@ -10,15 +10,15 @@
 The easiest way to install WasmEdge is to run the following commands.
 
 ```
-$ wget https://github.com/second-state/WasmEdge-go/releases/download/v0.8.1/install_wasmedge.sh
-$ chmod +x ./install_wasmedge.sh
-$ sudo ./install_wasmedge.sh -p /usr/local
+$ wget https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh
+$ chmod +x ./install.sh
+$ sudo ./install.sh -p /usr/local
 ```
 
 If you would like to install WasmEdge with its [Tensorflow and image processing extensions](https://www.secondstate.io/articles/wasi-tensorflow/), please run the following command. It will attempt to install Tensorflow and image shared libraries on your system.
 
 ```
-$ sudo ./install_wasmedge.sh -p /usr/local -e all
+$ sudo ./install.sh -p /usr/local -e all
 ```
 
 **That's it!** You can now use WasmEdge from the [CLI](run.md), or launch it from an application. To update WasmEdge to a new release, just re-run the above command to write over the old files.
@@ -37,9 +37,9 @@ After installation, you have
 To uninstall WasmEdge, you can run the following command.
 
 ```
-$ wget https://github.com/second-state/WasmEdge-go/releases/download/v0.8.1/uninstall_wasmedge.sh
-$ chmod +x ./uninstall_wasmedge.sh
-$ sudo ./uninstall_wasmedge.sh -p /usr/local -e all
+$ wget https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh
+$ chmod +x ./uninstall.sh
+$ sudo ./uninstall.sh -p /usr/local -e all
 ```
 
 It will remove WasmEdge files, and also print out dependency Tensorflow and image shared libraries for you to manually remove.

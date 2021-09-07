@@ -14,20 +14,20 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 _ldconfig() {
-    if [ $PERM_ROOT==1 ]; then
+    if [ $PERM_ROOT == 1 ]; then
         ldconfig
     fi
 }
 
 _pkg_mgr() {
-    if [ $PERM_ROOT==1 ]; then
+    if [ $PERM_ROOT == 1 ]; then
         apt "$@"
     fi
 }
 
-if [ ! command -v git ] &>/dev/null && [ $PERM_ROOT==1 ]; then
+if ! command -v git &>/dev/null; then
     echo "${YELLOW}git could not be found${NC}"
-    if [ $DEBIAN_FRONTEND="" ]; then
+    if [ $DEBIAN_FRONTEND="" ] && [ $PERM_ROOT == 1 ]; then
         export DEBIAN_FRONTEND="noninteractive"
         DEB_F_SET=1
     fi
@@ -36,7 +36,9 @@ if [ ! command -v git ] &>/dev/null && [ $PERM_ROOT==1 ]; then
 fi
 
 if command -v sudo &>/dev/null; then
-    HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
+    if [ $PERM_ROOT == 1 ]; then
+        HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
+    fi
 else
     echo "${YELLOW}sudo could not be found${NC}"
 fi
@@ -171,7 +173,7 @@ wasmedge_deps_install() {
 
     _pkg_mgr update
 
-    if [ $PERM_ROOT==1 ]; then
+    if [ $PERM_ROOT == 1 ]; then
         for var in "$@"; do
             PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $var | grep "install ok installed")
             echo Checking for $var: $PKG_OK
@@ -203,18 +205,20 @@ wasmedge_post_install() {
 
 wasmedge_checks() {
     # Check only MAJOR.MINOR.PATCH
-    local version=$1
-    shift
-    for var in "$@"; do
-        local V=$($IPATH/bin/$var --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
-        local V_=$(echo $version | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
-        if [ $V = $V_ ]; then
-            echo "${GREEN}Installation of $var-$version successfull${NC}"
-        else
-            echo "${YELLOW}version $V_ does not match $V for $var-$version${NC}"
-            exit 1
-        fi
-    done
+    if [ $PERM_ROOT == 1 ]; then
+        local version=$1
+        shift
+        for var in "$@"; do
+            local V=$($IPATH/bin/$var --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
+            local V_=$(echo $version | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
+            if [ $V = $V_ ]; then
+                echo "${GREEN}Installation of $var-$version successfull${NC}"
+            else
+                echo "${YELLOW}version $V_ does not match $V for $var-$version${NC}"
+                exit 1
+            fi
+        done
+    fi
 }
 
 get_wasmedge_image_deps() {
@@ -436,7 +440,7 @@ end_message() {
     fi
 
     if [ $PERM_ROOT == 0 ]; then
-        echo "Run ldconfig to configure dynamic linker run-time bindings${NC}"
+        echo "${YELLOW}Run ldconfig to configure dynamic linker run-time bindings${NC}"
     fi
 }
 

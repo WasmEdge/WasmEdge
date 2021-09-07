@@ -161,9 +161,9 @@ install() {
     for var in "$@"; do
         echo "${GREEN}Installing $dir in $IPATH/$var ${NC}"
         if [ $var = "lib" ]; then
-            mv $IPATH/$dir/lib64/* $IPATH/$var
+            mv -f $IPATH/$dir/lib64/* $IPATH/$var
         else
-            mv $IPATH/$dir/$var/* $IPATH/$var
+            mv -f $IPATH/$dir/$var/* $IPATH/$var
         fi
     done
 }

@@ -7,7 +7,7 @@
 
 ## Quickstart
 
-The easiest way to install WasmEdge is to run the following commands.
+The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
 
 ```
 $ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
@@ -19,27 +19,39 @@ If you would like to install WasmEdge with its [Tensorflow and image processing 
 $ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
 ```
 
-Source the environment using `source $HOME/.wasmedge/env`
+Run the following command to make the installed binary available in the current session `source $HOME/.wasmedge/env`
 
 **That's it!** You can now use WasmEdge from the [CLI](run.md), or launch it from an application. To update WasmEdge to a new release, just re-run the above command to write over the old files.
 
+## Install for all users
+
+By default, WasmEdge is installed in the `$HOME/.wasmedge` directory. You can install it into a system directory, such as `/usr/local` to make it available to all users. To specify an install directory, you can run the `install.sh` script with the `-p` flag. You will need to run the following commands as the `root` user or `sudo` since they write into system directories.
+
+```
+$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -p /usr/local
+```
+
+Or, with all extensions
+
+```
+$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all -p /usr/local
+```
+
 ## What's installed
 
-After installation, you have
+After installation, you have the following directories and files. Here we assume that you installed into the `$HOME/.wasmedge` directory. You could also change it to `/usr/local` if you did a system-wide install.
 
-* The `/usr/local/bin` directory contains the WasmEdge Runtime CLI executable files. You can copy and move them around on your file system.
+* The `$HOME/.wasmedge/bin` directory contains the WasmEdge Runtime CLI executable files. You can copy and move them around on your file system.
   * The `wasmedge` tool is the standard WasmEdge runtime. You can use it from the CLI. `wasmedge --dir .:. app.wasm`
   * The `wasmedgec` tool is the AOT compiler to compile a `wasm` file into a native `so` file. `wasmedgec app.wasm app.so` The `wasmedge` can then execute the `so` file. `wasmedge --dir .:. app.so`
   * The `wasmedge-tensorflow`, `wasmedge-tensorflow-lite` and `wasmedgec-tensorflow` tools are runtimes and compilers that support the WasmEdge tensorflow SDK.
-* The `/usr/local/lib` directory contains WasmEdge shared libraries, as well as dependency libraries. They are useful for WasmEdge SDKs to launch WasmEdge programs and functions from host applications.
-* The `/usr/local/include` directory contains the WasmEdge header files. They are useful for WasmEdge SDKs.
+* The `$HOME/.wasmedge/lib` directory contains WasmEdge shared libraries, as well as dependency libraries. They are useful for WasmEdge SDKs to launch WasmEdge programs and functions from host applications.
+* The `$HOME/.wasmedge/include` directory contains the WasmEdge header files. They are useful for WasmEdge SDKs.
 
 To uninstall WasmEdge, you can run the following command.
 
 ```
-$ wget https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh
-$ chmod +x ./uninstall.sh
-$ sudo ./uninstall.sh -p /usr/local -e all
+$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh | bash
 ```
 
 It will remove WasmEdge files, and also print out dependency Tensorflow and image shared libraries for you to manually remove.

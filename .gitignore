@@ -48,6 +48,7 @@ autoconf/autom4te.cache
 # (Rust) Cargo lockfile, not published with libraries.
 Cargo.lock
 bindings/rust/target
+/target
 
 #==============================================================================#
 # Directories to ignore (do not add trailing '/'s, they skip symlinks).
@@ -66,3 +67,4 @@ docs/_build
 # clangd index
 .clangd
 .cache
+

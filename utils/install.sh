@@ -81,8 +81,16 @@ case ":\${PATH}:" in
     *:"$IPATH/bin":*)
         ;;
     *)
-        # Prepending path in case a system-installed rustc needs to be overridden
+        # Prepending path in case a system-installed wasmedge needs to be overridden
         export PATH="$IPATH/bin:\$PATH"
+        ;;
+esac
+case ":\${LD_LIBRARY_PATH}:" in
+    *:"$IPATH/lib":*)
+        ;;
+    *)
+        # Prepending path in case a system-installed wasmedge libs needs to be overridden
+        export LD_LIBRARY_PATH="$IPATH/lib:\$LD_LIBRARY_PATH"
         ;;
 esac"
 
@@ -404,10 +412,6 @@ end_message() {
             ;;
         esac
 
-    fi
-
-    if [ $PERM_ROOT == 0 ]; then
-        echo "${YELLOW}Run 'ldconfig $IPATH/lib' to configure dynamic linker run-time bindings${NC}"
     fi
 }
 

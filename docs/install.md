@@ -1,6 +1,7 @@
 # Install WasmEdge
 
 * [Quickstart](#quickstart)
+* [Install for all users](#install-for-all-users)
 * [What's installed](#whats-installed)
 * [Install WasmEdge for Node.js](#install-wasmedge-for-nodejs)
 * [Install a Docker / k8s compatible WasmEdge "container"](#install-a-docker--k8s-compatible-wasmedge-container)
@@ -53,9 +54,6 @@ To uninstall WasmEdge, you can run the following command.
 ```
 $ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh | bash
 ```
-
-It will remove WasmEdge files, and also print out dependency Tensorflow and image shared libraries for you to manually remove.
-
 
 ## Install WasmEdge for Node.js
 

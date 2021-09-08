@@ -5,7 +5,6 @@ RED=$'\e[0;31m'
 GREEN=$'\e[0;32m'
 YELLOW=$'\e[0;33m'
 NC=$'\e[0m' # No Color
-DEB_F_SET=0
 PERM_ROOT=1
 
 if [[ $EUID -ne 0 ]]; then
@@ -19,20 +18,23 @@ _ldconfig() {
     fi
 }
 
-_pkg_mgr() {
-    if [ $PERM_ROOT == 1 ]; then
-        apt "$@"
+_downloader() {
+    local url=$1
+    if ! command -v wget &>/dev/null; then
+        if command -v curl &>/dev/null; then
+            curl -L -OC - $url --progress-bar
+        else
+            echo "${RED}Please install wget or curl${NC}"
+            exit 1
+        fi
+    else
+        wget -q -c --show-progress $url
     fi
 }
 
 if ! command -v git &>/dev/null; then
-    echo "${YELLOW}git could not be found${NC}"
-    if [ $DEBIAN_FRONTEND="" ] && [ $PERM_ROOT == 1 ]; then
-        export DEBIAN_FRONTEND="noninteractive"
-        DEB_F_SET=1
-    fi
-    _pkg_mgr update
-    _pkg_mgr install -y git
+    echo "${RED}Please install git${NC}"
+    exit 1
 fi
 
 if command -v sudo &>/dev/null; then
@@ -168,32 +170,9 @@ install() {
     done
 }
 
-wasmedge_deps_install() {
-    set +e
-
-    _pkg_mgr update
-
-    if [ $PERM_ROOT == 1 ]; then
-        for var in "$@"; do
-            PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $var | grep "install ok installed")
-            echo Checking for $var: $PKG_OK
-            if [ "" = "$PKG_OK" ]; then
-                echo "No $var. Setting up $var."
-                _pkg_mgr -y install $var
-            fi
-        done
-    fi
-
-    set -e
-
-    if [ "$DEBIAN_FRONTEND" = "noninteractive" ] && [ $DEB_F_SET -eq 1 ]; then
-        unset DEBIAN_FRONTEND
-    fi
-}
-
 get_wasmedge_release() {
     echo "Fetching WasmEdge-$1"
-    wget -q -c --show-progress https://github.com/WasmEdge/WasmEdge/releases/download/$1/WasmEdge-$1-manylinux2014_x86_64.tar.gz
+    _downloader https://github.com/WasmEdge/WasmEdge/releases/download/$1/WasmEdge-$1-manylinux2014_x86_64.tar.gz
     tar -C $IPATH -xzf WasmEdge-$1-manylinux2014_x86_64.tar.gz
 }
 
@@ -223,7 +202,7 @@ wasmedge_checks() {
 
 get_wasmedge_image_deps() {
     echo "Fetching WasmEdge-image-deps-$VERSION_IM"
-    wget -q -c --show-progress https://github.com/second-state/WasmEdge-image/releases/download/$VERSION_IM_DEPS/WasmEdge-image-deps-$VERSION_IM_DEPS-manylinux1_x86_64.tar.gz
+    _downloader https://github.com/second-state/WasmEdge-image/releases/download/$VERSION_IM_DEPS/WasmEdge-image-deps-$VERSION_IM_DEPS-manylinux1_x86_64.tar.gz
 
     tar -C $IPATH/lib -zxvf WasmEdge-image-deps-$VERSION_IM_DEPS-manylinux1_x86_64.tar.gz
     rm -f WasmEdge-image-deps-$VERSION_IM-manylinux1_x86_64.tar.gz
@@ -237,7 +216,7 @@ get_wasmedge_image_deps() {
 
 install_wasmedge_image() {
     echo "Fetching WasmEdge-image-$VERSION_IM"
-    wget -q -c --show-progress https://github.com/second-state/WasmEdge-image/releases/download/$VERSION_IM/WasmEdge-image-$VERSION_IM-manylinux2014_x86_64.tar.gz
+    _downloader https://github.com/second-state/WasmEdge-image/releases/download/$VERSION_IM/WasmEdge-image-$VERSION_IM-manylinux2014_x86_64.tar.gz
     tar -C $IPATH -xzf WasmEdge-image-$VERSION_IM-manylinux2014_x86_64.tar.gz
     rm -f WasmEdge-image-$VERSION_IM-manylinux2014_x86_64.tar.gz
     _ldconfig
@@ -245,10 +224,10 @@ install_wasmedge_image() {
 
 get_wasmedge_tensorflow_deps() {
     echo "Fetching WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS"
-    wget -q -c --show-progress https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF_DEPS/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-manylinux2014_x86_64.tar.gz
+    _downloader https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF_DEPS/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-manylinux2014_x86_64.tar.gz
 
     echo "Fetching WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS"
-    wget -q -c --show-progress https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF_DEPS/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-manylinux2014_x86_64.tar.gz
+    _downloader https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF_DEPS/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-manylinux2014_x86_64.tar.gz
 
     tar -C $IPATH/lib -zxvf WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-manylinux2014_x86_64.tar.gz
     tar -C $IPATH/lib -zxvf WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-manylinux2014_x86_64.tar.gz
@@ -263,13 +242,13 @@ get_wasmedge_tensorflow_deps() {
 
 install_wasmedge_tensorflow() {
     echo "Fetching WasmEdge-tensorflow-$VERSION_TF"
-    wget -q -c --show-progress https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflow-$VERSION_TF-manylinux2014_x86_64.tar.gz
+    _downloader https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflow-$VERSION_TF-manylinux2014_x86_64.tar.gz
 
     echo "Fetching WasmEdge-tensorflowlite-$VERSION_TF"
-    wget -q -c --show-progress https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflowlite-$VERSION_TF-manylinux2014_x86_64.tar.gz
+    _downloader https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflowlite-$VERSION_TF-manylinux2014_x86_64.tar.gz
 
     echo "Fetching WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS"
-    wget -q -c --show-progress https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/$VERSION_TF_TOOLS/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-manylinux2014_x86_64.tar.gz
+    _downloader https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/$VERSION_TF_TOOLS/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-manylinux2014_x86_64.tar.gz
 
     tar -C $IPATH -xzf WasmEdge-tensorflow-$VERSION_TF-manylinux2014_x86_64.tar.gz
     rm -f WasmEdge-tensorflow-$VERSION_TF-manylinux2014_x86_64.tar.gz
@@ -370,18 +349,6 @@ main() {
     if [ -d $IPATH ]; then
         echo "WasmEdge Installation at $IPATH"
         make_dirs "include" "lib" "bin"
-        wasmedge_deps_install software-properties-common \
-            wget \
-            cmake \
-            ninja-build \
-            curl \
-            git \
-            dpkg-dev \
-            libboost-all-dev \
-            llvm-12-dev \
-            liblld-12-dev \
-            gcc \
-            g++
 
         get_wasmedge_release $VERSION
         install WasmEdge-$VERSION-Linux "include" "lib" "bin"

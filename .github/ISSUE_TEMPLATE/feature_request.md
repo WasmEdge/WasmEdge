@@ -3,14 +3,14 @@ name: Feature Request
 about: Found some fantastic features or cool ideas, but WasmEdge is not yet provided?
 ---
 
-## Abstract
+## Motivation
 
 <!--
 Please shortly describe by example about what feature you want to use or what idea
 you want to see in the current WasmEdge project.
 -->
 
-## Motivation
+## Details
 
 <!--
 In this section you describe how you propose to address the idea you described earlier.

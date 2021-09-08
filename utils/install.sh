@@ -15,7 +15,7 @@ fi
 
 _ldconfig() {
     if [ $PERM_ROOT == 1 ]; then
-        ldconfig
+        ldconfig $IPATH/lib
     fi
 }
 
@@ -440,7 +440,7 @@ end_message() {
     fi
 
     if [ $PERM_ROOT == 0 ]; then
-        echo "${YELLOW}Run ldconfig to configure dynamic linker run-time bindings${NC}"
+        echo "${YELLOW}Run 'ldconfig $IPATH/lib' to configure dynamic linker run-time bindings${NC}"
     fi
 }
 

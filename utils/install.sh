@@ -6,15 +6,41 @@ GREEN=$'\e[0;32m'
 YELLOW=$'\e[0;33m'
 NC=$'\e[0m' # No Color
 DEB_F_SET=0
+PERM_ROOT=1
+
+if [[ $EUID -ne 0 ]]; then
+    echo "${YELLOW}No root permissions.${NC}"
+    PERM_ROOT=0
+fi
+
+_ldconfig() {
+    if [ $PERM_ROOT == 1 ]; then
+        ldconfig $IPATH/lib
+    fi
+}
+
+_pkg_mgr() {
+    if [ $PERM_ROOT == 1 ]; then
+        apt "$@"
+    fi
+}
 
 if ! command -v git &>/dev/null; then
     echo "${YELLOW}git could not be found${NC}"
-    if [ $DEBIAN_FRONTEND="" ]; then
+    if [ $DEBIAN_FRONTEND="" ] && [ $PERM_ROOT == 1 ]; then
         export DEBIAN_FRONTEND="noninteractive"
         DEB_F_SET=1
     fi
-    apt update
-    apt install -y git
+    _pkg_mgr update
+    _pkg_mgr install -y git
+fi
+
+if command -v sudo &>/dev/null; then
+    if [ $PERM_ROOT == 1 ]; then
+        HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
+    fi
+else
+    echo "${YELLOW}sudo could not be found${NC}"
 fi
 
 VERSION=$(git -c 'versionsort.suffix=-' \
@@ -42,9 +68,21 @@ VERSION_TF_TOOLS=$(git -c 'versionsort.suffix=-' \
     tail --lines=1 |
     cut --delimiter='/' --fields=3)
 
-IPATH="/usr/local"
+IPATH="$HOME/.wasmedge"
 EXT="none"
 VERBOSE=0
+
+ENV="#!/bin/sh
+# wasmedge shell setup
+# affix colons on either side of \$PATH to simplify matching
+case ":\${PATH}:" in
+    *:"$IPATH/bin":*)
+        ;;
+    *)
+        # Prepending path in case a system-installed rustc needs to be overridden
+        export PATH="$IPATH/bin:\$PATH"
+        ;;
+esac"
 
 usage() {
     cat <<EOF
@@ -96,6 +134,9 @@ EOF
 }
 
 on_exit() {
+    if [ ! $default == 1 ]; then
+        rm -rf $IPATH
+    fi
     cat <<EOF
 ${RED}
     Please see --help
@@ -120,25 +161,31 @@ install() {
     for var in "$@"; do
         echo "${GREEN}Installing $dir in $IPATH/$var ${NC}"
         if [ $var = "lib" ]; then
-            mv $IPATH/$dir/lib64/* $IPATH/$var
+            mv -f $IPATH/$dir/lib64/* $IPATH/$var
         else
-            mv $IPATH/$dir/$var/* $IPATH/$var
+            mv -f $IPATH/$dir/$var/* $IPATH/$var
         fi
     done
 }
 
 wasmedge_deps_install() {
     set +e
-    apt update
-    for var in "$@"; do
-        PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $var | grep "install ok installed")
-        echo Checking for $var: $PKG_OK
-        if [ "" = "$PKG_OK" ]; then
-            echo "No $var. Setting up $var."
-            apt -y install $var
-        fi
-    done
+
+    _pkg_mgr update
+
+    if [ $PERM_ROOT == 1 ]; then
+        for var in "$@"; do
+            PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $var | grep "install ok installed")
+            echo Checking for $var: $PKG_OK
+            if [ "" = "$PKG_OK" ]; then
+                echo "No $var. Setting up $var."
+                _pkg_mgr -y install $var
+            fi
+        done
+    fi
+
     set -e
+
     if [ "$DEBIAN_FRONTEND" = "noninteractive" ] && [ $DEB_F_SET -eq 1 ]; then
         unset DEBIAN_FRONTEND
     fi
@@ -153,23 +200,25 @@ get_wasmedge_release() {
 wasmedge_post_install() {
     rm -f WasmEdge-$1-manylinux2014_x86_64.tar.gz
     rm -rf $IPATH/WasmEdge-$1-Linux
-    ldconfig
+    _ldconfig
 }
 
 wasmedge_checks() {
     # Check only MAJOR.MINOR.PATCH
-    local version=$1
-    shift
-    for var in "$@"; do
-        local V=$($var --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
-        local V_=$(echo $version | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
-        if [ $V = $V_ ]; then
-            echo "${GREEN}Installation of $var-$version successfull${NC}"
-        else
-            echo "${YELLOW}version $V_ does not match $V for $var-$version${NC}"
-            exit 1
-        fi
-    done
+    if [ $PERM_ROOT == 1 ]; then
+        local version=$1
+        shift
+        for var in "$@"; do
+            local V=$($IPATH/bin/$var --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
+            local V_=$(echo $version | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
+            if [ $V = $V_ ]; then
+                echo "${GREEN}Installation of $var-$version successfull${NC}"
+            else
+                echo "${YELLOW}version $V_ does not match $V for $var-$version${NC}"
+                exit 1
+            fi
+        done
+    fi
 }
 
 get_wasmedge_image_deps() {
@@ -183,7 +232,7 @@ get_wasmedge_image_deps() {
     ln -sf libpng16.so.16.37.0 $IPATH/lib/libpng.so
     ln -sf libpng16.so.16.37.0 $IPATH/lib/libpng16.so
     ln -sf libpng16.so.16.37.0 $IPATH/lib/libpng16.so.16
-    ldconfig
+    _ldconfig
 }
 
 install_wasmedge_image() {
@@ -191,7 +240,7 @@ install_wasmedge_image() {
     wget -q -c --show-progress https://github.com/second-state/WasmEdge-image/releases/download/$VERSION_IM/WasmEdge-image-$VERSION_IM-manylinux2014_x86_64.tar.gz
     tar -C $IPATH -xzf WasmEdge-image-$VERSION_IM-manylinux2014_x86_64.tar.gz
     rm -f WasmEdge-image-$VERSION_IM-manylinux2014_x86_64.tar.gz
-    ldconfig
+    _ldconfig
 }
 
 get_wasmedge_tensorflow_deps() {
@@ -209,7 +258,7 @@ get_wasmedge_tensorflow_deps() {
     ln -sf libtensorflow.so.2 $IPATH/lib/libtensorflow.so
     ln -sf libtensorflow_framework.so.2.4.0 $IPATH/lib/libtensorflow_framework.so.2
     ln -sf libtensorflow_framework.so.2 $IPATH/lib/libtensorflow_framework.so
-    ldconfig
+    _ldconfig
 }
 
 install_wasmedge_tensorflow() {
@@ -234,7 +283,7 @@ install_wasmedge_tensorflow() {
         $IPATH/bin/download_dependencies_tflite.sh
     rm -f WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-manylinux2014_x86_64.tar.gz
 
-    ldconfig
+    _ldconfig
 }
 
 main() {
@@ -307,17 +356,10 @@ main() {
     done
 
     if [ ! $default == 1 ]; then
-        while true; do
-            echo "No path provided"
-            read -p "Do you wish to install this program in $IPATH?" yn
-            case $yn in
-            [Yy]*)
-                break
-                ;;
-            [Nn]*) exit 1 ;;
-            *) echo "Please answer [Y/N | y/n]" ;;
-            esac
-        done
+        echo "${YELLOW}No path provided"
+        echo "Installing in $IPATH${NC}"
+        mkdir -p $IPATH
+        echo "$ENV" >$IPATH/env
     fi
 
     if [ ! $VERBOSE == 0 ]; then
@@ -377,7 +419,29 @@ main() {
     fi
 
     trap - EXIT
+    end_message
+}
 
+end_message() {
+    if [ ! $default == 1 ]; then
+        echo ""
+        echo "${GREEN}source $IPATH/env${NC} to use wasmedge binaries"
+    else
+        case ":${PATH}:" in
+        *:"$IPATH/bin":*)
+            echo "WasmEdge binaries accessible"
+            ;;
+        *)
+            echo "Add $IPATH/bin to your PATH using following command"
+            echo "export PATH=$IPATH/bin:\$PATH"
+            ;;
+        esac
+
+    fi
+
+    if [ $PERM_ROOT == 0 ]; then
+        echo "${YELLOW}Run 'ldconfig $IPATH/lib' to configure dynamic linker run-time bindings${NC}"
+    fi
 }
 
 main "$@"

@@ -1,0 +1,35 @@
+
+use super::wasmedge;
+
+#[derive(Debug, thiserror::Error)]
+pub enum ModuleError {
+    #[error("an unknown error occured")]
+    Unknown,
+
+    #[error("`{0}` is not a valid path: {1}")]
+    Path(String, Box<dyn std::error::Error>),
+
+    #[error("loader error: {}", _0.message)]
+    Load(wasmedge::ErrReport),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum VmError {
+    #[error("failed to create WasmEdge VM")]
+    Create,
+
+    #[error("module loading failed: {}", _0.message)]
+    ModuleLoad(wasmedge::ErrReport),
+
+    #[error("module validation failed: {}", _0.message)]
+    Validate(wasmedge::ErrReport),
+
+    #[error("module instantiation failed: {}", _0.message)]
+    Instantiate(wasmedge::ErrReport),
+
+    #[error("could not find function `{0}` in module")]
+    MissingFunction(String),
+
+    #[error("module execution failed: {}", _0.message)]
+    Execute(wasmedge::ErrReport),
+}

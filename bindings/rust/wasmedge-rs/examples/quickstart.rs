@@ -2,14 +2,13 @@
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let module_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
-        .join("tools/wasmedge/examples/fibonacci.wasm");
+    let module_path = "tools/wasmedge/examples/fibonacci.wasm";
 
-    let config = wedge::Config::default();
-    let module = wedge::Module::load_from_file(&module_path, &config)?;
-    let mut vm = wedge::Vm::create(&module, &config)?;
-
+    // let vm = wedge::Vm::default(module_path)?;
+    // or
+    let vm = wedge::Vm::builder(module_path).with_config(config).build()?;
     let results = vm.run("fib", &[5.into()])?;
+
     assert_eq!(results.len(), 1);
     let result = results[0].as_i32().unwrap();
 
@@ -17,4 +16,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("fib(5) = {}", result);
 
     Ok(())
+
 }
+

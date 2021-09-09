@@ -1,98 +1,79 @@
-pub use wasmedge_sys as ffi;
+use super::wasmedge;
+use crate::module::Module;
 
-use crate::value::Value;
+use crate::error::VmError;
 
-/// A WasmEdge VM instance.
-#[derive(Debug)]
-pub struct Vm {
-    pub(crate) ctx: *mut ffi::WasmEdge_VMContext,
+#[derive(Debug, Default)]
+struct Vm<'a>{
+    config: Option<&'a wasmedge::Config>,
+    module: Option<Module>,
+    inner: Option<wasmedge::Vm>,
+    _private: ()
 }
 
 impl Vm {
-    pub fn create(
-        module: &crate::module::Module,
-        config: &crate::config::Config,
+    pub fn builder(module_path: &str) -> VmBuilder {
+        VmBuilder::new(module_path)
+    }
+
+    pub fn default(module_path: &str) -> Result<Vm, Error> {
+        let config = wasmedge::Config::default();
+        let module = Module::new(&config, module_path)?;
+        let vm_instance = wasmedge::Vm::create(&module.inner, &config)?;
+        Ok(Vm { config, module, inner: Some(vm_instance), _private: ()})
+    }
+
+    fn create(
+        self, 
+        module: &wasmedge::Module,
+        config: &wasmedge::Config,
     ) -> Result<Self, Error> {
-        let ctx = unsafe {
-            ffi::WasmEdge_VMCreate(config.ctx, std::ptr::null_mut() /* store */)
-        };
-        if ctx.is_null() {
-            return Err(Error::Create);
-        }
-
-        unsafe {
-            ffi::decode_result(ffi::WasmEdge_VMLoadWasmFromASTModule(ctx, module.ctx))
-                .map_err(Error::ModuleLoad)?;
-            // The following two calls could be made lazily if they're expensive.
-            ffi::decode_result(ffi::WasmEdge_VMValidate(ctx)).map_err(Error::Validate)?;
-            ffi::decode_result(ffi::WasmEdge_VMInstantiate(ctx)).map_err(Error::Instantiate)?;
-        }
-
-        Ok(Self { ctx })
+        let vm = wasmedge::Vm::create(module, config).map_err(VmError::Create)?;
+        let vm = vm.load_wasm_from_ast_module(module).map_err(VmError::ModuleLoad)?; 
+        let vm = vm.vm_validate().map_err(VmError::Validate)?;
+        let vm = vm.vm_instantiate().map_err(VmError::Instantiate)?;
+        Ok(vm)
     }
 
-    pub fn run(
-        &mut self,
-        func_name: impl AsRef<str>,
-        params: &[Value],
-    ) -> Result<Vec<Value>, Error> {
-        let raw_func_name: ffi::WasmEdge_String =
-            crate::string::StringRef::from(func_name.as_ref()).into();
-
-        let raw_params: Vec<_> = params
-            .as_ref()
-            .iter()
-            .copied()
-            .map(ffi::WasmEdge_Value::from)
-            .collect();
-
-        let func_type = unsafe { ffi::WasmEdge_VMGetFunctionType(self.ctx, raw_func_name) };
-        if func_type.is_null() {
-            return Err(Error::MissingFunction(func_name.as_ref().to_string()));
+    pub fn run(self, func_name: &str, params: &[wasmedge::Value]) -> Result<Vec<Value>, Error> {
+        match self.inner {
+            Some(vm) => {
+                vm.run(func_name, params).map_err(Error::Execute)?;
+            }
+            None => panic!("WasmEdge Vm can't run!")
         }
-        let num_returns = unsafe { ffi::WasmEdge_FunctionTypeGetReturnsLength(func_type) };
-        let mut returns = Vec::with_capacity(num_returns as usize);
-
-        unsafe {
-            ffi::decode_result(ffi::WasmEdge_VMExecute(
-                self.ctx,
-                raw_func_name,
-                raw_params.as_ptr(),
-                raw_params.len() as u32,
-                returns.as_mut_ptr(),
-                num_returns,
-            ))
-            .map_err(Error::Execute)?;
-            returns.set_len(num_returns as usize);
-        }
-
-        Ok(returns.into_iter().map(Into::into).collect())
     }
+
 }
 
-impl Drop for Vm {
-    fn drop(&mut self) {
-        unsafe { ffi::WasmEdge_VMDelete(self.ctx) };
-    }
+
+#[derive(Debug)]
+pub struct VmBuilder{
+    pub module_path: &'static str,
+    pub inner: Vm
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("failed to create WasmEdge VM")]
-    Create,
+impl VmBuilder {
+    pub fn new(module_path: &str) -> Self {
+        let vm  = Vm::default();
+        Self {module_path, inner: vm}
+    }
 
-    #[error("module loading failed: {}", _0.message)]
-    ModuleLoad(ffi::Error),
+    pub fn with_config(self, config: &wasmedge::Config) -> Result<Self, Error> {
+        let mut vm = self.inner;
+        vm.config = Some(config);
+        let module = Module::new(vm.config, self.module_path)?;
+        vm.module = Some(module);
+        Ok(Self {module_path: self.module_path, inner: vm})
+    }
 
-    #[error("module validation failed: {}", _0.message)]
-    Validate(ffi::Error),
+    pub fn build(self) -> Result<Vm, Error> {
+        let mut vm  = self.inner;
+        // unwrap is safety!
+        let vm_instance = vm.create(vm.module.unwrap(), vm.config.unwrap())?;
+        vm.inner = Some(vm_instance);
+        Ok(vm)
+    }
 
-    #[error("module instantiation failed: {}", _0.message)]
-    Instantiate(ffi::Error),
 
-    #[error("could not find function `{0}` in module")]
-    MissingFunction(String),
-
-    #[error("module execution failed: {}", _0.message)]
-    Execute(ffi::Error),
 }

@@ -347,22 +347,21 @@ main() {
         echo "Installing in $IPATH${NC}"
         mkdir -p $IPATH
         echo "$ENV" >$IPATH/env
-        . $IPATH/env
         local _source=". \"\$HOME/.wasmedge/env\""
-        local _grep=$(cat $HOME/.bashrc 2>/dev/null | grep "wasmedge")
-        if [ -f $HOME/.bashrc ]; then
+        local _grep=$(cat $HOME/.profile 2>/dev/null | grep "wasmedge")
+        if [ -f $HOME/.profile ]; then
+            if [ "$_grep" = "" ]; then
+                echo $_source >>$HOME/.profile
+            fi
+        elif [ -f $HOME/.bashrc ]; then
+            local _grep=$(cat $HOME/.bashrc | grep "wasmedge")
             if [ "$_grep" = "" ]; then
                 echo $_source >>$HOME/.bashrc
             fi
         elif [ -f $HOME/.bash_profile ]; then
-            _grep=$(cat $HOME/.bash_profile | grep "wasmedge")
+            local _grep=$(cat $HOME/.bash_profile | grep "wasmedge")
             if [ "$_grep" = "" ]; then
                 echo $_source >>$HOME/.bash_profile
-            fi
-        elif [ -f $HOME/.profile ]; then
-            _grep=$(cat $HOME/.profile | grep "wasmedge")
-            if [ "$_grep" = "" ]; then
-                echo $_source >>$HOME/.profile
             fi
         else
             echo $_source >>$HOME/.bashrc
@@ -418,15 +417,20 @@ main() {
 }
 
 end_message() {
-    case ":${PATH}:" in
-    *:"$IPATH/bin":*)
-        echo "${GREEN}WasmEdge binaries accessible${NC}"
-        ;;
-    *)
-        echo "${YELLOW}Add $IPATH/bin to your PATH using following command"
-        echo "export PATH=$IPATH/bin:\$PATH${NC}"
-        ;;
-    esac
+    if [ ! $default == 1 ]; then
+        echo ""
+        echo "${GREEN}source $IPATH/env${NC} to use wasmedge binaries"
+    else
+        case ":${PATH}:" in
+        *:"$IPATH/bin":*)
+            echo "${GREEN}WasmEdge binaries accessible${NC}"
+            ;;
+        *)
+            echo "${YELLOW}Add $IPATH/bin to your PATH using following command"
+            echo "export PATH=$IPATH/bin:\$PATH${NC}"
+            ;;
+        esac
+    fi
 }
 
 main "$@"

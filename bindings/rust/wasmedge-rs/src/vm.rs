@@ -30,8 +30,8 @@ impl Vm {
     ) -> Result<Self, Error> {
         let vm = wasmedge::Vm::create(module, config).map_err(VmError::Create)?;
         let vm = vm.load_wasm_from_ast_module(module).map_err(VmError::ModuleLoad)?; 
-        let vm = vm.vm_validate().map_err(VmError::Validate)?;
-        let vm = vm.vm_instantiate().map_err(VmError::Instantiate)?;
+        let vm = vm.validate().map_err(VmError::Validate)?;
+        let vm = vm.instantiate().map_err(VmError::Instantiate)?;
         Ok(vm)
     }
 

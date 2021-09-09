@@ -33,14 +33,28 @@ impl Vm {
             return Err(ErrReport::default());
         }
 
-        unsafe {
-            decode_result(wasmedge::WasmEdge_VMLoadWasmFromASTModule(ctx, module.ctx))?;
-            // The following two calls could be made lazily if they're expensive.
-            decode_result(wasmedge::WasmEdge_VMValidate(ctx))?;
-            decode_result(wasmedge::WasmEdge_VMInstantiate(ctx))?;
-        }
-
         Ok(Self { ctx , _private: ()})
+    }
+
+    pub fn load_wasm_from_ast_module(self, module: &crate::module::Module) -> Result<Self, ErrReport> {
+        unsafe{
+            decode_result(wasmedge::WasmEdge_VMLoadWasmFromASTModule(self.ctx, module.ctx))?;
+        }
+        Ok(self)
+    }
+
+    pub fn validate(self) -> Result<Self, ErrReport> {
+        unsafe{
+            decode_result(wasmedge::WasmEdge_VMValidate(self.ctx))?;
+        }
+        Ok(self)
+    }
+
+    pub fn instantiate(self) -> Result<Self, ErrReport> {
+        unsafe{
+            decode_result(wasmedge::WasmEdge_VMInstantiate(self.ctx))?;
+        }
+        Ok(self)
     }
 
     fn construct_func(&mut self, func_name: impl AsRef<str>, params: &[Value]) -> Result<VmExecParams, ErrReport> {

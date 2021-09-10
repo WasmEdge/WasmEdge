@@ -1,22 +1,24 @@
 
 use super::wasmedge;
+use thiserror::Error;
 
-#[derive(Debug, thiserror::Error)]
+
+#[derive(Debug, Error)]
 pub enum ModuleError {
     #[error("an unknown error occured")]
-    Unknown,
+    Unknown(wasmedge::ErrReport),
 
     #[error("`{0}` is not a valid path: {1}")]
-    Path(String, Box<dyn std::error::Error>),
+    Path(String, Box<dyn std::error::Error + 'static + Send + Sync>),
 
     #[error("loader error: {}", _0.message)]
     Load(wasmedge::ErrReport),
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Error)]
 pub enum VmError {
     #[error("failed to create WasmEdge VM")]
-    Create,
+    Create(wasmedge::ErrReport),
 
     #[error("module loading failed: {}", _0.message)]
     ModuleLoad(wasmedge::ErrReport),

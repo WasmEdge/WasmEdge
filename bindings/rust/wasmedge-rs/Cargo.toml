@@ -6,6 +6,6 @@ description = "WasmEdge Runtime is a high-performance, extensible, and hardware 
 license = "Apache-2.0"
 
 [dependencies]
-paste = "1.0.5"
+anyhow = "1.0.38"
 thiserror = "1.0.26"
 wasmedge-sys = { path = "../wasmedge-sys" }

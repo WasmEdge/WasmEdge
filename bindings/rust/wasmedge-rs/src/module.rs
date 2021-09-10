@@ -6,6 +6,8 @@ use std::{
 };
 
 use crate::error::ModuleError;
+use anyhow::Result;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Module {
@@ -13,14 +15,14 @@ pub struct Module {
 }
 
 impl Module{
-    fn new(config: wasmedge::Config, module_path: &str) -> Result<Self, Error>{
+    pub fn new(config: &wasmedge::Config, module_path: &str) -> Result<Self, anyhow::Error>{
         let module_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
         .join(module_path);
-        let path = path.as_ref();
+        let path = module_path.as_ref();
         let path_cstr = path_to_cstr(path)
             .map_err(|e| ModuleError::Path(path.to_string_lossy().to_string(), Box::new(e)))?;
 
-        let module = wasmedge::Module::load_from_file(&config, path_cstr).map_err(ModuleError::Load)?;
+        let module = wasmedge::Module::load_from_file(config, path_cstr).map_err(ModuleError::Load)?;
 
         Ok(Self{ inner: module})
         

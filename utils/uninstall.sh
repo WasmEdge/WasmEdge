@@ -103,14 +103,6 @@ uninstall_wasmedge() {
     ldconfig
 }
 
-wasmedge_deps() {
-    echo "Following Deps were also installed for wasmedge"
-    echo "Please remove them manually"
-    for var in "$@"; do
-        echo "  $var"
-    done
-}
-
 wasmedge_checks() {
     for var in "$@"; do
         if [ -f $IPATH/bin/$var ]; then
@@ -250,18 +242,6 @@ main() {
 
     if [ -d $IPATH ]; then
         echo "WasmEdge uninstallation from $IPATH"
-        wasmedge_deps software-properties-common \
-            wget \
-            cmake \
-            ninja-build \
-            curl \
-            git \
-            dpkg-dev \
-            libboost-all-dev \
-            llvm-12-dev \
-            liblld-12-dev \
-            gcc \
-            g++
 
         uninstall_wasmedge
         wasmedge_checks "wasmedge" "wasmedgec"

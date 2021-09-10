@@ -25,7 +25,7 @@ impl Vm {
     pub fn create(
         module: &crate::module::Module,
         config: &crate::config::Config,
-    ) -> Result<Self, ErrReport> {
+    ) -> Result<Self, ErrReport> {  
         let ctx = unsafe {
             wasmedge::WasmEdge_VMCreate(config.ctx, std::ptr::null_mut() /* store */)
         };

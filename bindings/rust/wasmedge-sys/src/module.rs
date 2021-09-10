@@ -3,6 +3,7 @@ use crate::raw_result::{ErrReport, decode_result};
 use std::ffi::CString;
 
 /// Not allowed to be constructed downstream
+#[derive(Debug)]
 pub struct Module {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ASTModuleContext,
     _private: (),

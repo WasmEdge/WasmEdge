@@ -1,4 +1,6 @@
 use super::wasmedge;
+
+#[derive(Debug)]
 pub struct Config {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ConfigureContext,
     _private: (),

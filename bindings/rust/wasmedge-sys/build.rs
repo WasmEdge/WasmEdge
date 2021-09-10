@@ -61,9 +61,9 @@ fn find_wasmedge() -> Paths {
 
     Paths {
         header: inc_dir
-            .unwrap_or_else(|| PathBuf::from("/usr/include"))
+            .unwrap_or_else(|| PathBuf::from("/usr/local/include"))
             .join(WASMEDGE_H),
-        lib_dir: lib_dir.unwrap_or_else(|| PathBuf::from("/usr/lib")),
+        lib_dir: lib_dir.unwrap_or_else(|| PathBuf::from("/usr/local/lib")),
     }
 }
 

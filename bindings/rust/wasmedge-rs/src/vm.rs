@@ -4,16 +4,17 @@ use crate::module::Module;
 use crate::error::VmError;
 use std::sync::Arc;
 
+use std::path::PathBuf;
+
 #[derive(Debug)]
 pub struct Vm{
     config: Option<Arc<wasmedge::Config>>,
     module: Option<Arc<Module>>,
     inner: Option<wasmedge::Vm>,
-    _private: ()
 }
 
-impl<'a> Vm {
-    pub fn new(module_path: &'a str) -> Result<VmBuilder<'a>, anyhow::Error> {
+impl Vm {
+    pub fn new(module_path: PathBuf) -> Result<VmBuilder, anyhow::Error> {
         VmBuilder::new(module_path)
     }
 
@@ -24,7 +25,6 @@ impl<'a> Vm {
             config : Some(config),
             module: None,
             inner: None,
-            _private: ()
         }
     }
 
@@ -43,17 +43,17 @@ impl<'a> Vm {
 
 
 #[derive(Debug)]
-pub struct VmBuilder<'a>{
-    pub module_path: &'a str,
+pub struct VmBuilder{
+    pub module_path: PathBuf,
     pub inner: Vm
 }
 
-impl<'a> VmBuilder<'a> {
+impl VmBuilder {
 
-    pub fn new(module_path: &'a str) -> Result<Self, anyhow::Error> {
+    pub fn new(module_path: PathBuf) -> Result<Self, anyhow::Error> {
         let mut vm  = Vm::default();
         // unwrap is safety.
-        let module = Module::new(vm.config.clone().unwrap().as_ref(), module_path)?;
+        let module = Module::new(vm.config.clone().unwrap().as_ref(), &module_path)?;
         vm.module = Some(Arc::new(module));
         Ok(Self {module_path, inner: vm} )
     }
@@ -72,7 +72,7 @@ impl<'a> VmBuilder<'a> {
             let vm_instance = vm_instance.load_wasm_from_ast_module(&module.inner).map_err(VmError::ModuleLoad)?; 
             let vm_instance = vm_instance.validate().map_err(VmError::Validate)?;
             let vm_instance = vm_instance.instantiate().map_err(VmError::Instantiate)?;
-            Ok(Vm {config: vm.config, module: vm.module, inner: Some(vm_instance), _private: ()} )
+            Ok(Vm {config: vm.config, module: vm.module, inner: Some(vm_instance)} )
         }else{
             panic!("Failed! Please specify a reasonable module path and configuration");
         }

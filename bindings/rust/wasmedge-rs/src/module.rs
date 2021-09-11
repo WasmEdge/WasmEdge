@@ -8,19 +8,18 @@ use std::{
 use crate::error::ModuleError;
 use anyhow::Result;
 use std::sync::Arc;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct Module {
-    pub inner: wasmedge::Module,
+    pub(crate) inner: wasmedge::Module,
 }
 
 impl Module{
-    pub fn new(config: &wasmedge::Config, module_path: &str) -> Result<Self, anyhow::Error>{
-        let module_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
-        .join(module_path);
+    pub fn new(config: &wasmedge::Config, module_path: &PathBuf) -> Result<Self, anyhow::Error>{
         let path = module_path.as_ref();
         let path_cstr = path_to_cstr(path)
-            .map_err(|e| ModuleError::Path(path.to_string_lossy().to_string(), Box::new(e)))?;
+            .map_err(|e| ModuleError::Path(path.display().to_string(), Box::new(e)))?;
 
         let module = wasmedge::Module::load_from_file(config, path_cstr).map_err(ModuleError::Load)?;
 

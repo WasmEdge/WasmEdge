@@ -1,10 +1,12 @@
 //! Usage: [DY]LD_LIBRARY_PATH="$(git rev-parse --show-toplevel)/build/lib/api" cargo run --example quickstart
 
+use std::path::PathBuf;
 
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let module_path = "tools/wasmedge/examples/fibonacci.wasm";
+    let module_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
+        .join("tools/wasmedge/examples/fibonacci.wasm");
 
     let config = wedge::Config::default();
     let vm = wedge::Vm::new(module_path)?

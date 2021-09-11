@@ -79,9 +79,6 @@ impl Vm {
             returns.set_len(returns_len as usize);
         }
         Ok(returns.into_iter().map(Into::into).collect())
-
-
-
     }
 
 }

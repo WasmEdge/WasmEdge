@@ -48,11 +48,15 @@ fi
 RELEASE_PKG="manylinux2014_x86_64.tar.gz"
 ARCH=$(uname -m)
 OS=$(uname)
+IM_EXT_COMPAT=1
+TF_EXT_COMPAT=1
 
 case $OS in
 'Linux')
     if [ "$ARCH" = "aarch64" ]; then
         RELEASE_PKG="manylinux2014_$ARCH.tar.gz"
+        IM_EXT_COMPAT=0
+        TF_EXT_COMPAT=0
     fi
     ;;
 *)
@@ -288,6 +292,27 @@ install_wasmedge_tensorflow() {
     _ldconfig
 }
 
+install_image_extensions() {
+    if [ $IM_EXT_COMPAT == 1 ]; then
+        get_wasmedge_image_deps
+        install_wasmedge_image
+    else
+        echo "${YELLOW}Image Extensions not supported${NC}"
+    fi
+}
+
+install_tf_extensions() {
+    if [ $TF_EXT_COMPAT == 1 ]; then
+        get_wasmedge_tensorflow_deps
+        install_wasmedge_tensorflow
+        wasmedge_checks $VERSION_TF_TOOLS wasmedge-tensorflow \
+            wasmedgec-tensorflow \
+            wasmedge-tensorflow-lite
+    else
+        echo "${YELLOW}Tensorflow extensions not supported${NC}"
+    fi
+}
+
 main() {
 
     trap on_exit EXIT
@@ -403,24 +428,14 @@ main() {
 
     if [ "$EXT" = "image" ]; then
         echo "Image Extensions"
-        get_wasmedge_image_deps
-        install_wasmedge_image
+        install_image_extensions
     elif [ "$EXT" = "tf" ]; then
         echo "Tensorflow Extensions"
-        get_wasmedge_tensorflow_deps
-        install_wasmedge_tensorflow
-        wasmedge_checks $VERSION_TF_TOOLS wasmedge-tensorflow \
-            wasmedgec-tensorflow \
-            wasmedge-tensorflow-lite
+        install_tf_extensions
     elif [ "$EXT" = "all" ]; then
         echo "Image & Tensorflow extensions"
-        get_wasmedge_image_deps
-        install_wasmedge_image
-        get_wasmedge_tensorflow_deps
-        install_wasmedge_tensorflow
-        wasmedge_checks $VERSION_TF_TOOLS wasmedge-tensorflow \
-            wasmedgec-tensorflow \
-            wasmedge-tensorflow-lite
+        install_image_extensions
+        install_tf_extensions
     elif [ "$EXT" = "none" ]; then
         echo "No extensions to be installed"
     else

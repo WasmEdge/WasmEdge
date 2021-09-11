@@ -2,7 +2,9 @@ use super::wasmedge;
 use crate::raw_result::{ErrReport, decode_result};
 use std::ffi::CString;
 
-/// Not allowed to be constructed downstream
+// Since `wasmedge-sys` is also a standalone crate
+// if someone else wants to rely on it to implement a third-party sdk
+// then we expect that the third-party sdk will only use the interface we want it to use.
 #[derive(Debug)]
 pub struct Module {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ASTModuleContext,

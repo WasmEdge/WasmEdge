@@ -4,7 +4,9 @@ use crate::raw_result::{ErrReport, decode_result};
 use crate::string::StringRef;
 
 
-/// A WasmEdge VM instance.
+// Since `wasmedge-sys` is also a standalone crate
+// if someone else wants to rely on it to implement a third-party sdk
+// then we expect that the third-party sdk will only use the interface we want it to use.
 #[derive(Debug)]
 pub struct Vm {
     pub(crate) ctx: *mut wasmedge::WasmEdge_VMContext,

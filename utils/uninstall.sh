@@ -3,12 +3,30 @@ set -e
 
 RED=$'\e[0;31m'
 GREEN=$'\e[0;32m'
+YELLOW=$'\e[0;33m'
 NC=$'\e[0m' # No Color
+PERM_ROOT=1
 
-ARGS=("$@")
-VERSION="0.8.1"
-VERSION_TF="0.8.0"
-IPATH="/usr/local"
+if [[ $EUID -ne 0 ]]; then
+    echo "${YELLOW}No root permissions.${NC}"
+    PERM_ROOT=0
+fi
+
+_ldconfig() {
+    if [ $PERM_ROOT == 1 ]; then
+        ldconfig "$IPATH"/lib
+    fi
+}
+
+if command -v sudo &>/dev/null; then
+    if [ $PERM_ROOT == 1 ]; then
+        HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
+    fi
+else
+    echo "${YELLOW}sudo could not be found${NC}"
+fi
+
+IPATH="$HOME/.wasmedge"
 EXT="none"
 VERBOSE=0
 ASK=1
@@ -23,9 +41,6 @@ usage() {
 
     -p, -path,          --path=[/usr/local]         Prefix / Path to uninstall
 
-    -v, -version,       --version=VERSION           Set and Download specific 
-                                                    version of WasmEdge
-
     -q, -quick,           --quick                   Uninstall everything
                                                     without asking
 
@@ -39,7 +54,7 @@ usage() {
                                                     of execution.
 
     Example:
-    ./$0 -p $IPATH -e all -v $VERSION --quick
+    ./$0 -p $IPATH -e all -v --quick
 
     About:
 
@@ -57,7 +72,23 @@ usage() {
       the AOT compiled so program with the Tensorflow Lite library.
 
 EOF
-    exit 1
+}
+
+detect_bin_path() {
+    set +e
+    _path=$(which "$1")
+    if [ "$_path" = "" ]; then
+        if [ ! -d "$IPATH" ]; then
+            echo "${RED}Cannot detect installation path${NC}"
+            exit 1
+        else
+            echo "${GREEN}Installation path found at $IPATH${NC}"
+        fi
+    else
+        IPATH=${_path%"/bin/$1"}
+        echo "${GREEN}Installation path found at $IPATH${NC}"
+    fi
+    set -e
 }
 
 ask_remove() {
@@ -65,15 +96,15 @@ ask_remove() {
     if [ $ASK == 1 ]; then
         while true; do
             echo "Do you wish to uninstall the following libs?"
-            for var in ${libs[@]}; do
+            for var in "${libs[@]}"; do
                 echo "  $var"
             done
             read -p "Please answer [Y/N | y/n]" yn
             case $yn in
             [Yy]*)
-                for var in ${libs[@]}; do
+                for var in "${libs[@]}"; do
                     echo "Removing $var"
-                    rm -f $var
+                    rm -f "$var"
                 done
                 ldconfig
                 break
@@ -86,26 +117,26 @@ ask_remove() {
             esac
         done
     else
-        for var in ${libs[@]}; do
+        for var in "${libs[@]}"; do
             echo "Removing $var"
-            rm -f $var
+            rm -f "$var"
         done
-        ldconfig
+        _ldconfig
     fi
 }
 
 uninstall_wasmedge() {
-    echo "Uninstalling WasmEdge-$VERSION"
-    rm -f $IPATH/include/wasmedge.h
-    rm -f $IPATH/lib/libwasmedge_c.so
-    rm -f $IPATH/bin/wasmedge
-    rm -f $IPATH/bin/wasmedgec
-    ldconfig
+    echo "Uninstalling WasmEdge"
+    rm -f "$IPATH"/include/wasmedge.h
+    rm -f "$IPATH"/lib/libwasmedge_c.so
+    rm -f "$IPATH"/bin/wasmedge
+    rm -f "$IPATH"/bin/wasmedgec
+    _ldconfig
 }
 
 wasmedge_checks() {
     for var in "$@"; do
-        if [ -f $IPATH/bin/$var ]; then
+        if [ -f "$IPATH"/bin/"$var" ]; then
             echo "${RED}Uninstallation of $var unsuccessfull${NC}"
             exit 1
         else
@@ -117,60 +148,60 @@ wasmedge_checks() {
 remove_wasmedge_image_deps() {
     echo "
     Uninstall
-    WasmEdge-image-deps-$VERSION"
-    local libs=($IPATH/lib/libjpeg.so
-        $IPATH/lib/libjpeg.so.8
-        $IPATH/lib/libjpeg.so.8.3.0
-        $IPATH/lib/libpng.so
-        $IPATH/lib/libpng16.so
-        $IPATH/lib/libpng16.so.16
-        $IPATH/lib/libpng16.so.16.37.0)
+    WasmEdge-image-deps"
+    local libs=("$IPATH"/lib/libjpeg.so
+        "$IPATH"/lib/libjpeg.so.8
+        "$IPATH"/lib/libjpeg.so.8.3.0
+        "$IPATH"/lib/libpng.so
+        "$IPATH"/lib/libpng16.so
+        "$IPATH"/lib/libpng16.so.16
+        "$IPATH"/lib/libpng16.so.16.37.0)
 
-    ask_remove ${libs[@]}
+    ask_remove "${libs[@]}"
 }
 
 uninstall_wasmedge_image() {
     echo "
     Uninstalling ===>
-    WasmEdge-image-$VERSION"
-    rm -f $IPATH/lib/libwasmedge-image_c.so
-    rm -f $IPATH/include/wasmedge-image.h
-    ldconfig
+    WasmEdge-image"
+    rm -f "$IPATH"/lib/libwasmedge-image_c.so
+    rm -f "$IPATH"/include/wasmedge-image.h
+    _ldconfig
 }
 
 remove_wasmedge_tensorflow_deps() {
     echo "
     Uninstall
-    WasmEdge-tensorflow-deps-TF-$VERSION_TF 
-    WasmEdge-tensorflow-deps-TFLite-$VERSION_TF"
-    local libs=($IPATH/lib/libtensorflow.so.2
-        $IPATH/lib/libtensorflow.so
-        $IPATH/lib/libtensorflow_framework.so.2
-        $IPATH/lib/libtensorflow_framework.so
-        $IPATH/lib/libtensorflow.so.2.4.0
-        $IPATH/lib/libtensorflow.so.2
-        $IPATH/lib/libtensorflow_framework.so.2.4.0
-        $IPATH/lib/libtensorflowlite_c.so
-        $IPATH/lib/libtensorflow_framework.so.2)
+    WasmEdge-tensorflow-deps-TF 
+    WasmEdge-tensorflow-deps-TFLite"
+    local libs=("$IPATH"/lib/libtensorflow.so.2
+        "$IPATH"/lib/libtensorflow.so
+        "$IPATH"/lib/libtensorflow_framework.so.2
+        "$IPATH"/lib/libtensorflow_framework.so
+        "$IPATH"/lib/libtensorflow.so.2.4.0
+        "$IPATH"/lib/libtensorflow.so.2
+        "$IPATH"/lib/libtensorflow_framework.so.2.4.0
+        "$IPATH"/lib/libtensorflowlite_c.so
+        "$IPATH"/lib/libtensorflow_framework.so.2)
 
-    ask_remove ${libs[@]}
+    ask_remove "${libs[@]}"
 }
 
 uninstall_wasmedge_tensorflow() {
     echo "
     Uninstalling ===>
-    WasmEdge-tensorflow-$VERSION  
-    WasmEdge-tensorflowlite-$VERSION 
-    WasmEdge-tensorflow-tools-$VERSION"
-    rm -f $IPATH/include/wasmedge-tensorflow.h
-    rm -f $IPATH/include/wasmedge-tensorflowlite.h
-    rm -f $IPATH/lib/libwasmedge-tensorflow_c.so
-    rm -f $IPATH/lib/libwasmedge-tensorflowlite_c.so
-    rm -f $IPATH/bin/wasmedge-tensorflow-lite
-    rm -f $IPATH/bin/wasmedge-tensorflow
-    rm -f $IPATH/bin/wasmedgec-tensorflow
-    rm -f $IPATH/bin/show-tflite-tensor
-    ldconfig
+    WasmEdge-tensorflow  
+    WasmEdge-tensorflowlite 
+    WasmEdge-tensorflow-tools"
+    rm -f "$IPATH"/include/wasmedge-tensorflow.h
+    rm -f "$IPATH"/include/wasmedge-tensorflowlite.h
+    rm -f "$IPATH"/lib/libwasmedge-tensorflow_c.so
+    rm -f "$IPATH"/lib/libwasmedge-tensorflowlite_c.so
+    rm -f "$IPATH"/bin/wasmedge-tensorflow-lite
+    rm -f "$IPATH"/bin/wasmedge-tensorflow
+    rm -f "$IPATH"/bin/wasmedgec-tensorflow
+    rm -f "$IPATH"/bin/show-tflite-tensor
+    _ldconfig
 }
 
 main() {
@@ -178,7 +209,7 @@ main() {
     # getopt is in the util-linux package,
     # it'll probably be fine, but it's of course a good thing to keep in mind.
 
-    options=$(getopt -l "extension:,help,path:,quick,version:,verbose" -o "e:hp:qv:V" -a -- "${ARGS[@]}")
+    options=$(getopt -l "extension:,help,path:,quick,verbose" -o "e:hp:qV" -a -- "$@")
 
     eval set -- "$options"
 
@@ -193,10 +224,6 @@ main() {
         -h | --help)
             usage
             exit 0
-            ;;
-        -v | --version)
-            shift
-            VERSION=$1
             ;;
         -V | --verbose)
             VERBOSE=1
@@ -221,7 +248,9 @@ main() {
         shift
     done
 
-    if [ ! $default == 1 ]; then
+    detect_bin_path wasmedge
+
+    if [ ! $default == 1 ] && [ ! $ASK == 0 ]; then
         while true; do
             echo "No path provided"
             read -p "Do you wish to uninstall this program from $IPATH?" yn
@@ -240,7 +269,7 @@ main() {
         set -xv
     fi
 
-    if [ -d $IPATH ]; then
+    if [ -d "$IPATH" ]; then
         echo "WasmEdge uninstallation from $IPATH"
 
         uninstall_wasmedge

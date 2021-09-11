@@ -12,6 +12,7 @@ pub struct Vm {
     _private: ()
 }
 
+#[derive(Debug)]
 struct VmExecParams{
     vm_ctx: *mut wasmedge::WasmEdge_VMContext,
     raw_func_name: wasmedge::WasmEdge_String,
@@ -92,6 +93,7 @@ impl Vm {
     ) -> Result<Vec<Value>, ErrReport> {
         
         let vm_exec_params = self.construct_func(func_name, params)?;
+        println!("{:#?}", vm_exec_params);
         let returns_len = vm_exec_params.returns_len;
         let returns_p = vm_exec_params.returns_values;
 
@@ -110,7 +112,7 @@ impl Vm {
         let returns = unsafe {
             Vec::from_raw_parts(returns_p, returns_len, returns_cap)
         };
-
+        println!("---> {:#?}", returns);
         Ok(returns.into_iter().map(Into::into).collect())
     }
 }

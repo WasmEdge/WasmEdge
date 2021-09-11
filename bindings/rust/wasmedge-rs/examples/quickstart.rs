@@ -1,6 +1,5 @@
 //! Usage: [DY]LD_LIBRARY_PATH="$(git rev-parse --show-toplevel)/build/lib/api" cargo run --example quickstart
 
-use std::path::PathBuf;
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -8,7 +7,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .join("tools/wasmedge/examples/fibonacci.wasm");
 
     let config = wedge::Config::default();
-    let vm = wedge::Vm::new(module_path)?.with_config(config)?.build()?;
+    let module = wedge::Module::new(&config, &module_path)?;
+
+    let vm = wedge::Vm::new(&module.inner)?.with_config(&config)?.build()?;
 
     let results = vm.run("fib", &[5.into()])?;
 

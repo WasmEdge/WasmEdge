@@ -1,40 +1,26 @@
 use super::wasmedge;
-use crate::module::Module;
 
 use crate::error::VmError;
-use std::sync::Arc;
-
-use std::path::PathBuf;
 
 #[derive(Debug)]
-pub struct Vm {
-    config: Option<Arc<wasmedge::Config>>,
-    module: Option<Arc<Module>>,
+pub struct Vm<'a> {
+    config: Option<&'a wasmedge::Config>,
+    module: &'a wasmedge::Module,
     inner: Option<wasmedge::Vm>,
 }
 
-impl Vm {
-    pub fn new(module_path: PathBuf) -> Result<VmBuilder, anyhow::Error> {
-        VmBuilder::new(module_path)
-    }
-
-    fn default() -> Self {
-        // Panic if faild
-        let config = Arc::new(wasmedge::Config::default());
-        Self {
-            config: Some(config),
-            module: None,
-            inner: None,
-        }
+impl<'a> Vm<'a> {
+    pub fn new(module: &'a wasmedge::Module) -> Result<VmBuilder<'a>, anyhow::Error> {
+        VmBuilder::new(module)
     }
 
     pub fn run(
-        self,
+        mut self,
         func_name: &str,
         params: &[wasmedge::Value],
     ) -> Result<Vec<wasmedge::Value>, anyhow::Error> {
         match self.inner {
-            Some(mut vm) => {
+            Some(ref mut vm) => {
                 let returns = vm.run(func_name, params).map_err(VmError::Execute)?;
                 Ok(returns)
             }
@@ -44,40 +30,39 @@ impl Vm {
 }
 
 #[derive(Debug)]
-pub struct VmBuilder {
-    pub module_path: PathBuf,
-    pub inner: Vm,
+pub struct VmBuilder<'a> {
+    pub inner: Vm<'a>,
 }
 
-impl VmBuilder {
-    pub fn new(module_path: PathBuf) -> Result<Self, anyhow::Error> {
-        let mut vm = Vm::default();
-        // unwrap is safety.
-        let module = Module::new(vm.config.clone().unwrap().as_ref(), &module_path)?;
-        vm.module = Some(Arc::new(module));
+impl<'a> VmBuilder<'a> {
+    pub fn new(module: &'a wasmedge::Module) -> Result<Self, anyhow::Error> {
+        let vm = Vm {
+            config: None,
+            module,
+            inner: None,
+        };
         Ok(Self {
-            module_path,
             inner: vm,
         })
     }
 
-    pub fn with_config(self, config: wasmedge::Config) -> Result<Self, anyhow::Error> {
+    pub fn with_config(self, config: &'a wasmedge::Config) -> Result<Self, anyhow::Error> {
         let mut vm = self.inner;
-        vm.config = Some(Arc::new(config));
-        Ok(Self { inner: vm, ..self })
+        vm.config = Some(config);
+        Ok(Self { inner: vm })
     }
 
-    pub fn build(self) -> Result<Vm, anyhow::Error> {
+    pub fn build(self) -> Result<Vm<'a>, anyhow::Error> {
         let vm = self.inner;
-        if vm.module.is_some() && vm.config.is_some() {
-            let (module, config) = (vm.module.clone().unwrap(), vm.config.clone().unwrap());
+        if let Some(cfg) = vm.config {
             let vm_instance =
-                wasmedge::Vm::create(&module.inner, &config).map_err(VmError::Create)?;
+                wasmedge::Vm::create(&cfg).map_err(VmError::Create)?;
             let vm_instance = vm_instance
-                .load_wasm_from_ast_module(&module.inner)
+                .load_wasm_from_ast_module(&vm.module)
                 .map_err(VmError::ModuleLoad)?;
             let vm_instance = vm_instance.validate().map_err(VmError::Validate)?;
             let vm_instance = vm_instance.instantiate().map_err(VmError::Instantiate)?;
+            println!("vm_instance {:#?}", vm_instance);
             Ok(Vm {
                 config: vm.config,
                 module: vm.module,

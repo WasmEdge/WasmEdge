@@ -21,18 +21,14 @@ pub fn is_ok(res: wasmedge::WasmEdge_Result) -> bool {
 }
 
 pub fn get_code(res: wasmedge::WasmEdge_Result) -> u32 {
-    unsafe { 
-        wasmedge::WasmEdge_ResultGetCode(res)
-    }
+    unsafe { wasmedge::WasmEdge_ResultGetCode(res) }
 }
 
 pub fn get_message<'a>(res: wasmedge::WasmEdge_Result) -> &'a str {
-    unsafe{ 
-        std::ffi::CStr::from_ptr( 
-            wasmedge::WasmEdge_ResultGetMessage(res) 
-        )
-        .to_str()
-        .unwrap_or("Utf8 Error")
+    unsafe {
+        std::ffi::CStr::from_ptr(wasmedge::WasmEdge_ResultGetMessage(res))
+            .to_str()
+            .unwrap_or("Utf8 Error")
     }
 }
 
@@ -48,8 +44,3 @@ pub fn decode_result(res: wasmedge::WasmEdge_Result) -> Result<(), ErrReport> {
         })
     }
 }
-
-
-
-
-

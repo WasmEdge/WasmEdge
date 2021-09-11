@@ -2,16 +2,13 @@
 
 use std::path::PathBuf;
 
-
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
         .join("tools/wasmedge/examples/fibonacci.wasm");
 
     let config = wedge::Config::default();
-    let vm = wedge::Vm::new(module_path)?
-                .with_config(config)?
-                .build()?;
+    let vm = wedge::Vm::new(module_path)?.with_config(config)?.build()?;
 
     let results = vm.run("fib", &[5.into()])?;
 
@@ -22,6 +19,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("fib(5) = {}", result);
 
     Ok(())
-
 }
-

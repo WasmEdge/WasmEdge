@@ -69,7 +69,9 @@ impl From<String> for StringBuf {
     fn from(s: String) -> Self {
         Self {
             // Safety:  String is valid utf-8 encoding in Rust
-            inner: unsafe { wasmedge::WasmEdge_StringWrap(s.as_ptr() as *const i8, s.len() as u32) },
+            inner: unsafe {
+                wasmedge::WasmEdge_StringWrap(s.as_ptr() as *const i8, s.len() as u32)
+            },
         }
     }
 }
@@ -77,7 +79,9 @@ impl From<String> for StringBuf {
 impl Clone for StringBuf {
     fn clone(&self) -> Self {
         Self {
-            inner: unsafe { wasmedge::WasmEdge_StringCreateByBuffer(self.inner.Buf, self.inner.Length) },
+            inner: unsafe {
+                wasmedge::WasmEdge_StringCreateByBuffer(self.inner.Buf, self.inner.Length)
+            },
         }
     }
 }
@@ -91,7 +95,9 @@ pub struct StringRef<'a> {
 impl StringRef<'_> {
     pub fn to_owned(self) -> StringBuf {
         StringBuf {
-            inner: unsafe { wasmedge::WasmEdge_StringCreateByBuffer(self.inner.Buf, self.inner.Length) },
+            inner: unsafe {
+                wasmedge::WasmEdge_StringCreateByBuffer(self.inner.Buf, self.inner.Length)
+            },
         }
     }
 }
@@ -99,7 +105,9 @@ impl StringRef<'_> {
 impl<'a> From<&'a str> for StringRef<'a> {
     fn from(s: &'a str) -> Self {
         Self {
-            inner: unsafe { wasmedge::WasmEdge_StringWrap(s.as_ptr() as *const i8, s.len() as u32) },
+            inner: unsafe {
+                wasmedge::WasmEdge_StringWrap(s.as_ptr() as *const i8, s.len() as u32)
+            },
             lifetime: PhantomData,
         }
     }

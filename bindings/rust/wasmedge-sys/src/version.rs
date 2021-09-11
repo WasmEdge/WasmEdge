@@ -2,8 +2,8 @@ use super::wasmedge;
 use std::ffi::CStr;
 
 /// # WasmEdge Version
-/// 
-/// ## Example 
+///
+/// ## Example
 ///
 /// ```rust
 /// // in `wasmedge.rs`
@@ -13,10 +13,16 @@ use std::ffi::CStr;
 /// pub const WASMEDGE_VERSION_PATCH: u32 = 2;
 /// ```
 pub fn full_version() -> &'static str {
-    let valid_version = CStr::from_bytes_with_nul(wasmedge::WASMEDGE_VERSION).expect("CString::new failed");
+    let valid_version =
+        CStr::from_bytes_with_nul(wasmedge::WASMEDGE_VERSION).expect("CString::new failed");
     valid_version.to_str().expect("to_str() call failed")
 }
 
 pub fn semv_version() -> String {
-    format!("{}.{}.{}", wasmedge::WASMEDGE_VERSION_MAJOR, wasmedge::WASMEDGE_VERSION_MINOR, wasmedge::WASMEDGE_VERSION_PATCH)
+    format!(
+        "{}.{}.{}",
+        wasmedge::WASMEDGE_VERSION_MAJOR,
+        wasmedge::WASMEDGE_VERSION_MINOR,
+        wasmedge::WASMEDGE_VERSION_PATCH
+    )
 }

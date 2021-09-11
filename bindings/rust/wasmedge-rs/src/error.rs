@@ -1,7 +1,5 @@
-
 use super::wasmedge;
 use thiserror::Error;
-
 
 #[derive(Debug, Error)]
 pub enum ModuleError {

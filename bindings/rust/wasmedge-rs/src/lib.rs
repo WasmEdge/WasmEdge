@@ -8,5 +8,5 @@ pub mod module;
 pub mod vm;
 
 pub use config::Config;
-pub use vm::Vm;
 pub use module::Module;
+pub use vm::Vm;

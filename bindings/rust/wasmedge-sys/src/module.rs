@@ -1,5 +1,5 @@
 use super::wasmedge;
-use crate::raw_result::{ErrReport, decode_result};
+use crate::raw_result::{decode_result, ErrReport};
 use std::ffi::CString;
 
 /// Not allowed to be constructed downstream
@@ -17,28 +17,25 @@ impl Drop for Module {
 }
 
 impl Module {
-
-    pub fn load_from_file(config: &crate::config::Config, path: CString ) -> Result<Self, ErrReport> {
-
-        let loader_ctx = unsafe {wasmedge::WasmEdge_LoaderCreate(config.ctx)};
+    pub fn load_from_file(
+        config: &crate::config::Config,
+        path: CString,
+    ) -> Result<Self, ErrReport> {
+        let loader_ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config.ctx) };
         let mut ctx: *mut wasmedge::WasmEdge_ASTModuleContext = std::ptr::null_mut();
 
-        let res = unsafe{ 
-            wasmedge::WasmEdge_LoaderParseFromFile(
-                loader_ctx,
-                &mut ctx as *mut _,
-                path.as_ptr(),
-            )
+        let res = unsafe {
+            wasmedge::WasmEdge_LoaderParseFromFile(loader_ctx, &mut ctx as *mut _, path.as_ptr())
         };
         decode_result(res)?;
 
         if ctx.is_null() {
             Err(ErrReport::default())
         } else {
-            Ok(Self{ ctx: ctx , _private: ()} )
+            Ok(Self {
+                ctx: ctx,
+                _private: (),
+            })
         }
     }
-
-
 }
-

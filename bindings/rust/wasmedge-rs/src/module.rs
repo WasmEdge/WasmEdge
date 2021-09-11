@@ -14,16 +14,16 @@ pub struct Module {
     pub inner: wasmedge::Module,
 }
 
-impl Module{
-    pub fn new(config: &wasmedge::Config, module_path: &PathBuf) -> Result<Self, anyhow::Error>{
+impl Module {
+    pub fn new(config: &wasmedge::Config, module_path: &PathBuf) -> Result<Self, anyhow::Error> {
         let path = module_path.as_ref();
         let path_cstr = path_to_cstr(path)
             .map_err(|e| ModuleError::Path(path.display().to_string(), Box::new(e)))?;
 
-        let module = wasmedge::Module::load_from_file(config, path_cstr).map_err(ModuleError::Load)?;
+        let module =
+            wasmedge::Module::load_from_file(config, path_cstr).map_err(ModuleError::Load)?;
 
-        Ok(Self{ inner: module})
-        
+        Ok(Self { inner: module })
     }
 }
 

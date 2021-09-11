@@ -41,9 +41,7 @@ impl<'a> VmBuilder<'a> {
             module,
             inner: None,
         };
-        Ok(Self {
-            inner: vm,
-        })
+        Ok(Self { inner: vm })
     }
 
     pub fn with_config(self, config: &'a wasmedge::Config) -> Result<Self, anyhow::Error> {
@@ -55,8 +53,7 @@ impl<'a> VmBuilder<'a> {
     pub fn build(self) -> Result<Vm<'a>, anyhow::Error> {
         let vm = self.inner;
         if let Some(cfg) = vm.config {
-            let vm_instance =
-                wasmedge::Vm::create(&cfg).map_err(VmError::Create)?;
+            let vm_instance = wasmedge::Vm::create(&cfg).map_err(VmError::Create)?;
             let vm_instance = vm_instance
                 .load_wasm_from_ast_module(&vm.module)
                 .map_err(VmError::ModuleLoad)?;

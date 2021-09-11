@@ -25,12 +25,12 @@ impl Default for Config {
         if ctx.is_null() {
             panic!("failed to create WasmEdge configuration");
         }
-        Self { ctx,  _private: ()}
+        Self { ctx, _private: () }
     }
 }
 
 /// Code Generate for `WasmEdge_Proposal` :
-/// 
+///
 /// ```rust
 /// impl Config {
 ///     pub fn enable_bulkmemoryoperations(self, enable: bool) -> Self {
@@ -87,10 +87,14 @@ impl_proposal_config! {
 }
 
 impl Config {
-
     // For Vm
-    pub fn reg_wasi(self) -> Self{
-        unsafe{wasmedge::WasmEdge_ConfigureAddHostRegistration(self.ctx, wasmedge::WasmEdge_HostRegistration_Wasi)};
+    pub fn reg_wasi(self) -> Self {
+        unsafe {
+            wasmedge::WasmEdge_ConfigureAddHostRegistration(
+                self.ctx,
+                wasmedge::WasmEdge_HostRegistration_Wasi,
+            )
+        };
         self
     }
 
@@ -98,7 +102,9 @@ impl Config {
 
     /// Set the optimization level of AOT compiler.
     pub fn opt_level(self, opt_level: OptLevel) -> Self {
-        unsafe { wasmedge::WasmEdge_ConfigureCompilerSetOptimizationLevel(self.ctx, opt_level as u32) };
+        unsafe {
+            wasmedge::WasmEdge_ConfigureCompilerSetOptimizationLevel(self.ctx, opt_level as u32)
+        };
         self
     }
 
@@ -150,6 +156,5 @@ pub enum OptLevel {
     /// Optimize for small code size as much as possible.
     Oz = wasmedge::WasmEdge_CompilerOptimizationLevel_Oz,
 }
-
 
 // # TODO: WasmEdge_HostRegistration

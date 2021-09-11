@@ -1,45 +1,49 @@
 use super::wasmedge;
-use crate::value::Value;
-use crate::raw_result::{ErrReport, decode_result};
-use crate::string::StringRef;
-
+use crate::{
+    raw_result::{decode_result, ErrReport},
+    string::StringRef,
+    value::Value,
+};
 
 /// A WasmEdge VM instance.
 #[derive(Debug)]
 pub struct Vm {
     pub(crate) ctx: *mut wasmedge::WasmEdge_VMContext,
-    _private: ()
+    _private: (),
 }
 
 impl Vm {
-    pub fn create(
-        config: &crate::config::Config,
-    ) -> Result<Self, ErrReport> {  
+    pub fn create(config: &crate::config::Config) -> Result<Self, ErrReport> {
         let ctx = unsafe {
             wasmedge::WasmEdge_VMCreate(config.ctx, std::ptr::null_mut() /* store */)
         };
         if ctx.is_null() {
             return Err(ErrReport::default());
         }
-        Ok(Self { ctx , _private: ()})
+        Ok(Self { ctx, _private: () })
     }
 
-    pub fn load_wasm_from_ast_module(self, module: &crate::module::Module) -> Result<Self, ErrReport> {
-        unsafe{
-            decode_result(wasmedge::WasmEdge_VMLoadWasmFromASTModule(self.ctx, module.ctx))?;
+    pub fn load_wasm_from_ast_module(
+        self,
+        module: &crate::module::Module,
+    ) -> Result<Self, ErrReport> {
+        unsafe {
+            decode_result(wasmedge::WasmEdge_VMLoadWasmFromASTModule(
+                self.ctx, module.ctx,
+            ))?;
         }
         Ok(self)
     }
 
     pub fn validate(self) -> Result<Self, ErrReport> {
-        unsafe{
+        unsafe {
             decode_result(wasmedge::WasmEdge_VMValidate(self.ctx))?;
         }
         Ok(self)
     }
 
     pub fn instantiate(self) -> Result<Self, ErrReport> {
-        unsafe{
+        unsafe {
             decode_result(wasmedge::WasmEdge_VMInstantiate(self.ctx))?;
         }
         Ok(self)
@@ -58,7 +62,7 @@ impl Vm {
             .copied()
             .map(wasmedge::WasmEdge_Value::from)
             .collect();
-        
+
         let func_type = unsafe { wasmedge::WasmEdge_VMGetFunctionType(self.ctx, raw_func_name) };
         if func_type.is_null() {
             return Err(ErrReport::default());
@@ -66,7 +70,7 @@ impl Vm {
 
         let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type) };
         let mut returns = Vec::with_capacity(returns_len as usize);
-        
+
         unsafe {
             decode_result(wasmedge::WasmEdge_VMExecute(
                 self.ctx,
@@ -80,7 +84,6 @@ impl Vm {
         }
         Ok(returns.into_iter().map(Into::into).collect())
     }
-
 }
 
 impl Drop for Vm {
@@ -88,4 +91,3 @@ impl Drop for Vm {
         unsafe { wasmedge::WasmEdge_VMDelete(self.ctx) };
     }
 }
-

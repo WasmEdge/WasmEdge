@@ -1,41 +1,25 @@
 #![deny(rust_2018_idioms, unreachable_pub)]
 
 #[allow(warnings)]
-pub mod ffi {
+pub mod wasmedge {
     include!(concat!(env!("OUT_DIR"), "/wasmedge.rs"));
 }
-pub use ffi::*;
 
-impl Default for WasmEdge_String {
-    fn default() -> Self {
-        WasmEdge_String {
-            Length: 0,
-            Buf: std::ptr::null(),
-        }
-    }
-}
+pub mod config;
+pub mod module;
+pub mod raw_result;
+pub mod string;
+pub mod value;
+pub mod version;
+pub mod vm;
 
-pub fn decode_result(result: WasmEdge_Result) -> Result<(), Error> {
-    unsafe {
-        if WasmEdge_ResultOK(result) {
-            Ok(())
-        } else {
-            Err(Error {
-                code: WasmEdge_ResultGetCode(result),
-                message: std::ffi::CStr::from_ptr(WasmEdge_ResultGetMessage(result))
-                    .to_str()
-                    .unwrap_or("error")
-                    .to_string(),
-            })
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Error {
-    pub code: WasmEdge_ErrCode,
-    pub message: String,
-}
+pub use config::{Config, OptLevel};
+pub use module::Module;
+pub use raw_result::ErrReport;
+pub use string::{StringBuf, StringRef, WasmEdgeString};
+pub use value::Value;
+pub use version::{full_version, semv_version};
+pub use vm::Vm;
 
 #[cfg(test)]
 mod tests {
@@ -45,9 +29,9 @@ mod tests {
     fn links() {
         unsafe {
             assert!(
-                WasmEdge_VersionGetMajor()
-                    + WasmEdge_VersionGetMinor()
-                    + WasmEdge_VersionGetPatch()
+                wasmedge::WasmEdge_VersionGetMajor()
+                    + wasmedge::WasmEdge_VersionGetMinor()
+                    + wasmedge::WasmEdge_VersionGetPatch()
                     != 0
             );
         }

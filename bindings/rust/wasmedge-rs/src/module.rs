@@ -1,54 +1,28 @@
+use super::wasmedge;
+
 use std::{
     ffi::{CString, NulError},
     path::Path,
 };
 
-use wasmedge_sys as ffi;
+use crate::error::ModuleError;
+use anyhow::Result;
 
+#[derive(Debug)]
 pub struct Module {
-    pub(crate) ctx: *mut ffi::WasmEdge_ASTModuleContext,
+    pub inner: wasmedge::Module,
 }
 
 impl Module {
-    pub fn load_from_file(
-        path: impl AsRef<std::path::Path>,
-        config: &crate::config::Config,
-    ) -> Result<Self, Error> {
-        let path = path.as_ref();
-        let path_cstr = path_to_cstr(path)
-            .map_err(|e| Error::Path(path.to_string_lossy().to_string(), Box::new(e)))?;
-        let ctx = unsafe {
-            let loader = ffi::WasmEdge_LoaderCreate(config.ctx);
+    pub fn new(config: &wasmedge::Config, module_path: &Path) -> Result<Self, anyhow::Error> {
+        let path_cstr = path_to_cstr(module_path)
+            .map_err(|e| ModuleError::Path(module_path.display().to_string(), Box::new(e)))?;
 
-            let mut ctx: *mut ffi::WasmEdge_ASTModuleContext = std::ptr::null_mut();
+        let module =
+            wasmedge::Module::load_from_file(config, path_cstr).map_err(ModuleError::Load)?;
 
-            ffi::decode_result(ffi::WasmEdge_LoaderParseFromFile(
-                loader,
-                &mut ctx as *mut _,
-                path_cstr.as_ptr(),
-            ))
-            .map_err(Error::Load)?;
-
-            if ctx.is_null() {
-                Err(Error::Unknown)
-            } else {
-                Ok(ctx)
-            }
-        }?;
-        Ok(Self { ctx })
+        Ok(Self { inner: module })
     }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("an unknown error occured")]
-    Unknown,
-
-    #[error("`{0}` is not a valid path: {1}")]
-    Path(String, Box<dyn std::error::Error>),
-
-    #[error("loader error: {}", _0.message)]
-    Load(ffi::Error),
 }
 
 #[cfg(windows)]

@@ -1,3 +1,34 @@
+### 0.9.0 (unreleased)
+
+Breaking changes:
+
+* Modulize the API Headers.
+  * Moved the API header into the `wasmedge` folder. Developers should include the `wasmedge/wasmedge.h` for using the WasmEdge shared library after installation.
+  * Moved the enumeration definitions into `enum_errcode.h`, `enum_types.h`, and `enum_configure.h` in the `wasmedge` folder.
+* Apply old WebAssembly proposals options (All turned on by default).
+  * Developers can use the `disable-import-export-mut-globals` to disable the Import/Export mutable globals proposal in `wasmedge` and `wasmedgec`.
+  * Developers can use the `disable-non-trap-float-to-int` to disable the Non-trapping float-to-int conversions proposal in `wasmedge` and `wasmedgec`.
+  * Developers can use the `disable-sign-extension-operators` to disable the Sign-extension operators proposal in `wasmedge` and `wasmedgec`.
+  * Developers can use the `disable-multi-value` to disable the Multi-value proposal in `wasmedge` and `wasmedgec`.
+* Adjusted the error code names.
+  * Please refer to the [ErrCode enum](https://github.com/WasmEdge/WasmEdge/blob/master/include/common/enum_errcode.h) definition.
+
+Refactor:
+
+* Refactor the common headers.
+  * Merged the building environment related definitions into `common`.
+  * Separate all enumeration definitions.
+* Updated the include path for rust binding due to the API headers refactoring.
+
+Documentations:
+
+* Updated the examples in the C API documentation.
+
+Tests:
+
+* Added `ErrInfo` unit tests.
+* Added instruction tests for turning on/off the old proposals.
+
 ### 0.8.2 (2021-08-25)
 
 Features:

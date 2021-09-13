@@ -50,9 +50,10 @@ In order for WebAssembly to be widely adopted by developers as a runtime, it mus
 
 ### JavaScript
 
-WasmEdge can act as a cloud-native JavaScript runtime by embedding a JS execution engine or interpreter. It is faster and lighter than running a JS engine inside Docker. WasmEdge supports JS APIs to access native extension functions such as network sockets and tensorflow inference. It also allows embedding JS into other high-performance languages (eg, Rust) or using Rust to implement JS functions. 
+WasmEdge can act as a cloud-native JavaScript runtime by embedding a JS execution engine or interpreter. It is faster and lighter than running a JS engine inside Docker. WasmEdge supports JS APIs to access native extension libraries such as network sockets, tensorflow, and user-defined shared libraries. It also allows embedding JS into other high-performance languages (eg, Rust) or using Rust / C to implement JS functions. 
 
-* [Docs](https://github.com/WasmEdge/WasmEdge/blob/master/docs/run_javascript.md)
+* [Tutorial](https://www.secondstate.io/articles/run-javascript-in-webassembly-with-wasmedge/)
+* [Examples](https://github.com/WasmEdge/WasmEdge/blob/master/tools/wasmedge/examples/js/README.md)
 * [WasmEdge’s embedded QuickJS engine](https://github.com/second-state/wasmedge-quickjs)
 
 ### DSL for image classification

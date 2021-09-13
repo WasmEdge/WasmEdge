@@ -1,19 +1,19 @@
 ## Commands
 
 * `py_run` example
-  * Takes `.wasm` path and function name
+    * Takes `.wasm` path and function name
 
 === "Python"
     ```python linenums="1"
     import WasmEdge as we
     import os
 
-    wasm_base_path = os.path.abspath(os.path.join(__file__, "../../../.."))
+    wasm_base_path = os.path.abspath(os.path.join(__file__, "../../.."))
     fib_wasm = os.path.join(
         wasm_base_path, "tools/wasmedge/examples/fibonacci.wasm"
     )
 
-    print(WasmEdge.py_run(
+    print(we.py_run(
                 fib_wasm,
                 "fib",
             ))

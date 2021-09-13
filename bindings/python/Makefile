@@ -91,5 +91,5 @@ docs:             ## Build the documentation.
 
 .PHONY: deploy-gh-pages
 deploy-gh-pages:
-	@$(ENV_PREFIX)mkdocs gh-deploy --config-file mkdocs.yml --remote-branch "gh-pages"
+	@$(ENV_PREFIX)mkdocs gh-deploy --config-file mkdocs.yml --remote-branch "gh-pages" --remote-name "satacker_r"
 

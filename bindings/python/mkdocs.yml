@@ -12,9 +12,8 @@ theme:
     scheme: preference
 nav:
     - Home: index.md
-    - Docs:
-      - Commands: commands.md
-      - Development: development.md
+    - Commands: commands/commands.md
+    - Development: development/development.md
 
 markdown_extensions:
   - admonition

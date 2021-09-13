@@ -87,5 +87,9 @@ release:          ## Create a new tag for release.
 docs:             ## Build the documentation.
 	@echo "building documentation ..."
 	@$(ENV_PREFIX)mkdocs build
-	URL="site/index.html"; xdg-open $$URL || sensible-browser $$URL || x-www-browser $$URL || gnome-open $$URL
+	@$(ENV_PREFIX)mkdocs serve
+
+.PHONY: deploy-gh-pages
+deploy-gh-pages:
+	@$(ENV_PREFIX)mkdocs gh-deploy --config-file mkdocs.yml --remote-branch "gh-pages"
 

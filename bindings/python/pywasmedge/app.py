@@ -1,5 +1,5 @@
-class WasmEdge:
+# class WasmEdge:
 
-    @staticmethod
-    def run():
-        print("Hello World...")
+#     @staticmethod
+#     def run():
+#         print("Hello World...")

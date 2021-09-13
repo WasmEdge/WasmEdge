@@ -1,1 +1,1 @@
-from .app import WasmEdge 
+# from .app import WasmEdge

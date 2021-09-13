@@ -1,0 +1,25 @@
+site_name: WasmEdge PySDK
+site_author: Shreyas Atre
+site_description: "Documentation for Python SDK for WasmEdge"
+
+repo_url: https://github.com/WasmEdge/WasmEdge
+
+theme: 
+  name : material
+  features:
+        - tabs
+  palette:
+    scheme: preference
+nav:
+    - Home: index.md
+    - Docs:
+      - Commands: commands.md
+      - Development: development.md
+
+markdown_extensions:
+  - admonition
+  - codehilite    
+  - pymdownx.tabbed
+  - pymdownx.superfences
+  - pymdownx.smartsymbols
+  - pymdownx.arithmatex

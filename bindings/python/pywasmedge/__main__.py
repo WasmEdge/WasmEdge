@@ -1,4 +1,4 @@
-from .app import WasmEdge
+# import WasmEdge
 
-if __name__ == '__main__':
-    WasmEdge.run()
+# if __name__ == '__main__':
+#     WasmEdge.run()

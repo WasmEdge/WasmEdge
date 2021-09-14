@@ -14,7 +14,7 @@ fi
 
 _ldconfig() {
     if [ $PERM_ROOT == 1 ]; then
-        ldconfig $IPATH/lib
+        ldconfig "$IPATH/lib"
     fi
 }
 
@@ -22,13 +22,13 @@ _downloader() {
     local url=$1
     if ! command -v wget &>/dev/null; then
         if command -v curl &>/dev/null; then
-            curl -L -OC - $url --progress-bar
+            curl -L -OC - "$url" --progress-bar
         else
             echo "${RED}Please install wget or curl${NC}"
             exit 1
         fi
     else
-        wget -q -c --show-progress $url
+        wget -q -c --show-progress "$url"
     fi
 }
 
@@ -39,7 +39,7 @@ fi
 
 if command -v sudo &>/dev/null; then
     if [ $PERM_ROOT == 1 ]; then
-        HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
+        HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
     fi
 else
     echo "${YELLOW}sudo could not be found${NC}"
@@ -163,9 +163,6 @@ EOF
 }
 
 on_exit() {
-    if [ ! $default == 1 ]; then
-        rm -rf $IPATH
-    fi
     cat <<EOF
 ${RED}
     Please see --help
@@ -189,23 +186,23 @@ install() {
     shift
     for var in "$@"; do
         echo "${GREEN}Installing $dir in $IPATH/$var ${NC}"
-        if [ $var = "lib" ]; then
-            mv -f $IPATH/$dir/lib64/* $IPATH/$var
+        if [ "$var" = "lib" ]; then
+            mv -f "$IPATH/$dir"/lib64/* "$IPATH/$var"
         else
-            mv -f $IPATH/$dir/$var/* $IPATH/$var
+            mv -f "$IPATH/$dir/$var"/* "$IPATH/$var"
         fi
     done
 }
 
 get_wasmedge_release() {
     echo "Fetching WasmEdge-$1"
-    _downloader https://github.com/WasmEdge/WasmEdge/releases/download/$1/WasmEdge-$1-$RELEASE_PKG
-    tar -C $IPATH -xzf WasmEdge-$1-$RELEASE_PKG
+    _downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$1/WasmEdge-$1-$RELEASE_PKG"
+    tar -C "$IPATH" -xzf "WasmEdge-$1-$RELEASE_PKG"
 }
 
 wasmedge_post_install() {
-    rm -f WasmEdge-$1-$RELEASE_PKG
-    rm -rf $IPATH/WasmEdge-$1-Linux
+    rm -f "WasmEdge-$1-$RELEASE_PKG"
+    rm -rf "$IPATH/WasmEdge-$1-Linux"
     _ldconfig
 }
 
@@ -215,9 +212,9 @@ wasmedge_checks() {
         local version=$1
         shift
         for var in "$@"; do
-            local V=$($IPATH/bin/$var --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
+            local V=$("$IPATH/bin/$var" --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
             local V_=$(echo $version | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
-            if [ $V = $V_ ]; then
+            if [ "$V" = "$V_" ]; then
                 echo "${GREEN}Installation of $var-$version successfull${NC}"
             else
                 echo "${YELLOW}version $V_ does not match $V for $var-$version${NC}"
@@ -229,65 +226,65 @@ wasmedge_checks() {
 
 get_wasmedge_image_deps() {
     echo "Fetching WasmEdge-image-deps-$VERSION_IM"
-    _downloader https://github.com/second-state/WasmEdge-image/releases/download/$VERSION_IM_DEPS/WasmEdge-image-deps-$VERSION_IM_DEPS-manylinux1_x86_64.tar.gz
+    _downloader "https://github.com/second-state/WasmEdge-image/releases/download/$VERSION_IM_DEPS/WasmEdge-image-deps-$VERSION_IM_DEPS-manylinux1_x86_64.tar.gz"
 
-    tar -C $IPATH/lib -zxvf WasmEdge-image-deps-$VERSION_IM_DEPS-manylinux1_x86_64.tar.gz
-    rm -f WasmEdge-image-deps-$VERSION_IM-manylinux1_x86_64.tar.gz
-    ln -sf libjpeg.so.8.3.0 $IPATH/lib/libjpeg.so
-    ln -sf libjpeg.so.8.3.0 $IPATH/lib/libjpeg.so.8
-    ln -sf libpng16.so.16.37.0 $IPATH/lib/libpng.so
-    ln -sf libpng16.so.16.37.0 $IPATH/lib/libpng16.so
-    ln -sf libpng16.so.16.37.0 $IPATH/lib/libpng16.so.16
+    tar -C "$IPATH/lib" -zxvf "WasmEdge-image-deps-$VERSION_IM_DEPS-manylinux1_x86_64.tar.gz"
+    rm -f "WasmEdge-image-deps-$VERSION_IM-manylinux1_x86_64.tar.gz"
+    ln -sf libjpeg.so.8.3.0 "$IPATH/lib/libjpeg.so"
+    ln -sf libjpeg.so.8.3.0 "$IPATH/lib/libjpeg.so.8"
+    ln -sf libpng16.so.16.37.0 "$IPATH/lib/libpng.so"
+    ln -sf libpng16.so.16.37.0 "$IPATH/lib/libpng16.so"
+    ln -sf libpng16.so.16.37.0 "$IPATH/lib/libpng16.so.16"
     _ldconfig
 }
 
 install_wasmedge_image() {
     echo "Fetching WasmEdge-image-$VERSION_IM"
-    _downloader https://github.com/second-state/WasmEdge-image/releases/download/$VERSION_IM/WasmEdge-image-$VERSION_IM-$RELEASE_PKG
-    tar -C $IPATH -xzf WasmEdge-image-$VERSION_IM-$RELEASE_PKG
-    rm -f WasmEdge-image-$VERSION_IM-$RELEASE_PKG
+    _downloader "https://github.com/second-state/WasmEdge-image/releases/download/$VERSION_IM/WasmEdge-image-$VERSION_IM-$RELEASE_PKG"
+    tar -C "$IPATH" -xzf "WasmEdge-image-$VERSION_IM-$RELEASE_PKG"
+    rm -f "WasmEdge-image-$VERSION_IM-$RELEASE_PKG"
     _ldconfig
 }
 
 get_wasmedge_tensorflow_deps() {
     echo "Fetching WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS"
-    _downloader https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF_DEPS/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG
+    _downloader "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF_DEPS/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG"
 
     echo "Fetching WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS"
-    _downloader https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF_DEPS/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG
+    _downloader "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF_DEPS/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
 
-    tar -C $IPATH/lib -zxvf WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG
-    tar -C $IPATH/lib -zxvf WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG
-    rm -f WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG
-    rm -f WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG
-    ln -sf libtensorflow.so.2.4.0 $IPATH/lib/libtensorflow.so.2
-    ln -sf libtensorflow.so.2 $IPATH/lib/libtensorflow.so
-    ln -sf libtensorflow_framework.so.2.4.0 $IPATH/lib/libtensorflow_framework.so.2
-    ln -sf libtensorflow_framework.so.2 $IPATH/lib/libtensorflow_framework.so
+    tar -C "$IPATH/lib" -zxvf "WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG"
+    tar -C "$IPATH/lib" -zxvf "WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
+    rm -f "WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG"
+    rm -f "WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
+    ln -sf libtensorflow.so.2.4.0 "$IPATH/lib/libtensorflow.so.2"
+    ln -sf libtensorflow.so.2 "$IPATH/lib/libtensorflow.so"
+    ln -sf libtensorflow_framework.so.2.4.0 "$IPATH/lib/libtensorflow_framework.so.2"
+    ln -sf libtensorflow_framework.so.2 "$IPATH/lib/libtensorflow_framework.so"
     _ldconfig
 }
 
 install_wasmedge_tensorflow() {
     echo "Fetching WasmEdge-tensorflow-$VERSION_TF"
-    _downloader https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG
+    _downloader "https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
 
     echo "Fetching WasmEdge-tensorflowlite-$VERSION_TF"
-    _downloader https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG
+    _downloader "https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
 
     echo "Fetching WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS"
-    _downloader https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/$VERSION_TF_TOOLS/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG
+    _downloader "https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/$VERSION_TF_TOOLS/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
 
-    tar -C $IPATH -xzf WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG
-    rm -f WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG
+    tar -C "$IPATH" -xzf "WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
+    rm -f "WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
 
-    tar -C $IPATH -xzf WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG
-    rm -f WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG
+    tar -C "$IPATH" -xzf "WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
+    rm -f "WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
 
-    tar -C $IPATH/bin -xzf WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG
-    rm -f $IPATH/bin/download_dependencies_all.sh \
-        $IPATH/bin/download_dependencies_tf.sh \
-        $IPATH/bin/download_dependencies_tflite.sh
-    rm -f WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG
+    tar -C "$IPATH/bin" -xzf "WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
+    rm -f "$IPATH/bin/download_dependencies_all.sh" \
+        "$IPATH/bin/download_dependencies_tf.sh" \
+        "$IPATH/bin/download_dependencies_tflite.sh"
+    rm -f "WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
 
     _ldconfig
 }
@@ -305,7 +302,7 @@ install_tf_extensions() {
     if [ $TF_EXT_COMPAT == 1 ]; then
         get_wasmedge_tensorflow_deps
         install_wasmedge_tensorflow
-        wasmedge_checks $VERSION_TF_TOOLS wasmedge-tensorflow \
+        wasmedge_checks "$VERSION_TF_TOOLS" wasmedge-tensorflow \
             wasmedgec-tensorflow \
             wasmedge-tensorflow-lite
     else
@@ -326,7 +323,7 @@ main() {
 
     eval set -- "$options"
 
-    local default=0
+    default=0
 
     while true; do
         case $1 in
@@ -385,26 +382,26 @@ main() {
     if [ ! $default == 1 ]; then
         echo "${YELLOW}No path provided"
         echo "Installing in $IPATH${NC}"
-        mkdir -p $IPATH
-        echo "$ENV" >$IPATH/env
+        mkdir -p "$IPATH"
+        echo "$ENV" >"$IPATH/env"
         local _source=". \"\$HOME/.wasmedge/env\""
         local _grep=$(cat $HOME/.profile 2>/dev/null | grep "wasmedge")
-        if [ -f $HOME/.profile ]; then
+        if [ -f "$HOME/.profile" ]; then
             if [ "$_grep" = "" ]; then
-                echo $_source >>$HOME/.profile
+                echo "$_source" >>"$HOME/.profile"
             fi
-        elif [ -f $HOME/.bashrc ]; then
+        elif [ -f "$HOME/.bashrc" ]; then
             local _grep=$(cat $HOME/.bashrc | grep "wasmedge")
             if [ "$_grep" = "" ]; then
-                echo $_source >>$HOME/.bashrc
+                echo "$_source" >>"$HOME/.bashrc"
             fi
-        elif [ -f $HOME/.bash_profile ]; then
+        elif [ -f "$HOME/.bash_profile" ]; then
             local _grep=$(cat $HOME/.bash_profile | grep "wasmedge")
             if [ "$_grep" = "" ]; then
-                echo $_source >>$HOME/.bash_profile
+                echo "$_source" >>"$HOME/.bash_profile"
             fi
         else
-            echo $_source >>$HOME/.bashrc
+            echo "$_source" >>"$HOME/.bashrc"
         fi
     fi
 
@@ -413,14 +410,14 @@ main() {
         set -xv
     fi
 
-    if [ -d $IPATH ]; then
+    if [ -d "$IPATH" ]; then
         echo "WasmEdge Installation at $IPATH"
         make_dirs "include" "lib" "bin"
 
-        get_wasmedge_release $VERSION
-        install WasmEdge-$VERSION-Linux "include" "lib" "bin"
-        wasmedge_post_install $VERSION
-        wasmedge_checks $VERSION "wasmedge" "wasmedgec"
+        get_wasmedge_release "$VERSION"
+        install WasmEdge-"$VERSION"-Linux "include" "lib" "bin"
+        wasmedge_post_install "$VERSION"
+        wasmedge_checks "$VERSION" "wasmedge" "wasmedgec"
     else
         echo "Installation path invalid"
         exit 1

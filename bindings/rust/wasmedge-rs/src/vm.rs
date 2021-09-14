@@ -5,8 +5,7 @@ use crate::{error::VmError, module::Module};
 /// # Example
 ///
 ///
-///
-/// ```rust
+/// ```ignore
 ///     let module_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
 ///         .join("tools/wasmedge/examples/fibonacci.wasm");
 ///

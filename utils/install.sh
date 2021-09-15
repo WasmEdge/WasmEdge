@@ -419,8 +419,8 @@ main() {
     fi
 
     echo "$ENV" >"$IPATH/env"
-    local _source=". \"\$HOME/.wasmedge/env\""
-    local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "wasmedge")
+    local _source=". \"$IPATH/env\""
+    local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
     if [ -f "$__HOME__/.profile" ]; then
         if [ "$_grep" = "" ]; then
             echo "$_source" >>"$__HOME__/.profile"
@@ -430,12 +430,12 @@ main() {
     fi
 
     if [ -f "$__HOME__/.bashrc" ]; then
-        local _grep=$(cat "$__HOME__/.bashrc" | grep "wasmedge")
+        local _grep=$(cat "$__HOME__/.bashrc" |  grep "$IPATH/env")
         if [ "$_grep" = "" ]; then
             echo "$_source" >>"$__HOME__/.bashrc"
         fi
     elif [ -f "$__HOME__/.bash_profile" ]; then
-        local _grep=$(cat "$__HOME__/.bash_profile" | grep "wasmedge")
+        local _grep=$(cat "$__HOME__/.bash_profile" |  grep "$IPATH/env")
         if [ "$_grep" = "" ]; then
             echo "$_source" >>"$__HOME__/.bash_profile"
         fi

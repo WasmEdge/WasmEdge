@@ -268,43 +268,28 @@ inline uint32_t fillMap(const std::map<std::string, uint32_t, std::less<>> &Map,
   return static_cast<uint32_t>(Map.size());
 }
 
-/// C API Import module class
-class CAPIImportModule : public Runtime::ImportObject {
-public:
-  CAPIImportModule(const WasmEdge_String Name, void *Ptr)
-      : ImportObject(genStrView(Name)), Data(Ptr) {}
-
-  void *getData() const { return Data; }
-
-private:
-  void *Data;
-};
-
 /// C API Host function class
 class CAPIHostFunc : public Runtime::HostFunctionBase {
 public:
   CAPIHostFunc(const Runtime::Instance::FType *Type,
-               WasmEdge_HostFunc_t FuncPtr,
+               WasmEdge_HostFunc_t FuncPtr, void *ExtData,
                const uint64_t FuncCost = 0) noexcept
       : Runtime::HostFunctionBase(FuncCost), Func(FuncPtr), Wrap(nullptr),
-        Binding(nullptr), Data(nullptr) {
+        Binding(nullptr), Data(ExtData) {
     FuncType = *Type;
   }
   CAPIHostFunc(const Runtime::Instance::FType *Type,
-               WasmEdge_WrapFunc_t WrapPtr, void *BindingPtr,
+               WasmEdge_WrapFunc_t WrapPtr, void *BindingPtr, void *ExtData,
                const uint64_t FuncCost = 0) noexcept
       : Runtime::HostFunctionBase(FuncCost), Func(nullptr), Wrap(WrapPtr),
-        Binding(BindingPtr), Data(nullptr) {
+        Binding(BindingPtr), Data(ExtData) {
     FuncType = *Type;
   }
   ~CAPIHostFunc() noexcept override = default;
 
-  void setData(void *Ptr) { Data = Ptr; }
-
   Expect<void> run(Runtime::Instance::MemoryInstance *MemInst,
                    Span<const ValVariant> Args,
                    Span<ValVariant> Rets) override {
-
     std::vector<WasmEdge_Value> Params(FuncType.Params.size()),
         Returns(FuncType.Returns.size());
     for (uint32_t I = 0; I < Args.size(); I++) {
@@ -1413,9 +1398,11 @@ WasmEdge_FunctionInstanceGetFunctionType(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_HostFunctionContext *
 WasmEdge_HostFunctionCreate(const WasmEdge_FunctionTypeContext *Type,
-                            WasmEdge_HostFunc_t HostFunc, const uint64_t Cost) {
+                            WasmEdge_HostFunc_t HostFunc, void *Data,
+                            const uint64_t Cost) {
   if (Type && HostFunc) {
-    return toHostFuncCxt(new CAPIHostFunc(fromFTypeCxt(Type), HostFunc, Cost));
+    return toHostFuncCxt(
+        new CAPIHostFunc(fromFTypeCxt(Type), HostFunc, Data, Cost));
   }
   return nullptr;
 }
@@ -1423,10 +1410,10 @@ WasmEdge_HostFunctionCreate(const WasmEdge_FunctionTypeContext *Type,
 WASMEDGE_CAPI_EXPORT WasmEdge_HostFunctionContext *
 WasmEdge_HostFunctionCreateBinding(const WasmEdge_FunctionTypeContext *Type,
                                    WasmEdge_WrapFunc_t WrapFunc, void *Binding,
-                                   const uint64_t Cost) {
+                                   void *Data, const uint64_t Cost) {
   if (Type && WrapFunc) {
     return toHostFuncCxt(
-        new CAPIHostFunc(fromFTypeCxt(Type), WrapFunc, Binding, Cost));
+        new CAPIHostFunc(fromFTypeCxt(Type), WrapFunc, Binding, Data, Cost));
   }
   return nullptr;
 }
@@ -1664,8 +1651,9 @@ WasmEdge_GlobalInstanceDelete(WasmEdge_GlobalInstanceContext *Cxt) {
 /// <<<<<<<< WasmEdge import object functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ImportObjectContext *
-WasmEdge_ImportObjectCreate(const WasmEdge_String ModuleName, void *Data) {
-  return toImpObjCxt(new CAPIImportModule(ModuleName, Data));
+WasmEdge_ImportObjectCreate(const WasmEdge_String ModuleName) {
+  return toImpObjCxt(
+      new WasmEdge::Runtime::ImportObject(genStrView(ModuleName)));
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ImportObjectContext *
@@ -1759,9 +1747,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ImportObjectAddHostFunction(
     WasmEdge_ImportObjectContext *Cxt, const WasmEdge_String Name,
     WasmEdge_HostFunctionContext *HostFuncCxt) {
   if (Cxt && HostFuncCxt) {
-    auto *ImpMod = reinterpret_cast<CAPIImportModule *>(Cxt);
     auto *HostFunc = reinterpret_cast<CAPIHostFunc *>(HostFuncCxt);
-    HostFunc->setData(ImpMod->getData());
     fromImpObjCxt(Cxt)->addHostFunc(
         genStrView(Name),
         std::unique_ptr<WasmEdge::Runtime::HostFunctionBase>(HostFunc));

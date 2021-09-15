@@ -12,6 +12,10 @@ Breaking changes:
   * Developers can use the `disable-multi-value` to disable the Multi-value proposal in `wasmedge` and `wasmedgec`.
 * Adjusted the error code names.
   * Please refer to the [ErrCode enum](https://github.com/WasmEdge/WasmEdge/blob/master/include/common/enum_errcode.h) definition.
+* WasmEdge C API changes.
+  * Deleted the data object column in the creation function of `ImportObject` context.
+  * Added the data object column in the creation function of `HostFunction` context.
+  * Instead of the unified data object of the host functions in the same import object before, the data objects are independent in every host functions now.
 
 Refactor:
 

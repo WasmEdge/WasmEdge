@@ -43,9 +43,6 @@ jobs:
           - name: ubuntu 20.04 x86_64
             docker_tag: ubuntu2004_x86_64
             os: ubuntu20.04
-          - name: ubuntu 21.04 x86_64
-            docker_tag: ubuntu-build-gcc
-            os: ubuntu21.04
     name: Build and upload WasmEdge on ${{ matrix.name }} platform
     needs: create_release
     runs-on: ubuntu-latest

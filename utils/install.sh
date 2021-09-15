@@ -74,10 +74,10 @@ echo "Detected $OS-$ARCH"
 get_latest_release() {
     local res
     res=$(git ls-remote --refs --tags "https://github.com/$1.git" |
-        cut --delimiter='/' --fields=3 |
+        cut -d '/' -f 3 |
         tr '-' '~' |
         sort --version-sort |
-        tail --lines=1)
+        tail -1)
     echo "$res"
 }
 

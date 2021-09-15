@@ -32,19 +32,19 @@ $ docker pull wasmedge/wasmedge # 等同于 wasmedge/wasmedge:latest
 
 #### 可用的标签
 
-| 标签名                   | 体系结构  | 基于的操作系统           | LLVM 版本     | 环境配置                | 兼容性                    | 备注                                                        |
-| ---                     | ---     | ---                    | ---          | ---                   | ---                      | ---                                                        |
-| `latest`                | x86\_64 | Ubuntu 21.04           | 12.0.0       | CC=clang, CXX=clang++ | Ubuntu 21.04+            | 这个是用于持续集成的，会一直使用最新的 Ubuntu 版本                    |
-| `ubuntu-build-gcc`      | x86\_64 | Ubuntu 21.04           | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 21.04+            | 这个是用于持续集成的，会一直使用最新的 Ubuntu 版本                    |
-| `ubuntu-build-clang`    | x86\_64 | Ubuntu 21.04           | 12.0.0       | CC=clang, CXX=clang++ | Ubuntu 21.04+            | 这个是用于持续集成的，会一直使用最新的 Ubuntu 版本                    |
-| `ubuntu2004_x86_64`     | x86\_64 | Ubuntu 20.04 LTS       | 10.0.0       | CC=gcc, CXX=g++       | Ubuntu 20.04+            | 这个提供给熟悉 Ubuntu 20.04 LTS 版本的开发者使用                |
-| `manylinux2014_x86_64`  | x86\_64 | CentOS 7, 7.9.2009     | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 这个提供给熟悉 CentOS x86\_64 架构的开发者使用                  |
-| `manylinux2014_aarch64` | aarch64 | CentOS 7, 7.9.2009     | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 这个提供给熟悉 CentOS aarch64 架构的开发者使用                  |
-| `manylinux2010_x86_64`  | x86\_64 | CentOS 6, 6.10         | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 6+ | 这个提供给熟悉基于 x86\_64 架构的过时系统的开发者使用，后续不再维护  |
-| `manylinux1_x86_64`     | x86\_64 | CentOS 5, 5.11         | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 5+ | 这个提供给熟悉基于 x86\_64 架构的过时系统的开发者使用，后续不再维护  |
+| 标签名                  | 体系结构 | 基于的操作系统     | LLVM 版本 | 环境配置              | 兼容性                   | 备注                                                                |
+| ---                     | ---      | ---                | ---       | ---                   | ---                      | ---                                                                 |
+| `latest`                | x86\_64  | Ubuntu 20.04 LTS   | 12.0.0    | CC=clang, CXX=clang++ | Ubuntu 20.04+            | 这个是用于持续集成的，会一直使用最新的 Ubuntu 版本                  |
+| `ubuntu-build-gcc`      | x86\_64  | Ubuntu 20.04 LTS   | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 20.04+            | 这个是用于持续集成的，会一直使用最新的 Ubuntu 版本                  |
+| `ubuntu-build-clang`    | x86\_64  | Ubuntu 20.04 LTS   | 12.0.0    | CC=clang, CXX=clang++ | Ubuntu 20.04+            | 这个是用于持续集成的，会一直使用最新的 Ubuntu 版本                  |
+| `ubuntu2004_x86_64`     | x86\_64  | Ubuntu 20.04 LTS   | 10.0.0    | CC=gcc, CXX=g++       | Ubuntu 20.04+            | 这个提供给熟悉 Ubuntu 20.04 LTS 版本的开发者使用                    |
+| `manylinux2014_x86_64`  | x86\_64  | CentOS 7, 7.9.2009 | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 这个提供给熟悉 CentOS x86\_64 架构的开发者使用                      |
+| `manylinux2014_aarch64` | aarch64  | CentOS 7, 7.9.2009 | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 这个提供给熟悉 CentOS aarch64 架构的开发者使用                      |
+| `manylinux2010_x86_64`  | x86\_64  | CentOS 6, 6.10     | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 6+ | 这个提供给熟悉基于 x86\_64 架构的过时系统的开发者使用，后续不再维护 |
+| `manylinux1_x86_64`     | x86\_64  | CentOS 5, 5.11     | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 5+ | 这个提供给熟悉基于 x86\_64 架构的过时系统的开发者使用，后续不再维护 |
 
 
-### 在 Ubuntu 21.04 上手动安装依赖
+### 在 Ubuntu 20.04 上手动安装依赖
 
 ```bash
 # 工具和库
@@ -70,7 +70,7 @@ $ sudo apt install -y clang
 
 我们的开发环境依赖于 `libLLVM-12` 和 `>=GLIBCXX_3.4.33`。
 
-如果用户的系统是比 Ubuntu 21.04 还早的版本，请使用我们定制的 docker 镜像来构建 WasmEdge 。
+如果用户的系统是比 Ubuntu 20.04 还早的版本，请使用我们定制的 docker 镜像来构建 WasmEdge 。
 如果你需要的是在过时版本的操作系统上使用的二进制包，我们也提供了几个基于 manylinux\* 发行版本的安装包。
 
 

@@ -39,10 +39,14 @@ fi
 
 if command -v sudo &>/dev/null; then
     if [ $PERM_ROOT == 1 ]; then
-        HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+        __HOME__=$(getent passwd "$SUDO_USER" | cut -d: -f6)
     fi
 else
     echo "${YELLOW}sudo could not be found${NC}"
+fi
+
+if [ "$__HOME__" = "" ]; then
+    __HOME__="$HOME"
 fi
 
 RELEASE_PKG="manylinux2014_x86_64.tar.gz"
@@ -89,7 +93,7 @@ VERSION_TF=$(get_latest_release second-state/WasmEdge-tensorflow)
 VERSION_TF_DEPS=$(get_latest_release second-state/WasmEdge-tensorflow-deps)
 VERSION_TF_TOOLS=$(get_latest_release second-state/WasmEdge-tensorflow-tools)
 
-IPATH="$HOME/.wasmedge"
+IPATH="$__HOME__/.wasmedge"
 EXT="none"
 VERBOSE=0
 
@@ -420,25 +424,25 @@ main() {
     fi
 
     echo "$ENV" >"$IPATH/env"
-    local _source=". \"\$HOME/.wasmedge/env\""
-    local _grep=$(cat "$HOME/.profile" 2>/dev/null | grep "wasmedge")
-    if [ -f "$HOME/.profile" ]; then
+    local _source=". \"\$__HOME__/.wasmedge/env\""
+    local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "wasmedge")
+    if [ -f "$__HOME__/.profile" ]; then
         if [ "$_grep" = "" ]; then
-            echo "$_source" >>"$HOME/.profile"
+            echo "$_source" >>"$__HOME__/.profile"
         fi
     fi
-    if [ -f "$HOME/.bashrc" ]; then
-        local _grep=$(cat "$HOME/.bashrc" | grep "wasmedge")
+    if [ -f "$__HOME__/.bashrc" ]; then
+        local _grep=$(cat "$__HOME__/.bashrc" | grep "wasmedge")
         if [ "$_grep" = "" ]; then
-            echo "$_source" >>"$HOME/.bashrc"
+            echo "$_source" >>"$__HOME__/.bashrc"
         fi
-    elif [ -f "$HOME/.bash_profile" ]; then
-        local _grep=$(cat "$HOME/.bash_profile" | grep "wasmedge")
+    elif [ -f "$__HOME__/.bash_profile" ]; then
+        local _grep=$(cat "$__HOME__/.bash_profile" | grep "wasmedge")
         if [ "$_grep" = "" ]; then
-            echo "$_source" >>"$HOME/.bash_profile"
+            echo "$_source" >>"$__HOME__/.bash_profile"
         fi
     else
-        echo "$_source" >>"$HOME/.bashrc"
+        echo "$_source" >>"$__HOME__/.bashrc"
     fi
 
     trap - EXIT

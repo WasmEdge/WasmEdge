@@ -73,20 +73,15 @@ echo "Detected $OS-$ARCH"
 
 get_latest_release() {
     local res
-    if ! command -v wget &>/dev/null; then
-        res="$(curl --silent "https://api.github.com/repos/$1/releases/latest" |
-            grep '"tag_name":' |
-            sed -E 's/.*"([^"]+)".*/\1/')"
-        echo "$res"
-    else
-        res="$(wget -q -O - https://api.github.com/repos/$1/releases/latest |
-            grep '"tag_name":' |
-            sed -E 's/.*"([^"]+)".*/\1/')"
-        echo "$res"
-    fi
+    res=$(git ls-remote --refs --tags "https://github.com/$1.git" |
+        cut --delimiter='/' --fields=3 |
+        tr '-' '~' |
+        sort --version-sort |
+        tail --lines=1)
+    echo "$res"
 }
 
-VERSION=$(get_latest_release wasmedge/wasmedge)
+VERSION=$(get_latest_release WasmEdge/WasmEdge)
 VERSION_IM=$(get_latest_release second-state/WasmEdge-image)
 VERSION_IM_DEPS=$(get_latest_release second-state/WasmEdge-image)
 VERSION_TF=$(get_latest_release second-state/WasmEdge-tensorflow)

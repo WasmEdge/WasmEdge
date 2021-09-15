@@ -383,27 +383,6 @@ main() {
         echo "${YELLOW}No path provided"
         echo "Installing in $IPATH${NC}"
         mkdir -p "$IPATH"
-        echo "$ENV" >"$IPATH/env"
-        local _source=". \"\$HOME/.wasmedge/env\""
-        local _grep=$(cat "$HOME/.profile" 2>/dev/null | grep "wasmedge")
-        if [ -f "$HOME/.profile" ]; then
-            if [ "$_grep" = "" ]; then
-                echo "$_source" >>"$HOME/.profile"
-            fi
-        fi
-        if [ -f "$HOME/.bashrc" ]; then
-            local _grep=$(cat "$HOME/.bashrc" | grep "wasmedge")
-            if [ "$_grep" = "" ]; then
-                echo "$_source" >>"$HOME/.bashrc"
-            fi
-        elif [ -f "$HOME/.bash_profile" ]; then
-            local _grep=$(cat "$HOME/.bash_profile" | grep "wasmedge")
-            if [ "$_grep" = "" ]; then
-                echo "$_source" >>"$HOME/.bash_profile"
-            fi
-        else
-            echo "$_source" >>"$HOME/.bashrc"
-        fi
     fi
 
     if [ ! $VERBOSE == 0 ]; then
@@ -438,6 +417,28 @@ main() {
         echo "No extensions to be installed"
     else
         echo "Invalid extension"
+    fi
+
+    echo "$ENV" >"$IPATH/env"
+    local _source=". \"\$HOME/.wasmedge/env\""
+    local _grep=$(cat "$HOME/.profile" 2>/dev/null | grep "wasmedge")
+    if [ -f "$HOME/.profile" ]; then
+        if [ "$_grep" = "" ]; then
+            echo "$_source" >>"$HOME/.profile"
+        fi
+    fi
+    if [ -f "$HOME/.bashrc" ]; then
+        local _grep=$(cat "$HOME/.bashrc" | grep "wasmedge")
+        if [ "$_grep" = "" ]; then
+            echo "$_source" >>"$HOME/.bashrc"
+        fi
+    elif [ -f "$HOME/.bash_profile" ]; then
+        local _grep=$(cat "$HOME/.bash_profile" | grep "wasmedge")
+        if [ "$_grep" = "" ]; then
+            echo "$_source" >>"$HOME/.bash_profile"
+        fi
+    else
+        echo "$_source" >>"$HOME/.bashrc"
     fi
 
     trap - EXIT

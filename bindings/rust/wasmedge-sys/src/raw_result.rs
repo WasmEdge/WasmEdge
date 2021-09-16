@@ -6,16 +6,6 @@ pub struct ErrReport {
     pub message: &'static str,
 }
 
-// For return NULL pointer
-impl Default for ErrReport {
-    fn default() -> Self {
-        ErrReport {
-            code: 9999, // NULL Pointer
-            message: "Failed: NULL Pointer",
-        }
-    }
-}
-
 pub fn is_ok(res: wasmedge::WasmEdge_Result) -> bool {
     unsafe { wasmedge::WasmEdge_ResultOK(res) }
 }

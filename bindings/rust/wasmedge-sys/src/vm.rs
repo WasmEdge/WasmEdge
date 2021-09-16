@@ -19,7 +19,7 @@ impl Vm {
             wasmedge::WasmEdge_VMCreate(config.ctx, std::ptr::null_mut() /* store */)
         };
         if ctx.is_null() {
-            return Err(ErrReport::default());
+            panic!("WasmEdge VM create failed");
         }
         Ok(Self { ctx, _private: () })
     }
@@ -67,7 +67,7 @@ impl Vm {
 
         let func_type = unsafe { wasmedge::WasmEdge_VMGetFunctionType(self.ctx, raw_func_name) };
         if func_type.is_null() {
-            return Err(ErrReport::default());
+            panic!("WasmEdge Vm failed to get function type!")
         }
 
         // construct returns

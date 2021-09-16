@@ -2,17 +2,13 @@ use super::wasmedge;
 use crate::raw_result::{decode_result, ErrReport};
 use std::ffi::CString;
 
-// If there is a third-party sdk based on wasmedge-sys
-// the private encapsulation  here can force the third-party sdk to use the api
 #[derive(Debug)]
 pub struct Module {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ASTModuleContext,
-    _private: (),
 }
 
 impl Drop for Module {
     fn drop(&mut self) {
-        println!("module drop!");
         unsafe { wasmedge::WasmEdge_ASTModuleDelete(self.ctx) };
     }
 }
@@ -31,9 +27,9 @@ impl Module {
         decode_result(res)?;
 
         if ctx.is_null() {
-            Err(ErrReport::default())
+            panic!("WasmEdge failed to load from file!");
         } else {
-            Ok(Self { ctx, _private: () })
+            Ok(Self { ctx })
         }
     }
 }

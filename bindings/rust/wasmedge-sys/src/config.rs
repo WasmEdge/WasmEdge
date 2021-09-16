@@ -1,16 +1,12 @@
 use super::wasmedge;
 
-// If there is a third-party sdk based on wasmedge-sys
-// the private encapsulation  here can force the third-party sdk to use the api
 #[derive(Debug)]
 pub struct Config {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ConfigureContext,
-    _private: (),
 }
 
 impl Drop for Config {
     fn drop(&mut self) {
-        println!("config drop!");
         unsafe { wasmedge::WasmEdge_ConfigureDelete(self.ctx) };
     }
 }
@@ -27,7 +23,7 @@ impl Default for Config {
         if ctx.is_null() {
             panic!("failed to create WasmEdge configuration");
         }
-        Self { ctx, _private: () }
+        Self { ctx }
     }
 }
 

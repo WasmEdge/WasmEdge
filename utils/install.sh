@@ -92,25 +92,27 @@ IPATH="$__HOME__/.wasmedge"
 EXT="none"
 VERBOSE=0
 
-ENV="#!/bin/sh
+set_ENV() {
+    ENV="#!/bin/sh
 # wasmedge shell setup
 # affix colons on either side of \$PATH to simplify matching
 case ":\${PATH}:" in
-    *:"$IPATH/bin":*)
+    *:"$1/bin":*)
         ;;
     *)
         # Prepending path in case a system-installed wasmedge needs to be overridden
-        export PATH="$IPATH/bin:\$PATH"
+        export PATH="$1/bin:\$PATH"
         ;;
 esac
 case ":\${LD_LIBRARY_PATH}:" in
-    *:"$IPATH/lib":*)
+    *:"$1/lib":*)
         ;;
     *)
         # Prepending path in case a system-installed wasmedge libs needs to be overridden
-        export LD_LIBRARY_PATH="$IPATH/lib:\$LD_LIBRARY_PATH"
+        export LD_LIBRARY_PATH="$1/lib:\$LD_LIBRARY_PATH"
         ;;
 esac"
+}
 
 usage() {
     cat <<EOF
@@ -378,11 +380,13 @@ main() {
         shift
     done
 
+    set_ENV "$IPATH"
+    mkdir -p "$IPATH"
+    echo "$ENV" >"$IPATH/env"
+
     if [ ! $default == 1 ]; then
         echo "${YELLOW}No path provided"
         echo "Installing in $IPATH${NC}"
-        mkdir -p "$IPATH"
-        echo "$ENV" >"$IPATH/env"
         local _source=". \"$IPATH/env\""
         local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
         if [ -f "$__HOME__/.profile" ]; then

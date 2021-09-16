@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(results.len(), 5);
 
     for r in results.iter() {
-        let res = r.as_i32();
+        let res = r.as_i32().unwrap();
         println!("hello : {}", res);
     }
 

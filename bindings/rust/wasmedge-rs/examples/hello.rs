@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let vm = wedge::Vm::load(&module)?.with_config(&config)?.create()?;
 
-    let results = vm.run("hello", &[1.into(),2.into(),3.into(),4.into(),5.into()])?;
+    let results = vm.run("_start", &[1.into(),2.into(),3.into(),4.into(),5.into()])?;
 
     assert_eq!(results.len(), 5);
 

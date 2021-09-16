@@ -79,7 +79,7 @@ impl<'a> VmBuilder<'a> {
                 .map_err(VmError::ModuleLoad)?;
             let vm_instance = vm_instance.validate().map_err(VmError::Validate)?;
             let vm_instance = vm_instance.instantiate().map_err(VmError::Instantiate)?;
-            println!("vm_instance {:#?}", vm_instance);
+
             Ok(Vm {
                 config: vm.config,
                 module: vm.module,

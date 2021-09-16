@@ -4,7 +4,7 @@ WasmEdge is a "serverless" runtime for cloud native and edge computing applicati
 
 A major use case of WasmEdge is to start an VM instance from a host application. Depending on your host application's programming language, you can use WasmEdge SDKs to start and call WasmEdge functions.
 
-* Embed WasmEdge functions into a C-based application using the [WasmEdge C API](docs/c_api.md). Checkout the [quick start guide](docs/c_api_quick_start.md).
+* Embed WasmEdge functions into a C-based application using the [WasmEdge C API](c_api.md). Checkout the [quick start guide](c_api_quick_start.md).
 * Embed WasmEdge functions into a Go application using the [WasmEdge Go API](https://github.com/second-state/WasmEdge-go). Here is a [tutorial](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/) and are some [examples](https://github.com/second-state/WasmEdge-go-examples)!
 * Embed WasmEdge functions into a Rust application using the [WasmEdge Rust crate](../wasmedge-rs).
 * Embed WasmEdge functions into a Node.js application using the NAPI. Here is a [tutorial](https://www.secondstate.io/articles/getting-started-with-rust-function/).

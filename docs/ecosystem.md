@@ -15,9 +15,11 @@
 * Tools: The runtime executables.
   * [WasmEdge-TensorFlow-Tools](https://github.com/second-state/WasmEdge-tensorflow-tools) are the released tools to execute WASM with accessing to `TensorFlow` or `TensorFlow-Lite`.
 * Language supports: The `WasmEdge` triggering in other languages.
-  * [SSVM-napi](https://github.com/second-state/SSVM-napi) is the Node.js addon project for `WASM` functions accessing.
-  * [SSVM-napi-extensions](https://github.com/second-state/SSVM-napi-extensions) is the Node.js addon project for `WASM` runtime with `ssvm-tensorflow`, `ssvm-image`, and `ssvm-storage` extensions.
-  * [WasmEdge-go](https://github.com/second-state/WasmEdge-go) is the [golang](https://golang.org/) binding for `WasmEdge` C API.
+  * The [C API](c_api.md) is embedded in the core release as a header file and shared library.
+  * [WasmEdge-core NAPI package](https://github.com/second-state/wasmedge-core) is the Node.js addon project for `WASM` functions.
+  * [WasmEdge-extensions NAPI package](https://github.com/second-state/wasmedge-extensions) is the Node.js addon project for `WASM` runtime with `wasmedge-tensorflow`, `wasmedge-image`, and `wasmedge-storage` extensions.
+  * [WasmEdge-go](https://github.com/second-state/WasmEdge-go) is the [Golang](https://golang.org/) binding for `WasmEdge` C API.
+  * [WasmEdge-rs](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust) is the Rust binding for `WasmEdge` C API.
 
 ## Releasing Steps
 
@@ -29,5 +31,7 @@
     * [WasmEdge-EVMC](https://github.com/second-state/WasmEdge-evmc)
 3. Release a new version of tools.
     * [WasmEdge-TensorFlow-Tools](https://github.com/second-state/WasmEdge-tensorflow-tools)
-4. Release [SSVM-napi](https://github.com/second-state/SSVM-napi) with updating to the new `WasmEdge core`.
-5. Release [SSVM-napi-extensions](https://github.com/second-state/SSVM-napi-extensions) with updating to the new `WasmEdge core` and `SSVM-napi`.
+4. Release a new version of [Go SDK](https://github.com/second-state/WasmEdge-go)
+5. Release a new version of [Rust crate](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust)
+6. Release [WasmEdge-core NAPI package](https://github.com/second-state/wasmedge-core) with updating to the new `WasmEdge core`.
+7. Release [WasmEdge-extensions NAPI package](https://github.com/second-state/wasmedge-extensions) with updating to the new extensions.

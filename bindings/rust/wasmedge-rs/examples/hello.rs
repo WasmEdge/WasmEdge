@@ -2,10 +2,10 @@
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<&str> = env::args().skip(1).collect();
+    let mut args: Vec<String> = std::env::args().skip(1).collect();
+    let args: Vec<&str> = args.iter_mut().map(|arg| arg.as_str()).collect();
     if args.len() <= 0 {
-        println!("Rust: ERROR - No input args.");
-        return;
+        panic!("Rust: No input args.");
     }
     let module_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
         .join("tools/wasmedge/examples/hello.wasm");
@@ -16,8 +16,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let vm = wedge::Vm::load(&module)?.with_config(&config)?.create()?;
 
-    vm.init_wasi_obj(&args, None, None, None);
-    
+    vm.init_wasi_obj(Some(args), None, None, None);
+
     let results = vm.run("_start", &[])?;
 
     assert_eq!(results.len(), 5);

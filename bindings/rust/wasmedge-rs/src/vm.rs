@@ -36,12 +36,14 @@ impl<'a> Vm<'a> {
 
     pub fn init_wasi_obj(
         &self, 
-        args: Option<(&[&str], u32)>, 
-        envs: Option<(&[&str], u32)>,
-        dirs: Option<(&[&str], u32)>,
-        preopens: Option<(&[&str], u32)>
+        args: Option<Vec<&str>>, 
+        envs: Option<Vec<&str>>,
+        dirs: Option<Vec<&str>>,
+        preopens: Option<Vec<&str>>
     ) {
-        self.inner.init_wasi_obj(args, envs, dirs, preopens);
+        if let Some(vm) = &self.inner{
+            vm.init_wasi_obj(args, envs, dirs, preopens);
+        }
     }
 
     pub fn run(

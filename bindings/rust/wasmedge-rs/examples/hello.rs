@@ -2,7 +2,7 @@
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut args: Vec<String> = std::env::args().skip(1).collect();
+    let mut args: Vec<String> = std::env::args().collect();
     let args: Vec<&str> = args.iter_mut().map(|arg| arg.as_str()).collect();
     if args.len() <= 0 {
         panic!("Rust: No input args.");
@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let results = vm.run("_start", &[])?;
 
-    assert_eq!(results.len(), 5);
+    assert_eq!(results.len(), 0);
 
     for r in results.iter() {
         let res = r.as_i32().unwrap();

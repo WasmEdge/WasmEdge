@@ -72,7 +72,7 @@ impl Vm {
             import_obj.args = args
                 .iter_mut()
                 .map(|arg| {
-                    let raw_arg: wasmedge::WasmEdge_String = StringRef::from(arg.as_ref()).into();
+                    let raw_arg: wasmedge::WasmEdge_String = StringRef::from(*arg).into();
                     raw_arg.Buf
                 })
                 .collect::<Vec<*const c_char>>();
@@ -83,7 +83,7 @@ impl Vm {
             import_obj.envs = envs
                 .iter_mut()
                 .map(|env| {
-                    let raw_env: wasmedge::WasmEdge_String = StringRef::from(env.as_ref()).into();
+                    let raw_env: wasmedge::WasmEdge_String = StringRef::from(*env).into();
                     raw_env.Buf
                 })
                 .collect::<Vec<*const c_char>>();
@@ -94,7 +94,7 @@ impl Vm {
             import_obj.dirs = dirs
                 .iter_mut()
                 .map(|dir| {
-                    let raw_dir: wasmedge::WasmEdge_String = StringRef::from(dir.as_ref()).into();
+                    let raw_dir: wasmedge::WasmEdge_String = StringRef::from(*dir).into();
                     raw_dir.Buf
                 })
                 .collect::<Vec<*const c_char>>();
@@ -105,8 +105,7 @@ impl Vm {
             import_obj.preopens = preopens
                 .iter_mut()
                 .map(|preopen| {
-                    let raw_preopen: wasmedge::WasmEdge_String =
-                        StringRef::from(preopen.as_ref()).into();
+                    let raw_preopen: wasmedge::WasmEdge_String = StringRef::from(*preopen).into();
                     raw_preopen.Buf
                 })
                 .collect::<Vec<*const c_char>>();

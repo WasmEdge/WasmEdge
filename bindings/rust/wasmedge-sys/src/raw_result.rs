@@ -6,6 +6,8 @@ pub struct ErrReport {
     pub message: &'static str,
 }
 
+// # TODO ： impl From<wasmedge::WasmEdge_Result> for ErrReport
+
 pub fn is_ok(res: wasmedge::WasmEdge_Result) -> bool {
     unsafe { wasmedge::WasmEdge_ResultOK(res) }
 }

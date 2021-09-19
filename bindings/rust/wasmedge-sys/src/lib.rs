@@ -12,6 +12,7 @@ pub mod string;
 pub mod value;
 pub mod version;
 pub mod vm;
+pub mod wasi;
 
 pub use config::{Config, OptLevel};
 pub use module::Module;

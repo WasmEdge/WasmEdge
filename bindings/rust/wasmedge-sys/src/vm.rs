@@ -3,6 +3,7 @@ use crate::{
     raw_result::{decode_result, ErrReport},
     string::StringRef,
     value::Value,
+    wasi,
 };
 
 // If there is a third-party sdk based on wasmedge-sys
@@ -48,6 +49,62 @@ impl Vm {
             decode_result(wasmedge::WasmEdge_VMInstantiate(self.ctx))?;
         }
         Ok(self)
+    }
+
+    pub fn init_wasi_obj(&self, 
+        args: Option<(&[&str], u32)>, 
+        envs: Option<(&[&str], u32)>,
+        dirs: Option<(&[&str], u32)>,
+        preopens: Option<(&[&str], u32)>
+    ) {
+        let import_mod_ctx = wasmedge::WasmEdge_VMGetImportModuleContext(self.ctx, wasmedge::WasmEdge_HostRegistration_Wasi);
+
+        let mut import_obj = wasi::ImportObjInitParams::new();
+
+        if let Some((args,args_len)) = args {
+            import_obj.args  = args.map(|arg| {
+                let raw_arg: wasmedge::WasmEdge_String = StringRef::from(arg.as_ref()).into();
+                raw_arg.Buf
+            });
+            import_obj.args_len = args_len;
+        }
+
+        if let Some((envs,envs_len)) = args {
+            import_obj.envs = envs.map(|env| {
+                let raw_env: wasmedge::WasmEdge_String = StringRef::from(env.as_ref()).into();
+                raw_env.Buf
+            });
+            import_obj.envs_len = envs_len;
+        }
+
+        if let Some((dirs,dirs_len)) = args {
+            import_obj.dirs = dirs.map(|dir| {
+                let raw_dir: wasmedge::WasmEdge_String = StringRef::from(dir.as_ref()).into();
+                raw_dir.Buf
+            });
+            import_obj.dirs_len = dirs_len;
+        }
+
+        if let Some((preopens,preopens_len)) = args {
+            import_obj.preopens = preopens.map(|arg| {
+                let raw_preopen: wasmedge::WasmEdge_String = StringRef::from(preopen.as_ref()).into();
+                raw_preopen.Buf
+            });
+            import_obj.preopens_len = preopens_len;
+        }
+
+
+        wasmedge::WasmEdge_ImportObjectInitWASI(
+            import_mod_ctx,
+            import_obj.args.as_ptr(),
+            import_obj.args_len,
+            import_obj.envs.as_ptr(),
+            import_obj.envs_len,
+            import_obj.dirs.as_ptr(),
+            import_obj.dirs_len,
+            import_obj.preopens.as_ptr(),
+            import_obj.preopens_len,
+        )
     }
 
     pub fn run(

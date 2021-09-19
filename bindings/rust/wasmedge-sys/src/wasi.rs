@@ -1,4 +1,3 @@
-
 use core::default::Default;
 use std::os::raw::c_char;
 
@@ -15,7 +14,7 @@ pub struct ImportObjInitParams {
 }
 
 impl<'a> ImportObjInitParams {
-    pub(crate) fn new() -> Self{
+    pub(crate) fn new() -> Self {
         Self::default()
     }
 }

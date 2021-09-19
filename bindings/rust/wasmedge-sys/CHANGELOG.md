@@ -6,8 +6,12 @@ All notable changes to this project are documented in this file.
 
 - Improvements
 
-1. Wrap the unsafe code that deals directly with the C-API into the `wasmedge-sys` library.
-2. Expose the necessary interfaces to the upper layers for building the Rust sdk.
+    1. Wrap the unsafe code that deals directly with the C-API into the `wasmedge-sys` library.
+    2. Expose the necessary interfaces to the upper layers for building the Rust sdk.
+
+- Features
+
+    1. Turning on the Wasi support.
 
 
 

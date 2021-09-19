@@ -6,8 +6,6 @@ pub struct ErrReport {
     pub message: &'static str,
 }
 
-// # TODO ： impl From<wasmedge::WasmEdge_Result> for ErrReport
-
 pub fn is_ok(res: wasmedge::WasmEdge_Result) -> bool {
     unsafe { wasmedge::WasmEdge_ResultOK(res) }
 }
@@ -24,15 +22,21 @@ pub fn get_message<'a>(res: wasmedge::WasmEdge_Result) -> &'a str {
     }
 }
 
+impl From<wasmedge::WasmEdge_Result> for ErrReport {
+    fn from(raw_result: wasmedge::WasmEdge_Result) -> Self {
+        ErrReport {
+            code: get_code(raw_result),
+            message: get_message(raw_result),
+        }
+    }
+}
+
 // Since WasmEdge_ErrCode is subject to change on the wasmedge side
 // it does not correspond to enum here
-pub fn decode_result(res: wasmedge::WasmEdge_Result) -> Result<(), ErrReport> {
-    if is_ok(res) {
+pub fn decode_result(raw_result: wasmedge::WasmEdge_Result) -> Result<(), ErrReport> {
+    if is_ok(raw_result) {
         Ok(())
     } else {
-        Err(ErrReport {
-            code: get_code(res),
-            message: get_message(res),
-        })
+        Err(raw_result.into())
     }
 }

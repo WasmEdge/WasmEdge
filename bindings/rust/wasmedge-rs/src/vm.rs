@@ -34,6 +34,16 @@ impl<'a> Vm<'a> {
         VmBuilder::new(module)
     }
 
+    pub fn init_wasi_obj(
+        &self, 
+        args: Option<(&[&str], u32)>, 
+        envs: Option<(&[&str], u32)>,
+        dirs: Option<(&[&str], u32)>,
+        preopens: Option<(&[&str], u32)>
+    ) {
+        self.inner.init_wasi_obj(args, envs, dirs, preopens);
+    }
+
     pub fn run(
         mut self,
         func_name: &str,
@@ -69,6 +79,7 @@ impl<'a> VmBuilder<'a> {
         vm.config = Some(config);
         Ok(Self { inner: vm })
     }
+
 
     pub fn create(self) -> Result<Vm<'a>, anyhow::Error> {
         let vm = self.inner;

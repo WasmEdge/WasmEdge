@@ -5,6 +5,7 @@ use crate::{
     value::Value,
     wasi,
 };
+use std::os::raw::c_char;
 
 // If there is a third-party sdk based on wasmedge-sys
 // the private encapsulation  here can force the third-party sdk to use the api
@@ -52,59 +53,61 @@ impl Vm {
     }
 
     pub fn init_wasi_obj(&self, 
-        args: Option<(&[&str], u32)>, 
-        envs: Option<(&[&str], u32)>,
-        dirs: Option<(&[&str], u32)>,
-        preopens: Option<(&[&str], u32)>
+        args: Option<Vec<&str>>, 
+        envs: Option<Vec<&str>>,
+        dirs: Option<Vec<&str>>,
+        preopens: Option<Vec<&str>>
     ) {
-        let import_mod_ctx = wasmedge::WasmEdge_VMGetImportModuleContext(self.ctx, wasmedge::WasmEdge_HostRegistration_Wasi);
+        let import_mod_ctx = unsafe{ wasmedge::WasmEdge_VMGetImportModuleContext(self.ctx, wasmedge::WasmEdge_HostRegistration_Wasi)};
 
         let mut import_obj = wasi::ImportObjInitParams::new();
 
-        if let Some((args,args_len)) = args {
-            import_obj.args  = args.map(|arg| {
+        if let Some(mut args) = args {
+            import_obj.args  = args.iter_mut().map(|arg| {
                 let raw_arg: wasmedge::WasmEdge_String = StringRef::from(arg.as_ref()).into();
                 raw_arg.Buf
-            });
-            import_obj.args_len = args_len;
+            }).collect::<Vec<*const c_char>>();
+            import_obj.args_len = args.len() as u32;
         }
 
-        if let Some((envs,envs_len)) = args {
-            import_obj.envs = envs.map(|env| {
+        if let Some(mut envs) = envs {
+            import_obj.envs  = envs.iter_mut().map(|env| {
                 let raw_env: wasmedge::WasmEdge_String = StringRef::from(env.as_ref()).into();
                 raw_env.Buf
-            });
-            import_obj.envs_len = envs_len;
+            }).collect::<Vec<*const c_char>>();
+            import_obj.envs_len = envs.len() as u32;
         }
 
-        if let Some((dirs,dirs_len)) = args {
-            import_obj.dirs = dirs.map(|dir| {
+        if let Some(mut dirs) = dirs {
+            import_obj.dirs  = dirs.iter_mut().map(|dir| {
                 let raw_dir: wasmedge::WasmEdge_String = StringRef::from(dir.as_ref()).into();
                 raw_dir.Buf
-            });
-            import_obj.dirs_len = dirs_len;
+            }).collect::<Vec<*const c_char>>();
+            import_obj.dirs_len = dirs.len() as u32;
         }
 
-        if let Some((preopens,preopens_len)) = args {
-            import_obj.preopens = preopens.map(|arg| {
+        if let Some(mut preopens) = preopens {
+            import_obj.preopens  = preopens.iter_mut().map(|preopen| {
                 let raw_preopen: wasmedge::WasmEdge_String = StringRef::from(preopen.as_ref()).into();
                 raw_preopen.Buf
-            });
-            import_obj.preopens_len = preopens_len;
+            }).collect::<Vec<*const c_char>>();
+            import_obj.preopens_len = preopens.len() as u32;
         }
 
-
-        wasmedge::WasmEdge_ImportObjectInitWASI(
-            import_mod_ctx,
-            import_obj.args.as_ptr(),
-            import_obj.args_len,
-            import_obj.envs.as_ptr(),
-            import_obj.envs_len,
-            import_obj.dirs.as_ptr(),
-            import_obj.dirs_len,
-            import_obj.preopens.as_ptr(),
-            import_obj.preopens_len,
-        )
+        unsafe{ 
+            wasmedge::WasmEdge_ImportObjectInitWASI(
+                import_mod_ctx,
+                import_obj.args.as_ptr(),
+                import_obj.args_len,
+                import_obj.envs.as_ptr(),
+                import_obj.envs_len,
+                import_obj.dirs.as_ptr(),
+                import_obj.dirs_len,
+                import_obj.preopens.as_ptr(),
+                import_obj.preopens_len,
+            )
+        }
+        
     }
 
     pub fn run(

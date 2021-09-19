@@ -35,13 +35,13 @@ impl<'a> Vm<'a> {
     }
 
     pub fn init_wasi_obj(
-        &self, 
-        args: Option<Vec<&str>>, 
+        &self,
+        args: Option<Vec<&str>>,
         envs: Option<Vec<&str>>,
         dirs: Option<Vec<&str>>,
-        preopens: Option<Vec<&str>>
+        preopens: Option<Vec<&str>>,
     ) {
-        if let Some(vm) = &self.inner{
+        if let Some(vm) = &self.inner {
             vm.init_wasi_obj(args, envs, dirs, preopens);
         }
     }
@@ -81,7 +81,6 @@ impl<'a> VmBuilder<'a> {
         vm.config = Some(config);
         Ok(Self { inner: vm })
     }
-
 
     pub fn create(self) -> Result<Vm<'a>, anyhow::Error> {
         let vm = self.inner;

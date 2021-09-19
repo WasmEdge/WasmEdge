@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file.
 
 - Improvements
 
-1. Change the vm api to a chain call and provide explicit semantics.
-2. Design the api to ensure that config/module/ vm are created in the same scope so that memory can be reasonably freed.
+    1. Change the vm api to a chain call and provide explicit semantics.
+    2. Design the api to ensure that config/module/ vm are created in the same scope so that memory can be reasonably freed.
 
+- Features
+
+    1. Turning on the Wasi support.

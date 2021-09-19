@@ -7,8 +7,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if args.len() <= 1 {
         panic!("Rust: No input args.");
     }
-    let module_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-        .join("tools/wasmedge/examples/hello.wasm");
+    let module_path =
+        std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("tools/wasmedge/examples/hello.wasm");
 
     let config = wedge::Config::with_wasi();
     let module = wedge::Module::new(&config, &module_path)?;

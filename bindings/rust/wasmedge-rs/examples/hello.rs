@@ -1,9 +1,15 @@
-//! Usage: [DY]LD_LIBRARY_PATH="$(git rev-parse --show-toplevel)/build/lib/api" cargo run --example hello
+//! Usage: [DY]LD_LIBRARY_PATH="$(git rev-parse --show-toplevel)/build/lib/api" cargo run --example hello 1 2 3
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args: Vec<String> = std::env::args().collect();
     let args: Vec<&str> = args.iter_mut().map(|arg| arg.as_str()).collect();
+
+    #[cfg(test)]
+    {
+        let args: Vec<&str> = vec!["1", "2", "3"];
+    }
+
     if args.len() <= 1 {
         panic!("Rust: No input args.");
     }

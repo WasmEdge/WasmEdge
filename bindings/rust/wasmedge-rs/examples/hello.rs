@@ -4,7 +4,7 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args: Vec<String> = std::env::args().collect();
     let args: Vec<&str> = args.iter_mut().map(|arg| arg.as_str()).collect();
-    if args.len() <= 0 {
+    if args.len() <= 1 {
         panic!("Rust: No input args.");
     }
     let module_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))

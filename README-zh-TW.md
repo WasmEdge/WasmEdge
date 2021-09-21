@@ -6,7 +6,7 @@
 🤖 [貢獻 WasmEdge](docs/contribution.md)\
 ⌨️ [從 CLI](docs/run.md)  或 [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) 或 [Golang](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn) 執行一個獨立的 Wasm 程式\
 💭 發佈一個 [Wasm 函式即 web 服務 (FaaS)](https://www.secondstate.io/articles/getting-started-with-function-as-a-service-in-rust/)\
-🛠 [在 SaaS 平台上嵌入使用者自定義 Wasm 函式](http://reactor.secondstate.info/docs/user-create-a-bot.html)\
+🛠 [在 SaaS 平台上嵌入使用者自定義 Wasm 函式](http://reactor.secondstate.info/zh/docs/user-create-a-bot.html)\
 🔩 [在 Node.js 網頁應用程式裡嵌入 Wasm 函式](https://www.secondstate.io/articles/getting-started-with-rust-function/)\
 🔌 [在 Golang 應用程式嵌入 Wasm 函式](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_PassBytes)\
 🔗 [將 Wasm 函式部署為區塊鏈智慧合約](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a)\
@@ -53,7 +53,7 @@ WasmEdge 的一個主要應用場景是從一個 host 應用程式啟動一個�
 
 有了 [WasmEdge C API](docs/c_api.md) ，您可以編寫程式來啟動、停止和管理您自己的應用程式中的 WasmEdge 虛擬機器實例。例如：
 
-* 當在 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 或者在 [飛書](http://reactor.secondstate.info/docs/user-create-a-bot.html) 上嵌入了 WasmEdge 函式，可以在當有傳入請求時，由應用程式啟動虛擬機器。
+* 當在 [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) 或者在 [飛書](http://reactor.secondstate.info/zh/docs/user-create-a-bot.html) 上嵌入了 WasmEdge 函式，可以在當有傳入請求時，由應用程式啟動虛擬機器。
 * 當 WasmEdge 函式被外掛到像 [YoMo](https://github.com/yomorun/yomo-flow-ssvm-example) 這樣的資料流引擎中時，虛擬機器可以在一個新的資料點流經系統時啟動。
 * 作為一個相容於 OCI 的執行體， WasmEdge 應用程式可以由像是 CRI-O 與 Docker Hub 的 Docker 工具來管理。 [由此觀看](https://github.com/second-state/runw) 我們正在進行的對 Kubernetes 的支援。
 
@@ -88,7 +88,7 @@ WasmEdge 與其它的 WebAssembly 虛擬機器的關鍵區別是它對非標準�
   * 案例： [幫 web app 上的任意圖片增加浮水印](https://second-state.github.io/wasm-learning/faas/watermark/html/index.html) 。
   * 案例： [基於騰訊雲的 serverless Tensorflow 函式](https://github.com/second-state/tencent-tensorflow-scf) 。
 * *SaaS 應用程式* 通常需要根據客戶要求「在終端」進行量身定製或客製化。使用 WasmEdge ， SaaS 應用程式可以直接嵌入和執行用戶提交的程式碼，並作為工作流程的一部分（例如作為處理來自 SaaS 應用程序的事件的回呼函式）。
-  * 案例： [飛書應用平台](http://reactor.secondstate.info/docs/user-create-a-bot.html) 可以透過 WasmEdge 嵌入用戶提交的 serverless 函式來回覆訊息（例如 [聊天機器人](https://app.feishu.cn/app/cli_a08fe99f8169900d)）。
+  * 案例： [飛書應用平台](http://reactor.secondstate.info/zh/docs/user-create-a-bot.html) 可以透過 WasmEdge 嵌入用戶提交的 serverless 函式來回覆訊息（例如 [聊天機器人](https://app.feishu.cn/app/cli_a08fe99f8169900d)）。
   * 案例： [WasmEdge 運行自定義程式碼來處理 IoT 資料流框架「 YoMo 」中的事件](https://github.com/yomorun/yomo-flow-ssvm-example) 。
 * WasmEdge 被調整為適用*終端設備*的各種嵌入式和即時作業系統。 這讓開發者只需用 Rust 或 C 編寫一次高性能應用程式，就能在許多終端設備平台上安全地運行。
   * 案例： [RIOS Lab 範例： RIOS 實驗室的 RISC-V 堆疊](https://rioslab.org/)。

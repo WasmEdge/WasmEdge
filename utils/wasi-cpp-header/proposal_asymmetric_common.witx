@@ -1,0 +1,278 @@
+(use "proposal_common.witx")
+
+(module $wasi_ephemeral_crypto_asymmetric_common
+  (import "memory" (memory))
+
+  ;;; Generate a new key pair.
+  ;;;
+  ;;; Internally, a key pair stores the supplied algorithm and optional parameters.
+  ;;;
+  ;;; Trying to use that key pair with different parameters will throw an `invalid_key` error.
+  ;;;
+  ;;; This function may return `$crypto_errno.unsupported_feature` if key generation is not supported by the host for the chosen algorithm.
+  ;;;
+  ;;; The function may also return `unsupported_algorithm` if the algorithm is not supported by the host.
+  ;;;
+  ;;; Finally, if generating that type of key pair is an expensive operation, the function may return `in_progress`.
+  ;;; In that case, the guest should retry with the same parameters until the function completes.
+  ;;;
+  ;;; Example usage:
+  ;;;
+  ;;; ```rust
+  ;;; let kp_handle = ctx.keypair_generate(AlgorithmType::Signatures, "RSA_PKCS1_2048_SHA256", None)?;
+  ;;; ```
+  (@interface func (export "keypair_generate")
+    (param $algorithm_type $algorithm_type)
+    (param $algorithm string)
+    (param $options $opt_options)
+    (result $error (expected $keypair (error $crypto_errno)))
+  )
+
+  ;;; Import a key pair.
+  ;;;
+  ;;; This function creates a `keypair` object from existing material.
+  ;;;
+  ;;; It may return `unsupported_algorithm` if the encoding scheme is not supported, or `invalid_key` if the key cannot be decoded.
+  ;;;
+  ;;; The function may also return `unsupported_algorithm` if the algorithm is not supported by the host.
+  ;;;
+  ;;; Example usage:
+  ;;;
+  ;;; ```rust
+  ;;; let kp_handle = ctx.keypair_import(AlgorithmType::Signatures, "RSA_PKCS1_2048_SHA256", KeypairEncoding::PKCS8)?;
+  ;;; ```
+  (@interface func (export "keypair_import")
+    (param $algorithm_type $algorithm_type)
+    (param $algorithm string)
+    (param $encoded (@witx const_pointer u8))
+    (param $encoded_len $size)
+    (param $encoding $keypair_encoding)
+    (result $error (expected $keypair (error $crypto_errno)))
+  )
+
+  ;;; __(optional)__
+  ;;; Generate a new managed key pair.
+  ;;;
+  ;;; The key pair is generated and stored by the secrets management facilities.
+  ;;;
+  ;;; It may be used through its identifier, but the host may not allow it to be exported.
+  ;;;
+  ;;; The function returns the `unsupported_feature` error code if secrets management facilities are not supported by the host,
+  ;;; or `unsupported_algorithm` if a key cannot be created for the chosen algorithm.
+  ;;;
+  ;;; The function may also return `unsupported_algorithm` if the algorithm is not supported by the host.
+  ;;;
+  ;;; This is also an optional import, meaning that the function may not even exist.
+  (@interface func (export "keypair_generate_managed")
+    (param $secrets_manager $secrets_manager)
+    (param $algorithm_type $algorithm_type)
+    (param $algorithm string)
+    (param $options $opt_options)
+    (result $error (expected $keypair (error $crypto_errno)))
+  )
+
+  ;;; __(optional)__
+  ;;; Store a key pair into the secrets manager.
+  ;;;
+  ;;; On success, the function stores the key pair identifier into `$kp_id`,
+  ;;; into which up to `$kp_id_max_len` can be written.
+  ;;;
+  ;;; The function returns `overflow` if the supplied buffer is too small.
+  (@interface func (export "keypair_store_managed")
+    (param $secrets_manager $secrets_manager)
+    (param $kp $keypair)
+    (param $kp_id (@witx pointer u8))
+    (param $kp_id_max_len $size)
+    (result $error (expected (error $crypto_errno)))
+  )
+
+  ;;; __(optional)__
+  ;;; Replace a managed key pair.
+  ;;;
+  ;;; This function crates a new version of a managed key pair, by replacing `$kp_old` with `$kp_new`.
+  ;;;
+  ;;; It does several things:
+  ;;;
+  ;;; - The key identifier for `$kp_new` is set to the one of `$kp_old`.
+  ;;; - A new, unique version identifier is assigned to `$kp_new`. This version will be equivalent to using `$version_latest` until the key is replaced.
+  ;;; - The `$kp_old` handle is closed.
+  ;;;
+  ;;; Both keys must share the same algorithm and have compatible parameters. If this is not the case, `incompatible_keys` is returned.
+  ;;;
+  ;;; The function may also return the `unsupported_feature` error code if secrets management facilities are not supported by the host,
+  ;;; or if keys cannot be rotated.
+  ;;;
+  ;;; Finally, `prohibited_operation` can be returned if `$kp_new` wasn't created by the secrets manager, and the secrets manager prohibits imported keys.
+  ;;;
+  ;;; If the operation succeeded, the new version is returned.
+  ;;;
+  ;;; This is an optional import, meaning that the function may not even exist.
+  (@interface func (export "keypair_replace_managed")
+    (param $secrets_manager $secrets_manager)
+    (param $kp_old $keypair)
+    (param $kp_new $keypair)
+    (result $error (expected $version (error $crypto_errno)))
+  )
+
+  ;;; __(optional)__
+  ;;; Return the key pair identifier and version of a managed key pair.
+  ;;;
+  ;;; If the key pair is not managed, `unsupported_feature` is returned instead.
+  ;;;
+  ;;; This is an optional import, meaning that the function may not even exist.
+  (@interface func (export "keypair_id")
+    (param $kp $keypair)
+    (param $kp_id (@witx pointer u8))
+    (param $kp_id_max_len $size)
+    (result $error (expected (tuple $size $version) (error $crypto_errno)))
+  )
+
+  ;;; __(optional)__
+  ;;; Return a managed key pair from a key identifier.
+  ;;;
+  ;;; `kp_version` can be set to `version_latest` to retrieve the most recent version of a key pair.
+  ;;;
+  ;;; If no key pair matching the provided information is found, `not_found` is returned instead.
+  ;;;
+  ;;; This is an optional import, meaning that the function may not even exist.
+  ;;; ```
+  (@interface func (export "keypair_from_id")
+    (param $secrets_manager $secrets_manager)
+    (param $kp_id (@witx const_pointer u8))
+    (param $kp_id_len $size)
+    (param $kp_version $version)
+    (result $error (expected $keypair (error $crypto_errno)))
+  )
+
+  ;;; Create a key pair from a public key and a secret key.
+  (@interface func (export "keypair_from_pk_and_sk")
+    (param $publickey $publickey)
+    (param $secretkey $secretkey)
+    (result $error (expected $keypair (error $crypto_errno)))
+  )
+
+  ;;; Export a key pair as the given encoding format.
+  ;;;
+  ;;; May return `prohibited_operation` if this operation is denied or `unsupported_encoding` if the encoding is not supported.
+  (@interface func (export "keypair_export")
+    (param $kp $keypair)
+    (param $encoding $keypair_encoding)
+    (result $error (expected $array_output (error $crypto_errno)))
+  )
+
+  ;;; Get the public key of a key pair.
+  (@interface func (export "keypair_publickey")
+    (param $kp $keypair)
+    (result $error (expected $publickey (error $crypto_errno)))
+  )
+
+  ;;; Get the secret key of a key pair.
+  (@interface func (export "keypair_secretkey")
+    (param $kp $keypair)
+    (result $error (expected $secretkey (error $crypto_errno)))
+  )
+
+  ;;; Destroy a key pair.
+  ;;;
+  ;;; The host will automatically wipe traces of the secret key from memory.
+  ;;;
+  ;;; If this is a managed key, the key will not be removed from persistent storage, and can be reconstructed later using the key identifier.
+  (@interface func (export "keypair_close")
+    (param $kp $keypair)
+    (result $error (expected (error $crypto_errno)))
+  )
+
+  ;;; Import a public key.
+  ;;;
+  ;;; The function may return `unsupported_encoding` if importing from the given format is not implemented or incompatible with the key type.
+  ;;;
+  ;;; It may also return `invalid_key` if the key doesn't appear to match the supplied algorithm.
+  ;;;
+  ;;; Finally, the function may return `unsupported_algorithm` if the algorithm is not supported by the host.
+  ;;;
+  ;;; Example usage:
+  ;;;
+  ;;; ```rust
+  ;;; let pk_handle = ctx.publickey_import(AlgorithmType::Signatures, encoded, PublicKeyEncoding::Sec)?;
+  ;;; ```
+  (@interface func (export "publickey_import")
+    (param $algorithm_type $algorithm_type)
+    (param $algorithm string)
+    (param $encoded (@witx const_pointer u8))
+    (param $encoded_len $size)
+    (param $encoding $publickey_encoding)
+    (result $error (expected $publickey (error $crypto_errno)))
+  )
+
+  ;;; Export a public key as the given encoding format.
+  ;;;
+  ;;; May return `unsupported_encoding` if the encoding is not supported.
+  (@interface func (export "publickey_export")
+    (param $pk $publickey)
+    (param $encoding $publickey_encoding)
+    (result $error (expected $array_output (error $crypto_errno)))
+  )
+
+  ;;; Check that a public key is valid and in canonical form.
+  ;;;
+  ;;; This function may perform stricter checks than those made during importation at the expense of additional CPU cycles.
+  ;;;
+  ;;; The function returns `invalid_key` if the public key didn't pass the checks.
+  (@interface func (export "publickey_verify")
+    (param $pk $publickey)
+    (result $error (expected (error $crypto_errno)))
+  )
+
+  ;;; Compute the public key for a secret key.
+  (@interface func (export "publickey_from_secretkey")
+    (param $sk $secretkey)
+    (result $error (expected $publickey (error $crypto_errno)))
+  )
+
+  ;;; Destroy a public key.
+  ;;;
+  ;;; Objects are reference counted. It is safe to close an object immediately after the last function needing it is called.
+  (@interface func (export "publickey_close")
+    (param $pk $publickey)
+    (result $error (expected (error $crypto_errno)))
+  )
+
+  ;;; Import a secret key.
+  ;;;
+  ;;; The function may return `unsupported_encoding` if importing from the given format is not implemented or incompatible with the key type.
+  ;;;
+  ;;; It may also return `invalid_key` if the key doesn't appear to match the supplied algorithm.
+  ;;;
+  ;;; Finally, the function may return `unsupported_algorithm` if the algorithm is not supported by the host.
+  ;;;
+  ;;; Example usage:
+  ;;;
+  ;;; ```rust
+  ;;; let pk_handle = ctx.secretkey_import(AlgorithmType::KX, encoded, SecretKeyEncoding::Raw)?;
+  ;;; ```
+  (@interface func (export "secretkey_import")
+    (param $algorithm_type $algorithm_type)
+    (param $algorithm string)
+    (param $encoded (@witx const_pointer u8))
+    (param $encoded_len $size)
+    (param $encoding $secretkey_encoding)
+    (result $error (expected $secretkey (error $crypto_errno)))
+  )
+
+  ;;; Export a secret key as the given encoding format.
+  ;;;
+  ;;; May return `unsupported_encoding` if the encoding is not supported.
+  (@interface func (export "secretkey_export")
+    (param $sk $secretkey)
+    (param $encoding $secretkey_encoding)
+    (result $error (expected $array_output (error $crypto_errno)))
+  )
+
+  ;;; Destroy a secret key.
+  ;;;
+  ;;; Objects are reference counted. It is safe to close an object immediately after the last function needing it is called.
+  (@interface func (export "secretkey_close")
+    (param $sk $secretkey)
+    (result $error (expected (error $crypto_errno)))
+  )
+)

@@ -6,10 +6,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .join("tools/wasmedge/examples/fibonacci.wasm");
 
     let config = wedge::Config::default();
-    let module = wedge::Module::load_from_file(&module_path, &config)?;
-    let mut vm = wedge::Vm::create(&module, &config)?;
+    let module = wedge::Module::new(&config, &module_path)?;
+
+    let vm = wedge::Vm::load(&module)?.with_config(&config)?.create()?;
 
     let results = vm.run("fib", &[5.into()])?;
+
     assert_eq!(results.len(), 1);
     let result = results[0].as_i32().unwrap();
 

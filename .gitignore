@@ -79,3 +79,10 @@ bindings/rust/wasmedge-sys/examples/.ipynb_checkpoints/*
 .DS_Store
 
 node_modules/
+
+# intelliJ IDEA
+**/.idea/*
+**.iml
+## Gradle
+**/.gradle/*
+**/build

@@ -11,7 +11,7 @@ about: Building or Using WasmEdge, but it's not working as you expect?
 
 ### Expected
 
-<!-- Please shortly describe you expect instead -->
+<!-- Please shortly describe what you expect instead -->
 
 ## Environment
 

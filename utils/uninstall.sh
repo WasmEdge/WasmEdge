@@ -20,13 +20,17 @@ _ldconfig() {
 
 if command -v sudo &>/dev/null; then
     if [ $PERM_ROOT == 1 ]; then
-        HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
+        __HOME__=$(getent passwd "$SUDO_USER" | cut -d: -f6)
     fi
 else
     echo "${YELLOW}sudo could not be found${NC}"
 fi
 
-IPATH="$HOME/.wasmedge"
+if [ "$__HOME__" = "" ]; then
+    __HOME__="$HOME"
+fi
+
+IPATH="$__HOME__/.wasmedge"
 EXT="none"
 VERBOSE=0
 ASK=1

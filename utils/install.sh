@@ -33,6 +33,30 @@ _downloader() {
     fi
 }
 
+_extracter() {
+    local prefix="WasmEdge-$VERSION-Linux/"
+    if ! command -v tar &>/dev/null; then
+        echo "${RED}Please install tar${NC}"
+        exit 1
+    else
+        local opt
+        opt=$(tar "$@")
+        for var in $opt; do
+            local filtered=${var//$prefix/}
+            filtered=${filtered//"lib64"/"lib"}
+            if [ ! -d "$IPATH/$filtered" ] && [[ ! "$filtered" =~ "download_dependencies" ]]; then
+                if [[ "$2" =~ "lib" ]] && [[ ! "$IPATH/$filtered" =~ "/lib/" ]]; then
+                    echo "#$IPATH/lib/$filtered" >>"$IPATH/env"
+                elif [[ "$2" =~ "bin" ]] && [[ ! "$IPATH/$filtered" =~ "/bin/" ]]; then
+                    echo "#$IPATH/bin/$filtered" >>"$IPATH/env"
+                else
+                    echo "#$IPATH/$filtered" >>"$IPATH/env"
+                fi
+            fi
+        done
+    fi
+}
+
 if ! command -v git &>/dev/null; then
     echo "${RED}Please install git${NC}"
     exit 1
@@ -213,7 +237,7 @@ install() {
 get_wasmedge_release() {
     echo "Fetching WasmEdge-$VERSION"
     _downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-$VERSION-$RELEASE_PKG"
-    tar -C "$TMP_DIR" -xzf "$TMP_DIR/WasmEdge-$VERSION-$RELEASE_PKG"
+    _extracter -C "$TMP_DIR" -vxzf "$TMP_DIR/WasmEdge-$VERSION-$RELEASE_PKG"
 }
 
 wasmedge_post_install() {
@@ -242,7 +266,7 @@ get_wasmedge_image_deps() {
     echo "Fetching WasmEdge-image-deps-$VERSION_IM"
     _downloader "https://github.com/second-state/WasmEdge-image/releases/download/$VERSION_IM_DEPS/WasmEdge-image-deps-$VERSION_IM_DEPS-$IM_DEPS_RELEASE_PKG"
 
-    tar -C "$IPATH/lib" -zxvf "$TMP_DIR/WasmEdge-image-deps-$VERSION_IM_DEPS-$IM_DEPS_RELEASE_PKG"
+    _extracter -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-image-deps-$VERSION_IM_DEPS-$IM_DEPS_RELEASE_PKG"
 
     ln -sf libjpeg.so.8.3.0 "$IPATH/lib/libjpeg.so"
     ln -sf libjpeg.so.8.3.0 "$IPATH/lib/libjpeg.so.8"
@@ -255,7 +279,7 @@ get_wasmedge_image_deps() {
 install_wasmedge_image() {
     echo "Fetching WasmEdge-image-$VERSION_IM"
     _downloader "https://github.com/second-state/WasmEdge-image/releases/download/$VERSION_IM/WasmEdge-image-$VERSION_IM-$RELEASE_PKG"
-    tar -C "$IPATH" -xzf "$TMP_DIR/WasmEdge-image-$VERSION_IM-$RELEASE_PKG"
+    _extracter -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-image-$VERSION_IM-$RELEASE_PKG"
     _ldconfig
 }
 
@@ -266,8 +290,8 @@ get_wasmedge_tensorflow_deps() {
     echo "Fetching WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS"
     _downloader "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF_DEPS/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
 
-    tar -C "$IPATH/lib" -zxvf "$TMP_DIR/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG"
-    tar -C "$IPATH/lib" -zxvf "$TMP_DIR/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
+    _extracter -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG"
+    _extracter -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
 
     ln -sf libtensorflow.so.2.4.0 "$IPATH/lib/libtensorflow.so.2"
     ln -sf libtensorflow.so.2 "$IPATH/lib/libtensorflow.so"
@@ -286,9 +310,9 @@ install_wasmedge_tensorflow() {
     echo "Fetching WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS"
     _downloader "https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/$VERSION_TF_TOOLS/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
 
-    tar -C "$IPATH" -xzf "$TMP_DIR/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
-    tar -C "$IPATH" -xzf "$TMP_DIR/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
-    tar -C "$IPATH/bin" -xzf "$TMP_DIR/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
+    _extracter -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
+    _extracter -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
+    _extracter -C "$IPATH/bin" -vxzf "$TMP_DIR/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
 
     rm -f "$IPATH/bin/download_dependencies_all.sh" \
         "$IPATH/bin/download_dependencies_tf.sh" \
@@ -390,6 +414,7 @@ main() {
     set_ENV "$IPATH"
     mkdir -p "$IPATH"
     echo "$ENV" >"$IPATH/env"
+    echo "# Please do not edit comments below this for uninstallation purpose" >>"$IPATH/env"
 
     if [ ! $default == 1 ]; then
         echo "${YELLOW}No path provided"

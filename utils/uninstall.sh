@@ -6,6 +6,7 @@ GREEN=$'\e[0;32m'
 YELLOW=$'\e[0;33m'
 NC=$'\e[0m' # No Color
 PERM_ROOT=1
+BLOCK_BEGIN="# Please"
 
 if [[ $EUID -ne 0 ]]; then
     echo "${YELLOW}No root permissions.${NC}"
@@ -78,6 +79,38 @@ usage() {
 EOF
 }
 
+parse_env() {
+    local begin
+    begin=0
+    while IFS= read -r line; do
+        if [ ! "${line:0:1}" = "#" ]; then
+            continue
+        else
+            if [[ "$line" =~ $BLOCK_BEGIN ]]; then
+                begin=1
+            fi
+        fi
+        if [ $begin -eq 1 ] && [[ ! "$line" =~ $BLOCK_BEGIN ]]; then
+            echo "${line#"#"}"
+        fi
+    done <"$IPATH/env"
+    if [ -f "$IPATH/env" ]; then
+        echo "$IPATH/env"
+    fi
+}
+
+remove_parsed() {
+    if [ -f "$IPATH/env" ]; then
+        IFS=$'\n'
+        ask_remove $(parse_env)
+        ask_remove $(find "$IPATH" -type d -empty -print)
+        if [ -z "$(ls -A "$IPATH")" ] && [[ "$IPATH" =~ "wasmedge" ]]; then
+            ask_remove "$IPATH"
+        fi
+        exit 0
+    fi
+}
+
 detect_bin_path() {
     set +e
     _path=$(which "$1")
@@ -87,34 +120,45 @@ detect_bin_path() {
             exit 1
         else
             echo "${GREEN}Installation path found at $IPATH${NC}"
+            remove_parsed
         fi
     else
         IPATH=${_path%"/bin/$1"}
         echo "${GREEN}Installation path found at $IPATH${NC}"
+        remove_parsed
     fi
     set -e
+}
+
+_rm() {
+    local var=$1
+    if [ -f "$var" ] || [ -h "$var" ]; then
+        rm -f "$var"
+    elif [ -d "$var" ]; then
+        rmdir --ignore-fail-on-non-empty "$var"
+    fi
 }
 
 ask_remove() {
     local libs=("$@")
     if [ $ASK == 1 ]; then
         while true; do
-            echo "Do you wish to uninstall the following libs?"
+            echo "Do you wish to uninstall the following?"
             for var in "${libs[@]}"; do
-                echo "  $var"
+                echo "$var"
             done
             read -p "Please answer [Y/N | y/n]" yn
             case $yn in
             [Yy]*)
                 for var in "${libs[@]}"; do
                     echo "Removing $var"
-                    rm -f "$var"
+                    _rm "$var"
                 done
                 ldconfig
                 break
                 ;;
             [Nn]*)
-                echo "Aborted Uninstalling wasmedge_image_deps"
+                echo "Aborted Uninstalling"
                 break
                 ;;
             *) echo "Please answer [Y/N | y/n]" ;;
@@ -123,7 +167,7 @@ ask_remove() {
     else
         for var in "${libs[@]}"; do
             echo "Removing $var"
-            rm -f "$var"
+            _rm "$var"
         done
         _ldconfig
     fi
@@ -252,6 +296,11 @@ main() {
         shift
     done
 
+    if [ ! $VERBOSE == 0 ]; then
+        echo "Verbose Mode"
+        set -xv
+    fi
+
     detect_bin_path wasmedge
 
     if [ ! $default == 1 ] && [ ! $ASK == 0 ]; then
@@ -266,11 +315,6 @@ main() {
             *) echo "Please answer [Y/N | y/n]" ;;
             esac
         done
-    fi
-
-    if [ ! $VERBOSE == 0 ]; then
-        echo "Verbose Mode"
-        set -xv
     fi
 
     if [ -d "$IPATH" ]; then
@@ -304,7 +348,7 @@ main() {
             wasmedgec-tensorflow \
             wasmedge-tensorflow-lite
     elif [ "$EXT" = "none" ]; then
-        echo "No extensions to be installed"
+        echo "No extensions to be uninstalled"
     else
         echo "Invalid extension"
     fi

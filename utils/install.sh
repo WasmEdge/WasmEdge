@@ -122,20 +122,20 @@ set_ENV() {
     ENV="#!/bin/sh
 # wasmedge shell setup
 # affix colons on either side of \$PATH to simplify matching
-case ":\${PATH}:" in
-    *:"$1/bin":*)
+case ":\"\${PATH}\":" in
+    *:\"$1/bin\":*)
         ;;
     *)
         # Prepending path in case a system-installed wasmedge needs to be overridden
-        export PATH="$1/bin:\$PATH"
+        export PATH=\"$1/bin\":\$PATH
         ;;
 esac
-case ":\${LD_LIBRARY_PATH}:" in
-    *:"$1/lib":*)
+case ":\"\${LD_LIBRARY_PATH}\":" in
+    *:\"$1/lib\":*)
         ;;
     *)
         # Prepending path in case a system-installed wasmedge libs needs to be overridden
-        export LD_LIBRARY_PATH="$1/lib:\$LD_LIBRARY_PATH"
+        export LD_LIBRARY_PATH=\"$1/lib\":\$LD_LIBRARY_PATH
         ;;
 esac"
 }
@@ -273,6 +273,15 @@ get_wasmedge_image_deps() {
     ln -sf libpng16.so.16.37.0 "$IPATH/lib/libpng.so"
     ln -sf libpng16.so.16.37.0 "$IPATH/lib/libpng16.so"
     ln -sf libpng16.so.16.37.0 "$IPATH/lib/libpng16.so.16"
+
+    {
+        echo "#$IPATH/lib/libjpeg.so"
+        echo "#$IPATH/lib/libjpeg.so.8"
+        echo "#$IPATH/lib/libpng.so"
+        echo "#$IPATH/lib/libpng16.so"
+        echo "#$IPATH/lib/libpng16.so.16"
+    } >>"$IPATH/env"
+
     _ldconfig
 }
 
@@ -297,6 +306,14 @@ get_wasmedge_tensorflow_deps() {
     ln -sf libtensorflow.so.2 "$IPATH/lib/libtensorflow.so"
     ln -sf libtensorflow_framework.so.2.4.0 "$IPATH/lib/libtensorflow_framework.so.2"
     ln -sf libtensorflow_framework.so.2 "$IPATH/lib/libtensorflow_framework.so"
+
+    {
+        echo "#$IPATH/lib/libtensorflow.so.2"
+        echo "#$IPATH/lib/libtensorflow.so"
+        echo "#$IPATH/lib/libtensorflow_framework.so.2"
+        echo "#$IPATH/lib/libtensorflow_framework.so"
+    } >>"$IPATH/env"
+
     _ldconfig
 }
 

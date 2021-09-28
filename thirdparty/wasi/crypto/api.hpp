@@ -417,7 +417,7 @@ static_assert(alignof(__wasi_version_t) == 8, "witx calculated align");
 /**
  * Size of a value.
  */
-using __wasi_size_t = size_t;
+using __wasi_size_t = uint32_t;
 
 static_assert(sizeof(__wasi_size_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_size_t) == 4, "witx calculated align");

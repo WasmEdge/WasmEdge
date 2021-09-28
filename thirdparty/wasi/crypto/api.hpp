@@ -57,7 +57,7 @@ static_assert(alignof(uint8_t_ptr) == 4, "non-wasi data layout");
 /**
  * Error codes.
  */
-enum __wasi_crypto_errno_t : uint16_t {
+enum __wasi_crypto_errno_e_t : uint16_t {
   /**
    * Operation succeeded.
    */
@@ -265,13 +265,13 @@ enum __wasi_crypto_errno_t : uint16_t {
   __WASI_CRYPTO_ERRNO_EXPIRED = 30,
 
 };
-static_assert(sizeof(__wasi_crypto_errno_t) == 2, "witx calculated size");
-static_assert(alignof(__wasi_crypto_errno_t) == 2, "witx calculated align");
+static_assert(sizeof(__wasi_crypto_errno_e_t) == 2, "witx calculated size");
+static_assert(alignof(__wasi_crypto_errno_e_t) == 2, "witx calculated align");
 
 /**
  * Encoding to use for importing or exporting a key pair.
  */
-enum __wasi_keypair_encoding_t : uint16_t {
+enum __wasi_keypair_encoding_e_t : uint16_t {
   /**
    * Raw bytes.
    */
@@ -293,13 +293,13 @@ enum __wasi_keypair_encoding_t : uint16_t {
   __WASI_KEYPAIR_ENCODING_LOCAL = 3,
 
 };
-static_assert(sizeof(__wasi_keypair_encoding_t) == 2, "witx calculated size");
-static_assert(alignof(__wasi_keypair_encoding_t) == 2, "witx calculated align");
+static_assert(sizeof(__wasi_keypair_encoding_e_t) == 2, "witx calculated size");
+static_assert(alignof(__wasi_keypair_encoding_e_t) == 2, "witx calculated align");
 
 /**
  * Encoding to use for importing or exporting a public key.
  */
-enum __wasi_publickey_encoding_t : uint16_t {
+enum __wasi_publickey_encoding_e_t : uint16_t {
   /**
    * Raw bytes.
    */
@@ -331,13 +331,13 @@ enum __wasi_publickey_encoding_t : uint16_t {
   __WASI_PUBLICKEY_ENCODING_LOCAL = 5,
 
 };
-static_assert(sizeof(__wasi_publickey_encoding_t) == 2, "witx calculated size");
-static_assert(alignof(__wasi_publickey_encoding_t) == 2, "witx calculated align");
+static_assert(sizeof(__wasi_publickey_encoding_e_t) == 2, "witx calculated size");
+static_assert(alignof(__wasi_publickey_encoding_e_t) == 2, "witx calculated align");
 
 /**
  * Encoding to use for importing or exporting a secret key.
  */
-enum __wasi_secretkey_encoding_t : uint16_t {
+enum __wasi_secretkey_encoding_e_t : uint16_t {
   /**
    * Raw bytes.
    */
@@ -369,13 +369,13 @@ enum __wasi_secretkey_encoding_t : uint16_t {
   __WASI_SECRETKEY_ENCODING_LOCAL = 5,
 
 };
-static_assert(sizeof(__wasi_secretkey_encoding_t) == 2, "witx calculated size");
-static_assert(alignof(__wasi_secretkey_encoding_t) == 2, "witx calculated align");
+static_assert(sizeof(__wasi_secretkey_encoding_e_t) == 2, "witx calculated size");
+static_assert(alignof(__wasi_secretkey_encoding_e_t) == 2, "witx calculated align");
 
 /**
  * Encoding to use for importing or exporting a signature.
  */
-enum __wasi_signature_encoding_t : uint16_t {
+enum __wasi_signature_encoding_e_t : uint16_t {
   /**
    * Raw bytes.
    */
@@ -387,13 +387,13 @@ enum __wasi_signature_encoding_t : uint16_t {
   __WASI_SIGNATURE_ENCODING_DER = 1,
 
 };
-static_assert(sizeof(__wasi_signature_encoding_t) == 2, "witx calculated size");
-static_assert(alignof(__wasi_signature_encoding_t) == 2, "witx calculated align");
+static_assert(sizeof(__wasi_signature_encoding_e_t) == 2, "witx calculated size");
+static_assert(alignof(__wasi_signature_encoding_e_t) == 2, "witx calculated align");
 
 /**
  * An algorithm category.
  */
-enum __wasi_algorithm_type_t : uint16_t {
+enum __wasi_algorithm_type_e_t : uint16_t {
   __WASI_ALGORITHM_TYPE_SIGNATURES = 0,
 
   __WASI_ALGORITHM_TYPE_SYMMETRIC = 1,
@@ -401,8 +401,8 @@ enum __wasi_algorithm_type_t : uint16_t {
   __WASI_ALGORITHM_TYPE_KEY_EXCHANGE = 2,
 
 };
-static_assert(sizeof(__wasi_algorithm_type_t) == 2, "witx calculated size");
-static_assert(alignof(__wasi_algorithm_type_t) == 2, "witx calculated align");
+static_assert(sizeof(__wasi_algorithm_type_e_t) == 2, "witx calculated size");
+static_assert(alignof(__wasi_algorithm_type_e_t) == 2, "witx calculated align");
 
 /**
  * Version of a managed key.
@@ -417,7 +417,7 @@ static_assert(alignof(__wasi_version_t) == 8, "witx calculated align");
 /**
  * Size of a value.
  */
-using __wasi_size_t = uint32_t;
+using __wasi_size_t = size_t;
 
 static_assert(sizeof(__wasi_size_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_size_t) == 4, "witx calculated align");
@@ -561,14 +561,14 @@ static_assert(alignof(__wasi_symmetric_tag_t) == 4, "witx calculated align");
 /**
  * Options index, only required by the Interface Types translation layer.
  */
-enum __wasi_opt_options_u_t : uint8_t {
+enum __wasi_opt_options_u_e_t : uint8_t {
   __WASI_OPT_OPTIONS_U_SOME = 0,
 
   __WASI_OPT_OPTIONS_U_NONE = 1,
 
 };
-static_assert(sizeof(__wasi_opt_options_u_t) == 1, "witx calculated size");
-static_assert(alignof(__wasi_opt_options_u_t) == 1, "witx calculated align");
+static_assert(sizeof(__wasi_opt_options_u_e_t) == 1, "witx calculated size");
+static_assert(alignof(__wasi_opt_options_u_e_t) == 1, "witx calculated align");
 
 /**
  * An optional options set.
@@ -590,14 +590,14 @@ static_assert(offsetof(__wasi_opt_options_t, u) == 4, "witx calculated union off
 /**
  * Symmetric key index, only required by the Interface Types translation layer.
  */
-enum __wasi_opt_symmetric_key_u_t : uint8_t {
+enum __wasi_opt_symmetric_key_u_e_t : uint8_t {
   __WASI_OPT_SYMMETRIC_KEY_U_SOME = 0,
 
   __WASI_OPT_SYMMETRIC_KEY_U_NONE = 1,
 
 };
-static_assert(sizeof(__wasi_opt_symmetric_key_u_t) == 1, "witx calculated size");
-static_assert(alignof(__wasi_opt_symmetric_key_u_t) == 1, "witx calculated align");
+static_assert(sizeof(__wasi_opt_symmetric_key_u_e_t) == 1, "witx calculated size");
+static_assert(alignof(__wasi_opt_symmetric_key_u_e_t) == 1, "witx calculated align");
 
 /**
  * An optional symmetric key.

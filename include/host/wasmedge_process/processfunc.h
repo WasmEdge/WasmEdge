@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include "common/defines.h"
 #include "common/errcode.h"
 #include "processbase.h"
 #include "processenv.h"

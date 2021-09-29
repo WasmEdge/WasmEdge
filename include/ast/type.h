@@ -15,8 +15,9 @@
 #include <memory>
 #include <vector>
 
+#include "common/symbol.h"
+
 #include "base.h"
-#include "loader/shared_library.h"
 
 namespace WasmEdge {
 namespace AST {
@@ -89,9 +90,9 @@ public:
   Span<const ValType> getReturnTypes() const { return ReturnTypes; }
 
   /// Getter of compiled symbol.
-  const auto &getSymbol() const noexcept { return Symbol; }
+  const auto &getSymbol() const noexcept { return TypeSymbol; }
   /// Setter of compiled symbol.
-  void setSymbol(Loader::Symbol<Wrapper> S) { Symbol = std::move(S); }
+  void setSymbol(Symbol<Wrapper> S) { TypeSymbol = std::move(S); }
 
   /// The node type should be ASTNodeAttr::Type_Function.
   static inline constexpr const ASTNodeAttr NodeAttr =
@@ -115,7 +116,7 @@ private:
   std::vector<ValType> ReturnTypes;
   /// @}
 
-  Loader::Symbol<Wrapper> Symbol;
+  Symbol<Wrapper> TypeSymbol;
 };
 
 /// AST MemoryType node.

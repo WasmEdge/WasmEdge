@@ -17,8 +17,9 @@
 #include <string_view>
 #include <vector>
 
+#include "common/symbol.h"
+
 #include "loader/ldmgr.h"
-#include "loader/shared_library.h"
 
 #include "base.h"
 #include "section.h"
@@ -90,10 +91,10 @@ public:
   using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];
 
   /// Getter of compiled symbol.
-  const auto &getSymbol() const noexcept { return Symbol; }
+  const auto &getSymbol() const noexcept { return IntrSymbol; }
   /// Setter of compiled symbol.
-  void setSymbol(Loader::Symbol<const IntrinsicsTable *> S) noexcept {
-    Symbol = std::move(S);
+  void setSymbol(Symbol<const IntrinsicsTable *> S) noexcept {
+    IntrSymbol = std::move(S);
   }
 
   /// The node type should be ASTNodeAttr::Module.
@@ -124,7 +125,7 @@ private:
   /// @}
   AOTSection AOTSec;
 
-  Loader::Symbol<const IntrinsicsTable *> Symbol;
+  Symbol<const IntrinsicsTable *> IntrSymbol;
 };
 
 } // namespace AST

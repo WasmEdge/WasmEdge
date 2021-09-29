@@ -13,6 +13,7 @@
 
 #include "ast/type.h"
 #include "common/span.h"
+#include "common/symbol.h"
 #include "common/types.h"
 #include "common/value.h"
 
@@ -27,9 +28,9 @@ struct FType {
   using Wrapper = AST::FunctionType::Wrapper;
 
   FType() = default;
-  FType(Span<const ValType> P, Span<const ValType> R, Loader::Symbol<Wrapper> S)
+  FType(Span<const ValType> P, Span<const ValType> R, Symbol<Wrapper> S)
       : Params(P.begin(), P.end()), Returns(R.begin(), R.end()),
-        Symbol(std::move(S)) {}
+        TypeSymbol(std::move(S)) {}
 
   friend bool operator==(const FType &LHS, const FType &RHS) noexcept {
     return LHS.Params == RHS.Params && LHS.Returns == RHS.Returns;
@@ -40,12 +41,12 @@ struct FType {
   }
 
   /// Getter of symbol
-  const auto &getSymbol() const noexcept { return Symbol; }
+  const auto &getSymbol() const noexcept { return TypeSymbol; }
 
   std::vector<ValType> Params;
   std::vector<ValType> Returns;
 
-  Loader::Symbol<Wrapper> Symbol;
+  Symbol<Wrapper> TypeSymbol;
 };
 
 } // namespace Instance

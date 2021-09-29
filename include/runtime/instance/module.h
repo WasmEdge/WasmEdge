@@ -13,8 +13,9 @@
 
 #include "common/errcode.h"
 #include "common/span.h"
+#include "common/symbol.h"
 #include "common/types.h"
-#include "type.h"
+#include "runtime/instance/type.h"
 
 #include <map>
 #include <optional>
@@ -34,8 +35,8 @@ public:
 
   /// Copy the function types in type section to module instance.
   void addFuncType(Span<const ValType> Params, Span<const ValType> Returns,
-                   Loader::Symbol<FType::Wrapper> Symbol) {
-    FuncTypes.emplace_back(Params, Returns, Symbol);
+                   Symbol<FType::Wrapper> Sym) {
+    FuncTypes.emplace_back(Params, Returns, Sym);
   }
 
   /// Register module owns instances with address in Store.

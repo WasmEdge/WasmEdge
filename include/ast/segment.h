@@ -15,7 +15,7 @@
 #include <memory>
 
 #include "common/log.h"
-#include "loader/shared_library.h"
+#include "common/symbol.h"
 
 #include "base.h"
 #include "expression.h"
@@ -136,9 +136,9 @@ public:
   Span<const std::pair<uint32_t, ValType>> getLocals() const { return Locals; }
 
   /// Getter of compiled symbol.
-  const auto &getSymbol() const noexcept { return Symbol; }
+  const auto &getSymbol() const noexcept { return FuncSymbol; }
   /// Setter of compiled symbol.
-  void setSymbol(Loader::Symbol<void> S) noexcept { Symbol = std::move(S); }
+  void setSymbol(Symbol<void> S) noexcept { FuncSymbol = std::move(S); }
 
   /// The node type should be ASTNodeAttr::Seg_Code.
   static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Code;
@@ -150,7 +150,7 @@ private:
   std::vector<std::pair<uint32_t, ValType>> Locals;
   /// @}
 
-  Loader::Symbol<void> Symbol;
+  Symbol<void> FuncSymbol;
 };
 
 /// AST DataSegment node.

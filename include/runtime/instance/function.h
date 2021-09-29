@@ -12,8 +12,9 @@
 #pragma once
 
 #include "ast/instruction.h"
-#include "module.h"
+#include "common/symbol.h"
 #include "runtime/hostfunc.h"
+#include "runtime/instance/module.h"
 
 #include <memory>
 #include <string>
@@ -40,10 +41,9 @@ public:
         Data(std::in_place_type_t<WasmFunction>(), Locs, Expr) {}
   /// Constructor for compiled function.
   FunctionInstance(const uint32_t ModAddr, const FType &Type,
-                   Loader::Symbol<CompiledFunction> S) noexcept
+                   Symbol<CompiledFunction> S) noexcept
       : ModuleAddr(ModAddr), FuncType(Type),
-        Data(std::in_place_type_t<Loader::Symbol<CompiledFunction>>(),
-             std::move(S)) {}
+        Data(std::in_place_type_t<Symbol<CompiledFunction>>(), std::move(S)) {}
   /// Constructor for host function. Module address will not be used.
   FunctionInstance(std::unique_ptr<HostFunctionBase> &&Func) noexcept
       : ModuleAddr(0), FuncType(Func->getFuncType()),
@@ -59,7 +59,7 @@ public:
 
   /// Getter of checking is compiled function.
   bool isCompiledFunction() const {
-    return std::holds_alternative<Loader::Symbol<CompiledFunction>>(Data);
+    return std::holds_alternative<Symbol<CompiledFunction>>(Data);
   }
 
   /// Getter of checking is host function.
@@ -89,7 +89,7 @@ public:
 
   /// Getter of symbol
   auto getSymbol() const noexcept {
-    return *std::get_if<Loader::Symbol<CompiledFunction>>(&Data);
+    return *std::get_if<Symbol<CompiledFunction>>(&Data);
   }
 
   /// Getter of host function.
@@ -110,7 +110,7 @@ private:
   /// @{
   const uint32_t ModuleAddr;
   const FType &FuncType;
-  std::variant<WasmFunction, Loader::Symbol<CompiledFunction>,
+  std::variant<WasmFunction, Symbol<CompiledFunction>,
                std::unique_ptr<HostFunctionBase>>
       Data;
   /// @}

@@ -49,11 +49,38 @@ After installation, you have the following directories and files. Here we assume
 * The `$HOME/.wasmedge/lib` directory contains WasmEdge shared libraries, as well as dependency libraries. They are useful for WasmEdge SDKs to launch WasmEdge programs and functions from host applications.
 * The `$HOME/.wasmedge/include` directory contains the WasmEdge header files. They are useful for WasmEdge SDKs.
 
+
+## Uninstallation
+
 To uninstall WasmEdge, you can run the following command.
 
+Note: Below are [`process substitutions`](https://unix.stackexchange.com/questions/17107/process-substitution-and-pipe) and not pipes.
+
 ```
-$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh | bash
+bash <(wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh)
 ```
+
+If `wasmedge` binary is not in `PATH` or if it wasn't installed in default `$HOME/.wasmedge` then you must provide the installation path.
+
+```bash
+bash <(wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -p /path/to/parent/folder
+```
+
+If you wish to uninstall uninteractively, you can pass in the `--quick` or `-q` flag.
+```bash
+bash <(wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -q
+```
+
+<details>
+  <summary>More about Uninstall Script:</summary>
+<li>
+It automatically detects what files were installed post commit 19f44012d989527c7d018090f4e9f779c674e494.
+</li>
+<li>
+If the parent folder contains substring ".wasmedge" the folder will be considered for removal which happens to be same as the default location for wasmedge under $HOME/.wasmedge
+</li>
+</details>
+
 
 ## Install WasmEdge for Node.js
 

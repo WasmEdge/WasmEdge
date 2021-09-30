@@ -236,7 +236,6 @@ cleanup() {
     rm -f "$TMP_DIR/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
     rm -f "$TMP_DIR/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
     rm -f "$TMP_DIR/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
-    rmdir --ignore-fail-on-non-empty "$TMP_DIR"
 }
 
 install() {

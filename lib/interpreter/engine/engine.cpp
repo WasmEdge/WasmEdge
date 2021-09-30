@@ -126,7 +126,7 @@ Expect<void> Interpreter::execute(Runtime::StoreManager &StoreMgr,
 
     /// Reference Instructions
     case OpCode::Ref__null:
-      StackMgr.push(genNullRef(Instr.getReferenceType()));
+      StackMgr.push(UnknownRef());
       return {};
     case OpCode::Ref__is_null: {
       ValVariant &Val = StackMgr.getTop();

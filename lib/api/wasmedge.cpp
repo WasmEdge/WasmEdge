@@ -427,9 +427,8 @@ WasmEdge_ValueGenV128(const ::int128_t Val) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
 WasmEdge_ValueGenNullRef(const WasmEdge_RefType T) {
-  return genWasmEdge_Value(
-      WasmEdge::genNullRef(static_cast<WasmEdge::RefType>(T)),
-      static_cast<WasmEdge_ValType>(T));
+  return genWasmEdge_Value(WasmEdge::UnknownRef(),
+                           static_cast<WasmEdge_ValType>(T));
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value

@@ -71,11 +71,6 @@ struct ExternRef {
   template <typename T> ExternRef(T *P) : Ptr(reinterpret_cast<void *>(P)) {}
 };
 
-/// Reference types helper functions.
-inline constexpr UnknownRef genNullRef(const RefType /*Type*/) noexcept {
-  return UnknownRef();
-}
-
 /// NumType and RefType variant definitions.
 using RefVariant = Variant<UnknownRef, FuncRef, ExternRef>;
 using ValVariant =

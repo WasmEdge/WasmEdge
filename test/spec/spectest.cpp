@@ -101,8 +101,7 @@ parseValueList(const rapidjson::Value &Args) {
       const auto &Value = ValueNode.Get<std::string>();
       if (Type == "externref"sv) {
         if (Value == "null"sv) {
-          Result.emplace_back(
-              WasmEdge::genNullRef(WasmEdge::RefType::ExternRef));
+          Result.emplace_back(WasmEdge::UnknownRef());
         } else {
           /// Add 0x1 uint32_t prefix in this externref index case.
           Result.emplace_back(WasmEdge::ExternRef(
@@ -111,7 +110,7 @@ parseValueList(const rapidjson::Value &Args) {
         ResultTypes.emplace_back(WasmEdge::ValType::ExternRef);
       } else if (Type == "funcref"sv) {
         if (Value == "null"sv) {
-          Result.emplace_back(WasmEdge::genNullRef(WasmEdge::RefType::FuncRef));
+          Result.emplace_back(WasmEdge::UnknownRef());
         } else {
           Result.emplace_back(WasmEdge::FuncRef(std::stoul(Value)));
         }

@@ -16,7 +16,6 @@
 #include "common/log.h"
 #include "common/span.h"
 #include "common/types.h"
-#include "common/value.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -31,7 +30,7 @@ public:
   TableInstance() = delete;
   TableInstance(const RefType &Ref, const AST::Limit &Lim)
       : Type(Ref), HasMaxSize(Lim.hasMax()), MaxSize(Lim.getMax()),
-        Refs(Lim.getMin(), genNullRef(Ref)) {}
+        Refs(Lim.getMin(), UnknownRef()) {}
   virtual ~TableInstance() = default;
 
   /// Getter of reference type.
@@ -80,7 +79,7 @@ public:
     return true;
   }
   bool growTable(const uint32_t Count) {
-    return growTable(Count, genNullRef(Type));
+    return growTable(Count, UnknownRef());
   }
 
   /// Get slice of Refs[Offset : Offset + Length - 1]

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "common/log.h"
-#include "common/types.h"
+
 #include "interpreter/engine/vector_helper.h"
 #include "interpreter/interpreter.h"
 

@@ -11,13 +11,13 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "instance/data.h"
-#include "instance/elem.h"
-#include "instance/function.h"
-#include "instance/global.h"
-#include "instance/memory.h"
-#include "instance/module.h"
-#include "instance/table.h"
+#include "runtime/instance/data.h"
+#include "runtime/instance/elem.h"
+#include "runtime/instance/function.h"
+#include "runtime/instance/global.h"
+#include "runtime/instance/memory.h"
+#include "runtime/instance/module.h"
+#include "runtime/instance/table.h"
 
 #include <memory>
 #include <type_traits>

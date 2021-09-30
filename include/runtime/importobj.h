@@ -12,11 +12,11 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "hostfunc.h"
-#include "instance/function.h"
-#include "instance/global.h"
-#include "instance/memory.h"
-#include "instance/table.h"
+#include "runtime/hostfunc.h"
+#include "runtime/instance/function.h"
+#include "runtime/instance/global.h"
+#include "runtime/instance/memory.h"
+#include "runtime/instance/table.h"
 
 #include <map>
 #include <memory>

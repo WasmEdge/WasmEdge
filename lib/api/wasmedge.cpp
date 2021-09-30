@@ -1,24 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
-#include <cstring>
-#include <vector>
 
 #include "wasmedge/wasmedge.h"
 
-#include "common/errcode.h"
-#include "common/log.h"
-#include "common/span.h"
-#include "common/statistics.h"
-#include "common/types.h"
-
 #include "aot/compiler.h"
-#include "ast/module.h"
 #include "host/wasi/wasimodule.h"
 #include "host/wasmedge_process/processmodule.h"
-#include "interpreter/interpreter.h"
-#include "loader/loader.h"
-#include "runtime/storemgr.h"
-#include "validator/validator.h"
 #include "vm/vm.h"
+
+#include <cstring>
+#include <vector>
 
 /// WasmEdge_ConfigureContext implementation.
 struct WasmEdge_ConfigureContext {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+
 #include "ast/description.h"
-#include "common/log.h"
 
 namespace WasmEdge {
 namespace AST {

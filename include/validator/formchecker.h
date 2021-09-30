@@ -12,14 +12,14 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include <unordered_set>
-#include <vector>
-
 #include "ast/instruction.h"
 #include "ast/module.h"
 #include "common/errcode.h"
 #include "common/span.h"
 #include "common/types.h"
+
+#include <unordered_set>
+#include <vector>
 
 namespace WasmEdge {
 namespace Validator {

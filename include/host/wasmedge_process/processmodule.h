@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "processenv.h"
+#include "host/wasmedge_process/processenv.h"
 #include "runtime/importobj.h"
 
 #include <cstdint>

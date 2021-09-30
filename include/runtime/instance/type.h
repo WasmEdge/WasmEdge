@@ -13,8 +13,6 @@
 
 #include "ast/type.h"
 #include "common/span.h"
-#include "common/symbol.h"
-#include "common/types.h"
 
 #include <vector>
 

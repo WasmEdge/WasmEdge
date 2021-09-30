@@ -14,11 +14,8 @@
 
 #include "ast/instruction.h"
 #include "ast/module.h"
-#include "common/configure.h"
 #include "common/defines.h"
-#include "common/errcode.h"
 #include "common/statistics.h"
-#include "common/types.h"
 #include "runtime/importobj.h"
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"

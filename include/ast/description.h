@@ -12,13 +12,11 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/base.h"
+#include "ast/type.h"
+
 #include <string>
 #include <variant>
-
-#include "common/types.h"
-
-#include "base.h"
-#include "type.h"
 
 namespace WasmEdge {
 namespace AST {

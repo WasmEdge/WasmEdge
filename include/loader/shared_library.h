@@ -11,10 +11,13 @@
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
+
+#include "ast/section.h"
 #include "common/defines.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
 #include "common/symbol.h"
+
 #include <memory>
 
 #if WASMEDGE_OS_WINDOWS

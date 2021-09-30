@@ -12,17 +12,11 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include <memory>
-#include <string>
-#include <string_view>
-#include <vector>
-
-#include "common/symbol.h"
-
+#include "ast/base.h"
+#include "ast/section.h"
 #include "loader/ldmgr.h"
 
-#include "base.h"
-#include "section.h"
+#include <vector>
 
 namespace WasmEdge::Interpreter {
 class Interpreter;

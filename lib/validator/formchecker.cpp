@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+
 #include "validator/formchecker.h"
-#include "ast/module.h"
 
 namespace {
 template <typename... Ts> struct overloaded : Ts... {

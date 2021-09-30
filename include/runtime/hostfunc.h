@@ -13,9 +13,8 @@
 
 #include "common/span.h"
 #include "common/types.h"
-#include "instance/memory.h"
-#include "instance/type.h"
-#include "stackmgr.h"
+#include "runtime/instance/memory.h"
+#include "runtime/instance/type.h"
 
 #include <memory>
 #include <tuple>

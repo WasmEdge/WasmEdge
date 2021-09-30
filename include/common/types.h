@@ -12,11 +12,11 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "enum_types.h"
-#include "int128.h"
-#include "span.h"
-#include "symbol.h"
-#include "variant.h"
+#include "common/enum_types.h"
+#include "common/int128.h"
+#include "common/span.h"
+#include "common/symbol.h"
+#include "common/variant.h"
 
 #include <cstdint>
 #include <type_traits>

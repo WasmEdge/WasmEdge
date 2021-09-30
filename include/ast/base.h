@@ -13,7 +13,6 @@
 #pragma once
 
 #include "common/configure.h"
-#include "common/enum_ast.h"
 #include "common/errcode.h"
 #include "common/errinfo.h"
 #include "common/log.h"

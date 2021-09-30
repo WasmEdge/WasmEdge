@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ast/description.h"
-#include "loader/filemgr.h"
+
 #include "gtest/gtest.h"
 
 namespace {

@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "ast/section.h"
-#include "common/log.h"
+
 #include "interpreter/interpreter.h"
-#include "runtime/instance/memory.h"
-#include "runtime/instance/module.h"
 
 namespace WasmEdge {
 namespace Interpreter {

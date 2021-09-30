@@ -2,11 +2,7 @@
 #pragma once
 
 #include "common/defines.h"
-#include "common/errcode.h"
-#include "processbase.h"
-#include "processenv.h"
-#include "runtime/hostfunc.h"
-#include "runtime/instance/memory.h"
+#include "host/wasmedge_process/processbase.h"
 
 namespace WasmEdge {
 namespace Host {

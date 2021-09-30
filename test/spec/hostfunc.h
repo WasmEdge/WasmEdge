@@ -15,9 +15,7 @@
 #pragma once
 
 #include "common/errcode.h"
-#include "runtime/hostfunc.h"
 #include "runtime/importobj.h"
-#include "runtime/instance/memory.h"
 
 namespace WasmEdge {
 

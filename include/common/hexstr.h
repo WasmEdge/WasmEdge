@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "span.h"
+#include "common/span.h"
 
 #include <string>
 #include <string_view>

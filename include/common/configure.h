@@ -12,12 +12,11 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "enum_configure.h"
+#include "common/enum_configure.h"
 
 #include <bitset>
 #include <cstdint>
 #include <initializer_list>
-#include <string_view>
 
 namespace WasmEdge {
 

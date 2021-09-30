@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "ast/instruction.h"
-#include "common/defines.h"
-#include "common/log.h"
-#include "common/statistics.h"
-#include "common/types.h"
+
 #include "interpreter/interpreter.h"
 #include "system/fault.h"
 

@@ -10,6 +10,7 @@
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
+
 #include "experimental/span.hpp"
 
 namespace WasmEdge {

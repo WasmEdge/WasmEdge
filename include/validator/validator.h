@@ -12,12 +12,12 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include <memory>
-
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/errcode.h"
-#include "formchecker.h"
+#include "validator/formchecker.h"
+
+#include <memory>
 
 namespace WasmEdge {
 namespace Validator {

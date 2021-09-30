@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
+
 #include "common/roundeven.h"
-#include "common/types.h"
 #include "interpreter/interpreter.h"
+
 #include <cmath>
 
 namespace WasmEdge {

@@ -12,13 +12,11 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/base.h"
+#include "ast/instruction.h"
+
 #include <memory>
 #include <vector>
-
-#include "common/span.h"
-
-#include "base.h"
-#include "instruction.h"
 
 namespace WasmEdge {
 namespace AST {

@@ -11,10 +11,6 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/errcode.h"
-#include "common/span.h"
-#include "common/symbol.h"
-#include "common/types.h"
 #include "runtime/instance/type.h"
 
 #include <map>

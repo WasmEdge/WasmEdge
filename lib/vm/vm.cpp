@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
+
 #include "vm/vm.h"
-#include "common/log.h"
+
 #include "host/wasi/wasimodule.h"
 #include "host/wasmedge_process/processmodule.h"
 

@@ -1,13 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "common/enum_ast.h"
-#include "common/enum_configure.h"
-#include "common/enum_errcode.h"
-#include "common/enum_types.h"
+
+#include "common/errinfo.h"
 
 #include "common/errcode.h"
-#include "common/errinfo.h"
 #include "common/hexstr.h"
-#include "common/types.h"
 
 namespace WasmEdge {
 namespace ErrInfo {

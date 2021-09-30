@@ -12,7 +12,6 @@
 #pragma once
 
 #include "ast/instruction.h"
-#include "common/symbol.h"
 #include "runtime/hostfunc.h"
 #include "runtime/instance/module.h"
 

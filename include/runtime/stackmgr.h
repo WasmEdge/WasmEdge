@@ -11,13 +11,12 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/instruction.h"
+#include "common/span.h"
+
 #include <cassert>
 #include <optional>
 #include <vector>
-
-#include "ast/instruction.h"
-#include "common/span.h"
-#include "common/types.h"
 
 namespace WasmEdge {
 namespace Runtime {

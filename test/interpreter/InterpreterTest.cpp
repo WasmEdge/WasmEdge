@@ -12,8 +12,6 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "common/configure.h"
-#include "common/filesystem.h"
 #include "common/log.h"
 #include "vm/vm.h"
 

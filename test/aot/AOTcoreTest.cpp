@@ -12,13 +12,9 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "common/configure.h"
-#include "common/defines.h"
-#include "common/filesystem.h"
-#include "common/log.h"
-
 #include "aot/compiler.h"
-#include "validator/validator.h"
+#include "common/defines.h"
+#include "common/log.h"
 #include "vm/vm.h"
 
 #include "../spec/hostfunc.h"

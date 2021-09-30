@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ast/section.h"
-#include "loader/filemgr.h"
+
 #include "gtest/gtest.h"
 
 namespace {

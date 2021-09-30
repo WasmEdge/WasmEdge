@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
+
+#include "ExternrefTest.h"
+
 #include "common/configure.h"
 #include "common/types.h"
 #include "vm/vm.h"
-
-#include "ExternrefTest.h"
 #include "gtest/gtest.h"
 
 #include <iostream>

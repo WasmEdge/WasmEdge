@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ast/expression.h"
-#include "loader/filemgr.h"
+
 #include "gtest/gtest.h"
 
 namespace {

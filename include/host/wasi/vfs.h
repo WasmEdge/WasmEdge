@@ -3,6 +3,7 @@
 
 #include "common/filesystem.h"
 #include "host/wasi/error.h"
+
 #include <memory>
 #include <string>
 

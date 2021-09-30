@@ -12,15 +12,12 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include <memory>
-#include <vector>
-
 #include "common/configure.h"
 #include "common/enum_ast.h"
-#include "common/errcode.h"
-#include "common/types.h"
-#include "common/variant.h"
 #include "loader/filemgr.h"
+
+#include <memory>
+#include <vector>
 
 namespace WasmEdge {
 namespace AST {

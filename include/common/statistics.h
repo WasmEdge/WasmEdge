@@ -11,10 +11,10 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "enum_ast.h"
-#include "errcode.h"
-#include "span.h"
-#include "timer.h"
+#include "common/enum_ast.h"
+#include "common/errcode.h"
+#include "common/span.h"
+#include "common/timer.h"
 
 #include <vector>
 

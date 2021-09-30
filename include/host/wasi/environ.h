@@ -9,6 +9,7 @@
 #include "host/wasi/vfs.h"
 #include "host/wasi/vinode.h"
 #include "wasi/api.hpp"
+
 #include <csignal>
 #include <cstdint>
 #include <mutex>

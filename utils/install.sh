@@ -34,16 +34,19 @@ _downloader() {
 }
 
 _extracter() {
-    local prefix="WasmEdge-$VERSION-Linux/"
+    local prefix="$IPKG"
     if ! command -v tar &>/dev/null; then
         echo "${RED}Please install tar${NC}"
         exit 1
     else
         local opt
-        opt=$(tar "$@")
+        opt=$(tar "$@" 2>&1)
         for var in $opt; do
             local filtered=${var//$prefix/}
             filtered=${filtered//"lib64"/"lib"}
+            if [[ "$filtered" =~ "x" ]]; then
+                continue
+            fi
             if [ ! -d "$IPATH/$filtered" ] && [[ ! "$filtered" =~ "download_dependencies" ]]; then
                 if [[ "$2" =~ "lib" ]] && [[ ! "$IPATH/$filtered" =~ "/lib/" ]]; then
                     echo "#$IPATH/lib/$filtered" >>"$IPATH/env"

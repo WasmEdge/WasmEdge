@@ -8,7 +8,7 @@
 #include "common/log.h"
 #include "common/span.h"
 #include "common/statistics.h"
-#include "common/value.h"
+#include "common/types.h"
 
 #include "aot/compiler.h"
 #include "ast/module.h"

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/errinfo.h"
-#include "common/value.h"
+#include "common/types.h"
 
 #include "gtest/gtest.h"
 

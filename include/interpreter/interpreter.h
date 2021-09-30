@@ -18,7 +18,7 @@
 #include "common/defines.h"
 #include "common/errcode.h"
 #include "common/statistics.h"
-#include "common/value.h"
+#include "common/types.h"
 #include "runtime/importobj.h"
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"

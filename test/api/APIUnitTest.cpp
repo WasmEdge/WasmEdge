@@ -170,7 +170,8 @@ WasmEdge_ImportObjectContext *createExternModule(std::string_view Name,
   HostName = WasmEdge_StringCreateByCString("func-term");
   if (IsWrap) {
     HostFunc = WasmEdge_HostFunctionCreateBinding(
-        HostFType, ExternWrap, reinterpret_cast<void *>(ExternTerm), nullptr, 0);
+        HostFType, ExternWrap, reinterpret_cast<void *>(ExternTerm), nullptr,
+        0);
   } else {
     HostFunc = WasmEdge_HostFunctionCreate(HostFType, ExternTerm, nullptr, 0);
   }
@@ -180,7 +181,8 @@ WasmEdge_ImportObjectContext *createExternModule(std::string_view Name,
   HostName = WasmEdge_StringCreateByCString("func-fail");
   if (IsWrap) {
     HostFunc = WasmEdge_HostFunctionCreateBinding(
-        HostFType, ExternWrap, reinterpret_cast<void *>(ExternFail), nullptr, 0);
+        HostFType, ExternWrap, reinterpret_cast<void *>(ExternFail), nullptr,
+        0);
   } else {
     HostFunc = WasmEdge_HostFunctionCreate(HostFType, ExternFail, nullptr, 0);
   }

@@ -19,7 +19,6 @@
 #include "common/enum_ast.h"
 #include "common/errcode.h"
 #include "common/types.h"
-#include "common/value.h"
 #include "common/variant.h"
 #include "loader/filemgr.h"
 

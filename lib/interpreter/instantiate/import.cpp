@@ -2,7 +2,6 @@
 #include "ast/section.h"
 #include "common/log.h"
 #include "common/types.h"
-#include "common/value.h"
 #include "interpreter/interpreter.h"
 #include "runtime/instance/function.h"
 #include "runtime/instance/global.h"

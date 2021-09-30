@@ -17,7 +17,7 @@
 
 #include "ast/instruction.h"
 #include "common/span.h"
-#include "common/value.h"
+#include "common/types.h"
 
 namespace WasmEdge {
 namespace Runtime {

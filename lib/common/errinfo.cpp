@@ -7,7 +7,7 @@
 #include "common/errcode.h"
 #include "common/errinfo.h"
 #include "common/hexstr.h"
-#include "common/value.h"
+#include "common/types.h"
 
 namespace WasmEdge {
 namespace ErrInfo {

@@ -12,7 +12,7 @@
 #pragma once
 
 #include "common/span.h"
-#include "common/value.h"
+#include "common/types.h"
 #include "instance/memory.h"
 #include "instance/type.h"
 #include "stackmgr.h"

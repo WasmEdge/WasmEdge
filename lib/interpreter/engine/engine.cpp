@@ -2,7 +2,7 @@
 #include "ast/instruction.h"
 #include "common/log.h"
 #include "common/statistics.h"
-#include "common/value.h"
+#include "common/types.h"
 #include "interpreter/interpreter.h"
 
 namespace WasmEdge {

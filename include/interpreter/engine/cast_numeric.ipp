@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/log.h"
-#include "common/value.h"
+#include "common/types.h"
 #include "interpreter/interpreter.h"
 
 #include <cmath>

@@ -12,7 +12,7 @@
 #pragma once
 
 #include "common/span.h"
-#include "common/value.h"
+#include "common/types.h"
 #include <blake3.h>
 #include <cstdint>
 #include <string_view>

@@ -7,6 +7,7 @@ YELLOW=$'\e[0;33m'
 NC=$'\e[0m' # No Color
 PERM_ROOT=1
 TMP_DIR="/tmp/wasmedge.$$"
+_LD_LIBRARY_PATH_="LD_LIBRARY_PATH"
 
 if [[ $EUID -ne 0 ]]; then
     echo "${YELLOW}No root permissions.${NC}"
@@ -15,7 +16,11 @@ fi
 
 _ldconfig() {
     if [ $PERM_ROOT == 1 ]; then
-        ldconfig "$IPATH/lib"
+        if command -v ldconfig &>/dev/null; then
+            ldconfig "$IPATH/lib"
+        elif command -v update_dyld_shared_cache &>/dev/null; then
+            update_dyld_shared_cache
+        fi
     fi
 }
 
@@ -116,12 +121,15 @@ case $OS in
     case $ARCH in
     'x86_64') ;;
     'arm64') ;;
-    'arm') ;;
+    'arm')
+        ARCH="arm64"
+        ;;
     *)
         echo "${RED}Detected $OS-$ARCH${NC} - currently unsupported${NC}"
         exit 1
         ;;
     esac
+    _LD_LIBRARY_PATH_="DYLD_LIBRARY_PATH"
     IPKG="WasmEdge-$VERSION-darwin_$ARCH"
     RELEASE_PKG="darwin_$ARCH.tar.gz"
     IM_EXT_COMPAT=0
@@ -151,12 +159,12 @@ case ":\"\${PATH}\":" in
         export PATH=\"$1/bin\":\$PATH
         ;;
 esac
-case ":\"\${LD_LIBRARY_PATH}\":" in
+case ":\"\${"$_LD_LIBRARY_PATH_"}\":" in
     *:\"$1/lib\":*)
         ;;
     *)
         # Prepending path in case a system-installed wasmedge libs needs to be overridden
-        export LD_LIBRARY_PATH=\"$1/lib\":\$LD_LIBRARY_PATH
+        export $_LD_LIBRARY_PATH_=\"$1/lib\":\$$_LD_LIBRARY_PATH_
         ;;
 esac"
 }

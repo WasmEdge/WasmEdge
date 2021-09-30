@@ -64,7 +64,9 @@ fi
 
 if command -v sudo &>/dev/null; then
     if [ $PERM_ROOT == 1 ]; then
-        __HOME__=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+        if command -v getent &>/dev/null; then
+            __HOME__=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+        fi
     fi
 else
     echo "${YELLOW}sudo could not be found${NC}"
@@ -73,29 +75,6 @@ fi
 if [ "$__HOME__" = "" ]; then
     __HOME__="$HOME"
 fi
-
-RELEASE_PKG="manylinux2014_x86_64.tar.gz"
-IM_DEPS_RELEASE_PKG="manylinux1_x86_64.tar.gz"
-ARCH=$(uname -m)
-OS=$(uname)
-IM_EXT_COMPAT=1
-TF_EXT_COMPAT=1
-
-case $OS in
-'Linux')
-    if [ "$ARCH" = "aarch64" ]; then
-        RELEASE_PKG="manylinux2014_$ARCH.tar.gz"
-        IM_EXT_COMPAT=0
-        TF_EXT_COMPAT=0
-    fi
-    ;;
-*)
-    echo "${RED}Detected $OS-$ARCH${NC} - currently unsupported${NC}"
-    exit 1
-    ;;
-esac
-
-echo "Detected $OS-$ARCH"
 
 get_latest_release() {
     local res
@@ -113,6 +92,45 @@ VERSION_IM_DEPS=$(get_latest_release second-state/WasmEdge-image)
 VERSION_TF=$(get_latest_release second-state/WasmEdge-tensorflow)
 VERSION_TF_DEPS=$(get_latest_release second-state/WasmEdge-tensorflow-deps)
 VERSION_TF_TOOLS=$(get_latest_release second-state/WasmEdge-tensorflow-tools)
+
+RELEASE_PKG="manylinux2014_x86_64.tar.gz"
+IM_DEPS_RELEASE_PKG="manylinux1_x86_64.tar.gz"
+ARCH=$(uname -m)
+OS=$(uname)
+IM_EXT_COMPAT=1
+TF_EXT_COMPAT=1
+IPKG="WasmEdge-$VERSION-Linux"
+
+case $OS in
+'Linux')
+    if [ "$ARCH" = "aarch64" ]; then
+        RELEASE_PKG="manylinux2014_$ARCH.tar.gz"
+        IM_EXT_COMPAT=0
+        TF_EXT_COMPAT=0
+    fi
+    ;;
+'Darwin')
+    case $ARCH in
+    'x86_64') ;;
+    'arm64') ;;
+    'arm') ;;
+    *)
+        echo "${RED}Detected $OS-$ARCH${NC} - currently unsupported${NC}"
+        exit 1
+        ;;
+    esac
+    IPKG="WasmEdge-$VERSION-darwin_$ARCH"
+    RELEASE_PKG="darwin_$ARCH.tar.gz"
+    IM_EXT_COMPAT=0
+    TF_EXT_COMPAT=0
+    ;;
+*)
+    echo "${RED}Detected $OS-$ARCH${NC} - currently unsupported${NC}"
+    exit 1
+    ;;
+esac
+
+echo "Detected $OS-$ARCH"
 
 IPATH="$__HOME__/.wasmedge"
 EXT="none"
@@ -227,7 +245,11 @@ install() {
     for var in "$@"; do
         echo "${GREEN}Installing $dir in $IPATH/$var ${NC}"
         if [ "$var" = "lib" ]; then
-            mv -f "$TMP_DIR/$dir"/lib64/* "$IPATH/$var"
+            if [ -d "$TMP_DIR/$dir"/lib64 ]; then
+                mv -f "$TMP_DIR/$dir"/lib64/* "$IPATH/$var"
+            else
+                mv -f "$TMP_DIR/$dir"/lib/* "$IPATH/$var"
+            fi
         else
             mv -f "$TMP_DIR/$dir/$var"/* "$IPATH/$var"
         fi
@@ -471,7 +493,7 @@ main() {
         make_dirs "include" "lib" "bin"
 
         get_wasmedge_release
-        install WasmEdge-"$VERSION"-Linux "include" "lib" "bin"
+        install "$IPKG" "include" "lib" "bin"
         wasmedge_post_install "$VERSION"
         wasmedge_checks "$VERSION" "wasmedge" "wasmedgec"
     else

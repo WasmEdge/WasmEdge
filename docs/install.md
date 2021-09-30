@@ -3,6 +3,7 @@
 * [Quickstart](#quickstart)
 * [Install for all users](#install-for-all-users)
 * [What's installed](#whats-installed)
+* [Uninstall](#uninstall)
 * [Install WasmEdge for Node.js](#install-wasmedge-for-nodejs)
 * [Install a Docker / k8s compatible WasmEdge "container"](#install-a-docker--k8s-compatible-wasmedge-container)
 
@@ -10,14 +11,14 @@
 
 The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
 
-```
-$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
+```bash
+wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
 ```
 
 If you would like to install WasmEdge with its [Tensorflow and image processing extensions](https://www.secondstate.io/articles/wasi-tensorflow/), please run the following command. It will attempt to install Tensorflow and image shared libraries on your system.
 
-```
-$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
+```bash
+wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
 ```
 
 Run the following command to make the installed binary available in the current session `source $HOME/.wasmedge/env`
@@ -28,14 +29,14 @@ Run the following command to make the installed binary available in the current 
 
 By default, WasmEdge is installed in the `$HOME/.wasmedge` directory. You can install it into a system directory, such as `/usr/local` to make it available to all users. To specify an install directory, you can run the `install.sh` script with the `-p` flag. You will need to run the following commands as the `root` user or `sudo` since they write into system directories.
 
-```
-$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -p /usr/local
+```bash
+wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -p /usr/local
 ```
 
 Or, with all extensions
 
-```
-$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all -p /usr/local
+```bash
+wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all -p /usr/local
 ```
 
 ## What's installed
@@ -50,50 +51,40 @@ After installation, you have the following directories and files. Here we assume
 * The `$HOME/.wasmedge/include` directory contains the WasmEdge header files. They are useful for WasmEdge SDKs.
 
 
-## Uninstallation
+## Uninstall
 
 To uninstall WasmEdge, you can run the following command.
 
-Note: Below are [`process substitutions`](https://unix.stackexchange.com/questions/17107/process-substitution-and-pipe) and not pipes.
-
-```
+```bash
 bash <(wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh)
 ```
 
-If `wasmedge` binary is not in `PATH` or if it wasn't installed in default `$HOME/.wasmedge` then you must provide the installation path.
+If `wasmedge` binary is not in `PATH` and it wasn't installed in the default `$HOME/.wasmedge` folder, then you must provide the installation path.
 
 ```bash
 bash <(wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -p /path/to/parent/folder
 ```
 
 If you wish to uninstall uninteractively, you can pass in the `--quick` or `-q` flag.
+
 ```bash
 bash <(wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -q
 ```
 
-<details>
-  <summary>More about Uninstall Script:</summary>
-<li>
-It automatically detects what files were installed post commit 19f44012d989527c7d018090f4e9f779c674e494.
-</li>
-<li>
-If the parent folder contains substring ".wasmedge" the folder will be considered for removal which happens to be same as the default location for wasmedge under $HOME/.wasmedge
-</li>
-</details>
-
+> If a parent folder of the `wasmedge` binary contains `.wasmedge`, the folder will be considered for removal. For example, the script removes the default `$HOME/.wasmedge` folder altogether.
 
 ## Install WasmEdge for Node.js
 
 WasmEdge can run [WebAssembly functions emebedded in Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) applications. To install the WasmEdge module in your Node.js environment is easy. Just use the `npm` tool.
 
-```
-$ npm install -g wasmedge-core # Append --unsafe-perm if permission denied
+```bash
+npm install -g wasmedge-core # Append --unsafe-perm if permission denied
 ```
 
 To install WasmEdge with [Tensorflow and other extensions](https://www.secondstate.io/articles/wasi-tensorflow/).
 
-```
-$ npm install -g wasmedge-extensions # Append --unsafe-perm if permission denied
+```bash
+npm install -g wasmedge-extensions # Append --unsafe-perm if permission denied
 ```
 
 The [Second State Functions](https://www.secondstate.io/faas/) is a WasmEdge-based FaaS service build on Node.js.
@@ -105,21 +96,21 @@ You can also use Docker tools, such as the CRI-O, to manage and execute WebAssem
 
 First, make sure that you are on Ubuntu 20.04 with LLVM-10 installed. If you are on a different platform, please refer to [the project documentation](https://github.com/second-state/runw#build-from-source) on how to build [runw](https://github.com/second-state/runw) for your OS.
 
-```
-$ sudo apt install -y llvm-10-dev liblld-10-dev
+```bash
+sudo apt install -y llvm-10-dev liblld-10-dev
 ```
 
 Also make sure that you have [cri-o](https://cri-o.io/), [crictl](https://github.com/kubernetes-sigs/cri-tools), [containernetworking-plugins](https://github.com/containernetworking/plugins), and [buildah](https://github.com/containers/buildah) or [docker](https://github.com/docker/cli) installed.
 
-Next, download the runw binary build.
+Next, download the `runw` binary build.
 
-```
-$ wget https://github.com/second-state/runw/releases/download/0.1.0/runw
+```bash
+wget https://github.com/second-state/runw/releases/download/0.1.0/runw
 ```
 
 Now, you can install [runw](https://github.com/second-state/runw) into CRI-O as an alternative runtime for WebAssembly.
 
-```
+```bash
 # Get the wasm-pause utility
 $ sudo crictl pull docker.io/beststeve/wasm-pause
 

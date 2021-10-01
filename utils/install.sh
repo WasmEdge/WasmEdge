@@ -200,7 +200,10 @@ usage() {
 
     Example:
     ./$0 -p $IPATH -e all -v $VERSION --verbose
-
+    
+    Or
+    ./$0 -p $IPATH --extension=all --path=/usr/local --verbose
+    
     About:
 
     - wasmedgec is the AOT compiler that compiles WebAssembly bytecode programs 

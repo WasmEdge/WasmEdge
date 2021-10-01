@@ -41,26 +41,37 @@ usage() {
     Usage: $0 -p </path/to/uninstall> [-V]
     WasmEdge uninstallation and extensions uninstall.
     Mandatory arguments to long options are mandatory for short options too.
+    Long options should be assingned with '='
 
-    -h, -help,          --help                      Display help
+    -h,             --help                      Display help
+    -q,             --quick                     Uninstall everything without
+                                                asking
+    -p,             --path=[/usr/local]         Prefix / Path to install
 
-    -p, -path,          --path=[/usr/local]         Prefix / Path to uninstall
+    -v,             --version=VERSION           Set and Download specific 
+                                                    version of WasmEdge
+                        
+                    --tf-version=VERSION_TF
+                    --tf-deps-version=VERSION_TF_DEPS
+                    --tf-tools-version=VERSION_TF_TOOLS
+                    --image-version=VERSION_IM
+                    --image-deps-version=VERSION_IM_DEPS
 
-    -q, -quick,           --quick                   Uninstall everything
-                                                    without asking
-
-    -e, -extension,     --extension=[tf|image|all|none]  
+    -e,             --extension=[tf|image|all|none]  
                                                     Enable extension support 
                                                     i.e Tensorflow (tf) 
                                                         or Image (image)
 
-    -V, -verbose,       --verbose                   Run script in verbose mode.
+    -V,             --verbose                   Run script in verbose mode.
                                                     Will print out each step 
                                                     of execution.
 
     Example:
-    ./$0 -p $IPATH -e all -v --quick
-
+    ./$0 -p $IPATH -e all -v $VERSION --verbose
+    
+    Or
+    ./$0 -p $IPATH --extension=all --path=/usr/local --verbose
+    
     About:
 
     - wasmedgec is the AOT compiler that compiles WebAssembly bytecode programs 
@@ -259,44 +270,68 @@ main() {
     # getopt is in the util-linux package,
     # it'll probably be fine, but it's of course a good thing to keep in mind.
 
-    options=$(getopt -l "extension:,help,path:,quick,verbose" -o "e:hp:qV" -a -- "$@")
+    default=0
 
-    eval set -- "$options"
-
-    local default=0
-
-    while true; do
-        case $1 in
-        -e | --extension)
-            shift
-            EXT=$1
-            ;;
-        -h | --help)
-            usage
-            exit 0
-            ;;
-        -V | --verbose)
-            VERBOSE=1
-            ;;
-        -p | --path)
-            shift
-            IPATH=$1
-            default=1
-            ;;
-        -q | --quick)
+    local OPTIND
+    while getopts "qe:hp:v:V-:" OPT; do
+        # support long options: https://stackoverflow.com/a/28466267/519360
+        if [ "$OPT" = "-" ]; then   # long option: reformulate OPT and OPTARG
+            OPT="${OPTARG%%=*}"     # extract long option name
+            OPTARG="${OPTARG#$OPT}" # extract long option argument (may be empty)
+            OPTARG="${OPTARG#=}"    # if long option argument, remove assigning `=`
+        fi
+        case "$OPT" in
+        q | quick)
             ASK=0
             ;;
-        --)
-            shift
-            break
+        e | extension)
+            EXT="${OPTARG}"
+            ;;
+        h | help)
+            usage
+            trap - EXIT
+            exit 0
+            ;;
+        v | version)
+            VERSION="${OPTARG}"
+            ;;
+        V | verbose)
+            VERBOSE=1
+            ;;
+        p | path)
+            IPATH="${OPTARG}"
+            default=1
+            ;;
+        tf-version)
+            VERSION_TF="${OPTARG}"
+            ;;
+        tf-deps-version)
+            VERSION_TF_DEPS="${OPTARG}"
+            ;;
+        tf-tools-version)
+            VERSION_TF_TOOLS="${OPTARG}"
+            ;;
+        image-version)
+            VERSION_IM="${OPTARG}"
+            ;;
+        image-deps-version)
+            VERSION_IM_DEPS="$OPTARG"
+            ;;
+        ?)
+            exit 2
+            ;;
+        ??*)
+            echo "${RED}Illegal option${NC}"
+            exit 1
             ;;
         *)
             echo "Internal error!"
             exit 1
             ;;
         esac
-        shift
     done
+
+    shift $((OPTIND - 1)) # remove parsed options and args from $@ list
 
     if [ ! $VERBOSE == 0 ]; then
         echo "Verbose Mode"

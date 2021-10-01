@@ -134,6 +134,16 @@ case $OS in
     RELEASE_PKG="darwin_$ARCH.tar.gz"
     IM_EXT_COMPAT=0
     TF_EXT_COMPAT=0
+
+    if ! command -v brew &>/dev/null; then
+        echo "${RED}Brew is required${NC}"
+        exit 1
+    else
+        if [ "$(brew list | grep llvm)" = "" ]; then
+            brew install llvm
+        fi
+    fi
+
     ;;
 *)
     echo "${RED}Detected $OS-$ARCH${NC} - currently unsupported${NC}"

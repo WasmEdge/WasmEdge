@@ -19,52 +19,6 @@ namespace {
 WasmEdge::FileMgr Mgr;
 WasmEdge::Configure Conf;
 
-TEST(TypeTest, LoadLimit) {
-  /// 1. Test load limit.
-  ///
-  ///   1.  Load invalid empty limit.
-  ///   2.  Load invalid types of limit.
-  ///   3.  Load limit with only min.
-  ///   4.  Load invalid limit with fail of loading max.
-  ///   5.  Load limit with min and max.
-  Mgr.setCode(std::vector<uint8_t>());
-  WasmEdge::AST::Limit Lim1;
-  EXPECT_FALSE(Lim1.loadBinary(Mgr, Conf));
-
-  std::vector<unsigned char> Vec2 = {
-      0x02U, /// Unknown limit type
-      0x00U  /// Min = 0
-  };
-  Mgr.setCode(Vec2);
-  WasmEdge::AST::Limit Lim2;
-  EXPECT_FALSE(Lim2.loadBinary(Mgr, Conf));
-
-  std::vector<unsigned char> Vec3 = {
-      0x00U,                            /// Only has min
-      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Min = 4294967295
-  };
-  Mgr.setCode(Vec3);
-  WasmEdge::AST::Limit Lim3;
-  EXPECT_TRUE(Lim3.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
-
-  std::vector<unsigned char> Vec4 = {
-      0x01U,                            /// Has min and max
-      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU /// Min = 4294967295
-  };
-  Mgr.setCode(Vec4);
-  WasmEdge::AST::Limit Lim4;
-  EXPECT_FALSE(Lim4.loadBinary(Mgr, Conf));
-
-  std::vector<unsigned char> Vec5 = {
-      0x01U,                             /// Has min and max
-      0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU, /// Min = 4294967281
-      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  /// Max = 4294967295
-  };
-  Mgr.setCode(Vec5);
-  WasmEdge::AST::Limit Lim5;
-  EXPECT_TRUE(Lim5.loadBinary(Mgr, Conf) && Mgr.getRemainSize() == 0);
-}
-
 TEST(TypeTest, LoadFunctionType) {
   /// 2. Test load function type.
   ///

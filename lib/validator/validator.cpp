@@ -109,10 +109,10 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
 }
 
 /// Validate Limit type. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::Limit &Lim) {
-  if (Lim.hasMax() && Lim.getMin() > Lim.getMax()) {
+Expect<void> Validator::validate(const Limit &Lim) {
+  if (Lim.hasMax() && Lim.Min > Lim.Max) {
     spdlog::error(ErrCode::InvalidLimit);
-    spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
+    spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.Min, Lim.Max));
     return Unexpect(ErrCode::InvalidLimit);
   }
   return {};
@@ -121,7 +121,7 @@ Expect<void> Validator::validate(const AST::Limit &Lim) {
 /// Validate Table type. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::TableType &Tab) {
   /// Validate table limits.
-  if (auto Res = validate(Tab.getLimit()); !Res) {
+  if (auto Res = validate(Tab.getInner().Lim); !Res) {
     return Unexpect(Res);
   }
   return {};
@@ -130,14 +130,14 @@ Expect<void> Validator::validate(const AST::TableType &Tab) {
 /// Validate Memory type. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::MemoryType &Mem) {
   /// Validate memory limits.
-  const auto &Lim = Mem.getLimit();
+  const auto &Lim = Mem.getInner().Lim;
   if (auto Res = validate(Lim); !Res) {
     return Unexpect(Res);
   }
-  if (Lim.getMin() > LIMIT_MEMORYTYPE ||
-      (Lim.hasMax() && Lim.getMax() > LIMIT_MEMORYTYPE)) {
+  if (Lim.Min > LIMIT_MEMORYTYPE ||
+      (Lim.hasMax() && Lim.Max > LIMIT_MEMORYTYPE)) {
     spdlog::error(ErrCode::InvalidMemPages);
-    spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
+    spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.Min, Lim.Max));
     return Unexpect(ErrCode::InvalidMemPages);
   }
   return {};
@@ -146,9 +146,9 @@ Expect<void> Validator::validate(const AST::MemoryType &Mem) {
 /// Validate Global segment. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::GlobalSegment &GlobSeg) {
   /// Check global initialization is a const expression.
-  if (auto Res =
-          validateConstExpr(GlobSeg.getInstrs(),
-                            std::array{GlobSeg.getGlobalType().getValueType()});
+  if (auto Res = validateConstExpr(
+          GlobSeg.getInstrs(),
+          std::array{GlobSeg.getGlobalType().getInner().Type});
       !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
     return Unexpect(Res);

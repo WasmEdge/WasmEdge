@@ -199,14 +199,14 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       }
 
       auto &FuncTypes = TypeSec.getContent();
-      if (auto Symbols = Library->getTypes<FunctionType::Wrapper>();
+      if (auto Symbols = Library->getTypes<FTypeWrapper>();
           unlikely(Symbols.size() != FuncTypes.size())) {
         spdlog::error("number of types not matching:{} {}", Symbols.size(),
                       FuncTypes.size());
         continue;
       } else {
         for (size_t I = 0; I < FuncTypes.size(); ++I) {
-          FuncTypes[I].setSymbol(std::move(Symbols[I]));
+          FuncTypes[I].getInner().TypeSymbol = std::move(Symbols[I]);
         }
       }
       auto &CodeSegs = CodeSec.getContent();
@@ -236,8 +236,8 @@ Expect<void> Module::loadCompiled(LDMgr &Mgr) {
   auto &FuncTypes = TypeSec.getContent();
   for (size_t I = 0; I < FuncTypes.size(); ++I) {
     const std::string Name = "t" + std::to_string(I);
-    if (auto Symbol = Mgr.getSymbol<FunctionType::Wrapper>(Name.c_str())) {
-      FuncTypes[I].setSymbol(Symbol);
+    if (auto Symbol = Mgr.getSymbol<FTypeWrapper>(Name.c_str())) {
+      FuncTypes[I].getInner().TypeSymbol = std::move(Symbol);
     }
   }
   size_t Offset = 0;

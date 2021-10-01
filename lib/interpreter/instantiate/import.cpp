@@ -143,17 +143,16 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       const auto &TabType = ImpDesc.getExternalTableType();
       /// Import matching.
       const auto *TargetInst = *StoreMgr.getTable(TargetAddr);
-      const auto &TabLim = TabType.getLimit();
-      if (TargetInst->getReferenceType() != TabType.getReferenceType() ||
+      const auto &TabLim = TabType.getInner().Lim;
+      if (TargetInst->getReferenceType() != TabType.getInner().Type ||
           !isLimitMatched(TargetInst->getHasMax(), TargetInst->getMin(),
-                          TargetInst->getMax(), TabLim.hasMax(),
-                          TabLim.getMin(), TabLim.getMax())) {
-        return logMatchError(ModName, ExtName, ExtType, ImpDesc.NodeAttr,
-                             TabType.getReferenceType(), TabLim.hasMax(),
-                             TabLim.getMin(), TabLim.getMax(),
-                             TargetInst->getReferenceType(),
-                             TargetInst->getHasMax(), TargetInst->getMin(),
-                             TargetInst->getMax());
+                          TargetInst->getMax(), TabLim.hasMax(), TabLim.Min,
+                          TabLim.Max)) {
+        return logMatchError(
+            ModName, ExtName, ExtType, ImpDesc.NodeAttr,
+            TabType.getInner().Type, TabLim.hasMax(), TabLim.Min, TabLim.Max,
+            TargetInst->getReferenceType(), TargetInst->getHasMax(),
+            TargetInst->getMin(), TargetInst->getMax());
       }
       /// Set the matched table address to module instance.
       ModInst.importTable(TargetAddr);
@@ -164,12 +163,12 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       const auto &MemType = ImpDesc.getExternalMemoryType();
       /// Import matching.
       auto *TargetInst = *StoreMgr.getMemory(TargetAddr);
-      const auto &MemLim = MemType.getLimit();
+      const auto &MemLim = MemType.getInner().Lim;
       if (!isLimitMatched(TargetInst->getHasMax(), TargetInst->getMin(),
-                          TargetInst->getMax(), MemLim.hasMax(),
-                          MemLim.getMin(), MemLim.getMax())) {
+                          TargetInst->getMax(), MemLim.hasMax(), MemLim.Min,
+                          MemLim.Max)) {
         return logMatchError(ModName, ExtName, ExtType, ImpDesc.NodeAttr,
-                             MemLim.hasMax(), MemLim.getMin(), MemLim.getMax(),
+                             MemLim.hasMax(), MemLim.Min, MemLim.Max,
                              TargetInst->getHasMax(), TargetInst->getMin(),
                              TargetInst->getMax());
       }
@@ -182,11 +181,10 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       const auto &GlobType = ImpDesc.getExternalGlobalType();
       /// Import matching.
       auto *TargetInst = *StoreMgr.getGlobal(TargetAddr);
-      if (TargetInst->getValType() != GlobType.getValueType() ||
-          TargetInst->getValMut() != GlobType.getValueMutation()) {
+      if (TargetInst->getValType() != GlobType.getInner().Type ||
+          TargetInst->getValMut() != GlobType.getInner().Mut) {
         return logMatchError(ModName, ExtName, ExtType, ImpDesc.NodeAttr,
-                             GlobType.getValueType(),
-                             GlobType.getValueMutation(),
+                             GlobType.getInner().Type, GlobType.getInner().Mut,
                              TargetInst->getValType(), TargetInst->getValMut());
       }
       /// Set the matched global address to module instance.

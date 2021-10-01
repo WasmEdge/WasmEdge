@@ -53,7 +53,7 @@ Expect<void> ImportDesc::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       return Unexpect(Res.error());
     }
     /// Import the mutable globals are for ImportExportMutGlobals proposal.
-    if (GlobType.getValueMutation() == ValMut::Var &&
+    if (GlobType.getInner().Mut == ValMut::Var &&
         unlikely(!Conf.hasProposal(Proposal::ImportExportMutGlobals))) {
       return logNeedProposal(ErrCode::InvalidMut,
                              Proposal::ImportExportMutGlobals,

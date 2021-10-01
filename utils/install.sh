@@ -174,26 +174,27 @@ usage() {
     Usage: $0 -p </path/to/install> [-V]
     WasmEdge installation, uninstallation and extensions install.
     Mandatory arguments to long options are mandatory for short options too.
+    Long options should be assingned with '='
 
-    -h, -help,          --help                      Display help
+    -h,             --help                      Display help
 
-    -p, -path,          --path=[/usr/local]         Prefix / Path to install
+    -p,             --path=[/usr/local]         Prefix / Path to install
 
-    -v, -version,       --version=VERSION           Set and Download specific 
+    -v,             --version=VERSION           Set and Download specific 
                                                     version of WasmEdge
                         
-                        --tf-version=VERSION_TF
-                        --tf-deps-version==VERSION_TF_DEPS
-                        --tf-tools-version=VERSION_TF_TOOLS
-                        --image-version=VERSION_IM
-                        --image-deps-version=VERSION_IM_DEPS
+                    --tf-version=VERSION_TF
+                    --tf-deps-version=VERSION_TF_DEPS
+                    --tf-tools-version=VERSION_TF_TOOLS
+                    --image-version=VERSION_IM
+                    --image-deps-version=VERSION_IM_DEPS
 
-    -e, -extension,     --extension=[tf|image|all|none]  
+    -e,             --extension=[tf|image|all|none]  
                                                     Enable extension support 
                                                     i.e Tensorflow (tf) 
                                                         or Image (image)
 
-    -V, -verbose,       --verbose                   Run script in verbose mode.
+    -V,             --verbose                   Run script in verbose mode.
                                                     Will print out each step 
                                                     of execution.
 
@@ -398,67 +399,65 @@ main() {
     # getopt is in the util-linux package,
     # it'll probably be fine, but it's of course a good thing to keep in mind.
 
-    options=$(getopt -l \
-        "extension:,help,path:,version:,verbose,tf-version:,tf-deps-version:,tf-tools-version:,image-version:,image-deps-version:" \
-        -o "e:hp:v:V" -a -- "$@")
-
-    eval set -- "$options"
-
     default=0
 
-    while true; do
-        case $1 in
-        -e | --extension)
-            shift
-            EXT=$1
+    local OPTIND
+    while getopts "e:hp:v:V-:" OPT; do
+        # support long options: https://stackoverflow.com/a/28466267/519360
+        if [ "$OPT" = "-" ]; then   # long option: reformulate OPT and OPTARG
+            OPT="${OPTARG%%=*}"     # extract long option name
+            OPTARG="${OPTARG#$OPT}" # extract long option argument (may be empty)
+            OPTARG="${OPTARG#=}"    # if long option argument, remove assigning `=`
+        fi
+        case "$OPT" in
+        e | extension)
+            EXT="${OPTARG}"
             ;;
-        -h | --help)
+        h | help)
             usage
+            trap - EXIT
             exit 0
             ;;
-        -v | --version)
-            shift
-            VERSION=$1
+        v | version)
+            VERSION="${OPTARG}"
             ;;
-        -V | --verbose)
+        V | verbose)
             VERBOSE=1
             ;;
-        -p | --path)
-            shift
-            IPATH=$1
+        p | path)
+            IPATH="${OPTARG}"
             default=1
             ;;
-        --tf-version)
-            shift
-            VERSION_TF=$1
+        tf-version)
+            VERSION_TF="${OPTARG}"
             ;;
-        --tf-deps-version)
-            shift
-            VERSION_TF_DEPS=$1
+        tf-deps-version)
+            VERSION_TF_DEPS="${OPTARG}"
             ;;
-        --tf-tools-version)
-            shift
-            VERSION_TF_TOOLS=$1
+        tf-tools-version)
+            VERSION_TF_TOOLS="${OPTARG}"
             ;;
-        --image-version)
-            shift
-            VERSION_IM=$1
+        image-version)
+            VERSION_IM="${OPTARG}"
             ;;
-        --image-deps-version)
-            shift
-            VERSION_IM_DEPS=$1
+        image-deps-version)
+            VERSION_IM_DEPS="$OPTARG"
             ;;
-        --)
-            shift
-            break
+        ?)
+            exit 2
+            ;;
+        ??*)
+            echo "${RED}Illegal option${NC}"
+            exit 1
             ;;
         *)
             echo "Internal error!"
             exit 1
             ;;
         esac
-        shift
     done
+
+    shift $((OPTIND - 1)) # remove parsed options and args from $@ list
 
     set_ENV "$IPATH"
     mkdir -p "$IPATH"

@@ -19,56 +19,9 @@
 namespace WasmEdge {
 namespace AST {
 
-/// AST Limit node.
-class Limit : public Base {
-public:
-  /// Limit type enumeration class.
-  enum class LimitType : uint8_t { HasMin = 0x00, HasMinMax = 0x01 };
-
-  Limit() noexcept = default;
-  Limit(const uint32_t MinVal) noexcept
-      : Type(LimitType::HasMin), Min(MinVal) {}
-  Limit(const uint32_t MinVal, const uint32_t MaxVal) noexcept
-      : Type(LimitType::HasMinMax), Min(MinVal), Max(MaxVal) {}
-
-  /// Load binary from file manager.
-  ///
-  /// Inheritted and overrided from Base.
-  /// Read limit type.
-  /// Read Min and Max value of this node.
-  ///
-  /// \param Mgr the file manager reference.
-  /// \param Conf the WasmEdge configuration reference.
-  ///
-  /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
-
-  /// Getter of having max in limit.
-  bool hasMax() const { return Type == LimitType::HasMinMax; }
-
-  /// Getter of min.
-  uint32_t getMin() const { return Min; }
-
-  /// Getter of max.
-  uint32_t getMax() const { return Max; }
-
-  /// The node type should be ASTNodeAttr::Type_Limit.
-  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Limit;
-
-private:
-  /// \name Data of Limit node.
-  /// @{
-  LimitType Type = LimitType::HasMin;
-  uint32_t Min = 0;
-  uint32_t Max = 0;
-  /// @}
-};
-
-/// AST FunctionType node.
+/// AST FunctionType node. TODO: Simplify this.
 class FunctionType : public Base {
 public:
-  using Wrapper = void(void *ExecCtx, void *Function, const ValVariant *Args,
-                       ValVariant *Rets);
   /// Load binary from file manager.
   ///
   /// Inheritted and overrided from Base.
@@ -80,16 +33,9 @@ public:
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
 
-  /// Getter of parameter types vector.
-  Span<const ValType> getParamTypes() const { return ParamTypes; }
-
-  /// Getter of return types vector.
-  Span<const ValType> getReturnTypes() const { return ReturnTypes; }
-
-  /// Getter of compiled symbol.
-  const auto &getSymbol() const noexcept { return TypeSymbol; }
-  /// Setter of compiled symbol.
-  void setSymbol(Symbol<Wrapper> S) { TypeSymbol = std::move(S); }
+  /// Getter of function type.
+  const WasmEdge::FunctionType &getInner() const noexcept { return Inner; }
+  WasmEdge::FunctionType &getInner() noexcept { return Inner; }
 
   /// The node type should be ASTNodeAttr::Type_Function.
   static inline constexpr const ASTNodeAttr NodeAttr =
@@ -97,8 +43,7 @@ public:
 
   friend bool operator==(const FunctionType &LHS,
                          const FunctionType &RHS) noexcept {
-    return LHS.ParamTypes == RHS.ParamTypes &&
-           LHS.ReturnTypes == RHS.ReturnTypes;
+    return LHS.Inner == RHS.Inner;
   }
 
   friend bool operator!=(const FunctionType &LHS,
@@ -107,16 +52,10 @@ public:
   }
 
 private:
-  /// \name Data of FunctionType node.
-  /// @{
-  std::vector<ValType> ParamTypes;
-  std::vector<ValType> ReturnTypes;
-  /// @}
-
-  Symbol<Wrapper> TypeSymbol;
+  WasmEdge::FunctionType Inner;
 };
 
-/// AST MemoryType node.
+/// AST MemoryType node. TODO: Simplify this.
 class MemoryType : public Base {
 public:
   /// Load binary from file manager.
@@ -130,18 +69,17 @@ public:
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
 
-  /// Getter of limit.
-  const Limit &getLimit() const { return MemoryLim; }
+  /// Getter of memory type.
+  const WasmEdge::MemoryType &getInner() const noexcept { return Inner; }
 
   /// The node type should be ASTNodeAttr::Type_Memory.
   static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Memory;
 
 private:
-  /// Data of MemoryType node.
-  Limit MemoryLim;
+  WasmEdge::MemoryType Inner;
 };
 
-/// AST TableType node.
+/// AST TableType node. TODO: Simplify this.
 class TableType : public Base {
 public:
   /// Load binary from file manager.
@@ -155,24 +93,17 @@ public:
   /// \returns void when success, ErrCode when failed.
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
 
-  /// Getter of reference type.
-  RefType getReferenceType() const { return Type; }
-
-  /// Getter of limit.
-  const Limit &getLimit() const { return TableLim; }
+  /// Getter of memory type.
+  const WasmEdge::TableType &getInner() const noexcept { return Inner; }
 
   /// The node type should be ASTNodeAttr::Type_Table.
   static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Table;
 
 private:
-  /// \name Data of TableType node.
-  /// @{
-  RefType Type = RefType::FuncRef;
-  Limit TableLim;
-  /// @}
+  WasmEdge::TableType Inner;
 };
 
-/// AST GlobalType node.
+/// AST GlobalType node. TODO: Simplify this.
 class GlobalType : public Base {
 public:
   /// Load binary from file manager.
@@ -187,20 +118,13 @@ public:
   Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
 
   /// Getter of global type.
-  ValType getValueType() const { return Type; }
-
-  /// Getter of global mutation.
-  ValMut getValueMutation() const { return Mut; }
+  const WasmEdge::GlobalType &getInner() const noexcept { return Inner; }
 
   /// The node type should be ASTNodeAttr::Type_Global.
   static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Global;
 
 private:
-  /// \name Data of GlobalType node.
-  /// @{
-  ValType Type = ValType::None;
-  ValMut Mut = ValMut::Const;
-  /// @}
+  WasmEdge::GlobalType Inner;
 };
 
 } // namespace AST

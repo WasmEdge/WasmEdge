@@ -5,44 +5,58 @@
 namespace WasmEdge {
 namespace AST {
 
-/// Load binary to construct Limit node. See "include/ast/type.h".
-Expect<void> Limit::loadBinary(FileMgr &Mgr, const Configure &) {
+namespace {
+Expect<void> loadLimit(FileMgr &Mgr, Limit &Lim) {
   /// Read limit type.
   if (auto Res = Mgr.readByte()) {
-    Type = static_cast<LimitType>(*Res);
-    switch (Type) {
-    case LimitType::HasMin:
-    case LimitType::HasMinMax:
+    Lim.Type = static_cast<Limit::LimitType>(*Res);
+    switch (Lim.Type) {
+    case Limit::LimitType::HasMin:
+    case Limit::LimitType::HasMinMax:
       break;
     default:
       if (*Res == 0x80 || *Res == 0x81) {
         /// LEB128 cases will fail.
-        return logLoadError(ErrCode::IntegerTooLong, Mgr.getLastOffset(),
-                            NodeAttr);
+        spdlog::error(ErrCode::IntegerTooLong);
+        spdlog::error(ErrInfo::InfoLoading(Mgr.getLastOffset()));
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
+        return Unexpect(ErrCode::IntegerTooLong);
       } else {
-        return logLoadError(ErrCode::IntegerTooLarge, Mgr.getLastOffset(),
-                            NodeAttr);
+        spdlog::error(ErrCode::IntegerTooLarge);
+        spdlog::error(ErrInfo::InfoLoading(Mgr.getLastOffset()));
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
+        return Unexpect(ErrCode::IntegerTooLarge);
       }
     }
   } else {
-    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
+    spdlog::error(Res.error());
+    spdlog::error(ErrInfo::InfoLoading(Mgr.getLastOffset()));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
+    return Unexpect(Res);
   }
 
   /// Read min and max number.
   if (auto Res = Mgr.readU32()) {
-    Min = *Res;
+    Lim.Min = *Res;
   } else {
-    return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
+    spdlog::error(Res.error());
+    spdlog::error(ErrInfo::InfoLoading(Mgr.getLastOffset()));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
+    return Unexpect(Res);
   }
-  if (Type == LimitType::HasMinMax) {
+  if (Lim.Type == Limit::LimitType::HasMinMax) {
     if (auto Res = Mgr.readU32()) {
-      Max = *Res;
+      Lim.Max = *Res;
     } else {
-      return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
+      spdlog::error(Res.error());
+      spdlog::error(ErrInfo::InfoLoading(Mgr.getLastOffset()));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
+      return Unexpect(Res);
     }
   }
   return {};
 }
+} // namespace
 
 /// Load binary to construct FunctionType node. See "include/ast/type.h".
 Expect<void> FunctionType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
@@ -61,7 +75,7 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read vector of parameter types.
   if (auto Res = Mgr.readU32()) {
     VecCnt = *Res;
-    ParamTypes.reserve(VecCnt);
+    Inner.Params.reserve(VecCnt);
   } else {
     return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
@@ -73,7 +87,7 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
           !Check) {
         return Unexpect(Check);
       }
-      ParamTypes.push_back(Type);
+      Inner.Params.push_back(Type);
     } else {
       return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
@@ -82,7 +96,7 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read vector of result types.
   if (auto Res = Mgr.readU32()) {
     VecCnt = *Res;
-    ReturnTypes.reserve(VecCnt);
+    Inner.Returns.reserve(VecCnt);
   } else {
     return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
@@ -98,7 +112,7 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
           !Check) {
         return Unexpect(Check);
       }
-      ReturnTypes.push_back(Type);
+      Inner.Returns.push_back(Type);
     } else {
       return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
     }
@@ -107,18 +121,22 @@ Expect<void> FunctionType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 }
 
 /// Load binary to construct MemoryType node. See "include/ast/type.h".
-Expect<void> MemoryType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
+Expect<void> MemoryType::loadBinary(FileMgr &Mgr, const Configure &) {
   /// Read limit.
-  return MemoryLim.loadBinary(Mgr, Conf);
+  if (auto Res = loadLimit(Mgr, Inner.Lim); !Res) {
+    spdlog::error(ErrInfo::InfoAST(NodeAttr));
+    return Unexpect(Res);
+  }
+  return {};
 }
 
 /// Load binary to construct TableType node. See "include/ast/type.h".
 Expect<void> TableType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read reference type.
   if (auto Res = Mgr.readByte()) {
-    Type = static_cast<RefType>(*Res);
-    if (auto Check =
-            checkRefTypeProposals(Conf, Type, Mgr.getLastOffset(), NodeAttr);
+    Inner.Type = static_cast<RefType>(*Res);
+    if (auto Check = checkRefTypeProposals(Conf, Inner.Type,
+                                           Mgr.getLastOffset(), NodeAttr);
         !Check) {
       return Unexpect(Check);
     }
@@ -127,16 +145,20 @@ Expect<void> TableType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   }
 
   /// Read limit.
-  return TableLim.loadBinary(Mgr, Conf);
+  if (auto Res = loadLimit(Mgr, Inner.Lim); !Res) {
+    spdlog::error(ErrInfo::InfoAST(NodeAttr));
+    return Unexpect(Res);
+  }
+  return {};
 }
 
 /// Load binary to construct GlobalType node. See "include/ast/type.h".
 Expect<void> GlobalType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
   /// Read value type.
   if (auto Res = Mgr.readByte()) {
-    Type = static_cast<ValType>(*Res);
-    if (auto Check =
-            checkValTypeProposals(Conf, Type, Mgr.getLastOffset(), NodeAttr);
+    Inner.Type = static_cast<ValType>(*Res);
+    if (auto Check = checkValTypeProposals(Conf, Inner.Type,
+                                           Mgr.getLastOffset(), NodeAttr);
         !Check) {
       return Unexpect(Check);
     }
@@ -146,8 +168,8 @@ Expect<void> GlobalType::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 
   /// Read mutability.
   if (auto Res = Mgr.readByte()) {
-    Mut = static_cast<ValMut>(*Res);
-    switch (Mut) {
+    Inner.Mut = static_cast<ValMut>(*Res);
+    switch (Inner.Mut) {
     case ValMut::Const:
     case ValMut::Var:
       break;

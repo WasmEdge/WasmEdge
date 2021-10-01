@@ -148,7 +148,7 @@ _rm() {
     if [ -f "$var" ] || [ -h "$var" ]; then
         rm -f "$var"
     elif [ -d "$var" ]; then
-        rmdir --ignore-fail-on-non-empty "$var"
+        rmdir "$var" 2>/dev/null
     fi
 }
 

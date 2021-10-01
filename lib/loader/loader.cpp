@@ -74,10 +74,12 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
     }
     if (auto Res = LMgr.getVersion()) {
       if (*Res != AOT::kBinaryVersion) {
+        spdlog::error(ErrCode::MalformedVersion);
         spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, *Res));
         return Unexpect(ErrCode::MalformedVersion);
       }
     } else {
+      spdlog::error(Res.error());
       spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }
@@ -87,16 +89,19 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
       if (auto Res = parseModule(*Code)) {
         Mod = std::move(*Res);
       } else {
+        spdlog::error(Res.error());
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
       }
     } else {
+      spdlog::error(Code.error());
       spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Code);
     }
     if (auto Res = Mod->loadCompiled(LMgr)) {
       return Mod;
     } else {
+      spdlog::error(Res.error());
       spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }
@@ -113,6 +118,7 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
       }
       return Mod;
     } else {
+      spdlog::error(Res.error());
       spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }

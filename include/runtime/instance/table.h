@@ -25,29 +25,24 @@ namespace Instance {
 class TableInstance {
 public:
   TableInstance() = delete;
-  TableInstance(const RefType &Ref, const AST::Limit &Lim)
-      : Type(Ref), HasMaxSize(Lim.hasMax()), MaxSize(Lim.getMax()),
-        Refs(Lim.getMin(), UnknownRef()) {}
+  TableInstance(const TableType &TType)
+      : TabType(TType), Refs(TType.Lim.Min, UnknownRef()) {}
   virtual ~TableInstance() = default;
 
   /// Getter of reference type.
-  RefType getReferenceType() const noexcept { return Type; }
+  RefType getReferenceType() const noexcept { return TabType.Type; }
 
   /// Get size of table.refs
-  uint32_t getSize() const noexcept {
-    return static_cast<uint32_t>(Refs.size());
-  }
+  uint32_t getSize() const noexcept { return TabType.Lim.Min; }
 
   /// Getter of limit definition.
-  bool getHasMax() const noexcept { return HasMaxSize; }
+  bool getHasMax() const noexcept { return TabType.Lim.hasMax(); }
 
   /// Getter of limit definition.
-  uint32_t getMin() const noexcept {
-    return static_cast<uint32_t>(Refs.size());
-  }
+  uint32_t getMin() const noexcept { return TabType.Lim.Min; }
 
   /// Getter of limit definition.
-  uint32_t getMax() const noexcept { return MaxSize; }
+  uint32_t getMax() const noexcept { return TabType.Lim.Max; }
 
   /// Check is out of bound.
   bool checkAccessBound(uint32_t Offset, uint32_t Length) const noexcept {
@@ -65,14 +60,15 @@ public:
   /// Grow table with initialization value.
   bool growTable(const uint32_t Count, const RefVariant Val) {
     uint32_t MaxSizeCaped = std::numeric_limits<uint32_t>::max();
-    if (HasMaxSize) {
-      MaxSizeCaped = std::min(MaxSize, MaxSizeCaped);
+    if (TabType.Lim.hasMax()) {
+      MaxSizeCaped = std::min(TabType.Lim.Max, MaxSizeCaped);
     }
     if (Count > MaxSizeCaped - Refs.size()) {
       return false;
     }
     Refs.resize(Refs.size() + Count);
     std::fill_n(Refs.end() - Count, Count, Val);
+    TabType.Lim.Min += Count;
     return true;
   }
   bool growTable(const uint32_t Count) {
@@ -155,9 +151,7 @@ public:
 private:
   /// \name Data of table instance.
   /// @{
-  const RefType Type;
-  const bool HasMaxSize;
-  const uint32_t MaxSize;
+  TableType TabType;
   std::vector<RefVariant> Refs;
   /// @}
 };

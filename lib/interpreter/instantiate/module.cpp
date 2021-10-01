@@ -32,8 +32,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Instantiate Function Types in Module Instance. (TypeSec)
   for (auto &FuncType : Mod.getTypeSection().getContent()) {
     /// Copy param and return lists to module instance.
-    ModInst->addFuncType(FuncType.getParamTypes(), FuncType.getReturnTypes(),
-                         FuncType.getSymbol());
+    ModInst->addFuncType(FuncType.getInner());
   }
 
   /// Instantiate ImportSection and do import matching. (ImportSec)

@@ -33,13 +33,13 @@ public:
       : ModuleAddr(Inst.ModuleAddr), FuncType(Inst.FuncType),
         Data(std::move(Inst.Data)) {}
   /// Constructor for native function.
-  FunctionInstance(const uint32_t ModAddr, const FType &Type,
+  FunctionInstance(const uint32_t ModAddr, const FunctionType &Type,
                    Span<const std::pair<uint32_t, ValType>> Locs,
                    AST::InstrView Expr) noexcept
       : ModuleAddr(ModAddr), FuncType(Type),
         Data(std::in_place_type_t<WasmFunction>(), Locs, Expr) {}
   /// Constructor for compiled function.
-  FunctionInstance(const uint32_t ModAddr, const FType &Type,
+  FunctionInstance(const uint32_t ModAddr, const FunctionType &Type,
                    Symbol<CompiledFunction> S) noexcept
       : ModuleAddr(ModAddr), FuncType(Type),
         Data(std::in_place_type_t<Symbol<CompiledFunction>>(), std::move(S)) {}
@@ -70,7 +70,7 @@ public:
   uint32_t getModuleAddr() const { return ModuleAddr; }
 
   /// Getter of function type.
-  const FType &getFuncType() const { return FuncType; }
+  const FunctionType &getFuncType() const { return FuncType; }
 
   /// Getter of function local variables.
   Span<const std::pair<uint32_t, ValType>> getLocals() const noexcept {
@@ -108,7 +108,7 @@ private:
   /// \name Data of function instance.
   /// @{
   const uint32_t ModuleAddr;
-  const FType &FuncType;
+  const FunctionType &FuncType;
   std::variant<WasmFunction, Symbol<CompiledFunction>,
                std::unique_ptr<HostFunctionBase>>
       Data;

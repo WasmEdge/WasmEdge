@@ -17,11 +17,9 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     const auto &GlobType = GlobSeg.getGlobalType();
     uint32_t NewGlobInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewGlobInstAddr = StoreMgr.pushGlobal(GlobType.getValueType(),
-                                            GlobType.getValueMutation());
+      NewGlobInstAddr = StoreMgr.pushGlobal(GlobType.getInner());
     } else {
-      NewGlobInstAddr = StoreMgr.importGlobal(GlobType.getValueType(),
-                                              GlobType.getValueMutation());
+      NewGlobInstAddr = StoreMgr.importGlobal(GlobType.getInner());
     }
     ModInst.addGlobalAddr(NewGlobInstAddr);
 

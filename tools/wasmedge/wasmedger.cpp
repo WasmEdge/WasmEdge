@@ -177,7 +177,7 @@ int main(int Argc, const char *Argv[]) {
     const auto InitFunc = "_initialize"s;
 
     bool HasInit = false;
-    WasmEdge::Runtime::Instance::FType FuncType;
+    WasmEdge::FunctionType FuncType;
 
     for (const auto &Func : VM.getFunctionList()) {
       if (Func.first == InitFunc) {

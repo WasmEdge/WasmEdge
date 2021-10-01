@@ -261,15 +261,14 @@ inline uint32_t fillMap(const std::map<std::string, uint32_t, std::less<>> &Map,
 /// C API Host function class
 class CAPIHostFunc : public Runtime::HostFunctionBase {
 public:
-  CAPIHostFunc(const Runtime::Instance::FType *Type,
-               WasmEdge_HostFunc_t FuncPtr, void *ExtData,
-               const uint64_t FuncCost = 0) noexcept
+  CAPIHostFunc(const FunctionType *Type, WasmEdge_HostFunc_t FuncPtr,
+               void *ExtData, const uint64_t FuncCost = 0) noexcept
       : Runtime::HostFunctionBase(FuncCost), Func(FuncPtr), Wrap(nullptr),
         Binding(nullptr), Data(ExtData) {
     FuncType = *Type;
   }
-  CAPIHostFunc(const Runtime::Instance::FType *Type,
-               WasmEdge_WrapFunc_t WrapPtr, void *BindingPtr, void *ExtData,
+  CAPIHostFunc(const FunctionType *Type, WasmEdge_WrapFunc_t WrapPtr,
+               void *BindingPtr, void *ExtData,
                const uint64_t FuncCost = 0) noexcept
       : Runtime::HostFunctionBase(FuncCost), Func(nullptr), Wrap(WrapPtr),
         Binding(BindingPtr), Data(ExtData) {
@@ -322,8 +321,8 @@ private:
   }
 CONVTO(Stat, Statistics::Statistics, Statistics, )
 CONVTO(Store, Runtime::StoreManager, Store, )
-CONVTO(FType, Runtime::Instance::FType, FunctionType, )
-CONVTO(FType, Runtime::Instance::FType, FunctionType, const)
+CONVTO(FType, FunctionType, FunctionType, )
+CONVTO(FType, FunctionType, FunctionType, const)
 CONVTO(Func, Runtime::Instance::FunctionInstance, FunctionInstance, )
 CONVTO(HostFunc, Runtime::HostFunctionBase, HostFunction, )
 CONVTO(Tab, Runtime::Instance::TableInstance, TableInstance, )
@@ -341,7 +340,7 @@ CONVFROM(Stat, Statistics::Statistics, Statistics, )
 CONVFROM(Stat, Statistics::Statistics, Statistics, const)
 CONVFROM(Store, Runtime::StoreManager, Store, )
 CONVFROM(Store, Runtime::StoreManager, Store, const)
-CONVFROM(FType, Runtime::Instance::FType, FunctionType, const)
+CONVFROM(FType, FunctionType, FunctionType, const)
 CONVFROM(Func, Runtime::Instance::FunctionInstance, FunctionInstance, const)
 CONVFROM(HostFunc, CAPIHostFunc, HostFunction, )
 CONVFROM(Tab, Runtime::Instance::TableInstance, TableInstance, )
@@ -1306,7 +1305,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_StoreDelete(WasmEdge_StoreContext *Cxt) {
 WASMEDGE_CAPI_EXPORT WasmEdge_FunctionTypeContext *WasmEdge_FunctionTypeCreate(
     const enum WasmEdge_ValType *ParamList, const uint32_t ParamLen,
     const enum WasmEdge_ValType *ReturnList, const uint32_t ReturnLen) {
-  auto *Cxt = new WasmEdge::Runtime::Instance::FType;
+  auto *Cxt = new WasmEdge::FunctionType;
   if (ParamLen > 0) {
     Cxt->Params.resize(ParamLen);
   }
@@ -1422,10 +1421,10 @@ WasmEdge_TableInstanceCreate(const enum WasmEdge_RefType RefType,
   WasmEdge::RefType Type = static_cast<WasmEdge::RefType>(RefType);
   if (Limit.HasMax) {
     return toTabCxt(new WasmEdge::Runtime::Instance::TableInstance(
-        Type, WasmEdge::AST::Limit(Limit.Min, Limit.Max)));
+        WasmEdge::TableType(Type, Limit.Min, Limit.Max)));
   } else {
     return toTabCxt(new WasmEdge::Runtime::Instance::TableInstance(
-        Type, WasmEdge::AST::Limit(Limit.Min)));
+        WasmEdge::TableType(Type, Limit.Min)));
   }
 }
 
@@ -1505,10 +1504,10 @@ WASMEDGE_CAPI_EXPORT WasmEdge_MemoryInstanceContext *
 WasmEdge_MemoryInstanceCreate(const WasmEdge_Limit Limit) {
   if (Limit.HasMax) {
     return toMemCxt(new WasmEdge::Runtime::Instance::MemoryInstance(
-        WasmEdge::AST::Limit(Limit.Min, Limit.Max)));
+        WasmEdge::MemoryType(Limit.Min, Limit.Max)));
   } else {
     return toMemCxt(new WasmEdge::Runtime::Instance::MemoryInstance(
-        WasmEdge::AST::Limit(Limit.Min)));
+        WasmEdge::MemoryType(Limit.Min)));
   }
 }
 
@@ -1585,8 +1584,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_GlobalInstanceContext *
 WasmEdge_GlobalInstanceCreate(const WasmEdge_Value Value,
                               const enum WasmEdge_Mutability Mut) {
   return toGlobCxt(new WasmEdge::Runtime::Instance::GlobalInstance(
-      static_cast<WasmEdge::ValType>(Value.Type),
-      static_cast<WasmEdge::ValMut>(Mut),
+      WasmEdge::GlobalType(static_cast<WasmEdge::ValType>(Value.Type),
+                           static_cast<WasmEdge::ValMut>(Mut)),
       to_WasmEdge_128_t<WasmEdge::uint128_t>(Value.Value)));
 }
 
@@ -1956,7 +1955,7 @@ WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
     const auto FuncList = Cxt->VM.getFunctionList();
     for (const auto &It : FuncList) {
       if (It.first == genStrView(FuncName)) {
-        return toFTypeCxt(new WasmEdge::Runtime::Instance::FType(It.second));
+        return toFTypeCxt(new WasmEdge::FunctionType(It.second));
       }
     }
   }
@@ -1975,8 +1974,7 @@ WasmEdge_VMGetFunctionTypeRegistered(WasmEdge_VMContext *Cxt,
       const auto FuncIter = FuncExp.find(genStrView(FuncName));
       if (FuncIter != FuncExp.cend()) {
         const auto *FuncInst = *Store.getFunction(FuncIter->second);
-        return toFTypeCxt(
-            new WasmEdge::Runtime::Instance::FType(FuncInst->getFuncType()));
+        return toFTypeCxt(new WasmEdge::FunctionType(FuncInst->getFuncType()));
       }
     }
   }
@@ -2010,8 +2008,8 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMGetFunctionList(
         Names[I] = WasmEdge_String{.Length = NameLen, .Buf = Str};
       }
       if (FuncTypes) {
-        FuncTypes[I] = toFTypeCxt(
-            new WasmEdge::Runtime::Instance::FType(FuncList[I].second));
+        FuncTypes[I] =
+            toFTypeCxt(new WasmEdge::FunctionType(FuncList[I].second));
       }
     }
     return static_cast<uint32_t>(FuncList.size());

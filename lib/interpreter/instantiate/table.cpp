@@ -15,11 +15,9 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     /// Insert table instance to store manager.
     uint32_t NewTabInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewTabInstAddr =
-          StoreMgr.pushTable(TabType.getReferenceType(), TabType.getLimit());
+      NewTabInstAddr = StoreMgr.pushTable(TabType.getInner());
     } else {
-      NewTabInstAddr =
-          StoreMgr.importTable(TabType.getReferenceType(), TabType.getLimit());
+      NewTabInstAddr = StoreMgr.importTable(TabType.getInner());
     }
     ModInst.addTableAddr(NewTabInstAddr);
   }

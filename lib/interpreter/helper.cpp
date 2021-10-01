@@ -64,7 +64,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     /// For host function case, the continuation will be the next.
     return From;
   } else if (Func.isCompiledFunction()) {
-    auto Wrapper = Func.getFuncType().getSymbol();
+    auto &Wrapper = Func.getFuncType().TypeSymbol;
     /// Compiled function case: Push frame with locals and args.
     const auto ArgsN = static_cast<uint32_t>(FuncType.Params.size());
     const auto RetsN = static_cast<uint32_t>(FuncType.Returns.size());

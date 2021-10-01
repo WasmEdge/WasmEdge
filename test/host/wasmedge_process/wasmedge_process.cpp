@@ -18,7 +18,7 @@ void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 
 TEST(WasmEdgeProcessTest, SetProgName) {
   WasmEdge::Host::WasmEdgeProcessEnvironment Env;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::MemoryType(1));
   WasmEdge::Host::WasmEdgeProcessSetProgName WasmEdgeProcessSetProgName(Env);
   fillMemContent(MemInst, 0, 64);
   char *Buf = MemInst.getPointer<char *>(0);
@@ -35,7 +35,7 @@ TEST(WasmEdgeProcessTest, SetProgName) {
 
 TEST(WasmEdgeProcessTest, AddArg) {
   WasmEdge::Host::WasmEdgeProcessEnvironment Env;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::MemoryType(1));
   WasmEdge::Host::WasmEdgeProcessAddArg WasmEdgeProcessAddArg(Env);
   fillMemContent(MemInst, 0, 64);
   char *Arg1 = MemInst.getPointer<char *>(0);
@@ -67,7 +67,7 @@ TEST(WasmEdgeProcessTest, AddArg) {
 
 TEST(WasmEdgeProcessTest, AddEnv) {
   WasmEdge::Host::WasmEdgeProcessEnvironment Env;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::MemoryType(1));
   WasmEdge::Host::WasmEdgeProcessAddEnv WasmEdgeProcessAddEnv(Env);
   fillMemContent(MemInst, 0, 256);
   char *Env1 = MemInst.getPointer<char *>(0);
@@ -102,7 +102,7 @@ TEST(WasmEdgeProcessTest, AddEnv) {
 
 TEST(WasmEdgeProcessTest, AddStdIn) {
   WasmEdge::Host::WasmEdgeProcessEnvironment Env;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::MemoryType(1));
   WasmEdge::Host::WasmEdgeProcessAddStdIn WasmEdgeProcessAddStdIn(Env);
   fillMemContent(MemInst, 0, 64);
   uint8_t *Buf1 = MemInst.getPointer<uint8_t *>(0);
@@ -194,7 +194,7 @@ TEST(WasmEdgeProcessTest, GetExitCode) {
 
 TEST(WasmEdgeProcessTest, GetStdOut) {
   WasmEdge::Host::WasmEdgeProcessEnvironment Env;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::MemoryType(1));
   WasmEdge::Host::WasmEdgeProcessRun WasmEdgeProcessRun(Env);
   WasmEdge::Host::WasmEdgeProcessGetStdOutLen WasmEdgeProcessGetStdOutLen(Env);
   WasmEdge::Host::WasmEdgeProcessGetStdOut WasmEdgeProcessGetStdOut(Env);
@@ -219,7 +219,7 @@ TEST(WasmEdgeProcessTest, GetStdOut) {
 
 TEST(WasmEdgeProcessTest, GetStdErr) {
   WasmEdge::Host::WasmEdgeProcessEnvironment Env;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::MemoryType(1));
   WasmEdge::Host::WasmEdgeProcessRun WasmEdgeProcessRun(Env);
   WasmEdge::Host::WasmEdgeProcessGetStdErrLen WasmEdgeProcessGetStdErrLen(Env);
   WasmEdge::Host::WasmEdgeProcessGetStdErr WasmEdgeProcessGetStdErr(Env);

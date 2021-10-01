@@ -132,6 +132,7 @@ confidence: 0.8941176470588236
 We have so far demonstrated that it is easy to run WasmEdge from the CLI. But in most real world applications, you probably want to embed WasmEdge in another application or host platform.
 
 * Embed a standalone program (i.e., with `main()` function) in another platform.
+  * [Docker](utils/docker/build-appdev.md)
   * [AWS Lambda](https://www.cncf.io/blog/2021/08/25/webassembly-serverless-functions-in-aws-lambda/) [[Template](https://github.com/second-state/aws-lambda-wasm-runtime)]
   * [Vercel Serverless Functions](https://www.secondstate.io/articles/vercel-wasmedge-webassembly-rust/) [[Template](https://github.com/second-state/vercel-wasm-runtime)]
   * [Netlify Functions](https://www.secondstate.io/articles/netlify-wasmedge-webassembly-rust-serverless/) [[Template](https://github.com/second-state/netlify-wasm-runtime)]

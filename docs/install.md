@@ -92,7 +92,7 @@ The [Second State Functions](https://www.secondstate.io/faas/) is a WasmEdge-bas
 
 ## Install a Docker / k8s compatible WasmEdge "container"
 
-You can also use Docker tools, such as the CRI-O, to manage and execute WebAssembly programs as if they are Docker images. To do that, you need to install the [runw](https://github.com/second-state/runw) runtime into CRI-O. The runw already embeds a WasmEdge runtime so you do not need to install WasmEdge separately.
+You can also use Docker tools, such as the CRI-O, to manage and execute WebAssembly programs as if they are [Docker images](utils/docker/build-appdev.md). To do that, you need to install the [runw](https://github.com/second-state/runw) runtime into CRI-O. The runw already embeds a WasmEdge runtime so you do not need to install WasmEdge separately.
 
 First, make sure that you are on Ubuntu 20.04 with LLVM-10 installed. If you are on a different platform, please refer to [the project documentation](https://github.com/second-state/runw#build-from-source) on how to build [runw](https://github.com/second-state/runw) for your OS.
 

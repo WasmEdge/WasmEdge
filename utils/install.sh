@@ -541,8 +541,7 @@ end_message() {
             echo "${GREEN}WasmEdge binaries accessible${NC}"
             ;;
         *)
-            echo "${YELLOW}Add $IPATH/bin to your PATH using following command"
-            echo "export PATH=$IPATH/bin:\$PATH${NC}"
+            echo "${GREEN}source $IPATH/env${NC} to use wasmedge binaries"
             ;;
         esac
     fi

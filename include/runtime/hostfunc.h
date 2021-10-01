@@ -14,7 +14,6 @@
 #include "common/span.h"
 #include "common/types.h"
 #include "runtime/instance/memory.h"
-#include "runtime/instance/type.h"
 
 #include <memory>
 #include <tuple>
@@ -37,13 +36,13 @@ public:
                            Span<ValVariant> Rets) = 0;
 
   /// Getter of function type.
-  const Instance::FType &getFuncType() const { return FuncType; }
+  const FunctionType &getFuncType() const { return FuncType; }
 
   /// Getter of host function cost.
   uint64_t getCost() const { return Cost; }
 
 protected:
-  Instance::FType FuncType;
+  FunctionType FuncType;
   const uint64_t Cost;
 };
 

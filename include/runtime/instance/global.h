@@ -20,16 +20,16 @@ namespace Instance {
 class GlobalInstance {
 public:
   GlobalInstance() = delete;
-  GlobalInstance(const ValType ValueType, const ValMut Mutibility,
+  GlobalInstance(const GlobalType &GType,
                  const ValVariant Val = uint32_t(0)) noexcept
-      : Type(ValueType), Mut(Mutibility), Value(Val) {}
+      : GlobType(GType), Value(Val) {}
   virtual ~GlobalInstance() = default;
 
   /// Getter the global value type.
-  ValType getValType() const { return Type; }
+  ValType getValType() const { return GlobType.Type; }
 
   /// Getter the global mutation.
-  ValMut getValMut() const { return Mut; }
+  ValMut getValMut() const { return GlobType.Mut; }
 
   /// Getter of value.
   const ValVariant &getValue() const { return Value; }
@@ -40,8 +40,7 @@ public:
 private:
   /// \name Data of global instance.
   /// @{
-  const ValType Type;
-  const ValMut Mut;
+  GlobalType GlobType;
   ValVariant Value;
   /// @}
 };

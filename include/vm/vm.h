@@ -91,8 +91,7 @@ public:
   void cleanup();
 
   /// Get list of callable functions and corresponding function types.
-  std::vector<std::pair<std::string, Runtime::Instance::FType>>
-  getFunctionList() const;
+  std::vector<std::pair<std::string, FunctionType>> getFunctionList() const;
 
   /// Get import objects by configurations.
   Runtime::ImportObject *getImportModule(const HostRegistration Type);

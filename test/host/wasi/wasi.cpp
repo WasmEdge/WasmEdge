@@ -189,7 +189,7 @@ uint64_t convertTimespec(const timespec &Timespec) noexcept {
 
 TEST(WasiTest, Args) {
   WasmEdge::Host::WASI::Environ Env;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::MemoryType(1));
 
   WasmEdge::Host::WasiArgsSizesGet WasiArgsSizesGet(Env);
   WasmEdge::Host::WasiArgsGet WasiArgsGet(Env);
@@ -289,7 +289,7 @@ TEST(WasiTest, Args) {
 
 TEST(WasiTest, Envs) {
   WasmEdge::Host::WASI::Environ Env;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::MemoryType(1));
 
   WasmEdge::Host::WasiEnvironSizesGet WasiEnvironSizesGet(Env);
   WasmEdge::Host::WasiEnvironGet WasiEnvironGet(Env);
@@ -414,7 +414,7 @@ TEST(WasiTest, Envs) {
 
 TEST(WasiTest, ClockRes) {
   WasmEdge::Host::WASI::Environ Env;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::MemoryType(1));
 
   WasmEdge::Host::WasiClockResGet WasiClockResGet(Env);
   std::array<WasmEdge::ValVariant, 1> Errno;
@@ -528,7 +528,7 @@ TEST(WasiTest, ClockRes) {
 
 TEST(WasiTest, ClockTimeGet) {
   WasmEdge::Host::WASI::Environ Env;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::MemoryType(1));
 
   WasmEdge::Host::WasiClockTimeGet WasiClockTimeGet(Env);
   std::array<WasmEdge::ValVariant, 1> Errno;
@@ -648,7 +648,7 @@ TEST(WasiTest, ClockTimeGet) {
 
 TEST(WasiTest, ProcExit) {
   WasmEdge::Host::WASI::Environ Env;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::MemoryType(1));
 
   WasmEdge::Host::WasiProcExit WasiProcExit(Env);
 
@@ -667,7 +667,7 @@ TEST(WasiTest, ProcExit) {
 
 TEST(WasiTest, Random) {
   WasmEdge::Host::WASI::Environ Env;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::MemoryType(1));
 
   WasmEdge::Host::WasiRandomGet WasiRandomGet(Env);
   std::array<WasmEdge::ValVariant, 1> Errno;
@@ -732,7 +732,7 @@ TEST(WasiTest, Random) {
 
 TEST(WasiTest, Directory) {
   WasmEdge::Host::WASI::Environ Env;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::MemoryType(1));
 
   WasmEdge::Host::WasiPathCreateDirectory WasiPathCreateDirectory(Env);
   WasmEdge::Host::WasiPathRemoveDirectory WasiPathRemoveDirectory(Env);
@@ -822,7 +822,7 @@ TEST(WasiTest, Directory) {
 
 TEST(WasiTest, SymbolicLink) {
   WasmEdge::Host::WASI::Environ Env;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::AST::Limit(1));
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(WasmEdge::MemoryType(1));
 
   WasmEdge::Host::WasiPathSymlink WasiPathSymlink(Env);
   WasmEdge::Host::WasiPathUnlinkFile WasiPathUnlinkFile(Env);

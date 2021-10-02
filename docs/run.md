@@ -1,6 +1,6 @@
 # Run WasmEdge from CLI
 
-After [installing WasmEdge](install.md), there are several ways to run compiled WebAssembly programs. In this article, we will cover the most straighforward -- to run a WebAssembly program from the Linux command line (CLI).
+After [installing WasmEdge](install.md) or starting the [WasmEdge app dev Docker container](../utils/docker/build-appdev.md), there are several ways to run compiled WebAssembly programs. In this article, we will cover the most straighforward -- to run a WebAssembly program from the Linux command line (CLI).
 
 * If the WebAssembly program contains a `main()` function, `wasmedge` would execute it as a standalone program in the command mode.
 * If the WebAssembly program contains one or more public functions, `wasmedge` could execute individual functions in the reactor mode.

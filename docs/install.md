@@ -5,7 +5,7 @@
 * [What's installed](#whats-installed)
 * [Uninstall](#uninstall)
 * [Install WasmEdge for Node.js](#install-wasmedge-for-nodejs)
-* [Install a Docker / k8s compatible WasmEdge "container"](#install-a-docker--k8s-compatible-wasmedge-container)
+* [Use Docker containers for WasmEdge app development](#use-docker-containers-for-wasmEdge-app-development)
 
 ## Quickstart
 
@@ -90,48 +90,24 @@ npm install -g wasmedge-extensions # Append --unsafe-perm if permission denied
 The [Second State Functions](https://www.secondstate.io/faas/) is a WasmEdge-based FaaS service build on Node.js.
 
 
-## Install a Docker / k8s compatible WasmEdge "container"
+## Use Docker containers for WasmEdge app development
 
-You can also use Docker tools, such as the CRI-O, to manage and execute WebAssembly programs as if they are [Docker images](utils/docker/build-appdev.md). To do that, you need to install the [runw](https://github.com/second-state/runw) runtime into CRI-O. The runw already embeds a WasmEdge runtime so you do not need to install WasmEdge separately.
+The [WasmEdge app dev Docker images](utils/docker/build-appdev.md) already have WasmEdge Runtime and related developer tools, including Node.js, Rust, [rustwasmc](https://www.secondstate.io/articles/rustwasmc/), and Go, pre-installed. You can simply start a container and start coding!
 
-First, make sure that you are on Ubuntu 20.04 with LLVM-10 installed. If you are on a different platform, please refer to [the project documentation](https://github.com/second-state/runw#build-from-source) on how to build [runw](https://github.com/second-state/runw) for your OS.
-
-```bash
-sudo apt install -y llvm-10-dev liblld-10-dev
-```
-
-Also make sure that you have [cri-o](https://cri-o.io/), [crictl](https://github.com/kubernetes-sigs/cri-tools), [containernetworking-plugins](https://github.com/containernetworking/plugins), and [buildah](https://github.com/containers/buildah) or [docker](https://github.com/docker/cli) installed.
-
-Next, download the `runw` binary build.
+On x86_64 machines
 
 ```bash
-wget https://github.com/second-state/runw/releases/download/0.1.0/runw
+docker pull wasmedge/appdev_x86_64:0.8.2
+docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.8.2
+(docker) #
 ```
 
-Now, you can install [runw](https://github.com/second-state/runw) into CRI-O as an alternative runtime for WebAssembly.
+On arm64 machines
 
 ```bash
-# Get the wasm-pause utility
-$ sudo crictl pull docker.io/beststeve/wasm-pause
-
-# Install runw into cri-o
-$ sudo cp -v runw /usr/lib/cri-o-runc/sbin/runw
-$ sudo chmod +x /usr/lib/cri-o-runc/sbin/runw
-$ sudo sed -i -e 's@default_runtime = "runc"@default_runtime = "runw"@' /etc/crio/crio.conf
-$ sudo sed -i -e 's@pause_image = "k8s.gcr.io/pause:3.2"@pause_image = "docker.io/beststeve/wasm-pause"@' /etc/crio/crio.conf
-$ sudo sed -i -e 's@pause_command = "/pause"@pause_command = "pause.wasm"@' /etc/crio/crio.conf
-$ sudo tee -a /etc/crio/crio.conf.d/01-crio-runc.conf <<EOF
-[crio.runtime.runtimes.runw]
-runtime_path = "/usr/lib/cri-o-runc/sbin/runw"
-runtime_type = "oci"
-runtime_root = "/run/runw"
-EOF
+docker pull wasmedge/appdev_aarch64:0.8.2
+docker run --rm -v $(pwd):/app -it wasmedge/appdev_aarch64:0.8.2
+(docker) #
 ```
 
-Finally, restart cri-o for the new WebAssembly runner to take effect.
-
-```
-sudo systemctl restart crio
-```
-
-[This article](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/) shows a complete example on how to use CRI-O to manage a WebAssembly program.
+Have fun!

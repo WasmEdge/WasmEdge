@@ -12,24 +12,24 @@ TEST(MemLimitTest, Limit__Pages) {
   WasmEdge::Configure Conf;
   Conf.getRuntimeConfigure().setMaxMemoryPage(256);
 
-  MemInst Inst1(WasmEdge::MemoryType(257),
+  MemInst Inst1(WasmEdge::AST::MemoryType(257),
                 Conf.getRuntimeConfigure().getMaxMemoryPage());
   ASSERT_TRUE(Inst1.getDataPtr() == nullptr);
 
-  MemInst Inst2(WasmEdge::MemoryType(257));
+  MemInst Inst2(WasmEdge::AST::MemoryType(257));
   ASSERT_FALSE(Inst2.getDataPtr() == nullptr);
 
-  MemInst Inst3(WasmEdge::MemoryType(1),
+  MemInst Inst3(WasmEdge::AST::MemoryType(1),
                 Conf.getRuntimeConfigure().getMaxMemoryPage());
   ASSERT_FALSE(Inst3.getDataPtr() == nullptr);
   ASSERT_FALSE(Inst3.growPage(256));
   ASSERT_TRUE(Inst3.growPage(255));
 
-  MemInst Inst4(WasmEdge::MemoryType(1));
+  MemInst Inst4(WasmEdge::AST::MemoryType(1));
   ASSERT_FALSE(Inst4.getDataPtr() == nullptr);
   ASSERT_TRUE(Inst4.growPage(256));
 
-  MemInst Inst5(WasmEdge::MemoryType(1, 128),
+  MemInst Inst5(WasmEdge::AST::MemoryType(1, 128),
                 Conf.getRuntimeConfigure().getMaxMemoryPage());
   ASSERT_FALSE(Inst5.getDataPtr() == nullptr);
   ASSERT_FALSE(Inst5.growPage(128));

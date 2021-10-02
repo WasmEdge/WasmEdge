@@ -92,7 +92,7 @@ The [Second State Functions](https://www.secondstate.io/faas/) is a WasmEdge-bas
 
 ## Use Docker containers for WasmEdge app development
 
-The [WasmEdge app dev Docker images](utils/docker/build-appdev.md) already have WasmEdge Runtime and related developer tools, including Node.js, Rust, [rustwasmc](https://www.secondstate.io/articles/rustwasmc/), and Go, pre-installed. You can simply start a container and start coding!
+The [WasmEdge app dev Docker images](../utils/docker/build-appdev.md) already have WasmEdge Runtime and related developer tools, including Node.js, Rust, [rustwasmc](https://www.secondstate.io/articles/rustwasmc/), and Go, pre-installed. You can simply start a container and start coding!
 
 On x86_64 machines
 

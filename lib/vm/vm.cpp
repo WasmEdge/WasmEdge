@@ -268,8 +268,9 @@ void VM::cleanup() {
   Stage = VMStage::Inited;
 }
 
-std::vector<std::pair<std::string, FunctionType>> VM::getFunctionList() const {
-  std::vector<std::pair<std::string, FunctionType>> Res;
+std::vector<std::pair<std::string, AST::FunctionType>>
+VM::getFunctionList() const {
+  std::vector<std::pair<std::string, AST::FunctionType>> Res;
   for (auto &&Func : StoreRef.getFuncExports()) {
     const auto *FuncInst = *StoreRef.getFunction(Func.second);
     const auto &FuncType = FuncInst->getFuncType();

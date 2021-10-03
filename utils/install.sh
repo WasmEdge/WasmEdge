@@ -140,7 +140,8 @@ case $OS in
         exit 1
     else
         if [ "$(brew list | grep llvm)" = "" ]; then
-            brew install llvm
+            echo "${YELLOW}Please run: brew install llvm${NC}"
+            exit 1
         fi
     fi
 

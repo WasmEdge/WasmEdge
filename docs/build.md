@@ -2,6 +2,8 @@
 
 Please follow this guide to build and test WasmEdge from source code.
 
+The following guide is based on Linux distributions. For MacOS, please refer to [this guide](build_on_mac.md).
+
 ## Get Source Code
 
 ```bash

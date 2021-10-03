@@ -2,6 +2,7 @@
 
 wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   ctx.cpp
+  array_output.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

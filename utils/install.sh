@@ -28,7 +28,9 @@ _downloader() {
     local url=$1
     if ! command -v wget &>/dev/null; then
         if command -v curl &>/dev/null; then
-            curl -L -OC "$TMP_DIR" "$url" --progress-bar
+            pushd "$TMP_DIR"
+            curl -L -OC0 "$url" --progress-bar
+            popd
         else
             echo "${RED}Please install wget or curl${NC}"
             exit 1
@@ -42,7 +44,7 @@ _extracter() {
     local prefix="$IPKG"
     if ! command -v tar &>/dev/null; then
         echo "${RED}Please install tar${NC}"
-        exit 1
+        exit_clean 1
     else
         local opt
         opt=$(tar "$@" 2>&1)
@@ -244,6 +246,11 @@ EOF
 
 }
 
+exit_clean() {
+    trap - EXIT
+    exit "$1"
+}
+
 make_dirs() {
     for var in "$@"; do
         if [ ! -d "$IPATH/$var" ]; then
@@ -429,7 +436,7 @@ main() {
             ;;
         h | help)
             usage
-            trap - EXIT
+
             exit 0
             ;;
         v | version)
@@ -475,6 +482,8 @@ main() {
 
     set_ENV "$IPATH"
     mkdir -p "$IPATH"
+    mkdir -p "$TMP_DIR"
+
     echo "$ENV" >"$IPATH/env"
     echo "# Please do not edit comments below this for uninstallation purpose" >>"$IPATH/env"
 

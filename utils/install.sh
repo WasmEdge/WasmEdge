@@ -497,21 +497,22 @@ main() {
                 echo "$_source" >>"$__HOME__/.profile"
             fi
         else
+            echo "Generating $__HOME__/.profile"
             echo "$_source" >>"$__HOME__/.profile"
         fi
 
-        if [ -f "$__HOME__/.bashrc" ]; then
-            local _grep=$(cat "$__HOME__/.bashrc" | grep "$IPATH/env")
+        local _shell_ _shell_rc
+        _shell_="${SHELL#${SHELL%/*}/}"
+        _shell_rc=".""$_shell_""rc"
+
+        if [ -f "$__HOME__/$_shell_rc" ]; then
+            local _grep=$(cat "$__HOME__/$_shell_rc" | grep "$IPATH/env")
             if [ "$_grep" = "" ]; then
-                echo "$_source" >>"$__HOME__/.bashrc"
-            fi
-        elif [ -f "$__HOME__/.bash_profile" ]; then
-            local _grep=$(cat "$__HOME__/.bash_profile" | grep "$IPATH/env")
-            if [ "$_grep" = "" ]; then
-                echo "$_source" >>"$__HOME__/.bash_profile"
+                echo "$_source" >>"$__HOME__/$_shell_rc"
             fi
         else
-            echo "$_source" >>"$__HOME__/.bashrc"
+            echo "Generating $__HOME__/$_shell_rc"
+            echo "$_source" >>"$__HOME__/$_shell_rc"
         fi
     fi
 

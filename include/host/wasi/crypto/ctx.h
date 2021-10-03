@@ -2,10 +2,10 @@
 #pragma once
 
 #include "host/wasi/crypto/array_output.h"
+#include "host/wasi/crypto/error.h"
 #include "host/wasi/crypto/handles.h"
-#include "common/span.h"
+#include "host/wasi/crypto/options.h"
 #include "wasi/crypto/api.hpp"
-#include <array>
 
 namespace WasmEdge {
 namespace Host {
@@ -15,6 +15,7 @@ namespace Crypto {
 struct HandleMangers {
   HandleMangers();
   HandlesManger<ArrayOutput> ArrayOutputManger;
+  HandlesManger<Options> OptionsManger;
 };
 
 class CryptoCtx {
@@ -50,6 +51,57 @@ public:
   WasiCryptoExpect<__wasi_size_t>
   arrayOutputPull(__wasi_array_output_t ArrayOutputHandle, uint8_t_ptr Buf,
                   __wasi_size_t BufLen);
+
+  /// Create a new object to set non-default options.
+  ///
+  /// Example usage:
+  ///
+  /// ```rust
+  /// let options_handle = options_open(AlgorithmType::Symmetric)?;
+  /// options_set(options_handle, "context", context)?;
+  /// options_set_u64(options_handle, "threads", 4)?;
+  /// let state = symmetric_state_open("BLAKE3", None, Some(options_handle))?;
+  /// options_close(options_handle)?;
+  /// ```
+  WasiCryptoExpect<__wasi_options_t>
+  optionsOpen(__wasi_algorithm_type_e_t AlgorithmType);
+
+  /// Destroy an options object.
+  ///
+  /// Objects are reference counted. It is safe to close an object immediately
+  /// after the last function needing it is called.
+  WasiCryptoExpect<void> optionsClose(__wasi_options_t Handle);
+
+  /// Destroy an options object.
+  ///
+  /// Objects are reference counted. It is safe to close an object immediately
+  /// after the last function needing it is called.
+  WasiCryptoExpect<void> optionsSet(__wasi_options_t Handle,
+                                    const char* Name,
+                                    const_uint8_t_ptr Value,
+                                    __wasi_size_t ValueLen);
+
+  /// Set or update an integer option.
+  ///
+  /// This is used to set algorithm-specific parameters.
+  ///
+  /// This function may return `unsupported_option` if an option that doesn't
+  /// exist for any implemented algorithms is specified.
+  WasiCryptoExpect<void> optionsSetU64(__wasi_options_t Handle,
+                                       const char* Name, uint64_t Value);
+
+  /// Set or update a guest-allocated memory that the host can use or return
+  /// data into.
+  ///
+  /// This is for example used to set the scratch buffer required by memory-hard
+  /// functions.
+  ///
+  /// This function may return `unsupported_option` if an option that doesn't
+  /// exist for any implemented algorithms is specified.
+  WasiCryptoExpect<void> optionsSetGuestBuffer(__wasi_options_t Handle,
+                                               const char* Name,
+                                               uint8_t_ptr Buffer,
+                                               __wasi_size_t BufferLen);
 
 private:
   HandleMangers Mangers;

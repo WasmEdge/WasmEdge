@@ -2,6 +2,8 @@
 
 static PyObject *WasmEdge_er;
 
+static PyObject *version() { return Py_BuildValue("s", WasmEdge_VersionGet()); }
+
 /* Example from
  * https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md#wasmedge-vm
  */
@@ -55,7 +57,8 @@ static PyObject *py_run(PyObject *self, PyObject *args) {
 
 // Define a collection of methods callable from our module
 static PyMethodDef WasmEdge_Methods[] = {
-    {"py_run", py_run, METH_VARARGS, "Runs specified .wasm file"}};
+    {"py_run", py_run, METH_VARARGS, "Runs specified .wasm file"},
+    {"version", version, METH_NOARGS, "Outputs version of wasmedge"}};
 
 // Module definition
 static struct PyModuleDef wasmedge_module = {PyModuleDef_HEAD_INIT, "WasmEdge",

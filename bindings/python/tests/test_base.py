@@ -1,6 +1,7 @@
 import pytest
 import WasmEdge
 import os
+import subprocess
 
 
 def test_fib_32():
@@ -14,4 +15,13 @@ def test_fib_32():
             "fib",
         )
         == 3524578
+    )
+
+
+def test_version():
+    assert (
+        "wasmedge version " + WasmEdge.version()
+        == subprocess.run(
+            ["wasmedge", "--version"], stdout=subprocess.PIPE
+        ).stdout.decode("utf-8")[:-1]
     )

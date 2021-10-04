@@ -2,6 +2,7 @@
 
 #include "loader/shared_library.h"
 
+#include "common/log.h"
 #include "system/allocator.h"
 
 #if WASMEDGE_OS_WINDOWS
@@ -102,6 +103,7 @@ Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
 
   for (const auto &[Pointer, Size] : ExecutableRanges) {
     if (!Allocator::set_chunk_executable(Pointer, Size)) {
+      spdlog::error(ErrCode::MemoryOutOfBounds);
       spdlog::error("set_chunk_executable failed:{}", std::strerror(errno));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }

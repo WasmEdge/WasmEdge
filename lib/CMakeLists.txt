@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: Apache-2.0
-add_subdirectory(ast)
 if(WASMEDGE_BUILD_AOT_RUNTIME)
   add_subdirectory(aot)
 endif()

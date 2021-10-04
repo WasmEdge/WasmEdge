@@ -393,6 +393,88 @@ TEST(APICoreTest, Configure) {
   EXPECT_TRUE(true);
 }
 
+TEST(APICoreTest, FunctionType) {
+  std::vector<WasmEdge_ValType> Param = {
+      WasmEdge_ValType_I32,  WasmEdge_ValType_I64, WasmEdge_ValType_ExternRef,
+      WasmEdge_ValType_V128, WasmEdge_ValType_F64, WasmEdge_ValType_F32};
+  std::vector<WasmEdge_ValType> Result = {WasmEdge_ValType_FuncRef,
+                                          WasmEdge_ValType_ExternRef,
+                                          WasmEdge_ValType_V128};
+  enum WasmEdge_ValType Buf1[6], Buf2[2];
+  WasmEdge_FunctionTypeContext *FType =
+      WasmEdge_FunctionTypeCreate(&Param[0], 6, &Result[0], 3);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(FType), 6U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(FType), 3U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParameters(FType, Buf1, 6), 6U);
+  EXPECT_EQ(Param, std::vector<WasmEdge_ValType>(Buf1, Buf1 + 6));
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParameters(FType, Buf2, 2), 6U);
+  EXPECT_EQ(std::vector<WasmEdge_ValType>(Param.cbegin(), Param.cbegin() + 2),
+            std::vector<WasmEdge_ValType>(Buf2, Buf2 + 2));
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParameters(nullptr, Buf1, 6), 0U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturns(FType, Buf1, 6), 3U);
+  EXPECT_EQ(Result, std::vector<WasmEdge_ValType>(Buf1, Buf1 + 3));
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturns(FType, Buf2, 2), 3U);
+  EXPECT_EQ(std::vector<WasmEdge_ValType>(Result.cbegin(), Result.cbegin() + 2),
+            std::vector<WasmEdge_ValType>(Buf2, Buf2 + 2));
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturns(nullptr, Buf1, 6), 0U);
+  WasmEdge_FunctionTypeDelete(FType);
+  WasmEdge_FunctionTypeDelete(nullptr);
+
+  FType = WasmEdge_FunctionTypeCreate(nullptr, 0, nullptr, 0);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParameters(FType, Buf1, 6), 0U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturns(FType, Buf1, 6), 0U);
+  WasmEdge_FunctionTypeDelete(FType);
+}
+
+TEST(APICoreTest, TableType) {
+  WasmEdge_Limit Lim1 = {.HasMax = true, .Min = 10, .Max = 20};
+  WasmEdge_Limit Lim2 = {.HasMax = false, .Min = 30, .Max = 30};
+  WasmEdge_TableTypeContext *TType =
+      WasmEdge_TableTypeCreate(WasmEdge_RefType_ExternRef, Lim1);
+  EXPECT_EQ(WasmEdge_TableTypeGetRefType(TType), WasmEdge_RefType_ExternRef);
+  EXPECT_EQ(WasmEdge_TableTypeGetRefType(nullptr), WasmEdge_RefType_FuncRef);
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(WasmEdge_TableTypeGetLimit(TType), Lim1));
+  EXPECT_FALSE(
+      WasmEdge_LimitIsEqual(WasmEdge_TableTypeGetLimit(nullptr), Lim1));
+  WasmEdge_TableTypeDelete(TType);
+  WasmEdge_TableTypeDelete(nullptr);
+  TType = WasmEdge_TableTypeCreate(WasmEdge_RefType_FuncRef, Lim2);
+  EXPECT_EQ(WasmEdge_TableTypeGetRefType(TType), WasmEdge_RefType_FuncRef);
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(WasmEdge_TableTypeGetLimit(TType), Lim2));
+  WasmEdge_TableTypeDelete(TType);
+  WasmEdge_TableTypeDelete(nullptr);
+}
+
+TEST(APICoreTest, MemoryType) {
+  WasmEdge_Limit Lim1 = {.HasMax = true, .Min = 10, .Max = 20};
+  WasmEdge_Limit Lim2 = {.HasMax = false, .Min = 30, .Max = 30};
+  WasmEdge_MemoryTypeContext *MType = WasmEdge_MemoryTypeCreate(Lim1);
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(WasmEdge_MemoryTypeGetLimit(MType), Lim1));
+  EXPECT_FALSE(
+      WasmEdge_LimitIsEqual(WasmEdge_MemoryTypeGetLimit(nullptr), Lim1));
+  WasmEdge_MemoryTypeDelete(MType);
+  WasmEdge_MemoryTypeDelete(nullptr);
+  MType = WasmEdge_MemoryTypeCreate(Lim2);
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(WasmEdge_MemoryTypeGetLimit(MType), Lim2));
+  WasmEdge_MemoryTypeDelete(nullptr);
+  WasmEdge_MemoryTypeDelete(MType);
+  WasmEdge_MemoryTypeDelete(nullptr);
+}
+
+TEST(APICoreTest, GlobalType) {
+  WasmEdge_GlobalTypeContext *GType =
+      WasmEdge_GlobalTypeCreate(WasmEdge_ValType_V128, WasmEdge_Mutability_Var);
+  EXPECT_EQ(WasmEdge_GlobalTypeGetValType(GType), WasmEdge_ValType_V128);
+  EXPECT_EQ(WasmEdge_GlobalTypeGetValType(nullptr), WasmEdge_ValType_I32);
+  EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(GType), WasmEdge_Mutability_Var);
+  EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(nullptr),
+            WasmEdge_Mutability_Const);
+  WasmEdge_GlobalTypeDelete(GType);
+  WasmEdge_GlobalTypeDelete(nullptr);
+}
+
 #ifdef WASMEDGE_BUILD_AOT_RUNTIME
 TEST(APICoreTest, Compiler) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
@@ -1061,40 +1143,6 @@ TEST(APICoreTest, Store) {
   WasmEdge_StringDelete(ModName[2]);
   WasmEdge_StoreDelete(Store);
   WasmEdge_ImportObjectDelete(ImpObj);
-}
-
-TEST(APICoreTest, FunctionType) {
-  std::vector<WasmEdge_ValType> Param = {
-      WasmEdge_ValType_I32,  WasmEdge_ValType_I64, WasmEdge_ValType_ExternRef,
-      WasmEdge_ValType_V128, WasmEdge_ValType_F64, WasmEdge_ValType_F32};
-  std::vector<WasmEdge_ValType> Result = {WasmEdge_ValType_FuncRef,
-                                          WasmEdge_ValType_ExternRef,
-                                          WasmEdge_ValType_V128};
-  enum WasmEdge_ValType Buf1[6], Buf2[2];
-  WasmEdge_FunctionTypeContext *FType =
-      WasmEdge_FunctionTypeCreate(&Param[0], 6, &Result[0], 3);
-  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(FType), 6U);
-  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(nullptr), 0U);
-  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(FType), 3U);
-  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(nullptr), 0U);
-  EXPECT_EQ(WasmEdge_FunctionTypeGetParameters(FType, Buf1, 6), 6U);
-  EXPECT_EQ(Param, std::vector<WasmEdge_ValType>(Buf1, Buf1 + 6));
-  EXPECT_EQ(WasmEdge_FunctionTypeGetParameters(FType, Buf2, 2), 6U);
-  EXPECT_EQ(std::vector<WasmEdge_ValType>(Param.cbegin(), Param.cbegin() + 2),
-            std::vector<WasmEdge_ValType>(Buf2, Buf2 + 2));
-  EXPECT_EQ(WasmEdge_FunctionTypeGetParameters(nullptr, Buf1, 6), 0U);
-  EXPECT_EQ(WasmEdge_FunctionTypeGetReturns(FType, Buf1, 6), 3U);
-  EXPECT_EQ(Result, std::vector<WasmEdge_ValType>(Buf1, Buf1 + 3));
-  EXPECT_EQ(WasmEdge_FunctionTypeGetReturns(FType, Buf2, 2), 3U);
-  EXPECT_EQ(std::vector<WasmEdge_ValType>(Result.cbegin(), Result.cbegin() + 2),
-            std::vector<WasmEdge_ValType>(Buf2, Buf2 + 2));
-  EXPECT_EQ(WasmEdge_FunctionTypeGetReturns(nullptr, Buf1, 6), 0U);
-  WasmEdge_FunctionTypeDelete(FType);
-
-  FType = WasmEdge_FunctionTypeCreate(nullptr, 0, nullptr, 0);
-  EXPECT_EQ(WasmEdge_FunctionTypeGetParameters(FType, Buf1, 6), 0U);
-  EXPECT_EQ(WasmEdge_FunctionTypeGetReturns(FType, Buf1, 6), 0U);
-  WasmEdge_FunctionTypeDelete(FType);
 }
 
 TEST(APICoreTest, Instance) {

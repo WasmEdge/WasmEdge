@@ -1149,23 +1149,33 @@ TEST(APICoreTest, Instance) {
   WasmEdge_Value Val, TmpVal;
   /// WasmEdge_FunctionInstanceGetFunctionType() tested in `Store` test case.
 
+  /// Table instance
+  WasmEdge_TableInstanceContext *TabCxt;
+  WasmEdge_TableTypeContext *TabType;
+
   /// Table instance creation
-  WasmEdge_TableInstanceContext *TabCxt = WasmEdge_TableInstanceCreate(
+  TabCxt = WasmEdge_TableInstanceCreate(nullptr);
+  EXPECT_EQ(TabCxt, nullptr);
+  TabType = WasmEdge_TableTypeCreate(
       WasmEdge_RefType_ExternRef,
-      WasmEdge_Limit{.HasMax = false, .Min = 10, .Max = 0});
+      WasmEdge_Limit{.HasMax = false, .Min = 10, .Max = 10});
+  TabCxt = WasmEdge_TableInstanceCreate(TabType);
+  WasmEdge_TableTypeDelete(TabType);
   EXPECT_NE(TabCxt, nullptr);
   WasmEdge_TableInstanceDelete(TabCxt);
   EXPECT_TRUE(true);
-  TabCxt = WasmEdge_TableInstanceCreate(
+  TabType = WasmEdge_TableTypeCreate(
       WasmEdge_RefType_ExternRef,
       WasmEdge_Limit{.HasMax = true, .Min = 10, .Max = 20});
+  TabCxt = WasmEdge_TableInstanceCreate(TabType);
+  WasmEdge_TableTypeDelete(TabType);
   EXPECT_NE(TabCxt, nullptr);
 
-  /// Table instance get reference type
-  EXPECT_EQ(WasmEdge_TableInstanceGetRefType(TabCxt),
-            WasmEdge_RefType_ExternRef);
-  EXPECT_EQ(WasmEdge_TableInstanceGetRefType(nullptr),
-            WasmEdge_RefType_FuncRef);
+  /// Table instance get table type
+  EXPECT_EQ(
+      WasmEdge_TableTypeGetRefType(WasmEdge_TableInstanceGetTableType(TabCxt)),
+      WasmEdge_RefType_ExternRef);
+  EXPECT_EQ(WasmEdge_TableInstanceGetTableType(nullptr), nullptr);
 
   /// Table instance set data
   Val = WasmEdge_ValueGenExternRef(&TabCxt);
@@ -1214,15 +1224,29 @@ TEST(APICoreTest, Instance) {
   WasmEdge_TableInstanceDelete(TabCxt);
   EXPECT_TRUE(true);
 
+  /// Memory instance
+  WasmEdge_MemoryInstanceContext *MemCxt;
+  WasmEdge_MemoryTypeContext *MemType;
+
   /// Memory instance creation
-  WasmEdge_MemoryInstanceContext *MemCxt = WasmEdge_MemoryInstanceCreate(
-      WasmEdge_Limit{.HasMax = false, .Min = 1, .Max = 0});
+  MemCxt = WasmEdge_MemoryInstanceCreate(nullptr);
+  EXPECT_EQ(MemCxt, nullptr);
+  MemType = WasmEdge_MemoryTypeCreate(
+      WasmEdge_Limit{.HasMax = false, .Min = 1, .Max = 1});
+  MemCxt = WasmEdge_MemoryInstanceCreate(MemType);
+  WasmEdge_MemoryTypeDelete(MemType);
   EXPECT_NE(MemCxt, nullptr);
   WasmEdge_MemoryInstanceDelete(MemCxt);
   EXPECT_TRUE(true);
-  MemCxt = WasmEdge_MemoryInstanceCreate(
+  MemType = WasmEdge_MemoryTypeCreate(
       WasmEdge_Limit{.HasMax = true, .Min = 1, .Max = 3});
+  MemCxt = WasmEdge_MemoryInstanceCreate(MemType);
+  WasmEdge_MemoryTypeDelete(MemType);
   EXPECT_NE(MemCxt, nullptr);
+
+  /// Memory instance get memory type
+  EXPECT_NE(WasmEdge_MemoryInstanceGetMemoryType(MemCxt), nullptr);
+  EXPECT_EQ(WasmEdge_MemoryInstanceGetMemoryType(nullptr), nullptr);
 
   /// Memory instance set data
   std::vector<uint8_t> DataSet = {'t', 'e', 's', 't', ' ',
@@ -1298,26 +1322,45 @@ TEST(APICoreTest, Instance) {
   WasmEdge_MemoryInstanceDelete(MemCxt);
   EXPECT_TRUE(true);
 
+  /// Global instance
+  WasmEdge_GlobalInstanceContext *GlobCCxt, *GlobVCxt;
+  WasmEdge_GlobalTypeContext *GlobCType, *GlobVType;
+
   /// Global instance creation
-  WasmEdge_GlobalInstanceContext *GlobCCxt = WasmEdge_GlobalInstanceCreate(
-      WasmEdge_ValueGenI64(55555555555LL), WasmEdge_Mutability_Const);
-  WasmEdge_GlobalInstanceContext *GlobVCxt = WasmEdge_GlobalInstanceCreate(
-      WasmEdge_ValueGenI64(66666666666LL), WasmEdge_Mutability_Var);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(nullptr, WasmEdge_ValueGenI32(0));
+  EXPECT_EQ(GlobVCxt, nullptr);
+  GlobVType =
+      WasmEdge_GlobalTypeCreate(WasmEdge_ValType_F32, WasmEdge_Mutability_Var);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, WasmEdge_ValueGenI32(0));
+  WasmEdge_GlobalTypeDelete(GlobVType);
+  EXPECT_EQ(GlobVCxt, nullptr);
+  GlobCType = WasmEdge_GlobalTypeCreate(WasmEdge_ValType_I64,
+                                        WasmEdge_Mutability_Const);
+  GlobVType =
+      WasmEdge_GlobalTypeCreate(WasmEdge_ValType_I64, WasmEdge_Mutability_Var);
+  GlobCCxt = WasmEdge_GlobalInstanceCreate(GlobCType,
+                                           WasmEdge_ValueGenI64(55555555555LL));
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType,
+                                           WasmEdge_ValueGenI64(66666666666LL));
+  WasmEdge_GlobalTypeDelete(GlobCType);
+  WasmEdge_GlobalTypeDelete(GlobVType);
   EXPECT_NE(GlobCCxt, nullptr);
   EXPECT_NE(GlobVCxt, nullptr);
 
-  /// Global instance get value type
-  EXPECT_EQ(WasmEdge_GlobalInstanceGetValType(GlobCCxt), WasmEdge_ValType_I64);
-  EXPECT_EQ(WasmEdge_GlobalInstanceGetValType(GlobVCxt), WasmEdge_ValType_I64);
-  EXPECT_EQ(WasmEdge_GlobalInstanceGetValType(nullptr), WasmEdge_ValType_I32);
-
-  /// Global instance get mutability
-  EXPECT_EQ(WasmEdge_GlobalInstanceGetMutability(GlobCCxt),
+  /// Global instance get global type
+  EXPECT_EQ(WasmEdge_GlobalTypeGetValType(
+                WasmEdge_GlobalInstanceGetGlobalType(GlobCCxt)),
+            WasmEdge_ValType_I64);
+  EXPECT_EQ(WasmEdge_GlobalTypeGetValType(
+                WasmEdge_GlobalInstanceGetGlobalType(GlobVCxt)),
+            WasmEdge_ValType_I64);
+  EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(
+                WasmEdge_GlobalInstanceGetGlobalType(GlobCCxt)),
             WasmEdge_Mutability_Const);
-  EXPECT_EQ(WasmEdge_GlobalInstanceGetMutability(GlobVCxt),
+  EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(
+                WasmEdge_GlobalInstanceGetGlobalType(GlobVCxt)),
             WasmEdge_Mutability_Var);
-  EXPECT_EQ(WasmEdge_GlobalInstanceGetMutability(nullptr),
-            WasmEdge_Mutability_Const);
+  EXPECT_EQ(WasmEdge_GlobalInstanceGetGlobalType(nullptr), nullptr);
 
   /// Global instance get value
   Val = WasmEdge_GlobalInstanceGetValue(GlobCCxt);
@@ -1358,6 +1401,9 @@ TEST(APICoreTest, ImportObject) {
   WasmEdge_VMContext *VM = nullptr;
   WasmEdge_ImportObjectContext *ImpObj = nullptr;
   WasmEdge_FunctionTypeContext *HostFType = nullptr;
+  WasmEdge_TableTypeContext *HostTType = NULL;
+  WasmEdge_MemoryTypeContext *HostMType = NULL;
+  WasmEdge_GlobalTypeContext *HostGType = NULL;
   WasmEdge_HostFunctionContext *HostFunc = nullptr;
   WasmEdge_TableInstanceContext *HostTable = nullptr;
   WasmEdge_MemoryInstanceContext *HostMemory = nullptr;
@@ -1413,7 +1459,8 @@ TEST(APICoreTest, ImportObject) {
 
   /// Add host table "table"
   WasmEdge_Limit TabLimit = {.HasMax = true, .Min = 10, .Max = 20};
-  HostTable = WasmEdge_TableInstanceCreate(WasmEdge_RefType_FuncRef, TabLimit);
+  HostTType = WasmEdge_TableTypeCreate(WasmEdge_RefType_FuncRef, TabLimit);
+  HostTable = WasmEdge_TableInstanceCreate(HostTType);
   HostName = WasmEdge_StringCreateByCString("table");
   WasmEdge_ImportObjectAddTable(nullptr, HostName, HostTable);
   EXPECT_TRUE(true);
@@ -1421,11 +1468,13 @@ TEST(APICoreTest, ImportObject) {
   EXPECT_TRUE(true);
   WasmEdge_ImportObjectAddTable(ImpObj, HostName, HostTable);
   EXPECT_TRUE(true);
+  WasmEdge_TableTypeDelete(HostTType);
   WasmEdge_StringDelete(HostName);
 
   /// Add host memory "memory"
   WasmEdge_Limit MemLimit = {.HasMax = true, .Min = 1, .Max = 2};
-  HostMemory = WasmEdge_MemoryInstanceCreate(MemLimit);
+  HostMType = WasmEdge_MemoryTypeCreate(MemLimit);
+  HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
   HostName = WasmEdge_StringCreateByCString("memory");
   WasmEdge_ImportObjectAddMemory(nullptr, HostName, HostMemory);
   EXPECT_TRUE(true);
@@ -1433,11 +1482,14 @@ TEST(APICoreTest, ImportObject) {
   EXPECT_TRUE(true);
   WasmEdge_ImportObjectAddMemory(ImpObj, HostName, HostMemory);
   EXPECT_TRUE(true);
+  WasmEdge_MemoryTypeDelete(HostMType);
   WasmEdge_StringDelete(HostName);
 
   /// Add host global "global_i32": const 666
-  HostGlobal = WasmEdge_GlobalInstanceCreate(WasmEdge_ValueGenI32(666),
-                                             WasmEdge_Mutability_Const);
+  HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValType_I32,
+                                        WasmEdge_Mutability_Const);
+  HostGlobal =
+      WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenI32(666));
   HostName = WasmEdge_StringCreateByCString("global_i32");
   WasmEdge_ImportObjectAddGlobal(nullptr, HostName, HostGlobal);
   EXPECT_TRUE(true);
@@ -1445,6 +1497,7 @@ TEST(APICoreTest, ImportObject) {
   EXPECT_TRUE(true);
   WasmEdge_ImportObjectAddGlobal(ImpObj, HostName, HostGlobal);
   EXPECT_TRUE(true);
+  WasmEdge_GlobalTypeDelete(HostGType);
   WasmEdge_StringDelete(HostName);
 
   WasmEdge_ImportObjectDelete(ImpObj);

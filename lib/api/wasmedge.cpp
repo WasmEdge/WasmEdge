@@ -334,11 +334,11 @@ CONVTO(Store, Runtime::StoreManager, Store, )
 CONVTO(FuncType, AST::FunctionType, FunctionType, )
 CONVTO(FuncType, AST::FunctionType, FunctionType, const)
 CONVTO(TabType, AST::TableType, TableType, )
-// CONVTO(TabType, AST::TableType, TableType, const)
+CONVTO(TabType, AST::TableType, TableType, const)
 CONVTO(MemType, AST::MemoryType, MemoryType, )
-// CONVTO(MemType, AST::MemoryType, MemoryType, const)
+CONVTO(MemType, AST::MemoryType, MemoryType, const)
 CONVTO(GlobType, AST::GlobalType, GlobalType, )
-// CONVTO(GlobType, AST::GlobalType, GlobalType, const)
+CONVTO(GlobType, AST::GlobalType, GlobalType, const)
 CONVTO(Func, Runtime::Instance::FunctionInstance, FunctionInstance, )
 CONVTO(HostFunc, Runtime::HostFunctionBase, HostFunction, )
 CONVTO(Tab, Runtime::Instance::TableInstance, TableInstance, )
@@ -1552,24 +1552,20 @@ WasmEdge_HostFunctionDelete(WasmEdge_HostFunctionContext *Cxt) {
 /// >>>>>>>> WasmEdge table instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_TableInstanceContext *
-WasmEdge_TableInstanceCreate(const enum WasmEdge_RefType RefType,
-                             const WasmEdge_Limit Limit) {
-  WasmEdge::RefType Type = static_cast<WasmEdge::RefType>(RefType);
-  if (Limit.HasMax) {
+WasmEdge_TableInstanceCreate(const WasmEdge_TableTypeContext *TabType) {
+  if (TabType) {
     return toTabCxt(new WasmEdge::Runtime::Instance::TableInstance(
-        WasmEdge::AST::TableType(Type, Limit.Min, Limit.Max)));
-  } else {
-    return toTabCxt(new WasmEdge::Runtime::Instance::TableInstance(
-        WasmEdge::AST::TableType(Type, Limit.Min)));
+        *fromTabTypeCxt(TabType)));
   }
+  return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT enum WasmEdge_RefType
-WasmEdge_TableInstanceGetRefType(const WasmEdge_TableInstanceContext *Cxt) {
+WASMEDGE_CAPI_EXPORT const WasmEdge_TableTypeContext *
+WasmEdge_TableInstanceGetTableType(const WasmEdge_TableInstanceContext *Cxt) {
   if (Cxt) {
-    return static_cast<WasmEdge_RefType>(fromTabCxt(Cxt)->getReferenceType());
+    return toTabTypeCxt(&fromTabCxt(Cxt)->getTableType());
   }
-  return WasmEdge_RefType_FuncRef;
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result
@@ -1577,10 +1573,10 @@ WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
                               WasmEdge_Value *Data, const uint32_t Offset) {
   return wrap([&]() { return fromTabCxt(Cxt)->getRefAddr(Offset); },
               [&](auto &&Res) {
-                *Data =
-                    genWasmEdge_Value(Res->template get<UnknownRef>(),
-                                      static_cast<WasmEdge_ValType>(
-                                          fromTabCxt(Cxt)->getReferenceType()));
+                *Data = genWasmEdge_Value(
+                    Res->template get<UnknownRef>(),
+                    static_cast<WasmEdge_ValType>(
+                        fromTabCxt(Cxt)->getTableType().getRefType()));
               },
               Cxt, Data);
 }
@@ -1590,7 +1586,8 @@ WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
                               WasmEdge_Value Data, const uint32_t Offset) {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
-        WasmEdge::RefType expType = fromTabCxt(Cxt)->getReferenceType();
+        WasmEdge::RefType expType =
+            fromTabCxt(Cxt)->getTableType().getRefType();
         if (expType != static_cast<WasmEdge::RefType>(Data.Type)) {
           spdlog::error(WasmEdge::ErrCode::RefTypeMismatch);
           spdlog::error(WasmEdge::ErrInfo::InfoMismatch(
@@ -1637,14 +1634,21 @@ WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt) {
 /// >>>>>>>> WasmEdge memory instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_MemoryInstanceContext *
-WasmEdge_MemoryInstanceCreate(const WasmEdge_Limit Limit) {
-  if (Limit.HasMax) {
+WasmEdge_MemoryInstanceCreate(const WasmEdge_MemoryTypeContext *MemType) {
+  if (MemType) {
     return toMemCxt(new WasmEdge::Runtime::Instance::MemoryInstance(
-        WasmEdge::AST::MemoryType(Limit.Min, Limit.Max)));
-  } else {
-    return toMemCxt(new WasmEdge::Runtime::Instance::MemoryInstance(
-        WasmEdge::AST::MemoryType(Limit.Min)));
+        *fromMemTypeCxt(MemType)));
   }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_MemoryTypeContext *
+WasmEdge_MemoryInstanceGetMemoryType(
+    const WasmEdge_MemoryInstanceContext *Cxt) {
+  if (Cxt) {
+    return toMemTypeCxt(&fromMemCxt(Cxt)->getMemoryType());
+  }
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGetData(
@@ -1688,14 +1692,13 @@ WASMEDGE_CAPI_EXPORT const uint8_t *WasmEdge_MemoryInstanceGetPointerConst(
 WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt) {
   if (Cxt) {
-    return fromMemCxt(Cxt)->getDataPageSize();
+    return fromMemCxt(Cxt)->getPageSize();
   }
   return 0;
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGrowPage(
     WasmEdge_MemoryInstanceContext *Cxt, const uint32_t Page) {
-
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         if (fromMemCxt(Cxt)->growPage(Page)) {
@@ -1717,29 +1720,24 @@ WasmEdge_MemoryInstanceDelete(WasmEdge_MemoryInstanceContext *Cxt) {
 /// >>>>>>>> WasmEdge global instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_GlobalInstanceContext *
-WasmEdge_GlobalInstanceCreate(const WasmEdge_Value Value,
-                              const enum WasmEdge_Mutability Mut) {
-  return toGlobCxt(new WasmEdge::Runtime::Instance::GlobalInstance(
-      WasmEdge::AST::GlobalType(static_cast<WasmEdge::ValType>(Value.Type),
-                                static_cast<WasmEdge::ValMut>(Mut)),
-      to_WasmEdge_128_t<WasmEdge::uint128_t>(Value.Value)));
-}
-
-WASMEDGE_CAPI_EXPORT enum WasmEdge_ValType
-WasmEdge_GlobalInstanceGetValType(const WasmEdge_GlobalInstanceContext *Cxt) {
-  if (Cxt) {
-    return static_cast<WasmEdge_ValType>(fromGlobCxt(Cxt)->getValType());
+WasmEdge_GlobalInstanceCreate(const WasmEdge_GlobalTypeContext *GlobType,
+                              const WasmEdge_Value Value) {
+  if (GlobType && Value.Type == static_cast<WasmEdge_ValType>(
+                                    fromGlobTypeCxt(GlobType)->getValType())) {
+    return toGlobCxt(new WasmEdge::Runtime::Instance::GlobalInstance(
+        *fromGlobTypeCxt(GlobType),
+        to_WasmEdge_128_t<WasmEdge::uint128_t>(Value.Value)));
   }
-  return WasmEdge_ValType_I32;
+  return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT enum WasmEdge_Mutability
-WasmEdge_GlobalInstanceGetMutability(
+WASMEDGE_CAPI_EXPORT const WasmEdge_GlobalTypeContext *
+WasmEdge_GlobalInstanceGetGlobalType(
     const WasmEdge_GlobalInstanceContext *Cxt) {
   if (Cxt) {
-    return static_cast<WasmEdge_Mutability>(fromGlobCxt(Cxt)->getValMut());
+    return toGlobTypeCxt(&fromGlobCxt(Cxt)->getGlobalType());
   }
-  return WasmEdge_Mutability_Const;
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
@@ -1747,7 +1745,8 @@ WasmEdge_GlobalInstanceGetValue(const WasmEdge_GlobalInstanceContext *Cxt) {
   if (Cxt) {
     return genWasmEdge_Value(
         fromGlobCxt(Cxt)->getValue(),
-        static_cast<WasmEdge_ValType>(fromGlobCxt(Cxt)->getValType()));
+        static_cast<WasmEdge_ValType>(
+            fromGlobCxt(Cxt)->getGlobalType().getValType()));
   }
   return genWasmEdge_Value(
       WasmEdge::ValVariant(static_cast<WasmEdge::uint128_t>(0)),
@@ -1757,9 +1756,10 @@ WasmEdge_GlobalInstanceGetValue(const WasmEdge_GlobalInstanceContext *Cxt) {
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_GlobalInstanceSetValue(WasmEdge_GlobalInstanceContext *Cxt,
                                 const WasmEdge_Value Value) {
-  if (Cxt && fromGlobCxt(Cxt)->getValMut() == WasmEdge::ValMut::Var &&
+  if (Cxt &&
+      fromGlobCxt(Cxt)->getGlobalType().getValMut() == WasmEdge::ValMut::Var &&
       static_cast<WasmEdge::ValType>(Value.Type) ==
-          fromGlobCxt(Cxt)->getValType()) {
+          fromGlobCxt(Cxt)->getGlobalType().getValType()) {
     fromGlobCxt(Cxt)->getValue() =
         to_WasmEdge_128_t<WasmEdge::uint128_t>(Value.Value);
   }

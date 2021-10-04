@@ -12,7 +12,9 @@
 #pragma once
 
 #include "ast/type.h"
-#include "common/span.h"
+#include "common/errcode.h"
+#include "common/errinfo.h"
+#include "common/log.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -25,15 +27,15 @@ namespace Instance {
 class TableInstance {
 public:
   TableInstance() = delete;
-  TableInstance(const TableType &TType)
-      : TabType(TType), Refs(TType.Lim.Min, UnknownRef()) {}
+  TableInstance(const AST::TableType &TType)
+      : TabType(TType), Refs(TType.getLimit().getMin(), UnknownRef()) {}
   virtual ~TableInstance() = default;
 
   /// Getter of reference type.
   RefType getReferenceType() const noexcept { return TabType.Type; }
 
   /// Get size of table.refs
-  uint32_t getSize() const noexcept { return TabType.Lim.Min; }
+  uint32_t getSize() const noexcept { return TabType.getLimit().getMin(); }
 
   /// Getter of limit definition.
   bool getHasMax() const noexcept { return TabType.Lim.hasMax(); }
@@ -60,15 +62,17 @@ public:
   /// Grow table with initialization value.
   bool growTable(const uint32_t Count, const RefVariant Val) {
     uint32_t MaxSizeCaped = std::numeric_limits<uint32_t>::max();
-    if (TabType.Lim.hasMax()) {
-      MaxSizeCaped = std::min(TabType.Lim.Max, MaxSizeCaped);
+    uint32_t Min = TabType.getLimit().getMin();
+    uint32_t Max = TabType.getLimit().getMax();
+    if (TabType.getLimit().hasMax()) {
+      MaxSizeCaped = std::min(Max, MaxSizeCaped);
     }
     if (Count > MaxSizeCaped - Refs.size()) {
       return false;
     }
     Refs.resize(Refs.size() + Count);
     std::fill_n(Refs.end() - Count, Count, Val);
-    TabType.Lim.Min += Count;
+    TabType.getLimit().setMin(Min + Count);
     return true;
   }
   bool growTable(const uint32_t Count) {
@@ -151,7 +155,7 @@ public:
 private:
   /// \name Data of table instance.
   /// @{
-  TableType TabType;
+  AST::TableType TabType;
   std::vector<RefVariant> Refs;
   /// @}
 };

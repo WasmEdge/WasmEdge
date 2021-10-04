@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "runtime/hostfunc.h"
 #include "runtime/instance/function.h"
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"

@@ -11,8 +11,6 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/span.h"
-#include "common/types.h"
 #include "runtime/instance/memory.h"
 
 #include <memory>
@@ -36,13 +34,13 @@ public:
                            Span<ValVariant> Rets) = 0;
 
   /// Getter of function type.
-  const FunctionType &getFuncType() const { return FuncType; }
+  const AST::FunctionType &getFuncType() const { return FuncType; }
 
   /// Getter of host function cost.
   uint64_t getCost() const { return Cost; }
 
 protected:
-  FunctionType FuncType;
+  AST::FunctionType FuncType;
   const uint64_t Cost;
 };
 
@@ -93,10 +91,10 @@ protected:
   void initializeFuncType() {
     using F = FuncTraits<decltype(&T::body)>;
     using ArgsT = typename F::ArgsT;
-    FuncType.Params.reserve(F::ArgsN);
+    FuncType.getParamTypes().reserve(F::ArgsN);
     pushValType<ArgsT>(std::make_index_sequence<F::ArgsN>());
     if constexpr (F::hasReturn) {
-      FuncType.Returns.reserve(F::RetsN);
+      FuncType.getReturnTypes().reserve(F::RetsN);
       using RetsT = typename F::RetsT;
       pushRetType<RetsT>(std::make_index_sequence<F::RetsN>());
     }
@@ -141,14 +139,14 @@ private:
 
   template <typename Tuple, std::size_t... Indices>
   void pushValType(std::index_sequence<Indices...>) {
-    (FuncType.Params.push_back(
+    (FuncType.getParamTypes().push_back(
          ValTypeFromType<std::tuple_element_t<Indices, Tuple>>()),
      ...);
   }
 
   template <typename Tuple, std::size_t... Indices>
   void pushRetType(std::index_sequence<Indices...>) {
-    (FuncType.Returns.push_back(
+    (FuncType.getReturnTypes().push_back(
          ValTypeFromType<std::tuple_element_t<Indices, Tuple>>()),
      ...);
   }

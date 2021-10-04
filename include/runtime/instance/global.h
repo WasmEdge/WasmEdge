@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/types.h"
+#include "ast/type.h"
 
 namespace WasmEdge {
 namespace Runtime {
@@ -20,7 +20,7 @@ namespace Instance {
 class GlobalInstance {
 public:
   GlobalInstance() = delete;
-  GlobalInstance(const GlobalType &GType,
+  GlobalInstance(const AST::GlobalType &GType,
                  const ValVariant Val = uint32_t(0)) noexcept
       : GlobType(GType), Value(Val) {}
   virtual ~GlobalInstance() = default;
@@ -40,7 +40,7 @@ public:
 private:
   /// \name Data of global instance.
   /// @{
-  GlobalType GlobType;
+  AST::GlobalType GlobType;
   ValVariant Value;
   /// @}
 };

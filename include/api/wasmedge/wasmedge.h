@@ -80,6 +80,18 @@ typedef struct WasmEdge_StatisticsContext WasmEdge_StatisticsContext;
 /// Opaque struct of WasmEdge AST module.
 typedef struct WasmEdge_ASTModuleContext WasmEdge_ASTModuleContext;
 
+/// Opaque struct of WasmEdge function type.
+typedef struct WasmEdge_FunctionTypeContext WasmEdge_FunctionTypeContext;
+
+/// Opaque struct of WasmEdge memory type.
+typedef struct WasmEdge_MemoryTypeContext WasmEdge_MemoryTypeContext;
+
+/// Opaque struct of WasmEdge table type.
+typedef struct WasmEdge_TableTypeContext WasmEdge_TableTypeContext;
+
+/// Opaque struct of WasmEdge global type.
+typedef struct WasmEdge_GlobalTypeContext WasmEdge_GlobalTypeContext;
+
 /// Opaque struct of WasmEdge AOT compiler.
 typedef struct WasmEdge_CompilerContext WasmEdge_CompilerContext;
 
@@ -94,9 +106,6 @@ typedef struct WasmEdge_InterpreterContext WasmEdge_InterpreterContext;
 
 /// Opaque struct of WasmEdge store.
 typedef struct WasmEdge_StoreContext WasmEdge_StoreContext;
-
-/// Opaque struct of WasmEdge function type.
-typedef struct WasmEdge_FunctionTypeContext WasmEdge_FunctionTypeContext;
 
 /// Opaque struct of WasmEdge function instance.
 typedef struct WasmEdge_FunctionInstanceContext
@@ -409,6 +418,20 @@ WasmEdge_ResultGetMessage(const WasmEdge_Result Res);
 
 /// <<<<<<<< WasmEdge result functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+/// >>>>>>>> WasmEdge limit functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Compare the two WasmEdge_Limit objects.
+///
+/// \param Lim1 the first WasmEdge_Limit object to compare.
+/// \param Lim2 the second WasmEdge_Limit object to compare.
+///
+/// \returns true if the content of two WasmEdge_Limit objects are the same,
+/// false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_LimitIsEqual(const WasmEdge_Limit Lim1, const WasmEdge_Limit Lim2);
+
+/// <<<<<<<< WasmEdge limit functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 /// >>>>>>>> WasmEdge configure functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_ConfigureContext.
@@ -672,6 +695,201 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt);
 
 /// <<<<<<<< WasmEdge AST module functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> WasmEdge function type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_FunctionTypeContext.
+///
+/// The caller owns the object and should call `WasmEdge_FunctionTypeDelete` to
+/// free it.
+///
+/// \param ParamList the value types list of parameters. NULL if the length is
+/// 0.
+/// \param ParamLen the ParamList buffer length.
+/// \param ReturnList the value types list of returns. NULL if the length is 0.
+/// \param ReturnLen the ReturnList buffer length.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionTypeContext *
+WasmEdge_FunctionTypeCreate(const enum WasmEdge_ValType *ParamList,
+                            const uint32_t ParamLen,
+                            const enum WasmEdge_ValType *ReturnList,
+                            const uint32_t ReturnLen);
+
+/// Get the parameter types list length from the WasmEdge_FunctionTypeContext.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext.
+///
+/// \returns the parameter types list length.
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_FunctionTypeGetParametersLength(
+    const WasmEdge_FunctionTypeContext *Cxt);
+
+/// Get the parameter types list from the WasmEdge_FunctionTypeContext.
+///
+/// If the `List` buffer length is smaller than the length of the parameter type
+/// list, the overflowed values will be discarded.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext.
+/// \param [out] List the WasmEdge_ValType buffer to fill the parameter value
+/// types.
+/// \param Len the value type buffer length.
+///
+/// \returns the actual parameter types list length.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_FunctionTypeGetParameters(const WasmEdge_FunctionTypeContext *Cxt,
+                                   enum WasmEdge_ValType *List,
+                                   const uint32_t Len);
+
+/// Get the return types list length from the WasmEdge_FunctionTypeContext.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext.
+///
+/// \returns the return types list length.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_FunctionTypeGetReturnsLength(const WasmEdge_FunctionTypeContext *Cxt);
+
+/// Get the return types list from the WasmEdge_FunctionTypeContext.
+///
+/// If the `List` buffer length is smaller than the length of the return type
+/// list, the overflowed values will be discarded.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext.
+/// \param [out] List the WasmEdge_ValType buffer to fill the return value
+/// types.
+/// \param Len the value type buffer length.
+///
+/// \returns the actual return types list length.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_FunctionTypeGetReturns(const WasmEdge_FunctionTypeContext *Cxt,
+                                enum WasmEdge_ValType *List,
+                                const uint32_t Len);
+
+/// Deletion of the WasmEdge_FunctionTypeContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext to delete.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_FunctionTypeDelete(WasmEdge_FunctionTypeContext *Cxt);
+
+/// <<<<<<<< WasmEdge function type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> WasmEdge table type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_TableTypeContext.
+///
+/// The caller owns the object and should call `WasmEdge_TableTypeDelete` to
+/// free it.
+///
+/// \param RefType the reference type of the table type.
+/// \param Limit the limit struct of the table type.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_TableTypeContext *
+WasmEdge_TableTypeCreate(const enum WasmEdge_RefType RefType,
+                         const WasmEdge_Limit Limit);
+
+/// Get the reference type from a table type.
+///
+/// \param Cxt the WasmEdge_TableTypeContext.
+///
+/// \returns the reference type of the table type.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_RefType
+WasmEdge_TableTypeGetRefType(const WasmEdge_TableTypeContext *Cxt);
+
+/// Get the limit from a table type.
+///
+/// \param Cxt the WasmEdge_TableTypeContext.
+///
+/// \returns the limit struct of the table type.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Limit
+WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt);
+
+/// Deletion of the WasmEdge_TableTypeContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the WasmEdge_TableTypeContext to delete.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_TableTypeDelete(WasmEdge_TableTypeContext *Cxt);
+
+/// <<<<<<<< WasmEdge table type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> WasmEdge memory type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_MemoryTypeContext.
+///
+/// The caller owns the object and should call `WasmEdge_MemoryTypeDelete` to
+/// free it.
+///
+/// \param Limit the limit struct of the memory type.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryTypeContext *
+WasmEdge_MemoryTypeCreate(const WasmEdge_Limit Limit);
+
+/// Get the limit from a memory type.
+///
+/// \param Cxt the WasmEdge_MemoryTypeContext.
+///
+/// \returns the limit struct of the memory type.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Limit
+WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt);
+
+/// Deletion of the WasmEdge_MemoryTypeContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the WasmEdge_MemoryTypeContext to delete.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt);
+
+/// <<<<<<<< WasmEdge memory type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> WasmEdge global type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_GlobalTypeContext.
+///
+/// The caller owns the object and should call `WasmEdge_GlobalTypeDelete` to
+/// free it.
+///
+/// \param ValType the value type of the global type.
+/// \param Mut the mutation of the global type.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_GlobalTypeContext *
+WasmEdge_GlobalTypeCreate(const enum WasmEdge_ValType ValType,
+                          const enum WasmEdge_Mutability Mut);
+
+/// Get the value type from a global type.
+///
+/// \param Cxt the WasmEdge_GlobalTypeContext.
+///
+/// \returns the value type of the global type.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ValType
+WasmEdge_GlobalTypeGetValType(const WasmEdge_GlobalTypeContext *Cxt);
+
+/// Get the mutability from a global type.
+///
+/// \param Cxt the WasmEdge_GlobalTypeContext.
+///
+/// \returns the mutability of the global type.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_Mutability
+WasmEdge_GlobalTypeGetMutability(const WasmEdge_GlobalTypeContext *Cxt);
+
+/// Deletion of the WasmEdge_GlobalTypeContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the WasmEdge_GlobalTypeContext to delete.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_GlobalTypeDelete(WasmEdge_GlobalTypeContext *Cxt);
+
+/// <<<<<<<< WasmEdge global type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> WasmEdge AOT compiler functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -1376,85 +1594,6 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_StoreDelete(WasmEdge_StoreContext *Cxt);
 
 /// <<<<<<<< WasmEdge store functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-/// >>>>>>>> WasmEdge function type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-/// Creation of the WasmEdge_FunctionTypeContext.
-///
-/// The caller owns the object and should call `WasmEdge_FunctionTypeDelete` to
-/// free it.
-///
-/// \param ParamList the value types list of parameters. NULL if the length is
-/// 0.
-/// \param ParamLen the ParamList buffer length.
-/// \param ReturnList the value types list of returns. NULL if the length is 0.
-/// \param ReturnLen the ReturnList buffer length.
-///
-/// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionTypeContext *
-WasmEdge_FunctionTypeCreate(const enum WasmEdge_ValType *ParamList,
-                            const uint32_t ParamLen,
-                            const enum WasmEdge_ValType *ReturnList,
-                            const uint32_t ReturnLen);
-
-/// Get the parameter types list length from the WasmEdge_FunctionTypeContext.
-///
-/// \param Cxt the WasmEdge_FunctionTypeContext.
-///
-/// \returns the parameter types list length.
-WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_FunctionTypeGetParametersLength(
-    const WasmEdge_FunctionTypeContext *Cxt);
-
-/// Get the parameter types list from the WasmEdge_FunctionTypeContext.
-///
-/// If the `List` buffer length is smaller than the length of the parameter type
-/// list, the overflowed values will be discarded.
-///
-/// \param Cxt the WasmEdge_FunctionTypeContext.
-/// \param [out] List the WasmEdge_ValType buffer to fill the parameter value
-/// types.
-/// \param Len the value type buffer length.
-///
-/// \returns the actual parameter types list length.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_FunctionTypeGetParameters(const WasmEdge_FunctionTypeContext *Cxt,
-                                   enum WasmEdge_ValType *List,
-                                   const uint32_t Len);
-
-/// Get the return types list length from the WasmEdge_FunctionTypeContext.
-///
-/// \param Cxt the WasmEdge_FunctionTypeContext.
-///
-/// \returns the return types list length.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_FunctionTypeGetReturnsLength(const WasmEdge_FunctionTypeContext *Cxt);
-
-/// Get the return types list from the WasmEdge_FunctionTypeContext.
-///
-/// If the `List` buffer length is smaller than the length of the return type
-/// list, the overflowed values will be discarded.
-///
-/// \param Cxt the WasmEdge_FunctionTypeContext.
-/// \param [out] List the WasmEdge_ValType buffer to fill the return value
-/// types.
-/// \param Len the value type buffer length.
-///
-/// \returns the actual return types list length.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_FunctionTypeGetReturns(const WasmEdge_FunctionTypeContext *Cxt,
-                                enum WasmEdge_ValType *List,
-                                const uint32_t Len);
-
-/// Deletion of the WasmEdge_FunctionTypeContext.
-///
-/// After calling this function, the context will be freed and should __NOT__ be
-/// used.
-///
-/// \param Cxt the WasmEdge_FunctionTypeContext to delete.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_FunctionTypeDelete(WasmEdge_FunctionTypeContext *Cxt);
-
-/// <<<<<<<< WasmEdge function type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> WasmEdge function instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

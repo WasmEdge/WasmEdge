@@ -8,5 +8,4 @@ wasmedge_add_library(wasmedgeValidator
 target_link_libraries(wasmedgeValidator
   PUBLIC
   wasmedgeCommon
-  wasmedgeAST
 )

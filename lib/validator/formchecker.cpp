@@ -2,6 +2,9 @@
 
 #include "validator/formchecker.h"
 
+#include "common/errinfo.h"
+#include "common/log.h"
+
 namespace {
 template <typename... Ts> struct overloaded : Ts... {
   using Ts::operator()...;
@@ -50,12 +53,12 @@ Expect<void> FormChecker::validate(AST::InstrView Instrs,
 
 void FormChecker::addType(const AST::FunctionType &Func) {
   std::vector<VType> Param, Ret;
-  Param.reserve(Func.getInner().Params.size());
-  Ret.reserve(Func.getInner().Returns.size());
-  for (auto Val : Func.getInner().Params) {
+  Param.reserve(Func.getParamTypes().size());
+  Ret.reserve(Func.getReturnTypes().size());
+  for (auto Val : Func.getParamTypes()) {
     Param.push_back(ASTToVType(Val));
   }
-  for (auto Val : Func.getInner().Returns) {
+  for (auto Val : Func.getReturnTypes()) {
     Ret.push_back(ASTToVType(Val));
   }
   Types.emplace_back(std::move(Param), std::move(Ret));
@@ -71,14 +74,14 @@ void FormChecker::addFunc(const uint32_t TypeIdx, const bool IsImport) {
 }
 
 void FormChecker::addTable(const AST::TableType &Tab) {
-  Tables.push_back(Tab.getInner().Type);
+  Tables.push_back(Tab.getRefType());
 }
 
 void FormChecker::addMemory(const AST::MemoryType &) { Mems++; }
 
 void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
   /// Type in global is comfirmed in loading phase.
-  Globals.emplace_back(ASTToVType(Glob.getInner().Type), Glob.getInner().Mut);
+  Globals.emplace_back(ASTToVType(Glob.getValType()), Glob.getValMut());
   if (IsImport) {
     NumImportGlobals++;
   }
@@ -471,7 +474,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   /// Reference Instructions.
   case OpCode::Ref__null:
-    return StackTrans({}, std::array{ASTToVType(Instr.getReferenceType())});
+    return StackTrans({}, std::array{ASTToVType(Instr.getRefType())});
   case OpCode::Ref__is_null:
     if (auto Res = popType()) {
       if (!isRefType(*Res)) {

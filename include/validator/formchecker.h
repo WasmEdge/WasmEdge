@@ -16,7 +16,6 @@
 #include "ast/module.h"
 #include "common/errcode.h"
 #include "common/span.h"
-#include "common/types.h"
 
 #include <unordered_set>
 #include <vector>

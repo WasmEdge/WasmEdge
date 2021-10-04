@@ -159,7 +159,7 @@ Expect<void> Interpreter::callIndirect(Runtime::StoreManager &StoreMgr,
 Expect<uint32_t> Interpreter::memGrow(Runtime::StoreManager &StoreMgr,
                                       const uint32_t NewSize) noexcept {
   auto &MemInst = *getMemInstByIdx(StoreMgr, 0);
-  const uint32_t CurrPageSize = MemInst.getDataPageSize();
+  const uint32_t CurrPageSize = MemInst.getPageSize();
   if (MemInst.growPage(NewSize)) {
     return CurrPageSize;
   } else {
@@ -170,7 +170,7 @@ Expect<uint32_t> Interpreter::memGrow(Runtime::StoreManager &StoreMgr,
 Expect<uint32_t>
 Interpreter::memSize(Runtime::StoreManager &StoreMgr) noexcept {
   auto &MemInst = *getMemInstByIdx(StoreMgr, 0);
-  return MemInst.getDataPageSize();
+  return MemInst.getPageSize();
 }
 
 Expect<void> Interpreter::memCopy(Runtime::StoreManager &StoreMgr,

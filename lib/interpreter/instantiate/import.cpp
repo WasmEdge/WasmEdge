@@ -148,16 +148,18 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       /// Import matching.
       const auto *TargetInst = *StoreMgr.getTable(TargetAddr);
       const auto &TabLim = TabType.getLimit();
-      if (TargetInst->getReferenceType() != TabType.getRefType() ||
-          !isLimitMatched(TargetInst->getHasMax(), TargetInst->getMin(),
-                          TargetInst->getMax(), TabLim.hasMax(),
-                          TabLim.getMin(), TabLim.getMax())) {
+      if (TargetInst->getTableType().getRefType() != TabType.getRefType() ||
+          !isLimitMatched(TargetInst->getTableType().getLimit().hasMax(),
+                          TargetInst->getTableType().getLimit().getMin(),
+                          TargetInst->getTableType().getLimit().getMax(),
+                          TabLim.hasMax(), TabLim.getMin(), TabLim.getMax())) {
         return logMatchError(ModName, ExtName, ExtType,
                              ASTNodeAttr::Desc_Import, TabType.getRefType(),
                              TabLim.hasMax(), TabLim.getMin(), TabLim.getMax(),
-                             TargetInst->getReferenceType(),
-                             TargetInst->getHasMax(), TargetInst->getMin(),
-                             TargetInst->getMax());
+                             TargetInst->getTableType().getRefType(),
+                             TargetInst->getTableType().getLimit().hasMax(),
+                             TargetInst->getTableType().getLimit().getMin(),
+                             TargetInst->getTableType().getLimit().getMax());
       }
       /// Set the matched table address to module instance.
       ModInst.importTable(TargetAddr);
@@ -169,14 +171,16 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       /// Import matching.
       auto *TargetInst = *StoreMgr.getMemory(TargetAddr);
       const auto &MemLim = MemType.getLimit();
-      if (!isLimitMatched(TargetInst->getHasMax(), TargetInst->getMin(),
-                          TargetInst->getMax(), MemLim.hasMax(),
-                          MemLim.getMin(), MemLim.getMax())) {
+      if (!isLimitMatched(TargetInst->getMemoryType().getLimit().hasMax(),
+                          TargetInst->getMemoryType().getLimit().getMin(),
+                          TargetInst->getMemoryType().getLimit().getMax(),
+                          MemLim.hasMax(), MemLim.getMin(), MemLim.getMax())) {
         return logMatchError(ModName, ExtName, ExtType,
                              ASTNodeAttr::Desc_Import, MemLim.hasMax(),
                              MemLim.getMin(), MemLim.getMax(),
-                             TargetInst->getHasMax(), TargetInst->getMin(),
-                             TargetInst->getMax());
+                             TargetInst->getMemoryType().getLimit().hasMax(),
+                             TargetInst->getMemoryType().getLimit().getMin(),
+                             TargetInst->getMemoryType().getLimit().getMax());
       }
       /// Set the matched memory address to module instance.
       ModInst.importMemory(TargetAddr);
@@ -187,12 +191,13 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       const auto &GlobType = ImpDesc.getExternalGlobalType();
       /// Import matching.
       const auto *TargetInst = *StoreMgr.getGlobal(TargetAddr);
-      if (TargetInst->getValType() != GlobType.getValType() ||
-          TargetInst->getValMut() != GlobType.getValMut()) {
+      if (TargetInst->getGlobalType().getValType() != GlobType.getValType() ||
+          TargetInst->getGlobalType().getValMut() != GlobType.getValMut()) {
         return logMatchError(ModName, ExtName, ExtType,
                              ASTNodeAttr::Desc_Import, GlobType.getValType(),
-                             GlobType.getValMut(), TargetInst->getValType(),
-                             TargetInst->getValMut());
+                             GlobType.getValMut(),
+                             TargetInst->getGlobalType().getValType(),
+                             TargetInst->getGlobalType().getValMut());
       }
       /// Set the matched global address to module instance.
       ModInst.importGlobal(TargetAddr);

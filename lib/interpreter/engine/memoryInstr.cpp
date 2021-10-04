@@ -8,7 +8,7 @@ namespace Interpreter {
 Expect<void>
 Interpreter::runMemorySizeOp(Runtime::Instance::MemoryInstance &MemInst) {
   /// Push SZ = page size to stack.
-  StackMgr.push(MemInst.getDataPageSize());
+  StackMgr.push(MemInst.getPageSize());
   return {};
 }
 
@@ -18,8 +18,7 @@ Interpreter::runMemoryGrowOp(Runtime::Instance::MemoryInstance &MemInst) {
   uint32_t &N = StackMgr.getTop().get<uint32_t>();
 
   /// Grow page and push result.
-  const uint32_t CurrPageSize =
-      static_cast<uint32_t>(MemInst.getDataPageSize());
+  const uint32_t CurrPageSize = static_cast<uint32_t>(MemInst.getPageSize());
   if (MemInst.growPage(N)) {
     N = CurrPageSize;
   } else {

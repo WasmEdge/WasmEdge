@@ -1773,21 +1773,24 @@ WasmEdge_HostFunctionDelete(WasmEdge_HostFunctionContext *Cxt);
 /// The caller owns the object and should call `WasmEdge_TableInstanceDelete` to
 /// free it.
 ///
-/// \param RefType the reference type of the table instance context.
-/// \param Limit the limit struct to initialize the table instance context.
+/// \param TabType the table type context to initialize the table instance
+/// context.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_TableInstanceContext *
-WasmEdge_TableInstanceCreate(const enum WasmEdge_RefType RefType,
-                             const WasmEdge_Limit Limit);
+WasmEdge_TableInstanceCreate(const WasmEdge_TableTypeContext *TabType);
 
-/// Get the reference type from a table instance.
+/// Get the table type context from a table instance.
+///
+/// The table type context links to the table type in the table instance context
+/// and owned by the context. The caller should __NOT__ call the
+/// `WasmEdge_TableTypeDelete`.
 ///
 /// \param Cxt the WasmEdge_TableInstanceContext.
 ///
-/// \returns the reference type of the table instance.
-WASMEDGE_CAPI_EXPORT extern enum WasmEdge_RefType
-WasmEdge_TableInstanceGetRefType(const WasmEdge_TableInstanceContext *Cxt);
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_TableTypeContext *
+WasmEdge_TableInstanceGetTableType(const WasmEdge_TableInstanceContext *Cxt);
 
 /// Get the reference value in a table instance.
 ///
@@ -1850,11 +1853,24 @@ WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt);
 /// The caller owns the object and should call `WasmEdge_MemoryInstanceDelete`
 /// to free it.
 ///
-/// \param Limit the limit struct to initialize the memory instance context.
+/// \param MemType the memory type context to initialize the memory instance
+/// context.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryInstanceContext *
-WasmEdge_MemoryInstanceCreate(const WasmEdge_Limit Limit);
+WasmEdge_MemoryInstanceCreate(const WasmEdge_MemoryTypeContext *MemType);
+
+/// Get the memory type context from a memory instance.
+///
+/// The memory type context links to the memory type in the memory instance
+/// context and owned by the context. The caller should __NOT__ call the
+/// `WasmEdge_MemoryTypeDelete`.
+///
+/// \param Cxt the WasmEdge_MemoryInstanceContext.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_MemoryTypeContext *
+WasmEdge_MemoryInstanceGetMemoryType(const WasmEdge_MemoryInstanceContext *Cxt);
 
 /// Copy the data to the output buffer from a memory instance.
 ///
@@ -1948,29 +1964,28 @@ WasmEdge_MemoryInstanceDelete(WasmEdge_MemoryInstanceContext *Cxt);
 /// The caller owns the object and should call `WasmEdge_GlobalInstanceDelete`
 /// to free it.
 ///
+/// \param GlobType the global type context to initialize the global instance
+/// context.
 /// \param Value the initial value with its value type of the global instance.
-/// \param Mut the mutation of the global instance.
+/// This function will fail if the value type of `GlobType` and `Value` are not
+/// the same.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_GlobalInstanceContext *
-WasmEdge_GlobalInstanceCreate(const WasmEdge_Value Value,
-                              const enum WasmEdge_Mutability Mut);
+WasmEdge_GlobalInstanceCreate(const WasmEdge_GlobalTypeContext *GlobType,
+                              const WasmEdge_Value Value);
 
-/// Get the value type from a global instance.
+/// Get the global type context from a global instance.
+///
+/// The global type context links to the global type in the global instance
+/// context and owned by the context. The caller should __NOT__ call the
+/// `WasmEdge_GlobalTypeDelete`.
 ///
 /// \param Cxt the WasmEdge_GlobalInstanceContext.
 ///
-/// \returns the value type of the global instance.
-WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ValType
-WasmEdge_GlobalInstanceGetValType(const WasmEdge_GlobalInstanceContext *Cxt);
-
-/// Get the mutability from a global instance.
-///
-/// \param Cxt the WasmEdge_GlobalInstanceContext.
-///
-/// \returns the mutability of the global instance.
-WASMEDGE_CAPI_EXPORT extern enum WasmEdge_Mutability
-WasmEdge_GlobalInstanceGetMutability(const WasmEdge_GlobalInstanceContext *Cxt);
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_GlobalTypeContext *
+WasmEdge_GlobalInstanceGetGlobalType(const WasmEdge_GlobalInstanceContext *Cxt);
 
 /// Get the value from a global instance.
 ///

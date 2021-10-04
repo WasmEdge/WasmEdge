@@ -31,20 +31,14 @@ public:
       : TabType(TType), Refs(TType.getLimit().getMin(), UnknownRef()) {}
   virtual ~TableInstance() = default;
 
-  /// Getter of reference type.
-  RefType getReferenceType() const noexcept { return TabType.Type; }
-
   /// Get size of table.refs
-  uint32_t getSize() const noexcept { return TabType.getLimit().getMin(); }
+  uint32_t getSize() const noexcept {
+    /// The table size is binded with the limit in table type.
+    return TabType.getLimit().getMin();
+  }
 
-  /// Getter of limit definition.
-  bool getHasMax() const noexcept { return TabType.Lim.hasMax(); }
-
-  /// Getter of limit definition.
-  uint32_t getMin() const noexcept { return TabType.Lim.Min; }
-
-  /// Getter of limit definition.
-  uint32_t getMax() const noexcept { return TabType.Lim.Max; }
+  /// Getter of table type.
+  const AST::TableType &getTableType() const { return TabType; }
 
   /// Check is out of bound.
   bool checkAccessBound(uint32_t Offset, uint32_t Length) const noexcept {

@@ -25,11 +25,8 @@ public:
       : GlobType(GType), Value(Val) {}
   virtual ~GlobalInstance() = default;
 
-  /// Getter the global value type.
-  ValType getValType() const { return GlobType.Type; }
-
-  /// Getter the global mutation.
-  ValMut getValMut() const { return GlobType.Mut; }
+  /// Getter of global type.
+  const AST::GlobalType &getGlobalType() const { return GlobType; }
 
   /// Getter of value.
   const ValVariant &getValue() const { return Value; }

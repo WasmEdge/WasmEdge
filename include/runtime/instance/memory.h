@@ -60,18 +60,13 @@ public:
   }
 
   /// Get page size of memory.data
-  uint32_t getDataPageSize() const noexcept {
+  uint32_t getPageSize() const noexcept {
+    /// The memory page size is binded with the limit in memory type.
     return MemType.getLimit().getMin();
   }
 
-  /// Getter of limit definition.
-  bool getHasMax() const noexcept { return MemType.getLimit().hasMax(); }
-
-  /// Getter of limit definition.
-  uint32_t getMin() const noexcept { return MemType.getLimit().getMin(); }
-
-  /// Getter of limit definition.
-  uint32_t getMax() const noexcept { return MemType.getLimit().getMax(); }
+  /// Getter of memory type.
+  const AST::MemoryType &getMemoryType() const { return MemType; }
 
   /// Check access size is valid.
   bool checkAccessBound(uint32_t Offset, uint32_t Length) const noexcept {

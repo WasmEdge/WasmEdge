@@ -24,10 +24,6 @@
 #include <boost/winapi/dll.hpp>
 #endif
 
-namespace WasmEdge::AST {
-class AOTSection;
-}
-
 namespace WasmEdge {
 namespace Loader {
 

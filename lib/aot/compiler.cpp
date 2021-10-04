@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
+
 #include "aot/compiler.h"
+
 #include "aot/version.h"
+#include "common/defines.h"
 #include "common/filesystem.h"
 #include "common/log.h"
-#include "runtime/instance/memory.h"
-#include "runtime/instance/table.h"
+
 #include <charconv>
 #include <cinttypes>
 #include <cstdlib>
@@ -23,6 +25,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
+
 #include <numeric>
 
 #if LLVM_VERSION_MAJOR >= 12
@@ -395,20 +398,21 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   resolveBlockType(const BlockType &Type) const {
     using VecT = std::vector<ValType>;
     using RetT = std::pair<VecT, VecT>;
-    return std::visit(
-        overloaded{[](const ValType &VType) -> RetT {
-                     if (VType == ValType::None) {
-                       return RetT{};
-                     }
-                     return RetT{{}, {VType}};
-                   },
-                   [this](const uint32_t &Index) -> RetT {
-                     const auto &FType = FunctionTypes[Index]->getInner();
-                     return RetT{
-                         VecT(FType.Params.begin(), FType.Params.end()),
-                         VecT(FType.Returns.begin(), FType.Returns.end())};
-                   }},
-        Type);
+    return std::visit(overloaded{[](const ValType &VType) -> RetT {
+                                   if (VType == ValType::None) {
+                                     return RetT{};
+                                   }
+                                   return RetT{{}, {VType}};
+                                 },
+                                 [this](const uint32_t &Index) -> RetT {
+                                   const auto &FType = *FunctionTypes[Index];
+                                   return RetT{
+                                       VecT(FType.getParamTypes().begin(),
+                                            FType.getParamTypes().end()),
+                                       VecT(FType.getReturnTypes().begin(),
+                                            FType.getReturnTypes().end())};
+                                 }},
+                      Type);
   }
 };
 
@@ -477,9 +481,9 @@ static llvm::Type *toLLVMRetsType(llvm::LLVMContext &LLContext,
 
 static llvm::FunctionType *toLLVMType(llvm::PointerType *ExecCtxPtrTy,
                                       const AST::FunctionType &FuncType) {
-  auto ArgsTy = toLLVMArgsType(ExecCtxPtrTy, FuncType.getInner().Params);
+  auto ArgsTy = toLLVMArgsType(ExecCtxPtrTy, FuncType.getParamTypes());
   auto RetTy =
-      toLLVMRetsType(ExecCtxPtrTy->getContext(), FuncType.getInner().Returns);
+      toLLVMRetsType(ExecCtxPtrTy->getContext(), FuncType.getReturnTypes());
   return llvm::FunctionType::get(RetTy, ArgsTy, false);
 }
 
@@ -563,7 +567,7 @@ public:
     auto *RetBB = llvm::BasicBlock::Create(LLContext, "ret", F);
     Type.first.clear();
     enterBlock(RetBB, nullptr, nullptr, {}, std::move(Type));
-    compile(Code.getInstrs());
+    compile(Code.getExpr().getInstrs());
     assert(ControlStack.empty());
     compileReturn();
 
@@ -2854,7 +2858,7 @@ private:
     const auto &FuncType =
         *Context.FunctionTypes[std::get<0>(Context.Functions[FuncIndex])];
     const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
-    const auto &ParamTypes = FuncType.getInner().Params;
+    const auto &ParamTypes = FuncType.getParamTypes();
 
     std::vector<llvm::Value *> Args(ParamTypes.size() + 1);
     Args[0] = F->arg_begin();
@@ -2885,9 +2889,9 @@ private:
     auto *FTy = toLLVMType(Context.ExecCtxPtrTy, FuncType);
     auto *RTy = FTy->getReturnType();
 
-    const size_t ArgSize = FuncType.getInner().Params.size();
+    const size_t ArgSize = FuncType.getParamTypes().size();
     const size_t RetSize =
-        RTy->isVoidTy() ? 0 : FuncType.getInner().Returns.size();
+        RTy->isVoidTy() ? 0 : FuncType.getReturnTypes().size();
 
     llvm::Value *Args;
     if (ArgSize == 0) {
@@ -4421,9 +4425,9 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
       llvm::IRBuilder<> Builder(Entry);
       setIsFPConstrained(Builder);
 
-      const auto ArgSize = FuncType.getInner().Params.size();
+      const auto ArgSize = FuncType.getParamTypes().size();
       const auto RetSize =
-          RTy->isVoidTy() ? 0 : FuncType.getInner().Returns.size();
+          RTy->isVoidTy() ? 0 : FuncType.getReturnTypes().size();
 
       llvm::Value *Args;
       if (ArgSize == 0) {
@@ -4499,7 +4503,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
     {
       /// Get global type. External type checked in validation.
       const auto &GlobType = ImpDesc.getExternalGlobalType();
-      const auto &ValType = GlobType.getInner().Type;
+      const auto &ValType = GlobType.getValType();
       auto *Type = toLLVMType(Context->LLContext, ValType)->getPointerTo();
       Context->Globals.push_back(Type);
       break;
@@ -4514,7 +4518,7 @@ void Compiler::compile(const AST::ExportSection &) {}
 
 void Compiler::compile(const AST::GlobalSection &GlobalSec) {
   for (const auto &GlobalSeg : GlobalSec.getContent()) {
-    const auto &ValType = GlobalSeg.getGlobalType().getInner().Type;
+    const auto &ValType = GlobalSeg.getGlobalType().getValType();
     auto *Type = toLLVMType(Context->LLContext, ValType)->getPointerTo();
     Context->Globals.push_back(Type);
   }
@@ -4526,9 +4530,9 @@ void Compiler::compile(const AST::MemorySection &MemorySec,
     return;
   }
   assert(MemorySec.getContent().size() == 1);
-  const auto &Limit = MemorySec.getContent().front().getInner().Lim;
-  Context->MemMin = Limit.Min;
-  Context->MemMax = Limit.hasMax() ? Limit.Max : 65536;
+  const auto &Limit = MemorySec.getContent().front().getLimit();
+  Context->MemMin = Limit.getMin();
+  Context->MemMax = Limit.hasMax() ? Limit.getMax() : 65536;
 }
 
 void Compiler::compile(const AST::TableSection &, const AST::ElementSection &) {

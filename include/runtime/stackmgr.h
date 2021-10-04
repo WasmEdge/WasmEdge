@@ -12,7 +12,6 @@
 #pragma once
 
 #include "ast/instruction.h"
-#include "common/span.h"
 
 #include <cassert>
 #include <optional>

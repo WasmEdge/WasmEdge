@@ -12,7 +12,9 @@
 #pragma once
 
 #include "ast/type.h"
-#include "common/span.h"
+#include "common/errcode.h"
+#include "common/errinfo.h"
+#include "common/log.h"
 #include "system/allocator.h"
 
 #include <algorithm>
@@ -38,45 +40,51 @@ public:
         PageLimit(Inst.PageLimit) {
     Inst.DataPtr = nullptr;
   }
-  MemoryInstance(const MemoryType &MType,
+  MemoryInstance(const AST::MemoryType &MType,
                  const uint32_t PageLim = UINT32_C(65536)) noexcept
       : MemType(MType), PageLimit(PageLim) {
-    if (MemType.Lim.Min > PageLimit) {
+    if (MemType.getLimit().getMin() > PageLimit) {
       spdlog::error(
           "Create memory instance failed -- exceeded limit page size: {}",
           PageLimit);
       return;
     }
-    DataPtr = Allocator::allocate(MemType.Lim.Min);
+    DataPtr = Allocator::allocate(MemType.getLimit().getMin());
     if (DataPtr == nullptr) {
       spdlog::error("Unable to find usable memory address");
       return;
     }
   }
-  ~MemoryInstance() noexcept { Allocator::release(DataPtr, MemType.Lim.Min); }
+  ~MemoryInstance() noexcept {
+    Allocator::release(DataPtr, MemType.getLimit().getMin());
+  }
 
   /// Get page size of memory.data
-  uint32_t getDataPageSize() const noexcept { return MemType.Lim.Min; }
+  uint32_t getDataPageSize() const noexcept {
+    return MemType.getLimit().getMin();
+  }
 
   /// Getter of limit definition.
-  bool getHasMax() const noexcept { return MemType.Lim.hasMax(); }
+  bool getHasMax() const noexcept { return MemType.getLimit().hasMax(); }
 
   /// Getter of limit definition.
-  uint32_t getMin() const noexcept { return MemType.Lim.Min; }
+  uint32_t getMin() const noexcept { return MemType.getLimit().getMin(); }
 
   /// Getter of limit definition.
-  uint32_t getMax() const noexcept { return MemType.Lim.Max; }
+  uint32_t getMax() const noexcept { return MemType.getLimit().getMax(); }
 
   /// Check access size is valid.
   bool checkAccessBound(uint32_t Offset, uint32_t Length) const noexcept {
     const uint64_t AccessLen =
         static_cast<uint64_t>(Offset) + static_cast<uint64_t>(Length);
-    return AccessLen <= MemType.Lim.Min * kPageSize;
+    return AccessLen <= MemType.getLimit().getMin() * kPageSize;
   }
 
   /// Get boundary index.
   uint32_t getBoundIdx() const noexcept {
-    return MemType.Lim.Min > 0 ? MemType.Lim.Min * kPageSize - 1 : 0;
+    return MemType.getLimit().getMin() > 0
+               ? MemType.getLimit().getMin() * kPageSize - 1
+               : 0;
   }
 
   /// Grow page
@@ -86,25 +94,26 @@ public:
     }
     /// Maximum pages count, 65536
     uint32_t MaxPageCaped = k4G / kPageSize;
-    if (MemType.Lim.hasMax()) {
-      MaxPageCaped = std::min(MemType.Lim.Max, MaxPageCaped);
+    uint32_t Min = MemType.getLimit().getMin();
+    uint32_t Max = MemType.getLimit().getMax();
+    if (MemType.getLimit().hasMax()) {
+      MaxPageCaped = std::min(Max, MaxPageCaped);
     }
-    if (Count + MemType.Lim.Min > MaxPageCaped) {
+    if (Count + Min > MaxPageCaped) {
       return false;
     }
-    if (Count + MemType.Lim.Min > PageLimit) {
+    if (Count + Min > PageLimit) {
       spdlog::error("Memory grow page failed -- exceeded limit page size: {}",
                     PageLimit);
       return false;
     }
-    if (auto NewPtr = Allocator::resize(DataPtr, MemType.Lim.Min,
-                                        MemType.Lim.Min + Count);
+    if (auto NewPtr = Allocator::resize(DataPtr, Min, Min + Count);
         NewPtr == nullptr) {
       return false;
     } else {
       DataPtr = NewPtr;
     }
-    MemType.Lim.Min += Count;
+    MemType.getLimit().setMin(Min + Count);
     return true;
   }
 
@@ -319,7 +328,7 @@ public:
 private:
   /// \name Data of memory instance.
   /// @{
-  MemoryType MemType;
+  AST::MemoryType MemType;
   uint8_t *DataPtr = nullptr;
   const uint32_t PageLimit;
   /// @}

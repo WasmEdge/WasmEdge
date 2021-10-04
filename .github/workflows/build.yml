@@ -163,6 +163,7 @@ jobs:
         cmake -Bbuild -DWASMEDGE_BUILD_TESTS=ON .
         cmake --build build
     - name: Test WasmEdge
+      continue-on-error: true
       run: |
         export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
         cmake --build build --target test

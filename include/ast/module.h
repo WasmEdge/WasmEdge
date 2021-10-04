@@ -12,54 +12,57 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/base.h"
 #include "ast/section.h"
-#include "loader/ldmgr.h"
 
 #include <vector>
-
-namespace WasmEdge::Interpreter {
-class Interpreter;
-} // namespace WasmEdge::Interpreter
 
 namespace WasmEdge {
 namespace AST {
 
 /// AST Module node.
-class Module : public Base {
+class Module {
 public:
-  /// Load binary from file manager.
-  ///
-  /// Inheritted and overrided from Base.
-  /// Read the Magic and Version sequences.
-  /// Read Section indices and create Section nodes.
-  ///
-  /// \param Mgr the file manager reference.
-  /// \param Conf the WasmEdge configuration reference.
-  ///
-  /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
+  /// Getter of magic vector.
+  const std::vector<Byte> &getMagic() const noexcept { return Magic; }
+  std::vector<Byte> &getMagic() noexcept { return Magic; }
 
-  /// Load compiled function from loadable manager.
-  Expect<void> loadCompiled(LDMgr &Mgr);
+  /// Getter of version vector.
+  const std::vector<Byte> &getVersion() const noexcept { return Version; }
+  std::vector<Byte> &getVersion() noexcept { return Version; }
 
-  /// Getters of references of sections.
-  const std::vector<CustomSection> &getCustomSections() const {
+  /// Getters of references to sections.
+  Span<const CustomSection> getCustomSections() const noexcept {
+    return CustomSecs;
+  }
+  std::vector<CustomSection> &getCustomSections() noexcept {
     return CustomSecs;
   }
   const TypeSection &getTypeSection() const { return TypeSec; }
+  TypeSection &getTypeSection() { return TypeSec; }
   const ImportSection &getImportSection() const { return ImportSec; }
+  ImportSection &getImportSection() { return ImportSec; }
   const FunctionSection &getFunctionSection() const { return FunctionSec; }
+  FunctionSection &getFunctionSection() { return FunctionSec; }
   const TableSection &getTableSection() const { return TableSec; }
+  TableSection &getTableSection() { return TableSec; }
   const MemorySection &getMemorySection() const { return MemorySec; }
+  MemorySection &getMemorySection() { return MemorySec; }
   const GlobalSection &getGlobalSection() const { return GlobalSec; }
+  GlobalSection &getGlobalSection() { return GlobalSec; }
   const ExportSection &getExportSection() const { return ExportSec; }
+  ExportSection &getExportSection() { return ExportSec; }
   const StartSection &getStartSection() const { return StartSec; }
+  StartSection &getStartSection() { return StartSec; }
   const ElementSection &getElementSection() const { return ElementSec; }
+  ElementSection &getElementSection() { return ElementSec; }
   const CodeSection &getCodeSection() const { return CodeSec; }
+  CodeSection &getCodeSection() { return CodeSec; }
   const DataSection &getDataSection() const { return DataSec; }
+  DataSection &getDataSection() { return DataSec; }
   const DataCountSection &getDataCountSection() const { return DataCountSec; }
+  DataCountSection &getDataCountSection() { return DataCountSec; }
   const AOTSection &getAOTSection() const { return AOTSec; }
+  AOTSection &getAOTSection() { return AOTSec; }
 
   enum class Intrinsics : uint32_t {
     kTrap,
@@ -84,15 +87,11 @@ public:
   };
   using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];
 
-  /// Getter of compiled symbol.
+  /// Getter and sette of compiled symbol.
   const auto &getSymbol() const noexcept { return IntrSymbol; }
-  /// Setter of compiled symbol.
   void setSymbol(Symbol<const IntrinsicsTable *> S) noexcept {
     IntrSymbol = std::move(S);
   }
-
-  /// The node type should be ASTNodeAttr::Module.
-  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Module;
 
 private:
   /// \name Data of Module node.
@@ -117,9 +116,12 @@ private:
   DataSection DataSec;
   DataCountSection DataCountSec;
   /// @}
-  AOTSection AOTSec;
 
+  /// \name Data of AOT.
+  /// @{
+  AOTSection AOTSec;
   Symbol<const IntrinsicsTable *> IntrSymbol;
+  /// @}
 };
 
 } // namespace AST

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- wasmedge/ast/type.h - type classes definition ---------------------===//
+//===-- wasmedge/ast/type.h - type class definitions ----------------------===//
 //
 // Part of the WasmEdge Project.
 //
@@ -12,38 +12,72 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/base.h"
+#include "common/span.h"
+#include "common/symbol.h"
+#include "common/types.h"
 
 #include <vector>
 
 namespace WasmEdge {
 namespace AST {
 
-/// AST FunctionType node. TODO: Simplify this.
-class FunctionType : public Base {
+/// AST Limit node.
+class Limit {
 public:
-  /// Load binary from file manager.
-  ///
-  /// Inheritted and overrided from Base.
-  /// Read value types of parameter list and return list.
-  ///
-  /// \param Mgr the file manager reference.
-  /// \param Conf the WasmEdge configuration reference.
-  ///
-  /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
+  /// Limit type enumeration class.
+  enum class LimitType : uint8_t { HasMin = 0x00, HasMinMax = 0x01 };
 
-  /// Getter of function type.
-  const WasmEdge::FunctionType &getInner() const noexcept { return Inner; }
-  WasmEdge::FunctionType &getInner() noexcept { return Inner; }
+  /// Constructors.
+  Limit() noexcept : Type(LimitType::HasMin), Min(0U), Max(0U) {}
+  Limit(uint32_t MinVal) noexcept
+      : Type(LimitType::HasMin), Min(MinVal), Max(MinVal) {}
+  Limit(uint32_t MinVal, uint32_t MaxVal) noexcept
+      : Type(LimitType::HasMinMax), Min(MinVal), Max(MaxVal) {}
+  Limit(const Limit &L) noexcept : Type(L.Type), Min(L.Min), Max(L.Max) {}
 
-  /// The node type should be ASTNodeAttr::Type_Function.
-  static inline constexpr const ASTNodeAttr NodeAttr =
-      ASTNodeAttr::Type_Function;
+  /// Getter and setter of limit mode.
+  bool hasMax() const noexcept { return Type == LimitType::HasMinMax; }
+  void setHasMax(bool HasMax) noexcept {
+    Type = HasMax ? LimitType::HasMinMax : LimitType::HasMin;
+  }
 
+  /// Getter and setter of min value.
+  uint32_t getMin() const noexcept { return Min; }
+  void setMin(uint32_t Val) noexcept { Min = Val; }
+
+  /// Getter and setter of max value.
+  uint32_t getMax() const noexcept { return Max; }
+  void setMax(uint32_t Val) noexcept { Max = Val; }
+
+private:
+  /// \name Data of Limit.
+  /// @{
+  LimitType Type;
+  uint32_t Min;
+  uint32_t Max;
+  /// @}
+};
+
+/// AST FunctionType node.
+class FunctionType {
+public:
+  /// Function type wrapper for symbols.
+  using Wrapper = void(void *ExecCtx, void *Function, const ValVariant *Args,
+                       ValVariant *Rets);
+
+  /// Constructors.
+  FunctionType() = default;
+  FunctionType(Span<const ValType> P, Span<const ValType> R)
+      : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()) {}
+  FunctionType(Span<const ValType> P, Span<const ValType> R, Symbol<Wrapper> S)
+      : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()),
+        WrapSymbol(std::move(S)) {}
+
+  /// `==` and `!=` operator overloadings.
   friend bool operator==(const FunctionType &LHS,
                          const FunctionType &RHS) noexcept {
-    return LHS.Inner == RHS.Inner;
+    return LHS.ParamTypes == RHS.ParamTypes &&
+           LHS.ReturnTypes == RHS.ReturnTypes;
   }
 
   friend bool operator!=(const FunctionType &LHS,
@@ -51,80 +85,99 @@ public:
     return !(LHS == RHS);
   }
 
+  /// Getter of param types.
+  const std::vector<ValType> &getParamTypes() const noexcept {
+    return ParamTypes;
+  }
+  std::vector<ValType> &getParamTypes() noexcept { return ParamTypes; }
+
+  /// Getter of return types.
+  const std::vector<ValType> &getReturnTypes() const noexcept {
+    return ReturnTypes;
+  }
+  std::vector<ValType> &getReturnTypes() noexcept { return ReturnTypes; }
+
+  /// Getter and setter of symbol.
+  const auto &getSymbol() const noexcept { return WrapSymbol; }
+  void setSymbol(Symbol<Wrapper> S) noexcept { WrapSymbol = std::move(S); }
+
 private:
-  WasmEdge::FunctionType Inner;
+  /// \name Data of FunctionType.
+  /// @{
+  std::vector<ValType> ParamTypes;
+  std::vector<ValType> ReturnTypes;
+  Symbol<Wrapper> WrapSymbol;
+  /// @}
 };
 
-/// AST MemoryType node. TODO: Simplify this.
-class MemoryType : public Base {
+/// AST MemoryType node.
+class MemoryType {
 public:
-  /// Load binary from file manager.
-  ///
-  /// Inheritted and overrided from Base.
-  /// Read the Limit data of this node.
-  ///
-  /// \param Mgr the file manager reference.
-  /// \param Conf the WasmEdge configuration reference.
-  ///
-  /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
+  /// Constructors.
+  MemoryType() noexcept = default;
+  MemoryType(uint32_t MinVal) noexcept : Lim(MinVal) {}
+  MemoryType(uint32_t MinVal, uint32_t MaxVal) noexcept : Lim(MinVal, MaxVal) {}
+  MemoryType(const Limit &L) noexcept : Lim(L) {}
 
-  /// Getter of memory type.
-  const WasmEdge::MemoryType &getInner() const noexcept { return Inner; }
-
-  /// The node type should be ASTNodeAttr::Type_Memory.
-  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Memory;
+  /// Getter of limit.
+  const Limit &getLimit() const noexcept { return Lim; }
+  Limit &getLimit() noexcept { return Lim; }
 
 private:
-  WasmEdge::MemoryType Inner;
+  /// \name Data of MemoryType.
+  /// @{
+  Limit Lim;
+  /// @}
 };
 
-/// AST TableType node. TODO: Simplify this.
-class TableType : public Base {
+/// AST TableType node.
+class TableType {
 public:
-  /// Load binary from file manager.
-  ///
-  /// Inheritted and overrided from Base.
-  /// Read reference type and Limit data.
-  ///
-  /// \param Mgr the file manager reference.
-  /// \param Conf the WasmEdge configuration reference.
-  ///
-  /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
+  /// Constructors.
+  TableType() noexcept : Type(RefType::FuncRef), Lim() {}
+  TableType(RefType RType, uint32_t MinVal) noexcept
+      : Type(RType), Lim(MinVal) {}
+  TableType(RefType RType, uint32_t MinVal, uint32_t MaxVal) noexcept
+      : Type(RType), Lim(MinVal, MaxVal) {}
+  TableType(RefType RType, const Limit &L) noexcept : Type(RType), Lim(L) {}
 
-  /// Getter of memory type.
-  const WasmEdge::TableType &getInner() const noexcept { return Inner; }
+  /// Getter of reference type.
+  RefType getRefType() const noexcept { return Type; }
+  void setRefType(RefType RType) noexcept { Type = RType; }
 
-  /// The node type should be ASTNodeAttr::Type_Table.
-  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Table;
+  /// Getter of limit.
+  const Limit &getLimit() const noexcept { return Lim; }
+  Limit &getLimit() noexcept { return Lim; }
 
 private:
-  WasmEdge::TableType Inner;
+  /// \name Data of TableType.
+  /// @{
+  RefType Type;
+  Limit Lim;
+  /// @}
 };
 
-/// AST GlobalType node. TODO: Simplify this.
-class GlobalType : public Base {
+/// AST GlobalType node.
+class GlobalType {
 public:
-  /// Load binary from file manager.
-  ///
-  /// Inheritted and overrided from Base.
-  /// Read value type and mutation.
-  ///
-  /// \param Mgr the file manager reference.
-  /// \param Conf the WasmEdge configuration reference.
-  ///
-  /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
+  /// Constructors.
+  GlobalType() noexcept : Type(ValType::I32), Mut(ValMut::Const) {}
+  GlobalType(ValType VType, ValMut VMut) noexcept : Type(VType), Mut(VMut) {}
 
-  /// Getter of global type.
-  const WasmEdge::GlobalType &getInner() const noexcept { return Inner; }
+  /// Getter and setter of value type.
+  ValType getValType() const noexcept { return Type; }
+  void setValType(ValType VType) noexcept { Type = VType; }
 
-  /// The node type should be ASTNodeAttr::Type_Global.
-  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Type_Global;
+  /// Getter and setter of value mutation.
+  ValMut getValMut() const noexcept { return Mut; }
+  void setValMut(ValMut VMut) noexcept { Mut = VMut; }
 
 private:
-  WasmEdge::GlobalType Inner;
+  /// \name Data of GlobalType.
+  /// @{
+  ValType Type;
+  ValMut Mut;
+  /// @}
 };
 
 } // namespace AST

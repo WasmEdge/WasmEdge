@@ -1,48 +1,106 @@
-### 0.8.2 (unrelease)
+### 0.9.0 (unreleased)
+
+Breaking changes:
+
+* Modulize the API Headers.
+  * Moved the API header into the `wasmedge` folder. Developers should include the `wasmedge/wasmedge.h` for using the WasmEdge shared library after installation.
+  * Moved the enumeration definitions into `enum_errcode.h`, `enum_types.h`, and `enum_configure.h` in the `wasmedge` folder.
+* Apply old WebAssembly proposals options (All turned on by default).
+  * Developers can use the `disable-import-export-mut-globals` to disable the Import/Export mutable globals proposal in `wasmedge` and `wasmedgec`.
+  * Developers can use the `disable-non-trap-float-to-int` to disable the Non-trapping float-to-int conversions proposal in `wasmedge` and `wasmedgec`.
+  * Developers can use the `disable-sign-extension-operators` to disable the Sign-extension operators proposal in `wasmedge` and `wasmedgec`.
+  * Developers can use the `disable-multi-value` to disable the Multi-value proposal in `wasmedge` and `wasmedgec`.
+* Adjusted the error code names.
+  * Please refer to the [ErrCode enum](https://github.com/WasmEdge/WasmEdge/blob/master/include/common/enum_errcode.h) definition.
+* WasmEdge C API changes.
+  * Deleted the data object column in the creation function of `ImportObject` context.
+  * Added the data object column in the creation function of `HostFunction` context.
+  * Instead of the unified data object of the host functions in the same import object before, the data objects are independent in every host functions now.
+
+Refactor:
+
+* Refactor the common headers.
+  * Merged the building environment related definitions into `common`.
+  * Separate all enumeration definitions.
+* Updated the include path for rust binding due to the API headers refactoring.
+
+Documentations:
+
+* Updated the examples in the C API documentation.
+
+Tests:
+
+* Added `ErrInfo` unit tests.
+* Added instruction tests for turning on/off the old proposals.
+
+### 0.8.2 (2021-08-25)
 
 Features:
 
 * WASI:
-  * Support WASI on macOS(Intel & M1)
-  * Support WASI on Windows 10
-  * Support WASI Socket function on linux
+  * Supported WASI on macOS(Intel & M1).
+  * Supported WASI on Windows 10.
+  * Supported WASI Socket functions on Linux.
 * C API:
-  * Add the API about convert `WasmEdge_String` to C string
+  * Supported 32-bit environment.
+  * Added the static library target `libwasmedge_c.a` (`OFF` by default).
+  * Added the `ErrCode` to C declarations.
+  * Added the API about converting `WasmEdge_String` to C string.
+  * Added the API to get data pointer from the `WasmEdge_MemoryInstanceContext`.
 * AOT:
-  * Add `--generic-binary` to generate generic binary and disable using host features
-* Multi platform:
-  * Enable Ubuntu 20.04 x86\_64 build
-  * Enable Ubuntu 21.04 x86\_64 build
-  * Enable manylinux2014 aarch64 build
-  * Enable ubuntu arm32 build
-* Rust support:
-  * Add wasmedge-sys crate
-* Remove binfmt support
+  * Added `--generic-binary` to generate generic binaries and disable using host features.
+* Multi platforms:
+  * Enabled Ubuntu 20.04 x86\_64 build.
+  * Enabled Ubuntu 21.04 x86\_64 build.
+  * Enabled manylinux2014 aarch64 build.
+  * Enabled Ubuntu 21.04 arm32 build.
+* Rust supports:
+  * Added the `wasmedge-sys` and `wasmedge-rs` crates.
+  * Added the wrapper types to rust.
+* Removed binfmt support.
 
 Fixed issues:
 
-* Ensure every platform defines is defined
-* Disable blake3 AVX512 support on old platform
-* Avoid vector ternary operator in AOT, which is unspoorted by clang on mac
-* The preopen should be `--dir guest_path:host_path`
-* Fix usused variables error in API libraries when AOT build is disabled
-* Fix the signature error of `wasi_snapshot_preview1::path_read_link`.
-  * Fix the signature error with the lost read size output.
-  * Add the `Out` comments for parameters with receiving outputs.
+* Ensured every platform defines is defined.
+* Disabled blake3 AVX512 support on old platforms.
+* Avoided vector ternary operator in AOT, which is unsupported by clang on mac.
+* The preopen should be `--dir guest_path:host_path`.
+* Fixed usused variables error in API libraries when AOT build is disabled.
+* Fixed the WASI function signature error.
+  * `wasi_snapshot_preview1::path_read_link`
+    * Fixed the signature error with the lost read size output.
+    * Added the `Out` comments for parameters with receiving outputs.
+  * `wasi_snapshot_preview1::path_filestat_set_times`
+    * Corrected the time signature to the `u64`.
 
 Misc:
-* Change all CMake global properties to target specified properties
-  * Add namespace to all cmake options
+
+* Changed all CMake global properties to target specified properties.
+  * Added namespace to all cmake options.
+* Added the CMake option `WASMEDGE_FORCE_DISABLE_LTO` to forcibly disable link time optimization (`OFF` by default).
+  * WasmEdge project enables LTO by default in Release/RelWithDeb build. If you would like to disable the LTO forcibly, please turn on the `WASMEDGE_FORCE_DISABLE_LTO` option.
+* Installed `dpkg-dev` in docker images to enable `dpkg-shlibdeps` when creating the deb release.
 
 Refactor:
 
-* Refactor WASI VFS architecture
+* Refactored the WASI VFS architecture.
+* Simplified the memory indexing in validator.
+* Renamed the file names in interpreter.
+* Replaced the instances when registering host instances with existing names.
+
+Documentations:
+
+* Added the [Quick Start Javascript](https://github.com/WasmEdge/WasmEdge/blob/master/docs/run_javascript.md) document.
+* Added the [Use Cases](https://github.com/WasmEdge/WasmEdge/blob/master/docs/use_cases.md) document.
+* Fixed the wrong `printf` type in the C API document.
 
 Tests:
 
-* Add wasi-test for testing basic WASI interface
-* Add C API unit test of string copy.
-* Remove unnecessary Wagon and Ethereum tests
+* Added wasi-test for testing basic WASI interface
+* Added C API unit tests.
+  * Added the `WasmEdge_String` copy tests.
+  * Added the `WasmEdge_MemoryInstanceContext` get data pointer tests.
+* Removed unnecessary Wagon and Ethereum tests.
 
 ### 0.8.1 (2021-06-18)
 

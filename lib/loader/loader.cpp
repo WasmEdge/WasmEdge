@@ -24,16 +24,16 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
   std::error_code EC;
   size_t FileSize = std::filesystem::file_size(FilePath, EC);
   if (EC) {
-    spdlog::error(ErrCode::InvalidPath);
+    spdlog::error(ErrCode::IllegalPath);
     spdlog::error(ErrInfo::InfoFile(FilePath));
-    return Unexpect(ErrCode::InvalidPath);
+    return Unexpect(ErrCode::IllegalPath);
   }
 
   std::ifstream Fin(FilePath, std::ios::in | std::ios::binary);
   if (!Fin) {
-    spdlog::error(ErrCode::InvalidPath);
+    spdlog::error(ErrCode::IllegalPath);
     spdlog::error(ErrInfo::InfoFile(FilePath));
-    return Unexpect(ErrCode::InvalidPath);
+    return Unexpect(ErrCode::IllegalPath);
   }
 
   std::vector<Byte> Buf(FileSize);
@@ -75,7 +75,7 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
     if (auto Res = LMgr.getVersion()) {
       if (*Res != AOT::kBinaryVersion) {
         spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, *Res));
-        return Unexpect(ErrCode::InvalidVersion);
+        return Unexpect(ErrCode::MalformedVersion);
       }
     } else {
       spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -108,6 +108,9 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
       return Unexpect(Res);
     }
     if (auto Res = Mod->loadBinary(FMgr, Conf)) {
+      if (auto &Symbol = Mod->getSymbol()) {
+        *Symbol = IntrinsicsTable;
+      }
       return Mod;
     } else {
       spdlog::error(ErrInfo::InfoFile(FilePath));

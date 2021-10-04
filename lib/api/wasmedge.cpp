@@ -2,7 +2,7 @@
 #include <cstring>
 #include <vector>
 
-#include "api/wasmedge.h"
+#include "wasmedge/wasmedge.h"
 
 #include "common/errcode.h"
 #include "common/log.h"
@@ -110,20 +110,44 @@ inline constexpr WasmEdge_Result genWasmEdge_Result(ErrCode Code) noexcept {
   return WasmEdge_Result{.Code = static_cast<uint8_t>(Code)};
 }
 
+/// Helper function for returning a struct uint128_t / int128_t
+/// from class WasmEdge::uint128_t / WasmEdge::int128_t.
+template <typename C>
+inline constexpr ::uint128_t to_uint128_t(C Val) noexcept {
+#if defined(__x86_64__) || defined(__aarch64__)
+  return Val;
+#else
+  return {.Low = Val.low(), .High = static_cast<uint64_t>(Val.high())};
+#endif
+}
+template <typename C> inline constexpr ::int128_t to_int128_t(C Val) noexcept {
+#if defined(__x86_64__) || defined(__aarch64__)
+  return Val;
+#else
+  return {.Low = Val.low(), .High = Val.high()};
+#endif
+}
+
+/// Helper function for returning a class WasmEdge::uint128_t /
+/// WasmEdge::int128_t from struct uint128_t / int128_t.
+template <typename C, typename T>
+inline constexpr C to_WasmEdge_128_t(T Val) noexcept {
+#if defined(__x86_64__) || defined(__aarch64__)
+  return Val;
+#else
+  return C(Val.High, Val.Low);
+#endif
+}
+
 /// Helper functions for returning a WasmEdge_Value by various values.
 template <typename T> inline WasmEdge_Value genWasmEdge_Value(T Val) noexcept {
   return WasmEdge_Value{
-      .Value = ValVariant(Val).unwrap(),
+      .Value = to_uint128_t(ValVariant(Val).unwrap()),
       .Type = static_cast<WasmEdge_ValType>(WasmEdge::ValTypeFromType<T>())};
-}
-template <>
-inline constexpr WasmEdge_Value genWasmEdge_Value(__int128 Val) noexcept {
-  return WasmEdge_Value{.Value = static_cast<unsigned __int128>(Val),
-                        .Type = WasmEdge_ValType_V128};
 }
 inline WasmEdge_Value genWasmEdge_Value(ValVariant Val,
                                         WasmEdge_ValType T) noexcept {
-  return WasmEdge_Value{.Value = Val.unwrap(), .Type = T};
+  return WasmEdge_Value{.Value = to_uint128_t(Val.unwrap()), .Type = T};
 }
 
 /// Helper function for converting a WasmEdge_Value array to a ValVariant
@@ -141,25 +165,32 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
     TVec[I] = static_cast<ValType>(Val[I].Type);
     switch (TVec[I]) {
     case ValType::I32:
-      VVec[I] = ValVariant::wrap<uint32_t>(Val[I].Value);
+      VVec[I] = ValVariant::wrap<uint32_t>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
       break;
     case ValType::I64:
-      VVec[I] = ValVariant::wrap<uint64_t>(Val[I].Value);
+      VVec[I] = ValVariant::wrap<uint64_t>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
       break;
     case ValType::F32:
-      VVec[I] = ValVariant::wrap<float>(Val[I].Value);
+      VVec[I] = ValVariant::wrap<float>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
       break;
     case ValType::F64:
-      VVec[I] = ValVariant::wrap<double>(Val[I].Value);
+      VVec[I] = ValVariant::wrap<double>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
       break;
     case ValType::V128:
-      VVec[I] = ValVariant::wrap<unsigned __int128>(Val[I].Value);
+      VVec[I] = ValVariant::wrap<WasmEdge::uint128_t>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
       break;
     case ValType::FuncRef:
-      VVec[I] = ValVariant::wrap<FuncRef>(Val[I].Value);
+      VVec[I] = ValVariant::wrap<FuncRef>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
       break;
     case ValType::ExternRef:
-      VVec[I] = ValVariant::wrap<ExternRef>(Val[I].Value);
+      VVec[I] = ValVariant::wrap<ExternRef>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val[I].Value));
       break;
     case ValType::None:
     default:
@@ -237,47 +268,32 @@ inline uint32_t fillMap(const std::map<std::string, uint32_t, std::less<>> &Map,
   return static_cast<uint32_t>(Map.size());
 }
 
-/// C API Import module class
-class CAPIImportModule : public Runtime::ImportObject {
-public:
-  CAPIImportModule(const WasmEdge_String Name, void *Ptr)
-      : ImportObject(genStrView(Name)), Data(Ptr) {}
-
-  void *getData() const { return Data; }
-
-private:
-  void *Data;
-};
-
 /// C API Host function class
 class CAPIHostFunc : public Runtime::HostFunctionBase {
 public:
   CAPIHostFunc(const Runtime::Instance::FType *Type,
-               WasmEdge_HostFunc_t FuncPtr,
+               WasmEdge_HostFunc_t FuncPtr, void *ExtData,
                const uint64_t FuncCost = 0) noexcept
       : Runtime::HostFunctionBase(FuncCost), Func(FuncPtr), Wrap(nullptr),
-        Binding(nullptr), Data(nullptr) {
+        Binding(nullptr), Data(ExtData) {
     FuncType = *Type;
   }
   CAPIHostFunc(const Runtime::Instance::FType *Type,
-               WasmEdge_WrapFunc_t WrapPtr, void *BindingPtr,
+               WasmEdge_WrapFunc_t WrapPtr, void *BindingPtr, void *ExtData,
                const uint64_t FuncCost = 0) noexcept
       : Runtime::HostFunctionBase(FuncCost), Func(nullptr), Wrap(WrapPtr),
-        Binding(BindingPtr), Data(nullptr) {
+        Binding(BindingPtr), Data(ExtData) {
     FuncType = *Type;
   }
   ~CAPIHostFunc() noexcept override = default;
 
-  void setData(void *Ptr) { Data = Ptr; }
-
   Expect<void> run(Runtime::Instance::MemoryInstance *MemInst,
                    Span<const ValVariant> Args,
                    Span<ValVariant> Rets) override {
-
     std::vector<WasmEdge_Value> Params(FuncType.Params.size()),
         Returns(FuncType.Returns.size());
     for (uint32_t I = 0; I < Args.size(); I++) {
-      Params[I].Value = Args[I].get<unsigned __int128>();
+      Params[I].Value = to_uint128_t(Args[I].get<WasmEdge::uint128_t>());
       Params[I].Type = static_cast<WasmEdge_ValType>(FuncType.Params[I]);
     }
     WasmEdge_Value *PPtr = Params.size() ? (&Params[0]) : nullptr;
@@ -292,7 +308,7 @@ public:
                   static_cast<uint32_t>(Returns.size()));
     }
     for (uint32_t I = 0; I < Rets.size(); I++) {
-      Rets[I] = Returns[I].Value;
+      Rets[I] = to_WasmEdge_128_t<WasmEdge::uint128_t>(Returns[I].Value);
     }
     if (!WasmEdge_ResultOK(Stat)) {
       return Unexpect(ErrCode::ExecutionFailed);
@@ -404,8 +420,9 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_ValueGenF64(const double Val) {
   return genWasmEdge_Value(Val);
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_ValueGenV128(const __int128 Val) {
-  return genWasmEdge_Value(Val);
+WASMEDGE_CAPI_EXPORT WasmEdge_Value
+WasmEdge_ValueGenV128(const ::int128_t Val) {
+  return genWasmEdge_Value(to_WasmEdge_128_t<WasmEdge::uint128_t>(Val));
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
@@ -426,39 +443,52 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_ValueGenExternRef(void *Ref) {
 }
 
 WASMEDGE_CAPI_EXPORT int32_t WasmEdge_ValueGetI32(const WasmEdge_Value Val) {
-  return WasmEdge::ValVariant::wrap<int32_t>(Val.Value).get<int32_t>();
+  return WasmEdge::ValVariant::wrap<int32_t>(
+             to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
+      .get<int32_t>();
 }
 
 WASMEDGE_CAPI_EXPORT int64_t WasmEdge_ValueGetI64(const WasmEdge_Value Val) {
-  return WasmEdge::ValVariant::wrap<int64_t>(Val.Value).get<int64_t>();
+  return WasmEdge::ValVariant::wrap<int64_t>(
+             to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
+      .get<int64_t>();
 }
 
 WASMEDGE_CAPI_EXPORT float WasmEdge_ValueGetF32(const WasmEdge_Value Val) {
-  return WasmEdge::ValVariant::wrap<float>(Val.Value).get<float>();
+  return WasmEdge::ValVariant::wrap<float>(
+             to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
+      .get<float>();
 }
 
 WASMEDGE_CAPI_EXPORT double WasmEdge_ValueGetF64(const WasmEdge_Value Val) {
-  return WasmEdge::ValVariant::wrap<double>(Val.Value).get<double>();
+  return WasmEdge::ValVariant::wrap<double>(
+             to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
+      .get<double>();
 }
 
-WASMEDGE_CAPI_EXPORT __int128 WasmEdge_ValueGetV128(const WasmEdge_Value Val) {
-  return WasmEdge::ValVariant::wrap<__int128>(Val.Value).get<__int128>();
+WASMEDGE_CAPI_EXPORT ::int128_t
+WasmEdge_ValueGetV128(const WasmEdge_Value Val) {
+  return to_int128_t(WasmEdge::ValVariant::wrap<WasmEdge::int128_t>(
+                         to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
+                         .get<WasmEdge::int128_t>());
 }
 
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ValueIsNullRef(const WasmEdge_Value Val) {
-  return WasmEdge::isNullRef(WasmEdge::ValVariant::wrap<UnknownRef>(Val.Value));
+  return WasmEdge::isNullRef(WasmEdge::ValVariant::wrap<UnknownRef>(
+      to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value)));
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_ValueGetFuncIdx(const WasmEdge_Value Val) {
-  return WasmEdge::retrieveFuncIdx(
-      WasmEdge::ValVariant::wrap<FuncRef>(Val.Value));
+  return WasmEdge::retrieveFuncIdx(WasmEdge::ValVariant::wrap<FuncRef>(
+      to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value)));
 }
 
 WASMEDGE_CAPI_EXPORT void *
 WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) {
   return &WasmEdge::retrieveExternRef<uint32_t>(
-      WasmEdge::ValVariant::wrap<ExternRef>(Val.Value));
+      WasmEdge::ValVariant::wrap<ExternRef>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value)));
 }
 
 /// <<<<<<<< WasmEdge value functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1368,9 +1398,11 @@ WasmEdge_FunctionInstanceGetFunctionType(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_HostFunctionContext *
 WasmEdge_HostFunctionCreate(const WasmEdge_FunctionTypeContext *Type,
-                            WasmEdge_HostFunc_t HostFunc, const uint64_t Cost) {
+                            WasmEdge_HostFunc_t HostFunc, void *Data,
+                            const uint64_t Cost) {
   if (Type && HostFunc) {
-    return toHostFuncCxt(new CAPIHostFunc(fromFTypeCxt(Type), HostFunc, Cost));
+    return toHostFuncCxt(
+        new CAPIHostFunc(fromFTypeCxt(Type), HostFunc, Data, Cost));
   }
   return nullptr;
 }
@@ -1378,10 +1410,10 @@ WasmEdge_HostFunctionCreate(const WasmEdge_FunctionTypeContext *Type,
 WASMEDGE_CAPI_EXPORT WasmEdge_HostFunctionContext *
 WasmEdge_HostFunctionCreateBinding(const WasmEdge_FunctionTypeContext *Type,
                                    WasmEdge_WrapFunc_t WrapFunc, void *Binding,
-                                   const uint64_t Cost) {
+                                   void *Data, const uint64_t Cost) {
   if (Type && WrapFunc) {
     return toHostFuncCxt(
-        new CAPIHostFunc(fromFTypeCxt(Type), WrapFunc, Binding, Cost));
+        new CAPIHostFunc(fromFTypeCxt(Type), WrapFunc, Binding, Data, Cost));
   }
   return nullptr;
 }
@@ -1443,7 +1475,9 @@ WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
           return Unexpect(WasmEdge::ErrCode::RefTypeMismatch);
         }
         return fromTabCxt(Cxt)->setRefAddr(
-            Offset, WasmEdge::ValVariant(Data.Value).get<UnknownRef>());
+            Offset, WasmEdge::ValVariant(
+                        to_WasmEdge_128_t<WasmEdge::uint128_t>(Data.Value))
+                        .get<UnknownRef>());
       },
       EmptyThen, Cxt);
 }
@@ -1498,15 +1532,33 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGetData(
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceSetData(
-    WasmEdge_MemoryInstanceContext *Cxt, uint8_t *Data, const uint32_t Offset,
-    const uint32_t Length) {
-
+    WasmEdge_MemoryInstanceContext *Cxt, const uint8_t *Data,
+    const uint32_t Offset, const uint32_t Length) {
   return wrap(
       [&]() {
         return fromMemCxt(Cxt)->setBytes(genSpan(Data, Length), Offset, 0,
                                          Length);
       },
       EmptyThen, Cxt, Data);
+}
+
+WASMEDGE_CAPI_EXPORT uint8_t *
+WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
+                                  const uint32_t Offset,
+                                  const uint32_t Length) {
+  if (Cxt) {
+    return fromMemCxt(Cxt)->getPointer<uint8_t *>(Offset, Length);
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT const uint8_t *WasmEdge_MemoryInstanceGetPointerConst(
+    const WasmEdge_MemoryInstanceContext *Cxt, const uint32_t Offset,
+    const uint32_t Length) {
+  if (Cxt) {
+    return fromMemCxt(Cxt)->getPointer<const uint8_t *>(Offset, Length);
+  }
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t
@@ -1545,7 +1597,8 @@ WasmEdge_GlobalInstanceCreate(const WasmEdge_Value Value,
                               const enum WasmEdge_Mutability Mut) {
   return toGlobCxt(new WasmEdge::Runtime::Instance::GlobalInstance(
       static_cast<WasmEdge::ValType>(Value.Type),
-      static_cast<WasmEdge::ValMut>(Mut), Value.Value));
+      static_cast<WasmEdge::ValMut>(Mut),
+      to_WasmEdge_128_t<WasmEdge::uint128_t>(Value.Value)));
 }
 
 WASMEDGE_CAPI_EXPORT enum WasmEdge_ValType
@@ -1573,7 +1626,7 @@ WasmEdge_GlobalInstanceGetValue(const WasmEdge_GlobalInstanceContext *Cxt) {
         static_cast<WasmEdge_ValType>(fromGlobCxt(Cxt)->getValType()));
   }
   return genWasmEdge_Value(
-      WasmEdge::ValVariant(static_cast<unsigned __int128>(0)),
+      WasmEdge::ValVariant(static_cast<WasmEdge::uint128_t>(0)),
       WasmEdge_ValType_I32);
 }
 
@@ -1583,7 +1636,8 @@ WasmEdge_GlobalInstanceSetValue(WasmEdge_GlobalInstanceContext *Cxt,
   if (Cxt && fromGlobCxt(Cxt)->getValMut() == WasmEdge::ValMut::Var &&
       static_cast<WasmEdge::ValType>(Value.Type) ==
           fromGlobCxt(Cxt)->getValType()) {
-    fromGlobCxt(Cxt)->getValue() = Value.Value;
+    fromGlobCxt(Cxt)->getValue() =
+        to_WasmEdge_128_t<WasmEdge::uint128_t>(Value.Value);
   }
 }
 
@@ -1597,8 +1651,9 @@ WasmEdge_GlobalInstanceDelete(WasmEdge_GlobalInstanceContext *Cxt) {
 /// <<<<<<<< WasmEdge import object functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ImportObjectContext *
-WasmEdge_ImportObjectCreate(const WasmEdge_String ModuleName, void *Data) {
-  return toImpObjCxt(new CAPIImportModule(ModuleName, Data));
+WasmEdge_ImportObjectCreate(const WasmEdge_String ModuleName) {
+  return toImpObjCxt(
+      new WasmEdge::Runtime::ImportObject(genStrView(ModuleName)));
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ImportObjectContext *
@@ -1692,9 +1747,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ImportObjectAddHostFunction(
     WasmEdge_ImportObjectContext *Cxt, const WasmEdge_String Name,
     WasmEdge_HostFunctionContext *HostFuncCxt) {
   if (Cxt && HostFuncCxt) {
-    auto *ImpMod = reinterpret_cast<CAPIImportModule *>(Cxt);
     auto *HostFunc = reinterpret_cast<CAPIHostFunc *>(HostFuncCxt);
-    HostFunc->setData(ImpMod->getData());
     fromImpObjCxt(Cxt)->addHostFunc(
         genStrView(Name),
         std::unique_ptr<WasmEdge::Runtime::HostFunctionBase>(HostFunc));

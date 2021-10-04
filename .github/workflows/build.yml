@@ -48,7 +48,7 @@ jobs:
             docker_tag: ubuntu-build-gcc
             build_type: Debug
             coverage: true
-    name: Build WasmEdge on Ubuntu 21.04 with ${{ matrix.name }}
+    name: Build WasmEdge on Ubuntu 20.04 with ${{ matrix.name }}
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}

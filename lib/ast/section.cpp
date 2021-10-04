@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "ast/section.h"
+#include "aot/version.h"
 #include "common/log.h"
 
 namespace WasmEdge {
@@ -35,7 +36,7 @@ Expect<void> CustomSection::loadContent(FileMgr &Mgr, const Configure &) {
   /// Read name.
   auto ReadSize = Mgr.getOffset();
   if (auto Res = Mgr.readName()) {
-    Content = std::vector<uint8_t>((*Res).begin(), (*Res).end());
+    Name = *Res;
   } else {
     return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
   }
@@ -151,6 +152,151 @@ Expect<void> DataCountSection::loadContent(FileMgr &Mgr, const Configure &) {
   if (EndOffset - StartOffset != ContentSize) {
     return logLoadError(ErrCode::SectionSizeMismatch, EndOffset, NodeAttr);
   }
+  return {};
+}
+
+namespace {
+
+inline constexpr uint32_t HostVersion() noexcept {
+  return WasmEdge::AOT::kBinaryVersion;
+}
+
+inline constexpr uint8_t HostOSType() noexcept {
+#if WASMEDGE_OS_LINUX
+  return UINT8_C(1);
+#elif WASMEDGE_OS_MACOS
+  return UINT8_C(2);
+#elif WASMEDGE_OS_WINDOWS
+  return UINT8_C(3);
+#endif
+}
+
+inline constexpr uint8_t HostArchType() noexcept {
+#if defined(__x86_64__)
+  return UINT8_C(1);
+#elif defined(__aarch64__)
+  return UINT8_C(2);
+#endif
+}
+
+} // namespace
+
+Expect<void> AOTSection::loadBinary(FileMgr &Mgr, const Configure &) {
+  if (auto Res = Mgr.readU32(); !Res) {
+    spdlog::error("AOT binary version read error:{}", Res.error());
+    return Unexpect(Res);
+  } else {
+    Version = *Res;
+  }
+  if (Version != HostVersion()) {
+    spdlog::error("AOT binary version unmatched.");
+    return Unexpect(ErrCode::MalformedSection);
+  }
+
+  if (auto Res = Mgr.readByte(); !Res) {
+    spdlog::error("AOT os type read error:{}", Res.error());
+    return Unexpect(Res);
+  } else {
+    OSType = *Res;
+  }
+  if (OSType != HostOSType()) {
+    spdlog::error("AOT OS type unmatched.");
+    return Unexpect(ErrCode::MalformedSection);
+  }
+
+  if (auto Res = Mgr.readByte(); !Res) {
+    spdlog::error("AOT arch type read error:{}", Res.error());
+    return Unexpect(Res);
+  } else {
+    ArchType = *Res;
+  }
+  if (ArchType != HostArchType()) {
+    spdlog::error("AOT arch type unmatched.");
+    return Unexpect(ErrCode::MalformedSection);
+  }
+
+  if (auto Res = Mgr.readU64(); !Res) {
+    spdlog::error("AOT version address read error:{}", Res.error());
+    return Unexpect(Res);
+  } else {
+    VersionAddress = *Res;
+  }
+  if (auto Res = Mgr.readU64(); !Res) {
+    spdlog::error("AOT intrinsics address read error:{}", Res.error());
+    return Unexpect(Res);
+  } else {
+    IntrinsicsAddress = *Res;
+  }
+  if (auto Res = Mgr.readU64(); !Res) {
+    spdlog::error("AOT types size read error:{}", Res.error());
+    return Unexpect(Res);
+  } else {
+    TypesAddress.resize(*Res);
+  }
+  for (size_t I = 0; I < TypesAddress.size(); ++I) {
+    if (auto Res = Mgr.readU64(); !Res) {
+      spdlog::error("AOT type address read error:{}", Res.error());
+      return Unexpect(Res);
+    } else {
+      TypesAddress[I] = *Res;
+    }
+  }
+  if (auto Res = Mgr.readU64(); !Res) {
+    spdlog::error("AOT code size read error:{}", Res.error());
+    return Unexpect(Res);
+  } else {
+    CodesAddress.resize(*Res);
+  }
+  for (size_t I = 0; I < CodesAddress.size(); ++I) {
+    if (auto Res = Mgr.readU64(); !Res) {
+      spdlog::error("AOT code address read error:{}", Res.error());
+      return Unexpect(Res);
+    } else {
+      CodesAddress[I] = *Res;
+    }
+  }
+
+  if (auto Res = Mgr.readU32(); !Res) {
+    spdlog::error("AOT section count read error:{}", Res.error());
+    return Unexpect(Res);
+  } else {
+    Sections.resize(*Res);
+  }
+
+  for (auto &Section : Sections) {
+    if (auto Res = Mgr.readByte(); !Res) {
+      spdlog::error("AOT section type read error:{}", Res.error());
+      return Unexpect(Res);
+    } else {
+      std::get<0>(Section) = *Res;
+    }
+    if (auto Res = Mgr.readU64(); !Res) {
+      spdlog::error("AOT section offset read error:{}", Res.error());
+      return Unexpect(Res);
+    } else {
+      std::get<1>(Section) = *Res;
+    }
+    if (auto Res = Mgr.readU64(); !Res) {
+      spdlog::error("AOT section size read error:{}", Res.error());
+      return Unexpect(Res);
+    } else {
+      std::get<2>(Section) = *Res;
+    }
+    uint32_t ContentSize;
+    if (auto Res = Mgr.readU32(); !Res) {
+      spdlog::error("AOT section data size read error:{}", Res.error());
+      return Unexpect(Res);
+    } else {
+      ContentSize = *Res;
+    }
+    if (auto Res = Mgr.readBytes(ContentSize); !Res) {
+      spdlog::error("AOT section data read error:{}", Res.error());
+      return Unexpect(Res);
+    } else {
+      std::get<3>(Section) = std::move(*Res);
+    }
+  }
+
   return {};
 }
 

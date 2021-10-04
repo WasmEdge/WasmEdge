@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- wasmedge/api/wasmedge.h - WasmEdge C API --------------------------===//
+//===-- wasmedge/wasmedge.h - WasmEdge C API ------------------------------===//
 //
 // Part of the WasmEdge Project.
 //
@@ -29,38 +29,15 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-/// WasmEdge version.
-#define WASMEDGE_VERSION "${CPACK_PACKAGE_VERSION}"
-#define WASMEDGE_VERSION_MAJOR ${WASMEDGE_VERSION_MAJOR}
-#define WASMEDGE_VERSION_MINOR ${WASMEDGE_VERSION_MINOR}
-#define WASMEDGE_VERSION_PATCH ${WASMEDGE_VERSION_PATCH}
-
-/// WASM Value type enumeration.
-enum WasmEdge_ValType {
-  WasmEdge_ValType_I32 = 0x7FU,
-  WasmEdge_ValType_I64 = 0x7EU,
-  WasmEdge_ValType_F32 = 0x7DU,
-  WasmEdge_ValType_F64 = 0x7CU,
-  WasmEdge_ValType_V128 = 0x7BU,
-  WasmEdge_ValType_FuncRef = 0x70U,
-  WasmEdge_ValType_ExternRef = 0x6FU
-};
-
-/// WASM Reference type enumeration.
-enum WasmEdge_RefType {
-  WasmEdge_RefType_FuncRef = 0x70U,
-  WasmEdge_RefType_ExternRef = 0x6FU
-};
-
-/// WASM Mutability enumeration.
-enum WasmEdge_Mutability {
-  WasmEdge_Mutability_Const = 0x00U,
-  WasmEdge_Mutability_Var = 0x01U
-};
+#include "wasmedge/enum_configure.h"
+#include "wasmedge/enum_errcode.h"
+#include "wasmedge/enum_types.h"
+#include "wasmedge/int128.h"
+#include "wasmedge/version.h"
 
 /// WasmEdge WASM value struct.
 typedef struct WasmEdge_Value {
-  unsigned __int128 Value;
+  uint128_t Value;
   /// The value type is used in the parameters of invoking functions. For the
   /// return values of invoking functions, this member will always be
   /// `WasmEdge_ValType_I32`. Users should use APIs to retrieve the WASM
@@ -93,45 +70,6 @@ typedef struct WasmEdge_Limit {
   /// Maximum value. Will be ignored if the `HasMax` is false.
   uint32_t Max;
 } WasmEdge_Limit;
-
-/// WASM Proposal enumeration.
-/// This enum is copied from "include/common/configure.h" and should be the
-/// same.
-enum WasmEdge_Proposal {
-  WasmEdge_Proposal_BulkMemoryOperations = 0,
-  WasmEdge_Proposal_ReferenceTypes,
-  WasmEdge_Proposal_SIMD,
-  WasmEdge_Proposal_TailCall,
-  WasmEdge_Proposal_Annotations,
-  WasmEdge_Proposal_Memory64,
-  WasmEdge_Proposal_Threads,
-  WasmEdge_Proposal_ExceptionHandling,
-  WasmEdge_Proposal_FunctionReferences
-};
-
-/// Host Module Registration enumeration.
-enum WasmEdge_HostRegistration {
-  WasmEdge_HostRegistration_Wasi = 0,
-  WasmEdge_HostRegistration_WasmEdge_Process
-};
-
-/// AOT compiler optimization level enumeration.
-enum WasmEdge_CompilerOptimizationLevel {
-  /// Disable as many optimizations as possible.
-  WasmEdge_CompilerOptimizationLevel_O0 = 0,
-  /// Optimize quickly without destroying debuggability.
-  WasmEdge_CompilerOptimizationLevel_O1,
-  /// Optimize for fast execution as much as possible without triggering
-  /// significant incremental compile time or code size growth.
-  WasmEdge_CompilerOptimizationLevel_O2,
-  /// Optimize for fast execution as much as possible.
-  WasmEdge_CompilerOptimizationLevel_O3,
-  /// Optimize for small code size as much as possible without triggering
-  /// significant incremental compile time or execution time slowdowns.
-  WasmEdge_CompilerOptimizationLevel_Os,
-  /// Optimize for small code size as much as possible.
-  WasmEdge_CompilerOptimizationLevel_Oz
-};
 
 /// Opaque struct of WasmEdge configure.
 typedef struct WasmEdge_ConfigureContext WasmEdge_ConfigureContext;
@@ -262,7 +200,7 @@ WasmEdge_ValueGenF64(const double Val);
 ///
 /// \returns WasmEdge_Value struct with the V128 value.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Value
-WasmEdge_ValueGenV128(const __int128 Val);
+WasmEdge_ValueGenV128(const int128_t Val);
 
 /// Generate the NULL reference WASM value.
 ///
@@ -336,7 +274,7 @@ WasmEdge_ValueGetF64(const WasmEdge_Value Val);
 /// \param Val the WasmEdge_Value struct.
 ///
 /// \returns V128 value in the input struct.
-WASMEDGE_CAPI_EXPORT extern __int128
+WASMEDGE_CAPI_EXPORT extern int128_t
 WasmEdge_ValueGetV128(const WasmEdge_Value Val);
 
 /// Specify the WASM value is a null reference or not.
@@ -538,7 +476,8 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureAddHostRegistration(
 /// Remove a host pre-registration setting in the WasmEdge_ConfigureContext.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to remove the host
-/// pre-registration. \param Host the host pre-registration value.
+/// pre-registration.
+/// \param Host the host pre-registration value.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureRemoveHostRegistration(
     WasmEdge_ConfigureContext *Cxt, const enum WasmEdge_HostRegistration Host);
 
@@ -1556,12 +1495,14 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 ///   return WasmEdge_Result_Success;
 /// }
 ///
+///
 /// enum WasmEdge_ValType Params[2] = {WasmEdge_ValType_I32,
-/// WasmEdge_ValType_I32}; enum WasmEdge_ValType Returns[1] =
-/// {WasmEdge_ValType_I32}; WasmEdge_FunctionTypeContext *FuncType =
+///                                    WasmEdge_ValType_I32};
+/// enum WasmEdge_ValType Returns[1] = {WasmEdge_ValType_I32};
+/// WasmEdge_FunctionTypeContext *FuncType =
 ///     WasmEdge_FunctionTypeCreate(Params, 2, Returns, 1);
 /// WasmEdge_HostFunctionContext *HostFunc =
-///     WasmEdge_HostFunctionCreate(FuncType, FuncAdd, 0);
+///     WasmEdge_HostFunctionCreate(FuncType, FuncAdd, NULL, 0);
 /// WasmEdge_FunctionTypeDelete(FuncType);
 /// ...
 /// ```
@@ -1577,19 +1518,21 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 ///     const WasmEdge_Value *Params,
 ///     WasmEdge_Value *Returns);
 /// ```
-/// The `Data` is the pointer to the data passed into the import object through
-/// `WasmEdge_ImportObjectCreate()`. The `Params` is the input parameters array
-/// with length guaranteed to be the same as the parameter types in the `Type`.
-/// The `Returns` is the output results array with length guaranteed to be the
-/// same as the result types in the `Type`. The return value is
-/// `WasmEdge_Result` for the execution status.
+/// The `Params` is the input parameters array with length guaranteed to be the
+/// same as the parameter types in the `Type`. The `Returns` is the output
+/// results array with length guaranteed to be the same as the result types in
+/// the `Type`. The return value is `WasmEdge_Result` for the execution status.
+/// \param Data the additional object, such as the pointer to a data structure,
+/// to set to this host function context. The caller should guarantee the life
+/// cycle of the object. NULL if the additional data object is not needed.
 /// \param Cost the function cost in statistics. Pass 0 if the calculation is
 /// not needed.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_HostFunctionContext *
 WasmEdge_HostFunctionCreate(const WasmEdge_FunctionTypeContext *Type,
-                            WasmEdge_HostFunc_t HostFunc, const uint64_t Cost);
+                            WasmEdge_HostFunc_t HostFunc, void *Data,
+                            const uint64_t Cost);
 
 typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
     void *This, void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
@@ -1624,13 +1567,14 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 ///   return WasmEdge_Result_Success;
 /// }
 ///
-/// enum WasmEdge_ValType Params[2] =
-///     { WasmEdge_ValType_I32, WasmEdge_ValType_I32 };
-/// enum WasmEdge_ValType Returns[1] = { WasmEdge_ValType_I32 };
+/// enum WasmEdge_ValType Params[2] = {WasmEdge_ValType_I32,
+///                                    WasmEdge_ValType_I32};
+/// enum WasmEdge_ValType Returns[1] = {WasmEdge_ValType_I32};
 /// WasmEdge_FunctionTypeContext *FuncType =
 ///     WasmEdge_FunctionTypeCreate(Params, 2, Returns, 1);
 /// WasmEdge_HostFunctionContext *HostFunc =
-///     WasmEdge_HostFunctionCreateBinding(FuncType, FuncAddWrap, RealFunc, 0);
+///     WasmEdge_HostFunctionCreateBinding(
+///         FuncType, FuncAddWrap, RealFunc, NULL, 0);
 /// WasmEdge_FunctionTypeDelete(FuncType);
 /// ...
 /// ```
@@ -1650,17 +1594,19 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 ///     const uint32_t ReturnLen);
 /// ```
 /// The `This` is the pointer the same as the `Binding` parameter of this
-/// function. The `Data` is the pointer to the data passed into the import
-/// object through `WasmEdge_ImportObjectCreate()`. The `Params` is the input
-/// parameters array with length guaranteed to be the same as the parameter
-/// types in the `Type`, and the `ParamLen` is the length of the array. The
-/// `Returns` is the output results array with length guaranteed to be the same
-/// as the result types in the `Type`, and the `ReturnLen` is the length of the
-/// array. The return value is `WasmEdge_Result` for the execution status.
+/// function. The `Params` is the input parameters array with length guaranteed
+/// to be the same as the parameter types in the `Type`, and the `ParamLen` is
+/// the length of the array. The `Returns` is the output results array with
+/// length guaranteed to be the same as the result types in the `Type`, and the
+/// `ReturnLen` is the length of the array. The return value is
+/// `WasmEdge_Result` for the execution status.
 /// \param Binding the `this` pointer of the host function target or the
 /// function indexing maintained by the caller which can specify the host
 /// function. When invoking the host function, this pointer will be the first
 /// argument of the wrapper function.
+/// \param Data the additional object, such as the pointer to a data structure,
+/// to set to this host function context. The caller should guarantee the life
+/// cycle of the object. NULL if the additional data object is not needed.
 /// \param Cost the function cost in statistics. Pass 0 if the calculation is
 /// not needed.
 ///
@@ -1668,7 +1614,7 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 WASMEDGE_CAPI_EXPORT extern WasmEdge_HostFunctionContext *
 WasmEdge_HostFunctionCreateBinding(const WasmEdge_FunctionTypeContext *Type,
                                    WasmEdge_WrapFunc_t WrapFunc, void *Binding,
-                                   const uint64_t Cost);
+                                   void *Data, const uint64_t Cost);
 
 /// Deletion of the WasmEdge_HostFunctionContext.
 ///
@@ -1771,7 +1717,7 @@ WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryInstanceContext *
 WasmEdge_MemoryInstanceCreate(const WasmEdge_Limit Limit);
 
-/// Get the data pointer in a memory instance.
+/// Copy the data to the output buffer from a memory instance.
 ///
 /// \param Cxt the WasmEdge_MemoryInstanceContext.
 /// \param [out] Data the result data buffer of copying destination.
@@ -1786,7 +1732,7 @@ WasmEdge_MemoryInstanceGetData(const WasmEdge_MemoryInstanceContext *Cxt,
                                uint8_t *Data, const uint32_t Offset,
                                const uint32_t Length);
 
-/// Copy and set data into a memory instance.
+/// Copy the data into a memory instance from the input buffer.
 ///
 /// \param Cxt the WasmEdge_MemoryInstanceContext.
 /// \param Data the data buffer to copy.
@@ -1798,8 +1744,33 @@ WasmEdge_MemoryInstanceGetData(const WasmEdge_MemoryInstanceContext *Cxt,
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_MemoryInstanceSetData(WasmEdge_MemoryInstanceContext *Cxt,
-                               uint8_t *Data, const uint32_t Offset,
+                               const uint8_t *Data, const uint32_t Offset,
                                const uint32_t Length);
+
+/// Get the data pointer in a memory instance.
+///
+/// \param Cxt the WasmEdge_MemoryInstanceContext.
+/// \param Offset the data start offset in the memory instance.
+/// \param Length the requested data length. If the `Offset + Length` is larger
+/// than the data size in the memory instance, this function will return NULL.
+///
+/// \returns the pointer to data with the start offset. NULL if failed.
+WASMEDGE_CAPI_EXPORT extern uint8_t *
+WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
+                                  const uint32_t Offset, const uint32_t Length);
+
+/// Get the const data pointer in a const memory instance.
+///
+/// \param Cxt the WasmEdge_MemoryInstanceContext.
+/// \param Offset the data start offset in the memory instance.
+/// \param Length the requested data length. If the `Offset + Length` is larger
+/// than the data size in the memory instance, this function will return NULL.
+///
+/// \returns the pointer to data with the start offset. NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const uint8_t *
+WasmEdge_MemoryInstanceGetPointerConst(
+    const WasmEdge_MemoryInstanceContext *Cxt, const uint32_t Offset,
+    const uint32_t Length);
 
 /// Get the current page size (64 KiB of each page) of a memory instance.
 ///
@@ -1901,14 +1872,10 @@ WasmEdge_GlobalInstanceDelete(WasmEdge_GlobalInstanceContext *Cxt);
 ///
 /// \param ModuleName the module name WasmEdge_String of this host module to
 /// import.
-/// \param Data the additional object, such as the pointer to a data structure,
-/// to pass to the all host functions added into this import object. The caller
-/// should guarantee the life cycle of the object. NULL if the additional data
-/// object is not needed.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ImportObjectContext *
-WasmEdge_ImportObjectCreate(const WasmEdge_String ModuleName, void *Data);
+WasmEdge_ImportObjectCreate(const WasmEdge_String ModuleName);
 
 /// Creation of the WasmEdge_ImportObjectContext for the WASI specification.
 ///

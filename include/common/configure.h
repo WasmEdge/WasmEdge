@@ -12,35 +12,14 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "enum_configure.h"
+
 #include <bitset>
 #include <cstdint>
 #include <initializer_list>
 #include <string_view>
-#include <unordered_map>
 
 namespace WasmEdge {
-
-/// Wasm Proposal enum class.
-/// This enum is also duplicated to "include/api/wasmedge.h" and should be the
-/// same.
-enum class Proposal : uint8_t {
-  BulkMemoryOperations = 0,
-  ReferenceTypes,
-  SIMD,
-  TailCall,
-  Annotations,
-  Memory64,
-  Threads,
-  ExceptionHandling,
-  FunctionReferences,
-  Max
-};
-
-/// Wasm Proposal name enumeration string mapping.
-extern const std::unordered_map<Proposal, std::string_view> ProposalStr;
-
-/// Host Module Registration enum class.
-enum class HostRegistration : uint8_t { Wasi = 0, WasmEdge_Process, Max };
 
 class CompilerConfigure {
 public:
@@ -87,8 +66,19 @@ public:
 
   bool isCostMeasuring() const noexcept { return CostMeasuring; }
 
+  /// AOT compiler output binary format.
+  enum class OutputFormat : uint8_t {
+    /// Native dynamic library format.
+    Native,
+    /// Webassembly format with custom section.
+    Wasm,
+  };
+  void setOutputFormat(OutputFormat Format) noexcept { OFormat = Format; }
+  OutputFormat getOutputFormat() const noexcept { return OFormat; }
+
 private:
   OptimizationLevel OptLevel = OptimizationLevel::O3;
+  OutputFormat OFormat = OutputFormat::Native;
   bool DumpIR = false;
   bool InstrCounting = false;
   bool CostMeasuring = false;
@@ -114,6 +104,10 @@ private:
 class Configure {
 public:
   Configure() noexcept {
+    addProposal(Proposal::ImportExportMutGlobals);
+    addProposal(Proposal::NonTrapFloatToIntConversions);
+    addProposal(Proposal::SignExtensionOperators);
+    addProposal(Proposal::MultiValue);
     addProposal(Proposal::BulkMemoryOperations);
     addProposal(Proposal::ReferenceTypes);
   }

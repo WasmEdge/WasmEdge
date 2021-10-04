@@ -21,11 +21,13 @@
 #define RAPIDJSON_NEON 1
 #endif
 
-#include "spectest.h"
-#include "common/log.h"
 #include "rapidjson/document.h"
 #include "rapidjson/istreamwrapper.h"
 #include "gtest/gtest.h"
+
+#include "common/log.h"
+#include "spectest.h"
+
 #include <cmath>
 #include <fstream>
 

@@ -14,7 +14,8 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     Magic = *Res;
     std::vector<Byte> WasmMagic = {0x00, 0x61, 0x73, 0x6D};
     if (Magic != WasmMagic) {
-      return logLoadError(ErrCode::InvalidMagic, Mgr.getLastOffset(), NodeAttr);
+      return logLoadError(ErrCode::MalformedMagic, Mgr.getLastOffset(),
+                          NodeAttr);
     }
   } else {
     return logLoadError(Res.error(), Mgr.getLastOffset(), NodeAttr);
@@ -23,7 +24,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
     Version = *Res;
     std::vector<Byte> WasmVersion = {0x01, 0x00, 0x00, 0x00};
     if (Version != WasmVersion) {
-      return logLoadError(ErrCode::InvalidVersion, Mgr.getLastOffset(),
+      return logLoadError(ErrCode::MalformedVersion, Mgr.getLastOffset(),
                           NodeAttr);
     }
   } else {
@@ -57,7 +58,9 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
 
     switch (NewSectionId) {
     case 0x00:
-      if (auto Res = CustomSec.loadBinary(Mgr, CopyConf); !Res) {
+      CustomSecs.emplace_back();
+      if (auto Res = CustomSecs.back().loadBinary(Mgr, CopyConf); !Res) {
+        CustomSecs.pop_back();
         spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(Res);
       }
@@ -143,7 +146,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       /// This section is for BulkMemoryOperations or ReferenceTypes proposal.
       if (!CopyConf.hasProposal(Proposal::BulkMemoryOperations) &&
           !CopyConf.hasProposal(Proposal::ReferenceTypes)) {
-        return logNeedProposal(ErrCode::InvalidSection,
+        return logNeedProposal(ErrCode::MalformedSection,
                                Proposal::BulkMemoryOperations,
                                Mgr.getLastOffset(), NodeAttr);
       }
@@ -155,7 +158,7 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       Secs.set(NewSectionId);
       break;
     default:
-      return logLoadError(ErrCode::InvalidSection, Mgr.getLastOffset(),
+      return logLoadError(ErrCode::MalformedSection, Mgr.getLastOffset(),
                           NodeAttr);
     }
   }
@@ -175,21 +178,79 @@ Expect<void> Module::loadBinary(FileMgr &Mgr, const Configure &Conf) {
       return Unexpect(ErrCode::IncompatibleDataCount);
     }
   }
+
+  /// Load Custom Sections
+  for (const auto &CustomSec : CustomSecs) {
+    const auto &Name = CustomSec.getName();
+    if (Name == "wasmedge") {
+      {
+        FileMgr VecMgr;
+        VecMgr.setCode(CustomSec.getContent());
+        if (auto Res = AOTSec.loadBinary(VecMgr, Conf); unlikely(!Res)) {
+          spdlog::error("load failed:{}", Res.error());
+          continue;
+        }
+      }
+
+      auto Library = std::make_shared<Loader::SharedLibrary>();
+      if (auto Res = Library->load(AOTSec); unlikely(!Res)) {
+        spdlog::error("library load failed:{}", Res.error());
+        continue;
+      }
+
+      auto &FuncTypes = TypeSec.getContent();
+      if (auto Symbols = Library->getTypes<FunctionType::Wrapper>();
+          unlikely(Symbols.size() != FuncTypes.size())) {
+        spdlog::error("number of types not matching:{} {}", Symbols.size(),
+                      FuncTypes.size());
+        continue;
+      } else {
+        for (size_t I = 0; I < FuncTypes.size(); ++I) {
+          FuncTypes[I].setSymbol(std::move(Symbols[I]));
+        }
+      }
+      auto &CodeSegs = CodeSec.getContent();
+      if (auto Symbols = Library->getCodes<void>();
+          unlikely(Symbols.size() != CodeSegs.size())) {
+        spdlog::error("number of codes not matching:{} {}", Symbols.size(),
+                      CodeSegs.size());
+        continue;
+      } else {
+        for (size_t I = 0; I < CodeSegs.size(); ++I) {
+          CodeSegs[I].setSymbol(std::move(Symbols[I]));
+        }
+      }
+      if (auto Symbol =
+              Library->getIntrinsics<const AST::Module::IntrinsicsTable *>()) {
+        setSymbol(std::move(Symbol));
+      }
+      break;
+    }
+  }
+
   return {};
 }
 
 /// Load compiled function from loadable manager. See "include/ast/module.h".
 Expect<void> Module::loadCompiled(LDMgr &Mgr) {
-  if (auto Symbol = Mgr.getSymbol<FunctionType::Wrapper *[]>("types")) {
-    auto &FuncTypes = TypeSec.getContent();
-    for (size_t I = 0; I < FuncTypes.size(); ++I) {
-      FuncTypes[I].setSymbol(Symbol.index(I).deref());
+  auto &FuncTypes = TypeSec.getContent();
+  for (size_t I = 0; I < FuncTypes.size(); ++I) {
+    const std::string Name = "t" + std::to_string(I);
+    if (auto Symbol = Mgr.getSymbol<FunctionType::Wrapper>(Name.c_str())) {
+      FuncTypes[I].setSymbol(Symbol);
     }
   }
-  if (auto Symbol = Mgr.getSymbol<void *[]>("codes")) {
-    auto &CodeSegs = CodeSec.getContent();
-    for (size_t I = 0; I < CodeSegs.size(); ++I) {
-      CodeSegs[I].setSymbol(Symbol.index(I).deref());
+  size_t Offset = 0;
+  for (const auto &ImpDesc : ImportSec.getContent()) {
+    if (ImpDesc.getExternalType() == ExternalType::Function) {
+      ++Offset;
+    }
+  }
+  auto &CodeSegs = CodeSec.getContent();
+  for (size_t I = 0; I < CodeSegs.size(); ++I) {
+    const std::string Name = "f" + std::to_string(I + Offset);
+    if (auto Symbol = Mgr.getSymbol<void>(Name.c_str())) {
+      CodeSegs[I].setSymbol(Symbol);
     }
   }
   return {};

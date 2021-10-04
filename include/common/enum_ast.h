@@ -1,20 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- wasmedge/common/astdef.h - AST enumeration definition -------------===//
+//===-- wasmedge/common/enum_ast.h - AST enumeration definition -----------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the enumerations of Wasm VM used AST and instruction
-/// nodes enumerations.
+/// This file contains the definitions of Wasm VM used AST and instruction nodes
+/// enumerations.
 ///
 //===----------------------------------------------------------------------===//
-#pragma once
 
+/// This header is not exported to the C API.
+
+#ifndef WASMEDGE_C_API_ENUM_AST_H
+#define WASMEDGE_C_API_ENUM_AST_H
+
+#ifdef __cplusplus
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#endif
 
 namespace WasmEdge {
 
@@ -46,7 +52,8 @@ enum class ASTNodeAttr : uint8_t {
   Type_Table,
   Type_Global,
   Expression,
-  Instruction
+  Instruction,
+  Sec_AOT,
 };
 
 /// AST node attributes enumeration string mapping.
@@ -1047,3 +1054,5 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::F64x2__promote_low_f32x4, "f64x2.promote_low_f32x4"}};
 
 } // namespace WasmEdge
+
+#endif /// WASMEDGE_C_API_ENUM_AST_H

@@ -100,11 +100,19 @@ public:
   /// The node type should be ASTNodeAttr::Sec_Custom.
   static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_Custom;
 
+  /// Getter of name.
+  const std::string &getName() const { return Name; }
+
+  /// Getter of content vector.
+  const std::vector<Byte> &getContent() const { return Content; }
+
 protected:
   /// Overrided content loading of custom section.
   Expect<void> loadContent(FileMgr &Mgr, const Configure &Conf) override;
 
 private:
+  /// Name of this custom secion.
+  std::string Name;
   /// Vector of raw bytes of content.
   std::vector<Byte> Content;
 };
@@ -331,6 +339,38 @@ protected:
 private:
   /// u32 of count of data segments.
   std::optional<uint32_t> Content = std::nullopt;
+};
+
+class AOTSection : public Base {
+public:
+  /// Binary loading from file manager.
+  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
+
+  /// AST node attribute.
+  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Sec_AOT;
+
+  constexpr auto getVersionAddress() const noexcept { return VersionAddress; }
+  constexpr auto getIntrinsicsAddress() const noexcept {
+    return IntrinsicsAddress;
+  }
+  constexpr const auto &getTypesAddress() const noexcept {
+    return TypesAddress;
+  }
+  constexpr const auto &getCodesAddress() const noexcept {
+    return CodesAddress;
+  }
+  constexpr const auto &getSections() const noexcept { return Sections; }
+
+private:
+  uint32_t Version;
+  uint8_t OSType;
+  uint8_t ArchType;
+  uint64_t VersionAddress;
+  uint64_t IntrinsicsAddress;
+  std::vector<uintptr_t> TypesAddress;
+  std::vector<uintptr_t> CodesAddress;
+  std::vector<std::tuple<uint8_t, uint64_t, uint64_t, std::vector<Byte>>>
+      Sections;
 };
 
 } // namespace AST

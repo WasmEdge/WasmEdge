@@ -22,6 +22,8 @@ using uint128_t = unsigned __int128;
 
 #include <boost/predef/other/endian.h>
 #include <cstdint>
+#include <limits>
+#include <stdexcept>
 
 #if !BOOST_ENDIAN_LITTLE_BYTE
 #error unsupported endian!
@@ -50,6 +52,7 @@ public:
   constexpr uint128_t(unsigned long V) noexcept : Low(V), High(0) {}
   constexpr uint128_t(unsigned long long V) noexcept : Low(V), High(0) {}
   constexpr uint128_t(int128_t V) noexcept;
+  constexpr uint128_t(uint64_t H, uint64_t L) noexcept : Low(L), High(H) {}
 
   constexpr operator bool() const noexcept {
     return static_cast<bool>(Low) || static_cast<bool>(High);
@@ -265,7 +268,6 @@ public:
   }
 
 private:
-  constexpr uint128_t(uint64_t H, uint64_t L) noexcept : Low(L), High(H) {}
   uint64_t Low = 0;
   uint64_t High = 0;
 };
@@ -289,6 +291,7 @@ public:
   constexpr int128_t(unsigned long long V) noexcept
       : Low(V), High(INT64_C(0)) {}
   constexpr int128_t(uint128_t V) noexcept;
+  constexpr int128_t(int64_t H, uint64_t L) noexcept : Low(L), High(H) {}
 
   constexpr int128_t &operator=(int V) noexcept { return *this = int128_t(V); }
   constexpr int128_t &operator=(long V) noexcept { return *this = int128_t(V); }
@@ -319,7 +322,6 @@ public:
   constexpr int64_t high() const noexcept { return High; }
 
 private:
-  constexpr int128_t(int64_t H, uint64_t L) noexcept : Low(L), High(H) {}
   uint64_t Low = 0;
   int64_t High = 0;
 };

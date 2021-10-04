@@ -6,7 +6,7 @@ We are looking for developer help in the following areas. If you are working on 
 
 👉 Non-English language translations of documentation and tutorials.
 
-👉 Create a serverless framework template to support WasmEdge with its Tensorflow extensions in *AWS Lambda*. You can refer to our [template for Tencent Cloud’s SCF](https://github.com/second-state/tencent-tensorflow-scf).
+👉 Create a serverless framework template to support WasmEdge with its Tensorflow extensions in *AWS Lambda*. You can refer to our [template for AWS Lambda](https://github.com/second-state/aws-lambda-wasm-runtime).
 
 👉 Create a serverless framework template to support WasmEdge with its Tensorflow extensions in *Azure functions*. You can refer to [our template for Tencent Cloud’s SCF](https://github.com/second-state/tencent-tensorflow-scf).
 

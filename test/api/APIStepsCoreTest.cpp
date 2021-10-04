@@ -12,7 +12,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "api/wasmedge.h"
+#include "wasmedge/wasmedge.h"
 
 #include "../spec/spectest.h"
 #include "helper.h"
@@ -185,8 +185,8 @@ TEST_P(CoreTest, TestSuites) {
     if (GlobCxt == nullptr) {
       return Unexpect(ErrCode::WrongInstanceAddress);
     }
-    return std::vector<ValVariant>{
-        WasmEdge_GlobalInstanceGetValue(GlobCxt).Value};
+    return convToValVec(
+        std::vector<WasmEdge_Value>{WasmEdge_GlobalInstanceGetValue(GlobCxt)});
   };
 
   T.run(Proposal, UnitName);

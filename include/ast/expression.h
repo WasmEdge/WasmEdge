@@ -12,42 +12,23 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/base.h"
 #include "ast/instruction.h"
-
-#include <memory>
-#include <vector>
 
 namespace WasmEdge {
 namespace AST {
 
 /// AST Expression node.
-class Expression : public Base {
+class Expression {
 public:
-  /// Load binary from file manager.
-  ///
-  /// Inheritted and overrided from Base.
-  /// Read and make Instruction nodes until the OpCode of End.
-  ///
-  /// \param Mgr the file manager reference.
-  /// \param Conf the WasmEdge configuration reference.
-  ///
-  /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
-
   /// Getter of instructions vector.
-  InstrView getInstrs() const { return Instrs; }
-
-  /// Append instruction.
-  void pushInstr(Instruction &&Instr) { Instrs.push_back(std::move(Instr)); }
-  void pushInstr(const Instruction &Instr) { Instrs.emplace_back(Instr); }
-
-  /// The node type should be ASTNodeAttr::Expression.
-  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Expression;
+  InstrView getInstrs() const noexcept { return Instrs; }
+  InstrVec &getInstrs() noexcept { return Instrs; }
 
 private:
-  /// Instruction sequence.
+  /// \name Data of Expression.
+  /// @{
   InstrVec Instrs;
+  /// @}
 };
 
 } // namespace AST

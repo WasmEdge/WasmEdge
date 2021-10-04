@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- wasmedge/ast/segment.h - segment classes definition ---------------===//
+//===-- wasmedge/ast/segment.h - segment class definitions ----------------===//
 //
 // Part of the WasmEdge Project.
 //
@@ -12,9 +12,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/base.h"
 #include "ast/expression.h"
-#include "ast/instruction.h"
 #include "ast/type.h"
 
 #include <vector>
@@ -23,25 +21,13 @@ namespace WasmEdge {
 namespace AST {
 
 /// Segment's base class.
-class Segment : public Base {
+class Segment {
 public:
-  /// Binary loading from file manager. Inheritted from Base.
-  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override = 0;
-
-  /// Getter of locals vector.
-  InstrView getInstrs() const { return Expr.getInstrs(); }
+  /// Getter of expression.
+  const Expression &getExpr() const noexcept { return Expr; }
+  Expression &getExpr() noexcept { return Expr; }
 
 protected:
-  /// Load binary from file manager.
-  ///
-  /// Create the expression node and read data.
-  ///
-  /// \param Mgr the file manager reference.
-  /// \param Conf the WasmEdge configuration reference.
-  ///
-  /// \returns void when success, ErrCode when failed.
-  Expect<void> loadExpression(FileMgr &Mgr, const Configure &Conf);
-
   /// Expression node in this segment.
   Expression Expr;
 };
@@ -49,22 +35,9 @@ protected:
 /// AST GlobalSegment node.
 class GlobalSegment : public Segment {
 public:
-  /// Load binary from file manager.
-  ///
-  /// Inheritted and overrided from Base.
-  /// Read the global type and expression.
-  ///
-  /// \param Mgr the file manager reference.
-  /// \param Conf the WasmEdge configuration reference.
-  ///
-  /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
-
-  /// Getter of locals vector.
-  const GlobalType &getGlobalType() const { return Global; }
-
-  /// The node type should be ASTNodeAttr::Seg_Global.
-  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Global;
+  /// Getter of global type.
+  const GlobalType &getGlobalType() const noexcept { return Global; }
+  GlobalType &getGlobalType() noexcept { return Global; }
 
 private:
   /// \name Data of GlobalSegment node.
@@ -76,34 +49,24 @@ private:
 /// AST ElementSegment node.
 class ElementSegment : public Segment {
 public:
-  /// Load binary from file manager.
-  ///
-  /// Inheritted and overrided from Base.
-  /// Read the table index, expression, and function indices.
-  ///
-  /// \param Mgr the file manager reference.
-  /// \param Conf the WasmEdge configuration reference.
-  ///
-  /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
-
   /// Element mode enumeration.
   enum class ElemMode : uint8_t { Passive, Active, Declarative };
 
-  /// Getter of element mode.
-  ElemMode getMode() const { return Mode; }
+  /// Getter and setter of element mode.
+  ElemMode getMode() const noexcept { return Mode; }
+  void setMode(ElemMode EMode) noexcept { Mode = EMode; }
 
   /// Getter of reference type.
-  RefType getRefType() const { return Type; }
+  RefType getRefType() const noexcept { return Type; }
+  void setRefType(RefType RType) noexcept { Type = RType; }
 
   /// Getter of table index.
-  uint32_t getIdx() const { return TableIdx; }
+  uint32_t getIdx() const noexcept { return TableIdx; }
+  void setIdx(uint32_t Idx) noexcept { TableIdx = Idx; }
 
   /// Getter of initialization expressions.
-  Span<const Expression> getInitExprs() const { return InitExprs; }
-
-  /// The node type should be ASTNodeAttr::Seg_Element.
-  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Element;
+  Span<const Expression> getInitExprs() const noexcept { return InitExprs; }
+  std::vector<Expression> &getInitExprs() noexcept { return InitExprs; }
 
 private:
   /// \name Data of ElementSegment node.
@@ -118,66 +81,48 @@ private:
 /// AST CodeSegment node.
 class CodeSegment : public Segment {
 public:
-  /// Load binary from file manager.
-  ///
-  /// Inheritted and overrided from Base.
-  /// Read the segment size, locals, and function body.
-  ///
-  /// \param Mgr the file manager reference.
-  /// \param Conf the WasmEdge configuration reference.
-  ///
-  /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
+  /// Getter and setter of segment size.
+  uint32_t getSegSize() const noexcept { return SegSize; }
+  void setSegSize(uint32_t Size) noexcept { SegSize = Size; }
 
   /// Getter of locals vector.
-  Span<const std::pair<uint32_t, ValType>> getLocals() const { return Locals; }
+  Span<const std::pair<uint32_t, ValType>> getLocals() const noexcept {
+    return Locals;
+  }
+  std::vector<std::pair<uint32_t, ValType>> &getLocals() noexcept {
+    return Locals;
+  }
 
-  /// Getter of compiled symbol.
+  /// Getter and setter of compiled symbol.
   const auto &getSymbol() const noexcept { return FuncSymbol; }
-  /// Setter of compiled symbol.
   void setSymbol(Symbol<void> S) noexcept { FuncSymbol = std::move(S); }
-
-  /// The node type should be ASTNodeAttr::Seg_Code.
-  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Code;
 
 private:
   /// \name Data of CodeSegment node.
   /// @{
   uint32_t SegSize = 0;
   std::vector<std::pair<uint32_t, ValType>> Locals;
-  /// @}
-
   Symbol<void> FuncSymbol;
+  /// @}
 };
 
 /// AST DataSegment node.
 class DataSegment : public Segment {
 public:
-  /// Load binary from file manager.
-  ///
-  /// Inheritted and overrided from Base.
-  /// Read the memory index, offset expression, and initialization data.
-  ///
-  /// \param Mgr the file manager reference.
-  /// \param Conf the WasmEdge configuration reference.
-  ///
-  /// \returns void when success, ErrCode when failed.
-  Expect<void> loadBinary(FileMgr &Mgr, const Configure &Conf) override;
-
   /// Data mode enumeration.
   enum class DataMode : uint8_t { Passive, Active };
 
-  /// Getter of data mode.
-  DataMode getMode() const { return Mode; }
+  /// Getter and setter of data mode.
+  DataMode getMode() const noexcept { return Mode; }
+  void setMode(DataMode DMode) noexcept { Mode = DMode; }
 
-  /// Getter of memory index.
-  uint32_t getIdx() const { return MemoryIdx; }
+  /// Getter and setter of memory index.
+  uint32_t getIdx() const noexcept { return MemoryIdx; }
+  void setIdx(uint32_t Idx) noexcept { MemoryIdx = Idx; }
 
   /// Getter of data.
-  Span<const Byte> getData() const { return Data; }
-
-  /// The node type should be ASTNodeAttr::Seg_Data.
-  static inline constexpr const ASTNodeAttr NodeAttr = ASTNodeAttr::Seg_Data;
+  Span<const Byte> getData() const noexcept { return Data; }
+  std::vector<Byte> &getData() noexcept { return Data; }
 
 private:
   /// \name Data of DataSegment node.

@@ -505,6 +505,18 @@ main() {
         _shell_="${SHELL#${SHELL%/*}/}"
         _shell_rc=".""$_shell_""rc"
 
+        if [[ "$_shell_" =~ "zsh" ]]; then
+            local _grep=$(cat "$__HOME__/.zprofile" 2>/dev/null | grep "$IPATH/env")
+            if [ "$_grep" = "" ]; then
+                echo "$_source" >>"$__HOME__/.zprofile"
+            fi
+        elif [[ "$_shell_" =~ "bash" ]]; then
+            local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
+            if [ "$_grep" = "" ]; then
+                echo "$_source" >>"$__HOME__/.bash_profile"
+            fi
+        fi
+
         if [ -f "$__HOME__/$_shell_rc" ]; then
             local _grep=$(cat "$__HOME__/$_shell_rc" | grep "$IPATH/env")
             if [ "$_grep" = "" ]; then

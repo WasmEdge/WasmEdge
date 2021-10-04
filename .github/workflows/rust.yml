@@ -41,15 +41,6 @@ jobs:
         toolchain: nightly
         components: rustfmt, clippy
 
-<<<<<<< HEAD
-    - name: Install Nightly Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        components: rustfmt, clippy
-
-=======
->>>>>>> 645e0fd ([Rust] rustfmt)
     - name: Rustfmt
       run: |
         cd bindings/rust/

@@ -14,6 +14,7 @@ nav:
     - Home: index.md
     - Commands: commands/commands.md
     - Development: development/development.md
+    - History: HISTORY.md
 
 markdown_extensions:
   - admonition

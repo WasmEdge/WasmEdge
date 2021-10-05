@@ -27,13 +27,11 @@ auto logUnknownError(std::string_view ModName, std::string_view ExtName,
   return Unexpect(ErrCode::UnknownImport);
 }
 
-bool isLimitMatched(const bool HasMax1, const uint32_t Min1,
-                    const uint32_t Max1, const bool HasMax2,
-                    const uint32_t Min2, const uint32_t Max2) {
-  if ((Min1 < Min2) || (!HasMax1 && HasMax2)) {
+bool isLimitMatched(const AST::Limit &Lim1, const AST::Limit &Lim2) {
+  if ((Lim1.getMin() < Lim2.getMin()) || (!Lim1.hasMax() && Lim2.hasMax())) {
     return false;
   }
-  if (HasMax1 && HasMax2 && Max1 > Max2) {
+  if (Lim1.hasMax() && Lim2.hasMax() && Lim1.getMax() > Lim2.getMax()) {
     return false;
   }
   return true;
@@ -145,21 +143,18 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     case ExternalType::Table: {
       /// Get table type. External type checked in validation.
       const auto &TabType = ImpDesc.getExternalTableType();
+      const auto &TabLim = TabType.getLimit();
       /// Import matching.
       const auto *TargetInst = *StoreMgr.getTable(TargetAddr);
-      const auto &TabLim = TabType.getLimit();
-      if (TargetInst->getTableType().getRefType() != TabType.getRefType() ||
-          !isLimitMatched(TargetInst->getTableType().getLimit().hasMax(),
-                          TargetInst->getTableType().getLimit().getMin(),
-                          TargetInst->getTableType().getLimit().getMax(),
-                          TabLim.hasMax(), TabLim.getMin(), TabLim.getMax())) {
+      const auto &TargetType = TargetInst->getTableType();
+      const auto &TargetLim = TargetType.getLimit();
+      if (TargetType.getRefType() != TabType.getRefType() ||
+          !isLimitMatched(TargetLim, TabLim)) {
         return logMatchError(ModName, ExtName, ExtType,
                              ASTNodeAttr::Desc_Import, TabType.getRefType(),
                              TabLim.hasMax(), TabLim.getMin(), TabLim.getMax(),
-                             TargetInst->getTableType().getRefType(),
-                             TargetInst->getTableType().getLimit().hasMax(),
-                             TargetInst->getTableType().getLimit().getMin(),
-                             TargetInst->getTableType().getLimit().getMax());
+                             TargetType.getRefType(), TargetLim.hasMax(),
+                             TargetLim.getMin(), TargetLim.getMax());
       }
       /// Set the matched table address to module instance.
       ModInst.importTable(TargetAddr);
@@ -168,19 +163,15 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     case ExternalType::Memory: {
       /// Get memory type. External type checked in validation.
       const auto &MemType = ImpDesc.getExternalMemoryType();
-      /// Import matching.
-      auto *TargetInst = *StoreMgr.getMemory(TargetAddr);
       const auto &MemLim = MemType.getLimit();
-      if (!isLimitMatched(TargetInst->getMemoryType().getLimit().hasMax(),
-                          TargetInst->getMemoryType().getLimit().getMin(),
-                          TargetInst->getMemoryType().getLimit().getMax(),
-                          MemLim.hasMax(), MemLim.getMin(), MemLim.getMax())) {
-        return logMatchError(ModName, ExtName, ExtType,
-                             ASTNodeAttr::Desc_Import, MemLim.hasMax(),
-                             MemLim.getMin(), MemLim.getMax(),
-                             TargetInst->getMemoryType().getLimit().hasMax(),
-                             TargetInst->getMemoryType().getLimit().getMin(),
-                             TargetInst->getMemoryType().getLimit().getMax());
+      /// Import matching.
+      const auto *TargetInst = *StoreMgr.getMemory(TargetAddr);
+      const auto &TargetLim = TargetInst->getMemoryType().getLimit();
+      if (!isLimitMatched(TargetLim, MemLim)) {
+        return logMatchError(
+            ModName, ExtName, ExtType, ASTNodeAttr::Desc_Import,
+            MemLim.hasMax(), MemLim.getMin(), MemLim.getMax(),
+            TargetLim.hasMax(), TargetLim.getMin(), TargetLim.getMax());
       }
       /// Set the matched memory address to module instance.
       ModInst.importMemory(TargetAddr);
@@ -191,13 +182,12 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       const auto &GlobType = ImpDesc.getExternalGlobalType();
       /// Import matching.
       const auto *TargetInst = *StoreMgr.getGlobal(TargetAddr);
-      if (TargetInst->getGlobalType().getValType() != GlobType.getValType() ||
-          TargetInst->getGlobalType().getValMut() != GlobType.getValMut()) {
+      const auto &TargetType = TargetInst->getGlobalType();
+      if (TargetType != GlobType) {
         return logMatchError(ModName, ExtName, ExtType,
                              ASTNodeAttr::Desc_Import, GlobType.getValType(),
-                             GlobType.getValMut(),
-                             TargetInst->getGlobalType().getValType(),
-                             TargetInst->getGlobalType().getValMut());
+                             GlobType.getValMut(), TargetType.getValType(),
+                             TargetType.getValMut());
       }
       /// Set the matched global address to module instance.
       ModInst.importGlobal(TargetAddr);

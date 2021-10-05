@@ -24,18 +24,18 @@ Expect<void> Interpreter::instantiate(
         NewFuncInstAddr =
             StoreMgr.pushFunction(ModInst.Addr, *FuncType, std::move(Symbol));
       } else {
-        NewFuncInstAddr = StoreMgr.pushFunction(ModInst.Addr, *FuncType,
-                                                CodeSegs[I].getLocals(),
-                                                CodeSegs[I].getInstrs());
+        NewFuncInstAddr = StoreMgr.pushFunction(
+            ModInst.Addr, *FuncType, CodeSegs[I].getLocals(),
+            CodeSegs[I].getExpr().getInstrs());
       }
     } else {
       if (auto Symbol = CodeSegs[I].getSymbol()) {
         NewFuncInstAddr =
             StoreMgr.importFunction(ModInst.Addr, *FuncType, std::move(Symbol));
       } else {
-        NewFuncInstAddr = StoreMgr.importFunction(ModInst.Addr, *FuncType,
-                                                  CodeSegs[I].getLocals(),
-                                                  CodeSegs[I].getInstrs());
+        NewFuncInstAddr = StoreMgr.importFunction(
+            ModInst.Addr, *FuncType, CodeSegs[I].getLocals(),
+            CodeSegs[I].getExpr().getInstrs());
       }
     }
     ModInst.addFuncAddr(NewFuncInstAddr);

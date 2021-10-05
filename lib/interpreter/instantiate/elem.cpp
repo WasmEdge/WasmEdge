@@ -2,6 +2,9 @@
 
 #include "interpreter/interpreter.h"
 
+#include "common/errinfo.h"
+#include "common/log.h"
+
 namespace WasmEdge {
 namespace Interpreter {
 
@@ -18,7 +21,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       /// Run init expr of every elements and get the result reference.
       if (auto Res = runExpression(StoreMgr, Expr.getInstrs()); !Res) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
-        spdlog::error(ErrInfo::InfoAST(ElemSeg.NodeAttr));
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
         return Unexpect(Res);
       }
       /// Pop result from stack.
@@ -28,9 +31,10 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     uint32_t Offset = 0;
     if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
       /// Run initialize expression.
-      if (auto Res = runExpression(StoreMgr, ElemSeg.getInstrs()); !Res) {
+      if (auto Res = runExpression(StoreMgr, ElemSeg.getExpr().getInstrs());
+          !Res) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
-        spdlog::error(ErrInfo::InfoAST(ElemSeg.NodeAttr));
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
         return Unexpect(Res);
       }
       Offset = StackMgr.pop().get<uint32_t>();
@@ -45,7 +49,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         if (!TabInst->checkAccessBound(
                 Offset, static_cast<uint32_t>(InitVals.size()))) {
           spdlog::error(ErrCode::ElemSegDoesNotFit);
-          spdlog::error(ErrInfo::InfoAST(ElemSeg.NodeAttr));
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
           return Unexpect(ErrCode::ElemSegDoesNotFit);
         }
       }
@@ -84,7 +88,7 @@ Expect<void> Interpreter::initTable(Runtime::StoreManager &StoreMgr,
               ElemInst->getRefs(), Off, 0,
               static_cast<uint32_t>(ElemInst->getRefs().size()));
           !Res) {
-        spdlog::error(ErrInfo::InfoAST(ElemSeg.NodeAttr));
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
         return Unexpect(Res);
       }
 

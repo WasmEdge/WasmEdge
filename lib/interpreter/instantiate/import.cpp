@@ -2,6 +2,9 @@
 
 #include "interpreter/interpreter.h"
 
+#include "common/errinfo.h"
+#include "common/log.h"
+
 namespace WasmEdge {
 namespace Interpreter {
 
@@ -108,14 +111,15 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     if (auto Res = StoreMgr.findModule(ModName)) {
       TargetModInst = *Res;
     } else {
-      return logUnknownError(ModName, ExtName, ExtType, ImpDesc.NodeAttr);
+      return logUnknownError(ModName, ExtName, ExtType,
+                             ASTNodeAttr::Desc_Import);
     }
-    if (auto Res = getImportAddr(ModName, ExtName, ExtType, ImpDesc.NodeAttr,
-                                 *TargetModInst)) {
+    if (auto Res = getImportAddr(ModName, ExtName, ExtType,
+                                 ASTNodeAttr::Desc_Import, *TargetModInst)) {
       TargetAddr = *Res;
     } else {
       spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
-      spdlog::error(ErrInfo::InfoAST(ImpDesc.NodeAttr));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Desc_Import));
       return Unexpect(Res);
     }
 
@@ -128,11 +132,11 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       const auto *TargetInst = *StoreMgr.getFunction(TargetAddr);
       const auto &TargetType = TargetInst->getFuncType();
       const auto *FuncType = *ModInst.getFuncType(TypeIdx);
-      if (TargetType.Params != FuncType->Params ||
-          TargetType.Returns != FuncType->Returns) {
-        return logMatchError(ModName, ExtName, ExtType, ImpDesc.NodeAttr,
-                             FuncType->Params, FuncType->Returns,
-                             TargetType.Params, TargetType.Returns);
+      if (TargetType != *FuncType) {
+        return logMatchError(
+            ModName, ExtName, ExtType, ASTNodeAttr::Desc_Import,
+            FuncType->getParamTypes(), FuncType->getReturnTypes(),
+            TargetType.getParamTypes(), TargetType.getReturnTypes());
       }
       /// Set the matched function address to module instance.
       ModInst.importFunction(TargetAddr);
@@ -143,16 +147,17 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       const auto &TabType = ImpDesc.getExternalTableType();
       /// Import matching.
       const auto *TargetInst = *StoreMgr.getTable(TargetAddr);
-      const auto &TabLim = TabType.getInner().Lim;
-      if (TargetInst->getReferenceType() != TabType.getInner().Type ||
+      const auto &TabLim = TabType.getLimit();
+      if (TargetInst->getReferenceType() != TabType.getRefType() ||
           !isLimitMatched(TargetInst->getHasMax(), TargetInst->getMin(),
-                          TargetInst->getMax(), TabLim.hasMax(), TabLim.Min,
-                          TabLim.Max)) {
-        return logMatchError(
-            ModName, ExtName, ExtType, ImpDesc.NodeAttr,
-            TabType.getInner().Type, TabLim.hasMax(), TabLim.Min, TabLim.Max,
-            TargetInst->getReferenceType(), TargetInst->getHasMax(),
-            TargetInst->getMin(), TargetInst->getMax());
+                          TargetInst->getMax(), TabLim.hasMax(),
+                          TabLim.getMin(), TabLim.getMax())) {
+        return logMatchError(ModName, ExtName, ExtType,
+                             ASTNodeAttr::Desc_Import, TabType.getRefType(),
+                             TabLim.hasMax(), TabLim.getMin(), TabLim.getMax(),
+                             TargetInst->getReferenceType(),
+                             TargetInst->getHasMax(), TargetInst->getMin(),
+                             TargetInst->getMax());
       }
       /// Set the matched table address to module instance.
       ModInst.importTable(TargetAddr);
@@ -163,12 +168,13 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       const auto &MemType = ImpDesc.getExternalMemoryType();
       /// Import matching.
       auto *TargetInst = *StoreMgr.getMemory(TargetAddr);
-      const auto &MemLim = MemType.getInner().Lim;
+      const auto &MemLim = MemType.getLimit();
       if (!isLimitMatched(TargetInst->getHasMax(), TargetInst->getMin(),
-                          TargetInst->getMax(), MemLim.hasMax(), MemLim.Min,
-                          MemLim.Max)) {
-        return logMatchError(ModName, ExtName, ExtType, ImpDesc.NodeAttr,
-                             MemLim.hasMax(), MemLim.Min, MemLim.Max,
+                          TargetInst->getMax(), MemLim.hasMax(),
+                          MemLim.getMin(), MemLim.getMax())) {
+        return logMatchError(ModName, ExtName, ExtType,
+                             ASTNodeAttr::Desc_Import, MemLim.hasMax(),
+                             MemLim.getMin(), MemLim.getMax(),
                              TargetInst->getHasMax(), TargetInst->getMin(),
                              TargetInst->getMax());
       }
@@ -180,12 +186,13 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
       /// Get global type. External type checked in validation.
       const auto &GlobType = ImpDesc.getExternalGlobalType();
       /// Import matching.
-      auto *TargetInst = *StoreMgr.getGlobal(TargetAddr);
-      if (TargetInst->getValType() != GlobType.getInner().Type ||
-          TargetInst->getValMut() != GlobType.getInner().Mut) {
-        return logMatchError(ModName, ExtName, ExtType, ImpDesc.NodeAttr,
-                             GlobType.getInner().Type, GlobType.getInner().Mut,
-                             TargetInst->getValType(), TargetInst->getValMut());
+      const auto *TargetInst = *StoreMgr.getGlobal(TargetAddr);
+      if (TargetInst->getValType() != GlobType.getValType() ||
+          TargetInst->getValMut() != GlobType.getValMut()) {
+        return logMatchError(ModName, ExtName, ExtType,
+                             ASTNodeAttr::Desc_Import, GlobType.getValType(),
+                             GlobType.getValMut(), TargetInst->getValType(),
+                             TargetInst->getValMut());
       }
       /// Set the matched global address to module instance.
       ModInst.importGlobal(TargetAddr);

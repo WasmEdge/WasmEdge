@@ -23,6 +23,5 @@ wasmedge_add_library(wasmedgeInterpreter
 target_link_libraries(wasmedgeInterpreter
   PUBLIC
   wasmedgeCommon
-  wasmedgeAST
   wasmedgeSystem
 )

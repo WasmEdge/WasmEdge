@@ -152,9 +152,9 @@ Expect<void> Interpreter::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
                                            {ValTypeFromType<uint32_t>()}));
-    spdlog::error(ErrInfo::InfoMismatch(TargetFuncType->Params,
-                                        TargetFuncType->Returns,
-                                        FuncType.Params, FuncType.Returns));
+    spdlog::error(ErrInfo::InfoMismatch(
+        TargetFuncType->getParamTypes(), TargetFuncType->getReturnTypes(),
+        FuncType.getParamTypes(), FuncType.getReturnTypes()));
     return Unexpect(ErrCode::IndirectCallTypeMismatch);
   }
   if (auto Res = enterFunction(StoreMgr, *FuncInst, PC + 1); !Res) {

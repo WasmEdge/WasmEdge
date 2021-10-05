@@ -2,6 +2,9 @@
 
 #include "interpreter/interpreter.h"
 
+#include "common/errinfo.h"
+#include "common/log.h"
+
 namespace WasmEdge {
 namespace Interpreter {
 
@@ -17,9 +20,10 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     /// Initialize memory if data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       /// Run initialize expression.
-      if (auto Res = runExpression(StoreMgr, DataSeg.getInstrs()); !Res) {
+      if (auto Res = runExpression(StoreMgr, DataSeg.getExpr().getInstrs());
+          !Res) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
-        spdlog::error(ErrInfo::InfoAST(DataSeg.NodeAttr));
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
         return Unexpect(Res);
       }
       Offset = StackMgr.pop().get<uint32_t>();
@@ -34,7 +38,7 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
         if (!MemInst->checkAccessBound(
                 Offset, static_cast<uint32_t>(DataSeg.getData().size()))) {
           spdlog::error(ErrCode::DataSegDoesNotFit);
-          spdlog::error(ErrInfo::InfoAST(DataSeg.NodeAttr));
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
           return Unexpect(ErrCode::DataSegDoesNotFit);
         }
       }
@@ -73,7 +77,7 @@ Expect<void> Interpreter::initMemory(Runtime::StoreManager &StoreMgr,
               DataInst->getData(), Off, 0,
               static_cast<uint32_t>(DataInst->getData().size()));
           !Res) {
-        spdlog::error(ErrInfo::InfoAST(DataSeg.NodeAttr));
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
         return Unexpect(Res);
       }
 

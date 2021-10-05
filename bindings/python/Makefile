@@ -77,8 +77,8 @@ release:          ## Create a new tag for release.
 	@echo "creating git tag : $${TAG}"
 	@git tag $${TAG}
 	@echo "$${TAG}" > pywasmedge/VERSION
-	@$(ENV_PREFIX)gitchangelog > HISTORY.md
-	@git add pywasmedge/VERSION HISTORY.md
+	@$(ENV_PREFIX)gitchangelog HEAD...origin/master > docs/HISTORY.md
+	@git add pywasmedge/VERSION docs/HISTORY.md
 	@git commit -m "release: version $${TAG} 🚀"
 	@git push -u origin HEAD --tags
 	@echo "Github Actions will detect the new tag and release the new version."
@@ -86,10 +86,12 @@ release:          ## Create a new tag for release.
 .PHONY: docs
 docs:             ## Build the documentation.
 	@echo "building documentation ..."
+	@$(ENV_PREFIX)gitchangelog HEAD...origin/master > docs/HISTORY.md
 	@$(ENV_PREFIX)mkdocs build
 	@$(ENV_PREFIX)mkdocs serve
 
 .PHONY: deploy-gh-pages
 deploy-gh-pages:
+	@$(ENV_PREFIX)gitchangelog HEAD...origin/master > docs/HISTORY.md
 	@$(ENV_PREFIX)mkdocs gh-deploy --config-file mkdocs.yml --remote-branch "gh-pages" --remote-name "satacker_r"
 

@@ -261,13 +261,13 @@ inline uint32_t fillMap(const std::map<std::string, uint32_t, std::less<>> &Map,
 /// C API Host function class
 class CAPIHostFunc : public Runtime::HostFunctionBase {
 public:
-  CAPIHostFunc(const FunctionType *Type, WasmEdge_HostFunc_t FuncPtr,
+  CAPIHostFunc(const AST::FunctionType *Type, WasmEdge_HostFunc_t FuncPtr,
                void *ExtData, const uint64_t FuncCost = 0) noexcept
       : Runtime::HostFunctionBase(FuncCost), Func(FuncPtr), Wrap(nullptr),
         Binding(nullptr), Data(ExtData) {
     FuncType = *Type;
   }
-  CAPIHostFunc(const FunctionType *Type, WasmEdge_WrapFunc_t WrapPtr,
+  CAPIHostFunc(const AST::FunctionType *Type, WasmEdge_WrapFunc_t WrapPtr,
                void *BindingPtr, void *ExtData,
                const uint64_t FuncCost = 0) noexcept
       : Runtime::HostFunctionBase(FuncCost), Func(nullptr), Wrap(WrapPtr),
@@ -321,8 +321,8 @@ private:
   }
 CONVTO(Stat, Statistics::Statistics, Statistics, )
 CONVTO(Store, Runtime::StoreManager, Store, )
-CONVTO(FType, FunctionType, FunctionType, )
-CONVTO(FType, FunctionType, FunctionType, const)
+CONVTO(FType, AST::FunctionType, FunctionType, )
+CONVTO(FType, AST::FunctionType, FunctionType, const)
 CONVTO(Func, Runtime::Instance::FunctionInstance, FunctionInstance, )
 CONVTO(HostFunc, Runtime::HostFunctionBase, HostFunction, )
 CONVTO(Tab, Runtime::Instance::TableInstance, TableInstance, )
@@ -340,7 +340,7 @@ CONVFROM(Stat, Statistics::Statistics, Statistics, )
 CONVFROM(Stat, Statistics::Statistics, Statistics, const)
 CONVFROM(Store, Runtime::StoreManager, Store, )
 CONVFROM(Store, Runtime::StoreManager, Store, const)
-CONVFROM(FType, FunctionType, FunctionType, const)
+CONVFROM(FType, AST::FunctionType, FunctionType, const)
 CONVFROM(Func, Runtime::Instance::FunctionInstance, FunctionInstance, const)
 CONVFROM(HostFunc, CAPIHostFunc, HostFunction, )
 CONVFROM(Tab, Runtime::Instance::TableInstance, TableInstance, )
@@ -1305,18 +1305,18 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_StoreDelete(WasmEdge_StoreContext *Cxt) {
 WASMEDGE_CAPI_EXPORT WasmEdge_FunctionTypeContext *WasmEdge_FunctionTypeCreate(
     const enum WasmEdge_ValType *ParamList, const uint32_t ParamLen,
     const enum WasmEdge_ValType *ReturnList, const uint32_t ReturnLen) {
-  auto *Cxt = new WasmEdge::FunctionType;
+  auto *Cxt = new WasmEdge::AST::FunctionType;
   if (ParamLen > 0) {
-    Cxt->Params.resize(ParamLen);
+    Cxt->getParamTypes().resize(ParamLen);
   }
   for (uint32_t I = 0; I < ParamLen; I++) {
-    Cxt->Params[I] = static_cast<WasmEdge::ValType>(ParamList[I]);
+    Cxt->getParamTypes()[I] = static_cast<WasmEdge::ValType>(ParamList[I]);
   }
   if (ReturnLen > 0) {
-    Cxt->Returns.resize(ReturnLen);
+    Cxt->getReturnTypes().resize(ReturnLen);
   }
   for (uint32_t I = 0; I < ReturnLen; I++) {
-    Cxt->Returns[I] = static_cast<WasmEdge::ValType>(ReturnList[I]);
+    Cxt->getReturnTypes()[I] = static_cast<WasmEdge::ValType>(ReturnList[I]);
   }
   return toFTypeCxt(Cxt);
 }
@@ -1324,7 +1324,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_FunctionTypeContext *WasmEdge_FunctionTypeCreate(
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_FunctionTypeGetParametersLength(
     const WasmEdge_FunctionTypeContext *Cxt) {
   if (Cxt) {
-    return static_cast<uint32_t>(fromFTypeCxt(Cxt)->Params.size());
+    return static_cast<uint32_t>(fromFTypeCxt(Cxt)->getParamTypes().size());
   }
   return 0;
 }
@@ -1333,10 +1333,12 @@ WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_FunctionTypeGetParameters(const WasmEdge_FunctionTypeContext *Cxt,
                                    WasmEdge_ValType *List, const uint32_t Len) {
   if (Cxt) {
-    for (uint32_t I = 0; I < fromFTypeCxt(Cxt)->Params.size() && I < Len; I++) {
-      List[I] = static_cast<WasmEdge_ValType>(fromFTypeCxt(Cxt)->Params[I]);
+    for (uint32_t I = 0;
+         I < fromFTypeCxt(Cxt)->getParamTypes().size() && I < Len; I++) {
+      List[I] =
+          static_cast<WasmEdge_ValType>(fromFTypeCxt(Cxt)->getParamTypes()[I]);
     }
-    return static_cast<uint32_t>(fromFTypeCxt(Cxt)->Params.size());
+    return static_cast<uint32_t>(fromFTypeCxt(Cxt)->getParamTypes().size());
   }
   return 0;
 }
@@ -1344,7 +1346,7 @@ WasmEdge_FunctionTypeGetParameters(const WasmEdge_FunctionTypeContext *Cxt,
 WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_FunctionTypeGetReturnsLength(const WasmEdge_FunctionTypeContext *Cxt) {
   if (Cxt) {
-    return static_cast<uint32_t>(fromFTypeCxt(Cxt)->Returns.size());
+    return static_cast<uint32_t>(fromFTypeCxt(Cxt)->getReturnTypes().size());
   }
   return 0;
 }
@@ -1353,11 +1355,12 @@ WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_FunctionTypeGetReturns(const WasmEdge_FunctionTypeContext *Cxt,
                                 WasmEdge_ValType *List, const uint32_t Len) {
   if (Cxt) {
-    for (uint32_t I = 0; I < fromFTypeCxt(Cxt)->Returns.size() && I < Len;
-         I++) {
-      List[I] = static_cast<WasmEdge_ValType>(fromFTypeCxt(Cxt)->Returns[I]);
+    for (uint32_t I = 0;
+         I < fromFTypeCxt(Cxt)->getReturnTypes().size() && I < Len; I++) {
+      List[I] =
+          static_cast<WasmEdge_ValType>(fromFTypeCxt(Cxt)->getReturnTypes()[I]);
     }
-    return static_cast<uint32_t>(fromFTypeCxt(Cxt)->Returns.size());
+    return static_cast<uint32_t>(fromFTypeCxt(Cxt)->getReturnTypes().size());
   }
   return 0;
 }
@@ -1421,10 +1424,10 @@ WasmEdge_TableInstanceCreate(const enum WasmEdge_RefType RefType,
   WasmEdge::RefType Type = static_cast<WasmEdge::RefType>(RefType);
   if (Limit.HasMax) {
     return toTabCxt(new WasmEdge::Runtime::Instance::TableInstance(
-        WasmEdge::TableType(Type, Limit.Min, Limit.Max)));
+        WasmEdge::AST::TableType(Type, Limit.Min, Limit.Max)));
   } else {
     return toTabCxt(new WasmEdge::Runtime::Instance::TableInstance(
-        WasmEdge::TableType(Type, Limit.Min)));
+        WasmEdge::AST::TableType(Type, Limit.Min)));
   }
 }
 
@@ -1504,10 +1507,10 @@ WASMEDGE_CAPI_EXPORT WasmEdge_MemoryInstanceContext *
 WasmEdge_MemoryInstanceCreate(const WasmEdge_Limit Limit) {
   if (Limit.HasMax) {
     return toMemCxt(new WasmEdge::Runtime::Instance::MemoryInstance(
-        WasmEdge::MemoryType(Limit.Min, Limit.Max)));
+        WasmEdge::AST::MemoryType(Limit.Min, Limit.Max)));
   } else {
     return toMemCxt(new WasmEdge::Runtime::Instance::MemoryInstance(
-        WasmEdge::MemoryType(Limit.Min)));
+        WasmEdge::AST::MemoryType(Limit.Min)));
   }
 }
 
@@ -1584,8 +1587,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_GlobalInstanceContext *
 WasmEdge_GlobalInstanceCreate(const WasmEdge_Value Value,
                               const enum WasmEdge_Mutability Mut) {
   return toGlobCxt(new WasmEdge::Runtime::Instance::GlobalInstance(
-      WasmEdge::GlobalType(static_cast<WasmEdge::ValType>(Value.Type),
-                           static_cast<WasmEdge::ValMut>(Mut)),
+      WasmEdge::AST::GlobalType(static_cast<WasmEdge::ValType>(Value.Type),
+                                static_cast<WasmEdge::ValMut>(Mut)),
       to_WasmEdge_128_t<WasmEdge::uint128_t>(Value.Value)));
 }
 
@@ -1955,7 +1958,7 @@ WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
     const auto FuncList = Cxt->VM.getFunctionList();
     for (const auto &It : FuncList) {
       if (It.first == genStrView(FuncName)) {
-        return toFTypeCxt(new WasmEdge::FunctionType(It.second));
+        return toFTypeCxt(new WasmEdge::AST::FunctionType(It.second));
       }
     }
   }
@@ -1974,7 +1977,8 @@ WasmEdge_VMGetFunctionTypeRegistered(WasmEdge_VMContext *Cxt,
       const auto FuncIter = FuncExp.find(genStrView(FuncName));
       if (FuncIter != FuncExp.cend()) {
         const auto *FuncInst = *Store.getFunction(FuncIter->second);
-        return toFTypeCxt(new WasmEdge::FunctionType(FuncInst->getFuncType()));
+        return toFTypeCxt(
+            new WasmEdge::AST::FunctionType(FuncInst->getFuncType()));
       }
     }
   }
@@ -2009,7 +2013,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMGetFunctionList(
       }
       if (FuncTypes) {
         FuncTypes[I] =
-            toFTypeCxt(new WasmEdge::FunctionType(FuncList[I].second));
+            toFTypeCxt(new WasmEdge::AST::FunctionType(FuncList[I].second));
       }
     }
     return static_cast<uint32_t>(FuncList.size());

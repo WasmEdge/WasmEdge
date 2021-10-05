@@ -164,6 +164,17 @@ public:
   GlobalType() noexcept : Type(ValType::I32), Mut(ValMut::Const) {}
   GlobalType(ValType VType, ValMut VMut) noexcept : Type(VType), Mut(VMut) {}
 
+  /// `==` and `!=` operator overloadings.
+  friend bool operator==(const GlobalType &LHS,
+                         const GlobalType &RHS) noexcept {
+    return LHS.Type == RHS.Type && LHS.Mut == RHS.Mut;
+  }
+
+  friend bool operator!=(const GlobalType &LHS,
+                         const GlobalType &RHS) noexcept {
+    return !(LHS == RHS);
+  }
+
   /// Getter and setter of value type.
   ValType getValType() const noexcept { return Type; }
   void setValType(ValType VType) noexcept { Type = VType; }

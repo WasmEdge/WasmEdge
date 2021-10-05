@@ -14,17 +14,17 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Instantiate and initialize globals.
   for (const auto &GlobSeg : GlobSec.getContent()) {
     /// Insert global instance to store manager.
-    const auto &GlobType = GlobSeg.getGlobalType();
     uint32_t NewGlobInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewGlobInstAddr = StoreMgr.pushGlobal(GlobType.getInner());
+      NewGlobInstAddr = StoreMgr.pushGlobal(GlobSeg.getGlobalType());
     } else {
-      NewGlobInstAddr = StoreMgr.importGlobal(GlobType.getInner());
+      NewGlobInstAddr = StoreMgr.importGlobal(GlobSeg.getGlobalType());
     }
     ModInst.addGlobalAddr(NewGlobInstAddr);
 
     /// Run initialize expression.
-    if (auto Res = runExpression(StoreMgr, GlobSeg.getInstrs()); !Res) {
+    if (auto Res = runExpression(StoreMgr, GlobSeg.getExpr().getInstrs());
+        !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
     }

@@ -16,10 +16,10 @@ Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     uint32_t NewMemInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
       NewMemInstAddr = StoreMgr.pushMemory(
-          MemType.getInner(), Conf.getRuntimeConfigure().getMaxMemoryPage());
+          MemType, Conf.getRuntimeConfigure().getMaxMemoryPage());
     } else {
       NewMemInstAddr = StoreMgr.importMemory(
-          MemType.getInner(), Conf.getRuntimeConfigure().getMaxMemoryPage());
+          MemType, Conf.getRuntimeConfigure().getMaxMemoryPage());
     }
     ModInst.addMemAddr(NewMemInstAddr);
   }

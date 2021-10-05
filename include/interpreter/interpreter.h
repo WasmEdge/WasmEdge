@@ -12,8 +12,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/instruction.h"
 #include "ast/module.h"
+#include "common/configure.h"
 #include "common/defines.h"
 #include "common/statistics.h"
 #include "runtime/importobj.h"

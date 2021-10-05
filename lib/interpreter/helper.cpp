@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "interpreter/interpreter.h"
+
+#include "common/log.h"
 #include "system/fault.h"
 
 namespace WasmEdge {
@@ -12,6 +14,8 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
                            const AST::InstrView::iterator From) {
   /// Get function type
   const auto &FuncType = Func.getFuncType();
+  const uint32_t ArgsN = FuncType.getParamTypes().size();
+  const uint32_t RetsN = FuncType.getReturnTypes().size();
 
   if (Func.isHostFunction()) {
     /// Host function case: Push args and call function.
@@ -34,8 +38,6 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     /// Run host function.
-    const uint32_t ArgsN = static_cast<uint32_t>(FuncType.Params.size());
-    const uint32_t RetsN = static_cast<uint32_t>(FuncType.Returns.size());
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
     auto Ret = HostFunc.run(MemoryInst, std::move(Args), Rets);
@@ -64,11 +66,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     /// For host function case, the continuation will be the next.
     return From;
   } else if (Func.isCompiledFunction()) {
-    auto &Wrapper = Func.getFuncType().TypeSymbol;
     /// Compiled function case: Push frame with locals and args.
-    const auto ArgsN = static_cast<uint32_t>(FuncType.Params.size());
-    const auto RetsN = static_cast<uint32_t>(FuncType.Returns.size());
-
     StackMgr.pushFrame(Func.getModuleAddr(), /// Module address
                        ArgsN,                /// No Arguments in stack
                        RetsN                 /// Returns num
@@ -93,6 +91,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
         }
         return Unexpect(Err);
       }
+      auto &Wrapper = FuncType.getSymbol();
       Wrapper(&ExecutionContext, Func.getSymbol().get(), Args.data(),
               Rets.data());
     }
@@ -105,8 +104,6 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     /// For compiled function case, the continuation will be the next.
     return From;
   } else {
-    const auto ArgsN = static_cast<uint32_t>(FuncType.Params.size());
-    const auto RetsN = static_cast<uint32_t>(FuncType.Returns.size());
     /// Native function case: Push frame with locals and args.
     StackMgr.pushFrame(Func.getModuleAddr(), /// Module address
                        ArgsN,                /// Arguments num
@@ -121,8 +118,7 @@ Interpreter::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     /// Enter function block []->[returns] with label{none}.
-    StackMgr.pushLabel(0, static_cast<uint32_t>(FuncType.Returns.size()),
-                       From - 1);
+    StackMgr.pushLabel(0, RetsN, From - 1);
     /// For native function case, the continuation will be the start of
     /// function body.
     return Func.getInstrs().begin();
@@ -139,8 +135,8 @@ Interpreter::getBlockArity(Runtime::StoreManager &StoreMgr,
     /// Get function type at index x.
     const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
     const auto *FuncType = *ModInst->getFuncType(std::get<uint32_t>(BType));
-    Locals = static_cast<uint32_t>(FuncType->Params.size());
-    Arity = static_cast<uint32_t>(FuncType->Returns.size());
+    Locals = FuncType->getParamTypes().size();
+    Arity = FuncType->getReturnTypes().size();
   }
   return {Locals, Arity};
 }

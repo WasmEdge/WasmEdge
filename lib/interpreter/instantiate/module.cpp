@@ -2,6 +2,9 @@
 
 #include "interpreter/interpreter.h"
 
+#include "common/errinfo.h"
+#include "common/log.h"
+
 namespace WasmEdge {
 namespace Interpreter {
 
@@ -16,7 +19,7 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Check is module name duplicated.
   if (auto Res = StoreMgr.findModule(Name)) {
     spdlog::error(ErrCode::ModuleNameConflict);
-    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(ErrCode::ModuleNameConflict);
   }
 
@@ -32,14 +35,14 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Instantiate Function Types in Module Instance. (TypeSec)
   for (auto &FuncType : Mod.getTypeSection().getContent()) {
     /// Copy param and return lists to module instance.
-    ModInst->addFuncType(FuncType.getInner());
+    ModInst->addFuncType(FuncType);
   }
 
   /// Instantiate ImportSection and do import matching. (ImportSec)
   const AST::ImportSection &ImportSec = Mod.getImportSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, ImportSec); !Res) {
-    spdlog::error(ErrInfo::InfoAST(ImportSec.NodeAttr));
-    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Import));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
 
@@ -47,24 +50,24 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   const AST::FunctionSection &FuncSec = Mod.getFunctionSection();
   const AST::CodeSection &CodeSec = Mod.getCodeSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, FuncSec, CodeSec); !Res) {
-    spdlog::error(ErrInfo::InfoAST(FuncSec.NodeAttr));
-    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Function));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
 
   /// Instantiate TableSection (TableSec)
   const AST::TableSection &TabSec = Mod.getTableSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, TabSec); !Res) {
-    spdlog::error(ErrInfo::InfoAST(TabSec.NodeAttr));
-    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Table));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
 
   /// Instantiate MemorySection (MemorySec)
   const AST::MemorySection &MemSec = Mod.getMemorySection();
   if (auto Res = instantiate(StoreMgr, *ModInst, MemSec); !Res) {
-    spdlog::error(ErrInfo::InfoAST(MemSec.NodeAttr));
-    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Memory));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
 
@@ -84,8 +87,8 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Instantiate GlobalSection (GlobalSec)
   const AST::GlobalSection &GlobSec = Mod.getGlobalSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, GlobSec); !Res) {
-    spdlog::error(ErrInfo::InfoAST(GlobSec.NodeAttr));
-    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Global));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
 
@@ -98,8 +101,8 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Instantiate ExportSection (ExportSec)
   const AST::ExportSection &ExportSec = Mod.getExportSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, ExportSec); !Res) {
-    spdlog::error(ErrInfo::InfoAST(ExportSec.NodeAttr));
-    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Export));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
 
@@ -109,30 +112,30 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
   /// Instantiate ElementSection (ElemSec)
   const AST::ElementSection &ElemSec = Mod.getElementSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, ElemSec); !Res) {
-    spdlog::error(ErrInfo::InfoAST(ElemSec.NodeAttr));
-    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Element));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
 
   /// Instantiate DataSection (DataSec)
   const AST::DataSection &DataSec = Mod.getDataSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, DataSec); !Res) {
-    spdlog::error(ErrInfo::InfoAST(DataSec.NodeAttr));
-    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Data));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
 
   /// Initialize table instances
   if (auto Res = initTable(StoreMgr, *ModInst, ElemSec); !Res) {
-    spdlog::error(ErrInfo::InfoAST(ElemSec.NodeAttr));
-    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Element));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
 
   /// Initialize memory instances
   if (auto Res = initMemory(StoreMgr, *ModInst, DataSec); !Res) {
-    spdlog::error(ErrInfo::InfoAST(DataSec.NodeAttr));
-    spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Data));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
 
@@ -170,11 +173,11 @@ Expect<void> Interpreter::instantiate(Runtime::StoreManager &StoreMgr,
     if (auto Res = enterFunction(StoreMgr, *FuncInst, Instrs.end())) {
       StartIt = *Res;
     } else {
-      spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
       return Unexpect(Res);
     }
     if (auto Res = execute(StoreMgr, StartIt, Instrs.end()); unlikely(!Res)) {
-      spdlog::error(ErrInfo::InfoAST(Mod.NodeAttr));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
       return Unexpect(Res);
     }
   }

@@ -2,6 +2,9 @@
 
 #include "interpreter/interpreter.h"
 
+#include "common/errinfo.h"
+#include "common/log.h"
+
 namespace WasmEdge {
 namespace Interpreter {
 
@@ -80,10 +83,11 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
   const auto &FuncType = FuncInst->getFuncType();
   std::vector<ValType> GotParamTypes(ParamTypes.begin(), ParamTypes.end());
   GotParamTypes.resize(Params.size(), ValType::I32);
-  if (FuncType.Params != GotParamTypes) {
+  if (FuncType.getParamTypes() != GotParamTypes) {
     spdlog::error(ErrCode::FuncSigMismatch);
-    spdlog::error(ErrInfo::InfoMismatch(FuncType.Params, FuncType.Returns,
-                                        GotParamTypes, FuncType.Returns));
+    spdlog::error(ErrInfo::InfoMismatch(
+        FuncType.getParamTypes(), FuncType.getReturnTypes(), GotParamTypes,
+        FuncType.getReturnTypes()));
     return Unexpect(ErrCode::FuncSigMismatch);
   }
 
@@ -94,7 +98,7 @@ Interpreter::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
 
   /// Get return values.
   std::vector<ValVariant> Returns;
-  for (uint32_t I = 0; I < FuncType.Returns.size(); ++I) {
+  for (uint32_t I = 0; I < FuncType.getReturnTypes().size(); ++I) {
     Returns.emplace_back(StackMgr.pop());
   }
   std::reverse(Returns.begin(), Returns.end());

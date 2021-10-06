@@ -1,6 +1,6 @@
 use super::wasmedge;
 
-use crate::{error::VmError, module::Module, wasi_conf::WasiConf};
+use crate::{config::Config, error::VmError, module::Module, wasi_conf::WasiConf};
 
 /// # Example
 ///
@@ -9,7 +9,7 @@ use crate::{error::VmError, module::Module, wasi_conf::WasiConf};
 ///     let module_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
 ///         .join("tools/wasmedge/examples/fibonacci.wasm");
 ///
-///     let config = wedge::Config::init();
+///     let config = wedge::Config::default();
 ///     let module = wedge::Module::new(&config, &module_path)?;
 ///
 ///     let vm = wedge::Vm::load(&module)?.with_config(&config)?.create()?;
@@ -68,9 +68,9 @@ impl<'a> VmBuilder<'a> {
         Ok(Self { inner: vm })
     }
 
-    pub fn with_config(self, config: &'a wasmedge::Config) -> Result<Self, anyhow::Error> {
+    pub fn with_config(self, config: &'a Config) -> Result<Self, anyhow::Error> {
         let mut vm = self.inner;
-        vm.config = Some(config);
+        vm.config = Some(&config.inner);
         Ok(Self { inner: vm })
     }
 

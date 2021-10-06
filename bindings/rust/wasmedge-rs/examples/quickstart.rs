@@ -5,7 +5,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("tools/wasmedge/examples/fibonacci.wasm");
 
-    let config = wedge::Config::init();
+    let config = wedge::Config::default();
     let module = wedge::Module::new(&config, &module_path)?;
 
     let vm = wedge::Vm::load(&module)?.with_config(&config)?.create()?;

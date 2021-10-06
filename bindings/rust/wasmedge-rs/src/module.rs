@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use crate::{Config, error::ModuleError};
+use crate::{error::ModuleError, Config};
 use anyhow::Result;
 
 #[derive(Debug)]
@@ -18,8 +18,8 @@ impl Module {
         let path_cstr = path_to_cstr(module_path)
             .map_err(|e| ModuleError::Path(module_path.display().to_string(), Box::new(e)))?;
 
-        let module =
-            wasmedge::Module::load_from_file(&config.inner, path_cstr).map_err(ModuleError::Load)?;
+        let module = wasmedge::Module::load_from_file(&config.inner, path_cstr)
+            .map_err(ModuleError::Load)?;
 
         Ok(Self { inner: module })
     }

@@ -9,6 +9,6 @@ impl Config {
     pub fn with_wasi() -> Self {
         let config = Self::default();
         let inner: wasmedge::Config = config.inner.enable_wasi();
-        Self{inner}
+        Self { inner }
     }
 }

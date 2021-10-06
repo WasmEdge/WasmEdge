@@ -20,9 +20,7 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         let ctx = unsafe { wasmedge::WasmEdge_ConfigureCreate() };
-        if ctx.is_null() {
-            panic!("failed to create WasmEdge configuration");
-        }
+        assert!(!ctx.is_null(), "failed to create WasmEdge configuration");
         Self { ctx }
     }
 }

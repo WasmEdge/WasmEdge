@@ -19,9 +19,7 @@ impl Vm {
         let ctx = unsafe {
             wasmedge::WasmEdge_VMCreate(config.ctx, std::ptr::null_mut() /* store */)
         };
-        if ctx.is_null() {
-            panic!("WasmEdge VM create failed");
-        }
+        assert!(!ctx.is_null(), "WasmEdge VM create failed");
         Self { ctx }
     }
 

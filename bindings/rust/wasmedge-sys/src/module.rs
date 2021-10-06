@@ -26,10 +26,8 @@ impl Module {
         };
         decode_result(res)?;
 
-        if ctx.is_null() {
-            panic!("WasmEdge failed to load from file!");
-        } else {
-            Ok(Self { ctx })
-        }
+        assert!(!ctx.is_null(), "WasmEdge failed to load from file!");
+
+        Ok(Self { ctx })
     }
 }

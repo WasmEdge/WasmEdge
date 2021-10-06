@@ -90,7 +90,7 @@ impl<'a> VmBuilder<'a> {
                 inner: Some(vm_instance),
             })
         } else {
-            panic!("Failed! Please specify a reasonable module path and configuration");
+            anyhow::bail!("no config provided to VM");
         }
     }
 }

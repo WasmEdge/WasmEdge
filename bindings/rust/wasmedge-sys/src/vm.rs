@@ -140,9 +140,11 @@ impl Vm {
             .collect();
 
         let func_type = unsafe { wasmedge::WasmEdge_VMGetFunctionType(self.ctx, raw_func_name) };
-        if func_type.is_null() {
-            panic!("WasmEdge Vm failed to get function type!")
-        }
+
+        assert!(
+            !func_type.is_null(),
+            "WasmEdge Vm failed to get function type!"
+        );
 
         // construct returns
         let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type) };

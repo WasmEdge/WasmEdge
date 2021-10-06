@@ -6,12 +6,12 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn default() -> wasmedge::Config {
+    pub fn init() -> wasmedge::Config {
         wasmedge::Config::default()
     }
 
     pub fn with_wasi() -> wasmedge::Config {
-        let config = Self::default();
+        let config = Self::init();
         config.enable_wasi()
     }
 }

@@ -9,7 +9,7 @@ use crate::{error::VmError, module::Module, wasi_conf::WasiConf};
 ///     let module_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
 ///         .join("tools/wasmedge/examples/fibonacci.wasm");
 ///
-///     let config = wedge::Config::default();
+///     let config = wedge::Config::init();
 ///     let module = wedge::Module::new(&config, &module_path)?;
 ///
 ///     let vm = wedge::Vm::load(&module)?.with_config(&config)?.create()?;

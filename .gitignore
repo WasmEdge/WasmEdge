@@ -86,3 +86,4 @@ node_modules/
 ## Gradle
 **/.gradle/*
 **/build
+**/cmake-build-debug

@@ -1,3 +1,4 @@
+
 // SPDX-License-Identifier: Apache-2.0
 //===-- wasmedge/test/api/hostfunc_c.c - Spec test host functions for C API ==//
 //
@@ -75,7 +76,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   WasmEdge_TableTypeContext *HostTType = NULL;
   WasmEdge_MemoryTypeContext *HostMType = NULL;
   WasmEdge_GlobalTypeContext *HostGType = NULL;
-  WasmEdge_HostFunctionContext *HostFunc = NULL;
+  WasmEdge_FunctionInstanceContext *HostFunc = NULL;
   WasmEdge_TableInstanceContext *HostTable = NULL;
   WasmEdge_MemoryInstanceContext *HostMemory = NULL;
   WasmEdge_GlobalInstanceContext *HostGlobal = NULL;
@@ -87,37 +88,40 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
 
   /// Add host function "print": {} -> {}
   HostFType = WasmEdge_FunctionTypeCreate(NULL, 0, NULL, 0);
-  HostFunc = WasmEdge_HostFunctionCreate(HostFType, SpecTestPrint, NULL, 0);
+  HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrint, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("print");
-  WasmEdge_ImportObjectAddHostFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   /// Add host function "print_i32": {i32} -> {}
   Param[0] = WasmEdge_ValType_I32;
   HostFType = WasmEdge_FunctionTypeCreate(Param, 1, NULL, 0);
-  HostFunc = WasmEdge_HostFunctionCreate(HostFType, SpecTestPrintI32, NULL, 0);
+  HostFunc =
+      WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintI32, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("print_i32");
-  WasmEdge_ImportObjectAddHostFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   /// Add host function "print_f32": {f32} -> {}
   Param[0] = WasmEdge_ValType_F32;
   HostFType = WasmEdge_FunctionTypeCreate(Param, 1, NULL, 0);
-  HostFunc = WasmEdge_HostFunctionCreate(HostFType, SpecTestPrintF32, NULL, 0);
+  HostFunc =
+      WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintF32, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("print_f32");
-  WasmEdge_ImportObjectAddHostFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   /// Add host function "print_f64": {f64} -> {}
   Param[0] = WasmEdge_ValType_F64;
   HostFType = WasmEdge_FunctionTypeCreate(Param, 1, NULL, 0);
-  HostFunc = WasmEdge_HostFunctionCreate(HostFType, SpecTestPrintF64, NULL, 0);
+  HostFunc =
+      WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintF64, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("print_f64");
-  WasmEdge_ImportObjectAddHostFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   /// Add host function "print_i32_f32": {i32, f32} -> {}
@@ -125,10 +129,10 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   Param[1] = WasmEdge_ValType_F32;
   HostFType = WasmEdge_FunctionTypeCreate(Param, 2, NULL, 0);
   HostFunc =
-      WasmEdge_HostFunctionCreate(HostFType, SpecTestPrintI32F32, NULL, 0);
+      WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintI32F32, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("print_i32_f32");
-  WasmEdge_ImportObjectAddHostFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   /// Add host function "print_f64_f64": {f64, f64} -> {}
@@ -136,10 +140,10 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   Param[1] = WasmEdge_ValType_F64;
   HostFType = WasmEdge_FunctionTypeCreate(Param, 2, NULL, 0);
   HostFunc =
-      WasmEdge_HostFunctionCreate(HostFType, SpecTestPrintF64F64, NULL, 0);
+      WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintF64F64, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("print_f64_f64");
-  WasmEdge_ImportObjectAddHostFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   /// Add host table "table"

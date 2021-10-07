@@ -121,47 +121,51 @@ WasmEdge_ImportObjectContext *createExternModule(std::string_view Name,
                         Result[1] = {WasmEdge_ValType_I32};
   WasmEdge_FunctionTypeContext *HostFType =
       WasmEdge_FunctionTypeCreate(Param, 2, Result, 1);
-  WasmEdge_HostFunctionContext *HostFunc = nullptr;
+  WasmEdge_FunctionInstanceContext *HostFunc = nullptr;
 
   /// Add host function "func-add"
   HostName = WasmEdge_StringCreateByCString("func-add");
   if (IsWrap) {
-    HostFunc = WasmEdge_HostFunctionCreateBinding(
+    HostFunc = WasmEdge_FunctionInstanceCreateBinding(
         HostFType, ExternWrap, reinterpret_cast<void *>(ExternAdd), nullptr, 0);
   } else {
-    HostFunc = WasmEdge_HostFunctionCreate(HostFType, ExternAdd, nullptr, 0);
+    HostFunc =
+        WasmEdge_FunctionInstanceCreate(HostFType, ExternAdd, nullptr, 0);
   }
-  WasmEdge_ImportObjectAddHostFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
   /// Add host function "func-sub"
   HostName = WasmEdge_StringCreateByCString("func-sub");
   if (IsWrap) {
-    HostFunc = WasmEdge_HostFunctionCreateBinding(
+    HostFunc = WasmEdge_FunctionInstanceCreateBinding(
         HostFType, ExternWrap, reinterpret_cast<void *>(ExternSub), nullptr, 0);
   } else {
-    HostFunc = WasmEdge_HostFunctionCreate(HostFType, ExternSub, nullptr, 0);
+    HostFunc =
+        WasmEdge_FunctionInstanceCreate(HostFType, ExternSub, nullptr, 0);
   }
-  WasmEdge_ImportObjectAddHostFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
   /// Add host function "func-mul"
   HostName = WasmEdge_StringCreateByCString("func-mul");
   if (IsWrap) {
-    HostFunc = WasmEdge_HostFunctionCreateBinding(
+    HostFunc = WasmEdge_FunctionInstanceCreateBinding(
         HostFType, ExternWrap, reinterpret_cast<void *>(ExternMul), nullptr, 0);
   } else {
-    HostFunc = WasmEdge_HostFunctionCreate(HostFType, ExternMul, nullptr, 0);
+    HostFunc =
+        WasmEdge_FunctionInstanceCreate(HostFType, ExternMul, nullptr, 0);
   }
-  WasmEdge_ImportObjectAddHostFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
   /// Add host function "func-div"
   HostName = WasmEdge_StringCreateByCString("func-div");
   if (IsWrap) {
-    HostFunc = WasmEdge_HostFunctionCreateBinding(
+    HostFunc = WasmEdge_FunctionInstanceCreateBinding(
         HostFType, ExternWrap, reinterpret_cast<void *>(ExternDiv), nullptr, 0);
   } else {
-    HostFunc = WasmEdge_HostFunctionCreate(HostFType, ExternDiv, nullptr, 0);
+    HostFunc =
+        WasmEdge_FunctionInstanceCreate(HostFType, ExternDiv, nullptr, 0);
   }
-  WasmEdge_ImportObjectAddHostFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   WasmEdge_FunctionTypeDelete(HostFType);
@@ -170,24 +174,26 @@ WasmEdge_ImportObjectContext *createExternModule(std::string_view Name,
   /// Add host function "func-term"
   HostName = WasmEdge_StringCreateByCString("func-term");
   if (IsWrap) {
-    HostFunc = WasmEdge_HostFunctionCreateBinding(
+    HostFunc = WasmEdge_FunctionInstanceCreateBinding(
         HostFType, ExternWrap, reinterpret_cast<void *>(ExternTerm), nullptr,
         0);
   } else {
-    HostFunc = WasmEdge_HostFunctionCreate(HostFType, ExternTerm, nullptr, 0);
+    HostFunc =
+        WasmEdge_FunctionInstanceCreate(HostFType, ExternTerm, nullptr, 0);
   }
-  WasmEdge_ImportObjectAddHostFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
   /// Add host function "func-fail"
   HostName = WasmEdge_StringCreateByCString("func-fail");
   if (IsWrap) {
-    HostFunc = WasmEdge_HostFunctionCreateBinding(
+    HostFunc = WasmEdge_FunctionInstanceCreateBinding(
         HostFType, ExternWrap, reinterpret_cast<void *>(ExternFail), nullptr,
         0);
   } else {
-    HostFunc = WasmEdge_HostFunctionCreate(HostFType, ExternFail, nullptr, 0);
+    HostFunc =
+        WasmEdge_FunctionInstanceCreate(HostFType, ExternFail, nullptr, 0);
   }
-  WasmEdge_ImportObjectAddHostFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   WasmEdge_FunctionTypeDelete(HostFType);
@@ -1404,7 +1410,7 @@ TEST(APICoreTest, ImportObject) {
   WasmEdge_TableTypeContext *HostTType = NULL;
   WasmEdge_MemoryTypeContext *HostMType = NULL;
   WasmEdge_GlobalTypeContext *HostGType = NULL;
-  WasmEdge_HostFunctionContext *HostFunc = nullptr;
+  WasmEdge_FunctionInstanceContext *HostFunc = nullptr;
   WasmEdge_TableInstanceContext *HostTable = nullptr;
   WasmEdge_MemoryInstanceContext *HostMemory = nullptr;
   WasmEdge_GlobalInstanceContext *HostGlobal = nullptr;
@@ -1425,36 +1431,36 @@ TEST(APICoreTest, ImportObject) {
   Param[1] = WasmEdge_ValType_I32;
   Result[0] = WasmEdge_ValType_I32;
   HostFType = WasmEdge_FunctionTypeCreate(Param, 2, Result, 1);
-  HostFunc = WasmEdge_HostFunctionCreate(nullptr, ExternAdd, nullptr, 0);
+  HostFunc = WasmEdge_FunctionInstanceCreate(nullptr, ExternAdd, nullptr, 0);
   EXPECT_EQ(HostFunc, nullptr);
-  HostFunc = WasmEdge_HostFunctionCreate(HostFType, nullptr, nullptr, 0);
+  HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, nullptr, nullptr, 0);
   EXPECT_EQ(HostFunc, nullptr);
-  HostFunc = WasmEdge_HostFunctionCreate(HostFType, ExternAdd, nullptr, 0);
+  HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternAdd, nullptr, 0);
   EXPECT_NE(HostFunc, nullptr);
-  WasmEdge_HostFunctionDelete(HostFunc);
+  WasmEdge_FunctionInstanceDelete(HostFunc);
   EXPECT_TRUE(true);
-  HostFunc = WasmEdge_HostFunctionCreate(HostFType, ExternAdd, nullptr, 0);
+  HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternAdd, nullptr, 0);
   EXPECT_NE(HostFunc, nullptr);
   HostName = WasmEdge_StringCreateByCString("func-add");
-  WasmEdge_ImportObjectAddHostFunction(nullptr, HostName, HostFunc);
+  WasmEdge_ImportObjectAddFunction(nullptr, HostName, HostFunc);
   EXPECT_TRUE(true);
-  WasmEdge_ImportObjectAddHostFunction(ImpObj, HostName, nullptr);
+  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, nullptr);
   EXPECT_TRUE(true);
-  WasmEdge_ImportObjectAddHostFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   EXPECT_TRUE(true);
   WasmEdge_StringDelete(HostName);
 
   /// Add host function for binding "func-add-binding"
-  HostFunc = WasmEdge_HostFunctionCreateBinding(
+  HostFunc = WasmEdge_FunctionInstanceCreateBinding(
       nullptr, ExternWrap, reinterpret_cast<void *>(ExternAdd), nullptr, 0);
   EXPECT_EQ(HostFunc, nullptr);
-  HostFunc = WasmEdge_HostFunctionCreateBinding(
+  HostFunc = WasmEdge_FunctionInstanceCreateBinding(
       HostFType, nullptr, reinterpret_cast<void *>(ExternAdd), nullptr, 0);
   EXPECT_EQ(HostFunc, nullptr);
-  HostFunc = WasmEdge_HostFunctionCreateBinding(
+  HostFunc = WasmEdge_FunctionInstanceCreateBinding(
       HostFType, ExternWrap, reinterpret_cast<void *>(ExternAdd), nullptr, 0);
   EXPECT_NE(HostFunc, nullptr);
-  WasmEdge_HostFunctionDelete(HostFunc);
+  WasmEdge_FunctionInstanceDelete(HostFunc);
   WasmEdge_FunctionTypeDelete(HostFType);
 
   /// Add host table "table"

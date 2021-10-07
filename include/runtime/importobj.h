@@ -43,6 +43,15 @@ public:
         std::make_unique<Runtime::Instance::FunctionInstance>(std::move(Func)));
   }
 
+  void addHostFunc(std::string_view Name,
+                   std::unique_ptr<Instance::FunctionInstance> &&Func) {
+    addHostFunc(Name, Func);
+  }
+  void addHostFunc(std::string_view Name,
+                   std::unique_ptr<Instance::FunctionInstance> &Func) {
+    Funcs.insert_or_assign(std::string(Name), std::move(Func));
+  }
+
   void addHostTable(std::string_view Name,
                     std::unique_ptr<Instance::TableInstance> &&Tab) {
     addHostTable(Name, Tab);

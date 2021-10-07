@@ -20,11 +20,17 @@ list(APPEND WASMEDGE_CFLAGS
   -Wextra
   -Werror
   -Wno-error=pedantic
-  -Wno-psabi
 )
+if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+  list(APPEND WASMEDGE_CFLAGS -Wno-psabi)
+endif()
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  list(APPEND WASMEDGE_CFLAGS -Wno-c++20-designator)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   list(APPEND WASMEDGE_CFLAGS
-    -Wno-c++20-designator
     -Wno-c99-extensions
     -Wno-covered-switch-default
     -Wno-documentation-unknown-command

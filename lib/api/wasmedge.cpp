@@ -77,9 +77,6 @@ struct WasmEdge_StoreContext {};
 /// WasmEdge_FunctionInstanceContext implementation.
 struct WasmEdge_FunctionInstanceContext {};
 
-/// WasmEdge_HostFunctionContext implementation.
-struct WasmEdge_HostFunctionContext {};
-
 /// WasmEdge_TableInstanceContext implementation.
 struct WasmEdge_TableInstanceContext {};
 
@@ -340,7 +337,6 @@ CONVTO(MemType, AST::MemoryType, MemoryType, const)
 CONVTO(GlobType, AST::GlobalType, GlobalType, )
 CONVTO(GlobType, AST::GlobalType, GlobalType, const)
 CONVTO(Func, Runtime::Instance::FunctionInstance, FunctionInstance, )
-CONVTO(HostFunc, Runtime::HostFunctionBase, HostFunction, )
 CONVTO(Tab, Runtime::Instance::TableInstance, TableInstance, )
 CONVTO(Mem, Runtime::Instance::MemoryInstance, MemoryInstance, )
 CONVTO(Glob, Runtime::Instance::GlobalInstance, GlobalInstance, )
@@ -364,8 +360,8 @@ CONVFROM(MemType, AST::MemoryType, MemoryType, )
 CONVFROM(MemType, AST::MemoryType, MemoryType, const)
 CONVFROM(GlobType, AST::GlobalType, GlobalType, )
 CONVFROM(GlobType, AST::GlobalType, GlobalType, const)
+CONVFROM(Func, Runtime::Instance::FunctionInstance, FunctionInstance, )
 CONVFROM(Func, Runtime::Instance::FunctionInstance, FunctionInstance, const)
-CONVFROM(HostFunc, CAPIHostFunc, HostFunction, )
 CONVFROM(Tab, Runtime::Instance::TableInstance, TableInstance, )
 CONVFROM(Tab, Runtime::Instance::TableInstance, TableInstance, const)
 CONVFROM(Mem, Runtime::Instance::MemoryInstance, MemoryInstance, )
@@ -1507,6 +1503,31 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_StoreDelete(WasmEdge_StoreContext *Cxt) {
 
 /// >>>>>>>> WasmEdge function instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+WASMEDGE_CAPI_EXPORT WasmEdge_FunctionInstanceContext *
+WasmEdge_FunctionInstanceCreate(const WasmEdge_FunctionTypeContext *Type,
+                                WasmEdge_HostFunc_t HostFunc, void *Data,
+                                const uint64_t Cost) {
+  if (Type && HostFunc) {
+    return toFuncCxt(new WasmEdge::Runtime::Instance::FunctionInstance(
+        std::make_unique<CAPIHostFunc>(fromFuncTypeCxt(Type), HostFunc, Data,
+                                       Cost)));
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_FunctionInstanceContext *
+WasmEdge_FunctionInstanceCreateBinding(const WasmEdge_FunctionTypeContext *Type,
+                                       WasmEdge_WrapFunc_t WrapFunc,
+                                       void *Binding, void *Data,
+                                       const uint64_t Cost) {
+  if (Type && WrapFunc) {
+    return toFuncCxt(new WasmEdge::Runtime::Instance::FunctionInstance(
+        std::make_unique<CAPIHostFunc>(fromFuncTypeCxt(Type), WrapFunc, Binding,
+                                       Data, Cost)));
+  }
+  return nullptr;
+}
+
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
 WasmEdge_FunctionInstanceGetFunctionType(
     const WasmEdge_FunctionInstanceContext *Cxt) {
@@ -1516,38 +1537,12 @@ WasmEdge_FunctionInstanceGetFunctionType(
   return nullptr;
 }
 
-/// <<<<<<<< WasmEdge function instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-/// >>>>>>>> WasmEdge host function functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-WASMEDGE_CAPI_EXPORT WasmEdge_HostFunctionContext *
-WasmEdge_HostFunctionCreate(const WasmEdge_FunctionTypeContext *Type,
-                            WasmEdge_HostFunc_t HostFunc, void *Data,
-                            const uint64_t Cost) {
-  if (Type && HostFunc) {
-    return toHostFuncCxt(
-        new CAPIHostFunc(fromFuncTypeCxt(Type), HostFunc, Data, Cost));
-  }
-  return nullptr;
-}
-
-WASMEDGE_CAPI_EXPORT WasmEdge_HostFunctionContext *
-WasmEdge_HostFunctionCreateBinding(const WasmEdge_FunctionTypeContext *Type,
-                                   WasmEdge_WrapFunc_t WrapFunc, void *Binding,
-                                   void *Data, const uint64_t Cost) {
-  if (Type && WrapFunc) {
-    return toHostFuncCxt(
-        new CAPIHostFunc(fromFuncTypeCxt(Type), WrapFunc, Binding, Data, Cost));
-  }
-  return nullptr;
-}
-
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_HostFunctionDelete(WasmEdge_HostFunctionContext *Cxt) {
-  delete fromHostFuncCxt(Cxt);
+WasmEdge_FunctionInstanceDelete(WasmEdge_FunctionInstanceContext *Cxt) {
+  delete fromFuncCxt(Cxt);
 }
 
-/// <<<<<<<< WasmEdge host function functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+/// <<<<<<<< WasmEdge function instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> WasmEdge table instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -1867,14 +1862,15 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ImportObjectInitWasmEdgeProcess(
   }
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_ImportObjectAddHostFunction(
-    WasmEdge_ImportObjectContext *Cxt, const WasmEdge_String Name,
-    WasmEdge_HostFunctionContext *HostFuncCxt) {
-  if (Cxt && HostFuncCxt) {
-    auto *HostFunc = reinterpret_cast<CAPIHostFunc *>(HostFuncCxt);
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ImportObjectAddFunction(WasmEdge_ImportObjectContext *Cxt,
+                                 const WasmEdge_String Name,
+                                 WasmEdge_FunctionInstanceContext *FuncCxt) {
+  if (Cxt && FuncCxt) {
     fromImpObjCxt(Cxt)->addHostFunc(
         genStrView(Name),
-        std::unique_ptr<WasmEdge::Runtime::HostFunctionBase>(HostFunc));
+        std::unique_ptr<WasmEdge::Runtime::Instance::FunctionInstance>(
+            fromFuncCxt(FuncCxt)));
   }
 }
 

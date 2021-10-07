@@ -111,9 +111,6 @@ typedef struct WasmEdge_StoreContext WasmEdge_StoreContext;
 typedef struct WasmEdge_FunctionInstanceContext
     WasmEdge_FunctionInstanceContext;
 
-/// Opaque struct of WasmEdge host function.
-typedef struct WasmEdge_HostFunctionContext WasmEdge_HostFunctionContext;
-
 /// Opaque struct of WasmEdge table instance.
 typedef struct WasmEdge_TableInstanceContext WasmEdge_TableInstanceContext;
 
@@ -1597,35 +1594,18 @@ WasmEdge_StoreDelete(WasmEdge_StoreContext *Cxt);
 
 /// >>>>>>>> WasmEdge function instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// Get the function type context of the function instance.
-///
-/// The function type context links to the function type in the function
-/// instance context and owned by the context. The caller should __NOT__ call
-/// the `WasmEdge_FunctionTypeDelete`.
-///
-/// \param Cxt the WasmEdge_FunctionInstanceContext.
-///
-/// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
-WasmEdge_FunctionInstanceGetFunctionType(
-    const WasmEdge_FunctionInstanceContext *Cxt);
-
-/// <<<<<<<< WasmEdge function instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-/// >>>>>>>> WasmEdge host function functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
 typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
     void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
     const WasmEdge_Value *Params, WasmEdge_Value *Returns);
-/// Creation of the WasmEdge_HostFunctionContext.
+/// Creation of the WasmEdge_FunctionInstanceContext for host functions.
 ///
-/// The caller owns the object and should call `WasmEdge_HostFunctionDelete` to
-/// free it if the returned object is not added into a
+/// The caller owns the object and should call `WasmEdge_FunctionInstanceDelete`
+/// to free it if the returned object is not added into a
 /// `WasmEdge_ImportObjectContext`. The following is an example to create a host
 /// function context.
 /// ```c
 /// WasmEdge_Result FuncAdd(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
-///                     const WasmEdge_Value *In, WasmEdge_Value *Out) {
+///                         const WasmEdge_Value *In, WasmEdge_Value *Out) {
 ///   /// Function to return A + B.
 ///   int32_t A = WasmEdge_ValueGetI32(In[0]);
 ///   int32_t B = WasmEdge_ValueGetI32(In[1]);
@@ -1640,8 +1620,8 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 /// enum WasmEdge_ValType Returns[1] = {WasmEdge_ValType_I32};
 /// WasmEdge_FunctionTypeContext *FuncType =
 ///     WasmEdge_FunctionTypeCreate(Params, 2, Returns, 1);
-/// WasmEdge_HostFunctionContext *HostFunc =
-///     WasmEdge_HostFunctionCreate(FuncType, FuncAdd, NULL, 0);
+/// WasmEdge_FunctionInstanceContext *HostFunc =
+///     WasmEdge_FunctionInstanceCreate(FuncType, FuncAdd, NULL, 0);
 /// WasmEdge_FunctionTypeDelete(FuncType);
 /// ...
 /// ```
@@ -1668,20 +1648,20 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 /// not needed.
 ///
 /// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_HostFunctionContext *
-WasmEdge_HostFunctionCreate(const WasmEdge_FunctionTypeContext *Type,
-                            WasmEdge_HostFunc_t HostFunc, void *Data,
-                            const uint64_t Cost);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionInstanceContext *
+WasmEdge_FunctionInstanceCreate(const WasmEdge_FunctionTypeContext *Type,
+                                WasmEdge_HostFunc_t HostFunc, void *Data,
+                                const uint64_t Cost);
 
 typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
     void *This, void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
     const WasmEdge_Value *Params, const uint32_t ParamLen,
     WasmEdge_Value *Returns, const uint32_t ReturnLen);
-/// Creation of the WasmEdge_HostFunctionContext.
+/// Creation of the WasmEdge_FunctionInstanceContext for host functions.
 ///
 /// This function is for the languages which cannot pass the function pointer of
 /// the host function into this shared library directly. The caller owns the
-/// object and should call `WasmEdge_HostFunctionDelete` to free it if the
+/// object and should call `WasmEdge_FunctionInstanceDelete` to free it if the
 /// returned object is not added into a `WasmEdge_ImportObjectContext`. The
 /// following is an example to create a host function context for other
 /// languages.
@@ -1711,8 +1691,8 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 /// enum WasmEdge_ValType Returns[1] = {WasmEdge_ValType_I32};
 /// WasmEdge_FunctionTypeContext *FuncType =
 ///     WasmEdge_FunctionTypeCreate(Params, 2, Returns, 1);
-/// WasmEdge_HostFunctionContext *HostFunc =
-///     WasmEdge_HostFunctionCreateBinding(
+/// WasmEdge_FunctionInstanceContext *HostFunc =
+///     WasmEdge_FunctionInstanceCreateBinding(
 ///         FuncType, FuncAddWrap, RealFunc, NULL, 0);
 /// WasmEdge_FunctionTypeDelete(FuncType);
 /// ...
@@ -1750,21 +1730,35 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 /// not needed.
 ///
 /// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_HostFunctionContext *
-WasmEdge_HostFunctionCreateBinding(const WasmEdge_FunctionTypeContext *Type,
-                                   WasmEdge_WrapFunc_t WrapFunc, void *Binding,
-                                   void *Data, const uint64_t Cost);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionInstanceContext *
+WasmEdge_FunctionInstanceCreateBinding(const WasmEdge_FunctionTypeContext *Type,
+                                       WasmEdge_WrapFunc_t WrapFunc,
+                                       void *Binding, void *Data,
+                                       const uint64_t Cost);
 
-/// Deletion of the WasmEdge_HostFunctionContext.
+/// Get the function type context of the function instance.
+///
+/// The function type context links to the function type in the function
+/// instance context and owned by the context. The caller should __NOT__ call
+/// the `WasmEdge_FunctionTypeDelete`.
+///
+/// \param Cxt the WasmEdge_FunctionInstanceContext.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
+WasmEdge_FunctionInstanceGetFunctionType(
+    const WasmEdge_FunctionInstanceContext *Cxt);
+
+/// Deletion of the WasmEdge_FunctionInstanceContext.
 ///
 /// After calling this function, the context will be freed and should __NOT__ be
 /// used.
 ///
-/// \param Cxt the WasmEdge_HostFunctionContext to delete.
+/// \param Cxt the WasmEdge_FunctionInstanceContext to delete.
 WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_HostFunctionDelete(WasmEdge_HostFunctionContext *Cxt);
+WasmEdge_FunctionInstanceDelete(WasmEdge_FunctionInstanceContext *Cxt);
 
-/// <<<<<<<< WasmEdge host function functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+/// <<<<<<<< WasmEdge function instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> WasmEdge table instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -2116,19 +2110,19 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ImportObjectInitWasmEdgeProcess(
     WasmEdge_ImportObjectContext *Cxt, const char *const *AllowedCmds,
     const uint32_t CmdsLen, const bool AllowAll);
 
-/// Add a host function context into a WasmEdge_ImportObjectContext.
+/// Add a function instance context into a WasmEdge_ImportObjectContext.
 ///
-/// Move the host function context into the import object. The caller should
-/// __NOT__ access or delete the host function context after calling this
+/// Move the function instance context into the import object. The caller should
+/// __NOT__ access or delete the function instance context after calling this
 /// function.
 ///
 /// \param Cxt the WasmEdge_ImportObjectContext to add the host function.
 /// \param Name the host function name WasmEdge_String.
-/// \param HostFuncCxt the WasmEdge_HostFunctionContext to add.
+/// \param FuncCxt the WasmEdge_FunctionInstanceContext to add.
 WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ImportObjectAddHostFunction(WasmEdge_ImportObjectContext *Cxt,
-                                     const WasmEdge_String Name,
-                                     WasmEdge_HostFunctionContext *HostFuncCxt);
+WasmEdge_ImportObjectAddFunction(WasmEdge_ImportObjectContext *Cxt,
+                                 const WasmEdge_String Name,
+                                 WasmEdge_FunctionInstanceContext *FuncCxt);
 
 /// Add a table instance context into a WasmEdge_ImportObjectContext.
 ///

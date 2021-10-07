@@ -10,10 +10,11 @@
 * [WasmEdge Basics](#WasmEdge-Basics)
   * [Version](#Version)
   * [Logging Settings](#Logging-Settings)
-  * [Contexts](#Contexts)
+  * [Value Types](#Value-Types)
   * [Strings](#Strings)
   * [Results](#Results)
-  * [Value Types](#Value-Types)
+  * [Contexts](#Contexts)
+  * [WASM data structures](#Wasm-data-structures)
   * [Configurations](#Configurations)
   * [Statistics](#Statistics)
 * [WasmEdge VM](#WasmEdge-VM)
@@ -42,19 +43,19 @@
 For `Ubuntu` or `Debian`, WasmEdge can be fully installed by the following commands:
 
 ```bash
-$ wget https://github.com/WasmEdge/WasmEdge/releases/download/0.8.1/WasmEdge-0.8.1.deb
-$ sudo dpkg -i WasmEdge-0.8.1.deb
+$ wget https://github.com/WasmEdge/WasmEdge/releases/download/0.8.2/WasmEdge-0.8.2.deb
+$ sudo dpkg -i WasmEdge-0.8.2.deb
 ```
 
 Or developers can install the shared library step-by-step (take the `manylinux2014` package for example):
 
 ```bash
-$ wget https://github.com/WasmEdge/WasmEdge/releases/download/0.8.1/WasmEdge-0.8.1-manylinux2014_x86_64.tar.gz
-$ tar -xzf WasmEdge-0.8.1-manylinux2014_x86_64.tar.gz
+$ wget https://github.com/WasmEdge/WasmEdge/releases/download/0.8.2/WasmEdge-0.8.2-manylinux2014_x86_64.tar.gz
+$ tar -xzf WasmEdge-0.8.2-manylinux2014_x86_64.tar.gz
 # Copy the headers to /usr/local/include
-$ sudo cp -r WasmEdge-0.8.1-Linux/include /usr/local/include
+$ sudo cp -r WasmEdge-0.8.2-Linux/include /usr/local/include
 # Copy the shared library to /usr/local/lib
-$ sudo cp WasmEdge-0.8.1-Linux/lib64/libwasmedge_c.so /usr/local/lib/
+$ sudo cp WasmEdge-0.8.2-Linux/lib64/libwasmedge_c.so /usr/local/lib/
 $ sudo ldconfig
 ```
 
@@ -106,19 +107,57 @@ printf("WasmEdge version patch: %u\n", WasmEdge_VersionGetPatch());
 
 The `WasmEdge_LogSetErrorLevel()` and `WasmEdge_LogSetDebugLevel()` APIs can set the logging system to debug level or error level. By default, the error level is set, and the debug info is hidden.
 
-### Contexts
+### Value Types
 
-The objects, such as `VM`, `Store`, and `HostFunction`, are composed of `Context`s.
-All of the contexts can be created by calling the corresponding creation APIs and should be destroyed by calling the corresponding deletion APIs. Developers have responsibilities to manage the contexts for memory management.
+In WasmEdge, developers should convert the values to `WasmEdge_Value` objects through APIs for matching to the WASM value types.
 
-```c
-/* Create the configure context. */
-WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
-/* Delete the configure context. */
-WasmEdge_ConfigureDelete(ConfCxt);
-```
+1. Number types: `i32`, `i64`, `f32`, `f64`, and `v128` for the `SIMD` proposal
 
-The details of other contexts will be introduced later.
+    ```c
+    WasmEdge_Value Val;
+    Val = WasmEdge_ValueGenI32(123456);
+    printf("%d\n", WasmEdge_ValueGetI32(Val));
+    /* Will print "123456" */
+    Val = WasmEdge_ValueGenI64(1234567890123LL);
+    printf("%ld\n", WasmEdge_ValueGetI64(Val));
+    /* Will print "1234567890123" */
+    Val = WasmEdge_ValueGenF32(123.456f);
+    printf("%f\n", WasmEdge_ValueGetF32(Val));
+    /* Will print "123.456001" */
+    Val = WasmEdge_ValueGenF64(123456.123456789);
+    printf("%.10f\n", WasmEdge_ValueGetF64(Val));
+    /* Will print "123456.1234567890" */
+    ```
+
+2. Reference types: `funcref` and `externref` for the `Reference-Types` proposal
+
+    ```c
+    WasmEdge_Value Val;
+    void *Ptr;
+    bool IsNull;
+    uint32_t Num = 10;
+    /* Genreate a externref to NULL. */
+    Val = WasmEdge_ValueGenNullRef(WasmEdge_RefType_ExternRef);
+    IsNull = WasmEdge_ValueIsNullRef(Val);
+    /* The `IsNull` will be `TRUE`. */
+    Ptr = WasmEdge_ValueGetExternRef(Val);
+    /* The `Ptr` will be `NULL`. */
+
+    /* Genreate a funcref with function index 20. */
+    Val = WasmEdge_ValueGenFuncRef(20);
+    uint32_t FuncIdx = WasmEdge_ValueGetFuncIdx(Val);
+    /* The `FuncIdx` will be 20. */
+
+    /* Genreate a externref to `Num`. */
+    Val = WasmEdge_ValueGenExternRef(&Num);
+    Ptr = WasmEdge_ValueGetExternRef(Val);
+    /* The `Ptr` will be `&Num`. */
+    printf("%u\n", *(uint32_t *)Ptr);
+    /* Will print "10" */
+    Num += 55;
+    printf("%u\n", *(uint32_t *)Ptr);
+    /* Will print "65" */
+    ```
 
 ### Strings
 
@@ -185,56 +224,109 @@ const char *Msg = WasmEdge_ResultGetMessage(Res);
 /* The `Msg` will be "success". */
 ```
 
-### Value Types
+### Contexts
 
-In WasmEdge, developers should convert the values to `WasmEdge_Value` objects through APIs for matching to the WASM value types.
+The objects, such as `VM`, `Store`, and `HostFunction`, are composed of `Context`s.
+All of the contexts can be created by calling the corresponding creation APIs and should be destroyed by calling the corresponding deletion APIs. Developers have responsibilities to manage the contexts for memory management.
 
-1. Number types: `i32`, `i64`, `f32`, `f64`, and `v128` for the `SIMD` proposal
+```c
+/* Create the configure context. */
+WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
+/* Delete the configure context. */
+WasmEdge_ConfigureDelete(ConfCxt);
+```
+
+The details of other contexts will be introduced later.
+
+### WASM Data Structures
+
+The WASM data structures are used for creating instances or can be queried from intance contexts.
+The details of instances creation will be introduced in the [Instances](#Instances).
+
+1. Limit
+
+    The `WasmEdge_Limit` struct is defined in the header:
 
     ```c
-    WasmEdge_Value Val;
-    Val = WasmEdge_ValueGenI32(123456);
-    printf("%d\n", WasmEdge_ValueGetI32(Val));
-    /* Will print "123456" */
-    Val = WasmEdge_ValueGenI64(1234567890123LL);
-    printf("%ld\n", WasmEdge_ValueGetI64(Val));
-    /* Will print "1234567890123" */
-    Val = WasmEdge_ValueGenF32(123.456f);
-    printf("%f\n", WasmEdge_ValueGetF32(Val));
-    /* Will print "123.456001" */
-    Val = WasmEdge_ValueGenF64(123456.123456789);
-    printf("%.10f\n", WasmEdge_ValueGetF64(Val));
-    /* Will print "123456.1234567890" */
+    /// Struct of WASM limit.
+    typedef struct WasmEdge_Limit {
+      /// Boolean to describe has max value or not.
+      bool HasMax;
+      /// Minimum value.
+      uint32_t Min;
+      /// Maximum value. Will be ignored if the `HasMax` is false.
+      uint32_t Max;
+    } WasmEdge_Limit;
     ```
 
-2. Reference types: `funcref` and `externref` for the `Reference-Types` proposal
+    Developers can initialize the struct by assigning it's value, and the `Max` value is needed to be larger or equal to the `Min` value.
+    The API `WasmEdge_LimitIsEqual()` is provided to compare with 2 `WasmEdge_Limit` structs.
+
+2. Function type
+
+    The `Function Type` context is used for the `Host Function` creation, checking the value types of a `Function` instance, or getting the function type with function name from VM. Developers can use the `Function Type` context APIs to get the parameter or return value types information.
+
+    ```
+    enum WasmEdge_ValType ParamList[2] = { WasmEdge_ValType_I32, WasmEdge_ValType_I64 };
+    enum WasmEdge_ValType ReturnList[1] = { WasmEdge_ValType_FuncRef };
+    WasmEdge_FunctionTypeContext *FuncTypeCxt = WasmEdge_FunctionTypeCreate(ParamList, 2, ReturnList, 1);
+
+    enum WasmEdge_ValType Buf[16];
+    uint32_t ParamLen = WasmEdge_FunctionTypeGetParametersLength(FuncTypeCxt);
+    /* `ParamLen` will be 2. */
+    uint32_t GotParamLen = WasmEdge_FunctionTypeGetParameters(FuncTypeCxt, Buf, 16);
+    /* `GotParamLen` will be 2, and `Buf[0]` and `Buf[1]` will be the same as `ParamList`. */
+    uint32_t ReturnLen = WasmEdge_FunctionTypeGetReturnsLength(FuncTypeCxt);
+    /* `ReturnLen` will be 1. */
+    uint32_t GotReturnLen = WasmEdge_FunctionTypeGetReturns(FuncTypeCxt, Buf, 16);
+    /* `GotReturnLen` will be 1, and `Buf[0]` will be the same as `ReturnList`. */
+
+    WasmEdge_FunctionTypeDelete(FuncTypeCxt);
+    ```
+
+3. Table type context
+
+    The `Table Type` context is used for `Table` instance creation or getting information from `Table` instances.
 
     ```c
-    WasmEdge_Value Val;
-    void *Ptr;
-    bool IsNull;
-    uint32_t Num = 10;
-    /* Genreate a externref to NULL. */
-    Val = WasmEdge_ValueGenNullRef(WasmEdge_RefType_ExternRef);
-    IsNull = WasmEdge_ValueIsNullRef(Val);
-    /* The `IsNull` will be `TRUE`. */
-    Ptr = WasmEdge_ValueGetExternRef(Val);
-    /* The `Ptr` will be `NULL`. */
+    WasmEdge_Limit TabLim = {.HasMax = true, .Min = 10, .Max = 20};
+    WasmEdge_TableTypeContext *TabTypeCxt = WasmEdge_TableTypeCreate(WasmEdge_RefType_ExternRef, TabLim);
 
-    /* Genreate a funcref with function index 20. */
-    Val = WasmEdge_ValueGenFuncRef(20);
-    uint32_t FuncIdx = WasmEdge_ValueGetFuncIdx(Val);
-    /* The `FuncIdx` will be 20. */
+    enum WasmEdge_RefType GotRefType = WasmEdge_TableTypeGetRefType(TabTypeCxt);
+    /* `GotRefType` will be WasmEdge_RefType_ExternRef. */
+    WasmEdge_Limit GotTabLim = WasmEdge_TableTypeGetLimit(TabTypeCxt);
+    /* `GotTabLim` will be the same value as `TabLim`. */
 
-    /* Genreate a externref to `Num`. */
-    Val = WasmEdge_ValueGenExternRef(&Num);
-    Ptr = WasmEdge_ValueGetExternRef(Val);
-    /* The `Ptr` will be `&Num`. */
-    printf("%u\n", *(uint32_t *)Ptr);
-    /* Will print "10" */
-    Num += 55;
-    printf("%u\n", *(uint32_t *)Ptr);
-    /* Will print "65" */
+    WasmEdge_TableTypeDelete(TabTypeCxt);
+    ```
+
+4. Memory type context
+
+    The `Memory Type` context is used for `Memory` instance creation or getting information from `Memory` instances.
+
+    ```c
+    WasmEdge_Limit MemLim = {.HasMax = true, .Min = 10, .Max = 20};
+    WasmEdge_MemoryTypeContext *MemTypeCxt = WasmEdge_MemoryTypeCreate(MemLim);
+
+    WasmEdge_Limit GotMemLim = WasmEdge_MemoryTypeGetLimit(MemTypeCxt);
+    /* `GotMemLim` will be the same value as `MemLim`. */
+
+    WasmEdge_MemoryTypeDelete(MemTypeCxt)
+    ```
+
+5. Global type context
+
+    The `Global Type` context is used for `Global` instance creation or getting information from `Global` instances.
+
+    ```c
+    WasmEdge_GlobalTypeContext *GlobTypeCxt = WasmEdge_GlobalTypeCreate(WasmEdge_ValType_F64, WasmEdge_Mutability_Var);
+
+    WasmEdge_ValType GotValType = WasmEdge_GlobalTypeGetValType(GlobTypeCxt);
+    /* `GotValType` will be WasmEdge_ValType_F64. */
+    WasmEdge_Mutability GotValMut = WasmEdge_GlobalTypeGetMutability(GlobTypeCxt);
+    /* `GotValMut` will be WasmEdge_Mutability_Var. */
+
+    WasmEdge_GlobalTypeDelete(GlobTypeCxt);
     ```
 
 ### Configurations
@@ -1161,28 +1253,6 @@ The instances created by their creation functions should be destroyed, EXCEPT th
     /* The `FuncTypeCxt` is owned by the `FuncCxt` and should __NOT__ be destroyed. */
     ```
 
-2. Function type
-
-    The `Function Type` context is used for the `Host Function` creation or checking the value types of a `Function` instance. Developers can use the `Function Type` context APIs to get the value types information.
-
-    ```
-    enum WasmEdge_ValType ParamList[2] = { WasmEdge_ValType_I32, WasmEdge_ValType_I64 };
-    enum WasmEdge_ValType ReturnList[1] = { WasmEdge_ValType_FuncRef };
-    WasmEdge_FunctionTypeContext *FuncTypeCxt = WasmEdge_FunctionTypeCreate(ParamList, 2, ReturnList, 1);
-
-    enum WasmEdge_ValType Buf[16];
-    uint32_t ParamLen = WasmEdge_FunctionTypeGetParametersLength(FuncTypeCxt);
-    /* `ParamLen` will be 2. */
-    uint32_t GotParamLen = WasmEdge_FunctionTypeGetParameters(FuncTypeCxt, Buf, 16);
-    /* `GotParamLen` will be 2, and `Buf[0]` and `Buf[1]` will be the same as `ParamList`. */
-    uint32_t ReturnLen = WasmEdge_FunctionTypeGetReturnsLength(FuncTypeCxt);
-    /* `ReturnLen` will be 1. */
-    uint32_t GotReturnLen = WasmEdge_FunctionTypeGetReturns(FuncTypeCxt, Buf, 16);
-    /* `GotReturnLen` will be 1, and `Buf[0]` will be the same as `ReturnList`. */
-
-    WasmEdge_FunctionTypeDelete(FuncTypeCxt);
-    ```
-
 3. Host function instance
 
     [Host functions](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) are functions outside WebAssembly and passed to WASM modules as imports.
@@ -1196,12 +1266,18 @@ The instances created by their creation functions should be destroyed, EXCEPT th
 
     ```c
     WasmEdge_Limit TabLimit = {.HasMax = true, .Min = 10, .Max = 20};
-    /* Create the table instance with limit and the `FuncRef` element type. */
-    WasmEdge_TableInstanceContext *HostTable = WasmEdge_TableInstanceCreate(WasmEdge_RefType_FuncRef, TabLimit);
+    /* Create the table type with limit and the `FuncRef` element type. */
+    WasmEdge_TableTypeContext *TabTypeCxt = WasmEdge_TableTypeCreate(WasmEdge_RefType_FuncRef, TabLimit);
+    /* Create the table instance with table type. */
+    WasmEdge_TableInstanceContext *HostTable = WasmEdge_TableInstanceCreate(TabTypeCxt);
+    /* Delete the table type. */
+    WasmEdge_TableTypeDelete(TabTypeCxt);
     WasmEdge_Result Res;
     WasmEdge_Value Data;
 
-    enum WasmEdge_RefType RefType = WasmEdge_TableInstanceGetRefType(HostTable);
+    TabTypeCxt = WasmEdge_TableInstanceGetTableType(HostTable);
+    /* The `TabTypeCxt` got from table instance is owned by the `HostTable` and should __NOT__ be destroyed. */
+    enum WasmEdge_RefType RefType = WasmEdge_TableTypeGetRefType(TabTypeCxt);
     /* `RefType` will be `WasmEdge_RefType_FuncRef`. */
     Data = WasmEdge_ValueGenFuncRef(5);
     Res = WasmEdge_TableInstanceSetData(HostTable, Data, 3);
@@ -1237,8 +1313,12 @@ The instances created by their creation functions should be destroyed, EXCEPT th
 
     ```c
     WasmEdge_Limit MemLimit = {.HasMax = true, .Min = 1, .Max = 5};
-    /* Create the memory instance with limit. The memory page size is 64KiB. */
-    WasmEdge_MemoryInstanceContext *HostMemory = WasmEdge_MemoryInstanceCreate(MemLimit);
+    /* Create the table type with limit. The memory page size is 64KiB. */
+    WasmEdge_MemoryTypeContext *MemTypeCxt = WasmEdge_MemoryTypeCreate(MemLimit);
+    /* Create the memory instance with memory type. */
+    WasmEdge_MemoryInstanceContext *HostMemory = WasmEdge_MemoryInstanceCreate(MemTypeCxt);
+    /* Delete the memory type. */
+    WasmEdge_MemoryTypeDelete(MemTypeCxt);
     WasmEdge_Result Res;
     uint8_t Buf[256];
 
@@ -1281,14 +1361,20 @@ The instances created by their creation functions should be destroyed, EXCEPT th
     The `Global` contexts supply APIs to control the value in global instances.
 
     ```c
-    /* Create the global instance with value and mutation. */
     WasmEdge_Value Val = WasmEdge_ValueGenI64(1000);
-    WasmEdge_GlobalInstanceCreate *HostGlobal = WasmEdge_GlobalInstanceCreate(Val, WasmEdge_Mutability_Var);
+    /* Create the global type with value type and mutation. */
+    WasmEdge_GlobalTypeContext *GlobTypeCxt = WasmEdge_GlobalTypeCreate(WasmEdge_ValType_I64, WasmEdge_Mutability_Var);
+    /* Create the global instance with value and global type. */
+    WasmEdge_GlobalInstanceCreate *HostGlobal = WasmEdge_GlobalInstanceCreate(GlobTypeCxt, Val);
+    /* Delete the global type. */
+    WasmEdge_GlobalTypeDelete(GlobTypeCxt);
     WasmEdge_Result Res;
 
-    enum WasmEdge_ValType ValType = WasmEdge_GlobalInstanceGetValType(HostGlobal);
+    GlobTypeCxt = WasmEdge_GlobalInstanceGetGlobalType(HostGlobal);
+    /* The `GlobTypeCxt` got from global instance is owned by the `HostGlobal` and should __NOT__ be destroyed. */
+    enum WasmEdge_ValType ValType = WasmEdge_GlobalTypeGetValType(GlobTypeCxt);
     /* `ValType` will be `WasmEdge_ValType_I64`. */
-    enum WasmEdge_Mutability ValMut = WasmEdge_GlobalInstanceGetMutability(HostGlobal);
+    enum WasmEdge_Mutability ValMut = WasmEdge_GlobalTypeGetMutability(GlobTypeCxt);
     /* `ValMut` will be `WasmEdge_Mutability_Var`. */
     
     WasmEdge_GlobalInstanceSetValue(HostGlobal, WasmEdge_ValueGenI64(888));

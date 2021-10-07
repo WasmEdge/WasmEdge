@@ -13,25 +13,53 @@ Breaking changes:
 * Adjusted the error code names.
   * Please refer to the [ErrCode enum](https://github.com/WasmEdge/WasmEdge/blob/master/include/common/enum_errcode.h) definition.
 * WasmEdge C API changes.
-  * Deleted the data object column in the creation function of `ImportObject` context.
-  * Added the data object column in the creation function of `HostFunction` context.
-  * Instead of the unified data object of the host functions in the same import object before, the data objects are independent in every host functions now.
+  * Updated the host function related APIs.
+    * Deleted the data object column in the creation function of `ImportObject` context.
+    * Added the data object column in the creation function of `HostFunction` context.
+    * Instead of the unified data object of the host functions in the same import object before, the data objects are independent in every host functions now.
+  * Added the WASM types contexts.
+    * Added the `WasmEdge_TableTypeContext`, which is used for table instances creation.
+    * Added the `WasmEdge_MemoryTypeContext`, which is used for memory instances creation.
+    * Added the `WasmEdge_GlobalTypeContext`, which is used for global instances creation.
+    * Added the member getter functions of above contexts.
+  * Updated the instances creation APIs.
+    * Used `WasmEdge_TableTypeContext` for table instances creation.
+      * Removed `WasmEdge_TableInstanceGetRefType` API.
+      * Developers can use the `WasmEdge_TableInstanceGetTableType` API to get the table type instead.
+    * Used `WasmEdge_MemoryTypeContext` for memory instances creation.
+      * Added `WasmEdge_MemoryInstanceGetMemoryType` API.
+    * Used `WasmEdge_GlobalTypeContext` for global instances creation.
+      * Removed `WasmEdge_GlobalInstanceGetValType` and `WasmEdge_GlobalInstanceGetMutability` API.
+      * Developers can use the `WasmEdge_GlobalInstanceGetGlobalType` API to get the global type instead.
 
 Refactor:
 
+* Refined headers inclusion in all files.
 * Refactor the common headers.
+  * Removed the unnecessary `genNullRef()`.
   * Merged the building environment related definitions into `common`.
+  * Merged the `common/values.h` into `common/types.h`.
   * Separate all enumeration definitions.
+* Refactor the AST nodes.
+  * Simplified the AST nodes definitions into header-only classes.
+  * Moved the binary loading functions into `loader`.
+  * Updated the `validator`, `interpreteer`, `runtime`, `api`, and `vm` for the AST node changes.
+* Refactor the runtime objects.
+  * Used `AST::FunctionType`, `AST::TableType`, `AST::MemoryType`, and `AST::GlobalType` for instance creation and member handling.
+  * Removed `Runtime::Instance::FType` and used `AST::FunctionType` instead.
 * Updated the include path for rust binding due to the API headers refactoring.
 
 Documentations:
 
 * Updated the examples in the C API documentation.
+* Updated the examples in the host function documentation.
 
 Tests:
 
 * Added `ErrInfo` unit tests.
 * Added instruction tests for turning on/off the old proposals.
+* Moved and updated the `AST` unit tests into `loader`.
+* Added the unit tests for new APIs.
 
 ### 0.8.2 (2021-08-25)
 

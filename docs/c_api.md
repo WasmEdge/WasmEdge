@@ -226,7 +226,7 @@ const char *Msg = WasmEdge_ResultGetMessage(Res);
 
 ### Contexts
 
-The objects, such as `VM`, `Store`, and `HostFunction`, are composed of `Context`s.
+The objects, such as `VM`, `Store`, and `Function`, are composed of `Context`s.
 All of the contexts can be created by calling the corresponding creation APIs and should be destroyed by calling the corresponding deletion APIs. Developers have responsibilities to manage the contexts for memory management.
 
 ```c
@@ -264,9 +264,9 @@ The details of instances creation will be introduced in the [Instances](#Instanc
 
 2. Function type
 
-    The `Function Type` context is used for the `Host Function` creation, checking the value types of a `Function` instance, or getting the function type with function name from VM. Developers can use the `Function Type` context APIs to get the parameter or return value types information.
+    The `Function Type` context is used for the `Function` creation, checking the value types of a `Function` instance, or getting the function type with function name from VM. Developers can use the `Function Type` context APIs to get the parameter or return value types information.
 
-    ```
+    ```c
     enum WasmEdge_ValType ParamList[2] = { WasmEdge_ValType_I32, WasmEdge_ValType_I64 };
     enum WasmEdge_ValType ReturnList[1] = { WasmEdge_ValType_FuncRef };
     WasmEdge_FunctionTypeContext *FuncTypeCxt = WasmEdge_FunctionTypeCreate(ParamList, 2, ReturnList, 1);
@@ -1243,23 +1243,19 @@ The instances created by their creation functions should be destroyed, EXCEPT th
 
 1. Function instance
 
-    The `Function` context has no creation and deletion API.
-    Developers can only retrieve the `Function` context from the `Store` context, and retrieve the `Function Type` from the `Function` contexts.
+    [Host functions](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) are functions outside WebAssembly and passed to WASM modules as imports.
+    In WasmEdge, developers can create the `Function` contexts for host functions and add them into an `Import Object` context for registering into a `VM` or a `Store`.
+    For both host functions and the functions get from `Store`, developers can retrieve the `Function Type` from the `Function` contexts.
+    For the details of the `Host Function` guide, please refer to the [next chapter](#Host-Functions).
 
-    ```
+    ```c
     /* Retrieve the function instance from the store context. */
     WasmEdge_FunctionInstanceContext *FuncCxt = ...;
     WasmEdge_FunctionTypeContext *FuncTypeCxt = WasmEdge_FunctionInstanceGetFunctionType(FuncCxt);
     /* The `FuncTypeCxt` is owned by the `FuncCxt` and should __NOT__ be destroyed. */
     ```
 
-3. Host function instance
-
-    [Host functions](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) are functions outside WebAssembly and passed to WASM modules as imports.
-    In WasmEdge, developers can create the `Host Function` contexts and add them into an `Import Object` context for registering into a `VM` or a `Store`.
-    For the details of the `Host Function` guide, please refer to the [next chapter](#Host-Functions).
-
-4. Table instance
+2. Table instance
 
     In WasmEdge, developers can create the `Table` contexts and add them into an `Import Object` context for registering into a `VM` or a `Store`.
     The `Table` contexts supply APIs to control the data in table instances.
@@ -1306,7 +1302,7 @@ The instances created by their creation functions should be destroyed, EXCEPT th
     WasmEdge_TableInstanceDelete(HostTable);
     ```
 
-5. Memory instance
+3. Memory instance
 
     In WasmEdge, developers can create the `Memory` contexts and add them into an `Import Object` context for registering into a `VM` or a `Store`.
     The `Memory` contexts supply APIs to control the data in memory instances.
@@ -1355,7 +1351,7 @@ The instances created by their creation functions should be destroyed, EXCEPT th
     WasmEdge_MemoryInstanceDelete(HostMemory);
     ```
 
-6. Global instance
+4. Global instance
 
     In WasmEdge, developers can create the `Global` contexts and add them into an `Import Object` context for registering into a `VM` or a `Store`.
     The `Global` contexts supply APIs to control the value in global instances.
@@ -1392,7 +1388,7 @@ The instances created by their creation functions should be destroyed, EXCEPT th
 ### Host Functions
 
 [Host functions](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) are functions outside WebAssembly and passed to WASM modules as imports.
-In WasmEdge, developers can create the `Host Function`, `Memory`, `Table`, and `Global` contexts and add them into an `Import Object` context for registering into a `VM` or a `Store`.
+In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Global` contexts and add them into an `Import Object` context for registering into a `VM` or a `Store`.
 
 1. Host function allocation
 
@@ -1427,7 +1423,7 @@ In WasmEdge, developers can create the `Host Function`, `Memory`, `Table`, and `
     }
     ```
 
-    Then developers can create `Host Function` contexts with the function types:
+    Then developers can create `Function` context with the host function body and function type:
 
     ```c
     enum WasmEdge_ValType ParamList[2] = { WasmEdge_ValType_I32, WasmEdge_ValType_I32 };
@@ -1435,23 +1431,23 @@ In WasmEdge, developers can create the `Host Function`, `Memory`, `Table`, and `
     /* Create a function type: {i32, i32} -> {i32}. */
     HostFType = WasmEdge_FunctionTypeCreate(ParamList, 2, ReturnList, 1);
     /* 
-     * Create a host function context with the function type and body.
+     * Create a function context with the function type and host function body.
      * The `Cost` parameter can be 0 if developers do not need the cost measuring.
      */
-    WasmEdge_HostFunctionContext *HostFunc = WasmEdge_HostFunctionCreate(HostFType, Add, NULL, 0);
+    WasmEdge_FunctionInstanceContext *HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, Add, NULL, 0);
     /*
      * The second parameter is the pointer to the additional data.
      * Developers should guarantee the life cycle of the data, and it can be
      * `NULL` if the external data is not needed.
      */
 
-    /* If the host function instance is not added into an import object context, it should be deleted. */
-    WasmEdge_HostFunctionDelete(HostFunc);
+    /* If the function instance is not added into an import object context, it should be deleted. */
+    WasmEdge_FunctionInstanceDelete(HostFunc);
     ```
 
 2. Import object context
 
-    The `Import Object` context holds an exporting module name and the instances. Developers can add the `Host Function`, `Memory`, `Table`, and `Global` instances with their exporting names.
+    The `Import Object` context holds an exporting module name and the instances. Developers can add the `Function`, `Memory`, `Table`, and `Global` instances with their exporting names.
 
     ```c
     /* Host function body definition. */
@@ -1468,13 +1464,13 @@ In WasmEdge, developers can create the `Host Function`, `Memory`, `Table`, and `
     WasmEdge_ImportObjectContext *ImpObj = WasmEdge_ImportObjectCreate(ExportName);
     WasmEdge_StringDelete(ExportName);
 
-    /* Create and add a host function instance into the import object. */
+    /* Create and add a function instance into the import object. */
     enum WasmEdge_ValType ParamList[2] = { WasmEdge_ValType_I32, WasmEdge_ValType_I32 };
     enum WasmEdge_ValType ReturnList[1] = { WasmEdge_ValType_I32 };
     WasmEdge_FunctionTypeContext *HostFType = 
       WasmEdge_FunctionTypeCreate(ParamList, 2, ReturnList, 1);
-    WasmEdge_HostFunctionContext *HostFunc =
-      WasmEdge_HostFunctionCreate(HostFType, Add, NULL, 0);
+    WasmEdge_FunctionInstanceContext *HostFunc =
+      WasmEdge_FunctionInstanceCreate(HostFType, Add, NULL, 0);
     /*
      * The third parameter is the pointer to the additional data object.
      * Developers should guarantee the life cycle of the data, and it can be
@@ -1482,7 +1478,7 @@ In WasmEdge, developers can create the `Host Function`, `Memory`, `Table`, and `
      */
     WasmEdge_FunctionTypeDelete(HostFType);
     WasmEdge_String FuncName = WasmEdge_StringCreateByCString("add");
-    WasmEdge_ImportObjectAddHostFunction(ImpObj, FuncName, HostFunc);
+    WasmEdge_ImportObjectAddFunction(ImpObj, FuncName, HostFunc);
     WasmEdge_StringDelete(FuncName);
 
     /* Create and add a table instance into the import object. */
@@ -1603,10 +1599,10 @@ In WasmEdge, developers can create the `Host Function`, `Memory`, `Table`, and `
       enum WasmEdge_ValType ParamList[2] = { WasmEdge_ValType_I32, WasmEdge_ValType_I32 };
       enum WasmEdge_ValType ReturnList[1] = { WasmEdge_ValType_I32 };
       WasmEdge_FunctionTypeContext *HostFType = WasmEdge_FunctionTypeCreate(ParamList, 2, ReturnList, 1);
-      WasmEdge_HostFunctionContext *HostFunc = WasmEdge_HostFunctionCreate(HostFType, Add, NULL, 0);
+      WasmEdge_FunctionInstanceContext *HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, Add, NULL, 0);
       WasmEdge_FunctionTypeDelete(HostFType);
       WasmEdge_String HostFuncName = WasmEdge_StringCreateByCString("func-add");
-      WasmEdge_ImportObjectAddHostFunction(ImpObj, HostFuncName, HostFunc);
+      WasmEdge_ImportObjectAddFunction(ImpObj, HostFuncName, HostFunc);
       WasmEdge_StringDelete(HostFuncName);
 
       WasmEdge_VMRegisterModuleFromImport(VMCxt, ImpObj);
@@ -1645,7 +1641,7 @@ In WasmEdge, developers can create the `Host Function`, `Memory`, `Table`, and `
 
 5. Host Data Example
 
-    Developers can set a external data object to the host function context, and access to the object in the function body.
+    Developers can set a external data object to the function context, and access to the object in the function body.
     Assume that a simple WASM from the WAT as following:
 
     ```
@@ -1721,10 +1717,10 @@ In WasmEdge, developers can create the `Host Function`, `Memory`, `Table`, and `
       enum WasmEdge_ValType ParamList[2] = { WasmEdge_ValType_I32, WasmEdge_ValType_I32 };
       enum WasmEdge_ValType ReturnList[1] = { WasmEdge_ValType_I32 };
       WasmEdge_FunctionTypeContext *HostFType = WasmEdge_FunctionTypeCreate(ParamList, 2, ReturnList, 1);
-      WasmEdge_HostFunctionContext *HostFunc = WasmEdge_HostFunctionCreate(HostFType, Add, &Data, 0);
+      WasmEdge_FunctionInstanceContext *HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, Add, &Data, 0);
       WasmEdge_FunctionTypeDelete(HostFType);
       WasmEdge_String HostFuncName = WasmEdge_StringCreateByCString("func-add");
-      WasmEdge_ImportObjectAddHostFunction(ImpObj, HostFuncName, HostFunc);
+      WasmEdge_ImportObjectAddFunction(ImpObj, HostFuncName, HostFunc);
       WasmEdge_StringDelete(HostFuncName);
 
       WasmEdge_VMRegisterModuleFromImport(VMCxt, ImpObj);

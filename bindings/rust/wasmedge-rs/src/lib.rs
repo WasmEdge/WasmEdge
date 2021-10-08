@@ -1,12 +1,12 @@
-//! Idiomatic Rust bindings to the [WasmEdge](https://github.com/WasmEdge/WasmEdge) VM.
-
 #![deny(rust_2018_idioms, unreachable_pub)]
 
+pub use wasmedge_sys as wasmedge;
+
 pub mod config;
+pub mod error;
 pub mod module;
-pub mod string;
-pub mod value;
 pub mod vm;
+pub mod wasi_conf;
 
 pub use config::Config;
 pub use module::Module;

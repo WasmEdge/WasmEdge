@@ -1,6 +1,7 @@
-use wasmedge_sys as ffi;
+use super::wasmedge;
 
 /// A polymorphic Wasm primitive type.
+/// # TODO : v128 / Reference types
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Value {
     I32(i32),
@@ -9,36 +10,36 @@ pub enum Value {
     F64(f64),
 }
 
-impl From<Value> for ffi::WasmEdge_Value {
+impl From<Value> for wasmedge::WasmEdge_Value {
     fn from(value: Value) -> Self {
         match value {
             Value::I32(v) => Self {
                 Value: v as u128,
-                Type: ffi::WasmEdge_ValType_I32,
+                Type: wasmedge::WasmEdge_ValType_I32,
             },
             Value::I64(v) => Self {
                 Value: v as u128,
-                Type: ffi::WasmEdge_ValType_I64,
+                Type: wasmedge::WasmEdge_ValType_I64,
             },
             Value::F32(v) => Self {
                 Value: v.to_bits() as u128,
-                Type: ffi::WasmEdge_ValType_F32,
+                Type: wasmedge::WasmEdge_ValType_F32,
             },
             Value::F64(v) => Self {
                 Value: v.to_bits() as u128,
-                Type: ffi::WasmEdge_ValType_F64,
+                Type: wasmedge::WasmEdge_ValType_F64,
             },
         }
     }
 }
 
-impl From<ffi::WasmEdge_Value> for Value {
-    fn from(value: ffi::WasmEdge_Value) -> Self {
+impl From<wasmedge::WasmEdge_Value> for Value {
+    fn from(value: wasmedge::WasmEdge_Value) -> Self {
         match value.Type {
-            ffi::WasmEdge_ValType_I32 => Self::I32(value.Value as i32),
-            ffi::WasmEdge_ValType_I64 => Self::I64(value.Value as i64),
-            ffi::WasmEdge_ValType_F32 => Self::F32(f32::from_bits(value.Value as u32)),
-            ffi::WasmEdge_ValType_F64 => Self::F64(f64::from_bits(value.Value as u64)),
+            wasmedge::WasmEdge_ValType_I32 => Self::I32(value.Value as i32),
+            wasmedge::WasmEdge_ValType_I64 => Self::I64(value.Value as i64),
+            wasmedge::WasmEdge_ValType_F32 => Self::F32(f32::from_bits(value.Value as u32)),
+            wasmedge::WasmEdge_ValType_F64 => Self::F64(f64::from_bits(value.Value as u64)),
             _ => panic!("unknown WasmEdge_ValType `{}`", value.Type),
         }
     }

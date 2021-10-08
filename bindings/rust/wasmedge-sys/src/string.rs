@@ -1,6 +1,5 @@
+use super::wasmedge;
 use std::marker::PhantomData;
-
-use wasmedge_sys as ffi;
 
 #[derive(Clone, Debug)]
 pub enum WasmEdgeString<'a> {
@@ -11,7 +10,7 @@ pub enum WasmEdgeString<'a> {
 impl Drop for WasmEdgeString<'_> {
     fn drop(&mut self) {
         if let Self::Owned(buf) = self {
-            unsafe { ffi::WasmEdge_StringDelete(buf.inner) };
+            unsafe { wasmedge::WasmEdge_StringDelete(buf.inner) };
         }
     }
 }
@@ -43,15 +42,24 @@ impl Default for WasmEdgeString<'_> {
     }
 }
 
+impl Default for wasmedge::WasmEdge_String {
+    fn default() -> Self {
+        wasmedge::WasmEdge_String {
+            Length: 0,
+            Buf: std::ptr::null(),
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct StringBuf {
-    pub(crate) inner: ffi::WasmEdge_String,
+    pub(crate) inner: wasmedge::WasmEdge_String,
 }
 
 impl<'a> StringBuf {
     pub fn as_ref(&'a self) -> StringRef<'a> {
         StringRef {
-            inner: unsafe { ffi::WasmEdge_StringWrap(self.inner.Buf, self.inner.Length) },
+            inner: unsafe { wasmedge::WasmEdge_StringWrap(self.inner.Buf, self.inner.Length) },
             lifetime: PhantomData,
         }
     }
@@ -60,7 +68,10 @@ impl<'a> StringBuf {
 impl From<String> for StringBuf {
     fn from(s: String) -> Self {
         Self {
-            inner: unsafe { ffi::WasmEdge_StringWrap(s.as_ptr() as *const i8, s.len() as u32) },
+            // Safety:  String is valid utf-8 encoding in Rust
+            inner: unsafe {
+                wasmedge::WasmEdge_StringWrap(s.as_ptr() as *const i8, s.len() as u32)
+            },
         }
     }
 }
@@ -68,21 +79,25 @@ impl From<String> for StringBuf {
 impl Clone for StringBuf {
     fn clone(&self) -> Self {
         Self {
-            inner: unsafe { ffi::WasmEdge_StringCreateByBuffer(self.inner.Buf, self.inner.Length) },
+            inner: unsafe {
+                wasmedge::WasmEdge_StringCreateByBuffer(self.inner.Buf, self.inner.Length)
+            },
         }
     }
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct StringRef<'a> {
-    pub(crate) inner: ffi::WasmEdge_String,
+    pub(crate) inner: wasmedge::WasmEdge_String,
     lifetime: PhantomData<&'a ()>,
 }
 
 impl StringRef<'_> {
     pub fn to_owned(self) -> StringBuf {
         StringBuf {
-            inner: unsafe { ffi::WasmEdge_StringCreateByBuffer(self.inner.Buf, self.inner.Length) },
+            inner: unsafe {
+                wasmedge::WasmEdge_StringCreateByBuffer(self.inner.Buf, self.inner.Length)
+            },
         }
     }
 }
@@ -90,13 +105,15 @@ impl StringRef<'_> {
 impl<'a> From<&'a str> for StringRef<'a> {
     fn from(s: &'a str) -> Self {
         Self {
-            inner: unsafe { ffi::WasmEdge_StringWrap(s.as_ptr() as *const i8, s.len() as u32) },
+            inner: unsafe {
+                wasmedge::WasmEdge_StringWrap(s.as_ptr() as *const i8, s.len() as u32)
+            },
             lifetime: PhantomData,
         }
     }
 }
 
-impl From<StringRef<'_>> for ffi::WasmEdge_String {
+impl From<StringRef<'_>> for wasmedge::WasmEdge_String {
     fn from(s: StringRef<'_>) -> Self {
         s.inner
     }

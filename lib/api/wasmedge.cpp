@@ -2080,21 +2080,21 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMExecuteRegistered(
       Cxt);
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_FunctionTypeContext *
+WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
 WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
                            const WasmEdge_String FuncName) {
   if (Cxt) {
     const auto FuncList = Cxt->VM.getFunctionList();
     for (const auto &It : FuncList) {
       if (It.first == genStrView(FuncName)) {
-        return toFuncTypeCxt(new WasmEdge::AST::FunctionType(It.second));
+        return toFuncTypeCxt(&It.second);
       }
     }
   }
   return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_FunctionTypeContext *
+WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
 WasmEdge_VMGetFunctionTypeRegistered(WasmEdge_VMContext *Cxt,
                                      const WasmEdge_String ModuleName,
                                      const WasmEdge_String FuncName) {
@@ -2106,8 +2106,7 @@ WasmEdge_VMGetFunctionTypeRegistered(WasmEdge_VMContext *Cxt,
       const auto FuncIter = FuncExp.find(genStrView(FuncName));
       if (FuncIter != FuncExp.cend()) {
         const auto *FuncInst = *Store.getFunction(FuncIter->second);
-        return toFuncTypeCxt(
-            new WasmEdge::AST::FunctionType(FuncInst->getFuncType()));
+        return toFuncTypeCxt(&FuncInst->getFuncType());
       }
     }
   }
@@ -2130,7 +2129,7 @@ WasmEdge_VMGetFunctionListLength(WasmEdge_VMContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMGetFunctionList(
     WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
-    WasmEdge_FunctionTypeContext **FuncTypes, const uint32_t Len) {
+    const WasmEdge_FunctionTypeContext **FuncTypes, const uint32_t Len) {
   if (Cxt) {
     auto FuncList = Cxt->VM.getFunctionList();
     for (uint32_t I = 0; I < Len && I < FuncList.size(); I++) {
@@ -2141,8 +2140,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMGetFunctionList(
         Names[I] = WasmEdge_String{.Length = NameLen, .Buf = Str};
       }
       if (FuncTypes) {
-        FuncTypes[I] =
-            toFuncTypeCxt(new WasmEdge::AST::FunctionType(FuncList[I].second));
+        FuncTypes[I] = toFuncTypeCxt(&(FuncList[I].second));
       }
     }
     return static_cast<uint32_t>(FuncList.size());

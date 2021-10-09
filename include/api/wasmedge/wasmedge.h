@@ -2471,14 +2471,15 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMExecuteRegistered(
 /// loaded. For getting the function type of functions in registered WASM
 /// modules with module names, please use `WasmEdge_VMGetFunctionTypeRegistered`
 /// instead.
-/// The caller owns the returned function type context, and should call the
+/// The returned function type context are linked to the context owned by the VM
+/// context, and the caller should __NOT__ call the
 /// `WasmEdge_FunctionTypeDelete` to delete it.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param FuncName the function name WasmEdge_String.
 ///
 /// \returns the function type. NULL if the function not found.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionTypeContext *
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
 WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
                            const WasmEdge_String FuncName);
 
@@ -2487,7 +2488,8 @@ WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
 /// After registering a WASM module in the VM context, you can call this
 /// function to get the function type by the functions' exported module names
 /// and function names until the VM context is reset.
-/// The caller owns the returned function type context, and should call the
+/// The returned function type context are linked to the context owned by the VM
+/// context, and the caller should __NOT__ call the
 /// `WasmEdge_FunctionTypeDelete` to delete it.
 ///
 /// \param Cxt the WasmEdge_VMContext.
@@ -2495,7 +2497,7 @@ WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
 /// \param FuncName the function name WasmEdge_String.
 ///
 /// \returns the function type. NULL if the function not found.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionTypeContext *
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
 WasmEdge_VMGetFunctionTypeRegistered(WasmEdge_VMContext *Cxt,
                                      const WasmEdge_String ModuleName,
                                      const WasmEdge_String FuncName);
@@ -2520,11 +2522,11 @@ WasmEdge_VMGetFunctionListLength(WasmEdge_VMContext *Cxt);
 ///
 /// The returned function names are created and stored in `Names` array, and
 /// the caller should call `WasmEdge_StringDelete` to delete them. The function
-/// type contexts of the corresponding function names are allocated and stored
-/// in `FuncTypes` array, and the caller should call
-/// `WasmEdge_FunctionTypeDelete` to delete them. If the `Names` and `FuncTypes`
-/// buffer lengths are smaller than the result of the exported function list
-/// size, the overflowed return values will be discarded.
+/// type contexts filled into the `FuncTypes` array of the corresponding
+/// function names link to the context owned by the VM context. The caller
+/// should __NOT__ call the `WasmEdge_FunctionTypeDelete` to delete them. If the
+/// `Names` and `FuncTypes` buffer lengths are smaller than the result of the
+/// exported function list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param [out] Names the output names WasmEdge_String buffer of exported
@@ -2536,7 +2538,7 @@ WasmEdge_VMGetFunctionListLength(WasmEdge_VMContext *Cxt);
 /// \returns actual exported function list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_VMGetFunctionList(WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
-                           WasmEdge_FunctionTypeContext **FuncTypes,
+                           const WasmEdge_FunctionTypeContext **FuncTypes,
                            const uint32_t Len);
 
 /// Get the import object corresponding to the WasmEdge_HostRegistration

@@ -91,7 +91,7 @@ public:
   void cleanup();
 
   /// Get list of callable functions and corresponding function types.
-  std::vector<std::pair<std::string, AST::FunctionType>>
+  std::vector<std::pair<std::string, const AST::FunctionType &>>
   getFunctionList() const;
 
   /// Get import objects by configurations.

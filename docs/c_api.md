@@ -886,9 +886,11 @@ The `VM` context supplies the APIs to retrieve the instances.
         char Buf[256];
         uint32_t Size = WasmEdge_StringCopy(FuncNames[I], Buf, sizeof(Buf));
         printf("Get exported function string length: %u, name: %s\n", Size, Buf);
-        /* The function names and the function types should be destroyed. */
+        /* 
+         * The function names should be destroyed.
+         * The returned function type contexts should __NOT__ be destroyed.
+         */
         WasmEdge_StringDelete(FuncNames[I]);
-        WasmEdge_FunctionTypeDelete(FuncTypes[I]);
       }
       return 0;
     }
@@ -915,14 +917,13 @@ The `VM` context supplies the APIs to retrieve the instances.
      * Assume that a WASM module is instantiated in `VMCxt`.
      */
     WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
-    WasmEdge_FunctionTypeContext *FuncType = WasmEdge_VMGetFunctionType(VMCxt, FuncName);
+    const WasmEdge_FunctionTypeContext *FuncType = WasmEdge_VMGetFunctionType(VMCxt, FuncName);
     /* 
      * Developers can get the function types of functions in the registered modules
      * via the `WasmEdge_VMGetFunctionTypeRegistered()` API with the module name.
      * If the function is not found, these APIs will return `NULL`.
-     * The returned function type contexts should be destroyed.
+     * The returned function type contexts should __NOT__ be destroyed.
      */
-    WasmEdge_FunctionTypeDelete(FuncType);
     WasmEdge_StringDelete(FuncName);
     ```
 

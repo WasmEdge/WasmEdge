@@ -1574,9 +1574,8 @@ TEST(APICoreTest, VM) {
   WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
   WasmEdge_ImportObjectContext *ImpObj = createExternModule("extern");
   WasmEdge_String ModName, ModName2, FuncName, FuncName2, Names[15];
-  WasmEdge_FunctionTypeContext *FuncType = nullptr;
   WasmEdge_Value P[10], R[10];
-  WasmEdge_FunctionTypeContext *FuncTypes[15];
+  const WasmEdge_FunctionTypeContext *FuncTypes[15];
 
   /// WASM from file
   std::ifstream Wasm(TPath, std::ios::binary | std::ios::ate);
@@ -1916,24 +1915,19 @@ TEST(APICoreTest, VM) {
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromASTModule(VM, Mod)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
-  FuncType = WasmEdge_VMGetFunctionType(VM, FuncName);
-  EXPECT_NE(FuncType, nullptr);
-  WasmEdge_FunctionTypeDelete(FuncType);
-  FuncType = WasmEdge_VMGetFunctionType(nullptr, FuncName);
-  EXPECT_EQ(FuncType, nullptr);
-  FuncType = WasmEdge_VMGetFunctionType(VM, FuncName2);
-  EXPECT_EQ(FuncType, nullptr);
+  EXPECT_NE(WasmEdge_VMGetFunctionType(VM, FuncName), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetFunctionType(nullptr, FuncName), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetFunctionType(VM, FuncName2), nullptr);
 
   /// VM get function type registered
-  FuncType = WasmEdge_VMGetFunctionTypeRegistered(VM, ModName, FuncName);
-  EXPECT_NE(FuncType, nullptr);
-  WasmEdge_FunctionTypeDelete(FuncType);
-  FuncType = WasmEdge_VMGetFunctionTypeRegistered(nullptr, ModName, FuncName);
-  EXPECT_EQ(FuncType, nullptr);
-  FuncType = WasmEdge_VMGetFunctionTypeRegistered(VM, ModName2, FuncName);
-  EXPECT_EQ(FuncType, nullptr);
-  FuncType = WasmEdge_VMGetFunctionTypeRegistered(VM, ModName, FuncName2);
-  EXPECT_EQ(FuncType, nullptr);
+  EXPECT_NE(WasmEdge_VMGetFunctionTypeRegistered(VM, ModName, FuncName),
+            nullptr);
+  EXPECT_EQ(WasmEdge_VMGetFunctionTypeRegistered(nullptr, ModName, FuncName),
+            nullptr);
+  EXPECT_EQ(WasmEdge_VMGetFunctionTypeRegistered(VM, ModName2, FuncName),
+            nullptr);
+  EXPECT_EQ(WasmEdge_VMGetFunctionTypeRegistered(VM, ModName, FuncName2),
+            nullptr);
 
   WasmEdge_StringDelete(FuncName);
   WasmEdge_StringDelete(FuncName2);
@@ -1948,18 +1942,15 @@ TEST(APICoreTest, VM) {
   EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, Names, nullptr, 15), 11U);
   for (uint32_t I = 0; I < 11; I++) {
     WasmEdge_StringDelete(Names[I]);
-    WasmEdge_FunctionTypeDelete(FuncTypes[I]);
   }
   EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, nullptr, nullptr, 15), 11U);
   EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, Names, FuncTypes, 4), 11U);
   for (uint32_t I = 0; I < 4; I++) {
     WasmEdge_StringDelete(Names[I]);
-    WasmEdge_FunctionTypeDelete(FuncTypes[I]);
   }
   EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, Names, FuncTypes, 15), 11U);
   for (uint32_t I = 0; I < 11; I++) {
     WasmEdge_StringDelete(Names[I]);
-    WasmEdge_FunctionTypeDelete(FuncTypes[I]);
   }
 
   /// VM cleanup

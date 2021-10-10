@@ -12,6 +12,16 @@ void pysdk::Configure::remove(pysdk::WasmEdge_Proposal prop) {
   WasmEdge_ConfigureRemoveProposal(ConfCxt, (::WasmEdge_Proposal)prop);
 }
 
+void pysdk::Configure::add(pysdk::WasmEdge_HostRegistration hr) {
+  WasmEdge_ConfigureAddHostRegistration(ConfCxt,
+                                        (::WasmEdge_HostRegistration)hr);
+}
+
+void pysdk::Configure::remove(pysdk::WasmEdge_HostRegistration hr) {
+  WasmEdge_ConfigureRemoveHostRegistration(ConfCxt,
+                                           (::WasmEdge_HostRegistration)hr);
+}
+
 pysdk::result::result() {}
 
 pysdk::result::operator bool() { return WasmEdge_ResultOK(Res); }
@@ -33,10 +43,23 @@ BOOST_PYTHON_MODULE(WasmEdge) {
       .def("debug", &pysdk::logging::debug)
       .staticmethod("debug");
 
+  /*Overloading Python add and remove functions for Configure class*/
+
+  void (pysdk::Configure::*add_prop)(pysdk::WasmEdge_Proposal) =
+      &pysdk::Configure::add;
+  void (pysdk::Configure::*remove_prop)(pysdk::WasmEdge_Proposal) =
+      &pysdk::Configure::remove;
+  void (pysdk::Configure::*add_host)(pysdk::WasmEdge_HostRegistration) =
+      &pysdk::Configure::add;
+  void (pysdk::Configure::*remove_host)(pysdk::WasmEdge_HostRegistration) =
+      &pysdk::Configure::remove;
+
   class_<pysdk::Configure>("Configure", init<>())
       .def("__str__", &pysdk::Configure::str)
-      .def("add", &pysdk::Configure::add)
-      .def("remove", &pysdk::Configure::remove);
+      .def("add", add_prop)
+      .def("remove", remove_prop)
+      .def("add", add_host)
+      .def("remove", remove_host);
 
   class_<pysdk::result>("Result", init<>())
       .def("__str__", &pysdk::result::str)
@@ -55,5 +78,10 @@ BOOST_PYTHON_MODULE(WasmEdge) {
       .value("Threads", pysdk::WasmEdge_Proposal_Threads)
       .value("ExceptionHandling", pysdk::WasmEdge_Proposal_ExceptionHandling)
       .value("FunctionReferences", pysdk::WasmEdge_Proposal_FunctionReferences)
+      .export_values();
+
+  enum_<pysdk::WasmEdge_HostRegistration>("Host")
+      .value("Wasi", pysdk::WasmEdge_HostRegistration_Wasi)
+      .value("WasmEdge", pysdk::WasmEdge_HostRegistration_WasmEdge_Process)
       .export_values();
 };

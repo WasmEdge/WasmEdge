@@ -36,6 +36,13 @@ enum WasmEdge_Proposal {
   WasmEdge_Proposal_FunctionReferences
 };
 
+/*This configuration is used for the VM context to turn on the WASI or
+ * wasmedge_process supports and only effective in VM contexts.*/
+enum WasmEdge_HostRegistration {
+  WasmEdge_HostRegistration_Wasi = 0,
+  WasmEdge_HostRegistration_WasmEdge_Process
+};
+
 const char *Configure_str =
     "The objects, such as VM, Store, and HostFunction, are composed of "
     "Contexts. All of the contexts can be created by calling the corresponding "
@@ -51,7 +58,9 @@ public:
   Configure();
   const char *str() { return pysdk::Configure_str; }
   void add(pysdk::WasmEdge_Proposal);
+  void add(pysdk::WasmEdge_HostRegistration);
   void remove(pysdk::WasmEdge_Proposal);
+  void remove(pysdk::WasmEdge_HostRegistration);
   ~Configure();
 };
 

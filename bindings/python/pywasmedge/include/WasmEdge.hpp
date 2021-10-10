@@ -24,21 +24,35 @@ struct logging {
   static void debug() { WasmEdge_LogSetDebugLevel(); };
 };
 
-const char *context_str =
+enum WasmEdge_Proposal {
+  WasmEdge_Proposal_BulkMemoryOperations = 0,
+  WasmEdge_Proposal_ReferenceTypes,
+  WasmEdge_Proposal_SIMD,
+  WasmEdge_Proposal_TailCall,
+  WasmEdge_Proposal_Annotations,
+  WasmEdge_Proposal_Memory64,
+  WasmEdge_Proposal_Threads,
+  WasmEdge_Proposal_ExceptionHandling,
+  WasmEdge_Proposal_FunctionReferences
+};
+
+const char *Configure_str =
     "The objects, such as VM, Store, and HostFunction, are composed of "
     "Contexts. All of the contexts can be created by calling the corresponding "
     "creation APIs and should be destroyed by calling the corresponding "
     "deletion APIs. Developers have responsibilities to manage the contexts "
     "for memory management.";
 
-class context_wrapper {
+class Configure {
 private:
   WasmEdge_ConfigureContext *ConfCxt;
 
 public:
-  context_wrapper();
-  const char *str() { return pysdk::context_str; }
-  ~context_wrapper();
+  Configure();
+  const char *str() { return pysdk::Configure_str; }
+  void add(pysdk::WasmEdge_Proposal);
+  void remove(pysdk::WasmEdge_Proposal);
+  ~Configure();
 };
 
 const char *result_str =

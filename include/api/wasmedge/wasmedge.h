@@ -1335,8 +1335,8 @@ WasmEdge_StoreListFunctionLength(const WasmEdge_StoreContext *Cxt);
 ///
 /// \returns actual exported function list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_StoreListFunction(WasmEdge_StoreContext *Cxt, WasmEdge_String *Names,
-                           const uint32_t Len);
+WasmEdge_StoreListFunction(const WasmEdge_StoreContext *Cxt,
+                           WasmEdge_String *Names, const uint32_t Len);
 
 /// Get the exported function list length of the registered module in store.
 ///
@@ -1364,7 +1364,7 @@ WasmEdge_StoreListFunctionRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// \returns actual exported function list size of the module.
 WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_StoreListFunctionRegistered(
-    WasmEdge_StoreContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_StoreContext *Cxt, const WasmEdge_String ModuleName,
     WasmEdge_String *Names, const uint32_t Len);
 
 /// Get the length of exported table list in store.
@@ -1397,8 +1397,8 @@ WasmEdge_StoreListTableLength(const WasmEdge_StoreContext *Cxt);
 ///
 /// \returns actual exported table list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_StoreListTable(WasmEdge_StoreContext *Cxt, WasmEdge_String *Names,
-                        const uint32_t Len);
+WasmEdge_StoreListTable(const WasmEdge_StoreContext *Cxt,
+                        WasmEdge_String *Names, const uint32_t Len);
 
 /// Get the exported table list length of the registered module in store.
 ///
@@ -1426,7 +1426,7 @@ WasmEdge_StoreListTableRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// \returns actual exported table list size of the module.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_StoreListTableRegistered(WasmEdge_StoreContext *Cxt,
+WasmEdge_StoreListTableRegistered(const WasmEdge_StoreContext *Cxt,
                                   const WasmEdge_String ModuleName,
                                   WasmEdge_String *Names, const uint32_t Len);
 
@@ -1489,7 +1489,7 @@ WasmEdge_StoreListMemoryRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// \returns actual exported memory list size of the module.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_StoreListMemoryRegistered(WasmEdge_StoreContext *Cxt,
+WasmEdge_StoreListMemoryRegistered(const WasmEdge_StoreContext *Cxt,
                                    const WasmEdge_String ModuleName,
                                    WasmEdge_String *Names, const uint32_t Len);
 
@@ -1552,7 +1552,7 @@ WasmEdge_StoreListGlobalRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// \returns actual exported global list size of the module.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_StoreListGlobalRegistered(WasmEdge_StoreContext *Cxt,
+WasmEdge_StoreListGlobalRegistered(const WasmEdge_StoreContext *Cxt,
                                    const WasmEdge_String ModuleName,
                                    WasmEdge_String *Names, const uint32_t Len);
 
@@ -1578,8 +1578,8 @@ WasmEdge_StoreListModuleLength(const WasmEdge_StoreContext *Cxt);
 ///
 /// \returns actual registered named module list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_StoreListModule(WasmEdge_StoreContext *Cxt, WasmEdge_String *Names,
-                         const uint32_t Len);
+WasmEdge_StoreListModule(const WasmEdge_StoreContext *Cxt,
+                         WasmEdge_String *Names, const uint32_t Len);
 
 /// Deletion of the WasmEdge_StoreContext.
 ///

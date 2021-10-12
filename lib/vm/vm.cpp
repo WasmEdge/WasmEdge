@@ -17,7 +17,8 @@ VM::VM(const Configure &Conf)
 }
 
 VM::VM(const Configure &Conf, Runtime::StoreManager &S)
-    : Conf(Conf), Stage(VMStage::Inited), LoaderEngine(Conf),
+    : Conf(Conf), Stage(VMStage::Inited),
+      LoaderEngine(Conf, &Interpreter::Interpreter::Intrinsics),
       ValidatorEngine(Conf), InterpreterEngine(Conf, &Stat), StoreRef(S) {
   initVM();
 }

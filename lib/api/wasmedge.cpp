@@ -37,6 +37,12 @@ struct WasmEdge_MemoryTypeContext {};
 /// WasmEdge_GlobalTypeContext implementation.
 struct WasmEdge_GlobalTypeContext {};
 
+/// WasmEdge_ImportTypeContext implementation.
+struct WasmEdge_ImportTypeContext {};
+
+/// WasmEdge_ExportTypeContext implementation.
+struct WasmEdge_ExportTypeContext {};
+
 /// WasmEdge_CompilerContext implementation.
 struct WasmEdge_CompilerContext {
 #ifdef WASMEDGE_BUILD_AOT_RUNTIME
@@ -326,7 +332,6 @@ private:
     return reinterpret_cast<QUANT WasmEdge_##NAME##Context *>(Cxt);            \
   }
 CONVTO(Stat, Statistics::Statistics, Statistics, )
-CONVTO(Store, Runtime::StoreManager, Store, )
 CONVTO(FuncType, AST::FunctionType, FunctionType, )
 CONVTO(FuncType, AST::FunctionType, FunctionType, const)
 CONVTO(TabType, AST::TableType, TableType, )
@@ -335,6 +340,9 @@ CONVTO(MemType, AST::MemoryType, MemoryType, )
 CONVTO(MemType, AST::MemoryType, MemoryType, const)
 CONVTO(GlobType, AST::GlobalType, GlobalType, )
 CONVTO(GlobType, AST::GlobalType, GlobalType, const)
+CONVTO(ImpType, AST::ImportDesc, ImportType, const)
+CONVTO(ExpType, AST::ExportDesc, ExportType, const)
+CONVTO(Store, Runtime::StoreManager, Store, )
 CONVTO(Func, Runtime::Instance::FunctionInstance, FunctionInstance, )
 CONVTO(Tab, Runtime::Instance::TableInstance, TableInstance, )
 CONVTO(Mem, Runtime::Instance::MemoryInstance, MemoryInstance, )
@@ -349,8 +357,6 @@ CONVTO(ImpObj, Runtime::ImportObject, ImportObject, )
   }
 CONVFROM(Stat, Statistics::Statistics, Statistics, )
 CONVFROM(Stat, Statistics::Statistics, Statistics, const)
-CONVFROM(Store, Runtime::StoreManager, Store, )
-CONVFROM(Store, Runtime::StoreManager, Store, const)
 CONVFROM(FuncType, AST::FunctionType, FunctionType, )
 CONVFROM(FuncType, AST::FunctionType, FunctionType, const)
 CONVFROM(TabType, AST::TableType, TableType, )
@@ -359,6 +365,10 @@ CONVFROM(MemType, AST::MemoryType, MemoryType, )
 CONVFROM(MemType, AST::MemoryType, MemoryType, const)
 CONVFROM(GlobType, AST::GlobalType, GlobalType, )
 CONVFROM(GlobType, AST::GlobalType, GlobalType, const)
+CONVFROM(ImpType, AST::ImportDesc, ImportType, const)
+CONVFROM(ExpType, AST::ExportDesc, ExportType, const)
+CONVFROM(Store, Runtime::StoreManager, Store, )
+CONVFROM(Store, Runtime::StoreManager, Store, const)
 CONVFROM(Func, Runtime::Instance::FunctionInstance, FunctionInstance, )
 CONVFROM(Func, Runtime::Instance::FunctionInstance, FunctionInstance, const)
 CONVFROM(Tab, Runtime::Instance::TableInstance, TableInstance, )
@@ -793,6 +803,54 @@ WasmEdge_StatisticsDelete(WasmEdge_StatisticsContext *Cxt) {
 
 /// >>>>>>>> WasmEdge AST module functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_ASTModuleListImportsLength(const WasmEdge_ASTModuleContext *Cxt) {
+  if (Cxt) {
+    return static_cast<uint32_t>(
+        Cxt->Module->getImportSection().getContent().size());
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ASTModuleListImports(
+    const WasmEdge_ASTModuleContext *Cxt,
+    const WasmEdge_ImportTypeContext **Imports, const uint32_t Len) {
+  if (Cxt) {
+    const auto &ImpSec = Cxt->Module->getImportSection().getContent();
+    if (Imports) {
+      for (uint32_t I = 0; I < Len && I < ImpSec.size(); I++) {
+        Imports[I] = toImpTypeCxt(&ImpSec[I]);
+      }
+    }
+    return static_cast<uint32_t>(ImpSec.size());
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_ASTModuleListExportsLength(const WasmEdge_ASTModuleContext *Cxt) {
+  if (Cxt) {
+    return static_cast<uint32_t>(
+        Cxt->Module->getExportSection().getContent().size());
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ASTModuleListExports(
+    const WasmEdge_ASTModuleContext *Cxt,
+    const WasmEdge_ExportTypeContext **Exports, const uint32_t Len) {
+  if (Cxt) {
+    const auto &ExpSec = Cxt->Module->getExportSection().getContent();
+    if (Exports) {
+      for (uint32_t I = 0; I < Len && I < ExpSec.size(); I++) {
+        Exports[I] = toExpTypeCxt(&ExpSec[I]);
+      }
+    }
+    return static_cast<uint32_t>(ExpSec.size());
+  }
+  return 0;
+}
+
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt) {
   delete Cxt;
@@ -971,6 +1029,211 @@ WasmEdge_GlobalTypeDelete(WasmEdge_GlobalTypeContext *Cxt) {
 }
 
 /// <<<<<<<< WasmEdge global type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> WasmEdge import type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASMEDGE_CAPI_EXPORT enum WasmEdge_ExternalType
+WasmEdge_ImportTypeGetExternalType(const WasmEdge_ImportTypeContext *Cxt) {
+  if (Cxt) {
+    return static_cast<WasmEdge_ExternalType>(
+        fromImpTypeCxt(Cxt)->getExternalType());
+  }
+  return WasmEdge_ExternalType_Function;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_String
+WasmEdge_ImportTypeGetModuleName(const WasmEdge_ImportTypeContext *Cxt) {
+  if (Cxt) {
+    auto StrView = fromImpTypeCxt(Cxt)->getModuleName();
+    return WasmEdge_String{.Length = static_cast<uint32_t>(StrView.length()),
+                           .Buf = StrView.data()};
+  }
+  return WasmEdge_String{.Length = 0, .Buf = nullptr};
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_String
+WasmEdge_ImportTypeGetExternalName(const WasmEdge_ImportTypeContext *Cxt) {
+  if (Cxt) {
+    auto StrView = fromImpTypeCxt(Cxt)->getExternalName();
+    return WasmEdge_String{.Length = static_cast<uint32_t>(StrView.length()),
+                           .Buf = StrView.data()};
+  }
+  return WasmEdge_String{.Length = 0, .Buf = nullptr};
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
+WasmEdge_ImportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                   const WasmEdge_ImportTypeContext *Cxt) {
+  if (ASTCxt && Cxt &&
+      fromImpTypeCxt(Cxt)->getExternalType() ==
+          WasmEdge::ExternalType::Function) {
+    uint32_t Idx = fromImpTypeCxt(Cxt)->getExternalFuncTypeIdx();
+    const auto &FuncTypes = ASTCxt->Module->getTypeSection().getContent();
+    if (Idx >= FuncTypes.size()) {
+      return nullptr;
+    }
+    return toFuncTypeCxt(&FuncTypes[Idx]);
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_TableTypeContext *
+WasmEdge_ImportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                const WasmEdge_ImportTypeContext *Cxt) {
+  if (ASTCxt && Cxt &&
+      fromImpTypeCxt(Cxt)->getExternalType() == WasmEdge::ExternalType::Table) {
+    return toTabTypeCxt(&fromImpTypeCxt(Cxt)->getExternalTableType());
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_MemoryTypeContext *
+WasmEdge_ImportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                 const WasmEdge_ImportTypeContext *Cxt) {
+  if (ASTCxt && Cxt &&
+      fromImpTypeCxt(Cxt)->getExternalType() ==
+          WasmEdge::ExternalType::Memory) {
+    return toMemTypeCxt(&fromImpTypeCxt(Cxt)->getExternalMemoryType());
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_GlobalTypeContext *
+WasmEdge_ImportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                 const WasmEdge_ImportTypeContext *Cxt) {
+  if (ASTCxt && Cxt &&
+      fromImpTypeCxt(Cxt)->getExternalType() ==
+          WasmEdge::ExternalType::Global) {
+    return toGlobTypeCxt(&fromImpTypeCxt(Cxt)->getExternalGlobalType());
+  }
+  return nullptr;
+}
+
+/// <<<<<<<< WasmEdge import type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> WasmEdge export type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASMEDGE_CAPI_EXPORT enum WasmEdge_ExternalType
+WasmEdge_ExportTypeGetExternalType(const WasmEdge_ExportTypeContext *Cxt) {
+  if (Cxt) {
+    return static_cast<WasmEdge_ExternalType>(
+        fromExpTypeCxt(Cxt)->getExternalType());
+  }
+  return WasmEdge_ExternalType_Function;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_String
+WasmEdge_ExportTypeGetExternalName(const WasmEdge_ExportTypeContext *Cxt) {
+  if (Cxt) {
+    auto StrView = fromExpTypeCxt(Cxt)->getExternalName();
+    return WasmEdge_String{.Length = static_cast<uint32_t>(StrView.length()),
+                           .Buf = StrView.data()};
+  }
+  return WasmEdge_String{.Length = 0, .Buf = nullptr};
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
+WasmEdge_ExportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                   const WasmEdge_ExportTypeContext *Cxt) {
+  if (ASTCxt && Cxt &&
+      fromExpTypeCxt(Cxt)->getExternalType() ==
+          WasmEdge::ExternalType::Function) {
+    /// `external_index` = `func_index` + `import_func_nums`
+    uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
+    const auto &ImpDescs = ASTCxt->Module->getImportSection().getContent();
+    for (auto &&ImpDesc : ImpDescs) {
+      if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Function) {
+        ExtIdx--;
+      }
+    }
+    /// Get the function type index by the function index
+    const auto &FuncIdxs = ASTCxt->Module->getFunctionSection().getContent();
+    if (ExtIdx >= FuncIdxs.size()) {
+      return nullptr;
+    }
+    uint32_t TypeIdx = FuncIdxs[ExtIdx];
+    /// Get the function type
+    const auto &FuncTypes = ASTCxt->Module->getTypeSection().getContent();
+    if (TypeIdx >= FuncTypes.size()) {
+      return nullptr;
+    }
+    return toFuncTypeCxt(&FuncTypes[TypeIdx]);
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_TableTypeContext *
+WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                const WasmEdge_ExportTypeContext *Cxt) {
+  if (ASTCxt && Cxt &&
+      fromExpTypeCxt(Cxt)->getExternalType() == WasmEdge::ExternalType::Table) {
+    /// `external_index` = `table_type_index` + `import_table_nums`
+    uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
+    const auto &ImpDescs = ASTCxt->Module->getImportSection().getContent();
+    for (auto &&ImpDesc : ImpDescs) {
+      if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Table) {
+        ExtIdx--;
+      }
+    }
+    /// Get the table type
+    const auto &TabTypes = ASTCxt->Module->getTableSection().getContent();
+    if (ExtIdx >= TabTypes.size()) {
+      return nullptr;
+    }
+    return toTabTypeCxt(&TabTypes[ExtIdx]);
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_MemoryTypeContext *
+WasmEdge_ExportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                 const WasmEdge_ExportTypeContext *Cxt) {
+  if (ASTCxt && Cxt &&
+      fromExpTypeCxt(Cxt)->getExternalType() ==
+          WasmEdge::ExternalType::Memory) {
+    /// `external_index` = `memory_type_index` + `import_memory_nums`
+    uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
+    const auto &ImpDescs = ASTCxt->Module->getImportSection().getContent();
+    for (auto &&ImpDesc : ImpDescs) {
+      if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Memory) {
+        ExtIdx--;
+      }
+    }
+    /// Get the memory type
+    const auto &MemTypes = ASTCxt->Module->getMemorySection().getContent();
+    if (ExtIdx >= MemTypes.size()) {
+      return nullptr;
+    }
+    return toMemTypeCxt(&MemTypes[ExtIdx]);
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_GlobalTypeContext *
+WasmEdge_ExportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                 const WasmEdge_ExportTypeContext *Cxt) {
+  if (ASTCxt && Cxt &&
+      fromExpTypeCxt(Cxt)->getExternalType() ==
+          WasmEdge::ExternalType::Global) {
+    /// `external_index` = `global_type_index` + `import_global_nums`
+    uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
+    const auto &ImpDescs = ASTCxt->Module->getImportSection().getContent();
+    for (auto &&ImpDesc : ImpDescs) {
+      if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Global) {
+        ExtIdx--;
+      }
+    }
+    /// Get the global type
+    const auto &GlobDescs = ASTCxt->Module->getGlobalSection().getContent();
+    if (ExtIdx >= GlobDescs.size()) {
+      return nullptr;
+    }
+    return toGlobTypeCxt(&GlobDescs[ExtIdx].getGlobalType());
+  }
+  return nullptr;
+}
+
+/// <<<<<<<< WasmEdge export type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> WasmEdge AOT compiler functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

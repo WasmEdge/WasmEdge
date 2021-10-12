@@ -136,16 +136,13 @@ VM::runWasmFile(const AST::Module &Module, std::string_view Func,
   if (auto Res = InterpreterEngine.instantiateModule(StoreRef, Module); !Res) {
     return Unexpect(Res);
   }
-  const auto FuncExp = StoreRef.getFuncExports();
-  if (FuncExp.find(Func) == FuncExp.cend()) {
-    spdlog::error(ErrCode::FuncNotFound);
-    spdlog::error(ErrInfo::InfoExecuting("", Func));
-    return Unexpect(ErrCode::FuncNotFound);
-  }
-  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncExp.find(Func)->second,
-                                          Params, ParamTypes)) {
-    return *Res;
+  /// Get module instance.
+  if (auto Res = StoreRef.getActiveModule()) {
+    /// Execute function and return values with the module instance.
+    return execute(*Res, Func, Params, ParamTypes);
   } else {
+    spdlog::error(Res.error());
+    spdlog::error(ErrInfo::InfoExecuting("", Func));
     return Unexpect(Res);
   }
 }
@@ -209,20 +206,12 @@ Expect<void> VM::instantiate() {
 Expect<std::vector<ValVariant>> VM::execute(std::string_view Func,
                                             Span<const ValVariant> Params,
                                             Span<const ValType> ParamTypes) {
-  /// Check exports for finding function address.
-  const auto FuncExp = StoreRef.getFuncExports();
-  const auto FuncIter = FuncExp.find(Func);
-  if (FuncIter == FuncExp.cend()) {
-    spdlog::error(ErrCode::FuncNotFound);
-    spdlog::error(ErrInfo::InfoExecuting("", Func));
-    return Unexpect(ErrCode::FuncNotFound);
-  }
-
-  /// Execute function.
-  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncIter->second, Params,
-                                          ParamTypes)) {
-    return Res;
+  /// Get module instance.
+  if (auto Res = StoreRef.getActiveModule()) {
+    /// Execute function and return values with the module instance.
+    return execute(*Res, Func, Params, ParamTypes);
   } else {
+    spdlog::error(Res.error());
     spdlog::error(ErrInfo::InfoExecuting("", Func));
     return Unexpect(Res);
   }
@@ -233,21 +222,25 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view ModName,
                                             Span<const ValVariant> Params,
                                             Span<const ValType> ParamTypes) {
   /// Get module instance.
-  Runtime::Instance::ModuleInstance *ModInst;
   if (auto Res = StoreRef.findModule(ModName)) {
-    ModInst = *Res;
+    /// Execute function and return values with the module instance.
+    return execute(*Res, Func, Params, ParamTypes);
   } else {
     spdlog::error(Res.error());
     spdlog::error(ErrInfo::InfoExecuting(ModName, Func));
     return Unexpect(Res);
   }
+}
 
+Expect<std::vector<ValVariant>>
+VM::execute(Runtime::Instance::ModuleInstance *ModInst, std::string_view Func,
+            Span<const ValVariant> Params, Span<const ValType> ParamTypes) {
   /// Get exports and find function.
-  const auto FuncExp = ModInst->getFuncExports();
+  const auto &FuncExp = ModInst->getFuncExports();
   const auto FuncIter = FuncExp.find(Func);
   if (FuncIter == FuncExp.cend()) {
     spdlog::error(ErrCode::FuncNotFound);
-    spdlog::error(ErrInfo::InfoExecuting(ModName, Func));
+    spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
     return Unexpect(ErrCode::FuncNotFound);
   }
 
@@ -256,7 +249,7 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view ModName,
                                           ParamTypes)) {
     return Res;
   } else {
-    spdlog::error(ErrInfo::InfoExecuting(ModName, Func));
+    spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
     return Unexpect(Res);
   }
 }
@@ -270,13 +263,16 @@ void VM::cleanup() {
 
 std::vector<std::pair<std::string, const AST::FunctionType &>>
 VM::getFunctionList() const {
-  std::vector<std::pair<std::string, const AST::FunctionType &>> Res;
-  for (auto &&Func : StoreRef.getFuncExports()) {
-    const auto *FuncInst = *StoreRef.getFunction(Func.second);
-    const auto &FuncType = FuncInst->getFuncType();
-    Res.push_back({Func.first, FuncType});
+  std::vector<std::pair<std::string, const AST::FunctionType &>> Map;
+  /// Get the active module instance.
+  if (auto Res = StoreRef.getActiveModule()) {
+    for (auto &&Func : (*Res)->getFuncExports()) {
+      const auto *FuncInst = *StoreRef.getFunction(Func.second);
+      const auto &FuncType = FuncInst->getFuncType();
+      Map.push_back({Func.first, FuncType});
+    }
   }
-  return Res;
+  return Map;
 }
 
 Runtime::ImportObject *VM::getImportModule(const HostRegistration Type) {

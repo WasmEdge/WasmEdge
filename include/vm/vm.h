@@ -108,6 +108,12 @@ private:
 
   void initVM();
 
+  /// Helper function for execution.
+  Expect<std::vector<ValVariant>>
+  execute(Runtime::Instance::ModuleInstance *ModInst, std::string_view Func,
+          Span<const ValVariant> Params = {},
+          Span<const ValType> ParamTypes = {});
+
   /// VM environment.
   const Configure Conf;
   Statistics::Statistics Stat;

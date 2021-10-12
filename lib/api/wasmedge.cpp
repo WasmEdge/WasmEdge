@@ -1147,15 +1147,25 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_InterpreterInvoke(
     const uint32_t ParamLen, WasmEdge_Value *Returns,
     const uint32_t ReturnLen) {
   auto ParamPair = genParamPair(Params, ParamLen);
+  auto FuncStr = genStrView(FuncName);
   return wrap(
       [&]() -> WasmEdge::Expect<std::vector<WasmEdge::ValVariant>> {
+        /// Get module instance.
+        WasmEdge::Runtime::Instance::ModuleInstance *ModInst;
+        if (auto Res = fromStoreCxt(StoreCxt)->getActiveModule()) {
+          ModInst = *Res;
+        } else {
+          spdlog::error(Res.error());
+          spdlog::error(WasmEdge::ErrInfo::InfoExecuting("", FuncStr));
+          return Unexpect(Res);
+        }
+
         /// Check exports for finding function address.
-        const auto FuncExp = fromStoreCxt(StoreCxt)->getFuncExports();
+        const auto &FuncExp = ModInst->getFuncExports();
         const auto FuncIter = FuncExp.find(genStrView(FuncName));
         if (FuncIter == FuncExp.cend()) {
           spdlog::error(WasmEdge::ErrCode::FuncNotFound);
-          spdlog::error(
-              WasmEdge::ErrInfo::InfoExecuting("", genStrView(FuncName)));
+          spdlog::error(WasmEdge::ErrInfo::InfoExecuting("", FuncStr));
           return Unexpect(WasmEdge::ErrCode::FuncNotFound);
         }
         return Cxt->Interp.invoke(*fromStoreCxt(StoreCxt), FuncIter->second,
@@ -1186,7 +1196,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_InterpreterInvokeRegistered(
         }
 
         /// Get exports and find function.
-        const auto FuncExp = ModInst->getFuncExports();
+        const auto &FuncExp = ModInst->getFuncExports();
         const auto FuncIter = FuncExp.find(FuncStr);
         if (FuncIter == FuncExp.cend()) {
           spdlog::error(WasmEdge::ErrCode::FuncNotFound);
@@ -1217,10 +1227,12 @@ WASMEDGE_CAPI_EXPORT WasmEdge_FunctionInstanceContext *
 WasmEdge_StoreFindFunction(WasmEdge_StoreContext *Cxt,
                            const WasmEdge_String Name) {
   if (Cxt) {
-    const auto FuncExp = fromStoreCxt(Cxt)->getFuncExports();
-    const auto FuncIter = FuncExp.find(genStrView(Name));
-    if (FuncIter != FuncExp.cend()) {
-      return toFuncCxt(*fromStoreCxt(Cxt)->getFunction(FuncIter->second));
+    if (auto Res = fromStoreCxt(Cxt)->getActiveModule()) {
+      const auto &FuncExp = (*Res)->getFuncExports();
+      const auto FuncIter = FuncExp.find(genStrView(Name));
+      if (FuncIter != FuncExp.cend()) {
+        return toFuncCxt(*fromStoreCxt(Cxt)->getFunction(FuncIter->second));
+      }
     }
   }
   return nullptr;
@@ -1246,10 +1258,12 @@ WASMEDGE_CAPI_EXPORT WasmEdge_TableInstanceContext *
 WasmEdge_StoreFindTable(WasmEdge_StoreContext *Cxt,
                         const WasmEdge_String Name) {
   if (Cxt) {
-    const auto TabExp = fromStoreCxt(Cxt)->getTableExports();
-    const auto TabIter = TabExp.find(genStrView(Name));
-    if (TabIter != TabExp.cend()) {
-      return toTabCxt(*fromStoreCxt(Cxt)->getTable(TabIter->second));
+    if (auto Res = fromStoreCxt(Cxt)->getActiveModule()) {
+      const auto &TabExp = (*Res)->getTableExports();
+      const auto TabIter = TabExp.find(genStrView(Name));
+      if (TabIter != TabExp.cend()) {
+        return toTabCxt(*fromStoreCxt(Cxt)->getTable(TabIter->second));
+      }
     }
   }
   return nullptr;
@@ -1275,10 +1289,12 @@ WASMEDGE_CAPI_EXPORT WasmEdge_MemoryInstanceContext *
 WasmEdge_StoreFindMemory(WasmEdge_StoreContext *Cxt,
                          const WasmEdge_String Name) {
   if (Cxt) {
-    const auto MemExp = fromStoreCxt(Cxt)->getMemExports();
-    const auto MemIter = MemExp.find(genStrView(Name));
-    if (MemIter != MemExp.cend()) {
-      return toMemCxt(*fromStoreCxt(Cxt)->getMemory(MemIter->second));
+    if (auto Res = fromStoreCxt(Cxt)->getActiveModule()) {
+      const auto &MemExp = (*Res)->getMemExports();
+      const auto MemIter = MemExp.find(genStrView(Name));
+      if (MemIter != MemExp.cend()) {
+        return toMemCxt(*fromStoreCxt(Cxt)->getMemory(MemIter->second));
+      }
     }
   }
   return nullptr;
@@ -1304,10 +1320,12 @@ WASMEDGE_CAPI_EXPORT WasmEdge_GlobalInstanceContext *
 WasmEdge_StoreFindGlobal(WasmEdge_StoreContext *Cxt,
                          const WasmEdge_String Name) {
   if (Cxt) {
-    const auto GlobExp = fromStoreCxt(Cxt)->getGlobalExports();
-    const auto GlobIter = GlobExp.find(genStrView(Name));
-    if (GlobIter != GlobExp.cend()) {
-      return toGlobCxt(*fromStoreCxt(Cxt)->getGlobal(GlobIter->second));
+    if (auto Res = fromStoreCxt(Cxt)->getActiveModule()) {
+      const auto &GlobExp = (*Res)->getGlobalExports();
+      const auto GlobIter = GlobExp.find(genStrView(Name));
+      if (GlobIter != GlobExp.cend()) {
+        return toGlobCxt(*fromStoreCxt(Cxt)->getGlobal(GlobIter->second));
+      }
     }
   }
   return nullptr;
@@ -1332,7 +1350,9 @@ WasmEdge_StoreFindGlobalRegistered(WasmEdge_StoreContext *Cxt,
 WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_StoreListFunctionLength(const WasmEdge_StoreContext *Cxt) {
   if (Cxt) {
-    return static_cast<uint32_t>(fromStoreCxt(Cxt)->getFuncExports().size());
+    if (auto Res = fromStoreCxt(Cxt)->getActiveModule()) {
+      return static_cast<uint32_t>((*Res)->getFuncExports().size());
+    }
   }
   return 0;
 }
@@ -1341,7 +1361,9 @@ WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_StoreListFunction(const WasmEdge_StoreContext *Cxt,
                            WasmEdge_String *Names, const uint32_t Len) {
   if (Cxt) {
-    return fillMap(fromStoreCxt(Cxt)->getFuncExports(), Names, Len);
+    if (auto Res = fromStoreCxt(Cxt)->getActiveModule()) {
+      return fillMap((*Res)->getFuncExports(), Names, Len);
+    }
   }
   return 0;
 }
@@ -1370,7 +1392,9 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StoreListFunctionRegistered(
 WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_StoreListTableLength(const WasmEdge_StoreContext *Cxt) {
   if (Cxt) {
-    return static_cast<uint32_t>(fromStoreCxt(Cxt)->getTableExports().size());
+    if (auto Res = fromStoreCxt(Cxt)->getActiveModule()) {
+      return static_cast<uint32_t>((*Res)->getTableExports().size());
+    }
   }
   return 0;
 }
@@ -1379,7 +1403,9 @@ WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_StoreListTable(const WasmEdge_StoreContext *Cxt,
                         WasmEdge_String *Names, const uint32_t Len) {
   if (Cxt) {
-    return fillMap(fromStoreCxt(Cxt)->getTableExports(), Names, Len);
+    if (auto Res = fromStoreCxt(Cxt)->getActiveModule()) {
+      return fillMap((*Res)->getTableExports(), Names, Len);
+    }
   }
   return 0;
 }
@@ -1408,7 +1434,9 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StoreListTableRegistered(
 WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_StoreListMemoryLength(const WasmEdge_StoreContext *Cxt) {
   if (Cxt) {
-    return static_cast<uint32_t>(fromStoreCxt(Cxt)->getMemExports().size());
+    if (auto Res = fromStoreCxt(Cxt)->getActiveModule()) {
+      return static_cast<uint32_t>((*Res)->getMemExports().size());
+    }
   }
   return 0;
 }
@@ -1417,7 +1445,9 @@ WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_StoreListMemory(const WasmEdge_StoreContext *Cxt,
                          WasmEdge_String *Names, const uint32_t Len) {
   if (Cxt) {
-    return fillMap(fromStoreCxt(Cxt)->getMemExports(), Names, Len);
+    if (auto Res = fromStoreCxt(Cxt)->getActiveModule()) {
+      return fillMap((*Res)->getMemExports(), Names, Len);
+    }
   }
   return 0;
 }
@@ -1446,7 +1476,9 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StoreListMemoryRegistered(
 WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_StoreListGlobalLength(const WasmEdge_StoreContext *Cxt) {
   if (Cxt) {
-    return static_cast<uint32_t>(fromStoreCxt(Cxt)->getGlobalExports().size());
+    if (auto Res = fromStoreCxt(Cxt)->getActiveModule()) {
+      return static_cast<uint32_t>((*Res)->getGlobalExports().size());
+    }
   }
   return 0;
 }
@@ -1455,7 +1487,9 @@ WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_StoreListGlobal(const WasmEdge_StoreContext *Cxt,
                          WasmEdge_String *Names, const uint32_t Len) {
   if (Cxt) {
-    return fillMap(fromStoreCxt(Cxt)->getGlobalExports(), Names, Len);
+    if (auto Res = fromStoreCxt(Cxt)->getActiveModule()) {
+      return fillMap((*Res)->getGlobalExports(), Names, Len);
+    }
   }
   return 0;
 }

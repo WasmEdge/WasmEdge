@@ -168,32 +168,6 @@ public:
     return getInstance(Addr, DataInsts);
   }
 
-  /// Get exported instances of instantiated module.
-  const std::map<std::string, uint32_t, std::less<>> getFuncExports() const {
-    if (NumMod > 0) {
-      return ModInsts.back()->getFuncExports();
-    }
-    return {};
-  }
-  const std::map<std::string, uint32_t, std::less<>> getTableExports() const {
-    if (NumMod > 0) {
-      return ModInsts.back()->getTableExports();
-    }
-    return {};
-  }
-  const std::map<std::string, uint32_t, std::less<>> getMemExports() const {
-    if (NumMod > 0) {
-      return ModInsts.back()->getMemExports();
-    }
-    return {};
-  }
-  const std::map<std::string, uint32_t, std::less<>> getGlobalExports() const {
-    if (NumMod > 0) {
-      return ModInsts.back()->getGlobalExports();
-    }
-    return {};
-  }
-
   /// Get list of registered modules.
   const std::map<std::string, uint32_t, std::less<>> &
   getModuleList() const noexcept {

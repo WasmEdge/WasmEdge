@@ -254,10 +254,9 @@ inline uint32_t fillMap(const std::map<std::string, uint32_t, std::less<>> &Map,
       break;
     }
     if (Names) {
-      uint32_t NameLen = static_cast<uint32_t>(Pair.first.length());
-      char *Str = new char[NameLen];
-      std::copy_n(&Pair.first.data()[0], NameLen, Str);
-      Names[I] = WasmEdge_String{.Length = NameLen, .Buf = Str};
+      Names[I] =
+          WasmEdge_String{.Length = static_cast<uint32_t>(Pair.first.length()),
+                          .Buf = Pair.first.data()};
     }
     I++;
   }
@@ -2168,19 +2167,27 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMGetFunctionList(
     WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
     const WasmEdge_FunctionTypeContext **FuncTypes, const uint32_t Len) {
   if (Cxt) {
-    auto FuncList = Cxt->VM.getFunctionList();
-    for (uint32_t I = 0; I < Len && I < FuncList.size(); I++) {
-      if (Names) {
-        uint32_t NameLen = static_cast<uint32_t>(FuncList[I].first.length());
-        char *Str = new char[NameLen];
-        std::copy_n(&FuncList[I].first.data()[0], NameLen, Str);
-        Names[I] = WasmEdge_String{.Length = NameLen, .Buf = Str};
+    /// Not to use VM::getFunctionList() here because not to allocate the
+    /// returned function name strings.
+    auto &Store = Cxt->VM.getStoreManager();
+    if (auto Res = Store.getActiveModule()) {
+      const auto &FuncExp = (*Res)->getFuncExports();
+      uint32_t I = 0;
+      for (auto It = FuncExp.cbegin(); It != FuncExp.cend() && I < Len;
+           It++, I++) {
+        const auto *FuncInst = *Store.getFunction(It->second);
+        const auto &FuncType = FuncInst->getFuncType();
+        if (Names) {
+          Names[I] = WasmEdge_String{
+              .Length = static_cast<uint32_t>(It->first.length()),
+              .Buf = It->first.data()};
+        }
+        if (FuncTypes) {
+          FuncTypes[I] = toFuncTypeCxt(&FuncType);
+        }
       }
-      if (FuncTypes) {
-        FuncTypes[I] = toFuncTypeCxt(&(FuncList[I].second));
-      }
+      return static_cast<uint32_t>(FuncExp.size());
     }
-    return static_cast<uint32_t>(FuncList.size());
   }
   return 0;
 }

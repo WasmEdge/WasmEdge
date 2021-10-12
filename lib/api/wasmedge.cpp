@@ -1337,8 +1337,9 @@ WasmEdge_StoreListFunctionLength(const WasmEdge_StoreContext *Cxt) {
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StoreListFunction(
-    WasmEdge_StoreContext *Cxt, WasmEdge_String *Names, const uint32_t Len) {
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_StoreListFunction(const WasmEdge_StoreContext *Cxt,
+                           WasmEdge_String *Names, const uint32_t Len) {
   if (Cxt) {
     return fillMap(fromStoreCxt(Cxt)->getFuncExports(), Names, Len);
   }
@@ -1356,7 +1357,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StoreListFunctionRegisteredLength(
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StoreListFunctionRegistered(
-    WasmEdge_StoreContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_StoreContext *Cxt, const WasmEdge_String ModuleName,
     WasmEdge_String *Names, const uint32_t Len) {
   if (Cxt) {
     if (auto Res = fromStoreCxt(Cxt)->findModule(genStrView(ModuleName))) {
@@ -1374,8 +1375,9 @@ WasmEdge_StoreListTableLength(const WasmEdge_StoreContext *Cxt) {
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StoreListTable(
-    WasmEdge_StoreContext *Cxt, WasmEdge_String *Names, const uint32_t Len) {
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_StoreListTable(const WasmEdge_StoreContext *Cxt,
+                        WasmEdge_String *Names, const uint32_t Len) {
   if (Cxt) {
     return fillMap(fromStoreCxt(Cxt)->getTableExports(), Names, Len);
   }
@@ -1393,7 +1395,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StoreListTableRegisteredLength(
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StoreListTableRegistered(
-    WasmEdge_StoreContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_StoreContext *Cxt, const WasmEdge_String ModuleName,
     WasmEdge_String *Names, const uint32_t Len) {
   if (Cxt) {
     if (auto Res = fromStoreCxt(Cxt)->findModule(genStrView(ModuleName))) {
@@ -1431,7 +1433,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StoreListMemoryRegisteredLength(
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StoreListMemoryRegistered(
-    WasmEdge_StoreContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_StoreContext *Cxt, const WasmEdge_String ModuleName,
     WasmEdge_String *Names, const uint32_t Len) {
   if (Cxt) {
     if (auto Res = fromStoreCxt(Cxt)->findModule(genStrView(ModuleName))) {
@@ -1469,7 +1471,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StoreListGlobalRegisteredLength(
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StoreListGlobalRegistered(
-    WasmEdge_StoreContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_StoreContext *Cxt, const WasmEdge_String ModuleName,
     WasmEdge_String *Names, const uint32_t Len) {
   if (Cxt) {
     if (auto Res = fromStoreCxt(Cxt)->findModule(genStrView(ModuleName))) {
@@ -1487,8 +1489,9 @@ WasmEdge_StoreListModuleLength(const WasmEdge_StoreContext *Cxt) {
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StoreListModule(
-    WasmEdge_StoreContext *Cxt, WasmEdge_String *Names, const uint32_t Len) {
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_StoreListModule(const WasmEdge_StoreContext *Cxt,
+                         WasmEdge_String *Names, const uint32_t Len) {
   if (Cxt) {
     return fillMap(fromStoreCxt(Cxt)->getModuleList(), Names, Len);
   }

@@ -511,7 +511,6 @@ TEST(APICoreTest, Compiler) {
 
 TEST(APICoreTest, Loader) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
-  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ReferenceTypes);
   WasmEdge_ASTModuleContext *Mod = nullptr;
   WasmEdge_ASTModuleContext **ModPtr = &Mod;
 
@@ -571,7 +570,6 @@ TEST(APICoreTest, Loader) {
 
 TEST(APICoreTest, Validator) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
-  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ReferenceTypes);
 
   /// Validator creation and deletion
   WasmEdge_ValidatorContext *Validator = WasmEdge_ValidatorCreate(nullptr);
@@ -601,7 +599,6 @@ TEST(APICoreTest, Validator) {
 TEST(APICoreTest, InterpreterWithStatistics) {
   /// Create contexts
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
-  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ReferenceTypes);
   WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
 
   /// Load and validate file
@@ -911,7 +908,6 @@ TEST(APICoreTest, InterpreterWithStatistics) {
 TEST(APICoreTest, Store) {
   /// Create contexts
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
-  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ReferenceTypes);
   WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
   WasmEdge_String Names[15], ErrName, ModName[3];
   ModName[0] = WasmEdge_StringCreateByCString("module");
@@ -949,12 +945,32 @@ TEST(APICoreTest, Store) {
   EXPECT_EQ(WasmEdge_StoreListFunctionLength(nullptr), 0U);
   EXPECT_EQ(WasmEdge_StoreListFunction(nullptr, Names, 15), 0U);
   EXPECT_EQ(WasmEdge_StoreListFunction(Store, nullptr, 15), 11U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListFunction(Store, Names, 4), 11U);
-  for (uint32_t I = 0; I < 4; I++) {
-    WasmEdge_StringDelete(Names[I]);
-  }
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("func-1"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("func-2"));
+  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length), std::string("func-3"));
+  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length), std::string("func-4"));
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListFunction(Store, Names, 15), 11U);
-  /// Delete names later
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("func-1"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("func-2"));
+  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length), std::string("func-3"));
+  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length), std::string("func-4"));
+  EXPECT_EQ(std::string(Names[4].Buf, Names[4].Length),
+            std::string("func-add"));
+  EXPECT_EQ(std::string(Names[5].Buf, Names[5].Length),
+            std::string("func-call-indirect"));
+  EXPECT_EQ(std::string(Names[6].Buf, Names[6].Length),
+            std::string("func-host-add"));
+  EXPECT_EQ(std::string(Names[7].Buf, Names[7].Length),
+            std::string("func-host-div"));
+  EXPECT_EQ(std::string(Names[8].Buf, Names[8].Length),
+            std::string("func-host-mul"));
+  EXPECT_EQ(std::string(Names[9].Buf, Names[9].Length),
+            std::string("func-host-sub"));
+  EXPECT_EQ(std::string(Names[10].Buf, Names[10].Length),
+            std::string("func-mul-2"));
 
   /// Store find function
   EXPECT_NE(WasmEdge_StoreFindFunction(Store, Names[7]), nullptr);
@@ -966,9 +982,6 @@ TEST(APICoreTest, Store) {
       WasmEdge_StoreFindFunction(Store, Names[7]);
   EXPECT_NE(WasmEdge_FunctionInstanceGetFunctionType(FuncCxt), nullptr);
   EXPECT_EQ(WasmEdge_FunctionInstanceGetFunctionType(nullptr), nullptr);
-  for (uint32_t I = 0; I < 11; I++) {
-    WasmEdge_StringDelete(Names[I]);
-  }
 
   /// Store list function exports registered
   EXPECT_EQ(WasmEdge_StoreListFunctionRegisteredLength(Store, ModName[0]), 11U);
@@ -981,14 +994,34 @@ TEST(APICoreTest, Store) {
   EXPECT_EQ(
       WasmEdge_StoreListFunctionRegistered(Store, ModName[0], nullptr, 15),
       11U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListFunctionRegistered(Store, ModName[0], Names, 4),
             11U);
-  for (uint32_t I = 0; I < 4; I++) {
-    WasmEdge_StringDelete(Names[I]);
-  }
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("func-1"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("func-2"));
+  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length), std::string("func-3"));
+  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length), std::string("func-4"));
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListFunctionRegistered(Store, ModName[0], Names, 15),
             11U);
-  /// Delete names later
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("func-1"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("func-2"));
+  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length), std::string("func-3"));
+  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length), std::string("func-4"));
+  EXPECT_EQ(std::string(Names[4].Buf, Names[4].Length),
+            std::string("func-add"));
+  EXPECT_EQ(std::string(Names[5].Buf, Names[5].Length),
+            std::string("func-call-indirect"));
+  EXPECT_EQ(std::string(Names[6].Buf, Names[6].Length),
+            std::string("func-host-add"));
+  EXPECT_EQ(std::string(Names[7].Buf, Names[7].Length),
+            std::string("func-host-div"));
+  EXPECT_EQ(std::string(Names[8].Buf, Names[8].Length),
+            std::string("func-host-mul"));
+  EXPECT_EQ(std::string(Names[9].Buf, Names[9].Length),
+            std::string("func-host-sub"));
+  EXPECT_EQ(std::string(Names[10].Buf, Names[10].Length),
+            std::string("func-mul-2"));
 
   /// Store find function registered
   EXPECT_NE(WasmEdge_StoreFindFunctionRegistered(Store, ModName[0], Names[7]),
@@ -999,26 +1032,25 @@ TEST(APICoreTest, Store) {
             nullptr);
   EXPECT_EQ(WasmEdge_StoreFindFunctionRegistered(Store, ModName[2], Names[7]),
             nullptr);
-  for (uint32_t I = 0; I < 11; I++) {
-    WasmEdge_StringDelete(Names[I]);
-  }
 
   /// Store list table exports
   EXPECT_EQ(WasmEdge_StoreListTableLength(Store), 2U);
   EXPECT_EQ(WasmEdge_StoreListTableLength(nullptr), 0U);
   EXPECT_EQ(WasmEdge_StoreListTable(nullptr, Names, 15), 0U);
   EXPECT_EQ(WasmEdge_StoreListTable(Store, nullptr, 15), 2U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListTable(Store, Names, 1), 2U);
-  WasmEdge_StringDelete(Names[0]);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("tab-ext"));
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListTable(Store, Names, 15), 2U);
-  /// Delete names later
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("tab-ext"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length),
+            std::string("tab-func"));
 
   /// Store find table
   EXPECT_NE(WasmEdge_StoreFindTable(Store, Names[1]), nullptr);
   EXPECT_EQ(WasmEdge_StoreFindTable(nullptr, Names[1]), nullptr);
   EXPECT_EQ(WasmEdge_StoreFindTable(Store, ErrName), nullptr);
-  WasmEdge_StringDelete(Names[0]);
-  WasmEdge_StringDelete(Names[1]);
 
   /// Store list table exports registered
   EXPECT_EQ(WasmEdge_StoreListTableRegisteredLength(Store, ModName[0]), 2U);
@@ -1027,13 +1059,17 @@ TEST(APICoreTest, Store) {
   EXPECT_EQ(WasmEdge_StoreListTableRegisteredLength(nullptr, ModName[0]), 0U);
   EXPECT_EQ(WasmEdge_StoreListTableRegistered(nullptr, ModName[0], Names, 15),
             0U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListTableRegistered(Store, ModName[0], nullptr, 15),
             2U);
   EXPECT_EQ(WasmEdge_StoreListTableRegistered(Store, ModName[0], Names, 1), 2U);
-  WasmEdge_StringDelete(Names[0]);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("tab-ext"));
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListTableRegistered(Store, ModName[0], Names, 15),
             2U);
-  /// Delete names later
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("tab-ext"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length),
+            std::string("tab-func"));
 
   /// Store find table registered
   EXPECT_NE(WasmEdge_StoreFindTableRegistered(Store, ModName[0], Names[1]),
@@ -1044,8 +1080,6 @@ TEST(APICoreTest, Store) {
             nullptr);
   EXPECT_EQ(WasmEdge_StoreFindTableRegistered(Store, ModName[2], Names[1]),
             nullptr);
-  WasmEdge_StringDelete(Names[0]);
-  WasmEdge_StringDelete(Names[1]);
 
   /// Store list memory exports
   EXPECT_EQ(WasmEdge_StoreListMemoryLength(Store), 1U);
@@ -1053,14 +1087,14 @@ TEST(APICoreTest, Store) {
   EXPECT_EQ(WasmEdge_StoreListMemory(nullptr, Names, 15), 0U);
   EXPECT_EQ(WasmEdge_StoreListMemory(Store, nullptr, 15), 1U);
   EXPECT_EQ(WasmEdge_StoreListMemory(Store, Names, 0), 1U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListMemory(Store, Names, 15), 1U);
-  /// Delete names later
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("mem"));
 
   /// Store find memory
   EXPECT_NE(WasmEdge_StoreFindMemory(Store, Names[0]), nullptr);
   EXPECT_EQ(WasmEdge_StoreFindMemory(nullptr, Names[0]), nullptr);
   EXPECT_EQ(WasmEdge_StoreFindMemory(Store, ErrName), nullptr);
-  WasmEdge_StringDelete(Names[0]);
 
   /// Store list memory exports registered
   EXPECT_EQ(WasmEdge_StoreListMemoryRegisteredLength(Store, ModName[0]), 1U);
@@ -1073,9 +1107,10 @@ TEST(APICoreTest, Store) {
             1U);
   EXPECT_EQ(WasmEdge_StoreListMemoryRegistered(Store, ModName[0], Names, 0),
             1U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListMemoryRegistered(Store, ModName[0], Names, 15),
             1U);
-  /// Delete names later
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("mem"));
 
   /// Store find memory registered
   EXPECT_NE(WasmEdge_StoreFindMemoryRegistered(Store, ModName[0], Names[0]),
@@ -1086,24 +1121,27 @@ TEST(APICoreTest, Store) {
             nullptr);
   EXPECT_EQ(WasmEdge_StoreFindMemoryRegistered(Store, ModName[2], Names[0]),
             nullptr);
-  WasmEdge_StringDelete(Names[0]);
 
   /// Store list global exports
   EXPECT_EQ(WasmEdge_StoreListGlobalLength(Store), 2U);
   EXPECT_EQ(WasmEdge_StoreListGlobalLength(nullptr), 0U);
   EXPECT_EQ(WasmEdge_StoreListGlobal(nullptr, Names, 15), 0U);
   EXPECT_EQ(WasmEdge_StoreListGlobal(Store, nullptr, 15), 2U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListGlobal(Store, Names, 1), 2U);
-  WasmEdge_StringDelete(Names[0]);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
+            std::string("glob-const-f32"));
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListGlobal(Store, Names, 15), 2U);
-  /// Delete names later
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
+            std::string("glob-const-f32"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length),
+            std::string("glob-mut-i32"));
 
   /// Store find global
   EXPECT_NE(WasmEdge_StoreFindGlobal(Store, Names[1]), nullptr);
   EXPECT_EQ(WasmEdge_StoreFindGlobal(nullptr, Names[1]), nullptr);
   EXPECT_EQ(WasmEdge_StoreFindGlobal(Store, ErrName), nullptr);
-  WasmEdge_StringDelete(Names[0]);
-  WasmEdge_StringDelete(Names[1]);
 
   /// Store list global exports registered
   EXPECT_EQ(WasmEdge_StoreListGlobalRegisteredLength(Store, ModName[0]), 2U);
@@ -1114,12 +1152,18 @@ TEST(APICoreTest, Store) {
             0U);
   EXPECT_EQ(WasmEdge_StoreListGlobalRegistered(Store, ModName[0], nullptr, 15),
             2U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListGlobalRegistered(Store, ModName[0], Names, 1),
             2U);
-  WasmEdge_StringDelete(Names[0]);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
+            std::string("glob-const-f32"));
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListGlobalRegistered(Store, ModName[0], Names, 15),
             2U);
-  /// Delete names later
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
+            std::string("glob-const-f32"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length),
+            std::string("glob-mut-i32"));
 
   /// Store find global registered
   EXPECT_NE(WasmEdge_StoreFindGlobalRegistered(Store, ModName[0], Names[1]),
@@ -1130,19 +1174,19 @@ TEST(APICoreTest, Store) {
             nullptr);
   EXPECT_EQ(WasmEdge_StoreFindGlobalRegistered(Store, ModName[2], Names[1]),
             nullptr);
-  WasmEdge_StringDelete(Names[0]);
-  WasmEdge_StringDelete(Names[1]);
 
   /// Store list module
   EXPECT_EQ(WasmEdge_StoreListModuleLength(Store), 2U);
   EXPECT_EQ(WasmEdge_StoreListModuleLength(nullptr), 0U);
   EXPECT_EQ(WasmEdge_StoreListModule(nullptr, Names, 15), 0U);
   EXPECT_EQ(WasmEdge_StoreListModule(Store, nullptr, 15), 2U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListModule(Store, Names, 1), 2U);
-  WasmEdge_StringDelete(Names[0]);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_StoreListModule(Store, Names, 15), 2U);
-  WasmEdge_StringDelete(Names[0]);
-  WasmEdge_StringDelete(Names[1]);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("module"));
 
   WasmEdge_StringDelete(ModName[0]);
   WasmEdge_StringDelete(ModName[1]);
@@ -1569,7 +1613,6 @@ TEST(APICoreTest, ImportObject) {
 
 TEST(APICoreTest, VM) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
-  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ReferenceTypes);
   WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
   WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
   WasmEdge_ImportObjectContext *ImpObj = createExternModule("extern");
@@ -1939,19 +1982,57 @@ TEST(APICoreTest, VM) {
   EXPECT_EQ(WasmEdge_VMGetFunctionListLength(nullptr), 0U);
   EXPECT_EQ(WasmEdge_VMGetFunctionList(nullptr, Names, FuncTypes, 15), 0U);
   EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, nullptr, FuncTypes, 15), 11U);
+
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, Names, nullptr, 15), 11U);
-  for (uint32_t I = 0; I < 11; I++) {
-    WasmEdge_StringDelete(Names[I]);
-  }
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("func-1"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("func-2"));
+  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length), std::string("func-3"));
+  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length), std::string("func-4"));
+  EXPECT_EQ(std::string(Names[4].Buf, Names[4].Length),
+            std::string("func-add"));
+  EXPECT_EQ(std::string(Names[5].Buf, Names[5].Length),
+            std::string("func-call-indirect"));
+  EXPECT_EQ(std::string(Names[6].Buf, Names[6].Length),
+            std::string("func-host-add"));
+  EXPECT_EQ(std::string(Names[7].Buf, Names[7].Length),
+            std::string("func-host-div"));
+  EXPECT_EQ(std::string(Names[8].Buf, Names[8].Length),
+            std::string("func-host-mul"));
+  EXPECT_EQ(std::string(Names[9].Buf, Names[9].Length),
+            std::string("func-host-sub"));
+  EXPECT_EQ(std::string(Names[10].Buf, Names[10].Length),
+            std::string("func-mul-2"));
+
   EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, nullptr, nullptr, 15), 11U);
+
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, Names, FuncTypes, 4), 11U);
-  for (uint32_t I = 0; I < 4; I++) {
-    WasmEdge_StringDelete(Names[I]);
-  }
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("func-1"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("func-2"));
+  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length), std::string("func-3"));
+  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length), std::string("func-4"));
+
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
   EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, Names, FuncTypes, 15), 11U);
-  for (uint32_t I = 0; I < 11; I++) {
-    WasmEdge_StringDelete(Names[I]);
-  }
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("func-1"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("func-2"));
+  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length), std::string("func-3"));
+  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length), std::string("func-4"));
+  EXPECT_EQ(std::string(Names[4].Buf, Names[4].Length),
+            std::string("func-add"));
+  EXPECT_EQ(std::string(Names[5].Buf, Names[5].Length),
+            std::string("func-call-indirect"));
+  EXPECT_EQ(std::string(Names[6].Buf, Names[6].Length),
+            std::string("func-host-add"));
+  EXPECT_EQ(std::string(Names[7].Buf, Names[7].Length),
+            std::string("func-host-div"));
+  EXPECT_EQ(std::string(Names[8].Buf, Names[8].Length),
+            std::string("func-host-mul"));
+  EXPECT_EQ(std::string(Names[9].Buf, Names[9].Length),
+            std::string("func-host-sub"));
+  EXPECT_EQ(std::string(Names[10].Buf, Names[10].Length),
+            std::string("func-mul-2"));
 
   /// VM cleanup
   WasmEdge_VMCleanup(VM);

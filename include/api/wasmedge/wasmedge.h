@@ -1324,9 +1324,10 @@ WasmEdge_StoreListFunctionLength(const WasmEdge_StoreContext *Cxt);
 /// the exported function list of the anonymous module. If you want to get the
 /// function list of the registered named modules in the store context, please
 /// call `WasmEdge_StoreListFunctionRegistered` instead.
-/// The returned function names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported
+/// The returned function names filled into the `Names` array are linked to the
+/// exported names of functions in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
 /// function list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
@@ -1352,9 +1353,10 @@ WasmEdge_StoreListFunctionRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// After registering a WASM module, you can call this function to get the
 /// exported function list of the registered module by the module name.
-/// The returned function names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported
+/// The returned function names filled into the `Names` array are linked to the
+/// exported names of functions in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
 /// function list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
@@ -1386,10 +1388,11 @@ WasmEdge_StoreListTableLength(const WasmEdge_StoreContext *Cxt);
 /// the exported table list of the anonymous module. If you want to get the
 /// table list of the registered named modules in the store context, please
 /// call `WasmEdge_StoreListTableRegistered` instead.
-/// The returned table names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported table
-/// list size, the overflowed return values will be discarded.
+/// The returned table names filled into the `Names` array are linked to the
+/// exported names of tables in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// table list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param [out] Names the output WasmEdge_String buffer of the table names.
@@ -1414,10 +1417,11 @@ WasmEdge_StoreListTableRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// After registering a WASM module, you can call this function to get the
 /// exported table list of the registered module by the module name.
-/// The returned table names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported table
-/// list size, the overflowed return values will be discarded.
+/// The returned table names filled into the `Names` array are linked to the
+/// exported names of tables in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// table list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -1449,10 +1453,11 @@ WasmEdge_StoreListMemoryLength(const WasmEdge_StoreContext *Cxt);
 /// the exported memory list of the anonymous module. If you want to get the
 /// memory list of the registered named modules in the store context, please
 /// call `WasmEdge_StoreListMemoryRegistered` instead.
-/// The returned memory names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported memory
-/// list size, the overflowed return values will be discarded.
+/// The returned memory names filled into the `Names` array are linked to the
+/// exported names of memories in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// memory list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param [out] Names the output WasmEdge_String buffer of the memory names.
@@ -1477,10 +1482,11 @@ WasmEdge_StoreListMemoryRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// After registering a WASM module, you can call this function to get the
 /// exported memory list of the registered module by the module name.
-/// The returned memory names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported memory
-/// list size, the overflowed return values will be discarded.
+/// The returned memory names filled into the `Names` array are linked to the
+/// exported names of memories in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// memory list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -1512,10 +1518,11 @@ WasmEdge_StoreListGlobalLength(const WasmEdge_StoreContext *Cxt);
 /// the exported global list of the anonymous module. If you want to get the
 /// global list of the registered named modules in the store context, please
 /// call `WasmEdge_StoreListGlobalRegistered` instead.
-/// The returned global names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported global
-/// list size, the overflowed return values will be discarded.
+/// The returned global names filled into the `Names` array are linked to the
+/// exported names of globals in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// global list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param [out] Names the output WasmEdge_String buffer of the global names.
@@ -1540,10 +1547,11 @@ WasmEdge_StoreListGlobalRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// After registering a WASM module, you can call this function to get the
 /// exported global list of the registered module by the module name.
-/// The returned global names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported global
-/// list size, the overflowed return values will be discarded.
+/// The returned global names filled into the `Names` array are linked to the
+/// exported names of globals in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// global list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -1567,10 +1575,11 @@ WasmEdge_StoreListModuleLength(const WasmEdge_StoreContext *Cxt);
 /// List the registered module names.
 ///
 /// This function will list all registered module names.
-/// The returned module names are created and stored in `Names` array, and the
-/// caller should call `WasmEdge_StringDelete` to delete them. If the `Names`
-/// buffer length is smaller than the result of the registered named module list
-/// size, the overflowed return values will be discarded.
+/// The returned module names filled into the `Names` array are linked to the
+/// registered module names in the store context, and the caller should __NOT__
+/// call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the registered
+/// named module list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param [out] Names the output names WasmEdge_String buffer of named modules.
@@ -2520,13 +2529,16 @@ WasmEdge_VMGetFunctionListLength(WasmEdge_VMContext *Cxt);
 
 /// Get the exported function list.
 ///
-/// The returned function names are created and stored in `Names` array, and
-/// the caller should call `WasmEdge_StringDelete` to delete them. The function
-/// type contexts filled into the `FuncTypes` array of the corresponding
-/// function names link to the context owned by the VM context. The caller
-/// should __NOT__ call the `WasmEdge_FunctionTypeDelete` to delete them. If the
-/// `Names` and `FuncTypes` buffer lengths are smaller than the result of the
-/// exported function list size, the overflowed return values will be discarded.
+/// The returned function names filled into the `Names` array link to the
+/// exported names of functions owned by the vm context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete` to delete them.
+/// The function type contexts filled into the `FuncTypes` array of the
+/// corresponding function names link to the context owned by the VM context.
+/// The caller should __NOT__ call the `WasmEdge_FunctionTypeDelete` to delete
+/// them.
+/// If the `Names` and `FuncTypes` buffer lengths are smaller than the result of
+/// the exported function list size, the overflowed return values will be
+/// discarded.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param [out] Names the output names WasmEdge_String buffer of exported

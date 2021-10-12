@@ -887,10 +887,9 @@ The `VM` context supplies the APIs to retrieve the instances.
         uint32_t Size = WasmEdge_StringCopy(FuncNames[I], Buf, sizeof(Buf));
         printf("Get exported function string length: %u, name: %s\n", Size, Buf);
         /* 
-         * The function names should be destroyed.
+         * The function names should be __NOT__ destroyed.
          * The returned function type contexts should __NOT__ be destroyed.
          */
-        WasmEdge_StringDelete(FuncNames[I]);
       }
       return 0;
     }
@@ -985,8 +984,7 @@ int main() {
     char Buf[256];
     uint32_t Size = WasmEdge_StringCopy(FuncNames[I], Buf, sizeof(Buf));
     printf("Get exported function string length: %u, name: %s\n", Size, Buf);
-    /* The function names should be destroyed. */
-    WasmEdge_StringDelete(FuncNames[I]);
+    /* The function names should __NOT__ be destroyed. */
   }
 
   /* The parameters and returns arrays. */
@@ -1189,8 +1187,7 @@ The `Store` context in WasmEdge provides APIs to list the exported instances wit
     uint32_t GotFuncNum = WasmEdge_StoreListFunction(StoreCxt, FuncNames, FuncNum);
     for (uint32_t I = 0; I < GotFuncNum; I++) {
       /* Working with the function name `FuncNames[I]` ... */
-      /* The function names should be destroyed. */
-      WasmEdge_StringDelete(FuncNames[I]);
+      /* The function names should __NOT__ be destroyed. */
     }
     ```
 
@@ -1210,6 +1207,7 @@ The `Store` context in WasmEdge provides APIs to list the exported instances wit
     WasmEdge_FunctionInstanceContext *FuncCxt = WasmEdge_StoreFindFunction(StoreCxt, FuncName);
     /* `FuncCxt` will be `NULL` if the function not found. */
     /* The returned instance is owned by the store context and should __NOT__ be destroyed. */
+    WasmEdge_StringDelete(FuncName);
     ```
 
     Developers can retrieve the exported function instances of the registered modules via the `WasmEdge_StoreFindFunctionRegistered()` API with the module name.
@@ -1230,8 +1228,7 @@ The `Store` context in WasmEdge provides APIs to list the exported instances wit
     uint32_t GotModNum = WasmEdge_StoreListModule(StoreCxt, ModNames, ModNum);
     for (uint32_t I = 0; I < GotModNum; I++) {
       /* Working with the module name `ModNames[I]` ... */
-      /* The function names should be destroyed. */
-      WasmEdge_StringDelete(ModNames[I]);
+      /* The module names should __NOT__ be destroyed. */
     }
     ```
 

@@ -59,6 +59,7 @@ public:
     uint32_t ModAddr =
         importInstance(ImpModInsts, ModInsts, std::forward<Args>(Values)...);
     ModInsts.back()->Addr = ModAddr;
+    ModMap.emplace(ModInsts.back()->getModuleName(), ModAddr);
     return ModAddr;
   }
   template <typename... Args> uint32_t importFunction(Args &&...Values) {
@@ -194,11 +195,8 @@ public:
   }
 
   /// Get list of registered modules.
-  const std::map<std::string, uint32_t, std::less<>> getModuleList() const {
-    std::map<std::string, uint32_t, std::less<>> ModMap;
-    for (uint32_t I = 0; I < ModInsts.size() - NumMod; I++) {
-      ModMap.emplace(ModInsts[I]->getModuleName(), I);
-    }
+  const std::map<std::string, uint32_t, std::less<>> &
+  getModuleList() const noexcept {
     return ModMap;
   }
 
@@ -246,6 +244,7 @@ public:
       ImpGlobInsts.clear();
       ImpElemInsts.clear();
       ImpDataInsts.clear();
+      ModMap.clear();
     } else {
       while (NumMod > 0) {
         --NumMod;
@@ -348,6 +347,11 @@ private:
   uint32_t NumGlob;
   uint32_t NumElem;
   uint32_t NumData;
+  /// @}
+
+  /// \name Module name mapping.
+  /// @{
+  std::map<std::string, uint32_t, std::less<>> ModMap;
   /// @}
 };
 

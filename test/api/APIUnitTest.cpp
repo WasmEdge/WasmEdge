@@ -305,6 +305,15 @@ TEST(APICoreTest, String) {
   EXPECT_TRUE(WasmEdge_StringIsEqual(Str3, Str4));
   WasmEdge_String Str5 = WasmEdge_StringWrap(CStr, 13);
   EXPECT_FALSE(WasmEdge_StringIsEqual(Str3, Str5));
+  WasmEdge_String Str6 = WasmEdge_StringCreateByCString(nullptr);
+  EXPECT_EQ(Str6.Length, 0U);
+  EXPECT_EQ(Str6.Buf, nullptr);
+  WasmEdge_String Str7 = WasmEdge_StringCreateByBuffer(CStr, 0);
+  EXPECT_EQ(Str7.Length, 0U);
+  EXPECT_EQ(Str7.Buf, nullptr);
+  WasmEdge_String Str8 = WasmEdge_StringCreateByBuffer(nullptr, 11);
+  EXPECT_EQ(Str8.Length, 0U);
+  EXPECT_EQ(Str8.Buf, nullptr);
   char Buf[256];
   EXPECT_EQ(WasmEdge_StringCopy(Str3, nullptr, 0), 0U);
   EXPECT_EQ(WasmEdge_StringCopy(Str3, Buf, 5), 5U);

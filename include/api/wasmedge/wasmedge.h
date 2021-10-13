@@ -321,7 +321,8 @@ WasmEdge_ValueGetExternRef(const WasmEdge_Value Val);
 /// \param Str the NULL-terminated C string to copy into the WasmEdge_String
 /// object.
 ///
-/// \returns pointer to the context, NULL if failed.
+/// \returns string object. Length will be 0 and Buf will be NULL if failed or
+/// the input string is a NULL.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
 WasmEdge_StringCreateByCString(const char *Str);
 
@@ -333,7 +334,8 @@ WasmEdge_StringCreateByCString(const char *Str);
 /// \param Buf the buffer to copy into the WasmEdge_String object.
 /// \param Len the buffer length.
 ///
-/// \returns pointer to the context, NULL if failed.
+/// \returns string object. Length will be 0 and Buf will be NULL if failed or
+/// the input buffer is a NULL.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
 WasmEdge_StringCreateByBuffer(const char *Buf, const uint32_t Len);
 
@@ -346,7 +348,7 @@ WasmEdge_StringCreateByBuffer(const char *Buf, const uint32_t Len);
 /// \param Buf the buffer to copy into the WasmEdge_String object.
 /// \param Len the buffer length.
 ///
-/// \returns pointer to the context, NULL if failed.
+/// \returns string object refer to the input buffer with its length.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
 WasmEdge_StringWrap(const char *Buf, const uint32_t Len);
 

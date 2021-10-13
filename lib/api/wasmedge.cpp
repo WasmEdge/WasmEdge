@@ -503,15 +503,21 @@ WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_String
 WasmEdge_StringCreateByCString(const char *Str) {
-  return WasmEdge_StringCreateByBuffer(Str,
-                                       static_cast<uint32_t>(std::strlen(Str)));
+  if (Str) {
+    return WasmEdge_StringCreateByBuffer(
+        Str, static_cast<uint32_t>(std::strlen(Str)));
+  }
+  return WasmEdge_String{.Length = 0, .Buf = nullptr};
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_String
 WasmEdge_StringCreateByBuffer(const char *Buf, const uint32_t Len) {
-  char *Str = new char[Len];
-  std::copy_n(Buf, Len, Str);
-  return WasmEdge_String{.Length = Len, .Buf = Str};
+  if (Buf && Len) {
+    char *Str = new char[Len];
+    std::copy_n(Buf, Len, Str);
+    return WasmEdge_String{.Length = Len, .Buf = Str};
+  }
+  return WasmEdge_String{.Length = 0, .Buf = nullptr};
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_String WasmEdge_StringWrap(const char *Buf,

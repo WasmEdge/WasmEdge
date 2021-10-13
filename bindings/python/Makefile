@@ -87,11 +87,17 @@ release:          ## Create a new tag for release.
 docs:             ## Build the documentation.
 	@echo "building documentation ..."
 	@$(ENV_PREFIX)gitchangelog HEAD...origin/master > docs/HISTORY.md
+	@echo '```' > docs/commands/auto_generated.md
+	@/usr/bin/pydoc3 WasmEdge >> docs/commands/auto_generated.md
+	@echo '```' >> docs/commands/auto_generated.md
 	@$(ENV_PREFIX)mkdocs build
 	@$(ENV_PREFIX)mkdocs serve
 
 .PHONY: deploy-gh-pages
 deploy-gh-pages:
 	@$(ENV_PREFIX)gitchangelog HEAD...origin/master > docs/HISTORY.md
+	@echo '```' > docs/commands/auto_generated.md
+	@/usr/bin/pydoc3 WasmEdge >> docs/commands/auto_generated.md
+	@echo '```' >> docs/commands/auto_generated.md
 	@$(ENV_PREFIX)mkdocs gh-deploy --config-file mkdocs.yml --remote-branch "gh-pages" --remote-name "satacker_r"
 

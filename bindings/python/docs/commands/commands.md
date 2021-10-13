@@ -1,22 +1,23 @@
 ## Commands
 
-* `py_run` example
-    * Takes `.wasm` path and function name
+* `run` example
+    * Takes `.wasm` path and function name , list of parameters and length of expected return values
 
 === "Python"
     ```python linenums="1"
-    import WasmEdge as we
+    import WasmEdge
     import os
 
+    # WasmEdge/bindings/python/example.py
     wasm_base_path = os.path.abspath(os.path.join(__file__, "../../.."))
     fib_wasm = os.path.join(
         wasm_base_path, "tools/wasmedge/examples/fibonacci.wasm"
     )
-
-    print(we.py_run(
-                fib_wasm,
-                "fib",
-            ))
+    log = WasmEdge.Logging()
+    log.debug()
+    vm = WasmEdge.VM()
+    res, l = vm.run(fib_wasm, 'fib', [10], 1)
+    print(l)
     ```
 === "C"
 
@@ -56,4 +57,17 @@
         WasmEdge_StringDelete(FuncName);
         return 0;
     }
+    ```
+=== "Output"
+    ```bash
+    [2021-10-14 02:42:27.458] [debug]  Execution succeeded.
+    [2021-10-14 02:42:27.458] [debug] 
+    ====================  Statistics  ====================
+    Total execution time: 53764 ns
+    Wasm instructions execution time: 53764 ns
+    Host functions execution time: 0 ns
+    Executed wasm instructions count: 1854
+    Gas costs: 1854
+    Instructions per second: 34484041
+    ['89']
     ```

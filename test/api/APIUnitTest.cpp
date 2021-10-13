@@ -490,6 +490,343 @@ TEST(APICoreTest, GlobalType) {
   WasmEdge_GlobalTypeDelete(nullptr);
 }
 
+TEST(APICoreTest, ImportType) {
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  const WasmEdge_ImportTypeContext *ImpTypes[20];
+  WasmEdge_Limit Lim;
+  WasmEdge_String Name;
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(nullptr);
+
+  /// Load AST module from file
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_LoaderParseFromFile(Loader, &Mod, "apiTestData/import.wasm")));
+  EXPECT_NE(Mod, nullptr);
+
+  /// AST list imports
+  EXPECT_EQ(WasmEdge_ASTModuleListImportsLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_ASTModuleListImportsLength(Mod), 14U);
+  EXPECT_EQ(WasmEdge_ASTModuleListImports(nullptr, ImpTypes, 20), 0U);
+  EXPECT_EQ(WasmEdge_ASTModuleListImports(Mod, nullptr, 20), 14U);
+  std::memset(ImpTypes, 0, sizeof(const WasmEdge_ImportTypeContext *) * 20);
+  EXPECT_EQ(WasmEdge_ASTModuleListImports(Mod, ImpTypes, 4), 14U);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[0]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[0]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-add"));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[0]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("extern"));
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[1]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[1]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-sub"));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[1]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("extern"));
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[2]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[2]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-mul"));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[2]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("extern"));
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[3]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[3]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-div"));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[3]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("extern"));
+  std::memset(ImpTypes, 0, sizeof(const WasmEdge_ImportTypeContext *) * 20);
+  EXPECT_EQ(WasmEdge_ASTModuleListImports(Mod, ImpTypes, 20), 14U);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[4]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[4]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-term"));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[4]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("extern"));
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[5]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[5]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-fail"));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[5]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("extern"));
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[6]),
+            WasmEdge_ExternalType_Global);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[6]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("glob-i32"));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[6]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[7]),
+            WasmEdge_ExternalType_Global);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[7]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("glob-i64"));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[7]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[8]),
+            WasmEdge_ExternalType_Global);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[8]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("glob-f32"));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[8]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[9]),
+            WasmEdge_ExternalType_Global);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[9]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("glob-f64"));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[9]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[10]),
+            WasmEdge_ExternalType_Table);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[10]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("tab-func"));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[10]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[11]),
+            WasmEdge_ExternalType_Table);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[11]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("tab-ext"));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[11]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[12]),
+            WasmEdge_ExternalType_Memory);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[12]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("mem1"));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[12]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[13]),
+            WasmEdge_ExternalType_Memory);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[13]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("mem2"));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[13]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("dummy"));
+
+  /// Import type get external type
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(nullptr),
+            WasmEdge_ExternalType_Function);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[13]),
+            WasmEdge_ExternalType_Memory);
+
+  /// Import type get module name
+  Name = WasmEdge_ImportTypeGetModuleName(nullptr);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string(""));
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[0]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("extern"));
+
+  /// Import type get external name
+  Name = WasmEdge_ImportTypeGetExternalName(nullptr);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string(""));
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[0]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-add"));
+
+  /// Import type get function type
+  EXPECT_EQ(WasmEdge_ImportTypeGetFunctionType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetFunctionType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetFunctionType(nullptr, ImpTypes[4]), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetFunctionType(Mod, ImpTypes[8]), nullptr);
+  EXPECT_NE(WasmEdge_ImportTypeGetFunctionType(Mod, ImpTypes[4]), nullptr);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(
+                WasmEdge_ImportTypeGetFunctionType(Mod, ImpTypes[4])),
+            0U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(
+                WasmEdge_ImportTypeGetFunctionType(Mod, ImpTypes[4])),
+            1U);
+
+  /// Import type get table type
+  EXPECT_EQ(WasmEdge_ImportTypeGetTableType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetTableType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetTableType(nullptr, ImpTypes[11]), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetTableType(Mod, ImpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ImportTypeGetTableType(Mod, ImpTypes[11]), nullptr);
+  EXPECT_EQ(WasmEdge_TableTypeGetRefType(
+                WasmEdge_ImportTypeGetTableType(Mod, ImpTypes[11])),
+            WasmEdge_RefType_ExternRef);
+  Lim = {.HasMax = true, .Min = 10, .Max = 30};
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(
+      WasmEdge_TableTypeGetLimit(
+          WasmEdge_ImportTypeGetTableType(Mod, ImpTypes[11])),
+      Lim));
+
+  /// Import type get memory type
+  EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(nullptr, ImpTypes[13]), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(Mod, ImpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ImportTypeGetMemoryType(Mod, ImpTypes[13]), nullptr);
+  Lim = {.HasMax = false, .Min = 2, .Max = 2};
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(
+      WasmEdge_MemoryTypeGetLimit(
+          WasmEdge_ImportTypeGetMemoryType(Mod, ImpTypes[13])),
+      Lim));
+
+  /// Import type get global type
+  EXPECT_EQ(WasmEdge_ImportTypeGetGlobalType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetGlobalType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetGlobalType(nullptr, ImpTypes[7]), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetGlobalType(Mod, ImpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ImportTypeGetGlobalType(Mod, ImpTypes[7]), nullptr);
+  EXPECT_EQ(WasmEdge_GlobalTypeGetValType(
+                WasmEdge_ImportTypeGetGlobalType(Mod, ImpTypes[7])),
+            WasmEdge_ValType_I64);
+  EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(
+                WasmEdge_ImportTypeGetGlobalType(Mod, ImpTypes[7])),
+            WasmEdge_Mutability_Const);
+
+  WasmEdge_LoaderDelete(Loader);
+  WasmEdge_ASTModuleDelete(Mod);
+}
+
+TEST(APICoreTest, ExportType) {
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  const WasmEdge_ExportTypeContext *ExpTypes[20];
+  WasmEdge_Limit Lim;
+  WasmEdge_String Name;
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(nullptr);
+
+  /// Load AST module from file
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_LoaderParseFromFile(Loader, &Mod, "apiTestData/import.wasm")));
+  EXPECT_NE(Mod, nullptr);
+
+  /// AST list exports
+  EXPECT_EQ(WasmEdge_ASTModuleListExportsLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_ASTModuleListExportsLength(Mod), 16U);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(nullptr, ExpTypes, 20), 0U);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, nullptr, 20), 16U);
+  std::memset(ExpTypes, 0, sizeof(const WasmEdge_ExportTypeContext *) * 20);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, ExpTypes, 4), 16U);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[0]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[0]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-1"));
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[1]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[1]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-2"));
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[2]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[2]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-3"));
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[3]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[3]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-4"));
+  std::memset(ExpTypes, 0, sizeof(const WasmEdge_ExportTypeContext *) * 20);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, ExpTypes, 20), 16U);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[4]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[4]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-add"));
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[5]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[5]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-mul-2"));
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[6]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[6]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length),
+            std::string("func-call-indirect"));
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[7]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[7]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-host-add"));
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[8]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[8]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-host-sub"));
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[9]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[9]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-host-mul"));
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[10]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[10]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-host-div"));
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[11]),
+            WasmEdge_ExternalType_Table);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[11]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("tab-func"));
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[12]),
+            WasmEdge_ExternalType_Table);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[12]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("tab-ext"));
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[13]),
+            WasmEdge_ExternalType_Memory);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[13]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("mem"));
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[14]),
+            WasmEdge_ExternalType_Global);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[14]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("glob-mut-i32"));
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[15]),
+            WasmEdge_ExternalType_Global);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[15]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("glob-const-f32"));
+
+  /// Export type get external type
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(nullptr),
+            WasmEdge_ExternalType_Function);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[15]),
+            WasmEdge_ExternalType_Global);
+
+  /// Export type get external name
+  Name = WasmEdge_ExportTypeGetExternalName(nullptr);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string(""));
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[0]);
+  EXPECT_EQ(std::string(Name.Buf, Name.Length), std::string("func-1"));
+
+  /// Export type get function type
+  EXPECT_EQ(WasmEdge_ExportTypeGetFunctionType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetFunctionType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetFunctionType(nullptr, ExpTypes[4]), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetFunctionType(Mod, ExpTypes[15]), nullptr);
+  EXPECT_NE(WasmEdge_ExportTypeGetFunctionType(Mod, ExpTypes[4]), nullptr);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(
+                WasmEdge_ExportTypeGetFunctionType(Mod, ExpTypes[4])),
+            2U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(
+                WasmEdge_ExportTypeGetFunctionType(Mod, ExpTypes[4])),
+            1U);
+
+  /// Export type get table type
+  EXPECT_EQ(WasmEdge_ExportTypeGetTableType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetTableType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetTableType(nullptr, ExpTypes[12]), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetTableType(Mod, ExpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ExportTypeGetTableType(Mod, ExpTypes[12]), nullptr);
+  EXPECT_EQ(WasmEdge_TableTypeGetRefType(
+                WasmEdge_ExportTypeGetTableType(Mod, ExpTypes[12])),
+            WasmEdge_RefType_ExternRef);
+  Lim = {.HasMax = false, .Min = 10, .Max = 10};
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(
+      WasmEdge_TableTypeGetLimit(
+          WasmEdge_ExportTypeGetTableType(Mod, ExpTypes[12])),
+      Lim));
+
+  /// Export type get memory type
+  EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(nullptr, ExpTypes[13]), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(Mod, ExpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ExportTypeGetMemoryType(Mod, ExpTypes[13]), nullptr);
+  Lim = {.HasMax = true, .Min = 1, .Max = 3};
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(
+      WasmEdge_MemoryTypeGetLimit(
+          WasmEdge_ExportTypeGetMemoryType(Mod, ExpTypes[13])),
+      Lim));
+
+  /// Export type get global type
+  EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(nullptr, ExpTypes[15]), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[15]), nullptr);
+  EXPECT_EQ(WasmEdge_GlobalTypeGetValType(
+                WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[15])),
+            WasmEdge_ValType_F32);
+  EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(
+                WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[15])),
+            WasmEdge_Mutability_Const);
+
+  WasmEdge_LoaderDelete(Loader);
+  WasmEdge_ASTModuleDelete(Mod);
+}
+
 #ifdef WASMEDGE_BUILD_AOT_RUNTIME
 TEST(APICoreTest, Compiler) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();

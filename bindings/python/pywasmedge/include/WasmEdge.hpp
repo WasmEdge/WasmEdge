@@ -4,6 +4,7 @@
 #include <boost/python.hpp>
 #include <boost/python/extract.hpp>
 #include <boost/python/list.hpp>
+#include <doc_strings.hpp>
 #include <functional>
 #include <sstream>
 #include <string>
@@ -11,12 +12,6 @@
 #include <wasmedge.h>
 
 namespace pysdk {
-
-const char *logging_str =
-    "The WasmEdge_LogSetErrorLevel() and "
-    "WasmEdge_LogSetDebugLevel() APIs can set the logging "
-    "system to debug level or error level. By default, the "
-    "error level is set, and the debug info is hidden.";
 
 struct logging {
   const char *str() { return pysdk::logging_str; };
@@ -43,30 +38,33 @@ enum WasmEdge_HostRegistration {
   WasmEdge_HostRegistration_WasmEdge_Process
 };
 
-const char *Configure_str =
-    "The objects, such as VM, Store, and HostFunction, are composed of "
-    "Contexts. All of the contexts can be created by calling the corresponding "
-    "creation APIs and should be destroyed by calling the corresponding "
-    "deletion APIs. Developers have responsibilities to manage the contexts "
-    "for memory management.";
-
 class Configure {
 private:
   WasmEdge_ConfigureContext *ConfCxt;
 
 public:
   Configure();
+  ~Configure();
   const char *str() { return pysdk::Configure_str; }
+  WasmEdge_ConfigureContext *get();
   void add(pysdk::WasmEdge_Proposal);
   void add(pysdk::WasmEdge_HostRegistration);
   void remove(pysdk::WasmEdge_Proposal);
   void remove(pysdk::WasmEdge_HostRegistration);
-  ~Configure();
 };
 
-const char *result_str =
-    "The WasmEdge_Result object specifies the execution status. APIs about "
-    "WASM execution will return the WasmEdge_Result to denote the status.";
+class Store {
+private:
+  WasmEdge_StoreContext *StoreCxt;
+
+public:
+  Store();
+  ~Store();
+  const char *str() { return pysdk::Store_str; }
+  WasmEdge_StoreContext *get();
+  boost::python::list listFunctions(int);
+  boost::python::list listModules(int);
+};
 
 class result {
 private:
@@ -74,11 +72,28 @@ private:
 
 public:
   result();
+  result(WasmEdge_Result);
   const char *str() { return pysdk::result_str; }
   explicit operator bool();
   const char *message();
 
   int get_code();
+};
+
+class VM {
+private:
+  WasmEdge_VMContext *VMCxt;
+
+public:
+  VM();
+  VM(Store);
+  VM(Configure);
+  VM(Configure cfg, Store store);
+  ~VM();
+  const char *str() { return pysdk::vm_str; };
+
+  boost::python::tuple run(boost::python::object, boost::python::object,
+                           boost::python::object, boost::python::object);
 };
 
 } // namespace pysdk

@@ -159,7 +159,11 @@ jobs:
 
     - name: Build WasmEdge
       run: |
-        export LLVM_DIR="$(brew --prefix llvm)"
+        brew install llvm@12
+        brew link llvm@12
+        export PATH="/usr/local/opt/llvm@12/bin:$PATH"
+        export LDFLAGS="-L/usr/local/opt/llvm@12/lib -Wl,-rpath,/usr/local/opt/llvm@12/lib"
+        export CPPFLAGS="-I/usr/local/opt/llvm@12/include"
         cmake -Bbuild -DWASMEDGE_BUILD_TESTS=ON .
         cmake --build build
     - name: Test WasmEdge

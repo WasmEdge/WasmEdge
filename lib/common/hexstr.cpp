@@ -28,7 +28,7 @@ void convertBytesToHexStr(Span<const uint8_t> Src, std::string &Dst,
       Dst += fmt::format("{:02x}", *It);
     }
   } else {
-    for (auto It = Src.begin(); It != Src.end(); It++) {
+    for (const auto *It = Src.begin(); It != Src.end(); It++) {
       Dst += fmt::format("{:02x}", *It);
     }
   }

@@ -96,8 +96,8 @@ namespace WasmEdge {
 
 namespace {
 
-std::atomic_uint handlerCount = 0;
-thread_local Fault *localHandler = nullptr;
+std::atomic_uint HandlerCount = 0;
+thread_local Fault *LocalHandler = nullptr;
 
 #if defined(SA_SIGINFO)
 [[noreturn]] void signalHandler(int Signal, siginfo_t *Siginfo [[maybe_unused]],
@@ -168,13 +168,13 @@ void disableHandler() noexcept {
 #endif
 
 void increaseHandler() noexcept {
-  if (handlerCount++ == 0) {
+  if (HandlerCount++ == 0) {
     enableHandler();
   }
 }
 
 void decreaseHandler() noexcept {
-  if (--handlerCount == 0) {
+  if (--HandlerCount == 0) {
     disableHandler();
   }
 }
@@ -182,27 +182,27 @@ void decreaseHandler() noexcept {
 } // namespace
 
 Fault::Fault() {
-  Prev = std::exchange(localHandler, this);
+  Prev = std::exchange(LocalHandler, this);
   increaseHandler();
 }
 
 Fault::~Fault() noexcept {
   decreaseHandler();
-  localHandler = std::exchange(Prev, nullptr);
+  LocalHandler = std::exchange(Prev, nullptr);
 }
 
 [[noreturn]] inline void Fault::emitFault(ErrCode Error) {
-  assert(localHandler != nullptr);
-  longjmp(localHandler->Buffer, uint8_t(Error));
+  assert(LocalHandler != nullptr);
+  longjmp(LocalHandler->Buffer, uint8_t(Error));
 }
 
 FaultBlocker::FaultBlocker() noexcept {
   decreaseHandler();
-  Prev = std::exchange(localHandler, nullptr);
+  Prev = std::exchange(LocalHandler, nullptr);
 }
 
 FaultBlocker::~FaultBlocker() noexcept {
-  localHandler = std::exchange(Prev, nullptr);
+  LocalHandler = std::exchange(Prev, nullptr);
   increaseHandler();
 }
 

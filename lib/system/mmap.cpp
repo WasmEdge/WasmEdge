@@ -26,7 +26,7 @@ namespace WasmEdge {
 
 namespace {
 #ifdef HAVE_MMAP
-static inline bool kSupported = true;
+static inline bool KSupported = true;
 struct Implement {
   void *Address = MAP_FAILED;
   int File = -1;
@@ -58,7 +58,7 @@ struct Implement {
   bool ok() const noexcept { return Address != MAP_FAILED; }
 };
 #elif WASMEDGE_OS_WINDOWS
-static inline bool kSupported = true;
+static inline bool KSupported = true;
 struct Implement {
   void *Address = nullptr;
   boost::winapi::HANDLE_ File = nullptr;
@@ -105,7 +105,7 @@ struct Implement {
   bool ok() const noexcept { return Address != nullptr; }
 };
 #else
-static inline bool kSupported = false;
+static inline bool KSupported = false;
 struct Implement {
   Implement(const std::filesystem::path &Path) noexcept = default;
   bool ok() const noexcept { return false; }
@@ -138,6 +138,6 @@ void *MMap::address() const noexcept {
   return reinterpret_cast<const Implement *>(Handle)->Address;
 }
 
-bool MMap::supported() noexcept { return kSupported; }
+bool MMap::supported() noexcept { return KSupported; }
 
 } // namespace WasmEdge

@@ -162,9 +162,8 @@ Expect<uint32_t> Interpreter::memGrow(Runtime::StoreManager &StoreMgr,
   const uint32_t CurrPageSize = MemInst.getPageSize();
   if (MemInst.growPage(NewSize)) {
     return CurrPageSize;
-  } else {
-    return static_cast<uint32_t>(-1);
   }
+  return static_cast<uint32_t>(-1);
 }
 
 Expect<uint32_t>
@@ -272,9 +271,8 @@ Expect<uint32_t> Interpreter::tableGrow(Runtime::StoreManager &StoreMgr,
   const uint32_t CurrTableSize = TabInst.getSize();
   if (likely(TabInst.growTable(NewSize, Val))) {
     return CurrTableSize;
-  } else {
-    return static_cast<uint32_t>(-1);
   }
+  return static_cast<uint32_t>(-1);
 }
 
 Expect<uint32_t> Interpreter::tableSize(Runtime::StoreManager &StoreMgr,

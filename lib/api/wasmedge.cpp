@@ -68,13 +68,13 @@ struct WasmEdge_ValidatorContext {
   WasmEdge::Validator::Validator Valid;
 };
 
-/// WasmEdge_InterpreterContext implementation.
-struct WasmEdge_InterpreterContext {
-  WasmEdge_InterpreterContext(
+/// WasmEdge_ExecutorContext implementation.
+struct WasmEdge_ExecutorContext {
+  WasmEdge_ExecutorContext(
       const WasmEdge::Configure &Conf,
       WasmEdge::Statistics::Statistics *S = nullptr) noexcept
-      : Interp(Conf, S) {}
-  WasmEdge::Interpreter::Interpreter Interp;
+      : Exec(Conf, S) {}
+  WasmEdge::Executor::Executor Exec;
 };
 
 /// WasmEdge_StoreContext implementation.
@@ -1353,64 +1353,63 @@ WasmEdge_ValidatorDelete(WasmEdge_ValidatorContext *Cxt) {
 
 /// <<<<<<<< WasmEdge validator functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge interpreter functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+/// >>>>>>>> WasmEdge executor functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT WasmEdge_InterpreterContext *
-WasmEdge_InterpreterCreate(const WasmEdge_ConfigureContext *ConfCxt,
-                           WasmEdge_StatisticsContext *StatCxt) {
+WASMEDGE_CAPI_EXPORT WasmEdge_ExecutorContext *
+WasmEdge_ExecutorCreate(const WasmEdge_ConfigureContext *ConfCxt,
+                        WasmEdge_StatisticsContext *StatCxt) {
   if (ConfCxt) {
     if (StatCxt) {
-      return new WasmEdge_InterpreterContext(ConfCxt->Conf,
-                                             fromStatCxt(StatCxt));
+      return new WasmEdge_ExecutorContext(ConfCxt->Conf, fromStatCxt(StatCxt));
     } else {
-      return new WasmEdge_InterpreterContext(ConfCxt->Conf);
+      return new WasmEdge_ExecutorContext(ConfCxt->Conf);
     }
   } else {
     if (StatCxt) {
-      return new WasmEdge_InterpreterContext(WasmEdge::Configure(),
-                                             fromStatCxt(StatCxt));
+      return new WasmEdge_ExecutorContext(WasmEdge::Configure(),
+                                          fromStatCxt(StatCxt));
     } else {
-      return new WasmEdge_InterpreterContext(WasmEdge::Configure());
+      return new WasmEdge_ExecutorContext(WasmEdge::Configure());
     }
   }
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_InterpreterInstantiate(
-    WasmEdge_InterpreterContext *Cxt, WasmEdge_StoreContext *StoreCxt,
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInstantiate(
+    WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,
     const WasmEdge_ASTModuleContext *ASTCxt) {
   return wrap(
       [&]() {
-        return Cxt->Interp.instantiateModule(*fromStoreCxt(StoreCxt),
-                                             *ASTCxt->Module.get());
+        return Cxt->Exec.instantiateModule(*fromStoreCxt(StoreCxt),
+                                           *ASTCxt->Module.get());
       },
       EmptyThen, Cxt, StoreCxt, ASTCxt);
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_InterpreterRegisterImport(
-    WasmEdge_InterpreterContext *Cxt, WasmEdge_StoreContext *StoreCxt,
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorRegisterImport(
+    WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,
     const WasmEdge_ImportObjectContext *ImportCxt) {
   return wrap(
       [&]() {
-        return Cxt->Interp.registerModule(*fromStoreCxt(StoreCxt),
-                                          *fromImpObjCxt(ImportCxt));
+        return Cxt->Exec.registerModule(*fromStoreCxt(StoreCxt),
+                                        *fromImpObjCxt(ImportCxt));
       },
       EmptyThen, Cxt, StoreCxt, ImportCxt);
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_InterpreterRegisterModule(
-    WasmEdge_InterpreterContext *Cxt, WasmEdge_StoreContext *StoreCxt,
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorRegisterModule(
+    WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,
     const WasmEdge_ASTModuleContext *ASTCxt, const WasmEdge_String ModuleName) {
   return wrap(
       [&]() {
-        return Cxt->Interp.registerModule(*fromStoreCxt(StoreCxt),
-                                          *ASTCxt->Module.get(),
-                                          genStrView(ModuleName));
+        return Cxt->Exec.registerModule(*fromStoreCxt(StoreCxt),
+                                        *ASTCxt->Module.get(),
+                                        genStrView(ModuleName));
       },
       EmptyThen, Cxt, StoreCxt, ASTCxt);
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_InterpreterInvoke(
-    WasmEdge_InterpreterContext *Cxt, WasmEdge_StoreContext *StoreCxt,
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInvoke(
+    WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
     const uint32_t ParamLen, WasmEdge_Value *Returns,
     const uint32_t ReturnLen) {
@@ -1436,15 +1435,15 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_InterpreterInvoke(
           spdlog::error(WasmEdge::ErrInfo::InfoExecuting("", FuncStr));
           return Unexpect(WasmEdge::ErrCode::FuncNotFound);
         }
-        return Cxt->Interp.invoke(*fromStoreCxt(StoreCxt), FuncIter->second,
-                                  ParamPair.first, ParamPair.second);
+        return Cxt->Exec.invoke(*fromStoreCxt(StoreCxt), FuncIter->second,
+                                ParamPair.first, ParamPair.second);
       },
       [&](auto &&Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); }, Cxt,
       StoreCxt);
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_InterpreterInvokeRegistered(
-    WasmEdge_InterpreterContext *Cxt, WasmEdge_StoreContext *StoreCxt,
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInvokeRegistered(
+    WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,
     const WasmEdge_String ModuleName, const WasmEdge_String FuncName,
     const WasmEdge_Value *Params, const uint32_t ParamLen,
     WasmEdge_Value *Returns, const uint32_t ReturnLen) {
@@ -1471,19 +1470,19 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_InterpreterInvokeRegistered(
           spdlog::error(WasmEdge::ErrInfo::InfoExecuting(ModStr, FuncStr));
           return Unexpect(WasmEdge::ErrCode::FuncNotFound);
         }
-        return Cxt->Interp.invoke(*fromStoreCxt(StoreCxt), FuncIter->second,
-                                  ParamPair.first, ParamPair.second);
+        return Cxt->Exec.invoke(*fromStoreCxt(StoreCxt), FuncIter->second,
+                                ParamPair.first, ParamPair.second);
       },
       [&](auto &&Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); }, Cxt,
       StoreCxt);
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_InterpreterDelete(WasmEdge_InterpreterContext *Cxt) {
+WasmEdge_ExecutorDelete(WasmEdge_ExecutorContext *Cxt) {
   delete Cxt;
 }
 
-/// <<<<<<<< WasmEdge interpreter functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+/// <<<<<<<< WasmEdge executor functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> WasmEdge store functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

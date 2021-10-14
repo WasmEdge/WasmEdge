@@ -16,7 +16,7 @@
 #include "common/filesystem.h"
 #include "common/types.h"
 
-#include "interpreter/interpreter.h"
+#include "executor/executor.h"
 #include "loader/loader.h"
 #include "validator/validator.h"
 
@@ -122,7 +122,7 @@ private:
   /// VM runners.
   Loader::Loader LoaderEngine;
   Validator::Validator ValidatorEngine;
-  Interpreter::Interpreter InterpreterEngine;
+  Executor::Executor ExecutorEngine;
 
   /// VM Storage.
   std::unique_ptr<AST::Module> Mod;

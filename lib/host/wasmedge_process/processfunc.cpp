@@ -146,7 +146,8 @@ Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
     close(FDStdErr[0]);
     close(FDStdErr[1]);
     return Env.ExitCode;
-  } else if (PID == 0) {
+  }
+  if (PID == 0) {
     /// Child process. Setup pipes.
     dup2(FDStdIn[0], 0);
     dup2(FDStdOut[1], 1);
@@ -235,7 +236,8 @@ Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
         /// waitpid failed.
         Env.ExitCode = static_cast<uint32_t>(EINVAL);
         break;
-      } else if (WPID > 0) {
+      }
+      if (WPID > 0) {
         /// Child process returned.
         Env.ExitCode = static_cast<int8_t>(WEXITSTATUS(ChildStat));
         break;

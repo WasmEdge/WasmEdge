@@ -16,9 +16,9 @@ namespace WASI {
 
 namespace {
 
-static inline constexpr const uint8_t kMaxNestedLinks = 8;
+static inline constexpr const uint8_t KMaxNestedLinks = 8;
 
-}
+} // namespace
 
 VINode::VINode(VFS &FS, INode Node, std::shared_ptr<VINode> Parent)
     : FS(FS), Node(std::move(Node)), FsRightsBase(Parent->FsRightsBase),
@@ -449,7 +449,7 @@ VINode::resolvePath(VFS &FS, std::shared_ptr<VINode> &Fd,
       }
 
       if (Filestat.filetype == __WASI_FILETYPE_SYMBOLIC_LINK) {
-        if (++LinkCount >= kMaxNestedLinks) {
+        if (++LinkCount >= KMaxNestedLinks) {
           return WasiUnexpect(__WASI_ERRNO_LOOP);
         }
 
@@ -459,19 +459,18 @@ VINode::resolvePath(VFS &FS, std::shared_ptr<VINode> &Fd,
                 Fd->Node.pathReadlink(std::string(Part), NewBuffer, NRead);
             unlikely(!Res)) {
           return WasiUnexpect(Res);
-        } else {
-          // Don't drop Buffer now because Path may referencing it.
-          if (!Remain.empty()) {
-            if (NewBuffer.back() != '/') {
-              NewBuffer.push_back('/');
-            }
-            NewBuffer.insert(NewBuffer.end(), Remain.begin(), Remain.end());
-          }
-          // slow retry
-          Buffer = std::move(NewBuffer);
-          Path = std::string_view(Buffer.data(), Buffer.size());
-          break;
         }
+        // Don't drop Buffer now because Path may referencing it.
+        if (!Remain.empty()) {
+          if (NewBuffer.back() != '/') {
+            NewBuffer.push_back('/');
+          }
+          NewBuffer.insert(NewBuffer.end(), Remain.begin(), Remain.end());
+        }
+        // slow retry
+        Buffer = std::move(NewBuffer);
+        Path = std::string_view(Buffer.data(), Buffer.size());
+        break;
       }
 
       if (LastPart) {

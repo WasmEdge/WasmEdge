@@ -29,6 +29,7 @@
   * [Loader](#Loader)
   * [Validator](#Validator)
   * [Interpreter](#Interpreter)
+  * [AST Module](#AST-Module)
   * [Store](#Store)
   * [Instances](#Instances)
   * [Host Functions](#Host-Functions)
@@ -262,7 +263,7 @@ The details of instances creation will be introduced in the [Instances](#Instanc
     Developers can initialize the struct by assigning it's value, and the `Max` value is needed to be larger or equal to the `Min` value.
     The API `WasmEdge_LimitIsEqual()` is provided to compare with 2 `WasmEdge_Limit` structs.
 
-2. Function type
+2. Function type context
 
     The `Function Type` context is used for the `Function` creation, checking the value types of a `Function` instance, or getting the function type with function name from VM. Developers can use the `Function Type` context APIs to get the parameter or return value types information.
 
@@ -327,6 +328,65 @@ The details of instances creation will be introduced in the [Instances](#Instanc
     /* `GotValMut` will be WasmEdge_Mutability_Var. */
 
     WasmEdge_GlobalTypeDelete(GlobTypeCxt);
+    ```
+
+6. Import type context
+
+    The `Import Type` context is used for getting the imports information from a [AST Module](#AST-Module).
+    Developers can get the external type (`function`, `table`, `memory`, or `global`), import module name, and external name from an `Import Type` context.
+    The details about querying `Import Type` contexts will be introduced in the [AST Module](#AST-Module).
+
+    ```c
+    WasmEdge_ASTModuleContext *ASTCxt = ...;
+    /* Assume that `ASTCxt` is returned by the `WasmEdge_LoaderContext` for the result of loading a WASM file. */
+    const WasmEdge_ImportTypeContext *ImpType = ...;
+    /* Assume that `ImpType` is queried from the `ASTCxt` for the import. */
+
+    enum WasmEdge_ExternalType ExtType = WasmEdge_ImportTypeGetExternalType(ImpType);
+    /*
+     * The `ExtType` can be one of `WasmEdge_ExternalType_Function`, `WasmEdge_ExternalType_Table`,
+     * `WasmEdge_ExternalType_Memory`, or `WasmEdge_ExternalType_Global`.
+     */
+    WasmEdge_String ModName = WasmEdge_ImportTypeGetModuleName(ImpType);
+    WasmEdge_String ExtName = WasmEdge_ImportTypeGetExternalName(ImpType);
+    /* The `ModName` and `ExtName` should not be destroyed and the string buffers are binded into the `ASTCxt`. */
+    const WasmEdge_FunctionTypeContext *FuncTypeCxt = WasmEdge_ImportTypeGetFunctionType(ASTCxt, ImpType);
+    /* If the `ExtType` is not `WasmEdge_ExternalType_Function`, the `FuncTypeCxt` will be NULL. */
+    const WasmEdge_TableTypeContext *TabTypeCxt = WasmEdge_ImportTypeGetTableType(ASTCxt, ImpType);
+    /* If the `ExtType` is not `WasmEdge_ExternalType_Table`, the `TabTypeCxt` will be NULL. */
+    const WasmEdge_MemoryTypeContext *MemTypeCxt = WasmEdge_ImportTypeGetMemoryType(ASTCxt, ImpType);
+    /* If the `ExtType` is not `WasmEdge_ExternalType_Memory`, the `MemTypeCxt` will be NULL. */
+    const WasmEdge_GlobalTypeContext *GlobTypeCxt = WasmEdge_ImportTypeGetGlobalType(ASTCxt, ImpType);
+    /* If the `ExtType` is not `WasmEdge_ExternalType_Global`, the `GlobTypeCxt` will be NULL. */
+    ```
+
+7. Export type context
+
+    The `Export Type` context is used for getting the exports information from a [AST Module](#AST-Module).
+    Developers can get the external type (`function`, `table`, `memory`, or `global`) and external name from an `Export Type` context.
+    The details about querying `Export Type` contexts will be introduced in the [AST Module](#AST-Module).
+
+    ```c
+    WasmEdge_ASTModuleContext *ASTCxt = ...;
+    /* Assume that `ASTCxt` is returned by the `WasmEdge_LoaderContext` for the result of loading a WASM file. */
+    const WasmEdge_ExportTypeContext *ExpType = ...;
+    /* Assume that `ExpType` is queried from the `ASTCxt` for the export. */
+
+    enum WasmEdge_ExternalType ExtType = WasmEdge_ExportTypeGetExternalType(ExpType);
+    /*
+     * The `ExtType` can be one of `WasmEdge_ExternalType_Function`, `WasmEdge_ExternalType_Table`,
+     * `WasmEdge_ExternalType_Memory`, or `WasmEdge_ExternalType_Global`.
+     */
+    WasmEdge_String ExtName = WasmEdge_ExportTypeGetExternalName(ExpType);
+    /* The `ExtName` should not be destroyed and the string buffer is binded into the `ASTCxt`. */
+    const WasmEdge_FunctionTypeContext *FuncTypeCxt = WasmEdge_ExportTypeGetFunctionType(ASTCxt, ExpType);
+    /* If the `ExtType` is not `WasmEdge_ExternalType_Function`, the `FuncTypeCxt` will be NULL. */
+    const WasmEdge_TableTypeContext *TabTypeCxt = WasmEdge_ExportTypeGetTableType(ASTCxt, ExpType);
+    /* If the `ExtType` is not `WasmEdge_ExternalType_Table`, the `TabTypeCxt` will be NULL. */
+    const WasmEdge_MemoryTypeContext *MemTypeCxt = WasmEdge_ExportTypeGetMemoryType(ASTCxt, ExpType);
+    /* If the `ExtType` is not `WasmEdge_ExternalType_Memory`, the `MemTypeCxt` will be NULL. */
+    const WasmEdge_GlobalTypeContext *GlobTypeCxt = WasmEdge_ExportTypeGetGlobalType(ASTCxt, ExpType);
+    /* If the `ExtType` is not `WasmEdge_ExternalType_Global`, the `GlobTypeCxt` will be NULL. */
     ```
 
 ### Configurations
@@ -874,16 +934,18 @@ The `VM` context supplies the APIs to retrieve the instances.
       /* Get the number of exported functions. */
       uint32_t FuncNum = WasmEdge_VMGetFunctionListLength(VMCxt);
       /* Create the name buffers and the function type buffers. */
-      WasmEdge_String FuncNames[256];
-      WasmEdge_FunctionTypeContext *FuncTypes[256];
+      const uint32_t BUF_LEN = 256;
+      WasmEdge_String FuncNames[BUF_LEN];
+      WasmEdge_FunctionTypeContext *FuncTypes[BUF_LEN];
       /* 
        * Get the export function list.
+       * If the function list length is larger than the buffer length, the overflowed data will be discarded.
        * The `FuncNames` and `FuncTypes` can be NULL if developers don't need them.
        */
-      uint32_t GotFuncNum = WasmEdge_VMGetFunctionList(VMCxt, FuncNames, FuncTypes, FuncNum);
+      uint32_t RealFuncNum = WasmEdge_VMGetFunctionList(VMCxt, FuncNames, FuncTypes, BUF_LEN);
 
-      for (uint32_t I = 0; I < GotFuncNum; I++) {
-        char Buf[256];
+      for (uint32_t I = 0; I < RealFuncNum && I < BUF_LEN; I++) {
+        char Buf[BUF_LEN];
         uint32_t Size = WasmEdge_StringCopy(FuncNames[I], Buf, sizeof(Buf));
         printf("Get exported function string length: %u, name: %s\n", Size, Buf);
         /* 
@@ -978,10 +1040,12 @@ int main() {
   /* Try to list the exported functions of the instantiated WASM module. */
   uint32_t FuncNum = WasmEdge_StoreListFunctionLength(StoreCxt);
   /* Create the name buffers. */
-  WasmEdge_String FuncNames[256];
-  uint32_t GotFuncNum = WasmEdge_StoreListFunction(StoreCxt, FuncNames, FuncNum);
-  for (uint32_t I = 0; I < GotFuncNum; I++) {
-    char Buf[256];
+  const uint32_t BUF_LEN = 256;
+  WasmEdge_String FuncNames[BUF_LEN];
+  /* If the list length is larger than the buffer length, the overflowed data will be discarded. */
+  uint32_t RealFuncNum = WasmEdge_StoreListFunction(StoreCxt, FuncNames, BUF_LEN);
+  for (uint32_t I = 0; I < RealFuncNum && I < BUF_LEN; I++) {
+    char Buf[BUF_LEN];
     uint32_t Size = WasmEdge_StringCopy(FuncNames[I], Buf, sizeof(Buf));
     printf("Get exported function string length: %u, name: %s\n", Size, Buf);
     /* The function names should __NOT__ be destroyed. */
@@ -1167,6 +1231,38 @@ This object should work base on the `Store` context. For the details of the `Sto
     The APIs, `WasmEdge_InterpreterInvoke()` and `WasmEdge_InterpreterInvokeRegistered()`, are similar as the APIs of the `VM` context.
     Please refer to the [VM context workflows](#WASM-Execution-Example-With-VM-Context) for details.
 
+### AST Module
+
+The `AST Module` context presents the loaded structure from a WASM file or buffer. Developer will get this object after loading a WASM file or buffer from [Loader](#Loader).
+Before instantiation, developers can also query the imports and exports of an `AST Module` context.
+
+```c
+WasmEdge_ASTModuleContext *ASTCxt = ...;
+/* Assume that a WASM is loaded into an AST module context. */
+
+/* Create the import type context buffers. */
+const uint32_t BUF_LEN = 256;
+const WasmEdge_ImportTypeContext *ImpTypes[BUF_LEN];
+uint32_t ImportNum = WasmEdge_ASTModuleListImportsLength(ASTCxt);
+/* If the list length is larger than the buffer length, the overflowed data will be discarded. */
+uint32_t RealImportNum = WasmEdge_ASTModuleListImports(ASTCxt, ImpTypes, BUF_LEN);
+for (uint32_t I = 0; I < RealImportNum && I < BUF_LEN; I++) {
+  /* Working with the import type `ImpTypes[I]` ... */
+}
+
+/* Create the export type context buffers. */
+const WasmEdge_ExportTypeContext *ExpTypes[BUF_LEN];
+uint32_t ExportNum = WasmEdge_ASTModuleListExportsLength(ASTCxt);
+/* If the list length is larger than the buffer length, the overflowed data will be discarded. */
+uint32_t RealExportNum = WasmEdge_ASTModuleListExports(ASTCxt, ExpTypes, BUF_LEN);
+for (uint32_t I = 0; I < RealExportNum && I < BUF_LEN; I++) {
+  /* Working with the export type `ExpTypes[I]` ... */
+}
+
+WasmEdge_ASTModuleDelete(ASTCxt);
+/* After deletion of `ASTCxt`, all data queried from the `ASTCxt` should not be accessed. */
+```
+
 ### Store
 
 [Store](https://webassembly.github.io/spec/core/exec/runtime.html#store) is the runtime structure for the representation of all instances of `Function`s, `Table`s, `Memory`s, and `Global`s that have been allocated during the lifetime of the abstract machine.
@@ -1183,9 +1279,11 @@ The `Store` context in WasmEdge provides APIs to list the exported instances wit
     /* Take the function instances for example here. */
     uint32_t FuncNum = WasmEdge_StoreListFunctionLength(StoreCxt);
     /* Create the name buffers. */
-    WasmEdge_String FuncNames[256];
-    uint32_t GotFuncNum = WasmEdge_StoreListFunction(StoreCxt, FuncNames, FuncNum);
-    for (uint32_t I = 0; I < GotFuncNum; I++) {
+    const uint32_t BUF_LEN = 256;
+    WasmEdge_String FuncNames[BUF_LEN];
+    /* If the list length is larger than the buffer length, the overflowed data will be discarded. */
+    uint32_t RealFuncNum = WasmEdge_StoreListFunction(StoreCxt, FuncNames, BUF_LEN);
+    for (uint32_t I = 0; I < RealFuncNum && I < BUF_LEN; I++) {
       /* Working with the function name `FuncNames[I]` ... */
       /* The function names should __NOT__ be destroyed. */
     }
@@ -1224,9 +1322,11 @@ The `Store` context in WasmEdge provides APIs to list the exported instances wit
     /* Try to list registered WASM module. */
     uint32_t ModNum = WasmEdge_StoreListModuleLength(StoreCxt);
     /* Create the name buffers. */
-    WasmEdge_String ModNames[256];
-    uint32_t GotModNum = WasmEdge_StoreListModule(StoreCxt, ModNames, ModNum);
-    for (uint32_t I = 0; I < GotModNum; I++) {
+    const uint32_t BUF_LEN = 256;
+    WasmEdge_String ModNames[BUF_LEN];
+    /* If the list length is larger than the buffer length, the overflowed data will be discarded. */
+    uint32_t RealModNum = WasmEdge_StoreListModule(StoreCxt, ModNames, BUF_LEN);
+    for (uint32_t I = 0; I < RealModNum && I < BUF_LEN; I++) {
       /* Working with the module name `ModNames[I]` ... */
       /* The module names should __NOT__ be destroyed. */
     }

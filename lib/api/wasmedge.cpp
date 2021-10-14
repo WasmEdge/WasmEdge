@@ -114,8 +114,7 @@ inline constexpr WasmEdge_Result genWasmEdgeResult(ErrCode Code) noexcept {
 
 /// Helper function for returning a struct uint128_t / int128_t
 /// from class WasmEdge::uint128_t / WasmEdge::int128_t.
-template <typename C>
-inline constexpr ::uint128_t toUint128T(C Val) noexcept {
+template <typename C> inline constexpr ::uint128_t toUint128T(C Val) noexcept {
 #if defined(__x86_64__) || defined(__aarch64__)
   return Val;
 #else
@@ -148,7 +147,7 @@ template <typename T> inline WasmEdge_Value genWasmEdgeValue(T Val) noexcept {
       .Type = static_cast<WasmEdge_ValType>(WasmEdge::ValTypeFromType<T>())};
 }
 inline WasmEdge_Value genWasmEdgeValue(ValVariant Val,
-                                        WasmEdge_ValType T) noexcept {
+                                       WasmEdge_ValType T) noexcept {
   return WasmEdge_Value{.Value = toUint128T(Val.unwrap()), .Type = T};
 }
 
@@ -218,8 +217,8 @@ inline std::string_view genStrView(const WasmEdge_String S) noexcept {
 /// Helper functions for converting a ValVariant vector to a WasmEdge_Value
 /// array.
 inline constexpr void fillWasmEdgeValueArr(Span<const ValVariant> Vec,
-                                            WasmEdge_Value *Val,
-                                            const uint32_t Len) noexcept {
+                                           WasmEdge_Value *Val,
+                                           const uint32_t Len) noexcept {
   if (Val == nullptr) {
     return;
   }
@@ -446,7 +445,7 @@ WasmEdge_ValueGenV128(const ::int128_t Val) {
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
 WasmEdge_ValueGenNullRef(const WasmEdge_RefType T) {
   return genWasmEdgeValue(WasmEdge::UnknownRef(),
-                           static_cast<WasmEdge_ValType>(T));
+                          static_cast<WasmEdge_ValType>(T));
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
@@ -455,8 +454,7 @@ WasmEdge_ValueGenFuncRef(const uint32_t Index) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_ValueGenExternRef(void *Ref) {
-  return genWasmEdgeValue(WasmEdge::ExternRef(Ref),
-                           WasmEdge_ValType_ExternRef);
+  return genWasmEdgeValue(WasmEdge::ExternRef(Ref), WasmEdge_ValType_ExternRef);
 }
 
 WASMEDGE_CAPI_EXPORT int32_t WasmEdge_ValueGetI32(const WasmEdge_Value Val) {
@@ -486,8 +484,8 @@ WASMEDGE_CAPI_EXPORT double WasmEdge_ValueGetF64(const WasmEdge_Value Val) {
 WASMEDGE_CAPI_EXPORT ::int128_t
 WasmEdge_ValueGetV128(const WasmEdge_Value Val) {
   return toInt128T(WasmEdge::ValVariant::wrap<WasmEdge::int128_t>(
-                         toWasmEdge128T<WasmEdge::uint128_t>(Val.Value))
-                         .get<WasmEdge::int128_t>());
+                       toWasmEdge128T<WasmEdge::uint128_t>(Val.Value))
+                       .get<WasmEdge::int128_t>());
 }
 
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ValueIsNullRef(const WasmEdge_Value Val) {
@@ -2295,8 +2293,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromBuffer(
         return Cxt->VM.runWasmFile(genSpan(Buf, BufLen), genStrView(FuncName),
                                    ParamPair.first, ParamPair.second);
       },
-      [&](auto &&Res) { fillWasmEdgeValueArr(*Res, Returns, ReturnLen); },
-      Cxt);
+      [&](auto &&Res) { fillWasmEdgeValueArr(*Res, Returns, ReturnLen); }, Cxt);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromASTModule(
@@ -2353,8 +2350,7 @@ WasmEdge_VMExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
         return Cxt->VM.execute(genStrView(FuncName), ParamPair.first,
                                ParamPair.second);
       },
-      [&](auto &&Res) { fillWasmEdgeValueArr(*Res, Returns, ReturnLen); },
-      Cxt);
+      [&](auto &&Res) { fillWasmEdgeValueArr(*Res, Returns, ReturnLen); }, Cxt);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMExecuteRegistered(
@@ -2368,8 +2364,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMExecuteRegistered(
         return Cxt->VM.execute(genStrView(ModuleName), genStrView(FuncName),
                                ParamPair.first, ParamPair.second);
       },
-      [&](auto &&Res) { fillWasmEdgeValueArr(*Res, Returns, ReturnLen); },
-      Cxt);
+      [&](auto &&Res) { fillWasmEdgeValueArr(*Res, Returns, ReturnLen); }, Cxt);
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *

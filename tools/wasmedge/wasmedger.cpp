@@ -157,8 +157,7 @@ int main(int Argc, const char *Argv[]) {
   }
   // reactor mode
   if (Args.value().empty()) {
-    std::cerr
-        << "A function name is required when reactor mode is enabled.\n";
+    std::cerr << "A function name is required when reactor mode is enabled.\n";
     return EXIT_FAILURE;
   }
   const auto &FuncName = Args.value().front();
@@ -232,8 +231,7 @@ int main(int Argc, const char *Argv[]) {
   if (FuncType.getParamTypes().size() + 1 < Args.value().size()) {
     for (size_t I = FuncType.getParamTypes().size() + 1;
          I < Args.value().size(); ++I) {
-      const uint64_t Value =
-          static_cast<uint64_t>(std::stoll(Args.value()[I]));
+      const uint64_t Value = static_cast<uint64_t>(std::stoll(Args.value()[I]));
       FuncArgs.emplace_back(Value);
       FuncArgTypes.emplace_back(WasmEdge::ValType::F64);
     }

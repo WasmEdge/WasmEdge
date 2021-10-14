@@ -153,7 +153,7 @@ void Allocator::release(uint8_t *Pointer, uint32_t) noexcept {
 uint8_t *Allocator::allocate_chunk(uint64_t Size) noexcept {
 #if defined(HAVE_MMAP)
   if (auto *Pointer = mmap(nullptr, Size, PROT_READ | PROT_WRITE,
-                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+                           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
       unlikely(Pointer == MAP_FAILED)) {
     return nullptr;
   } else {

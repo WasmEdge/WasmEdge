@@ -15,7 +15,13 @@ Breaking changes:
 * WasmEdge C API changes.
   * Updated the host function related APIs.
     * Deleted the data object column in the creation function of `ImportObject` context.
-    * Added the data object column in the creation function of `HostFunction` context.
+    * Merged the `HostFunctionContext` into `FunctionInstanceContext`.
+      * Deleted the `WasmEdge_HostFunctionContext` object. Please use the `WasmEdge_FunctionInstanceContext` object instead.
+      * Deleted the `WasmEdge_HostFunctionCreate` function. Please use the `WasmEdge_FunctionInstanceCreate` function instead.
+      * Deleted the `WasmEdge_HostFunctionCreateBinding` function. Please use the `WasmEdge_FunctionInstanceCreateBinding` function instead.
+      * Deleted the `WasmEdge_HostFunctionDelete` function. Please use the `WasmEdge_FunctionInstanceDelete` function instead.
+      * Deleted the `WasmEdge_ImportObjectAddHostFunction` function. Please use the `WasmEdge_ImportObjectAddFunction` function instead.
+    * Added the data object column in the creation function of `FunctionInstance` context.
     * Instead of the unified data object of the host functions in the same import object before, the data objects are independent in every host functions now.
   * Added the WASM types contexts.
     * Added the `WasmEdge_TableTypeContext`, which is used for table instances creation.
@@ -47,6 +53,7 @@ Refactor:
 * Refactor the runtime objects.
   * Used `AST::FunctionType`, `AST::TableType`, `AST::MemoryType`, and `AST::GlobalType` for instance creation and member handling.
   * Removed `Runtime::Instance::FType` and used `AST::FunctionType` instead.
+  * Added routines to push function instances into import objects.
 * Updated the include path for rust binding due to the API headers refactoring.
 
 Documentations:

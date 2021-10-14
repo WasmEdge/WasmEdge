@@ -152,118 +152,115 @@ int main(int Argc, const char *Argv[]) {
     if (auto Result = VM.runWasmFile(InputPath.u8string(), "_start");
         Result || Result.error() == WasmEdge::ErrCode::Terminated) {
       return static_cast<int>(WasiMod->getEnv().getExitCode());
-    } else {
+    }
+    return EXIT_FAILURE;
+  }
+  // reactor mode
+  if (Args.value().empty()) {
+    std::cerr
+        << "A function name is required when reactor mode is enabled.\n";
+    return EXIT_FAILURE;
+  }
+  const auto &FuncName = Args.value().front();
+  if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
+    return EXIT_FAILURE;
+  }
+  if (auto Result = VM.validate(); !Result) {
+    return EXIT_FAILURE;
+  }
+  if (auto Result = VM.instantiate(); !Result) {
+    return EXIT_FAILURE;
+  }
+
+  using namespace std::literals::string_literals;
+  const auto InitFunc = "_initialize"s;
+
+  bool HasInit = false;
+  WasmEdge::AST::FunctionType FuncType;
+
+  for (const auto &Func : VM.getFunctionList()) {
+    if (Func.first == InitFunc) {
+      HasInit = true;
+    } else if (Func.first == FuncName) {
+      FuncType = Func.second;
+    }
+  }
+
+  if (HasInit) {
+    if (auto Result = VM.execute(InitFunc); !Result) {
       return EXIT_FAILURE;
     }
-  } else {
-    // reactor mode
-    if (Args.value().empty()) {
-      std::cerr
-          << "A function name is required when reactor mode is enabled.\n";
-      return EXIT_FAILURE;
-    }
-    const auto &FuncName = Args.value().front();
-    if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
-      return EXIT_FAILURE;
-    }
-    if (auto Result = VM.validate(); !Result) {
-      return EXIT_FAILURE;
-    }
-    if (auto Result = VM.instantiate(); !Result) {
-      return EXIT_FAILURE;
-    }
+  }
 
-    using namespace std::literals::string_literals;
-    const auto InitFunc = "_initialize"s;
-
-    bool HasInit = false;
-    WasmEdge::AST::FunctionType FuncType;
-
-    for (const auto &Func : VM.getFunctionList()) {
-      if (Func.first == InitFunc) {
-        HasInit = true;
-      } else if (Func.first == FuncName) {
-        FuncType = Func.second;
-      }
+  std::vector<WasmEdge::ValVariant> FuncArgs;
+  std::vector<WasmEdge::ValType> FuncArgTypes;
+  for (size_t I = 0;
+       I < FuncType.getParamTypes().size() && I + 1 < Args.value().size();
+       ++I) {
+    switch (FuncType.getParamTypes()[I]) {
+    case WasmEdge::ValType::I32: {
+      const uint32_t Value =
+          static_cast<uint32_t>(std::stol(Args.value()[I + 1]));
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(WasmEdge::ValType::I32);
+      break;
     }
-
-    if (HasInit) {
-      if (auto Result = VM.execute(InitFunc); !Result) {
-        return EXIT_FAILURE;
-      }
+    case WasmEdge::ValType::I64: {
+      const uint64_t Value =
+          static_cast<uint64_t>(std::stoll(Args.value()[I + 1]));
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(WasmEdge::ValType::I64);
+      break;
     }
+    case WasmEdge::ValType::F32: {
+      const float Value = std::stof(Args.value()[I + 1]);
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(WasmEdge::ValType::F32);
+      break;
+    }
+    case WasmEdge::ValType::F64: {
+      const double Value = std::stod(Args.value()[I + 1]);
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(WasmEdge::ValType::F64);
+      break;
+    }
+    /// TODO: FuncRef and ExternRef
+    default:
+      break;
+    }
+  }
+  if (FuncType.getParamTypes().size() + 1 < Args.value().size()) {
+    for (size_t I = FuncType.getParamTypes().size() + 1;
+         I < Args.value().size(); ++I) {
+      const uint64_t Value =
+          static_cast<uint64_t>(std::stoll(Args.value()[I]));
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(WasmEdge::ValType::F64);
+    }
+  }
 
-    std::vector<WasmEdge::ValVariant> FuncArgs;
-    std::vector<WasmEdge::ValType> FuncArgTypes;
-    for (size_t I = 0;
-         I < FuncType.getParamTypes().size() && I + 1 < Args.value().size();
-         ++I) {
-      switch (FuncType.getParamTypes()[I]) {
-      case WasmEdge::ValType::I32: {
-        const uint32_t Value =
-            static_cast<uint32_t>(std::stol(Args.value()[I + 1]));
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(WasmEdge::ValType::I32);
+  if (auto Result = VM.execute(FuncName, FuncArgs, FuncArgTypes)) {
+    /// Print results.
+    for (size_t I = 0; I < FuncType.getReturnTypes().size(); ++I) {
+      switch (FuncType.getReturnTypes()[I]) {
+      case WasmEdge::ValType::I32:
+        std::cout << (*Result)[I].get<uint32_t>() << '\n';
         break;
-      }
-      case WasmEdge::ValType::I64: {
-        const uint64_t Value =
-            static_cast<uint64_t>(std::stoll(Args.value()[I + 1]));
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(WasmEdge::ValType::I64);
+      case WasmEdge::ValType::I64:
+        std::cout << (*Result)[I].get<uint64_t>() << '\n';
         break;
-      }
-      case WasmEdge::ValType::F32: {
-        const float Value = std::stof(Args.value()[I + 1]);
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(WasmEdge::ValType::F32);
+      case WasmEdge::ValType::F32:
+        std::cout << (*Result)[I].get<float>() << '\n';
         break;
-      }
-      case WasmEdge::ValType::F64: {
-        const double Value = std::stod(Args.value()[I + 1]);
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(WasmEdge::ValType::F64);
+      case WasmEdge::ValType::F64:
+        std::cout << (*Result)[I].get<double>() << '\n';
         break;
-      }
       /// TODO: FuncRef and ExternRef
       default:
         break;
       }
     }
-    if (FuncType.getParamTypes().size() + 1 < Args.value().size()) {
-      for (size_t I = FuncType.getParamTypes().size() + 1;
-           I < Args.value().size(); ++I) {
-        const uint64_t Value =
-            static_cast<uint64_t>(std::stoll(Args.value()[I]));
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(WasmEdge::ValType::F64);
-      }
-    }
-
-    if (auto Result = VM.execute(FuncName, FuncArgs, FuncArgTypes)) {
-      /// Print results.
-      for (size_t I = 0; I < FuncType.getReturnTypes().size(); ++I) {
-        switch (FuncType.getReturnTypes()[I]) {
-        case WasmEdge::ValType::I32:
-          std::cout << (*Result)[I].get<uint32_t>() << '\n';
-          break;
-        case WasmEdge::ValType::I64:
-          std::cout << (*Result)[I].get<uint64_t>() << '\n';
-          break;
-        case WasmEdge::ValType::F32:
-          std::cout << (*Result)[I].get<float>() << '\n';
-          break;
-        case WasmEdge::ValType::F64:
-          std::cout << (*Result)[I].get<double>() << '\n';
-          break;
-        /// TODO: FuncRef and ExternRef
-        default:
-          break;
-        }
-      }
-      return EXIT_SUCCESS;
-    } else {
-      return EXIT_FAILURE;
-    }
+    return EXIT_SUCCESS;
   }
+  return EXIT_FAILURE;
 }

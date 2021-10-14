@@ -223,21 +223,20 @@ bool instantiateModule(const WasmEdge_ConfigureContext *Conf,
                        WasmEdge_StoreContext *Store,
                        const WasmEdge_ASTModuleContext *Mod,
                        WasmEdge_ImportObjectContext *ImpObj) {
-  WasmEdge_InterpreterContext *Interp =
-      WasmEdge_InterpreterCreate(Conf, nullptr);
+  WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(Conf, nullptr);
   WasmEdge_String Name = WasmEdge_StringCreateByCString("module");
   if (!WasmEdge_ResultOK(
-          WasmEdge_InterpreterRegisterImport(Interp, Store, ImpObj))) {
+          WasmEdge_ExecutorRegisterImport(ExecCxt, Store, ImpObj))) {
     return false;
   }
   if (!WasmEdge_ResultOK(
-          WasmEdge_InterpreterRegisterModule(Interp, Store, Mod, Name))) {
+          WasmEdge_ExecutorRegisterModule(ExecCxt, Store, Mod, Name))) {
     return false;
   }
-  if (!WasmEdge_ResultOK(WasmEdge_InterpreterInstantiate(Interp, Store, Mod))) {
+  if (!WasmEdge_ResultOK(WasmEdge_ExecutorInstantiate(ExecCxt, Store, Mod))) {
     return false;
   }
-  WasmEdge_InterpreterDelete(Interp);
+  WasmEdge_ExecutorDelete(ExecCxt);
   WasmEdge_StringDelete(Name);
   return true;
 }
@@ -942,7 +941,7 @@ TEST(APICoreTest, Validator) {
   WasmEdge_ConfigureDelete(Conf);
 }
 
-TEST(APICoreTest, InterpreterWithStatistics) {
+TEST(APICoreTest, ExecutorWithStatistics) {
   /// Create contexts
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
@@ -977,23 +976,22 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   WasmEdge_StatisticsSetCostLimit(nullptr, 1ULL);
   EXPECT_TRUE(true);
 
-  /// Interpreter creation and deletion
-  WasmEdge_InterpreterContext *Interp =
-      WasmEdge_InterpreterCreate(nullptr, nullptr);
-  EXPECT_NE(Interp, nullptr);
-  WasmEdge_InterpreterDelete(Interp);
+  /// Executor creation and deletion
+  WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(nullptr, nullptr);
+  EXPECT_NE(ExecCxt, nullptr);
+  WasmEdge_ExecutorDelete(ExecCxt);
   EXPECT_TRUE(true);
-  Interp = WasmEdge_InterpreterCreate(Conf, nullptr);
-  EXPECT_NE(Interp, nullptr);
-  WasmEdge_InterpreterDelete(Interp);
+  ExecCxt = WasmEdge_ExecutorCreate(Conf, nullptr);
+  EXPECT_NE(ExecCxt, nullptr);
+  WasmEdge_ExecutorDelete(ExecCxt);
   EXPECT_TRUE(true);
-  Interp = WasmEdge_InterpreterCreate(nullptr, Stat);
-  EXPECT_NE(Interp, nullptr);
-  WasmEdge_InterpreterDelete(Interp);
+  ExecCxt = WasmEdge_ExecutorCreate(nullptr, Stat);
+  EXPECT_NE(ExecCxt, nullptr);
+  WasmEdge_ExecutorDelete(ExecCxt);
   EXPECT_TRUE(true);
-  Interp = WasmEdge_InterpreterCreate(Conf, Stat);
-  EXPECT_NE(Interp, nullptr);
-  WasmEdge_InterpreterDelete(nullptr);
+  ExecCxt = WasmEdge_ExecutorCreate(Conf, Stat);
+  EXPECT_NE(ExecCxt, nullptr);
+  WasmEdge_ExecutorDelete(nullptr);
   EXPECT_TRUE(true);
   WasmEdge_ConfigureDelete(Conf);
 
@@ -1006,49 +1004,49 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   WasmEdge_ImportObjectContext *ImpObj2 = createExternModule("extern");
   EXPECT_NE(ImpObj2, nullptr);
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterRegisterImport(nullptr, Store, ImpObj)));
+      WasmEdge_ExecutorRegisterImport(nullptr, Store, ImpObj)));
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterRegisterImport(Interp, nullptr, ImpObj)));
+      WasmEdge_ExecutorRegisterImport(ExecCxt, nullptr, ImpObj)));
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterRegisterImport(Interp, Store, nullptr)));
+      WasmEdge_ExecutorRegisterImport(ExecCxt, Store, nullptr)));
   EXPECT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterRegisterImport(Interp, Store, ImpObj)));
+      WasmEdge_ExecutorRegisterImport(ExecCxt, Store, ImpObj)));
   /// Name conflict
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterRegisterImport(Interp, Store, ImpObj2)));
+      WasmEdge_ExecutorRegisterImport(ExecCxt, Store, ImpObj2)));
   EXPECT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterRegisterImport(Interp, Store, ImpObjWrap)));
+      WasmEdge_ExecutorRegisterImport(ExecCxt, Store, ImpObjWrap)));
   WasmEdge_ImportObjectDelete(ImpObj2);
 
   /// Register wasm module
   WasmEdge_String ModName = WasmEdge_StringCreateByCString("module");
   WasmEdge_String ModName2 = WasmEdge_StringCreateByCString("extern");
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterRegisterModule(nullptr, Store, Mod, ModName)));
+      WasmEdge_ExecutorRegisterModule(nullptr, Store, Mod, ModName)));
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterRegisterModule(Interp, nullptr, Mod, ModName)));
+      WasmEdge_ExecutorRegisterModule(ExecCxt, nullptr, Mod, ModName)));
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterRegisterModule(Interp, Store, nullptr, ModName)));
+      WasmEdge_ExecutorRegisterModule(ExecCxt, Store, nullptr, ModName)));
   /// Name conflict
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterRegisterModule(Interp, Store, Mod, ModName2)));
+      WasmEdge_ExecutorRegisterModule(ExecCxt, Store, Mod, ModName2)));
   EXPECT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterRegisterModule(Interp, Store, Mod, ModName)));
+      WasmEdge_ExecutorRegisterModule(ExecCxt, Store, Mod, ModName)));
   WasmEdge_StringDelete(ModName);
   WasmEdge_StringDelete(ModName2);
 
   /// Instantiate wasm module
   EXPECT_FALSE(
-      WasmEdge_ResultOK(WasmEdge_InterpreterInstantiate(nullptr, Store, Mod)));
+      WasmEdge_ResultOK(WasmEdge_ExecutorInstantiate(nullptr, Store, Mod)));
   EXPECT_FALSE(
-      WasmEdge_ResultOK(WasmEdge_InterpreterInstantiate(Interp, nullptr, Mod)));
-  EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInstantiate(Interp, Store, nullptr)));
+      WasmEdge_ResultOK(WasmEdge_ExecutorInstantiate(ExecCxt, nullptr, Mod)));
+  EXPECT_FALSE(
+      WasmEdge_ResultOK(WasmEdge_ExecutorInstantiate(ExecCxt, Store, nullptr)));
   EXPECT_TRUE(
-      WasmEdge_ResultOK(WasmEdge_InterpreterInstantiate(Interp, Store, Mod)));
+      WasmEdge_ResultOK(WasmEdge_ExecutorInstantiate(ExecCxt, Store, Mod)));
   /// Override instantiated wasm
   EXPECT_TRUE(
-      WasmEdge_ResultOK(WasmEdge_InterpreterInstantiate(Interp, Store, Mod)));
+      WasmEdge_ResultOK(WasmEdge_ExecutorInstantiate(ExecCxt, Store, Mod)));
   WasmEdge_ASTModuleDelete(Mod);
 
   /// Invoke functions
@@ -1058,41 +1056,41 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   P[0] = WasmEdge_ValueGenI32(123);
   P[1] = WasmEdge_ValueGenI32(456);
   EXPECT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(Interp, Store, FuncName, P, 2, R, 2)));
+      WasmEdge_ExecutorInvoke(ExecCxt, Store, FuncName, P, 2, R, 2)));
   EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
   EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(nullptr, Store, FuncName, P, 2, R, 2)));
+      WasmEdge_ExecutorInvoke(nullptr, Store, FuncName, P, 2, R, 2)));
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(Interp, nullptr, FuncName, P, 2, R, 2)));
+      WasmEdge_ExecutorInvoke(ExecCxt, nullptr, FuncName, P, 2, R, 2)));
   /// Function type mismatch
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(Interp, Store, FuncName, P, 1, R, 2)));
+      WasmEdge_ExecutorInvoke(ExecCxt, Store, FuncName, P, 1, R, 2)));
   /// Function type mismatch
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(Interp, Store, FuncName, nullptr, 0, R, 2)));
+      WasmEdge_ExecutorInvoke(ExecCxt, Store, FuncName, nullptr, 0, R, 2)));
   /// Function type mismatch
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(Interp, Store, FuncName, nullptr, 2, R, 2)));
+      WasmEdge_ExecutorInvoke(ExecCxt, Store, FuncName, nullptr, 2, R, 2)));
   /// Function type mismatch
   P[0] = WasmEdge_ValueGenI64(123);
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(Interp, Store, FuncName, P, 2, R, 2)));
+      WasmEdge_ExecutorInvoke(ExecCxt, Store, FuncName, P, 2, R, 2)));
   P[0] = WasmEdge_ValueGenI32(123);
   /// Function not found
   EXPECT_FALSE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(Interp, Store, FuncName2, P, 2, R, 2)));
+      WasmEdge_ExecutorInvoke(ExecCxt, Store, FuncName2, P, 2, R, 2)));
   /// Discard result
   R[0] = WasmEdge_ValueGenI32(0);
   EXPECT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(Interp, Store, FuncName, P, 2, R, 1)));
+      WasmEdge_ExecutorInvoke(ExecCxt, Store, FuncName, P, 2, R, 1)));
   EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
   /// Discard result
   EXPECT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(Interp, Store, FuncName, P, 2, nullptr, 0)));
+      WasmEdge_ExecutorInvoke(ExecCxt, Store, FuncName, P, 2, nullptr, 0)));
   /// Discard result
   EXPECT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(Interp, Store, FuncName, P, 2, nullptr, 1)));
+      WasmEdge_ExecutorInvoke(ExecCxt, Store, FuncName, P, 2, nullptr, 1)));
   WasmEdge_StringDelete(FuncName);
   WasmEdge_StringDelete(FuncName2);
 
@@ -1117,7 +1115,7 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   P[0] = WasmEdge_ValueGenI32(223);
   TestValue = 777;
   EXPECT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(Interp, Store, FuncName, P, 1, R, 1)));
+      WasmEdge_ExecutorInvoke(ExecCxt, Store, FuncName, P, 1, R, 1)));
   EXPECT_EQ(1000, WasmEdge_ValueGetI32(R[0]));
   WasmEdge_StringDelete(FuncName);
   /// Call sub: (123) - (456)
@@ -1125,7 +1123,7 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   P[0] = WasmEdge_ValueGenI32(456);
   TestValue = 123;
   EXPECT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(Interp, Store, FuncName, P, 1, R, 1)));
+      WasmEdge_ExecutorInvoke(ExecCxt, Store, FuncName, P, 1, R, 1)));
   EXPECT_EQ(-333, WasmEdge_ValueGetI32(R[0]));
   WasmEdge_StringDelete(FuncName);
   /// Call mul: (-30) * (-66)
@@ -1133,7 +1131,7 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   P[0] = WasmEdge_ValueGenI32(-66);
   TestValue = static_cast<uint32_t>(-30);
   EXPECT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(Interp, Store, FuncName, P, 1, R, 1)));
+      WasmEdge_ExecutorInvoke(ExecCxt, Store, FuncName, P, 1, R, 1)));
   EXPECT_EQ(1980, WasmEdge_ValueGetI32(R[0]));
   WasmEdge_StringDelete(FuncName);
   /// Call div: (-9999) / (1234)
@@ -1141,7 +1139,7 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   P[0] = WasmEdge_ValueGenI32(1234);
   TestValue = static_cast<uint32_t>(-9999);
   EXPECT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_InterpreterInvoke(Interp, Store, FuncName, P, 1, R, 1)));
+      WasmEdge_ExecutorInvoke(ExecCxt, Store, FuncName, P, 1, R, 1)));
   EXPECT_EQ(-8, WasmEdge_ValueGetI32(R[0]));
   WasmEdge_StringDelete(FuncName);
 
@@ -1153,42 +1151,42 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   TestValue = 5000;
   P[0] = WasmEdge_ValueGenExternRef(&TestValue);
   P[1] = WasmEdge_ValueGenI32(1500);
-  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_InterpreterInvokeRegistered(
-      Interp, Store, ModName, FuncName, P, 2, R, 1)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_ExecutorInvokeRegistered(
+      ExecCxt, Store, ModName, FuncName, P, 2, R, 1)));
   EXPECT_EQ(6500, WasmEdge_ValueGetI32(R[0]));
-  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_InterpreterInvokeRegistered(
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_ExecutorInvokeRegistered(
       nullptr, Store, ModName, FuncName, P, 2, R, 1)));
-  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_InterpreterInvokeRegistered(
-      Interp, nullptr, ModName, FuncName, P, 2, R, 1)));
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_ExecutorInvokeRegistered(
+      ExecCxt, nullptr, ModName, FuncName, P, 2, R, 1)));
   /// Function type mismatch
-  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_InterpreterInvokeRegistered(
-      Interp, Store, ModName, FuncName, P, 1, R, 1)));
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_ExecutorInvokeRegistered(
+      ExecCxt, Store, ModName, FuncName, P, 1, R, 1)));
   /// Function type mismatch
-  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_InterpreterInvokeRegistered(
-      Interp, Store, ModName, FuncName, nullptr, 0, R, 1)));
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_ExecutorInvokeRegistered(
+      ExecCxt, Store, ModName, FuncName, nullptr, 0, R, 1)));
   /// Function type mismatch
-  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_InterpreterInvokeRegistered(
-      Interp, Store, ModName, FuncName, nullptr, 2, R, 1)));
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_ExecutorInvokeRegistered(
+      ExecCxt, Store, ModName, FuncName, nullptr, 2, R, 1)));
   /// Function type mismatch
   P[1] = WasmEdge_ValueGenI64(1500);
-  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_InterpreterInvokeRegistered(
-      Interp, Store, ModName, FuncName, P, 2, R, 1)));
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_ExecutorInvokeRegistered(
+      ExecCxt, Store, ModName, FuncName, P, 2, R, 1)));
   P[1] = WasmEdge_ValueGenI32(1500);
   /// Module not found
-  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_InterpreterInvokeRegistered(
-      Interp, Store, ModName2, FuncName, P, 2, R, 1)));
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_ExecutorInvokeRegistered(
+      ExecCxt, Store, ModName2, FuncName, P, 2, R, 1)));
   /// Function not found
-  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_InterpreterInvokeRegistered(
-      Interp, Store, ModName, FuncName2, P, 2, R, 1)));
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_ExecutorInvokeRegistered(
+      ExecCxt, Store, ModName, FuncName2, P, 2, R, 1)));
   /// Discard result
-  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_InterpreterInvokeRegistered(
-      Interp, Store, ModName, FuncName, P, 2, R, 0)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_ExecutorInvokeRegistered(
+      ExecCxt, Store, ModName, FuncName, P, 2, R, 0)));
   /// Discard result
-  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_InterpreterInvokeRegistered(
-      Interp, Store, ModName, FuncName, P, 2, nullptr, 0)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_ExecutorInvokeRegistered(
+      ExecCxt, Store, ModName, FuncName, P, 2, nullptr, 0)));
   /// Discard result
-  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_InterpreterInvokeRegistered(
-      Interp, Store, ModName, FuncName, P, 2, nullptr, 1)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_ExecutorInvokeRegistered(
+      ExecCxt, Store, ModName, FuncName, P, 2, nullptr, 1)));
   WasmEdge_StringDelete(ModName);
   WasmEdge_StringDelete(ModName2);
   WasmEdge_StringDelete(FuncName);
@@ -1197,13 +1195,13 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   /// Invoke host function to terminate or fail execution
   ModName = WasmEdge_StringCreateByCString("extern");
   FuncName = WasmEdge_StringCreateByCString("func-term");
-  WasmEdge_Result Res = WasmEdge_InterpreterInvokeRegistered(
-      Interp, Store, ModName, FuncName, nullptr, 0, R, 1);
+  WasmEdge_Result Res = WasmEdge_ExecutorInvokeRegistered(
+      ExecCxt, Store, ModName, FuncName, nullptr, 0, R, 1);
   EXPECT_TRUE(WasmEdge_ResultOK(Res));
   WasmEdge_StringDelete(FuncName);
   FuncName = WasmEdge_StringCreateByCString("func-fail");
-  Res = WasmEdge_InterpreterInvokeRegistered(Interp, Store, ModName, FuncName,
-                                             nullptr, 0, R, 1);
+  Res = WasmEdge_ExecutorInvokeRegistered(ExecCxt, Store, ModName, FuncName,
+                                          nullptr, 0, R, 1);
   EXPECT_FALSE(WasmEdge_ResultOK(Res));
   EXPECT_GT(WasmEdge_ResultGetCode(Res), 0x01U);
   WasmEdge_StringDelete(FuncName);
@@ -1215,18 +1213,18 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   TestValue = 1234;
   P[0] = WasmEdge_ValueGenExternRef(&TestValue);
   P[1] = WasmEdge_ValueGenI32(1500);
-  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_InterpreterInvokeRegistered(
-      Interp, Store, ModName, FuncName, P, 2, R, 1)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_ExecutorInvokeRegistered(
+      ExecCxt, Store, ModName, FuncName, P, 2, R, 1)));
   EXPECT_EQ(-266, WasmEdge_ValueGetI32(R[0]));
   WasmEdge_StringDelete(FuncName);
   FuncName = WasmEdge_StringCreateByCString("func-term");
-  Res = WasmEdge_InterpreterInvokeRegistered(Interp, Store, ModName, FuncName,
-                                             nullptr, 0, R, 1);
+  Res = WasmEdge_ExecutorInvokeRegistered(ExecCxt, Store, ModName, FuncName,
+                                          nullptr, 0, R, 1);
   EXPECT_TRUE(WasmEdge_ResultOK(Res));
   WasmEdge_StringDelete(FuncName);
   FuncName = WasmEdge_StringCreateByCString("func-fail");
-  Res = WasmEdge_InterpreterInvokeRegistered(Interp, Store, ModName, FuncName,
-                                             nullptr, 0, R, 1);
+  Res = WasmEdge_ExecutorInvokeRegistered(ExecCxt, Store, ModName, FuncName,
+                                          nullptr, 0, R, 1);
   EXPECT_FALSE(WasmEdge_ResultOK(Res));
   EXPECT_GT(WasmEdge_ResultGetCode(Res), 0x01U);
   WasmEdge_StringDelete(FuncName);
@@ -1244,7 +1242,7 @@ TEST(APICoreTest, InterpreterWithStatistics) {
   EXPECT_GT(WasmEdge_StatisticsGetTotalCost(Stat), 0ULL);
   EXPECT_EQ(WasmEdge_StatisticsGetTotalCost(nullptr), 0ULL);
 
-  WasmEdge_InterpreterDelete(Interp);
+  WasmEdge_ExecutorDelete(ExecCxt);
   WasmEdge_StoreDelete(Store);
   WasmEdge_StatisticsDelete(Stat);
   WasmEdge_ImportObjectDelete(ImpObj);

@@ -28,7 +28,7 @@
   * [WASM Execution Example Step-By-Step](#WASM-Execution-Example-Step-By-Step)
   * [Loader](#Loader)
   * [Validator](#Validator)
-  * [Interpreter](#Interpreter)
+  * [Executor](#Executor)
   * [AST Module](#AST-Module)
   * [Store](#Store)
   * [Instances](#Instances)
@@ -391,13 +391,13 @@ The details of instances creation will be introduced in the [Instances](#Instanc
 
 ### Configurations
 
-The configuration context, `WasmEdge_ConfigureContext`, manages the configurations for `Loader`, `Validator`, `Interpreter`, `VM`, and `Compiler`.
+The configuration context, `WasmEdge_ConfigureContext`, manages the configurations for `Loader`, `Validator`, `Executor`, `VM`, and `Compiler`.
 Developers can adjust the settings about the proposals, VM host pre-registrations (such as `WASI`), and AOT compiler options, and then apply the `Configure` context to create other runtime contexts.
 
 1. Proposals
 
     WasmEdge supports turning on or off the WebAssembly proposals.
-    This configuration is only effective in `Loader`, `Validator`, `Interpreter`, `VM`, and `Compiler` contexts.
+    This configuration is only effective in `Loader`, `Validator`, `Executor`, `VM`, and `Compiler` contexts.
 
     ```c
     enum WasmEdge_Proposal {
@@ -448,7 +448,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
 
     Developers can limit the page size of memory instances by this configuration.
     When growing the page size of memory instances in WASM execution and exceeding the limited size, the page growing will fail.
-    This configuration is only effective in the `Interpreter` and `VM` contexts.
+    This configuration is only effective in the `Executor` and `VM` contexts.
 
     ```c
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
@@ -482,7 +482,7 @@ The statistics context, `WasmEdge_StatisticsContext`, provides the instruction c
 1. Instruction counter
 
     The instruction counter can help developers to profile the performance of WASM running.
-    Developers can retrieve the `Statistics` context from the `VM` context, or create a new one for the `Interpreter` creation.
+    Developers can retrieve the `Statistics` context from the `VM` context, or create a new one for the `Executor` creation.
     The details will be introduced in the next partitions.
 
     ```c
@@ -994,7 +994,7 @@ In this partition, we will introduce the objects of WasmEdge runtime manually.
 
 ### WASM Execution Example Step-By-Step
 
-Besides the WASM execution through the [`VM` context](#WasmEdge-VM), developers can execute the WASM functions or instantiate WASM modules step-by-step with the `Loader`, `Validator`, `Interpreter`, and `Store` contexts.
+Besides the WASM execution through the [`VM` context](#WasmEdge-VM), developers can execute the WASM functions or instantiate WASM modules step-by-step with the `Loader`, `Validator`, `Executor`, and `Store` contexts.
 Assume that the WASM file [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test.c` is as following:
 
 ```c
@@ -1014,8 +1014,8 @@ int main() {
   WasmEdge_LoaderContext *LoadCxt = WasmEdge_LoaderCreate(ConfCxt);
   /* Create the validator context. The configure context can be NULL. */
   WasmEdge_ValidatorContext *ValidCxt = WasmEdge_ValidatorCreate(ConfCxt);
-  /* Create the interpreter context. The configure context and the statistics context can be NULL. */
-  WasmEdge_InterpreterContext *InterpCxt = WasmEdge_InterpreterCreate(ConfCxt, StatCxt);
+  /* Create the executor context. The configure context and the statistics context can be NULL. */
+  WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(ConfCxt, StatCxt);
 
   /* Load the WASM file or the compiled-WASM file and convert into the AST module context. */
   WasmEdge_ASTModuleContext *ASTCxt = NULL;
@@ -1031,7 +1031,7 @@ int main() {
     return 1;
   }
   /* Instantiate the WASM module into store context. */
-  Res = WasmEdge_InterpreterInstantiate(InterpCxt, StoreCxt, ASTCxt);
+  Res = WasmEdge_ExecutorInstantiate(ExecCxt, StoreCxt, ASTCxt);
   if (!WasmEdge_ResultOK(Res)) {
     printf("Instantiation phase failed: %s\n", WasmEdge_ResultGetMessage(Res));
     return 1;
@@ -1057,7 +1057,7 @@ int main() {
   /* Function name. */
   WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
   /* Invoke the WASM fnction. */
-  Res = WasmEdge_InterpreterInvoke(InterpCxt, StoreCxt, FuncName, Params, 1, Returns, 1);
+  Res = WasmEdge_ExecutorInvoke(ExecCxt, StoreCxt, FuncName, Params, 1, Returns, 1);
   if (WasmEdge_ResultOK(Res)) {
     printf("Get the result: %d\n", WasmEdge_ValueGetI32(Returns[0]));
   } else {
@@ -1069,7 +1069,7 @@ int main() {
   WasmEdge_ASTModuleDelete(ASTCxt);
   WasmEdge_LoaderDelete(LoadCxt);
   WasmEdge_ValidatorDelete(ValidCxt);
-  WasmEdge_InterpreterDelete(InterpCxt);
+  WasmEdge_ExecutorDelete(ExecCxt);
   WasmEdge_ConfigureDelete(ConfCxt);
   WasmEdge_StoreDelete(StoreCxt);
   WasmEdge_StatisticsDelete(StatCxt);
@@ -1145,14 +1145,14 @@ if (!WasmEdge_ResultOK(Res)) {
 WasmEdge_ValidatorDelete(ValidCxt);
 ```
 
-### Interpreter
+### Executor
 
-The `Interpreter` context is the executor for both WASM and compiled-WASM.
+The `Executor` context is the executor for both WASM and compiled-WASM.
 This object should work base on the `Store` context. For the details of the `Store` context, please refer to the [next chapter](#Store).
 
 1. Register modules
 
-    As the same of [registering host modules](#Host-Module-Registrations) or [importing WASM modules](#WASM-Registrations-And-Executions) in `VM` context, developers can register `Import Object` or `AST module` contexts into the `Store` context by the `Interpreter` APIs.
+    As the same of [registering host modules](#Host-Module-Registrations) or [importing WASM modules](#WASM-Registrations-And-Executions) in `VM` context, developers can register `Import Object` or `AST module` contexts into the `Store` context by the `Executor` APIs.
     For the details of import objects, please refer to the [Host Functions](#Host-Functions).
 
     ```c
@@ -1164,8 +1164,8 @@ This object should work base on the `Store` context. For the details of the `Sto
     */
     /* Create the statistics context. This step is not necessary. */
     WasmEdge_StatisticsContext *StatCxt = WasmEdge_StatisticsCreate();
-    /* Create the interpreter context. The configure and the statistics contexts can be NULL. */
-    WasmEdge_InterpreterContext *InterpCxt = WasmEdge_InterpreterCreate(ConfCxt, StatCxt);
+    /* Create the executor context. The configure and the statistics contexts can be NULL. */
+    WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(ConfCxt, StatCxt);
     /* Create the store context. The store context is the WASM runtime structure core. */
     WasmEdge_StoreContext *StoreCxt = WasmEdge_StoreCreate();
     /* Result. */
@@ -1173,7 +1173,7 @@ This object should work base on the `Store` context. For the details of the `Sto
 
     /* Register the WASM module into store with the export module name "mod". */
     WasmEdge_String ModName = WasmEdge_StringCreateByCString("mod");
-    Res = WasmEdge_InterpreterRegisterModule(InterpCxt, StoreCxt, ASTCxt, ModName);
+    Res = WasmEdge_ExecutorRegisterModule(ExecCxt, StoreCxt, ASTCxt, ModName);
     if (!WasmEdge_ResultOK(Res)) {
       printf("WASM registration failed: %s\n", WasmEdge_ResultGetMessage(Res));
     }
@@ -1184,12 +1184,12 @@ This object should work base on the `Store` context. For the details of the `Sto
      */
     WasmEdge_ImportObjectContext *ImpCxt = ...;
     /* The import module context has already contained the export module name. */
-    Res = WasmEdge_InterpreterRegisterImport(InterpCxt, StoreCxt, ImpCxt);
+    Res = WasmEdge_ExecutorRegisterImport(ExecCxt, StoreCxt, ImpCxt);
     if (!WasmEdge_ResultOK(Res)) {
       printf("Import object registration failed: %s\n", WasmEdge_ResultGetMessage(Res));
     }
 
-    WasmEdge_InterpreterDelete(InterpCxt);
+    WasmEdge_ExecutorDelete(ExecCxt);
     WasmEdge_StatisticsDelete(StatCxt);
     WasmEdge_StoreDelete(StoreCxt);
     ```
@@ -1209,18 +1209,18 @@ This object should work base on the `Store` context. For the details of the `Sto
     */
     /* Create the statistics context. This step is not necessary. */
     WasmEdge_StatisticsContext *StatCxt = WasmEdge_StatisticsCreate();
-    /* Create the interpreter context. The configure and the statistics contexts can be NULL. */
-    WasmEdge_InterpreterContext *InterpCxt = WasmEdge_InterpreterCreate(ConfCxt, StatCxt);
+    /* Create the executor context. The configure and the statistics contexts can be NULL. */
+    WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(ConfCxt, StatCxt);
     /* Create the store context. The store context is the WASM runtime structure core. */
     WasmEdge_StoreContext *StoreCxt = WasmEdge_StoreCreate();
 
     /* Instantiate the WASM module. */
-    WasmEdge_Result Res = WasmEdge_InterpreterInstantiate(InterpCxt, StoreCxt, ASTCxt);
+    WasmEdge_Result Res = WasmEdge_ExecutorInstantiate(ExecCxt, StoreCxt, ASTCxt);
     if (!WasmEdge_ResultOK(Res)) {
       printf("WASM instantiation failed: %s\n", WasmEdge_ResultGetMessage(Res));
     }
 
-    WasmEdge_InterpreterDelete(InterpCxt);
+    WasmEdge_ExecutorDelete(ExecCxt);
     WasmEdge_StatisticsDelete(StatCxt);
     WasmEdge_StoreDelete(StoreCxt);
     ```
@@ -1228,7 +1228,7 @@ This object should work base on the `Store` context. For the details of the `Sto
 3. Invoke functions
 
     As the same as function invocation via the `VM` context, developers can invoke the functions of the instantiated or registered modules.
-    The APIs, `WasmEdge_InterpreterInvoke()` and `WasmEdge_InterpreterInvokeRegistered()`, are similar as the APIs of the `VM` context.
+    The APIs, `WasmEdge_ExecutorInvoke()` and `WasmEdge_ExecutorInvokeRegistered()`, are similar as the APIs of the `VM` context.
     Please refer to the [VM context workflows](#WASM-Execution-Example-With-VM-Context) for details.
 
 ### AST Module
@@ -1266,13 +1266,13 @@ WasmEdge_ASTModuleDelete(ASTCxt);
 ### Store
 
 [Store](https://webassembly.github.io/spec/core/exec/runtime.html#store) is the runtime structure for the representation of all instances of `Function`s, `Table`s, `Memory`s, and `Global`s that have been allocated during the lifetime of the abstract machine.
-The `Store` context in WasmEdge provides APIs to list the exported instances with their names or find the instances by exported names. For adding instances into `Store` contexts, please instantiate or register WASM modules or `Import Object` contexts via the `Interpreter` context.
+The `Store` context in WasmEdge provides APIs to list the exported instances with their names or find the instances by exported names. For adding instances into `Store` contexts, please instantiate or register WASM modules or `Import Object` contexts via the `Executor` context.
 
 1. List instances
 
     ```c
     WasmEdge_StoreContext *StoreCxt = WasmEdge_StoreCreate();
-    /* ... Instantiate a WASM module via the interpreter context. */
+    /* ... Instantiate a WASM module via the executor context. */
     ...
 
     /* Try to list the exported functions of the instantiated WASM module. */
@@ -1295,7 +1295,7 @@ The `Store` context in WasmEdge provides APIs to list the exported instances wit
 
     ```c
     WasmEdge_StoreContext *StoreCxt = WasmEdge_StoreCreate();
-    /* ... Instantiate a WASM module via the interpreter context. */
+    /* ... Instantiate a WASM module via the executor context. */
     ...
 
     /* Try to find the exported instance of the instantiated WASM module. */
@@ -1316,7 +1316,7 @@ The `Store` context in WasmEdge provides APIs to list the exported instances wit
 
     ```c
     WasmEdge_StoreContext *StoreCxt = WasmEdge_StoreCreate();
-    /* ... Register a WASM module via the interpreter context. */
+    /* ... Register a WASM module via the executor context. */
     ...
 
     /* Try to list registered WASM module. */
@@ -1335,7 +1335,7 @@ The `Store` context in WasmEdge provides APIs to list the exported instances wit
 ### Instances
 
 The instances are the runtime structures of WASM. Developers can retrieve the instances from the `Store` contexts.
-The `Store` contexts will allocate instances when a WASM module or `Import Object` is registered or instantiated through the `Interpreter`.
+The `Store` contexts will allocate instances when a WASM module or `Import Object` is registered or instantiated through the `Executor`.
 A single instance can be allocated by its creation function. Developers can construct instances into an `Import Object` for registration. Please refer to the [Host Functions](#Host-Functions) for details.
 The instances created by their creation functions should be destroyed, EXCEPT they are added into an `Import Object` context.
 
@@ -1860,8 +1860,8 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
 ## WasmEdge AOT Compiler
 
 In this partition, we will introduce the WasmEdge AOT compiler and the options.
-WasmEdge runs the WASM files in interpreter mode, and WasmEdge also supports the AOT (ahead-of-time) mode running without modifying any code.
-The WasmEdge AOT (ahead-of-time) compiler compiles the WASM files for running in AOT mode which is much faster than interpreter mode. Developers can compile the WASM files into the compiled-WASM files for the AOT mode running.
+WasmEdge runs the WASM files in executor mode, and WasmEdge also supports the AOT (ahead-of-time) mode running without modifying any code.
+The WasmEdge AOT (ahead-of-time) compiler compiles the WASM files for running in AOT mode which is much faster than executor mode. Developers can compile the WASM files into the compiled-WASM files for the AOT mode running.
 
 ### Compilation Example
 

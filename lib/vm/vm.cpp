@@ -10,16 +10,16 @@ namespace VM {
 
 VM::VM(const Configure &Conf)
     : Conf(Conf), Stage(VMStage::Inited),
-      LoaderEngine(Conf, &Interpreter::Interpreter::Intrinsics),
-      ValidatorEngine(Conf), InterpreterEngine(Conf, &Stat),
+      LoaderEngine(Conf, &Executor::Executor::Intrinsics),
+      ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat),
       Store(std::make_unique<Runtime::StoreManager>()), StoreRef(*Store.get()) {
   initVM();
 }
 
 VM::VM(const Configure &Conf, Runtime::StoreManager &S)
     : Conf(Conf), Stage(VMStage::Inited),
-      LoaderEngine(Conf, &Interpreter::Interpreter::Intrinsics),
-      ValidatorEngine(Conf), InterpreterEngine(Conf, &Stat), StoreRef(S) {
+      LoaderEngine(Conf, &Executor::Executor::Intrinsics),
+      ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat), StoreRef(S) {
   initVM();
 }
 
@@ -28,13 +28,13 @@ void VM::initVM() {
   if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
     std::unique_ptr<Runtime::ImportObject> WasiMod =
         std::make_unique<Host::WasiModule>();
-    InterpreterEngine.registerModule(StoreRef, *WasiMod.get());
+    ExecutorEngine.registerModule(StoreRef, *WasiMod.get());
     ImpObjs.insert({HostRegistration::Wasi, std::move(WasiMod)});
   }
   if (Conf.hasHostRegistration(HostRegistration::WasmEdge_Process)) {
     std::unique_ptr<Runtime::ImportObject> ProcMod =
         std::make_unique<Host::WasmEdgeProcessModule>();
-    InterpreterEngine.registerModule(StoreRef, *ProcMod.get());
+    ExecutorEngine.registerModule(StoreRef, *ProcMod.get());
     ImpObjs.insert({HostRegistration::WasmEdge_Process, std::move(ProcMod)});
   }
 }
@@ -74,7 +74,7 @@ Expect<void> VM::registerModule(const Runtime::ImportObject &Obj) {
     /// Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
-  return InterpreterEngine.registerModule(StoreRef, Obj);
+  return ExecutorEngine.registerModule(StoreRef, Obj);
 }
 
 Expect<void> VM::registerModule(std::string_view Name,
@@ -88,7 +88,7 @@ Expect<void> VM::registerModule(std::string_view Name,
   if (auto Res = ValidatorEngine.validate(Module); !Res) {
     return Unexpect(Res);
   }
-  return InterpreterEngine.registerModule(StoreRef, Module, Name);
+  return ExecutorEngine.registerModule(StoreRef, Module, Name);
 }
 
 Expect<std::vector<ValVariant>>
@@ -134,7 +134,7 @@ VM::runWasmFile(const AST::Module &Module, std::string_view Func,
   if (auto Res = ValidatorEngine.validate(Module); !Res) {
     return Unexpect(Res);
   }
-  if (auto Res = InterpreterEngine.instantiateModule(StoreRef, Module); !Res) {
+  if (auto Res = ExecutorEngine.instantiateModule(StoreRef, Module); !Res) {
     return Unexpect(Res);
   }
   /// Get module instance.
@@ -196,7 +196,7 @@ Expect<void> VM::instantiate() {
     spdlog::error(ErrCode::WrongVMWorkflow);
     return Unexpect(ErrCode::WrongVMWorkflow);
   }
-  if (auto Res = InterpreterEngine.instantiateModule(StoreRef, *Mod.get())) {
+  if (auto Res = ExecutorEngine.instantiateModule(StoreRef, *Mod.get())) {
     Stage = VMStage::Instantiated;
     return {};
   } else {
@@ -246,8 +246,8 @@ VM::execute(Runtime::Instance::ModuleInstance *ModInst, std::string_view Func,
   }
 
   /// Execute function.
-  if (auto Res = InterpreterEngine.invoke(StoreRef, FuncIter->second, Params,
-                                          ParamTypes)) {
+  if (auto Res = ExecutorEngine.invoke(StoreRef, FuncIter->second, Params,
+                                       ParamTypes)) {
     return Res;
   } else {
     spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));

@@ -7,6 +7,10 @@ Breaking changes:
   * Moved the enumeration definitions into `enum_errcode.h`, `enum_types.h`, and `enum_configure.h` in the `wasmedge` folder.
 * Adjusted the error code names.
   * Please refer to the [ErrCode enum](https://github.com/WasmEdge/WasmEdge/blob/master/include/common/enum_errcode.h) definition.
+* Renamed the `Interpreter` into `Executor`.
+  * Renamed the `Interpreter` namespace into `Executor`.
+  * Moved the headers and sources in the `Interpreter` folder into `Executor` folder.
+  * Renamed the `Interpreter` APIs and listed below.
 * WasmEdge C API changes.
   * Updated the host function related APIs.
     * Deleted the data object column in the creation function of `ImportObject` context.
@@ -35,6 +39,15 @@ Breaking changes:
   * Refactored for the objects' life cycle to reduce copying.
     * Developers should NOT destroy the `WasmEdge_FunctionTypeContext` objects returned from `WasmEdge_VMGetFunctionList`, `WasmEdge_VMGetFunctionType`, and `WasmEdge_VMGetFunctionTypeRegistered` functions.
     * Developers should NOT destroy the `WasmEdge_String` objects returned from `WasmEdge_StoreListFunction`, `WasmEdge_StoreListFunctionRegistered`, `WasmEdge_StoreListTable`, `WasmEdge_StoreListTableRegistered`, `WasmEdge_StoreListMemory`, `WasmEdge_StoreListMemoryRegistered`, `WasmEdge_StoreListGlobal`, `WasmEdge_StoreListGlobalRegistered`, `WasmEdge_StoreListModule`, and `WasmEdge_VMGetFunctionList` functions.
+  * Renamed the `Interpreter` related APIs.
+    * Replaced `WasmEdge_InterpreterContext` struct with `WasmEdge_ExecutorContext` struct.
+    * Replaced `WasmEdge_InterpreterCreate` function with `WasmEdge_ExecutorCreate` function.
+    * Replaced `WasmEdge_InterpreterInstantiate` function with `WasmEdge_ExecutorInstantiate` function.
+    * Replaced `WasmEdge_InterpreterRegisterImport` function with `WasmEdge_ExecutorRegisterImport` function.
+    * Replaced `WasmEdge_InterpreterRegisterModule` function with `WasmEdge_ExecutorRegisterModule` function.
+    * Replaced `WasmEdge_InterpreterInvoke` function with `WasmEdge_ExecutorInvoke` function.
+    * Replaced `WasmEdge_InterpreterInvokeRegistered` function with `WasmEdge_ExecutorInvokeRegistered` function.
+    * Replaced `WasmEdge_InterpreterDelete` function with `WasmEdge_ExecutorDelete` function.
 
 Features:
 
@@ -87,7 +100,7 @@ Refactor:
 * Refactor the AST nodes.
   * Simplified the AST nodes definitions into header-only classes.
   * Moved the binary loading functions into `loader`.
-  * Updated the `validator`, `interpreter`, `runtime`, `api`, and `vm` for the AST node changes.
+  * Updated the `validator`, `executor`, `runtime`, `api`, and `vm` for the AST node changes.
 * Refactor the runtime objects.
   * Used `AST::FunctionType`, `AST::TableType`, `AST::MemoryType`, and `AST::GlobalType` for instance creation and member handling.
   * Removed `Runtime::Instance::FType` and used `AST::FunctionType` instead.
@@ -108,6 +121,7 @@ Tests:
 * Added `ErrInfo` unit tests.
 * Added instruction tests for turning on/off the old proposals.
 * Moved and updated the `AST` unit tests into `loader`.
+* Moved and updated the `Interpreter` tests into `Executor` folder.
 * Added the unit tests for new APIs.
 
 ### 0.8.2 (2021-08-25)

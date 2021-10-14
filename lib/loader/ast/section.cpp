@@ -165,11 +165,11 @@ Expect<void> Loader::loadSection(AST::DataCountSection &Sec) {
 
 namespace {
 
-inline constexpr uint32_t HostVersion() noexcept {
+inline constexpr uint32_t hostVersion() noexcept {
   return WasmEdge::AOT::kBinaryVersion;
 }
 
-inline constexpr uint8_t HostOSType() noexcept {
+inline constexpr uint8_t hostOSType() noexcept {
 #if WASMEDGE_OS_LINUX
   return UINT8_C(1);
 #elif WASMEDGE_OS_MACOS
@@ -179,7 +179,7 @@ inline constexpr uint8_t HostOSType() noexcept {
 #endif
 }
 
-inline constexpr uint8_t HostArchType() noexcept {
+inline constexpr uint8_t hostArchType() noexcept {
 #if defined(__x86_64__)
   return UINT8_C(1);
 #elif defined(__aarch64__)
@@ -197,7 +197,7 @@ Expect<void> Loader::loadSection(AST::AOTSection &Sec) {
   } else {
     Sec.setVersion(*Res);
   }
-  if (Sec.getVersion() != HostVersion()) {
+  if (Sec.getVersion() != hostVersion()) {
     spdlog::error(ErrCode::MalformedSection);
     spdlog::error("AOT binary version unmatched.");
     return Unexpect(ErrCode::MalformedSection);
@@ -210,7 +210,7 @@ Expect<void> Loader::loadSection(AST::AOTSection &Sec) {
   } else {
     Sec.setOSType(*Res);
   }
-  if (Sec.getOSType() != HostOSType()) {
+  if (Sec.getOSType() != hostOSType()) {
     spdlog::error(ErrCode::MalformedSection);
     spdlog::error("AOT OS type unmatched.");
     return Unexpect(ErrCode::MalformedSection);
@@ -223,7 +223,7 @@ Expect<void> Loader::loadSection(AST::AOTSection &Sec) {
   } else {
     Sec.setArchType(*Res);
   }
-  if (Sec.getArchType() != HostArchType()) {
+  if (Sec.getArchType() != hostArchType()) {
     spdlog::error(ErrCode::MalformedSection);
     spdlog::error("AOT arch type unmatched.");
     return Unexpect(ErrCode::MalformedSection);

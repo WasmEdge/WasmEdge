@@ -49,12 +49,11 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
         spdlog::error(ErrInfo::InfoLoading(ReadCount));
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(ErrCode::UnexpectedEnd);
-      } else {
-        spdlog::error(ErrCode::ReadError);
-        spdlog::error(ErrInfo::InfoLoading(ReadCount));
-        spdlog::error(ErrInfo::InfoFile(FilePath));
-        return Unexpect(ErrCode::ReadError);
       }
+      spdlog::error(ErrCode::ReadError);
+      spdlog::error(ErrInfo::InfoLoading(ReadCount));
+      spdlog::error(ErrInfo::InfoFile(FilePath));
+      return Unexpect(ErrCode::ReadError);
     }
     Index += static_cast<size_t>(BlockSize);
     FileSize -= static_cast<size_t>(BlockSize);

@@ -45,10 +45,9 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
     } else {
       if (Res.error() == ErrCode::UnexpectedEnd) {
         break;
-      } else {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::Module);
       }
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Module);
     }
 
     /// Sections except the custom section should be unique.

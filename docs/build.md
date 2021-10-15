@@ -18,7 +18,7 @@ If you want to build from source, you may need to install these dependencies
 by yourself or using our docker images which provides several Linux distribution 
 support.
 
-- LLVM 12.0.0 (>= 10.0.0)
+- LLVM 12.0.0 (>= 10.0.0), because LLVM 13 has breaking changes, WasmEdge project is not support LLVM 13 now.
 - GCC 11.1.0 (>= 9.4.0)
 
 ## Prepare the Environment

@@ -40,12 +40,12 @@ int main(int Argc, const char* Argv[]) {
 }
 ```
 
-Then you can compile and run: (the 32th fibonacci number is 5702887 in 0-based index)
+Then you can compile and run: (the 32th fibonacci number is 3524578 in 0-based index)
 
 ```bash
 $ gcc test_wasmedge.c -lwasmedge_c -o test_wasmedge
 $ ./test_wasmedge fibonacci.wasm
-Get result: 5702887
+Get result: 3524578
 ```
 
 For the details of APIs, please refer to the [API header file](../include/api/wasmedge/wasmedge.h).

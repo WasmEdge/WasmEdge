@@ -40,12 +40,12 @@ int main(int Argc, const char* Argv[]) {
 }
 ```
 
-接下来你可以编译并且运行它：（索引从 0 开始的情况下，斐波那契数列的的第 32 个数值是 5702887 ）
+接下来你可以编译并且运行它：（索引从 0 开始的情况下，斐波那契数列的的第 32 个数值是 3524578 ）
 
 ```bash
 $ gcc test_wasmedge.c -lwasmedge_c -o test_wasmedge
 $ ./test_wasmedge fibonacci.wasm
-Get result: 5702887
+Get result: 3524578
 ```
 
 如果要了解 API 的细节，请参考 [API 头文件](../include/api/wasmedge/wasmedge.h).

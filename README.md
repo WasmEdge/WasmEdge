@@ -23,9 +23,9 @@ WasmEdge (previously known as SSVM) is a lightweight, high-performance, and exte
 
 🚀 [Install](docs/install.md) WasmEdge \
 🤖 [Build](docs/build.md) and [contribute to](docs/CONTRIBUTING.md) WasmEdge \
-⌨️ [Run](docs/run.md) a standalone Wasm program or a [JavaScript program](docs/run_javascript.md) from CLI or [Docker](utils/docker/build-appdev.md) \
-🔌 Embed a Wasm function in your [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/), [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/), or [Rust](bindings/rust/wasmedge-rs) apps \
-🛠 Manage and orchestrate Wasm runtimes using [Docker tools](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/), [data streaming frameworks](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/), and [blockchains](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a)
+⌨️ [Run](docs/run.md) a standalone Wasm program or a [JavaScript program](https://www.secondstate.io/articles/run-javascript-in-webassembly-with-wasmedge/) from CLI or [Docker](utils/docker/build-appdev.md) \
+🔌 Embed a Wasm function in your [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/), [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/), [Rust](bindings/rust/), or [C](docs/c_api_quick_start.md) app \
+🛠 Manage and orchestrate Wasm runtimes using [Kubernetes](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/), [data streaming frameworks](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/), and [blockchains](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a)
 
 # Introduction
 

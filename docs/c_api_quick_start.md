@@ -1,6 +1,6 @@
 # WasmEdge C API Documentation
 
-[WasmEdge C API](../include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge. For the details of the WasmEdge C API, please refer to the [fully documentation](c_api.md).
+The [WasmEdge C API](../include/api/wasmedge/wasmedge.h) denotes an interface to embed the WasmEdge runtime into a C program. The followings are the guides to working with the C APIs of WasmEdge. For the details of the WasmEdge C API, please refer to the [full documentation](c_api.md).
 
 ## Quick Start Guide for the WasmEdge runner
 

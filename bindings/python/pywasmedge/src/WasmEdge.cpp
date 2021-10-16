@@ -3,15 +3,15 @@
 /* --------------- VM -------------------------------- */
 pysdk::VM::VM() { VMCxt = WasmEdge_VMCreate(NULL, NULL); }
 
-pysdk::VM::VM(pysdk::Store store) {
+pysdk::VM::VM(pysdk::Store &store) {
   VMCxt = WasmEdge_VMCreate(NULL, store.get());
 }
 
-pysdk::VM::VM(pysdk::Configure cfg) {
+pysdk::VM::VM(pysdk::Configure &cfg) {
   VMCxt = WasmEdge_VMCreate(cfg.get(), NULL);
 }
 
-pysdk::VM::VM(pysdk::Configure cfg, pysdk::Store store) {
+pysdk::VM::VM(pysdk::Configure &cfg, pysdk::Store &store) {
   VMCxt = WasmEdge_VMCreate(cfg.get(), store.get());
 }
 
@@ -193,9 +193,9 @@ BOOST_PYTHON_MODULE(WasmEdge) {
       .def("listModules", &pysdk::Store::listModules);
 
   class_<pysdk::VM>("VM", init<>())
-      .def(init<pysdk::Configure>())
-      .def(init<pysdk::Store>())
-      .def(init<pysdk::Configure, pysdk::Store>())
+      .def(init<pysdk::Configure &>())
+      .def(init<pysdk::Store &>())
+      .def(init<pysdk::Configure &, pysdk::Store &>())
       .def("__str__", &pysdk::VM::str)
       .def("run", &pysdk::VM::run);
 };

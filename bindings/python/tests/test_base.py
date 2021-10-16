@@ -27,9 +27,9 @@ def test_fib_32():
     fib_wasm = os.path.join(
         wasm_base_path, "tools/wasmedge/examples/fibonacci.wasm"
     )
-    # cfx = WasmEdge.Configure()
-    # vm = WasmEdge.VM(cfx)
-    vm = WasmEdge.VM()
+    cfx = WasmEdge.Configure()
+    vm = WasmEdge.VM(cfx)
+    # vm = WasmEdge.VM()
     res, l = vm.run(fib_wasm, "fib", [5], 1)
     assert bool(res)
     assert l[0] == str(fibonacci(5))

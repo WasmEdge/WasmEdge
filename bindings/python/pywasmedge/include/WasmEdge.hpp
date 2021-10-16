@@ -86,9 +86,9 @@ private:
 
 public:
   VM();
-  VM(Store);
-  VM(Configure);
-  VM(Configure cfg, Store store);
+  VM(Store &);
+  VM(Configure &);
+  VM(Configure &, Store &);
   ~VM();
   const char *str() { return pysdk::vm_str; };
 

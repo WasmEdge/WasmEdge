@@ -1,11 +1,12 @@
 # WasmEdge use cases
 
-WasmEdge is a cloud-native WebAssembly runtime hosted by the CNCF. It is widely used in edge computing, automotive, Jamstack, serverless, SaaS, service mesh, and even blockchain applications. Featuring AOT compiler optimization, WasmEdge is the fastest WebAssembly runtime on the market today.
+WasmEdge is a cloud-native WebAssembly runtime hosted by the CNCF. It is widely used in edge computing, automotive, Jamstack, serverless, SaaS, service mesh, and even blockchain applications. Featuring AOT compiler optimization, WasmEdge is one of the fastest WebAssembly runtimes on the market today.
 
 ## Table of contents
 
 * [Cloud-native runtime](#cloud-native-runtime-as-a-lightweight-docker-alternative)
   * [Dapr](#dapr-distributed-application-runtime)
+  * [Kubernetes](#orchestration-and-management)
 * [JavaScript or DSL runtime](#javascript-or-dsl-runtime)
   * [JavaScript](#javascript)
   * [DSL for image classification](#dsl-for-image-classification)
@@ -15,8 +16,9 @@ WasmEdge is a cloud-native WebAssembly runtime hosted by the CNCF. It is widely 
   * [Vercel Serverless Functions](#vercel-serverless-functions)
   * [Netlify Functions](#netlify-functions)
   * [Second State Functions](#second-state-functions)
-* [Software defined vehicles and AIoT](#software-defined-vehicles-and-aiot)
+* [Software defined vehicles and smart factory](#software-defined-vehicles-and-aiot)
   * [YoMo Flow](#yomo-flow)
+  * [seL4 micokernel and RTOS](#sel4-microkernel-os)
 * [Reactive functions for SaaS](#reactive-functions-for-saas)
   * [Slack](#slack)
   * [Lark](#lark)
@@ -27,7 +29,7 @@ WasmEdge can be embedded into cloud-native infrastructure via its SDKs in [C](c_
 
 ### Dapr (Distributed Application Runtime)
 
-* Tutorial (to be published)
+* [Tutorial](https://www.secondstate.io/articles/dapr-wasmedge-webassembly/)
 * [Code template](https://github.com/second-state/dapr-wasm)
 
 ### Service mesh (work in progress):
@@ -36,9 +38,9 @@ WasmEdge can be embedded into cloud-native infrastructure via its SDKs in [C](c_
 * MOSN
 * Envoy
 
-### Orchestration and management (work in progress):
+### Orchestration and management:
 
-* Kubernetes
+* [Kubernetes](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/)
 * KubeEdge
 * SuperEdge
 
@@ -50,7 +52,11 @@ In order for WebAssembly to be widely adopted by developers as a runtime, it mus
 
 WasmEdge can act as a cloud-native JavaScript runtime by embedding a JS execution engine or interpreter. It is faster and lighter than running a JS engine inside Docker. WasmEdge supports JS APIs to access native extension libraries such as network sockets, tensorflow, and user-defined shared libraries. It also allows embedding JS into other high-performance languages (eg, Rust) or using Rust / C to implement JS functions.
 
-* [Tutorial](https://www.secondstate.io/articles/run-javascript-in-webassembly-with-wasmedge/)
+* Tutorials
+  * [Run JavaScript](https://www.secondstate.io/articles/run-javascript-in-webassembly-with-wasmedge/)
+  * [Embed JavaScript in Rust](https://www.secondstate.io/articles/embed-javascript-in-rust/)
+  * [Create JavaScript API using Rust functions](https://www.secondstate.io/articles/embed-rust-in-javascript/)
+  * [Call C native shared library functions from JavaScript](https://www.secondstate.io/articles/call-native-functions-from-javascript/)
 * [Examples](https://github.com/WasmEdge/WasmEdge/blob/master/tools/wasmedge/examples/js/README.md)
 * [WasmEdge’s embedded QuickJS engine](https://github.com/second-state/wasmedge-quickjs)
 
@@ -58,7 +64,7 @@ WasmEdge can act as a cloud-native JavaScript runtime by embedding a JS executio
 
 The image classification DSL is a YAML format that allows the user to specify a tensorflow model and its parameters. WasmEdge takes an image as the input of the DSL and outputs the detected item name / label.
 
-* Example: [Run a YMAL to detect food items in an image](https://github.com/second-state/wasm-learning/blob/master/cli/classify_yml/config/food.yml)
+* Example: [Run a YAML to detect food items in an image](https://github.com/second-state/wasm-learning/blob/master/cli/classify_yml/config/food.yml)
 
 ### DSL for chatbots
 
@@ -105,7 +111,9 @@ YoMo is a high-performance data streaming framework for far edge networks. WasmE
 
 ### seL4 microkernel OS
 
-seL4 is a highly secure real-time operating system. WasmEdge is the only WebAssembly runtime that can run on seL4, and it runs at native speed. We also provide a management tool to support the OTA deployment of wasm modules. This work is still in progress.
+seL4 is a highly secure real-time operating system. WasmEdge is the only WebAssembly runtime that can run on seL4, and it runs at native speed. We also provide a management tool to support the OTA deployment of wasm modules.
+
+* [Demo](https://github.com/second-state/wasmedge-seL4)
 
 ## Reactive functions for SaaS
 

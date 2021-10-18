@@ -33,7 +33,7 @@ The WasmEdge Runtime provides a well-defined execution sandbox for its contained
 
 <div align="center">
   
-**Checkout the [use cases](docs/use_cases.md) of WasmEdge.**
+**Checkout the [application use cases](docs/use_cases.md) or the [technical highlights](docs/highlights.md) of WasmEdge.**
 
 </div>
 

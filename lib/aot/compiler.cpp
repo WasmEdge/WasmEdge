@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
+
 #include "aot/compiler.h"
+
 #include "aot/version.h"
+#include "common/defines.h"
 #include "common/filesystem.h"
 #include "common/log.h"
-#include "runtime/instance/memory.h"
-#include "runtime/instance/table.h"
+
 #include <charconv>
 #include <cinttypes>
 #include <cstdlib>
@@ -23,6 +25,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
+
 #include <numeric>
 
 #if LLVM_VERSION_MAJOR >= 12
@@ -564,7 +567,7 @@ public:
     auto *RetBB = llvm::BasicBlock::Create(LLContext, "ret", F);
     Type.first.clear();
     enterBlock(RetBB, nullptr, nullptr, {}, std::move(Type));
-    compile(Code.getInstrs());
+    compile(Code.getExpr().getInstrs());
     assert(ControlStack.empty());
     compileReturn();
 
@@ -4291,13 +4294,13 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   return {};
 }
 
-void Compiler::compile(const AST::TypeSection &TypeSection) {
+void Compiler::compile(const AST::TypeSection &TypeSec) {
   auto *WrapperTy =
       llvm::FunctionType::get(Context->VoidTy,
                               {Context->ExecCtxPtrTy, Context->Int8PtrTy,
                                Context->Int8PtrTy, Context->Int8PtrTy},
                               false);
-  const auto &FuncTypes = TypeSection.getContent();
+  const auto &FuncTypes = TypeSec.getContent();
   const auto Size = FuncTypes.size();
   if (Size == 0) {
     return;
@@ -4500,7 +4503,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
     {
       /// Get global type. External type checked in validation.
       const auto &GlobType = ImpDesc.getExternalGlobalType();
-      const auto &ValType = GlobType.getValueType();
+      const auto &ValType = GlobType.getValType();
       auto *Type = toLLVMType(Context->LLContext, ValType)->getPointerTo();
       Context->Globals.push_back(Type);
       break;
@@ -4514,20 +4517,20 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
 void Compiler::compile(const AST::ExportSection &) {}
 
 void Compiler::compile(const AST::GlobalSection &GlobalSec) {
-  for (const auto &Global : GlobalSec.getContent()) {
-    const auto &ValType = Global.getGlobalType().getValueType();
+  for (const auto &GlobalSeg : GlobalSec.getContent()) {
+    const auto &ValType = GlobalSeg.getGlobalType().getValType();
     auto *Type = toLLVMType(Context->LLContext, ValType)->getPointerTo();
     Context->Globals.push_back(Type);
   }
 }
 
-void Compiler::compile(const AST::MemorySection &MemorySection,
+void Compiler::compile(const AST::MemorySection &MemorySec,
                        const AST::DataSection &) {
-  if (MemorySection.getContent().size() == 0) {
+  if (MemorySec.getContent().size() == 0) {
     return;
   }
-  assert(MemorySection.getContent().size() == 1);
-  const auto &Limit = MemorySection.getContent().front().getLimit();
+  assert(MemorySec.getContent().size() == 1);
+  const auto &Limit = MemorySec.getContent().front().getLimit();
   Context->MemMin = Limit.getMin();
   Context->MemMax = Limit.hasMax() ? Limit.getMax() : 65536;
 }

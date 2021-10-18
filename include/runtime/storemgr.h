@@ -11,13 +11,13 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "instance/data.h"
-#include "instance/elem.h"
-#include "instance/function.h"
-#include "instance/global.h"
-#include "instance/memory.h"
-#include "instance/module.h"
-#include "instance/table.h"
+#include "runtime/instance/data.h"
+#include "runtime/instance/elem.h"
+#include "runtime/instance/function.h"
+#include "runtime/instance/global.h"
+#include "runtime/instance/memory.h"
+#include "runtime/instance/module.h"
+#include "runtime/instance/table.h"
 
 #include <memory>
 #include <type_traits>
@@ -59,6 +59,7 @@ public:
     uint32_t ModAddr =
         importInstance(ImpModInsts, ModInsts, std::forward<Args>(Values)...);
     ModInsts.back()->Addr = ModAddr;
+    ModMap.emplace(ModInsts.back()->getModuleName(), ModAddr);
     return ModAddr;
   }
   template <typename... Args> uint32_t importFunction(Args &&...Values) {
@@ -167,38 +168,9 @@ public:
     return getInstance(Addr, DataInsts);
   }
 
-  /// Get exported instances of instantiated module.
-  const std::map<std::string, uint32_t, std::less<>> getFuncExports() const {
-    if (NumMod > 0) {
-      return ModInsts.back()->getFuncExports();
-    }
-    return {};
-  }
-  const std::map<std::string, uint32_t, std::less<>> getTableExports() const {
-    if (NumMod > 0) {
-      return ModInsts.back()->getTableExports();
-    }
-    return {};
-  }
-  const std::map<std::string, uint32_t, std::less<>> getMemExports() const {
-    if (NumMod > 0) {
-      return ModInsts.back()->getMemExports();
-    }
-    return {};
-  }
-  const std::map<std::string, uint32_t, std::less<>> getGlobalExports() const {
-    if (NumMod > 0) {
-      return ModInsts.back()->getGlobalExports();
-    }
-    return {};
-  }
-
   /// Get list of registered modules.
-  const std::map<std::string, uint32_t, std::less<>> getModuleList() const {
-    std::map<std::string, uint32_t, std::less<>> ModMap;
-    for (uint32_t I = 0; I < ModInsts.size() - NumMod; I++) {
-      ModMap.emplace(ModInsts[I]->getModuleName(), I);
-    }
+  const std::map<std::string, uint32_t, std::less<>> &
+  getModuleList() const noexcept {
     return ModMap;
   }
 
@@ -246,6 +218,7 @@ public:
       ImpGlobInsts.clear();
       ImpElemInsts.clear();
       ImpDataInsts.clear();
+      ModMap.clear();
     } else {
       while (NumMod > 0) {
         --NumMod;
@@ -348,6 +321,11 @@ private:
   uint32_t NumGlob;
   uint32_t NumElem;
   uint32_t NumData;
+  /// @}
+
+  /// \name Module name mapping.
+  /// @{
+  std::map<std::string, uint32_t, std::less<>> ModMap;
   /// @}
 };
 

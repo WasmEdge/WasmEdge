@@ -13,10 +13,8 @@
 
 #include "ast/type.h"
 #include "common/errcode.h"
+#include "common/errinfo.h"
 #include "common/log.h"
-#include "common/span.h"
-#include "common/types.h"
-#include "common/value.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -29,29 +27,18 @@ namespace Instance {
 class TableInstance {
 public:
   TableInstance() = delete;
-  TableInstance(const RefType &Ref, const AST::Limit &Lim)
-      : Type(Ref), HasMaxSize(Lim.hasMax()), MaxSize(Lim.getMax()),
-        Refs(Lim.getMin(), genNullRef(Ref)) {}
+  TableInstance(const AST::TableType &TType)
+      : TabType(TType), Refs(TType.getLimit().getMin(), UnknownRef()) {}
   virtual ~TableInstance() = default;
-
-  /// Getter of reference type.
-  RefType getReferenceType() const noexcept { return Type; }
 
   /// Get size of table.refs
   uint32_t getSize() const noexcept {
-    return static_cast<uint32_t>(Refs.size());
+    /// The table size is binded with the limit in table type.
+    return TabType.getLimit().getMin();
   }
 
-  /// Getter of limit definition.
-  bool getHasMax() const noexcept { return HasMaxSize; }
-
-  /// Getter of limit definition.
-  uint32_t getMin() const noexcept {
-    return static_cast<uint32_t>(Refs.size());
-  }
-
-  /// Getter of limit definition.
-  uint32_t getMax() const noexcept { return MaxSize; }
+  /// Getter of table type.
+  const AST::TableType &getTableType() const { return TabType; }
 
   /// Check is out of bound.
   bool checkAccessBound(uint32_t Offset, uint32_t Length) const noexcept {
@@ -69,18 +56,21 @@ public:
   /// Grow table with initialization value.
   bool growTable(const uint32_t Count, const RefVariant Val) {
     uint32_t MaxSizeCaped = std::numeric_limits<uint32_t>::max();
-    if (HasMaxSize) {
-      MaxSizeCaped = std::min(MaxSize, MaxSizeCaped);
+    uint32_t Min = TabType.getLimit().getMin();
+    uint32_t Max = TabType.getLimit().getMax();
+    if (TabType.getLimit().hasMax()) {
+      MaxSizeCaped = std::min(Max, MaxSizeCaped);
     }
     if (Count > MaxSizeCaped - Refs.size()) {
       return false;
     }
     Refs.resize(Refs.size() + Count);
     std::fill_n(Refs.end() - Count, Count, Val);
+    TabType.getLimit().setMin(Min + Count);
     return true;
   }
   bool growTable(const uint32_t Count) {
-    return growTable(Count, genNullRef(Type));
+    return growTable(Count, UnknownRef());
   }
 
   /// Get slice of Refs[Offset : Offset + Length - 1]
@@ -159,9 +149,7 @@ public:
 private:
   /// \name Data of table instance.
   /// @{
-  const RefType Type;
-  const bool HasMaxSize;
-  const uint32_t MaxSize;
+  AST::TableType TabType;
   std::vector<RefVariant> Refs;
   /// @}
 };

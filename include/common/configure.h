@@ -12,12 +12,11 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "enum_configure.h"
+#include "common/enum_configure.h"
 
 #include <bitset>
 #include <cstdint>
 #include <initializer_list>
-#include <string_view>
 
 namespace WasmEdge {
 
@@ -91,14 +90,8 @@ public:
 
   uint32_t getMaxMemoryPage() const noexcept { return MaxMemPage; }
 
-  void addDataCountSection() noexcept { HasDataCountSection = true; }
-
-  bool hasDataCountSection() const noexcept { return HasDataCountSection; }
-
 private:
   uint32_t MaxMemPage = 65536;
-  /// Used in AST::Module only.
-  bool HasDataCountSection = false;
 };
 
 class Configure {

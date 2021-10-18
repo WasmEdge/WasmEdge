@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
+
 #include "loader/loader.h"
+
 #include "aot/version.h"
-#include "common/filesystem.h"
-#include "common/log.h"
 
 #include <fstream>
 #include <string_view>
@@ -74,10 +74,12 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
     }
     if (auto Res = LMgr.getVersion()) {
       if (*Res != AOT::kBinaryVersion) {
+        spdlog::error(ErrCode::MalformedVersion);
         spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, *Res));
         return Unexpect(ErrCode::MalformedVersion);
       }
     } else {
+      spdlog::error(Res.error());
       spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }
@@ -87,32 +89,35 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
       if (auto Res = parseModule(*Code)) {
         Mod = std::move(*Res);
       } else {
+        spdlog::error(Res.error());
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
       }
     } else {
+      spdlog::error(Code.error());
       spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Code);
     }
-    if (auto Res = Mod->loadCompiled(LMgr)) {
+    if (auto Res = loadCompiled(*Mod.get())) {
       return Mod;
     } else {
+      spdlog::error(Res.error());
       spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }
   } else {
-    auto Mod = std::make_unique<AST::Module>();
     if (auto Res = FMgr.setPath(FilePath); !Res) {
       spdlog::error(Res.error());
       spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }
-    if (auto Res = Mod->loadBinary(FMgr, Conf)) {
-      if (auto &Symbol = Mod->getSymbol()) {
+    if (auto Res = loadModule()) {
+      if (auto &Symbol = (*Res)->getSymbol()) {
         *Symbol = IntrinsicsTable;
       }
-      return Mod;
+      return std::move(*Res);
     } else {
+      spdlog::error(Res.error());
       spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Res);
     }
@@ -126,10 +131,57 @@ Loader::parseModule(Span<const uint8_t> Code) {
   if (auto Res = FMgr.setCode(Code); !Res) {
     return Unexpect(Res);
   }
-  if (auto Res = Mod->loadBinary(FMgr, Conf)) {
-    return Mod;
-  } else {
-    return Unexpect(Res);
+  return loadModule();
+}
+
+/// Helper function of checking the valid value types.
+Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
+                                              ASTNodeAttr Node) {
+  if (VType == ValType::V128 && !Conf.hasProposal(Proposal::SIMD)) {
+    return logNeedProposal(ErrCode::MalformedValType, Proposal::SIMD, Off,
+                           Node);
+  }
+  if ((VType == ValType::FuncRef &&
+       !Conf.hasProposal(Proposal::ReferenceTypes) &&
+       !Conf.hasProposal(Proposal::BulkMemoryOperations)) ||
+      (VType == ValType::ExternRef &&
+       !Conf.hasProposal(Proposal::ReferenceTypes))) {
+    return logNeedProposal(ErrCode::MalformedElemType, Proposal::ReferenceTypes,
+                           Off, Node);
+  }
+  switch (VType) {
+  case ValType::None:
+  case ValType::I32:
+  case ValType::I64:
+  case ValType::F32:
+  case ValType::F64:
+  case ValType::V128:
+  case ValType::ExternRef:
+  case ValType::FuncRef:
+    return VType;
+  default:
+    return logLoadError(ErrCode::MalformedValType, Off, Node);
+  }
+}
+
+/// Helper function of checking the valid reference types.
+Expect<RefType> Loader::checkRefTypeProposals(RefType RType, uint64_t Off,
+                                              ASTNodeAttr Node) {
+  switch (RType) {
+  case RefType::ExternRef:
+    if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
+      return logNeedProposal(ErrCode::MalformedElemType,
+                             Proposal::ReferenceTypes, Off, Node);
+    }
+    [[fallthrough]];
+  case RefType::FuncRef:
+    return RType;
+  default:
+    if (Conf.hasProposal(Proposal::ReferenceTypes)) {
+      return logLoadError(ErrCode::MalformedRefType, Off, Node);
+    } else {
+      return logLoadError(ErrCode::MalformedElemType, Off, Node);
+    }
   }
 }
 

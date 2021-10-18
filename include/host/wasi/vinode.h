@@ -4,6 +4,7 @@
 #include "common/filesystem.h"
 #include "host/wasi/error.h"
 #include "host/wasi/inode.h"
+
 #include <memory>
 #include <string>
 #include <string_view>

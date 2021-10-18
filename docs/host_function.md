@@ -150,19 +150,27 @@ public:
     addHostFunc("test_func1", std::make_unique<TestHost1>(Data));
     addHostFunc("test_func2", std::make_unique<TestHost2>(Data));
 
-    AST::Limit TabLimit(10, 20); /// Create a limit object of table instance
     /// Add table instance with exporting name
-    addHostTable("table", std::make_unique<Runtime::Instance::TableInstance>(RefType::FuncRef, TabLimit));
+    addHostTable("table", std::make_unique<Runtime::Instance::TableInstance>(
+                              TableType(RefType::FuncRef, 10, 20)));
 
-    AST::Limit MemLimit(1, 2); /// Create a limit object of memory instance
     /// Add memory instance with exporting name
-    addHostMemory("memory", std::make_unique<Runtime::Instance::MemoryInstance>(MemLimit));
+    addHostMemory("memory", std::make_unique<Runtime::Instance::MemoryInstance>(
+                                MemoryType(1, 2)));
 
     /// Add global instance with exporting name
-    addHostGlobal("global_i32", std::make_unique<Runtime::Instance::GlobalInstance>(ValType::I32, ValMut::Const, uint32_t(666)));
-    addHostGlobal("global_i64", std::make_unique<Runtime::Instance::GlobalInstance>(ValType::I64, ValMut::Const, uint64_t(666)));
-    addHostGlobal("global_f32", std::make_unique<Runtime::Instance::GlobalInstance>(ValType::F32, ValMut::Const, float(666)));
-    addHostGlobal("global_f64", std::make_unique<Runtime::Instance::GlobalInstance>(ValType::F64, ValMut::Const, double(666)));
+    addHostGlobal("global_i32",
+                  std::make_unique<Runtime::Instance::GlobalInstance>(
+                      GlobalType(ValType::I32, ValMut::Const), uint32_t(666)));
+    addHostGlobal("global_i64",
+                  std::make_unique<Runtime::Instance::GlobalInstance>(
+                      GlobalType(ValType::I64, ValMut::Const), uint64_t(666)));
+    addHostGlobal("global_f32",
+                  std::make_unique<Runtime::Instance::GlobalInstance>(
+                      GlobalType(ValType::F32, ValMut::Const), float(666)));
+    addHostGlobal("global_f64",
+                  std::make_unique<Runtime::Instance::GlobalInstance>(
+                      GlobalType(ValType::F64, ValMut::Const), double(666)));
   }
   virtual ~TestModule() = default;
 

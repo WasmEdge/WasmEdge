@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
+
 #include "validator/formchecker.h"
-#include "ast/module.h"
+
+#include "common/errinfo.h"
+#include "common/log.h"
 
 namespace {
 template <typename... Ts> struct overloaded : Ts... {
@@ -71,15 +74,14 @@ void FormChecker::addFunc(const uint32_t TypeIdx, const bool IsImport) {
 }
 
 void FormChecker::addTable(const AST::TableType &Tab) {
-  Tables.push_back(Tab.getReferenceType());
+  Tables.push_back(Tab.getRefType());
 }
 
 void FormChecker::addMemory(const AST::MemoryType &) { Mems++; }
 
 void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
   /// Type in global is comfirmed in loading phase.
-  Globals.emplace_back(ASTToVType(Glob.getValueType()),
-                       Glob.getValueMutation());
+  Globals.emplace_back(ASTToVType(Glob.getValType()), Glob.getValMut());
   if (IsImport) {
     NumImportGlobals++;
   }
@@ -472,7 +474,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   /// Reference Instructions.
   case OpCode::Ref__null:
-    return StackTrans({}, std::array{ASTToVType(Instr.getReferenceType())});
+    return StackTrans({}, std::array{ASTToVType(Instr.getRefType())});
   case OpCode::Ref__is_null:
     if (auto Res = popType()) {
       if (!isRefType(*Res)) {

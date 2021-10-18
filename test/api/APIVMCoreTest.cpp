@@ -115,13 +115,12 @@ TEST_P(CoreTest, TestSuites) {
       /// Get the function type to specify the return nums.
       WasmEdge_String ModStr = WasmEdge_StringWrap(
           ModName.data(), static_cast<uint32_t>(ModName.length()));
-      WasmEdge_FunctionTypeContext *FuncType =
+      const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_VMGetFunctionTypeRegistered(VM, ModStr, FieldStr);
       if (FuncType == nullptr) {
         return Unexpect(ErrCode::FuncNotFound);
       }
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
-      WasmEdge_FunctionTypeDelete(FuncType);
       /// Execute.
       Res = WasmEdge_VMExecuteRegistered(
           VM, ModStr, FieldStr, &CParams[0],
@@ -131,13 +130,12 @@ TEST_P(CoreTest, TestSuites) {
       /// Invoke function of anonymous module. Anonymous modules are
       /// instantiated in VM.
       /// Get function type to specify the return nums.
-      WasmEdge_FunctionTypeContext *FuncType =
+      const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_VMGetFunctionType(VM, FieldStr);
       if (FuncType == nullptr) {
         return Unexpect(ErrCode::FuncNotFound);
       }
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
-      WasmEdge_FunctionTypeDelete(FuncType);
       /// Execute.
       Res = WasmEdge_VMExecute(
           VM, FieldStr, &CParams[0], static_cast<uint32_t>(CParams.size()),

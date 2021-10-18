@@ -11,11 +11,11 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include <ostream>
+#include "common/enum_errcode.h"
+#include "common/expected.h"
+#include "common/hexstr.h"
 
-#include "enum_errcode.h"
-#include "expected.h"
-#include "hexstr.h"
+#include <ostream>
 
 namespace WasmEdge {
 

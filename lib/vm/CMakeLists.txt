@@ -8,10 +8,9 @@ target_link_libraries(wasmedgeVM
   PUBLIC
   wasmedgeCommon
   wasmedgeSystem
-  wasmedgeAST
   wasmedgeLoader
   wasmedgeValidator
-  wasmedgeInterpreter
+  wasmedgeExecutor
   wasmedgeHostModuleWasi
   wasmedgeHostModuleWasmEdgeProcess
 )

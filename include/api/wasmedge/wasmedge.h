@@ -80,6 +80,24 @@ typedef struct WasmEdge_StatisticsContext WasmEdge_StatisticsContext;
 /// Opaque struct of WasmEdge AST module.
 typedef struct WasmEdge_ASTModuleContext WasmEdge_ASTModuleContext;
 
+/// Opaque struct of WasmEdge function type.
+typedef struct WasmEdge_FunctionTypeContext WasmEdge_FunctionTypeContext;
+
+/// Opaque struct of WasmEdge memory type.
+typedef struct WasmEdge_MemoryTypeContext WasmEdge_MemoryTypeContext;
+
+/// Opaque struct of WasmEdge table type.
+typedef struct WasmEdge_TableTypeContext WasmEdge_TableTypeContext;
+
+/// Opaque struct of WasmEdge global type.
+typedef struct WasmEdge_GlobalTypeContext WasmEdge_GlobalTypeContext;
+
+/// Opaque struct of WasmEdge import type.
+typedef struct WasmEdge_ImportTypeContext WasmEdge_ImportTypeContext;
+
+/// Opaque struct of WasmEdge export type.
+typedef struct WasmEdge_ExportTypeContext WasmEdge_ExportTypeContext;
+
 /// Opaque struct of WasmEdge AOT compiler.
 typedef struct WasmEdge_CompilerContext WasmEdge_CompilerContext;
 
@@ -89,21 +107,15 @@ typedef struct WasmEdge_LoaderContext WasmEdge_LoaderContext;
 /// Opaque struct of WasmEdge validator.
 typedef struct WasmEdge_ValidatorContext WasmEdge_ValidatorContext;
 
-/// Opaque struct of WasmEdge interpreter.
-typedef struct WasmEdge_InterpreterContext WasmEdge_InterpreterContext;
+/// Opaque struct of WasmEdge executor.
+typedef struct WasmEdge_ExecutorContext WasmEdge_ExecutorContext;
 
 /// Opaque struct of WasmEdge store.
 typedef struct WasmEdge_StoreContext WasmEdge_StoreContext;
 
-/// Opaque struct of WasmEdge function type.
-typedef struct WasmEdge_FunctionTypeContext WasmEdge_FunctionTypeContext;
-
 /// Opaque struct of WasmEdge function instance.
 typedef struct WasmEdge_FunctionInstanceContext
     WasmEdge_FunctionInstanceContext;
-
-/// Opaque struct of WasmEdge host function.
-typedef struct WasmEdge_HostFunctionContext WasmEdge_HostFunctionContext;
 
 /// Opaque struct of WasmEdge table instance.
 typedef struct WasmEdge_TableInstanceContext WasmEdge_TableInstanceContext;
@@ -315,7 +327,8 @@ WasmEdge_ValueGetExternRef(const WasmEdge_Value Val);
 /// \param Str the NULL-terminated C string to copy into the WasmEdge_String
 /// object.
 ///
-/// \returns pointer to the context, NULL if failed.
+/// \returns string object. Length will be 0 and Buf will be NULL if failed or
+/// the input string is a NULL.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
 WasmEdge_StringCreateByCString(const char *Str);
 
@@ -327,7 +340,8 @@ WasmEdge_StringCreateByCString(const char *Str);
 /// \param Buf the buffer to copy into the WasmEdge_String object.
 /// \param Len the buffer length.
 ///
-/// \returns pointer to the context, NULL if failed.
+/// \returns string object. Length will be 0 and Buf will be NULL if failed or
+/// the input buffer is a NULL.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
 WasmEdge_StringCreateByBuffer(const char *Buf, const uint32_t Len);
 
@@ -340,7 +354,7 @@ WasmEdge_StringCreateByBuffer(const char *Buf, const uint32_t Len);
 /// \param Buf the buffer to copy into the WasmEdge_String object.
 /// \param Len the buffer length.
 ///
-/// \returns pointer to the context, NULL if failed.
+/// \returns string object refer to the input buffer with its length.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
 WasmEdge_StringWrap(const char *Buf, const uint32_t Len);
 
@@ -408,6 +422,20 @@ WASMEDGE_CAPI_EXPORT extern const char *
 WasmEdge_ResultGetMessage(const WasmEdge_Result Res);
 
 /// <<<<<<<< WasmEdge result functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> WasmEdge limit functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Compare the two WasmEdge_Limit objects.
+///
+/// \param Lim1 the first WasmEdge_Limit object to compare.
+/// \param Lim2 the second WasmEdge_Limit object to compare.
+///
+/// \returns true if the content of two WasmEdge_Limit objects are the same,
+/// false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_LimitIsEqual(const WasmEdge_Limit Lim1, const WasmEdge_Limit Lim2);
+
+/// <<<<<<<< WasmEdge limit functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> WasmEdge configure functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -662,6 +690,54 @@ WasmEdge_StatisticsDelete(WasmEdge_StatisticsContext *Cxt);
 
 /// >>>>>>>> WasmEdge AST module functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+/// Get the length of imports list of the AST module.
+///
+/// \param Cxt the WasmEdge_ASTModuleContext.
+///
+/// \returns length of the imports list.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ASTModuleListImportsLength(const WasmEdge_ASTModuleContext *Cxt);
+
+/// List the imports of the AST module.
+///
+/// If the `Imports` buffer length is smaller than the result of the imports
+/// list size, the overflowed return values will be discarded.
+///
+/// \param Cxt the WasmEdge_ASTModuleContext.
+/// \param [out] Imports the import type contexts buffer. Can be NULL if import
+/// types are not needed.
+/// \param Len the buffer length.
+///
+/// \returns actual exported function list size.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ASTModuleListImports(const WasmEdge_ASTModuleContext *Cxt,
+                              const WasmEdge_ImportTypeContext **Imports,
+                              const uint32_t Len);
+
+/// Get the length of exports list of the AST module.
+///
+/// \param Cxt the WasmEdge_ASTModuleContext.
+///
+/// \returns length of the exports list.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ASTModuleListExportsLength(const WasmEdge_ASTModuleContext *Cxt);
+
+/// List the exports of the AST module.
+///
+/// If the `Exports` buffer length is smaller than the result of the exports
+/// list size, the overflowed return values will be discarded.
+///
+/// \param Cxt the WasmEdge_ASTModuleContext.
+/// \param [out] Exports the export type contexts buffer. Can be NULL if export
+/// types are not needed.
+/// \param Len the buffer length.
+///
+/// \returns actual exported function list size.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ASTModuleListExports(const WasmEdge_ASTModuleContext *Cxt,
+                              const WasmEdge_ExportTypeContext **Exports,
+                              const uint32_t Len);
+
 /// Deletion of the WasmEdge_ASTModuleContext.
 ///
 /// After calling this function, the context will be freed and should __NOT__ be
@@ -672,6 +748,394 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt);
 
 /// <<<<<<<< WasmEdge AST module functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> WasmEdge function type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_FunctionTypeContext.
+///
+/// The caller owns the object and should call `WasmEdge_FunctionTypeDelete` to
+/// free it.
+///
+/// \param ParamList the value types list of parameters. NULL if the length is
+/// 0.
+/// \param ParamLen the ParamList buffer length.
+/// \param ReturnList the value types list of returns. NULL if the length is 0.
+/// \param ReturnLen the ReturnList buffer length.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionTypeContext *
+WasmEdge_FunctionTypeCreate(const enum WasmEdge_ValType *ParamList,
+                            const uint32_t ParamLen,
+                            const enum WasmEdge_ValType *ReturnList,
+                            const uint32_t ReturnLen);
+
+/// Get the parameter types list length from the WasmEdge_FunctionTypeContext.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext.
+///
+/// \returns the parameter types list length.
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_FunctionTypeGetParametersLength(
+    const WasmEdge_FunctionTypeContext *Cxt);
+
+/// Get the parameter types list from the WasmEdge_FunctionTypeContext.
+///
+/// If the `List` buffer length is smaller than the length of the parameter type
+/// list, the overflowed values will be discarded.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext.
+/// \param [out] List the WasmEdge_ValType buffer to fill the parameter value
+/// types.
+/// \param Len the value type buffer length.
+///
+/// \returns the actual parameter types list length.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_FunctionTypeGetParameters(const WasmEdge_FunctionTypeContext *Cxt,
+                                   enum WasmEdge_ValType *List,
+                                   const uint32_t Len);
+
+/// Get the return types list length from the WasmEdge_FunctionTypeContext.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext.
+///
+/// \returns the return types list length.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_FunctionTypeGetReturnsLength(const WasmEdge_FunctionTypeContext *Cxt);
+
+/// Get the return types list from the WasmEdge_FunctionTypeContext.
+///
+/// If the `List` buffer length is smaller than the length of the return type
+/// list, the overflowed values will be discarded.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext.
+/// \param [out] List the WasmEdge_ValType buffer to fill the return value
+/// types.
+/// \param Len the value type buffer length.
+///
+/// \returns the actual return types list length.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_FunctionTypeGetReturns(const WasmEdge_FunctionTypeContext *Cxt,
+                                enum WasmEdge_ValType *List,
+                                const uint32_t Len);
+
+/// Deletion of the WasmEdge_FunctionTypeContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext to delete.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_FunctionTypeDelete(WasmEdge_FunctionTypeContext *Cxt);
+
+/// <<<<<<<< WasmEdge function type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> WasmEdge table type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_TableTypeContext.
+///
+/// The caller owns the object and should call `WasmEdge_TableTypeDelete` to
+/// free it.
+///
+/// \param RefType the reference type of the table type.
+/// \param Limit the limit struct of the table type.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_TableTypeContext *
+WasmEdge_TableTypeCreate(const enum WasmEdge_RefType RefType,
+                         const WasmEdge_Limit Limit);
+
+/// Get the reference type from a table type.
+///
+/// \param Cxt the WasmEdge_TableTypeContext.
+///
+/// \returns the reference type of the table type.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_RefType
+WasmEdge_TableTypeGetRefType(const WasmEdge_TableTypeContext *Cxt);
+
+/// Get the limit from a table type.
+///
+/// \param Cxt the WasmEdge_TableTypeContext.
+///
+/// \returns the limit struct of the table type.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Limit
+WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt);
+
+/// Deletion of the WasmEdge_TableTypeContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the WasmEdge_TableTypeContext to delete.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_TableTypeDelete(WasmEdge_TableTypeContext *Cxt);
+
+/// <<<<<<<< WasmEdge table type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> WasmEdge memory type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_MemoryTypeContext.
+///
+/// The caller owns the object and should call `WasmEdge_MemoryTypeDelete` to
+/// free it.
+///
+/// \param Limit the limit struct of the memory type.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryTypeContext *
+WasmEdge_MemoryTypeCreate(const WasmEdge_Limit Limit);
+
+/// Get the limit from a memory type.
+///
+/// \param Cxt the WasmEdge_MemoryTypeContext.
+///
+/// \returns the limit struct of the memory type.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Limit
+WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt);
+
+/// Deletion of the WasmEdge_MemoryTypeContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the WasmEdge_MemoryTypeContext to delete.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt);
+
+/// <<<<<<<< WasmEdge memory type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> WasmEdge global type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_GlobalTypeContext.
+///
+/// The caller owns the object and should call `WasmEdge_GlobalTypeDelete` to
+/// free it.
+///
+/// \param ValType the value type of the global type.
+/// \param Mut the mutation of the global type.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_GlobalTypeContext *
+WasmEdge_GlobalTypeCreate(const enum WasmEdge_ValType ValType,
+                          const enum WasmEdge_Mutability Mut);
+
+/// Get the value type from a global type.
+///
+/// \param Cxt the WasmEdge_GlobalTypeContext.
+///
+/// \returns the value type of the global type.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ValType
+WasmEdge_GlobalTypeGetValType(const WasmEdge_GlobalTypeContext *Cxt);
+
+/// Get the mutability from a global type.
+///
+/// \param Cxt the WasmEdge_GlobalTypeContext.
+///
+/// \returns the mutability of the global type.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_Mutability
+WasmEdge_GlobalTypeGetMutability(const WasmEdge_GlobalTypeContext *Cxt);
+
+/// Deletion of the WasmEdge_GlobalTypeContext.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the WasmEdge_GlobalTypeContext to delete.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_GlobalTypeDelete(WasmEdge_GlobalTypeContext *Cxt);
+
+/// <<<<<<<< WasmEdge global type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> WasmEdge import type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Get the external type from an import type.
+///
+/// \param Cxt the WasmEdge_ImportTypeContext.
+///
+/// \returns the external type of the import type.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ExternalType
+WasmEdge_ImportTypeGetExternalType(const WasmEdge_ImportTypeContext *Cxt);
+
+/// Get the module name from an import type.
+///
+/// The returned string object is linked to the module name of the import type,
+/// and the caller should __NOT__ call the `WasmEdge_StringDelete`.
+///
+/// \param Cxt the WasmEdge_ImportTypeContext.
+///
+/// \returns string object. Length will be 0 and Buf will be NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_String
+WasmEdge_ImportTypeGetModuleName(const WasmEdge_ImportTypeContext *Cxt);
+
+/// Get the external name from an import type.
+///
+/// The returned string object is linked to the external name of the import
+/// type, and the caller should __NOT__ call the `WasmEdge_StringDelete`.
+///
+/// \param Cxt the WasmEdge_ImportTypeContext.
+///
+/// \returns string object. Length will be 0 and Buf will be NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_String
+WasmEdge_ImportTypeGetExternalName(const WasmEdge_ImportTypeContext *Cxt);
+
+/// Get the external value (which is function type) from an import type.
+///
+/// The import type context should be the one queried from the AST module
+/// context, or this function will cause unexpected error.
+/// The function type context links to the function type in the import type
+/// context and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_FunctionTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the function type. NULL if failed or the external type of the
+/// import type is not `WasmEdge_ExternalType_Function`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
+WasmEdge_ImportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                   const WasmEdge_ImportTypeContext *Cxt);
+
+/// Get the external value (which is table type) from an import type.
+///
+/// The import type context should be the one queried from the AST module
+/// context, or this function will cause unexpected error.
+/// The table type context links to the table type in the import type context
+/// and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_TableTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the table type. NULL if failed or the external type of the import
+/// type is not `WasmEdge_ExternalType_Table`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_TableTypeContext *
+WasmEdge_ImportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                const WasmEdge_ImportTypeContext *Cxt);
+
+/// Get the external value (which is memory type) from an import type.
+///
+/// The import type context should be the one queried from the AST module
+/// context, or this function will cause unexpected error.
+/// The memory type context links to the memory type in the import type context
+/// and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_MemoryTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the memory type. NULL if failed or the external type of the import
+/// type is not `WasmEdge_ExternalType_Memory`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_MemoryTypeContext *
+WasmEdge_ImportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                 const WasmEdge_ImportTypeContext *Cxt);
+
+/// Get the external value (which is global type) from an import type.
+///
+/// The import type context should be the one queried from the AST module
+/// context, or this function will cause unexpected error.
+/// The global type context links to the global type in the import type context
+/// and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_GlobalTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the global type. NULL if failed or the external type of the import
+/// type is not `WasmEdge_ExternalType_Global`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_GlobalTypeContext *
+WasmEdge_ImportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                 const WasmEdge_ImportTypeContext *Cxt);
+
+/// <<<<<<<< WasmEdge import type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// >>>>>>>> WasmEdge export type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Get the external type from an export type.
+///
+/// \param Cxt the WasmEdge_ExportTypeContext.
+///
+/// \returns the external type of the export type.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ExternalType
+WasmEdge_ExportTypeGetExternalType(const WasmEdge_ExportTypeContext *Cxt);
+
+/// Get the external name from an export type.
+///
+/// The returned string object is linked to the external name of the export
+/// type, and the caller should __NOT__ call the `WasmEdge_StringDelete`.
+///
+/// \param Cxt the WasmEdge_ExportTypeContext.
+///
+/// \returns string object. Length will be 0 and Buf will be NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_String
+WasmEdge_ExportTypeGetExternalName(const WasmEdge_ExportTypeContext *Cxt);
+
+/// Get the external value (which is function type) from an export type.
+///
+/// The export type context should be the one queried from the AST module
+/// context, or this function will cause unexpected error.
+/// The function type context links to the function type in the export type
+/// context and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_FunctionTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the function type. NULL if failed or the external type of the
+/// export type is not `WasmEdge_ExternalType_Function`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
+WasmEdge_ExportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                   const WasmEdge_ExportTypeContext *Cxt);
+
+/// Get the external value (which is table type) from an export type.
+///
+/// The export type context should be the one queried from the AST module
+/// context, or this function will cause unexpected error.
+/// The table type context links to the table type in the export type context
+/// and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_TableTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the table type. NULL if failed or the external type of the export
+/// type is not `WasmEdge_ExternalType_Table`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_TableTypeContext *
+WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                const WasmEdge_ExportTypeContext *Cxt);
+
+/// Get the external value (which is memory type) from an export type.
+///
+/// The export type context should be the one queried from the AST module
+/// context, or this function will cause unexpected error.
+/// The memory type context links to the memory type in the export type context
+/// and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_MemoryTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the memory type. NULL if failed or the external type of the export
+/// type is not `WasmEdge_ExternalType_Memory`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_MemoryTypeContext *
+WasmEdge_ExportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                 const WasmEdge_ExportTypeContext *Cxt);
+
+/// Get the external value (which is global type) from an export type.
+///
+/// The export type context should be the one queried from the AST module
+/// context, or this function will cause unexpected error.
+/// The global type context links to the global type in the export type context
+/// and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_GlobalTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the global type. NULL if failed or the external type of the export
+/// type is not `WasmEdge_ExternalType_Global`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_GlobalTypeContext *
+WasmEdge_ExportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                 const WasmEdge_ExportTypeContext *Cxt);
+
+/// <<<<<<<< WasmEdge export type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> WasmEdge AOT compiler functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -804,24 +1268,24 @@ WasmEdge_ValidatorDelete(WasmEdge_ValidatorContext *Cxt);
 
 /// <<<<<<<< WasmEdge validator functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge interpreter functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+/// >>>>>>>> WasmEdge executor functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// Creation of the WasmEdge_InterpreterContext.
+/// Creation of the WasmEdge_ExecutorContext.
 ///
-/// The caller owns the object and should call `WasmEdge_InterpreterDelete` to
-/// free it.
+/// The caller owns the object and should call `WasmEdge_ExecutorDelete` to free
+/// it.
 ///
 /// \param ConfCxt the WasmEdge_ConfigureContext as the configuration of
-/// Interpreter. NULL for the default configuration.
+/// Executor. NULL for the default configuration.
 /// \param StatCxt the WasmEdge_StatisticsContext as the statistics object set
-/// into Interpreter. The statistics will refer to this context, and the life
-/// cycle should be ensured until the interpreter context is deleted. NULL for
-/// not doing the statistics.
+/// into Executor. The statistics will refer to this context, and the life cycle
+/// should be ensured until the executor context is deleted. NULL for not doing
+/// the statistics.
 ///
 /// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_InterpreterContext *
-WasmEdge_InterpreterCreate(const WasmEdge_ConfigureContext *ConfCxt,
-                           WasmEdge_StatisticsContext *StatCxt);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ExecutorContext *
+WasmEdge_ExecutorCreate(const WasmEdge_ConfigureContext *ConfCxt,
+                        WasmEdge_StatisticsContext *StatCxt);
 
 /// Instantiate WasmEdge AST Module into a store.
 ///
@@ -829,7 +1293,7 @@ WasmEdge_InterpreterCreate(const WasmEdge_ConfigureContext *ConfCxt,
 /// You can call `WasmEdge_StoreGetActiveModule` to retrieve the active module
 /// instance.
 ///
-/// \param Cxt the WasmEdge_InterpreterContext to instantiate the module.
+/// \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
 /// \param StoreCxt the WasmEdge_StoreContext to store the instantiated module.
 /// \param ASTCxt the WasmEdge AST Module context generated by loader or
 /// compiler.
@@ -837,31 +1301,32 @@ WasmEdge_InterpreterCreate(const WasmEdge_ConfigureContext *ConfCxt,
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
-WasmEdge_InterpreterInstantiate(WasmEdge_InterpreterContext *Cxt,
-                                WasmEdge_StoreContext *StoreCxt,
-                                const WasmEdge_ASTModuleContext *ASTCxt);
+WasmEdge_ExecutorInstantiate(WasmEdge_ExecutorContext *Cxt,
+                             WasmEdge_StoreContext *StoreCxt,
+                             const WasmEdge_ASTModuleContext *ASTCxt);
 
 /// Register and instantiate WasmEdge import object into a store.
 ///
 /// Instantiate the instances in WasmEdge import object context and register
 /// into a store with their exported name and the host module name.
 ///
-/// \param Cxt the WasmEdge_InterpreterContext to instantiate the module.
+/// \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
 /// \param StoreCxt the WasmEdge_StoreContext to store the instantiated module.
 /// \param ImportCxt the WasmEdge_ImportObjectContext to register.
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_InterpreterRegisterImport(
-    WasmEdge_InterpreterContext *Cxt, WasmEdge_StoreContext *StoreCxt,
-    const WasmEdge_ImportObjectContext *ImportCxt);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_ExecutorRegisterImport(WasmEdge_ExecutorContext *Cxt,
+                                WasmEdge_StoreContext *StoreCxt,
+                                const WasmEdge_ImportObjectContext *ImportCxt);
 
 /// Register and instantiate WasmEdge AST Module into a store.
 ///
 /// Instantiate the instances in WasmEdge AST Module and register into a store
 /// with their exported name and module name.
 ///
-/// \param Cxt the WasmEdge_InterpreterContext to instantiate the module.
+/// \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
 /// \param StoreCxt the WasmEdge_StoreContext to store the instantiated module.
 /// \param ASTCxt the WasmEdge AST Module context generated by loader or
 /// compiler.
@@ -870,8 +1335,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_InterpreterRegisterImport(
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_InterpreterRegisterModule(
-    WasmEdge_InterpreterContext *Cxt, WasmEdge_StoreContext *StoreCxt,
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorRegisterModule(
+    WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,
     const WasmEdge_ASTModuleContext *ASTCxt, WasmEdge_String ModuleName);
 
 /// Invoke a WASM function by name.
@@ -881,9 +1346,9 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_InterpreterRegisterModule(
 /// function to invoke exported WASM functions by their names until the store
 /// context is reset or a new WASM module is registered or instantiated. For
 /// calling the functions in registered WASM modules with names in store, please
-/// use `WasmEdge_InterpreterInvokeRegistered` instead.
+/// use `WasmEdge_ExecutorInvokeRegistered` instead.
 ///
-/// \param Cxt the WasmEdge_InterpreterContext.
+/// \param Cxt the WasmEdge_ExecutorContext.
 /// \param StoreCxt the WasmEdge_StoreContext which the module instantiated in.
 /// \param FuncName the function name WasmEdge_String.
 /// \param Params the WasmEdge_Value buffer with the parameter values.
@@ -893,8 +1358,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_InterpreterRegisterModule(
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_InterpreterInvoke(
-    WasmEdge_InterpreterContext *Cxt, WasmEdge_StoreContext *StoreCxt,
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorInvoke(
+    WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
     const uint32_t ParamLen, WasmEdge_Value *Returns, const uint32_t ReturnLen);
 
@@ -905,7 +1370,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_InterpreterInvoke(
 /// exported WASM functions by their module names and function names until the
 /// store context is reset.
 ///
-/// \param Cxt the WasmEdge_InterpreterContext.
+/// \param Cxt the WasmEdge_ExecutorContext.
 /// \param StoreCxt the WasmEdge_StoreContext which the module instantiated in.
 /// \param ModuleName the module name WasmEdge_String.
 /// \param FuncName the function name WasmEdge_String.
@@ -916,23 +1381,22 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_InterpreterInvoke(
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
-WasmEdge_InterpreterInvokeRegistered(
-    WasmEdge_InterpreterContext *Cxt, WasmEdge_StoreContext *StoreCxt,
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorInvokeRegistered(
+    WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,
     const WasmEdge_String ModuleName, const WasmEdge_String FuncName,
     const WasmEdge_Value *Params, const uint32_t ParamLen,
     WasmEdge_Value *Returns, const uint32_t ReturnLen);
 
-/// Deletion of the WasmEdge_InterpreterContext.
+/// Deletion of the WasmEdge_ExecutorContext.
 ///
 /// After calling this function, the context will be freed and should __NOT__ be
 /// used.
 ///
-/// \param Cxt the WasmEdge_InterpreterContext to delete.
+/// \param Cxt the WasmEdge_ExecutorContext to delete.
 WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_InterpreterDelete(WasmEdge_InterpreterContext *Cxt);
+WasmEdge_ExecutorDelete(WasmEdge_ExecutorContext *Cxt);
 
-/// <<<<<<<< WasmEdge interpreter functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+/// <<<<<<<< WasmEdge executor functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> WasmEdge store functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -1109,9 +1573,10 @@ WasmEdge_StoreListFunctionLength(const WasmEdge_StoreContext *Cxt);
 /// the exported function list of the anonymous module. If you want to get the
 /// function list of the registered named modules in the store context, please
 /// call `WasmEdge_StoreListFunctionRegistered` instead.
-/// The returned function names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported
+/// The returned function names filled into the `Names` array are linked to the
+/// exported names of functions in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
 /// function list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
@@ -1120,8 +1585,8 @@ WasmEdge_StoreListFunctionLength(const WasmEdge_StoreContext *Cxt);
 ///
 /// \returns actual exported function list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_StoreListFunction(WasmEdge_StoreContext *Cxt, WasmEdge_String *Names,
-                           const uint32_t Len);
+WasmEdge_StoreListFunction(const WasmEdge_StoreContext *Cxt,
+                           WasmEdge_String *Names, const uint32_t Len);
 
 /// Get the exported function list length of the registered module in store.
 ///
@@ -1137,9 +1602,10 @@ WasmEdge_StoreListFunctionRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// After registering a WASM module, you can call this function to get the
 /// exported function list of the registered module by the module name.
-/// The returned function names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported
+/// The returned function names filled into the `Names` array are linked to the
+/// exported names of functions in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
 /// function list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
@@ -1149,7 +1615,7 @@ WasmEdge_StoreListFunctionRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// \returns actual exported function list size of the module.
 WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_StoreListFunctionRegistered(
-    WasmEdge_StoreContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_StoreContext *Cxt, const WasmEdge_String ModuleName,
     WasmEdge_String *Names, const uint32_t Len);
 
 /// Get the length of exported table list in store.
@@ -1171,10 +1637,11 @@ WasmEdge_StoreListTableLength(const WasmEdge_StoreContext *Cxt);
 /// the exported table list of the anonymous module. If you want to get the
 /// table list of the registered named modules in the store context, please
 /// call `WasmEdge_StoreListTableRegistered` instead.
-/// The returned table names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported table
-/// list size, the overflowed return values will be discarded.
+/// The returned table names filled into the `Names` array are linked to the
+/// exported names of tables in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// table list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param [out] Names the output WasmEdge_String buffer of the table names.
@@ -1182,8 +1649,8 @@ WasmEdge_StoreListTableLength(const WasmEdge_StoreContext *Cxt);
 ///
 /// \returns actual exported table list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_StoreListTable(WasmEdge_StoreContext *Cxt, WasmEdge_String *Names,
-                        const uint32_t Len);
+WasmEdge_StoreListTable(const WasmEdge_StoreContext *Cxt,
+                        WasmEdge_String *Names, const uint32_t Len);
 
 /// Get the exported table list length of the registered module in store.
 ///
@@ -1199,10 +1666,11 @@ WasmEdge_StoreListTableRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// After registering a WASM module, you can call this function to get the
 /// exported table list of the registered module by the module name.
-/// The returned table names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported table
-/// list size, the overflowed return values will be discarded.
+/// The returned table names filled into the `Names` array are linked to the
+/// exported names of tables in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// table list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -1211,7 +1679,7 @@ WasmEdge_StoreListTableRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// \returns actual exported table list size of the module.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_StoreListTableRegistered(WasmEdge_StoreContext *Cxt,
+WasmEdge_StoreListTableRegistered(const WasmEdge_StoreContext *Cxt,
                                   const WasmEdge_String ModuleName,
                                   WasmEdge_String *Names, const uint32_t Len);
 
@@ -1234,10 +1702,11 @@ WasmEdge_StoreListMemoryLength(const WasmEdge_StoreContext *Cxt);
 /// the exported memory list of the anonymous module. If you want to get the
 /// memory list of the registered named modules in the store context, please
 /// call `WasmEdge_StoreListMemoryRegistered` instead.
-/// The returned memory names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported memory
-/// list size, the overflowed return values will be discarded.
+/// The returned memory names filled into the `Names` array are linked to the
+/// exported names of memories in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// memory list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param [out] Names the output WasmEdge_String buffer of the memory names.
@@ -1262,10 +1731,11 @@ WasmEdge_StoreListMemoryRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// After registering a WASM module, you can call this function to get the
 /// exported memory list of the registered module by the module name.
-/// The returned memory names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported memory
-/// list size, the overflowed return values will be discarded.
+/// The returned memory names filled into the `Names` array are linked to the
+/// exported names of memories in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// memory list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -1274,7 +1744,7 @@ WasmEdge_StoreListMemoryRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// \returns actual exported memory list size of the module.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_StoreListMemoryRegistered(WasmEdge_StoreContext *Cxt,
+WasmEdge_StoreListMemoryRegistered(const WasmEdge_StoreContext *Cxt,
                                    const WasmEdge_String ModuleName,
                                    WasmEdge_String *Names, const uint32_t Len);
 
@@ -1297,10 +1767,11 @@ WasmEdge_StoreListGlobalLength(const WasmEdge_StoreContext *Cxt);
 /// the exported global list of the anonymous module. If you want to get the
 /// global list of the registered named modules in the store context, please
 /// call `WasmEdge_StoreListGlobalRegistered` instead.
-/// The returned global names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported global
-/// list size, the overflowed return values will be discarded.
+/// The returned global names filled into the `Names` array are linked to the
+/// exported names of globals in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// global list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param [out] Names the output WasmEdge_String buffer of the global names.
@@ -1325,10 +1796,11 @@ WasmEdge_StoreListGlobalRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// After registering a WASM module, you can call this function to get the
 /// exported global list of the registered module by the module name.
-/// The returned global names are created and stored into the `Names` array,
-/// and the caller should call the `WasmEdge_StringDelete` to delete them. If
-/// the `Names` buffer length is smaller than the result of the exported global
-/// list size, the overflowed return values will be discarded.
+/// The returned global names filled into the `Names` array are linked to the
+/// exported names of globals in the store context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// global list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -1337,7 +1809,7 @@ WasmEdge_StoreListGlobalRegisteredLength(const WasmEdge_StoreContext *Cxt,
 ///
 /// \returns actual exported global list size of the module.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_StoreListGlobalRegistered(WasmEdge_StoreContext *Cxt,
+WasmEdge_StoreListGlobalRegistered(const WasmEdge_StoreContext *Cxt,
                                    const WasmEdge_String ModuleName,
                                    WasmEdge_String *Names, const uint32_t Len);
 
@@ -1352,10 +1824,11 @@ WasmEdge_StoreListModuleLength(const WasmEdge_StoreContext *Cxt);
 /// List the registered module names.
 ///
 /// This function will list all registered module names.
-/// The returned module names are created and stored in `Names` array, and the
-/// caller should call `WasmEdge_StringDelete` to delete them. If the `Names`
-/// buffer length is smaller than the result of the registered named module list
-/// size, the overflowed return values will be discarded.
+/// The returned module names filled into the `Names` array are linked to the
+/// registered module names in the store context, and the caller should __NOT__
+/// call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the registered
+/// named module list size, the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param [out] Names the output names WasmEdge_String buffer of named modules.
@@ -1363,8 +1836,8 @@ WasmEdge_StoreListModuleLength(const WasmEdge_StoreContext *Cxt);
 ///
 /// \returns actual registered named module list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_StoreListModule(WasmEdge_StoreContext *Cxt, WasmEdge_String *Names,
-                         const uint32_t Len);
+WasmEdge_StoreListModule(const WasmEdge_StoreContext *Cxt,
+                         WasmEdge_String *Names, const uint32_t Len);
 
 /// Deletion of the WasmEdge_StoreContext.
 ///
@@ -1377,116 +1850,20 @@ WasmEdge_StoreDelete(WasmEdge_StoreContext *Cxt);
 
 /// <<<<<<<< WasmEdge store functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge function type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-/// Creation of the WasmEdge_FunctionTypeContext.
-///
-/// The caller owns the object and should call `WasmEdge_FunctionTypeDelete` to
-/// free it.
-///
-/// \param ParamList the value types list of parameters. NULL if the length is
-/// 0.
-/// \param ParamLen the ParamList buffer length.
-/// \param ReturnList the value types list of returns. NULL if the length is 0.
-/// \param ReturnLen the ReturnList buffer length.
-///
-/// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionTypeContext *
-WasmEdge_FunctionTypeCreate(const enum WasmEdge_ValType *ParamList,
-                            const uint32_t ParamLen,
-                            const enum WasmEdge_ValType *ReturnList,
-                            const uint32_t ReturnLen);
-
-/// Get the parameter types list length from the WasmEdge_FunctionTypeContext.
-///
-/// \param Cxt the WasmEdge_FunctionTypeContext.
-///
-/// \returns the parameter types list length.
-WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_FunctionTypeGetParametersLength(
-    const WasmEdge_FunctionTypeContext *Cxt);
-
-/// Get the parameter types list from the WasmEdge_FunctionTypeContext.
-///
-/// If the `List` buffer length is smaller than the length of the parameter type
-/// list, the overflowed values will be discarded.
-///
-/// \param Cxt the WasmEdge_FunctionTypeContext.
-/// \param [out] List the WasmEdge_ValType buffer to fill the parameter value
-/// types.
-/// \param Len the value type buffer length.
-///
-/// \returns the actual parameter types list length.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_FunctionTypeGetParameters(const WasmEdge_FunctionTypeContext *Cxt,
-                                   enum WasmEdge_ValType *List,
-                                   const uint32_t Len);
-
-/// Get the return types list length from the WasmEdge_FunctionTypeContext.
-///
-/// \param Cxt the WasmEdge_FunctionTypeContext.
-///
-/// \returns the return types list length.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_FunctionTypeGetReturnsLength(const WasmEdge_FunctionTypeContext *Cxt);
-
-/// Get the return types list from the WasmEdge_FunctionTypeContext.
-///
-/// If the `List` buffer length is smaller than the length of the return type
-/// list, the overflowed values will be discarded.
-///
-/// \param Cxt the WasmEdge_FunctionTypeContext.
-/// \param [out] List the WasmEdge_ValType buffer to fill the return value
-/// types.
-/// \param Len the value type buffer length.
-///
-/// \returns the actual return types list length.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_FunctionTypeGetReturns(const WasmEdge_FunctionTypeContext *Cxt,
-                                enum WasmEdge_ValType *List,
-                                const uint32_t Len);
-
-/// Deletion of the WasmEdge_FunctionTypeContext.
-///
-/// After calling this function, the context will be freed and should __NOT__ be
-/// used.
-///
-/// \param Cxt the WasmEdge_FunctionTypeContext to delete.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_FunctionTypeDelete(WasmEdge_FunctionTypeContext *Cxt);
-
-/// <<<<<<<< WasmEdge function type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
 /// >>>>>>>> WasmEdge function instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-/// Get the function type context of the function instance.
-///
-/// The function type context links to the function type in the function
-/// instance context and owned by the context. The caller should __NOT__ call
-/// the `WasmEdge_FunctionTypeDelete`.
-///
-/// \param Cxt the WasmEdge_FunctionInstanceContext.
-///
-/// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
-WasmEdge_FunctionInstanceGetFunctionType(
-    const WasmEdge_FunctionInstanceContext *Cxt);
-
-/// <<<<<<<< WasmEdge function instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-/// >>>>>>>> WasmEdge host function functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
     void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
     const WasmEdge_Value *Params, WasmEdge_Value *Returns);
-/// Creation of the WasmEdge_HostFunctionContext.
+/// Creation of the WasmEdge_FunctionInstanceContext for host functions.
 ///
-/// The caller owns the object and should call `WasmEdge_HostFunctionDelete` to
-/// free it if the returned object is not added into a
+/// The caller owns the object and should call `WasmEdge_FunctionInstanceDelete`
+/// to free it if the returned object is not added into a
 /// `WasmEdge_ImportObjectContext`. The following is an example to create a host
 /// function context.
 /// ```c
 /// WasmEdge_Result FuncAdd(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
-///                     const WasmEdge_Value *In, WasmEdge_Value *Out) {
+///                         const WasmEdge_Value *In, WasmEdge_Value *Out) {
 ///   /// Function to return A + B.
 ///   int32_t A = WasmEdge_ValueGetI32(In[0]);
 ///   int32_t B = WasmEdge_ValueGetI32(In[1]);
@@ -1501,8 +1878,8 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 /// enum WasmEdge_ValType Returns[1] = {WasmEdge_ValType_I32};
 /// WasmEdge_FunctionTypeContext *FuncType =
 ///     WasmEdge_FunctionTypeCreate(Params, 2, Returns, 1);
-/// WasmEdge_HostFunctionContext *HostFunc =
-///     WasmEdge_HostFunctionCreate(FuncType, FuncAdd, NULL, 0);
+/// WasmEdge_FunctionInstanceContext *HostFunc =
+///     WasmEdge_FunctionInstanceCreate(FuncType, FuncAdd, NULL, 0);
 /// WasmEdge_FunctionTypeDelete(FuncType);
 /// ...
 /// ```
@@ -1529,20 +1906,20 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 /// not needed.
 ///
 /// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_HostFunctionContext *
-WasmEdge_HostFunctionCreate(const WasmEdge_FunctionTypeContext *Type,
-                            WasmEdge_HostFunc_t HostFunc, void *Data,
-                            const uint64_t Cost);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionInstanceContext *
+WasmEdge_FunctionInstanceCreate(const WasmEdge_FunctionTypeContext *Type,
+                                WasmEdge_HostFunc_t HostFunc, void *Data,
+                                const uint64_t Cost);
 
 typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
     void *This, void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
     const WasmEdge_Value *Params, const uint32_t ParamLen,
     WasmEdge_Value *Returns, const uint32_t ReturnLen);
-/// Creation of the WasmEdge_HostFunctionContext.
+/// Creation of the WasmEdge_FunctionInstanceContext for host functions.
 ///
 /// This function is for the languages which cannot pass the function pointer of
 /// the host function into this shared library directly. The caller owns the
-/// object and should call `WasmEdge_HostFunctionDelete` to free it if the
+/// object and should call `WasmEdge_FunctionInstanceDelete` to free it if the
 /// returned object is not added into a `WasmEdge_ImportObjectContext`. The
 /// following is an example to create a host function context for other
 /// languages.
@@ -1572,8 +1949,8 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 /// enum WasmEdge_ValType Returns[1] = {WasmEdge_ValType_I32};
 /// WasmEdge_FunctionTypeContext *FuncType =
 ///     WasmEdge_FunctionTypeCreate(Params, 2, Returns, 1);
-/// WasmEdge_HostFunctionContext *HostFunc =
-///     WasmEdge_HostFunctionCreateBinding(
+/// WasmEdge_FunctionInstanceContext *HostFunc =
+///     WasmEdge_FunctionInstanceCreateBinding(
 ///         FuncType, FuncAddWrap, RealFunc, NULL, 0);
 /// WasmEdge_FunctionTypeDelete(FuncType);
 /// ...
@@ -1611,21 +1988,35 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 /// not needed.
 ///
 /// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_HostFunctionContext *
-WasmEdge_HostFunctionCreateBinding(const WasmEdge_FunctionTypeContext *Type,
-                                   WasmEdge_WrapFunc_t WrapFunc, void *Binding,
-                                   void *Data, const uint64_t Cost);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionInstanceContext *
+WasmEdge_FunctionInstanceCreateBinding(const WasmEdge_FunctionTypeContext *Type,
+                                       WasmEdge_WrapFunc_t WrapFunc,
+                                       void *Binding, void *Data,
+                                       const uint64_t Cost);
 
-/// Deletion of the WasmEdge_HostFunctionContext.
+/// Get the function type context of the function instance.
+///
+/// The function type context links to the function type in the function
+/// instance context and owned by the context. The caller should __NOT__ call
+/// the `WasmEdge_FunctionTypeDelete`.
+///
+/// \param Cxt the WasmEdge_FunctionInstanceContext.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
+WasmEdge_FunctionInstanceGetFunctionType(
+    const WasmEdge_FunctionInstanceContext *Cxt);
+
+/// Deletion of the WasmEdge_FunctionInstanceContext.
 ///
 /// After calling this function, the context will be freed and should __NOT__ be
 /// used.
 ///
-/// \param Cxt the WasmEdge_HostFunctionContext to delete.
+/// \param Cxt the WasmEdge_FunctionInstanceContext to delete.
 WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_HostFunctionDelete(WasmEdge_HostFunctionContext *Cxt);
+WasmEdge_FunctionInstanceDelete(WasmEdge_FunctionInstanceContext *Cxt);
 
-/// <<<<<<<< WasmEdge host function functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+/// <<<<<<<< WasmEdge function instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// >>>>>>>> WasmEdge table instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -1634,21 +2025,24 @@ WasmEdge_HostFunctionDelete(WasmEdge_HostFunctionContext *Cxt);
 /// The caller owns the object and should call `WasmEdge_TableInstanceDelete` to
 /// free it.
 ///
-/// \param RefType the reference type of the table instance context.
-/// \param Limit the limit struct to initialize the table instance context.
+/// \param TabType the table type context to initialize the table instance
+/// context.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_TableInstanceContext *
-WasmEdge_TableInstanceCreate(const enum WasmEdge_RefType RefType,
-                             const WasmEdge_Limit Limit);
+WasmEdge_TableInstanceCreate(const WasmEdge_TableTypeContext *TabType);
 
-/// Get the reference type from a table instance.
+/// Get the table type context from a table instance.
+///
+/// The table type context links to the table type in the table instance context
+/// and owned by the context. The caller should __NOT__ call the
+/// `WasmEdge_TableTypeDelete`.
 ///
 /// \param Cxt the WasmEdge_TableInstanceContext.
 ///
-/// \returns the reference type of the table instance.
-WASMEDGE_CAPI_EXPORT extern enum WasmEdge_RefType
-WasmEdge_TableInstanceGetRefType(const WasmEdge_TableInstanceContext *Cxt);
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_TableTypeContext *
+WasmEdge_TableInstanceGetTableType(const WasmEdge_TableInstanceContext *Cxt);
 
 /// Get the reference value in a table instance.
 ///
@@ -1711,11 +2105,24 @@ WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt);
 /// The caller owns the object and should call `WasmEdge_MemoryInstanceDelete`
 /// to free it.
 ///
-/// \param Limit the limit struct to initialize the memory instance context.
+/// \param MemType the memory type context to initialize the memory instance
+/// context.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryInstanceContext *
-WasmEdge_MemoryInstanceCreate(const WasmEdge_Limit Limit);
+WasmEdge_MemoryInstanceCreate(const WasmEdge_MemoryTypeContext *MemType);
+
+/// Get the memory type context from a memory instance.
+///
+/// The memory type context links to the memory type in the memory instance
+/// context and owned by the context. The caller should __NOT__ call the
+/// `WasmEdge_MemoryTypeDelete`.
+///
+/// \param Cxt the WasmEdge_MemoryInstanceContext.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_MemoryTypeContext *
+WasmEdge_MemoryInstanceGetMemoryType(const WasmEdge_MemoryInstanceContext *Cxt);
 
 /// Copy the data to the output buffer from a memory instance.
 ///
@@ -1809,29 +2216,28 @@ WasmEdge_MemoryInstanceDelete(WasmEdge_MemoryInstanceContext *Cxt);
 /// The caller owns the object and should call `WasmEdge_GlobalInstanceDelete`
 /// to free it.
 ///
+/// \param GlobType the global type context to initialize the global instance
+/// context.
 /// \param Value the initial value with its value type of the global instance.
-/// \param Mut the mutation of the global instance.
+/// This function will fail if the value type of `GlobType` and `Value` are not
+/// the same.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_GlobalInstanceContext *
-WasmEdge_GlobalInstanceCreate(const WasmEdge_Value Value,
-                              const enum WasmEdge_Mutability Mut);
+WasmEdge_GlobalInstanceCreate(const WasmEdge_GlobalTypeContext *GlobType,
+                              const WasmEdge_Value Value);
 
-/// Get the value type from a global instance.
+/// Get the global type context from a global instance.
+///
+/// The global type context links to the global type in the global instance
+/// context and owned by the context. The caller should __NOT__ call the
+/// `WasmEdge_GlobalTypeDelete`.
 ///
 /// \param Cxt the WasmEdge_GlobalInstanceContext.
 ///
-/// \returns the value type of the global instance.
-WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ValType
-WasmEdge_GlobalInstanceGetValType(const WasmEdge_GlobalInstanceContext *Cxt);
-
-/// Get the mutability from a global instance.
-///
-/// \param Cxt the WasmEdge_GlobalInstanceContext.
-///
-/// \returns the mutability of the global instance.
-WASMEDGE_CAPI_EXPORT extern enum WasmEdge_Mutability
-WasmEdge_GlobalInstanceGetMutability(const WasmEdge_GlobalInstanceContext *Cxt);
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_GlobalTypeContext *
+WasmEdge_GlobalInstanceGetGlobalType(const WasmEdge_GlobalInstanceContext *Cxt);
 
 /// Get the value from a global instance.
 ///
@@ -1962,19 +2368,19 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ImportObjectInitWasmEdgeProcess(
     WasmEdge_ImportObjectContext *Cxt, const char *const *AllowedCmds,
     const uint32_t CmdsLen, const bool AllowAll);
 
-/// Add a host function context into a WasmEdge_ImportObjectContext.
+/// Add a function instance context into a WasmEdge_ImportObjectContext.
 ///
-/// Move the host function context into the import object. The caller should
-/// __NOT__ access or delete the host function context after calling this
+/// Move the function instance context into the import object. The caller should
+/// __NOT__ access or delete the function instance context after calling this
 /// function.
 ///
 /// \param Cxt the WasmEdge_ImportObjectContext to add the host function.
 /// \param Name the host function name WasmEdge_String.
-/// \param HostFuncCxt the WasmEdge_HostFunctionContext to add.
+/// \param FuncCxt the WasmEdge_FunctionInstanceContext to add.
 WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ImportObjectAddHostFunction(WasmEdge_ImportObjectContext *Cxt,
-                                     const WasmEdge_String Name,
-                                     WasmEdge_HostFunctionContext *HostFuncCxt);
+WasmEdge_ImportObjectAddFunction(WasmEdge_ImportObjectContext *Cxt,
+                                 const WasmEdge_String Name,
+                                 WasmEdge_FunctionInstanceContext *FuncCxt);
 
 /// Add a table instance context into a WasmEdge_ImportObjectContext.
 ///
@@ -2323,14 +2729,15 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMExecuteRegistered(
 /// loaded. For getting the function type of functions in registered WASM
 /// modules with module names, please use `WasmEdge_VMGetFunctionTypeRegistered`
 /// instead.
-/// The caller owns the returned function type context, and should call the
+/// The returned function type context are linked to the context owned by the VM
+/// context, and the caller should __NOT__ call the
 /// `WasmEdge_FunctionTypeDelete` to delete it.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param FuncName the function name WasmEdge_String.
 ///
 /// \returns the function type. NULL if the function not found.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionTypeContext *
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
 WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
                            const WasmEdge_String FuncName);
 
@@ -2339,7 +2746,8 @@ WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
 /// After registering a WASM module in the VM context, you can call this
 /// function to get the function type by the functions' exported module names
 /// and function names until the VM context is reset.
-/// The caller owns the returned function type context, and should call the
+/// The returned function type context are linked to the context owned by the VM
+/// context, and the caller should __NOT__ call the
 /// `WasmEdge_FunctionTypeDelete` to delete it.
 ///
 /// \param Cxt the WasmEdge_VMContext.
@@ -2347,7 +2755,7 @@ WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
 /// \param FuncName the function name WasmEdge_String.
 ///
 /// \returns the function type. NULL if the function not found.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionTypeContext *
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
 WasmEdge_VMGetFunctionTypeRegistered(WasmEdge_VMContext *Cxt,
                                      const WasmEdge_String ModuleName,
                                      const WasmEdge_String FuncName);
@@ -2370,13 +2778,16 @@ WasmEdge_VMGetFunctionListLength(WasmEdge_VMContext *Cxt);
 
 /// Get the exported function list.
 ///
-/// The returned function names are created and stored in `Names` array, and
-/// the caller should call `WasmEdge_StringDelete` to delete them. The function
-/// type contexts of the corresponding function names are allocated and stored
-/// in `FuncTypes` array, and the caller should call
-/// `WasmEdge_FunctionTypeDelete` to delete them. If the `Names` and `FuncTypes`
-/// buffer lengths are smaller than the result of the exported function list
-/// size, the overflowed return values will be discarded.
+/// The returned function names filled into the `Names` array link to the
+/// exported names of functions owned by the vm context, and the caller should
+/// __NOT__ call the `WasmEdge_StringDelete` to delete them.
+/// The function type contexts filled into the `FuncTypes` array of the
+/// corresponding function names link to the context owned by the VM context.
+/// The caller should __NOT__ call the `WasmEdge_FunctionTypeDelete` to delete
+/// them.
+/// If the `Names` and `FuncTypes` buffer lengths are smaller than the result of
+/// the exported function list size, the overflowed return values will be
+/// discarded.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param [out] Names the output names WasmEdge_String buffer of exported
@@ -2388,7 +2799,7 @@ WasmEdge_VMGetFunctionListLength(WasmEdge_VMContext *Cxt);
 /// \returns actual exported function list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_VMGetFunctionList(WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
-                           WasmEdge_FunctionTypeContext **FuncTypes,
+                           const WasmEdge_FunctionTypeContext **FuncTypes,
                            const uint32_t Len);
 
 /// Get the import object corresponding to the WasmEdge_HostRegistration

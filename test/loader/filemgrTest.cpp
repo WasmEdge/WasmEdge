@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "loader/filemgr.h"
-#include "common/errcode.h"
+
 #include "gtest/gtest.h"
 
 #include <cmath>

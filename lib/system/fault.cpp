@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
+
 #include "system/fault.h"
+
 #include "common/config.h"
 #include "common/defines.h"
 #include "common/log.h"
+
 #include <atomic>
 #include <cassert>
 #include <csetjmp>

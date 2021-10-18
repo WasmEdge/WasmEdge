@@ -29,16 +29,22 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Install Rust
+    - name: Install Stable Rust
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
         components: rustfmt, clippy
 
+    - name: Install Nightly Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        components: rustfmt, clippy
+
     - name: Rustfmt
       run: |
         cd bindings/rust/
-        cargo fmt --all -- --check
+        cargo +nightly fmt --all -- --check
 
     - name: Build WasmEdge using clang with Debug mode
       run: |

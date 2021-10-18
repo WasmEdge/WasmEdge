@@ -11,10 +11,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/type.h"
 #include "common/errcode.h"
-#include "common/span.h"
-#include "common/types.h"
-#include "type.h"
 
 #include <map>
 #include <optional>
@@ -33,9 +31,8 @@ public:
   std::string_view getModuleName() const { return ModName; }
 
   /// Copy the function types in type section to module instance.
-  void addFuncType(Span<const ValType> Params, Span<const ValType> Returns,
-                   Loader::Symbol<FType::Wrapper> Symbol) {
-    FuncTypes.emplace_back(Params, Returns, Symbol);
+  void addFuncType(const AST::FunctionType &FuncType) {
+    FuncTypes.emplace_back(FuncType);
   }
 
   /// Register module owns instances with address in Store.
@@ -101,7 +98,7 @@ public:
   }
 
   /// Get function type by index.
-  Expect<const FType *> getFuncType(const uint32_t Idx) const {
+  Expect<const AST::FunctionType *> getFuncType(const uint32_t Idx) const {
     if (Idx >= FuncTypes.size()) {
       /// Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
@@ -198,7 +195,7 @@ private:
   const std::string ModName;
 
   /// Function types.
-  std::vector<FType> FuncTypes;
+  std::vector<AST::FunctionType> FuncTypes;
 
   /// Elements address index in this module in Store.
   std::vector<uint32_t> FuncAddrs;

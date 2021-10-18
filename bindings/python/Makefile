@@ -89,6 +89,7 @@ docs:             ## Build the documentation.
 	@$(ENV_PREFIX)gitchangelog HEAD...origin/master > docs/HISTORY.md
 	@echo '```' > docs/commands/auto_generated.md
 	@/usr/bin/pydoc3 WasmEdge >> docs/commands/auto_generated.md
+	@git add docs/commands/auto_generated.md
 	@echo '```' >> docs/commands/auto_generated.md
 	@$(ENV_PREFIX)mkdocs build
 	@$(ENV_PREFIX)mkdocs serve

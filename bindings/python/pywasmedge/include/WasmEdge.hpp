@@ -14,10 +14,20 @@
 namespace pysdk {
 
 struct logging {
-  const char *str() { return pysdk::logging_str; };
-  static void error() { WasmEdge_LogSetErrorLevel(); };
-  static void debug() { WasmEdge_LogSetDebugLevel(); };
+  const char *str() { return _str.c_str(); };
+  static void error() {
+    _str = "logging: Level=error";
+    WasmEdge_LogSetErrorLevel();
+  };
+  static void debug() {
+    _str = "logging: Level=debug";
+    WasmEdge_LogSetDebugLevel();
+  };
+  static std::string _str;
+  const char *doc() { return pysdk::logging_doc; }
 };
+
+std::string logging::_str = "logging: Level not set";
 
 enum WasmEdge_Proposal {
   WasmEdge_Proposal_BulkMemoryOperations = 0,
@@ -45,7 +55,7 @@ private:
 public:
   Configure();
   ~Configure();
-  const char *str() { return pysdk::Configure_str; }
+  const char *doc() { return pysdk::Configure_doc; }
   WasmEdge_ConfigureContext *get();
   void add(pysdk::WasmEdge_Proposal);
   void add(pysdk::WasmEdge_HostRegistration);
@@ -60,7 +70,7 @@ private:
 public:
   Store();
   ~Store();
-  const char *str() { return pysdk::Store_str; }
+  const char *doc() { return pysdk::Store_doc; }
   WasmEdge_StoreContext *get();
   boost::python::list listFunctions(int);
   boost::python::list listModules(int);
@@ -73,7 +83,7 @@ private:
 public:
   result();
   result(WasmEdge_Result);
-  const char *str() { return pysdk::result_str; }
+  const char *doc() { return pysdk::result_doc; }
   explicit operator bool();
   const char *message();
 
@@ -87,10 +97,10 @@ private:
 public:
   VM();
   VM(Store &);
-  VM(Configure &);
+  VM(Configure &); 
   VM(Configure &, Store &);
   ~VM();
-  const char *str() { return pysdk::vm_str; };
+  const char *doc() { return pysdk::vm_doc; };
 
   boost::python::tuple run(boost::python::object, boost::python::object,
                            boost::python::object, boost::python::object);

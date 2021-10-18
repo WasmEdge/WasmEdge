@@ -139,6 +139,7 @@ BOOST_PYTHON_MODULE(WasmEdge) {
   def("version", WasmEdge_VersionGet);
 
   class_<pysdk::logging>("Logging")
+      .def("__doc__", &pysdk::logging::doc)
       .def("__str__", &pysdk::logging::str)
       .def("error", &pysdk::logging::error)
       .staticmethod("error")
@@ -157,14 +158,15 @@ BOOST_PYTHON_MODULE(WasmEdge) {
       &pysdk::Configure::remove;
 
   class_<pysdk::Configure>("Configure", init<>())
-      .def("__str__", &pysdk::Configure::str)
+      .def("__doc__", &pysdk::Configure::doc)
       .def("add", add_prop)
       .def("remove", remove_prop)
       .def("add", add_host)
       .def("remove", remove_host);
 
   class_<pysdk::result>("Result", init<>())
-      .def("__str__", &pysdk::result::str)
+      .def("__doc__", &pysdk::result::doc)
+      .def("__str__", &pysdk::result::message)
       .def("__bool__", &pysdk::result::operator bool)
       .def("message", &pysdk::result::message)
       .def("code", &pysdk::result::get_code);
@@ -188,7 +190,7 @@ BOOST_PYTHON_MODULE(WasmEdge) {
       .export_values();
 
   class_<pysdk::Store>("Store", init<>())
-      .def("__str__", &pysdk::Store::str)
+      .def("__doc__", &pysdk::Store::doc)
       .def("listFunctions", &pysdk::Store::listFunctions)
       .def("listModules", &pysdk::Store::listModules);
 
@@ -196,6 +198,6 @@ BOOST_PYTHON_MODULE(WasmEdge) {
       .def(init<pysdk::Configure &>())
       .def(init<pysdk::Store &>())
       .def(init<pysdk::Configure &, pysdk::Store &>())
-      .def("__str__", &pysdk::VM::str)
+      .def("__doc__", &pysdk::VM::doc)
       .def("run", &pysdk::VM::run);
 };

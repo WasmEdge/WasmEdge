@@ -3,7 +3,7 @@
 
 namespace pysdk {
 
-const char *vm_str =
+const char *vm_doc =
     "                       |========================|\n"
     "              |------->|      VM: Initiated     |\n"
     "              |        |========================|\n"
@@ -46,24 +46,24 @@ const char *vm_str =
     "NULL to the creation API. The details of the Store context will be "
     "introduced in Store.";
 
-const char *logging_str =
+const char *logging_doc =
     "The WasmEdge_LogSetErrorLevel() and "
     "WasmEdge_LogSetDebugLevel() APIs can set the logging "
     "system to debug level or error level. By default, the "
     "error level is set, and the debug info is hidden.";
 
-const char *Configure_str =
+const char *Configure_doc =
     "The objects, such as VM, Store, and HostFunction, are composed of "
     "Contexts. All of the contexts can be created by calling the corresponding "
     "creation APIs and should be destroyed by calling the corresponding "
     "deletion APIs. Developers have responsibilities to manage the contexts "
     "for memory management.";
 
-const char *result_str =
+const char *result_doc =
     "The WasmEdge_Result object specifies the execution status. APIs about "
     "WASM execution will return the WasmEdge_Result to denote the status.";
 
-const char *Store_str =
+const char *Store_doc =
     "Store is the runtime structure for the representation of all instances of "
     "Functions, Tables, Memorys, and Globals that have been allocated during "
     "the lifetime of the abstract machine. The Store context in WasmEdge "

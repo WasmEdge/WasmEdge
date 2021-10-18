@@ -133,7 +133,7 @@ detect_os_arch() {
             ;;
         esac
         _LD_LIBRARY_PATH_="DYLD_LIBRARY_PATH"
-        IPKG="WasmEdge-$VERSION-darwin_$ARCH"
+        IPKG="WasmEdge-$VERSION-Darwin"
         RELEASE_PKG="darwin_$ARCH.tar.gz"
         IM_EXT_COMPAT=0
         TF_EXT_COMPAT=0

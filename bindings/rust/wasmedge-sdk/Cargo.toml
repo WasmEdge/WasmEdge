@@ -1,5 +1,5 @@
 [package]
-name = "wedge"
+name = "wasmedge-sdk"
 version = "0.2.0"
 edition = "2018"
 description = "WasmEdge Runtime is a high-performance, extensible, and hardware optimized WebAssembly Virtual Machine for automotive, cloud, AI, and blockchain applications."

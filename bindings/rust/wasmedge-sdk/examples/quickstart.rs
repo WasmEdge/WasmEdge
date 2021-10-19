@@ -5,10 +5,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("tools/wasmedge/examples/fibonacci.wasm");
 
-    let config = wedge::Config::default();
-    let module = wedge::Module::new(&config, &module_path)?;
+    let config = wasmedge_sdk::Config::default();
+    let module = wasmedge_sdk::Module::new(&config, &module_path)?;
 
-    let vm = wedge::Vm::load(&module)?.with_config(&config)?.create()?;
+    let vm = wasmedge_sdk::Vm::load(&module)?
+        .with_config(&config)?
+        .create()?;
 
     let results = vm.run("fib", &[5.into()])?;
 

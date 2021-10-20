@@ -90,8 +90,8 @@ get_latest_release() {
     local res
     res=$(git ls-remote --refs --tags "https://github.com/$1.git" |
         cut -d '/' -f 3 |
-        tr '-' '~' |
         sort --version-sort |
+        grep -e '^[0-9].[0-9].[0-9]$' |
         tail -1)
     echo "$res"
 }
@@ -103,58 +103,60 @@ VERSION_TF=$(get_latest_release second-state/WasmEdge-tensorflow)
 VERSION_TF_DEPS=$(get_latest_release second-state/WasmEdge-tensorflow-deps)
 VERSION_TF_TOOLS=$(get_latest_release second-state/WasmEdge-tensorflow-tools)
 
-RELEASE_PKG="manylinux2014_x86_64.tar.gz"
-IM_DEPS_RELEASE_PKG="manylinux1_x86_64.tar.gz"
-ARCH=$(uname -m)
-OS=$(uname)
-IM_EXT_COMPAT=1
-TF_EXT_COMPAT=1
-IPKG="WasmEdge-$VERSION-Linux"
+detect_os_arch() {
+    RELEASE_PKG="manylinux2014_x86_64.tar.gz"
+    IM_DEPS_RELEASE_PKG="manylinux1_x86_64.tar.gz"
+    ARCH=$(uname -m)
+    OS=$(uname)
+    IM_EXT_COMPAT=1
+    TF_EXT_COMPAT=1
+    IPKG="WasmEdge-$VERSION-Linux"
 
-case $OS in
-'Linux')
-    if [ "$ARCH" = "aarch64" ]; then
-        RELEASE_PKG="manylinux2014_$ARCH.tar.gz"
+    case $OS in
+    'Linux')
+        if [ "$ARCH" = "aarch64" ]; then
+            RELEASE_PKG="manylinux2014_$ARCH.tar.gz"
+            IM_EXT_COMPAT=0
+            TF_EXT_COMPAT=0
+        fi
+        ;;
+    'Darwin')
+        case $ARCH in
+        'x86_64') ;;
+        'arm64') ;;
+        'arm')
+            ARCH="arm64"
+            ;;
+        *)
+            echo "${RED}Detected $OS-$ARCH${NC} - currently unsupported${NC}"
+            exit 1
+            ;;
+        esac
+        _LD_LIBRARY_PATH_="DYLD_LIBRARY_PATH"
+        IPKG="WasmEdge-$VERSION-Darwin"
+        RELEASE_PKG="darwin_$ARCH.tar.gz"
         IM_EXT_COMPAT=0
         TF_EXT_COMPAT=0
-    fi
-    ;;
-'Darwin')
-    case $ARCH in
-    'x86_64') ;;
-    'arm64') ;;
-    'arm')
-        ARCH="arm64"
+
+        if ! command -v brew &>/dev/null; then
+            echo "${RED}Brew is required${NC}"
+            exit 1
+        else
+            if [ "$(brew list | grep llvm)" = "" ]; then
+                echo "${YELLOW}Please run: brew install llvm${NC}"
+                exit 1
+            fi
+        fi
+
         ;;
     *)
         echo "${RED}Detected $OS-$ARCH${NC} - currently unsupported${NC}"
         exit 1
         ;;
     esac
-    _LD_LIBRARY_PATH_="DYLD_LIBRARY_PATH"
-    IPKG="WasmEdge-$VERSION-darwin_$ARCH"
-    RELEASE_PKG="darwin_$ARCH.tar.gz"
-    IM_EXT_COMPAT=0
-    TF_EXT_COMPAT=0
 
-    if ! command -v brew &>/dev/null; then
-        echo "${RED}Brew is required${NC}"
-        exit 1
-    else
-        if [ "$(brew list | grep llvm)" = "" ]; then
-            echo "${YELLOW}Please run: brew install llvm${NC}"
-            exit 1
-        fi
-    fi
-
-    ;;
-*)
-    echo "${RED}Detected $OS-$ARCH${NC} - currently unsupported${NC}"
-    exit 1
-    ;;
-esac
-
-echo "Detected $OS-$ARCH"
+    echo "Detected $OS-$ARCH"
+}
 
 IPATH="$__HOME__/.wasmedge"
 EXT="none"
@@ -479,6 +481,8 @@ main() {
     done
 
     shift $((OPTIND - 1)) # remove parsed options and args from $@ list
+
+    detect_os_arch
 
     set_ENV "$IPATH"
     mkdir -p "$IPATH"

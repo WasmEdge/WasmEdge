@@ -40,12 +40,12 @@ int main(int Argc, const char* Argv[]) {
 }
 ```
 
-接下来你可以編譯並執行：（索引從 0 開始的情况下， Fibonacci 數列的第 32 個數值是 5702887 ）
+接下来你可以編譯並執行：（索引從 0 開始的情况下， Fibonacci 數列的第 32 個數值是 3524578 ）
 
 ```bash
 $ gcc test_wasmedge.c -lwasmedge_c -o test_wasmedge
 $ ./test_wasmedge fibonacci.wasm
-Get result: 5702887
+Get result: 3524578
 ```
 
 如果要了解 API 的細節，請參考 [API 標頭檔](../include/api/wasmedge/wasmedge.h).

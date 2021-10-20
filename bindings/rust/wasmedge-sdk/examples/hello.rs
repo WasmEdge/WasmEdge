@@ -10,10 +10,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module_path =
         std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("tools/wasmedge/examples/hello.wasm");
 
-    let config = wedge::Config::with_wasi();
-    let module = wedge::Module::new(&config, &module_path)?;
+    let config = wasmedge_sdk::Config::with_wasi();
+    let module = wasmedge_sdk::Module::new(&config, &module_path)?;
 
-    let vm = wedge::Vm::load(&module)?.with_config(&config)?.create()?;
+    let vm = wasmedge_sdk::Vm::load(&module)?
+        .with_config(&config)?
+        .create()?;
 
     vm.init_wasi_obj().with_args(args).build();
     // or

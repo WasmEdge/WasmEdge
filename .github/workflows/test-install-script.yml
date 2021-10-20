@@ -1,0 +1,133 @@
+name: test-install-script
+
+concurrency:
+  group: test-install-script-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/test-install-script.yml'
+      - 'utils/install.sh'
+      - 'utils/uninstall.sh'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/test-install-script.yml'
+      - 'utils/install.sh'
+      - 'utils/uninstall.sh'
+
+jobs:
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: CentOS 8
+            host_runner: ubuntu-latest
+            package_manager: yum
+            docker_image: centos:8.4.2105
+          - name: CentOS 7
+            host_runner: ubuntu-latest
+            package_manager: yum
+            docker_image: centos:7.9.2009
+          - name: Ubuntu 20.04
+            host_runner: ubuntu-latest
+            package_manager: apt
+            docker_image: ubuntu:20.04
+          - name: Ubuntu 18.04
+            host_runner: ubuntu-latest
+            package_manager: apt
+            docker_image: ubuntu:18.04
+          - name: Ubuntu 16.04
+            host_runner: ubuntu-latest
+            package_manager: apt
+            docker_image: ubuntu:16.04
+          - name: manylinux2014 aarch64
+            host_runner: ARM64
+            package_manager: yum
+            docker_image: wasmedge/wasmedge:manylinux2014_aarch64
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.host_runner }}
+    container:
+      image: ${{ matrix.docker_image }}
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Install git and wget
+      run: |
+        ${{ matrix.package_manager }} update -y
+        ${{ matrix.package_manager }} install -y git curl
+    - name: Install WasmEdge latest release
+      run: |
+        bash utils/install.sh -V
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge latest release with all extensions
+      run: |
+        bash utils/install.sh -e all -V
+    - name: Uninstall WasmEdge with all extensions
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge specific release (0.8.2)
+      run: |
+        bash utils/install.sh -v 0.8.2 -V
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge specific release (0.8.2) with all extensions
+      run: |
+        bash utils/install.sh -e all -v 0.8.2 -V
+    - name: Uninstall WasmEdge with all extensions
+      run: |
+        bash utils/uninstall.sh -q -V
+
+  macos:
+    strategy:
+      matrix:
+        include:
+          - name: MacOS-latest
+            host_runner: macos-latest
+            package_manager: brew
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.host_runner }}
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Install git
+      run: |
+        brew install git
+    - name: Install WasmEdge latest release
+      run: |
+        bash utils/install.sh -V
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge latest release with all extensions
+      run: |
+        bash utils/install.sh -e all -V
+    - name: Uninstall WasmEdge with all extensions
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge specific release (0.8.2)
+      run: |
+        bash utils/install.sh -v 0.8.2 -V
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install WasmEdge specific release (0.8.2) with all extensions
+      run: |
+        bash utils/install.sh -e all -v 0.8.2 -V
+    - name: Uninstall WasmEdge with all extensions
+      run: |
+        bash utils/uninstall.sh -q -V

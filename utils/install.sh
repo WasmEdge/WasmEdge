@@ -104,6 +104,7 @@ VERSION_TF_DEPS=$(get_latest_release second-state/WasmEdge-tensorflow-deps)
 VERSION_TF_TOOLS=$(get_latest_release second-state/WasmEdge-tensorflow-tools)
 
 detect_os_arch() {
+    VERSION=$(get_latest_release WasmEdge/WasmEdge)
     RELEASE_PKG="manylinux2014_x86_64.tar.gz"
     IM_DEPS_RELEASE_PKG="manylinux1_x86_64.tar.gz"
     ARCH=$(uname -m)
@@ -291,9 +292,8 @@ install() {
 }
 
 get_wasmedge_release() {
-    echo "Fetching WasmEdge-$VERSION"
-    _downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-$VERSION-$RELEASE_PKG"
-    _extracter -C "$TMP_DIR" -vxzf "$TMP_DIR/WasmEdge-$VERSION-$RELEASE_PKG"
+    _downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$1/WasmEdge-$1-$2"
+    _extracter -C "$3" -vxzf "$3/WasmEdge-$1-$2"
 }
 
 wasmedge_post_install() {
@@ -541,7 +541,7 @@ main() {
         echo "WasmEdge Installation at $IPATH"
         make_dirs "include" "lib" "bin"
 
-        get_wasmedge_release
+        get_wasmedge_release "$VERSION" "$RELEASE_PKG" "$TMP_DIR"
         install "$IPKG" "include" "lib" "bin"
         wasmedge_post_install "$VERSION"
         wasmedge_checks "$VERSION" "wasmedge" "wasmedgec"

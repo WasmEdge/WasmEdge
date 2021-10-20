@@ -28,8 +28,8 @@ jobs:
 
     - name: Build WasmEdge using clang
       run: |
-        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_SHARED_LIB=ON .
-        cmake --build build
+        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_SHARED_LIB=ON  -DCMAKE_INSTALL_PREFIX:PATH=/usr .
+        cmake --build build --target install
 
     - name: Publish wasmedge-sys crate
       uses: katyo/publish-crates@v1

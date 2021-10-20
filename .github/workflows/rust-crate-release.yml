@@ -34,5 +34,5 @@ jobs:
     - name: Publish wasmedge-sys crate
       uses: katyo/publish-crates@v1
       with:
-          path: './bindings/wasmedge-sys'
+          path: './bindings/rust/wasmedge-sys'
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}

@@ -1,6 +1,6 @@
 # WasmEdge C API Documentation
 
-[WasmEdge C API](../include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge. For the details of the WasmEdge C API, please refer to the [fully documentation](c_api.md).
+The [WasmEdge C API](../include/api/wasmedge/wasmedge.h) denotes an interface to embed the WasmEdge runtime into a C program. The followings are the guides to working with the C APIs of WasmEdge. For the details of the WasmEdge C API, please refer to the [full documentation](c_api.md).
 
 ## Quick Start Guide for the WasmEdge runner
 
@@ -40,12 +40,12 @@ int main(int Argc, const char* Argv[]) {
 }
 ```
 
-Then you can compile and run: (the 32th fibonacci number is 5702887 in 0-based index)
+Then you can compile and run: (the 32th fibonacci number is 3524578 in 0-based index)
 
 ```bash
 $ gcc test_wasmedge.c -lwasmedge_c -o test_wasmedge
 $ ./test_wasmedge fibonacci.wasm
-Get result: 5702887
+Get result: 3524578
 ```
 
 For the details of APIs, please refer to the [API header file](../include/api/wasmedge/wasmedge.h).

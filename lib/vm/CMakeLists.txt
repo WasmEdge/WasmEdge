@@ -8,11 +8,14 @@ target_link_libraries(wasmedgeVM
   PUBLIC
   wasmedgeCommon
   wasmedgeSystem
-  wasmedgeAST
   wasmedgeLoader
   wasmedgeValidator
+<<<<<<< HEAD
   wasmedgeSignature
   wasmedgeInterpreter
+=======
+  wasmedgeExecutor
+>>>>>>> refs/remotes/origin/master
   wasmedgeHostModuleWasi
   wasmedgeHostModuleWasmEdgeProcess
 )

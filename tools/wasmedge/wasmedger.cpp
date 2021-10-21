@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/configure.h"
 #include "common/filesystem.h"
-#include "common/value.h"
+#include "common/types.h"
 #include "common/version.h"
 #include "host/wasi/wasimodule.h"
 #include "host/wasmedge_process/processmodule.h"
@@ -211,7 +211,7 @@ int main(int Argc, const char *Argv[]) {
     const auto InitFunc = "_initialize"s;
 
     bool HasInit = false;
-    WasmEdge::Runtime::Instance::FType FuncType;
+    WasmEdge::AST::FunctionType FuncType;
 
     for (const auto &Func : VM.getFunctionList()) {
       if (Func.first == InitFunc) {
@@ -230,8 +230,9 @@ int main(int Argc, const char *Argv[]) {
     std::vector<WasmEdge::ValVariant> FuncArgs;
     std::vector<WasmEdge::ValType> FuncArgTypes;
     for (size_t I = 0;
-         I < FuncType.Params.size() && I + 1 < Args.value().size(); ++I) {
-      switch (FuncType.Params[I]) {
+         I < FuncType.getParamTypes().size() && I + 1 < Args.value().size();
+         ++I) {
+      switch (FuncType.getParamTypes()[I]) {
       case WasmEdge::ValType::I32: {
         const uint32_t Value =
             static_cast<uint32_t>(std::stol(Args.value()[I + 1]));
@@ -263,9 +264,9 @@ int main(int Argc, const char *Argv[]) {
         break;
       }
     }
-    if (FuncType.Params.size() + 1 < Args.value().size()) {
-      for (size_t I = FuncType.Params.size() + 1; I < Args.value().size();
-           ++I) {
+    if (FuncType.getParamTypes().size() + 1 < Args.value().size()) {
+      for (size_t I = FuncType.getParamTypes().size() + 1;
+           I < Args.value().size(); ++I) {
         const uint64_t Value =
             static_cast<uint64_t>(std::stoll(Args.value()[I]));
         FuncArgs.emplace_back(Value);
@@ -275,8 +276,8 @@ int main(int Argc, const char *Argv[]) {
 
     if (auto Result = VM.execute(FuncName, FuncArgs, FuncArgTypes)) {
       /// Print results.
-      for (size_t I = 0; I < FuncType.Returns.size(); ++I) {
-        switch (FuncType.Returns[I]) {
+      for (size_t I = 0; I < FuncType.getReturnTypes().size(); ++I) {
+        switch (FuncType.getReturnTypes()[I]) {
         case WasmEdge::ValType::I32:
           std::cout << (*Result)[I].get<uint32_t>() << '\n';
           break;

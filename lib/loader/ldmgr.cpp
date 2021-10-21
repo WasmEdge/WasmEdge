@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
+
 #include "loader/ldmgr.h"
+
 #include "common/log.h"
 
 namespace WasmEdge {

@@ -11,9 +11,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "aot/cache.h"
+
 #include "common/config.h"
 #include "common/span.h"
 #include "gtest/gtest.h"
+
 #include <vector>
 
 namespace {

@@ -15,9 +15,8 @@
 #include "common/errcode.h"
 #include "common/filesystem.h"
 #include "common/types.h"
-#include "common/value.h"
 
-#include "interpreter/interpreter.h"
+#include "executor/executor.h"
 #include "loader/loader.h"
 #include "validator/validator.h"
 #include "signature/signature.h"
@@ -101,7 +100,7 @@ public:
   void cleanup();
 
   /// Get list of callable functions and corresponding function types.
-  std::vector<std::pair<std::string, Runtime::Instance::FType>>
+  std::vector<std::pair<std::string, const AST::FunctionType &>>
   getFunctionList() const;
 
   /// Get import objects by configurations.
@@ -118,6 +117,12 @@ private:
 
   void initVM();
 
+  /// Helper function for execution.
+  Expect<std::vector<ValVariant>>
+  execute(Runtime::Instance::ModuleInstance *ModInst, std::string_view Func,
+          Span<const ValVariant> Params = {},
+          Span<const ValType> ParamTypes = {});
+
   /// VM environment.
   const Configure Conf;
   Statistics::Statistics Stat;
@@ -126,7 +131,7 @@ private:
   /// VM runners.
   Loader::Loader LoaderEngine;
   Validator::Validator ValidatorEngine;
-  Interpreter::Interpreter InterpreterEngine;
+  Executor::Executor ExecutorEngine;
   Signature::Signature SignatureEngine;
 
   /// VM Storage.

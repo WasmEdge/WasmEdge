@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
+
 #include "loader/shared_library.h"
-#include "ast/section.h"
-#include "common/defines.h"
+
 #include "common/log.h"
 #include "system/allocator.h"
 
@@ -103,6 +103,7 @@ Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
 
   for (const auto &[Pointer, Size] : ExecutableRanges) {
     if (!Allocator::set_chunk_executable(Pointer, Size)) {
+      spdlog::error(ErrCode::MemoryOutOfBounds);
       spdlog::error("set_chunk_executable failed:{}", std::strerror(errno));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }

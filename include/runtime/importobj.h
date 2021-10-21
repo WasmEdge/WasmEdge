@@ -12,11 +12,10 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "hostfunc.h"
-#include "instance/function.h"
-#include "instance/global.h"
-#include "instance/memory.h"
-#include "instance/table.h"
+#include "runtime/instance/function.h"
+#include "runtime/instance/global.h"
+#include "runtime/instance/memory.h"
+#include "runtime/instance/table.h"
 
 #include <map>
 #include <memory>
@@ -42,6 +41,15 @@ public:
     Funcs.insert_or_assign(
         std::string(Name),
         std::make_unique<Runtime::Instance::FunctionInstance>(std::move(Func)));
+  }
+
+  void addHostFunc(std::string_view Name,
+                   std::unique_ptr<Instance::FunctionInstance> &&Func) {
+    addHostFunc(Name, Func);
+  }
+  void addHostFunc(std::string_view Name,
+                   std::unique_ptr<Instance::FunctionInstance> &Func) {
+    Funcs.insert_or_assign(std::string(Name), std::move(Func));
   }
 
   void addHostTable(std::string_view Name,

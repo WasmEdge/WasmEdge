@@ -3,6 +3,7 @@
 
 #include "common/defines.h"
 #include "host/wasi/error.h"
+
 namespace WasmEdge {
 namespace Host {
 namespace WASI {

@@ -26,5 +26,7 @@ A key feature of WasmEdge is its extensibility. WasmEdge APIs allow developers t
 * The WasmEdge C API supports a [host function API](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md#Host-Functions).
 * The WasmEdge Go API supports [external functions](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ExternRef).
 
+[Here is an example](https://www.secondstate.io/articles/call-native-functions-from-javascript/) of a JavaScript program in WasmEdge calling a C-based host function in the underlying OS.
+
 The host functions break the Wasm sandbox to access the underly OS or hardware. But the sandbox breaking is done with explicit permission from the system’s operator.
 

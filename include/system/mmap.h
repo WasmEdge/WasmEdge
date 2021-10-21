@@ -11,6 +11,7 @@
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
+
 #include "common/filesystem.h"
 
 namespace WasmEdge {

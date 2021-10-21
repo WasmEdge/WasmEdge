@@ -11,8 +11,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "aot/blake3.h"
+
 #include "common/span.h"
 #include "gtest/gtest.h"
+
 #include <vector>
 
 namespace {

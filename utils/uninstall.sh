@@ -15,7 +15,11 @@ fi
 
 _ldconfig() {
     if [ $PERM_ROOT == 1 ]; then
-        ldconfig "$IPATH"/lib
+        if command -v ldconfig &>/dev/null; then
+            ldconfig "$IPATH/lib"
+        elif command -v update_dyld_shared_cache &>/dev/null; then
+            update_dyld_shared_cache
+        fi
     fi
 }
 
@@ -167,7 +171,7 @@ ask_remove() {
                     echo "Removing $var"
                     _rm "$var"
                 done
-                ldconfig
+                _ldconfig
                 break
                 ;;
             [Nn]*)

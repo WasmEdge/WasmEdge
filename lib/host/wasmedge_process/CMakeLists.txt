@@ -7,5 +7,6 @@ wasmedge_add_library(wasmedgeHostModuleWasmEdgeProcess
 
 target_link_libraries(wasmedgeHostModuleWasmEdgeProcess
   PUBLIC
-  wasmedgeAST
+  wasmedgeCommon
+  wasmedgeSystem
 )

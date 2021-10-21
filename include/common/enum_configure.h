@@ -41,15 +41,21 @@ enum class Proposal : uint8_t {
 };
 
 static inline std::unordered_map<Proposal, std::string_view> ProposalStr = {
-    {Proposal::Annotations, "annotations"sv},
-    {Proposal::BulkMemoryOperations, "bulk-memory-operations"sv},
-    {Proposal::ExceptionHandling, "exception-handling"sv},
-    {Proposal::FunctionReferences, "function-references"sv},
-    {Proposal::Memory64, "memory64"sv},
-    {Proposal::ReferenceTypes, "reference-types"sv},
-    {Proposal::SIMD, "simd"sv},
-    {Proposal::TailCall, "tail-call"sv},
-    {Proposal::Threads, "threads"sv}};
+    {Proposal::ImportExportMutGlobals, "Import/Export of mutable globals"sv},
+    {Proposal::NonTrapFloatToIntConversions,
+     "Non-trapping float-to-int conversions"sv},
+    {Proposal::SignExtensionOperators, "Sign-extension operators"sv},
+    {Proposal::MultiValue, "Multi-value returns"sv},
+    {Proposal::BulkMemoryOperations, "Bulk memory operations"sv},
+    {Proposal::ReferenceTypes, "Reference types"sv},
+    {Proposal::SIMD, "Fixed-width SIMD"sv},
+    {Proposal::TailCall, "Tail call"sv},
+    {Proposal::Annotations, "Custom Annotation Syntax in the Text Format"sv},
+    {Proposal::Memory64, "Memory64"sv},
+    {Proposal::Threads, "Threads"sv},
+    {Proposal::ExceptionHandling, "Exception handling"sv},
+    {Proposal::FunctionReferences, "Typed Function References"sv},
+};
 } // namespace WasmEdge
 #endif
 

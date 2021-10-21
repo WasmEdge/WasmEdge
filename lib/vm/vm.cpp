@@ -10,14 +10,15 @@ namespace VM {
 VM::VM(const Configure &Conf)
     : Conf(Conf), Stage(VMStage::Inited),
       LoaderEngine(Conf, &Interpreter::Interpreter::Intrinsics),
-      ValidatorEngine(Conf), InterpreterEngine(Conf, &Stat),
+      ValidatorEngine(Conf), InterpreterEngine(Conf, &Stat), SignatureEngine(Conf),
       Store(std::make_unique<Runtime::StoreManager>()), StoreRef(*Store.get()) {
   initVM();
 }
 
 VM::VM(const Configure &Conf, Runtime::StoreManager &S)
     : Conf(Conf), Stage(VMStage::Inited), LoaderEngine(Conf),
-      ValidatorEngine(Conf), InterpreterEngine(Conf, &Stat), StoreRef(S) {
+      ValidatorEngine(Conf), InterpreterEngine(Conf, &Stat), 
+      SignatureEngine(Conf), StoreRef(S) {
   initVM();
 }
 
@@ -147,6 +148,84 @@ VM::runWasmFile(const AST::Module &Module, std::string_view Func,
   } else {
     return Unexpect(Res);
   }
+}
+
+Expect<std::vector<ValVariant>>
+VM::signWasmFile(const std::filesystem::path &Path) {
+  if (Stage == VMStage::Instantiated) {
+    /// When running another module, instantiated module in store will be reset.
+    /// Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
+  /// Load module.
+  LDMgr LMgr;
+  if (auto Res = LMgr.setPath(Path); !Res) {
+      spdlog::error(Res.error());
+      spdlog::error(ErrInfo::InfoFile(Path));
+      return Unexpect(Res);
+  }
+  if (auto Code = LMgr.getWasm()) {
+    // auto sig = SignatureEngine.keygen(*Code);
+    Span<Byte> sig;
+    if (auto Res = LoaderEngine.parseModule(*Code)) {
+      // Consider use another version of parserModule here
+      // Because we need to generate signature for Wasm byte code
+      // Here we use parseModule(Span<byte>)
+      return signWasmFile(*(*Res).get(), sig);
+    } else {
+      return Unexpect(Res);
+    }
+  }
+  else return {};
+}
+
+Expect<std::vector<ValVariant>>
+VM::signWasmFile(const AST::Module &Module, Span<Byte> signature) {
+  if (Stage == VMStage::Instantiated) {
+    /// When running another module, instantiated module in store will be reset.
+    /// Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
+  if (auto Res = ValidatorEngine.validate(Module); !Res) {
+    return Unexpect(Res);
+  }
+  if (auto Res = SignatureEngine.sign(Module, signature); !Res) {
+    return Unexpect(Res);
+  } else {
+    return Unexpect(Res);
+  }
+}
+
+Expect<std::vector<ValVariant>>
+VM::verifyWasmFile(const std::filesystem::path &Path) {
+  if (Stage == VMStage::Instantiated) {
+    /// When running another module, instantiated module in store will be reset.
+    /// Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
+  /// Load module.
+  if (auto Res = LoaderEngine.parseModule(Path)) {
+    return verifyWasmFile(*(*Res).get());
+  } else {
+    return Unexpect(Res);
+  }
+}
+
+Expect<std::vector<ValVariant>>
+VM::verifyWasmFile(const AST::Module &Module) {
+  if (Stage == VMStage::Instantiated) {
+    /// When running another module, instantiated module in store will be reset.
+    /// Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
+  if (auto Res = ValidatorEngine.validate(Module); !Res) {
+    return Unexpect(Res);
+  } 
+  if (auto Res = SignatureEngine.verify(Module); !Res) {
+    return Unexpect(Res);
+  } else {
+    return Unexpect(Res);
+  };
 }
 
 Expect<void> VM::loadWasm(const std::filesystem::path &Path) {

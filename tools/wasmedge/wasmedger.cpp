@@ -102,6 +102,20 @@ int main(int Argc, const char *Argv[]) {
       PO::Description("List of plugins to ignore."sv), PO::MetaVar("NAMES"sv));
 
   auto Parser = PO::ArgumentParser();
+
+  PO::SubCommand Sign(PO::Description("Sign a Wasm Module"sv));
+  PO::Option<std::string> SignTarget(PO::Description("Wasm input file"sv));
+  PO::Option<std::string> PrivateKey(PO::Description("Private Key"sv));
+  PO::Option<std::string> SignOutput(PO::Description("Output Wasm file"sv));
+  Parser.begin_subcommand(Sign, "sign"sv)
+      .add_option(SignTarget)
+      .add_option("key"sv, PrivateKey)
+      .add_option("output"sv, SignOutput)
+      .end_subcommand();
+
+  PO::SubCommand Verify(PO::Description("Verify a Wasm Module"sv));
+  PO::Option<std::string> VerifyTarget(PO::Description("Wasm input file"sv));
+  PO::Option<std::string> PublicKey(PO::Description("Public Key"sv));
   Parser.add_option(SoName)
       .add_option(Args)
       .add_option("reactor"sv, Reactor)
@@ -229,6 +243,21 @@ int main(int Argc, const char *Argv[]) {
           .replace_extension(std::filesystem::u8path("wasm"sv))
           .u8string(),
       Args.value(), Env.value());
+
+  // Exit program when enter signature subcommands
+  // Save for future updates
+  if (Sign.is_selected()) {
+    std::cout << "Sign\n";
+    if (auto Result = VM.signWasmFile(InputPath.u8string());
+        Result || Result.error() == WasmEdge::ErrCode::Terminated) {
+      return EXIT_SUCCESS;
+    } else
+      return EXIT_FAILURE;
+  }
+  if (Verify.is_selected()) {
+    std::cout << "Verify\n";
+    return EXIT_SUCCESS;
+  }
 
   if (!Reactor.value()) {
     // command mode

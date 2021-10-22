@@ -1811,14 +1811,14 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
 
       /* Create the import object. */
       WasmEdge_String ExportName = WasmEdge_StringCreateByCString("extern");
-      WasmEdge_ImportObjectContext *ImpObj = WasmEdge_ImportObjectCreate(ExportName);
+      WasmEdge_ImportObjectContext *ImpObj = WasmEdge_ImportObjectCreate(ExportName, &Data);
       enum WasmEdge_ValType ParamList[2] = { WasmEdge_ValType_I32, WasmEdge_ValType_I32 };
       enum WasmEdge_ValType ReturnList[1] = { WasmEdge_ValType_I32 };
       WasmEdge_FunctionTypeContext *HostFType = WasmEdge_FunctionTypeCreate(ParamList, 2, ReturnList, 1);
-      WasmEdge_FunctionInstanceContext *HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, Add, &Data, 0);
+      WasmEdge_HostFunctionContext *HostFunc = WasmEdge_HostFunctionCreate(HostFType, Add, 0);
       WasmEdge_FunctionTypeDelete(HostFType);
       WasmEdge_String HostFuncName = WasmEdge_StringCreateByCString("func-add");
-      WasmEdge_ImportObjectAddFunction(ImpObj, HostFuncName, HostFunc);
+      WasmEdge_ImportObjectAddHostFunction(ImpObj, HostFuncName, HostFunc);
       WasmEdge_StringDelete(HostFuncName);
 
       WasmEdge_VMRegisterModuleFromImport(VMCxt, ImpObj);

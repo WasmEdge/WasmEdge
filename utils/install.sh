@@ -91,7 +91,7 @@ get_latest_release() {
     res=$(git ls-remote --refs --tags "https://github.com/$1.git" |
         cut -d '/' -f 3 |
         sort --version-sort |
-        grep -vE rc |
+        grep -e '^[0-9].[0-9].[0-9]$' |
         tail -1)
     echo "$res"
 }
@@ -133,7 +133,7 @@ detect_os_arch() {
             ;;
         esac
         _LD_LIBRARY_PATH_="DYLD_LIBRARY_PATH"
-        IPKG="WasmEdge-$VERSION-darwin_$ARCH"
+        IPKG="WasmEdge-$VERSION-Darwin"
         RELEASE_PKG="darwin_$ARCH.tar.gz"
         IM_EXT_COMPAT=0
         TF_EXT_COMPAT=0

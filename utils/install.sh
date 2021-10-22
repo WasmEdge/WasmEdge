@@ -57,6 +57,27 @@ _extracter() {
             if [ ! -d "$IPATH/$filtered" ] && [[ ! "$filtered" =~ "download_dependencies" ]]; then
                 if [[ "$2" =~ "lib" ]] && [[ ! "$IPATH/$filtered" =~ "/lib/" ]]; then
                     echo "#$IPATH/lib/$filtered" >>"$IPATH/env"
+                    local _re_
+                    _re_='.[0-9]{1,2}.[0-9]{1,2}.[0-9]{1,2}'
+                    if [[ "$filtered" =~ $_re_$ ]]; then
+                        local _f_ _f2_ _f3_ _f4_
+                        _f_=${filtered//$_re_/}
+                        _f2_=${filtered#$_f_}
+                        _f2_=${BASH_REMATCH[*]}
+
+                        IFS=. read -r var1 var2 <<<"$(if [[ "$filtered" =~ $_re_$ ]]; then
+                            echo "${BASH_REMATCH[*]#.}"
+                        fi)"
+
+                        _f3_=${filtered//${_f2_}/} # libsome.so.xx.yy.zz --> libsome.so
+                        _f4_="$_f3_.$var1"         # libsome.so.xx.yy.zz --> libsome.so.xx
+
+                        ln -s "$IPATH/lib/$filtered" "$_f3_"
+                        echo "#$IPATH/lib/$_f3_" >>"$IPATH/env"
+
+                        ln -s "$IPATH/lib/$filtered" "$_f4_"
+                        echo "#$IPATH/lib/$_f4_" >>"$IPATH/env"
+                    fi
                 elif [[ "$2" =~ "bin" ]] && [[ ! "$IPATH/$filtered" =~ "/bin/" ]]; then
                     echo "#$IPATH/bin/$filtered" >>"$IPATH/env"
                 else
@@ -324,20 +345,6 @@ get_wasmedge_image_deps() {
 
     _extracter -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-image-deps-$VERSION_IM_DEPS-$IM_DEPS_RELEASE_PKG"
 
-    ln -sf libjpeg.so.8.3.0 "$IPATH/lib/libjpeg.so"
-    ln -sf libjpeg.so.8.3.0 "$IPATH/lib/libjpeg.so.8"
-    ln -sf libpng16.so.16.37.0 "$IPATH/lib/libpng.so"
-    ln -sf libpng16.so.16.37.0 "$IPATH/lib/libpng16.so"
-    ln -sf libpng16.so.16.37.0 "$IPATH/lib/libpng16.so.16"
-
-    {
-        echo "#$IPATH/lib/libjpeg.so"
-        echo "#$IPATH/lib/libjpeg.so.8"
-        echo "#$IPATH/lib/libpng.so"
-        echo "#$IPATH/lib/libpng16.so"
-        echo "#$IPATH/lib/libpng16.so.16"
-    } >>"$IPATH/env"
-
     _ldconfig
 }
 
@@ -357,18 +364,6 @@ get_wasmedge_tensorflow_deps() {
 
     _extracter -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG"
     _extracter -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
-
-    ln -sf libtensorflow.so.2.4.0 "$IPATH/lib/libtensorflow.so.2"
-    ln -sf libtensorflow.so.2 "$IPATH/lib/libtensorflow.so"
-    ln -sf libtensorflow_framework.so.2.4.0 "$IPATH/lib/libtensorflow_framework.so.2"
-    ln -sf libtensorflow_framework.so.2 "$IPATH/lib/libtensorflow_framework.so"
-
-    {
-        echo "#$IPATH/lib/libtensorflow.so.2"
-        echo "#$IPATH/lib/libtensorflow.so"
-        echo "#$IPATH/lib/libtensorflow_framework.so.2"
-        echo "#$IPATH/lib/libtensorflow_framework.so"
-    } >>"$IPATH/env"
 
     _ldconfig
 }
@@ -438,7 +433,7 @@ main() {
             ;;
         h | help)
             usage
-
+            trap - EXIT
             exit 0
             ;;
         v | version)

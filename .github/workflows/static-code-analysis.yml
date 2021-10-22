@@ -1,0 +1,42 @@
+name: Static Code Analysis
+
+concurrency:
+  group: static-code-analysis-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+
+jobs:
+  static_analysis:
+    name: Run Static Code Analysis using Infer
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Install Dependencies
+      run: |
+        sudo apt install -y software-properties-common libboost-all-dev llvm-12-dev liblld-12-dev clang-12 tar
+        curl -sSL "https://github.com/facebook/infer/releases/download/v1.1.0/infer-linux64-v1.1.0.tar.xz" | sudo tar -C /opt -xJ && sudo ln -s "/opt/infer-linux64-v1.1.0/bin/infer" /usr/local/bin/infer
+        
+
+    - name: Generate compilation database
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=1 WASMEDGE_BUILD_TOOLS=ON ..
+
+    - name: Run Infer Static Code Analysis
+      run: infer run --compilation-database build/compile_commands.json

@@ -14,6 +14,7 @@ on:
   push:
     branches:
       - master
+      - avinal/issue519
     paths-ignore:
       - 'docs/**'
       - '*.md'
@@ -42,12 +43,17 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=1 WASMEDGE_BUILD_TOOLS=ON ..
+        infer compile -- cmake -DCMAKE_BUILD_TYPE=Debug ..
 
     - name: Run Infer Static Code Analysis
-      run: infer run --compilation-database build/compile_commands.json
+      run: |
+        cd build
+        infer run -- make -j 4
+
       
     - uses: actions/upload-artifact@v2
       with:
         name: report
-        path: build/infer-out/report.txt
+        path: |
+          build/infer-out/report.txt
+          build/infer-out/report.json

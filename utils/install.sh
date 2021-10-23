@@ -72,10 +72,10 @@ _extracter() {
                         _f3_=${filtered//${_f2_}/} # libsome.so.xx.yy.zz --> libsome.so
                         _f4_="$_f3_.$var1"         # libsome.so.xx.yy.zz --> libsome.so.xx
 
-                        ln -s "$IPATH/lib/$filtered" "$_f3_"
+                        ln -s "$IPATH/lib/$filtered" "$IPATH/lib/$_f3_"
                         echo "#$IPATH/lib/$_f3_" >>"$IPATH/env"
 
-                        ln -s "$IPATH/lib/$filtered" "$_f4_"
+                        ln -s "$IPATH/lib/$filtered" "$IPATH/lib/$_f4_"
                         echo "#$IPATH/lib/$_f4_" >>"$IPATH/env"
                     fi
                 elif [[ "$2" =~ "bin" ]] && [[ ! "$IPATH/$filtered" =~ "/bin/" ]]; then

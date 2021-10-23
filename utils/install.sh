@@ -239,6 +239,8 @@ usage() {
     
     Or
     ./$0 -p $IPATH --extension=all --path=/usr/local --verbose
+    ./$0 -p $IPATH --extension=tf,image --path=/usr/local --verbose
+    ./$0 -p $IPATH -e tensorflow,image --path=/usr/local --verbose
     
     About:
 
@@ -545,20 +547,21 @@ main() {
         exit 1
     fi
 
-    if [ "$EXT" = "image" ]; then
+    if [ "$EXT" = "all" ]; then
+        echo "All extensions"
+        install_image_extensions
+        install_tf_extensions
+        end_message
+        exit_clean 0
+    fi
+
+    if [[ "$EXT" =~ "image" ]]; then
         echo "Image Extensions"
         install_image_extensions
-    elif [ "$EXT" = "tf" ]; then
+    fi
+    if [[ "$EXT" =~ "tf" ]] || [[ "$EXT" =~ "tensorflow" ]]; then
         echo "Tensorflow Extensions"
         install_tf_extensions
-    elif [ "$EXT" = "all" ]; then
-        echo "Image & Tensorflow extensions"
-        install_image_extensions
-        install_tf_extensions
-    elif [ "$EXT" = "none" ]; then
-        echo "No extensions to be installed"
-    else
-        echo "Invalid extension"
     fi
 
     trap - EXIT

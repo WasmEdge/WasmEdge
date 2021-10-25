@@ -4,6 +4,8 @@
 #include "vm/vm.h"
 #include "vm/async.h"
 
+#include "common/log.h"
+#include "host/wasi/nn/wasinnmodule.h"
 #include "host/wasi/wasimodule.h"
 #include "host/wasmedge_process/processmodule.h"
 
@@ -38,6 +40,12 @@ void VM::unsafeInitVM() {
         std::make_unique<Host::WasmEdgeProcessModule>();
     ExecutorEngine.registerModule(StoreRef, *ProcMod.get());
     ImpObjs.insert({HostRegistration::WasmEdge_Process, std::move(ProcMod)});
+  }
+  if (Conf.hasHostRegistration(HostRegistration::WasiNN)) {
+    std::unique_ptr<Runtime::ImportObject> WasiNNMod =
+        std::make_unique<Host::WasiNNModule>();
+    ExecutorEngine.registerModule(StoreRef, *WasiNNMod.get());
+    ImpObjs.insert({HostRegistration::WasiNN, std::move(WasiNNMod)});
   }
 }
 

@@ -92,6 +92,7 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   wasmedge_add_static_lib_component_command(wasmedgeExecutor)
   wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasi)
   wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasmEdgeProcess)
+  wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasiNN)
   wasmedge_add_static_lib_component_command(wasmedgeVM)
 
   if (WASMEDGE_BUILD_AOT_RUNTIME)
@@ -122,7 +123,7 @@ if(WASMEDGE_BUILD_STATIC_LIB)
 
     # Pack the tinfo.
     wasmedge_add_libs_component_command("tinfo" ${ZLIB_PATH})
-  
+
     wasmedge_add_static_lib_component_command(utilBlake3)
     wasmedge_add_static_lib_component_command(wasmedgeAOT)
   endif()

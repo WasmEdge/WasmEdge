@@ -2,3 +2,4 @@
 
 add_subdirectory(wasi)
 add_subdirectory(wasmedge_process)
+add_subdirectory(wasi/nn)

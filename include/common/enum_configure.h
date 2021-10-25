@@ -84,7 +84,12 @@ enum WasmEdge_Proposal {
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
     (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
-enum class HostRegistration : uint8_t { Wasi = 0, WasmEdge_Process, Max };
+enum class HostRegistration : uint8_t {
+  Wasi = 0,
+  WasmEdge_Process,
+  WasiNN,
+  Max
+};
 } // namespace WasmEdge
 #endif
 

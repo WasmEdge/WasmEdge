@@ -5,8 +5,8 @@
 #include "vm/async.h"
 
 #include "common/log.h"
-#include "host/wasi/nn/wasinnmodule.h"
 #include "host/wasi/wasimodule.h"
+#include "host/wasi_nn/wasinnmodule.h"
 #include "host/wasmedge_process/processmodule.h"
 
 namespace WasmEdge {

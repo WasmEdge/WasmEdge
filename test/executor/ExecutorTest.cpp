@@ -63,7 +63,7 @@ TEST_P(CoreTest, TestSuites) {
   T.onInvoke = [&VM](const std::string &ModName, const std::string &Field,
                      const std::vector<ValVariant> &Params,
                      const std::vector<ValType> &ParamTypes)
-      -> Expect<std::vector<ValVariant>> {
+      -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
     if (!ModName.empty()) {
       /// Invoke function of named module. Named modules are registered in
       /// Store Manager.
@@ -75,8 +75,8 @@ TEST_P(CoreTest, TestSuites) {
     }
   };
   /// Helper function to get values.
-  T.onGet = [&VM](const std::string &ModName,
-                  const std::string &Field) -> Expect<std::vector<ValVariant>> {
+  T.onGet = [&VM](const std::string &ModName, const std::string &Field)
+      -> Expect<std::pair<ValVariant, ValType>> {
     /// Get module instance.
     auto &Store = VM.getStoreManager();
     WasmEdge::Runtime::Instance::ModuleInstance *ModInst = nullptr;
@@ -98,7 +98,8 @@ TEST_P(CoreTest, TestSuites) {
     uint32_t GlobAddr = Globs.find(Field)->second;
     auto *GlobInst = *Store.getGlobal(GlobAddr);
 
-    return std::vector<WasmEdge::ValVariant>{GlobInst->getValue()};
+    return std::make_pair(GlobInst->getValue(),
+                          GlobInst->getGlobalType().getValType());
   };
 
   T.run(Proposal, UnitName);

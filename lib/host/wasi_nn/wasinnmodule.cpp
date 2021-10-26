@@ -1,6 +1,6 @@
-#include "host/wasi/nn/wasinnmodule.h"
+#include "host/wasi_nn/wasinnmodule.h"
 #include "common/errcode.h"
-#include "host/wasi/nn/wasinnfunc.h"
+#include "host/wasi_nn/wasinnfunc.h"
 #include "runtime/hostfunc.h"
 #include "runtime/importobj.h"
 #include <memory>

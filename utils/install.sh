@@ -72,10 +72,10 @@ _extracter() {
                         _f3_=${filtered//${_f2_}/} # libsome.so.xx.yy.zz --> libsome.so
                         _f4_="$_f3_.$var1"         # libsome.so.xx.yy.zz --> libsome.so.xx
 
-                        ln -s "$IPATH/lib/$filtered" "$IPATH/lib/$_f3_"
+                        ln -sf "$IPATH/lib/$filtered" "$IPATH/lib/$_f3_"
                         echo "#$IPATH/lib/$_f3_" >>"$IPATH/env"
 
-                        ln -s "$IPATH/lib/$filtered" "$IPATH/lib/$_f4_"
+                        ln -sf "$IPATH/lib/$filtered" "$IPATH/lib/$_f4_"
                         echo "#$IPATH/lib/$_f4_" >>"$IPATH/env"
                     fi
                 elif [[ "$2" =~ "bin" ]] && [[ ! "$IPATH/$filtered" =~ "/bin/" ]]; then
@@ -117,12 +117,24 @@ get_latest_release() {
     echo "$res"
 }
 
+remote_version_availabilty() {
+    # $1 repo , $2 version
+    res=$(git ls-remote --refs --tags "https://github.com/$1.git" |
+        cut -d '/' -f 3 |
+        sort --version-sort)
+
+    if [[ ! "$res" == *"$2"* ]]; then
+        echo "${RED}$2 for $1 does not exist${NC}"
+        exit 1
+    fi
+
+}
+
 VERSION=$(get_latest_release WasmEdge/WasmEdge)
 VERSION_IM=$(get_latest_release second-state/WasmEdge-image)
 VERSION_IM_DEPS=$(get_latest_release second-state/WasmEdge-image)
 VERSION_TF=$(get_latest_release second-state/WasmEdge-tensorflow)
 VERSION_TF_DEPS=$(get_latest_release second-state/WasmEdge-tensorflow-deps)
-VERSION_TF_TOOLS=$(get_latest_release second-state/WasmEdge-tensorflow-tools)
 
 detect_os_arch() {
     RELEASE_PKG="manylinux2014_x86_64.tar.gz"
@@ -221,7 +233,6 @@ usage() {
                         
                     --tf-version=VERSION_TF
                     --tf-deps-version=VERSION_TF_DEPS
-                    --tf-tools-version=VERSION_TF_TOOLS
                     --image-version=VERSION_IM
                     --image-deps-version=VERSION_IM_DEPS
 
@@ -293,7 +304,6 @@ cleanup() {
     rm -f "$TMP_DIR/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
     rm -f "$TMP_DIR/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
     rm -f "$TMP_DIR/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
-    rm -f "$TMP_DIR/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
 }
 
 install() {
@@ -303,12 +313,12 @@ install() {
         echo "${GREEN}Installing $dir in $IPATH/$var ${NC}"
         if [ "$var" = "lib" ]; then
             if [ -d "$TMP_DIR/$dir"/lib64 ]; then
-                mv -f "$TMP_DIR/$dir"/lib64/* "$IPATH/$var"
+                cp -rf "$TMP_DIR/$dir"/lib64/* "$IPATH/$var"
             else
-                mv -f "$TMP_DIR/$dir"/lib/* "$IPATH/$var"
+                cp -rf "$TMP_DIR/$dir"/lib/* "$IPATH/$var"
             fi
         else
-            mv -f "$TMP_DIR/$dir/$var"/* "$IPATH/$var"
+            cp -rf "$TMP_DIR/$dir/$var"/* "$IPATH/$var"
         fi
     done
 }
@@ -377,12 +387,8 @@ install_wasmedge_tensorflow() {
     echo "Fetching WasmEdge-tensorflowlite-$VERSION_TF"
     _downloader "https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
 
-    echo "Fetching WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS"
-    _downloader "https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/$VERSION_TF_TOOLS/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
-
     _extracter -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
     _extracter -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
-    _extracter -C "$IPATH/bin" -vxzf "$TMP_DIR/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
 
     rm -f "$IPATH/bin/download_dependencies_all.sh" \
         "$IPATH/bin/download_dependencies_tf.sh" \
@@ -393,7 +399,16 @@ install_wasmedge_tensorflow() {
 
 install_image_extensions() {
     if [ $IM_EXT_COMPAT == 1 ]; then
-        get_wasmedge_image_deps
+
+        [ "$EXT_V_SET_WASMEDGE_IM" -eq 0 ] && VERSION_IM=$VERSION &&
+            remote_version_availabilty second-state/WasmEdge-image "$VERSION_IM"
+
+        [ "$EXT_V_SET_WASMEDGE_IM_DEPS" -eq 0 ] && VERSION_IM_DEPS=$VERSION
+
+        [ "$VERSION_IM\n0.8.2" = "$(echo -en "$VERSION_IM\n0.8.2" | sort -V | head -n1)" ] &&
+            remote_version_availabilty second-state/WasmEdge-image "$VERSION_IM_DEPS" &&
+            get_wasmedge_image_deps
+
         install_wasmedge_image
     else
         echo "${YELLOW}Image Extensions not supported${NC}"
@@ -402,11 +417,15 @@ install_image_extensions() {
 
 install_tf_extensions() {
     if [ $TF_EXT_COMPAT == 1 ]; then
+
+        [ "$EXT_V_SET_WASMEDGE_TF" -eq 0 ] && VERSION_TF=$VERSION &&
+            remote_version_availabilty second-state/WasmEdge-tensorflow "$VERSION_TF"
+
+        [ "$EXT_V_SET_WASMEDGE_TF_DEPS" -eq 0 ] && VERSION_TF_DEPS=$VERSION &&
+            remote_version_availabilty second-state/WasmEdge-tensorflow-deps "$VERSION_TF_DEPS"
+
         get_wasmedge_tensorflow_deps
         install_wasmedge_tensorflow
-        wasmedge_checks "$VERSION_TF_TOOLS" wasmedge-tensorflow \
-            wasmedgec-tensorflow \
-            wasmedge-tensorflow-lite
     else
         echo "${YELLOW}Tensorflow extensions not supported${NC}"
     fi
@@ -420,6 +439,11 @@ main() {
     # it'll probably be fine, but it's of course a good thing to keep in mind.
 
     default=0
+    EXT_V_SET_WASMEDGE=0
+    EXT_V_SET_WASMEDGE_IM=0
+    EXT_V_SET_WASMEDGE_IM_DEPS=0
+    EXT_V_SET_WASMEDGE_TF=0
+    EXT_V_SET_WASMEDGE_TF_DEPS=0
 
     local OPTIND
     while getopts "e:hp:v:V-:" OPT; do
@@ -440,6 +464,7 @@ main() {
             ;;
         v | version)
             VERSION="${OPTARG}"
+            EXT_V_SET_WASMEDGE=1
             ;;
         V | verbose)
             VERBOSE=1
@@ -450,18 +475,19 @@ main() {
             ;;
         tf-version)
             VERSION_TF="${OPTARG}"
+            EXT_V_SET_WASMEDGE_TF=1
             ;;
         tf-deps-version)
             VERSION_TF_DEPS="${OPTARG}"
-            ;;
-        tf-tools-version)
-            VERSION_TF_TOOLS="${OPTARG}"
+            EXT_V_SET_WASMEDGE_TF_DEPS=1
             ;;
         image-version)
             VERSION_IM="${OPTARG}"
+            EXT_V_SET_WASMEDGE_IM=1
             ;;
         image-deps-version)
             VERSION_IM_DEPS="$OPTARG"
+            EXT_V_SET_WASMEDGE_IM_DEPS=1
             ;;
         ?)
             exit 2
@@ -478,6 +504,8 @@ main() {
     done
 
     shift $((OPTIND - 1)) # remove parsed options and args from $@ list
+
+    [ $EXT_V_SET_WASMEDGE -ne 1 ] && remote_version_availabilty WasmEdge/WasmEdge "$VERSION"
 
     detect_os_arch
 

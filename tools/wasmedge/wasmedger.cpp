@@ -271,19 +271,19 @@ int main(int Argc, const char *Argv[]) {
 
     if (auto Result = VM.execute(FuncName, FuncArgs, FuncArgTypes)) {
       /// Print results.
-      for (size_t I = 0; I < FuncType.getReturnTypes().size(); ++I) {
-        switch (FuncType.getReturnTypes()[I]) {
+      for (size_t I = 0; I < Result->size(); ++I) {
+        switch ((*Result)[I].second) {
         case WasmEdge::ValType::I32:
-          std::cout << (*Result)[I].get<uint32_t>() << '\n';
+          std::cout << (*Result)[I].first.get<uint32_t>() << '\n';
           break;
         case WasmEdge::ValType::I64:
-          std::cout << (*Result)[I].get<uint64_t>() << '\n';
+          std::cout << (*Result)[I].first.get<uint64_t>() << '\n';
           break;
         case WasmEdge::ValType::F32:
-          std::cout << (*Result)[I].get<float>() << '\n';
+          std::cout << (*Result)[I].first.get<float>() << '\n';
           break;
         case WasmEdge::ValType::F64:
-          std::cout << (*Result)[I].get<double>() << '\n';
+          std::cout << (*Result)[I].first.get<double>() << '\n';
           break;
         /// TODO: FuncRef and ExternRef
         default:

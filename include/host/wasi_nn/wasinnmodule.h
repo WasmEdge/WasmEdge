@@ -1,6 +1,6 @@
 #pragma once
 
-#include "host/wasi/nn/wasinncontext.h"
+#include "host/wasi_nn/wasinncontext.h"
 #include "runtime/importobj.h"
 
 namespace WasmEdge {

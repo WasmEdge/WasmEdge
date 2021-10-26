@@ -1,4 +1,4 @@
-#include "host/wasi/nn/wasinnfunc.h"
+#include "host/wasi_nn/wasinnfunc.h"
 #include "common/errcode.h"
 #include "runtime/hostfunc.h"
 #include "runtime/instance/memory.h"

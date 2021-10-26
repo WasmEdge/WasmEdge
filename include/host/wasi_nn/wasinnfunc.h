@@ -1,7 +1,7 @@
 #pragma once
 
 #include "common/errcode.h"
-#include "host/wasi/nn/wasinncontext.h"
+#include "host/wasi_nn/wasinncontext.h"
 #include "runtime/hostfunc.h"
 #include "runtime/instance/memory.h"
 

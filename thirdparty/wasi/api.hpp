@@ -567,8 +567,7 @@ enum __wasi_rights_t : uint64_t {
   __WASI_RIGHTS_PATH_CREATE_DIRECTORY = 1ULL << 9,
 
   /**
-   * If `path_open` is set, the right to invoke `path_open` with
-   * `oflags::creat`.
+   * If `path_open` is set, the right to invoke `path_open` with `oflags::creat`.
    */
   __WASI_RIGHTS_PATH_CREATE_FILE = 1ULL << 10,
 
@@ -600,14 +599,12 @@ enum __wasi_rights_t : uint64_t {
   __WASI_RIGHTS_PATH_READLINK = 1ULL << 15,
 
   /**
-   * The right to invoke `path_rename` with the file descriptor as the source
-   * directory.
+   * The right to invoke `path_rename` with the file descriptor as the source directory.
    */
   __WASI_RIGHTS_PATH_RENAME_SOURCE = 1ULL << 16,
 
   /**
-   * The right to invoke `path_rename` with the file descriptor as the target
-   * directory.
+   * The right to invoke `path_rename` with the file descriptor as the target directory.
    */
   __WASI_RIGHTS_PATH_RENAME_TARGET = 1ULL << 17,
 
@@ -618,8 +615,7 @@ enum __wasi_rights_t : uint64_t {
 
   /**
    * The right to change a file's size (there is no `path_filestat_set_size`).
-   * If `path_open` is set, includes the right to invoke `path_open` with
-   * `oflags::trunc`.
+   * If `path_open` is set, includes the right to invoke `path_open` with `oflags::trunc`.
    */
   __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE = 1ULL << 19,
 
@@ -659,9 +655,8 @@ enum __wasi_rights_t : uint64_t {
   __WASI_RIGHTS_PATH_UNLINK_FILE = 1ULL << 26,
 
   /**
-   * If `rights::fd_read` is set, includes the right to invoke `poll_oneoff` to
-   * subscribe to `eventtype::fd_read`. If `rights::fd_write` is set, includes
-   * the right to invoke `poll_oneoff` to subscribe to `eventtype::fd_write`.
+   * If `rights::fd_read` is set, includes the right to invoke `poll_oneoff` to subscribe to `eventtype::fd_read`.
+   * If `rights::fd_write` is set, includes the right to invoke `poll_oneoff` to subscribe to `eventtype::fd_write`.
    */
   __WASI_RIGHTS_POLL_FD_READWRITE = 1ULL << 27,
 
@@ -740,6 +735,7 @@ struct __wasi_iovec_t {
    * The length of the buffer to be filled.
    */
   __wasi_size_t buf_len;
+
 };
 
 static_assert(sizeof(__wasi_iovec_t) == 8, "witx calculated size");
@@ -760,13 +756,13 @@ struct __wasi_ciovec_t {
    * The length of the buffer to be written.
    */
   __wasi_size_t buf_len;
+
 };
 
 static_assert(sizeof(__wasi_ciovec_t) == 8, "witx calculated size");
 static_assert(alignof(__wasi_ciovec_t) == 4, "witx calculated align");
 static_assert(offsetof(__wasi_ciovec_t, buf) == 0, "witx calculated offset");
-static_assert(offsetof(__wasi_ciovec_t, buf_len) == 4,
-              "witx calculated offset");
+static_assert(offsetof(__wasi_ciovec_t, buf_len) == 4, "witx calculated offset");
 
 /**
  * Relative offset within a file.
@@ -801,7 +797,7 @@ static_assert(alignof(__wasi_whence_t) == 1, "witx calculated align");
 
 /**
  * A reference to the offset of a directory entry.
- *
+ * 
  * The value 0 signifies the start of the directory.
  */
 using __wasi_dircookie_t = uint64_t;
@@ -830,8 +826,7 @@ static_assert(alignof(__wasi_inode_t) == 8, "witx calculated align");
  */
 enum __wasi_filetype_t : uint8_t {
   /**
-   * The type of the file descriptor or file is unknown or is different from any
-   * of the other types specified.
+   * The type of the file descriptor or file is unknown or is different from any of the other types specified.
    */
   __WASI_FILETYPE_UNKNOWN = 0,
 
@@ -897,30 +892,27 @@ struct __wasi_dirent_t {
    * The type of the file referred to by this directory entry.
    */
   __wasi_filetype_t d_type;
+
 };
 
 static_assert(sizeof(__wasi_dirent_t) == 24, "witx calculated size");
 static_assert(alignof(__wasi_dirent_t) == 8, "witx calculated align");
 static_assert(offsetof(__wasi_dirent_t, d_next) == 0, "witx calculated offset");
 static_assert(offsetof(__wasi_dirent_t, d_ino) == 8, "witx calculated offset");
-static_assert(offsetof(__wasi_dirent_t, d_namlen) == 16,
-              "witx calculated offset");
-static_assert(offsetof(__wasi_dirent_t, d_type) == 20,
-              "witx calculated offset");
+static_assert(offsetof(__wasi_dirent_t, d_namlen) == 16, "witx calculated offset");
+static_assert(offsetof(__wasi_dirent_t, d_type) == 20, "witx calculated offset");
 
 /**
  * File or memory access pattern advisory information.
  */
 enum __wasi_advice_t : uint8_t {
   /**
-   * The application has no advice to give on its behavior with respect to the
-   * specified data.
+   * The application has no advice to give on its behavior with respect to the specified data.
    */
   __WASI_ADVICE_NORMAL = 0,
 
   /**
-   * The application expects to access the specified data sequentially from
-   * lower offsets to higher offsets.
+   * The application expects to access the specified data sequentially from lower offsets to higher offsets.
    */
   __WASI_ADVICE_SEQUENTIAL = 1,
 
@@ -935,14 +927,12 @@ enum __wasi_advice_t : uint8_t {
   __WASI_ADVICE_WILLNEED = 3,
 
   /**
-   * The application expects that it will not access the specified data in the
-   * near future.
+   * The application expects that it will not access the specified data in the near future.
    */
   __WASI_ADVICE_DONTNEED = 4,
 
   /**
-   * The application expects to access the specified data once and then not
-   * reuse it thereafter.
+   * The application expects to access the specified data once and then not reuse it thereafter.
    */
   __WASI_ADVICE_NOREUSE = 5,
 
@@ -961,8 +951,7 @@ enum __wasi_fdflags_t : uint16_t {
   __WASI_FDFLAGS_APPEND = 1ULL << 0,
 
   /**
-   * Write according to synchronized I/O data integrity completion. Only the
-   * data stored in the file is synchronized.
+   * Write according to synchronized I/O data integrity completion. Only the data stored in the file is synchronized.
    */
   __WASI_FDFLAGS_DSYNC = 1ULL << 1,
 
@@ -1013,18 +1002,15 @@ struct __wasi_fdstat_t {
    * are created through this file descriptor, e.g., through `path_open`.
    */
   __wasi_rights_t fs_rights_inheriting;
+
 };
 
 static_assert(sizeof(__wasi_fdstat_t) == 24, "witx calculated size");
 static_assert(alignof(__wasi_fdstat_t) == 8, "witx calculated align");
-static_assert(offsetof(__wasi_fdstat_t, fs_filetype) == 0,
-              "witx calculated offset");
-static_assert(offsetof(__wasi_fdstat_t, fs_flags) == 2,
-              "witx calculated offset");
-static_assert(offsetof(__wasi_fdstat_t, fs_rights_base) == 8,
-              "witx calculated offset");
-static_assert(offsetof(__wasi_fdstat_t, fs_rights_inheriting) == 16,
-              "witx calculated offset");
+static_assert(offsetof(__wasi_fdstat_t, fs_filetype) == 0, "witx calculated offset");
+static_assert(offsetof(__wasi_fdstat_t, fs_flags) == 2, "witx calculated offset");
+static_assert(offsetof(__wasi_fdstat_t, fs_rights_base) == 8, "witx calculated offset");
+static_assert(offsetof(__wasi_fdstat_t, fs_rights_inheriting) == 16, "witx calculated offset");
 
 /**
  * Identifier for a device containing a file system. Can be used in combination
@@ -1041,26 +1027,22 @@ static_assert(alignof(__wasi_device_t) == 8, "witx calculated align");
 enum __wasi_fstflags_t : uint16_t {
 
   /**
-   * Adjust the last data access timestamp to the value stored in
-   * `filestat::atim`.
+   * Adjust the last data access timestamp to the value stored in `filestat::atim`.
    */
   __WASI_FSTFLAGS_ATIM = 1ULL << 0,
 
   /**
-   * Adjust the last data access timestamp to the time of clock
-   * `clockid::realtime`.
+   * Adjust the last data access timestamp to the time of clock `clockid::realtime`.
    */
   __WASI_FSTFLAGS_ATIM_NOW = 1ULL << 1,
 
   /**
-   * Adjust the last data modification timestamp to the value stored in
-   * `filestat::mtim`.
+   * Adjust the last data modification timestamp to the value stored in `filestat::mtim`.
    */
   __WASI_FSTFLAGS_MTIM = 1ULL << 2,
 
   /**
-   * Adjust the last data modification timestamp to the time of clock
-   * `clockid::realtime`.
+   * Adjust the last data modification timestamp to the time of clock `clockid::realtime`.
    */
   __WASI_FSTFLAGS_MTIM_NOW = 1ULL << 3,
 
@@ -1076,8 +1058,7 @@ static_assert(alignof(__wasi_fstflags_t) == 2, "witx calculated align");
 enum __wasi_lookupflags_t : uint32_t {
 
   /**
-   * As long as the resolved path corresponds to a symbolic link, it is
-   * expanded.
+   * As long as the resolved path corresponds to a symbolic link, it is expanded.
    */
   __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW = 1ULL << 0,
 
@@ -1151,8 +1132,7 @@ struct __wasi_filestat_t {
   __wasi_linkcount_t nlink;
 
   /**
-   * For regular files, the file size in bytes. For symbolic links, the length
-   * in bytes of the pathname contained in the symbolic link.
+   * For regular files, the file size in bytes. For symbolic links, the length in bytes of the pathname contained in the symbolic link.
    */
   __wasi_filesize_t size;
 
@@ -1170,24 +1150,19 @@ struct __wasi_filestat_t {
    * Last file status change timestamp.
    */
   __wasi_timestamp_t ctim;
+
 };
 
 static_assert(sizeof(__wasi_filestat_t) == 64, "witx calculated size");
 static_assert(alignof(__wasi_filestat_t) == 8, "witx calculated align");
 static_assert(offsetof(__wasi_filestat_t, dev) == 0, "witx calculated offset");
 static_assert(offsetof(__wasi_filestat_t, ino) == 8, "witx calculated offset");
-static_assert(offsetof(__wasi_filestat_t, filetype) == 16,
-              "witx calculated offset");
-static_assert(offsetof(__wasi_filestat_t, nlink) == 24,
-              "witx calculated offset");
-static_assert(offsetof(__wasi_filestat_t, size) == 32,
-              "witx calculated offset");
-static_assert(offsetof(__wasi_filestat_t, atim) == 40,
-              "witx calculated offset");
-static_assert(offsetof(__wasi_filestat_t, mtim) == 48,
-              "witx calculated offset");
-static_assert(offsetof(__wasi_filestat_t, ctim) == 56,
-              "witx calculated offset");
+static_assert(offsetof(__wasi_filestat_t, filetype) == 16, "witx calculated offset");
+static_assert(offsetof(__wasi_filestat_t, nlink) == 24, "witx calculated offset");
+static_assert(offsetof(__wasi_filestat_t, size) == 32, "witx calculated offset");
+static_assert(offsetof(__wasi_filestat_t, atim) == 40, "witx calculated offset");
+static_assert(offsetof(__wasi_filestat_t, mtim) == 48, "witx calculated offset");
+static_assert(offsetof(__wasi_filestat_t, ctim) == 56, "witx calculated offset");
 
 /**
  * User-provided value that may be attached to objects that is retained when
@@ -1255,16 +1230,13 @@ struct __wasi_event_fd_readwrite_t {
    * The state of the file descriptor.
    */
   __wasi_eventrwflags_t flags;
+
 };
 
-static_assert(sizeof(__wasi_event_fd_readwrite_t) == 16,
-              "witx calculated size");
-static_assert(alignof(__wasi_event_fd_readwrite_t) == 8,
-              "witx calculated align");
-static_assert(offsetof(__wasi_event_fd_readwrite_t, nbytes) == 0,
-              "witx calculated offset");
-static_assert(offsetof(__wasi_event_fd_readwrite_t, flags) == 8,
-              "witx calculated offset");
+static_assert(sizeof(__wasi_event_fd_readwrite_t) == 16, "witx calculated size");
+static_assert(alignof(__wasi_event_fd_readwrite_t) == 8, "witx calculated align");
+static_assert(offsetof(__wasi_event_fd_readwrite_t, nbytes) == 0, "witx calculated offset");
+static_assert(offsetof(__wasi_event_fd_readwrite_t, flags) == 8, "witx calculated offset");
 
 /**
  * An event that occurred.
@@ -1276,8 +1248,7 @@ struct __wasi_event_t {
   __wasi_userdata_t userdata;
 
   /**
-   * If non-zero, an error that occurred while processing the subscription
-   * request.
+   * If non-zero, an error that occurred while processing the subscription request.
    */
   __wasi_errno_t error;
 
@@ -1291,16 +1262,15 @@ struct __wasi_event_t {
    * `eventtype::fd_write`. `eventtype::clock` events ignore this field.
    */
   __wasi_event_fd_readwrite_t fd_readwrite;
+
 };
 
 static_assert(sizeof(__wasi_event_t) == 32, "witx calculated size");
 static_assert(alignof(__wasi_event_t) == 8, "witx calculated align");
-static_assert(offsetof(__wasi_event_t, userdata) == 0,
-              "witx calculated offset");
+static_assert(offsetof(__wasi_event_t, userdata) == 0, "witx calculated offset");
 static_assert(offsetof(__wasi_event_t, error) == 8, "witx calculated offset");
 static_assert(offsetof(__wasi_event_t, type) == 10, "witx calculated offset");
-static_assert(offsetof(__wasi_event_t, fd_readwrite) == 16,
-              "witx calculated offset");
+static_assert(offsetof(__wasi_event_t, fd_readwrite) == 16, "witx calculated offset");
 
 /**
  * Flags determining how to interpret the timestamp provided in
@@ -1347,20 +1317,15 @@ struct __wasi_subscription_clock_t {
    * Flags specifying whether the timeout is absolute or relative
    */
   __wasi_subclockflags_t flags;
+
 };
 
-static_assert(sizeof(__wasi_subscription_clock_t) == 32,
-              "witx calculated size");
-static_assert(alignof(__wasi_subscription_clock_t) == 8,
-              "witx calculated align");
-static_assert(offsetof(__wasi_subscription_clock_t, id) == 0,
-              "witx calculated offset");
-static_assert(offsetof(__wasi_subscription_clock_t, timeout) == 8,
-              "witx calculated offset");
-static_assert(offsetof(__wasi_subscription_clock_t, precision) == 16,
-              "witx calculated offset");
-static_assert(offsetof(__wasi_subscription_clock_t, flags) == 24,
-              "witx calculated offset");
+static_assert(sizeof(__wasi_subscription_clock_t) == 32, "witx calculated size");
+static_assert(alignof(__wasi_subscription_clock_t) == 8, "witx calculated align");
+static_assert(offsetof(__wasi_subscription_clock_t, id) == 0, "witx calculated offset");
+static_assert(offsetof(__wasi_subscription_clock_t, timeout) == 8, "witx calculated offset");
+static_assert(offsetof(__wasi_subscription_clock_t, precision) == 16, "witx calculated offset");
+static_assert(offsetof(__wasi_subscription_clock_t, flags) == 24, "witx calculated offset");
 
 /**
  * The contents of a `subscription` when type is type is
@@ -1368,19 +1333,15 @@ static_assert(offsetof(__wasi_subscription_clock_t, flags) == 24,
  */
 struct __wasi_subscription_fd_readwrite_t {
   /**
-   * The file descriptor on which to wait for it to become ready for reading or
-   * writing.
+   * The file descriptor on which to wait for it to become ready for reading or writing.
    */
   __wasi_fd_t file_descriptor;
+
 };
 
-static_assert(sizeof(__wasi_subscription_fd_readwrite_t) == 4,
-              "witx calculated size");
-static_assert(alignof(__wasi_subscription_fd_readwrite_t) == 4,
-              "witx calculated align");
-static_assert(offsetof(__wasi_subscription_fd_readwrite_t, file_descriptor) ==
-                  0,
-              "witx calculated offset");
+static_assert(sizeof(__wasi_subscription_fd_readwrite_t) == 4, "witx calculated size");
+static_assert(alignof(__wasi_subscription_fd_readwrite_t) == 4, "witx calculated align");
+static_assert(offsetof(__wasi_subscription_fd_readwrite_t, file_descriptor) == 0, "witx calculated offset");
 
 /**
  * The contents of a `subscription`.
@@ -1397,8 +1358,7 @@ struct __wasi_subscription_u_t {
 
 static_assert(sizeof(__wasi_subscription_u_t) == 40, "witx calculated size");
 static_assert(alignof(__wasi_subscription_u_t) == 8, "witx calculated align");
-static_assert(offsetof(__wasi_subscription_u_t, u) == 8,
-              "witx calculated union offset");
+static_assert(offsetof(__wasi_subscription_u_t, u) == 8, "witx calculated union offset");
 
 /**
  * Subscription to an event.
@@ -1414,14 +1374,13 @@ struct __wasi_subscription_t {
    * The type of the event to which to subscribe, and its contents
    */
   __wasi_subscription_u_t u;
+
 };
 
 static_assert(sizeof(__wasi_subscription_t) == 48, "witx calculated size");
 static_assert(alignof(__wasi_subscription_t) == 8, "witx calculated align");
-static_assert(offsetof(__wasi_subscription_t, userdata) == 0,
-              "witx calculated offset");
-static_assert(offsetof(__wasi_subscription_t, u) == 8,
-              "witx calculated offset");
+static_assert(offsetof(__wasi_subscription_t, userdata) == 0, "witx calculated offset");
+static_assert(offsetof(__wasi_subscription_t, u) == 8, "witx calculated offset");
 
 /**
  * Exit code generated by a process when exiting.
@@ -1644,13 +1603,59 @@ struct __wasi_address_t {
   uint8_t_ptr buf;
 
   __wasi_size_t buf_len;
+
 };
 
 static_assert(sizeof(__wasi_address_t) == 8, "witx calculated size");
 static_assert(alignof(__wasi_address_t) == 4, "witx calculated align");
 static_assert(offsetof(__wasi_address_t, buf) == 0, "witx calculated offset");
-static_assert(offsetof(__wasi_address_t, buf_len) == 4,
-              "witx calculated offset");
+static_assert(offsetof(__wasi_address_t, buf_len) == 4, "witx calculated offset");
+
+/**
+ * Flags provided to `getaddrinfo`.
+ */
+enum __wasi_aiflags_t : uint16_t {
+
+  /**
+   * Socket address is intended for bind()
+   */
+  __WASI_AIFLAGS_AI_PASSIVE = 1ULL << 0,
+
+  /**
+   * Request for canonical name.
+   */
+  __WASI_AIFLAGS_AI_CANONNAME = 1ULL << 1,
+
+  /**
+   * Return numeric host address as name.
+   */
+  __WASI_AIFLAGS_AI_NUMERICHOST = 1ULL << 2,
+
+  /**
+   * Inhibit service name resolution.
+   */
+  __WASI_AIFLAGS_AI_NUMERICSERV = 1ULL << 3,
+
+  /**
+   * If no IPv6 addresses are found, query for IPv4 addresses and return them to the caller as IPv4-mapped IPv6 addresses.
+   */
+  __WASI_AIFLAGS_AI_V4MAPPED = 1ULL << 4,
+
+  /**
+   * Query for both IPv4 and IPv6 addresses.
+   */
+  __WASI_AIFLAGS_AI_ALL = 1ULL << 5,
+
+  /**
+   * Query for IPv4 addresses only when an IPv4 address is configured; query for IPv6 addresses only when an IPv6 address is configured.
+   */
+  __WASI_AIFLAGS_AI_ADDRCONFIG = 1ULL << 6,
+
+};
+DEFINE_ENUM_OPERATORS(__wasi_aiflags_t)
+
+static_assert(sizeof(__wasi_aiflags_t) == 2, "witx calculated size");
+static_assert(alignof(__wasi_aiflags_t) == 2, "witx calculated align");
 
 /**
  * Socket type
@@ -1665,6 +1670,66 @@ static_assert(sizeof(__wasi_sock_type_t) == 1, "witx calculated size");
 static_assert(alignof(__wasi_sock_type_t) == 1, "witx calculated align");
 
 /**
+ * Protocol
+ */
+enum __wasi_protocol_t : uint8_t {
+  __WASI_PROTOCOL_IPPROTO_TCP = 0,
+
+  __WASI_PROTOCOL_IPPROTO_UDP = 1,
+
+};
+static_assert(sizeof(__wasi_protocol_t) == 1, "witx calculated size");
+static_assert(alignof(__wasi_protocol_t) == 1, "witx calculated align");
+
+/**
+ * Support to prevent recursive definition
+ */
+struct __wasi_addrinfo_fake_t {
+  uint8_t ai;
+
+};
+
+static_assert(sizeof(__wasi_addrinfo_fake_t) == 1, "witx calculated size");
+static_assert(alignof(__wasi_addrinfo_fake_t) == 1, "witx calculated align");
+static_assert(offsetof(__wasi_addrinfo_fake_t, ai) == 0, "witx calculated offset");
+
+/**
+ * Address information
+ */
+struct __wasi_addrinfo_t {
+  __wasi_aiflags_t ai_flags;
+
+  __wasi_address_family_t ai_family;
+
+  __wasi_sock_type_t ai_socktype;
+
+  __wasi_protocol_t ai_protocol;
+
+  __wasi_size_t ai_addrlen;
+
+  uint8_t_ptr ai_addr;
+
+  uint8_t_ptr ai_canonname;
+
+  __wasi_size_t ai_canonname_len;
+
+  uint8_t_ptr ai_next;
+
+};
+
+static_assert(sizeof(__wasi_addrinfo_t) == 28, "witx calculated size");
+static_assert(alignof(__wasi_addrinfo_t) == 4, "witx calculated align");
+static_assert(offsetof(__wasi_addrinfo_t, ai_flags) == 0, "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_family) == 2, "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_socktype) == 3, "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_protocol) == 4, "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_addrlen) == 8, "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_addr) == 12, "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_canonname) == 16, "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_canonname_len) == 20, "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_next) == 24, "witx calculated offset");
+
+/**
  * Flags provided to `sock_recv`.
  */
 enum __wasi_riflags_t : uint16_t {
@@ -1675,8 +1740,7 @@ enum __wasi_riflags_t : uint16_t {
   __WASI_RIFLAGS_RECV_PEEK = 1ULL << 0,
 
   /**
-   * On byte-stream sockets, block until the full amount of data can be
-   * returned.
+   * On byte-stream sockets, block until the full amount of data can be returned.
    */
   __WASI_RIFLAGS_RECV_WAITALL = 1ULL << 1,
 
@@ -1753,12 +1817,12 @@ struct __wasi_prestat_dir_t {
    * The length of the directory name for use with `fd_prestat_dir_name`.
    */
   __wasi_size_t pr_name_len;
+
 };
 
 static_assert(sizeof(__wasi_prestat_dir_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_prestat_dir_t) == 4, "witx calculated align");
-static_assert(offsetof(__wasi_prestat_dir_t, pr_name_len) == 0,
-              "witx calculated offset");
+static_assert(offsetof(__wasi_prestat_dir_t, pr_name_len) == 0, "witx calculated offset");
 
 /**
  * Information about a pre-opened capability.
@@ -1773,5 +1837,5 @@ struct __wasi_prestat_t {
 
 static_assert(sizeof(__wasi_prestat_t) == 8, "witx calculated size");
 static_assert(alignof(__wasi_prestat_t) == 4, "witx calculated align");
-static_assert(offsetof(__wasi_prestat_t, u) == 4,
-              "witx calculated union offset");
+static_assert(offsetof(__wasi_prestat_t, u) == 4, "witx calculated union offset");
+

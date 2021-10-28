@@ -82,7 +82,7 @@ Features:
     * `WasmEdge_ExportTypeGetGlobalType` function can get the global type of an export type context.
   * For more details of the usages of imports and exports, please refer to the [C API documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md).
 * Provided install and uninstall script for installing/uninstalling  WasmEdge on linux(amd64 and aarch64) and macos(amd64 and arm64).
-* Refined the AoT binary format. Append a custom section for storing the compiled binary.
+* Support compiling WebAssembly into a new WebAssembly file with a packed binary section.
 
 Fixed issues:
 

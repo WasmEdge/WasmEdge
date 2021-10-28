@@ -445,10 +445,13 @@ Expect<void> Executor::runVectorFMinOp(ValVariant &Val1,
   using VT [[gnu::vector_size(16)]] = T;
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
-  VT A = detail::vectorSelect(V1 < V2, V1, V2);
-  VT B = detail::vectorSelect(V2 < V1, V2, V1);
-  V1 = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(A) |
-                            reinterpret_cast<uint64x2_t>(B));
+  VT R = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(V1) |
+                              reinterpret_cast<uint64x2_t>(V2));
+  R = detail::vectorSelect(V1 < V2, V1, R);
+  R = detail::vectorSelect(V1 > V2, V2, R);
+  R = detail::vectorSelect(V1 == V1, R, V1);
+  R = detail::vectorSelect(V2 == V2, R, V2);
+  V1 = R;
 
   return {};
 }
@@ -459,10 +462,13 @@ Expect<void> Executor::runVectorFMaxOp(ValVariant &Val1,
   using VT [[gnu::vector_size(16)]] = T;
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
-  VT A = detail::vectorSelect(V1 > V2, V1, V2);
-  VT B = detail::vectorSelect(V2 > V1, V2, V1);
-  V1 = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(A) &
-                            reinterpret_cast<uint64x2_t>(B));
+  VT R = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(V1) &
+                            reinterpret_cast<uint64x2_t>(V2));
+  R = detail::vectorSelect(V1 < V2, V2, R);
+  R = detail::vectorSelect(V1 > V2, V1, R);
+  R = detail::vectorSelect(V1 == V1, R, V1);
+  R = detail::vectorSelect(V2 == V2, R, V2);
+  V1 = R;
 
   return {};
 }

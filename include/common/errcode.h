@@ -15,7 +15,15 @@
 #include "common/expected.h"
 #include "common/hexstr.h"
 
+#include <cassert>
 #include <ostream>
+
+#ifdef NDEBUG
+#define assuming(R)                                                            \
+  (static_cast<bool>(R) ? static_cast<void>(0) : __builtin_unreachable())
+#else
+#define assuming(expr) assert(expr)
+#endif
 
 namespace WasmEdge {
 
@@ -29,10 +37,10 @@ static inline std::ostream &operator<<(std::ostream &OS, const ErrCode Code) {
   return OS;
 }
 
-static inline constexpr bool likely(bool V) {
+static inline constexpr bool likely(bool V) noexcept {
   return __builtin_expect(V, true);
 }
-static inline constexpr bool unlikely(bool V) {
+static inline constexpr bool unlikely(bool V) noexcept {
   return __builtin_expect(V, false);
 }
 

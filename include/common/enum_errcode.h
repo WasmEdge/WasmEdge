@@ -13,14 +13,14 @@
 #ifndef WASMEDGE_C_API_ENUM_ERRCODE_H
 #define WASMEDGE_C_API_ENUM_ERRCODE_H
 
-#ifdef __cplusplus
+#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 #include <cstdint>
 #include <string>
 #include <unordered_map>
 #endif
 
 /// Wasm runtime phasing enumeration class.
-#ifdef __cplusplus
+#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
 /// This enumeration is not exported to the C API.
 enum class WasmPhase : uint8_t {
@@ -41,7 +41,7 @@ static inline std::unordered_map<WasmPhase, std::string> WasmPhaseStr = {
 #endif
 
 /// Error code enumeration.
-#ifdef __cplusplus
+#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
 enum class ErrCode : uint8_t {
   Success = 0x00,

@@ -468,16 +468,31 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     WasmEdge_ConfigureCompilerGetOptimizationLevel(ConfCxt, WasmEdge_CompilerOptimizationLevel_O2);
     /* By default, the dump IR is `FALSE`. */
     WasmEdge_ConfigureCompilerSetDumpIR(ConfCxt, TRUE);
-    /* By default, the intruction counting is `FALSE` when running a compiled-WASM. */
-    WasmEdge_ConfigureCompilerSetInstructionCounting(ConfCxt, TRUE);
-    /* By default, the cost measurement is `FALSE` when running a compiled-WASM. */
-    WasmEdge_ConfigureCompilerSetCostMeasuring(ConfCxt, TRUE);
     WasmEdge_ConfigureDelete(ConfCxt);
     ```
+
+5. Statistics options
+
+    The statistics options configure the behavior about instruction counting, cost measuring, and time measuring in both runtime and AOT compiler.
+    These configurations are effective in both `Compiler` and `Runtime` contexts.
+
+    ```c
+    WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
+    /* By default, the intruction counting is `FALSE` when running a compiled-WASM or a pure-WASM. */
+    WasmEdge_ConfigureStatisticsSetInstructionCounting(ConfCxt, TRUE);
+    /* By default, the cost measurement is `FALSE` when running a compiled-WASM or a pure-WASM. */
+    WasmEdge_ConfigureStatisticsSetCostMeasuring(ConfCxt, TRUE);
+    /* By default, the time measurement is `FALSE` when running a compiled-WASM or a pure-WASM. */
+    WasmEdge_ConfigureStatisticsSetTimeMeasuring(ConfCxt, TRUE);
+    WasmEdge_ConfigureDelete(ConfCxt);
+    ```
+
 
 ### Statistics
 
 The statistics context, `WasmEdge_StatisticsContext`, provides the instruction counter, cost summation, and cost limitation at runtime.
+
+Before using statistics, the statistics configuration must be set. Otherwise, the return values of calling statistics are undefined behaviour.
 
 1. Instruction counter
 

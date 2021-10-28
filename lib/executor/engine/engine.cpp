@@ -16,7 +16,7 @@ Executor::runFunction(Runtime::StoreManager &StoreMgr,
                       const Runtime::Instance::FunctionInstance &Func,
                       Span<const ValVariant> Params) {
   /// Set start time.
-  if (Stat) {
+  if (Stat && Conf.getStatisticsConfigure().isTimeMeasuring()) {
     Stat->startRecordWasm();
   }
 
@@ -46,7 +46,9 @@ Executor::runFunction(Runtime::StoreManager &StoreMgr,
 
   /// Print time cost.
   if (Stat) {
-    Stat->stopRecordWasm();
+    if (Conf.getStatisticsConfigure().isTimeMeasuring()) {
+      Stat->stopRecordWasm();
+    }
 
     auto Nano = [](auto &&Duration) {
       return std::chrono::nanoseconds(Duration).count();
@@ -95,7 +97,7 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::If:
       return runIfElseOp(StoreMgr, Instr, PC);
     case OpCode::Else:
-      if (Stat) {
+      if (Stat && Conf.getStatisticsConfigure().isCostMeasuring()) {
         /// Reach here means end of if-statement.
         if (unlikely(!Stat->subInstrCost(Instr.getOpCode()))) {
           return Unexpect(ErrCode::CostLimitExceeded);
@@ -1550,10 +1552,14 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
   while (PC != PCEnd) {
     OpCode Code = PC->getOpCode();
     if (Stat) {
-      Stat->incInstrCount();
+      if (Conf.getStatisticsConfigure().isInstructionCounting()) {
+        Stat->incInstrCount();
+      }
       /// Add cost. Note: if-else case should be processed additionally.
-      if (unlikely(!Stat->addInstrCost(Code))) {
-        return Unexpect(ErrCode::CostLimitExceeded);
+      if (Conf.getStatisticsConfigure().isCostMeasuring()) {
+        if (unlikely(!Stat->addInstrCost(Code))) {
+          return Unexpect(ErrCode::CostLimitExceeded);
+        }
       }
     }
     if (auto Res = Dispatch(); !Res) {

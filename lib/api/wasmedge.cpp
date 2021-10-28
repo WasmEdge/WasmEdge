@@ -708,34 +708,49 @@ WasmEdge_ConfigureCompilerIsDumpIR(const WasmEdge_ConfigureContext *Cxt) {
   return false;
 }
 
-WASMEDGE_CAPI_EXPORT void
-WasmEdge_ConfigureCompilerSetInstructionCounting(WasmEdge_ConfigureContext *Cxt,
-                                                 const bool IsCount) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureStatisticsSetInstructionCounting(
+    WasmEdge_ConfigureContext *Cxt, const bool IsCount) {
   if (Cxt) {
-    Cxt->Conf.getCompilerConfigure().setInstructionCounting(IsCount);
+    Cxt->Conf.getStatisticsConfigure().setInstructionCounting(IsCount);
   }
 }
 
-WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureCompilerIsInstructionCounting(
+WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureStatisticsIsInstructionCounting(
     const WasmEdge_ConfigureContext *Cxt) {
   if (Cxt) {
-    return Cxt->Conf.getCompilerConfigure().isInstructionCounting();
+    return Cxt->Conf.getStatisticsConfigure().isInstructionCounting();
   }
   return false;
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_ConfigureCompilerSetCostMeasuring(WasmEdge_ConfigureContext *Cxt,
-                                           const bool IsMeasure) {
+WasmEdge_ConfigureStatisticsSetCostMeasuring(WasmEdge_ConfigureContext *Cxt,
+                                             const bool IsMeasure) {
   if (Cxt) {
-    Cxt->Conf.getCompilerConfigure().setCostMeasuring(IsMeasure);
+    Cxt->Conf.getStatisticsConfigure().setCostMeasuring(IsMeasure);
   }
 }
 
-WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureCompilerIsCostMeasuring(
+WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureStatisticsIsCostMeasuring(
     const WasmEdge_ConfigureContext *Cxt) {
   if (Cxt) {
-    return Cxt->Conf.getCompilerConfigure().isCostMeasuring();
+    return Cxt->Conf.getStatisticsConfigure().isCostMeasuring();
+  }
+  return false;
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureStatisticsSetTimeMeasuring(WasmEdge_ConfigureContext *Cxt,
+                                             const bool IsMeasure) {
+  if (Cxt) {
+    Cxt->Conf.getStatisticsConfigure().setTimeMeasuring(IsMeasure);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
+    const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getStatisticsConfigure().isTimeMeasuring();
   }
   return false;
 }

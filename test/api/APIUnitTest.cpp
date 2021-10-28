@@ -379,7 +379,7 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureSetMaxMemoryPage(Conf, 1234U);
   EXPECT_NE(WasmEdge_ConfigureGetMaxMemoryPage(ConfNull), 1234U);
   EXPECT_EQ(WasmEdge_ConfigureGetMaxMemoryPage(Conf), 1234U);
-  /// Tests for AOT conpiler configurations.
+  /// Tests for AOT compiler configurations.
   WasmEdge_ConfigureCompilerSetOptimizationLevel(
       ConfNull, WasmEdge_CompilerOptimizationLevel_Os);
   WasmEdge_ConfigureCompilerSetOptimizationLevel(
@@ -392,14 +392,19 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureCompilerSetDumpIR(Conf, true);
   EXPECT_NE(WasmEdge_ConfigureCompilerIsDumpIR(ConfNull), true);
   EXPECT_EQ(WasmEdge_ConfigureCompilerIsDumpIR(Conf), true);
-  WasmEdge_ConfigureCompilerSetInstructionCounting(ConfNull, true);
-  WasmEdge_ConfigureCompilerSetInstructionCounting(Conf, true);
-  EXPECT_NE(WasmEdge_ConfigureCompilerIsInstructionCounting(ConfNull), true);
-  EXPECT_EQ(WasmEdge_ConfigureCompilerIsInstructionCounting(Conf), true);
-  WasmEdge_ConfigureCompilerSetCostMeasuring(ConfNull, true);
-  WasmEdge_ConfigureCompilerSetCostMeasuring(Conf, true);
-  EXPECT_NE(WasmEdge_ConfigureCompilerIsCostMeasuring(ConfNull), true);
-  EXPECT_EQ(WasmEdge_ConfigureCompilerIsCostMeasuring(Conf), true);
+  /// Tests for Statistics configurations.
+  WasmEdge_ConfigureStatisticsSetInstructionCounting(ConfNull, true);
+  WasmEdge_ConfigureStatisticsSetInstructionCounting(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureStatisticsIsInstructionCounting(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureStatisticsIsInstructionCounting(Conf), true);
+  WasmEdge_ConfigureStatisticsSetCostMeasuring(ConfNull, true);
+  WasmEdge_ConfigureStatisticsSetCostMeasuring(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureStatisticsIsCostMeasuring(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureStatisticsIsCostMeasuring(Conf), true);
+  WasmEdge_ConfigureStatisticsSetTimeMeasuring(ConfNull, true);
+  WasmEdge_ConfigureStatisticsSetTimeMeasuring(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureStatisticsIsTimeMeasuring(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureStatisticsIsTimeMeasuring(Conf), true);
   /// Test to delete nullptr.
   WasmEdge_ConfigureDelete(ConfNull);
   EXPECT_TRUE(true);
@@ -945,6 +950,11 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   /// Create contexts
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+
+  /// Enable Statistics
+  WasmEdge_ConfigureStatisticsSetInstructionCounting(Conf, true);
+  WasmEdge_ConfigureStatisticsSetCostMeasuring(Conf, true);
+  WasmEdge_ConfigureStatisticsSetTimeMeasuring(Conf, true);
 
   /// Load and validate file
   WasmEdge_ASTModuleContext *Mod = loadModule(Conf);

@@ -26,11 +26,14 @@ int main(int Argc, const char *Argv[]) {
   PO::Option<PO::Toggle> ConfDumpIR(
       PO::Description("Dump LLVM IR to `wasm.ll` and `wasm-opt.ll`."sv));
 
-  PO::Option<PO::Toggle> ConfInstructionCounting(PO::Description(
-      "Generate code for counting Wasm instructions executed."sv));
-
-  PO::Option<PO::Toggle> ConfGasMeasuring(PO::Description(
-      "Generate code for counting gas burned during execution."sv));
+  PO::Option<PO::Toggle> ConfEnableInstructionCounting(PO::Description(
+      "Enable generating code for counting Wasm instructions executed."sv));
+  PO::Option<PO::Toggle> ConfEnableGasMeasuring(PO::Description(
+      "Enable generating code for counting gas burned during execution."sv));
+  PO::Option<PO::Toggle> ConfEnableTimeMeasuring(PO::Description(
+      "Enable generating code for counting time during execution."sv));
+  PO::Option<PO::Toggle> ConfEnableAllStatistics(PO::Description(
+      "Enable generating code for all statistics options include instruction counting, gas measuring, and execution time"sv));
 
   PO::Option<PO::Toggle> PropMutGlobals(
       PO::Description("Disable Import/Export of mutable globals proposal"sv));
@@ -51,8 +54,11 @@ int main(int Argc, const char *Argv[]) {
   if (!Parser.add_option(WasmName)
            .add_option(SoName)
            .add_option("dump"sv, ConfDumpIR)
-           .add_option("ic"sv, ConfInstructionCounting)
-           .add_option("gas"sv, ConfGasMeasuring)
+           .add_option("enable-instruction-count"sv,
+                       ConfEnableInstructionCounting)
+           .add_option("enable-gas-measuring"sv, ConfEnableGasMeasuring)
+           .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
+           .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
            .add_option("generic-binary"sv, ConfGenericBinary)
            .add_option("disable-import-export-mut-globals"sv, PropMutGlobals)
            .add_option("disable-non-trap-float-to-int"sv, PropNonTrapF2IConvs)
@@ -131,11 +137,20 @@ int main(int Argc, const char *Argv[]) {
     if (ConfDumpIR.value()) {
       Conf.getCompilerConfigure().setDumpIR(true);
     }
-    if (ConfInstructionCounting.value()) {
-      Conf.getCompilerConfigure().setInstructionCounting(true);
-    }
-    if (ConfGasMeasuring.value()) {
-      Conf.getCompilerConfigure().setCostMeasuring(true);
+    if (ConfEnableAllStatistics.value()) {
+      Conf.getStatisticsConfigure().setInstructionCounting(true);
+      Conf.getStatisticsConfigure().setCostMeasuring(true);
+      Conf.getStatisticsConfigure().setTimeMeasuring(true);
+    } else {
+      if (ConfEnableInstructionCounting.value()) {
+        Conf.getStatisticsConfigure().setInstructionCounting(true);
+      }
+      if (ConfEnableGasMeasuring.value()) {
+        Conf.getStatisticsConfigure().setCostMeasuring(true);
+      }
+      if (ConfEnableTimeMeasuring.value()) {
+        Conf.getStatisticsConfigure().setTimeMeasuring(true);
+      }
     }
     if (ConfGenericBinary.value()) {
       Conf.getCompilerConfigure().setGenericBinary(true);

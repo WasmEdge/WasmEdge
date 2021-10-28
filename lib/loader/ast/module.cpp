@@ -189,14 +189,15 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
       {
         FileMgr VecMgr;
         VecMgr.setCode(CustomSec.getContent());
-        if (auto Res = loadSection(Mod->getAOTSection()); unlikely(!Res)) {
+        if (auto Res = loadSection(VecMgr, Mod->getAOTSection());
+            unlikely(!Res)) {
           spdlog::error("load failed:{}", Res.error());
           continue;
         }
       }
 
       auto Library = std::make_shared<SharedLibrary>();
-      if (auto Res = loadSection(Mod->getAOTSection()); unlikely(!Res)) {
+      if (auto Res = Library->load(Mod->getAOTSection()); unlikely(!Res)) {
         spdlog::error("library load failed:{}", Res.error());
         continue;
       }
@@ -224,7 +225,11 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
         }
       }
       if (auto Symbol =
-              Library->getIntrinsics<const AST::Module::IntrinsicsTable *>()) {
+              Library->getIntrinsics<const AST::Module::IntrinsicsTable *>();
+          unlikely(!Symbol)) {
+        spdlog::error("intrinsics table symbol not found");
+        continue;
+      } else {
         Mod->setSymbol(std::move(Symbol));
       }
       break;

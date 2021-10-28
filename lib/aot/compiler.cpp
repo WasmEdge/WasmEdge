@@ -4596,8 +4596,8 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
       }
     }
     FunctionCompiler FC(*Context, F, Locals,
-                        Conf.getCompilerConfigure().isInstructionCounting(),
-                        Conf.getCompilerConfigure().isCostMeasuring(),
+                        Conf.getStatisticsConfigure().isInstructionCounting(),
+                        Conf.getStatisticsConfigure().isCostMeasuring(),
                         Conf.getCompilerConfigure().getOptimizationLevel() ==
                             CompilerConfigure::OptimizationLevel::O0);
     auto Type = Context->resolveBlockType(T);

@@ -116,15 +116,15 @@ impl Config {
         self
     }
 
-    /// Enable or disable compile instruction counting.
+    /// Enable or disable instruction counting.
     pub fn count_instructions(self, enable: bool) -> Self {
-        unsafe { wasmedge::WasmEdge_ConfigureCompilerSetInstructionCounting(self.ctx, enable) };
+        unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetInstructionCounting(self.ctx, enable) };
         self
     }
 
-    /// Enable or disable compiler cost cost measuring.
+    /// Enable or disable cost cost measuring.
     pub fn measure_costs(self, enable: bool) -> Self {
-        unsafe { wasmedge::WasmEdge_ConfigureCompilerSetCostMeasuring(self.ctx, enable) };
+        unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetCostMeasuring(self.ctx, enable) };
         self
     }
 }

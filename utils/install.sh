@@ -244,6 +244,10 @@ usage() {
     -V,             --verbose                   Run script in verbose mode.
                                                     Will print out each step 
                                                     of execution.
+    
+    -r              --remove-old=[yes|no]       Run Uninstallation script by 
+                                                default. Specify \`no\` if you
+                                                wish not to. 
 
     Example:
     ./$0 -p $IPATH -e all -v $VERSION --verbose
@@ -252,6 +256,7 @@ usage() {
     ./$0 -p $IPATH --extension=all --path=/usr/local --verbose
     ./$0 -p $IPATH --extension=tf,image --path=/usr/local --verbose
     ./$0 -p $IPATH -e tensorflow,image --path=/usr/local --verbose
+    ./$0 -p $IPATH -e tensorflow,image --path=/usr/local --verbose -r no
     
     About:
 
@@ -405,7 +410,7 @@ install_image_extensions() {
 
         [ "$EXT_V_SET_WASMEDGE_IM_DEPS" -eq 0 ] && VERSION_IM_DEPS=$VERSION
 
-        [ "$VERSION_IM\n0.8.2" = "$(echo -en "$VERSION_IM\n0.8.2" | sort -V | head -n1)" ] &&
+        [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" == "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | sort --version-sort)" ] &&
             remote_version_availabilty second-state/WasmEdge-image "$VERSION_IM_DEPS" &&
             get_wasmedge_image_deps
 
@@ -445,8 +450,10 @@ main() {
     EXT_V_SET_WASMEDGE_TF=0
     EXT_V_SET_WASMEDGE_TF_DEPS=0
 
+    REMOVE_OLD=1
+
     local OPTIND
-    while getopts "e:hp:v:V-:" OPT; do
+    while getopts "e:hp:v:r:V-:" OPT; do
         # support long options: https://stackoverflow.com/a/28466267/519360
         if [ "$OPT" = "-" ]; then   # long option: reformulate OPT and OPTARG
             OPT="${OPTARG%%=*}"     # extract long option name
@@ -472,6 +479,9 @@ main() {
         p | path)
             IPATH="${OPTARG}"
             default=1
+            ;;
+        r | remove-old)
+            REMOVE_OLD="${OPTARG}"
             ;;
         tf-version)
             VERSION_TF="${OPTARG}"
@@ -508,6 +518,12 @@ main() {
     [ $EXT_V_SET_WASMEDGE -ne 1 ] && remote_version_availabilty WasmEdge/WasmEdge "$VERSION"
 
     detect_os_arch
+
+    if [ "$REMOVE_OLD" == "1" ] || [[ "$REMOVE_OLD" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        if [ -f "$IPATH/env" ]; then
+            bash <(wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -p "$IPATH" -q
+        fi
+    fi
 
     set_ENV "$IPATH"
     mkdir -p "$IPATH"

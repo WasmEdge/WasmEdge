@@ -12,7 +12,9 @@
 
 #include <csignal>
 #include <cstdint>
+#include <cstring>
 #include <mutex>
+#include <netdb.h>
 #include <random>
 #include <shared_mutex>
 #include <string>
@@ -38,6 +40,74 @@ public:
 
   void fini() noexcept;
 
+  WasiExpect<void> freeAddrInfo(__wasi_addrinfo_t *res) {
+    free(res);
+    return {};
+  }
+  __wasi_addrinfo_t *ai_next_helper(__wasi_addrinfo_t *dst, addrinfo *src) {
+    if (src == nullptr) {
+      return nullptr;
+    }
+    dst->ai_flags = static_cast<__wasi_aiflags_t>(src->ai_flags);
+    dst->ai_family = static_cast<__wasi_address_family_t>(src->ai_family);
+    dst->ai_socktype = static_cast<__wasi_sock_type_t>(src->ai_socktype);
+    dst->ai_protocol = static_cast<__wasi_protocol_t>(src->ai_protocol);
+    dst->ai_addrlen = src->ai_addrlen;
+    auto tmp_address = new __wasi_address_t();
+    memcpy(reinterpret_cast<void *>(tmp_address->buf), src->ai_addr,
+           src->ai_addrlen);
+    tmp_address->buf_len = src->ai_addrlen;
+    memcpy(reinterpret_cast<void *>(dst->ai_addr), tmp_address,
+           sizeof(__wasi_address_t));
+    memcpy(reinterpret_cast<void *>(dst->ai_canonname), src->ai_canonname,
+           strlen(src->ai_canonname));
+    dst->ai_canonname_len = strlen(src->ai_canonname);
+
+    dst->ai_next = reinterpret_cast<uint64_t>(ai_next_helper(
+        reinterpret_cast<__wasi_addrinfo_t *>(dst->ai_next), src->ai_next));
+    memcpy(reinterpret_cast<void *>(dst->ai_next),
+           ai_next_helper(reinterpret_cast<__wasi_addrinfo_t *>(dst->ai_next),
+                          src->ai_next),
+           sizeof(__wasi_addrinfo_t));
+    return dst;
+  }
+
+  WasiExpect<void> getAddrInfo(const char *node, const char *service,
+                               const __wasi_addrinfo_t *hint,
+                               /*Out*/ __wasi_addrinfo_t **res) {
+    struct addrinfo ai;
+    struct addrinfo *r = nullptr;
+
+    ai.ai_flags = hint->ai_flags;
+    ai.ai_family = hint->ai_family;
+    ai.ai_socktype = hint->ai_socktype;
+    ai.ai_protocol = hint->ai_protocol;
+    ai.ai_addrlen = hint->ai_addrlen;
+    ai.ai_addr = reinterpret_cast<sockaddr *>(
+        reinterpret_cast<__wasi_address_t *>(hint->ai_addr)->buf);
+    ai.ai_canonname = reinterpret_cast<char *>(hint->ai_canonname);
+    ai.ai_next = nullptr;
+
+    ::getaddrinfo(node, service, &ai, &r);
+
+    (*res)->ai_flags = static_cast<__wasi_aiflags_t>(r->ai_flags);
+    (*res)->ai_family = static_cast<__wasi_address_family_t>(r->ai_family);
+    (*res)->ai_socktype = static_cast<__wasi_sock_type_t>(r->ai_socktype);
+    (*res)->ai_protocol = static_cast<__wasi_protocol_t>(r->ai_protocol);
+    (*res)->ai_addrlen = r->ai_addrlen;
+    __wasi_address_t *tmp_address = new __wasi_address_t();
+    memcpy(reinterpret_cast<void *>(tmp_address->buf), r->ai_addr,
+           r->ai_addrlen);
+    tmp_address->buf_len = r->ai_addrlen;
+    memcpy(reinterpret_cast<void *>((*res)->ai_addr), tmp_address,
+           sizeof(__wasi_address_t));
+    memcpy(reinterpret_cast<void *>((*res)->ai_canonname), r->ai_canonname,
+           strlen(r->ai_canonname));
+    (*res)->ai_canonname_len = strlen(r->ai_canonname);
+    ai_next_helper(*res, r);
+    ::freeaddrinfo(r);
+    return {};
+  }
   constexpr const std::vector<std::string> &getArguments() const noexcept {
     return Arguments;
   }

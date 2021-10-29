@@ -1653,6 +1653,54 @@ static_assert(offsetof(__wasi_address_t, buf_len) == 4,
               "witx calculated offset");
 
 /**
+ * Flags provided to `getaddrinfo`.
+ */
+enum __wasi_aiflags_t : uint16_t {
+
+  /**
+   * Socket address is intended for bind()
+   */
+  __WASI_AIFLAGS_AI_PASSIVE = 1ULL << 0,
+
+  /**
+   * Request for canonical name.
+   */
+  __WASI_AIFLAGS_AI_CANONNAME = 1ULL << 1,
+
+  /**
+   * Return numeric host address as name.
+   */
+  __WASI_AIFLAGS_AI_NUMERICHOST = 1ULL << 2,
+
+  /**
+   * Inhibit service name resolution.
+   */
+  __WASI_AIFLAGS_AI_NUMERICSERV = 1ULL << 3,
+
+  /**
+   * If no IPv6 addresses are found, query for IPv4 addresses and return them to
+   * the caller as IPv4-mapped IPv6 addresses.
+   */
+  __WASI_AIFLAGS_AI_V4MAPPED = 1ULL << 4,
+
+  /**
+   * Query for both IPv4 and IPv6 addresses.
+   */
+  __WASI_AIFLAGS_AI_ALL = 1ULL << 5,
+
+  /**
+   * Query for IPv4 addresses only when an IPv4 address is configured; query for
+   * IPv6 addresses only when an IPv6 address is configured.
+   */
+  __WASI_AIFLAGS_AI_ADDRCONFIG = 1ULL << 6,
+
+};
+DEFINE_ENUM_OPERATORS(__wasi_aiflags_t)
+
+static_assert(sizeof(__wasi_aiflags_t) == 2, "witx calculated size");
+static_assert(alignof(__wasi_aiflags_t) == 2, "witx calculated align");
+
+/**
  * Socket type
  */
 enum __wasi_sock_type_t : uint8_t {
@@ -1663,6 +1711,74 @@ enum __wasi_sock_type_t : uint8_t {
 };
 static_assert(sizeof(__wasi_sock_type_t) == 1, "witx calculated size");
 static_assert(alignof(__wasi_sock_type_t) == 1, "witx calculated align");
+
+/**
+ * Protocol
+ */
+enum __wasi_protocol_t : uint8_t {
+  __WASI_PROTOCOL_IPPROTO_TCP = 0,
+
+  __WASI_PROTOCOL_IPPROTO_UDP = 1,
+
+};
+static_assert(sizeof(__wasi_protocol_t) == 1, "witx calculated size");
+static_assert(alignof(__wasi_protocol_t) == 1, "witx calculated align");
+
+/**
+ * Support to prevent recursive definition
+ */
+struct __wasi_addrinfo_fake_t {
+  uint8_t ai;
+};
+
+static_assert(sizeof(__wasi_addrinfo_fake_t) == 1, "witx calculated size");
+static_assert(alignof(__wasi_addrinfo_fake_t) == 1, "witx calculated align");
+static_assert(offsetof(__wasi_addrinfo_fake_t, ai) == 0,
+              "witx calculated offset");
+
+/**
+ * Address information
+ */
+struct __wasi_addrinfo_t {
+  __wasi_aiflags_t ai_flags;
+
+  __wasi_address_family_t ai_family;
+
+  __wasi_sock_type_t ai_socktype;
+
+  __wasi_protocol_t ai_protocol;
+
+  __wasi_size_t ai_addrlen;
+
+  uint8_t_ptr ai_addr;
+
+  uint8_t_ptr ai_canonname;
+
+  __wasi_size_t ai_canonname_len;
+
+  uint8_t_ptr ai_next;
+};
+
+static_assert(sizeof(__wasi_addrinfo_t) == 28, "witx calculated size");
+static_assert(alignof(__wasi_addrinfo_t) == 4, "witx calculated align");
+static_assert(offsetof(__wasi_addrinfo_t, ai_flags) == 0,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_family) == 2,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_socktype) == 3,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_protocol) == 4,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_addrlen) == 8,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_addr) == 12,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_canonname) == 16,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_canonname_len) == 20,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_next) == 24,
+              "witx calculated offset");
 
 /**
  * Flags provided to `sock_recv`.

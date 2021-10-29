@@ -1,0 +1,73 @@
+--- a/typenames.witx
++++ b/typenames.witx
+@@ -726,6 +726,28 @@
+
+ 
++
++
++;;; Flags provided to `getaddrinfo`.
++(typename $aiflags
++  (flags (@witx repr u16)
++    ;;; Socket address is intended for bind()
++    $ai_passive
++    ;;; Request for canonical name.
++    $ai_canonname
++    ;;;Return numeric host address as name.
++    $ai_numerichost
++    ;;;Inhibit service name resolution.
++    $ai_numericserv
++    ;;;If no IPv6 addresses are found, query for IPv4 addresses and return them to the caller as IPv4-mapped IPv6 addresses.
++    $ai_v4mapped
++    ;;;Query for both IPv4 and IPv6 addresses.
++    $ai_all
++    ;;;Query for IPv4 addresses only when an IPv4 address is configured; query for IPv6 addresses only when an IPv6 address is configured.
++    $ai_addrconfig
++  )
++)
++
+ ;;; Socket type
+ (typename $sock_type
+   (enum (@witx tag u8)
+@@ -734,6 +756,37 @@
+   )
+ )
+ 
++;;; Protocol
++(typename $protocol
++  (enum (@witx tag u8)
++    $ipproto_tcp
++    $ipproto_udp
++  )
++)
++
++;;; Support to prevent recursive definition
++(typename $addrinfo_fake
++    (record
++    (field $ai u8 )
++    )
++)
++
++;;; Address information
++(typename $addrinfo
++    (record
++        (field $ai_flags $aiflags )
++        (field $ai_family $address_family )
++        (field $ai_socktype $sock_type )
++        (field $ai_protocol $protocol )
++        (field $ai_addrlen $size)
++        (field $ai_addr (@witx pointer u8))
++        (field $ai_canonname (@witx pointer u8))
++        (field $ai_canonname_len $size)
++        (field $ai_next (@witx pointer u8))
++    )
++)
++
++
+ ;;; Flags provided to `sock_recv`.
+ (typename $riflags
+   (flags (@witx repr u16)
+@@ -788,4 +841,3 @@
+     $prestat_dir
+   )
+ )
+-

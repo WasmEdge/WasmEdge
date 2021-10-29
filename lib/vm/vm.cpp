@@ -13,7 +13,8 @@ namespace VM {
 VM::VM(const Configure &Conf)
     : Conf(Conf), Stage(VMStage::Inited),
       LoaderEngine(Conf, &Executor::Executor::Intrinsics),
-      ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat), SignatureEngine(Conf),
+      ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat),
+      SignatureEngine(Signature::Signature()),
       Store(std::make_unique<Runtime::StoreManager>()), StoreRef(*Store.get()) {
   unsafeInitVM();
 }
@@ -21,8 +22,8 @@ VM::VM(const Configure &Conf)
 VM::VM(const Configure &Conf, Runtime::StoreManager &S)
     : Conf(Conf), Stage(VMStage::Inited),
       LoaderEngine(Conf, &Executor::Executor::Intrinsics),
-      ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat), SignatureEngine(Conf),
-      StoreRef(S) {
+      ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat),
+      SignatureEngine(Signature::Signature()), StoreRef(S) {
   unsafeInitVM();
 }
 
@@ -204,6 +205,7 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                      Span<const ValVariant> Params,
@@ -254,11 +256,15 @@ Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
 =======
 Expect<std::vector<ValVariant>>
 VM::signWasmFile(const std::filesystem::path &Path) {
+=======
+Expect<void> VM::signWasmFile(const std::filesystem::path &Path) {
+>>>>>>> [Wasm-Signature] Fix `ed25519` dependency and improve implementation
   if (Stage == VMStage::Instantiated) {
     /// When running another module, instantiated module in store will be reset.
     /// Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
+<<<<<<< HEAD
   /// Load module.
   LDMgr LMgr;
   if (auto Res = LMgr.setPath(Path); !Res) {
@@ -293,6 +299,20 @@ Expect<std::vector<ValVariant>> VM::signWasmFile(const AST::Module &Module,
   }
   if (auto Res = SignatureEngine.sign(Module, signature); !Res) {
     return Unexpect(Res);
+=======
+  if (auto Res = LoaderEngine.parseModule(Path)) {
+    LDMgr LMgr;
+    if (auto Res = LMgr.setPath(Path); !Res) {
+      spdlog::error(Res.error());
+      spdlog::error(ErrInfo::InfoFile(Path));
+      return Unexpect(Res);
+    }
+    if (auto Code = LMgr.getWasm()) {
+      auto Sig = SignatureEngine.keygen(*Code);
+      return SignatureEngine.sign(Path, *Sig);
+    } else
+      return Unexpect(Code);
+>>>>>>> [Wasm-Signature] Fix `ed25519` dependency and improve implementation
   } else {
     return Unexpect(Res);
   }

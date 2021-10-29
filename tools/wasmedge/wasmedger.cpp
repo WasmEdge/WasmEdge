@@ -116,6 +116,11 @@ int main(int Argc, const char *Argv[]) {
   PO::SubCommand Verify(PO::Description("Verify a Wasm Module"sv));
   PO::Option<std::string> VerifyTarget(PO::Description("Wasm input file"sv));
   PO::Option<std::string> PublicKey(PO::Description("Public Key"sv));
+  Parser.begin_subcommand(Verify, "verify"sv)
+      .add_option(VerifyTarget)
+      .add_option("key"sv, PublicKey)
+      .end_subcommand();
+
   Parser.add_option(SoName)
       .add_option(Args)
       .add_option("reactor"sv, Reactor)

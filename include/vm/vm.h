@@ -108,6 +108,7 @@ public:
   signWasmFile(const std::filesystem::path &Path);
   Expect<std::vector<ValVariant>> signWasmFile(const AST::Module &Module,
                                                Span<Byte>);
+  Expect<void> signWasmFile(const std::filesystem::path &Path);
   Expect<std::vector<ValVariant>>
   verifyWasmFile(const std::filesystem::path &Path);
   Expect<std::vector<ValVariant>> verifyWasmFile(const AST::Module &Module);

@@ -4,26 +4,24 @@
 namespace WasmEdge {
 namespace Signature {
 
-std::vector<Byte> Sig_algorithm::sign(std::vector<Byte> data) {
-  unsigned char public_key[32], private_key[64], seed[32];
-  unsigned char signature[64];
+std::vector<Byte> SigAlgorithm::keygen(Span<const Byte> Code) {
+  unsigned char PublicKey[32], PrivateKey[64], Seed[32];
+  unsigned char Signature[64];
   // const unsigned char message[] = "Hello, world!";
-  const int message_len = 12;
-  const unsigned char *message = &data[0];
-  auto sign_sec_raw = FileMgr();
-  
+  const int MessageLen = 12;
+  const unsigned char *Message = &Code[0];
+
   /* create a random seed, and a keypair out of that seed */
-  ed25519_create_seed(seed);
-  ed25519_create_keypair(public_key, private_key, seed);
+  ed25519_create_seed(Seed);
+  ed25519_create_keypair(PublicKey, PrivateKey, Seed);
 
   /* sign bytes */
-  ed25519_sign(signature, message, message_len, public_key, private_key);
-  std::vector<Byte> vec(signature, signature + 64);
-  sign_sec_raw.setCode(vec);
-  return vec;
+  ed25519_sign(Signature, Message, MessageLen, PublicKey, PrivateKey);
+  std::vector<Byte> Sig(Signature, Signature + 64);
+  return Sig;
 }
 
-int Sig_algorithm::verify() { return 0; }
+int SigAlgorithm::verify() { return 0; }
 
 } // namespace Signature
 } // namespace WasmEdge

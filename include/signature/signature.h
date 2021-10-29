@@ -17,24 +17,24 @@
 #include "common/configure.h"
 #include "common/errcode.h"
 #include "sig_algorithm.h"
+#include <filesystem>
+#include <fstream>
+#include <system_error>
 
 namespace WasmEdge {
 namespace Signature {
 
+const std::string_view DEFAULT_CUSOTM_SECTION_NAME = "signature_wasmedge";
+
 class Signature {
 public:
-  Signature(const Configure &Conf) noexcept : Conf(Conf) {}
-  ~Signature() noexcept = default;
-
-  Expect<void> sign(const AST::Module &Mod, Span<Byte>);
+  Expect<void> sign(std::filesystem::path, const std::vector<uint8_t>);
   Expect<void> verify(const AST::Module &Mod);
   // Expect<Span<Byte>> keygen(Span<const uint8_t>);
-  int keygen(Span<const uint8_t>);
+  Expect<const std::vector<Byte>> keygen(Span<const uint8_t>);
 
 private:
-  /// Proposal configure
-  const Configure Conf;
-  Sig_algorithm alg;
+  SigAlgorithm Alg;
 };
 
 } // namespace Signature

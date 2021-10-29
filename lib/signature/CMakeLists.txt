@@ -4,13 +4,15 @@ wasmedge_add_library(wasmedgeSignature
   sig_algorithm.cpp
 )
 
+message([STATUS] "orlp: ${orlp-ed25519_SOURCE_DIR}")
 target_include_directories(wasmedgeSignature
   PUBLIC
-  ${PROJECT_SOURCE_DIR}/thirdparty
+  ${orlp-ed25519_SOURCE_DIR}/src
 )
 
 target_link_libraries(wasmedgeSignature
   PUBLIC
   wasmedgeCommon
-  wasmedgeAST
+  wasmedgeLoader
+  ED25519
 )

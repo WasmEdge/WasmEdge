@@ -110,22 +110,27 @@ Expect<void> Executor::callIndirect(Runtime::StoreManager &StoreMgr,
                                     const ValVariant *Args,
                                     ValVariant *Rets) noexcept {
   const auto *TabInst = getTabInstByIdx(StoreMgr, TableIndex);
+  assuming(TabInst);
 
   if (unlikely(FuncIndex >= TabInst->getSize())) {
     return Unexpect(ErrCode::UndefinedElement);
   }
 
-  RefVariant Ref = *TabInst->getRefAddr(FuncIndex);
-  if (unlikely(isNullRef(Ref))) {
+  auto Ref = TabInst->getRefAddr(FuncIndex);
+  assuming(Ref);
+  if (unlikely(isNullRef(*Ref))) {
     return Unexpect(ErrCode::UninitializedElement);
   }
-  const auto FuncAddr = retrieveFuncIdx(Ref);
+  const auto FuncAddr = retrieveFuncIdx(*Ref);
 
-  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  const auto *TargetFuncType = *ModInst->getFuncType(FuncTypeIndex);
-  const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
-  const auto &FuncType = FuncInst->getFuncType();
-  if (unlikely(*TargetFuncType != FuncType)) {
+  const auto ModInst = StoreMgr.getModule(StackMgr.getModuleAddr());
+  assuming(ModInst && *ModInst);
+  const auto TargetFuncType = (*ModInst)->getFuncType(FuncTypeIndex);
+  assuming(TargetFuncType && *TargetFuncType);
+  const auto FuncInst = StoreMgr.getFunction(FuncAddr);
+  assuming(FuncInst && *FuncInst);
+  const auto &FuncType = (*FuncInst)->getFuncType();
+  if (unlikely(**TargetFuncType != FuncType)) {
     return Unexpect(ErrCode::IndirectCallTypeMismatch);
   }
 
@@ -138,9 +143,9 @@ Expect<void> Executor::callIndirect(Runtime::StoreManager &StoreMgr,
     StackMgr.push(Args[I]);
   }
 
-  auto Instrs = FuncInst->getInstrs();
+  auto Instrs = (*FuncInst)->getInstrs();
   AST::InstrView::iterator StartIt;
-  if (auto Res = enterFunction(StoreMgr, *FuncInst, Instrs.end())) {
+  if (auto Res = enterFunction(StoreMgr, **FuncInst, Instrs.end())) {
     StartIt = *Res;
   } else {
     return Unexpect(Res);
@@ -158,9 +163,10 @@ Expect<void> Executor::callIndirect(Runtime::StoreManager &StoreMgr,
 
 Expect<uint32_t> Executor::memGrow(Runtime::StoreManager &StoreMgr,
                                    const uint32_t NewSize) noexcept {
-  auto &MemInst = *getMemInstByIdx(StoreMgr, 0);
-  const uint32_t CurrPageSize = MemInst.getPageSize();
-  if (MemInst.growPage(NewSize)) {
+  auto *MemInst = getMemInstByIdx(StoreMgr, 0);
+  assuming(MemInst);
+  const uint32_t CurrPageSize = MemInst->getPageSize();
+  if (MemInst->growPage(NewSize)) {
     return CurrPageSize;
   } else {
     return static_cast<uint32_t>(-1);
@@ -175,12 +181,13 @@ Expect<uint32_t> Executor::memSize(Runtime::StoreManager &StoreMgr) noexcept {
 Expect<void> Executor::memCopy(Runtime::StoreManager &StoreMgr,
                                const uint32_t Dst, const uint32_t Src,
                                const uint32_t Len) noexcept {
-  auto &MemInst = *getMemInstByIdx(StoreMgr, 0);
+  auto *MemInst = getMemInstByIdx(StoreMgr, 0);
+  assuming(MemInst);
 
-  if (auto Data = MemInst.getBytes(Src, Len); unlikely(!Data)) {
+  if (auto Data = MemInst->getBytes(Src, Len); unlikely(!Data)) {
     return Unexpect(Data);
   } else {
-    if (auto Res = MemInst.setBytes(*Data, Dst, 0, Len); unlikely(!Res)) {
+    if (auto Res = MemInst->setBytes(*Data, Dst, 0, Len); unlikely(!Res)) {
       return Unexpect(Res);
     }
   }
@@ -191,8 +198,9 @@ Expect<void> Executor::memCopy(Runtime::StoreManager &StoreMgr,
 Expect<void> Executor::memFill(Runtime::StoreManager &StoreMgr,
                                const uint32_t Off, const uint8_t Val,
                                const uint32_t Len) noexcept {
-  auto &MemInst = *getMemInstByIdx(StoreMgr, 0);
-  if (auto Res = MemInst.fillBytes(Val, Off, Len); unlikely(!Res)) {
+  auto *MemInst = getMemInstByIdx(StoreMgr, 0);
+  assuming(MemInst);
+  if (auto Res = MemInst->fillBytes(Val, Off, Len); unlikely(!Res)) {
     return Unexpect(Res);
   }
 
@@ -203,10 +211,12 @@ Expect<void> Executor::memInit(Runtime::StoreManager &StoreMgr,
                                const uint32_t DataIdx, const uint32_t Dst,
                                const uint32_t Src,
                                const uint32_t Len) noexcept {
-  auto &MemInst = *getMemInstByIdx(StoreMgr, 0);
-  auto &DataInst = *getDataInstByIdx(StoreMgr, DataIdx);
+  auto *MemInst = getMemInstByIdx(StoreMgr, 0);
+  assuming(MemInst);
+  auto *DataInst = getDataInstByIdx(StoreMgr, DataIdx);
+  assuming(DataInst);
 
-  if (auto Res = MemInst.setBytes(DataInst.getData(), Dst, Src, Len);
+  if (auto Res = MemInst->setBytes(DataInst->getData(), Dst, Src, Len);
       unlikely(!Res)) {
     return Unexpect(Res);
   }
@@ -216,8 +226,9 @@ Expect<void> Executor::memInit(Runtime::StoreManager &StoreMgr,
 
 Expect<void> Executor::dataDrop(Runtime::StoreManager &StoreMgr,
                                 const uint32_t DataIdx) noexcept {
-  auto &DataInst = *getDataInstByIdx(StoreMgr, DataIdx);
-  DataInst.clear();
+  auto *DataInst = getDataInstByIdx(StoreMgr, DataIdx);
+  assuming(DataInst);
+  DataInst->clear();
 
   return {};
 }
@@ -225,8 +236,9 @@ Expect<void> Executor::dataDrop(Runtime::StoreManager &StoreMgr,
 Expect<RefVariant> Executor::tableGet(Runtime::StoreManager &StoreMgr,
                                       const uint32_t TableIndex,
                                       const uint32_t Idx) noexcept {
-  auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
-  if (auto Res = TabInst.getRefAddr(Idx); unlikely(!Res)) {
+  auto *TabInst = getTabInstByIdx(StoreMgr, TableIndex);
+  assuming(TabInst);
+  if (auto Res = TabInst->getRefAddr(Idx); unlikely(!Res)) {
     return Unexpect(Res);
   } else {
     return *Res;
@@ -236,8 +248,9 @@ Expect<RefVariant> Executor::tableGet(Runtime::StoreManager &StoreMgr,
 Expect<void> Executor::tableSet(Runtime::StoreManager &StoreMgr,
                                 const uint32_t TableIndex, const uint32_t Idx,
                                 const RefVariant Ref) noexcept {
-  auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
-  if (auto Res = TabInst.setRefAddr(Idx, Ref); unlikely(!Res)) {
+  auto *TabInst = getTabInstByIdx(StoreMgr, TableIndex);
+  assuming(TabInst);
+  if (auto Res = TabInst->setRefAddr(Idx, Ref); unlikely(!Res)) {
     return Unexpect(Res);
   }
 
@@ -249,12 +262,14 @@ Expect<void> Executor::tableCopy(Runtime::StoreManager &StoreMgr,
                                  const uint32_t TableIndexDst,
                                  const uint32_t Dst, const uint32_t Src,
                                  const uint32_t Len) noexcept {
-  auto &TabInstSrc = *getTabInstByIdx(StoreMgr, TableIndexSrc);
-  auto &TabInstDst = *getTabInstByIdx(StoreMgr, TableIndexDst);
-  if (auto Refs = TabInstSrc.getRefs(Src, Len); unlikely(!Refs)) {
+  auto *TabInstSrc = getTabInstByIdx(StoreMgr, TableIndexSrc);
+  assuming(TabInstSrc);
+  auto *TabInstDst = getTabInstByIdx(StoreMgr, TableIndexDst);
+  assuming(TabInstDst);
+  if (auto Refs = TabInstSrc->getRefs(Src, Len); unlikely(!Refs)) {
     return Unexpect(Refs);
   } else {
-    if (auto Res = TabInstDst.setRefs(*Refs, Dst, 0, Len); unlikely(!Res)) {
+    if (auto Res = TabInstDst->setRefs(*Refs, Dst, 0, Len); unlikely(!Res)) {
       return Unexpect(Res);
     }
   }
@@ -266,9 +281,10 @@ Expect<uint32_t> Executor::tableGrow(Runtime::StoreManager &StoreMgr,
                                      const uint32_t TableIndex,
                                      const RefVariant Val,
                                      const uint32_t NewSize) noexcept {
-  auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
-  const uint32_t CurrTableSize = TabInst.getSize();
-  if (likely(TabInst.growTable(NewSize, Val))) {
+  auto *TabInst = getTabInstByIdx(StoreMgr, TableIndex);
+  assuming(TabInst);
+  const uint32_t CurrTableSize = TabInst->getSize();
+  if (likely(TabInst->growTable(NewSize, Val))) {
     return CurrTableSize;
   } else {
     return static_cast<uint32_t>(-1);
@@ -277,16 +293,18 @@ Expect<uint32_t> Executor::tableGrow(Runtime::StoreManager &StoreMgr,
 
 Expect<uint32_t> Executor::tableSize(Runtime::StoreManager &StoreMgr,
                                      const uint32_t TableIndex) noexcept {
-  auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
-  return TabInst.getSize();
+  auto *TabInst = getTabInstByIdx(StoreMgr, TableIndex);
+  assuming(TabInst);
+  return TabInst->getSize();
 }
 
 Expect<void> Executor::tableFill(Runtime::StoreManager &StoreMgr,
                                  const uint32_t TableIndex, const uint32_t Off,
                                  const RefVariant Ref,
                                  const uint32_t Len) noexcept {
-  auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
-  if (auto Res = TabInst.fillRefs(Ref, Off, Len); unlikely(!Res)) {
+  auto *TabInst = getTabInstByIdx(StoreMgr, TableIndex);
+  assuming(TabInst);
+  if (auto Res = TabInst->fillRefs(Ref, Off, Len); unlikely(!Res)) {
     return Unexpect(Res);
   }
 
@@ -298,9 +316,11 @@ Expect<void> Executor::tableInit(Runtime::StoreManager &StoreMgr,
                                  const uint32_t ElementIndex,
                                  const uint32_t Dst, const uint32_t Src,
                                  const uint32_t Len) noexcept {
-  auto &TabInst = *getTabInstByIdx(StoreMgr, TableIndex);
-  auto &ElemInst = *getElemInstByIdx(StoreMgr, ElementIndex);
-  if (auto Res = TabInst.setRefs(ElemInst.getRefs(), Dst, Src, Len);
+  auto *TabInst = getTabInstByIdx(StoreMgr, TableIndex);
+  assuming(TabInst);
+  auto *ElemInst = getElemInstByIdx(StoreMgr, ElementIndex);
+  assuming(ElemInst);
+  if (auto Res = TabInst->setRefs(ElemInst->getRefs(), Dst, Src, Len);
       unlikely(!Res)) {
     return Unexpect(Res);
   }
@@ -310,17 +330,20 @@ Expect<void> Executor::tableInit(Runtime::StoreManager &StoreMgr,
 
 Expect<void> Executor::elemDrop(Runtime::StoreManager &StoreMgr,
                                 const uint32_t ElementIndex) noexcept {
-  auto &ElemInst = *getElemInstByIdx(StoreMgr, ElementIndex);
-  ElemInst.clear();
+  auto *ElemInst = getElemInstByIdx(StoreMgr, ElementIndex);
+  assuming(ElemInst);
+  ElemInst->clear();
 
   return {};
 }
 
 Expect<RefVariant> Executor::refFunc(Runtime::StoreManager &StoreMgr,
                                      const uint32_t FuncIndex) noexcept {
-  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  const uint32_t FuncAddr = *ModInst->getFuncAddr(FuncIndex);
-  return FuncRef(FuncAddr);
+  const auto ModInst = StoreMgr.getModule(StackMgr.getModuleAddr());
+  assuming(ModInst && *ModInst);
+  const auto FuncAddr = (*ModInst)->getFuncAddr(FuncIndex);
+  assuming(FuncAddr);
+  return FuncRef(*FuncAddr);
 }
 
 } // namespace Executor

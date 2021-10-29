@@ -214,6 +214,27 @@ case ":\"\${"$_LD_LIBRARY_PATH_"}\":" in
         # Prepending path in case a system-installed wasmedge libs needs to be overridden
         export $_LD_LIBRARY_PATH_=\"$1/lib\":\$$_LD_LIBRARY_PATH_
         ;;
+esac
+case ":\"\${"LIBRARY_PATH"}\":" in
+    *:\"$1/lib\":*)
+        ;;
+    *)
+        export LIBRARY_PATH=\"$1/lib\":\$LIBRARY_PATH
+        ;;
+esac
+case ":\"\${"C_INCLUDE_PATH"}\":" in
+    *:\"$1/include\":*)
+        ;;
+    *)
+        export C_INCLUDE_PATH=\"$1/include\":\$C_INCLUDE_PATH
+        ;;
+esac
+case ":\"\${"CPLUS_INCLUDE_PATH"}\":" in
+    *:\"$1/include\":*)
+        ;;
+    *)
+        export CPLUS_INCLUDE_PATH=\"$1/include\":\$CPLUS_INCLUDE_PATH
+        ;;
 esac"
 }
 

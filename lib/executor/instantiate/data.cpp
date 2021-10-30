@@ -34,6 +34,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
         /// Memory index should be 0. Checked in validation phase.
         auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg.getIdx());
         /// Check data fits.
+        assert(MemInst != nullptr);
         if (!MemInst->checkAccessBound(
                 Offset, static_cast<uint32_t>(DataSeg.getData().size()))) {
           spdlog::error(ErrCode::DataSegDoesNotFit);
@@ -69,6 +70,7 @@ Expect<void> Executor::initMemory(Runtime::StoreManager &StoreMgr,
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       /// Memory index should be 0. Checked in validation phase.
       auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg.getIdx());
+      assert(DataInst != nullptr);
       const uint32_t Off = DataInst->getOffset();
 
       /// Replace mem[Off : Off + n] with data[0 : n].

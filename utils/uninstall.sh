@@ -56,10 +56,10 @@ usage() {
                                                     of execution.
 
     Example:
-    ./$0 -p $IPATH -e all -v $VERSION --verbose
+    ./$0 -p $IPATH --verbose
     
     Or
-    ./$0 -p $IPATH --extension=all --path=/usr/local --verbose
+    ./$0 --verbose
     
     About:
 
@@ -81,6 +81,7 @@ EOF
 
 parse_env() {
     local begin
+    local _COUNT_
     begin=0
     while IFS= read -r line; do
         if [ ! "${line:0:1}" = "#" ]; then
@@ -91,11 +92,16 @@ parse_env() {
             fi
         fi
         if [ $begin -eq 1 ] && [[ ! "$line" =~ $BLOCK_BEGIN ]]; then
+            _COUNT_=$((_COUNT_ + 1))
             echo "${line#"#"}"
         fi
     done <"$IPATH/env"
     if [ -f "$IPATH/env" ]; then
+        _COUNT_=$((_COUNT_ + 1))
         echo "$IPATH/env"
+    fi
+    if [ $_COUNT_ -lt 2 ]; then
+        echo "_ERROR_ : Found $_COUNT_ file(s) only"
     fi
 }
 
@@ -110,13 +116,15 @@ remove_parsed() {
             fi
         fi
         exit 0
+    else
+        echo "${RED}env file not found${NC}"
     fi
 }
 
 detect_bin_path() {
     set +e
     _path=$(which "$1")
-    if [ "$_path" = "" ]; then
+    if [ "$_path" = "" ] || [ "$SPECIFIED" -eq 1 ]; then
         if [ ! -d "$IPATH" ]; then
             echo "${RED}Cannot detect installation path${NC}"
             exit 1
@@ -147,9 +155,13 @@ ask_remove() {
         while true; do
             echo "Do you wish to uninstall the following?"
             for var in "${libs[@]}"; do
+                if [ "$var" = "" ] || [[ "$var" == "_ERROR_"* ]]; then
+                    echo "${RED}Error parsing file:$var${NC}"
+                    exit 1
+                fi
                 echo "$var"
             done
-            read -p "Please answer [Y/N | y/n]" yn
+            read -rp "Please answer [Y/N | y/n]" yn
             case $yn in
             [Yy]*)
                 for var in "${libs[@]}"; do
@@ -168,6 +180,10 @@ ask_remove() {
         done
     else
         for var in "${libs[@]}"; do
+            if [ "$var" = "" ] || [ "$var" = "_ERROR_" ]; then
+                echo "${RED}Error parsing file${NC}"
+                exit 1
+            fi
             echo "Removing $var"
             _rm "$var"
         done
@@ -179,7 +195,7 @@ main() {
 
     # getopt is in the util-linux package,
     # it'll probably be fine, but it's of course a good thing to keep in mind.
-
+    SPECIFIED=0
     local OPTIND
     while getopts "qhp:V-:" OPT; do
         # support long options: https://stackoverflow.com/a/28466267/519360
@@ -202,6 +218,7 @@ main() {
             ;;
         p | path)
             IPATH="${OPTARG}"
+            SPECIFIED=1
             ;;
         ?)
             exit 2

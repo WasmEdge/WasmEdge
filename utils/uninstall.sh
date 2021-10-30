@@ -36,7 +36,6 @@ if [ "$__HOME__" = "" ]; then
 fi
 
 IPATH="$__HOME__/.wasmedge"
-EXT="none"
 VERBOSE=0
 ASK=1
 
@@ -51,20 +50,6 @@ usage() {
     -q,             --quick                     Uninstall everything without
                                                 asking
     -p,             --path=[/usr/local]         Prefix / Path to install
-
-    -v,             --version=VERSION           Set and Download specific 
-                                                    version of WasmEdge
-                        
-                    --tf-version=VERSION_TF
-                    --tf-deps-version=VERSION_TF_DEPS
-                    --tf-tools-version=VERSION_TF_TOOLS
-                    --image-version=VERSION_IM
-                    --image-deps-version=VERSION_IM_DEPS
-
-    -e,             --extension=[tf|image|all|none]  
-                                                    Enable extension support 
-                                                    i.e Tensorflow (tf) 
-                                                        or Image (image)
 
     -V,             --verbose                   Run script in verbose mode.
                                                     Will print out each step 
@@ -190,94 +175,13 @@ ask_remove() {
     fi
 }
 
-uninstall_wasmedge() {
-    echo "Uninstalling WasmEdge"
-    rm -f "$IPATH"/include/wasmedge.h
-    rm -f "$IPATH"/lib/libwasmedge_c.so
-    rm -f "$IPATH"/bin/wasmedge
-    rm -f "$IPATH"/bin/wasmedgec
-    _ldconfig
-}
-
-wasmedge_checks() {
-    for var in "$@"; do
-        if [ -f "$IPATH"/bin/"$var" ]; then
-            echo "${RED}Uninstallation of $var unsuccessfull${NC}"
-            exit 1
-        else
-            echo "${GREEN}Uninstallation of $var successfull${NC}"
-        fi
-    done
-}
-
-remove_wasmedge_image_deps() {
-    echo "
-    Uninstall
-    WasmEdge-image-deps"
-    local libs=("$IPATH"/lib/libjpeg.so
-        "$IPATH"/lib/libjpeg.so.8
-        "$IPATH"/lib/libjpeg.so.8.3.0
-        "$IPATH"/lib/libpng.so
-        "$IPATH"/lib/libpng16.so
-        "$IPATH"/lib/libpng16.so.16
-        "$IPATH"/lib/libpng16.so.16.37.0)
-
-    ask_remove "${libs[@]}"
-}
-
-uninstall_wasmedge_image() {
-    echo "
-    Uninstalling ===>
-    WasmEdge-image"
-    rm -f "$IPATH"/lib/libwasmedge-image_c.so
-    rm -f "$IPATH"/include/wasmedge-image.h
-    _ldconfig
-}
-
-remove_wasmedge_tensorflow_deps() {
-    echo "
-    Uninstall
-    WasmEdge-tensorflow-deps-TF 
-    WasmEdge-tensorflow-deps-TFLite"
-    local libs=("$IPATH"/lib/libtensorflow.so.2
-        "$IPATH"/lib/libtensorflow.so
-        "$IPATH"/lib/libtensorflow_framework.so.2
-        "$IPATH"/lib/libtensorflow_framework.so
-        "$IPATH"/lib/libtensorflow.so.2.4.0
-        "$IPATH"/lib/libtensorflow.so.2
-        "$IPATH"/lib/libtensorflow_framework.so.2.4.0
-        "$IPATH"/lib/libtensorflowlite_c.so
-        "$IPATH"/lib/libtensorflow_framework.so.2)
-
-    ask_remove "${libs[@]}"
-}
-
-uninstall_wasmedge_tensorflow() {
-    echo "
-    Uninstalling ===>
-    WasmEdge-tensorflow  
-    WasmEdge-tensorflowlite 
-    WasmEdge-tensorflow-tools"
-    rm -f "$IPATH"/include/wasmedge-tensorflow.h
-    rm -f "$IPATH"/include/wasmedge-tensorflowlite.h
-    rm -f "$IPATH"/lib/libwasmedge-tensorflow_c.so
-    rm -f "$IPATH"/lib/libwasmedge-tensorflowlite_c.so
-    rm -f "$IPATH"/bin/wasmedge-tensorflow-lite
-    rm -f "$IPATH"/bin/wasmedge-tensorflow
-    rm -f "$IPATH"/bin/wasmedgec-tensorflow
-    rm -f "$IPATH"/bin/show-tflite-tensor
-    _ldconfig
-}
-
 main() {
 
     # getopt is in the util-linux package,
     # it'll probably be fine, but it's of course a good thing to keep in mind.
 
-    default=0
-
     local OPTIND
-    while getopts "qe:hp:v:V-:" OPT; do
+    while getopts "qhp:V-:" OPT; do
         # support long options: https://stackoverflow.com/a/28466267/519360
         if [ "$OPT" = "-" ]; then   # long option: reformulate OPT and OPTARG
             OPT="${OPTARG%%=*}"     # extract long option name
@@ -288,38 +192,16 @@ main() {
         q | quick)
             ASK=0
             ;;
-        e | extension)
-            EXT="${OPTARG}"
-            ;;
         h | help)
             usage
             trap - EXIT
             exit 0
-            ;;
-        v | version)
-            VERSION="${OPTARG}"
             ;;
         V | verbose)
             VERBOSE=1
             ;;
         p | path)
             IPATH="${OPTARG}"
-            default=1
-            ;;
-        tf-version)
-            VERSION_TF="${OPTARG}"
-            ;;
-        tf-deps-version)
-            VERSION_TF_DEPS="${OPTARG}"
-            ;;
-        tf-tools-version)
-            VERSION_TF_TOOLS="${OPTARG}"
-            ;;
-        image-version)
-            VERSION_IM="${OPTARG}"
-            ;;
-        image-deps-version)
-            VERSION_IM_DEPS="$OPTARG"
             ;;
         ?)
             exit 2
@@ -343,57 +225,6 @@ main() {
     fi
 
     detect_bin_path wasmedge
-
-    if [ ! $default == 1 ] && [ ! $ASK == 0 ]; then
-        while true; do
-            echo "No path provided"
-            read -p "Do you wish to uninstall this program from $IPATH?" yn
-            case $yn in
-            [Yy]*)
-                break
-                ;;
-            [Nn]*) exit 1 ;;
-            *) echo "Please answer [Y/N | y/n]" ;;
-            esac
-        done
-    fi
-
-    if [ -d "$IPATH" ]; then
-        echo "WasmEdge uninstallation from $IPATH"
-
-        uninstall_wasmedge
-        wasmedge_checks "wasmedge" "wasmedgec"
-    else
-        echo "Uninstallation path invalid"
-        exit 1
-    fi
-
-    if [ "$EXT" = "image" ]; then
-        echo "Image Extensions"
-        remove_wasmedge_image_deps
-        uninstall_wasmedge_image
-    elif [ "$EXT" = "tf" ]; then
-        echo "Tensorflow Extensions"
-        remove_wasmedge_tensorflow_deps
-        uninstall_wasmedge_tensorflow
-        wasmedge_checks wasmedge-tensorflow \
-            wasmedgec-tensorflow \
-            wasmedge-tensorflow-lite
-    elif [ "$EXT" = "all" ]; then
-        echo "Image & Tensorflow extensions"
-        remove_wasmedge_image_deps
-        uninstall_wasmedge_image
-        remove_wasmedge_tensorflow_deps
-        uninstall_wasmedge_tensorflow
-        wasmedge_checks wasmedge-tensorflow \
-            wasmedgec-tensorflow \
-            wasmedge-tensorflow-lite
-    elif [ "$EXT" = "none" ]; then
-        echo "No extensions to be uninstalled"
-    else
-        echo "Invalid extension"
-    fi
-
 }
 
 main "$@"

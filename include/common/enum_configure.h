@@ -13,14 +13,14 @@
 #ifndef WASMEDGE_C_API_ENUM_CONFIGURE_H
 #define WASMEDGE_C_API_ENUM_CONFIGURE_H
 
-#ifdef __cplusplus
+#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 #include <cstdint>
 #include <string>
 #include <unordered_map>
 #endif
 
 /// Wasm Proposal enum class.
-#ifdef __cplusplus
+#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 using namespace std::literals::string_view_literals;
 namespace WasmEdge {
 enum class Proposal : uint8_t {
@@ -76,7 +76,7 @@ enum WasmEdge_Proposal {
 };
 
 /// Host Module Registration enum class.
-#ifdef __cplusplus
+#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
 enum class HostRegistration : uint8_t { Wasi = 0, WasmEdge_Process, Max };
 } // namespace WasmEdge

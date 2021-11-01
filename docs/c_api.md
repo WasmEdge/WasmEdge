@@ -41,24 +41,13 @@
 
 ### Download And Install
 
-For `Ubuntu` or `Debian`, WasmEdge can be fully installed by the following commands:
+The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
 
 ```bash
-$ wget https://github.com/WasmEdge/WasmEdge/releases/download/0.8.2/WasmEdge-0.8.2.deb
-$ sudo dpkg -i WasmEdge-0.8.2.deb
+wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0-rc.2
 ```
 
-Or developers can install the shared library step-by-step (take the `manylinux2014` package for example):
-
-```bash
-$ wget https://github.com/WasmEdge/WasmEdge/releases/download/0.8.2/WasmEdge-0.8.2-manylinux2014_x86_64.tar.gz
-$ tar -xzf WasmEdge-0.8.2-manylinux2014_x86_64.tar.gz
-# Copy the headers to /usr/local/include
-$ sudo cp -r WasmEdge-0.8.2-Linux/include /usr/local/include
-# Copy the shared library to /usr/local/lib
-$ sudo cp WasmEdge-0.8.2-Linux/lib64/libwasmedge_c.so /usr/local/lib/
-$ sudo ldconfig
-```
+For more details, please refer to the [Installation Guide](install.md) for the WasmEdge installation.
 
 ### Compile Sources
 
@@ -85,7 +74,7 @@ After the installation of WasmEdge, the following guide can help you to test for
 
     ```bash
     $ ./a.out
-    WasmEdge version: 0.8.1
+    WasmEdge version: 0.9.0-rc.2
     ```
 
 ## WasmEdge Basics

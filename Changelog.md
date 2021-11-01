@@ -10,6 +10,7 @@ Breaking changes:
 * Modulized the API Headers.
   * Moved the API header into the `wasmedge` folder. Developers should include the `wasmedge/wasmedge.h` for using the WasmEdge shared library after installation.
   * Moved the enumeration definitions into `enum_errcode.h`, `enum_types.h`, and `enum_configure.h` in the `wasmedge` folder.
+  * Added the `201402L` C++ standard checking if developer includes the headers with a C++ compiler.
 * Adjusted the error code names.
   * Please refer to the [ErrCode enum](https://github.com/WasmEdge/WasmEdge/blob/master/include/common/enum_errcode.h) definition.
 * Renamed the `Interpreter` into `Executor`.
@@ -94,15 +95,17 @@ Features:
     * `WasmEdge_ExportTypeGetGlobalType` function can get the global type of an export type context.
   * For more details of the usages of imports and exports, please refer to the [C API documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md).
 * Provided install and uninstall script for installing/uninstalling  WasmEdge on linux(amd64 and aarch64) and macos(amd64 and arm64).
-* Support compiling WebAssembly into a new WebAssembly file with a packed binary section.
+* Supported compiling WebAssembly into a new WebAssembly file with a packed binary section.
 
 Fixed issues:
 
 * Refined the WasmEdge C API behaviors.
   * Handle the edge cases of `WasmEdge_String` creation.
+* Fixed the instruction iteration exception in interpreter mode.
+  * Forcely added the capacity of instruction vector to prevent from connection of instruction vectors in different function instances.
 * Fixed the `VM` creation issue.
   * Added the loss of intrinsics table setting when creating a VM instance.
-* Fixed wasi-socket support on macos
+* Fixed wasi-socket support on macos.
 
 Refactor:
 
@@ -111,25 +114,27 @@ Refactor:
   * Removed the unnecessary `genNullRef()`.
   * Merged the building environment-related definitions into `common`.
   * Merged the `common/values.h` into `common/types.h`.
-  * Separate all enumeration definitions.
-* Refactor the AST nodes.
+  * Separated all enumeration definitions.
+* Refactored the AST nodes.
   * Simplified the AST nodes definitions into header-only classes.
   * Moved the binary loading functions into `loader`.
   * Updated the `validator`, `executor`, `runtime`, `api`, and `vm` for the AST node changes.
-* Refactor the runtime objects.
+* Refactored the runtime objects.
   * Used `AST::FunctionType`, `AST::TableType`, `AST::MemoryType`, and `AST::GlobalType` for instance creation and member handling.
   * Removed `Runtime::Instance::FType` and used `AST::FunctionType` instead.
   * Added routines to push function instances into import objects.
   * Removed the exported map getter in `StoreManager`. Used the getter from `ModuleInstance` instead.
   * Added the module name mapping in `StoreManager`.
-* Refactor the VM class.
-  * Return the reference to function type instead of copying when getting the function list.
+* Refactored the VM class.
+  * Returned the reference to function type instead of copying when getting the function list.
+  * Returned the vector of return value and value type pair when execution.
 * Updated the include path for rust binding due to the API headers refactoring.
 
 Documentations:
 
 * Updated the examples in the [C API documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md).
 * Updated the examples in the [host function documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/host_function.md).
+* Updated the examples in the [external reference documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/externref.md).
 
 Bindings:
 
@@ -137,6 +142,7 @@ Bindings:
 
 Tests:
 
+* Updated and fixed the value comarison in core tests.
 * Added `ErrInfo` unit tests.
 * Added instruction tests for turning on/off the old proposals.
 * Moved and updated the `AST` unit tests into `loader`.
@@ -145,7 +151,9 @@ Tests:
 
 Misc:
 
-* Enable GitHub CodeSpaces
+* Enabled GitHub CodeSpaces
+* Added `assuming` for `assert` checking to help compiler to generate better codes.
+
 
 ### 0.8.2 (2021-08-25)
 

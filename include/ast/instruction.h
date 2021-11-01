@@ -26,8 +26,6 @@ public:
   /// Constructor assigns the OpCode.
   Instruction(OpCode Byte, uint32_t Off = 0) noexcept
       : Code(Byte), Offset(Off) {}
-  /// Copy constructor.
-  Instruction(const Instruction &Instr) = default;
   /// Destructor.
   ~Instruction() noexcept = default;
 
@@ -84,8 +82,8 @@ public:
 private:
   /// \name Data of instructions.
   /// @{
-  const OpCode Code = OpCode::End;
-  const uint32_t Offset = 0;
+  OpCode Code = OpCode::End;
+  uint32_t Offset = 0;
   BlockType ResType = ValType::None;
   uint32_t JumpEnd = 0;
   uint32_t JumpElse = 0;

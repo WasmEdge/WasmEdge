@@ -77,6 +77,12 @@ _extracter() {
 
                         ln -sf "$IPATH/lib/$filtered" "$IPATH/lib/$_f4_"
                         echo "#$IPATH/lib/$_f4_" >>"$IPATH/env"
+
+                        # special case: libpng16.so.16.37.0 ---> libpng.so
+                        if [[ "$filtered" =~ "libpng16.so.16.37.0" ]]; then
+                            ln -sf "$IPATH/lib/$filtered" "$IPATH/lib/libpng.so"
+                            echo "#$IPATH/lib/libpng.so" >>"$IPATH/env"
+                        fi
                     fi
                 elif [[ "$2" =~ "bin" ]] && [[ ! "$IPATH/$filtered" =~ "/bin/" ]]; then
                     echo "#$IPATH/bin/$filtered" >>"$IPATH/env"

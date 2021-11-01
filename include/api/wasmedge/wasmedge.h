@@ -574,42 +574,60 @@ WasmEdge_ConfigureCompilerSetDumpIR(WasmEdge_ConfigureContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureCompilerIsDumpIR(const WasmEdge_ConfigureContext *Cxt);
 
-/// Set the instruction counting supporting boolean value of AOT compiler.
+/// Set the instruction counting option.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsCount the boolean value to determine to support instruction
 /// counting when execution or not after compilation by the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ConfigureCompilerSetInstructionCounting(WasmEdge_ConfigureContext *Cxt,
-                                                 const bool IsCount);
+WasmEdge_ConfigureStatisticsSetInstructionCounting(
+    WasmEdge_ConfigureContext *Cxt, const bool IsCount);
 
-/// Get the instruction counting supporting boolean value of AOT compiler.
+/// Get the instruction counting option.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
 ///
 /// \returns the boolean value to determine to support instruction counting when
 /// execution or not after compilation by the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ConfigureCompilerIsInstructionCounting(
+WasmEdge_ConfigureStatisticsIsInstructionCounting(
     const WasmEdge_ConfigureContext *Cxt);
 
-/// Set the cost measuring supporting boolean value of AOT compiler.
+/// Set the time measuring option.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param IsMeasure the boolean value to determine to support time when
+/// execution or not after compilation by the AOT compiler.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureStatisticsSetTimeMeasuring(WasmEdge_ConfigureContext *Cxt,
+                                             const bool IsMeasure);
+
+/// Get the time measuring option.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to support time measuring when
+/// execution or not after compilation by the AOT compiler.
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
+    const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the cost measuring option.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsMeasure the boolean value to determine to support cost measuring
 /// when execution or not after compilation by the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ConfigureCompilerSetCostMeasuring(WasmEdge_ConfigureContext *Cxt,
-                                           const bool IsMeasure);
+WasmEdge_ConfigureStatisticsSetCostMeasuring(WasmEdge_ConfigureContext *Cxt,
+                                             const bool IsMeasure);
 
-/// Get the cost measuring supporting boolean value of AOT compiler.
+/// Get the cost measuring option.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
 ///
 /// \returns the boolean value to determine to support cost measuring when
 /// execution or not after compilation by the AOT compiler.
-WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ConfigureCompilerIsCostMeasuring(const WasmEdge_ConfigureContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsCostMeasuring(
+    const WasmEdge_ConfigureContext *Cxt);
 
 /// Deletion of the WasmEdge_ConfigureContext.
 ///

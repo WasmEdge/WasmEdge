@@ -147,8 +147,7 @@ toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) {
   case OL::Oz:
     return llvm::PassBuilder::OptimizationLevel::Oz;
   default:
-    assert(false);
-    __builtin_unreachable();
+    assuming(false);
   }
 }
 
@@ -221,6 +220,8 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   llvm::PointerType *Int128PtrTy;
   llvm::StructType *ExecCtxTy;
   llvm::PointerType *ExecCtxPtrTy;
+  llvm::ArrayType *IntrinsicsTableTy;
+  llvm::PointerType *IntrinsicsTablePtrTy;
   llvm::SubtargetFeatures SubtargetFeatures;
 
 #if defined(__x86_64__)
@@ -300,13 +301,12 @@ struct WasmEdge::AOT::Compiler::CompileContext {
             /// Gas
             Int64PtrTy)),
         ExecCtxPtrTy(ExecCtxTy->getPointerTo()),
+        IntrinsicsTableTy(llvm::ArrayType::get(
+            Int8PtrTy, uint32_t(AST::Module::Intrinsics::kIntrinsicMax))),
+        IntrinsicsTablePtrTy(IntrinsicsTableTy->getPointerTo()),
         IntrinsicsTable(new llvm::GlobalVariable(
-            LLModule,
-            llvm::ArrayType::get(
-                Int8PtrTy, uint32_t(AST::Module::Intrinsics::kIntrinsicMax))
-                ->getPointerTo(),
-            true, llvm::GlobalVariable::ExternalLinkage, nullptr,
-            "intrinsics")),
+            LLModule, IntrinsicsTablePtrTy->getPointerTo(), true,
+            llvm::GlobalVariable::ExternalLinkage, nullptr, "intrinsics")),
         Trap(llvm::Function::Create(
             llvm::FunctionType::get(VoidTy, {Int8Ty}, false),
             llvm::Function::PrivateLinkage, "trap", LLModule)) {
@@ -363,14 +363,16 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   llvm::Value *getMemory(llvm::IRBuilder<> &Builder, llvm::LoadInst *ExecCtx) {
     return Builder.CreateExtractValue(ExecCtx, {0});
   }
-  llvm::Value *getGlobals(llvm::IRBuilder<> &Builder, llvm::LoadInst *ExecCtx,
-                          uint32_t Index) {
-    llvm::Type *Type = Globals[Index];
+  std::pair<llvm::Type *, llvm::Value *> getGlobals(llvm::IRBuilder<> &Builder,
+                                                    llvm::LoadInst *ExecCtx,
+                                                    uint32_t Index) {
+    llvm::Type *Ty = Globals[Index];
     auto *Array = Builder.CreateExtractValue(ExecCtx, {1});
-    auto *VPtr =
-        Builder.CreateLoad(Builder.CreateConstInBoundsGEP1_64(Array, Index));
-    auto *Ptr = Builder.CreateBitCast(VPtr, Type);
-    return Ptr;
+    auto *VPtr = Builder.CreateLoad(
+        Int128PtrTy,
+        Builder.CreateConstInBoundsGEP1_64(Int128PtrTy, Array, Index));
+    auto *Ptr = Builder.CreateBitCast(VPtr, Ty->getPointerTo());
+    return {Ty, Ptr};
   }
   llvm::Value *getInstrCount(llvm::IRBuilder<> &Builder,
                              llvm::LoadInst *ExecCtx) {
@@ -387,12 +389,14 @@ struct WasmEdge::AOT::Compiler::CompileContext {
                                     AST::Module::Intrinsics Index,
                                     llvm::FunctionType *Ty) {
     const auto Value = static_cast<uint32_t>(Index);
-    auto *IT = Builder.CreateLoad(IntrinsicsTable);
+    auto *IT = Builder.CreateLoad(IntrinsicsTablePtrTy, IntrinsicsTable);
     IT->setMetadata(llvm::LLVMContext::MD_invariant_load,
                     llvm::MDNode::get(LLContext, {}));
-    auto *VPtr = Builder.CreateConstInBoundsGEP2_64(IT, 0, Value);
+    auto *VPtr =
+        Builder.CreateConstInBoundsGEP2_64(IntrinsicsTableTy, IT, 0, Value);
     auto *Ptr = Builder.CreateBitCast(VPtr, Ty->getPointerTo()->getPointerTo());
-    return llvm::FunctionCallee(Ty, Builder.CreateLoad(Ptr));
+    return llvm::FunctionCallee(Ty,
+                                Builder.CreateLoad(Ty->getPointerTo(), Ptr));
   }
   std::pair<std::vector<ValType>, std::vector<ValType>>
   resolveBlockType(const BlockType &Type) const {
@@ -441,8 +445,7 @@ static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
   case ValType::F64:
     return llvm::Type::getDoubleTy(LLContext);
   default:
-    assert(false);
-    __builtin_unreachable();
+    assuming(false);
   }
 }
 
@@ -504,8 +507,7 @@ static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
   case ValType::F64:
     return llvm::ConstantFP::get(llvm::Type::getDoubleTy(LLContext), 0.0);
   default:
-    assert(false);
-    __builtin_unreachable();
+    assuming(false);
   }
 }
 
@@ -520,7 +522,7 @@ public:
         Builder(llvm::BasicBlock::Create(LLContext, "entry", F)) {
     if (F) {
       setIsFPConstrained(Builder);
-      ExecCtx = Builder.CreateLoad(F->arg_begin());
+      ExecCtx = Builder.CreateLoad(Context.ExecCtxTy, F->arg_begin());
 
       if (InstructionCounting) {
         LocalInstrCount = Builder.CreateAlloca(Context.Int64Ty);
@@ -534,15 +536,17 @@ public:
 
       for (llvm::Argument *Arg = F->arg_begin() + 1; Arg != F->arg_end();
            ++Arg) {
-        llvm::Value *ArgPtr = Builder.CreateAlloca(Arg->getType());
+        llvm::Type *Ty = Arg->getType();
+        llvm::Value *ArgPtr = Builder.CreateAlloca(Ty);
         Builder.CreateStore(Arg, ArgPtr);
-        Local.push_back(ArgPtr);
+        Local.emplace_back(Ty, ArgPtr);
       }
 
       for (const auto &Type : Locals) {
-        llvm::Value *ArgPtr = Builder.CreateAlloca(toLLVMType(LLContext, Type));
+        llvm::Type *Ty = toLLVMType(LLContext, Type);
+        llvm::Value *ArgPtr = Builder.CreateAlloca(Ty);
         Builder.CreateStore(toLLVMConstantZero(LLContext, Type), ArgPtr);
-        Local.push_back(ArgPtr);
+        Local.emplace_back(Ty, ArgPtr);
       }
     }
   }
@@ -568,7 +572,7 @@ public:
     Type.first.clear();
     enterBlock(RetBB, nullptr, nullptr, {}, std::move(Type));
     compile(Code.getExpr().getInstrs());
-    assert(ControlStack.empty());
+    assuming(ControlStack.empty());
     compileReturn();
 
     for (auto &[Error, BB] : TrapBB) {
@@ -731,7 +735,7 @@ public:
       }
       case OpCode::Br_table: {
         const auto &LabelTable = Instr.getLabelList();
-        assert(LabelTable.size() <= std::numeric_limits<uint32_t>::max());
+        assuming(LabelTable.size() <= std::numeric_limits<uint32_t>::max());
         const uint32_t LabelTableSize =
             static_cast<uint32_t>(LabelTable.size());
         auto *Value = stackPop();
@@ -784,23 +788,28 @@ public:
         stackPush(Builder.CreateSelect(Cond, True, False));
         break;
       }
-      case OpCode::Local__get:
-        stackPush(Builder.CreateLoad(Local[Instr.getTargetIndex()]));
+      case OpCode::Local__get: {
+        const auto &L = Local[Instr.getTargetIndex()];
+        stackPush(Builder.CreateLoad(L.first, L.second));
         break;
+      }
       case OpCode::Local__set:
-        Builder.CreateStore(stackPop(), Local[Instr.getTargetIndex()]);
+        Builder.CreateStore(stackPop(), Local[Instr.getTargetIndex()].second);
         break;
       case OpCode::Local__tee:
-        Builder.CreateStore(Stack.back(), Local[Instr.getTargetIndex()]);
+        Builder.CreateStore(Stack.back(), Local[Instr.getTargetIndex()].second);
         break;
-      case OpCode::Global__get:
-        stackPush(Builder.CreateLoad(
-            Context.getGlobals(Builder, ExecCtx, Instr.getTargetIndex())));
+      case OpCode::Global__get: {
+        const auto G =
+            Context.getGlobals(Builder, ExecCtx, Instr.getTargetIndex());
+        stackPush(Builder.CreateLoad(G.first, G.second));
         break;
+      }
       case OpCode::Global__set:
         Builder.CreateStore(
             stackPop(),
-            Context.getGlobals(Builder, ExecCtx, Instr.getTargetIndex()));
+            Context.getGlobals(Builder, ExecCtx, Instr.getTargetIndex())
+                .second);
         break;
       case OpCode::Table__get: {
         auto *Idx = stackPop();
@@ -1934,14 +1943,16 @@ public:
         auto *Array =
             Builder.CreateAlloca(Context.Int8Ty, Builder.getInt64(16));
         for (size_t I = 0; I < 16; ++I) {
-          Builder.CreateStore(Builder.CreateExtractElement(Vector, I),
-                              Builder.CreateConstInBoundsGEP1_64(Array, I));
+          Builder.CreateStore(
+              Builder.CreateExtractElement(Vector, I),
+              Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Array, I));
         }
         llvm::Value *Ret = llvm::UndefValue::get(Context.Int8x16Ty);
         for (size_t I = 0; I < 16; ++I) {
           auto *Idx = Builder.CreateExtractElement(InboundIndex, I);
-          auto *Value =
-              Builder.CreateLoad(Builder.CreateInBoundsGEP(Array, {Idx}));
+          auto *Value = Builder.CreateLoad(
+              Context.Int8Ty,
+              Builder.CreateInBoundsGEP(Context.Int8PtrTy, Array, Idx));
           Ret = Builder.CreateInsertElement(Ret, Value, I);
         }
         Ret = Builder.CreateSelect(IsOver, Zero, Ret);
@@ -2632,7 +2643,7 @@ public:
         break;
 
       default:
-        assert(false);
+        assuming(false);
       }
       return;
     };
@@ -2640,16 +2651,19 @@ public:
       /// Update instruction count
       if (LocalInstrCount) {
         Builder.CreateStore(
-            Builder.CreateAdd(Builder.CreateLoad(LocalInstrCount),
-                              Builder.getInt64(1)),
+            Builder.CreateAdd(
+                Builder.CreateLoad(Context.Int64Ty, LocalInstrCount),
+                Builder.getInt64(1)),
             LocalInstrCount);
       }
       if (LocalGas) {
         auto *NewGas = Builder.CreateAdd(
-            Builder.CreateLoad(LocalGas),
-            Builder.CreateLoad(Builder.CreateConstInBoundsGEP2_64(
-                Context.getCostTable(Builder, ExecCtx), 0,
-                uint16_t(Instr.getOpCode()))));
+            Builder.CreateLoad(Context.Int64Ty, LocalGas),
+            Builder.CreateLoad(Context.Int64Ty,
+                               Builder.CreateConstInBoundsGEP2_64(
+                                   Context.Int64PtrTy,
+                                   Context.getCostTable(Builder, ExecCtx), 0,
+                                   uint16_t(Instr.getOpCode()))));
         Builder.CreateStore(NewGas, LocalGas);
       }
 
@@ -2832,23 +2846,26 @@ public:
   void updateInstrCount() {
     if (LocalInstrCount) {
       auto *Ptr = Context.getInstrCount(Builder, ExecCtx);
-      Builder.CreateStore(Builder.CreateAdd(Builder.CreateLoad(LocalInstrCount),
-                                            Builder.CreateLoad(Ptr)),
-                          Ptr);
+      Builder.CreateStore(
+          Builder.CreateAdd(
+              Builder.CreateLoad(Context.Int64Ty, LocalInstrCount),
+              Builder.CreateLoad(Context.Int64Ty, Ptr)),
+          Ptr);
       Builder.CreateStore(Builder.getInt64(0), LocalInstrCount);
     }
   }
 
   void readGas() {
     if (LocalGas) {
-      Builder.CreateStore(Builder.CreateLoad(Context.getGas(Builder, ExecCtx)),
-                          LocalGas);
+      Builder.CreateStore(
+          Builder.CreateLoad(Context.Int64Ty, Context.getGas(Builder, ExecCtx)),
+          LocalGas);
     }
   }
 
   void writeGas() {
     if (LocalGas) {
-      Builder.CreateStore(Builder.CreateLoad(LocalGas),
+      Builder.CreateStore(Builder.CreateLoad(Context.Int64Ty, LocalGas),
                           Context.getGas(Builder, ExecCtx));
     }
   }
@@ -2916,7 +2933,8 @@ private:
     for (size_t I = 0; I < ArgSize; ++I) {
       const size_t J = ArgSize - 1 - I;
       auto *Arg = stackPop();
-      auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Args, J * kValSize);
+      auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Args,
+                                                     J * kValSize);
       Builder.CreateStore(
           Arg, Builder.CreateBitCast(Ptr, Arg->getType()->getPointerTo()));
     }
@@ -2935,15 +2953,16 @@ private:
     if (RetSize == 0) {
       // nothing to do
     } else if (RetSize == 1) {
-      auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Rets, 0);
+      auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
       auto *Ptr = Builder.CreateBitCast(VPtr, RTy->getPointerTo());
-      stackPush(Builder.CreateLoad(Ptr));
+      stackPush(Builder.CreateLoad(RTy, Ptr));
     } else {
       for (unsigned I = 0; I < RetSize; ++I) {
-        auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Rets, I * kValSize);
+        auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets,
+                                                        I * kValSize);
         auto *Ptr = Builder.CreateBitCast(
             VPtr, RTy->getStructElementType(I)->getPointerTo());
-        stackPush(Builder.CreateLoad(Ptr));
+        stackPush(Builder.CreateLoad(RTy->getStructElementType(I), Ptr));
       }
     }
 
@@ -2959,10 +2978,10 @@ private:
       Off = Builder.CreateAdd(Off, Builder.getInt64(Offset));
     }
 
-    auto *VPtr =
-        Builder.CreateInBoundsGEP(Context.getMemory(Builder, ExecCtx), {Off});
+    auto *VPtr = Builder.CreateInBoundsGEP(
+        Context.Int8Ty, Context.getMemory(Builder, ExecCtx), Off);
     auto *Ptr = Builder.CreateBitCast(VPtr, LoadTy->getPointerTo());
-    auto *LoadInst = Builder.CreateLoad(Ptr, OptNone);
+    auto *LoadInst = Builder.CreateLoad(LoadTy, Ptr, OptNone);
     LoadInst->setAlignment(Align(UINT64_C(1) << Alignment));
     stackPush(LoadInst);
   }
@@ -3025,8 +3044,8 @@ private:
     if (BitCast) {
       V = Builder.CreateBitCast(V, LoadTy);
     }
-    auto *VPtr =
-        Builder.CreateInBoundsGEP(Context.getMemory(Builder, ExecCtx), {Off});
+    auto *VPtr = Builder.CreateInBoundsGEP(
+        Context.Int8Ty, Context.getMemory(Builder, ExecCtx), Off);
     auto *Ptr = Builder.CreateBitCast(VPtr, LoadTy->getPointerTo());
     auto *StoreInst = Builder.CreateStore(V, Ptr, OptNone);
     StoreInst->setAlignment(Align(UINT64_C(1) << Alignment));
@@ -3646,7 +3665,7 @@ private:
       std::pair<std::vector<ValType>, std::vector<ValType>> Type,
       std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
           ReturnPHI = {}) {
-    assert(Type.first.size() == Args.size());
+    assuming(Type.first.size() == Args.size());
     for (auto *Value : Args) {
       stackPush(Value);
     }
@@ -3710,7 +3729,7 @@ private:
         auto *PHIRet = Builder.CreatePHI(
             Types[I], static_cast<uint32_t>(Incomings.size()));
         for (auto &[Value, BB] : Incomings) {
-          assert(Value.size() == Types.size());
+          assuming(Value.size() == Types.size());
           PHIRet->addIncoming(Value[I], BB);
         }
         Nodes.push_back(PHIRet);
@@ -3722,7 +3741,7 @@ private:
   }
 
   void setLableJumpPHI(unsigned int Index) {
-    assert(Index < ControlStack.size());
+    assuming(Index < ControlStack.size());
     auto &Entry = *(ControlStack.rbegin() + Index);
     if (Entry.NextBlock) { // is loop
       std::vector<llvm::Value *> Args(Entry.Type.first.size());
@@ -3754,9 +3773,9 @@ private:
 
   void stackPush(llvm::Value *Value) { Stack.push_back(Value); }
   llvm::Value *stackPop() {
-    assert(!ControlStack.empty() || !Stack.empty());
-    assert(ControlStack.empty() ||
-           Stack.size() > ControlStack.back().StackSize);
+    assuming(!ControlStack.empty() || !Stack.empty());
+    assuming(ControlStack.empty() ||
+             Stack.size() > ControlStack.back().StackSize);
     auto *Value = Stack.back();
     Stack.pop_back();
     return Value;
@@ -3764,7 +3783,7 @@ private:
 
   AOT::Compiler::CompileContext &Context;
   llvm::LLVMContext &LLContext;
-  std::vector<llvm::Value *> Local;
+  std::vector<std::pair<llvm::Type *, llvm::Value *>> Local;
   std::vector<llvm::Value *> Stack;
   llvm::Value *LocalInstrCount = nullptr;
   llvm::Value *LocalGas = nullptr;
@@ -4197,19 +4216,16 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     llvm::TargetLibraryInfoImpl TLII(Triple);
 
     {
-#if LLVM_VERSION_MAJOR >= 12
-      llvm::PassBuilder PB(false, TM.get(), llvm::PipelineTuningOptions(),
-                           llvm::None);
-#elif LLVM_VERSION_MAJOR >= 9
-      llvm::PassBuilder PB(TM.get(), llvm::PipelineTuningOptions(), llvm::None);
+#if LLVM_VERSION_MAJOR == 12
+      llvm::PassBuilder PB(false, TM.get());
 #else
-      llvm::PassBuilder PB(TM.get(), llvm::None);
+      llvm::PassBuilder PB(TM.get());
 #endif
 
-      llvm::LoopAnalysisManager LAM(false);
-      llvm::FunctionAnalysisManager FAM(false);
-      llvm::CGSCCAnalysisManager CGAM(false);
-      llvm::ModuleAnalysisManager MAM(false);
+      llvm::LoopAnalysisManager LAM;
+      llvm::FunctionAnalysisManager FAM;
+      llvm::CGSCCAnalysisManager CGAM;
+      llvm::ModuleAnalysisManager MAM;
 
       // Register the AA manager first so that our version is the one
       // used.
@@ -4229,7 +4245,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       PB.registerLoopAnalyses(LAM);
       PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
-      llvm::ModulePassManager MPM(false);
+      llvm::ModulePassManager MPM;
       if (Conf.getCompilerConfigure().getOptimizationLevel() ==
           CompilerConfigure::OptimizationLevel::O0) {
         MPM.addPass(llvm::AlwaysInlinerPass(false));
@@ -4364,10 +4380,10 @@ void Compiler::compile(const AST::TypeSection &TypeSec) {
       Args.push_back(ExecCtxPtr);
       for (size_t J = 0; J < ArgCount; ++J) {
         auto *ArgTy = FTy->getParamType(static_cast<uint32_t>(J + 1));
-        llvm::Value *VPtr =
-            Builder.CreateConstInBoundsGEP1_64(RawArgs, J * kValSize);
+        llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(
+            Context->Int8Ty, RawArgs, J * kValSize);
         llvm::Value *Ptr = Builder.CreateBitCast(VPtr, ArgTy->getPointerTo());
-        Args.push_back(Builder.CreateLoad(Ptr));
+        Args.push_back(Builder.CreateLoad(ArgTy, Ptr));
       }
 
       auto Ret = Builder.CreateCall(RawFunc, Args);
@@ -4376,14 +4392,15 @@ void Compiler::compile(const AST::TypeSection &TypeSec) {
       } else if (RTy->isStructTy()) {
         auto Rets = unpackStruct(Builder, Ret);
         for (size_t J = 0; J < RetCount; ++J) {
-          llvm::Value *VPtr =
-              Builder.CreateConstInBoundsGEP1_64(RawRets, J * kValSize);
+          llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(
+              Context->Int8Ty, RawRets, J * kValSize);
           llvm::Value *Ptr =
               Builder.CreateBitCast(VPtr, Rets[J]->getType()->getPointerTo());
           Builder.CreateStore(Rets[J], Ptr);
         }
       } else {
-        llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(RawRets, 0);
+        llvm::Value *VPtr =
+            Builder.CreateConstInBoundsGEP1_64(Context->Int8Ty, RawRets, 0);
         llvm::Value *Ptr =
             Builder.CreateBitCast(VPtr, Ret->getType()->getPointerTo());
         Builder.CreateStore(Ret, Ptr);
@@ -4409,7 +4426,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
       const auto FuncID = static_cast<uint32_t>(Context->Functions.size());
       /// Get the function type index in module.
       uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
-      assert(TypeIdx < Context->FunctionTypes.size());
+      assuming(TypeIdx < Context->FunctionTypes.size());
       const auto &FuncType = *Context->FunctionTypes[TypeIdx];
 
       auto *FTy = toLLVMType(Context->ExecCtxPtrTy, FuncType);
@@ -4451,8 +4468,8 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
 
       for (unsigned I = 0; I < ArgSize; ++I) {
         llvm::Argument *Arg = F->arg_begin() + 1 + I;
-        llvm::Value *Ptr =
-            Builder.CreateConstInBoundsGEP1_64(Args, I * kValSize);
+        llvm::Value *Ptr = Builder.CreateConstInBoundsGEP1_64(
+            Context->Int8Ty, Args, I * kValSize);
         Builder.CreateStore(
             Arg, Builder.CreateBitCast(Ptr, Arg->getType()->getPointerTo()));
       }
@@ -4469,19 +4486,20 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
       if (RetSize == 0) {
         Builder.CreateRetVoid();
       } else if (RetSize == 1) {
-        llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(Rets, 0);
+        llvm::Value *VPtr =
+            Builder.CreateConstInBoundsGEP1_64(Context->Int8Ty, Rets, 0);
         llvm::Value *Ptr =
             Builder.CreateBitCast(VPtr, F->getReturnType()->getPointerTo());
-        Builder.CreateRet(Builder.CreateLoad(Ptr));
+        Builder.CreateRet(Builder.CreateLoad(F->getReturnType(), Ptr));
       } else {
         std::vector<llvm::Value *> Ret;
         Ret.reserve(RetSize);
         for (unsigned I = 0; I < RetSize; ++I) {
-          llvm::Value *VPtr =
-              Builder.CreateConstInBoundsGEP1_64(Rets, I * kValSize);
+          llvm::Value *VPtr = Builder.CreateConstInBoundsGEP1_64(
+              Context->Int8Ty, Rets, I * kValSize);
           llvm::Value *Ptr = Builder.CreateBitCast(
               VPtr, RTy->getStructElementType(I)->getPointerTo());
-          Ret.push_back(Builder.CreateLoad(Ptr));
+          Ret.push_back(Builder.CreateLoad(RTy->getStructElementType(I), Ptr));
         }
         Builder.CreateAggregateRet(Ret.data(), static_cast<uint32_t>(RetSize));
       }
@@ -4504,7 +4522,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
       /// Get global type. External type checked in validation.
       const auto &GlobType = ImpDesc.getExternalGlobalType();
       const auto &ValType = GlobType.getValType();
-      auto *Type = toLLVMType(Context->LLContext, ValType)->getPointerTo();
+      auto *Type = toLLVMType(Context->LLContext, ValType);
       Context->Globals.push_back(Type);
       break;
     }
@@ -4519,7 +4537,7 @@ void Compiler::compile(const AST::ExportSection &) {}
 void Compiler::compile(const AST::GlobalSection &GlobalSec) {
   for (const auto &GlobalSeg : GlobalSec.getContent()) {
     const auto &ValType = GlobalSeg.getGlobalType().getValType();
-    auto *Type = toLLVMType(Context->LLContext, ValType)->getPointerTo();
+    auto *Type = toLLVMType(Context->LLContext, ValType);
     Context->Globals.push_back(Type);
   }
 }
@@ -4529,7 +4547,7 @@ void Compiler::compile(const AST::MemorySection &MemorySec,
   if (MemorySec.getContent().size() == 0) {
     return;
   }
-  assert(MemorySec.getContent().size() == 1);
+  assuming(MemorySec.getContent().size() == 1);
   const auto &Limit = MemorySec.getContent().front().getLimit();
   Context->MemMin = Limit.getMin();
   Context->MemMax = Limit.hasMax() ? Limit.getMax() : 65536;
@@ -4549,7 +4567,7 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
   for (size_t I = 0; I < TypeIdxs.size() && I < CodeSegs.size(); ++I) {
     const auto &TypeIdx = TypeIdxs[I];
     const auto &Code = CodeSegs[I];
-    assert(TypeIdx < Context->FunctionTypes.size());
+    assuming(TypeIdx < Context->FunctionTypes.size());
     const auto &FuncType = *Context->FunctionTypes[TypeIdx];
     const auto FuncID = Context->Functions.size();
     auto *FTy = toLLVMType(Context->ExecCtxPtrTy, FuncType);
@@ -4575,8 +4593,8 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
       }
     }
     FunctionCompiler FC(*Context, F, Locals,
-                        Conf.getCompilerConfigure().isInstructionCounting(),
-                        Conf.getCompilerConfigure().isCostMeasuring(),
+                        Conf.getStatisticsConfigure().isInstructionCounting(),
+                        Conf.getStatisticsConfigure().isCostMeasuring(),
                         Conf.getCompilerConfigure().getOptimizationLevel() ==
                             CompilerConfigure::OptimizationLevel::O0);
     auto Type = Context->resolveBlockType(T);

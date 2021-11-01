@@ -189,8 +189,8 @@ inline constexpr uint8_t HostArchType() noexcept {
 
 } // namespace
 
-Expect<void> Loader::loadSection(AST::AOTSection &Sec) {
-  if (auto Res = FMgr.readU32(); !Res) {
+Expect<void> Loader::loadSection(FileMgr &VecMgr, AST::AOTSection &Sec) {
+  if (auto Res = VecMgr.readU32(); !Res) {
     spdlog::error(Res.error());
     spdlog::error("AOT binary version read error:{}", Res.error());
     return Unexpect(Res);
@@ -203,7 +203,7 @@ Expect<void> Loader::loadSection(AST::AOTSection &Sec) {
     return Unexpect(ErrCode::MalformedSection);
   }
 
-  if (auto Res = FMgr.readByte(); !Res) {
+  if (auto Res = VecMgr.readByte(); !Res) {
     spdlog::error(Res.error());
     spdlog::error("AOT os type read error:{}", Res.error());
     return Unexpect(Res);
@@ -216,7 +216,7 @@ Expect<void> Loader::loadSection(AST::AOTSection &Sec) {
     return Unexpect(ErrCode::MalformedSection);
   }
 
-  if (auto Res = FMgr.readByte(); !Res) {
+  if (auto Res = VecMgr.readByte(); !Res) {
     spdlog::error(Res.error());
     spdlog::error("AOT arch type read error:{}", Res.error());
     return Unexpect(Res);
@@ -229,21 +229,21 @@ Expect<void> Loader::loadSection(AST::AOTSection &Sec) {
     return Unexpect(ErrCode::MalformedSection);
   }
 
-  if (auto Res = FMgr.readU64(); !Res) {
+  if (auto Res = VecMgr.readU64(); !Res) {
     spdlog::error(Res.error());
     spdlog::error("AOT version address read error:{}", Res.error());
     return Unexpect(Res);
   } else {
     Sec.setVersionAddress(*Res);
   }
-  if (auto Res = FMgr.readU64(); !Res) {
+  if (auto Res = VecMgr.readU64(); !Res) {
     spdlog::error(Res.error());
     spdlog::error("AOT intrinsics address read error:{}", Res.error());
     return Unexpect(Res);
   } else {
     Sec.setIntrinsicsAddress(*Res);
   }
-  if (auto Res = FMgr.readU64(); !Res) {
+  if (auto Res = VecMgr.readU64(); !Res) {
     spdlog::error(Res.error());
     spdlog::error("AOT types size read error:{}", Res.error());
     return Unexpect(Res);
@@ -251,7 +251,7 @@ Expect<void> Loader::loadSection(AST::AOTSection &Sec) {
     Sec.getTypesAddress().resize(*Res);
   }
   for (size_t I = 0; I < Sec.getTypesAddress().size(); ++I) {
-    if (auto Res = FMgr.readU64(); !Res) {
+    if (auto Res = VecMgr.readU64(); !Res) {
       spdlog::error(Res.error());
       spdlog::error("AOT type address read error:{}", Res.error());
       return Unexpect(Res);
@@ -259,7 +259,7 @@ Expect<void> Loader::loadSection(AST::AOTSection &Sec) {
       Sec.getTypesAddress()[I] = *Res;
     }
   }
-  if (auto Res = FMgr.readU64(); !Res) {
+  if (auto Res = VecMgr.readU64(); !Res) {
     spdlog::error(Res.error());
     spdlog::error("AOT code size read error:{}", Res.error());
     return Unexpect(Res);
@@ -267,7 +267,7 @@ Expect<void> Loader::loadSection(AST::AOTSection &Sec) {
     Sec.getCodesAddress().resize(*Res);
   }
   for (size_t I = 0; I < Sec.getCodesAddress().size(); ++I) {
-    if (auto Res = FMgr.readU64(); !Res) {
+    if (auto Res = VecMgr.readU64(); !Res) {
       spdlog::error(Res.error());
       spdlog::error("AOT code address read error:{}", Res.error());
       return Unexpect(Res);
@@ -276,7 +276,7 @@ Expect<void> Loader::loadSection(AST::AOTSection &Sec) {
     }
   }
 
-  if (auto Res = FMgr.readU32(); !Res) {
+  if (auto Res = VecMgr.readU32(); !Res) {
     spdlog::error(Res.error());
     spdlog::error("AOT section count read error:{}", Res.error());
     return Unexpect(Res);
@@ -285,21 +285,21 @@ Expect<void> Loader::loadSection(AST::AOTSection &Sec) {
   }
 
   for (auto &Section : Sec.getSections()) {
-    if (auto Res = FMgr.readByte(); !Res) {
+    if (auto Res = VecMgr.readByte(); !Res) {
       spdlog::error(Res.error());
       spdlog::error("AOT section type read error:{}", Res.error());
       return Unexpect(Res);
     } else {
       std::get<0>(Section) = *Res;
     }
-    if (auto Res = FMgr.readU64(); !Res) {
+    if (auto Res = VecMgr.readU64(); !Res) {
       spdlog::error(Res.error());
       spdlog::error("AOT section offset read error:{}", Res.error());
       return Unexpect(Res);
     } else {
       std::get<1>(Section) = *Res;
     }
-    if (auto Res = FMgr.readU64(); !Res) {
+    if (auto Res = VecMgr.readU64(); !Res) {
       spdlog::error(Res.error());
       spdlog::error("AOT section size read error:{}", Res.error());
       return Unexpect(Res);
@@ -307,14 +307,14 @@ Expect<void> Loader::loadSection(AST::AOTSection &Sec) {
       std::get<2>(Section) = *Res;
     }
     uint32_t ContentSize;
-    if (auto Res = FMgr.readU32(); !Res) {
+    if (auto Res = VecMgr.readU32(); !Res) {
       spdlog::error(Res.error());
       spdlog::error("AOT section data size read error:{}", Res.error());
       return Unexpect(Res);
     } else {
       ContentSize = *Res;
     }
-    if (auto Res = FMgr.readBytes(ContentSize); !Res) {
+    if (auto Res = VecMgr.readBytes(ContentSize); !Res) {
       spdlog::error(Res.error());
       spdlog::error("AOT section data read error:{}", Res.error());
       return Unexpect(Res);

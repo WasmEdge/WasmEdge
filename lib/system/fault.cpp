@@ -114,7 +114,7 @@ thread_local Fault *localHandler = nullptr;
   case SIGSEGV:
     Fault::emitFault(ErrCode::MemoryOutOfBounds);
   case SIGFPE:
-    assert(Siginfo->si_code == FPE_INTDIV);
+    assuming(Siginfo->si_code == FPE_INTDIV);
     Fault::emitFault(ErrCode::DivideByZero);
   default:
     __builtin_unreachable();
@@ -192,7 +192,7 @@ Fault::~Fault() noexcept {
 }
 
 [[noreturn]] inline void Fault::emitFault(ErrCode Error) {
-  assert(localHandler != nullptr);
+  assuming(localHandler != nullptr);
   longjmp(localHandler->Buffer, uint8_t(Error));
 }
 

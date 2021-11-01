@@ -14,6 +14,7 @@ WasmEdge (之前名为 SSVM) 是为边缘计算优化的轻量级、高性能、
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/alerts/)
 [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/context:cpp)
 [![codecov](https://codecov.io/gh/WasmEdge/WasmEdge/branch/master/graph/badge.svg)](https://codecov.io/gh/WasmEdge/WasmEdge)
+[![CodeQL](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_shield)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5059/badge)](https://bestpractices.coreinfrastructure.org/projects/5059)
   
@@ -22,9 +23,9 @@ WasmEdge (之前名为 SSVM) 是为边缘计算优化的轻量级、高性能、
 # 快速开始指引
 
 🚀 [安装](docs/install.md) WasmEdge\
-🤖 [Build](docs/build.md) 并[贡献](docs/contribution.md)给 WasmEdge\
+🤖 [Build](docs/build.md) 并[贡献](docs/CONTRIBUTING.md)给 WasmEdge\
 ⌨️  [从 CLI 跑](docs/run.md)一个独立的 Wasm 程序或 [JavaScript 程序](docs/run_javascript.md) \
-🔌 [嵌入一个 Wasm 函数](https://www.secondstate.io/articles/getting-started-with-rust-function/)在你的[Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example)， [Go语言](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)或 Rust 应用里
+🔌 [嵌入一个 Wasm 函数](https://www.secondstate.io/articles/getting-started-with-rust-function/)在你的[Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example)， [Go语言](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)或 Rust 应用里 \
 🛠 使用 [Docker 工具](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/)、[数据流框架](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/), 和 [区块链](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) 管理和编排 Wasm runtimes
 
 

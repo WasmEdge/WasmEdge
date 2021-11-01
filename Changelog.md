@@ -2,6 +2,11 @@
 
 Breaking changes:
 
+* For better performance, the Statistics module is disabled by default.
+  * To enable instruction counting, please use `--enable-instruction-count`.
+  * To enable gas measuring, please use `--enable-gas-measuring`.
+  * To enable time  measuring, please use `--enable-time-measuring`.
+  * For the convinence, use `--enable-all-statistics` will enable all available statistics options.
 * Modulized the API Headers.
   * Moved the API header into the `wasmedge` folder. Developers should include the `wasmedge/wasmedge.h` for using the WasmEdge shared library after installation.
   * Moved the enumeration definitions into `enum_errcode.h`, `enum_types.h`, and `enum_configure.h` in the `wasmedge` folder.
@@ -48,6 +53,13 @@ Breaking changes:
     * Replaced `WasmEdge_InterpreterInvoke` function with `WasmEdge_ExecutorInvoke` function.
     * Replaced `WasmEdge_InterpreterInvokeRegistered` function with `WasmEdge_ExecutorInvokeRegistered` function.
     * Replaced `WasmEdge_InterpreterDelete` function with `WasmEdge_ExecutorDelete` function.
+  * Refactored for statistics options
+    * Renamed `WasmEdge_ConfigureCompilerSetInstructionCounting` to `WasmEdge_ConfigureStatisticsSetInstructionCounting`.
+    * Renamed `WasmEdge_ConfigureCompilerSetCostMeasuring` to `WasmEdge_ConfigureStatisticsSetCostMeasuring`.
+    * Renamed `WasmEdge_ConfigureCompilerSetTimeMeasuring` to `WasmEdge_ConfigureStatisticsSetTimeMeasuring`.
+    * Renamed `WasmEdge_ConfigureCompilerGetInstructionCounting` to `WasmEdge_ConfigureStatisticsGetInstructionCounting`.
+    * Renamed `WasmEdge_ConfigureCompilerGetCostMeasuring` to `WasmEdge_ConfigureStatisticsGetCostMeasuring`.
+    * Renamed `WasmEdge_ConfigureCompilerGetTimeMeasuring` to `WasmEdge_ConfigureStatisticsGetTimeMeasuring`.
 
 Features:
 
@@ -82,7 +94,7 @@ Features:
     * `WasmEdge_ExportTypeGetGlobalType` function can get the global type of an export type context.
   * For more details of the usages of imports and exports, please refer to the [C API documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md).
 * Provided install and uninstall script for installing/uninstalling  WasmEdge on linux(amd64 and aarch64) and macos(amd64 and arm64).
-* Refined the AoT binary format. Append a custom section for storing the compiled binary.
+* Support compiling WebAssembly into a new WebAssembly file with a packed binary section.
 
 Fixed issues:
 

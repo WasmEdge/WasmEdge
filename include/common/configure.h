@@ -55,16 +55,6 @@ public:
 
   bool isGenericBinary() const noexcept { return GenericBinary; }
 
-  void setInstructionCounting(bool IsCount) noexcept {
-    InstrCounting = IsCount;
-  }
-
-  bool isInstructionCounting() const noexcept { return InstrCounting; }
-
-  void setCostMeasuring(bool IsMeasure) noexcept { CostMeasuring = IsMeasure; }
-
-  bool isCostMeasuring() const noexcept { return CostMeasuring; }
-
   /// AOT compiler output binary format.
   enum class OutputFormat : uint8_t {
     /// Native dynamic library format.
@@ -79,8 +69,6 @@ private:
   OptimizationLevel OptLevel = OptimizationLevel::O3;
   OutputFormat OFormat = OutputFormat::Native;
   bool DumpIR = false;
-  bool InstrCounting = false;
-  bool CostMeasuring = false;
   bool GenericBinary = false;
 };
 
@@ -92,6 +80,30 @@ public:
 
 private:
   uint32_t MaxMemPage = 65536;
+};
+
+class StatisticsConfigure {
+public:
+  void setInstructionCounting(bool IsCount) noexcept {
+    InstrCounting = IsCount;
+  }
+
+  bool isInstructionCounting() const noexcept { return InstrCounting; }
+
+  void setCostMeasuring(bool IsMeasure) noexcept { CostMeasuring = IsMeasure; }
+
+  bool isCostMeasuring() const noexcept { return CostMeasuring; }
+
+  void setTimeMeasuring(bool IsTimeMeasure) noexcept {
+    TimeMeasuring = IsTimeMeasure;
+  }
+
+  bool isTimeMeasuring() const noexcept { return TimeMeasuring; }
+
+private:
+  bool InstrCounting = false;
+  bool CostMeasuring = false;
+  bool TimeMeasuring = false;
 };
 
 class Configure {
@@ -142,6 +154,13 @@ public:
   }
   RuntimeConfigure &getRuntimeConfigure() noexcept { return RuntimeConf; }
 
+  const StatisticsConfigure &getStatisticsConfigure() const noexcept {
+    return StatisticsConf;
+  }
+  StatisticsConfigure &getStatisticsConfigure() noexcept {
+    return StatisticsConf;
+  }
+
 private:
   void addSet(const Proposal P) noexcept { addProposal(P); }
   void addSet(const HostRegistration H) noexcept { addHostRegistration(H); }
@@ -150,6 +169,7 @@ private:
 
   CompilerConfigure CompilerConf;
   RuntimeConfigure RuntimeConf;
+  StatisticsConfigure StatisticsConf;
 };
 
 } // namespace WasmEdge

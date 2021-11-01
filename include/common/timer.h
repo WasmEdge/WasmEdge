@@ -11,8 +11,9 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "errcode.h"
+
 #include <array>
-#include <cassert>
 #include <chrono>
 #include <optional>
 #include <string>
@@ -29,13 +30,13 @@ public:
   constexpr Timer() noexcept { reset(); }
 
   void startRecord(const TimerTag TT) noexcept {
-    assert(TT < TimerTag::Max);
+    assuming(TT < TimerTag::Max);
     const uint32_t Index = uint32_t(TT);
     StartTime[Index].emplace(Clock::now());
   }
 
   void stopRecord(const TimerTag TT) noexcept {
-    assert(TT < TimerTag::Max);
+    assuming(TT < TimerTag::Max);
     const uint32_t Index = uint32_t(TT);
     if (auto &Start = StartTime[Index]) {
       const auto Diff = Clock::now() - *Start;
@@ -45,14 +46,14 @@ public:
   }
 
   void clearRecord(const TimerTag TT) noexcept {
-    assert(TT < TimerTag::Max);
+    assuming(TT < TimerTag::Max);
     const uint32_t Index = uint32_t(TT);
     StartTime[Index].reset();
     RecTime[Index] = Clock::duration::zero();
   }
 
   constexpr Clock::duration getRecord(const TimerTag TT) const noexcept {
-    assert(TT < TimerTag::Max);
+    assuming(TT < TimerTag::Max);
     const uint32_t Index = uint32_t(TT);
     return RecTime[Index];
   }

@@ -45,6 +45,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
         /// Table index should be 0. Checked in validation phase.
         auto *TabInst = getTabInstByIdx(StoreMgr, ElemSeg.getIdx());
         /// Check elements fits.
+        assuming(TabInst);
         if (!TabInst->checkAccessBound(
                 Offset, static_cast<uint32_t>(InitVals.size()))) {
           spdlog::error(ErrCode::ElemSegDoesNotFit);
@@ -77,9 +78,11 @@ Expect<void> Executor::initTable(Runtime::StoreManager &StoreMgr,
   uint32_t Idx = 0;
   for (const auto &ElemSeg : ElemSec.getContent()) {
     auto *ElemInst = getElemInstByIdx(StoreMgr, Idx);
+    assuming(ElemInst);
     if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
       /// Table index is checked in validation phase.
       auto *TabInst = getTabInstByIdx(StoreMgr, ElemSeg.getIdx());
+      assuming(TabInst);
       const uint32_t Off = ElemInst->getOffset();
 
       /// Replace table[Off : Off + n] with elem[0 : n].

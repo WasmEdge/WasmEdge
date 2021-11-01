@@ -109,7 +109,7 @@ uint8_t *Allocator::allocate(uint32_t PageCount) noexcept {
 
 uint8_t *Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
                            uint32_t NewPageCount) noexcept {
-  assert(NewPageCount > OldPageCount);
+  assuming(NewPageCount > OldPageCount);
 #if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
   if (mmap(Pointer + OldPageCount * kPageSize,
            (NewPageCount - OldPageCount) * kPageSize, PROT_READ | PROT_WRITE,

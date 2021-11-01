@@ -15,12 +15,12 @@
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/defines.h"
+#include "common/errcode.h"
 #include "common/statistics.h"
 #include "runtime/importobj.h"
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"
 
-#include <cassert>
 #include <csignal>
 #include <memory>
 #include <type_traits>
@@ -82,7 +82,7 @@ class Executor {
 public:
   Executor(const Configure &Conf, Statistics::Statistics *S = nullptr) noexcept
       : Conf(Conf), Stat(S) {
-    assert(This == nullptr);
+    assuming(This == nullptr);
     This = this;
     if (Stat) {
       ExecutionContext.InstrCount = &Stat->getInstrCountRef();

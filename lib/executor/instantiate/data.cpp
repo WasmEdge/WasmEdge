@@ -20,7 +20,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       /// Run initialize expression.
       if (auto Res = runExpression(StoreMgr, DataSeg.getExpr().getInstrs());
-          !Res) {
+          unlikely(!Res)) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
         return Unexpect(Res);
@@ -34,7 +34,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
         /// Memory index should be 0. Checked in validation phase.
         auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg.getIdx());
         /// Check data fits.
-        assert(MemInst != nullptr);
+        assuming(MemInst);
         if (!MemInst->checkAccessBound(
                 Offset, static_cast<uint32_t>(DataSeg.getData().size()))) {
           spdlog::error(ErrCode::DataSegDoesNotFit);
@@ -64,13 +64,14 @@ Expect<void> Executor::initMemory(Runtime::StoreManager &StoreMgr,
   /// initialize memory.
   uint32_t Idx = 0;
   for (const auto &DataSeg : DataSec.getContent()) {
-    auto *DataInst = getDataInstByIdx(StoreMgr, Idx);
-
     /// Initialize memory if data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       /// Memory index should be 0. Checked in validation phase.
       auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg.getIdx());
-      assert(DataInst != nullptr);
+      assuming(MemInst);
+
+      auto *DataInst = getDataInstByIdx(StoreMgr, Idx);
+      assuming(DataInst);
       const uint32_t Off = DataInst->getOffset();
 
       /// Replace mem[Off : Off + n] with data[0 : n].

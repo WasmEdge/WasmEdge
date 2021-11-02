@@ -28,11 +28,26 @@ jobs:
 
     - name: Build WasmEdge using clang
       run: |
-        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_SHARED_LIB=ON .
-        cmake --build build
+        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_SHARED_LIB=ON  -DCMAKE_INSTALL_PREFIX:PATH=/usr .
+        cmake --build build --target install
 
     - name: Publish wasmedge-sys crate
       uses: katyo/publish-crates@v1
       with:
           path: './bindings/rust/wasmedge-sys'
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+    - name: Prepare wasmEdge-sdk
+      run: |
+        VERSION=`cat bindings/rust/wasmedge-sys/Cargo.toml | grep '^version' | awk -F\" '{print $2}'`
+        sed -i 's/wasmedge-sys =/wasmedge-sys = "'${VERSION}'"#/' bindings/rust/wasmedge-sdk/Cargo.toml
+        git config --global user.email "github_action@github.com"
+        git config --global user.name "GithubAction"
+        git add bindings/rust/wasmedge-sdk/Cargo.toml
+        git commit -m '[CI] wasmedge-sdk dependency'
+
+    - name: Publish wasmedge-sdk crate
+      uses: katyo/publish-crates@v1
+      with:
+          path: './bindings/rust/wasmedge-sdk'
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}

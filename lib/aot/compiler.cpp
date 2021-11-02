@@ -147,8 +147,7 @@ toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) {
   case OL::Oz:
     return llvm::PassBuilder::OptimizationLevel::Oz;
   default:
-    assert(false);
-    __builtin_unreachable();
+    assuming(false);
   }
 }
 
@@ -446,8 +445,7 @@ static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
   case ValType::F64:
     return llvm::Type::getDoubleTy(LLContext);
   default:
-    assert(false);
-    __builtin_unreachable();
+    assuming(false);
   }
 }
 
@@ -509,8 +507,7 @@ static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
   case ValType::F64:
     return llvm::ConstantFP::get(llvm::Type::getDoubleTy(LLContext), 0.0);
   default:
-    assert(false);
-    __builtin_unreachable();
+    assuming(false);
   }
 }
 
@@ -575,7 +572,7 @@ public:
     Type.first.clear();
     enterBlock(RetBB, nullptr, nullptr, {}, std::move(Type));
     compile(Code.getExpr().getInstrs());
-    assert(ControlStack.empty());
+    assuming(ControlStack.empty());
     compileReturn();
 
     for (auto &[Error, BB] : TrapBB) {
@@ -738,7 +735,7 @@ public:
       }
       case OpCode::Br_table: {
         const auto &LabelTable = Instr.getLabelList();
-        assert(LabelTable.size() <= std::numeric_limits<uint32_t>::max());
+        assuming(LabelTable.size() <= std::numeric_limits<uint32_t>::max());
         const uint32_t LabelTableSize =
             static_cast<uint32_t>(LabelTable.size());
         auto *Value = stackPop();
@@ -2646,7 +2643,7 @@ public:
         break;
 
       default:
-        assert(false);
+        assuming(false);
       }
       return;
     };
@@ -3668,7 +3665,7 @@ private:
       std::pair<std::vector<ValType>, std::vector<ValType>> Type,
       std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
           ReturnPHI = {}) {
-    assert(Type.first.size() == Args.size());
+    assuming(Type.first.size() == Args.size());
     for (auto *Value : Args) {
       stackPush(Value);
     }
@@ -3732,7 +3729,7 @@ private:
         auto *PHIRet = Builder.CreatePHI(
             Types[I], static_cast<uint32_t>(Incomings.size()));
         for (auto &[Value, BB] : Incomings) {
-          assert(Value.size() == Types.size());
+          assuming(Value.size() == Types.size());
           PHIRet->addIncoming(Value[I], BB);
         }
         Nodes.push_back(PHIRet);
@@ -3744,7 +3741,7 @@ private:
   }
 
   void setLableJumpPHI(unsigned int Index) {
-    assert(Index < ControlStack.size());
+    assuming(Index < ControlStack.size());
     auto &Entry = *(ControlStack.rbegin() + Index);
     if (Entry.NextBlock) { // is loop
       std::vector<llvm::Value *> Args(Entry.Type.first.size());
@@ -3776,9 +3773,9 @@ private:
 
   void stackPush(llvm::Value *Value) { Stack.push_back(Value); }
   llvm::Value *stackPop() {
-    assert(!ControlStack.empty() || !Stack.empty());
-    assert(ControlStack.empty() ||
-           Stack.size() > ControlStack.back().StackSize);
+    assuming(!ControlStack.empty() || !Stack.empty());
+    assuming(ControlStack.empty() ||
+             Stack.size() > ControlStack.back().StackSize);
     auto *Value = Stack.back();
     Stack.pop_back();
     return Value;
@@ -4429,7 +4426,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
       const auto FuncID = static_cast<uint32_t>(Context->Functions.size());
       /// Get the function type index in module.
       uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
-      assert(TypeIdx < Context->FunctionTypes.size());
+      assuming(TypeIdx < Context->FunctionTypes.size());
       const auto &FuncType = *Context->FunctionTypes[TypeIdx];
 
       auto *FTy = toLLVMType(Context->ExecCtxPtrTy, FuncType);
@@ -4550,7 +4547,7 @@ void Compiler::compile(const AST::MemorySection &MemorySec,
   if (MemorySec.getContent().size() == 0) {
     return;
   }
-  assert(MemorySec.getContent().size() == 1);
+  assuming(MemorySec.getContent().size() == 1);
   const auto &Limit = MemorySec.getContent().front().getLimit();
   Context->MemMin = Limit.getMin();
   Context->MemMax = Limit.hasMax() ? Limit.getMax() : 65536;
@@ -4570,7 +4567,7 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
   for (size_t I = 0; I < TypeIdxs.size() && I < CodeSegs.size(); ++I) {
     const auto &TypeIdx = TypeIdxs[I];
     const auto &Code = CodeSegs[I];
-    assert(TypeIdx < Context->FunctionTypes.size());
+    assuming(TypeIdx < Context->FunctionTypes.size());
     const auto &FuncType = *Context->FunctionTypes[TypeIdx];
     const auto FuncID = Context->Functions.size();
     auto *FTy = toLLVMType(Context->ExecCtxPtrTy, FuncType);

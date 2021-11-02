@@ -67,7 +67,7 @@ Expect<void> Executor::registerModule(Runtime::StoreManager &StoreMgr,
 }
 
 /// Invoke function. See "include/executor/executor.h".
-Expect<std::vector<ValVariant>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 Executor::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
                  Span<const ValVariant> Params,
                  Span<const ValType> ParamTypes) {
@@ -81,13 +81,13 @@ Executor::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
 
   /// Check parameter and function type.
   const auto &FuncType = FuncInst->getFuncType();
+  const auto &PTypes = FuncType.getParamTypes();
+  const auto &RTypes = FuncType.getReturnTypes();
   std::vector<ValType> GotParamTypes(ParamTypes.begin(), ParamTypes.end());
   GotParamTypes.resize(Params.size(), ValType::I32);
-  if (FuncType.getParamTypes() != GotParamTypes) {
+  if (PTypes != GotParamTypes) {
     spdlog::error(ErrCode::FuncSigMismatch);
-    spdlog::error(ErrInfo::InfoMismatch(
-        FuncType.getParamTypes(), FuncType.getReturnTypes(), GotParamTypes,
-        FuncType.getReturnTypes()));
+    spdlog::error(ErrInfo::InfoMismatch(PTypes, RTypes, GotParamTypes, RTypes));
     return Unexpect(ErrCode::FuncSigMismatch);
   }
 
@@ -97,11 +97,11 @@ Executor::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
   }
 
   /// Get return values.
-  std::vector<ValVariant> Returns;
-  for (uint32_t I = 0; I < FuncType.getReturnTypes().size(); ++I) {
-    Returns.emplace_back(StackMgr.pop());
+  std::vector<std::pair<ValVariant, ValType>> Returns(RTypes.size());
+  for (uint32_t I = 0; I < RTypes.size(); ++I) {
+    Returns[RTypes.size() - I - 1] =
+        std::make_pair(StackMgr.pop(), RTypes[RTypes.size() - I - 1]);
   }
-  std::reverse(Returns.begin(), Returns.end());
   return Returns;
 }
 

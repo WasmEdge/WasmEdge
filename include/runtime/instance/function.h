@@ -100,10 +100,14 @@ public:
 private:
   struct WasmFunction {
     const std::vector<std::pair<uint32_t, ValType>> Locals;
-    const AST::InstrVec Instrs;
+    AST::InstrVec Instrs;
     WasmFunction(Span<const std::pair<uint32_t, ValType>> Locs,
                  AST::InstrView Expr) noexcept
-        : Locals(Locs.begin(), Locs.end()), Instrs(Expr.begin(), Expr.end()) {}
+        : Locals(Locs.begin(), Locs.end()) {
+      /// FIXME: Modify the capacity to prevent from connection of 2 vectors.
+      Instrs.reserve(Expr.size() + 1);
+      Instrs.assign(Expr.begin(), Expr.end());
+    }
   };
 
   /// \name Data of function instance.

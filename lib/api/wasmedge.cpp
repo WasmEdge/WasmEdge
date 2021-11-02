@@ -217,14 +217,15 @@ inline std::string_view genStrView(const WasmEdge_String S) noexcept {
 
 /// Helper functions for converting a ValVariant vector to a WasmEdge_Value
 /// array.
-inline constexpr void fillWasmEdge_ValueArr(Span<const ValVariant> Vec,
-                                            WasmEdge_Value *Val,
-                                            const uint32_t Len) noexcept {
+inline constexpr void
+fillWasmEdge_ValueArr(Span<const std::pair<ValVariant, ValType>> Vec,
+                      WasmEdge_Value *Val, const uint32_t Len) noexcept {
   if (Val == nullptr) {
     return;
   }
   for (uint32_t I = 0; I < Len && I < Vec.size(); I++) {
-    Val[I] = genWasmEdge_Value(Vec[I], WasmEdge_ValType_I32);
+    Val[I] = genWasmEdge_Value(Vec[I].first,
+                               static_cast<WasmEdge_ValType>(Vec[I].second));
   }
 }
 
@@ -1431,7 +1432,9 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInvoke(
   auto ParamPair = genParamPair(Params, ParamLen);
   auto FuncStr = genStrView(FuncName);
   return wrap(
-      [&]() -> WasmEdge::Expect<std::vector<WasmEdge::ValVariant>> {
+      [&]()
+          -> WasmEdge::Expect<
+              std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>> {
         /// Get module instance.
         WasmEdge::Runtime::Instance::ModuleInstance *ModInst;
         if (auto Res = fromStoreCxt(StoreCxt)->getActiveModule()) {
@@ -1466,7 +1469,9 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInvokeRegistered(
   auto ModStr = genStrView(ModuleName);
   auto FuncStr = genStrView(FuncName);
   return wrap(
-      [&]() -> WasmEdge::Expect<std::vector<WasmEdge::ValVariant>> {
+      [&]()
+          -> WasmEdge::Expect<
+              std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>> {
         /// Get module instance.
         WasmEdge::Runtime::Instance::ModuleInstance *ModInst;
         if (auto Res = fromStoreCxt(StoreCxt)->findModule(ModStr)) {

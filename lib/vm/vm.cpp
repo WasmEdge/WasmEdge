@@ -91,7 +91,7 @@ Expect<void> VM::registerModule(std::string_view Name,
   return ExecutorEngine.registerModule(StoreRef, Module, Name);
 }
 
-Expect<std::vector<ValVariant>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::runWasmFile(const std::filesystem::path &Path, std::string_view Func,
                 Span<const ValVariant> Params, Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
@@ -107,7 +107,7 @@ VM::runWasmFile(const std::filesystem::path &Path, std::string_view Func,
   }
 }
 
-Expect<std::vector<ValVariant>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::runWasmFile(Span<const Byte> Code, std::string_view Func,
                 Span<const ValVariant> Params, Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
@@ -123,7 +123,7 @@ VM::runWasmFile(Span<const Byte> Code, std::string_view Func,
   }
 }
 
-Expect<std::vector<ValVariant>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::runWasmFile(const AST::Module &Module, std::string_view Func,
                 Span<const ValVariant> Params, Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
@@ -204,9 +204,9 @@ Expect<void> VM::instantiate() {
   }
 }
 
-Expect<std::vector<ValVariant>> VM::execute(std::string_view Func,
-                                            Span<const ValVariant> Params,
-                                            Span<const ValType> ParamTypes) {
+Expect<std::vector<std::pair<ValVariant, ValType>>>
+VM::execute(std::string_view Func, Span<const ValVariant> Params,
+            Span<const ValType> ParamTypes) {
   /// Get module instance.
   if (auto Res = StoreRef.getActiveModule()) {
     /// Execute function and return values with the module instance.
@@ -218,10 +218,9 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view Func,
   }
 }
 
-Expect<std::vector<ValVariant>> VM::execute(std::string_view ModName,
-                                            std::string_view Func,
-                                            Span<const ValVariant> Params,
-                                            Span<const ValType> ParamTypes) {
+Expect<std::vector<std::pair<ValVariant, ValType>>>
+VM::execute(std::string_view ModName, std::string_view Func,
+            Span<const ValVariant> Params, Span<const ValType> ParamTypes) {
   /// Get module instance.
   if (auto Res = StoreRef.findModule(ModName)) {
     /// Execute function and return values with the module instance.
@@ -233,7 +232,7 @@ Expect<std::vector<ValVariant>> VM::execute(std::string_view ModName,
   }
 }
 
-Expect<std::vector<ValVariant>>
+Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::execute(Runtime::Instance::ModuleInstance *ModInst, std::string_view Func,
             Span<const ValVariant> Params, Span<const ValType> ParamTypes) {
   /// Get exports and find function.

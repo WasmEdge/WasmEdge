@@ -11,7 +11,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include <cassert>
+#include "errcode.h"
+
 #include <cfenv>
 #include <cmath>
 #include <cstdint>
@@ -56,7 +57,7 @@ inline float roundevenf(float Value) {
   __asm__("frintn %s0, %s0" : "=w"(Ret) : "w"(Value));
   return Ret;
 #else
-  assert(fegetround() == FE_TONEAREST);
+  assuming(fegetround() == FE_TONEAREST);
   return std::nearbyint(Value);
 #endif
 }
@@ -81,7 +82,7 @@ inline double roundeven(double Value) noexcept {
   __asm__("frintn %d0, %d0" : "=w"(Ret) : "w"(Value));
   return Ret;
 #else
-  assert(fegetround() == FE_TONEAREST);
+  assuming(fegetround() == FE_TONEAREST);
   return std::nearbyint(Value);
 #endif
 }

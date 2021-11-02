@@ -5,6 +5,12 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'info'
   push:
     tags:
       - "[0-9]+.[0-9]+.[0-9]+*"
@@ -35,9 +41,10 @@ jobs:
           release_name: WasmEdge ${{ steps.prep.outputs.version }}
           body_path: .CurrentChangelog.md
           draft: true
-          prerelease: false
+          prerelease: true
   build_on_ubuntu:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: ubuntu 20.04 x86_64
@@ -89,6 +96,7 @@ jobs:
 
   build_on_macos:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: macos x86_64
@@ -122,6 +130,7 @@ jobs:
 
   build_on_manylinux_legacy:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: manylinux1_x86_64
@@ -156,6 +165,7 @@ jobs:
           path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.xz
   upload_manylinux_legacy:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: manylinux1_x86_64
@@ -212,6 +222,7 @@ jobs:
 
   build_and_upload_manylinux2014:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: manylinux2014_x86_64

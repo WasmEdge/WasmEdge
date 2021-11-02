@@ -1850,24 +1850,25 @@ Expect<uint32_t> WasiSockShutdown::body(Runtime::Instance::MemoryInstance *,
 Expect<uint32_t>
 WasiGetAddrInfo::body(Runtime::Instance::MemoryInstance *MemInst,
                       uint32_t NodePtr, uint32_t NodeLen, uint32_t ServicePtr,
-                      uint32_t ServiceLen, uint32_t HintsPtr, uint32_t resPtr) {
+                      uint32_t ServiceLen, uint32_t HintsPtr, uint32_t ResPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
-  auto *const node = MemInst->getPointer<const char *>(NodePtr, NodeLen);
-  auto *const service =
+  auto *const Node = MemInst->getPointer<const char *>(NodePtr, NodeLen);
+  auto *const Service =
       MemInst->getPointer<const char *>(ServicePtr, ServiceLen);
   // service and node can not be nullptr at the same time
-  if (service == nullptr && node == nullptr) {
+  if (Service == nullptr && Node == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
-  auto *const hint = MemInst->getPointer<const __wasi_addrinfo_t *>(
+  auto *const Hint = MemInst->getPointer<const __wasi_addrinfo_t *>(
       HintsPtr, sizeof(__wasi_addrinfo_t));
 
-  __wasi_addrinfo_t **res = MemInst->getPointer<__wasi_addrinfo_t **>(
-      resPtr, sizeof(__wasi_addrinfo_t *));
-  if (auto Res = Env.getAddrInfo(node, service, hint, res); unlikely(!Res)) {
+  __wasi_addrinfo_t **AddrinfoRes = MemInst->getPointer<__wasi_addrinfo_t **>(
+      ResPtr, sizeof(__wasi_addrinfo_t *));
+  if (auto Res = Env.getAddrInfo(Node, Service, Hint, AddrinfoRes);
+      unlikely(!Res)) {
     return Res.error();
   }
 
@@ -1880,9 +1881,9 @@ WasiFreeAddrInfo::body(Runtime::Instance::MemoryInstance *MemInst,
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
-  auto ai =
+  auto AddrInfo =
       MemInst->getPointer<__wasi_addrinfo_t *>(res, sizeof(__wasi_addrinfo_t));
-  if (auto Res = Env.freeAddrInfo(ai); unlikely(!Res)) {
+  if (auto Res = Env.freeAddrInfo(AddrInfo); unlikely(!Res)) {
     return Res.error();
   }
   return __WASI_ERRNO_SUCCESS;

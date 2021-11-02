@@ -453,7 +453,7 @@ public:
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         uint32_t NodePtr, uint32_t NodeLen, uint32_t ServicePtr,
                         uint32_t ServiceLen, uint32_t HintsPtr,
-                        uint32_t resPtr);
+                        uint32_t ResPtr);
 };
 
 class WasiFreeAddrInfo : public Wasi<WasiFreeAddrInfo> {

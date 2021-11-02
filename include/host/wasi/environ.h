@@ -40,72 +40,71 @@ public:
 
   void fini() noexcept;
 
-  WasiExpect<void> freeAddrInfo(__wasi_addrinfo_t *res) {
-    free(res);
+  WasiExpect<void> freeAddrInfo(__wasi_addrinfo_t *Addrinfo) {
+    free(Addrinfo);
     return {};
   }
-  __wasi_addrinfo_t *ai_next_helper(__wasi_addrinfo_t *dst, addrinfo *src) {
-    if (src == nullptr) {
+  __wasi_addrinfo_t *addrinfoHelper(__wasi_addrinfo_t *DstAddrinfo,
+                                    addrinfo *SrcAddrinfo) {
+    if (SrcAddrinfo == nullptr) {
       return nullptr;
     }
-    dst->ai_flags = static_cast<__wasi_aiflags_t>(src->ai_flags);
-    dst->ai_family = static_cast<__wasi_address_family_t>(src->ai_family);
-    dst->ai_socktype = static_cast<__wasi_sock_type_t>(src->ai_socktype);
-    dst->ai_protocol = static_cast<__wasi_protocol_t>(src->ai_protocol);
-    dst->ai_addrlen = src->ai_addrlen;
-    auto tmp_address = new __wasi_address_t();
-    memcpy(reinterpret_cast<void *>(tmp_address->buf), src->ai_addr,
-           src->ai_addrlen);
-    tmp_address->buf_len = src->ai_addrlen;
-    memcpy(reinterpret_cast<void *>(dst->ai_addr), tmp_address,
-           sizeof(__wasi_address_t));
-    memcpy(reinterpret_cast<void *>(dst->ai_canonname), src->ai_canonname,
-           strlen(src->ai_canonname));
-    dst->ai_canonname_len = strlen(src->ai_canonname);
+    DstAddrinfo->ai_flags =
+        static_cast<__wasi_aiflags_t>(SrcAddrinfo->ai_flags);
+    DstAddrinfo->ai_family =
+        static_cast<__wasi_address_family_t>(SrcAddrinfo->ai_family);
+    DstAddrinfo->ai_socktype =
+        static_cast<__wasi_sock_type_t>(SrcAddrinfo->ai_socktype);
+    DstAddrinfo->ai_protocol =
+        static_cast<__wasi_protocol_t>(SrcAddrinfo->ai_protocol);
+    DstAddrinfo->ai_addrlen = SrcAddrinfo->ai_addrlen;
 
-    dst->ai_next = reinterpret_cast<uint64_t>(ai_next_helper(
-        reinterpret_cast<__wasi_addrinfo_t *>(dst->ai_next), src->ai_next));
-    memcpy(reinterpret_cast<void *>(dst->ai_next),
-           ai_next_helper(reinterpret_cast<__wasi_addrinfo_t *>(dst->ai_next),
-                          src->ai_next),
+    auto TmpAddress = new __wasi_address_t();
+    memcpy(reinterpret_cast<void *>(TmpAddress->buf), SrcAddrinfo->ai_addr,
+           SrcAddrinfo->ai_addrlen);
+    TmpAddress->buf_len = SrcAddrinfo->ai_addrlen;
+    memcpy(reinterpret_cast<void *>(DstAddrinfo->ai_addr), TmpAddress,
+           sizeof(__wasi_address_t));
+    free(TmpAddress);
+
+    memcpy(reinterpret_cast<void *>(DstAddrinfo->ai_canonname),
+           SrcAddrinfo->ai_canonname, strlen(SrcAddrinfo->ai_canonname));
+    DstAddrinfo->ai_canonname_len = strlen(SrcAddrinfo->ai_canonname);
+
+    DstAddrinfo->ai_next = reinterpret_cast<uint64_t>(addrinfoHelper(
+        reinterpret_cast<__wasi_addrinfo_t *>(DstAddrinfo->ai_next),
+        SrcAddrinfo->ai_next));
+    memcpy(reinterpret_cast<void *>(DstAddrinfo->ai_next),
+           addrinfoHelper(
+               reinterpret_cast<__wasi_addrinfo_t *>(DstAddrinfo->ai_next),
+               SrcAddrinfo->ai_next),
            sizeof(__wasi_addrinfo_t));
-    return dst;
+
+    return DstAddrinfo;
   }
 
-  WasiExpect<void> getAddrInfo(const char *node, const char *service,
-                               const __wasi_addrinfo_t *hint,
-                               /*Out*/ __wasi_addrinfo_t **res) {
-    struct addrinfo ai;
-    struct addrinfo *r = nullptr;
+  WasiExpect<void> getAddrInfo(const char *Node, const char *Service,
+                               const __wasi_addrinfo_t *Hint,
+                               /*Out*/ __wasi_addrinfo_t **Res) {
+    struct addrinfo TmpHint;
+    struct addrinfo *TmpResult = nullptr;
 
-    ai.ai_flags = hint->ai_flags;
-    ai.ai_family = hint->ai_family;
-    ai.ai_socktype = hint->ai_socktype;
-    ai.ai_protocol = hint->ai_protocol;
-    ai.ai_addrlen = hint->ai_addrlen;
-    ai.ai_addr = reinterpret_cast<sockaddr *>(
-        reinterpret_cast<__wasi_address_t *>(hint->ai_addr)->buf);
-    ai.ai_canonname = reinterpret_cast<char *>(hint->ai_canonname);
-    ai.ai_next = nullptr;
+    TmpHint.ai_flags = Hint->ai_flags;
+    TmpHint.ai_family = Hint->ai_family;
+    TmpHint.ai_socktype = Hint->ai_socktype;
+    TmpHint.ai_protocol = Hint->ai_protocol;
+    TmpHint.ai_addrlen = Hint->ai_addrlen;
+    TmpHint.ai_addr = reinterpret_cast<sockaddr *>(
+        reinterpret_cast<__wasi_address_t *>(Hint->ai_addr)->buf);
+    TmpHint.ai_canonname = reinterpret_cast<char *>(Hint->ai_canonname);
+    TmpHint.ai_next = nullptr;
 
-    ::getaddrinfo(node, service, &ai, &r);
+    ::getaddrinfo(Node, Service, &TmpHint, &TmpResult);
 
-    (*res)->ai_flags = static_cast<__wasi_aiflags_t>(r->ai_flags);
-    (*res)->ai_family = static_cast<__wasi_address_family_t>(r->ai_family);
-    (*res)->ai_socktype = static_cast<__wasi_sock_type_t>(r->ai_socktype);
-    (*res)->ai_protocol = static_cast<__wasi_protocol_t>(r->ai_protocol);
-    (*res)->ai_addrlen = r->ai_addrlen;
-    __wasi_address_t *tmp_address = new __wasi_address_t();
-    memcpy(reinterpret_cast<void *>(tmp_address->buf), r->ai_addr,
-           r->ai_addrlen);
-    tmp_address->buf_len = r->ai_addrlen;
-    memcpy(reinterpret_cast<void *>((*res)->ai_addr), tmp_address,
-           sizeof(__wasi_address_t));
-    memcpy(reinterpret_cast<void *>((*res)->ai_canonname), r->ai_canonname,
-           strlen(r->ai_canonname));
-    (*res)->ai_canonname_len = strlen(r->ai_canonname);
-    ai_next_helper(*res, r);
-    ::freeaddrinfo(r);
+    addrinfoHelper(*Res, TmpResult);
+
+    ::freeaddrinfo(TmpResult);
+
     return {};
   }
   constexpr const std::vector<std::string> &getArguments() const noexcept {

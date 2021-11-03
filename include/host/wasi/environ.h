@@ -101,9 +101,31 @@ public:
     TmpHint.ai_next = nullptr;
 
     POSIXReturn = ::getaddrinfo(Node, Service, &TmpHint, &TmpResult);
-    if (POSIXReturn != 0) {
-      return WasiUnexpect();
+    switch (POSIXReturn) {
+    case EAI_ADDRFAMILY:
+      return WasiUnexpect(__WASI_ERRNO_AIADDRFAMILY);
+    case EAI_AGAIN:
+      return WasiUnexpect(__WASI_ERRNO_AIAGAIN);
+    case EAI_BADFLAGS:
+      return WasiUnexpect(__WASI_ERRNO_AIBADFLAG);
+    case EAI_FAIL:
+      return WasiUnexpect(__WASI_ERRNO_AIFAIL);
+    case EAI_FAMILY:
+      return WasiUnexpect(__WASI_ERRNO_AIFAMILY);
+    case EAI_MEMORY:
+      return WasiUnexpect(__WASI_ERRNO_AIMEMORY);
+    case EAI_NODATA:
+      return WasiUnexpect(__WASI_ERRNO_AINODATA);
+    case EAI_NONAME:
+      return WasiUnexpect(__WASI_ERRNO_AINONAME);
+    case EAI_SERVICE:
+      return WasiUnexpect(__WASI_ERRNO_AISERVICE);
+    case EAI_SOCKTYPE:
+      return WasiUnexpect(__WASI_ERRNO_AISOCKTYPE);
+    case EAI_SYSTEM:
+      return WasiUnexpect(__WASI_ERRNO_AISYSTEM);
     }
+
     addrinfoHelper(*Res, TmpResult);
 
     ::freeaddrinfo(TmpResult);

@@ -460,11 +460,13 @@ install_tf_extensions() {
         [ "$EXT_V_SET_WASMEDGE_TF_DEPS" -eq 0 ] && VERSION_TF_DEPS=$VERSION &&
             remote_version_availabilty second-state/WasmEdge-tensorflow-deps "$VERSION_TF_DEPS"
 
+        [ "$EXT_V_SET_WASMEDGE_TF_TOOLS" -eq 0 ] && VERSION_TF_TOOLS=$VERSION &&
+            remote_version_availabilty second-state/WasmEdge-tensorflow-tools "$VERSION_TF_TOOLS"
+
         get_wasmedge_tensorflow_deps
         install_wasmedge_tensorflow
 
         wasmedge_checks "$VERSION_TF_TOOLS" wasmedge-tensorflow \
-            wasmedgec-tensorflow \
             wasmedge-tensorflow-lite
     else
         echo "${YELLOW}Tensorflow extensions not supported${NC}"
@@ -484,6 +486,7 @@ main() {
     EXT_V_SET_WASMEDGE_IM_DEPS=0
     EXT_V_SET_WASMEDGE_TF=0
     EXT_V_SET_WASMEDGE_TF_DEPS=0
+    EXT_V_SET_WASMEDGE_TF_TOOLS=0
 
     REMOVE_OLD=1
 
@@ -528,6 +531,7 @@ main() {
             ;;
         tf-tools-version)
             VERSION_TF_TOOLS="${OPTARG}"
+            EXT_V_SET_WASMEDGE_TF_TOOLS=1
             ;;
         image-version)
             VERSION_IM="${OPTARG}"

@@ -138,6 +138,7 @@ VERSION_IM=$(get_latest_release second-state/WasmEdge-image)
 VERSION_IM_DEPS=$(get_latest_release second-state/WasmEdge-image)
 VERSION_TF=$(get_latest_release second-state/WasmEdge-tensorflow)
 VERSION_TF_DEPS=$(get_latest_release second-state/WasmEdge-tensorflow-deps)
+VERSION_TF_TOOLS=$(get_latest_release second-state/WasmEdge-tensorflow-tools)
 
 detect_os_arch() {
     RELEASE_PKG="manylinux2014_x86_64.tar.gz"
@@ -257,6 +258,7 @@ usage() {
                         
                     --tf-version=VERSION_TF
                     --tf-deps-version=VERSION_TF_DEPS
+                    --tf-tools-version=VERSION_TF_TOOLS
                     --image-version=VERSION_IM
                     --image-deps-version=VERSION_IM_DEPS
 
@@ -333,6 +335,7 @@ cleanup() {
     rm -f "$TMP_DIR/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
     rm -f "$TMP_DIR/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
     rm -f "$TMP_DIR/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
+    rm -f "$TMP_DIR/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
 }
 
 install() {
@@ -416,8 +419,12 @@ install_wasmedge_tensorflow() {
     echo "Fetching WasmEdge-tensorflowlite-$VERSION_TF"
     _downloader "https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
 
+    echo "Fetching WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS"
+    _downloader "https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/$VERSION_TF_TOOLS/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
+
     _extracter -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
     _extracter -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
+    _extracter -C "$IPATH/bin" -vxzf "$TMP_DIR/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
 
     rm -f "$IPATH/bin/download_dependencies_all.sh" \
         "$IPATH/bin/download_dependencies_tf.sh" \
@@ -455,6 +462,10 @@ install_tf_extensions() {
 
         get_wasmedge_tensorflow_deps
         install_wasmedge_tensorflow
+
+        wasmedge_checks "$VERSION_TF_TOOLS" wasmedge-tensorflow \
+            wasmedgec-tensorflow \
+            wasmedge-tensorflow-lite
     else
         echo "${YELLOW}Tensorflow extensions not supported${NC}"
     fi
@@ -514,6 +525,9 @@ main() {
         tf-deps-version)
             VERSION_TF_DEPS="${OPTARG}"
             EXT_V_SET_WASMEDGE_TF_DEPS=1
+            ;;
+        tf-tools-version)
+            VERSION_TF_TOOLS="${OPTARG}"
             ;;
         image-version)
             VERSION_IM="${OPTARG}"

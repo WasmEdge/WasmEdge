@@ -88,6 +88,7 @@ public:
                                /*Out*/ __wasi_addrinfo_t **Res) {
     struct addrinfo TmpHint;
     struct addrinfo *TmpResult = nullptr;
+    int POSIXReturn;
 
     TmpHint.ai_flags = Hint->ai_flags;
     TmpHint.ai_family = Hint->ai_family;
@@ -99,8 +100,10 @@ public:
     TmpHint.ai_canonname = reinterpret_cast<char *>(Hint->ai_canonname);
     TmpHint.ai_next = nullptr;
 
-    ::getaddrinfo(Node, Service, &TmpHint, &TmpResult);
-
+    POSIXReturn = ::getaddrinfo(Node, Service, &TmpHint, &TmpResult);
+    if (POSIXReturn != 0) {
+      return WasiUnexpect();
+    }
     addrinfoHelper(*Res, TmpResult);
 
     ::freeaddrinfo(TmpResult);

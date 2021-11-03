@@ -499,6 +499,62 @@ enum __wasi_errno_t : uint16_t {
    */
   __WASI_ERRNO_NOTCAPABLE = 76,
 
+  /**
+   * The specified network host does not have any network addresses in the
+   * requested address family.
+   */
+  __WASI_ERRNO_AIADDRFAMILY = 77,
+
+  /**
+   * Try again later.
+   */
+  __WASI_ERRNO_AIAGAIN = 78,
+
+  /**
+   * Hints.ai_flags contains invalid flags
+   */
+  __WASI_ERRNO_AIBADFLAG = 79,
+
+  /**
+   * The name server returned a permanent failure indication.
+   */
+  __WASI_ERRNO_AIFAIL = 80,
+
+  /**
+   * The requested address family is not supported.
+   */
+  __WASI_ERRNO_AIFAMILY = 81,
+
+  /**
+   * Addrinfo out of memory.
+   */
+  __WASI_ERRNO_AIMEMORY = 82,
+
+  /**
+   * Network host exists, but does not have any network addresses defined.
+   */
+  __WASI_ERRNO_AINODATA = 83,
+
+  /**
+   * Node or service is not known; or both node and service are NULL
+   */
+  __WASI_ERRNO_AINONAME = 84,
+
+  /**
+   * Service is not available for the requested socket type.
+   */
+  __WASI_ERRNO_AISERVICE = 85,
+
+  /**
+   * The requested socket type is not supported.
+   */
+  __WASI_ERRNO_AISOCKTYPE = 86,
+
+  /**
+   * Other system error;
+   */
+  __WASI_ERRNO_AISYSTEM = 87,
+
 };
 static_assert(sizeof(__wasi_errno_t) == 2, "witx calculated size");
 static_assert(alignof(__wasi_errno_t) == 2, "witx calculated align");

@@ -1,8 +1,38 @@
 --- a/typenames.witx
 +++ b/typenames.witx
-@@ -726,6 +726,28 @@
+@@ -193,6 +193,28 @@
+     $xdev
+     ;;; Extension: Capabilities insufficient.
+     $notcapable
++    ;;; The specified network host does not have any network addresses in the requested address family.
++    $aiaddrfamily
++    ;;; Try again later.
++    $aiagain
++    ;;; Hints.ai_flags contains invalid flags
++    $aibadflag
++    ;;; The name server returned a permanent failure indication.
++    $aifail
++    ;;; The requested address family is not supported.
++    $aifamily
++    ;;; Addrinfo out of memory.
++    $aimemory
++    ;;; Network host exists, but does not have any network addresses defined.
++    $ainodata
++    ;;; Node or service is not known; or both node and service are NULL
++    $ainoname
++    ;;; Service is not available for the requested socket type.
++    $aiservice
++    ;;; The requested socket type is not supported.
++    $aisocktype
++    ;;; Other system error;
++    $aisystem
+   )
+ )
 
- 
+@@ -726,6 +748,28 @@
+   )
+ )
+
 +
 +
 +;;; Flags provided to `getaddrinfo`.
@@ -28,10 +58,10 @@
  ;;; Socket type
  (typename $sock_type
    (enum (@witx tag u8)
-@@ -734,6 +756,37 @@
+@@ -734,6 +778,37 @@
    )
  )
- 
+
 +;;; Protocol
 +(typename $protocol
 +  (enum (@witx tag u8)
@@ -66,8 +96,3 @@
  ;;; Flags provided to `sock_recv`.
  (typename $riflags
    (flags (@witx repr u16)
-@@ -788,4 +841,3 @@
-     $prestat_dir
-   )
- )
--

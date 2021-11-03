@@ -10,7 +10,6 @@ TMP_DIR="/tmp/wasmedge.$$"
 _LD_LIBRARY_PATH_="LD_LIBRARY_PATH"
 
 if [[ $EUID -ne 0 ]]; then
-    echo "${YELLOW}No root permissions.${NC}"
     PERM_ROOT=0
 fi
 
@@ -105,8 +104,6 @@ if command -v sudo &>/dev/null; then
             __HOME__=$(getent passwd "$SUDO_USER" | cut -d: -f6)
         fi
     fi
-else
-    echo "${YELLOW}sudo could not be found${NC}"
 fi
 
 if [ "$__HOME__" = "" ]; then

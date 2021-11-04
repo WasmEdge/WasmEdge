@@ -2,19 +2,26 @@
 #include "common/errcode.h"
 #include "runtime/hostfunc.h"
 #include "runtime/instance/memory.h"
+#include "spdlog/spdlog.h"
+#include <onnxruntime_cxx_api.h>
 
 namespace WasmEdge {
 namespace Host {
 
-Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *,
+Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
                                   uint32_t BuilderPtr, uint32_t BuilderLen,
                                   uint32_t Encoding, uint32_t Target,
                                   uint32_t GraphPtr) {
+  (void)MemInst;
   (void)BuilderPtr;
   (void)BuilderLen;
   (void)Encoding;
   (void)Target;
   (void)GraphPtr;
+
+  spdlog::info("BuilderPtr: {:<d}", BuilderPtr);
+  Ort::Env env(ORT_LOGGING_LEVEL_INFO, "wasi-nn-onnxruntime");
+
   std::cout << "WasiNNLoad::body" << std::endl;
   return 0;
 }

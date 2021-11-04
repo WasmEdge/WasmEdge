@@ -24,7 +24,8 @@ public:
   SigAlgorithm() = default;
   ~SigAlgorithm() = default;
   std::vector<Byte> keygen(Span<const Byte>);
-  int verify();
+  int verify(Span<const Byte> Code, Span<const Byte> Signature,
+                         Span<const Byte> PublicKey);
 };
 
 } // namespace Signature

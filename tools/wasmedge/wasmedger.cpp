@@ -8,11 +8,13 @@
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
 #include "po/argument_parser.h"
+#include "signature/signature.h"
 #include "vm/vm.h"
 
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -157,6 +159,32 @@ int main(int Argc, const char *Argv[]) {
     return EXIT_SUCCESS;
   }
 
+  // Exit program when enter signature subcommands
+  // Save for future updates
+  const auto SignTargetPath = std::filesystem::absolute(SignTarget.value());
+  const auto PrikeyPath = std::filesystem::absolute(PrivateKey.value());
+  const auto OutputPath = std::filesystem::absolute(SignOutput.value());
+  WasmEdge::Signature::Signature SignatureEngine;
+  if (Sign.is_selected()) {
+    std::cout << "Sign\n";
+    if (auto Result = SignatureEngine.signWasmFile(SignTargetPath.u8string());
+        Result || Result.error() == WasmEdge::ErrCode::Terminated) {
+      return EXIT_SUCCESS;
+    }
+    return EXIT_FAILURE;
+  }
+  const auto VerifyTargetPath = std::filesystem::absolute(VerifyTarget.value());
+  const auto PubkeyPath = std::filesystem::absolute(PublicKey.value());
+  if (Verify.is_selected()) {
+    std::cout << "Verify\n";
+    if (auto Result = SignatureEngine.verifyWasmFile(
+            VerifyTargetPath.u8string(), PubkeyPath);
+        Result || Result.error() == WasmEdge::ErrCode::Terminated) {
+      return EXIT_SUCCESS;
+    }
+    return EXIT_SUCCESS;
+  }
+
   WasmEdge::Configure Conf;
   if (PropMutGlobals.value()) {
     Conf.removeProposal(WasmEdge::Proposal::ImportExportMutGlobals);
@@ -248,21 +276,6 @@ int main(int Argc, const char *Argv[]) {
           .replace_extension(std::filesystem::u8path("wasm"sv))
           .u8string(),
       Args.value(), Env.value());
-
-  // Exit program when enter signature subcommands
-  // Save for future updates
-  if (Sign.is_selected()) {
-    std::cout << "Sign\n";
-    if (auto Result = VM.signWasmFile(InputPath.u8string());
-        Result || Result.error() == WasmEdge::ErrCode::Terminated) {
-      return EXIT_SUCCESS;
-    } else
-      return EXIT_FAILURE;
-  }
-  if (Verify.is_selected()) {
-    std::cout << "Verify\n";
-    return EXIT_SUCCESS;
-  }
 
   if (!Reactor.value()) {
     // command mode

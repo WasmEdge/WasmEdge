@@ -206,6 +206,7 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                      Span<const ValVariant> Params,
@@ -349,6 +350,8 @@ Expect<std::vector<ValVariant>> VM::verifyWasmFile(const AST::Module &Module) {
   };
 }
 
+=======
+>>>>>>> [Wasm-Signature] Move signature engine out of `vm` module and add basic `verify` implementations
 Expect<void> VM::loadWasm(const std::filesystem::path &Path) {
   /// If not load successfully, the previous status will be reserved.
 >>>>>>> [Wasm-Signature] Add function templates and extend command line subcommands

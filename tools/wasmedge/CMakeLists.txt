@@ -27,6 +27,10 @@ install(TARGETS wasmedge EXPORT wasmedge DESTINATION bin)
 
 target_link_libraries(wasmedge
   PRIVATE
+<<<<<<< HEAD
   wasmedgePO
+=======
+  wasmedgeSignature
+>>>>>>> [Wasm-Signature] Move signature engine out of `vm` module and add basic `verify` implementations
   wasmedgeVM
 )

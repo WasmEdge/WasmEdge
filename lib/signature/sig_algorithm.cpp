@@ -7,8 +7,7 @@ namespace Signature {
 std::vector<Byte> SigAlgorithm::keygen(Span<const Byte> Code) {
   unsigned char PublicKey[32], PrivateKey[64], Seed[32];
   unsigned char Signature[64];
-  // const unsigned char message[] = "Hello, world!";
-  const int MessageLen = 12;
+  const int MessageLen = std::size(Code);
   const unsigned char *Message = &Code[0];
 
   /* create a random seed, and a keypair out of that seed */
@@ -21,7 +20,16 @@ std::vector<Byte> SigAlgorithm::keygen(Span<const Byte> Code) {
   return Sig;
 }
 
-int SigAlgorithm::verify() { return 0; }
+int SigAlgorithm::verify(Span<const Byte> Code, Span<const Byte> Signature,
+                         Span<const Byte> PublicKey) {
+  const unsigned char *PublicKeyArray = &PublicKey[0];
+  const unsigned char *SignatureArray = &Signature[0];
+  const unsigned char *Message = &Code[0];
+  const int MessageLen = std::size(Code);
+
+  ed25519_verify(SignatureArray, Message, MessageLen, PublicKeyArray);
+  return 0;
+}
 
 } // namespace Signature
 } // namespace WasmEdge

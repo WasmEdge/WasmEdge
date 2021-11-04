@@ -1,8 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "signature/signature.h"
+#include "common/errcode.h"
+#include <filesystem>
+#include <fstream>
 
 namespace WasmEdge {
 namespace Signature {
+
+Expect<void> Signature::signWasmFile(const std::filesystem::path &Path) {
+  LDMgr LMgr;
+  if (auto Res = LMgr.setPath(Path); !Res) {
+    spdlog::error(Res.error());
+    spdlog::error(ErrInfo::InfoFile(Path));
+    return Unexpect(Res);
+  }
+  if (auto Code = LMgr.getWasm()) {
+    auto Sig = keygen(*Code);
+    return sign(Path, *Sig);
+  } else
+    return Unexpect(Code);
+}
+
+Expect<bool>
+Signature::verifyWasmFile(const std::filesystem::path &Path,
+                          const std::filesystem::path &PubKeyPath) {
+  LDMgr LMgr;
+  Configure Conf;
+  Loader::Loader TempLoader(Conf);
+  if (auto Res = TempLoader.parseModule(Path)) {
+    for (auto CustomSec : (*Res)->getCustomSections()) {
+      if (CustomSec.getName() == DEFAULT_CUSOTM_SECTION_NAME) {
+        return verify(CustomSec.getContent(), Path, PubKeyPath);
+      }
+    }
+    return Unexpect(Res);
+  } else
+    return Unexpect(Res);
+}
 
 Expect<void> Signature::sign(std::filesystem::path Path,
                              const std::vector<uint8_t> Signature) {
@@ -24,13 +58,20 @@ Expect<void> Signature::sign(std::filesystem::path Path,
   return {};
 }
 
-Expect<void> Signature::verify(const AST::Module &Mod) {
+Expect<bool> Signature::verify(const Span<Byte> CustomSec,
+                               std::filesystem::path Path,
+                               const std::filesystem::path &PubKeyPath) {
   /// Return void for this template
-  for (const auto &Elem : Mod.getCustomSections()) {
-    if (Elem.getName() == DEFAULT_CUSOTM_SECTION_NAME)
-      return {};
+  std::ifstream PubKeyFile(PubKeyPath.string(), std::ios::binary);
+  std::ifstream SourceFile(Path.string(), std::ios::binary);
+  Span<const Byte> Signature, PublicKey;
+  try {
+    PubKeyFile.exceptions(PubKeyFile.failbit);
+  } catch (const std::ios_base::failure &e) {
+    // Failure handling
   }
-  return {};
+  // return Alg.verify()
+  return Alg.verify(CustomSec, Signature, PublicKey);
 }
 
 // Expect<Span<Byte>> keygen(Span<const uint8_t> Code) {

@@ -7,6 +7,8 @@ pub mod wasmedge {
 
 pub mod config;
 pub mod function;
+pub mod import_obj;
+pub mod instance;
 pub mod module;
 pub mod raw_result;
 pub mod string;

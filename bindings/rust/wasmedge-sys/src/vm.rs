@@ -1,5 +1,6 @@
 use super::wasmedge;
 use crate::{
+    import_obj::ImportObj,
     raw_result::{decode_result, ErrReport},
     string::StringRef,
     value::Value,
@@ -122,6 +123,16 @@ impl Vm {
                 import_obj.preopens_len,
             )
         }
+    }
+
+    pub fn register_module_from_import(self, import_obj: ImportObj) -> Result<Self, ErrReport> {
+        unsafe {
+            decode_result(wasmedge::WasmEdge_VMRegisterModuleFromImport(
+                self.ctx,
+                import_obj.ctx,
+            ))?;
+        }
+        Ok(self)
     }
 
     pub fn run(

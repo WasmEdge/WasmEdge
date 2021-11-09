@@ -6,6 +6,7 @@ pub mod wasmedge {
 }
 
 pub mod config;
+pub mod function;
 pub mod module;
 pub mod raw_result;
 pub mod string;

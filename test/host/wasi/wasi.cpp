@@ -22,6 +22,13 @@ void writeString(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
   std::copy(String.begin(), String.end(), MemInst.getPointer<uint8_t *>(Ptr));
 }
 
+void writeAddrinfo(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
+                   __wasi_addrinfo_t *WasiAddrinfo, uint32_t Ptr) {
+  memcpy(MemInst.getPointer<__wasi_addrinfo_t *>(
+             Ptr, sizeof(struct __wasi_addrinfo_t)),
+         WasiAddrinfo, sizeof(struct __wasi_addrinfo_t));
+}
+
 __wasi_errno_t convertErrno(int SysErrno) noexcept {
   switch (SysErrno) {
   case 0:
@@ -949,6 +956,61 @@ TEST(WasiTest, SymbolicLink) {
   }
 }
 
+TEST(WasiTest, GetAddrinfo) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(
+      WasmEdge::AST::MemoryType(1));
+
+  WasmEdge::Host::WasiGetAddrinfo WasiGetAddrinfo(Env);
+  WasmEdge::Host::WasiFreeAddrinfo WasiFreAddrinfo(Env);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  uint32_t NodePtr = 0;
+  uint32_t ServicePtr = 32;
+  uint32_t HintsPtr = 48;
+  uint32_t ResultPtr = 80;
+  std::string Node = "";
+  std::string Service = "27015";
+  struct __wasi_addrinfo_t Hints;
+  struct __wasi_addrinfo_t *Result = new __wasi_addrinfo_t();
+  Result->ai_addr = 112;
+  auto WSA = MemInst.getPointer<__wasi_sockaddr_t *>(Result->ai_addr,
+                                                     sizeof(__wasi_sockaddr_t));
+  WSA->sa_data_len = 0;
+  WSA->sa_data = 144;
+  const uint32_t NodeLen = Node.size();
+  const uint32_t ServiceLen = Service.size();
+
+  memset(&Hints, 0, sizeof(Hints));
+  Hints.ai_family = __WASI_ADDRESS_FAMILY_INET4;   /* Allow IPv4 */
+  Hints.ai_socktype = __WASI_SOCK_TYPE_SOCK_DGRAM; /* Datagram socket */
+  Hints.ai_flags = __WASI_AIFLAGS_AI_PASSIVE;      /* For wildcard IP address */
+  writeString(MemInst, Node, NodePtr);
+  writeString(MemInst, Service, ServicePtr);
+  writeAddrinfo(MemInst, &Hints, HintsPtr);
+  writeAddrinfo(MemInst, Result, ResultPtr);
+  delete Result;
+
+  Env.init({}, "test"s, {}, {});
+
+  EXPECT_TRUE(WasiGetAddrinfo.run(
+      &MemInst,
+      std::array<WasmEdge::ValVariant, 6>{NodePtr, NodeLen, ServicePtr,
+                                          ServiceLen, HintsPtr, ResultPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  auto Res = MemInst.getPointer<__wasi_addrinfo_t *>(ResultPtr,
+                                                     sizeof(__wasi_addrinfo_t));
+  EXPECT_EQ(Res->ai_addrlen, 16);
+  auto WasiSockAddr = MemInst.getPointer<__wasi_sockaddr_t *>(
+      Res->ai_addr, sizeof(__wasi_sockaddr_t));
+  EXPECT_EQ(WasiSockAddr->sa_data_len, 14);
+  EXPECT_EQ(WasiSockAddr->sa_family, 0);
+  EXPECT_NE(MemInst.getPointer<char *>(WasiSockAddr->sa_data,
+                                       WasiSockAddr->sa_data_len),
+            "i");
+}
 #endif
 
 GTEST_API_ int main(int argc, char **argv) {

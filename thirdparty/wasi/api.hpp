@@ -1781,15 +1781,51 @@ static_assert(sizeof(__wasi_protocol_t) == 1, "witx calculated size");
 static_assert(alignof(__wasi_protocol_t) == 1, "witx calculated align");
 
 /**
- * Support to prevent recursive definition
+ * Socket address_in provided for getaddrinfo
  */
-struct __wasi_addrinfo_fake_t {
-  uint8_t ai;
+struct __wasi_sockaddr_in_t {
+  __wasi_address_family_t sin_family;
+
+  uint16_t sin_port;
+
+  __wasi_address_t sin_addr;
+
+  __wasi_size_t sin_zero_len;
+
+  uint8_t_ptr sin_zero;
 };
 
-static_assert(sizeof(__wasi_addrinfo_fake_t) == 1, "witx calculated size");
-static_assert(alignof(__wasi_addrinfo_fake_t) == 1, "witx calculated align");
-static_assert(offsetof(__wasi_addrinfo_fake_t, ai) == 0,
+static_assert(sizeof(__wasi_sockaddr_in_t) == 20, "witx calculated size");
+static_assert(alignof(__wasi_sockaddr_in_t) == 4, "witx calculated align");
+static_assert(offsetof(__wasi_sockaddr_in_t, sin_family) == 0,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_sockaddr_in_t, sin_port) == 2,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_sockaddr_in_t, sin_addr) == 4,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_sockaddr_in_t, sin_zero_len) == 12,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_sockaddr_in_t, sin_zero) == 16,
+              "witx calculated offset");
+
+/**
+ * Socket address provided for getaddrinfo
+ */
+struct __wasi_sockaddr_t {
+  __wasi_address_family_t sa_family;
+
+  __wasi_size_t sa_data_len;
+
+  uint8_t_ptr sa_data;
+};
+
+static_assert(sizeof(__wasi_sockaddr_t) == 12, "witx calculated size");
+static_assert(alignof(__wasi_sockaddr_t) == 4, "witx calculated align");
+static_assert(offsetof(__wasi_sockaddr_t, sa_family) == 0,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_sockaddr_t, sa_data_len) == 4,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_sockaddr_t, sa_data) == 8,
               "witx calculated offset");
 
 /**

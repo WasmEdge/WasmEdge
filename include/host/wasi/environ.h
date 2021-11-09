@@ -41,53 +41,17 @@ public:
   void fini() noexcept;
 
   WasiExpect<void> freeAddrInfo(__wasi_addrinfo_t *Addrinfo) {
-    free(Addrinfo);
+    delete Addrinfo;
     return {};
-  }
-  __wasi_addrinfo_t *addrinfoHelper(__wasi_addrinfo_t *DstAddrinfo,
-                                    addrinfo *SrcAddrinfo) {
-    if (SrcAddrinfo == nullptr) {
-      return nullptr;
-    }
-    DstAddrinfo->ai_flags =
-        static_cast<__wasi_aiflags_t>(SrcAddrinfo->ai_flags);
-    DstAddrinfo->ai_family =
-        static_cast<__wasi_address_family_t>(SrcAddrinfo->ai_family);
-    DstAddrinfo->ai_socktype =
-        static_cast<__wasi_sock_type_t>(SrcAddrinfo->ai_socktype);
-    DstAddrinfo->ai_protocol =
-        static_cast<__wasi_protocol_t>(SrcAddrinfo->ai_protocol);
-    DstAddrinfo->ai_addrlen = SrcAddrinfo->ai_addrlen;
-
-    auto TmpAddress = new __wasi_address_t();
-    memcpy(reinterpret_cast<void *>(TmpAddress->buf), SrcAddrinfo->ai_addr,
-           SrcAddrinfo->ai_addrlen);
-    TmpAddress->buf_len = SrcAddrinfo->ai_addrlen;
-    memcpy(reinterpret_cast<void *>(DstAddrinfo->ai_addr), TmpAddress,
-           sizeof(__wasi_address_t));
-    free(TmpAddress);
-
-    memcpy(reinterpret_cast<void *>(DstAddrinfo->ai_canonname),
-           SrcAddrinfo->ai_canonname, strlen(SrcAddrinfo->ai_canonname));
-    DstAddrinfo->ai_canonname_len = strlen(SrcAddrinfo->ai_canonname);
-
-    DstAddrinfo->ai_next = reinterpret_cast<uint64_t>(addrinfoHelper(
-        reinterpret_cast<__wasi_addrinfo_t *>(DstAddrinfo->ai_next),
-        SrcAddrinfo->ai_next));
-    memcpy(reinterpret_cast<void *>(DstAddrinfo->ai_next),
-           addrinfoHelper(
-               reinterpret_cast<__wasi_addrinfo_t *>(DstAddrinfo->ai_next),
-               SrcAddrinfo->ai_next),
-           sizeof(__wasi_addrinfo_t));
-
-    return DstAddrinfo;
   }
 
   WasiExpect<void> getAddrInfo(const char *Node, const char *Service,
                                const __wasi_addrinfo_t *Hint,
-                               /*Out*/ __wasi_addrinfo_t **Res) {
+                               const __wasi_sockaddr_t *SockAddress,
+                               char *AiCanonname, char *AiSaData,
+                               /*Out*/ addrinfo *&Res) {
     struct addrinfo TmpHint;
-    struct addrinfo *TmpResult = nullptr;
+    struct addrinfo *TmpResult = NULL;
     int POSIXReturn;
 
     TmpHint.ai_flags = Hint->ai_flags;
@@ -95,10 +59,19 @@ public:
     TmpHint.ai_socktype = Hint->ai_socktype;
     TmpHint.ai_protocol = Hint->ai_protocol;
     TmpHint.ai_addrlen = Hint->ai_addrlen;
-    TmpHint.ai_addr = reinterpret_cast<sockaddr *>(
-        reinterpret_cast<__wasi_address_t *>(Hint->ai_addr)->buf);
-    TmpHint.ai_canonname = reinterpret_cast<char *>(Hint->ai_canonname);
-    TmpHint.ai_next = nullptr;
+    TmpHint.ai_canonname = AiCanonname;
+    TmpHint.ai_addr = NULL;
+    if (SockAddress != nullptr) {
+      switch (SockAddress->sa_family) {
+      case __WASI_ADDRESS_FAMILY_INET6:
+        TmpHint.ai_addr->sa_family = AF_INET;
+        break;
+      case __WASI_ADDRESS_FAMILY_INET4:
+        TmpHint.ai_addr->sa_family = AF_INET6;
+      }
+      memcpy(TmpHint.ai_addr->sa_data, AiSaData, 14);
+    }
+    TmpHint.ai_next = NULL;
 
     POSIXReturn = ::getaddrinfo(Node, Service, &TmpHint, &TmpResult);
     switch (POSIXReturn) {
@@ -125,11 +98,8 @@ public:
     case EAI_SYSTEM:
       return WasiUnexpect(__WASI_ERRNO_AISYSTEM);
     }
-
-    addrinfoHelper(*Res, TmpResult);
-
-    ::freeaddrinfo(TmpResult);
-
+    Res = TmpResult;
+    Res->ai_next = nullptr;
     return {};
   }
   constexpr const std::vector<std::string> &getArguments() const noexcept {

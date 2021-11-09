@@ -1848,41 +1848,97 @@ Expect<uint32_t> WasiSockShutdown::body(Runtime::Instance::MemoryInstance *,
 }
 
 Expect<uint32_t>
-WasiGetAddrInfo::body(Runtime::Instance::MemoryInstance *MemInst,
+WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
                       uint32_t NodePtr, uint32_t NodeLen, uint32_t ServicePtr,
                       uint32_t ServiceLen, uint32_t HintsPtr, uint32_t ResPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
-  auto *const Node = MemInst->getPointer<const char *>(NodePtr, NodeLen);
-  auto *const Service =
-      MemInst->getPointer<const char *>(ServicePtr, ServiceLen);
+  const char *Node = nullptr;
+  if (NodeLen != 0) {
+    Node = MemInst->getPointer<const char *>(NodePtr, NodeLen);
+  }
+  const char *Service = nullptr;
+  if (ServiceLen != 0) {
+    Service = MemInst->getPointer<const char *>(ServicePtr, ServiceLen);
+  }
   // service and node can not be nullptr at the same time
   if (Service == nullptr && Node == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
+
   auto *const Hint = MemInst->getPointer<const __wasi_addrinfo_t *>(
       HintsPtr, sizeof(__wasi_addrinfo_t));
+  const __wasi_sockaddr_t *AiSockAddress = nullptr;
+  char *AiSaData = nullptr;
+  char *AiCanonname = nullptr;
+  if (Hint->ai_addrlen != 0) {
+    AiSockAddress = MemInst->getPointer<const __wasi_sockaddr_t *>(
+        Hint->ai_addr, Hint->ai_addrlen);
+    AiSaData = MemInst->getPointer<char *>(AiSockAddress->sa_data,
+                                           AiSockAddress->sa_data_len);
+  }
+  if (Hint->ai_canonname_len != 0) {
+    AiCanonname =
+        MemInst->getPointer<char *>(Hint->ai_canonname, Hint->ai_canonname_len);
+  }
 
-  __wasi_addrinfo_t **AddrinfoRes = MemInst->getPointer<__wasi_addrinfo_t **>(
-      ResPtr, sizeof(__wasi_addrinfo_t *));
-  if (auto Res = Env.getAddrInfo(Node, Service, Hint, AddrinfoRes);
+  addrinfo *TmpAddrinfoRes = nullptr;
+  if (auto Res = Env.getAddrInfo(Node, Service, Hint, AiSockAddress,
+                                 AiCanonname, AiSaData, TmpAddrinfoRes);
       unlikely(!Res)) {
     return Res.error();
   }
 
+  auto Res = MemInst->getPointer<__wasi_addrinfo_t *>(
+      ResPtr, sizeof(__wasi_addrinfo_t));
+  Res->ai_flags = static_cast<__wasi_aiflags_t>(TmpAddrinfoRes->ai_flags);
+  Res->ai_socktype =
+      static_cast<__wasi_sock_type_t>(TmpAddrinfoRes->ai_socktype);
+  Res->ai_protocol =
+      static_cast<__wasi_protocol_t>(TmpAddrinfoRes->ai_protocol);
+  Res->ai_family =
+      static_cast<__wasi_address_family_t>(TmpAddrinfoRes->ai_family);
+  // process ai_address
+  Res->ai_addrlen = TmpAddrinfoRes->ai_addrlen;
+  if (Res->ai_addrlen) {
+    auto SockeAddress = MemInst->getPointer<struct __wasi_sockaddr_t *>(
+        Res->ai_addr, sizeof(struct __wasi_sockaddr_t));
+    switch (TmpAddrinfoRes->ai_addr->sa_family) {
+    case AF_INET:
+      SockeAddress->sa_family = __WASI_ADDRESS_FAMILY_INET4;
+      break;
+    case AF_INET6:
+      SockeAddress->sa_family = __WASI_ADDRESS_FAMILY_INET6;
+      break;
+    }
+    if (sizeof(TmpAddrinfoRes->ai_addr->sa_data)) {
+      auto SaDataBuff = MemInst->getPointer<char *>(SockeAddress->sa_data, 14);
+      memcpy(SaDataBuff, TmpAddrinfoRes->ai_addr->sa_data, 14);
+      SockeAddress->sa_data_len = 14;
+    }
+  }
+  if (TmpAddrinfoRes->ai_canonname != NULL) {
+    Res->ai_canonname_len = sizeof(TmpAddrinfoRes->ai_canonname);
+    memcpy(
+        MemInst->getPointer<char *>(Res->ai_canonname, Res->ai_canonname_len),
+        TmpAddrinfoRes->ai_canonname, Res->ai_canonname_len);
+  }
+  Res->ai_next = 0;
+  freeaddrinfo(TmpAddrinfoRes);
+
   return __WASI_ERRNO_SUCCESS;
 }
 Expect<uint32_t>
-WasiFreeAddrInfo::body(Runtime::Instance::MemoryInstance *MemInst,
-                       uint32_t res) {
+WasiFreeAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
+                       uint32_t ResPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
-  auto AddrInfo =
-      MemInst->getPointer<__wasi_addrinfo_t *>(res, sizeof(__wasi_addrinfo_t));
+  auto AddrInfo = MemInst->getPointer<__wasi_addrinfo_t *>(
+      ResPtr, sizeof(__wasi_addrinfo_t));
   if (auto Res = Env.freeAddrInfo(AddrInfo); unlikely(!Res)) {
     return Res.error();
   }

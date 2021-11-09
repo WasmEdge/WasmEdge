@@ -29,12 +29,28 @@
    )
  )
 
-@@ -726,6 +748,28 @@
+@@ -270,6 +292,8 @@
+     ;;; If `rights::fd_read` is set, includes the right to invoke `poll_oneoff` to subscribe to `eventtype::fd_read`.
+     ;;; If `rights::fd_write` is set, includes the right to invoke `poll_oneoff` to subscribe to `eventtype::fd_write`.
+     $poll_fd_readwrite
++    ;;; The right to invoke `sock_shutdown`.
++    $sock_shutdown
+     ;;; The right to invoke `sock_open`.
+     $sock_open
+     ;;; The right to invoke `sock_close`.
+@@ -284,8 +308,6 @@
+     $sock_send
+     ;;; The right to invoke `sock_send_to`.
+     $sock_send_to
+-    ;;; The right to invoke `sock_shutdown`.
+-    $sock_shutdown
    )
  )
 
-+
-+
+@@ -726,6 +748,26 @@
+   )
+ )
+
 +;;; Flags provided to `getaddrinfo`.
 +(typename $aiflags
 +  (flags (@witx repr u16)
@@ -58,7 +74,7 @@
  ;;; Socket type
  (typename $sock_type
    (enum (@witx tag u8)
-@@ -734,6 +778,37 @@
+@@ -734,6 +776,50 @@
    )
  )
 
@@ -70,10 +86,23 @@
 +  )
 +)
 +
-+;;; Support to prevent recursive definition
-+(typename $addrinfo_fake
++;;; Socket address_in provided for getaddrinfo
++(typename $sockaddr_in
 +    (record
-+    (field $ai u8 )
++        (field $sin_family $address_family )
++        (field $sin_port u16)
++        (field $sin_addr $address)
++        (field $sin_zero_len $size)
++        (field $sin_zero (@witx pointer u8))
++    )
++)
++
++;;; Socket address provided for getaddrinfo
++(typename $sockaddr
++    (record
++        (field $sa_family $address_family)
++        (field $sa_data_len $size)
++        (field $sa_data (@witx pointer u8))
 +    )
 +)
 +

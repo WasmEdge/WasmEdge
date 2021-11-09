@@ -446,9 +446,9 @@ public:
                         uint32_t SdFlags);
 };
 
-class WasiGetAddrInfo : public Wasi<WasiGetAddrInfo> {
+class WasiGetAddrinfo : public Wasi<WasiGetAddrinfo> {
 public:
-  WasiGetAddrInfo(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiGetAddrinfo(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         uint32_t NodePtr, uint32_t NodeLen, uint32_t ServicePtr,
@@ -456,12 +456,12 @@ public:
                         uint32_t ResPtr);
 };
 
-class WasiFreeAddrInfo : public Wasi<WasiFreeAddrInfo> {
+class WasiFreeAddrinfo : public Wasi<WasiFreeAddrinfo> {
 public:
-  WasiFreeAddrInfo(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+  WasiFreeAddrinfo(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        uint32_t res);
+                        uint32_t ResPtr);
 };
 
 } // namespace Host

@@ -8,6 +8,7 @@ pub mod wasmedge {
 pub mod config;
 pub mod module;
 pub mod raw_result;
+pub mod store;
 pub mod string;
 pub mod value;
 pub mod version;
@@ -17,6 +18,7 @@ pub mod wasi;
 pub use config::{Config, OptLevel};
 pub use module::Module;
 pub use raw_result::ErrReport;
+pub use store::Store;
 pub use string::{StringBuf, StringRef, WasmEdgeString};
 pub use value::Value;
 pub use version::{full_version, semv_version};

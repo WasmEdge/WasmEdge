@@ -2,7 +2,7 @@ package org.wasmedge;
 
 public class WasmEdge {
 
-    static {
+    public static void init() {
         System.loadLibrary("wasmedge_java");
     }
 

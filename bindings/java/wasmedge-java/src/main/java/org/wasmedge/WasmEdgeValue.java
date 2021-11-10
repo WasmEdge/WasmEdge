@@ -1,4 +1,5 @@
 package org.wasmedge;
 
-public class WasmEdgeValue {
+public interface WasmEdgeValue {
+    ValueType getType();
 }

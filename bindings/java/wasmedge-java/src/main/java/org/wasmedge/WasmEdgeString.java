@@ -1,18 +1,19 @@
 package org.wasmedge;
 
 public class WasmEdgeString {
-    private long pointer;
+    private final String val;
+
 
     public WasmEdgeString() {
-//        createInternal("");
+        val = "";
+        createInternal(val);
     }
-    public WasmEdgeString(String str) {
-        createInternal(str);
+    public WasmEdgeString(String val) {
+        this.val = val;
+        createInternal(val);
     }
 
     private native void createInternal(String str);
-
-    public native void delete();
 
     private native String toStringInternal();
 

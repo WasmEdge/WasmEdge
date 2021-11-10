@@ -10,13 +10,17 @@ if (JNI_FOUND)
 endif()
 
 include_directories(${JNI_INCLUDE_DIRS})
-include_directories("/Users/kenvizhu/code/WasmEdge/build/include/api/")
+include_directories("/Users/kenvi/code/WasmEdge/build/include/api/")
 
 add_library(wasmedge_java SHARED
         org_wasmedge_WasmEdge.h
         org_wasmedge_WasmEdgeString.h
+        org_wasmedge_WasmEdgeResult.h
         lib/WasmEdge.c
         lib/WasmEdgeString.c
+        lib/WasmEdgeResult.c
+        lib/WasmEdgeVM.c
+        lib/common.c
         )
 target_link_libraries(wasmedge_java wasmedge_c)
 

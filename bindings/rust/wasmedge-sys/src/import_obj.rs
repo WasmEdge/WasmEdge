@@ -1,5 +1,5 @@
 use super::wasmedge;
-use crate::string::StringRef;
+use crate::{instance::Function, string::StringRef};
 
 #[derive(Debug)]
 pub struct ImportObj {
@@ -14,14 +14,10 @@ impl ImportObj {
         ImportObj { ctx }
     }
 
-    pub fn add_func(
-        &self,
-        func_name: impl AsRef<str>,
-        hostfunc: *mut wasmedge::WasmEdge_FunctionInstanceContext,
-    ) {
+    pub fn add_func(&self, func_name: impl AsRef<str>, func: Function) {
         let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(func_name.as_ref()).into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, raw_func_name, hostfunc);
+            wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, raw_func_name, func.ctx);
         }
     }
 }

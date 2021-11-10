@@ -1,5 +1,7 @@
 use super::wasmedge;
 
+use core::ffi::c_void;
+
 /// A polymorphic Wasm primitive type.
 /// # TODO : v128 / Reference types
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -8,6 +10,20 @@ pub enum Value {
     I64(i64),
     F32(f32),
     F64(f64),
+    V128(u128),
+    /// A reference to a Wasm function.
+    FuncRef(u128),
+    /// A reference to opaque data in the Wasm instance.
+    ExternRef(u128),
+}
+
+impl Value {
+    pub fn gen_extern_ref(&mut self) -> Value {
+        unsafe {
+            let self_ptr: *mut c_void = self as *mut _ as *mut c_void;
+            wasmedge::WasmEdge_ValueGenExternRef(self_ptr).into()
+        }
+    }
 }
 
 impl From<Value> for wasmedge::WasmEdge_Value {
@@ -28,6 +44,18 @@ impl From<Value> for wasmedge::WasmEdge_Value {
             Value::F64(v) => Self {
                 Value: v.to_bits() as u128,
                 Type: wasmedge::WasmEdge_ValType_F64,
+            },
+            Value::V128(v) => Self {
+                Value: v as u128,
+                Type: wasmedge::WasmEdge_ValType_V128,
+            },
+            Value::FuncRef(v) => Self {
+                Value: v as u128,
+                Type: wasmedge::WasmEdge_ValType_FuncRef,
+            },
+            Value::ExternRef(v) => Self {
+                Value: v as u128,
+                Type: wasmedge::WasmEdge_ValType_ExternRef,
             },
         }
     }
@@ -64,6 +92,7 @@ impl_from_prim_conversions! {
     [u32, i64] => I64,
     [f32] => F32,
     [f64] => F64,
+    [u128] => V128,
 }
 
 macro_rules! impl_to_prim_conversions {
@@ -93,4 +122,5 @@ impl_to_prim_conversions! {
     [I32, I64, F32, F64] => i64,
     [F32] => f32,
     [F32, F64] => f64,
+    [V128] => u128,
 }

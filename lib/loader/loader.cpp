@@ -127,7 +127,20 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
 /// Parse module from byte code. See "include/loader/loader.h".
 Expect<std::unique_ptr<AST::Module>>
 Loader::parseModule(Span<const uint8_t> Code) {
-  auto Mod = std::make_unique<AST::Module>();
+  /// Filter out the MacOS or Linux AOT compiled WASM.
+  std::vector<Byte> ELFMagic = {0x7F, 0x45, 0x4C, 0x46};
+  std::vector<Byte> MacMagic = {0xCF, 0xFA, 0xED, 0xFE};
+  if (Code.size() >= 4 &&
+      (std::equal(ELFMagic.begin(), ELFMagic.end(), Code.begin()) ||
+       std::equal(MacMagic.begin(), MacMagic.end(), Code.begin()))) {
+    spdlog::error(ErrCode::MalformedMagic);
+    spdlog::error(
+        "    The AOT compiled WASM shared library is not supported for loading "
+        "from memory. Please use the universal WASM binary or pure WASM, or "
+        "load the AOT compiled WASM from file.");
+    return Unexpect(ErrCode::MalformedMagic);
+  }
+  /// For other header checking, handle in the module loading.
   if (auto Res = FMgr.setCode(Code); !Res) {
     return Unexpect(Res);
   }

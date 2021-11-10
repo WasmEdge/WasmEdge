@@ -31,6 +31,32 @@ parseCUnion(__wasi_opt_symmetric_key_t Union) {
   return std::nullopt;
 }
 
+template <typename T> struct WasiRawType {
+  using Type = std::underlying_type_t<T>;
+};
+template <> struct WasiRawType<uint8_t> { using Type = uint8_t; };
+template <> struct WasiRawType<uint16_t> { using Type = uint16_t; };
+template <> struct WasiRawType<uint32_t> { using Type = uint32_t; };
+template <> struct WasiRawType<uint64_t> { using Type = uint64_t; };
+
+template <typename T> using WasiRawTypeT = typename WasiRawType<T>::Type;
+
+template <typename T> WASICrypto::WasiCryptoExpect<T> cast(uint64_t) noexcept;
+
+template <>
+WASICrypto::WasiCryptoExpect<__wasi_algorithm_type_e_t>
+cast(uint64_t Algorithm) noexcept {
+  switch (static_cast<WasiRawTypeT<__wasi_algorithm_type_e_t>>(Algorithm)) {
+  case __WASI_ALGORITHM_TYPE_SIGNATURES:
+  case __WASI_ALGORITHM_TYPE_SYMMETRIC:
+  case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE:
+    return static_cast<__wasi_algorithm_type_e_t>(Algorithm);
+  default:
+    return WASICrypto::WasiCryptoUnexpect(
+        __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  }
+}
+
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

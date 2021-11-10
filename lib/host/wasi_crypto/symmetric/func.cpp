@@ -6,12 +6,14 @@
 
 namespace WasmEdge {
 namespace Host {
+namespace WASICrypto {
 
-Expect<uint32_t>
-WasiSymmetricKeyGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
-                               const_uint8_t_ptr AlgPtr,
-                               __wasi_size_t AlgLen, uint32_t OptionsPtr,
-                               uint32_t /* Out */ KeyPtr) {
+namespace Symmetric {
+
+Expect<uint32_t> KeyGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
+                                   const_uint8_t_ptr AlgPtr,
+                                   __wasi_size_t AlgLen, uint32_t OptionsPtr,
+                                   uint32_t /* Out */ KeyPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -44,11 +46,10 @@ WasiSymmetricKeyGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiSymmetricKeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
-                             const_uint8_t_ptr AlgPtr, __wasi_size_t AlgLen,
-                             const_uint8_t_ptr RawPtr, __wasi_size_t RawLen,
-                             uint32_t /* Out */ KeyPtr) {
+Expect<uint32_t> KeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
+                                 const_uint8_t_ptr AlgPtr, __wasi_size_t AlgLen,
+                                 const_uint8_t_ptr RawPtr, __wasi_size_t RawLen,
+                                 uint32_t /* Out */ KeyPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -80,10 +81,9 @@ WasiSymmetricKeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiSymmetricKeyExport::body(Runtime::Instance::MemoryInstance *MemInst,
-                             __wasi_symmetric_key_t SymmetricKey,
-                             uint32_t /* Out */ ArrayOutputPtr) {
+Expect<uint32_t> KeyExport::body(Runtime::Instance::MemoryInstance *MemInst,
+                                 __wasi_symmetric_key_t SymmetricKey,
+                                 uint32_t /* Out */ ArrayOutputPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -104,9 +104,8 @@ WasiSymmetricKeyExport::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiSymmetricKeyClose::body(Runtime::Instance::MemoryInstance *MemInst,
-                            __wasi_symmetric_key_t SymmetricKey) {
+Expect<uint32_t> KeyClose::body(Runtime::Instance::MemoryInstance *MemInst,
+                                __wasi_symmetric_key_t SymmetricKey) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -119,10 +118,11 @@ WasiSymmetricKeyClose::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiSymmetricKeyGenerateManaged::body(
-    Runtime::Instance::MemoryInstance *MemInst,
-    __wasi_secrets_manager_t SecretsManager, const_uint8_t_ptr AlgPtr,
-    __wasi_size_t AlgLen, uint32_t OptOptionsPtr, uint32_t /* Out */ KeyPtr) {
+Expect<uint32_t>
+KeyGenerateManaged::body(Runtime::Instance::MemoryInstance *MemInst,
+                         __wasi_secrets_manager_t SecretsManager,
+                         const_uint8_t_ptr AlgPtr, __wasi_size_t AlgLen,
+                         uint32_t OptOptionsPtr, uint32_t /* Out */ KeyPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -156,11 +156,11 @@ Expect<uint32_t> WasiSymmetricKeyGenerateManaged::body(
 }
 
 Expect<uint32_t>
-WasiSymmetricKeyStoreManaged::body(Runtime::Instance::MemoryInstance *MemInst,
-                                   __wasi_secrets_manager_t SecretsManager,
-                                   __wasi_symmetric_key_t SymmetricKey,
-                                   uint8_t_ptr SymmetricKeyIdPtr,
-                                   __wasi_size_t SymmetricKeyIdMaxLen) {
+KeyStoreManaged::body(Runtime::Instance::MemoryInstance *MemInst,
+                      __wasi_secrets_manager_t SecretsManager,
+                      __wasi_symmetric_key_t SymmetricKey,
+                      uint8_t_ptr SymmetricKeyIdPtr,
+                      __wasi_size_t SymmetricKeyIdMaxLen) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -175,11 +175,11 @@ WasiSymmetricKeyStoreManaged::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 
 Expect<uint32_t>
-WasiSymmetricKeyReplaceManaged::body(Runtime::Instance::MemoryInstance *MemInst,
-                                     __wasi_secrets_manager_t SecretsManager,
-                                     __wasi_symmetric_key_t SymmetricKeyOld,
-                                     __wasi_symmetric_key_t SymmetricKeyNew,
-                                     uint32_t /* Out */ VersionPtr) {
+KeyReplaceManaged::body(Runtime::Instance::MemoryInstance *MemInst,
+                        __wasi_secrets_manager_t SecretsManager,
+                        __wasi_symmetric_key_t SymmetricKeyOld,
+                        __wasi_symmetric_key_t SymmetricKeyNew,
+                        uint32_t /* Out */ VersionPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -200,11 +200,12 @@ WasiSymmetricKeyReplaceManaged::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiSymmetricKeyId::body(
-    Runtime::Instance::MemoryInstance *MemInst,
-    __wasi_symmetric_key_t SymmetricKey, uint8_t_ptr SymmetricKeyId,
-    __wasi_size_t SymmetricKeyIdMaxLen, uint32_t /* Out */ SizePtr,
-    uint32_t /* Out */ VersionPtr) {
+Expect<uint32_t> KeyId::body(Runtime::Instance::MemoryInstance *MemInst,
+                             __wasi_symmetric_key_t SymmetricKey,
+                             uint8_t_ptr SymmetricKeyId,
+                             __wasi_size_t SymmetricKeyIdMaxLen,
+                             uint32_t /* Out */ SizePtr,
+                             uint32_t /* Out */ VersionPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -233,11 +234,12 @@ Expect<uint32_t> WasiSymmetricKeyId::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiSymmetricKeyFromId::body(
-    Runtime::Instance::MemoryInstance *MemInst,
-    __wasi_secrets_manager_t SecretsManager, uint8_t_ptr SymmetricKeyIdPtr,
-    __wasi_size_t SymmetricKeyIdLen, __wasi_version_t SymmetricKeyVersion,
-    uint32_t /* Out */ KeyPtr) {
+Expect<uint32_t> KeyFromId::body(Runtime::Instance::MemoryInstance *MemInst,
+                                 __wasi_secrets_manager_t SecretsManager,
+                                 uint8_t_ptr SymmetricKeyIdPtr,
+                                 __wasi_size_t SymmetricKeyIdLen,
+                                 __wasi_version_t SymmetricKeyVersion,
+                                 uint32_t /* Out */ KeyPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -262,11 +264,10 @@ Expect<uint32_t> WasiSymmetricKeyFromId::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiSymmetricStateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
-                             const_uint8_t_ptr AlgPtr, __wasi_size_t AlgLen,
-                             uint32_t OptKeyPtr, uint32_t OptOptionsPtr,
-                             uint32_t /* Out */ StatePtr) {
+Expect<uint32_t> StateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
+                                 const_uint8_t_ptr AlgPtr, __wasi_size_t AlgLen,
+                                 uint32_t OptKeyPtr, uint32_t OptOptionsPtr,
+                                 uint32_t /* Out */ StatePtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -305,7 +306,7 @@ WasiSymmetricStateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiSymmetricStateOptionsGet::body(
+Expect<uint32_t> StateOptionsGet::body(
     Runtime::Instance::MemoryInstance *MemInst, __wasi_symmetric_state_t Handle,
     const_uint8_t_ptr NamePtr, __wasi_size_t NameLen, uint8_t_ptr ValuePtr,
     __wasi_size_t ValueLen, uint32_t /* Out */ SizePtr) {
@@ -339,10 +340,11 @@ Expect<uint32_t> WasiSymmetricStateOptionsGet::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiSymmetricStateOptionsGetU64::body(
-    Runtime::Instance::MemoryInstance *MemInst, __wasi_symmetric_state_t Handle,
-    const_uint8_t_ptr NamePtr, __wasi_size_t NameLen,
-    uint32_t /* Out */ U64Ptr) {
+Expect<uint32_t>
+StateOptionsGetU64::body(Runtime::Instance::MemoryInstance *MemInst,
+                         __wasi_symmetric_state_t Handle,
+                         const_uint8_t_ptr NamePtr, __wasi_size_t NameLen,
+                         uint32_t /* Out */ U64Ptr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -364,9 +366,8 @@ Expect<uint32_t> WasiSymmetricStateOptionsGetU64::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiSymmetricStateClose::body(Runtime::Instance::MemoryInstance *MemInst,
-                              __wasi_symmetric_state_t Handle) {
+Expect<uint32_t> StateClose::body(Runtime::Instance::MemoryInstance *MemInst,
+                                  __wasi_symmetric_state_t Handle) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -379,9 +380,10 @@ WasiSymmetricStateClose::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiSymmetricStateAbsorb::body(
-    Runtime::Instance::MemoryInstance *MemInst, __wasi_symmetric_state_t Handle,
-    const_uint8_t_ptr DataPtr, __wasi_size_t DataLen) {
+Expect<uint32_t> StateAbsorb::body(Runtime::Instance::MemoryInstance *MemInst,
+                                   __wasi_symmetric_state_t Handle,
+                                   const_uint8_t_ptr DataPtr,
+                                   __wasi_size_t DataLen) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -400,10 +402,9 @@ Expect<uint32_t> WasiSymmetricStateAbsorb::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiSymmetricStateSqueeze::body(Runtime::Instance::MemoryInstance *MemInst,
-                                __wasi_symmetric_state_t Handle,
-                                uint8_t_ptr OutPtr, __wasi_size_t OutLen) {
+Expect<uint32_t> StateSqueeze::body(Runtime::Instance::MemoryInstance *MemInst,
+                                    __wasi_symmetric_state_t Handle,
+                                    uint8_t_ptr OutPtr, __wasi_size_t OutLen) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -423,9 +424,9 @@ WasiSymmetricStateSqueeze::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 
 Expect<uint32_t>
-WasiSymmetricStateSqueezeTag::body(Runtime::Instance::MemoryInstance *MemInst,
-                                   __wasi_symmetric_state_t Handle,
-                                   uint32_t /* Out */ TagPtr) {
+StateSqueezeTag::body(Runtime::Instance::MemoryInstance *MemInst,
+                      __wasi_symmetric_state_t Handle,
+                      uint32_t /* Out */ TagPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -445,9 +446,10 @@ WasiSymmetricStateSqueezeTag::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiSymmetricStateSqueezeKey::body(
-    Runtime::Instance::MemoryInstance *MemInst, __wasi_symmetric_state_t Handle,
-    const_uint8_t_ptr AlgPtr, __wasi_size_t AlgLen, uint32_t /* Out */ KeyPtr) {
+Expect<uint32_t>
+StateSqueezeKey::body(Runtime::Instance::MemoryInstance *MemInst,
+                      __wasi_symmetric_state_t Handle, const_uint8_t_ptr AlgPtr,
+                      __wasi_size_t AlgLen, uint32_t /* Out */ KeyPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -473,9 +475,9 @@ Expect<uint32_t> WasiSymmetricStateSqueezeKey::body(
 }
 
 Expect<uint32_t>
-WasiSymmetricStateMaxTagLen::body(Runtime::Instance::MemoryInstance *MemInst,
-                                  __wasi_symmetric_state_t Handle,
-                                  uint32_t /* Out */ SizePtr) {
+StateMaxTagLen::body(Runtime::Instance::MemoryInstance *MemInst,
+                     __wasi_symmetric_state_t Handle,
+                     uint32_t /* Out */ SizePtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -495,10 +497,12 @@ WasiSymmetricStateMaxTagLen::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiSymmetricStateEncrypt::body(
-    Runtime::Instance::MemoryInstance *MemInst, __wasi_symmetric_state_t Handle,
-    uint8_t_ptr OutPtr, __wasi_size_t OutLen, const_uint8_t_ptr DataPtr,
-    __wasi_size_t DataLen, uint32_t /* Out */ SizePtr) {
+Expect<uint32_t> StateEncrypt::body(Runtime::Instance::MemoryInstance *MemInst,
+                                    __wasi_symmetric_state_t Handle,
+                                    uint8_t_ptr OutPtr, __wasi_size_t OutLen,
+                                    const_uint8_t_ptr DataPtr,
+                                    __wasi_size_t DataLen,
+                                    uint32_t /* Out */ SizePtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -529,10 +533,11 @@ Expect<uint32_t> WasiSymmetricStateEncrypt::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiSymmetricStateEncryptDetached::body(
-    Runtime::Instance::MemoryInstance *MemInst, __wasi_symmetric_state_t Handle,
-    uint8_t_ptr OutPtr, __wasi_size_t OutLen, const_uint8_t_ptr DataPtr,
-    __wasi_size_t DataLen, uint32_t /* Out */ KeyPtr) {
+Expect<uint32_t>
+StateEncryptDetached::body(Runtime::Instance::MemoryInstance *MemInst,
+                           __wasi_symmetric_state_t Handle, uint8_t_ptr OutPtr,
+                           __wasi_size_t OutLen, const_uint8_t_ptr DataPtr,
+                           __wasi_size_t DataLen, uint32_t /* Out */ KeyPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -563,10 +568,12 @@ Expect<uint32_t> WasiSymmetricStateEncryptDetached::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiSymmetricStateDecrypt::body(
-    Runtime::Instance::MemoryInstance *MemInst, __wasi_symmetric_state_t Handle,
-    uint8_t_ptr OutPtr, __wasi_size_t OutLen, const_uint8_t_ptr DataPtr,
-    __wasi_size_t DataLen, uint32_t /* Out */ SizePtr) {
+Expect<uint32_t> StateDecrypt::body(Runtime::Instance::MemoryInstance *MemInst,
+                                    __wasi_symmetric_state_t Handle,
+                                    uint8_t_ptr OutPtr, __wasi_size_t OutLen,
+                                    const_uint8_t_ptr DataPtr,
+                                    __wasi_size_t DataLen,
+                                    uint32_t /* Out */ SizePtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -597,7 +604,7 @@ Expect<uint32_t> WasiSymmetricStateDecrypt::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiSymmetricStateDecryptDetached::body(
+Expect<uint32_t> StateDecryptDetached::body(
     Runtime::Instance::MemoryInstance *MemInst, __wasi_symmetric_state_t Handle,
     uint8_t_ptr OutPtr, __wasi_size_t OutLen, const_uint8_t_ptr DataPtr,
     __wasi_size_t DataLen, uint8_t_ptr RawTagPtr, __wasi_size_t RawTagLen,
@@ -638,9 +645,8 @@ Expect<uint32_t> WasiSymmetricStateDecryptDetached::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiSymmetricStateRatchet::body(Runtime::Instance::MemoryInstance *MemInst,
-                                __wasi_symmetric_state_t Handle) {
+Expect<uint32_t> StateRatchet::body(Runtime::Instance::MemoryInstance *MemInst,
+                                    __wasi_symmetric_state_t Handle) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -653,10 +659,9 @@ WasiSymmetricStateRatchet::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiSymmetricTagLen::body(Runtime::Instance::MemoryInstance *MemInst,
-                          __wasi_symmetric_tag_t SymmetricTag,
-                          uint32_t /* Out */ SizePtr) {
+Expect<uint32_t> TagLen::body(Runtime::Instance::MemoryInstance *MemInst,
+                              __wasi_symmetric_tag_t SymmetricTag,
+                              uint32_t /* Out */ SizePtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -676,11 +681,10 @@ WasiSymmetricTagLen::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiSymmetricTagPull::body(Runtime::Instance::MemoryInstance *MemInst,
-                           __wasi_symmetric_tag_t SymmetricTag,
-                           uint8_t_ptr BufPtr, __wasi_size_t BufLen,
-                           uint32_t /* Out */ SizePtr) {
+Expect<uint32_t> TagPull::body(Runtime::Instance::MemoryInstance *MemInst,
+                               __wasi_symmetric_tag_t SymmetricTag,
+                               uint8_t_ptr BufPtr, __wasi_size_t BufLen,
+                               uint32_t /* Out */ SizePtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -705,10 +709,10 @@ WasiSymmetricTagPull::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiSymmetricTagVerify::body(Runtime::Instance::MemoryInstance *MemInst,
-                             __wasi_symmetric_tag_t SymmetricTag,
-                             uint8_t_ptr RawTagPtr, __wasi_size_t RawTagLen) {
+Expect<uint32_t> TagVerify::body(Runtime::Instance::MemoryInstance *MemInst,
+                                 __wasi_symmetric_tag_t SymmetricTag,
+                                 uint8_t_ptr RawTagPtr,
+                                 __wasi_size_t RawTagLen) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -727,9 +731,8 @@ WasiSymmetricTagVerify::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiSymmetricTagClose::body(Runtime::Instance::MemoryInstance *MemInst,
-                            __wasi_symmetric_tag_t SymmetricTag) {
+Expect<uint32_t> TagClose::body(Runtime::Instance::MemoryInstance *MemInst,
+                                __wasi_symmetric_tag_t SymmetricTag) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -741,5 +744,8 @@ WasiSymmetricTagClose::body(Runtime::Instance::MemoryInstance *MemInst,
 
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
+
+} // namespace Symmetric
+} // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

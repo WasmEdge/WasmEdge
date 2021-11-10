@@ -9,74 +9,67 @@
 
 namespace WasmEdge {
 namespace Host {
+namespace WASICrypto {
+namespace Symmetric {
 
-template <typename T>
-class WasiCryptoSymmetric : public Runtime::HostFunction<T> {
+template <typename T> class HostFunction : public Runtime::HostFunction<T> {
 public:
-  WasiCryptoSymmetric(WASICrypto::SymmetricContext &HostCtx)
+  HostFunction(WASICrypto::SymmetricContext &HostCtx)
       : Runtime::HostFunction<T>(0), Ctx(HostCtx) {}
 
 protected:
   WASICrypto::SymmetricContext &Ctx;
 };
 
-class WasiSymmetricKeyGenerate
-    : public WasiCryptoSymmetric<WasiSymmetricKeyGenerate> {
+class KeyGenerate : public HostFunction<KeyGenerate> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        const_uint8_t_ptr AlgPtr,
-                        __wasi_size_t AlgLen, uint32_t OptionsPtr,
+                        const_uint8_t_ptr AlgPtr, __wasi_size_t AlgLen,
+                        uint32_t OptionsPtr, uint32_t /* Out */ KeyPtr);
+};
+
+class KeyImport : public HostFunction<KeyImport> {
+public:
+  using HostFunction::HostFunction;
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+                        const_uint8_t_ptr AlgPtr, __wasi_size_t AlgLen,
+                        const_uint8_t_ptr RawPtr, __wasi_size_t RawLen,
                         uint32_t /* Out */ KeyPtr);
 };
 
-class WasiSymmetricKeyImport
-    : public WasiCryptoSymmetric<WasiSymmetricKeyImport> {
+class KeyExport : public HostFunction<KeyExport> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
-
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        const_uint8_t_ptr AlgPtr,
-                        __wasi_size_t AlgLen, const_uint8_t_ptr RawPtr,
-                        __wasi_size_t RawLen, uint32_t /* Out */ KeyPtr);
-};
-
-class WasiSymmetricKeyExport
-    : public WasiCryptoSymmetric<WasiSymmetricKeyExport> {
-public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_key_t SymmetricKey,
                         uint32_t /* Out */ ArrayOutputPtr);
 };
 
-class WasiSymmetricKeyClose
-    : public WasiCryptoSymmetric<WasiSymmetricKeyClose> {
+class KeyClose : public HostFunction<KeyClose> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_key_t SymmetricKey);
 };
 
-class WasiSymmetricKeyGenerateManaged
-    : public WasiCryptoSymmetric<WasiSymmetricKeyGenerateManaged> {
+class KeyGenerateManaged : public HostFunction<KeyGenerateManaged> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_secrets_manager_t SecretsManager,
-                        const_uint8_t_ptr AlgPtr,
-                        __wasi_size_t AlgLen, uint32_t OptOptionsPtr,
-                        uint32_t /* Out */ KeyPtr);
+                        const_uint8_t_ptr AlgPtr, __wasi_size_t AlgLen,
+                        uint32_t OptOptionsPtr, uint32_t /* Out */ KeyPtr);
 };
 
-class WasiSymmetricKeyStoreManaged
-    : public WasiCryptoSymmetric<WasiSymmetricKeyStoreManaged> {
+class KeyStoreManaged : public HostFunction<KeyStoreManaged> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_secrets_manager_t SecretsManager,
@@ -85,10 +78,9 @@ public:
                         __wasi_size_t SymmetricKeyIdMaxLen);
 };
 
-class WasiSymmetricKeyReplaceManaged
-    : public WasiCryptoSymmetric<WasiSymmetricKeyReplaceManaged> {
+class KeyReplaceManaged : public HostFunction<KeyReplaceManaged> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_secrets_manager_t SecretsManager,
@@ -97,9 +89,9 @@ public:
                         uint32_t /* Out */ VersionPtr);
 };
 
-class WasiSymmetricKeyId : public WasiCryptoSymmetric<WasiSymmetricKeyId> {
+class KeyId : public HostFunction<KeyId> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_key_t SymmetricKey,
@@ -109,10 +101,9 @@ public:
                         uint32_t /* Out */ VersionPtr);
 };
 
-class WasiSymmetricKeyFromId
-    : public WasiCryptoSymmetric<WasiSymmetricKeyFromId> {
+class KeyFromId : public HostFunction<KeyFromId> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_secrets_manager_t SecretsManager,
@@ -122,33 +113,30 @@ public:
                         uint32_t /* Out */ KeyPtr);
 };
 
-class WasiSymmetricStateOpen
-    : public WasiCryptoSymmetric<WasiSymmetricStateOpen> {
+class StateOpen : public HostFunction<StateOpen> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        const_uint8_t_ptr AlgPtr,
-                        __wasi_size_t AlgLen, uint32_t OptKeyPtr,
-                        uint32_t OptOptionsPtr, uint32_t /* Out */ StatePtr);
+                        const_uint8_t_ptr AlgPtr, __wasi_size_t AlgLen,
+                        uint32_t OptKeyPtr, uint32_t OptOptionsPtr,
+                        uint32_t /* Out */ StatePtr);
 };
 
-class WasiSymmetricStateOptionsGet
-    : public WasiCryptoSymmetric<WasiSymmetricStateOptionsGet> {
+class StateOptionsGet : public HostFunction<StateOptionsGet> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle,
-                        const_uint8_t_ptr NamePtr,
-                        __wasi_size_t NameLen, uint8_t_ptr ValuePtr,
-                        __wasi_size_t ValueLen, uint32_t /* Out */ SizePtr);
+                        const_uint8_t_ptr NamePtr, __wasi_size_t NameLen,
+                        uint8_t_ptr ValuePtr, __wasi_size_t ValueLen,
+                        uint32_t /* Out */ SizePtr);
 };
 
-class WasiSymmetricStateOptionsGetU64
-    : public WasiCryptoSymmetric<WasiSymmetricStateOptionsGetU64> {
+class StateOptionsGetU64 : public HostFunction<StateOptionsGetU64> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle,
@@ -156,70 +144,63 @@ public:
                         uint32_t /* Out */ U64Ptr);
 };
 
-class WasiSymmetricStateClose
-    : public WasiCryptoSymmetric<WasiSymmetricStateClose> {
+class StateClose : public HostFunction<StateClose> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle);
 };
 
-class WasiSymmetricStateAbsorb
-    : public WasiCryptoSymmetric<WasiSymmetricStateAbsorb> {
+class StateAbsorb : public HostFunction<StateAbsorb> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle,
                         const_uint8_t_ptr DataPtr, __wasi_size_t DataLen);
 };
 
-class WasiSymmetricStateSqueeze
-    : public WasiCryptoSymmetric<WasiSymmetricStateSqueeze> {
+class StateSqueeze : public HostFunction<StateSqueeze> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle, uint8_t_ptr OutPtr,
                         __wasi_size_t OutLen);
 };
 
-class WasiSymmetricStateSqueezeTag
-    : public WasiCryptoSymmetric<WasiSymmetricStateSqueezeTag> {
+class StateSqueezeTag : public HostFunction<StateSqueezeTag> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle,
                         uint32_t /* Out */ TagPtr);
 };
 
-class WasiSymmetricStateSqueezeKey
-    : public WasiCryptoSymmetric<WasiSymmetricStateSqueezeKey> {
+class StateSqueezeKey : public HostFunction<StateSqueezeKey> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle,
-                        const_uint8_t_ptr AlgPtr,
-                        __wasi_size_t AlgLen, uint32_t /* Out */ KeyPtr);
+                        const_uint8_t_ptr AlgPtr, __wasi_size_t AlgLen,
+                        uint32_t /* Out */ KeyPtr);
 };
 
-class WasiSymmetricStateMaxTagLen
-    : public WasiCryptoSymmetric<WasiSymmetricStateMaxTagLen> {
+class StateMaxTagLen : public HostFunction<StateMaxTagLen> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle,
                         uint32_t /* Out */ SizePtr);
 };
 
-class WasiSymmetricStateEncrypt
-    : public WasiCryptoSymmetric<WasiSymmetricStateEncrypt> {
+class StateEncrypt : public HostFunction<StateEncrypt> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle, uint8_t_ptr OutPtr,
@@ -227,10 +208,9 @@ public:
                         __wasi_size_t DataLen, uint32_t /* Out */ SizePtr);
 };
 
-class WasiSymmetricStateEncryptDetached
-    : public WasiCryptoSymmetric<WasiSymmetricStateEncryptDetached> {
+class StateEncryptDetached : public HostFunction<StateEncryptDetached> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle, uint8_t_ptr OutPtr,
@@ -238,10 +218,9 @@ public:
                         __wasi_size_t DataLen, uint32_t /* Out */ KeyPtr);
 };
 
-class WasiSymmetricStateDecrypt
-    : public WasiCryptoSymmetric<WasiSymmetricStateDecrypt> {
+class StateDecrypt : public HostFunction<StateDecrypt> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle, uint8_t_ptr OutPtr,
@@ -249,10 +228,9 @@ public:
                         __wasi_size_t DataLen, uint32_t /* Out */ SizePtr);
 };
 
-class WasiSymmetricStateDecryptDetached
-    : public WasiCryptoSymmetric<WasiSymmetricStateDecryptDetached> {
+class StateDecryptDetached : public HostFunction<StateDecryptDetached> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle, uint8_t_ptr OutPtr,
@@ -261,50 +239,50 @@ public:
                         __wasi_size_t RawTagLen, uint32_t /* Out */ SizePtr);
 };
 
-class WasiSymmetricStateRatchet
-    : public WasiCryptoSymmetric<WasiSymmetricStateRatchet> {
+class StateRatchet : public HostFunction<StateRatchet> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle);
 };
 
-class WasiSymmetricTagLen : public WasiCryptoSymmetric<WasiSymmetricTagLen> {
+class TagLen : public HostFunction<TagLen> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_tag_t SymmetricTag,
                         uint32_t /* Out */ SizePtr);
 };
 
-class WasiSymmetricTagPull : public WasiCryptoSymmetric<WasiSymmetricTagPull> {
+class TagPull : public HostFunction<TagPull> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_tag_t SymmetricTag, uint8_t_ptr BufPtr,
                         __wasi_size_t BufLen, uint32_t /* Out */ SizePtr);
 };
 
-class WasiSymmetricTagVerify
-    : public WasiCryptoSymmetric<WasiSymmetricTagVerify> {
+class TagVerify : public HostFunction<TagVerify> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_tag_t SymmetricTag,
                         uint8_t_ptr RawTagPtr, __wasi_size_t RawTagLen);
 };
 
-class WasiSymmetricTagClose
-    : public WasiCryptoSymmetric<WasiSymmetricTagClose> {
+class TagClose : public HostFunction<TagClose> {
 public:
-  using WasiCryptoSymmetric::WasiCryptoSymmetric;
+  using HostFunction::HostFunction;
 
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,__wasi_symmetric_tag_t SymmetricTag);
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+                        __wasi_symmetric_tag_t SymmetricTag);
 };
 
+} // namespace Symmetric
+} // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

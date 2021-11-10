@@ -1,46 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/common/func.h"
-#include "host/wasi_crypto/util.h"
 #include "common/errcode.h"
+#include "host/wasi_crypto/util.h"
 #include "wasi_crypto/api.hpp"
 
 namespace WasmEdge {
 namespace Host {
-
-namespace {
-template <typename T> struct WasiRawType {
-  using Type = std::underlying_type_t<T>;
-};
-template <> struct WasiRawType<uint8_t> { using Type = uint8_t; };
-template <> struct WasiRawType<uint16_t> { using Type = uint16_t; };
-template <> struct WasiRawType<uint32_t> { using Type = uint32_t; };
-template <> struct WasiRawType<uint64_t> { using Type = uint64_t; };
-
-template <typename T> using WasiRawTypeT = typename WasiRawType<T>::Type;
-
-template <typename T> WASICrypto::WasiCryptoExpect<T> cast(uint64_t) noexcept;
-
-template <>
-WASICrypto::WasiCryptoExpect<__wasi_algorithm_type_e_t>
-cast(uint64_t Algorithm) noexcept {
-  switch (static_cast<WasiRawTypeT<__wasi_algorithm_type_e_t>>(Algorithm)) {
-  case __WASI_ALGORITHM_TYPE_SIGNATURES:
-  case __WASI_ALGORITHM_TYPE_SYMMETRIC:
-  case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE:
-    return static_cast<__wasi_algorithm_type_e_t>(Algorithm);
-  default:
-    return WASICrypto::WasiCryptoUnexpect(
-        __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-  }
-}
-
-} // namespace
+namespace WASICrypto {
+namespace Common {
 
 Expect<uint32_t>
-WasiCryptoCommonArrayOutputLen::body(Runtime::Instance::MemoryInstance *MemInst,
-                                     __wasi_array_output_t ArrayOutputHandle,
-                                     uint32_t /* Out */ SizePtr) {
+ArrayOutputLen::body(Runtime::Instance::MemoryInstance *MemInst,
+                     __wasi_array_output_t ArrayOutputHandle,
+                     uint32_t /* Out */ SizePtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -60,10 +33,11 @@ WasiCryptoCommonArrayOutputLen::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiCryptoCommonArrayOutputPull::body(
-    Runtime::Instance::MemoryInstance *MemInst,
-    __wasi_array_output_t ArrayOutputHandle, uint8_t_ptr BufPtr,
-    __wasi_size_t BufLen, uint32_t /* Out */ SizePtr) {
+Expect<uint32_t>
+ArrayOutputPull::body(Runtime::Instance::MemoryInstance *MemInst,
+                      __wasi_array_output_t ArrayOutputHandle,
+                      uint8_t_ptr BufPtr, __wasi_size_t BufLen,
+                      uint32_t /* Out */ SizePtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -91,10 +65,9 @@ Expect<uint32_t> WasiCryptoCommonArrayOutputPull::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiCryptoCommonOptionsOpen::body(Runtime::Instance::MemoryInstance *MemInst,
-                                  uint32_t AlgorithmType,
-                                  uint32_t /* Out */ OptionsPtr) {
+Expect<uint32_t> OptionsOpen::body(Runtime::Instance::MemoryInstance *MemInst,
+                                   uint32_t AlgorithmType,
+                                   uint32_t /* Out */ OptionsPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -122,9 +95,8 @@ WasiCryptoCommonOptionsOpen::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-WasiCryptoCommonOptionsClose::body(Runtime::Instance::MemoryInstance *MemInst,
-                                   __wasi_options_t Handle) {
+Expect<uint32_t> OptionsClose::body(Runtime::Instance::MemoryInstance *MemInst,
+                                    __wasi_options_t Handle) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -138,10 +110,12 @@ WasiCryptoCommonOptionsClose::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiCryptoCommonOptionsSet::body(
-    Runtime::Instance::MemoryInstance *MemInst, __wasi_options_t Handle,
-    const_uint8_t_ptr NamePtr, __wasi_size_t NameLen,
-    const_uint8_t_ptr ValuePtr, __wasi_size_t ValueLen) {
+Expect<uint32_t> OptionsSet::body(Runtime::Instance::MemoryInstance *MemInst,
+                                  __wasi_options_t Handle,
+                                  const_uint8_t_ptr NamePtr,
+                                  __wasi_size_t NameLen,
+                                  const_uint8_t_ptr ValuePtr,
+                                  __wasi_size_t ValueLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -166,9 +140,10 @@ Expect<uint32_t> WasiCryptoCommonOptionsSet::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiCryptoCommonOptionsSetU64::body(
-    Runtime::Instance::MemoryInstance *MemInst, __wasi_options_t Handle,
-    const_uint8_t_ptr NamePtr, __wasi_size_t NameLen, uint64_t Value) {
+Expect<uint32_t> OptionsSetU64::body(Runtime::Instance::MemoryInstance *MemInst,
+                                     __wasi_options_t Handle,
+                                     const_uint8_t_ptr NamePtr,
+                                     __wasi_size_t NameLen, uint64_t Value) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -187,10 +162,11 @@ Expect<uint32_t> WasiCryptoCommonOptionsSetU64::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiCryptoCommonOptionsSetGuestBuffer::body(
-    Runtime::Instance::MemoryInstance *MemInst, __wasi_options_t Handle,
-    const_uint8_t_ptr NamePtr, __wasi_size_t NameLen, uint8_t_ptr BufPtr,
-    __wasi_size_t BufLen) {
+Expect<uint32_t>
+OptionsSetGuestBuffer::body(Runtime::Instance::MemoryInstance *MemInst,
+                            __wasi_options_t Handle, const_uint8_t_ptr NamePtr,
+                            __wasi_size_t NameLen, uint8_t_ptr BufPtr,
+                            __wasi_size_t BufLen) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -198,7 +174,7 @@ Expect<uint32_t> WasiCryptoCommonOptionsSetGuestBuffer::body(
 
   auto *const NameMem = MemInst->getPointer<const char *>(NamePtr, NameLen);
 
-  if(unlikely(NameMem == nullptr)) {
+  if (unlikely(NameMem == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
@@ -219,9 +195,9 @@ Expect<uint32_t> WasiCryptoCommonOptionsSetGuestBuffer::body(
 }
 
 Expect<uint32_t>
-WasiCryptoSecretsMangerOpen::body(Runtime::Instance::MemoryInstance *MemInst,
-                                  uint32_t OptOptionsPtr,
-                                  uint32_t /* Out */ SecretsManagerPtr) {
+SecretsMangerOpen::body(Runtime::Instance::MemoryInstance *MemInst,
+                        uint32_t OptOptionsPtr,
+                        uint32_t /* Out */ SecretsManagerPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -234,7 +210,8 @@ WasiCryptoSecretsMangerOpen::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  auto Res = Ctx.secretsMangerOpen(WASICrypto::parseCUnion<__wasi_options_t>(*OptOption));
+  auto Res = Ctx.secretsMangerOpen(
+      WASICrypto::parseCUnion<__wasi_options_t>(*OptOption));
   if (unlikely(!Res)) {
     return Res.error();
   }
@@ -250,8 +227,8 @@ WasiCryptoSecretsMangerOpen::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 
 Expect<uint32_t>
-WasiCryptoSecretsMangerClose::body(Runtime::Instance::MemoryInstance *MemInst,
-                                   __wasi_secrets_manager_t SecretsManger) {
+SecretsMangerClose::body(Runtime::Instance::MemoryInstance *MemInst,
+                         __wasi_secrets_manager_t SecretsManger) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -265,7 +242,7 @@ WasiCryptoSecretsMangerClose::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiCryptoSecretsMangerInvalidate::body(
+Expect<uint32_t> SecretsMangerInvalidate::body(
     Runtime::Instance::MemoryInstance *MemInst,
     __wasi_secrets_manager_t SecretsManger, const_uint8_t_ptr KeyIdPtr,
     __wasi_size_t KeyIdLen, __wasi_version_t Version) {
@@ -291,5 +268,7 @@ Expect<uint32_t> WasiCryptoSecretsMangerInvalidate::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
+} // namespace Common
+} // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

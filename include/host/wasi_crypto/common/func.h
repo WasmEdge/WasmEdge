@@ -6,32 +6,30 @@
 
 namespace WasmEdge {
 namespace Host {
+namespace WASICrypto {
+namespace Common {
 
-template <typename T> class WasiCryptoCommon : public Runtime::HostFunction<T> {
+template <typename T> class HostFunction : public Runtime::HostFunction<T> {
 public:
-  WasiCryptoCommon(WASICrypto::CommonContext &HostCtx)
+  HostFunction(WASICrypto::CommonContext &HostCtx)
       : Runtime::HostFunction<T>(0), Ctx(HostCtx) {}
 
 protected:
   WASICrypto::CommonContext &Ctx;
 };
 
-class WasiCryptoCommonArrayOutputLen
-    : public WasiCryptoCommon<WasiCryptoCommonArrayOutputLen> {
+class ArrayOutputLen : public HostFunction<ArrayOutputLen> {
 public:
-  WasiCryptoCommonArrayOutputLen(WASICrypto::CommonContext &HostCtx)
-      : WasiCryptoCommon(HostCtx) {}
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_array_output_t ArrayOutputHandle,
                         uint32_t /* Out */ SizePtr);
 };
 
-class WasiCryptoCommonArrayOutputPull
-    : public WasiCryptoCommon<WasiCryptoCommonArrayOutputPull> {
+class ArrayOutputPull : public HostFunction<ArrayOutputPull> {
 public:
-  WasiCryptoCommonArrayOutputPull(WASICrypto::CommonContext &HostCtx)
-      : WasiCryptoCommon(HostCtx) {}
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_array_output_t ArrayOutputHandle,
@@ -39,32 +37,25 @@ public:
                         uint32_t /* Out */ SizePtr);
 };
 
-class WasiCryptoCommonOptionsOpen
-    : public WasiCryptoCommon<WasiCryptoCommonOptionsOpen> {
+class OptionsOpen : public HostFunction<OptionsOpen> {
 public:
-  WasiCryptoCommonOptionsOpen(WASICrypto::CommonContext &HostCtx)
-      : WasiCryptoCommon(HostCtx) {}
+  OptionsOpen(WASICrypto::CommonContext &HostCtx) : HostFunction(HostCtx) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        uint32_t AlgorithmType,
-                        uint32_t /* Out */ OptionsPtr);
+                        uint32_t AlgorithmType, uint32_t /* Out */ OptionsPtr);
 };
 
-class WasiCryptoCommonOptionsClose
-    : public WasiCryptoCommon<WasiCryptoCommonOptionsClose> {
+class OptionsClose : public HostFunction<OptionsClose> {
 public:
-  WasiCryptoCommonOptionsClose(WASICrypto::CommonContext &HostCtx)
-      : WasiCryptoCommon(HostCtx) {}
+  OptionsClose(WASICrypto::CommonContext &HostCtx) : HostFunction(HostCtx) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_options_t Handle);
 };
 
-class WasiCryptoCommonOptionsSet
-    : public WasiCryptoCommon<WasiCryptoCommonOptionsSet> {
+class OptionsSet : public HostFunction<OptionsSet> {
 public:
-  WasiCryptoCommonOptionsSet(WASICrypto::CommonContext &HostCtx)
-      : WasiCryptoCommon(HostCtx) {}
+  OptionsSet(WASICrypto::CommonContext &HostCtx) : HostFunction(HostCtx) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_options_t Handle, const_uint8_t_ptr NamePtr,
@@ -72,22 +63,19 @@ public:
                         __wasi_size_t ValueLen);
 };
 
-class WasiCryptoCommonOptionsSetU64
-    : public WasiCryptoCommon<WasiCryptoCommonOptionsSetU64> {
+class OptionsSetU64 : public HostFunction<OptionsSetU64> {
 public:
-  WasiCryptoCommonOptionsSetU64(WASICrypto::CommonContext &HostCtx)
-      : WasiCryptoCommon(HostCtx) {}
+  OptionsSetU64(WASICrypto::CommonContext &HostCtx) : HostFunction(HostCtx) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_options_t Handle, const_uint8_t_ptr NamePtr,
                         __wasi_size_t NameLen, uint64_t Value);
 };
 
-class WasiCryptoCommonOptionsSetGuestBuffer
-    : public WasiCryptoCommon<WasiCryptoCommonOptionsSetGuestBuffer> {
+class OptionsSetGuestBuffer : public HostFunction<OptionsSetGuestBuffer> {
 public:
-  WasiCryptoCommonOptionsSetGuestBuffer(WASICrypto::CommonContext &HostCtx)
-      : WasiCryptoCommon(HostCtx) {}
+  OptionsSetGuestBuffer(WASICrypto::CommonContext &HostCtx)
+      : HostFunction(HostCtx) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_options_t Handle, const_uint8_t_ptr NamePtr,
@@ -95,32 +83,29 @@ public:
                         __wasi_size_t BufLen);
 };
 
-class WasiCryptoSecretsMangerOpen
-    : public WasiCryptoCommon<WasiCryptoSecretsMangerOpen> {
+class SecretsMangerOpen : public HostFunction<SecretsMangerOpen> {
 public:
-  WasiCryptoSecretsMangerOpen(WASICrypto::CommonContext &HostCtx)
-      : WasiCryptoCommon(HostCtx) {}
+  SecretsMangerOpen(WASICrypto::CommonContext &HostCtx)
+      : HostFunction(HostCtx) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         uint32_t OptOptionsPtr,
                         uint32_t /* Out */ SecretsManagerPtr);
 };
 
-class WasiCryptoSecretsMangerClose
-    : public WasiCryptoCommon<WasiCryptoSecretsMangerClose> {
+class SecretsMangerClose : public HostFunction<SecretsMangerClose> {
 public:
-  WasiCryptoSecretsMangerClose(WASICrypto::CommonContext &HostCtx)
-      : WasiCryptoCommon(HostCtx) {}
+  SecretsMangerClose(WASICrypto::CommonContext &HostCtx)
+      : HostFunction(HostCtx) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_secrets_manager_t SecretsManager);
 };
 
-class WasiCryptoSecretsMangerInvalidate
-    : public WasiCryptoCommon<WasiCryptoSecretsMangerInvalidate> {
+class SecretsMangerInvalidate : public HostFunction<SecretsMangerInvalidate> {
 public:
-  WasiCryptoSecretsMangerInvalidate(WASICrypto::CommonContext &HostCtx)
-      : WasiCryptoCommon(HostCtx) {}
+  SecretsMangerInvalidate(WASICrypto::CommonContext &HostCtx)
+      : HostFunction(HostCtx) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_secrets_manager_t SecretsManager,
@@ -128,5 +113,7 @@ public:
                         __wasi_version_t Version);
 };
 
+} // namespace Common
+} // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

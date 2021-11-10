@@ -2,20 +2,20 @@
 #pragma once
 
 #include "common/span.h"
-#include "host/wasi/crypto/error.h"
-#include "wasi/crypto/api.hpp"
+#include "host/wasi_crypto/error.h"
+#include "wasi_crypto/api.hpp"
 
+#include <memory>
 #include <string_view>
 
 namespace WasmEdge {
 namespace Host {
-namespace WASI {
-namespace Crypto {
+namespace WASICrypto {
 
 // For future will extend it.
-class Options {
+class OptionBase {
 public:
-  virtual ~Options() = default;
+  virtual ~OptionBase() = default;
 
   virtual WasiCryptoExpect<void> set(std::string_view Name,
                                      Span<uint8_t const> Value);
@@ -28,9 +28,11 @@ public:
   virtual WasiCryptoExpect<std::vector<uint8_t>> get(std::string_view Name);
 
   virtual WasiCryptoExpect<uint64_t> getU64(std::string_view Name);
+
+  static WasiCryptoExpect<std::unique_ptr<OptionBase>> make(__wasi_algorithm_type_e_t Algorithm);
+
 };
 
-} // namespace Crypto
-} // namespace WASI
+} // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "wasi/crypto/api.hpp"
+#include "wasi_crypto/api.hpp"
+
 #include <cstdint>
 
 namespace WasmEdge {
 namespace Host {
-namespace WASI {
-namespace Crypto {
+namespace WASICrypto {
 /// Version of a managed key.
 ///
 /// A version can be an arbitrary `u64` integer, with the expection of some
@@ -22,7 +22,6 @@ inline constexpr __wasi_version_t LASTEST = 0xff00000000000001;
 inline constexpr __wasi_version_t ALL = 0xff00000000000002;
 
 } // namespace Version
-} // namespace Crypto
-} // namespace WASI
+} // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

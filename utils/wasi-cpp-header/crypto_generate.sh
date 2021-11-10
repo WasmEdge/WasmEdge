@@ -12,4 +12,4 @@ for name in "asymmetric_common" "common" "external_secrets" "kx" "signatures" "s
     done
 
 target/release/wasi-cpp-header generate --output $ROOT/thirdparty/wasi/crypto/api.hpp proposal_kx.witx proposal_asymmetric_common.witx  proposal_common.witx proposal_signatures.witx proposal_symmetric.witx proposal_external_secrets.witx
-clang-format-12 -i "$ROOT/thirdparty/wasi/crypto/$api.hpp"
+clang-format-12 -i "$ROOT/thirdparty/wasi_crypto/$api.hpp"

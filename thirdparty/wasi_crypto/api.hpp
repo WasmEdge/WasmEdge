@@ -579,7 +579,7 @@ union __wasi_opt_options_u_t {
   __wasi_options_t some;
 };
 struct __wasi_opt_options_t {
-  uint8_t tag;
+  __wasi_opt_options_u_e_t tag;
   __wasi_opt_options_u_t u;
 };
 
@@ -608,7 +608,7 @@ union __wasi_opt_symmetric_key_u_t {
   __wasi_symmetric_key_t some;
 };
 struct __wasi_opt_symmetric_key_t {
-  uint8_t tag;
+  __wasi_opt_symmetric_key_u_e_t tag;
   __wasi_opt_symmetric_key_u_t u;
 };
 

@@ -98,20 +98,20 @@ pysdk::Configure::~Configure() { WasmEdge_ConfigureDelete(ConfCxt); }
 
 WasmEdge_ConfigureContext *pysdk::Configure::get() { return this->ConfCxt; }
 
-void pysdk::Configure::add(pysdk::WasmEdge_Proposal prop) {
+void pysdk::Configure::add(WasmEdge_Proposal prop) {
   WasmEdge_ConfigureAddProposal(ConfCxt, (::WasmEdge_Proposal)prop);
 }
 
-void pysdk::Configure::remove(pysdk::WasmEdge_Proposal prop) {
+void pysdk::Configure::remove(WasmEdge_Proposal prop) {
   WasmEdge_ConfigureRemoveProposal(ConfCxt, (::WasmEdge_Proposal)prop);
 }
 
-void pysdk::Configure::add(pysdk::WasmEdge_HostRegistration hr) {
+void pysdk::Configure::add(WasmEdge_HostRegistration hr) {
   WasmEdge_ConfigureAddHostRegistration(ConfCxt,
                                         (::WasmEdge_HostRegistration)hr);
 }
 
-void pysdk::Configure::remove(pysdk::WasmEdge_HostRegistration hr) {
+void pysdk::Configure::remove(WasmEdge_HostRegistration hr) {
   WasmEdge_ConfigureRemoveHostRegistration(ConfCxt,
                                            (::WasmEdge_HostRegistration)hr);
 }
@@ -148,13 +148,13 @@ BOOST_PYTHON_MODULE(WasmEdge) {
 
   /*Overloading Python add and remove functions for Configure class*/
 
-  void (pysdk::Configure::*add_prop)(pysdk::WasmEdge_Proposal) =
+  void (pysdk::Configure::*add_prop)(WasmEdge_Proposal) =
       &pysdk::Configure::add;
-  void (pysdk::Configure::*remove_prop)(pysdk::WasmEdge_Proposal) =
+  void (pysdk::Configure::*remove_prop)(WasmEdge_Proposal) =
       &pysdk::Configure::remove;
-  void (pysdk::Configure::*add_host)(pysdk::WasmEdge_HostRegistration) =
+  void (pysdk::Configure::*add_host)(WasmEdge_HostRegistration) =
       &pysdk::Configure::add;
-  void (pysdk::Configure::*remove_host)(pysdk::WasmEdge_HostRegistration) =
+  void (pysdk::Configure::*remove_host)(WasmEdge_HostRegistration) =
       &pysdk::Configure::remove;
 
   class_<pysdk::Configure>("Configure", init<>())
@@ -171,22 +171,24 @@ BOOST_PYTHON_MODULE(WasmEdge) {
       .def("message", &pysdk::result::message)
       .def("code", &pysdk::result::get_code);
 
-  enum_<pysdk::WasmEdge_Proposal>("Proposal")
-      .value("BulkMemoryOperations",
-             pysdk::WasmEdge_Proposal_BulkMemoryOperations)
-      .value("ReferenceTypes", pysdk::WasmEdge_Proposal_ReferenceTypes)
-      .value("SIMD", pysdk::WasmEdge_Proposal_SIMD)
-      .value("TailCall", pysdk::WasmEdge_Proposal_TailCall)
-      .value("Annotations", pysdk::WasmEdge_Proposal_Annotations)
-      .value("Memory64", pysdk::WasmEdge_Proposal_Memory64)
-      .value("Threads", pysdk::WasmEdge_Proposal_Threads)
-      .value("ExceptionHandling", pysdk::WasmEdge_Proposal_ExceptionHandling)
-      .value("FunctionReferences", pysdk::WasmEdge_Proposal_FunctionReferences)
+  enum_<WasmEdge_Proposal>("Proposal")
+      .value("BulkMemoryOperations", WasmEdge_Proposal_ImportExportMutGlobals)
+      .value("NonTrapFloatToIntConversions",
+             WasmEdge_Proposal_NonTrapFloatToIntConversions)
+      .value("BulkMemoryOperations", WasmEdge_Proposal_BulkMemoryOperations)
+      .value("ReferenceTypes", WasmEdge_Proposal_ReferenceTypes)
+      .value("SIMD", WasmEdge_Proposal_SIMD)
+      .value("TailCall", WasmEdge_Proposal_TailCall)
+      .value("Annotations", WasmEdge_Proposal_Annotations)
+      .value("Memory64", WasmEdge_Proposal_Memory64)
+      .value("Threads", WasmEdge_Proposal_Threads)
+      .value("ExceptionHandling", WasmEdge_Proposal_ExceptionHandling)
+      .value("FunctionReferences", WasmEdge_Proposal_FunctionReferences)
       .export_values();
 
-  enum_<pysdk::WasmEdge_HostRegistration>("Host")
-      .value("Wasi", pysdk::WasmEdge_HostRegistration_Wasi)
-      .value("WasmEdge", pysdk::WasmEdge_HostRegistration_WasmEdge_Process)
+  enum_<WasmEdge_HostRegistration>("Host")
+      .value("Wasi", WasmEdge_HostRegistration_Wasi)
+      .value("WasmEdge", WasmEdge_HostRegistration_WasmEdge_Process)
       .export_values();
 
   class_<pysdk::Store>("Store", init<>())

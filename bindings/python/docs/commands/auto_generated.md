@@ -31,33 +31,27 @@ CLASSES
      |  
      |  __reduce__ = <unnamed Boost.Python function>(...)
      |  
-     |  __str__(...)
-     |      __str__( (Configure)arg1) -> str :
-     |      
-     |          C++ signature :
-     |              char const* __str__(pysdk::Configure {lvalue})
-     |  
      |  add(...)
      |      add( (Configure)arg1, (Proposal)arg2) -> None :
      |      
      |          C++ signature :
-     |              void add(pysdk::Configure {lvalue},pysdk::WasmEdge_Proposal)
+     |              void add(pysdk::Configure {lvalue},WasmEdge_Proposal)
      |      
      |      add( (Configure)arg1, (Host)arg2) -> None :
      |      
      |          C++ signature :
-     |              void add(pysdk::Configure {lvalue},pysdk::WasmEdge_HostRegistration)
+     |              void add(pysdk::Configure {lvalue},WasmEdge_HostRegistration)
      |  
      |  remove(...)
      |      remove( (Configure)arg1, (Proposal)arg2) -> None :
      |      
      |          C++ signature :
-     |              void remove(pysdk::Configure {lvalue},pysdk::WasmEdge_Proposal)
+     |              void remove(pysdk::Configure {lvalue},WasmEdge_Proposal)
      |      
      |      remove( (Configure)arg1, (Host)arg2) -> None :
      |      
      |          C++ signature :
-     |              void remove(pysdk::Configure {lvalue},pysdk::WasmEdge_HostRegistration)
+     |              void remove(pysdk::Configure {lvalue},WasmEdge_HostRegistration)
      |  
      |  ----------------------------------------------------------------------
      |  Data and other attributes defined here:
@@ -441,6 +435,8 @@ CLASSES
      |  
      |  Memory64 = WasmEdge.Proposal.Memory64
      |  
+     |  NonTrapFloatToIntConversions = WasmEdge.Proposal.NonTrapFloatToIntConv...
+     |  
      |  ReferenceTypes = WasmEdge.Proposal.ReferenceTypes
      |  
      |  SIMD = WasmEdge.Proposal.SIMD
@@ -721,6 +717,12 @@ CLASSES
      |  
      |  __reduce__ = <unnamed Boost.Python function>(...)
      |  
+     |  __str__(...)
+     |      __str__( (Result)arg1) -> str :
+     |      
+     |          C++ signature :
+     |              char const* __str__(pysdk::result {lvalue})
+     |  
      |  code(...)
      |      code( (Result)arg1) -> int :
      |      
@@ -865,6 +867,7 @@ DATA
     ExceptionHandling = WasmEdge.Proposal.ExceptionHandling
     FunctionReferences = WasmEdge.Proposal.FunctionReferences
     Memory64 = WasmEdge.Proposal.Memory64
+    NonTrapFloatToIntConversions = WasmEdge.Proposal.NonTrapFloatToIntConv...
     ReferenceTypes = WasmEdge.Proposal.ReferenceTypes
     SIMD = WasmEdge.Proposal.SIMD
     TailCall = WasmEdge.Proposal.TailCall

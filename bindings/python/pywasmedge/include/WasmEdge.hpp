@@ -9,7 +9,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <wasmedge.h>
+#include <wasmedge/enum_configure.h>
+#include <wasmedge/wasmedge.h>
 
 namespace pysdk {
 
@@ -29,25 +30,6 @@ struct logging {
 
 std::string logging::_str = "logging: Level not set";
 
-enum WasmEdge_Proposal {
-  WasmEdge_Proposal_BulkMemoryOperations = 0,
-  WasmEdge_Proposal_ReferenceTypes,
-  WasmEdge_Proposal_SIMD,
-  WasmEdge_Proposal_TailCall,
-  WasmEdge_Proposal_Annotations,
-  WasmEdge_Proposal_Memory64,
-  WasmEdge_Proposal_Threads,
-  WasmEdge_Proposal_ExceptionHandling,
-  WasmEdge_Proposal_FunctionReferences
-};
-
-/*This configuration is used for the VM context to turn on the WASI or
- * wasmedge_process supports and only effective in VM contexts.*/
-enum WasmEdge_HostRegistration {
-  WasmEdge_HostRegistration_Wasi = 0,
-  WasmEdge_HostRegistration_WasmEdge_Process
-};
-
 class Configure {
 private:
   WasmEdge_ConfigureContext *ConfCxt;
@@ -57,10 +39,10 @@ public:
   ~Configure();
   const char *doc() { return pysdk::Configure_doc; }
   WasmEdge_ConfigureContext *get();
-  void add(pysdk::WasmEdge_Proposal);
-  void add(pysdk::WasmEdge_HostRegistration);
-  void remove(pysdk::WasmEdge_Proposal);
-  void remove(pysdk::WasmEdge_HostRegistration);
+  void add(WasmEdge_Proposal);
+  void add(WasmEdge_HostRegistration);
+  void remove(WasmEdge_Proposal);
+  void remove(WasmEdge_HostRegistration);
 };
 
 class Store {
@@ -97,7 +79,7 @@ private:
 public:
   VM();
   VM(Store &);
-  VM(Configure &); 
+  VM(Configure &);
   VM(Configure &, Store &);
   ~VM();
   const char *doc() { return pysdk::vm_doc; };

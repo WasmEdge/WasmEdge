@@ -34,7 +34,7 @@ template <typename UnsignedType> struct WrapToSignedHelper {
   // comment below.  This function is very hot, both at compile time and
   // runtime, so disable all overflow checking in it.
 
-  static constexpr SignedType compute(UnsignedType aValue) {
+  static constexpr SignedType compute(UnsignedType AValue) {
     // This algorithm was originally provided here:
     // https://stackoverflow.com/questions/13150449/efficient-unsigned-to-signed-cast-avoiding-implementation-defined-behavior
     //
@@ -57,20 +57,20 @@ template <typename UnsignedType> struct WrapToSignedHelper {
     // Thus the delta below is in signed range, the corresponding cast is safe,
     // and this computation produces values spanning [MinValue, 0): exactly the
     // desired range of all negative signed integers.
-    return (aValue <= MaxValueUnsigned)
-               ? static_cast<SignedType>(aValue)
-               : static_cast<SignedType>(aValue - MinValueUnsigned) + MinValue;
+    return (AValue <= MaxValueUnsigned)
+               ? static_cast<SignedType>(AValue)
+               : static_cast<SignedType>(AValue - MinValueUnsigned) + MinValue;
   }
 };
 template <typename UnsignedType>
 constexpr typename WrapToSignedHelper<UnsignedType>::SignedType
-WrapToSigned(UnsignedType aValue) {
-  return WrapToSignedHelper<UnsignedType>::compute(aValue);
+WrapToSigned(UnsignedType AValue) {
+  return WrapToSignedHelper<UnsignedType>::compute(AValue);
 }
-template <typename T> constexpr T ToResult(std::make_unsigned_t<T> aUnsigned) {
+template <typename T> constexpr T ToResult(std::make_unsigned_t<T> AUnsigned) {
   // We could *always* return WrapToSigned and rely on unsigned conversion to
   // undo the wrapping when |T| is unsigned, but this seems clearer.
-  return std::is_signed_v<T> ? WrapToSigned(aUnsigned) : aUnsigned;
+  return std::is_signed_v<T> ? WrapToSigned(AUnsigned) : AUnsigned;
 }
 
 template <typename T> struct WrappingAddHelper {
@@ -78,17 +78,16 @@ private:
   using UnsignedT = std::make_unsigned_t<T>;
 
 public:
-  static constexpr T compute(T aX, T aY) {
-    return ToResult<T>(static_cast<UnsignedT>(aX) + static_cast<UnsignedT>(aY));
+  static constexpr T compute(T AX, T AY) {
+    return ToResult<T>(static_cast<UnsignedT>(AX) + static_cast<UnsignedT>(AY));
   }
 };
-template <typename T> constexpr T WrappingAdd(T aX, T aY) {
-  return WrappingAddHelper<T>::compute(aX, aY);
+template <typename T> constexpr T WrappingAdd(T AX, T AY) {
+  return WrappingAddHelper<T>::compute(AX, AY);
 }
 
 // from MSVC STL
-template <class T>
-[[nodiscard]] constexpr T rotr(T _Val, int _Rotation) noexcept;
+template <class T> [[nodiscard]] constexpr T rotr(T Val, int Rotation) noexcept;
 
 template <class T>
 [[nodiscard]] constexpr T rotl(const T Val, const int Rotation) noexcept {
@@ -97,11 +96,12 @@ template <class T>
   if (Remainder > 0) {
     return static_cast<T>(static_cast<T>(Val << Remainder) |
                           static_cast<T>(Val >> (Digits - Remainder)));
-  } else if (Remainder == 0) {
-    return Val;
-  } else { // Remainder < 0
-    return rotr(Val, -Remainder);
   }
+  if (Remainder == 0) {
+    return Val;
+  }
+  // Remainder < 0
+  return rotr(Val, -Remainder);
 }
 
 template <class T>
@@ -111,17 +111,25 @@ template <class T>
   if (Remainder > 0) {
     return static_cast<T>(static_cast<T>(Val >> Remainder) |
                           static_cast<T>(Val << (Digits - Remainder)));
-  } else if (Remainder == 0) {
-    return Val;
-  } else { // Remainder < 0
-    return rotl(Val, -Remainder);
   }
+  if (Remainder == 0) {
+    return Val;
+  }
+  // Remainder < 0
+  return rotl(Val, -Remainder);
 }
 
 } // namespace
 
-/// HandlesManger is used to register a custom Manger abd return Handle to
-/// control it     TODO: can optimization it.
+///
+/// @tparam HandleType This is the type of handle, notice they are all `32 byte
+/// long`(int32_t).
+/// @tparam MangerType This is the inner struct.
+///
+/// HandlesManger use handle as index to expression inner struct.
+/// The handle internal representation as [-TypeId-|------CurrentNumber------]
+/// Eg.For TypeId=1 first handle will be `00000001 00000000 00000000 00000001`,
+/// and next handle will get `00000001 00000000 00000000 00000002`
 ///
 template <typename HandleType, typename MangerType,
           std::enable_if_t<std::is_copy_constructible_v<MangerType>, bool> =
@@ -133,6 +141,7 @@ public:
   HandlesManger(HandlesManger &&) = default;
   HandlesManger &operator=(HandlesManger &&) = default;
 
+  /// @param TypeId A unique number
   HandlesManger(uint8_t TypeId)
       : LastHandle{rotr(static_cast<HandleType>(TypeId), 8)}, TypeId{TypeId} {}
 
@@ -148,6 +157,7 @@ public:
     auto NextHandle = nextHandle(LastHandle);
 
     while (true) {
+      // not have
       if (Map.find(NextHandle) == Map.end()) {
         break;
       }

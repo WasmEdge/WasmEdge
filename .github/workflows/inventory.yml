@@ -5,15 +5,15 @@ on:
     branches:
       - master
     paths:
-      - 'bindings/rust/wasmedge-sys'
+      - 'bindings/rust/wasmedge-sys/**'
   pull_request:
     branches:
       - master
     paths:
-      - 'bindings/rust/wasmedge-sys'
+      - 'bindings/rust/wasmedge-sys/**'
 
 jobs:
-  inventorying rust:
+  rust:
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang

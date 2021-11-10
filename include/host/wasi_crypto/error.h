@@ -2,12 +2,11 @@
 #pragma once
 
 #include "common/expected.h"
-#include "wasi/crypto/api.hpp"
+#include "wasi_crypto/api.hpp"
 
 namespace WasmEdge {
 namespace Host {
-namespace WASI {
-namespace Crypto {
+namespace WASICrypto {
 /// Type aliasing for Expected<T, __wasi_crypto_errno_t>.
 template <typename T>
 using WasiCryptoExpect = Expected<T, __wasi_crypto_errno_e_t>;
@@ -21,7 +20,7 @@ constexpr auto WasiCryptoUnexpect(const WasiCryptoExpect<T> &Val) {
   return Unexpected<__wasi_crypto_errno_e_t>(Val.error());
 }
 
-} // namespace Crypto
-} // namespace WASI
+
+} // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

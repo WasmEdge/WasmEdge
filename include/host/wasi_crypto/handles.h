@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "host/wasi/crypto/error.h"
-#include "wasi/crypto/api.hpp"
+#include "host/wasi_crypto/error.h"
+#include "wasi_crypto/api.hpp"
 
 #include <climits>
+#include <limits>
 #include <mutex>
+#include <type_traits>
 #include <unordered_map>
 
 namespace WasmEdge {
 namespace Host {
-namespace WASI {
-namespace Crypto {
+namespace WASICrypto {
 namespace {
 // from mozilla-central/mfbt/WrappingOperations.h
 template <typename UnsignedType> struct WrapToSignedHelper {
@@ -86,10 +87,10 @@ template <typename T> constexpr T WrappingAdd(T aX, T aY) {
 }
 
 // from MSVC STL
-template <class T, std::enable_if_t<std::is_unsigned_v<T>, int> = 0>
+template <class T>
 [[nodiscard]] constexpr T rotr(T _Val, int _Rotation) noexcept;
 
-template <class T, std::enable_if_t<std::is_unsigned_v<T>, int> = 0>
+template <class T>
 [[nodiscard]] constexpr T rotl(const T Val, const int Rotation) noexcept {
   constexpr auto Digits = std::numeric_limits<T>::digits;
   const auto Remainder = Rotation % Digits;
@@ -103,7 +104,7 @@ template <class T, std::enable_if_t<std::is_unsigned_v<T>, int> = 0>
   }
 }
 
-template <class T, std::enable_if_t<std::is_unsigned_v<T>, int> Enabled>
+template <class T>
 [[nodiscard]] constexpr T rotr(const T Val, const int Rotation) noexcept {
   constexpr auto Digits = std::numeric_limits<T>::digits;
   const auto Remainder = Rotation % Digits;
@@ -119,10 +120,13 @@ template <class T, std::enable_if_t<std::is_unsigned_v<T>, int> Enabled>
 
 } // namespace
 
-using Handle = uint32_t;
-
-// HandleType: Clone + Send + Sync(rust)
-template <typename HandleType> class HandlesManger {
+/// HandlesManger is used to register a custom Manger abd return Handle to
+/// control it     TODO: can optimization it.
+///
+template <typename HandleType, typename MangerType,
+          std::enable_if_t<std::is_copy_constructible_v<MangerType>, bool> =
+              true>
+class HandlesManger {
 public:
   HandlesManger(const HandlesManger &) = delete;
   HandlesManger &operator=(const HandlesManger &) = delete;
@@ -130,16 +134,16 @@ public:
   HandlesManger &operator=(HandlesManger &&) = default;
 
   HandlesManger(uint8_t TypeId)
-      : LastHandle{rotr(static_cast<Handle>(TypeId), 8)}, TypeId{TypeId} {}
+      : LastHandle{rotr(static_cast<HandleType>(TypeId), 8)}, TypeId{TypeId} {}
 
-  WasiCryptoExpect<void> close(Handle InputHandle) {
+  WasiCryptoExpect<void> close(HandleType Handle) {
     std::scoped_lock Guard{Mutex};
-    if (!Map.erase(InputHandle))
+    if (!Map.erase(Handle))
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_CLOSED);
     return {};
   }
 
-  WasiCryptoExpect<Handle> registerModule(HandleType InputType) {
+  WasiCryptoExpect<HandleType> registerManger(MangerType Manger) {
     std::scoped_lock Guard{Mutex};
     auto NextHandle = nextHandle(LastHandle);
 
@@ -153,15 +157,15 @@ public:
       NextHandle = nextHandle(LastHandle);
     }
     LastHandle = NextHandle;
-    if (!Map.insert({NextHandle, InputType}).second) {
+    if (!Map.emplace(std::make_pair(NextHandle, Manger)).second) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
     }
     return NextHandle;
   }
 
-  WasiCryptoExpect<HandleType> get(Handle InputHandle) {
+  WasiCryptoExpect<MangerType> get(HandleType Handle) {
     std::scoped_lock Guard{Mutex};
-    auto HandleValue = Map.find(InputHandle);
+    auto HandleValue = Map.find(Handle);
     if (HandleValue == Map.end()) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
     }
@@ -169,18 +173,17 @@ public:
   }
 
 private:
-  Handle nextHandle(Handle InputHandle) {
-    auto AddedValue = WrappingAdd(InputHandle, 1u) << 8;
-    return rotr(AddedValue | static_cast<Handle>(TypeId), 8);
+  HandleType nextHandle(HandleType Handle) {
+    auto AddedValue = WrappingAdd(Handle, 1) << 8;
+    return rotr(AddedValue | static_cast<HandleType>(TypeId), 8);
   }
 
   std::mutex Mutex;
-  Handle LastHandle;
-  std::unordered_map<Handle, HandleType> Map;
+  HandleType LastHandle;
+  std::unordered_map<HandleType, MangerType> Map;
   uint8_t TypeId;
 };
 
-} // namespace Crypto
-} // namespace WASI
+} // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

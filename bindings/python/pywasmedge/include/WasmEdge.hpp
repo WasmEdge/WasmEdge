@@ -1,6 +1,7 @@
 #ifndef PY_WASMEDGE_H
 #define PY_WASMEDGE_H
 
+#include "Utils.hpp"
 #include <boost/python.hpp>
 #include <boost/python/extract.hpp>
 #include <boost/python/list.hpp>

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(pywasmedge)
 
 set(WASMEDGE_LIB "wasmedge_c")
-set(DCMAKE_BUILD_TYPE "Debug")
+set(CMAKE_BUILD_TYPE Debug)
 
 if (WASMEDGE_LIB_DIR)
 else()

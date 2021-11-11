@@ -142,32 +142,33 @@ boost::python::tuple pysdk::VM::run(boost::python::object _FileName,
   for (int i = 0; i < ret_len; i++) {
     switch (val_type_list_ret[i]) {
     case WasmEdge_ValType_I32:
-      returns.append(WasmEdge_ValueGetI32(Returns[i]));
+      returns.append(transfer_to_python(WasmEdge_ValueGetI32(Returns[i])));
       break;
     case WasmEdge_ValType_I64:
-      returns.append(WasmEdge_ValueGetI64(Returns[i]));
+      returns.append(transfer_to_python(WasmEdge_ValueGetI64(Returns[i])));
       break;
     case WasmEdge_ValType_F32:
-      returns.append(WasmEdge_ValueGetF32(Returns[i]));
+      returns.append(transfer_to_python(WasmEdge_ValueGetF32(Returns[i])));
       break;
     case WasmEdge_ValType_F64:
-      returns.append(WasmEdge_ValueGetF64(Returns[i]));
+      returns.append(transfer_to_python(WasmEdge_ValueGetF64(Returns[i])));
       break;
     case WasmEdge_ValType_V128:
-      returns.append(WasmEdge_ValueGetV128(Returns[i]));
+      returns.append(transfer_to_python(WasmEdge_ValueGetV128(Returns[i])));
       break;
     case WasmEdge_ValType_FuncRef:
-      returns.append(WasmEdge_ValueGetFuncIdx(Returns[i]));
+      returns.append(transfer_to_python(WasmEdge_ValueGetFuncIdx(Returns[i])));
       break;
-    case WasmEdge_ValType_ExternRef:
-      returns.append(WasmEdge_ValueGetExternRef(Returns[i]));
-      break;
+    // TODO: Handle Void Pointer
+    // case WasmEdge_ValType_ExternRef:
+    //   returns.append(transfer_to_python(WasmEdge_ValueGetExternRef(Returns[i])));
+    //   break;
     default:
       break;
     }
   }
 
-  WasmEdge_FunctionTypeDelete(FuncTypeCxt);
+  // WasmEdge_FunctionTypeDelete(FuncTypeCxt);
   return boost::python::make_tuple(res, returns);
 }
 
@@ -301,6 +302,12 @@ BOOST_PYTHON_MODULE(WasmEdge) {
       .value("FuncRef", WasmEdge_ValType_FuncRef)
       .value("ExternRef", WasmEdge_ValType_ExternRef)
       .export_values();
+
+  /* TODO: Find suitable use for WasmEdge WASM value struct from python
+   * perspective */
+  class_<WasmEdge_Value>("Value", init<>())
+      .def_readwrite("Value", &WasmEdge_Value::Value)
+      .def_readwrite("Type", &WasmEdge_Value::Type);
 
   class_<pysdk::result>("Result", init<>())
       .def("__doc__", &pysdk::result::doc)

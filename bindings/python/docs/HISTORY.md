@@ -1,5 +1,22 @@
 (unreleased)
 ------------
+- [PySDK] Fix:
+  https://github.com/WasmEdge/WasmEdge/issues/644#issue-1050904719.
+  [Shreyas Atre]
+
+  * Added missing host registration for wasi in test
+  * Added Value in python
+- [PySDK] Overload Python vm.run() function without return length.
+  [Shreyas Atre]
+
+  * Use Step by step execution of WasmEdge VM and WasmEdge Function API calls to get the same. Return a boost::python::tuple of result and return list.
+  * Suggestions from https://github.com/WasmEdge/WasmEdge/issues/642
+
+  Status:
+  * Tests fail https://github.com/WasmEdge/WasmEdge/issues/644
+- [PySDK] Remove redundant definitions of enums. [Shreyas Atre]
+
+  * Suggestions from https://github.com/WasmEdge/WasmEdge/pull/633#issuecomment-964505682
 - [PySDK] Changed __str__ for logging. [Shreyas Atre]
 
   * __str__ is not to be confused with __doc__

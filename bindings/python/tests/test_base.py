@@ -43,11 +43,12 @@ def test_add():
     log = WasmEdge.Logging()
     log.debug()
     cfx = WasmEdge.Configure()
+    cfx.add(WasmEdge.Host.Wasi)
     vm = WasmEdge.VM(cfx)
     nums = [random.randint(2, 20), random.randint(2, 20)]
     res, l = vm.run(add_wasm, "add", nums)
     assert bool(res)
-    assert l[0] == str(sum(nums))
+    assert l[0] == sum(nums)
 
 
 def test_version():

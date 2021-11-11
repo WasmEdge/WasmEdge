@@ -10,13 +10,14 @@ WasmEdge 是由 CNCF 托管的云原生 WebAssembly runtime。它广泛应用于
 * [JavaScript 或 DSL runtime](#javascript-or-DSL-runtime)
   * [JavaScript](#javascript)
   * [用于图像识别的 DSL](#dsl-for-image-classification)
+  * [用于聊天机器人的 DSL](#dsl-for-chatbots)
 * [公有云中的 Serverless 函数即服务](#serverless-function-as-a-service-in-public-clouds)
   * [AWS Lambda](#aws-lambda)
   * [腾讯 Serverless 函数](#tencent-serverless-functions)
   * [Vercel Serverless 函数](#vercel-serverless-functions)
   * [Netlify Functions](#netlify-functions)
   * [Second State Functions](#second-state-functions)
-* [软件定义的汽车和智慧工厂](#software-defined-vehicles-and-aiot)
+* [软件定义的汽车和智慧工厂](#software-defined-vehicles-and-smart-factory)
   * [YoMo Flow](#yomo-flow)
   * [seL4 micokernel and RTOS](#sel4-microkernel-os)
 * [用于 SaaS 的响应式函数](#reactive-functions-for-saas)
@@ -38,7 +39,7 @@ WasmEdge 可以通过其 [C](https://github.com/WasmEdge/WasmEdge/blob/master/do
 * MOSN
 * Envoy
 
-### 编排和管理:
+### 编排和管理:<a name="orchestration-and-management"></a>
 
 * [Kubernetes](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/)
 * KubeEdge
@@ -66,7 +67,7 @@ WasmEdge 可以通过嵌入 JS 执行引擎或解释器来充当云原生 JavaSc
 
 * 示例: [运行 YMAL 以识别图片中的食品](https://github.com/second-state/wasm-learning/blob/master/cli/classify_yml/config/food.yml) 
 
-### 用于聊天机器人的 DSL
+### 用于聊天机器人的 DSL<a name="dsl-for-chatbots"></a>
 
 聊天机器人 DSL 函数接受输入字符串并回复字符串进行响应。 DSL 指定了聊天机器人的内部状态转换，以及用于语言理解的 AI 模型。
 
@@ -100,7 +101,7 @@ WasmEdge 与现有的 Serverless 或 Jamstack 平台配合使用，为函数提�
 
 * [教程](https://www.secondstate.io/faas/)
 
-## 软件定义的汽车和 AIoT<a name="software-defined-vehicles-and-aiot"></a>
+## 软件定义的汽车和 AIoT<a name="software-defined-vehicles-and-smart-factory"></a>
 
 WasmEdge 非常适合在任务关键的边缘设备或边缘网络上运行。
 
@@ -111,7 +112,7 @@ YoMo 是一种用于远边缘（far edge）网络的高性能数据流框架。 
 * [教程](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/)
 * [代码模板](https://github.com/yomorun/yomo-wasmedge-tensorflow)
 
-### seL4 微内核操作系统
+### seL4 微内核操作系统<a name="#sel4-microkernel-os"></a>
 
 seL4 是一个高度安全的实时操作系统。 WasmEdge 是唯一可以在 seL4 上运行的 WebAssembly runtime，它以本机速度运行。我们还提供了一个管理工具来支持 wasm 模块的 OTA 部署。正在开发中。
 

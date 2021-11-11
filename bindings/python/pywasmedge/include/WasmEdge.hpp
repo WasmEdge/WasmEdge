@@ -65,6 +65,7 @@ private:
 public:
   result();
   result(WasmEdge_Result);
+  void operator=(const WasmEdge_Result &res) { Res = res; }
   const char *doc() { return pysdk::result_doc; }
   explicit operator bool();
   const char *message();
@@ -86,6 +87,8 @@ public:
 
   boost::python::tuple run(boost::python::object, boost::python::object,
                            boost::python::object, boost::python::object);
+  boost::python::tuple run(boost::python::object, boost::python::object,
+                           boost::python::object);
 };
 
 } // namespace pysdk

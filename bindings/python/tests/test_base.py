@@ -2,6 +2,7 @@ import pytest
 import WasmEdge
 import os
 import subprocess
+import random
 
 
 def fibonacci(n):
@@ -30,9 +31,23 @@ def test_fib_32():
     cfx = WasmEdge.Configure()
     vm = WasmEdge.VM(cfx)
     # vm = WasmEdge.VM()
-    res, l = vm.run(fib_wasm, "fib", [5], 1)
+    num = random.randint(2, 20)
+    res, l = vm.run(fib_wasm, "fib", [num], 1)
     assert bool(res)
-    assert l[0] == str(fibonacci(5))
+    assert l[0] == str(fibonacci(num))
+
+
+def test_add():
+    wasm_base_path = os.path.abspath(os.path.join(__file__, "../../../.."))
+    add_wasm = os.path.join(wasm_base_path, "tools/wasmedge/examples/add.wasm")
+    log = WasmEdge.Logging()
+    log.debug()
+    cfx = WasmEdge.Configure()
+    vm = WasmEdge.VM(cfx)
+    nums = [random.randint(2, 20), random.randint(2, 20)]
+    res, l = vm.run(add_wasm, "add", nums)
+    assert bool(res)
+    assert l[0] == str(sum(nums))
 
 
 def test_version():

@@ -14,8 +14,6 @@ RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
 RUN apt-get install -y nodejs
 RUN npm install wasmedge-extensions@0.8.3
 
-RUN wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all -v 0.8.2
-
 RUN mkdir -p /root/examples
 WORKDIR /root/examples
 RUN wget https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/hello.wasm &&\

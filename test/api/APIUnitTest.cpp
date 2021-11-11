@@ -909,6 +909,19 @@ TEST(APICoreTest, Loader) {
       WasmEdge_LoaderParseFromBuffer(Loader, ModPtr, nullptr, 0)));
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
       nullptr, nullptr, Buf.data(), static_cast<uint32_t>(Buf.size()))));
+#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+  /// Failed case to parse from buffer with AOT compiled WASM
+  std::ifstream WasmAOT("test.so", std::ios::binary | std::ios::ate);
+  WasmAOT.seekg(0, std::ios::end);
+  Buf = std::vector<uint8_t>(static_cast<uint32_t>(WasmAOT.tellg()));
+  WasmAOT.seekg(0, std::ios::beg);
+  EXPECT_TRUE(WasmAOT.read(reinterpret_cast<char *>(Buf.data()),
+                           static_cast<uint32_t>(Buf.size())));
+  WasmAOT.close();
+  Mod = nullptr;
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
+      Loader, ModPtr, Buf.data(), static_cast<uint32_t>(Buf.size()))));
+#endif
 
   /// AST module deletion
   WasmEdge_ASTModuleDelete(nullptr);

@@ -34,7 +34,7 @@ jobs:
     
     - name: Install Dependencies
       run: |
-        sudo apt install -y software-properties-common libboost-all-dev llvm-12-dev liblld-12-dev clang-12 tar
+        sudo apt install -y software-properties-common libboost-all-dev llvm-11-dev liblld-11-dev clang-11 tar
         curl -sSL "https://github.com/facebook/infer/releases/download/v1.1.0/infer-linux64-v1.1.0.tar.xz" | sudo tar -C /opt -xJ && sudo ln -s "/opt/infer-linux64-v1.1.0/bin/infer" /usr/local/bin/infer
         
 

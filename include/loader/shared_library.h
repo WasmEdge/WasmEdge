@@ -55,14 +55,11 @@ public:
   uintptr_t getOffset() const noexcept;
 
   template <typename T> T *getPointer(uint64_t Address) const noexcept {
-    if (unlikely(Address == 0)) {
-      return nullptr;
-    }
     return reinterpret_cast<T *>(getOffset() + Address);
   }
 
   template <typename T> Symbol<T> getIntrinsics() noexcept {
-    if (Binary && IntrinsicsAddress != 0) {
+    if (Binary) {
       return Symbol<T>(shared_from_this(), getPointer<T>(IntrinsicsAddress));
     }
     return {};

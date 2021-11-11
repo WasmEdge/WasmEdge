@@ -14,11 +14,12 @@ impl ImportObj {
         ImportObj { ctx }
     }
 
-    pub fn add_func(&self, func_name: impl AsRef<str>, func: Function) {
+    pub fn add_func(&mut self, func_name: impl AsRef<str>, func: &mut Function) {
         let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(func_name.as_ref()).into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, raw_func_name, func.ctx);
+            wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, raw_func_name, (*func).ctx);
         }
+        func.registed = true;
     }
 }
 

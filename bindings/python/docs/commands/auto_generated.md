@@ -1121,10 +1121,15 @@ CLASSES
      |  __reduce__ = <unnamed Boost.Python function>(...)
      |  
      |  run(...)
-     |      run( (VM)arg1, (object)arg2, (object)arg3, (object)arg4 [, (object)arg5]) -> tuple :
+     |      run( (VM)arg1, (object)arg2, (object)arg3, (object)arg4, (object)arg5, (object)arg6) -> tuple :
      |      
      |          C++ signature :
-     |              boost::python::tuple run(pysdk::VM {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object [,boost::python::api::object])
+     |              boost::python::tuple run(pysdk::VM {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)
+     |      
+     |      run( (VM)arg1, (object)arg2, (object)arg3, (object)arg4) -> tuple :
+     |      
+     |          C++ signature :
+     |              boost::python::tuple run(pysdk::VM {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)
      |  
      |  ----------------------------------------------------------------------
      |  Data and other attributes defined here:

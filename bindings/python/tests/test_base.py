@@ -32,9 +32,11 @@ def test_fib_32():
     vm = WasmEdge.VM(cfx)
     # vm = WasmEdge.VM()
     num = random.randint(2, 20)
-    res, l = vm.run(fib_wasm, "fib", [num], 1)
+    res, l = vm.run(
+        fib_wasm, "fib", [num], [WasmEdge.Type.I32], [WasmEdge.Type.I32]
+    )
     assert bool(res)
-    assert l[0] == str(fibonacci(num))
+    assert l[0] == fibonacci(num)
 
 
 def test_add():

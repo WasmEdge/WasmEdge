@@ -87,7 +87,8 @@ public:
   const char *doc() { return pysdk::vm_doc; };
 
   boost::python::tuple run(boost::python::object, boost::python::object,
-                           boost::python::object, boost::python::object);
+                           boost::python::object, boost::python::object,
+                           boost::python::object);
   boost::python::tuple run(boost::python::object, boost::python::object,
                            boost::python::object);
 };

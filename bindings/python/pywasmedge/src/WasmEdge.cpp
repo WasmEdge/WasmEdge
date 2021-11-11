@@ -17,20 +17,63 @@ pysdk::VM::VM(pysdk::Configure &cfg, pysdk::Store &store) {
 
 pysdk::VM::~VM() { WasmEdge_VMDelete(VMCxt); }
 
+/**
+ * @brief Execute VM
+ *
+ * @param _FileName Name of .wasm binary
+ * @param _FuncName Wasm Function name
+ * @param _params Wasm Function Parameters
+ * @param _param_types List of `Type` of parameters
+ * @param _ret_types List of `Type` of Return values. This length must be same
+ * as return length of wasm function.
+ * @return boost::python::tuple
+ */
 boost::python::tuple pysdk::VM::run(boost::python::object _FileName,
                                     boost::python::object _FuncName,
                                     boost::python::object _params,
-                                    boost::python::object _ret_len) {
+                                    boost::python::object _param_types,
+                                    boost::python::object _ret_types) {
   char const *FileName = boost::python::extract<char const *>(_FileName);
   char const *FuncName = boost::python::extract<char const *>(_FuncName);
-  const int ret_len = boost::python::extract<int>(_ret_len);
+  const int ret_len = boost::python::len(_ret_types);
 
   auto param_len = boost::python::len(_params);
   WasmEdge_Value Params[param_len];
   WasmEdge_Value Returns[ret_len];
   for (int i = 0; i < param_len; i++) {
-    Params[i] =
-        WasmEdge_ValueGenI32(boost::python::extract<int32_t>(_params[i]));
+    switch (boost::python::extract<WasmEdge_ValType>(_param_types[i])) {
+    case WasmEdge_ValType_I32:
+      Params[i] =
+          WasmEdge_ValueGenI32(boost::python::extract<int32_t>(_params[i]));
+      break;
+    case WasmEdge_ValType_I64:
+      Params[i] =
+          WasmEdge_ValueGenI64(boost::python::extract<int64_t>(_params[i]));
+      break;
+    case WasmEdge_ValType_F32:
+      Params[i] =
+          WasmEdge_ValueGenF32(boost::python::extract<_Float32>(_params[i]));
+      break;
+    case WasmEdge_ValType_F64:
+      Params[i] =
+          WasmEdge_ValueGenF32(boost::python::extract<_Float64>(_params[i]));
+      break;
+    case WasmEdge_ValType_V128:
+      Params[i] =
+          WasmEdge_ValueGenV128(boost::python::extract<int128_t>(_params[i]));
+      break;
+    case WasmEdge_ValType_FuncRef:
+      Params[i] = WasmEdge_ValueGenFuncRef(
+          boost::python::extract<uint32_t>(_params[i]));
+      break;
+    // TODO: Handle Pointer
+    // case WasmEdge_ValType_ExternRef:
+    //   Params[i] = WasmEdge_ValueGenExternRef(
+    //       boost::python::extract<(void *)>(_params[i]));
+    //   break;
+    default:
+      break;
+    }
   }
 
   WasmEdge_String funcName{(uint32_t)strlen(FuncName), FuncName};
@@ -39,12 +82,45 @@ boost::python::tuple pysdk::VM::run(boost::python::object _FileName,
 
   boost::python::list returns;
   for (int i = 0; i < ret_len; i++) {
-    returns.append(std::to_string(WasmEdge_ValueGetI32(Returns[i])));
+    switch (boost::python::extract<WasmEdge_ValType>(_ret_types[i])) {
+    case WasmEdge_ValType_I32:
+      returns.append(transfer_to_python(WasmEdge_ValueGetI32(Returns[i])));
+      break;
+    case WasmEdge_ValType_I64:
+      returns.append(transfer_to_python(WasmEdge_ValueGetI64(Returns[i])));
+      break;
+    case WasmEdge_ValType_F32:
+      returns.append(transfer_to_python(WasmEdge_ValueGetF32(Returns[i])));
+      break;
+    case WasmEdge_ValType_F64:
+      returns.append(transfer_to_python(WasmEdge_ValueGetF64(Returns[i])));
+      break;
+    case WasmEdge_ValType_V128:
+      returns.append(transfer_to_python(WasmEdge_ValueGetV128(Returns[i])));
+      break;
+    case WasmEdge_ValType_FuncRef:
+      returns.append(transfer_to_python(WasmEdge_ValueGetFuncIdx(Returns[i])));
+      break;
+    // TODO: Handle Void Pointer
+    // case WasmEdge_ValType_ExternRef:
+    //   returns.append(transfer_to_python(WasmEdge_ValueGetExternRef(Returns[i])));
+    //   break;
+    default:
+      break;
+    }
   }
   return boost::python::make_tuple(res, returns);
 }
 
-/* Step by Step execution */
+/**
+ * @brief Execute VM without specifying parameter, return types and length.
+ * Executes VM step by step.
+ *
+ * @param _FileName Name of .wasm binary
+ * @param _FuncName Wasm Function name
+ * @param _params Wasm Function Parameters
+ * @return boost::python::tuple
+ */
 boost::python::tuple pysdk::VM::run(boost::python::object _FileName,
                                     boost::python::object _FuncName,
                                     boost::python::object _params) {
@@ -345,8 +421,8 @@ BOOST_PYTHON_MODULE(WasmEdge) {
 
   boost::python::tuple (pysdk::VM::*run_step_by_step)(object, object, object) =
       &pysdk::VM::run;
-  boost::python::tuple (pysdk::VM::*run)(object, object, object, object) =
-      &pysdk::VM::run;
+  boost::python::tuple (pysdk::VM::*run)(object, object, object, object,
+                                         object) = &pysdk::VM::run;
 
   class_<pysdk::VM>("VM", init<>())
       .def(init<pysdk::Configure &>())

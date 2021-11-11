@@ -14,7 +14,6 @@ $ cd WasmEdge
 WasmEdge 会基于最新版本的 LLVM 来创建我们的每日构建。
 如果你想从源码构建的话，需要自己手动来安装下面的这些依赖。你也可以直接使用我们提供的 Docker 镜像来构建， 它支持多个发行版本的 Linux 。
 
-
 - LLVM 12.0.0 (>= 10.0.0)
 - GCC 11.1.0 (>= 9.4.0)
 
@@ -42,7 +41,6 @@ $ docker pull wasmedge/wasmedge # 等同于 wasmedge/wasmedge:latest
 | `manylinux2014_aarch64` | aarch64  | CentOS 7, 7.9.2009 | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 这个提供给熟悉 CentOS aarch64 架构的开发者使用                      |
 | `manylinux2010_x86_64`  | x86\_64  | CentOS 6, 6.10     | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 6+ | 这个提供给熟悉基于 x86\_64 架构的过时系统的开发者使用，后续不再维护 |
 | `manylinux1_x86_64`     | x86\_64  | CentOS 5, 5.11     | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 5+ | 这个提供给熟悉基于 x86\_64 架构的过时系统的开发者使用，后续不再维护 |
-
 
 ### 在 Ubuntu 20.04 上手动安装依赖
 
@@ -72,7 +70,6 @@ $ sudo apt install -y clang
 
 如果用户的系统是比 Ubuntu 20.04 还早的版本，请使用我们定制的 docker 镜像来构建 WasmEdge 。
 如果你需要的是在过时版本的操作系统上使用的二进制包，我们也提供了几个基于 manylinux\* 发行版本的安装包。
-
 
 | 可移植的 Linux 发行版标签                  | 基础镜像      | 提供的依赖                                                              | Docker 镜像                              |
 | ---                                     | ---         | ---                                                                   | ---                                      |

@@ -10,13 +10,14 @@ WasmEdge is a cloud-native WebAssembly runtime hosted by the CNCF. It is widely 
 * [JavaScript or DSL runtime](#javascript-or-dsl-runtime)
   * [JavaScript](#javascript)
   * [DSL for image classification](#dsl-for-image-classification)
+  * [DSL for chatbots](#dsl-for-chatbots)
 * [Serverless function-as-a-service in public clouds](#serverless-function-as-a-service-in-public-clouds)
   * [AWS Lambda](#aws-lambda)
   * [Tencent Serverless Functions](#tencent-serverless-functions)
   * [Vercel Serverless Functions](#vercel-serverless-functions)
   * [Netlify Functions](#netlify-functions)
   * [Second State Functions](#second-state-functions)
-* [Software defined vehicles and smart factory](#software-defined-vehicles-and-aiot)
+* [Software defined vehicles and smart factory](#software-defined-vehicles-and-smart-factory)
   * [YoMo Flow](#yomo-flow)
   * [seL4 micokernel and RTOS](#sel4-microkernel-os)
 * [Reactive functions for SaaS](#reactive-functions-for-saas)
@@ -98,7 +99,7 @@ WasmEdge works with existing serverless or Jamstack platforms to provide a high-
 
 * [Tutorials](https://www.secondstate.io/faas/)
 
-## Software defined vehicles and AIoT
+## Software defined vehicles and smart factory
 
 WasmEdge is ideally suited to run on mission-critical edge devices or edge networks.
 

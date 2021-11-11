@@ -1,11 +1,12 @@
 # WasmEdge 应用场景
 
-WasmEdge 是由 CNCF 托管的云原生 WebAssembly runtime。它广泛应用于边缘计算、汽车、Jamstack、Serverless、SaaS、服务网格，乃至区块链应用。 WasmEdge 可以进行 AOT （提前编译）编译器优化，是当今市场上最快的 WebAssembly runtime。
+WasmEdge 是由 CNCF 托管的云原生 WebAssembly runtime。它广泛应用于边缘计算、汽车、Jamstack、Serverless、SaaS、服务网格，乃至区块链应用。 WasmEdge 可以进行 AOT （提前编译）编译器优化，是当今市场上最快的 WebAssembly runtime 之一。
 
 ## 目录
 
 * [云原生 runtime](#cloud-native-runtime-as-a-lightweight-docker-alternative)
   * [Dapr](#dapr-distributed-application-runtime)
+  * [Kubernetes](#orchestration-and-management)
 * [JavaScript 或 DSL runtime](#javascript-or-DSL-runtime)
   * [JavaScript](#javascript)
   * [用于图像识别的 DSL](#dsl-for-image-classification)
@@ -15,8 +16,9 @@ WasmEdge 是由 CNCF 托管的云原生 WebAssembly runtime。它广泛应用于
   * [Vercel Serverless 函数](#vercel-serverless-functions)
   * [Netlify Functions](#netlify-functions)
   * [Second State Functions](#second-state-functions)
-* [软件定义的汽车和 AIoT](#software-defined-vehicles-and-aiot)
+* [软件定义的汽车和智慧工厂](#software-defined-vehicles-and-aiot)
   * [YoMo Flow](#yomo-flow)
+  * [seL4 micokernel and RTOS](#sel4-microkernel-os)
 * [用于 SaaS 的响应式函数](#reactive-functions-for-saas)
   * [Slack](#slack)
   * [飞书](#lark)
@@ -27,7 +29,7 @@ WasmEdge 可以通过其 [C](https://github.com/WasmEdge/WasmEdge/blob/master/do
 
 ### Dapr (分布式应用 Runtime)<a name="dapr-distributed-application-runtime"></a>
 
-* 教程 (待发布)
+* [教程](https://www.secondstate.io/articles/dapr-wasmedge-webassembly/)
 * [代码教程](https://github.com/second-state/dapr-wasm)
 
 ### Service mesh (开发进行中):
@@ -36,9 +38,9 @@ WasmEdge 可以通过其 [C](https://github.com/WasmEdge/WasmEdge/blob/master/do
 * MOSN
 * Envoy
 
-### 编排和管理 (开发进行中):
+### 编排和管理:
 
-* Kubernetes
+* [Kubernetes](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/)
 * KubeEdge
 * SuperEdge
 
@@ -50,7 +52,11 @@ WasmEdge 可以通过其 [C](https://github.com/WasmEdge/WasmEdge/blob/master/do
 
 WasmEdge 可以通过嵌入 JS 执行引擎或解释器来充当云原生 JavaScript runtime。它比在 Docker 中运行 JS 引擎更快更轻。 WasmEdge 支持 JS API 访问原生扩展库，例如网络 socket、tensorflow 和用户定义的共享库。它还允许将 JS 嵌入其他高性能语言（例如Rust）或使用 Rust/C 来实现 JS 函数。
 
-* [教程](https://www.secondstate.io/articles/run-javascript-in-webassembly-with-wasmedge/)
+* 教程
+  * [运行 JavaScript](https://www.secondstate.io/articles/run-javascript-in-webassembly-with-wasmedge/)
+  * [在 Rust 中嵌入 JavaScript](https://www.secondstate.io/articles/embed-javascript-in-rust/)
+  * [用 Rust 函数创建 JavaScript API](https://www.secondstate.io/articles/embed-rust-in-javascript/)
+  * [从 JavaScript调用 C 原生共享库函数](https://www.secondstate.io/articles/call-native-functions-from-javascript/)
 * [例子](https://github.com/WasmEdge/WasmEdge/blob/master/tools/wasmedge/examples/js/README.md)
 * [WasmEdge的内嵌 QuickJS 引擎](https://github.com/second-state/wasmedge-quickjs)
 
@@ -62,7 +68,9 @@ WasmEdge 可以通过嵌入 JS 执行引擎或解释器来充当云原生 JavaSc
 
 ### 用于聊天机器人的 DSL
 
-聊天机器人 DSL 函数接受输入字符串并回复字符串进行响应。 DSL 指定了聊天机器人的内部状态转换，以及用于语言理解的 AI 模型。正在开发中。
+聊天机器人 DSL 函数接受输入字符串并回复字符串进行响应。 DSL 指定了聊天机器人的内部状态转换，以及用于语言理解的 AI 模型。
+
+* [Demo](https://github.com/second-state/wasmedge-seL4)
 
 ## 公有云中的 Serverless 函数即服务<a name="serverless-function-as-a-service-in-public-clouds"></a>
 

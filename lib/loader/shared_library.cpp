@@ -44,6 +44,7 @@ Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
   Handle = ::dlopen(Path.c_str(), RTLD_LAZY | RTLD_LOCAL);
 #endif
   if (!Handle) {
+    spdlog::error(ErrCode::IllegalPath);
 #if WASMEDGE_OS_WINDOWS
     const auto Code = winapi::GetLastError();
     winapi::LPSTR_ ErrorText = nullptr;
@@ -55,13 +56,13 @@ Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
                                                    winapi::SUBLANG_DEFAULT_),
                                reinterpret_cast<winapi::LPSTR_>(&ErrorText), 0,
                                nullptr)) {
-      spdlog::error("load library failed:{}", ErrorText);
+      spdlog::error("    load library failed:{}", ErrorText);
       winapi::LocalFree(ErrorText);
     } else {
-      spdlog::error("load library failed:{:x}", Code);
+      spdlog::error("    load library failed:{:x}", Code);
     }
 #else
-    spdlog::error("load library failed:{}", ::dlerror());
+    spdlog::error("    load library failed:{}", ::dlerror());
 #endif
     return Unexpect(ErrCode::IllegalPath);
   }
@@ -78,6 +79,7 @@ Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
 
   Binary = Allocator::allocate_chunk(BinarySize);
   if (unlikely(!Binary)) {
+    spdlog::error(ErrCode::MemoryOutOfBounds);
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
 
@@ -104,7 +106,7 @@ Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
   for (const auto &[Pointer, Size] : ExecutableRanges) {
     if (!Allocator::set_chunk_executable(Pointer, Size)) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
-      spdlog::error("set_chunk_executable failed:{}", std::strerror(errno));
+      spdlog::error("    set_chunk_executable failed:{}", std::strerror(errno));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
   }

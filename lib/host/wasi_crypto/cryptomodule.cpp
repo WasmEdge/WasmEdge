@@ -3,9 +3,8 @@
 #include "host/wasi_crypto/cryptomodule.h"
 #include "host/wasi_crypto/asymmetric_common/func.h"
 #include "host/wasi_crypto/common/func.h"
+#include "host/wasi_crypto/key_exchange/func.h"
 #include "host/wasi_crypto/symmetric/func.h"
-
-#include "wasi_crypto/api.hpp"
 
 namespace WasmEdge {
 namespace Host {
@@ -160,6 +159,11 @@ WasiCryptoModule::WasiCryptoModule() : ImportObject("wasi_ephemeral_crypto") {
   addHostFunc(
       "secretkey_close",
       std::make_unique<AsymmetricCommon::SecretkeyClose>(AsymmetricCtx));
+
+  // kx
+  addHostFunc("kx_dh", std::make_unique<Kx::Dh>(KxCtx));
+  addHostFunc("kx_encapsulate", std::make_unique<Kx::Encapsulate>(KxCtx));
+  addHostFunc("kx_decapsulate", std::make_unique<Kx::Decapsulate>(KxCtx));
 }
 
 } // namespace Host

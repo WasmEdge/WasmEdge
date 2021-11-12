@@ -13,14 +13,14 @@ class KxContext {
 public:
   KxContext(CommonContext &DependencyCtx);
 
-  WasiCryptoExpect<__wasi_array_output_t> dh(__wasi_publickey_t Pk,
+  WasiCryptoExpect<__wasi_array_output_t> kxDh(__wasi_publickey_t Pk,
                                              __wasi_secretkey_t Sk);
 
   WasiCryptoExpect<std::tuple<__wasi_array_output_t, __wasi_array_output_t>>
-  encapsulate(__wasi_publickey_t Pk);
+  kxEncapsulate(__wasi_publickey_t Pk);
 
   WasiCryptoExpect<__wasi_array_output_t>
-  decapsulate(__wasi_secretkey_t Sk, Span<uint8_t> EncapsulatedSecret);
+  kxDecapsulate(__wasi_secretkey_t Sk, Span<uint8_t> EncapsulatedSecret);
 
 private:
   CommonContext &CommonCtx;

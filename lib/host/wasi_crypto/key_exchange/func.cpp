@@ -13,7 +13,7 @@ Expect<uint32_t> Dh::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  auto Res = Ctx.dh(Pk, Sk);
+  auto Res = Ctx.kxDh(Pk, Sk);
   if (unlikely(!Res)) {
     return Res.error();
   }
@@ -37,7 +37,7 @@ Expect<uint32_t> Encapsulate::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  auto Res = Ctx.encapsulate(Pk);
+  auto Res = Ctx.kxEncapsulate(Pk);
   if (unlikely(!Res)) {
     return Res.error();
   }
@@ -75,7 +75,7 @@ Expect<uint32_t> Decapsulate::body(Runtime::Instance::MemoryInstance *MemInst,
       MemInst->getPointer<uint8_t *>(EncapsulatedSecret, EncapsulatedSecretLen);
 
   auto Res =
-      Ctx.decapsulate(Sk, {EncapsulatedSecretMem, EncapsulatedSecretLen});
+      Ctx.kxDecapsulate(Sk, {EncapsulatedSecretMem, EncapsulatedSecretLen});
   if (unlikely(!Res)) {
     return Res.error();
   }

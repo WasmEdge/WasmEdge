@@ -12,20 +12,20 @@ template <typename... Targs> void dummyCode(Targs &&.../* unused */) {}
 
 KxContext::KxContext(CommonContext &DependencyCtx) : CommonCtx(DependencyCtx) {}
 
-WasiCryptoExpect<__wasi_array_output_t> KxContext::dh(__wasi_publickey_t Pk,
+WasiCryptoExpect<__wasi_array_output_t> KxContext::kxDh(__wasi_publickey_t Pk,
                                                       __wasi_secretkey_t Sk) {
   dummyCode(Pk,Sk);
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 WasiCryptoExpect<std::tuple<__wasi_array_output_t, __wasi_array_output_t>>
-KxContext::encapsulate(__wasi_publickey_t Pk) {
+KxContext::kxEncapsulate(__wasi_publickey_t Pk) {
   dummyCode(Pk);
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 WasiCryptoExpect<__wasi_array_output_t>
-KxContext::decapsulate(__wasi_secretkey_t Sk,
+KxContext::kxDecapsulate(__wasi_secretkey_t Sk,
                        Span<uint8_t> EncapsulatedSecret) {
   dummyCode(Sk, EncapsulatedSecret);
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);

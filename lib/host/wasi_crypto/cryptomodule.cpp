@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/cryptomodule.h"
+#include "host/wasi_crypto/asymmetric_common/func.h"
 #include "host/wasi_crypto/common/func.h"
 #include "host/wasi_crypto/symmetric/func.h"
+
 #include "wasi_crypto/api.hpp"
 
 namespace WasmEdge {
@@ -15,17 +17,14 @@ WasiCryptoModule::WasiCryptoModule() : ImportObject("wasi_ephemeral_crypto") {
               std::make_unique<Common::ArrayOutputLen>(CommonCtx));
   addHostFunc("array_output_pull",
               std::make_unique<Common::ArrayOutputPull>(CommonCtx));
-  addHostFunc("options_open",
-              std::make_unique<Common::OptionsOpen>(CommonCtx));
+  addHostFunc("options_open", std::make_unique<Common::OptionsOpen>(CommonCtx));
   addHostFunc("options_close",
               std::make_unique<Common::OptionsClose>(CommonCtx));
-  addHostFunc("options_set",
-              std::make_unique<Common::OptionsSet>(CommonCtx));
+  addHostFunc("options_set", std::make_unique<Common::OptionsSet>(CommonCtx));
   addHostFunc("options_set_u64",
               std::make_unique<Common::OptionsSetU64>(CommonCtx));
-  addHostFunc(
-      "options_set_guest_buffer",
-      std::make_unique<Common::OptionsSetGuestBuffer>(CommonCtx));
+  addHostFunc("options_set_guest_buffer",
+              std::make_unique<Common::OptionsSetGuestBuffer>(CommonCtx));
   addHostFunc("secrets_manager_open",
               std::make_unique<Common::SecretsMangerOpen>(CommonCtx));
   addHostFunc("secrets_manager_close",
@@ -72,14 +71,12 @@ WasiCryptoModule::WasiCryptoModule() : ImportObject("wasi_ephemeral_crypto") {
               std::make_unique<Symmetric::StateMaxTagLen>(SymmetricCtx));
   addHostFunc("symmetric_state_encrypt",
               std::make_unique<Symmetric::StateEncrypt>(SymmetricCtx));
-  addHostFunc(
-      "symmetric_state_encrypt_detached",
-      std::make_unique<Symmetric::StateEncryptDetached>(SymmetricCtx));
+  addHostFunc("symmetric_state_encrypt_detached",
+              std::make_unique<Symmetric::StateEncryptDetached>(SymmetricCtx));
   addHostFunc("symmetric_state_decrypt",
               std::make_unique<Symmetric::StateDecrypt>(SymmetricCtx));
-  addHostFunc(
-      "symmetric_state_decrypt_detached",
-      std::make_unique<Symmetric::StateDecryptDetached>(SymmetricCtx));
+  addHostFunc("symmetric_state_decrypt_detached",
+              std::make_unique<Symmetric::StateDecryptDetached>(SymmetricCtx));
   addHostFunc("symmetric_state_ratchet",
               std::make_unique<Symmetric::StateRatchet>(SymmetricCtx));
   addHostFunc("symmetric_tag_len",
@@ -90,6 +87,79 @@ WasiCryptoModule::WasiCryptoModule() : ImportObject("wasi_ephemeral_crypto") {
               std::make_unique<Symmetric::TagVerify>(SymmetricCtx));
   addHostFunc("symmetric_tag_close",
               std::make_unique<Symmetric::TagClose>(SymmetricCtx));
+
+  // asymmetric
+
+  addHostFunc(
+      "keypair_generate",
+      std::make_unique<AsymmetricCommon::KeypairGenerate>(AsymmetricCtx));
+  addHostFunc("keypair_import",
+              std::make_unique<AsymmetricCommon::KeypairImport>(AsymmetricCtx));
+  addHostFunc("keypair_generate_managed",
+              std::make_unique<AsymmetricCommon::KeypairGenerateManaged>(
+                  AsymmetricCtx));
+  addHostFunc(
+      "keypair_store_managed",
+      std::make_unique<AsymmetricCommon::KeypairStoreManaged>(AsymmetricCtx));
+  addHostFunc(
+      "keypair_replace_managed",
+      std::make_unique<AsymmetricCommon::KeypairReplaceManaged>(AsymmetricCtx));
+  addHostFunc("keypair_id",
+              std::make_unique<AsymmetricCommon::KeypairId>(AsymmetricCtx));
+  addHostFunc("keypair_from_id",
+              std::make_unique<AsymmetricCommon::KeypairFromId>(AsymmetricCtx));
+  addHostFunc(
+      "keypair_from_pk_and_sk",
+      std::make_unique<AsymmetricCommon::KeypairFromPkAndSk>(AsymmetricCtx));
+  addHostFunc("keypair_export",
+              std::make_unique<AsymmetricCommon::KeypairExport>(AsymmetricCtx));
+  addHostFunc(
+      "keypair_publickey",
+      std::make_unique<AsymmetricCommon::KeypairPublickey>(AsymmetricCtx));
+  addHostFunc(
+      "keypair_secretkey",
+      std::make_unique<AsymmetricCommon::KeypairSecretkey>(AsymmetricCtx));
+  addHostFunc("keypair_close",
+              std::make_unique<AsymmetricCommon::KeypairClose>(AsymmetricCtx));
+  addHostFunc(
+      "publickey_import",
+      std::make_unique<AsymmetricCommon::PublickeyImport>(AsymmetricCtx));
+  addHostFunc(
+      "publickey_export",
+      std::make_unique<AsymmetricCommon::PublickeyExport>(AsymmetricCtx));
+  addHostFunc(
+      "publickey_verify",
+      std::make_unique<AsymmetricCommon::PublickeyVerify>(AsymmetricCtx));
+  addHostFunc("publickey_from_secretkey",
+              std::make_unique<AsymmetricCommon::PublickeyFromSecretkey>(
+                  AsymmetricCtx));
+  addHostFunc(
+      "publickey_close",
+      std::make_unique<AsymmetricCommon::PublickeyClose>(AsymmetricCtx));
+  addHostFunc(
+      "publickey_import",
+      std::make_unique<AsymmetricCommon::PublickeyImport>(AsymmetricCtx));
+  addHostFunc(
+      "publickey_export",
+      std::make_unique<AsymmetricCommon::PublickeyExport>(AsymmetricCtx));
+  addHostFunc(
+      "publickey_verify",
+      std::make_unique<AsymmetricCommon::PublickeyVerify>(AsymmetricCtx));
+  addHostFunc("publickey_from_secretkey",
+              std::make_unique<AsymmetricCommon::PublickeyFromSecretkey>(
+                  AsymmetricCtx));
+  addHostFunc(
+      "publickey_close",
+      std::make_unique<AsymmetricCommon::PublickeyClose>(AsymmetricCtx));
+  addHostFunc(
+      "secretkey_import",
+      std::make_unique<AsymmetricCommon::SecretkeyImport>(AsymmetricCtx));
+  addHostFunc(
+      "secretkey_export",
+      std::make_unique<AsymmetricCommon::SecretkeyExport>(AsymmetricCtx));
+  addHostFunc(
+      "secretkey_close",
+      std::make_unique<AsymmetricCommon::SecretkeyClose>(AsymmetricCtx));
 }
 
 } // namespace Host

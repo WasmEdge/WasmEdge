@@ -3,6 +3,7 @@
 
 #include "host/wasi_crypto/common/ctx.h"
 #include "host/wasi_crypto/symmetric/ctx.h"
+#include "host/wasi_crypto/asymmetric_common/ctx.h"
 #include "runtime/importobj.h"
 
 namespace WasmEdge {
@@ -18,6 +19,7 @@ public:
 private:
   WASICrypto::CommonContext CommonCtx;
   WASICrypto::SymmetricContext SymmetricCtx{CommonCtx};
+  WASICrypto::AsymmetricCommonContext AsymmetricCtx{CommonCtx};
 };
 
 

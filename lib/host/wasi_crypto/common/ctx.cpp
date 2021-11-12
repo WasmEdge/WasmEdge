@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/common/ctx.h"
+#include "common/span.h"
+#include "host/wasi_crypto/asymmetric_common/ctx.h"
 
 namespace WasmEdge {
 namespace Host {

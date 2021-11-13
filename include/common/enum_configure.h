@@ -105,4 +105,12 @@ enum WasmEdge_CompilerOptimizationLevel {
   WasmEdge_CompilerOptimizationLevel_Oz
 };
 
+/// AOT compiler output binary format enumeration.
+enum WasmEdge_CompilerOutputFormat {
+  /// Native dynamic library format.
+  WasmEdge_CompilerOutputFormat_Native = 0,
+  /// WebAssembly with AOT compiled codes in custom sections.
+  WasmEdge_CompilerOutputFormat_Wasm
+};
+
 #endif /// WASMEDGE_C_API_ENUM_CONFIGURE_H

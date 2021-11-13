@@ -42,8 +42,17 @@ public:
   void setOptimizationLevel(OptimizationLevel Level) noexcept {
     OptLevel = Level;
   }
-
   OptimizationLevel getOptimizationLevel() const noexcept { return OptLevel; }
+
+  /// AOT compiler output binary format.
+  enum class OutputFormat : uint8_t {
+    /// Native dynamic library format.
+    Native,
+    /// WebAssembly with AOT compiled codes in custom sections.
+    Wasm,
+  };
+  void setOutputFormat(OutputFormat Format) noexcept { OFormat = Format; }
+  OutputFormat getOutputFormat() const noexcept { return OFormat; }
 
   void setDumpIR(bool IsDump) noexcept { DumpIR = IsDump; }
 
@@ -55,19 +64,9 @@ public:
 
   bool isGenericBinary() const noexcept { return GenericBinary; }
 
-  /// AOT compiler output binary format.
-  enum class OutputFormat : uint8_t {
-    /// Native dynamic library format.
-    Native,
-    /// Webassembly format with custom section.
-    Wasm,
-  };
-  void setOutputFormat(OutputFormat Format) noexcept { OFormat = Format; }
-  OutputFormat getOutputFormat() const noexcept { return OFormat; }
-
 private:
   OptimizationLevel OptLevel = OptimizationLevel::O3;
-  OutputFormat OFormat = OutputFormat::Native;
+  OutputFormat OFormat = OutputFormat::Wasm;
   bool DumpIR = false;
   bool GenericBinary = false;
 };

@@ -722,44 +722,44 @@ enum __wasi_rights_t : uint64_t {
   __WASI_RIGHTS_POLL_FD_READWRITE = 1ULL << 27,
 
   /**
-   * The right to invoke `sock_shutdown`.
-   */
-  __WASI_RIGHTS_SOCK_SHUTDOWN = 1ULL << 28,
-
-  /**
    * The right to invoke `sock_open`.
    */
-  __WASI_RIGHTS_SOCK_OPEN = 1ULL << 29,
+  __WASI_RIGHTS_SOCK_OPEN = 1ULL << 28,
 
   /**
    * The right to invoke `sock_close`.
    */
-  __WASI_RIGHTS_SOCK_CLOSE = 1ULL << 30,
+  __WASI_RIGHTS_SOCK_CLOSE = 1ULL << 29,
 
   /**
    * The right to invoke `sock_bind`.
    */
-  __WASI_RIGHTS_SOCK_BIND = 1ULL << 31,
+  __WASI_RIGHTS_SOCK_BIND = 1ULL << 30,
 
   /**
    * The right to invoke `sock_recv`.
    */
-  __WASI_RIGHTS_SOCK_RECV = 1ULL << 32,
+  __WASI_RIGHTS_SOCK_RECV = 1ULL << 31,
 
   /**
    * The right to invoke `sock_recv_from`.
    */
-  __WASI_RIGHTS_SOCK_RECV_FROM = 1ULL << 33,
+  __WASI_RIGHTS_SOCK_RECV_FROM = 1ULL << 32,
 
   /**
    * The right to invoke `sock_send`.
    */
-  __WASI_RIGHTS_SOCK_SEND = 1ULL << 34,
+  __WASI_RIGHTS_SOCK_SEND = 1ULL << 33,
 
   /**
    * The right to invoke `sock_send_to`.
    */
-  __WASI_RIGHTS_SOCK_SEND_TO = 1ULL << 35,
+  __WASI_RIGHTS_SOCK_SEND_TO = 1ULL << 34,
+
+  /**
+   * The right to invoke `sock_shutdown`.
+   */
+  __WASI_RIGHTS_SOCK_SHUTDOWN = 1ULL << 35,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_rights_t)

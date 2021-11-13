@@ -24,10 +24,13 @@ private:
 class XoodyakSymmetricKeyBuilder : public SymmetricKeyBuilder {
 public:
   XoodyakSymmetricKeyBuilder(SymmetricAlgorithm Alg);
+
   WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
   generate(std::shared_ptr<SymmetricOption> Option) override;
+
   WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
   import(Span<uint8_t const> Raw) override;
+
   WasiCryptoExpect<__wasi_size_t> keyLen() override;
 
 private:

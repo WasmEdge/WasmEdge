@@ -28,7 +28,7 @@ public:
   /// supported by the host for the chosen algorithm, or `unsupported_algorithm`
   /// if the algorithm is not supported by the host.
   WasiCryptoExpect<__wasi_symmetric_key_t>
-  symmetricKeyGenerate(std::string_view Alg,
+  symmetricKeyGenerate(SymmetricAlgorithm Alg,
                        std::optional<__wasi_options_t> OptionsHandle);
 
   /// Create a symmetric key from raw material.
@@ -40,7 +40,7 @@ public:
   /// The function may also return `unsupported_algorithm` if the algorithm is
   /// not supported by the host.
   WasiCryptoExpect<__wasi_symmetric_key_t>
-  symmetricKeyImport(std::string_view Alg, Span<uint8_t const> Raw);
+  symmetricKeyImport(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
 
   /// Export a symmetric key as raw material.
   ///
@@ -76,7 +76,7 @@ public:
   /// exist.
   WasiCryptoExpect<__wasi_symmetric_key_t>
   symmetricKeyGenerateManaged(__wasi_secrets_manager_t SecretsManager,
-                              std::string_view Algorithm,
+                              SymmetricAlgorithm Alg,
                               std::optional<__wasi_options_t> Options);
 
   /// __(optional)__
@@ -215,7 +215,7 @@ public:
   /// - **Session authenticated modes**
   ///
   WasiCryptoExpect<__wasi_symmetric_state_t>
-  symmetricStateOpen(std::string_view Alg,
+  symmetricStateOpen(SymmetricAlgorithm Alg,
                      std::optional<__wasi_symmetric_key_t> KeyHandle,
                      std::optional<__wasi_options_t> OptionsHandle);
 
@@ -313,7 +313,7 @@ public:
   /// operation.
   WasiCryptoExpect<__wasi_symmetric_key_t>
   symmetricStateSqueezeKey(__wasi_symmetric_state_t StateHandle,
-                           std::string_view Alg);
+                           SymmetricAlgorithm Alg);
 
   /// Return the maximum length of an authentication tag for the current
   /// algorithm.

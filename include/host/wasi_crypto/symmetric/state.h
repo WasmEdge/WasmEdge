@@ -57,14 +57,14 @@ public:
                                                   Span<uint8_t> RawTag);
 
   virtual WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  squeezeKey(std::string_view AlgStr);
+  squeezeKey(SymmetricAlgorithm Alg);
 
   virtual WasiCryptoExpect<SymmetricTag> squeezeTag();
 
   virtual WasiCryptoExpect<__wasi_size_t> maxTagLen();
 
   static WasiCryptoExpect<std::unique_ptr<SymmetricState>>
-  make(std::string_view Alg, std::shared_ptr<SymmetricKey> KeyOptional,
+  make(SymmetricAlgorithm Alg, std::shared_ptr<SymmetricKey> KeyOptional,
        std::shared_ptr<SymmetricOption> OptionsOptional);
 
   virtual ~SymmetricState() = default;

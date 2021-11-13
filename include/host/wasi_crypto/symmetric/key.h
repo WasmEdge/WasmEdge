@@ -24,14 +24,14 @@ public:
   virtual SymmetricAlgorithm alg() = 0;
 
   static WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  generate(std::string_view Alg, std::shared_ptr<SymmetricOption> Option);
+  generate(SymmetricAlgorithm Alg, std::shared_ptr<SymmetricOption> Option);
 
   static WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  import(std::string_view Alg, Span<uint8_t const> Raw);
+  import(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
 
 private:
   static WasiCryptoExpect<std::unique_ptr<SymmetricKeyBuilder>>
-  builder(std::string_view Alg);
+  builder(SymmetricAlgorithm Alg);
 };
 
 class SymmetricKeyBuilder {

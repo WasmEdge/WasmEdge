@@ -57,7 +57,7 @@ public:
   /// Extract:
   /// returns the PRK, whose algorithm type is set to the EXPAND counterpart of the EXTRACT operation
   WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  squeezeKey(std::string_view AlgStr) override;
+  squeezeKey(SymmetricAlgorithm AlgStr) override;
 
   // Expand
   WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) override;

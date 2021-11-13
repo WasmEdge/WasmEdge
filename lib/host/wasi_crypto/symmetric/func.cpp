@@ -23,6 +23,10 @@ Expect<uint32_t> KeyGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
   std::string_view Alg{AlgMem, AlgLen};
+  auto EnumAlg = fromConstantString(Alg);
+  if (!EnumAlg) {
+    return EnumAlg.error();
+  }
 
   auto *const OptOption =
       MemInst->getPointer<__wasi_opt_options_t *>(OptionsPtr);
@@ -31,7 +35,7 @@ Expect<uint32_t> KeyGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   auto Res = Ctx.symmetricKeyGenerate(
-      Alg, WASICrypto::parseCUnion<__wasi_options_t>(*OptOption));
+      *EnumAlg, WASICrypto::parseCUnion<__wasi_options_t>(*OptOption));
 
   if (unlikely(!Res)) {
     return Res.error();
@@ -59,6 +63,10 @@ Expect<uint32_t> KeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
   std::string_view Alg{AlgMem, AlgLen};
+  auto EnumAlg = fromConstantString(Alg);
+  if (!EnumAlg) {
+    return EnumAlg.error();
+  }
 
   auto *RawMem = MemInst->getPointer<uint8_t const *>(RawPtr, RawLen);
   if (unlikely(RawMem == nullptr)) {
@@ -66,7 +74,7 @@ Expect<uint32_t> KeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
   }
   Span<uint8_t const> Raw{RawMem, RawLen};
 
-  auto Res = Ctx.symmetricKeyImport(Alg, Raw);
+  auto Res = Ctx.symmetricKeyImport(*EnumAlg, Raw);
 
   if (unlikely(!Res)) {
     return Res.error();
@@ -132,6 +140,10 @@ KeyGenerateManaged::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
   std::string_view Alg{AlgMem, AlgLen};
+  auto EnumAlg = fromConstantString(Alg);
+  if (!EnumAlg) {
+    return EnumAlg.error();
+  }
 
   auto *OptOptions = MemInst->getPointer<__wasi_opt_options_t *>(OptOptionsPtr);
   if (unlikely(OptOptions == nullptr)) {
@@ -139,7 +151,7 @@ KeyGenerateManaged::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   auto Res = Ctx.symmetricKeyGenerateManaged(
-      SecretsManager, Alg,
+      SecretsManager, *EnumAlg,
       WASICrypto::parseCUnion<__wasi_options_t>(*OptOptions));
   if (unlikely(!Res)) {
     return Res.error();
@@ -287,10 +299,14 @@ Expect<uint32_t> StateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  std::string_view Name{AlgMem, AlgLen};
+  std::string_view Alg{AlgMem, AlgLen};
+  auto EnumAlg = fromConstantString(Alg);
+  if (!EnumAlg) {
+    return EnumAlg.error();
+  }
 
   auto Res = Ctx.symmetricStateOpen(
-      Name, WASICrypto::parseCUnion<__wasi_symmetric_key_t>(*OptKey),
+      *EnumAlg, WASICrypto::parseCUnion<__wasi_symmetric_key_t>(*OptKey),
       WASICrypto::parseCUnion<__wasi_options_t>(*OptOptions));
   if (unlikely(!Res)) {
     return Res.error();
@@ -458,8 +474,12 @@ StateSqueezeKey::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
   std::string_view Alg{AlgMem, AlgLen};
+  auto EnumAlg = fromConstantString(Alg);
+  if (!EnumAlg) {
+    return EnumAlg.error();
+  }
 
-  auto Res = Ctx.symmetricStateSqueezeKey(Handle, Alg);
+  auto Res = Ctx.symmetricStateSqueezeKey(Handle, *EnumAlg);
   if (unlikely(!Res)) {
     return Res.error();
   }

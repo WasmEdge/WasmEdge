@@ -55,7 +55,7 @@ WasiCryptoExpect<void> SymmetricState::squeeze(Span<uint8_t>) {
 }
 
 WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-SymmetricState::squeezeKey(std::string_view) {
+SymmetricState::squeezeKey(SymmetricAlgorithm) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
@@ -154,43 +154,38 @@ WasiCryptoExpect<void> SymmetricState::ratchet() {
 }
 
 WasiCryptoExpect<std::unique_ptr<SymmetricState>>
-SymmetricState::make(std::string_view Alg,
+SymmetricState::make(SymmetricAlgorithm Alg,
                      std::shared_ptr<SymmetricKey> KeyOptional,
                      std::shared_ptr<SymmetricOption> OptionsOptional) {
-  auto EnumAlg = fromConstantString(Alg);
-  if (!EnumAlg) {
-    return WasiCryptoUnexpect(EnumAlg);
-  }
 
-  if (KeyOptional != nullptr && (KeyOptional->alg() != EnumAlg)) {
+  if (KeyOptional != nullptr && (KeyOptional->alg() != Alg)) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
   }
-  switch (*EnumAlg) {
+  switch (Alg) {
   case SymmetricAlgorithm::HmacSha256:
   case SymmetricAlgorithm::HmacSha512:
-    return HmacSha2SymmetricState::make(*EnumAlg, std::move(KeyOptional),
+    return HmacSha2SymmetricState::make(Alg, std::move(KeyOptional),
                                         std::move(OptionsOptional));
   case SymmetricAlgorithm::HkdfSha256Extract:
   case SymmetricAlgorithm::HkdfSha512Extract:
   case SymmetricAlgorithm::HkdfSha256Expand:
   case SymmetricAlgorithm::HkdfSha512Expand:
-    return HkdfSymmetricState::make(*EnumAlg, KeyOptional, OptionsOptional);
+    return HkdfSymmetricState::make(Alg, KeyOptional, OptionsOptional);
   case SymmetricAlgorithm::Sha256:
   case SymmetricAlgorithm::Sha512:
   case SymmetricAlgorithm::Sha512_256:
-    return Sha2SymmetricState::make(*EnumAlg, nullptr,
-                                    std::move(OptionsOptional));
+    return Sha2SymmetricState::make(Alg, nullptr, std::move(OptionsOptional));
   case SymmetricAlgorithm::Aes128Gcm:
   case SymmetricAlgorithm::Aes256Gcm:
-    return AesGcmSymmetricState::make(*EnumAlg, std::move(KeyOptional),
+    return AesGcmSymmetricState::make(Alg, std::move(KeyOptional),
                                       std::move(OptionsOptional));
   case SymmetricAlgorithm::ChaCha20Poly1305:
   case SymmetricAlgorithm::XChaCha20Poly1305:
-    return ChaChaPolySymmetricState::make(*EnumAlg, std::move(KeyOptional),
+    return ChaChaPolySymmetricState::make(Alg, std::move(KeyOptional),
                                           std::move(OptionsOptional));
   case SymmetricAlgorithm::Xoodyak128:
   case SymmetricAlgorithm::Xoodyak160:
-    return XoodyakSymmetricState::make(*EnumAlg, std::move(KeyOptional),
+    return XoodyakSymmetricState::make(Alg, std::move(KeyOptional),
                                        std::move(OptionsOptional));
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);

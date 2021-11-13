@@ -149,7 +149,7 @@ WasiCryptoExpect<void> HkdfSymmetricState::absorb(Span<const uint8_t> Data) {
 }
 
 WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-HkdfSymmetricState::squeezeKey(std::string_view AlgStr) {
+HkdfSymmetricState::squeezeKey(SymmetricAlgorithm Alg) {
   // check Size
   size_t Size;
   if (EVP_PKEY_derive(Ctx.get(), nullptr, &Size) <= 0) {
@@ -167,7 +167,7 @@ HkdfSymmetricState::squeezeKey(std::string_view AlgStr) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 
-  return SymmetricKey::import(AlgStr, Vec);
+  return SymmetricKey::import(Alg, Vec);
 }
 
 WasiCryptoExpect<void> HkdfSymmetricState::squeeze(Span<uint8_t> Out) {

@@ -12,7 +12,7 @@ SymmetricContext::SymmetricContext(CommonContext &DependencyCtx)
     : CommonCtx(DependencyCtx) {}
 
 WasiCryptoExpect<__wasi_symmetric_key_t> SymmetricContext::symmetricKeyGenerate(
-    std::string_view Alg, std::optional<__wasi_options_t> OptionsHandle) {
+    SymmetricAlgorithm Alg, std::optional<__wasi_options_t> OptionsHandle) {
   auto Options = readSymmetricOption(OptionsHandle);
   if (!Options) {
     return WasiCryptoUnexpect(Options);
@@ -27,7 +27,7 @@ WasiCryptoExpect<__wasi_symmetric_key_t> SymmetricContext::symmetricKeyGenerate(
 }
 
 WasiCryptoExpect<__wasi_symmetric_key_t>
-SymmetricContext::symmetricKeyImport(std::string_view Alg,
+SymmetricContext::symmetricKeyImport(SymmetricAlgorithm Alg,
                                      Span<uint8_t const> Raw) {
   auto Key = SymmetricKey::import(Alg, Raw);
   if (!Key) {
@@ -59,7 +59,7 @@ SymmetricContext::symmetricKeyClose(__wasi_symmetric_key_t SymmetricKey) {
 
 WasiCryptoExpect<__wasi_symmetric_key_t>
 SymmetricContext::symmetricKeyGenerateManaged(__wasi_secrets_manager_t,
-                                              std::string_view,
+                                              SymmetricAlgorithm,
                                               std::optional<__wasi_options_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
@@ -89,7 +89,7 @@ SymmetricContext::symmetricKeyFromId(__wasi_secrets_manager_t, Span<uint8_t>,
 }
 
 WasiCryptoExpect<__wasi_symmetric_state_t> SymmetricContext::symmetricStateOpen(
-    std::string_view Alg, std::optional<__wasi_symmetric_key_t> KeyHandle,
+    SymmetricAlgorithm Alg, std::optional<__wasi_symmetric_key_t> KeyHandle,
     std::optional<__wasi_options_t> OptionsHandle) {
 
   auto Key = readSymmetricKey(KeyHandle);
@@ -207,7 +207,7 @@ SymmetricContext::symmetricStateSqueezeTag(__wasi_symmetric_state_t Handle) {
 
 WasiCryptoExpect<__wasi_symmetric_key_t>
 SymmetricContext::symmetricStateSqueezeKey(__wasi_symmetric_state_t StateHandle,
-                                           std::string_view Alg) {
+                                           SymmetricAlgorithm Alg) {
   auto State = SymmetricStateManger.get(StateHandle);
   if (!State) {
     return WasiCryptoUnexpect(State);

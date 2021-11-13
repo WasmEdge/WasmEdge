@@ -54,6 +54,8 @@ TEST_P(NativeCoreTest, TestSuites) {
     WasmEdge::Configure CopyConf = Conf;
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
+    CopyConf.getCompilerConfigure().setOutputFormat(
+        CompilerConfigure::OutputFormat::Native);
     CopyConf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O0);
     CopyConf.getCompilerConfigure().setDumpIR(true);
@@ -157,8 +159,6 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
   auto Compile = [&, Conf = std::cref(Conf)](
                      const std::string &Filename) -> Expect<std::string> {
     WasmEdge::Configure CopyConf = Conf;
-    CopyConf.getCompilerConfigure().setOutputFormat(
-        CompilerConfigure::OutputFormat::Wasm);
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
     CopyConf.getCompilerConfigure().setOptimizationLevel(

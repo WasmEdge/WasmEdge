@@ -3,7 +3,7 @@
 
 #include "host/wasi_crypto/common/options.h"
 #include "host/wasi_crypto/lock.h"
-#include "host/wasi_crypto/symmetric/algorithm.h"
+#include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/options.h"
 #include "host/wasi_crypto/symmetric/tag.h"

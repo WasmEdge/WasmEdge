@@ -2,6 +2,7 @@
 #pragma once
 
 #include "host/wasi_crypto/error.h"
+#include "host/wasi_crypto/util.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -12,8 +13,9 @@ enum class KxAlgorithm {
   Kyber768
 };
 
+template<>
 constexpr WasiCryptoExpect<KxAlgorithm>
-fromConstantString(std::string_view AlgStr) {
+tryFrom(std::string_view AlgStr) noexcept {
   if (AlgStr == "X25519") {
     return KxAlgorithm::X25519;
   }

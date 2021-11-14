@@ -2,6 +2,7 @@
 #pragma once
 
 #include "host/wasi_crypto/error.h"
+#include "host/wasi_crypto/util.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -26,42 +27,42 @@ enum class SymmetricAlgorithm {
   Xoodyak160
 };
 
+template<>
 constexpr WasiCryptoExpect<SymmetricAlgorithm>
-fromConstantString(std::string_view Value) {
-  using namespace std::literals;
-  if (Value == "HKDF-EXTRACT/SHA-256"sv)
+tryFrom(std::string_view Value) noexcept {
+  if (Value == "HKDF-EXTRACT/SHA-256")
     return SymmetricAlgorithm::HkdfSha256Extract;
-  if (Value == "HKDF-EXTRACT/SHA-512"sv)
+  if (Value == "HKDF-EXTRACT/SHA-512")
     return SymmetricAlgorithm::HkdfSha512Extract;
-  if (Value == "HKDF-EXPAND/SHA-256"sv)
+  if (Value == "HKDF-EXPAND/SHA-256")
     return SymmetricAlgorithm::HkdfSha256Expand;
-  if (Value == "HKDF-EXPAND/SHA-512"sv)
+  if (Value == "HKDF-EXPAND/SHA-512")
     return SymmetricAlgorithm::HkdfSha512Expand;
-  if (Value == "HMAC/SHA-256"sv)
+  if (Value == "HMAC/SHA-256")
     return SymmetricAlgorithm::HmacSha256;
-  if (Value == "HMAC/SHA-512"sv)
+  if (Value == "HMAC/SHA-512")
     return SymmetricAlgorithm::HmacSha512;
-  if (Value == "SHA-256"sv)
+  if (Value == "SHA-256")
     return SymmetricAlgorithm::Sha256;
-  if (Value == "SHA-512"sv)
+  if (Value == "SHA-512")
     return SymmetricAlgorithm::Sha512;
-  if (Value == "SHA-512/256"sv)
+  if (Value == "SHA-512/256")
     return SymmetricAlgorithm::Sha512_256;
-  if (Value == "AES-128-GCM"sv)
+  if (Value == "AES-128-GCM")
     return SymmetricAlgorithm::Aes128Gcm;
-  if (Value == "AES-256-GCM"sv)
+  if (Value == "AES-256-GCM")
     return SymmetricAlgorithm::Aes256Gcm;
-  if (Value == "CHACHA20-POLY1305"sv)
+  if (Value == "CHACHA20-POLY1305")
     return SymmetricAlgorithm::ChaCha20Poly1305;
-  if (Value == "XCHACHA20-POLY1305"sv)
+  if (Value == "XCHACHA20-POLY1305")
     return SymmetricAlgorithm::XChaCha20Poly1305;
-  if (Value == "XOODYAK-128"sv)
+  if (Value == "XOODYAK-128")
     return SymmetricAlgorithm::Xoodyak128;
-  if (Value == "XOODYAK-160"sv)
+  if (Value == "XOODYAK-160")
     return SymmetricAlgorithm::Xoodyak160;
-
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
 }
+
 
 } // namespace WASICrypto
 } // namespace Host

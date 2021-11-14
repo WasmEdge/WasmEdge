@@ -54,10 +54,10 @@ Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
   if (unlikely(AlgMem == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
-  std::string_view AlgStr{AlgMem, AlgorithmLen};
-  auto Alg = fromConstantString(AlgStr);
-  if(!Alg) {
-    return Alg.error();
+  std::string_view Alg{AlgMem, AlgorithmLen};
+  auto EnumAlg = tryFrom<SignatureAlgorithm>(Alg);
+  if(!EnumAlg) {
+    return EnumAlg.error();
   }
 
   auto *EncodedMem = MemInst->getPointer<uint8_t *>(EncodedPtr, EncodedLen);
@@ -71,7 +71,7 @@ Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
     return EncodingType.error();
   }
 
-  auto Res = Ctx.signatureImport(*Alg, Encoded);
+  auto Res = Ctx.signatureImport(*EnumAlg, Encoded);
   if(unlikely(!Res)) {
     return Res.error();
   }

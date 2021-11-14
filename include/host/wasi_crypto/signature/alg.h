@@ -2,6 +2,7 @@
 #pragma once
 
 #include "host/wasi_crypto/error.h"
+#include "host/wasi_crypto/util.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -25,8 +26,9 @@ enum class SignatureAlgorithm {
   RSA_PSS_4096_SHA512,
 };
 
+template<>
 constexpr WasiCryptoExpect<SignatureAlgorithm>
-fromConstantString(std::string_view AlgStr) {
+tryFrom(std::string_view AlgStr) noexcept {
   if (AlgStr == "ECDSA_P256_SHA256") {
     return SignatureAlgorithm::ECDSA_P256_SHA256;
   }

@@ -12,10 +12,12 @@ template <auto fn> using Deleter = std::integral_constant<decltype(fn), fn>;
 template <typename T, auto fn>
 using OpenSSlUniquePtr = std::unique_ptr<T, Deleter<fn>>;
 
-template <typename T, typename U> std::optional<T> parseCUnion(U Union);
+template <typename T, typename U>
+constexpr std::optional<T> parseCUnion(U Union) noexcept;
 
 template <>
-inline std::optional<__wasi_options_t> parseCUnion(__wasi_opt_options_t Union) {
+constexpr std::optional<__wasi_options_t>
+parseCUnion(__wasi_opt_options_t Union) noexcept {
   if (Union.tag == __WASI_OPT_OPTIONS_U_SOME) {
     return Union.u.some;
   }
@@ -23,8 +25,8 @@ inline std::optional<__wasi_options_t> parseCUnion(__wasi_opt_options_t Union) {
 }
 
 template <>
-inline std::optional<__wasi_symmetric_key_t>
-parseCUnion(__wasi_opt_symmetric_key_t Union) {
+constexpr std::optional<__wasi_symmetric_key_t>
+parseCUnion(__wasi_opt_symmetric_key_t Union) noexcept {
   if (Union.tag == __WASI_OPT_SYMMETRIC_KEY_U_SOME) {
     return Union.u.some;
   }
@@ -41,10 +43,10 @@ template <> struct WasiRawType<uint64_t> { using Type = uint64_t; };
 
 template <typename T> using WasiRawTypeT = typename WasiRawType<T>::Type;
 
-template <typename T> WasiCryptoExpect<T> cast(uint64_t) noexcept;
+template <typename T> constexpr WasiCryptoExpect<T> cast(uint64_t) noexcept;
 
 template <>
-WasiCryptoExpect<__wasi_algorithm_type_e_t>
+constexpr WasiCryptoExpect<__wasi_algorithm_type_e_t>
 cast(uint64_t Algorithm) noexcept {
   switch (static_cast<WasiRawTypeT<__wasi_algorithm_type_e_t>>(Algorithm)) {
   case __WASI_ALGORITHM_TYPE_SIGNATURES:
@@ -52,13 +54,12 @@ cast(uint64_t Algorithm) noexcept {
   case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE:
     return static_cast<__wasi_algorithm_type_e_t>(Algorithm);
   default:
-    return WasiCryptoUnexpect(
-        __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
 }
 
 template <>
-WasiCryptoExpect<__wasi_keypair_encoding_e_t>
+constexpr WasiCryptoExpect<__wasi_keypair_encoding_e_t>
 cast(uint64_t Algorithm) noexcept {
   switch (static_cast<WasiRawTypeT<__wasi_keypair_encoding_e_t>>(Algorithm)) {
   case __WASI_KEYPAIR_ENCODING_RAW:
@@ -67,13 +68,12 @@ cast(uint64_t Algorithm) noexcept {
   case __WASI_KEYPAIR_ENCODING_LOCAL:
     return static_cast<__wasi_keypair_encoding_e_t>(Algorithm);
   default:
-    return WasiCryptoUnexpect(
-        __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
 }
 
 template <>
-WasiCryptoExpect<__wasi_publickey_encoding_e_t>
+constexpr WasiCryptoExpect<__wasi_publickey_encoding_e_t>
 cast(uint64_t Algorithm) noexcept {
   switch (static_cast<WasiRawTypeT<__wasi_publickey_encoding_e_t>>(Algorithm)) {
   case __WASI_PUBLICKEY_ENCODING_RAW:
@@ -84,13 +84,12 @@ cast(uint64_t Algorithm) noexcept {
   case __WASI_PUBLICKEY_ENCODING_LOCAL:
     return static_cast<__wasi_publickey_encoding_e_t>(Algorithm);
   default:
-    return WasiCryptoUnexpect(
-        __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
 }
 
 template <>
-WasiCryptoExpect<__wasi_secretkey_encoding_e_t>
+constexpr WasiCryptoExpect<__wasi_secretkey_encoding_e_t>
 cast(uint64_t Algorithm) noexcept {
   switch (static_cast<WasiRawTypeT<__wasi_secretkey_encoding_e_t>>(Algorithm)) {
   case __WASI_SECRETKEY_ENCODING_RAW:
@@ -101,23 +100,24 @@ cast(uint64_t Algorithm) noexcept {
   case __WASI_SECRETKEY_ENCODING_LOCAL:
     return static_cast<__wasi_secretkey_encoding_e_t>(Algorithm);
   default:
-    return WasiCryptoUnexpect(
-        __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
 }
 
 template <>
-WasiCryptoExpect<__wasi_signature_encoding_e_t>
+inline WasiCryptoExpect<__wasi_signature_encoding_e_t>
 cast(uint64_t Algorithm) noexcept {
   switch (static_cast<WasiRawTypeT<__wasi_signature_encoding_e_t>>(Algorithm)) {
   case __WASI_SIGNATURE_ENCODING_RAW:
   case __WASI_SIGNATURE_ENCODING_DER:
     return static_cast<__wasi_signature_encoding_e_t>(Algorithm);
   default:
-    return WasiCryptoUnexpect(
-        __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
 }
+
+template <typename T>
+constexpr WasiCryptoExpect<T> tryFrom(std::string_view) noexcept;
 
 } // namespace WASICrypto
 } // namespace Host

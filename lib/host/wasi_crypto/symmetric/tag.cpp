@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/tag.h"
-#include "host/wasi_crypto/symmetric/algorithm.h"
+#include "host/wasi_crypto/symmetric/alg.h"
 
 namespace WasmEdge {
 namespace Host {

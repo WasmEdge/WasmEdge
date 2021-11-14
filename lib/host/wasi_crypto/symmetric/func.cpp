@@ -24,7 +24,7 @@ Expect<uint32_t> KeyGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
   std::string_view Alg{AlgMem, AlgLen};
-  auto EnumAlg = fromConstantString(Alg);
+  auto EnumAlg = tryFrom<SymmetricAlgorithm>(Alg);
   if (!EnumAlg) {
     return EnumAlg.error();
   }
@@ -64,7 +64,7 @@ Expect<uint32_t> KeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
   std::string_view Alg{AlgMem, AlgLen};
-  auto EnumAlg = fromConstantString(Alg);
+  auto EnumAlg = tryFrom<SymmetricAlgorithm>(Alg);
   if (!EnumAlg) {
     return EnumAlg.error();
   }
@@ -141,7 +141,7 @@ KeyGenerateManaged::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
   std::string_view Alg{AlgMem, AlgLen};
-  auto EnumAlg = fromConstantString(Alg);
+  auto EnumAlg = tryFrom<SymmetricAlgorithm>(Alg);
   if (!EnumAlg) {
     return EnumAlg.error();
   }
@@ -301,14 +301,14 @@ Expect<uint32_t> StateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   std::string_view Alg{AlgMem, AlgLen};
-  auto EnumAlg = fromConstantString(Alg);
+  auto EnumAlg = tryFrom<SymmetricAlgorithm>(Alg);
   if (!EnumAlg) {
     return EnumAlg.error();
   }
 
   auto Res = Ctx.symmetricStateOpen(
       *EnumAlg, WASICrypto::parseCUnion<__wasi_symmetric_key_t>(*OptKey),
-      WASICrypto::parseCUnion<__wasi_options_t>(*OptOptions));
+      parseCUnion<__wasi_options_t>(*OptOptions));
   if (unlikely(!Res)) {
     return Res.error();
   }
@@ -475,7 +475,7 @@ StateSqueezeKey::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
   std::string_view Alg{AlgMem, AlgLen};
-  auto EnumAlg = fromConstantString(Alg);
+  auto EnumAlg = tryFrom<SymmetricAlgorithm>(Alg);
   if (!EnumAlg) {
     return EnumAlg.error();
   }

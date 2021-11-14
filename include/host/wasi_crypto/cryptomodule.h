@@ -4,6 +4,7 @@
 #include "host/wasi_crypto/asymmetric_common/ctx.h"
 #include "host/wasi_crypto/common/ctx.h"
 #include "host/wasi_crypto/key_exchange/ctx.h"
+#include "host/wasi_crypto/signature/ctx.h"
 #include "host/wasi_crypto/symmetric/ctx.h"
 #include "runtime/importobj.h"
 
@@ -17,12 +18,12 @@ public:
   virtual ~WasiCryptoModule() = default;
 
   WASICrypto::CommonContext &getContext() { return CommonCtx; }
-
 private:
   WASICrypto::CommonContext CommonCtx;
   WASICrypto::SymmetricContext SymmetricCtx{CommonCtx};
   WASICrypto::AsymmetricCommonContext AsymmetricCtx{CommonCtx};
   WASICrypto::KxContext KxCtx{CommonCtx};
+  WASICrypto::SignatureContext SignatureCtx;
 };
 
 } // namespace Host

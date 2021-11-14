@@ -23,7 +23,10 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   symmetric/tag.cpp
   asymmetric_common/ctx.cpp
   asymmetric_common/func.cpp
+  asymmetric_common/publickey.cpp
   signature/options.cpp
+  signature/func.cpp
+  signature/ctx.cpp
   key_exchange/options.cpp
   key_exchange/ctx.cpp
   key_exchange/func.cpp

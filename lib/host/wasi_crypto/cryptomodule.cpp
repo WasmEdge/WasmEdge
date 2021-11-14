@@ -4,6 +4,7 @@
 #include "host/wasi_crypto/asymmetric_common/func.h"
 #include "host/wasi_crypto/common/func.h"
 #include "host/wasi_crypto/key_exchange/func.h"
+#include "host/wasi_crypto/signature/func.h"
 #include "host/wasi_crypto/symmetric/func.h"
 
 namespace WasmEdge {
@@ -164,6 +165,33 @@ WasiCryptoModule::WasiCryptoModule() : ImportObject("wasi_ephemeral_crypto") {
   addHostFunc("kx_dh", std::make_unique<Kx::Dh>(KxCtx));
   addHostFunc("kx_encapsulate", std::make_unique<Kx::Encapsulate>(KxCtx));
   addHostFunc("kx_decapsulate", std::make_unique<Kx::Decapsulate>(KxCtx));
+
+  // signature
+  addHostFunc("signature_export",
+              std::make_unique<Signature::Export>(SignatureCtx));
+  addHostFunc("signature_import",
+              std::make_unique<Signature::Import>(SignatureCtx));
+  addHostFunc("signature_state_open",
+              std::make_unique<Signature::StateOpen>(SignatureCtx));
+  addHostFunc("signature_state_update",
+              std::make_unique<Signature::StateUpdate>(SignatureCtx));
+  addHostFunc("signature_state_sign",
+              std::make_unique<Signature::StateSign>(SignatureCtx));
+  addHostFunc("signature_state_close",
+              std::make_unique<Signature::StateClose>(SignatureCtx));
+  addHostFunc("signature_verification_state_open",
+              std::make_unique<Signature::VerificationStateOpen>(SignatureCtx));
+  addHostFunc(
+      "signature_verification_state_update",
+      std::make_unique<Signature::VerificationStateUpdate>(SignatureCtx));
+  addHostFunc(
+      "signature_verification_state_verify",
+      std::make_unique<Signature::VerificationStateVerify>(SignatureCtx));
+  addHostFunc(
+      "signature_verification_state_close",
+      std::make_unique<Signature::VerificationStateClose>(SignatureCtx));
+  addHostFunc("signature_close",
+              std::make_unique<Signature::Close>(SignatureCtx));
 }
 
 } // namespace Host

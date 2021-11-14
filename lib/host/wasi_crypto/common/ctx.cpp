@@ -3,6 +3,7 @@
 #include "host/wasi_crypto/common/ctx.h"
 #include "common/span.h"
 #include "host/wasi_crypto/asymmetric_common/ctx.h"
+#include "host/wasi_crypto/signature/ctx.h"
 
 namespace WasmEdge {
 namespace Host {

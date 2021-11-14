@@ -49,6 +49,7 @@ public:
                         __wasi_size_t EncapsulatedSecretLen,
                         uint8_t_ptr /* Out */ ArrayOutputPtr);
 };
+
 } // namespace Kx
 } // namespace WASICrypto
 } // namespace Host

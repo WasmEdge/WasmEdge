@@ -116,12 +116,6 @@ class CMakeBuild(build_ext):
         subprocess.check_call(
             ["cmake", "--build", "."] + build_args, cwd=self.build_temp
         )
-    
-    def get_ext_filename(self, ext_name):
-        filename = super().get_ext_filename(ext_name)
-        suffix = sysconfig.get_config_var('EXT_SUFFIX')
-        ext = os.path.splitext(filename)[1]
-        return filename.replace(suffix, "") + ext
 
 
 def read(*paths, **kwargs):

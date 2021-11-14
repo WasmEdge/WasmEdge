@@ -1,0 +1,4 @@
+[submodule "bindings/python/pybind11"]
+	path = bindings/python/pybind11
+	url = git@github.com:pybind/pybind11.git
+	branch = stable

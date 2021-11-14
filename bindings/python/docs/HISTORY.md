@@ -1,5 +1,10 @@
 (unreleased)
 ------------
+- [PySDK] Specify Types of parameters and return values in advance.
+  [Shreyas Atre]
+
+  * Utilize the `Type` class implemented in python and specify as arguments in run function.
+  * https://github.com/WasmEdge/WasmEdge/issues/645
 - [PySDK] Fix:
   https://github.com/WasmEdge/WasmEdge/issues/644#issue-1050904719.
   [Shreyas Atre]

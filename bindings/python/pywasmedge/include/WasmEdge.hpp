@@ -1,10 +1,7 @@
 #ifndef PY_WASMEDGE_H
 #define PY_WASMEDGE_H
 
-#include "Utils.hpp"
-#include <boost/python.hpp>
-#include <boost/python/extract.hpp>
-#include <boost/python/list.hpp>
+#include "pybind11/pybind11.h"
 #include <doc_strings.hpp>
 #include <functional>
 #include <sstream>
@@ -55,8 +52,8 @@ public:
   ~Store();
   const char *doc() { return pysdk::Store_doc; }
   WasmEdge_StoreContext *get();
-  boost::python::list listFunctions(int);
-  boost::python::list listModules(int);
+  pybind11::list listFunctions(int);
+  pybind11::list listModules(int);
 };
 
 class result {
@@ -86,11 +83,9 @@ public:
   ~VM();
   const char *doc() { return pysdk::vm_doc; };
 
-  boost::python::tuple run(boost::python::object, boost::python::object,
-                           boost::python::object, boost::python::object,
-                           boost::python::object);
-  boost::python::tuple run(boost::python::object, boost::python::object,
-                           boost::python::object);
+  pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object,
+                      pybind11::object, pybind11::object);
+  pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object);
 };
 
 } // namespace pysdk

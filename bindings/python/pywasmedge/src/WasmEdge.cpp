@@ -26,90 +26,88 @@ pysdk::VM::~VM() { WasmEdge_VMDelete(VMCxt); }
  * @param _param_types List of `Type` of parameters
  * @param _ret_types List of `Type` of Return values. This length must be same
  * as return length of wasm function.
- * @return boost::python::tuple
+ * @return pybind11::tuple
  */
-boost::python::tuple pysdk::VM::run(boost::python::object _FileName,
-                                    boost::python::object _FuncName,
-                                    boost::python::object _params,
-                                    boost::python::object _param_types,
-                                    boost::python::object _ret_types) {
-  char const *FileName = boost::python::extract<char const *>(_FileName);
-  char const *FuncName = boost::python::extract<char const *>(_FuncName);
-  const int ret_len = boost::python::len(_ret_types);
+pybind11::tuple pysdk::VM::run(pybind11::object _FileName,
+                               pybind11::object _FuncName,
+                               pybind11::object _params,
+                               pybind11::object _param_types,
+                               pybind11::object _ret_types) {
+  std::string FileName = _FileName.cast<std::string>();
+  std::string FuncName = _FuncName.cast<std::string>();
+  const int ret_len = pybind11::len(_ret_types);
 
-  auto param_len = boost::python::len(_params);
+  auto param_len = pybind11::len(_params);
+  auto param_list = _params.cast<pybind11::list>();
+  auto _param_types_list = _param_types.cast<pybind11::list>();
+  auto _ret_types_list = _ret_types.cast<pybind11::list>();
+
   WasmEdge_Value Params[param_len];
   WasmEdge_Value Returns[ret_len];
   for (int i = 0; i < param_len; i++) {
-    switch (boost::python::extract<WasmEdge_ValType>(_param_types[i])) {
+    switch (_param_types_list[i].cast<WasmEdge_ValType>()) {
     case WasmEdge_ValType_I32:
-      Params[i] =
-          WasmEdge_ValueGenI32(boost::python::extract<int32_t>(_params[i]));
+      Params[i] = WasmEdge_ValueGenI32(param_list[i].cast<int32_t>());
       break;
     case WasmEdge_ValType_I64:
-      Params[i] =
-          WasmEdge_ValueGenI64(boost::python::extract<int64_t>(_params[i]));
+      Params[i] = WasmEdge_ValueGenI64(param_list[i].cast<int64_t>());
       break;
     case WasmEdge_ValType_F32:
-      Params[i] =
-          WasmEdge_ValueGenF32(boost::python::extract<_Float32>(_params[i]));
+      Params[i] = WasmEdge_ValueGenF32(param_list[i].cast<float>());
       break;
     case WasmEdge_ValType_F64:
-      Params[i] =
-          WasmEdge_ValueGenF32(boost::python::extract<_Float64>(_params[i]));
+      Params[i] = WasmEdge_ValueGenF32(param_list[i].cast<double>());
       break;
     case WasmEdge_ValType_V128:
-      Params[i] =
-          WasmEdge_ValueGenV128(boost::python::extract<int128_t>(_params[i]));
+      Params[i] = WasmEdge_ValueGenV128(param_list[i].cast<int128_t>());
       break;
     case WasmEdge_ValType_FuncRef:
-      Params[i] = WasmEdge_ValueGenFuncRef(
-          boost::python::extract<uint32_t>(_params[i]));
+      Params[i] = WasmEdge_ValueGenFuncRef(param_list[i].cast<uint32_t>());
       break;
     // TODO: Handle Pointer
     // case WasmEdge_ValType_ExternRef:
     //   Params[i] = WasmEdge_ValueGenExternRef(
-    //       boost::python::extract<(void *)>(_params[i]));
+    //       param_list[i].cast<(void *)>());
     //   break;
     default:
       break;
     }
   }
 
-  WasmEdge_String funcName{(uint32_t)strlen(FuncName), FuncName};
+  WasmEdge_String funcName{(uint32_t)FuncName.length(), FuncName.c_str()};
   pysdk::result res(WasmEdge_VMRunWasmFromFile(
-      VMCxt, FileName, funcName, Params, param_len, Returns, ret_len));
+      VMCxt, FileName.c_str(), funcName, Params, param_len, Returns, ret_len));
 
-  boost::python::list returns;
+  pybind11::list returns;
   for (int i = 0; i < ret_len; i++) {
-    switch (boost::python::extract<WasmEdge_ValType>(_ret_types[i])) {
+    switch (_ret_types_list[i].cast<WasmEdge_ValType>()) {
     case WasmEdge_ValType_I32:
-      returns.append(transfer_to_python(WasmEdge_ValueGetI32(Returns[i])));
+      returns.append(pybind11::cast(WasmEdge_ValueGetI32(Returns[i])));
       break;
     case WasmEdge_ValType_I64:
-      returns.append(transfer_to_python(WasmEdge_ValueGetI64(Returns[i])));
+      returns.append(pybind11::cast(WasmEdge_ValueGetI64(Returns[i])));
       break;
     case WasmEdge_ValType_F32:
-      returns.append(transfer_to_python(WasmEdge_ValueGetF32(Returns[i])));
+      returns.append(pybind11::cast(WasmEdge_ValueGetF32(Returns[i])));
       break;
     case WasmEdge_ValType_F64:
-      returns.append(transfer_to_python(WasmEdge_ValueGetF64(Returns[i])));
+      returns.append(pybind11::cast(WasmEdge_ValueGetF64(Returns[i])));
       break;
     case WasmEdge_ValType_V128:
-      returns.append(transfer_to_python(WasmEdge_ValueGetV128(Returns[i])));
+      returns.append(pybind11::cast(WasmEdge_ValueGetV128(Returns[i])));
       break;
     case WasmEdge_ValType_FuncRef:
-      returns.append(transfer_to_python(WasmEdge_ValueGetFuncIdx(Returns[i])));
+      returns.append(pybind11::cast(WasmEdge_ValueGetFuncIdx(Returns[i])));
       break;
     // TODO: Handle Void Pointer
     // case WasmEdge_ValType_ExternRef:
-    //   returns.append(transfer_to_python(WasmEdge_ValueGetExternRef(Returns[i])));
+    //   returns.append(pybind11::cast(WasmEdge_ValueGetExternRef(Returns[i])));
     //   break;
     default:
       break;
     }
   }
-  return boost::python::make_tuple(res, returns);
+  return pybind11::make_tuple(res, returns);
 }
 
 /**
@@ -119,45 +117,46 @@ boost::python::tuple pysdk::VM::run(boost::python::object _FileName,
  * @param _FileName Name of .wasm binary
  * @param _FuncName Wasm Function name
  * @param _params Wasm Function Parameters
- * @return boost::python::tuple
+ * @return pybind11::tuple
  */
-boost::python::tuple pysdk::VM::run(boost::python::object _FileName,
-                                    boost::python::object _FuncName,
-                                    boost::python::object _params) {
-  boost::python::list returns;
+pybind11::tuple pysdk::VM::run(pybind11::object _FileName,
+                               pybind11::object _FuncName,
+                               pybind11::object _params) {
+  pybind11::list returns;
 
-  char const *FileName = boost::python::extract<char const *>(_FileName);
-  char const *FuncName = boost::python::extract<char const *>(_FuncName);
+  std::string FileName = _FileName.cast<std::string>();
+  std::string FuncName = _FuncName.cast<std::string>();
 
-  pysdk::result res(WasmEdge_VMLoadWasmFromFile(VMCxt, FileName));
+  pysdk::result res(WasmEdge_VMLoadWasmFromFile(VMCxt, FileName.c_str()));
   if (!res) {
     /* TODO: Handle errors gracefully */
-    return boost::python::make_tuple(res, NULL);
+    return pybind11::make_tuple(res, NULL);
   }
 
   res = WasmEdge_VMValidate(VMCxt);
   if (!res) {
     /* TODO: Handle errors gracefully */
-    return boost::python::make_tuple(res, NULL);
+    return pybind11::make_tuple(res, NULL);
   }
 
   res = WasmEdge_VMInstantiate(VMCxt);
   if (!res) {
     /* TODO: Handle errors gracefully */
-    return boost::python::make_tuple(res, NULL);
+    return pybind11::make_tuple(res, NULL);
   }
 
   WasmEdge_FunctionTypeContext *FuncTypeCxt =
       (WasmEdge_FunctionTypeContext *)WasmEdge_VMGetFunctionType(
-          VMCxt, WasmEdge_StringCreateByCString(FuncName));
+          VMCxt, WasmEdge_StringCreateByCString(FuncName.c_str()));
 
-  auto param_len = boost::python::len(_params);
+  auto params_list = _params.cast<pybind11::list>();
+  auto param_len = pybind11::len(_params);
   auto param_len_api = WasmEdge_FunctionTypeGetParametersLength(FuncTypeCxt);
 
   if (param_len != param_len_api) {
     /* TODO: Handle errors gracefully */
     WasmEdge_FunctionTypeDelete(FuncTypeCxt);
-    return boost::python::make_tuple(NULL, NULL);
+    return pybind11::make_tuple(NULL, NULL);
   }
 
   WasmEdge_ValType val_type_list_param[param_len];
@@ -167,33 +166,27 @@ boost::python::tuple pysdk::VM::run(boost::python::object _FileName,
   for (int i = 0; i < param_len; i++) {
     switch (val_type_list_param[i]) {
     case WasmEdge_ValType_I32:
-      Params[i] =
-          WasmEdge_ValueGenI32(boost::python::extract<int32_t>(_params[i]));
+      Params[i] = WasmEdge_ValueGenI32(params_list[i].cast<int32_t>());
       break;
     case WasmEdge_ValType_I64:
-      Params[i] =
-          WasmEdge_ValueGenI64(boost::python::extract<int64_t>(_params[i]));
+      Params[i] = WasmEdge_ValueGenI64(params_list[i].cast<int64_t>());
       break;
     case WasmEdge_ValType_F32:
-      Params[i] =
-          WasmEdge_ValueGenF32(boost::python::extract<_Float32>(_params[i]));
+      Params[i] = WasmEdge_ValueGenF32(params_list[i].cast<float>());
       break;
     case WasmEdge_ValType_F64:
-      Params[i] =
-          WasmEdge_ValueGenF32(boost::python::extract<_Float64>(_params[i]));
+      Params[i] = WasmEdge_ValueGenF32(params_list[i].cast<double>());
       break;
     case WasmEdge_ValType_V128:
-      Params[i] =
-          WasmEdge_ValueGenV128(boost::python::extract<int128_t>(_params[i]));
+      Params[i] = WasmEdge_ValueGenV128(params_list[i].cast<int128_t>());
       break;
     case WasmEdge_ValType_FuncRef:
-      Params[i] = WasmEdge_ValueGenFuncRef(
-          boost::python::extract<uint32_t>(_params[i]));
+      Params[i] = WasmEdge_ValueGenFuncRef(params_list[i].cast<uint32_t>());
       break;
     // TODO: Handle Pointer
     // case WasmEdge_ValType_ExternRef:
     //   Params[i] = WasmEdge_ValueGenExternRef(
-    //       boost::python::extract<(void *)>(_params[i]));
+    //       params_list[i].cast<(void *)>());
     //   break;
     default:
       break;
@@ -206,11 +199,11 @@ boost::python::tuple pysdk::VM::run(boost::python::object _FileName,
                                                  ret_len)) {
     /* TODO: Handle errors gracefully */
     WasmEdge_FunctionTypeDelete(FuncTypeCxt);
-    return boost::python::make_tuple(NULL, NULL);
+    return pybind11::make_tuple(NULL, NULL);
   };
 
   WasmEdge_Value Returns[ret_len];
-  WasmEdge_String funcName{(uint32_t)strlen(FuncName), FuncName};
+  WasmEdge_String funcName{(uint32_t)FuncName.length(), FuncName.c_str()};
 
   res =
       WasmEdge_VMExecute(VMCxt, funcName, Params, param_len, Returns, ret_len);
@@ -218,26 +211,26 @@ boost::python::tuple pysdk::VM::run(boost::python::object _FileName,
   for (int i = 0; i < ret_len; i++) {
     switch (val_type_list_ret[i]) {
     case WasmEdge_ValType_I32:
-      returns.append(transfer_to_python(WasmEdge_ValueGetI32(Returns[i])));
+      returns.append(pybind11::cast(WasmEdge_ValueGetI32(Returns[i])));
       break;
     case WasmEdge_ValType_I64:
-      returns.append(transfer_to_python(WasmEdge_ValueGetI64(Returns[i])));
+      returns.append(pybind11::cast(WasmEdge_ValueGetI64(Returns[i])));
       break;
     case WasmEdge_ValType_F32:
-      returns.append(transfer_to_python(WasmEdge_ValueGetF32(Returns[i])));
+      returns.append(pybind11::cast(WasmEdge_ValueGetF32(Returns[i])));
       break;
     case WasmEdge_ValType_F64:
-      returns.append(transfer_to_python(WasmEdge_ValueGetF64(Returns[i])));
+      returns.append(pybind11::cast(WasmEdge_ValueGetF64(Returns[i])));
       break;
     case WasmEdge_ValType_V128:
-      returns.append(transfer_to_python(WasmEdge_ValueGetV128(Returns[i])));
+      returns.append(pybind11::cast(WasmEdge_ValueGetV128(Returns[i])));
       break;
     case WasmEdge_ValType_FuncRef:
-      returns.append(transfer_to_python(WasmEdge_ValueGetFuncIdx(Returns[i])));
+      returns.append(pybind11::cast(WasmEdge_ValueGetFuncIdx(Returns[i])));
       break;
     // TODO: Handle Void Pointer
     // case WasmEdge_ValType_ExternRef:
-    //   returns.append(transfer_to_python(WasmEdge_ValueGetExternRef(Returns[i])));
+    //   returns.append(pybind11::cast(WasmEdge_ValueGetExternRef(Returns[i])));
     //   break;
     default:
       break;
@@ -245,7 +238,7 @@ boost::python::tuple pysdk::VM::run(boost::python::object _FileName,
   }
 
   // WasmEdge_FunctionTypeDelete(FuncTypeCxt);
-  return boost::python::make_tuple(res, returns);
+  return pybind11::make_tuple(res, returns);
 }
 
 /* --------------- VM End -------------------------------- */
@@ -258,8 +251,8 @@ pysdk::Store::~Store() { WasmEdge_StoreDelete(StoreCxt); }
 
 WasmEdge_StoreContext *pysdk::Store::get() { return this->StoreCxt; }
 
-boost::python::list pysdk::Store::listFunctions(int len) {
-  boost::python::list ret;
+pybind11::list pysdk::Store::listFunctions(int len) {
+  pybind11::list ret;
 
   auto FuncNum = WasmEdge_StoreListFunctionLength(StoreCxt);
   WasmEdge_String FuncNames[len];
@@ -275,8 +268,8 @@ boost::python::list pysdk::Store::listFunctions(int len) {
   return std::move(ret);
 }
 
-boost::python::list pysdk::Store::listModules(int len) {
-  boost::python::list ret;
+pybind11::list pysdk::Store::listModules(int len) {
+  pybind11::list ret;
 
   auto ModNum = WasmEdge_StoreListModuleLength(StoreCxt);
   WasmEdge_String ModNames[len];
@@ -336,19 +329,16 @@ int pysdk::result::get_code() { return WasmEdge_ResultGetCode(Res); }
 
 /* --------------- Result End ----------------------------------------*/
 
-using namespace boost::python;
+PYBIND11_MODULE(WasmEdge, module) {
 
-BOOST_PYTHON_MODULE(WasmEdge) {
+  module.def("version", WasmEdge_VersionGet);
 
-  def("version", WasmEdge_VersionGet);
-
-  class_<pysdk::logging>("Logging")
+  pybind11::class_<pysdk::logging>(module, "Logging")
+      .def(pybind11::init())
       .def("__doc__", &pysdk::logging::doc)
       .def("__str__", &pysdk::logging::str)
-      .def("error", &pysdk::logging::error)
-      .staticmethod("error")
-      .def("debug", &pysdk::logging::debug)
-      .staticmethod("debug");
+      .def_static("error", &pysdk::logging::error)
+      .def_static("debug", &pysdk::logging::debug);
 
   /*Overloading Python add and remove functions for Configure class*/
 
@@ -361,7 +351,8 @@ BOOST_PYTHON_MODULE(WasmEdge) {
   void (pysdk::Configure::*remove_host)(WasmEdge_HostRegistration) =
       &pysdk::Configure::remove;
 
-  class_<pysdk::Configure>("Configure", init<>())
+  pybind11::class_<pysdk::Configure>(module, "Configure")
+      .def(pybind11::init())
       .def("__doc__", &pysdk::Configure::doc)
       .def("add", add_prop)
       .def("remove", remove_prop)
@@ -369,7 +360,7 @@ BOOST_PYTHON_MODULE(WasmEdge) {
       .def("remove", remove_host);
 
   /* WasmEdge WASM value struct. */
-  enum_<WasmEdge_ValType>("Type")
+  pybind11::enum_<WasmEdge_ValType>(module, "Type")
       .value("I32", WasmEdge_ValType_I32)
       .value("I64", WasmEdge_ValType_I64)
       .value("F32", WasmEdge_ValType_F32)
@@ -381,19 +372,21 @@ BOOST_PYTHON_MODULE(WasmEdge) {
 
   /* TODO: Find suitable use for WasmEdge WASM value struct from python
    * perspective */
-  class_<WasmEdge_Value>("Value", init<>())
+  pybind11::class_<WasmEdge_Value>(module, "Value")
+      .def(pybind11::init())
       .def_readwrite("Value", &WasmEdge_Value::Value)
       .def_readwrite("Type", &WasmEdge_Value::Type);
 
-  class_<pysdk::result>("Result", init<>())
+  pybind11::class_<pysdk::result>(module, "Result")
+      .def(pybind11::init())
       .def("__doc__", &pysdk::result::doc)
       .def("__str__", &pysdk::result::message)
       .def("__bool__", &pysdk::result::operator bool)
       .def("message", &pysdk::result::message)
       .def("code", &pysdk::result::get_code);
 
-  enum_<WasmEdge_Proposal>("Proposal")
-      .value("BulkMemoryOperations", WasmEdge_Proposal_ImportExportMutGlobals)
+  pybind11::enum_<WasmEdge_Proposal>(module, "Proposal")
+      .value("ImportExportMutGlobals", WasmEdge_Proposal_ImportExportMutGlobals)
       .value("NonTrapFloatToIntConversions",
              WasmEdge_Proposal_NonTrapFloatToIntConversions)
       .value("BulkMemoryOperations", WasmEdge_Proposal_BulkMemoryOperations)
@@ -407,27 +400,30 @@ BOOST_PYTHON_MODULE(WasmEdge) {
       .value("FunctionReferences", WasmEdge_Proposal_FunctionReferences)
       .export_values();
 
-  enum_<WasmEdge_HostRegistration>("Host")
+  pybind11::enum_<WasmEdge_HostRegistration>(module, "Host")
       .value("Wasi", WasmEdge_HostRegistration_Wasi)
       .value("WasmEdge", WasmEdge_HostRegistration_WasmEdge_Process)
       .export_values();
 
-  class_<pysdk::Store>("Store", init<>())
+  pybind11::class_<pysdk::Store>(module, "Store")
+      .def(pybind11::init())
       .def("__doc__", &pysdk::Store::doc)
       .def("listFunctions", &pysdk::Store::listFunctions)
       .def("listModules", &pysdk::Store::listModules);
 
   /*Overloading VM run functions*/
 
-  boost::python::tuple (pysdk::VM::*run_step_by_step)(object, object, object) =
-      &pysdk::VM::run;
-  boost::python::tuple (pysdk::VM::*run)(object, object, object, object,
-                                         object) = &pysdk::VM::run;
+  pybind11::tuple (pysdk::VM::*run_step_by_step)(
+      pybind11::object, pybind11::object, pybind11::object) = &pysdk::VM::run;
+  pybind11::tuple (pysdk::VM::*run)(pybind11::object, pybind11::object,
+                                    pybind11::object, pybind11::object,
+                                    pybind11::object) = &pysdk::VM::run;
 
-  class_<pysdk::VM>("VM", init<>())
-      .def(init<pysdk::Configure &>())
-      .def(init<pysdk::Store &>())
-      .def(init<pysdk::Configure &, pysdk::Store &>())
+  pybind11::class_<pysdk::VM>(module, "VM")
+      .def(pybind11::init())
+      .def(pybind11::init<pysdk::Configure &>())
+      .def(pybind11::init<pysdk::Store &>())
+      .def(pybind11::init<pysdk::Configure &, pysdk::Store &>())
       .def("__doc__", &pysdk::VM::doc)
       .def("run", run)
       .def("run", run_step_by_step);

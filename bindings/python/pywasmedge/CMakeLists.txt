@@ -1,4 +1,6 @@
-PYTHON_ADD_MODULE(WasmEdge src/WasmEdge.cpp)
+pybind11_add_module(WasmEdge 
+    src/WasmEdge.cpp
+)
 INCLUDE_DIRECTORIES("include/")
 set_target_properties(WasmEdge PROPERTIES 
     CXX_STANDARD 17

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "host/wasi_crypto/common/ctx.h"
+#include "host/wasi_crypto/ctx.h"
 #include "runtime/hostfunc.h"
 
 namespace WasmEdge {
@@ -11,11 +11,11 @@ namespace Common {
 
 template <typename T> class HostFunction : public Runtime::HostFunction<T> {
 public:
-  HostFunction(WASICrypto::CommonContext &HostCtx)
+  HostFunction(WasiCryptoContext &HostCtx)
       : Runtime::HostFunction<T>(0), Ctx(HostCtx) {}
 
 protected:
-  WASICrypto::CommonContext &Ctx;
+  WasiCryptoContext &Ctx;
 };
 
 class ArrayOutputLen : public HostFunction<ArrayOutputLen> {
@@ -39,7 +39,7 @@ public:
 
 class OptionsOpen : public HostFunction<OptionsOpen> {
 public:
-  OptionsOpen(WASICrypto::CommonContext &HostCtx) : HostFunction(HostCtx) {}
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         uint32_t AlgorithmType, uint32_t /* Out */ OptionsPtr);
@@ -47,7 +47,7 @@ public:
 
 class OptionsClose : public HostFunction<OptionsClose> {
 public:
-  OptionsClose(WASICrypto::CommonContext &HostCtx) : HostFunction(HostCtx) {}
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_options_t Handle);
@@ -55,7 +55,7 @@ public:
 
 class OptionsSet : public HostFunction<OptionsSet> {
 public:
-  OptionsSet(WASICrypto::CommonContext &HostCtx) : HostFunction(HostCtx) {}
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_options_t Handle, const_uint8_t_ptr NamePtr,
@@ -65,7 +65,7 @@ public:
 
 class OptionsSetU64 : public HostFunction<OptionsSetU64> {
 public:
-  OptionsSetU64(WASICrypto::CommonContext &HostCtx) : HostFunction(HostCtx) {}
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_options_t Handle, const_uint8_t_ptr NamePtr,
@@ -74,8 +74,7 @@ public:
 
 class OptionsSetGuestBuffer : public HostFunction<OptionsSetGuestBuffer> {
 public:
-  OptionsSetGuestBuffer(WASICrypto::CommonContext &HostCtx)
-      : HostFunction(HostCtx) {}
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_options_t Handle, const_uint8_t_ptr NamePtr,
@@ -85,8 +84,7 @@ public:
 
 class SecretsMangerOpen : public HostFunction<SecretsMangerOpen> {
 public:
-  SecretsMangerOpen(WASICrypto::CommonContext &HostCtx)
-      : HostFunction(HostCtx) {}
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         uint32_t OptOptionsPtr,
@@ -95,8 +93,7 @@ public:
 
 class SecretsMangerClose : public HostFunction<SecretsMangerClose> {
 public:
-  SecretsMangerClose(WASICrypto::CommonContext &HostCtx)
-      : HostFunction(HostCtx) {}
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_secrets_manager_t SecretsManager);
@@ -104,8 +101,7 @@ public:
 
 class SecretsMangerInvalidate : public HostFunction<SecretsMangerInvalidate> {
 public:
-  SecretsMangerInvalidate(WASICrypto::CommonContext &HostCtx)
-      : HostFunction(HostCtx) {}
+  using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_secrets_manager_t SecretsManager,

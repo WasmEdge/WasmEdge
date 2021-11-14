@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "host/wasi_crypto/key_exchange/ctx.h"
+#include "host/wasi_crypto/ctx.h"
 #include "runtime/hostfunc.h"
 #include "wasi_crypto/api.hpp"
 #include "runtime/instance/memory.h"
@@ -13,11 +13,11 @@ namespace Kx {
 
 template <typename T> class HostFunction : public Runtime::HostFunction<T> {
 public:
-  HostFunction(KxContext &HostCtx)
+  HostFunction(WasiCryptoContext &HostCtx)
       : Runtime::HostFunction<T>(0), Ctx(HostCtx) {}
 
 protected:
-  KxContext &Ctx;
+  WasiCryptoContext &Ctx;
 };
 
 class Dh : public HostFunction<Dh> {

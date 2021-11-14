@@ -1,23 +1,135 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "host/wasi_crypto/common/ctx.h"
+#include "host/wasi_crypto/common/array_output.h"
+#include "host/wasi_crypto/common/options.h"
 #include "host/wasi_crypto/error.h"
+#include "host/wasi_crypto/handles.h"
+#include "wasi_crypto/api.hpp"
+
 #include "host/wasi_crypto/handles.h"
 #include "host/wasi_crypto/lock.h"
 #include "host/wasi_crypto/symmetric/state.h"
 #include "host/wasi_crypto/symmetric/tag.h"
 #include "wasi_crypto/api.hpp"
 
-#include <memory>
+#include "common/span.h"
+#include "host/wasi_crypto/asymmetric_common/keypair.h"
+#include "host/wasi_crypto/asymmetric_common/publickey.h"
+#include "host/wasi_crypto/asymmetric_common/secretkey.h"
+#include "host/wasi_crypto/error.h"
+#include "host/wasi_crypto/handles.h"
+
+#include "common/span.h"
+#include "host/wasi_crypto/error.h"
+
+#include "common/span.h"
+#include "host/wasi_crypto/error.h"
+#include "host/wasi_crypto/handles.h"
+#include "host/wasi_crypto/signature/alg.h"
+
+#include "host/wasi_crypto/signature/signature.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class SymmetricContext {
+class WasiCryptoContext {
 public:
-  SymmetricContext(CommonContext &DependencyCtx);
+  ///-------------------------------------------common---------------------------------------
+
+  /// Return the length of an `array_output` object.
+  ///
+  /// This allows a guest to allocate a buffer of the correct size in order to
+  /// copy the output of a function returning this object type.
+  WasiCryptoExpect<__wasi_size_t>
+  arrayOutputLen(__wasi_array_output_t ArrayOutputHandle);
+
+  /// Copy the content of an `array_output` object into an application-allocated
+  /// buffer.
+  ///
+  /// Multiple calls to that function can be made in order to consume the data
+  /// in a streaming fashion, if necessary.
+  ///
+  /// The function returns the number of bytes that were actually copied. `0`
+  /// means that the end of the stream has been reached. The total size always
+  /// matches the output of `array_output_len()`.
+  ///
+  /// The handle is automatically closed after all the data has been consumed.
+  ///
+  /// Example usage:
+  ///
+  /// ```rust
+  /// let len = array_output_len(output_handle)?;
+  /// let mut out = vec![0u8; len];
+  /// array_output_pull(output_handle, &mut out)?;
+  ///
+  WasiCryptoExpect<__wasi_size_t>
+  arrayOutputPull(__wasi_array_output_t ArrayOutputHandle,
+                  Span<uint8_t> BufPtr);
+
+  /// Create a new object to set non-default options.
+  ///
+  /// Example usage:
+  ///
+  /// ```rust
+  /// let options_handle = options_open(AlgorithmType::Symmetric)?;
+  /// options_set(options_handle, "context", context)?;
+  /// options_set_u64(options_handle, "threads", 4)?;
+  /// let state = symmetric_state_open("BLAKE3", None, Some(options_handle))?;
+  /// options_close(options_handle)?;
+  /// ```
+  WasiCryptoExpect<__wasi_options_t>
+  optionsOpen(__wasi_algorithm_type_e_t AlgorithmType);
+
+  /// Destroy an options object.
+  ///
+  /// Objects are reference counted. It is safe to close an object immediately
+  /// after the last function needing it is called.
+  WasiCryptoExpect<void> optionsClose(__wasi_options_t Handle);
+
+  /// Set or update an option.
+  ///
+  /// This is used to set algorithm-specific parameters.
+  ///
+  /// This function may return `unsupported_option` if an option that doesn't
+  /// exist for any implemented algorithms is specified.
+  WasiCryptoExpect<void> optionsSet(__wasi_options_t OptionsHandle,
+                                    std::string_view Name,
+                                    Span<uint8_t const> Value);
+
+  /// Set or update an integer option.
+  ///
+  /// This is used to set algorithm-specific parameters.
+  ///
+  /// This function may return `unsupported_option` if an option that doesn't
+  /// exist for any implemented algorithms is specified.
+  WasiCryptoExpect<void> optionsSetU64(__wasi_options_t OptionsHandle,
+                                       std::string_view Name, uint64_t Value);
+
+  /// Set or update a guest-allocated memory that the host can use or return
+  /// data into.
+  ///
+  /// This is for example used to set the scratch buffer required by memory-hard
+  /// functions.
+  ///
+  /// This function may return `unsupported_option` if an option that doesn't
+  /// exist for any implemented algorithms is specified.
+  WasiCryptoExpect<void> optionsSetGuestBuffer(__wasi_options_t OptionsHandle,
+                                               std::string_view Name,
+                                               Span<uint8_t> Buf);
+
+  WasiCryptoExpect<__wasi_secrets_manager_t>
+  secretsMangerOpen(std::optional<__wasi_options_t> Options);
+
+  WasiCryptoExpect<void>
+  secretsMangerClose(__wasi_secrets_manager_t SecretsManger);
+
+  WasiCryptoExpect<void>
+  secretsManagerInvalidate(__wasi_secrets_manager_t SecretsManger,
+                           Span<uint8_t const> KeyId, __wasi_version_t Version);
+
+  ///-------------------------------------------symmetric---------------------------------------
 
   /// Generate a new symmetric key for a given algorithm.
   ///
@@ -462,21 +574,159 @@ public:
   /// after the last function needing it is called.
   WasiCryptoExpect<void> symmetricTagClose(__wasi_symmetric_tag_t TagHandle);
 
+  ///-------------------------------------------asymmetric_common---------------------------------------
+
+  WasiCryptoExpect<__wasi_keypair_t>
+  keypairGenerate(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
+                  std::optional<__wasi_options_t> OptOptions);
+
+  WasiCryptoExpect<__wasi_keypair_encoding_e_t>
+  keypairImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
+                Span<uint8_t> Encoded,
+                __wasi_keypair_encoding_e_t KeypairEncoding);
+
+  // opt
+  WasiCryptoExpect<__wasi_keypair_t>
+  keypairGenerateManaged(__wasi_secrets_manager_t SecretsManager,
+                         __wasi_algorithm_type_e_t AlgType,
+                         std::string_view AlgStr,
+                         std::optional<__wasi_options_t> OptOptions);
+
+  WasiCryptoExpect<void>
+  keypairStoreManaged(__wasi_secrets_manager_t SecretsManager,
+                      __wasi_keypair_t Keypair, uint8_t_ptr KpIdPtr,
+                      __wasi_size_t KpIdLen);
+
+  WasiCryptoExpect<__wasi_version_t>
+  keypairReplaceManaged(__wasi_secrets_manager_t SecretsManager,
+                        __wasi_keypair_t KpOld, __wasi_keypair_t KpNew);
+
+  WasiCryptoExpect<std::tuple<__wasi_size_t, __wasi_version_t>>
+  keypairId(__wasi_keypair_t Kp, uint8_t_ptr KpId, __wasi_size_t KpIdMaxLen);
+
+  WasiCryptoExpect<__wasi_keypair_t>
+  keypairFromId(__wasi_secrets_manager_t SecretsManager, const_uint8_t_ptr KpId,
+                __wasi_size_t KpIdLen, __wasi_version_t KpIdVersion);
+
+  WasiCryptoExpect<__wasi_keypair_t> keypairFromPkAndSk(__wasi_publickey_t Pk,
+                                                        __wasi_secretkey_t Sk);
+  WasiCryptoExpect<__wasi_array_output_t>
+  keypairExport(__wasi_keypair_t Keypair,
+                __wasi_keypair_encoding_e_t KeypairEncoding);
+
+  WasiCryptoExpect<__wasi_publickey_t>
+  keypairPublickey(__wasi_keypair_t Keypair);
+
+  WasiCryptoExpect<__wasi_secretkey_t>
+  keypairSecretkey(__wasi_keypair_t Keypair);
+
+  WasiCryptoExpect<void> keypairClose(__wasi_keypair_t Keypair);
+
+  WasiCryptoExpect<__wasi_publickey_t>
+  publickeyImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
+                  Span<uint8_t> Encoded,
+                  __wasi_publickey_encoding_e_t EncodingEnum);
+
+  WasiCryptoExpect<__wasi_array_output_t>
+  publickeyExport(__wasi_publickey_t Pk,
+                  __wasi_publickey_encoding_e_t PkEncoding);
+
+  WasiCryptoExpect<void> publickeyVerify(__wasi_publickey_t Pk);
+
+  WasiCryptoExpect<__wasi_publickey_t>
+  publickeyFroSecretkey(__wasi_secretkey_t i);
+
+  WasiCryptoExpect<void> publickeyClose(__wasi_publickey_t i);
+
+  WasiCryptoExpect<__wasi_secretkey_t>
+  secretkeyImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
+                  Span<uint8_t> Encoded,
+                  __wasi_secretkey_encoding_e_t EncodingEnum);
+
+  WasiCryptoExpect<__wasi_array_output_t>
+  secretkeyExport(__wasi_secretkey_t Sk,
+                  __wasi_secretkey_encoding_e_t SkEncoding);
+
+  WasiCryptoExpect<void> secretkeyClose(__wasi_secretkey_t Sk);
+
+  ///-------------------------------------------key_exchange---------------------------------------
+
+  WasiCryptoExpect<__wasi_array_output_t> kxDh(__wasi_publickey_t Pk,
+                                               __wasi_secretkey_t Sk);
+
+  WasiCryptoExpect<std::tuple<__wasi_array_output_t, __wasi_array_output_t>>
+  kxEncapsulate(__wasi_publickey_t Pk);
+
+  WasiCryptoExpect<__wasi_array_output_t>
+  kxDecapsulate(__wasi_secretkey_t Sk, Span<uint8_t> EncapsulatedSecret);
+
+  ///-------------------------------------------signature---------------------------------------
+
+  WasiCryptoExpect<__wasi_array_output_t>
+  signatureExport(__wasi_signature_t Signature,
+                  __wasi_signature_encoding_e_t SignatureEncoding);
+
+  WasiCryptoExpect<__wasi_signature_t>
+  signatureImport(SignatureAlgorithm Alg, Span<uint8_t const> Encoded);
+
+  WasiCryptoExpect<__wasi_signature_state_t>
+  signatureStateOpen(__wasi_signature_keypair_t Kp);
+
+  WasiCryptoExpect<void> signatureStateUpdate(__wasi_signature_state_t State,
+                                              Span<uint8_t const> Input);
+
+  WasiCryptoExpect<__wasi_signature_t>
+  signatureStateSign(__wasi_signature_state_t State);
+
+  WasiCryptoExpect<void> signatureStateClose(__wasi_signature_state_t State);
+
+  WasiCryptoExpect<__wasi_signature_verification_state_t>
+  signatureVerificationStateOpen(__wasi_signature_publickey_t Pk);
+
+  WasiCryptoExpect<void>
+  signatureVerificationStateUpdate(__wasi_signature_verification_state_t State,
+                                   Span<uint8_t const> Input);
+
+  WasiCryptoExpect<void>
+  signatureVerificationStateVerify(__wasi_signature_verification_state_t State,
+                                   __wasi_signature_t Signature);
+
+  WasiCryptoExpect<void>
+  signatureVerificationStateClose(__wasi_signature_verification_state_t State);
+
+  WasiCryptoExpect<void> signatureClose(__wasi_signature_t State);
+
 private:
+  WasiCryptoExpect<uint8_t> allocateArrayOutput(Span<uint8_t> Data);
+
+  WasiCryptoExpect<std::shared_ptr<OptionBase>>
+  readOption(__wasi_options_t OptionsHandle);
+
   WasiCryptoExpect<std::shared_ptr<SymmetricOption>>
   readSymmetricOption(std::optional<__wasi_options_t> OptionsHandle);
 
   WasiCryptoExpect<std::shared_ptr<SymmetricKey>>
   readSymmetricKey(std::optional<__wasi_symmetric_key_t> KeyHandle);
 
-  CommonContext &CommonCtx;
+  HandlesManger<__wasi_array_output_t, ArrayOutput> ArrayOutputManger{0x00};
+  HandlesManger<__wasi_options_t, std::shared_ptr<OptionBase>> OptionsManger{
+      0x01};
+  HandlesManger<__wasi_keypair_t, Keypair> KeypairManger{0x02};
+  HandlesManger<__wasi_keypair_t, PublicKey> PublickeyManger{0x03};
+  HandlesManger<__wasi_keypair_t, SecretKey> SecretkeyManger{0x04};
+  HandlesManger<__wasi_signature_state_t, SignatureState> SignatureStateManger{
+      0x05};
+  HandlesManger<__wasi_signature_t, SignatureS> SignatureManger{0x06};
+  HandlesManger<__wasi_signature_verification_state_t,
+                SignatureVerificationState>
+      SignatureVerificationStateManger{0x07};
   HandlesManger<__wasi_symmetric_state_t, std::shared_ptr<SymmetricState>>
       SymmetricStateManger{0x08};
   HandlesManger<__wasi_symmetric_key_t, std::shared_ptr<SymmetricKey>>
       SymmetricKeyManger{0x09};
   HandlesManger<__wasi_symmetric_tag_t, SymmetricTag> SymmetricTagManger{0xa};
-  //  std::shared_ptr<Common> Commons;
 };
+
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0
+#pragma once
+
+namespace WasmEdge {
+namespace Host {
+namespace WASICrypto {
+class SignatureVerificationState{
+
+};
+
+class SignatureState{
+
+};
+
+class SignatureS {
+
+};
+} // namespace WASICrypto
+} // namespace Host
+} // namespace WasmEdge

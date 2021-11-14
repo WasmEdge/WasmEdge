@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "host/wasi_crypto/signature/ctx.h"
+#include "host/wasi_crypto/ctx.h"
 #include "runtime/hostfunc.h"
 #include "wasi_crypto/api.hpp"
 
@@ -11,10 +11,10 @@ namespace WASICrypto {
 namespace Signature {
 template <typename T> class HostFunction : public Runtime::HostFunction<T> {
 public:
-  HostFunction(SignatureContext &Ctx) : Runtime::HostFunction<T>(0), Ctx(Ctx) {}
+  HostFunction(WasiCryptoContext &Ctx) : Runtime::HostFunction<T>(0), Ctx(Ctx) {}
 
 protected:
-  SignatureContext &Ctx;
+  WasiCryptoContext &Ctx;
 };
 
 class Export : public HostFunction<Export> {

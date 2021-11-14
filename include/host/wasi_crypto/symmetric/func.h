@@ -2,7 +2,7 @@
 #pragma once
 
 #include "common/errcode.h"
-#include "host/wasi_crypto/symmetric/ctx.h"
+#include "host/wasi_crypto/ctx.h"
 #include "runtime/hostfunc.h"
 #include "runtime/instance/memory.h"
 #include "wasi_crypto/api.hpp"
@@ -14,11 +14,11 @@ namespace Symmetric {
 
 template <typename T> class HostFunction : public Runtime::HostFunction<T> {
 public:
-  HostFunction(WASICrypto::SymmetricContext &HostCtx)
+  HostFunction(WasiCryptoContext &HostCtx)
       : Runtime::HostFunction<T>(0), Ctx(HostCtx) {}
 
 protected:
-  WASICrypto::SymmetricContext &Ctx;
+  WasiCryptoContext &Ctx;
 };
 
 class KeyGenerate : public HostFunction<KeyGenerate> {

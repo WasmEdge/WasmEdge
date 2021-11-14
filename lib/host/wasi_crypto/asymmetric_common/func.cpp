@@ -372,7 +372,7 @@ PublickeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
   }
   Span<uint8_t> Encoded{EncodedMem, EncodedLen};
 
-  auto EncodingEnum = cast<__wasi_keypair_encoding_e_t>(Encoding);
+  auto EncodingEnum = cast<__wasi_publickey_encoding_e_t>(Encoding);
   if (!EncodingEnum) {
     return EncodingEnum.error();
   }
@@ -405,7 +405,7 @@ PublickeyExport::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  auto Res = Ctx.publicKeyExport(Pk, *EncodingEnum);
+  auto Res = Ctx.publickeyExport(Pk, *EncodingEnum);
   if (unlikely(!Res)) {
     return Res.error();
   }

@@ -85,8 +85,8 @@ WasiCryptoContext::secretsManagerInvalidate(__wasi_secrets_manager_t,
 }
 
 WasiCryptoExpect<uint8_t>
-WasiCryptoContext::allocateArrayOutput(Span<uint8_t> Data) {
-  auto Output = ArrayOutput{Data};
+WasiCryptoContext::allocateArrayOutput(std::vector<uint8_t>&& Data) {
+  auto Output = ArrayOutput{std::move(Data)};
   return ArrayOutputManger.registerManger(Output);
 }
 

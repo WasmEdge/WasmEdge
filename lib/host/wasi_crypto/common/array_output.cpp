@@ -9,7 +9,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-ArrayOutput::ArrayOutput(Span<uint8_t> Data) : Data(Data.begin(),  Data.end()) {}
+ArrayOutput::ArrayOutput(std::vector<uint8_t>&& Data) : Data(std::move(Data)) {}
 
 WasiCryptoExpect<__wasi_size_t> ArrayOutput::pull(Span<uint8_t> Buf) {
   if (Buf.size() < Data.size()) {

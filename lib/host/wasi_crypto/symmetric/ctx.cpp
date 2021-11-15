@@ -47,7 +47,7 @@ WasiCryptoContext::symmetricKeyExport(__wasi_symmetric_key_t KeyHandle) {
     return WasiCryptoUnexpect(Raw);
   }
 
-  return allocateArrayOutput(*Raw);
+  return allocateArrayOutput({Raw->begin(), Raw->end()});
 }
 
 WasiCryptoExpect<void>

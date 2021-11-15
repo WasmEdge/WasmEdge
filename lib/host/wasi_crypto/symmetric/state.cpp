@@ -41,7 +41,7 @@ SymmetricState::optionsGetU64(std::string_view Name) {
   return Options->getU64(Name);
 }
 
-WasiCryptoExpect<std::shared_ptr<SymmetricOption>>
+WasiCryptoExpect<std::shared_ptr<SymmetricOptions>>
 SymmetricState::options(std::string_view) {
   return Options;
 }
@@ -156,7 +156,7 @@ WasiCryptoExpect<void> SymmetricState::ratchet() {
 WasiCryptoExpect<std::unique_ptr<SymmetricState>>
 SymmetricState::make(SymmetricAlgorithm Alg,
                      std::shared_ptr<SymmetricKey> KeyOptional,
-                     std::shared_ptr<SymmetricOption> OptionsOptional) {
+                     std::shared_ptr<SymmetricOptions> OptionsOptional) {
 
   if (KeyOptional != nullptr && (KeyOptional->alg() != Alg)) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
@@ -193,7 +193,7 @@ SymmetricState::make(SymmetricAlgorithm Alg,
 }
 
 SymmetricState::SymmetricState(SymmetricAlgorithm Alg,
-                               std::shared_ptr<SymmetricOption> Optional)
+                               std::shared_ptr<SymmetricOptions> Optional)
     : Alg(Alg), Options(Optional) {}
 
 } // namespace WASICrypto

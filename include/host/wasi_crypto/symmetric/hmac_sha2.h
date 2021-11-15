@@ -35,7 +35,7 @@ public:
   HmacSha2KeyBuilder(SymmetricAlgorithm Alg);
 
   WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  generate(std::shared_ptr<SymmetricOption> Option) override;
+  generate(std::shared_ptr<SymmetricOptions> Option) override;
 
   WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
   import(Span<uint8_t const> Raw) override;
@@ -51,7 +51,7 @@ class HmacSha2SymmetricState : public SymmetricState {
 public:
   static WasiCryptoExpect<std::unique_ptr<HmacSha2SymmetricState>>
   make(SymmetricAlgorithm Alg, std::shared_ptr<SymmetricKey> OptKey,
-       std::shared_ptr<SymmetricOption> OptOptions);
+       std::shared_ptr<SymmetricOptions> OptOptions);
 
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override;
 
@@ -59,7 +59,7 @@ public:
 
 private:
   HmacSha2SymmetricState(SymmetricAlgorithm Alg, Span<uint8_t> Raw,
-                         std::shared_ptr<SymmetricOption> OptOptions);
+                         std::shared_ptr<SymmetricOptions> OptOptions);
 
   OpenSSlUniquePtr<HMAC_CTX, HMAC_CTX_free> Ctx{HMAC_CTX_new()};
 };

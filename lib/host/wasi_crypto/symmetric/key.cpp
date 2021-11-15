@@ -12,7 +12,7 @@ namespace WASICrypto {
 
 WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
 SymmetricKey::generate(SymmetricAlgorithm Alg,
-                       std::shared_ptr<SymmetricOption> Option) {
+                       std::shared_ptr<SymmetricOptions> Option) {
   auto Builder = builder(Alg);
   if (!Builder) {
     return WasiCryptoUnexpect(Builder);

@@ -578,7 +578,7 @@ public:
 
   WasiCryptoExpect<__wasi_keypair_t>
   keypairGenerate(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
-                  std::optional<__wasi_options_t> OptOptions);
+                  std::optional<__wasi_options_t> OptOptionsHandle);
 
   WasiCryptoExpect<__wasi_keypair_encoding_e_t>
   keypairImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
@@ -623,20 +623,20 @@ public:
   WasiCryptoExpect<void> keypairClose(__wasi_keypair_t Keypair);
 
   WasiCryptoExpect<__wasi_publickey_t>
-  publickeyImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
+  publickeyImport(__wasi_algorithm_type_e_t AlgType, SignatureAlgorithm Alg,
                   Span<uint8_t> Encoded,
                   __wasi_publickey_encoding_e_t EncodingEnum);
 
   WasiCryptoExpect<__wasi_array_output_t>
-  publickeyExport(__wasi_publickey_t Pk,
+  publickeyExport(__wasi_publickey_t PkHandle,
                   __wasi_publickey_encoding_e_t PkEncoding);
 
-  WasiCryptoExpect<void> publickeyVerify(__wasi_publickey_t Pk);
+  WasiCryptoExpect<void> publickeyVerify(__wasi_publickey_t PkHandle);
 
   WasiCryptoExpect<__wasi_publickey_t>
-  publickeyFroSecretkey(__wasi_secretkey_t i);
+  publickeyFroSecretkey(__wasi_secretkey_t SkHandle);
 
-  WasiCryptoExpect<void> publickeyClose(__wasi_publickey_t i);
+  WasiCryptoExpect<void> publickeyClose(__wasi_publickey_t PkHandle);
 
   WasiCryptoExpect<__wasi_secretkey_t>
   secretkeyImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
@@ -644,10 +644,10 @@ public:
                   __wasi_secretkey_encoding_e_t EncodingEnum);
 
   WasiCryptoExpect<__wasi_array_output_t>
-  secretkeyExport(__wasi_secretkey_t Sk,
+  secretkeyExport(__wasi_secretkey_t SkHandle,
                   __wasi_secretkey_encoding_e_t SkEncoding);
 
-  WasiCryptoExpect<void> secretkeyClose(__wasi_secretkey_t Sk);
+  WasiCryptoExpect<void> secretkeyClose(__wasi_secretkey_t SkHandle);
 
   ///-------------------------------------------key_exchange---------------------------------------
 
@@ -697,12 +697,12 @@ public:
   WasiCryptoExpect<void> signatureClose(__wasi_signature_t State);
 
 private:
-  WasiCryptoExpect<uint8_t> allocateArrayOutput(Span<uint8_t> Data);
+  WasiCryptoExpect<uint8_t> allocateArrayOutput(std::vector<uint8_t> &&Data);
 
   WasiCryptoExpect<std::shared_ptr<OptionBase>>
   readOption(__wasi_options_t OptionsHandle);
 
-  WasiCryptoExpect<std::shared_ptr<SymmetricOption>>
+  WasiCryptoExpect<std::shared_ptr<SymmetricOptions>>
   readSymmetricOption(std::optional<__wasi_options_t> OptionsHandle);
 
   WasiCryptoExpect<std::shared_ptr<SymmetricKey>>
@@ -711,7 +711,7 @@ private:
   HandlesManger<__wasi_array_output_t, ArrayOutput> ArrayOutputManger{0x00};
   HandlesManger<__wasi_options_t, std::shared_ptr<OptionBase>> OptionsManger{
       0x01};
-  HandlesManger<__wasi_keypair_t, Keypair> KeypairManger{0x02};
+  HandlesManger<__wasi_keypair_t, KeyPair> KeypairManger{0x02};
   HandlesManger<__wasi_keypair_t, PublicKey> PublickeyManger{0x03};
   HandlesManger<__wasi_keypair_t, SecretKey> SecretkeyManger{0x04};
   HandlesManger<__wasi_signature_state_t, SignatureState> SignatureStateManger{

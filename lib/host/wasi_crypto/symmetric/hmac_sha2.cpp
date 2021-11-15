@@ -18,7 +18,7 @@ SymmetricAlgorithm HmacSha2SymmetricKey::alg() { return Alg; }
 HmacSha2KeyBuilder::HmacSha2KeyBuilder(SymmetricAlgorithm Alg) : Alg{Alg} {}
 
 WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-HmacSha2KeyBuilder::generate(std::shared_ptr<SymmetricOption>) {
+HmacSha2KeyBuilder::generate(std::shared_ptr<SymmetricOptions>) {
   auto Len = keyLen();
   CryptoRandom Random;
   if (!Len) {
@@ -50,7 +50,7 @@ WasiCryptoExpect<__wasi_size_t> HmacSha2KeyBuilder::keyLen() {
 WasiCryptoExpect<std::unique_ptr<HmacSha2SymmetricState>>
 HmacSha2SymmetricState::make(SymmetricAlgorithm Alg,
                              std::shared_ptr<SymmetricKey> OptKey,
-                             std::shared_ptr<SymmetricOption> OptOptions) {
+                             std::shared_ptr<SymmetricOptions> OptOptions) {
   if (OptKey == nullptr) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
   }
@@ -85,7 +85,7 @@ WasiCryptoExpect<SymmetricTag> HmacSha2SymmetricState::squeezeTag() {
 
 HmacSha2SymmetricState::HmacSha2SymmetricState(
     SymmetricAlgorithm Alg, Span<uint8_t> Raw,
-    std::shared_ptr<SymmetricOption> OptOptions)
+    std::shared_ptr<SymmetricOptions> OptOptions)
     : SymmetricState(Alg, std::move(OptOptions)) {
   switch (Alg) {
   case SymmetricAlgorithm::HmacSha256:

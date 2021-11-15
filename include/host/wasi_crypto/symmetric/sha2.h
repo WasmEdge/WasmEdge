@@ -17,7 +17,7 @@ class Sha2SymmetricState : public SymmetricState {
 public:
   static WasiCryptoExpect<std::unique_ptr<Sha2SymmetricState>>
   make(SymmetricAlgorithm Alg, std::shared_ptr<SymmetricKey> OptKey,
-       std::shared_ptr<SymmetricOption> OptOptions);
+       std::shared_ptr<SymmetricOptions> OptOptions);
 
   WasiCryptoExpect<void> absorb(Span<uint8_t const> Data) override;
 
@@ -25,7 +25,7 @@ public:
 
 private:
   Sha2SymmetricState(SymmetricAlgorithm Alg,
-                     std::shared_ptr<SymmetricOption> OptOptions, OpenSSlUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx);
+                     std::shared_ptr<SymmetricOptions> OptOptions, OpenSSlUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx);
   OpenSSlUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx;
 };
 

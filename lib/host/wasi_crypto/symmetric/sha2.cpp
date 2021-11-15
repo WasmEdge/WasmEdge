@@ -9,7 +9,7 @@ namespace WASICrypto {
 WasiCryptoExpect<std::unique_ptr<Sha2SymmetricState>>
 Sha2SymmetricState::make(SymmetricAlgorithm Alg,
                          std::shared_ptr<SymmetricKey> OptKey,
-                         std::shared_ptr<SymmetricOption> OptOptions) {
+                         std::shared_ptr<SymmetricOptions> OptOptions) {
   if (OptKey != nullptr) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
   }
@@ -48,7 +48,7 @@ WasiCryptoExpect<void> Sha2SymmetricState::squeeze(Span<uint8_t> Out) {
 }
 
 Sha2SymmetricState::Sha2SymmetricState(
-    SymmetricAlgorithm Alg, std::shared_ptr<SymmetricOption> OptOptions,
+    SymmetricAlgorithm Alg, std::shared_ptr<SymmetricOptions> OptOptions,
     OpenSSlUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx)
     : SymmetricState(Alg, std::move(OptOptions)), Ctx(std::move(Ctx)) {}
 

@@ -19,7 +19,7 @@ AesGcmSymmetricKeyBuilder::AesGcmSymmetricKeyBuilder(SymmetricAlgorithm Alg)
     : Alg(Alg) {}
 
 WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-AesGcmSymmetricKeyBuilder::generate(std::shared_ptr<SymmetricOption> Options) {
+AesGcmSymmetricKeyBuilder::generate(std::shared_ptr<SymmetricOptions> Options) {
   auto Len = keyLen();
   if (!Len) {
     return WasiCryptoUnexpect(Len);
@@ -65,7 +65,7 @@ WasiCryptoExpect<__wasi_size_t> AesGcmSymmetricKeyBuilder::keyLen() {
 WasiCryptoExpect<std::unique_ptr<AesGcmSymmetricState>>
 AesGcmSymmetricState::make(SymmetricAlgorithm Algorithm,
                            std::shared_ptr<SymmetricKey> Key,
-                           std::shared_ptr<SymmetricOption> Options) {
+                           std::shared_ptr<SymmetricOptions> Options) {
   if (Key == nullptr) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
   }
@@ -231,7 +231,7 @@ WasiCryptoExpect<__wasi_size_t> AesGcmSymmetricState::decryptDetachedUnchecked(
 }
 
 AesGcmSymmetricState::AesGcmSymmetricState(
-    SymmetricAlgorithm Algorithm, std::shared_ptr<SymmetricOption> Options,
+    SymmetricAlgorithm Algorithm, std::shared_ptr<SymmetricOptions> Options,
     OpenSSlUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx)
     : SymmetricState(Algorithm, std::move(Options)), Ctx(std::move(Ctx)) {}
 

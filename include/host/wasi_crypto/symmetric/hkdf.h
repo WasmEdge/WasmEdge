@@ -29,7 +29,7 @@ public:
   HkdfSymmetricKeyBuilder(SymmetricAlgorithm Alg);
 
   WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  generate(std::shared_ptr<SymmetricOption> Option) override;
+  generate(std::shared_ptr<SymmetricOptions> Option) override;
 
   WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
   import(Span<uint8_t const> Raw) override;
@@ -49,7 +49,7 @@ class HkdfSymmetricState : public SymmetricState {
 public:
   static WasiCryptoExpect<std::unique_ptr<HkdfSymmetricState>>
   make(SymmetricAlgorithm Alg, std::shared_ptr<SymmetricKey> OptKey,
-       std::shared_ptr<SymmetricOption> OptOptions);
+       std::shared_ptr<SymmetricOptions> OptOptions);
 
   /// absorbs the salt of the key(Extract)/info(Expand) information.
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override;
@@ -64,7 +64,7 @@ public:
 
 private:
   HkdfSymmetricState(SymmetricAlgorithm Algorithm,
-                     std::shared_ptr<SymmetricOption> OptOptions, OpenSSlUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx);
+                     std::shared_ptr<SymmetricOptions> OptOptions, OpenSSlUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx);
 
   OpenSSlUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx;
 };

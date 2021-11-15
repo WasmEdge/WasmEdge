@@ -18,7 +18,7 @@ XoodyakSymmetricKeyBuilder::XoodyakSymmetricKeyBuilder(SymmetricAlgorithm Alg)
     : Alg(Alg) {}
 
 WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-XoodyakSymmetricKeyBuilder::generate(std::shared_ptr<SymmetricOption>) {
+XoodyakSymmetricKeyBuilder::generate(std::shared_ptr<SymmetricOptions>) {
   auto Len = keyLen();
   CryptoRandom Random;
   if (!Len) {
@@ -49,7 +49,7 @@ WasiCryptoExpect<__wasi_size_t> XoodyakSymmetricKeyBuilder::keyLen() {
 
 WasiCryptoExpect<std::unique_ptr<XoodyakSymmetricState>>
 XoodyakSymmetricState::make(SymmetricAlgorithm , std::shared_ptr<SymmetricKey> ,
-     std::shared_ptr<SymmetricOption> ) {
+     std::shared_ptr<SymmetricOptions> ) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 

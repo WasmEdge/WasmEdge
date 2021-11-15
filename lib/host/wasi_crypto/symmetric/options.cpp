@@ -6,10 +6,10 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-SymmetricOption::SymmetricOption()
+SymmetricOptions::SymmetricOptions()
     : Inner(SymmetricOptionsInner()) {}
 
-WasiCryptoExpect<void> SymmetricOption::set(std::string_view Name,
+WasiCryptoExpect<void> SymmetricOptions::set(std::string_view Name,
                                             Span<const uint8_t> Value) {
   using namespace std::literals;
 
@@ -30,7 +30,7 @@ WasiCryptoExpect<void> SymmetricOption::set(std::string_view Name,
   return {};
 }
 
-WasiCryptoExpect<void> SymmetricOption::setU64(std::string_view Name,
+WasiCryptoExpect<void> SymmetricOptions::setU64(std::string_view Name,
                                                uint64_t Value) {
   using namespace std::literals;
 
@@ -52,7 +52,7 @@ WasiCryptoExpect<void> SymmetricOption::setU64(std::string_view Name,
 }
 
 WasiCryptoExpect<void>
-SymmetricOption::setGuestBuffer(std::string_view Name,
+SymmetricOptions::setGuestBuffer(std::string_view Name,
                                 Span<uint8_t> GuestBuffer) {
   using namespace std::literals;
 
@@ -68,7 +68,7 @@ SymmetricOption::setGuestBuffer(std::string_view Name,
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
-SymmetricOption::get(std::string_view Name) {
+SymmetricOptions::get(std::string_view Name) {
   using namespace std::literals;
 
   auto Data = Inner.lock();
@@ -90,7 +90,7 @@ SymmetricOption::get(std::string_view Name) {
   return **Res;
 }
 
-WasiCryptoExpect<uint64_t> SymmetricOption::getU64(std::string_view Name) {
+WasiCryptoExpect<uint64_t> SymmetricOptions::getU64(std::string_view Name) {
   using namespace std::literals;
 
   auto Data = Inner.lock();

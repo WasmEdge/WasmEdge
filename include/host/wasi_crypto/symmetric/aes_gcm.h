@@ -28,7 +28,7 @@ public:
   AesGcmSymmetricKeyBuilder(SymmetricAlgorithm Alg);
 
   WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  generate(std::shared_ptr<SymmetricOption> Option) override;
+  generate(std::shared_ptr<SymmetricOptions> Option) override;
 
   WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
   import(Span<uint8_t const> Raw) override;
@@ -52,7 +52,7 @@ public:
   /// Otherwise, generate an Nonce in runtime
   static WasiCryptoExpect<std::unique_ptr<AesGcmSymmetricState>>
   make(SymmetricAlgorithm Algorithm, std::shared_ptr<SymmetricKey> Key,
-       std::shared_ptr<SymmetricOption> Options);
+       std::shared_ptr<SymmetricOptions> Options);
 
   /// @param[in] optional additional authentication data(AAD)
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override;
@@ -83,7 +83,7 @@ protected:
 
 private:
   AesGcmSymmetricState(
-      SymmetricAlgorithm Algorithm, std::shared_ptr<SymmetricOption> Options,
+      SymmetricAlgorithm Algorithm, std::shared_ptr<SymmetricOptions> Options,
       OpenSSlUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx);
 
   OpenSSlUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx;

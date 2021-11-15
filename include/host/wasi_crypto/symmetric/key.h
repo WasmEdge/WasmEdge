@@ -24,7 +24,7 @@ public:
   virtual SymmetricAlgorithm alg() = 0;
 
   static WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  generate(SymmetricAlgorithm Alg, std::shared_ptr<SymmetricOption> Option);
+  generate(SymmetricAlgorithm Alg, std::shared_ptr<SymmetricOptions> Option);
 
   static WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
   import(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
@@ -39,7 +39,7 @@ public:
   virtual ~SymmetricKeyBuilder() = default;
 
   virtual WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  generate(std::shared_ptr<SymmetricOption> Option) = 0;
+  generate(std::shared_ptr<SymmetricOptions> Option) = 0;
 
   virtual WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
   import(Span<uint8_t const> Raw) = 0;

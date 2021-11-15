@@ -29,9 +29,9 @@ struct SymmetricOptionsInner {
   std::optional<Span<uint8_t>> GuestBuffer;
 };
 
-class SymmetricOption : public OptionBase {
+class SymmetricOptions : public OptionBase {
 public:
-  SymmetricOption();
+  SymmetricOptions();
 
   WasiCryptoExpect<void> set(std::string_view Name,
                              Span<const uint8_t> Value) override;

@@ -30,7 +30,6 @@ public:
   virtual WasiCryptoExpect<uint64_t> getU64(std::string_view Name);
 
   static WasiCryptoExpect<std::unique_ptr<OptionBase>> make(__wasi_algorithm_type_e_t Algorithm);
-
 };
 
 } // namespace WASICrypto

@@ -26,7 +26,7 @@ public:
   XoodyakSymmetricKeyBuilder(SymmetricAlgorithm Alg);
 
   WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  generate(std::shared_ptr<SymmetricOption> Option) override;
+  generate(std::shared_ptr<SymmetricOptions> Option) override;
 
   WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
   import(Span<uint8_t const> Raw) override;
@@ -41,7 +41,7 @@ class XoodyakSymmetricState : public SymmetricState {
 public:
   static WasiCryptoExpect<std::unique_ptr<XoodyakSymmetricState>>
   make(SymmetricAlgorithm Alg, std::shared_ptr<SymmetricKey> OptKey,
-       std::shared_ptr<SymmetricOption> OptOptions);
+       std::shared_ptr<SymmetricOptions> OptOptions);
 };
 
 } // namespace WASICrypto

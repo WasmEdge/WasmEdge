@@ -18,7 +18,7 @@ HkdfSymmetricKeyBuilder::HkdfSymmetricKeyBuilder(SymmetricAlgorithm Alg)
     : Alg(Alg) {}
 
 WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-HkdfSymmetricKeyBuilder::generate(std::shared_ptr<SymmetricOption>) {
+HkdfSymmetricKeyBuilder::generate(std::shared_ptr<SymmetricOptions>) {
   auto Len = keyLen();
   if (!Len) {
     return WasiCryptoUnexpect(Len);
@@ -54,7 +54,7 @@ WasiCryptoExpect<__wasi_size_t> HkdfSymmetricKeyBuilder::keyLen() {
 WasiCryptoExpect<std::unique_ptr<HkdfSymmetricState>>
 HkdfSymmetricState::make(SymmetricAlgorithm Alg,
                          std::shared_ptr<SymmetricKey> OptKey,
-                         std::shared_ptr<SymmetricOption> OptOptions) {
+                         std::shared_ptr<SymmetricOptions> OptOptions) {
   if (OptKey == nullptr) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
   }
@@ -188,7 +188,7 @@ WasiCryptoExpect<void> HkdfSymmetricState::squeeze(Span<uint8_t> Out) {
 }
 
 HkdfSymmetricState::HkdfSymmetricState(
-    SymmetricAlgorithm Algorithm, std::shared_ptr<SymmetricOption> OptOptions,
+    SymmetricAlgorithm Algorithm, std::shared_ptr<SymmetricOptions> OptOptions,
     OpenSSlUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx)
     : SymmetricState(Algorithm, OptOptions), Ctx(std::move(Ctx)) {}
 

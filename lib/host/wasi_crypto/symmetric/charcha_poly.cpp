@@ -20,7 +20,7 @@ ChaChaPolySymmetricKeyBuilder::ChaChaPolySymmetricKeyBuilder(
     : Alg{Alg} {}
 
 WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-ChaChaPolySymmetricKeyBuilder::generate(std::shared_ptr<SymmetricOption>) {
+ChaChaPolySymmetricKeyBuilder::generate(std::shared_ptr<SymmetricOptions>) {
   auto Len = keyLen();
   CryptoRandom Random;
   if (!Len) {
@@ -52,7 +52,7 @@ WasiCryptoExpect<__wasi_size_t> ChaChaPolySymmetricKeyBuilder::keyLen() {
 
 WasiCryptoExpect<std::unique_ptr<ChaChaPolySymmetricState>>
 ChaChaPolySymmetricState::make(SymmetricAlgorithm , std::shared_ptr<SymmetricKey> ,
-                            std::shared_ptr<SymmetricOption> ) {
+                            std::shared_ptr<SymmetricOptions> ) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 

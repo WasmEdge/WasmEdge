@@ -24,7 +24,7 @@ public:
 
   virtual WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view Name);
 
-  virtual WasiCryptoExpect<std::shared_ptr<SymmetricOption>>
+  virtual WasiCryptoExpect<std::shared_ptr<SymmetricOptions>>
   options(std::string_view Name);
 
   virtual WasiCryptoExpect<void> absorb(Span<uint8_t const> Data);
@@ -65,13 +65,13 @@ public:
 
   static WasiCryptoExpect<std::unique_ptr<SymmetricState>>
   make(SymmetricAlgorithm Alg, std::shared_ptr<SymmetricKey> KeyOptional,
-       std::shared_ptr<SymmetricOption> OptionsOptional);
+       std::shared_ptr<SymmetricOptions> OptionsOptional);
 
   virtual ~SymmetricState() = default;
 
 protected:
   SymmetricState(SymmetricAlgorithm Alg,
-                 std::shared_ptr<SymmetricOption> Optional);
+                 std::shared_ptr<SymmetricOptions> Optional);
 
   virtual WasiCryptoExpect<__wasi_size_t>
   encryptUnchecked(Span<uint8_t> Out, Span<const uint8_t> Data);
@@ -90,7 +90,7 @@ protected:
                            Span<uint8_t const> RawTag);
 
   SymmetricAlgorithm Alg;
-  std::shared_ptr<SymmetricOption> Options;
+  std::shared_ptr<SymmetricOptions> Options;
 };
 
 } // namespace WASICrypto

@@ -24,6 +24,8 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   asymmetric_common/ctx.cpp
   asymmetric_common/func.cpp
   asymmetric_common/publickey.cpp
+  asymmetric_common/secretkey.cpp
+  asymmetric_common/keypair.cpp
   signature/options.cpp
   signature/func.cpp
   signature/ctx.cpp

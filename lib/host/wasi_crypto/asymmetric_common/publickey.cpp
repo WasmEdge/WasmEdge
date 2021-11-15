@@ -15,8 +15,8 @@ WasiCryptoExpect<SignaturePublicKey> PublicKey::asSignaturePublicKey() {
   return std::move(*Result);
 }
 
-WasiCryptoExpect<KxPublickey> PublicKey::asKxPublicKey() {
-  auto *Result = std::get_if<KxPublickey>(&Inner);
+WasiCryptoExpect<KxPublicKey> PublicKey::asKxPublicKey() {
+  auto *Result = std::get_if<KxPublicKey>(&Inner);
   if (Result == nullptr) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
   }
@@ -25,7 +25,7 @@ WasiCryptoExpect<KxPublickey> PublicKey::asKxPublicKey() {
 }
 
 WasiCryptoExpect<PublicKey>
-PublicKey::import(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
+PublicKey::import(__wasi_algorithm_type_e_t AlgType, SignatureAlgorithm Alg,
                   Span<uint8_t const> Encoded,
                   __wasi_publickey_encoding_e_t Encoding) {
   switch (AlgType) {
@@ -34,6 +34,15 @@ PublicKey::import(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
+}
+
+WasiCryptoExpect<std::vector<uint8_t>>
+PublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
+  return WasmEdge::Host::WASICrypto::WasiCryptoExpect<std::vector<uint8_t>>();
+}
+
+WasiCryptoExpect<void> PublicKey::verify(PublicKey Publickey) {
+  return {};
 }
 
 } // namespace WASICrypto

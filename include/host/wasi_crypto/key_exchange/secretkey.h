@@ -10,18 +10,18 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class KxPublicKey {
+class KxSecretKey {
 public:
-  virtual ~KxPublicKey() = default;
+  virtual ~KxSecretKey() = default;
 };
 
-class KxPublicKeyBuilder {
+class KxSecretKeyBuilder {
 public:
-  virtual ~KxPublicKeyBuilder() = default;
+  virtual ~KxSecretKeyBuilder() = default;
 
-  virtual WasiCryptoExpect<KxPublicKey> fromRaw(Span<uint8_t const> Raw) = 0;
+  virtual WasiCryptoExpect<KxSecretKey> fromRaw(Span<uint8_t const> Raw) = 0;
 
-  static WasiCryptoExpect<std::unique_ptr<KxPublicKeyBuilder>>
+  static WasiCryptoExpect<std::unique_ptr<KxSecretKeyBuilder>>
   builder(std::string_view Alg);
 };
 

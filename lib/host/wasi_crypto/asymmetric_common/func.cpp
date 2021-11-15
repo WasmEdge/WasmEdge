@@ -377,7 +377,12 @@ PublickeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
     return EncodingEnum.error();
   }
 
-  auto Res = Ctx.publickeyImport(*AlgType, AlgStr, Encoded, *EncodingEnum);
+  auto EnumAlg = tryFrom<SignatureAlgorithm>(AlgStr);
+  if(!EnumAlg) {
+    return EnumAlg.error();
+  }
+
+  auto Res = Ctx.publickeyImport(*AlgType, *EnumAlg, Encoded, *EncodingEnum);
   if (unlikely(!Res)) {
     return Res.error();
   }

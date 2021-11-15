@@ -5,6 +5,7 @@
 #include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/key_exchange/publickey.h"
 #include "host/wasi_crypto/signature/publickey.h"
+#include "host/wasi_crypto/signature/alg.h"
 
 #include <variant>
 
@@ -16,14 +17,18 @@ class PublicKey {
 public:
   WasiCryptoExpect<SignaturePublicKey> asSignaturePublicKey();
 
-  WasiCryptoExpect<KxPublickey> asKxPublicKey();
+  WasiCryptoExpect<KxPublicKey> asKxPublicKey();
 
   static WasiCryptoExpect<PublicKey>
-  import(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
+  import(__wasi_algorithm_type_e_t AlgType, SignatureAlgorithm Alg,
          Span<uint8_t const> Encoded, __wasi_publickey_encoding_e_t Encoding);
 
+  WasiCryptoExpect<std::vector<uint8_t>>
+  exportData(__wasi_publickey_encoding_e_t Encoding);
+
+  static WasiCryptoExpect<void> verify(PublicKey Publickey);
 private:
-  std::variant<SignaturePublicKey, KxPublickey> Inner;
+  std::variant<SignaturePublicKey, KxPublicKey> Inner;
 };
 
 } // namespace WASICrypto

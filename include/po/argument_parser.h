@@ -6,6 +6,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/errcode.h"
 #include "common/span.h"
 #include "po/list.h"
 #include "po/option.h"
@@ -76,9 +77,10 @@ private:
 
     template <typename... ArgsT>
     void add_child(SubCommandDescriptor &Child, ArgsT &&...Args) {
-      SubCommandList.push_back(&Child - this);
+      const size_t Offset = static_cast<size_t>(&Child - this);
+      SubCommandList.push_back(Offset);
       (Child.SubCommandNames.push_back(Args), ...);
-      (SubCommandMap.emplace(std::forward<ArgsT>(Args), &Child - this), ...);
+      (SubCommandMap.emplace(std::forward<ArgsT>(Args), Offset), ...);
     }
 
     template <typename T> void add_option(std::string_view Argument, T &Opt) {

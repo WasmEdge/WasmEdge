@@ -38,20 +38,15 @@ namespace boost {
 namespace winapi {
 using ::VirtualAlloc;
 using ::VirtualFree;
+using ::VirtualProtect;
 #if defined(BOOST_USE_WINDOWS_H)
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_COMMIT_ = MEM_COMMIT;
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_RESERVE_ = MEM_RESERVE;
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_RELEASE_ = MEM_RELEASE;
-BOOST_CONSTEXPR_OR_CONST DWORD_ PAGE_EXECUTE_READ_ = PAGE_EXECUTE_READ;
-BOOST_CONSTEXPR_OR_CONST DWORD_ PAGE_READONLY_ = PAGE_READONLY;
-BOOST_CONSTEXPR_OR_CONST DWORD_ PAGE_READWRITE_ = PAGE_READWRITE;
 #else
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_COMMIT_ = 0x00001000;
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_RESERVE_ = 0x00002000;
 BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_RELEASE_ = 0x00008000;
-BOOST_CONSTEXPR_OR_CONST DWORD_ PAGE_EXECUTE_READ_ = 0x20;
-BOOST_CONSTEXPR_OR_CONST DWORD_ PAGE_READONLY_ = 0x02;
-BOOST_CONSTEXPR_OR_CONST DWORD_ PAGE_READWRITE_ = 0x04;
 #endif
 } // namespace winapi
 } // namespace boost
@@ -166,14 +161,15 @@ uint8_t *Allocator::allocate_chunk(uint64_t Size) noexcept {
       unlikely(Pointer == nullptr)) {
     return nullptr;
   } else {
-    return Pointer;
+    return reinterpret_cast<uint8_t *>(Pointer);
   }
 #else
   return std::malloc(Size);
 #endif
 }
 
-void Allocator::release_chunk(uint8_t *Pointer, uint64_t Size) noexcept {
+void Allocator::release_chunk(uint8_t *Pointer,
+                              uint64_t Size [[maybe_unused]]) noexcept {
 #if defined(HAVE_MMAP)
   munmap(Pointer, Size);
 #elif WASMEDGE_OS_WINDOWS
@@ -187,8 +183,9 @@ bool Allocator::set_chunk_executable(uint8_t *Pointer, uint64_t Size) noexcept {
 #if defined(HAVE_MMAP)
   return mprotect(Pointer, Size, PROT_EXEC | PROT_READ) == 0;
 #elif WASMEDGE_OS_WINDOWS
+  boost::winapi::DWORD_ OldPerm;
   return boost::winapi::VirtualProtect(
-             Pointer, Size, boost::winapi::PAGE_EXECUTE_READ_, nullptr) == TRUE;
+             Pointer, Size, boost::winapi::PAGE_EXECUTE_READ_, &OldPerm) != 0;
 #else
   return true;
 #endif
@@ -198,8 +195,9 @@ bool Allocator::set_chunk_readable(uint8_t *Pointer, uint64_t Size) noexcept {
 #if defined(HAVE_MMAP)
   return mprotect(Pointer, Size, PROT_READ) == 0;
 #elif WASMEDGE_OS_WINDOWS
+  boost::winapi::DWORD_ OldPerm;
   return boost::winapi::VirtualProtect(
-             Pointer, Size, boost::winapi::PAGE_READONLY_, nullptr) == TRUE;
+             Pointer, Size, boost::winapi::PAGE_READONLY_, &OldPerm) != 0;
 #else
   return true;
 #endif
@@ -210,8 +208,9 @@ bool Allocator::set_chunk_readable_writable(uint8_t *Pointer,
 #if defined(HAVE_MMAP)
   return mprotect(Pointer, Size, PROT_READ | PROT_WRITE) == 0;
 #elif WASMEDGE_OS_WINDOWS
+  boost::winapi::DWORD_ OldPerm;
   return boost::winapi::VirtualProtect(
-             Pointer, Size, boost::winapi::PAGE_READWRITE_, nullptr) == TRUE;
+             Pointer, Size, boost::winapi::PAGE_READWRITE_, &OldPerm) != 0;
 #else
   return true;
 #endif

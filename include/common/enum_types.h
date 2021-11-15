@@ -13,14 +13,16 @@
 #ifndef WASMEDGE_C_API_ENUM_TYPES_H
 #define WASMEDGE_C_API_ENUM_TYPES_H
 
-#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
+#if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
+    (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 #include <cstdint>
 #include <string>
 #include <unordered_map>
 #endif
 
 /// WASM Value type enumeration.
-#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
+#if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
+    (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
 enum class ValType : uint8_t {
   None = 0x40,
@@ -52,7 +54,8 @@ enum WasmEdge_ValType {
 };
 
 /// WASM Number type enumeration.
-#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
+#if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
+    (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
 enum class NumType : uint8_t {
   I32 = 0x7F,
@@ -73,7 +76,8 @@ enum WasmEdge_NumType {
 };
 
 /// WASM Reference type enumeration.
-#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
+#if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
+    (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
 enum class RefType : uint8_t { ExternRef = 0x6F, FuncRef = 0x70 };
 } // namespace WasmEdge
@@ -85,7 +89,8 @@ enum WasmEdge_RefType {
 };
 
 /// WASM Mutability enumeration.
-#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
+#if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
+    (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
 enum class ValMut : uint8_t { Const = 0x00, Var = 0x01 };
 
@@ -100,7 +105,8 @@ enum WasmEdge_Mutability {
 };
 
 /// WASM External type enumeration.
-#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
+#if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
+    (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
 enum class ExternalType : uint8_t {
   Function = 0x00U,

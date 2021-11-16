@@ -11,32 +11,32 @@ AesGcmSymmetricKey::AesGcmSymmetricKey(SymmetricAlgorithm Alg,
                                        Span<uint8_t const> Raw)
     : Alg(Alg), Raw(Raw.begin(), Raw.end()) {}
 
-WasiCryptoExpect<Span<uint8_t>> AesGcmSymmetricKey::raw() { return Raw; }
+WasiCryptoExpect<std::vector<uint8_t>> AesGcmSymmetricKey::raw() { return Raw; }
 
 SymmetricAlgorithm AesGcmSymmetricKey::alg() { return Alg; }
 
 AesGcmSymmetricKeyBuilder::AesGcmSymmetricKeyBuilder(SymmetricAlgorithm Alg)
     : Alg(Alg) {}
 
-WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-AesGcmSymmetricKeyBuilder::generate(std::shared_ptr<SymmetricOptions> Options) {
+WasiCryptoExpect<SymmetricKey> AesGcmSymmetricKeyBuilder::generate(
+    std::optional<SymmetricOptions> OptOptions) {
   auto Len = keyLen();
   if (!Len) {
     return WasiCryptoUnexpect(Len);
   }
 
-  // have Nonce
-  auto OptionsInner = Options->Inner.lock();
-  if (Options != nullptr && OptionsInner->Nonce.has_value()) {
+  auto Nonce = OptOptions->get("nonce");
+  if (Nonce) {
     // but size not equal
-    if (OptionsInner->Nonce->size() != *Len) {
+    if (Nonce->size() != *Len) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_NONCE);
     }
 
-    return import(*OptionsInner->Nonce);
+    return import(*Nonce);
   }
 
-  // generate random by host TODO: may I need to generate a option and register. Need read proposal more detailed.
+  // generate random by host TODO: may I need to generate a option and register.
+  // Need read proposal more detailed.
   std::vector<uint8_t> Raw(*Len, 0);
   CryptoRandom Random;
   if (auto Res = Random.fill(Raw); !Res) {
@@ -46,9 +46,9 @@ AesGcmSymmetricKeyBuilder::generate(std::shared_ptr<SymmetricOptions> Options) {
   return import(Raw);
 }
 
-WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
+WasiCryptoExpect<SymmetricKey>
 AesGcmSymmetricKeyBuilder::import(Span<uint8_t const> Raw) {
-  return std::make_unique<AesGcmSymmetricKey>(Alg, Raw);
+  return SymmetricKey{std::make_unique<AesGcmSymmetricKey>(Alg, Raw)};
 }
 
 WasiCryptoExpect<__wasi_size_t> AesGcmSymmetricKeyBuilder::keyLen() {
@@ -63,21 +63,25 @@ WasiCryptoExpect<__wasi_size_t> AesGcmSymmetricKeyBuilder::keyLen() {
 }
 
 WasiCryptoExpect<std::unique_ptr<AesGcmSymmetricState>>
-AesGcmSymmetricState::make(SymmetricAlgorithm Algorithm,
-                           std::shared_ptr<SymmetricKey> Key,
-                           std::shared_ptr<SymmetricOptions> Options) {
-  if (Key == nullptr) {
+AesGcmSymmetricState::make(SymmetricAlgorithm Alg,
+                           std::optional<SymmetricKey> OptKey,
+                           std::optional<SymmetricOptions> OptOptions) {
+  if (OptKey) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
   }
 
-  // init get Key data
-  auto AesGcmKey = std::dynamic_pointer_cast<AesGcmSymmetricKey>(Key);
-  if (AesGcmKey == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
+  if (!OptOptions) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
   }
-  auto RawKey = AesGcmKey->raw();
-  if (!RawKey) {
-    return WasiCryptoUnexpect(RawKey);
+
+  if(auto Res = OptKey->isType<AesGcmSymmetricKey>(); !Res) {
+    return WasiCryptoUnexpect(Res);
+  }
+
+  // init get Key data
+  auto Raw = OptKey->raw();
+  if (!Raw) {
+    return WasiCryptoUnexpect(Raw);
   }
 
   // Init unique_ptr
@@ -89,7 +93,7 @@ AesGcmSymmetricState::make(SymmetricAlgorithm Algorithm,
 
   // Init Cipher
   EVP_CIPHER const *Cipher;
-  switch (Algorithm) {
+  switch (Alg) {
   case SymmetricAlgorithm::Aes128Gcm:
     Cipher = EVP_aes_128_gcm();
     break;
@@ -100,25 +104,33 @@ AesGcmSymmetricState::make(SymmetricAlgorithm Algorithm,
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   }
 
-  // init Nonce
-  auto OptionsInner = Options->Inner.lock();
-  if (Options == nullptr || !OptionsInner->Nonce) {
+  auto Nonce = OptOptions->get("nonce");
+  if (!Nonce) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
   }
 
-  auto &Nonce = OptionsInner->Nonce;
-  if (!Nonce || Nonce->size() != NonceLen) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
+  if (Nonce->size() != NonceLen) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
   }
 
-  if (!EVP_CipherInit_ex(Ctx.get(), Cipher, nullptr, RawKey->data(),
+  if (!EVP_CipherInit_ex(Ctx.get(), Cipher, nullptr, Raw->data(),
                          Nonce->data(), Mode::Unchanged)) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 
   //  new ptr
   return std::unique_ptr<AesGcmSymmetricState>{
-      new AesGcmSymmetricState{Algorithm, std::move(Options), std::move(Ctx)}};
+      new AesGcmSymmetricState{Alg, *OptOptions, std::move(Ctx)}};
+}
+
+WasiCryptoExpect<std::vector<uint8_t>>
+AesGcmSymmetricState::optionsGet(std::string_view Name) {
+  return Options.get(Name);
+}
+
+WasiCryptoExpect<uint64_t>
+AesGcmSymmetricState::optionsGetU64(std::string_view Name) {
+  return Options.getU64(Name);
 }
 
 WasiCryptoExpect<void> AesGcmSymmetricState::absorb(Span<const uint8_t> Data) {
@@ -153,7 +165,7 @@ AesGcmSymmetricState::encryptDetachedUnchecked(Span<uint8_t> Out,
                                                Span<const uint8_t> Data) {
   updateMode(Mode::Encrypt);
 
-  auto Nonce = Options->Inner.lock()->Nonce;
+  auto Nonce = Options.get("nonce");
   if (!Nonce) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
   }
@@ -176,7 +188,8 @@ AesGcmSymmetricState::encryptDetachedUnchecked(Span<uint8_t> Out,
 
   // Notice: Finalise the encryption. Normally ciphertext bytes may be written
   // at this stage, but this does not occur in GCM mode
-  // However, cannot do put nullptr length in it. construct a temp var TODO:Better
+  // However, cannot do put nullptr length in it. construct a temp var
+  // TODO:Better
   int AL;
   if (!EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL)) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
@@ -221,7 +234,8 @@ WasiCryptoExpect<__wasi_size_t> AesGcmSymmetricState::decryptDetachedUnchecked(
 
   // Notice: Finalise the decryption. Normally ciphertext bytes may be written
   // at this stage, but this does not occur in GCM mode
-  // However, cannot do put nullptr length in it. construct a temp var TODO:Better
+  // However, cannot do put nullptr length in it. construct a temp var
+  // TODO:Better
   int AL;
   if (!EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL)) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
@@ -231,9 +245,9 @@ WasiCryptoExpect<__wasi_size_t> AesGcmSymmetricState::decryptDetachedUnchecked(
 }
 
 AesGcmSymmetricState::AesGcmSymmetricState(
-    SymmetricAlgorithm Algorithm, std::shared_ptr<SymmetricOptions> Options,
+    SymmetricAlgorithm Alg, SymmetricOptions Options,
     OpenSSlUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx)
-    : SymmetricState(Algorithm, std::move(Options)), Ctx(std::move(Ctx)) {}
+    : SymmetricStateBase(Alg), Options(Options), Ctx(std::move(Ctx)) {}
 
 } // namespace WASICrypto
 } // namespace Host

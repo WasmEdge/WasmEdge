@@ -1,34 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "host/wasi_crypto/common/array_output.h"
-#include "host/wasi_crypto/common/options.h"
-#include "host/wasi_crypto/error.h"
-#include "host/wasi_crypto/handles.h"
-#include "wasi_crypto/api.hpp"
-
-#include "host/wasi_crypto/handles.h"
-#include "host/wasi_crypto/lock.h"
-#include "host/wasi_crypto/symmetric/state.h"
-#include "host/wasi_crypto/symmetric/tag.h"
-#include "wasi_crypto/api.hpp"
-
 #include "common/span.h"
 #include "host/wasi_crypto/asymmetric_common/keypair.h"
 #include "host/wasi_crypto/asymmetric_common/publickey.h"
 #include "host/wasi_crypto/asymmetric_common/secretkey.h"
+#include "host/wasi_crypto/common/array_output.h"
+#include "host/wasi_crypto/common/options.h"
 #include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/handles.h"
-
-#include "common/span.h"
-#include "host/wasi_crypto/error.h"
-
-#include "common/span.h"
-#include "host/wasi_crypto/error.h"
-#include "host/wasi_crypto/handles.h"
+#include "host/wasi_crypto/lock.h"
 #include "host/wasi_crypto/signature/alg.h"
-
 #include "host/wasi_crypto/signature/signature.h"
+#include "host/wasi_crypto/symmetric/state.h"
+#include "host/wasi_crypto/symmetric/tag.h"
+#include "wasi_crypto/api.hpp"
 
 namespace WasmEdge {
 namespace Host {
@@ -699,18 +685,14 @@ public:
 private:
   WasiCryptoExpect<uint8_t> allocateArrayOutput(std::vector<uint8_t> &&Data);
 
-  WasiCryptoExpect<std::shared_ptr<OptionBase>>
-  readOption(__wasi_options_t OptionsHandle);
-
-  WasiCryptoExpect<std::shared_ptr<SymmetricOptions>>
+  WasiCryptoExpect<std::optional<SymmetricOptions>>
   readSymmetricOption(std::optional<__wasi_options_t> OptionsHandle);
 
-  WasiCryptoExpect<std::shared_ptr<SymmetricKey>>
+  WasiCryptoExpect<std::optional<SymmetricKey>>
   readSymmetricKey(std::optional<__wasi_symmetric_key_t> KeyHandle);
 
   HandlesManger<__wasi_array_output_t, ArrayOutput> ArrayOutputManger{0x00};
-  HandlesManger<__wasi_options_t, std::shared_ptr<OptionBase>> OptionsManger{
-      0x01};
+  HandlesManger<__wasi_options_t, Options> OptionsManger{0x01};
   HandlesManger<__wasi_keypair_t, KeyPair> KeypairManger{0x02};
   HandlesManger<__wasi_keypair_t, PublicKey> PublickeyManger{0x03};
   HandlesManger<__wasi_keypair_t, SecretKey> SecretkeyManger{0x04};
@@ -720,10 +702,9 @@ private:
   HandlesManger<__wasi_signature_verification_state_t,
                 SignatureVerificationState>
       SignatureVerificationStateManger{0x07};
-  HandlesManger<__wasi_symmetric_state_t, std::shared_ptr<SymmetricState>>
-      SymmetricStateManger{0x08};
-  HandlesManger<__wasi_symmetric_key_t, std::shared_ptr<SymmetricKey>>
-      SymmetricKeyManger{0x09};
+  HandlesManger<__wasi_symmetric_state_t, SymmetricState> SymmetricStateManger{
+      0x08};
+  HandlesManger<__wasi_symmetric_key_t, SymmetricKey> SymmetricKeyManger{0x09};
   HandlesManger<__wasi_symmetric_tag_t, SymmetricTag> SymmetricTagManger{0xa};
 };
 

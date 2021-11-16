@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+#include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/aes_gcm.h"
 #include "host/wasi_crypto/symmetric/charcha_poly.h"
 #include "host/wasi_crypto/symmetric/hkdf.h"
@@ -10,18 +11,22 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
+SymmetricKey::SymmetricKey(std::unique_ptr<SymmetricKeyBase> Inner)
+    : Inner(std::make_shared<Mutex<std::unique_ptr<SymmetricKeyBase>>>(
+          std::move(Inner))) {}
+
+WasiCryptoExpect<SymmetricKey>
 SymmetricKey::generate(SymmetricAlgorithm Alg,
-                       std::shared_ptr<SymmetricOptions> Option) {
+                       std::optional<SymmetricOptions> OptOption) {
   auto Builder = builder(Alg);
   if (!Builder) {
     return WasiCryptoUnexpect(Builder);
   }
-  return (*Builder)->generate(Option);
+  return (*Builder)->generate(OptOption);
 }
 
-WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-SymmetricKey::import(SymmetricAlgorithm Alg, Span<uint8_t const> Raw) {
+WasiCryptoExpect<SymmetricKey> SymmetricKey::import(SymmetricAlgorithm Alg,
+                                                    Span<uint8_t const> Raw) {
   auto Builder = builder(Alg);
   if (!Builder) {
     return WasiCryptoUnexpect(Builder);

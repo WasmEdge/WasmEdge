@@ -7,7 +7,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class SignatureOptions : public OptionBase {
+class SignatureOptions {
 
 };
 

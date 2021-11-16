@@ -179,7 +179,6 @@ OptionsSetGuestBuffer::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   auto *BufMem = MemInst->getPointer<uint8_t *>(BufPtr, BufLen);
-
   if (unlikely(BufMem == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }

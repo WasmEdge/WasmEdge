@@ -10,30 +10,30 @@ XoodyakSymmetricKey::XoodyakSymmetricKey(SymmetricAlgorithm Alg,
                                          Span<uint8_t const> Raw)
     : Alg(Alg), Raw(Raw.begin(), Raw.end()) {}
 
-WasiCryptoExpect<Span<uint8_t>> XoodyakSymmetricKey::raw() { return Raw; }
+WasiCryptoExpect<std::vector<uint8_t>> XoodyakSymmetricKey::raw() { return Raw; }
 
 SymmetricAlgorithm XoodyakSymmetricKey::alg() { return Alg; }
 
 XoodyakSymmetricKeyBuilder::XoodyakSymmetricKeyBuilder(SymmetricAlgorithm Alg)
     : Alg(Alg) {}
 
-WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-XoodyakSymmetricKeyBuilder::generate(std::shared_ptr<SymmetricOptions>) {
+WasiCryptoExpect<SymmetricKey>
+XoodyakSymmetricKeyBuilder::generate(
+    std::optional<SymmetricOptions> ) {
   auto Len = keyLen();
   CryptoRandom Random;
   if (!Len) {
     return WasiCryptoUnexpect(Len);
   }
   std::vector<uint8_t> Raw(*Len, 0);
-  if(auto Res = Random.fill(Raw); !Res.has_value()) {
+  if (auto Res = Random.fill(Raw); !Res.has_value()) {
     return WasiCryptoUnexpect(Res);
   }
   return import(Raw);
 }
 
-WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-XoodyakSymmetricKeyBuilder::import(Span<uint8_t const> Raw) {
-  return std::make_unique<XoodyakSymmetricKey>(Alg, Raw);
+WasiCryptoExpect<SymmetricKey> XoodyakSymmetricKeyBuilder::import(Span<uint8_t const> Raw) {
+  return SymmetricKey{std::make_unique<XoodyakSymmetricKey>(Alg, Raw)};
 }
 
 WasiCryptoExpect<__wasi_size_t> XoodyakSymmetricKeyBuilder::keyLen() {
@@ -48,8 +48,8 @@ WasiCryptoExpect<__wasi_size_t> XoodyakSymmetricKeyBuilder::keyLen() {
 }
 
 WasiCryptoExpect<std::unique_ptr<XoodyakSymmetricState>>
-XoodyakSymmetricState::make(SymmetricAlgorithm , std::shared_ptr<SymmetricKey> ,
-     std::shared_ptr<SymmetricOptions> ) {
+XoodyakSymmetricState::make(SymmetricAlgorithm, std::optional<SymmetricKey>,
+                            std::optional<SymmetricOptions>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 

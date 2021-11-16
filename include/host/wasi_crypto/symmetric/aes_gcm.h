@@ -10,11 +10,11 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class AesGcmSymmetricKey : public SymmetricKey {
+class AesGcmSymmetricKey : public SymmetricKeyBase {
 public:
   AesGcmSymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
 
-  WasiCryptoExpect<Span<uint8_t>> raw() override;
+  WasiCryptoExpect<std::vector<uint8_t>> raw() override;
 
   SymmetricAlgorithm alg() override;
 
@@ -27,11 +27,10 @@ class AesGcmSymmetricKeyBuilder : public SymmetricKeyBuilder {
 public:
   AesGcmSymmetricKeyBuilder(SymmetricAlgorithm Alg);
 
-  WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  generate(std::shared_ptr<SymmetricOptions> Option) override;
+  WasiCryptoExpect<SymmetricKey>
+  generate(std::optional<SymmetricOptions> OptOptions) override;
 
-  WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  import(Span<uint8_t const> Raw) override;
+  WasiCryptoExpect<SymmetricKey> import(Span<uint8_t const> Raw) override;
 
   WasiCryptoExpect<__wasi_size_t> keyLen() override;
 
@@ -40,19 +39,24 @@ private:
 };
 
 // Nonce = IV,
-class AesGcmSymmetricState : public SymmetricState {
+class AesGcmSymmetricState : public SymmetricStateBase {
 public:
   inline static constexpr __wasi_size_t NonceLen = 12;
 
   inline static constexpr __wasi_size_t TagLen = 16;
 
   /// There are four inputs for authenticated encryption:
-  /// @param[in] Key The secret key for encrypt
-  /// @param[in] Options `Must` Contain an Nonce(Initialization vector).
+  /// @param[in] OptKey The secret key for encrypt
+  /// @param[in] OptOptions `Must` Contain an Nonce(Initialization vector).
   /// Otherwise, generate an Nonce in runtime
   static WasiCryptoExpect<std::unique_ptr<AesGcmSymmetricState>>
-  make(SymmetricAlgorithm Algorithm, std::shared_ptr<SymmetricKey> Key,
-       std::shared_ptr<SymmetricOptions> Options);
+  make(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
+       std::optional<SymmetricOptions> OptOptions);
+
+  WasiCryptoExpect<std::vector<uint8_t>>
+  optionsGet(std::string_view Name) override;
+
+  WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view Name) override;
 
   /// @param[in] optional additional authentication data(AAD)
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override;
@@ -83,9 +87,11 @@ protected:
 
 private:
   AesGcmSymmetricState(
-      SymmetricAlgorithm Algorithm, std::shared_ptr<SymmetricOptions> Options,
+      SymmetricAlgorithm Alg,
+      SymmetricOptions Options,
       OpenSSlUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx);
 
+  SymmetricOptions Options;
   OpenSSlUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx;
 
   enum Mode { Unchanged = -1, Decrypt = 0, Encrypt = 1 };

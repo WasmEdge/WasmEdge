@@ -15,8 +15,6 @@ namespace WASICrypto {
 
 class SymmetricTag {
 public:
-  SymmetricTag(SymmetricAlgorithm Alg) : Alg(Alg) {}
-
   SymmetricTag(SymmetricAlgorithm Alg, Span<uint8_t> Data)
       : Alg(Alg), Raw(Data.begin(),  Data.end()) {}
 

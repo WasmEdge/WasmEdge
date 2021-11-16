@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-#pragma once
+
+#include "host/wasi_crypto/wrapper/sha2.h"
 
 namespace WasmEdge {
 namespace Host {
-namespace WASICrypto {
-class KxOptions {};
-} // namespace WASICrypto
+namespace WASICrypto {} // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

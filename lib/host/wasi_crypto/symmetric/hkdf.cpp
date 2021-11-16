@@ -10,15 +10,15 @@ HkdfSymmetricKey::HkdfSymmetricKey(SymmetricAlgorithm Alg,
                                    Span<uint8_t const> Raw)
     : Alg(Alg), Raw(Raw.begin(), Raw.end()) {}
 
-WasiCryptoExpect<Span<uint8_t>> HkdfSymmetricKey::raw() { return Raw; }
+WasiCryptoExpect<std::vector<uint8_t>> HkdfSymmetricKey::raw() { return Raw; }
 
 SymmetricAlgorithm HkdfSymmetricKey::alg() { return Alg; }
 
 HkdfSymmetricKeyBuilder::HkdfSymmetricKeyBuilder(SymmetricAlgorithm Alg)
     : Alg(Alg) {}
 
-WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-HkdfSymmetricKeyBuilder::generate(std::shared_ptr<SymmetricOptions>) {
+WasiCryptoExpect<SymmetricKey>
+HkdfSymmetricKeyBuilder::generate(std::optional<SymmetricOptions>) {
   auto Len = keyLen();
   if (!Len) {
     return WasiCryptoUnexpect(Len);
@@ -33,9 +33,9 @@ HkdfSymmetricKeyBuilder::generate(std::shared_ptr<SymmetricOptions>) {
   return import(Raw);
 }
 
-WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
+WasiCryptoExpect<SymmetricKey>
 HkdfSymmetricKeyBuilder::import(Span<uint8_t const> Raw) {
-  return std::make_unique<HkdfSymmetricKey>(Alg, Raw);
+  return SymmetricKey{std::make_unique<HkdfSymmetricKey>(Alg, Raw)};
 }
 
 WasiCryptoExpect<__wasi_size_t> HkdfSymmetricKeyBuilder::keyLen() {
@@ -53,18 +53,17 @@ WasiCryptoExpect<__wasi_size_t> HkdfSymmetricKeyBuilder::keyLen() {
 
 WasiCryptoExpect<std::unique_ptr<HkdfSymmetricState>>
 HkdfSymmetricState::make(SymmetricAlgorithm Alg,
-                         std::shared_ptr<SymmetricKey> OptKey,
-                         std::shared_ptr<SymmetricOptions> OptOptions) {
-  if (OptKey == nullptr) {
+                         std::optional<SymmetricKey> OptKey,
+                         std::optional<SymmetricOptions> OptOptions) {
+  if (!OptKey) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
   }
 
-  auto Key = std::dynamic_pointer_cast<HkdfSymmetricKey>(OptKey);
-  if (Key == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
+  if(auto Res = OptKey->isType<HkdfSymmetricKey>(); !Res) {
+    return WasiCryptoUnexpect(Res);
   }
 
-  auto Raw = Key->raw();
+  auto Raw = OptKey->raw();
   if (!Raw) {
     return WasiCryptoUnexpect(Raw);
   }
@@ -125,7 +124,7 @@ HkdfSymmetricState::make(SymmetricAlgorithm Alg,
   //  }
 
   return std::unique_ptr<HkdfSymmetricState>{
-      new HkdfSymmetricState{Alg, std::move(OptOptions), std::move(Ctx)}};
+      new HkdfSymmetricState{Alg, OptOptions, std::move(Ctx)}};
 }
 
 WasiCryptoExpect<void> HkdfSymmetricState::absorb(Span<const uint8_t> Data) {
@@ -148,7 +147,7 @@ WasiCryptoExpect<void> HkdfSymmetricState::absorb(Span<const uint8_t> Data) {
   return {};
 }
 
-WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
+WasiCryptoExpect<SymmetricKey>
 HkdfSymmetricState::squeezeKey(SymmetricAlgorithm Alg) {
   // check Size
   size_t Size;
@@ -157,29 +156,30 @@ HkdfSymmetricState::squeezeKey(SymmetricAlgorithm Alg) {
   }
 
   // allocate
-  std::vector<uint8_t> Vec(Size, 0);
-  if (EVP_PKEY_derive(Ctx.get(), Vec.data(), &Size) <= 0) {
+  uint8_t Data[Size];
+  size_t NewSize;
+  if (EVP_PKEY_derive(Ctx.get(), Data, &NewSize) <= 0) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 
   // check
-  if (Vec.size() != Size) {
+  if (NewSize != Size) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 
-  return SymmetricKey::import(Alg, Vec);
+  return SymmetricKey::import(Alg, {*&Data, NewSize});
 }
 
 WasiCryptoExpect<void> HkdfSymmetricState::squeeze(Span<uint8_t> Out) {
   // check Size
   size_t Size;
-//  if (EVP_PKEY_derive(Ctx.get(), nullptr, &Size) <= 0) {
-//    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-//  }
-//
-//  if (Out.size() < Size) {
-//    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OVERFLOW);
-//  }
+  //  if (EVP_PKEY_derive(Ctx.get(), nullptr, &Size) <= 0) {
+  //    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
+  //  }
+  //
+  //  if (Out.size() < Size) {
+  //    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OVERFLOW);
+  //  }
 
   if (EVP_PKEY_derive(Ctx.get(), Out.data(), &Size) <= 0) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
@@ -187,10 +187,27 @@ WasiCryptoExpect<void> HkdfSymmetricState::squeeze(Span<uint8_t> Out) {
   return {};
 }
 
+WasiCryptoExpect<std::vector<uint8_t>>
+HkdfSymmetricState::optionsGet(std::string_view Name) {
+  if (!OptOptions) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
+  }
+  return OptOptions->get(Name);
+}
+
+WasiCryptoExpect<uint64_t>
+HkdfSymmetricState::optionsGetU64(std::string_view Name) {
+  if (!OptOptions) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
+  }
+  return OptOptions->getU64(Name);
+}
+
 HkdfSymmetricState::HkdfSymmetricState(
-    SymmetricAlgorithm Algorithm, std::shared_ptr<SymmetricOptions> OptOptions,
+    SymmetricAlgorithm Algorithm, std::optional<SymmetricOptions> OptOptions,
     OpenSSlUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx)
-    : SymmetricState(Algorithm, OptOptions), Ctx(std::move(Ctx)) {}
+    : SymmetricStateBase(Algorithm), OptOptions(OptOptions),
+      Ctx(std::move(Ctx)) {}
 
 } // namespace WASICrypto
 } // namespace Host

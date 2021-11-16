@@ -11,7 +11,9 @@ ChaChaPolySymmetricKey::ChaChaPolySymmetricKey(SymmetricAlgorithm Alg,
                                                Span<uint8_t const> Raw)
     : Alg(Alg), Raw(Raw.begin(), Raw.end()) {}
 
-WasiCryptoExpect<Span<uint8_t>> ChaChaPolySymmetricKey::raw() { return Raw; }
+WasiCryptoExpect<std::vector<uint8_t>> ChaChaPolySymmetricKey::raw() {
+  return Raw;
+}
 
 SymmetricAlgorithm ChaChaPolySymmetricKey::alg() { return Alg; }
 
@@ -19,24 +21,24 @@ ChaChaPolySymmetricKeyBuilder::ChaChaPolySymmetricKeyBuilder(
     SymmetricAlgorithm Alg)
     : Alg{Alg} {}
 
-WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-ChaChaPolySymmetricKeyBuilder::generate(std::shared_ptr<SymmetricOptions>) {
+WasiCryptoExpect<SymmetricKey>
+ChaChaPolySymmetricKeyBuilder::generate(std::optional<SymmetricOptions>) {
   auto Len = keyLen();
   CryptoRandom Random;
   if (!Len) {
     return WasiCryptoUnexpect(Len);
   }
   std::vector<uint8_t> Raw(*Len, 0);
-  if(auto Res = Random.fill(Raw); !Res.has_value()) {
+  if (auto Res = Random.fill(Raw); !Res.has_value()) {
     return WasiCryptoUnexpect(Res);
   }
 
   return import(Raw);
 }
 
-WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
+WasiCryptoExpect<SymmetricKey>
 ChaChaPolySymmetricKeyBuilder::import(Span<uint8_t const> Raw) {
-  return std::make_unique<ChaChaPolySymmetricKey>(Alg, Raw);
+  return SymmetricKey{std::make_unique<ChaChaPolySymmetricKey>(Alg, Raw)};
 }
 
 WasiCryptoExpect<__wasi_size_t> ChaChaPolySymmetricKeyBuilder::keyLen() {
@@ -51,8 +53,8 @@ WasiCryptoExpect<__wasi_size_t> ChaChaPolySymmetricKeyBuilder::keyLen() {
 }
 
 WasiCryptoExpect<std::unique_ptr<ChaChaPolySymmetricState>>
-ChaChaPolySymmetricState::make(SymmetricAlgorithm , std::shared_ptr<SymmetricKey> ,
-                            std::shared_ptr<SymmetricOptions> ) {
+ChaChaPolySymmetricState::make(SymmetricAlgorithm, std::optional<SymmetricKey>,
+                               std::optional<SymmetricOptions>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 

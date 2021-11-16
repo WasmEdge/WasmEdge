@@ -13,10 +13,10 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class HkdfSymmetricKey : public SymmetricKey {
+class HkdfSymmetricKey : public SymmetricKeyBase {
 public:
   HkdfSymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
-  WasiCryptoExpect<Span<uint8_t>> raw() override;
+  WasiCryptoExpect<std::vector<uint8_t>> raw() override;
   SymmetricAlgorithm alg() override;
 
 private:
@@ -28,11 +28,9 @@ class HkdfSymmetricKeyBuilder : public SymmetricKeyBuilder {
 public:
   HkdfSymmetricKeyBuilder(SymmetricAlgorithm Alg);
 
-  WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  generate(std::shared_ptr<SymmetricOptions> Option) override;
+  WasiCryptoExpect<SymmetricKey> generate(std::optional<SymmetricOptions> OptOption) override;
 
-  WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  import(Span<uint8_t const> Raw) override;
+  WasiCryptoExpect<SymmetricKey> import(Span<uint8_t const> Raw) override;
 
   WasiCryptoExpect<__wasi_size_t> keyLen() override;
 
@@ -45,27 +43,34 @@ private:
 ///
 /// Expand:
 ///
-class HkdfSymmetricState : public SymmetricState {
+class HkdfSymmetricState : public SymmetricStateBase {
 public:
   static WasiCryptoExpect<std::unique_ptr<HkdfSymmetricState>>
-  make(SymmetricAlgorithm Alg, std::shared_ptr<SymmetricKey> OptKey,
-       std::shared_ptr<SymmetricOptions> OptOptions);
+  make(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
+       std::optional<SymmetricOptions> OptOptions);
 
   /// absorbs the salt of the key(Extract)/info(Expand) information.
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override;
 
   /// Extract:
-  /// returns the PRK, whose algorithm type is set to the EXPAND counterpart of the EXTRACT operation
-  WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  squeezeKey(SymmetricAlgorithm AlgStr) override;
+  /// returns the PRK, whose algorithm type is set to the EXPAND counterpart of
+  /// the EXTRACT operation
+  WasiCryptoExpect<SymmetricKey> squeezeKey(SymmetricAlgorithm Alg) override;
 
   // Expand
   WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) override;
 
+  WasiCryptoExpect<std::vector<uint8_t>>
+  optionsGet(std::string_view Name) override;
+
+  WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view Name) override;
+
 private:
   HkdfSymmetricState(SymmetricAlgorithm Algorithm,
-                     std::shared_ptr<SymmetricOptions> OptOptions, OpenSSlUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx);
+                     std::optional<SymmetricOptions> OptOptions,
+                     OpenSSlUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx);
 
+  std::optional<SymmetricOptions> OptOptions;
   OpenSSlUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx;
 };
 

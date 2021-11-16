@@ -15,7 +15,7 @@ WasiCryptoContext::arrayOutputLen(__wasi_array_output_t ArrayOutputHandle) {
 
 WasiCryptoExpect<__wasi_size_t>
 WasiCryptoContext::arrayOutputPull(__wasi_array_output_t ArrayOutputHandle,
-                               Span<uint8_t> Buf) {
+                                   Span<uint8_t> Buf) {
   auto ArrayOutput = ArrayOutputManger.get(ArrayOutputHandle);
   ArrayOutputManger.close(ArrayOutputHandle);
   return ArrayOutput->pull(Buf);
@@ -23,49 +23,49 @@ WasiCryptoContext::arrayOutputPull(__wasi_array_output_t ArrayOutputHandle,
 
 WasiCryptoExpect<__wasi_options_t>
 WasiCryptoContext::optionsOpen(__wasi_algorithm_type_e_t AlgorithmType) {
-  auto Options = OptionBase::make(AlgorithmType);
-
-  if (!Options) {
-    return WasiCryptoUnexpect(Options);
+  auto OpenOptions = Options::make(AlgorithmType);
+  if (!OpenOptions) {
+    return WasiCryptoUnexpect(OpenOptions);
   }
 
-  return OptionsManger.registerManger(std::move(*Options));
+  return OptionsManger.registerManger(*OpenOptions);
 }
 
-WasiCryptoExpect<void> WasiCryptoContext::optionsClose(__wasi_options_t Handle) {
+WasiCryptoExpect<void>
+WasiCryptoContext::optionsClose(__wasi_options_t Handle) {
   return OptionsManger.close(Handle);
 }
 
-WasiCryptoExpect<void> WasiCryptoContext::optionsSet(__wasi_options_t OptionsHandle,
-                                                 std::string_view Name,
-                                                 Span<uint8_t const> Value) {
+WasiCryptoExpect<void>
+WasiCryptoContext::optionsSet(__wasi_options_t OptionsHandle,
+                              std::string_view Name,
+                              Span<uint8_t const> Value) {
   auto Options = OptionsManger.get(OptionsHandle);
   if (!Options) {
     return WasiCryptoUnexpect(Options);
   }
 
-  return (*Options)->set(Name, Value);
+  return Options->set(Name, Value);
 }
 
 WasiCryptoExpect<void>
 WasiCryptoContext::optionsSetU64(__wasi_options_t OptionsHandle,
-                             std::string_view Name, uint64_t Value) {
+                                 std::string_view Name, uint64_t Value) {
   auto Options = OptionsManger.get(OptionsHandle);
   if (!Options) {
     return WasiCryptoUnexpect(Options);
   }
 
-  return (*Options)->setU64(Name, Value);
+  return Options->setU64(Name, Value);
 }
 
-WasiCryptoExpect<void>
-WasiCryptoContext::optionsSetGuestBuffer(__wasi_options_t OptionsHandle,
-                                     std::string_view Name, Span<uint8_t> Buf) {
+WasiCryptoExpect<void> WasiCryptoContext::optionsSetGuestBuffer(
+    __wasi_options_t OptionsHandle, std::string_view Name, Span<uint8_t> Buf) {
   auto Options = OptionsManger.get(OptionsHandle);
   if (!Options) {
     return WasiCryptoUnexpect(Options);
   }
-  return (*Options)->setGuestBuffer(Name, Buf);
+  return Options->setGuestBuffer(Name, Buf);
 }
 
 WasiCryptoExpect<__wasi_secrets_manager_t>
@@ -78,26 +78,15 @@ WasiCryptoContext::secretsMangerClose(__wasi_secrets_manager_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
-WasiCryptoExpect<void>
-WasiCryptoContext::secretsManagerInvalidate(__wasi_secrets_manager_t,
-                                        Span<uint8_t const>, __wasi_version_t) {
+WasiCryptoExpect<void> WasiCryptoContext::secretsManagerInvalidate(
+    __wasi_secrets_manager_t, Span<uint8_t const>, __wasi_version_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<uint8_t>
-WasiCryptoContext::allocateArrayOutput(std::vector<uint8_t>&& Data) {
+WasiCryptoContext::allocateArrayOutput(std::vector<uint8_t> &&Data) {
   auto Output = ArrayOutput{std::move(Data)};
   return ArrayOutputManger.registerManger(Output);
-}
-
-WasiCryptoExpect<std::shared_ptr<OptionBase>>
-WasiCryptoContext::readOption(__wasi_options_t OptionsHandle) {
-  auto Options = OptionsManger.get(OptionsHandle);
-  if (!Options) {
-    return WasiCryptoUnexpect(Options);
-  }
-
-  return *Options;
 }
 
 } // namespace WASICrypto

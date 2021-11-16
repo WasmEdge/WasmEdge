@@ -8,8 +8,8 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-
-WasiCryptoExpect<__wasi_symmetric_key_t> WasiCryptoContext::symmetricKeyGenerate(
+WasiCryptoExpect<__wasi_symmetric_key_t>
+WasiCryptoContext::symmetricKeyGenerate(
     SymmetricAlgorithm Alg, std::optional<__wasi_options_t> OptionsHandle) {
   auto Options = readSymmetricOption(OptionsHandle);
   if (!Options) {
@@ -26,7 +26,7 @@ WasiCryptoExpect<__wasi_symmetric_key_t> WasiCryptoContext::symmetricKeyGenerate
 
 WasiCryptoExpect<__wasi_symmetric_key_t>
 WasiCryptoContext::symmetricKeyImport(SymmetricAlgorithm Alg,
-                                     Span<uint8_t const> Raw) {
+                                      Span<uint8_t const> Raw) {
   auto Key = SymmetricKey::import(Alg, Raw);
   if (!Key) {
     return WasiCryptoUnexpect(Key);
@@ -42,7 +42,7 @@ WasiCryptoContext::symmetricKeyExport(__wasi_symmetric_key_t KeyHandle) {
     return WasiCryptoUnexpect(Key);
   }
 
-  auto Raw = (*Key)->raw();
+  auto Raw = Key->raw();
   if (!Raw) {
     return WasiCryptoUnexpect(Raw);
   }
@@ -56,56 +56,59 @@ WasiCryptoContext::symmetricKeyClose(__wasi_symmetric_key_t SymmetricKey) {
 }
 
 WasiCryptoExpect<__wasi_symmetric_key_t>
-WasiCryptoContext::symmetricKeyGenerateManaged(__wasi_secrets_manager_t,
-                                              SymmetricAlgorithm,
-                                              std::optional<__wasi_options_t>) {
+WasiCryptoContext::symmetricKeyGenerateManaged(
+    __wasi_secrets_manager_t, SymmetricAlgorithm,
+    std::optional<__wasi_options_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<void>
 WasiCryptoContext::symmetricKeyStoreManaged(__wasi_secrets_manager_t,
-                                           __wasi_symmetric_key_t, uint8_t_ptr,
-                                           __wasi_size_t) {
+                                            __wasi_symmetric_key_t, uint8_t_ptr,
+                                            __wasi_size_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
-WasiCryptoExpect<__wasi_version_t> WasiCryptoContext::symmetricKeyReplaceManaged(
-    __wasi_secrets_manager_t, __wasi_symmetric_key_t, __wasi_symmetric_key_t) {
+WasiCryptoExpect<__wasi_version_t>
+WasiCryptoContext::symmetricKeyReplaceManaged(__wasi_secrets_manager_t,
+                                              __wasi_symmetric_key_t,
+                                              __wasi_symmetric_key_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<std::tuple<__wasi_size_t, __wasi_version_t>>
 WasiCryptoContext::symmetricKeyId(__wasi_symmetric_key_t, uint8_t_ptr,
-                                 __wasi_size_t) {
+                                  __wasi_size_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<__wasi_symmetric_key_t>
 WasiCryptoContext::symmetricKeyFromId(__wasi_secrets_manager_t, Span<uint8_t>,
-                                     __wasi_version_t) {
+                                      __wasi_version_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
-WasiCryptoExpect<__wasi_symmetric_state_t> WasiCryptoContext::symmetricStateOpen(
+WasiCryptoExpect<__wasi_symmetric_state_t>
+WasiCryptoContext::symmetricStateOpen(
     SymmetricAlgorithm Alg, std::optional<__wasi_symmetric_key_t> KeyHandle,
     std::optional<__wasi_options_t> OptionsHandle) {
 
-  auto Key = readSymmetricKey(KeyHandle);
-  if (!Key) {
-    return WasiCryptoUnexpect(Key);
+  auto OptKey = readSymmetricKey(KeyHandle);
+  if (!OptKey) {
+    return WasiCryptoUnexpect(OptKey);
   }
 
-  auto Options = readSymmetricOption(OptionsHandle);
-  if (!Options) {
-    return WasiCryptoUnexpect(Options);
+  auto OptOptions = readSymmetricOption(OptionsHandle);
+  if (!OptOptions) {
+    return WasiCryptoUnexpect(OptOptions);
   }
 
-  auto State = SymmetricState::make(Alg, *Key, *Options);
+  auto State = SymmetricState::make(Alg, *OptKey, *OptOptions);
   if (!State) {
     return WasiCryptoUnexpect(State);
   }
 
-  auto Handle = SymmetricStateManger.registerManger(std::move(*State));
+  auto Handle = SymmetricStateManger.registerManger(*State);
   if (!Handle) {
     return WasiCryptoUnexpect(Handle);
   }
@@ -115,21 +118,18 @@ WasiCryptoExpect<__wasi_symmetric_state_t> WasiCryptoContext::symmetricStateOpen
 
 WasiCryptoExpect<__wasi_size_t>
 WasiCryptoContext::symmetricStateOptionsGet(__wasi_symmetric_state_t Handle,
-                                           std::string_view Name,
-                                           Span<uint8_t> Value) {
+                                            std::string_view Name,
+                                            Span<uint8_t> Value) {
   auto State = SymmetricStateManger.get(Handle);
   if (!State) {
     return WasiCryptoUnexpect(State);
   }
 
-  auto InnerVec = (*State)->optionsGet(Name);
+  auto InnerVec = State->optionsGet(Name);
   if (!InnerVec) {
     return WasiCryptoUnexpect(InnerVec);
   }
-  //  auto InnerVec =
-  //      (*SymmetricState)->locked([&Name](SymmetricStateBase &StateBase) {
-  //        return StateBase.optionsGet(Name);
-  //      });
+
   if (InnerVec->size() > Value.size()) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OVERFLOW);
   }
@@ -139,17 +139,14 @@ WasiCryptoContext::symmetricStateOptionsGet(__wasi_symmetric_state_t Handle,
 
 WasiCryptoExpect<uint64_t>
 WasiCryptoContext::symmetricStateOptionsGetU64(__wasi_symmetric_state_t Handle,
-                                              std::string_view Name) {
-  auto SymmetricState = SymmetricStateManger.get(Handle);
+                                               std::string_view Name) {
+  auto State = SymmetricStateManger.get(Handle);
 
-  if (!SymmetricState) {
-    return WasiCryptoUnexpect(SymmetricState);
+  if (!State) {
+    return WasiCryptoUnexpect(State);
   }
 
-  return (*SymmetricState)->optionsGetU64(Name);
-  //  return (*SymmetricState)->locked([&Name](SymmetricStateBase &StateBase) {
-  //    return StateBase.optionsGetU64(Name);
-  //  });
+  return State->optionsGetU64(Name);
 }
 
 WasiCryptoExpect<void>
@@ -159,43 +156,34 @@ WasiCryptoContext::symmetricStateClose(__wasi_symmetric_state_t Handle) {
 
 WasiCryptoExpect<void>
 WasiCryptoContext::symmetricStateAbsorb(__wasi_symmetric_state_t Handle,
-                                       Span<uint8_t const> Data) {
-  auto SymmetricState = SymmetricStateManger.get(Handle);
-  if (!SymmetricState) {
-    return WasiCryptoUnexpect(SymmetricState);
+                                        Span<uint8_t const> Data) {
+  auto State = SymmetricStateManger.get(Handle);
+  if (!State) {
+    return WasiCryptoUnexpect(State);
   }
 
-  return (*SymmetricState)->absorb(Data);
-  //  return (*SymmetricState)->locked([&Data](SymmetricStateBase &StateBase) {
-  //    return StateBase.absorb(Data);
-  //  });
+  return State->absorb(Data);
 }
 
 WasiCryptoExpect<void>
 WasiCryptoContext::symmetricStateSqueeze(__wasi_symmetric_state_t Handle,
-                                        Span<uint8_t> Out) {
-  auto SymmetricState = SymmetricStateManger.get(Handle);
-  if (!SymmetricState) {
-    return WasiCryptoUnexpect(SymmetricState);
+                                         Span<uint8_t> Out) {
+  auto State = SymmetricStateManger.get(Handle);
+  if (!State) {
+    return WasiCryptoUnexpect(State);
   }
 
-  return (*SymmetricState)->squeeze(Out);
-  //  return (*SymmetricState)->locked([&Out](SymmetricStateBase &StateBase) {
-  //    return StateBase.squeeze(Out);
-  //  });
+  return State->squeeze(Out);
 }
 
 WasiCryptoExpect<__wasi_symmetric_tag_t>
 WasiCryptoContext::symmetricStateSqueezeTag(__wasi_symmetric_state_t Handle) {
-  auto SymmetricState = SymmetricStateManger.get(Handle);
-  if (!SymmetricState) {
-    return WasiCryptoUnexpect(SymmetricState);
+  auto State = SymmetricStateManger.get(Handle);
+  if (!State) {
+    return WasiCryptoUnexpect(State);
   }
-  auto Tag = (*SymmetricState)->squeezeTag();
-  //  auto Tag = (*SymmetricState)->locked([](SymmetricStateBase &StateBase) {
-  //    return StateBase.squeezeTag();
-  //  });
 
+  auto Tag = State->squeezeTag();
   if (!Tag) {
     return WasiCryptoUnexpect(Tag);
   }
@@ -204,18 +192,14 @@ WasiCryptoContext::symmetricStateSqueezeTag(__wasi_symmetric_state_t Handle) {
 }
 
 WasiCryptoExpect<__wasi_symmetric_key_t>
-WasiCryptoContext::symmetricStateSqueezeKey(__wasi_symmetric_state_t StateHandle,
-                                           SymmetricAlgorithm Alg) {
+WasiCryptoContext::symmetricStateSqueezeKey(
+    __wasi_symmetric_state_t StateHandle, SymmetricAlgorithm Alg) {
   auto State = SymmetricStateManger.get(StateHandle);
   if (!State) {
     return WasiCryptoUnexpect(State);
   }
 
-  auto Key = (*State)->squeezeKey(Alg);
-  //  auto Key = (*SymmetricState)->locked([&Alg](SymmetricStateBase &StateBase)
-  //  {
-  //    return StateBase.squeezeKey(Alg);
-  //  });
+  auto Key = State->squeezeKey(Alg);
   if (!Key) {
     return WasiCryptoUnexpect(Key);
   }
@@ -230,26 +214,19 @@ WasiCryptoExpect<__wasi_size_t> WasiCryptoContext::symmetricStateMaxTagLen(
     return WasiCryptoUnexpect(State);
   }
 
-  return (*State)->maxTagLen();
-  //  return (*SymmetricState)->locked([](SymmetricStateBase &StateBase) {
-  //    return StateBase.maxTagLen();
-  //  });
+  return State->maxTagLen();
 }
 
 WasiCryptoExpect<__wasi_size_t>
 WasiCryptoContext::symmetricStateEncrypt(__wasi_symmetric_state_t StateHandle,
-                                        Span<uint8_t> Out,
-                                        Span<uint8_t const> Data) {
+                                         Span<uint8_t> Out,
+                                         Span<uint8_t const> Data) {
   auto State = SymmetricStateManger.get(StateHandle);
   if (!State) {
     return WasiCryptoUnexpect(State);
   }
 
-  return (*State)->encrypt(Out, Data);
-  //  return (*SymmetricState)->locked([&Out, &Data](SymmetricStateBase
-  //  &StateBase) {
-  //        return StateBase.encrypt(Out, Data);
-  //      });
+  return State->encrypt(Out, Data);
 }
 
 WasiCryptoExpect<__wasi_symmetric_key_t>
@@ -261,35 +238,28 @@ WasiCryptoContext::symmetricStateEncryptDetached(
     return WasiCryptoUnexpect(State);
   }
 
-  auto Tag = (*State)->encryptDetached(Out, Data);
+  auto Tag = State->encryptDetached(Out, Data);
   if (!Tag) {
     return WasiCryptoUnexpect(Tag);
   }
 
   return SymmetricTagManger.registerManger(*Tag);
-  //  return (*SymmetricState)
-  //      ->locked([&Out, &Data](SymmetricStateBase &StateBase) {
-  //        return StateBase.encryptDetached(Out, Data);
-  //      });
 }
 
 WasiCryptoExpect<__wasi_size_t>
 WasiCryptoContext::symmetricStateDecrypt(__wasi_symmetric_state_t StateHandle,
-                                        Span<uint8_t> Out,
-                                        Span<uint8_t const> Data) {
+                                         Span<uint8_t> Out,
+                                         Span<uint8_t const> Data) {
   auto State = SymmetricStateManger.get(StateHandle);
   if (!State) {
     return WasiCryptoUnexpect(State);
   }
 
-  return (*State)->decrypt(Out, Data);
-  //  return (*SymmetricState)
-  //      ->locked([&Out, &Data](SymmetricStateBase &StateBase) {
-  //        return StateBase.decrypt(Out, Data);
-  //      });
+  return State->decrypt(Out, Data);
 }
 
-WasiCryptoExpect<__wasi_size_t> WasiCryptoContext::symmetricStateDecryptDetached(
+WasiCryptoExpect<__wasi_size_t>
+WasiCryptoContext::symmetricStateDecryptDetached(
     __wasi_symmetric_state_t StateHandle, Span<uint8_t> Out,
     Span<uint8_t const> Data, Span<uint8_t> RawTag) {
   auto State = SymmetricStateManger.get(StateHandle);
@@ -297,11 +267,7 @@ WasiCryptoExpect<__wasi_size_t> WasiCryptoContext::symmetricStateDecryptDetached
     return WasiCryptoUnexpect(State);
   }
 
-  return (*State)->decryptDetached(Out, Data, RawTag);
-  //  return (*SymmetricState)
-  //      ->locked([&Out, &Data, &RawTag](SymmetricStateBase &StateBase) {
-  //        return StateBase.decryptDetached(Out, Data, RawTag);
-  //      });
+  return State->decryptDetached(Out, Data, RawTag);
 }
 
 WasiCryptoExpect<void>
@@ -311,10 +277,7 @@ WasiCryptoContext::symmetricStateRatchet(__wasi_symmetric_state_t StateHandle) {
     return WasiCryptoUnexpect(State);
   }
 
-  return (*State)->ratchet();
-  //  return (*SymmetricState)->locked([](SymmetricStateBase &StateBase) {
-  //    return StateBase.ratchet();
-  //  });
+  return State->ratchet();
 }
 
 WasiCryptoExpect<__wasi_size_t>
@@ -328,7 +291,7 @@ WasiCryptoContext::symmetricTagLen(__wasi_symmetric_tag_t TagHandle) {
 
 WasiCryptoExpect<__wasi_size_t>
 WasiCryptoContext::symmetricTagPull(__wasi_symmetric_tag_t TagHandle,
-                                   Span<uint8_t> Buf) {
+                                    Span<uint8_t> Buf) {
   auto Tag = SymmetricTagManger.get(TagHandle);
   if (!Tag) {
     return WasiCryptoUnexpect(Tag);
@@ -349,7 +312,7 @@ WasiCryptoContext::symmetricTagPull(__wasi_symmetric_tag_t TagHandle,
 
 WasiCryptoExpect<void>
 WasiCryptoContext::symmetricTagVerify(__wasi_symmetric_tag_t TagHandle,
-                                     Span<uint8_t> RawTag) {
+                                      Span<uint8_t> RawTag) {
   auto Tag = SymmetricTagManger.get(TagHandle);
   if (!Tag) {
     return WasiCryptoUnexpect(Tag);
@@ -362,29 +325,30 @@ WasiCryptoContext::symmetricTagClose(__wasi_symmetric_tag_t TagHandle) {
   return SymmetricTagManger.close(TagHandle);
 }
 
-WasiCryptoExpect<std::shared_ptr<SymmetricOptions>>
+WasiCryptoExpect<std::optional<SymmetricOptions>>
 WasiCryptoContext::readSymmetricOption(
     std::optional<__wasi_options_t> OptionsHandle) {
-  std::shared_ptr<SymmetricOptions> Options = nullptr;
-
-  if (OptionsHandle) {
-    auto Res = readOption(*OptionsHandle);
-    if (!Res) {
-      return WasiCryptoUnexpect(Res);
-    }
-    Options = std::dynamic_pointer_cast<SymmetricOptions>(std::move(*Res));
-    if (Options == nullptr) {
-      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-    }
+  if (!OptionsHandle) {
+    return std::nullopt;
   }
 
-  return Options;
+  auto Res = OptionsManger.get(*OptionsHandle);
+  if (!Res) {
+    return WasiCryptoUnexpect(Res);
+  }
+
+  auto Options = Res->asSymmetric();
+  if (!Options) {
+    return WasiCryptoUnexpect(Options);
+  }
+
+  return *Options;
 }
 
-WasiCryptoExpect<std::shared_ptr<SymmetricKey>>
+WasiCryptoExpect<std::optional<SymmetricKey>>
 WasiCryptoContext::readSymmetricKey(
     std::optional<__wasi_symmetric_key_t> KeyHandle) {
-  std::shared_ptr<SymmetricKey> Key = nullptr;
+  std::optional<SymmetricKey> Key;
 
   if (KeyHandle) {
     auto Res = SymmetricKeyManger.get(*KeyHandle);
@@ -396,7 +360,6 @@ WasiCryptoContext::readSymmetricKey(
 
   return Key;
 }
-
 
 } // namespace WASICrypto
 } // namespace Host

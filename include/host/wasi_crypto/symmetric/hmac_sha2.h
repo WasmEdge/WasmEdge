@@ -19,13 +19,18 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class HmacSha2SymmetricKey : public SymmetricKey {
+class HmacSha2SymmetricKey : public SymmetricKeyBase {
 public:
   HmacSha2SymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
-  WasiCryptoExpect<Span<uint8_t>> raw() override;
+
+  ~HmacSha2SymmetricKey() override;
+
+  WasiCryptoExpect<std::vector<uint8_t>> raw() override;
+
   SymmetricAlgorithm alg() override;
 
 private:
+  OpenSSlUniquePtr<EVP_PKEY, EVP_PKEY_free> PKey{EVP_PKEY_new()};
   SymmetricAlgorithm Alg;
   std::vector<uint8_t> Raw;
 };
@@ -34,11 +39,9 @@ class HmacSha2KeyBuilder : public SymmetricKeyBuilder {
 public:
   HmacSha2KeyBuilder(SymmetricAlgorithm Alg);
 
-  WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  generate(std::shared_ptr<SymmetricOptions> Option) override;
+  WasiCryptoExpect<SymmetricKey> generate(std::optional<SymmetricOptions> OptOption) override;
 
-  WasiCryptoExpect<std::unique_ptr<SymmetricKey>>
-  import(Span<uint8_t const> Raw) override;
+  WasiCryptoExpect<SymmetricKey> import(Span<uint8_t const> Raw) override;
 
   WasiCryptoExpect<__wasi_size_t> keyLen() override;
 
@@ -46,22 +49,28 @@ private:
   SymmetricAlgorithm Alg;
 };
 
-// TODO:  Is deprecated: Since OpenSSL 3.0, use EVP_ to instead.
-class HmacSha2SymmetricState : public SymmetricState {
+class HmacSha2SymmetricState : public SymmetricStateBase {
 public:
   static WasiCryptoExpect<std::unique_ptr<HmacSha2SymmetricState>>
-  make(SymmetricAlgorithm Alg, std::shared_ptr<SymmetricKey> OptKey,
-       std::shared_ptr<SymmetricOptions> OptOptions);
+  make(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
+       std::optional<SymmetricOptions> OptOptions);
+
+  WasiCryptoExpect<std::vector<uint8_t>>
+  optionsGet(std::string_view Name) override;
+
+  WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view Name) override;
 
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override;
 
   WasiCryptoExpect<SymmetricTag> squeezeTag() override;
 
 private:
-  HmacSha2SymmetricState(SymmetricAlgorithm Alg, Span<uint8_t> Raw,
-                         std::shared_ptr<SymmetricOptions> OptOptions);
+  HmacSha2SymmetricState(SymmetricAlgorithm Alg,
+                         std::optional<SymmetricOptions> OptOptions,
+                         OpenSSlUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx);
 
-  OpenSSlUniquePtr<HMAC_CTX, HMAC_CTX_free> Ctx{HMAC_CTX_new()};
+  std::optional<SymmetricOptions> OptOptions;
+  OpenSSlUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx;
 };
 
 } // namespace WASICrypto

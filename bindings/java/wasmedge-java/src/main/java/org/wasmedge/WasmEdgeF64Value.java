@@ -2,6 +2,7 @@ package org.wasmedge;
 
 public final class WasmEdgeF64Value implements WasmEdgeValue {
     private double value;
+
     public WasmEdgeF64Value(double value) {
         this.value = value;
     }
@@ -14,9 +15,9 @@ public final class WasmEdgeF64Value implements WasmEdgeValue {
     public ValueType getType() {
         return ValueType.f64;
     }
-    
+
     public double getValue() {
-       return this.value;
+        return this.value;
     }
 
     public void setValue(double value) {

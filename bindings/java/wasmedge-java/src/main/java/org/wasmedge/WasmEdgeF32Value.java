@@ -6,6 +6,7 @@ public final class WasmEdgeF32Value implements WasmEdgeValue {
     public WasmEdgeF32Value() {
 
     }
+
     public WasmEdgeF32Value(float value) {
         this.value = value;
     }
@@ -14,9 +15,9 @@ public final class WasmEdgeF32Value implements WasmEdgeValue {
     public ValueType getType() {
         return ValueType.f32;
     }
-    
+
     public float getValue() {
-       return this.value;
+        return this.value;
     }
 
     public void setValue(float value) {

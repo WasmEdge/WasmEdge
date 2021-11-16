@@ -5,19 +5,27 @@ import java.util.List;
 public class WasmEdgeVM {
 
     private native void runWasmFromFile(String file,
-                                                      String funcName,
-                                                      WasmEdgeValue[] params,
-                                                      int paramSize,
-                                                      int[] paramTypes,
-                                                      WasmEdgeValue[] returns,
-                                                      int returnSize,
-                                                      int[] returnTypes
-                                                  );
+                                        String funcName,
+                                        WasmEdgeValue[] params,
+                                        int paramSize,
+                                        int[] paramTypes,
+                                        WasmEdgeValue[] returns,
+                                        int returnSize,
+                                        int[] returnTypes
+    );
 
+    /**
+     * Run a wasm file.
+     *
+     * @param file     file path.
+     * @param funcName function name to run.
+     * @param params   params for the function.
+     * @param returns  return values.
+     */
     public void runWasmFromFile(String file,
-                                               String funcName,
-                                               List<WasmEdgeValue> params,
-                                               List<WasmEdgeValue> returns) {
+                                String funcName,
+                                List<WasmEdgeValue> params,
+                                List<WasmEdgeValue> returns) {
         WasmEdgeValue[] paramsArray = valueListToArray(params);
         int[] paramTypes = getValueTypeArray(params);
 

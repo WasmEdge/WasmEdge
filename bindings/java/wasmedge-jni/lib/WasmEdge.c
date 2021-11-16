@@ -1,5 +1,5 @@
-#include "../org_wasmedge_WasmEdge.h"
 #include "wasmedge/wasmedge.h"
+#include "jni.h"
 
 #ifdef __cplusplus
 extern "C" {

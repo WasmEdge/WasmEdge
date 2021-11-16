@@ -6,6 +6,7 @@ public final class WasmEdgeI32Value implements WasmEdgeValue {
     public WasmEdgeI32Value() {
 
     }
+
     public WasmEdgeI32Value(int value) {
         this.value = value;
     }
@@ -16,7 +17,7 @@ public final class WasmEdgeI32Value implements WasmEdgeValue {
     }
 
     public int getValue() {
-       return this.value;
+        return this.value;
     }
 
     public void setValue(int value) {

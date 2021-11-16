@@ -556,7 +556,23 @@ WASMEDGE_CAPI_EXPORT extern enum WasmEdge_CompilerOptimizationLevel
 WasmEdge_ConfigureCompilerGetOptimizationLevel(
     const WasmEdge_ConfigureContext *Cxt);
 
-/// Set the dump IR boolean value of AOT compiler.
+/// Set the output binary format of AOT compiler.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the output binary format.
+/// \param Format the AOT compiler output binary format.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetOutputFormat(
+    WasmEdge_ConfigureContext *Cxt,
+    const enum WasmEdge_CompilerOutputFormat Format);
+
+/// Get the output binary format of AOT compiler.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the output binary format.
+///
+/// \returns the AOT compiler output binary format.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_CompilerOutputFormat
+WasmEdge_ConfigureCompilerGetOutputFormat(const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the dump IR option of AOT compiler.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsDump the boolean value to determine to dump IR or not when
@@ -565,7 +581,7 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureCompilerSetDumpIR(WasmEdge_ConfigureContext *Cxt,
                                     const bool IsDump);
 
-/// Get the dump IR boolean value of AOT compiler.
+/// Get the dump IR option of AOT compiler.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
 ///
@@ -573,6 +589,24 @@ WasmEdge_ConfigureCompilerSetDumpIR(WasmEdge_ConfigureContext *Cxt,
 /// in AOT compiler.
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureCompilerIsDumpIR(const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the generic binary option of AOT compiler.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param IsGeneric the boolean value to determine to generate the generic
+/// binary or not when compilation in AOT compiler.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureCompilerSetGenericBinary(WasmEdge_ConfigureContext *Cxt,
+                                           const bool IsGeneric);
+
+/// Get the generic binary option of AOT compiler.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to generate the generic binary or
+/// not when compilation in AOT compiler.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ConfigureCompilerIsGenericBinary(const WasmEdge_ConfigureContext *Cxt);
 
 /// Set the instruction counting option.
 ///
@@ -593,24 +627,6 @@ WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureStatisticsIsInstructionCounting(
     const WasmEdge_ConfigureContext *Cxt);
 
-/// Set the time measuring option.
-///
-/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
-/// \param IsMeasure the boolean value to determine to support time when
-/// execution or not after compilation by the AOT compiler.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ConfigureStatisticsSetTimeMeasuring(WasmEdge_ConfigureContext *Cxt,
-                                             const bool IsMeasure);
-
-/// Get the time measuring option.
-///
-/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
-///
-/// \returns the boolean value to determine to support time measuring when
-/// execution or not after compilation by the AOT compiler.
-WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
-    const WasmEdge_ConfigureContext *Cxt);
-
 /// Set the cost measuring option.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
@@ -627,6 +643,24 @@ WasmEdge_ConfigureStatisticsSetCostMeasuring(WasmEdge_ConfigureContext *Cxt,
 /// \returns the boolean value to determine to support cost measuring when
 /// execution or not after compilation by the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsCostMeasuring(
+    const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the time measuring option.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param IsMeasure the boolean value to determine to support time when
+/// execution or not after compilation by the AOT compiler.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureStatisticsSetTimeMeasuring(WasmEdge_ConfigureContext *Cxt,
+                                             const bool IsMeasure);
+
+/// Get the time measuring option.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to support time measuring when
+/// execution or not after compilation by the AOT compiler.
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
     const WasmEdge_ConfigureContext *Cxt);
 
 /// Deletion of the WasmEdge_ConfigureContext.

@@ -70,6 +70,7 @@ add_subdirectory(span)
 add_subdirectory(po)
 add_subdirectory(memlimit)
 add_subdirectory(errinfo)
+add_subdirectory(signature)
 
 if(WASMEDGE_BUILD_COVERAGE)
   setup_target_for_coverage_gcovr_html(

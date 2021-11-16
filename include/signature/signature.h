@@ -15,11 +15,10 @@
 #include "ast/module.h"
 #include "ast/section.h"
 #include "common/configure.h"
-#include "common/errcode.h"
+#include "common/log.h"
 #include "loader/loader.h"
 #include "sig_algorithm.h"
 #include <filesystem>
-#include <fstream>
 #include <system_error>
 
 namespace WasmEdge {
@@ -29,7 +28,8 @@ const std::string_view DEFAULT_CUSOTM_SECTION_NAME = "signature_wasmedge";
 
 class Signature {
 public:
-  Expect<void> signWasmFile(const std::filesystem::path &Path);
+  Expect<const std::vector<unsigned char>>
+  signWasmFile(const std::filesystem::path &Path);
   Expect<bool> verifyWasmFile(const std::filesystem::path &,
                               const std::filesystem::path &);
 
@@ -37,7 +37,9 @@ private:
   Expect<void> sign(std::filesystem::path, const std::vector<uint8_t>);
   Expect<bool> verify(const Span<Byte> CustomSec, std::filesystem::path Path,
                       const std::filesystem::path &PubKeyPath);
-  Expect<const std::vector<Byte>> keygen(Span<const uint8_t>);
+
+  Expect<const std::vector<unsigned char>>
+  keygen(const Span<uint8_t>, const std::filesystem::path &);
   SigAlgorithm Alg;
 };
 

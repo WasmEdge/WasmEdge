@@ -278,7 +278,6 @@ private:
   Loader::Loader LoaderEngine;
   Validator::Validator ValidatorEngine;
   Executor::Executor ExecutorEngine;
-  Signature::Signature SignatureEngine;
 
   /// VM Storage.
   std::unique_ptr<AST::Module> Mod;

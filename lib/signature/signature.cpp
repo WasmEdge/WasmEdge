@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "signature/signature.h"
-#include "common/errcode.h"
-#include <filesystem>
-#include <fstream>
 
 namespace WasmEdge {
 namespace Signature {
 
-Expect<void> Signature::signWasmFile(const std::filesystem::path &Path) {
+Expect<const std::vector<unsigned char>>
+Signature::signWasmFile(const std::filesystem::path &Path) {
   LDMgr LMgr;
   if (auto Res = LMgr.setPath(Path); !Res) {
     spdlog::error(Res.error());
@@ -15,8 +13,9 @@ Expect<void> Signature::signWasmFile(const std::filesystem::path &Path) {
     return Unexpect(Res);
   }
   if (auto Code = LMgr.getWasm()) {
-    auto Sig = keygen(*Code);
-    return sign(Path, *Sig);
+    auto Sig = keygen(*Code, Path.parent_path());
+    sign(Path, *Sig);
+    return Sig;
   } else
     return Unexpect(Code);
 }
@@ -70,14 +69,13 @@ Expect<bool> Signature::verify(const Span<Byte> CustomSec,
   } catch (const std::ios_base::failure &e) {
     // Failure handling
   }
-  // return Alg.verify()
   return Alg.verify(CustomSec, Signature, PublicKey);
 }
 
 // Expect<Span<Byte>> keygen(Span<const uint8_t> Code) {
 Expect<const std::vector<unsigned char>>
-Signature::keygen(Span<const uint8_t> Code) {
-  return Alg.keygen(Code);
+Signature::keygen(const Span<uint8_t> Code, const std::filesystem::path &Path) {
+  return Alg.keygen(Code, Path);
 }
 
 } // namespace Signature

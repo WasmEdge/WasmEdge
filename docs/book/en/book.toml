@@ -1,0 +1,28 @@
+[book]
+title = "WasmEdge Runtime"
+description = ""
+author = ["Second State", "Michael Yuan", "Vivian Hu", "Miley Fu"]
+
+[output.html]
+google-analytics = "UA-137134458-10"
+git-repository-url = "https://github.com/WasmEdge/WasmEdge/tree/master/docs/book/en"
+git-repository-icon = "fa-github"
+
+[output.html.playpen]
+editable = false
+editor = "ace"
+
+[output.html.fold]
+enable = true
+
+[output.html.search]
+enable = true
+limit-results = 30
+teaser-word-count = 30
+use-boolean-and = true
+boost-title = 2
+boost-hierarchy = 1
+boost-paragraph = 1
+expand = true
+heading-split-level = 3
+copy-js = true

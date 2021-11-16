@@ -41,6 +41,10 @@ public:
   void add(WasmEdge_HostRegistration);
   void remove(WasmEdge_Proposal);
   void remove(WasmEdge_HostRegistration);
+  void set_max_paging(uint32_t);
+  uint32_t get_max_paging();
+  void set_opt_level(WasmEdge_CompilerOptimizationLevel);
+  WasmEdge_CompilerOptimizationLevel get_opt_level();
 };
 
 class Store {

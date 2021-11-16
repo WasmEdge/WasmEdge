@@ -313,6 +313,22 @@ void pysdk::Configure::remove(WasmEdge_HostRegistration hr) {
                                            (::WasmEdge_HostRegistration)hr);
 }
 
+void pysdk::Configure::set_max_paging(uint32_t max_memory) {
+  WasmEdge_ConfigureSetMaxMemoryPage(ConfCxt, max_memory);
+}
+
+uint32_t pysdk::Configure::get_max_paging() {
+  return WasmEdge_ConfigureGetMaxMemoryPage(ConfCxt);
+}
+
+void pysdk::Configure::set_opt_level(WasmEdge_CompilerOptimizationLevel level) {
+  WasmEdge_ConfigureCompilerSetOptimizationLevel(ConfCxt, level);
+}
+
+WasmEdge_CompilerOptimizationLevel pysdk::Configure::get_opt_level() {
+  return WasmEdge_ConfigureCompilerGetOptimizationLevel(ConfCxt);
+}
+
 /* --------------- Configure End -------------------------------- */
 
 /* --------------- Result ----------------------------------------*/
@@ -357,7 +373,25 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("add", add_prop)
       .def("remove", remove_prop)
       .def("add", add_host)
-      .def("remove", remove_host);
+      .def("remove", remove_host)
+      .def_property("max_paging", &pysdk::Configure::get_max_paging,
+                    &pysdk::Configure::set_max_paging)
+      .def_property("optimization_level", &pysdk::Configure::get_opt_level,
+                    &pysdk::Configure::set_opt_level);
+
+  pybind11::enum_<WasmEdge_CompilerOptimizationLevel>(module, "Optimization")
+      .value("O0", WasmEdge_CompilerOptimizationLevel_O0)
+      .value("O1", WasmEdge_CompilerOptimizationLevel_O1)
+      .value("O2", WasmEdge_CompilerOptimizationLevel_O2)
+      .value("O3", WasmEdge_CompilerOptimizationLevel_O3)
+      .value("Os", WasmEdge_CompilerOptimizationLevel_Os)
+      .value("Oz", WasmEdge_CompilerOptimizationLevel_Oz)
+      .export_values();
+
+  pybind11::enum_<WasmEdge_CompilerOutputFormat>(module, "CompilerOutput")
+      .value("Native", WasmEdge_CompilerOutputFormat_Native)
+      .value("Wasm", WasmEdge_CompilerOutputFormat_Wasm)
+      .export_values();
 
   /* WasmEdge WASM value struct. */
   pybind11::enum_<WasmEdge_ValType>(module, "Type")

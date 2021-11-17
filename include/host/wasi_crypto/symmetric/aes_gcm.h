@@ -3,8 +3,7 @@
 
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/state.h"
-#include "openssl/aes.h"
-#include "openssl/evp.h"
+#include "host/wasi_crypto/wrapper/aes_gcm.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -86,19 +85,11 @@ protected:
                            Span<uint8_t const> RawTag) override;
 
 private:
-  AesGcmSymmetricState(
-      SymmetricAlgorithm Alg,
-      SymmetricOptions Options,
-      OpenSSlUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx);
+  AesGcmSymmetricState(SymmetricAlgorithm Alg, SymmetricOptions Options,
+                       AesGcm Ctx);
 
   SymmetricOptions Options;
-  OpenSSlUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx;
-
-  enum Mode { Unchanged = -1, Decrypt = 0, Encrypt = 1 };
-
-  void updateMode(Mode Mo) {
-    EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr, nullptr, Mo);
-  };
+  AesGcm Ctx;
 };
 
 } // namespace WASICrypto

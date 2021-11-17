@@ -8,10 +8,10 @@
 #include "host/wasi_crypto/util.h"
 #include "openssl/evp.h"
 #include "openssl/hmac.h"
+#include "host/wasi_crypto/wrapper/hmac_sha2.h"
+#include "host/wasi_crypto/error.h"
 
-#include <common/expected.h>
 #include <cstdint>
-#include <experimental/expected.hpp>
 #include <string_view>
 #include <vector>
 
@@ -30,7 +30,7 @@ public:
   SymmetricAlgorithm alg() override;
 
 private:
-  OpenSSlUniquePtr<EVP_PKEY, EVP_PKEY_free> PKey{EVP_PKEY_new()};
+  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> PKey{EVP_PKEY_new()};
   SymmetricAlgorithm Alg;
   std::vector<uint8_t> Raw;
 };
@@ -67,10 +67,10 @@ public:
 private:
   HmacSha2SymmetricState(SymmetricAlgorithm Alg,
                          std::optional<SymmetricOptions> OptOptions,
-                         OpenSSlUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx);
+                         HmacSha2 Ctx);
 
   std::optional<SymmetricOptions> OptOptions;
-  OpenSSlUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx;
+  HmacSha2 Ctx;
 };
 
 } // namespace WASICrypto

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/aes_gcm.h"
-#include "host/wasi_crypto/random.h"
+#include "host/wasi_crypto/wrapper/aes_gcm.h"
+#include "host/wasi_crypto/wrapper/random.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -74,7 +75,7 @@ AesGcmSymmetricState::make(SymmetricAlgorithm Alg,
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
   }
 
-  if(auto Res = OptKey->isType<AesGcmSymmetricKey>(); !Res) {
+  if (auto Res = OptKey->isType<AesGcmSymmetricKey>(); !Res) {
     return WasiCryptoUnexpect(Res);
   }
 
@@ -84,43 +85,24 @@ AesGcmSymmetricState::make(SymmetricAlgorithm Alg,
     return WasiCryptoUnexpect(Raw);
   }
 
-  // Init unique_ptr
-  OpenSSlUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx{
-      EVP_CIPHER_CTX_new()};
-  if (Ctx == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
+  // set key
+  auto Ctx = AesGcm::make(Alg);
+  if (!Ctx) {
+    return WasiCryptoUnexpect(Ctx);
   }
+  Ctx->setKey(*Raw);
 
-  // Init Cipher
-  EVP_CIPHER const *Cipher;
-  switch (Alg) {
-  case SymmetricAlgorithm::Aes128Gcm:
-    Cipher = EVP_aes_128_gcm();
-    break;
-  case SymmetricAlgorithm::Aes256Gcm:
-    Cipher = EVP_aes_256_gcm();
-    break;
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-  }
-
+  // set nonce
   auto Nonce = OptOptions->get("nonce");
   if (!Nonce) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
   }
 
-  if (Nonce->size() != NonceLen) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-  }
+  Ctx->setNonce(*Nonce);
 
-  if (!EVP_CipherInit_ex(Ctx.get(), Cipher, nullptr, Raw->data(),
-                         Nonce->data(), Mode::Unchanged)) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
-
-  //  new ptr
+  // new ptr
   return std::unique_ptr<AesGcmSymmetricState>{
-      new AesGcmSymmetricState{Alg, *OptOptions, std::move(Ctx)}};
+      new AesGcmSymmetricState{Alg, *OptOptions, std::move(*Ctx)}};
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
@@ -134,21 +116,14 @@ AesGcmSymmetricState::optionsGetU64(std::string_view Name) {
 }
 
 WasiCryptoExpect<void> AesGcmSymmetricState::absorb(Span<const uint8_t> Data) {
-  int Len;
-  // TODO: need change Openssl AAD default length from 12 if beyond?
-  if (!EVP_CipherUpdate(Ctx.get(), nullptr, &Len, Data.data(), Data.size())) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
-
-  return {};
+  return Ctx.absorb(Data);
 }
 
 WasiCryptoExpect<__wasi_size_t>
 AesGcmSymmetricState::encryptUnchecked(Span<uint8_t> Out,
                                        Span<const uint8_t> Data) {
-  updateMode(Mode::Encrypt);
 
-  auto Tag = encryptDetachedUnchecked({Out.data(), Data.size()}, Data);
+  auto Tag = Ctx.encryptDetached({Out.data(), Data.size()}, Data);
   if (!Tag) {
     return WasiCryptoUnexpect(Tag);
   }
@@ -163,53 +138,12 @@ AesGcmSymmetricState::encryptUnchecked(Span<uint8_t> Out,
 WasiCryptoExpect<SymmetricTag>
 AesGcmSymmetricState::encryptDetachedUnchecked(Span<uint8_t> Out,
                                                Span<const uint8_t> Data) {
-  updateMode(Mode::Encrypt);
-
-  auto Nonce = Options.get("nonce");
-  if (!Nonce) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
-  }
-
-  //  if (Out.data() != Data.data()) {
-  //    std::copy(Data.begin(), Data.end(), Out.begin());
-  //  }
-
-  int ActualOutSize;
-  if (!EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize, Data.data(),
-                        Data.size())) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
-
-  // we need check the equal.
-  if (ActualOutSize < 0 ||
-      static_cast<__wasi_size_t>(ActualOutSize) != Out.size()) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_NONCE);
-  }
-
-  // Notice: Finalise the encryption. Normally ciphertext bytes may be written
-  // at this stage, but this does not occur in GCM mode
-  // However, cannot do put nullptr length in it. construct a temp var
-  // TODO:Better
-  int AL;
-  if (!EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL)) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
-
-  // Gen tag
-  std::array<uint8_t, TagLen> RawTagData;
-  if (!EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_GCM_GET_TAG, TagLen,
-                           RawTagData.data())) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
-
-  SymmetricTag Tag{Alg, {RawTagData.data(), TagLen}};
-  return Tag;
+  return Ctx.encryptDetached(Out, Data);
 }
 
 WasiCryptoExpect<__wasi_size_t>
 AesGcmSymmetricState::decryptUnchecked(Span<uint8_t> Out,
                                        Span<uint8_t const> Data) {
-  updateMode(Mode::Decrypt);
 
   Span<uint8_t const> RawTag{Data.data() + Out.size(),
                              Data.size() - Out.size()};
@@ -219,34 +153,11 @@ AesGcmSymmetricState::decryptUnchecked(Span<uint8_t> Out,
 
 WasiCryptoExpect<__wasi_size_t> AesGcmSymmetricState::decryptDetachedUnchecked(
     Span<uint8_t> Out, Span<const uint8_t> Data, Span<uint8_t const> RawTag) {
-  updateMode(Mode::Decrypt);
-
-  int ActualOutSize;
-  if (!EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize, Data.data(),
-                        Data.size())) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_TAG);
-  }
-
-  if (!EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_GCM_SET_TAG, TagLen,
-                           const_cast<uint8_t *>(RawTag.data()))) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
-
-  // Notice: Finalise the decryption. Normally ciphertext bytes may be written
-  // at this stage, but this does not occur in GCM mode
-  // However, cannot do put nullptr length in it. construct a temp var
-  // TODO:Better
-  int AL;
-  if (!EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL)) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
-
-  return ActualOutSize;
+  return Ctx.decryptDetached(Out, Data, RawTag);
 }
 
-AesGcmSymmetricState::AesGcmSymmetricState(
-    SymmetricAlgorithm Alg, SymmetricOptions Options,
-    OpenSSlUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx)
+AesGcmSymmetricState::AesGcmSymmetricState(SymmetricAlgorithm Alg,
+                                           SymmetricOptions Options, AesGcm Ctx)
     : SymmetricStateBase(Alg), Options(Options), Ctx(std::move(Ctx)) {}
 
 } // namespace WASICrypto

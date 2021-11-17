@@ -11,11 +11,6 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-template <auto fn> using Deleter = std::integral_constant<decltype(fn), fn>;
-
-template <typename T, auto fn>
-using OpenSSlUniquePtr = std::unique_ptr<T, Deleter<fn>>;
-
 template <typename T, typename U>
 constexpr std::optional<T> parseCUnion(U Union) noexcept;
 

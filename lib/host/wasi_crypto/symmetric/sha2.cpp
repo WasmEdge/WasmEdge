@@ -14,32 +14,13 @@ Sha2SymmetricState::make(SymmetricAlgorithm Alg,
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
   }
 
-  OpenSSlUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx{EVP_MD_CTX_new()};
-  if (Ctx == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
-
-  EVP_MD const *Md;
-  switch (Alg) {
-  case SymmetricAlgorithm::Sha256:
-    Md = EVP_sha256();
-    break;
-  case SymmetricAlgorithm::Sha512:
-    Md = EVP_sha512();
-    break;
-  case SymmetricAlgorithm::Sha512_256:
-    Md = EVP_sha512_256();
-    break;
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-  }
-
-  if (1 != EVP_DigestInit_ex(Ctx.get(), Md, nullptr)) {
+  auto Res = Sha2::make(Alg);
+  if (!Res) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 
   return std::unique_ptr<Sha2SymmetricState>{
-      new Sha2SymmetricState(Alg, OptOptions, std::move(Ctx))};
+      new Sha2SymmetricState(Alg, OptOptions, std::move(*Res))};
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
@@ -59,28 +40,16 @@ Sha2SymmetricState::optionsGetU64(std::string_view Name) {
 }
 
 WasiCryptoExpect<void> Sha2SymmetricState::absorb(Span<uint8_t const> Data) {
-  EVP_DigestUpdate(Ctx.get(), Data.data(), Data.size());
-  return {};
+  return Ctx.absorb(Data);
 }
 
 WasiCryptoExpect<void> Sha2SymmetricState::squeeze(Span<uint8_t> Out) {
-  unsigned int ActualOutSize;
-  auto CacheSize = EVP_MD_CTX_size(Ctx.get());
-  uint8_t Cache[CacheSize];
-
-  EVP_DigestFinal_ex(Ctx.get(), Cache, &ActualOutSize);
-  if (ActualOutSize > Out.size()) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_LENGTH);
-  }
-
-  std::copy(Cache, Cache + ActualOutSize, Out.data());
-
-  return {};
+  return Ctx.squeeze(Out);
 }
 
 Sha2SymmetricState::Sha2SymmetricState(
     SymmetricAlgorithm Alg, std::optional<SymmetricOptions> OptOptions,
-    OpenSSlUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx)
+    Sha2 Ctx)
     : SymmetricStateBase(Alg), OptOptions(OptOptions), Ctx(std::move(Ctx)) {}
 
 } // namespace WASICrypto

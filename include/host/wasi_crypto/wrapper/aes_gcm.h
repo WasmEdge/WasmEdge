@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0
+#pragma once
+
+#include "common/span.h"
+#include "host/wasi_crypto/symmetric/alg.h"
+#include "host/wasi_crypto/wrapper/openssl.h"
+#include "openssl/evp.h"
+
+namespace WasmEdge {
+namespace Host {
+namespace WASICrypto {
+
+class AesGcm {
+public:
+  inline static constexpr __wasi_size_t NonceLen = 12;
+
+  inline static constexpr __wasi_size_t TagLen = 16;
+
+  static WasiCryptoExpect<AesGcm> make(SymmetricAlgorithm Alg);
+
+  WasiCryptoExpect<void> setKey(Span<uint8_t> Key);
+
+  WasiCryptoExpect<void> setNonce(Span<uint8_t> Nonce);
+
+  WasiCryptoExpect<void> absorb(Span<const uint8_t> Data);
+
+  WasiCryptoExpect<SymmetricTag> encryptDetached(Span<uint8_t> Out,
+                                                 Span<const uint8_t> Data);
+
+  WasiCryptoExpect<__wasi_size_t> decryptDetached(Span<uint8_t> Out,
+                                                  Span<const uint8_t> Data,
+                                                  Span<uint8_t const> RawTag);
+
+private:
+  enum Mode { Unchanged = -1, Decrypt = 0, Encrypt = 1 };
+
+  void updateMode(Mode Mo);
+
+  AesGcm(SymmetricAlgorithm Alg,
+         OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx);
+
+  SymmetricAlgorithm Alg;
+  OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx;
+};
+
+} // namespace WASICrypto
+} // namespace Host
+} // namespace WasmEdge

@@ -4,8 +4,7 @@
 #include "host/wasi_crypto/symmetric/options.h"
 #include "host/wasi_crypto/symmetric/state.h"
 #include "host/wasi_crypto/util.h"
-#include "openssl/evp.h"
-#include "openssl/sha.h"
+#include "host/wasi_crypto/wrapper/sha2.h"
 
 #include <vector>
 
@@ -30,11 +29,10 @@ public:
 
 private:
   Sha2SymmetricState(SymmetricAlgorithm Alg,
-                     std::optional<SymmetricOptions> OptOptions,
-                     OpenSSlUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx);
+                     std::optional<SymmetricOptions> OptOptions, Sha2 Ctx);
 
   std::optional<SymmetricOptions> OptOptions;
-  OpenSSlUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx;
+  Sha2 Ctx;
 };
 
 } // namespace WASICrypto

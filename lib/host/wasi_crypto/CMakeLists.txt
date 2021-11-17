@@ -32,6 +32,10 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   key_exchange/options.cpp
   key_exchange/ctx.cpp
   key_exchange/func.cpp
+  wrapper/sha2.cpp
+  wrapper/aes_gcm.cpp
+  wrapper/hkdf.cpp
+  wrapper/hmac_sha2.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

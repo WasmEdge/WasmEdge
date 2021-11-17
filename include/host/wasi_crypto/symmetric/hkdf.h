@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "common/expected.h"
-#include "experimental/expected.hpp"
+#include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/state.h"
-
-#include "openssl/evp.h"
-#include "openssl/kdf.h"
+#include "host/wasi_crypto/wrapper/hkdf.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -16,7 +13,9 @@ namespace WASICrypto {
 class HkdfSymmetricKey : public SymmetricKeyBase {
 public:
   HkdfSymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
+
   WasiCryptoExpect<std::vector<uint8_t>> raw() override;
+
   SymmetricAlgorithm alg() override;
 
 private:
@@ -28,7 +27,8 @@ class HkdfSymmetricKeyBuilder : public SymmetricKeyBuilder {
 public:
   HkdfSymmetricKeyBuilder(SymmetricAlgorithm Alg);
 
-  WasiCryptoExpect<SymmetricKey> generate(std::optional<SymmetricOptions> OptOption) override;
+  WasiCryptoExpect<SymmetricKey>
+  generate(std::optional<SymmetricOptions> OptOption) override;
 
   WasiCryptoExpect<SymmetricKey> import(Span<uint8_t const> Raw) override;
 
@@ -67,11 +67,10 @@ public:
 
 private:
   HkdfSymmetricState(SymmetricAlgorithm Algorithm,
-                     std::optional<SymmetricOptions> OptOptions,
-                     OpenSSlUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx);
+                     std::optional<SymmetricOptions> OptOptions, Hkdf Ctx);
 
   std::optional<SymmetricOptions> OptOptions;
-  OpenSSlUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx;
+  Hkdf Ctx;
 };
 
 } // namespace WASICrypto

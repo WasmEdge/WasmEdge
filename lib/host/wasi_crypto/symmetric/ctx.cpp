@@ -337,7 +337,7 @@ WasiCryptoContext::readSymmetricOption(
     return WasiCryptoUnexpect(Res);
   }
 
-  auto Options = Res->asSymmetric();
+  auto Options = Res->as<SymmetricOptions>();
   if (!Options) {
     return WasiCryptoUnexpect(Options);
   }

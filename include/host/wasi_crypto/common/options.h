@@ -14,62 +14,102 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace {
+template <class... Ts> struct Overloaded : Ts... { using Ts::operator()...; };
+template <class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
+} // namespace
 
-//
-//template <typename... Ts> class A {
-//  template <typename T,
-//            std::enable_if_t<(std::is_same_v<T, Ts> || ...), bool> = true>
-//  constexpr WasiCryptoExpect<T> as() noexcept {
-//    auto *Res = std::get_if<T>(&Inner);
-//    if (Res == nullptr) {
-//      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-//    }
-//    return *Res;
-//  }
-//
-//  constexpr WasiCryptoExpect<void> set(std::string_view Name,
-//                                       Span<const uint8_t> Value) {
-//    return std::visit(
-//        Overloaded{
-//            [Name, Value](SymmetricOptions Options) -> WasiCryptoExpect<void> {
-//              Options.set(Name, Value);
-//              return {};
-//            },
-//            [](auto) -> WasiCryptoExpect<void> {
-//              return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
-//            }},
-//        Inner);
-//  }
-//
-//private:
-//  std::variant<Ts...> Inner;
-//};
-
-class Options {
+template <typename... Ts> class OptionTemplate {
 public:
-  static WasiCryptoExpect<Options> make(__wasi_algorithm_type_e_t Algorithm);
+  OptionTemplate(std::variant<Ts...> Inner) : Inner(Inner) {}
 
-  WasiCryptoExpect<SymmetricOptions> asSymmetric();
+  template <typename T,
+            std::enable_if_t<(std::is_same_v<T, Ts> || ...), bool> = true>
+  constexpr WasiCryptoExpect<T> as() noexcept {
+    auto *Res = std::get_if<T>(&Inner);
+    if (Res == nullptr) {
+      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+    }
+    return *Res;
+  }
 
-  WasiCryptoExpect<SignatureOptions> asSignatures();
+  constexpr WasiCryptoExpect<void> set(std::string_view Name,
+                                       Span<const uint8_t> Value) {
+    return std::visit(
+        Overloaded{
+            [Name, Value](SymmetricOptions Options) -> WasiCryptoExpect<void> {
+              Options.set(Name, Value);
+              return {};
+            },
+            [](auto) -> WasiCryptoExpect<void> {
+              return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+            }},
+        Inner);
+  }
 
-  WasiCryptoExpect<KxOptions> asKx();
+  constexpr WasiCryptoExpect<void> setU64(std::string_view Name,
+                                          uint64_t Value) {
+    return std::visit(
+        Overloaded{
+            [Name, Value](SymmetricOptions Options) -> WasiCryptoExpect<void> {
+              Options.setU64(Name, Value);
+              return {};
+            },
+            [](auto) -> WasiCryptoExpect<void> {
+              return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+            }},
+        Inner);
+  }
 
-  WasiCryptoExpect<void> set(std::string_view Name, Span<uint8_t const> Value);
+  constexpr WasiCryptoExpect<void> setGuestBuffer(std::string_view Name,
+                                                  Span<uint8_t> Buffer) {
+    return std::visit(
+        Overloaded{
+            [Name, Buffer](SymmetricOptions Options) -> WasiCryptoExpect<void> {
+              Options.set(Name, Buffer);
+              return {};
+            },
+            [](auto) -> WasiCryptoExpect<void> {
+              return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+            }},
+        Inner);
+  }
 
-  WasiCryptoExpect<void> setU64(std::string_view Name, uint64_t Value);
+  WasiCryptoExpect<std::vector<uint8_t>> get(std::string_view Name) {
+    return std::visit(
+        Overloaded{[Name](SymmetricOptions Options)
+                       -> WasiCryptoExpect<std::vector<uint8_t>> {
+                     return Options.get(Name);
+                   },
+                   [](auto) -> WasiCryptoExpect<std::vector<uint8_t>> {
+                     return WasiCryptoUnexpect(
+                         __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+                   }},
+        Inner);
+  }
 
-  WasiCryptoExpect<void> setGuestBuffer(std::string_view Name,
-                                        Span<uint8_t> Buffer);
-
-  WasiCryptoExpect<std::vector<uint8_t>> get(std::string_view Name);
-
-  WasiCryptoExpect<uint64_t> getU64(std::string_view Name);
+  WasiCryptoExpect<uint64_t> getU64(std::string_view Name) {
+    return std::visit(
+        Overloaded{
+            [Name](SymmetricOptions Options) -> WasiCryptoExpect<uint64_t> {
+              return Options.getU64(Name);
+            },
+            [](auto) -> WasiCryptoExpect<uint64_t> {
+              return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+            }},
+        Inner);
+  }
 
 private:
-  Options(std::variant<SymmetricOptions, SignatureOptions, KxOptions> Inner);
+  std::variant<Ts...> Inner;
+};
 
-  std::variant<SymmetricOptions, SignatureOptions, KxOptions> Inner;
+class Options
+    : public OptionTemplate<SymmetricOptions, SignatureOptions, KxOptions> {
+  using OptionTemplate<SymmetricOptions, SignatureOptions, KxOptions>::OptionTemplate;
+
+public:
+  static WasiCryptoExpect<Options> make(__wasi_algorithm_type_e_t Algorithm);
 };
 
 } // namespace WASICrypto

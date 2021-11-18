@@ -1,6 +1,6 @@
 #![deny(rust_2018_idioms, unreachable_pub)]
 
-use std::{cell::RefCell, collections::HashMap};
+use std::{cell::RefCell, collections::HashMap, env::var};
 
 #[allow(warnings)]
 pub mod wasmedge {
@@ -35,7 +35,7 @@ thread_local! {
     #[allow(clippy::type_complexity)]
     static HOST_FUNCS:
       RefCell<
-        HashMap<usize, Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>>> = RefCell::new(HashMap::with_capacity(500));
+        HashMap<usize, Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>>> = RefCell::new(HashMap::with_capacity(var("MAX_HOST_FUNC_LENGTH").map(|s| s.parse::<usize>().expect("MAX_HOST_FUNC_LENGTH should be a number")).unwrap_or(500)));
 }
 #[cfg(test)]
 mod tests {

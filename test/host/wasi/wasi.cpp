@@ -975,8 +975,8 @@ TEST(WasiTest, GetAddrinfo) {
   std::string Service = "27015";
   struct __wasi_addrinfo_t Hints;
 
-  const uint32_t NodeLen = Node.size();
-  const uint32_t ServiceLen = Service.size();
+  uint32_t NodeLen = Node.size();
+  uint32_t ServiceLen = Service.size();
 
   memset(&Hints, 0, sizeof(Hints));
   Hints.ai_family = __WASI_ADDRESS_FAMILY_INET4;   /* Allow IPv4 */
@@ -1005,16 +1005,21 @@ TEST(WasiTest, GetAddrinfo) {
   }
   // Node and Service are all nullptr
   {
+    NodeLen = 0;
+    ServiceLen = 0;
     EXPECT_TRUE(WasiGetAddrinfo.run(
         nullptr,
-        std::array<WasmEdge::ValVariant, 7>{NodePtr, 0, ServicePtr, 0, HintsPtr,
-                                            ResultPtr, ResLengthPtr},
+        std::array<WasmEdge::ValVariant, 7>{NodePtr, NodeLen, ServicePtr,
+                                            ServiceLen, HintsPtr, ResultPtr,
+                                            ResLengthPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   }
 
   // node is nullptr, service is not nullptr
   {
+    NodeLen = Node.size();
+    ServiceLen = Service.size();
     EXPECT_TRUE(WasiGetAddrinfo.run(
         &MemInst,
         std::array<WasmEdge::ValVariant, 7>{NodePtr, NodeLen, ServicePtr,
@@ -1060,9 +1065,10 @@ TEST(WasiTest, GetAddrinfo) {
   {
     Node = "google.com";
     writeString(MemInst, Node, NodePtr);
+    NodeLen = Node.size();
     EXPECT_TRUE(WasiGetAddrinfo.run(
         &MemInst,
-        std::array<WasmEdge::ValVariant, 7>{NodePtr, Node.size(), ServicePtr,
+        std::array<WasmEdge::ValVariant, 7>{NodePtr, NodeLen, ServicePtr,
                                             ServiceLen, HintsPtr, ResultPtr,
                                             ResLengthPtr},
         Errno));

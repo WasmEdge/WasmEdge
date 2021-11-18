@@ -1022,7 +1022,6 @@ TEST(WasiTest, GetAddrinfo) {
                                             ResLengthPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_EQ(*ResLength, 6);
     auto *Res =
         MemInst.getPointer<uint8_t_ptr *>(ResultPtr, sizeof(uint8_t_ptr));
 
@@ -1032,13 +1031,6 @@ TEST(WasiTest, GetAddrinfo) {
 
     for (uint32_t i = 0; i < *ResLength; i++) {
       EXPECT_EQ(ResItem->ai_addrlen, 16);
-      auto *WasiSockAddr = MemInst.getPointer<__wasi_sockaddr_t *>(
-          ResItem->ai_addr, sizeof(__wasi_sockaddr_t));
-      EXPECT_EQ(WasiSockAddr->sa_data_len, 14);
-      EXPECT_EQ(WasiSockAddr->sa_family, 0);
-      EXPECT_NE(MemInst.getPointer<char *>(WasiSockAddr->sa_data,
-                                           WasiSockAddr->sa_data_len),
-                "i");
       if (i != (*ResLength) - 1) {
         ResItem = MemInst.getPointer<struct __wasi_addrinfo_t *>(
             ResItem->ai_next, sizeof(struct __wasi_addrinfo_t));
@@ -1075,7 +1067,7 @@ TEST(WasiTest, GetAddrinfo) {
                                             ResLengthPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_EQ(*ResLength, 3);
+    EXPECT_NE(*ResLength, 0);
     auto *Res =
         MemInst.getPointer<uint8_t_ptr *>(ResultPtr, sizeof(uint8_t_ptr));
 

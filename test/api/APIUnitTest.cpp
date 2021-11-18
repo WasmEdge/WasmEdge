@@ -388,10 +388,22 @@ TEST(APICoreTest, Configure) {
             WasmEdge_CompilerOptimizationLevel_Os);
   EXPECT_EQ(WasmEdge_ConfigureCompilerGetOptimizationLevel(Conf),
             WasmEdge_CompilerOptimizationLevel_Os);
+  WasmEdge_ConfigureCompilerSetOutputFormat(
+      ConfNull, WasmEdge_CompilerOutputFormat_Native);
+  WasmEdge_ConfigureCompilerSetOutputFormat(
+      Conf, WasmEdge_CompilerOutputFormat_Native);
+  EXPECT_NE(WasmEdge_ConfigureCompilerGetOutputFormat(ConfNull),
+            WasmEdge_CompilerOutputFormat_Native);
+  EXPECT_EQ(WasmEdge_ConfigureCompilerGetOutputFormat(Conf),
+            WasmEdge_CompilerOutputFormat_Native);
   WasmEdge_ConfigureCompilerSetDumpIR(ConfNull, true);
   WasmEdge_ConfigureCompilerSetDumpIR(Conf, true);
   EXPECT_NE(WasmEdge_ConfigureCompilerIsDumpIR(ConfNull), true);
   EXPECT_EQ(WasmEdge_ConfigureCompilerIsDumpIR(Conf), true);
+  WasmEdge_ConfigureCompilerSetGenericBinary(ConfNull, true);
+  WasmEdge_ConfigureCompilerSetGenericBinary(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureCompilerIsGenericBinary(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureCompilerIsGenericBinary(Conf), true);
   /// Tests for Statistics configurations.
   WasmEdge_ConfigureStatisticsSetInstructionCounting(ConfNull, true);
   WasmEdge_ConfigureStatisticsSetInstructionCounting(Conf, true);
@@ -834,6 +846,9 @@ TEST(APICoreTest, ExportType) {
 #ifdef WASMEDGE_BUILD_AOT_RUNTIME
 TEST(APICoreTest, Compiler) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  std::ifstream OutFile;
+  uint8_t Buf[4];
+  uint8_t WASMMagic[] = {0x00, 0x61, 0x73, 0x6D};
 
   /// Compiler creation and deletion
   WasmEdge_CompilerContext *Compiler = WasmEdge_CompilerCreate(nullptr);
@@ -844,15 +859,47 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(true);
   Compiler = WasmEdge_CompilerCreate(Conf);
 
-  /// Compile file
-  EXPECT_TRUE(
-      WasmEdge_ResultOK(WasmEdge_CompilerCompile(Compiler, TPath, "test.so")));
+  /// Compile file for universal WASM output format
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.wasm")));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
+      Compiler, "../../tools/wasmedge/examples/fibonacci.wasm",
+      "fib_aot.wasm")));
   /// File not found
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
-      Compiler, "not_exist.wasm", "not_exist.wasm.so")));
+      Compiler, "not_exist.wasm", "not_exist_aot.wasm")));
   /// Parse failed
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
-      Compiler, "../spec/testSuites/core/binary/binary.4.wasm", "binary.so")));
+      Compiler, "../spec/testSuites/core/binary/binary.4.wasm",
+      "binary_aot.wasm")));
+  WasmEdge_CompilerDelete(Compiler);
+  /// Check the header of the output files.
+  OutFile.open("test_aot.wasm", std::ios::binary);
+  EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
+  OutFile.close();
+  EXPECT_TRUE(std::equal(WASMMagic, WASMMagic + 4, Buf));
+  OutFile.open("fib_aot.wasm", std::ios::binary);
+  EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
+  OutFile.close();
+  EXPECT_TRUE(std::equal(WASMMagic, WASMMagic + 4, Buf));
+
+  /// Compile file for shared library output format
+  WasmEdge_ConfigureCompilerSetOutputFormat(
+      Conf, WasmEdge_CompilerOutputFormat_Native);
+  Compiler = WasmEdge_CompilerCreate(Conf);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.so")));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
+      Compiler, "../../tools/wasmedge/examples/fibonacci.wasm", "fib_aot.so")));
+  /// Check the header of the output files.
+  OutFile.open("test_aot.so", std::ios::binary);
+  EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
+  OutFile.close();
+  EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
+  OutFile.open("fib_aot.so", std::ios::binary);
+  EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
+  OutFile.close();
+  EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
 
   WasmEdge_CompilerDelete(Compiler);
   WasmEdge_ConfigureDelete(Conf);
@@ -909,6 +956,19 @@ TEST(APICoreTest, Loader) {
       WasmEdge_LoaderParseFromBuffer(Loader, ModPtr, nullptr, 0)));
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
       nullptr, nullptr, Buf.data(), static_cast<uint32_t>(Buf.size()))));
+#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+  /// Failed case to parse from buffer with AOT compiled WASM
+  std::ifstream WasmAOT("test_aot.so", std::ios::binary | std::ios::ate);
+  WasmAOT.seekg(0, std::ios::end);
+  Buf = std::vector<uint8_t>(static_cast<uint32_t>(WasmAOT.tellg()));
+  WasmAOT.seekg(0, std::ios::beg);
+  EXPECT_TRUE(WasmAOT.read(reinterpret_cast<char *>(Buf.data()),
+                           static_cast<uint32_t>(Buf.size())));
+  WasmAOT.close();
+  Mod = nullptr;
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
+      Loader, ModPtr, Buf.data(), static_cast<uint32_t>(Buf.size()))));
+#endif
 
   /// AST module deletion
   WasmEdge_ASTModuleDelete(nullptr);

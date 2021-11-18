@@ -14,11 +14,9 @@ $ cd WasmEdge
 ## Check Dependencies
 
 WasmEdge will try to use the latest LLVM release to create our nightly build. 
-If you want to build from source, you may need to install these dependencies 
-by yourself or using our docker images which provides several Linux distribution 
-support.
+If you want to build from source, you may need to install these dependencies by yourself or using our docker images which provides several Linux distribution support.
 
-- LLVM 12.0.0 (>= 10.0.0), because LLVM 13 has breaking changes, WasmEdge project is not support LLVM 13 now.
+- LLVM 12.0.0 (>= 10.0.0)
 - GCC 11.1.0 (>= 9.4.0)
 
 ## Prepare the Environment
@@ -46,7 +44,6 @@ $ docker pull wasmedge/wasmedge # Equals to wasmedge/wasmedge:latest
 | `manylinux2014_aarch64` | aarch64 | CentOS 7, 7.9.2009     | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | This is for developers who familiar with CentOS on aarch64 architecture             |
 | `manylinux2010_x86_64`  | x86\_64 | CentOS 6, 6.10         | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 6+ | This is for developers who familiar with legacy system on x86\_64 architecture, EOL |
 | `manylinux1_x86_64`     | x86\_64 | CentOS 5, 5.11         | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 5+ | This is for developers who familiar with legacy system on x86\_64 architecture, EOL |
-
 
 ### Install dependencies on Ubuntu 20.04 manually
 
@@ -76,7 +73,6 @@ Our development environment requires `libLLVM-12` and `>=GLIBCXX_3.4.33`.
 
 If users are using the older operating system than Ubuntu 20.04, please use our special docker image to build WasmEdge.
 If you are looking for the pre-built binaries for the older operatoring system, we also provide several pre-built binaries based on manylinux\* distribution.
-
 
 | Portable Linux Built Distributions Tags | Base Image  | Provided Requirements                                                 | Docker Image                             |
 | ---                                     | ---         | ---                                                                   | ---                                      |

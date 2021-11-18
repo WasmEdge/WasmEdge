@@ -693,6 +693,25 @@ WasmEdge_ConfigureCompilerGetOptimizationLevel(
   return WasmEdge_CompilerOptimizationLevel_O0;
 }
 
+WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureCompilerSetOutputFormat(
+    WasmEdge_ConfigureContext *Cxt,
+    const enum WasmEdge_CompilerOutputFormat Format) {
+  if (Cxt) {
+    Cxt->Conf.getCompilerConfigure().setOutputFormat(
+        static_cast<WasmEdge::CompilerConfigure::OutputFormat>(Format));
+  }
+}
+
+WASMEDGE_CAPI_EXPORT enum WasmEdge_CompilerOutputFormat
+WasmEdge_ConfigureCompilerGetOutputFormat(
+    const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return static_cast<WasmEdge_CompilerOutputFormat>(
+        Cxt->Conf.getCompilerConfigure().getOutputFormat());
+  }
+  return WasmEdge_CompilerOutputFormat_Wasm;
+}
+
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureCompilerSetDumpIR(WasmEdge_ConfigureContext *Cxt,
                                     const bool IsDump) {
@@ -705,6 +724,22 @@ WASMEDGE_CAPI_EXPORT bool
 WasmEdge_ConfigureCompilerIsDumpIR(const WasmEdge_ConfigureContext *Cxt) {
   if (Cxt) {
     return Cxt->Conf.getCompilerConfigure().isDumpIR();
+  }
+  return false;
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureCompilerSetGenericBinary(WasmEdge_ConfigureContext *Cxt,
+                                           const bool IsGeneric) {
+  if (Cxt) {
+    Cxt->Conf.getCompilerConfigure().setGenericBinary(IsGeneric);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureCompilerIsGenericBinary(
+    const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getCompilerConfigure().isGenericBinary();
   }
   return false;
 }

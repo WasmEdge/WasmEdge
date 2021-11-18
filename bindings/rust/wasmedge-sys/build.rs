@@ -7,7 +7,7 @@ fn main() {
         header,
         lib_dir,
         inc_dir,
-    } = find_wasmedge();
+    } = find_wasmedge().expect("wasmedge header not found");
 
     let out_file = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("wasmedge.rs");
     bindgen::builder()
@@ -30,13 +30,14 @@ fn main() {
     println!("cargo:rustc-link-lib=dylib=wasmedge_c");
 }
 
-/// Returns the best guess of the location of wasmedge.h and libwasmedge_c.(dylib|so)
+/// Check header and Returns the location of wasmedge.h and libwasmedge_c.(dylib|so)
 /// The priorities are:
 /// 1. The locations specified by `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR`.
 /// 2. The build directory, if this is an in-tree build.
 /// 3. The "XDG" local installation dirs: `~/.local/include` and `~/.local/lib`.
 /// 4. The global installation dirs: `/usr/include` and `/usr/bin`.
-fn find_wasmedge() -> Paths {
+/// 5. Backward compatiable the path berfore 0.9
+fn find_wasmedge() -> Option<Paths> {
     macro_rules! env_path {
         ($env_var:literal) => {
             std::env::var_os($env_var).map(PathBuf::from)
@@ -59,17 +60,30 @@ fn find_wasmedge() -> Paths {
         lib_dir = lib_dir.or_else(|| Some(xdg_dir.join("lib")));
     }
 
-    Paths {
-        header: inc_dir
-            .clone()
-            .unwrap_or_else(|| PathBuf::from("/usr/include/wasmedge"))
-            .join(WASMEDGE_H),
-        lib_dir: lib_dir.unwrap_or_else(|| PathBuf::from("/usr/lib")),
-        inc_dir: inc_dir
-            .unwrap_or_else(|| PathBuf::from("/usr/include/wasmedge"))
-            .parent()
-            .unwrap()
-            .to_path_buf(),
+    let header = inc_dir
+        .clone()
+        .unwrap_or_else(|| PathBuf::from("/usr/include/wasmedge"))
+        .join(WASMEDGE_H);
+
+    if header.exists() {
+        Some(Paths {
+            header,
+            lib_dir: lib_dir.unwrap_or_else(|| PathBuf::from("/usr/lib")),
+            inc_dir: inc_dir
+                .unwrap_or_else(|| PathBuf::from("/usr/include/wasmedge"))
+                .parent()
+                .unwrap()
+                .to_path_buf(),
+        })
+    } else if PathBuf::from("/usr/include").join(WASMEDGE_H).exists() {
+        // check the header path of old version
+        Some(Paths {
+            header: PathBuf::from("/usr/include").join(WASMEDGE_H),
+            lib_dir: PathBuf::from("/usr/lib"),
+            inc_dir: PathBuf::from("/usr/include"),
+        })
+    } else {
+        None
     }
 }
 

@@ -993,6 +993,20 @@ TEST(WasiTest, GetAddrinfo) {
   *Result = 84;
 
   Env.init({}, "test"s, {}, {});
+  // MemInst is nullptr
+  EXPECT_TRUE(WasiGetAddrinfo.run(nullptr,
+                                  std::array<WasmEdge::ValVariant, 7>{
+                                      NodePtr, NodeLen, ServicePtr, ServiceLen,
+                                      HintsPtr, ResultPtr, ResLengthPtr},
+                                  Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+  // Node and Service are all nullptr
+  EXPECT_TRUE(WasiGetAddrinfo.run(
+      nullptr,
+      std::array<WasmEdge::ValVariant, 7>{NodePtr, 0, ServicePtr, 0, HintsPtr,
+                                          ResultPtr, ResLengthPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
 
   EXPECT_TRUE(WasiGetAddrinfo.run(&MemInst,
                                   std::array<WasmEdge::ValVariant, 7>{
@@ -1027,6 +1041,8 @@ TEST(WasiTest, GetAddrinfo) {
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(ResHead->ai_next, 0);
+  EXPECT_EQ(ResHead->ai_canonname_len, 0);
+  EXPECT_EQ(ResHead->ai_canonname, 0);
 }
 #endif
 

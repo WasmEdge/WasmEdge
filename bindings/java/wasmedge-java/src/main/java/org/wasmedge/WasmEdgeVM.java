@@ -4,6 +4,11 @@ import java.util.List;
 
 public class WasmEdgeVM {
 
+    private VMContext vmContext;
+    public WasmEdgeVM(VMContext vmContext) {
+        this.vmContext = vmContext;
+    }
+
     private native void runWasmFromFile(String file,
                                         String funcName,
                                         WasmEdgeValue[] params,
@@ -51,4 +56,36 @@ public class WasmEdgeVM {
         values.toArray(valuesArray);
         return valuesArray;
     }
+
+    public native void loadWasmFromFile(String filePath);
+
+    public native void validate();
+
+    public native void instantiate();
+
+    public void execute(String funcName, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+        WasmEdgeValue[] paramsArray = valueListToArray(params);
+        int[] paramTypes = getValueTypeArray(params);
+
+        WasmEdgeValue[] returnsArray = valueListToArray(returns);
+        int[] returnTypes = getValueTypeArray(returns);
+
+        execute(funcName, paramsArray, params.size(), paramTypes, returnsArray, returns.size(), returnTypes);
+    }
+
+    public native void execute(String funcName, WasmEdgeValue[] params,
+                         int paramSize,
+                         int[] paramTypes,
+                         WasmEdgeValue[] returns,
+                         int returnSize,
+                         int[] returnTypes);
+
+    public native void registerModuleFromFile(String modName, String fileName);
+
+    public native void executeRegistered(String modName, String funcName);
+
+    public native void getFunctionList();
+
+    public native void getFunctionType(String funcName);
+
 }

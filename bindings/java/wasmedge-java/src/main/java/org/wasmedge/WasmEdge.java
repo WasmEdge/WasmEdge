@@ -6,7 +6,7 @@ public class WasmEdge {
         System.loadLibrary("wasmedge_jni");
     }
 
-    enum LogLevel {
+    public enum LogLevel {
         DEBUG,
         ERROR;
     }

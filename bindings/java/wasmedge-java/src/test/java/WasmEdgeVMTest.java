@@ -1,6 +1,7 @@
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.wasmedge.VMContext;
 import org.wasmedge.WasmEdge;
 import org.wasmedge.WasmEdgeI32Value;
 import org.wasmedge.WasmEdgeVM;
@@ -17,7 +18,8 @@ public class WasmEdgeVMTest {
 
     @Test
     public void testRun() {
-        WasmEdgeVM vm = new WasmEdgeVM();
+        VMContext vmContext = new VMContext(null, null);
+        WasmEdgeVM vm = new WasmEdgeVM(vmContext);
         List<WasmEdgeValue> params = new ArrayList<>();
         params.add(new WasmEdgeI32Value(3));
 
@@ -25,5 +27,22 @@ public class WasmEdgeVMTest {
         returns.add(new WasmEdgeI32Value());
         vm.runWasmFromFile("/root/fibonacci.wasm", "fibnacci", params, returns);
         Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+    }
+
+    @Test
+    public void testRunStepByStep(){
+        VMContext vmContext = new VMContext(null, null);
+        WasmEdgeVM vm = new WasmEdgeVM(vmContext);
+        vm.loadWasmFromFile("/root/fibonacci.wasm");
+        vm.validate();
+        List<WasmEdgeValue> params = new ArrayList<>();
+        params.add(new WasmEdgeI32Value(3));
+
+        List<WasmEdgeValue> returns = new ArrayList<>();
+        returns.add(new WasmEdgeI32Value());
+        vm.execute("fibnacci", params, returns);
+
+        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+
     }
 }

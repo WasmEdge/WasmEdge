@@ -40,20 +40,17 @@ public:
 
   void fini() noexcept;
 
-  WasiExpect<void> freeAddrInfo(__wasi_addrinfo_t *Addrinfo) {
-    delete Addrinfo;
-    return {};
-  }
-
   WasiExpect<void> getAddrInfo(const char *Node, const char *Service,
                                const __wasi_addrinfo_t *Hint,
                                const __wasi_sockaddr_t *SockAddress,
                                char *AiCanonname, char *AiSaData,
-                               /*Out*/ addrinfo *&Res) {
+                               /*Out*/ addrinfo **Res, size_t *ResLength) {
     struct addrinfo TmpHint;
     struct addrinfo *TmpResult = NULL;
+    struct addrinfo *TmpPointer;
     int POSIXReturn;
 
+    *ResLength = 0;
     TmpHint.ai_flags = Hint->ai_flags;
     TmpHint.ai_family = Hint->ai_family;
     TmpHint.ai_socktype = Hint->ai_socktype;
@@ -98,8 +95,11 @@ public:
     case EAI_SYSTEM:
       return WasiUnexpect(__WASI_ERRNO_AISYSTEM);
     }
-    Res = TmpResult;
-    Res->ai_next = nullptr;
+    for (TmpPointer = TmpResult; TmpPointer != nullptr;
+         TmpPointer = TmpPointer->ai_next) {
+      (*ResLength)++;
+    }
+    *Res = TmpResult;
     return {};
   }
   constexpr const std::vector<std::string> &getArguments() const noexcept {

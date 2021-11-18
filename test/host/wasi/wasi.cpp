@@ -962,23 +962,19 @@ TEST(WasiTest, GetAddrinfo) {
       WasmEdge::AST::MemoryType(1));
 
   WasmEdge::Host::WasiGetAddrinfo WasiGetAddrinfo(Env);
-  WasmEdge::Host::WasiFreeAddrinfo WasiFreAddrinfo(Env);
+  WasmEdge::Host::WasiFreeAddrinfo WasiFreeAddrinfo(Env);
 
   std::array<WasmEdge::ValVariant, 1> Errno;
 
   uint32_t NodePtr = 0;
   uint32_t ServicePtr = 32;
   uint32_t HintsPtr = 48;
+  uint32_t ResLengthPtr = 76;
   uint32_t ResultPtr = 80;
   std::string Node = "";
   std::string Service = "27015";
   struct __wasi_addrinfo_t Hints;
-  struct __wasi_addrinfo_t *Result = new __wasi_addrinfo_t();
-  Result->ai_addr = 112;
-  auto WSA = MemInst.getPointer<__wasi_sockaddr_t *>(Result->ai_addr,
-                                                     sizeof(__wasi_sockaddr_t));
-  WSA->sa_data_len = 0;
-  WSA->sa_data = 144;
+
   const uint32_t NodeLen = Node.size();
   const uint32_t ServiceLen = Service.size();
 
@@ -989,27 +985,48 @@ TEST(WasiTest, GetAddrinfo) {
   writeString(MemInst, Node, NodePtr);
   writeString(MemInst, Service, ServicePtr);
   writeAddrinfo(MemInst, &Hints, HintsPtr);
-  writeAddrinfo(MemInst, Result, ResultPtr);
-  delete Result;
+  auto *ResLength =
+      MemInst.getPointer<uint32_t *>(ResLengthPtr, sizeof(uint32_t));
+  *ResLength = 0;
+  auto *Result =
+      MemInst.getPointer<uint8_t_ptr *>(ResultPtr, sizeof(uint8_t_ptr));
+  *Result = 84;
 
   Env.init({}, "test"s, {}, {});
 
-  EXPECT_TRUE(WasiGetAddrinfo.run(
-      &MemInst,
-      std::array<WasmEdge::ValVariant, 6>{NodePtr, NodeLen, ServicePtr,
-                                          ServiceLen, HintsPtr, ResultPtr},
+  EXPECT_TRUE(WasiGetAddrinfo.run(&MemInst,
+                                  std::array<WasmEdge::ValVariant, 7>{
+                                      NodePtr, NodeLen, ServicePtr, ServiceLen,
+                                      HintsPtr, ResultPtr, ResLengthPtr},
+                                  Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  EXPECT_NE(*ResLength, 0);
+  EXPECT_EQ(*ResLength, 6);
+  auto *Res = MemInst.getPointer<uint8_t_ptr *>(ResultPtr, sizeof(uint8_t_ptr));
+
+  auto *ResHead = MemInst.getPointer<struct __wasi_addrinfo_t *>(
+      *Res, sizeof(struct __wasi_addrinfo_t));
+  auto *ResItem = ResHead;
+
+  for (uint32_t i = 0; i < *ResLength; i++) {
+    EXPECT_EQ(ResItem->ai_addrlen, 16);
+    auto WasiSockAddr = MemInst.getPointer<__wasi_sockaddr_t *>(
+        ResItem->ai_addr, sizeof(__wasi_sockaddr_t));
+    EXPECT_EQ(WasiSockAddr->sa_data_len, 14);
+    EXPECT_EQ(WasiSockAddr->sa_family, 0);
+    EXPECT_NE(MemInst.getPointer<char *>(WasiSockAddr->sa_data,
+                                         WasiSockAddr->sa_data_len),
+              "i");
+    if (i != (*ResLength) - 1) {
+      ResItem = MemInst.getPointer<struct __wasi_addrinfo_t *>(
+          ResItem->ai_next, sizeof(struct __wasi_addrinfo_t));
+    }
+  }
+  EXPECT_TRUE(WasiFreeAddrinfo.run(
+      &MemInst, std::array<WasmEdge::ValVariant, 2>{ResultPtr, *ResLength},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  auto Res = MemInst.getPointer<__wasi_addrinfo_t *>(ResultPtr,
-                                                     sizeof(__wasi_addrinfo_t));
-  EXPECT_EQ(Res->ai_addrlen, 16);
-  auto WasiSockAddr = MemInst.getPointer<__wasi_sockaddr_t *>(
-      Res->ai_addr, sizeof(__wasi_sockaddr_t));
-  EXPECT_EQ(WasiSockAddr->sa_data_len, 14);
-  EXPECT_EQ(WasiSockAddr->sa_family, 0);
-  EXPECT_NE(MemInst.getPointer<char *>(WasiSockAddr->sa_data,
-                                       WasiSockAddr->sa_data_len),
-            "i");
+  EXPECT_EQ(ResHead->ai_next, 0);
 }
 #endif
 

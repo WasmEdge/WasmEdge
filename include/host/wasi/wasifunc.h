@@ -452,8 +452,8 @@ public:
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         uint32_t NodePtr, uint32_t NodeLen, uint32_t ServicePtr,
-                        uint32_t ServiceLen, uint32_t HintsPtr,
-                        uint32_t ResPtr);
+                        uint32_t ServiceLen, uint32_t HintsPtr, uint32_t ResPtr,
+                        uint32_t ResLengthPtr);
 };
 
 class WasiFreeAddrinfo : public Wasi<WasiFreeAddrinfo> {
@@ -461,7 +461,7 @@ public:
   WasiFreeAddrinfo(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        uint32_t ResPtr);
+                        uint32_t ResPtr, uint32_t ResLength);
 };
 
 } // namespace Host

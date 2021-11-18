@@ -386,7 +386,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
 1. Proposals
 
     WasmEdge supports turning on or off the WebAssembly proposals.
-    This configuration is only effective in `Loader`, `Validator`, `Executor`, `VM`, and `Compiler` contexts.
+    This configuration is effective in any contexts created with the `Configure` context.
 
     ```c
     enum WasmEdge_Proposal {
@@ -448,22 +448,53 @@ Developers can adjust the settings about the proposals, VM host pre-registration
 
 4. AOT compiler options
 
-    The AOT compiler options configure the behavior about optimization level, dump IR, compiled-WASM instruction counting, and cost measuring in runtime.
+    The AOT compiler options configure the behavior about optimization level, output format, dump IR, and generic binary.
+
+    ```c
+    enum WasmEdge_CompilerOptimizationLevel {
+      /// Disable as many optimizations as possible.
+      WasmEdge_CompilerOptimizationLevel_O0 = 0,
+      /// Optimize quickly without destroying debuggability.
+      WasmEdge_CompilerOptimizationLevel_O1,
+      /// Optimize for fast execution as much as possible without triggering
+      /// significant incremental compile time or code size growth.
+      WasmEdge_CompilerOptimizationLevel_O2,
+      /// Optimize for fast execution as much as possible.
+      WasmEdge_CompilerOptimizationLevel_O3,
+      /// Optimize for small code size as much as possible without triggering
+      /// significant incremental compile time or execution time slowdowns.
+      WasmEdge_CompilerOptimizationLevel_Os,
+      /// Optimize for small code size as much as possible.
+      WasmEdge_CompilerOptimizationLevel_Oz
+    };
+
+    enum WasmEdge_CompilerOutputFormat {
+      /// Native dynamic library format.
+      WasmEdge_CompilerOutputFormat_Native = 0,
+      /// WebAssembly with AOT compiled codes in custom section.
+      WasmEdge_CompilerOutputFormat_Wasm
+    };
+    ```
+
     These configurations are only effective in `Compiler` contexts.
 
     ```c
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
     /* By default, the optimization level is O3. */
-    WasmEdge_ConfigureCompilerGetOptimizationLevel(ConfCxt, WasmEdge_CompilerOptimizationLevel_O2);
+    WasmEdge_ConfigureCompilerSetOptimizationLevel(ConfCxt, WasmEdge_CompilerOptimizationLevel_O2);
+    /* By default, the output format is universal WASM. */
+    WasmEdge_ConfigureCompilerSetOutputFormat(ConfCxt, WasmEdge_CompilerOutputFormat_Native);
     /* By default, the dump IR is `FALSE`. */
     WasmEdge_ConfigureCompilerSetDumpIR(ConfCxt, TRUE);
+    /* By default, the generic binary is `FALSE`. */
+    WasmEdge_ConfigureCompilerSetGenericBinary(ConfCxt, TRUE);
     WasmEdge_ConfigureDelete(ConfCxt);
     ```
 
 5. Statistics options
 
     The statistics options configure the behavior about instruction counting, cost measuring, and time measuring in both runtime and AOT compiler.
-    These configurations are effective in both `Compiler` and `Runtime` contexts.
+    These configurations are effective in `Compiler`, `VM`, and `Executor` contexts.
 
     ```c
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
@@ -1910,7 +1941,7 @@ $ ./a.out
 
 ### Compiler Options
 
-Developers and add options for AOT compilers such as optimization level:
+Developers can set options for AOT compilers such as optimization level and output format:
 
 ```c
 /// AOT compiler optimization level enumeration.
@@ -1929,6 +1960,14 @@ enum WasmEdge_CompilerOptimizationLevel {
   WasmEdge_CompilerOptimizationLevel_Os,
   /// Optimize for small code size as much as possible.
   WasmEdge_CompilerOptimizationLevel_Oz
+};
+
+/// AOT compiler output binary format enumeration.
+enum WasmEdge_CompilerOutputFormat {
+  /// Native dynamic library format.
+  WasmEdge_CompilerOutputFormat_Native = 0,
+  /// WebAssembly with AOT compiled codes in custom sections.
+  WasmEdge_CompilerOutputFormat_Wasm
 };
 ```
 

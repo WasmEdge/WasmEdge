@@ -155,9 +155,9 @@ int main(int Argc, const char *Argv[]) {
     if (ConfGenericBinary.value()) {
       Conf.getCompilerConfigure().setGenericBinary(true);
     }
-    if (OutputPath.extension().u8string() == ".wasm"sv) {
+    if (OutputPath.extension().u8string() == ".so"sv) {
       Conf.getCompilerConfigure().setOutputFormat(
-          WasmEdge::CompilerConfigure::OutputFormat::Wasm);
+          WasmEdge::CompilerConfigure::OutputFormat::Native);
     }
     WasmEdge::AOT::Compiler Compiler(Conf);
     if (auto Res = Compiler.compile(Data, *Module, OutputPath); !Res) {

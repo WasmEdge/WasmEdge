@@ -25,6 +25,21 @@ namespace WasmEdge {
 /// File manager interface.
 class FileMgr {
 public:
+  enum class FileHeader : uint8_t {
+    /// WASM or universal WASM.
+    Wasm,
+    /// AOT compiled WASM as Linux ELF.
+    ELF,
+    /// AOT compiled WASM as MacOS Mach_O 32-bit.
+    MachO_32,
+    /// AOT compiled WASM as MacOS Mach_O 64-bit.
+    MachO_64,
+    /// AOT compiled WASM as Windows DLL.
+    DLL,
+    /// Unknown file header.
+    Unknown
+  };
+
   /// Set the file path.
   Expect<void> setPath(const std::filesystem::path &FilePath);
 
@@ -60,6 +75,9 @@ public:
 
   /// Read a string, which is size(unsigned int) + bytes.
   Expect<std::string> readName();
+
+  /// Get the file header type.
+  FileHeader getHeaderType();
 
   /// Get current offset.
   uint64_t getOffset() const noexcept { return Pos; }

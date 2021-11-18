@@ -1868,30 +1868,16 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
   if (Service == nullptr && Node == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
-  // process hint and its own items
+
   auto *const Hint = MemInst->getPointer<const struct __wasi_addrinfo_t *>(
       HintsPtr, sizeof(struct __wasi_addrinfo_t));
-  const __wasi_sockaddr_t *AiSockAddress = nullptr;
-  char *AiSaData = nullptr;
-  char *AiCanonname = nullptr;
-  if (Hint->ai_addrlen != 0) {
-    AiSockAddress = MemInst->getPointer<const __wasi_sockaddr_t *>(
-        Hint->ai_addr, Hint->ai_addrlen);
-    AiSaData = MemInst->getPointer<char *>(AiSockAddress->sa_data,
-                                           AiSockAddress->sa_data_len);
-  }
-  if (Hint->ai_canonname_len != 0) {
-    AiCanonname =
-        MemInst->getPointer<char *>(Hint->ai_canonname, Hint->ai_canonname_len);
-  }
-  // process result (res,resLength)
   auto *const ResLength =
       MemInst->getPointer<size_t *>(ResLengthPtr, sizeof(size_t *));
+
   addrinfo *TmpAddrinfoRes = nullptr;
 
   if (auto Res =
-          Env.getAddrInfo(Node, Service, Hint, AiSockAddress, AiCanonname,
-                          AiSaData, &TmpAddrinfoRes, ResLength);
+          Env.getAddrInfo(Node, Service, Hint, &TmpAddrinfoRes, ResLength);
       unlikely(!Res)) {
     return Res.error();
   }
@@ -1942,11 +1928,12 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
     // process ai_canonname in addrinfo
     if (AddrinfoItem->ai_canonname != NULL) {
       RealResItem->ai_canonname = Base;
-      Base += RealResItem->ai_canonname_len;
-      RealResItem->ai_canonname_len = sizeof(AddrinfoItem->ai_canonname);
+      RealResItem->ai_canonname_len = strlen(AddrinfoItem->ai_canonname);
+      Base += (RealResItem->ai_canonname_len + 1);
       memcpy(MemInst->getPointer<char *>(RealResItem->ai_canonname,
                                          RealResItem->ai_canonname_len),
              AddrinfoItem->ai_canonname, RealResItem->ai_canonname_len);
+      memset(MemInst->getPointer<char *>(Base - 1, 1), 0, 1);
     }
     // process ai_next in addrinfo
     if (i != (*ResLength) - 1) {

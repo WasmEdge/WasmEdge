@@ -42,8 +42,6 @@ public:
 
   WasiExpect<void> getAddrInfo(const char *Node, const char *Service,
                                const __wasi_addrinfo_t *Hint,
-                               const __wasi_sockaddr_t *SockAddress,
-                               char *AiCanonname, char *AiSaData,
                                /*Out*/ addrinfo **Res, size_t *ResLength) {
     struct addrinfo TmpHint;
     struct addrinfo *TmpResult = NULL;
@@ -56,18 +54,8 @@ public:
     TmpHint.ai_socktype = Hint->ai_socktype;
     TmpHint.ai_protocol = Hint->ai_protocol;
     TmpHint.ai_addrlen = Hint->ai_addrlen;
-    TmpHint.ai_canonname = AiCanonname;
     TmpHint.ai_addr = NULL;
-    if (SockAddress != nullptr) {
-      switch (SockAddress->sa_family) {
-      case __WASI_ADDRESS_FAMILY_INET6:
-        TmpHint.ai_addr->sa_family = AF_INET;
-        break;
-      case __WASI_ADDRESS_FAMILY_INET4:
-        TmpHint.ai_addr->sa_family = AF_INET6;
-      }
-      memcpy(TmpHint.ai_addr->sa_data, AiSaData, 14);
-    }
+    TmpHint.ai_canonname = NULL;
     TmpHint.ai_next = NULL;
 
     POSIXReturn = ::getaddrinfo(Node, Service, &TmpHint, &TmpResult);

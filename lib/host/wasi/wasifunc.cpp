@@ -1651,8 +1651,7 @@ WasiSockAccept::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   }
   const __wasi_fd_t WasiFd = Fd;
 
-  if (auto Res = Env.sockAccept(WasiFd);
-      unlikely(!Res)) {
+  if (auto Res = Env.sockAccept(WasiFd); unlikely(!Res)) {
     return Res.error();
   } else {
     *RoFd = *Res;

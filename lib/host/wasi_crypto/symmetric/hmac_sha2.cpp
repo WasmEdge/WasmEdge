@@ -15,7 +15,7 @@ HmacSha2SymmetricKey::~HmacSha2SymmetricKey() {
   std::fill(Raw.begin(), Raw.end(), 0);
 }
 
-WasiCryptoExpect<std::vector<uint8_t>> HmacSha2SymmetricKey::raw() {
+WasiCryptoExpect<Span<const uint8_t>> HmacSha2SymmetricKey::raw() {
   return Raw;
 }
 

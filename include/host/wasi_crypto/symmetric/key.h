@@ -31,7 +31,7 @@ class SymmetricKeyBase {
 public:
   virtual ~SymmetricKeyBase() = default;
   // lock
-  virtual WasiCryptoExpect<std::vector<uint8_t>> raw() = 0;
+  virtual WasiCryptoExpect<Span<const uint8_t>> raw() = 0;
 
   virtual SymmetricAlgorithm alg() = 0;
 };
@@ -47,8 +47,14 @@ public:
                                                Span<uint8_t const> Raw);
 
   WasiCryptoExpect<std::vector<uint8_t>> raw() {
-    return Inner->locked(
-        [](std::unique_ptr<SymmetricKeyBase> &Data) { return Data->raw(); });
+    return Inner->locked([](std::unique_ptr<SymmetricKeyBase> &Data)
+                             -> WasiCryptoExpect<std::vector<uint8_t>> {
+      auto Res = Data->raw();
+      if (Res) {
+        return WasiCryptoUnexpect(Res);
+      }
+      return std::vector<uint8_t>{Res->begin(), Res->end()};
+    });
   }
 
   SymmetricAlgorithm alg() {
@@ -61,7 +67,7 @@ public:
   WasiCryptoExpect<void> isType() {
     return Inner->template locked(
         [](std::unique_ptr<SymmetricKeyBase> &Data) -> WasiCryptoExpect<void> {
-          if (dynamic_cast<T*>(Data.get()) == nullptr) {
+          if (dynamic_cast<T *>(Data.get()) == nullptr) {
             return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
           }
           return {};

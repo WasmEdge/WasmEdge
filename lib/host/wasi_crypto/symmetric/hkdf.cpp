@@ -10,7 +10,7 @@ HkdfSymmetricKey::HkdfSymmetricKey(SymmetricAlgorithm Alg,
                                    Span<uint8_t const> Raw)
     : Alg(Alg), Raw(Raw.begin(), Raw.end()) {}
 
-WasiCryptoExpect<std::vector<uint8_t>> HkdfSymmetricKey::raw() { return Raw; }
+WasiCryptoExpect<Span<const uint8_t>> HkdfSymmetricKey::raw() { return Raw; }
 
 SymmetricAlgorithm HkdfSymmetricKey::alg() { return Alg; }
 

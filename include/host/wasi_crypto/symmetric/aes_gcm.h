@@ -13,7 +13,7 @@ class AesGcmSymmetricKey : public SymmetricKeyBase {
 public:
   AesGcmSymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
 
-  WasiCryptoExpect<std::vector<uint8_t>> raw() override;
+  WasiCryptoExpect<Span<const uint8_t>> raw() override;
 
   SymmetricAlgorithm alg() override;
 

@@ -74,27 +74,26 @@ WasiCryptoExpect<SymmetricTag>
 AesGcm::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
   updateMode(Mode::Encrypt);
 
-  //    auto Nonce = Options.get("nonce");
-  //    if (!Nonce) {
-  //      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
-  //    }
-  //
-  //    //  if (Out.data() != Data.data()) {
-  //    //    std::copy(Data.begin(), Data.end(), Out.begin());
-  //    //  }
-  //
-  //    int ActualOutSize;
-  //    if (!EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize,
-  //    Data.data(),
-  //                          Data.size())) {
-  //      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  //    }
-  //
-  //    // we need check the equal.
-  //    if (ActualOutSize < 0 ||
-  //        static_cast<__wasi_size_t>(ActualOutSize) != Out.size()) {
-  //      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_NONCE);
-  //    }
+  //  auto Nonce = Options.get("nonce");
+  //  if (!Nonce) {
+  //    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
+  //  }
+
+  //  if (Out.data() != Data.data()) {
+  //    std::copy(Data.begin(), Data.end(), Out.begin());
+  //  }
+
+  int ActualOutSize;
+  if (!EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize, Data.data(),
+                        Data.size())) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
+  }
+
+  // we need check the equal.
+  if (ActualOutSize < 0 ||
+      static_cast<__wasi_size_t>(ActualOutSize) != Out.size()) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_NONCE);
+  }
 
   // Notice: Finalise the encryption. Normally ciphertext bytes may be written
   // at this stage, but this does not occur in GCM mode

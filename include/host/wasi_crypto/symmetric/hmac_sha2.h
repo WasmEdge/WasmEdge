@@ -25,7 +25,7 @@ public:
 
   ~HmacSha2SymmetricKey() override;
 
-  WasiCryptoExpect<std::vector<uint8_t>> raw() override;
+  WasiCryptoExpect<Span<const uint8_t>> raw() override;
 
   SymmetricAlgorithm alg() override;
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/xoodyak.h"
-#include "host/wasi_crypto/random.h"
+#include "host/wasi_crypto/wrapper/random.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -10,7 +10,7 @@ XoodyakSymmetricKey::XoodyakSymmetricKey(SymmetricAlgorithm Alg,
                                          Span<uint8_t const> Raw)
     : Alg(Alg), Raw(Raw.begin(), Raw.end()) {}
 
-WasiCryptoExpect<std::vector<uint8_t>> XoodyakSymmetricKey::raw() { return Raw; }
+WasiCryptoExpect<Span<const uint8_t>> XoodyakSymmetricKey::raw() { return Raw; }
 
 SymmetricAlgorithm XoodyakSymmetricKey::alg() { return Alg; }
 

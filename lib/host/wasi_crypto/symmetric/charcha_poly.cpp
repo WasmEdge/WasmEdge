@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/charcha_poly.h"
-#include "host/wasi_crypto/random.h"
+#include "host/wasi_crypto/wrapper/random.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -11,7 +11,7 @@ ChaChaPolySymmetricKey::ChaChaPolySymmetricKey(SymmetricAlgorithm Alg,
                                                Span<uint8_t const> Raw)
     : Alg(Alg), Raw(Raw.begin(), Raw.end()) {}
 
-WasiCryptoExpect<std::vector<uint8_t>> ChaChaPolySymmetricKey::raw() {
+WasiCryptoExpect<Span<const uint8_t>> ChaChaPolySymmetricKey::raw() {
   return Raw;
 }
 

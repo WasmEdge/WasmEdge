@@ -4,7 +4,6 @@ find_package(OpenSSL REQUIRED)
 
 wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   cryptomodule.cpp
-  random.cpp
   common/ctx.cpp
   common/array_output.cpp
   common/options.cpp
@@ -35,6 +34,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   wrapper/sha2.cpp
   wrapper/aes_gcm.cpp
   wrapper/hkdf.cpp
+  wrapper/random.cpp
   wrapper/hmac_sha2.cpp
 )
 

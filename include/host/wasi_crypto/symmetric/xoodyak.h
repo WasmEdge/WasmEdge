@@ -12,7 +12,7 @@ class XoodyakSymmetricKey : public SymmetricKeyBase {
 public:
   XoodyakSymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
 
-  WasiCryptoExpect<std::vector<uint8_t>> raw() override;
+  WasiCryptoExpect<Span<const uint8_t>> raw() override;
 
   SymmetricAlgorithm alg() override;
 

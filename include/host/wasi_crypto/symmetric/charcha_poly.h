@@ -13,7 +13,9 @@ namespace WASICrypto {
 class ChaChaPolySymmetricKey : public SymmetricKeyBase {
 public:
   ChaChaPolySymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
-  WasiCryptoExpect<std::vector<uint8_t>> raw() override;
+
+  WasiCryptoExpect<Span<const uint8_t>> raw() override;
+
   SymmetricAlgorithm alg() override;
 
 private:
@@ -25,7 +27,8 @@ class ChaChaPolySymmetricKeyBuilder : public SymmetricKeyBuilder {
 public:
   ChaChaPolySymmetricKeyBuilder(SymmetricAlgorithm Alg);
 
-  WasiCryptoExpect<SymmetricKey> generate(std::optional<SymmetricOptions> OptOption) override;
+  WasiCryptoExpect<SymmetricKey>
+  generate(std::optional<SymmetricOptions> OptOption) override;
 
   WasiCryptoExpect<SymmetricKey> import(Span<uint8_t const> Raw) override;
 

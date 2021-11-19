@@ -12,7 +12,7 @@ AesGcmSymmetricKey::AesGcmSymmetricKey(SymmetricAlgorithm Alg,
                                        Span<uint8_t const> Raw)
     : Alg(Alg), Raw(Raw.begin(), Raw.end()) {}
 
-WasiCryptoExpect<std::vector<uint8_t>> AesGcmSymmetricKey::raw() { return Raw; }
+WasiCryptoExpect<Span<const uint8_t>> AesGcmSymmetricKey::raw() { return Raw; }
 
 SymmetricAlgorithm AesGcmSymmetricKey::alg() { return Alg; }
 

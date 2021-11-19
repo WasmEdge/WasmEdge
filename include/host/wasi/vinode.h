@@ -542,7 +542,7 @@ public:
     return Node.sockListen(Backlog);
   }
 
-  WasiExpect<std::shared_ptr<VINode>> sockAccept(uint16_t Port);
+  WasiExpect<std::shared_ptr<VINode>> sockAccept();
 
   WasiExpect<void> sockConnect(uint8_t *Address, uint8_t AddressLength,
                                uint16_t Port) noexcept {

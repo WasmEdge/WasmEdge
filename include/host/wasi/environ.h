@@ -857,11 +857,11 @@ public:
     }
   }
 
-  WasiExpect<__wasi_fd_t> sockAccept(__wasi_fd_t Fd, uint16_t Port) noexcept {
+  WasiExpect<__wasi_fd_t> sockAccept(__wasi_fd_t Fd) noexcept {
     auto Node = getNodeOrNull(Fd);
     std::shared_ptr<VINode> NewNode;
 
-    if (auto Res = Node->sockAccept(Port); unlikely(!Res)) {
+    if (auto Res = Node->sockAccept(); unlikely(!Res)) {
       return WasiUnexpect(Res);
     } else {
       NewNode = std::move(*Res);

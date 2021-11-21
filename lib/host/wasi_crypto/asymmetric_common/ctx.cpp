@@ -6,98 +6,143 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-
-WasiCryptoExpect<__wasi_keypair_t>
-WasiCryptoContext::keypairGenerate(__wasi_algorithm_type_e_t AlgType,
-                                   std::string_view AlgStr,
-                                   std::optional<__wasi_options_t> OptOptionsHandle) {
+WasiCryptoExpect<__wasi_keypair_t> WasiCryptoContext::keypairGenerate(
+    __wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
+    std::optional<__wasi_options_t> OptOptionsHandle) {
   std::optional<Options> OptOptions;
-  if(OptOptionsHandle) {
+  if (OptOptionsHandle) {
     auto Res = OptionsManger.get(*OptOptionsHandle);
-    if(!Res) {
+    if (!Res) {
       return WasiCryptoUnexpect(Res);
     }
 
     OptOptions = std::move(*Res);
   }
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+
+  auto Kp = KeyPair::generate(AlgType, AlgStr, OptOptions);
+  if (!Kp) {
+    return WasiCryptoUnexpect(Kp);
+  }
+
+  return KeypairManger.registerManger(*Kp);
 }
 
-WasiCryptoExpect<__wasi_keypair_encoding_e_t>
+WasiCryptoExpect<__wasi_keypair_t>
 WasiCryptoContext::keypairImport(__wasi_algorithm_type_e_t AlgType,
                                  std::string_view AlgStr, Span<uint8_t> Encoded,
-                                 __wasi_keypair_encoding_e_t KeypairEncoding) {
-  dummyCode(AlgType, AlgStr, Encoded, KeypairEncoding);
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+                                 __wasi_keypair_encoding_e_t Encoding) {
+  auto Kp = KeyPair::import(AlgType, AlgStr, Encoded, Encoding);
+  if (!Kp) {
+    return WasiCryptoUnexpect(Kp);
+  }
+
+  return KeypairManger.registerManger(*Kp);
 }
 
 WasiCryptoExpect<__wasi_keypair_t> WasiCryptoContext::keypairGenerateManaged(
-    __wasi_secrets_manager_t SecretsManager, __wasi_algorithm_type_e_t AlgType,
-    std::string_view AlgStr, std::optional<__wasi_options_t> OptOptions) {
-  dummyCode(SecretsManager, AlgType, AlgStr, OptOptions);
+    __wasi_secrets_manager_t, __wasi_algorithm_type_e_t, std::string_view,
+    std::optional<__wasi_options_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 WasiCryptoExpect<void> WasiCryptoContext::keypairStoreManaged(
-    __wasi_secrets_manager_t SecretsManager, __wasi_keypair_t Keypair,
-    uint8_t_ptr KpIdPtr, __wasi_size_t KpIdLen) {
-  dummyCode(SecretsManager, Keypair, KpIdPtr, KpIdLen);
+    __wasi_secrets_manager_t, __wasi_keypair_t, uint8_t_ptr, __wasi_size_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-WasiCryptoExpect<__wasi_version_t> WasiCryptoContext::keypairReplaceManaged(
-    __wasi_secrets_manager_t SecretsManager, __wasi_keypair_t KpOld,
-    __wasi_keypair_t KpNew) {
-  dummyCode(SecretsManager, KpOld, KpNew);
+WasiCryptoExpect<__wasi_version_t>
+WasiCryptoContext::keypairReplaceManaged(__wasi_secrets_manager_t,
+                                         __wasi_keypair_t, __wasi_keypair_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 WasiCryptoExpect<std::tuple<__wasi_size_t, __wasi_version_t>>
-WasiCryptoContext::keypairId(__wasi_keypair_t Kp, uint8_t_ptr KpId,
-                             __wasi_size_t KpIdMaxLen) {
-  dummyCode(Kp, KpId, KpIdMaxLen);
+WasiCryptoContext::keypairId(__wasi_keypair_t, uint8_t_ptr, __wasi_size_t) {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
+}
+
+WasiCryptoExpect<__wasi_keypair_t>
+WasiCryptoContext::keypairFromId(__wasi_secrets_manager_t, const_uint8_t_ptr,
+                                 __wasi_size_t, __wasi_version_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 WasiCryptoExpect<__wasi_keypair_t>
-WasiCryptoContext::keypairFromId(__wasi_secrets_manager_t SecretsManager,
-                                 const_uint8_t_ptr KpId, __wasi_size_t KpIdLen,
-                                 __wasi_version_t KpIdVersion) {
-  dummyCode(SecretsManager, KpId, KpIdLen, KpIdVersion);
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-}
+WasiCryptoContext::keypairFromPkAndSk(__wasi_publickey_t PkHandle,
+                                      __wasi_secretkey_t SkHandle) {
+  auto Pk = PublickeyManger.get(PkHandle);
+  if (!Pk) {
+    return WasiCryptoUnexpect(Pk);
+  }
 
-WasiCryptoExpect<__wasi_keypair_t>
-WasiCryptoContext::keypairFromPkAndSk(__wasi_publickey_t Pk,
-                                      __wasi_secretkey_t Sk) {
-  return WasmEdge::Host::WASICrypto::WasiCryptoExpect<__wasi_keypair_t>();
+  auto Sk = SecretkeyManger.get(SkHandle);
+  if (!Sk) {
+    return WasiCryptoUnexpect(Sk);
+  }
+
+  auto Kp = KeyPair::fromPkAndSk(*Pk, *Sk);
+  if (!Kp) {
+    return WasiCryptoUnexpect(Kp);
+  }
+
+  return KeypairManger.registerManger(*Kp);
 }
 
 WasiCryptoExpect<__wasi_array_output_t>
-WasiCryptoContext::keypairExport(__wasi_keypair_t Keypair,
+WasiCryptoContext::keypairExport(__wasi_keypair_t KpHandle,
                                  __wasi_keypair_encoding_e_t KeypairEncoding) {
-  return WasmEdge::Host::WASICrypto::WasiCryptoExpect<__wasi_array_output_t>();
+  auto Kp = KeypairManger.get(KpHandle);
+  if (!Kp) {
+    return WasiCryptoUnexpect(Kp);
+  }
+
+  auto Encoded = Kp->exportData(KeypairEncoding);
+  if (!Encoded) {
+    return WasiCryptoUnexpect(Encoded);
+  }
+
+  return allocateArrayOutput(std::move(*Encoded));
 }
 
 WasiCryptoExpect<__wasi_publickey_t>
-WasiCryptoContext::keypairPublickey(__wasi_keypair_t Keypair) {
-  return WasmEdge::Host::WASICrypto::WasiCryptoExpect<__wasi_publickey_t>();
+WasiCryptoContext::keypairPublickey(__wasi_keypair_t KpHandle) {
+  auto Kp = KeypairManger.get(KpHandle);
+  if (!Kp) {
+    return WasiCryptoUnexpect(Kp);
+  }
+
+  auto Pk = Kp->publicKey();
+  if (!Pk) {
+    return WasiCryptoUnexpect(Pk);
+  }
+
+  return PublickeyManger.registerManger(std::move(*Pk));
 }
 
 WasiCryptoExpect<__wasi_secretkey_t>
-WasiCryptoContext::keypairSecretkey(__wasi_keypair_t Keypair) {
-  return WasmEdge::Host::WASICrypto::WasiCryptoExpect<__wasi_secretkey_t>();
+WasiCryptoContext::keypairSecretkey(__wasi_keypair_t KpHandle) {
+  auto Kp = KeypairManger.get(KpHandle);
+  if (!Kp) {
+    return WasiCryptoUnexpect(Kp);
+  }
+
+  auto Sk = Kp->secretKey();
+  if (!Sk) {
+    return WasiCryptoUnexpect(Sk);
+  }
+
+  return SecretkeyManger.registerManger(std::move(*Sk));
 }
 
 WasiCryptoExpect<void>
-WasiCryptoContext::keypairClose(__wasi_keypair_t Keypair) {
-  return WasmEdge::Host::WASICrypto::WasiCryptoExpect<void>();
+WasiCryptoContext::keypairClose(__wasi_keypair_t KpHandle) {
+  return KeypairManger.close(KpHandle);
 }
 
 WasiCryptoExpect<__wasi_publickey_t> WasiCryptoContext::publickeyImport(
-    __wasi_algorithm_type_e_t AlgType, SignatureAlgorithm Alg,
-    Span<uint8_t> Encoded, __wasi_publickey_encoding_e_t EncodingEnum) {
-  auto Pk = PublicKey::import(AlgType, Alg, Encoded, EncodingEnum);
+    __wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
+    Span<uint8_t> Encoded, __wasi_publickey_encoding_e_t Encoding) {
+  auto Pk = PublicKey::import(AlgType, AlgStr, Encoded, Encoding);
   if (!Pk) {
     return WasiCryptoUnexpect(Pk);
   }
@@ -123,23 +168,23 @@ WasiCryptoContext::publickeyExport(__wasi_publickey_t PkHandle,
 
 WasiCryptoExpect<void>
 WasiCryptoContext::publickeyVerify(__wasi_publickey_t PkHandle) {
-  auto Res = PublickeyManger.get(PkHandle);
-  if (!Res) {
-    return WasiCryptoUnexpect(Res);
+  auto Pk = PublickeyManger.get(PkHandle);
+  if (!Pk) {
+    return WasiCryptoUnexpect(Pk);
   }
 
-  return PublicKey::verify(*Res);
+  return Pk->verify();
 }
 
 WasiCryptoExpect<__wasi_publickey_t>
-WasiCryptoContext::publickeyFroSecretkey(__wasi_secretkey_t SkHandle) {
+WasiCryptoContext::publickeyFromSecretkey(__wasi_secretkey_t SkHandle) {
   auto Sk = SecretkeyManger.get(SkHandle);
-  if(!Sk) {
+  if (!Sk) {
     return WasiCryptoUnexpect(Sk);
   }
 
   auto Pk = Sk->publicKey();
-  if(!Pk) {
+  if (!Pk) {
     return WasiCryptoUnexpect(Pk);
   }
 

@@ -141,25 +141,25 @@ WasiCryptoModule::WasiCryptoModule() : ImportObject("wasi_ephemeral_crypto") {
   addHostFunc("kx_decapsulate", std::make_unique<Kx::Decapsulate>(Ctx));
 
   // signature
-  addHostFunc("signature_export", std::make_unique<Signature::Export>(Ctx));
-  addHostFunc("signature_import", std::make_unique<Signature::Import>(Ctx));
+  addHostFunc("signature_export", std::make_unique<Signatures::Export>(Ctx));
+  addHostFunc("signature_import", std::make_unique<Signatures::Import>(Ctx));
   addHostFunc("signature_state_open",
-              std::make_unique<Signature::StateOpen>(Ctx));
+              std::make_unique<Signatures::StateOpen>(Ctx));
   addHostFunc("signature_state_update",
-              std::make_unique<Signature::StateUpdate>(Ctx));
+              std::make_unique<Signatures::StateUpdate>(Ctx));
   addHostFunc("signature_state_sign",
-              std::make_unique<Signature::StateSign>(Ctx));
+              std::make_unique<Signatures::StateSign>(Ctx));
   addHostFunc("signature_state_close",
-              std::make_unique<Signature::StateClose>(Ctx));
+              std::make_unique<Signatures::StateClose>(Ctx));
   addHostFunc("signature_verification_state_open",
-              std::make_unique<Signature::VerificationStateOpen>(Ctx));
+              std::make_unique<Signatures::VerificationStateOpen>(Ctx));
   addHostFunc("signature_verification_state_update",
-              std::make_unique<Signature::VerificationStateUpdate>(Ctx));
+              std::make_unique<Signatures::VerificationStateUpdate>(Ctx));
   addHostFunc("signature_verification_state_verify",
-              std::make_unique<Signature::VerificationStateVerify>(Ctx));
+              std::make_unique<Signatures::VerificationStateVerify>(Ctx));
   addHostFunc("signature_verification_state_close",
-              std::make_unique<Signature::VerificationStateClose>(Ctx));
-  addHostFunc("signature_close", std::make_unique<Signature::Close>(Ctx));
+              std::make_unique<Signatures::VerificationStateClose>(Ctx));
+  addHostFunc("signature_close", std::make_unique<Signatures::Close>(Ctx));
 }
 
 } // namespace Host

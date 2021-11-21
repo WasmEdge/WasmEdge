@@ -77,17 +77,16 @@ WasiCryptoExpect<void> Hkdf::absorb(Span<const uint8_t> Data) {
     if (EVP_PKEY_CTX_set1_hkdf_salt(Ctx.get(), Data.data(), Data.size()) <= 0) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
     }
-    break;
+    return {};
   case SymmetricAlgorithm::HkdfSha256Expand:
   case SymmetricAlgorithm::HkdfSha512Expand:
     if (EVP_PKEY_CTX_add1_hkdf_info(Ctx.get(), Data.data(), Data.size()) <= 0) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
     }
-    break;
+    return {};
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
-  return {};
 }
 
 WasiCryptoExpect<Span<const uint8_t>> Hkdf::squeezeKey() {

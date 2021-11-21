@@ -28,14 +28,20 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   signature/options.cpp
   signature/func.cpp
   signature/ctx.cpp
+  signature/signature.cpp
   key_exchange/options.cpp
   key_exchange/ctx.cpp
   key_exchange/func.cpp
+  key_exchange/secretkey.cpp
+  key_exchange/keypair.cpp
+  key_exchange/publickey.cpp
+  key_exchange/dh/x25519.cpp
   wrapper/sha2.cpp
   wrapper/aes_gcm.cpp
   wrapper/hkdf.cpp
   wrapper/random.cpp
   wrapper/hmac_sha2.cpp
+  wrapper/x25519.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

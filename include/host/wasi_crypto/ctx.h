@@ -566,10 +566,10 @@ public:
   keypairGenerate(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
                   std::optional<__wasi_options_t> OptOptionsHandle);
 
-  WasiCryptoExpect<__wasi_keypair_encoding_e_t>
+  WasiCryptoExpect<__wasi_keypair_t>
   keypairImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
                 Span<uint8_t> Encoded,
-                __wasi_keypair_encoding_e_t KeypairEncoding);
+                __wasi_keypair_encoding_e_t Encoding);
 
   // opt
   WasiCryptoExpect<__wasi_keypair_t>
@@ -594,24 +594,24 @@ public:
   keypairFromId(__wasi_secrets_manager_t SecretsManager, const_uint8_t_ptr KpId,
                 __wasi_size_t KpIdLen, __wasi_version_t KpIdVersion);
 
-  WasiCryptoExpect<__wasi_keypair_t> keypairFromPkAndSk(__wasi_publickey_t Pk,
-                                                        __wasi_secretkey_t Sk);
+  WasiCryptoExpect<__wasi_keypair_t> keypairFromPkAndSk(__wasi_publickey_t PkHandle,
+                                                        __wasi_secretkey_t SkHandle);
   WasiCryptoExpect<__wasi_array_output_t>
-  keypairExport(__wasi_keypair_t Keypair,
+  keypairExport(__wasi_keypair_t KpHandle,
                 __wasi_keypair_encoding_e_t KeypairEncoding);
 
   WasiCryptoExpect<__wasi_publickey_t>
-  keypairPublickey(__wasi_keypair_t Keypair);
+  keypairPublickey(__wasi_keypair_t KpHandle);
 
   WasiCryptoExpect<__wasi_secretkey_t>
-  keypairSecretkey(__wasi_keypair_t Keypair);
+  keypairSecretkey(__wasi_keypair_t KpHandle);
 
-  WasiCryptoExpect<void> keypairClose(__wasi_keypair_t Keypair);
+  WasiCryptoExpect<void> keypairClose(__wasi_keypair_t KpHandle);
 
   WasiCryptoExpect<__wasi_publickey_t>
-  publickeyImport(__wasi_algorithm_type_e_t AlgType, SignatureAlgorithm Alg,
+  publickeyImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
                   Span<uint8_t> Encoded,
-                  __wasi_publickey_encoding_e_t EncodingEnum);
+                  __wasi_publickey_encoding_e_t Encoding);
 
   WasiCryptoExpect<__wasi_array_output_t>
   publickeyExport(__wasi_publickey_t PkHandle,
@@ -620,7 +620,7 @@ public:
   WasiCryptoExpect<void> publickeyVerify(__wasi_publickey_t PkHandle);
 
   WasiCryptoExpect<__wasi_publickey_t>
-  publickeyFroSecretkey(__wasi_secretkey_t SkHandle);
+  publickeyFromSecretkey(__wasi_secretkey_t SkHandle);
 
   WasiCryptoExpect<void> publickeyClose(__wasi_publickey_t PkHandle);
 
@@ -637,50 +637,50 @@ public:
 
   ///-------------------------------------------key_exchange---------------------------------------
 
-  WasiCryptoExpect<__wasi_array_output_t> kxDh(__wasi_publickey_t Pk,
-                                               __wasi_secretkey_t Sk);
+  WasiCryptoExpect<__wasi_array_output_t> kxDh(__wasi_publickey_t PkHandle,
+                                               __wasi_secretkey_t SkHandle);
 
   WasiCryptoExpect<std::tuple<__wasi_array_output_t, __wasi_array_output_t>>
-  kxEncapsulate(__wasi_publickey_t Pk);
+  kxEncapsulate(__wasi_publickey_t PkHandle);
 
   WasiCryptoExpect<__wasi_array_output_t>
-  kxDecapsulate(__wasi_secretkey_t Sk, Span<uint8_t> EncapsulatedSecret);
+  kxDecapsulate(__wasi_secretkey_t SkHandle, Span<uint8_t const> EncapsulatedSecret);
 
   ///-------------------------------------------signature---------------------------------------
 
   WasiCryptoExpect<__wasi_array_output_t>
-  signatureExport(__wasi_signature_t Signature,
-                  __wasi_signature_encoding_e_t SignatureEncoding);
+  signatureExport(__wasi_signature_t SigHandle,
+                  __wasi_signature_encoding_e_t Encoding);
 
   WasiCryptoExpect<__wasi_signature_t>
-  signatureImport(SignatureAlgorithm Alg, Span<uint8_t const> Encoded);
+  signatureImport(SignatureAlgorithm Alg, Span<uint8_t const> Encoded, __wasi_signature_encoding_e_t Encoding);
+
+  WasiCryptoExpect<void> signatureClose(__wasi_signature_t SigHandle);
 
   WasiCryptoExpect<__wasi_signature_state_t>
-  signatureStateOpen(__wasi_signature_keypair_t Kp);
+  signatureStateOpen(__wasi_signature_keypair_t KpHandle);
 
-  WasiCryptoExpect<void> signatureStateUpdate(__wasi_signature_state_t State,
+  WasiCryptoExpect<void> signatureStateUpdate(__wasi_signature_state_t StateHandle,
                                               Span<uint8_t const> Input);
 
   WasiCryptoExpect<__wasi_signature_t>
-  signatureStateSign(__wasi_signature_state_t State);
+  signatureStateSign(__wasi_signature_state_t StateHandle);
 
-  WasiCryptoExpect<void> signatureStateClose(__wasi_signature_state_t State);
+  WasiCryptoExpect<void> signatureStateClose(__wasi_signature_state_t StateHandle);
 
   WasiCryptoExpect<__wasi_signature_verification_state_t>
-  signatureVerificationStateOpen(__wasi_signature_publickey_t Pk);
+  signatureVerificationStateOpen(__wasi_signature_publickey_t PkHandle);
 
   WasiCryptoExpect<void>
-  signatureVerificationStateUpdate(__wasi_signature_verification_state_t State,
+  signatureVerificationStateUpdate(__wasi_signature_verification_state_t VerificationHandle,
                                    Span<uint8_t const> Input);
 
   WasiCryptoExpect<void>
-  signatureVerificationStateVerify(__wasi_signature_verification_state_t State,
-                                   __wasi_signature_t Signature);
+  signatureVerificationStateVerify(__wasi_signature_verification_state_t VerificationHandle,
+                                   __wasi_signature_t SigHandle);
 
   WasiCryptoExpect<void>
-  signatureVerificationStateClose(__wasi_signature_verification_state_t State);
-
-  WasiCryptoExpect<void> signatureClose(__wasi_signature_t State);
+  signatureVerificationStateClose(__wasi_signature_verification_state_t VerificationHandle);
 
 private:
   WasiCryptoExpect<uint8_t> allocateArrayOutput(std::vector<uint8_t> &&Data);
@@ -698,7 +698,7 @@ private:
   HandlesManger<__wasi_keypair_t, SecretKey> SecretkeyManger{0x04};
   HandlesManger<__wasi_signature_state_t, SignatureState> SignatureStateManger{
       0x05};
-  HandlesManger<__wasi_signature_t, SignatureS> SignatureManger{0x06};
+  HandlesManger<__wasi_signature_t, Signature> SignatureManger{0x06};
   HandlesManger<__wasi_signature_verification_state_t,
                 SignatureVerificationState>
       SignatureVerificationStateManger{0x07};

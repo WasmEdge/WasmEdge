@@ -9,7 +9,7 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
-namespace Signature {
+namespace Signatures {
 
 Expect<uint32_t> Export::body(Runtime::Instance::MemoryInstance *MemInst,
                               __wasi_signature_t Signature, uint16_t Encoding,
@@ -71,7 +71,7 @@ Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
     return EncodingType.error();
   }
 
-  auto Res = Ctx.signatureImport(*EnumAlg, Encoded);
+  auto Res = Ctx.signatureImport(*EnumAlg, Encoded, *EncodingType);
   if(unlikely(!Res)) {
     return Res.error();
   }

@@ -1,36 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/asymmetric_common/publickey.h"
+#include "host/wasi_crypto/signature/alg.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-WasiCryptoExpect<SignaturePublicKey> PublicKey::asSignaturePublicKey() {
-  auto *Result = std::get_if<SignaturePublicKey>(&Inner);
-  if (Result == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-  }
-
-  return std::move(*Result);
-}
-
-WasiCryptoExpect<KxPublicKey> PublicKey::asKxPublicKey() {
-  auto *Result = std::get_if<KxPublicKey>(&Inner);
-  if (Result == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-  }
-
-  return std::move(*Result);
-}
-
 WasiCryptoExpect<PublicKey>
-PublicKey::import(__wasi_algorithm_type_e_t AlgType, SignatureAlgorithm Alg,
+PublicKey::import(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
                   Span<uint8_t const> Encoded,
                   __wasi_publickey_encoding_e_t Encoding) {
   switch (AlgType) {
-  case __WASI_ALGORITHM_TYPE_SIGNATURES:
-    return SignaturePublicKey::import();
+  case __WASI_ALGORITHM_TYPE_SIGNATURES: {
+    auto Alg = tryFrom<SignatureAlgorithm>(AlgStr);
+    if (!Alg) {
+      return WasiCryptoUnexpect(Alg);
+    }
+
+    auto Res = SignaturePublicKey::import(*Alg, Encoded, Encoding);
+    if (!Res) {
+      return WasiCryptoUnexpect(Res);
+    }
+
+    return PublicKey{*Res};
+  }
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
@@ -38,11 +32,21 @@ PublicKey::import(__wasi_algorithm_type_e_t AlgType, SignatureAlgorithm Alg,
 
 WasiCryptoExpect<std::vector<uint8_t>>
 PublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
-  return WasmEdge::Host::WASICrypto::WasiCryptoExpect<std::vector<uint8_t>>();
+  return std::visit(Overloaded{[&Encoding](SignaturePublicKey SignaturePk) {
+                                 return SignaturePk.exportData(Encoding);
+                               },
+                               [&Encoding](KxPublicKey KxPk) {
+                                 return KxPk.exportData(Encoding);
+                               }},
+                    Inner);
 }
 
-WasiCryptoExpect<void> PublicKey::verify(PublicKey Publickey) {
-  return {};
+WasiCryptoExpect<void> PublicKey::verify() {
+  return std::visit(Overloaded{[](SignaturePublicKey SignaturePk) {
+                                 return SignaturePk.verify();
+                               },
+                               [](KxPublicKey KxPk) { return KxPk.verify(); }},
+                    Inner);
 }
 
 } // namespace WASICrypto

@@ -2,6 +2,7 @@
 
 #include "host/wasi_crypto/ctx.h"
 #include "gtest/gtest.h"
+#include "host/wasi_crypto/signature/signature.h"
 
 using namespace WasmEdge::Host::WASICrypto;
 using namespace std::literals;

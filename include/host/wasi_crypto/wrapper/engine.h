@@ -5,10 +5,14 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class SignatureOptions {
+template <typename T> class Engine {};
+
+template <typename T> class OpenSSLEngine : Engine<T> {};
+
+template<>
+class OpenSSLEngine<Sha2> {
 
 };
-
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

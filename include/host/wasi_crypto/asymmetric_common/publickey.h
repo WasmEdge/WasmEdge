@@ -5,7 +5,7 @@
 #include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/key_exchange/publickey.h"
 #include "host/wasi_crypto/signature/publickey.h"
-#include "host/wasi_crypto/signature/alg.h"
+#include "host/wasi_crypto/varianthelper.h"
 
 #include <variant>
 
@@ -13,22 +13,18 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class PublicKey {
+class PublicKey : public VariantTemplate<SignaturePublicKey, KxPublicKey> {
 public:
-  WasiCryptoExpect<SignaturePublicKey> asSignaturePublicKey();
-
-  WasiCryptoExpect<KxPublicKey> asKxPublicKey();
+  using VariantTemplate<SignaturePublicKey, KxPublicKey>::VariantTemplate;
 
   static WasiCryptoExpect<PublicKey>
-  import(__wasi_algorithm_type_e_t AlgType, SignatureAlgorithm Alg,
+  import(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
          Span<uint8_t const> Encoded, __wasi_publickey_encoding_e_t Encoding);
 
   WasiCryptoExpect<std::vector<uint8_t>>
-  exportData(__wasi_publickey_encoding_e_t Encoding);
+  exportData(__wasi_publickey_encoding_e_t KxPk);
 
-  static WasiCryptoExpect<void> verify(PublicKey Publickey);
-private:
-  std::variant<SignaturePublicKey, KxPublicKey> Inner;
+  WasiCryptoExpect<void> verify();
 };
 
 } // namespace WASICrypto

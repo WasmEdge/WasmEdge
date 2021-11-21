@@ -377,12 +377,7 @@ PublickeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
     return EncodingEnum.error();
   }
 
-  auto EnumAlg = tryFrom<SignatureAlgorithm>(AlgStr);
-  if(!EnumAlg) {
-    return EnumAlg.error();
-  }
-
-  auto Res = Ctx.publickeyImport(*AlgType, *EnumAlg, Encoded, *EncodingEnum);
+  auto Res = Ctx.publickeyImport(*AlgType, AlgStr, Encoded, *EncodingEnum);
   if (unlikely(!Res)) {
     return Res.error();
   }
@@ -449,7 +444,7 @@ PublickeyFromSecretkey::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  auto Res = Ctx.publickeyFroSecretkey(Sk);
+  auto Res = Ctx.publickeyFromSecretkey(Sk);
   if (unlikely(!Res)) {
     return Res.error();
   }

@@ -8,10 +8,11 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
-namespace Signature {
+namespace Signatures {
 template <typename T> class HostFunction : public Runtime::HostFunction<T> {
 public:
-  HostFunction(WasiCryptoContext &Ctx) : Runtime::HostFunction<T>(0), Ctx(Ctx) {}
+  HostFunction(WasiCryptoContext &Ctx)
+      : Runtime::HostFunction<T>(0), Ctx(Ctx) {}
 
 protected:
   WasiCryptoContext &Ctx;
@@ -22,8 +23,7 @@ public:
   using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        __wasi_signature_t Signature,
-                        uint16_t Encoding,
+                        __wasi_signature_t Signature, uint16_t Encoding,
                         uint32_t /* Out */ ArrayOutputPtr);
 };
 
@@ -34,10 +34,8 @@ public:
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         const_uint8_t_ptr AlgorithmPtr,
                         __wasi_size_t AlgorithmLen,
-                         const_uint8_t_ptr EncodedPtr,
-                        __wasi_size_t EncodedLen,
-                        uint16_t Encoding,
-                        uint32_t /* Out */ SignaturePtr);
+                        const_uint8_t_ptr EncodedPtr, __wasi_size_t EncodedLen,
+                        uint16_t Encoding, uint32_t /* Out */ SignaturePtr);
 };
 
 class StateOpen : public HostFunction<StateOpen> {
@@ -118,7 +116,7 @@ public:
                         __wasi_signature_t Signature);
 };
 
-} // namespace Signature
+} // namespace Signatures
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

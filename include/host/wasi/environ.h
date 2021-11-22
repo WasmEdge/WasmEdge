@@ -28,6 +28,9 @@ namespace WASI {
 
 inline namespace detail {
 inline constexpr const int32_t kIOVMax = 1024;
+inline constexpr const int32_t addrinfoArrayMax = 10;
+inline constexpr const int32_t canonnameMaxSize = 40;
+inline constexpr const int32_t saDataLen = 14;
 } // namespace detail
 
 class EVPoller;
@@ -42,7 +45,8 @@ public:
 
   WasiExpect<void> getAddrInfo(const char *Node, const char *Service,
                                const __wasi_addrinfo_t *Hint,
-                               /*Out*/ addrinfo **Res, size_t *ResLength) {
+                               /*Out*/ addrinfo **Res,
+                               __wasi_size_t *ResLength) {
     struct addrinfo TmpHint;
     struct addrinfo *TmpResult = NULL;
     struct addrinfo *TmpPointer;

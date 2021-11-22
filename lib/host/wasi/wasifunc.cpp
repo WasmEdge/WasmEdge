@@ -1851,7 +1851,7 @@ Expect<uint32_t>
 WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
                       uint32_t NodePtr, uint32_t NodeLen, uint32_t ServicePtr,
                       uint32_t ServiceLen, uint32_t HintsPtr, uint32_t ResPtr,
-                      uint32_t ResLengthPtr) {
+                      uint32_t MaxResLength, uint32_t ResLengthPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
@@ -1868,25 +1868,27 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
   if (Service == nullptr && Node == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
-
+  if (unlikely(MaxResLength > WASI::addrinfoArrayMax)) {
+    return __WASI_ERRNO_INVAL;
+  }
   auto *const Hint = MemInst->getPointer<const struct __wasi_addrinfo_t *>(
       HintsPtr, sizeof(struct __wasi_addrinfo_t));
-  auto *const ResLength =
-      MemInst->getPointer<size_t *>(ResLengthPtr, sizeof(size_t *));
+  auto *const ResLength = MemInst->getPointer<__wasi_size_t *>(
+      ResLengthPtr, sizeof(__wasi_size_t *));
 
-  addrinfo *TmpAddrinfoRes = nullptr;
-
+  struct addrinfo *TmpAddrinfoRes = nullptr;
   if (auto Res =
           Env.getAddrInfo(Node, Service, Hint, &TmpAddrinfoRes, ResLength);
       unlikely(!Res)) {
     return Res.error();
   }
+  if (*ResLength > MaxResLength)
+    *ResLength = MaxResLength;
 
-  addrinfo *AddrinfoItem = TmpAddrinfoRes;
+  struct addrinfo *AddrinfoItem = TmpAddrinfoRes;
   auto *const Res = MemInst->getPointer<uint8_t_ptr *>(ResPtr, sizeof(uint8_t));
   auto *RealResItem = MemInst->getPointer<struct __wasi_addrinfo_t *>(
       *Res, sizeof(struct __wasi_addrinfo_t));
-  uint32_t Base = ResPtr + sizeof(struct __wasi_addrinfo_t);
 
   for (size_t i = 0; i < *ResLength; i++) {
     RealResItem->ai_flags =
@@ -1901,8 +1903,6 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
     // process socket address
     RealResItem->ai_addrlen = AddrinfoItem->ai_addrlen;
     if (RealResItem->ai_addrlen) {
-      RealResItem->ai_addr = Base;
-      Base += sizeof(struct __wasi_sockaddr_t);
       auto *SockeAddress = MemInst->getPointer<struct __wasi_sockaddr_t *>(
           RealResItem->ai_addr, sizeof(struct __wasi_sockaddr_t));
       switch (AddrinfoItem->ai_addr->sa_family) {
@@ -1913,11 +1913,9 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
         SockeAddress->sa_family = __WASI_ADDRESS_FAMILY_INET6;
         break;
       }
-
       // process sa_data in socket address
-      if (sizeof(AddrinfoItem->ai_addr->sa_data) != 0) {
-        SockeAddress->sa_data = Base;
-        Base += 14;
+      SockeAddress->sa_data_len = 0;
+      if (strlen(AddrinfoItem->ai_addr->sa_data) != 0) {
         auto *SaDataBuff =
             MemInst->getPointer<char *>(SockeAddress->sa_data, 14);
         memcpy(SaDataBuff, TmpAddrinfoRes->ai_addr->sa_data, 14);
@@ -1927,20 +1925,27 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
 
     // process ai_canonname in addrinfo
     if (AddrinfoItem->ai_canonname != NULL) {
-      RealResItem->ai_canonname = Base;
       RealResItem->ai_canonname_len = strlen(AddrinfoItem->ai_canonname);
-      Base += (RealResItem->ai_canonname_len + 1);
+      if (RealResItem->ai_canonname_len + 1 > WASI::canonnameMaxSize) {
+        return __WASI_AIFLAGS_AI_CANONNAME;
+      }
       memcpy(MemInst->getPointer<char *>(RealResItem->ai_canonname,
                                          RealResItem->ai_canonname_len),
              AddrinfoItem->ai_canonname, RealResItem->ai_canonname_len);
-      memset(MemInst->getPointer<char *>(Base - 1, 1), 0, 1);
+      memset(MemInst->getPointer<char *>(RealResItem->ai_canonname +
+                                             RealResItem->ai_canonname_len + 1,
+                                         1),
+             0, 1);
+    } else {
+      RealResItem->ai_canonname_len = 0;
     }
     // process ai_next in addrinfo
     if (i != (*ResLength) - 1) {
       RealResItem = MemInst->getPointer<struct __wasi_addrinfo_t *>(
-          Base, sizeof(struct __wasi_addrinfo_t));
+          RealResItem->ai_next, sizeof(struct __wasi_addrinfo_t));
       AddrinfoItem = AddrinfoItem->ai_next;
-      Base += sizeof(struct __wasi_addrinfo_t);
+    } else {
+      RealResItem->ai_next = 0;
     }
   }
 

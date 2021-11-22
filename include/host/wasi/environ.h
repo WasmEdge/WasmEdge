@@ -28,8 +28,6 @@ namespace WASI {
 
 inline namespace detail {
 inline constexpr const int32_t kIOVMax = 1024;
-inline constexpr const int32_t addrinfoArrayMax = 10;
-inline constexpr const int32_t canonnameMaxSize = 40;
 inline constexpr const int32_t saDataLen = 14;
 } // namespace detail
 

@@ -29,8 +29,8 @@ void writeAddrinfo(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
          WasiAddrinfo, sizeof(struct __wasi_addrinfo_t));
 }
 void allocateAddrinfoArray(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
-                           uint32_t Base, uint32_t Length) {
-
+                           uint32_t Base, uint32_t Length,
+                           uint32_t canonnameMaxSize) {
   for (uint32_t i = 0; i < Length; i++) {
     // allocate addrinfo struct
     auto *ResItemPtr = MemInst.getPointer<struct __wasi_addrinfo_t *>(
@@ -46,7 +46,7 @@ void allocateAddrinfoArray(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
     Base += WasmEdge::Host::WASI::saDataLen;
     // allocate ai_canonname
     ResItemPtr->ai_canonname = Base;
-    Base += WasmEdge::Host::WASI::canonnameMaxSize;
+    Base += canonnameMaxSize;
     if (i != (Length - 1)) {
       ResItemPtr->ai_next = Base;
     }
@@ -998,6 +998,7 @@ TEST(WasiTest, GetAddrinfo) {
   std::string Node = "";
   std::string Service = "27015";
   uint32_t MaxLength = 10;
+  uint32_t canonnameMaxSize = 50;
 
   struct __wasi_addrinfo_t Hints;
 
@@ -1018,7 +1019,7 @@ TEST(WasiTest, GetAddrinfo) {
       MemInst.getPointer<uint8_t_ptr *>(ResultPtr, sizeof(uint8_t_ptr));
   *Result = 108;
   // allocate Res Item;
-  allocateAddrinfoArray(MemInst, *Result, MaxLength);
+  allocateAddrinfoArray(MemInst, *Result, MaxLength, canonnameMaxSize);
 
   Env.init({}, "test"s, {}, {});
   // MemInst is nullptr
@@ -1042,17 +1043,6 @@ TEST(WasiTest, GetAddrinfo) {
                                             MaxLength, ResLengthPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
-  }
-  // MaxLength is bigger than WASI::addrinfoArrayMax
-  {
-    uint32_t TmpMaxLenght = WasmEdge::Host::WASI::addrinfoArrayMax+1;
-    EXPECT_TRUE(WasiGetAddrinfo.run(
-        &MemInst,
-        std::array<WasmEdge::ValVariant, 8>{NodePtr, NodeLen, ServicePtr,
-                                            ServiceLen, HintsPtr, ResultPtr,
-                                            TmpMaxLenght, ResLengthPtr},
-        Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_INVAL);
   }
   // node is nullptr, service is not nullptr
   {
@@ -1091,7 +1081,7 @@ TEST(WasiTest, GetAddrinfo) {
     EXPECT_EQ(ResHead->ai_canonname_len, 0);
     EXPECT_EQ(ResHead->ai_canonname, 0);
   }
-  allocateAddrinfoArray(MemInst, *Result, MaxLength);
+  allocateAddrinfoArray(MemInst, *Result, MaxLength, canonnameMaxSize);
   // hints.ai_flag is ai_canonname but has an error
   {
     Hints.ai_flags = __WASI_AIFLAGS_AI_CANONNAME;
@@ -1139,7 +1129,7 @@ TEST(WasiTest, GetAddrinfo) {
     EXPECT_EQ(ResHead->ai_canonname_len, 0);
     EXPECT_EQ(ResHead->ai_canonname, 0);
   }
-  allocateAddrinfoArray(MemInst, *Result, MaxLength);
+  allocateAddrinfoArray(MemInst, *Result, MaxLength, canonnameMaxSize);
   // freeaddrinfo test,when MemInst is nullptr
   {
     EXPECT_TRUE(WasiFreeAddrinfo.run(

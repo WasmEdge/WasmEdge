@@ -68,7 +68,10 @@ jobs:
     - name: Test WasmEdge
       if: ${{ ! matrix.coverage }}
       run: |
-        LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target test
+        export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
+        cd build
+        ctest --output-on-failure
+        cd -
 
     - name: Build WasmEdge using ${{ matrix.compiler }} with Coverage mode
       if: ${{ matrix.coverage }}
@@ -170,4 +173,6 @@ jobs:
       continue-on-error: true
       run: |
         export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
-        cmake --build build --target test
+        cd build
+        ctest --output-on-failure
+        cd -

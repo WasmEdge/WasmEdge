@@ -20,10 +20,12 @@
 #include <boost/winapi/basic_types.hpp>
 #endif
 
+#if WASMEDGE_OS_LINUX
 #if defined(__GLIBC_PREREQ)
 #define _LIBCPP_GLIBC_PREREQ(a, b) 0
 #else
-#define __GLIBC_PREREQ(a, b) _LIBCPP_GLIBC_PREREQ(a, b) 
+#define __GLIBC_PREREQ(a, b) _LIBCPP_GLIBC_PREREQ(a, b)
+#endif
 #endif
 
 namespace WasmEdge {

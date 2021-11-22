@@ -7,6 +7,9 @@ Breaking changes:
   * To enable gas measuring, please use `--enable-gas-measuring`.
   * To enable time  measuring, please use `--enable-time-measuring`.
   * For the convinence, use `--enable-all-statistics` will enable all available statistics options.
+* `wasmedgec` AOT compiler tool behavior changes.
+  * For the output file name with extension `.so`, `wasmedgec` will output the AOT compiled WASM in shared library format.
+  * For the output file name with extension `.wasm` or other cases, `wasmedgec` will output the WASM file with adding the AOT compiled binary in custom sections. `wasmedge` runtime will run in AOT mode when it executes the output WASM file.
 * Modulized the API Headers.
   * Moved the API header into the `wasmedge` folder. Developers should include the `wasmedge/wasmedge.h` for using the WasmEdge shared library after installation.
   * Moved the enumeration definitions into `enum_errcode.h`, `enum_types.h`, and `enum_configure.h` in the `wasmedge` folder.
@@ -94,6 +97,11 @@ Features:
     * `WasmEdge_ExportTypeGetMemoryType` function can get the memory type of an export type context.
     * `WasmEdge_ExportTypeGetGlobalType` function can get the global type of an export type context.
   * For more details of the usages of imports and exports, please refer to the [C API documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md).
+* Exported the WasmEdge C API for AOT compiler related configurations.
+  * `WasmEdge_ConfigureCompilerSetOutputFormat` function can set the AOT compiler output format.
+  * `WasmEdge_ConfigureCompilerGetOutputFormat` function can get the AOT compiler output format.
+  * `WasmEdge_ConfigureCompilerSetGenericBinary` function can set the option of AOT compiler generic binary output.
+  * `WasmEdge_ConfigureCompilerIsGenericBinary` function can get the option of AOT compiler generic binary output.
 * Provided install and uninstall script for installing/uninstalling  WasmEdge on linux(amd64 and aarch64) and macos(amd64 and arm64).
 * Supported compiling WebAssembly into a new WebAssembly file with a packed binary section.
 
@@ -103,9 +111,11 @@ Fixed issues:
   * Handle the edge cases of `WasmEdge_String` creation.
 * Fixed the instruction iteration exception in interpreter mode.
   * Forcely added the capacity of instruction vector to prevent from connection of instruction vectors in different function instances.
-* Fixed the zero address used in AOT mode.
-* Showed the error message when loading AOT compiled WASM from buffer.
-  * For those loading a AOT compiled WASM from buffer, please use the universal WASM binary.
+* Fixed the loader of AOT mode WASM.
+  * Checked the file header instead of file name extension when loading from file.
+  * Showed the error message when loading AOT compiled WASM from buffer. For AOT mode, please use the universal WASM binary.
+  * Fixed the zero address used in AOT mode in load manager.
+  * Fixed the loading failed for the AOT compiled WASM without intrinsics table.
 * Fixed the `VM` creation issue.
   * Added the loss of intrinsics table setting when creating a VM instance.
 * Fixed wasi-socket support on macos.

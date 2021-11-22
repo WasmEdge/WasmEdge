@@ -41,6 +41,8 @@ TEST_P(CoreTest, TestSuites) {
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(ConfCxt, nullptr);
   WasmEdge_ConfigureCompilerSetOptimizationLevel(
       ConfCxt, WasmEdge_CompilerOptimizationLevel_O0);
+  WasmEdge_ConfigureCompilerSetOutputFormat(
+      ConfCxt, WasmEdge_CompilerOutputFormat_Native);
   WasmEdge_CompilerContext *CompilerCxt = WasmEdge_CompilerCreate(ConfCxt);
   WasmEdge_ConfigureDelete(ConfCxt);
   WasmEdge_ImportObjectContext *TestModCxt = createSpecTestModule();
@@ -48,8 +50,6 @@ TEST_P(CoreTest, TestSuites) {
 
   auto Compile = [&, Conf = std::cref(Conf)](
                      const std::string &Filename) -> Expect<std::string> {
-    /// TODO: Set optimization level to O0.
-    /// TODO: Set dump IR.
     auto Path = std::filesystem::u8path(Filename);
     Path.replace_extension(std::filesystem::u8path(".so"sv));
     const auto SOPath = Path.u8string();

@@ -14,12 +14,9 @@ Expect<void> LDMgr::setPath(const std::filesystem::path &FilePath) {
   }
 
   const auto IntrinsicsTable = getSymbol<const void *>("intrinsics");
-  if (unlikely(!IntrinsicsTable)) {
-    spdlog::error(ErrCode::IllegalGrammar);
-    return Unexpect(ErrCode::IllegalGrammar);
+  if (IntrinsicsTable) {
+    *IntrinsicsTable = Intrinsics;
   }
-
-  *IntrinsicsTable = Intrinsics;
   return {};
 }
 

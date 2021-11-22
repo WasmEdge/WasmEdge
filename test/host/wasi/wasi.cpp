@@ -1033,21 +1033,29 @@ TEST(WasiTest, GetAddrinfo) {
   }
   // Node and Service are all nullptr
   {
-    NodeLen = 0;
-    ServiceLen = 0;
+    uint32_t TmpNodeLen = 0;
+    uint32_t TmpServiceLen = 0;
     EXPECT_TRUE(WasiGetAddrinfo.run(
         nullptr,
-        std::array<WasmEdge::ValVariant, 8>{NodePtr, NodeLen, ServicePtr,
-                                            ServiceLen, HintsPtr, ResultPtr,
+        std::array<WasmEdge::ValVariant, 8>{NodePtr, TmpNodeLen, ServicePtr,
+                                            TmpServiceLen, HintsPtr, ResultPtr,
                                             MaxLength, ResLengthPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   }
-
+  // MaxLength is bigger than WASI::addrinfoArrayMax
+  {
+    uint32_t TmpMaxLenght = WasmEdge::Host::WASI::addrinfoArrayMax+1;
+    EXPECT_TRUE(WasiGetAddrinfo.run(
+        &MemInst,
+        std::array<WasmEdge::ValVariant, 8>{NodePtr, NodeLen, ServicePtr,
+                                            ServiceLen, HintsPtr, ResultPtr,
+                                            TmpMaxLenght, ResLengthPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_INVAL);
+  }
   // node is nullptr, service is not nullptr
   {
-    NodeLen = Node.size();
-    ServiceLen = Service.size();
     EXPECT_TRUE(WasiGetAddrinfo.run(
         &MemInst,
         std::array<WasmEdge::ValVariant, 8>{NodePtr, NodeLen, ServicePtr,
@@ -1096,14 +1104,15 @@ TEST(WasiTest, GetAddrinfo) {
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_AIBADFLAG);
   }
+
   // node is nullptr, service is not nullptr
   {
-    Node = "google.com";
-    writeString(MemInst, Node, NodePtr);
-    NodeLen = Node.size();
+    std::string TmpNode = "google.com";
+    writeString(MemInst, TmpNode, NodePtr);
+    uint32_t TmpNodeLen = TmpNode.size();
     EXPECT_TRUE(WasiGetAddrinfo.run(
         &MemInst,
-        std::array<WasmEdge::ValVariant, 8>{NodePtr, NodeLen, ServicePtr,
+        std::array<WasmEdge::ValVariant, 8>{NodePtr, TmpNodeLen, ServicePtr,
                                             ServiceLen, HintsPtr, ResultPtr,
                                             MaxLength, ResLengthPtr},
         Errno));

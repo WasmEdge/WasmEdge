@@ -31,7 +31,7 @@ WasiCryptoContext::signatureImport(SignatureAlgorithm Alg,
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 
-  auto Sig = Signature::fromRaw(Encoded);
+  auto Sig = Signature::fromRaw(Alg, Encoded);
   if (!Sig) {
     return WasiCryptoUnexpect(Sig);
   }

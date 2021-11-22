@@ -26,11 +26,13 @@ public:
               Mutex<std::unique_ptr<SignatureVerificationStateBase>>>(
             std::move(Inner))) {}
 
-  static WasiCryptoExpect<SignatureVerificationState> make(SignaturePublicKey SigPk);
+  static WasiCryptoExpect<SignatureVerificationState>
+  make(SignaturePublicKey SigPk);
 
   WasiCryptoExpect<void> update(Span<uint8_t const> Input);
 
-  WasiCryptoExpect<void> verify(Signature& Sig);
+  WasiCryptoExpect<void> verify(Signature &Sig);
+
 private:
   std::shared_ptr<Mutex<std::unique_ptr<SignatureVerificationStateBase>>> Inner;
 };
@@ -73,7 +75,8 @@ public:
       : Inner(std::make_shared<Mutex<std::unique_ptr<SignatureBase>>>(
             std::move(Inner))) {}
 
-  static WasiCryptoExpect<Signature> fromRaw(Span<uint8_t const> Encoded);
+  static WasiCryptoExpect<Signature> fromRaw(SignatureAlgorithm Alg,
+                                             Span<uint8_t const> Encoded);
 
   std::shared_ptr<Mutex<std::unique_ptr<SignatureBase>>> &inner() {
     return Inner;

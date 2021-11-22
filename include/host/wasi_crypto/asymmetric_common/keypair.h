@@ -17,11 +17,10 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-template <typename... Ts>
-class KeyPairTemplate : public VariantTemplate<Ts...> {};
-
-class KeyPair : public KeyPairTemplate<SignatureKeyPair, KxKeyPair> {
+class KeyPair : public VariantTemplate<SignatureKeyPair, KxKeyPair> {
 public:
+  using VariantTemplate<SignatureKeyPair, KxKeyPair>::VariantTemplate;
+
   static WasiCryptoExpect<KeyPair> generate(__wasi_algorithm_type_e_t AlgType,
                                             std::string_view AlgStr,
                                             std::optional<Options> OptOptions);
@@ -39,6 +38,8 @@ public:
   WasiCryptoExpect<PublicKey> publicKey();
 
   WasiCryptoExpect<SecretKey> secretKey();
+
+private:
 };
 
 } // namespace WASICrypto

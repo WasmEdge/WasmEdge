@@ -14,8 +14,10 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class SecretKey : public VariantTemplate<KxSecretKey, SignatureSecretKey>{
+class SecretKey : public VariantTemplate<KxSecretKey, SignatureSecretKey> {
 public:
+  using VariantTemplate<KxSecretKey, SignatureSecretKey>::VariantTemplate;
+
   static WasiCryptoExpect<SecretKey>
   import(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
          Span<uint8_t const> Encoded, __wasi_secretkey_encoding_e_t Encoding);

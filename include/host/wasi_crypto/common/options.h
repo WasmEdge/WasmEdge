@@ -19,17 +19,18 @@ namespace WASICrypto {
 class Options
     : public VariantTemplate<SymmetricOptions, SignatureOptions, KxOptions> {
 public:
-  using VariantTemplate<SymmetricOptions, SignatureOptions, KxOptions>::VariantTemplate;
+  using VariantTemplate<SymmetricOptions, SignatureOptions,
+                        KxOptions>::VariantTemplate;
 
   constexpr WasiCryptoExpect<void> set(std::string_view Name,
                                        Span<const uint8_t> Value) {
     return std::visit(
         Overloaded{
-            [Name, Value](SymmetricOptions Options) -> WasiCryptoExpect<void> {
+            [&Name, &Value](SymmetricOptions &Options) -> WasiCryptoExpect<void> {
               Options.set(Name, Value);
               return {};
             },
-            [](auto) -> WasiCryptoExpect<void> {
+            [](auto&) -> WasiCryptoExpect<void> {
               return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
             }},
         Inner);
@@ -69,8 +70,21 @@ public:
 
 public:
   static WasiCryptoExpect<Options> make(__wasi_algorithm_type_e_t Algorithm);
-
 };
+
+template <typename T>
+WasiCryptoExpect<std::optional<T>>
+optOptionsAs(std::optional<Options> OptOptions) {
+  if (OptOptions) {
+    auto Res = OptOptions->template as<T>();
+    if (!Res) {
+      return WasiCryptoUnexpect(Res);
+    }
+
+    return std::make_optional(*Res);
+  }
+  return std::nullopt;
+}
 
 } // namespace WASICrypto
 } // namespace Host

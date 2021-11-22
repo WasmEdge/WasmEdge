@@ -6,7 +6,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-WasiCryptoExpect<std::vector<uint8_t>> KxSecretKeyBase::dh(KxPublicKey &KxPk) {
+WasiCryptoExpect<std::vector<uint8_t>> KxSecretKeyBase::dh(KxPublicKey &) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 

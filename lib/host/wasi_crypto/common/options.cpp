@@ -13,11 +13,11 @@ namespace WASICrypto {
 
 WasiCryptoExpect<std::vector<uint8_t>> Options::get(std::string_view Name) {
   return std::visit(
-      Overloaded{[Name](SymmetricOptions Options)
+      Overloaded{[Name](SymmetricOptions &Options)
                      -> WasiCryptoExpect<std::vector<uint8_t>> {
-        return Options.get(Name);
-      },
-                 [](auto) -> WasiCryptoExpect<std::vector<uint8_t>> {
+                   return Options.get(Name);
+                 },
+                 [](auto &) -> WasiCryptoExpect<std::vector<uint8_t>> {
                    return WasiCryptoUnexpect(
                        __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
                  }},
@@ -27,10 +27,10 @@ WasiCryptoExpect<std::vector<uint8_t>> Options::get(std::string_view Name) {
 WasiCryptoExpect<uint64_t> Options::getU64(std::string_view Name) {
   return std::visit(
       Overloaded{
-          [Name](SymmetricOptions Options) -> WasiCryptoExpect<uint64_t> {
+          [Name](SymmetricOptions& Options) -> WasiCryptoExpect<uint64_t> {
             return Options.getU64(Name);
           },
-          [](auto) -> WasiCryptoExpect<uint64_t> {
+          [](auto&) -> WasiCryptoExpect<uint64_t> {
             return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
           }},
       Inner);

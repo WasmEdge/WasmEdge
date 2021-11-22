@@ -2,6 +2,7 @@
 
 #include "host/wasi_crypto/key_exchange/keypair.h"
 #include "host/wasi_crypto/key_exchange/dh/x25519.h"
+#include "host/wasi_crypto/asymmetric_common/keypair.h"
 
 namespace WasmEdge {
 namespace Host {

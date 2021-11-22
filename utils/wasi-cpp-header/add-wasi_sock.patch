@@ -30,10 +30,10 @@
 +    $sock_send_to
    )
  )
-
+ 
  ;;; A file descriptor handle.
  (typename $fd (handle))
-
+ 
 +;;; A socket descriptor is currently an alias type of a typical file descriptor.
 +(typename $sock_d $fd)
 +
@@ -70,3 +70,4 @@
 +    $sock_stream
    )
  )
+ 

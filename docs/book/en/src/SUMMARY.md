@@ -45,6 +45,10 @@
     - [Python SDK](embed/python.md)
 
 - [WasmEdge in Kubernetes](kubernetes.md)
+    - [Quick start](kubernetes/quickstart.md)
+    - [Demo apps](kubernetes/demo.md)
+        - [Simple example](kubernetes/demo/wasi.md)
+        - [HTTP service](kubernetes/demo/server.md)
     - [Container runtimes](kubernetes/container.md)
         - [crun](kubernetes/container/crun.md)
         - [runc](kubernetes/container/runc.md)

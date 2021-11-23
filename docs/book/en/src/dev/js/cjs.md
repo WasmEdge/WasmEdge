@@ -44,3 +44,5 @@ hello other_module
 other_module_exports= other module exports
 hello file_module
 ```
+
+>  Note, the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `file_module.js` file.

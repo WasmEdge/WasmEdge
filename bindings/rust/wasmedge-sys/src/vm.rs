@@ -1,5 +1,6 @@
 use super::wasmedge;
 use crate::{
+    import_obj::ImportObj,
     raw_result::{decode_result, ErrReport},
     string::StringRef,
     value::Value,
@@ -12,6 +13,7 @@ use std::os::raw::c_char;
 #[derive(Debug)]
 pub struct Vm {
     pub(crate) ctx: *mut wasmedge::WasmEdge_VMContext,
+    import_objects: Vec<ImportObj>,
 }
 
 impl Vm {
@@ -20,7 +22,10 @@ impl Vm {
             wasmedge::WasmEdge_VMCreate(config.ctx, std::ptr::null_mut() /* store */)
         };
         assert!(!ctx.is_null(), "WasmEdge VM create failed");
-        Self { ctx }
+        Self {
+            ctx,
+            import_objects: vec![],
+        }
     }
 
     pub fn load_wasm_from_ast_module(
@@ -124,6 +129,17 @@ impl Vm {
         }
     }
 
+    pub fn register_module_from_import(mut self, import_obj: ImportObj) -> Result<Self, ErrReport> {
+        unsafe {
+            decode_result(wasmedge::WasmEdge_VMRegisterModuleFromImport(
+                self.ctx,
+                import_obj.ctx,
+            ))?;
+        }
+        self.import_objects.push(import_obj);
+        Ok(self)
+    }
+
     pub fn run(
         &mut self,
         func_name: impl AsRef<str>,
@@ -169,5 +185,6 @@ impl Vm {
 impl Drop for Vm {
     fn drop(&mut self) {
         unsafe { wasmedge::WasmEdge_VMDelete(self.ctx) };
+        self.import_objects.drain(..);
     }
 }

@@ -118,7 +118,9 @@ Fixed issues:
   * Fixed the loading failed for the AOT compiled WASM without intrinsics table.
 * Fixed the `VM` creation issue.
   * Added the loss of intrinsics table setting when creating a VM instance.
-* Fixed wasi-socket support on macos.
+* Fixed wasi-socket issues.
+  * Support wasi-socket on MacOS.
+  * Remove the port parameter from `sock_accept`.
 
 Refactor:
 

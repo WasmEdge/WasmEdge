@@ -176,6 +176,9 @@ inline constexpr uint8_t HostOSType() noexcept {
   return UINT8_C(2);
 #elif WASMEDGE_OS_WINDOWS
   return UINT8_C(3);
+#else
+  // Means WasmEdge is not yet supported on this OS.
+  return UINT8_C(-1);
 #endif
 }
 
@@ -184,6 +187,9 @@ inline constexpr uint8_t HostArchType() noexcept {
   return UINT8_C(1);
 #elif defined(__aarch64__)
   return UINT8_C(2);
+#else
+  // Means universal wasm binary is not yet supported on this arch.
+  return UINT8_C(-1);
 #endif
 }
 

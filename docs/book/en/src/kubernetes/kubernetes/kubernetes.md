@@ -41,7 +41,7 @@ Do NOT close your terminal window. Kubernetes is running!
 ## Run a simple WebAssembly app
 
 Finally, we can run a simple WebAssembly program using Kubernetes.
-[A seperate article](../simple_wasi_app.md) explains how to compile, package, and publish the WebAssembly
+[A seperate article](../demo/wasi.md) explains how to compile, package, and publish the WebAssembly
 program as a container image to Docker hub.
 In this section, we will start from **another terminal window** and start using the cluster.
 

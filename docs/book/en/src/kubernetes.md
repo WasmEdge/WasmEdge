@@ -8,8 +8,9 @@ One of the great advantages of application containers like Docker is the rich ec
 
 ![](kubernetes.png)
 
-The content of this chapter will be organized as follows.
+The contents of this chapter are organized as follows.
 
+* [Quick start](kubernetes/quickstart.md) provides simple and scripted tutorials to run WasmEdge-based applications as container images in Kubernetes.
 * [Demo apps](kubernetes/demo.md) discusses the two demo WasmEdge applications we will run in Kubernetes clusters. Those applications are compiled from Rust source code, packaged as OCI images, and uploaded to Docker Hub.
 * [Container runtimes](kubernetes/container.md) covers how to configure low level container runtimes, such as crun, to load and run WebAssembly OCI images.
 * [CRI runtimes](kubernetes/cri.md) covers how to configure and use high level container runtimes, such as CRI-O and containerd, to load and run WebAssembly OCI images on top of low level container runtimes.

@@ -85,4 +85,4 @@ sudo buildah build --annotation "module.wasm.image/variant=compat" -t wasm-wasi-
 sudo buildah push --authfile ~/.docker/config.json wasm-wasi-example docker://docker.io/hydai/wasm-wasi-example:with-wasm-annotation
 ```
 
-That's it!
+That's it! Now you can try to run it in [CRI-O](../cri/crio.md#run-a-simple-webassembly-app) or [Kubernetes](../kubernetes/kubernetes.md#run-a-simple-webassembly-app)!

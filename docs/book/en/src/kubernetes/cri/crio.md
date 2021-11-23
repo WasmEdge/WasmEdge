@@ -56,7 +56,7 @@ systemctl restart crio
 ## Run a simple WebAssembly app
 
 Finally, we can run a simple WebAssembly program using CRI-O.
-[A seperate article](../simple_wasi_app.md) explains how to compile, package, and publish the WebAssembly
+[A seperate article](../demo/wasi.md) explains how to compile, package, and publish the WebAssembly
 program as a container image to Docker hub.
 In this section, we will start off pulling this WebAssembly-based container
 image from Docker hub using CRI-O tools.
@@ -67,7 +67,7 @@ crictl pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
 
 Next, we need to create two simple configuration files that specifies how
 CRI-O should run this WebAssembly image in a sandbox. We already have those
-two files [container_wasi.json](container_wasi.json) and [sandbox_config.json](sandbox_config.json).
+two files [container_wasi.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/container_wasi.json) and [sandbox_config.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/sandbox_config.json).
 You can just download them to your local directory as follows.
 
 ```bash
@@ -146,3 +146,4 @@ Test 7: Delete the previous file
 ```
 
 That's it!
+Now you can try to run it in [Kubernetes](../kubernetes/kubernetes.md#run-a-simple-webassembly-app)!

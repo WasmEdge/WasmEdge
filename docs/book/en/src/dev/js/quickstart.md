@@ -1,1 +1,43 @@
 # Quick Start with WasmEdge Quickjs
+
+First, let’s build a WebAssmbly-based JavaScript interpreter program for WasmEdge. It is based on [QuickJS](https://bellard.org/quickjs/) with WasmEdge extensions, such as [network sockets](https://github.com/second-state/wasmedge_wasi_socket) and [Tensorflow inference](https://www.secondstate.io/articles/wasi-tensorflow/), incorporated into the interpreter as JavaScript APIs. You will need to [install Rust](https://www.rust-lang.org/tools/install) to build the interpreter.
+
+> If you just want to use the interpreter to run JavaScript programs, you can skip this section. Make sure you have installed [Rust](https://www.rust-lang.org/tools/install) and [WasmEdge](https://github.com/WasmEdge/WasmEdge/blob/master/docs/install.md).
+
+Fork or clone [the wasmegde-quickjs Github repository](https://github.com/second-state/wasmedge-quickjs) to get started.
+
+```
+$ git clone https://github.com/second-state/wasmedge-quickjs
+```
+
+Following the instructions from that repo, you will be able to build a JavaScript interpreter for WasmEdge.
+
+```
+# Install GCC
+$ sudo apt update
+$ sudo apt install build-essential
+
+# Install wasm32-wasi target for Rust
+$ rustup target add wasm32-wasi
+
+# Build the QuickJS JavaScript interpreter
+$ cargo build --target wasm32-wasi --release
+```
+
+The WebAssembly-based JavaScript interpreter program is located in the build target directory. You can now try a simple "hello world" JavaScript program ([example_js/hello.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/hello.js)), which prints out the command line arguments to the console.
+
+```
+args = args.slice(1)
+print("Hello", ...args)
+```
+
+Run the `hello.js` file in WasmEdge’s QuickJS runtime as follows. 
+
+```
+$ cd example_js
+$ wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm hello.js WasmEdge Runtime
+Hello WasmEdge Runtime
+```
+> Note, the `--dir .:.` on the command line is to give `wasmedge` permission to read the local directory in the file system for the `hello.js` file. We will use  `--dir .:.` in the following sections.
+
+Next, let's see some complicated usage for running JavaScript in WasmEdge.

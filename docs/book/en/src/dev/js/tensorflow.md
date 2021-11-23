@@ -1,6 +1,6 @@
-# Tensorflow
+# TensorFlow
 
-The interpreter supports the WasmEdge Tensorflow lite inference extension so that your JavaScript can run an ImageNet model for image classification. This article will show you how to use the TensorFlow Rust SDK for WasmEdge from your javascript program.
+The interpreter supports the WasmEdge TensorFlow lite inference extension so that your JavaScript can run an ImageNet model for image classification. This article will show you how to use the TensorFlow Rust SDK for WasmEdge from your javascript program.
 
 
 Here is an example of JavaScript. You could find the full code from [example_js/tensorflow_lite_demo/](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/tensorflow_lite_demo).
@@ -28,7 +28,7 @@ for (var i in output_view){
 print(max,max_idx)
 ```
 
-To run the JavaScript in the WasmEdge runtime, you can do the following on the CLI to re-build the QuickJS engine with Tensorflow and then run the JavaScript program with Tensorflow API.
+To run the JavaScript in the WasmEdge runtime, you can do the following on the CLI to re-build the QuickJS engine with TensorFlow and then run the JavaScript program with TensorFlow API.
 
 ```
 $ cargo build --target wasm32-wasi --release --features=tensorflow
@@ -40,12 +40,12 @@ Hot dog
 confidence:
 0.8941176470588236
 ```
->  Note, the --dir .:. on the command line is to give wasmedge permission to read the local directory in the file system for the main.js file.
+>  Note, the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `main.js` file.
 
 
 #### Note:
 
-* The `--features=tensorflow` compiler flag builds a version of the QuickJS engine with WasmEdge Tensorflow extensions.
+* The `--features=tensorflow` compiler flag builds a version of the QuickJS engine with WasmEdge TensorFlow extensions.
 * The `wasmedge-tensorflow-lite` program is part of the WasmEdge package. It is the WasmEdge runtime with the Tensorflow extension built in.
 
 You should now see the name of the food item recognized by the TensorFlow lite ImageNet model.

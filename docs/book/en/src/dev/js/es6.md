@@ -46,3 +46,5 @@ hello from module_def.js
 hello from module_def_async.js
 ./module_def_async.js `something` is  async thing
 ```
+
+> Note, the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `demo.js` file.

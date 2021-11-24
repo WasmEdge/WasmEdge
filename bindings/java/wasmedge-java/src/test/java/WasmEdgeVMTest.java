@@ -18,8 +18,9 @@ public class WasmEdgeVMTest {
 
     @Test
     public void testRun() {
-        VMContext vmContext = new VMContext(null, null);
-        WasmEdgeVM vm = new WasmEdgeVM(vmContext);
+        System.out.println("Start testing");
+        WasmEdgeVM vm = new WasmEdgeVM(null, null);
+        System.out.println("construct params");
         List<WasmEdgeValue> params = new ArrayList<>();
         params.add(new WasmEdgeI32Value(3));
 
@@ -31,8 +32,9 @@ public class WasmEdgeVMTest {
 
     @Test
     public void testRunStepByStep(){
-        VMContext vmContext = new VMContext(null, null);
-        WasmEdgeVM vm = new WasmEdgeVM(vmContext);
+        System.out.println("Start testing");
+        WasmEdgeVM vm = new WasmEdgeVM(null, null);
+        System.out.println("Start testing");
         vm.loadWasmFromFile("/root/fibonacci.wasm");
         vm.validate();
         List<WasmEdgeValue> params = new ArrayList<>();

@@ -19,8 +19,6 @@ public class ConfigureContext {
 
     public native void setStatisticsSetTimeMeasuring(boolean statisticsSetTimeMeasuring);
 
-
-
     public void release() {
         cleanUp();
         pointer = 0;

@@ -3,11 +3,17 @@ package org.wasmedge;
 import java.util.List;
 
 public class WasmEdgeVM {
+    private long pointer;
+    private ConfigureContext configureContext;
+    private StoreContext storeContext;
 
-    private VMContext vmContext;
-    public WasmEdgeVM(VMContext vmContext) {
-        this.vmContext = vmContext;
+    public WasmEdgeVM(ConfigureContext configureContext, StoreContext storeContext) {
+        this.configureContext = configureContext;
+        this.storeContext = storeContext;
+        nativeInit(this.configureContext, this.storeContext);
     }
+
+    private native void nativeInit(ConfigureContext configureContext, StoreContext storeContext);
 
     private native void runWasmFromFile(String file,
                                         String funcName,

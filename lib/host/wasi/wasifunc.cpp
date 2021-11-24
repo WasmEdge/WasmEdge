@@ -1639,7 +1639,7 @@ Expect<uint32_t> WasiSockListen::body(
 
 Expect<uint32_t>
 WasiSockAccept::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-                     int32_t Port, uint32_t /* Out */ RoFdPtr) {
+                     uint32_t /* Out */ RoFdPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
@@ -1651,8 +1651,7 @@ WasiSockAccept::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   }
   const __wasi_fd_t WasiFd = Fd;
 
-  if (auto Res = Env.sockAccept(WasiFd, static_cast<uint16_t>(Port));
-      unlikely(!Res)) {
+  if (auto Res = Env.sockAccept(WasiFd); unlikely(!Res)) {
     return Res.error();
   } else {
     *RoFd = *Res;

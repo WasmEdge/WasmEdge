@@ -107,3 +107,4 @@
  ;;; Flags provided to `sock_recv`.
  (typename $riflags
    (flags (@witx repr u16)
+

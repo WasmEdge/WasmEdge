@@ -64,7 +64,8 @@ pub struct Function {
 
 impl Function {
     /// wasmedge::WasmEdge_FunctionInstanceCreate take C functions
-    /// This may not be implement
+    /// This may not be implement, base on the limiation of passing C functions in Rust lang.
+    /// Please refer [`create_bindings`] for building hostfunctions.
     pub fn create<I: WasmFnIO, O: WasmFnIO>(
         _f: Box<dyn std::ops::Fn(Vec<Value>) -> Vec<Value>>,
     ) -> Self {
@@ -75,6 +76,10 @@ impl Function {
     // binding errors and restict the error types
     #[allow(clippy::type_complexity)]
     /// Binding Rust function (HostFunction) to WasmEdgeFunction
+    ///
+    /// `I` and `O` are traits base on the input parameters and the output parameters of the
+    /// `real_fn`. For example, use `I2<i32, i32>` for the `real_fn` with two i32 input parameters,
+    /// and use `I1<i32>` for the `real_fn` with one i32 output parameter.
     pub fn create_bindings<I: WasmFnIO, O: WasmFnIO>(
         real_fn: Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>,
     ) -> Self {

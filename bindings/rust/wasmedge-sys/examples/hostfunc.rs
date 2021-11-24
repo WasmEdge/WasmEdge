@@ -1,3 +1,15 @@
+//! An example help you using host function for WasmEdge
+//!
+//! In this example, the `real_add` is a function that run on host, and the WasmEdge VM step up in
+//! main function, and the `real_add` registry as an `add` function in an `extern_module`, then
+//! the main function call `call_add`, which do nothing just passing the extern reference and the
+//! parameters of add function to the `real_add` function.
+//!
+//! The inputs and outputs of real host function are the `Vec<Value>`, which are the primitive type
+//! for WasmEdge, and the host function for registration should be the return value from the
+//! generics of `Function::create_bindings::<I, O>`, wherein the I and O are the `WasmFnIO` traits
+//! base on the inputs and outputs of the real host function.
+//!
 use std::{ffi::CString, os::unix::ffi::OsStrExt};
 
 use wasmedge_sys::{instance::Function, Config, ImportObj, Module, Value, Vm, I1, I2};

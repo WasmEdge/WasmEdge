@@ -1,5 +1,12 @@
 # CRI-O
 
+* [Install CRI-O](#install-cri-o)
+* [Configure CRI-O and crun](#configure-cri-o-to-use-crun)
+* [Example 1: Simple WebAssembly](#run-a-simple-webassembly-app)
+* [Example 2: HTTP server in WebAssembly](#run-a-http-server-app)
+
+## Install CRI-O
+
 Use the following commands to install CRI-O on your system.
 
 ```bash
@@ -55,14 +62,14 @@ systemctl restart crio
 
 ## Run a simple WebAssembly app
 
-Finally, we can run a simple WebAssembly program using CRI-O.
+Now, we can run a simple WebAssembly program using CRI-O.
 [A seperate article](../demo/wasi.md) explains how to compile, package, and publish the WebAssembly
 program as a container image to Docker hub.
 In this section, we will start off pulling this WebAssembly-based container
 image from Docker hub using CRI-O tools.
 
 ```bash
-crictl pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
+sudo crictl pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
 ```
 
 Next, we need to create two simple configuration files that specifies how
@@ -86,7 +93,8 @@ POD_ID=7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
 
 # Create the container instance. Output will be different from example.
 sudo crictl create $POD_ID container_wasi.json sandbox_config.json
-1d056e4a8a168f0c76af122d42c98510670255b16242e81f8e8bce8bd3a4476f
+# Set a helper variable for later use.
+CONTAINER_ID=1d056e4a8a168f0c76af122d42c98510670255b16242e81f8e8bce8bd3a4476f
 ```
 
 Starting the container would execute the WebAssembly program. You can see the output in the console.
@@ -99,8 +107,7 @@ CONTAINER           IMAGE                                          CREATED      
 1d056e4a8a168       hydai/wasm-wasi-example:with-wasm-annotation   About a minute ago   Created             podsandbox1-wasm-wasi   0                   7992e75df00cc
 
 # Start the container
-sudo crictl start 1d056e4a8a168f0c76af122d42c98510670255b16242e81f8e8bce8bd3a4476f
-1d056e4a8a168f0c76af122d42c98510670255b16242e81f8e8bce8bd3a4476f
+sudo crictl start $CONTAINER_ID
 
 # Check the container status again.
 # If the container is not finishing its job, you will see the Running state
@@ -114,8 +121,8 @@ sudo crictl ps -a
 CONTAINER           IMAGE                                          CREATED              STATE               NAME                     ATTEMPT             POD ID
 1d056e4a8a168       hydai/wasm-wasi-example:with-wasm-annotation   About a minute ago   Exited              podsandbox1-wasm-wasi   0                   7992e75df00cc
 
-# Check the container's logs
-sudo crictl logs 1d056e4a8a168f0c76af122d42c98510670255b16242e81f8e8bce8bd3a4476f
+# Check the container's logs. It should show outputs from the WebAssembly programs
+sudo crictl logs $CONTAINER_ID
 
 Test 1: Print Random Number
 Random number: 960251471
@@ -145,5 +152,70 @@ File content is This is in a file
 Test 7: Delete the previous file
 ```
 
-That's it!
-Now you can try to run it in [Kubernetes](../kubernetes/kubernetes.md#run-a-simple-webassembly-app)!
+Next, you can try to run it in [Kubernetes](../kubernetes/kubernetes.md#run-a-simple-webassembly-app)!
+
+## Run a HTTP server app
+
+Finally, we can run a simple WebAssembly-based HTTP micro-service in CRI-O.
+[A seperate article](../demo/server.md) explains how to compile, package, and publish the WebAssembly
+program as a container image to Docker hub.
+In this section, we will start off pulling this WebAssembly-based container
+image from Docker hub using CRI-O tools.
+
+```bash
+sudo crictl pull docker.io/avengermojo/http_server:with-wasm-annotation
+```
+
+Next, we need to create two simple configuration files that specifies how
+CRI-O should run this WebAssembly image in a sandbox. We already have those
+two files [container_http_server.json](https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/http_server/container_http_server.json) and [sandbox_config.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/sandbox_config.json).
+You can just download them to your local directory as follows.
+
+> The `sandbox_config.json` file is the same for the simple WASI example and the HTTP server example. The other `container_*.json` file is application specific as it contains the application's Docker Hub URL.
+
+```bash
+wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
+wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/http_server/container_http_server.json
+```
+
+Now you can use CRI-O to create a pod and a container using the specified configurations.
+
+```bash
+# Create the POD. Output will be different from example.
+sudo crictl runp sandbox_config.json
+7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
+# Set a helper variable for later use.
+POD_ID=7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
+
+# Create the container instance. Output will be different from example.
+sudo crictl create $POD_ID container_http_server.json sandbox_config.json
+# Set a helper variable for later use.
+CONTAINER_ID=1d056e4a8a168f0c76af122d42c98510670255b16242e81f8e8bce8bd3a4476f
+```
+
+Starting the container would execute the WebAssembly program. You can see the output in the console.
+
+```bash
+# Start the container
+sudo crictl start $CONTAINER_ID
+
+# Check the container status. It should be Running. 
+# If not, wait a few seconds and check again
+sudo crictl ps -a
+CONTAINER           IMAGE                                          CREATED                  STATE               NAME                ATTEMPT             POD ID
+4eeddf8613691       avengermojo/http_server:with-wasm-annotation   Less than a second ago   Running             http_server         0                   1d84f30e7012e
+
+# Check the container's logs to see the HTTP server is listening at port 1234
+sudo crictl logs $CONTAINER_ID
+new connection at 1234
+
+# Get the IP address assigned to the container
+sudo crictl inspect $CONTAINER_ID | grep IP.0 | cut -d: -f 2 | cut -d'"' -f 2
+10.85.0.2
+
+# Test the HTTP service at that IP address
+curl -d "name=WasmEdge" -X POST http://10.85.0.2:1234
+echo: name=WasmEdge
+```
+ 
+Next, you can try to run it in [Kubernetes](../kubernetes/kubernetes.md#run-a-http-server-app)!

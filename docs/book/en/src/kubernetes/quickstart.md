@@ -18,5 +18,5 @@ The [simple_wasi_application.sh](https://github.com/second-state/wasmedge-contai
 wget -qO- https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/kubernetes/simple_wasi_application.sh | bash
 ```
 
-You should see results from the WebAssembly prpogram printed in the console log. [Here is an example](https://github.com/second-state/wasmedge-containers-examples/runs/4186005677?check_suite_focus=true#step:6:3007).
+You should see results from the WebAssembly program printed in the console log. [Here is an example](https://github.com/second-state/wasmedge-containers-examples/runs/4186005677?check_suite_focus=true#step:6:3007).
 

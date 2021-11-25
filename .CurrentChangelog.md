@@ -167,6 +167,7 @@ Tests:
 * Moved and updated the `AST` unit tests into `loader`.
 * Moved and updated the `Interpreter` tests into `Executor` folder.
 * Added the unit tests for new APIs.
+* Applied the WasmEdge C API in the `ExternRef` tests.
 
 Misc:
 

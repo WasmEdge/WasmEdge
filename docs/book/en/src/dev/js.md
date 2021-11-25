@@ -16,4 +16,4 @@ In this section, we will demonstrate how to run and enhance JavaScript in WasmEd
 * [TensorFlow](js/tensorflow.md) shows how to use WasmEdge's TensorFlow extension from its JavaScript API.
 * [Networking sockets](js/networking.md) shows how to create HTTP client and server applications using the WasmEdge networking extension and its JavaScript API.
 * [Async networking](js/async.md) shows how to improve HTTP server application performance by supporting asynchronous and non-blocking I/O.
-* [Use Rust to implement JS API](dev/js/rust.md) discusses how to use Rust to implement and support a JavaScript API in WasmEdge.
+* [Use Rust to implement JS API](js/rust.md) discusses how to use Rust to implement and support a JavaScript API in WasmEdge.

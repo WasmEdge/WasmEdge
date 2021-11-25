@@ -35,6 +35,7 @@
     - [Swift](dev/swift.md)
     - [AssemblyScript](dev/as.md)
     - [Kotlin](dev/kotlin.md)
+    - [Grain](dev/grain.md)
 
 - [Embed WasmEdge functions](embed.md)
     - [C SDK](embed/c.md)

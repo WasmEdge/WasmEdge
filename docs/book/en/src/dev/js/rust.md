@@ -1,10 +1,6 @@
 # Use Rust to implement JS API
 
-
-
 For JavaScript developers, incorporating Rust functions into JavaScript APIs is useful. That enables developers to write programs in "pure JavaScript" and yet still take advantage of the high performance Rust functions. With the [WasmEdge Runtime](https://github.com/WasmEdge/WasmEdge), you can do exactly that.
-
-## Show the result
 
 Check out the [wasmedge-quickjs](https://github.com/second-state/wasmedge-quickjs/) Github repo and change to the `examples/embed_js` folder to follow along.
 
@@ -22,9 +18,7 @@ $ cargo build --target wasm32-wasi --release
 $ wasmedge --dir .:. target/wasm32-wasi/release/embed_js.wasm
 ```
 
->  Note, the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system.
-
-Next, let's see how it works.
+>  The `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system.
 
 ## Create a JavaScript function API
 

@@ -24,6 +24,7 @@
         - [Networking sockets](dev/rust/networking.md)
         - [Command interface](dev/rust/command.md)
     - [JavaScript](dev/js.md)
+        - [Getting started](dev/js/quickstart.md)
         - [ES6 module](dev/js/es6.md)
         - [CommonJS module](dev/js/cjs.md)
         - [Tensorflow](dev/js/tensorflow.md)

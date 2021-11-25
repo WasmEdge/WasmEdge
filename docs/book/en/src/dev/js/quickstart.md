@@ -1,10 +1,10 @@
-# Quick Start with WasmEdge Quickjs
+# Quick start with JavaScript on WasmEdge
 
 First, let’s build a WebAssmbly-based JavaScript interpreter program for WasmEdge. It is based on [QuickJS](https://bellard.org/quickjs/) with WasmEdge extensions, such as [network sockets](https://github.com/second-state/wasmedge_wasi_socket) and [Tensorflow inference](https://www.secondstate.io/articles/wasi-tensorflow/), incorporated into the interpreter as JavaScript APIs. You will need to [install Rust](https://www.rust-lang.org/tools/install) to build the interpreter.
 
 > If you just want to use the interpreter to run JavaScript programs, you can skip this section. Make sure you have installed [Rust](https://www.rust-lang.org/tools/install) and [WasmEdge](https://github.com/WasmEdge/WasmEdge/blob/master/docs/install.md).
 
-Fork or clone [the wasmegde-quickjs Github repository](https://github.com/second-state/wasmedge-quickjs) to get started.
+Fork or clone [the wasmedge-quickjs Github repository](https://github.com/second-state/wasmedge-quickjs) to get started.
 
 ```
 $ git clone https://github.com/second-state/wasmedge-quickjs
@@ -38,6 +38,7 @@ $ cd example_js
 $ wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm hello.js WasmEdge Runtime
 Hello WasmEdge Runtime
 ```
+
 > Note, the `--dir .:.` on the command line is to give `wasmedge` permission to read the local directory in the file system for the `hello.js` file. We will use  `--dir .:.` in the following sections.
 
-Next, let's see some complicated usage for running JavaScript in WasmEdge.
+Next, we will discuss more advanced use case for JavaScript in WasmEdge.

@@ -1,16 +1,19 @@
 # JavaScript
 
-Developers often want to use JavaScript to write business applications in cloud-native use cases. That means we must now support JavaScript in WebAssembly. Furthermore, we should also support calling C/C++ or Rust functions from JavaScript in a WebAssembly runtime to take advantage of WebAssembly’s computational efficiency. So we made this come true. The WasmEdge WebAssembly runtime allows you to do exactly that.
+WebAssembly started as a “JavaScript alternative for browsers”. The idea is to run high-performance applications compiled from languages like C/C++ or Rust safely in browsers. In the browser, WebAssembly runs side by side with JavaScript.
 
-![](dev/javascript.png)
+As WebAssembly is increasingly used in the cloud, it is now a universal runtime for cloud-native applications. Compared with Docker-like application containers, WebAssembly runtimes achieve higher performance with lower resource consumption.
 
-In this section, we will demonstrate how to run JavaScript in WasmEdge.
+In cloud-native use cases, developers often want to use JavaScript to write business applications. That means we must now support JavaScript in WebAssembly. Furthermore, we should support calling C/C++ or Rust functions from JavaScript in a WebAssembly runtime to take advantage of WebAssembly’s computational efficiency. The WasmEdge WebAssembly runtime allows you to do exactly that.
 
+![](javascript.png)
 
-* [Quick Start](dev/js/quickstart.md) shows how to build a JavaScript engine in WasmEdge.
-* [ES6 module](dev/js/es6.md) shows how to run ES6 modules in WasmEdge.
-* [CommonJS module](dev/js/cjs.md) shows how to run CommonJS modules in WasmEdge.
-* [TensorFlow](dev/js/tensorflow.md) shows how to use WasmEdge‘s Rust TensorFlow SDK from JavaScript via WasmEdge.
-* [Networking sockets](dev/js/networking.md) shows how to use WasmEdge‘s Rust TensorFlow SDK from JavaScript via WasmEdge.
-* [Use Rust to implement JS API discuss](dev/js/rust.md) tells how to create a complete Rust module and make it available as a JavaScript object API.
-* [Async networking](dev/js/async.md)
+In this section, we will demonstrate how to run and enhance JavaScript in WasmEdge.
+
+* [Getting started](js/quickstart.md) demonstrates how to run simple JavaScript programs in WasmEdge.
+* [ES6 module](js/es6.md) shows how to run ES6 modules in WasmEdge.
+* [CommonJS module](js/cjs.md) shows how to run CommonJS and NPM modules in WasmEdge.
+* [TensorFlow](js/tensorflow.md) shows how to use WasmEdge's TensorFlow extension from its JavaScript API.
+* [Networking sockets](js/networking.md) shows how to create HTTP client and server applications using the WasmEdge networking extension and its JavaScript API.
+* [Async networking](js/async.md) shows how to improve HTTP server application performance by supporting asynchronous and non-blocking I/O.
+* [Use Rust to implement JS API](dev/js/rust.md) discusses how to use Rust to implement and support a JavaScript API in WasmEdge.

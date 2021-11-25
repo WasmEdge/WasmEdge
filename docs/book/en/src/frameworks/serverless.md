@@ -1,6 +1,5 @@
 # Serverless platforms
 
-## Why WebAssembly is sutibale for serverless functions
 
 Our vision for the future is to run WebAssembly as an alternative lightweight runtime side-by-side with Docker and microVMs in cloud native infrastructure. WebAssembly offers much higher performance and consumes much less resources than Docker-like containers or microVMs. However, the public cloud only supports running WebAssembly inside a microVM. Nonetheless, running WebAssembly functions inside a microVM still offers many advantages over running containerized NaCl programs.
 
@@ -22,7 +21,7 @@ In this section, we will show you how to run WebAssembly serverless functions in
 * [AWS Lambda](serverless/aws.md) discuss how to leverge WasmEdge to accelerate the serverless functions deployed on AWS Lambda.
 * [Tencent](serverless/tencent.md) discuss how to leverge WasmEdge to accelerate the serverless functions deployed on Tencent cloud.
 
-> If you would like to add more WasmEdge examples on public cloud,like Google Cloud Functions, feel free to creta a PR in this page and let the community know what you did.
+> If you would like to add more WasmEdge examples on public cloud platform,like Google Cloud Functions, feel free to creta a PR for WasmEdge and let the community know what you did.
 
 ![](serverless-wasmedge.png)
 

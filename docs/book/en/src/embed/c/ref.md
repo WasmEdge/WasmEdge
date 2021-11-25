@@ -1,4 +1,4 @@
-#  WasmEdge API references
+#  WasmEdge C API references
 
 
 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge.

@@ -37,12 +37,13 @@ public class WasmEdgeVMTest {
         System.out.println("Start testing");
         vm.loadWasmFromFile("/root/fibonacci.wasm");
         vm.validate();
+        vm.instantiate();
         List<WasmEdgeValue> params = new ArrayList<>();
         params.add(new WasmEdgeI32Value(3));
 
         List<WasmEdgeValue> returns = new ArrayList<>();
         returns.add(new WasmEdgeI32Value());
-        vm.execute("fibnacci", params, returns);
+        vm.execute("fib", params, returns);
 
         Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
 

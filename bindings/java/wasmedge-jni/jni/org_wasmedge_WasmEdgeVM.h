@@ -9,11 +9,83 @@ extern "C" {
 #endif
 /*
  * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    nativeInit
+ * Signature: (Lorg/wasmedge/ConfigureContext;Lorg/wasmedge/StoreContext;)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_nativeInit
+  (JNIEnv *, jobject, jobject, jobject);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
  * Method:    runWasmFromFile
- * Signature: (Ljava/lang/String;Ljava/lang/String;[Lorg/wasmedge/WasmEdgeValue;I[I[Lorg/wasmedge/WasmEdgeValue;I[I)Lorg/wasmedge/WasmEdgeResult;
+ * Signature: (Ljava/lang/String;Ljava/lang/String;[Lorg/wasmedge/WasmEdgeValue;I[I[Lorg/wasmedge/WasmEdgeValue;I[I)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromFile
   (JNIEnv *, jobject, jstring, jstring, jobjectArray, jint, jintArray, jobjectArray, jint, jintArray);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    loadWasmFromFile
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_loadWasmFromFile
+  (JNIEnv *, jobject, jstring);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    validate
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_validate
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    instantiate
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_instantiate
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    execute
+ * Signature: (Ljava/lang/String;[Lorg/wasmedge/WasmEdgeValue;I[I[Lorg/wasmedge/WasmEdgeValue;I[I)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_execute
+  (JNIEnv *, jobject, jstring, jobjectArray, jint, jintArray, jobjectArray, jint, jintArray);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    registerModuleFromFile
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromFile
+  (JNIEnv *, jobject, jstring, jstring);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    executeRegistered
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_executeRegistered
+  (JNIEnv *, jobject, jstring, jstring);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    getFunctionList
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionList
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    getFunctionType
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionType
+  (JNIEnv *, jobject, jstring);
 
 #ifdef __cplusplus
 }

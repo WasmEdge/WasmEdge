@@ -1,10 +1,6 @@
 #include "wasmedge/wasmedge.h"
 #include "jni.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 JNIEXPORT jstring JNICALL Java_org_wasmedge_WasmEdge_getVersion
 (JNIEnv * env, jobject thisObject) {
     
@@ -44,7 +40,3 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdge_setDebugLevel
         (JNIEnv * env, jobject thisObject) {
     WasmEdge_LogSetDebugLevel();
 }
-
-#ifdef __cplusplus
-}
-#endif

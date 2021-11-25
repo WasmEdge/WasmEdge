@@ -3,7 +3,7 @@
 # WasmEdge_ROOT -set this to location where WasmEdge may be found
 # WasmEdge_FOUND - True if WasmEdge found
 # WasmEdge_INCLUDE_DIRS - Location of WasmEdge includes
-# WasmEdge_LIBRARIES - WasmEdge libriries
+# WasmEdge_LIBRARIES - WasmEdge libraries
 
 if(NOT WasmEdge_ROOT)
     set(WasmEdge_ROOT "$ENV{WasmEdge_ROOT}")

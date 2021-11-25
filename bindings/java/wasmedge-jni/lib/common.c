@@ -5,9 +5,14 @@
 #include "jni.h"
 #include <stdlib.h>
 #include <string.h>
+#include "wasmedge/wasmedge.h"
 
 
-void exitWithError(enum ErrorCode error, char* message, char* fileName, int line);
+
+void exitWithError(enum ErrorCode error, char* message, char* file, int line) {
+     printf("Error with message: %s in file:%s at line %d.\n", message, file, line);
+     exit(-1);
+}
 
 void throwNoClassDefError(JNIEnv *env, char * message) {
     jclass  exClass;
@@ -79,13 +84,50 @@ void getClassName(JNIEnv* env, jobject obj, char* buff) {
 
 // Print the class name
     strcpy(buff, str);
-    printf("\nCalling class is: %s\n", str);
 
 // Release the memory pinned char array
     (*env)->ReleaseStringUTFChars(env, strObj, str);
 }
 
-void exitWithError(enum ErrorCode error, char* message, char* fileName, int line) {
-    printf("Error with message: %s at %s, %d", message, fileName, line);
-    exit(-1);
+
+
+long getPointer(JNIEnv* env, jobject obj) {
+    printf("Start to get class");
+    jclass cls = (*env)->GetObjectClass(env, obj);
+
+    printf("Get class succeed.");
+    if (cls == NULL) {
+        exitWithError(JVM_ERROR, "class not found!", __FILE__, __LINE__);
+    }
+
+    printf("Start to get pointer field");
+    jfieldID fidPointer = (*env)->GetFieldID(env, cls, "pointer", "J");
+    if(fidPointer == NULL) {
+        exitWithError(JVM_ERROR, "pointer filed not found!", __FILE__, __LINE__);
+    }
+    jlong value = (*env)->GetLongField(env, obj, fidPointer);
+    char buf[216];
+    getClassName(env, obj, buf);
+    printf("Start to get pointer value: [%ld], for %s\n", (long)value, buf);
+    return value;
+}
+
+void setPointer(JNIEnv* env, jobject obj, jlong val) {
+    jclass cls = (*env)->GetObjectClass(env, obj);
+    jfieldID fidPointer = (*env)->GetFieldID(env, cls, "pointer", "J");
+    char buf[216];
+    getClassName(env, obj, buf);
+    printf("Start to set pointer value: [%ld] for %s", (long)val, buf);
+    (*env)->SetLongField(env, obj, fidPointer, val);
+}
+
+void handleWasmEdgeResult(JNIEnv* env, WasmEdge_Result * result) {
+    if(!WasmEdge_ResultOK(*result)) {
+        char exceptionBuffer[1024];
+        sprintf(exceptionBuffer, "Error occurred with message: %s.",
+                WasmEdge_ResultGetMessage(*result));
+
+        (*env)->ThrowNew(env, (*env)->FindClass(env, "java/lang/Exception"),
+                         exceptionBuffer);
+    }
 }

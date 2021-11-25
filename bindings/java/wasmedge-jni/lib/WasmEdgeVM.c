@@ -8,6 +8,8 @@
 #include "wasmedge/wasmedge.h"
 #include "jni.h"
 #include "common.h"
+#include "StoreContext.h"
+#include "ConfigureContext.h"
 
 int getIntVal(JNIEnv *env, jobject val) {
     jclass clazz = (*env)->GetObjectClass(env, val);
@@ -94,13 +96,23 @@ void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val) {
     }
 }
 
+WasmEdge_VMContext* getVmContext(JNIEnv* env, jobject vmContextObj) {
+    long pointerVal = getPointer(env, vmContextObj);
+    return (WasmEdge_VMContext*) pointerVal;
+}
+
+
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromFile
         (JNIEnv *env, jobject this_object, jstring file_path, jstring func_name,
          jobjectArray params, jint param_size, jintArray param_types, jobjectArray returns, jint return_size,
          jintArray return_types) {
 
+    printf("Run wasm file\n");
+
     /* The configure and store context to the VM creation can be NULL. */
-    WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(NULL, NULL);
+    WasmEdge_VMContext *VMCxt = getVmContext(env, this_object);
+    printf("Params done");
+
 
     /* The parameters and returns arrays. */
     WasmEdge_Value *wasm_params = calloc(param_size, sizeof(WasmEdge_Value));
@@ -149,15 +161,6 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromFile
         for (int i = 0; i < return_size; ++i) {
             setJavaValueObject(env, Returns[i], (*env)->GetObjectArrayElement(env, returns, i));
         }
-
-        /* Resources deallocations. */
-        WasmEdge_StringDelete(FuncName);
-        free(c_func_name);
-        free(c_file_path);
-        free(wasm_params);
-        free(Returns);
-        return;
-
     } else {
         char exceptionBuffer[1024];
         sprintf(exceptionBuffer, "Error running wasm from file %s, error message: %s.", c_file_path,
@@ -165,7 +168,115 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromFile
 
         (*env)->ThrowNew(env, (*env)->FindClass(env, "java/lang/Exception"),
                          exceptionBuffer);
-        return;
     }
+
+    /* Resources deallocations. */
+    WasmEdge_StringDelete(FuncName);
+    free(c_func_name);
+    free(c_file_path);
+    free(wasm_params);
+    free(Returns);
+    return;
 }
 
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_nativeInit
+        (JNIEnv * env, jobject thisObject, jobject jConfigureContext, jobject jStoreContext) {
+    printf("Get configure context\n");
+    WasmEdge_ConfigureContext* ConfigureContext = getConfigureContext(env, jConfigureContext);
+    WasmEdge_StoreContext * StoreContext = getStoreContext(env, jStoreContext);
+
+
+    WasmEdge_VMContext* VMContext = WasmEdge_VMCreate(ConfigureContext, StoreContext);
+
+    setPointer(env, thisObject, (jlong)VMContext);
+
+}
+
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_loadWasmFromFile
+        (JNIEnv * env, jobject thisObject, jstring filePath) {
+    const char *c_file_path = (*env)->GetStringUTFChars(env, filePath, NULL);
+    WasmEdge_Result res = WasmEdge_VMLoadWasmFromFile(getVmContext(env, thisObject), c_file_path);
+    handleWasmEdgeResult(env, &res);
+    free(c_file_path);
+}
+
+
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_validate
+        (JNIEnv *env, jobject thisObject) {
+    WasmEdge_Result result =  WasmEdge_VMValidate(getVmContext(env, thisObject));
+    handleWasmEdgeResult(env, &result);
+}
+
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_instantiate
+        (JNIEnv *env, jobject thisObject) {
+    WasmEdge_Result result = WasmEdge_VMInstantiate(getVmContext(env, thisObject));
+    handleWasmEdgeResult(env, &result);
+}
+
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_execute
+        (JNIEnv *env, jobject thisObject, jstring funcName, jobjectArray params, jint paramSize,
+         jintArray paramTypes, jobjectArray retuns, jint returnSize, jintArray returnTypes) {
+
+    WasmEdge_VMContext *VMCxt = getVmContext(env, thisObject);
+    printf("Params done");
+
+
+    /* The parameters and returns arrays. */
+    WasmEdge_Value *wasm_params = calloc(paramSize, sizeof(WasmEdge_Value));
+    int *type = (*env)->GetIntArrayElements(env, paramTypes, JNI_FALSE);
+    for (int i = 0; i < paramSize; i++) {
+        WasmEdge_Value val;
+
+        jobject val_object = (*env)->GetObjectArrayElement(env, params, i);
+
+        switch (type[i]) {
+
+            case 0:
+                val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
+                break;
+            case 1:
+                val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
+                break;
+            case 2:
+                val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
+                break;
+            case 3:
+                val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
+                break;
+            default:
+                break;
+        }
+        wasm_params[i] = val;
+    }
+
+
+//    WasmEdge_Value* WasmRetuns = calloc(return_size, sizeof (WasmEdge_Value));
+//    /* Function name. */
+    const char *c_func_name = (*env)->GetStringUTFChars(env, funcName, NULL);
+
+    /* The parameters and returns arrays. */
+    //WasmEdge_Value Params[1] = { WasmEdge_ValueGenI32(5) };
+    WasmEdge_Value *Returns = malloc(sizeof(WasmEdge_Value) * returnSize);
+    /* Function name. */
+    WasmEdge_String FuncName = WasmEdge_StringCreateByCString(c_func_name);
+    /* Run the WASM function from file. */
+    printf("Start to run wasm function: %s\n", c_func_name);
+    WasmEdge_Result Res = WasmEdge_VMExecute(VMCxt,  FuncName, wasm_params, paramSize, Returns, returnSize);
+
+    printf("Run wasm finished\n");
+
+    handleWasmEdgeResult(env, &Res);
+    if (WasmEdge_ResultOK(Res)) {
+        for (int i = 0; i < returnSize; ++i) {
+            setJavaValueObject(env, Returns[i], (*env)->GetObjectArrayElement(env, retuns, i));
+        }
+    }
+
+    /* Resources deallocations. */
+    WasmEdge_StringDelete(FuncName);
+    free(c_func_name);
+    free(wasm_params);
+    free(Returns);
+    return;
+
+}

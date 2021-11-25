@@ -9,13 +9,15 @@ find_package(JNI REQUIRED)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 find_package(WasmEdge REQUIRED)
 
-include_directories(${JNI_INCLUDE_DIRS} ${WASMEDGE_INCLUDE_DIRS})
+
+include_directories(${JNI_INCLUDE_DIRS} ${WasmEdge_INCLUDE_DIRS})
 
 add_library(${TARGET} SHARED
-        jni/org_wasmedge_WasmEdge.h
         lib/WasmEdge.c
         lib/WasmEdgeVM.c
         lib/common.c
+        lib/StoreContext.c
+        lib/ConfigureContext.c
         )
 target_link_libraries(${TARGET} wasmedge_c)
 

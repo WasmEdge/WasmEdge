@@ -6,6 +6,7 @@
 #define WASMEDGE_JAVA_COMMON_H
 
 #include "jni.h"
+#include "wasmedge/wasmedge.h"
 
 
 enum ErrorCode {
@@ -24,5 +25,11 @@ jclass findJavaClass(JNIEnv* env, char * className);
 jmethodID findJavaMethod(JNIEnv* env, jclass class, char* methodName, char* sig);
 
 void getClassName(JNIEnv* env, jobject obj, char* buff);
+
+long getPointer(JNIEnv* env, jobject obj);
+
+void setPointer(JNIEnv* env, jobject obj, long val);
+
+void handleWasmEdgeResult(JNIEnv* env, WasmEdge_Result * result);
 
 #endif //WASMEDGE_JAVA_COMMON_H

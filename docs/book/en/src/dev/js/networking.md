@@ -1,6 +1,6 @@
 # Networking sockets
 
-The QuickJS WasmEdge Runtime supports the WasmEdge [networking socket extension](https://github.com/second-state/wasmedge_wasi_socket) so that the JavaScript programs can make HTTP connections to the Internet. This article will show you both [HTTP Client] and HTTP Server examples.
+The QuickJS WasmEdge Runtime supports the WasmEdge [networking socket extension](https://github.com/second-state/wasmedge_wasi_socket) so that the JavaScript programs can make HTTP connections to the Internet. This article will show you both [HTTP Client](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/http_demo.js) and [HTTP Server](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/http_server_demo.js) examples.
 
 ## A JavaScript networking client example
 

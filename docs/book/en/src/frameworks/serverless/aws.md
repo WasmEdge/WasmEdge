@@ -1,6 +1,8 @@
-# WebAssembly Serverless Functions in AWS Lambda*
+# WebAssembly Serverless Functions in AWS Lambda
 
-In this article, we will show you two function in Rust and WasmEdge deployed on AWS Lambda. One is the image processing function, the other one is the trnsorflow inference function.
+In this article, we will show you two serverless functions in Rust and WasmEdge deployed on AWS Lambda. One is the image processing function, the other one is the trnsorflow inference function.
+
+>  For the insight on why WasmEdge on AWS Lambda, please refer to the article [WebAssembly Serverless Functions in AWS Lambda](https://www.secondstate.io/articles/webassembly-serverless-functions-in-aws-lambda/)
 
 ## Prerequisites
 
@@ -265,4 +267,4 @@ exports.handler = ... // _runWasm(reqBody) is called in the handler
 
 You can build your Docker image and deploy the function in the same way as outlined in the previous example. Now you have created a web app for subject classification!
 
-Next, it's your turn to develop Rust serverless function in AWS Lambda using the [aws-lambda-wasm-runtime repo](https://github.com/second-state/aws-lambda-wasm-runtime/tree/main) as a template. Looking forward to your great work.
+Next, it's your turn to use the [aws-lambda-wasm-runtime repo](https://github.com/second-state/aws-lambda-wasm-runtime/tree/main) as a template to develop Rust serverless function on AWS Lambda. Looking forward to your great work.

@@ -1,3 +1,5 @@
+use std::{ffi::CString, os::raw::c_char};
+
 use super::wasmedge;
 use crate::{instance::Function, string::StringRef};
 
@@ -20,6 +22,46 @@ impl ImportObj {
             wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, raw_func_name, (*func).ctx);
         }
         func.registed = true;
+    }
+
+    pub fn create_wasi(
+        args: Vec<impl AsRef<str>>,
+        envs: Vec<impl AsRef<str>>,
+        dirs: Vec<impl AsRef<str>>,
+        preopens: Vec<impl AsRef<str>>,
+    ) {
+        let cstr_args: Vec<_> = args
+            .iter()
+            .map(|arg| CString::new(arg.as_ref()).unwrap())
+            .collect();
+
+        let cstr_envs: Vec<_> = envs
+            .iter()
+            .map(|env| CString::new(env.as_ref()).unwrap())
+            .collect();
+
+        let cstr_dirs: Vec<_> = dirs
+            .iter()
+            .map(|dir| CString::new(dir.as_ref()).unwrap())
+            .collect();
+
+        let cstr_preopens: Vec<_> = preopens
+            .iter()
+            .map(|preopen| CString::new(preopen.as_ref()).unwrap())
+            .collect();
+
+        unsafe {
+            wasmedge::WasmEdge_ImportObjectCreateWASI(
+                cstr_args.as_ptr() as *const *const c_char,
+                args.len() as u32,
+                cstr_envs.as_ptr() as *const *const c_char,
+                envs.len() as u32,
+                cstr_dirs.as_ptr() as *const *const c_char,
+                dirs.len() as u32,
+                cstr_preopens.as_ptr() as *const *const c_char,
+                preopens.len() as u32,
+            );
+        }
     }
 }
 

@@ -28,7 +28,7 @@ impl ImportObj {
         args: Vec<impl AsRef<str>>,
         envs: Vec<impl AsRef<str>>,
         preopens: Vec<impl AsRef<str>>,
-    ) {
+    ) -> Self {
         let cstr_args: Vec<_> = args
             .iter()
             .map(|arg| CString::new(arg.as_ref()).unwrap())
@@ -44,7 +44,7 @@ impl ImportObj {
             .map(|preopen| CString::new(preopen.as_ref()).unwrap())
             .collect();
 
-        unsafe {
+        let ctx = unsafe {
             wasmedge::WasmEdge_ImportObjectCreateWASI(
                 cstr_args.as_ptr() as *const *const c_char,
                 args.len() as u32,
@@ -52,8 +52,9 @@ impl ImportObj {
                 envs.len() as u32,
                 cstr_preopens.as_ptr() as *const *const c_char,
                 preopens.len() as u32,
-            );
-        }
+            )
+        };
+        ImportObj { ctx }
     }
 }
 

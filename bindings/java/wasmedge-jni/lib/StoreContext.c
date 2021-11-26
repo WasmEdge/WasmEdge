@@ -5,7 +5,7 @@
 #include "wasmedge/wasmedge.h"
 #include "common.h"
 
-JNIEXPORT void JNICALL Java_org_wasmedge_StoreContext_initNative
+JNIEXPORT void JNICALL Java_org_wasmedge_StoreContext_nativeInit
 (JNIEnv *env, jobject thisObj) {
     WasmEdge_StoreContext *StoreContext = WasmEdge_StoreCreate();
     setPointer(env, thisObj, (jlong)StoreContext);
@@ -20,3 +20,10 @@ WasmEdge_StoreContext* getStoreContext(JNIEnv* env, jobject jStoreContext) {
 
     return StoreContext;
 }
+
+
+JNIEXPORT void JNICALL Java_org_wasmedge_StoreContext_delete
+        (JNIEnv * env, jobject thisObj) {
+    WasmEdge_StoreDelete(getStoreContext(env, thisObj));
+}
+

@@ -19,3 +19,8 @@ WasmEdge_ConfigureContext* getConfigureContext(JNIEnv* env, jobject jConfigureCo
     }
     return (WasmEdge_ConfigureContext *)getPointer(env, jConfigureContext);
 }
+
+JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_delete
+        (JNIEnv *env, jobject thisObj) {
+    WasmEdge_ConfigureDelete(getConfigureContext(env, thisObj));
+}

@@ -8,7 +8,7 @@ public class ConfigureContext {
     }
 
     private native void nativeInit();
-    private native void cleanUp();
+    private native void delete();
     public native void addHostRegistration();
 
     public native void setMaxMemoryPage(long pages);
@@ -19,8 +19,8 @@ public class ConfigureContext {
 
     public native void setStatisticsSetTimeMeasuring(boolean statisticsSetTimeMeasuring);
 
-    public void release() {
-        cleanUp();
+    public void destroy() {
+        delete();
         pointer = 0;
     }
 

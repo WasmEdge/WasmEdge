@@ -20,7 +20,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_nativeInit
  * Method:    cleanUp
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_cleanUp
+JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_delete
   (JNIEnv *, jobject);
 
 /*

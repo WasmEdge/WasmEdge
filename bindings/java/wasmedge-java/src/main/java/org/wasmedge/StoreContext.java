@@ -7,13 +7,13 @@ public class StoreContext {
         nativeInit();
     }
 
-    public void release() {
-        cleanUp();
+    public void destroy() {
+        delete();
         pointer = 0;
     }
 
     private native void nativeInit();
-    private native void cleanUp();
+    private native void delete();
 
 
 }

@@ -47,6 +47,10 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_validate
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_instantiate
   (JNIEnv *, jobject);
 
+
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_delete
+        (JNIEnv *, jobject);
+
 /*
  * Class:     org_wasmedge_WasmEdgeVM
  * Method:    execute

@@ -86,6 +86,18 @@ public class WasmEdgeVM {
                          int returnSize,
                          int[] returnTypes);
 
+    public void destroy() {
+        if(configureContext != null) {
+            configureContext.destroy();
+        }
+
+        if(storeContext != null) {
+            storeContext.destroy();
+        }
+        delete();
+        this.pointer = 0;
+    }
+
     public native void registerModuleFromFile(String modName, String fileName);
 
     public native void executeRegistered(String modName, String funcName);
@@ -93,5 +105,9 @@ public class WasmEdgeVM {
     public native void getFunctionList();
 
     public native void getFunctionType(String funcName);
+
+    private native void delete();
+
+
 
 }

@@ -1,6 +1,8 @@
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.wasmedge.ConfigureContext;
+import org.wasmedge.StoreContext;
 import org.wasmedge.VMContext;
 import org.wasmedge.WasmEdge;
 import org.wasmedge.WasmEdgeI32Value;
@@ -28,12 +30,13 @@ public class WasmEdgeVMTest {
         returns.add(new WasmEdgeI32Value());
         vm.runWasmFromFile("/root/fibonacci.wasm", "fibnacci", params, returns);
         Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        vm.destroy();
     }
 
     @Test
     public void testRunStepByStep(){
         System.out.println("Start testing");
-        WasmEdgeVM vm = new WasmEdgeVM(null, null);
+        WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
         System.out.println("Start testing");
         vm.loadWasmFromFile("/root/fibonacci.wasm");
         vm.validate();
@@ -46,6 +49,7 @@ public class WasmEdgeVMTest {
         vm.execute("fib", params, returns);
 
         Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        vm.destroy();
 
     }
 }

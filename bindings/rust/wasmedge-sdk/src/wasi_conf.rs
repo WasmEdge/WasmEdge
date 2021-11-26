@@ -5,7 +5,6 @@ pub struct WasiConf<'a> {
     pub vm: &'a Vm<'a>,
     pub args: Option<Vec<&'a str>>,
     pub envs: Option<Vec<&'a str>>,
-    pub dirs: Option<Vec<&'a str>>,
     pub preopens: Option<Vec<&'a str>>,
 }
 
@@ -15,7 +14,6 @@ impl<'a> WasiConf<'a> {
             vm,
             args: None,
             envs: None,
-            dirs: None,
             preopens: None,
         }
     }
@@ -34,13 +32,6 @@ impl<'a> WasiConf<'a> {
         }
     }
 
-    pub fn with_dirs(self, dirs: Vec<&'a str>) -> Self {
-        Self {
-            dirs: Some(dirs),
-            ..self
-        }
-    }
-
     pub fn with_preopens(self, preopens: Vec<&'a str>) -> Self {
         Self {
             preopens: Some(preopens),
@@ -53,7 +44,6 @@ impl<'a> WasiConf<'a> {
             vm.init_wasi_obj(
                 self.args.as_ref(),
                 self.envs.as_ref(),
-                self.dirs.as_ref(),
                 self.preopens.as_ref(),
             );
         }

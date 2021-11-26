@@ -6,8 +6,6 @@ pub struct ImportObjInitParams {
     pub(crate) args_len: u32,
     pub(crate) envs: Vec<*const c_char>,
     pub(crate) envs_len: u32,
-    pub(crate) dirs: Vec<*const c_char>,
-    pub(crate) dirs_len: u32,
     pub(crate) preopens: Vec<*const c_char>,
     pub(crate) preopens_len: u32,
 }

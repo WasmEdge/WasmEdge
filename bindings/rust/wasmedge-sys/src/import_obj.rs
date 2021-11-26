@@ -27,7 +27,6 @@ impl ImportObj {
     pub fn create_wasi(
         args: Vec<impl AsRef<str>>,
         envs: Vec<impl AsRef<str>>,
-        dirs: Vec<impl AsRef<str>>,
         preopens: Vec<impl AsRef<str>>,
     ) {
         let cstr_args: Vec<_> = args
@@ -38,11 +37,6 @@ impl ImportObj {
         let cstr_envs: Vec<_> = envs
             .iter()
             .map(|env| CString::new(env.as_ref()).unwrap())
-            .collect();
-
-        let cstr_dirs: Vec<_> = dirs
-            .iter()
-            .map(|dir| CString::new(dir.as_ref()).unwrap())
             .collect();
 
         let cstr_preopens: Vec<_> = preopens
@@ -56,8 +50,6 @@ impl ImportObj {
                 args.len() as u32,
                 cstr_envs.as_ptr() as *const *const c_char,
                 envs.len() as u32,
-                cstr_dirs.as_ptr() as *const *const c_char,
-                dirs.len() as u32,
                 cstr_preopens.as_ptr() as *const *const c_char,
                 preopens.len() as u32,
             );

@@ -58,7 +58,6 @@ impl Vm {
         &self,
         args: Option<&Vec<&str>>,
         envs: Option<&Vec<&str>>,
-        dirs: Option<&Vec<&str>>,
         preopens: Option<&Vec<&str>>,
     ) {
         let import_mod_ctx = unsafe {
@@ -92,17 +91,6 @@ impl Vm {
             import_obj.envs_len = envs.len() as u32;
         }
 
-        if let Some(dirs) = dirs {
-            import_obj.dirs = dirs
-                .iter()
-                .map(|dir| {
-                    let raw_dir: wasmedge::WasmEdge_String = StringRef::from(*dir).into();
-                    raw_dir.Buf
-                })
-                .collect::<Vec<*const c_char>>();
-            import_obj.dirs_len = dirs.len() as u32;
-        }
-
         if let Some(preopens) = preopens {
             import_obj.preopens = preopens
                 .iter()
@@ -121,8 +109,6 @@ impl Vm {
                 import_obj.args_len,
                 import_obj.envs.as_ptr(),
                 import_obj.envs_len,
-                import_obj.dirs.as_ptr(),
-                import_obj.dirs_len,
                 import_obj.preopens.as_ptr(),
                 import_obj.preopens_len,
             )

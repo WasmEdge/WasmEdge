@@ -26,10 +26,6 @@ std::vector<char> EnvsVec = {
     'E', 'N', 'V', '3', '=', 'V', 'A', 'L', '3', '\0'
     /// ENV3=VAL3
 };
-std::vector<char> DirsVec = {
-    '.', ':', '.', '\0'
-    /// .:.
-};
 std::vector<char> PreopensVec = {
     'a', 'p', 'i', 'T', 'e', 's', 't', 'D', 'a', 't', 'a', '\0',
     /// apiTestData
@@ -38,14 +34,15 @@ std::vector<char> PreopensVec = {
     'C', 'M', 'a', 'k', 'e', 'F', 'i', 'l', 'e', 's', '\0',
     /// CMakeFiles
     's', 's', 'v', 'm', 'A', 'P', 'I', 'C', 'o', 'r', 'e', 'T', 'e', 's', 't',
-    's', '\0'
+    's', '\0',
     /// wasmedgeAPICoreTests
+    '.', ':', '.', '\0'
+    /// .:.
 };
 char *Args[] = {&ArgsVec[0], &ArgsVec[5]};
 char *Envs[] = {&EnvsVec[0], &EnvsVec[10], &EnvsVec[20]};
-char *Dirs[] = {&DirsVec[0]};
 char *Preopens[] = {&PreopensVec[0], &PreopensVec[12], &PreopensVec[21],
-                    &PreopensVec[32]};
+                    &PreopensVec[32], &PreopensVec[49]};
 char TPath[] = "apiTestData/test.wasm";
 
 WasmEdge_Result ExternAdd(void *, WasmEdge_MemoryInstanceContext *,
@@ -1976,16 +1973,13 @@ TEST(APICoreTest, ImportObject) {
   WasmEdge_ImportObjectDelete(ImpObj);
 
   /// Create WASI.
-  ImpObj =
-      WasmEdge_ImportObjectCreateWASI(Args, 2, Envs, 3, Dirs, 1, Preopens, 4);
+  ImpObj = WasmEdge_ImportObjectCreateWASI(Args, 2, Envs, 3, Preopens, 5);
   EXPECT_NE(ImpObj, nullptr);
   WasmEdge_ImportObjectDelete(ImpObj);
-  ImpObj = WasmEdge_ImportObjectCreateWASI(nullptr, 0, nullptr, 0, nullptr, 0,
-                                           nullptr, 0);
+  ImpObj = WasmEdge_ImportObjectCreateWASI(nullptr, 0, nullptr, 0, nullptr, 0);
   EXPECT_NE(ImpObj, nullptr);
   WasmEdge_ImportObjectDelete(ImpObj);
-  ImpObj =
-      WasmEdge_ImportObjectCreateWASI(Args, 0, Envs, 3, Dirs, 1, Preopens, 4);
+  ImpObj = WasmEdge_ImportObjectCreateWASI(Args, 0, Envs, 3, Preopens, 5);
   EXPECT_NE(ImpObj, nullptr);
   WasmEdge_ImportObjectDelete(ImpObj);
 
@@ -1997,10 +1991,9 @@ TEST(APICoreTest, ImportObject) {
   ImpObj =
       WasmEdge_VMGetImportModuleContext(VM, WasmEdge_HostRegistration_Wasi);
   EXPECT_NE(ImpObj, nullptr);
-  WasmEdge_ImportObjectInitWASI(nullptr, Args, 2, Envs, 3, Dirs, 1, Preopens,
-                                4);
+  WasmEdge_ImportObjectInitWASI(nullptr, Args, 2, Envs, 3, Preopens, 5);
   EXPECT_TRUE(true);
-  WasmEdge_ImportObjectInitWASI(ImpObj, Args, 2, Envs, 3, Dirs, 1, Preopens, 4);
+  WasmEdge_ImportObjectInitWASI(ImpObj, Args, 2, Envs, 3, Preopens, 5);
   EXPECT_TRUE(true);
   WasmEdge_VMDelete(VM);
 

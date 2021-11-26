@@ -1,5 +1,13 @@
 # Kubernetes
 
+## Quick start
+
+The [GitHub repo](https://github.com/second-state/wasmedge-containers-examples/) contains scripts and Github Actions for running our example
+apps on Kubernetes + CRI-O.
+
+* Simple WebAssembly example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4328930134?check_suite_focus=true#step:6:3007)
+
+In the rest of this section, we will explain the steps in detail.
 We will assume that you have already [installed and configured CRI-O](../cri/crio.md)
 to work with WasmEdge container images.
 

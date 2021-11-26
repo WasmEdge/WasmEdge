@@ -4,7 +4,8 @@ Most high-level container runtimes implement Kubernetes' CRI (Container Runtime 
 Check out specific instructions for different flavors of Kubernetes setup 
 in this chapter.
 
-* [Kubernetes](kubernetes/kubernetes.md)
+* [Kubernetes + CRI-O](kubernetes/kubernetes-crio.md)
+* [Kubernetes + containerd](kubernetes/kubernetes-containerd.md)
 * [KubeEdge](kubernetes/kubeedge.md)
 * [SuperEdge](kubernetes/superedge.md)
 * [OpenYurt](kubernetes/openyurt.md)

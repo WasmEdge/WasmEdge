@@ -1,5 +1,15 @@
 # CRI-O
 
+## Quick start
+
+The [GitHub repo](https://github.com/second-state/wasmedge-containers-examples/) contains scripts and Github Actions for running our example
+apps on CRI-O.
+
+* Simple WebAssembly example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/crio.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4317457300?check_suite_focus=true#step:4:37)
+* HTTP service example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/crio-server.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4317457313?check_suite_focus=true#step:4:54)
+
+In the sections below, we will explain the steps in the quick start scripts.
+
 * [Install CRI-O](#install-cri-o)
 * [Configure CRI-O and crun](#configure-cri-o-to-use-crun)
 * [Example 1: Simple WebAssembly](#run-a-simple-webassembly-app)
@@ -30,6 +40,8 @@ systemctl start crio
 
 CRI-O uses the `runc` runtime by default and we need to configure it to use `crun` instead.
 That is done by adding to two configuration files.
+
+> Make sure that you have [built and installed the `crun` binary with WasmEdge support](../container/crun.md) before starting the following steps.
 
 First, create a `/etc/crio/crio.conf` file and add the following lines as its content. It tells CRI-O to use `crun` by default.
 

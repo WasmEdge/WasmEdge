@@ -1,13 +1,13 @@
 # WamEdge C SDK
 
-The [WasmEdge C API](../include/api/wasmedge/wasmedge.h) denotes an interface to embed the WasmEdge runtime into a C program. The followings are the quick start guides to working with the C APIs of WasmEdge. For the details of the WasmEdge C API, please refer to the [full documentation](c/ref.md).
+The WasmEdge C API denotes an interface to embed the WasmEdge runtime into a C program. The followings are the quick start guides to working with the C APIs of WasmEdge. For the details of the WasmEdge C API, please refer to the [full documentation](c/ref.md).
 
-The WasmEdge C API also the foundmental API for other languages‘ SDK.
+The WasmEdge C API also the foundmental API for other languages' SDK.
 
 ## Quick Start Guide for the WasmEdge runner
 
 The following is an example for running a WASM file.
-Assume that the WASM file [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge.c` is as following:
+Assume that the WASM file [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge.c` is as following:
 
 ```c
 #include <wasmedge/wasmedge.h>
@@ -50,11 +50,11 @@ $ ./test_wasmedge fibonacci.wasm
 Get result: 3524578
 ```
 
-For the details of APIs, please refer to the [API header file](../include/api/wasmedge/wasmedge.h).
+For the details of APIs, please refer to the [API header file](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h).
 
 ## Quick Start Guide for the WasmEdge AOT compiler
 
-Assume that the WASM file [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge_compiler.c` is as following:
+Assume that the WASM file [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge_compiler.c` is as following:
 
 ```c
 #include <wasmedge/wasmedge.h>
@@ -81,7 +81,7 @@ int main(int Argc, const char* Argv[]) {
 }
 ```
 
-Then you can compile and run (the output file is "fibonacci.wasm.so"):
+Then you can compile and run (the output file is `fibonacci.wasm.so`):
 
 ```bash
 $ gcc test_wasmedge_compiler.c -lwasmedge_c -o test_wasmedge_compiler
@@ -112,4 +112,4 @@ user	0m0.022s
 sys	0m0.011s
 ```
 
-For the details of APIs, please refer to the [API header file](../include/api/wasmedge/wasmedge.h).
+For the details of APIs, please refer to the [API header file](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h).

@@ -5,38 +5,38 @@
 
 ## Table of Contents
 
-* [WasmEdge Installation](#WasmEdge-Installation)
-  * [Download And Install](#Download-And-Install)
-  * [Compile Sources](#Compile-Sources)
-* [WasmEdge Basics](#WasmEdge-Basics)
-  * [Version](#Version)
-  * [Logging Settings](#Logging-Settings)
-  * [Value Types](#Value-Types)
-  * [Strings](#Strings)
-  * [Results](#Results)
-  * [Contexts](#Contexts)
-  * [WASM data structures](#Wasm-data-structures)
-  * [Configurations](#Configurations)
-  * [Statistics](#Statistics)
-* [WasmEdge VM](#WasmEdge-VM)
-  * [WASM Execution Example With VM Context](#WASM-Execution-Example-With-VM-Context)
-  * [VM Creations](#VM-Creations)
-  * [Preregistrations](#Preregistrations)
-  * [Host Module Registrations](#Host-Module-Registrations)
-  * [WASM Registrations And Executions](#WASM-Registrations-And-Executions)
-  * [Instance Tracing](#Instance-Tracing)
-* [WasmEdge Runtime](#WasmEdge-Runtime)
-  * [WASM Execution Example Step-By-Step](#WASM-Execution-Example-Step-By-Step)
-  * [Loader](#Loader)
-  * [Validator](#Validator)
-  * [Executor](#Executor)
-  * [AST Module](#AST-Module)
-  * [Store](#Store)
-  * [Instances](#Instances)
-  * [Host Functions](#Host-Functions)
-* [WasmEdge AOT Compiler](#WasmEdge-AOT-Compiler)
-  * [Compilation Example](#Compilation-Example)
-  * [Compiler Options](#Compiler-Options)
+* [WasmEdge Installation](#wasmedge-installation)
+  * [Download And Install](#download-and-install)
+  * [Compile Sources](#compile-sources)
+* [WasmEdge Basics](#wasmedge-basics)
+  * [Version](#version)
+  * [Logging Settings](#logging-settings)
+  * [Value Types](#value-types)
+  * [Strings](#strings)
+  * [Results](#results)
+  * [Contexts](#contexts)
+  * [WASM data structures](#wasm-data-structures)
+  * [Configurations](#configurations)
+  * [Statistics](#statistics)
+* [WasmEdge VM](#wasmedge-vm)
+  * [WASM Execution Example With VM Context](#wasm-execution-example-with-vm-context)
+  * [VM Creations](#vm-creations)
+  * [Preregistrations](#preregistrations)
+  * [Host Module Registrations](#host-module-registrations)
+  * [WASM Registrations And Executions](#wasm-registrations-and-executions)
+  * [Instance Tracing](#instance-tracing)
+* [WasmEdge Runtime](#wasmedge-runtime)
+  * [WASM Execution Example Step-By-Step](#wasm-execution-example-step-by-step)
+  * [Loader](#loader)
+  * [Validator](#validator)
+  * [Executor](#executor)
+  * [AST Module](#ast-module)
+  * [Store](#store)
+  * [Instances](#instances)
+  * [Host Functions](#host-functions)
+* [WasmEdge AOT Compiler](#wasmedge-aot-compiler)
+  * [Compilation Example](#compilation-example)
+  * [Compiler Options](#compiler-options)
 
 ## WasmEdge Installation
 
@@ -48,7 +48,7 @@ The easiest way to install WasmEdge is to run the following command. Your system
 wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0-rc.4
 ```
 
-For more details, please refer to the [Installation Guide](install.md) for the WasmEdge installation.
+For more details, please refer to the [Installation Guide](../../start/install.md) for the WasmEdge installation.
 
 ### Compile Sources
 

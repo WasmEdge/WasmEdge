@@ -37,7 +37,7 @@
     - [Kotlin](dev/kotlin.md)
     - [Grain](dev/grain.md)
 
-- [Embed WasmEdge functions](embed.md)
+- [Embeddable WasmEdge functions](embed.md)
     - [C SDK](embed/c.md)
        - [API references](embed/c/ref.md)
     - [Go SDK](embed/go.md)
@@ -65,8 +65,8 @@
         - [SuperEdge](kubernetes/kubernetes/superedge.md)
         - [OpenYurt](kubernetes/kubernetes/openyurt.md)
 
-- [WasmEdge in application frameworks](frameworks.md)
-    - [Service mesh and distributed runtimes](frameworks/mesh.md)
+- [App frameworks &amp; platforms](frameworks.md)
+    - [Service mesh &amp; runtimes](frameworks/mesh.md)
         - [Dapr](frameworks/mesh/dapr.md)
         - [MOSN](frameworks/mesh/mosn.md)
         - [Apache EventMesh](frameworks/mesh/eventmesh.md)

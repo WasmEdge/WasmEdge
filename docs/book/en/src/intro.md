@@ -2,4 +2,4 @@
 
 WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime for cloud native, edge, and decentralized applications. It powers serverless apps, embedded functions, microservices, smart contracts, and IoT devices.
 
-WasmEdge is CNCF Sandbox project now.
+WasmEdge is a CNCF Sandbox project now.

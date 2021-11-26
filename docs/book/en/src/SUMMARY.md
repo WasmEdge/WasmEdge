@@ -16,6 +16,7 @@
     - [Standard extensions](intro/standard.md)
     - [Proprietary extensions](intro/proprietary.md)
     - [Integrations](intro/integrations.md)
+    - [FAQ](intro/faq.md)
 
 - [Develop a WasmEdge app](dev.md)
     - [Rust](dev/rust.md)

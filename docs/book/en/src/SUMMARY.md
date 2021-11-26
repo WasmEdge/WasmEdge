@@ -80,9 +80,10 @@
         - [Tencent](frameworks/serverless/tencent.md)
         - [Second State](frameworks/serverless/secondstate.md)
 
-- [Extend WasmEdge](extend.md)
+- [Contributed to WasmEdge](extend.md)
+    - [Build WasmEdge from source](extend/build.md)
+        - [Build for Mac](extend/build_on_mac.md)
     - [WasmEdge plug-in API](extend/plugin.md)
-    - [Host function APIs](extend/hostfunction.md)
 
 - [Operating systems](os.md)
     - [Linux](os/linux.md)

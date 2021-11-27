@@ -5,12 +5,12 @@ The followings are the guides to working with the WasmEdge Go API. You can embed
 
 ## Table of Contents
 
-* [Getting Started](#Getting-Started)
-* [WasmEdge-go Extensions](#WasmEdge-go-Extensions)
-* [Go-API Examples](#Go-API-Examples)
-	* [Embed a function](#Embed-a-function)
-	* [Embed a full program](#Embed-a-full-program)
-	* [WasmEdge AOT Compiler in GO](#WasmEdge-AOT-Compiler-in-GO)
+* [Getting Started](#getting-started)
+* [WasmEdge-go Extensions](#wasmedge-go-extensions)
+* [Go-API Examples](#go-api-examples)
+	* [Embed a function](#embed-a-function)
+	* [Embed a full program](#embed-a-full-program)
+	* [WasmEdge AOT Compiler in GO](#wasmedge-aot-compiler-in-go)
 
 ## Getting Started
 
@@ -27,7 +27,7 @@ Developers must [install the WasmEdge shared library](https://github.com/WasmEdg
 wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0-rc.4
 ```
 
-For more details, please refer to the [Installation Guide](install.md) for the WasmEdge installation.
+For more details, please refer to the [Installation Guide](../start/install.md) for the WasmEdge installation.
 
 For the developers need the `TensorFlow` or `Image` extension for `WasmEdge-go`, please install the `WasmEdge` with extensions:
 

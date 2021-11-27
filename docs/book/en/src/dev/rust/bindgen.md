@@ -3,6 +3,16 @@
 
 The [rustwasmc](https://github.com/second-state/rustwasmc) tool is inspired by the wasm-pack project but is optimized for edge cloud and device applications. Specifically, it supports the [WasmEdge](https://github.com/WasmEdge/WasmEdge) WebAssembly runtime.
 
+One of the key features of `rustwasmc` over the standard `wasm32-wasi` compiler target is that `rustwasmc` processes compiled Rust functions using the rust-bindgen tool.
+By default, WebAssembly functions only support a few simple data types as
+input call arguments. Tools like `wasm-bindgen` turn WebAssembly function
+arguments into memory pointers, and allow host applications to
+pass complex arguments, such as strings and arrays, to WebAssembly functions.
+WasmEdge's [Node.js SDK](../../embed/node.md) and [Go SDK](../../embed/go.md) both support `wasm-bindgen`, allowing JavaScript and Go programs to call WebAssembly function with complex call arguments.
+
+> At this time, we require Rust compiler version 1.50 or less in order for WebAssembly functions to work with `wasm-bindgen` and `rustwasmc`. We will [catch up to the latest Rust compiler](https://github.com/WasmEdge/WasmEdge/issues/264) version once the Interface Types spec is finalized and supported.
+
+
 ## Prerequisites
 
 The `rustwasmc` depends on the Rust cargo toolchain to compile Rust source code to WebAssembly. You must have [Rust installed](https://www.rust-lang.org/tools/install) on your machine.
@@ -25,13 +35,13 @@ Alternatively, you can [install using the NPM](https://github.com/second-state/r
 
 ## Usage
 
-To build [Rust functions for Node.js](/articles/getting-started-with-rust-function) applications, use the following command. See a [template application](https://github.com/second-state/wasmedge-nodejs-starter).
+To build [Rust functions for Node.js](../../embed/node.md) applications, use the following command. See a [template application](https://github.com/second-state/wasmedge-nodejs-starter).
 
 ```src
 $ rustwasmc build
 ```
 
-Use the `--enable-ext` flag to compile Rust programs that use WASI extensions, such as WasmEdge's storage and [tensorflow](https://www.secondstate.io/articles/wasi-tensorflow/) APIs. The `rustwasmc` will run the compiled WebAssembly bytecode program in the `wasmedge-extensions` Node.js module instead of `wasmedge-core` in this case.
+Use the `--enable-ext` flag to compile Rust programs that use WASI extensions, such as WasmEdge's storage and [Tensorflow](tensorflow.md) APIs. The `rustwasmc` will generates the compiled WebAssembly bytecode program for the `wasmedge-extensions` Node.js module instead of the `wasmedge-core` module in this case.
 
 ```src
 $ rustwasmc build --enable-ext

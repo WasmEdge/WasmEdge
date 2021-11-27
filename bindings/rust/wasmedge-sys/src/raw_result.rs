@@ -1,39 +1,58 @@
-use super::wasmedge;
+use super::wasmedge::{
+    WasmEdge_Result, WasmEdge_ResultGetCode, WasmEdge_ResultGetMessage, WasmEdge_ResultOK,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ErrReport {
+pub struct WasmEdgeError {
+    /// 0x00: Success
+    /// 0x01: Terminated -> Success
+    /// 0x02: Failed
+    /// 0x03: NullError
+    /// 0x20: File not found
     pub code: u32,
-    pub message: &'static str,
+    pub message: String,
 }
-
-pub fn is_ok(res: wasmedge::WasmEdge_Result) -> bool {
-    unsafe { wasmedge::WasmEdge_ResultOK(res) }
-}
-
-pub fn get_code(res: wasmedge::WasmEdge_Result) -> u32 {
-    unsafe { wasmedge::WasmEdge_ResultGetCode(res) }
-}
-
-pub fn get_message<'a>(res: wasmedge::WasmEdge_Result) -> &'a str {
-    unsafe {
-        std::ffi::CStr::from_ptr(wasmedge::WasmEdge_ResultGetMessage(res))
-            .to_str()
-            .unwrap_or("Utf8 Error")
-    }
-}
-
-impl From<wasmedge::WasmEdge_Result> for ErrReport {
-    fn from(raw_result: wasmedge::WasmEdge_Result) -> Self {
-        ErrReport {
-            code: get_code(raw_result),
-            message: get_message(raw_result),
+impl From<std::ffi::NulError> for WasmEdgeError {
+    fn from(e: std::ffi::NulError) -> WasmEdgeError {
+        WasmEdgeError {
+            code: 3,
+            message: e.to_string(),
         }
     }
+}
+impl From<WasmEdge_Result> for WasmEdgeError {
+    fn from(result: WasmEdge_Result) -> Self {
+        let code = unsafe { WasmEdge_ResultGetCode(result) };
+        let message = unsafe {
+            let c_str = std::ffi::CStr::from_ptr(WasmEdge_ResultGetMessage(result));
+            c_str.to_string_lossy().into_owned()
+        };
+        WasmEdgeError { code, message }
+    }
+}
+
+pub type WasmEdgeResult<T> = Result<T, WasmEdgeError>;
+
+pub fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
+    unsafe {
+        if !WasmEdge_ResultOK(result) {
+            let code = WasmEdge_ResultGetCode(result);
+            let message = std::ffi::CStr::from_ptr(WasmEdge_ResultGetMessage(result))
+                .to_string_lossy()
+                .into_owned();
+            return Err(WasmEdgeError { code, message });
+        }
+    }
+    Ok(())
+}
+
+pub fn is_ok(res: WasmEdge_Result) -> bool {
+    unsafe { WasmEdge_ResultOK(res) }
 }
 
 // Since WasmEdge_ErrCode is subject to change on the wasmedge side
 // it does not correspond to enum here
-pub fn decode_result(raw_result: wasmedge::WasmEdge_Result) -> Result<(), ErrReport> {
+pub fn decode_result(raw_result: WasmEdge_Result) -> Result<(), WasmEdgeError> {
     if is_ok(raw_result) {
         Ok(())
     } else {

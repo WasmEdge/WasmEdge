@@ -1,7 +1,11 @@
 use std::{ffi::CString, os::raw::c_char};
 
 use super::wasmedge;
-use crate::{instance::Function, string::StringRef};
+use crate::{
+    instance::{Function, Global, Memory, Table},
+    string::StringRef,
+    types::WasmEdgeString,
+};
 
 #[derive(Debug)]
 pub struct ImportObj {
@@ -9,11 +13,14 @@ pub struct ImportObj {
 }
 
 impl ImportObj {
-    pub fn create(module_name: impl AsRef<str>) -> Self {
+    pub fn create(module_name: impl AsRef<str>) -> Option<Self> {
         let raw_module_name: wasmedge::WasmEdge_String =
             StringRef::from(module_name.as_ref()).into();
         let ctx = unsafe { wasmedge::WasmEdge_ImportObjectCreate(raw_module_name) };
-        ImportObj { ctx }
+        match ctx.is_null() {
+            true => None,
+            false => Some(ImportObj { ctx }),
+        }
     }
 
     pub fn add_func(&mut self, func_name: impl AsRef<str>, func: &mut Function) {
@@ -21,7 +28,34 @@ impl ImportObj {
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, raw_func_name, (*func).ctx);
         }
-        func.registed = true;
+        func.registered = true;
+    }
+
+    pub fn add_table(&mut self, name: &str, table: &mut Table) {
+        let name = WasmEdgeString::from_str(name)
+            .expect(format!("Failed to create WasmEdgeString from '{}'", name).as_str());
+        unsafe {
+            wasmedge::WasmEdge_ImportObjectAddTable(self.ctx, name.ctx, table.ctx);
+        }
+        table.registered = true
+    }
+
+    pub fn add_memory(&mut self, name: &str, memory: &mut Memory) {
+        let name = WasmEdgeString::from_str(name)
+            .expect(format!("Failed to create WasmEdgeString from '{}'", name).as_str());
+        unsafe {
+            wasmedge::WasmEdge_ImportObjectAddMemory(self.ctx, name.ctx, memory.ctx);
+        }
+        memory.registered = true;
+    }
+
+    pub fn add_global(&mut self, name: &str, global: &mut Global) {
+        let name = WasmEdgeString::from_str(name)
+            .expect(format!("Failed to create WasmEdgeString from '{}'", name).as_str());
+        unsafe {
+            wasmedge::WasmEdge_ImportObjectAddGlobal(self.ctx, name.ctx, global.ctx);
+        }
+        global.registered = true;
     }
 
     pub fn create_wasi(
@@ -60,5 +94,54 @@ impl ImportObj {
 impl Drop for ImportObj {
     fn drop(&mut self) {
         unsafe { wasmedge::WasmEdge_ImportObjectDelete(self.ctx) };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ImportObj;
+    use crate::{
+        instance::Function,
+        io::{I1, I2},
+        Value,
+    };
+
+    #[test]
+    fn test_imports_add_host_function() {
+        // let hostfunc_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
+        //     .join("bindings/rust/wasmedge-sys/examples/funcs.wasm");
+
+        let result = ImportObj::create("extern_module");
+        assert!(result.is_some());
+        let mut import_obj = result.unwrap();
+
+        let mut host_func = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
+        import_obj.add_func("add", &mut host_func);
+    }
+
+    fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
+        println!("Rust: Entering Rust function real_add");
+
+        if input.len() != 2 {
+            return Err(1);
+        }
+
+        let a = if let Value::I32(i) = input[0] {
+            i
+        } else {
+            return Err(2);
+        };
+
+        let b = if let Value::I32(i) = input[1] {
+            i
+        } else {
+            return Err(3);
+        };
+
+        let c = a + b;
+        println!("Rust: calcuating in real_add c: {:?}", c);
+
+        println!("Rust: Leaving Rust function real_add");
+        Ok(vec![Value::I32(c)])
     }
 }

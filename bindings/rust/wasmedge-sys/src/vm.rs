@@ -1,12 +1,16 @@
 use super::wasmedge;
 use crate::{
+    config::Config,
     import_obj::ImportObj,
-    raw_result::{decode_result, ErrReport},
+    raw_result::{check, WasmEdgeResult},
+    store::Store,
     string::StringRef,
+    utils,
     value::Value,
     wasi,
 };
 use std::os::raw::c_char;
+use std::path::Path;
 
 // If there is a third-party sdk based on wasmedge-sys
 // the private encapsulation  here can force the third-party sdk to use the api
@@ -17,39 +21,66 @@ pub struct Vm {
 }
 
 impl Vm {
-    pub fn create(config: &crate::config::Config) -> Self {
-        let ctx = unsafe {
-            wasmedge::WasmEdge_VMCreate(config.ctx, std::ptr::null_mut() /* store */)
+    pub fn create(config: Option<&Config>, store: Option<&Store>) -> Option<Self> {
+        let conf = match config {
+            Some(conf) => conf.ctx,
+            None => std::ptr::null(),
         };
-        assert!(!ctx.is_null(), "WasmEdge VM create failed");
-        Self {
-            ctx,
-            import_objects: vec![],
+        let store = match store {
+            Some(store) => store.ctx,
+            None => std::ptr::null_mut(),
+        };
+        let vm = unsafe { wasmedge::WasmEdge_VMCreate(conf, store) };
+        match vm.is_null() {
+            true => None,
+            false => Some(Self {
+                ctx: vm,
+                import_objects: vec![],
+            }),
         }
     }
 
-    pub fn load_wasm_from_ast_module(
-        self,
-        module: &crate::module::Module,
-    ) -> Result<Self, ErrReport> {
+    pub fn load_wasm_from_ast_module(self, module: &crate::module::Module) -> WasmEdgeResult<Self> {
         unsafe {
-            decode_result(wasmedge::WasmEdge_VMLoadWasmFromASTModule(
+            check(wasmedge::WasmEdge_VMLoadWasmFromASTModule(
                 self.ctx, module.ctx,
             ))?;
         }
         Ok(self)
     }
 
-    pub fn validate(self) -> Result<Self, ErrReport> {
+    pub fn load_wasm_from_buffer(self, buffer: &[u8]) -> WasmEdgeResult<Self> {
         unsafe {
-            decode_result(wasmedge::WasmEdge_VMValidate(self.ctx))?;
+            check(wasmedge::WasmEdge_VMLoadWasmFromBuffer(
+                self.ctx,
+                buffer.as_ptr() as *const _,
+                buffer.len() as u32,
+            ))?;
         }
         Ok(self)
     }
 
-    pub fn instantiate(self) -> Result<Self, ErrReport> {
+    pub fn load_wasm_from_file<P: AsRef<Path>>(self, path: P) -> WasmEdgeResult<Self> {
+        let path = utils::path_to_cstring(path.as_ref())?;
         unsafe {
-            decode_result(wasmedge::WasmEdge_VMInstantiate(self.ctx))?;
+            check(wasmedge::WasmEdge_VMLoadWasmFromFile(
+                self.ctx,
+                path.as_ptr(),
+            ))?;
+        }
+        Ok(self)
+    }
+
+    pub fn validate(self) -> WasmEdgeResult<Self> {
+        unsafe {
+            check(wasmedge::WasmEdge_VMValidate(self.ctx))?;
+        }
+        Ok(self)
+    }
+
+    pub fn instantiate(self) -> WasmEdgeResult<Self> {
+        unsafe {
+            check(wasmedge::WasmEdge_VMInstantiate(self.ctx))?;
         }
         Ok(self)
     }
@@ -115,9 +146,9 @@ impl Vm {
         }
     }
 
-    pub fn register_module_from_import(mut self, import_obj: ImportObj) -> Result<Self, ErrReport> {
+    pub fn register_module_from_import(mut self, import_obj: ImportObj) -> WasmEdgeResult<Self> {
         unsafe {
-            decode_result(wasmedge::WasmEdge_VMRegisterModuleFromImport(
+            check(wasmedge::WasmEdge_VMRegisterModuleFromImport(
                 self.ctx,
                 import_obj.ctx,
             ))?;
@@ -130,7 +161,7 @@ impl Vm {
         &mut self,
         func_name: impl AsRef<str>,
         params: &[Value],
-    ) -> Result<Vec<Value>, ErrReport> {
+    ) -> WasmEdgeResult<Vec<Value>> {
         // construct func
         let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(func_name.as_ref()).into();
 
@@ -154,7 +185,7 @@ impl Vm {
 
         // execute
         unsafe {
-            decode_result(wasmedge::WasmEdge_VMExecute(
+            check(wasmedge::WasmEdge_VMExecute(
                 self.ctx,
                 raw_func_name,
                 raw_params.as_ptr(),
@@ -170,7 +201,116 @@ impl Vm {
 
 impl Drop for Vm {
     fn drop(&mut self) {
-        unsafe { wasmedge::WasmEdge_VMDelete(self.ctx) };
-        self.import_objects.drain(..);
+        if !self.ctx.is_null() {
+            unsafe { wasmedge::WasmEdge_VMDelete(self.ctx) };
+        }
+        if self.import_objects.len() > 0 {
+            self.import_objects.drain(..);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Vm;
+    use crate::{Config, Module, Store};
+
+    #[test]
+    fn test_vm_create() {
+        // create Config instance
+        let conf = Config::default().enable_bulkmemoryoperations(true);
+        assert!(conf.has_bulkmemoryoperations());
+
+        // create Store instance
+        let result = Store::create();
+        assert!(result.is_some(), "Failed to create Store instance");
+        let store = result.unwrap();
+
+        // create Vm instance
+        let result = Vm::create(Some(&conf), Some(&store));
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_vm_load_wasm_from_file() {
+        // create Config instance
+        let conf = Config::default().enable_bulkmemoryoperations(true);
+        assert!(conf.has_bulkmemoryoperations());
+
+        // create Store instance
+        let result = Store::create();
+        assert!(result.is_some(), "Failed to create Store instance");
+        let store = result.unwrap();
+
+        // create Vm instance
+        let result = Vm::create(Some(&conf), Some(&store));
+        assert!(result.is_some());
+        let vm = result.unwrap();
+
+        // load wasm module from a specified file
+        let path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
+            .join("test/api/apiTestData/test.wasm");
+        let result = vm.load_wasm_from_file(path);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_vm_load_wasm_from_buffer() {
+        // create Config instance
+        let conf = Config::default().enable_bulkmemoryoperations(true);
+        assert!(conf.has_bulkmemoryoperations());
+
+        // create Store instance
+        let result = Store::create();
+        assert!(result.is_some(), "Failed to create Store instance");
+        let store = result.unwrap();
+
+        // create Vm instance
+        let result = Vm::create(Some(&conf), Some(&store));
+        assert!(result.is_some());
+        let vm = result.unwrap();
+
+        // load wasm module from buffer
+        let wasm_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
+            .join("test/api/apiTestData/test.wasm");
+        let result = std::fs::read(wasm_path);
+        assert!(result.is_ok());
+        let buf = result.unwrap();
+        let result = vm.load_wasm_from_buffer(&buf);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_vm_load_wasm_from_ast_module() {
+        // create ast module instance
+        let path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
+            .join("test/api/apiTestData/test.wasm");
+        let conf = Config::default().enable_bulkmemoryoperations(true);
+        assert!(conf.has_bulkmemoryoperations());
+
+        let result = Module::load_from_file(&conf, path);
+        assert!(result.is_ok());
+        let ast_module = result.unwrap();
+
+        // create Vm instance
+        let conf = Config::default().enable_bulkmemoryoperations(true);
+        assert!(conf.has_bulkmemoryoperations());
+
+        let result = Store::create();
+        assert!(result.is_some(), "Failed to create Store instance");
+        let store = result.unwrap();
+
+        let result = Vm::create(Some(&conf), Some(&store));
+        assert!(result.is_some());
+        let vm = result.unwrap();
+
+        // load wasm module from a ast module instance
+        let result = vm.load_wasm_from_ast_module(&ast_module);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // validate vm instance
+        let result = vm.validate();
+        assert!(result.is_ok());
     }
 }

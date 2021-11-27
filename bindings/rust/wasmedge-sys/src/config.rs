@@ -7,7 +7,9 @@ pub struct Config {
 
 impl Drop for Config {
     fn drop(&mut self) {
-        unsafe { wasmedge::WasmEdge_ConfigureDelete(self.ctx) };
+        if !self.ctx.is_null() {
+            unsafe { wasmedge::WasmEdge_ConfigureDelete(self.ctx) };
+        }
     }
 }
 
@@ -38,7 +40,7 @@ impl Default for Config {
 ///         }
 ///         self
 ///     }
-///     pub fn has_bulkmemoryoperations(self) -> bool {
+///     pub fn has_bulkmemoryoperations(&self) -> bool {
 ///         let prop = wasmedge::WasmEdge_Proposal_BulkMemoryOperations;
 ///         unsafe { wasmedge::WasmEdge_ConfigureHasProposal(self.ctx, prop) }
 ///     }
@@ -60,7 +62,7 @@ macro_rules! impl_proposal_config {
                         self
                     }
 
-                    pub fn [<has_$proposal:lower:snake>](self) -> bool {
+                    pub fn [<has_$proposal:lower:snake>](&self) -> bool {
                         let prop = wasmedge::[<WasmEdge_Proposal_$proposal>];
                         unsafe { wasmedge::WasmEdge_ConfigureHasProposal(self.ctx, prop) }
                     }

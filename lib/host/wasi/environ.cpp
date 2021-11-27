@@ -56,23 +56,23 @@ void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
     PreopenedDirs.reserve(Dirs.size());
     for (const auto &Dir : Dirs) {
       const auto Pos = Dir.find(':');
-      if (Pos != std::string::npos) {
-        const auto HostDir = Dir.substr(Pos + 1);
-        auto GuestDir =
-            VINode::canonicalGuest(std::string_view(Dir).substr(0, Pos));
-        if (GuestDir.size() == 0) {
-          GuestDir = '/';
-        }
-        if (auto Res =
-                VINode::bind(FS, kReadRights | kWriteRights | kCreateRights,
-                             kReadRights | kWriteRights | kCreateRights,
-                             std::move(GuestDir), std::move(HostDir));
-            unlikely(!Res)) {
-          spdlog::error("Bind guest directory failed:{}", Res.error());
-          continue;
-        } else {
-          PreopenedDirs.emplace_back(std::move(*Res));
-        }
+      std::string HostDir =
+          (Pos == std::string::npos) ? Dir : Dir.substr(Pos + 1);
+      std::string GuestDir = VINode::canonicalGuest(
+          (Pos == std::string::npos) ? std::string_view(Dir)
+                                     : std::string_view(Dir).substr(0, Pos));
+      if (GuestDir.size() == 0) {
+        GuestDir = '/';
+      }
+      if (auto Res =
+              VINode::bind(FS, kReadRights | kWriteRights | kCreateRights,
+                           kReadRights | kWriteRights | kCreateRights,
+                           std::move(GuestDir), std::move(HostDir));
+          unlikely(!Res)) {
+        spdlog::error("Bind guest directory failed:{}", Res.error());
+        continue;
+      } else {
+        PreopenedDirs.emplace_back(std::move(*Res));
       }
     }
 

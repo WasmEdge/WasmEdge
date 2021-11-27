@@ -58,8 +58,8 @@ extern "C" fn wraper_fn(
 #[derive(Debug)]
 pub struct Function {
     pub(crate) ctx: *mut wasmedge::WasmEdge_FunctionInstanceContext,
-    pub(crate) registed: bool,
-    ty: Option<Type>,
+    pub(crate) registered: bool,
+    pub(crate) ty: Option<FuncType>,
 }
 
 impl Function {
@@ -94,7 +94,7 @@ impl Function {
         });
 
         let key_ptr = key as *const usize as *mut c_void;
-        let ty = Type::create(I::parameters(), O::parameters());
+        let ty = FuncType::create(I::parameters(), O::parameters());
 
         let ctx = unsafe {
             wasmedge::WasmEdge_FunctionInstanceCreateBinding(
@@ -108,7 +108,7 @@ impl Function {
         Self {
             ctx,
             ty: Some(ty),
-            registed: false,
+            registered: false,
         }
     }
 }
@@ -116,18 +116,18 @@ impl Function {
 impl Drop for Function {
     fn drop(&mut self) {
         self.ty = None;
-        if !self.registed {
+        if !self.registered && !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_FunctionInstanceDelete(self.ctx) };
         }
     }
 }
 
 #[derive(Debug)]
-pub struct Type {
+pub struct FuncType {
     pub(crate) ctx: *mut wasmedge::WasmEdge_FunctionTypeContext,
 }
 
-impl Type {
+impl FuncType {
     pub(crate) fn create(input: Vec<Value>, output: Vec<Value>) -> Self {
         let raw_input = {
             let mut head = vec![wasmedge::WasmEdge_ValType_ExternRef];
@@ -155,7 +155,7 @@ impl Type {
     }
 }
 
-impl Drop for Type {
+impl Drop for FuncType {
     fn drop(&mut self) {
         unsafe { wasmedge::WasmEdge_FunctionTypeDelete(self.ctx) };
     }

@@ -43,10 +43,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut host_func = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
     import_obj.add_func("add", &mut host_func);
 
-    let path_cstr = CString::new(hostfunc_path.as_os_str().as_bytes().to_vec())?;
-    let module = Module::load_from_file(&config, path_cstr).expect("funcs.wasm should be correct");
+    let module =
+        Module::load_from_file(&config, hostfunc_path).expect("funcs.wasm should be correct");
 
-    let mut vm = Vm::create(&config)
+    let mut vm = Vm::create(Some(&config), None)
+        .expect("fail to create vm")
         .register_module_from_import(import_obj)
         .expect("import_obj should be regiestered")
         .load_wasm_from_ast_module(&module)

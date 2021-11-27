@@ -64,6 +64,9 @@ Breaking changes:
     * Renamed `WasmEdge_ConfigureCompilerGetInstructionCounting` to `WasmEdge_ConfigureStatisticsGetInstructionCounting`.
     * Renamed `WasmEdge_ConfigureCompilerGetCostMeasuring` to `WasmEdge_ConfigureStatisticsGetCostMeasuring`.
     * Renamed `WasmEdge_ConfigureCompilerGetTimeMeasuring` to `WasmEdge_ConfigureStatisticsGetTimeMeasuring`.
+  * Simplified the WASI creation and initialization APIs.
+    * Removed the `Dirs` and `DirLen` parameters in the `WasmEdge_ImportObjectCreateWASI`.
+    * Removed the `Dirs` and `DirLen` parameters in the `WasmEdge_ImportObjectInitWASI`.
 
 Features:
 
@@ -104,6 +107,7 @@ Features:
   * `WasmEdge_ConfigureCompilerIsGenericBinary` function can get the option of AOT compiler generic binary output.
 * Provided install and uninstall script for installing/uninstalling  WasmEdge on linux(amd64 and aarch64) and macos(amd64 and arm64).
 * Supported compiling WebAssembly into a new WebAssembly file with a packed binary section.
+* Supported the automatically pre-open mapping with the path name in WASI.
 
 Fixed issues:
 

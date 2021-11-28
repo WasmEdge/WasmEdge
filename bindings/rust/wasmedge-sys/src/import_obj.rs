@@ -1,12 +1,10 @@
-use std::{ffi::CString, os::raw::c_char};
-
 use super::wasmedge;
 use crate::{
     instance::{Function, Global, Memory, Table},
     string::StringRef,
     types::WasmEdgeString,
 };
-
+use std::{ffi::CString, os::raw::c_char};
 #[derive(Debug)]
 pub struct ImportObj {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ImportObjectContext,
@@ -29,6 +27,7 @@ impl ImportObj {
             wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, raw_func_name, (*func).ctx);
         }
         func.registered = true;
+        func.ctx = std::ptr::null_mut();
     }
 
     pub fn add_table(&mut self, name: &str, table: &mut Table) {
@@ -37,7 +36,8 @@ impl ImportObj {
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddTable(self.ctx, name.ctx, table.ctx);
         }
-        table.registered = true
+        table.registered = true;
+        table.ctx = std::ptr::null_mut();
     }
 
     pub fn add_memory(&mut self, name: &str, memory: &mut Memory) {
@@ -47,6 +47,7 @@ impl ImportObj {
             wasmedge::WasmEdge_ImportObjectAddMemory(self.ctx, name.ctx, memory.ctx);
         }
         memory.registered = true;
+        memory.ctx = std::ptr::null_mut();
     }
 
     pub fn add_global(&mut self, name: &str, global: &mut Global) {
@@ -56,6 +57,7 @@ impl ImportObj {
             wasmedge::WasmEdge_ImportObjectAddGlobal(self.ctx, name.ctx, global.ctx);
         }
         global.registered = true;
+        global.ctx = std::ptr::null_mut();
     }
 
     pub fn create_wasi(
@@ -116,15 +118,13 @@ mod tests {
 
     #[test]
     fn test_imports_add_host_function() {
-        // let hostfunc_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
-        //     .join("bindings/rust/wasmedge-sys/examples/funcs.wasm");
-
         let result = ImportObj::create("extern_module");
         assert!(result.is_some());
         let mut import_obj = result.unwrap();
 
         let mut host_func = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
         import_obj.add_func("add", &mut host_func);
+        assert!(host_func.ctx.is_null() && host_func.registered);
     }
 
     fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {

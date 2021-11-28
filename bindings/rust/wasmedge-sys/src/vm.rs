@@ -1,13 +1,8 @@
 use super::wasmedge;
 use crate::{
-    config::Config,
-    import_obj::ImportObj,
     raw_result::{check, WasmEdgeResult},
-    store::Store,
     string::StringRef,
-    utils,
-    value::Value,
-    wasi,
+    utils, wasi, Config, ImportObj, Module, Store, Value,
 };
 use std::os::raw::c_char;
 use std::path::Path;
@@ -40,11 +35,12 @@ impl Vm {
         }
     }
 
-    pub fn load_wasm_from_ast_module(self, module: &crate::module::Module) -> WasmEdgeResult<Self> {
+    pub fn load_wasm_from_ast_module(self, module: &mut Module) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_VMLoadWasmFromASTModule(
                 self.ctx, module.ctx,
             ))?;
+            module.registered = true;
         }
         Ok(self)
     }
@@ -304,7 +300,7 @@ mod tests {
 
         let result = Module::load_from_file(&conf, path);
         assert!(result.is_ok());
-        let ast_module = result.unwrap();
+        let mut ast_module = result.unwrap();
 
         // create Vm instance
         let conf = Config::default().enable_bulkmemoryoperations(true);
@@ -319,7 +315,7 @@ mod tests {
         let vm = result.unwrap();
 
         // load wasm module from a ast module instance
-        let result = vm.load_wasm_from_ast_module(&ast_module);
+        let result = vm.load_wasm_from_ast_module(&mut ast_module);
         assert!(result.is_ok());
         let vm = result.unwrap();
 

@@ -2,7 +2,7 @@ use super::wasmedge;
 use crate::{
     raw_result::{check, WasmEdgeResult},
     string::StringRef,
-    utils, wasi, Config, ImportObj, Module, Store, Value,
+    utils, wasi, Config, ImportObj, Module, Statistics, Store, Value,
 };
 use std::os::raw::c_char;
 use std::path::Path;
@@ -206,6 +206,14 @@ impl Vm {
             returns.set_len(returns_len as usize);
         }
         Ok(returns.into_iter().map(Into::into).collect())
+    }
+
+    pub fn statistics(&self) -> Statistics {
+        let ctx = unsafe { wasmedge::WasmEdge_VMGetStatisticsContext(self.ctx) };
+        Statistics {
+            ctx,
+            registered: true,
+        }
     }
 }
 

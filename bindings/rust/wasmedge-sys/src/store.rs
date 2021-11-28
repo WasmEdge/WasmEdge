@@ -7,13 +7,17 @@ use crate::{
 #[derive(Debug)]
 pub struct Store {
     pub(crate) ctx: *mut wasmedge::WasmEdge_StoreContext,
+    pub(crate) registered: bool,
 }
 impl Store {
     pub fn create() -> Option<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_StoreCreate() };
         match ctx.is_null() {
             true => None,
-            false => Some(Store { ctx }),
+            false => Some(Store {
+                ctx,
+                registered: false,
+            }),
         }
     }
 
@@ -401,22 +405,13 @@ mod tests {
     };
 
     #[test]
-    fn test_store_create() {
-        let result = Store::create();
-        assert!(result.is_some());
-        let store = result.unwrap();
-
-        // check the length of registered module list in store before instatiation
-        assert_eq!(store.list_module_len(), 0);
-    }
-
-    #[test]
-    fn test_store_list_module() {
+    fn test_store_basic() {
         let module_name = "extern_module";
 
         let result = Store::create();
         assert!(result.is_some());
         let mut store = result.unwrap();
+        assert!(!store.ctx.is_null() && !store.registered);
 
         // check the length of registered module list in store before instatiation
         assert_eq!(store.list_func_len(), 0);
@@ -438,6 +433,7 @@ mod tests {
         // add host function
         let mut host_func = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
         import_obj.add_func("add", &mut host_func);
+        assert!(host_func.ctx.is_null() && host_func.registered);
 
         // add table
         let ref_ty = WasmEdgeRefType::FuncRef;
@@ -446,6 +442,7 @@ mod tests {
         assert!(result.is_some());
         let mut table = result.unwrap();
         import_obj.add_table("table", &mut table);
+        assert!(table.ctx.is_null() && table.registered);
 
         // add memory
         let limit = Limit::create(0, None);
@@ -453,6 +450,7 @@ mod tests {
         assert!(result.is_some());
         let mut memory = result.unwrap();
         import_obj.add_memory("mem", &mut memory);
+        assert!(memory.ctx.is_null() && memory.registered);
 
         // add globals
         let result = GlobalType::create(ValType::F32, Mutability::Const);
@@ -462,6 +460,7 @@ mod tests {
         assert!(result.is_some());
         let mut global = result.unwrap();
         import_obj.add_global("global", &mut global);
+        assert!(global.ctx.is_null() && global.registered);
 
         let config = Config::default();
         let result = Executor::create(Some(&config), None);
@@ -509,6 +508,12 @@ mod tests {
         assert!(result.is_none());
         let result = store.find_global_registered("extern_module", "global");
         assert!(result.is_some());
+        let mut global = result.unwrap();
+        assert!(!global.ctx.is_null() && global.registered);
+        let val = global.get_value();
+        let val = val.as_f32();
+        assert!(val.is_some());
+        assert_eq!(val.unwrap(), 3.14);
     }
 
     fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {

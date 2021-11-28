@@ -23,6 +23,17 @@ impl Global {
             }),
         }
     }
+
+    pub fn get_value(&self) -> Value {
+        let val = unsafe { wasmedge::WasmEdge_GlobalInstanceGetValue(self.ctx) };
+        Value::from(val)
+    }
+
+    pub fn set_value(&mut self, val: Value) {
+        unsafe {
+            wasmedge::WasmEdge_GlobalInstanceSetValue(self.ctx, wasmedge::WasmEdge_Value::from(val))
+        }
+    }
 }
 impl Drop for Global {
     fn drop(&mut self) {

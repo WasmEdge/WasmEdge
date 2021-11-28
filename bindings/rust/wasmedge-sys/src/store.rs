@@ -509,8 +509,6 @@ mod tests {
         assert!(result.is_none());
         let result = store.find_global_registered("extern_module", "global");
         assert!(result.is_some());
-
-        println!("*** test done");
     }
 
     fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {

@@ -1,28 +1,24 @@
 use super::wasmedge;
 use crate::{
     raw_result::{check, WasmEdgeResult},
-    utils,
+    utils, Config,
 };
 use std::path::Path;
 
 #[derive(Debug)]
 pub struct Module {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ASTModuleContext,
+    pub(crate) registered: bool,
 }
-
 impl Drop for Module {
     fn drop(&mut self) {
-        if !self.ctx.is_null() {
+        if !self.registered && !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_ASTModuleDelete(self.ctx) };
         }
     }
 }
-
 impl Module {
-    pub fn load_from_file<P: AsRef<Path>>(
-        config: &crate::config::Config,
-        path: P,
-    ) -> WasmEdgeResult<Self> {
+    pub fn load_from_file<P: AsRef<Path>>(config: &Config, path: P) -> WasmEdgeResult<Self> {
         let loader_ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config.ctx) };
         let mut ctx: *mut wasmedge::WasmEdge_ASTModuleContext = std::ptr::null_mut();
 
@@ -36,27 +32,29 @@ impl Module {
             ))?;
         }
 
-        assert!(!ctx.is_null(), "WasmEdge failed to load from file!");
-
-        Ok(Self { ctx })
+        Ok(Self {
+            ctx,
+            registered: false,
+        })
     }
 
-    pub fn load_from_buffer(config: &crate::config::Config, buffer: &[u8]) -> WasmEdgeResult<Self> {
-        let loader_ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config.ctx) };
+    pub fn load_from_buffer(config: &Config, buffer: &[u8]) -> WasmEdgeResult<Self> {
+        let loader = unsafe { wasmedge::WasmEdge_LoaderCreate(config.ctx) };
         let mut ctx: *mut wasmedge::WasmEdge_ASTModuleContext = std::ptr::null_mut();
 
         unsafe {
             check(wasmedge::WasmEdge_LoaderParseFromBuffer(
-                loader_ctx,
+                loader,
                 &mut ctx as *mut _,
                 buffer.as_ptr(),
                 buffer.len() as u32,
             ))?;
         }
 
-        assert!(!ctx.is_null(), "WasmEdge failed to load from buffer!");
-
-        Ok(Self { ctx })
+        Ok(Self {
+            ctx,
+            registered: false,
+        })
     }
 }
 
@@ -78,6 +76,8 @@ mod tests {
 
         let result = Module::load_from_buffer(&conf, &buf);
         assert!(result.is_ok());
+        let module = result.unwrap();
+        assert!(!module.ctx.is_null());
     }
 
     #[test]
@@ -90,5 +90,7 @@ mod tests {
 
         let result = Module::load_from_file(&conf, path);
         assert!(result.is_ok());
+        let module = result.unwrap();
+        assert!(!module.ctx.is_null());
     }
 }

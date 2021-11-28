@@ -45,6 +45,11 @@ impl MemType {
             }),
         }
     }
+
+    pub fn limit(&self) -> Limit {
+        let limit = unsafe { wasmedge::WasmEdge_MemoryTypeGetLimit(self.ctx) };
+        Limit::from(limit)
+    }
 }
 impl Drop for MemType {
     fn drop(&mut self) {

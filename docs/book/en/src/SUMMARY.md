@@ -85,6 +85,8 @@
     - [Build WasmEdge from source](extend/build.md)
         - [Build for Mac](extend/build_on_mac.md)
     - [WasmEdge plug-in API](extend/plugin.md)
+        - [Host functions](extend/plugin/hostfunction.md)
+        - [External references](extend/plugin/externref.md)
 
 - [Operating systems](os.md)
     - [Linux](os/linux.md)

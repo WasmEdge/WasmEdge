@@ -136,6 +136,8 @@ impl Vm {
                 import_obj.args_len,
                 import_obj.envs.as_ptr(),
                 import_obj.envs_len,
+                std::ptr::null_mut(),
+                0,
                 import_obj.preopens.as_ptr(),
                 import_obj.preopens_len,
             )

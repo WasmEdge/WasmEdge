@@ -319,6 +319,17 @@ WasiExpect<void> VINode::pathUnlinkFile(VFS &FS, std::shared_ptr<VINode> Fd,
   return Fd->Node.pathUnlinkFile(std::string(Path));
 }
 
+WasiExpect<void> VINode::getAddrinfo(const char *NodeStr,
+                                     const char *ServiceStr,
+                                     const addrinfo *Hint,
+                                     /*Out*/ addrinfo **ResPtr) noexcept {
+  if (auto Res = INode::getAddrinfo(NodeStr, ServiceStr, Hint, ResPtr);
+      unlikely(!Res)) {
+    return WasiUnexpect(Res);
+  }
+  return {};
+}
+
 WasiExpect<std::shared_ptr<VINode>>
 VINode::sockOpen(VFS &FS, __wasi_address_family_t SysDomain,
                  __wasi_sock_type_t SockType) {

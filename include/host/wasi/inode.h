@@ -5,6 +5,7 @@
 #include "common/span.h"
 #include "host/wasi/error.h"
 #include <functional>
+#include <netdb.h>
 #include <optional>
 #include <string_view>
 #include <vector>
@@ -472,6 +473,10 @@ public:
   /// @return Poll helper or WASI error
   static WasiExpect<Poller> pollOneoff(__wasi_size_t NSubscriptions) noexcept;
 
+  static WasiExpect<void> getAddrinfo(const char *NodeStr,
+                                      const char *ServiceStr,
+                                      const addrinfo *Hint,
+                                      /*Out*/ addrinfo **ResPtr) noexcept;
   static WasiExpect<INode> sockOpen(__wasi_address_family_t SysDomain,
                                     __wasi_sock_type_t SockType) noexcept;
 

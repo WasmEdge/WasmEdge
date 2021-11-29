@@ -752,6 +752,36 @@ WasiExpect<Poller> INode::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }
 }
+WasiExpect<void> INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
+                                    const addrinfo *Hint,
+                                    /*Out*/ addrinfo **ResPtr) noexcept {
+  int POSIXReturn = ::getaddrinfo(NodeStr, ServiceStr, Hint, ResPtr);
+  switch (POSIXReturn) {
+  case EAI_ADDRFAMILY:
+    return WasiUnexpect(__WASI_ERRNO_AIADDRFAMILY);
+  case EAI_AGAIN:
+    return WasiUnexpect(__WASI_ERRNO_AIAGAIN);
+  case EAI_BADFLAGS:
+    return WasiUnexpect(__WASI_ERRNO_AIBADFLAG);
+  case EAI_FAIL:
+    return WasiUnexpect(__WASI_ERRNO_AIFAIL);
+  case EAI_FAMILY:
+    return WasiUnexpect(__WASI_ERRNO_AIFAMILY);
+  case EAI_MEMORY:
+    return WasiUnexpect(__WASI_ERRNO_AIMEMORY);
+  case EAI_NODATA:
+    return WasiUnexpect(__WASI_ERRNO_AINODATA);
+  case EAI_NONAME:
+    return WasiUnexpect(__WASI_ERRNO_AINONAME);
+  case EAI_SERVICE:
+    return WasiUnexpect(__WASI_ERRNO_AISERVICE);
+  case EAI_SOCKTYPE:
+    return WasiUnexpect(__WASI_ERRNO_AISOCKTYPE);
+  case EAI_SYSTEM:
+    return WasiUnexpect(__WASI_ERRNO_AISYSTEM);
+  }
+  return {};
+}
 
 WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
                                   __wasi_sock_type_t SockType) noexcept {

@@ -33,15 +33,6 @@ private:
   std::jmp_buf Buffer;
 };
 
-class FaultBlocker {
-public:
-  FaultBlocker() noexcept;
-  ~FaultBlocker() noexcept;
-
-private:
-  Fault *Prev = nullptr;
-};
-
 } // namespace WasmEdge
 
 #define PREPARE_FAULT(f) (static_cast<ErrCode>(setjmp((f).buffer())))

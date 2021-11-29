@@ -3,17 +3,16 @@ use crate::{
     instance::{Function, Global, Memory, Table},
     string::StringRef,
     types::WasmEdgeString,
+    utils::string_to_c_char,
 };
-use std::{ffi::CString, os::raw::c_char};
 #[derive(Debug)]
 pub struct ImportObj {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ImportObjectContext,
 }
 
 impl ImportObj {
-    pub fn create(module_name: impl AsRef<str>) -> Option<Self> {
-        let raw_module_name: wasmedge::WasmEdge_String =
-            StringRef::from(module_name.as_ref()).into();
+    pub fn create(name: impl AsRef<str>) -> Option<Self> {
+        let raw_module_name: wasmedge::WasmEdge_String = StringRef::from(name.as_ref()).into();
         let ctx = unsafe { wasmedge::WasmEdge_ImportObjectCreate(raw_module_name) };
         match ctx.is_null() {
             true => None,
@@ -21,8 +20,8 @@ impl ImportObj {
         }
     }
 
-    pub fn add_func(&mut self, func_name: impl AsRef<str>, func: &mut Function) {
-        let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(func_name.as_ref()).into();
+    pub fn add_func(&mut self, name: impl AsRef<str>, func: &mut Function) {
+        let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(name.as_ref()).into();
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, raw_func_name, (*func).ctx);
         }
@@ -30,9 +29,8 @@ impl ImportObj {
         func.ctx = std::ptr::null_mut();
     }
 
-    pub fn add_table(&mut self, name: &str, table: &mut Table) {
-        let name = WasmEdgeString::from_str(name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", name).as_str());
+    pub fn add_table(&mut self, name: impl AsRef<str>, table: &mut Table) {
+        let name = WasmEdgeString::from(name.as_ref());
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddTable(self.ctx, name.ctx, table.ctx);
         }
@@ -40,9 +38,8 @@ impl ImportObj {
         table.ctx = std::ptr::null_mut();
     }
 
-    pub fn add_memory(&mut self, name: &str, memory: &mut Memory) {
-        let name = WasmEdgeString::from_str(name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", name).as_str());
+    pub fn add_memory(&mut self, name: impl AsRef<str>, memory: &mut Memory) {
+        let name = WasmEdgeString::from(name.as_ref());
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddMemory(self.ctx, name.ctx, memory.ctx);
         }
@@ -50,9 +47,8 @@ impl ImportObj {
         memory.ctx = std::ptr::null_mut();
     }
 
-    pub fn add_global(&mut self, name: &str, global: &mut Global) {
-        let name = WasmEdgeString::from_str(name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", name).as_str());
+    pub fn add_global(&mut self, name: impl AsRef<str>, global: &mut Global) {
+        let name = WasmEdgeString::from(name.as_ref());
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddGlobal(self.ctx, name.ctx, global.ctx);
         }
@@ -60,44 +56,66 @@ impl ImportObj {
         global.ctx = std::ptr::null_mut();
     }
 
-    pub fn create_wasi(
-        args: Vec<impl AsRef<str>>,
-        envs: Vec<impl AsRef<str>>,
-        dirs: Vec<impl AsRef<str>>,
-        preopens: Vec<impl AsRef<str>>,
+    pub fn init_wasi<T: Iterator<Item = E>, E: AsRef<str>>(
+        &self,
+        args: Option<T>,
+        envs: Option<T>,
+        dirs: Option<T>,
+        preopens: Option<T>,
     ) {
-        let cstr_args: Vec<_> = args
-            .iter()
-            .map(|arg| CString::new(arg.as_ref()).unwrap())
-            .collect();
-
-        let cstr_envs: Vec<_> = envs
-            .iter()
-            .map(|env| CString::new(env.as_ref()).unwrap())
-            .collect();
-
-        let cstr_dirs: Vec<_> = dirs
-            .iter()
-            .map(|dir| CString::new(dir.as_ref()).unwrap())
-            .collect();
-
-        let cstr_preopens: Vec<_> = preopens
-            .iter()
-            .map(|preopen| CString::new(preopen.as_ref()).unwrap())
-            .collect();
-
+        let (args_len, args) = match args {
+            Some(args) => {
+                let args = args
+                    .into_iter()
+                    .map(|arg| string_to_c_char(arg))
+                    .collect::<Vec<_>>();
+                (args.len() as u32, args.as_ptr())
+            }
+            None => (0, std::ptr::null()),
+        };
+        let (envs_len, envs) = match envs {
+            Some(envs) => {
+                let envs = envs
+                    .into_iter()
+                    .map(|env| string_to_c_char(env))
+                    .collect::<Vec<_>>();
+                (envs.len() as u32, envs.as_ptr())
+            }
+            None => (0, std::ptr::null()),
+        };
+        let (dirs_len, dirs) = match dirs {
+            Some(dirs) => {
+                let dirs = dirs
+                    .into_iter()
+                    .map(|dir| string_to_c_char(dir))
+                    .collect::<Vec<_>>();
+                (dirs.len() as u32, dirs.as_ptr())
+            }
+            None => (0, std::ptr::null()),
+        };
+        let (preopens_len, preopens) = match preopens {
+            Some(preopens) => {
+                let preopens = preopens
+                    .into_iter()
+                    .map(|preopen| string_to_c_char(preopen))
+                    .collect::<Vec<_>>();
+                (preopens.len() as u32, preopens.as_ptr())
+            }
+            None => (0, std::ptr::null()),
+        };
         unsafe {
-            wasmedge::WasmEdge_ImportObjectCreateWASI(
-                cstr_args.as_ptr() as *const *const c_char,
-                args.len() as u32,
-                cstr_envs.as_ptr() as *const *const c_char,
-                envs.len() as u32,
-                cstr_dirs.as_ptr() as *const *const c_char,
-                dirs.len() as u32,
-                cstr_preopens.as_ptr() as *const *const c_char,
-                preopens.len() as u32,
-            );
-        }
+            wasmedge::WasmEdge_ImportObjectInitWASI(
+                self.ctx,
+                args,
+                args_len,
+                envs,
+                envs_len,
+                dirs,
+                dirs_len,
+                preopens,
+                preopens_len,
+            )
+        };
     }
 }
 

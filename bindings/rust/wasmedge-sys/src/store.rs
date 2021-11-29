@@ -508,7 +508,7 @@ mod tests {
         assert!(result.is_none());
         let result = store.find_global_registered("extern_module", "global");
         assert!(result.is_some());
-        let mut global = result.unwrap();
+        let global = result.unwrap();
         assert!(!global.ctx.is_null() && global.registered);
         let val = global.get_value();
         let val = val.as_f32();

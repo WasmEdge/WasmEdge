@@ -21,9 +21,8 @@ impl Store {
         }
     }
 
-    pub fn find_func(&self, func_name: &str) -> Option<Function> {
-        let func_name = WasmEdgeString::from_str(func_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", func_name).as_str());
+    pub fn find_func(&self, name: impl AsRef<str>) -> Option<Function> {
+        let func_name = WasmEdgeString::from(name.as_ref());
         let ctx = unsafe { wasmedge::WasmEdge_StoreFindFunction(self.ctx, func_name.ctx) };
         match ctx.is_null() {
             true => None,
@@ -35,11 +34,13 @@ impl Store {
         }
     }
 
-    pub fn find_func_registered(&self, mod_name: &str, func_name: &str) -> Option<Function> {
-        let mod_name = WasmEdgeString::from_str(mod_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", mod_name).as_str());
-        let func_name = WasmEdgeString::from_str(func_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", func_name).as_str());
+    pub fn find_func_registered(
+        &self,
+        mod_name: impl AsRef<str>,
+        func_name: impl AsRef<str>,
+    ) -> Option<Function> {
+        let mod_name = WasmEdgeString::from(mod_name.as_ref());
+        let func_name = WasmEdgeString::from(func_name.as_ref());
         let ctx = unsafe {
             wasmedge::WasmEdge_StoreFindFunctionRegistered(self.ctx, mod_name.ctx, func_name.ctx)
         };
@@ -53,9 +54,8 @@ impl Store {
         }
     }
 
-    pub fn find_table(&self, table_name: &str) -> Option<Table> {
-        let table_name = WasmEdgeString::from_str(table_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", table_name).as_str());
+    pub fn find_table(&self, name: impl AsRef<str>) -> Option<Table> {
+        let table_name = WasmEdgeString::from(name.as_ref());
         let ctx = unsafe { wasmedge::WasmEdge_StoreFindTable(self.ctx, table_name.ctx) };
         match ctx.is_null() {
             true => None,
@@ -66,11 +66,13 @@ impl Store {
         }
     }
 
-    pub fn find_table_registered(&self, mod_name: &str, table_name: &str) -> Option<Table> {
-        let mod_name = WasmEdgeString::from_str(mod_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", mod_name).as_str());
-        let table_name = WasmEdgeString::from_str(table_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", table_name).as_str());
+    pub fn find_table_registered(
+        &self,
+        mod_name: impl AsRef<str>,
+        table_name: impl AsRef<str>,
+    ) -> Option<Table> {
+        let mod_name = WasmEdgeString::from(mod_name.as_ref());
+        let table_name = WasmEdgeString::from(table_name.as_ref());
         let ctx = unsafe {
             wasmedge::WasmEdge_StoreFindTableRegistered(self.ctx, mod_name.ctx, table_name.ctx)
         };
@@ -83,9 +85,8 @@ impl Store {
         }
     }
 
-    pub fn find_memory(&self, mem_name: &str) -> Option<Memory> {
-        let mem_name = WasmEdgeString::from_str(mem_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", mem_name).as_str());
+    pub fn find_memory(&self, name: impl AsRef<str>) -> Option<Memory> {
+        let mem_name = WasmEdgeString::from(name.as_ref());
         let ctx = unsafe { wasmedge::WasmEdge_StoreFindMemory(self.ctx, mem_name.ctx) };
         match ctx.is_null() {
             true => None,
@@ -96,11 +97,13 @@ impl Store {
         }
     }
 
-    pub fn find_memory_registered(&self, mod_name: &str, mem_name: &str) -> Option<Memory> {
-        let mod_name = WasmEdgeString::from_str(mod_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", mod_name).as_str());
-        let mem_name = WasmEdgeString::from_str(mem_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", mem_name).as_str());
+    pub fn find_memory_registered(
+        &self,
+        mod_name: impl AsRef<str>,
+        mem_name: impl AsRef<str>,
+    ) -> Option<Memory> {
+        let mod_name = WasmEdgeString::from(mod_name.as_ref());
+        let mem_name = WasmEdgeString::from(mem_name.as_ref());
         let ctx = unsafe {
             wasmedge::WasmEdge_StoreFindMemoryRegistered(self.ctx, mod_name.ctx, mem_name.ctx)
         };
@@ -113,9 +116,8 @@ impl Store {
         }
     }
 
-    pub fn find_global(&self, global_name: &str) -> Option<Global> {
-        let global_name = WasmEdgeString::from_str(global_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", global_name).as_str());
+    pub fn find_global(&self, name: impl AsRef<str>) -> Option<Global> {
+        let global_name = WasmEdgeString::from(name.as_ref());
         let ctx = unsafe { wasmedge::WasmEdge_StoreFindGlobal(self.ctx, global_name.ctx) };
         match ctx.is_null() {
             true => None,
@@ -126,11 +128,13 @@ impl Store {
         }
     }
 
-    pub fn find_global_registered(&self, mod_name: &str, global_name: &str) -> Option<Global> {
-        let mod_name = WasmEdgeString::from_str(mod_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", mod_name).as_str());
-        let global_name = WasmEdgeString::from_str(global_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", global_name).as_str());
+    pub fn find_global_registered(
+        &self,
+        mod_name: impl AsRef<str>,
+        global_name: impl AsRef<str>,
+    ) -> Option<Global> {
+        let mod_name = WasmEdgeString::from(mod_name.as_ref());
+        let global_name = WasmEdgeString::from(global_name.as_ref());
         let ctx = unsafe {
             wasmedge::WasmEdge_StoreFindGlobalRegistered(self.ctx, mod_name.ctx, global_name.ctx)
         };
@@ -170,21 +174,20 @@ impl Store {
         names
     }
 
-    pub fn list_func_registered_len(&self, mod_name: &str) -> u32 {
-        let mod_name = WasmEdgeString::from_str(mod_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", mod_name).as_str());
+    pub fn list_func_registered_len(&self, mod_name: impl AsRef<str>) -> u32 {
+        let mod_name = WasmEdgeString::from(mod_name.as_ref());
         unsafe { wasmedge::WasmEdge_StoreListFunctionRegisteredLength(self.ctx, mod_name.ctx) }
     }
 
-    pub fn list_func_registered(&self, mod_name: &str) -> Vec<String> {
+    pub fn list_func_registered(&self, mod_name: impl AsRef<str>) -> Vec<String> {
         let mut names: Vec<String> = vec![];
-        let len_func_names = self.list_func_registered_len(mod_name);
+        let len_func_names = self.list_func_registered_len(mod_name.as_ref());
         if len_func_names > 0 {
             let mut func_names = Vec::with_capacity(len_func_names as usize);
             unsafe {
                 wasmedge::WasmEdge_StoreListFunctionRegistered(
                     self.ctx,
-                    WasmEdgeString::from(mod_name).ctx,
+                    WasmEdgeString::from(mod_name.as_ref()).ctx,
                     func_names.as_mut_ptr(),
                     len_func_names,
                 );
@@ -227,23 +230,20 @@ impl Store {
         names
     }
 
-    pub fn list_table_registered_len(&self, mod_name: &str) -> u32 {
-        let mod_name = WasmEdgeString::from_str(mod_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", mod_name).as_str());
+    pub fn list_table_registered_len(&self, mod_name: impl AsRef<str>) -> u32 {
+        let mod_name = WasmEdgeString::from(mod_name.as_ref());
         unsafe { wasmedge::WasmEdge_StoreListTableRegisteredLength(self.ctx, mod_name.ctx) }
     }
 
-    pub fn list_table_registered(&self, mod_name: &str) -> Vec<String> {
+    pub fn list_table_registered(&self, mod_name: impl AsRef<str>) -> Vec<String> {
         let mut names: Vec<String> = vec![];
-        let len_table_names = self.list_table_registered_len(mod_name);
+        let len_table_names = self.list_table_registered_len(mod_name.as_ref());
         if len_table_names > 0 {
             let mut table_names = Vec::with_capacity(len_table_names as usize);
-            let mod_name = WasmEdgeString::from_str(mod_name)
-                .expect(format!("Failed to create WasmEdgeString from '{}'", mod_name).as_str());
             unsafe {
                 wasmedge::WasmEdge_StoreListTableRegistered(
                     self.ctx,
-                    WasmEdgeString::from(mod_name).ctx,
+                    WasmEdgeString::from(mod_name.as_ref()).ctx,
                     table_names.as_mut_ptr(),
                     len_table_names,
                 );
@@ -284,21 +284,20 @@ impl Store {
         names
     }
 
-    pub fn list_global_registered_len(&self, mod_name: &str) -> u32 {
-        let mod_name = WasmEdgeString::from_str(mod_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", mod_name).as_str());
+    pub fn list_global_registered_len(&self, mod_name: impl AsRef<str>) -> u32 {
+        let mod_name = WasmEdgeString::from(mod_name.as_ref());
         unsafe { wasmedge::WasmEdge_StoreListGlobalRegisteredLength(self.ctx, mod_name.ctx) }
     }
 
-    pub fn list_global_registered(&self, mod_name: &str) -> Vec<String> {
+    pub fn list_global_registered(&self, mod_name: impl AsRef<str>) -> Vec<String> {
         let mut names: Vec<String> = vec![];
-        let len_global_names = self.list_global_registered_len(mod_name);
+        let len_global_names = self.list_global_registered_len(mod_name.as_ref());
         if len_global_names > 0 {
             let mut global_names = Vec::with_capacity(len_global_names as usize);
             unsafe {
                 wasmedge::WasmEdge_StoreListGlobalRegistered(
                     self.ctx,
-                    WasmEdgeString::from(mod_name).ctx,
+                    WasmEdgeString::from(mod_name.as_ref()).ctx,
                     global_names.as_mut_ptr(),
                     len_global_names,
                 );
@@ -335,21 +334,20 @@ impl Store {
         names
     }
 
-    pub fn list_memory_registered_len(&self, mod_name: &str) -> u32 {
-        let mod_name = WasmEdgeString::from_str(mod_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", mod_name).as_str());
+    pub fn list_memory_registered_len(&self, mod_name: impl AsRef<str>) -> u32 {
+        let mod_name = WasmEdgeString::from(mod_name.as_ref());
         unsafe { wasmedge::WasmEdge_StoreListMemoryRegisteredLength(self.ctx, mod_name.ctx) }
     }
 
-    pub fn list_memory_registered(&self, mod_name: &str) -> Vec<String> {
+    pub fn list_memory_registered(&self, mod_name: impl AsRef<str>) -> Vec<String> {
         let mut names: Vec<String> = vec![];
-        let len_mem_names = self.list_memory_registered_len(mod_name);
+        let len_mem_names = self.list_memory_registered_len(mod_name.as_ref());
         if len_mem_names > 0 {
             let mut mem_names = Vec::with_capacity(len_mem_names as usize);
             unsafe {
                 wasmedge::WasmEdge_StoreListMemoryRegistered(
                     self.ctx,
-                    WasmEdgeString::from(mod_name).ctx,
+                    WasmEdgeString::from(mod_name.as_ref()).ctx,
                     mem_names.as_mut_ptr(),
                     len_mem_names,
                 );

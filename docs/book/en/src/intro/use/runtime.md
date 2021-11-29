@@ -18,4 +18,5 @@ WasmEdge can be embedded into cloud-native infrastructure via its SDKs in [C](c_
 * [Kubernetes](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/)
 * KubeEdge
 * SuperEdge
+* OpenYurt
 

@@ -529,9 +529,9 @@ public:
   static inline WasiExpect<VPoller>
   pollOneoff(__wasi_size_t NSubscriptions) noexcept;
 
-  static WasiExpect<void> getAddrinfo(const char *NodeStr,
-                                      const char *ServiceStr,
-                                      const addrinfo *Hint,
+  static WasiExpect<void> getAddrinfo(const char *const NodeStr,
+                                      const char *const ServiceStr,
+                                      const addrinfo *const Hint,
                                       /*Out*/ addrinfo **ResPtr) noexcept;
 
   static WasiExpect<std::shared_ptr<VINode>>

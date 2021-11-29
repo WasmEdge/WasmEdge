@@ -319,9 +319,9 @@ WasiExpect<void> VINode::pathUnlinkFile(VFS &FS, std::shared_ptr<VINode> Fd,
   return Fd->Node.pathUnlinkFile(std::string(Path));
 }
 
-WasiExpect<void> VINode::getAddrinfo(const char *NodeStr,
-                                     const char *ServiceStr,
-                                     const addrinfo *Hint,
+WasiExpect<void> VINode::getAddrinfo(const char *const NodeStr,
+                                     const char *const ServiceStr,
+                                     const addrinfo *const Hint,
                                      /*Out*/ addrinfo **ResPtr) noexcept {
   if (auto Res = INode::getAddrinfo(NodeStr, ServiceStr, Hint, ResPtr);
       unlikely(!Res)) {

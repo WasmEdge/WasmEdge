@@ -752,8 +752,9 @@ WasiExpect<Poller> INode::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }
 }
-WasiExpect<void> INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
-                                    const addrinfo *Hint,
+WasiExpect<void> INode::getAddrinfo(const char *const NodeStr,
+                                    const char *const ServiceStr,
+                                    const addrinfo *const Hint,
                                     /*Out*/ addrinfo **ResPtr) noexcept {
   int POSIXReturn = ::getaddrinfo(NodeStr, ServiceStr, Hint, ResPtr);
   switch (POSIXReturn) {

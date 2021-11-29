@@ -1,4 +1,4 @@
-use crate::raw_result::WasmEdgeResult;
+use crate::error::WasmEdgeResult;
 use std::ffi::CString;
 use std::path::Path;
 

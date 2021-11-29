@@ -1,6 +1,6 @@
 use super::wasmedge;
 use crate::{
-    raw_result::{check, WasmEdgeResult},
+    error::{check, WasmEdgeResult},
     string::StringRef,
     utils, wasi, Config, ImportObj, Module, Statistics, Store, Value,
 };

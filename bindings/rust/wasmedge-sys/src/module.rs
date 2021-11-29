@@ -1,7 +1,7 @@
 use super::wasmedge;
 use crate::raw_result::decode_result;
 use crate::{
-    raw_result::{check, WasmEdgeResult},
+    error::{check, WasmEdgeResult},
     utils, Config,
 };
 use ::core::mem::MaybeUninit as MU;

@@ -10,7 +10,6 @@
 //! generics of `Function::create_bindings::<I, O>`, wherein the I and O are the `WasmFnIO` traits
 //! base on the inputs and outputs of the real host function.
 //!
-use std::{ffi::CString, os::unix::ffi::OsStrExt};
 
 use wasmedge_sys::{instance::Function, Config, ImportObj, Module, Value, Vm, I1, I2};
 

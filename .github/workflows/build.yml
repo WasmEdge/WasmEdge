@@ -24,20 +24,24 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: fedora:latest
+    outputs:
+      version: ${{ steps.prep.outputs.version }}
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-
     - name: Install requirment
       run: |
         dnf update -y
         dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev
-
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Get version
+      id: prep
+      run: |
+        echo ::set-output name=version::$(git describe --tag)
     - name: Build WasmEdge with Release mode
       run: |
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
         cmake --build build
     - name: Test WasmEdge
       run: |
@@ -48,6 +52,11 @@ jobs:
     - name: Test WasmEdge Package
       run: |
         cmake --build build --target package
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: WasmEdge-${{ steps.prep.outputs.version }}-fedora35.tar.gz
+        path: build/WasmEdge-${{ steps.prep.outputs.version }}-Linux.tar.gz
 
   build_ubuntu:
     strategy:
@@ -146,6 +155,8 @@ jobs:
     runs-on: ${{ matrix.host_runner }}
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
+    outputs:
+      version: ${{ steps.prep.outputs.version }}
     steps:
     - uses: actions/checkout@v1
       if: ${{ matrix.checkout_version == 'v1' }}
@@ -157,19 +168,43 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Get version
+      id: prep
+      run: |
+        echo ::set-output name=version::$(git describe --tag)
+
     - name: Build ${{ matrix.name }} package
       run: |
         bash utils/docker/build-manylinux.sh
 
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1
+      if: ${{ matrix.checkout_version == 'v1' }}
+      with:
+        name: WasmEdge-${{ steps.prep.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+        path: build/WasmEdge-${{ steps.prep.outputs.version }}-Linux.tar.gz
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      if: ${{ matrix.checkout_version == 'v2' }}
+      with:
+        name: WasmEdge-${{ steps.prep.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+        path: build/WasmEdge-${{ steps.prep.outputs.version }}-Linux.tar.gz
+
   build_macos:
     name: macOS
     runs-on: macos-latest
+    outputs:
+      version: ${{ steps.prep.outputs.version }}
 
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-
+    - name: Get version
+      id: prep
+      run: |
+        echo ::set-output name=version::$(git describe --tag)
     - name: Build WasmEdge
       run: |
         brew install llvm ninja boost cmake
@@ -177,6 +212,7 @@ jobs:
         export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
         export CPPFLAGS="-I/usr/local/opt/llvm/include"
         cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON .
+        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
         cmake --build build
     - name: Test WasmEdge
       continue-on-error: true
@@ -185,3 +221,11 @@ jobs:
         cd build
         ctest --output-on-failure
         cd -
+    - name: Test WasmEdge Package
+      run: |
+        cmake --build build --target package
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: WasmEdge-${{ steps.prep.outputs.version }}-darwin_x86_64.tar.gz
+        path: build/WasmEdge-${{ steps.prep.outputs.version }}-Darwin.tar.gz

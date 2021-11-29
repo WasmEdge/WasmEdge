@@ -25,12 +25,12 @@ use crate::{config::Config, error::VmError, module::Module, wasi_conf::WasiConf}
 #[derive(Debug)]
 pub struct Vm<'a> {
     config: Option<&'a wasmedge::Config>,
-    module: &'a Module,
+    module: &'a mut Module,
     pub(crate) inner: Option<wasmedge::Vm>,
 }
 
 impl<'a> Vm<'a> {
-    pub fn load(module: &'a Module) -> Result<VmBuilder<'a>, anyhow::Error> {
+    pub fn load(module: &'a mut Module) -> Result<VmBuilder<'a>, anyhow::Error> {
         VmBuilder::new(module)
     }
 
@@ -59,7 +59,7 @@ pub struct VmBuilder<'a> {
 }
 
 impl<'a> VmBuilder<'a> {
-    pub fn new(module: &'a Module) -> Result<Self, anyhow::Error> {
+    pub fn new(module: &'a mut Module) -> Result<Self, anyhow::Error> {
         let vm = Vm {
             config: None,
             module,
@@ -77,9 +77,9 @@ impl<'a> VmBuilder<'a> {
     pub fn create(self) -> Result<Vm<'a>, anyhow::Error> {
         let vm = self.inner;
         if let Some(cfg) = vm.config {
-            let vm_instance = wasmedge::Vm::create(cfg);
+            let vm_instance = wasmedge::Vm::create(Some(cfg), None).ok_or(VmError::Create)?;
             let vm_instance = vm_instance
-                .load_wasm_from_ast_module(&vm.module.inner)
+                .load_wasm_from_ast_module(&mut vm.module.inner)
                 .map_err(VmError::ModuleLoad)?;
             let vm_instance = vm_instance.validate().map_err(VmError::Validate)?;
             let vm_instance = vm_instance.instantiate().map_err(VmError::Instantiate)?;

@@ -45,17 +45,3 @@ pub fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
     }
     Ok(())
 }
-
-pub fn is_ok(res: WasmEdge_Result) -> bool {
-    unsafe { WasmEdge_ResultOK(res) }
-}
-
-// Since WasmEdge_ErrCode is subject to change on the wasmedge side
-// it does not correspond to enum here
-pub fn decode_result(raw_result: WasmEdge_Result) -> Result<(), WasmEdgeError> {
-    if is_ok(raw_result) {
-        Ok(())
-    } else {
-        Err(raw_result.into())
-    }
-}

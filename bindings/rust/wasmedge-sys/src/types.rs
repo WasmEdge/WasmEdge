@@ -1,54 +1,9 @@
 use super::wasmedge;
-use crate::raw_result::WasmEdgeResult;
-use std::ffi::{CStr, CString};
-
-// pub type WasmEdgeValue = wasmedge::WasmEdge_Value;
 pub type WasmEdgeProposal = wasmedge::WasmEdge_Proposal;
 pub type HostRegistration = wasmedge::WasmEdge_HostRegistration;
 pub type CompilerOptimizationLevel = wasmedge::WasmEdge_CompilerOptimizationLevel;
 pub type HostFunc = wasmedge::WasmEdge_HostFunc_t;
 pub type WrapFunc = wasmedge::WasmEdge_WrapFunc_t;
-
-#[derive(Debug)]
-pub struct WasmEdgeString {
-    pub(crate) ctx: wasmedge::WasmEdge_String,
-}
-impl WasmEdgeString {
-    pub fn from_str(s: &str) -> WasmEdgeResult<WasmEdgeString> {
-        let cstring = CString::new(s)?;
-        Ok(WasmEdgeString {
-            ctx: unsafe { wasmedge::WasmEdge_StringCreateByCString(cstring.as_ptr()) },
-        })
-    }
-
-    pub fn from_buffer(buf: &[i8]) -> WasmEdgeString {
-        WasmEdgeString {
-            ctx: unsafe { wasmedge::WasmEdge_StringCreateByBuffer(buf.as_ptr(), buf.len() as u32) },
-        }
-    }
-
-    pub fn to_string_lossy(&self) -> std::borrow::Cow<'_, str> {
-        let cstr = unsafe { CStr::from_ptr(self.ctx.Buf) };
-        cstr.to_string_lossy()
-    }
-
-    pub fn into_raw(&self) -> wasmedge::WasmEdge_String {
-        self.ctx
-    }
-}
-impl From<&str> for WasmEdgeString {
-    fn from(s: &str) -> Self {
-        let cstring = CString::new(s).expect("fail to create CString from str");
-        WasmEdgeString {
-            ctx: unsafe { wasmedge::WasmEdge_StringCreateByCString(cstring.as_ptr()) },
-        }
-    }
-}
-impl Drop for WasmEdgeString {
-    fn drop(&mut self) {
-        unsafe { wasmedge::WasmEdge_StringDelete(self.ctx) }
-    }
-}
 
 #[derive(Debug)]
 pub enum WasmEdgeRefType {

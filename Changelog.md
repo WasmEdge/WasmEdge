@@ -100,6 +100,8 @@ Features:
     * `WasmEdge_ExportTypeGetMemoryType` function can get the memory type of an export type context.
     * `WasmEdge_ExportTypeGetGlobalType` function can get the global type of an export type context.
   * For more details of the usages of imports and exports, please refer to the [C API documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md).
+* Exported the WasmEdge C API for getting exit code from WASI.
+  * `WasmEdge_ImportObjectWASIGetExitCode` function can get the exit code from WASI after execution.
 * Exported the WasmEdge C API for AOT compiler related configurations.
   * `WasmEdge_ConfigureCompilerSetOutputFormat` function can set the AOT compiler output format.
   * `WasmEdge_ConfigureCompilerGetOutputFormat` function can get the AOT compiler output format.

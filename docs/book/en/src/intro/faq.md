@@ -10,17 +10,17 @@ A: We have made a comprehensive comparison page between [WebAssembly and Docker]
 
 A: They all have pros and cons. Hope this table will help you.
 
-|	|NaCl	|Application runtimes (eg Node & Python)	|Docker-like container	|WebAssembly	|
-|---	|---	|---	|---	|---	|
-|Performance	|Great	|Poor	|OK	|Great	|
-|Resource footprint	|Great	|Poor	|Poor	|Great	|
-|Isolation	|Poor	|OK	|OK	|Great	|
-|Safety	|Poor	|OK	|OK	|Great	|
-|Portability	|Poor	|Great	|OK	|Great	|
-|Security	|Poor	|OK	|OK	|Great	|
-|Language and framework choice	|N/A	|N/A	|Great	|OK	|
-|Ease of use	|OK	|Great	|Great	|OK	|
-|Manageability	|Poor	|Poor	|Great	|Great	|
+|	| NaCl	| Application runtimes (eg Node & Python)	| Docker-like container	| WebAssembly	|
+| ---	| ---	| ---	| ---	| ---	|
+| Performance	| Great	| Poor	| OK	| Great	|
+| Resource footprint	| Great	| Poor	| Poor	| Great	|
+| Isolation	| Poor	| OK	| OK	| Great	|
+| Safety	| Poor	| OK	| OK	| Great	|
+| Portability	| Poor	| Great	| OK	| Great	|
+| Security	| Poor	| OK	| OK	| Great	|
+| Language and framework choice	| N/A	| N/A	| Great	| OK	|
+| Ease of use	| OK	| Great	| Great	| OK	|
+| Manageability	| Poor	| Poor	| Great	| Great	|
 
 **Q: What's the difference between WebAssembly and eBPF**
 

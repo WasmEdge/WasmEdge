@@ -15,10 +15,7 @@ pub struct Module {
 
 impl Module {
     pub fn new(config: &Config, module_path: &Path) -> Result<Self, anyhow::Error> {
-        let path_cstr = path_to_cstr(module_path)
-            .map_err(|e| ModuleError::Path(module_path.display().to_string(), Box::new(e)))?;
-
-        let module = wasmedge::Module::load_from_file(&config.inner, path_cstr)
+        let module = wasmedge::Module::load_from_file(&config.inner, module_path)
             .map_err(ModuleError::Load)?;
 
         Ok(Self { inner: module })

@@ -1,7 +1,7 @@
 use super::wasmedge;
 use crate::{
     raw_result::{check, WasmEdgeResult},
-    types::WasmEdgeString,
+    string::StringRef,
     Config, ImportObj, Module, Statistics, Store,
 };
 use std::ptr;
@@ -45,16 +45,14 @@ impl Executor {
         self,
         store: &mut Store,
         ast_mod: &Module,
-        mod_name: &str,
+        mod_name: impl AsRef<str>,
     ) -> WasmEdgeResult<Self> {
-        let mod_name = WasmEdgeString::from_str(mod_name)
-            .expect(format!("Failed to create WasmEdgeString from '{}'", mod_name).as_str());
         unsafe {
             check(wasmedge::WasmEdge_ExecutorRegisterModule(
                 self.ctx,
                 store.ctx,
                 ast_mod.ctx,
-                mod_name.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
             ))?;
         }
         Ok(self)

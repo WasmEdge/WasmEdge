@@ -1,7 +1,7 @@
 use super::wasmedge;
 use crate::{
     instance::{Function, Global, Memory, Table},
-    types::WasmEdgeString,
+    string::StringRef,
 };
 
 #[derive(Debug)]
@@ -22,8 +22,12 @@ impl Store {
     }
 
     pub fn find_func(&self, name: impl AsRef<str>) -> Option<Function> {
-        let func_name = WasmEdgeString::from(name.as_ref());
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindFunction(self.ctx, func_name.ctx) };
+        let ctx = unsafe {
+            wasmedge::WasmEdge_StoreFindFunction(
+                self.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(name.as_ref())),
+            )
+        };
         match ctx.is_null() {
             true => None,
             false => Some(Function {
@@ -39,10 +43,14 @@ impl Store {
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
     ) -> Option<Function> {
-        let mod_name = WasmEdgeString::from(mod_name.as_ref());
-        let func_name = WasmEdgeString::from(func_name.as_ref());
+        // let mod_name = WasmEdgeString::from(mod_name.as_ref());
+        // let func_name = WasmEdgeString::from(func_name.as_ref());
         let ctx = unsafe {
-            wasmedge::WasmEdge_StoreFindFunctionRegistered(self.ctx, mod_name.ctx, func_name.ctx)
+            wasmedge::WasmEdge_StoreFindFunctionRegistered(
+                self.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+                wasmedge::WasmEdge_String::from(StringRef::from(func_name.as_ref())),
+            )
         };
         match ctx.is_null() {
             true => None,
@@ -55,8 +63,12 @@ impl Store {
     }
 
     pub fn find_table(&self, name: impl AsRef<str>) -> Option<Table> {
-        let table_name = WasmEdgeString::from(name.as_ref());
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindTable(self.ctx, table_name.ctx) };
+        let ctx = unsafe {
+            wasmedge::WasmEdge_StoreFindTable(
+                self.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(name.as_ref())),
+            )
+        };
         match ctx.is_null() {
             true => None,
             false => Some(Table {
@@ -71,10 +83,12 @@ impl Store {
         mod_name: impl AsRef<str>,
         table_name: impl AsRef<str>,
     ) -> Option<Table> {
-        let mod_name = WasmEdgeString::from(mod_name.as_ref());
-        let table_name = WasmEdgeString::from(table_name.as_ref());
         let ctx = unsafe {
-            wasmedge::WasmEdge_StoreFindTableRegistered(self.ctx, mod_name.ctx, table_name.ctx)
+            wasmedge::WasmEdge_StoreFindTableRegistered(
+                self.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+                wasmedge::WasmEdge_String::from(StringRef::from(table_name.as_ref())),
+            )
         };
         match ctx.is_null() {
             true => None,
@@ -86,8 +100,12 @@ impl Store {
     }
 
     pub fn find_memory(&self, name: impl AsRef<str>) -> Option<Memory> {
-        let mem_name = WasmEdgeString::from(name.as_ref());
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindMemory(self.ctx, mem_name.ctx) };
+        let ctx = unsafe {
+            wasmedge::WasmEdge_StoreFindMemory(
+                self.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(name.as_ref())),
+            )
+        };
         match ctx.is_null() {
             true => None,
             false => Some(Memory {
@@ -102,10 +120,12 @@ impl Store {
         mod_name: impl AsRef<str>,
         mem_name: impl AsRef<str>,
     ) -> Option<Memory> {
-        let mod_name = WasmEdgeString::from(mod_name.as_ref());
-        let mem_name = WasmEdgeString::from(mem_name.as_ref());
         let ctx = unsafe {
-            wasmedge::WasmEdge_StoreFindMemoryRegistered(self.ctx, mod_name.ctx, mem_name.ctx)
+            wasmedge::WasmEdge_StoreFindMemoryRegistered(
+                self.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+                wasmedge::WasmEdge_String::from(StringRef::from(mem_name.as_ref())),
+            )
         };
         match ctx.is_null() {
             true => None,
@@ -117,8 +137,12 @@ impl Store {
     }
 
     pub fn find_global(&self, name: impl AsRef<str>) -> Option<Global> {
-        let global_name = WasmEdgeString::from(name.as_ref());
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindGlobal(self.ctx, global_name.ctx) };
+        let ctx = unsafe {
+            wasmedge::WasmEdge_StoreFindGlobal(
+                self.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(name.as_ref())),
+            )
+        };
         match ctx.is_null() {
             true => None,
             false => Some(Global {
@@ -133,10 +157,12 @@ impl Store {
         mod_name: impl AsRef<str>,
         global_name: impl AsRef<str>,
     ) -> Option<Global> {
-        let mod_name = WasmEdgeString::from(mod_name.as_ref());
-        let global_name = WasmEdgeString::from(global_name.as_ref());
         let ctx = unsafe {
-            wasmedge::WasmEdge_StoreFindGlobalRegistered(self.ctx, mod_name.ctx, global_name.ctx)
+            wasmedge::WasmEdge_StoreFindGlobalRegistered(
+                self.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+                wasmedge::WasmEdge_String::from(StringRef::from(global_name.as_ref())),
+            )
         };
         match ctx.is_null() {
             true => None,
@@ -175,8 +201,12 @@ impl Store {
     }
 
     pub fn list_func_registered_len(&self, mod_name: impl AsRef<str>) -> u32 {
-        let mod_name = WasmEdgeString::from(mod_name.as_ref());
-        unsafe { wasmedge::WasmEdge_StoreListFunctionRegisteredLength(self.ctx, mod_name.ctx) }
+        unsafe {
+            wasmedge::WasmEdge_StoreListFunctionRegisteredLength(
+                self.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+            )
+        }
     }
 
     pub fn list_func_registered(&self, mod_name: impl AsRef<str>) -> Vec<String> {
@@ -187,7 +217,7 @@ impl Store {
             unsafe {
                 wasmedge::WasmEdge_StoreListFunctionRegistered(
                     self.ctx,
-                    WasmEdgeString::from(mod_name.as_ref()).ctx,
+                    wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
                     func_names.as_mut_ptr(),
                     len_func_names,
                 );
@@ -231,8 +261,12 @@ impl Store {
     }
 
     pub fn list_table_registered_len(&self, mod_name: impl AsRef<str>) -> u32 {
-        let mod_name = WasmEdgeString::from(mod_name.as_ref());
-        unsafe { wasmedge::WasmEdge_StoreListTableRegisteredLength(self.ctx, mod_name.ctx) }
+        unsafe {
+            wasmedge::WasmEdge_StoreListTableRegisteredLength(
+                self.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+            )
+        }
     }
 
     pub fn list_table_registered(&self, mod_name: impl AsRef<str>) -> Vec<String> {
@@ -243,7 +277,7 @@ impl Store {
             unsafe {
                 wasmedge::WasmEdge_StoreListTableRegistered(
                     self.ctx,
-                    WasmEdgeString::from(mod_name.as_ref()).ctx,
+                    wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
                     table_names.as_mut_ptr(),
                     len_table_names,
                 );
@@ -285,8 +319,12 @@ impl Store {
     }
 
     pub fn list_global_registered_len(&self, mod_name: impl AsRef<str>) -> u32 {
-        let mod_name = WasmEdgeString::from(mod_name.as_ref());
-        unsafe { wasmedge::WasmEdge_StoreListGlobalRegisteredLength(self.ctx, mod_name.ctx) }
+        unsafe {
+            wasmedge::WasmEdge_StoreListGlobalRegisteredLength(
+                self.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+            )
+        }
     }
 
     pub fn list_global_registered(&self, mod_name: impl AsRef<str>) -> Vec<String> {
@@ -297,7 +335,7 @@ impl Store {
             unsafe {
                 wasmedge::WasmEdge_StoreListGlobalRegistered(
                     self.ctx,
-                    WasmEdgeString::from(mod_name.as_ref()).ctx,
+                    wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
                     global_names.as_mut_ptr(),
                     len_global_names,
                 );
@@ -335,8 +373,12 @@ impl Store {
     }
 
     pub fn list_memory_registered_len(&self, mod_name: impl AsRef<str>) -> u32 {
-        let mod_name = WasmEdgeString::from(mod_name.as_ref());
-        unsafe { wasmedge::WasmEdge_StoreListMemoryRegisteredLength(self.ctx, mod_name.ctx) }
+        unsafe {
+            wasmedge::WasmEdge_StoreListMemoryRegisteredLength(
+                self.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+            )
+        }
     }
 
     pub fn list_memory_registered(&self, mod_name: impl AsRef<str>) -> Vec<String> {
@@ -347,7 +389,7 @@ impl Store {
             unsafe {
                 wasmedge::WasmEdge_StoreListMemoryRegistered(
                     self.ctx,
-                    WasmEdgeString::from(mod_name.as_ref()).ctx,
+                    wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
                     mem_names.as_mut_ptr(),
                     len_mem_names,
                 );

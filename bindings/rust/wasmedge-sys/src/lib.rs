@@ -14,6 +14,7 @@ pub mod io;
 pub mod module;
 pub mod raw_result;
 pub mod string;
+pub mod types;
 pub mod value;
 pub mod version;
 pub mod vm;

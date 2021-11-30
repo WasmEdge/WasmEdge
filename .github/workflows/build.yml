@@ -172,12 +172,11 @@ jobs:
 
     - name: Build WasmEdge
       run: |
-        brew install llvm
-        brew link llvm
+        brew install llvm ninja boost cmake
         export PATH="/usr/local/opt/llvm/bin:$PATH"
         export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
         export CPPFLAGS="-I/usr/local/opt/llvm/include"
-        cmake -Bbuild -DWASMEDGE_BUILD_TESTS=ON .
+        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON .
         cmake --build build
     - name: Test WasmEdge
       continue-on-error: true

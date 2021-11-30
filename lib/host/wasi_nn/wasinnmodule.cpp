@@ -3,12 +3,16 @@
 #include "host/wasi_nn/wasinnfunc.h"
 #include "runtime/hostfunc.h"
 #include "runtime/importobj.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 #include <memory>
 
 namespace WasmEdge {
 namespace Host {
 
 WasiNNModule::WasiNNModule() : ImportObject("wasi_ephemeral_nn") {
+  spdlog::set_level(spdlog::level::info);
+  spdlog::stdout_color_mt("WasiNN");
+
   addHostFunc("load", std::make_unique<WasiNNLoad>(Ctx));
   addHostFunc("init_execution_context",
               std::make_unique<WasiNNInitExecCtx>(Ctx));

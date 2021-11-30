@@ -1,5 +1,4 @@
 use super::wasmedge;
-use crate::raw_result::decode_result;
 use crate::{
     error::{check, WasmEdgeResult},
     utils, Config,
@@ -71,7 +70,7 @@ impl Module {
             libc::free(ptr as *mut libc::c_void);
         }
 
-        decode_result(res)?;
+        check(res)?;
 
         assert!(!ctx.is_null(), "WasmEdge failed to load from buffer!");
 

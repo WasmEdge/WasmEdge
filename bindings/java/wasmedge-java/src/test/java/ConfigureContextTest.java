@@ -51,6 +51,43 @@ public class ConfigureContextTest extends BaseTest {
     }
 
     @Test
-    public void test
+    public void testCompilerIsDumpIR() {
+        ConfigureContext context = new ConfigureContext();
+        boolean isDumpIR = true;
+        context.setCompilerIsDumpIR(isDumpIR);
+        Assert.assertEquals(context.getCompilerIsDumpIR(), isDumpIR);
+    }
+
+    @Test
+    public void testCompilerIsGenericBinary() {
+        ConfigureContext context = new ConfigureContext();
+        boolean isGenericBinary = true;
+        context.setCompilerIsGenericBinary(isGenericBinary);
+        Assert.assertEquals(context.getCompilerIsGenericBinary(), isGenericBinary);
+    }
+
+    @Test
+    public void testIsInstructionCounting() {
+        ConfigureContext context = new ConfigureContext();
+        boolean isInstructionCounting = true;
+        context.setStatisticsSetInstructionCounting(isInstructionCounting);
+        Assert.assertEquals(context.isStatisticsSetInstructionCounting(), isInstructionCounting);
+    }
+
+    @Test
+    public void testCompilerCostMeasuring() {
+        ConfigureContext context = new ConfigureContext();
+        boolean costMeasuring = true;
+        context.setStatisticsSetCostMeasuring(costMeasuring);
+        Assert.assertEquals(context.isStatisticsSetCostMeasuring(), costMeasuring);
+    }
+
+    @Test
+    public void testTimeMeasuring() {
+        ConfigureContext context = new ConfigureContext();
+        boolean timeMeasuring = true;
+        context.setStatisticsSetTimeMeasuring(timeMeasuring);
+        Assert.assertEquals(context.isStatisticsSetTimeMeasuring(), timeMeasuring);
+    }
 
 }

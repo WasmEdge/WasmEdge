@@ -1,6 +1,5 @@
 package org.wasmedge;
 
-import jdk.internal.net.http.common.FlowTube;
 import org.wasmedge.enums.CompilerOptimizationLevel;
 import org.wasmedge.enums.CompilerOutputFormat;
 import org.wasmedge.enums.HostRegistration;
@@ -44,11 +43,20 @@ public class ConfigureContext {
 
     public native boolean getCompilerIsDumpIR();
 
+    public native void setCompilerIsGenericBinary(boolean isGenericBinary);
+
+    public native boolean getCompilerIsGenericBinary();
+
     public native void setStatisticsSetInstructionCounting(boolean statisticsSetInstructionCounting);
+    public native boolean isStatisticsSetInstructionCounting();
 
     public native void setStatisticsSetCostMeasuring(boolean statisticsSetCostMeasuring);
 
+    public native boolean isStatisticsSetCostMeasuring();
+
     public native void setStatisticsSetTimeMeasuring(boolean statisticsSetTimeMeasuring);
+
+    public native boolean isStatisticsSetTimeMeasuring();
 
     public void destroy() {
         delete();

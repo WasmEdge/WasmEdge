@@ -32,6 +32,18 @@ Or, with all extensions
 wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all -p /usr/local
 ```
 
+## Install a specific version of WasmEdge
+
+You could install specific versions of WasmEdge, including pre-releases or
+old releases by passing the `-v` argument to the install script. Here is an example.
+
+```bash
+wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all -v 0.9.0-rc.5
+```
+
+If you are interested in the latest builds from the `HEAD` of the `master` branch, which is basically WasmEdge's nightly builds, you can download the 
+release package directly from our Github Actions's CI artifact. [Here is an example](https://github.com/WasmEdge/WasmEdge/actions/runs/1521549504#artifacts).
+
 ## What's installed
 
 After installation, you have the following directories and files. Here we assume that you installed into the `$HOME/.wasmedge` directory. You could also change it to `/usr/local` if you did a system-wide install.

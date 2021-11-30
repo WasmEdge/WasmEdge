@@ -4,6 +4,8 @@ Please follow this guide to build and test WasmEdge from source code.
 
 The following guide is based on Linux distributions. For MacOS, please refer to [this guide](build_on_mac.md).
 
+> If you just want the latest builds from the `HEAD` of the `master` branch, and do not want to build it yourself, you can download the release package directly from our Github Actions's CI artifact. [Here is an example](https://github.com/WasmEdge/WasmEdge/actions/runs/1521549504#artifacts).
+
 ## Get Source Code
 
 ```bash

@@ -1,9 +1,7 @@
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 import org.wasmedge.ConfigureContext;
 import org.wasmedge.StoreContext;
-import org.wasmedge.WasmEdge;
 import org.wasmedge.WasmEdgeI32Value;
 import org.wasmedge.WasmEdgeVM;
 import org.wasmedge.WasmEdgeValue;
@@ -12,11 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class WasmEdgeVMTest {
-    @Before
-    public void setUp() {
-        WasmEdge.init();
-    }
+public class WasmEdgeVMTest extends BaseTest {
 
     @Test
     public void testRun() {
@@ -69,7 +63,6 @@ public class WasmEdgeVMTest {
         returns.add(new WasmEdgeI32Value());
         vm.execute(UUID.randomUUID().toString(), params, returns);
     }
-
 
     @Test(expected = Exception.class)
     public void testInvalidFlow() {

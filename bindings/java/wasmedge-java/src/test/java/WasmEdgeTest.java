@@ -2,8 +2,8 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.wasmedge.WasmEdge;
 
-public class WasmEdge_Test {
-//    @Test
+public class WasmEdgeTest extends BaseTest {
+    @Test
     public void testVersion() {
         WasmEdge wasmEdge = new WasmEdge();
         Assert.assertNotNull(wasmEdge.getVersion());
@@ -12,7 +12,7 @@ public class WasmEdge_Test {
         Assert.assertTrue(wasmEdge.getPatchVersion() >= 0);
     }
 
-//    @Test
+    @Test
     public void testSetLogLevel() {
         WasmEdge wasmEdge = new WasmEdge();
         wasmEdge.setLogLevel(WasmEdge.LogLevel.DEBUG);

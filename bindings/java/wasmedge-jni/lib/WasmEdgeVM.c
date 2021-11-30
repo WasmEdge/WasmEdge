@@ -284,5 +284,4 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_execute
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_delete
         (JNIEnv * env, jobject thisObj) {
     WasmEdge_VMDelete(getVmContext(env, thisObj));
-
 }

@@ -112,6 +112,17 @@ Run the WebAssembly-based image from Docker Hub in the Kubernetes cluster as fol
 sudo cluster/kubectl.sh run --restart=Never http-server --image=avengermojo/http-server:with-wasm-annotation --annotations="module.wasm.image/variant=compat" --overrides='{"kind":"Pod", "apiVersion":"v1", "spec": {"hostNetwork": true}}'
 ```
 
+Use the following command to see the running applications and their IP addresses.
+Since we are using `hostNetwork` in the `kubectl run` command, the HTTP server 
+image is running on the local network with IP address `127.0.0.1`.
+
+```bash
+sudo cluster/kubectl.sh get pod --all-namespaces -o wide
+
+NAMESPACE     NAME                       READY   STATUS             RESTARTS      AGE   IP          NODE        NOMINATED NODE   READINESS GATES
+default       http-server                0/1     ImagePullBackOff   0             60s   127.0.0.1   127.0.0.1   <none>           <none>
+```
+
 Now, you can use the `curl` command to access the HTTP service.
 
 ```bash

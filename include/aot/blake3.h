@@ -11,8 +11,9 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/errcode.h"
 #include "common/span.h"
+#include "common/types.h"
+
 #include <blake3.h>
 #include <cstdint>
 #include <string_view>

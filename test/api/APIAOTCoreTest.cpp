@@ -12,7 +12,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "api/wasmedge.h"
+#include "wasmedge/wasmedge.h"
 
 #include "../spec/spectest.h"
 #include "helper.h"
@@ -41,6 +41,8 @@ TEST_P(CoreTest, TestSuites) {
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(ConfCxt, nullptr);
   WasmEdge_ConfigureCompilerSetOptimizationLevel(
       ConfCxt, WasmEdge_CompilerOptimizationLevel_O0);
+  WasmEdge_ConfigureCompilerSetOutputFormat(
+      ConfCxt, WasmEdge_CompilerOutputFormat_Native);
   WasmEdge_CompilerContext *CompilerCxt = WasmEdge_CompilerCreate(ConfCxt);
   WasmEdge_ConfigureDelete(ConfCxt);
   WasmEdge_ImportObjectContext *TestModCxt = createSpecTestModule();
@@ -48,8 +50,6 @@ TEST_P(CoreTest, TestSuites) {
 
   auto Compile = [&, Conf = std::cref(Conf)](
                      const std::string &Filename) -> Expect<std::string> {
-    /// TODO: Set optimization level to O0.
-    /// TODO: Set dump IR.
     auto Path = std::filesystem::u8path(Filename);
     Path.replace_extension(std::filesystem::u8path(".so"sv));
     const auto SOPath = Path.u8string();
@@ -137,7 +137,7 @@ TEST_P(CoreTest, TestSuites) {
   T.onInvoke = [&VM](const std::string &ModName, const std::string &Field,
                      const std::vector<ValVariant> &Params,
                      const std::vector<ValType> &ParamTypes)
-      -> Expect<std::vector<ValVariant>> {
+      -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
     WasmEdge_Result Res;
     std::vector<WasmEdge_Value> CParams = convFromValVec(Params, ParamTypes);
     std::vector<WasmEdge_Value> CReturns;
@@ -149,13 +149,12 @@ TEST_P(CoreTest, TestSuites) {
       /// Get the function type to specify the return nums.
       WasmEdge_String ModStr = WasmEdge_StringWrap(
           ModName.data(), static_cast<uint32_t>(ModName.length()));
-      WasmEdge_FunctionTypeContext *FuncType =
+      const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_VMGetFunctionTypeRegistered(VM, ModStr, FieldStr);
       if (FuncType == nullptr) {
         return Unexpect(ErrCode::FuncNotFound);
       }
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
-      WasmEdge_FunctionTypeDelete(FuncType);
       /// Execute.
       Res = WasmEdge_VMExecuteRegistered(
           VM, ModStr, FieldStr, &CParams[0],
@@ -165,13 +164,12 @@ TEST_P(CoreTest, TestSuites) {
       /// Invoke function of anonymous module. Anonymous modules are
       /// instantiated in VM.
       /// Get function type to specify the return nums.
-      WasmEdge_FunctionTypeContext *FuncType =
+      const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_VMGetFunctionType(VM, FieldStr);
       if (FuncType == nullptr) {
         return Unexpect(ErrCode::FuncNotFound);
       }
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
-      WasmEdge_FunctionTypeDelete(FuncType);
       /// Execute.
       Res = WasmEdge_VMExecute(
           VM, FieldStr, &CParams[0], static_cast<uint32_t>(CParams.size()),
@@ -183,8 +181,8 @@ TEST_P(CoreTest, TestSuites) {
     return convToValVec(CReturns);
   };
   /// Helper function to get values.
-  T.onGet = [&VM](const std::string &ModName,
-                  const std::string &Field) -> Expect<std::vector<ValVariant>> {
+  T.onGet = [&VM](const std::string &ModName, const std::string &Field)
+      -> Expect<std::pair<ValVariant, ValType>> {
     /// Get global instance.
     WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VM);
     WasmEdge_String ModStr = WasmEdge_StringWrap(
@@ -196,8 +194,9 @@ TEST_P(CoreTest, TestSuites) {
     if (GlobCxt == nullptr) {
       return Unexpect(ErrCode::WrongInstanceAddress);
     }
-    return std::vector<ValVariant>{
-        WasmEdge_GlobalInstanceGetValue(GlobCxt).Value};
+    WasmEdge_Value Val = WasmEdge_GlobalInstanceGetValue(GlobCxt);
+    return std::make_pair(ValVariant(Val.Value),
+                          static_cast<ValType>(Val.Type));
   };
 
   T.run(Proposal, UnitName);

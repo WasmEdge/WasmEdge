@@ -11,8 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/types.h"
-#include "common/value.h"
+#include "ast/type.h"
 
 namespace WasmEdge {
 namespace Runtime {
@@ -21,16 +20,13 @@ namespace Instance {
 class GlobalInstance {
 public:
   GlobalInstance() = delete;
-  GlobalInstance(const ValType ValueType, const ValMut Mutibility,
+  GlobalInstance(const AST::GlobalType &GType,
                  const ValVariant Val = uint32_t(0)) noexcept
-      : Type(ValueType), Mut(Mutibility), Value(Val) {}
+      : GlobType(GType), Value(Val) {}
   virtual ~GlobalInstance() = default;
 
-  /// Getter the global value type.
-  ValType getValType() const { return Type; }
-
-  /// Getter the global mutation.
-  ValMut getValMut() const { return Mut; }
+  /// Getter of global type.
+  const AST::GlobalType &getGlobalType() const { return GlobType; }
 
   /// Getter of value.
   const ValVariant &getValue() const { return Value; }
@@ -41,8 +37,7 @@ public:
 private:
   /// \name Data of global instance.
   /// @{
-  const ValType Type;
-  const ValMut Mut;
+  AST::GlobalType GlobType;
   ValVariant Value;
   /// @}
 };

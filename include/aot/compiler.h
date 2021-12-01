@@ -12,8 +12,11 @@
 #pragma once
 
 #include "ast/module.h"
+#include "common/configure.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
+#include "common/span.h"
+
 #include <cstdint>
 #include <string_view>
 

@@ -11,100 +11,27 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "astdef.h"
-#include "configure.h"
-#include "filesystem.h"
-#include "types.h"
-#include "value.h"
+#include "common/enum_ast.h"
+#include "common/enum_configure.h"
+#include "common/enum_errcode.h"
+#include "common/enum_errinfo.h"
+#include "common/enum_types.h"
+#include "common/filesystem.h"
+#include "common/types.h"
 
 #include <iomanip>
-#include <ostream>
+#include <iostream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 namespace WasmEdge {
 namespace ErrInfo {
 
-/// Error info type enumeration class.
-enum class InfoType : uint8_t {
-  File,          /// Information about file name which loading from
-  Loading,       /// Information about bytecode offset
-  AST,           /// Information about tracing AST nodes
-  InstanceBound, /// Information about over boundary of limited #instances
-  ForbidIndex,   /// Information about forbidden accessing of indices
-  Exporting,     /// Information about exporting instances
-  Limit,         /// Information about Limit value
-  Registering,   /// Information about instantiating modules
-  Linking,       /// Information about linking instances
-  Executing,     /// Information about running functions
-  Mismatch,      /// Information about comparison error
-  Instruction,   /// Information about aborted instructions and parameters
-  Boundary       /// Information about forbidden offset accessing
-};
-
-/// Instance addressing type enumeration class.
-enum class PtrType : uint8_t {
-  Index,  /// Index of instances
-  Address /// Absolute address
-};
-
-static inline std::unordered_map<PtrType, std::string> PtrTypeStr = {
-    {PtrType::Index, "index"}, {PtrType::Address, "address"}};
-
-/// Mismatch category.
-enum class MismatchCategory : uint8_t {
-  Alignment,    /// Alignment in memory instructions
-  ValueType,    /// Value type
-  ValueTypes,   /// Value type list
-  Mutation,     /// Const or Var
-  ExternalType, /// External typing
-  FunctionType, /// Function type
-  Table,        /// Table instance
-  Memory,       /// Memory instance
-  Global,       /// Global instance
-  Version       /// Versions
-};
-
-static inline std::unordered_map<MismatchCategory, std::string>
-    MismatchCategoryStr = {{MismatchCategory::Alignment, "memory alignment"},
-                           {MismatchCategory::ValueType, "value type"},
-                           {MismatchCategory::ValueTypes, "value types"},
-                           {MismatchCategory::Mutation, "mutation"},
-                           {MismatchCategory::ExternalType, "external type"},
-                           {MismatchCategory::FunctionType, "function type"},
-                           {MismatchCategory::Table, "table"},
-                           {MismatchCategory::Memory, "memory"},
-                           {MismatchCategory::Global, "global"},
-                           {MismatchCategory::Version, "version"}};
-
-/// Wasm index category.
-enum class IndexCategory : uint8_t {
-  Label,
-  Local,
-  FunctionType,
-  Function,
-  Table,
-  Memory,
-  Global,
-  Element,
-  Data
-};
-
-static inline std::unordered_map<IndexCategory, std::string> IndexCategoryStr =
-    {{IndexCategory::Label, "label"},
-     {IndexCategory::Local, "local"},
-     {IndexCategory::FunctionType, "function type"},
-     {IndexCategory::Function, "function"},
-     {IndexCategory::Table, "table"},
-     {IndexCategory::Memory, "memory"},
-     {IndexCategory::Global, "global"},
-     {IndexCategory::Element, "element"},
-     {IndexCategory::Data, "data"}};
-
 /// Information structures.
 struct InfoFile {
-  InfoFile() = default;
+  InfoFile() = delete;
   InfoFile(const std::filesystem::path &FName) noexcept : FileName(FName) {}
 
   friend std::ostream &operator<<(std::ostream &OS, const struct InfoFile &Rhs);
@@ -113,7 +40,7 @@ struct InfoFile {
 };
 
 struct InfoLoading {
-  InfoLoading() = default;
+  InfoLoading() = delete;
   InfoLoading(const uint64_t Off) noexcept : Offset(Off) {}
 
   friend std::ostream &operator<<(std::ostream &OS,
@@ -123,7 +50,7 @@ struct InfoLoading {
 };
 
 struct InfoAST {
-  InfoAST() = default;
+  InfoAST() = delete;
   InfoAST(const ASTNodeAttr Attr) noexcept : NodeAttr(Attr) {}
 
   friend std::ostream &operator<<(std::ostream &OS, const struct InfoAST &Rhs);
@@ -132,7 +59,7 @@ struct InfoAST {
 };
 
 struct InfoInstanceBound {
-  InfoInstanceBound() = default;
+  InfoInstanceBound() = delete;
   InfoInstanceBound(const ExternalType Inst, const uint32_t Num,
                     const uint32_t Lim) noexcept
       : Instance(Inst), Number(Num), Limited(Lim) {}
@@ -145,7 +72,7 @@ struct InfoInstanceBound {
 };
 
 struct InfoForbidIndex {
-  InfoForbidIndex() = default;
+  InfoForbidIndex() = delete;
   InfoForbidIndex(const IndexCategory Cate, const uint32_t Idx,
                   const uint32_t Bound) noexcept
       : Category(Cate), Index(Idx), Boundary(Bound) {}
@@ -158,7 +85,7 @@ struct InfoForbidIndex {
 };
 
 struct InfoExporting {
-  InfoExporting() = default;
+  InfoExporting() = delete;
   InfoExporting(std::string_view Ext) noexcept : ExtName(Ext) {}
 
   friend std::ostream &operator<<(std::ostream &OS,
@@ -168,7 +95,7 @@ struct InfoExporting {
 };
 
 struct InfoLimit {
-  InfoLimit() = default;
+  InfoLimit() = delete;
   InfoLimit(const bool HasMax, const uint32_t Min,
             const uint32_t Max = 0) noexcept
       : LimHasMax(HasMax), LimMin(Min), LimMax(Max) {}
@@ -181,7 +108,7 @@ struct InfoLimit {
 };
 
 struct InfoRegistering {
-  InfoRegistering() = default;
+  InfoRegistering() = delete;
   InfoRegistering(std::string_view Mod) noexcept : ModName(Mod) {}
 
   friend std::ostream &operator<<(std::ostream &OS,
@@ -191,7 +118,7 @@ struct InfoRegistering {
 };
 
 struct InfoLinking {
-  InfoLinking() = default;
+  InfoLinking() = delete;
   InfoLinking(std::string_view Mod, std::string_view Ext,
               const ExternalType ExtT = ExternalType::Function) noexcept
       : ModName(Mod), ExtName(Ext), ExtType(ExtT) {}
@@ -205,7 +132,7 @@ struct InfoLinking {
 };
 
 struct InfoExecuting {
-  InfoExecuting() = default;
+  InfoExecuting() = delete;
   InfoExecuting(std::string_view Mod, std::string_view Func) noexcept
       : ModName(Mod), FuncName(Func) {}
   InfoExecuting(std::string_view Func) noexcept : ModName(""), FuncName(Func) {}
@@ -218,7 +145,7 @@ struct InfoExecuting {
 };
 
 struct InfoMismatch {
-  InfoMismatch() = default;
+  InfoMismatch() = delete;
 
   /// Case 1: unexpected alignment
   InfoMismatch(const uint8_t ExpAlign, const uint32_t GotAlign) noexcept
@@ -324,7 +251,7 @@ struct InfoMismatch {
 };
 
 struct InfoInstruction {
-  InfoInstruction() = default;
+  InfoInstruction() = delete;
   InfoInstruction(const OpCode Op, const uint64_t Off,
                   const std::vector<ValVariant> &ArgsVec = {},
                   const std::vector<ValType> &ArgsTypesVec = {},
@@ -343,7 +270,7 @@ struct InfoInstruction {
 };
 
 struct InfoBoundary {
-  InfoBoundary() = default;
+  InfoBoundary() = delete;
   InfoBoundary(
       const uint64_t Off, const uint32_t Len = 0,
       const uint32_t Lim = std::numeric_limits<uint32_t>::max()) noexcept
@@ -358,7 +285,7 @@ struct InfoBoundary {
 };
 
 struct InfoProposal {
-  InfoProposal() = default;
+  InfoProposal() = delete;
   InfoProposal(Proposal P) noexcept : P(P) {}
 
   friend std::ostream &operator<<(std::ostream &OS,

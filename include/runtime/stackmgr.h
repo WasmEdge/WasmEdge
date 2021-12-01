@@ -11,13 +11,10 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include <cassert>
+#include "ast/instruction.h"
+
 #include <optional>
 #include <vector>
-
-#include "ast/instruction.h"
-#include "common/span.h"
-#include "common/value.h"
 
 namespace WasmEdge {
 namespace Runtime {
@@ -100,11 +97,11 @@ public:
 
   /// Unsafe pop top frame.
   void popFrame() {
-    assert(LabelStack.size() >= FrameStack.back().LStackOff);
+    assuming(LabelStack.size() >= FrameStack.back().LStackOff);
     LabelStack.erase(LabelStack.begin() + FrameStack.back().LStackOff,
                      LabelStack.end());
-    assert(ValueStack.size() >=
-           FrameStack.back().VStackOff + FrameStack.back().Arity);
+    assuming(ValueStack.size() >=
+             FrameStack.back().VStackOff + FrameStack.back().Arity);
     ValueStack.erase(ValueStack.begin() + FrameStack.back().VStackOff,
                      ValueStack.end() - FrameStack.back().Arity);
     FrameStack.pop_back();

@@ -1,3 +1,181 @@
+### 0.9.0 (unreleased)
+
+Breaking changes:
+
+* For better performance, the Statistics module is disabled by default.
+  * To enable instruction counting, please use `--enable-instruction-count`.
+  * To enable gas measuring, please use `--enable-gas-measuring`.
+  * To enable time  measuring, please use `--enable-time-measuring`.
+  * For the convinence, use `--enable-all-statistics` will enable all available statistics options.
+* `wasmedgec` AOT compiler tool behavior changes.
+  * For the output file name with extension `.so`, `wasmedgec` will output the AOT compiled WASM in shared library format.
+  * For the output file name with extension `.wasm` or other cases, `wasmedgec` will output the WASM file with adding the AOT compiled binary in custom sections. `wasmedge` runtime will run in AOT mode when it executes the output WASM file.
+* Modulized the API Headers.
+  * Moved the API header into the `wasmedge` folder. Developers should include the `wasmedge/wasmedge.h` for using the WasmEdge shared library after installation.
+  * Moved the enumeration definitions into `enum_errcode.h`, `enum_types.h`, and `enum_configure.h` in the `wasmedge` folder.
+  * Added the `201402L` C++ standard checking if developer includes the headers with a C++ compiler.
+* Adjusted the error code names.
+  * Please refer to the [ErrCode enum](https://github.com/WasmEdge/WasmEdge/blob/master/include/common/enum_errcode.h) definition.
+* Renamed the `Interpreter` into `Executor`.
+  * Renamed the `Interpreter` namespace into `Executor`.
+  * Moved the headers and sources in the `Interpreter` folder into `Executor` folder.
+  * Renamed the `Interpreter` APIs and listed below.
+* WasmEdge C API changes.
+  * Updated the host function related APIs.
+    * Deleted the data object column in the creation function of `ImportObject` context.
+    * Merged the `HostFunctionContext` into `FunctionInstanceContext`.
+      * Deleted the `WasmEdge_HostFunctionContext` object. Please use the `WasmEdge_FunctionInstanceContext` object instead.
+      * Deleted the `WasmEdge_HostFunctionCreate` function. Please use the `WasmEdge_FunctionInstanceCreate` function instead.
+      * Deleted the `WasmEdge_HostFunctionCreateBinding` function. Please use the `WasmEdge_FunctionInstanceCreateBinding` function instead.
+      * Deleted the `WasmEdge_HostFunctionDelete` function. Please use the `WasmEdge_FunctionInstanceDelete` function instead.
+      * Deleted the `WasmEdge_ImportObjectAddHostFunction` function. Please use the `WasmEdge_ImportObjectAddFunction` function instead.
+    * Added the data object column in the creation function of `FunctionInstance` context.
+    * Instead of the unified data object of the host functions in the same import object before, the data objects are independent in every host function now.
+  * Added the WASM types contexts.
+    * Added the `WasmEdge_TableTypeContext`, which is used for table instances creation.
+    * Added the `WasmEdge_MemoryTypeContext`, which is used for memory instances creation.
+    * Added the `WasmEdge_GlobalTypeContext`, which is used for global instances creation.
+    * Added the member getter functions of the above contexts.
+  * Updated the instances creation APIs.
+    * Used `WasmEdge_TableTypeContext` for table instances creation.
+      * Removed `WasmEdge_TableInstanceGetRefType` API.
+      * Developers can use the `WasmEdge_TableInstanceGetTableType` API to get the table type instead.
+    * Used `WasmEdge_MemoryTypeContext` for memory instances creation.
+      * Added `WasmEdge_MemoryInstanceGetMemoryType` API.
+    * Used `WasmEdge_GlobalTypeContext` for global instances creation.
+      * Removed `WasmEdge_GlobalInstanceGetValType` and `WasmEdge_GlobalInstanceGetMutability` API.
+      * Developers can use the `WasmEdge_GlobalInstanceGetGlobalType` API to get the global type instead.
+  * Refactored for the objects' life cycle to reduce copying.
+    * Developers should NOT destroy the `WasmEdge_FunctionTypeContext` objects returned from `WasmEdge_VMGetFunctionList`, `WasmEdge_VMGetFunctionType`, and `WasmEdge_VMGetFunctionTypeRegistered` functions.
+    * Developers should NOT destroy the `WasmEdge_String` objects returned from `WasmEdge_StoreListFunction`, `WasmEdge_StoreListFunctionRegistered`, `WasmEdge_StoreListTable`, `WasmEdge_StoreListTableRegistered`, `WasmEdge_StoreListMemory`, `WasmEdge_StoreListMemoryRegistered`, `WasmEdge_StoreListGlobal`, `WasmEdge_StoreListGlobalRegistered`, `WasmEdge_StoreListModule`, and `WasmEdge_VMGetFunctionList` functions.
+  * Renamed the `Interpreter` related APIs.
+    * Replaced `WasmEdge_InterpreterContext` struct with `WasmEdge_ExecutorContext` struct.
+    * Replaced `WasmEdge_InterpreterCreate` function with `WasmEdge_ExecutorCreate` function.
+    * Replaced `WasmEdge_InterpreterInstantiate` function with `WasmEdge_ExecutorInstantiate` function.
+    * Replaced `WasmEdge_InterpreterRegisterImport` function with `WasmEdge_ExecutorRegisterImport` function.
+    * Replaced `WasmEdge_InterpreterRegisterModule` function with `WasmEdge_ExecutorRegisterModule` function.
+    * Replaced `WasmEdge_InterpreterInvoke` function with `WasmEdge_ExecutorInvoke` function.
+    * Replaced `WasmEdge_InterpreterInvokeRegistered` function with `WasmEdge_ExecutorInvokeRegistered` function.
+    * Replaced `WasmEdge_InterpreterDelete` function with `WasmEdge_ExecutorDelete` function.
+  * Refactored for statistics options
+    * Renamed `WasmEdge_ConfigureCompilerSetInstructionCounting` to `WasmEdge_ConfigureStatisticsSetInstructionCounting`.
+    * Renamed `WasmEdge_ConfigureCompilerSetCostMeasuring` to `WasmEdge_ConfigureStatisticsSetCostMeasuring`.
+    * Renamed `WasmEdge_ConfigureCompilerSetTimeMeasuring` to `WasmEdge_ConfigureStatisticsSetTimeMeasuring`.
+    * Renamed `WasmEdge_ConfigureCompilerGetInstructionCounting` to `WasmEdge_ConfigureStatisticsGetInstructionCounting`.
+    * Renamed `WasmEdge_ConfigureCompilerGetCostMeasuring` to `WasmEdge_ConfigureStatisticsGetCostMeasuring`.
+    * Renamed `WasmEdge_ConfigureCompilerGetTimeMeasuring` to `WasmEdge_ConfigureStatisticsGetTimeMeasuring`.
+  * Simplified the WASI creation and initialization APIs.
+    * Removed the `Dirs` and `DirLen` parameters in the `WasmEdge_ImportObjectCreateWASI`.
+    * Removed the `Dirs` and `DirLen` parameters in the `WasmEdge_ImportObjectInitWASI`.
+
+Features:
+
+* Applied the old WebAssembly proposals options (All turned on by default).
+  * Developers can use the `disable-import-export-mut-globals` to disable the Import/Export mutable globals proposal in `wasmedge` and `wasmedgec`.
+  * Developers can use the `disable-non-trap-float-to-int` to disable the Non-trapping float-to-int conversions proposal in `wasmedge` and `wasmedgec`.
+  * Developers can use the `disable-sign-extension-operators` to disable the Sign-extension operators proposal in `wasmedge` and `wasmedgec`.
+  * Developers can use the `disable-multi-value` to disable the Multi-value proposal in `wasmedge` and `wasmedgec`.
+* New WasmEdge C API for listing imports and exports from AST module contexts.
+  * Developers can query the `ImportTypeContext` and `ExportTypeContext` from the `ASTModuleContext`.
+  * New object `WasmEdge_ImportTypeContext`.
+  * New object `WasmEdge_ExportTypeContext`.
+  * New AST module context functions to query the import and export types.
+    * `WasmEdge_ASTModuleListImportsLength` function can query the imports list length from an AST module context.
+    * `WasmEdge_ASTModuleListExportsLength` function can query the exports list length from an AST module context.
+    * `WasmEdge_ASTModuleListImports` function can list all import types of an AST module context.
+    * `WasmEdge_ASTModuleListExports` function can list all export types of an AST module context.
+  * New import type context functions to query data.
+    * `WasmEdge_ImportTypeGetExternalType` function can get the external type of an import type context.
+    * `WasmEdge_ImportTypeGetModuleName` function can get the import module name.
+    * `WasmEdge_ImportTypeGetExternalName` function can get the import external name.
+    * `WasmEdge_ImportTypeGetFunctionType` function can get the function type of an import type context.
+    * `WasmEdge_ImportTypeGetTableType` function can get the table type of an import type context.
+    * `WasmEdge_ImportTypeGetMemoryType` function can get the memory type of an import type context.
+    * `WasmEdge_ImportTypeGetGlobalType` function can get the global type of an import type context.
+  * New export type context functions to query data.
+    * `WasmEdge_ExportTypeGetExternalType` function can get the external type of an export type context.
+    * `WasmEdge_ExportTypeGetExternalName` function can get the export external name.
+    * `WasmEdge_ExportTypeGetFunctionType` function can get the function type of an export type context.
+    * `WasmEdge_ExportTypeGetTableType` function can get the table type of an export type context.
+    * `WasmEdge_ExportTypeGetMemoryType` function can get the memory type of an export type context.
+    * `WasmEdge_ExportTypeGetGlobalType` function can get the global type of an export type context.
+  * For more details of the usages of imports and exports, please refer to the [C API documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md).
+* Exported the WasmEdge C API for getting exit code from WASI.
+  * `WasmEdge_ImportObjectWASIGetExitCode` function can get the exit code from WASI after execution.
+* Exported the WasmEdge C API for AOT compiler related configurations.
+  * `WasmEdge_ConfigureCompilerSetOutputFormat` function can set the AOT compiler output format.
+  * `WasmEdge_ConfigureCompilerGetOutputFormat` function can get the AOT compiler output format.
+  * `WasmEdge_ConfigureCompilerSetGenericBinary` function can set the option of AOT compiler generic binary output.
+  * `WasmEdge_ConfigureCompilerIsGenericBinary` function can get the option of AOT compiler generic binary output.
+* Provided install and uninstall script for installing/uninstalling  WasmEdge on linux(amd64 and aarch64) and macos(amd64 and arm64).
+* Supported compiling WebAssembly into a new WebAssembly file with a packed binary section.
+* Supported the automatically pre-open mapping with the path name in WASI.
+
+Fixed issues:
+
+* Refined the WasmEdge C API behaviors.
+  * Handle the edge cases of `WasmEdge_String` creation.
+* Fixed the instruction iteration exception in interpreter mode.
+  * Forcely added the capacity of instruction vector to prevent from connection of instruction vectors in different function instances.
+* Fixed the loader of AOT mode WASM.
+  * Checked the file header instead of file name extension when loading from file.
+  * Showed the error message when loading AOT compiled WASM from buffer. For AOT mode, please use the universal WASM binary.
+  * Fixed the zero address used in AOT mode in load manager.
+  * Fixed the loading failed for the AOT compiled WASM without intrinsics table.
+* Fixed the `VM` creation issue.
+  * Added the loss of intrinsics table setting when creating a VM instance.
+* Fixed wasi-socket issues.
+  * Support wasi-socket on MacOS.
+  * Remove the port parameter from `sock_accept`.
+
+Refactor:
+
+* Refined headers inclusion in all files.
+* Refactor the common headers.
+  * Removed the unnecessary `genNullRef()`.
+  * Merged the building environment-related definitions into `common`.
+  * Merged the `common/values.h` into `common/types.h`.
+  * Separated all enumeration definitions.
+* Refactored the AST nodes.
+  * Simplified the AST nodes definitions into header-only classes.
+  * Moved the binary loading functions into `loader`.
+  * Updated the `validator`, `executor`, `runtime`, `api`, and `vm` for the AST node changes.
+* Refactored the runtime objects.
+  * Used `AST::FunctionType`, `AST::TableType`, `AST::MemoryType`, and `AST::GlobalType` for instance creation and member handling.
+  * Removed `Runtime::Instance::FType` and used `AST::FunctionType` instead.
+  * Added routines to push function instances into import objects.
+  * Removed the exported map getter in `StoreManager`. Used the getter from `ModuleInstance` instead.
+  * Added the module name mapping in `StoreManager`.
+* Refactored the VM class.
+  * Returned the reference to function type instead of copying when getting the function list.
+  * Returned the vector of return value and value type pair when execution.
+* Updated the include path for rust binding due to the API headers refactoring.
+
+Documentations:
+
+* Updated the examples in the [C API documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md).
+* Updated the examples in the [host function documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/host_function.md).
+* Updated the examples in the [external reference documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/externref.md).
+
+Bindings:
+
+* Move rust crate from root path to `bindings/rust`.
+
+Tests:
+
+* Updated and fixed the value comarison in core tests.
+* Added `ErrInfo` unit tests.
+* Added instruction tests for turning on/off the old proposals.
+* Moved and updated the `AST` unit tests into `loader`.
+* Moved and updated the `Interpreter` tests into `Executor` folder.
+* Added the unit tests for new APIs.
+* Applied the WasmEdge C API in the `ExternRef` tests.
+
+Misc:
+
+* Enabled GitHub CodeSpaces
+* Added `assuming` for `assert` checking to help compiler to generate better codes.
+
 ### 0.8.2 (2021-08-25)
 
 Features:

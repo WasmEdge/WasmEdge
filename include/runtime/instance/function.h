@@ -12,8 +12,9 @@
 #pragma once
 
 #include "ast/instruction.h"
-#include "module.h"
+#include "common/symbol.h"
 #include "runtime/hostfunc.h"
+#include "runtime/instance/module.h"
 
 #include <memory>
 #include <string>
@@ -33,17 +34,16 @@ public:
       : ModuleAddr(Inst.ModuleAddr), FuncType(Inst.FuncType),
         Data(std::move(Inst.Data)) {}
   /// Constructor for native function.
-  FunctionInstance(const uint32_t ModAddr, const FType &Type,
+  FunctionInstance(const uint32_t ModAddr, const AST::FunctionType &Type,
                    Span<const std::pair<uint32_t, ValType>> Locs,
                    AST::InstrView Expr) noexcept
       : ModuleAddr(ModAddr), FuncType(Type),
         Data(std::in_place_type_t<WasmFunction>(), Locs, Expr) {}
   /// Constructor for compiled function.
-  FunctionInstance(const uint32_t ModAddr, const FType &Type,
-                   Loader::Symbol<CompiledFunction> S) noexcept
+  FunctionInstance(const uint32_t ModAddr, const AST::FunctionType &Type,
+                   Symbol<CompiledFunction> S) noexcept
       : ModuleAddr(ModAddr), FuncType(Type),
-        Data(std::in_place_type_t<Loader::Symbol<CompiledFunction>>(),
-             std::move(S)) {}
+        Data(std::in_place_type_t<Symbol<CompiledFunction>>(), std::move(S)) {}
   /// Constructor for host function. Module address will not be used.
   FunctionInstance(std::unique_ptr<HostFunctionBase> &&Func) noexcept
       : ModuleAddr(0), FuncType(Func->getFuncType()),
@@ -59,7 +59,7 @@ public:
 
   /// Getter of checking is compiled function.
   bool isCompiledFunction() const {
-    return std::holds_alternative<Loader::Symbol<CompiledFunction>>(Data);
+    return std::holds_alternative<Symbol<CompiledFunction>>(Data);
   }
 
   /// Getter of checking is host function.
@@ -71,7 +71,7 @@ public:
   uint32_t getModuleAddr() const { return ModuleAddr; }
 
   /// Getter of function type.
-  const FType &getFuncType() const { return FuncType; }
+  const AST::FunctionType &getFuncType() const { return FuncType; }
 
   /// Getter of function local variables.
   Span<const std::pair<uint32_t, ValType>> getLocals() const noexcept {
@@ -89,7 +89,7 @@ public:
 
   /// Getter of symbol
   auto getSymbol() const noexcept {
-    return *std::get_if<Loader::Symbol<CompiledFunction>>(&Data);
+    return *std::get_if<Symbol<CompiledFunction>>(&Data);
   }
 
   /// Getter of host function.
@@ -100,17 +100,21 @@ public:
 private:
   struct WasmFunction {
     const std::vector<std::pair<uint32_t, ValType>> Locals;
-    const AST::InstrVec Instrs;
+    AST::InstrVec Instrs;
     WasmFunction(Span<const std::pair<uint32_t, ValType>> Locs,
                  AST::InstrView Expr) noexcept
-        : Locals(Locs.begin(), Locs.end()), Instrs(Expr.begin(), Expr.end()) {}
+        : Locals(Locs.begin(), Locs.end()) {
+      /// FIXME: Modify the capacity to prevent from connection of 2 vectors.
+      Instrs.reserve(Expr.size() + 1);
+      Instrs.assign(Expr.begin(), Expr.end());
+    }
   };
 
   /// \name Data of function instance.
   /// @{
   const uint32_t ModuleAddr;
-  const FType &FuncType;
-  std::variant<WasmFunction, Loader::Symbol<CompiledFunction>,
+  const AST::FunctionType &FuncType;
+  std::variant<WasmFunction, Symbol<CompiledFunction>,
                std::unique_ptr<HostFunctionBase>>
       Data;
   /// @}

@@ -10,6 +10,7 @@
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
+
 #include <cstdint>
 
 namespace WasmEdge {
@@ -20,6 +21,13 @@ public:
   static uint8_t *resize(uint8_t *Pointer, uint32_t OldPageCount,
                          uint32_t NewPageCount) noexcept;
   static void release(uint8_t *Pointer, uint32_t PageCount) noexcept;
+
+  static uint8_t *allocate_chunk(uint64_t Size) noexcept;
+  static void release_chunk(uint8_t *Pointer, uint64_t Size) noexcept;
+  static bool set_chunk_executable(uint8_t *Pointer, uint64_t Size) noexcept;
+  static bool set_chunk_readable(uint8_t *Pointer, uint64_t Size) noexcept;
+  static bool set_chunk_readable_writable(uint8_t *Pointer,
+                                          uint64_t Size) noexcept;
 };
 
 } // namespace WasmEdge

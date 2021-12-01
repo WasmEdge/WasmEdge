@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
+
 #include "system/fault.h"
+
+#include "common/config.h"
 #include "common/defines.h"
 #include "common/log.h"
-#include "config.h"
+
 #include <atomic>
 #include <cassert>
 #include <csetjmp>
@@ -111,7 +114,7 @@ thread_local Fault *localHandler = nullptr;
   case SIGSEGV:
     Fault::emitFault(ErrCode::MemoryOutOfBounds);
   case SIGFPE:
-    assert(Siginfo->si_code == FPE_INTDIV);
+    assuming(Siginfo->si_code == FPE_INTDIV);
     Fault::emitFault(ErrCode::DivideByZero);
   default:
     __builtin_unreachable();
@@ -189,18 +192,8 @@ Fault::~Fault() noexcept {
 }
 
 [[noreturn]] inline void Fault::emitFault(ErrCode Error) {
-  assert(localHandler != nullptr);
+  assuming(localHandler != nullptr);
   longjmp(localHandler->Buffer, uint8_t(Error));
-}
-
-FaultBlocker::FaultBlocker() noexcept {
-  decreaseHandler();
-  Prev = std::exchange(localHandler, nullptr);
-}
-
-FaultBlocker::~FaultBlocker() noexcept {
-  localHandler = std::exchange(Prev, nullptr);
-  increaseHandler();
 }
 
 } // namespace WasmEdge

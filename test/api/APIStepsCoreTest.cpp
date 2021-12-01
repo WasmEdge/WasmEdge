@@ -12,7 +12,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "api/wasmedge.h"
+#include "wasmedge/wasmedge.h"
 
 #include "../spec/spectest.h"
 #include "helper.h"
@@ -43,12 +43,11 @@ TEST_P(CoreTest, TestSuites) {
   WasmEdge_StatisticsContext *StatCxt = WasmEdge_StatisticsCreate();
   WasmEdge_LoaderContext *LoadCxt = WasmEdge_LoaderCreate(ConfCxt);
   WasmEdge_ValidatorContext *ValidCxt = WasmEdge_ValidatorCreate(ConfCxt);
-  WasmEdge_InterpreterContext *InterpCxt =
-      WasmEdge_InterpreterCreate(ConfCxt, StatCxt);
+  WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(ConfCxt, StatCxt);
   WasmEdge_ConfigureDelete(ConfCxt);
 
   WasmEdge_ImportObjectContext *TestModCxt = createSpecTestModule();
-  WasmEdge_InterpreterRegisterImport(InterpCxt, StoreCxt, TestModCxt);
+  WasmEdge_ExecutorRegisterImport(ExecCxt, StoreCxt, TestModCxt);
 
   T.onModule = [&](const std::string &ModName,
                    const std::string &Filename) -> Expect<void> {
@@ -66,10 +65,9 @@ TEST_P(CoreTest, TestSuites) {
     if (!ModName.empty()) {
       WasmEdge_String ModStr = WasmEdge_StringWrap(
           ModName.data(), static_cast<uint32_t>(ModName.length()));
-      Res = WasmEdge_InterpreterRegisterModule(InterpCxt, StoreCxt, ModCxt,
-                                               ModStr);
+      Res = WasmEdge_ExecutorRegisterModule(ExecCxt, StoreCxt, ModCxt, ModStr);
     } else {
-      Res = WasmEdge_InterpreterInstantiate(InterpCxt, StoreCxt, ModCxt);
+      Res = WasmEdge_ExecutorInstantiate(ExecCxt, StoreCxt, ModCxt);
     }
     WasmEdge_ASTModuleDelete(ModCxt);
     if (!WasmEdge_ResultOK(Res)) {
@@ -113,7 +111,7 @@ TEST_P(CoreTest, TestSuites) {
       WasmEdge_ASTModuleDelete(ModCxt);
       return Unexpect(convResult(Res));
     }
-    Res = WasmEdge_InterpreterInstantiate(InterpCxt, StoreCxt, ModCxt);
+    Res = WasmEdge_ExecutorInstantiate(ExecCxt, StoreCxt, ModCxt);
     WasmEdge_ASTModuleDelete(ModCxt);
     if (!WasmEdge_ResultOK(Res)) {
       return Unexpect(convResult(Res));
@@ -124,7 +122,7 @@ TEST_P(CoreTest, TestSuites) {
   T.onInvoke = [&](const std::string &ModName, const std::string &Field,
                    const std::vector<ValVariant> &Params,
                    const std::vector<ValType> &ParamTypes)
-      -> Expect<std::vector<ValVariant>> {
+      -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
     WasmEdge_Result Res;
     std::vector<WasmEdge_Value> CParams = convFromValVec(Params, ParamTypes);
     std::vector<WasmEdge_Value> CReturns;
@@ -145,8 +143,8 @@ TEST_P(CoreTest, TestSuites) {
           WasmEdge_FunctionInstanceGetFunctionType(FuncCxt);
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
       /// Execute.
-      Res = WasmEdge_InterpreterInvokeRegistered(
-          InterpCxt, StoreCxt, ModStr, FieldStr, &CParams[0],
+      Res = WasmEdge_ExecutorInvokeRegistered(
+          ExecCxt, StoreCxt, ModStr, FieldStr, &CParams[0],
           static_cast<uint32_t>(CParams.size()), &CReturns[0],
           static_cast<uint32_t>(CReturns.size()));
     } else {
@@ -162,10 +160,10 @@ TEST_P(CoreTest, TestSuites) {
           WasmEdge_FunctionInstanceGetFunctionType(FuncCxt);
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
       /// Execute.
-      Res = WasmEdge_InterpreterInvoke(
-          InterpCxt, StoreCxt, FieldStr, &CParams[0],
-          static_cast<uint32_t>(CParams.size()), &CReturns[0],
-          static_cast<uint32_t>(CReturns.size()));
+      Res = WasmEdge_ExecutorInvoke(ExecCxt, StoreCxt, FieldStr, &CParams[0],
+                                    static_cast<uint32_t>(CParams.size()),
+                                    &CReturns[0],
+                                    static_cast<uint32_t>(CReturns.size()));
     }
     if (!WasmEdge_ResultOK(Res)) {
       return Unexpect(convResult(Res));
@@ -173,8 +171,9 @@ TEST_P(CoreTest, TestSuites) {
     return convToValVec(CReturns);
   };
   /// Helper function to get values.
-  T.onGet = [&](const std::string &ModName,
-                const std::string &Field) -> Expect<std::vector<ValVariant>> {
+  T.onGet =
+      [&](const std::string &ModName,
+          const std::string &Field) -> Expect<std::pair<ValVariant, ValType>> {
     /// Get global instance.
     WasmEdge_String ModStr = WasmEdge_StringWrap(
         ModName.data(), static_cast<uint32_t>(ModName.length()));
@@ -185,15 +184,16 @@ TEST_P(CoreTest, TestSuites) {
     if (GlobCxt == nullptr) {
       return Unexpect(ErrCode::WrongInstanceAddress);
     }
-    return convToValVec(std::vector<WasmEdge_Value>{
-        WasmEdge_GlobalInstanceGetValue(GlobCxt)});
+    WasmEdge_Value Val = WasmEdge_GlobalInstanceGetValue(GlobCxt);
+    return std::make_pair(ValVariant(Val.Value),
+                          static_cast<ValType>(Val.Type));
   };
 
   T.run(Proposal, UnitName);
 
   WasmEdge_LoaderDelete(LoadCxt);
   WasmEdge_ValidatorDelete(ValidCxt);
-  WasmEdge_InterpreterDelete(InterpCxt);
+  WasmEdge_ExecutorDelete(ExecCxt);
   WasmEdge_StoreDelete(StoreCxt);
   WasmEdge_StatisticsDelete(StatCxt);
   WasmEdge_ImportObjectDelete(TestModCxt);

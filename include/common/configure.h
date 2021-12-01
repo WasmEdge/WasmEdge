@@ -12,35 +12,13 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/enum_configure.h"
+
 #include <bitset>
 #include <cstdint>
 #include <initializer_list>
-#include <string_view>
-#include <unordered_map>
 
 namespace WasmEdge {
-
-/// Wasm Proposal enum class.
-/// This enum is also duplicated to "include/api/wasmedge.h" and should be the
-/// same.
-enum class Proposal : uint8_t {
-  BulkMemoryOperations = 0,
-  ReferenceTypes,
-  SIMD,
-  TailCall,
-  Annotations,
-  Memory64,
-  Threads,
-  ExceptionHandling,
-  FunctionReferences,
-  Max
-};
-
-/// Wasm Proposal name enumeration string mapping.
-extern const std::unordered_map<Proposal, std::string_view> ProposalStr;
-
-/// Host Module Registration enum class.
-enum class HostRegistration : uint8_t { Wasi = 0, WasmEdge_Process, Max };
 
 class CompilerConfigure {
 public:
@@ -64,8 +42,17 @@ public:
   void setOptimizationLevel(OptimizationLevel Level) noexcept {
     OptLevel = Level;
   }
-
   OptimizationLevel getOptimizationLevel() const noexcept { return OptLevel; }
+
+  /// AOT compiler output binary format.
+  enum class OutputFormat : uint8_t {
+    /// Native dynamic library format.
+    Native,
+    /// WebAssembly with AOT compiled codes in custom sections.
+    Wasm,
+  };
+  void setOutputFormat(OutputFormat Format) noexcept { OFormat = Format; }
+  OutputFormat getOutputFormat() const noexcept { return OFormat; }
 
   void setDumpIR(bool IsDump) noexcept { DumpIR = IsDump; }
 
@@ -77,6 +64,25 @@ public:
 
   bool isGenericBinary() const noexcept { return GenericBinary; }
 
+private:
+  OptimizationLevel OptLevel = OptimizationLevel::O3;
+  OutputFormat OFormat = OutputFormat::Wasm;
+  bool DumpIR = false;
+  bool GenericBinary = false;
+};
+
+class RuntimeConfigure {
+public:
+  void setMaxMemoryPage(const uint32_t Page) noexcept { MaxMemPage = Page; }
+
+  uint32_t getMaxMemoryPage() const noexcept { return MaxMemPage; }
+
+private:
+  uint32_t MaxMemPage = 65536;
+};
+
+class StatisticsConfigure {
+public:
   void setInstructionCounting(bool IsCount) noexcept {
     InstrCounting = IsCount;
   }
@@ -87,33 +93,25 @@ public:
 
   bool isCostMeasuring() const noexcept { return CostMeasuring; }
 
+  void setTimeMeasuring(bool IsTimeMeasure) noexcept {
+    TimeMeasuring = IsTimeMeasure;
+  }
+
+  bool isTimeMeasuring() const noexcept { return TimeMeasuring; }
+
 private:
-  OptimizationLevel OptLevel = OptimizationLevel::O3;
-  bool DumpIR = false;
   bool InstrCounting = false;
   bool CostMeasuring = false;
-  bool GenericBinary = false;
-};
-
-class RuntimeConfigure {
-public:
-  void setMaxMemoryPage(const uint32_t Page) noexcept { MaxMemPage = Page; }
-
-  uint32_t getMaxMemoryPage() const noexcept { return MaxMemPage; }
-
-  void addDataCountSection() noexcept { HasDataCountSection = true; }
-
-  bool hasDataCountSection() const noexcept { return HasDataCountSection; }
-
-private:
-  uint32_t MaxMemPage = 65536;
-  /// Used in AST::Module only.
-  bool HasDataCountSection = false;
+  bool TimeMeasuring = false;
 };
 
 class Configure {
 public:
   Configure() noexcept {
+    addProposal(Proposal::ImportExportMutGlobals);
+    addProposal(Proposal::NonTrapFloatToIntConversions);
+    addProposal(Proposal::SignExtensionOperators);
+    addProposal(Proposal::MultiValue);
     addProposal(Proposal::BulkMemoryOperations);
     addProposal(Proposal::ReferenceTypes);
   }
@@ -155,6 +153,13 @@ public:
   }
   RuntimeConfigure &getRuntimeConfigure() noexcept { return RuntimeConf; }
 
+  const StatisticsConfigure &getStatisticsConfigure() const noexcept {
+    return StatisticsConf;
+  }
+  StatisticsConfigure &getStatisticsConfigure() noexcept {
+    return StatisticsConf;
+  }
+
 private:
   void addSet(const Proposal P) noexcept { addProposal(P); }
   void addSet(const HostRegistration H) noexcept { addHostRegistration(H); }
@@ -163,6 +168,7 @@ private:
 
   CompilerConfigure CompilerConf;
   RuntimeConfigure RuntimeConf;
+  StatisticsConfigure StatisticsConf;
 };
 
 } // namespace WasmEdge

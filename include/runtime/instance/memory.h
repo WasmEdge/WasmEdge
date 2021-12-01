@@ -13,10 +13,8 @@
 
 #include "ast/type.h"
 #include "common/errcode.h"
+#include "common/errinfo.h"
 #include "common/log.h"
-#include "common/span.h"
-#include "common/types.h"
-#include "common/value.h"
 #include "system/allocator.h"
 
 #include <algorithm>
@@ -38,51 +36,50 @@ public:
   static inline constexpr const uint64_t k4G = UINT64_C(0x100000000);
   MemoryInstance() = delete;
   MemoryInstance(MemoryInstance &&Inst) noexcept
-      : HasMaxPage(Inst.HasMaxPage), MinPage(Inst.MinPage),
-        MaxPage(Inst.MaxPage), DataPtr(Inst.DataPtr),
+      : MemType(Inst.MemType), DataPtr(Inst.DataPtr),
         PageLimit(Inst.PageLimit) {
     Inst.DataPtr = nullptr;
   }
-  MemoryInstance(const AST::Limit &Lim,
+  MemoryInstance(const AST::MemoryType &MType,
                  const uint32_t PageLim = UINT32_C(65536)) noexcept
-      : HasMaxPage(Lim.hasMax()), MinPage(Lim.getMin()), MaxPage(Lim.getMax()),
-        PageLimit(PageLim) {
-    if (MinPage > PageLimit) {
+      : MemType(MType), PageLimit(PageLim) {
+    if (MemType.getLimit().getMin() > PageLimit) {
       spdlog::error(
           "Create memory instance failed -- exceeded limit page size: {}",
           PageLimit);
       return;
     }
-    DataPtr = Allocator::allocate(MinPage);
+    DataPtr = Allocator::allocate(MemType.getLimit().getMin());
     if (DataPtr == nullptr) {
       spdlog::error("Unable to find usable memory address");
       return;
     }
   }
-  ~MemoryInstance() noexcept { Allocator::release(DataPtr, MinPage); }
+  ~MemoryInstance() noexcept {
+    Allocator::release(DataPtr, MemType.getLimit().getMin());
+  }
 
   /// Get page size of memory.data
-  uint32_t getDataPageSize() const noexcept { return MinPage; }
+  uint32_t getPageSize() const noexcept {
+    /// The memory page size is binded with the limit in memory type.
+    return MemType.getLimit().getMin();
+  }
 
-  /// Getter of limit definition.
-  bool getHasMax() const noexcept { return HasMaxPage; }
-
-  /// Getter of limit definition.
-  uint32_t getMin() const noexcept { return MinPage; }
-
-  /// Getter of limit definition.
-  uint32_t getMax() const noexcept { return MaxPage; }
+  /// Getter of memory type.
+  const AST::MemoryType &getMemoryType() const { return MemType; }
 
   /// Check access size is valid.
   bool checkAccessBound(uint32_t Offset, uint32_t Length) const noexcept {
     const uint64_t AccessLen =
         static_cast<uint64_t>(Offset) + static_cast<uint64_t>(Length);
-    return AccessLen <= MinPage * kPageSize;
+    return AccessLen <= MemType.getLimit().getMin() * kPageSize;
   }
 
   /// Get boundary index.
   uint32_t getBoundIdx() const noexcept {
-    return MinPage > 0 ? MinPage * kPageSize - 1 : 0;
+    return MemType.getLimit().getMin() > 0
+               ? MemType.getLimit().getMin() * kPageSize - 1
+               : 0;
   }
 
   /// Grow page
@@ -92,24 +89,26 @@ public:
     }
     /// Maximum pages count, 65536
     uint32_t MaxPageCaped = k4G / kPageSize;
-    if (HasMaxPage) {
-      MaxPageCaped = std::min(MaxPage, MaxPageCaped);
+    uint32_t Min = MemType.getLimit().getMin();
+    uint32_t Max = MemType.getLimit().getMax();
+    if (MemType.getLimit().hasMax()) {
+      MaxPageCaped = std::min(Max, MaxPageCaped);
     }
-    if (Count + MinPage > MaxPageCaped) {
+    if (Count + Min > MaxPageCaped) {
       return false;
     }
-    if (Count + MinPage > PageLimit) {
+    if (Count + Min > PageLimit) {
       spdlog::error("Memory grow page failed -- exceeded limit page size: {}",
                     PageLimit);
       return false;
     }
-    if (auto NewPtr = Allocator::resize(DataPtr, MinPage, MinPage + Count);
+    if (auto NewPtr = Allocator::resize(DataPtr, Min, Min + Count);
         NewPtr == nullptr) {
       return false;
     } else {
       DataPtr = NewPtr;
     }
-    MinPage += Count;
+    MemType.getLimit().setMin(Min + Count);
     return true;
   }
 
@@ -324,9 +323,7 @@ public:
 private:
   /// \name Data of memory instance.
   /// @{
-  const bool HasMaxPage;
-  uint32_t MinPage;
-  const uint32_t MaxPage;
+  AST::MemoryType MemType;
   uint8_t *DataPtr = nullptr;
   const uint32_t PageLimit;
   /// @}

@@ -15,9 +15,7 @@
 #pragma once
 
 #include "common/errcode.h"
-#include "runtime/hostfunc.h"
 #include "runtime/importobj.h"
-#include "runtime/instance/memory.h"
 
 namespace WasmEdge {
 
@@ -67,26 +65,28 @@ public:
     addHostFunc("print_i32_f32", std::make_unique<SpecTestPrintI32F32>());
     addHostFunc("print_f64_f64", std::make_unique<SpecTestPrintF64F64>());
 
-    AST::Limit TabLimit(10, 20);
     addHostTable("table", std::make_unique<Runtime::Instance::TableInstance>(
-                              RefType::FuncRef, TabLimit));
+                              AST::TableType(RefType::FuncRef, 10, 20)));
 
-    AST::Limit MemLimit(1, 2);
     addHostMemory("memory", std::make_unique<Runtime::Instance::MemoryInstance>(
-                                MemLimit));
+                                AST::MemoryType(1, 2)));
 
-    addHostGlobal("global_i32",
-                  std::make_unique<Runtime::Instance::GlobalInstance>(
-                      ValType::I32, ValMut::Const, uint32_t(666)));
-    addHostGlobal("global_i64",
-                  std::make_unique<Runtime::Instance::GlobalInstance>(
-                      ValType::I64, ValMut::Const, uint64_t(666)));
-    addHostGlobal("global_f32",
-                  std::make_unique<Runtime::Instance::GlobalInstance>(
-                      ValType::F32, ValMut::Const, float(666)));
-    addHostGlobal("global_f64",
-                  std::make_unique<Runtime::Instance::GlobalInstance>(
-                      ValType::F64, ValMut::Const, double(666)));
+    addHostGlobal(
+        "global_i32",
+        std::make_unique<Runtime::Instance::GlobalInstance>(
+            AST::GlobalType(ValType::I32, ValMut::Const), uint32_t(666)));
+    addHostGlobal(
+        "global_i64",
+        std::make_unique<Runtime::Instance::GlobalInstance>(
+            AST::GlobalType(ValType::I64, ValMut::Const), uint64_t(666)));
+    addHostGlobal(
+        "global_f32",
+        std::make_unique<Runtime::Instance::GlobalInstance>(
+            AST::GlobalType(ValType::F32, ValMut::Const), float(666)));
+    addHostGlobal(
+        "global_f64",
+        std::make_unique<Runtime::Instance::GlobalInstance>(
+            AST::GlobalType(ValType::F64, ValMut::Const), double(666)));
   }
   ~SpecTestModule() noexcept override = default;
 };

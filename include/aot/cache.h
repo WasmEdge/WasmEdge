@@ -11,9 +11,10 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/module.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
+#include "common/types.h"
+
 #include <cstdint>
 #include <string_view>
 

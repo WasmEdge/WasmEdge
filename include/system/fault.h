@@ -13,6 +13,7 @@
 #pragma once
 
 #include "common/errcode.h"
+
 #include <csetjmp>
 
 namespace WasmEdge {
@@ -30,15 +31,6 @@ public:
 private:
   Fault *Prev = nullptr;
   std::jmp_buf Buffer;
-};
-
-class FaultBlocker {
-public:
-  FaultBlocker() noexcept;
-  ~FaultBlocker() noexcept;
-
-private:
-  Fault *Prev = nullptr;
 };
 
 } // namespace WasmEdge

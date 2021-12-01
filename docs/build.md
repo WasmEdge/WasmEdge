@@ -2,6 +2,8 @@
 
 Please follow this guide to build and test WasmEdge from source code.
 
+The following guide is based on Linux distributions. For MacOS, please refer to [this guide](build_on_mac.md).
+
 ## Get Source Code
 
 ```bash
@@ -12,9 +14,7 @@ $ cd WasmEdge
 ## Check Dependencies
 
 WasmEdge will try to use the latest LLVM release to create our nightly build. 
-If you want to build from source, you may need to install these dependencies 
-by yourself or using our docker images which provides several Linux distribution 
-support.
+If you want to build from source, you may need to install these dependencies by yourself or using our docker images which provides several Linux distribution support.
 
 - LLVM 12.0.0 (>= 10.0.0)
 - GCC 11.1.0 (>= 9.4.0)
@@ -35,9 +35,9 @@ $ docker pull wasmedge/wasmedge # Equals to wasmedge/wasmedge:latest
 
 | tag name                | arch    | based operating system | LLVM version | ENVs                  | compatibility            | comments                                                                            |
 | ---                     | ---     | ---                    | ---          | ---                   | ---                      | ---                                                                                 |
-| `latest`                | x86\_64 | Ubuntu 21.04           | 12.0.0       | CC=clang, CXX=clang++ | Ubuntu 21.04+            | This is for CI, will always use the latest Ubuntu release                           |
-| `ubuntu-build-gcc`      | x86\_64 | Ubuntu 21.04           | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 21.04+            | This is for CI, will always use the latest Ubuntu release                           |
-| `ubuntu-build-clang`    | x86\_64 | Ubuntu 21.04           | 12.0.0       | CC=clang, CXX=clang++ | Ubuntu 21.04+            | This is for CI, will always use the latest Ubuntu release                           |
+| `latest`                | x86\_64 | Ubuntu 20.04 LTS       | 12.0.0       | CC=clang, CXX=clang++ | Ubuntu 20.04+            | This is for CI, will always use the latest Ubuntu release                           |
+| `ubuntu-build-gcc`      | x86\_64 | Ubuntu 20.04 LTS       | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 20.04+            | This is for CI, will always use the latest Ubuntu release                           |
+| `ubuntu-build-clang`    | x86\_64 | Ubuntu 20.04 LTS       | 12.0.0       | CC=clang, CXX=clang++ | Ubuntu 20.04+            | This is for CI, will always use the latest Ubuntu release                           |
 | `ubuntu2004_x86_64`     | x86\_64 | Ubuntu 20.04 LTS       | 10.0.0       | CC=gcc, CXX=g++       | Ubuntu 20.04+            | This is for developers who familiar with Ubuntu 20.04 LTS release                   |
 | `ubuntu2104_armv7l`     | armhf   | Ubuntu 21.04           | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 21.04+            | This is for armhf release                                                           |
 | `manylinux2014_x86_64`  | x86\_64 | CentOS 7, 7.9.2009     | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | This is for developers who familiar with CentOS on x86\_64 architecture             |
@@ -45,8 +45,7 @@ $ docker pull wasmedge/wasmedge # Equals to wasmedge/wasmedge:latest
 | `manylinux2010_x86_64`  | x86\_64 | CentOS 6, 6.10         | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 6+ | This is for developers who familiar with legacy system on x86\_64 architecture, EOL |
 | `manylinux1_x86_64`     | x86\_64 | CentOS 5, 5.11         | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 5+ | This is for developers who familiar with legacy system on x86\_64 architecture, EOL |
 
-
-### Install dependencies on Ubuntu 21.04 manually
+### Install dependencies on Ubuntu 20.04 manually
 
 ```bash
 # Tools and libraries
@@ -65,16 +64,15 @@ $ sudo apt install -y \
 # If you prefer GCC
 $ sudo apt install -y gcc g++
 # Else you can choose clang
-$ sudo apt install -y clang
+$ sudo apt install -y clang-12
 ```
 
 ### Support for legacy operating systems
 
 Our development environment requires `libLLVM-12` and `>=GLIBCXX_3.4.33`.
 
-If users are using the older operating system than Ubuntu 21.04, please use our special docker image to build WasmEdge.
+If users are using the older operating system than Ubuntu 20.04, please use our special docker image to build WasmEdge.
 If you are looking for the pre-built binaries for the older operatoring system, we also provide several pre-built binaries based on manylinux\* distribution.
-
 
 | Portable Linux Built Distributions Tags | Base Image  | Provided Requirements                                                 | Docker Image                             |
 | ---                                     | ---         | ---                                                                   | ---                                      |

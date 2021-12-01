@@ -15,9 +15,8 @@
 #include "common/errcode.h"
 #include "common/filesystem.h"
 #include "common/types.h"
-#include "common/value.h"
 
-#include "interpreter/interpreter.h"
+#include "executor/executor.h"
 #include "loader/loader.h"
 #include "validator/validator.h"
 
@@ -49,15 +48,15 @@ public:
   Expect<void> registerModule(const Runtime::ImportObject &Obj);
 
   /// Rapidly load, validate, instantiate, and run wasm function.
-  Expect<std::vector<ValVariant>>
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
   runWasmFile(const std::filesystem::path &Path, std::string_view Func,
               Span<const ValVariant> Params = {},
               Span<const ValType> ParamTypes = {});
-  Expect<std::vector<ValVariant>>
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
   runWasmFile(Span<const Byte> Code, std::string_view Func,
               Span<const ValVariant> Params = {},
               Span<const ValType> ParamTypes = {});
-  Expect<std::vector<ValVariant>>
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
   runWasmFile(const AST::Module &Module, std::string_view Func,
               Span<const ValVariant> Params = {},
               Span<const ValType> ParamTypes = {});
@@ -77,22 +76,22 @@ public:
 
   /// ======= Functions can be called after instantiated stage. =======
   /// Execute wasm with given input.
-  Expect<std::vector<ValVariant>> execute(std::string_view Func,
-                                          Span<const ValVariant> Params = {},
-                                          Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  execute(std::string_view Func, Span<const ValVariant> Params = {},
+          Span<const ValType> ParamTypes = {});
 
   /// Execute function of registered module with given input.
-  Expect<std::vector<ValVariant>> execute(std::string_view Mod,
-                                          std::string_view Func,
-                                          Span<const ValVariant> Params = {},
-                                          Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  execute(std::string_view Mod, std::string_view Func,
+          Span<const ValVariant> Params = {},
+          Span<const ValType> ParamTypes = {});
 
   /// ======= Functions which are stageless. =======
   /// Clean up VM status
   void cleanup();
 
   /// Get list of callable functions and corresponding function types.
-  std::vector<std::pair<std::string, Runtime::Instance::FType>>
+  std::vector<std::pair<std::string, const AST::FunctionType &>>
   getFunctionList() const;
 
   /// Get import objects by configurations.
@@ -109,6 +108,12 @@ private:
 
   void initVM();
 
+  /// Helper function for execution.
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  execute(Runtime::Instance::ModuleInstance *ModInst, std::string_view Func,
+          Span<const ValVariant> Params = {},
+          Span<const ValType> ParamTypes = {});
+
   /// VM environment.
   const Configure Conf;
   Statistics::Statistics Stat;
@@ -117,7 +122,7 @@ private:
   /// VM runners.
   Loader::Loader LoaderEngine;
   Validator::Validator ValidatorEngine;
-  Interpreter::Interpreter InterpreterEngine;
+  Executor::Executor ExecutorEngine;
 
   /// VM Storage.
   std::unique_ptr<AST::Module> Mod;

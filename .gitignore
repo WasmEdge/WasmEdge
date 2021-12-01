@@ -47,7 +47,8 @@ autoconf/autom4te.cache
 /.idea
 # (Rust) Cargo lockfile, not published with libraries.
 Cargo.lock
-bindings/rust/target
+bindings/rust/wasmedge-sdk/target
+bindings/rust/wasmedge-sys/target
 
 #==============================================================================#
 # Directories to ignore (do not add trailing '/'s, they skip symlinks).
@@ -66,3 +67,6 @@ docs/_build
 # clangd index
 .clangd
 .cache
+
+.direnv
+.envrc

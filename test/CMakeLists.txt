@@ -24,12 +24,19 @@ else()
     -Wno-language-extension-token
     -Wno-missing-noreturn
     -Wno-shift-sign-overflow
-    -Wno-suggest-destructor-override
-    -Wno-suggest-override
     -Wno-undef
     -Wno-unused-member-function
     -Wno-zero-as-null-pointer-constant
   )
+  if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    set_property(
+      DIRECTORY
+      APPEND
+      PROPERTY COMPILE_OPTIONS
+      -Wno-suggest-destructor-override
+      -Wno-suggest-override
+    )
+  endif()
   FetchContent_MakeAvailable(GTest)
   set_property(
     DIRECTORY
@@ -44,9 +51,8 @@ if (WASMEDGE_BUILD_AOT_RUNTIME)
   add_subdirectory(aot)
 endif()
 add_subdirectory(spec)
-add_subdirectory(ast)
 add_subdirectory(loader)
-add_subdirectory(interpreter)
+add_subdirectory(executor)
 if (WASMEDGE_BUILD_SHARED_LIB)
   add_subdirectory(api)
 endif()
@@ -57,6 +63,7 @@ add_subdirectory(expected)
 add_subdirectory(span)
 add_subdirectory(po)
 add_subdirectory(memlimit)
+add_subdirectory(errinfo)
 
 if(WASMEDGE_BUILD_COVERAGE)
   setup_target_for_coverage_gcovr_html(

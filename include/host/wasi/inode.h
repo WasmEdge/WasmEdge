@@ -480,7 +480,7 @@ public:
 
   WasiExpect<void> sockListen(uint32_t Backlog) noexcept;
 
-  WasiExpect<INode> sockAccept(uint16_t Port) noexcept;
+  WasiExpect<INode> sockAccept() noexcept;
 
   WasiExpect<void> sockConnect(uint8_t *Address, uint8_t AddressLength,
                                uint16_t Port) noexcept;

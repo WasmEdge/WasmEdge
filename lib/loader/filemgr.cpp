@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+
 #include "loader/filemgr.h"
-#include "common/filesystem.h"
 
 #include <algorithm>
 #include <iterator>
@@ -16,7 +16,8 @@ Expect<void> FileMgr::setPath(const std::filesystem::path &FilePath) {
   Size = std::filesystem::file_size(FilePath, ErrCode);
   if (likely(!ErrCode)) {
     if (!MMap::supported()) {
-      Status = ErrCode::InvalidPath;
+      Size = 0;
+      Status = ErrCode::IllegalPath;
       return Unexpect(Status);
     }
     FileMap.emplace(FilePath);
@@ -30,7 +31,8 @@ Expect<void> FileMgr::setPath(const std::filesystem::path &FilePath) {
     }
     return {};
   }
-  Status = ErrCode::InvalidPath;
+  Size = 0;
+  Status = ErrCode::IllegalPath;
   return Unexpect(Status);
 }
 
@@ -394,10 +396,35 @@ Expect<std::string> FileMgr::readName() {
   }
 
   if (!Valid) {
-    Status = ErrCode::InvalidUTF8;
+    Status = ErrCode::MalformedUTF8;
     return Unexpect(Status);
   }
   return Str;
+}
+
+/// Get the file header type. See "include/loader/filemgr.h".
+FileMgr::FileHeader FileMgr::getHeaderType() {
+  if (Size >= 4) {
+    Byte WASMMagic[] = {0x00, 0x61, 0x73, 0x6D};
+    Byte ELFMagic[] = {0x7F, 0x45, 0x4C, 0x46};
+    Byte MAC32agic[] = {0xCE, 0xFA, 0xED, 0xFE};
+    Byte MAC64agic[] = {0xCF, 0xFA, 0xED, 0xFE};
+    if (std::equal(WASMMagic, WASMMagic + 4, Data)) {
+      return FileMgr::FileHeader::Wasm;
+    } else if (std::equal(ELFMagic, ELFMagic + 4, Data)) {
+      return FileMgr::FileHeader::ELF;
+    } else if (std::equal(MAC32agic, MAC32agic + 4, Data)) {
+      return FileMgr::FileHeader::MachO_32;
+    } else if (std::equal(MAC64agic, MAC64agic + 4, Data)) {
+      return FileMgr::FileHeader::MachO_64;
+    }
+  } else if (Size >= 2) {
+    Byte DLLMagic[] = {0x4D, 0x5A};
+    if (std::equal(DLLMagic, DLLMagic + 2, Data)) {
+      return FileMgr::FileHeader::DLL;
+    }
+  }
+  return FileMgr::FileHeader::Unknown;
 }
 
 /// Helper function for reading number of bytes. See "include/loader/filemgr.h".

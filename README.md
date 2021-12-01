@@ -8,24 +8,23 @@
   
 ![WasmEdge Logo](/docs/wasmedge-runtime-logo.png)
 
-WasmEdge (previously known as SSVM) is a high-performance WebAssembly (Wasm) runtime optimized for cloud native and edge computing applications. In its AOT mode, WasmEdge is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403) on the market today. WasmEdge is an official sandbox project hosted by [CNCF](https://www.cncf.io/) (Cloud Native Computing Foundation).
-  
+WasmEdge (previously known as SSVM) is a lightweight, high-performance, and extensible WebAssembly runtime for cloud native, edge, and decentralized applications. It is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403) today. WasmEdge is an official sandbox project hosted by the [CNCF](https://www.cncf.io/). Its [use cases](docs/use_cases.md) include serverless apps, embedded functions, microservices, smart contracts, and IoT devices.
+
 ![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/alerts/)
-[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/context:cpp)
 [![codecov](https://codecov.io/gh/WasmEdge/WasmEdge/branch/master/graph/badge.svg)](https://codecov.io/gh/WasmEdge/WasmEdge)
+[![CodeQL](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_shield)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5059/badge)](https://bestpractices.coreinfrastructure.org/projects/5059)
 
 </div>
-  
+
 # Quick start guides
 
 🚀 [Install](docs/install.md) WasmEdge \
 🤖 [Build](docs/build.md) and [contribute to](docs/CONTRIBUTING.md) WasmEdge \
-⌨️ [Run](docs/run.md) a standalone Wasm program or a [JavaScript program](docs/run_javascript.md) from CLI \
-🔌 Embed a Wasm function in your [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/), [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/), or [Rust](https://github.com/super-node/WasmEdge/tree/master/wasmedge-rs) apps \
-🛠 Manage and orchestrate Wasm runtimes using [Docker tools](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/), [data streaming frameworks](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/), and [blockchains](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a)
+⌨️ [Run](docs/run.md) a standalone Wasm program or a [JavaScript program](https://www.secondstate.io/articles/run-javascript-in-webassembly-with-wasmedge/) from CLI or [Docker](utils/docker/build-appdev.md) \
+🔌 Embed a Wasm function in your [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/), [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/), [Rust](bindings/rust/), or [C](docs/c_api_quick_start.md) app \
+🛠 Manage and orchestrate Wasm runtimes using [Kubernetes](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/), [data streaming frameworks](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/), and [blockchains](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a)
 
 # Introduction
 
@@ -33,7 +32,7 @@ The WasmEdge Runtime provides a well-defined execution sandbox for its contained
 
 <div align="center">
   
-**Checkout the [use cases](docs/use_cases.md) of WasmEdge.**
+**Checkout the [application use cases](docs/use_cases.md) or the [technical highlights](docs/highlights.md) of WasmEdge.**
 
 </div>
 
@@ -44,16 +43,16 @@ The WasmEdge Runtime provides a well-defined execution sandbox for its contained
 
 ## Features
 
-WasmEdge can run standard WebAssembly bytecode programs compiled from C/C++, Rust, Swift, AssemblyScript, or Kotlin source code. It also [runs JavaScript](docs/run_javascript.md) through an embedded [QuickJS engine](https://github.com/second-state/wasmedge-quickjs). WasmEdge supports all standard WebAssembly features and proposed extensions. It also supports a number of extensions tailored for cloud-native and edge computing uses (e.g., the [WasmEdge Tensorflow extension](https://www.secondstate.io/articles/wasi-tensorflow/)). 
+WasmEdge can run standard WebAssembly bytecode programs compiled from C/C++, Rust, Swift, AssemblyScript, or Kotlin source code. It also [runs JavaScript](https://www.secondstate.io/articles/run-javascript-in-webassembly-with-wasmedge/) through an embedded [QuickJS engine](https://github.com/second-state/wasmedge-quickjs). WasmEdge supports all standard WebAssembly features and proposed extensions. It also supports a number of extensions tailored for cloud-native and edge computing uses (e.g., the [WasmEdge Tensorflow extension](https://www.secondstate.io/articles/wasi-tensorflow/)). 
 
 * [WebAssembly standard extensions](docs/extensions.md#webassembly-standard-extensions)
 * [WasmEdge extensions](docs/extensions.md#wasmedge-extensions)
 
-WasmEdge extensions to WebAssembly are typically available to developers as Rust SDKs or [JavaScript APIs](docs/run_javascript.md). 
+WasmEdge extensions to WebAssembly are typically available to developers as Rust SDKs or [JavaScript APIs](https://www.secondstate.io/articles/run-javascript-in-webassembly-with-wasmedge/). 
 
 ## Integrations
 
-WasmEdge and its contained wasm program can be started from the [CLI](docs/run.md) as a new process, or from a existing process. If started from an existing process (e.g., from a running [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/) or [Rust](https://github.com/super-node/WasmEdge/tree/master/wasmedge-rs) program), WasmEdge will simply run inside the process as a function. Currently, WasmEdge is not yet thread-safe. In order to use WasmEdge in your own application or cloud-native frameworks, please refer to the guides below.
+WasmEdge and its contained wasm program can be started from the [CLI](docs/run.md) as a new process, or from a existing process. If started from an existing process (e.g., from a running [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/) or [Rust](bindings/rust/wasmedge-rs) program), WasmEdge will simply run inside the process as a function. Currently, WasmEdge is not yet thread-safe. In order to use WasmEdge in your own application or cloud-native frameworks, please refer to the guides below.
 
 * [Embed WasmEdge into a host application](docs/integrations.md#embed-wasmedge-into-a-host-application)
 * [Orchestrate and manage WasmEdge instances using container tools](docs/integrations.md#use-wasmedge-as-a-docker-like-container)

@@ -3,7 +3,11 @@ use std::path::PathBuf;
 const WASMEDGE_H: &str = "wasmedge.h";
 
 fn main() {
-    let Paths { header, lib_dir } = find_wasmedge();
+    let Paths {
+        header,
+        lib_dir,
+        inc_dir,
+    } = find_wasmedge().expect("wasmedge header not found");
 
     let out_file = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("wasmedge.rs");
     bindgen::builder()
@@ -12,6 +16,7 @@ fn main() {
                 .to_str()
                 .unwrap_or_else(|| panic!("`{}` must be a utf-8 path", header.display())),
         )
+        .clang_arg(format!("-I{}", inc_dir.as_path().display()))
         .prepend_enum_name(false) // The API already prepends the name.
         .dynamic_link_require_all(true)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
@@ -25,14 +30,14 @@ fn main() {
     println!("cargo:rustc-link-lib=dylib=wasmedge_c");
 }
 
-/// Returns the best guess of the location of wasmedge.h and libwasmedge_c.(dylib|so)
+/// Check header and Returns the location of wasmedge.h and libwasmedge_c.(dylib|so)
 /// The priorities are:
 /// 1. The locations specified by `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR`.
-/// 2. `include/` and `lib/` subdirectories of `WASMEDGE_DIR`.
-/// 3. The build directory, if this is an in-tree build.
-/// 4. The "XDG" local installation dirs: `~/.local/include` and `~/.local/lib`.
-/// 5. The global installation dirs: `/usr/include` and `/usr/bin`.
-fn find_wasmedge() -> Paths {
+/// 2. The build directory, if this is an in-tree build.
+/// 3. The "XDG" local installation dirs: `~/.local/include` and `~/.local/lib`.
+/// 4. The global installation dirs: `/usr/include` and `/usr/bin`.
+/// 5. Backward compatiable the path berfore 0.9
+fn find_wasmedge() -> Option<Paths> {
     macro_rules! env_path {
         ($env_var:literal) => {
             std::env::var_os($env_var).map(PathBuf::from)
@@ -42,13 +47,9 @@ fn find_wasmedge() -> Paths {
     let mut inc_dir = env_path!("WASMEDGE_INCLUDE_DIR");
     let mut lib_dir = env_path!("WASMEDGE_LIB_DIR");
 
-    if let Some(prefix) = env_path!("WASMEDGE_DIR") {
-        inc_dir = inc_dir.or_else(|| Some(prefix.join("include")));
-        lib_dir = lib_dir.or_else(|| Some(prefix.join("lib")));
-    }
-
-    let build_dir = env_path!("WASMEDGE_SRC_DIR").map(|d| d.join("build"));
-    if let Some((build_dir, found_inc_dir)) = contains_wasmedge_h(build_dir, "include/api") {
+    let build_dir = env_path!("WASMEDGE_BUILD_DIR");
+    if let Some((build_dir, found_inc_dir)) = contains_wasmedge_h(build_dir, "include/api/wasmedge")
+    {
         inc_dir = inc_dir.or(Some(found_inc_dir));
         lib_dir = lib_dir.or_else(|| Some(build_dir.join("lib/api")));
     }
@@ -59,11 +60,30 @@ fn find_wasmedge() -> Paths {
         lib_dir = lib_dir.or_else(|| Some(xdg_dir.join("lib")));
     }
 
-    Paths {
-        header: inc_dir
-            .unwrap_or_else(|| PathBuf::from("/usr/include"))
-            .join(WASMEDGE_H),
-        lib_dir: lib_dir.unwrap_or_else(|| PathBuf::from("/usr/lib")),
+    let header = inc_dir
+        .clone()
+        .unwrap_or_else(|| PathBuf::from("/usr/include/wasmedge"))
+        .join(WASMEDGE_H);
+
+    if header.exists() {
+        Some(Paths {
+            header,
+            lib_dir: lib_dir.unwrap_or_else(|| PathBuf::from("/usr/lib")),
+            inc_dir: inc_dir
+                .unwrap_or_else(|| PathBuf::from("/usr/include/wasmedge"))
+                .parent()
+                .unwrap()
+                .to_path_buf(),
+        })
+    } else if PathBuf::from("/usr/include").join(WASMEDGE_H).exists() {
+        // check the header path of old version
+        Some(Paths {
+            header: PathBuf::from("/usr/include").join(WASMEDGE_H),
+            lib_dir: PathBuf::from("/usr/lib"),
+            inc_dir: PathBuf::from("/usr/include"),
+        })
+    } else {
+        None
     }
 }
 
@@ -83,4 +103,5 @@ fn contains_wasmedge_h(base_dir: Option<PathBuf>, inc_subdir: &str) -> Option<(P
 struct Paths {
     header: PathBuf,
     lib_dir: PathBuf,
+    inc_dir: PathBuf,
 }

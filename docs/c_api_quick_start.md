@@ -1,6 +1,6 @@
 # WasmEdge C API Documentation
 
-[WasmEdge C API](../include/api/wasmedge.h.in) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge. For the details of the WasmEdge C API, please refer to the [fully documentation](c_api.md).
+The [WasmEdge C API](../include/api/wasmedge/wasmedge.h) denotes an interface to embed the WasmEdge runtime into a C program. The followings are the guides to working with the C APIs of WasmEdge. For the details of the WasmEdge C API, please refer to the [full documentation](c_api.md).
 
 ## Quick Start Guide for the WasmEdge runner
 
@@ -8,7 +8,7 @@ The following is an example for running a WASM file.
 Assume that the WASM file [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge.c` is as following:
 
 ```c
-#include <wasmedge.h>
+#include <wasmedge/wasmedge.h>
 #include <stdio.h>
 int main(int Argc, const char* Argv[]) {
   /* Create the configure context and add the WASI support. */
@@ -40,22 +40,22 @@ int main(int Argc, const char* Argv[]) {
 }
 ```
 
-Then you can compile and run: (the 32th fibonacci number is 5702887 in 0-based index)
+Then you can compile and run: (the 32th fibonacci number is 3524578 in 0-based index)
 
 ```bash
 $ gcc test_wasmedge.c -lwasmedge_c -o test_wasmedge
 $ ./test_wasmedge fibonacci.wasm
-Get result: 5702887
+Get result: 3524578
 ```
 
-For the details of APIs, please refer to the [API header file](../include/api/wasmedge.h.in).
+For the details of APIs, please refer to the [API header file](../include/api/wasmedge/wasmedge.h).
 
 ## Quick Start Guide for the WasmEdge AOT compiler
 
 Assume that the WASM file [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge_compiler.c` is as following:
 
 ```c
-#include <wasmedge.h>
+#include <wasmedge/wasmedge.h>
 #include <stdio.h>
 int main(int Argc, const char* Argv[]) {
   /* Create the configure context. */
@@ -110,4 +110,4 @@ user	0m0.022s
 sys	0m0.011s
 ```
 
-For the details of APIs, please refer to the [API header file](../include/api/wasmedge.h.in).
+For the details of APIs, please refer to the [API header file](../include/api/wasmedge/wasmedge.h).

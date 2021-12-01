@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
+
 #include "aot/blake3.h"
+
 #include "common/config.h"
 #include "common/defines.h"
 

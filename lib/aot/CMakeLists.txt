@@ -25,7 +25,7 @@ llvm_add_library(wasmedgeAOT
   compiler.cpp
   LINK_LIBS
   wasmedgeCommon
-  wasmedgeAST
+  wasmedgeSystem
   utilBlake3
   ${LLD_SYSTEM}
   ${LLD_COMMON}

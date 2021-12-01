@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
-//===-- wasmedge/common/statistics.h - Interpreter statistics definition --===//
+//===-- wasmedge/common/statistics.h - Executor statistics definition -----===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the statistics class of interpreter's runtime.
+/// This file contains the statistics class of runtime.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/astdef.h"
+#include "common/enum_ast.h"
 #include "common/errcode.h"
-#include "span.h"
-#include "timer.h"
+#include "common/span.h"
+#include "common/timer.h"
 
 #include <vector>
 

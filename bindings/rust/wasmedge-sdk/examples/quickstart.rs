@@ -6,9 +6,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .join("tools/wasmedge/examples/fibonacci.wasm");
 
     let config = wasmedge_sdk::Config::default();
-    let module = wasmedge_sdk::Module::new(&config, &module_path)?;
+    let mut module = wasmedge_sdk::Module::new(&config, &module_path)?;
 
-    let vm = wasmedge_sdk::Vm::load(&module)?
+    let vm = wasmedge_sdk::Vm::load(&mut module)?
         .with_config(&config)?
         .create()?;
 

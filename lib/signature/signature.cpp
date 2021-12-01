@@ -1,23 +1,31 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "signature/signature.h"
+#include "common/enum_errcode.h"
+#include "common/errcode.h"
+#include "spdlog/spdlog.h"
 
 namespace WasmEdge {
 namespace Signature {
 
-Expect<const std::vector<unsigned char>>
-Signature::signWasmFile(const std::filesystem::path &Path) {
-  LDMgr LMgr;
-  if (auto Res = LMgr.setPath(Path); !Res) {
-    spdlog::error(Res.error());
-    spdlog::error(ErrInfo::InfoFile(Path));
-    return Unexpect(Res);
+Expect<void> Signature::signWasmFile(const std::filesystem::path &Path) {
+  Span<Byte> Code;
+  FileMgr FMgr;
+  if (std::ifstream Is{Path, std::ios::binary | std::ios::ate}) {
+    auto SizeToRead = Is.tellg();
+    FMgr.setPath(Path);
+    std::string Str(SizeToRead, '\0');
+    if (auto Res = FMgr.readBytes(SizeToRead)) {
+      auto *Data = (*Res).data();
+      Code = Span<Byte>(reinterpret_cast<Byte *>(*Data), SizeToRead);
+    } else
+      return Unexpect(ErrCode::IllegalPath);
   }
-  if (auto Code = LMgr.getWasm()) {
-    auto Sig = keygen(*Code, Path.parent_path());
-    sign(Path, *Sig);
-    return Sig;
+
+  if (auto Sig = keygen(Code, Path.parent_path()); !Sig) {
+    spdlog::error(ErrInfo::InfoFile(Path));
+    return Unexpect(Sig);
   } else
-    return Unexpect(Code);
+    return sign(Path, *Sig);
 }
 
 Expect<bool>
@@ -42,7 +50,7 @@ Expect<void> Signature::sign(std::filesystem::path Path,
   std::ofstream File(Path.string(), std::ios::binary | std::ios::ate);
   try {
     File.exceptions(File.failbit);
-  } catch (const std::ios_base::failure &e) {
+  } catch (const std::ios_base::failure &Error) {
     // Failure handling
   }
   uint8_t SectionId = 0;
@@ -66,15 +74,15 @@ Expect<bool> Signature::verify(const Span<Byte> CustomSec,
   Span<const Byte> Signature, PublicKey;
   try {
     PubKeyFile.exceptions(PubKeyFile.failbit);
-  } catch (const std::ios_base::failure &e) {
+  } catch (const std::ios_base::failure &Error) {
     // Failure handling
   }
   return Alg.verify(CustomSec, Signature, PublicKey);
 }
 
 // Expect<Span<Byte>> keygen(Span<const uint8_t> Code) {
-Expect<const std::vector<unsigned char>>
-Signature::keygen(const Span<uint8_t> Code, const std::filesystem::path &Path) {
+Expect<std::vector<Byte>> Signature::keygen(const Span<uint8_t> Code,
+                                            const std::filesystem::path &Path) {
   return Alg.keygen(Code, Path);
 }
 

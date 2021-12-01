@@ -4,33 +4,35 @@
 namespace WasmEdge {
 namespace Signature {
 
-const std::vector<Byte>
+Expect<const std::vector<Byte>>
 SigAlgorithm::keygen(Span<const Byte> Code, const std::filesystem::path &Path) {
   unsigned char PublicKey[32], PrivateKey[64], Seed[32];
   unsigned char Signature[64];
   const int MessageLen = std::size(Code);
   const unsigned char *Message = &Code[0];
+  const std::filesystem::path PubKeyPath = Path / "./id_ed25519.pub";
+  const std::filesystem::path PriKeyPath = Path / "./id_ed25519";
 
   /* create a random seed, and a keypair out of that seed */
   ed25519_create_seed(Seed);
   ed25519_create_keypair(PublicKey, PrivateKey, Seed);
 
   /* Save public key and private key */
-  std::ofstream PubKeyFile(Path / "./id_ed25519.pub",
-                           std::ios::binary | std::ios::ate);
+  std::ofstream PubKeyFile(PubKeyPath, std::ios::binary | std::ios::ate);
   try {
     PubKeyFile.exceptions(PubKeyFile.failbit);
-  } catch (const std::ios_base::failure &e) {
-    // Failure handling
+  } catch (const std::ios_base::failure &_) {
+    spdlog::error("File open error");
+    return Unexpect(ErrCode::IllegalPath);
   }
   PubKeyFile.write(reinterpret_cast<const char *>(&PublicKey), 32);
 
-  std::ofstream PriKeyFile(Path / "./id_ed25519",
-                           std::ios::binary | std::ios::ate);
+  std::ofstream PriKeyFile(PriKeyPath, std::ios::binary | std::ios::ate);
   try {
     PriKeyFile.exceptions(PriKeyFile.failbit);
-  } catch (const std::ios_base::failure &e) {
-    // Failure handling
+  } catch (const std::ios_base::failure &_) {
+    spdlog::error("File open error");
+    return Unexpect(ErrCode::IllegalPath);
   }
   PriKeyFile.write(reinterpret_cast<const char *>(&PrivateKey), 32);
 

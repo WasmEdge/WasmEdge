@@ -15,7 +15,9 @@
 #include "ast/module.h"
 #include "ast/section.h"
 #include "common/configure.h"
+#include "common/errinfo.h"
 #include "common/log.h"
+#include "common/types.h"
 #include "loader/loader.h"
 #include "sig_algorithm.h"
 #include <filesystem>
@@ -28,8 +30,7 @@ const std::string_view DEFAULT_CUSOTM_SECTION_NAME = "signature_wasmedge";
 
 class Signature {
 public:
-  Expect<const std::vector<unsigned char>>
-  signWasmFile(const std::filesystem::path &Path);
+  Expect<void> signWasmFile(const std::filesystem::path &Path);
   Expect<bool> verifyWasmFile(const std::filesystem::path &,
                               const std::filesystem::path &);
 
@@ -38,8 +39,8 @@ private:
   Expect<bool> verify(const Span<Byte> CustomSec, std::filesystem::path Path,
                       const std::filesystem::path &PubKeyPath);
 
-  Expect<const std::vector<unsigned char>>
-  keygen(const Span<uint8_t>, const std::filesystem::path &);
+  Expect<std::vector<Byte>> keygen(const Span<uint8_t>,
+                                   const std::filesystem::path &);
   SigAlgorithm Alg;
 };
 

@@ -12,9 +12,11 @@
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
+#include "common/errinfo.h"
 #include "common/types.h"
 #include "ed25519.h"
 #include "loader/filemgr.h"
+#include "spdlog/spdlog.h"
 #include <fstream>
 
 namespace WasmEdge {
@@ -24,8 +26,8 @@ private:
 public:
   SigAlgorithm() = default;
   ~SigAlgorithm() = default;
-  const std::vector<Byte> keygen(Span<const Byte>,
-                                 const std::filesystem::path &);
+  Expect<const std::vector<Byte>> keygen(Span<const Byte>,
+                                         const std::filesystem::path &);
   int verify(Span<const Byte> Code, Span<const Byte> Signature,
              Span<const Byte> PublicKey);
 };

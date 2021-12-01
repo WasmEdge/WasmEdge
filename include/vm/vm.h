@@ -20,7 +20,6 @@
 
 #include "executor/executor.h"
 #include "loader/loader.h"
-#include "signature/signature.h"
 #include "validator/validator.h"
 
 #include "runtime/instance/module.h"

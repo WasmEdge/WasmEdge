@@ -14,7 +14,6 @@ VM::VM(const Configure &Conf)
     : Conf(Conf), Stage(VMStage::Inited),
       LoaderEngine(Conf, &Executor::Executor::Intrinsics),
       ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat),
-      SignatureEngine(Signature::Signature()),
       Store(std::make_unique<Runtime::StoreManager>()), StoreRef(*Store.get()) {
   unsafeInitVM();
 }

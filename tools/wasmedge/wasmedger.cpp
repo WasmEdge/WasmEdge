@@ -106,9 +106,12 @@ int main(int Argc, const char *Argv[]) {
   auto Parser = PO::ArgumentParser();
 
   PO::SubCommand Sign(PO::Description("Sign a Wasm Module"sv));
-  PO::Option<std::string> SignTarget(PO::Description("Wasm input file"sv));
-  PO::Option<std::string> PrivateKey(PO::Description("Private Key"sv));
-  PO::Option<std::string> SignOutput(PO::Description("Output Wasm file"sv));
+  PO::Option<std::string> SignTarget(PO::Description("Wasm input file"sv),
+                                     PO::MetaVar("WASM FILE"sv));
+  PO::List<std::string> PrivateKey(PO::Description("Private Key"sv),
+                                   PO::MetaVar("PRIVATE_KEY"sv));
+  PO::List<std::string> SignOutput(PO::Description("Output Wasm file"sv),
+                                   PO::MetaVar("OUTPUT_PATH"sv));
   Parser.begin_subcommand(Sign, "sign"sv)
       .add_option(SignTarget)
       .add_option("key"sv, PrivateKey)
@@ -116,7 +119,8 @@ int main(int Argc, const char *Argv[]) {
       .end_subcommand();
 
   PO::SubCommand Verify(PO::Description("Verify a Wasm Module"sv));
-  PO::Option<std::string> VerifyTarget(PO::Description("Wasm input file"sv));
+  PO::Option<std::string> VerifyTarget(PO::Description("Wasm input file"sv),
+                                       PO::MetaVar("WASM FILE"sv));
   PO::Option<std::string> PublicKey(PO::Description("Public Key"sv));
   Parser.begin_subcommand(Verify, "verify"sv)
       .add_option(VerifyTarget)
@@ -161,11 +165,11 @@ int main(int Argc, const char *Argv[]) {
 
   // Exit program when enter signature subcommands
   // Save for future updates
-  const auto SignTargetPath = std::filesystem::absolute(SignTarget.value());
-  const auto PrikeyPath = std::filesystem::absolute(PrivateKey.value());
-  const auto OutputPath = std::filesystem::absolute(SignOutput.value());
   WasmEdge::Signature::Signature SignatureEngine;
   if (Sign.is_selected()) {
+    const auto SignTargetPath = std::filesystem::absolute(SignTarget.value());
+    // const auto PrikeyPath = std::filesystem::absolute(PrivateKey.value());
+    // const auto OutputPath = std::filesystem::absolute(SignOutput.value());
     std::cout << "Sign\n";
     if (auto Result = SignatureEngine.signWasmFile(SignTargetPath.u8string());
         Result || Result.error() == WasmEdge::ErrCode::Terminated) {
@@ -173,10 +177,11 @@ int main(int Argc, const char *Argv[]) {
     }
     return EXIT_FAILURE;
   }
-  const auto VerifyTargetPath = std::filesystem::absolute(VerifyTarget.value());
-  const auto PubkeyPath = std::filesystem::absolute(PublicKey.value());
+
   if (Verify.is_selected()) {
-    std::cout << "Verify\n";
+    const auto VerifyTargetPath =
+        std::filesystem::absolute(VerifyTarget.value());
+    const auto PubkeyPath = std::filesystem::absolute(PublicKey.value());
     if (auto Result = SignatureEngine.verifyWasmFile(
             VerifyTargetPath.u8string(), PubkeyPath);
         Result || Result.error() == WasmEdge::ErrCode::Terminated) {

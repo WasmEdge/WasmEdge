@@ -4,8 +4,7 @@ use crate::{
     string::StringRef,
     utils, wasi, Config, ImportObj, Module, Statistics, Store, Value,
 };
-use std::os::raw::c_char;
-use std::path::Path;
+use std::{os::raw::c_char, path::Path};
 
 // If there is a third-party sdk based on wasmedge-sys
 // the private encapsulation  here can force the third-party sdk to use the api
@@ -136,8 +135,6 @@ impl Vm {
                 import_obj.args_len,
                 import_obj.envs.as_ptr(),
                 import_obj.envs_len,
-                std::ptr::null_mut(),
-                0,
                 import_obj.preopens.as_ptr(),
                 import_obj.preopens_len,
             )

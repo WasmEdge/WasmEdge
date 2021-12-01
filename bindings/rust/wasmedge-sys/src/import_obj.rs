@@ -68,7 +68,6 @@ impl ImportObj {
         &self,
         args: Option<T>,
         envs: Option<T>,
-        dirs: Option<T>,
         preopens: Option<T>,
     ) {
         let (args_len, args) = match args {
@@ -91,16 +90,6 @@ impl ImportObj {
             }
             None => (0, std::ptr::null()),
         };
-        let (dirs_len, dirs) = match dirs {
-            Some(dirs) => {
-                let dirs = dirs
-                    .into_iter()
-                    .map(|dir| string_to_c_char(dir))
-                    .collect::<Vec<_>>();
-                (dirs.len() as u32, dirs.as_ptr())
-            }
-            None => (0, std::ptr::null()),
-        };
         let (preopens_len, preopens) = match preopens {
             Some(preopens) => {
                 let preopens = preopens
@@ -118,8 +107,6 @@ impl ImportObj {
                 args_len,
                 envs,
                 envs_len,
-                dirs,
-                dirs_len,
                 preopens,
                 preopens_len,
             )

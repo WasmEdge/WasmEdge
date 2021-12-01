@@ -1,5 +1,7 @@
-use crate::types::{Limit, WasmEdgeRefType};
-use crate::wasmedge;
+use crate::{
+    types::{Limit, WasmEdgeRefType},
+    wasmedge,
+};
 
 #[derive(Debug)]
 pub struct Table {

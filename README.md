@@ -64,6 +64,7 @@ WasmEdge and its contained wasm program can be started from the [CLI](docs/run.m
 
 If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTING](docs/CONTRIBUTING.md) document for details. If you are looking for ideas, checkout our [wish list](docs/wish_list.md)!
 
+
 ## Contact
 
 If you have any questions, feel free to open a GitHub issue on a related project or to join the following channels:
@@ -71,6 +72,15 @@ If you have any questions, feel free to open a GitHub issue on a related project
 * Mailing list: Send an email to [WasmEdge@googlegroups.com](https://groups.google.com/g/wasmedge/)
 * Slack: Join the #WasmEdge channel on the [CNCF Slack](https://slack.cncf.io/)
 * Twitter: Follow @realwasmedge on [Twitter](https://twitter.com/realwasmedge)
+
+## Community Meeting
+
+We host a monthly community meeting to showcase new features, demo new use cases, and a Q&A part. Everyone is welcome! 
+
+Time: The first Thuesday of each month at 11PM Hong Kong Time/ 7AM PST.
+
+[Public meeting agenda/notes](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoom link](https://us06web.zoom.us/j/88282362606?pwd=UFhOdzlVKyswdW43c21BKy9DdkdyUT09)
+
 
 # License
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_large)

@@ -1111,6 +1111,37 @@ WasiExpect<void> Poller::wait(CallbackType Callback) noexcept {
   }
   return {};
 }
+WasiExpect<void> INode::getAddrinfo(const char *const NodeStr,
+                                    const char *const ServiceStr,
+                                    const addrinfo *const Hint,
+                                    /*Out*/ addrinfo **ResPtr) noexcept {
+  int POSIXReturn = ::getaddrinfo(NodeStr, ServiceStr, Hint, ResPtr);
+  switch (POSIXReturn) {
+  case EAI_ADDRFAMILY:
+    return WasiUnexpect(__WASI_ERRNO_AIADDRFAMILY);
+  case EAI_AGAIN:
+    return WasiUnexpect(__WASI_ERRNO_AIAGAIN);
+  case EAI_BADFLAGS:
+    return WasiUnexpect(__WASI_ERRNO_AIBADFLAG);
+  case EAI_FAIL:
+    return WasiUnexpect(__WASI_ERRNO_AIFAIL);
+  case EAI_FAMILY:
+    return WasiUnexpect(__WASI_ERRNO_AIFAMILY);
+  case EAI_MEMORY:
+    return WasiUnexpect(__WASI_ERRNO_AIMEMORY);
+  case EAI_NODATA:
+    return WasiUnexpect(__WASI_ERRNO_AINODATA);
+  case EAI_NONAME:
+    return WasiUnexpect(__WASI_ERRNO_AINONAME);
+  case EAI_SERVICE:
+    return WasiUnexpect(__WASI_ERRNO_AISERVICE);
+  case EAI_SOCKTYPE:
+    return WasiUnexpect(__WASI_ERRNO_AISOCKTYPE);
+  case EAI_SYSTEM:
+    return WasiUnexpect(__WASI_ERRNO_AISYSTEM);
+  }
+  return {};
+}
 
 } // namespace WASI
 } // namespace Host

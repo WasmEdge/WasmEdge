@@ -72,20 +72,14 @@ impl ImportObj {
     ) {
         let (args_len, args) = match args {
             Some(args) => {
-                let args = args
-                    .into_iter()
-                    .map(|arg| string_to_c_char(arg))
-                    .collect::<Vec<_>>();
+                let args = args.into_iter().map(string_to_c_char).collect::<Vec<_>>();
                 (args.len() as u32, args.as_ptr())
             }
             None => (0, std::ptr::null()),
         };
         let (envs_len, envs) = match envs {
             Some(envs) => {
-                let envs = envs
-                    .into_iter()
-                    .map(|env| string_to_c_char(env))
-                    .collect::<Vec<_>>();
+                let envs = envs.into_iter().map(string_to_c_char).collect::<Vec<_>>();
                 (envs.len() as u32, envs.as_ptr())
             }
             None => (0, std::ptr::null()),
@@ -94,7 +88,7 @@ impl ImportObj {
             Some(preopens) => {
                 let preopens = preopens
                     .into_iter()
-                    .map(|preopen| string_to_c_char(preopen))
+                    .map(string_to_c_char)
                     .collect::<Vec<_>>();
                 (preopens.len() as u32, preopens.as_ptr())
             }

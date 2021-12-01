@@ -84,8 +84,8 @@ mod tests {
 
     #[test]
     fn test_module_from_buffer() {
-        let wasm_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
-            .join("test/api/apiTestData/test.wasm");
+        let wasm_path =
+            std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/test.wasm");
         let result = std::fs::read(wasm_path);
         assert!(result.is_ok());
         let buf = result.unwrap();
@@ -101,8 +101,8 @@ mod tests {
 
     #[test]
     fn test_module_from_file() {
-        let path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
-            .join("test/api/apiTestData/test.wasm");
+        let path =
+            std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/test.wasm");
 
         let conf = Config::default().enable_bulkmemoryoperations(true);
         assert!(conf.has_bulkmemoryoperations());

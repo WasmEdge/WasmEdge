@@ -207,7 +207,7 @@ impl Drop for Vm {
         if !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_VMDelete(self.ctx) };
         }
-        if self.import_objects.len() > 0 {
+        if !self.import_objects.is_empty() {
             self.import_objects.drain(..);
         }
     }
@@ -251,8 +251,8 @@ mod tests {
         let vm = result.unwrap();
 
         // load wasm module from a specified file
-        let path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
-            .join("test/api/apiTestData/test.wasm");
+        let path =
+            std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/test.wasm");
         let result = vm.load_wasm_from_file(path);
         assert!(result.is_ok());
     }
@@ -274,8 +274,8 @@ mod tests {
         let vm = result.unwrap();
 
         // load wasm module from buffer
-        let wasm_path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
-            .join("test/api/apiTestData/test.wasm");
+        let wasm_path =
+            std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/test.wasm");
         let result = std::fs::read(wasm_path);
         assert!(result.is_ok());
         let buf = result.unwrap();
@@ -286,8 +286,8 @@ mod tests {
     #[test]
     fn test_vm_load_wasm_from_ast_module() {
         // create ast module instance
-        let path = std::path::PathBuf::from(env!("WASMEDGE_SRC_DIR"))
-            .join("test/api/apiTestData/test.wasm");
+        let path =
+            std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/test.wasm");
         let conf = Config::default().enable_bulkmemoryoperations(true);
         assert!(conf.has_bulkmemoryoperations());
 

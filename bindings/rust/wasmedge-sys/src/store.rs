@@ -496,7 +496,7 @@ mod tests {
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_some());
         let mut ty = result.unwrap();
-        let result = Global::create(&mut ty, Value::F32(3.14));
+        let result = Global::create(&mut ty, Value::F32(3.5));
         assert!(result.is_some());
         let mut global = result.unwrap();
         import_obj.add_global("global", &mut global);
@@ -553,7 +553,7 @@ mod tests {
         let val = global.get_value();
         let val = val.as_f32();
         assert!(val.is_some());
-        assert_eq!(val.unwrap(), 3.14);
+        assert!((val.unwrap() - 3.5).abs() < f32::EPSILON);
     }
 
     fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {

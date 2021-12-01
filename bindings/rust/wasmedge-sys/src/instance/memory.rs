@@ -1,5 +1,4 @@
-use crate::types::Limit;
-use crate::wasmedge;
+use crate::{types::Limit, wasmedge};
 
 #[derive(Debug)]
 pub struct Memory {

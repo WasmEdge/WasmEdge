@@ -1,6 +1,5 @@
 use crate::error::WasmEdgeResult;
-use std::ffi::CString;
-use std::path::Path;
+use std::{ffi::CString, path::Path};
 
 #[cfg(unix)]
 pub fn path_to_cstring(path: &Path) -> WasmEdgeResult<CString> {

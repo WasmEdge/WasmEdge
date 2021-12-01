@@ -1,7 +1,6 @@
-use crate::wasmedge;
 use crate::{
     types::{Mutability, ValType},
-    Value,
+    wasmedge, Value,
 };
 
 #[derive(Debug)]

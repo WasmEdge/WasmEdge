@@ -921,7 +921,7 @@ WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>> RiData,
 WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>> SiData,
                                  __wasi_siflags_t,
                                  __wasi_size_t &NWritten) const noexcept {
-  int SysSiFlags = 0;
+  int SysSiFlags = MSG_NOSIGNAL;
 
   iovec SysIOVs[kIOVMax];
   size_t SysIOVsSize = 0;

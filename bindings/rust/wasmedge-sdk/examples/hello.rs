@@ -11,9 +11,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("tools/wasmedge/examples/hello.wasm");
 
     let config = wasmedge_sdk::Config::with_wasi();
-    let module = wasmedge_sdk::Module::new(&config, &module_path)?;
+    let mut module = wasmedge_sdk::Module::new(&config, &module_path)?;
 
-    let vm = wasmedge_sdk::Vm::load(&module)?
+    let vm = wasmedge_sdk::Vm::load(&mut module)?
         .with_config(&config)?
         .create()?;
 

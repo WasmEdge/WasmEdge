@@ -1658,7 +1658,16 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
     /* Register the WASI and WasmEdge_Process into the VM context. */
     WasmEdge_VMRegisterModuleFromImport(VMCxt, WasiObj);
     WasmEdge_VMRegisterModuleFromImport(VMCxt, ProcObj);
+    /* Get the WASI exit code. */
+    uint32_t ExitCode = WasmEdge_ImportObjectWASIGetExitCode(WasiObj);
+    /*
+     * The `ExitCode` will be EXIT_SUCCESS if the execution has no error.
+     * Otherwise, it will return with the related exit code.
+     */
     WasmEdge_VMDelete(VMCxt);
+    /* The import objects should be deleted. */
+    WasmEdge_ImportObjectDelete(WasiObj);
+    WasmEdge_ImportObjectDelete(ProcObj);
     ```
 
 4. Example

@@ -2379,6 +2379,18 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ImportObjectInitWASI(
     const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
     const char *const *Preopens, const uint32_t PreopenLen);
 
+/// Get the WASI exit code.
+///
+/// This function will return the exit code after running the "_start" function
+/// of a `wasm32-wasi` program.
+///
+/// \param Cxt the WasmEdge_ImportObjectContext of WASI import object.
+///
+/// \returns the exit code after executing the "_start" function. Return
+/// `EXIT_FAILURE` if the `Cxt` is NULL or not a WASI host module.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ImportObjectWASIGetExitCode(WasmEdge_ImportObjectContext *Cxt);
+
 /// Creation of the WasmEdge_ImportObjectContext for the wasmedge_process
 /// specification.
 ///

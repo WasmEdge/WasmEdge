@@ -1846,5 +1846,105 @@ Expect<uint32_t> WasiSockShutdown::body(Runtime::Instance::MemoryInstance *,
   return __WASI_ERRNO_SUCCESS;
 }
 
+Expect<uint32_t> WasiSockGetError::body(Runtime::Instance::MemoryInstance *,
+                                        int32_t Fd) {
+  const __wasi_fd_t WasiFd = Fd;
+
+  if (auto Res = Env.sockGetError(WasiFd); unlikely(!Res)) {
+    return Res.error();
+  }
+  return __WASI_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t>
+WasiSockGetLocalAddr::body(Runtime::Instance::MemoryInstance *MemInst,
+                           int32_t Fd, uint32_t AddressPtr,
+                           uint32_t AddressTypePtr, uint32_t PortPtr) {
+  if (MemInst == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+  __wasi_address_t *InnerAddress = MemInst->getPointer<__wasi_address_t *>(
+      AddressPtr, sizeof(__wasi_address_t));
+  if (InnerAddress == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  if (InnerAddress->buf_len != 16) {
+    return __WASI_ERRNO_INVAL;
+  }
+
+  uint8_t *AddressBuf = MemInst->getPointer<uint8_t *>(
+      InnerAddress->buf, sizeof(uint8_t) * InnerAddress->buf_len);
+  if (AddressBuf == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  uint32_t *const RoAddressType =
+      MemInst->getPointer<uint32_t *>(AddressTypePtr, sizeof(uint32_t));
+  if (RoAddressType == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  uint32_t *const RoPort =
+      MemInst->getPointer<uint32_t *>(PortPtr, sizeof(uint32_t));
+  if (RoPort == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  const __wasi_fd_t WasiFd = Fd;
+
+  if (auto Res =
+          Env.sockGetLoaclAddr(WasiFd, AddressBuf, RoAddressType, RoPort);
+      unlikely(!Res)) {
+    return Res.error();
+  }
+  return __WASI_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t>
+WasiSockGetPeerAddr::body(Runtime::Instance::MemoryInstance *MemInst,
+                          int32_t Fd, uint32_t AddressPtr,
+                          uint32_t AddressTypePtr, uint32_t PortPtr) {
+  if (MemInst == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+  __wasi_address_t *InnerAddress = MemInst->getPointer<__wasi_address_t *>(
+      AddressPtr, sizeof(__wasi_address_t));
+  if (InnerAddress == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  if (InnerAddress->buf_len != 16) {
+    return __WASI_ERRNO_INVAL;
+  }
+
+  uint8_t *AddressBuf = MemInst->getPointer<uint8_t *>(
+      InnerAddress->buf, sizeof(uint8_t) * InnerAddress->buf_len);
+  if (AddressBuf == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  uint32_t *const RoAddressType =
+      MemInst->getPointer<uint32_t *>(AddressTypePtr, sizeof(uint32_t));
+  if (RoAddressType == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  uint32_t *const RoPort =
+      MemInst->getPointer<uint32_t *>(PortPtr, sizeof(uint32_t));
+  if (RoPort == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  const __wasi_fd_t WasiFd = Fd;
+
+  if (auto Res =
+          Env.sockGetPeerAddr(WasiFd, AddressBuf, RoAddressType, RoPort);
+      unlikely(!Res)) {
+    return Res.error();
+  }
+  return __WASI_ERRNO_SUCCESS;
+}
+
 } // namespace Host
 } // namespace WasmEdge

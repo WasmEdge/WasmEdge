@@ -590,6 +590,20 @@ public:
   WasiExpect<void> sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
     return Node.sockShutdown(SdFlags);
   }
+  
+  WasiExpect<void> sockGetError() const noexcept {
+    return Node.sockGetError();
+  }
+
+  WasiExpect<void> sockGetLoaclAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+                                    uint32_t *PortPtr) const noexcept {
+    return Node.sockGetLoaclAddr(Address, AddrTypePtr, PortPtr);
+  }
+
+  WasiExpect<void> sockGetPeerAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+                                    uint32_t *PortPtr) const noexcept {
+    return Node.sockGetPeerAddr(Address, AddrTypePtr, PortPtr);
+  }
 
   __wasi_rights_t fsRightsBase() const noexcept { return FsRightsBase; }
 

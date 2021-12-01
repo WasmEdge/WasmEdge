@@ -446,5 +446,30 @@ public:
                         uint32_t SdFlags);
 };
 
+class WasiSockGetError : public Wasi<WasiSockGetError> {
+public:
+  WasiSockGetError(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd);
+};
+
+class WasiSockGetLocalAddr : public Wasi<WasiSockGetLocalAddr> {
+public:
+  WasiSockGetLocalAddr(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
+                        uint32_t AddressPtr, uint32_t AddressTypePtr,
+                        uint32_t PortPtr);
+};
+
+class WasiSockGetPeerAddr : public Wasi<WasiSockGetPeerAddr> {
+public:
+  WasiSockGetPeerAddr(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
+                        uint32_t AddressPtr, uint32_t AddressTypePtr,
+                        uint32_t PortPtr);
+};
+
 } // namespace Host
 } // namespace WasmEdge

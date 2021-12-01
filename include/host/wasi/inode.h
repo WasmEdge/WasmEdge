@@ -521,6 +521,14 @@ public:
   /// @return Nothing or WASI error
   WasiExpect<void> sockShutdown(__wasi_sdflags_t SdFlags) const noexcept;
 
+  WasiExpect<void> sockGetError() const noexcept;
+
+  WasiExpect<void> sockGetLoaclAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+                                    uint32_t *PortPtr) const noexcept;
+
+  WasiExpect<void> sockGetPeerAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+                                   uint32_t *PortPtr) const noexcept;
+
   /// File type.
   WasiExpect<__wasi_filetype_t> filetype() const noexcept;
 

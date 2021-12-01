@@ -197,6 +197,21 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
+WasiExpect<void> INode::sockGetError() const noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *Address,
+                                         uint32_t *AddrTypePtr,
+                                         uint32_t *PortPtr) const noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> INode::sockGetPeerAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+                                        uint32_t *PortPtr) const noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
 __wasi_filetype_t INode::unsafeFiletype() const noexcept {
   return __WASI_FILETYPE_UNKNOWN;
 }

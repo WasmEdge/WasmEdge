@@ -65,6 +65,9 @@ WasiModule::WasiModule() : ImportObject("wasi_snapshot_preview1") {
   addHostFunc("sock_recv", std::make_unique<WasiSockRecv>(Env));
   addHostFunc("sock_send", std::make_unique<WasiSockSend>(Env));
   addHostFunc("sock_shutdown", std::make_unique<WasiSockShutdown>(Env));
+  addHostFunc("sock_get_error", std::make_unique<WasiSockGetError>(Env));
+  addHostFunc("sock_get_local", std::make_unique<WasiSockGetLocalAddr>(Env));
+  addHostFunc("sock_get_peer", std::make_unique<WasiSockGetPeerAddr>(Env));
 }
 
 } // namespace Host

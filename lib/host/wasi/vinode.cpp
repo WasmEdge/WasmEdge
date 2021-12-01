@@ -329,7 +329,8 @@ VINode::sockOpen(VFS &FS, __wasi_address_family_t SysDomain,
         __WASI_RIGHTS_SOCK_OPEN | __WASI_RIGHTS_SOCK_CLOSE |
         __WASI_RIGHTS_SOCK_RECV | __WASI_RIGHTS_SOCK_RECV_FROM |
         __WASI_RIGHTS_SOCK_SEND | __WASI_RIGHTS_SOCK_SEND_TO |
-        __WASI_RIGHTS_SOCK_SHUTDOWN | __WASI_RIGHTS_SOCK_BIND;
+        __WASI_RIGHTS_SOCK_SHUTDOWN | __WASI_RIGHTS_SOCK_BIND |
+        __WASI_RIGHTS_POLL_FD_READWRITE | __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS;
     return std::make_shared<VINode>(FS, std::move(*Res), Rights, Rights,
                                     std::string(""s));
   }
@@ -342,7 +343,7 @@ WasiExpect<std::shared_ptr<VINode>> VINode::sockAccept() {
     __wasi_rights_t Rights =
         __WASI_RIGHTS_SOCK_RECV | __WASI_RIGHTS_SOCK_RECV_FROM |
         __WASI_RIGHTS_SOCK_SEND | __WASI_RIGHTS_SOCK_SEND_TO |
-        __WASI_RIGHTS_SOCK_SHUTDOWN;
+        __WASI_RIGHTS_SOCK_SHUTDOWN | __WASI_RIGHTS_POLL_FD_READWRITE | __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS;
     return std::make_shared<VINode>(FS, std::move(*Res), Rights, Rights,
                                     std::string());
   }

@@ -1,13 +1,12 @@
 # Go
 
-
-The best way to run Go programs is to create the application in [TinyGo](https://tinygo.org/) and then compile it to WebAssembly. In this article, we will show you how to develop and run pure wasm from Go.
+The best way to run Go programs in WasmEdge is to compile Go source code to WebAssembly using [TinyGo](https://tinygo.org/). In this article, we will show you how.
 
 ## Install TinyGo
 
-You must have Go already installed on your machine to install TinyGo. The Go v1.17 or above is recommended.
+You must have [Go already installed](https://go.dev/doc/install) on your machine before installing TinyGo. Go v1.17 or above is recommended.
 
-For Ubuntu or another Debian-based Linux on an Intel processor, you could use the following command line to install TinyGo. For other platforms, please refer to the TinyGo docs.  https://tinygo.org/getting-started/install/
+For Ubuntu or other Debian-based Linux systems on x86 processors, you could use the following command line to install TinyGo. For other platforms, please refer to [TinyGo docs](https://tinygo.org/getting-started/install/).
 
 ```
 wget https://github.com/tinygo-org/tinygo/releases/download/v0.21.0/tinygo_0.21.0_amd64.deb
@@ -21,67 +20,49 @@ $ tinygo version
 tinygo version 0.21.0 linux/amd64 (using go version go1.16.7 and LLVM version 11.0.0)
 ```
 
-## Compile a Go program to WebAssembly
+## Hello world
 
-There are two ways to write Go functions. One is with `mian()` function, the other one is with empty `main()` function. You could use the following command to compile both Go codes. We will discuss how to run different codes in WasmEdge later.
+The simple Go app has a `main()` function to print a message to the console. 
+The source code in `main.go` file is as follows.
 
-```
-tinygo build -o fib.wasm -target wasi main.go
-```
-
-You will see a file named `fib.wasm` in the same directory. This is a pure wasm bytecode file.
-
-## Run the bytecode in WasmEdge
-
-As we mentioned before, the way you write Go functions decides how to run the compiled wasm bytecode in WasmEdge. We will show the differences with examples.
-
-### With `main()` function
-
-We use the fibArray function as an example like this.
-
-```
+```go
 package main
 
 func main() {
-    println("in main")
-    println("call fibArray(10) = ", fibArray(10))
+    println("Hello TinyGo from WasmEdge!")
 }
+``` 
 
-//export fibArray
-func fibArray(n int32) int32 {
-    arr := make([]int32, n)
-    for i := int32(0); i < n; i++ {
-        switch {
-        case i < 2:
-            arr[i] = i 
-        default:
-            arr[i] = arr[i-1] + arr[i-2]
-        }
-    }   
-    return arr[n-1]
-}
+> Inside the `main()` function, you can use Go standard API to read / write 
+files, and access command line arguments and `env` variables.
+
+### Compile and build
+
+Next, compile the `main.go` program to WebAssembly using TinyGo.
+
+```bash
+tinygo build -o hello.wasm -target wasi main.go
 ```
 
+You will see a file named `hello.wasm` in the same directory. This is a WebAssembly bytecode file.
 
-After we compiled the go code to wasm bytecode using Tinygo, we could run the wasm file in WasmEdge via the following command.
+### Run
 
+You can run it with the [WasmEdge CLI](../start/cli.md).
 
-> Make sure you have [installed WasmEdge](https://wasmedge.org/book/en/start/install.html) before.
-
-```
-$ wasmedge lib.wasm fibArray 10
-
-in main
-call fibArray(10) = 34
+```bash
+$ wasmedge hello.wasm
+Hello TinyGo from WasmEdge!
 ```
 
-### With empty  `main()` function
+## A simple function
 
+The second example is a Go function that takes a call parameter to compute
+a fibonacci number. However, in order for the Go application to set up
+proper access to the OS (e.g., to access the command line arguments),
+you must include an emty `main()` function in the source code.
 
-We will use the fibArray function again but with an empty `main() `function.
-
-
-```
+```go
 package main
 
 func main(){
@@ -102,18 +83,48 @@ func fibArray(n int32) int32{
 }
 ```
 
-> If the WebAssembly program contains one or more public functions, `wasmedge` could execute individual functions in the reactor model. More details here: https://wasmedge.org/book/en/start/cli.html
+### Compile and build
 
+Next, compile the `main.go` program to WebAssembly using TinyGo.
 
-We use the reactor model here to run the compiled go code in WasmEdge.
-
-
+```bash
+tinygo build -o fib.wasm -target wasi main.go
 ```
-$ wasmedge --reactor wasm.wasm fibArray 10
+
+You will see a file named `fib.wasm` in the same directory. This is a WebAssembly bytecode file.
+
+### Run
+
+You can run it with the [WasmEdge CLI](../start/cli.md) in its `--reactor` mode.
+The command line arguments that follow the `wasm` file are the function name
+and its call parameters.
+
+```bash
+$ wasmedge --reactor fib.wasm fibArray 10
 34
 ```
 
+## Improve performance 
 
-To achieve higher performance, you could also compile the `.wasm` file to the `.so` file.  Check out [the install docs](https://wasmedge.org/book/en/start/install.html#whats-installed) for more details.
+To achieve native Go performance for those applications, you 
+could use the `wasmedgec` command to AOT compile the `wasm` program,
+and then run it with the `wasmedge` command.
+
+```bash
+$ wasmedgec hello.wasm hello.wasm
+
+$ wasmedge hello.wasm
+Hello TinyGo from WasmEdge!
+```
+
+For the `--reactor` mode,
+
+```bash
+$ wasmedgec fib.wasm fib.wasm
+
+$ wasmedge --reactor fib.wasm fibArray 10
+34
+```
+
 
 

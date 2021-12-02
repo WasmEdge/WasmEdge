@@ -35,7 +35,7 @@ fn main() {
 ### Build the WASM bytecode
 
 ```bash
-cargo build --target wasm32-wasi
+$ cargo build --target wasm32-wasi
 ```
 
 ### Run the application from command line
@@ -43,7 +43,7 @@ cargo build --target wasm32-wasi
 We will use the `wasmedge` command to run the program.
 
 ```bash
-wasmedge target/wasm32-wasi/debug/hello.wasm second state
+$ wasmedge target/wasm32-wasi/debug/hello.wasm second state
 hello
 second
 state
@@ -67,7 +67,7 @@ pub fn add(a: i32, b: i32) -> i32 {
 ### Build the WASM bytecode
 
 ```bash
-cargo build --target wasm32-wasi
+$ cargo build --target wasm32-wasi
 ```
 
 ### Run the application from command line
@@ -75,7 +75,31 @@ cargo build --target wasm32-wasi
 We will use `wasmedge` in reactor mode to run the program. We pass the function name and its input parameters as command line arguments.
 
 ```bash
-wasmedge --reactor target/wasm32-wasi/debug/add.wasm add 2 2
+$ wasmedge --reactor target/wasm32-wasi/debug/add.wasm add 2 2
+4
+```
+
+## Improve performance
+
+To achieve native Rust performance for those applications, you
+could use the `wasmedgec` command to AOT compile the `wasm` program,
+and then run it with the `wasmedge` command.
+
+```bash
+$ wasmedgec hello.wasm hello.wasm
+
+$ wasmedge hello.wasm second state
+hello
+second
+state
+```
+
+For the `--reactor` mode,
+
+```bash
+$ wasmedgec add.wasm add.wasm
+
+$ wasmedge --reactor add.wasm add 2 2
 4
 ```
 

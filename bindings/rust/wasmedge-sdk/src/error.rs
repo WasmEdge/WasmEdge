@@ -30,3 +30,9 @@ pub enum VmError {
     #[error("module execution failed: {}", _0)]
     Execute(wasmedge::Error),
 }
+
+#[derive(Debug, Error)]
+pub enum ConfigError {
+    #[error("Config creation failed: {}", _0)]
+    Creation(wasmedge::Error),
+}

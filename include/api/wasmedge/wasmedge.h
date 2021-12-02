@@ -2347,17 +2347,15 @@ WasmEdge_ImportObjectCreate(const WasmEdge_String ModuleName);
 /// \param Envs the environment variables in the format `ENV=VALUE`. NULL if the
 /// length is 0.
 /// \param EnvLen the length of the environment variables.
-/// \param Dirs the directory mappings in the format `PATH1:PATH2`. NULL if the
-/// length is 0.
-/// \param DirLen the length of the directory mappings.
-/// \param Preopens the directory paths to preopen. NULL if the length is 0.
+/// \param Preopens the directory paths to preopen. String format in
+/// `PATH1:PATH2` means the path mapping, or the same path will be mapped. NULL
+/// if the length is 0.
 /// \param PreopenLen the length of the directory paths to preopen.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ImportObjectContext *
 WasmEdge_ImportObjectCreateWASI(const char *const *Args, const uint32_t ArgLen,
                                 const char *const *Envs, const uint32_t EnvLen,
-                                const char *const *Dirs, const uint32_t DirLen,
                                 const char *const *Preopens,
                                 const uint32_t PreopenLen);
 
@@ -2372,16 +2370,26 @@ WasmEdge_ImportObjectCreateWASI(const char *const *Args, const uint32_t ArgLen,
 /// \param Envs the environment variables in the format `ENV=VALUE`. NULL if the
 /// length is 0.
 /// \param EnvLen the length of the environment variables.
-/// \param Dirs the directory mappings in the format `PATH1:PATH2`. NULL if the
-/// length is 0.
-/// \param DirLen the length of the directory mappings.
-/// \param Preopens the directory paths to preopen. NULL if the length is 0.
+/// \param Preopens the directory paths to preopen. String format in
+/// `PATH1:PATH2` means the path mapping, or the same path will be mapped. NULL
+/// if the length is 0.
 /// \param PreopenLen the length of the directory paths to preopen.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ImportObjectInitWASI(
     WasmEdge_ImportObjectContext *Cxt, const char *const *Args,
     const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
-    const char *const *Dirs, const uint32_t DirLen, const char *const *Preopens,
-    const uint32_t PreopenLen);
+    const char *const *Preopens, const uint32_t PreopenLen);
+
+/// Get the WASI exit code.
+///
+/// This function will return the exit code after running the "_start" function
+/// of a `wasm32-wasi` program.
+///
+/// \param Cxt the WasmEdge_ImportObjectContext of WASI import object.
+///
+/// \returns the exit code after executing the "_start" function. Return
+/// `EXIT_FAILURE` if the `Cxt` is NULL or not a WASI host module.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ImportObjectWASIGetExitCode(WasmEdge_ImportObjectContext *Cxt);
 
 /// Creation of the WasmEdge_ImportObjectContext for the wasmedge_process
 /// specification.

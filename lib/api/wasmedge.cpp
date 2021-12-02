@@ -2137,20 +2137,18 @@ WasmEdge_ImportObjectCreate(const WasmEdge_String ModuleName) {
 WASMEDGE_CAPI_EXPORT WasmEdge_ImportObjectContext *
 WasmEdge_ImportObjectCreateWASI(const char *const *Args, const uint32_t ArgLen,
                                 const char *const *Envs, const uint32_t EnvLen,
-                                const char *const *Dirs, const uint32_t DirLen,
                                 const char *const *Preopens,
                                 const uint32_t PreopenLen) {
   auto *WasiMod = new WasmEdge::Host::WasiModule();
   WasmEdge_ImportObjectInitWASI(toImpObjCxt(WasiMod), Args, ArgLen, Envs,
-                                EnvLen, Dirs, DirLen, Preopens, PreopenLen);
+                                EnvLen, Preopens, PreopenLen);
   return toImpObjCxt(WasiMod);
 }
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_ImportObjectInitWASI(
     WasmEdge_ImportObjectContext *Cxt, const char *const *Args,
     const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
-    const char *const *Dirs, const uint32_t DirLen, const char *const *Preopens,
-    const uint32_t PreopenLen) {
+    const char *const *Preopens, const uint32_t PreopenLen) {
   if (!Cxt) {
     return;
   }
@@ -2174,19 +2172,26 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ImportObjectInitWASI(
       EnvVec.emplace_back(Envs[I]);
     }
   }
-  if (Dirs) {
-    for (uint32_t I = 0; I < DirLen; I++) {
-      DirVec.emplace_back(Dirs[I]);
-    }
-  }
   if (Preopens) {
     for (uint32_t I = 0; I < PreopenLen; I++) {
-      DirVec.emplace_back(std::string(Preopens[I]) + ":" +
-                          std::string(Preopens[I]));
+      DirVec.emplace_back(Preopens[I]);
     }
   }
   auto &WasiEnv = WasiMod->getEnv();
   WasiEnv.init(DirVec, ProgName, ArgVec, EnvVec);
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_ImportObjectWASIGetExitCode(WasmEdge_ImportObjectContext *Cxt) {
+  if (!Cxt) {
+    return EXIT_FAILURE;
+  }
+  auto *WasiMod =
+      dynamic_cast<WasmEdge::Host::WasiModule *>(fromImpObjCxt(Cxt));
+  if (!WasiMod) {
+    return EXIT_FAILURE;
+  }
+  return WasiMod->getEnv().getExitCode();
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ImportObjectContext *

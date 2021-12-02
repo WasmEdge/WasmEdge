@@ -1,4 +1,4 @@
-name: build
+name: Build and Test WasmEdge on multiple platforms
 
 concurrency:
   group: build-${{ github.head_ref }}
@@ -19,6 +19,45 @@ on:
       - '*.md'
 
 jobs:
+  build_fedora:
+    name: Fedora 35
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+    outputs:
+      version: ${{ steps.prep.outputs.version }}
+
+    steps:
+    - name: Install requirment
+      run: |
+        dnf update -y
+        dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Get version
+      id: prep
+      run: |
+        echo ::set-output name=version::$(git describe --tag)
+    - name: Build WasmEdge with Release mode
+      run: |
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
+        cmake --build build
+    - name: Test WasmEdge
+      run: |
+        export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
+        cd build
+        ctest --output-on-failure
+        cd -
+    - name: Test WasmEdge Package
+      run: |
+        cmake --build build --target package
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: WasmEdge-${{ steps.prep.outputs.version }}-fedora35.tar.gz
+        path: build/WasmEdge-${{ steps.prep.outputs.version }}-Linux.tar.gz
+
   build_ubuntu:
     strategy:
       matrix:
@@ -48,7 +87,7 @@ jobs:
             docker_tag: ubuntu-build-gcc
             build_type: Debug
             coverage: true
-    name: Build WasmEdge on Ubuntu 20.04 with ${{ matrix.name }}
+    name: Ubuntu 20.04 with ${{ matrix.name }}
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -92,26 +131,6 @@ jobs:
         fail_ci_if_error: true
         path_to_write_report: ./build/codecov_report.gz
 
-  build_ubuntu_legacy:
-    strategy:
-      matrix:
-        include:
-          - name: 20.04
-            docker_tag: ubuntu2004_x86_64
-    name: Build WasmEdge on Ubuntu ${{ matrix.name }}
-    runs-on: ubuntu-latest
-    container:
-      image: wasmedge/wasmedge:${{ matrix.docker_tag }}
-
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-
-    - name: Build and test WasmEdge
-      run: |
-        bash utils/docker/test-ubuntu.sh
-
   build_manylinux:
     strategy:
       matrix:
@@ -132,10 +151,12 @@ jobs:
             host_runner: ARM64
             docker_tag: manylinux2014_aarch64
             checkout_version: v2
-    name: Build WasmEdge on ${{ matrix.name }} platform
+    name: ${{ matrix.name }} platform
     runs-on: ${{ matrix.host_runner }}
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
+    outputs:
+      version: ${{ steps.prep.outputs.version }}
     steps:
     - uses: actions/checkout@v1
       if: ${{ matrix.checkout_version == 'v1' }}
@@ -147,27 +168,51 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Get version
+      id: prep
+      run: |
+        echo ::set-output name=version::$(git describe --tag)
+
     - name: Build ${{ matrix.name }} package
       run: |
         bash utils/docker/build-manylinux.sh
 
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1
+      if: ${{ matrix.checkout_version == 'v1' }}
+      with:
+        name: WasmEdge-${{ steps.prep.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+        path: build/WasmEdge-${{ steps.prep.outputs.version }}-Linux.tar.gz
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      if: ${{ matrix.checkout_version == 'v2' }}
+      with:
+        name: WasmEdge-${{ steps.prep.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+        path: build/WasmEdge-${{ steps.prep.outputs.version }}-Linux.tar.gz
+
   build_macos:
-    name: Build WasmEdge on macOS
+    name: macOS
     runs-on: macos-latest
+    outputs:
+      version: ${{ steps.prep.outputs.version }}
 
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-
+    - name: Get version
+      id: prep
+      run: |
+        echo ::set-output name=version::$(git describe --tag)
     - name: Build WasmEdge
       run: |
-        brew install llvm@12
-        brew link llvm@12
-        export PATH="/usr/local/opt/llvm@12/bin:$PATH"
-        export LDFLAGS="-L/usr/local/opt/llvm@12/lib -Wl,-rpath,/usr/local/opt/llvm@12/lib"
-        export CPPFLAGS="-I/usr/local/opt/llvm@12/include"
-        cmake -Bbuild -DWASMEDGE_BUILD_TESTS=ON .
+        brew install llvm ninja boost cmake
+        export PATH="/usr/local/opt/llvm/bin:$PATH"
+        export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
+        export CPPFLAGS="-I/usr/local/opt/llvm/include"
+        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON .
+        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
         cmake --build build
     - name: Test WasmEdge
       continue-on-error: true
@@ -176,3 +221,11 @@ jobs:
         cd build
         ctest --output-on-failure
         cd -
+    - name: Test WasmEdge Package
+      run: |
+        cmake --build build --target package
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: WasmEdge-${{ steps.prep.outputs.version }}-darwin_x86_64.tar.gz
+        path: build/WasmEdge-${{ steps.prep.outputs.version }}-Darwin.tar.gz

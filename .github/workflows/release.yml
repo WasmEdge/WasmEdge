@@ -109,11 +109,10 @@ jobs:
         uses: actions/checkout@v2
       - name: Build package
         run: |
-          brew install llvm@12 ninja boost
-          brew link llvm@12
-          export PATH="/usr/local/opt/llvm@12/bin:$PATH"
-          export LDFLAGS="-L/usr/local/opt/llvm@12/lib -Wl,-rpath,/usr/local/opt/llvm@12/lib"
-          export CPPFLAGS="-I/usr/local/opt/llvm@12/include"
+          brew install llvm ninja boost cmake
+          export PATH="/usr/local/opt/llvm/bin:$PATH"
+          export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
+          export CPPFLAGS="-I/usr/local/opt/llvm/include"
           rm -rf build
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" .
           cmake --build build

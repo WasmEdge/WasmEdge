@@ -8,6 +8,7 @@ license = "Apache-2.0"
 [dependencies]
 paste = "1.0.5"
 rand = "0.8.4"
+libc = "0.2.94"
 
 [build-dependencies]
 bindgen = { version = "0.59.1", default-features = false, features = ["runtime"] }

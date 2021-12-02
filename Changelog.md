@@ -64,6 +64,9 @@ Breaking changes:
     * Renamed `WasmEdge_ConfigureCompilerGetInstructionCounting` to `WasmEdge_ConfigureStatisticsGetInstructionCounting`.
     * Renamed `WasmEdge_ConfigureCompilerGetCostMeasuring` to `WasmEdge_ConfigureStatisticsGetCostMeasuring`.
     * Renamed `WasmEdge_ConfigureCompilerGetTimeMeasuring` to `WasmEdge_ConfigureStatisticsGetTimeMeasuring`.
+  * Simplified the WASI creation and initialization APIs.
+    * Removed the `Dirs` and `DirLen` parameters in the `WasmEdge_ImportObjectCreateWASI`.
+    * Removed the `Dirs` and `DirLen` parameters in the `WasmEdge_ImportObjectInitWASI`.
 
 Features:
 
@@ -97,6 +100,8 @@ Features:
     * `WasmEdge_ExportTypeGetMemoryType` function can get the memory type of an export type context.
     * `WasmEdge_ExportTypeGetGlobalType` function can get the global type of an export type context.
   * For more details of the usages of imports and exports, please refer to the [C API documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md).
+* Exported the WasmEdge C API for getting exit code from WASI.
+  * `WasmEdge_ImportObjectWASIGetExitCode` function can get the exit code from WASI after execution.
 * Exported the WasmEdge C API for AOT compiler related configurations.
   * `WasmEdge_ConfigureCompilerSetOutputFormat` function can set the AOT compiler output format.
   * `WasmEdge_ConfigureCompilerGetOutputFormat` function can get the AOT compiler output format.
@@ -104,6 +109,7 @@ Features:
   * `WasmEdge_ConfigureCompilerIsGenericBinary` function can get the option of AOT compiler generic binary output.
 * Provided install and uninstall script for installing/uninstalling  WasmEdge on linux(amd64 and aarch64) and macos(amd64 and arm64).
 * Supported compiling WebAssembly into a new WebAssembly file with a packed binary section.
+* Supported the automatically pre-open mapping with the path name in WASI.
 
 Fixed issues:
 
@@ -163,6 +169,7 @@ Tests:
 * Moved and updated the `AST` unit tests into `loader`.
 * Moved and updated the `Interpreter` tests into `Executor` folder.
 * Added the unit tests for new APIs.
+* Applied the WasmEdge C API in the `ExternRef` tests.
 
 Misc:
 

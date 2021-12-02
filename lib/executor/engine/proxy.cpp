@@ -14,11 +14,7 @@ struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StoreManager &,
   template <Expect<RetT> (Executor::*Func)(Runtime::StoreManager &,
                                            ArgsT...) noexcept>
   static RetT proxy(ArgsT... Args) noexcept {
-    Expect<RetT> Res;
-    {
-      FaultBlocker Blocker;
-      Res = (This->*Func)(*This->CurrentStore, Args...);
-    }
+    Expect<RetT> Res = (This->*Func)(*This->CurrentStore, Args...);
     if (unlikely(!Res)) {
       Fault::emitFault(Res.error());
     }

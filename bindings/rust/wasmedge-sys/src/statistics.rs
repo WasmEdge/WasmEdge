@@ -1,15 +1,17 @@
-use super::wasmedge;
+use crate::{wasmedge, Error, WasmEdgeResult};
 
 pub struct Statistics {
     pub(crate) ctx: *mut wasmedge::WasmEdge_StatisticsContext,
     pub(crate) registered: bool,
 }
 impl Statistics {
-    pub fn create() -> Option<Self> {
+    pub fn create() -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_StatisticsCreate() };
         match ctx.is_null() {
-            true => None,
-            false => Some(Statistics {
+            true => Err(Error::OperationError(String::from(
+                "fail to create Statistics instance",
+            ))),
+            false => Ok(Statistics {
                 ctx,
                 registered: false,
             }),

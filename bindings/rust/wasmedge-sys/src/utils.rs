@@ -19,19 +19,7 @@ pub fn path_to_cstring(path: &Path) -> WasmEdgeResult<CString> {
     }
 }
 
-pub fn vec_string_to_c_array<T: Iterator<Item = E>, E: AsRef<str>>(
-    args: T,
-) -> *const *const std::os::raw::c_char {
-    let mut v = vec![];
-    for arg in args {
-        v.push(string_to_c_char(arg));
-    }
-    let p = v.as_ptr();
-    std::mem::forget(v);
-    p
-}
-
-pub fn string_to_c_char(arg: impl AsRef<str>) -> *const std::os::raw::c_char {
+pub(crate) fn string_to_c_char(arg: impl AsRef<str>) -> *const std::os::raw::c_char {
     let s = CString::new(arg.as_ref()).unwrap();
     s.as_ptr()
 }

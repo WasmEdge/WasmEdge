@@ -62,10 +62,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let wasm_binary = load_file_as_byte_vec(&hostfunc_path.as_path().display().to_string());
 
-    let config = Config::default();
+    let config = Config::create().expect("fail to create Config instance");
     let mut import_obj = ImportObj::create("extern_module").unwrap();
 
-    let mut host_func = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
+    let result = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
+    assert!(result.is_ok());
+    let mut host_func = result.unwrap();
     import_obj.add_func("add", &mut host_func);
 
     // load wasm from binary

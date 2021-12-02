@@ -1,7 +1,5 @@
-use crate::{
-    types::{Limit, WasmEdgeRefType},
-    wasmedge,
-};
+use crate::{types::WasmEdgeRefType, wasmedge, Error, WasmEdgeResult};
+use std::ops::Range;
 
 #[derive(Debug)]
 pub struct Table {
@@ -9,7 +7,7 @@ pub struct Table {
     pub(crate) registered: bool,
 }
 impl Table {
-    pub fn create(ref_type: WasmEdgeRefType, limit: Limit) -> Option<Self> {
+    pub fn create(ref_type: WasmEdgeRefType, limit: Range<u32>) -> WasmEdgeResult<Self> {
         let ctx = unsafe {
             let table_ty = wasmedge::WasmEdge_TableTypeCreate(
                 wasmedge::WasmEdge_RefType::from(ref_type),
@@ -18,8 +16,10 @@ impl Table {
             wasmedge::WasmEdge_TableInstanceCreate(table_ty)
         };
         match ctx.is_null() {
-            true => None,
-            false => Some(Table {
+            true => Err(Error::OperationError(String::from(
+                "fail to create Table instance",
+            ))),
+            false => Ok(Table {
                 ctx,
                 registered: false,
             }),

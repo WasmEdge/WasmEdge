@@ -208,9 +208,7 @@ impl Drop for Vm {
         if !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_VMDelete(self.ctx) };
         }
-        if !self.import_objects.is_empty() {
-            self.import_objects.drain(..);
-        }
+        self.import_objects.drain(..);
     }
 }
 

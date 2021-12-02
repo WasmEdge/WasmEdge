@@ -2,6 +2,8 @@
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // NOTICE: The following code is commented out temporarily because the wasmedge-sys crate is in the process of refactoring, which would bring some changes to the current wasmedge-sdk crate.
+
     // let module_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
     //     .join("tools/wasmedge/examples/fibonacci.wasm");
 

@@ -48,11 +48,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         hostfunc_path = std::env::current_dir()?.join("examples/funcs.wasm");
     }
 
-    let config = Config::default();
+    let config = Config::create().expect("fail to create Config instance");
     let mut import_obj =
         ImportObj::create("extern_module").expect("fail to create ImportObj instance");
 
-    let mut host_func = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
+    let result = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
+    assert!(result.is_ok());
+    let mut host_func = result.unwrap();
     import_obj.add_func("add", &mut host_func);
 
     let mut module =

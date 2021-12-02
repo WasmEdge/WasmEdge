@@ -5,7 +5,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("tools/wasmedge/examples/fibonacci.wasm");
 
-    let config = wasmedge_sdk::Config::default();
+    let config = wasmedge_sdk::Config::create().expect("fail to create Config instance");
     let mut module = wasmedge_sdk::Module::new(&config, &module_path)?;
 
     let vm = wasmedge_sdk::Vm::load(&mut module)?

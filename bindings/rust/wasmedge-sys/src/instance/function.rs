@@ -1,4 +1,4 @@
-use crate::{wasmedge, Value, WasmFnIO, HOST_FUNCS};
+use crate::{wasmedge, Error, Value, WasmEdgeResult, WasmFnIO, HOST_FUNCS};
 
 use core::ffi::c_void;
 use std::convert::TryInto;
@@ -82,7 +82,7 @@ impl Function {
     /// and use `I1<i32>` for the `real_fn` with one i32 output parameter.
     pub fn create_bindings<I: WasmFnIO, O: WasmFnIO>(
         real_fn: Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>,
-    ) -> Self {
+    ) -> WasmEdgeResult<Self> {
         let mut key = 0usize;
         HOST_FUNCS.with(|f| {
             let mut rng = rand::thread_rng();
@@ -99,7 +99,7 @@ impl Function {
         });
 
         let key_ptr = key as *const usize as *mut c_void;
-        let ty = FuncType::create(I::parameters(), O::parameters());
+        let ty = FuncType::create(I::parameters(), O::parameters())?;
 
         let ctx = unsafe {
             wasmedge::WasmEdge_FunctionInstanceCreateBinding(
@@ -110,11 +110,11 @@ impl Function {
                 0,
             )
         };
-        Self {
+        Ok(Self {
             ctx,
             ty: Some(ty),
             registered: false,
-        }
+        })
     }
 }
 
@@ -133,7 +133,7 @@ pub struct FuncType {
 }
 
 impl FuncType {
-    pub(crate) fn create(input: Vec<Value>, output: Vec<Value>) -> Self {
+    pub(crate) fn create(input: Vec<Value>, output: Vec<Value>) -> WasmEdgeResult<Self> {
         let raw_input = {
             let mut head = vec![wasmedge::WasmEdge_ValType_ExternRef];
             let mut tail = input
@@ -156,7 +156,12 @@ impl FuncType {
                 raw_output.len() as u32,
             )
         };
-        Self { ctx }
+        match ctx.is_null() {
+            true => Err(Error::OperationError(String::from(
+                "fail to create FuncType instance",
+            ))),
+            false => Ok(Self { ctx }),
+        }
     }
 }
 

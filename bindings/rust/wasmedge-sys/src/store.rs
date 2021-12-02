@@ -1,7 +1,7 @@
-use super::wasmedge;
 use crate::{
     instance::{Function, Global, Memory, Table},
     string::StringRef,
+    wasmedge, Error, WasmEdgeResult,
 };
 
 #[derive(Debug)]
@@ -10,11 +10,13 @@ pub struct Store {
     pub(crate) registered: bool,
 }
 impl Store {
-    pub fn create() -> Option<Self> {
+    pub fn create() -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_StoreCreate() };
         match ctx.is_null() {
-            true => None,
-            false => Some(Store {
+            true => Err(Error::OperationError(String::from(
+                "fail to create Store instance",
+            ))),
+            false => Ok(Store {
                 ctx,
                 registered: false,
             }),
@@ -440,7 +442,7 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, Memory, Table},
         io::{I1, I2},
-        types::{Limit, Mutability, ValType, WasmEdgeRefType},
+        types::{Mutability, ValType, WasmEdgeRefType},
         Config, Executor, ImportObj, Value,
     };
 
@@ -449,7 +451,7 @@ mod tests {
         let module_name = "extern_module";
 
         let result = Store::create();
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut store = result.unwrap();
         assert!(!store.ctx.is_null() && !store.registered);
 
@@ -467,44 +469,46 @@ mod tests {
 
         // create ImportObject instance
         let result = ImportObj::create(module_name);
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut import_obj = result.unwrap();
 
         // add host function
-        let mut host_func = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
+        let result = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
+        assert!(result.is_ok());
+        let mut host_func = result.unwrap();
         import_obj.add_func("add", &mut host_func);
         assert!(host_func.ctx.is_null() && host_func.registered);
 
         // add table
         let ref_ty = WasmEdgeRefType::FuncRef;
-        let limit = Limit::create(0, None);
-        let result = Table::create(ref_ty, limit);
-        assert!(result.is_some());
+        let result = Table::create(ref_ty, 0..u32::MAX);
+        assert!(result.is_ok());
         let mut table = result.unwrap();
         import_obj.add_table("table", &mut table);
         assert!(table.ctx.is_null() && table.registered);
 
         // add memory
-        let limit = Limit::create(0, None);
-        let result = Memory::create(limit);
-        assert!(result.is_some());
+        let result = Memory::create(0..u32::MAX);
+        assert!(result.is_ok());
         let mut memory = result.unwrap();
         import_obj.add_memory("mem", &mut memory);
         assert!(memory.ctx.is_null() && memory.registered);
 
         // add globals
         let result = GlobalType::create(ValType::F32, Mutability::Const);
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut ty = result.unwrap();
         let result = Global::create(&mut ty, Value::F32(3.5));
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let mut global = result.unwrap();
         import_obj.add_global("global", &mut global);
         assert!(global.ctx.is_null() && global.registered);
 
-        let config = Config::default();
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
         let result = Executor::create(Some(&config), None);
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let executor = result.unwrap();
         let result = executor.register_import_object_module(&mut store, &import_obj);
         assert!(result.is_ok());

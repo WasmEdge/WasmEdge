@@ -1,6 +1,6 @@
 use crate::{
     types::{Mutability, ValType},
-    wasmedge, Value,
+    wasmedge, Error, Value, WasmEdgeResult,
 };
 
 #[derive(Debug)]
@@ -9,14 +9,16 @@ pub struct Global {
     pub(crate) registered: bool,
 }
 impl Global {
-    pub fn create(ty: &mut GlobalType, val: Value) -> Option<Self> {
+    pub fn create(ty: &mut GlobalType, val: Value) -> WasmEdgeResult<Self> {
         let ctx = unsafe {
             wasmedge::WasmEdge_GlobalInstanceCreate(ty.ctx, wasmedge::WasmEdge_Value::from(val))
         };
         ty.registered = true;
         match ctx.is_null() {
-            true => None,
-            false => Some(Self {
+            true => Err(Error::OperationError(String::from(
+                "fail to create Global instance",
+            ))),
+            false => Ok(Self {
                 ctx,
                 registered: false,
             }),
@@ -48,7 +50,7 @@ pub struct GlobalType {
     pub(crate) registered: bool,
 }
 impl GlobalType {
-    pub fn create(val_ty: ValType, mutable: Mutability) -> Option<Self> {
+    pub fn create(val_ty: ValType, mutable: Mutability) -> WasmEdgeResult<Self> {
         let ctx = unsafe {
             wasmedge::WasmEdge_GlobalTypeCreate(
                 wasmedge::WasmEdge_ValType::from(val_ty),
@@ -56,8 +58,10 @@ impl GlobalType {
             )
         };
         match ctx.is_null() {
-            true => None,
-            false => Some(Self {
+            true => Err(Error::OperationError(String::from(
+                "fail to create GlobalType instance",
+            ))),
+            false => Ok(Self {
                 ctx,
                 registered: false,
             }),

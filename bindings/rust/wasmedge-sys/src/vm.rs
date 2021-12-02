@@ -1,6 +1,6 @@
 use super::wasmedge;
 use crate::{
-    error::{check, WasmEdgeResult},
+    error::{check, Error, WasmEdgeResult},
     string::StringRef,
     utils, wasi, Config, ImportObj, Module, Statistics, Store, Value,
 };
@@ -39,6 +39,7 @@ impl Vm {
             check(wasmedge::WasmEdge_VMLoadWasmFromASTModule(
                 self.ctx, module.ctx,
             ))?;
+            module.ctx = std::ptr::null_mut();
             module.registered = true;
         }
         Ok(self)
@@ -168,11 +169,11 @@ impl Vm {
             .collect();
 
         let func_type = unsafe { wasmedge::WasmEdge_VMGetFunctionType(self.ctx, raw_func_name) };
-
-        assert!(
-            !func_type.is_null(),
-            "WasmEdge Vm failed to get function type!"
-        );
+        if func_type.is_null() {
+            return Err(Error::OperationError(String::from(
+                "WasmEdge Vm failed to get function type!",
+            )));
+        }
 
         // construct returns
         let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type) };
@@ -221,12 +222,15 @@ mod tests {
     #[test]
     fn test_vm_create() {
         // create Config instance
-        let conf = Config::default().enable_bulkmemoryoperations(true);
+        let result = Config::create();
+        assert!(result.is_ok());
+        let conf = result.unwrap();
+        let conf = conf.enable_bulkmemoryoperations(true);
         assert!(conf.has_bulkmemoryoperations());
 
         // create Store instance
         let result = Store::create();
-        assert!(result.is_some(), "Failed to create Store instance");
+        assert!(result.is_ok(), "Failed to create Store instance");
         let store = result.unwrap();
 
         // create Vm instance
@@ -237,12 +241,15 @@ mod tests {
     #[test]
     fn test_vm_load_wasm_from_file() {
         // create Config instance
-        let conf = Config::default().enable_bulkmemoryoperations(true);
+        let result = Config::create();
+        assert!(result.is_ok());
+        let conf = result.unwrap();
+        let conf = conf.enable_bulkmemoryoperations(true);
         assert!(conf.has_bulkmemoryoperations());
 
         // create Store instance
         let result = Store::create();
-        assert!(result.is_some(), "Failed to create Store instance");
+        assert!(result.is_ok(), "Failed to create Store instance");
         let store = result.unwrap();
 
         // create Vm instance
@@ -260,12 +267,15 @@ mod tests {
     #[test]
     fn test_vm_load_wasm_from_buffer() {
         // create Config instance
-        let conf = Config::default().enable_bulkmemoryoperations(true);
+        let result = Config::create();
+        assert!(result.is_ok());
+        let conf = result.unwrap();
+        let conf = conf.enable_bulkmemoryoperations(true);
         assert!(conf.has_bulkmemoryoperations());
 
         // create Store instance
         let result = Store::create();
-        assert!(result.is_some(), "Failed to create Store instance");
+        assert!(result.is_ok(), "Failed to create Store instance");
         let store = result.unwrap();
 
         // create Vm instance
@@ -288,7 +298,10 @@ mod tests {
         // create ast module instance
         let path =
             std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/test.wasm");
-        let conf = Config::default().enable_bulkmemoryoperations(true);
+        let result = Config::create();
+        assert!(result.is_ok());
+        let conf = result.unwrap();
+        let conf = conf.enable_bulkmemoryoperations(true);
         assert!(conf.has_bulkmemoryoperations());
 
         let result = Module::load_from_file(&conf, path);
@@ -296,11 +309,14 @@ mod tests {
         let mut ast_module = result.unwrap();
 
         // create Vm instance
-        let conf = Config::default().enable_bulkmemoryoperations(true);
+        let result = Config::create();
+        assert!(result.is_ok());
+        let conf = result.unwrap();
+        let conf = conf.enable_bulkmemoryoperations(true);
         assert!(conf.has_bulkmemoryoperations());
 
         let result = Store::create();
-        assert!(result.is_some(), "Failed to create Store instance");
+        assert!(result.is_ok(), "Failed to create Store instance");
         let store = result.unwrap();
 
         let result = Vm::create(Some(&conf), Some(&store));

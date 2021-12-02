@@ -19,42 +19,23 @@ impl From<WasmEdgeRefType> for wasmedge::WasmEdge_RefType {
     }
 }
 
-#[derive(Debug)]
-pub struct Limit {
-    pub(crate) min: u32,
-    pub(crate) max: Option<u32>,
-}
-impl Limit {
-    pub fn create(min: u32, max: Option<u32>) -> Self {
-        Self { min, max }
-    }
-}
-impl From<Limit> for wasmedge::WasmEdge_Limit {
-    fn from(limit: Limit) -> Self {
-        match limit.max {
-            None => Self {
-                Min: limit.min,
-                HasMax: false,
-                Max: u32::MAX,
-            },
-            Some(max) => Self {
-                Min: limit.min,
-                HasMax: true,
-                Max: max,
-            },
-        }
-    }
-}
-impl From<wasmedge::WasmEdge_Limit> for Limit {
-    fn from(limit: wasmedge::WasmEdge_Limit) -> Self {
-        let max = match limit.HasMax {
-            true => Some(limit.Max),
-            false => None,
-        };
+impl From<std::ops::Range<u32>> for wasmedge::WasmEdge_Limit {
+    fn from(range: std::ops::Range<u32>) -> Self {
         Self {
-            min: limit.Min,
-            max,
+            Min: range.start,
+            Max: range.end,
+            HasMax: true,
         }
+    }
+}
+impl From<wasmedge::WasmEdge_Limit> for std::ops::Range<u32> {
+    fn from(limit: wasmedge::WasmEdge_Limit) -> Self {
+        let start = limit.Min;
+        let end = match limit.HasMax {
+            true => limit.Max,
+            false => u32::MAX,
+        };
+        Self { start, end }
     }
 }
 

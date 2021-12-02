@@ -1,4 +1,4 @@
-use super::wasmedge;
+use crate::{wasmedge, WasmEdgeResult};
 use std::ffi::CStr;
 
 /// # WasmEdge Version
@@ -12,10 +12,8 @@ use std::ffi::CStr;
 /// pub const WASMEDGE_VERSION_MINOR: u32 = 8;
 /// pub const WASMEDGE_VERSION_PATCH: u32 = 2;
 /// ```
-pub fn full_version() -> &'static str {
-    let valid_version =
-        CStr::from_bytes_with_nul(wasmedge::WASMEDGE_VERSION).expect("CString::new failed");
-    valid_version.to_str().expect("to_str() call failed")
+pub fn full_version() -> WasmEdgeResult<&'static str> {
+    Ok(CStr::from_bytes_with_nul(wasmedge::WASMEDGE_VERSION)?.to_str()?)
 }
 
 pub fn semv_version() -> String {

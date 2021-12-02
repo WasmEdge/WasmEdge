@@ -1,6 +1,6 @@
 use super::wasmedge;
 use crate::{
-    error::{check, WasmEdgeResult},
+    error::{check, Error, WasmEdgeResult},
     utils, Config,
 };
 use ::core::mem::MaybeUninit as MU;
@@ -13,7 +13,7 @@ pub struct Module {
 }
 impl Drop for Module {
     fn drop(&mut self) {
-        if !self.registered && !self.ctx.is_null() {
+        if !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_ASTModuleDelete(self.ctx) };
         }
     }
@@ -39,11 +39,14 @@ impl Module {
         })
     }
 
-    pub fn load_from_buffer(config: &crate::config::Config, buffer: &[u8]) -> WasmEdgeResult<Self> {
+    pub fn load_from_buffer(config: &Config, buffer: &[u8]) -> WasmEdgeResult<Self> {
+        if buffer.is_empty() {
+            return Err(Error::OperationError(String::from(
+                "WasmEdge fail to load an empty buffer",
+            )));
+        }
         let loader_ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config.ctx) };
         let mut ctx: *mut wasmedge::WasmEdge_ASTModuleContext = std::ptr::null_mut();
-
-        assert!(!buffer.is_empty(), "WasmEdge fail to load an empty buffer");
 
         let ptr = unsafe {
             let ptr = libc::malloc(buffer.len());
@@ -68,7 +71,11 @@ impl Module {
 
         check(res)?;
 
-        assert!(!ctx.is_null(), "WasmEdge failed to load from buffer!");
+        if ctx.is_null() {
+            return Err(Error::OperationError(String::from(
+                "WasmEdge failed to load from buffer!",
+            )));
+        }
 
         Ok(Self {
             ctx,
@@ -90,7 +97,12 @@ mod tests {
         assert!(result.is_ok());
         let buf = result.unwrap();
 
-        let conf = Config::default().enable_bulkmemoryoperations(true);
+        let result = Config::create();
+        assert!(result.is_ok());
+        let result = Config::create();
+        assert!(result.is_ok());
+        let conf = result.unwrap();
+        let conf = conf.enable_bulkmemoryoperations(true);
         assert!(conf.has_bulkmemoryoperations());
 
         let result = Module::load_from_buffer(&conf, &buf);
@@ -104,7 +116,10 @@ mod tests {
         let path =
             std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/test.wasm");
 
-        let conf = Config::default().enable_bulkmemoryoperations(true);
+        let result = Config::create();
+        assert!(result.is_ok());
+        let conf = result.unwrap();
+        let conf = conf.enable_bulkmemoryoperations(true);
         assert!(conf.has_bulkmemoryoperations());
 
         let result = Module::load_from_file(&conf, path);

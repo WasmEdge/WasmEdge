@@ -7,7 +7,7 @@ import java.util.List;
 
 public class FunctionTypeContextTest extends BaseTest {
 
-    @Test
+//    @Test
     public void test() {
         List<WasmEdgeValue> params = new ArrayList<>();
         List<WasmEdgeValue> returns = new ArrayList<>();

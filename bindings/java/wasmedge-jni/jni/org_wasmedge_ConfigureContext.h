@@ -17,7 +17,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_nativeInit
 
 /*
  * Class:     org_wasmedge_ConfigureContext
- * Method:    cleanUp
+ * Method:    delete
  * Signature: ()V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_delete
@@ -25,11 +25,51 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_delete
 
 /*
  * Class:     org_wasmedge_ConfigureContext
+ * Method:    addProposal
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_addProposal
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
+ * Method:    removeProposal
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_removeProposal
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
+ * Method:    hasProposal
+ * Signature: (I)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_wasmedge_ConfigureContext_hasProposal
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
  * Method:    addHostRegistration
- * Signature: ()V
+ * Signature: (I)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_addHostRegistration
-  (JNIEnv *, jobject);
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
+ * Method:    removeHostRegistration
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_removeHostRegistration
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
+ * Method:    hasHostRegistration
+ * Signature: (I)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_wasmedge_ConfigureContext_hasHostRegistration
+  (JNIEnv *, jobject, jint);
 
 /*
  * Class:     org_wasmedge_ConfigureContext
@@ -41,11 +81,91 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_setMaxMemoryPage
 
 /*
  * Class:     org_wasmedge_ConfigureContext
+ * Method:    getMaxMemoryPage
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_org_wasmedge_ConfigureContext_getMaxMemoryPage
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
+ * Method:    setCompilerOptimizationLevel
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_setCompilerOptimizationLevel
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
+ * Method:    nativeGetCompilerOptimizationLevel
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_wasmedge_ConfigureContext_nativeGetCompilerOptimizationLevel
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
+ * Method:    setCompilerOutputFormat
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_setCompilerOutputFormat
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
+ * Method:    nativeGetCompilerOutputFormat
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_wasmedge_ConfigureContext_nativeGetCompilerOutputFormat
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
+ * Method:    setCompilerIsDumpIR
+ * Signature: (Z)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_setCompilerIsDumpIR
+  (JNIEnv *, jobject, jboolean);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
+ * Method:    getCompilerIsDumpIR
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_wasmedge_ConfigureContext_getCompilerIsDumpIR
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
+ * Method:    setCompilerIsGenericBinary
+ * Signature: (Z)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_setCompilerIsGenericBinary
+  (JNIEnv *, jobject, jboolean);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
+ * Method:    getCompilerIsGenericBinary
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_wasmedge_ConfigureContext_getCompilerIsGenericBinary
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
  * Method:    setStatisticsSetInstructionCounting
  * Signature: (Z)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_setStatisticsSetInstructionCounting
   (JNIEnv *, jobject, jboolean);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
+ * Method:    isStatisticsSetInstructionCounting
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_wasmedge_ConfigureContext_isStatisticsSetInstructionCounting
+  (JNIEnv *, jobject);
 
 /*
  * Class:     org_wasmedge_ConfigureContext
@@ -57,11 +177,27 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_setStatisticsSetCostMe
 
 /*
  * Class:     org_wasmedge_ConfigureContext
+ * Method:    isStatisticsSetCostMeasuring
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_wasmedge_ConfigureContext_isStatisticsSetCostMeasuring
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
  * Method:    setStatisticsSetTimeMeasuring
  * Signature: (Z)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_ConfigureContext_setStatisticsSetTimeMeasuring
   (JNIEnv *, jobject, jboolean);
+
+/*
+ * Class:     org_wasmedge_ConfigureContext
+ * Method:    isStatisticsSetTimeMeasuring
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_wasmedge_ConfigureContext_isStatisticsSetTimeMeasuring
+  (JNIEnv *, jobject);
 
 #ifdef __cplusplus
 }

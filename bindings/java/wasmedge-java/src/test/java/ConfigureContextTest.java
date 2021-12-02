@@ -31,7 +31,7 @@ public class ConfigureContextTest extends BaseTest {
         ConfigureContext context = new ConfigureContext();
         long maxPage = 1024;
         context.setMaxMemoryPage(maxPage);
-        Assert.assertEquals(context.getMaxMemoryPage(), maxPage);
+        Assert.assertEquals(maxPage, context.getMaxMemoryPage());
     }
 
     @Test

@@ -28,6 +28,8 @@
         - [Getting started](dev/js/quickstart.md)
         - [ES6 module](dev/js/es6.md)
         - [CommonJS module](dev/js/cjs.md)
+        - [NodeJS &amp; NPM module](dev/js/npm.md)
+        - [Example: React SSR](dev/js/ssr.md)
         - [Tensorflow](dev/js/tensorflow.md)
         - [Networking sockets](dev/js/networking.md)
         - [Async networking](dev/js/async.md)

@@ -1,15 +1,13 @@
 # Dapr
 
-In this article, I will demonstrate how to use WasmEdge as a sidecar application runtime for Dapr. We use a simple NaCl written in Rust or Go to listen for API requests to the microservice. It passes the request data to a WebAssembly runtime for processing. The business logic of the microservice is a WebAssembly function created and deployed by an application developer.  You can also watch a walk-through video below.
-
-{{< youtube t_sQP6Qpf7U >}}
+In this article, I will demonstrate how to use WasmEdge as a sidecar application runtime for Dapr. We use a simple NaCl written in Rust or Go to listen for API requests to the microservice. It passes the request data to a WebAssembly runtime for processing. The business logic of the microservice is a WebAssembly function created and deployed by an application developer. You can also watch [a walk-through video](https://www.youtube.com/watch?v=t_sQP6Qpf7U).
 
 > For more insights on WasmEdge on Dapr, please refer to the article [A Lightweight, Safe, Portable, and High-performance Runtime for Dapr](https://www.secondstate.io/articles/dapr-wasmedge-webassembly/)
 
 ## Quick start 
 
 
-First you need to install [Go](https://golang.org/doc/install), [Rust](https://www.rust-lang.org/tools/install), [Dapr](https://docs.dapr.io/getting-started/install-dapr-cli), [WasmEdge](https://github.com/WasmEdge/WasmEdge/blob/master/docs/install.md), and the [rustwasmc](https://www.secondstate.io/articles/rustwasmc/) compiler tool.
+First you need to install [Go](https://golang.org/doc/install), [Rust](https://www.rust-lang.org/tools/install), [Dapr](https://docs.dapr.io/getting-started/install-dapr-cli), [WasmEdge](https://github.com/WasmEdge/WasmEdge/blob/master/docs/install.md), and the [rustwasmc](../../dev/rust/bindgen.md) compiler tool.
 
 Next, fork or clone the demo application from Github. You can use this repo as your own application template.
 

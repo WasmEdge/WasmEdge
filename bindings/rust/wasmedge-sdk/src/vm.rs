@@ -76,7 +76,6 @@ impl<'a> VmBuilder<'a> {
 
     pub fn create(self) -> Result<Vm<'a>, anyhow::Error> {
         let vm = self.inner;
-        // let mut inner_module = vm.module.inner;
         if let Some(cfg) = vm.config {
             let vm_instance =
                 wasmedge::Vm::create(Some(cfg), None).expect("fail to create VM instance");

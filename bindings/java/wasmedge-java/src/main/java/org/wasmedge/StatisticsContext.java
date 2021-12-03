@@ -15,6 +15,8 @@ public class StatisticsContext {
 
     public native void setCostTable(long[] costTable);
 
+    public native void setCostLimit(long costLimit);
+
     public native long getTotalCost();
 
     public void destroy() {

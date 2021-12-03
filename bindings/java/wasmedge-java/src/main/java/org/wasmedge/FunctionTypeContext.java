@@ -13,6 +13,10 @@ public class FunctionTypeContext {
     private native void nativeInit(List<WasmEdgeValue> params, int paramSize,
                                    List<WasmEdgeValue> returns, int returnSize);
 
+    public native List<WasmEdgeValue> getParameters();
+
+    public native List<WasmEdgeValue> getReturns();
+
     public native void delete();
 
 

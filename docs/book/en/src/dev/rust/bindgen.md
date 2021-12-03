@@ -1,9 +1,8 @@
 # Bindgen and rustwasmc
 
-
 The [rustwasmc](https://github.com/second-state/rustwasmc) tool is inspired by the wasm-pack project but is optimized for edge cloud and device applications. Specifically, it supports the [WasmEdge](https://github.com/WasmEdge/WasmEdge) WebAssembly runtime.
 
-One of the key features of `rustwasmc` over the standard `wasm32-wasi` compiler target is that `rustwasmc` processes compiled Rust functions using the rust-bindgen tool.
+One of the key features of `rustwasmc` over the standard `wasm32-wasi` compiler target is that `rustwasmc` processes compiled Rust functions using the `wasm-bindgen` tool.
 By default, WebAssembly functions only support a few simple data types as
 input call arguments. Tools like `wasm-bindgen` turn WebAssembly function
 arguments into memory pointers, and allow host applications to

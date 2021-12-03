@@ -1,16 +1,6 @@
 # WasmEdge Go SDK
 
-
 The followings are the guides to working with the WasmEdge Go API. You can embed the WasmEdge into your go application through the WasmEdge Go API.
-
-## Table of Contents
-
-* [Getting Started](#getting-started)
-* [WasmEdge-go Extensions](#wasmedge-go-extensions)
-* [Go-API Examples](#go-api-examples)
-	* [Embed a function](#embed-a-function)
-	* [Embed a full program](#embed-a-full-program)
-	* [WasmEdge AOT Compiler in GO](#wasmedge-aot-compiler-in-go)
 
 ## Getting Started
 

@@ -7,7 +7,6 @@ use crate::{
 #[derive(Debug)]
 pub struct Store {
     pub(crate) ctx: *mut wasmedge::WasmEdge_StoreContext,
-    pub(crate) registered: bool,
 }
 impl Store {
     pub fn create() -> WasmEdgeResult<Self> {
@@ -16,10 +15,7 @@ impl Store {
             true => Err(Error::OperationError(String::from(
                 "fail to create Store instance",
             ))),
-            false => Ok(Store {
-                ctx,
-                registered: false,
-            }),
+            false => Ok(Store { ctx }),
         }
     }
 
@@ -453,7 +449,7 @@ mod tests {
         let result = Store::create();
         assert!(result.is_ok());
         let mut store = result.unwrap();
-        assert!(!store.ctx.is_null() && !store.registered);
+        assert!(!store.ctx.is_null());
 
         // check the length of registered module list in store before instatiation
         assert_eq!(store.list_func_len(), 0);

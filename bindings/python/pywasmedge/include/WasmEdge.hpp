@@ -92,6 +92,35 @@ public:
   pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object);
 };
 
+class function {
+private:
+  WasmEdge_FunctionTypeContext *HostFType;
+  WasmEdge_FunctionInstanceContext *HostFuncCxt;
+  size_t param_len;
+  size_t ret_len;
+  pybind11::function func;
+  enum WasmEdge_ValType *param_types, *return_types;
+
+  WasmEdge_Result host_function(void *, WasmEdge_MemoryInstanceContext *,
+                                const WasmEdge_Value *, WasmEdge_Value *);
+
+public:
+  function(pybind11::function);
+  ~function();
+};
+
+class module {
+private:
+  WasmEdge_ImportObjectContext *ModCxt;
+
+public:
+  module(std::string name = "Unnamed");
+  module(pysdk::module &);
+  ~module();
+  WasmEdge_ImportObjectContext *get();
+  // void add();
+};
+
 } // namespace pysdk
 
 #endif // PY_WASMEDGE_H

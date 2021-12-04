@@ -345,6 +345,110 @@ int pysdk::result::get_code() { return WasmEdge_ResultGetCode(Res); }
 
 /* --------------- Result End ----------------------------------------*/
 
+/* --------------- Module End ----------------------------------------*/
+
+pysdk::module::module(std::string name) {
+  ModCxt =
+      WasmEdge_ImportObjectCreate(WasmEdge_StringCreateByCString(name.c_str()));
+}
+
+pysdk::module::module(pysdk::module &mod) { ModCxt = mod.get(); }
+
+pysdk::module::~module() { WasmEdge_ImportObjectDelete(ModCxt); }
+
+/* --------------- Module End ----------------------------------------*/
+
+/* --------------- Function ----------------------------------------*/
+
+pysdk::function::function(pybind11::function func_) : func(func_) {
+  pybind11::dict annotations = func.attr("__annotations__");
+  auto total = pybind11::len(annotations);
+  ret_len = pybind11::len(annotations["return"]);
+  param_len = total - ret_len;
+
+  size_t i = 0;
+
+  pybind11::int_ temp_int;
+  pybind11::int_ temp_float;
+
+  param_types = new WasmEdge_ValType[param_len];
+  return_types = new WasmEdge_ValType[ret_len];
+
+  for (auto e : annotations) {
+    if (e.first.cast<std::string>() == "return") {
+      i = 0;
+      for (auto ret : annotations["return"].cast<pybind11::tuple>()) {
+        auto type_str = ret.cast<pybind11::type>();
+        if (type_str.is(temp_int.get_type())) {
+          return_types[i] = WasmEdge_ValType_I32;
+        } else if (type_str.is(temp_float.get_type())) {
+          return_types[i] = WasmEdge_ValType_F32;
+        } else {
+          // TODO: Handle Errors
+        }
+        i++;
+      }
+      i = 0;
+    } else {
+
+      auto type_str = e.second.cast<pybind11::type>();
+      if (type_str.is(temp_int.get_type())) {
+        param_types[i] = WasmEdge_ValType_I32;
+      } else if (type_str.is(temp_float.get_type())) {
+        param_types[i] = WasmEdge_ValType_F32;
+      } else {
+        // TODO: Handle Errors
+      }
+      i++;
+    }
+  }
+
+  HostFType = WasmEdge_FunctionTypeCreate(param_types, param_len, return_types,
+                                          ret_len);
+  HostFuncCxt =
+      WasmEdge_FunctionInstanceCreate(HostFType, host_function, NULL, 0);
+}
+
+WasmEdge_Result
+pysdk::function::host_function(void *Data,
+                               WasmEdge_MemoryInstanceContext *MemCxt,
+                               const WasmEdge_Value *In, WasmEdge_Value *Out) {
+  pybind11::list params;
+  for (size_t i = 0; i < param_len; i++) {
+    params.append(In[i]);
+  }
+  auto params_tup = params.cast<pybind11::tuple>();
+
+  pybind11::tuple returns = func(*params_tup);
+
+  for (size_t i = 0; i < returns.size(); i++) {
+    switch (return_types[i]) {
+    case WasmEdge_NumType_I32:
+      Out[i] = WasmEdge_ValueGenI32(returns[i].cast<int>());
+
+      break;
+    case WasmEdge_NumType_F32:
+      Out[i] = WasmEdge_ValueGenF32(returns[i].cast<float>());
+
+      break;
+    default:
+      break;
+    }
+  }
+
+  return WasmEdge_Result_Success;
+};
+
+pysdk::function::~function() {
+  WasmEdge_FunctionInstanceDelete(HostFuncCxt);
+  WasmEdge_FunctionTypeDelete(HostFType);
+  delete[] param_types, return_types;
+}
+
+/* --------------- Function End ----------------------------------------*/
+
+/* --------------- Python Module ----------------------------------------*/
+
 PYBIND11_MODULE(WasmEdge, module) {
 
   module.def("version", WasmEdge_VersionGet);
@@ -462,3 +566,5 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("run", run)
       .def("run", run_step_by_step);
 };
+
+/* --------------- Python Module End ----------------------------------------*/

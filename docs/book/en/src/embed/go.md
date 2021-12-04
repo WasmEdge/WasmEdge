@@ -70,5 +70,6 @@ The [go_WasmAOT example](https://github.com/second-state/WasmEdge-go-examples/tr
 ## Go-API Examples
 
 * [Embed a standalone WASM app](go/app.md)
+* [Pass complex parameters to Wasm functions](go/memory.md)
 * [Embed a bindgen function](go/bindgen.md)
 

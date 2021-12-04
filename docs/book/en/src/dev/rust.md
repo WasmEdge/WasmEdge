@@ -86,8 +86,8 @@ Instead, you will probably need to use a [language SDK from WasmEdge](../../embe
 to call the function, pass call parameters, and receive return values.
 Below are some SDK examples for complex call parameters and return values.
 
-* [Use wasm-bindgen in a Node.js host app](../../embed/node.md#more-examples)
-* [Use wasm-bindgen in a Go host app](../../embed/go/bindgen.md)
+* [Use wasm-bindgen in a Node.js host app](../embed/node.md#more-examples)
+* [Use wasm-bindgen in a Go host app](../embed/go/bindgen.md)
 * [Use direct memory passing in a Go host app]()
 
 

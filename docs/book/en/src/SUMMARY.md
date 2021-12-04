@@ -46,6 +46,7 @@
        - [API references](embed/c/ref.md)
     - [Go SDK](embed/go.md)
        - [Embed WASM apps](embed/go/app.md)
+       - [Call WASM funcs](embed/go/memory.md)
        - [Embed bindgen funcs](embed/go/bindgen.md)
        - [API references](embed/go/ref.md)
     - [Node.js SDK](embed/node.md)

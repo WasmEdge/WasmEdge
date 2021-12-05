@@ -405,15 +405,29 @@ pysdk::function::function(pybind11::function func_) : func(func_) {
 
   HostFType = WasmEdge_FunctionTypeCreate(param_types, param_len, return_types,
                                           ret_len);
-  HostFuncCxt =
-      WasmEdge_FunctionInstanceCreate(HostFType, host_function, NULL, 0);
+
+  std::unique_ptr<pysdk::function_utility> hfunc_util(
+      new pysdk::function_utility);
+
+  hfunc_util->func = func;
+  hfunc_util->param_len = param_len;
+
+  HostFuncCxt = WasmEdge_FunctionInstanceCreate(HostFType, host_function,
+                                                (void *)hfunc_util.get(), 0);
 }
 
-WasmEdge_Result
-pysdk::function::host_function(void *Data,
-                               WasmEdge_MemoryInstanceContext *MemCxt,
-                               const WasmEdge_Value *In, WasmEdge_Value *Out) {
+WasmEdge_Result pysdk::host_function(void *Data,
+                                     WasmEdge_MemoryInstanceContext *MemCxt,
+                                     const WasmEdge_Value *In,
+                                     WasmEdge_Value *Out) {
   pybind11::list params;
+
+  auto casted_data = (struct function_utility *)Data;
+
+  auto func = casted_data->func;
+
+  size_t param_len = casted_data->param_len;
+
   for (size_t i = 0; i < param_len; i++) {
     params.append(In[i]);
   }
@@ -422,17 +436,10 @@ pysdk::function::host_function(void *Data,
   pybind11::tuple returns = func(*params_tup);
 
   for (size_t i = 0; i < returns.size(); i++) {
-    switch (return_types[i]) {
-    case WasmEdge_NumType_I32:
+    if (pybind11::isinstance<pybind11::int_>(returns[i])) {
       Out[i] = WasmEdge_ValueGenI32(returns[i].cast<int>());
-
-      break;
-    case WasmEdge_NumType_F32:
-      Out[i] = WasmEdge_ValueGenF32(returns[i].cast<float>());
-
-      break;
-    default:
-      break;
+    } else if (pybind11::isinstance<pybind11::float_>(returns[i])) {
+      Out[i] = WasmEdge_ValueGenI32(returns[i].cast<float>());
     }
   }
 

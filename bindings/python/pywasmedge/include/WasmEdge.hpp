@@ -75,23 +75,6 @@ public:
   int get_code();
 };
 
-class VM {
-private:
-  WasmEdge_VMContext *VMCxt;
-
-public:
-  VM();
-  VM(Store &);
-  VM(Configure &);
-  VM(Configure &, Store &);
-  ~VM();
-  const char *doc() { return pysdk::vm_doc; };
-
-  pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object,
-                      pybind11::object, pybind11::object);
-  pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object);
-};
-
 WasmEdge_Result host_function(void *, WasmEdge_MemoryInstanceContext *,
                               const WasmEdge_Value *, WasmEdge_Value *);
 
@@ -112,6 +95,7 @@ private:
 public:
   function(pybind11::function);
   ~function();
+  WasmEdge_FunctionInstanceContext *get();
 };
 
 class module {
@@ -120,10 +104,33 @@ private:
 
 public:
   module(std::string name = "Unnamed");
-  module(pysdk::module &);
   ~module();
   WasmEdge_ImportObjectContext *get();
-  // void add();
+  void add(pysdk::function &, std::string name = "Function_Name");
+};
+
+class VM {
+private:
+  WasmEdge_VMContext *VMCxt;
+
+public:
+  VM();
+  VM(Store &);
+  VM(Configure &);
+  VM(Configure &, Store &);
+  ~VM();
+  const char *doc() { return pysdk::vm_doc; };
+
+  pysdk::result add(pysdk::module &);
+
+  pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object,
+                      pybind11::object, pybind11::object);
+  pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object);
+
+  pybind11::tuple run(pybind11::object, pybind11::object, pybind11::str,
+                      pybind11::int_);
+
+  pybind11::list list_functions();
 };
 
 } // namespace pysdk

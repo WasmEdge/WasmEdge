@@ -241,6 +241,110 @@ pybind11::tuple pysdk::VM::run(pybind11::object _FileName,
   return pybind11::make_tuple(res, returns);
 }
 
+pysdk::result pysdk::VM::add(pysdk::module &mod) {
+  return WasmEdge_VMRegisterModuleFromImport(VMCxt, mod.get());
+}
+
+pybind11::tuple pysdk::VM::run(pybind11::object wasm_buffer_,
+                               pybind11::object params_,
+                               pybind11::str function_name_,
+                               pybind11::int_ temp) {
+
+  auto function_name = function_name_.cast<std::string>();
+
+  auto wasm_buffer = wasm_buffer_.cast<pybind11::tuple>();
+  pybind11::list returns;
+
+  auto params = params_.cast<pybind11::tuple>();
+  auto param_len = pybind11::len(params);
+  auto size = wasm_buffer.size();
+  uint8_t WASM_Buffer[size];
+
+  for (size_t i = 0; i < size; i++) {
+    WASM_Buffer[i] = wasm_buffer[i].cast<uint8_t>();
+  }
+
+  WasmEdge_Value Params[param_len];
+  for (int i = 0; i < param_len; i++) {
+    if (pybind11::isinstance<pybind11::int_>(params[i])) {
+      Params[i] = WasmEdge_ValueGenI32(params[i].cast<int32_t>());
+    } else if (pybind11::isinstance<pybind11::float_>(params[i])) {
+      Params[i] = WasmEdge_ValueGenF32(params[i].cast<float>());
+    } else {
+      // TODO: Handle Errors
+      return pybind11::make_tuple(NULL, NULL);
+    }
+  }
+
+  WasmEdge_String func_name_wasm =
+      WasmEdge_StringCreateByCString(function_name.c_str());
+
+  WasmEdge_FunctionTypeContext *FuncTypeCxt =
+      (WasmEdge_FunctionTypeContext *)WasmEdge_VMGetFunctionType(
+          VMCxt, func_name_wasm);
+
+  auto param_len_api = WasmEdge_FunctionTypeGetParametersLength(FuncTypeCxt);
+  auto return_len = WasmEdge_FunctionTypeGetReturnsLength(FuncTypeCxt);
+
+  if (param_len != param_len_api) {
+    /* TODO: Handle errors gracefully */
+    WasmEdge_FunctionTypeDelete(FuncTypeCxt);
+    return pybind11::make_tuple(NULL, NULL);
+  }
+
+  WasmEdge_Value Returns[return_len];
+
+  pysdk::result res(
+      WasmEdge_VMRunWasmFromBuffer(VMCxt, WASM_Buffer, size, func_name_wasm,
+                                   Params, param_len, Returns, return_len));
+
+  WasmEdge_StringDelete(func_name_wasm);
+
+  for (int i = 0; i < return_len; i++) {
+    switch (Returns[i].Type) {
+    case WasmEdge_ValType_I32:
+      returns.append(pybind11::cast(WasmEdge_ValueGetI32(Returns[i])));
+      break;
+    case WasmEdge_ValType_I64:
+      returns.append(pybind11::cast(WasmEdge_ValueGetI64(Returns[i])));
+      break;
+    case WasmEdge_ValType_F32:
+      returns.append(pybind11::cast(WasmEdge_ValueGetF32(Returns[i])));
+      break;
+    case WasmEdge_ValType_F64:
+      returns.append(pybind11::cast(WasmEdge_ValueGetF64(Returns[i])));
+      break;
+    case WasmEdge_ValType_V128:
+      returns.append(pybind11::cast(WasmEdge_ValueGetV128(Returns[i])));
+      break;
+    case WasmEdge_ValType_FuncRef:
+      returns.append(pybind11::cast(WasmEdge_ValueGetFuncIdx(Returns[i])));
+      break;
+    // TODO: Handle Void Pointer
+    // case WasmEdge_ValType_ExternRef:
+    //   returns.append(pybind11::cast(WasmEdge_ValueGetExternRef(Returns[i])));
+    //   break;
+    default:
+      break;
+    }
+  }
+
+  return pybind11::make_tuple(res, returns);
+}
+
+pybind11::list pysdk::VM::list_functions() {
+  pybind11::list returns;
+
+  auto len = WasmEdge_VMGetFunctionListLength(VMCxt);
+
+  WasmEdge_String str[len];
+  auto w = WasmEdge_VMGetFunctionList(VMCxt, str, NULL, str[0].Length);
+  for (size_t i = 0; i < len; i++) {
+    returns.append(str[i].Buf);
+  }
+  return returns;
+}
+
 /* --------------- VM End -------------------------------- */
 
 /* --------------- Store -------------------------------- */
@@ -352,9 +456,15 @@ pysdk::module::module(std::string name) {
       WasmEdge_ImportObjectCreate(WasmEdge_StringCreateByCString(name.c_str()));
 }
 
-pysdk::module::module(pysdk::module &mod) { ModCxt = mod.get(); }
+void pysdk::module::add(pysdk::function &func, std::string name) {
+  WasmEdge_String function_name = WasmEdge_StringCreateByCString(name.c_str());
+  WasmEdge_ImportObjectAddFunction(ModCxt, function_name, func.get());
+  WasmEdge_StringDelete(function_name);
+}
 
 pysdk::module::~module() { WasmEdge_ImportObjectDelete(ModCxt); }
+
+WasmEdge_ImportObjectContext *pysdk::module::get() { return ModCxt; }
 
 /* --------------- Module End ----------------------------------------*/
 
@@ -363,7 +473,7 @@ pysdk::module::~module() { WasmEdge_ImportObjectDelete(ModCxt); }
 pysdk::function::function(pybind11::function func_) : func(func_) {
   pybind11::dict annotations = func.attr("__annotations__");
   auto total = pybind11::len(annotations);
-  ret_len = pybind11::len(annotations["return"]);
+  ret_len = pybind11::len(pybind11::make_tuple(annotations["return"]));
   param_len = total - ret_len;
 
   size_t i = 0;
@@ -374,33 +484,30 @@ pysdk::function::function(pybind11::function func_) : func(func_) {
   param_types = new WasmEdge_ValType[param_len];
   return_types = new WasmEdge_ValType[ret_len];
 
-  for (auto e : annotations) {
-    if (e.first.cast<std::string>() == "return") {
-      i = 0;
-      for (auto ret : annotations["return"].cast<pybind11::tuple>()) {
-        auto type_str = ret.cast<pybind11::type>();
-        if (type_str.is(temp_int.get_type())) {
-          return_types[i] = WasmEdge_ValType_I32;
-        } else if (type_str.is(temp_float.get_type())) {
-          return_types[i] = WasmEdge_ValType_F32;
-        } else {
-          // TODO: Handle Errors
-        }
-        i++;
-      }
-      i = 0;
+  for (auto ret : pybind11::make_tuple(annotations["return"])) {
+    auto type_str = ret.cast<pybind11::type>();
+    if (type_str.is(temp_int.get_type())) {
+      return_types[i] = WasmEdge_ValType_I32;
+    } else if (type_str.is(temp_float.get_type())) {
+      return_types[i] = WasmEdge_ValType_F32;
     } else {
-
-      auto type_str = e.second.cast<pybind11::type>();
-      if (type_str.is(temp_int.get_type())) {
-        param_types[i] = WasmEdge_ValType_I32;
-      } else if (type_str.is(temp_float.get_type())) {
-        param_types[i] = WasmEdge_ValType_F32;
-      } else {
-        // TODO: Handle Errors
-      }
-      i++;
+      // TODO: Handle Errors
     }
+    i++;
+  }
+
+  i = 0;
+
+  for (auto e : annotations) {
+    auto type_str = e.second.cast<pybind11::type>();
+    if (type_str.is(temp_int.get_type())) {
+      param_types[i] = WasmEdge_ValType_I32;
+    } else if (type_str.is(temp_float.get_type())) {
+      param_types[i] = WasmEdge_ValType_F32;
+    } else {
+      // TODO: Handle Errors
+    }
+    i++;
   }
 
   HostFType = WasmEdge_FunctionTypeCreate(param_types, param_len, return_types,
@@ -429,7 +536,16 @@ WasmEdge_Result pysdk::host_function(void *Data,
   size_t param_len = casted_data->param_len;
 
   for (size_t i = 0; i < param_len; i++) {
-    params.append(In[i]);
+    switch (In[i].Type) {
+    case WasmEdge_ValType_I32:
+      params.append(WasmEdge_ValueGetI32(In[i]));
+      break;
+    case WasmEdge_ValType_F32:
+      params.append(WasmEdge_ValueGetF32(In[i]));
+      break;
+    default:
+      break;
+    }
   }
   auto params_tup = params.cast<pybind11::tuple>();
 
@@ -445,6 +561,10 @@ WasmEdge_Result pysdk::host_function(void *Data,
 
   return WasmEdge_Result_Success;
 };
+
+WasmEdge_FunctionInstanceContext *pysdk::function::get() {
+  return this->HostFuncCxt;
+}
 
 pysdk::function::~function() {
   WasmEdge_FunctionInstanceDelete(HostFuncCxt);
@@ -563,6 +683,9 @@ PYBIND11_MODULE(WasmEdge, module) {
   pybind11::tuple (pysdk::VM::*run)(pybind11::object, pybind11::object,
                                     pybind11::object, pybind11::object,
                                     pybind11::object) = &pysdk::VM::run;
+  pybind11::tuple (pysdk::VM::*run_wasm_buffer)(
+      pybind11::object, pybind11::object, pybind11::str, pybind11::int_) =
+      &pysdk::VM::run;
 
   pybind11::class_<pysdk::VM>(module, "VM")
       .def(pybind11::init())
@@ -571,7 +694,17 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def(pybind11::init<pysdk::Configure &, pysdk::Store &>())
       .def("__doc__", &pysdk::VM::doc)
       .def("run", run)
-      .def("run", run_step_by_step);
+      .def("run", run_step_by_step)
+      .def("run", run_wasm_buffer)
+      .def("add", &pysdk::VM::add)
+      .def("list", &pysdk::VM::list_functions);
+
+  pybind11::class_<pysdk::function>(module, "Function")
+      .def(pybind11::init<pybind11::function>());
+
+  pybind11::class_<pysdk::module>(module, "Module")
+      .def(pybind11::init<std::string>())
+      .def("add", &pysdk::module::add);
 };
 
 /* --------------- Python Module End ----------------------------------------*/

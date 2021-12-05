@@ -22,13 +22,11 @@ public:
   import(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
          Span<uint8_t const> Encoded, __wasi_secretkey_encoding_e_t Encoding);
 
-  static WasiCryptoExpect<std::vector<uint8_t>>
+  WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_secretkey_encoding_e_t SkEncoding);
 
   WasiCryptoExpect<PublicKey>
   publicKey();
-private:
-  std::variant<SignatureSecretKey, KxSecretKey> Inner;
 };
 
 } // namespace WASICrypto

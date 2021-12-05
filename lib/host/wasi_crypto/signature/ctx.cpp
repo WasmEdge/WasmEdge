@@ -16,7 +16,9 @@ WasiCryptoContext::signatureExport(__wasi_signature_t SigHandle,
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
   auto Sig = SignatureManger.get(SigHandle);
-  auto Res = Sig->asRaw();
+  auto Res = Sig->inner()->locked([](auto&Inner) {
+    return Inner->asRaw();
+  });
   return allocateArrayOutput(std::move(Res));
 }
 
@@ -56,7 +58,7 @@ WasiCryptoContext::signatureStateOpen(__wasi_signature_keypair_t KpHandle) {
     return WasiCryptoUnexpect(SigKp);
   }
 
-  auto SigState = SignatureState::make(*SigKp);
+  auto SigState = SignatureState::open(*SigKp);
   if (!SigState) {
     return WasiCryptoUnexpect(SigState);
   }
@@ -108,7 +110,7 @@ WasiCryptoContext::signatureVerificationStateOpen(
     return WasiCryptoUnexpect(SigPk);
   }
 
-  auto Verification = SignatureVerificationState::make(*SigPk);
+  auto Verification = SignatureVerificationState::open(*SigPk);
   if (!Verification) {
     return WasiCryptoUnexpect(Verification);
   }

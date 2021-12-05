@@ -81,54 +81,33 @@ WasiCryptoExpect<KeyPair> KeyPair::fromPkAndSk(PublicKey, SecretKey) {
 
 WasiCryptoExpect<std::vector<uint8_t>>
 KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
-  return std::visit(Overloaded{[Encoding](SignatureKeyPair &SigKp) {
-                                 return SigKp.exportData(Encoding);
-                               },
-                               [Encoding](KxKeyPair &KxKp) {
-                                 return KxKp.exportData(Encoding);
-                               }},
+  return std::visit(Overloaded{[&Encoding](auto &SigKp) {
+                      return SigKp.exportData(Encoding);
+                    }},
                     Inner);
 }
 
 WasiCryptoExpect<PublicKey> KeyPair::publicKey() {
-  return std::visit(
-      Overloaded{[](SignatureKeyPair &SigKp) -> WasiCryptoExpect<PublicKey> {
-                   auto Res = SigKp.publicKey();
-                   if (!Res) {
-                     return WasiCryptoUnexpect(Res);
-                   }
+  return std::visit(Overloaded{[](auto &SigKp) -> WasiCryptoExpect<PublicKey> {
+                      auto Res = SigKp.publicKey();
+                      if (!Res) {
+                        return WasiCryptoUnexpect(Res);
+                      }
 
-                   return PublicKey{*Res};
-                 },
-                 [](KxKeyPair &KxKp) -> WasiCryptoExpect<PublicKey> {
-                   auto Res = KxKp.publicKey();
-                   if (!Res) {
-                     return WasiCryptoUnexpect(Res);
-                   }
-
-                   return PublicKey{*Res};
-                 }},
-      Inner);
+                      return PublicKey{*Res};
+                    }},
+                    Inner);
 }
 WasiCryptoExpect<SecretKey> KeyPair::secretKey() {
-  return std::visit(
-      Overloaded{[](SignatureKeyPair &SigKp) -> WasiCryptoExpect<SecretKey> {
-                   auto Res = SigKp.secretKey();
-                   if (!Res) {
-                     return WasiCryptoUnexpect(Res);
-                   }
+  return std::visit(Overloaded{[](auto &SigKp) -> WasiCryptoExpect<SecretKey> {
+                      auto Res = SigKp.secretKey();
+                      if (!Res) {
+                        return WasiCryptoUnexpect(Res);
+                      }
 
-                   return SecretKey{*Res};
-                 },
-                 [](KxKeyPair &KxKp) -> WasiCryptoExpect<SecretKey> {
-                   auto Res = KxKp.secretKey();
-                   if (!Res) {
-                     return WasiCryptoUnexpect(Res);
-                   }
-
-                   return SecretKey{*Res};
-                 }},
-      Inner);
+                      return SecretKey{*Res};
+                    }},
+                    Inner);
 }
 
 } // namespace WASICrypto

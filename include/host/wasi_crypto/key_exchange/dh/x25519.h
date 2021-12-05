@@ -3,10 +3,19 @@
 
 #include "host/wasi_crypto/key_exchange/keypair.h"
 #include "host/wasi_crypto/key_exchange/publickey.h"
+#include "host/wasi_crypto/wrapper/x25519.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+
+class X25519PublicKeyBuilder : public KxPublicKeyBuilder {
+public:
+  WasiCryptoExpect<KxPublicKey> fromRaw(Span<const uint8_t> Raw) override;
+
+private:
+  KxAlgorithm Alg;
+};
 
 class X25519PublicKey : public KxPublicKeyBase {
 public:
@@ -21,16 +30,11 @@ public:
 
   WasiCryptoExpect<void> verify() override;
 
-private:
-  KxAlgorithm Alg;
-};
-
-class X25519PublicKeyBuilder : public KxPublicKeyBuilder {
-public:
-  WasiCryptoExpect<KxPublicKey> fromRaw(Span<const uint8_t> Raw) override;
+  X25519PublicKey(KxAlgorithm Alg, X25519PK Ctx);
 
 private:
   KxAlgorithm Alg;
+  X25519PK Ctx;
 };
 
 class X25519SecretKeyBuilder : public KxSecretKeyBuilder {
@@ -58,8 +62,11 @@ public:
 
   WasiCryptoExpect<std::vector<uint8_t>> dh(KxPublicKey &KxPk) override;
 
+  X25519SecretKey(KxAlgorithm Alg, X25519SK Ctx);
+
 private:
   KxAlgorithm Alg;
+  X25519SK Ctx;
 };
 
 class X25519KeyPairBuilder : public KxKeyPairBuilder {

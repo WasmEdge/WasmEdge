@@ -7,10 +7,8 @@ using namespace WasmEdge::Host::WASICrypto;
 
 TEST(WasiCryptoTest, KeyExchange) {
   WasiCryptoContext Ctx;
-
-  auto KxKpHandle1 = Ctx
-                         .keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
-                                          "X25519", std::nullopt)
+  auto KxKpHandle1 = Ctx.keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                         "X25519", std::nullopt)
                          .value();
   auto KxKpRawBytesHandle =
       Ctx.keypairExport(KxKpHandle1, __WASI_KEYPAIR_ENCODING_RAW).value();
@@ -21,9 +19,8 @@ TEST(WasiCryptoTest, KeyExchange) {
   auto Pk1 = Ctx.keypairPublickey(KxKpHandle1).value();
   auto Sk1 = Ctx.keypairSecretkey(KxKpHandle1).value();
 
-  auto KxKpHandle2 = Ctx
-                         .keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
-                                          "X25519", std::nullopt)
+  auto KxKpHandle2 = Ctx.keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                         "X25519", std::nullopt)
                          .value();
   auto Pk2 = Ctx.keypairPublickey(KxKpHandle2).value();
   auto Sk2 = Ctx.keypairSecretkey(KxKpHandle2).value();
@@ -54,8 +51,7 @@ TEST(WasiCryptoTest, KeyEncapsulation) {
   auto Pk = Ctx.keypairPublickey(KxKpHandle).value();
   auto Sk = Ctx.keypairSecretkey(KxKpHandle).value();
 
-  auto [SecretHandle, EncapsulatedSecretHandle] =
-      Ctx.kxEncapsulate(Pk).value();
+  auto [SecretHandle, EncapsulatedSecretHandle] = Ctx.kxEncapsulate(Pk).value();
 
   std::vector<uint8_t> SecretRawBytes(Ctx.arrayOutputLen(SecretHandle).value(),
                                       0);

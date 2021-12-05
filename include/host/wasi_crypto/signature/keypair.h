@@ -1,12 +1,27 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include "common/span.h"
+#include "host/wasi_crypto/signature/alg.h"
+#include "host/wasi_crypto/signature/ecdsa.h"
+#include "host/wasi_crypto/signature/eddsa.h"
+#include "host/wasi_crypto/signature/options.h"
+#include "host/wasi_crypto/signature/publickey.h"
+#include "host/wasi_crypto/signature/rsa.h"
+#include "host/wasi_crypto/signature/secretkey.h"
+#include "host/wasi_crypto/varianthelper.h"
+
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class SignatureKeyPair {
+class SignatureKeyPair
+    : public VariantTemplate<EcdsaSignatureKeyPair, EddsaSignatureKeyPair,
+                             RsaSignatureKeyPair> {
 public:
+  using VariantTemplate<EcdsaSignatureKeyPair, EddsaSignatureKeyPair,
+                        RsaSignatureKeyPair>::VariantTemplate;
+
   static WasiCryptoExpect<SignatureKeyPair>
   generate(SignatureAlgorithm Alg, std::optional<SignatureOptions> Options);
 

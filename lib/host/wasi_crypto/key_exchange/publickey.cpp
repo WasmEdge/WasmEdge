@@ -2,6 +2,7 @@
 
 #include "host/wasi_crypto/key_exchange/publickey.h"
 #include "host/wasi_crypto/key_exchange/dh/x25519.h"
+#include "host/wasi_crypto/signature/publickey.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -48,6 +49,15 @@ WasiCryptoExpect<EncapsulatedSecret> KxPublicKey::encapsulate() {
     return Key->encapsulate();
   });
 }
+
+std::shared_ptr<Mutex<std::unique_ptr<KxPublicKeyBase>>> &KxPublicKey::inner() {
+  return Inner;
+}
+
+WasiCryptoExpect<std::vector<uint8_t>>
+KxPublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
+  return WasmEdge::Host::WASICrypto::WasiCryptoExpect<std::vector<uint8_t>>();
+}
 //WasiCryptoExpect<std::unique_ptr<KxPublicKeyBuilder>>
 //KxPublicKey::builder(KxAlgorithm Alg) {
 //  switch (Alg) {
@@ -57,6 +67,7 @@ WasiCryptoExpect<EncapsulatedSecret> KxPublicKey::encapsulate() {
 //    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 //  }
 //}
+
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

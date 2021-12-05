@@ -3,6 +3,7 @@
 #include "host/wasi_crypto/key_exchange/keypair.h"
 #include "host/wasi_crypto/key_exchange/dh/x25519.h"
 #include "host/wasi_crypto/asymmetric_common/keypair.h"
+#include "host/wasi_crypto/signature/keypair.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -48,6 +49,7 @@ KxKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   }
 }
+
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

@@ -55,9 +55,7 @@ public:
 
   WasiCryptoExpect<EncapsulatedSecret> encapsulate();
 
-  std::shared_ptr<Mutex<std::unique_ptr<KxPublicKeyBase>>>& inner(){
-    return Inner;
-  }
+  std::shared_ptr<Mutex<std::unique_ptr<KxPublicKeyBase>>>& inner();
 
   WasiCryptoExpect<std::vector<uint8_t>> exportData(__wasi_publickey_encoding_e_t Encoding);
 

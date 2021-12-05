@@ -686,7 +686,7 @@ private:
   WasiCryptoExpect<uint8_t> allocateArrayOutput(std::vector<uint8_t> &&Data);
 
   WasiCryptoExpect<std::optional<SymmetricOptions>>
-  readSymmetricOption(std::optional<__wasi_options_t> OptionsHandle);
+  readSymmetricOption(std::optional<__wasi_options_t> OptOptionsHandle);
 
   WasiCryptoExpect<std::optional<SymmetricKey>>
   readSymmetricKey(std::optional<__wasi_symmetric_key_t> KeyHandle);

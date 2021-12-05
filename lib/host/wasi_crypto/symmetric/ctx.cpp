@@ -327,12 +327,12 @@ WasiCryptoContext::symmetricTagClose(__wasi_symmetric_tag_t TagHandle) {
 
 WasiCryptoExpect<std::optional<SymmetricOptions>>
 WasiCryptoContext::readSymmetricOption(
-    std::optional<__wasi_options_t> OptionsHandle) {
-  if (!OptionsHandle) {
+    std::optional<__wasi_options_t> OptOptionsHandle) {
+  if (!OptOptionsHandle) {
     return std::nullopt;
   }
 
-  auto Res = OptionsManger.get(*OptionsHandle);
+  auto Res = OptionsManger.get(*OptOptionsHandle);
   if (!Res) {
     return WasiCryptoUnexpect(Res);
   }

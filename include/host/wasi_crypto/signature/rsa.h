@@ -23,9 +23,7 @@ public:
   SignatureAlgorithm Alg;
 };
 
-class RsaSignatureSecretKey {
-
-};
+class RsaSignatureSecretKey {};
 
 class RsaSignatureKeyPair {
 public:
@@ -52,19 +50,26 @@ public:
   WasiCryptoExpect<RsaSignaturePublicKey> publicKey();
 };
 
-class RsaSignature : public Signature::Base {};
+class RsaSignature : public Signature::Base {
+public:
+  Span<const uint8_t> ref() override;
+};
 
 class RsaSignatureState : public SignatureState::Base {
 public:
   RsaSignatureState(RsaSignatureKeyPair Kp);
+
   WasiCryptoExpect<void> update(Span<uint8_t> Input) override;
+
   WasiCryptoExpect<void> sign() override;
 };
 
 class RsaSignatureVerificationState : public SignatureVerificationState::Base {
 public:
   RsaSignatureVerificationState(RsaSignaturePublicKey Pk);
+
   WasiCryptoExpect<void> update(Span<const uint8_t> Input) override;
+
   WasiCryptoExpect<void> verify(Signature &Sig) override;
 };
 

@@ -29,7 +29,8 @@ WasiCryptoContext::kxDh(__wasi_publickey_t PkHandle,
     return WasiCryptoUnexpect(KxPk);
   }
 
-  auto SharedSecret = KxSk->dh(*KxPk);
+  auto SharedSecret =
+      KxSk->inner()->locked([&KxPk](auto &Inner) { return Inner->dh(*KxPk); });
   if (!SharedSecret) {
     return WasiCryptoUnexpect(SharedSecret);
   }
@@ -49,7 +50,9 @@ WasiCryptoContext::kxEncapsulate(__wasi_publickey_t PkHandle) {
     return WasiCryptoUnexpect(KxPk);
   }
 
-  auto EncapsulateSecret = KxPk->encapsulate();
+  auto EncapsulateSecret = KxPk->inner()->locked([](auto& Inner) {
+    return Inner->encapsulate();
+  });
   if (!EncapsulateSecret) {
     return WasiCryptoUnexpect(EncapsulateSecret);
   }
@@ -81,7 +84,9 @@ WasiCryptoContext::kxDecapsulate(__wasi_secretkey_t SkHandle,
     return WasiCryptoUnexpect(KxSk);
   }
 
-  auto SharedSecret = KxSk->decapsulate(EncapsulatedSecret);
+  auto SharedSecret = KxSk->inner()->locked([&EncapsulatedSecret](auto &Base) {
+    return Base->decapsulate(EncapsulatedSecret);
+  });
   if (!SharedSecret) {
     return WasiCryptoUnexpect(SharedSecret);
   }

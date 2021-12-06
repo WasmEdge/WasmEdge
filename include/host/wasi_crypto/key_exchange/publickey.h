@@ -26,44 +26,39 @@ public:
   virtual WasiCryptoExpect<KxPublicKey> fromRaw(Span<uint8_t const> Raw) = 0;
 };
 
-class KxPublicKeyBase {
-public:
-  virtual ~KxPublicKeyBase() = default;
-
-  virtual KxAlgorithm alg() = 0;
-
-  virtual WasiCryptoExpect<__wasi_size_t> len() = 0;
-
-  virtual WasiCryptoExpect<Span<uint8_t const>> asRaw() = 0;
-
-  virtual WasiCryptoExpect<void> verify();
-
-  virtual WasiCryptoExpect<EncapsulatedSecret> encapsulate();
-};
-
 class KxPublicKey {
 public:
-  KxPublicKey(std::unique_ptr<KxPublicKeyBase> Key);
+  class Base {
+  public:
+    virtual ~Base() = default;
 
-  KxAlgorithm alg();
+    virtual KxAlgorithm alg() = 0;
 
-  WasiCryptoExpect<__wasi_size_t> len();
+    virtual WasiCryptoExpect<__wasi_size_t> len() = 0;
+
+    virtual WasiCryptoExpect<Span<uint8_t const>> asRaw() = 0;
+
+    virtual WasiCryptoExpect<void> verify();
+
+    virtual WasiCryptoExpect<EncapsulatedSecret> encapsulate();
+  };
+
+  KxPublicKey(std::unique_ptr<Base> Key);
 
   WasiCryptoExpect<std::vector<uint8_t>> asRaw();
 
   WasiCryptoExpect<void> verify();
 
-  WasiCryptoExpect<EncapsulatedSecret> encapsulate();
+  auto &inner() { return Inner; }
 
-  std::shared_ptr<Mutex<std::unique_ptr<KxPublicKeyBase>>>& inner();
-
-  WasiCryptoExpect<std::vector<uint8_t>> exportData(__wasi_publickey_encoding_e_t Encoding);
+  WasiCryptoExpect<std::vector<uint8_t>>
+  exportData(__wasi_publickey_encoding_e_t Encoding);
 
   //  static WasiCryptoExpect<std::unique_ptr<KxPublicKeyBuilder>>
   //  builder(KxAlgorithm Alg);
 
 private:
-  std::shared_ptr<Mutex<std::unique_ptr<KxPublicKeyBase>>> Inner;
+  std::shared_ptr<Mutex<std::unique_ptr<Base>>> Inner;
 };
 
 } // namespace WASICrypto

@@ -43,7 +43,8 @@ public:
     if (!Sk) {
       return WasiCryptoUnexpect(Sk);
     }
-    auto SkRaw = Sk->asRaw();
+    
+    auto SkRaw = Sk->inner()->locked([](auto &Key) { return Key->asRaw(); });
     if (!SkRaw) {
       return WasiCryptoUnexpect(SkRaw);
     }

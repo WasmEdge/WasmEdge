@@ -46,9 +46,9 @@ public:
   public:
     virtual ~Base() = default;
 
-    virtual WasiCryptoExpect<void> update(Span<uint8_t> Input) = 0;
+    virtual WasiCryptoExpect<void> update(Span<uint8_t const> Input) = 0;
 
-    virtual WasiCryptoExpect<void> sign() = 0;
+    virtual WasiCryptoExpect<Signature> sign() = 0;
   };
 
   SignatureState(std::unique_ptr<Base> Inner);
@@ -76,6 +76,8 @@ public:
 
   static WasiCryptoExpect<SignatureVerificationState>
   open(SignaturePublicKey SigPk);
+
+  auto &inner() { return Inner; }
 
 private:
   std::shared_ptr<Mutex<std::unique_ptr<Base>>> Inner;

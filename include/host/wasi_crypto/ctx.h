@@ -637,7 +637,7 @@ public:
 
   ///-------------------------------------------key_exchange---------------------------------------
 
-  WasiCryptoExpect<__wasi_array_output_t> kxDh(__wasi_publickey_t PkHandle,
+  WasiCryptoExpect<__wasi_array_output_t> kxDh(__wasi_publickey_t Inner,
                                                __wasi_secretkey_t SkHandle);
 
   WasiCryptoExpect<std::tuple<__wasi_array_output_t, __wasi_array_output_t>>

@@ -96,7 +96,7 @@ WasiCryptoExpect<Span<const uint8_t>> X25519SecretKey::asRaw() {
 }
 
 WasiCryptoExpect<std::vector<uint8_t>> X25519SecretKey::dh(KxPublicKey &KxPk) {
-  KxPk.inner()->locked([](std::unique_ptr<KxPublicKeyBase> &Key) {
+  KxPk.inner()->locked([](auto &Key) {
     auto *Res = dynamic_cast<X25519PublicKey *>(Key.get());
     if (Res == nullptr) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);

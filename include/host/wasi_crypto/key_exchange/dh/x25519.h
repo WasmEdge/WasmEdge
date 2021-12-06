@@ -17,7 +17,7 @@ private:
   KxAlgorithm Alg;
 };
 
-class X25519PublicKey : public KxPublicKeyBase {
+class X25519PublicKey : public KxPublicKey::Base {
 public:
   static WasiCryptoExpect<X25519PublicKey> make(KxAlgorithm Alg,
                                                 Span<uint8_t const> Raw);
@@ -45,7 +45,7 @@ private:
   KxAlgorithm Alg;
 };
 
-class X25519SecretKey : public KxSecretKeyBase {
+class X25519SecretKey : public KxSecretKey::Base {
 public:
   static WasiCryptoExpect<X25519SecretKey> make(KxAlgorithm Alg,
                                                 Span<uint8_t const> Raw);

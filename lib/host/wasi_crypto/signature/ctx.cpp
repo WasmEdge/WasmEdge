@@ -16,9 +16,7 @@ WasiCryptoContext::signatureExport(__wasi_signature_t SigHandle,
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
   auto Sig = SignatureManger.get(SigHandle);
-  auto Res = Sig->inner()->locked([](auto&Inner) {
-    return Inner->asRaw();
-  });
+  auto Res = Sig->inner()->locked([](auto &Inner) { return Inner->asRaw(); });
   return allocateArrayOutput(std::move(Res));
 }
 
@@ -74,7 +72,8 @@ WasiCryptoContext::signatureStateUpdate(__wasi_signature_state_t StateHandle,
     return WasiCryptoUnexpect(State);
   }
 
-  return State->update(Input);
+  return State->inner()->locked(
+      [&Input](auto &Inner) { return Inner->update(Input); });
 }
 
 WasiCryptoExpect<__wasi_signature_t>
@@ -84,7 +83,7 @@ WasiCryptoContext::signatureStateSign(__wasi_signature_state_t StateHandle) {
     return WasiCryptoUnexpect(State);
   }
 
-  auto Sig = State->sign();
+  auto Sig = State->inner()->locked([](auto &Inner) { return Inner->sign(); });
   if (!Sig) {
     return WasiCryptoUnexpect(Sig);
   }
@@ -126,7 +125,8 @@ WasiCryptoExpect<void> WasiCryptoContext::signatureVerificationStateUpdate(
     return WasiCryptoUnexpect(Verification);
   }
 
-  return Verification->update(Input);
+  return Verification->inner()->locked(
+      [&Input](auto &Inner) { return Inner->update(Input); });
 }
 
 WasiCryptoExpect<void> WasiCryptoContext::signatureVerificationStateVerify(
@@ -142,7 +142,8 @@ WasiCryptoExpect<void> WasiCryptoContext::signatureVerificationStateVerify(
     return WasiCryptoUnexpect(Sig);
   }
 
-  return Verification->verify(*Sig);
+  return Verification->inner()->locked(
+      [&Sig](auto &Inner) { return Inner->verify(*Sig); });
 }
 
 WasiCryptoExpect<void> WasiCryptoContext::signatureVerificationStateClose(

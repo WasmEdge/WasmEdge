@@ -8,28 +8,18 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-WasiCryptoExpect<void> KxPublicKeyBase::verify() { return {}; }
+WasiCryptoExpect<void> KxPublicKey::Base::verify() { return {}; }
 
-WasiCryptoExpect<EncapsulatedSecret> KxPublicKeyBase::encapsulate() {
+WasiCryptoExpect<EncapsulatedSecret> KxPublicKey::Base::encapsulate() {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-KxPublicKey::KxPublicKey(std::unique_ptr<KxPublicKeyBase> Key)
-    : Inner(std::make_shared<Mutex<std::unique_ptr<KxPublicKeyBase>>>(
+KxPublicKey::KxPublicKey(std::unique_ptr<Base> Key)
+    : Inner(std::make_shared<Mutex<std::unique_ptr<Base>>>(
     std::move(Key))) {}
 
-KxAlgorithm KxPublicKey::alg() {
-  return Inner->locked(
-      [](std::unique_ptr<KxPublicKeyBase> &Key) { return Key->alg(); });
-}
-
-WasiCryptoExpect<__wasi_size_t> KxPublicKey::len() {
-  return Inner->locked(
-      [](std::unique_ptr<KxPublicKeyBase> &Key) { return Key->len(); });
-}
-
 WasiCryptoExpect<std::vector<uint8_t>> KxPublicKey::asRaw() {
-  return Inner->locked([](std::unique_ptr<KxPublicKeyBase> &Key)
+  return Inner->locked([](std::unique_ptr<Base> &Key)
                            -> WasiCryptoExpect<std::vector<uint8_t>> {
     auto Res = Key->asRaw();
     if (!Res) {
@@ -41,17 +31,7 @@ WasiCryptoExpect<std::vector<uint8_t>> KxPublicKey::asRaw() {
 
 WasiCryptoExpect<void> KxPublicKey::verify() {
   return Inner->locked(
-      [](std::unique_ptr<KxPublicKeyBase> &Key) { return Key->verify(); });
-}
-
-WasiCryptoExpect<EncapsulatedSecret> KxPublicKey::encapsulate() {
-  return Inner->locked([](std::unique_ptr<KxPublicKeyBase> &Key) {
-    return Key->encapsulate();
-  });
-}
-
-std::shared_ptr<Mutex<std::unique_ptr<KxPublicKeyBase>>> &KxPublicKey::inner() {
-  return Inner;
+      [](std::unique_ptr<Base> &Key) { return Key->verify(); });
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>

@@ -114,6 +114,7 @@ public:
     addProposal(Proposal::MultiValue);
     addProposal(Proposal::BulkMemoryOperations);
     addProposal(Proposal::ReferenceTypes);
+    addProposal(Proposal::SIMD);
   }
   template <typename... ArgsT> Configure(ArgsT... Args) noexcept : Configure() {
     (addSet(Args), ...);

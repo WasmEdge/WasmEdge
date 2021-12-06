@@ -660,6 +660,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     // * MULTI_VALUE
     // * BULK_MEMORY_OPERATIONS
     // * REFERENCE_TYPES
+    // * SIMD
     conf := wasmedge.NewConfigure()
     // Developers can also pass the proposals as parameters:
     // conf := wasmedge.NewConfigure(wasmedge.SIMD, wasmedge.BULK_MEMORY_OPERATIONS)

@@ -10,6 +10,15 @@ pub enum WasmEdgeRefType {
     FuncRef,
     ExternRef,
 }
+impl From<u32> for WasmEdgeRefType {
+    fn from(value: u32) -> Self {
+        match value {
+            0x70u32 => WasmEdgeRefType::FuncRef,
+            0x6Fu32 => WasmEdgeRefType::ExternRef,
+            _ => panic!("fail to convert u32 to WasmEdgeRefType: {}", value),
+        }
+    }
+}
 impl From<WasmEdgeRefType> for wasmedge::WasmEdge_RefType {
     fn from(ty: WasmEdgeRefType) -> Self {
         match ty {

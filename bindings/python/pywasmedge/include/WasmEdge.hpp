@@ -128,7 +128,7 @@ public:
   pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object);
 
   pybind11::tuple run(pybind11::object, pybind11::object, pybind11::str,
-                      pybind11::int_);
+                      pybind11::str);
 
   pybind11::list list_functions();
 };

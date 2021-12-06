@@ -247,10 +247,11 @@ pysdk::result pysdk::VM::add(pysdk::module &mod) {
 
 pybind11::tuple pysdk::VM::run(pybind11::object wasm_buffer_,
                                pybind11::object params_,
-                               pybind11::str function_name_,
-                               pybind11::int_ temp) {
+                               pybind11::str module_name_,
+                               pybind11::str function_name_) {
 
   auto function_name = function_name_.cast<std::string>();
+  auto module_name = module_name_.cast<std::string>();
 
   auto wasm_buffer = wasm_buffer_.cast<pybind11::tuple>();
   pybind11::list returns;
@@ -278,17 +279,21 @@ pybind11::tuple pysdk::VM::run(pybind11::object wasm_buffer_,
 
   WasmEdge_String func_name_wasm =
       WasmEdge_StringCreateByCString(function_name.c_str());
+  WasmEdge_String module_name_wasm =
+      WasmEdge_StringCreateByCString(module_name.c_str());
 
-  WasmEdge_FunctionTypeContext *FuncTypeCxt =
-      (WasmEdge_FunctionTypeContext *)WasmEdge_VMGetFunctionType(
-          VMCxt, func_name_wasm);
+  WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VMCxt);
+
+  auto FuncCxt = WasmEdge_StoreFindFunctionRegistered(
+      StoreCxt, module_name_wasm, func_name_wasm);
+
+  auto FuncTypeCxt = WasmEdge_FunctionInstanceGetFunctionType(FuncCxt);
 
   auto param_len_api = WasmEdge_FunctionTypeGetParametersLength(FuncTypeCxt);
   auto return_len = WasmEdge_FunctionTypeGetReturnsLength(FuncTypeCxt);
 
   if (param_len != param_len_api) {
     /* TODO: Handle errors gracefully */
-    WasmEdge_FunctionTypeDelete(FuncTypeCxt);
     return pybind11::make_tuple(NULL, NULL);
   }
 
@@ -299,6 +304,7 @@ pybind11::tuple pysdk::VM::run(pybind11::object wasm_buffer_,
                                    Params, param_len, Returns, return_len));
 
   WasmEdge_StringDelete(func_name_wasm);
+  WasmEdge_StringDelete(module_name_wasm);
 
   for (int i = 0; i < return_len; i++) {
     switch (Returns[i].Type) {
@@ -684,7 +690,7 @@ PYBIND11_MODULE(WasmEdge, module) {
                                     pybind11::object, pybind11::object,
                                     pybind11::object) = &pysdk::VM::run;
   pybind11::tuple (pysdk::VM::*run_wasm_buffer)(
-      pybind11::object, pybind11::object, pybind11::str, pybind11::int_) =
+      pybind11::object, pybind11::object, pybind11::str, pybind11::str) =
       &pysdk::VM::run;
 
   pybind11::class_<pysdk::VM>(module, "VM")

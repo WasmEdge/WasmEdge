@@ -10,6 +10,7 @@ In this section, we will discuss several examples.
 
 * [Pass strings to Rust functions](#pass-strings-to-rust-functions)
 * [Pass strings to TinyGo functions](#pass-strings-to-tinygo-functions)
+* [Pass bytes to Rust functions](#pass-bytes-to-rust-functions)
 * [Pass bytes to TinyGo functions](#pass-bytes-to-tinygo-functions)
 
 ## Pass strings to Rust functions
@@ -303,9 +304,197 @@ $ ./greet_memory greet.wasm
 Hello, WasmEdge!
 ```
 
+## Pass bytes to Rust functions
+
+In [this example](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_AccessMemory), we will demonstrate how to call [Rust-based WebAssembly functions](https://github.com/second-state/WasmEdge-go-examples/blob/master/go_AccessMemory/rust_access_memory/src/lib.rs) and pass arrays to and from a Go app.
+
+> An alternative approach to pass and return complex values to Rust functions in WebAssembly is to use the `wasm-bindgen` compiler tool. You can [learn more here](bindgen.md).
+
+The `fib_array()` function takes a array as a call parameter and fill it with
+a fibonacci sequence of numbers. Alternatively, the `fib_array_return_memory()` function returns
+a array of fibonacci sequence of numbers.
+
+For the array in the call parameter, the Rust function `fib_array()` takes a memory pointer 
+and constructs the Rust `Vec` using `from_raw_parts`. For the array return 
+value, the Rust function `fib_array_return_memory()` simply returns the pointer.
+
+```rust
+use std::mem;
+use std::os::raw::{c_void, c_int};
+
+#[no_mangle]
+pub extern fn allocate(size: usize) -> *mut c_void {
+    let mut buffer = Vec::with_capacity(size);
+    let pointer = buffer.as_mut_ptr();
+    mem::forget(buffer);
+
+    pointer as *mut c_void
+}
+
+#[no_mangle]
+pub extern fn deallocate(pointer: *mut c_void, capacity: usize) {
+    unsafe {
+        let _ = Vec::from_raw_parts(pointer, 0, capacity);
+    }
+}
+
+#[no_mangle]
+pub extern fn fib_array(n: i32, p: *mut c_int) -> i32 {
+    unsafe {
+        let mut arr = Vec::<i32>::from_raw_parts(p, 0, (4*n) as usize);
+        for i in 0..n {
+            if i < 2 {
+                arr.push(i);
+            } else {
+                arr.push(arr[(i - 1) as usize] + arr[(i - 2) as usize]);
+            }
+        }
+        let r = arr[(n - 1) as usize];
+        mem::forget(arr);
+        r
+    }
+}
+
+#[no_mangle]
+pub extern fn fib_array_return_memory(n: i32) -> *mut c_int {
+    let mut arr = Vec::with_capacity((4 * n) as usize);
+    let pointer = arr.as_mut_ptr();
+    for i in 0..n {
+        if i < 2 {
+            arr.push(i);
+        } else {
+            arr.push(arr[(i - 1) as usize] + arr[(i - 2) as usize]);
+        }
+    }
+    mem::forget(arr);
+    pointer
+}
+```
+
+Use standard Rust compiler tools to compile the Rust source code into a WebAssembly bytecode application.
+
+```bash
+$ cd rust_access_memory
+$ cargo build --target wasm32-wasi
+# The output WASM will be target/wasm32-wasi/debug/rust_access_memory_lib.wasm.
+```
+
+The [Go SDK application](https://github.com/second-state/WasmEdge-go-examples/blob/master/go_AccessMemory/run.go) must call `allocate` from the WasmEdge
+VM to get a pointer to the array. It will then call the `fib_array()` 
+function in Rust and pass in the pointer. After the functions return, the Go application 
+will use the WasmEdge `store` API
+to construct an array from the pointer in the call parameter (`fib_array()`) or in the return value (`fib_array_return_memory()`).
+The Go app will eventually 
+call `deallocate`
+to free the memory space. 
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+	"unsafe"
+
+	"github.com/second-state/WasmEdge-go/wasmedge"
+)
+
+func main() {
+	wasmedge.SetLogErrorLevel()
+	conf := wasmedge.NewConfigure(wasmedge.WASI)
+	store := wasmedge.NewStore()
+	vm := wasmedge.NewVMWithConfigAndStore(conf, store)
+
+	wasi := vm.GetImportObject(wasmedge.WASI)
+	wasi.InitWasi(
+		os.Args[1:],
+		os.Environ(),
+		[]string{".:."},
+	)
+
+	err := vm.LoadWasmFile(os.Args[1])
+	if err != nil {
+		fmt.Println("failed to load wasm")
+	}
+	vm.Validate()
+	vm.Instantiate()
+
+	n := int32(10)
+
+	p, err := vm.Execute("allocate", 4 * n)
+	if err != nil {
+		fmt.Println("allocate failed:", err)
+	}
+
+	fib, err := vm.Execute("fib_array", n, p[0])
+	if err != nil {
+		fmt.Println("fib_rray failed:", err)
+	} else {
+		fmt.Println("fib_array() returned:", fib[0])
+		fmt.Printf("fib_array memory at: %p\n", unsafe.Pointer((uintptr)(p[0].(int32))))
+		mem := store.FindMemory("memory")
+		if mem != nil {
+			// int32 occupies 4 bytes
+			fibArray, err := mem.GetData(uint(p[0].(int32)), uint(n * 4))
+			if err == nil && fibArray != nil {
+				fmt.Println("fibArray:", fibArray)
+			}
+		}
+	}
+
+	fibP, err := vm.Execute("fib_array_return_memory", n)
+	if err != nil {
+		fmt.Println("fib_array_return_memory failed:", err)
+	} else {
+		fmt.Printf("fib_array_return_memory memory at: %p\n", unsafe.Pointer((uintptr)(fibP[0].(int32))))
+		mem := store.FindMemory("memory")
+		if mem != nil {
+			// int32 occupies 4 bytes
+			fibArrayReturnMemory, err := mem.GetData(uint(fibP[0].(int32)), uint(n * 4))
+			if err == nil && fibArrayReturnMemory != nil {
+				fmt.Println("fibArrayReturnMemory:", fibArrayReturnMemory)
+			}
+		}
+	}
+
+	_, err = vm.Execute("deallocate", p[0].(int32), 4 * n)
+	if err != nil {
+		fmt.Println("free failed:", err)
+	}
+
+
+	exitcode := wasi.WasiGetExitCode()
+	if exitcode != 0 {
+		fmt.Println("Go: Running wasm failed, exit code:", exitcode)
+	}
+
+	vm.Release()
+	store.Release()
+	conf.Release()
+}
+```
+
+To build the Go SDK example, run the following commands.
+
+```bash
+$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0-rc5
+$ go build run.go
+```
+
+Now you can use the Go application to run the WebAssembly plug-in compiled from Rust.
+
+```bash
+$ ./run rust_access_memory_lib.wasm
+fib_array() returned: 34
+fib_array memory at: 0x102d80
+fibArray: [0 0 0 0 1 0 0 0 1 0 0 0 2 0 0 0 3 0 0 0 5 0 0 0 8 0 0 0 13 0 0 0 21 0 0 0 34 0 0 0]
+fib_array_return_memory memory at: 0x105430
+fibArrayReturnMemory: [0 0 0 0 1 0 0 0 1 0 0 0 2 0 0 0 3 0 0 0 5 0 0 0 8 0 0 0 13 0 0 0 21 0 0 0 34 0 0 0]
+```
+
 ## Pass bytes to TinyGo functions
 
-In [this example](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_AccessMemory), we will demonstrate how to call [TinyGo-based WebAssembly functions](https://github.com/second-state/WasmEdge-go-examples/blob/master/go_AccessMemory/fib.go) and pass arrays to and from a Go app.
+In [this example](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_AccessMemoryTinyGo), we will demonstrate how to call [TinyGo-based WebAssembly functions](https://github.com/second-state/WasmEdge-go-examples/blob/master/go_AccessMemoryTinyGo/fib.go) and pass arrays to and from a Go app.
 
 The `fibArray` function takes a array as a call parameter and fill it with 
 a fibonacci sequence of numbers. Alternatively, the `fibArrayReturnMemory` function returns
@@ -363,9 +552,12 @@ Use the TinyGo compiler tools to compile the Go source code into a WebAssembly b
 $ tinygo build -o fib.wasm -target wasi fib.go
 ```
 
-The [Go SDK application](https://github.com/second-state/WasmEdge-go-examples/blob/master/go_AccessMemory/run.go) must call `malloc` from the WasmEdge
-VM to get a pointer to the array. It will then call the `fibArray` and `fibArrayReturnMemory`
-functions in TinyGo with the pointer. After the functions return, the Go application will call `free`
+The [Go SDK application](https://github.com/second-state/WasmEdge-go-examples/blob/master/go_AccessMemoryTinyGo/run.go) must call `malloc` from the WasmEdge
+VM to get a pointer to the array. It will then call the `fibArray()`
+function in TinyGo with the pointer. After the functions return, the
+Go app uses the WasmEdge SDK's `store` API to construct an array from the
+pointer in the call parameter (`fibArray()`) or in the return value (`fibArrayReturnMemory()`).
+The Go application will eventually call `free`
 to free the memory space.
 
 ```go

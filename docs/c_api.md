@@ -417,6 +417,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
      * * Multi-value returns
      * * Bulk memory operations
      * * Reference types
+     * * Fixed-width SIMD
      */
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
     WasmEdge_ConfigureAddProposal(ConfCxt, WasmEdge_Proposal_SIMD);

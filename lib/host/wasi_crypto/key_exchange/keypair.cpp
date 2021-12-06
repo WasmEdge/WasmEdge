@@ -2,17 +2,56 @@
 
 #include "host/wasi_crypto/key_exchange/keypair.h"
 #include "host/wasi_crypto/key_exchange/dh/x25519.h"
-#include "host/wasi_crypto/asymmetric_common/keypair.h"
-#include "host/wasi_crypto/signature/keypair.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
-KxKeyPair::KxKeyPair(std::unique_ptr<KxKeyPairBase> Inner)
-    : Inner(std::make_shared<Mutex<std::unique_ptr<KxKeyPairBase>>>(
-          std::move(Inner))) {}
 
-WasiCryptoExpect<std::unique_ptr<KxKeyPairBuilder>>
+WasiCryptoExpect<std::vector<uint8_t>> KxKeyPair::Base::asRaw() {
+  auto Pk = publicKey();
+  if (!Pk) {
+    return WasiCryptoUnexpect(Pk);
+  }
+
+  auto PkRaw =
+      Pk->inner()->locked([](auto &PkInner) { return PkInner->asRaw(); });
+  if (!PkRaw) {
+    return WasiCryptoUnexpect(PkRaw);
+  }
+
+  auto Sk = secretKey();
+  if (!Sk) {
+    return WasiCryptoUnexpect(Sk);
+  }
+
+  auto SkRaw =
+      Sk->inner()->locked([](auto &SkInner) { return SkInner->asRaw(); });
+  if (!SkRaw) {
+    return WasiCryptoUnexpect(SkRaw);
+  }
+
+  PkRaw->insert(PkRaw->end(), SkRaw->begin(), SkRaw->end());
+
+  return PkRaw;
+}
+
+WasiCryptoExpect<std::vector<uint8_t>>
+KxKeyPair::Base::exportData(__wasi_keypair_encoding_e_t Encoding) {
+  switch (Encoding) {
+  case __WASI_KEYPAIR_ENCODING_RAW: {
+    auto Res = asRaw();
+    if (!Res) {
+      return WasiCryptoUnexpect(Res);
+    }
+
+    return std::vector<uint8_t>{Res->begin(), Res->end()};
+  }
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  }
+}
+
+WasiCryptoExpect<std::unique_ptr<KxKeyPair::Builder>>
 KxKeyPair::builder(KxAlgorithm Alg) {
   switch (Alg) {
   case KxAlgorithm::X25519:
@@ -31,25 +70,6 @@ KxKeyPair::generate(KxAlgorithm Alg, std::optional<KxOptions> Options) {
 
   return (*Builder)->generate(Options);
 }
-
-WasiCryptoExpect<std::vector<uint8_t>>
-KxKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
-  switch (Encoding) {
-  case __WASI_KEYPAIR_ENCODING_RAW:
-    return Inner->locked([](std::unique_ptr<KxKeyPairBase> &Kp)
-                             -> WasiCryptoExpect<std::vector<uint8_t>> {
-      auto Res = Kp->asRaw();
-      if (!Res) {
-        return WasiCryptoUnexpect(Res);
-      }
-
-      return std::vector<uint8_t>{Res->begin(), Res->end()};
-    });
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
-}
-
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

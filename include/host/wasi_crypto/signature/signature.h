@@ -5,6 +5,8 @@
 #include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/lock.h"
 #include "host/wasi_crypto/signature/alg.h"
+#include "host/wasi_crypto/signature/keypair.h"
+#include "host/wasi_crypto/signature/publickey.h"
 
 #include <memory>
 #include <utility>
@@ -12,8 +14,6 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
-class SignatureKeyPair;
-class SignaturePublicKey;
 
 class Signature {
 public:
@@ -21,15 +21,12 @@ public:
   public:
     virtual ~Base() = default;
 
-    virtual Span<uint8_t const> ref() = 0;
-
-    std::vector<uint8_t> asRaw() {
-      auto Res = ref();
-      return std::vector<uint8_t>{Res.begin(), Res.end()};
-    }
+    virtual std::vector<uint8_t> asRaw() = 0;
   };
 
-  Signature(std::unique_ptr<Base> Inner);
+  Signature(std::unique_ptr<Base> Inner)
+      : Inner(
+            std::make_shared<Mutex<std::unique_ptr<Base>>>(std::move(Inner))) {}
 
   static WasiCryptoExpect<Signature> fromRaw(SignatureAlgorithm Alg,
                                              Span<uint8_t const> Encoded);
@@ -51,7 +48,9 @@ public:
     virtual WasiCryptoExpect<Signature> sign() = 0;
   };
 
-  SignatureState(std::unique_ptr<Base> Inner);
+  SignatureState(std::unique_ptr<Base> Inner)
+      : Inner(
+            std::make_shared<Mutex<std::unique_ptr<Base>>>(std::move(Inner))) {}
 
   static WasiCryptoExpect<SignatureState> open(SignatureKeyPair Kp);
 

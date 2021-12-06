@@ -8,84 +8,90 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace X25519 {
 
-class X25519PublicKeyBuilder : public KxPublicKeyBuilder {
+class PublicKey : public KxPublicKey::Base {
 public:
-  WasiCryptoExpect<KxPublicKey> fromRaw(Span<const uint8_t> Raw) override;
+  class Builder : public KxPublicKey::Builder {
+  public:
+    Builder(KxAlgorithm Alg) : Alg(Alg) {}
 
-private:
-  KxAlgorithm Alg;
-};
+    WasiCryptoExpect<KxPublicKey> fromRaw(Span<const uint8_t> Raw) override;
 
-class X25519PublicKey : public KxPublicKey::Base {
-public:
-  static WasiCryptoExpect<X25519PublicKey> make(KxAlgorithm Alg,
-                                                Span<uint8_t const> Raw);
+  private:
+    KxAlgorithm Alg;
+  };
 
-  KxAlgorithm alg() override;
+  PublicKey(KxAlgorithm Alg, X25519PK Ctx) : Alg(Alg), Ctx(std::move(Ctx)) {}
 
-  WasiCryptoExpect<__wasi_size_t> len() override;
+  static WasiCryptoExpect<PublicKey> make(KxAlgorithm Alg,
+                                          Span<uint8_t const> Raw);
 
-  WasiCryptoExpect<Span<const uint8_t>> asRaw() override;
+  KxAlgorithm alg() override { return Alg; }
+
+  WasiCryptoExpect<__wasi_size_t> len() override { return X25519PK::Len; }
+
+  WasiCryptoExpect<std::vector<uint8_t>> asRaw() override;
 
   WasiCryptoExpect<void> verify() override;
 
-  X25519PublicKey(KxAlgorithm Alg, X25519PK Ctx);
-
+  friend class SecretKey;
 private:
   KxAlgorithm Alg;
   X25519PK Ctx;
 };
 
-class X25519SecretKeyBuilder : public KxSecretKeyBuilder {
+class SecretKey : public KxSecretKey::Base {
 public:
-  WasiCryptoExpect<KxSecretKey> fromRaw(Span<const uint8_t> Raw) override;
+  class Builder : public KxSecretKey::Builder {
+  public:
+    Builder(KxAlgorithm Alg) : Alg(Alg) {}
 
-private:
-  KxAlgorithm Alg;
-};
+    WasiCryptoExpect<KxSecretKey> fromRaw(Span<const uint8_t> Raw) override;
 
-class X25519SecretKey : public KxSecretKey::Base {
-public:
-  static WasiCryptoExpect<X25519SecretKey> make(KxAlgorithm Alg,
-                                                Span<uint8_t const> Raw);
+  private:
+    KxAlgorithm Alg;
+  };
 
-  WasiCryptoExpect<X25519PublicKey> producePublicKey();
+  SecretKey(KxAlgorithm Alg, X25519SK Ctx) : Alg(Alg), Ctx(std::move(Ctx)) {}
+
+  static WasiCryptoExpect<SecretKey> make(KxAlgorithm Alg,
+                                          Span<uint8_t const> Raw);
 
   WasiCryptoExpect<KxPublicKey> publicKey() override;
 
-  KxAlgorithm alg() override;
+  KxAlgorithm alg() override { return Alg; }
 
   WasiCryptoExpect<__wasi_size_t> len() override;
 
   WasiCryptoExpect<Span<const uint8_t>> asRaw() override;
 
-  WasiCryptoExpect<std::vector<uint8_t>> dh(KxPublicKey &KxPk) override;
+  WasiCryptoExpect<std::vector<uint8_t>> dh(std::unique_ptr<KxPublicKey::Base> &KxPk) override;
 
-  X25519SecretKey(KxAlgorithm Alg, X25519SK Ctx);
+  WasiCryptoExpect<PublicKey> producePublicKey();
 
 private:
   KxAlgorithm Alg;
   X25519SK Ctx;
 };
 
-class X25519KeyPairBuilder : public KxKeyPairBuilder {
+class KeyPair : public KxKeyPair::Base {
 public:
-  X25519KeyPairBuilder(KxAlgorithm Alg);
+  class Builder : public KxKeyPair::Builder {
+  public:
+    Builder(KxAlgorithm Alg) : Alg(Alg) {}
 
-  WasiCryptoExpect<KxKeyPair>
-  generate(std::optional<KxOptions> Options) override;
+    WasiCryptoExpect<KxKeyPair>
+    generate(std::optional<KxOptions> Options) override;
 
-private:
-  KxAlgorithm Alg;
-};
+  private:
+    KxAlgorithm Alg;
+  };
 
-class X25519KeyPair : public KxKeyPairBase {
-public:
-  X25519KeyPair(KxAlgorithm Alg, X25519PublicKey PublicKey,
-                X25519SecretKey SecretKey);
+  KeyPair(KxAlgorithm Alg, PublicKey Pk, SecretKey Sk)
+      : Alg(Alg), Pk(std::move(Pk)), Sk(std::move(Sk)) {}
 
-  KxAlgorithm alg() override;
+  KxAlgorithm alg() override { return Alg; }
 
   WasiCryptoExpect<void> verify() override;
 
@@ -95,10 +101,11 @@ public:
 
 private:
   KxAlgorithm Alg;
-  X25519PublicKey PublicKey;
-  X25519SecretKey SecretKey;
+  PublicKey Pk;
+  SecretKey Sk;
 };
 
+} // namespace X25519
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

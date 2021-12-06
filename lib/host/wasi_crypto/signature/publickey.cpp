@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/signature/publickey.h"
+#include "host/wasi_crypto/signature/ecdsa.h"
+#include "host/wasi_crypto/signature/eddsa.h"
+#include "host/wasi_crypto/signature/rsa.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -15,47 +18,26 @@ SignaturePublicKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
     if (!Res) {
       return WasiCryptoUnexpect(Res);
     }
-    return SignaturePublicKey{*Res};
+
+    return SignaturePublicKey{std::move(*Res)};
   }
   case SignatureAlgorithmFamily::EdDSA: {
     auto Res = EddsaSignaturePublicKey::import(Alg, Encoded, Encoding);
     if (!Res) {
       return WasiCryptoUnexpect(Res);
     }
-    return SignaturePublicKey{*Res};
+    return SignaturePublicKey{std::move(*Res)};
   }
   case SignatureAlgorithmFamily::RSA: {
     auto Res = RsaSignaturePublicKey::import(Alg, Encoded, Encoding);
     if (!Res) {
       return WasiCryptoUnexpect(Res);
     }
-    return SignaturePublicKey{*Res};
+    return SignaturePublicKey{std::move(*Res)};
   }
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
-}
-
-WasiCryptoExpect<std::vector<uint8_t>>
-SignaturePublicKey::exportData(__wasi_publickey_encoding_e_t PublicKey) {
-  return std::visit(
-      Overloaded{
-          [&PublicKey](auto Pk) -> WasiCryptoExpect<std::vector<uint8_t>> {
-            auto Res = Pk.exportData(PublicKey);
-            if (!Res) {
-              return WasiCryptoUnexpect(Res);
-            }
-            return *Res;
-          }},
-      Inner);
-}
-
-SignatureAlgorithm SignaturePublicKey::alg() {
-  return std::visit(Overloaded{[](auto PK) { return PK.Alg; }}, Inner);
-}
-
-WasiCryptoExpect<void> SignaturePublicKey::verify() {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 } // namespace WASICrypto

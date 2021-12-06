@@ -11,10 +11,10 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class EddsaSignaturePublicKey {
+class EddsaSignaturePublicKey: public SignaturePublicKey::Base{
 public:
-  static WasiCryptoExpect<EddsaSignaturePublicKey>
-  import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
+  static WasiCryptoExpect<std::unique_ptr<EddsaSignaturePublicKey>>
+  import(SignatureAlgorithm Alg, Span<uint8_t const > Encoded,
          __wasi_publickey_encoding_e_t Encoding);
 
   WasiCryptoExpect<std::vector<uint8_t>>
@@ -54,10 +54,10 @@ public:
 
 class EddsaSignature : public Signature::Base {
 public:
-  Span<uint8_t const> ref() override { return WasmEdge::Span<const uint8_t>(); }
+  std::vector<uint8_t> asRaw() override;
 
   static WasiCryptoExpect<std::unique_ptr<EddsaSignature>>
-  fromRaw(Span<uint8_t const> Raw) {}
+  fromRaw(Span<uint8_t const> Raw);
 };
 
 class EddsaSignatureState : public SignatureState::Base {

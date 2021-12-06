@@ -11,9 +11,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class RsaSignaturePublicKey {
+class RsaSignaturePublicKey : public SignaturePublicKey::Base {
 public:
-  static WasiCryptoExpect<RsaSignaturePublicKey>
+  static WasiCryptoExpect<std::unique_ptr<RsaSignaturePublicKey>>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
          __wasi_publickey_encoding_e_t Encoding);
 
@@ -52,7 +52,8 @@ public:
 
 class RsaSignature : public Signature::Base {
 public:
-  Span<const uint8_t> ref() override;
+  static WasiCryptoExpect<std::unique_ptr<RsaSignature>>
+  fromRaw(Span<uint8_t const> Raw);
 };
 
 class RsaSignatureState : public SignatureState::Base {

@@ -7,147 +7,127 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace X25519 {
 
 WasiCryptoExpect<KxPublicKey>
-X25519PublicKeyBuilder::fromRaw(Span<const uint8_t> Raw) {
+PublicKey::Builder::fromRaw(Span<const uint8_t> Raw) {
   if (Raw.size() != X25519PK::Len) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
   }
 
-  auto Pk = X25519PublicKey::make(Alg, Raw);
+  auto Pk = make(Alg, Raw);
   if (!Pk) {
     return WasiCryptoUnexpect(Pk);
   }
 
-  return KxPublicKey{std::make_unique<X25519PublicKey>(std::move(*Pk))};
+  return KxPublicKey{std::make_unique<PublicKey>(std::move(*Pk))};
 }
 
-WasiCryptoExpect<X25519PublicKey>
-X25519PublicKey::make(KxAlgorithm Alg, Span<const uint8_t> Raw) {
+WasiCryptoExpect<PublicKey> PublicKey::make(KxAlgorithm Alg,
+                                            Span<const uint8_t> Raw) {
   auto Res = X25519PK::make(Raw);
   if (!Res) {
     return WasiCryptoUnexpect(Res);
   }
 
-  return X25519PublicKey{Alg, std::move(*Res)};
+  return PublicKey{Alg, std::move(*Res)};
 }
 
-KxAlgorithm X25519PublicKey::alg() { return Alg; }
-
-WasiCryptoExpect<__wasi_size_t> X25519PublicKey::len() { return X25519PK::Len; }
-
-WasiCryptoExpect<Span<const uint8_t>> X25519PublicKey::asRaw() {
+WasiCryptoExpect<std::vector<uint8_t>> PublicKey::asRaw() {
   return Ctx.asRaw();
 }
 
-WasiCryptoExpect<void> X25519PublicKey::verify() {}
-
-X25519PublicKey::X25519PublicKey(KxAlgorithm Alg, X25519PK Ctx)
-    : Alg(Alg), Ctx(std::move(Ctx)) {}
+WasiCryptoExpect<void> PublicKey::verify() {}
 
 WasiCryptoExpect<KxSecretKey>
-X25519SecretKeyBuilder::fromRaw(Span<const uint8_t> Raw) {
+SecretKey::Builder::fromRaw(Span<const uint8_t> Raw) {
   if (Raw.size() != X25519SK::Len) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
   }
 
-  auto Sk = X25519SecretKey::make(Alg, Raw);
+  auto Sk = make(Alg, Raw);
   if (!Sk) {
     return WasiCryptoUnexpect(Sk);
   }
 
-  return KxSecretKey{std::make_unique<X25519SecretKey>(std::move(*Sk))};
+  return KxSecretKey{std::make_unique<SecretKey>(std::move(*Sk))};
 }
 
-WasiCryptoExpect<X25519SecretKey>
-X25519SecretKey::make(KxAlgorithm Alg, Span<const uint8_t> Raw) {
+WasiCryptoExpect<SecretKey> SecretKey::make(KxAlgorithm Alg,
+                                            Span<const uint8_t> Raw) {
   auto Res = X25519SK::make(Raw);
   if (!Res) {
     return WasiCryptoUnexpect(Res);
   }
 
-  return X25519SecretKey{Alg, std::move(*Res)};
+  return SecretKey{Alg, std::move(*Res)};
 }
 
-WasiCryptoExpect<X25519PublicKey> X25519SecretKey::producePublicKey() {
-  auto Res = Ctx.producePublicKey();
-  if (!Res) {
-    return WasiCryptoUnexpect(Res);
-  }
-
-  return X25519PublicKey{Alg, std::move(*Res)};
-}
-
-WasiCryptoExpect<KxPublicKey> X25519SecretKey::publicKey() {
+WasiCryptoExpect<KxPublicKey> SecretKey::publicKey() {
   auto Res = producePublicKey();
   if (!Res) {
     return WasiCryptoUnexpect(Res);
   }
 
-  return KxPublicKey{std::make_unique<X25519PublicKey>(std::move(*Res))};
+  return KxPublicKey{std::make_unique<PublicKey>(std::move(*Res))};
 }
 
-KxAlgorithm X25519SecretKey::alg() { return Alg; }
+WasiCryptoExpect<__wasi_size_t> SecretKey::len() { return X25519SK::Len; }
 
-WasiCryptoExpect<__wasi_size_t> X25519SecretKey::len() { return X25519SK::Len; }
+WasiCryptoExpect<Span<const uint8_t>> SecretKey::asRaw() { return Ctx.asRaw(); }
 
-WasiCryptoExpect<Span<const uint8_t>> X25519SecretKey::asRaw() {
-  return Ctx.asRaw();
+WasiCryptoExpect<std::vector<uint8_t>>
+SecretKey::dh(std::unique_ptr<KxPublicKey::Base> &KxPk) {
+  auto *Res = dynamic_cast<PublicKey *>(KxPk.get());
+  if (Res == nullptr) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
+  }
+
+  // TODO: may not friend?
+  return Ctx.dk(Res->Ctx);
 }
 
-WasiCryptoExpect<std::vector<uint8_t>> X25519SecretKey::dh(KxPublicKey &KxPk) {
-  KxPk.inner()->locked([](auto &Key) {
-    auto *Res = dynamic_cast<X25519PublicKey *>(Key.get());
-    if (Res == nullptr) {
-      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
-    }
-    Res->
-  });
+WasiCryptoExpect<PublicKey> SecretKey::producePublicKey() {
+  auto Res = Ctx.producePublicKey();
+  if (!Res) {
+    return WasiCryptoUnexpect(Res);
+  }
+
+  return PublicKey{Alg, std::move(*Res)};
 }
-
-X25519SecretKey::X25519SecretKey(KxAlgorithm Alg, X25519SK Ctx)
-    : Alg(Alg), Ctx(std::move(Ctx)) {}
-
-X25519KeyPairBuilder::X25519KeyPairBuilder(KxAlgorithm Alg) : Alg(Alg) {}
 
 WasiCryptoExpect<KxKeyPair>
-X25519KeyPairBuilder::generate(std::optional<KxOptions> Options) {
+KeyPair::Builder::generate(std::optional<KxOptions> Options) {
   CryptoRandom Rng;
   std::vector<uint8_t> SkRaw(X25519SK::Len, 0);
   Rng.fill(SkRaw);
 
-  auto Sk = X25519SecretKey::make(Alg, SkRaw);
-  if (!Sk) {
-    return WasiCryptoUnexpect(Sk);
+  auto KpSk = SecretKey::make(Alg, SkRaw);
+  if (!KpSk) {
+    return WasiCryptoUnexpect(KpSk);
   }
 
-  auto Pk = Sk->producePublicKey();
-  if (!Pk) {
-    return WasiCryptoUnexpect(Pk);
+  auto KpPk = KpSk->producePublicKey();
+  if (!KpPk) {
+    return WasiCryptoUnexpect(KpPk);
   }
 
   //  auto Kp = X25519KeyPair{Alg, *Pk, *Sk};
   return KxKeyPair{
-      std::make_unique<X25519KeyPair>(Alg, std::move(*Pk), std::move(*Sk))};
+      std::make_unique<KeyPair>(Alg, std::move(*KpPk), std::move(*KpSk))};
 }
 
-X25519KeyPair::X25519KeyPair(KxAlgorithm Alg, X25519PublicKey PublicKey,
-                             X25519SecretKey SecretKey)
-    : Alg(Alg), PublicKey(std::move(PublicKey)),
-      SecretKey(std::move(SecretKey)) {}
+WasiCryptoExpect<void> KeyPair::verify() {}
 
-KxAlgorithm X25519KeyPair::alg() { return Alg; }
-
-WasiCryptoExpect<void> X25519KeyPair::verify() {}
-
-WasiCryptoExpect<KxPublicKey> X25519KeyPair::publicKey() {
-
-  return KxPublicKey{std::make_unique<X25519PublicKey>(PublicKey)};
+WasiCryptoExpect<KxPublicKey> KeyPair::publicKey() {
+  return KxPublicKey{std::make_unique<PublicKey>(std::move(Pk))};
 }
 
-WasiCryptoExpect<KxSecretKey> X25519KeyPair::secretKey() {
-  return KxSecretKey{std::make_unique<X25519SecretKey>(SecretKey)};
+WasiCryptoExpect<KxSecretKey> KeyPair::secretKey() {
+  return KxSecretKey{std::make_unique<SecretKey>(std::move(Sk))};
 }
+
+} // namespace X25519
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

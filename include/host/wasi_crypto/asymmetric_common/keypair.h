@@ -2,7 +2,6 @@
 #pragma once
 
 #include "common/span.h"
-#include "common/variant.h"
 #include "host/wasi_crypto/asymmetric_common/publickey.h"
 #include "host/wasi_crypto/asymmetric_common/secretkey.h"
 #include "host/wasi_crypto/common/options.h"

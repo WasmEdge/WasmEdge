@@ -32,13 +32,20 @@ PublicKey::import(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
 
 WasiCryptoExpect<std::vector<uint8_t>>
 PublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
-  return std::visit(
-      Overloaded{[&Encoding](auto Pk) { return Pk.exportData(Encoding); }},
-      Inner);
+  return std::visit(Overloaded{[Encoding](auto &Pk) {
+                      return Pk.inner()->locked([Encoding](auto &Inner) {
+                        return Inner->exportData(Encoding);
+                      });
+                    }},
+                    Inner);
 }
 
 WasiCryptoExpect<void> PublicKey::verify() {
-  return std::visit(Overloaded{[](auto Pk) { return Pk.verify(); }}, Inner);
+  return std::visit(Overloaded{[](auto &Pk) {
+                      return Pk.inner()->locked(
+                          [](auto &Inner) { return Inner->verify(); });
+                    }},
+                    Inner);
 }
 
 } // namespace WASICrypto

@@ -62,35 +62,6 @@ SignatureKeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
   }
 }
 
-WasiCryptoExpect<std::vector<uint8_t>>
-SignatureKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
-  return std::visit(
-      Overloaded{
-          [&Encoding](auto KeyPair) -> WasiCryptoExpect<std::vector<uint8_t>> {
-            auto Res = KeyPair.exportData(Encoding);
-            if (!Res) {
-              return WasiCryptoUnexpect(Res);
-            }
-            return *Res;
-          }},
-      Inner);
-}
-
-WasiCryptoExpect<SignaturePublicKey> SignatureKeyPair::publicKey() {
-  return std::visit(
-      Overloaded{[](auto KeyPair) -> WasiCryptoExpect<SignaturePublicKey> {
-        auto Res = KeyPair.publicKey();
-        if (!Res) {
-          return WasiCryptoUnexpect(Res);
-        }
-        return SignaturePublicKey{*Res};
-      }},
-      Inner);
-}
-
-WasiCryptoExpect<SignatureSecretKey> SignatureKeyPair::secretKey() {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-}
 
 } // namespace WASICrypto
 } // namespace Host

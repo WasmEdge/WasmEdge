@@ -81,15 +81,18 @@ WasiCryptoExpect<KeyPair> KeyPair::fromPkAndSk(PublicKey, SecretKey) {
 
 WasiCryptoExpect<std::vector<uint8_t>>
 KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
-  return std::visit(Overloaded{[&Encoding](auto &SigKp) {
-                      return SigKp.exportData(Encoding);
+  return std::visit(Overloaded{[Encoding](auto &SigKp) {
+                      return SigKp.inner()->locked([Encoding](auto &Inner) {
+                        return Inner->exportData(Encoding);
+                      });
                     }},
                     Inner);
 }
 
 WasiCryptoExpect<PublicKey> KeyPair::publicKey() {
   return std::visit(Overloaded{[](auto &SigKp) -> WasiCryptoExpect<PublicKey> {
-                      auto Res = SigKp.publicKey();
+                      auto Res = SigKp.inner()->locked(
+                          [](auto &Inner) { return Inner->publicKey(); });
                       if (!Res) {
                         return WasiCryptoUnexpect(Res);
                       }
@@ -100,7 +103,8 @@ WasiCryptoExpect<PublicKey> KeyPair::publicKey() {
 }
 WasiCryptoExpect<SecretKey> KeyPair::secretKey() {
   return std::visit(Overloaded{[](auto &SigKp) -> WasiCryptoExpect<SecretKey> {
-                      auto Res = SigKp.secretKey();
+                      auto Res = SigKp.inner()->locked(
+                          [](auto &Inner) { return Inner->secretKey(); });
                       if (!Res) {
                         return WasiCryptoUnexpect(Res);
                       }

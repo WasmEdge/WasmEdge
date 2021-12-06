@@ -29,11 +29,22 @@ WasiCryptoContext::kxDh(__wasi_publickey_t PkHandle,
     return WasiCryptoUnexpect(KxPk);
   }
 
-  auto SharedSecret =
-      KxSk->inner()->locked([&KxPk](auto &Inner) { return Inner->dh(*KxPk); });
-  if (!SharedSecret) {
-    return WasiCryptoUnexpect(SharedSecret);
-  }
+  auto &M1 = *(KxPk->inner());
+  auto &M2 = *(KxSk->inner());
+  auto SharedSecret = acquireLocked<std::unique_ptr<KxPublicKey::Base>,
+                                    std::unique_ptr<KxSecretKey::Base>>(
+      M1, M2,
+      [](std::unique_ptr<KxPublicKey::Base> &Inner1,
+         std::unique_ptr<KxSecretKey::Base> &Inner2) {
+        return Inner2->dh(Inner1);
+      });
+
+  //  auto SharedSecret =
+  //      KxSk->inner()->locked([&KxPk](auto &Inner) { return Inner->dh(*KxPk);
+  //      });
+  //  if (!SharedSecret) {
+  //    return WasiCryptoUnexpect(SharedSecret);
+  //  }
 
   return allocateArrayOutput(std::move(*SharedSecret));
 }
@@ -50,9 +61,8 @@ WasiCryptoContext::kxEncapsulate(__wasi_publickey_t PkHandle) {
     return WasiCryptoUnexpect(KxPk);
   }
 
-  auto EncapsulateSecret = KxPk->inner()->locked([](auto& Inner) {
-    return Inner->encapsulate();
-  });
+  auto EncapsulateSecret =
+      KxPk->inner()->locked([](auto &Inner) { return Inner->encapsulate(); });
   if (!EncapsulateSecret) {
     return WasiCryptoUnexpect(EncapsulateSecret);
   }

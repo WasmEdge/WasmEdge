@@ -6,7 +6,11 @@ As WebAssembly is increasingly used in the cloud, it is now a universal runtime 
 
 In cloud-native use cases, developers often want to use JavaScript to write business applications. That means we must now support JavaScript in WebAssembly. Furthermore, we should support calling C/C++ or Rust functions from JavaScript in a WebAssembly runtime to take advantage of WebAssembly’s computational efficiency. The WasmEdge WebAssembly runtime allows you to do exactly that.
 
+<p align="center">
+
 ![](javascript.png)
+
+</p>
 
 In this section, we will demonstrate how to run and enhance JavaScript in WasmEdge.
 
@@ -19,5 +23,15 @@ In this section, we will demonstrate how to run and enhance JavaScript in WasmEd
 * [Networking sockets](js/networking.md) shows how to create HTTP client and server applications using the WasmEdge networking extension and its JavaScript API.
 * [Async networking](js/async.md) shows how to improve HTTP server application performance by supporting asynchronous and non-blocking I/O.
 * [Use Rust to implement JS API](js/rust.md) discusses how to use Rust to implement and support a JavaScript API in WasmEdge.
+
+## A note on QuickJS
+
+Now, the choice of QuickJS as our JavaScript engine might raise the question of performance. Isn't QuickJS [a lot slower](https://bellard.org/quickjs/bench.html) than v8 due to a lack of JIT support? Yes, but ...
+
+First of all, QuickJS is a lot smaller than v8. In fact, it only takes 1/40 (or 2.5%) of the runtime resources v8 consumes. You can run a lot more QuickJS functions than v8 functions on a single physical machine.
+
+Second, for most business logic applications, raw performance is not critical. The application may have computationally intensive tasks, such as AI inference on the fly. WasmEdge allows the QuickJS applications to drop to high-performance WebAssembly for these tasks while it is not so easy with v8 to add such extensions modules.
+
+Third, it is known that [many JavaScript security issues arise from JIT](https://www.theregister.com/2021/08/06/edge_super_duper_security_mode/). Maybe turning off JIT in the cloud-native environment is not such a bad idea!
 
 

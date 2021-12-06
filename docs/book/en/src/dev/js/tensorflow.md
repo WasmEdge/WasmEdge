@@ -2,7 +2,6 @@
 
 The interpreter supports the WasmEdge TensorFlow lite inference extension so that your JavaScript can run an ImageNet model for image classification. This article will show you how to use the TensorFlow Rust SDK for WasmEdge from your javascript program.
 
-
 Here is an example of JavaScript. You could find the full code from [example_js/tensorflow_lite_demo/](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/tensorflow_lite_demo).
 
 ```
@@ -49,3 +48,22 @@ confidence:
 * The `wasmedge-tensorflow-lite` program is part of the WasmEdge package. It is the WasmEdge runtime with the Tensorflow extension built in.
 
 You should now see the name of the food item recognized by the TensorFlow lite ImageNet model.
+
+## Make it faster
+
+The above Tensorflow inference example takes 1–2 seconds to run. It is acceptable in web application scenarios but could be improved. Recall that WasmEdge is the fastest WebAssembly runtime today due to its AOT (Ahead-of-time compiler) optimization. WasmEdge provides a `wasmedgec` utility to compile and add a native machine code section to the `wasm` file for much faster performance.
+
+The following example uses the extended versions to `wasmedge` and `wasmedgec` to support the WasmEdge Tensorflow extension.
+
+```
+$ cd example_js/tensorflow_lite_demo
+$ wasmedgec-tensorflow ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasmedge_quickjs.wasm
+$ wasmedge-tensorflow-lite --dir .:. wasmedge_quickjs.wasm main.js
+label:
+Hot dog
+confidence:
+0.8941176470588236
+```
+
+You can see that the image classification task can be completed within 0.1s. It is at least 10x improvement!
+

@@ -7,6 +7,7 @@ pub mod wasmedge {
     include!(concat!(env!("OUT_DIR"), "/wasmedge.rs"));
 }
 
+pub mod compiler;
 pub mod config;
 pub mod error;
 pub mod executor;
@@ -24,6 +25,7 @@ pub mod version;
 pub mod vm;
 pub mod wasi;
 
+pub use compiler::Compiler;
 pub use config::{Config, OptLevel};
 pub use error::{Error, WasmEdgeError, WasmEdgeResult};
 pub use executor::Executor;

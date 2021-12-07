@@ -149,7 +149,7 @@ static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::MalformedSection, "malformed section id"},
     {ErrCode::SectionSizeMismatch, "section size mismatch"},
     {ErrCode::NameSizeOutOfBounds, "length out of bounds"},
-    {ErrCode::JunkSection, "junk after last section"},
+    {ErrCode::JunkSection, "unexpected content after last section"},
     {ErrCode::IncompatibleFuncCode,
      "function and code section have inconsistent lengths"},
     {ErrCode::IncompatibleDataCount,

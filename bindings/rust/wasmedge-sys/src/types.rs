@@ -48,12 +48,13 @@ impl From<wasmedge::WasmEdge_Limit> for std::ops::Range<u32> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum ValType {
     I32,
     I64,
     F32,
     F64,
+    V128,
     FuncRef,
     ExternRef,
 }
@@ -64,6 +65,7 @@ impl From<ValType> for wasmedge::WasmEdge_ValType {
             ValType::I64 => wasmedge::WasmEdge_ValType_I64,
             ValType::F32 => wasmedge::WasmEdge_ValType_F32,
             ValType::F64 => wasmedge::WasmEdge_ValType_F64,
+            ValType::V128 => wasmedge::WasmEdge_ValType_V128,
             ValType::FuncRef => wasmedge::WasmEdge_ValType_FuncRef,
             ValType::ExternRef => wasmedge::WasmEdge_ValType_ExternRef,
         }
@@ -76,6 +78,7 @@ impl From<wasmedge::WasmEdge_ValType> for ValType {
             wasmedge::WasmEdge_ValType_I64 => ValType::I64,
             wasmedge::WasmEdge_ValType_F32 => ValType::F32,
             wasmedge::WasmEdge_ValType_F64 => ValType::F64,
+            wasmedge::WasmEdge_ValType_V128 => ValType::V128,
             wasmedge::WasmEdge_ValType_FuncRef => ValType::FuncRef,
             wasmedge::WasmEdge_ValType_ExternRef => ValType::ExternRef,
             _ => panic!("unknown WasmEdge_ValType `{}`", ty),

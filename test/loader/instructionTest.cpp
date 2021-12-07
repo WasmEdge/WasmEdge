@@ -506,6 +506,10 @@ TEST(InstructionTest, LoadReferenceInstruction) {
 TEST(InstructionTest, LoadParametricInstruction) {
   std::vector<uint8_t> Vec;
 
+  Conf.removeProposal(WasmEdge::Proposal::SIMD);
+  WasmEdge::Loader::Loader LdrNoSIMD(Conf);
+  Conf.addProposal(WasmEdge::Proposal::SIMD);
+
   /// 7. Test parametric instructions.
   ///
   ///   1.  Load valid select_t instruction with value type list.
@@ -559,7 +563,7 @@ TEST(InstructionTest, LoadParametricInstruction) {
       0x7BU, 0x7BU, /// Value types with v128
       0x0BU         /// Expression End.
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrNoSIMD.parseModule(prefixedVec(Vec)));
 }
 
 TEST(InstructionTest, LoadVariableInstruction) {
@@ -811,9 +815,9 @@ TEST(InstructionTest, LoadConstInstruction) {
 TEST(InstructionTest, Proposals) {
   std::vector<uint8_t> Vec;
 
-  Conf.addProposal(WasmEdge::Proposal::SIMD);
-  WasmEdge::Loader::Loader LdrSIMD(Conf);
   Conf.removeProposal(WasmEdge::Proposal::SIMD);
+  WasmEdge::Loader::Loader LdrNoSIMD(Conf);
+  Conf.addProposal(WasmEdge::Proposal::SIMD);
 
   Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
   Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
@@ -869,8 +873,8 @@ TEST(InstructionTest, Proposals) {
       0x0BU,                      /// OpCode End.
       0x0BU                       /// Expression End.
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
-  EXPECT_TRUE(LdrSIMD.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrNoSIMD.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU,        /// Code section
@@ -910,8 +914,8 @@ TEST(InstructionTest, Proposals) {
       0x01U, 0x7BU,               /// Select type V128.
       0x0BU                       /// Expression End.
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
-  EXPECT_TRUE(LdrSIMD.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrNoSIMD.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU,        /// Code section
@@ -979,9 +983,6 @@ TEST(InstructionTest, Proposals) {
 TEST(InstructionTest, LoadSIMDInstruction) {
   std::vector<uint8_t> Vec;
 
-  Conf.addProposal(WasmEdge::Proposal::SIMD);
-  WasmEdge::Loader::Loader LdrSIMD(Conf);
-
   /// 13. Test SIMD instructions.
   ///
   ///   1.  Load invalid unexpected end memory align of V128__load.
@@ -1000,7 +1001,7 @@ TEST(InstructionTest, LoadSIMDInstruction) {
       0x00U,       /// Local vec(0)
       0xFDU, 0x00U /// OpCode V128__load.
   };
-  EXPECT_FALSE(LdrSIMD.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU,        /// Code section
@@ -1013,7 +1014,7 @@ TEST(InstructionTest, LoadSIMDInstruction) {
       0xFFU, 0x0FU /// Align
                    /// 0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  /// Missed Offset
   };
-  EXPECT_FALSE(LdrSIMD.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU,       /// Code section
@@ -1023,7 +1024,7 @@ TEST(InstructionTest, LoadSIMDInstruction) {
       0x00U,       /// Local vec(0)
       0xFDU, 0x54U /// OpCode V128__load8_lane.
   };
-  EXPECT_FALSE(LdrSIMD.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU,        /// Code section
@@ -1036,7 +1037,7 @@ TEST(InstructionTest, LoadSIMDInstruction) {
       0xFFU, 0x0FU /// Align
                    /// 0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  /// Missed Offset
   };
-  EXPECT_FALSE(LdrSIMD.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU,        /// Code section
@@ -1051,7 +1052,7 @@ TEST(InstructionTest, LoadSIMDInstruction) {
       0xFFU, 0x0FU /// Offset
                    /// 0x22U  /// Missed lane index
   };
-  EXPECT_FALSE(LdrSIMD.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU,        /// Code section
@@ -1064,7 +1065,7 @@ TEST(InstructionTest, LoadSIMDInstruction) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU /// Value list
       /// 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU /// Missed 7 bytes
   };
-  EXPECT_FALSE(LdrSIMD.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU,       /// Code section
@@ -1074,6 +1075,6 @@ TEST(InstructionTest, LoadSIMDInstruction) {
       0x00U,       /// Local vec(0)
       0xFDU, 0x15U /// OpCode I8x16__extract_lane_s.
   };
-  EXPECT_FALSE(LdrSIMD.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
 } // namespace

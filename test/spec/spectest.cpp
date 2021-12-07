@@ -200,7 +200,7 @@ struct TestsuiteProposal {
 };
 static const TestsuiteProposal TestsuiteProposals[] = {
     {"core"sv, {}},
-    {"simd"sv, {WasmEdge::Proposal::SIMD}},
+    {"simd"sv, {}},
 };
 
 } // namespace

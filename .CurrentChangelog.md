@@ -2,6 +2,9 @@
 
 Breaking changes:
 
+* Turned on the `SIMD` proposal by default.
+  * The `WasmEdge_ConfigureContext` will turn on the `SIMD` proposal automatically.
+  * Users can use the `--disable-simd` to disable the `SIMD` proposal in `wasmedge` and `wasmedgec`.
 * For better performance, the Statistics module is disabled by default.
   * To enable instruction counting, please use `--enable-instruction-count`.
   * To enable gas measuring, please use `--enable-gas-measuring`.
@@ -153,6 +156,7 @@ Refactor:
 
 Documentations:
 
+* Updated the `wasmedge` commands in the [Run](https://github.com/WasmEdge/WasmEdge/blob/master/docs/run.md) and [SIMD documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/simd.md)
 * Updated the examples in the [C API documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md).
 * Updated the examples in the [host function documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/host_function.md).
 * Updated the examples in the [external reference documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/externref.md).
@@ -163,6 +167,7 @@ Bindings:
 
 Tests:
 
+* Updated the core test suite to the newest WASM spec.
 * Updated and fixed the value comarison in core tests.
 * Added `ErrInfo` unit tests.
 * Added instruction tests for turning on/off the old proposals.

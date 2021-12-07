@@ -16,15 +16,10 @@
 
 namespace WasmEdge {
 
-static Proposal ProposalList[] = {Proposal::Annotations,
-                                  Proposal::BulkMemoryOperations,
-                                  Proposal::ExceptionHandling,
-                                  Proposal::FunctionReferences,
-                                  Proposal::Memory64,
-                                  Proposal::ReferenceTypes,
-                                  Proposal::SIMD,
-                                  Proposal::TailCall,
-                                  Proposal::Threads};
+static Proposal ProposalList[] = {
+    Proposal::TailCall,          Proposal::Annotations,
+    Proposal::Memory64,          Proposal::Threads,
+    Proposal::ExceptionHandling, Proposal::FunctionReferences};
 
 WasmEdge_ConfigureContext *createConf(const Configure &Conf) {
   auto *Cxt = WasmEdge_ConfigureCreate();

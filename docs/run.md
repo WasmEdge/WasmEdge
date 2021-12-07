@@ -58,7 +58,7 @@ We created the `fibonacci.wat` program by hand and used the [wat2wasm](https://g
 ```bash
 # cd <path/to/WasmEdge>
 $ cd tools/wasmedge/examples
-# wasmedge [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-bulk-memory] [--enable-reference-types] [--enable-simd] [--enable-all] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
+# wasmedge [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-instruction-count] [--enable-gas-measuring] [--enable-time-measuring] [--enable-all-statistics] [--disable-import-export-mut-globals] [--disable-non-trap-float-to-int] [--disable-sign-extension-operators] [--disable-multi-value] [--disable-bulk-memory] [--disable-reference-types] [--disable-simd] [--enable-all] [--memory-page-limit PAGE_COUNT ...] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
 $ wasmedge --reactor fibonacci.wasm fib 10
 89
 ```
@@ -87,7 +87,7 @@ We created the `factorial.wat` program by hand and used the [wat2wasm](https://g
 ```bash
 # cd <path/to/WasmEdge>
 $ cd tools/wasmedge/examples
-# wasmedge [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-bulk-memory] [--enable-reference-types] [--enable-simd] [--enable-all] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
+# wasmedge [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-instruction-count] [--enable-gas-measuring] [--enable-time-measuring] [--enable-all-statistics] [--disable-import-export-mut-globals] [--disable-non-trap-float-to-int] [--disable-sign-extension-operators] [--disable-multi-value] [--disable-bulk-memory] [--disable-reference-types] [--disable-simd] [--enable-all] [--memory-page-limit PAGE_COUNT ...] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
 $ wasmedge --reactor factorial.wasm fac 5
 120
 ```

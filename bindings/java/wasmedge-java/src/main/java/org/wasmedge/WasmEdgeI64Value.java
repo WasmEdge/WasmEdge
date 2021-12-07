@@ -1,5 +1,7 @@
 package org.wasmedge;
 
+import org.wasmedge.enums.ValueType;
+
 public final class WasmEdgeI64Value implements WasmEdgeValue {
     private long value;
     public WasmEdgeI64Value(long value) {

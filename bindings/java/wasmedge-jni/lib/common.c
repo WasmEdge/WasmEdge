@@ -90,7 +90,6 @@ void getClassName(JNIEnv* env, jobject obj, char* buff) {
 }
 
 
-
 long getPointer(JNIEnv* env, jobject obj) {
     printf("Start to get class");
     jclass cls = (*env)->GetObjectClass(env, obj);
@@ -108,7 +107,6 @@ long getPointer(JNIEnv* env, jobject obj) {
     jlong value = (*env)->GetLongField(env, obj, fidPointer);
     char buf[216];
     getClassName(env, obj, buf);
-    printf("Start to get pointer value: [%ld], for %s\n", (long)value, buf);
     return value;
 }
 
@@ -117,7 +115,6 @@ void setPointer(JNIEnv* env, jobject obj, jlong val) {
     jfieldID fidPointer = (*env)->GetFieldID(env, cls, "pointer", "J");
     char buf[216];
     getClassName(env, obj, buf);
-    printf("Start to set pointer value: [%ld] for %s", (long)val, buf);
     (*env)->SetLongField(env, obj, fidPointer, val);
 }
 
@@ -130,4 +127,74 @@ void handleWasmEdgeResult(JNIEnv* env, WasmEdge_Result * result) {
         (*env)->ThrowNew(env, (*env)->FindClass(env, "java/lang/Exception"),
                          exceptionBuffer);
     }
+}
+
+int getIntVal(JNIEnv *env, jobject val) {
+    jclass clazz = (*env)->GetObjectClass(env, val);
+    jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()I");
+
+    jint value = (*env)->CallIntMethod(env, val, methodId);
+    return value;
+}
+
+long getLongVal(JNIEnv *env, jobject val) {
+    jclass clazz = (*env)->GetObjectClass(env, val);
+    jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()L");
+    jlong value = (*env)->CallLongMethod(env, val, methodId);
+    return value;
+}
+
+long getFloatVal(JNIEnv *env, jobject val) {
+    jclass clazz = (*env)->GetObjectClass(env, val);
+    jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()F");
+    jfloat value = (*env)->CallFloatMethod(env, val, methodId);
+    return value;
+}
+
+double getDoubleVal(JNIEnv *env, jobject val) {
+    jclass clazz = (*env)->GetObjectClass(env, val);
+    jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()D");
+    jdouble value = (*env)->CallDoubleMethod(env, val, methodId);
+    return value;
+}
+
+
+WasmEdge_Value *parseJavaParams(JNIEnv *env, jobjectArray params, jintArray paramTypes, jint paramSize) {
+
+    WasmEdge_Value *wasm_params = calloc(paramSize, sizeof(WasmEdge_Value));
+    int *type = (*env)->GetIntArrayElements(env, paramTypes, JNI_FALSE);
+    for (int i = 0; i < paramSize; i++) {
+        WasmEdge_Value val;
+
+        jobject val_object = (*env)->GetObjectArrayElement(env, params, i);
+
+        switch (type[i]) {
+
+            case 0:
+                val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
+                break;
+            case 1:
+                val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
+                break;
+            case 2:
+                val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
+                break;
+            case 3:
+                val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
+                break;
+            default:
+                break;
+        }
+        wasm_params[i] = val;
+    }
+}
+
+enum WasmEdge_ValType *parseValueTypes(JNIEnv *env, jintArray jValueTypes) {
+    jint len = (*env)->GetArrayLength(env, jValueTypes);
+    enum WasmEdge_ValType* valTypes = malloc(len * sizeof(enum  WasmEdge_ValType));
+    jint* elements = (*env)->GetIntArrayElements(env, jValueTypes, false);
+    for (int i = 0; i < len; ++i) {
+        valTypes[i] = elements[i];
+    }
+    return valTypes;
 }

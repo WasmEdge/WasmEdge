@@ -1,5 +1,7 @@
 package org.wasmedge;
 
+import org.wasmedge.enums.ValueType;
+
 public final class WasmEdgeI32Value implements WasmEdgeValue {
     private int value;
 

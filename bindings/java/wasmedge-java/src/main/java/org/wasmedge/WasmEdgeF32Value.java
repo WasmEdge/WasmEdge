@@ -1,5 +1,7 @@
 package org.wasmedge;
 
+import org.wasmedge.enums.ValueType;
+
 public final class WasmEdgeF32Value implements WasmEdgeValue {
     private float value;
 

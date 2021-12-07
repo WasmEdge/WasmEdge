@@ -32,4 +32,22 @@ void setPointer(JNIEnv* env, jobject obj, long val);
 
 void handleWasmEdgeResult(JNIEnv* env, WasmEdge_Result * result);
 
+int getIntVal(JNIEnv *env, jobject val);
+
+long getLongVal(JNIEnv *env, jobject val);
+
+long getFloatVal(JNIEnv *env, jobject val);
+
+double getDoubleVal(JNIEnv *env, jobject val);
+
+void setJavaIntValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
+
+void setJavaLongValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
+
+void setJavaFloatValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
+
+void setJavaDoubleValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
+
+enum WasmEdge_ValType *parseValueTypes(JNIEnv *env, jintArray jValueTypes) ;
+
 #endif //WASMEDGE_JAVA_COMMON_H

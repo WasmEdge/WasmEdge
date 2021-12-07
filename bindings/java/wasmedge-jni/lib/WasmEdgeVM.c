@@ -11,34 +11,7 @@
 #include "StoreContext.h"
 #include "ConfigureContext.h"
 
-int getIntVal(JNIEnv *env, jobject val) {
-    jclass clazz = (*env)->GetObjectClass(env, val);
-    jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()I");
 
-    jint value = (*env)->CallIntMethod(env, val, methodId);
-    return value;
-}
-
-long getLongVal(JNIEnv *env, jobject val) {
-    jclass clazz = (*env)->GetObjectClass(env, val);
-    jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()L");
-    jlong value = (*env)->CallLongMethod(env, val, methodId);
-    return value;
-}
-
-long getFloatVal(JNIEnv *env, jobject val) {
-    jclass clazz = (*env)->GetObjectClass(env, val);
-    jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()F");
-    jfloat value = (*env)->CallFloatMethod(env, val, methodId);
-    return value;
-}
-
-double getDoubleVal(JNIEnv *env, jobject val) {
-    jclass clazz = (*env)->GetObjectClass(env, val);
-    jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()D");
-    jdouble value = (*env)->CallDoubleMethod(env, val, methodId);
-    return value;
-}
 
 void setJavaIntValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
     int int_val = WasmEdge_ValueGetI32(val);

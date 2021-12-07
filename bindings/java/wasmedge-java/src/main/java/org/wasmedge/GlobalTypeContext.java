@@ -1,5 +1,6 @@
 package org.wasmedge;
 
+import org.wasmedge.enums.ValueType;
 import org.wasmedge.enums.WasmEdgeMutability;
 
 public class GlobalTypeContext {

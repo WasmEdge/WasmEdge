@@ -1,5 +1,7 @@
 package org.wasmedge;
 
+import org.wasmedge.enums.ValueType;
+
 public final class WasmEdgeF64Value implements WasmEdgeValue {
     private double value;
 

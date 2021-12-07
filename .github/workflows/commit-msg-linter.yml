@@ -1,0 +1,27 @@
+name: 'Commit Message Checker'
+
+concurrency:
+  group: commit-msg-checker-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  check-commit-message:
+    name: Check Commit Message
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Commit Type
+        uses: gsactions/commit-message-checker@v1
+        with:
+          pattern: '\[\w+\] .+$'
+          flags: 'gm'
+          error: 'Your first line has to contain a commit type like "[Misc] ".'
+          checkAllCommitMessages: 'true' # optional: this checks all commits associated with a pull request
+          accessToken: ${{ secrets.GITHUB_TOKEN }} # github access token is only required if checkAllCommitMessages is true

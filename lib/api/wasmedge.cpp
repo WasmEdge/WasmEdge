@@ -440,7 +440,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_ValueGenF64(const double Val) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
 WasmEdge_ValueGenV128(const ::int128_t Val) {
-  return genWasmEdge_Value(to_WasmEdge_128_t<WasmEdge::uint128_t>(Val));
+  return genWasmEdge_Value(to_WasmEdge_128_t<WasmEdge::int128_t>(Val));
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value

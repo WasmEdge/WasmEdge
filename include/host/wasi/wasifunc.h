@@ -363,7 +363,7 @@ public:
   WasiSockOpen(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        int32_t AddressFamily, int32_t SockType,
+                        uint32_t AddressFamily, uint32_t SockType,
                         uint32_t /* Out */ RoFdPtr);
 };
 

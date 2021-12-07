@@ -229,3 +229,45 @@ jobs:
       with:
         name: WasmEdge-${{ steps.prep.outputs.version }}-darwin_x86_64.tar.gz
         path: build/WasmEdge-${{ steps.prep.outputs.version }}-Darwin.tar.gz
+
+  build_windows:
+    name: Build WasmEdge on Winows
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Install dependency
+      uses: crazy-max/ghaction-chocolatey@v1
+      with:
+        args: install cmake ninja vswhere
+
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
+      with:
+        sdk-version: 19041
+
+    - name: Build WasmEdge
+      run: |
+        $vsPath = (vswhere -latest -property installationPath)
+        Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
+        Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
+        $llvm = "LLVM-13.0.0-win64.zip"
+        curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.0/LLVM-13.0.0-win64.zip -o $llvm
+        Expand-Archive -Path $llvm
+        $llvm_dir = "$pwd\\LLVM-13.0.0-win64\\LLVM-13.0.0-win64\\lib\\cmake\\llvm"
+        $Env:CC = "clang-cl"
+        $Env:CXX = "clang-cl"
+        cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION=10.0.19041.0 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON .
+        cmake --build build
+
+    - name: Test WasmEdge
+      continue-on-error: true
+      run: |
+        $vsPath = (vswhere -latest -property installationPath)
+        Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
+        Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
+        $Env:PATH += ";$pwd\\build\\lib\\api"
+        cd build
+        ctest --output-on-failure
+        cd -

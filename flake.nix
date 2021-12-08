@@ -20,20 +20,6 @@
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_AOT_RUNTIME=OFF .
           cmake --build build
         '';
-        runRustSdkTest = pkgs.writeShellScriptBin "run-rust-sdk-test" ''
-          cd bindings/rust/
-          export WASMEDGE_DIR="$(pwd)/../../"
-          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
-          export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test -p wasmedge-sdk --examples -- --nocapture
-        '';
-        runRustSdkExample = pkgs.writeShellScriptBin "run-rust-sdk-example" ''
-          cd bindings/rust/
-          export WASMEDGE_DIR="$(pwd)/../../"
-          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
-          export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo run -p wasmedge-sdk --example $1
-        '';
         runRustSysTest = pkgs.writeShellScriptBin "run-rust-sys-test" ''
           cd bindings/rust/
           export WASMEDGE_DIR="$(pwd)/../../"
@@ -66,8 +52,6 @@
             buildWasmEdgeNoAOT
             runRustSysTest
             runRustSysExample
-            runRustSdkTest
-            runRustSdkExample
           ];
 
           LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";

@@ -47,7 +47,7 @@ int main(int Argc, const char *Argv[]) {
       PO::Description("Disable Bulk memory operations proposal"sv));
   PO::Option<PO::Toggle> PropRefTypes(
       PO::Description("Disable Reference types proposal"sv));
-  PO::Option<PO::Toggle> PropSIMD(PO::Description("Enable SIMD proposal"sv));
+  PO::Option<PO::Toggle> PropSIMD(PO::Description("Disable SIMD proposal"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
 
   auto Parser = PO::ArgumentParser();
@@ -66,7 +66,7 @@ int main(int Argc, const char *Argv[]) {
            .add_option("disable-multi-value"sv, PropMultiValue)
            .add_option("disable-bulk-memory"sv, PropBulkMemOps)
            .add_option("disable-reference-types"sv, PropRefTypes)
-           .add_option("enable-simd"sv, PropSIMD)
+           .add_option("disable-simd"sv, PropSIMD)
            .add_option("enable-all"sv, PropAll)
            .parse(Argc, Argv)) {
     return EXIT_FAILURE;
@@ -96,11 +96,11 @@ int main(int Argc, const char *Argv[]) {
     Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
   }
   if (PropSIMD.value()) {
-    Conf.addProposal(WasmEdge::Proposal::SIMD);
+    Conf.removeProposal(WasmEdge::Proposal::SIMD);
   }
-  if (PropAll.value()) {
-    Conf.addProposal(WasmEdge::Proposal::SIMD);
-  }
+  /// Left for the future proposals.
+  /// if (PropAll.value()) {
+  /// }
 
   std::filesystem::path InputPath = std::filesystem::absolute(WasmName.value());
   std::filesystem::path OutputPath = std::filesystem::absolute(SoName.value());

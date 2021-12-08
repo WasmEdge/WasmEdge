@@ -1,6 +1,6 @@
-%global gittag 0.9.0-rc.5
+%global gittag 0.9.0
 Name:    wasmedge
-Version: 0.9.0-rc.5
+Version: 0.9.0
 Release: 1%{?dist}
 Summary: High performance WebAssembly Virtual Machine
 License: Apache 2.0

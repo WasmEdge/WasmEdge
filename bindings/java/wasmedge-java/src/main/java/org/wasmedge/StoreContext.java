@@ -15,5 +15,9 @@ public class StoreContext {
     private native void nativeInit();
     private native void delete();
 
+    private native String listFunction();
 
+    public native FunctionInstanceContext findFunction(String funcName);
+
+    public native FunctionInstanceContext findFunctionRegistered(String funcName);
 }

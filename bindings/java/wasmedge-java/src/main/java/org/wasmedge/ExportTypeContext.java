@@ -13,4 +13,5 @@ public class ExportTypeContext {
     public native MemoryTypeContext getMemoryType();
 
     public native GlobalTypeContext getGlobalType();
+
 }

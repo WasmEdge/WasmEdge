@@ -6,4 +6,10 @@ public class ASTModuleContext {
     public ASTModuleContext() {
 
     }
+
+    public native ImportTypeContext listImports();
+
+    public native ExecutorContext listExports();
+
+    public native void delete();
 }

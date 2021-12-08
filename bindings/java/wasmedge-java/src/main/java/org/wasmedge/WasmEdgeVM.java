@@ -100,11 +100,12 @@ public class WasmEdgeVM {
 
     public native void registerModuleFromFile(String modName, String fileName);
 
-    public native void executeRegistered(String modName, String funcName);
+    public native void executeRegistered(String modName, String funcName, List<WasmEdgeValue> params,
+                                         List<WasmEdgeValue> returns);
 
-    public native void getFunctionList();
+    public native List<FunctionTypeContext> getFunctionList();
 
-    public native void getFunctionType(String funcName);
+    public native FunctionTypeContext getFunction(String funcName);
 
     private native void delete();
 

@@ -7,6 +7,8 @@ public class MemoryTypeContext {
         nativeInit(limit);
     }
 
+    public native WasmEdgeLimit getLimit();
+
     private native void nativeInit(WasmEdgeLimit limit);
 
     public native void delete();

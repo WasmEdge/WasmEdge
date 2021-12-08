@@ -1,5 +1,7 @@
 package org.wasmedge;
 
+import java.util.List;
+
 public class ExecutorContext {
     private long pointer;
 
@@ -8,6 +10,13 @@ public class ExecutorContext {
     }
 
     private native void nativeInit(ConfigureContext configureContext);
+
+    public native void instantiate();
+
+    public native void instantiate(StoreContext storeContext, ASTModuleContext astModuleContext);
+
+    public native void execute(StoreContext storeContext, String funName,
+                               List<WasmEdgeValue> params, List<WasmEdgeValue> returns);
 
     public native void registerModule(StoreContext storeCxt,
                                       ASTModuleContext astCxt,

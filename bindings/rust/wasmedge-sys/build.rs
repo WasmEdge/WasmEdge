@@ -1,13 +1,96 @@
-use std::path::PathBuf;
+use std::{env, path::PathBuf, process::Command};
 
 const WASMEDGE_H: &str = "wasmedge.h";
+
+fn build_wasmedge_project(hash: String) -> Paths {
+    let out_dir = env::var("OUT_DIR").expect("fail to get the out dir");
+
+    let wasmedge_src = format!("{}/wasmedge", &out_dir);
+    Command::new("git")
+        .args(&["init", &wasmedge_src])
+        .output()
+        .expect("fail to init wasmedge project");
+
+    Command::new("git")
+        .current_dir(&wasmedge_src)
+        .args(&[
+            "remote",
+            "add",
+            "origin",
+            "https://github.com/WasmEdge/WasmEdge.git",
+        ])
+        .output()
+        .expect("fail to add wasmedge upstream");
+
+    Command::new("git")
+        .current_dir(&wasmedge_src)
+        .args(&["fetch", "--tags", "origin", hash.trim()])
+        .output()
+        .expect("fail to fetch the commit");
+
+    Command::new("git")
+        .current_dir(&wasmedge_src)
+        .args(&["checkout", "FETCH_HEAD"])
+        .output()
+        .expect("fail to checkout the commit");
+
+    Command::new("cmake")
+        .current_dir(&wasmedge_src)
+        .args(&[
+            "-Bbuild",
+            "-GNinja",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DWASMEDGE_BUILD_TESTS=ON",
+            "-DWASMEDGE_BUILD_AOT_RUNTIME=OFF",
+            &format!("-DCMAKE_INSTALL_PREFIX={}", &out_dir),
+            ".",
+        ])
+        .output()
+        .expect("fail to cmake setup wasmedge project");
+
+    Command::new("cmake")
+        .current_dir(&wasmedge_src)
+        .args(&["--build", "build"])
+        .output()
+        .expect("fail to cmake build wasmedge project");
+
+    Command::new("ninja")
+        .current_dir(&format!("{}/build", &wasmedge_src))
+        .args(&["install"])
+        .output()
+        .expect("fail to ninja build wasmedge project");
+
+    let lib_dir = if std::path::Path::new(&format!("{}/lib64", &out_dir)).exists() {
+        format!("{}/lib64", &out_dir)
+    } else {
+        format!("{}/lib", &out_dir)
+    };
+
+    Paths {
+        header: format!("{}/include/wasmedge/wasmedge.h", &out_dir).into(),
+        lib_dir: lib_dir.into(),
+        inc_dir: format!("{}/include", &out_dir).into(),
+    }
+}
+
+fn build_wasmedge() -> Option<Paths> {
+    let output = Command::new("git")
+        .args(&["rev-parse", "HEAD"])
+        .output()
+        .unwrap();
+    let git_hash =
+        String::from_utf8(output.stdout).expect("fail to get the git hash for current build");
+    Some(build_wasmedge_project(git_hash))
+}
 
 fn main() {
     let Paths {
         header,
         lib_dir,
         inc_dir,
-    } = find_wasmedge().expect("wasmedge header not found");
+    } = find_wasmedge()
+        .or_else(build_wasmedge)
+        .expect("should be dependency paths");
 
     let out_file = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("wasmedge.rs");
     bindgen::builder()

@@ -196,6 +196,15 @@ WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>>, __wasi_siflags_t,
 WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
+WasiExpect<void>
+INode::getAddrinfo(const char *, const char *, const __wasi_addrinfo_t &,
+                   uint32_t,
+                   std::vector<struct __wasi_addrinfo_t *>
+                       *std::vector<struct __wasi_sockaddr_t *> *,
+                   std::vector<char *> *, std::vector<char *> *,
+                   /*Out*/ __wasi_size_t *) noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
 
 __wasi_filetype_t INode::unsafeFiletype() const noexcept {
   return __WASI_FILETYPE_UNKNOWN;
@@ -230,17 +239,6 @@ WasiExpect<void> Poller::write(const INode &, __wasi_userdata_t) noexcept {
 }
 
 WasiExpect<void> Poller::wait(CallbackType) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
-}
-
-WasiExpect<void>
-INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
-                   const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
-                   std::vector<struct __wasi_addrinfo_t *> *WasiAddrinfoArray,
-                   std::vector<struct __wasi_sockaddr_t *> *WasiSockaddrArray,
-                   std::vector<char *> *AiAddrSaDataArray,
-                   std::vector<char *> *AiCanonnameArray,
-                   /*Out*/ __wasi_size_t *ResLength) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 

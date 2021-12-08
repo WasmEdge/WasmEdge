@@ -233,6 +233,17 @@ WasiExpect<void> Poller::wait(CallbackType) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
+WasiExpect<void>
+INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
+                   const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
+                   std::vector<struct __wasi_addrinfo_t *> *WasiAddrinfoArray,
+                   std::vector<struct __wasi_sockaddr_t *> *WasiSockaddrArray,
+                   std::vector<char *> *AiAddrSaDataArray,
+                   std::vector<char *> *AiCanonnameArray,
+                   /*Out*/ __wasi_size_t *ResLength) noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
 } // namespace WASI
 } // namespace Host
 } // namespace WasmEdge

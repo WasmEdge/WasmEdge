@@ -1223,8 +1223,9 @@ INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
   freeaddrinfo(SysResPtr);
 
   return {};
-} // namespace WASI
+}
 } // namespace WASI
 } // namespace Host
+} // namespace WasmEdge
 
 #endif

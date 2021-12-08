@@ -84,6 +84,7 @@ fn build_wasmedge() -> Option<Paths> {
 }
 
 fn main() {
+    #[cfg(not(feature = "standalone"))]
     let Paths {
         header,
         lib_dir,
@@ -91,6 +92,13 @@ fn main() {
     } = find_wasmedge()
         .or_else(build_wasmedge)
         .expect("should be dependency paths");
+
+    #[cfg(feature = "standalone")]
+    let Paths {
+        header,
+        lib_dir,
+        inc_dir,
+    } = build_wasmedge().expect("should be dependency paths");
 
     let out_file = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("wasmedge.rs");
     bindgen::builder()

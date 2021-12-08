@@ -68,6 +68,8 @@ O(Br_table, 0x0E, "br_table")
 O(Return, 0x0F, "return")
 O(Call, 0x10, "call")
 O(Call_indirect, 0x11, "call_indirect")
+O(Return_call, 0x12, "return_call")
+O(Return_call_indirect, 0x13, "return_call_indirect")
 
 // Reference Instructions
 O(Ref__null, 0xD0, "ref.null")

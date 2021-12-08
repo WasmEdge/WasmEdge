@@ -57,7 +57,9 @@ jobs:
         mkdir -p "$SRCDIR"
         git checkout-index -a --prefix="$SRCDIR"
         cp VERSION $SRCDIR
-        tar --owner 0 --group 0 -czf "$REPO_ROOT/wasmedge_$VERSION.tar.gz" -C "$TEMPDIR" "wasmedge"
+        tar --owner 0 --group 0 -czf "$GITHUB_WORKSPACE/WasmEdge-$VERSION.tar.gz" -C "$TEMPDIR" "wasmedge"
+      env:
+        VERSION: ${{ steps.prep.outputs.version }}
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:

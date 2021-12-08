@@ -30,7 +30,7 @@ jobs:
       - name: Get version
         id: prep
         run: |
-          echo ::set-output name=version::$(git describe --tag)
+          echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1

@@ -30,24 +30,28 @@ void writeAddrinfo(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 }
 void allocateAddrinfoArray(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
                            uint32_t Base, uint32_t Length,
-                           uint32_t canonnameMaxSize) {
-  for (uint32_t i = 0; i < Length; i++) {
+                           uint32_t CanonnameMaxSize) {
+  for (uint32_t Item = 0; Item < Length; Item++) {
     // allocate addrinfo struct
     auto *ResItemPtr = MemInst.getPointer<struct __wasi_addrinfo_t *>(
         Base, sizeof(struct __wasi_addrinfo_t));
     Base += sizeof(struct __wasi_addrinfo_t);
+
     // allocate sockaddr struct
     ResItemPtr->ai_addr = Base;
+    ResItemPtr->ai_addrlen = sizeof(struct __wasi_sockaddr_t);
     auto *Sockaddr = MemInst.getPointer<struct __wasi_sockaddr_t *>(
         ResItemPtr->ai_addr, sizeof(struct __wasi_sockaddr_t));
-    Base += sizeof(struct __wasi_sockaddr_t);
+    Base += ResItemPtr->ai_addrlen;
     // allocate sockaddr sa_data.
     Sockaddr->sa_data = Base;
-    Base += WasmEdge::Host::WASI::saDataLen;
+    Sockaddr->sa_data_len = WasmEdge::Host::WASI::saDataLen;
+    Base += Sockaddr->sa_data_len;
     // allocate ai_canonname
     ResItemPtr->ai_canonname = Base;
-    Base += canonnameMaxSize;
-    if (i != (Length - 1)) {
+    ResItemPtr->ai_canonname_len = CanonnameMaxSize;
+    Base += ResItemPtr->ai_canonname_len;
+    if (Item != (Length - 1)) {
       ResItemPtr->ai_next = Base;
     }
   }
@@ -998,7 +1002,7 @@ TEST(WasiTest, GetAddrinfo) {
   std::string Node = "";
   std::string Service = "27015";
   uint32_t MaxLength = 10;
-  uint32_t canonnameMaxSize = 50;
+  uint32_t CanonnameMaxSize = 50;
 
   struct __wasi_addrinfo_t Hints;
 
@@ -1019,9 +1023,19 @@ TEST(WasiTest, GetAddrinfo) {
       MemInst.getPointer<uint8_t_ptr *>(ResultPtr, sizeof(uint8_t_ptr));
   *Result = 108;
   // allocate Res Item;
-  allocateAddrinfoArray(MemInst, *Result, MaxLength, canonnameMaxSize);
+  allocateAddrinfoArray(MemInst, *Result, MaxLength, CanonnameMaxSize);
 
   Env.init({}, "test"s, {}, {});
+  // MaxLength == 0;
+  {
+    EXPECT_TRUE(WasiGetAddrinfo.run(
+        nullptr,
+        std::array<WasmEdge::ValVariant, 8>{NodePtr, NodeLen, ServicePtr,
+                                            ServiceLen, HintsPtr, ResultPtr,
+                                            (uint32_t)0, ResLengthPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+  }
   // MemInst is nullptr
   {
     EXPECT_TRUE(WasiGetAddrinfo.run(
@@ -1081,7 +1095,7 @@ TEST(WasiTest, GetAddrinfo) {
     EXPECT_EQ(ResHead->ai_canonname_len, 0);
     EXPECT_EQ(ResHead->ai_canonname, 0);
   }
-  allocateAddrinfoArray(MemInst, *Result, MaxLength, canonnameMaxSize);
+  allocateAddrinfoArray(MemInst, *Result, MaxLength, CanonnameMaxSize);
   // hints.ai_flag is ai_canonname but has an error
   {
     Hints.ai_flags = __WASI_AIFLAGS_AI_CANONNAME;
@@ -1129,7 +1143,7 @@ TEST(WasiTest, GetAddrinfo) {
     EXPECT_EQ(ResHead->ai_canonname_len, 0);
     EXPECT_EQ(ResHead->ai_canonname, 0);
   }
-  allocateAddrinfoArray(MemInst, *Result, MaxLength, canonnameMaxSize);
+  allocateAddrinfoArray(MemInst, *Result, MaxLength, CanonnameMaxSize);
   // freeaddrinfo test,when MemInst is nullptr
   {
     EXPECT_TRUE(WasiFreeAddrinfo.run(

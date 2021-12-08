@@ -319,11 +319,17 @@ WasiExpect<void> VINode::pathUnlinkFile(VFS &FS, std::shared_ptr<VINode> Fd,
   return Fd->Node.pathUnlinkFile(std::string(Path));
 }
 
-WasiExpect<void> VINode::getAddrinfo(const char *const NodeStr,
-                                     const char *const ServiceStr,
-                                     const addrinfo *const Hint,
-                                     /*Out*/ addrinfo **ResPtr) noexcept {
-  if (auto Res = INode::getAddrinfo(NodeStr, ServiceStr, Hint, ResPtr);
+WasiExpect<void>
+VINode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
+                    const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
+                    std::vector<struct __wasi_addrinfo_t *> *WasiAddrinfoArray,
+                    std::vector<struct __wasi_sockaddr_t *> *WasiSockaddrArray,
+                    std::vector<char *> *AiAddrSaDataArray,
+                    std::vector<char *> *AiCanonnameArray,
+                    /*Out*/ __wasi_size_t *ResLength) noexcept {
+  if (auto Res = INode::getAddrinfo(
+          NodeStr, ServiceStr, Hint, MaxResLength, WasiAddrinfoArray,
+          WasiSockaddrArray, AiAddrSaDataArray, AiCanonnameArray, ResLength);
       unlikely(!Res)) {
     return WasiUnexpect(Res);
   }

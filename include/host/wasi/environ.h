@@ -40,35 +40,24 @@ public:
 
   void fini() noexcept;
 
-  WasiExpect<void> getAddrInfo(const char *Node, const char *Service,
-                               const __wasi_addrinfo_t *Hint,
-                               /*Out*/ addrinfo **ResPtr,
-                               __wasi_size_t *ResLength) {
-    struct addrinfo TmpHint;
-    struct addrinfo *SysResult = NULL;
-    struct addrinfo *TmpPointer;
+  WasiExpect<void>
+  getAddrInfo(const char *Node, const char *Service,
+              const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
+              std::vector<struct __wasi_addrinfo_t *> *WasiAddrinfoArray,
+              std::vector<struct __wasi_sockaddr_t *> *WasiSockaddrArray,
+              std::vector<char *> *AiAddrSaDataArray,
+              std::vector<char *> *AiCanonnameArray,
+              /*Out*/ __wasi_size_t *ResLength) {
 
-    *ResLength = 0;
-    TmpHint.ai_flags = Hint->ai_flags;
-    TmpHint.ai_family = Hint->ai_family;
-    TmpHint.ai_socktype = Hint->ai_socktype;
-    TmpHint.ai_protocol = Hint->ai_protocol;
-    TmpHint.ai_addrlen = Hint->ai_addrlen;
-    TmpHint.ai_addr = NULL;
-    TmpHint.ai_canonname = NULL;
-    TmpHint.ai_next = NULL;
-    if (auto Res = VINode::getAddrinfo(Node, Service, &TmpHint, &SysResult);
+    if (auto Res = VINode::getAddrinfo(
+            Node, Service, Hint, MaxResLength, WasiAddrinfoArray,
+            WasiSockaddrArray, AiAddrSaDataArray, AiCanonnameArray, ResLength);
         unlikely(!Res)) {
       return WasiUnexpect(Res);
     }
-
-    for (TmpPointer = SysResult; TmpPointer != nullptr;
-         TmpPointer = TmpPointer->ai_next) {
-      (*ResLength)++;
-    }
-    *ResPtr = SysResult;
     return {};
   }
+
   constexpr const std::vector<std::string> &getArguments() const noexcept {
     return Arguments;
   }

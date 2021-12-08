@@ -1111,11 +1111,27 @@ WasiExpect<void> Poller::wait(CallbackType Callback) noexcept {
   }
   return {};
 }
-WasiExpect<void> INode::getAddrinfo(const char *const NodeStr,
-                                    const char *const ServiceStr,
-                                    const addrinfo *const Hint,
-                                    /*Out*/ addrinfo **ResPtr) noexcept {
-  int POSIXReturn = ::getaddrinfo(NodeStr, ServiceStr, Hint, ResPtr);
+WasiExpect<void>
+INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
+                   const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
+                   std::vector<struct __wasi_addrinfo_t *> *WasiAddrinfoArray,
+                   std::vector<struct __wasi_sockaddr_t *> *WasiSockaddrArray,
+                   std::vector<char *> *AiAddrSaDataArray,
+                   std::vector<char *> *AiCanonnameArray,
+                   /*Out*/ __wasi_size_t *ResLength) noexcept {
+  struct addrinfo SysHint;
+  struct addrinfo *SysResPtr = nullptr;
+  struct addrinfo *SysResItem = nullptr;
+  SysHint.ai_flags = Hint.ai_flags;
+  SysHint.ai_family = Hint.ai_family;
+  SysHint.ai_socktype = Hint.ai_socktype;
+  SysHint.ai_protocol = Hint.ai_protocol;
+  SysHint.ai_addrlen = Hint.ai_addrlen;
+  SysHint.ai_addr = NULL;
+  SysHint.ai_canonname = NULL;
+  SysHint.ai_next = NULL;
+
+  int POSIXReturn = ::getaddrinfo(NodeStr, ServiceStr, &SysHint, &SysResPtr);
   switch (POSIXReturn) {
   case EAI_ADDRFAMILY:
     return WasiUnexpect(__WASI_ERRNO_AIADDRFAMILY);
@@ -1140,11 +1156,75 @@ WasiExpect<void> INode::getAddrinfo(const char *const NodeStr,
   case EAI_SYSTEM:
     return WasiUnexpect(__WASI_ERRNO_AISYSTEM);
   }
-  return {};
-}
+  // calculate ResLength
+  auto calculateResSize = [](struct addrinfo *const Res) -> __wasi_size_t {
+    struct addrinfo *TmpPointer;
+    __wasi_size_t Length = 0;
+    for (TmpPointer = Res; TmpPointer != nullptr;
+         TmpPointer = TmpPointer->ai_next) {
+      Length++;
+    }
+    return Length;
+  };
 
+  *ResLength = calculateResSize(SysResPtr);
+  if (*ResLength > MaxResLength) {
+    *ResLength = MaxResLength;
+  }
+
+  SysResItem = SysResPtr;
+
+  for (uint32_t Idx = 0; Idx < (*ResLength); Idx++) {
+    (*WasiAddrinfoArray)[Idx]->ai_flags =
+        static_cast<__wasi_aiflags_t>(SysResItem->ai_flags);
+    (*WasiAddrinfoArray)[Idx]->ai_socktype =
+        static_cast<__wasi_sock_type_t>(SysResItem->ai_socktype);
+    (*WasiAddrinfoArray)[Idx]->ai_protocol =
+        static_cast<__wasi_protocol_t>(SysResItem->ai_protocol);
+    (*WasiAddrinfoArray)[Idx]->ai_family =
+        static_cast<__wasi_address_family_t>(SysResItem->ai_family);
+    (*WasiAddrinfoArray)[Idx]->ai_addrlen = SysResItem->ai_addrlen;
+
+    // process ai_canonname in addrinfo
+    if (SysResItem->ai_canonname != NULL) {
+      (*WasiAddrinfoArray)[Idx]->ai_canonname_len =
+          strlen(SysResItem->ai_canonname);
+      memcpy((*AiCanonnameArray)[Idx], SysResItem->ai_canonname,
+             (*WasiAddrinfoArray)[Idx]->ai_canonname_len);
+      memset((*AiCanonnameArray)[Idx] +
+                 (*WasiAddrinfoArray)[Idx]->ai_canonname_len + 1,
+             0, 1);
+    } else {
+      (*WasiAddrinfoArray)[Idx]->ai_canonname_len = 0;
+    }
+
+    // process socket address
+    if ((*WasiAddrinfoArray)[Idx]->ai_addrlen > 0) {
+      switch (SysResItem->ai_addr->sa_family) {
+      case AF_INET:
+        (*WasiSockaddrArray)[Idx]->sa_family = __WASI_ADDRESS_FAMILY_INET4;
+        break;
+      case AF_INET6:
+        (*WasiSockaddrArray)[Idx]->sa_family = __WASI_ADDRESS_FAMILY_INET6;
+        break;
+      }
+      (*WasiSockaddrArray)[Idx]->sa_data_len = 0;
+
+      // process sa_data in socket address
+      if (strlen(SysResItem->ai_addr->sa_data) != 0) {
+        memcpy((*AiAddrSaDataArray)[Idx], SysResItem->ai_addr->sa_data,
+               WASI::saDataLen);
+        (*WasiSockaddrArray)[Idx]->sa_data_len = WASI::saDataLen;
+      }
+    }
+    // process ai_next in addrinfo
+    SysResItem = SysResItem->ai_next;
+  }
+  freeaddrinfo(SysResPtr);
+
+  return {};
+} // namespace WASI
 } // namespace WASI
 } // namespace Host
-} // namespace WasmEdge
 
 #endif

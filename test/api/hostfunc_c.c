@@ -178,6 +178,16 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_ImportObjectAddMemory(ImpObj, HostName, HostMemory);
   WasmEdge_StringDelete(HostName);
 
+  // Add host memory "memory"
+  WasmEdge_Limit SharedMemLimit = {
+      .HasMax = true, .Shared = true, .Min = 1, .Max = 2};
+  HostMType = WasmEdge_MemoryTypeCreate(SharedMemLimit);
+  HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
+  WasmEdge_MemoryTypeDelete(HostMType);
+  HostName = WasmEdge_StringCreateByCString("shared_memory");
+  WasmEdge_ImportObjectAddMemory(ImpObj, HostName, HostMemory);
+  WasmEdge_StringDelete(HostName);
+
   // Add host global "global_i32": const 666
   HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValType_I32,
                                         WasmEdge_Mutability_Const);

@@ -1,7 +1,7 @@
-name: rust
+name: binding-rust
 
 concurrency:
-  group: rust-${{ github.head_ref }}
+  group: bindings-rust-${{ github.head_ref }}
   cancel-in-progress: true
 
 on:

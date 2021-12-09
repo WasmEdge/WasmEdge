@@ -9,15 +9,20 @@ After [installing WasmEdge](install.md) or starting the [WasmEdge app dev Docker
 
 The options and flags for the `wasmedge` command are as follows.
 
-1. (Optional) Reactor mode: use `--reactor` to enable reactor mode. In the reactor mode, `wasmedge` runs a specified function from the WebAssembly program.
+1. (Optional) Statistics information:
+	* Use `--enable-time-measuring` to show the execution time.
+	* Use `--enable-gas-measuring` to show the amount of used gas.
+	* Use `--enable-instruction-count` to display the number of executed instructions.
+	* Or use `--enable-all-statistics` to enable all of the statistics options.
+2. (Optional) Reactor mode: use `--reactor` to enable reactor mode. In the reactor mode, `wasmedge` runs a specified function from the WebAssembly program.
 	* WasmEdge will execute the function which name should be given in ARG[0].
 	* If there's exported function which names `_initialize`, the function will be executed with the empty parameter at first.
-2. (Optional) Binding directories into WASI virtual filesystem.
+3. (Optional) Binding directories into WASI virtual filesystem.
 	* Each directory can be specified as `--dir guest_path:host_path`.
-3. (Optional) Environ variables.
+4. (Optional) Environ variables.
 	* Each variable can be specified as `--env NAME=VALUE`.
-4. Wasm file(`/path/to/wasm/file`).
-5. (Optional) Arguments.
+5. Wasm file(`/path/to/wasm/file`).
+6. (Optional) Arguments.
 	* In reactor mode, the first argument will be the function name, and the arguments after ARG[0] will be parameters of wasm function ARG[0].
 	* In command mode, the arguments will be parameters of function `_start`. They are also known as command line arguments for a standalone program.
 
@@ -28,6 +33,11 @@ WasmEdge provides ahead-of-time compilation to compile wasm to the native binary
 ```bash
 wasmedgec <Input_WASM_File> <Output_File_Name>
 ```
+
+The options and flags for the `wasmedgec` are as follows.
+
+1. Input Wasm file(`/path/to/input/wasm/file`).
+2. Output file name(`/path/to/output/file`).
 
 ### Universal Wasm Binary Format
 
@@ -66,6 +76,24 @@ second
 state
 ```
 
+#### With Statistics enabled
+```bash
+# cd <path/to/WasmEdge>
+$ cd tools/wasmedge/examples
+$ wasmedge --enable-all-statistics hello.wasm second state
+hello
+second
+state
+[2021-12-09 16:03:33.261] [info] ====================  Statistics  ====================
+[2021-12-09 16:03:33.261] [info]  Total execution time: 268266 ns
+[2021-12-09 16:03:33.261] [info]  Wasm instructions execution time: 251610 ns
+[2021-12-09 16:03:33.261] [info]  Host functions execution time: 16656 ns
+[2021-12-09 16:03:33.261] [info]  Executed wasm instructions count: 20425
+[2021-12-09 16:03:33.261] [info]  Gas costs: 20425
+[2021-12-09 16:03:33.261] [info]  Instructions per second: 81177218
+[2021-12-09 16:03:33.261] [info] =======================   End   ======================
+```
+
 ### Example: Add
 
 The `add.wasm` WebAssembly program contains a `add()` function. Checkout its Rust [source code project](https://github.com/second-state/wasm-learning/tree/master/cli/add). We use `wasmedge` in reactor mode to call the `add()` with two integer input parameters.
@@ -86,6 +114,23 @@ $ wasmedge --reactor add.wasm add 2 2
 $ cd tools/wasmedge/examples
 $ wasmedgec add.wasm add.wasm # This will embed native binary into the origin wasm file and make it an universal wasm binary format
 $ wasmedge --reactor add.wasm add 2 2
+4
+```
+
+#### With Statistics enabled
+```bash
+# cd <path/to/WasmEdge>
+$ cd tools/wasmedge/examples
+$ wasmedge --enable-all-statistics --reactor add.wasm add 2 2
+[2021-12-09 16:07:51.658] [info] ====================  Statistics  ====================
+[2021-12-09 16:07:51.658] [info]  Total execution time: 4178 ns
+[2021-12-09 16:07:51.658] [info]  Wasm instructions execution time: 4178 ns
+[2021-12-09 16:07:51.658] [info]  Host functions execution time: 0 ns
+[2021-12-09 16:07:51.658] [info]  Executed wasm instructions count: 217
+[2021-12-09 16:07:51.658] [info]  Gas costs: 217
+[2021-12-09 16:07:51.658] [info]  Instructions per second: 51938726
+[2021-12-09 16:07:51.658] [info] =======================   End   ======================
+
 4
 ```
 
@@ -128,6 +173,23 @@ $ wasmedge --reactor fibonacci.wasm fib 10
 89
 ```
 
+#### With Statistics enabled
+```bash
+# cd <path/to/WasmEdge>
+$ cd tools/wasmedge/examples
+$ wasmedge --enable-all-statistics --reactor fibonacci.wasm fib 10
+[2021-12-09 16:09:03.601] [info] ====================  Statistics  ====================
+[2021-12-09 16:09:03.601] [info]  Total execution time: 19148 ns
+[2021-12-09 16:09:03.601] [info]  Wasm instructions execution time: 19148 ns
+[2021-12-09 16:09:03.601] [info]  Host functions execution time: 0 ns
+[2021-12-09 16:09:03.601] [info]  Executed wasm instructions count: 1854
+[2021-12-09 16:09:03.601] [info]  Gas costs: 1854
+[2021-12-09 16:09:03.601] [info]  Instructions per second: 96824733
+[2021-12-09 16:09:03.601] [info] =======================   End   ======================
+
+89
+```
+
 ### Example: Factorial
 
 We created the `factorial.wat` program by hand and used the [wat2wasm](https://github.com/WebAssembly/wabt) compiler to build the `factorial.wasm` WebAssembly program. It contains a `fac()` function which takes a single integer as input parameter. We use `wasmedge` in reactor mode to call the exported function.
@@ -147,6 +209,23 @@ $ wasmedge --reactor factorial.wasm fac 5
 $ cd tools/wasmedge/examples
 $ wasmedgec factorial.wasm factorial.wasm # This will embed native binary into the origin wasm file and make it an universal wasm binary format
 $ wasmedge --reactor factorial.wasm fac 5
+120
+```
+
+#### With Statistics enabled
+```bash
+# cd <path/to/WasmEdge>
+$ cd tools/wasmedge/examples
+$ wasmedge --enable-all-statistics --reactor factorial.wasm fac 5
+[2021-12-09 16:09:53.280] [info] ====================  Statistics  ====================
+[2021-12-09 16:09:53.280] [info]  Total execution time: 4864 ns
+[2021-12-09 16:09:53.280] [info]  Wasm instructions execution time: 4864 ns
+[2021-12-09 16:09:53.280] [info]  Host functions execution time: 0 ns
+[2021-12-09 16:09:53.280] [info]  Executed wasm instructions count: 72
+[2021-12-09 16:09:53.280] [info]  Gas costs: 72
+[2021-12-09 16:09:53.280] [info]  Instructions per second: 14802631
+[2021-12-09 16:09:53.280] [info] =======================   End   ======================
+
 120
 ```
 

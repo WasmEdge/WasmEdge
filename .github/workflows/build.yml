@@ -61,7 +61,7 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
-        name: WasmEdge-${{ needs.get_version.outputs.version }}.tar.gz
+        name: WasmEdge-${{ needs.get_version.outputs.version }}-src.tar.gz
         path: wasmedge_${{ needs.get_version.outputs.version }}.tar.gz
 
   build_fedora:

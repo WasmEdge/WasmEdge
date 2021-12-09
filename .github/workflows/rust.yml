@@ -46,6 +46,18 @@ jobs:
         cd bindings/rust/
         cargo +nightly fmt --all -- --check
 
+    - name: Test on standalone crate
+      run: |
+        cd bindings/rust/
+        export WASMEDGE_DIR="$(pwd)/../../"
+        cargo test --lib --examples
+        cargo test --doc
+
+    - name: Clean up
+      run: |
+        cd bindings/rust/
+        cargo clean
+
     - name: Build WasmEdge using clang with Debug mode
       run: |
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_SHARED_LIB=ON .

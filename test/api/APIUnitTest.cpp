@@ -1871,9 +1871,9 @@ TEST(APICoreTest, ImportObject) {
   WasmEdge_VMContext *VM = nullptr;
   WasmEdge_ImportObjectContext *ImpObj = nullptr;
   WasmEdge_FunctionTypeContext *HostFType = nullptr;
-  WasmEdge_TableTypeContext *HostTType = NULL;
-  WasmEdge_MemoryTypeContext *HostMType = NULL;
-  WasmEdge_GlobalTypeContext *HostGType = NULL;
+  WasmEdge_TableTypeContext *HostTType = nullptr;
+  WasmEdge_MemoryTypeContext *HostMType = nullptr;
+  WasmEdge_GlobalTypeContext *HostGType = nullptr;
   WasmEdge_FunctionInstanceContext *HostFunc = nullptr;
   WasmEdge_TableInstanceContext *HostTable = nullptr;
   WasmEdge_MemoryInstanceContext *HostMemory = nullptr;

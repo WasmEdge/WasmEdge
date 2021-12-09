@@ -117,7 +117,6 @@ public:
   constexpr unexpected(const unexpected &) = default;
   constexpr unexpected(unexpected &&) = default;
   constexpr unexpected &operator=(const unexpected &) = default;
-  constexpr unexpected &operator=(unexpected &&) = default;
 
   template <class... Args,
             enable_if_t<is_constructible_v<E, Args...>> * = nullptr,
@@ -279,6 +278,9 @@ struct expected_storage_base {
       : m_has_val(true), m_val() {}
   constexpr expected_storage_base(no_init_t) noexcept
       : m_has_val(false), m_no_init() {}
+  constexpr expected_storage_base(const expected_storage_base &) = default;
+  constexpr expected_storage_base &
+  operator=(const expected_storage_base &) = default;
 
   template <class... Args,
             enable_if_t<is_constructible_v<T, Args...>> * = nullptr,
@@ -339,6 +341,9 @@ template <class T, class E> struct expected_storage_base<T, E, true, true> {
       : m_has_val(true), m_val() {}
   constexpr expected_storage_base(no_init_t) noexcept
       : m_has_val(false), m_no_init() {}
+  constexpr expected_storage_base(const expected_storage_base &) = default;
+  constexpr expected_storage_base &
+  operator=(const expected_storage_base &) = default;
 
   template <class... Args,
             enable_if_t<is_constructible_v<T, Args...>> * = nullptr,
@@ -388,6 +393,9 @@ template <class T, class E> struct expected_storage_base<T, E, true, false> {
       : m_has_val(true), m_val() {}
   constexpr expected_storage_base(no_init_t) noexcept
       : m_has_val(false), m_no_init() {}
+  constexpr expected_storage_base(const expected_storage_base &) = default;
+  constexpr expected_storage_base &
+  operator=(const expected_storage_base &) = default;
 
   template <class... Args,
             enable_if_t<is_constructible_v<T, Args...>> * = nullptr,
@@ -443,6 +451,9 @@ template <class T, class E> struct expected_storage_base<T, E, false, true> {
       : m_has_val(true), m_val() {}
   constexpr expected_storage_base(no_init_t) noexcept
       : m_has_val(false), m_no_init() {}
+  constexpr expected_storage_base(const expected_storage_base &) = default;
+  constexpr expected_storage_base &
+  operator=(const expected_storage_base &) = default;
 
   template <class... Args,
             enable_if_t<is_constructible_v<T, Args...>> * = nullptr,
@@ -498,6 +509,9 @@ template <class E> struct expected_storage_base<void, E, false, false> {
       : m_has_val(false), m_no_init() {}
   constexpr expected_storage_base(in_place_t) noexcept
       : m_has_val(true), m_no_init() {}
+  constexpr expected_storage_base(const expected_storage_base &) = default;
+  constexpr expected_storage_base &
+  operator=(const expected_storage_base &) = default;
 
   template <class... Args,
             enable_if_t<is_constructible_v<E, Args...>> * = nullptr,
@@ -538,6 +552,9 @@ template <class E> struct expected_storage_base<void, E, false, true> {
       : m_has_val(false), m_no_init() {}
   constexpr expected_storage_base(in_place_t) noexcept
       : m_has_val(true), m_no_init() {}
+  constexpr expected_storage_base(const expected_storage_base &) = default;
+  constexpr expected_storage_base &
+  operator=(const expected_storage_base &) = default;
 
   template <class... Args,
             enable_if_t<is_constructible_v<E, Args...>> * = nullptr,

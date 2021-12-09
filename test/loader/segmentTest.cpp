@@ -93,8 +93,6 @@ TEST(SegmentTest, LoadElementSegment) {
   ///   12. Load element segment with unexpected end of reference type.
   ///   13. Load element segment with unexpected end of initialization
   ///       expression vector count.
-  ///   14. Load element segment with invalid instructions in initialization
-  ///       expressions.
 
   Vec = {
       0x09U, /// Element section
@@ -239,19 +237,6 @@ TEST(SegmentTest, LoadElementSegment) {
       0x45U, 0x46U, 0x47U,
       0x0BU /// Offset expression
             /// Missed initialization expressions
-  };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
-
-  Vec = {
-      0x09U,                      /// Element section
-      0x10U,                      /// Content size = 16
-      0x01U,                      /// Vector length = 1
-      0x04U,                      /// Prefix checking byte of 0x04
-      0x45U, 0x46U, 0x47U, 0x0BU, /// Offset expression
-      0x03U,                      /// Vector length = 3
-      0xD0U, 0x6FU, 0x0BU,        /// vec[0]: expression 0
-      0xD2U, 0x05U, 0x0BU,        /// vec[1]: expression 1
-      0x20U, 0x05U, 0x0BU /// vec[2]: expression 2 with invalid instruction
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }

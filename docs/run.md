@@ -21,6 +21,22 @@ The options and flags for the `wasmedge` command are as follows.
 	* In reactor mode, the first argument will be the function name, and the arguments after ARG[0] will be parameters of wasm function ARG[0].
 	* In command mode, the arguments will be parameters of function `_start`. They are also known as command line arguments for a standalone program.
 
+## WasmEdge AoT Compiler (wasmedgec)
+
+WasmEdge provides ahead-of-time compilation to compile wasm to the native binary for better performance. To leverage this feature, you can use the following commands:
+
+```bash
+wasmedgec <Input_WASM_File> <Output_File_Name>
+```
+
+### Universal Wasm Binary Format
+
+After 0.9.0, wasmedge will wrap the native binary into a custom section in the origin wasm file. So you can create a universal wasm binary format.
+
+With this feature, you can still run the wasm with other wasm runtimes just like a normal wasm file. However, when this wasm file is handled by the WasmEdge runtime, we will extract the native binary from the custom section and execute it.
+
+In case that users want to generate the native binary only, WasmEdge uses the name of the extension to generate different output formats. If you set the extension as `.so`, then WasmEdge will generate native binary only. Otherwise, it will generate a universal wasm binary by default.
+
 ## Examples
 
 Here are some examples on how use the `wasmedge` command to run WebAssembly programs. They are all located in the `tools/wasmedge/examples` folder.
@@ -32,6 +48,18 @@ The `hello.wasm` WebAssembly program contains a `main()` function. Checkout its 
 ```bash
 # cd <path/to/WasmEdge>
 $ cd tools/wasmedge/examples
+$ wasmedge hello.wasm second state
+hello
+second
+state
+```
+
+#### With AoT compiler
+
+```bash
+# cd <path/to/WasmEdge>
+$ cd tools/wasmedge/examples
+$ wasmedgec hello.wasm hello.wasm # This will embed native binary into the origin wasm file and make it an universal wasm binary format
 $ wasmedge hello.wasm second state
 hello
 second
@@ -51,6 +79,16 @@ $ wasmedge --reactor add.wasm add 2 2
 
 > WebAssembly only supports a few simple data types. To call a wasm function with complex input parameters and return values in reactor mode, you will need the [rustwasmc](https://github.com/second-state/rustwasmc) compiler toolchain to generate wasm functions that can be embedded into [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) or [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/) programs.
 
+#### With AoT compiler
+
+```bash
+# cd <path/to/WasmEdge>
+$ cd tools/wasmedge/examples
+$ wasmedgec add.wasm add.wasm # This will embed native binary into the origin wasm file and make it an universal wasm binary format
+$ wasmedge --reactor add.wasm add 2 2
+4
+```
+
 ### Example: Fibonacci
 
 We created the `fibonacci.wat` program by hand and used the [wat2wasm](https://github.com/WebAssembly/wabt) compiler to build the `fibonacci.wasm` WebAssembly program. It contains a `fib()` function which takes a single integer as input parameter. We use `wasmedge` in reactor mode to call the exported function.
@@ -58,7 +96,7 @@ We created the `fibonacci.wat` program by hand and used the [wat2wasm](https://g
 ```bash
 # cd <path/to/WasmEdge>
 $ cd tools/wasmedge/examples
-# wasmedge [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-bulk-memory] [--enable-reference-types] [--enable-simd] [--enable-all] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
+# wasmedge [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-instruction-count] [--enable-gas-measuring] [--enable-time-measuring] [--enable-all-statistics] [--disable-import-export-mut-globals] [--disable-non-trap-float-to-int] [--disable-sign-extension-operators] [--disable-multi-value] [--disable-bulk-memory] [--disable-reference-types] [--disable-simd] [--enable-all] [--memory-page-limit PAGE_COUNT ...] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
 $ wasmedge --reactor fibonacci.wasm fib 10
 89
 ```
@@ -80,6 +118,16 @@ $ wasmedge --reactor fibonacci.wasm fib2 10
 2020-08-21 06:30:56,981 ERROR [default]     When executing function name: "fib2"
 ```
 
+#### With AoT compiler
+
+```bash
+# cd <path/to/WasmEdge>
+$ cd tools/wasmedge/examples
+$ wasmedgec fibonacci.wasm fibonacci.wasm # This will embed native binary into the origin wasm file and make it an universal wasm binary format
+$ wasmedge --reactor fibonacci.wasm fib 10
+89
+```
+
 ### Example: Factorial
 
 We created the `factorial.wat` program by hand and used the [wat2wasm](https://github.com/WebAssembly/wabt) compiler to build the `factorial.wasm` WebAssembly program. It contains a `fac()` function which takes a single integer as input parameter. We use `wasmedge` in reactor mode to call the exported function.
@@ -87,7 +135,17 @@ We created the `factorial.wat` program by hand and used the [wat2wasm](https://g
 ```bash
 # cd <path/to/WasmEdge>
 $ cd tools/wasmedge/examples
-# wasmedge [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-bulk-memory] [--enable-reference-types] [--enable-simd] [--enable-all] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
+# wasmedge [-h|--help] [-v|--version] [--reactor] [--dir PREOPEN_DIRS ...] [--env ENVS ...] [--enable-instruction-count] [--enable-gas-measuring] [--enable-time-measuring] [--enable-all-statistics] [--disable-import-export-mut-globals] [--disable-non-trap-float-to-int] [--disable-sign-extension-operators] [--disable-multi-value] [--disable-bulk-memory] [--disable-reference-types] [--disable-simd] [--enable-all] [--memory-page-limit PAGE_COUNT ...] [--allow-command COMMANDS ...] [--allow-command-all] [--] WASM_OR_SO [ARG ...]
+$ wasmedge --reactor factorial.wasm fac 5
+120
+```
+
+#### With AoT compiler
+
+```bash
+# cd <path/to/WasmEdge>
+$ cd tools/wasmedge/examples
+$ wasmedgec factorial.wasm factorial.wasm # This will embed native binary into the origin wasm file and make it an universal wasm binary format
 $ wasmedge --reactor factorial.wasm fac 5
 120
 ```
@@ -125,6 +183,25 @@ $ wget https://raw.githubusercontent.com/second-state/wasmedge-quickjs/main/exam
 $ wasmedge-tensorflow-lite --dir .:. qjs_tf.wasm main.js
 label: Hot dog
 confidence: 0.8941176470588236
+```
+
+#### With AoT compiler
+
+```bash
+$ cd tools/wasmedge/examples/js
+$ wasmedgec qjs.wasm qjs.wasm # This will embed native binary into the origin wasm file and make it an universal wasm binary format
+$ wasmedge --dir .:. qjs.wasm hello.js 1 2 3
+Hello 1 2 3
+```
+
+You can also run an interactive JavaScript terminal (read-eval-print loop, or REPL) from the WasmEdge CLI.
+
+```bash
+$ cd tools/wasmedge/examples/js
+$ wasmedgec qjs.wasm qjs.wasm # This will embed native binary into the origin wasm file and make it an universal wasm binary format
+$ wasmedge --dir .:. qjs.wasm repl.js
+QuickJS - Type "\h" for help
+qjs >
 ```
 
 ## More ways to run WasmEdge

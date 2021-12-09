@@ -2,7 +2,6 @@
 #include "common/defines.h"
 #include <cstdint>
 #include <cstring>
-#include <netinet/in.h>
 #if WASMEDGE_OS_LINUX
 
 #include "common/errcode.h"

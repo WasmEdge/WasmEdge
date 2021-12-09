@@ -1558,7 +1558,7 @@ Expect<uint32_t> WasiRandomGet::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 
 Expect<uint32_t> WasiSockOpen::body(Runtime::Instance::MemoryInstance *MemInst,
-                                    int32_t AddressFamily, int32_t SockType,
+                                    uint32_t AddressFamily, uint32_t SockType,
                                     uint32_t /* Out */ RoFdPtr) {
   /// Check memory instance from module.
   if (MemInst == nullptr) {
@@ -1619,7 +1619,8 @@ Expect<uint32_t> WasiSockBind::body(Runtime::Instance::MemoryInstance *MemInst,
   }
   const __wasi_fd_t WasiFd = Fd;
 
-  if (auto Res = Env.sockBind(WasiFd, AddressBuf, InnerAddress->buf_len,
+  if (auto Res = Env.sockBind(WasiFd, AddressBuf,
+                              static_cast<uint8_t>(InnerAddress->buf_len),
                               static_cast<uint16_t>(Port));
       unlikely(!Res)) {
     return Res.error();
@@ -1684,8 +1685,9 @@ WasiSockConnect::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   }
 
   const __wasi_fd_t WasiFd = Fd;
-  if (auto Res =
-          Env.sockConnect(WasiFd, AddressBuf, InnerAddress->buf_len, Port);
+  if (auto Res = Env.sockConnect(WasiFd, AddressBuf,
+                                 static_cast<uint8_t>(InnerAddress->buf_len),
+                                 static_cast<uint16_t>(Port));
       unlikely(!Res)) {
     return Res.error();
   }

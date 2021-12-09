@@ -86,6 +86,40 @@ impl Module {
             registered: false,
         })
     }
+
+    /// Get the length of imports list
+    pub fn imports_len(&self) -> u32 {
+        unsafe { wasmedge::WasmEdge_ASTModuleListImportsLength(self.ctx) }
+    }
+
+    /// Get the imports
+    pub fn imports(&self) -> WasmEdgeResult<impl Iterator<Item = ImportType>> {
+        let size = self.imports_len();
+        let mut returns = Vec::with_capacity(size as usize);
+        unsafe {
+            wasmedge::WasmEdge_ASTModuleListImports(self.ctx, returns.as_mut_ptr(), size);
+            returns.set_len(size as usize);
+        }
+
+        Ok(returns.into_iter().map(|ctx| ImportType { ctx }))
+    }
+
+    /// Get the length of exports list
+    pub fn exports_len(&self) -> u32 {
+        unsafe { wasmedge::WasmEdge_ASTModuleListExportsLength(self.ctx) }
+    }
+
+    /// Get the exports
+    pub fn exports(&self) -> WasmEdgeResult<impl Iterator<Item = ExportType>> {
+        let size = self.exports_len();
+        let mut returns = Vec::with_capacity(size as usize);
+        unsafe {
+            wasmedge::WasmEdge_ASTModuleListExports(self.ctx, returns.as_mut_ptr(), size);
+            returns.set_len(size as usize);
+        }
+
+        Ok(returns.into_iter().map(|ctx| ExportType { ctx }))
+    }
 }
 
 #[derive(Debug)]

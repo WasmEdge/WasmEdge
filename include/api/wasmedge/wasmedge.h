@@ -63,6 +63,8 @@ typedef struct WasmEdge_Result {
 typedef struct WasmEdge_Limit {
   /// Boolean to describe has max value or not.
   bool HasMax;
+  /// Boolean to describe is shared memory or not.
+  bool Shared;
   /// Minimum value.
   uint32_t Min;
   /// Maximum value. Will be ignored if the `HasMax` is false.

@@ -287,7 +287,7 @@ The details of instances creation will be introduced in the [Instances](#instanc
     The `Table Type` context is used for `Table` instance creation or getting information from `Table` instances.
 
     ```c
-    WasmEdge_Limit TabLim = {.HasMax = true, .Min = 10, .Max = 20};
+    WasmEdge_Limit TabLim = {.HasMax = true, .Shared = false, .Min = 10, .Max = 20};
     WasmEdge_TableTypeContext *TabTypeCxt = WasmEdge_TableTypeCreate(WasmEdge_RefType_ExternRef, TabLim);
 
     enum WasmEdge_RefType GotRefType = WasmEdge_TableTypeGetRefType(TabTypeCxt);
@@ -303,7 +303,7 @@ The details of instances creation will be introduced in the [Instances](#instanc
     The `Memory Type` context is used for `Memory` instance creation or getting information from `Memory` instances.
 
     ```c
-    WasmEdge_Limit MemLim = {.HasMax = true, .Min = 10, .Max = 20};
+    WasmEdge_Limit MemLim = {.HasMax = true, .Shared = false, .Min = 10, .Max = 20};
     WasmEdge_MemoryTypeContext *MemTypeCxt = WasmEdge_MemoryTypeCreate(MemLim);
 
     WasmEdge_Limit GotMemLim = WasmEdge_MemoryTypeGetLimit(MemTypeCxt);
@@ -1723,7 +1723,7 @@ The instances created by their creation functions should be destroyed by develop
     The `Table` contexts supply APIs to control the data in table instances.
 
     ```c
-    WasmEdge_Limit TabLimit = {.HasMax = true, .Min = 10, .Max = 20};
+    WasmEdge_Limit TabLimit = {.HasMax = true, .Shared = false, .Min = 10, .Max = 20};
     /* Create the table type with limit and the `FuncRef` element type. */
     WasmEdge_TableTypeContext *TabTypeCxt = WasmEdge_TableTypeCreate(WasmEdge_RefType_FuncRef, TabLimit);
     /* Create the table instance with table type. */
@@ -1772,7 +1772,7 @@ The instances created by their creation functions should be destroyed by develop
     The `Memory` contexts supply APIs to control the data in memory instances.
 
     ```c
-    WasmEdge_Limit MemLimit = {.HasMax = true, .Min = 1, .Max = 5};
+    WasmEdge_Limit MemLimit = {.HasMax = true, .Shared = false, .Min = 1, .Max = 5};
     /* Create the memory type with limit. The memory page size is 64KiB. */
     WasmEdge_MemoryTypeContext *MemTypeCxt = WasmEdge_MemoryTypeCreate(MemLimit);
     /* Create the memory instance with memory type. */
@@ -1946,8 +1946,8 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
     WasmEdge_ModuleInstanceAddFunction(HostModCxt, FuncName, HostFunc);
     WasmEdge_StringDelete(FuncName);
 
-    /* Create and add a table instance into the module instance. */
-    WasmEdge_Limit TableLimit = {.HasMax = true, .Min = 10, .Max = 20};
+    /* Create and add a table instance into the import object. */
+    WasmEdge_Limit TableLimit = {.HasMax = true, .Shared = false, .Min = 10, .Max = 20};
     WasmEdge_TableTypeContext *HostTType = 
       WasmEdge_TableTypeCreate(WasmEdge_RefType_FuncRef, TableLimit);
     WasmEdge_TableInstanceContext *HostTable = WasmEdge_TableInstanceCreate(HostTType);
@@ -1956,8 +1956,8 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
     WasmEdge_ModuleInstanceAddTable(HostModCxt, TableName, HostTable);
     WasmEdge_StringDelete(TableName);
 
-    /* Create and add a memory instance into the module instance. */
-    WasmEdge_Limit MemoryLimit = {.HasMax = true, .Min = 1, .Max = 2};
+    /* Create and add a memory instance into the import object. */
+    WasmEdge_Limit MemoryLimit = {.HasMax = true, .Shared = false, .Min = 1, .Max = 2};
     WasmEdge_MemoryTypeContext *HostMType = WasmEdge_MemoryTypeCreate(MemoryLimit);
     WasmEdge_MemoryInstanceContext *HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
     WasmEdge_MemoryTypeDelete(HostMType);

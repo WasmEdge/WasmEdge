@@ -73,6 +73,10 @@ public:
     addHostMemory("memory", std::make_unique<Runtime::Instance::MemoryInstance>(
                                 AST::MemoryType(1, 2)));
 
+    addHostMemory("shared_memory",
+                  std::make_unique<Runtime::Instance::MemoryInstance>(
+                      AST::MemoryType(1, 2, true)));
+
     addHostGlobal(
         "global_i32",
         std::make_unique<Runtime::Instance::GlobalInstance>(

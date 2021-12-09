@@ -719,6 +719,8 @@ E(IllegalOpCode, 0x37, "illegal opcode")
 E(ENDCodeExpected, 0x38, "END opcode expected")
 // Parsing error
 E(IllegalGrammar, 0x39, "invalid wasm grammar")
+// Shared memory must have max
+E(SharedMemoryNoMax, 0x3A, "shared memory must have maximum")
 // @}
 
 // Validation phase
@@ -815,6 +817,8 @@ E(IndirectCallTypeMismatch, 0x8C, "indirect call type mismatch")
 E(ExecutionFailed, 0x8D, "host function failed")
 // Reference type not match
 E(RefTypeMismatch, 0x8E, "reference type mismatch")
+// Unaligned atomic memory access
+E(UnalignedAtomicAccess, 0x8F, "unaligned atomic")
 // @}
 
 #undef E

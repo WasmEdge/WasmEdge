@@ -73,8 +73,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: WasmEdge-${{ needs.create_release.outputs.version }}-src.tar.gz
-        asset_name: WasmEdge-${{ needs.create_release.outputs.version }}.tar.gz
+        asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-src.tar.gz
+        asset_path: WasmEdge-${{ needs.create_release.outputs.version }}.tar.gz
         asset_content_type: application/x-gzip
 
   build_on_ubuntu:

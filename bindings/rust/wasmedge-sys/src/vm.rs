@@ -284,11 +284,7 @@ impl Drop for Vm {
 #[cfg(test)]
 mod tests {
     use super::Vm;
-    use crate::{
-        instance::Function,
-        io::{I1, I2},
-        Config, ImportObj, Module, Store, Value,
-    };
+    use crate::{Config, Module, Store};
 
     #[test]
     fn test_vm_create() {
@@ -402,68 +398,5 @@ mod tests {
         // validate vm instance
         let result = vm.validate();
         assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_pysdk() {
-        // step 1: create a host function instance
-        let mut host_func =
-            Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add)).unwrap();
-
-        // step 2: create ImportObject instance
-        let module_name = "extern";
-        let mut import_obj = ImportObj::create(module_name).unwrap();
-
-        // step 3: add the host function into ImportObj instance
-        let host_func_name = "add";
-        import_obj.add_func(host_func_name, &mut host_func); // call WasmEdge_ImportObjectAddFunction
-
-        // step 4: create Vm instance
-        let vm = Vm::create(None, None).unwrap();
-
-        // step 5: register module from ImportObj instance
-        let result = vm.register_module_from_import(import_obj); // call WasmEdge_VMRegisterModuleFromImport
-        assert!(result.is_ok());
-        let vm = result.unwrap();
-
-        // assert_eq!(vm.func_list_len(), 1); // expect 1, but the actual is 0
-
-        // step 6: get the Store instance from the VM instance
-        let result = vm.get_store(); // call WasmEdge_VMGetStoreContext
-        assert!(result.is_some());
-        let store = result.unwrap();
-
-        // step 7: check the length of the function list registered in the module
-        assert_eq!(store.list_func_registered_len(module_name), 1); // call WasmEdge_StoreListFunctionRegisteredLength
-
-        // step 8: get and print the names of the functions registered in the module
-        let func_names = store.list_func_registered(module_name); // call WasmEdge_StoreListFunctionRegistered
-        println!("registered func names: {:?}", func_names); // registered func names: ["add"]
-    }
-
-    fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
-        println!("Rust: Entering Rust function real_add");
-
-        if input.len() != 2 {
-            return Err(1);
-        }
-
-        let a = if let Value::I32(i) = input[0] {
-            i
-        } else {
-            return Err(2);
-        };
-
-        let b = if let Value::I32(i) = input[1] {
-            i
-        } else {
-            return Err(3);
-        };
-
-        let c = a + b;
-        println!("Rust: calcuating in real_add c: {:?}", c);
-
-        println!("Rust: Leaving Rust function real_add");
-        Ok(vec![Value::I32(c)])
     }
 }

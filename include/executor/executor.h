@@ -511,6 +511,52 @@ private:
   template <typename T> Expect<void> runVectorFloorOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorTruncOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorNearestOp(ValVariant &Val) const;
+  /// ======= Atomic instructions =======
+  Expect<void> runAtomicNofityOp(Runtime::StackManager &StackMgr,
+                                 Runtime::Instance::MemoryInstance &MemInst,
+                                 const AST::Instruction &Instr);
+  Expect<void> runMemoryFenceOp();
+  template <typename T>
+  TypeT<T> runAtomicWaitOp(Runtime::StackManager &StackMgr,
+                           Runtime::Instance::MemoryInstance &MemInst,
+                           const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicLoadOp(Runtime::StackManager &StackMgr,
+                           Runtime::Instance::MemoryInstance &MemInst,
+                           const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicStoreOp(Runtime::StackManager &StackMgr,
+                            Runtime::Instance::MemoryInstance &MemInst,
+                            const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicAddOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst,
+                          const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicSubOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst,
+                          const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicOrOp(Runtime::StackManager &StackMgr,
+                         Runtime::Instance::MemoryInstance &MemInst,
+                         const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicAndOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst,
+                          const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicXorOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst,
+                          const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicExchangeOp(Runtime::StackManager &StackMgr,
+                               Runtime::Instance::MemoryInstance &MemInst,
+                               const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T>
+  runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
+                             Runtime::Instance::MemoryInstance &MemInst,
+                             const AST::Instruction &Instr);
   /// @}
 
   /// \name Run compiled functions
@@ -610,6 +656,7 @@ private:
 } // namespace Executor
 } // namespace WasmEdge
 
+#include "engine/atomic.ipp"
 #include "engine/binary_numeric.ipp"
 #include "engine/cast_numeric.ipp"
 #include "engine/memory.ipp"

@@ -19,7 +19,7 @@ Expect<OpCode> Loader::loadOpCode() {
     return Unexpect(B1);
   }
 
-  if (Payload == 0xFCU || Payload == 0xFDU) {
+  if (Payload == 0xFCU || Payload == 0xFDU || Payload == 0xFEU) {
     // 2-bytes OpCode case.
     if (auto B2 = FMgr.readU32()) {
       Payload <<= 8;
@@ -850,7 +850,81 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::F64x2__floor:
   case OpCode::F64x2__trunc:
   case OpCode::F64x2__nearest:
+
+  case OpCode::Atomic__fence:
     return {};
+
+  case OpCode::Memory__atomic__notify:
+  case OpCode::Memory__atomic__wait32:
+  case OpCode::Memory__atomic__wait64:
+
+  case OpCode::I32__atomic__load:
+  case OpCode::I64__atomic__load:
+  case OpCode::I32__atomic__load8_u:
+  case OpCode::I32__atomic__load16_u:
+  case OpCode::I64__atomic__load8_u:
+  case OpCode::I64__atomic__load16_u:
+  case OpCode::I64__atomic__load32_u:
+  case OpCode::I32__atomic__store:
+  case OpCode::I64__atomic__store:
+  case OpCode::I32__atomic__store8:
+  case OpCode::I32__atomic__store16:
+  case OpCode::I64__atomic__store8:
+  case OpCode::I64__atomic__store16:
+  case OpCode::I64__atomic__store32:
+  case OpCode::I32__atomic__rmw__add:
+  case OpCode::I64__atomic__rmw__add:
+  case OpCode::I32__atomic__rmw8__add_u:
+  case OpCode::I32__atomic__rmw16__add_u:
+  case OpCode::I64__atomic__rmw8__add_u:
+  case OpCode::I64__atomic__rmw16__add_u:
+  case OpCode::I64__atomic__rmw32__add_u:
+  case OpCode::I32__atomic__rmw__sub:
+  case OpCode::I64__atomic__rmw__sub:
+  case OpCode::I32__atomic__rmw8__sub_u:
+  case OpCode::I32__atomic__rmw16__sub_u:
+  case OpCode::I64__atomic__rmw8__sub_u:
+  case OpCode::I64__atomic__rmw16__sub_u:
+  case OpCode::I64__atomic__rmw32__sub_u:
+  case OpCode::I32__atomic__rmw__and:
+  case OpCode::I64__atomic__rmw__and:
+  case OpCode::I32__atomic__rmw8__and_u:
+  case OpCode::I32__atomic__rmw16__and_u:
+  case OpCode::I64__atomic__rmw8__and_u:
+  case OpCode::I64__atomic__rmw16__and_u:
+  case OpCode::I64__atomic__rmw32__and_u:
+  case OpCode::I32__atomic__rmw__or:
+  case OpCode::I64__atomic__rmw__or:
+  case OpCode::I32__atomic__rmw8__or_u:
+  case OpCode::I32__atomic__rmw16__or_u:
+  case OpCode::I64__atomic__rmw8__or_u:
+  case OpCode::I64__atomic__rmw16__or_u:
+  case OpCode::I64__atomic__rmw32__or_u:
+  case OpCode::I32__atomic__rmw__xor:
+  case OpCode::I64__atomic__rmw__xor:
+  case OpCode::I32__atomic__rmw8__xor_u:
+  case OpCode::I32__atomic__rmw16__xor_u:
+  case OpCode::I64__atomic__rmw8__xor_u:
+  case OpCode::I64__atomic__rmw16__xor_u:
+  case OpCode::I64__atomic__rmw32__xor_u:
+  case OpCode::I32__atomic__rmw__xchg:
+  case OpCode::I64__atomic__rmw__xchg:
+  case OpCode::I32__atomic__rmw8__xchg_u:
+  case OpCode::I32__atomic__rmw16__xchg_u:
+  case OpCode::I64__atomic__rmw8__xchg_u:
+  case OpCode::I64__atomic__rmw16__xchg_u:
+  case OpCode::I64__atomic__rmw32__xchg_u:
+  case OpCode::I32__atomic__rmw__cmpxchg:
+  case OpCode::I64__atomic__rmw__cmpxchg:
+  case OpCode::I32__atomic__rmw8__cmpxchg_u:
+  case OpCode::I32__atomic__rmw16__cmpxchg_u:
+  case OpCode::I64__atomic__rmw8__cmpxchg_u:
+  case OpCode::I64__atomic__rmw16__cmpxchg_u:
+  case OpCode::I64__atomic__rmw32__cmpxchg_u:
+    if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
+      return Unexpect(Res);
+    }
+    return readU32(Instr.getMemoryOffset());
 
   default:
     return logLoadError(ErrCode::IllegalOpCode, Instr.getOffset(),
@@ -905,6 +979,13 @@ Expect<void> Loader::checkInstrProposals(OpCode Code, uint64_t Offset) {
     // These instructions are for TailCall proposal.
     if (!Conf.hasProposal(Proposal::TailCall)) {
       return logNeedProposal(ErrCode::IllegalOpCode, Proposal::TailCall, Offset,
+                             ASTNodeAttr::Instruction);
+    }
+  } else if (Code >= OpCode::I32__atomic__load &&
+             Code <= OpCode::I64__atomic__rmw32__cmpxchg_u) {
+    // These instructions are for Thread proposal.
+    if (!Conf.hasProposal(Proposal::Threads)) {
+      return logNeedProposal(ErrCode::IllegalOpCode, Proposal::Threads, Offset,
                              ASTNodeAttr::Instruction);
     }
   }

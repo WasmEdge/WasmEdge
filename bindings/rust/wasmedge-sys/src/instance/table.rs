@@ -67,8 +67,8 @@ impl Table {
     }
 
     /// Get the size of a table instance.
-    pub fn get_size(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_TableInstanceGetSize(self.ctx) }
+    pub fn size(&self) -> usize {
+        unsafe { wasmedge::WasmEdge_TableInstanceGetSize(self.ctx) as usize }
     }
 
     /// Grow a table instance with a size.

@@ -20,6 +20,10 @@ namespace Log {
 
 void setDebugLoggingLevel();
 
+void setInfoLoggingLevel();
+
+void setWarnLoggingLevel();
+
 void setErrorLoggingLevel();
 
 } // namespace Log

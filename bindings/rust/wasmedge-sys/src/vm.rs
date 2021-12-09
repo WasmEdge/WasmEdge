@@ -90,7 +90,7 @@ impl Vm {
     }
 
     /// Get the function type by function name.
-    pub fn func_type(&self, func_name: impl AsRef<str>) -> Option<FuncType> {
+    pub fn get_func_type(&self, func_name: impl AsRef<str>) -> Option<FuncType> {
         let ty_ctx = unsafe {
             wasmedge::WasmEdge_VMGetFunctionType(
                 self.ctx,
@@ -107,7 +107,7 @@ impl Vm {
     }
 
     /// Get the function type by function name.
-    pub fn func_type_registered(
+    pub fn get_registered_func_type(
         &self,
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,

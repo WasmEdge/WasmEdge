@@ -19,8 +19,8 @@ Expect<OpCode> Loader::loadOpCode() {
     return Unexpect(B1);
   }
 
-  if (Payload == 0xFCU || Payload == 0xFDU) {
-    // 2-bytes OpCode case.
+  if (Payload == 0xFCU || Payload == 0xFDU || Payload == 0xFEU) {
+    /// 2-bytes OpCode case.
     if (auto B2 = FMgr.readU32()) {
       Payload <<= 8;
       Payload += (*B2);
@@ -841,6 +841,70 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::F64x2__floor:
   case OpCode::F64x2__trunc:
   case OpCode::F64x2__nearest:
+
+  case OpCode::I32__atomic_load_s:
+  case OpCode::I64__atomic_load_s:
+  case OpCode::I32__atomic_load8_u:
+  case OpCode::I32__atomic_load16_u:
+  case OpCode::I64__atomic_load8_u:
+  case OpCode::I64__atomic_load16_u:
+  case OpCode::I64__atomic_load32_u:
+  case OpCode::I32__atomic_store_s:
+  case OpCode::I64__atomic_store_s:
+  case OpCode::I32__atomic_store8_u:
+  case OpCode::I32__atomic_store16_u:
+  case OpCode::I64__atomic_store8_u:
+  case OpCode::I64__atomic_store16_u:
+  case OpCode::I64__atomic_store32_u:
+  case OpCode::I32__atomic_add_s:
+  case OpCode::I64__atomic_add_s:
+  case OpCode::I32__atomic_add8_u:
+  case OpCode::I32__atomic_add16_u:
+  case OpCode::I64__atomic_add8_u:
+  case OpCode::I64__atomic_add16_u:
+  case OpCode::I64__atomic_add32_u:
+  case OpCode::I32__atomic_sub_s:
+  case OpCode::I64__atomic_sub_s:
+  case OpCode::I32__atomic_sub8_u:
+  case OpCode::I32__atomic_sub16_u:
+  case OpCode::I64__atomic_sub8_u:
+  case OpCode::I64__atomic_sub16_u:
+  case OpCode::I64__atomic_sub32_u:
+  case OpCode::I32__atomic_and_s:
+  case OpCode::I64__atomic_and_s:
+  case OpCode::I32__atomic_and8_u:
+  case OpCode::I32__atomic_and16_u:
+  case OpCode::I64__atomic_and8_u:
+  case OpCode::I64__atomic_and16_u:
+  case OpCode::I64__atomic_and32_u:
+  case OpCode::I32__atomic_or_s:
+  case OpCode::I64__atomic_or_s:
+  case OpCode::I32__atomic_or8_u:
+  case OpCode::I32__atomic_or16_u:
+  case OpCode::I64__atomic_or8_u:
+  case OpCode::I64__atomic_or16_u:
+  case OpCode::I64__atomic_or32_u:
+  case OpCode::I32__atomic_xor_s:
+  case OpCode::I64__atomic_xor_s:
+  case OpCode::I32__atomic_xor8_u:
+  case OpCode::I32__atomic_xor16_u:
+  case OpCode::I64__atomic_xor8_u:
+  case OpCode::I64__atomic_xor16_u:
+  case OpCode::I64__atomic_xor32_u:
+  case OpCode::I32__atomic_xchg_s:
+  case OpCode::I64__atomic_xchg_s:
+  case OpCode::I32__atomic_xchg8_u:
+  case OpCode::I32__atomic_xchg16_u:
+  case OpCode::I64__atomic_xchg8_u:
+  case OpCode::I64__atomic_xchg16_u:
+  case OpCode::I64__atomic_xchg32_u:
+  case OpCode::I32__atomic_cmpxchg_s:
+  case OpCode::I64__atomic_cmpxchg_s:
+  case OpCode::I32__atomic_cmpxchg8_u:
+  case OpCode::I32__atomic_cmpxchg16_u:
+  case OpCode::I64__atomic_cmpxchg8_u:
+  case OpCode::I64__atomic_cmpxchg16_u:
+  case OpCode::I64__atomic_cmpxchg32_u:
     return {};
 
   default:
@@ -889,6 +953,13 @@ Expect<void> Loader::checkInstrProposals(OpCode Code, uint64_t Offset) {
     // These instructions are for SIMD proposal.
     if (!Conf.hasProposal(Proposal::SIMD)) {
       return logNeedProposal(ErrCode::IllegalOpCode, Proposal::SIMD, Offset,
+                             ASTNodeAttr::Instruction);
+    }
+  } else if (Code >= OpCode::I32__atomic_load_s &&
+             Code <= OpCode::I64__atomic_cmpxchg32_u) {
+    /// These instructions are for Thread proposal.
+    if (!Conf.hasProposal(Proposal::Threads)) {
+      return logNeedProposal(ErrCode::IllegalOpCode, Proposal::Threads, Offset,
                              ASTNodeAttr::Instruction);
     }
   }

@@ -75,6 +75,8 @@ int main(int Argc, const char *Argv[]) {
       PO::Description("Enable Tail-call proposal"sv));
   PO::Option<PO::Toggle> PropExtendConst(
       PO::Description("Enable Extended-const proposal"sv));
+  PO::Option<PO::Toggle> PropThreads(
+      PO::Description("Enable Threads proposal"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
 
   auto Parser = PO::ArgumentParser();
@@ -98,6 +100,7 @@ int main(int Argc, const char *Argv[]) {
            .add_option("enable-multi-memory"sv, PropMultiMem)
            .add_option("enable-tail-call"sv, PropTailCall)
            .add_option("enable-extended-const"sv, PropExtendConst)
+           .add_option("enable-threads"sv, PropThreads)
            .add_option("enable-all"sv, PropAll)
            .parse(Argc, Argv)) {
     return EXIT_FAILURE;
@@ -138,10 +141,14 @@ int main(int Argc, const char *Argv[]) {
   if (PropExtendConst.value()) {
     Conf.addProposal(WasmEdge::Proposal::ExtendedConst);
   }
+  if (PropThreads.value()) {
+    Conf.addProposal(WasmEdge::Proposal::Threads);
+  }
   if (PropAll.value()) {
     Conf.addProposal(WasmEdge::Proposal::MultiMemories);
     Conf.addProposal(WasmEdge::Proposal::TailCall);
     Conf.addProposal(WasmEdge::Proposal::ExtendedConst);
+    Conf.addProposal(WasmEdge::Proposal::Threads);
   }
 
   std::filesystem::path InputPath = std::filesystem::absolute(WasmName.value());

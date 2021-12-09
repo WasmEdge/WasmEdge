@@ -16,7 +16,7 @@ int main(int Argc, const char *Argv[]) {
   using namespace std::literals;
 
   std::ios::sync_with_stdio(false);
-  WasmEdge::Log::setErrorLoggingLevel();
+  WasmEdge::Log::setInfoLoggingLevel();
 
   PO::Option<std::string> SoName(PO::Description("Wasm or so file"sv),
                                  PO::MetaVar("WASM_OR_SO"sv));

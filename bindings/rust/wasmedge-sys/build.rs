@@ -41,6 +41,7 @@ fn build_wasmedge_project(hash: String) -> Paths {
             "-GNinja",
             "-DCMAKE_BUILD_TYPE=Release",
             "-DWASMEDGE_BUILD_TESTS=ON",
+            #[cfg(not(feature = "aot"))]
             "-DWASMEDGE_BUILD_AOT_RUNTIME=OFF",
             &format!("-DCMAKE_INSTALL_PREFIX={}", &out_dir),
             ".",

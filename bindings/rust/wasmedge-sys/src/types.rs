@@ -1,4 +1,5 @@
 use super::wasmedge;
+use std::fmt;
 pub type WasmEdgeProposal = wasmedge::WasmEdge_Proposal;
 pub type HostFunc = wasmedge::WasmEdge_HostFunc_t;
 pub type WrapFunc = wasmedge::WasmEdge_WrapFunc_t;
@@ -185,5 +186,32 @@ impl From<HostRegistration> for wasmedge::WasmEdge_HostRegistration {
                 wasmedge::WasmEdge_HostRegistration_WasmEdge_Process
             }
         }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(u32)]
+pub enum ExternalType {
+    Function = wasmedge::WasmEdge_ExternalType_Function,
+    Table = wasmedge::WasmEdge_ExternalType_Table,
+    Memory = wasmedge::WasmEdge_ExternalType_Memory,
+    Global = wasmedge::WasmEdge_ExternalType_Global,
+}
+impl From<u32> for ExternalType {
+    fn from(value: u32) -> Self {
+        match value {
+            0x00u32 => ExternalType::Function,
+        }
+    }
+}
+impl fmt::Display for ExternalType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let message = match self {
+            ExternalType::Function => "function",
+            ExternalType::Table => "table",
+            ExternalType::Memory => "memory",
+            ExternalType::Global => "global",
+        };
+        write!(f, "{}", message)
     }
 }

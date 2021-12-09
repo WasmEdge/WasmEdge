@@ -62,6 +62,8 @@ int main(int Argc, const char *Argv[]) {
   PO::Option<PO::Toggle> PropSIMD(PO::Description("Disable SIMD proposal"sv));
   PO::Option<PO::Toggle> PropMultiMem(
       PO::Description("Enable Multiple memories proposal"sv));
+  PO::Option<PO::Toggle> PropThreads(
+      PO::Description("Enable Threads proposal"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
 
   auto Parser = PO::ArgumentParser();
@@ -83,6 +85,7 @@ int main(int Argc, const char *Argv[]) {
            .add_option("disable-reference-types"sv, PropRefTypes)
            .add_option("disable-simd"sv, PropSIMD)
            .add_option("enable-multi-memory"sv, PropMultiMem)
+           .add_option("enable-threads"sv, PropThreads)
            .add_option("enable-all"sv, PropAll)
            .parse(Argc, Argv)) {
     return EXIT_FAILURE;
@@ -117,8 +120,12 @@ int main(int Argc, const char *Argv[]) {
   if (PropMultiMem.value()) {
     Conf.addProposal(WasmEdge::Proposal::MultiMemories);
   }
+  if (PropThreads.value()) {
+    Conf.addProposal(WasmEdge::Proposal::Threads);
+  }
   if (PropAll.value()) {
     Conf.addProposal(WasmEdge::Proposal::MultiMemories);
+    Conf.addProposal(WasmEdge::Proposal::Threads);
   }
 
   std::filesystem::path InputPath = std::filesystem::absolute(WasmName.value());

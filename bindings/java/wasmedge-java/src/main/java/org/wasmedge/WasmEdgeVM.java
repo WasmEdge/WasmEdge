@@ -1,5 +1,7 @@
 package org.wasmedge;
 
+import org.wasmedge.enums.HostRegistration;
+
 import java.util.List;
 
 public class WasmEdgeVM {
@@ -47,6 +49,10 @@ public class WasmEdgeVM {
                 returnsArray, returns.size(), returnTypes);
     }
 
+    public native void runWasmFromBuffer(byte[] buffer, String funcName,  List<WasmEdgeValue> parasm, List<WasmEdgeValue> returns);
+
+    public native void runWasmFromASTModule(ASTModuleContext astModuleContext, String funcName, List<WasmEdgeValue> params, List<WasmEdgeValue> returns);
+
     private int[] getValueTypeArray(List<WasmEdgeValue> values) {
 
         int[] types = new int[values.size()];
@@ -64,6 +70,10 @@ public class WasmEdgeVM {
     }
 
     public native void loadWasmFromFile(String filePath);
+
+    public native void loadWasmFromBuffer(byte[] buffer);
+
+    public native void loadWasmFromASTModule(ASTModuleContext astModuleContext);
 
     public native void validate();
 
@@ -86,6 +96,7 @@ public class WasmEdgeVM {
                          int returnSize,
                          int[] returnTypes);
 
+
     public void destroy() {
         if(configureContext != null) {
             configureContext.destroy();
@@ -100,15 +111,25 @@ public class WasmEdgeVM {
 
     public native void registerModuleFromFile(String modName, String fileName);
 
+    public native void registerModuleFromBuffer(String moduleName, byte[] buffer);
+
+    public native void registerModuleFromImport(ImportObjectContext importObjectContext);
+
+    public native void registerModuleFromASTModule(String moduleName, ASTModuleContext astModuleContext);
+
     public native void executeRegistered(String modName, String funcName, List<WasmEdgeValue> params,
                                          List<WasmEdgeValue> returns);
 
     public native List<FunctionTypeContext> getFunctionList();
 
-    public native FunctionTypeContext getFunction(String funcName);
+    public native FunctionTypeContext getFunctionType(String funcName);
 
+    public native ImportObjectContext getImportModuleContext(HostRegistration reg);
+    public native StoreContext getStoreContext();
+    public native StatisticsContext getStatisticsContext();
+    public native FunctionTypeContext getFunctionTypeRegistered(String moduleName,
+                                                  String funcName);
+
+    public native void cleanUp();
     private native void delete();
-
-
-
 }

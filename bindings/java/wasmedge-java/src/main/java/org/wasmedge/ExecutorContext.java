@@ -15,12 +15,19 @@ public class ExecutorContext {
 
     public native void instantiate(StoreContext storeContext, ASTModuleContext astModuleContext);
 
-    public native void execute(StoreContext storeContext, String funName,
+    public native void invoke(StoreContext storeContext, String funName,
                                List<WasmEdgeValue> params, List<WasmEdgeValue> returns);
+
+
+    public native void invokeRegistered(StoreContext storeContext,
+                                        String modeName, String funName,
+                              List<WasmEdgeValue> params, List<WasmEdgeValue> returns);
 
     public native void registerModule(StoreContext storeCxt,
                                       ASTModuleContext astCxt,
                                       String modeName);
 
     public native void registerImport(StoreContext storeCxt, ImportTypeContext importTypeContext);
+
+    public native void delete();
 }

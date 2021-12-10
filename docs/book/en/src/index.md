@@ -81,6 +81,25 @@ It contains a `fib()` function which takes a single integer as input parameter. 
 $ wasmedge --reactor fibonacci.wasm fib 10
 89
 ```
+### With Statistics enabled
+
+The CLI now supports `--enable-all-statistics` flags for the statistics and gas meter. 
+
+```bash
+$ wasmedge --enable-all-statistics hello.wasm second state
+hello
+second
+state
+[2021-12-09 16:03:33.261] [info] ====================  Statistics  ====================
+[2021-12-09 16:03:33.261] [info]  Total execution time: 268266 ns
+[2021-12-09 16:03:33.261] [info]  Wasm instructions execution time: 251610 ns
+[2021-12-09 16:03:33.261] [info]  Host functions execution time: 16656 ns
+[2021-12-09 16:03:33.261] [info]  Executed wasm instructions count: 20425
+[2021-12-09 16:03:33.261] [info]  Gas costs: 20425
+[2021-12-09 16:03:33.261] [info]  Instructions per second: 81177218
+[2021-12-09 16:03:33.261] [info] =======================   End   ======================
+```
+
 
 ## JavaScript examples
 
@@ -115,6 +134,8 @@ $ wasmedge-tensorflow-lite --dir .:. qjs_tf.wasm main.js
 label: Hot dog
 confidence: 0.8941176470588236
 ```
+
+
 
 Read on and continue your learning of WasmEdge.
 

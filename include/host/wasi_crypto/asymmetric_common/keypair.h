@@ -32,7 +32,7 @@ public:
   static WasiCryptoExpect<KeyPair> fromPkAndSk(PublicKey Pk, SecretKey Sk);
 
   WasiCryptoExpect<std::vector<uint8_t>>
-  exportData(__wasi_keypair_encoding_e_t Encoding);
+  exportData(__wasi_keypair_encoding_e_t Kp);
 
   WasiCryptoExpect<PublicKey> publicKey();
 

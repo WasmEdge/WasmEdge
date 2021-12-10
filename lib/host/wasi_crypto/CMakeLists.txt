@@ -48,6 +48,9 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   wrapper/random.cpp
   wrapper/hmac_sha2.cpp
   wrapper/x25519.cpp
+  wrapper/ecdsa.cpp
+  wrapper/eddsa.cpp
+  wrapper/rsa.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

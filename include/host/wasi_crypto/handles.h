@@ -167,7 +167,7 @@ public:
       NextHandle = nextHandle(LastHandle);
     }
     LastHandle = NextHandle;
-    if (!Map.emplace(std::make_pair(NextHandle, Manger)).second) {
+    if (!Map.emplace(std::make_pair(NextHandle, std::forward<MangerType>(Manger))).second) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
     }
     return NextHandle;

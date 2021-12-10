@@ -2,9 +2,9 @@
 
 #include "host/wasi_crypto/signature/func.h"
 #include "host/wasi_crypto/error.h"
+#include "host/wasi_crypto/signature/alg.h"
 #include "host/wasi_crypto/util.h"
 #include "runtime/instance/memory.h"
-#include "host/wasi_crypto/signature/alg.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -43,8 +43,7 @@ Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
                               const_uint8_t_ptr AlgorithmPtr,
                               __wasi_size_t AlgorithmLen,
                               const_uint8_t_ptr EncodedPtr,
-                              __wasi_size_t EncodedLen,
-                              uint16_t Encoding,
+                              __wasi_size_t EncodedLen, uint16_t Encoding,
                               uint32_t /* Out */ SignaturePtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -56,7 +55,7 @@ Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
   }
   std::string_view Alg{AlgMem, AlgorithmLen};
   auto EnumAlg = tryFrom<SignatureAlgorithm>(Alg);
-  if(!EnumAlg) {
+  if (!EnumAlg) {
     return EnumAlg.error();
   }
 
@@ -72,12 +71,11 @@ Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   auto Res = Ctx.signatureImport(*EnumAlg, Encoded, *EncodingType);
-  if(unlikely(!Res)) {
+  if (unlikely(!Res)) {
     return Res.error();
   }
 
-  auto *Signature =
-      MemInst->getPointer<__wasi_signature_t *>(SignaturePtr);
+  auto *Signature = MemInst->getPointer<__wasi_signature_t *>(SignaturePtr);
   if (unlikely(Signature == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -95,7 +93,7 @@ Expect<uint32_t> StateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   auto Res = Ctx.signatureStateOpen(Kp);
-  if(unlikely(!Res)) {
+  if (unlikely(!Res)) {
     return Res.error();
   }
 
@@ -125,7 +123,7 @@ Expect<uint32_t> StateUpdate::body(Runtime::Instance::MemoryInstance *MemInst,
   Span<uint8_t const> Input{InputMem, InputSize};
 
   auto Res = Ctx.signatureStateUpdate(State, Input);
-  if(unlikely(!Res)) {
+  if (unlikely(!Res)) {
     return Res.error();
   }
 
@@ -141,7 +139,7 @@ StateSign::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   auto Res = Ctx.signatureStateSign(State);
-  if(unlikely(!Res)) {
+  if (unlikely(!Res)) {
     return Res.error();
   }
 
@@ -163,7 +161,7 @@ Expect<uint32_t> StateClose::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   auto Res = Ctx.signatureStateClose(State);
-  if(unlikely(!Res)) {
+  if (unlikely(!Res)) {
     return Res.error();
   }
 
@@ -179,12 +177,13 @@ VerificationStateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   auto Res = Ctx.signatureVerificationStateOpen(Pk);
-  if(unlikely(!Res)) {
+  if (unlikely(!Res)) {
     return Res.error();
   }
 
   auto *SignatureVerificationState =
-      MemInst->getPointer<__wasi_signature_state_t *>(SignatureVerificationStatePtr);
+      MemInst->getPointer<__wasi_signature_state_t *>(
+          SignatureVerificationStatePtr);
   if (unlikely(SignatureVerificationState == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -210,7 +209,7 @@ VerificationStateUpdate::body(Runtime::Instance::MemoryInstance *MemInst,
   Span<uint8_t const> Input{InputMem, InputSize};
 
   auto Res = Ctx.signatureVerificationStateUpdate(State, Input);
-  if(unlikely(!Res)) {
+  if (unlikely(!Res)) {
     return Res.error();
   }
 
@@ -226,7 +225,7 @@ VerificationStateVerify::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   auto Res = Ctx.signatureVerificationStateVerify(State, Signature);
-  if(unlikely(!Res)) {
+  if (unlikely(!Res)) {
     return Res.error();
   }
 
@@ -241,7 +240,7 @@ VerificationStateClose::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   auto Res = Ctx.signatureVerificationStateClose(State);
-  if(unlikely(!Res)) {
+  if (unlikely(!Res)) {
     return Res.error();
   }
 
@@ -255,14 +254,14 @@ Expect<uint32_t> Close::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   auto Res = Ctx.signatureClose(Signature);
-  if(unlikely(!Res)) {
+  if (unlikely(!Res)) {
     return Res.error();
   }
 
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-} // namespace Signature
+} // namespace Signatures
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

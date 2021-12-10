@@ -29,22 +29,14 @@ WasiCryptoContext::kxDh(__wasi_publickey_t PkHandle,
     return WasiCryptoUnexpect(KxPk);
   }
 
-  auto &M1 = *(KxPk->inner());
-  auto &M2 = *(KxSk->inner());
-  auto SharedSecret = acquireLocked<std::unique_ptr<KxPublicKey::Base>,
-                                    std::unique_ptr<KxSecretKey::Base>>(
-      M1, M2,
-      [](std::unique_ptr<KxPublicKey::Base> &Inner1,
-         std::unique_ptr<KxSecretKey::Base> &Inner2) {
-        return Inner2->dh(Inner1);
-      });
+  auto SharedSecret = acquireLocked(*KxPk->inner(), *KxSk->inner(),
+                                    [](auto &KxPkInner, auto &KxSkInner) {
+                                      return KxSkInner->dh(KxPkInner);
+                                    });
 
-  //  auto SharedSecret =
-  //      KxSk->inner()->locked([&KxPk](auto &Inner) { return Inner->dh(*KxPk);
-  //      });
-  //  if (!SharedSecret) {
-  //    return WasiCryptoUnexpect(SharedSecret);
-  //  }
+  if (!SharedSecret) {
+    return WasiCryptoUnexpect(SharedSecret);
+  }
 
   return allocateArrayOutput(std::move(*SharedSecret));
 }

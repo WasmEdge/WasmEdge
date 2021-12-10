@@ -25,7 +25,7 @@ public:
 
 class RsaSignatureSecretKey {};
 
-class RsaSignatureKeyPair {
+class RsaSignatureKeyPair : public SignatureKeyPair::Base {
 public:
   static WasiCryptoExpect<RsaSignatureKeyPair> fromRaw(SignatureAlgorithm Alg,
                                                        Span<uint8_t const> Raw);
@@ -37,32 +37,33 @@ public:
 
   WasiCryptoExpect<std::vector<uint8_t>> asRaw();
 
-  static WasiCryptoExpect<RsaSignatureKeyPair>
+  static WasiCryptoExpect<std::unique_ptr<RsaSignatureKeyPair>>
   generate(SignatureAlgorithm Alg, std::optional<SignatureOptions> Options);
 
-  static WasiCryptoExpect<RsaSignatureKeyPair>
+  static WasiCryptoExpect<std::unique_ptr<RsaSignatureKeyPair>>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
          __wasi_keypair_encoding_e_t Encoding);
 
   WasiCryptoExpect<std::vector<uint8_t>>
-  exportData(__wasi_keypair_encoding_e_t Encoding);
+  exportData(__wasi_keypair_encoding_e_t Encoding) override;
 
-  WasiCryptoExpect<RsaSignaturePublicKey> publicKey();
+  WasiCryptoExpect<SignaturePublicKey> publicKey() override;
 };
 
 class RsaSignature : public Signature::Base {
 public:
   static WasiCryptoExpect<std::unique_ptr<RsaSignature>>
-  fromRaw(Span<uint8_t const> Raw);
+  import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+         __wasi_signature_encoding_e_t Encoding);
 };
 
 class RsaSignatureState : public SignatureState::Base {
 public:
   RsaSignatureState(RsaSignatureKeyPair Kp);
 
-  WasiCryptoExpect<void> update(Span<uint8_t> Input) override;
+  WasiCryptoExpect<void> update(Span<uint8_t const> Input) override;
 
-  WasiCryptoExpect<void> sign() override;
+  WasiCryptoExpect<Signature> sign() override;
 };
 
 class RsaSignatureVerificationState : public SignatureVerificationState::Base {

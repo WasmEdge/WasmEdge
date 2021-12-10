@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains the interface of import object class. Inherit this class
-/// to make host module.
+/// to open host module.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

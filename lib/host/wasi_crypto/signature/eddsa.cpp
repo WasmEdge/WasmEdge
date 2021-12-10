@@ -6,7 +6,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 WasiCryptoExpect<void> EddsaSignatureState::update(Span<uint8_t> Input) {
-  return WasmEdge::Host::WASICrypto::WasiCryptoExpect<void>();
+
 }
 WasiCryptoExpect<void> EddsaSignatureState::sign() {
   return WasmEdge::Host::WASICrypto::WasiCryptoExpect<void>();

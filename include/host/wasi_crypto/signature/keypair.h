@@ -7,6 +7,7 @@
 #include "host/wasi_crypto/signature/publickey.h"
 #include "host/wasi_crypto/signature/secretkey.h"
 #include "host/wasi_crypto/varianthelper.h"
+#include "host/wasi_crypto/signature/signature.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -16,13 +17,21 @@ class SignatureKeyPair {
 public:
   class Base {
   public:
+    virtual ~Base() = default;
+
     virtual WasiCryptoExpect<std::vector<uint8_t>>
     exportData(__wasi_keypair_encoding_e_t Encoding) = 0;
 
     virtual WasiCryptoExpect<SignaturePublicKey> publicKey() = 0;
 
     virtual WasiCryptoExpect<SignatureSecretKey> secretKey() = 0;
+
+    virtual WasiCryptoExpect<SignatureState> asState() = 0;
   };
+
+  SignatureKeyPair(std::unique_ptr<Base> Inner)
+      : Inner(
+            std::make_shared<Mutex<std::unique_ptr<Base>>>(std::move(Inner))) {}
 
   static WasiCryptoExpect<SignatureKeyPair>
   generate(SignatureAlgorithm Alg, std::optional<SignatureOptions> Options);

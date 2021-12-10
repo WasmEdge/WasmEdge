@@ -637,8 +637,8 @@ public:
 
   ///-------------------------------------------key_exchange---------------------------------------
 
-  WasiCryptoExpect<__wasi_array_output_t> kxDh(__wasi_publickey_t Inner,
-                                               __wasi_secretkey_t SkHandle);
+  WasiCryptoExpect<__wasi_array_output_t> kxDh(__wasi_publickey_t KxPkInner,
+                                               __wasi_secretkey_t KxSkInner);
 
   WasiCryptoExpect<std::tuple<__wasi_array_output_t, __wasi_array_output_t>>
   kxEncapsulate(__wasi_publickey_t PkHandle);
@@ -676,8 +676,8 @@ public:
                                    Span<uint8_t const> Input);
 
   WasiCryptoExpect<void>
-  signatureVerificationStateVerify(__wasi_signature_verification_state_t VerificationHandle,
-                                   __wasi_signature_t SigHandle);
+  signatureVerificationStateVerify(__wasi_signature_verification_state_t VerificationInner,
+                                   __wasi_signature_t SigInner);
 
   WasiCryptoExpect<void>
   signatureVerificationStateClose(__wasi_signature_verification_state_t VerificationHandle);

@@ -11,25 +11,26 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-WasiCryptoExpect<Signature> Signature::fromRaw(SignatureAlgorithm Alg,
-                                               Span<const uint8_t> Encoded) {
+WasiCryptoExpect<Signature>
+Signature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+                   __wasi_signature_encoding_e_t Encoding) {
   switch (family(Alg)) {
   case SignatureAlgorithmFamily::ECDSA: {
-    auto Sig = EcdsaSignature::fromRaw(Encoded);
+    auto Sig = EcdsaSignature::import(Alg, Encoded, Encoding);
     if (!Sig) {
       return WasiCryptoUnexpect(Sig);
     }
     return Signature{std::move(*Sig)};
   }
   case SignatureAlgorithmFamily::EdDSA: {
-    auto Sig = EddsaSignature::fromRaw(Encoded);
+    auto Sig = EddsaSignature::import(Alg, Encoded, Encoding);
     if (!Sig) {
       return WasiCryptoUnexpect(Sig);
     }
     return Signature{std::move(*Sig)};
   }
   case SignatureAlgorithmFamily::RSA: {
-    auto Sig = RsaSignature::fromRaw(Encoded);
+    auto Sig = RsaSignature::import(Alg, Encoded, Encoding);
     if (!Sig) {
       return WasiCryptoUnexpect(Sig);
     }
@@ -38,43 +39,6 @@ WasiCryptoExpect<Signature> Signature::fromRaw(SignatureAlgorithm Alg,
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
-}
-
-WasiCryptoExpect<SignatureState> SignatureState::open(SignatureKeyPair Kp) {
-  return Kp.inner()->locked(
-      [](auto &KpInner) -> WasiCryptoExpect<SignatureState> {
-        if (dynamic_cast<EcdsaSignatureKeyPair *>(KpInner.get()) != nullptr) {
-          return SignatureState{std::move(KpInner)};
-        }
-        if (dynamic_cast<EddsaSignatureKeyPair *>(KpInner.get()) != nullptr) {
-          return SignatureState{std::move(KpInner)};
-        }
-        if (dynamic_cast<RsaSignatureKeyPair *>(KpInner.get()) != nullptr) {
-          return SignatureState{std::move(KpInner)};
-        }
-        return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-      });
-}
-
-SignatureVerificationState::SignatureVerificationState(
-    std::unique_ptr<Base> Inner)
-    : Inner(std::make_shared<Mutex<std::unique_ptr<Base>>>(std::move(Inner))) {}
-
-WasiCryptoExpect<SignatureVerificationState>
-SignatureVerificationState::open(SignaturePublicKey SigPk) {
-  return SigPk.inner()->locked(
-      [](auto &KpInner) -> WasiCryptoExpect<SignatureVerificationState> {
-        if (dynamic_cast<EcdsaSignaturePublicKey *>(KpInner.get()) != nullptr) {
-          return SignatureVerificationState{std::move(KpInner)};
-        }
-        if (dynamic_cast<EddsaSignaturePublicKey *>(KpInner.get()) != nullptr) {
-          return SignatureVerificationState{std::move(KpInner)};
-        }
-        if (dynamic_cast<RsaSignaturePublicKey *>(KpInner.get()) != nullptr) {
-          return SignatureVerificationState{std::move(KpInner)};
-        }
-        return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-      });
 }
 
 } // namespace WASICrypto

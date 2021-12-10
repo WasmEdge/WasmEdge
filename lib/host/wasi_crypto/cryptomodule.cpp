@@ -118,16 +118,6 @@ WasiCryptoModule::WasiCryptoModule() : ImportObject("wasi_ephemeral_crypto") {
               std::make_unique<AsymmetricCommon::PublickeyFromSecretkey>(Ctx));
   addHostFunc("publickey_close",
               std::make_unique<AsymmetricCommon::PublickeyClose>(Ctx));
-  addHostFunc("publickey_import",
-              std::make_unique<AsymmetricCommon::PublickeyImport>(Ctx));
-  addHostFunc("publickey_export",
-              std::make_unique<AsymmetricCommon::PublickeyExport>(Ctx));
-  addHostFunc("publickey_verify",
-              std::make_unique<AsymmetricCommon::PublickeyVerify>(Ctx));
-  addHostFunc("publickey_from_secretkey",
-              std::make_unique<AsymmetricCommon::PublickeyFromSecretkey>(Ctx));
-  addHostFunc("publickey_close",
-              std::make_unique<AsymmetricCommon::PublickeyClose>(Ctx));
   addHostFunc("secretkey_import",
               std::make_unique<AsymmetricCommon::SecretkeyImport>(Ctx));
   addHostFunc("secretkey_export",

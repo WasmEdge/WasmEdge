@@ -10,6 +10,7 @@ WasiCryptoExpect<KeyPair>
 WASICrypto::KeyPair::generate(__wasi_algorithm_type_e_t AlgType,
                               std::string_view AlgStr,
                               std::optional<Options> OptOptions) {
+
   switch (AlgType) {
   case __WASI_ALGORITHM_TYPE_SIGNATURES: {
     auto OptSigOptions = optOptionsAs<SignatureOptions>(OptOptions);
@@ -81,8 +82,8 @@ WasiCryptoExpect<KeyPair> KeyPair::fromPkAndSk(PublicKey, SecretKey) {
 
 WasiCryptoExpect<std::vector<uint8_t>>
 KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
-  return std::visit(Overloaded{[Encoding](auto &SigKp) {
-                      return SigKp.inner()->locked([Encoding](auto &Inner) {
+  return std::visit(Overloaded{[Encoding](auto &Kp) {
+                      return Kp.inner()->locked([Encoding](auto &Inner) {
                         return Inner->exportData(Encoding);
                       });
                     }},
@@ -90,8 +91,8 @@ KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
 }
 
 WasiCryptoExpect<PublicKey> KeyPair::publicKey() {
-  return std::visit(Overloaded{[](auto &SigKp) -> WasiCryptoExpect<PublicKey> {
-                      auto Res = SigKp.inner()->locked(
+  return std::visit(Overloaded{[](auto &Kp) -> WasiCryptoExpect<PublicKey> {
+                      auto Res = Kp.inner()->locked(
                           [](auto &Inner) { return Inner->publicKey(); });
                       if (!Res) {
                         return WasiCryptoUnexpect(Res);
@@ -102,8 +103,8 @@ WasiCryptoExpect<PublicKey> KeyPair::publicKey() {
                     Inner);
 }
 WasiCryptoExpect<SecretKey> KeyPair::secretKey() {
-  return std::visit(Overloaded{[](auto &SigKp) -> WasiCryptoExpect<SecretKey> {
-                      auto Res = SigKp.inner()->locked(
+  return std::visit(Overloaded{[](auto &Kp) -> WasiCryptoExpect<SecretKey> {
+                      auto Res = Kp.inner()->locked(
                           [](auto &Inner) { return Inner->secretKey(); });
                       if (!Res) {
                         return WasiCryptoUnexpect(Res);

@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/signature/keypair.h"
+#include "host/wasi_crypto/signature/ecdsa.h"
+#include "host/wasi_crypto/signature/eddsa.h"
+#include "host/wasi_crypto/signature/rsa.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -15,21 +18,21 @@ SignatureKeyPair::generate(SignatureAlgorithm Alg,
     if (!Res) {
       return WasiCryptoUnexpect(Res);
     }
-    return SignatureKeyPair{*Res};
+    return SignatureKeyPair{std::move(*Res)};
   }
   case SignatureAlgorithmFamily::EdDSA: {
     auto Res = EddsaSignatureKeyPair::generate(Alg, Options);
     if (!Res) {
       return WasiCryptoUnexpect(Res);
     }
-    return SignatureKeyPair{*Res};
+    return SignatureKeyPair{std::move(*Res)};
   }
   case SignatureAlgorithmFamily::RSA: {
     auto Res = RsaSignatureKeyPair::generate(Alg, Options);
     if (!Res) {
       return WasiCryptoUnexpect(Res);
     }
-    return SignatureKeyPair{*Res};
+    return SignatureKeyPair{std::move(*Res)};
   }
   }
 }
@@ -43,21 +46,21 @@ SignatureKeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
     if (!Res) {
       return WasiCryptoUnexpect(Res);
     }
-    return SignatureKeyPair{*Res};
+    return SignatureKeyPair{std::move(*Res)};
   }
   case SignatureAlgorithmFamily::EdDSA: {
     auto Res = EddsaSignatureKeyPair::import(Alg, Encoded, Encoding);
     if (!Res) {
       return WasiCryptoUnexpect(Res);
     }
-    return SignatureKeyPair{*Res};
+    return SignatureKeyPair{std::move(*Res)};
   }
   case SignatureAlgorithmFamily::RSA: {
     auto Res = RsaSignatureKeyPair::import(Alg, Encoded, Encoding);
     if (!Res) {
       return WasiCryptoUnexpect(Res);
     }
-    return SignatureKeyPair{*Res};
+    return SignatureKeyPair{std::move(*Res)};
   }
   }
 }

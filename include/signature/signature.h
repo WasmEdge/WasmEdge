@@ -23,6 +23,7 @@
 #include <filesystem>
 #include <system_error>
 
+namespace fs = std::filesystem;
 namespace WasmEdge {
 namespace Signature {
 
@@ -30,17 +31,17 @@ const std::string_view DEFAULT_CUSOTM_SECTION_NAME = "signature_wasmedge";
 
 class Signature {
 public:
-  Expect<void> signWasmFile(const std::filesystem::path &Path);
-  Expect<bool> verifyWasmFile(const std::filesystem::path &,
-                              const std::filesystem::path &);
+  Expect<void> signWasmFile(const fs::path &, const fs::path &,
+                            const fs::path &, const fs::path &);
+  Expect<bool> verifyWasmFile(const fs::path &, const fs::path &);
 
 private:
-  Expect<void> sign(std::filesystem::path, const std::vector<uint8_t>);
-  Expect<bool> verify(const Span<Byte> CustomSec, std::filesystem::path Path,
-                      const std::filesystem::path &PubKeyPath);
+  Expect<void> sign(fs::path, fs::path, const std::vector<uint8_t>);
+  Expect<bool> verify(const Span<Byte>, const Span<Byte>,
+                      const fs::path &PubKeyPath);
+  Expect<Span<Byte>> readBytes(const fs::path &);
 
-  Expect<std::vector<Byte>> keygen(const Span<uint8_t>,
-                                   const std::filesystem::path &);
+  Expect<std::vector<Byte>> keygen(const Span<uint8_t>, const fs::path &);
   SigAlgorithm Alg;
 };
 

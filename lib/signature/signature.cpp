@@ -2,12 +2,17 @@
 #include "signature/signature.h"
 #include "common/enum_errcode.h"
 #include "common/errcode.h"
+#include "common/errinfo.h"
 #include "spdlog/spdlog.h"
+#include <filesystem>
 
 namespace WasmEdge {
 namespace Signature {
 
-Expect<void> Signature::signWasmFile(const std::filesystem::path &Path) {
+Expect<void> Signature::signWasmFile(const fs::path &Path,
+                                     const fs::path &PrikeyPath,
+                                     const fs::path &PubkeyPath,
+                                     const fs::path &Target) {
   Span<Byte> Code;
   FileMgr FMgr;
   if (std::ifstream Is{Path, std::ios::binary | std::ios::ate}) {
@@ -21,23 +26,44 @@ Expect<void> Signature::signWasmFile(const std::filesystem::path &Path) {
       return Unexpect(ErrCode::IllegalPath);
   }
 
-  if (auto Sig = keygen(Code, Path.parent_path()); !Sig) {
-    spdlog::error(ErrInfo::InfoFile(Path));
-    return Unexpect(Sig);
-  } else
-    return sign(Path, *Sig);
+  if (PrikeyPath.empty() && PrikeyPath.empty()) {
+    if (auto Sig = keygen(Code, Path.parent_path()); !Sig) {
+      spdlog::error(ErrInfo::InfoFile(Path));
+      return Unexpect(Sig);
+    } else
+      return sign(Path, Target, *Sig);
+  } else if (!PrikeyPath.empty() && !PubkeyPath.empty()) {
+    /// Temporaly return unexpect
+    /// In the future need to consider case of third-party key pairs
+    return Unexpect(ErrCode::IllegalPath);
+  }
+  /// User provides only private key or public key
+  /// This is an invalid case
+  else
+    return Unexpect(ErrCode::Unreachable);
 }
 
-Expect<bool>
-Signature::verifyWasmFile(const std::filesystem::path &Path,
-                          const std::filesystem::path &PubKeyPath) {
+Expect<bool> Signature::verifyWasmFile(const fs::path &Path,
+                                       const fs::path &PubKeyPath) {
   LDMgr LMgr;
+  FileMgr FMgr;
   Configure Conf;
+  Span<Byte> Code;
   Loader::Loader TempLoader(Conf);
+  if (std::ifstream Is{Path, std::ios::binary | std::ios::ate}) {
+    auto SizeToRead = Is.tellg();
+    FMgr.setPath(Path);
+    std::string Str(SizeToRead, '\0');
+    if (auto Res = FMgr.readBytes(SizeToRead)) {
+      auto *Data = (*Res).data();
+      Code = Span<Byte>(reinterpret_cast<Byte *>(*Data), SizeToRead);
+    } else
+      return Unexpect(ErrCode::IllegalPath);
+  }
   if (auto Res = TempLoader.parseModule(Path)) {
     for (auto CustomSec : (*Res)->getCustomSections()) {
       if (CustomSec.getName() == DEFAULT_CUSOTM_SECTION_NAME) {
-        return verify(CustomSec.getContent(), Path, PubKeyPath);
+        return verify(Code, CustomSec.getContent(), PubKeyPath);
       }
     }
     return Unexpect(Res);
@@ -45,13 +71,19 @@ Signature::verifyWasmFile(const std::filesystem::path &Path,
     return Unexpect(Res);
 }
 
-Expect<void> Signature::sign(std::filesystem::path Path,
+Expect<void> Signature::sign(fs::path Path, fs::path Target,
                              const std::vector<uint8_t> Signature) {
-  std::ofstream File(Path.string(), std::ios::binary | std::ios::ate);
+  fs::path Namestem = Path.filename().replace_extension();
+  Namestem += "_signed";
+  if (Target.empty())
+    Target = Namestem.replace_extension(".wasm");
+
+  fs::copy(Path, Target);
+  std::ofstream File(Target.string(), std::ios::binary | std::ios::ate);
   try {
     File.exceptions(File.failbit);
   } catch (const std::ios_base::failure &Error) {
-    // Failure handling
+    /// Failure handling
   }
   uint8_t SectionId = 0;
   uint8_t SectionLen = Signature.size();
@@ -65,24 +97,44 @@ Expect<void> Signature::sign(std::filesystem::path Path,
   return {};
 }
 
-Expect<bool> Signature::verify(const Span<Byte> CustomSec,
-                               std::filesystem::path Path,
-                               const std::filesystem::path &PubKeyPath) {
+Expect<bool> Signature::verify(const Span<Byte> Code,
+                               const Span<Byte> Signature,
+                               const fs::path &PubKeyPath) {
   /// Return void for this template
-  std::ifstream PubKeyFile(PubKeyPath.string(), std::ios::binary);
-  std::ifstream SourceFile(Path.string(), std::ios::binary);
-  Span<const Byte> Signature, PublicKey;
-  try {
-    PubKeyFile.exceptions(PubKeyFile.failbit);
-  } catch (const std::ios_base::failure &Error) {
-    // Failure handling
+  FileMgr FMgr;
+  Span<Byte> PublicKeyBytes;
+  if (std::ifstream Is{PubKeyPath, std::ios::binary | std::ios::ate}) {
+    auto SizeToRead = Is.tellg();
+    FMgr.setPath(PubKeyPath);
+    std::string Str(SizeToRead, '\0');
+    if (auto Res = FMgr.readBytes(SizeToRead)) {
+      auto *Data = (*Res).data();
+      PublicKeyBytes = Span<Byte>(reinterpret_cast<Byte *>(*Data), SizeToRead);
+    } else
+      return Unexpect(ErrCode::IllegalPath);
   }
-  return Alg.verify(CustomSec, Signature, PublicKey);
+  return Alg.verify(Code, Signature, PublicKeyBytes);
+}
+
+Expect<Span<Byte>> Signature::readBytes(const fs::path &Path) {
+  if (std::ifstream Is{Path, std::ios::binary | std::ios::ate}) {
+    FileMgr FMgr;
+    auto SizeToRead = Is.tellg();
+    FMgr.setPath(Path);
+    std::string Str(SizeToRead, '\0');
+    if (auto Res = FMgr.readBytes(SizeToRead)) {
+      auto *Data = (*Res).data();
+      return Span<Byte>(reinterpret_cast<Byte *>(*Data), SizeToRead);
+    }
+    return Unexpect(ErrCode::IllegalPath);
+  }
+  spdlog::error(ErrInfo::InfoFile(Path));
+  return Unexpect(ErrCode::IllegalPath);
 }
 
 // Expect<Span<Byte>> keygen(Span<const uint8_t> Code) {
 Expect<std::vector<Byte>> Signature::keygen(const Span<uint8_t> Code,
-                                            const std::filesystem::path &Path) {
+                                            const fs::path &Path) {
   return Alg.keygen(Code, Path);
 }
 

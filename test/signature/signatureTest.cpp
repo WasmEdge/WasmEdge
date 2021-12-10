@@ -16,23 +16,44 @@
 #include <filesystem>
 #include <ostream>
 
+namespace fs = std::filesystem;
+
 namespace {
 WasmEdge::Signature::Signature SignatureEngine;
 TEST(SignatureTEST, KEYGEN) {
   std::vector<unsigned char> PublicKey;
-  std::filesystem::path Base = "signatureTestData";
-  std::filesystem::path WasmFile = Base / "hello.wasm";
-  std::filesystem::path PrikeyFile = Base / "id_ed25519";
-  std::filesystem::path PubkeyFile = Base / "id_ed25519.pub";
+  fs::path Base = "signatureTestData";
+  fs::path WasmFile = Base / "hello.wasm";
+  fs::path PrikeyFile = Base / "id_ed25519";
+  fs::path PubkeyFile = Base / "id_ed25519.pub";
   testing::internal::CaptureStdout();
 
   // bool Res;
+  if (fs ::exists(PrikeyFile))
+    ASSERT_TRUE(fs::remove(PrikeyFile));
+
+  if (fs ::exists(PubkeyFile))
+    ASSERT_TRUE(fs::remove(PubkeyFile));
+
+  EXPECT_TRUE(!fs::exists(PrikeyFile));
+  EXPECT_TRUE(!fs::exists(PubkeyFile));
   RecordProperty("WasmPath: ", WasmFile);
-  RecordProperty("CurrentPath: ", std::filesystem::current_path());
-  ASSERT_TRUE(std::filesystem::exists(WasmFile));
+  RecordProperty("CurrentPath: ", fs::current_path());
+  ASSERT_TRUE(fs::exists(WasmFile));
   EXPECT_TRUE(SignatureEngine.signWasmFile(WasmFile));
-  ASSERT_TRUE(std::filesystem::exists(PrikeyFile));
-  ASSERT_TRUE(std::filesystem::exists(PubkeyFile));
+  ASSERT_TRUE(fs::exists(PrikeyFile));
+  ASSERT_TRUE(fs::exists(PubkeyFile));
+}
+
+TEST(SignatureTEST, VERIFY) {
+  std::vector<unsigned char> PublicKey;
+  fs::path Base = "signatureTestData";
+  fs::path WasmFile = Base / "hello.wasm";
+  fs::path PrikeyFile = Base / "id_ed25519";
+  fs::path PubkeyFile = Base / "id_ed25519.pub";
+
+  ASSERT_TRUE(fs::exists(WasmFile));
+  ASSERT_TRUE(SignatureEngine.signWasmFile(WasmFile));
 
   // std::string Output = testing::internal::GetCapturedStdout();
   // RecordProperty("STDOUT: ", Output);
@@ -46,16 +67,14 @@ TEST(SignatureTEST, KEYGEN) {
   // EXPECT_TRUE(PubKeyFileStream.read(&KeyStr[0], Size));
   // RecordProperty("Public Key: ", KeyStr);
 
-  // EXPECT_TRUE(Res = *(SignatureEngine.verifyWasmFile(WasmFile, PrikeyFile)));
-  // RecordProperty("Verify Result: ", Res);
+  EXPECT_TRUE(SignatureEngine.verifyWasmFile(WasmFile, PubkeyFile));
 
   // RecordProperty("STDOUT: ", Output);
 }
-
-TEST(SignatureTEST, VERIFY) {}
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {
+  testing::GTEST_FLAG(output) = "xml:./sign_gtest.xml";
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

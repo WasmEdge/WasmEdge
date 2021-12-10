@@ -19,6 +19,7 @@
 #include "spdlog/spdlog.h"
 #include <fstream>
 
+namespace fs = std::filesystem;
 namespace WasmEdge {
 namespace Signature {
 class SigAlgorithm {

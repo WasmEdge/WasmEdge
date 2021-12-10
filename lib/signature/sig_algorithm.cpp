@@ -1,21 +1,34 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "signature/sig_algorithm.h"
+#include "api/wasmedge/enum_errcode.h"
+#include "common/errcode.h"
+#include "spdlog/spdlog.h"
+#include <cstring>
 
 namespace WasmEdge {
 namespace Signature {
 
-Expect<const std::vector<Byte>>
-SigAlgorithm::keygen(Span<const Byte> Code, const std::filesystem::path &Path) {
-  unsigned char PublicKey[32], PrivateKey[64], Seed[32];
-  unsigned char Signature[64];
+Expect<const std::vector<Byte>> SigAlgorithm::keygen(Span<const Byte> Code,
+                                                     const fs::path &Path) {
+  unsigned char PublicKey[32], PrivateKey[64], Seed[32], Signature[64];
+
   const int MessageLen = std::size(Code);
   const unsigned char *Message = &Code[0];
-  const std::filesystem::path PubKeyPath = Path / "./id_ed25519.pub";
-  const std::filesystem::path PriKeyPath = Path / "./id_ed25519";
+  const fs::path PubKeyPath = Path / "./id_ed25519.pub";
+  const fs::path PriKeyPath = Path / "./id_ed25519";
 
-  /* create a random seed, and a keypair out of that seed */
   ed25519_create_seed(Seed);
   ed25519_create_keypair(PublicKey, PrivateKey, Seed);
+  // if (Prikey.empty() && Pubkey.empty()) {
+  //   /* create a random seed, and a keypair out of that seed */
+  // ed25519_create_seed(Seed);
+  // ed25519_create_keypair(PublicKey, PrivateKey, Seed);
+  // }
+
+  // else if (!Prikey.empty() && !Pubkey.empty()) {
+  //   &PublicKey[0] = reinterpret_cast<const unsigned char *>(Pubkey.data());
+  //   PublicKey = PublicKey.data();
+  // }
 
   /* Save public key and private key */
   std::ofstream PubKeyFile(PubKeyPath, std::ios::binary | std::ios::ate);

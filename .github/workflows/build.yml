@@ -35,6 +35,35 @@ jobs:
         git fetch --tags --force
         echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
 
+  create_source_tarball:
+    name: Create source tarball
+    runs-on: ubuntu-latest
+    needs: get_version
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Propagate version information for tarball
+      run: |
+        echo $VERSION | tee VERSION
+      env:
+        VERSION: ${{ needs.get_version.outputs.version }}
+    - name: Create source tarball
+      run: |
+        TEMPDIR=$(mktemp -d)
+        SRCDIR="$TEMPDIR/wasmedge/"
+        mkdir -p "$SRCDIR"
+        git checkout-index -a --prefix="$SRCDIR"
+        cp -v VERSION $SRCDIR
+        tar --owner 0 --group 0 -czf "$GITHUB_WORKSPACE/WasmEdge-$VERSION.tar.gz" -C "$TEMPDIR" "wasmedge"
+      env:
+        VERSION: ${{ steps.prep.outputs.version }}
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: WasmEdge-${{ needs.get_version.outputs.version }}-src.tar.gz
+        path: wasmedge_${{ needs.get_version.outputs.version }}.tar.gz
+
   build_fedora:
     name: Fedora 35
     needs: get_version

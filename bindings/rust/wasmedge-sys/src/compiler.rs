@@ -13,6 +13,7 @@ impl Drop for Compiler {
     }
 }
 impl Compiler {
+    /// Create a Compiler instance
     pub fn create(config: &Config) -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_CompilerCreate(config.ctx) };
         match ctx.is_null() {

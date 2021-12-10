@@ -130,8 +130,8 @@ impl Drop for Function {
 #[derive(Debug)]
 pub struct FuncType {
     pub(crate) ctx: *mut wasmedge::WasmEdge_FunctionTypeContext,
+    pub(crate) registered: bool,
 }
-
 impl FuncType {
     pub(crate) fn create(input: Vec<Value>, output: Vec<Value>) -> WasmEdgeResult<Self> {
         let raw_input = {
@@ -160,13 +160,17 @@ impl FuncType {
             true => Err(Error::OperationError(String::from(
                 "fail to create FuncType instance",
             ))),
-            false => Ok(Self { ctx }),
+            false => Ok(Self {
+                ctx,
+                registered: false,
+            }),
         }
     }
 }
-
 impl Drop for FuncType {
     fn drop(&mut self) {
-        unsafe { wasmedge::WasmEdge_FunctionTypeDelete(self.ctx) };
+        if !self.registered && !self.ctx.is_null() {
+            unsafe { wasmedge::WasmEdge_FunctionTypeDelete(self.ctx) };
+        }
     }
 }

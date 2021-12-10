@@ -1,7 +1,7 @@
-name: rust
+name: binding-rust
 
 concurrency:
-  group: rust-${{ github.head_ref }}
+  group: bindings-rust-${{ github.head_ref }}
   cancel-in-progress: true
 
 on:
@@ -9,13 +9,13 @@ on:
     branches:
       - master
     paths-ignore:
-      - 'doc/**'
+      - 'docs/**'
       - '**.md'
   pull_request:
     branches:
       - master
     paths-ignore:
-      - 'doc/**'
+      - 'docs/**'
       - '**.md'
 
 jobs:
@@ -45,6 +45,18 @@ jobs:
       run: |
         cd bindings/rust/
         cargo +nightly fmt --all -- --check
+
+    - name: Test on standalone crate
+      run: |
+        cd bindings/rust/
+        export WASMEDGE_DIR="$(pwd)/../../"
+        cargo test --lib --examples
+        cargo test --doc
+
+    - name: Clean up
+      run: |
+        cd bindings/rust/
+        cargo clean
 
     - name: Build WasmEdge using clang with Debug mode
       run: |

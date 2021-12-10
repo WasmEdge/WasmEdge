@@ -4,6 +4,7 @@
     - [Install and uninstall](start/install.md)
     - [Use Docker](start/docker.md)
     - [WasmEdge command line](start/cli.md)
+    - [Universal Binary](strat/universal.md)
 
 - [What is WasmEdge](intro.md)
     - [Use cases](intro/use.md)

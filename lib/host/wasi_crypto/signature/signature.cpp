@@ -3,8 +3,6 @@
 #include "host/wasi_crypto/signature/signature.h"
 #include "host/wasi_crypto/signature/ecdsa.h"
 #include "host/wasi_crypto/signature/eddsa.h"
-#include "host/wasi_crypto/signature/keypair.h"
-#include "host/wasi_crypto/signature/publickey.h"
 #include "host/wasi_crypto/signature/rsa.h"
 
 namespace WasmEdge {
@@ -13,7 +11,7 @@ namespace WASICrypto {
 
 WasiCryptoExpect<Signature>
 Signature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                   __wasi_signature_encoding_e_t Encoding) {
+                  __wasi_signature_encoding_e_t Encoding) {
   auto Family = family(Alg);
   if (!Family) {
     return WasiCryptoUnexpect(Family);
@@ -21,25 +19,13 @@ Signature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
 
   switch (*Family) {
   case SignatureAlgorithmFamily::ECDSA: {
-    auto Sig = EcdsaSignature::import(Alg, Encoded, Encoding);
-    if (!Sig) {
-      return WasiCryptoUnexpect(Sig);
-    }
-    return std::move(*Sig);
+    return EcdsaSignature::import(Alg, Encoded, Encoding);
   }
   case SignatureAlgorithmFamily::EdDSA: {
-    auto Sig = EddsaSignature::import(Alg, Encoded, Encoding);
-    if (!Sig) {
-      return WasiCryptoUnexpect(Sig);
-    }
-    return std::move(*Sig);
+    return EddsaSignature::import(Alg, Encoded, Encoding);
   }
   case SignatureAlgorithmFamily::RSA: {
-    auto Sig = RsaSignature::import(Alg, Encoded, Encoding);
-    if (!Sig) {
-      return WasiCryptoUnexpect(Sig);
-    }
-    return std::move(*Sig);
+    return RsaSignature::import(Alg, Encoded, Encoding);
   }
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);

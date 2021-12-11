@@ -58,6 +58,8 @@ KxKeyPair::builder(KxAlgorithm Alg) {
     return std::make_unique<X25519KeyPair::Builder>(Alg);
   case KxAlgorithm::Kyber768:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 }
 

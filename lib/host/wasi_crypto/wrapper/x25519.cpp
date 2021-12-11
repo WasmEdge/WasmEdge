@@ -83,7 +83,7 @@ WasiCryptoExpect<std::vector<uint8_t>> X25519SK::dk(X25519PK &Pk) {
 }
 
 WasiCryptoExpect<X25519Kp> X25519Kp::make() {
-  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_free> Ctx{
+  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx{
       EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, nullptr)};
   if (Ctx == nullptr) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);

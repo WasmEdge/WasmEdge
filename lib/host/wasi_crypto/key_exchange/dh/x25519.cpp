@@ -100,7 +100,7 @@ WasiCryptoExpect<X25519PublicKey> X25519SecretKey::producePublicKey() {
 }
 
 WasiCryptoExpect<KxKeyPair>
-X25519KeyPair::Builder::generate(std::optional<KxOptions> Options) {
+X25519KeyPair::Builder::generate(std::optional<KxOptions> /*TODO:Options*/) {
   CryptoRandom Rng;
   std::vector<uint8_t> SkRaw(X25519SK::Len, 0);
   Rng.fill(SkRaw);

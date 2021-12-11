@@ -12,7 +12,7 @@ namespace WASICrypto {
 namespace Signatures {
 
 Expect<uint32_t> Export::body(Runtime::Instance::MemoryInstance *MemInst,
-                              __wasi_signature_t Signature, uint16_t Encoding,
+                              __wasi_signature_t Signature, uint32_t Encoding,
                               uint32_t ArrayOutputPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -43,7 +43,7 @@ Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
                               const_uint8_t_ptr AlgorithmPtr,
                               __wasi_size_t AlgorithmLen,
                               const_uint8_t_ptr EncodedPtr,
-                              __wasi_size_t EncodedLen, uint16_t Encoding,
+                              __wasi_size_t EncodedLen, uint32_t Encoding,
                               uint32_t /* Out */ SignaturePtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;

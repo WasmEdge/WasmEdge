@@ -23,7 +23,7 @@ public:
   using HostFunction::HostFunction;
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        __wasi_signature_t Signature, uint16_t Encoding,
+                        __wasi_signature_t Signature, uint32_t Encoding,
                         uint32_t /* Out */ ArrayOutputPtr);
 };
 
@@ -35,7 +35,7 @@ public:
                         const_uint8_t_ptr AlgorithmPtr,
                         __wasi_size_t AlgorithmLen,
                         const_uint8_t_ptr EncodedPtr, __wasi_size_t EncodedLen,
-                        uint16_t Encoding, uint32_t /* Out */ SignaturePtr);
+                        uint32_t Encoding, uint32_t /* Out */ SignaturePtr);
 };
 
 class StateOpen : public HostFunction<StateOpen> {

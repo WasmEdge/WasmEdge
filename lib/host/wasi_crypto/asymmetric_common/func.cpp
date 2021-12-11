@@ -10,7 +10,7 @@ namespace AsymmetricCommon {
 
 Expect<uint32_t>
 KeypairGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
-                      uint16_t AlgorithmType, const_uint8_t_ptr AlgorithmPtr,
+                      uint32_t AlgorithmType, const_uint8_t_ptr AlgorithmPtr,
                       __wasi_size_t AlgorithmLen, uint32_t Options,
                       uint8_t_ptr /* Out */ KeypairPtr) {
   if (MemInst == nullptr) {
@@ -50,9 +50,9 @@ KeypairGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
 
 Expect<uint32_t>
 KeypairImport::body(Runtime::Instance::MemoryInstance *MemInst,
-                    uint16_t AlgorithmType, const_uint8_t_ptr AlgorithmPtr,
+                    uint32_t AlgorithmType, const_uint8_t_ptr AlgorithmPtr,
                     __wasi_size_t AlgorithmLen, const_uint8_t_ptr EncodedPtr,
-                    __wasi_size_t EncodedLen, uint16_t Encoding,
+                    __wasi_size_t EncodedLen, uint32_t Encoding,
                     uint8_t_ptr /* Out */ KeypairPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -97,7 +97,7 @@ KeypairImport::body(Runtime::Instance::MemoryInstance *MemInst,
 
 Expect<uint32_t> KeypairGenerateManaged::body(
     Runtime::Instance::MemoryInstance *MemInst,
-    __wasi_secrets_manager_t SecretsManager, uint16_t AlgorithmType,
+    __wasi_secrets_manager_t SecretsManager, uint32_t AlgorithmType,
     const_uint8_t_ptr AlgorithmPtr, __wasi_size_t AlgorithmLen,
     uint8_t_ptr OptOptionsPtr, uint8_t_ptr /* Out */ ResultPtr) {
   if (MemInst == nullptr) {
@@ -260,7 +260,7 @@ Expect<uint32_t> KeypairFromPkAndSk::body(
 }
 
 Expect<uint32_t> KeypairExport::body(Runtime::Instance::MemoryInstance *MemInst,
-                                     __wasi_keypair_t Kp, uint16_t Encoding,
+                                     __wasi_keypair_t Kp, uint32_t Encoding,
                                      uint8_t_ptr /* Out */ ArrayOutputPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -347,9 +347,9 @@ Expect<uint32_t> KeypairClose::body(Runtime::Instance::MemoryInstance *MemInst,
 
 Expect<uint32_t>
 PublickeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
-                      uint16_t AlgorithmType, const_uint8_t_ptr AlgorithmPtr,
+                      uint32_t AlgorithmType, const_uint8_t_ptr AlgorithmPtr,
                       __wasi_size_t AlgorithmLen, const_uint8_t_ptr EncodedPtr,
-                      __wasi_size_t EncodedLen, uint16_t Encoding,
+                      __wasi_size_t EncodedLen, uint32_t Encoding,
                       uint8_t_ptr /* Out */ PublickeyPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -394,7 +394,7 @@ PublickeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
 
 Expect<uint32_t>
 PublickeyExport::body(Runtime::Instance::MemoryInstance *MemInst,
-                      __wasi_publickey_t Pk, uint16_t Encoding,
+                      __wasi_publickey_t Pk, uint32_t Encoding,
                       uint8_t_ptr /* Out */ ArrayOutputPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -475,9 +475,9 @@ PublickeyClose::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 Expect<uint32_t>
 SecretkeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
-                      uint16_t AlgorithmType, const_uint8_t_ptr AlgorithmPtr,
+                      uint32_t AlgorithmType, const_uint8_t_ptr AlgorithmPtr,
                       __wasi_size_t AlgorithmLen, const_uint8_t_ptr EncodedPtr,
-                      __wasi_size_t EncodedLen, uint16_t Encoding,
+                      __wasi_size_t EncodedLen, uint32_t Encoding,
                       uint8_t_ptr SecretkeyPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
@@ -522,7 +522,7 @@ SecretkeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
 
 Expect<uint32_t>
 SecretkeyExport::body(Runtime::Instance::MemoryInstance *MemInst,
-                      __wasi_secretkey_t Sk, uint16_t Encoding,
+                      __wasi_secretkey_t Sk, uint32_t Encoding,
                       uint8_t_ptr /* Out */ ArrayOutputPtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;

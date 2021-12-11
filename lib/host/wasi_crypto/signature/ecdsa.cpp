@@ -15,7 +15,7 @@ WASICrypto::EcdsaSignaturePublicKey::import(
     return WasiCryptoUnexpect(Pk);
   }
 
-  return std::make_unique<EcdsaSignaturePublicKey>(std::move(*Pk), Alg);
+  return std::make_unique<EcdsaSignaturePublicKey>(std::move(*Pk));
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
@@ -30,10 +30,11 @@ EcdsaSignaturePublicKey::asState() {
     return WasiCryptoUnexpect(Res);
   }
 
-  return SignatureVerificationState{std::make_unique<EcdsaSignatureVerificationState>(std::move(*Res))};
+  return SignatureVerificationState{
+      std::make_unique<EcdsaSignatureVerificationState>(std::move(*Res))};
 }
 
-WasiCryptoExpect<std::unique_ptr<EcdsaSignatureSecretKey>>
+WasiCryptoExpect<SignatureSecretKey>
 EcdsaSignatureSecretKey::import(SignatureAlgorithm Alg,
                                 Span<const uint8_t> Encoded,
                                 __wasi_secretkey_encoding_e_t Encoding) {
@@ -42,7 +43,7 @@ EcdsaSignatureSecretKey::import(SignatureAlgorithm Alg,
     return WasiCryptoUnexpect(Sk);
   }
 
-  return std::make_unique<EcdsaSignatureSecretKey>(std::move(*Sk), Alg);
+  return SignatureSecretKey{std::make_unique<EcdsaSignatureSecretKey>(std::move(*Sk))};
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
@@ -50,7 +51,7 @@ EcdsaSignatureSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
   return Ctx.exportData(Encoding);
 }
 
-WasiCryptoExpect<std::unique_ptr<EcdsaSignatureKeyPair>>
+WasiCryptoExpect<SignatureKeyPair>
 EcdsaSignatureKeyPair::generate(SignatureAlgorithm Alg,
                                 std::optional<SignatureOptions>) {
   auto Res = EcdsaKpCtx::generate(Alg);
@@ -58,10 +59,10 @@ EcdsaSignatureKeyPair::generate(SignatureAlgorithm Alg,
     return WasiCryptoUnexpect(Res);
   }
 
-  return std::make_unique<EcdsaSignatureKeyPair>(std::move(*Res), Alg);
+  return SignatureKeyPair{std::make_unique<EcdsaSignatureKeyPair>(std::move(*Res))};
 }
 
-WasiCryptoExpect<std::unique_ptr<EcdsaSignatureKeyPair>>
+WasiCryptoExpect<SignatureKeyPair>
 EcdsaSignatureKeyPair::import(SignatureAlgorithm Alg,
                               Span<const uint8_t> Encoded,
                               __wasi_keypair_encoding_e_t Encoding) {
@@ -70,7 +71,7 @@ EcdsaSignatureKeyPair::import(SignatureAlgorithm Alg,
     return WasiCryptoUnexpect(Res);
   }
 
-  return std::make_unique<EcdsaSignatureKeyPair>(std::move(*Res), Alg);
+  return SignatureKeyPair{std::make_unique<EcdsaSignatureKeyPair>(std::move(*Res))};
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
@@ -85,7 +86,7 @@ WasiCryptoExpect<SignaturePublicKey> EcdsaSignatureKeyPair::publicKey() {
   }
 
   return SignaturePublicKey{
-      std::make_unique<EcdsaSignaturePublicKey>(std::move(*Res), Alg)};
+      std::make_unique<EcdsaSignaturePublicKey>(std::move(*Res))};
 }
 
 WasiCryptoExpect<SignatureSecretKey> EcdsaSignatureKeyPair::secretKey() {
@@ -95,12 +96,11 @@ WasiCryptoExpect<SignatureSecretKey> EcdsaSignatureKeyPair::secretKey() {
   }
 
   return SignatureSecretKey{
-      std::make_unique<EcdsaSignatureSecretKey>(std::move(*Res), Alg)};
+      std::make_unique<EcdsaSignatureSecretKey>(std::move(*Res))};
 }
 
-WasiCryptoExpect<SignatureState>
-EcdsaSignatureKeyPair::asState() {
-  auto Res = Ctx.asSign();
+WasiCryptoExpect<SignatureState> EcdsaSignatureKeyPair::asState() {
+  auto Res = Ctx.asSignState();
   if (!Res) {
     return WasiCryptoUnexpect(Res);
   }
@@ -108,52 +108,19 @@ EcdsaSignatureKeyPair::asState() {
   return SignatureState{std::make_unique<EcdsaSignatureState>(std::move(*Res))};
 }
 
-template <__wasi_signature_encoding_e_t Encoding>
-WasiCryptoExpect<std::unique_ptr<EcdsaSignature>>
-makeFrom(SignatureAlgorithm Alg, Span<uint8_t const>);
-
-template <>
-WasiCryptoExpect<std::unique_ptr<EcdsaSignature>>
-makeFrom<__WASI_SIGNATURE_ENCODING_RAW>(SignatureAlgorithm Alg,
-                                        Span<uint8_t const> Raw) {
-  size_t ExpectedSize;
-  switch (Alg) {
-  case SignatureAlgorithm::ECDSA_K256_SHA256: {
-    ExpectedSize = 64;
-  }
-  case SignatureAlgorithm::ECDSA_P256_SHA256: {
-    ExpectedSize = 96;
-  }
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-  }
-  if (Raw.size() != ExpectedSize) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-  }
-  return std::make_unique<EcdsaSignature>(
-      std::vector<uint8_t>{Raw.begin(), Raw.end()});
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-}
-
-// template <>
-// WasiCryptoExpect<std::unique_ptr<EcdsaSignature m>>
-// makeFrom<__WASI_SIGNATURE_ENCODING_DER>(SignatureAlgorithm Alg,
-//                                         Span<uint8_t const> Der) {
-//   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-// }
-
-WasiCryptoExpect<std::unique_ptr<EcdsaSignature>>
+WasiCryptoExpect<Signature>
 EcdsaSignature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
                        __wasi_signature_encoding_e_t Encoding) {
-  switch (Encoding) {
-  case __WASI_SIGNATURE_ENCODING_RAW:
-    return makeFrom<__WASI_SIGNATURE_ENCODING_RAW>(Alg, Encoded);
-  case __WASI_SIGNATURE_ENCODING_DER:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-    //    return makeFrom<__WASI_SIGNATURE_ENCODING_DER>(Alg, Encoded);
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  auto Res = EcdsaSignCtx::import(Alg, Encoded, Encoding);
+  if (!Res) {
+    return WasiCryptoUnexpect(Res);
   }
+
+  return Signature{std::make_unique<EcdsaSignature>(std::move(*Res))};
+}
+
+WasiCryptoExpect<std::vector<uint8_t>> EcdsaSignature::exportData(__wasi_signature_encoding_e_t Encoding) {
+  return Ctx.exportData(Encoding);
 }
 
 WasiCryptoExpect<void> EcdsaSignatureState::update(Span<const uint8_t> Input) {

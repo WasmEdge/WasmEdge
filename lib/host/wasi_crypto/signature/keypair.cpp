@@ -12,7 +12,12 @@ namespace WASICrypto {
 WasiCryptoExpect<SignatureKeyPair>
 SignatureKeyPair::generate(SignatureAlgorithm Alg,
                            std::optional<SignatureOptions> Options) {
-  switch (family(Alg)) {
+  auto Family = family(Alg);
+  if (!Family) {
+    return WasiCryptoUnexpect(Family);
+  }
+
+  switch (*Family) {
   case SignatureAlgorithmFamily::ECDSA: {
     auto Res = EcdsaSignatureKeyPair::generate(Alg, Options);
     if (!Res) {
@@ -34,13 +39,20 @@ SignatureKeyPair::generate(SignatureAlgorithm Alg,
     }
     return SignatureKeyPair{std::move(*Res)};
   }
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 }
 
 WasiCryptoExpect<SignatureKeyPair>
 SignatureKeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
                          __wasi_keypair_encoding_e_t Encoding) {
-  switch (family(Alg)) {
+  auto Family = family(Alg);
+  if (!Family) {
+    return WasiCryptoUnexpect(Family);
+  }
+
+  switch (*Family) {
   case SignatureAlgorithmFamily::ECDSA: {
     auto Res = EcdsaSignatureKeyPair::import(Alg, Encoded, Encoding);
     if (!Res) {
@@ -62,6 +74,8 @@ SignatureKeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
     }
     return SignatureKeyPair{std::move(*Res)};
   }
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 }
 

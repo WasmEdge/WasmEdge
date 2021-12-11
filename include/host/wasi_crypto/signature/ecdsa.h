@@ -17,14 +17,12 @@ namespace WASICrypto {
 
 class EcdsaSignaturePublicKey : public SignaturePublicKey::Base {
 public:
-  EcdsaSignaturePublicKey(EcdsaPkCtx Ctx, SignatureAlgorithm Alg)
-      : Ctx(std::move(Ctx)), Alg(Alg) {}
+  EcdsaSignaturePublicKey(EcdsaPkCtx Ctx)
+      : Ctx(std::move(Ctx)) {}
 
   static WasiCryptoExpect<std::unique_ptr<EcdsaSignaturePublicKey>>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
          __wasi_publickey_encoding_e_t Encoding);
-
-  SignatureAlgorithm alg() override { return Alg; }
 
   WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_publickey_encoding_e_t Encoding) override;
@@ -33,15 +31,14 @@ public:
 
 private:
   EcdsaPkCtx Ctx;
-  SignatureAlgorithm Alg;
 };
 
 class EcdsaSignatureSecretKey : public SignatureSecretKey::Base {
 public:
-  EcdsaSignatureSecretKey(EcdsaSkCtx Ctx, SignatureAlgorithm Alg)
-      : Ctx(std::move(Ctx)), Alg(Alg) {}
+  EcdsaSignatureSecretKey(EcdsaSkCtx Ctx)
+      : Ctx(std::move(Ctx)) {}
 
-  static WasiCryptoExpect<std::unique_ptr<EcdsaSignatureSecretKey>>
+  static WasiCryptoExpect<SignatureSecretKey>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
          __wasi_secretkey_encoding_e_t Encoding);
 
@@ -50,17 +47,16 @@ public:
 
 private:
   EcdsaSkCtx Ctx;
-  SignatureAlgorithm Alg;
 };
 
 class EcdsaSignatureKeyPair : public SignatureKeyPair::Base {
 public:
-  EcdsaSignatureKeyPair(EcdsaKpCtx Ctx, SignatureAlgorithm Alg) : Ctx(std::move(Ctx)), Alg(Alg) {}
+  EcdsaSignatureKeyPair(EcdsaKpCtx Ctx) : Ctx(std::move(Ctx)) {}
 
-  static WasiCryptoExpect<std::unique_ptr<EcdsaSignatureKeyPair>>
+  static WasiCryptoExpect<SignatureKeyPair>
   generate(SignatureAlgorithm Alg, std::optional<SignatureOptions> Options);
 
-  static WasiCryptoExpect<std::unique_ptr<EcdsaSignatureKeyPair>>
+  static WasiCryptoExpect<SignatureKeyPair>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
          __wasi_keypair_encoding_e_t Encoding);
 
@@ -75,33 +71,35 @@ public:
 
 private:
   EcdsaKpCtx Ctx;
-  SignatureAlgorithm Alg;
 };
 
 class EcdsaSignature : public Signature::Base {
 public:
-  EcdsaSignature(std::vector<uint8_t> &&Raw) : Raw(Raw) {}
+  EcdsaSignature(EcdsaSignCtx Ctx) : Ctx(std::move(Ctx)) {}
 
-  static WasiCryptoExpect<std::unique_ptr<EcdsaSignature>>
+  static WasiCryptoExpect<Signature>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
          __wasi_signature_encoding_e_t Encoding);
 
-  Span<uint8_t const> asRef() override { return Raw; }
+  WasiCryptoExpect<std::vector<uint8_t>>
+  exportData(__wasi_signature_encoding_e_t Encoding);
+
+  Span<uint8_t const> asRef() override { return Ctx.asRef(); }
 
 private:
-  std::vector<uint8_t> Raw;
+  EcdsaSignCtx Ctx;
 };
 
 class EcdsaSignatureState : public SignatureState::Base {
 public:
-  EcdsaSignatureState(EcdsaSignCtx Ctx) : Ctx(std::move(Ctx)) {}
+  EcdsaSignatureState(EcdsaSignStateCtx Ctx) : Ctx(std::move(Ctx)) {}
 
   WasiCryptoExpect<void> update(Span<uint8_t const> Input) override;
 
   WasiCryptoExpect<Signature> sign() override;
 
 private:
-  EcdsaSignCtx Ctx;
+  EcdsaSignStateCtx Ctx;
 };
 
 class EcdsaSignatureVerificationState

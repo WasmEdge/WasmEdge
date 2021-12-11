@@ -10,7 +10,7 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
-class EcdsaSignCtx;
+class EcdsaSignStateCtx;
 class EcdsaVerificationCtx;
 
 class EcdsaPkCtx {
@@ -29,7 +29,6 @@ public:
 
 private:
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Pk;
-  SignatureAlgorithm Alg;
 };
 
 class EcdsaSkCtx {
@@ -46,7 +45,6 @@ public:
 
 private:
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Sk;
-  SignatureAlgorithm Alg;
 };
 
 class EcdsaKpCtx {
@@ -63,7 +61,7 @@ public:
   WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_keypair_encoding_e_t Encoding);
 
-  WasiCryptoExpect<EcdsaSignCtx> asSign();
+  WasiCryptoExpect<EcdsaSignStateCtx> asSignState();
 
   WasiCryptoExpect<EcdsaPkCtx> publicKey();
 
@@ -71,21 +69,36 @@ public:
 
 private:
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Kp;
-  SignatureAlgorithm Alg;
 };
 
 class EcdsaSignCtx {
 public:
-  EcdsaSignCtx(OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> MdCtx)
+  EcdsaSignCtx(std::vector<uint8_t> &&Sign) : Sign(std::move(Sign)) {}
+
+  static WasiCryptoExpect<EcdsaSignCtx>
+  import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+         __wasi_signature_encoding_e_t Encoding);
+
+  Span<uint8_t const> asRef() { return Sign; };
+
+  WasiCryptoExpect<std::vector<uint8_t>>
+  exportData(__wasi_signature_encoding_e_t Encoding);
+
+private:
+  std::vector<uint8_t> Sign;
+};
+
+class EcdsaSignStateCtx {
+public:
+  EcdsaSignStateCtx(OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> MdCtx)
       : MdCtx(std::move(MdCtx)) {}
 
   WasiCryptoExpect<void> update(Span<uint8_t const> Data);
 
-  WasiCryptoExpect<std::vector<uint8_t>> sign();
+  WasiCryptoExpect<EcdsaSignCtx> sign();
 
 private:
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> MdCtx;
-  SignatureAlgorithm Alg;
 };
 
 class EcdsaVerificationCtx {
@@ -99,7 +112,6 @@ public:
 
 private:
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> MdCtx;
-  SignatureAlgorithm Alg;
 };
 
 } // namespace WASICrypto

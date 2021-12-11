@@ -8,9 +8,8 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
-namespace X25519 {
 
-class PublicKey : public KxPublicKey::Base {
+class X25519PublicKey : public KxPublicKey::Base {
 public:
   class Builder : public KxPublicKey::Builder {
   public:
@@ -22,10 +21,11 @@ public:
     KxAlgorithm Alg;
   };
 
-  PublicKey(KxAlgorithm Alg, X25519PK Ctx) : Alg(Alg), Ctx(std::move(Ctx)) {}
+  X25519PublicKey(KxAlgorithm Alg, X25519PK Ctx)
+      : Alg(Alg), Ctx(std::move(Ctx)) {}
 
-  static WasiCryptoExpect<PublicKey> make(KxAlgorithm Alg,
-                                          Span<uint8_t const> Raw);
+  static WasiCryptoExpect<X25519PublicKey> import(KxAlgorithm Alg,
+                                                  Span<uint8_t const> Raw);
 
   KxAlgorithm alg() override { return Alg; }
 
@@ -35,13 +35,14 @@ public:
 
   WasiCryptoExpect<void> verify() override;
 
-  friend class SecretKey;
+  friend class X25519SecretKey;
+
 private:
   KxAlgorithm Alg;
   X25519PK Ctx;
 };
 
-class SecretKey : public KxSecretKey::Base {
+class X25519SecretKey : public KxSecretKey::Base {
 public:
   class Builder : public KxSecretKey::Builder {
   public:
@@ -53,10 +54,11 @@ public:
     KxAlgorithm Alg;
   };
 
-  SecretKey(KxAlgorithm Alg, X25519SK Ctx) : Alg(Alg), Ctx(std::move(Ctx)) {}
+  X25519SecretKey(KxAlgorithm Alg, X25519SK Ctx)
+      : Alg(Alg), Ctx(std::move(Ctx)) {}
 
-  static WasiCryptoExpect<SecretKey> make(KxAlgorithm Alg,
-                                          Span<uint8_t const> Raw);
+  static WasiCryptoExpect<X25519SecretKey> import(KxAlgorithm Alg,
+                                                  Span<uint8_t const> Raw);
 
   WasiCryptoExpect<KxPublicKey> publicKey() override;
 
@@ -66,16 +68,17 @@ public:
 
   WasiCryptoExpect<Span<const uint8_t>> asRaw() override;
 
-  WasiCryptoExpect<std::vector<uint8_t>> dh(std::unique_ptr<KxPublicKey::Base> &KxPk) override;
+  WasiCryptoExpect<std::vector<uint8_t>>
+  dh(std::unique_ptr<KxPublicKey::Base> &KxPk) override;
 
-  WasiCryptoExpect<PublicKey> producePublicKey();
+  WasiCryptoExpect<X25519PublicKey> producePublicKey();
 
 private:
   KxAlgorithm Alg;
   X25519SK Ctx;
 };
 
-class KeyPair : public KxKeyPair::Base {
+class X25519KeyPair : public KxKeyPair::Base {
 public:
   class Builder : public KxKeyPair::Builder {
   public:
@@ -88,7 +91,7 @@ public:
     KxAlgorithm Alg;
   };
 
-  KeyPair(KxAlgorithm Alg, PublicKey Pk, SecretKey Sk)
+  X25519KeyPair(KxAlgorithm Alg, X25519PublicKey Pk, X25519SecretKey Sk)
       : Alg(Alg), Pk(std::move(Pk)), Sk(std::move(Sk)) {}
 
   KxAlgorithm alg() override { return Alg; }
@@ -101,11 +104,10 @@ public:
 
 private:
   KxAlgorithm Alg;
-  PublicKey Pk;
-  SecretKey Sk;
+  X25519PublicKey Pk;
+  X25519SecretKey Sk;
 };
 
-} // namespace X25519
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

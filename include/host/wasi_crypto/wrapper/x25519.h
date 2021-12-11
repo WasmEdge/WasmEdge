@@ -12,7 +12,7 @@ namespace WASICrypto {
 
 class X25519PK {
 public:
-  static WasiCryptoExpect<X25519PK> make(Span<uint8_t const> Raw);
+  static WasiCryptoExpect<X25519PK> import(Span<uint8_t const> Raw);
 
   WasiCryptoExpect<std::vector<uint8_t>> asRaw();
 
@@ -27,7 +27,7 @@ private:
 
 class X25519SK {
 public:
-  static WasiCryptoExpect<X25519SK> make(Span<uint8_t const> Raw);
+  static WasiCryptoExpect<X25519SK> import(Span<uint8_t const> Raw);
 
   WasiCryptoExpect<std::vector<uint8_t>> asRaw();
 
@@ -49,10 +49,10 @@ public:
   static WasiCryptoExpect<X25519Kp> make();
 
 private:
-  X25519Kp(OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_free> Ctx)
+  X25519Kp(OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx)
       : Ctx(std::move(Ctx)) {}
 
-  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_free> Ctx;
+  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx;
 };
 } // namespace WASICrypto
 } // namespace Host

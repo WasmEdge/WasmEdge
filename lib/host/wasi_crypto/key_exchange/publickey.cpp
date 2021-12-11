@@ -6,12 +6,6 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-WasiCryptoExpect<void> KxPublicKey::Base::verify() { return {}; }
-
-WasiCryptoExpect<EncapsulatedSecret> KxPublicKey::Base::encapsulate() {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-}
-
 //WasiCryptoExpect<std::unique_ptr<KxPublicKeyBuilder>>
 //KxPublicKey::builder(KxAlgorithm Alg) {
 //  switch (Alg) {

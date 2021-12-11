@@ -55,7 +55,7 @@ WasiCryptoExpect<std::unique_ptr<KxKeyPair::Builder>>
 KxKeyPair::builder(KxAlgorithm Alg) {
   switch (Alg) {
   case KxAlgorithm::X25519:
-    return std::make_unique<X25519KeyPairBuilder>(Alg);
+    return std::make_unique<X25519KeyPair::Builder>(Alg);
   case KxAlgorithm::Kyber768:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   }

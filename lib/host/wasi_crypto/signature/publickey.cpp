@@ -12,7 +12,12 @@ namespace WASICrypto {
 WasiCryptoExpect<SignaturePublicKey>
 SignaturePublicKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
                            __wasi_publickey_encoding_e_t Encoding) {
-  switch (family(Alg)) {
+  auto Family = family(Alg);
+  if (!Family) {
+    return WasiCryptoUnexpect(Family);
+  }
+
+  switch (*Family) {
   case SignatureAlgorithmFamily::ECDSA: {
     auto Res = EcdsaSignaturePublicKey::import(Alg, Encoded, Encoding);
     if (!Res) {

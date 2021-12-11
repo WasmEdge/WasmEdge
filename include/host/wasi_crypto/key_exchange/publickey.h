@@ -29,7 +29,9 @@ public:
 
     virtual WasiCryptoExpect<std::vector<uint8_t>> asRaw() = 0;
 
-    virtual WasiCryptoExpect<void> verify();
+    virtual WasiCryptoExpect<void> verify() {
+      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+    }
 
     virtual WasiCryptoExpect<EncapsulatedSecret> encapsulate() {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
@@ -53,9 +55,6 @@ public:
             std::make_shared<Mutex<std::unique_ptr<Base>>>(std::move(Inner))) {}
 
   auto &inner() { return Inner; }
-
-  //  static WasiCryptoExpect<std::unique_ptr<KxPublicKeyBuilder>>
-  //  builder(KxAlgorithm Alg);
 
 private:
   std::shared_ptr<Mutex<std::unique_ptr<Base>>> Inner;

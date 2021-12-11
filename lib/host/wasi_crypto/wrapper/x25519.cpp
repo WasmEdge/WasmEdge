@@ -6,7 +6,7 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
-WasiCryptoExpect<X25519PK> X25519PK::make(Span<const uint8_t> Raw) {
+WasiCryptoExpect<X25519PK> X25519PK::import(Span<const uint8_t> Raw) {
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Pk{EVP_PKEY_new_raw_public_key(
       EVP_PKEY_X25519, nullptr, Raw.data(), Raw.size())};
   if (Pk == nullptr) {
@@ -27,7 +27,7 @@ WasiCryptoExpect<std::vector<uint8_t>> X25519PK::asRaw() {
   return Res;
 }
 
-WasiCryptoExpect<X25519SK> X25519SK::make(Span<const uint8_t> Raw) {
+WasiCryptoExpect<X25519SK> X25519SK::import(Span<const uint8_t> Raw) {
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Sk{EVP_PKEY_new_raw_private_key(
       EVP_PKEY_X25519, nullptr, Raw.data(), Raw.size())};
   if (Sk == nullptr) {

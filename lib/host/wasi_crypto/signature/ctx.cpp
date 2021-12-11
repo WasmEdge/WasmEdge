@@ -89,7 +89,7 @@ WasiCryptoContext::signatureStateSign(__wasi_signature_state_t StateHandle) {
     return WasiCryptoUnexpect(Sig);
   }
 
-  return SignatureManger.registerManger(Signature{std::move(*Sig)});
+  return SignatureManger.registerManger(*Sig);
 }
 
 WasiCryptoExpect<void>
@@ -116,8 +116,7 @@ WasiCryptoContext::signatureVerificationStateOpen(
     return WasiCryptoUnexpect(Res);
   }
 
-  return SignatureVerificationStateManger.registerManger(
-      SignatureVerificationState{std::move(*Res)});
+  return SignatureVerificationStateManger.registerManger(*Res);
 }
 
 WasiCryptoExpect<void> WasiCryptoContext::signatureVerificationStateUpdate(

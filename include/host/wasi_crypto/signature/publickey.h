@@ -20,8 +20,6 @@ public:
   public:
     virtual ~Base() = default;
 
-    virtual SignatureAlgorithm alg() = 0;
-
     virtual WasiCryptoExpect<std::vector<uint8_t>>
     exportData(__wasi_publickey_encoding_e_t Pk) = 0;
 

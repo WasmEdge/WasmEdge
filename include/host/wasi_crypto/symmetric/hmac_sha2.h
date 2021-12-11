@@ -6,10 +6,9 @@
 #include "host/wasi_crypto/symmetric/options.h"
 #include "host/wasi_crypto/symmetric/state.h"
 #include "host/wasi_crypto/util.h"
+#include "host/wasi_crypto/wrapper/hmac_sha2.h"
 #include "openssl/evp.h"
 #include "openssl/hmac.h"
-#include "host/wasi_crypto/wrapper/hmac_sha2.h"
-#include "host/wasi_crypto/error.h"
 
 #include <cstdint>
 #include <string_view>
@@ -19,7 +18,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class HmacSha2SymmetricKey : public SymmetricKeyBase {
+class HmacSha2SymmetricKey : public SymmetricKey::Base {
 public:
   HmacSha2SymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
 
@@ -35,11 +34,12 @@ private:
   std::vector<uint8_t> Raw;
 };
 
-class HmacSha2KeyBuilder : public SymmetricKeyBuilder {
+class HmacSha2KeyBuilder : public SymmetricKey::Builder {
 public:
   HmacSha2KeyBuilder(SymmetricAlgorithm Alg);
 
-  WasiCryptoExpect<SymmetricKey> generate(std::optional<SymmetricOptions> OptOption) override;
+  WasiCryptoExpect<SymmetricKey>
+  generate(std::optional<SymmetricOptions> OptOption) override;
 
   WasiCryptoExpect<SymmetricKey> import(Span<uint8_t const> Raw) override;
 
@@ -49,10 +49,10 @@ private:
   SymmetricAlgorithm Alg;
 };
 
-class HmacSha2SymmetricState : public SymmetricStateBase {
+class HmacSha2SymmetricState : public SymmetricState::Base {
 public:
   static WasiCryptoExpect<std::unique_ptr<HmacSha2SymmetricState>>
-  make(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
+  import(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
        std::optional<SymmetricOptions> OptOptions);
 
   WasiCryptoExpect<std::vector<uint8_t>>

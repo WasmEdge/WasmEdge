@@ -23,20 +23,20 @@ constexpr bool checkSub(Span<const uint8_t> Data, __wasi_size_t TagSize) {
 
 } // namespace
 
-WasiCryptoExpect<void> SymmetricStateBase::absorb(Span<uint8_t const>) {
+WasiCryptoExpect<void> SymmetricState::Base::absorb(Span<uint8_t const>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<void> SymmetricStateBase::squeeze(Span<uint8_t>) {
+WasiCryptoExpect<void> SymmetricState::Base::squeeze(Span<uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<void> SymmetricStateBase::ratchet() {
+WasiCryptoExpect<void> SymmetricState::Base::ratchet() {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
 WasiCryptoExpect<__wasi_size_t>
-SymmetricStateBase::encrypt(Span<uint8_t> Out, Span<const uint8_t> Data) {
+SymmetricState::Base::encrypt(Span<uint8_t> Out, Span<const uint8_t> Data) {
   auto TagSize = maxTagLen();
   if (!TagSize) {
     return WasiCryptoUnexpect(TagSize);
@@ -53,15 +53,15 @@ SymmetricStateBase::encrypt(Span<uint8_t> Out, Span<const uint8_t> Data) {
 }
 
 WasiCryptoExpect<SymmetricTag>
-SymmetricStateBase::encryptDetached(Span<uint8_t> Out,
-                                    Span<const uint8_t> Data) {
+SymmetricState::Base::encryptDetached(Span<uint8_t> Out,
+                                      Span<const uint8_t> Data) {
   if (Out.size() != Data.size())
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_LENGTH);
   return encryptDetachedUnchecked(Out, Data);
 }
 
 WasiCryptoExpect<__wasi_size_t>
-SymmetricStateBase::decrypt(Span<uint8_t> Out, Span<const uint8_t> Data) {
+SymmetricState::Base::decrypt(Span<uint8_t> Out, Span<const uint8_t> Data) {
   if (auto TagSize = maxTagLen(); !TagSize) {
     return WasiCryptoUnexpect(TagSize);
   } else {
@@ -80,9 +80,8 @@ SymmetricStateBase::decrypt(Span<uint8_t> Out, Span<const uint8_t> Data) {
   return *Result;
 }
 
-WasiCryptoExpect<__wasi_size_t>
-SymmetricStateBase::decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
-                                    Span<uint8_t> RawTag) {
+WasiCryptoExpect<__wasi_size_t> SymmetricState::Base::decryptDetached(
+    Span<uint8_t> Out, Span<const uint8_t> Data, Span<uint8_t> RawTag) {
 
   if (Out.size() != Data.size()) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_LENGTH);
@@ -98,57 +97,52 @@ SymmetricStateBase::decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
 }
 
 WasiCryptoExpect<SymmetricKey>
-SymmetricStateBase::squeezeKey(SymmetricAlgorithm) {
+SymmetricState::Base::squeezeKey(SymmetricAlgorithm) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<SymmetricTag> SymmetricStateBase::squeezeTag() {
+WasiCryptoExpect<SymmetricTag> SymmetricState::Base::squeezeTag() {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<__wasi_size_t> SymmetricStateBase::maxTagLen() {
+WasiCryptoExpect<__wasi_size_t> SymmetricState::Base::maxTagLen() {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
-
-SymmetricStateBase::SymmetricStateBase(SymmetricAlgorithm Alg) : Alg(Alg) {}
 
 WasiCryptoExpect<__wasi_size_t>
-SymmetricStateBase::encryptUnchecked(Span<uint8_t>, Span<const uint8_t>) {
+SymmetricState::Base::encryptUnchecked(Span<uint8_t>, Span<const uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
 WasiCryptoExpect<SymmetricTag>
-SymmetricStateBase::encryptDetachedUnchecked(Span<uint8_t>,
-                                             Span<const uint8_t>) {
+SymmetricState::Base::encryptDetachedUnchecked(Span<uint8_t>,
+                                               Span<const uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
 WasiCryptoExpect<__wasi_size_t>
-SymmetricStateBase::decryptUnchecked(Span<uint8_t>, Span<const uint8_t>) {
+SymmetricState::Base::decryptUnchecked(Span<uint8_t>, Span<const uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<__wasi_size_t>
-SymmetricStateBase::decryptDetachedUnchecked(Span<uint8_t>, Span<const uint8_t>,
-                                             Span<uint8_t const>) {
+WasiCryptoExpect<__wasi_size_t> SymmetricState::Base::decryptDetachedUnchecked(
+    Span<uint8_t>, Span<const uint8_t>, Span<uint8_t const>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
-
-SymmetricState::SymmetricState(std::unique_ptr<SymmetricStateBase> Inner)
-    : Inner(std::make_shared<Mutex<std::unique_ptr<SymmetricStateBase>>>(
-          std::move(Inner))) {}
 
 WasiCryptoExpect<SymmetricState>
-SymmetricState::make(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
-                     std::optional<SymmetricOptions> OptOptions) {
-  if (OptKey && (OptKey->alg() != Alg)) {
+SymmetricState::import(SymmetricAlgorithm Alg,
+                       std::optional<SymmetricKey> OptKey,
+                       std::optional<SymmetricOptions> OptOptions) {
+  if (OptKey &&
+      (OptKey->inner()->locked([](auto &Key) { return Key->alg(); }) != Alg)) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
   }
 
   switch (Alg) {
   case SymmetricAlgorithm::HmacSha256:
   case SymmetricAlgorithm::HmacSha512:
-    if (auto Res = HmacSha2SymmetricState::make(Alg, OptKey, OptOptions);
+    if (auto Res = HmacSha2SymmetricState::import(Alg, OptKey, OptOptions);
         !Res) {
       return WasiCryptoUnexpect(Res);
     } else {
@@ -158,7 +152,7 @@ SymmetricState::make(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
   case SymmetricAlgorithm::HkdfSha512Extract:
   case SymmetricAlgorithm::HkdfSha256Expand:
   case SymmetricAlgorithm::HkdfSha512Expand:
-    if (auto Res = HkdfSymmetricState::make(Alg, OptKey, OptOptions); !Res) {
+    if (auto Res = HkdfSymmetricState::import(Alg, OptKey, OptOptions); !Res) {
       return WasiCryptoUnexpect(Res);
     } else {
       return SymmetricState{std::move(*Res)};
@@ -166,7 +160,7 @@ SymmetricState::make(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
   case SymmetricAlgorithm::Sha256:
   case SymmetricAlgorithm::Sha512:
   case SymmetricAlgorithm::Sha512_256:
-    if (auto Res = Sha2SymmetricState::make(Alg, OptKey, OptOptions); !Res) {
+    if (auto Res = Sha2SymmetricState::import(Alg, OptKey, OptOptions); !Res) {
       return WasiCryptoUnexpect(Res);
     } else {
       return SymmetricState{std::move(*Res)};
@@ -188,7 +182,8 @@ SymmetricState::make(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
     }
   case SymmetricAlgorithm::Xoodyak128:
   case SymmetricAlgorithm::Xoodyak160:
-    if (auto Res = XoodyakSymmetricState::make(Alg, OptKey, OptOptions); !Res) {
+    if (auto Res = XoodyakSymmetricState::import(Alg, OptKey, OptOptions);
+        !Res) {
       return WasiCryptoUnexpect(Res);
     } else {
       return SymmetricState{std::move(*Res)};

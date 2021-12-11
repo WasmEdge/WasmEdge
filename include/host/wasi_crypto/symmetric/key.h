@@ -13,32 +13,32 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class SymmetricKey;
-
-class SymmetricKeyBuilder {
-public:
-  virtual ~SymmetricKeyBuilder() = default;
-
-  virtual WasiCryptoExpect<SymmetricKey>
-  generate(std::optional<SymmetricOptions> Option) = 0;
-
-  virtual WasiCryptoExpect<SymmetricKey> import(Span<uint8_t const> Raw) = 0;
-
-  virtual WasiCryptoExpect<__wasi_size_t> keyLen() = 0;
-};
-
-class SymmetricKeyBase {
-public:
-  virtual ~SymmetricKeyBase() = default;
-  // lock
-  virtual WasiCryptoExpect<Span<const uint8_t>> raw() = 0;
-
-  virtual SymmetricAlgorithm alg() = 0;
-};
-
 class SymmetricKey {
 public:
-  SymmetricKey(std::unique_ptr<SymmetricKeyBase> Inner);
+  class Base {
+  public:
+    virtual ~Base() = default;
+    // lock
+    virtual WasiCryptoExpect<Span<const uint8_t>> raw() = 0;
+
+    virtual SymmetricAlgorithm alg() = 0;
+  };
+
+  class Builder {
+  public:
+    virtual ~Builder() = default;
+
+    virtual WasiCryptoExpect<SymmetricKey>
+    generate(std::optional<SymmetricOptions> Option) = 0;
+
+    virtual WasiCryptoExpect<SymmetricKey> import(Span<uint8_t const> Raw) = 0;
+
+    virtual WasiCryptoExpect<__wasi_size_t> keyLen() = 0;
+  };
+
+  SymmetricKey(std::unique_ptr<Base> Inner)
+      : Inner(
+            std::make_shared<Mutex<std::unique_ptr<Base>>>(std::move(Inner))) {}
 
   static WasiCryptoExpect<SymmetricKey>
   generate(SymmetricAlgorithm Alg, std::optional<SymmetricOptions> OptOption);
@@ -47,7 +47,7 @@ public:
                                                Span<uint8_t const> Raw);
 
   WasiCryptoExpect<std::vector<uint8_t>> raw() {
-    return Inner->locked([](std::unique_ptr<SymmetricKeyBase> &Data)
+    return Inner->locked([](std::unique_ptr<Base> &Data)
                              -> WasiCryptoExpect<std::vector<uint8_t>> {
       auto Res = Data->raw();
       if (Res) {
@@ -57,16 +57,13 @@ public:
     });
   }
 
-  SymmetricAlgorithm alg() {
-    return Inner->locked(
-        [](std::unique_ptr<SymmetricKeyBase> &Data) { return Data->alg(); });
-  }
+  auto &inner() { return Inner; }
 
-  template <typename T, std::enable_if_t<std::is_base_of_v<SymmetricKeyBase, T>,
-                                         bool> = true>
+  template <typename T,
+            std::enable_if_t<std::is_base_of_v<Base, T>, bool> = true>
   WasiCryptoExpect<void> isType() {
     return Inner->template locked(
-        [](std::unique_ptr<SymmetricKeyBase> &Data) -> WasiCryptoExpect<void> {
+        [](std::unique_ptr<Base> &Data) -> WasiCryptoExpect<void> {
           if (dynamic_cast<T *>(Data.get()) == nullptr) {
             return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
           }
@@ -75,10 +72,10 @@ public:
   };
 
 private:
-  static WasiCryptoExpect<std::unique_ptr<SymmetricKeyBuilder>>
+  static WasiCryptoExpect<std::unique_ptr<Builder>>
   builder(SymmetricAlgorithm Alg);
 
-  std::shared_ptr<Mutex<std::unique_ptr<SymmetricKeyBase>>> Inner;
+  std::shared_ptr<Mutex<std::unique_ptr<Base>>> Inner;
 };
 
 } // namespace WASICrypto

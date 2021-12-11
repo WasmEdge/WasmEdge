@@ -48,7 +48,7 @@ WasiCryptoExpect<__wasi_size_t> XoodyakSymmetricKeyBuilder::keyLen() {
 }
 
 WasiCryptoExpect<std::unique_ptr<XoodyakSymmetricState>>
-XoodyakSymmetricState::make(SymmetricAlgorithm, std::optional<SymmetricKey>,
+XoodyakSymmetricState::import(SymmetricAlgorithm, std::optional<SymmetricKey>,
                             std::optional<SymmetricOptions>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }

@@ -7,7 +7,7 @@ namespace Host {
 namespace WASICrypto {
 
 WasiCryptoExpect<std::unique_ptr<Sha2SymmetricState>>
-Sha2SymmetricState::make(SymmetricAlgorithm Alg,
+Sha2SymmetricState::import(SymmetricAlgorithm Alg,
                          std::optional<SymmetricKey> OptKey,
                          std::optional<SymmetricOptions> OptOptions) {
   if (OptKey) {
@@ -47,10 +47,6 @@ WasiCryptoExpect<void> Sha2SymmetricState::squeeze(Span<uint8_t> Out) {
   return Ctx.squeeze(Out);
 }
 
-Sha2SymmetricState::Sha2SymmetricState(
-    SymmetricAlgorithm Alg, std::optional<SymmetricOptions> OptOptions,
-    Sha2 Ctx)
-    : SymmetricStateBase(Alg), OptOptions(OptOptions), Ctx(std::move(Ctx)) {}
 
 } // namespace WASICrypto
 } // namespace Host

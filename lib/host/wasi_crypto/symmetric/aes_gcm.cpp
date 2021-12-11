@@ -129,8 +129,7 @@ AesGcmSymmetricState::encryptUnchecked(Span<uint8_t> Out,
   }
 
   // Gen tag
-  auto Inner = Tag->raw();
-  std::copy(Inner.begin(), Inner.end(), Out.begin() + Data.size());
+  Tag->assign(Out.begin(), Out.begin() + Data.size());
 
   return Out.size();
 }
@@ -138,7 +137,12 @@ AesGcmSymmetricState::encryptUnchecked(Span<uint8_t> Out,
 WasiCryptoExpect<SymmetricTag>
 AesGcmSymmetricState::encryptDetachedUnchecked(Span<uint8_t> Out,
                                                Span<const uint8_t> Data) {
-  return Ctx.encryptDetached(Out, Data);
+  auto Res = Ctx.encryptDetached(Out, Data);
+  if (!Res) {
+    return WasiCryptoUnexpect(Res);
+  }
+
+  return SymmetricTag{Alg, std::move(*Res)};
 }
 
 WasiCryptoExpect<__wasi_size_t>
@@ -158,7 +162,7 @@ WasiCryptoExpect<__wasi_size_t> AesGcmSymmetricState::decryptDetachedUnchecked(
 
 AesGcmSymmetricState::AesGcmSymmetricState(SymmetricAlgorithm Alg,
                                            SymmetricOptions Options, AesGcm Ctx)
-    : SymmetricStateBase(Alg), Options(Options), Ctx(std::move(Ctx)) {}
+    : SymmetricState::Base(Alg), Options(Options), Ctx(std::move(Ctx)) {}
 
 } // namespace WASICrypto
 } // namespace Host

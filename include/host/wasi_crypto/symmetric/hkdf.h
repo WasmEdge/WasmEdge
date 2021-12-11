@@ -10,7 +10,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class HkdfSymmetricKey : public SymmetricKeyBase {
+class HkdfSymmetricKey : public SymmetricKey::Base {
 public:
   HkdfSymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
 
@@ -23,7 +23,7 @@ private:
   std::vector<uint8_t> Raw;
 };
 
-class HkdfSymmetricKeyBuilder : public SymmetricKeyBuilder {
+class HkdfSymmetricKeyBuilder : public SymmetricKey::Builder {
 public:
   HkdfSymmetricKeyBuilder(SymmetricAlgorithm Alg);
 
@@ -43,10 +43,10 @@ private:
 ///
 /// Expand:
 ///
-class HkdfSymmetricState : public SymmetricStateBase {
+class HkdfSymmetricState : public SymmetricState::Base {
 public:
   static WasiCryptoExpect<std::unique_ptr<HkdfSymmetricState>>
-  make(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
+  import(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
        std::optional<SymmetricOptions> OptOptions);
 
   /// absorbs the salt of the key(Extract)/info(Expand) information.

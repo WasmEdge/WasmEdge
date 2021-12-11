@@ -54,7 +54,7 @@ WasiCryptoExpect<__wasi_size_t> HmacSha2KeyBuilder::keyLen() {
 }
 
 WasiCryptoExpect<std::unique_ptr<HmacSha2SymmetricState>>
-HmacSha2SymmetricState::make(SymmetricAlgorithm Alg,
+HmacSha2SymmetricState::import(SymmetricAlgorithm Alg,
                              std::optional<SymmetricKey> OptKey,
                              std::optional<SymmetricOptions> OptOptions) {
   if (!OptKey) {
@@ -115,7 +115,7 @@ WasiCryptoExpect<SymmetricTag> HmacSha2SymmetricState::squeezeTag() {
 HmacSha2SymmetricState::HmacSha2SymmetricState(
     SymmetricAlgorithm Alg, std::optional<SymmetricOptions> OptOptions,
     HmacSha2 Ctx)
-    : SymmetricStateBase(Alg), OptOptions(OptOptions), Ctx(std::move(Ctx)) {}
+    : SymmetricState::Base(Alg), OptOptions(OptOptions), Ctx(std::move(Ctx)) {}
 
 } // namespace WASICrypto
 } // namespace Host

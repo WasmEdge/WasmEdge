@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include "host/wasi_crypto/symmetric/tag.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/state.h"
 #include "host/wasi_crypto/wrapper/aes_gcm.h"
@@ -9,7 +10,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class AesGcmSymmetricKey : public SymmetricKeyBase {
+class AesGcmSymmetricKey : public SymmetricKey::Base {
 public:
   AesGcmSymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
 
@@ -22,7 +23,7 @@ private:
   std::vector<uint8_t> Raw;
 };
 
-class AesGcmSymmetricKeyBuilder : public SymmetricKeyBuilder {
+class AesGcmSymmetricKeyBuilder : public SymmetricKey::Builder {
 public:
   AesGcmSymmetricKeyBuilder(SymmetricAlgorithm Alg);
 
@@ -38,7 +39,7 @@ private:
 };
 
 // Nonce = IV,
-class AesGcmSymmetricState : public SymmetricStateBase {
+class AesGcmSymmetricState : public SymmetricState::Base {
 public:
   inline static constexpr __wasi_size_t NonceLen = 12;
 

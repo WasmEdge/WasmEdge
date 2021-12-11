@@ -70,7 +70,7 @@ WasiCryptoExpect<void> AesGcm::absorb(Span<const uint8_t> Data) {
   return {};
 }
 
-WasiCryptoExpect<SymmetricTag>
+WasiCryptoExpect<std::vector<uint8_t>>
 AesGcm::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
   updateMode(Mode::Encrypt);
 
@@ -105,14 +105,14 @@ AesGcm::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
   }
 
   // Gen tag
-  std::array<uint8_t, TagLen> RawTagData;
-  if (!EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_GCM_GET_TAG, TagLen,
-                           RawTagData.data())) {
+  std::vector<uint8_t> RawTagData;
+  RawTagData.reserve(TagLen);
+  if (1 != EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_GCM_GET_TAG, TagLen,
+                               RawTagData.data())) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 
-  SymmetricTag Tag{Alg, {RawTagData.data(), TagLen}};
-  return Tag;
+  return RawTagData;
 }
 
 WasiCryptoExpect<__wasi_size_t>

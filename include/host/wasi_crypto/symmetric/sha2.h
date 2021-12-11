@@ -12,11 +12,11 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class Sha2SymmetricState : public SymmetricStateBase {
+class Sha2SymmetricState : public SymmetricState::Base {
 public:
   static WasiCryptoExpect<std::unique_ptr<Sha2SymmetricState>>
-  make(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
-       std::optional<SymmetricOptions> OptOptions);
+  import(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
+         std::optional<SymmetricOptions> OptOptions);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   optionsGet(std::string_view Name) override;
@@ -29,7 +29,9 @@ public:
 
 private:
   Sha2SymmetricState(SymmetricAlgorithm Alg,
-                     std::optional<SymmetricOptions> OptOptions, Sha2 Ctx);
+                     std::optional<SymmetricOptions> OptOptions, Sha2 Ctx)
+      : SymmetricState::Base(Alg), OptOptions(OptOptions), Ctx(std::move(Ctx)) {
+  }
 
   std::optional<SymmetricOptions> OptOptions;
   Sha2 Ctx;

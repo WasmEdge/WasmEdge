@@ -2,6 +2,7 @@
 #pragma once
 
 #include "common/span.h"
+#include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/wrapper/openssl.h"
 #include "openssl/evp.h"
@@ -24,7 +25,7 @@ public:
 
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data);
 
-  WasiCryptoExpect<SymmetricTag> encryptDetached(Span<uint8_t> Out,
+  WasiCryptoExpect<std::vector<uint8_t>> encryptDetached(Span<uint8_t> Out,
                                                  Span<const uint8_t> Data);
 
   WasiCryptoExpect<__wasi_size_t> decryptDetached(Span<uint8_t> Out,

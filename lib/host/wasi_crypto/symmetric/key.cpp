@@ -11,9 +11,6 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-SymmetricKey::SymmetricKey(std::unique_ptr<SymmetricKeyBase> Inner)
-    : Inner(std::make_shared<Mutex<std::unique_ptr<SymmetricKeyBase>>>(
-          std::move(Inner))) {}
 
 WasiCryptoExpect<SymmetricKey>
 SymmetricKey::generate(SymmetricAlgorithm Alg,
@@ -34,7 +31,7 @@ WasiCryptoExpect<SymmetricKey> SymmetricKey::import(SymmetricAlgorithm Alg,
   return (*Builder)->import(Raw);
 }
 
-WasiCryptoExpect<std::unique_ptr<SymmetricKeyBuilder>>
+WasiCryptoExpect<std::unique_ptr<SymmetricKey::Builder>>
 SymmetricKey::builder(SymmetricAlgorithm Alg) {
   switch (Alg) {
   case SymmetricAlgorithm::HmacSha256:

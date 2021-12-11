@@ -103,7 +103,7 @@ WasiCryptoContext::symmetricStateOpen(
     return WasiCryptoUnexpect(OptOptions);
   }
 
-  auto State = SymmetricState::make(Alg, *OptKey, *OptOptions);
+  auto State = SymmetricState::import(Alg, *OptKey, *OptOptions);
   if (!State) {
     return WasiCryptoUnexpect(State);
   }
@@ -125,7 +125,8 @@ WasiCryptoContext::symmetricStateOptionsGet(__wasi_symmetric_state_t Handle,
     return WasiCryptoUnexpect(State);
   }
 
-  auto InnerVec = State->optionsGet(Name);
+  auto InnerVec = State->inner()->locked(
+      [&Name](auto &Inner) { return Inner->optionsGet(Name); });
   if (!InnerVec) {
     return WasiCryptoUnexpect(InnerVec);
   }
@@ -146,7 +147,8 @@ WasiCryptoContext::symmetricStateOptionsGetU64(__wasi_symmetric_state_t Handle,
     return WasiCryptoUnexpect(State);
   }
 
-  return State->optionsGetU64(Name);
+  return State->inner()->locked(
+      [&Name](auto &Inner) { return Inner->optionsGetU64(Name); });
 }
 
 WasiCryptoExpect<void>
@@ -162,7 +164,8 @@ WasiCryptoContext::symmetricStateAbsorb(__wasi_symmetric_state_t Handle,
     return WasiCryptoUnexpect(State);
   }
 
-  return State->absorb(Data);
+  return State->inner()->locked(
+      [&Data](auto &Inner) { return Inner->absorb(Data); });
 }
 
 WasiCryptoExpect<void>
@@ -173,7 +176,9 @@ WasiCryptoContext::symmetricStateSqueeze(__wasi_symmetric_state_t Handle,
     return WasiCryptoUnexpect(State);
   }
 
-  return State->squeeze(Out);
+  return State->inner()->locked(
+      [&Out](auto &Inner) { return Inner->squeeze(Out); });
+  ;
 }
 
 WasiCryptoExpect<__wasi_symmetric_tag_t>
@@ -183,7 +188,9 @@ WasiCryptoContext::symmetricStateSqueezeTag(__wasi_symmetric_state_t Handle) {
     return WasiCryptoUnexpect(State);
   }
 
-  auto Tag = State->squeezeTag();
+  auto Tag =
+      State->inner()->locked([](auto &Inner) { return Inner->squeezeTag(); });
+
   if (!Tag) {
     return WasiCryptoUnexpect(Tag);
   }
@@ -199,7 +206,8 @@ WasiCryptoContext::symmetricStateSqueezeKey(
     return WasiCryptoUnexpect(State);
   }
 
-  auto Key = State->squeezeKey(Alg);
+  auto Key = State->inner()->locked(
+      [Alg](auto &Inner) { return Inner->squeezeKey(Alg); });
   if (!Key) {
     return WasiCryptoUnexpect(Key);
   }
@@ -214,7 +222,7 @@ WasiCryptoExpect<__wasi_size_t> WasiCryptoContext::symmetricStateMaxTagLen(
     return WasiCryptoUnexpect(State);
   }
 
-  return State->maxTagLen();
+  return State->inner()->locked([](auto &Inner) { return Inner->maxTagLen(); });
 }
 
 WasiCryptoExpect<__wasi_size_t>
@@ -226,7 +234,9 @@ WasiCryptoContext::symmetricStateEncrypt(__wasi_symmetric_state_t StateHandle,
     return WasiCryptoUnexpect(State);
   }
 
-  return State->encrypt(Out, Data);
+  return State->inner()->locked(
+      [&Out, &Data](auto &Inner) { return Inner->encrypt(Out, Data); });
+  ;
 }
 
 WasiCryptoExpect<__wasi_symmetric_key_t>
@@ -238,7 +248,8 @@ WasiCryptoContext::symmetricStateEncryptDetached(
     return WasiCryptoUnexpect(State);
   }
 
-  auto Tag = State->encryptDetached(Out, Data);
+  auto Tag = State->inner()->locked(
+      [&Out, &Data](auto &Inner) { return Inner->encryptDetached(Out, Data); });
   if (!Tag) {
     return WasiCryptoUnexpect(Tag);
   }
@@ -255,7 +266,8 @@ WasiCryptoContext::symmetricStateDecrypt(__wasi_symmetric_state_t StateHandle,
     return WasiCryptoUnexpect(State);
   }
 
-  return State->decrypt(Out, Data);
+  return State->inner()->locked(
+      [&Out, &Data](auto &Inner) { return Inner->decrypt(Out, Data); });
 }
 
 WasiCryptoExpect<__wasi_size_t>
@@ -267,7 +279,9 @@ WasiCryptoContext::symmetricStateDecryptDetached(
     return WasiCryptoUnexpect(State);
   }
 
-  return State->decryptDetached(Out, Data, RawTag);
+  return State->inner()->locked([&Out, &Data, &RawTag](auto &Inner) {
+    return Inner->decryptDetached(Out, Data, RawTag);
+  });
 }
 
 WasiCryptoExpect<void>
@@ -277,7 +291,7 @@ WasiCryptoContext::symmetricStateRatchet(__wasi_symmetric_state_t StateHandle) {
     return WasiCryptoUnexpect(State);
   }
 
-  return State->ratchet();
+  return State->inner()->locked([](auto &Inner) { return Inner->ratchet(); });
 }
 
 WasiCryptoExpect<__wasi_size_t>

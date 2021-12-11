@@ -52,7 +52,7 @@ WasiCryptoExpect<__wasi_size_t> HkdfSymmetricKeyBuilder::keyLen() {
 }
 
 WasiCryptoExpect<std::unique_ptr<HkdfSymmetricState>>
-HkdfSymmetricState::make(SymmetricAlgorithm Alg,
+HkdfSymmetricState::import(SymmetricAlgorithm Alg,
                          std::optional<SymmetricKey> OptKey,
                          std::optional<SymmetricOptions> OptOptions) {
   if (!OptKey) {
@@ -115,7 +115,7 @@ HkdfSymmetricState::optionsGetU64(std::string_view Name) {
 HkdfSymmetricState::HkdfSymmetricState(
     SymmetricAlgorithm Algorithm, std::optional<SymmetricOptions> OptOptions,
     Hkdf Ctx)
-    : SymmetricStateBase(Algorithm), OptOptions(OptOptions),
+    : SymmetricState::Base(Algorithm), OptOptions(OptOptions),
       Ctx(std::move(Ctx)) {}
 
 } // namespace WASICrypto

@@ -8,7 +8,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class XoodyakSymmetricKey : public SymmetricKeyBase {
+class XoodyakSymmetricKey : public SymmetricKey::Base {
 public:
   XoodyakSymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
 
@@ -21,7 +21,7 @@ private:
   std::vector<uint8_t> Raw;
 };
 
-class XoodyakSymmetricKeyBuilder : public SymmetricKeyBuilder {
+class XoodyakSymmetricKeyBuilder : public SymmetricKey::Builder {
 public:
   XoodyakSymmetricKeyBuilder(SymmetricAlgorithm Alg);
 
@@ -36,10 +36,10 @@ private:
   SymmetricAlgorithm Alg;
 };
 
-class XoodyakSymmetricState : public SymmetricStateBase {
+class XoodyakSymmetricState : public SymmetricState::Base {
 public:
   static WasiCryptoExpect<std::unique_ptr<XoodyakSymmetricState>>
-  make(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
+  import(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
        std::optional<SymmetricOptions> OptOptions);
 };
 

@@ -10,7 +10,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class ChaChaPolySymmetricKey : public SymmetricKeyBase {
+class ChaChaPolySymmetricKey : public SymmetricKey::Base {
 public:
   ChaChaPolySymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
 
@@ -23,7 +23,7 @@ private:
   std::vector<uint8_t> Raw;
 };
 
-class ChaChaPolySymmetricKeyBuilder : public SymmetricKeyBuilder {
+class ChaChaPolySymmetricKeyBuilder : public SymmetricKey::Builder {
 public:
   ChaChaPolySymmetricKeyBuilder(SymmetricAlgorithm Alg);
 
@@ -38,7 +38,7 @@ private:
   SymmetricAlgorithm Alg;
 };
 
-class ChaChaPolySymmetricState : public SymmetricStateBase {
+class ChaChaPolySymmetricState : public SymmetricState::Base {
 public:
   static WasiCryptoExpect<std::unique_ptr<ChaChaPolySymmetricState>>
   make(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,

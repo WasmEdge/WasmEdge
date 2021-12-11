@@ -21,10 +21,7 @@ public:
 
     virtual Span<uint8_t const> asRef() = 0;
 
-    virtual std::vector<uint8_t> asRaw() {
-      auto R = asRef();
-      return std::vector<uint8_t>{R.begin(), R.end()};
-    }
+    virtual WasiCryptoExpect<std::vector<uint8_t>> exportData(__wasi_signature_encoding_e_t Encoding) = 0;
   };
 
   Signature(std::unique_ptr<Base> Inner)

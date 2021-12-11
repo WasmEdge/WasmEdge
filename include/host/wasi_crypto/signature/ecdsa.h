@@ -82,7 +82,7 @@ public:
          __wasi_signature_encoding_e_t Encoding);
 
   WasiCryptoExpect<std::vector<uint8_t>>
-  exportData(__wasi_signature_encoding_e_t Encoding);
+  exportData(__wasi_signature_encoding_e_t Encoding) override;
 
   Span<uint8_t const> asRef() override { return Ctx.asRef(); }
 

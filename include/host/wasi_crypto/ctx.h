@@ -568,8 +568,7 @@ public:
 
   WasiCryptoExpect<__wasi_keypair_t>
   keypairImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
-                Span<uint8_t> Encoded,
-                __wasi_keypair_encoding_e_t Encoding);
+                Span<uint8_t> Encoded, __wasi_keypair_encoding_e_t Encoding);
 
   // opt
   WasiCryptoExpect<__wasi_keypair_t>
@@ -594,8 +593,8 @@ public:
   keypairFromId(__wasi_secrets_manager_t SecretsManager, const_uint8_t_ptr KpId,
                 __wasi_size_t KpIdLen, __wasi_version_t KpIdVersion);
 
-  WasiCryptoExpect<__wasi_keypair_t> keypairFromPkAndSk(__wasi_publickey_t PkHandle,
-                                                        __wasi_secretkey_t SkHandle);
+  WasiCryptoExpect<__wasi_keypair_t>
+  keypairFromPkAndSk(__wasi_publickey_t PkHandle, __wasi_secretkey_t SkHandle);
   WasiCryptoExpect<__wasi_array_output_t>
   keypairExport(__wasi_keypair_t KpHandle,
                 __wasi_keypair_encoding_e_t KeypairEncoding);
@@ -644,7 +643,8 @@ public:
   kxEncapsulate(__wasi_publickey_t PkHandle);
 
   WasiCryptoExpect<__wasi_array_output_t>
-  kxDecapsulate(__wasi_secretkey_t SkHandle, Span<uint8_t const> EncapsulatedSecret);
+  kxDecapsulate(__wasi_secretkey_t SkHandle,
+                Span<uint8_t const> EncapsulatedSecret);
 
   ///-------------------------------------------signature---------------------------------------
 
@@ -653,34 +653,37 @@ public:
                   __wasi_signature_encoding_e_t Encoding);
 
   WasiCryptoExpect<__wasi_signature_t>
-  signatureImport(SignatureAlgorithm Alg, Span<uint8_t const> Encoded, __wasi_signature_encoding_e_t Encoding);
+  signatureImport(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
+                  __wasi_signature_encoding_e_t Encoding);
 
   WasiCryptoExpect<void> signatureClose(__wasi_signature_t SigHandle);
 
   WasiCryptoExpect<__wasi_signature_state_t>
   signatureStateOpen(__wasi_signature_keypair_t KpHandle);
 
-  WasiCryptoExpect<void> signatureStateUpdate(__wasi_signature_state_t StateHandle,
-                                              Span<uint8_t const> Input);
+  WasiCryptoExpect<void>
+  signatureStateUpdate(__wasi_signature_state_t StateHandle,
+                       Span<uint8_t const> Input);
 
   WasiCryptoExpect<__wasi_signature_t>
   signatureStateSign(__wasi_signature_state_t StateHandle);
 
-  WasiCryptoExpect<void> signatureStateClose(__wasi_signature_state_t StateHandle);
+  WasiCryptoExpect<void>
+  signatureStateClose(__wasi_signature_state_t StateHandle);
 
   WasiCryptoExpect<__wasi_signature_verification_state_t>
   signatureVerificationStateOpen(__wasi_signature_publickey_t PkHandle);
 
-  WasiCryptoExpect<void>
-  signatureVerificationStateUpdate(__wasi_signature_verification_state_t VerificationHandle,
-                                   Span<uint8_t const> Input);
+  WasiCryptoExpect<void> signatureVerificationStateUpdate(
+      __wasi_signature_verification_state_t VerificationHandle,
+      Span<uint8_t const> Input);
 
-  WasiCryptoExpect<void>
-  signatureVerificationStateVerify(__wasi_signature_verification_state_t VerificationInner,
-                                   __wasi_signature_t SigInner);
+  WasiCryptoExpect<void> signatureVerificationStateVerify(
+      __wasi_signature_verification_state_t VerificationInner,
+      __wasi_signature_t SigInner);
 
-  WasiCryptoExpect<void>
-  signatureVerificationStateClose(__wasi_signature_verification_state_t VerificationHandle);
+  WasiCryptoExpect<void> signatureVerificationStateClose(
+      __wasi_signature_verification_state_t VerificationHandle);
 
 private:
   WasiCryptoExpect<uint8_t> allocateArrayOutput(std::vector<uint8_t> &&Data);

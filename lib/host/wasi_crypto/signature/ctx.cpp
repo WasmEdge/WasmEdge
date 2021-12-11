@@ -9,28 +9,20 @@ namespace WASICrypto {
 WasiCryptoExpect<__wasi_array_output_t>
 WasiCryptoContext::signatureExport(__wasi_signature_t SigHandle,
                                    __wasi_signature_encoding_e_t Encoding) {
-  switch (Encoding) {
-  case __WASI_SIGNATURE_ENCODING_RAW:
-    break;
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
-  }
   auto Sig = SignatureManger.get(SigHandle);
-  auto Res = Sig->inner()->locked([](auto &Inner) { return Inner->asRaw(); });
-  return allocateArrayOutput(std::move(Res));
+  auto Res = Sig->inner()->locked(
+      [Encoding](auto &Inner) { return Inner->exportData(Encoding); });
+  if (!Res) {
+    return WasiCryptoUnexpect(Res);
+  }
+
+  return allocateArrayOutput(std::move(*Res));
 }
 
 WasiCryptoExpect<__wasi_signature_t>
 WasiCryptoContext::signatureImport(SignatureAlgorithm Alg,
                                    Span<const uint8_t> Encoded,
                                    __wasi_signature_encoding_e_t Encoding) {
-  switch (Encoding) {
-  case __WASI_SIGNATURE_ENCODING_RAW:
-    break;
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
-  }
-
   auto Sig = Signature::import(Alg, Encoded, Encoding);
   if (!Sig) {
     return WasiCryptoUnexpect(Sig);

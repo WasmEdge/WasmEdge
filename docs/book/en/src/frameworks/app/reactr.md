@@ -24,17 +24,20 @@ as JavaScript porgrams in WasmEdge and Reactr.
 ## Prerequisites
 
 You need have [Rust](https://www.rust-lang.org/tools/install), [Go](https://go.dev/doc/install), and [WasmEdge](../../start/install.md) installed on your system.
+The GCC compiler (installed via the `build-essential` package) is also needed
+for WasmEdge.
 
 ```
 $ sudo apt-get update
 $ sudo apt-get -y upgrade
+$ sudo apt install build-essential
 
 $ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 $ source $HOME/.cargo/env
 $ rustup target add wasm32-wasi
 
-$ curl -OL https://golang.org/dl/go1.16.7.linux-amd64.tar.gz
-$ sudo tar -C /usr/local -xvf go1.16.7.linux-amd64.tar.gz
+$ curl -OL https://golang.org/dl/go1.17.5.linux-amd64.tar.gz
+$ sudo tar -C /usr/local -xvf go1.17.5.linux-amd64.tar.gz
 $ export PATH=$PATH:/usr/local/go/bin
 
 $ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
@@ -125,7 +128,7 @@ and extended WebAssembly APIs provided by WasmEdge.
 
 ```bash
 $ go mod tidy
-$ go run main.go -tags wasmedge
+$ go run -tags wasmedge main.go
 ```
 
 ## Database query
@@ -318,7 +321,80 @@ and extended WebAssembly APIs provided by WasmEdge.
 ```bash
 $ export REACTR_DB_CONN_STRING='postgresql://postgres:12345@127.0.0.1:5432/reactr'
 $ go mod tidy
-$ go run main.go -tags wasmedge
+$ go run -tags wasmedge main.go
+```
+
+## Embed JavaScript in Go
+
+As we mentioned, a key feature of the WasmEdge Runtime is its advanced
+[JavaScript support](../../dev/js.md), which allows JavaScript programs to run in lightweight,
+high-performance, safe, multi-language, and [Kubernetes-managed WasmEdge containers](../../kubernetes.md).
+A simple example of embedded JavaScript function in Reactr is [available here](https://github.com/second-state/wasm-learning/tree/master/reactr/quickjs).
+
+### JavaScript example
+
+The [JavaScript example function](https://github.com/second-state/wasm-learning/tree/master/reactr/quickjs/hello.js) is very simple. It just returns a string value.
+
+```javascript
+let h = 'hello';
+let w = 'wasmedge';
+`${h} ${w}`;
+```
+
+### Go host application
+
+The [Go host app](https://github.com/second-state/wasm-learning/tree/master/reactr/quickjs/main.go) uses the Reactr API to run WasmEdge's standard JavaScript
+interpreter [rs_embed_js.wasm](https://github.com/second-state/wasm-learning/blob/master/reactr/quickjs/rs_embed_js.wasm). You can build your own version of 
+JavaScript interpreter by modifying [this Rust project](https://github.com/second-state/wasm-learning/tree/master/reactr/quickjs/rs-embed-js).
+
+> Learn more about how to embed [JavaScript code in Rust](https://github.com/second-state/wasmedge-quickjs/tree/main/examples/embed_js), and how to [use Rust to implement JavaScript APIs](../../dev/js/rust.md) in WasmEdge.
+
+The Go host application just need to start the job for `rs_embed_js.wasm` and pass the JavaScript content to it. The Go application can then capture and print the return value from JavaScript.
+
+```go
+func main() {
+	r := rt.New()
+	doWasm := r.Register("hello-quickjs", rwasm.NewRunner("./rs_embed_js.wasm"))
+
+	code, err := ioutil.ReadFile(os.Args[1])
+	if err != nil {
+		fmt.Print(err)
+	}
+	res, err := doWasm(code).Then()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(string(res.([]byte)))
+}
+```
+
+Run the Go host application as follows.
+
+```bash
+$ cd quickjs
+$ go mod tidy
+$ go run -tags wasmedge main.go hello.js
+String(JsString(hello wasmedge))
+```
+
+The printed result shows the type information of the string in Rust and Go APIs. You can strip out this information by changing the Rust or Go applications.
+
+### Furture examples
+
+WasmEdge supports many advanced JavaScript features. For the next step, you
+could try our [React SSR example](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr) to generate an HTML UI from a Reactr function!
+You can just build the `dist/main.js` from the React SSR example, and copy
+it over to this example folder to see it in action!
+
+```bash
+$ cd quickjs
+# copy over the dist/main.js file from the react ssr example
+$ go mod tidy
+$ go run -tags wasmedge main.go main.js
+<div data-reactroot=""><div>This is home</div><div><div>This is page</div></div></div>
+UnDefined
 ```
 
 

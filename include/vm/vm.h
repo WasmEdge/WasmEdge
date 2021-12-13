@@ -28,6 +28,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <shared_mutex>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -48,24 +49,46 @@ public:
   /// ======= Functions can be called before instantiated stage. =======
   /// Register wasm modules and host modules.
   Expect<void> registerModule(std::string_view Name,
-                              const std::filesystem::path &Path);
-  Expect<void> registerModule(std::string_view Name, Span<const Byte> Code);
-  Expect<void> registerModule(std::string_view Name, const AST::Module &Module);
-  Expect<void> registerModule(const Runtime::ImportObject &Obj);
+                              const std::filesystem::path &Path) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterModule(Name, Path);
+  }
+  Expect<void> registerModule(std::string_view Name, Span<const Byte> Code) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterModule(Name, Code);
+  }
+  Expect<void> registerModule(std::string_view Name,
+                              const AST::Module &Module) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterModule(Name, Module);
+  }
+  Expect<void> registerModule(const Runtime::ImportObject &Obj) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterModule(Obj);
+  }
 
   /// Rapidly load, validate, instantiate, and run wasm function.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   runWasmFile(const std::filesystem::path &Path, std::string_view Func,
               Span<const ValVariant> Params = {},
-              Span<const ValType> ParamTypes = {});
+              Span<const ValType> ParamTypes = {}) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRunWasmFile(Path, Func, Params, ParamTypes);
+  }
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   runWasmFile(Span<const Byte> Code, std::string_view Func,
               Span<const ValVariant> Params = {},
-              Span<const ValType> ParamTypes = {});
+              Span<const ValType> ParamTypes = {}) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRunWasmFile(Code, Func, Params, ParamTypes);
+  }
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   runWasmFile(const AST::Module &Module, std::string_view Func,
               Span<const ValVariant> Params = {},
-              Span<const ValType> ParamTypes = {});
+              Span<const ValType> ParamTypes = {}) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRunWasmFile(Module, Func, Params, ParamTypes);
+  }
 
   Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
   asyncRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
@@ -81,29 +104,50 @@ public:
                    Span<const ValType> ParamTypes = {});
 
   /// Load given wasm file, wasm bytecode, or wasm module.
-  Expect<void> loadWasm(const std::filesystem::path &Path);
-  Expect<void> loadWasm(Span<const Byte> Code);
-  Expect<void> loadWasm(const AST::Module &Module);
+  Expect<void> loadWasm(const std::filesystem::path &Path) {
+    std::unique_lock Lock(Mutex);
+    return unsafeLoadWasm(Path);
+  }
+  Expect<void> loadWasm(Span<const Byte> Code) {
+    std::unique_lock Lock(Mutex);
+    return unsafeLoadWasm(Code);
+  }
+  Expect<void> loadWasm(const AST::Module &Module) {
+    std::unique_lock Lock(Mutex);
+    return unsafeLoadWasm(Module);
+  }
 
   /// ======= Functions can be called after loaded stage. =======
   /// Validate loaded wasm module.
-  Expect<void> validate();
+  Expect<void> validate() {
+    std::unique_lock Lock(Mutex);
+    return unsafeValidate();
+  }
 
   /// ======= Functions can be called after validated stage. =======
   /// Instantiate validated wasm module.
-  Expect<void> instantiate();
+  Expect<void> instantiate() {
+    std::unique_lock Lock(Mutex);
+    return unsafeInstantiate();
+  }
 
   /// ======= Functions can be called after instantiated stage. =======
   /// Execute wasm with given input.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   execute(std::string_view Func, Span<const ValVariant> Params = {},
-          Span<const ValType> ParamTypes = {});
+          Span<const ValType> ParamTypes = {}) {
+    std::unique_lock Lock(Mutex);
+    return unsafeExecute(Func, Params, ParamTypes);
+  }
 
   /// Execute function of registered module with given input.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   execute(std::string_view ModName, std::string_view Func,
           Span<const ValVariant> Params = {},
-          Span<const ValType> ParamTypes = {});
+          Span<const ValType> ParamTypes = {}) {
+    std::unique_lock Lock(Mutex);
+    return unsafeExecute(ModName, Func, Params, ParamTypes);
+  }
 
   /// Asynchronous execute wasm with given input.
   Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
@@ -123,14 +167,23 @@ public:
 
   /// ======= Functions which are stageless. =======
   /// Clean up VM status
-  void cleanup();
+  void cleanup() {
+    std::unique_lock Lock(Mutex);
+    return unsafeCleanup();
+  }
 
   /// Get list of callable functions and corresponding function types.
   std::vector<std::pair<std::string, const AST::FunctionType &>>
-  getFunctionList() const;
+  getFunctionList() const {
+    std::shared_lock Lock(Mutex);
+    return unsafeGetFunctionList();
+  }
 
   /// Get import objects by configurations.
-  Runtime::ImportObject *getImportModule(const HostRegistration Type);
+  Runtime::ImportObject *getImportModule(const HostRegistration Type) const {
+    std::shared_lock Lock(Mutex);
+    return unsafeGetImportModule(Type);
+  }
 
   /// Getter of store set in VM.
   Runtime::StoreManager &getStoreManager() { return StoreRef; }
@@ -139,15 +192,63 @@ public:
   Statistics::Statistics &getStatistics() { return Stat; }
 
 private:
+  Expect<void> unsafeRegisterModule(std::string_view Name,
+                                    const std::filesystem::path &Path);
+  Expect<void> unsafeRegisterModule(std::string_view Name,
+                                    Span<const Byte> Code);
+  Expect<void> unsafeRegisterModule(std::string_view Name,
+                                    const AST::Module &Module);
+  Expect<void> unsafeRegisterModule(const Runtime::ImportObject &Obj);
+
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
+                    Span<const ValVariant> Params = {},
+                    Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
+                    Span<const ValVariant> Params = {},
+                    Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
+                    Span<const ValVariant> Params = {},
+                    Span<const ValType> ParamTypes = {});
+
+  Expect<void> unsafeLoadWasm(const std::filesystem::path &Path);
+  Expect<void> unsafeLoadWasm(Span<const Byte> Code);
+  Expect<void> unsafeLoadWasm(const AST::Module &Module);
+
+  Expect<void> unsafeValidate();
+
+  Expect<void> unsafeInstantiate();
+
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeExecute(std::string_view Func, Span<const ValVariant> Params = {},
+                Span<const ValType> ParamTypes = {});
+
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeExecute(std::string_view Mod, std::string_view Func,
+                Span<const ValVariant> Params = {},
+                Span<const ValType> ParamTypes = {});
+
+  void unsafeCleanup();
+
+  std::vector<std::pair<std::string, const AST::FunctionType &>>
+  unsafeGetFunctionList() const;
+
+  Runtime::ImportObject *
+  unsafeGetImportModule(const HostRegistration Type) const;
+
   enum class VMStage : uint8_t { Inited, Loaded, Validated, Instantiated };
 
-  void initVM();
+  void unsafeInitVM();
 
   /// Helper function for execution.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
-  execute(Runtime::Instance::ModuleInstance *ModInst, std::string_view Func,
-          Span<const ValVariant> Params = {},
-          Span<const ValType> ParamTypes = {});
+  unsafeExecute(Runtime::Instance::ModuleInstance *ModInst,
+                std::string_view Func, Span<const ValVariant> Params = {},
+                Span<const ValType> ParamTypes = {});
+
+  mutable std::shared_mutex Mutex;
 
   /// VM environment.
   const Configure Conf;

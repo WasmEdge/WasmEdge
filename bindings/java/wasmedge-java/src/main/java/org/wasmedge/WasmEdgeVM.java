@@ -49,7 +49,7 @@ public class WasmEdgeVM {
                 returnsArray, returns.size(), returnTypes);
     }
 
-    public native void runWasmFromBuffer(byte[] buffer, String funcName,  List<WasmEdgeValue> parasm, List<WasmEdgeValue> returns);
+    public native void runWasmFromBuffer(byte[] buffer, String funcName, List<WasmEdgeValue> parasm, List<WasmEdgeValue> returns);
 
     public native void runWasmFromASTModule(ASTModuleContext astModuleContext, String funcName, List<WasmEdgeValue> params, List<WasmEdgeValue> returns);
 

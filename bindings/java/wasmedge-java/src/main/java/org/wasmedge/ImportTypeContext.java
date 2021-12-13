@@ -1,5 +1,7 @@
 package org.wasmedge;
 
+import org.wasmedge.enums.ExternalType;
+
 public class ImportTypeContext {
     private ASTModuleContext astCtx;
 
@@ -13,5 +15,7 @@ public class ImportTypeContext {
     public native MemoryTypeContext getMemoryType();
 
     public native GlobalTypeContext getGlobalType();
+
+    public native ExternalType getExternalType();
 
 }

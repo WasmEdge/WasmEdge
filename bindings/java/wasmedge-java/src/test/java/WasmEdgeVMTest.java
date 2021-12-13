@@ -105,6 +105,6 @@ public class WasmEdgeVMTest extends BaseTest {
         Assert.assertEquals(functionList.size(), 1);
 
         FunctionTypeContext function = vm.getFunctionType(FUNC_NAME);
-
     }
+
 }

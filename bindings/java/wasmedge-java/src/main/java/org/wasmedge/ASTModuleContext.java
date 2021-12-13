@@ -1,5 +1,7 @@
 package org.wasmedge;
 
+import java.util.List;
+
 public class ASTModuleContext {
     private long pointer;
 
@@ -7,9 +9,9 @@ public class ASTModuleContext {
 
     }
 
-    public native ImportTypeContext listImports();
+    public native List<ImportTypeContext> listImports();
 
-    public native ExecutorContext listExports();
+    public native List<ExportTypeContext> listExports();
 
     public native void delete();
 }

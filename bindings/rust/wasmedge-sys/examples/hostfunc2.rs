@@ -76,9 +76,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut vm = Vm::create(Some(&config), None)
         .expect("fail to create VM instance")
-        .register_module_from_import(import_obj)
+        .register_wasm_from_import(&mut import_obj)
         .expect("import_obj should be regiestered")
-        .load_wasm_from_ast_module(&mut module)
+        .load_wasm_from_module(&mut module)
         .expect("funcs.wasm should be loaded")
         .validate()
         .expect("fail to validate vm")
@@ -92,8 +92,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let add_ref = Value::from(boxed_fn());
 
-    match vm.run("call_add", &[add_ref, 1234i32.into(), 5678i32.into()]) {
-        Ok(v) => println!("result from call_add: {:?}", v),
+    match vm.run_function("call_add", [add_ref, 1234i32.into(), 5678i32.into()]) {
+        Ok(v) => println!("result from call_add: {:?}", v.collect::<Vec<_>>()),
         Err(r) => println!("error from call_add{:?}", r),
     };
     Ok(())

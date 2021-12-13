@@ -2,7 +2,6 @@
 
 #include "wasm/wasm.h"
 #include "wasmedge/wasmedge.h"
-#include "wasm/wasm.h"
 
 #include "aot/compiler.h"
 #include "host/wasi/wasimodule.h"

@@ -4228,6 +4228,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
                                std::filesystem::path OutputPath) {
   using namespace std::literals;
 
+  std::unique_lock Lock(Mutex);
   spdlog::info("compile start");
   std::filesystem::path LLPath(OutputPath);
   LLPath.replace_extension("ll"sv);

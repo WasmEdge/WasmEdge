@@ -27,7 +27,7 @@ namespace WASI {
 
 inline namespace detail {
 inline constexpr const int32_t kIOVMax = 1024;
-inline constexpr const int32_t saDataLen = 14;
+inline constexpr const int32_t kSaDataLen = 14;
 } // namespace detail
 
 class EVPoller;

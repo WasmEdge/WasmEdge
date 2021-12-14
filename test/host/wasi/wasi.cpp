@@ -45,7 +45,7 @@ void allocateAddrinfoArray(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
     Base += ResItemPtr->ai_addrlen;
     // allocate sockaddr sa_data.
     Sockaddr->sa_data = Base;
-    Sockaddr->sa_data_len = WasmEdge::Host::WASI::saDataLen;
+    Sockaddr->sa_data_len = WasmEdge::Host::WASI::kSaDataLen;
     Base += Sockaddr->sa_data_len;
     // allocate ai_canonname
     ResItemPtr->ai_canonname = Base;

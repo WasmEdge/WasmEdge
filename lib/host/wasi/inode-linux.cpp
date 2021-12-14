@@ -832,8 +832,8 @@ INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
       // process sa_data in socket address
       if (std::strlen(SysResItem->ai_addr->sa_data) != 0) {
         std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data,
-                    WASI::saDataLen);
-        WasiSockaddrArray[Idx]->sa_data_len = WASI::saDataLen;
+                    WASI::kSaDataLen);
+        WasiSockaddrArray[Idx]->sa_data_len = WASI::kSaDataLen;
       }
     }
     // process ai_next in addrinfo

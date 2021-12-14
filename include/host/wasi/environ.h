@@ -43,10 +43,10 @@ public:
   WasiExpect<void>
   getAddrInfo(const char *Node, const char *Service,
               const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
-              std::vector<struct __wasi_addrinfo_t *> *WasiAddrinfoArray,
-              std::vector<struct __wasi_sockaddr_t *> *WasiSockaddrArray,
-              std::vector<char *> *AiAddrSaDataArray,
-              std::vector<char *> *AiCanonnameArray,
+              std::vector<struct __wasi_addrinfo_t *> &WasiAddrinfoArray,
+              std::vector<struct __wasi_sockaddr_t *> &WasiSockaddrArray,
+              std::vector<char *> &AiAddrSaDataArray,
+              std::vector<char *> &AiCanonnameArray,
               /*Out*/ __wasi_size_t *ResLength) {
 
     if (auto Res = VINode::getAddrinfo(

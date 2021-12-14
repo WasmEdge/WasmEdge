@@ -1890,9 +1890,9 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
   auto initAiAddrArray =
       [&MemInst](
           const std::vector<struct __wasi_addrinfo_t *> &WasiAddrinfoArray,
-          std::vector<__wasi_sockaddr_t *> *WasiSockAddrArray) {
+          std::vector<__wasi_sockaddr_t *> &WasiSockAddrArray) {
         for (uint32_t Item = 0; Item < WasiAddrinfoArray.size(); Item++) {
-          (*WasiSockAddrArray)[Item] = MemInst->getPointer<__wasi_sockaddr_t *>(
+          WasiSockAddrArray[Item] = MemInst->getPointer<__wasi_sockaddr_t *>(
               WasiAddrinfoArray[Item]->ai_addr,
               sizeof(struct __wasi_sockaddr_t));
         }
@@ -1900,9 +1900,9 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
 
   auto initAiAddrSaDataArray =
       [&MemInst](const std::vector<__wasi_sockaddr_t *> &WasiSockAddrArray,
-                 std::vector<char *> *AiSockAddrSaDataArray) {
+                 std::vector<char *> &AiSockAddrSaDataArray) {
         for (uint32_t Item = 0; Item < WasiSockAddrArray.size(); Item++) {
-          (*AiSockAddrSaDataArray)[Item] =
+          AiSockAddrSaDataArray[Item] =
               MemInst->getPointer<char *>(WasiSockAddrArray[Item]->sa_data,
                                           WasiSockAddrArray[Item]->sa_data_len);
         }
@@ -1911,9 +1911,9 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
   auto initAiCanonnameArray =
       [&MemInst](
           const std::vector<struct __wasi_addrinfo_t *> &WasiAddrinfoArray,
-          std::vector<char *> *WasiAddrinfoCanonnameArray) {
+          std::vector<char *> &WasiAddrinfoCanonnameArray) {
         for (uint32_t Item = 0; Item < WasiAddrinfoArray.size(); Item++) {
-          (*WasiAddrinfoCanonnameArray)[Item] = MemInst->getPointer<char *>(
+          WasiAddrinfoCanonnameArray[Item] = MemInst->getPointer<char *>(
               WasiAddrinfoArray[Item]->ai_canonname,
               WasiAddrinfoArray[Item]->ai_canonname_len);
         }
@@ -1929,13 +1929,13 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
   initWasiAddrinfoArray(
       *(MemInst->getPointer<uint8_t_ptr *>(ResPtr, sizeof(uint8_t))),
       MaxResLength, &WasiAddrinfoArray);
-  initAiAddrArray(WasiAddrinfoArray, &WasiSockAddrArray);
-  initAiAddrSaDataArray(WasiSockAddrArray, &AiAddrSaDataArray);
-  initAiCanonnameArray(WasiAddrinfoArray, &AiCanonnameArray);
+  initAiAddrArray(WasiAddrinfoArray, WasiSockAddrArray);
+  initAiAddrSaDataArray(WasiSockAddrArray, AiAddrSaDataArray);
+  initAiCanonnameArray(WasiAddrinfoArray, AiCanonnameArray);
 
   if (auto Res = Env.getAddrInfo(
-          Node, Service, *Hint, MaxResLength, &WasiAddrinfoArray,
-          &WasiSockAddrArray, &AiAddrSaDataArray, &AiCanonnameArray, ResLength);
+          Node, Service, *Hint, MaxResLength, WasiAddrinfoArray,
+          WasiSockAddrArray, AiAddrSaDataArray, AiCanonnameArray, ResLength);
       unlikely(!Res)) {
     return Res.error();
   }
@@ -1959,14 +1959,14 @@ WasiFreeAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
     if (SockeAddress->sa_data_len != 0) {
       auto *SaDataBuff = MemInst->getPointer<char *>(SockeAddress->sa_data,
                                                      SockeAddress->sa_data_len);
-      memset(SaDataBuff, 0, SockeAddress->sa_data_len);
+      std::memset(SaDataBuff, 0, SockeAddress->sa_data_len);
     }
-    memset(SockeAddress, 0, sizeof(__wasi_sockaddr_t));
+    std::memset(SockeAddress, 0, sizeof(__wasi_sockaddr_t));
     // free ai_canonname
     if (AddrInfoItem->ai_canonname_len != 0) {
       auto *AICanonname = MemInst->getPointer<char *>(
           AddrInfoItem->ai_addr, sizeof(struct __wasi_sockaddr_t));
-      memset(AICanonname, 0, AddrInfoItem->ai_canonname_len);
+      std::memset(AICanonname, 0, AddrInfoItem->ai_canonname_len);
     }
     auto *TmpAddrinfo = AddrInfoItem;
     if (Idx != ResLength - 1) {
@@ -1974,7 +1974,7 @@ WasiFreeAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
           AddrInfoItem->ai_next, sizeof(struct __wasi_addrinfo_t));
     }
     // free self addrinfo
-    memset(TmpAddrinfo, 0, sizeof(struct __wasi_addrinfo_t));
+    std::memset(TmpAddrinfo, 0, sizeof(struct __wasi_addrinfo_t));
   }
   return __WASI_ERRNO_SUCCESS;
 }

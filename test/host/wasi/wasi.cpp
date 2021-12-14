@@ -24,9 +24,9 @@ void writeString(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 
 void writeAddrinfo(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
                    __wasi_addrinfo_t *WasiAddrinfo, uint32_t Ptr) {
-  memcpy(MemInst.getPointer<__wasi_addrinfo_t *>(
-             Ptr, sizeof(struct __wasi_addrinfo_t)),
-         WasiAddrinfo, sizeof(struct __wasi_addrinfo_t));
+  std::memcpy(MemInst.getPointer<__wasi_addrinfo_t *>(
+                  Ptr, sizeof(struct __wasi_addrinfo_t)),
+              WasiAddrinfo, sizeof(struct __wasi_addrinfo_t));
 }
 void allocateAddrinfoArray(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
                            uint32_t Base, uint32_t Length,
@@ -1009,7 +1009,7 @@ TEST(WasiTest, GetAddrinfo) {
   uint32_t NodeLen = Node.size();
   uint32_t ServiceLen = Service.size();
 
-  memset(&Hints, 0, sizeof(Hints));
+  std::memset(&Hints, 0, sizeof(Hints));
   Hints.ai_family = __WASI_ADDRESS_FAMILY_INET4;   /* Allow IPv4 */
   Hints.ai_socktype = __WASI_SOCK_TYPE_SOCK_DGRAM; /* Datagram socket */
   Hints.ai_flags = __WASI_AIFLAGS_AI_PASSIVE;      /* For wildcard IP address */
@@ -1074,7 +1074,7 @@ TEST(WasiTest, GetAddrinfo) {
         *Res, sizeof(struct __wasi_addrinfo_t));
     auto *ResItem = ResHead;
     EXPECT_NE(*ResLength, 0);
-    for (uint32_t i = 0; i < *ResLength; i++) {
+    for (uint32_t Idx = 0; Idx < *ResLength; Idx++) {
       EXPECT_NE(ResItem->ai_addrlen, 0);
       auto *TmpSockAddr = MemInst.getPointer<struct __wasi_sockaddr_t *>(
           ResItem->ai_addr, sizeof(struct __wasi_sockaddr_t));
@@ -1082,7 +1082,7 @@ TEST(WasiTest, GetAddrinfo) {
       EXPECT_EQ(MemInst.getPointer<char *>(TmpSockAddr->sa_data,
                                            TmpSockAddr->sa_data_len)[0],
                 'i');
-      if (i != (*ResLength) - 1) {
+      if (Idx != (*ResLength) - 1) {
         ResItem = MemInst.getPointer<struct __wasi_addrinfo_t *>(
             ResItem->ai_next, sizeof(struct __wasi_addrinfo_t));
       }

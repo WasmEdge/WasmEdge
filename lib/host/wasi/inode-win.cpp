@@ -198,10 +198,10 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t) const noexcept {
 }
 WasiExpect<void> INode::getAddrinfo(const char *, const char *,
                                     const __wasi_addrinfo_t &, uint32_t,
-                                    std::vector<struct __wasi_addrinfo_t *> *,
-                                    std::vector<struct __wasi_sockaddr_t *> *,
-                                    std::vector<char *> *,
-                                    std::vector<char *> *,
+                                    std::vector<struct __wasi_addrinfo_t *> &,
+                                    std::vector<struct __wasi_sockaddr_t *> &,
+                                    std::vector<char *> &,
+                                    std::vector<char *> &,
                                     /*Out*/ __wasi_size_t *) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }

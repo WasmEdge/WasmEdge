@@ -1,7 +1,6 @@
 use super::wasmedge;
 pub type WasmEdgeProposal = wasmedge::WasmEdge_Proposal;
 pub type HostRegistration = wasmedge::WasmEdge_HostRegistration;
-pub type CompilerOptimizationLevel = wasmedge::WasmEdge_CompilerOptimizationLevel;
 pub type HostFunc = wasmedge::WasmEdge_HostFunc_t;
 pub type WrapFunc = wasmedge::WasmEdge_WrapFunc_t;
 
@@ -105,6 +104,62 @@ impl From<wasmedge::WasmEdge_Mutability> for Mutability {
             wasmedge::WasmEdge_Mutability_Const => Mutability::Const,
             wasmedge::WasmEdge_Mutability_Var => Mutability::Var,
             _ => panic!("unknown Mutability value `{}`", mutable),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u32)]
+pub enum CompilerOptimizationLevel {
+    /// Disable as many optimizations as possible.
+    O0 = wasmedge::WasmEdge_CompilerOptimizationLevel_O0,
+
+    /// Optimize quickly without destroying debuggability.
+    O1 = wasmedge::WasmEdge_CompilerOptimizationLevel_O1,
+
+    /// Optimize for fast execution as much as possible without triggering
+    /// significant incremental compile time or code size growth.
+    O2 = wasmedge::WasmEdge_CompilerOptimizationLevel_O2,
+
+    ///  Optimize for fast execution as much as possible.
+    O3 = wasmedge::WasmEdge_CompilerOptimizationLevel_O3,
+
+    ///  Optimize for small code size as much as possible without triggering
+    ///  significant incremental compile time or execution time slowdowns.
+    Os = wasmedge::WasmEdge_CompilerOptimizationLevel_Os,
+
+    /// Optimize for small code size as much as possible.
+    Oz = wasmedge::WasmEdge_CompilerOptimizationLevel_Oz,
+}
+impl From<u32> for CompilerOptimizationLevel {
+    fn from(val: u32) -> CompilerOptimizationLevel {
+        match val {
+            0 => CompilerOptimizationLevel::O0,
+            1 => CompilerOptimizationLevel::O1,
+            2 => CompilerOptimizationLevel::O2,
+            3 => CompilerOptimizationLevel::O3,
+            4 => CompilerOptimizationLevel::Os,
+            5 => CompilerOptimizationLevel::Oz,
+            _ => panic!("Unknown CompilerOptimizationLevel value: {}", val),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u32)]
+pub enum CompilerOutputFormat {
+    /// Native dynamic library format.
+    Native = wasmedge::WasmEdge_CompilerOutputFormat_Native,
+
+    /// WebAssembly with AOT compiled codes in custom sections.
+    Wasm = wasmedge::WasmEdge_CompilerOutputFormat_Wasm,
+}
+impl From<u32> for CompilerOutputFormat {
+    fn from(val: u32) -> CompilerOutputFormat {
+        match val {
+            0 => CompilerOutputFormat::Native,
+            1 => CompilerOutputFormat::Wasm,
+            _ => panic!("Unknown CompilerOutputFormat value: {}", val),
         }
     }
 }

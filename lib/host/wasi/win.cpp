@@ -22,6 +22,8 @@ long(__stdcall *NtQueryTimerResolution)(
 
 namespace {
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
 void ensureInit() noexcept {
   static std::once_flag Initialized;
   std::call_once(Initialized, [&]() {
@@ -30,6 +32,7 @@ void ensureInit() noexcept {
         winapi::GetProcAddress(NTDll, "NtQueryTimerResolution"));
   });
 }
+#pragma GCC diagnostic pop
 
 } // namespace
 

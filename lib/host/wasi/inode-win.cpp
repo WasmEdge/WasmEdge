@@ -182,6 +182,27 @@ WasiExpect<Poller> INode::pollOneoff(__wasi_size_t) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
+WasiExpect<INode> INode::sockOpen(__wasi_address_family_t,
+                                  __wasi_sock_type_t) noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> INode::sockBind(uint8_t *, uint8_t, uint16_t) noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> INode::sockListen(uint32_t) noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<INode> INode::sockAccept() noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> INode::sockConnect(uint8_t *, uint8_t, uint16_t) noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
 WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>>, __wasi_riflags_t,
                                  __wasi_size_t &,
                                  __wasi_roflags_t &) const noexcept {

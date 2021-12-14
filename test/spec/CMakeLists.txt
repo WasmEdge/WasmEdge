@@ -4,7 +4,7 @@ include(FetchContent)
 FetchContent_Declare(
   wasmedge_unit_test
   GIT_REPOSITORY https://github.com/second-state/WasmEdge-unittest
-  GIT_TAG wasm-dev-0.8.0
+  GIT_TAG wasm-dev-0.9.0
 )
 FetchContent_MakeAvailable(wasmedge_unit_test)
 
@@ -14,6 +14,20 @@ FetchContent_Declare(
   GIT_TAG        master
   GIT_SHALLOW    TRUE
 )
+get_property(
+  compile_options
+  DIRECTORY
+  PROPERTY COMPILE_OPTIONS
+)
+set_property(
+  DIRECTORY
+  APPEND
+  PROPERTY COMPILE_OPTIONS
+  -Wno-conditional-uninitialized
+  -Wno-implicit-int-conversion
+  -Wno-zero-as-null-pointer-constant
+)
+unset(compile_options)
 set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "Build rapidjson documentation." FORCE)
 set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "Build rapidjson examples." FORCE)
 set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "Build rapidjson perftests and unittests." FORCE)

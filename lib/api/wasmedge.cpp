@@ -440,7 +440,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_ValueGenF64(const double Val) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
 WasmEdge_ValueGenV128(const ::int128_t Val) {
-  return genWasmEdge_Value(to_WasmEdge_128_t<WasmEdge::uint128_t>(Val));
+  return genWasmEdge_Value(to_WasmEdge_128_t<WasmEdge::int128_t>(Val));
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
@@ -2179,6 +2179,19 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ImportObjectInitWASI(
   }
   auto &WasiEnv = WasiMod->getEnv();
   WasiEnv.init(DirVec, ProgName, ArgVec, EnvVec);
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_ImportObjectWASIGetExitCode(WasmEdge_ImportObjectContext *Cxt) {
+  if (!Cxt) {
+    return EXIT_FAILURE;
+  }
+  auto *WasiMod =
+      dynamic_cast<WasmEdge::Host::WasiModule *>(fromImpObjCxt(Cxt));
+  if (!WasiMod) {
+    return EXIT_FAILURE;
+  }
+  return WasiMod->getEnv().getExitCode();
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ImportObjectContext *

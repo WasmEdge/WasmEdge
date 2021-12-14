@@ -52,7 +52,7 @@ inline float roundevenf(float Value) {
   float Ret;
   __asm__("roundss $8, %1, %0" : "=v"(Ret) : "v"(Value));
   return Ret;
-#elif defined(__ARM_NEON__) || defined(__ARM_NEON) || defined(__ARM_NEON_FP)
+#elif defined(__aarch64__)
   float Ret;
   __asm__("frintn %s0, %s0" : "=w"(Ret) : "w"(Value));
   return Ret;
@@ -77,7 +77,7 @@ inline double roundeven(double Value) noexcept {
   double Ret;
   __asm__("roundsd $8, %1, %0" : "=v"(Ret) : "v"(Value));
   return Ret;
-#elif defined(__ARM_NEON__) || defined(__ARM_NEON) || defined(__ARM_NEON_FP)
+#elif defined(__aarch64__)
   double Ret;
   __asm__("frintn %d0, %d0" : "=w"(Ret) : "w"(Value));
   return Ret;

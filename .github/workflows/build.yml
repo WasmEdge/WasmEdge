@@ -242,6 +242,8 @@ jobs:
         export PATH="/usr/local/opt/llvm/bin:$PATH"
         export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
         export CPPFLAGS="-I/usr/local/opt/llvm/include"
+        export CC=clang
+        export CXX=clang++
         cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON .
         cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
         cmake --build build

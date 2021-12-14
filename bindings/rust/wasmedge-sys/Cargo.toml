@@ -12,3 +12,8 @@ libc = "0.2.94"
 
 [build-dependencies]
 bindgen = { version = "0.59.1", default-features = false, features = ["runtime"] }
+
+[features]
+default = ["aot"]
+standalone = []
+aot = []

@@ -7,6 +7,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Store {
     pub(crate) ctx: *mut wasmedge::WasmEdge_StoreContext,
+    pub(crate) registered: bool,
 }
 impl Store {
     pub fn create() -> WasmEdgeResult<Self> {
@@ -15,7 +16,10 @@ impl Store {
             true => Err(Error::OperationError(String::from(
                 "fail to create Store instance",
             ))),
-            false => Ok(Store { ctx }),
+            false => Ok(Store {
+                ctx,
+                registered: false,
+            }),
         }
     }
 
@@ -426,7 +430,7 @@ impl Store {
 }
 impl Drop for Store {
     fn drop(&mut self) {
-        if !self.ctx.is_null() {
+        if !self.registered && !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_StoreDelete(self.ctx) }
         }
     }

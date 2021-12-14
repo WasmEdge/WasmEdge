@@ -27,7 +27,7 @@ pub mod vm;
 pub mod wasi;
 
 pub use compiler::Compiler;
-pub use config::{Config, OptLevel};
+pub use config::Config;
 pub use error::{Error, WasmEdgeError, WasmEdgeResult};
 pub use executor::Executor;
 pub use import_obj::ImportObj;

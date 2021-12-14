@@ -1664,6 +1664,17 @@ enum __wasi_sock_type_t : uint8_t {
 static_assert(sizeof(__wasi_sock_type_t) == 1, "witx calculated size");
 static_assert(alignof(__wasi_sock_type_t) == 1, "witx calculated align");
 
+enum __wasi_sock_opt : int32_t{
+  __WASI_SOCK_SOL_SOCKET=1,
+  __WASI_SOCK_SO_REUSEADDR = 2,
+  __WASI_SOCK_SO_TYPE = 3,
+  __WASI_SOCK_SO_ERROR = 4,
+  __WASI_SOCK_SO_BROADCAST = 6,
+  __WASI_SOCK_SO_OOBINLINE = 10,
+  __WASI_SOCK_SO_LINGER = 13,
+  __WASI_SOCK_TCP_NODELAY = 1,
+};
+
 /**
  * Flags provided to `sock_recv`.
  */

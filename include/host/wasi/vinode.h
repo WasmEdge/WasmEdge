@@ -590,9 +590,14 @@ public:
   WasiExpect<void> sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
     return Node.sockShutdown(SdFlags);
   }
-  
-  WasiExpect<void> sockGetError() const noexcept {
-    return Node.sockGetError();
+
+  WasiExpect<void> sockGetOpt(int32_t Level, int32_t Name, void *FlagPtr,
+                              uint32_t *FlagSizePtr) const noexcept {
+    return Node.sockGetOpt(Level, Name, FlagPtr, FlagSizePtr);
+  }
+  WasiExpect<void> sockSetOpt(int32_t Level, int32_t Name, void *FlagPtr,
+                              uint32_t FlagSizePtr) const noexcept {
+    return Node.sockSetOpt(Level, Name, FlagPtr, FlagSizePtr);
   }
 
   WasiExpect<void> sockGetLoaclAddr(uint8_t *Address, uint32_t *AddrTypePtr,

@@ -924,8 +924,14 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
   return {};
 }
 
-WasiExpect<void> INode::sockGetError() const noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t Name, void *FlagPtr,
+                                   uint32_t *FlagSizePtr) const noexcept {
+    return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> INode::sockSetOpt(int32_t Level, int32_t Name, void *FlagPtr,
+                                   uint32_t FlagSizePtr) const noexcept {
+    return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
 WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *Address, uint32_t *AddrTypePtr,

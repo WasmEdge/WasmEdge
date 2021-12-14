@@ -966,15 +966,34 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
   return {};
 }
 
-WasiExpect<void> INode::sockGetError() const noexcept {
-  int status;
-  socklen_t slen;
+WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t Name, void *FlagPtr,
+                                   uint32_t *FlagSizePtr) const noexcept {
+  if (Name == __WASI_SOCK_SO_ERROR) {
+    int ErrorCode = 0;
+    int *WasiErrorPtr = (int *)FlagPtr;
+    if (auto Res = ::getsockopt(Fd, Level, Name, &ErrorCode, FlagSizePtr);
+        unlikely(Res < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
+    *WasiErrorPtr = fromErrNo(ErrorCode);
+  } else {
+    if (auto Res = ::getsockopt(Fd, Level, Name, FlagPtr, FlagSizePtr);
+        unlikely(Res < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
+  }
 
-  if (auto Res = ::getsockopt(Fd, SOL_SOCKET, SO_ERROR, (void *) &status, &slen); unlikely(Res < 0)) {
+  return WasiUnexpect(__WASI_ERRNO_SUCCESS);
+}
+
+WasiExpect<void> INode::sockSetOpt(int32_t Level, int32_t Name, void *FlagPtr,
+                                   uint32_t FlagSizePtr) const noexcept {
+  if (auto Res = ::setsockopt(Fd, Level, Name, FlagPtr, FlagSizePtr);
+      unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
 
-  return WasiUnexpect(fromErrNo(status));
+  return WasiUnexpect(__WASI_ERRNO_SUCCESS);
 }
 
 WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressPtr,

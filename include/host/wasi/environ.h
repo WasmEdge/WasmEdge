@@ -938,12 +938,25 @@ public:
     }
   }
 
-   WasiExpect<void> sockGetError(__wasi_fd_t Fd) const noexcept {
+  WasiExpect<void> sockGetOpt(__wasi_fd_t Fd, int32_t Level, int32_t Name,
+                              void *FlagPtr,
+                              uint32_t *FlagSizePtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockGetError();
+      return Node->sockGetOpt(Level, Name, FlagPtr, FlagSizePtr);
+    }
+  }
+
+  WasiExpect<void> sockSetOpt(__wasi_fd_t Fd, int32_t Level, int32_t Name,
+                              void *FlagPtr,
+                              uint32_t FlagSizePtr) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockSetOpt(Level, Name, FlagPtr, FlagSizePtr);
     }
   }
 

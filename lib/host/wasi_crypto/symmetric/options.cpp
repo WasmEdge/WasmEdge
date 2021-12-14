@@ -6,53 +6,43 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-WasiCryptoExpect<void> SymmetricOptions::set(std::string_view Name,
-                                             Span<const uint8_t> Value) {
+WasiCryptoExpect<void> SymmetricOptions::Inner::set(std::string_view Name,
+                                                    Span<const uint8_t> Value) {
+  std::optional<std::vector<uint8_t>> *Res;
   if ("context" == Name) {
-    Inner->locked([Value](SymmetricOptionsInner &Data) {
-      Data.Context = {Value.begin(), Value.end()};
-    });
+    Res = &Context;
   } else if ("salt" == Name) {
-    Inner->locked([Value](SymmetricOptionsInner &Data) {
-      Data.Salt = {Value.begin(), Value.end()};
-    });
-
+    Res = &Salt;
   } else if ("nonce" == Name) {
-    Inner->locked([Value](SymmetricOptionsInner &Data) {
-      Data.Nonce = {Value.begin(), Value.end()};
-    });
+    Res = &Nonce;
   } else {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }
-
+  *Res = {Value.begin(), Value.end()};
   return {};
 }
 
-WasiCryptoExpect<void> SymmetricOptions::setU64(std::string_view Name,
-                                                uint64_t Value) {
+WasiCryptoExpect<void> SymmetricOptions::Inner::setU64(std::string_view Name,
+                                                       uint64_t Value) {
+  std::optional<uint64_t> *Res;
   if ("memory_limit" == Name) {
-    Inner->locked(
-        [Value](SymmetricOptionsInner &Data) { Data.MemoryLimit = Value; });
+    Res = &MemoryLimit;
   } else if ("ops_limit" == Name) {
-    Inner->locked(
-        [Value](SymmetricOptionsInner &Data) { Data.OpsLimit = Value; });
+    Res = &OpsLimit;
   } else if ("parallelism" == Name) {
-    Inner->locked(
-        [Value](SymmetricOptionsInner &Data) { Data.Parallelism = Value; });
+    Res = &Parallelism;
   } else {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }
-
+  *Res = Value;
   return {};
 }
 
 WasiCryptoExpect<void>
-SymmetricOptions::setGuestBuffer(std::string_view Name,
-                                 Span<uint8_t> GuestBuffer) {
+SymmetricOptions::Inner::setGuestBuffer(std::string_view Name,
+                                        Span<uint8_t> Buffer) {
   if ("buffer" == Name) {
-    Inner->locked([GuestBuffer](SymmetricOptionsInner &Data) {
-      Data.GuestBuffer = GuestBuffer;
-    });
+    GuestBuffer = Buffer;
   } else {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }
@@ -61,46 +51,43 @@ SymmetricOptions::setGuestBuffer(std::string_view Name,
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
-SymmetricOptions::get(std::string_view Name) {
-  std::optional<std::vector<uint8_t>> Res;
+SymmetricOptions::Inner::get(std::string_view Name) {
+  std::optional<std::vector<uint8_t>> *Res;
   if ("context" == Name) {
-    Res =
-        Inner->locked([](SymmetricOptionsInner &Data) { return Data.Context; });
+    Res = &Context;
   } else if ("salt" == Name) {
-    Res = Inner->locked([](SymmetricOptionsInner &Data) { return Data.Salt; });
+    Res = &Salt;
   } else if ("nonce" == Name) {
-    Res = Inner->locked([](SymmetricOptionsInner &Data) { return Data.Nonce; });
+    Res = &Nonce;
   } else {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }
-  if (!Res) {
+  if (!Res->has_value()) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   }
 
-  return *Res;
+  return **Res;
 }
 
-WasiCryptoExpect<uint64_t> SymmetricOptions::getU64(std::string_view Name) {
-  std::optional<uint64_t> Res;
+WasiCryptoExpect<uint64_t>
+SymmetricOptions::Inner::getU64(std::string_view Name) {
+  std::optional<uint64_t> *Res;
 
   if ("memory_limit" == Name) {
-    Res = Inner->locked(
-        [](SymmetricOptionsInner &Data) { return Data.MemoryLimit; });
+    Res = &MemoryLimit;
   } else if ("ops_limit" == Name) {
-    Res =
-        Inner->locked([](SymmetricOptionsInner &Data) { return Data.OpsLimit; });
+    Res = &OpsLimit;
   } else if ("parallelism" == Name) {
-    Res = Inner->locked(
-        [](SymmetricOptionsInner &Data) { return Data.Parallelism; });
+    Res = &Parallelism;
   } else {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }
 
-  if (!Res) {
+  if (!Res->has_value()) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   }
 
-  return *Res;
+  return **Res;
 }
 
 } // namespace WASICrypto

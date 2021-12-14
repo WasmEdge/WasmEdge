@@ -6,7 +6,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-WasiCryptoExpect<Sha2> Sha2::make(SymmetricAlgorithm Alg) {
+WasiCryptoExpect<Sha2Ctx> Sha2Ctx::make(SymmetricAlgorithm Alg) {
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx{EVP_MD_CTX_new()};
   if (Ctx == nullptr) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
@@ -25,10 +25,10 @@ WasiCryptoExpect<Sha2> Sha2::make(SymmetricAlgorithm Alg) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 
-  return Sha2(std::move(Ctx));
+  return Sha2Ctx(std::move(Ctx));
 }
 
-WasiCryptoExpect<void> Sha2::squeeze(Span<uint8_t> Out) {
+WasiCryptoExpect<void> Sha2Ctx::squeeze(Span<uint8_t> Out) {
   unsigned int ActualOutSize;
   auto CacheSize = EVP_MD_CTX_size(Ctx.get());
   uint8_t Cache[CacheSize];
@@ -45,14 +45,14 @@ WasiCryptoExpect<void> Sha2::squeeze(Span<uint8_t> Out) {
   return {};
 }
 
-WasiCryptoExpect<void> Sha2::absorb(Span<const uint8_t> Data) {
+WasiCryptoExpect<void> Sha2Ctx::absorb(Span<const uint8_t> Data) {
   if (1 != EVP_DigestUpdate(Ctx.get(), Data.data(), Data.size())) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
   return {};
 }
 
-Sha2::Sha2(OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx)
+Sha2Ctx::Sha2Ctx(OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx)
     : Ctx(std::move(Ctx)) {}
 } // namespace WASICrypto
 } // namespace Host

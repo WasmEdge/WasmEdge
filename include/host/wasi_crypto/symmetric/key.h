@@ -19,7 +19,7 @@ public:
   public:
     virtual ~Base() = default;
     // lock
-    virtual WasiCryptoExpect<Span<const uint8_t>> raw() = 0;
+    virtual Span<const uint8_t> asRef() = 0;
 
     virtual SymmetricAlgorithm alg() = 0;
   };
@@ -49,11 +49,8 @@ public:
   WasiCryptoExpect<std::vector<uint8_t>> raw() {
     return Inner->locked([](std::unique_ptr<Base> &Data)
                              -> WasiCryptoExpect<std::vector<uint8_t>> {
-      auto Res = Data->raw();
-      if (Res) {
-        return WasiCryptoUnexpect(Res);
-      }
-      return std::vector<uint8_t>{Res->begin(), Res->end()};
+      auto Ref = Data->asRef();
+      return std::vector<uint8_t>{Ref.begin(), Ref.end()};
     });
   }
 

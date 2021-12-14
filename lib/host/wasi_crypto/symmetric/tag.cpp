@@ -10,7 +10,7 @@ namespace WASICrypto {
 //SymmetricTag::SymmetricTag(SymmetricAlgorithm Alg, Span<uint8_t> Raw)
 //    : Alg(Alg), Raw(Raw.begin(),  Raw.end()) {}
 
-WasiCryptoExpect<void> SymmetricTag::verify(Span<uint8_t> RawTag) {
+WasiCryptoExpect<void> SymmetricTag::verify(Span<uint8_t const> RawTag) {
   if (!std::equal(RawTag.begin(), RawTag.end(), Raw.begin(), Raw.end())) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
   }

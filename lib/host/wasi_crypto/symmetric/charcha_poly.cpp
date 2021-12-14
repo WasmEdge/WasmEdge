@@ -11,12 +11,6 @@ ChaChaPolySymmetricKey::ChaChaPolySymmetricKey(SymmetricAlgorithm Alg,
                                                Span<uint8_t const> Raw)
     : Alg(Alg), Raw(Raw.begin(), Raw.end()) {}
 
-WasiCryptoExpect<Span<const uint8_t>> ChaChaPolySymmetricKey::raw() {
-  return Raw;
-}
-
-SymmetricAlgorithm ChaChaPolySymmetricKey::alg() { return Alg; }
-
 ChaChaPolySymmetricKeyBuilder::ChaChaPolySymmetricKeyBuilder(
     SymmetricAlgorithm Alg)
     : Alg{Alg} {}

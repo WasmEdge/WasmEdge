@@ -23,7 +23,7 @@ WasiCryptoContext::arrayOutputPull(__wasi_array_output_t ArrayOutputHandle,
 
 WasiCryptoExpect<__wasi_options_t>
 WasiCryptoContext::optionsOpen(__wasi_algorithm_type_e_t AlgorithmType) {
-  auto OpenOptions = Options::make(AlgorithmType);
+  auto OpenOptions = Options::generate(AlgorithmType);
   if (!OpenOptions) {
     return WasiCryptoUnexpect(OpenOptions);
   }

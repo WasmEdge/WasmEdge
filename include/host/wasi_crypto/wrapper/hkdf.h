@@ -12,9 +12,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class Hkdf {
+class HkdfCtx {
 public:
-  static WasiCryptoExpect<Hkdf> make(SymmetricAlgorithm Alg);
+  static WasiCryptoExpect<HkdfCtx> make(SymmetricAlgorithm Alg);
 
   WasiCryptoExpect<void> setKey(Span<uint8_t> Key);
 
@@ -25,7 +25,7 @@ public:
   WasiCryptoExpect<void> squeeze(Span<uint8_t> Out);
 
 private:
-  Hkdf(SymmetricAlgorithm Alg,
+  HkdfCtx(SymmetricAlgorithm Alg,
        OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx);
 
   SymmetricAlgorithm Alg;

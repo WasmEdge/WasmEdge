@@ -14,9 +14,9 @@ class ChaChaPolySymmetricKey : public SymmetricKey::Base {
 public:
   ChaChaPolySymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
 
-  WasiCryptoExpect<Span<const uint8_t>> raw() override;
+  Span<const uint8_t> asRef() override { return Raw; }
 
-  SymmetricAlgorithm alg() override;
+  SymmetricAlgorithm alg() override { return Alg;}
 
 private:
   SymmetricAlgorithm Alg;

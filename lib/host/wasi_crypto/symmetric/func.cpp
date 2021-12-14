@@ -742,7 +742,7 @@ Expect<uint32_t> TagVerify::body(Runtime::Instance::MemoryInstance *MemInst,
   if (unlikely(RawTagMem == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
-  Span<uint8_t> RawTag{RawTagMem, RawTagLen};
+  Span<uint8_t const> RawTag{RawTagMem, RawTagLen};
 
   auto Res = Ctx.symmetricTagVerify(SymmetricTag, RawTag);
   if (unlikely(!Res)) {

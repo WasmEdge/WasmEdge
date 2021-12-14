@@ -178,7 +178,6 @@ WasiCryptoContext::symmetricStateSqueeze(__wasi_symmetric_state_t Handle,
 
   return State->inner()->locked(
       [&Out](auto &Inner) { return Inner->squeeze(Out); });
-  ;
 }
 
 WasiCryptoExpect<__wasi_symmetric_tag_t>
@@ -300,7 +299,7 @@ WasiCryptoContext::symmetricTagLen(__wasi_symmetric_tag_t TagHandle) {
   if (!Tag) {
     return Tag.error();
   }
-  return Tag->raw().size();
+  return Tag->asRef().size();
 }
 
 WasiCryptoExpect<__wasi_size_t>
@@ -310,7 +309,7 @@ WasiCryptoContext::symmetricTagPull(__wasi_symmetric_tag_t TagHandle,
   if (!Tag) {
     return WasiCryptoUnexpect(Tag);
   }
-  auto Raw = Tag->raw();
+  auto Raw = Tag->asRef();
   if (Raw.size() > Buf.size()) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OVERFLOW);
   }
@@ -326,7 +325,7 @@ WasiCryptoContext::symmetricTagPull(__wasi_symmetric_tag_t TagHandle,
 
 WasiCryptoExpect<void>
 WasiCryptoContext::symmetricTagVerify(__wasi_symmetric_tag_t TagHandle,
-                                      Span<uint8_t> RawTag) {
+                                      Span<uint8_t const> RawTag) {
   auto Tag = SymmetricTagManger.get(TagHandle);
   if (!Tag) {
     return WasiCryptoUnexpect(Tag);

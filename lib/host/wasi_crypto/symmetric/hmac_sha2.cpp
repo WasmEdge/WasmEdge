@@ -15,12 +15,6 @@ HmacSha2SymmetricKey::~HmacSha2SymmetricKey() {
   std::fill(Raw.begin(), Raw.end(), 0);
 }
 
-WasiCryptoExpect<Span<const uint8_t>> HmacSha2SymmetricKey::raw() {
-  return Raw;
-}
-
-SymmetricAlgorithm HmacSha2SymmetricKey::alg() { return Alg; }
-
 HmacSha2KeyBuilder::HmacSha2KeyBuilder(SymmetricAlgorithm Alg) : Alg{Alg} {}
 
 WasiCryptoExpect<SymmetricKey>
@@ -55,8 +49,8 @@ WasiCryptoExpect<__wasi_size_t> HmacSha2KeyBuilder::keyLen() {
 
 WasiCryptoExpect<std::unique_ptr<HmacSha2SymmetricState>>
 HmacSha2SymmetricState::import(SymmetricAlgorithm Alg,
-                             std::optional<SymmetricKey> OptKey,
-                             std::optional<SymmetricOptions> OptOptions) {
+                               std::optional<SymmetricKey> OptKey,
+                               std::optional<SymmetricOptions> OptOptions) {
   if (!OptKey) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
   }
@@ -65,17 +59,13 @@ HmacSha2SymmetricState::import(SymmetricAlgorithm Alg,
     return WasiCryptoUnexpect(Res);
   }
 
-  auto Ctx = HmacSha2::make(Alg);
+  auto Ctx = OptKey->inner()->locked(
+      [Alg](auto &Inner) -> WasiCryptoExpect<HmacSha2Ctx> {
+        return HmacSha2Ctx::import(Alg, Inner->asRef());
+      });
   if (!Ctx) {
     return WasiCryptoUnexpect(Ctx);
   }
-
-  auto Raw = OptKey->raw();
-  if (!Raw) {
-    return WasiCryptoUnexpect(Raw);
-  }
-
-  Ctx->setPKey(*Raw);
 
   return std::unique_ptr<HmacSha2SymmetricState>(
       new HmacSha2SymmetricState{Alg, OptOptions, std::move(*Ctx)});
@@ -86,7 +76,8 @@ HmacSha2SymmetricState::optionsGet(std::string_view Name) {
   if (!OptOptions) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   }
-  return OptOptions->get(Name);
+  return OptOptions->inner()->locked(
+      [&Name](auto &Inner) { return Inner.get(Name); });
 }
 
 WasiCryptoExpect<uint64_t>
@@ -94,7 +85,8 @@ HmacSha2SymmetricState::optionsGetU64(std::string_view Name) {
   if (!OptOptions) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   }
-  return OptOptions->getU64(Name);
+  return OptOptions->inner()->locked(
+      [&Name](auto &Inner) { return Inner.getU64(Name); });
 }
 
 WasiCryptoExpect<void>
@@ -108,13 +100,13 @@ WasiCryptoExpect<SymmetricTag> HmacSha2SymmetricState::squeezeTag() {
     return WasiCryptoUnexpect(Res);
   }
 
-  SymmetricTag Tag{Alg, *Res};
+  SymmetricTag Tag{Alg, std::move(*Res)};
   return Tag;
 }
 
 HmacSha2SymmetricState::HmacSha2SymmetricState(
     SymmetricAlgorithm Alg, std::optional<SymmetricOptions> OptOptions,
-    HmacSha2 Ctx)
+    HmacSha2Ctx Ctx)
     : SymmetricState::Base(Alg), OptOptions(OptOptions), Ctx(std::move(Ctx)) {}
 
 } // namespace WASICrypto

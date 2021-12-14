@@ -24,12 +24,11 @@ public:
 
   ~HmacSha2SymmetricKey() override;
 
-  WasiCryptoExpect<Span<const uint8_t>> raw() override;
+  Span<const uint8_t> asRef() { return Raw; }
 
-  SymmetricAlgorithm alg() override;
+  SymmetricAlgorithm alg() { return Alg; }
 
 private:
-  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> PKey{EVP_PKEY_new()};
   SymmetricAlgorithm Alg;
   std::vector<uint8_t> Raw;
 };
@@ -53,7 +52,7 @@ class HmacSha2SymmetricState : public SymmetricState::Base {
 public:
   static WasiCryptoExpect<std::unique_ptr<HmacSha2SymmetricState>>
   import(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
-       std::optional<SymmetricOptions> OptOptions);
+         std::optional<SymmetricOptions> OptOptions);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   optionsGet(std::string_view Name) override;
@@ -67,10 +66,10 @@ public:
 private:
   HmacSha2SymmetricState(SymmetricAlgorithm Alg,
                          std::optional<SymmetricOptions> OptOptions,
-                         HmacSha2 Ctx);
+                         HmacSha2Ctx Ctx);
 
   std::optional<SymmetricOptions> OptOptions;
-  HmacSha2 Ctx;
+  HmacSha2Ctx Ctx;
 };
 
 } // namespace WASICrypto

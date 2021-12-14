@@ -11,15 +11,13 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class AesGcm {
+class AesGcmCtx {
 public:
   inline static constexpr __wasi_size_t NonceLen = 12;
 
   inline static constexpr __wasi_size_t TagLen = 16;
 
-  static WasiCryptoExpect<AesGcm> make(SymmetricAlgorithm Alg);
-
-  WasiCryptoExpect<void> setKey(Span<uint8_t> Key);
+  static WasiCryptoExpect<AesGcmCtx> import(SymmetricAlgorithm Alg, Span<uint8_t const> Key);
 
   WasiCryptoExpect<void> setNonce(Span<uint8_t> Nonce);
 
@@ -37,7 +35,7 @@ private:
 
   void updateMode(Mode Mo);
 
-  AesGcm(SymmetricAlgorithm Alg,
+  AesGcmCtx(SymmetricAlgorithm Alg,
          OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx);
 
   SymmetricAlgorithm Alg;

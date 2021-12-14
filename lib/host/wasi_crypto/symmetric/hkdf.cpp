@@ -10,9 +10,6 @@ HkdfSymmetricKey::HkdfSymmetricKey(SymmetricAlgorithm Alg,
                                    Span<uint8_t const> Raw)
     : Alg(Alg), Raw(Raw.begin(), Raw.end()) {}
 
-WasiCryptoExpect<Span<const uint8_t>> HkdfSymmetricKey::raw() { return Raw; }
-
-SymmetricAlgorithm HkdfSymmetricKey::alg() { return Alg; }
 
 HkdfSymmetricKeyBuilder::HkdfSymmetricKeyBuilder(SymmetricAlgorithm Alg)
     : Alg(Alg) {}
@@ -53,8 +50,8 @@ WasiCryptoExpect<__wasi_size_t> HkdfSymmetricKeyBuilder::keyLen() {
 
 WasiCryptoExpect<std::unique_ptr<HkdfSymmetricState>>
 HkdfSymmetricState::import(SymmetricAlgorithm Alg,
-                         std::optional<SymmetricKey> OptKey,
-                         std::optional<SymmetricOptions> OptOptions) {
+                           std::optional<SymmetricKey> OptKey,
+                           std::optional<SymmetricOptions> OptOptions) {
   if (!OptKey) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
   }
@@ -68,7 +65,7 @@ HkdfSymmetricState::import(SymmetricAlgorithm Alg,
     return WasiCryptoUnexpect(Raw);
   }
 
-  auto Ctx = Hkdf::make(Alg);
+  auto Ctx = HkdfCtx::make(Alg);
   if (!Ctx) {
     return WasiCryptoUnexpect(Ctx);
   }
@@ -101,7 +98,8 @@ HkdfSymmetricState::optionsGet(std::string_view Name) {
   if (!OptOptions) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   }
-  return OptOptions->get(Name);
+  return OptOptions->inner()->locked(
+      [&Name](auto &Inner) { return Inner.get(Name); });
 }
 
 WasiCryptoExpect<uint64_t>
@@ -109,12 +107,13 @@ HkdfSymmetricState::optionsGetU64(std::string_view Name) {
   if (!OptOptions) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   }
-  return OptOptions->getU64(Name);
+  return OptOptions->inner()->locked(
+      [&Name](auto &Inner) { return Inner.getU64(Name); });
 }
 
 HkdfSymmetricState::HkdfSymmetricState(
     SymmetricAlgorithm Algorithm, std::optional<SymmetricOptions> OptOptions,
-    Hkdf Ctx)
+    HkdfCtx Ctx)
     : SymmetricState::Base(Algorithm), OptOptions(OptOptions),
       Ctx(std::move(Ctx)) {}
 

@@ -14,9 +14,9 @@ class HkdfSymmetricKey : public SymmetricKey::Base {
 public:
   HkdfSymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
 
-  WasiCryptoExpect<Span<const uint8_t>> raw() override;
+  Span<const uint8_t> asRef() { return Raw; }
 
-  SymmetricAlgorithm alg() override;
+  SymmetricAlgorithm alg() { return Alg; }
 
 private:
   SymmetricAlgorithm Alg;
@@ -47,7 +47,7 @@ class HkdfSymmetricState : public SymmetricState::Base {
 public:
   static WasiCryptoExpect<std::unique_ptr<HkdfSymmetricState>>
   import(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
-       std::optional<SymmetricOptions> OptOptions);
+         std::optional<SymmetricOptions> OptOptions);
 
   /// absorbs the salt of the key(Extract)/info(Expand) information.
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override;
@@ -67,10 +67,10 @@ public:
 
 private:
   HkdfSymmetricState(SymmetricAlgorithm Algorithm,
-                     std::optional<SymmetricOptions> OptOptions, Hkdf Ctx);
+                     std::optional<SymmetricOptions> OptOptions, HkdfCtx Ctx);
 
   std::optional<SymmetricOptions> OptOptions;
-  Hkdf Ctx;
+  HkdfCtx Ctx;
 };
 
 } // namespace WASICrypto

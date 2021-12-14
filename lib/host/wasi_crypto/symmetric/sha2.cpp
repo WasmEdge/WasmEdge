@@ -8,13 +8,13 @@ namespace WASICrypto {
 
 WasiCryptoExpect<std::unique_ptr<Sha2SymmetricState>>
 Sha2SymmetricState::import(SymmetricAlgorithm Alg,
-                         std::optional<SymmetricKey> OptKey,
-                         std::optional<SymmetricOptions> OptOptions) {
+                           std::optional<SymmetricKey> OptKey,
+                           std::optional<SymmetricOptions> OptOptions) {
   if (OptKey) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
   }
 
-  auto Res = Sha2::make(Alg);
+  auto Res = Sha2Ctx::make(Alg);
   if (!Res) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
@@ -28,7 +28,8 @@ Sha2SymmetricState::optionsGet(std::string_view Name) {
   if (!OptOptions) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   }
-  return OptOptions->get(Name);
+  return OptOptions->inner()->locked(
+      [&Name](auto& Inner) { return Inner.get(Name); });
 }
 
 WasiCryptoExpect<uint64_t>
@@ -36,7 +37,8 @@ Sha2SymmetricState::optionsGetU64(std::string_view Name) {
   if (!OptOptions) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   }
-  return OptOptions->getU64(Name);
+  return OptOptions->inner()->locked(
+      [&Name](auto &Inner) { return Inner.getU64(Name); });
 }
 
 WasiCryptoExpect<void> Sha2SymmetricState::absorb(Span<uint8_t const> Data) {
@@ -46,7 +48,6 @@ WasiCryptoExpect<void> Sha2SymmetricState::absorb(Span<uint8_t const> Data) {
 WasiCryptoExpect<void> Sha2SymmetricState::squeeze(Span<uint8_t> Out) {
   return Ctx.squeeze(Out);
 }
-
 
 } // namespace WASICrypto
 } // namespace Host

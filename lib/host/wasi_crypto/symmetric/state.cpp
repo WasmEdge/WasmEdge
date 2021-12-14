@@ -167,7 +167,7 @@ SymmetricState::import(SymmetricAlgorithm Alg,
     }
   case SymmetricAlgorithm::Aes128Gcm:
   case SymmetricAlgorithm::Aes256Gcm:
-    if (auto Res = AesGcmSymmetricState::make(Alg, OptKey, OptOptions); !Res) {
+    if (auto Res = AesGcmSymmetricState::import(Alg, OptKey, OptOptions); !Res) {
       return WasiCryptoUnexpect(Res);
     } else {
       return SymmetricState{std::move(*Res)};

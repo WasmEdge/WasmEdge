@@ -12,9 +12,9 @@ class XoodyakSymmetricKey : public SymmetricKey::Base {
 public:
   XoodyakSymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
 
-  WasiCryptoExpect<Span<const uint8_t>> raw() override;
+  Span<const uint8_t> asRef() override { return Raw; };
 
-  SymmetricAlgorithm alg() override;
+  SymmetricAlgorithm alg() override { return Alg; };
 
 private:
   SymmetricAlgorithm Alg;
@@ -40,7 +40,7 @@ class XoodyakSymmetricState : public SymmetricState::Base {
 public:
   static WasiCryptoExpect<std::unique_ptr<XoodyakSymmetricState>>
   import(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
-       std::optional<SymmetricOptions> OptOptions);
+         std::optional<SymmetricOptions> OptOptions);
 };
 
 } // namespace WASICrypto

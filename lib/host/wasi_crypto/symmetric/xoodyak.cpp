@@ -10,10 +10,6 @@ XoodyakSymmetricKey::XoodyakSymmetricKey(SymmetricAlgorithm Alg,
                                          Span<uint8_t const> Raw)
     : Alg(Alg), Raw(Raw.begin(), Raw.end()) {}
 
-WasiCryptoExpect<Span<const uint8_t>> XoodyakSymmetricKey::raw() { return Raw; }
-
-SymmetricAlgorithm XoodyakSymmetricKey::alg() { return Alg; }
-
 XoodyakSymmetricKeyBuilder::XoodyakSymmetricKeyBuilder(SymmetricAlgorithm Alg)
     : Alg(Alg) {}
 

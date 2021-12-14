@@ -549,7 +549,7 @@ public:
   /// The function returns `invalid_tag` if the tags don't match.
   ///
   WasiCryptoExpect<void> symmetricTagVerify(__wasi_symmetric_tag_t TagHandle,
-                                            Span<uint8_t> RawTag);
+                                            Span<uint8_t const> RawTag);
 
   /// Explicitly destroy an unused authentication tag.
   ///

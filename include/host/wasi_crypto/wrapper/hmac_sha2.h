@@ -10,19 +10,19 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class HmacSha2 {
+class HmacSha2Ctx {
 public:
-  static WasiCryptoExpect<HmacSha2> make(SymmetricAlgorithm Alg);
+  HmacSha2Ctx(OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx)
+      : Ctx(std::move(Ctx)) {}
 
-  WasiCryptoExpect<void> setPKey(Span<uint8_t> Raw);
+  static WasiCryptoExpect<HmacSha2Ctx> import(SymmetricAlgorithm Alg,
+                                           Span<uint8_t const> Raw);
 
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data);
 
-  WasiCryptoExpect<Span<uint8_t>> squeezeTag();
+  WasiCryptoExpect<std::vector<uint8_t>> squeezeTag();
 
 private:
-  HmacSha2(OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx);
-
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx;
 };
 

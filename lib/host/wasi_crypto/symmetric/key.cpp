@@ -11,7 +11,6 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-
 WasiCryptoExpect<SymmetricKey>
 SymmetricKey::generate(SymmetricAlgorithm Alg,
                        std::optional<SymmetricOptions> OptOption) {

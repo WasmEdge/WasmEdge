@@ -11,16 +11,16 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class Sha2 {
+class Sha2Ctx {
 public:
-  static WasiCryptoExpect<Sha2> make(SymmetricAlgorithm Alg);
+  static WasiCryptoExpect<Sha2Ctx> make(SymmetricAlgorithm Alg);
 
   WasiCryptoExpect<void> absorb(Span<uint8_t const> Data);
 
   WasiCryptoExpect<void> squeeze(Span<uint8_t> Out);
 
 private:
-  Sha2(OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx);
+  Sha2Ctx(OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx);
 
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx;
 };

@@ -7,7 +7,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-WasiCryptoExpect<AesGcm> AesGcm::make(SymmetricAlgorithm Alg) {
+WasiCryptoExpect<AesGcmCtx> AesGcmCtx::import(SymmetricAlgorithm Alg, Span<uint8_t const> Key) {
   // Init unique_ptr
   OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx{
       EVP_CIPHER_CTX_new()};
@@ -26,27 +26,16 @@ WasiCryptoExpect<AesGcm> AesGcm::make(SymmetricAlgorithm Alg) {
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   }
-  if (1 != EVP_CipherInit_ex(Ctx.get(), Cipher, nullptr, nullptr, nullptr,
+  if (1 != EVP_CipherInit_ex(Ctx.get(), Cipher, nullptr, Key.data(), nullptr,
                              Mode::Unchanged)) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 
-  return AesGcm{Alg, std::move(Ctx)};
+  return AesGcmCtx{Alg, std::move(Ctx)};
 }
 
-WasiCryptoExpect<void> AesGcm::setKey(Span<uint8_t> Key) {
-  //    if(Key.size() != ) {
-  //      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_LENGTH);
-  //    }
 
-  if (1 != EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, Key.data(), nullptr,
-                             Mode::Unchanged)) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
-  return {};
-}
-
-WasiCryptoExpect<void> AesGcm::setNonce(Span<uint8_t> Nonce) {
+WasiCryptoExpect<void> AesGcmCtx::setNonce(Span<uint8_t> Nonce) {
   if (Nonce.size() != NonceLen) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
   }
@@ -59,7 +48,7 @@ WasiCryptoExpect<void> AesGcm::setNonce(Span<uint8_t> Nonce) {
   return {};
 }
 
-WasiCryptoExpect<void> AesGcm::absorb(Span<const uint8_t> Data) {
+WasiCryptoExpect<void> AesGcmCtx::absorb(Span<const uint8_t> Data) {
   int Len;
   // TODO: need change Openssl AAD default length from 12 if beyond?
   if (1 !=
@@ -71,7 +60,7 @@ WasiCryptoExpect<void> AesGcm::absorb(Span<const uint8_t> Data) {
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
-AesGcm::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
+AesGcmCtx::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
   updateMode(Mode::Encrypt);
 
   //  auto Nonce = Options.get("nonce");
@@ -116,7 +105,7 @@ AesGcm::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
 }
 
 WasiCryptoExpect<__wasi_size_t>
-AesGcm::decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
+AesGcmCtx::decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
                         Span<const uint8_t> RawTag) {
   updateMode(Mode::Decrypt);
 
@@ -143,11 +132,11 @@ AesGcm::decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
   return ActualOutSize;
 }
 
-void AesGcm::updateMode(AesGcm::Mode Mo) {
+void AesGcmCtx::updateMode(AesGcmCtx::Mode Mo) {
   EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr, nullptr, Mo);
 }
 
-AesGcm::AesGcm(SymmetricAlgorithm Alg,
+AesGcmCtx::AesGcmCtx(SymmetricAlgorithm Alg,
                OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx)
     : Alg(Alg), Ctx(std::move(Ctx)) {}
 

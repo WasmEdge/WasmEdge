@@ -12,10 +12,6 @@ AesGcmSymmetricKey::AesGcmSymmetricKey(SymmetricAlgorithm Alg,
                                        Span<uint8_t const> Raw)
     : Alg(Alg), Raw(Raw.begin(), Raw.end()) {}
 
-WasiCryptoExpect<Span<const uint8_t>> AesGcmSymmetricKey::raw() { return Raw; }
-
-SymmetricAlgorithm AesGcmSymmetricKey::alg() { return Alg; }
-
 AesGcmSymmetricKeyBuilder::AesGcmSymmetricKeyBuilder(SymmetricAlgorithm Alg)
     : Alg(Alg) {}
 
@@ -26,7 +22,11 @@ WasiCryptoExpect<SymmetricKey> AesGcmSymmetricKeyBuilder::generate(
     return WasiCryptoUnexpect(Len);
   }
 
-  auto Nonce = OptOptions->get("nonce");
+  if(!OptOptions) {
+  }
+
+  auto Nonce = OptOptions->inner()->locked(
+      [](auto &Inner) { return Inner.get("nonce"); });
   if (Nonce) {
     // but size not equal
     if (Nonce->size() != *Len) {
@@ -64,14 +64,15 @@ WasiCryptoExpect<__wasi_size_t> AesGcmSymmetricKeyBuilder::keyLen() {
 }
 
 WasiCryptoExpect<std::unique_ptr<AesGcmSymmetricState>>
-AesGcmSymmetricState::make(SymmetricAlgorithm Alg,
-                           std::optional<SymmetricKey> OptKey,
-                           std::optional<SymmetricOptions> OptOptions) {
-  if (OptKey) {
+AesGcmSymmetricState::import(SymmetricAlgorithm Alg,
+                             std::optional<SymmetricKey> OptKey,
+                             std::optional<SymmetricOptions> OptOptions) {
+  if (!OptKey) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
   }
 
-  if (!OptOptions) {
+  if (OptOptions && !OptOptions->inner()->locked(
+                        [](auto &Inner) { return Inner.get("nonce"); })) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
   }
 
@@ -80,20 +81,14 @@ AesGcmSymmetricState::make(SymmetricAlgorithm Alg,
   }
 
   // init get Key data
-  auto Raw = OptKey->raw();
-  if (!Raw) {
-    return WasiCryptoUnexpect(Raw);
-  }
-
-  // set key
-  auto Ctx = AesGcm::make(Alg);
+  auto Ctx = OptKey->inner()->locked(
+      [Alg](auto &Data) { return AesGcmCtx::import(Alg, Data->asRef()); });
   if (!Ctx) {
     return WasiCryptoUnexpect(Ctx);
   }
-  Ctx->setKey(*Raw);
-
   // set nonce
-  auto Nonce = OptOptions->get("nonce");
+  auto Nonce = OptOptions->inner()->locked(
+      [](auto &Inner) { return Inner.get("nonce"); });
   if (!Nonce) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
   }
@@ -107,12 +102,14 @@ AesGcmSymmetricState::make(SymmetricAlgorithm Alg,
 
 WasiCryptoExpect<std::vector<uint8_t>>
 AesGcmSymmetricState::optionsGet(std::string_view Name) {
-  return Options.get(Name);
+  return Options.inner()->locked(
+      [&Name](auto &Inner) { return Inner.get(Name); });
 }
 
 WasiCryptoExpect<uint64_t>
 AesGcmSymmetricState::optionsGetU64(std::string_view Name) {
-  return Options.getU64(Name);
+  return Options.inner()->locked(
+      [&Name](auto &Inner) { return Inner.getU64(Name); });
 }
 
 WasiCryptoExpect<void> AesGcmSymmetricState::absorb(Span<const uint8_t> Data) {
@@ -122,7 +119,6 @@ WasiCryptoExpect<void> AesGcmSymmetricState::absorb(Span<const uint8_t> Data) {
 WasiCryptoExpect<__wasi_size_t>
 AesGcmSymmetricState::encryptUnchecked(Span<uint8_t> Out,
                                        Span<const uint8_t> Data) {
-
   auto Tag = Ctx.encryptDetached({Out.data(), Data.size()}, Data);
   if (!Tag) {
     return WasiCryptoUnexpect(Tag);
@@ -159,10 +155,6 @@ WasiCryptoExpect<__wasi_size_t> AesGcmSymmetricState::decryptDetachedUnchecked(
     Span<uint8_t> Out, Span<const uint8_t> Data, Span<uint8_t const> RawTag) {
   return Ctx.decryptDetached(Out, Data, RawTag);
 }
-
-AesGcmSymmetricState::AesGcmSymmetricState(SymmetricAlgorithm Alg,
-                                           SymmetricOptions Options, AesGcm Ctx)
-    : SymmetricState::Base(Alg), Options(Options), Ctx(std::move(Ctx)) {}
 
 } // namespace WASICrypto
 } // namespace Host

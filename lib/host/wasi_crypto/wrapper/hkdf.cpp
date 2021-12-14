@@ -6,7 +6,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-WasiCryptoExpect<Hkdf> Hkdf::make(SymmetricAlgorithm Alg) {
+WasiCryptoExpect<HkdfCtx> HkdfCtx::make(SymmetricAlgorithm Alg) {
   // init ctx
   OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx{
       EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr)};
@@ -60,17 +60,17 @@ WasiCryptoExpect<Hkdf> Hkdf::make(SymmetricAlgorithm Alg) {
   //    }
   //  }
 
-  return Hkdf{Alg, std::move(Ctx)};
+  return HkdfCtx{Alg, std::move(Ctx)};
 }
 
-WasiCryptoExpect<void> Hkdf::setKey(Span<uint8_t> Key) {
+WasiCryptoExpect<void> HkdfCtx::setKey(Span<uint8_t> Key) {
   if (EVP_PKEY_CTX_set1_hkdf_key(Ctx.get(), Key.data(), Key.size()) <= 0) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
   return {};
 }
 
-WasiCryptoExpect<void> Hkdf::absorb(Span<const uint8_t> Data) {
+WasiCryptoExpect<void> HkdfCtx::absorb(Span<const uint8_t> Data) {
   switch (Alg) {
   case SymmetricAlgorithm::HkdfSha256Extract:
   case SymmetricAlgorithm::HkdfSha512Extract:
@@ -89,7 +89,7 @@ WasiCryptoExpect<void> Hkdf::absorb(Span<const uint8_t> Data) {
   }
 }
 
-WasiCryptoExpect<Span<const uint8_t>> Hkdf::squeezeKey() {
+WasiCryptoExpect<Span<const uint8_t>> HkdfCtx::squeezeKey() {
   // check Size
   size_t Size;
   if (EVP_PKEY_derive(Ctx.get(), nullptr, &Size) <= 0) {
@@ -112,7 +112,7 @@ WasiCryptoExpect<Span<const uint8_t>> Hkdf::squeezeKey() {
   return Res;
 }
 
-WasiCryptoExpect<void> Hkdf::squeeze(Span<uint8_t> Out) {
+WasiCryptoExpect<void> HkdfCtx::squeeze(Span<uint8_t> Out) {
   // check Size
   size_t Size;
   //  if (EVP_PKEY_derive(Ctx.get(), nullptr, &Size) <= 0) {
@@ -129,7 +129,7 @@ WasiCryptoExpect<void> Hkdf::squeeze(Span<uint8_t> Out) {
   return {};
 }
 
-Hkdf::Hkdf(SymmetricAlgorithm Alg,
+HkdfCtx::HkdfCtx(SymmetricAlgorithm Alg,
            OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx)
     : Alg(Alg), Ctx(std::move(Ctx)) {}
 

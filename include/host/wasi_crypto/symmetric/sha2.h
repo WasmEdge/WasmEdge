@@ -29,12 +29,12 @@ public:
 
 private:
   Sha2SymmetricState(SymmetricAlgorithm Alg,
-                     std::optional<SymmetricOptions> OptOptions, Sha2 Ctx)
+                     std::optional<SymmetricOptions> OptOptions, Sha2Ctx Ctx)
       : SymmetricState::Base(Alg), OptOptions(OptOptions), Ctx(std::move(Ctx)) {
   }
 
   std::optional<SymmetricOptions> OptOptions;
-  Sha2 Ctx;
+  Sha2Ctx Ctx;
 };
 
 } // namespace WASICrypto

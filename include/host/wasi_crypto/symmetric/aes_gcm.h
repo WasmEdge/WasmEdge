@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "host/wasi_crypto/symmetric/tag.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/state.h"
+#include "host/wasi_crypto/symmetric/tag.h"
 #include "host/wasi_crypto/wrapper/aes_gcm.h"
 
 namespace WasmEdge {
@@ -14,9 +14,9 @@ class AesGcmSymmetricKey : public SymmetricKey::Base {
 public:
   AesGcmSymmetricKey(SymmetricAlgorithm Alg, Span<uint8_t const> Raw);
 
-  WasiCryptoExpect<Span<const uint8_t>> raw() override;
+  Span<const uint8_t> asRef() override { return Raw; }
 
-  SymmetricAlgorithm alg() override;
+  SymmetricAlgorithm alg() override { return Alg;}
 
 private:
   SymmetricAlgorithm Alg;
@@ -45,13 +45,17 @@ public:
 
   inline static constexpr __wasi_size_t TagLen = 16;
 
+  AesGcmSymmetricState(SymmetricAlgorithm Alg, SymmetricOptions Options,
+                       AesGcmCtx Ctx)
+      : SymmetricState::Base(Alg), Options(Options), Ctx(std::move(Ctx)) {}
+
   /// There are four inputs for authenticated encryption:
   /// @param[in] OptKey The secret key for encrypt
   /// @param[in] OptOptions `Must` Contain an Nonce(Initialization vector).
   /// Otherwise, generate an Nonce in runtime
   static WasiCryptoExpect<std::unique_ptr<AesGcmSymmetricState>>
-  make(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
-       std::optional<SymmetricOptions> OptOptions);
+  import(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
+         std::optional<SymmetricOptions> OptOptions);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   optionsGet(std::string_view Name) override;
@@ -86,11 +90,8 @@ protected:
                            Span<uint8_t const> RawTag) override;
 
 private:
-  AesGcmSymmetricState(SymmetricAlgorithm Alg, SymmetricOptions Options,
-                       AesGcm Ctx);
-
   SymmetricOptions Options;
-  AesGcm Ctx;
+  AesGcmCtx Ctx;
 };
 
 } // namespace WASICrypto

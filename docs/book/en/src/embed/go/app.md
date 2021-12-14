@@ -85,7 +85,6 @@ func main() {
         os.Args[1:],     /// The args
         os.Environ(),    /// The envs
         []string{".:."}, /// The mapping directories
-        []string{},      /// The preopens will be empty
     )
 
     /// Instantiate wasm. _start refers to the main() function

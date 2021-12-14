@@ -1,6 +1,9 @@
 # Reactr
 
 [Reactr](https://github.com/suborbital/reactr) is a fast, performant function scheduling library written in Go. Reactr is designed to be flexible, with the ability to run embedded in your Go applications and first-class support for WebAssembly.
+Taking advantage of Go's superior concurrency capabilities, Reactr can manage
+and execute hudreds of WebAssembly runtime instances all at once,
+making a great framework for server-side applications.
 
 Reactr allows you to run WebAssembly functions in Go. But so does the [WasmEdge Go SDK](../../embed/go.md).
 The unique feature of Reactr is that it provides a rich set of host functions

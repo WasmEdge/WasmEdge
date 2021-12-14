@@ -1,12 +1,57 @@
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.wasmedge.CompilerContext;
+import org.wasmedge.ConfigureContext;
+import org.wasmedge.enums.CompilerOutputFormat;
+
+import java.io.FileInputStream;
 
 public class CompilerContextTest extends BaseTest {
+    private CompilerContext target;
+    @Before
+    public void setUp () {
+        target = new CompilerContext(null);
+    }
+
+    @After
+    public void tearDown() {
+        target.delete();
+    }
 
     @Test
-    public void testCompile() {
-        CompilerContext compilerContext = new CompilerContext();
-        compilerContext.compile(WASM_PATH, WASM_PATH + ".so");
-        compilerContext.delete();
+    public void testCompile() throws Exception{
+        String path = "test_aot.wasm";
+        target.compile(TEST_WASM_PATH, path);
+        byte[] buf = new byte[4];
+
+        try(FileInputStream fin = new FileInputStream("path")) {
+            fin.read(buf, 0, 4);
+        }
+
+        Assert.assertEquals(buf,WASM_MAGIC);
     }
+
+    @Test(expected = RuntimeException.class)
+    public void testInvalidPath() {
+        target.compile("invalid_path.wasm", "invalid_aot.wasm");
+    }
+
+    @Test
+    public void testCompileNative() throws Exception {
+        ConfigureContext config = new ConfigureContext();
+        config.setCompilerOutputFormat(CompilerOutputFormat.WasmEdge_CompilerOutputFormat_Native);
+        target = new CompilerContext(config);
+        String path = "test_aot.wasm";
+        target.compile(TEST_WASM_PATH, path);
+        byte[] buf = new byte[4];
+
+        try(FileInputStream fin = new FileInputStream("path")) {
+            fin.read(buf, 0, 4);
+        }
+
+        Assert.assertEquals(buf,WASM_MAGIC);
+    }
+
 }

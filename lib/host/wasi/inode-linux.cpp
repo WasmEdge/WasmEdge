@@ -810,9 +810,9 @@ INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
           std::strlen(SysResItem->ai_canonname);
       std::memcpy(AiCanonnameArray[Idx], SysResItem->ai_canonname,
                   WasiAddrinfoArray[Idx]->ai_canonname_len);
-      std::memset(AiCanonnameArray[Idx] + WasiAddrinfoArray[Idx]->ai_canonname_len +
-                 1,
-             0, 1);
+      std::memset(AiCanonnameArray[Idx] +
+                      WasiAddrinfoArray[Idx]->ai_canonname_len + 1,
+                  0, 1);
     } else {
       WasiAddrinfoArray[Idx]->ai_canonname_len = 0;
     }

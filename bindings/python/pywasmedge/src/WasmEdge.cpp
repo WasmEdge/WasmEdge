@@ -241,17 +241,17 @@ pybind11::tuple pysdk::VM::run(pybind11::object _FileName,
   return pybind11::make_tuple(res, returns);
 }
 
-pysdk::result pysdk::VM::add(pysdk::module &mod) {
-  return WasmEdge_VMRegisterModuleFromImport(VMCxt, mod.get());
+pysdk::result pysdk::VM::add(pysdk::import_object &mod) {
+  return pysdk::result(WasmEdge_VMRegisterModuleFromImport(VMCxt, mod.get()));
 }
 
 pybind11::tuple pysdk::VM::run(pybind11::object wasm_buffer_,
                                pybind11::object params_,
-                               pybind11::str module_name_,
-                               pybind11::str function_name_) {
+                               pybind11::tuple module_func_name_,
+                               std::string &executor_func_name) {
 
-  auto function_name = function_name_.cast<std::string>();
-  auto module_name = module_name_.cast<std::string>();
+  auto function_name = module_func_name_[0].cast<std::string>();
+  auto module_name = module_func_name_[1].cast<std::string>();
 
   auto wasm_buffer = wasm_buffer_.cast<pybind11::tuple>();
   pybind11::list returns;
@@ -281,30 +281,28 @@ pybind11::tuple pysdk::VM::run(pybind11::object wasm_buffer_,
       WasmEdge_StringCreateByCString(function_name.c_str());
   WasmEdge_String module_name_wasm =
       WasmEdge_StringCreateByCString(module_name.c_str());
+  WasmEdge_String ex_func_name_wasm =
+      WasmEdge_StringCreateByCString(executor_func_name.c_str());
 
   WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VMCxt);
 
   auto FuncCxt = WasmEdge_StoreFindFunctionRegistered(
-      StoreCxt, module_name_wasm, func_name_wasm);
+      StoreCxt, module_name_wasm, ex_func_name_wasm);
 
   auto FuncTypeCxt = WasmEdge_FunctionInstanceGetFunctionType(FuncCxt);
 
   auto param_len_api = WasmEdge_FunctionTypeGetParametersLength(FuncTypeCxt);
   auto return_len = WasmEdge_FunctionTypeGetReturnsLength(FuncTypeCxt);
 
-  if (param_len != param_len_api) {
-    /* TODO: Handle errors gracefully */
-    return pybind11::make_tuple(NULL, NULL);
-  }
-
   WasmEdge_Value Returns[return_len];
 
   pysdk::result res(
-      WasmEdge_VMRunWasmFromBuffer(VMCxt, WASM_Buffer, size, func_name_wasm,
-                                   Params, param_len, Returns, return_len));
+      WasmEdge_VMRunWasmFromBuffer(VMCxt, WASM_Buffer, size, ex_func_name_wasm,
+                                   Params, param_len_api, Returns, return_len));
 
   WasmEdge_StringDelete(func_name_wasm);
   WasmEdge_StringDelete(module_name_wasm);
+  WasmEdge_StringDelete(ex_func_name_wasm);
 
   for (int i = 0; i < return_len; i++) {
     switch (Returns[i].Type) {
@@ -338,15 +336,17 @@ pybind11::tuple pysdk::VM::run(pybind11::object wasm_buffer_,
   return pybind11::make_tuple(res, returns);
 }
 
-pybind11::list pysdk::VM::list_functions() {
+pybind11::list pysdk::VM::list_exported_functions() {
   pybind11::list returns;
 
   auto len = WasmEdge_VMGetFunctionListLength(VMCxt);
 
   WasmEdge_String str[len];
-  auto w = WasmEdge_VMGetFunctionList(VMCxt, str, NULL, str[0].Length);
+  auto w = WasmEdge_VMGetFunctionList(VMCxt, str, NULL, 32);
   for (size_t i = 0; i < len; i++) {
-    returns.append(str[i].Buf);
+    char buf[str[i].Length];
+    WasmEdge_StringCopy(str[i], buf, str[i].Length);
+    returns.append(std::string(buf));
   }
   return returns;
 }
@@ -457,26 +457,27 @@ int pysdk::result::get_code() { return WasmEdge_ResultGetCode(Res); }
 
 /* --------------- Module End ----------------------------------------*/
 
-pysdk::module::module(std::string name) {
+pysdk::import_object::import_object(std::string name) {
   ModCxt =
       WasmEdge_ImportObjectCreate(WasmEdge_StringCreateByCString(name.c_str()));
 }
 
-void pysdk::module::add(pysdk::function &func, std::string name) {
+void pysdk::import_object::add(pysdk::function &func, std::string name) {
   WasmEdge_String function_name = WasmEdge_StringCreateByCString(name.c_str());
   WasmEdge_ImportObjectAddFunction(ModCxt, function_name, func.get());
   WasmEdge_StringDelete(function_name);
 }
 
-pysdk::module::~module() { WasmEdge_ImportObjectDelete(ModCxt); }
+pysdk::import_object::~import_object() { WasmEdge_ImportObjectDelete(ModCxt); }
 
-WasmEdge_ImportObjectContext *pysdk::module::get() { return ModCxt; }
+WasmEdge_ImportObjectContext *pysdk::import_object::get() { return ModCxt; }
 
-/* --------------- Module End ----------------------------------------*/
+/* --------------- import_object End ----------------------------------------*/
 
 /* --------------- Function ----------------------------------------*/
 
-pysdk::function::function(pybind11::function func_) : func(func_) {
+pysdk::function::function(pybind11::function func_)
+    : func(func_), hfunc_util(new pysdk::function_utility) {
   pybind11::dict annotations = func.attr("__annotations__");
   auto total = pybind11::len(annotations);
   ret_len = pybind11::len(pybind11::make_tuple(annotations["return"]));
@@ -485,7 +486,7 @@ pysdk::function::function(pybind11::function func_) : func(func_) {
   size_t i = 0;
 
   pybind11::int_ temp_int;
-  pybind11::int_ temp_float;
+  pybind11::float_ temp_float;
 
   param_types = new WasmEdge_ValType[param_len];
   return_types = new WasmEdge_ValType[ret_len];
@@ -505,6 +506,9 @@ pysdk::function::function(pybind11::function func_) : func(func_) {
   i = 0;
 
   for (auto e : annotations) {
+    if (e.first.cast<std::string>().compare("return") == 0) {
+      continue;
+    }
     auto type_str = e.second.cast<pybind11::type>();
     if (type_str.is(temp_int.get_type())) {
       param_types[i] = WasmEdge_ValType_I32;
@@ -519,14 +523,11 @@ pysdk::function::function(pybind11::function func_) : func(func_) {
   HostFType = WasmEdge_FunctionTypeCreate(param_types, param_len, return_types,
                                           ret_len);
 
-  std::unique_ptr<pysdk::function_utility> hfunc_util(
-      new pysdk::function_utility);
-
   hfunc_util->func = func;
   hfunc_util->param_len = param_len;
 
   HostFuncCxt = WasmEdge_FunctionInstanceCreate(HostFType, host_function,
-                                                (void *)hfunc_util.get(), 0);
+                                                (void *)hfunc_util, 0);
 }
 
 WasmEdge_Result pysdk::host_function(void *Data,
@@ -549,8 +550,6 @@ WasmEdge_Result pysdk::host_function(void *Data,
     case WasmEdge_ValType_F32:
       params.append(WasmEdge_ValueGetF32(In[i]));
       break;
-    default:
-      break;
     }
   }
   auto params_tup = params.cast<pybind11::tuple>();
@@ -569,13 +568,14 @@ WasmEdge_Result pysdk::host_function(void *Data,
 };
 
 WasmEdge_FunctionInstanceContext *pysdk::function::get() {
-  return this->HostFuncCxt;
+  return HostFuncCxt;
 }
 
 pysdk::function::~function() {
   WasmEdge_FunctionInstanceDelete(HostFuncCxt);
   WasmEdge_FunctionTypeDelete(HostFType);
   delete[] param_types, return_types;
+  delete hfunc_util;
 }
 
 /* --------------- Function End ----------------------------------------*/
@@ -690,7 +690,7 @@ PYBIND11_MODULE(WasmEdge, module) {
                                     pybind11::object, pybind11::object,
                                     pybind11::object) = &pysdk::VM::run;
   pybind11::tuple (pysdk::VM::*run_wasm_buffer)(
-      pybind11::object, pybind11::object, pybind11::str, pybind11::str) =
+      pybind11::object, pybind11::object, pybind11::tuple, std::string &) =
       &pysdk::VM::run;
 
   pybind11::class_<pysdk::VM>(module, "VM")
@@ -703,14 +703,14 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("run", run_step_by_step)
       .def("run", run_wasm_buffer)
       .def("add", &pysdk::VM::add)
-      .def("list", &pysdk::VM::list_functions);
+      .def("ListExportedFunctions", &pysdk::VM::list_exported_functions);
 
   pybind11::class_<pysdk::function>(module, "Function")
       .def(pybind11::init<pybind11::function>());
 
-  pybind11::class_<pysdk::module>(module, "Module")
+  pybind11::class_<pysdk::import_object>(module, "ImportObject")
       .def(pybind11::init<std::string>())
-      .def("add", &pysdk::module::add);
+      .def("add", &pysdk::import_object::add);
 };
 
 /* --------------- Python Module End ----------------------------------------*/

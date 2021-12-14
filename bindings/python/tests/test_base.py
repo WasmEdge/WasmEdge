@@ -71,11 +71,17 @@ def test_host_function():
         return a + b
 
     func = WasmEdge.Function(add)
-    mod = WasmEdge.Module("extern")
-    mod.add(func, "func-add")
-    vm.add(mod)
 
-    tup = (  # /* WASM header */
+    module_name = "extern"
+    function_name = "func-add"
+
+    mod = WasmEdge.ImportObject(module_name)
+    mod.add(func, function_name)
+
+    res = vm.add(mod)
+
+    tup = (
+        # /* WASM header */
         0x00,
         0x61,
         0x73,
@@ -158,8 +164,16 @@ def test_host_function():
 
     nums = [1234, 5678]
 
-    res, l = vm.run(tup, nums, "addTwo", 1)
+    executor_function_name = "addTwo"
+
+    res, l = vm.run(
+        tup, nums, (module_name, function_name), executor_function_name
+    )
 
     assert res
 
     assert l[0] == add(*tuple(nums))
+
+    assert len(vm.ListExportedFunctions()) == 1
+
+    assert executor_function_name in vm.ListExportedFunctions()

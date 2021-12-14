@@ -91,6 +91,7 @@ private:
   size_t ret_len;
   pybind11::function func;
   enum WasmEdge_ValType *param_types, *return_types;
+  pysdk::function_utility *hfunc_util;
 
 public:
   function(pybind11::function);
@@ -98,13 +99,13 @@ public:
   WasmEdge_FunctionInstanceContext *get();
 };
 
-class module {
+class import_object {
 private:
   WasmEdge_ImportObjectContext *ModCxt;
 
 public:
-  module(std::string name = "Unnamed");
-  ~module();
+  import_object(std::string name = "Unnamed");
+  ~import_object();
   WasmEdge_ImportObjectContext *get();
   void add(pysdk::function &, std::string name = "Function_Name");
 };
@@ -121,16 +122,16 @@ public:
   ~VM();
   const char *doc() { return pysdk::vm_doc; };
 
-  pysdk::result add(pysdk::module &);
+  pysdk::result add(pysdk::import_object &);
 
   pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object,
                       pybind11::object, pybind11::object);
   pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object);
 
-  pybind11::tuple run(pybind11::object, pybind11::object, pybind11::str,
-                      pybind11::str);
+  pybind11::tuple run(pybind11::object, pybind11::object, pybind11::tuple,
+                      std::string &);
 
-  pybind11::list list_functions();
+  pybind11::list list_exported_functions();
 };
 
 } // namespace pysdk

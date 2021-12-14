@@ -25,6 +25,19 @@ impl Global {
         }
     }
 
+    pub fn get_type(&self) -> WasmEdgeResult<GlobalType> {
+        let ty_ctx = unsafe { wasmedge::WasmEdge_GlobalInstanceGetGlobalType(self.ctx) };
+        match ty_ctx.is_null() {
+            true => Err(Error::OperationError(String::from(
+                "fail to get type info from the Global instance",
+            ))),
+            false => Ok(GlobalType {
+                ctx: ty_ctx as *mut _,
+                registered: true,
+            }),
+        }
+    }
+
     pub fn get_value(&self) -> Value {
         let val = unsafe { wasmedge::WasmEdge_GlobalInstanceGetValue(self.ctx) };
         Value::from(val)

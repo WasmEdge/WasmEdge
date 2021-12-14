@@ -14,4 +14,7 @@ if ! cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON -D
     exit 1
 fi
 cmake --build build
-LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target test
+export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
+cd build
+ctest --output-on-failure
+cd -

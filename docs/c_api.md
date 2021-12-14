@@ -44,7 +44,7 @@
 The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0-rc.2
+wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0
 ```
 
 For more details, please refer to the [Installation Guide](install.md) for the WasmEdge installation.
@@ -74,7 +74,7 @@ After the installation of WasmEdge, the following guide can help you to test for
 
     ```bash
     $ ./a.out
-    WasmEdge version: 0.9.0-rc.2
+    WasmEdge version: 0.9.0
     ```
 
 ## WasmEdge Basics
@@ -230,7 +230,7 @@ The details of other contexts will be introduced later.
 
 ### WASM Data Structures
 
-The WASM data structures are used for creating instances or can be queried from intance contexts.
+The WASM data structures are used for creating instances or can be queried from instance contexts.
 The details of instances creation will be introduced in the [Instances](#Instances).
 
 1. Limit
@@ -390,7 +390,11 @@ Developers can adjust the settings about the proposals, VM host pre-registration
 
     ```c
     enum WasmEdge_Proposal {
-      WasmEdge_Proposal_BulkMemoryOperations = 0,
+      WasmEdge_Proposal_ImportExportMutGlobals = 0,
+      WasmEdge_Proposal_NonTrapFloatToIntConversions,
+      WasmEdge_Proposal_SignExtensionOperators,
+      WasmEdge_Proposal_MultiValue,
+      WasmEdge_Proposal_BulkMemoryOperations,
       WasmEdge_Proposal_ReferenceTypes,
       WasmEdge_Proposal_SIMD,
       WasmEdge_Proposal_TailCall,
@@ -405,7 +409,16 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     Developers can add or remove the proposals into the `Configure` context.
 
     ```c
-    /* By default, the bulk-memory-operations and reference-types proposals have turned on initially. */
+    /* 
+     * By default, the following proposals have turned on initially:
+     * * Import/Export of mutable globals
+     * * Non-trapping float-to-int conversions
+     * * Sign-extension operators
+     * * Multi-value returns
+     * * Bulk memory operations
+     * * Reference types
+     * * Fixed-width SIMD
+     */
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
     WasmEdge_ConfigureAddProposal(ConfCxt, WasmEdge_Proposal_SIMD);
     WasmEdge_ConfigureRemoveProposal(ConfCxt, WasmEdge_Proposal_ReferenceTypes);
@@ -429,7 +442,11 @@ Developers can adjust the settings about the proposals, VM host pre-registration
 
     ```c
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
+    bool IsHostWasi = WasmEdge_ConfigureHasHostRegistration(ConfCxt, WasmEdge_HostRegistration_Wasi);
+    /* The `IsHostWasi` will be `FALSE`. */
     WasmEdge_ConfigureAddHostRegistration(ConfCxt, WasmEdge_HostRegistration_Wasi);
+    IsHostWasi = WasmEdge_ConfigureHasHostRegistration(ConfCxt, WasmEdge_HostRegistration_Wasi);
+    /* The `IsHostWasi` will be `TRUE`. */
     WasmEdge_ConfigureDelete(ConfCxt);
     ```
 
@@ -441,8 +458,12 @@ Developers can adjust the settings about the proposals, VM host pre-registration
 
     ```c
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
+    uint32_t PageSize = WasmEdge_ConfigureGetMaxMemoryPage(ConfCxt);
+    /* By default, the maximum memory page size is 65536. */
     WasmEdge_ConfigureSetMaxMemoryPage(ConfCxt, 1024);
-    /* The memory size of each memory instance should not larger than 1024 pages (64 MiB). */
+    /* Limit the memory size of each memory instance with not larger than 1024 pages (64 MiB). */
+    PageSize = WasmEdge_ConfigureGetMaxMemoryPage(ConfCxt);
+    /* The `PageSize` will be 1024. */
     WasmEdge_ConfigureDelete(ConfCxt);
     ```
 
@@ -506,7 +527,6 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     WasmEdge_ConfigureStatisticsSetTimeMeasuring(ConfCxt, TRUE);
     WasmEdge_ConfigureDelete(ConfCxt);
     ```
-
 
 ### Statistics
 
@@ -1148,7 +1168,7 @@ if (!WasmEdge_ResultOK(Res)) {
 /* The output AST module context should be destroyed. */
 WasmEdge_ASTModuleDelete(ASTCxt);
 
-/* Load WASM or compiled-WASM from the file. */
+/* Load WASM or compiled-WASM from the buffer. */
 Res = WasmEdge_LoaderParseFromBuffer(LoadCxt, &ASTCxt, Buf, FileSize);
 if (!WasmEdge_ResultOK(Res)) {
   printf("Loading phase failed: %s\n", WasmEdge_ResultGetMessage(Res));
@@ -1224,6 +1244,7 @@ This object should work base on the `Store` context. For the details of the `Sto
       printf("Import object registration failed: %s\n", WasmEdge_ResultGetMessage(Res));
     }
 
+    WasmEdge_ImportObjectDelete(ImpCxt);
     WasmEdge_ExecutorDelete(ExecCxt);
     WasmEdge_StatisticsDelete(StatCxt);
     WasmEdge_StoreDelete(StoreCxt);
@@ -1354,7 +1375,7 @@ The `Store` context in WasmEdge provides APIs to list the exported instances wit
     /* ... Register a WASM module via the executor context. */
     ...
 
-    /* Try to list registered WASM module. */
+    /* Try to list the registered WASM modules. */
     uint32_t ModNum = WasmEdge_StoreListModuleLength(StoreCxt);
     /* Create the name buffers. */
     const uint32_t BUF_LEN = 256;
@@ -1412,13 +1433,15 @@ The instances created by their creation functions should be destroyed, EXCEPT th
     Res = WasmEdge_TableInstanceSetData(HostTable, Data, 3);
     /* Set the function index 5 to the table[3]. */
     /*
-     * This will get an "out of bounds table access" error:
+     * This will get an "out of bounds table access" error
+     * because the position (13) is out of the table size (10):
      *   Res = WasmEdge_TableInstanceSetData(HostTable, Data, 13);
      */
     Res = WasmEdge_TableInstanceGetData(HostTable, &Data, 3);
     /* Get the FuncRef value of the table[3]. */
     /*
-     * This will get an "out of bounds table access" error:
+     * This will get an "out of bounds table access" error
+     * because the position (13) is out of the table size (10):
      *   Res = WasmEdge_TableInstanceGetData(HostTable, &Data, 13);
      */
 
@@ -1428,7 +1451,7 @@ The instances created by their creation functions should be destroyed, EXCEPT th
     /* Grow the table size of 6, the table size will be 16. */
     /*
      * This will get an "out of bounds table access" error because
-     * the size (16 + 6) will reach the table limit:
+     * the size (16 + 6) will reach the table limit(20):
      *   Res = WasmEdge_TableInstanceGrow(HostTable, 6);
      */
 
@@ -1442,7 +1465,7 @@ The instances created by their creation functions should be destroyed, EXCEPT th
 
     ```c
     WasmEdge_Limit MemLimit = {.HasMax = true, .Min = 1, .Max = 5};
-    /* Create the table type with limit. The memory page size is 64KiB. */
+    /* Create the memory type with limit. The memory page size is 64KiB. */
     WasmEdge_MemoryTypeContext *MemTypeCxt = WasmEdge_MemoryTypeCreate(MemLimit);
     /* Create the memory instance with memory type. */
     WasmEdge_MemoryInstanceContext *HostMemory = WasmEdge_MemoryInstanceCreate(MemTypeCxt);
@@ -1467,7 +1490,8 @@ The instances created by their creation functions should be destroyed, EXCEPT th
     Res = WasmEdge_MemoryInstanceGetData(HostMemory, Buf, 0x1000, 3);
     /* Get the memory[4096:4098]. Buf[0:2] will be `{0xAA, 0xBB, 0xCC}`. */
     /*
-     * This will get an "out of bounds memory access" error:
+     * This will get an "out of bounds memory access" error
+     * because [65535:65537] is out of 1 page size (65536):
      *   Res = WasmEdge_MemoryInstanceSetData(HostMemory, Buf, 0xFFFF, 3);
      */
 
@@ -1477,7 +1501,7 @@ The instances created by their creation functions should be destroyed, EXCEPT th
     /* Grow the page size of 2, the page size of the memory instance will be 3. */
     /*
      * This will get an "out of bounds memory access" error because
-     * the page size (3 + 3) will reach the memory limit:
+     * the page size (3 + 3) will reach the memory limit(5):
      *   Res = WasmEdge_MemoryInstanceGrowPage(HostMemory, 3);
      */
 
@@ -1494,7 +1518,7 @@ The instances created by their creation functions should be destroyed, EXCEPT th
     /* Create the global type with value type and mutation. */
     WasmEdge_GlobalTypeContext *GlobTypeCxt = WasmEdge_GlobalTypeCreate(WasmEdge_ValType_I64, WasmEdge_Mutability_Var);
     /* Create the global instance with value and global type. */
-    WasmEdge_GlobalInstanceCreate *HostGlobal = WasmEdge_GlobalInstanceCreate(GlobTypeCxt, Val);
+    WasmEdge_GlobalInstanceContext *HostGlobal = WasmEdge_GlobalInstanceCreate(GlobTypeCxt, Val);
     /* Delete the global type. */
     WasmEdge_GlobalTypeDelete(GlobTypeCxt);
     WasmEdge_Result Res;
@@ -1569,7 +1593,7 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
      */
     WasmEdge_FunctionInstanceContext *HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, Add, NULL, 0);
     /*
-     * The second parameter is the pointer to the additional data.
+     * The third parameter is the pointer to the additional data.
      * Developers should guarantee the life cycle of the data, and it can be
      * `NULL` if the external data is not needed.
      */
@@ -1616,30 +1640,35 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
 
     /* Create and add a table instance into the import object. */
     WasmEdge_Limit TableLimit = {.HasMax = true, .Min = 10, .Max = 20};
-    WasmEdge_TableInstanceContext *HostTable =
-      WasmEdge_TableInstanceCreate(WasmEdge_RefType_FuncRef, TabLimit);
+    WasmEdge_TableTypeContext *HostTType = 
+      WasmEdge_TableTypeCreate(WasmEdge_RefType_FuncRef, TableLimit);
+    WasmEdge_TableInstanceContext *HostTable = WasmEdge_TableInstanceCreate(HostTType);
+    WasmEdge_TableTypeDelete(HostTType);
     WasmEdge_String TableName = WasmEdge_StringCreateByCString("table");
     WasmEdge_ImportObjectAddTable(ImpObj, TableName, HostTable);
     WasmEdge_StringDelete(TableName);
 
     /* Create and add a memory instance into the import object. */
     WasmEdge_Limit MemoryLimit = {.HasMax = true, .Min = 1, .Max = 2};
-    WasmEdge_MemoryInstanceContext *HostMemory = 
-      WasmEdge_MemoryInstanceCreate(MemLimit);
+    WasmEdge_MemoryTypeContext *HostMType = WasmEdge_MemoryTypeCreate(MemoryLimit);
+    WasmEdge_MemoryInstanceContext *HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
+    WasmEdge_MemoryTypeDelete(HostMType);
     WasmEdge_String MemoryName = WasmEdge_StringCreateByCString("memory");
     WasmEdge_ImportObjectAddMemory(ImpObj, MemoryName, HostMemory);
     WasmEdge_StringDelete(MemoryName);
 
     /* Create and add a global instance into the import object. */
+    WasmEdge_GlobalTypeContext *HostGType =
+      WasmEdge_GlobalTypeCreate(WasmEdge_ValType_I32, WasmEdge_Mutability_Var);
     WasmEdge_GlobalInstanceContext *HostGlobal =
-      WasmEdge_GlobalInstanceCreate(WasmEdge_ValueGenI32(666), WasmEdge_Mutability_Var);
+      WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenI32(666));
+    WasmEdge_GlobalTypeDelete(HostGType);
     WasmEdge_String GlobalName = WasmEdge_StringCreateByCString("global");
     WasmEdge_ImportObjectAddGlobal(ImpObj, GlobalName, HostGlobal);
     WasmEdge_StringDelete(GlobalName);
 
     /*
-     * Developers should destroy the import object context if it is not registered into a
-     * store context or a VM context.
+     * The import objects should be deleted.
      * Developers should __NOT__ destroy the instances added into the import object contexts.
      */
     WasmEdge_ImportObjectDelete(ImpObj);
@@ -1658,7 +1687,16 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
     /* Register the WASI and WasmEdge_Process into the VM context. */
     WasmEdge_VMRegisterModuleFromImport(VMCxt, WasiObj);
     WasmEdge_VMRegisterModuleFromImport(VMCxt, ProcObj);
+    /* Get the WASI exit code. */
+    uint32_t ExitCode = WasmEdge_ImportObjectWASIGetExitCode(WasiObj);
+    /*
+     * The `ExitCode` will be EXIT_SUCCESS if the execution has no error.
+     * Otherwise, it will return with the related exit code.
+     */
     WasmEdge_VMDelete(VMCxt);
+    /* The import objects should be deleted. */
+    WasmEdge_ImportObjectDelete(WasiObj);
+    WasmEdge_ImportObjectDelete(ProcObj);
     ```
 
 4. Example
@@ -1895,8 +1933,8 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
 ## WasmEdge AOT Compiler
 
 In this partition, we will introduce the WasmEdge AOT compiler and the options.
-WasmEdge runs the WASM files in executor mode, and WasmEdge also supports the AOT (ahead-of-time) mode running without modifying any code.
-The WasmEdge AOT (ahead-of-time) compiler compiles the WASM files for running in AOT mode which is much faster than executor mode. Developers can compile the WASM files into the compiled-WASM files for the AOT mode running.
+WasmEdge runs the WASM files in interpreter mode, and WasmEdge also supports the AOT (ahead-of-time) mode running without modifying any code.
+The WasmEdge AOT (ahead-of-time) compiler compiles the WASM files for running in AOT mode which is much faster than interpreter mode. Developers can compile the WASM files into the compiled-WASM files in shared library format for universal WASM format for the AOT mode execution.
 
 ### Compilation Example
 

@@ -16,6 +16,7 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/MC/SubtargetFeature.h>
+#include <llvm/Object/COFF.h>
 #include <llvm/Object/ObjectFile.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
@@ -181,9 +182,9 @@ WasmEdge::Expect<void> WriteU64(llvm::raw_ostream &OS, uint64_t Data) {
 };
 
 WasmEdge::Expect<void> WriteName(llvm::raw_ostream &OS, std::string_view Data) {
-  WriteU32(OS, Data.size());
+  WriteU32(OS, static_cast<uint32_t>(Data.size()));
   for (const auto C : Data) {
-    WriteByte(OS, C);
+    WriteByte(OS, static_cast<uint8_t>(C));
   }
   return {};
 };
@@ -446,6 +447,7 @@ static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
     return llvm::Type::getDoubleTy(LLContext);
   default:
     assuming(false);
+    __builtin_unreachable();
   }
 }
 
@@ -508,6 +510,7 @@ static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
     return llvm::ConstantFP::get(llvm::Type::getDoubleTy(LLContext), 0.0);
   default:
     assuming(false);
+    __builtin_unreachable();
   }
 }
 
@@ -1155,8 +1158,13 @@ public:
               llvm::VectorType::get(Value->getType(), VectorSize, false);
           llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
           Ret = Builder.CreateInsertElement(Ret, Value, kZero);
+#if LLVM_VERSION_MAJOR >= 13
+          Ret = Builder.CreateUnaryIntrinsic(
+              llvm::Intrinsic::aarch64_sve_frintn, Ret);
+#else
           Ret = Builder.CreateUnaryIntrinsic(
               llvm::Intrinsic::aarch64_neon_frintn, Ret);
+#endif
           Ret = Builder.CreateExtractElement(Ret, kZero);
           stackPush(Ret);
           break;
@@ -3480,8 +3488,13 @@ private:
 
 #if defined(__aarch64__)
       if (Context.SupportNEON) {
+#if LLVM_VERSION_MAJOR >= 13
+        return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::aarch64_sve_frintn,
+                                            V);
+#else
         return Builder.CreateUnaryIntrinsic(
             llvm::Intrinsic::aarch64_neon_frintn, V);
+#endif
       }
 #endif
 
@@ -3845,7 +3858,11 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   {
     // tempfile
     std::filesystem::path OPath(OutputPath);
+#if WASMEDGE_OS_WINDOWS
+    OPath.replace_extension("%%%%%%%%%%.obj"sv);
+#else
     OPath.replace_extension("%%%%%%%%%%.o"sv);
+#endif
     auto Object = llvm::sys::fs::TempFile::create(OPath.u8string());
     if (!Object) {
       // TODO:return error
@@ -3855,7 +3872,11 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
     }
     llvm::raw_fd_ostream OS(Object->FD, false);
     OS.write(OSVec.data(), OSVec.size());
+#if WASMEDGE_OS_WINDOWS
+    OS.flush();
+#else
     OS.close();
+#endif
     ObjectName = Object->TmpName;
     llvm::consumeError(Object->keep());
   }
@@ -3883,9 +3904,8 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
                  ObjectName.c_str(), "-o", OutputPath.u8string().c_str()},
 #elif WASMEDGE_OS_WINDOWS
   lld::coff::link(
-      std::array{"lld", "-dll", "-defaultlib:libcmt", "-defaultlib:oldnames",
-                 "-nologo", ObjectName.c_str(),
-                 ("-out:" + OutputPath.u8string()).c_str()},
+      std::array{"lld-link", "-dll", "-defaultlib:libcmt", "-base:0", "-nologo",
+                 ObjectName.c_str(), ("-out:" + OutputPath.u8string()).c_str()},
 #endif
       false,
 #if LLVM_VERSION_MAJOR >= 10
@@ -3896,6 +3916,11 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   );
 
   llvm::sys::fs::remove(ObjectName);
+#if WASMEDGE_OS_WINDOWS
+  std::filesystem::path LibPath(OutputPath);
+  LibPath.replace_extension(".lib"sv);
+  llvm::sys::fs::remove(LibPath.u8string());
+#endif
   spdlog::info("compile done");
 
 #if WASMEDGE_OS_MACOS
@@ -3940,7 +3965,11 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
     }
     llvm::raw_fd_ostream OS(Object->FD, false);
     OS.write(OSVec.data(), OSVec.size());
+#if WASMEDGE_OS_WINDOWS
+    OS.flush();
+#else
     OS.close();
+#endif
     SharedObjectName = Object->TmpName;
     llvm::consumeError(Object->keep());
   }
@@ -3990,42 +4019,62 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
     WriteByte(OS, UINT8_C(2));
 #endif
 
-    uint64_t VersionAddress = 0, IntrinsicsAddress = 0;
-    std::vector<uint64_t> Types;
-    std::vector<uint64_t> Codes;
-    uint64_t CodesMin = std::numeric_limits<uint64_t>::max();
+    std::vector<std::pair<std::string, uint64_t>> SymbolTable;
+#if !WASMEDGE_OS_WINDOWS
     for (auto &Symbol : ObjFile->symbols()) {
-      std::string NameStr;
+      std::string Name;
       if (auto Res = Symbol.getName(); unlikely(!Res)) {
         continue;
       } else if (Res->empty()) {
         continue;
       } else {
-        NameStr = std::move(*Res);
+        Name = std::move(*Res);
       }
-      std::string_view Name = NameStr;
       uint64_t Address = 0;
       if (auto Res = Symbol.getAddress(); unlikely(!Res)) {
         continue;
       } else {
         Address = *Res;
       }
+      SymbolTable.emplace_back(std::move(Name), std::move(Address));
+    }
+#else
+    for (auto &Symbol : llvm::cast<llvm::object::COFFObjectFile>(ObjFile.get())
+                            ->export_directories()) {
+      llvm::StringRef Name;
+      if (auto Error = Symbol.getSymbolName(Name); unlikely(!!Error)) {
+        continue;
+      } else if (Name.empty()) {
+        continue;
+      }
+      uint32_t Offset = 0;
+      if (auto Error = Symbol.getExportRVA(Offset); unlikely(!!Error)) {
+        continue;
+      }
+      SymbolTable.emplace_back(Name.str(), Offset);
+    }
+#endif
+    uint64_t VersionAddress = 0, IntrinsicsAddress = 0;
+    std::vector<uint64_t> Types;
+    std::vector<uint64_t> Codes;
+    uint64_t CodesMin = std::numeric_limits<uint64_t>::max();
+    for (const auto &[Name, Address] : SymbolTable) {
       if (Name == SYMBOL("version"sv)) {
         VersionAddress = Address;
       } else if (Name == SYMBOL("intrinsics"sv)) {
         IntrinsicsAddress = Address;
       } else if (startsWith(Name, SYMBOL("t"sv))) {
         uint64_t Index;
-        std::from_chars(NameStr.data() + SYMBOL("t"sv).size(),
-                        NameStr.data() + NameStr.size(), Index);
+        std::from_chars(Name.data() + SYMBOL("t"sv).size(),
+                        Name.data() + Name.size(), Index);
         if (Types.size() < Index + 1) {
           Types.resize(Index + 1);
         }
         Types[Index] = Address;
       } else if (startsWith(Name, SYMBOL("f"sv))) {
         uint64_t Index;
-        std::from_chars(NameStr.data() + SYMBOL("f"sv).size(),
-                        NameStr.data() + NameStr.size(), Index);
+        std::from_chars(Name.data() + SYMBOL("f"sv).size(),
+                        Name.data() + Name.size(), Index);
         if (Codes.size() < Index + 1) {
           Codes.resize(Index + 1);
         }
@@ -4034,7 +4083,8 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
       }
     }
     if (CodesMin != std::numeric_limits<uint64_t>::max()) {
-      Codes.erase(Codes.begin(), Codes.begin() + CodesMin);
+      Codes.erase(Codes.begin(),
+                  Codes.begin() + static_cast<int64_t>(CodesMin));
     }
     WriteU64(OS, VersionAddress);
     WriteU64(OS, IntrinsicsAddress);
@@ -4170,10 +4220,10 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   }
 
   /// set dllexport
-  for (auto &GO : LLModule.global_objects()) {
-    if (GO.hasExternalLinkage()) {
-      GO.setVisibility(llvm::GlobalValue::ProtectedVisibility);
-      GO.setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
+  for (auto &GV : LLModule.global_values()) {
+    if (GV.hasExternalLinkage()) {
+      GV.setVisibility(llvm::GlobalValue::ProtectedVisibility);
+      GV.setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
     }
   }
 

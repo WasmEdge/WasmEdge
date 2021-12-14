@@ -418,7 +418,8 @@ FileMgr::FileHeader FileMgr::getHeaderType() {
     } else if (std::equal(MAC64agic, MAC64agic + 4, Data)) {
       return FileMgr::FileHeader::MachO_64;
     }
-  } else if (Size >= 2) {
+  }
+  if (Size >= 2) {
     Byte DLLMagic[] = {0x4D, 0x5A};
     if (std::equal(DLLMagic, DLLMagic + 2, Data)) {
       return FileMgr::FileHeader::DLL;

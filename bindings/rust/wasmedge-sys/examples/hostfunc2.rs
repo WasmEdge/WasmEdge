@@ -10,6 +10,10 @@
 //! generics of `Function::create_bindings::<I, O>`, wherein the I and O are the `WasmFnIO` traits
 //! base on the inputs and outputs of the real host function.
 //!
+use std::{
+    fs::{self, File},
+    io::Read,
+};
 
 use wasmedge_sys::{instance::Function, Config, ImportObj, Module, Value, Vm, I1, I2};
 
@@ -39,6 +43,15 @@ fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
     Ok(vec![Value::I32(c)])
 }
 
+fn load_file_as_byte_vec(filename: &str) -> Vec<u8> {
+    let mut f = File::open(&filename).expect("no file found");
+    let metadata = fs::metadata(&filename).expect("unable to read metadata");
+    let mut buffer = vec![0; metadata.len() as usize];
+    f.read_exact(&mut buffer)
+        .expect("buffer should be the same size");
+    buffer
+}
+
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut hostfunc_path = std::env::current_dir()?.join("funcs.wasm");
@@ -47,18 +60,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // modify path for cargo test
         hostfunc_path = std::env::current_dir()?.join("examples/funcs.wasm");
     }
+    let wasm_binary = load_file_as_byte_vec(&hostfunc_path.as_path().display().to_string());
 
     let config = Config::create().expect("fail to create Config instance");
-    let mut import_obj =
-        ImportObj::create("extern_module").expect("fail to create ImportObj instance");
+    let mut import_obj = ImportObj::create("extern_module").unwrap();
 
     let result = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
     assert!(result.is_ok());
     let mut host_func = result.unwrap();
     import_obj.add_func("add", &mut host_func);
 
+    // load wasm from binary
     let mut module =
-        Module::load_from_file(&config, hostfunc_path).expect("funcs.wasm should be correct");
+        Module::load_from_buffer(&config, &wasm_binary).expect("funcs.wasm should be correct");
 
     let mut vm = Vm::create(Some(&config), None)
         .expect("fail to create VM instance")

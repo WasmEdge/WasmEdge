@@ -15,5 +15,6 @@ file(COPY
 target_link_libraries(wasmedgeExternrefTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
-  wasmedgeVM
+  std::filesystem
+  wasmedge_c_shared
 )

@@ -62,7 +62,6 @@ private:
   /// \name Data of ImportDesc: Module name, External name, and content node.
   /// @{
   std::string ModName;
-  std::string ExtName;
   uint32_t FuncTypeIdx = 0;
   TableType TabType;
   MemoryType MemType;

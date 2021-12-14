@@ -1,4 +1,4 @@
-use super::wasmedge;
+use crate::{wasmedge, Error, WasmEdgeResult};
 
 #[derive(Debug)]
 pub struct Config {
@@ -7,21 +7,9 @@ pub struct Config {
 
 impl Drop for Config {
     fn drop(&mut self) {
-        unsafe { wasmedge::WasmEdge_ConfigureDelete(self.ctx) };
-    }
-}
-
-impl Config {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        let ctx = unsafe { wasmedge::WasmEdge_ConfigureCreate() };
-        assert!(!ctx.is_null(), "failed to create WasmEdge configuration");
-        Self { ctx }
+        if !self.ctx.is_null() {
+            unsafe { wasmedge::WasmEdge_ConfigureDelete(self.ctx) };
+        }
     }
 }
 
@@ -38,7 +26,7 @@ impl Default for Config {
 ///         }
 ///         self
 ///     }
-///     pub fn has_bulkmemoryoperations(self) -> bool {
+///     pub fn has_bulkmemoryoperations(&self) -> bool {
 ///         let prop = wasmedge::WasmEdge_Proposal_BulkMemoryOperations;
 ///         unsafe { wasmedge::WasmEdge_ConfigureHasProposal(self.ctx, prop) }
 ///     }
@@ -60,7 +48,7 @@ macro_rules! impl_proposal_config {
                         self
                     }
 
-                    pub fn [<has_$proposal:lower:snake>](self) -> bool {
+                    pub fn [<has_$proposal:lower:snake>](&self) -> bool {
                         let prop = wasmedge::[<WasmEdge_Proposal_$proposal>];
                         unsafe { wasmedge::WasmEdge_ConfigureHasProposal(self.ctx, prop) }
                     }
@@ -83,6 +71,16 @@ impl_proposal_config! {
 }
 
 impl Config {
+    pub fn create() -> WasmEdgeResult<Self> {
+        let ctx = unsafe { wasmedge::WasmEdge_ConfigureCreate() };
+        match ctx.is_null() {
+            true => Err(Error::OperationError(String::from(
+                "fail to create Config instance",
+            ))),
+            false => Ok(Self { ctx }),
+        }
+    }
+
     // For Vm
     pub fn enable_wasi(self) -> Self {
         unsafe {

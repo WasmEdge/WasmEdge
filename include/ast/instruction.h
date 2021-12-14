@@ -26,8 +26,6 @@ public:
   /// Constructor assigns the OpCode.
   Instruction(OpCode Byte, uint32_t Off = 0) noexcept
       : Code(Byte), Offset(Off) {}
-  /// Destructor.
-  ~Instruction() noexcept = default;
 
   /// Getter of OpCode.
   OpCode getOpCode() const noexcept { return Code; }

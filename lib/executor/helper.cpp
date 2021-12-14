@@ -14,8 +14,9 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
                         const AST::InstrView::iterator From) {
   /// Get function type
   const auto &FuncType = Func.getFuncType();
-  const uint32_t ArgsN = FuncType.getParamTypes().size();
-  const uint32_t RetsN = FuncType.getReturnTypes().size();
+  const uint32_t ArgsN = static_cast<uint32_t>(FuncType.getParamTypes().size());
+  const uint32_t RetsN =
+      static_cast<uint32_t>(FuncType.getReturnTypes().size());
 
   if (Func.isHostFunction()) {
     /// Host function case: Push args and call function.
@@ -135,8 +136,8 @@ Executor::getBlockArity(Runtime::StoreManager &StoreMgr,
     /// Get function type at index x.
     const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
     const auto *FuncType = *ModInst->getFuncType(std::get<uint32_t>(BType));
-    Locals = FuncType->getParamTypes().size();
-    Arity = FuncType->getReturnTypes().size();
+    Locals = static_cast<uint32_t>(FuncType->getParamTypes().size());
+    Arity = static_cast<uint32_t>(FuncType->getReturnTypes().size());
   }
   return {Locals, Arity};
 }

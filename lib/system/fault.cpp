@@ -196,14 +196,4 @@ Fault::~Fault() noexcept {
   longjmp(localHandler->Buffer, uint8_t(Error));
 }
 
-FaultBlocker::FaultBlocker() noexcept {
-  decreaseHandler();
-  Prev = std::exchange(localHandler, nullptr);
-}
-
-FaultBlocker::~FaultBlocker() noexcept {
-  localHandler = std::exchange(Prev, nullptr);
-  increaseHandler();
-}
-
 } // namespace WasmEdge

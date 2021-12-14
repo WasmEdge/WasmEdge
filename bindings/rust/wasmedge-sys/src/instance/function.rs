@@ -1,4 +1,4 @@
-use crate::{wasmedge, Value, WasmFnIO, HOST_FUNCS};
+use crate::{wasmedge, Error, Value, WasmEdgeResult, WasmFnIO, HOST_FUNCS};
 
 use core::ffi::c_void;
 use std::convert::TryInto;
@@ -58,13 +58,14 @@ extern "C" fn wraper_fn(
 #[derive(Debug)]
 pub struct Function {
     pub(crate) ctx: *mut wasmedge::WasmEdge_FunctionInstanceContext,
-    pub(crate) registed: bool,
-    ty: Option<Type>,
+    pub(crate) registered: bool,
+    pub(crate) ty: Option<FuncType>,
 }
 
 impl Function {
     /// wasmedge::WasmEdge_FunctionInstanceCreate take C functions
-    /// This may not be implement
+    /// This may not be implement, base on the limiation of passing C functions in Rust lang.
+    /// Please refer [`create_bindings`] for building hostfunctions.
     pub fn create<I: WasmFnIO, O: WasmFnIO>(
         _f: Box<dyn std::ops::Fn(Vec<Value>) -> Vec<Value>>,
     ) -> Self {
@@ -75,9 +76,13 @@ impl Function {
     // binding errors and restict the error types
     #[allow(clippy::type_complexity)]
     /// Binding Rust function (HostFunction) to WasmEdgeFunction
+    ///
+    /// `I` and `O` are traits base on the input parameters and the output parameters of the
+    /// `real_fn`. For example, use `I2<i32, i32>` for the `real_fn` with two i32 input parameters,
+    /// and use `I1<i32>` for the `real_fn` with one i32 output parameter.
     pub fn create_bindings<I: WasmFnIO, O: WasmFnIO>(
         real_fn: Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>,
-    ) -> Self {
+    ) -> WasmEdgeResult<Self> {
         let mut key = 0usize;
         HOST_FUNCS.with(|f| {
             let mut rng = rand::thread_rng();
@@ -94,7 +99,7 @@ impl Function {
         });
 
         let key_ptr = key as *const usize as *mut c_void;
-        let ty = Type::create(I::parameters(), O::parameters());
+        let ty = FuncType::create(I::parameters(), O::parameters())?;
 
         let ctx = unsafe {
             wasmedge::WasmEdge_FunctionInstanceCreateBinding(
@@ -105,30 +110,30 @@ impl Function {
                 0,
             )
         };
-        Self {
+        Ok(Self {
             ctx,
             ty: Some(ty),
-            registed: false,
-        }
+            registered: false,
+        })
     }
 }
 
 impl Drop for Function {
     fn drop(&mut self) {
         self.ty = None;
-        if !self.registed {
+        if !self.registered && !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_FunctionInstanceDelete(self.ctx) };
         }
     }
 }
 
 #[derive(Debug)]
-pub struct Type {
+pub struct FuncType {
     pub(crate) ctx: *mut wasmedge::WasmEdge_FunctionTypeContext,
+    pub(crate) registered: bool,
 }
-
-impl Type {
-    pub(crate) fn create(input: Vec<Value>, output: Vec<Value>) -> Self {
+impl FuncType {
+    pub(crate) fn create(input: Vec<Value>, output: Vec<Value>) -> WasmEdgeResult<Self> {
         let raw_input = {
             let mut head = vec![wasmedge::WasmEdge_ValType_ExternRef];
             let mut tail = input
@@ -151,12 +156,21 @@ impl Type {
                 raw_output.len() as u32,
             )
         };
-        Self { ctx }
+        match ctx.is_null() {
+            true => Err(Error::OperationError(String::from(
+                "fail to create FuncType instance",
+            ))),
+            false => Ok(Self {
+                ctx,
+                registered: false,
+            }),
+        }
     }
 }
-
-impl Drop for Type {
+impl Drop for FuncType {
     fn drop(&mut self) {
-        unsafe { wasmedge::WasmEdge_FunctionTypeDelete(self.ctx) };
+        if !self.registered && !self.ctx.is_null() {
+            unsafe { wasmedge::WasmEdge_FunctionTypeDelete(self.ctx) };
+        }
     }
 }

@@ -7,6 +7,10 @@ namespace Log {
 
 void setDebugLoggingLevel() { spdlog::set_level(spdlog::level::debug); }
 
+void setInfoLoggingLevel() { spdlog::set_level(spdlog::level::info); }
+
+void setWarnLoggingLevel() { spdlog::set_level(spdlog::level::warn); }
+
 void setErrorLoggingLevel() { spdlog::set_level(spdlog::level::err); }
 
 } // namespace Log

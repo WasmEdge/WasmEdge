@@ -53,18 +53,36 @@ Executor::runFunction(Runtime::StoreManager &StoreMgr,
     auto Nano = [](auto &&Duration) {
       return std::chrono::nanoseconds(Duration).count();
     };
-    spdlog::debug("\n"
-                  " ====================  Statistics  ====================\n"
-                  " Total execution time: {} ns\n"
-                  " Wasm instructions execution time: {} ns\n"
-                  " Host functions execution time: {} ns\n"
-                  " Executed wasm instructions count: {}\n"
-                  " Gas costs: {}\n"
-                  " Instructions per second: {}",
-                  Nano(Stat->getTotalExecTime()), Nano(Stat->getWasmExecTime()),
-                  Nano(Stat->getHostFuncExecTime()), Stat->getInstrCount(),
-                  Stat->getTotalCost(),
-                  static_cast<uint64_t>(Stat->getInstrPerSecond()));
+    if (Conf.getStatisticsConfigure().isTimeMeasuring() ||
+        Conf.getStatisticsConfigure().isInstructionCounting() ||
+        Conf.getStatisticsConfigure().isCostMeasuring()) {
+      spdlog::info("====================  Statistics  ====================");
+    }
+    if (Conf.getStatisticsConfigure().isTimeMeasuring()) {
+      spdlog::info(" Total execution time: {} ns",
+                   Nano(Stat->getTotalExecTime()));
+      spdlog::info(" Wasm instructions execution time: {} ns",
+                   Nano(Stat->getWasmExecTime()));
+      spdlog::info(" Host functions execution time: {} ns",
+                   Nano(Stat->getHostFuncExecTime()));
+    }
+    if (Conf.getStatisticsConfigure().isInstructionCounting()) {
+      spdlog::info(" Executed wasm instructions count: {}",
+                   Stat->getInstrCount());
+    }
+    if (Conf.getStatisticsConfigure().isCostMeasuring()) {
+      spdlog::info(" Gas costs: {}", Stat->getTotalCost());
+    }
+    if (Conf.getStatisticsConfigure().isInstructionCounting() &&
+        Conf.getStatisticsConfigure().isTimeMeasuring()) {
+      spdlog::info(" Instructions per second: {}",
+                   static_cast<uint64_t>(Stat->getInstrPerSecond()));
+    }
+    if (Conf.getStatisticsConfigure().isTimeMeasuring() ||
+        Conf.getStatisticsConfigure().isInstructionCounting() ||
+        Conf.getStatisticsConfigure().isCostMeasuring()) {
+      spdlog::info("=======================   End   ======================\n");
+    }
   }
 
   if (Res || Res.error() == ErrCode::Terminated) {

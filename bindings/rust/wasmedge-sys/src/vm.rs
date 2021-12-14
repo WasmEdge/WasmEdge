@@ -1,6 +1,7 @@
 use super::wasmedge;
 use crate::{
     error::{check, Error, WasmEdgeResult},
+    instance::function::FuncType,
     string::StringRef,
     utils, wasi, Config, ImportObj, Module, Statistics, Store, Value,
 };
@@ -74,11 +75,67 @@ impl Vm {
         Ok(self)
     }
 
+    /// Instantiate the validated WASM module in the VM context.
+    ///
+    /// This is the third step to invoke a WASM function step by step.
+    /// After validating a WASM module in the VM context, You can call this function
+    /// to instantiate it. And you can then call `execute` for invoking
+    /// the exported function in this WASM module.
+    ///
     pub fn instantiate(self) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_VMInstantiate(self.ctx))?;
         }
         Ok(self)
+    }
+
+    /// Get the function type by function name.
+    pub fn get_function_type(&self, func_name: impl AsRef<str>) -> Option<FuncType> {
+        let ty_ctx = unsafe {
+            wasmedge::WasmEdge_VMGetFunctionType(
+                self.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(func_name.as_ref())),
+            )
+        };
+        match ty_ctx.is_null() {
+            true => None,
+            false => Some(FuncType {
+                ctx: ty_ctx as *mut _,
+                registered: true,
+            }),
+        }
+    }
+
+    /// Get the function type by function name.
+    pub fn get_registered_function_type(
+        &self,
+        mod_name: impl AsRef<str>,
+        func_name: impl AsRef<str>,
+    ) -> Option<FuncType> {
+        let ty_ctx = unsafe {
+            wasmedge::WasmEdge_VMGetFunctionTypeRegistered(
+                self.ctx,
+                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+                wasmedge::WasmEdge_String::from(StringRef::from(func_name.as_ref())),
+            )
+        };
+        match ty_ctx.is_null() {
+            true => None,
+            false => Some(FuncType {
+                ctx: ty_ctx as *mut _,
+                registered: true,
+            }),
+        }
+    }
+
+    /// Reset of WasmEdge_VMContext.
+    pub fn reset(&mut self) {
+        unsafe { wasmedge::WasmEdge_VMCleanup(self.ctx) }
+    }
+
+    /// Get the length of exported function list.
+    pub fn function_list_len(&self) -> usize {
+        unsafe { wasmedge::WasmEdge_VMGetFunctionListLength(self.ctx) as usize }
     }
 
     pub fn init_wasi_obj(
@@ -199,6 +256,18 @@ impl Vm {
         Statistics {
             ctx,
             registered: true,
+        }
+    }
+
+    /// Get the store context used in the WasmEdge_VMContext.
+    pub fn get_store(&self) -> Option<Store> {
+        let store_ctx = unsafe { wasmedge::WasmEdge_VMGetStoreContext(self.ctx) };
+        match store_ctx.is_null() {
+            true => None,
+            false => Some(Store {
+                ctx: store_ctx,
+                registered: true,
+            }),
         }
     }
 }

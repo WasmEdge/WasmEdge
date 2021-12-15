@@ -1,8 +1,18 @@
 import org.junit.Assert;
 import org.junit.Test;
+import org.wasmedge.ASTModuleContext;
+import org.wasmedge.ConfigureContext;
+import org.wasmedge.ExecutorContext;
+import org.wasmedge.StoreContext;
 import org.wasmedge.TableTypeContext;
+import org.wasmedge.WasmEdgeI32Value;
+import org.wasmedge.WasmEdgeI64Value;
 import org.wasmedge.WasmEdgeLimit;
+import org.wasmedge.WasmEdgeValue;
 import org.wasmedge.enums.RefType;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class TableTypeContextTest extends BaseTest {
 
@@ -16,7 +26,134 @@ public class TableTypeContextTest extends BaseTest {
         Assert.assertEquals(tableTypeContext.getLimit().isHasMax(), limit.isHasMax());
         Assert.assertEquals(tableTypeContext.getLimit().getMax(), limit.getMax());
         Assert.assertEquals(tableTypeContext.getLimit().getMin(), limit.getMin());
-
-
     }
+
+    @Test
+    public void testRegisterWasmModule() {
+        ConfigureContext configureContext = new ConfigureContext();
+        ASTModuleContext mod = loadMode(configureContext);
+        ExecutorContext executorContext = new ExecutorContext(configureContext);
+        StoreContext storeContext = new StoreContext();
+        String modName = "extern";
+        executorContext.registerModule(storeContext, mod, modName);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void testRegisterWasmModuleNameConflict() {
+        ConfigureContext configureContext = new ConfigureContext();
+        ASTModuleContext mod = loadMode(configureContext);
+        ExecutorContext executorContext = new ExecutorContext(configureContext);
+        StoreContext storeContext = new StoreContext();
+        String modName = "extern";
+        executorContext.registerModule(storeContext, mod, modName);
+        executorContext.registerModule(storeContext, mod, modName);
+    }
+
+    @Test
+    public void testInstantiateModule() {
+        ConfigureContext configureContext = new ConfigureContext();
+        ASTModuleContext mod = loadMode(configureContext);
+        ExecutorContext executorContext = new ExecutorContext(configureContext);
+        StoreContext storeContext = new StoreContext();
+        executorContext.instantiate(storeContext, mod);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void testInstantiateModuleWithInvalidStore() {
+        ConfigureContext configureContext = new ConfigureContext();
+        ASTModuleContext mod = loadMode(configureContext);
+        ExecutorContext executorContext = new ExecutorContext(configureContext);
+        executorContext.instantiate(null, mod);
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void testInstantiateModuleWithInvalidMod() {
+        ConfigureContext configureContext = new ConfigureContext();
+        ExecutorContext executorContext = new ExecutorContext(configureContext);
+        StoreContext storeContext = new StoreContext();
+        executorContext.instantiate(storeContext, null);
+    }
+
+    @Test
+    public void testOverrideInstantiatedModule() {
+        ConfigureContext configureContext = new ConfigureContext();
+        ASTModuleContext mod = loadMode(configureContext);
+        ExecutorContext executorContext = new ExecutorContext(configureContext);
+        StoreContext storeContext = new StoreContext();
+        executorContext.instantiate(storeContext, mod);
+        executorContext.instantiate(storeContext, mod);
+    }
+
+    @Test
+    public void testInvokeFunction() {
+        String funcName = "func-mul-2";
+        List<WasmEdgeValue> params = new ArrayList<>();
+        params.add(new WasmEdgeI32Value(123));
+        params.add(new WasmEdgeI32Value(456));
+        List<WasmEdgeValue> returns = new ArrayList<>();
+        params.add(new WasmEdgeI32Value());
+        params.add(new WasmEdgeI32Value());
+        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext());
+        executorContext.invoke(new StoreContext(), funcName, params, returns);
+    }
+
+    @Test
+    public void testInvokeFunctionTypeParamMismatch() {
+        String funcName = "func-mul-2";
+        List<WasmEdgeValue> params = new ArrayList<>();
+        params.add(new WasmEdgeI32Value(123));
+        List<WasmEdgeValue> returns = new ArrayList<>();
+        params.add(new WasmEdgeI32Value());
+        params.add(new WasmEdgeI32Value());
+        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext());
+        executorContext.invoke(new StoreContext(), funcName, params, returns);
+    }
+
+    @Test
+    public void testInvokeFunctionNullParam() {
+        String funcName = "func-mul-2";
+        List<WasmEdgeValue> returns = new ArrayList<>();
+        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext());
+        executorContext.invoke(new StoreContext(), funcName, null, returns);
+    }
+
+    @Test
+    public void testInvokeFunctionParamTypeMismatch() {
+        String funcName = "func-mul-2";
+        List<WasmEdgeValue> params = new ArrayList<>();
+        params.add(new WasmEdgeI64Value(123));
+        params.add(new WasmEdgeI32Value(456));
+        List<WasmEdgeValue> returns = new ArrayList<>();
+        params.add(new WasmEdgeI32Value());
+        params.add(new WasmEdgeI32Value());
+        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext());
+        executorContext.invoke(new StoreContext(), funcName, params, returns);
+    }
+
+    @Test
+    public void testInvokeFunctionParamTypeFunctionNotFound() {
+        String funcName = "func-mul-3";
+        List<WasmEdgeValue> params = new ArrayList<>();
+        params.add(new WasmEdgeI64Value(123));
+        params.add(new WasmEdgeI32Value(456));
+        List<WasmEdgeValue> returns = new ArrayList<>();
+        params.add(new WasmEdgeI32Value());
+        params.add(new WasmEdgeI32Value());
+        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext());
+        executorContext.invoke(new StoreContext(), funcName, params, returns);
+    }
+
+    @Test
+    public void testCallHostFunction() {
+        Assert.fail();
+    }
+
+    @Test
+    public void testRegisteredModule() {
+        Assert.fail();
+    }
+
+
+
+
 }

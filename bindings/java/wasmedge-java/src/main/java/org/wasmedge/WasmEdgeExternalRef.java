@@ -3,7 +3,7 @@ package org.wasmedge;
 import org.wasmedge.enums.ValueType;
 
 public class WasmEdgeExternalRef implements WasmEdgeValue {
-    public WasmEdgeExternalRef() {
+    public WasmEdgeExternalRef(TableTypeContext tab) {
     }
 
     @Override

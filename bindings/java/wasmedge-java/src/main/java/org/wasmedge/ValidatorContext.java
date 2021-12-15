@@ -9,4 +9,6 @@ public class ValidatorContext {
 
     public native void validate(ASTModuleContext astCtx);
     private native void nativeInit(ConfigureContext configureContext);
+
+    public native void delete();
 }

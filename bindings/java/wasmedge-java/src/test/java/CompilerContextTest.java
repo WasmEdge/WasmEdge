@@ -50,7 +50,6 @@ public class CompilerContextTest extends BaseTest {
         try(FileInputStream fin = new FileInputStream("path")) {
             fin.read(buf, 0, 4);
         }
-
         Assert.assertEquals(buf,WASM_MAGIC);
     }
 

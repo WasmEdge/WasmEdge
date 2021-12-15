@@ -32,20 +32,15 @@ Docker images ([x86](https://hub.docker.com/repository/docker/wasmedge/appdev_x8
 WasmEdge development.
 
 ```
-docker pull wasmedge/appdev_x86_64:0.8.2
-docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.8.2
+docker pull wasmedge/appdev_x86_64:0.9.0
+docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 (docker) #
 ```
 
 ## WebAssembly examples
 
 We have several WebAssembly bytecode program examples for you to try out on
-your newly installed WasmEdge CLI! Those files are available in the following
-directory.
-
-```
-https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples
-```
+your newly installed WasmEdge CLI! 
 
 ### Hello world
 
@@ -83,7 +78,7 @@ $ wasmedge --reactor fibonacci.wasm fib 10
 ```
 ### With Statistics enabled
 
-The CLI now supports `--enable-all-statistics` flags for the statistics and gas meter. 
+The CLI supports `--enable-all-statistics` flags for the statistics and gas meter. 
 
 ```bash
 $ wasmedge --enable-all-statistics hello.wasm second state
@@ -104,11 +99,6 @@ state
 ## JavaScript examples
 
 It is possible to use WasmEdge as a high-performance, secure, extensible, easy to deploy, and [Kubernetes-compliant](https://github.com/second-state/wasmedge-containers-examples) JavaScript runtime. 
-The examples are in the following folder. 
-
-```
-https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples/js
-```
 
 The [qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs.wasm) program is a JavaScript interpreter compiled into WebAssembly. 
 The [hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/hello.js) file is a very simple JavaScript program.
@@ -134,8 +124,6 @@ $ wasmedge-tensorflow-lite --dir .:. qjs_tf.wasm main.js
 label: Hot dog
 confidence: 0.8941176470588236
 ```
-
-
 
 Read on and continue your learning of WasmEdge.
 

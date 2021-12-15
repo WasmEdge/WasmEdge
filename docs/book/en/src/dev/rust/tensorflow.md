@@ -19,7 +19,16 @@ You need to install [WasmEdge](https://github.com/WasmEdge/WasmEdge/blob/master/
 
 ### Build
 
+Check out the example source code.
+
+```bash
+$ git clone https://github.com/second-state/wasm-learning/
+$ cd cli/tflite
 ```
+
+Use Rust `Cargo` to build the WebAssembly target.
+
+```bash
 $ rustup target add wasm32-wasi
 $ cargo build --target wasm32-wasi --release
 ```
@@ -28,7 +37,7 @@ $ cargo build --target wasm32-wasi --release
 
 The `wasmedge-tensorflow-lite` utility is the WasmEdge build that includes the Tensorflow and Tensorflow Lite extensions.
 
-```
+```bash
 $ wasmedge-tensorflow-lite target/wasm32-wasi/release/classify.wasm < grace_hopper.jpg
 It is very likely a <a href='https://www.google.com/search?q=military uniform'>military uniform</a> in the picture
 ```
@@ -37,9 +46,9 @@ It is very likely a <a href='https://www.google.com/search?q=military uniform'>m
 
 To make Tensorflow inference run *much* faster, you could AOT compile it down to machine native code, and then use WasmEdge sandbox to run the native code.
 
-```
-$ wasmedgec-tensorflow target/wasm32-wasi/release/classify.wasm classify.so
-$ wasmedge-tensorflow-lite classify.so < grace_hopper.jpg
+```bash
+$ wasmedgec target/wasm32-wasi/release/classify.wasm classify.wasm
+$ wasmedge-tensorflow-lite classify.wasm < grace_hopper.jpg
 It is very likely a <a href='https://www.google.com/search?q=military uniform'>military uniform</a> in the picture
 ```
 
@@ -49,15 +58,14 @@ It is fairly straightforward to use the WasmEdge Tensorflow API. You can see the
 
 First, it reads the trained TFLite model file (ImageNet) and its label file. The label file maps numeric output from the model to English names for the classified objects.
 
-```
+```rust
     let model_data: &[u8] = include_bytes!("models/mobilenet_v1_1.0_224/mobilenet_v1_1.0_224_quant.tflite");
     let labels = include_str!("models/mobilenet_v1_1.0_224/labels_mobilenet_quant_v1_224.txt");
 ```
 
-
 Next, it reads the image from `STDIN` and converts it to the size and RGB pixel arrangement required by the Tensorflow Lite model.
 
-```
+```rust
     let mut buf = Vec::new();
     io::stdin().read_to_end(&mut buf).unwrap();
 
@@ -66,7 +74,7 @@ Next, it reads the image from `STDIN` and converts it to the size and RGB pixel 
 
 Then, the program runs the TFLite model with its required input tensor (i.e., the flat image in this case), and receives the model output. In this case, the model output is an array of numbers. Each number corresponds to the probability of an object name in the label text file.
 
-```
+```rust
     let mut session = wasmedge_tensorflow_interface::Session::new(&model_data, wasmedge_tensorflow_interface::ModelType::TensorFlowLite);
     session.add_input("input", &flat_img, &[1, 224, 224, 3])
            .run();
@@ -75,7 +83,7 @@ Then, the program runs the TFLite model with its required input tensor (i.e., th
 
 Let's find the object with the highest probability, and then look up the name in the labels file.
 
-```
+```rust
     let mut i = 0;
     let mut max_index: i32 = -1;
     let mut max_value: u8 = 0;
@@ -97,7 +105,7 @@ Let's find the object with the highest probability, and then look up the name in
 
 Finally, it prints the result to `STDOUT`.
 
-```
+```rust
     let class_name = label_lines.next().unwrap().to_string();
     if max_value > 50 {
       println!("It {} a <a href='https://www.google.com/search?q={}'>{}</a> in the picture", confidence.to_string(), class_name, class_name);
@@ -106,11 +114,9 @@ Finally, it prints the result to `STDOUT`.
     }
 ```
 
-
-
 # Deployment options
 
-All the tutorials below use the [WasmEdge Rust SDK for Tensorflow](https://github.com/second-state/wasmedge_tensorflow_interface) to create AI inference functions. Those Rust functions are then compiled to WebAssembly and deployed together with WasmEdge on the cloud. 
+All the tutorials below use the [WasmEdge Rust API for Tensorflow](https://github.com/second-state/wasmedge_tensorflow_interface) to create AI inference functions. Those Rust functions are then compiled to WebAssembly and deployed together with WasmEdge on the cloud. 
 
 ### Serverless functions
 

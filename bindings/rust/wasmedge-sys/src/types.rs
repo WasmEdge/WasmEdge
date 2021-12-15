@@ -198,9 +198,13 @@ pub enum ExternalType {
     Global = wasmedge::WasmEdge_ExternalType_Global,
 }
 impl From<u32> for ExternalType {
-    fn from(value: u32) -> Self {
-        match value {
+    fn from(val: u32) -> Self {
+        match val {
             0x00u32 => ExternalType::Function,
+            0x01u32 => ExternalType::Table,
+            0x02u32 => ExternalType::Memory,
+            0x03u32 => ExternalType::Global,
+            _ => panic!("Unknown ExternalType value: {}", val),
         }
     }
 }

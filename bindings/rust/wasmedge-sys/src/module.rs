@@ -1,9 +1,7 @@
 use super::wasmedge;
 use crate::{
     error::{check, Error, WasmEdgeResult},
-    instance::function::FuncType,
-    instance::global::GlobalType,
-    instance::memory::MemType,
+    instance::{function::FuncType, global::GlobalType, memory::MemType, table::TableType},
     types::ExternalType,
     utils, Config,
 };
@@ -174,7 +172,7 @@ impl ImportType {
                 "fail to get the function type",
             ))),
             false => Ok(FuncType {
-                ctx: ctx_func_ty,
+                ctx: ctx_func_ty as *mut _,
                 registered: true,
             }),
         }
@@ -195,7 +193,7 @@ impl ImportType {
                 "fail to get the table type",
             ))),
             false => Ok(TableType {
-                ctx: ctx_tab_ty,
+                ctx: ctx_tab_ty as *mut _,
                 registered: true,
             }),
         }
@@ -289,7 +287,7 @@ impl ExportType {
                 "fail to get the function type",
             ))),
             false => Ok(FuncType {
-                ctx: ctx_func_ty,
+                ctx: ctx_func_ty as *mut _,
                 registered: true,
             }),
         }
@@ -310,7 +308,7 @@ impl ExportType {
                 "fail to get the table type",
             ))),
             false => Ok(TableType {
-                ctx: ctx_tab_ty,
+                ctx: ctx_tab_ty as *mut _,
                 registered: true,
             }),
         }

@@ -247,11 +247,10 @@ pysdk::result pysdk::VM::add(pysdk::import_object &mod) {
 
 pybind11::tuple pysdk::VM::run(pybind11::object wasm_buffer_,
                                pybind11::object params_,
-                               pybind11::tuple module_func_name_,
+                               pybind11::object return_len_,
                                std::string &executor_func_name) {
 
-  auto function_name = module_func_name_[0].cast<std::string>();
-  auto module_name = module_func_name_[1].cast<std::string>();
+  auto return_len = return_len_.cast<int>();
 
   auto wasm_buffer = wasm_buffer_.cast<pybind11::tuple>();
   pybind11::list returns;
@@ -277,31 +276,15 @@ pybind11::tuple pysdk::VM::run(pybind11::object wasm_buffer_,
     }
   }
 
-  WasmEdge_String func_name_wasm =
-      WasmEdge_StringCreateByCString(function_name.c_str());
-  WasmEdge_String module_name_wasm =
-      WasmEdge_StringCreateByCString(module_name.c_str());
   WasmEdge_String ex_func_name_wasm =
       WasmEdge_StringCreateByCString(executor_func_name.c_str());
-
-  WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VMCxt);
-
-  auto FuncCxt = WasmEdge_StoreFindFunctionRegistered(
-      StoreCxt, module_name_wasm, ex_func_name_wasm);
-
-  auto FuncTypeCxt = WasmEdge_FunctionInstanceGetFunctionType(FuncCxt);
-
-  auto param_len_api = WasmEdge_FunctionTypeGetParametersLength(FuncTypeCxt);
-  auto return_len = WasmEdge_FunctionTypeGetReturnsLength(FuncTypeCxt);
 
   WasmEdge_Value Returns[return_len];
 
   pysdk::result res(
       WasmEdge_VMRunWasmFromBuffer(VMCxt, WASM_Buffer, size, ex_func_name_wasm,
-                                   Params, param_len_api, Returns, return_len));
+                                   Params, param_len, Returns, return_len));
 
-  WasmEdge_StringDelete(func_name_wasm);
-  WasmEdge_StringDelete(module_name_wasm);
   WasmEdge_StringDelete(ex_func_name_wasm);
 
   for (int i = 0; i < return_len; i++) {
@@ -361,38 +344,62 @@ pysdk::Store::~Store() { WasmEdge_StoreDelete(StoreCxt); }
 
 WasmEdge_StoreContext *pysdk::Store::get() { return this->StoreCxt; }
 
-pybind11::list pysdk::Store::listFunctions(int len) {
+pybind11::list pysdk::Store::listFunctions() {
   pybind11::list ret;
 
   auto FuncNum = WasmEdge_StoreListFunctionLength(StoreCxt);
-  WasmEdge_String FuncNames[len];
+  WasmEdge_String FuncNames[FuncNum];
 
   auto GotFuncNum = WasmEdge_StoreListFunction(StoreCxt, FuncNames, FuncNum);
   for (uint32_t I = 0; I < GotFuncNum; I++) {
-    char *temp;
+    char temp[FuncNames[I].Length];
     WasmEdge_StringCopy(FuncNames[I], temp, FuncNames[I].Length);
-    ret.append(temp);
-    WasmEdge_StringDelete(FuncNames[I]);
+    ret.append(std::string(temp));
   }
 
-  return std::move(ret);
+  return ret;
 }
 
-pybind11::list pysdk::Store::listModules(int len) {
+pybind11::list pysdk::Store::listModules() {
   pybind11::list ret;
 
   auto ModNum = WasmEdge_StoreListModuleLength(StoreCxt);
-  WasmEdge_String ModNames[len];
+  WasmEdge_String ModNames[ModNum];
 
   auto GotFuncNum = WasmEdge_StoreListModule(StoreCxt, ModNames, ModNum);
   for (uint32_t I = 0; I < GotFuncNum; I++) {
-    char *temp;
+    char temp[ModNames[I].Length];
     WasmEdge_StringCopy(ModNames[I], temp, ModNames[I].Length);
-    ret.append(temp);
-    WasmEdge_StringDelete(ModNames[I]);
+    ret.append(std::string(temp));
   }
 
-  return std::move(ret);
+  return ret;
+}
+
+pybind11::list
+pysdk::Store::listRegisteredFunctions(const std::string &module_name) {
+  pybind11::list ret;
+
+  WasmEdge_String module_name_wasm =
+      WasmEdge_StringCreateByCString(module_name.c_str());
+
+  auto reg_func_length =
+      WasmEdge_StoreListFunctionRegisteredLength(StoreCxt, module_name_wasm);
+  WasmEdge_String RegFuncNames[reg_func_length];
+  auto GotFuncNum = WasmEdge_StoreListFunctionRegistered(
+      StoreCxt, module_name_wasm, RegFuncNames, reg_func_length);
+  for (uint32_t I = 0; I < GotFuncNum; I++) {
+    char temp[RegFuncNames[I].Length];
+    std::string temp_str;
+    auto size =
+        WasmEdge_StringCopy(RegFuncNames[I], temp, RegFuncNames[I].Length);
+    for (size_t i = 0; i < size; i++) {
+      temp_str += temp[i];
+    }
+    ret.append(temp_str);
+  }
+
+  return ret;
 }
 
 /* --------------- Store End -------------------------------- */
@@ -468,7 +475,7 @@ void pysdk::import_object::add(pysdk::function &func, std::string name) {
   WasmEdge_StringDelete(function_name);
 }
 
-pysdk::import_object::~import_object() { WasmEdge_ImportObjectDelete(ModCxt); }
+pysdk::import_object::~import_object() {}
 
 WasmEdge_ImportObjectContext *pysdk::import_object::get() { return ModCxt; }
 
@@ -538,7 +545,7 @@ WasmEdge_Result pysdk::host_function(void *Data,
 
   auto casted_data = (struct function_utility *)Data;
 
-  auto func = casted_data->func;
+  auto const &func = casted_data->func;
 
   size_t param_len = casted_data->param_len;
 
@@ -554,7 +561,13 @@ WasmEdge_Result pysdk::host_function(void *Data,
   }
   auto params_tup = params.cast<pybind11::tuple>();
 
-  pybind11::tuple returns = func(*params_tup);
+  auto const ret = func(*params_tup);
+  pybind11::tuple returns;
+  if (!pybind11::isinstance<pybind11::tuple>(ret)) {
+    returns = pybind11::make_tuple(ret);
+  } else {
+    returns = ret;
+  }
 
   for (size_t i = 0; i < returns.size(); i++) {
     if (pybind11::isinstance<pybind11::int_>(returns[i])) {
@@ -567,9 +580,7 @@ WasmEdge_Result pysdk::host_function(void *Data,
   return WasmEdge_Result_Success;
 };
 
-WasmEdge_FunctionInstanceContext *pysdk::function::get() {
-  return HostFuncCxt;
-}
+WasmEdge_FunctionInstanceContext *pysdk::function::get() { return HostFuncCxt; }
 
 pysdk::function::~function() {
   WasmEdge_FunctionInstanceDelete(HostFuncCxt);
@@ -680,7 +691,8 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def(pybind11::init())
       .def("__doc__", &pysdk::Store::doc)
       .def("listFunctions", &pysdk::Store::listFunctions)
-      .def("listModules", &pysdk::Store::listModules);
+      .def("listModules", &pysdk::Store::listModules)
+      .def("listRegisteredFunctions", &pysdk::Store::listRegisteredFunctions);
 
   /*Overloading VM run functions*/
 
@@ -690,7 +702,7 @@ PYBIND11_MODULE(WasmEdge, module) {
                                     pybind11::object, pybind11::object,
                                     pybind11::object) = &pysdk::VM::run;
   pybind11::tuple (pysdk::VM::*run_wasm_buffer)(
-      pybind11::object, pybind11::object, pybind11::tuple, std::string &) =
+      pybind11::object, pybind11::object, pybind11::object, std::string &) =
       &pysdk::VM::run;
 
   pybind11::class_<pysdk::VM>(module, "VM")

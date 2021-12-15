@@ -56,8 +56,9 @@ public:
   ~Store();
   const char *doc() { return pysdk::Store_doc; }
   WasmEdge_StoreContext *get();
-  pybind11::list listFunctions(int);
-  pybind11::list listModules(int);
+  pybind11::list listFunctions();
+  pybind11::list listModules();
+  pybind11::list listRegisteredFunctions(const std::string &);
 };
 
 class result {
@@ -128,7 +129,7 @@ public:
                       pybind11::object, pybind11::object);
   pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object);
 
-  pybind11::tuple run(pybind11::object, pybind11::object, pybind11::tuple,
+  pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object,
                       std::string &);
 
   pybind11::list list_exported_functions();

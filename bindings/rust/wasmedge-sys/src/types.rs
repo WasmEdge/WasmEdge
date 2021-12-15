@@ -191,30 +191,30 @@ impl From<HostRegistration> for wasmedge::WasmEdge_HostRegistration {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u32)]
-pub enum ExternalType {
+pub enum ExternType {
     Function = wasmedge::WasmEdge_ExternalType_Function,
     Table = wasmedge::WasmEdge_ExternalType_Table,
     Memory = wasmedge::WasmEdge_ExternalType_Memory,
     Global = wasmedge::WasmEdge_ExternalType_Global,
 }
-impl From<u32> for ExternalType {
+impl From<u32> for ExternType {
     fn from(val: u32) -> Self {
         match val {
-            0x00u32 => ExternalType::Function,
-            0x01u32 => ExternalType::Table,
-            0x02u32 => ExternalType::Memory,
-            0x03u32 => ExternalType::Global,
+            0x00u32 => ExternType::Function,
+            0x01u32 => ExternType::Table,
+            0x02u32 => ExternType::Memory,
+            0x03u32 => ExternType::Global,
             _ => panic!("Unknown ExternalType value: {}", val),
         }
     }
 }
-impl fmt::Display for ExternalType {
+impl fmt::Display for ExternType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let message = match self {
-            ExternalType::Function => "function",
-            ExternalType::Table => "table",
-            ExternalType::Memory => "memory",
-            ExternalType::Global => "global",
+            ExternType::Function => "function",
+            ExternType::Table => "table",
+            ExternType::Memory => "memory",
+            ExternType::Global => "global",
         };
         write!(f, "{}", message)
     }

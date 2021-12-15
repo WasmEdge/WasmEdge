@@ -2,7 +2,7 @@ use super::wasmedge;
 use crate::{
     error::{check, Error, WasmEdgeResult},
     instance::{function::FuncType, global::GlobalType, memory::MemType, table::TableType},
-    types::ExternalType,
+    types::ExternType,
     utils, Config,
 };
 use ::core::mem::MaybeUninit as MU;
@@ -133,9 +133,18 @@ impl Drop for ImportType {
 }
 impl ImportType {
     /// Get the external type
-    pub fn external_type(&self) -> ExternalType {
+    pub fn ty(&self) -> ExternType {
         let ty = unsafe { wasmedge::WasmEdge_ImportTypeGetExternalType(self.ctx) };
         ty.into()
+    }
+
+    /// Get the external name
+    pub fn name(&self) -> Cow<'_, str> {
+        let c_name = unsafe {
+            let raw_name = wasmedge::WasmEdge_ImportTypeGetExternalName(self.ctx);
+            CStr::from_ptr(raw_name.Buf)
+        };
+        c_name.to_string_lossy()
     }
 
     /// Get the module name
@@ -147,19 +156,10 @@ impl ImportType {
         c_name.to_string_lossy()
     }
 
-    /// Get the external name
-    pub fn external_name(&self) -> Cow<'_, str> {
-        let c_name = unsafe {
-            let raw_name = wasmedge::WasmEdge_ImportTypeGetExternalName(self.ctx);
-            CStr::from_ptr(raw_name.Buf)
-        };
-        c_name.to_string_lossy()
-    }
-
     /// Get the external value (which is function type)
     pub fn function_type(&self, module: &Module) -> WasmEdgeResult<FuncType> {
-        let external_ty = self.external_type();
-        if external_ty != ExternalType::Function {
+        let external_ty = self.ty();
+        if external_ty != ExternType::Function {
             return Err(Error::OperationError(format!(
                 "The external type should be 'function', but found '{}'",
                 external_ty
@@ -180,8 +180,8 @@ impl ImportType {
 
     /// Get the external value (which is table type)
     pub fn table_type(&self, module: &Module) -> WasmEdgeResult<TableType> {
-        let external_ty = self.external_type();
-        if external_ty != ExternalType::Table {
+        let external_ty = self.ty();
+        if external_ty != ExternType::Table {
             return Err(Error::OperationError(format!(
                 "The external type should be 'table', but found '{}'",
                 external_ty
@@ -201,8 +201,8 @@ impl ImportType {
 
     /// Get the external value (which is memory type)
     pub fn memory_type(&self, module: &Module) -> WasmEdgeResult<MemType> {
-        let external_ty = self.external_type();
-        if external_ty != ExternalType::Memory {
+        let external_ty = self.ty();
+        if external_ty != ExternType::Memory {
             return Err(Error::OperationError(format!(
                 "The external type should be 'memory', but found '{}'",
                 external_ty
@@ -223,8 +223,8 @@ impl ImportType {
 
     /// Get the external value (which is global type)
     pub fn global_type(&self, module: &Module) -> WasmEdgeResult<GlobalType> {
-        let external_ty = self.external_type();
-        if external_ty != ExternalType::Global {
+        let external_ty = self.ty();
+        if external_ty != ExternType::Global {
             return Err(Error::OperationError(format!(
                 "The external type should be 'global', but found '{}'",
                 external_ty
@@ -257,13 +257,13 @@ impl Drop for ExportType {
 }
 impl ExportType {
     /// Get the external type
-    pub fn external_type(&self) -> ExternalType {
+    pub fn ty(&self) -> ExternType {
         let ty = unsafe { wasmedge::WasmEdge_ExportTypeGetExternalType(self.ctx) };
         ty.into()
     }
 
     /// Get the external name
-    pub fn external_name(&self) -> Cow<'_, str> {
+    pub fn name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
             let raw_name = wasmedge::WasmEdge_ExportTypeGetExternalName(self.ctx);
             CStr::from_ptr(raw_name.Buf)
@@ -273,8 +273,8 @@ impl ExportType {
 
     /// Get the external value (which is function type)
     pub fn function_type(&self, module: &Module) -> WasmEdgeResult<FuncType> {
-        let external_ty = self.external_type();
-        if external_ty != ExternalType::Function {
+        let external_ty = self.ty();
+        if external_ty != ExternType::Function {
             return Err(Error::OperationError(format!(
                 "The external type should be 'function', but found '{}'",
                 external_ty
@@ -295,8 +295,8 @@ impl ExportType {
 
     /// Get the external value (which is table type)
     pub fn table_type(&self, module: &Module) -> WasmEdgeResult<TableType> {
-        let external_ty = self.external_type();
-        if external_ty != ExternalType::Table {
+        let external_ty = self.ty();
+        if external_ty != ExternType::Table {
             return Err(Error::OperationError(format!(
                 "The external type should be 'table', but found '{}'",
                 external_ty
@@ -316,8 +316,8 @@ impl ExportType {
 
     /// Get the external value (which is memory type)
     pub fn memory_type(&self, module: &Module) -> WasmEdgeResult<MemType> {
-        let external_ty = self.external_type();
-        if external_ty != ExternalType::Memory {
+        let external_ty = self.ty();
+        if external_ty != ExternType::Memory {
             return Err(Error::OperationError(format!(
                 "The external type should be 'memory', but found '{}'",
                 external_ty
@@ -338,8 +338,8 @@ impl ExportType {
 
     /// Get the external value (which is global type)
     pub fn global_type(&self, module: &Module) -> WasmEdgeResult<GlobalType> {
-        let external_ty = self.external_type();
-        if external_ty != ExternalType::Global {
+        let external_ty = self.ty();
+        if external_ty != ExternType::Global {
             return Err(Error::OperationError(format!(
                 "The external type should be 'global', but found '{}'",
                 external_ty

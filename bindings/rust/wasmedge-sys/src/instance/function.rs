@@ -1,4 +1,4 @@
-use crate::{wasmedge, Error, Value, WasmEdgeResult, WasmFnIO, HOST_FUNCS};
+use crate::{types::ValType, wasmedge, Error, Value, WasmEdgeResult, WasmFnIO, HOST_FUNCS};
 
 use core::ffi::c_void;
 use std::convert::TryInto;
@@ -99,7 +99,7 @@ impl Function {
         });
 
         let key_ptr = key as *const usize as *mut c_void;
-        let ty = FuncType::create(I::parameters(), O::parameters())?;
+        let mut ty = FuncType::create(I::parameters(), O::parameters())?;
 
         let ctx = unsafe {
             wasmedge::WasmEdge_FunctionInstanceCreateBinding(
@@ -110,11 +110,36 @@ impl Function {
                 0,
             )
         };
-        Ok(Self {
-            ctx,
-            ty: Some(ty),
-            registered: false,
-        })
+
+        match ctx.is_null() {
+            true => Err(Error::OperationError(String::from(
+                "fail to create host function via the create_bindings interface",
+            ))),
+            false => {
+                ty.ctx = std::ptr::null_mut();
+                ty.registered = true;
+
+                Ok(Self {
+                    ctx,
+                    ty: Some(ty),
+                    registered: false,
+                })
+            }
+        }
+    }
+
+    /// Get the function type of the function instance.
+    pub fn get_type(&self) -> WasmEdgeResult<FuncType> {
+        let ty = unsafe { wasmedge::WasmEdge_FunctionInstanceGetFunctionType(self.ctx) };
+        match ty.is_null() {
+            true => Err(Error::OperationError(String::from(
+                "fail to get type info of the function",
+            ))),
+            false => Ok(FuncType {
+                ctx: ty as *mut _,
+                registered: true,
+            }),
+        }
     }
 }
 
@@ -165,6 +190,40 @@ impl FuncType {
                 registered: false,
             }),
         }
+    }
+
+    /// Get the parameter types list length
+    pub fn params_len(&self) -> usize {
+        unsafe { wasmedge::WasmEdge_FunctionTypeGetParametersLength(self.ctx) as usize }
+    }
+
+    /// Get the iterator of the parameter types
+    pub fn params_type_iter(&self) -> impl Iterator<Item = ValType> {
+        let len = self.params_len();
+        let mut types = Vec::with_capacity(len);
+        unsafe {
+            wasmedge::WasmEdge_FunctionTypeGetParameters(self.ctx, types.as_mut_ptr(), len as u32);
+            types.set_len(len);
+        }
+
+        types.into_iter().map(Into::into)
+    }
+
+    /// Get the return types list length
+    pub fn returns_len(&self) -> usize {
+        unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(self.ctx) as usize }
+    }
+
+    /// Get the iterator of the return types
+    pub fn returns_type_iter(&self) -> impl Iterator<Item = ValType> {
+        let len = self.returns_len();
+        let mut types = Vec::with_capacity(len);
+        unsafe {
+            wasmedge::WasmEdge_FunctionTypeGetReturns(self.ctx, types.as_mut_ptr(), len as u32);
+            types.set_len(len);
+        }
+
+        types.into_iter().map(Into::into)
     }
 }
 impl Drop for FuncType {

@@ -5,16 +5,16 @@ The `appdev` Docker images provide a complete WasmEdge application development e
 ### On x86_64 machines
 
 ```
-$ docker pull wasmedge/appdev_x86_64:0.8.2
-$ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.8.2
+$ docker pull wasmedge/appdev_x86_64:0.9.0
+$ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 (docker) #
 ```
 
 ### On arm64 machines
 
 ```
-$ docker pull wasmedge/appdev_aarch64:0.8.2
-$ docker run --rm -v $(pwd):/app -it wasmedge/appdev_aarch64:0.8.2
+$ docker pull wasmedge/appdev_aarch64:0.9.0
+$ docker run --rm -v $(pwd):/app -it wasmedge/appdev_aarch64:0.9.0
 (docker) #
 ```
 
@@ -64,14 +64,14 @@ Run these commands to build and publish the `appdev` Docker images.
 ### Build on an x86_64 machine
 
 ```
-docker build -t wasmedge/appdev_x86_64:0.8.2 -f Dockerfile.appdev_x86_64 ./ 
-docker image push wasmedge/appdev_x86_64:0.8.2
+docker build -t wasmedge/appdev_x86_64:0.9.0 -f Dockerfile.appdev_x86_64 ./ 
+docker image push wasmedge/appdev_x86_64:0.9.0
 ```
 
 ### Build on an ARM64 / aarch64 machine
 
 ```
-docker build -t wasmedge/appdev_aarch64:0.8.2 -f Dockerfile.appdev_aarch64 ./
-docker image push wasmedge/appdev_aarch64:0.8.2
+docker build -t wasmedge/appdev_aarch64:0.9.0 -f Dockerfile.appdev_aarch64 ./
+docker image push wasmedge/appdev_aarch64:0.9.0
 ```
 

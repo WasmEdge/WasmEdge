@@ -591,13 +591,13 @@ public:
     return Node.sockShutdown(SdFlags);
   }
 
-  WasiExpect<void> sockGetOpt(int32_t Level, int32_t Name, void *FlagPtr,
+  WasiExpect<void> sockGetOpt(int32_t Level, int32_t OptName, void *FlagPtr,
                               uint32_t *FlagSizePtr) const noexcept {
-    return Node.sockGetOpt(Level, Name, FlagPtr, FlagSizePtr);
+    return Node.sockGetOpt(Level, OptName, FlagPtr, FlagSizePtr);
   }
-  WasiExpect<void> sockSetOpt(int32_t Level, int32_t Name, void *FlagPtr,
+  WasiExpect<void> sockSetOpt(int32_t Level, int32_t OptName, void *FlagPtr,
                               uint32_t FlagSizePtr) const noexcept {
-    return Node.sockSetOpt(Level, Name, FlagPtr, FlagSizePtr);
+    return Node.sockSetOpt(Level, OptName, FlagPtr, FlagSizePtr);
   }
 
   WasiExpect<void> sockGetLoaclAddr(uint8_t *Address, uint32_t *AddrTypePtr,

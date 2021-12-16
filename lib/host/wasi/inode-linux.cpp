@@ -2,7 +2,6 @@
 #include "common/defines.h"
 #include <cstdint>
 #include <cstring>
-#include <netinet/in.h>
 #if WASMEDGE_OS_LINUX
 
 #include "common/errcode.h"
@@ -966,18 +965,18 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
   return {};
 }
 
-WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t Name, void *FlagPtr,
+WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t OptName, void *FlagPtr,
                                    uint32_t *FlagSizePtr) const noexcept {
-  if (Name == __WASI_SOCK_SO_ERROR) {
+  if (OptName == __WASI_SOCK_SO_ERROR) {
     int ErrorCode = 0;
     int *WasiErrorPtr = (int *)FlagPtr;
-    if (auto Res = ::getsockopt(Fd, Level, Name, &ErrorCode, FlagSizePtr);
+    if (auto Res = ::getsockopt(Fd, Level, OptName, &ErrorCode, FlagSizePtr);
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
     *WasiErrorPtr = fromErrNo(ErrorCode);
   } else {
-    if (auto Res = ::getsockopt(Fd, Level, Name, FlagPtr, FlagSizePtr);
+    if (auto Res = ::getsockopt(Fd, Level, OptName, FlagPtr, FlagSizePtr);
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
@@ -986,9 +985,9 @@ WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t Name, void *FlagPtr,
   return WasiUnexpect(__WASI_ERRNO_SUCCESS);
 }
 
-WasiExpect<void> INode::sockSetOpt(int32_t Level, int32_t Name, void *FlagPtr,
+WasiExpect<void> INode::sockSetOpt(int32_t Level, int32_t OptName, void *FlagPtr,
                                    uint32_t FlagSizePtr) const noexcept {
-  if (auto Res = ::setsockopt(Fd, Level, Name, FlagPtr, FlagSizePtr);
+  if (auto Res = ::setsockopt(Fd, Level, OptName, FlagPtr, FlagSizePtr);
       unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }

@@ -11,16 +11,11 @@ config("WASMEDGE_CFLAGS"){
         "$WASMEDGE_ROOT_DIR/thirdparty"
     ]
     cflags = [
-        
         "-Wall",
         "-Wextra",
         "-Werror",
         "-Wno-error=pedantic",
-          
-        #"-Wno-psabi",
-          
         "-Wno-c++20-designator",
-          
         "-Wno-c99-extensions",
         "-Wno-covered-switch-default",
         "-Wno-documentation-unknown-command",
@@ -31,12 +26,8 @@ config("WASMEDGE_CFLAGS"){
         "-Wno-signed-enum-bitfield",
         "-Wno-switch-enum",
         "-Wno-undefined-func-template",
-        
         "-Wno-unused-const-variable",
-        
         "-Wno-unused-parameter",
-        
-
     ]
     cflags_cc = [
         "-fexceptions",

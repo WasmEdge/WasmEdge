@@ -12,7 +12,7 @@
         "//third_party/WasmEdge:wasmedge_js_qjs"
       ],
       "inner_kits": [
-              ],
+      ],
       "system_kits": [
       ],
       "test_list": [

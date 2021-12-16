@@ -2,6 +2,11 @@
 
 cmake_minimum_required(VERSION 3.9.4)
 cmake_policy(SET CMP0091 NEW)
+option(WASMEDGE_BUILD_ON_OHOS "Cross compiler WasmEdge on OpenHarmony." OFF)
+if(WASMEDGE_BUILD_ON_OHOS)
+  message("get build")
+  include(utils/ohos/CMakeLists.txt)
+endif()
 project(WasmEdge)
 
 find_program(GIT_CMD git)

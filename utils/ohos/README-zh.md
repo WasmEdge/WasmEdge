@@ -72,7 +72,7 @@ $ docker run -it -v $(pwd):/home/openharmony openharmony-docker-standard:0.0.5
 
 在 OpenHarmony 中构建的 WasmEdge 目前仅支持 `wasmedge`，即 wasm 的通用运行时。
 
-* `wasmedge` 可以在解释器模式下执行一个 `WASM` 文件， 也可以在预编译模式下执行一个 WASM `so` 文件， 目前还不支持在 OpenHarmony 中使用预编译模式 。
+* `wasmedge` 可以在解释器模式下执行一个 `WASM` 文件， 也可以在预编译模式下执行通用 Wasm 二进制格式文件， 目前还不支持在 OpenHarmony 中使用预编译模式 。
 
 ### 执行构建脚本
 
@@ -84,7 +84,7 @@ $ docker run -it -v $(pwd):/home/openharmony openharmony-docker-standard:0.0.5
 ```bash
 $ docker run -it -v $(pwd):/home/openharmony openharmony-docker-standard:0.0.5
 (root@xxxxxx:/home/openharmony)$ cd third_party/WasmEdge/utils/ohos
-(root@xxxxxx:/home/openharmony/third_party/WasmEdge/utils/ohos)$ ./build_for_ohos.sh
+(root@xxxxxx:/home/openharmony/third_party/WasmEdge/utils/ohos)$ ./build_for_ohos.sh /home/openharmony
 ```
 
 当显示以下信息时，表明编译完成.

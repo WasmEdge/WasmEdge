@@ -1,15 +1,18 @@
 #!/bin/bash
 
-export PATH=$PATH:/home/openharmony/prebuilts/clang/ohos/linux-x86_64/llvm/bin:/home/openharmony/prebuilts/cmake/linux-x86/bin/
-export CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:/home/openharmony/third_party/boost/
+OHOS_DIR_PATH=$1
+WASMEDGE_ROOT_PATH=$(dirname $(dirname $(pwd)))
 
-cp ./* $(dirname $(dirname $(pwd)))
+export PATH=$PATH:${OHOS_DIR_PATH}/prebuilts/clang/ohos/linux-x86_64/llvm/bin:${OHOS_DIR_PATH}/prebuilts/cmake/linux-x86/bin/
+export CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:${OHOS_DIR_PATH}/third_party/boost/
 
-cd $(dirname $(dirname $(pwd)))
+cp ./configuration/* ${WASMEDGE_ROOT_PATH}
+
+cd ${WASMEDGE_ROOT_PATH}
 
 mkdir build
 cd build
-if ! cmake .. -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_ON_OHOS=ON -DOHOS_SYSROOT_PATH="/home/openharmony/out/ohos-arm-release/obj/third_party/musl/" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_INCLUDEDIR="/home/openharmony/third_party/boost/"; then
+if ! cmake .. -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_ON_OHOS=ON -DOHOS_DIR_PATH=${OHOS_DIR_PATH} -DOHOS_SYSROOT_PATH="${OHOS_DIR_PATH}/out/ohos-arm-release/obj/third_party/musl/" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_INCLUDEDIR="${OHOS_DIR_PATH}/third_party/boost/"; then
     echo === CMakeOutput.log ===
     cat build/CMakeFiles/CMakeOutput.log
     echo === CMakeError.log ===
@@ -20,5 +23,5 @@ fi
 make -j
 
 #build ohos
-cd /home/openharmony
+cd ${OHOS_DIR_PATH}
 ./build.sh --product-name Hi3516DV300 --ccache

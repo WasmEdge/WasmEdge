@@ -514,6 +514,44 @@ private:
   template <typename T> Expect<void> runVectorFloorOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorTruncOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorNearestOp(ValVariant &Val) const;
+  /// ======= Atomic instructions =======
+  template <typename T>
+  TypeT<T> runAtomicLoadOp(Runtime::Instance::MemoryInstance &MemInst,
+                           const AST::Instruction &Instr,
+                           const uint32_t BitWidth = sizeof(T) * 8);
+  template <typename T>
+  TypeT<T> runAtomicStoreOp(Runtime::Instance::MemoryInstance &MemInst,
+                            const AST::Instruction &Instr,
+                            const uint32_t BitWidth = sizeof(T) * 8);
+  template <typename T>
+  TypeT<T> runAtomicAddOp(Runtime::Instance::MemoryInstance &MemInst,
+                          const AST::Instruction &Instr,
+                          const uint32_t BitWidth = sizeof(T) * 8);
+  template <typename T>
+  TypeT<T> runAtomicSubOp(Runtime::Instance::MemoryInstance &MemInst,
+                          const AST::Instruction &Instr,
+                          const uint32_t BitWidth = sizeof(T) * 8);
+  template <typename T>
+  TypeT<T> runAtomicOrOp(Runtime::Instance::MemoryInstance &MemInst,
+                         const AST::Instruction &Instr,
+                         const uint32_t BitWidth = sizeof(T) * 8);
+  template <typename T>
+  TypeT<T> runAtomicAndOp(Runtime::Instance::MemoryInstance &MemInst,
+                          const AST::Instruction &Instr,
+                          const uint32_t BitWidth = sizeof(T) * 8);
+  template <typename T>
+  TypeT<T> runAtomicXorOp(Runtime::Instance::MemoryInstance &MemInst,
+                          const AST::Instruction &Instr,
+                          const uint32_t BitWidth = sizeof(T) * 8);
+  template <typename T>
+  TypeT<T> runAtomicExchangeOp(Runtime::Instance::MemoryInstance &MemInst,
+                               const AST::Instruction &Instr,
+                               const uint32_t BitWidth = sizeof(T) * 8);
+  template <typename T>
+  TypeT<T>
+  runAtomicCompareExchangeOp(Runtime::Instance::MemoryInstance &MemInst,
+                             const AST::Instruction &Instr,
+                             const uint32_t BitWidth = sizeof(T) * 8);
   /// @}
 
   /// \name Run compiled functions
@@ -641,6 +679,7 @@ private:
 } // namespace Executor
 } // namespace WasmEdge
 
+#include "engine/atomic.ipp"
 #include "engine/binary_numeric.ipp"
 #include "engine/cast_numeric.ipp"
 #include "engine/memory.ipp"

@@ -12,6 +12,7 @@ wasmedge_add_library(wasmedgeExecutor
   instantiate/export.cpp
   instantiate/module.cpp
   engine/proxy.cpp
+  engine/atomic_helper.cpp
   engine/controlInstr.cpp
   engine/tableInstr.cpp
   engine/memoryInstr.cpp

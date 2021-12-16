@@ -1605,6 +1605,154 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::F64x2__nearest:
       return runVectorNearestOp<double>(StackMgr.getTop());
 
+    // Atomic instructions
+    case OpCode::I32__atomic_load_s:
+      return runAtomicLoadOp<int32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I64__atomic_load_s:
+      return runAtomicLoadOp<int64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I32__atomic_load8_u:
+      return runAtomicLoadOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+    case OpCode::I32__atomic_load16_u:
+      return runAtomicLoadOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr,
+                                       16);
+    case OpCode::I64__atomic_load8_u:
+      return runAtomicLoadOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+    case OpCode::I64__atomic_load16_u:
+      return runAtomicLoadOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr,
+                                       16);
+    case OpCode::I64__atomic_load32_u:
+      return runAtomicLoadOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr,
+                                       32);
+    case OpCode::I32__atomic_store_s:
+      return runAtomicStoreOp<int32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I64__atomic_store_s:
+      return runAtomicStoreOp<int64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I32__atomic_store8_u:
+      return runAtomicStoreOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr,
+                                        8);
+    case OpCode::I32__atomic_store16_u:
+      return runAtomicStoreOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr,
+                                        16);
+    case OpCode::I64__atomic_store8_u:
+      return runAtomicStoreOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr,
+                                        8);
+    case OpCode::I64__atomic_store16_u:
+      return runAtomicStoreOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr,
+                                        16);
+    case OpCode::I64__atomic_store32_u:
+      return runAtomicStoreOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr,
+                                        32);
+    case OpCode::I32__atomic_add_s:
+      return runAtomicAddOp<int32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I64__atomic_add_s:
+      return runAtomicAddOp<int64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I32__atomic_add8_u:
+      return runAtomicAddOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+    case OpCode::I32__atomic_add16_u:
+      return runAtomicAddOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+    case OpCode::I64__atomic_add8_u:
+      return runAtomicAddOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+    case OpCode::I64__atomic_add16_u:
+      return runAtomicAddOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+    case OpCode::I64__atomic_add32_u:
+      return runAtomicAddOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 32);
+    case OpCode::I32__atomic_sub_s:
+      return runAtomicSubOp<int32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I64__atomic_sub_s:
+      return runAtomicSubOp<int64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I32__atomic_sub8_u:
+      return runAtomicSubOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+    case OpCode::I32__atomic_sub16_u:
+      return runAtomicSubOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+    case OpCode::I64__atomic_sub8_u:
+      return runAtomicSubOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+    case OpCode::I64__atomic_sub16_u:
+      return runAtomicSubOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+    case OpCode::I64__atomic_sub32_u:
+      return runAtomicSubOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 32);
+    case OpCode::I32__atomic_and_s:
+      return runAtomicAndOp<int32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I64__atomic_and_s:
+      return runAtomicAndOp<int64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I32__atomic_and8_u:
+      return runAtomicAndOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+    case OpCode::I32__atomic_and16_u:
+      return runAtomicAndOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+    case OpCode::I64__atomic_and8_u:
+      return runAtomicAndOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+    case OpCode::I64__atomic_and16_u:
+      return runAtomicAndOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+    case OpCode::I64__atomic_and32_u:
+      return runAtomicAndOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 32);
+    case OpCode::I32__atomic_or_s:
+      return runAtomicOrOp<int32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I64__atomic_or_s:
+      return runAtomicOrOp<int64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I32__atomic_or8_u:
+      return runAtomicOrOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+    case OpCode::I32__atomic_or16_u:
+      return runAtomicOrOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+    case OpCode::I64__atomic_or8_u:
+      return runAtomicOrOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+    case OpCode::I64__atomic_or16_u:
+      return runAtomicOrOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+    case OpCode::I64__atomic_or32_u:
+      return runAtomicOrOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 32);
+    case OpCode::I32__atomic_xor_s:
+      return runAtomicXorOp<int32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I64__atomic_xor_s:
+      return runAtomicXorOp<int64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I32__atomic_xor8_u:
+      return runAtomicXorOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+    case OpCode::I32__atomic_xor16_u:
+      return runAtomicXorOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+    case OpCode::I64__atomic_xor8_u:
+      return runAtomicXorOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+    case OpCode::I64__atomic_xor16_u:
+      return runAtomicXorOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+    case OpCode::I64__atomic_xor32_u:
+      return runAtomicXorOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 32);
+    case OpCode::I32__atomic_xchg_s:
+      return runAtomicExchangeOp<int32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I64__atomic_xchg_s:
+      return runAtomicExchangeOp<int64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::I32__atomic_xchg8_u:
+      return runAtomicExchangeOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr,
+                                           8);
+    case OpCode::I32__atomic_xchg16_u:
+      return runAtomicExchangeOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr,
+                                           16);
+    case OpCode::I64__atomic_xchg8_u:
+      return runAtomicExchangeOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr,
+                                           8);
+    case OpCode::I64__atomic_xchg16_u:
+      return runAtomicExchangeOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr,
+                                           16);
+    case OpCode::I64__atomic_xchg32_u:
+      return runAtomicExchangeOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr,
+                                           32);
+    case OpCode::I32__atomic_cmpxchg_s:
+      return runAtomicCompareExchangeOp<int32_t>(*getMemInstByIdx(StoreMgr, 0),
+                                                 Instr);
+    case OpCode::I64__atomic_cmpxchg_s:
+      return runAtomicCompareExchangeOp<int64_t>(*getMemInstByIdx(StoreMgr, 0),
+                                                 Instr);
+    case OpCode::I32__atomic_cmpxchg8_u:
+      return runAtomicCompareExchangeOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0),
+                                                  Instr, 8);
+    case OpCode::I32__atomic_cmpxchg16_u:
+      return runAtomicCompareExchangeOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0),
+                                                  Instr, 16);
+    case OpCode::I64__atomic_cmpxchg8_u:
+      return runAtomicCompareExchangeOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0),
+                                                  Instr, 8);
+    case OpCode::I64__atomic_cmpxchg16_u:
+      return runAtomicCompareExchangeOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0),
+                                                  Instr, 16);
+    case OpCode::I64__atomic_cmpxchg32_u:
+      return runAtomicCompareExchangeOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0),
+                                                  Instr, 32);
+
     default:
       return {};
     }

@@ -223,7 +223,7 @@ WasiExpect<void> INode::getAddrinfo(const char *, const char *,
                                     std::vector<struct __wasi_sockaddr_t *> &,
                                     std::vector<char *> &,
                                     std::vector<char *> &,
-                                    /*Out*/ __wasi_size_t *) noexcept {
+                                    /*Out*/ __wasi_size_t &) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 

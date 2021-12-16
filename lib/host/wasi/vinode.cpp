@@ -326,7 +326,7 @@ VINode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
                     std::vector<struct __wasi_sockaddr_t *> &WasiSockaddrArray,
                     std::vector<char *> &AiAddrSaDataArray,
                     std::vector<char *> &AiCanonnameArray,
-                    /*Out*/ __wasi_size_t *ResLength) noexcept {
+                    /*Out*/ __wasi_size_t &ResLength) noexcept {
   if (auto Res = INode::getAddrinfo(
           NodeStr, ServiceStr, Hint, MaxResLength, WasiAddrinfoArray,
           WasiSockaddrArray, AiAddrSaDataArray, AiCanonnameArray, ResLength);

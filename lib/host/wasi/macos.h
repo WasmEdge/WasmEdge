@@ -183,6 +183,13 @@ inline constexpr __wasi_errno_t fromErrNo(int ErrNo) noexcept {
     return __WASI_ERRNO_TXTBSY;
   case EXDEV:
     return __WASI_ERRNO_XDEV;
+  default:
+    __builtin_unreachable();
+  }
+}
+
+inline constexpr __wasi_errno_t fromEAIErrNo(int ErrNo) noexcept {
+  switch (ErrNo) {
   case EAI_ADDRFAMILY:
     return __WASI_ERRNO_AIADDRFAMILY;
   case EAI_AGAIN:

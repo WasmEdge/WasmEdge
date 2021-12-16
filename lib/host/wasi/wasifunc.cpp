@@ -1937,7 +1937,7 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
 
   if (auto Res = Env.getAddrInfo(
           Node, Service, *Hint, MaxResLength, WasiAddrinfoArray,
-          WasiSockAddrArray, AiAddrSaDataArray, AiCanonnameArray, ResLength);
+          WasiSockAddrArray, AiAddrSaDataArray, AiCanonnameArray, *ResLength);
       unlikely(!Res)) {
     return Res.error();
   }

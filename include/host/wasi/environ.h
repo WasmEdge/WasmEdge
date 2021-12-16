@@ -47,7 +47,7 @@ public:
               std::vector<struct __wasi_sockaddr_t *> &WasiSockaddrArray,
               std::vector<char *> &AiAddrSaDataArray,
               std::vector<char *> &AiCanonnameArray,
-              /*Out*/ __wasi_size_t *ResLength) {
+              /*Out*/ __wasi_size_t &ResLength) {
 
     if (auto Res = VINode::getAddrinfo(
             Node, Service, Hint, MaxResLength, WasiAddrinfoArray,

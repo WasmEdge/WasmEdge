@@ -1076,7 +1076,7 @@ WasiExpect<void> Poller::wait(CallbackType Callback) noexcept {
   const auto Count =
       ::kevent(Fd, nullptr, 0, KEvents.data(), KEvents.size(), nullptr);
   if (unlikely(Count < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
+    return WasiUnexpect(fromEAIErrNo(errno));
   }
 
   for (int I = 0; I < Count; ++I) {
@@ -1130,7 +1130,7 @@ INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
                    std::vector<struct __wasi_sockaddr_t *> &WasiSockaddrArray,
                    std::vector<char *> &AiAddrSaDataArray,
                    std::vector<char *> &AiCanonnameArray,
-                   /*Out*/ __wasi_size_t *ResLength) noexcept {
+                   /*Out*/ __wasi_size_t &ResLength) noexcept {
   struct addrinfo SysHint;
   struct addrinfo *SysResPtr = nullptr;
   struct addrinfo *SysResItem = nullptr;
@@ -1145,56 +1145,55 @@ INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
 
   if (auto Res = ::getaddrinfo(NodeStr, ServiceStr, &SysHint, &SysResPtr);
       unlikely(Res < 0)) {
-    return WasiUnexpect(fromErrNo(Res));
+    return WasiUnexpect(fromEAIErrNo(Res));
   }
   // calculate ResLength
-  if (*ResLength = calculateAddrinfoLinkedListSize(SysResPtr);
-      *ResLength > MaxResLength) {
-    *ResLength = MaxResLength;
+  if (ResLength = calculateAddrinfoLinkedListSize(SysResPtr);
+      ResLength > MaxResLength) {
+    ResLength = MaxResLength;
   }
 
   SysResItem = SysResPtr;
-  for (uint32_t Idx = 0; Idx < (*ResLength); Idx++) {
-    WasiAddrinfoArray[Idx]->ai_flags =
-        static_cast<__wasi_aiflags_t>(SysResItem->ai_flags);
-    WasiAddrinfoArray[Idx]->ai_socktype =
+  for (uint32_t Idx = 0; Idx < ResLength; Idx++) {
+    auto &CurAddrinfo = WasiAddrinfoArray[Idx];
+    CurAddrinfo->ai_flags = static_cast<__wasi_aiflags_t>(SysResItem->ai_flags);
+    CurAddrinfo->ai_socktype =
         static_cast<__wasi_sock_type_t>(SysResItem->ai_socktype);
-    WasiAddrinfoArray[Idx]->ai_protocol =
+    CurAddrinfo->ai_protocol =
         static_cast<__wasi_protocol_t>(SysResItem->ai_protocol);
-    WasiAddrinfoArray[Idx]->ai_family =
+    CurAddrinfo->ai_family =
         static_cast<__wasi_address_family_t>(SysResItem->ai_family);
-    WasiAddrinfoArray[Idx]->ai_addrlen = SysResItem->ai_addrlen;
+    CurAddrinfo->ai_addrlen = SysResItem->ai_addrlen;
 
     // process ai_canonname in addrinfo
     if (SysResItem->ai_canonname != NULL) {
-      WasiAddrinfoArray[Idx]->ai_canonname_len =
-          std::strlen(SysResItem->ai_canonname);
-      std::memcpy(AiCanonnameArray[Idx], SysResItem->ai_canonname,
-                  WasiAddrinfoArray[Idx]->ai_canonname_len);
-      std::memset(AiCanonnameArray[Idx] +
-                      WasiAddrinfoArray[Idx]->ai_canonname_len + 1,
-                  0, 1);
+      CurAddrinfo->ai_canonname_len = std::strlen(SysResItem->ai_canonname);
+      auto &CurAiCanonname = AiCanonnameArray[Idx];
+      std::memcpy(CurAiCanonname, SysResItem->ai_canonname,
+                  CurAddrinfo->ai_canonname_len);
+      std::memset(CurAiCanonname + CurAddrinfo->ai_canonname_len + 1, 0, 1);
     } else {
-      WasiAddrinfoArray[Idx]->ai_canonname_len = 0;
+      CurAddrinfo->ai_canonname_len = 0;
     }
 
     // process socket address
-    if (WasiAddrinfoArray[Idx]->ai_addrlen > 0) {
+    if (SysResItem->ai_addrlen > 0) {
+      auto &CurSockaddr = WasiSockaddrArray[Idx];
       switch (SysResItem->ai_addr->sa_family) {
       case AF_INET:
-        WasiSockaddrArray[Idx]->sa_family = __WASI_ADDRESS_FAMILY_INET4;
+        CurSockaddr->sa_family = __WASI_ADDRESS_FAMILY_INET4;
         break;
       case AF_INET6:
-        WasiSockaddrArray[Idx]->sa_family = __WASI_ADDRESS_FAMILY_INET6;
+        CurSockaddr->sa_family = __WASI_ADDRESS_FAMILY_INET6;
         break;
       }
-      WasiSockaddrArray[Idx]->sa_data_len = 0;
+      CurSockaddr->sa_data_len = 0;
 
       // process sa_data in socket address
       if (std::strlen(SysResItem->ai_addr->sa_data) != 0) {
         std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data,
-                    WASI::saDataLen);
-        WasiSockaddrArray[Idx]->sa_data_len = WASI::saDataLen;
+                    WASI::kSaDataLen);
+        CurSockaddr->sa_data_len = WASI::kSaDataLen;
       }
     }
     // process ai_next in addrinfo

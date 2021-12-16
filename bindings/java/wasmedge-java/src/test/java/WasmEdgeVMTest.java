@@ -107,4 +107,30 @@ public class WasmEdgeVMTest extends BaseTest {
         FunctionTypeContext function = vm.getFunctionType(FUNC_NAME);
     }
 
+    @Test
+    public void testRegisterModuleFromImport() {
+        Assert.fail("not implemented");
+    }
+
+
+    @Test
+    public void testRegisterModuleFromBuffer() {
+
+    }
+
+    @Test
+    public void testRegisterModuleFromAstModule() {
+
+    }
+
+    @Test
+    public void testRunWasmFromBuffer() {
+
+    }
+
+    @Test
+    public void testRunWasmFromASTModule() {
+        
+    }
+
 }

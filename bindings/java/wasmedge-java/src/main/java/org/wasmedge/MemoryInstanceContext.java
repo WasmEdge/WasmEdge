@@ -9,5 +9,9 @@ public class MemoryInstanceContext {
 
     public native void getData(byte[] buf, int offSet, int length);
 
+    public native int getPageSize();
+
+    public native void growPage(int size);
+
     public native void delete();
 }

@@ -9,13 +9,17 @@ on:
     branches: [ master ]
     paths-ignore:
       - 'docs/**'
-      - '**.md'
+      - 'bindings/**'
+      - 'rpm/**'
+      - '**/*.md'
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [ master ]
     paths-ignore:
       - 'docs/**'
-      - '**.md'
+      - 'bindings/**'
+      - 'rpm/**'
+      - '**/*.md'
   schedule:
     - cron: '15 18 * * 6'
 

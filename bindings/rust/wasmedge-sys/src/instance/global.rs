@@ -25,6 +25,19 @@ impl Global {
         }
     }
 
+    pub fn get_type(&self) -> WasmEdgeResult<GlobalType> {
+        let ty_ctx = unsafe { wasmedge::WasmEdge_GlobalInstanceGetGlobalType(self.ctx) };
+        match ty_ctx.is_null() {
+            true => Err(Error::OperationError(String::from(
+                "fail to get type info from the Global instance",
+            ))),
+            false => Ok(GlobalType {
+                ctx: ty_ctx as *mut _,
+                registered: true,
+            }),
+        }
+    }
+
     pub fn get_value(&self) -> Value {
         let val = unsafe { wasmedge::WasmEdge_GlobalInstanceGetValue(self.ctx) };
         Value::from(val)
@@ -50,6 +63,7 @@ pub struct GlobalType {
     pub(crate) registered: bool,
 }
 impl GlobalType {
+    /// Create a GlobalType instance
     pub fn create(val_ty: ValType, mutable: Mutability) -> WasmEdgeResult<Self> {
         let ctx = unsafe {
             wasmedge::WasmEdge_GlobalTypeCreate(
@@ -66,6 +80,18 @@ impl GlobalType {
                 registered: false,
             }),
         }
+    }
+
+    /// Get the value type from a GlobalType instance
+    pub fn get_value_type(&self) -> ValType {
+        let val = unsafe { wasmedge::WasmEdge_GlobalTypeGetValType(self.ctx) };
+        val.into()
+    }
+
+    /// Get the mutability value from a GlobalType instance.
+    pub fn get_mutability(&self) -> Mutability {
+        let val = unsafe { wasmedge::WasmEdge_GlobalTypeGetMutability(self.ctx) };
+        val.into()
     }
 }
 impl Drop for GlobalType {

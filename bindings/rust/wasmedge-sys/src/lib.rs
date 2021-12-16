@@ -25,7 +25,6 @@ pub mod validator;
 pub mod value;
 pub mod version;
 pub mod vm;
-pub mod wasi;
 
 pub use compiler::Compiler;
 pub use config::Config;

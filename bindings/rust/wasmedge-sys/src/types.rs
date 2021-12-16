@@ -1,6 +1,5 @@
 use super::wasmedge;
 pub type WasmEdgeProposal = wasmedge::WasmEdge_Proposal;
-pub type HostRegistration = wasmedge::WasmEdge_HostRegistration;
 pub type HostFunc = wasmedge::WasmEdge_HostFunc_t;
 pub type WrapFunc = wasmedge::WasmEdge_WrapFunc_t;
 
@@ -160,6 +159,31 @@ impl From<u32> for CompilerOutputFormat {
             0 => CompilerOutputFormat::Native,
             1 => CompilerOutputFormat::Wasm,
             _ => panic!("Unknown CompilerOutputFormat value: {}", val),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostRegistration {
+    Wasi,
+    WasmEdgeProcess,
+}
+impl From<u32> for HostRegistration {
+    fn from(val: u32) -> Self {
+        match val {
+            0 => HostRegistration::Wasi,
+            1 => HostRegistration::WasmEdgeProcess,
+            _ => panic!("Unknown WasmEdge_HostRegistration value: {}", val),
+        }
+    }
+}
+impl From<HostRegistration> for wasmedge::WasmEdge_HostRegistration {
+    fn from(val: HostRegistration) -> Self {
+        match val {
+            HostRegistration::Wasi => wasmedge::WasmEdge_HostRegistration_Wasi,
+            HostRegistration::WasmEdgeProcess => {
+                wasmedge::WasmEdge_HostRegistration_WasmEdge_Process
+            }
         }
     }
 }

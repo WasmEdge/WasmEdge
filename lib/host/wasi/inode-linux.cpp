@@ -2,6 +2,7 @@
 #include "common/defines.h"
 #include <cstdint>
 #include <cstring>
+#include <netinet/in.h>
 #if WASMEDGE_OS_LINUX
 
 #include "common/errcode.h"
@@ -1014,12 +1015,12 @@ WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressPtr,
   if (SocketAddr.sa_family == AF_INET) {
     *AddrTypePtr = 4;
     auto SocketAddrv4 = reinterpret_cast<struct sockaddr_in *>(&SocketAddr);
-    *PortPtr = ::ntohs(SocketAddrv4->sin_port);
+    *PortPtr = ntohs(SocketAddrv4->sin_port);
     std::memcpy(AddressPtr, &(SocketAddrv4->sin_addr.s_addr), AddrLen);
   } else if (SocketAddr.sa_family == AF_INET6) {
     *AddrTypePtr = 6;
     auto SocketAddrv6 = reinterpret_cast<struct sockaddr_in6 *>(&SocketAddr);
-    *PortPtr = ::ntohs(SocketAddrv6->sin6_port);
+    *PortPtr = ntohs(SocketAddrv6->sin6_port);
     std::memcpy(AddressPtr, SocketAddrv6->sin6_addr.s6_addr, AddrLen);
   } else {
     return WasiUnexpect(__WASI_ERRNO_NOSYS);
@@ -1042,17 +1043,17 @@ WasiExpect<void> INode::sockGetPeerAddr(uint8_t *AddressPtr,
   auto AddrLen = 4;
   if(slen != 16){
     AddrLen = 16;
-  }
+  } 
 
   if (SocketAddr.sa_family == AF_INET) {
     *AddrTypePtr = 4;
     auto SocketAddrv4 = reinterpret_cast<struct sockaddr_in *>(&SocketAddr);
-    *PortPtr = ::ntohs(SocketAddrv4->sin_port);
+    *PortPtr = ntohs(SocketAddrv4->sin_port);
     std::memcpy(AddressPtr, &(SocketAddrv4->sin_addr.s_addr), AddrLen);
   } else if (SocketAddr.sa_family == AF_INET6) {
     *AddrTypePtr = 6;
     auto SocketAddrv6 = reinterpret_cast<struct sockaddr_in6 *>(&SocketAddr);
-    *PortPtr = ::ntohs(SocketAddrv6->sin6_port);
+    *PortPtr = ntohs(SocketAddrv6->sin6_port);
     std::memcpy(AddressPtr, SocketAddrv6->sin6_addr.s6_addr, AddrLen);
 
   } else {

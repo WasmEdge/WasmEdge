@@ -1,9 +1,9 @@
+//! Defines WasmEdge Function and FuncType structs.
+
 use crate::{types::ValType, wasmedge, Error, Value, WasmEdgeResult, WasmFnIO, HOST_FUNCS};
-
 use core::ffi::c_void;
-use std::convert::TryInto;
-
 use rand::Rng;
+use std::convert::TryInto;
 
 extern "C" fn wraper_fn(
     key_ptr: *mut c_void,
@@ -39,7 +39,7 @@ extern "C" fn wraper_fn(
         let mut host_functions = f.borrow_mut();
         let real_fn = host_functions
             .remove(&key)
-            .expect("host function should there");
+            .expect("host function should be there");
         result = real_fn(input);
     });
 
@@ -55,31 +55,78 @@ extern "C" fn wraper_fn(
     }
 }
 
+/// Struct of WasmEdge Function.
+///
+/// A WasmEdge [`Function`] defines a host function described by its [`FuncType`]. A host function is a
+/// function defined outside WebAssembly and passed to WASM module.
+///
+/// In WasmEdge, developers can create the [`Function`]s and other WasmEdge instances, such as [`Memory`],
+/// and add them into a WasmEdge [`ImportObj`] for registering into a WasmEdge [`Vm`] or [`Store`].
 #[derive(Debug)]
 pub struct Function {
     pub(crate) ctx: *mut wasmedge::WasmEdge_FunctionInstanceContext,
     pub(crate) registered: bool,
     pub(crate) ty: Option<FuncType>,
 }
-
 impl Function {
     /// wasmedge::WasmEdge_FunctionInstanceCreate take C functions
     /// This may not be implement, base on the limiation of passing C functions in Rust lang.
-    /// Please refer [`create_bindings`] for building hostfunctions.
+    /// Please refer `create_bindings` for building host functions.
     pub fn create<I: WasmFnIO, O: WasmFnIO>(
         _f: Box<dyn std::ops::Fn(Vec<Value>) -> Vec<Value>>,
-    ) -> Self {
+    ) -> WasmEdgeResult<Self> {
         unimplemented!()
     }
 
     // TODO:
     // binding errors and restict the error types
     #[allow(clippy::type_complexity)]
-    /// Binding Rust function (HostFunction) to WasmEdgeFunction
+    /// Creates a [`Function`] for host functions.
     ///
     /// `I` and `O` are traits base on the input parameters and the output parameters of the
     /// `real_fn`. For example, use `I2<i32, i32>` for the `real_fn` with two i32 input parameters,
     /// and use `I1<i32>` for the `real_fn` with one i32 output parameter.
+    ///
+    /// # Error
+    ///
+    /// If fail to create a [`Function`], then an error is returned.
+    ///
+    /// # Example
+    ///
+    /// The example defines a host function `real_add`, and creates a [`Function`] binding to it by calling
+    /// the `create_binding` method.
+    ///
+    /// ```
+    /// use wasmedge_sys::{io::{I1, I2},Function, Value, WasmEdgeResult};
+    ///
+    /// fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
+    ///     println!("Rust: Entering Rust function real_add");
+    ///
+    ///     if input.len() != 2 {
+    ///         return Err(1);
+    ///     }
+    ///
+    ///     let a = if let Value::I32(i) = input[0] {
+    ///         i
+    ///     } else {
+    ///         return Err(2);
+    ///     };
+    ///
+    ///     let b = if let Value::I32(i) = input[1] {
+    ///         i
+    ///     } else {
+    ///         return Err(3);
+    ///     };
+    ///
+    ///     let c = a + b;
+    ///     println!("Rust: calcuating in real_add c: {:?}", c);
+    ///
+    ///     println!("Rust: Leaving Rust function real_add");
+    ///     Ok(vec![Value::I32(c)])
+    /// }
+    ///
+    /// let host_func = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add)).expect("fail to create a Function");
+    /// ```
     pub fn create_bindings<I: WasmFnIO, O: WasmFnIO>(
         real_fn: Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>,
     ) -> WasmEdgeResult<Self> {
@@ -128,7 +175,12 @@ impl Function {
         }
     }
 
-    /// Get the function type of the function instance.
+    /// Returns the underlying wasm type of a [`Function`].
+    ///
+    /// # Errors
+    ///
+    /// If fail to get the function type, then an error is returned.
+    ///
     pub fn get_type(&self) -> WasmEdgeResult<FuncType> {
         let ty = unsafe { wasmedge::WasmEdge_FunctionInstanceGetFunctionType(self.ctx) };
         match ty.is_null() {
@@ -142,7 +194,6 @@ impl Function {
         }
     }
 }
-
 impl Drop for Function {
     fn drop(&mut self) {
         self.ty = None;
@@ -152,23 +203,38 @@ impl Drop for Function {
     }
 }
 
+/// Struct of WasmEdge FuncType.
+///
+/// A WasmEdge [`FuncType`] classifies the signature of a [`Function`], including the type information
+/// of both the arguments and the returns.
 #[derive(Debug)]
 pub struct FuncType {
     pub(crate) ctx: *mut wasmedge::WasmEdge_FunctionTypeContext,
     pub(crate) registered: bool,
 }
 impl FuncType {
-    pub(crate) fn create(input: Vec<Value>, output: Vec<Value>) -> WasmEdgeResult<Self> {
+    /// Create a new [`FuncType`] to be associated with the given arguments and returns.
+    ///
+    /// # Arguments
+    ///
+    /// - `args` specifies the agrgument types of a [`Function`].
+    ///
+    /// - `returns` specifies the types of the returns of a [`Function`].
+    ///
+    /// # Error
+    ///
+    /// If fail to create a [`FuncType`], then an error is returned.
+    pub(crate) fn create(args: Vec<Value>, returns: Vec<Value>) -> WasmEdgeResult<Self> {
         let raw_input = {
             let mut head = vec![wasmedge::WasmEdge_ValType_ExternRef];
-            let mut tail = input
+            let mut tail = args
                 .iter()
                 .map(|v| wasmedge::WasmEdge_Value::from(*v).Type)
                 .collect::<Vec<wasmedge::WasmEdge_ValType>>();
             head.append(&mut tail);
             head
         };
-        let raw_output = output
+        let raw_output = returns
             .iter()
             .map(|v| wasmedge::WasmEdge_Value::from(*v).Type)
             .collect::<Vec<wasmedge::WasmEdge_ValType>>();
@@ -192,12 +258,12 @@ impl FuncType {
         }
     }
 
-    /// Get the parameter types list length
+    /// Returns the number of the arguments of a [`Function`].
     pub fn params_len(&self) -> usize {
         unsafe { wasmedge::WasmEdge_FunctionTypeGetParametersLength(self.ctx) as usize }
     }
 
-    /// Get the iterator of the parameter types
+    /// Returns an Iterator of the arguments of a [`Function`].
     pub fn params_type_iter(&self) -> impl Iterator<Item = ValType> {
         let len = self.params_len();
         let mut types = Vec::with_capacity(len);
@@ -209,12 +275,12 @@ impl FuncType {
         types.into_iter().map(Into::into)
     }
 
-    /// Get the return types list length
+    ///Returns the number of the returns of a [`Function`].
     pub fn returns_len(&self) -> usize {
         unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(self.ctx) as usize }
     }
 
-    /// Get the iterator of the return types
+    /// Returns an Iterator of the return types of a [`Function`].
     pub fn returns_type_iter(&self) -> impl Iterator<Item = ValType> {
         let len = self.returns_len();
         let mut types = Vec::with_capacity(len);

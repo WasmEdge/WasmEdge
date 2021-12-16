@@ -66,6 +66,8 @@ pub use import_obj::ImportObj;
 pub use instance::{
     function::{FuncType, Function},
     global::{Global, GlobalType},
+    memory::{MemType, Memory},
+    table::{Table, TableType},
 };
 #[doc(inline)]
 pub(crate) use io::WasmFnIO;
@@ -82,7 +84,7 @@ pub use store::Store;
 #[doc(inline)]
 pub use string::{StringBuf, StringRef, WasmEdgeString};
 #[doc(inline)]
-pub use types::{Mutability, ValType, Value};
+pub use types::{Mutability, RefType, ValType, Value};
 #[doc(inline)]
 pub use validator::Validator;
 #[doc(inline)]

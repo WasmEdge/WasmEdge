@@ -125,7 +125,7 @@ impl Drop for Global {
 
 /// Struct of WasmEdge GlobalType.
 ///
-/// `GlobalType` specifies whether a global variable is immutable or mutable, and also the data type of the value stored in a `Global`.
+/// A [`GlobalType`] classifies a global variable, which hold a value and can either be mutable or immutable.
 #[derive(Debug)]
 pub struct GlobalType {
     pub(crate) ctx: *mut wasmedge::WasmEdge_GlobalTypeContext,

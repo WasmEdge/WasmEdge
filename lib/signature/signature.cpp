@@ -75,9 +75,12 @@ Expect<void> Signature::sign(fs::path Path, fs::path Target,
                              const std::vector<uint8_t> Signature) {
   fs::path Namestem = Path.filename().replace_extension();
   Namestem += "_signed";
-  if (Target.empty())
+  if (Target.empty()) {
     Target = Namestem.replace_extension(".wasm");
-
+    Target = Path.parent_path() / Target;
+  }
+  if (fs::exists(Target))
+    fs::remove(Target);
   fs::copy(Path, Target);
   std::ofstream File(Target.string(), std::ios::binary | std::ios::ate);
   try {
@@ -106,7 +109,6 @@ Expect<bool> Signature::verify(const Span<Byte> Code,
   if (std::ifstream Is{PubKeyPath, std::ios::binary | std::ios::ate}) {
     auto SizeToRead = Is.tellg();
     FMgr.setPath(PubKeyPath);
-    std::string Str(SizeToRead, '\0');
     if (auto Res = FMgr.readBytes(SizeToRead)) {
       auto *Data = (*Res).data();
       PublicKeyBytes = Span<Byte>(reinterpret_cast<Byte *>(*Data), SizeToRead);

@@ -8,6 +8,7 @@
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
 #include "po/argument_parser.h"
+#include "po/helper.h"
 #include "signature/signature.h"
 #include "vm/vm.h"
 
@@ -111,6 +112,8 @@ int main(int Argc, const char *Argv[]) {
   PO::Option<std::string> PrivateKey(PO::DefaultValue<std::string>(""),
                                      PO::Description("Private Key"sv),
                                      PO::MetaVar("PRIVATE_KEY"sv));
+  PO::Option<std::string> PublicKey(
+      PO::Description("User Provided Public Key"sv));
   PO::Option<std::string> SignOutput(PO::DefaultValue<std::string>(""),
                                      PO::Description("Output Wasm file"sv),
                                      PO::MetaVar("OUTPUT_PATH"sv));
@@ -123,10 +126,11 @@ int main(int Argc, const char *Argv[]) {
   PO::SubCommand Verify(PO::Description("Verify a Wasm Module"sv));
   PO::Option<std::string> VerifyTarget(PO::Description("Wasm input file"sv),
                                        PO::MetaVar("WASM FILE"sv));
-  PO::Option<std::string> PublicKey(PO::Description("Public Key"sv));
+  PO::Option<std::string> Key(PO::Description("Public Key"sv),
+                              PO::MetaVar("PUBLIC_KEY"sv));
   Parser.begin_subcommand(Verify, "verify"sv)
       .add_option(VerifyTarget)
-      .add_option("key"sv, PublicKey)
+      .add_option("key"sv, Key)
       .end_subcommand();
 
   Parser.add_option(SoName)
@@ -170,12 +174,22 @@ int main(int Argc, const char *Argv[]) {
   WasmEdge::Signature::Signature SignatureEngine;
   if (Sign.is_selected()) {
     const auto SignTargetPath = std::filesystem::absolute(SignTarget.value());
-    const auto PrikeyPath = std::filesystem::absolute(PrivateKey.value());
-    const auto OutputPath = std::filesystem::absolute(SignOutput.value());
+    std::filesystem::path PrikeyPath;
+    std::filesystem::path PubkeyPath;
+    std::filesystem::path OutputPath;
+    PrikeyPath = !PrivateKey.value().empty()
+                     ? std::filesystem::absolute(PrivateKey.value())
+                     : "";
+    PubkeyPath = !PublicKey.value().empty()
+                     ? std::filesystem::absolute(PublicKey.value())
+                     : "";
+    OutputPath = !SignOutput.value().empty()
+                     ? std::filesystem::absolute(SignOutput.value())
+                     : "";
     std::cout << "Sign\n";
-    if (auto Result = SignatureEngine.signWasmFile(SignTargetPath.u8string(),
-                                                   PrikeyPath.u8string(),
-                                                   OutputPath.u8string());
+    if (auto Result = SignatureEngine.signWasmFile(
+            SignTargetPath.u8string(), PrikeyPath.u8string(),
+            OutputPath.u8string(), PubkeyPath.u8string());
         Result || Result.error() == WasmEdge::ErrCode::Terminated) {
       return EXIT_SUCCESS;
     }
@@ -183,11 +197,14 @@ int main(int Argc, const char *Argv[]) {
   }
 
   if (Verify.is_selected()) {
+    std::cout << "Verify\n";
     const auto VerifyTargetPath =
         std::filesystem::absolute(VerifyTarget.value());
-    const auto PubkeyPath = std::filesystem::absolute(PublicKey.value());
+    std::filesystem::path PubkeyPath;
+    PubkeyPath =
+        !Key.value().empty() ? std::filesystem::absolute(Key.value()) : "";
     if (auto Result = SignatureEngine.verifyWasmFile(
-            VerifyTargetPath.u8string(), PubkeyPath);
+            VerifyTargetPath.u8string(), PubkeyPath.u8string());
         Result || Result.error() == WasmEdge::ErrCode::Terminated) {
       return EXIT_SUCCESS;
     }

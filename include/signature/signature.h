@@ -31,9 +31,9 @@ const std::string_view DEFAULT_CUSOTM_SECTION_NAME = "signature_wasmedge";
 
 class Signature {
 public:
-  Expect<void> signWasmFile(const fs::path &, const fs::path &,
-                            const fs::path &, const fs::path &);
-  Expect<bool> verifyWasmFile(const fs::path &, const fs::path &);
+  Expect<void> signWasmFile(const fs::path &Path, const fs::path &PrikeyPath,
+                            const fs::path &PubkeyPath, const fs::path &Target);
+  Expect<bool> verifyWasmFile(const fs::path &Path, const fs::path &PubKeyPath);
 
 private:
   Expect<void> sign(fs::path, fs::path, const std::vector<uint8_t>);

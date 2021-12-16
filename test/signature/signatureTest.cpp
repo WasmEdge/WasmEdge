@@ -20,56 +20,51 @@ namespace fs = std::filesystem;
 
 namespace {
 WasmEdge::Signature::Signature SignatureEngine;
+
 TEST(SignatureTEST, KEYGEN) {
   std::vector<unsigned char> PublicKey;
-  fs::path Base = "signatureTestData";
+  fs::path Base = "signatureTestData/temp";
+  if (fs::exists(Base))
+    ASSERT_TRUE(fs::remove_all(Base));
+  ASSERT_TRUE(fs::create_directory(Base));
+  ASSERT_TRUE(fs::exists(Base.parent_path() / "hello.wasm"));
+  fs::copy(Base.parent_path() / "hello.wasm", Base / "hello.wasm");
   fs::path WasmFile = Base / "hello.wasm";
   fs::path PrikeyFile = Base / "id_ed25519";
   fs::path PubkeyFile = Base / "id_ed25519.pub";
+  fs::path TargetFile = Base / "hello_signed.wasm";
   testing::internal::CaptureStdout();
 
-  // bool Res;
-  if (fs ::exists(PrikeyFile))
-    ASSERT_TRUE(fs::remove(PrikeyFile));
-
-  if (fs ::exists(PubkeyFile))
-    ASSERT_TRUE(fs::remove(PubkeyFile));
-
-  EXPECT_TRUE(!fs::exists(PrikeyFile));
-  EXPECT_TRUE(!fs::exists(PubkeyFile));
   RecordProperty("WasmPath: ", WasmFile);
   RecordProperty("CurrentPath: ", fs::current_path());
+
   ASSERT_TRUE(fs::exists(WasmFile));
-  EXPECT_TRUE(SignatureEngine.signWasmFile(WasmFile));
+  EXPECT_TRUE(SignatureEngine.signWasmFile(WasmFile, "", "", ""));
   ASSERT_TRUE(fs::exists(PrikeyFile));
   ASSERT_TRUE(fs::exists(PubkeyFile));
+  ASSERT_TRUE(fs::exists(TargetFile));
+  ASSERT_TRUE(fs::remove_all(Base));
 }
 
 TEST(SignatureTEST, VERIFY) {
   std::vector<unsigned char> PublicKey;
-  fs::path Base = "signatureTestData";
+  fs::path Base = "signatureTestData/temp";
+  if (fs::exists(Base))
+    ASSERT_TRUE(fs::remove_all(Base));
+  ASSERT_TRUE(fs::create_directory(Base));
+  ASSERT_TRUE(fs::exists(Base.parent_path() / "hello.wasm"));
+  fs::copy(Base.parent_path() / "hello.wasm", Base / "hello.wasm");
   fs::path WasmFile = Base / "hello.wasm";
   fs::path PrikeyFile = Base / "id_ed25519";
   fs::path PubkeyFile = Base / "id_ed25519.pub";
+  fs::path TargetFile = Base / "hello_signed.wasm";
 
+  RecordProperty("BasePath: ", Base);
   ASSERT_TRUE(fs::exists(WasmFile));
-  ASSERT_TRUE(SignatureEngine.signWasmFile(WasmFile));
+  ASSERT_TRUE(SignatureEngine.signWasmFile(WasmFile, "", "", TargetFile));
 
-  // std::string Output = testing::internal::GetCapturedStdout();
-  // RecordProperty("STDOUT: ", Output);
-  // std::ifstream PubKeyFileStream(PubkeyFile, std::ios::binary);
-  // ASSERT_TRUE(PubKeyFileStream.is_open());
-
-  // auto Size = PubKeyFileStream.tellg();
-  // std::string KeyStr(Size, '\0');
-
-  // EXPECT_TRUE(PubKeyFileStream.seekg(0));
-  // EXPECT_TRUE(PubKeyFileStream.read(&KeyStr[0], Size));
-  // RecordProperty("Public Key: ", KeyStr);
-
-  EXPECT_TRUE(SignatureEngine.verifyWasmFile(WasmFile, PubkeyFile));
-
-  // RecordProperty("STDOUT: ", Output);
+  ASSERT_TRUE(SignatureEngine.verifyWasmFile(TargetFile, PubkeyFile));
+  ASSERT_TRUE(fs::remove_all(Base));
 }
 } // namespace
 

@@ -27,8 +27,8 @@ private:
 public:
   SigAlgorithm() = default;
   ~SigAlgorithm() = default;
-  Expect<const std::vector<Byte>> keygen(Span<const Byte>,
-                                         const std::filesystem::path &);
+  Expect<const std::vector<Byte>> keygen(Span<const Byte> Code,
+                                         const fs::path &Path);
   int verify(Span<const Byte> Code, Span<const Byte> Signature,
              Span<const Byte> PublicKey);
 };

@@ -10,3 +10,4 @@ patch -p1 < add-wasi_sock.patch
 target/release/wasi-cpp-header generate --output "$API_FILE" typenames.witx
 clang-format-12 -i "$API_FILE"
 patch -p1 -d "$ROOT/thirdparty/wasi" < change-tag-type.patch
+patch -p1 -d "$ROOT/thirdparty/wasi" < add-wasi_opt.patch

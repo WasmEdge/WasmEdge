@@ -1880,12 +1880,12 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
 
   auto initWasiAddrinfoArray =
       [&MemInst](uint8_t_ptr Base, uint32_t Length,
-                 struct std::vector<__wasi_addrinfo_t *> *WasiAddrinfoArray) {
+                 struct std::vector<__wasi_addrinfo_t *> &WasiAddrinfoArray) {
         for (uint32_t Item = 0; Item < Length; Item++) {
-          (*WasiAddrinfoArray)[Item] =
-              MemInst->getPointer<struct __wasi_addrinfo_t *>(
-                  Base, sizeof(struct __wasi_addrinfo_t));
-          Base = (*WasiAddrinfoArray)[Item]->ai_next;
+          auto *TmpAddrinfo = MemInst->getPointer<struct __wasi_addrinfo_t *>(
+              Base, sizeof(struct __wasi_addrinfo_t));
+          WasiAddrinfoArray[Item] = TmpAddrinfo;
+          Base = TmpAddrinfo->ai_next;
         }
       };
 
@@ -1930,7 +1930,7 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
 
   initWasiAddrinfoArray(
       *(MemInst->getPointer<uint8_t_ptr *>(ResPtr, sizeof(uint8_t))),
-      MaxResLength, &WasiAddrinfoArray);
+      MaxResLength, WasiAddrinfoArray);
   initAiAddrArray(WasiAddrinfoArray, WasiSockAddrArray);
   initAiAddrSaDataArray(WasiSockAddrArray, AiAddrSaDataArray);
   initAiCanonnameArray(WasiAddrinfoArray, AiCanonnameArray);

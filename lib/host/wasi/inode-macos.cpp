@@ -924,23 +924,23 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
   return {};
 }
 
-WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t Name, void *FlagPtr,
-                                   uint32_t *FlagSizePtr) const noexcept {
-    return WasiUnexpect(__WASI_ERRNO_NOSYS);
-}
-
-WasiExpect<void> INode::sockSetOpt(int32_t Level, int32_t Name, void *FlagPtr,
-                                   uint32_t FlagSizePtr) const noexcept {
-    return WasiUnexpect(__WASI_ERRNO_NOSYS);
-}
-
-WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *Address, uint32_t *AddrTypePtr,
-                                    uint32_t *PortPtr) const noexcept {
+WasiExpect<void> INode::sockGetOpt(int32_t, int32_t, void *,
+                                   uint32_t *) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::sockGetPeerAddr(uint8_t *Address, uint32_t *AddrTypePtr,
-                                    uint32_t *PortPtr) const noexcept {
+WasiExpect<void> INode::sockSetOpt(int32_t, int32_t, void *,
+                                   uint32_t) const noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *, uint32_t *,
+                                         uint32_t *) const noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> INode::sockGetPeerAddr(uint8_t *, uint32_t *,
+                                        uint32_t *) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 

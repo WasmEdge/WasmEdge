@@ -28,6 +28,14 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
+#include <sys/stat.h>
+
+#if defined(__GLIBC_PREREQ)
+#define _LIBCPP_GLIBC_PREREQ(a, b) 0
+#else
+#define __GLIBC_PREREQ(a, b) _LIBCPP_GLIBC_PREREQ(a, b)
+#endif
+
 #if __GLIBC_PREREQ(2, 8)
 #include <sys/timerfd.h>
 #endif

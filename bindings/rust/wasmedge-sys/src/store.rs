@@ -510,7 +510,7 @@ mod tests {
         let result = Executor::create(Some(&config), None);
         assert!(result.is_ok());
         let executor = result.unwrap();
-        let result = executor.register_import_object_module(&mut store, &import_obj);
+        let result = executor.register_import_object(&mut store, &import_obj);
         assert!(result.is_ok());
 
         // check the module list after instantiation

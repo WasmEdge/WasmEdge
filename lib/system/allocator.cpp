@@ -16,7 +16,8 @@
 #include <string>
 #include <utility>
 
-#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
+#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) ||       \
+    defined(__arm__)
 #include <sys/mman.h>
 #elif WASMEDGE_OS_WINDOWS
 #include <boost/winapi/basic_types.hpp>

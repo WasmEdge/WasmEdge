@@ -5,11 +5,12 @@ use crate::{
     utils::string_to_c_char,
     Error, WasmEdgeResult,
 };
+
 #[derive(Debug)]
 pub struct ImportObj {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ImportObjectContext,
+    pub(crate) registered: bool,
 }
-
 impl ImportObj {
     pub fn create(name: impl AsRef<str>) -> WasmEdgeResult<Self> {
         let raw_module_name: wasmedge::WasmEdge_String = StringRef::from(name.as_ref()).into();
@@ -18,15 +19,23 @@ impl ImportObj {
             true => Err(Error::OperationError(String::from(
                 "fail to create ImportObj instance",
             ))),
-            false => Ok(ImportObj { ctx }),
+            false => Ok(ImportObj {
+                ctx,
+                registered: false,
+            }),
         }
     }
 
-    pub fn create_wasi<T: Iterator<Item = E>, E: AsRef<str>>(
+    /// Create an ImportObj instance for the WASI specification.
+    pub fn create_wasi<T, E>(
         args: Option<T>,
         envs: Option<T>,
         preopens: Option<T>,
-    ) -> WasmEdgeResult<Self> {
+    ) -> WasmEdgeResult<Self>
+    where
+        T: Iterator<Item = E>,
+        E: AsRef<str>,
+    {
         let (args_len, args) = match args {
             Some(args) => {
                 let args = args.into_iter().map(string_to_c_char).collect::<Vec<_>>();
@@ -66,16 +75,19 @@ impl ImportObj {
             true => Err(Error::OperationError(String::from(
                 "fail to create ImportObj for the WASI Specification",
             ))),
-            false => Ok(ImportObj { ctx }),
+            false => Ok(ImportObj {
+                ctx,
+                registered: false,
+            }),
         }
     }
 
-    pub fn init_wasi<T: Iterator<Item = E>, E: AsRef<str>>(
-        &self,
-        args: Option<T>,
-        envs: Option<T>,
-        preopens: Option<T>,
-    ) {
+    /// Initialize the ImportObj instance for the WASI specification.
+    pub fn init_wasi<T, E>(&mut self, args: Option<T>, envs: Option<T>, preopens: Option<T>)
+    where
+        T: Iterator<Item = E>,
+        E: AsRef<str>,
+    {
         let (args_len, args) = match args {
             Some(args) => {
                 let args = args.into_iter().map(string_to_c_char).collect::<Vec<_>>();
@@ -113,6 +125,58 @@ impl ImportObj {
         };
     }
 
+    /// Get the WASI exit code.
+    pub fn exit_code(&self) -> u32 {
+        unsafe { wasmedge::WasmEdge_ImportObjectWASIGetExitCode(self.ctx) }
+    }
+
+    /// Create an ImportObj instance for the wasmedge_process specification.
+    pub fn create_wasmedge_process<T, E>(cmds: Option<T>, allow: bool) -> WasmEdgeResult<Self>
+    where
+        T: Iterator<Item = E>,
+        E: AsRef<str>,
+    {
+        let (cmds_len, cmds) = match cmds {
+            Some(cmds) => {
+                let cmds = cmds.into_iter().map(string_to_c_char).collect::<Vec<_>>();
+                (cmds.len() as u32, cmds.as_ptr())
+            }
+            None => (0, std::ptr::null()),
+        };
+
+        let ctx =
+            unsafe { wasmedge::WasmEdge_ImportObjectCreateWasmEdgeProcess(cmds, cmds_len, allow) };
+        match ctx.is_null() {
+            true => Err(Error::OperationError(String::from(
+                "fail to an ImportObj instance for the wasmedge_process specification",
+            ))),
+            false => Ok(Self {
+                ctx,
+                registered: false,
+            }),
+        }
+    }
+
+    /// Initialize an ImportObj instance for the wasmedge_process specification.
+    pub fn init_wasmedge_process<T, E>(&mut self, cmds: Option<T>, allow: bool)
+    where
+        T: Iterator<Item = E>,
+        E: AsRef<str>,
+    {
+        let (cmds_len, cmds) = match cmds {
+            Some(cmds) => {
+                let cmds = cmds.into_iter().map(string_to_c_char).collect::<Vec<_>>();
+                (cmds.len() as u32, cmds.as_ptr())
+            }
+            None => (0, std::ptr::null()),
+        };
+
+        unsafe {
+            wasmedge::WasmEdge_ImportObjectInitWasmEdgeProcess(self.ctx, cmds, cmds_len, allow)
+        }
+    }
+
+    /// Add a Function instance into a ImportObj instance.
     pub fn add_func(&mut self, name: impl AsRef<str>, func: &mut Function) {
         let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(name.as_ref()).into();
         unsafe {
@@ -122,6 +186,7 @@ impl ImportObj {
         func.ctx = std::ptr::null_mut();
     }
 
+    /// Add a Table instance into a ImportObj instance.
     pub fn add_table(&mut self, name: impl AsRef<str>, table: &mut Table) {
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddTable(
@@ -134,6 +199,7 @@ impl ImportObj {
         table.ctx = std::ptr::null_mut();
     }
 
+    /// Add a Memory instance into a ImportObj instance.
     pub fn add_memory(&mut self, name: impl AsRef<str>, memory: &mut Memory) {
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddMemory(
@@ -146,6 +212,7 @@ impl ImportObj {
         memory.ctx = std::ptr::null_mut();
     }
 
+    /// Add a Global instance into a ImportObj instance.
     pub fn add_global(&mut self, name: impl AsRef<str>, global: &mut Global) {
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddGlobal(
@@ -158,9 +225,10 @@ impl ImportObj {
         global.ctx = std::ptr::null_mut();
     }
 }
-
 impl Drop for ImportObj {
     fn drop(&mut self) {
-        unsafe { wasmedge::WasmEdge_ImportObjectDelete(self.ctx) };
+        if !self.registered && !self.ctx.is_null() {
+            unsafe { wasmedge::WasmEdge_ImportObjectDelete(self.ctx) };
+        }
     }
 }

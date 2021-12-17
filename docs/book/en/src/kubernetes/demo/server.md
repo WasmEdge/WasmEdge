@@ -80,12 +80,16 @@ On Ubuntu zesty and xenial, use these commands to prepare for buildah.
 
 ```bash
 sudo apt-get -y install software-properties-common
+
+export OS="xUbuntu_20.04"
+sudo bash -c "echo \"deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /\" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list"
+sudo bash -c "curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | apt-key add -"
+
 sudo add-apt-repository -y ppa:alexlarsson/flatpak
-sudo add-apt-repository -y ppa:gophers/archive
-sudo apt-add-repository -y ppa:projectatomic/ppa
 sudo apt-get -y -qq update
-sudo apt-get -y install bats git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man
-sudo apt-get -y install golang-1.13
+
+sudo apt-get -y install bats git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man containers-common
+sudo apt-get -y install golang-1.16 make
 ```
 
 Then, follow these steps to build and install buildah on Ubuntu.
@@ -96,7 +100,7 @@ cd ~/buildah
 export GOPATH=`pwd`
 git clone https://github.com/containers/buildah ./src/github.com/containers/buildah
 cd ./src/github.com/containers/buildah
-PATH=/usr/lib/go-1.13/bin:$PATH make
+PATH=/usr/lib/go-1.16/bin:$PATH make
 cp bin/buildah /usr/bin/buildah
 buildah --help
 ```
@@ -107,7 +111,18 @@ In the `target/wasm32-wasi/release/` folder, do the following.
 
 ```bash
 sudo buildah build --annotation "module.wasm.image/variant=compat" -t http_server .
+
+#
+# make sure docker is install and running
+# systemctl status docker
+# to make sure regular user can use docker
+# sudo usermod -aG docker $USER#
+# newgrp docker
+
 # You may need to use docker login to create the `~/.docker/config.json` for auth.
+#
+# docker login
+
 sudo buildah push --authfile ~/.docker/config.json http_server docker://docker.io/avengermojo/http_server:with-wasm-annotation
 ```
 

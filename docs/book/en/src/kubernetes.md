@@ -2,7 +2,7 @@
 
 Developers can leverage container tools such as Kubernetes, Docker and CRI-O to deploy, manage, and run lightweight WebAssembly applications. In this chapter, we will demonstrate how Kubernetes ecosystem tools work with [WasmEdge](https://github.com/WasmEdge/WasmEdge) WebAssembly applications.
 
-Compared with Linux containers, [WebAssembly could be 100x faster at startup](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/), have a much smaller memory and disk footprint, and have a better-defined safety sandbox. However, the trade-off is that WebAssembly requires its own language SDKs, and compiler toolchains, making it a more constrained developer environment than Docker. WebAssembly is increasingly used in Edge Computing scenarios where it is difficult to deploy Docker containers or when the application performance is vital.
+Compared with Linux containers, [WebAssembly could be 100x faster at startup](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/), have a much smaller memory and disk footprint, and have a better-defined safety sandbox. However, the trade-off is that WebAssembly requires its own language SDKs, and compiler toolchains, making it a more constrained developer environment than Linux containers. WebAssembly is increasingly used in Edge Computing scenarios where it is difficult to deploy Linux containers or when the application performance is vital.
 
 One of the great advantages of Linux application containers is the rich ecosystem of tools. The good news is that you can use the exact same tools to manage WebAssembly applications, enabling Linux containers and WebAssembly apps to run side-by-side in the same system.
 

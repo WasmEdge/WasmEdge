@@ -990,7 +990,6 @@ TEST(WasiTest, GetAddrinfo) {
       WasmEdge::AST::MemoryType(1));
 
   WasmEdge::Host::WasiGetAddrinfo WasiGetAddrinfo(Env);
-  WasmEdge::Host::WasiFreeAddrinfo WasiFreeAddrinfo(Env);
 
   std::array<WasmEdge::ValVariant, 1> Errno;
 
@@ -1004,11 +1003,10 @@ TEST(WasiTest, GetAddrinfo) {
   uint32_t MaxLength = 10;
   uint32_t CanonnameMaxSize = 50;
 
-  struct __wasi_addrinfo_t Hints;
+  const uint32_t NodeLen = Node.size();
+  const uint32_t ServiceLen = Service.size();
 
-  uint32_t NodeLen = Node.size();
-  uint32_t ServiceLen = Service.size();
-
+  __wasi_addrinfo_t Hints;
   std::memset(&Hints, 0, sizeof(Hints));
   Hints.ai_family = __WASI_ADDRESS_FAMILY_INET4;   /* Allow IPv4 */
   Hints.ai_socktype = __WASI_SOCK_TYPE_SOCK_DGRAM; /* Datagram socket */
@@ -1087,13 +1085,6 @@ TEST(WasiTest, GetAddrinfo) {
             ResItem->ai_next, sizeof(struct __wasi_addrinfo_t));
       }
     }
-    EXPECT_TRUE(WasiFreeAddrinfo.run(
-        &MemInst, std::array<WasmEdge::ValVariant, 2>{*Result, *ResLength},
-        Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_EQ(ResHead->ai_next, 0);
-    EXPECT_EQ(ResHead->ai_canonname_len, 0);
-    EXPECT_EQ(ResHead->ai_canonname, 0);
   }
   allocateAddrinfoArray(MemInst, *Result, MaxLength, CanonnameMaxSize);
   // hints.ai_flag is ai_canonname but has an error
@@ -1134,22 +1125,6 @@ TEST(WasiTest, GetAddrinfo) {
     auto *WasiSockAddr = MemInst.getPointer<__wasi_sockaddr_t *>(
         ResHead->ai_addr, sizeof(__wasi_sockaddr_t));
     EXPECT_EQ(WasiSockAddr->sa_data_len, 14);
-
-    EXPECT_TRUE(WasiFreeAddrinfo.run(
-        &MemInst, std::array<WasmEdge::ValVariant, 2>{*Result, *ResLength},
-        Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_EQ(ResHead->ai_next, 0);
-    EXPECT_EQ(ResHead->ai_canonname_len, 0);
-    EXPECT_EQ(ResHead->ai_canonname, 0);
-  }
-  allocateAddrinfoArray(MemInst, *Result, MaxLength, CanonnameMaxSize);
-  // freeaddrinfo test,when MemInst is nullptr
-  {
-    EXPECT_TRUE(WasiFreeAddrinfo.run(
-        nullptr, std::array<WasmEdge::ValVariant, 2>{*Result, *ResLength},
-        Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   }
 }
 #endif

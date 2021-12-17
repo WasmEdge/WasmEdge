@@ -29,9 +29,8 @@ inline constexpr bool isSpecialFd(int Fd) noexcept {
 
 inline constexpr __wasi_size_t
 calculateAddrinfoLinkedListSize(struct addrinfo *const Addrinfo) {
-  struct addrinfo *TmpPointer = nullptr;
   __wasi_size_t Length = 0;
-  for (TmpPointer = Addrinfo; TmpPointer != nullptr;
+  for (struct addrinfo *TmpPointer = Addrinfo; TmpPointer != nullptr;
        TmpPointer = TmpPointer->ai_next) {
     Length++;
   }
@@ -763,26 +762,25 @@ WasiExpect<Poller> INode::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
   }
 }
 
-WasiExpect<void>
-INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
-                   const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
-                   std::vector<struct __wasi_addrinfo_t *> &WasiAddrinfoArray,
-                   std::vector<struct __wasi_sockaddr_t *> &WasiSockaddrArray,
-                   std::vector<char *> &AiAddrSaDataArray,
-                   std::vector<char *> &AiCanonnameArray,
-                   /*Out*/ __wasi_size_t &ResLength) noexcept {
+WasiExpect<void> INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
+                                    const __wasi_addrinfo_t &Hint,
+                                    uint32_t MaxResLength,
+                                    Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
+                                    Span<__wasi_sockaddr_t *> WasiSockaddrArray,
+                                    Span<char *> AiAddrSaDataArray,
+                                    Span<char *> AiCanonnameArray,
+                                    /*Out*/ __wasi_size_t &ResLength) noexcept {
   struct addrinfo SysHint;
-  struct addrinfo *SysResPtr = nullptr;
-  struct addrinfo *SysResItem = nullptr;
   SysHint.ai_flags = Hint.ai_flags;
   SysHint.ai_family = Hint.ai_family;
   SysHint.ai_socktype = Hint.ai_socktype;
   SysHint.ai_protocol = Hint.ai_protocol;
   SysHint.ai_addrlen = Hint.ai_addrlen;
-  SysHint.ai_addr = NULL;
-  SysHint.ai_canonname = NULL;
-  SysHint.ai_next = NULL;
+  SysHint.ai_addr = nullptr;
+  SysHint.ai_canonname = nullptr;
+  SysHint.ai_next = nullptr;
 
+  struct addrinfo *SysResPtr = nullptr;
   if (auto Res = ::getaddrinfo(NodeStr, ServiceStr, &SysHint, &SysResPtr);
       unlikely(Res < 0)) {
     return WasiUnexpect(fromEAIErrNo(Res));
@@ -793,7 +791,7 @@ INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
     ResLength = MaxResLength;
   }
 
-  SysResItem = SysResPtr;
+  struct addrinfo *SysResItem = SysResPtr;
   for (uint32_t Idx = 0; Idx < ResLength; Idx++) {
     auto &CurAddrinfo = WasiAddrinfoArray[Idx];
     CurAddrinfo->ai_flags = static_cast<__wasi_aiflags_t>(SysResItem->ai_flags);
@@ -806,12 +804,11 @@ INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
     CurAddrinfo->ai_addrlen = SysResItem->ai_addrlen;
 
     // process ai_canonname in addrinfo
-    if (SysResItem->ai_canonname != NULL) {
+    if (SysResItem->ai_canonname != nullptr) {
       CurAddrinfo->ai_canonname_len = std::strlen(SysResItem->ai_canonname);
       auto &CurAiCanonname = AiCanonnameArray[Idx];
       std::memcpy(CurAiCanonname, SysResItem->ai_canonname,
-                  CurAddrinfo->ai_canonname_len);
-      std::memset(CurAiCanonname + CurAddrinfo->ai_canonname_len + 1, 0, 1);
+                  CurAddrinfo->ai_canonname_len + 1);
     } else {
       CurAddrinfo->ai_canonname_len = 0;
     }
@@ -830,7 +827,7 @@ INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
       CurSockaddr->sa_data_len = 0;
 
       // process sa_data in socket address
-      if (std::strlen(SysResItem->ai_addr->sa_data) != 0) {
+      if (SysResItem->ai_addr->sa_data[0] != '\0') {
         std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data,
                     WASI::kSaDataLen);
         CurSockaddr->sa_data_len = WASI::kSaDataLen;

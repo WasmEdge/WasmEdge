@@ -456,13 +456,5 @@ public:
                         uint32_t MaxResLength, uint32_t ResLengthPtr);
 };
 
-class WasiFreeAddrinfo : public Wasi<WasiFreeAddrinfo> {
-public:
-  WasiFreeAddrinfo(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
-
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        uint32_t ResPtr, uint32_t ResLength);
-};
-
 } // namespace Host
 } // namespace WasmEdge

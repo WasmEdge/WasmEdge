@@ -40,14 +40,14 @@ public:
 
   void fini() noexcept;
 
-  WasiExpect<void>
-  getAddrInfo(const char *Node, const char *Service,
-              const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
-              std::vector<struct __wasi_addrinfo_t *> &WasiAddrinfoArray,
-              std::vector<struct __wasi_sockaddr_t *> &WasiSockaddrArray,
-              std::vector<char *> &AiAddrSaDataArray,
-              std::vector<char *> &AiCanonnameArray,
-              /*Out*/ __wasi_size_t &ResLength) {
+  WasiExpect<void> getAddrInfo(const char *Node, const char *Service,
+                               const __wasi_addrinfo_t &Hint,
+                               uint32_t MaxResLength,
+                               Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
+                               Span<__wasi_sockaddr_t *> WasiSockaddrArray,
+                               Span<char *> AiAddrSaDataArray,
+                               Span<char *> AiCanonnameArray,
+                               /*Out*/ __wasi_size_t &ResLength) {
 
     if (auto Res = VINode::getAddrinfo(
             Node, Service, Hint, MaxResLength, WasiAddrinfoArray,

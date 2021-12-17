@@ -28,9 +28,8 @@ inline constexpr bool isSpecialFd(int Fd) noexcept {
 
 inline constexpr __wasi_size_t
 calculateAddrinfoLinkedListSize(struct addrinfo *const Addrinfo) {
-  struct addrinfo *TmpPointer = nullptr;
   __wasi_size_t Length = 0;
-  for (TmpPointer = Addrinfo; TmpPointer != nullptr;
+  for (struct addrinfo *TmpPointer = Addrinfo; TmpPointer != nullptr;
        TmpPointer = TmpPointer->ai_next) {
     Length++;
   }

@@ -223,7 +223,6 @@ impl fmt::Display for ExternType {
 }
 
 /// A polymorphic Wasm primitive type.
-/// # TODO : v128 / Reference types
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Value {
     I32(i32),
@@ -236,7 +235,6 @@ pub enum Value {
     /// A reference to opaque data in the Wasm instance.
     ExternRef(u128),
 }
-
 impl Value {
     pub fn gen_extern_ref(&mut self) -> Value {
         unsafe {
@@ -257,7 +255,6 @@ impl Value {
         }
     }
 }
-
 impl From<Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>> for Value {
     // TODO:
     // may not work, check fat pointer issue with C
@@ -267,7 +264,6 @@ impl From<Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>> for Value {
         unsafe { wasmedge::WasmEdge_ValueGenExternRef(f_ptr).into() }
     }
 }
-
 impl From<Value> for wasmedge::WasmEdge_Value {
     fn from(value: Value) -> Self {
         match value {
@@ -302,7 +298,6 @@ impl From<Value> for wasmedge::WasmEdge_Value {
         }
     }
 }
-
 impl From<wasmedge::WasmEdge_Value> for Value {
     fn from(value: wasmedge::WasmEdge_Value) -> Self {
         match value.Type {
@@ -310,6 +305,7 @@ impl From<wasmedge::WasmEdge_Value> for Value {
             wasmedge::WasmEdge_ValType_I64 => Self::I64(value.Value as i64),
             wasmedge::WasmEdge_ValType_F32 => Self::F32(f32::from_bits(value.Value as u32)),
             wasmedge::WasmEdge_ValType_F64 => Self::F64(f64::from_bits(value.Value as u64)),
+            wasmedge::WasmEdge_ValType_V128 => Self::V128(value.Value as u128),
             wasmedge::WasmEdge_ValType_FuncRef => Self::FuncRef(value.Value as u128),
             wasmedge::WasmEdge_ValType_ExternRef => Self::ExternRef(value.Value as u128),
             _ => panic!("unknown WasmEdge_ValType `{}`", value.Type),

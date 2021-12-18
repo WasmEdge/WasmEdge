@@ -16,7 +16,7 @@ In the sections below, we will explain the steps in the quick start scripts.
 
 ## Install containerd
 
-Use the following commands to install and start containerd on your system.
+Use the following commands to install containerd on your system.
 
 ```bash
 export VERSION="1.5.7"
@@ -32,6 +32,20 @@ sha256sum --check cri-containerd-cni-${VERSION}-linux-amd64.tar.gz.sha256sum
 
 sudo tar --no-overwrite-dir -C / -xzf cri-containerd-cni-${VERSION}-linux-amd64.tar.gz
 sudo systemctl daemon-reload
+```
+
+Configure containerd to use `crun` as the underlying OCI runtime.
+It makes changes to the `/etc/containerd/config.toml` file.
+
+```bash
+sudo bash -c "containerd config default > /etc/containerd/config.toml"
+wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/containerd/containerd_config.diff
+sudo patch -d/ -p0 < containerd_config.diff
+```
+
+Start the containerd service.
+
+```bash
 sudo systemctl start containerd
 ```
 

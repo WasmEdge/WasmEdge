@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: Apache-2.0
 
 OHOS_DIR_PATH=$1
 WASMEDGE_ROOT_PATH=$(dirname $(dirname $(pwd)))

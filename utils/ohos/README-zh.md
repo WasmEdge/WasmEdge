@@ -1,3 +1,9 @@
+# 介绍
+
+WebAssembly 或者 wasm 作为一种可移植、体积小、加载快并且兼容 Web 的全新格式，运行在一个沙箱化的执行环境中，具有高效，安全等特点，现如今越来越多地被使用在云原生应用程序中。WasmEdge 是一种轻量级、高性能和可扩展的 WebAssembly runtime，适用于云原生、边缘和去中心化应用程序。它可以运行从 C/C++、Rust、Swift、AssemblyScript 或 Kotlin 源代码编译的标准 WebAssembly 字节码程序。
+
+在 OpenHarmony 中支持 WasmEdge ，一方面，完善了 WasmEdge 的跨平台支持， 使 WasmEdge 的生态系统更加健壮； 另一方面，WasmEdge 提供给 需要在 OpenHarmony 上使用 Wasm 进行开发的用户一个温床， WasmEdge 的高性能更给 OHOS 的开发者们提供了新的选择：通过 WasmEdge，开发者仅需要付出较小的代价就能访问系统底层应用，而执行效率几乎达到原生效率。
+
 # 从源码在 OpenHarmony Standard 上构建和测试 WasmEdge
 
 请参考这个教程来从源码在 OpenHarmony 标准系统中构建和测试 WasmEdge

@@ -67,9 +67,11 @@ For examples, please refer to the [example repository](https://github.com/second
 
 The [go_WasmAOT example](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_WasmAOT) provide a tool for compiling a WASM file into compiled-WASM for AOT mode.
 
-## Go-API Examples
+## Examples
 
-* [Embed a standalone WASM app](go/app.md)
+* [Embed a standalone Wasm app](go/app.md)
+* [Embed a Wasm function](go/function.md)
 * [Pass complex parameters to Wasm functions](go/memory.md)
+* [Embed a Tensorflow inference function](go/tensorflow.md)
 * [Embed a bindgen function](go/bindgen.md)
 

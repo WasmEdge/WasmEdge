@@ -30,6 +30,29 @@ the Tensorflow extension, and how to pass the image data to the Rust function
 in WasmEdge to run the inference.
 
 ```go
+func main() {
+	/// Expected Args[0]: program name (./mobilenet)
+	/// Expected Args[1]: wasm or wasm-so file (rust_mobilenet.wasm)
+	/// Expected Args[2]: input image name (solvay.jpg)
+
+	/// Set Tensorflow not to print debug info
+	os.Setenv("TF_CPP_MIN_LOG_LEVEL", "3")
+	os.Setenv("TF_CPP_MIN_VLOG_LEVEL", "3")
+
+	wh := host.NewHostWithTF(os.Args[1])
+	wh.Init()
+
+	img, _ := ioutil.ReadFile(os.Args[2])
+	wh.Run(img)
+	
+	output, runErr := wh.ExecutionResult()
+	if runErr != nil {
+		fmt.Println(runErr)
+		return
+	}
+	
+	fmt.Println(string(output))
+}
 ```
 
 ## Build and run
@@ -41,7 +64,7 @@ with the WasmEdge Go SDK and its tensorflow extension.
 
 ```bash
 $ go get github.com/second-state/WasmEdge-go/wasmedge
-$ go build --tags tensorflow
+$ go build -tags tensorflow
 ```
 
 Now you can run the Go application. It calls the WebAssembly function in WasmEdge

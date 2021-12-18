@@ -1,6 +1,6 @@
 use super::wasmedge;
+use std::fmt;
 pub type WasmEdgeProposal = wasmedge::WasmEdge_Proposal;
-pub type HostRegistration = wasmedge::WasmEdge_HostRegistration;
 pub type HostFunc = wasmedge::WasmEdge_HostFunc_t;
 pub type WrapFunc = wasmedge::WasmEdge_WrapFunc_t;
 
@@ -161,5 +161,61 @@ impl From<u32> for CompilerOutputFormat {
             1 => CompilerOutputFormat::Wasm,
             _ => panic!("Unknown CompilerOutputFormat value: {}", val),
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostRegistration {
+    Wasi,
+    WasmEdgeProcess,
+}
+impl From<u32> for HostRegistration {
+    fn from(val: u32) -> Self {
+        match val {
+            0 => HostRegistration::Wasi,
+            1 => HostRegistration::WasmEdgeProcess,
+            _ => panic!("Unknown WasmEdge_HostRegistration value: {}", val),
+        }
+    }
+}
+impl From<HostRegistration> for wasmedge::WasmEdge_HostRegistration {
+    fn from(val: HostRegistration) -> Self {
+        match val {
+            HostRegistration::Wasi => wasmedge::WasmEdge_HostRegistration_Wasi,
+            HostRegistration::WasmEdgeProcess => {
+                wasmedge::WasmEdge_HostRegistration_WasmEdge_Process
+            }
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(u32)]
+pub enum ExternType {
+    Function = wasmedge::WasmEdge_ExternalType_Function,
+    Table = wasmedge::WasmEdge_ExternalType_Table,
+    Memory = wasmedge::WasmEdge_ExternalType_Memory,
+    Global = wasmedge::WasmEdge_ExternalType_Global,
+}
+impl From<u32> for ExternType {
+    fn from(val: u32) -> Self {
+        match val {
+            0x00u32 => ExternType::Function,
+            0x01u32 => ExternType::Table,
+            0x02u32 => ExternType::Memory,
+            0x03u32 => ExternType::Global,
+            _ => panic!("Unknown ExternalType value: {}", val),
+        }
+    }
+}
+impl fmt::Display for ExternType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let message = match self {
+            ExternType::Function => "function",
+            ExternType::Table => "table",
+            ExternType::Memory => "memory",
+            ExternType::Global => "global",
+        };
+        write!(f, "{}", message)
     }
 }

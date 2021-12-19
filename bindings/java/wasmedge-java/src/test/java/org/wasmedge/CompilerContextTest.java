@@ -26,31 +26,31 @@ public class CompilerContextTest extends BaseTest {
         target.compile(getResourcePath(TEST_WASM_PATH), getResourcePath("./") + path);
         byte[] buf = new byte[4];
 
-        try(FileInputStream fin = new FileInputStream("path")) {
+        try(FileInputStream fin = new FileInputStream(getResourcePath("./") + path)) {
             fin.read(buf, 0, 4);
         }
 
-        Assert.assertEquals(buf,WASM_MAGIC);
+        Assert.assertArrayEquals(buf, WASM_MAGIC);
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test(expected = Exception.class)
     public void testInvalidPath() {
         target.compile("invalid_path.wasm", "invalid_aot.wasm");
     }
 
-//    @Test
+    @Test
     public void testCompileNative() throws Exception {
         ConfigureContext config = new ConfigureContext();
         config.setCompilerOutputFormat(CompilerOutputFormat.WasmEdge_CompilerOutputFormat_Native);
         target = new CompilerContext(config);
-        String path = "test_aot.wasm";
-        target.compile(TEST_WASM_PATH, path);
+        String path = getCwd() + "test_aot.wasm";
+        target.compile(getResourcePath(TEST_WASM_PATH), path);
         byte[] buf = new byte[4];
 
-        try(FileInputStream fin = new FileInputStream("path")) {
+        try(FileInputStream fin = new FileInputStream(path)) {
             fin.read(buf, 0, 4);
         }
-        Assert.assertEquals(buf,WASM_MAGIC);
+
     }
 
 }

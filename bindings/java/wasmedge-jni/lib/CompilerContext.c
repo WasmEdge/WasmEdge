@@ -32,10 +32,12 @@ JNIEXPORT void JNICALL Java_org_wasmedge_CompilerContext_compile
     const char* inputPath = (*env)->GetStringUTFChars(env, jInputPath, NULL);
     const char* outputPath = (*env)->GetStringUTFChars(env, jOutputPath, NULL);
 
-    WasmEdge_CompilerCompile(compilerContext, inputPath, outputPath);
+    WasmEdge_Result result = WasmEdge_CompilerCompile(compilerContext, inputPath, outputPath);
 
     (*env)->ReleaseStringUTFChars(env, jInputPath, inputPath);
     (*env)->ReleaseStringUTFChars(env, jOutputPath, outputPath);
+
+    handleWasmEdgeResult(env, &result);
 }
 
 JNIEXPORT void JNICALL Java_org_wasmedge_CompilerContext_delete

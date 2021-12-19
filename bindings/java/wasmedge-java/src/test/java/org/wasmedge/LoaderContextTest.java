@@ -1,12 +1,10 @@
+package org.wasmedge;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.wasmedge.ASTModuleContext;
-import org.wasmedge.ConfigureContext;
-import org.wasmedge.LoaderContext;
 
 import java.io.FileInputStream;
-import java.nio.Buffer;
 
 public class LoaderContextTest extends BaseTest {
     private LoaderContext loaderContext;

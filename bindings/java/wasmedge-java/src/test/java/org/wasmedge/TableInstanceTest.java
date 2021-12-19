@@ -1,11 +1,7 @@
+package org.wasmedge;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.wasmedge.TableInstanceContext;
-import org.wasmedge.TableTypeContext;
-import org.wasmedge.WasmEdgeExternalRef;
-import org.wasmedge.WasmEdgeFunctionRef;
-import org.wasmedge.WasmEdgeLimit;
-import org.wasmedge.WasmEdgeValue;
 import org.wasmedge.enums.RefType;
 
 public class TableInstanceTest extends BaseTest {

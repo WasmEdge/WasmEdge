@@ -1,6 +1,7 @@
+package org.wasmedge;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.wasmedge.WasmEdge;
 
 public class WasmEdgeTest extends BaseTest {
     @Test

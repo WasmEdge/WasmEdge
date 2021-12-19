@@ -1,13 +1,11 @@
+package org.wasmedge;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.wasmedge.ConfigureContext;
-import org.wasmedge.FunctionTypeContext;
-import org.wasmedge.StoreContext;
-import org.wasmedge.WasmEdgeI32Value;
-import org.wasmedge.WasmEdgeVM;
-import org.wasmedge.WasmEdgeValue;
 import org.wasmedge.enums.HostRegistration;
 
+import java.net.URL;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -15,7 +13,7 @@ import java.util.UUID;
 public class WasmEdgeVMTest extends BaseTest {
 
     @Test
-    public void testRun() {
+    public void testRun() throws Exception {
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
         WasmEdgeVM vm = new WasmEdgeVM(configureContext, null);
@@ -24,7 +22,8 @@ public class WasmEdgeVMTest extends BaseTest {
 
         List<WasmEdgeValue> returns = new ArrayList<>();
         returns.add(new WasmEdgeI32Value());
-        vm.runWasmFromFile(WASM_PATH, FUNC_NAME, params, returns);
+
+        vm.runWasmFromFile(getResourcePath(WASM_PATH), FUNC_NAME, params, returns);
         Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
         vm.destroy();
     }
@@ -34,7 +33,7 @@ public class WasmEdgeVMTest extends BaseTest {
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), null);
-        vm.loadWasmFromFile(WASM_PATH);
+        vm.loadWasmFromFile(getResourcePath(WASM_PATH));
         vm.validate();
         vm.instantiate();
         List<WasmEdgeValue> params = new ArrayList<>();
@@ -57,7 +56,7 @@ public class WasmEdgeVMTest extends BaseTest {
     @Test(expected = Exception.class)
     public void testInvalidFuncName() {
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
-        vm.loadWasmFromFile("/root/fibonacci.wasm");
+        vm.loadWasmFromFile(getResourcePath(WASM_PATH));
         vm.validate();
         vm.instantiate();
         List<WasmEdgeValue> params = new ArrayList<>();
@@ -71,7 +70,7 @@ public class WasmEdgeVMTest extends BaseTest {
     @Test(expected = Exception.class)
     public void testInvalidFlow() {
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
-        vm.loadWasmFromFile("/root/fibonacci.wasm");
+        vm.loadWasmFromFile(getResourcePath(WASM_PATH));
         vm.instantiate();
         vm.validate();
     }
@@ -130,7 +129,7 @@ public class WasmEdgeVMTest extends BaseTest {
 
     @Test
     public void testRunWasmFromASTModule() {
-        
+
     }
 
 }

@@ -1,6 +1,7 @@
+package org.wasmedge;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.wasmedge.FunctionTypeContext;
 import org.wasmedge.enums.ValueType;
 
 import java.util.ArrayList;

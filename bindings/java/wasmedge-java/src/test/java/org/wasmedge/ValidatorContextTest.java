@@ -1,8 +1,6 @@
+package org.wasmedge;
+
 import org.junit.Test;
-import org.wasmedge.ASTModuleContext;
-import org.wasmedge.ConfigureContext;
-import org.wasmedge.LoaderContext;
-import org.wasmedge.ValidatorContext;
 
 public class ValidatorContextTest extends BaseTest {
 

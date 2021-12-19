@@ -1,9 +1,7 @@
+package org.wasmedge;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.wasmedge.ASTModuleContext;
-import org.wasmedge.ImportTypeContext;
-import org.wasmedge.LoaderContext;
-import org.wasmedge.WasmEdgeLimit;
 import org.wasmedge.enums.ExternalType;
 import org.wasmedge.enums.RefType;
 import org.wasmedge.enums.ValueType;

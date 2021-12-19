@@ -1,10 +1,7 @@
+package org.wasmedge;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.wasmedge.GlobalInstanceContext;
-import org.wasmedge.GlobalTypeContext;
-import org.wasmedge.WasmEdgeI32Value;
-import org.wasmedge.WasmEdgeI64Value;
-import org.wasmedge.WasmEdgeValue;
 import org.wasmedge.enums.ValueType;
 import org.wasmedge.enums.WasmEdgeMutability;
 

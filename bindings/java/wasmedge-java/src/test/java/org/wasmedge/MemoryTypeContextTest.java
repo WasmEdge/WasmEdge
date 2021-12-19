@@ -1,7 +1,7 @@
+package org.wasmedge;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.wasmedge.MemoryTypeContext;
-import org.wasmedge.WasmEdgeLimit;
 
 public class MemoryTypeContextTest extends BaseTest {
     @Test

@@ -9,8 +9,7 @@
 
 
 
-void exitWithError(enum ErrorCode error, char* message, char* file, int line) {
-     printf("Error with message: %s in file:%s at line %d.\n", message, file, line);
+void exitWithError(enum ErrorCode error, char* message) {
      exit(-1);
 }
 
@@ -21,11 +20,11 @@ void throwNoClassDefError(JNIEnv *env, char * message) {
     exClass = (*env)->FindClass(env, className);
 
     if(exClass == NULL) {
-        exitWithError(JVM_ERROR, "Exception class not found.", __FILE_NAME__, __LINE__);
+        exitWithError(JVM_ERROR, "Exception class not found.");
     }
     (*env)-> ThrowNew(env, exClass, message);
 
-    exitWithError(JVM_ERROR, "Exception thrown for no class def", __FILE_NAME__, __LINE__);
+    exitWithError(JVM_ERROR, "Exception thrown for no class def");
 }
 
 void throwNoSuchMethodError(JNIEnv *env, char* methodName, char* sig) {
@@ -42,7 +41,7 @@ void throwNoSuchMethodError(JNIEnv *env, char* methodName, char* sig) {
     }
 
     (*env)->ThrowNew(env, exClass, methodName);
-    exitWithError(JVM_ERROR, "Exception thrown for no such method", __FILE_NAME__, __LINE__);
+    exitWithError(JVM_ERROR, "Exception thrown for no such method");
 }
 
 
@@ -91,18 +90,15 @@ void getClassName(JNIEnv* env, jobject obj, char* buff) {
 
 
 long getPointer(JNIEnv* env, jobject obj) {
-    printf("Start to get class");
     jclass cls = (*env)->GetObjectClass(env, obj);
 
-    printf("Get class succeed.");
     if (cls == NULL) {
-        exitWithError(JVM_ERROR, "class not found!", __FILE__, __LINE__);
+        exitWithError(JVM_ERROR, "class not found!");
     }
 
-    printf("Start to get pointer field");
     jfieldID fidPointer = (*env)->GetFieldID(env, cls, "pointer", "J");
     if(fidPointer == NULL) {
-        exitWithError(JVM_ERROR, "pointer filed not found!", __FILE__, __LINE__);
+        exitWithError(JVM_ERROR, "pointer filed not found!");
     }
     jlong value = (*env)->GetLongField(env, obj, fidPointer);
     char buf[216];

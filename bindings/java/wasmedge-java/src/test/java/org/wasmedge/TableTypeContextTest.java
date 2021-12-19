@@ -1,14 +1,7 @@
+package org.wasmedge;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.wasmedge.ASTModuleContext;
-import org.wasmedge.ConfigureContext;
-import org.wasmedge.ExecutorContext;
-import org.wasmedge.StoreContext;
-import org.wasmedge.TableTypeContext;
-import org.wasmedge.WasmEdgeI32Value;
-import org.wasmedge.WasmEdgeI64Value;
-import org.wasmedge.WasmEdgeLimit;
-import org.wasmedge.WasmEdgeValue;
 import org.wasmedge.enums.RefType;
 
 import java.util.ArrayList;

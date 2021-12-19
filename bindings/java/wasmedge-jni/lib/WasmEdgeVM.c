@@ -233,10 +233,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_execute
     /* Function name. */
     WasmEdge_String FuncName = WasmEdge_StringCreateByCString(c_func_name);
     /* Run the WASM function from file. */
-    printf("Start to run wasm function: %s\n", c_func_name);
     WasmEdge_Result Res = WasmEdge_VMExecute(VMCxt,  FuncName, wasm_params, paramSize, Returns, returnSize);
-
-    printf("Run wasm finished\n");
 
     handleWasmEdgeResult(env, &Res);
     if (WasmEdge_ResultOK(Res)) {

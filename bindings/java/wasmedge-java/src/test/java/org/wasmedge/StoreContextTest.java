@@ -1,9 +1,7 @@
+package org.wasmedge;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.wasmedge.ASTModuleContext;
-import org.wasmedge.ConfigureContext;
-import org.wasmedge.StoreContext;
-import org.wasmedge.ValidatorContext;
 
 public class StoreContextTest extends BaseTest {
     @Test

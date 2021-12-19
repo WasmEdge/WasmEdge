@@ -5,7 +5,7 @@ repositories {
     mavenCentral()
 }
 dependencies {
-    testCompile('junit:junit:4.13')
+    testImplementation('junit:junit:4.13')
 }
 
 sourceCompatibility = 1.8
@@ -13,6 +13,10 @@ targetCompatibility = 1.8
 
 test {
     systemProperty "java.library.path", "/usr/local/lib"
+    if (System.getProperty('DEBUG', 'false') == 'true') {
+        jvmArgs '-Xdebug',
+                '-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=*:5005'
+    }
 }
 
 

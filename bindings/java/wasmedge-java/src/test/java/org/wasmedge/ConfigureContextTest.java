@@ -1,6 +1,7 @@
+package org.wasmedge;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.wasmedge.ConfigureContext;
 import org.wasmedge.enums.CompilerOptimizationLevel;
 import org.wasmedge.enums.CompilerOutputFormat;
 import org.wasmedge.enums.HostRegistration;

@@ -1,5 +1,6 @@
+package org.wasmedge;
+
 import org.junit.Test;
-import org.wasmedge.ASTModuleContext;
 
 public class ASTModuleContextTest extends BaseTest {
 

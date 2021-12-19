@@ -1,6 +1,6 @@
+package org.wasmedge;
+
 import org.junit.Test;
-import org.wasmedge.ConfigureContext;
-import org.wasmedge.StatisticsContext;
 
 public class StatisticsContextTest extends BaseTest {
     @Test

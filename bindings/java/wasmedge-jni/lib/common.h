@@ -14,7 +14,7 @@ enum ErrorCode {
     WVM_ERROR
 };
 
-void exitWithError(enum ErrorCode error, char* message, char* fileName, int line);
+void exitWithError(enum ErrorCode error, char* message);
 
 void throwNoClassDefError(JNIEnv *env, char * message);
 

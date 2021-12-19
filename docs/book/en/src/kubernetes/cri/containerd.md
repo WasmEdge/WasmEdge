@@ -38,6 +38,7 @@ Configure containerd to use `crun` as the underlying OCI runtime.
 It makes changes to the `/etc/containerd/config.toml` file.
 
 ```bash
+sudo mkdir -p /etc/containerd/
 sudo bash -c "containerd config default > /etc/containerd/config.toml"
 wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/containerd/containerd_config.diff
 sudo patch -d/ -p0 < containerd_config.diff

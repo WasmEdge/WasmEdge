@@ -12,6 +12,7 @@ namespace Host {
 
 WasiCryptoModule::WasiCryptoModule() : ImportObject("wasi_ephemeral_crypto") {
   using namespace WASICrypto;
+
   // common
   addHostFunc("array_output_len",
               std::make_unique<Common::ArrayOutputLen>(Ctx));

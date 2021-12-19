@@ -115,9 +115,6 @@ RsaPkCtx::exportData(__wasi_publickey_encoding_e_t Encoding) {
 
 WasiCryptoExpect<RsaVerificationCtx> RsaPkCtx::asVerification() {
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> SignCtx{EVP_MD_CTX_create()};
-  if (SignCtx == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
 
   if (1 != EVP_DigestVerifyInit(SignCtx.get(), nullptr, EVP_sha256(), nullptr,
                                 Pk.get())) {
@@ -277,9 +274,6 @@ RsaKpCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
 
 WasiCryptoExpect<RsaSignStateCtx> RsaKpCtx::asSignState() {
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> SignCtx{EVP_MD_CTX_create()};
-  if (SignCtx == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
 
   // TODO:It pass a keypair but need a private key. Later to check
   if (1 != EVP_DigestSignInit(SignCtx.get(), nullptr, EVP_sha256(), nullptr,
@@ -413,6 +407,8 @@ WasiCryptoExpect<RsaSignCtx> RsaSignStateCtx::sign() {
 
   std::vector<uint8_t> Res;
   Res.reserve(Size);
+  Res.resize(Size);
+
   if (1 != EVP_DigestSignFinal(MdCtx.get(), Res.data(), &Size)) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }

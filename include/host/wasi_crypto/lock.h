@@ -2,6 +2,7 @@
 #pragma once
 
 #include <mutex>
+#include <functional>
 
 namespace WasmEdge {
 namespace Host {

@@ -81,15 +81,15 @@ TEST(WasiCryptoTest, Hkdf) {
           .value();
   EXPECT_TRUE(Ctx.symmetricStateAbsorb(StateHandle, "salt"_u8).has_value());
 
-  auto NewKeyHandle = Ctx.symmetricStateSqueezeKey(
-                             StateHandle, SymmetricAlgorithm::HkdfSha512Expand)
-                          .value();
+  // --------------------EXPAND----------------------
+  auto PrkHandle = Ctx.symmetricStateSqueezeKey(
+                          StateHandle, SymmetricAlgorithm::HkdfSha512Expand)
+                       .value();
   EXPECT_TRUE(Ctx.symmetricStateClose(StateHandle).has_value());
   EXPECT_TRUE(Ctx.symmetricKeyClose(KeyHandle).has_value());
 
-  // --------------------EXPAND----------------------
   auto NewStateHandle =
-      Ctx.symmetricStateOpen(SymmetricAlgorithm::HkdfSha512Expand, NewKeyHandle,
+      Ctx.symmetricStateOpen(SymmetricAlgorithm::HkdfSha512Expand, PrkHandle,
                              std::nullopt)
           .value();
 
@@ -119,12 +119,13 @@ TEST(WasiCryptoTest, Encryption) {
           .value();
 
   std::array<uint8_t, 12> OutNonce;
-  Ctx.symmetricStateOptionsGet(State1, "nonce"sv, OutNonce).value();
+  EXPECT_EQ(12,
+            Ctx.symmetricStateOptionsGet(State1, "nonce"sv, OutNonce).value());
 
   EXPECT_EQ(InNonce, OutNonce);
 
-  auto TagMaxSize = Ctx.symmetricStateMaxTagLen(State1).value();
-  std::vector<uint8_t> CiphertextWithTag(Msg.size() + TagMaxSize, 0);
+  std::vector<uint8_t> CiphertextWithTag(
+      Msg.size() + Ctx.symmetricStateMaxTagLen(State1).value(), 0);
   Ctx.symmetricStateEncrypt(State1, CiphertextWithTag, Msg).value();
   EXPECT_TRUE(Ctx.symmetricStateClose(State1).has_value());
 

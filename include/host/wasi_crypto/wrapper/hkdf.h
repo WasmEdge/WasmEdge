@@ -14,20 +14,23 @@ namespace WASICrypto {
 
 class HkdfCtx {
 public:
-  static WasiCryptoExpect<HkdfCtx> make(SymmetricAlgorithm Alg);
+  HkdfCtx(SymmetricAlgorithm Alg,
+          OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx)
+      : Alg(Alg), Ctx(std::move(Ctx)) {}
 
-  WasiCryptoExpect<void> setKey(Span<uint8_t> Key);
+
+  static WasiCryptoExpect<HkdfCtx> import(SymmetricAlgorithm Alg,
+                                          Span<const uint8_t> Key);
 
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data);
 
-  WasiCryptoExpect<Span<uint8_t const>> squeezeKey();
+  // Extract
+  WasiCryptoExpect<std::vector<uint8_t>> squeezeKey();
 
+  // Expand
   WasiCryptoExpect<void> squeeze(Span<uint8_t> Out);
 
 private:
-  HkdfCtx(SymmetricAlgorithm Alg,
-       OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx);
-
   SymmetricAlgorithm Alg;
   OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx;
 };

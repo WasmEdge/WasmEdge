@@ -8,9 +8,6 @@ namespace WASICrypto {
 
 WasiCryptoExpect<Sha2Ctx> Sha2Ctx::make(SymmetricAlgorithm Alg) {
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx{EVP_MD_CTX_new()};
-  if (Ctx == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
 
   EVP_MD const *Md;
   if (Alg == SymmetricAlgorithm::Sha256) {
@@ -31,16 +28,18 @@ WasiCryptoExpect<Sha2Ctx> Sha2Ctx::make(SymmetricAlgorithm Alg) {
 WasiCryptoExpect<void> Sha2Ctx::squeeze(Span<uint8_t> Out) {
   unsigned int ActualOutSize;
   auto CacheSize = EVP_MD_CTX_size(Ctx.get());
-  uint8_t Cache[CacheSize];
+  std::vector<uint8_t> Cache;
+  Cache.reserve(CacheSize);
+  Cache.resize(CacheSize);
 
-  if (1 != EVP_DigestFinal_ex(Ctx.get(), Cache, &ActualOutSize)) {
+  if (1 != EVP_DigestFinal_ex(Ctx.get(), Cache.data(), &ActualOutSize)) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
   if (ActualOutSize > Out.size()) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_LENGTH);
   }
 
-  std::copy(Cache, Cache + ActualOutSize, Out.data());
+  std::copy(Cache.data(), Cache.data() + ActualOutSize, Out.data());
 
   return {};
 }

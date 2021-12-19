@@ -10,7 +10,6 @@ HkdfSymmetricKey::HkdfSymmetricKey(SymmetricAlgorithm Alg,
                                    Span<uint8_t const> Raw)
     : Alg(Alg), Raw(Raw.begin(), Raw.end()) {}
 
-
 HkdfSymmetricKeyBuilder::HkdfSymmetricKeyBuilder(SymmetricAlgorithm Alg)
     : Alg(Alg) {}
 
@@ -60,16 +59,11 @@ HkdfSymmetricState::import(SymmetricAlgorithm Alg,
     return WasiCryptoUnexpect(Res);
   }
 
-  auto Raw = OptKey->raw();
-  if (!Raw) {
-    return WasiCryptoUnexpect(Raw);
-  }
-
-  auto Ctx = HkdfCtx::make(Alg);
+  auto Ctx = OptKey->inner()->locked(
+      [Alg](auto &Data) { return HkdfCtx::import(Alg, Data->asRef()); });
   if (!Ctx) {
     return WasiCryptoUnexpect(Ctx);
   }
-  Ctx->setKey(*Raw);
 
   return std::unique_ptr<HkdfSymmetricState>{
       new HkdfSymmetricState{Alg, OptOptions, std::move(*Ctx)}};
@@ -111,11 +105,6 @@ HkdfSymmetricState::optionsGetU64(std::string_view Name) {
       [&Name](auto &Inner) { return Inner.getU64(Name); });
 }
 
-HkdfSymmetricState::HkdfSymmetricState(
-    SymmetricAlgorithm Algorithm, std::optional<SymmetricOptions> OptOptions,
-    HkdfCtx Ctx)
-    : SymmetricState::Base(Algorithm), OptOptions(OptOptions),
-      Ctx(std::move(Ctx)) {}
 
 } // namespace WASICrypto
 } // namespace Host

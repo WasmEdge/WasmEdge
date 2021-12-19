@@ -7,13 +7,12 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-WasiCryptoExpect<AesGcmCtx> AesGcmCtx::import(SymmetricAlgorithm Alg, Span<uint8_t const> Key) {
+WasiCryptoExpect<AesGcmCtx> AesGcmCtx::import(SymmetricAlgorithm Alg,
+                                              Span<uint8_t const> Key,
+                                              Span<uint8_t const> Nonce) {
   // Init unique_ptr
   OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx{
       EVP_CIPHER_CTX_new()};
-  if (Ctx == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
 
   EVP_CIPHER const *Cipher;
   switch (Alg) {
@@ -26,26 +25,17 @@ WasiCryptoExpect<AesGcmCtx> AesGcmCtx::import(SymmetricAlgorithm Alg, Span<uint8
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   }
-  if (1 != EVP_CipherInit_ex(Ctx.get(), Cipher, nullptr, Key.data(), nullptr,
-                             Mode::Unchanged)) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
 
-  return AesGcmCtx{Alg, std::move(Ctx)};
-}
-
-
-WasiCryptoExpect<void> AesGcmCtx::setNonce(Span<uint8_t> Nonce) {
   if (Nonce.size() != NonceLen) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
   }
 
-  if (1 != EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr, Nonce.data(),
-                             Mode::Unchanged)) {
+  if (1 != EVP_CipherInit_ex(Ctx.get(), Cipher, nullptr, Key.data(),
+                             Nonce.data(), Mode::Unchanged)) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 
-  return {};
+  return AesGcmCtx{Alg, std::move(Ctx)};
 }
 
 WasiCryptoExpect<void> AesGcmCtx::absorb(Span<const uint8_t> Data) {
@@ -61,8 +51,10 @@ WasiCryptoExpect<void> AesGcmCtx::absorb(Span<const uint8_t> Data) {
 
 WasiCryptoExpect<std::vector<uint8_t>>
 AesGcmCtx::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
-  updateMode(Mode::Encrypt);
-
+  if (1 != EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr, nullptr,
+                             Mode::Encrypt)) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
+  }
   //  auto Nonce = Options.get("nonce");
   //  if (!Nonce) {
   //    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
@@ -73,8 +65,8 @@ AesGcmCtx::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
   //  }
 
   int ActualOutSize;
-  if (!EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize, Data.data(),
-                        Data.size())) {
+  if (1 != EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize, Data.data(),
+                            Data.size())) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 
@@ -89,13 +81,15 @@ AesGcmCtx::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
   // However, cannot do put nullptr length in it. construct a temp var
   // TODO:Better
   int AL;
-  if (!EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL)) {
+  if (1 != EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL)) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 
   // Gen tag
   std::vector<uint8_t> RawTagData;
   RawTagData.reserve(TagLen);
+  RawTagData.resize(TagLen);
+
   if (1 != EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_GCM_GET_TAG, TagLen,
                                RawTagData.data())) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
@@ -106,16 +100,19 @@ AesGcmCtx::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
 
 WasiCryptoExpect<__wasi_size_t>
 AesGcmCtx::decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
-                        Span<const uint8_t> RawTag) {
-  updateMode(Mode::Decrypt);
+                           Span<const uint8_t> RawTag) {
+  if (1 != EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr, nullptr,
+                             Mode::Decrypt)) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
+  }
 
   int ActualOutSize;
-  if (!EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize, Data.data(),
-                        Data.size())) {
+  if (1 != EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize, Data.data(),
+                            Data.size())) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_TAG);
   }
 
-  if (!EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_GCM_SET_TAG, TagLen,
+  if (1 != EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_GCM_SET_TAG, TagLen,
                            const_cast<uint8_t *>(RawTag.data()))) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
@@ -125,20 +122,12 @@ AesGcmCtx::decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
   // However, cannot do put nullptr length in it. construct a temp var
   // TODO:Better
   int AL;
-  if (!EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL)) {
+  if (1 != EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL)) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 
   return ActualOutSize;
 }
-
-void AesGcmCtx::updateMode(AesGcmCtx::Mode Mo) {
-  EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr, nullptr, Mo);
-}
-
-AesGcmCtx::AesGcmCtx(SymmetricAlgorithm Alg,
-               OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx)
-    : Alg(Alg), Ctx(std::move(Ctx)) {}
 
 } // namespace WASICrypto
 } // namespace Host

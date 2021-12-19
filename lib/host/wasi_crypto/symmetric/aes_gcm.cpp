@@ -22,18 +22,17 @@ WasiCryptoExpect<SymmetricKey> AesGcmSymmetricKeyBuilder::generate(
     return WasiCryptoUnexpect(Len);
   }
 
-  if(!OptOptions) {
-  }
+  if (OptOptions.has_value()) {
+    auto Nonce = OptOptions->inner()->locked(
+        [](auto &Inner) { return Inner.get("nonce"); });
+    if (Nonce) {
+      // but size not equal
+      if (Nonce->size() != *Len) {
+        return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_NONCE);
+      }
 
-  auto Nonce = OptOptions->inner()->locked(
-      [](auto &Inner) { return Inner.get("nonce"); });
-  if (Nonce) {
-    // but size not equal
-    if (Nonce->size() != *Len) {
-      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_NONCE);
+      return import(*Nonce);
     }
-
-    return import(*Nonce);
   }
 
   // generate random by host TODO: may I need to generate a option and register.
@@ -70,46 +69,37 @@ AesGcmSymmetricState::import(SymmetricAlgorithm Alg,
   if (!OptKey) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
   }
-
-  if (OptOptions && !OptOptions->inner()->locked(
-                        [](auto &Inner) { return Inner.get("nonce"); })) {
+  if (!OptOptions) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
   }
 
-  if (auto Res = OptKey->isType<AesGcmSymmetricKey>(); !Res) {
-    return WasiCryptoUnexpect(Res);
-  }
+  return acquireLocked(
+      *OptKey->inner(), *OptOptions->inner(),
+      [Alg](auto &Key, auto &Option)
+          -> WasiCryptoExpect<std::unique_ptr<AesGcmSymmetricState>> {
+        auto Nonce = Option.get("nonce");
+        if (!Nonce) {
+          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
+        }
 
-  // init get Key data
-  auto Ctx = OptKey->inner()->locked(
-      [Alg](auto &Data) { return AesGcmCtx::import(Alg, Data->asRef()); });
-  if (!Ctx) {
-    return WasiCryptoUnexpect(Ctx);
-  }
-  // set nonce
-  auto Nonce = OptOptions->inner()->locked(
-      [](auto &Inner) { return Inner.get("nonce"); });
-  if (!Nonce) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
-  }
+        auto AesGcmCtx = AesGcmCtx::import(Alg, Key->asRef(), *Nonce);
+        if (!AesGcmCtx) {
+          return WasiCryptoUnexpect(AesGcmCtx);
+        }
 
-  Ctx->setNonce(*Nonce);
-
-  // new ptr
-  return std::unique_ptr<AesGcmSymmetricState>{
-      new AesGcmSymmetricState{Alg, *OptOptions, std::move(*Ctx)}};
+        return std::make_unique<AesGcmSymmetricState>(Alg, Option,
+                                                      std::move(*AesGcmCtx));
+      });
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
 AesGcmSymmetricState::optionsGet(std::string_view Name) {
-  return Options.inner()->locked(
-      [&Name](auto &Inner) { return Inner.get(Name); });
+  return Options.get(Name);
 }
 
 WasiCryptoExpect<uint64_t>
 AesGcmSymmetricState::optionsGetU64(std::string_view Name) {
-  return Options.inner()->locked(
-      [&Name](auto &Inner) { return Inner.getU64(Name); });
+  return Options.getU64(Name);
 }
 
 WasiCryptoExpect<void> AesGcmSymmetricState::absorb(Span<const uint8_t> Data) {
@@ -119,13 +109,12 @@ WasiCryptoExpect<void> AesGcmSymmetricState::absorb(Span<const uint8_t> Data) {
 WasiCryptoExpect<__wasi_size_t>
 AesGcmSymmetricState::encryptUnchecked(Span<uint8_t> Out,
                                        Span<const uint8_t> Data) {
-  auto Tag = Ctx.encryptDetached({Out.data(), Data.size()}, Data);
+  auto Tag = Ctx.encryptDetached(Out.first(Data.size()), Data);
   if (!Tag) {
     return WasiCryptoUnexpect(Tag);
   }
 
-  // Gen tag
-  Tag->assign(Out.begin(), Out.begin() + Data.size());
+  std::copy(Tag->begin(), Tag->end(), Out.subspan(Data.size()).begin());
 
   return Out.size();
 }
@@ -144,11 +133,8 @@ AesGcmSymmetricState::encryptDetachedUnchecked(Span<uint8_t> Out,
 WasiCryptoExpect<__wasi_size_t>
 AesGcmSymmetricState::decryptUnchecked(Span<uint8_t> Out,
                                        Span<uint8_t const> Data) {
-
-  Span<uint8_t const> RawTag{Data.data() + Out.size(),
-                             Data.size() - Out.size()};
-
-  return decryptDetachedUnchecked(Out, {Data.data(), Out.size()}, RawTag);
+  return decryptDetachedUnchecked(Out, Data.first(Out.size()),
+                                  Data.subspan(Out.size()));
 }
 
 WasiCryptoExpect<__wasi_size_t> AesGcmSymmetricState::decryptDetachedUnchecked(

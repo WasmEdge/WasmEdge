@@ -30,6 +30,17 @@ WasiCryptoExpect<SymmetricKey> SymmetricKey::import(SymmetricAlgorithm Alg,
   return (*Builder)->import(Raw);
 }
 
+WasiCryptoExpect<SymmetricKey> SymmetricKey::from(SymmetricAlgorithm Alg,
+                                                    std::vector<uint8_t>&& Data) {
+  auto Builder = builder(Alg);
+  if (!Builder) {
+    return WasiCryptoUnexpect(Builder);
+  }
+
+  //TODO: a vector way
+  return (*Builder)->import(Data);
+}
+
 WasiCryptoExpect<std::unique_ptr<SymmetricKey::Builder>>
 SymmetricKey::builder(SymmetricAlgorithm Alg) {
   switch (Alg) {

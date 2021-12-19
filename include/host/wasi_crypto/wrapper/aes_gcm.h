@@ -13,30 +13,29 @@ namespace WASICrypto {
 
 class AesGcmCtx {
 public:
+  AesGcmCtx(SymmetricAlgorithm Alg,
+            OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx)
+      : Alg(Alg), Ctx(std::move(Ctx)) {}
+
   inline static constexpr __wasi_size_t NonceLen = 12;
 
   inline static constexpr __wasi_size_t TagLen = 16;
 
-  static WasiCryptoExpect<AesGcmCtx> import(SymmetricAlgorithm Alg, Span<uint8_t const> Key);
-
-  WasiCryptoExpect<void> setNonce(Span<uint8_t> Nonce);
+  static WasiCryptoExpect<AesGcmCtx> import(SymmetricAlgorithm Alg,
+                                            Span<uint8_t const> Key,
+                                            Span<uint8_t const> Nonce);
 
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data);
 
-  WasiCryptoExpect<std::vector<uint8_t>> encryptDetached(Span<uint8_t> Out,
-                                                 Span<const uint8_t> Data);
+  WasiCryptoExpect<std::vector<uint8_t>>
+  encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data);
 
   WasiCryptoExpect<__wasi_size_t> decryptDetached(Span<uint8_t> Out,
-                                                  Span<const uint8_t> Data,
+                                                  Span<uint8_t const> Data,
                                                   Span<uint8_t const> RawTag);
 
 private:
   enum Mode { Unchanged = -1, Decrypt = 0, Encrypt = 1 };
-
-  void updateMode(Mode Mo);
-
-  AesGcmCtx(SymmetricAlgorithm Alg,
-         OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx);
 
   SymmetricAlgorithm Alg;
   OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx;

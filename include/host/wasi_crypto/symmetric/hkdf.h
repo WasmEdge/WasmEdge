@@ -45,6 +45,11 @@ private:
 ///
 class HkdfSymmetricState : public SymmetricState::Base {
 public:
+  HkdfSymmetricState(SymmetricAlgorithm Algorithm,
+                     std::optional<SymmetricOptions> OptOptions, HkdfCtx Ctx)
+      : SymmetricState::Base(Algorithm), OptOptions(OptOptions),
+        Ctx(std::move(Ctx)) {}
+
   static WasiCryptoExpect<std::unique_ptr<HkdfSymmetricState>>
   import(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
          std::optional<SymmetricOptions> OptOptions);
@@ -66,9 +71,6 @@ public:
   WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view Name) override;
 
 private:
-  HkdfSymmetricState(SymmetricAlgorithm Algorithm,
-                     std::optional<SymmetricOptions> OptOptions, HkdfCtx Ctx);
-
   std::optional<SymmetricOptions> OptOptions;
   HkdfCtx Ctx;
 };

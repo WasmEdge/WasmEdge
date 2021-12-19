@@ -10,14 +10,9 @@ WasiCryptoExpect<HmacSha2Ctx> HmacSha2Ctx::import(SymmetricAlgorithm Alg,
                                                   Span<uint8_t const> Raw) {
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> PKey{
       EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, nullptr, Raw.data(), Raw.size())};
-  if (PKey == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
 
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx{EVP_MD_CTX_new()};
-  if (Ctx == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
+
 
   EVP_MD const *Md;
   switch (Alg) {
@@ -53,6 +48,8 @@ WasiCryptoExpect<std::vector<uint8_t>> HmacSha2Ctx::squeezeTag() {
 
   std::vector<uint8_t> Res;
   Res.reserve(ActualOutSize);
+  Res.resize(ActualOutSize);
+
   if (1 != EVP_DigestSignFinal(Ctx.get(), Res.data(), &ActualOutSize)) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }

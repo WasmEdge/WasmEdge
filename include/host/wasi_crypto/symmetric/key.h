@@ -46,6 +46,9 @@ public:
   static WasiCryptoExpect<SymmetricKey> import(SymmetricAlgorithm Alg,
                                                Span<uint8_t const> Raw);
 
+  static WasiCryptoExpect<SymmetricKey> from(SymmetricAlgorithm Alg,
+                                             std::vector<uint8_t>&& Data);
+
   WasiCryptoExpect<std::vector<uint8_t>> raw() {
     return Inner->locked([](std::unique_ptr<Base> &Data)
                              -> WasiCryptoExpect<std::vector<uint8_t>> {

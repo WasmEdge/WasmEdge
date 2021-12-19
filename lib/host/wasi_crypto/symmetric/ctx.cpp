@@ -235,7 +235,7 @@ WasiCryptoContext::symmetricStateEncrypt(__wasi_symmetric_state_t StateHandle,
 
   return State->inner()->locked(
       [&Out, &Data](auto &Inner) { return Inner->encrypt(Out, Data); });
-  ;
+
 }
 
 WasiCryptoExpect<__wasi_symmetric_key_t>

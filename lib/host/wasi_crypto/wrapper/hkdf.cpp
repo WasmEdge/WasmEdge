@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/wrapper/hkdf.h"
+#include "openssl/err.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-WasiCryptoExpect<HkdfCtx> HkdfCtx::make(SymmetricAlgorithm Alg) {
+WasiCryptoExpect<HkdfCtx> HkdfCtx::import(SymmetricAlgorithm Alg,
+                                          Span<const uint8_t> Key) {
+
   // init ctx
   OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx{
       EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr)};
-  if (Ctx == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
+
   if (EVP_PKEY_derive_init(Ctx.get()) <= 0) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
@@ -40,6 +41,7 @@ WasiCryptoExpect<HkdfCtx> HkdfCtx::make(SymmetricAlgorithm Alg) {
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
   }
+
   if (EVP_PKEY_CTX_set_hkdf_md(Ctx.get(), Md) <= 0) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
@@ -47,27 +49,11 @@ WasiCryptoExpect<HkdfCtx> HkdfCtx::make(SymmetricAlgorithm Alg) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 
-  // init options
-  //  if (OptOptions != nullptr) {
-  //    auto Data = OptOptions->Inner.lock();
-  //    if (auto &Salt = Data->Salt; Salt) {
-  //      if (EVP_PKEY_CTX_set1_hkdf_salt(Ctx.get(), Salt->data(),
-  //      Salt->size())
-  //      <=
-  //          0) {
-  //        return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  //      }
-  //    }
-  //  }
-
-  return HkdfCtx{Alg, std::move(Ctx)};
-}
-
-WasiCryptoExpect<void> HkdfCtx::setKey(Span<uint8_t> Key) {
   if (EVP_PKEY_CTX_set1_hkdf_key(Ctx.get(), Key.data(), Key.size()) <= 0) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
-  return {};
+
+  return HkdfCtx{Alg, std::move(Ctx)};
 }
 
 WasiCryptoExpect<void> HkdfCtx::absorb(Span<const uint8_t> Data) {
@@ -89,7 +75,7 @@ WasiCryptoExpect<void> HkdfCtx::absorb(Span<const uint8_t> Data) {
   }
 }
 
-WasiCryptoExpect<Span<const uint8_t>> HkdfCtx::squeezeKey() {
+WasiCryptoExpect<std::vector<uint8_t>> HkdfCtx::squeezeKey() {
   // check Size
   size_t Size;
   if (EVP_PKEY_derive(Ctx.get(), nullptr, &Size) <= 0) {
@@ -97,41 +83,24 @@ WasiCryptoExpect<Span<const uint8_t>> HkdfCtx::squeezeKey() {
   }
 
   // allocate
-  uint8_t Data[Size];
-  size_t NewSize;
-  if (EVP_PKEY_derive(Ctx.get(), Data, &NewSize) <= 0) {
+  std::vector<uint8_t> Data;
+  Data.reserve(Size);
+  Data.resize(Size);
+
+  if (EVP_PKEY_derive(Ctx.get(), Data.data(), &Size) <= 0) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 
-  // check
-  if (NewSize != Size) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
-
-  Span<uint8_t const> Res{*&Data, NewSize};
-  return Res;
+  return Data;
 }
 
 WasiCryptoExpect<void> HkdfCtx::squeeze(Span<uint8_t> Out) {
-  // check Size
-  size_t Size;
-  //  if (EVP_PKEY_derive(Ctx.get(), nullptr, &Size) <= 0) {
-  //    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  //  }
-  //
-  //  if (Out.size() < Size) {
-  //    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OVERFLOW);
-  //  }
-
+  size_t Size = Out.size();
   if (EVP_PKEY_derive(Ctx.get(), Out.data(), &Size) <= 0) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
   return {};
 }
-
-HkdfCtx::HkdfCtx(SymmetricAlgorithm Alg,
-           OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx)
-    : Alg(Alg), Ctx(std::move(Ctx)) {}
 
 } // namespace WASICrypto
 } // namespace Host

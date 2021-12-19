@@ -16,7 +16,7 @@ public:
 
   Span<const uint8_t> asRef() override { return Raw; }
 
-  SymmetricAlgorithm alg() override { return Alg;}
+  SymmetricAlgorithm alg() override { return Alg; }
 
 private:
   SymmetricAlgorithm Alg;
@@ -45,14 +45,13 @@ public:
 
   inline static constexpr __wasi_size_t TagLen = 16;
 
-  AesGcmSymmetricState(SymmetricAlgorithm Alg, SymmetricOptions Options,
+  AesGcmSymmetricState(SymmetricAlgorithm Alg, SymmetricOptions::Inner Options,
                        AesGcmCtx Ctx)
       : SymmetricState::Base(Alg), Options(Options), Ctx(std::move(Ctx)) {}
 
   /// There are four inputs for authenticated encryption:
   /// @param[in] OptKey The secret key for encrypt
-  /// @param[in] OptOptions `Must` Contain an Nonce(Initialization vector).
-  /// Otherwise, generate an Nonce in runtime
+  /// @param[in] OptOptions `Must` contain an Nonce(Initialization vector).
   static WasiCryptoExpect<std::unique_ptr<AesGcmSymmetricState>>
   import(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
          std::optional<SymmetricOptions> OptOptions);
@@ -68,29 +67,32 @@ public:
   WasiCryptoExpect<__wasi_size_t> maxTagLen() override { return TagLen; }
 
 protected:
-  /// @param[in] Data The plain text.
   /// @param[out] Out The encrypted text and tag.
+  /// @param[in] Data The plain text.
   WasiCryptoExpect<__wasi_size_t>
   encryptUnchecked(Span<uint8_t> Out, Span<const uint8_t> Data) override;
 
-  /// @param[in] Data The plain text.
   /// @param[out] Out The encrypted text.
+  /// @param[in] Data The plain text.
   /// @return Tag.
   WasiCryptoExpect<SymmetricTag>
   encryptDetachedUnchecked(Span<uint8_t> Out,
                            Span<const uint8_t> Data) override;
 
-  /// @param[in] Data The encrypted text and tag.
   /// @param[out] Out The plain text.
+  /// @param[in] Data The encrypted text and tag.
   WasiCryptoExpect<__wasi_size_t>
   decryptUnchecked(Span<uint8_t> Out, Span<const uint8_t> Data) override;
 
+  /// @param[out] Out The plain text.
+  /// @param[in] Data The encrypted text.
+  /// @param[in] RawTag Tag.
   WasiCryptoExpect<__wasi_size_t>
   decryptDetachedUnchecked(Span<uint8_t> Out, Span<const uint8_t> Data,
                            Span<uint8_t const> RawTag) override;
 
 private:
-  SymmetricOptions Options;
+  SymmetricOptions::Inner Options;
   AesGcmCtx Ctx;
 };
 

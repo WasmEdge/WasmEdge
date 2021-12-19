@@ -9,9 +9,6 @@ namespace WASICrypto {
 WasiCryptoExpect<X25519PK> X25519PK::import(Span<const uint8_t> Raw) {
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Pk{EVP_PKEY_new_raw_public_key(
       EVP_PKEY_X25519, nullptr, Raw.data(), Raw.size())};
-  if (Pk == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
   return X25519PK{std::move(Pk)};
 }
 
@@ -30,9 +27,6 @@ WasiCryptoExpect<std::vector<uint8_t>> X25519PK::asRaw() {
 WasiCryptoExpect<X25519SK> X25519SK::import(Span<const uint8_t> Raw) {
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Sk{EVP_PKEY_new_raw_private_key(
       EVP_PKEY_X25519, nullptr, Raw.data(), Raw.size())};
-  if (Sk == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
   return X25519SK{std::move(Sk)};
 }
 
@@ -85,9 +79,7 @@ WasiCryptoExpect<std::vector<uint8_t>> X25519SK::dk(X25519PK &Pk) {
 WasiCryptoExpect<X25519Kp> X25519Kp::make() {
   OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx{
       EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, nullptr)};
-  if (Ctx == nullptr) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
+
   if (1 != EVP_PKEY_keygen_init(Ctx.get())) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }

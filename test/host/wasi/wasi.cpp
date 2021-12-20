@@ -24,24 +24,24 @@ void writeString(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 
 void writeAddrinfo(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
                    __wasi_addrinfo_t *WasiAddrinfo, uint32_t Ptr) {
-  std::memcpy(MemInst.getPointer<__wasi_addrinfo_t *>(
-                  Ptr, sizeof(struct __wasi_addrinfo_t)),
-              WasiAddrinfo, sizeof(struct __wasi_addrinfo_t));
+  std::memcpy(
+      MemInst.getPointer<__wasi_addrinfo_t *>(Ptr, sizeof(__wasi_addrinfo_t)),
+      WasiAddrinfo, sizeof(__wasi_addrinfo_t));
 }
 void allocateAddrinfoArray(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
                            uint32_t Base, uint32_t Length,
                            uint32_t CanonnameMaxSize) {
   for (uint32_t Item = 0; Item < Length; Item++) {
     // allocate addrinfo struct
-    auto *ResItemPtr = MemInst.getPointer<struct __wasi_addrinfo_t *>(
-        Base, sizeof(struct __wasi_addrinfo_t));
-    Base += sizeof(struct __wasi_addrinfo_t);
+    auto *ResItemPtr = MemInst.getPointer<__wasi_addrinfo_t *>(
+        Base, sizeof(__wasi_addrinfo_t));
+    Base += sizeof(__wasi_addrinfo_t);
 
     // allocate sockaddr struct
     ResItemPtr->ai_addr = Base;
-    ResItemPtr->ai_addrlen = sizeof(struct __wasi_sockaddr_t);
-    auto *Sockaddr = MemInst.getPointer<struct __wasi_sockaddr_t *>(
-        ResItemPtr->ai_addr, sizeof(struct __wasi_sockaddr_t));
+    ResItemPtr->ai_addrlen = sizeof(__wasi_sockaddr_t);
+    auto *Sockaddr = MemInst.getPointer<__wasi_sockaddr_t *>(
+        ResItemPtr->ai_addr, sizeof(__wasi_sockaddr_t));
     Base += ResItemPtr->ai_addrlen;
     // allocate sockaddr sa_data.
     Sockaddr->sa_data = Base;
@@ -1069,21 +1069,21 @@ TEST(WasiTest, GetAddrinfo) {
     auto *Res =
         MemInst.getPointer<uint8_t_ptr *>(ResultPtr, sizeof(uint8_t_ptr));
 
-    auto *ResHead = MemInst.getPointer<struct __wasi_addrinfo_t *>(
-        *Res, sizeof(struct __wasi_addrinfo_t));
+    auto *ResHead = MemInst.getPointer<__wasi_addrinfo_t *>(
+        *Res, sizeof(__wasi_addrinfo_t));
     auto *ResItem = ResHead;
     EXPECT_NE(*ResLength, 0);
     for (uint32_t Idx = 0; Idx < *ResLength; Idx++) {
       EXPECT_NE(ResItem->ai_addrlen, 0);
-      auto *TmpSockAddr = MemInst.getPointer<struct __wasi_sockaddr_t *>(
-          ResItem->ai_addr, sizeof(struct __wasi_sockaddr_t));
+      auto *TmpSockAddr = MemInst.getPointer<__wasi_sockaddr_t *>(
+          ResItem->ai_addr, sizeof(__wasi_sockaddr_t));
       EXPECT_EQ(TmpSockAddr->sa_data_len, 14);
       EXPECT_EQ(MemInst.getPointer<char *>(TmpSockAddr->sa_data,
                                            TmpSockAddr->sa_data_len)[0],
                 'i');
       if (Idx != (*ResLength) - 1) {
-        ResItem = MemInst.getPointer<struct __wasi_addrinfo_t *>(
-            ResItem->ai_next, sizeof(struct __wasi_addrinfo_t));
+        ResItem = MemInst.getPointer<__wasi_addrinfo_t *>(
+            ResItem->ai_next, sizeof(__wasi_addrinfo_t));
       }
     }
   }
@@ -1117,8 +1117,8 @@ TEST(WasiTest, GetAddrinfo) {
     auto *Res =
         MemInst.getPointer<uint8_t_ptr *>(ResultPtr, sizeof(uint8_t_ptr));
 
-    auto *ResHead = MemInst.getPointer<struct __wasi_addrinfo_t *>(
-        *Res, sizeof(struct __wasi_addrinfo_t));
+    auto *ResHead = MemInst.getPointer<__wasi_addrinfo_t *>(
+        *Res, sizeof(__wasi_addrinfo_t));
     EXPECT_NE(ResHead->ai_canonname_len, 0);
     EXPECT_STREQ(MemInst.getPointer<const char *>(ResHead->ai_canonname,
                                                   ResHead->ai_canonname_len),

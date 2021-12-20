@@ -1867,11 +1867,11 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
   }
   // service and node can not be nullptr at the same time
   if (Service == nullptr && Node == nullptr) {
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_AINONAME;
   }
 
   if (MaxResLength < 1) {
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_AIMEMORY;
   }
   auto *const Hint = MemInst->getPointer<const __wasi_addrinfo_t *>(
       HintsPtr, sizeof(__wasi_addrinfo_t));

@@ -1026,13 +1026,14 @@ TEST(WasiTest, GetAddrinfo) {
   Env.init({}, "test"s, {}, {});
   // MaxLength == 0;
   {
+    uint32_t TmpResMaxLength = 0;
     EXPECT_TRUE(WasiGetAddrinfo.run(
-        nullptr,
+        &MemInst,
         std::array<WasmEdge::ValVariant, 8>{NodePtr, NodeLen, ServicePtr,
                                             ServiceLen, HintsPtr, ResultPtr,
-                                            (uint32_t)0, ResLengthPtr},
+                                            TmpResMaxLength, ResLengthPtr},
         Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_AIMEMORY);
   }
   // MemInst is nullptr
   {
@@ -1049,12 +1050,12 @@ TEST(WasiTest, GetAddrinfo) {
     uint32_t TmpNodeLen = 0;
     uint32_t TmpServiceLen = 0;
     EXPECT_TRUE(WasiGetAddrinfo.run(
-        nullptr,
+        &MemInst,
         std::array<WasmEdge::ValVariant, 8>{NodePtr, TmpNodeLen, ServicePtr,
                                             TmpServiceLen, HintsPtr, ResultPtr,
                                             MaxLength, ResLengthPtr},
         Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_AINONAME);
   }
   // node is nullptr, service is not nullptr
   {

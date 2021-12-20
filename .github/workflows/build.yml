@@ -91,7 +91,7 @@ jobs:
       run: |
         export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
         cd build
-        ctest --output-on-failure
+        ctest
         cd -
     - name: Test WasmEdge Package
       run: |
@@ -153,7 +153,7 @@ jobs:
       run: |
         export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
         cd build
-        ctest --output-on-failure
+        ctest
         cd -
 
     - name: Build WasmEdge using ${{ matrix.compiler }} with Coverage mode
@@ -252,7 +252,7 @@ jobs:
       run: |
         export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
         cd build
-        ctest --output-on-failure
+        ctest
         cd -
     - name: Test WasmEdge Package
       run: |
@@ -303,7 +303,7 @@ jobs:
         Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
         $Env:PATH += ";$pwd\\build\\lib\\api"
         cd build
-        ctest --output-on-failure
+        ctest
         cd -
     - name: Test WasmEdge Package
       run: |

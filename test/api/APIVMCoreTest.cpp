@@ -173,6 +173,61 @@ TEST_P(CoreTest, TestSuites) {
 
 /// Initiate test suite.
 INSTANTIATE_TEST_SUITE_P(TestUnit, CoreTest, testing::ValuesIn(T.enumerate()));
+
+TEST(AsyncRunWsmFile, InterruptTest) {
+  WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureCompilerSetInterruptible(ConfCxt, true);
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(ConfCxt, nullptr);
+  WasmEdge_ConfigureDelete(ConfCxt);
+
+  std::array<WasmEdge::Byte, 46> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+      0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07,
+      0x0a, 0x01, 0x06, 0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x00, 0x0a,
+      0x09, 0x01, 0x07, 0x00, 0x03, 0x40, 0x0c, 0x00, 0x0b, 0x0b};
+  {
+    WasmEdge_Async *AsyncCxt = WasmEdge_VMAsyncRunWasmFromBuffer(
+        VM, Wasm.data(), Wasm.size(), WasmEdge_StringWrap("_start", 6), nullptr,
+        0);
+    EXPECT_NE(AsyncCxt, nullptr);
+    EXPECT_FALSE(WasmEdge_AsyncWaitFor(AsyncCxt, 1));
+    WasmEdge_AsyncCancel(AsyncCxt);
+    WasmEdge_Result Res = WasmEdge_AsyncGet(AsyncCxt, nullptr, 0);
+    EXPECT_FALSE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ResultGetCode(Res), WasmEdge_ErrCode_Interrupted);
+    WasmEdge_AsyncDelete(AsyncCxt);
+  }
+  WasmEdge_VMDelete(VM);
+}
+
+TEST(AsyncExecute, InterruptTest) {
+  WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureCompilerSetInterruptible(ConfCxt, true);
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(ConfCxt, nullptr);
+  WasmEdge_ConfigureDelete(ConfCxt);
+  std::array<WasmEdge::Byte, 46> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+      0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07,
+      0x0a, 0x01, 0x06, 0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x00, 0x0a,
+      0x09, 0x01, 0x07, 0x00, 0x03, 0x40, 0x0c, 0x00, 0x0b, 0x0b};
+  ASSERT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMLoadWasmFromBuffer(VM, Wasm.data(), Wasm.size())));
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
+  {
+    WasmEdge_Async *AsyncCxt = WasmEdge_VMAsyncExecute(
+        VM, WasmEdge_StringWrap("_start", 6), nullptr, 0);
+    EXPECT_NE(AsyncCxt, nullptr);
+    EXPECT_FALSE(WasmEdge_AsyncWaitFor(AsyncCxt, 1));
+    WasmEdge_AsyncCancel(AsyncCxt);
+    WasmEdge_Result Res = WasmEdge_AsyncGet(AsyncCxt, nullptr, 0);
+    EXPECT_FALSE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ResultGetCode(Res), WasmEdge_ErrCode_Interrupted);
+    WasmEdge_AsyncDelete(AsyncCxt);
+  }
+  WasmEdge_VMDelete(VM);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

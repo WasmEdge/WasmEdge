@@ -12,6 +12,10 @@ Expect<AST::InstrView::iterator>
 Executor::enterFunction(Runtime::StoreManager &StoreMgr,
                         const Runtime::Instance::FunctionInstance &Func,
                         const AST::InstrView::iterator From) {
+  if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
+    spdlog::error(ErrCode::Interrupted);
+    return Unexpect(ErrCode::Interrupted);
+  }
   /// Get function type
   const auto &FuncType = Func.getFuncType();
   const uint32_t ArgsN = static_cast<uint32_t>(FuncType.getParamTypes().size());
@@ -145,6 +149,12 @@ Executor::getBlockArity(Runtime::StoreManager &StoreMgr,
 Expect<void> Executor::branchToLabel(Runtime::StoreManager &StoreMgr,
                                      const uint32_t Cnt,
                                      AST::InstrView::iterator &PC) {
+  /// Check stop token
+  if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
+    spdlog::error(ErrCode::Interrupted);
+    return Unexpect(ErrCode::Interrupted);
+  }
+
   /// Get the L-th label from top of stack and the continuation instruction.
   const auto ContIt = StackMgr.getLabelWithCount(Cnt).Cont;
 

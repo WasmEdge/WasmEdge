@@ -106,21 +106,48 @@ pod "wasi-demo-2" deleted
 
 [A seperate article](../demo/server.md) explains how to compile, package, and publish a simple WebAssembly HTTP service application
 as a container image to Docker hub.
-Run the WebAssembly-based image from Docker Hub in the Kubernetes cluster as follows.
+Since the HTTP service container requires networking support provided by
+Kubernetes, we will use a [k8s-http_server.yaml](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_crio/http_server/k8s-http_server.yaml) file to specify its exact configuration.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: http-server
+  namespace: default
+  annotations:
+    module.wasm.image/variant: compat
+spec:
+  hostNetwork: true
+  containers:
+  - name: http-server
+    image: avengermojo/http_server:with-wasm-annotation
+    command: [ "/http_server.wasm" ]
+    ports:
+    - containerPort: 1234
+      protocol: TCP
+    livenessProbe:
+      tcpSocket:
+        port: 1234
+      initialDelaySeconds: 3
+      periodSeconds: 30
+``` 
+
+Run the WebAssembly-based image from Docker Hub using the above `k8s-http_server.yaml` file in the Kubernetes cluster as follows.
 
 ```bash
-sudo cluster/kubectl.sh run --restart=Never http-server --image=avengermojo/http_server:with-wasm-annotation --annotations="module.wasm.image/variant=compat" --overrides='{"kind":"Pod", "apiVersion":"v1", "spec": {"hostNetwork": true}}'
+sudo ./kubernetes/cluster/kubectl.sh apply -f k8s-http_server.yaml
 ```
 
-Use the following command to see the running applications and their IP addresses.
-Since we are using `hostNetwork` in the `kubectl run` command, the HTTP server 
+Use the following command to see the running container applications and their IP addresses.
+Since we are using `hostNetwork` in the yaml configuration, the HTTP server 
 image is running on the local network with IP address `127.0.0.1`.
 
 ```bash
 sudo cluster/kubectl.sh get pod --all-namespaces -o wide
 
 NAMESPACE     NAME                       READY   STATUS             RESTARTS      AGE   IP          NODE        NOMINATED NODE   READINESS GATES
-default       http-server                0/1     ImagePullBackOff   0             60s   127.0.0.1   127.0.0.1   <none>           <none>
+default       http-server                1/1     Running            1 (26s ago)     60s     127.0.0.1   127.0.0.1   <none>           <none>
 ```
 
 Now, you can use the `curl` command to access the HTTP service.

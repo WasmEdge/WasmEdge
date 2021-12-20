@@ -1,3 +1,4 @@
 # KubeEdge
 
-Coming soon, or you can [help out](https://github.com/WasmEdge/WasmEdge/issues/596)
+Coming soon, checkout our ongoing work [here](https://github.com/yenhsunli/Create-a-crun-demo-for-KubeEdge).
+

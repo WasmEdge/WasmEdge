@@ -50,7 +50,7 @@ The [simple_wasi_application.sh](https://github.com/second-state/wasmedge-contai
 wget -qO- https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/kubernetes_containerd/simple_wasi_application.sh | bash
 ```
 
-You should see results from the WebAssembly program printed in the console log.
+You should see results from the WebAssembly program printed in the console log. [Here is an example](https://github.com/second-state/wasmedge-containers-examples/runs/4577789181?check_suite_focus=true#step:6:3010).
 
 Read on to the rest of this chapter to learn how exactly those runtimes
 are configured.

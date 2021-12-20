@@ -6,7 +6,7 @@ The [GitHub repo](https://github.com/second-state/wasmedge-containers-examples/)
 apps on Kubernetes + CRI-O.
 
 * Simple WebAssembly example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_crio/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-crio.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4328930134?check_suite_focus=true#step:6:3007)
-* WebAssembly-based HTTP service [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_crio/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-crio-server.yml) | [Successful run]()
+* WebAssembly-based HTTP service [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_crio/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-crio-server.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4577789182?check_suite_focus=true#step:6:3030)
 
 In the rest of this section, we will explain the steps in detail.
 We will assume that you have already [installed and configured CRI-O](../cri/crio.md)

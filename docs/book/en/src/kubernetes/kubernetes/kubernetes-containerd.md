@@ -5,8 +5,8 @@
 The [GitHub repo](https://github.com/second-state/wasmedge-containers-examples/) contains scripts and Github Actions for running our example
 apps on Kubernetes + containerd.
 
-* Simple WebAssembly example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_containerd/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-containerd.yml) | [Successful run]()
-* WebAssembly-based HTTP service [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_containerd/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-containerd-server.yml) | [Successful run]()
+* Simple WebAssembly example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_containerd/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-containerd.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4577789181?check_suite_focus=true#step:6:3010)
+* WebAssembly-based HTTP service [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_containerd/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-containerd-server.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4577789184?check_suite_focus=true#step:6:3016)
 
 In the rest of this section, we will explain the steps in detail.
 We will assume that you have already [installed and configured containerd](../cri/containerd.md)

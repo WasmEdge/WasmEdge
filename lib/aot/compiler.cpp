@@ -300,7 +300,9 @@ struct WasmEdge::AOT::Compiler::CompileContext {
             /// CostTable
             llvm::ArrayType::get(Int64Ty, UINT16_MAX + 1)->getPointerTo(),
             /// Gas
-            Int64PtrTy)),
+            Int64PtrTy,
+            /// StopToken
+            llvm::Type::getInt32PtrTy(LLContext))),
         ExecCtxPtrTy(ExecCtxTy->getPointerTo()),
         IntrinsicsTableTy(llvm::ArrayType::get(
             Int8PtrTy, uint32_t(AST::Module::Intrinsics::kIntrinsicMax))),
@@ -385,6 +387,10 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   }
   llvm::Value *getGas(llvm::IRBuilder<> &Builder, llvm::LoadInst *ExecCtx) {
     return Builder.CreateExtractValue(ExecCtx, {4});
+  }
+  llvm::Value *getStopToken(llvm::IRBuilder<> &Builder,
+                            llvm::LoadInst *ExecCtx) {
+    return Builder.CreateExtractValue(ExecCtx, {5});
   }
   llvm::FunctionCallee getIntrinsic(llvm::IRBuilder<> &Builder,
                                     AST::Module::Intrinsics Index,
@@ -519,9 +525,10 @@ class FunctionCompiler {
 
 public:
   FunctionCompiler(AOT::Compiler::CompileContext &Context, llvm::Function *F,
-                   Span<const ValType> Locals, bool InstructionCounting,
-                   bool GasMeasuring, bool OptNone)
-      : Context(Context), LLContext(Context.LLContext), OptNone(OptNone), F(F),
+                   Span<const ValType> Locals, bool Interruptible,
+                   bool InstructionCounting, bool GasMeasuring, bool OptNone)
+      : Context(Context), LLContext(Context.LLContext),
+        Interruptible(Interruptible), OptNone(OptNone), F(F),
         Builder(llvm::BasicBlock::Create(LLContext, "entry", F)) {
     if (F) {
       setIsFPConstrained(Builder);
@@ -614,6 +621,7 @@ public:
         }
         enterBlock(EndBlock, nullptr, nullptr, std::move(Args),
                    std::move(Type));
+        checkStop();
         return;
       }
       case OpCode::Loop: {
@@ -644,6 +652,7 @@ public:
           }
         }
         enterBlock(Loop, EndLoop, nullptr, std::move(Args), std::move(Type));
+        checkStop();
         return;
       }
       case OpCode::If: {
@@ -3713,6 +3722,25 @@ private:
     return Entry;
   }
 
+  void checkStop() {
+    if (!Interruptible) {
+      return;
+    }
+    auto *NotStopBB = llvm::BasicBlock::Create(LLContext, "NotStop", F);
+    auto *StopToken = Builder.CreateAtomicRMW(
+        llvm::AtomicRMWInst::BinOp::Xchg,
+        Context.getStopToken(Builder, ExecCtx), Builder.getInt32(0),
+#if LLVM_VERSION_MAJOR >= 13
+        llvm::MaybeAlign(),
+#endif
+        llvm::AtomicOrdering::Monotonic);
+    auto *NotStop = createLikely(
+        Builder, Builder.CreateICmpEQ(StopToken, Builder.getInt32(0)));
+    Builder.CreateCondBr(NotStop, NotStopBB, getTrapBB(ErrCode::Interrupted));
+
+    Builder.SetInsertPoint(NotStopBB);
+  }
+
   void setUnreachable() { IsUnreachable = true; }
 
   void clearUnreachable() { IsUnreachable = false; }
@@ -3802,6 +3830,7 @@ private:
   llvm::Value *LocalGas = nullptr;
   std::unordered_map<ErrCode, llvm::BasicBlock *> TrapBB;
   bool IsUnreachable = false;
+  bool Interruptible = false;
   bool OptNone = false;
   struct Control {
     size_t StackSize;
@@ -4643,6 +4672,7 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
       }
     }
     FunctionCompiler FC(*Context, F, Locals,
+                        Conf.getCompilerConfigure().isInterruptible(),
                         Conf.getStatisticsConfigure().isInstructionCounting(),
                         Conf.getStatisticsConfigure().isCostMeasuring(),
                         Conf.getCompilerConfigure().getOptimizationLevel() ==

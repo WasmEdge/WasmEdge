@@ -129,6 +129,9 @@ typedef struct WasmEdge_GlobalInstanceContext WasmEdge_GlobalInstanceContext;
 /// Opaque struct of WasmEdge import object.
 typedef struct WasmEdge_ImportObjectContext WasmEdge_ImportObjectContext;
 
+/// Opaque struct of WasmEdge asynchronous result.
+typedef struct WasmEdge_Async WasmEdge_Async;
+
 /// Opaque struct of WasmEdge VM.
 typedef struct WasmEdge_VMContext WasmEdge_VMContext;
 
@@ -607,6 +610,24 @@ WasmEdge_ConfigureCompilerSetGenericBinary(WasmEdge_ConfigureContext *Cxt,
 /// not when compilation in AOT compiler.
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureCompilerIsGenericBinary(const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the interruptible option of AOT compiler.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param IsInterruptible the boolean value to determine to generate
+/// interruptible binary or not when compilation in AOT compiler.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureCompilerSetInterruptible(WasmEdge_ConfigureContext *Cxt,
+                                           const bool IsInterruptible);
+
+/// Get the interruptible option of AOT compiler.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to generate interruptible binary or
+/// not when compilation in AOT compiler.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ConfigureCompilerIsInterruptible(const WasmEdge_ConfigureContext *Cxt);
 
 /// Set the instruction counting option.
 ///
@@ -2500,6 +2521,50 @@ WasmEdge_ImportObjectDelete(WasmEdge_ImportObjectContext *Cxt);
 
 /// >>>>>>>> WasmEdge import object functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+/// >>>>>>>> WasmEdge Async functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Wait a WasmEdge_Async execution.
+///
+/// \param Cxt the WasmEdge_ASync.
+WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncWait(WasmEdge_Async *Cxt);
+/// Wait a WasmEdge_Async execution.
+///
+/// \param Cxt the WasmEdge_ASync.
+/// \param Milliseconds times to wait.
+///
+/// \returns Result of waiting, true for execution ended, false for timeout
+/// occured.
+WASMEDGE_CAPI_EXPORT bool WasmEdge_AsyncWaitFor(WasmEdge_Async *Cxt,
+                                                uint64_t Milliseconds);
+
+/// Cancel a WasmEdge_Async execution.
+///
+/// \param Cxt the WasmEdge_ASync.
+WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncCancel(WasmEdge_Async *Cxt);
+
+/// Wait and get the result of WasmEdge_Async execution. If the `Returns` buffer
+/// length is smaller than the arity of the function, the overflowed return
+/// values will be discarded.
+///
+/// \param Cxt the WasmEdge_ASync.
+/// \param [out] Returns the WasmEdge_Value buffer to fill the return values.
+/// \param ReturnLen the return buffer length.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_AsyncGet(
+    WasmEdge_Async *Cxt, WasmEdge_Value *Returns, const uint32_t ReturnLen);
+
+/// Deletion of the WasmEdge_Async.
+///
+/// After calling this function, the context will be freed and should __NOT__ be
+/// used.
+///
+/// \param Cxt the WasmEdge_ASync to delete.
+WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncDelete(WasmEdge_Async *Cxt);
+
+/// <<<<<<<< WasmEdge Async functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 /// >>>>>>>> WasmEdge VM functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_VMContext.
@@ -2660,6 +2725,84 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromASTModule(
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
     const uint32_t ParamLen, WasmEdge_Value *Returns, const uint32_t ReturnLen);
 
+/// Instantiate the WASM module from a WASM file and asynchronous invoke a
+/// function by name.
+///
+/// This is the function to invoke a WASM function rapidly.
+/// Load and instantiate the WASM module from the file path, and then invoke a
+/// function by name and parameters. If the `Returns` buffer length is smaller
+/// than the arity of the function, the overflowed return values will be
+/// discarded.
+///
+/// The caller owns the object and should call `WasmEdge_AsyncDelete` to free
+/// it.
+///
+/// \param Cxt the WasmEdge_VMContext.
+/// \param Path the NULL-terminated C string of the WASM file path.
+/// \param FuncName the function name WasmEdge_String.
+/// \param Params the WasmEdge_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+///
+/// \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
+/// `WasmEdge_AsyncDelete` to delete this object.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromFile(
+    WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,
+    const WasmEdge_Value *Params, const uint32_t ParamLen);
+
+/// Instantiate the WASM module from a buffer and asynchronous invoke a function
+/// by name.
+///
+/// This is the function to invoke a WASM function rapidly.
+/// Load and instantiate the WASM module from a buffer, and then invoke a
+/// function by name and parameters. If the `Returns` buffer length is smaller
+/// than the arity of the function, the overflowed return values will be
+/// discarded.
+///
+/// The caller owns the object and should call `WasmEdge_AsyncDelete` to free
+/// it.
+///
+/// \param Cxt the WasmEdge_VMContext.
+/// \param Buf the buffer of WASM binary.
+/// \param BufLen the length of the buffer.
+/// \param FuncName the function name WasmEdge_String.
+/// \param Params the WasmEdge_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+///
+/// \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
+/// `WasmEdge_AsyncDelete` to delete this object.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBuffer(
+    WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,
+    const WasmEdge_String FuncName, const WasmEdge_Value *Params,
+    const uint32_t ParamLen);
+
+/// Instantiate the WASM module from a WasmEdge AST Module and asynchronous
+/// invoke a function by name.
+///
+/// This is the function to invoke a WASM function rapidly.
+/// Load and instantiate the WASM module from the WasmEdge AST Module, and then
+/// invoke the function by name and parameters. If the `Returns` buffer length
+/// is smaller than the arity of the function, the overflowed return values will
+/// be discarded.
+///
+/// The caller owns the object and should call `WasmEdge_AsyncDelete` to free
+/// it.
+///
+/// \param Cxt the WasmEdge_VMContext.
+/// \param ASTCxt the WasmEdge AST Module context generated by loader or
+/// compiler.
+/// \param FuncName the function name WasmEdge_String.
+/// \param Params the WasmEdge_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+///
+/// \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
+/// `WasmEdge_AsyncDelete` to delete this object.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *
+WasmEdge_VMAsyncRunWasmFromASTModule(WasmEdge_VMContext *Cxt,
+                                     const WasmEdge_ASTModuleContext *ASTCxt,
+                                     const WasmEdge_String FuncName,
+                                     const WasmEdge_Value *Params,
+                                     const uint32_t ParamLen);
+
 /// Load the WASM module from a WASM file.
 ///
 /// This is the first step to invoke a WASM function step by step.
@@ -2784,6 +2927,46 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMExecuteRegistered(
     WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
     const uint32_t ParamLen, WasmEdge_Value *Returns, const uint32_t ReturnLen);
+
+/// Asynchronous invoke a WASM function by name.
+///
+/// This is the final step to invoke a WASM function step by step.
+/// After instantiating a WASM module in the VM context, the WASM module is
+/// registered into the store in the VM context as an anonymous module. Then you
+/// can repeatedly call this function to invoke the exported WASM functions by
+/// their names until the VM context is reset or a new WASM module is registered
+/// or loaded. For calling the functions in registered WASM modules with module
+/// names, please use `WasmEdge_VMAsyncExecuteRegistered` instead.
+///
+/// \param Cxt the WasmEdge_VMContext.
+/// \param FuncName the function name WasmEdge_String.
+/// \param Params the WasmEdge_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+///
+/// \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
+/// `WasmEdge_AsyncDelete` to delete this object.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *
+WasmEdge_VMAsyncExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
+                        const WasmEdge_Value *Params, const uint32_t ParamLen);
+
+/// Asynchronous invoke a WASM function by its module name and function name.
+///
+/// After registering a WASM module in the VM context, you can repeatedly call
+/// this function to invoke exported WASM functions by their module names and
+/// function names until the VM context is reset.
+///
+/// \param Cxt the WasmEdge_VMContext.
+/// \param ModuleName the module name WasmEdge_String.
+/// \param FuncName the function name WasmEdge_String.
+/// \param Params the WasmEdge_Value buffer with the parameter values.
+/// \param ParamLen the parameter buffer length.
+///
+/// \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
+/// `WasmEdge_AsyncDelete` to delete this object.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncExecuteRegistered(
+    WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_String FuncName, const WasmEdge_Value *Params,
+    const uint32_t ParamLen);
 
 /// Get the function type by function name.
 ///

@@ -54,6 +54,7 @@ enum class ErrCode : uint8_t {
   WrongVMWorkflow = 0x04,   /// Wrong VM's workflow
   FuncNotFound = 0x05,      /// Wasm function not found
   AOTDisabled = 0x06,       /// AOT runtime is disabled
+  Interrupted = 0x07,       /// Execution interrupted
 
   /// Load phase
   IllegalPath = 0x20,           /// File not found
@@ -140,6 +141,7 @@ static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::WrongVMWorkflow, "wrong VM workflow"},
     {ErrCode::FuncNotFound, "wasm function not found"},
     {ErrCode::AOTDisabled, "AOT runtime is disabled in this build"},
+    {ErrCode::Interrupted, "execution interrupted"},
     /// Load phase
     {ErrCode::IllegalPath, "invalid path"},
     {ErrCode::ReadError, "read error"},
@@ -225,6 +227,7 @@ enum WasmEdge_ErrCode {
   WasmEdge_ErrCode_WrongVMWorkflow = 0x04,
   WasmEdge_ErrCode_FuncNotFound = 0x05,
   WasmEdge_ErrCode_AOTDisabled = 0x06,
+  WasmEdge_ErrCode_Interrupted = 0x07,
 
   /// Load phase
   WasmEdge_ErrCode_InvalidPath = 0x20,

@@ -63,6 +63,11 @@ int main(int Argc, const char *Argv[]) {
   PO::Option<PO::Toggle> ConfEnableAllStatistics(PO::Description(
       "Enable generating code for all statistics options include instruction counting, gas measuring, and execution time"sv));
 
+  PO::Option<uint64_t> TimeLim(
+      PO::Description(
+          "Limitation of maximum time(in milliseconds) for execution, default value is 0 for no limitations"sv),
+      PO::MetaVar("TIMEOUT"sv), PO::DefaultValue<uint64_t>(0));
+
   PO::List<int> MemLim(
       PO::Description(
           "Limitation of pages(as size of 64 KiB) in every memory instance. Upper bound can be specified as --memory-page-limit `PAGE_COUNT`."sv),
@@ -94,6 +99,7 @@ int main(int Argc, const char *Argv[]) {
            .add_option("disable-reference-types"sv, PropRefTypes)
            .add_option("disable-simd"sv, PropSIMD)
            .add_option("enable-all"sv, PropAll)
+           .add_option("time-limit"sv, TimeLim)
            .add_option("memory-page-limit"sv, MemLim)
            .add_option("allow-command"sv, AllowCmd)
            .add_option("allow-command-all"sv, AllowCmdAll)
@@ -130,6 +136,11 @@ int main(int Argc, const char *Argv[]) {
   /// Left for the future proposals.
   /// if (PropAll.value()) {
   /// }
+  std::optional<std::chrono::system_clock::time_point> Timeout;
+  if (TimeLim.value() > 0) {
+    Timeout = std::chrono::system_clock::now() +
+              std::chrono::milliseconds(TimeLim.value());
+  }
   if (MemLim.value().size() > 0) {
     Conf.getRuntimeConfigure().setMaxMemoryPage(
         static_cast<uint32_t>(MemLim.value().back()));
@@ -178,7 +189,13 @@ int main(int Argc, const char *Argv[]) {
 
   if (!Reactor.value()) {
     // command mode
-    if (auto Result = VM.runWasmFile(InputPath.u8string(), "_start");
+    auto AsyncResult = VM.asyncRunWasmFile(InputPath.u8string(), "_start");
+    if (Timeout.has_value()) {
+      if (!AsyncResult.waitUntil(*Timeout)) {
+        AsyncResult.cancel();
+      }
+    }
+    if (auto Result = AsyncResult.get();
         Result || Result.error() == WasmEdge::ErrCode::Terminated) {
       return static_cast<int>(WasiMod->getEnv().getExitCode());
     } else {
@@ -217,7 +234,13 @@ int main(int Argc, const char *Argv[]) {
     }
 
     if (HasInit) {
-      if (auto Result = VM.execute(InitFunc); !Result) {
+      auto AsyncResult = VM.asyncExecute(InitFunc);
+      if (Timeout.has_value()) {
+        if (!AsyncResult.waitUntil(*Timeout)) {
+          AsyncResult.cancel();
+        }
+      }
+      if (auto Result = AsyncResult.get(); WasmEdge::unlikely(!Result)) {
         return EXIT_FAILURE;
       }
     }
@@ -269,7 +292,13 @@ int main(int Argc, const char *Argv[]) {
       }
     }
 
-    if (auto Result = VM.execute(FuncName, FuncArgs, FuncArgTypes)) {
+    auto AsyncResult = VM.asyncExecute(FuncName, FuncArgs, FuncArgTypes);
+    if (Timeout.has_value()) {
+      if (!AsyncResult.waitUntil(*Timeout)) {
+        AsyncResult.cancel();
+      }
+    }
+    if (auto Result = AsyncResult.get()) {
       /// Print results.
       for (size_t I = 0; I < Result->size(); ++I) {
         switch ((*Result)[I].second) {

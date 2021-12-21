@@ -4,6 +4,7 @@
 #include "common/span.h"
 #include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/key_exchange/alg.h"
+#include "host/wasi_crypto/key_exchange/options.h"
 #include "host/wasi_crypto/lock.h"
 
 #include <memory>
@@ -27,7 +28,7 @@ public:
 
     virtual WasiCryptoExpect<__wasi_size_t> len() = 0;
 
-    virtual WasiCryptoExpect<std::vector<uint8_t>> asRaw() = 0;
+    virtual WasiCryptoExpect<std::vector<uint8_t>> asRef() = 0;
 
     virtual WasiCryptoExpect<void> verify() {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
@@ -47,16 +48,23 @@ public:
   public:
     virtual ~Builder() = default;
 
-    virtual WasiCryptoExpect<KxPublicKey> fromRaw(Span<uint8_t const> Raw) = 0;
+    virtual WasiCryptoExpect<KxPublicKey>
+    import(Span<uint8_t const> Raw, __wasi_publickey_encoding_e_t Encoding) = 0;
   };
 
   KxPublicKey(std::unique_ptr<Base> Inner)
       : Inner(
             std::make_shared<Mutex<std::unique_ptr<Base>>>(std::move(Inner))) {}
 
+  static WasiCryptoExpect<KxPublicKey> import(KxAlgorithm Alg,
+                                              Span<uint8_t const> Raw,
+                                              __wasi_publickey_encoding_e_t Encoding);
+
   auto &inner() { return Inner; }
 
 private:
+  static WasiCryptoExpect<std::unique_ptr<Builder>> builder(KxAlgorithm Alg);
+
   std::shared_ptr<Mutex<std::unique_ptr<Base>>> Inner;
 };
 

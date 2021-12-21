@@ -1,14 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-#pragma once
+
+#include "host/wasi_crypto/wrapper/charcha_poly.h"
 
 namespace WasmEdge {
 namespace Host {
-namespace WASICrypto {
-
-class ChaChaPolyCtx {
-
-};
-
-} // namespace WASICrypto
+namespace WASICrypto {} // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

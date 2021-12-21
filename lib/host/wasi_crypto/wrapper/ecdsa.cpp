@@ -5,6 +5,7 @@
 #include "openssl/ec.h"
 #include "openssl/encoder.h"
 #include "openssl/evp.h"
+#include "openssl/pem.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -115,11 +116,9 @@ EcdsaPkCtx::exportData(__wasi_publickey_encoding_e_t Encoding) {
 
 WasiCryptoExpect<EcdsaVerificationCtx> EcdsaPkCtx::asVerification() {
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> SignCtx{EVP_MD_CTX_create()};
-
-  if (1 != EVP_DigestVerifyInit(SignCtx.get(), nullptr, EVP_sha256(), nullptr,
-                                Pk.get())) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
+  assuming(SignCtx);
+  assuming(EVP_DigestVerifyInit(SignCtx.get(), nullptr, EVP_sha256(), nullptr,
+                                Pk.get()));
 
   return EcdsaVerificationCtx{std::move(SignCtx)};
 }
@@ -206,7 +205,7 @@ EcdsaSkCtx::exportData(__wasi_secretkey_encoding_e_t Encoding) {
     break;
   }
   default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
+    __builtin_unreachable();
   }
 
   OpenSSLUniquePtr<OSSL_ENCODER_CTX, OSSL_ENCODER_CTX_free> EncoderCtx{
@@ -274,12 +273,11 @@ EcdsaKpCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
 
 WasiCryptoExpect<EcdsaSignStateCtx> EcdsaKpCtx::asSignState() {
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> SignCtx{EVP_MD_CTX_create()};
+  assuming(SignCtx);
 
   // TODO:It pass a keypair but need a private key. Later to check
-  if (1 != EVP_DigestSignInit(SignCtx.get(), nullptr, EVP_sha256(), nullptr,
-                              Kp.get())) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
+  assuming(EVP_DigestSignInit(SignCtx.get(), nullptr, EVP_sha256(), nullptr,
+                              Kp.get()));
 
   return EcdsaSignStateCtx{std::move(SignCtx)};
 }
@@ -392,41 +390,31 @@ EcdsaSignCtx::exportData(__wasi_signature_encoding_e_t Encoding) {
 }
 
 WasiCryptoExpect<void> EcdsaSignStateCtx::update(Span<const uint8_t> Data) {
-  if (1 != EVP_DigestSignUpdate(MdCtx.get(), Data.data(), Data.size())) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
+  assuming(EVP_DigestSignUpdate(MdCtx.get(), Data.data(), Data.size()));
 
   return {};
 }
 
 WasiCryptoExpect<EcdsaSignCtx> EcdsaSignStateCtx::sign() {
   size_t Size;
-  if (1 != EVP_DigestSignFinal(MdCtx.get(), nullptr, &Size)) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
+  assuming(EVP_DigestSignFinal(MdCtx.get(), nullptr, &Size));
 
   std::vector<uint8_t> Res;
   Res.reserve(Size);
   Res.resize(Size);
 
-  if (1 != EVP_DigestSignFinal(MdCtx.get(), Res.data(), &Size)) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
+  assuming(EVP_DigestSignFinal(MdCtx.get(), Res.data(), &Size));
 
   return Res;
 }
 
 WasiCryptoExpect<void> EcdsaVerificationCtx::update(Span<const uint8_t> Data) {
-  if (1 != EVP_DigestVerifyUpdate(MdCtx.get(), Data.data(), Data.size())) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
+  assuming(EVP_DigestVerifyUpdate(MdCtx.get(), Data.data(), Data.size()));
   return {};
 }
 
 WasiCryptoExpect<void> EcdsaVerificationCtx::verify(Span<const uint8_t> Data) {
-  if (1 != EVP_DigestVerifyFinal(MdCtx.get(), Data.data(), Data.size())) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
+  assuming(EVP_DigestVerifyFinal(MdCtx.get(), Data.data(), Data.size()));
 
   return {};
 }

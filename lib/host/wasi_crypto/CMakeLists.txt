@@ -51,6 +51,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   wrapper/ecdsa.cpp
   wrapper/eddsa.cpp
   wrapper/rsa.cpp
+  wrapper/chacha_poly.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

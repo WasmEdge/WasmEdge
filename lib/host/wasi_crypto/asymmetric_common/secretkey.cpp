@@ -38,7 +38,7 @@ SecretKey::import(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
     return SecretKey{*Res};
   }
   default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
 }
 

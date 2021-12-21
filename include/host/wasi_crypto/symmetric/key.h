@@ -22,6 +22,15 @@ public:
     virtual Span<const uint8_t> asRef() = 0;
 
     virtual SymmetricAlgorithm alg() = 0;
+
+    template <typename T,
+              std::enable_if_t<std::is_base_of_v<Base, T>, bool> = true>
+    WasiCryptoExpect<void> isType() {
+      if (dynamic_cast<T *>(this) == nullptr) {
+        return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
+      }
+      return {};
+    };
   };
 
   class Builder {
@@ -47,7 +56,7 @@ public:
                                                Span<uint8_t const> Raw);
 
   static WasiCryptoExpect<SymmetricKey> from(SymmetricAlgorithm Alg,
-                                             std::vector<uint8_t>&& Data);
+                                             std::vector<uint8_t> &&Data);
 
   WasiCryptoExpect<std::vector<uint8_t>> raw() {
     return Inner->locked([](std::unique_ptr<Base> &Data)

@@ -14,7 +14,7 @@ WasiCryptoExpect<std::vector<uint8_t>> KxKeyPair::Base::asRaw() {
   }
 
   auto PkRaw =
-      Pk->inner()->locked([](auto &PkInner) { return PkInner->asRaw(); });
+      Pk->inner()->locked([](auto &PkInner) { return PkInner->asRef(); });
   if (!PkRaw) {
     return WasiCryptoUnexpect(PkRaw);
   }
@@ -25,7 +25,7 @@ WasiCryptoExpect<std::vector<uint8_t>> KxKeyPair::Base::asRaw() {
   }
 
   auto SkRaw =
-      Sk->inner()->locked([](auto &SkInner) { return SkInner->asRaw(); });
+      Sk->inner()->locked([](auto &SkInner) { return SkInner->asRef(); });
   if (!SkRaw) {
     return WasiCryptoUnexpect(SkRaw);
   }
@@ -51,6 +51,27 @@ KxKeyPair::Base::exportData(__wasi_keypair_encoding_e_t Encoding) {
   }
 }
 
+WasiCryptoExpect<KxKeyPair>
+KxKeyPair::generate(KxAlgorithm Alg, std::optional<KxOptions> Options) {
+  auto Builder = builder(Alg);
+  if (!Builder) {
+    return WasiCryptoUnexpect(Builder);
+  }
+
+  return (*Builder)->generate(Options);
+}
+
+WasiCryptoExpect<KxKeyPair>
+KxKeyPair::import(KxAlgorithm Alg, Span<uint8_t const> Raw,
+                  __wasi_keypair_encoding_e_t Encoding) {
+  auto Builder = builder(Alg);
+  if (!Builder) {
+    return WasiCryptoUnexpect(Builder);
+  }
+
+  return (*Builder)->import(Raw, Encoding);
+}
+
 WasiCryptoExpect<std::unique_ptr<KxKeyPair::Builder>>
 KxKeyPair::builder(KxAlgorithm Alg) {
   switch (Alg) {
@@ -63,15 +84,6 @@ KxKeyPair::builder(KxAlgorithm Alg) {
   }
 }
 
-WasiCryptoExpect<KxKeyPair>
-KxKeyPair::generate(KxAlgorithm Alg, std::optional<KxOptions> Options) {
-  auto Builder = builder(Alg);
-  if (!Builder) {
-    return WasiCryptoUnexpect(Builder);
-  }
-
-  return (*Builder)->generate(Options);
-}
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

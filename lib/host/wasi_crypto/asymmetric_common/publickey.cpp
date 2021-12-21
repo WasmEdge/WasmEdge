@@ -2,6 +2,7 @@
 
 #include "host/wasi_crypto/asymmetric_common/publickey.h"
 #include "host/wasi_crypto/signature/alg.h"
+#include "host/wasi_crypto/key_exchange/publickey.h"
 
 namespace WasmEdge {
 namespace Host {

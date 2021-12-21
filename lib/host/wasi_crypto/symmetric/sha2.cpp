@@ -14,7 +14,7 @@ Sha2SymmetricState::import(SymmetricAlgorithm Alg,
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
   }
 
-  auto Res = Sha2Ctx::make(Alg);
+  auto Res = Sha2Ctx::import(Alg);
   if (!Res) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }

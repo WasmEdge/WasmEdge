@@ -3,6 +3,7 @@
 
 #include "common/span.h"
 #include "host/wasi_crypto/error.h"
+#include "host/wasi_crypto/key_exchange/alg.h"
 #include "host/wasi_crypto/wrapper/openssl.h"
 #include "openssl/evp.h"
 
@@ -10,49 +11,55 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class X25519PK {
+class X25519PKCtx {
 public:
-  static WasiCryptoExpect<X25519PK> import(Span<uint8_t const> Raw);
+  X25519PKCtx(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx)
+      : Pk(std::move(Ctx)) {}
+  static WasiCryptoExpect<X25519PKCtx> import(Span<uint8_t const> Raw);
 
   WasiCryptoExpect<std::vector<uint8_t>> asRaw();
 
   inline static __wasi_size_t Len = 32;
 
 private:
-  friend class X25519SK;
-  X25519PK(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx)
-      : Pk(std::move(Ctx)) {}
+  friend class X25519SKCtx;
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Pk;
 };
 
-class X25519SK {
+class X25519SKCtx {
 public:
-  static WasiCryptoExpect<X25519SK> import(Span<uint8_t const> Raw);
+  X25519SKCtx(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx)
+      : Sk(std::move(Ctx)) {}
+
+  static WasiCryptoExpect<X25519SKCtx> import(Span<uint8_t const> Raw);
 
   WasiCryptoExpect<std::vector<uint8_t>> asRaw();
 
-  WasiCryptoExpect<X25519PK> producePublicKey();
+  WasiCryptoExpect<X25519PKCtx> producePublicKey();
 
-  WasiCryptoExpect<std::vector<uint8_t>> dk(X25519PK &Pk);
+  WasiCryptoExpect<std::vector<uint8_t>> dh(X25519PKCtx &Pk);
 
   inline static __wasi_size_t Len = 32;
 
 private:
-  X25519SK(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx)
-      : Sk(std::move(Ctx)) {}
-
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Sk;
 };
 
-class X25519Kp {
+class X25519KpCtx {
 public:
-  static WasiCryptoExpect<X25519Kp> make();
-
-private:
-  X25519Kp(OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx)
+  X25519KpCtx(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx)
       : Ctx(std::move(Ctx)) {}
 
-  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx;
+  WasiCryptoExpect<X25519PKCtx> publicKey();
+
+  WasiCryptoExpect<X25519SKCtx> secretKey();
+
+  static WasiCryptoExpect<X25519KpCtx> generate(KxAlgorithm Alg);
+
+  static WasiCryptoExpect<X25519KpCtx> import();
+
+private:
+  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx;
 };
 } // namespace WASICrypto
 } // namespace Host

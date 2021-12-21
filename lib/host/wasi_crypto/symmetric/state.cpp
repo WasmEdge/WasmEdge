@@ -167,7 +167,8 @@ SymmetricState::import(SymmetricAlgorithm Alg,
     }
   case SymmetricAlgorithm::Aes128Gcm:
   case SymmetricAlgorithm::Aes256Gcm:
-    if (auto Res = AesGcmSymmetricState::import(Alg, OptKey, OptOptions); !Res) {
+    if (auto Res = AesGcmSymmetricState::import(Alg, OptKey, OptOptions);
+        !Res) {
       return WasiCryptoUnexpect(Res);
     } else {
       return SymmetricState{std::move(*Res)};
@@ -189,7 +190,7 @@ SymmetricState::import(SymmetricAlgorithm Alg,
       return SymmetricState{std::move(*Res)};
     }
   default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
+    __builtin_unreachable();
   }
 }
 

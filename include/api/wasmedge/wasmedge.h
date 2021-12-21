@@ -1200,12 +1200,17 @@ WasmEdge_ExportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
 WASMEDGE_CAPI_EXPORT extern WasmEdge_CompilerContext *
 WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt);
 
-/// Creation of the WasmEdge_CompilerContext.
+/// Compile the input WASM from the file path.
 ///
-/// The caller owns the object and should call `WasmEdge_CompilerDelete` to free
-/// it.
+/// The compiler compiles the WASM from file path for the ahead-of-time mode and
+/// store the result to the output file path.
 ///
-/// \returns pointer to context, NULL if failed.
+/// \param Cxt the WasmEdge_CompilerContext.
+/// \param InPath the input WASM file path.
+/// \param OutPath the output WASM file path.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt, const char *InPath,
                          const char *OutPath);

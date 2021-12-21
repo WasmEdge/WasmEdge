@@ -793,56 +793,55 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
     /// SIMD Lane Instructions
     case OpCode::I8x16__extract_lane_s:
       return runExtractLaneOp<int8_t, int32_t>(StackMgr.getTop(),
-                                               Instr.getTargetIndex());
+                                               Instr.getMemoryLane());
     case OpCode::I8x16__extract_lane_u:
       return runExtractLaneOp<uint8_t, uint32_t>(StackMgr.getTop(),
-                                                 Instr.getTargetIndex());
+                                                 Instr.getMemoryLane());
     case OpCode::I16x8__extract_lane_s:
       return runExtractLaneOp<int16_t, int32_t>(StackMgr.getTop(),
-                                                Instr.getTargetIndex());
+                                                Instr.getMemoryLane());
     case OpCode::I16x8__extract_lane_u:
       return runExtractLaneOp<uint16_t, uint32_t>(StackMgr.getTop(),
-                                                  Instr.getTargetIndex());
+                                                  Instr.getMemoryLane());
     case OpCode::I32x4__extract_lane:
       return runExtractLaneOp<uint32_t>(StackMgr.getTop(),
-                                        Instr.getTargetIndex());
+                                        Instr.getMemoryLane());
     case OpCode::I64x2__extract_lane:
       return runExtractLaneOp<uint64_t>(StackMgr.getTop(),
-                                        Instr.getTargetIndex());
+                                        Instr.getMemoryLane());
     case OpCode::F32x4__extract_lane:
-      return runExtractLaneOp<float>(StackMgr.getTop(), Instr.getTargetIndex());
+      return runExtractLaneOp<float>(StackMgr.getTop(), Instr.getMemoryLane());
     case OpCode::F64x2__extract_lane:
-      return runExtractLaneOp<double>(StackMgr.getTop(),
-                                      Instr.getTargetIndex());
+      return runExtractLaneOp<double>(StackMgr.getTop(), Instr.getMemoryLane());
     case OpCode::I8x16__replace_lane: {
       ValVariant Rhs = StackMgr.pop();
       return runReplaceLaneOp<uint32_t, uint8_t>(StackMgr.getTop(), Rhs,
-                                                 Instr.getTargetIndex());
+                                                 Instr.getMemoryLane());
     }
     case OpCode::I16x8__replace_lane: {
       ValVariant Rhs = StackMgr.pop();
       return runReplaceLaneOp<uint32_t, uint16_t>(StackMgr.getTop(), Rhs,
-                                                  Instr.getTargetIndex());
+                                                  Instr.getMemoryLane());
     }
     case OpCode::I32x4__replace_lane: {
       ValVariant Rhs = StackMgr.pop();
       return runReplaceLaneOp<uint32_t>(StackMgr.getTop(), Rhs,
-                                        Instr.getTargetIndex());
+                                        Instr.getMemoryLane());
     }
     case OpCode::I64x2__replace_lane: {
       ValVariant Rhs = StackMgr.pop();
       return runReplaceLaneOp<uint64_t>(StackMgr.getTop(), Rhs,
-                                        Instr.getTargetIndex());
+                                        Instr.getMemoryLane());
     }
     case OpCode::F32x4__replace_lane: {
       ValVariant Rhs = StackMgr.pop();
       return runReplaceLaneOp<float>(StackMgr.getTop(), Rhs,
-                                     Instr.getTargetIndex());
+                                     Instr.getMemoryLane());
     }
     case OpCode::F64x2__replace_lane: {
       ValVariant Rhs = StackMgr.pop();
       return runReplaceLaneOp<double>(StackMgr.getTop(), Rhs,
-                                      Instr.getTargetIndex());
+                                      Instr.getMemoryLane());
     }
 
       /// SIMD Numeric Instructions

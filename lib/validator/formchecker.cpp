@@ -265,7 +265,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   auto checkLaneAndTrans = [this,
                             &Instr](uint32_t N, Span<const VType> Take,
                                     Span<const VType> Put) -> Expect<void> {
-    if (Instr.getTargetIndex() >= N) {
+    if (Instr.getMemoryLane() >= N) {
       spdlog::error(ErrCode::InvalidLaneIdx);
       return Unexpect(ErrCode::InvalidLaneIdx);
     }
@@ -292,7 +292,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(ErrCode::InvalidAlignment);
     }
     const uint32_t I = 128 / N;
-    if (Instr.getTargetIndex() >= I) {
+    if (Instr.getMemoryLane() >= I) {
       spdlog::error(ErrCode::InvalidLaneIdx);
       return Unexpect(ErrCode::InvalidLaneIdx);
     }

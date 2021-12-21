@@ -391,10 +391,10 @@ private:
                               const AST::Instruction &Instr);
   /// ======= SIMD Lane instructions =======
   template <typename TIn, typename TOut = TIn>
-  Expect<void> runExtractLaneOp(ValVariant &Val, const uint32_t Index) const;
+  Expect<void> runExtractLaneOp(ValVariant &Val, const uint8_t Index) const;
   template <typename TIn, typename TOut = TIn>
   Expect<void> runReplaceLaneOp(ValVariant &Val1, const ValVariant &Val2,
-                                const uint32_t Index) const;
+                                const uint8_t Index) const;
   /// ======= SIMD Numeric instructions =======
   template <typename TIn, typename TOut = TIn>
   Expect<void> runSplatOp(ValVariant &Val) const;

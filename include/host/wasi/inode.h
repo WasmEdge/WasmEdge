@@ -480,6 +480,14 @@ public:
   /// @return Poll helper or WASI error
   static WasiExpect<Poller> pollOneoff(__wasi_size_t NSubscriptions) noexcept;
 
+  static WasiExpect<void>
+  getAddrinfo(const char *NodeStr, const char *ServiceStr,
+              const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
+              Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
+              Span<__wasi_sockaddr_t *> WasiSockaddrArray,
+              Span<char *> AiAddrSaDataArray, Span<char *> AiCanonnameArray,
+              /*Out*/ __wasi_size_t &ResLength) noexcept;
+
   static WasiExpect<INode> sockOpen(__wasi_address_family_t SysDomain,
                                     __wasi_sock_type_t SockType) noexcept;
 

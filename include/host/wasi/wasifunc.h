@@ -446,5 +446,15 @@ public:
                         uint32_t SdFlags);
 };
 
+class WasiGetAddrinfo : public Wasi<WasiGetAddrinfo> {
+public:
+  WasiGetAddrinfo(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+                        uint32_t NodePtr, uint32_t NodeLen, uint32_t ServicePtr,
+                        uint32_t ServiceLen, uint32_t HintsPtr, uint32_t ResPtr,
+                        uint32_t MaxResLength, uint32_t ResLengthPtr);
+};
+
 } // namespace Host
 } // namespace WasmEdge

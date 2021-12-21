@@ -24,6 +24,7 @@
 
 // socket include
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 
@@ -198,6 +199,35 @@ inline constexpr __wasi_errno_t fromErrNo(int ErrNo) noexcept {
     return __WASI_ERRNO_TXTBSY;
   case EXDEV:
     return __WASI_ERRNO_XDEV;
+  default:
+    __builtin_unreachable();
+  }
+}
+
+inline constexpr __wasi_errno_t fromEAIErrNo(int ErrNo) noexcept {
+  switch (ErrNo) {
+  case EAI_ADDRFAMILY:
+    return __WASI_ERRNO_AIADDRFAMILY;
+  case EAI_AGAIN:
+    return __WASI_ERRNO_AIAGAIN;
+  case EAI_BADFLAGS:
+    return __WASI_ERRNO_AIBADFLAG;
+  case EAI_FAIL:
+    return __WASI_ERRNO_AIFAIL;
+  case EAI_FAMILY:
+    return __WASI_ERRNO_AIFAMILY;
+  case EAI_MEMORY:
+    return __WASI_ERRNO_AIMEMORY;
+  case EAI_NODATA:
+    return __WASI_ERRNO_AINODATA;
+  case EAI_NONAME:
+    return __WASI_ERRNO_AINONAME;
+  case EAI_SERVICE:
+    return __WASI_ERRNO_AISERVICE;
+  case EAI_SOCKTYPE:
+    return __WASI_ERRNO_AISOCKTYPE;
+  case EAI_SYSTEM:
+    return __WASI_ERRNO_AISYSTEM;
   default:
     __builtin_unreachable();
   }

@@ -27,6 +27,16 @@ inline constexpr bool isSpecialFd(int Fd) noexcept {
   }
 }
 
+inline constexpr __wasi_size_t
+calculateAddrinfoLinkedListSize(struct addrinfo *const Addrinfo) {
+  __wasi_size_t Length = 0;
+  for (struct addrinfo *TmpPointer = Addrinfo; TmpPointer != nullptr;
+       TmpPointer = TmpPointer->ai_next) {
+    Length++;
+  }
+  return Length;
+};
+
 constexpr int openFlags(__wasi_oflags_t OpenFlags, __wasi_fdflags_t FdFlags,
                         uint8_t VFSFlags) noexcept {
   int Flags = O_NOFOLLOW;
@@ -750,6 +760,85 @@ WasiExpect<Poller> INode::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
   } catch (std::bad_alloc &) {
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }
+}
+
+WasiExpect<void> INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
+                                    const __wasi_addrinfo_t &Hint,
+                                    uint32_t MaxResLength,
+                                    Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
+                                    Span<__wasi_sockaddr_t *> WasiSockaddrArray,
+                                    Span<char *> AiAddrSaDataArray,
+                                    Span<char *> AiCanonnameArray,
+                                    /*Out*/ __wasi_size_t &ResLength) noexcept {
+  struct addrinfo SysHint;
+  SysHint.ai_flags = Hint.ai_flags;
+  SysHint.ai_family = Hint.ai_family;
+  SysHint.ai_socktype = Hint.ai_socktype;
+  SysHint.ai_protocol = Hint.ai_protocol;
+  SysHint.ai_addrlen = Hint.ai_addrlen;
+  SysHint.ai_addr = nullptr;
+  SysHint.ai_canonname = nullptr;
+  SysHint.ai_next = nullptr;
+
+  struct addrinfo *SysResPtr = nullptr;
+  if (auto Res = ::getaddrinfo(NodeStr, ServiceStr, &SysHint, &SysResPtr);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromEAIErrNo(Res));
+  }
+  // calculate ResLength
+  if (ResLength = calculateAddrinfoLinkedListSize(SysResPtr);
+      ResLength > MaxResLength) {
+    ResLength = MaxResLength;
+  }
+
+  struct addrinfo *SysResItem = SysResPtr;
+  for (uint32_t Idx = 0; Idx < ResLength; Idx++) {
+    auto &CurAddrinfo = WasiAddrinfoArray[Idx];
+    CurAddrinfo->ai_flags = static_cast<__wasi_aiflags_t>(SysResItem->ai_flags);
+    CurAddrinfo->ai_socktype =
+        static_cast<__wasi_sock_type_t>(SysResItem->ai_socktype);
+    CurAddrinfo->ai_protocol =
+        static_cast<__wasi_protocol_t>(SysResItem->ai_protocol);
+    CurAddrinfo->ai_family =
+        static_cast<__wasi_address_family_t>(SysResItem->ai_family);
+    CurAddrinfo->ai_addrlen = SysResItem->ai_addrlen;
+
+    // process ai_canonname in addrinfo
+    if (SysResItem->ai_canonname != nullptr) {
+      CurAddrinfo->ai_canonname_len = std::strlen(SysResItem->ai_canonname);
+      auto &CurAiCanonname = AiCanonnameArray[Idx];
+      std::memcpy(CurAiCanonname, SysResItem->ai_canonname,
+                  CurAddrinfo->ai_canonname_len + 1);
+    } else {
+      CurAddrinfo->ai_canonname_len = 0;
+    }
+
+    // process socket address
+    if (SysResItem->ai_addrlen > 0) {
+      auto &CurSockaddr = WasiSockaddrArray[Idx];
+      switch (SysResItem->ai_addr->sa_family) {
+      case AF_INET:
+        CurSockaddr->sa_family = __WASI_ADDRESS_FAMILY_INET4;
+        break;
+      case AF_INET6:
+        CurSockaddr->sa_family = __WASI_ADDRESS_FAMILY_INET6;
+        break;
+      }
+      CurSockaddr->sa_data_len = 0;
+
+      // process sa_data in socket address
+      if (SysResItem->ai_addr->sa_data[0] != '\0') {
+        std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data,
+                    WASI::kSaDataLen);
+        CurSockaddr->sa_data_len = WASI::kSaDataLen;
+      }
+    }
+    // process ai_next in addrinfo
+    SysResItem = SysResItem->ai_next;
+  }
+  ::freeaddrinfo(SysResPtr);
+
+  return {};
 }
 
 WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,

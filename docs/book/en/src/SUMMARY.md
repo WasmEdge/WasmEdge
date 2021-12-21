@@ -100,6 +100,7 @@
 - [Contributed to WasmEdge](extend.md)
     - [Build WasmEdge from source](extend/build.md)
         - [Build for Mac](extend/build_on_mac.md)
+        - [Build for Windows](extend/build_on_windows.md)
     - [WasmEdge plug-in API](extend/plugin.md)
         - [Host functions](extend/plugin/hostfunction.md)
         - [External references](extend/plugin/externref.md)

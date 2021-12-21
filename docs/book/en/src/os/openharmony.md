@@ -1,3 +1,3 @@
 # Open Harmony
 
-Coming soon
+WIP. For Chinese speakers, please [check out this instruction](https://github.com/WasmEdge/WasmEdge/blob/master/utils/ohos/README-zh.md).

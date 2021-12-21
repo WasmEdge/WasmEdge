@@ -34,18 +34,32 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-c99-extensions
     -Wno-covered-switch-default
     -Wno-documentation-unknown-command
+    -Wno-error=nested-anon-types
+    -Wno-error=old-style-cast
+    -Wno-error=unused-command-line-argument
+    -Wno-gnu-anonymous-struct
     -Wno-keyword-macro
+    -Wno-language-extension-token
     -Wno-newline-eof
-    -Wno-return-std-move-in-c++11
     -Wno-shadow-field-in-constructor
     -Wno-signed-enum-bitfield
     -Wno-switch-enum
     -Wno-undefined-func-template
   )
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0.0)
+    list(APPEND WASMEDGE_CFLAGS
+      -Wno-error=return-std-move-in-c++11
+    )
+  else()
+    list(APPEND WASMEDGE_CFLAGS
+      -Wno-error=shadow-field
+      -Wno-reserved-identifier
+    )
+  endif()
 endif()
 
 if(WIN32)
-  add_definitions(-D_ENABLE_EXTENDED_ALIGNED_STORAGE -DNOMINMAX -D_ITERATOR_DEBUG_LEVEL=0)
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_ENABLE_EXTENDED_ALIGNED_STORAGE -DNOMINMAX -D_ITERATOR_DEBUG_LEVEL=0)
   list(APPEND WASMEDGE_CFLAGS
     "/EHa"
     -Wno-c++98-compat

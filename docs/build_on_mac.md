@@ -24,18 +24,17 @@ WasmEdge will try to use the latest LLVM release to create our nightly build.
 If you want to build from source, you may need to install these dependencies 
 by yourself.
 
-- LLVM 12.0.0 (>= 10.0.0), installed via brew, please don't use the built-in one.
-- Because the default version of LLVM on the latest brew is 13. Please use `llvm@12` to fix the LLVM version.
+- LLVM 13.0.0 (>= 10.0.0), installed via brew, please don't use the built-in one.
 
 ### Prepare the environment
 
 ```bash
 # Tools and libraries
-brew install boost cmake ninja llvm@12
+brew install boost cmake ninja llvm
 # Use brew version of llvm, not the built-in one.
-export PATH="/usr/local/opt/llvm@12/bin:$PATH"
-export LDFLAGS="-L/usr/local/opt/llvm@12/lib -Wl,-rpath,/usr/local/opt/llvm@12/lib"
-export CPPFLAGS="-I/usr/local/opt/llvm@12/include"
+export PATH="/usr/local/opt/llvm/bin:$PATH"
+export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
+export CPPFLAGS="-I/usr/local/opt/llvm/include"
 ```
 
 ### If you don't want to build Ahead-of-Time runtime/compiler

@@ -134,27 +134,27 @@ parseValueList(const rapidjson::Value &Args) {
       WasmEdge::uint64x2_t I64x2;
       const auto LaneType = Element["lane_type"].Get<std::string>();
       if (LaneType == "i64"sv || LaneType == "f64"sv) {
-        for (size_t I = 0; I < 2; ++I) {
+        for (rapidjson::SizeType I = 0; I < 2; ++I) {
           I64x2[I] = std::stoull(ValueNode[I].Get<std::string>());
         }
       } else if (LaneType == "i32"sv || LaneType == "f32"sv) {
         using uint32x4_t = uint32_t __attribute__((vector_size(16)));
         uint32x4_t I32x4;
-        for (size_t I = 0; I < 4; ++I) {
+        for (rapidjson::SizeType I = 0; I < 4; ++I) {
           I32x4[I] = std::stoul(ValueNode[I].Get<std::string>());
         }
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I32x4);
       } else if (LaneType == "i16"sv) {
         using uint16x8_t = uint16_t __attribute__((vector_size(16)));
         uint16x8_t I16x8;
-        for (size_t I = 0; I < 8; ++I) {
+        for (rapidjson::SizeType I = 0; I < 8; ++I) {
           I16x8[I] = std::stoul(ValueNode[I].Get<std::string>());
         }
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I16x8);
       } else if (LaneType == "i8"sv) {
         using uint8x16_t = uint8_t __attribute__((vector_size(16)));
         uint8x16_t I8x16;
-        for (size_t I = 0; I < 16; ++I) {
+        for (rapidjson::SizeType I = 0; I < 16; ++I) {
           I8x16[I] = std::stoul(ValueNode[I].Get<std::string>());
         }
         I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I8x16);
@@ -200,7 +200,7 @@ struct TestsuiteProposal {
 };
 static const TestsuiteProposal TestsuiteProposals[] = {
     {"core"sv, {}},
-    {"simd"sv, {WasmEdge::Proposal::SIMD}},
+    {"simd"sv, {}},
 };
 
 } // namespace
@@ -230,13 +230,13 @@ std::tuple<std::string_view, WasmEdge::Configure, std::string>
 SpecTest::resolve(std::string_view Params) const {
   const auto Pos = Params.find_last_of(' ');
   const std::string_view ProposalPath = Params.substr(0, Pos);
-  const auto Proposal = *std::find_if(std::begin(TestsuiteProposals),
-                                      std::end(TestsuiteProposals),
-                                      [&ProposalPath](const auto Proposal) {
-                                        return Proposal.Path == ProposalPath;
-                                      });
+  const auto &MatchedProposal = *std::find_if(
+      std::begin(TestsuiteProposals), std::end(TestsuiteProposals),
+      [&ProposalPath](const auto &Proposal) {
+        return Proposal.Path == ProposalPath;
+      });
   return std::tuple<std::string_view, WasmEdge::Configure, std::string>{
-      Proposal.Path, Proposal.Conf, Params.substr(Pos + 1)};
+      MatchedProposal.Path, MatchedProposal.Conf, Params.substr(Pos + 1)};
 }
 
 bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
@@ -323,9 +323,6 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
     }
     std::string_view LaneType = std::string_view(TypeStr).substr(4);
     if (LaneType == "f32") {
-      using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
-      using floatx4_t [[gnu::vector_size(16)]] = float;
-      using uint32x4_t [[gnu::vector_size(16)]] = uint32_t;
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
@@ -338,15 +335,13 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
           }
         } else {
           const uint32_t V1 = VI[I];
-          const uint32_t V2 = std::stoull(std::string(Parts[I]));
+          const uint32_t V2 = std::stoul(std::string(Parts[I]));
           if (V1 != V2) {
             return false;
           }
         }
       }
     } else if (LaneType == "f64") {
-      using doublex2_t [[gnu::vector_size(16)]] = double;
-      using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
@@ -366,7 +361,6 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
         }
       }
     } else if (LaneType == "i8") {
-      using uint8x16_t [[gnu::vector_size(16)]] = uint8_t;
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
@@ -379,7 +373,6 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
         }
       }
     } else if (LaneType == "i16") {
-      using uint16x8_t [[gnu::vector_size(16)]] = uint16_t;
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
@@ -392,7 +385,6 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
         }
       }
     } else if (LaneType == "i32") {
-      using uint32x4_t [[gnu::vector_size(16)]] = uint32_t;
       const uint64x2_t V64 = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
@@ -405,7 +397,6 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
         }
       }
     } else if (LaneType == "i64") {
-      using uint64x2_t [[gnu::vector_size(16)]] = uint64_t;
       const uint64x2_t V = {
           static_cast<uint64_t>(Got.first.get<uint128_t>()),
           static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};

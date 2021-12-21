@@ -20,6 +20,14 @@
 #include <boost/winapi/basic_types.hpp>
 #endif
 
+#if WASMEDGE_OS_LINUX
+#if defined(__GLIBC_PREREQ)
+#define _LIBCPP_GLIBC_PREREQ(a, b) 0
+#else
+#define __GLIBC_PREREQ(a, b) _LIBCPP_GLIBC_PREREQ(a, b)
+#endif
+#endif
+
 namespace WasmEdge {
 namespace Host {
 namespace WASI {
@@ -471,6 +479,14 @@ public:
   /// @param[in] NSubscriptions Both the number of subscriptions and events.
   /// @return Poll helper or WASI error
   static WasiExpect<Poller> pollOneoff(__wasi_size_t NSubscriptions) noexcept;
+
+  static WasiExpect<void>
+  getAddrinfo(const char *NodeStr, const char *ServiceStr,
+              const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
+              Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
+              Span<__wasi_sockaddr_t *> WasiSockaddrArray,
+              Span<char *> AiAddrSaDataArray, Span<char *> AiCanonnameArray,
+              /*Out*/ __wasi_size_t &ResLength) noexcept;
 
   static WasiExpect<INode> sockOpen(__wasi_address_family_t SysDomain,
                                     __wasi_sock_type_t SockType) noexcept;

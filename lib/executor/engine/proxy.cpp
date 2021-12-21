@@ -13,16 +13,19 @@ struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StoreManager &,
                                                         ArgsT...) noexcept> {
   template <Expect<RetT> (Executor::*Func)(Runtime::StoreManager &,
                                            ArgsT...) noexcept>
-  static RetT proxy(ArgsT... Args) noexcept {
-    Expect<RetT> Res;
-    {
-      FaultBlocker Blocker;
-      Res = (This->*Func)(*This->CurrentStore, Args...);
-    }
+  static auto proxy(ArgsT... Args)
+#if !WASMEDGE_OS_WINDOWS
+      noexcept
+#endif
+  {
+    Expect<RetT> Res = (This->*Func)(*This->CurrentStore, Args...);
     if (unlikely(!Res)) {
       Fault::emitFault(Res.error());
     }
-    if constexpr (!std::is_void_v<RetT>) {
+    if constexpr (std::is_same_v<RetT, RefVariant>) {
+      // Take raw value for matching calling conventions
+      return Res->template get<UnknownRef>().Value;
+    } else if constexpr (!std::is_void_v<RetT>) {
       return *Res;
     }
   }

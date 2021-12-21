@@ -1,4 +1,7 @@
-use super::wasmedge;
+use crate::{
+    types::{CompilerOptimizationLevel, CompilerOutputFormat},
+    wasmedge, Error, WasmEdgeResult,
+};
 
 #[derive(Debug)]
 pub struct Config {
@@ -7,21 +10,9 @@ pub struct Config {
 
 impl Drop for Config {
     fn drop(&mut self) {
-        unsafe { wasmedge::WasmEdge_ConfigureDelete(self.ctx) };
-    }
-}
-
-impl Config {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        let ctx = unsafe { wasmedge::WasmEdge_ConfigureCreate() };
-        assert!(!ctx.is_null(), "failed to create WasmEdge configuration");
-        Self { ctx }
+        if !self.ctx.is_null() {
+            unsafe { wasmedge::WasmEdge_ConfigureDelete(self.ctx) };
+        }
     }
 }
 
@@ -38,7 +29,7 @@ impl Default for Config {
 ///         }
 ///         self
 ///     }
-///     pub fn has_bulkmemoryoperations(self) -> bool {
+///     pub fn has_bulkmemoryoperations(&self) -> bool {
 ///         let prop = wasmedge::WasmEdge_Proposal_BulkMemoryOperations;
 ///         unsafe { wasmedge::WasmEdge_ConfigureHasProposal(self.ctx, prop) }
 ///     }
@@ -60,7 +51,7 @@ macro_rules! impl_proposal_config {
                         self
                     }
 
-                    pub fn [<has_$proposal:lower:snake>](self) -> bool {
+                    pub fn [<has_$proposal:lower:snake>](&self) -> bool {
                         let prop = wasmedge::[<WasmEdge_Proposal_$proposal>];
                         unsafe { wasmedge::WasmEdge_ConfigureHasProposal(self.ctx, prop) }
                     }
@@ -83,6 +74,16 @@ impl_proposal_config! {
 }
 
 impl Config {
+    pub fn create() -> WasmEdgeResult<Self> {
+        let ctx = unsafe { wasmedge::WasmEdge_ConfigureCreate() };
+        match ctx.is_null() {
+            true => Err(Error::OperationError(String::from(
+                "fail to create Config instance",
+            ))),
+            false => Ok(Self { ctx }),
+        }
+    }
+
     // For Vm
     pub fn enable_wasi(self) -> Self {
         unsafe {
@@ -94,20 +95,43 @@ impl Config {
         self
     }
 
+    /// Set the maximum number of memory pages available to running modules.
+    pub fn set_max_memory_pages(self, num_pages: u32) -> Self {
+        unsafe { wasmedge::WasmEdge_ConfigureSetMaxMemoryPage(self.ctx, num_pages) };
+        self
+    }
+
+    /// Get the page limit of memory instances.
+    pub fn get_max_memory_pages(&self) -> u32 {
+        unsafe { wasmedge::WasmEdge_ConfigureGetMaxMemoryPage(self.ctx) }
+    }
+
     // For AOT compiler
 
     /// Set the optimization level of AOT compiler.
-    pub fn opt_level(self, opt_level: OptLevel) -> Self {
+    pub fn set_optimization_level(self, opt_level: CompilerOptimizationLevel) -> Self {
         unsafe {
             wasmedge::WasmEdge_ConfigureCompilerSetOptimizationLevel(self.ctx, opt_level as u32)
         };
         self
     }
 
-    /// Set the maximum number of memory pages available to running modules.
-    pub fn max_memory_pages(self, num_pages: u32) -> Self {
-        unsafe { wasmedge::WasmEdge_ConfigureSetMaxMemoryPage(self.ctx, num_pages) };
+    /// Get the optimization level of AOT compiler.
+    pub fn get_optimization_level(&self) -> CompilerOptimizationLevel {
+        let level = unsafe { wasmedge::WasmEdge_ConfigureCompilerGetOptimizationLevel(self.ctx) };
+        level.into()
+    }
+
+    /// Set the output binary format of AOT compiler.
+    pub fn set_compiler_output_format(self, format: CompilerOutputFormat) -> Self {
+        unsafe { wasmedge::WasmEdge_ConfigureCompilerSetOutputFormat(self.ctx, format as u32) };
         self
+    }
+
+    /// Get the output binary format of AOT compiler.
+    pub fn get_compiler_output_format(&self) -> CompilerOutputFormat {
+        let value = unsafe { wasmedge::WasmEdge_ConfigureCompilerGetOutputFormat(self.ctx) };
+        value.into()
     }
 
     /// Set the dump IR boolean value of AOT compiler.
@@ -116,10 +140,31 @@ impl Config {
         self
     }
 
+    /// Get the dump IR option of AOT compiler.
+    pub fn is_dump_ir(&self) -> bool {
+        unsafe { wasmedge::WasmEdge_ConfigureCompilerIsDumpIR(self.ctx) }
+    }
+
+    /// Set the generic binary option of AOT compiler.
+    pub fn generic_binary(self, enable: bool) -> Self {
+        unsafe { wasmedge::WasmEdge_ConfigureCompilerSetGenericBinary(self.ctx, enable) };
+        self
+    }
+
+    /// Get the generic binary option of AOT compiler.
+    pub fn is_generic_binary(&self) -> bool {
+        unsafe { wasmedge::WasmEdge_ConfigureCompilerIsGenericBinary(self.ctx) }
+    }
+
     /// Enable or disable instruction counting.
     pub fn count_instructions(self, enable: bool) -> Self {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetInstructionCounting(self.ctx, enable) };
         self
+    }
+
+    /// Get the instruction counting option.
+    pub fn is_instruction_counting(&self) -> bool {
+        unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsInstructionCounting(self.ctx) }
     }
 
     /// Enable or disable cost cost measuring.
@@ -127,30 +172,22 @@ impl Config {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetCostMeasuring(self.ctx, enable) };
         self
     }
-}
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u32)]
-pub enum OptLevel {
-    /// Disable as many optimizations as possible.
-    O0 = wasmedge::WasmEdge_CompilerOptimizationLevel_O0,
+    /// Get the cost measuring option.
+    pub fn is_cost_measuring(&self) -> bool {
+        unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsCostMeasuring(self.ctx) }
+    }
 
-    /// Optimize quickly without destroying debuggability.
-    O1 = wasmedge::WasmEdge_CompilerOptimizationLevel_O1,
+    /// Set the time measuring option.
+    pub fn measure_time(self, enable: bool) -> Self {
+        unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetTimeMeasuring(self.ctx, enable) };
+        self
+    }
 
-    /// Optimize for fast execution as much as possible without triggering
-    /// significant incremental compile time or code size growth.
-    O2 = wasmedge::WasmEdge_CompilerOptimizationLevel_O2,
-
-    ///  Optimize for fast execution as much as possible.
-    O3 = wasmedge::WasmEdge_CompilerOptimizationLevel_O3,
-
-    ///  Optimize for small code size as much as possible without triggering
-    ///  significant incremental compile time or execution time slowdowns.
-    Os = wasmedge::WasmEdge_CompilerOptimizationLevel_Os,
-
-    /// Optimize for small code size as much as possible.
-    Oz = wasmedge::WasmEdge_CompilerOptimizationLevel_Oz,
+    /// Get the cost measuring option.
+    pub fn is_time_measuring(&self) -> bool {
+        unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsTimeMeasuring(self.ctx) }
+    }
 }
 
 // # TODO: WasmEdge_HostRegistration

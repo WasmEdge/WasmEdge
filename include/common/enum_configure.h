@@ -13,15 +13,16 @@
 #ifndef WASMEDGE_C_API_ENUM_CONFIGURE_H
 #define WASMEDGE_C_API_ENUM_CONFIGURE_H
 
-#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
+#if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
+    (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 #include <cstdint>
 #include <string>
 #include <unordered_map>
 #endif
 
 /// Wasm Proposal enum class.
-#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
-using namespace std::literals::string_view_literals;
+#if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
+    (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
 enum class Proposal : uint8_t {
   ImportExportMutGlobals = 0,
@@ -40,6 +41,8 @@ enum class Proposal : uint8_t {
   Max
 };
 
+namespace detail {
+using namespace std::literals::string_view_literals;
 static inline std::unordered_map<Proposal, std::string_view> ProposalStr = {
     {Proposal::ImportExportMutGlobals, "Import/Export of mutable globals"sv},
     {Proposal::NonTrapFloatToIntConversions,
@@ -56,6 +59,8 @@ static inline std::unordered_map<Proposal, std::string_view> ProposalStr = {
     {Proposal::ExceptionHandling, "Exception handling"sv},
     {Proposal::FunctionReferences, "Typed Function References"sv},
 };
+} // namespace detail
+using detail::ProposalStr;
 } // namespace WasmEdge
 #endif
 
@@ -76,7 +81,8 @@ enum WasmEdge_Proposal {
 };
 
 /// Host Module Registration enum class.
-#if (__cplusplus > 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
+#if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
+    (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
 enum class HostRegistration : uint8_t { Wasi = 0, WasmEdge_Process, Max };
 } // namespace WasmEdge

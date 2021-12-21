@@ -48,6 +48,8 @@ autoconf/autom4te.cache
 # (Rust) Cargo lockfile, not published with libraries.
 Cargo.lock
 bindings/rust/target
+bindings/rust/wasmedge-sdk/target
+bindings/rust/wasmedge-sys/target
 
 #==============================================================================#
 # Directories to ignore (do not add trailing '/'s, they skip symlinks).

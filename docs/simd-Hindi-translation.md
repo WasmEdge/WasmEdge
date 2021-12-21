@@ -166,6 +166,6 @@ $ wasmedge --enable-simd mandelbrot-simd.wasm 15000
 
 समय से आगे मोड
 # Compile wasm-simd with wasmedge aot compiler
-$ wasmedgec --enable-simd mandelbrot-simd.wasm mandelbrot-simd.so
+$ wasmedgec mandelbrot-simd.wasm mandelbrot-simd-out.wasm
 # Run the native binary with wasmedge
-$ wasmedge --enable-simd mandelbrot-simd.so 15000
+$ wasmedge mandelbrot-simd-out.wasm 15000

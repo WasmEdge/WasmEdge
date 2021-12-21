@@ -134,12 +134,12 @@ std::pair<uint32_t, uint32_t>
 Executor::getBlockArity(Runtime::StoreManager &StoreMgr,
                         const BlockType &BType) {
   uint32_t Locals = 0, Arity = 0;
-  if (std::holds_alternative<ValType>(BType)) {
-    Arity = (std::get<ValType>(BType) == ValType::None) ? 0 : 1;
+  if (BType.IsValType) {
+    Arity = (BType.Data.Type == ValType::None) ? 0 : 1;
   } else {
     /// Get function type at index x.
     const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-    const auto *FuncType = *ModInst->getFuncType(std::get<uint32_t>(BType));
+    const auto *FuncType = *ModInst->getFuncType(BType.Data.Idx);
     Locals = static_cast<uint32_t>(FuncType->getParamTypes().size());
     Arity = static_cast<uint32_t>(FuncType->getReturnTypes().size());
   }

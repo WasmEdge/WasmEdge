@@ -73,6 +73,10 @@ public:
   uint32_t getMemoryOffset() const noexcept { return MemOffset; }
   uint32_t &getMemoryOffset() noexcept { return MemOffset; }
 
+  /// Getter of memory lane.
+  uint8_t getMemoryLane() const noexcept { return MemLane; }
+  uint8_t &getMemoryLane() noexcept { return MemLane; }
+
   /// Getter and setter of the constant value.
   ValVariant getNum() const noexcept { return Num; }
   void setNum(ValVariant N) noexcept { Num = N; }
@@ -92,6 +96,7 @@ private:
   uint32_t SourceIdx = 0;
   uint32_t MemAlign = 0;
   uint32_t MemOffset = 0;
+  uint8_t MemLane = 0;
   ValVariant Num = 0U;
   /// @}
 };

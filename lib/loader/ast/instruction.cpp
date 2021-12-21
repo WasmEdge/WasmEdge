@@ -96,15 +96,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   /// Node: The instruction has checked for the proposals. Need to check their
   /// immediates.
 
-  auto readCheckZero = [this]() -> Expect<void> {
-    if (auto Res = FMgr.readByte(); unlikely(!Res)) {
+  auto readU8 = [this](uint8_t &Dst) -> Expect<void> {
+    if (auto Res = FMgr.readByte()) {
+      Dst = *Res;
+    } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
-    } else {
-      if (*Res != UINT8_C(0)) {
-        return logLoadError(ErrCode::ExpectedZeroByte, FMgr.getLastOffset(),
-                            ASTNodeAttr::Instruction);
-      }
     }
     return {};
   };
@@ -114,6 +111,18 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       Dst = *Res;
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    return {};
+  };
+
+  auto readCheckZero = [this, readU8]() -> Expect<void> {
+    uint8_t C = 0;
+    if (auto Res = readU8(C); unlikely(!Res)) {
+      return Unexpect(Res);
+    }
+    if (C != UINT8_C(0)) {
+      return logLoadError(ErrCode::ExpectedZeroByte, FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     return {};
@@ -551,13 +560,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       return Unexpect(Res);
     }
     /// Read lane index.
-    if (auto Res = FMgr.readByte(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    } else {
-      Instr.getTargetIndex() = static_cast<uint32_t>(*Res);
-    }
-    return {};
+    return readU8(Instr.getMemoryLane());
 
   /// SIMD Const Instruction.
   case OpCode::V128__const:
@@ -593,13 +596,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::F64x2__extract_lane:
   case OpCode::F64x2__replace_lane:
     /// Read lane index.
-    if (auto Res = FMgr.readByte()) {
-      Instr.getTargetIndex() = static_cast<uint32_t>(*Res);
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
-    return {};
+    return readU8(Instr.getMemoryLane());
 
   /// SIMD Numeric Instructions.
   case OpCode::I8x16__swizzle:

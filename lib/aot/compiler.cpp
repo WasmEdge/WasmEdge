@@ -1821,42 +1821,42 @@ public:
         break;
       case OpCode::V128__load8_lane:
         compileLoadLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                          Instr.getTargetIndex(), Context.Int8Ty,
+                          Instr.getMemoryLane(), Context.Int8Ty,
                           Context.Int8x16Ty);
         break;
       case OpCode::V128__load16_lane:
         compileLoadLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                          Instr.getTargetIndex(), Context.Int16Ty,
+                          Instr.getMemoryLane(), Context.Int16Ty,
                           Context.Int16x8Ty);
         break;
       case OpCode::V128__load32_lane:
         compileLoadLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                          Instr.getTargetIndex(), Context.Int32Ty,
+                          Instr.getMemoryLane(), Context.Int32Ty,
                           Context.Int32x4Ty);
         break;
       case OpCode::V128__load64_lane:
         compileLoadLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                          Instr.getTargetIndex(), Context.Int64Ty,
+                          Instr.getMemoryLane(), Context.Int64Ty,
                           Context.Int64x2Ty);
         break;
       case OpCode::V128__store8_lane:
         compileStoreLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Instr.getTargetIndex(), Context.Int8Ty,
+                           Instr.getMemoryLane(), Context.Int8Ty,
                            Context.Int8x16Ty);
         break;
       case OpCode::V128__store16_lane:
         compileStoreLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Instr.getTargetIndex(), Context.Int16Ty,
+                           Instr.getMemoryLane(), Context.Int16Ty,
                            Context.Int16x8Ty);
         break;
       case OpCode::V128__store32_lane:
         compileStoreLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Instr.getTargetIndex(), Context.Int32Ty,
+                           Instr.getMemoryLane(), Context.Int32Ty,
                            Context.Int32x4Ty);
         break;
       case OpCode::V128__store64_lane:
         compileStoreLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Instr.getTargetIndex(), Context.Int64Ty,
+                           Instr.getMemoryLane(), Context.Int64Ty,
                            Context.Int64x2Ty);
         break;
       case OpCode::V128__const: {
@@ -1879,50 +1879,50 @@ public:
         break;
       }
       case OpCode::I8x16__extract_lane_s:
-        compileExtractLaneOp(Context.Int8x16Ty, Instr.getTargetIndex(),
+        compileExtractLaneOp(Context.Int8x16Ty, Instr.getMemoryLane(),
                              Context.Int32Ty, true);
         break;
       case OpCode::I8x16__extract_lane_u:
-        compileExtractLaneOp(Context.Int8x16Ty, Instr.getTargetIndex(),
+        compileExtractLaneOp(Context.Int8x16Ty, Instr.getMemoryLane(),
                              Context.Int32Ty, false);
         break;
       case OpCode::I8x16__replace_lane:
-        compileReplaceLaneOp(Context.Int8x16Ty, Instr.getTargetIndex());
+        compileReplaceLaneOp(Context.Int8x16Ty, Instr.getMemoryLane());
         break;
       case OpCode::I16x8__extract_lane_s:
-        compileExtractLaneOp(Context.Int16x8Ty, Instr.getTargetIndex(),
+        compileExtractLaneOp(Context.Int16x8Ty, Instr.getMemoryLane(),
                              Context.Int32Ty, true);
         break;
       case OpCode::I16x8__extract_lane_u:
-        compileExtractLaneOp(Context.Int16x8Ty, Instr.getTargetIndex(),
+        compileExtractLaneOp(Context.Int16x8Ty, Instr.getMemoryLane(),
                              Context.Int32Ty, false);
         break;
       case OpCode::I16x8__replace_lane:
-        compileReplaceLaneOp(Context.Int16x8Ty, Instr.getTargetIndex());
+        compileReplaceLaneOp(Context.Int16x8Ty, Instr.getMemoryLane());
         break;
       case OpCode::I32x4__extract_lane:
-        compileExtractLaneOp(Context.Int32x4Ty, Instr.getTargetIndex());
+        compileExtractLaneOp(Context.Int32x4Ty, Instr.getMemoryLane());
         break;
       case OpCode::I32x4__replace_lane:
-        compileReplaceLaneOp(Context.Int32x4Ty, Instr.getTargetIndex());
+        compileReplaceLaneOp(Context.Int32x4Ty, Instr.getMemoryLane());
         break;
       case OpCode::I64x2__extract_lane:
-        compileExtractLaneOp(Context.Int64x2Ty, Instr.getTargetIndex());
+        compileExtractLaneOp(Context.Int64x2Ty, Instr.getMemoryLane());
         break;
       case OpCode::I64x2__replace_lane:
-        compileReplaceLaneOp(Context.Int64x2Ty, Instr.getTargetIndex());
+        compileReplaceLaneOp(Context.Int64x2Ty, Instr.getMemoryLane());
         break;
       case OpCode::F32x4__extract_lane:
-        compileExtractLaneOp(Context.Floatx4Ty, Instr.getTargetIndex());
+        compileExtractLaneOp(Context.Floatx4Ty, Instr.getMemoryLane());
         break;
       case OpCode::F32x4__replace_lane:
-        compileReplaceLaneOp(Context.Floatx4Ty, Instr.getTargetIndex());
+        compileReplaceLaneOp(Context.Floatx4Ty, Instr.getMemoryLane());
         break;
       case OpCode::F64x2__extract_lane:
-        compileExtractLaneOp(Context.Doublex2Ty, Instr.getTargetIndex());
+        compileExtractLaneOp(Context.Doublex2Ty, Instr.getMemoryLane());
         break;
       case OpCode::F64x2__replace_lane:
-        compileReplaceLaneOp(Context.Doublex2Ty, Instr.getTargetIndex());
+        compileReplaceLaneOp(Context.Doublex2Ty, Instr.getMemoryLane());
         break;
       case OpCode::I8x16__swizzle: {
         auto *Index = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);

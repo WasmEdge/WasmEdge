@@ -177,7 +177,7 @@ Expect<void> Executor::runLoadLaneOp(Runtime::Instance::MemoryInstance &MemInst,
     return Unexpect(Res);
   }
 
-  Result[Instr.getTargetIndex()] = static_cast<T>(Buffer);
+  Result[Instr.getMemoryLane()] = static_cast<T>(Buffer);
   Val.emplace<VT>(Result);
   return {};
 }
@@ -188,7 +188,7 @@ Executor::runStoreLaneOp(Runtime::Instance::MemoryInstance &MemInst,
                          const AST::Instruction &Instr) {
   using VT [[gnu::vector_size(16)]] = T;
   using TBuf = std::conditional_t<sizeof(T) < 4, uint32_t, T>;
-  const TBuf C = StackMgr.pop().get<VT>()[Instr.getTargetIndex()];
+  const TBuf C = StackMgr.pop().get<VT>()[Instr.getMemoryLane()];
 
   /// Calculate EA = i + offset
   uint32_t I = StackMgr.pop().get<uint32_t>();

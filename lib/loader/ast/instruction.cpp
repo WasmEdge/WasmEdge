@@ -176,13 +176,13 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     if (auto Res = readU32(VecCnt); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    Instr.getLabelList().reserve(VecCnt);
+    Instr.setLabelListSize(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
       uint32_t Label = 0;
       if (auto Res = readU32(Label); unlikely(!Res)) {
         return Unexpect(Res);
       } else {
-        Instr.getLabelList().push_back(Label);
+        Instr.getLabelList()[I] = Label;
       }
     }
     /// Read default label.
@@ -241,7 +241,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     if (auto Res = readU32(VecCnt); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    Instr.getValTypeList().reserve(VecCnt);
+    Instr.setValTypeListSize(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
       ValType VType;
       if (auto T = FMgr.readByte(); unlikely(!T)) {
@@ -255,7 +255,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
           unlikely(!Check)) {
         return Unexpect(Check);
       }
-      Instr.getValTypeList().push_back(VType);
+      Instr.getValTypeList()[I] = VType;
     }
     return {};
   }

@@ -121,10 +121,6 @@ private:
   Expect<void> unreachable();
   Expect<void> StackTrans(Span<const VType> Take, Span<const VType> Put);
 
-  /// Helper functions
-  Expect<std::pair<Span<const VType>, Span<const VType>>>
-  resolveBlockType(std::vector<VType> &Buffer, BlockType Type);
-
   /// Contexts.
   std::vector<std::pair<std::vector<VType>, std::vector<VType>>> Types;
   std::vector<uint32_t> Funcs;

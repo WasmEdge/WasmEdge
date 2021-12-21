@@ -35,7 +35,8 @@ public:
 
   /// Getter and setter of block type.
   BlockType getBlockType() const noexcept { return ResType; }
-  void setBlockType(BlockType BType) noexcept { ResType = BType; }
+  void setBlockType(ValType VType) noexcept { ResType.setData(VType); }
+  void setBlockType(uint32_t Idx) noexcept { ResType.setData(Idx); }
 
   /// Getter and setter of jump count to End instruction.
   uint32_t getJumpEnd() const noexcept { return JumpEnd; }
@@ -86,7 +87,7 @@ private:
   /// @{
   OpCode Code = OpCode::End;
   uint32_t Offset = 0;
-  BlockType ResType = ValType::None;
+  BlockType ResType;
   uint32_t JumpEnd = 0;
   uint32_t JumpElse = 0;
   RefType ReferenceType = RefType::FuncRef;

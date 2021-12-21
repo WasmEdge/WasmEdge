@@ -115,11 +115,6 @@ static llvm::Value *createLikely(llvm::IRBuilder<> &Builder,
                                  llvm::Value *Value);
 class FunctionCompiler;
 
-template <typename... Ts> struct overloaded : Ts... {
-  using Ts::operator()...;
-};
-template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
 /// XXX: Misalignment handler not implemented yet, forcing unalignment
 /// force unalignment load/store
 static inline constexpr const bool kForceUnalignment = true;
@@ -406,24 +401,22 @@ struct WasmEdge::AOT::Compiler::CompileContext {
                                 Builder.CreateLoad(Ty->getPointerTo(), Ptr));
   }
   std::pair<std::vector<ValType>, std::vector<ValType>>
-  resolveBlockType(const BlockType &Type) const {
+  resolveBlockType(const BlockType &BType) const {
     using VecT = std::vector<ValType>;
     using RetT = std::pair<VecT, VecT>;
-    return std::visit(overloaded{[](const ValType &VType) -> RetT {
-                                   if (VType == ValType::None) {
-                                     return RetT{};
-                                   }
-                                   return RetT{{}, {VType}};
-                                 },
-                                 [this](const uint32_t &Index) -> RetT {
-                                   const auto &FType = *FunctionTypes[Index];
-                                   return RetT{
-                                       VecT(FType.getParamTypes().begin(),
-                                            FType.getParamTypes().end()),
-                                       VecT(FType.getReturnTypes().begin(),
-                                            FType.getReturnTypes().end())};
-                                 }},
-                      Type);
+    if (BType.IsValType) {
+      if (BType.Data.Type == ValType::None) {
+        return RetT{};
+      }
+      return RetT{{}, {BType.Data.Type}};
+    } else {
+      /// Type index case. t2* = type[index].returns
+      const uint32_t TypeIdx = BType.Data.Idx;
+      const auto &FType = *FunctionTypes[TypeIdx];
+      return RetT{
+          VecT(FType.getParamTypes().begin(), FType.getParamTypes().end()),
+          VecT(FType.getReturnTypes().begin(), FType.getReturnTypes().end())};
+    }
   }
 };
 

@@ -739,7 +739,7 @@ public:
         break;
       }
       case OpCode::Br_table: {
-        const auto &LabelTable = Instr.getLabelList();
+        auto LabelTable = Instr.getLabelList();
         assuming(LabelTable.size() <= std::numeric_limits<uint32_t>::max());
         const uint32_t LabelTableSize =
             static_cast<uint32_t>(LabelTable.size());

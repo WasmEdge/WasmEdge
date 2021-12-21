@@ -15,6 +15,7 @@
 #include "common/span.h"
 #include "common/types.h"
 
+#include <algorithm>
 #include <vector>
 
 namespace WasmEdge {
@@ -23,9 +24,48 @@ namespace AST {
 /// Instruction node class.
 class Instruction {
 public:
-  /// Constructor assigns the OpCode.
+  /// Constructor assigns the OpCode and the Offset.
   Instruction(OpCode Byte, uint32_t Off = 0) noexcept
-      : Code(Byte), Offset(Off) {}
+      : Offset(Off), Code(Byte) {
+    Data.Num = static_cast<uint128_t>(0);
+    Flags.IsAllocLabelList = false;
+    Flags.IsAllocValTypeList = false;
+  }
+
+  /// Copy constructor.
+  Instruction(const Instruction &Instr)
+      : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
+        Flags(Instr.Flags) {
+    if (Flags.IsAllocLabelList) {
+      Data.BrTable.LabelList = new uint32_t[Data.BrTable.LabelListSize];
+      std::copy_n(Instr.Data.BrTable.LabelList, Data.BrTable.LabelListSize,
+                  Data.BrTable.LabelList);
+    } else if (Flags.IsAllocValTypeList) {
+      Data.SelectT.ValTypeList = new ValType[Data.SelectT.ValTypeListSize];
+      std::copy_n(Instr.Data.SelectT.ValTypeList, Data.SelectT.ValTypeListSize,
+                  Data.SelectT.ValTypeList);
+    }
+  }
+
+  /// Move constructor.
+  Instruction(Instruction &&Instr)
+      : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
+        Flags(Instr.Flags) {
+    Instr.Flags.IsAllocLabelList = false;
+    Instr.Flags.IsAllocValTypeList = false;
+  }
+
+  /// Destructor.
+  ~Instruction() { reset(); }
+
+  /// Copy assignment.
+  Instruction &operator=(const Instruction &Instr) {
+    if (this != &Instr) {
+      Instruction Tmp(Instr);
+      Tmp.swap(*this);
+    }
+    return *this;
+  }
 
   /// Getter of OpCode.
   OpCode getOpCode() const noexcept { return Code; }
@@ -34,71 +74,147 @@ public:
   uint32_t getOffset() const noexcept { return Offset; }
 
   /// Getter and setter of block type.
-  BlockType getBlockType() const noexcept { return ResType; }
-  void setBlockType(ValType VType) noexcept { ResType.setData(VType); }
-  void setBlockType(uint32_t Idx) noexcept { ResType.setData(Idx); }
+  BlockType getBlockType() const noexcept { return Data.Blocks.ResType; }
+  void setBlockType(ValType VType) noexcept {
+    Data.Blocks.ResType.setData(VType);
+  }
+  void setBlockType(uint32_t Idx) noexcept { Data.Blocks.ResType.setData(Idx); }
 
   /// Getter and setter of jump count to End instruction.
-  uint32_t getJumpEnd() const noexcept { return JumpEnd; }
-  void setJumpEnd(const uint32_t Cnt) noexcept { JumpEnd = Cnt; }
+  uint32_t getJumpEnd() const noexcept { return Data.Blocks.JumpEnd; }
+  void setJumpEnd(const uint32_t Cnt) noexcept { Data.Blocks.JumpEnd = Cnt; }
 
   /// Getter and setter of jump count to Else instruction.
-  uint32_t getJumpElse() const noexcept { return JumpElse; }
-  void setJumpElse(const uint32_t Cnt) noexcept { JumpElse = Cnt; }
+  uint32_t getJumpElse() const noexcept { return Data.Blocks.JumpElse; }
+  void setJumpElse(const uint32_t Cnt) noexcept { Data.Blocks.JumpElse = Cnt; }
 
   /// Getter and setter of reference type.
-  RefType getRefType() const noexcept { return ReferenceType; }
-  void setRefType(RefType RType) noexcept { ReferenceType = RType; }
+  RefType getRefType() const noexcept { return Data.ReferenceType; }
+  void setRefType(RefType RType) noexcept { Data.ReferenceType = RType; }
 
-  /// Getter of label list.
-  Span<const uint32_t> getLabelList() const noexcept { return LabelList; }
-  std::vector<uint32_t> &getLabelList() noexcept { return LabelList; }
+  /// Getter and setter of label list.
+  void setLabelListSize(uint32_t Size) {
+    reset();
+    if (Size > 0) {
+      Data.BrTable.LabelListSize = Size;
+      Data.BrTable.LabelList = new uint32_t[Size];
+      Flags.IsAllocLabelList = true;
+    }
+  }
+  Span<const uint32_t> getLabelList() const noexcept {
+    return Span<const uint32_t>(Data.BrTable.LabelList,
+                                Data.BrTable.LabelListSize);
+  }
+  Span<uint32_t> getLabelList() noexcept {
+    return Span<uint32_t>(Data.BrTable.LabelList, Data.BrTable.LabelListSize);
+  }
 
-  /// Getter of selecting value types list.
-  Span<const ValType> getValTypeList() const noexcept { return ValTypeList; }
-  std::vector<ValType> &getValTypeList() noexcept { return ValTypeList; }
+  /// Getter and setter of selecting value types list.
+  void setValTypeListSize(uint32_t Size) {
+    reset();
+    if (Size > 0) {
+      Data.SelectT.ValTypeListSize = Size;
+      Data.SelectT.ValTypeList = new ValType[Size];
+      Flags.IsAllocValTypeList = true;
+    }
+  }
+  Span<const ValType> getValTypeList() const noexcept {
+    return Span<const ValType>(Data.SelectT.ValTypeList,
+                               Data.SelectT.ValTypeListSize);
+  }
+  Span<ValType> getValTypeList() noexcept {
+    return Span<ValType>(Data.SelectT.ValTypeList,
+                         Data.SelectT.ValTypeListSize);
+  }
 
   /// Getter and setter of target index.
-  uint32_t getTargetIndex() const noexcept { return TargetIdx; }
-  uint32_t &getTargetIndex() noexcept { return TargetIdx; }
+  uint32_t getTargetIndex() const noexcept { return Data.Indices.TargetIdx; }
+  uint32_t &getTargetIndex() noexcept { return Data.Indices.TargetIdx; }
 
   /// Getter and setter of source index.
-  uint32_t getSourceIndex() const noexcept { return SourceIdx; }
-  uint32_t &getSourceIndex() noexcept { return SourceIdx; }
+  uint32_t getSourceIndex() const noexcept { return Data.Indices.SourceIdx; }
+  uint32_t &getSourceIndex() noexcept { return Data.Indices.SourceIdx; }
 
   /// Getter and setter of memory alignment.
-  uint32_t getMemoryAlign() const noexcept { return MemAlign; }
-  uint32_t &getMemoryAlign() noexcept { return MemAlign; }
+  uint32_t getMemoryAlign() const noexcept { return Data.Memories.MemAlign; }
+  uint32_t &getMemoryAlign() noexcept { return Data.Memories.MemAlign; }
 
   /// Getter of memory offset.
-  uint32_t getMemoryOffset() const noexcept { return MemOffset; }
-  uint32_t &getMemoryOffset() noexcept { return MemOffset; }
+  uint32_t getMemoryOffset() const noexcept { return Data.Memories.MemOffset; }
+  uint32_t &getMemoryOffset() noexcept { return Data.Memories.MemOffset; }
 
   /// Getter of memory lane.
-  uint8_t getMemoryLane() const noexcept { return MemLane; }
-  uint8_t &getMemoryLane() noexcept { return MemLane; }
+  uint8_t getMemoryLane() const noexcept { return Data.Memories.MemLane; }
+  uint8_t &getMemoryLane() noexcept { return Data.Memories.MemLane; }
 
   /// Getter and setter of the constant value.
-  ValVariant getNum() const noexcept { return Num; }
-  void setNum(ValVariant N) noexcept { Num = N; }
+  ValVariant getNum() const noexcept { return ValVariant(Data.Num); }
+  void setNum(ValVariant N) noexcept { Data.Num = N.get<uint128_t>(); }
 
 private:
+  /// Release allocated resources.
+  void reset() {
+    if (Flags.IsAllocLabelList) {
+      Data.BrTable.LabelListSize = 0;
+      delete[] Data.BrTable.LabelList;
+    } else if (Flags.IsAllocValTypeList) {
+      Data.SelectT.ValTypeListSize = 0;
+      delete[] Data.SelectT.ValTypeList;
+    }
+    Flags.IsAllocLabelList = false;
+    Flags.IsAllocValTypeList = false;
+  }
+
+  /// Swap function.
+  void swap(Instruction &Instr) noexcept {
+    std::swap(Data, Instr.Data);
+    std::swap(Offset, Instr.Offset);
+    std::swap(Code, Instr.Code);
+    std::swap(Flags, Instr.Flags);
+  }
+
   /// \name Data of instructions.
   /// @{
-  OpCode Code = OpCode::End;
+  union Inner {
+    /// Type 1: BlockType, JumpEnd, and JumpElse.
+    struct {
+      uint32_t JumpEnd;
+      uint32_t JumpElse;
+      BlockType ResType;
+    } Blocks;
+    /// Type 2: TargetIdx and SourceIdx.
+    struct {
+      uint32_t TargetIdx;
+      uint32_t SourceIdx;
+    } Indices;
+    /// Type 3: TargetIdx and LabelList.
+    struct {
+      uint32_t TargetIdx;
+      uint32_t LabelListSize;
+      uint32_t *LabelList;
+    } BrTable;
+    /// Type 4: RefType.
+    RefType ReferenceType;
+    /// Type 5: ValTypeList.
+    struct {
+      uint32_t ValTypeListSize;
+      ValType *ValTypeList;
+    } SelectT;
+    /// Type 6: MemAlign, MemOffset, and MemLane.
+    struct {
+      uint32_t MemAlign;
+      uint32_t MemOffset;
+      uint8_t MemLane;
+    } Memories;
+    /// Type 7: Num.
+    uint128_t Num;
+  } Data;
   uint32_t Offset = 0;
-  BlockType ResType;
-  uint32_t JumpEnd = 0;
-  uint32_t JumpElse = 0;
-  RefType ReferenceType = RefType::FuncRef;
-  std::vector<uint32_t> LabelList;
-  std::vector<ValType> ValTypeList;
-  uint32_t TargetIdx = 0;
-  uint32_t SourceIdx = 0;
-  uint32_t MemAlign = 0;
-  uint32_t MemOffset = 0;
-  uint8_t MemLane = 0;
-  ValVariant Num = 0U;
+  OpCode Code = OpCode::End;
+  struct {
+    bool IsAllocLabelList : 1;
+    bool IsAllocValTypeList : 1;
+  } Flags;
   /// @}
 };
 

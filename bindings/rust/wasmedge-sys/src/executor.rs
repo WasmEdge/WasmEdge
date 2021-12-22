@@ -17,9 +17,9 @@ impl Executor {
     ///
     /// # Arguments
     ///
-    /// - `config` specifies the configuration of the new [`Executor`].
+    /// - `config` specifies the configuration of the new [`Executor`]. It is optional.
     ///
-    /// - `stat` specifies the [`Statistics`] needed by the new [`Executor`].
+    /// - `stat` specifies the [`Statistics`] needed by the new [`Executor`]. It is optional.
     ///
     /// # Error
     ///

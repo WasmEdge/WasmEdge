@@ -14,7 +14,7 @@ within the WebAssembly function.
 In this article, we will show you how to use WasmEdge together with Reactr
 to take advantage of the best of both worlds. WasmEdge is the
 [fastest and most extensible WebAssembly runtime](../../intro/features.md).
-It is also the fastest in [Reactr's official test suit](https://github.com/suborbital/reactr/runs/4476074960?check_suite_focus=true).
+It is also the fastest in [Reactr's official test suite](https://github.com/suborbital/reactr/runs/4476074960?check_suite_focus=true).
 We will show you how to run Rust functions compiled to WebAssembly as well
 as JavaScript programs in WasmEdge and Reactr.
 

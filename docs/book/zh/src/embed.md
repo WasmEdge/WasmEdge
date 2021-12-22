@@ -1,0 +1,1 @@
+# Embeddable WasmEdge functions

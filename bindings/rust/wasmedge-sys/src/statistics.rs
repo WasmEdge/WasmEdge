@@ -32,6 +32,26 @@ impl Statistics {
     }
 
     /// Returns the instruction count per second in execution.
+    ///
+    /// # Notice
+    ///
+    /// For the following cases,
+    /// - [`Statistics`] is not enabled, or
+    /// - the total execution time is 0
+    ///
+    /// the instructions per second is `NaN`, which represents `divided-by-zero`.
+    /// Use the `is_nan` function of F64 to check the return value before use it,
+    /// for example,
+    ///
+    /// ```
+    /// use wasmedge_sys::Statistics;
+    ///
+    /// // create a Statistics instance
+    /// let stat = Statistics::create().expect("fail to create a Statistics");
+    ///
+    /// // check instruction count per second
+    /// assert!(stat.instr_per_sec().is_nan());
+    /// ```
     pub fn instr_per_sec(&self) -> f64 {
         unsafe { wasmedge::WasmEdge_StatisticsGetInstrPerSecond(self.ctx) }
     }
@@ -90,7 +110,6 @@ mod tests {
         // check instruction count per second
         let count = stat.instr_per_sec();
         assert!(count.is_nan());
-        // assert!(count, 0.0);
 
         // check total cost
         assert_eq!(stat.cost_in_total(), 0);

@@ -28,7 +28,6 @@ pub mod error;
 pub mod executor;
 #[doc(hidden)]
 pub mod import_obj;
-// #[doc(hidden)]
 pub mod instance;
 #[doc(hidden)]
 pub mod io;

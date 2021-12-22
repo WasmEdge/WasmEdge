@@ -85,7 +85,6 @@ mod tests {
         let stat = result.unwrap();
 
         // check instruction count
-        let count = stat.instr_count();
         assert_eq!(stat.instr_count(), 0);
 
         // check instruction count per second

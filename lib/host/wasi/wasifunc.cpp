@@ -1894,6 +1894,98 @@ WasiSockSetOpt::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   const __wasi_fd_t WasiFd = Fd;
 
   if (auto Res = Env.sockSetOpt(WasiFd, Level, Name, InnerFlagPtr, FlagSize);
+  unlikely(!Res)) {
+    return Res.error();
+  }
+
+  return __WASI_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t>
+WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
+                      uint32_t NodePtr, uint32_t NodeLen, uint32_t ServicePtr,
+                      uint32_t ServiceLen, uint32_t HintsPtr, uint32_t ResPtr,
+                      uint32_t MaxResLength, uint32_t ResLengthPtr) {
+  /// Check memory instance from module.
+  if (MemInst == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+  const char *Node = nullptr;
+  if (NodeLen != 0) {
+    Node = MemInst->getPointer<const char *>(NodePtr, NodeLen);
+  }
+  const char *Service = nullptr;
+  if (ServiceLen != 0) {
+    Service = MemInst->getPointer<const char *>(ServicePtr, ServiceLen);
+  }
+  // service and node can not be nullptr at the same time
+  if (Service == nullptr && Node == nullptr) {
+    return __WASI_ERRNO_AINONAME;
+  }
+
+  if (MaxResLength < 1) {
+    return __WASI_ERRNO_AIMEMORY;
+  }
+  auto *const Hint = MemInst->getPointer<const __wasi_addrinfo_t *>(
+      HintsPtr, sizeof(__wasi_addrinfo_t));
+  auto *const ResLength = MemInst->getPointer<__wasi_size_t *>(
+      ResLengthPtr, sizeof(__wasi_size_t *));
+
+  auto initWasiAddrinfoArray =
+      [&MemInst](uint8_t_ptr Base, uint32_t Length,
+                 Span<__wasi_addrinfo_t *> WasiAddrinfoArray) {
+        for (uint32_t Item = 0; Item < Length; Item++) {
+          auto *TmpAddrinfo = MemInst->getPointer<__wasi_addrinfo_t *>(
+              Base, sizeof(__wasi_addrinfo_t));
+          WasiAddrinfoArray[Item] = TmpAddrinfo;
+          Base = TmpAddrinfo->ai_next;
+        }
+      };
+
+  auto initAiAddrArray =
+      [&MemInst](Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
+                 Span<__wasi_sockaddr_t *> WasiSockAddrArray) {
+        for (uint32_t Item = 0; Item < WasiAddrinfoArray.size(); Item++) {
+          WasiSockAddrArray[Item] = MemInst->getPointer<__wasi_sockaddr_t *>(
+              WasiAddrinfoArray[Item]->ai_addr, sizeof(__wasi_sockaddr_t));
+        }
+      };
+
+  auto initAiAddrSaDataArray =
+      [&MemInst](Span<__wasi_sockaddr_t *> WasiSockAddrArray,
+                 Span<char *> AiSockAddrSaDataArray) {
+        for (uint32_t Item = 0; Item < WasiSockAddrArray.size(); Item++) {
+          AiSockAddrSaDataArray[Item] =
+              MemInst->getPointer<char *>(WasiSockAddrArray[Item]->sa_data,
+                                          WasiSockAddrArray[Item]->sa_data_len);
+        }
+      };
+
+  auto initAiCanonnameArray =
+      [&MemInst](Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
+                 Span<char *> WasiAddrinfoCanonnameArray) {
+        for (uint32_t Item = 0; Item < WasiAddrinfoArray.size(); Item++) {
+          WasiAddrinfoCanonnameArray[Item] = MemInst->getPointer<char *>(
+              WasiAddrinfoArray[Item]->ai_canonname,
+              WasiAddrinfoArray[Item]->ai_canonname_len);
+        }
+      };
+
+  std::vector<__wasi_addrinfo_t *> WasiAddrinfoArray(MaxResLength, nullptr);
+  std::vector<__wasi_sockaddr_t *> WasiSockAddrArray(MaxResLength, nullptr);
+  std::vector<char *> AiAddrSaDataArray(MaxResLength, nullptr);
+  std::vector<char *> AiCanonnameArray(MaxResLength, nullptr);
+
+  initWasiAddrinfoArray(
+      *(MemInst->getPointer<uint8_t_ptr *>(ResPtr, sizeof(uint8_t))),
+      MaxResLength, WasiAddrinfoArray);
+  initAiAddrArray(WasiAddrinfoArray, WasiSockAddrArray);
+  initAiAddrSaDataArray(WasiSockAddrArray, AiAddrSaDataArray);
+  initAiCanonnameArray(WasiAddrinfoArray, AiCanonnameArray);
+
+  if (auto Res = Env.getAddrInfo(
+          Node, Service, *Hint, MaxResLength, WasiAddrinfoArray,
+          WasiSockAddrArray, AiAddrSaDataArray, AiCanonnameArray, *ResLength);
       unlikely(!Res)) {
     return Res.error();
   }

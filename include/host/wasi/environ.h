@@ -12,6 +12,7 @@
 
 #include <csignal>
 #include <cstdint>
+#include <cstring>
 #include <mutex>
 #include <random>
 #include <shared_mutex>
@@ -26,6 +27,7 @@ namespace WASI {
 
 inline namespace detail {
 inline constexpr const int32_t kIOVMax = 1024;
+inline constexpr const int32_t kSaDataLen = 14;
 } // namespace detail
 
 class EVPoller;
@@ -37,6 +39,24 @@ public:
             Span<const std::string> Args, Span<const std::string> Envs);
 
   void fini() noexcept;
+
+  WasiExpect<void> getAddrInfo(const char *Node, const char *Service,
+                               const __wasi_addrinfo_t &Hint,
+                               uint32_t MaxResLength,
+                               Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
+                               Span<__wasi_sockaddr_t *> WasiSockaddrArray,
+                               Span<char *> AiAddrSaDataArray,
+                               Span<char *> AiCanonnameArray,
+                               /*Out*/ __wasi_size_t &ResLength) {
+
+    if (auto Res = VINode::getAddrinfo(
+            Node, Service, Hint, MaxResLength, WasiAddrinfoArray,
+            WasiSockaddrArray, AiAddrSaDataArray, AiCanonnameArray, ResLength);
+        unlikely(!Res)) {
+      return WasiUnexpect(Res);
+    }
+    return {};
+  }
 
   constexpr const std::vector<std::string> &getArguments() const noexcept {
     return Arguments;

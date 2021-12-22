@@ -499,6 +499,62 @@ enum __wasi_errno_t : uint16_t {
    */
   __WASI_ERRNO_NOTCAPABLE = 76,
 
+  /**
+   * The specified network host does not have any network addresses in the
+   * requested address family.
+   */
+  __WASI_ERRNO_AIADDRFAMILY = 77,
+
+  /**
+   * Try again later.
+   */
+  __WASI_ERRNO_AIAGAIN = 78,
+
+  /**
+   * Hints.ai_flags contains invalid flags
+   */
+  __WASI_ERRNO_AIBADFLAG = 79,
+
+  /**
+   * The name server returned a permanent failure indication.
+   */
+  __WASI_ERRNO_AIFAIL = 80,
+
+  /**
+   * The requested address family is not supported.
+   */
+  __WASI_ERRNO_AIFAMILY = 81,
+
+  /**
+   * Addrinfo out of memory.
+   */
+  __WASI_ERRNO_AIMEMORY = 82,
+
+  /**
+   * Network host exists, but does not have any network addresses defined.
+   */
+  __WASI_ERRNO_AINODATA = 83,
+
+  /**
+   * Node or service is not known; or both node and service are NULL
+   */
+  __WASI_ERRNO_AINONAME = 84,
+
+  /**
+   * Service is not available for the requested socket type.
+   */
+  __WASI_ERRNO_AISERVICE = 85,
+
+  /**
+   * The requested socket type is not supported.
+   */
+  __WASI_ERRNO_AISOCKTYPE = 86,
+
+  /**
+   * Other system error;
+   */
+  __WASI_ERRNO_AISYSTEM = 87,
+
 };
 static_assert(sizeof(__wasi_errno_t) == 2, "witx calculated size");
 static_assert(alignof(__wasi_errno_t) == 2, "witx calculated align");
@@ -1653,6 +1709,54 @@ static_assert(offsetof(__wasi_address_t, buf_len) == 4,
               "witx calculated offset");
 
 /**
+ * Flags provided to `getaddrinfo`.
+ */
+enum __wasi_aiflags_t : uint16_t {
+
+  /**
+   * Socket address is intended for bind()
+   */
+  __WASI_AIFLAGS_AI_PASSIVE = 1ULL << 0,
+
+  /**
+   * Request for canonical name.
+   */
+  __WASI_AIFLAGS_AI_CANONNAME = 1ULL << 1,
+
+  /**
+   * Return numeric host address as name.
+   */
+  __WASI_AIFLAGS_AI_NUMERICHOST = 1ULL << 2,
+
+  /**
+   * Inhibit service name resolution.
+   */
+  __WASI_AIFLAGS_AI_NUMERICSERV = 1ULL << 3,
+
+  /**
+   * If no IPv6 addresses are found, query for IPv4 addresses and return them to
+   * the caller as IPv4-mapped IPv6 addresses.
+   */
+  __WASI_AIFLAGS_AI_V4MAPPED = 1ULL << 4,
+
+  /**
+   * Query for both IPv4 and IPv6 addresses.
+   */
+  __WASI_AIFLAGS_AI_ALL = 1ULL << 5,
+
+  /**
+   * Query for IPv4 addresses only when an IPv4 address is configured; query for
+   * IPv6 addresses only when an IPv6 address is configured.
+   */
+  __WASI_AIFLAGS_AI_ADDRCONFIG = 1ULL << 6,
+
+};
+DEFINE_ENUM_OPERATORS(__wasi_aiflags_t)
+
+static_assert(sizeof(__wasi_aiflags_t) == 2, "witx calculated size");
+static_assert(alignof(__wasi_aiflags_t) == 2, "witx calculated align");
+
+/**
  * Socket type
  */
 enum __wasi_sock_type_t : uint8_t {
@@ -1674,6 +1778,110 @@ enum __wasi_sock_opt : int32_t{
   __WASI_SOCK_SO_LINGER = 13,
   __WASI_SOCK_TCP_NODELAY = 1,
 };
+
+/**
+ * Protocol
+ */
+enum __wasi_protocol_t : uint8_t {
+  __WASI_PROTOCOL_IPPROTO_TCP = 0,
+
+  __WASI_PROTOCOL_IPPROTO_UDP = 1,
+
+};
+static_assert(sizeof(__wasi_protocol_t) == 1, "witx calculated size");
+static_assert(alignof(__wasi_protocol_t) == 1, "witx calculated align");
+
+/**
+ * Socket address_in provided for getaddrinfo
+ */
+struct __wasi_sockaddr_in_t {
+  __wasi_address_family_t sin_family;
+
+  uint16_t sin_port;
+
+  __wasi_address_t sin_addr;
+
+  __wasi_size_t sin_zero_len;
+
+  uint8_t_ptr sin_zero;
+};
+
+static_assert(sizeof(__wasi_sockaddr_in_t) == 20, "witx calculated size");
+static_assert(alignof(__wasi_sockaddr_in_t) == 4, "witx calculated align");
+static_assert(offsetof(__wasi_sockaddr_in_t, sin_family) == 0,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_sockaddr_in_t, sin_port) == 2,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_sockaddr_in_t, sin_addr) == 4,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_sockaddr_in_t, sin_zero_len) == 12,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_sockaddr_in_t, sin_zero) == 16,
+              "witx calculated offset");
+
+/**
+ * Socket address provided for getaddrinfo
+ */
+struct __wasi_sockaddr_t {
+  __wasi_address_family_t sa_family;
+
+  __wasi_size_t sa_data_len;
+
+  uint8_t_ptr sa_data;
+};
+
+static_assert(sizeof(__wasi_sockaddr_t) == 12, "witx calculated size");
+static_assert(alignof(__wasi_sockaddr_t) == 4, "witx calculated align");
+static_assert(offsetof(__wasi_sockaddr_t, sa_family) == 0,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_sockaddr_t, sa_data_len) == 4,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_sockaddr_t, sa_data) == 8,
+              "witx calculated offset");
+
+/**
+ * Address information
+ */
+struct __wasi_addrinfo_t {
+  __wasi_aiflags_t ai_flags;
+
+  __wasi_address_family_t ai_family;
+
+  __wasi_sock_type_t ai_socktype;
+
+  __wasi_protocol_t ai_protocol;
+
+  __wasi_size_t ai_addrlen;
+
+  uint8_t_ptr ai_addr;
+
+  uint8_t_ptr ai_canonname;
+
+  __wasi_size_t ai_canonname_len;
+
+  uint8_t_ptr ai_next;
+};
+
+static_assert(sizeof(__wasi_addrinfo_t) == 28, "witx calculated size");
+static_assert(alignof(__wasi_addrinfo_t) == 4, "witx calculated align");
+static_assert(offsetof(__wasi_addrinfo_t, ai_flags) == 0,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_family) == 2,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_socktype) == 3,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_protocol) == 4,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_addrlen) == 8,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_addr) == 12,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_canonname) == 16,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_canonname_len) == 20,
+              "witx calculated offset");
+static_assert(offsetof(__wasi_addrinfo_t, ai_next) == 24,
+              "witx calculated offset");
 
 /**
  * Flags provided to `sock_recv`.

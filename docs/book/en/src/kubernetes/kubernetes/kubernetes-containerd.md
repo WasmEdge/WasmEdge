@@ -79,7 +79,7 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 
 ### A simple WebAssembly app
 
-[A seperate article](../demo/wasi.md) explains how to compile, package, and publish a simple WebAssembly WASI
+[A separate article](../demo/wasi.md) explains how to compile, package, and publish a simple WebAssembly WASI
 program as a container image to Docker hub.
 Run the WebAssembly-based image from Docker Hub in the Kubernetes cluster as follows.
 
@@ -104,7 +104,7 @@ pod "wasi-demo-2" deleted
 
 ### A WebAssembly-based HTTP service
 
-[A seperate article](../demo/server.md) explains how to compile, package, and publish a simple WebAssembly HTTP service application
+[A separate article](../demo/server.md) explains how to compile, package, and publish a simple WebAssembly HTTP service application
 as a container image to Docker hub.
 Run the WebAssembly-based image from Docker Hub in the Kubernetes cluster as follows.
 

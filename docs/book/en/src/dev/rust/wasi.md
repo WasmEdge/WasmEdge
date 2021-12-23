@@ -150,7 +150,7 @@ In the Rust program, add a helper crate in Cargo.toml so that the WASI initializ
 wasmedge-wasi-helper = "=0.2.0"
 ```
 
-In the Rust function, we need to call `_initialize()` before we access any arguments and enviornment variables or operate any files.
+In the Rust function, we need to call `_initialize()` before we access any arguments and environment variables or operate any files.
 
 ```rust
 pub fn print_env() -> i32 {

@@ -1,6 +1,6 @@
 # WebAssembly Serverless Functions in AWS Lambda
 
-In this article, we will show you two serverless functions in Rust and WasmEdge deployed on AWS Lambda. One is the image processing function, the other one is the trnsorflow inference function.
+In this article, we will show you two serverless functions in Rust and WasmEdge deployed on AWS Lambda. One is the image processing function, the other one is the TensorFlow inference function.
 
 >  For the insight on why WasmEdge on AWS Lambda, please refer to the article [WebAssembly Serverless Functions in AWS Lambda](https://www.secondstate.io/articles/webassembly-serverless-functions-in-aws-lambda/)
 
@@ -164,7 +164,7 @@ docker run -p 9000:8080  myfunction:latest
 
 This command sets a function endpoint on your local machine at `http://localhost:9000/2015-03-31/functions/function/invocations`.
 
-Then, from a separate terminal windown, run:
+Then, from a separate terminal window, run:
 
 ```
 curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{}'
@@ -174,7 +174,7 @@ And you should get your expected output in the terminal.
 
 If you don't want to use a base image from AWS Lambda, you can also use your own base image and install RIC and/or RIE while building your Docker image. Just follow **Create an image from an alternative base image** section from [this guide](https://docs.aws.amazon.com/lambda/latest/dg/images-create.html).
 
-That's it! After building your Docker image, you can depoly it to AWS Lambda following steps outlined in the repository [README](https://github.com/second-state/aws-lambda-wasm-runtime/blob/tensorflow/README.md#deploy). Now your serverless function is ready to rock!
+That's it! After building your Docker image, you can deploy it to AWS Lambda following steps outlined in the repository [README](https://github.com/second-state/aws-lambda-wasm-runtime/blob/tensorflow/README.md#deploy). Now your serverless function is ready to rock!
 
 ## Example 2: AI inference
 

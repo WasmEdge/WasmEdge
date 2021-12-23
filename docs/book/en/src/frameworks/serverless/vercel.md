@@ -1,8 +1,8 @@
 # Rust and WebAssembly Serverless functions in Vercel
 
-In this article, we will show you two serverless functions in Rust and WasmEdge deployed on Vercel. One is the image processing function, the other one is the trnsorflow inference function.
+In this article, we will show you two serverless functions in Rust and WasmEdge deployed on Vercel. One is the image processing function, the other one is the TensorFlow inference function.
 
-> For more insights on why WasmEdge on Vercel, please refer to the artilce [Rust and WebAssembly Serverless Functions in Vercel](https://www.secondstate.io/articles/vercel-wasmedge-webassembly-rust/).
+> For more insights on why WasmEdge on Vercel, please refer to the article [Rust and WebAssembly Serverless Functions in Vercel](https://www.secondstate.io/articles/vercel-wasmedge-webassembly-rust/).
 
 
 ## Prerequisite 

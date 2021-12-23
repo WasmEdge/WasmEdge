@@ -1677,7 +1677,7 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
 3. Specified import object
 
     `WasmEdge_ImportObjectCreateWASI()` API can create and initialize the `WASI` import object.
-    `WasmEdge_ImportObjectCreateWasmEdgeProcess()` API can create and initializae the `wasmedge_process` import object.
+    `WasmEdge_ImportObjectCreateWasmEdgeProcess()` API can create and initialize the `wasmedge_process` import object.
     Developers can create these import object contexts and register them into the `Store` or `VM` contexts rather than adjust the settings in the `Configure` contexts.
 
     ```c

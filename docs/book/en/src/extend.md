@@ -7,7 +7,7 @@ provided by the operating systems or shared libraries.
 
 In this chapter, we will cover how to build WasmEdge from source code
 for different operating systems and platforms. We will then discuss
-the WasmEdge plug-in API, which allows developers to create extentions that can be distributed with official WasmEdge releases.
+the WasmEdge plug-in API, which allows developers to create extensions that can be distributed with official WasmEdge releases.
 
 
 

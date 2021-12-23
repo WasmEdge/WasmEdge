@@ -6,7 +6,7 @@ across platforms.
 It runs not only on Linux-like systems, but also on microkernels such as the seL4 system.
 
 WasmEdge now supports
-* Lunix
+* Linux
 * Windows
 * macOS
 * seL4

@@ -2,7 +2,7 @@
 
 Rust is one of the "first-class citizen" programming languages in the WebAssembly ecosystem. All WasmEdge extensions to WebAssembly also come with Rust APIs
 for developers.
-In this chapter, we will show you how to compile your Rust applications to wasm bytecode and to run in the WasmEdege runtime.
+In this chapter, we will show you how to compile your Rust applications to wasm bytecode and to run in the WasmEdge runtime.
 
 ## Prerequisites
 

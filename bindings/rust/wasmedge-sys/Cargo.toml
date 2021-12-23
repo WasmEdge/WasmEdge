@@ -1,6 +1,6 @@
 [package]
 name = "wasmedge-sys"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2018"
 description = "WasmEdge Runtime is a high-performance, extensible, and hardware optimized WebAssembly Virtual Machine for automotive, cloud, AI, and blockchain applications."
 license = "Apache-2.0"
@@ -12,3 +12,8 @@ libc = "0.2.94"
 
 [build-dependencies]
 bindgen = { version = "0.59.1", default-features = false, features = ["runtime"] }
+
+[features]
+default = ["aot"]
+standalone = []
+aot = []

@@ -192,18 +192,10 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
     ElemSeg.getInitExprs().reserve(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
       ElemSeg.getInitExprs().emplace_back();
-      if (auto Res = loadExpression(ElemSeg.getInitExprs().back())) {
-        for (auto &Instr : ElemSeg.getInitExprs().back().getInstrs()) {
-          OpCode Code = Instr.getOpCode();
-          if (Code != OpCode::Ref__func && Code != OpCode::Ref__null &&
-              Code != OpCode::End) {
-            return logLoadError(ErrCode::IllegalOpCode, Instr.getOffset(),
-                                ASTNodeAttr::Seg_Element);
-          }
-        }
-      } else {
+      if (auto Res = loadExpression(ElemSeg.getInitExprs().back());
+          unlikely(!Res)) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-        return Unexpect(Res.error());
+        return Unexpect(Res);
       }
     }
     break;

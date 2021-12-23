@@ -529,6 +529,14 @@ public:
   static inline WasiExpect<VPoller>
   pollOneoff(__wasi_size_t NSubscriptions) noexcept;
 
+  static WasiExpect<void>
+  getAddrinfo(const char *NodeStr, const char *ServiceStr,
+              const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
+              Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
+              Span<__wasi_sockaddr_t *> WasiSockaddrArray,
+              Span<char *> AiAddrSaDataArray, Span<char *> AiCanonnameArray,
+              /*Out*/ __wasi_size_t &ResLength) noexcept;
+
   static WasiExpect<std::shared_ptr<VINode>>
   sockOpen(VFS &FS, __wasi_address_family_t SysDomain,
            __wasi_sock_type_t SockType);
@@ -590,7 +598,6 @@ public:
   WasiExpect<void> sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
     return Node.sockShutdown(SdFlags);
   }
-
   __wasi_rights_t fsRightsBase() const noexcept { return FsRightsBase; }
 
   __wasi_rights_t fsRightsInheriting() const noexcept {

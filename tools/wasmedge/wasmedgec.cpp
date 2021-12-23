@@ -13,7 +13,7 @@ int main(int Argc, const char *Argv[]) {
   using namespace std::literals;
 
   std::ios::sync_with_stdio(false);
-  WasmEdge::Log::setErrorLoggingLevel();
+  WasmEdge::Log::setInfoLoggingLevel();
 
   PO::Option<std::string> WasmName(PO::Description("Wasm file"sv),
                                    PO::MetaVar("WASM"sv));
@@ -47,7 +47,7 @@ int main(int Argc, const char *Argv[]) {
       PO::Description("Disable Bulk memory operations proposal"sv));
   PO::Option<PO::Toggle> PropRefTypes(
       PO::Description("Disable Reference types proposal"sv));
-  PO::Option<PO::Toggle> PropSIMD(PO::Description("Enable SIMD proposal"sv));
+  PO::Option<PO::Toggle> PropSIMD(PO::Description("Disable SIMD proposal"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
 
   auto Parser = PO::ArgumentParser();
@@ -66,7 +66,7 @@ int main(int Argc, const char *Argv[]) {
            .add_option("disable-multi-value"sv, PropMultiValue)
            .add_option("disable-bulk-memory"sv, PropBulkMemOps)
            .add_option("disable-reference-types"sv, PropRefTypes)
-           .add_option("enable-simd"sv, PropSIMD)
+           .add_option("disable-simd"sv, PropSIMD)
            .add_option("enable-all"sv, PropAll)
            .parse(Argc, Argv)) {
     return EXIT_FAILURE;
@@ -96,11 +96,11 @@ int main(int Argc, const char *Argv[]) {
     Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
   }
   if (PropSIMD.value()) {
-    Conf.addProposal(WasmEdge::Proposal::SIMD);
+    Conf.removeProposal(WasmEdge::Proposal::SIMD);
   }
-  if (PropAll.value()) {
-    Conf.addProposal(WasmEdge::Proposal::SIMD);
-  }
+  /// Left for the future proposals.
+  /// if (PropAll.value()) {
+  /// }
 
   std::filesystem::path InputPath = std::filesystem::absolute(WasmName.value());
   std::filesystem::path OutputPath = std::filesystem::absolute(SoName.value());
@@ -111,7 +111,7 @@ int main(int Argc, const char *Argv[]) {
     Data = std::move(*Res);
   } else {
     const auto Err = static_cast<uint32_t>(Res.error());
-    std::cout << "Load failed. Error code:" << Err << std::endl;
+    spdlog::error("Load failed. Error code: {}", Err);
     return EXIT_FAILURE;
   }
 
@@ -120,7 +120,7 @@ int main(int Argc, const char *Argv[]) {
     Module = std::move(*Res);
   } else {
     const auto Err = static_cast<uint32_t>(Res.error());
-    std::cout << "Load failed. Error code:" << Err << std::endl;
+    spdlog::error("Parse Module failed. Error code: {}", Err);
     return EXIT_FAILURE;
   }
 
@@ -128,7 +128,7 @@ int main(int Argc, const char *Argv[]) {
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
     if (auto Res = ValidatorEngine.validate(*Module); !Res) {
       const auto Err = static_cast<uint32_t>(Res.error());
-      std::cout << "Validate failed. Error code:" << Err << std::endl;
+      spdlog::error("Validate Module failed. Error code: {}", Err);
       return EXIT_FAILURE;
     }
   }
@@ -162,7 +162,7 @@ int main(int Argc, const char *Argv[]) {
     WasmEdge::AOT::Compiler Compiler(Conf);
     if (auto Res = Compiler.compile(Data, *Module, OutputPath); !Res) {
       const auto Err = static_cast<uint32_t>(Res.error());
-      std::cout << "Compile failed. Error code:" << Err << std::endl;
+      spdlog::error("Compilation failed. Error code: {}", Err);
       return EXIT_FAILURE;
     }
   }

@@ -48,7 +48,7 @@ public:
 
 TEST_P(GeneralOptions, Test) {
   auto P = GetParam();
-  EXPECT_EQ(P.R, Parser.parse(P.Args.size(), P.Args.data()));
+  EXPECT_EQ(P.R, Parser.parse(static_cast<int>(P.Args.size()), P.Args.data()));
   if (P.R) {
     EXPECT_EQ(P.A, A.value());
     EXPECT_EQ(P.B, B.value());

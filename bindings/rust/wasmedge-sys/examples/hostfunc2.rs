@@ -62,20 +62,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let wasm_binary = load_file_as_byte_vec(&hostfunc_path.as_path().display().to_string());
 
-    let config = Config::default();
-    let mut import_obj = ImportObj::create("extern_module");
+    let config = Config::create().expect("fail to create Config instance");
+    let mut import_obj = ImportObj::create("extern_module").unwrap();
 
-    let mut host_func = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
+    let result = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
+    assert!(result.is_ok());
+    let mut host_func = result.unwrap();
     import_obj.add_func("add", &mut host_func);
 
     // load wasm from binary
-    let module =
-        Module::load_from_buffer(&config, wasm_binary).expect("funcs.wasm should be correct");
+    let mut module =
+        Module::load_from_buffer(&config, &wasm_binary).expect("funcs.wasm should be correct");
 
-    let mut vm = Vm::create(&config)
-        .register_module_from_import(import_obj)
+    let mut vm = Vm::create(Some(&config), None)
+        .expect("fail to create VM instance")
+        .register_wasm_from_import(&mut import_obj)
         .expect("import_obj should be regiestered")
-        .load_wasm_from_ast_module(&module)
+        .load_wasm_from_module(&mut module)
         .expect("funcs.wasm should be loaded")
         .validate()
         .expect("fail to validate vm")
@@ -89,8 +92,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let add_ref = Value::from(boxed_fn());
 
-    match vm.run("call_add", &[add_ref, 1234i32.into(), 5678i32.into()]) {
-        Ok(v) => println!("result from call_add: {:?}", v),
+    match vm.run_function("call_add", [add_ref, 1234i32.into(), 5678i32.into()]) {
+        Ok(v) => println!("result from call_add: {:?}", v.collect::<Vec<_>>()),
         Err(r) => println!("error from call_add{:?}", r),
     };
     Ok(())

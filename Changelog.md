@@ -1,7 +1,10 @@
-### 0.9.0 (unreleased)
+### 0.9.0 (2021-12-09)
 
 Breaking changes:
 
+* Turned on the `SIMD` proposal by default.
+  * The `WasmEdge_ConfigureContext` will turn on the `SIMD` proposal automatically.
+  * Users can use the `--disable-simd` to disable the `SIMD` proposal in `wasmedge` and `wasmedgec`.
 * For better performance, the Statistics module is disabled by default.
   * To enable instruction counting, please use `--enable-instruction-count`.
   * To enable gas measuring, please use `--enable-gas-measuring`.
@@ -153,6 +156,7 @@ Refactor:
 
 Documentations:
 
+* Updated the `wasmedge` commands in the [Run](https://github.com/WasmEdge/WasmEdge/blob/master/docs/run.md) and [SIMD documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/simd.md)
 * Updated the examples in the [C API documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md).
 * Updated the examples in the [host function documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/host_function.md).
 * Updated the examples in the [external reference documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/externref.md).
@@ -163,6 +167,7 @@ Bindings:
 
 Tests:
 
+* Updated the core test suite to the newest WASM spec.
 * Updated and fixed the value comarison in core tests.
 * Added `ErrInfo` unit tests.
 * Added instruction tests for turning on/off the old proposals.
@@ -175,6 +180,14 @@ Misc:
 
 * Enabled GitHub CodeSpaces
 * Added `assuming` for `assert` checking to help compiler to generate better codes.
+
+
+Thank all the contributors that made this release possible!
+
+2021, actly, alabulei1, Alex, Antonio Yang, Ashutosh Sharma, Avinal Kumar, blackanger, Chojan Shang, dm4, eee4017, fossabot, hydai, Jayita Pramanik, Kenvi Zhu, luishsu, LuisHsu, MaazKhan711635, Michael Yuan, MileyFu, Nick Hynes, O3Ol, Peter Chang, robnanarivo, Shen-Ta Hsieh, Shreyas Atre, slidoooor, Sylveon, Timothy McCallum, Vikas S Shetty, vincent, Xin Liu, Yi Huang, yiying, YiYing He, Yona, Yukang, 牟展佑
+
+
+If you want to build from source, please use WasmEdge-0.9.0-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.8.2 (2021-08-25)
 

@@ -14,15 +14,18 @@ The options and flags for the `wasmedge` command are as follows.
 	* Use `--enable-gas-measuring` to show the amount of used gas.
 	* Use `--enable-instruction-count` to display the number of executed instructions.
 	* Or use `--enable-all-statistics` to enable all of the statistics options.
-2. (Optional) Reactor mode: use `--reactor` to enable reactor mode. In the reactor mode, `wasmedge` runs a specified function from the WebAssembly program.
+2. (Optional) Resource limitation:
+	* Use `--gas-limit` to limit the execution cost.
+	* Use `--memory-page-limit` to set the limitation of pages(as size of 64 KiB) in every memory instance.
+3. (Optional) Reactor mode: use `--reactor` to enable reactor mode. In the reactor mode, `wasmedge` runs a specified function from the WebAssembly program.
 	* WasmEdge will execute the function which name should be given in ARG[0].
 	* If there's exported function which names `_initialize`, the function will be executed with the empty parameter at first.
-3. (Optional) Binding directories into WASI virtual filesystem.
+4. (Optional) Binding directories into WASI virtual filesystem.
 	* Each directory can be specified as `--dir guest_path:host_path`.
-4. (Optional) Environ variables.
+5. (Optional) Environ variables.
 	* Each variable can be specified as `--env NAME=VALUE`.
-5. Wasm file(`/path/to/wasm/file`).
-6. (Optional) Arguments.
+6. Wasm file(`/path/to/wasm/file`).
+7. (Optional) Arguments.
 	* In reactor mode, the first argument will be the function name, and the arguments after ARG[0] will be parameters of wasm function ARG[0].
 	* In command mode, the arguments will be parameters of function `_start`. They are also known as command line arguments for a standalone program.
 
@@ -92,6 +95,42 @@ state
 [2021-12-09 16:03:33.261] [info]  Gas costs: 20425
 [2021-12-09 16:03:33.261] [info]  Instructions per second: 81177218
 [2021-12-09 16:03:33.261] [info] =======================   End   ======================
+```
+
+#### With gas-limit enabled
+```bash
+# cd <path/to/WasmEdge>
+$ cd tools/wasmedge/examples
+# With enough gas
+$ wasmedge --enable-all-statistics --gas-limit 20425 hello.wasm second state
+hello
+second
+state
+[2021-12-09 16:03:33.261] [info] ====================  Statistics  ====================
+[2021-12-09 16:03:33.261] [info]  Total execution time: 268266 ns
+[2021-12-09 16:03:33.261] [info]  Wasm instructions execution time: 251610 ns
+[2021-12-09 16:03:33.261] [info]  Host functions execution time: 16656 ns
+[2021-12-09 16:03:33.261] [info]  Executed wasm instructions count: 20425
+[2021-12-09 16:03:33.261] [info]  Gas costs: 20425
+[2021-12-09 16:03:33.261] [info]  Instructions per second: 81177218
+[2021-12-09 16:03:33.261] [info] =======================   End   ======================
+
+# Without enough gas
+$ wasmedge --enable-all-statistics --gas-limit 20 hello.wasm second state
+[2021-12-23 15:19:06.690] [error] Cost exceeded limit. Force terminate the execution.
+[2021-12-23 15:19:06.690] [error]     In instruction: ref.func (0xd2) , Bytecode offset: 0x00000000
+[2021-12-23 15:19:06.690] [error]     At AST node: expression
+[2021-12-23 15:19:06.690] [error]     At AST node: element segment
+[2021-12-23 15:19:06.690] [error]     At AST node: element section
+[2021-12-23 15:19:06.690] [error]     At AST node: module
+[2021-12-23 15:19:06.690] [info] ====================  Statistics  ====================
+[2021-12-23 15:19:06.690] [info]  Total execution time: 0 ns
+[2021-12-23 15:19:06.690] [info]  Wasm instructions execution time: 0 ns
+[2021-12-23 15:19:06.690] [info]  Host functions execution time: 0 ns
+[2021-12-23 15:19:06.690] [info]  Executed wasm instructions count: 21
+[2021-12-23 15:19:06.690] [info]  Gas costs: 20
+[2021-12-23 15:19:06.690] [info]  Instructions per second: 0
+[2021-12-23 15:19:06.690] [info] =======================   End   ======================
 ```
 
 ### Example: Add

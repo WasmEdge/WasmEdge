@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "vm/vm.h"
+#include "vm/async.h"
 
 #include "host/wasi/wasimodule.h"
 #include "host/wasmedge_process/processmodule.h"
@@ -148,6 +149,36 @@ VM::runWasmFile(const AST::Module &Module, std::string_view Func,
   }
 }
 
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+VM::asyncRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
+                     Span<const ValVariant> Params,
+                     Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
+      const std::filesystem::path &, std::string_view, Span<const ValVariant>,
+      Span<const ValType>) = &VM::runWasmFile;
+  return {FPtr, *this, std::filesystem::path(Path), Func, Params, ParamTypes};
+}
+
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+VM::asyncRunWasmFile(Span<const Byte> Code, std::string_view Func,
+                     Span<const ValVariant> Params,
+                     Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
+      Span<const Byte>, std::string_view, Span<const ValVariant>,
+      Span<const ValType>) = &VM::runWasmFile;
+  return {FPtr, *this, Code, Func, Params, ParamTypes};
+}
+
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
+                     Span<const ValVariant> Params,
+                     Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
+      const AST::Module &, std::string_view, Span<const ValVariant>,
+      Span<const ValType>) = &VM::runWasmFile;
+  return {FPtr, *this, Module, Func, Params, ParamTypes};
+}
+
 Expect<void> VM::loadWasm(const std::filesystem::path &Path) {
   /// If not load successfully, the previous status will be reserved.
   if (auto Res = LoaderEngine.parseModule(Path)) {
@@ -252,6 +283,25 @@ VM::execute(Runtime::Instance::ModuleInstance *ModInst, std::string_view Func,
     spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
     return Unexpect(Res);
   }
+}
+
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+VM::asyncExecute(std::string_view Func, Span<const ValVariant> Params,
+                 Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
+      std::string_view, Span<const ValVariant>, Span<const ValType>) =
+      &VM::execute;
+  return {FPtr, *this, Func, Params, ParamTypes};
+}
+
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+VM::asyncExecute(std::string_view ModName, std::string_view Func,
+                 Span<const ValVariant> Params,
+                 Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
+      std::string_view, std::string_view, Span<const ValVariant>,
+      Span<const ValType>) = &VM::execute;
+  return {FPtr, *this, ModName, Func, Params, ParamTypes};
 }
 
 void VM::cleanup() {

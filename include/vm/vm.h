@@ -31,6 +31,7 @@
 namespace WasmEdge {
 namespace VM {
 
+template <typename T> class Async;
 /// VM execution flow class
 class VM {
 public:
@@ -61,6 +62,19 @@ public:
               Span<const ValVariant> Params = {},
               Span<const ValType> ParamTypes = {});
 
+  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+  asyncRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
+                   Span<const ValVariant> Params = {},
+                   Span<const ValType> ParamTypes = {});
+  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+  asyncRunWasmFile(Span<const Byte> Code, std::string_view Func,
+                   Span<const ValVariant> Params = {},
+                   Span<const ValType> ParamTypes = {});
+  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+  asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
+                   Span<const ValVariant> Params = {},
+                   Span<const ValType> ParamTypes = {});
+
   /// Load given wasm file, wasm bytecode, or wasm module.
   Expect<void> loadWasm(const std::filesystem::path &Path);
   Expect<void> loadWasm(Span<const Byte> Code);
@@ -82,9 +96,25 @@ public:
 
   /// Execute function of registered module with given input.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
-  execute(std::string_view Mod, std::string_view Func,
+  execute(std::string_view ModName, std::string_view Func,
           Span<const ValVariant> Params = {},
           Span<const ValType> ParamTypes = {});
+
+  /// Asynchronous execute wasm with given input.
+  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+  asyncExecute(std::string_view Func, Span<const ValVariant> Params = {},
+               Span<const ValType> ParamTypes = {});
+
+  /// Asynchronous execute function of registered module with given input.
+  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+  asyncExecute(std::string_view ModName, std::string_view Func,
+               Span<const ValVariant> Params = {},
+               Span<const ValType> ParamTypes = {});
+
+  /// Register new thread
+  void newThread() noexcept { ExecutorEngine.newThread(); }
+  /// Stop execution
+  void stop() noexcept { ExecutorEngine.stop(); }
 
   /// ======= Functions which are stageless. =======
   /// Clean up VM status
@@ -133,3 +163,5 @@ private:
 
 } // namespace VM
 } // namespace WasmEdge
+
+#include "async.h"

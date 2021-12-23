@@ -4,7 +4,7 @@ WasmEdge supports Windows 10. Currently, we also provide pre-built binaries and 
 
 You can find the details [here](https://github.com/WasmEdge/WasmEdge/blob/master/.github/workflows/build.yml#L266-L322)
 
-If you would like to develop WasmEdge on Windows 10, please follow this guid to build and test from source code.
+If you would like to develop WasmEdge on Windows 10, please follow this guide to build and test from source code.
 
 ## Get Source Code
 

@@ -75,7 +75,7 @@ systemctl restart crio
 ## Run a simple WebAssembly app
 
 Now, we can run a simple WebAssembly program using CRI-O.
-[A seperate article](../demo/wasi.md) explains how to compile, package, and publish the WebAssembly
+[A separate article](../demo/wasi.md) explains how to compile, package, and publish the WebAssembly
 program as a container image to Docker hub.
 In this section, we will start off pulling this WebAssembly-based container
 image from Docker hub using CRI-O tools.
@@ -169,7 +169,7 @@ Next, you can try to run the app in [Kubernetes](../kubernetes/kubernetes-crio.m
 ## Run a HTTP server app
 
 Finally, we can run a simple WebAssembly-based HTTP micro-service in CRI-O.
-[A seperate article](../demo/server.md) explains how to compile, package, and publish the WebAssembly
+[A separate article](../demo/server.md) explains how to compile, package, and publish the WebAssembly
 program as a container image to Docker hub.
 In this section, we will start off pulling this WebAssembly-based container
 image from Docker hub using CRI-O tools.

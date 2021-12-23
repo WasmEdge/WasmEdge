@@ -398,7 +398,7 @@ The `wasmedge.SetLogErrorLevel()` and `wasmedge.SetLogDebugLevel()` APIs can set
 
 ### Value Types
 
-In WasmEdge-go, the APIs will automatically do the convertion for the built-in types, and implement the data structure for the reference types.
+In WasmEdge-go, the APIs will automatically do the conversion for the built-in types, and implement the data structure for the reference types.
 
 1. Number types: `i32`, `i64`, `f32`, and `f64`
 
@@ -1912,7 +1912,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
 3. Specified import object
 
     `wasmedge.NewWasiImportObject()` API can create and initialize the `WASI` import object.
-    `wasmedge.NewWasmEdgeProcessImportObject()` API can create and initializae the `wasmedge_process` import object.
+    `wasmedge.NewWasmEdgeProcessImportObject()` API can create and initialize the `wasmedge_process` import object.
     Developers can create these import object objects and register them into the `Store` or `VM` objects rather than adjust the settings in the `Configure` objects.
 
     ```go

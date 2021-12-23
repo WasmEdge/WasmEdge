@@ -55,7 +55,7 @@ use crate::{
 ///
 ///       Also see [Annotations Proposal](https://github.com/WebAssembly/annotations/blob/master/proposals/annotations/Overview.md).
 ///
-///     - `Memory64` support linear memory of sizes larger than 232 bits.
+///     - `Memory64` supports 64-bit memory indexes.
 ///
 ///       Also see [Memory64 Proposal](https://github.com/WebAssembly/memory64/blob/main/proposals/memory64/Overview.md).
 ///
@@ -216,7 +216,7 @@ impl Config {
     }
 
     /// Sets the dump IR option of AOT compiler.
-    pub fn enable_dump_ir(self, flag: bool) -> Self {
+    pub fn dump_ir(self, flag: bool) -> Self {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerSetDumpIR(self.ctx, flag) };
         self
     }
@@ -380,7 +380,7 @@ mod tests {
             .enable_threads(true)
             .enable_cost_measuring(true)
             .enable_time_measuring(true)
-            .enable_dump_ir(true)
+            .dump_ir(true)
             .enable_generic_binary(true)
             .enable_instruction_counting(true);
 

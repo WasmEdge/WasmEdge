@@ -12,7 +12,7 @@ impl Validator {
     ///
     /// # Arguments
     ///
-    /// - `config` specifies the global environment configuration. `None` for the default configuration.
+    /// - `config` specifies the global environment configuration.
     ///
     /// # Error
     ///

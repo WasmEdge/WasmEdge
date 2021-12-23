@@ -13,6 +13,12 @@ Expect<void> Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
                                          const AST::Module &Mod) {
   InsMode = InstantiateMode::Instantiate;
   if (auto Res = instantiate(StoreMgr, Mod, ""); !Res) {
+    // If Statistics is enabled, then dump it here.
+    // When there is an error happened, the following execution will not
+    // execute.
+    if (Stat) {
+      Stat->dumpToLog(Conf);
+    }
     return Unexpect(Res);
   }
   return {};
@@ -61,6 +67,12 @@ Expect<void> Executor::registerModule(Runtime::StoreManager &StoreMgr,
   InsMode = InstantiateMode::ImportWasm;
   if (auto Res = instantiate(StoreMgr, Mod, Name); !Res) {
     spdlog::error(ErrInfo::InfoRegistering(Name));
+    // If Statistics is enabled, then dump it here.
+    // When there is an error happened, the following execution will not
+    // execute.
+    if (Stat) {
+      Stat->dumpToLog(Conf);
+    }
     return Unexpect(Res);
   }
   return {};

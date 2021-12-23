@@ -24,8 +24,8 @@ WasmEdge (previously known as SSVM) is a lightweight, high-performance, and exte
 🤖 [Build](https://wasmedge.org/book/en/extend/build.html) and [contribute to](docs/CONTRIBUTING.md) WasmEdge \
 ⌨️ [Run](https://wasmedge.org/book/en/index.html#webassembly-examples) a standalone Wasm program or a [JavaScript program](https://wasmedge.org/book/en/dev/js.html) from CLI or [Docker](https://wasmedge.org/book/en/start/docker.html) \
 🔌 Embed a Wasm function in your [Node.js](https://wasmedge.org/book/en/embed/node.html), [Go](https://wasmedge.org/book/en/embed/go.html), [Rust](bindings/rust/), or [C](https://wasmedge.org/book/en/embed/c.html) app \
-🛠 Manage and orchestrate Wasm runtimes using [Kubernetes](https://wasmedge.org/book/en/kubernetes.html), [data streaming frameworks](https://wasmedge.org/book/en/frameworks/app/yomo.html), and [blockchains](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a)
-📚 [Check out our official documentation](https://wasmedge.org/book/en/)
+🛠 Manage and orchestrate Wasm runtimes using [Kubernetes](https://wasmedge.org/book/en/kubernetes.html), [data streaming frameworks](https://wasmedge.org/book/en/frameworks/app/yomo.html), and [blockchains](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) \
+📚 [Check out our official documentation](https://wasmedge.org/book/en/) 
 
 # Introduction
 

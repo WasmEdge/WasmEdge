@@ -1347,8 +1347,8 @@ WasmEdge_ExecutorCreate(const WasmEdge_ConfigureContext *ConfCxt,
 /// Instantiate WasmEdge AST Module into a store.
 ///
 /// Instantiate the WasmEdge AST Module as an active anonymous module in store.
-/// You can call `WasmEdge_StoreGetActiveModule` to retrieve the active module
-/// instance.
+/// After instantiation, you can use the `WasmEdge_StoreFindFunction`,
+/// `WasmEdge_StoreListFunction`, .etc APIs to retrieve the exported instances.
 ///
 /// \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
 /// \param StoreCxt the WasmEdge_StoreContext to store the instantiated module.

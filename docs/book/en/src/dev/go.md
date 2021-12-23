@@ -60,7 +60,7 @@ Hello TinyGo from WasmEdge!
 The second example is a Go function that takes a call parameter to compute
 a fibonacci number. However, in order for the Go application to set up
 proper access to the OS (e.g., to access the command line arguments),
-you must include an emty `main()` function in the source code.
+you must include an empty `main()` function in the source code.
 
 ```go
 package main

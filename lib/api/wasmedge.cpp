@@ -95,6 +95,16 @@ struct WasmEdge_GlobalInstanceContext {};
 /// WasmEdge_ImportObjectContext implementation.
 struct WasmEdge_ImportObjectContext {};
 
+/// WasmEdge_Async implementation.
+struct WasmEdge_Async {
+  template <typename... Args>
+  WasmEdge_Async(Args &&...Vals) noexcept
+      : Async(std::forward<Args>(Vals)...) {}
+  WasmEdge::VM::Async<WasmEdge::Expect<
+      std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>>>
+      Async;
+};
+
 /// WasmEdge_VMContext implementation.
 struct WasmEdge_VMContext {
   template <typename... Args>
@@ -740,6 +750,22 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureCompilerIsGenericBinary(
     const WasmEdge_ConfigureContext *Cxt) {
   if (Cxt) {
     return Cxt->Conf.getCompilerConfigure().isGenericBinary();
+  }
+  return false;
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureCompilerSetInterruptible(WasmEdge_ConfigureContext *Cxt,
+                                           const bool IsInterruptible) {
+  if (Cxt) {
+    Cxt->Conf.getCompilerConfigure().setInterruptible(IsInterruptible);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureCompilerIsInterruptible(
+    const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getCompilerConfigure().isInterruptible();
   }
   return false;
 }
@@ -2281,6 +2307,34 @@ WasmEdge_ImportObjectDelete(WasmEdge_ImportObjectContext *Cxt) {
 
 /// >>>>>>>> WasmEdge import object functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+/// >>>>>>>> WasmEdge Async functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncWait(WasmEdge_Async *Cxt) {
+  Cxt->Async.wait();
+}
+
+WASMEDGE_CAPI_EXPORT bool WasmEdge_AsyncWaitFor(WasmEdge_Async *Cxt,
+                                                uint64_t Milliseconds) {
+  return Cxt->Async.waitFor(std::chrono::milliseconds(Milliseconds));
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncCancel(WasmEdge_Async *Cxt) {
+  Cxt->Async.cancel();
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_AsyncGet(
+    WasmEdge_Async *Cxt, WasmEdge_Value *Returns, const uint32_t ReturnLen) {
+  return wrap(
+      [&]() { return Cxt->Async.get(); },
+      [&](auto Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); }, Cxt);
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncDelete(WasmEdge_Async *Cxt) {
+  delete Cxt;
+}
+
+/// <<<<<<<< WasmEdge Async functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 /// >>>>>>>> WasmEdge VM functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_VMContext *
@@ -2386,6 +2440,35 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromASTModule(
       ASTCxt);
 }
 
+WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromFile(
+    WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,
+    const WasmEdge_Value *Params, const uint32_t ParamLen) {
+  auto ParamPair = genParamPair(Params, ParamLen);
+  return new WasmEdge_Async(Cxt->VM.asyncRunWasmFile(
+      std::filesystem::absolute(Path), genStrView(FuncName), ParamPair.first,
+      ParamPair.second));
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBuffer(
+    WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,
+    const WasmEdge_String FuncName, const WasmEdge_Value *Params,
+    const uint32_t ParamLen) {
+  auto ParamPair = genParamPair(Params, ParamLen);
+  return new WasmEdge_Async(
+      Cxt->VM.asyncRunWasmFile(genSpan(Buf, BufLen), genStrView(FuncName),
+                               ParamPair.first, ParamPair.second));
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromASTModule(
+    WasmEdge_VMContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,
+    const WasmEdge_String FuncName, const WasmEdge_Value *Params,
+    const uint32_t ParamLen) {
+  auto ParamPair = genParamPair(Params, ParamLen);
+  return new WasmEdge_Async(
+      Cxt->VM.asyncRunWasmFile(*ASTCxt->Module.get(), genStrView(FuncName),
+                               ParamPair.first, ParamPair.second));
+}
+
 WASMEDGE_CAPI_EXPORT WasmEdge_Result
 WasmEdge_VMLoadWasmFromFile(WasmEdge_VMContext *Cxt, const char *Path) {
   return wrap(
@@ -2442,6 +2525,24 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMExecuteRegistered(
       },
       [&](auto &&Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); },
       Cxt);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Async *
+WasmEdge_VMAsyncExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
+                        const WasmEdge_Value *Params, const uint32_t ParamLen) {
+  auto ParamPair = genParamPair(Params, ParamLen);
+  return new WasmEdge_Async(Cxt->VM.asyncExecute(
+      genStrView(FuncName), ParamPair.first, ParamPair.second));
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncExecuteRegistered(
+    WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_String FuncName, const WasmEdge_Value *Params,
+    const uint32_t ParamLen) {
+  auto ParamPair = genParamPair(Params, ParamLen);
+  return new WasmEdge_Async(
+      Cxt->VM.asyncExecute(genStrView(ModuleName), genStrView(FuncName),
+                           ParamPair.first, ParamPair.second));
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *

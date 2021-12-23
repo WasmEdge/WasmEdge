@@ -1611,6 +1611,7 @@ TEST(APICoreTest, Store) {
   WasmEdge_StringDelete(ModName[0]);
   WasmEdge_StringDelete(ModName[1]);
   WasmEdge_StringDelete(ModName[2]);
+  WasmEdge_StringDelete(ErrName);
   WasmEdge_StoreDelete(Store);
   WasmEdge_ImportObjectDelete(ImpObj);
 }

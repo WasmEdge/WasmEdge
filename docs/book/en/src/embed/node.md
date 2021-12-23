@@ -13,7 +13,7 @@ In this tutorial, I will show you how to incorporate WebAssembly functions, writ
 
 To set up a high-performance Node.js environment with Rust and WebAssembly, you will need the following:
 
-* A modern Linux distribution, such as Ubuntu Server 20.04 TLS
+* A modern Linux distribution, such as Ubuntu Server 20.04 LTS
 * [Rust language](https://www.rust-lang.org/tools/install)
 * [Node.js](https://nodejs.org/en/download/package-manager/)
 * [The WasmEdge Runtime](https://github.com/WasmEdge/WasmEdge/blob/master/docs/install.md) for Node.js

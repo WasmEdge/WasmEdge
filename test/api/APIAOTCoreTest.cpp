@@ -27,6 +27,17 @@
 #include <string>
 #include <vector>
 
+#if defined(linux) || defined(__linux) || defined(__linux__) ||                \
+    defined(__gnu_linux__)
+#define EXTENSION ".so"sv
+#elif defined(macintosh) || defined(Macintosh) ||                              \
+    (defined(__APPLE__) && defined(__MACH__))
+#define EXTENSION ".dylib"sv
+#elif defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||              \
+    defined(__TOS_WIN__) || defined(__WINDOWS__)
+#define EXTENSION ".dll"sv
+#endif
+
 namespace {
 using namespace std::literals;
 using namespace WasmEdge;
@@ -51,7 +62,7 @@ TEST_P(CoreTest, TestSuites) {
   auto Compile = [&, Conf = std::cref(Conf)](
                      const std::string &Filename) -> Expect<std::string> {
     auto Path = std::filesystem::u8path(Filename);
-    Path.replace_extension(std::filesystem::u8path(".so"sv));
+    Path.replace_extension(std::filesystem::u8path(EXTENSION));
     const auto SOPath = Path.u8string();
     WasmEdge_Result Res =
         WasmEdge_CompilerCompile(CompilerCxt, Filename.c_str(), SOPath.c_str());
@@ -208,6 +219,7 @@ TEST_P(CoreTest, TestSuites) {
 
 /// Initiate test suite.
 INSTANTIATE_TEST_SUITE_P(TestUnit, CoreTest, testing::ValuesIn(T.enumerate()));
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

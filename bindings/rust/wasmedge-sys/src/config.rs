@@ -7,7 +7,109 @@ use crate::{
 
 /// Struct of WasmEdge Config.
 ///
-/// [`Config`] is used to declare a group of global environment settings.
+/// [`Config`] manages the configuration options, which are used in WasmEdge [`Vm`], [`Loader`], [`Validator`],
+/// [`Executor`], and [`Compiler`].
+///
+/// The configuration options are categorized into the following four groups:
+///
+/// - WebAssembly Proposals
+///     This group of options are used to turn on/off the WebAssembly proposals. They are effective to any WasmEdge
+///     context created with [`Config`].
+///     
+///     - `ImportExportMutGlobals` supports mutable imported and exported globals.
+///
+///       Also see [Import/Export Mutable Globals Proposal](https://github.com/WebAssembly/mutable-global/blob/master/proposals/mutable-global/Overview.md#importexport-mutable-globals).
+///
+///     - `NonTrapFloatToIntConversions` supports the non-trapping float-to-int conversion.
+///
+///       Also see [Non-trapping Float-to-int Conversions Proposal](https://github.com/WebAssembly/spec/blob/main/proposals/nontrapping-float-to-int-conversion/Overview.md).
+///
+///     - `SignExtensionOperators` supports new integer instructions for sign-extending 8-bit, 16-bit, and 32-bit values.
+///     
+///       Also see [Sign-extension Operators Proposal](https://github.com/WebAssembly/spec/blob/main/proposals/sign-extension-ops/Overview.md).
+///
+///     - `MultiValue` supports functions and instructions with multiple return values, and blocks with inputs.
+///     
+///       Also see [Multi-value Extension](https://github.com/WebAssembly/spec/blob/main/proposals/multi-value/Overview.md).
+///
+///     - `BulkMemoryOperations` supports bulk memory operations.
+///
+///       Also see [Bulk Memory Operations Proposal](https://github.com/WebAssembly/spec/blob/main/proposals/bulk-memory-operations/Overview.md#motivation-for-bulk-memory-operations).
+///
+///     - `ReferenceTypes` supports reference types.
+///
+///       Also see [Reference Types Proposal](https://github.com/WebAssembly/spec/blob/main/proposals/reference-types/Overview.md).
+///
+///     - `SIMD` supports 128-bit packed SIMD extension to WebAssembly.
+///
+///       Also see [SIMD Proposal](https://github.com/WebAssembly/spec/blob/main/proposals/simd/SIMD.md).
+///  
+///     - `TailCall` supports tail call optimization.
+///
+///       Also see [Tail Call Proposal](https://github.com/WebAssembly/tail-call/blob/master/proposals/tail-call/Overview.md).
+///
+///       Also see [](https://github.com/WebAssembly/tail-call/blob/master/proposals/tail-call/Overview.md).
+///
+///     - `Annotations` supports annotations in WASM text format.
+///
+///       Also see [Annotations Proposal](https://github.com/WebAssembly/annotations/blob/master/proposals/annotations/Overview.md).
+///
+///     - `Memory64` support linear memory of sizes larger than 232 bits.
+///
+///       Also see [Memory64 Proposal](https://github.com/WebAssembly/memory64/blob/main/proposals/memory64/Overview.md).
+///
+///     - `Threads` supports threading feature.
+///
+///       Also see [Threading Proposal](https://github.com/WebAssembly/threads/blob/main/proposals/threads/Overview.md).
+///
+///     - `ExceptionHandling` supports exception handling.
+///     
+///       Also see [Exception Handling Proposal](https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/Exceptions.md).
+///
+///     - `FunctionReferences` supports typed function references for WebAssembly.
+///
+///       Also see [Function References Proposal](https://github.com/WebAssembly/function-references/blob/master/proposals/function-references/Overview.md).
+///
+/// - Host Registrations
+///     - `Wasi` turns on the `WASI` support in [`Vm`].
+///     - `WasmEdgeProcess` turns on the `wasmedge_process` support in [`Vm`].
+///     
+///     The two options are only effective to [`Vm`].
+///
+/// - Memory Management
+///     - `maximum_memory_page` limits the page size of [`Memory`]. This option is only effective to [`Executor`] and [`VM`].
+///
+/// - AOT Compilation
+///     The AOT compiler options configure the behavior about optimization level, output format, dump IR,
+///     and generic binary.
+///
+///     - Compiler Optimization Levels
+///         - `O0` performs as many optimizations as possible.
+///         - `O1` optimizes quickly without destroying debuggability.
+///         - `02` optimizes for fast execution as much as possible without triggering significant incremental
+///                compile time or code size growth.
+///         - `O3` optimizes for fast execution as much as possible.
+///         - `Os` optimizes for small code size as much as possible without triggering significant incremental
+///                compile time or execution time slowdowns.
+///         - `Oz` optimizes for small code size as much as possible.
+///
+///     - Compiler Output Formats
+///         - `Native` specifies the output format is native dynamic library (`*.wasm.so`).
+///         - `Wasm` specifies the output format is WebAssembly with AOT compiled codes in custom section (`*.wasm`).
+///     
+///     - `dump_ir` determines if AOT compiler generates IR or not.
+///     - `generic_binary` determines if AOT compiler generates the generic binary or not.
+///     
+///     The configuration options above are only effective to [`Compiler`].
+///
+/// - Runtime Statistics
+///     - `instr_counting` determines if measuring the count of instructions when running a compiled or pure WASM.
+///     - `cost_measuring` determines if measuring the instruction costs when running a compiled or pure WASM.
+///     - `time_measuring` determines if measuring the running time when running a compiled or pure WASM.
+///
+/// API users can first set the options of interest, such as those related to the WebAssembly proposals,
+/// host registrations, AOT compiler options, and etc., then apply the configuration
+/// to create other WasmEdge runtime structs.
 #[derive(Debug)]
 pub struct Config {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ConfigureContext,
@@ -31,12 +133,43 @@ impl Config {
         }
     }
 
-    /// Enables a host pre-registration setting
+    /// Enables host registration wasi.
     pub fn enable_wasi(self) -> Self {
         unsafe {
             wasmedge::WasmEdge_ConfigureAddHostRegistration(
                 self.ctx,
                 wasmedge::WasmEdge_HostRegistration_Wasi,
+            )
+        };
+        self
+    }
+
+    /// Checks if host registration wasi turns on or not.
+    pub fn wasi_enabled(&self) -> bool {
+        unsafe {
+            wasmedge::WasmEdge_ConfigureHasHostRegistration(
+                self.ctx,
+                wasmedge::WasmEdge_HostRegistration_Wasi,
+            )
+        }
+    }
+
+    /// Checks if host registration wasmedge process turns on or not.
+    pub fn wasmedge_process_enabled(&self) -> bool {
+        unsafe {
+            wasmedge::WasmEdge_ConfigureHasHostRegistration(
+                self.ctx,
+                wasmedge::WasmEdge_HostRegistration_WasmEdge_Process,
+            )
+        }
+    }
+
+    /// Enables host registration WasmEdge process.
+    pub fn enable_wasmedge_process(self) -> Self {
+        unsafe {
+            wasmedge::WasmEdge_ConfigureAddHostRegistration(
+                self.ctx,
+                wasmedge::WasmEdge_HostRegistration_WasmEdge_Process,
             )
         };
         self
@@ -87,7 +220,7 @@ impl Config {
         self
     }
 
-    /// Returns the dump IR option of AOT compiler.
+    /// Checks if the dump IR option turns on or not.
     pub fn is_dump_ir(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerIsDumpIR(self.ctx) }
     }
@@ -98,7 +231,7 @@ impl Config {
         self
     }
 
-    /// Returns the generic binary option of AOT compiler.
+    /// Checks if the generic binary option of AOT compiler turns on or not.
     pub fn is_generic_binary(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerIsGenericBinary(self.ctx) }
     }
@@ -109,7 +242,7 @@ impl Config {
         self
     }
 
-    /// Returns the instruction counting option.
+    /// Checks if the instruction counting option turns on or not.
     pub fn is_instruction_counting(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsInstructionCounting(self.ctx) }
     }
@@ -120,7 +253,7 @@ impl Config {
         self
     }
 
-    /// Returns the cost measuring option.
+    /// Checks if the cost measuring option turns on or not.
     pub fn is_cost_measuring(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsCostMeasuring(self.ctx) }
     }
@@ -131,7 +264,7 @@ impl Config {
         self
     }
 
-    /// Returns the cost measuring option.
+    /// Checks if the cost measuring option turns on or not.
     pub fn is_time_measuring(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsTimeMeasuring(self.ctx) }
     }
@@ -182,6 +315,10 @@ macro_rules! impl_proposal_config {
     }
 }
 impl_proposal_config! {
+    ImportExportMutGlobals,
+    NonTrapFloatToIntConversions,
+    SignExtensionOperators,
+    MultiValue,
     BulkMemoryOperations,
     ReferenceTypes,
     SIMD,

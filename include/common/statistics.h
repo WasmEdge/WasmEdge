@@ -44,8 +44,10 @@ public:
 
   /// Getter of instruction per second.
   double getInstrPerSecond() const {
-    return static_cast<double>(InstrCnt) /
-           std::chrono::duration<double>(getWasmExecTime()).count();
+    uint64_t count = std::chrono::duration<double>(getWasmExecTime()).count();
+    if (count == 0)
+      return 0;
+    return static_cast<double>(InstrCnt) / count;
   }
 
   /// Setter and setter of cost table.

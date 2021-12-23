@@ -1311,7 +1311,7 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   EXPECT_EQ(WasmEdge_StatisticsGetInstrCount(nullptr), 0ULL);
 
   /// Statistics get instruction per second
-  EXPECT_GT(WasmEdge_StatisticsGetInstrPerSecond(Stat), 0.0);
+  EXPECT_EQ(WasmEdge_StatisticsGetInstrPerSecond(Stat), 0.0);
   EXPECT_EQ(WasmEdge_StatisticsGetInstrPerSecond(nullptr), 0.0);
 
   /// Statistics get total cost

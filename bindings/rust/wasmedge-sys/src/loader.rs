@@ -1,12 +1,25 @@
+//! Defines WasmEdge Loader struct.
+
 use crate::{error::check, utils, wasmedge, Config, Error, Module, WasmEdgeResult};
 use std::path::Path;
 
+/// Struct of WasmEdge Loader.
+///
+/// [`Loader`] is used to load WASM modules from the given WASM files or buffers.
 #[derive(Debug)]
 pub struct Loader {
     pub(crate) ctx: *mut wasmedge::WasmEdge_LoaderContext,
 }
 impl Loader {
-    /// Create a Loader instance
+    /// Create a new [`Loader`] to be associated with the given global configuration.
+    ///
+    /// # Arguements
+    ///
+    /// - `config` specifies a global configuration.
+    ///
+    /// # Error
+    ///
+    /// If fail to create a [`Loader`], then an error is returned.
     pub fn create(config: Option<&Config>) -> WasmEdgeResult<Self> {
         let config_ctx = match config {
             Some(config) => config.ctx,
@@ -22,7 +35,15 @@ impl Loader {
         }
     }
 
-    /// Load a WASM module from a WASM file
+    /// Loads a WASM module from a WASM file.
+    ///
+    /// # Arguments
+    ///
+    /// - `path` specifies the file path to the target WASM file.
+    ///
+    /// # Error
+    ///
+    /// If fail to load, then an error is returned.
     pub fn from_file(&self, path: impl AsRef<Path>) -> WasmEdgeResult<Module> {
         if !path.as_ref().exists() {
             return Err(Error::OperationError(format!(
@@ -53,7 +74,15 @@ impl Loader {
         }
     }
 
-    /// Load and parse the WASM module from a buffer
+    /// Loads a WASM module from a buffer.
+    ///
+    /// # Arguments
+    ///
+    /// - `buffer` specifies a WASM buffer.
+    ///
+    /// # Error
+    ///
+    /// If fail to load, then an error is returned.
     pub fn from_buffer(&self, buffer: &[u8]) -> WasmEdgeResult<Module> {
         let mut mod_ctx = std::ptr::null_mut();
         unsafe {

@@ -1,0 +1,44 @@
+name: MDBOOK
+
+on:
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'info'
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v1
+        with:
+          # mdbook-version: '0.4.10'
+          mdbook-version: 'latest'
+
+      - name: Build EN version
+        run: |
+          cd docs/book/en
+          mdbook build
+
+      - name: Publish EN version
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB_WWW }}
+        with:
+          source-directory: 'docs/book/en/book'
+          destination-github-username: 'WasmEdge'
+          destination-repository-name: 'www'
+          target-directory: 'book/en'
+          user-email: michael@secondstate.io
+          target-branch: main

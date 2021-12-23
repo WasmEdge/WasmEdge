@@ -64,11 +64,18 @@ public:
 
   bool isGenericBinary() const noexcept { return GenericBinary; }
 
+  void setInterruptible(bool IsInterruptible) noexcept {
+    Interruptible = IsInterruptible;
+  }
+
+  bool isInterruptible() const noexcept { return Interruptible; }
+
 private:
   OptimizationLevel OptLevel = OptimizationLevel::O3;
   OutputFormat OFormat = OutputFormat::Wasm;
   bool DumpIR = false;
   bool GenericBinary = false;
+  bool Interruptible = false;
 };
 
 class RuntimeConfigure {

@@ -595,9 +595,16 @@ main() {
             echo "$_source" >>"$__HOME__/.zprofile"
         fi
     elif [[ "$_shell_" =~ "bash" ]]; then
-        local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
-        if [ "$_grep" = "" ]; then
-            echo "$_source" >>"$__HOME__/.bash_profile"
+        if [ -f "$__HOME__/.bashrc" ]; then
+            local _grep=$(cat "$__HOME__/.bashrc" 2>/dev/null | grep "$IPATH/env")
+            if [ "$_grep" = "" ]; then
+                echo "$_source" >>"$__HOME__/.bashrc"
+            fi
+        else
+            local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
+            if [ "$_grep" = "" ]; then
+                echo "$_source" >>"$__HOME__/.bash_profile"
+            fi
         fi
     fi
 

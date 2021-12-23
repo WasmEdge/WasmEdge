@@ -55,9 +55,8 @@ WasmEdge extensions to WebAssembly are typically available to developers as Rust
 
 WasmEdge and its contained wasm program can be started from the [CLI](https://wasmedge.org/book/en/index.html) as a new process, or from a existing process. If started from an existing process (e.g., from a running [Node.js](https://wasmedge.org/book/en/embed/node.html) or [Go](https://wasmedge.org/book/en/embed/go.html) or [Rust](bindings/rust/wasmedge-rs) program), WasmEdge will simply run inside the process as a function. Currently, WasmEdge is not yet thread-safe. In order to use WasmEdge in your own application or cloud-native frameworks, please refer to the guides below.
 
-* [Embed WasmEdge into a host application](docs/integrations.md#embed-wasmedge-into-a-host-application)
-* [Orchestrate and manage WasmEdge instances using container tools](docs/integrations.md#use-wasmedge-as-a-docker-like-container)
-* [Call native host functions from WasmEdge](docs/integrations.md#call-native-host-functions-from-wasmedge)
+* [Embed WasmEdge into a host application](https://wasmedge.org/book/en/embed.html)
+* [Orchestrate and manage WasmEdge instances using container tools](https://wasmedge.org/book/en/kubernetes.html)
 
 # Community
 

@@ -9,8 +9,8 @@ on:
         default: 'info'
   push:
     branches: [ master ]
-  pull_request:
-    branches: [ master ]
+    paths:
+      - 'docs/book/**'
 
 jobs:
   build:

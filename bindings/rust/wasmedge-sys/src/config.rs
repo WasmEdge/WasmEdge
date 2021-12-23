@@ -13,6 +13,7 @@ use crate::{
 /// The configuration options are categorized into the following four groups:
 ///
 /// - WebAssembly Proposals
+///
 ///     This group of options are used to turn on/off the WebAssembly proposals. They are effective to any WasmEdge
 ///     context created with [`Config`].
 ///     

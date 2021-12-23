@@ -14,14 +14,14 @@ Third, WebAssembly apps are easy to deploy and manage. They have much less platf
 Finally, the [WasmEdge Tensorflow API](https://www.secondstate.io/articles/wasi-tensorflow/) provides the most ergonomic way to execute Tensorflow models in the Rust programming language. WasmEdge installs the correct combination of Tensorflow dependency libraries, and provides a unified API for developers.
 
 
-In this section, we will show you how to run WebAssembly serverless functions in public coulds. Each platform has its own code template and contains two examlpes in Rust, one is the normal image processing, The other one is TensorFlow infrence using the WasmEdge TensorFlow SDK.
+In this section, we will show you how to run WebAssembly serverless functions in public clouds. Each platform has its own code template and contains two examples in Rust, one is the normal image processing, The other one is TensorFlow inference using the WasmEdge TensorFlow SDK.
 
-* [Vercel](serverless/vercel.md) discuss how to leverge WasmEdge to accelerate the Jamstack application deployed on Vercel.
-* [Netlify](serverless/netlify.md) discuss how to leverge WasmEdge to accelerate the Jamstack application deployed on Netlify.
-* [AWS Lambda](serverless/aws.md) discuss how to leverge WasmEdge to accelerate the serverless functions deployed on AWS Lambda.
-* [Tencent](serverless/tencent.md) discuss how to leverge WasmEdge to accelerate the serverless functions deployed on Tencent cloud.
+* [Vercel](serverless/vercel.md) discuss how to leverage WasmEdge to accelerate the Jamstack application deployed on Vercel.
+* [Netlify](serverless/netlify.md) discuss how to leverage WasmEdge to accelerate the Jamstack application deployed on Netlify.
+* [AWS Lambda](serverless/aws.md) discuss how to leverage WasmEdge to accelerate the serverless functions deployed on AWS Lambda.
+* [Tencent](serverless/tencent.md) discuss how to leverage WasmEdge to accelerate the serverless functions deployed on Tencent cloud.
 
-> If you would like to add more WasmEdge examples on public cloud platform,like Google Cloud Functions, feel free to creta a PR for WasmEdge and let the community know what you did.
+> If you would like to add more WasmEdge examples on public cloud platform,like Google Cloud Functions, feel free to create a PR for WasmEdge and let the community know what you did.
 
 ![](serverless-wasmedge.png)
 

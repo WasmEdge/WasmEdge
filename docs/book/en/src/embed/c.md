@@ -1,8 +1,8 @@
-# WamEdge C SDK
+# WasmEdge C SDK
 
 The WasmEdge C API denotes an interface to embed the WasmEdge runtime into a C program. The followings are the quick start guides to working with the C APIs of WasmEdge. For the details of the WasmEdge C API, please refer to the [full documentation](c/ref.md).
 
-The WasmEdge C API also the foundmental API for other languages' SDK.
+The WasmEdge C API also the fundamental API for other languages' SDK.
 
 ## Quick Start Guide for the WasmEdge runner
 

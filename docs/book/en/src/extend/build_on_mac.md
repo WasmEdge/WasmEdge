@@ -9,7 +9,7 @@ Currently, WasmEdge project on MacOS supports both Intel and M1 models. However,
   * Big Sur
   * Catalina
 
-If you would like to develop WasmEdge on MacOS, please follow this guid to build and test from source code.
+If you would like to develop WasmEdge on MacOS, please follow this guide to build and test from source code.
 
 ## Get Source Code
 
@@ -84,7 +84,7 @@ Next, follow [this guide](../index.md) to run WebAssembly bytecode programs in `
 
 ## Known issues
 
-The following tests can not pass on macos, we are invesgating these issues:
+The following tests can not pass on macos, we are investigating these issues:
 
 * wasmedgeAPIVMCoreTests
 * wasmedgeAPIStepsCoreTests

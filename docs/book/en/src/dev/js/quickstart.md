@@ -1,6 +1,6 @@
 # Quick start with JavaScript on WasmEdge
 
-First, let's build a WebAssmbly-based JavaScript interpreter program for WasmEdge. It is based on [QuickJS](https://bellard.org/quickjs/) with WasmEdge extensions, such as [network sockets](https://github.com/second-state/wasmedge_wasi_socket) and [Tensorflow inference](https://www.secondstate.io/articles/wasi-tensorflow/), incorporated into the interpreter as JavaScript APIs. You will need to [install Rust](https://www.rust-lang.org/tools/install) to build the interpreter.
+First, let's build a WebAssembly-based JavaScript interpreter program for WasmEdge. It is based on [QuickJS](https://bellard.org/quickjs/) with WasmEdge extensions, such as [network sockets](https://github.com/second-state/wasmedge_wasi_socket) and [Tensorflow inference](https://www.secondstate.io/articles/wasi-tensorflow/), incorporated into the interpreter as JavaScript APIs. You will need to [install Rust](https://www.rust-lang.org/tools/install) to build the interpreter.
 
 > If you just want to use the interpreter to run JavaScript programs, you can skip this section. Make sure you have installed [Rust](https://www.rust-lang.org/tools/install) and [WasmEdge](https://github.com/WasmEdge/WasmEdge/blob/master/docs/install.md).
 

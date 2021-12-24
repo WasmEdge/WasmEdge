@@ -13,11 +13,11 @@ The full source code for the demo in this chapter is [available here](https://gi
 
 ## Rust function compiled into WebAssembly
 
-In the [Rust project](https://github.com/second-state/WasmEdge-go-examples/tree/master/wasmedge-bindgen/go_BindgenFuncs/rust_bindgen_funcs), all you need is to annotate [your functions](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_BindgenFuncs/rust_bindgen_funcs/src/lib.rs) with a `[wasmedge_bindgen]` marco.
+In the [Rust project](https://github.com/second-state/WasmEdge-go-examples/tree/master/wasmedge-bindgen/go_BindgenFuncs/rust_bindgen_funcs), all you need is to annotate [your functions](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_BindgenFuncs/rust_bindgen_funcs/src/lib.rs) with a `[wasmedge_bindgen]` macro.
 Those annotated functions will be automatically instrumented by the Rust compiler and turned into
 WebAssembly functions that can be called from the `wasmedge-bindgen` GO SDK.
 In the example below, we have several Rust functions that take complex call
-parametersm and return complex values.
+parameters and return complex values.
 
 ```rust
 use wasmedge_bindgen::*;

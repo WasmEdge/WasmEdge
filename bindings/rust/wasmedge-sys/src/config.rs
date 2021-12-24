@@ -227,7 +227,7 @@ impl Config {
     }
 
     /// Sets the generic binary option of AOT compiler.
-    pub fn enable_generic_binary(self, flag: bool) -> Self {
+    pub fn generic_binary(self, flag: bool) -> Self {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerSetGenericBinary(self.ctx, flag) };
         self
     }
@@ -238,7 +238,7 @@ impl Config {
     }
 
     /// Sets the instruction counting option.
-    pub fn enable_instruction_counting(self, flag: bool) -> Self {
+    pub fn count_instructions(self, flag: bool) -> Self {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetInstructionCounting(self.ctx, flag) };
         self
     }
@@ -249,7 +249,7 @@ impl Config {
     }
 
     /// Sets the cost measuring option.
-    pub fn enable_cost_measuring(self, flag: bool) -> Self {
+    pub fn measure_cost(self, flag: bool) -> Self {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetCostMeasuring(self.ctx, flag) };
         self
     }
@@ -260,7 +260,7 @@ impl Config {
     }
 
     /// Sets the time measuring option.
-    pub fn enable_time_measuring(self, flag: bool) -> Self {
+    pub fn measure_time(self, flag: bool) -> Self {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetTimeMeasuring(self.ctx, flag) };
         self
     }
@@ -378,11 +378,11 @@ mod tests {
             .enable_simd(false)
             .enable_tailcall(true)
             .enable_threads(true)
-            .enable_cost_measuring(true)
-            .enable_time_measuring(true)
+            .measure_cost(true)
+            .measure_time(true)
             .dump_ir(true)
-            .enable_generic_binary(true)
-            .enable_instruction_counting(true);
+            .generic_binary(true)
+            .count_instructions(true);
 
         // check new settings
         assert!(config.has_annotations());

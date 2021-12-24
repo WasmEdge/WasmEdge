@@ -15,20 +15,22 @@ WebAssembly bytecode programs.
 The options and flags for the `wasmedge` command are as follows.
 
 1. (Optional) Statistics information:
-  * Use `--enable-time-measuring` to show the execution time.
-  * Use `--enable-gas-measuring` to show the amount of used gas.
-  * Use `--enable-instruction-count` to display the number of executed instructions.
-  * Or use `--enable-all-statistics` to enable all of the statistics options.
-
-2. (Optional) Reactor mode: use `--reactor` to enable reactor mode. In the reactor mode, `wasmedge` runs a specified function from the WebAssembly program.
+	* Use `--enable-time-measuring` to show the execution time.
+	* Use `--enable-gas-measuring` to show the amount of used gas.
+	* Use `--enable-instruction-count` to display the number of executed instructions.
+	* Or use `--enable-all-statistics` to enable all of the statistics options.
+2. (Optional) Resource limitation:
+	* Use `--gas-limit` to limit the execution cost.
+	* Use `--memory-page-limit` to set the limitation of pages(as size of 64 KiB) in every memory instance.
+3. (Optional) Reactor mode: use `--reactor` to enable reactor mode. In the reactor mode, `wasmedge` runs a specified function from the WebAssembly program.
 	* WasmEdge will execute the function which name should be given in `ARG[0]`.
 	* If there's exported function which names `_initialize`, the function will be executed with the empty parameter at first.
-3. (Optional) Binding directories into WASI virtual filesystem.
+4. (Optional) Binding directories into WASI virtual filesystem.
 	* Each directory can be specified as `--dir guest_path:host_path`.
-4. (Optional) Environ variables.
+5. (Optional) Environ variables.
 	* Each variable can be specified as `--env NAME=VALUE`.
-5. Wasm file (`/path/to/wasm/file`).
-6. (Optional) Arguments.
+6. Wasm file (`/path/to/wasm/file`).
+7. (Optional) Arguments.
 	* In reactor mode, the first argument will be the function name, and the arguments after `ARG[0]` will be parameters of wasm function `ARG[0]`.
 	* In command mode, the arguments will be parameters of function `_start`. They are also known as command line arguments for a standalone program.
 
@@ -40,9 +42,16 @@ Once installed, you can [review and run our examples](../index.md).
 
 The `wasmedgec` binary file is a program to compile WebAssembly bytecode
 programs into native machine code (i.e., the AOT compiler). 
-The compiled machine code could be [stored in the original `wasm` file](/universal.md), and
+The compiled machine code could be [stored in the original `wasm` file](universal.md), and
 the `wasmedge` CLI will automatically choose to execute the native machine
 code whenever it is available.
+
+The options and flags for the `wasmedgec` are as follows.
+
+1. Input Wasm file(`/path/to/input/wasm/file`).
+2. Output file name(`/path/to/output/file`).
+	* By default, it will generate the [universal Wasm binary format](universal.md).
+	* Users can still generate native binary only by specifying the `.so`, `.dylib`, or `.dll` extensions.
 
 ```bash
 // This is slow

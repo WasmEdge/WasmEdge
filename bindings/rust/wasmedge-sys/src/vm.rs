@@ -633,7 +633,7 @@ mod tests {
         let conf = conf.enable_bulkmemoryoperations(true);
         assert!(conf.has_bulkmemoryoperations());
 
-        let result = Module::load_from_file(&conf, path);
+        let result = Module::create_from_file(&conf, path);
         assert!(result.is_ok());
         let mut ast_module = result.unwrap();
 

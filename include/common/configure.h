@@ -106,10 +106,15 @@ public:
 
   bool isTimeMeasuring() const noexcept { return TimeMeasuring; }
 
+  void setCostLimit(uint64_t Cost) noexcept { CostLimit = Cost; }
+
+  uint64_t getCostLimit() const noexcept { return CostLimit; }
+
 private:
   bool InstrCounting = false;
   bool CostMeasuring = false;
   bool TimeMeasuring = false;
+  uint64_t CostLimit = UINT64_C(-1);
 };
 
 class Configure {

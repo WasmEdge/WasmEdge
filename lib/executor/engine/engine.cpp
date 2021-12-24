@@ -44,45 +44,13 @@ Executor::runFunction(Runtime::StoreManager &StoreMgr,
     spdlog::debug(" Terminated.");
   }
 
-  /// Print time cost.
-  if (Stat) {
-    if (Conf.getStatisticsConfigure().isTimeMeasuring()) {
-      Stat->stopRecordWasm();
-    }
+  if (Stat && Conf.getStatisticsConfigure().isTimeMeasuring()) {
+    Stat->stopRecordWasm();
+  }
 
-    auto Nano = [](auto &&Duration) {
-      return std::chrono::nanoseconds(Duration).count();
-    };
-    if (Conf.getStatisticsConfigure().isTimeMeasuring() ||
-        Conf.getStatisticsConfigure().isInstructionCounting() ||
-        Conf.getStatisticsConfigure().isCostMeasuring()) {
-      spdlog::info("====================  Statistics  ====================");
-    }
-    if (Conf.getStatisticsConfigure().isTimeMeasuring()) {
-      spdlog::info(" Total execution time: {} ns",
-                   Nano(Stat->getTotalExecTime()));
-      spdlog::info(" Wasm instructions execution time: {} ns",
-                   Nano(Stat->getWasmExecTime()));
-      spdlog::info(" Host functions execution time: {} ns",
-                   Nano(Stat->getHostFuncExecTime()));
-    }
-    if (Conf.getStatisticsConfigure().isInstructionCounting()) {
-      spdlog::info(" Executed wasm instructions count: {}",
-                   Stat->getInstrCount());
-    }
-    if (Conf.getStatisticsConfigure().isCostMeasuring()) {
-      spdlog::info(" Gas costs: {}", Stat->getTotalCost());
-    }
-    if (Conf.getStatisticsConfigure().isInstructionCounting() &&
-        Conf.getStatisticsConfigure().isTimeMeasuring()) {
-      spdlog::info(" Instructions per second: {}",
-                   static_cast<uint64_t>(Stat->getInstrPerSecond()));
-    }
-    if (Conf.getStatisticsConfigure().isTimeMeasuring() ||
-        Conf.getStatisticsConfigure().isInstructionCounting() ||
-        Conf.getStatisticsConfigure().isCostMeasuring()) {
-      spdlog::info("=======================   End   ======================\n");
-    }
+  // If Statistics is enabled, then dump it here.
+  if (Stat) {
+    Stat->dumpToLog(Conf);
   }
 
   if (Res || Res.error() == ErrCode::Terminated) {
@@ -118,9 +86,13 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
       if (Stat && Conf.getStatisticsConfigure().isCostMeasuring()) {
         /// Reach here means end of if-statement.
         if (unlikely(!Stat->subInstrCost(Instr.getOpCode()))) {
+          spdlog::error(
+              ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
           return Unexpect(ErrCode::CostLimitExceeded);
         }
         if (unlikely(!Stat->addInstrCost(OpCode::End))) {
+          spdlog::error(
+              ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
           return Unexpect(ErrCode::CostLimitExceeded);
         }
       }
@@ -1576,6 +1548,9 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
       /// Add cost. Note: if-else case should be processed additionally.
       if (Conf.getStatisticsConfigure().isCostMeasuring()) {
         if (unlikely(!Stat->addInstrCost(Code))) {
+          const AST::Instruction &Instr = *PC;
+          spdlog::error(
+              ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
           return Unexpect(ErrCode::CostLimitExceeded);
         }
       }

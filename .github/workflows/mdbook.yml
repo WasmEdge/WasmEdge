@@ -9,8 +9,12 @@ on:
         default: 'info'
   push:
     branches: [ master ]
+    paths:
+      - 'docs/book/**'
   pull_request:
     branches: [ master ]
+    paths:
+      - 'docs/book/**'
 
 jobs:
   build:
@@ -32,6 +36,7 @@ jobs:
           mdbook build
 
       - name: Publish EN version
+        if: ${{ github.event_name == 'push' }}
         uses: cpina/github-action-push-to-another-repository@main
         env:
           API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB_WWW }}

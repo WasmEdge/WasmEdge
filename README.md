@@ -1,6 +1,6 @@
 <div align="right">
 
-  [中文文档](README-zh.md) | [正體中文文件](README-zh-TW.md)
+  [中文](README-zh.md) | [正體中文](README-zh-TW.md)
 
 </div>
 
@@ -25,7 +25,7 @@ WasmEdge (previously known as SSVM) is a lightweight, high-performance, and exte
 ⌨️ [Run](https://wasmedge.org/book/en/index.html#webassembly-examples) a standalone Wasm program or a [JavaScript program](https://wasmedge.org/book/en/dev/js.html) from CLI or [Docker](https://wasmedge.org/book/en/start/docker.html) \
 🔌 Embed a Wasm function in your [Node.js](https://wasmedge.org/book/en/embed/node.html), [Go](https://wasmedge.org/book/en/embed/go.html), [Rust](bindings/rust/), or [C](https://wasmedge.org/book/en/embed/c.html) app \
 🛠 Manage and orchestrate Wasm runtimes using [Kubernetes](https://wasmedge.org/book/en/kubernetes.html), [data streaming frameworks](https://wasmedge.org/book/en/frameworks/app/yomo.html), and [blockchains](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) \
-📚 [Check out our official documentation](https://wasmedge.org/book/en/) 
+📚 **[Check out our official documentation](https://wasmedge.org/book/en/)**
 
 # Introduction
 
@@ -33,23 +33,21 @@ The WasmEdge Runtime provides a well-defined execution sandbox for its contained
 
 <div align="center">
   
-**Checkout the [application use cases](docs/use_cases.md) or the [technical highlights](docs/highlights.md) of WasmEdge.**
+**Checkout the [application use cases](https://wasmedge.org/book/en/intro/use.html) or the [technical highlights](https://wasmedge.org/book/en/intro/features.html) of WasmEdge.**
 
 </div>
 
 ## Performance
 
-* Paper: [A Lightweight Design for High-performance Serverless Computing](https://arxiv.org/abs/2010.07115), published on IEEE Software, Jan 2021. https://arxiv.org/abs/2010.07115
-* Article: [Performance Analysis for Arm vs. x86 CPUs in the Cloud](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/), published on infoQ.com, Jan 2021. https://www.infoq.com/articles/arm-vs-x86-cloud-performance/
+* [A Lightweight Design for High-performance Serverless Computing](https://arxiv.org/abs/2010.07115), published on IEEE Software, Jan 2021. https://arxiv.org/abs/2010.07115
+* [Performance Analysis for Arm vs. x86 CPUs in the Cloud](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/), published on infoQ.com, Jan 2021. https://www.infoq.com/articles/arm-vs-x86-cloud-performance/
+* [WasmEdge is the fastest WebAssembly Runtime in Suborbital Reactr test suite](https://blog.suborbital.dev/suborbital-wasmedge), Dec 2021
 
 ## Features
 
-WasmEdge can run standard WebAssembly bytecode programs compiled from C/C++, Rust, Swift, AssemblyScript, or Kotlin source code. It also [runs JavaScript](https://wasmedge.org/book/en/dev/js.html) through an embedded [QuickJS engine](https://github.com/second-state/wasmedge-quickjs). WasmEdge supports all standard WebAssembly features and proposed extensions. It also supports a number of extensions tailored for cloud-native and edge computing uses (e.g., the [WasmEdge Tensorflow extension](https://www.secondstate.io/articles/wasi-tensorflow/)). 
+WasmEdge can run standard WebAssembly bytecode programs compiled from C/C++, Rust, Swift, AssemblyScript, or Kotlin source code. It [runs JavaScript](https://wasmedge.org/book/en/dev/js.html), including 3rd party ES6, CJS, and NPM modules, in a secure, fast, lightweight, portable, and containerized sandbox. It also supports mixing of those languages (e.g., to [use Rust to implement a JavaScript API](https://wasmedge.org/book/en/dev/js/rust.html)).
 
-* [WebAssembly standard extensions](docs/extensions.md#webassembly-standard-extensions)
-* [WasmEdge extensions](docs/extensions.md#wasmedge-extensions)
-
-WasmEdge extensions to WebAssembly are typically available to developers as Rust SDKs or [JavaScript APIs](https://wasmedge.org/book/en/dev/js/quickstart.html). 
+WasmEdge supports all standard WebAssembly features and many proposed extensions. It also supports a number of extensions tailored for cloud-native and edge computing uses (e.g., the [WasmEdge network sockets](https://wasmedge.org/book/en/dev/rust/networking.html), and the [WasmEdge Tensorflow extension](https://wasmedge.org/book/en/dev/rust/tensorflow.html)).
 
 ## Integrations
 
@@ -57,12 +55,14 @@ WasmEdge and its contained wasm program can be started from the [CLI](https://wa
 
 * [Embed WasmEdge into a host application](https://wasmedge.org/book/en/embed.html)
 * [Orchestrate and manage WasmEdge instances using container tools](https://wasmedge.org/book/en/kubernetes.html)
+* [Run a WasmEdge app as a Dapr microservice](https://wasmedge.org/book/en/frameworks/mesh/dapr.html)
+* [Use Reactr to embed and extend WasmEdge functions in SaaS](https://wasmedge.org/book/en/frameworks/app/reactr.html)
 
 # Community
 
 ## Contributing
 
-If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTING](docs/CONTRIBUTING.md) document for details. If you are looking for ideas, checkout our [wish list](docs/wish_list.md)!
+If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTING](docs/CONTRIBUTING.md) document for details. If you are looking for ideas, checkout our ["help wanted" issues](https://github.com/WasmEdge/WasmEdge/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)!
 
 ## Contact
 

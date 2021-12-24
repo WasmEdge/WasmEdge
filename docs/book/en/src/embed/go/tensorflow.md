@@ -2,26 +2,30 @@
 
 In this section, we will show you how to create a Tensorflow inference
 function in Rust for image classification, and then embed it into 
-a Go application. The project source code is [available here](https://github.com/second-state/WasmEdge-go-examples/tree/master/wasmedge-bindgen/go_Mobilenet).
+a Go application. The project source code is [available here](https://github.com/second-state/WasmEdge-go-examples/tree/master/wasmedge-bindgen/go_TfliteFood).
 
 ## Rust function compiled into WebAssembly
 
-The Rust function for image classification is [available here](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_Mobilenet/rust_mobilenet/src/lib.rs).
+The Rust function for image classification is [available here](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_TfliteFood/rust_tflite_food/src/lib.rs).
 It utilizes the [WasmEdge Tensorflow extension API](../../dev/rust/tensorflow.md) as well as the [wasmedge_bindgen](function.md) for passing call parameters.
 
 ```rust
 #[wasmedge_bindgen]
 fn infer(image_data: Vec<u8>) -> Result<Vec<u8>, String> {
     ... ...
+    let flat_img = image::imageops::thumbnail(&img, 192, 192);
+
+    let model_data: &[u8] = include_bytes!("lite-model_aiy_vision_classifier_food_V1_1.tflite");
+    let labels = include_str!("aiy_food_V1_labelmap.txt");
+
     let mut session = wasmedge_tensorflow_interface::Session::new(
         model_data,
-        wasmedge_tensorflow_interface::ModelType::TensorFlow,
+        wasmedge_tensorflow_interface::ModelType::TensorFlowLite,
     );
     session
-        .add_input("input", &flat_img, &[1, 224, 224, 3])
-        .add_output("MobilenetV2/Predictions/Softmax")
+        .add_input("input", &flat_img, &[1, 192, 192, 3])
         .run();
-    let res_vec: Vec<f32> = session.get_output("MobilenetV2/Predictions/Softmax");
+    let res_vec: Vec<u8> = session.get_output("MobilenetV1/Predictions/Softmax");
     ... ...
 }
 ```
@@ -29,9 +33,9 @@ fn infer(image_data: Vec<u8>) -> Result<Vec<u8>, String> {
 You can use the standard `Cargo` command to build it into a WebAssembly function.
 
 ```bash
-$ cd rust_mobilenet
+$ cd rust_tflite_food
 $ cargo build --target wasm32-wasi --release
-$ cp target/wasm32-wasi/release/rust_mobilenet.wasm ../
+$ cp target/wasm32-wasi/release/rust_tflite_food_lib.wasm ../
 $ cd ../
 ```
 
@@ -39,20 +43,20 @@ You can use our AOT compiler `wasmedgec` to instrument the WebAssembly file to m
 it run much faster. [Learn more](../../start/universal.md).
 
 ```bash
-$ wasmedgec rust_mobilenet.wasm rust_mobilenet.wasm
+$ wasmedgec rust_tflite_food_lib.wasm rust_tflite_food_lib.wasm
 ```
 
 ## Go host app
 
-The [Go host app](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_Mobilenet/mobilenet.go) source code shows how to instantiate a WasmEdge runtime with
+The [Go host app](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_TfliteFood/tflite_food.go) source code shows how to instantiate a WasmEdge runtime with
 the Tensorflow extension, and how to pass the image data to the Rust function
 in WasmEdge to run the inference.
 
 ```go
 func main() {
-	/// Expected Args[0]: program name (./mobilenet)
-	/// Expected Args[1]: wasm or wasm-so file (rust_mobilenet.wasm)
-	/// Expected Args[2]: input image name (solvay.jpg)
+	/// Expected Args[0]: program name (./tflite_food)
+	/// Expected Args[1]: wasm file (rust_tflite_food_lib.wasm)
+	/// Expected Args[2]: input image name (food.jpg)
 
 	wasmedge.SetLogErrorLevel()
 
@@ -112,19 +116,14 @@ Now you can run the Go application. It calls the WebAssembly function in WasmEdg
 to run inference on the input image.
 
 ```bash
-$ ./mobilenet rust_mobilenet.wasm grace_hopper.jpg
+$ ./tflite_food rust_tflite_food_lib.wasm food.jpg
 ```
 
 The results are as follows.
 
 ```bash
-Go: Args: [./mobilenet rust_mobilenet.wasm grace_hopper.jpg]
-RUST: Loaded image in ... 16.522151ms
-RUST: Resized image in ... 19.440301ms
-RUST: Parsed output in ... 285.83336ms
-RUST: index 653, prob 0.43212935
-RUST: Finished post-processing in ... 285.995153ms
-["military uniform","medium"]
+Go: Args: [./tflite_food rust_tflite_food_lib.wasm food.jpg]
+It is very likely a Hot dog in the picture
 ```
 
 

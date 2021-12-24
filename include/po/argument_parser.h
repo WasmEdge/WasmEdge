@@ -196,40 +196,13 @@ private:
 
     void usage() const noexcept {
       using std::cout;
-      cout << "usage:"sv;
+      cout << "\u001b[33mUSAGE\u001b[0m\n"sv;
       for (const char *Part : ProgramNames) {
-        cout << ' ' << Part;
+        cout << '\t' << Part;
       }
-      for (const auto &Index : NonpositionalList) {
-        const auto &Desc = ArgumentDescriptors[Index];
-        if (Desc.hidden()) {
-          continue;
-        }
 
-        bool First = true;
-        cout << ' ' << '[';
-        for (const auto &Option : Desc.options()) {
-          if (!First) {
-            cout << '|';
-          }
-          if (Option.size() == 1) {
-            cout << '-' << Option;
-          } else {
-            cout << '-' << '-' << Option;
-          }
-          First = false;
-        }
-        switch (Desc.max_nargs()) {
-        case 0:
-          break;
-        case 1:
-          cout << ' ' << Desc.meta();
-          break;
-        default:
-          cout << ' ' << Desc.meta() << " ..."sv;
-          break;
-        }
-        cout << ']';
+      if (NonpositionalList.size() != 0) {
+        cout << " [OPTIONS]"sv;
       }
       bool First = true;
       for (const auto &Index : PositionalList) {
@@ -268,12 +241,14 @@ private:
     void help() const noexcept {
       usage();
       using std::cout;
-      const constexpr std::string_view kIndent = "  "sv;
+      const constexpr std::string_view kIndent = "\t"sv;
 
+      cout << '\n';
       if (!SubCommandList.empty()) {
-        cout << "SubCommands:\n"sv;
+        cout << "\u001b[33mSubCommands\u001b[0m\n"sv;
         for (const auto Offset : SubCommandList) {
           cout << kIndent;
+          cout << "\u001b[32m"sv;
           bool First = true;
           for (const auto &Name : this[Offset].SubCommandNames) {
             if (!First) {
@@ -282,13 +257,14 @@ private:
             cout << Name;
             First = false;
           }
-          cout << '\n';
+          cout << "\u001b[0m\n"sv;
           indent_output(kIndent, 2, 80, this[Offset].SC->description());
           cout << '\n';
         }
+        cout << '\n';
       }
 
-      cout << "Options:\n"sv;
+      cout << "\u001b[33mOPTIONS\u001b[0m\n"sv;
       for (const auto &Index : NonpositionalList) {
         const auto &Desc = ArgumentDescriptors[Index];
         if (Desc.hidden()) {
@@ -296,6 +272,7 @@ private:
         }
 
         cout << kIndent;
+        cout << "\u001b[32m"sv;
         bool First = true;
         for (const auto &Option : Desc.options()) {
           if (!First) {
@@ -308,7 +285,7 @@ private:
           }
           First = false;
         }
-        cout << '\n';
+        cout << "\u001b[0m\n"sv;
         indent_output(kIndent, 2, 80, Desc.description());
         cout << '\n';
       }

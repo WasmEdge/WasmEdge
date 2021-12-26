@@ -8,6 +8,7 @@ public class BaseTest {
     protected static final String WASM_PATH = "apiTestData/fibonacci.wasm";
     protected static final String TEST_WASM_PATH = "apiTestData/test.wasm";
     protected static final String IMPORT_WASM_PATH = "apiTestData/import.wasm";
+    protected static final String INVALID_WASM_PATH = "apiTestData/invalid_path.wasm";
     protected static final String FUNC_NAME = "fib";
     byte[] WASM_MAGIC = {0x00, 0x61, 0x73, 0x6D};
 

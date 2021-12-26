@@ -21,14 +21,14 @@ public class LoaderContextTest extends BaseTest {
 
     @Test
     public void testParseFromFile() {
-        ASTModuleContext moduleContext = loaderContext.parseFromFile(TEST_WASM_PATH);
+        ASTModuleContext moduleContext = loaderContext.parseFromFile(getResourcePath(TEST_WASM_PATH));
         moduleContext.delete();
     }
 
 
-    @Test
+    @Test(expected = Exception.class)
     public void testParseFromInvalidFile() {
-        ASTModuleContext moduleContext = loaderContext.parseFromFile(TEST_WASM_PATH);
+        ASTModuleContext moduleContext = loaderContext.parseFromFile(getCwd() + "/" + INVALID_WASM_PATH);
         moduleContext.delete();
     }
 
@@ -36,17 +36,10 @@ public class LoaderContextTest extends BaseTest {
     public void testParseFromBuffer() throws Exception {
         byte[] buffer = new byte[1024];
 
-        try(FileInputStream fin = new FileInputStream(TEST_WASM_PATH)) {
+        try(FileInputStream fin = new FileInputStream(getResourcePath(TEST_WASM_PATH))) {
             int len = fin.read(buffer, 0, 1024);
             ASTModuleContext moduleContext = loaderContext.parseFromBuffer(buffer, len);
             moduleContext.delete();
         }
-        ASTModuleContext moduleContext = loaderContext.parseFromFile(TEST_WASM_PATH);
-        moduleContext.delete();
     }
-
-
-
-
-
 }

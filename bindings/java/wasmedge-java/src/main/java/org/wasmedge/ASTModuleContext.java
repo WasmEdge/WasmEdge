@@ -6,8 +6,8 @@ public class ASTModuleContext {
     private long pointer;
 
     public ASTModuleContext() {
-
     }
+
 
     public native List<ImportTypeContext> listImports();
 

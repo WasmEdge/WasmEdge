@@ -1,0 +1,4 @@
+/usr/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" /tmp/tmp.enZrVSRR11
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /tmp/tmp.enZrVSRR11/cmake-build-debug-remote-host

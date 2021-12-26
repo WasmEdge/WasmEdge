@@ -145,8 +145,8 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromFile
 
     /* Resources deallocations. */
     WasmEdge_StringDelete(FuncName);
-    free(c_func_name);
-    free(c_file_path);
+    (*env)->ReleaseStringUTFChars(env, func_name, c_func_name);
+    (*env)->ReleaseStringUTFChars(env, file_path, c_file_path);
     free(wasm_params);
     free(Returns);
     return;
@@ -170,7 +170,8 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_loadWasmFromFile
     const char *c_file_path = (*env)->GetStringUTFChars(env, filePath, NULL);
     WasmEdge_Result res = WasmEdge_VMLoadWasmFromFile(getVmContext(env, thisObject), c_file_path);
     handleWasmEdgeResult(env, &res);
-    free(c_file_path);
+
+    (*env)->ReleaseStringUTFChars(env, filePath, c_file_path);
 }
 
 
@@ -244,7 +245,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_execute
 
     /* Resources deallocations. */
     WasmEdge_StringDelete(FuncName);
-    free(c_func_name);
+    (*env)->ReleaseStringUTFChars(env, funcName, c_func_name);
     free(wasm_params);
     free(Returns);
     return;

@@ -46,7 +46,12 @@ void throwNoSuchMethodError(JNIEnv *env, char* methodName, char* sig) {
 
 
 jclass findJavaClass(JNIEnv* env, char * className) {
-    jclass  class = (*env)->FindClass(env, className);
+    jclass class = (*env)->FindClass(env, className);
+
+    if((*env)->ExceptionOccurred(env)) {
+        (*env)->ExceptionDescribe(env);
+        return NULL;
+    }
     if(class == NULL) {
         throwNoClassDefError(env, className);
     }
@@ -55,9 +60,6 @@ jclass findJavaClass(JNIEnv* env, char * className) {
 
 jmethodID findJavaMethod(JNIEnv* env, jclass class, char* methodName, char* sig) {
     jmethodID jmethodId = (*env)->GetMethodID(env, class, methodName, sig);
-    if(jmethodId == NULL) {
-        throwNoSuchMethodError(env, methodName, sig);
-    }
     return jmethodId;
 
 }

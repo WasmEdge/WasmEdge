@@ -96,7 +96,8 @@
     - [Mac](os/mac.md)
     - [seL4](os/sel4.md)
     - [Open Harmony](os/openharmony.md)
-
+    - [Raspberry Pi](os/raspberrypi.md)
+    
 - [Contribute to WasmEdge](extend.md)
     - [Build WasmEdge from source](extend/build.md)
         - [Build for Mac](extend/build_on_mac.md)

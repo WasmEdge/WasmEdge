@@ -86,4 +86,8 @@ node_modules/
 ## Gradle
 **/.gradle/*
 **/build
+
+# cmake caches
 **/cmake-build-debug
+**/cmake-build-debug-remote-host
+**/cmake-build-release

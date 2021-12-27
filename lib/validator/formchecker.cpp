@@ -1276,7 +1276,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                       std::array{VType::V128});
 
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 

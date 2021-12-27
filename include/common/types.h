@@ -13,6 +13,7 @@
 #pragma once
 
 #include "common/enum_types.h"
+#include "common/errcode.h"
 #include "common/int128.h"
 #include "common/variant.h"
 
@@ -243,9 +244,9 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   case ValType::ExternRef:
     return UnknownRef();
   case ValType::None:
-    __builtin_unreachable();
+  default:
+    assumingUnreachable();
   }
-  __builtin_unreachable();
 }
 
 /// <<<<<<<< Const expression to generate value from value type <<<<<<<<<<<<<<<<

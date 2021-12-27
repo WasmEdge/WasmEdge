@@ -1,3 +1,5 @@
+//! Defines WasmEdge ImportObj struct.
+
 use super::wasmedge;
 use crate::{
     instance::{Function, Global, Memory, Table},
@@ -6,12 +8,25 @@ use crate::{
     Error, WasmEdgeResult,
 };
 
+/// Struct of WasmEdge ImportObj.
+///
+/// A [`ImportObj`] represents a host module with a name. A host module consists of one or more
+/// host functions which are defined outside WebAssembly and passed to WASM modules as imports.
 #[derive(Debug)]
 pub struct ImportObj {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ImportObjectContext,
     pub(crate) registered: bool,
 }
 impl ImportObj {
+    /// Creates a new host module with the given name.
+    ///
+    /// # Argument
+    ///
+    /// `name` specifies the name of the new host module.
+    ///
+    /// # Error
+    ///
+    /// If fail to create a host module, then an error is returned.
     pub fn create(name: impl AsRef<str>) -> WasmEdgeResult<Self> {
         let raw_module_name: wasmedge::WasmEdge_String = StringRef::from(name.as_ref()).into();
         let ctx = unsafe { wasmedge::WasmEdge_ImportObjectCreate(raw_module_name) };
@@ -26,7 +41,19 @@ impl ImportObj {
         }
     }
 
-    /// Create an ImportObj instance for the WASI specification.
+    /// Creates a WASI host module which contains the WASI host functions, and initializes it with the given parameters.
+    ///
+    /// # Arguments
+    ///
+    /// - `args` specifies the commandline arguments. The first argument is the program name.
+    ///
+    /// - `envs` specifies the environment variables in the format `ENV_VAR_NAME=VALUE`.
+    ///
+    /// - `preopens` specifies the directories to pre-open. The required format is `DIR1:DIR2`.
+    ///
+    /// # Error
+    ///
+    /// If fail to create a host module, then an error is returned.
     pub fn create_wasi<T, E>(
         args: Option<T>,
         envs: Option<T>,
@@ -82,7 +109,15 @@ impl ImportObj {
         }
     }
 
-    /// Initialize the ImportObj instance for the WASI specification.
+    /// Initializes the WASI host module with the given parameters.
+    ///
+    /// # Arguments
+    ///
+    /// - `args` specifies the commandline arguments. The first argument is the program name.
+    ///
+    /// - `envs` specifies the environment variables in the format `ENV_VAR_NAME=VALUE`.
+    ///
+    /// - `preopens` specifies the directories to pre-open. The required format is `DIR1:DIR2`.
     pub fn init_wasi<T, E>(&mut self, args: Option<T>, envs: Option<T>, preopens: Option<T>)
     where
         T: Iterator<Item = E>,
@@ -125,12 +160,25 @@ impl ImportObj {
         };
     }
 
-    /// Get the WASI exit code.
+    /// Returns the WASI exit code.
+    ///
+    /// The WASI exit code can be accessed after running the "_start" function of a `wasm32-wasi` program.
     pub fn exit_code(&self) -> u32 {
         unsafe { wasmedge::WasmEdge_ImportObjectWASIGetExitCode(self.ctx) }
     }
 
-    /// Create an ImportObj instance for the wasmedge_process specification.
+    /// Creates a wasmedge_process host module that contains the wasmedge_process host functions and
+    /// initialize it with the parameters.
+    ///
+    /// # Arguments
+    ///
+    /// - `cmds` specifies a white list of commands.
+    ///
+    /// - `allow` determines if wasmedge_process is allowed to execute all commands on the white list.
+    ///
+    /// # Error
+    ///
+    /// If fail to create a wasmedge_process host module, then an error is returned.
     pub fn create_wasmedge_process<T, E>(cmds: Option<T>, allow: bool) -> WasmEdgeResult<Self>
     where
         T: Iterator<Item = E>,
@@ -157,7 +205,13 @@ impl ImportObj {
         }
     }
 
-    /// Initialize an ImportObj instance for the wasmedge_process specification.
+    /// Initializes the wasmedge_process host module with the parameters.
+    ///
+    /// # Arguments
+    ///
+    /// - `cmds` specifies a white list of commands.
+    ///
+    /// - `allow` determines if wasmedge_process is allowed to execute all commands on the white list.
     pub fn init_wasmedge_process<T, E>(&mut self, cmds: Option<T>, allow: bool)
     where
         T: Iterator<Item = E>,
@@ -176,7 +230,13 @@ impl ImportObj {
         }
     }
 
-    /// Add a Function instance into a ImportObj instance.
+    /// Adds a [`Function`] into the host module.
+    ///
+    /// # Arguments
+    ///
+    /// - `name` specifies the name of the host function in the host module.
+    ///
+    /// - `func` specifies the host function instance to add.
     pub fn add_func(&mut self, name: impl AsRef<str>, func: &mut Function) {
         let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(name.as_ref()).into();
         unsafe {
@@ -186,7 +246,13 @@ impl ImportObj {
         func.ctx = std::ptr::null_mut();
     }
 
-    /// Add a Table instance into a ImportObj instance.
+    /// Adds a [`Table`] into the host module.
+    ///
+    /// # Arguments
+    ///
+    /// - `name` specifies the name of the export table in the host module.
+    ///
+    /// - `table` specifies the export table instance to add.
     pub fn add_table(&mut self, name: impl AsRef<str>, table: &mut Table) {
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddTable(
@@ -199,7 +265,13 @@ impl ImportObj {
         table.ctx = std::ptr::null_mut();
     }
 
-    /// Add a Memory instance into a ImportObj instance.
+    /// Adds a [`Memory`] into the host module.
+    ///
+    /// # Arguments
+    ///
+    /// - `name` specifies the name of the export memory in the host module.
+    ///
+    /// - `memory` specifies the export memory instance to add.
     pub fn add_memory(&mut self, name: impl AsRef<str>, memory: &mut Memory) {
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddMemory(
@@ -212,7 +284,13 @@ impl ImportObj {
         memory.ctx = std::ptr::null_mut();
     }
 
-    /// Add a Global instance into a ImportObj instance.
+    /// Adds a [`Global`] into the host module.
+    ///
+    /// # Arguments
+    ///
+    /// `name` specifies the name of the export global in the host module.
+    ///
+    /// `global` specifies the export global instance to add.
     pub fn add_global(&mut self, name: impl AsRef<str>, global: &mut Global) {
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddGlobal(

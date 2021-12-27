@@ -24,7 +24,7 @@ std::filesystem::path getRoot(Cache::StorageScope Scope) {
     return {};
   }
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 } // namespace

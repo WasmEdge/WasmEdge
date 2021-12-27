@@ -212,7 +212,7 @@ __wasi_errno_t convertErrno(int SysErrno) noexcept {
   case EXDEV:
     return __WASI_ERRNO_XDEV;
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 

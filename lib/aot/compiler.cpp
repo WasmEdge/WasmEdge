@@ -143,7 +143,7 @@ toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) {
   case OL::Oz:
     return llvm::PassBuilder::OptimizationLevel::Oz;
   default:
-    assuming(false);
+    assumingUnreachable();
   }
 }
 
@@ -445,8 +445,7 @@ static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
   case ValType::F64:
     return llvm::Type::getDoubleTy(LLContext);
   default:
-    assuming(false);
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 
@@ -508,8 +507,7 @@ static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
   case ValType::F64:
     return llvm::ConstantFP::get(llvm::Type::getDoubleTy(LLContext), 0.0);
   default:
-    assuming(false);
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 
@@ -2653,7 +2651,7 @@ public:
         break;
 
       default:
-        assuming(false);
+        assumingUnreachable();
       }
       return;
     };

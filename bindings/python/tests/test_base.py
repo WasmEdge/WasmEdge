@@ -60,3 +60,15 @@ def test_version():
             ["wasmedge", "--version"], stdout=subprocess.PIPE
         ).stdout.decode("utf-8")[:-1]
     )
+
+
+def test_value():
+    num1 = 10
+    num2 = 0.1
+
+    val = WasmEdge.Value(num1)
+    val2 = WasmEdge.Value(num2)
+
+    assert val.Value * val2.Value == num1 * num2
+    assert val.Type == WasmEdge.Type.I32
+    assert val2.Type == WasmEdge.Type.F32

@@ -1,5 +1,28 @@
 (unreleased)
 ------------
+- [PySDK] Added WasmEdge_Value Support and Corresponding tests. [Shreyas
+  Atre]
+- [PySDK] Fix: Host function execution. [Shreyas Atre]
+
+  * Flow of invocation from https://github.com/WasmEdge/WasmEdge/pull/633#issuecomment-986660764
+- [PySDK] List registered functions functions. [Shreyas Atre]
+- [PySDK] Fix: Finding functions in registered modules. [Shreyas Atre]
+- [PySDK] Fix: function overloading issue. [Shreyas Atre]
+
+  * Temporary workaround
+- [PySDK] Fix For Host Function. [Shreyas Atre]
+
+  * Host Function cannot be passed if it is a member function.
+- [PySDK] Module and Function Support. [Shreyas Atre]
+
+  * Incomplete Implementation
+  * Build Error surrounds arround the host function signature.
+- [PySDK] Added compiler optimizations and output format. [Shreyas Atre]
+- [PySDK] Use PyBind11 instead of Boost.Python. [Shreyas Atre]
+
+  * Suggestions from https://github.com/WasmEdge/WasmEdge/issues/650#issue-1052718123
+  * Boost.Python has lesser functionality than PyBind11
+  * Reduced compile time
 - [PySDK] Specify Types of parameters and return values in advance.
   [Shreyas Atre]
 

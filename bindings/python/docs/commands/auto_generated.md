@@ -6,15 +6,86 @@ NAME
 
 CLASSES
     pybind11_builtins.pybind11_object(builtins.object)
+        CompilerOutput
         Configure
+        Function
         Host
+        ImportObject
         Logging
+        Optimization
         Proposal
         Result
         Store
         Type
         VM
         Value
+    
+    class CompilerOutput(pybind11_builtins.pybind11_object)
+     |  Members:
+     |  
+     |  Native
+     |  
+     |  Wasm
+     |  
+     |  Method resolution order:
+     |      CompilerOutput
+     |      pybind11_builtins.pybind11_object
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  __eq__(...)
+     |      __eq__(self: object, other: object) -> bool
+     |  
+     |  __getstate__(...)
+     |      __getstate__(self: object) -> int
+     |  
+     |  __hash__(...)
+     |      __hash__(self: object) -> int
+     |  
+     |  __index__(...)
+     |      __index__(self: WasmEdge.CompilerOutput) -> int
+     |  
+     |  __init__(...)
+     |      __init__(self: WasmEdge.CompilerOutput, value: int) -> None
+     |  
+     |  __int__(...)
+     |      __int__(self: WasmEdge.CompilerOutput) -> int
+     |  
+     |  __ne__(...)
+     |      __ne__(self: object, other: object) -> bool
+     |  
+     |  __repr__(...)
+     |      __repr__(self: object) -> str
+     |  
+     |  __setstate__(...)
+     |      __setstate__(self: WasmEdge.CompilerOutput, state: int) -> None
+     |  
+     |  __str__ = name(...)
+     |      name(self: handle) -> str
+     |  
+     |  ----------------------------------------------------------------------
+     |  Readonly properties defined here:
+     |  
+     |  __members__
+     |  
+     |  name
+     |      name(self: handle) -> str
+     |  
+     |  value
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes defined here:
+     |  
+     |  Native = <CompilerOutput.Native: 0>
+     |  
+     |  Wasm = <CompilerOutput.Wasm: 1>
+     |  
+     |  ----------------------------------------------------------------------
+     |  Static methods inherited from pybind11_builtins.pybind11_object:
+     |  
+     |  __new__(*args, **kwargs) from pybind11_builtins.pybind11_type
+     |      Create and return a new object.  See help(type) for accurate signature.
     
     class Configure(pybind11_builtins.pybind11_object)
      |  Method resolution order:
@@ -42,6 +113,30 @@ CLASSES
      |      1. remove(self: WasmEdge.Configure, arg0: WasmEdge_Proposal) -> None
      |      
      |      2. remove(self: WasmEdge.Configure, arg0: WasmEdge_HostRegistration) -> None
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  max_paging
+     |  
+     |  optimization_level
+     |  
+     |  ----------------------------------------------------------------------
+     |  Static methods inherited from pybind11_builtins.pybind11_object:
+     |  
+     |  __new__(*args, **kwargs) from pybind11_builtins.pybind11_type
+     |      Create and return a new object.  See help(type) for accurate signature.
+    
+    class Function(pybind11_builtins.pybind11_object)
+     |  Method resolution order:
+     |      Function
+     |      pybind11_builtins.pybind11_object
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(...)
+     |      __init__(self: WasmEdge.Function, arg0: function) -> None
      |  
      |  ----------------------------------------------------------------------
      |  Static methods inherited from pybind11_builtins.pybind11_object:
@@ -116,6 +211,26 @@ CLASSES
      |  __new__(*args, **kwargs) from pybind11_builtins.pybind11_type
      |      Create and return a new object.  See help(type) for accurate signature.
     
+    class ImportObject(pybind11_builtins.pybind11_object)
+     |  Method resolution order:
+     |      ImportObject
+     |      pybind11_builtins.pybind11_object
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(...)
+     |      __init__(self: WasmEdge.ImportObject, arg0: str) -> None
+     |  
+     |  add(...)
+     |      add(self: WasmEdge.ImportObject, arg0: WasmEdge.Function, arg1: str) -> None
+     |  
+     |  ----------------------------------------------------------------------
+     |  Static methods inherited from pybind11_builtins.pybind11_object:
+     |  
+     |  __new__(*args, **kwargs) from pybind11_builtins.pybind11_type
+     |      Create and return a new object.  See help(type) for accurate signature.
+    
     class Logging(pybind11_builtins.pybind11_object)
      |  Method resolution order:
      |      Logging
@@ -138,6 +253,89 @@ CLASSES
      |  
      |  error(...) from builtins.PyCapsule
      |      error() -> None
+     |  
+     |  ----------------------------------------------------------------------
+     |  Static methods inherited from pybind11_builtins.pybind11_object:
+     |  
+     |  __new__(*args, **kwargs) from pybind11_builtins.pybind11_type
+     |      Create and return a new object.  See help(type) for accurate signature.
+    
+    class Optimization(pybind11_builtins.pybind11_object)
+     |  Members:
+     |  
+     |  O0
+     |  
+     |  O1
+     |  
+     |  O2
+     |  
+     |  O3
+     |  
+     |  Os
+     |  
+     |  Oz
+     |  
+     |  Method resolution order:
+     |      Optimization
+     |      pybind11_builtins.pybind11_object
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  __eq__(...)
+     |      __eq__(self: object, other: object) -> bool
+     |  
+     |  __getstate__(...)
+     |      __getstate__(self: object) -> int
+     |  
+     |  __hash__(...)
+     |      __hash__(self: object) -> int
+     |  
+     |  __index__(...)
+     |      __index__(self: WasmEdge.Optimization) -> int
+     |  
+     |  __init__(...)
+     |      __init__(self: WasmEdge.Optimization, value: int) -> None
+     |  
+     |  __int__(...)
+     |      __int__(self: WasmEdge.Optimization) -> int
+     |  
+     |  __ne__(...)
+     |      __ne__(self: object, other: object) -> bool
+     |  
+     |  __repr__(...)
+     |      __repr__(self: object) -> str
+     |  
+     |  __setstate__(...)
+     |      __setstate__(self: WasmEdge.Optimization, state: int) -> None
+     |  
+     |  __str__ = name(...)
+     |      name(self: handle) -> str
+     |  
+     |  ----------------------------------------------------------------------
+     |  Readonly properties defined here:
+     |  
+     |  __members__
+     |  
+     |  name
+     |      name(self: handle) -> str
+     |  
+     |  value
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes defined here:
+     |  
+     |  O0 = <Optimization.O0: 0>
+     |  
+     |  O1 = <Optimization.O1: 1>
+     |  
+     |  O2 = <Optimization.O2: 2>
+     |  
+     |  O3 = <Optimization.O3: 3>
+     |  
+     |  Os = <Optimization.Os: 4>
+     |  
+     |  Oz = <Optimization.Oz: 5>
      |  
      |  ----------------------------------------------------------------------
      |  Static methods inherited from pybind11_builtins.pybind11_object:
@@ -289,10 +487,13 @@ CLASSES
      |      __init__(self: WasmEdge.Store) -> None
      |  
      |  listFunctions(...)
-     |      listFunctions(self: WasmEdge.Store, arg0: int) -> list
+     |      listFunctions(self: WasmEdge.Store) -> list
      |  
      |  listModules(...)
-     |      listModules(self: WasmEdge.Store, arg0: int) -> list
+     |      listModules(self: WasmEdge.Store) -> list
+     |  
+     |  listRegisteredFunctions(...)
+     |      listRegisteredFunctions(self: WasmEdge.Store, arg0: str) -> list
      |  
      |  ----------------------------------------------------------------------
      |  Static methods inherited from pybind11_builtins.pybind11_object:
@@ -395,6 +596,9 @@ CLASSES
      |  
      |  Methods defined here:
      |  
+     |  ListExportedFunctions(...)
+     |      ListExportedFunctions(self: WasmEdge.VM) -> list
+     |  
      |  __init__(...)
      |      __init__(*args, **kwargs)
      |      Overloaded function.
@@ -407,6 +611,9 @@ CLASSES
      |      
      |      4. __init__(self: WasmEdge.VM, arg0: WasmEdge.Configure, arg1: WasmEdge.Store) -> None
      |  
+     |  add(...)
+     |      add(self: WasmEdge.VM, arg0: pysdk::import_object) -> WasmEdge.Result
+     |  
      |  run(...)
      |      run(*args, **kwargs)
      |      Overloaded function.
@@ -414,6 +621,8 @@ CLASSES
      |      1. run(self: WasmEdge.VM, arg0: object, arg1: object, arg2: object, arg3: object, arg4: object) -> tuple
      |      
      |      2. run(self: WasmEdge.VM, arg0: object, arg1: object, arg2: object) -> tuple
+     |      
+     |      3. run(self: WasmEdge.VM, arg0: object, arg1: object, arg2: object, arg3: str) -> tuple
      |  
      |  ----------------------------------------------------------------------
      |  Static methods inherited from pybind11_builtins.pybind11_object:
@@ -430,12 +639,15 @@ CLASSES
      |  Methods defined here:
      |  
      |  __init__(...)
-     |      __init__(self: WasmEdge.Value) -> None
+     |      __init__(self: WasmEdge.Value, arg0: object) -> None
+     |  
+     |  ----------------------------------------------------------------------
+     |  Readonly properties defined here:
+     |  
+     |  Type
      |  
      |  ----------------------------------------------------------------------
      |  Data descriptors defined here:
-     |  
-     |  Type
      |  
      |  Value
      |  
@@ -462,13 +674,21 @@ DATA
     I64 = <Type.I64: 126>
     ImportExportMutGlobals = <Proposal.ImportExportMutGlobals: 0>
     Memory64 = <Proposal.Memory64: 9>
+    Native = <CompilerOutput.Native: 0>
     NonTrapFloatToIntConversions = <Proposal.NonTrapFloatToIntConversions:...
+    O0 = <Optimization.O0: 0>
+    O1 = <Optimization.O1: 1>
+    O2 = <Optimization.O2: 2>
+    O3 = <Optimization.O3: 3>
+    Os = <Optimization.Os: 4>
+    Oz = <Optimization.Oz: 5>
     ReferenceTypes = <Proposal.ReferenceTypes: 5>
     SIMD = <Proposal.SIMD: 6>
     TailCall = <Proposal.TailCall: 7>
     Threads = <Proposal.Threads: 10>
     V128 = <Type.V128: 123>
     Wasi = <Host.Wasi: 0>
+    Wasm = <CompilerOutput.Wasm: 1>
     WasmEdge = <Host.WasmEdge: 1>
 
 FILE

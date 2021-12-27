@@ -28,6 +28,19 @@ struct logging {
 
 std::string logging::_str = "logging: Level not set";
 
+class Value {
+private:
+  WasmEdge_Value Val;
+  pybind11::object obj;
+
+public:
+  Value(pybind11::object);
+  ~Value();
+  void set_value(pybind11::object);
+  pybind11::object get_value();
+  WasmEdge_ValType get_type();
+};
+
 class Configure {
 private:
   WasmEdge_ConfigureContext *ConfCxt;

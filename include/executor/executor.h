@@ -21,6 +21,7 @@
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"
 
+#include <atomic>
 #include <csignal>
 #include <memory>
 #include <type_traits>
@@ -84,10 +85,12 @@ public:
       : Conf(Conf), Stat(S) {
     assuming(This == nullptr);
     This = this;
+    ExecutionContext.StopToken = &StopToken;
     if (Stat) {
       ExecutionContext.InstrCount = &Stat->getInstrCountRef();
       ExecutionContext.CostTable = Stat->getCostTable().data();
       ExecutionContext.Gas = &Stat->getTotalCostRef();
+      Stat->setCostLimit(Conf.getStatisticsConfigure().getCostLimit());
     }
   }
   ~Executor() noexcept { This = nullptr; }
@@ -108,6 +111,11 @@ public:
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
          Span<const ValVariant> Params, Span<const ValType> ParamTypes);
+
+  /// Register new thread
+  void newThread() noexcept { This = this; }
+  /// Stop execution
+  void stop() noexcept { StopToken.store(1, std::memory_order_relaxed); }
 
 private:
   /// Run Wasm bytecode expression for initialization.
@@ -534,6 +542,7 @@ private:
     uint64_t *InstrCount;
     uint64_t *CostTable;
     uint64_t *Gas;
+    std::atomic_uint32_t *StopToken;
   } ExecutionContext;
   /// @}
 
@@ -552,6 +561,10 @@ private:
 public:
   /// Callbacks for compiled modules;
   static const AST::Module::IntrinsicsTable Intrinsics;
+
+private:
+  /// Stop Execution
+  std::atomic_uint32_t StopToken = 0;
 };
 
 } // namespace Executor

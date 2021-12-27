@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     import_obj.add_func("add", &mut host_func);
 
     let mut module =
-        Module::load_from_file(&config, hostfunc_path).expect("funcs.wasm should be correct");
+        Module::create_from_file(&config, hostfunc_path).expect("funcs.wasm should be correct");
 
     let mut vm = Vm::create(Some(&config), None)
         .expect("fail to create VM instance")

@@ -88,7 +88,7 @@ public:
   }
 
   /// Getter of symbol
-  auto getSymbol() const noexcept {
+  auto &getSymbol() const noexcept {
     return *std::get_if<Symbol<CompiledFunction>>(&Data);
   }
 

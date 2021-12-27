@@ -42,7 +42,7 @@
     - [Kotlin](dev/kotlin.md)
     - [Grain](dev/grain.md)
 
-- [Embeddable WasmEdge functions](embed.md)
+- [Embed WasmEdge functions](embed.md)
     - [C SDK](embed/c.md)
        - [API references](embed/c/ref.md)
     - [Go SDK](embed/go.md)
@@ -97,7 +97,7 @@
     - [seL4](os/sel4.md)
     - [Open Harmony](os/openharmony.md)
 
-- [Contributed to WasmEdge](extend.md)
+- [Contribute to WasmEdge](extend.md)
     - [Build WasmEdge from source](extend/build.md)
         - [Build for Mac](extend/build_on_mac.md)
         - [Build for Windows](extend/build_on_windows.md)

@@ -90,6 +90,7 @@ public:
       ExecutionContext.InstrCount = &Stat->getInstrCountRef();
       ExecutionContext.CostTable = Stat->getCostTable().data();
       ExecutionContext.Gas = &Stat->getTotalCostRef();
+      Stat->setCostLimit(Conf.getStatisticsConfigure().getCostLimit());
     }
   }
   ~Executor() noexcept { This = nullptr; }

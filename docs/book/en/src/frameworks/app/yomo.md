@@ -37,7 +37,7 @@ You also need to install the YoMo CLI application. It orchestrates and coordinat
 ```
 $ go install github.com/yomorun/cli/yomo@latest
 $ yomo version
-YoMo CLI version: v0.0.5
+YoMo CLI version: v0.1.3
 ```
 
 
@@ -45,30 +45,11 @@ Next, please install the WasmEdge and its Tensorflow shared libraries. [WasmEdge
 
 
 ```
-# Install WasmEdge
-$ wget https://github.com/second-state/WasmEdge-go/releases/download/v0.8.1/install_wasmedge.sh
-$ chmod +x ./install_wasmedge.sh
-$ sudo ./install_wasmedge.sh /usr/local
-
-# Install WasmEdge Tensorflow extension
-$ wget https://github.com/second-state/WasmEdge-go/releases/download/v0.8.1/install_wasmedge_tensorflow_deps.sh
-$ wget https://github.com/second-state/WasmEdge-go/releases/download/v0.8.1/install_wasmedge_tensorflow.sh
-$ chmod +x ./install_wasmedge_tensorflow_deps.sh
-$ chmod +x ./install_wasmedge_tensorflow.sh
-$ sudo ./install_wasmedge_tensorflow_deps.sh /usr/local
-$ sudo ./install_wasmedge_tensorflow.sh /usr/local
-
-# Install WasmEdge Images extension
-$ wget https://github.com/second-state/WasmEdge-go/releases/download/v0.8.1/install_wasmedge_image_deps.sh
-$ wget https://github.com/second-state/WasmEdge-go/releases/download/v0.8.1/install_wasmedge_image.sh
-$ chmod +x ./install_wasmedge_image_deps.sh
-$ chmod +x ./install_wasmedge_image.sh
-$ sudo ./install_wasmedge_image_deps.sh /usr/local
-$ sudo ./install_wasmedge_image.sh /usr/local
+$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all -p /usr/local
 ```
 
 
-Finally, since our demo WebAssembly functions are written in Rust, you will also need a [Rust compiler and the rustwasmc toolchain](https://www.secondstate.io/articles/rustwasmc/).
+Finally, since our demo WebAssembly functions are written in Rust, you will also need a [Rust compiler](https://www.rust-lang.org/tools/install).
 
 For the rest of the demo, fork and clone the [source code repository](https://github.com/yomorun/yomo-wasmedge-tensorflow).
 
@@ -83,15 +64,18 @@ The [image classification function](https://github.com/yomorun/yomo-wasmedge-ten
 
 
 ```
-#[wasm_bindgen]
-pub fn infer(image_data: &[u8]) -> String {
+#[wasmedge_bindgen]
+pub fn infer(image_data: Vec<u8>) -> Result<Vec<u8>, String> {
+    let start = Instant::now();
+
     // Load the TFLite model and its meta data (the text label for each recognized object number)
     let model_data: &[u8] = include_bytes!("lite-model_aiy_vision_classifier_food_V1_1.tflite");
     let labels = include_str!("aiy_food_V1_labelmap.txt");
 
     // Pre-process the image to a format that can be used by this model
-    let flat_img = wasmedge_tensorflow_interface::load_jpg_image_to_rgb8(image_data, 192, 192);
-    
+    let flat_img = wasmedge_tensorflow_interface::load_jpg_image_to_rgb8(&image_data[..], 192, 192);
+    println!("RUST: Loaded image in ... {:?}", start.elapsed());
+
     // Run the TFLite model using the WasmEdge Tensorflow API
     let mut session = wasmedge_tensorflow_interface::Session::new(&model_data, wasmedge_tensorflow_interface::ModelType::TensorFlowLite);
     session.add_input("input", &flat_img, &[1, 192, 192, 3])
@@ -101,29 +85,70 @@ pub fn infer(image_data: &[u8]) -> String {
     // Find the object index in res_vec that has the greatest probability
     // Translate the probability into a confidence level
     // Translate the object index into a label from the model meta data food_name
-    
-    ret_str = format!(
-        "It {} a <a href='https://www.google.com/search?q={}'>{}</a> in the picture",
-        confidence, food_name, food_name
+    let mut i = 0;
+    let mut max_index: i32 = -1;
+    let mut max_value: u8 = 0;
+    while i < res_vec.len() {
+        let cur = res_vec[i];
+        if cur > max_value {
+            max_value = cur;
+            max_index = i as i32;
+        }
+        i += 1;
+    }
+    println!("RUST: index {}, prob {}", max_index, max_value);
+
+    let confidence: String;
+    if max_value > 200 {
+        confidence = "is very likely".to_string();
+    } else if max_value > 125 {
+        confidence = "is likely".to_string();
+    } else {
+        confidence = "could be".to_string();
+    }
+
+    let ret_str: String;
+    if max_value > 50 {
+        let mut label_lines = labels.lines();
+        for _i in 0..max_index {
+            label_lines.next();
+        }
+        let food_name = label_lines.next().unwrap().to_string();
+        ret_str = format!(
+            "It {} a <a href='https://www.google.com/search?q={}'>{}</a> in the picture",
+            confidence, food_name, food_name
+        );
+    } else {
+        ret_str = "It does not appears to be a food item in the picture.".to_string();
+    }
+
+    println!(
+        "RUST: Finished post-processing in ... {:?}",
+        start.elapsed()
     );
-    return ret_str;
+    return Ok(ret_str.as_bytes().to_vec());
 }
 ```
 
-You can use the [rustwasmc](https://www.secondstate.io/articles/rustwasmc/) tool to compile this function into WebAssembly bytecode. 
-
-> At this time, we require Rust compiler version 1.50 or less in order for WebAssembly functions to work with WasmEdge’s Golang API. We will [catch up to the latest Rust](https://github.com/WasmEdge/WasmEdge/issues/264) compiler version once the Interface Types spec is finalized and supported. 
+You should add `wasm32-wasi` target to rust to compile this function into WebAssembly bytecode. 
 
 ```
-$ rustup default 1.50.0
+$ rustup target add wasm32-wasi
 
 $ cd flow/rust_mobilenet_food
-$ rustwasmc  build `--enable-ext`
-# The output WASM will be pkg/rust_mobilenet_food_lib_bg.wasm.
+$ cargo build --target wasm32-wasi --release
+# The output WASM will be target/wasm32-wasi/release/rust_mobilenet_food_lib.wasm
 
 # Copy the wasm bytecode file to the flow/ directory
-$ cp pkg/rust_mobilenet_food_lib_bg.wasm ../
+$ cp target/wasm32-wasi/release/rust_mobilenet_food_lib.wasm ../
 ```
+
+To release the best performance of WasmEdge, you should enable the AOT mode by compiling the `.wasm` file to the `.so`.
+
+```
+$ wasmedgec rust_mobilenet_food_lib.wasm rust_mobilenet_food_lib.so
+```
+
 
 ## Integration with YoMo
 
@@ -132,84 +157,110 @@ On the YoMo side, we use the WasmEdge Golang API to start and run WasmEdge VM fo
 ```
 package main
 
-... ...
+import (
+	"crypto/sha1"
+	"fmt"
+	"log"
+	"os"
+	"sync/atomic"
 
-var (
-    vm      *wasmedge.VM
-    vmConf  *wasmedge.Configure
-    counter uint64
+	"github.com/second-state/WasmEdge-go/wasmedge"
+	bindgen "github.com/second-state/wasmedge-bindgen/host/go"
+	"github.com/yomorun/yomo"
 )
 
+var (
+	counter uint64
+)
+
+const ImageDataKey = 0x10
+
 func main() {
-    // Initialize WasmEdge's VM
-    initVM()
-    defer vm.Delete()
-    defer vmConf.Delete()
+	// Connect to Zipper service
+	sfn := yomo.NewStreamFunction("image-recognition", yomo.WithZipperAddr("localhost:9900"))
+	defer sfn.Close()
 
-    // Connect to Zipper service
-    cli, err := client.NewServerless("image-recognition").Connect("localhost", 9000)
-    if err != nil {
-        log.Print("❌ Connect to zipper failure: ", err)
-        return
-    }
+	// set only monitoring data
+	sfn.SetObserveDataID(ImageDataKey)
 
-    defer cli.Close()
-    cli.Pipe(Handler)
+	// set handler
+	sfn.SetHandler(Handler)
+
+	// start
+	err := sfn.Connect()
+	if err != nil {
+		log.Print("❌ Connect to zipper failure: ", err)
+		os.Exit(1)
+	}
+
+	select {}
 }
 
 // Handler process the data in the stream
-func Handler(rxStream rx.RxStream) rx.RxStream {
-    stream := rxStream.
-        Subscribe(ImageDataKey).
-        OnObserve(decode).
-        Encode(0x11)
-        
-    return stream
+func Handler(img []byte) (byte, []byte) {
+	// Initialize WasmEdge's VM
+	vmConf, vm := initVM()
+	bg := bindgen.Instantiate(vm)
+	defer bg.Release()
+	defer vm.Release()
+	defer vmConf.Release()
+
+	// recognize the image
+	res, err := bg.Execute("infer", img)
+	if err == nil {
+		fmt.Println("GO: Run bindgen -- infer:", string(res))
+	} else {
+		fmt.Println("GO: Run bindgen -- infer FAILED")
+	}
+
+	// print logs
+	hash := genSha1(img)
+	log.Printf("✅ received image-%d hash %v, img_size=%d \n", atomic.AddUint64(&counter, 1), hash, len(img))
+
+	return 0x11, nil
 }
 
-// decode Decode and perform image recognition
-var decode = func(v []byte) (interface{}, error) {
-    // get image binary
-    p, _, _, err := y3.DecodePrimitivePacket(v)
-    if err != nil {
-        return nil, err
-    }
-    img := p.ToBytes()
-
-    // recognize the image
-    res, err := vm.ExecuteBindgen("infer", wasmedge.Bindgen_return_array, img)
-    
-    return hash, nil
+// genSha1 generate the hash value of the image
+func genSha1(buf []byte) string {
+	h := sha1.New()
+	h.Write(buf)
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
-
-... ...
 
 // initVM initialize WasmEdge's VM
-func initVM() {
-    wasmedge.SetLogErrorLevel()
-    vmConf = wasmedge.NewConfigure(wasmedge.WASI)
-    vm = wasmedge.NewVMWithConfig(vmConf)
+func initVM() (*wasmedge.Configure, *wasmedge.VM) {
+	wasmedge.SetLogErrorLevel()
+	/// Set Tensorflow not to print debug info
+	os.Setenv("TF_CPP_MIN_LOG_LEVEL", "3")
+	os.Setenv("TF_CPP_MIN_VLOG_LEVEL", "3")
 
-    var wasi = vm.GetImportObject(wasmedge.WASI)
-    wasi.InitWasi(
-        os.Args[1:],     /// The args
-        os.Environ(),    /// The envs
-        []string{".:."}, /// The mapping directories
-        []string{},      /// The preopens will be empty
-    )
+	/// Create configure
+	vmConf := wasmedge.NewConfigure(wasmedge.WASI)
 
-    /// Register WasmEdge-tensorflow and WasmEdge-image
-    var tfobj = wasmedge.NewTensorflowImportObject()
-    var tfliteobj = wasmedge.NewTensorflowLiteImportObject()
-    vm.RegisterImport(tfobj)
-    vm.RegisterImport(tfliteobj)
-    var imgobj = wasmedge.NewImageImportObject()
-    vm.RegisterImport(imgobj)
+	/// Create VM with configure
+	vm := wasmedge.NewVMWithConfig(vmConf)
 
-    /// Instantiate wasm
-    vm.LoadWasmFile("rust_mobilenet_food_lib_bg.wasm")
-    vm.Validate()
-    vm.Instantiate()
+	/// Init WASI
+	var wasi = vm.GetImportObject(wasmedge.WASI)
+	wasi.InitWasi(
+		os.Args[1:],     /// The args
+		os.Environ(),    /// The envs
+		[]string{".:."}, /// The mapping directories
+	)
+
+	/// Register WasmEdge-tensorflow and WasmEdge-image
+	var tfobj = wasmedge.NewTensorflowImportObject()
+	var tfliteobj = wasmedge.NewTensorflowLiteImportObject()
+	vm.RegisterImport(tfobj)
+	vm.RegisterImport(tfliteobj)
+	var imgobj = wasmedge.NewImageImportObject()
+	vm.RegisterImport(imgobj)
+
+	/// Instantiate wasm
+	vm.LoadWasmFile("rust_mobilenet_food_lib.so")
+	vm.Validate()
+
+	return vmConf, vm
 }
 ```
 

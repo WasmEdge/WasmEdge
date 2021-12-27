@@ -60,8 +60,8 @@ extern "C" fn wraper_fn(
 /// A WasmEdge [`Function`] defines a host function described by its [`FuncType`]. A host function is a
 /// function defined outside WebAssembly and passed to WASM module.
 ///
-/// In WasmEdge, developers can create the [`Function`]s and other WasmEdge instances, such as [`Memory`],
-/// and add them into a WasmEdge [`ImportObj`] for registering into a WasmEdge [`Vm`] or [`Store`].
+/// In WasmEdge, developers can create the [`Function`]s and other WasmEdge instances, such as [Memory](crate::Memory),
+/// and add them into a WasmEdge [ImportObj](crate::ImportObj) for registering into a WasmEdge [Vm](crate::Vm) or [Store](crate::Store).
 #[derive(Debug)]
 pub struct Function {
     pub(crate) ctx: *mut wasmedge::WasmEdge_FunctionInstanceContext,

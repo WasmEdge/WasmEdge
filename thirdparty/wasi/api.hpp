@@ -1708,6 +1708,46 @@ static_assert(offsetof(__wasi_address_t, buf) == 0, "witx calculated offset");
 static_assert(offsetof(__wasi_address_t, buf_len) == 4,
               "witx calculated offset");
 
+enum __wasi_sock_opt_level_t : uint32_t {
+  __WASI_SOCK_OPT_LEVEL_SOL_SOCKET = 0,
+
+};
+static_assert(sizeof(__wasi_sock_opt_level_t) == 4, "witx calculated size");
+static_assert(alignof(__wasi_sock_opt_level_t) == 4, "witx calculated align");
+
+enum __wasi_sock_opt_so_t : uint32_t {
+  __WASI_SOCK_OPT_SO_REUSEADDR = 0,
+
+  __WASI_SOCK_OPT_SO_TYPE = 1,
+
+  __WASI_SOCK_OPT_SO_ERROR = 2,
+
+  __WASI_SOCK_OPT_SO_DONTROUTE = 3,
+
+  __WASI_SOCK_OPT_SO_BROADCAST = 4,
+
+  __WASI_SOCK_OPT_SO_SNDBUF = 5,
+
+  __WASI_SOCK_OPT_SO_RCVBUF = 6,
+
+  __WASI_SOCK_OPT_SO_KEEPALIVE = 7,
+
+  __WASI_SOCK_OPT_SO_OOBINLINE = 8,
+
+  __WASI_SOCK_OPT_SO_LINGER = 9,
+
+  __WASI_SOCK_OPT_SO_RCVLOWAT = 10,
+
+  __WASI_SOCK_OPT_SO_RCVTIMEO = 11,
+
+  __WASI_SOCK_OPT_SO_SNDTIMEO = 12,
+
+  __WASI_SOCK_OPT_SO_ACCEPTCONN = 13,
+
+};
+static_assert(sizeof(__wasi_sock_opt_so_t) == 4, "witx calculated size");
+static_assert(alignof(__wasi_sock_opt_so_t) == 4, "witx calculated align");
+
 /**
  * Flags provided to `getaddrinfo`.
  */
@@ -1767,17 +1807,6 @@ enum __wasi_sock_type_t : uint8_t {
 };
 static_assert(sizeof(__wasi_sock_type_t) == 1, "witx calculated size");
 static_assert(alignof(__wasi_sock_type_t) == 1, "witx calculated align");
-
-enum __wasi_sock_opt : int32_t{
-  __WASI_SOCK_SOL_SOCKET=1,
-  __WASI_SOCK_SO_REUSEADDR = 2,
-  __WASI_SOCK_SO_TYPE = 3,
-  __WASI_SOCK_SO_ERROR = 4,
-  __WASI_SOCK_SO_BROADCAST = 6,
-  __WASI_SOCK_SO_OOBINLINE = 10,
-  __WASI_SOCK_SO_LINGER = 13,
-  __WASI_SOCK_TCP_NODELAY = 1,
-};
 
 /**
  * Protocol

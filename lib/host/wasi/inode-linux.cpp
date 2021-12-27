@@ -1056,16 +1056,18 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
 
 WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t OptName, void *FlagPtr,
                                    uint32_t *FlagSizePtr) const noexcept {
-  if (OptName == __WASI_SOCK_SO_ERROR) {
+  auto SysLevel = toSockOptLevel((__wasi_sock_opt_level_t) Level);
+  auto SysOptName = toSockOptSoName((__wasi_sock_opt_so_t) OptName);
+  if (OptName == __WASI_SOCK_OPT_SO_ERROR) {
     int ErrorCode = 0;
     int *WasiErrorPtr = (int *)FlagPtr;
-    if (auto Res = ::getsockopt(Fd, Level, OptName, &ErrorCode, FlagSizePtr);
+    if (auto Res = ::getsockopt(Fd, SysLevel, SysOptName, &ErrorCode, FlagSizePtr);
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
     *WasiErrorPtr = fromErrNo(ErrorCode);
   } else {
-    if (auto Res = ::getsockopt(Fd, Level, OptName, FlagPtr, FlagSizePtr);
+    if (auto Res = ::getsockopt(Fd, SysLevel, SysOptName, FlagPtr, FlagSizePtr);
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
@@ -1076,7 +1078,10 @@ WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t OptName, void *FlagPtr
 
 WasiExpect<void> INode::sockSetOpt(int32_t Level, int32_t OptName, void *FlagPtr,
                                    uint32_t FlagSizePtr) const noexcept {
-  if (auto Res = ::setsockopt(Fd, Level, OptName, FlagPtr, FlagSizePtr);
+  auto SysLevel = toSockOptLevel((__wasi_sock_opt_level_t) Level);
+  auto SysOptName = toSockOptSoName((__wasi_sock_opt_so_t) OptName);
+
+  if (auto Res = ::setsockopt(Fd, SysLevel, SysOptName, FlagPtr, FlagSizePtr);
       unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }

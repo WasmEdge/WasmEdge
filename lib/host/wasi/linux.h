@@ -360,6 +360,53 @@ inline constexpr int toWhence(__wasi_whence_t Whence) noexcept {
   }
 }
 
+inline constexpr int toSockOptLevel(__wasi_sock_opt_level_t Level) noexcept {
+  switch (Level)
+  {
+  case __WASI_SOCK_OPT_LEVEL_SOL_SOCKET:
+    return SOL_SOCKET;
+  default:
+    __builtin_unreachable();
+  }
+}
+
+inline constexpr int toSockOptSoName(__wasi_sock_opt_so_t SoName) noexcept {
+  switch (SoName)
+  {
+  case __WASI_SOCK_OPT_SO_REUSEADDR:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_TYPE:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_ERROR:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_DONTROUTE:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_BROADCAST:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_SNDBUF:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_RCVBUF:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_KEEPALIVE:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_OOBINLINE:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_LINGER:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_RCVLOWAT:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_RCVTIMEO:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_SNDTIMEO:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_ACCEPTCONN:
+    return SO_TYPE;
+  
+  default:
+    __builtin_unreachable();
+  }
+}
+
 } // namespace detail
 } // namespace WASI
 } // namespace Host

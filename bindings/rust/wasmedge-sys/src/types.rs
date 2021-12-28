@@ -1,6 +1,6 @@
 use crate::wasmedge;
 use core::ffi::c_void;
-use std::fmt;
+use std::{ffi::CString, fmt};
 
 pub type WasmEdgeProposal = wasmedge::WasmEdge_Proposal;
 pub type HostFunc = wasmedge::WasmEdge_HostFunc_t;
@@ -364,4 +364,12 @@ impl_to_prim_conversions! {
     [F32] => f32,
     [F32, F64] => f64,
     [V128] => u128,
+}
+
+impl<T: AsRef<str>> From<T> for wasmedge::WasmEdge_String {
+    fn from(s: T) -> Self {
+        let cs =
+            CString::new(s.as_ref()).expect("fail to convert a string slice to WasmEdge_String");
+        unsafe { wasmedge::WasmEdge_StringCreateByCString(cs.as_ptr()) }
+    }
 }

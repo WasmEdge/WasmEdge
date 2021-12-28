@@ -95,6 +95,43 @@ state
 [2021-12-09 16:03:33.261] [info] =======================   End   ======================
 ```
 
+### With gas-limit enabled
+
+The CLI supports `--gas-limit` flags for controlling the execution costs. 
+
+```bash
+# cd <path/to/WasmEdge>
+$ cd tools/wasmedge/examples
+# With enough gas
+$ wasmedge --enable-all-statistics --gas-limit 20425 hello.wasm second state
+hello
+second
+state
+[2021-12-09 16:03:33.261] [info] ====================  Statistics  ====================
+[2021-12-09 16:03:33.261] [info]  Total execution time: 268266 ns
+[2021-12-09 16:03:33.261] [info]  Wasm instructions execution time: 251610 ns
+[2021-12-09 16:03:33.261] [info]  Host functions execution time: 16656 ns
+[2021-12-09 16:03:33.261] [info]  Executed wasm instructions count: 20425
+[2021-12-09 16:03:33.261] [info]  Gas costs: 20425
+[2021-12-09 16:03:33.261] [info]  Instructions per second: 81177218
+[2021-12-09 16:03:33.261] [info] =======================   End   ======================
+
+# Without enough gas
+$ wasmedge --enable-all-statistics --gas-limit 20 hello.wasm second state
+[2021-12-23 15:19:06.690] [error] Cost exceeded limit. Force terminate the execution.
+[2021-12-23 15:19:06.690] [error]     In instruction: ref.func (0xd2) , Bytecode offset: 0x00000000
+[2021-12-23 15:19:06.690] [error]     At AST node: expression
+[2021-12-23 15:19:06.690] [error]     At AST node: element segment
+[2021-12-23 15:19:06.690] [error]     At AST node: element section
+[2021-12-23 15:19:06.690] [error]     At AST node: module
+[2021-12-23 15:19:06.690] [info] ====================  Statistics  ====================
+[2021-12-23 15:19:06.690] [info]  Total execution time: 0 ns
+[2021-12-23 15:19:06.690] [info]  Wasm instructions execution time: 0 ns
+[2021-12-23 15:19:06.690] [info]  Host functions execution time: 0 ns
+[2021-12-23 15:19:06.690] [info]  Executed wasm instructions count: 21
+[2021-12-23 15:19:06.690] [info]  Gas costs: 20
+```
+
 
 ## JavaScript examples
 

@@ -82,8 +82,6 @@ impl Memory {
     ///
     /// If the `offset` + `len` is larger than the data size in the [`Memory`], then an error is returned.
     ///
-    /// # Examples
-    ///
     pub fn get_data(&self, offset: u32, len: u32) -> WasmEdgeResult<impl Iterator<Item = u8>> {
         let mut data = Vec::with_capacity(len as usize);
         unsafe {

@@ -3,7 +3,6 @@
 use super::wasmedge;
 use crate::{
     error::{check, Error, WasmEdgeResult},
-    string::StringRef,
     Config, ImportObj, Module, Statistics, Store, Value,
 };
 use std::ptr;
@@ -99,7 +98,7 @@ impl Executor {
                 self.ctx,
                 store.ctx,
                 ast_mod.ctx,
-                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+                mod_name.into(),
             ))?;
             ast_mod.ctx = std::ptr::null_mut();
             ast_mod.registered = true;
@@ -181,7 +180,7 @@ impl Executor {
             check(wasmedge::WasmEdge_ExecutorInvoke(
                 self.ctx,
                 store.ctx,
-                StringRef::from(func_name.as_ref()).into(),
+                func_name.into(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -237,8 +236,8 @@ impl Executor {
             check(wasmedge::WasmEdge_ExecutorInvokeRegistered(
                 self.ctx,
                 store.ctx,
-                StringRef::from(mod_name.as_ref()).into(),
-                StringRef::from(func_name.as_ref()).into(),
+                mod_name.into(),
+                func_name.into(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),

@@ -10,9 +10,22 @@ using Graph = uint32_t;
 
 class OnnxSession {
 public:
+  std::unique_ptr<Ort::AllocatorWithDefaultOptions> Allocator;
   std::unique_ptr<Ort::SessionOptions> SessionOpt;
   std::unique_ptr<Ort::Env> Env;
-  std::unique_ptr<Ort::Session> Session;
+  std::unique_ptr<Ort::Session> OrtSession;
+
+  /// Store the data of input and output tensors
+  std::vector<std::vector<float>> InputTensorsValue;
+  std::vector<std::vector<float>> OutputTensorsValue;
+
+  std::vector<std::vector<int64_t>> InputTensorsDims;
+  std::vector<std::vector<int64_t>> OutputTensorsDims;
+
+  /// Data structure in ONNX. Each Ort::Value point to an
+  /// element in `InputTensorsValue` or `OutputTensorsValue`
+  std::vector<Ort::Value> InputTensors;
+  std::vector<Ort::Value> OutputTensors;
 };
 
 class WasiNNContext {
@@ -23,6 +36,8 @@ public:
   std::map<GraphExecutionContext, OnnxSession> Executions;
   int ModelsNum;
   int ExecutionsNum;
+
+  std::unique_ptr<Ort::MemoryInfo> MemoryInfo;
 };
 
 } // namespace Host

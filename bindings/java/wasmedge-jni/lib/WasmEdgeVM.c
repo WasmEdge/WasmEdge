@@ -4,12 +4,12 @@
 
 #include <stddef.h>
 #include <stdio.h>
-#include <string.h>
 #include "wasmedge/wasmedge.h"
 #include "jni.h"
 #include "common.h"
 #include "StoreContext.h"
 #include "ConfigureContext.h"
+#include "FunctionTypeContext.h"
 
 
 
@@ -255,5 +255,38 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_execute
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_delete
         (JNIEnv * env, jobject thisObj) {
     WasmEdge_VMDelete(getVmContext(env, thisObj));
+}
 
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionList
+        (JNIEnv * env, jobject thisObject) {
+
+    WasmEdge_VMContext* vmContext = getVmContext(env, thisObject);
+
+    uint32_t funcLen = WasmEdge_VMGetFunctionListLength(vmContext);
+    const WasmEdge_FunctionTypeContext** funcList = (const WasmEdge_FunctionTypeContext**)malloc(sizeof (WasmEdge_FunctionTypeContext *));
+    WasmEdge_String* nameList = (WasmEdge_String*)malloc(sizeof (struct WasmEdge_String));
+    uint32_t RealFuncNum = WasmEdge_VMGetFunctionList(vmContext, nameList, funcList, funcLen);
+
+    jobject jFuncList = ConvertToJavaFunctionList(env, nameList, funcList, RealFuncNum);
+
+    free(funcList);
+    free(nameList);
+
+    return jFuncList;
+}
+
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionType
+        (JNIEnv * env, jobject thisObject, jstring jFuncName) {
+    WasmEdge_VMContext* vmContext = getVmContext(env, thisObject);
+
+    const char* funcName = (*env)->GetStringUTFChars(env, jFuncName, NULL);
+    WasmEdge_String wFuncName = WasmEdge_StringCreateByCString(funcName);
+    const WasmEdge_FunctionTypeContext* functionTypeContext = WasmEdge_VMGetFunctionType(vmContext, wFuncName);
+
+    jobject jFuncType = ConvertToJavaFunctionType(env, functionTypeContext);
+
+    WasmEdge_StringDelete(wFuncName);
+    (*env)->ReleaseStringUTFChars(env, jFuncName, funcName);
+
+    return jFuncType;
 }

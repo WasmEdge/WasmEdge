@@ -7,8 +7,6 @@
 #include <string.h>
 #include "wasmedge/wasmedge.h"
 
-
-
 void exitWithError(enum ErrorCode error, char* message) {
      exit(-1);
 }

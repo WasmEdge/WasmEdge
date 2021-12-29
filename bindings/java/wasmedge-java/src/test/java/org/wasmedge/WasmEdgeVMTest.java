@@ -3,9 +3,8 @@ package org.wasmedge;
 import org.junit.Assert;
 import org.junit.Test;
 import org.wasmedge.enums.HostRegistration;
+import org.wasmedge.enums.ValueType;
 
-import java.net.URL;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -97,13 +96,19 @@ public class WasmEdgeVMTest extends BaseTest {
     @Test
     public void testGetFunctionList() {
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
-        vm.loadWasmFromFile(WASM_PATH);
+        vm.loadWasmFromFile(getResourcePath(WASM_PATH));
         vm.validate();
         vm.instantiate();
         List<FunctionTypeContext> functionList = vm.getFunctionList();
         Assert.assertEquals(functionList.size(), 1);
 
         FunctionTypeContext function = vm.getFunctionType(FUNC_NAME);
+
+        Assert.assertEquals(function.getParameters().size(), 1);
+        Assert.assertEquals(function.getParameters().get(0), ValueType.i32);
+
+        Assert.assertEquals(function.getReturns().size(), 1);
+        Assert.assertEquals(function.getReturns().get(0), ValueType.i32);
     }
 
     @Test

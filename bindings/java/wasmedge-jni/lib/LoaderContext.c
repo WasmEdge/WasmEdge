@@ -25,6 +25,9 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_LoaderContext_parseFromFile
     (*env)->ReleaseStringUTFChars(env, jInputPath, inputPath);
     handleWasmEdgeResult(env, &result);
 
+    if((*env)->ExceptionOccurred(env)) {
+        return NULL;
+    }
 
     return createAstModuleContext(env, mod);
 }

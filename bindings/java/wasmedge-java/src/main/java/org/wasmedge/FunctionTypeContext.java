@@ -2,16 +2,22 @@ package org.wasmedge;
 
 import org.wasmedge.enums.ValueType;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class FunctionTypeContext {
     private long pointer;
+    private String name;
 
     public FunctionTypeContext(List<ValueType> paramTypes,
                                List<ValueType> returnTypes) {
         nativeInit(getTypeValues(paramTypes), getTypeValues(returnTypes));
+    }
+
+    public FunctionTypeContext(ValueType[] paramTypes, ValueType[] returnTypes) {
+        nativeInit(getTypeValues(Arrays.asList(paramTypes)), getTypeValues(Arrays.asList(returnTypes)));
     }
 
     private native void nativeInit(int[] paramsTypes, int[] returnTypes);

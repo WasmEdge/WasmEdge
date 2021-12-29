@@ -2,7 +2,6 @@ use super::wasmedge;
 use crate::{
     error::{check, Error, WasmEdgeResult},
     instance::function::FuncType,
-    string::StringRef,
     types::HostRegistration,
     utils, Config, ImportObj, Module, Statistics, Store, Value,
 };
@@ -45,7 +44,7 @@ impl Vm {
         path: impl AsRef<Path>,
     ) -> WasmEdgeResult<Self> {
         let path = utils::path_to_cstring(path.as_ref())?;
-        let raw_mod_name: wasmedge::WasmEdge_String = StringRef::from(mod_name.as_ref()).into();
+        let raw_mod_name = mod_name.into();
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromFile(
                 self.ctx,
@@ -80,7 +79,7 @@ impl Vm {
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromBuffer(
                 self.ctx,
-                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+                mod_name.into(),
                 buffer.as_ptr(),
                 buffer.len() as u32,
             ))?;
@@ -98,7 +97,7 @@ impl Vm {
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromASTModule(
                 self.ctx,
-                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+                mod_name.into(),
                 module.ctx,
             ))?;
         }
@@ -116,7 +115,7 @@ impl Vm {
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
         let path = utils::path_to_cstring(path.as_ref())?;
-        let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(func_name.as_ref()).into();
+        let raw_func_name = func_name.into();
 
         // prepare parameters
         let raw_params = params
@@ -158,7 +157,7 @@ impl Vm {
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
-        let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(func_name.as_ref()).into();
+        let raw_func_name = func_name.into();
 
         // prepare parameters
         let raw_params = params
@@ -201,7 +200,7 @@ impl Vm {
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
-        let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(func_name.as_ref()).into();
+        let raw_func_name = func_name.into();
 
         // prepare parameters
         let raw_params = params
@@ -302,7 +301,7 @@ impl Vm {
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
-        let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(func_name.as_ref()).into();
+        let raw_func_name = func_name.into();
 
         // prepare parameters
         let raw_params = params
@@ -343,8 +342,8 @@ impl Vm {
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
-        let raw_mod_name: wasmedge::WasmEdge_String = StringRef::from(mod_name.as_ref()).into();
-        let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(func_name.as_ref()).into();
+        let raw_mod_name = mod_name.into();
+        let raw_func_name = func_name.into();
 
         // prepare parameters
         let raw_params = params
@@ -381,12 +380,7 @@ impl Vm {
 
     /// Get the function type by function name.
     pub fn get_function_type(&self, func_name: impl AsRef<str>) -> Option<FuncType> {
-        let ty_ctx = unsafe {
-            wasmedge::WasmEdge_VMGetFunctionType(
-                self.ctx,
-                wasmedge::WasmEdge_String::from(StringRef::from(func_name.as_ref())),
-            )
-        };
+        let ty_ctx = unsafe { wasmedge::WasmEdge_VMGetFunctionType(self.ctx, func_name.into()) };
         match ty_ctx.is_null() {
             true => None,
             false => Some(FuncType {
@@ -405,8 +399,8 @@ impl Vm {
         let ty_ctx = unsafe {
             wasmedge::WasmEdge_VMGetFunctionTypeRegistered(
                 self.ctx,
-                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
-                wasmedge::WasmEdge_String::from(StringRef::from(func_name.as_ref())),
+                mod_name.into(),
+                func_name.into(),
             )
         };
         match ty_ctx.is_null() {

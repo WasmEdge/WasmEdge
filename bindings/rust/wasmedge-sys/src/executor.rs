@@ -106,20 +106,24 @@ impl Executor {
         Ok(self)
     }
 
-    /// Instantiates a WasmEdge AST [`Module`] into a [`Store`].
+    /// Instantiates a WasmEdge AST [Module](crate::Module) into a [Store](crate::Store).
     ///
-    /// Instantiates the WasmEdge AST [`Module`] as an active anonymous module in the [`Store`].
+    /// Instantiates the WasmEdge AST [Module](crate::Module) as an active anonymous module in the
+    /// [Store](crate::Store). Notice that when a new module is instantiated into the [Store](crate::Store), the old
+    /// instantiated module is removed; in addition, ensure that the [imports](crate::Import) are registered into the
+    /// [Store](crate::Store).
     ///
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the [`Store`], in which the [`Module`] to be instantiated is stored.
+    /// - `store` specifies the [Store](crate::Store), in which the [Module](crate::Module) to be instantiated
+    /// is stored.
     ///
-    /// - `ast_mod` specifies the target [`Module`] to be instantiated.
+    /// - `ast_mod` specifies the target [Module](crate::Module) to be instantiated.
     ///
     /// # Error
     ///
-    /// If fail to instantiate the given [`Module`], then an error is returned.
+    /// If fail to instantiate the given [Module](crate::Module), then an error is returned.
     pub fn instantiate(self, store: &mut Store, ast_mod: &mut Module) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInstantiate(

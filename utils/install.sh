@@ -35,7 +35,7 @@ _downloader() {
             exit 1
         fi
     else
-        wget -q -c --directory-prefix="$TMP_DIR" --show-progress "$url"
+        wget -q -c --directory-prefix="$TMP_DIR" "$url"
     fi
 }
 

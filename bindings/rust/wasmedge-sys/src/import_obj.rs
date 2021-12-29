@@ -3,7 +3,6 @@
 use super::wasmedge;
 use crate::{
     instance::{Function, Global, Memory, Table},
-    string::StringRef,
     utils::string_to_c_char,
     Error, WasmEdgeResult,
 };
@@ -28,7 +27,7 @@ impl ImportObj {
     ///
     /// If fail to create a host module, then an error is returned.
     pub fn create(name: impl AsRef<str>) -> WasmEdgeResult<Self> {
-        let raw_module_name: wasmedge::WasmEdge_String = StringRef::from(name.as_ref()).into();
+        let raw_module_name = name.into();
         let ctx = unsafe { wasmedge::WasmEdge_ImportObjectCreate(raw_module_name) };
         match ctx.is_null() {
             true => Err(Error::OperationError(String::from(
@@ -238,7 +237,7 @@ impl ImportObj {
     ///
     /// - `func` specifies the host function instance to add.
     pub fn add_func(&mut self, name: impl AsRef<str>, func: &mut Function) {
-        let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(name.as_ref()).into();
+        let raw_func_name = name.into();
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, raw_func_name, (*func).ctx);
         }
@@ -255,11 +254,7 @@ impl ImportObj {
     /// - `table` specifies the export table instance to add.
     pub fn add_table(&mut self, name: impl AsRef<str>, table: &mut Table) {
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddTable(
-                self.ctx,
-                wasmedge::WasmEdge_String::from(StringRef::from(name.as_ref())),
-                table.ctx,
-            );
+            wasmedge::WasmEdge_ImportObjectAddTable(self.ctx, name.into(), table.ctx);
         }
         table.registered = true;
         table.ctx = std::ptr::null_mut();
@@ -274,11 +269,7 @@ impl ImportObj {
     /// - `memory` specifies the export memory instance to add.
     pub fn add_memory(&mut self, name: impl AsRef<str>, memory: &mut Memory) {
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddMemory(
-                self.ctx,
-                wasmedge::WasmEdge_String::from(StringRef::from(name.as_ref())),
-                memory.ctx,
-            );
+            wasmedge::WasmEdge_ImportObjectAddMemory(self.ctx, name.into(), memory.ctx);
         }
         memory.registered = true;
         memory.ctx = std::ptr::null_mut();
@@ -293,11 +284,7 @@ impl ImportObj {
     /// `global` specifies the export global instance to add.
     pub fn add_global(&mut self, name: impl AsRef<str>, global: &mut Global) {
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddGlobal(
-                self.ctx,
-                wasmedge::WasmEdge_String::from(StringRef::from(name.as_ref())),
-                global.ctx,
-            );
+            wasmedge::WasmEdge_ImportObjectAddGlobal(self.ctx, name.into(), global.ctx);
         }
         global.registered = true;
         global.ctx = std::ptr::null_mut();

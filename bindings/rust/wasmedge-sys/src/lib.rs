@@ -40,8 +40,6 @@ pub mod statistics;
 #[doc(hidden)]
 pub mod store;
 #[doc(hidden)]
-pub mod string;
-#[doc(hidden)]
 pub mod types;
 #[doc(hidden)]
 pub mod utils;
@@ -66,6 +64,8 @@ pub use import_obj::ImportObj;
 pub use instance::{
     function::{FuncType, Function},
     global::{Global, GlobalType},
+    memory::{MemType, Memory},
+    table::{Table, TableType},
 };
 #[doc(inline)]
 pub(crate) use io::WasmFnIO;
@@ -80,9 +80,7 @@ pub use statistics::Statistics;
 #[doc(inline)]
 pub use store::Store;
 #[doc(inline)]
-pub use string::{StringBuf, StringRef, WasmEdgeString};
-#[doc(inline)]
-pub use types::{Mutability, ValType, Value};
+pub use types::{Mutability, RefType, ValType, Value};
 #[doc(inline)]
 pub use validator::Validator;
 #[doc(inline)]

@@ -1496,7 +1496,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
         continue;
       }
       default:
-        __builtin_unreachable();
+        assumingUnreachable();
       }
     }
 

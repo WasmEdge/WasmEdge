@@ -202,7 +202,7 @@ TypeF<T> Executor::runCopysignOp(ValVariant &Val1,
 template <typename TIn, typename TOut>
 Expect<void> Executor::runReplaceLaneOp(ValVariant &Val1,
                                         const ValVariant &Val2,
-                                        const uint32_t Index) const {
+                                        const uint8_t Index) const {
   using VTOut [[gnu::vector_size(16)]] = TOut;
   VTOut &Result = Val1.get<VTOut>();
   Result[Index] = static_cast<TOut>(Val2.get<TIn>());
@@ -463,7 +463,7 @@ Expect<void> Executor::runVectorFMaxOp(ValVariant &Val1,
   VT &V1 = Val1.get<VT>();
   const VT &V2 = Val2.get<VT>();
   VT R = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(V1) &
-                            reinterpret_cast<uint64x2_t>(V2));
+                              reinterpret_cast<uint64x2_t>(V2));
   R = detail::vectorSelect(V1 < V2, V2, R);
   R = detail::vectorSelect(V1 > V2, V1, R);
   R = detail::vectorSelect(V1 == V1, R, V1);

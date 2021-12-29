@@ -21,8 +21,11 @@
 #ifdef NDEBUG
 #define assuming(R)                                                            \
   (static_cast<bool>(R) ? static_cast<void>(0) : __builtin_unreachable())
+#define assumingUnreachable() __builtin_unreachable()
 #else
 #define assuming(expr) assert(expr)
+#define assumingUnreachable()                                                  \
+  (assert(false && "unreachable"), __builtin_unreachable())
 #endif
 
 namespace WasmEdge {

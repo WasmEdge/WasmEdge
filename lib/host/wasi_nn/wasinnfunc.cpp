@@ -198,10 +198,12 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
   for (uint32_t i = 0; i < Session.OutputTensorsValue[Index].size(); i++) {
     float Value = Session.OutputTensorsValue[Index][i];
     OutBufferPtr[4 * i] = *reinterpret_cast<uint32_t *>(&Value) & 0xff;
-    OutBufferPtr[4 * i + 1] = *reinterpret_cast<uint32_t *>(&Value) & 0xff00;
-    OutBufferPtr[4 * i + 2] = *reinterpret_cast<uint32_t *>(&Value) & 0xff0000;
+    OutBufferPtr[4 * i + 1] =
+        (*reinterpret_cast<uint32_t *>(&Value) & 0xff00) >> 8;
+    OutBufferPtr[4 * i + 2] =
+        (*reinterpret_cast<uint32_t *>(&Value) & 0xff0000) >> 16;
     OutBufferPtr[4 * i + 3] =
-        *reinterpret_cast<uint32_t *>(&Value) & 0xff000000;
+        (*reinterpret_cast<uint32_t *>(&Value) & 0xff000000) >> 24;
   }
 
   *BytesWritten = Session.OutputTensorsValue[Index].size() * 4;

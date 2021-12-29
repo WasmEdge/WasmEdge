@@ -207,7 +207,7 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
     case ValType::None:
     default:
       // TODO: Return error
-      __builtin_unreachable();
+      assumingUnreachable();
     }
   }
   return {VVec, TVec};

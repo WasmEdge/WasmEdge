@@ -13,6 +13,7 @@
 #pragma once
 
 #include "common/enum_types.h"
+#include "common/errcode.h"
 #include "common/int128.h"
 #include "common/variant.h"
 
@@ -78,7 +79,24 @@ using ValVariant =
             FuncRef, ExternRef>;
 
 /// BlockType definition.
-using BlockType = std::variant<ValType, uint32_t>;
+struct BlockType {
+  bool IsValType;
+  union {
+    ValType Type;
+    uint32_t Idx;
+  } Data;
+  BlockType() = default;
+  BlockType(ValType VType) { setData(VType); }
+  BlockType(uint32_t Idx) { setData(Idx); }
+  void setData(ValType VType) {
+    IsValType = true;
+    Data.Type = VType;
+  }
+  void setData(uint32_t Idx) {
+    IsValType = false;
+    Data.Idx = Idx;
+  }
+};
 
 /// NumType and RefType conversions.
 inline constexpr ValType ToValType(const NumType Val) noexcept {
@@ -243,9 +261,9 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   case ValType::ExternRef:
     return UnknownRef();
   case ValType::None:
-    __builtin_unreachable();
+  default:
+    assumingUnreachable();
   }
-  __builtin_unreachable();
 }
 
 /// <<<<<<<< Const expression to generate value from value type <<<<<<<<<<<<<<<<

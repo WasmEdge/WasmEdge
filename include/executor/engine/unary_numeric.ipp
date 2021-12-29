@@ -96,7 +96,7 @@ template <typename T> TypeF<T> Executor::runSqrtOp(ValVariant &Val) const {
 
 template <typename TIn, typename TOut>
 Expect<void> Executor::runExtractLaneOp(ValVariant &Val,
-                                        const uint32_t Index) const {
+                                        const uint8_t Index) const {
   using VTIn [[gnu::vector_size(16)]] = TIn;
   const TOut Result = Val.get<VTIn>()[Index];
   Val.emplace<TOut>(Result);

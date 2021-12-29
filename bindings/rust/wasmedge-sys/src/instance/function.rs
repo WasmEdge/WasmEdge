@@ -71,7 +71,7 @@ pub struct Function {
 impl Function {
     /// wasmedge::WasmEdge_FunctionInstanceCreate take C functions
     /// This may not be implement, base on the limiation of passing C functions in Rust lang.
-    /// Please refer `create_bindings` for building host functions.
+    /// Please refer to `create_bindings` for building host functions.
     pub fn create<I: WasmFnIO, O: WasmFnIO>(
         _f: Box<dyn std::ops::Fn(Vec<Value>) -> Vec<Value>>,
     ) -> WasmEdgeResult<Self> {

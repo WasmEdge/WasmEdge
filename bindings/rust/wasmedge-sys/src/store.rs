@@ -440,9 +440,9 @@ impl Drop for Store {
 mod tests {
     use super::Store;
     use crate::{
-        instance::{Function, Global, GlobalType, Memory, Table},
+        instance::{Function, Global, GlobalType, Memory, Table, TableType},
         io::{I1, I2},
-        types::{Mutability, ValType, WasmEdgeRefType},
+        types::{Mutability, RefType, ValType},
         Config, Executor, ImportObj, Value,
     };
 
@@ -480,15 +480,19 @@ mod tests {
         assert!(host_func.ctx.is_null() && host_func.registered);
 
         // add table
-        let ref_ty = WasmEdgeRefType::FuncRef;
-        let result = Table::create(ref_ty, 0..u32::MAX);
+        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
+        assert!(result.is_ok());
+        let mut ty = result.unwrap();
+        assert!(!ty.ctx.is_null());
+        assert!(!ty.registered);
+        let result = Table::create(&mut ty);
         assert!(result.is_ok());
         let mut table = result.unwrap();
         import_obj.add_table("table", &mut table);
         assert!(table.ctx.is_null() && table.registered);
 
         // add memory
-        let result = Memory::create(0..u32::MAX);
+        let result = Memory::create(0..=u32::MAX);
         assert!(result.is_ok());
         let mut memory = result.unwrap();
         import_obj.add_memory("mem", &mut memory);

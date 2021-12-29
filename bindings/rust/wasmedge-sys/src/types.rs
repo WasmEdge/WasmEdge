@@ -6,46 +6,47 @@ pub type WasmEdgeProposal = wasmedge::WasmEdge_Proposal;
 pub type HostFunc = wasmedge::WasmEdge_HostFunc_t;
 pub type WrapFunc = wasmedge::WasmEdge_WrapFunc_t;
 
-#[derive(Debug)]
-pub enum WasmEdgeRefType {
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum RefType {
     FuncRef,
     ExternRef,
 }
-impl From<u32> for WasmEdgeRefType {
+impl From<u32> for RefType {
     fn from(value: u32) -> Self {
         match value {
-            0x70u32 => WasmEdgeRefType::FuncRef,
-            0x6Fu32 => WasmEdgeRefType::ExternRef,
+            0x70u32 => RefType::FuncRef,
+            0x6Fu32 => RefType::ExternRef,
             _ => panic!("fail to convert u32 to WasmEdgeRefType: {}", value),
         }
     }
 }
-impl From<WasmEdgeRefType> for wasmedge::WasmEdge_RefType {
-    fn from(ty: WasmEdgeRefType) -> Self {
+impl From<RefType> for wasmedge::WasmEdge_RefType {
+    fn from(ty: RefType) -> Self {
         match ty {
-            WasmEdgeRefType::FuncRef => wasmedge::WasmEdge_RefType_FuncRef,
-            WasmEdgeRefType::ExternRef => wasmedge::WasmEdge_RefType_ExternRef,
+            RefType::FuncRef => wasmedge::WasmEdge_RefType_FuncRef,
+            RefType::ExternRef => wasmedge::WasmEdge_RefType_ExternRef,
         }
     }
 }
 
-impl From<std::ops::Range<u32>> for wasmedge::WasmEdge_Limit {
-    fn from(range: std::ops::Range<u32>) -> Self {
+impl From<std::ops::RangeInclusive<u32>> for wasmedge::WasmEdge_Limit {
+    fn from(range: std::ops::RangeInclusive<u32>) -> Self {
+        let (start, end) = range.into_inner();
         Self {
-            Min: range.start,
-            Max: range.end,
+            Min: start,
+            Max: end,
             HasMax: true,
         }
     }
 }
-impl From<wasmedge::WasmEdge_Limit> for std::ops::Range<u32> {
+impl From<wasmedge::WasmEdge_Limit> for std::ops::RangeInclusive<u32> {
     fn from(limit: wasmedge::WasmEdge_Limit) -> Self {
         let start = limit.Min;
         let end = match limit.HasMax {
             true => limit.Max,
             false => u32::MAX,
         };
-        Self { start, end }
+        Self::new(start, end)
     }
 }
 

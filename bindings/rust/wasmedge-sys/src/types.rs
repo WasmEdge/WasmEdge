@@ -6,9 +6,17 @@ pub type WasmEdgeProposal = wasmedge::WasmEdge_Proposal;
 pub type HostFunc = wasmedge::WasmEdge_HostFunc_t;
 pub type WrapFunc = wasmedge::WasmEdge_WrapFunc_t;
 
+/// Defines reference types.
+///
+/// `RefType` classifies first-class references to objects in the runtime [store](crate::Store).
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum RefType {
+    /// `FuncRef` denotes the infinite union of all references to [functions](crate::Function), regardless of their
+    /// [function types](crate::FuncType).
     FuncRef,
+
+    /// `ExternRef` denotes the infinite union of all references to objects owned by the [Vm](crate::Vm) and that can be
+    /// passed into WebAssembly under this type.
     ExternRef,
 }
 impl From<u32> for RefType {
@@ -50,14 +58,32 @@ impl From<wasmedge::WasmEdge_Limit> for std::ops::RangeInclusive<u32> {
     }
 }
 
+/// Defines value types.
+///
+/// `ValType` classifies the individual values that WebAssembly code can compute with and the values that a variable
+/// accepts.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ValType {
+    /// 32-bit integer.
+    ///
+    /// Integers are not inherently signed or unsigned, their interpretation is determined by individual operations.
     I32,
+    /// 64-bit integer.
+    ///
+    /// Integers are not inherently signed or unsigned, their interpretation is determined by individual operations.
     I64,
+    /// 32-bit floating-point data as defined by the [IEEE 754-2019](https://ieeexplore.ieee.org/document/8766229).
     F32,
+    /// 64-bit floating-point data as defined by the [IEEE 754-2019](https://ieeexplore.ieee.org/document/8766229).
     F64,
+    /// 128-bit vector of packed integer or floating-point data.
+    ///
+    /// The packed data can be interpreted as signed or unsigned integers, single or double precision floating-point
+    /// values, or a single 128 bit type. The interpretation is determined by individual operations.
     V128,
+    /// A reference to [functions](crate::Function).
     FuncRef,
+    /// A reference to object owned by the [Vm](crate::Vm).
     ExternRef,
 }
 impl From<ValType> for wasmedge::WasmEdge_ValType {
@@ -88,9 +114,14 @@ impl From<wasmedge::WasmEdge_ValType> for ValType {
     }
 }
 
+/// Defines WasmEdge mutability values.
+///
+/// `Mutability` determines a [global](crate::Global) variable is either mutable or immutable.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Mutability {
+    /// Identifies an immutable global variable
     Const,
+    /// Identifies a mutable global variable
     Var,
 }
 impl From<Mutability> for wasmedge::WasmEdge_Mutability {
@@ -111,6 +142,7 @@ impl From<wasmedge::WasmEdge_Mutability> for Mutability {
     }
 }
 
+/// Defines WasmEdge AOT compiler optimization level.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum CompilerOptimizationLevel {
@@ -148,6 +180,7 @@ impl From<u32> for CompilerOptimizationLevel {
     }
 }
 
+/// Defines WasmEdge AOT compiler output binary format.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum CompilerOutputFormat {
@@ -223,17 +256,29 @@ impl fmt::Display for ExternType {
     }
 }
 
-/// A polymorphic Wasm primitive type.
+/// Defines WebAssembly primitive types.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Value {
+    /// 32-bit integer.
+    ///
+    /// Integers are not inherently signed or unsigned, their interpretation is determined by individual operations.
     I32(i32),
+    /// 64-bit integer.
+    ///
+    /// Integers are not inherently signed or unsigned, their interpretation is determined by individual operations.
     I64(i64),
+    /// 32-bit floating-point data as defined by the [IEEE 754-2019](https://ieeexplore.ieee.org/document/8766229).
     F32(f32),
+    /// 64-bit floating-point data as defined by the [IEEE 754-2019](https://ieeexplore.ieee.org/document/8766229).
     F64(f64),
+    /// 128-bit vector of packed integer or floating-point data.
+    ///
+    /// The packed data can be interpreted as signed or unsigned integers, single or double precision floating-point
+    /// values, or a single 128 bit type. The interpretation is determined by individual operations.
     V128(u128),
-    /// A reference to a Wasm function.
+    /// A reference to [functions](crate::Function).
     FuncRef(u128),
-    /// A reference to opaque data in the Wasm instance.
+    /// A reference to object owned by the [Vm](crate::Vm).
     ExternRef(u128),
 }
 impl Value {

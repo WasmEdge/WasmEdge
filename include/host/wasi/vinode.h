@@ -694,7 +694,7 @@ public:
 
   WasiExpect<void> read(std::shared_ptr<VINode> Fd,
                         __wasi_userdata_t UserData) noexcept {
-    if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE | __WASI_RIGHTS_FD_READ)) {
+    if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) && !Fd->can(__WASI_RIGHTS_FD_READ)) {
       return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
     }
     return Poller::read(Fd->Node, UserData);

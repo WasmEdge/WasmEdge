@@ -225,32 +225,35 @@ impl From<HostRegistration> for wasmedge::WasmEdge_HostRegistration {
     }
 }
 
+/// Defines WasmEdge ExternType values.
+///
+/// `ExternType` classifies [imports](crate::Import) and external values with their respective types.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u32)]
-pub enum ExternType {
+pub enum ExternalType {
     Function = wasmedge::WasmEdge_ExternalType_Function,
     Table = wasmedge::WasmEdge_ExternalType_Table,
     Memory = wasmedge::WasmEdge_ExternalType_Memory,
     Global = wasmedge::WasmEdge_ExternalType_Global,
 }
-impl From<u32> for ExternType {
+impl From<u32> for ExternalType {
     fn from(val: u32) -> Self {
         match val {
-            0x00u32 => ExternType::Function,
-            0x01u32 => ExternType::Table,
-            0x02u32 => ExternType::Memory,
-            0x03u32 => ExternType::Global,
+            0x00u32 => ExternalType::Function,
+            0x01u32 => ExternalType::Table,
+            0x02u32 => ExternalType::Memory,
+            0x03u32 => ExternalType::Global,
             _ => panic!("Unknown ExternalType value: {}", val),
         }
     }
 }
-impl fmt::Display for ExternType {
+impl fmt::Display for ExternalType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let message = match self {
-            ExternType::Function => "function",
-            ExternType::Table => "table",
-            ExternType::Memory => "memory",
-            ExternType::Global => "global",
+            ExternalType::Function => "function",
+            ExternalType::Table => "table",
+            ExternalType::Memory => "memory",
+            ExternalType::Global => "global",
         };
         write!(f, "{}", message)
     }

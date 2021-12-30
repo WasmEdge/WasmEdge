@@ -1,6 +1,8 @@
 //! Defines WasmEdge Function and FuncType structs.
 
-use crate::{types::ValType, wasmedge, Error, Value, WasmEdgeResult, WasmFnIO, HOST_FUNCS};
+use crate::{
+    types::ValType, wasmedge, FuncError, Value, WasmEdgeError, WasmEdgeResult, WasmFnIO, HOST_FUNCS,
+};
 use core::ffi::c_void;
 use rand::Rng;
 use std::convert::TryInto;
@@ -159,9 +161,7 @@ impl Function {
         };
 
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create host function via the create_bindings interface",
-            ))),
+            true => Err(WasmEdgeError::Func(FuncError::Create)),
             false => {
                 ty.ctx = std::ptr::null_mut();
                 ty.registered = true;
@@ -184,9 +184,7 @@ impl Function {
     pub fn get_type(&self) -> WasmEdgeResult<FuncType> {
         let ty = unsafe { wasmedge::WasmEdge_FunctionInstanceGetFunctionType(self.ctx) };
         match ty.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get type info of the function",
-            ))),
+            true => Err(WasmEdgeError::Func(FuncError::Type)),
             false => Ok(FuncType {
                 ctx: ty as *mut _,
                 registered: true,
@@ -248,9 +246,7 @@ impl FuncType {
             )
         };
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create FuncType instance",
-            ))),
+            true => Err(WasmEdgeError::FuncTypeCreate),
             false => Ok(Self {
                 ctx,
                 registered: false,

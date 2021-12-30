@@ -5,7 +5,9 @@
 //! the limit range specifies the lower bound (inclusive) of the size, while
 //! the end resticts the upper bound (inclusive).
 
-use crate::{error::check, types::RefType, wasmedge, Error, Value, WasmEdgeResult};
+use crate::{
+    error::check, types::RefType, wasmedge, TableError, Value, WasmEdgeError, WasmEdgeResult,
+};
 use std::ops::RangeInclusive;
 
 /// Struct of WasmEdge Table.
@@ -40,9 +42,7 @@ impl Table {
     pub fn create(ty: &mut TableType) -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_TableInstanceCreate(ty.ctx) };
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create Table instance",
-            ))),
+            true => Err(WasmEdgeError::Table(TableError::Create)),
             false => {
                 ty.ctx = std::ptr::null_mut();
                 ty.registered = true;
@@ -62,9 +62,7 @@ impl Table {
     pub fn ty(&self) -> WasmEdgeResult<TableType> {
         let ty_ctx = unsafe { wasmedge::WasmEdge_TableInstanceGetTableType(self.ctx) };
         match ty_ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get type info from the Table instance",
-            ))),
+            true => Err(WasmEdgeError::Table(TableError::Type)),
             false => Ok(TableType {
                 ctx: ty_ctx as *mut _,
                 registered: true,
@@ -201,9 +199,7 @@ impl TableType {
             )
         };
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create a TableType instance",
-            ))),
+            true => Err(WasmEdgeError::TableTypeCreate),
             false => Ok(Self {
                 ctx,
                 registered: false,
@@ -239,7 +235,10 @@ impl TableType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{RefType, WasmEdgeError};
+    use crate::{
+        error::{CoreCommonError, CoreError},
+        RefType, WasmEdgeError,
+    };
 
     #[test]
     fn test_tabletype() {
@@ -319,9 +318,9 @@ mod tests {
         // get data in the scope of the capacity
         let result = table.get_data(9);
         assert!(result.is_err());
-        match result.unwrap_err() {
-            Error::WasmEdgeError(WasmEdgeError { code, message: _ }) => assert!(code == 0x04u32),
-            _ => panic!(),
-        }
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
+        );
     }
 }

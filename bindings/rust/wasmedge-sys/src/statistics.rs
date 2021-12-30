@@ -1,6 +1,6 @@
 //! Defines WasmEdge Statistics struct.
 
-use crate::{wasmedge, Error, WasmEdgeResult};
+use crate::{wasmedge, WasmEdgeError, WasmEdgeResult};
 
 /// Struct of WasmEdge Statistics.
 pub struct Statistics {
@@ -16,9 +16,7 @@ impl Statistics {
     pub fn create() -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_StatisticsCreate() };
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create Statistics instance",
-            ))),
+            true => Err(WasmEdgeError::StatisticsCreate),
             false => Ok(Statistics {
                 ctx,
                 registered: false,

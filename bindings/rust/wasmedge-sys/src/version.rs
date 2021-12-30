@@ -16,6 +16,7 @@ pub fn full_version() -> WasmEdgeResult<&'static str> {
     Ok(CStr::from_bytes_with_nul(wasmedge::WASMEDGE_VERSION)?.to_str()?)
 }
 
+/// Semantic Version
 pub fn semv_version() -> String {
     format!(
         "{}.{}.{}",

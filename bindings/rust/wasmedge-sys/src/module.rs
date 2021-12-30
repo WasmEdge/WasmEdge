@@ -2,9 +2,9 @@
 
 use super::wasmedge;
 use crate::{
-    error::{check, Error, WasmEdgeResult},
+    error::{check, ExportError, ImportError, WasmEdgeError, WasmEdgeResult},
     instance::{function::FuncType, global::GlobalType, memory::MemType, table::TableType},
-    types::ExternType,
+    types::ExternalType,
     utils, Config,
 };
 use ::core::mem::MaybeUninit as MU;
@@ -89,11 +89,6 @@ impl Module {
     ///
     /// If fail to create a [`Module`], then an error is returned.
     pub fn create_from_buffer(config: &Config, buffer: &[u8]) -> WasmEdgeResult<Self> {
-        if buffer.is_empty() {
-            return Err(Error::OperationError(String::from(
-                "WasmEdge fail to load an empty buffer",
-            )));
-        }
         let loader_ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config.ctx) };
         let mut ctx: *mut wasmedge::WasmEdge_ASTModuleContext = std::ptr::null_mut();
 
@@ -120,16 +115,13 @@ impl Module {
 
         check(res)?;
 
-        if ctx.is_null() {
-            return Err(Error::OperationError(String::from(
-                "WasmEdge failed to load from buffer!",
-            )));
+        match ctx.is_null() {
+            true => Err(WasmEdgeError::ModuleCreate),
+            false => Ok(Self {
+                ctx,
+                registered: false,
+            }),
         }
-
-        Ok(Self {
-            ctx,
-            registered: false,
-        })
     }
 
     /// Returns the number of the imports of the [`Module`].
@@ -137,12 +129,8 @@ impl Module {
         unsafe { wasmedge::WasmEdge_ASTModuleListImportsLength(self.ctx) }
     }
 
-    /// Returns an iterator of the imports of the [`Module`].
-    ///
-    /// # Error
-    ///
-    /// If fail to get the imports, then an error is returned.
-    pub fn imports_iter(&self) -> WasmEdgeResult<impl Iterator<Item = Import>> {
+    /// Returns the imports of the [`Module`].
+    pub fn imports(&self) -> impl Iterator<Item = Import> {
         let size = self.count_of_imports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
@@ -150,7 +138,7 @@ impl Module {
             returns.set_len(size as usize);
         }
 
-        Ok(returns.into_iter().map(|ctx| Import { ctx }))
+        returns.into_iter().map(|ctx| Import { ctx })
     }
 
     /// Returns the count of the exports of the [`Module`].
@@ -158,12 +146,8 @@ impl Module {
         unsafe { wasmedge::WasmEdge_ASTModuleListExportsLength(self.ctx) }
     }
 
-    /// Returns an iterator of the exports of the [`Module`].
-    ///
-    /// # Error
-    ///
-    /// If fail to get the exports, then an error is returned.
-    pub fn exports_iter(&self) -> WasmEdgeResult<impl Iterator<Item = Export>> {
+    /// Returns the exports of the [`Module`].
+    pub fn exports(&self) -> impl Iterator<Item = Export> {
         let size = self.count_of_exports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
@@ -171,7 +155,7 @@ impl Module {
             returns.set_len(size as usize);
         }
 
-        Ok(returns.into_iter().map(|ctx| Export { ctx }))
+        returns.into_iter().map(|ctx| Export { ctx })
     }
 }
 
@@ -191,7 +175,7 @@ impl Drop for Import {
 }
 impl Import {
     /// Returns the external type of the [`Import`].
-    pub fn ty(&self) -> ExternType {
+    pub fn ty(&self) -> ExternalType {
         let ty = unsafe { wasmedge::WasmEdge_ImportTypeGetExternalType(self.ctx) };
         ty.into()
     }
@@ -225,17 +209,17 @@ impl Import {
     /// If fail to get the function type, then an error is returned.
     pub fn function_type(&self, module: &Module) -> WasmEdgeResult<FuncType> {
         let external_ty = self.ty();
-        if external_ty != ExternType::Function {
-            return Err(Error::OperationError(format!(
-                "The external type should be 'function', but found '{}'",
-                external_ty
-            )));
+        if external_ty != ExternalType::Function {
+            return Err(WasmEdgeError::Import(ImportError::ExternalType {
+                expected: ExternalType::Function,
+                actual: external_ty,
+            }));
         }
         let ctx_func_ty =
             unsafe { wasmedge::WasmEdge_ImportTypeGetFunctionType(module.ctx, self.ctx) };
         match ctx_func_ty.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get the function type",
+            true => Err(WasmEdgeError::Import(ImportError::FuncType(
+                "Fail to get the function type".into(),
             ))),
             false => Ok(FuncType {
                 ctx: ctx_func_ty as *mut _,
@@ -255,16 +239,16 @@ impl Import {
     /// If fail to get the table type, then an error is returned.
     pub fn table_type(&self, module: &Module) -> WasmEdgeResult<TableType> {
         let external_ty = self.ty();
-        if external_ty != ExternType::Table {
-            return Err(Error::OperationError(format!(
-                "The external type should be 'table', but found '{}'",
-                external_ty
-            )));
+        if external_ty != ExternalType::Table {
+            return Err(WasmEdgeError::Import(ImportError::ExternalType {
+                expected: ExternalType::Table,
+                actual: external_ty,
+            }));
         }
         let ctx_tab_ty = unsafe { wasmedge::WasmEdge_ImportTypeGetTableType(module.ctx, self.ctx) };
         match ctx_tab_ty.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get the table type",
+            true => Err(WasmEdgeError::Import(ImportError::TableType(
+                "Fail to get the table type".into(),
             ))),
             false => Ok(TableType {
                 ctx: ctx_tab_ty as *mut _,
@@ -284,17 +268,17 @@ impl Import {
     /// If fail to get the memory type, then an error is returned.
     pub fn memory_type(&self, module: &Module) -> WasmEdgeResult<MemType> {
         let external_ty = self.ty();
-        if external_ty != ExternType::Memory {
-            return Err(Error::OperationError(format!(
-                "The external type should be 'memory', but found '{}'",
-                external_ty
-            )));
+        if external_ty != ExternalType::Memory {
+            return Err(WasmEdgeError::Import(ImportError::ExternalType {
+                expected: ExternalType::Memory,
+                actual: external_ty,
+            }));
         }
         let ctx_mem_ty =
             unsafe { wasmedge::WasmEdge_ImportTypeGetMemoryType(module.ctx, self.ctx) };
         match ctx_mem_ty.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get the memory type",
+            true => Err(WasmEdgeError::Import(ImportError::MemType(
+                "Fail to get the memory type".into(),
             ))),
             false => Ok(MemType {
                 ctx: ctx_mem_ty as *mut _,
@@ -314,17 +298,17 @@ impl Import {
     /// If fail to get the global type, then an error is returned.
     pub fn global_type(&self, module: &Module) -> WasmEdgeResult<GlobalType> {
         let external_ty = self.ty();
-        if external_ty != ExternType::Global {
-            return Err(Error::OperationError(format!(
-                "The external type should be 'global', but found '{}'",
-                external_ty
-            )));
+        if external_ty != ExternalType::Global {
+            return Err(WasmEdgeError::Import(ImportError::ExternalType {
+                expected: ExternalType::Global,
+                actual: external_ty,
+            }));
         }
         let ctx_global_ty =
             unsafe { wasmedge::WasmEdge_ImportTypeGetGlobalType(module.ctx, self.ctx) };
         match ctx_global_ty.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get the global type",
+            true => Err(WasmEdgeError::Import(ImportError::MemType(
+                "Fail to get the global type".into(),
             ))),
             false => Ok(GlobalType {
                 ctx: ctx_global_ty as *mut _,
@@ -350,7 +334,7 @@ impl Drop for Export {
 }
 impl Export {
     /// Returns the external type of the [`Export`].
-    pub fn ty(&self) -> ExternType {
+    pub fn ty(&self) -> ExternalType {
         let ty = unsafe { wasmedge::WasmEdge_ExportTypeGetExternalType(self.ctx) };
         ty.into()
     }
@@ -375,17 +359,17 @@ impl Export {
     /// If fail to get the function type, then an error is returned.
     pub fn function_type(&self, module: &Module) -> WasmEdgeResult<FuncType> {
         let external_ty = self.ty();
-        if external_ty != ExternType::Function {
-            return Err(Error::OperationError(format!(
-                "The external type should be 'function', but found '{}'",
-                external_ty
-            )));
+        if external_ty != ExternalType::Function {
+            return Err(WasmEdgeError::Export(ExportError::ExternType {
+                expected: ExternalType::Function,
+                actual: external_ty,
+            }));
         }
         let ctx_func_ty =
             unsafe { wasmedge::WasmEdge_ExportTypeGetFunctionType(module.ctx, self.ctx) };
         match ctx_func_ty.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get the function type",
+            true => Err(WasmEdgeError::Export(ExportError::FuncType(
+                "Fail to get the function type".into(),
             ))),
             false => Ok(FuncType {
                 ctx: ctx_func_ty as *mut _,
@@ -405,16 +389,16 @@ impl Export {
     /// If fail to get the table type, then an error is returned.
     pub fn table_type(&self, module: &Module) -> WasmEdgeResult<TableType> {
         let external_ty = self.ty();
-        if external_ty != ExternType::Table {
-            return Err(Error::OperationError(format!(
-                "The external type should be 'table', but found '{}'",
-                external_ty
-            )));
+        if external_ty != ExternalType::Table {
+            return Err(WasmEdgeError::Export(ExportError::ExternType {
+                expected: ExternalType::Table,
+                actual: external_ty,
+            }));
         }
         let ctx_tab_ty = unsafe { wasmedge::WasmEdge_ExportTypeGetTableType(module.ctx, self.ctx) };
         match ctx_tab_ty.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get the table type",
+            true => Err(WasmEdgeError::Export(ExportError::TableType(
+                "Fail to get the function type".into(),
             ))),
             false => Ok(TableType {
                 ctx: ctx_tab_ty as *mut _,
@@ -434,17 +418,17 @@ impl Export {
     /// If fail to get the memory type, then an error is returned.
     pub fn memory_type(&self, module: &Module) -> WasmEdgeResult<MemType> {
         let external_ty = self.ty();
-        if external_ty != ExternType::Memory {
-            return Err(Error::OperationError(format!(
-                "The external type should be 'memory', but found '{}'",
-                external_ty
-            )));
+        if external_ty != ExternalType::Memory {
+            return Err(WasmEdgeError::Export(ExportError::ExternType {
+                expected: ExternalType::Memory,
+                actual: external_ty,
+            }));
         }
         let ctx_mem_ty =
             unsafe { wasmedge::WasmEdge_ExportTypeGetMemoryType(module.ctx, self.ctx) };
         match ctx_mem_ty.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get the function type",
+            true => Err(WasmEdgeError::Export(ExportError::MemType(
+                "Fail to get the function type".into(),
             ))),
             false => Ok(MemType {
                 ctx: ctx_mem_ty as *mut _,
@@ -464,17 +448,17 @@ impl Export {
     /// If fail to get the global type, then an error is returned.
     pub fn global_type(&self, module: &Module) -> WasmEdgeResult<GlobalType> {
         let external_ty = self.ty();
-        if external_ty != ExternType::Global {
-            return Err(Error::OperationError(format!(
-                "The external type should be 'global', but found '{}'",
-                external_ty
-            )));
+        if external_ty != ExternalType::Global {
+            return Err(WasmEdgeError::Export(ExportError::ExternType {
+                expected: ExternalType::Global,
+                actual: external_ty,
+            }));
         }
         let ctx_global_ty =
             unsafe { wasmedge::WasmEdge_ExportTypeGetGlobalType(module.ctx, self.ctx) };
         match ctx_global_ty.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get the function type",
+            true => Err(WasmEdgeError::Export(ExportError::GlobalType(
+                "Fail to get the function type".into(),
             ))),
             false => Ok(GlobalType {
                 ctx: ctx_global_ty as *mut _,

@@ -8,6 +8,9 @@ use crate::{
 use std::ptr;
 
 /// Struct of WasmEdge Executor.
+///
+/// [`Executor`] defines an execution environment for both WASM and compiled WASM. It works based on the
+/// [Store](crate::Store).
 pub struct Executor {
     ctx: *mut wasmedge::WasmEdge_ExecutorContext,
 }
@@ -110,7 +113,7 @@ impl Executor {
     ///
     /// Instantiates the WasmEdge AST [Module](crate::Module) as an active anonymous module in the
     /// [Store](crate::Store). Notice that when a new module is instantiated into the [Store](crate::Store), the old
-    /// instantiated module is removed; in addition, ensure that the [imports](crate::Import) are registered into the
+    /// instantiated module is removed; in addition, ensure that the [imports](crate::ImportObj) are registered into the
     /// [Store](crate::Store).
     ///
     ///

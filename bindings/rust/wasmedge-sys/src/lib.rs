@@ -29,11 +29,9 @@ pub mod executor;
 #[doc(hidden)]
 pub mod import_obj;
 pub mod instance;
-#[doc(hidden)]
 pub mod io;
 #[doc(hidden)]
 pub mod loader;
-#[doc(hidden)]
 pub mod module;
 #[doc(hidden)]
 pub mod statistics;
@@ -70,17 +68,17 @@ pub use instance::{
 #[doc(inline)]
 pub(crate) use io::WasmFnIO;
 #[doc(inline)]
-pub use io::{I1, I2};
-#[doc(inline)]
 pub use loader::Loader;
 #[doc(inline)]
-pub use module::Module;
+pub use module::{Export, Import, Module};
 #[doc(inline)]
 pub use statistics::Statistics;
 #[doc(inline)]
 pub use store::Store;
 #[doc(inline)]
-pub use types::{Mutability, RefType, ValType, Value};
+pub use types::{
+    CompilerOptimizationLevel, CompilerOutputFormat, Mutability, RefType, ValType, Value,
+};
 #[doc(inline)]
 pub use validator::Validator;
 #[doc(inline)]

@@ -1,4 +1,4 @@
-//! Defines WasmEdge AST Module struct
+//! Defines WasmEdge AST Module, Export, and Import structs.
 
 use super::wasmedge;
 use crate::{
@@ -36,7 +36,7 @@ impl Module {
     ///
     /// # Arguments
     ///
-    /// - `config` specifies the configuration used by the [`Loader`] under the hood.
+    /// - `config` specifies the configuration used by the [Loader](crate::Loader) under the hood.
     ///
     /// - `path` specifies the path to the WASM file.
     ///
@@ -67,7 +67,7 @@ impl Module {
     ///
     /// # Arguments
     ///
-    /// - `config` specifies the configuration used by the [`Loader`] under the hood.
+    /// - `config` specifies the configuration used by the [Loader](crate::Loader) under the hood.
     ///
     /// - `buffer` specifies the WASM buffer.
     ///
@@ -161,6 +161,9 @@ impl Module {
     }
 }
 
+/// Struct of WasmEdge Import.
+///
+/// The [`Import`] is used for getting the information of the imports from a WasmEdge AST [`Module`].
 #[derive(Debug)]
 pub struct Import {
     pub(crate) ctx: *const wasmedge::WasmEdge_ImportTypeContext,
@@ -173,13 +176,13 @@ impl Drop for Import {
     }
 }
 impl Import {
-    /// Get the external type
+    /// Returns the external type of the [`Import`].
     pub fn ty(&self) -> ExternType {
         let ty = unsafe { wasmedge::WasmEdge_ImportTypeGetExternalType(self.ctx) };
         ty.into()
     }
 
-    /// Get the external name
+    /// Returns the external name of the [`Import`].
     pub fn name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
             let raw_name = wasmedge::WasmEdge_ImportTypeGetExternalName(self.ctx);
@@ -188,7 +191,7 @@ impl Import {
         c_name.to_string_lossy()
     }
 
-    /// Get the module name
+    /// Returns the module name from the [`Import`].
     pub fn module_name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
             let raw_name = wasmedge::WasmEdge_ImportTypeGetModuleName(self.ctx);
@@ -197,7 +200,15 @@ impl Import {
         c_name.to_string_lossy()
     }
 
-    /// Get the external value (which is function type)
+    /// Returns the [function type](crate::FuncType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the function type, then an error is returned.
     pub fn function_type(&self, module: &Module) -> WasmEdgeResult<FuncType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Function {
@@ -219,7 +230,15 @@ impl Import {
         }
     }
 
-    /// Get the external value (which is table type)
+    /// Returns the [table type](crate::TableType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the table type, then an error is returned.
     pub fn table_type(&self, module: &Module) -> WasmEdgeResult<TableType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Table {
@@ -240,7 +259,15 @@ impl Import {
         }
     }
 
-    /// Get the external value (which is memory type)
+    /// Returns the [memory type](crate::MemType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the memory type, then an error is returned.
     pub fn memory_type(&self, module: &Module) -> WasmEdgeResult<MemType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Memory {
@@ -262,7 +289,15 @@ impl Import {
         }
     }
 
-    /// Get the external value (which is global type)
+    /// Returns the [global type](crate::GlobalType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the global type, then an error is returned.
     pub fn global_type(&self, module: &Module) -> WasmEdgeResult<GlobalType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Global {
@@ -285,6 +320,9 @@ impl Import {
     }
 }
 
+/// Struct of WasmEdge Export.
+///
+/// The [`Export`] is used for getting the information of the exports from a WasmEdge AST [`Module`].
 #[derive(Debug)]
 pub struct Export {
     pub(crate) ctx: *const wasmedge::WasmEdge_ExportTypeContext,
@@ -297,13 +335,13 @@ impl Drop for Export {
     }
 }
 impl Export {
-    /// Get the external type
+    /// Returns the external type of the [`Export`].
     pub fn ty(&self) -> ExternType {
         let ty = unsafe { wasmedge::WasmEdge_ExportTypeGetExternalType(self.ctx) };
         ty.into()
     }
 
-    /// Get the external name
+    /// Returns the external name of the [`Export`].
     pub fn name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
             let raw_name = wasmedge::WasmEdge_ExportTypeGetExternalName(self.ctx);
@@ -312,7 +350,15 @@ impl Export {
         c_name.to_string_lossy()
     }
 
-    /// Get the external value (which is function type)
+    /// Returns the [function type](crate::FuncType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the function type, then an error is returned.
     pub fn function_type(&self, module: &Module) -> WasmEdgeResult<FuncType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Function {
@@ -334,7 +380,15 @@ impl Export {
         }
     }
 
-    /// Get the external value (which is table type)
+    /// Returns the [table type](crate::TableType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the table type, then an error is returned.
     pub fn table_type(&self, module: &Module) -> WasmEdgeResult<TableType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Table {
@@ -355,7 +409,15 @@ impl Export {
         }
     }
 
-    /// Get the external value (which is memory type)
+    /// Returns the [memory type](crate::MemType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the memory type, then an error is returned.
     pub fn memory_type(&self, module: &Module) -> WasmEdgeResult<MemType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Memory {
@@ -377,7 +439,15 @@ impl Export {
         }
     }
 
-    /// Get the external value (which is global type)
+    /// Returns the [global type](crate::GlobalType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the global type, then an error is returned.
     pub fn global_type(&self, module: &Module) -> WasmEdgeResult<GlobalType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Global {

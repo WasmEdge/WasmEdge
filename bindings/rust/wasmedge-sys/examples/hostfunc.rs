@@ -11,7 +11,11 @@
 //! base on the inputs and outputs of the real host function.
 //!
 
-use wasmedge_sys::{instance::Function, Config, ImportObj, Module, Value, Vm, I1, I2};
+use wasmedge_sys::{
+    instance::Function,
+    io::{I1, I2},
+    Config, ImportObj, Module, Value, Vm,
+};
 
 fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
     println!("Rust: Entering Rust function real_add");

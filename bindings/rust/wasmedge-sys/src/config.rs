@@ -7,12 +7,12 @@ use crate::{
 
 /// Struct of WasmEdge Config.
 ///
-/// [`Config`] manages the configuration options, which are used in WasmEdge [`Vm`], [`Loader`], [`Validator`],
-/// [`Executor`], and [`Compiler`].
+/// [`Config`] manages the configuration options, which are used in WasmEdge [Vm](crate::Vm), [Loader](crate::Loader),
+/// [Validator](crate::Validator), [Executor](crate::Executor), and [Compiler](crate::Compiler).
 ///
 /// The configuration options are categorized into the following four groups:
 ///
-/// - WebAssembly Proposals
+/// - **WebAssembly Proposals**
 ///
 ///     This group of options are used to turn on/off the WebAssembly proposals. They are effective to any WasmEdge
 ///     context created with [`Config`].
@@ -71,41 +71,52 @@ use crate::{
 ///
 ///       Also see [Function References Proposal](https://github.com/WebAssembly/function-references/blob/master/proposals/function-references/Overview.md).
 ///
-/// - Host Registrations
-///     - `Wasi` turns on the `WASI` support in [`Vm`].
-///     - `WasmEdgeProcess` turns on the `wasmedge_process` support in [`Vm`].
+/// - **Host Registrations**
+///     - `Wasi` turns on the `WASI` support in [Vm](crate::Vm).
+///
+///     - `WasmEdgeProcess` turns on the `wasmedge_process` support in [Vm](crate::Vm).
 ///     
-///     The two options are only effective to [`Vm`].
+///     The two options are only effective to [Vm](crate::Vm).
 ///
-/// - Memory Management
-///     - `maximum_memory_page` limits the page size of [`Memory`]. This option is only effective to [`Executor`] and [`VM`].
+/// - **Memory Management**
+///     - `maximum_memory_page` limits the page size of [Memory](crate::Memory). This option is only effective to
+///       [Executor](crate::Executor) and [Vm](crate::Vm).
 ///
-/// - AOT Compilation
+/// - **AOT Compilation**
 ///     The AOT compiler options configure the behavior about optimization level, output format, dump IR,
 ///     and generic binary.
 ///
 ///     - Compiler Optimization Levels
 ///         - `O0` performs as many optimizations as possible.
+///         
 ///         - `O1` optimizes quickly without destroying debuggability.
+///
 ///         - `02` optimizes for fast execution as much as possible without triggering significant incremental
 ///                compile time or code size growth.
+///
 ///         - `O3` optimizes for fast execution as much as possible.
+///
 ///         - `Os` optimizes for small code size as much as possible without triggering significant incremental
 ///                compile time or execution time slowdowns.
+///
 ///         - `Oz` optimizes for small code size as much as possible.
 ///
 ///     - Compiler Output Formats
 ///         - `Native` specifies the output format is native dynamic library (`*.wasm.so`).
+///
 ///         - `Wasm` specifies the output format is WebAssembly with AOT compiled codes in custom section (`*.wasm`).
 ///     
 ///     - `dump_ir` determines if AOT compiler generates IR or not.
+///
 ///     - `generic_binary` determines if AOT compiler generates the generic binary or not.
 ///     
-///     The configuration options above are only effective to [`Compiler`].
+///     The configuration options above are only effective to [Compiler](crate::Compiler).
 ///
-/// - Runtime Statistics
+/// - **Runtime Statistics**
 ///     - `instr_counting` determines if measuring the count of instructions when running a compiled or pure WASM.
+///
 ///     - `cost_measuring` determines if measuring the instruction costs when running a compiled or pure WASM.
+///
 ///     - `time_measuring` determines if measuring the running time when running a compiled or pure WASM.
 ///
 /// API users can first set the options of interest, such as those related to the WebAssembly proposals,
@@ -177,6 +188,10 @@ impl Config {
     }
 
     /// Sets the maximum number of the memory pages available.
+    ///
+    /// # Argument
+    ///
+    /// - `count` specifies the page count (64KB per page).
     pub fn set_max_memory_pages(self, count: u32) -> Self {
         unsafe { wasmedge::WasmEdge_ConfigureSetMaxMemoryPage(self.ctx, count) };
         self
@@ -190,6 +205,10 @@ impl Config {
     // For AOT compiler
 
     /// Sets the optimization level of AOT compiler.
+    ///
+    /// # Argument
+    ///
+    /// - `opt_level` specifies the optimization level of AOT compiler.
     pub fn set_optimization_level(self, opt_level: CompilerOptimizationLevel) -> Self {
         unsafe {
             wasmedge::WasmEdge_ConfigureCompilerSetOptimizationLevel(self.ctx, opt_level as u32)
@@ -204,6 +223,10 @@ impl Config {
     }
 
     /// Sets the output binary format of AOT compiler.
+    ///
+    /// # Argument
+    ///
+    /// - `format` specifies the format of the output binary.
     pub fn set_compiler_output_format(self, format: CompilerOutputFormat) -> Self {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerSetOutputFormat(self.ctx, format as u32) };
         self
@@ -216,6 +239,10 @@ impl Config {
     }
 
     /// Sets the dump IR option of AOT compiler.
+    ///
+    /// # Argument
+    ///
+    /// - `flag` specifies if dump ir or not.
     pub fn dump_ir(self, flag: bool) -> Self {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerSetDumpIR(self.ctx, flag) };
         self
@@ -227,6 +254,10 @@ impl Config {
     }
 
     /// Sets the generic binary option of AOT compiler.
+    ///
+    /// # Argument
+    ///
+    /// - `flag` specifies if generate the generic binary or not when perform AOT compilation.
     pub fn generic_binary(self, flag: bool) -> Self {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerSetGenericBinary(self.ctx, flag) };
         self
@@ -238,6 +269,10 @@ impl Config {
     }
 
     /// Sets the instruction counting option.
+    ///
+    /// # Argument
+    ///
+    /// - `flag` specifies if support instruction counting or not when execution after AOT compilation.
     pub fn count_instructions(self, flag: bool) -> Self {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetInstructionCounting(self.ctx, flag) };
         self
@@ -249,6 +284,10 @@ impl Config {
     }
 
     /// Sets the cost measuring option.
+    ///
+    /// # Argument
+    ///
+    /// - `flag` specifies if support cost measuring or not when execution after AOT compilation.
     pub fn measure_cost(self, flag: bool) -> Self {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetCostMeasuring(self.ctx, flag) };
         self
@@ -260,6 +299,10 @@ impl Config {
     }
 
     /// Sets the time measuring option.
+    ///
+    /// # Argument
+    ///
+    /// - `flag` specifies if support time measuring or not when execution after AOT compilation.
     pub fn measure_time(self, flag: bool) -> Self {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetTimeMeasuring(self.ctx, flag) };
         self

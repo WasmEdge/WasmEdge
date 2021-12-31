@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 //===-- wasmedge/validator/formchecker.h - Form checking class definition -===//
 //
 // Part of the WasmEdge Project.

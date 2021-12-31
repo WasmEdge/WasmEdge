@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 /**
  * THIS FILE IS AUTO-GENERATED from the following files:
  *   typenames.witx

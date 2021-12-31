@@ -1,5 +1,6 @@
-
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 //===-- wasmedge/test/api/hostfunc_c.c - Spec test host functions for C API ==//
 //
 // Part of the WasmEdge Project.

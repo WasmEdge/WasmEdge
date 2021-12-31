@@ -39,12 +39,9 @@ pub mod statistics;
 pub mod store;
 #[doc(hidden)]
 pub mod types;
-#[doc(hidden)]
 pub mod utils;
 #[doc(hidden)]
 pub mod validator;
-#[doc(hidden)]
-pub mod version;
 #[doc(hidden)]
 pub mod vm;
 
@@ -85,8 +82,6 @@ pub use types::{
 };
 #[doc(inline)]
 pub use validator::Validator;
-#[doc(inline)]
-pub use version::{full_version, semv_version};
 #[doc(inline)]
 pub use vm::Vm;
 

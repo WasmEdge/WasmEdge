@@ -1,1 +1,1 @@
-# JavaScript or DSL runtime
+# JavaScript 或 DSL runtime

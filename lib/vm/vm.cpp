@@ -288,22 +288,23 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(Runtime::Instance::ModuleInstance *ModInst,
                   std::string_view Func, Span<const ValVariant> Params,
                   Span<const ValType> ParamTypes) {
+  uint32_t FuncAddr;
   // Get exports and find function.
-  const auto &FuncExp = ModInst->getFuncExports();
-  const auto FuncIter = FuncExp.find(Func);
-  if (FuncIter == FuncExp.cend()) {
+  if (auto Res = ModInst->findFuncExports(Func); unlikely(!Res)) {
     spdlog::error(ErrCode::FuncNotFound);
     spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
     return Unexpect(ErrCode::FuncNotFound);
+  } else {
+    FuncAddr = *Res;
   }
 
   // Execute function.
-  if (auto Res = ExecutorEngine.invoke(StoreRef, FuncIter->second, Params,
-                                       ParamTypes)) {
-    return Res;
-  } else {
+  if (auto Res = ExecutorEngine.invoke(StoreRef, FuncAddr, Params, ParamTypes);
+      unlikely(!Res)) {
     spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
     return Unexpect(Res);
+  } else {
+    return Res;
   }
 }
 
@@ -345,13 +346,15 @@ VM::unsafeGetFunctionList() const {
   std::vector<std::pair<std::string, const AST::FunctionType &>> Map;
   // Get the active module instance.
   if (auto Res = StoreRef.getActiveModule()) {
-    const auto &FuncExports = (*Res)->getFuncExports();
-    Map.reserve(FuncExports.size());
-    for (auto &&Func : FuncExports) {
-      const auto *FuncInst = *StoreRef.getFunction(Func.second);
-      const auto &FuncType = FuncInst->getFuncType();
-      Map.emplace_back(Func.first, FuncType);
-    }
+    const auto *ModInst = *Res;
+    ModInst->getFuncExports([&](const auto &FuncExports) {
+      Map.reserve(FuncExports.size());
+      for (auto &&Func : FuncExports) {
+        const auto *FuncInst = *StoreRef.getFunction(Func.second);
+        const auto &FuncType = FuncInst->getFuncType();
+        Map.emplace_back(Func.first, FuncType);
+      }
+    });
   }
   return Map;
 }

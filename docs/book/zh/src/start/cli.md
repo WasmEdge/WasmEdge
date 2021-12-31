@@ -1,1 +1,1 @@
-# WasmEdge command line
+# WasmEdge 命令行

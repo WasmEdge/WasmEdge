@@ -1,1 +1,1 @@
-# Example: React SSR
+# 示例：React SSR

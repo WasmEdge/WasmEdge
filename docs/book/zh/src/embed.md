@@ -1,1 +1,1 @@
-# Embeddable WasmEdge functions
+# 嵌入 WasmEdge 函数

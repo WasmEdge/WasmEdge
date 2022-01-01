@@ -50,7 +50,7 @@ private:
 class EcdsaKpCtx {
 public:
   EcdsaKpCtx(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Kp)
-      : Kp(std::move(Kp)) {}
+      : Ctx(std::move(Kp)) {}
 
   static WasiCryptoExpect<EcdsaKpCtx>
   import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
@@ -68,7 +68,7 @@ public:
   WasiCryptoExpect<EcdsaSkCtx> secretKey();
 
 private:
-  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Kp;
+  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx;
 };
 
 class EcdsaSignCtx {

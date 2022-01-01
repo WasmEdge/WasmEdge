@@ -26,6 +26,7 @@ public:
   X25519PublicKey(KxAlgorithm Alg, X25519PKCtx Ctx)
       : Alg(Alg), Ctx(std::move(Ctx)) {}
 
+  // Raw
   static WasiCryptoExpect<X25519PublicKey>
   import(KxAlgorithm Alg, Span<uint8_t const> Raw,
          __wasi_publickey_encoding_e_t Encoding);
@@ -34,7 +35,7 @@ public:
 
   WasiCryptoExpect<__wasi_size_t> len() override { return X25519PKCtx::Len; }
 
-  WasiCryptoExpect<std::vector<uint8_t>> asRef() override;
+  WasiCryptoExpect<std::vector<uint8_t>> exportData() override;
 
   WasiCryptoExpect<void> verify() override;
 
@@ -72,7 +73,7 @@ public:
 
   WasiCryptoExpect<__wasi_size_t> len() override;
 
-  WasiCryptoExpect<Span<const uint8_t>> asRef() override;
+  WasiCryptoExpect<Span<const uint8_t>> exportData() override;
 
   WasiCryptoExpect<std::vector<uint8_t>>
   dh(std::unique_ptr<KxPublicKey::Base> &KxPk) override;

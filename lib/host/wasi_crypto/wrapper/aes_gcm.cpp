@@ -14,7 +14,7 @@ WasiCryptoExpect<AesGcmCtx> AesGcmCtx::import(SymmetricAlgorithm Alg,
   // Init unique_ptr
   OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx{
       EVP_CIPHER_CTX_new()};
-  assuming(Ctx);
+  opensslAssuming(Ctx);
 
   EVP_CIPHER const *Cipher;
   switch (Alg) {
@@ -32,7 +32,7 @@ WasiCryptoExpect<AesGcmCtx> AesGcmCtx::import(SymmetricAlgorithm Alg,
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
   }
 
-  assuming(EVP_CipherInit_ex(Ctx.get(), Cipher, nullptr, Key.data(),
+  opensslAssuming(EVP_CipherInit_ex(Ctx.get(), Cipher, nullptr, Key.data(),
                              Nonce.data(), Mode::Unchanged));
 
   return AesGcmCtx{Alg, std::move(Ctx)};
@@ -41,7 +41,7 @@ WasiCryptoExpect<AesGcmCtx> AesGcmCtx::import(SymmetricAlgorithm Alg,
 WasiCryptoExpect<void> AesGcmCtx::absorb(Span<const uint8_t> Data) {
   int Len;
   // TODO: need change Openssl AAD default length from 12 if beyond?
-  assuming(
+  opensslAssuming(
       EVP_CipherUpdate(Ctx.get(), nullptr, &Len, Data.data(), Data.size()));
 
   return {};
@@ -49,7 +49,7 @@ WasiCryptoExpect<void> AesGcmCtx::absorb(Span<const uint8_t> Data) {
 
 WasiCryptoExpect<std::vector<uint8_t>>
 AesGcmCtx::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
-  assuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr, nullptr,
+  opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr, nullptr,
                              Mode::Encrypt));
   //  auto Nonce = Options.get("nonce");
   //  if (!Nonce) {
@@ -61,7 +61,7 @@ AesGcmCtx::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
   //  }
 
   int ActualOutSize;
-  assuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize, Data.data(),
+  opensslAssuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize, Data.data(),
                             Data.size()));
 
   // we need check the equal.
@@ -75,14 +75,14 @@ AesGcmCtx::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
   // However, cannot do put nullptr length in it. construct a temp var
   // TODO:Better
   int AL;
-  assuming(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL));
+  opensslAssuming(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL));
 
   // Gen tag
   std::vector<uint8_t> RawTagData;
   RawTagData.reserve(TagLen);
   RawTagData.resize(TagLen);
 
-  assuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_GCM_GET_TAG, TagLen,
+  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_GCM_GET_TAG, TagLen,
                                RawTagData.data()));
 
   return RawTagData;
@@ -91,14 +91,14 @@ AesGcmCtx::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
 WasiCryptoExpect<__wasi_size_t>
 AesGcmCtx::decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
                            Span<const uint8_t> RawTag) {
-  assuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr, nullptr,
+  opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr, nullptr,
                              Mode::Decrypt));
 
   int ActualOutSize;
-  assuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize, Data.data(),
+  opensslAssuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize, Data.data(),
                             Data.size()));
 
-  assuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_GCM_SET_TAG, TagLen,
+  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_GCM_SET_TAG, TagLen,
                                const_cast<uint8_t *>(RawTag.data())));
 
   // Notice: Finalise the decryption. Normally ciphertext bytes may be written
@@ -106,7 +106,7 @@ AesGcmCtx::decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
   // However, cannot do put nullptr length in it. construct a temp var
   // TODO:Better
   int AL;
-  assuming(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL));
+  opensslAssuming(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL));
 
   return ActualOutSize;
 }

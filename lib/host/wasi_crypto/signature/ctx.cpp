@@ -16,7 +16,7 @@ WasiCryptoContext::signatureExport(__wasi_signature_t SigHandle,
     return WasiCryptoUnexpect(Res);
   }
 
-  return allocateArrayOutput(std::move(*Res));
+  return allocateArrayOutput(std::move(std::move(*Res)));
 }
 
 WasiCryptoExpect<__wasi_signature_t>
@@ -28,7 +28,7 @@ WasiCryptoContext::signatureImport(SignatureAlgorithm Alg,
     return WasiCryptoUnexpect(Sig);
   }
 
-  return SignatureManger.registerManger(*Sig);
+  return SignatureManger.registerManger(std::move(*Sig));
 }
 
 WasiCryptoExpect<void>
@@ -54,7 +54,7 @@ WasiCryptoContext::signatureStateOpen(__wasi_signature_keypair_t KpHandle) {
     return WasiCryptoUnexpect(Res);
   }
 
-  return SignatureStateManger.registerManger(*Res);
+  return SignatureStateManger.registerManger(std::move(*Res));
 }
 
 WasiCryptoExpect<void>
@@ -81,7 +81,7 @@ WasiCryptoContext::signatureStateSign(__wasi_signature_state_t StateHandle) {
     return WasiCryptoUnexpect(Sig);
   }
 
-  return SignatureManger.registerManger(*Sig);
+  return SignatureManger.registerManger(std::move(*Sig));
 }
 
 WasiCryptoExpect<void>
@@ -108,7 +108,7 @@ WasiCryptoContext::signatureVerificationStateOpen(
     return WasiCryptoUnexpect(Res);
   }
 
-  return SignatureVerificationStateManger.registerManger(*Res);
+  return SignatureVerificationStateManger.registerManger(std::move(*Res));
 }
 
 WasiCryptoExpect<void> WasiCryptoContext::signatureVerificationStateUpdate(

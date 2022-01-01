@@ -24,7 +24,7 @@ WasiCryptoExpect<__wasi_keypair_t> WasiCryptoContext::keypairGenerate(
     return WasiCryptoUnexpect(Kp);
   }
 
-  return KeypairManger.registerManger(*Kp);
+  return KeypairManger.registerManger(std::move(*Kp));
 }
 
 WasiCryptoExpect<__wasi_keypair_t>
@@ -36,7 +36,7 @@ WasiCryptoContext::keypairImport(__wasi_algorithm_type_e_t AlgType,
     return WasiCryptoUnexpect(Kp);
   }
 
-  return KeypairManger.registerManger(*Kp);
+  return KeypairManger.registerManger(std::move(*Kp));
 }
 
 WasiCryptoExpect<__wasi_keypair_t> WasiCryptoContext::keypairGenerateManaged(
@@ -85,7 +85,7 @@ WasiCryptoContext::keypairFromPkAndSk(__wasi_publickey_t PkHandle,
     return WasiCryptoUnexpect(Kp);
   }
 
-  return KeypairManger.registerManger(*Kp);
+  return KeypairManger.registerManger(std::move(*Kp));
 }
 
 WasiCryptoExpect<__wasi_array_output_t>
@@ -147,7 +147,7 @@ WasiCryptoExpect<__wasi_publickey_t> WasiCryptoContext::publickeyImport(
     return WasiCryptoUnexpect(Pk);
   }
 
-  return PublickeyManger.registerManger(*Pk);
+  return PublickeyManger.registerManger(std::move(*Pk));
 }
 
 WasiCryptoExpect<__wasi_array_output_t>
@@ -188,7 +188,7 @@ WasiCryptoContext::publickeyFromSecretkey(__wasi_secretkey_t SkHandle) {
     return WasiCryptoUnexpect(Pk);
   }
 
-  return PublickeyManger.registerManger(*Pk);
+  return PublickeyManger.registerManger(std::move(*Pk));
 }
 
 WasiCryptoExpect<void>
@@ -204,7 +204,7 @@ WasiCryptoExpect<__wasi_secretkey_t> WasiCryptoContext::secretkeyImport(
     return WasiCryptoUnexpect(Pk);
   }
 
-  return SecretkeyManger.registerManger(*Pk);
+  return SecretkeyManger.registerManger(std::move(*Pk));
 }
 
 WasiCryptoExpect<__wasi_array_output_t>

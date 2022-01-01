@@ -5,12 +5,21 @@
 #include "openssl/ec.h"
 #include "openssl/encoder.h"
 #include "openssl/evp.h"
-#include "openssl/pem.h"
+#include <map>
+#include <openssl/pem.h>
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
+using NID = int;
+
+std::map<SignatureAlgorithm, NID> AlgToNID = {
+    {SignatureAlgorithm::ECDSA_P256_SHA256, NID_X9_62_prime256v1},
+    {SignatureAlgorithm::ECDSA_K256_SHA256, NID_secp256k1}};
+
+// raw secret scalar encoded as big endian, SEC-1, compressed SEC-1, unencrypted
+// PKCS#8, PEM-encoded unencrypted PKCS#8
 WasiCryptoExpect<EcdsaPkCtx>
 EcdsaPkCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
                    __wasi_publickey_encoding_e_t Encoding) {
@@ -68,28 +77,39 @@ EcdsaPkCtx::exportData(__wasi_publickey_encoding_e_t Encoding) {
   const char *EncodingType;
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
-    EncodingType = "RAW";
-    break;
+    // 1.Pass the EVP_PKEY to EVP_PKEY_get0_EC_KEY() to get an EC_KEY.
+    const EC_KEY *Ec = EVP_PKEY_get0_EC_KEY(Pk.get());
+    opensslAssuming(Ec);
+
+    // 2.Pass the EC_KEY to EC_KEY_get0_public_key() to get an EC_POINT
+    const EC_POINT *EcPoint = EC_KEY_get0_public_key(Ec);
+    opensslAssuming(EcPoint);
+
+    // 3.Pass the EC_POINT to EC_POINT_point2oct() to get octets
+    size_t Size =
+        EC_POINT_point2oct(EC_KEY_get0_group(Ec), EcPoint,
+                           POINT_CONVERSION_HYBRID, nullptr, 0, nullptr);
+    std::vector<uint8_t> Res;
+    Res.reserve(Size);
+    Res.resize(Size);
+
+    opensslAssuming(EC_POINT_point2oct(EC_KEY_get0_group(Ec), EcPoint,
+                                       POINT_CONVERSION_HYBRID, Res.data(),
+                                       Res.size(), nullptr));
+    return Res;
   }
-  case __WASI_PUBLICKEY_ENCODING_PKCS8: {
-    EncodingType = "PKCS#8";
-    break;
-  }
-  case __WASI_PUBLICKEY_ENCODING_PEM: {
-    EncodingType = "PEM";
-    break;
-  }
-  case __WASI_PUBLICKEY_ENCODING_SEC: {
-    EncodingType = "SEC";
-    break;
-  }
-  case __WASI_PUBLICKEY_ENCODING_COMPRESSED_SEC: {
-    EncodingType = "SEC";
-    break;
-  }
-  case __WASI_PUBLICKEY_ENCODING_LOCAL: {
+  case __WASI_PUBLICKEY_ENCODING_PKCS8:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-    break;
+  case __WASI_PUBLICKEY_ENCODING_PEM:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  case __WASI_PUBLICKEY_ENCODING_SEC:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  case __WASI_PUBLICKEY_ENCODING_COMPRESSED_SEC:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  case __WASI_PUBLICKEY_ENCODING_LOCAL:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  default:
+    __builtin_unreachable();
   }
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
@@ -116,9 +136,9 @@ EcdsaPkCtx::exportData(__wasi_publickey_encoding_e_t Encoding) {
 
 WasiCryptoExpect<EcdsaVerificationCtx> EcdsaPkCtx::asVerification() {
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> SignCtx{EVP_MD_CTX_create()};
-  assuming(SignCtx);
-  assuming(EVP_DigestVerifyInit(SignCtx.get(), nullptr, EVP_sha256(), nullptr,
-                                Pk.get()));
+  opensslAssuming(SignCtx);
+  opensslAssuming(EVP_DigestVerifyInit(SignCtx.get(), nullptr, EVP_sha256(),
+                                       nullptr, Pk.get()));
 
   return EcdsaVerificationCtx{std::move(SignCtx)};
 }
@@ -132,28 +152,23 @@ EcdsaSkCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
   const char *EncodingType;
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
-    EncodingType = "RAW";
-    break;
+    OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Sk{EVP_PKEY_new_raw_private_key(
+        EVP_PKEY_EC, nullptr, Raw.data(), Raw.size())};
+    opensslAssuming(Sk);
+    return EcdsaSkCtx{std::move(Sk)};
   }
-  case __WASI_SECRETKEY_ENCODING_PKCS8: {
-    EncodingType = "PKCS#8";
-    break;
-  }
-  case __WASI_SECRETKEY_ENCODING_PEM: {
-    EncodingType = "PEM";
-    break;
-  }
-  case __WASI_SECRETKEY_ENCODING_SEC: {
-    EncodingType = "SEC";
-    break;
-  }
-  case __WASI_SECRETKEY_ENCODING_COMPRESSED_SEC: {
-    EncodingType = "SEC";
-    break;
-  }
-  case __WASI_SECRETKEY_ENCODING_LOCAL: {
+  case __WASI_SECRETKEY_ENCODING_PKCS8:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-    break;
+  case __WASI_SECRETKEY_ENCODING_PEM:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  case __WASI_SECRETKEY_ENCODING_SEC:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  case __WASI_SECRETKEY_ENCODING_COMPRESSED_SEC:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  case __WASI_SECRETKEY_ENCODING_LOCAL:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  default:
+    __builtin_unreachable();
   }
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
@@ -202,7 +217,6 @@ EcdsaSkCtx::exportData(__wasi_secretkey_encoding_e_t Encoding) {
   }
   case __WASI_SECRETKEY_ENCODING_LOCAL: {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-    break;
   }
   default:
     __builtin_unreachable();
@@ -273,11 +287,11 @@ EcdsaKpCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
 
 WasiCryptoExpect<EcdsaSignStateCtx> EcdsaKpCtx::asSignState() {
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> SignCtx{EVP_MD_CTX_create()};
-  assuming(SignCtx);
+  opensslAssuming(SignCtx);
 
   // TODO:It pass a keypair but need a private key. Later to check
-  assuming(EVP_DigestSignInit(SignCtx.get(), nullptr, EVP_sha256(), nullptr,
-                              Kp.get()));
+  opensslAssuming(EVP_DigestSignInit(SignCtx.get(), nullptr, EVP_sha256(),
+                                     nullptr, Ctx.get()));
 
   return EcdsaSignStateCtx{std::move(SignCtx)};
 }
@@ -346,11 +360,38 @@ EcdsaKpCtx::exportData(__wasi_keypair_encoding_e_t Encoding) {
 }
 
 WasiCryptoExpect<EcdsaPkCtx> EcdsaKpCtx::publicKey() {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  // get original group and public key
+  const EC_KEY *ECKey = EVP_PKEY_get0_EC_KEY(Ctx.get());
+  const EC_GROUP *Group = EC_KEY_get0_group(ECKey);
+  const EC_POINT *PublicKey = EC_KEY_get0_public_key(ECKey);
+
+  // copy group and public key
+  EC_GROUP *NewGroup = nullptr;
+  opensslAssuming(EC_GROUP_copy(NewGroup, Group));
+  EC_POINT *NewPublicKey = nullptr;
+  opensslAssuming(EC_POINT_copy(NewPublicKey, PublicKey));
+
+  // set group and public key
+  EC_KEY *NewKey = EC_KEY_new();
+  opensslAssuming(EC_KEY_set_group(NewKey, NewGroup));
+  opensslAssuming(EC_KEY_set_public_key(NewKey, PublicKey));
+
+  // construct EVP_PKEY from EC_KEY
+  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Key{EVP_PKEY_new()};
+  opensslAssuming(Key);
+  opensslAssuming(EVP_PKEY_set1_EC_KEY(Key.get(), NewKey));
+
+  return EcdsaPkCtx{std::move(Key)};
 }
 
 WasiCryptoExpect<EcdsaSkCtx> EcdsaKpCtx::secretKey() {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  OpenSSLUniquePtr<BIO, BIO_free> B{BIO_new(BIO_s_mem())};
+  opensslAssuming(i2d_PrivateKey_bio(B.get(), Ctx.get()));
+
+  EVP_PKEY *K = nullptr;
+  opensslAssuming(d2i_PrivateKey_bio(B.get(), &K));
+
+  return EcdsaSkCtx{OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free>{K}};
 }
 
 WasiCryptoExpect<EcdsaSignCtx>
@@ -390,31 +431,32 @@ EcdsaSignCtx::exportData(__wasi_signature_encoding_e_t Encoding) {
 }
 
 WasiCryptoExpect<void> EcdsaSignStateCtx::update(Span<const uint8_t> Data) {
-  assuming(EVP_DigestSignUpdate(MdCtx.get(), Data.data(), Data.size()));
+  opensslAssuming(EVP_DigestSignUpdate(MdCtx.get(), Data.data(), Data.size()));
 
   return {};
 }
 
 WasiCryptoExpect<EcdsaSignCtx> EcdsaSignStateCtx::sign() {
   size_t Size;
-  assuming(EVP_DigestSignFinal(MdCtx.get(), nullptr, &Size));
+  opensslAssuming(EVP_DigestSignFinal(MdCtx.get(), nullptr, &Size));
 
   std::vector<uint8_t> Res;
   Res.reserve(Size);
   Res.resize(Size);
 
-  assuming(EVP_DigestSignFinal(MdCtx.get(), Res.data(), &Size));
+  opensslAssuming(EVP_DigestSignFinal(MdCtx.get(), Res.data(), &Size));
 
   return Res;
 }
 
 WasiCryptoExpect<void> EcdsaVerificationCtx::update(Span<const uint8_t> Data) {
-  assuming(EVP_DigestVerifyUpdate(MdCtx.get(), Data.data(), Data.size()));
+  opensslAssuming(
+      EVP_DigestVerifyUpdate(MdCtx.get(), Data.data(), Data.size()));
   return {};
 }
 
 WasiCryptoExpect<void> EcdsaVerificationCtx::verify(Span<const uint8_t> Data) {
-  assuming(EVP_DigestVerifyFinal(MdCtx.get(), Data.data(), Data.size()));
+  opensslAssuming(EVP_DigestVerifyFinal(MdCtx.get(), Data.data(), Data.size()));
 
   return {};
 }

@@ -108,7 +108,7 @@ WasiCryptoContext::symmetricStateOpen(
     return WasiCryptoUnexpect(State);
   }
 
-  auto Handle = SymmetricStateManger.registerManger(*State);
+  auto Handle = SymmetricStateManger.registerManger(std::move(*State));
   if (!Handle) {
     return WasiCryptoUnexpect(Handle);
   }
@@ -194,7 +194,7 @@ WasiCryptoContext::symmetricStateSqueezeTag(__wasi_symmetric_state_t Handle) {
     return WasiCryptoUnexpect(Tag);
   }
 
-  return SymmetricTagManger.registerManger(*Tag);
+  return SymmetricTagManger.registerManger(std::move(*Tag));
 }
 
 WasiCryptoExpect<__wasi_symmetric_key_t>
@@ -253,7 +253,7 @@ WasiCryptoContext::symmetricStateEncryptDetached(
     return WasiCryptoUnexpect(Tag);
   }
 
-  return SymmetricTagManger.registerManger(*Tag);
+  return SymmetricTagManger.registerManger(std::move(*Tag));
 }
 
 WasiCryptoExpect<__wasi_size_t>

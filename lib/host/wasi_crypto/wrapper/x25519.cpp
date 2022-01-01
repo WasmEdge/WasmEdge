@@ -8,14 +8,24 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-WasiCryptoExpect<X25519PKCtx> X25519PKCtx::import(Span<const uint8_t> Raw) {
+WasiCryptoExpect<X25519PKCtx>
+X25519PKCtx::import(Span<const uint8_t> Raw,
+                    __wasi_publickey_encoding_e_t Encoding) {
+  switch (Encoding) {
+  case __WASI_PUBLICKEY_ENCODING_RAW:
+    break;
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  }
+
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Pk{EVP_PKEY_new_raw_public_key(
       EVP_PKEY_X25519, nullptr, Raw.data(), Raw.size())};
   assuming(Pk);
+
   return X25519PKCtx{std::move(Pk)};
 }
 
-WasiCryptoExpect<std::vector<uint8_t>> X25519PKCtx::asRaw() {
+WasiCryptoExpect<std::vector<uint8_t>> X25519PKCtx::exportData() {
   size_t Size;
   assuming(EVP_PKEY_get_raw_public_key(Pk.get(), nullptr, &Size));
 
@@ -26,14 +36,23 @@ WasiCryptoExpect<std::vector<uint8_t>> X25519PKCtx::asRaw() {
   return Res;
 }
 
-WasiCryptoExpect<X25519SKCtx> X25519SKCtx::import(Span<const uint8_t> Raw) {
+WasiCryptoExpect<X25519SKCtx>
+X25519SKCtx::import(Span<const uint8_t> Raw,
+                    __wasi_secretkey_encoding_e_t Encoding) {
+  switch (Encoding) {
+  case __WASI_SECRETKEY_ENCODING_RAW:
+    break;
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  }
+
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Sk{EVP_PKEY_new_raw_private_key(
       EVP_PKEY_X25519, nullptr, Raw.data(), Raw.size())};
   assuming(Sk);
   return X25519SKCtx{std::move(Sk)};
 }
 
-WasiCryptoExpect<std::vector<uint8_t>> X25519SKCtx::asRaw() {
+WasiCryptoExpect<std::vector<uint8_t>> X25519SKCtx::exportData() {
   size_t Size;
   assuming(EVP_PKEY_get_raw_private_key(Sk.get(), nullptr, &Size));
 
@@ -85,7 +104,7 @@ WasiCryptoExpect<X25519PKCtx> X25519KpCtx::publicKey() {
   Res.resize(Size);
   assuming(EVP_PKEY_get_raw_public_key(Ctx.get(), Res.data(), &Size));
 
-  return X25519PKCtx::import(Res);
+  return X25519PKCtx::import(Res, __WASI_PUBLICKEY_ENCODING_RAW);
 }
 
 WasiCryptoExpect<X25519SKCtx> X25519KpCtx::secretKey() {
@@ -97,7 +116,7 @@ WasiCryptoExpect<X25519SKCtx> X25519KpCtx::secretKey() {
   Res.resize(Size);
   assuming(EVP_PKEY_get_raw_private_key(Ctx.get(), Res.data(), &Size));
 
-  return X25519SKCtx::import(Res);
+  return X25519SKCtx::import(Res, __WASI_SECRETKEY_ENCODING_RAW);
 }
 
 WasiCryptoExpect<X25519KpCtx> X25519KpCtx::generate(KxAlgorithm) {
@@ -112,6 +131,7 @@ WasiCryptoExpect<X25519KpCtx> X25519KpCtx::generate(KxAlgorithm) {
   return X25519KpCtx{OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free>{PKey}};
 }
 
+// N/A
 WasiCryptoExpect<X25519KpCtx> X25519KpCtx::import() {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }

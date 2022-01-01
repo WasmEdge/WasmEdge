@@ -24,9 +24,9 @@ public:
 
   ~HmacSha2SymmetricKey() override;
 
-  Span<const uint8_t> asRef() { return Raw; }
+  Span<const uint8_t> asRef() override { return Raw; }
 
-  SymmetricAlgorithm alg() { return Alg; }
+  SymmetricAlgorithm alg() override { return Alg; }
 
 private:
   SymmetricAlgorithm Alg;

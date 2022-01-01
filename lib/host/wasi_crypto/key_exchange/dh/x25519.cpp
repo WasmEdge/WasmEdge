@@ -25,8 +25,9 @@ X25519PublicKey::Builder::import(Span<uint8_t const> Raw,
 
 WasiCryptoExpect<X25519PublicKey>
 X25519PublicKey::import(KxAlgorithm Alg, Span<const uint8_t> Raw,
-                        __wasi_publickey_encoding_e_t /*TODO:Encoding*/) {
-  auto Res = X25519PKCtx::import(Raw);
+                        __wasi_publickey_encoding_e_t Encoding) {
+
+  auto Res = X25519PKCtx::import(Raw, Encoding);
   if (!Res) {
     return WasiCryptoUnexpect(Res);
   }
@@ -34,21 +35,22 @@ X25519PublicKey::import(KxAlgorithm Alg, Span<const uint8_t> Raw,
   return X25519PublicKey{Alg, std::move(*Res)};
 }
 
-WasiCryptoExpect<std::vector<uint8_t>> X25519PublicKey::asRef() {
-  return Ctx.asRaw();
+WasiCryptoExpect<std::vector<uint8_t>> X25519PublicKey::exportData() {
+  return Ctx.exportData();
 }
 
 WasiCryptoExpect<void> X25519PublicKey::verify() {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-WasiCryptoExpect<KxSecretKey> X25519SecretKey::Builder::import(
-    Span<const uint8_t> Raw, __wasi_secretkey_encoding_e_t /*TODO:Encoding*/) {
+WasiCryptoExpect<KxSecretKey>
+X25519SecretKey::Builder::import(Span<const uint8_t> Raw,
+                                 __wasi_secretkey_encoding_e_t Encoding) {
   if (Raw.size() != X25519SKCtx::Len) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
   }
 
-  auto Res = X25519SKCtx::import(Raw);
+  auto Res = X25519SKCtx::import(Raw, Encoding);
   if (!Res) {
     return WasiCryptoUnexpect(Res);
   }
@@ -58,8 +60,8 @@ WasiCryptoExpect<KxSecretKey> X25519SecretKey::Builder::import(
 
 WasiCryptoExpect<X25519SecretKey>
 X25519SecretKey::import(KxAlgorithm Alg, Span<const uint8_t> Raw,
-                        __wasi_secretkey_encoding_e_t /*TODO:Encoding*/) {
-  auto Res = X25519SKCtx::import(Raw);
+                        __wasi_secretkey_encoding_e_t Encoding) {
+  auto Res = X25519SKCtx::import(Raw, Encoding);
   if (!Res) {
     return WasiCryptoUnexpect(Res);
   }
@@ -80,8 +82,8 @@ WasiCryptoExpect<__wasi_size_t> X25519SecretKey::len() {
   return X25519SKCtx::Len;
 }
 
-WasiCryptoExpect<Span<const uint8_t>> X25519SecretKey::asRef() {
-  return Ctx.asRaw();
+WasiCryptoExpect<Span<const uint8_t>> X25519SecretKey::exportData() {
+  return Ctx.exportData();
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>

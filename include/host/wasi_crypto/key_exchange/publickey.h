@@ -28,7 +28,7 @@ public:
 
     virtual WasiCryptoExpect<__wasi_size_t> len() = 0;
 
-    virtual WasiCryptoExpect<std::vector<uint8_t>> asRef() = 0;
+    virtual WasiCryptoExpect<std::vector<uint8_t>> exportData() = 0;
 
     virtual WasiCryptoExpect<void> verify() {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);

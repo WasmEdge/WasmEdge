@@ -152,7 +152,7 @@ public:
     return {};
   }
 
-  WasiCryptoExpect<HandleType> registerManger(MangerType Manger) {
+  WasiCryptoExpect<HandleType> registerManger(MangerType&& Manger) {
     std::scoped_lock Guard{Mutex};
     auto NextHandle = nextHandle(LastHandle);
 
@@ -167,7 +167,7 @@ public:
       NextHandle = nextHandle(LastHandle);
     }
     LastHandle = NextHandle;
-    if (!Map.emplace(std::make_pair(NextHandle, std::forward<MangerType>(Manger))).second) {
+    if (!Map.emplace(NextHandle, std::forward<MangerType>(Manger)).second) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
     }
     return NextHandle;

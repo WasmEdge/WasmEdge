@@ -14,7 +14,7 @@ WasiCryptoExpect<std::vector<uint8_t>> KxKeyPair::Base::asRaw() {
   }
 
   auto PkRaw =
-      Pk->inner()->locked([](auto &PkInner) { return PkInner->asRef(); });
+      Pk->inner()->locked([](auto &PkInner) { return PkInner->exportData(); });
   if (!PkRaw) {
     return WasiCryptoUnexpect(PkRaw);
   }
@@ -25,7 +25,7 @@ WasiCryptoExpect<std::vector<uint8_t>> KxKeyPair::Base::asRaw() {
   }
 
   auto SkRaw =
-      Sk->inner()->locked([](auto &SkInner) { return SkInner->asRef(); });
+      Sk->inner()->locked([](auto &SkInner) { return SkInner->exportData(); });
   if (!SkRaw) {
     return WasiCryptoUnexpect(SkRaw);
   }

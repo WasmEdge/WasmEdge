@@ -22,7 +22,7 @@ public:
 
     virtual WasiCryptoExpect<__wasi_size_t> len() = 0;
 
-    virtual WasiCryptoExpect<Span<uint8_t const>> asRef() = 0;
+    virtual WasiCryptoExpect<Span<uint8_t const>> exportData() = 0;
 
     virtual WasiCryptoExpect<KxPublicKey> publicKey() = 0;
 

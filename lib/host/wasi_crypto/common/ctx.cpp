@@ -83,10 +83,9 @@ WasiCryptoExpect<void> WasiCryptoContext::secretsManagerInvalidate(
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
-WasiCryptoExpect<uint8_t>
+WasiCryptoExpect<__wasi_array_output_t>
 WasiCryptoContext::allocateArrayOutput(std::vector<uint8_t> &&Data) {
-  auto Output = ArrayOutput{std::move(Data)};
-  return ArrayOutputManger.registerManger(std::move(Output));
+  return ArrayOutputManger.registerManger(ArrayOutput{std::move(Data)});
 }
 
 } // namespace WASICrypto

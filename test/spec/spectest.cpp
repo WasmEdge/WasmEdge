@@ -208,6 +208,7 @@ struct TestsuiteProposal {
 static const TestsuiteProposal TestsuiteProposals[] = {
     {"core"sv, {}},
     {"simd"sv, {}},
+    {"multi-memory"sv, {Proposal::MultiMemories}},
 };
 
 } // namespace

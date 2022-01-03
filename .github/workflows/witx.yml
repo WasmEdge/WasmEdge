@@ -1,16 +1,20 @@
-name: doc
+name: "Witx"
 
 concurrency:
-  group: doc-${{ github.head_ref }}
+  group: witx-${{ github.head_ref }}
   cancel-in-progress: true
 
 on:
   push:
     branches:
       - master
+    paths:
+      - 'docs/witx/**'
   pull_request:
     branches:
       - master
+    paths:
+      - 'docs/witx/**'
 
 jobs:
   gen_doc:

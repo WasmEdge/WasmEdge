@@ -1,22 +1,36 @@
+//! Defines WasmEdge Vm struct.
+
 use super::wasmedge;
 use crate::{
     error::{check, Error, WasmEdgeResult},
     instance::function::FuncType,
-    string::StringRef,
     types::HostRegistration,
     utils, Config, ImportObj, Module, Statistics, Store, Value,
 };
 use std::path::Path;
 
-// If there is a third-party sdk based on wasmedge-sys
-// the private encapsulation  here can force the third-party sdk to use the api
+/// Struct of WasmEdge Vm.
+///
+/// A [`Vm`] defines a virtual environment for managing WebAssembly programs.
 #[derive(Debug)]
 pub struct Vm {
     pub(crate) ctx: *mut wasmedge::WasmEdge_VMContext,
     import_objects: Vec<ImportObj>,
 }
 impl Vm {
-    /// Create a Vm instance
+    /// Creates a new [`Vm`] to be associated with the given [configuration](crate::Config) and [store](crate::Store).
+    ///
+    /// # Arguments
+    ///
+    /// - `config` specifies a configuration for the new [`Vm`].
+    ///
+    /// - `store` specifies an external WASM [store](crate::Store) used by the new [`Vm`]. The instantiation and
+    /// execution of the new [`Vm`] will refer to this store context. If no store context is specified when creating
+    /// a [`Vm`], then the [`Vm`] itself will allocate and own a [`store`](crate::Store).
+    ///
+    /// # Error
+    ///
+    /// If fail to create, then an error is returned.
     pub fn create(config: Option<&Config>, store: Option<&Store>) -> WasmEdgeResult<Self> {
         let conf = match config {
             Some(conf) => conf.ctx,
@@ -38,14 +52,33 @@ impl Vm {
         }
     }
 
-    /// Register and instantiate WASM into the store in VM from a WASM file.
+    /// Registers and instantiates a WASM module into the [store](crate::Store) of the [`Vm`] from a WASM file.
+    ///
+    /// The workflow of the function can be summarized as the following steps:
+    ///
+    /// - First, loads a WASM module from a given path, then
+    ///
+    /// - Registers all exported instances in the WASM module into the [store](crate::Store) of the [`Vm`];
+    ///
+    /// - Finally, instantiates the exported instances.
+    ///
+    ///
+    /// # Arguments
+    ///
+    /// - `mod_name` specifies the name for the WASM module to be registered.
+    ///
+    /// - `path` specifies the file path to the target WASM file.
+    ///
+    /// # Error
+    ///
+    /// If fail to register the target WASM, then an error is returned.
     pub fn register_wasm_from_file(
         self,
         mod_name: impl AsRef<str>,
         path: impl AsRef<Path>,
     ) -> WasmEdgeResult<Self> {
         let path = utils::path_to_cstring(path.as_ref())?;
-        let raw_mod_name: wasmedge::WasmEdge_String = StringRef::from(mod_name.as_ref()).into();
+        let raw_mod_name = mod_name.into();
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromFile(
                 self.ctx,
@@ -57,7 +90,24 @@ impl Vm {
         Ok(self)
     }
 
-    /// Register and instantiate WASM into the store in VM from a WasmEdge ImportObj instance
+    /// Registers and instantiates a WASM module into the [store](crate::Store) of the [`Vm`] from a given WasmEdge
+    /// [ImportObj](crate::ImportObj) module.
+    ///
+    /// The workflow of the function can be summarized as the following steps:
+    ///
+    /// - First, registers the exported instances in the [ImportObj](crate::ImportObj) module into the
+    /// [store](crate::Store) of the [`Vm`], then
+    ///
+    /// - Instatiates the exported instances.
+    ///
+    ///
+    /// # Argument
+    ///
+    /// - `import_obj` specifies the [ImportObj](crate::ImportObj) module to be registered.
+    ///
+    /// # Error
+    ///
+    /// If fail to register the WASM module, then an error is returned.
     pub fn register_wasm_from_import(self, import_obj: &mut ImportObj) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromImport(
@@ -71,7 +121,26 @@ impl Vm {
         Ok(self)
     }
 
-    /// Register and instantiate WASM into the store in VM from a buffer.
+    /// Registers and instantiates a WASM module into the [store](crate::Store) of the [`Vm`] from a given WASM
+    /// binary buffer.
+    ///
+    /// The workflow of the function can be summarized as the following steps:
+    ///
+    /// - First, loads a WASM module from the given WASM binary buffer, then
+    ///
+    /// - Registers all exported instances in the WASM module into the [store](crate::Store) of the [`Vm`];
+    ///
+    /// - Finally, instantiates the exported instances.
+    ///
+    /// # Arguments
+    ///
+    /// - `mod_name` specifies the name of the WASM module to be registered.
+    ///
+    /// - `buffer` specifies the buffer of a WASM binary.
+    ///
+    /// # Error
+    ///
+    /// If fail to register the WASM module, then an error is returned.
     pub fn register_wasm_from_buffer(
         self,
         mod_name: impl AsRef<str>,
@@ -80,7 +149,7 @@ impl Vm {
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromBuffer(
                 self.ctx,
-                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+                mod_name.into(),
                 buffer.as_ptr(),
                 buffer.len() as u32,
             ))?;
@@ -89,7 +158,27 @@ impl Vm {
         Ok(self)
     }
 
-    /// Register and instantiate WASM into the store in VM from a WasmEdge Module instance
+    /// Registers and instantiates a WASM module into the [store](crate::Store) of the [`Vm`] from a WasmEdge AST
+    /// [Module](crate::Module).
+    ///
+    /// The workflow of the function can be summarized as the following steps:
+    ///
+    /// - First, loads a WASM module from the given WasmEdge AST [Module](crate::Module), then
+    ///
+    /// - Registers all exported instances in the WASM module into the [store](crate::Store) of the [`Vm`];
+    ///
+    /// - Finally, instantiates the exported instances.
+    ///
+    /// # Arguments
+    ///
+    /// - `mod_name` specifies the name of the WASM module to be registered.
+    ///
+    /// - `module` specifies the WasmEdge AST [Module](crate::Module) generated by [Loader](crate::Loader) or
+    /// [Compiler](crate::Compiler).
+    ///
+    /// # Error
+    ///
+    /// If fail to register the WASM module, then an error is returned.
     pub fn register_wasm_from_module(
         self,
         mod_name: impl AsRef<str>,
@@ -98,7 +187,7 @@ impl Vm {
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromASTModule(
                 self.ctx,
-                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+                mod_name.into(),
                 module.ctx,
             ))?;
         }
@@ -108,7 +197,25 @@ impl Vm {
         Ok(self)
     }
 
-    /// Instantiate a WASM module from a WASM file and invoke a function by name.
+    /// Instantiates a WASM module from a WASM file and invokes a [function](crate::Function) by name.
+    ///
+    /// The workflow of the function can be summarized as the following steps:
+    ///
+    /// - First, loads and instantiates the WASM module from a given file, then
+    ///
+    /// - Invokes a function by name and parameters.
+    ///
+    /// # Arguments
+    ///
+    /// - `path` specifies the file path to a WASM file.
+    ///
+    /// - `func_name` specifies the name of the [function](crate::Function).
+    ///
+    /// - `params` specifies the the parameter values which are used by the [function](crate::Function).
+    ///
+    /// # Error
+    ///
+    /// If fail to run, then an error is returned.
     pub fn run_wasm_from_file(
         &self,
         path: impl AsRef<Path>,
@@ -116,7 +223,7 @@ impl Vm {
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
         let path = utils::path_to_cstring(path.as_ref())?;
-        let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(func_name.as_ref()).into();
+        let raw_func_name = func_name.into();
 
         // prepare parameters
         let raw_params = params
@@ -151,14 +258,32 @@ impl Vm {
         Ok(returns.into_iter().map(Into::into))
     }
 
-    /// Instantiate a WASM module from a buffer and invoke a function by name.
+    /// Instantiate a WASM module from a buffer and invokes a function by name.
+    ///
+    /// The workflow of the function can be summarized as the following steps:
+    ///
+    /// - First, loads and instantiates the WASM module from a buffer, then
+    ///
+    /// - Invokes a function by name and parameters.
+    ///
+    /// # Arguments
+    ///
+    /// - `buffer` specifies the buffer of a WASM binary.
+    ///
+    /// - `func_name` specifies the name of the [function](crate::Function).
+    ///
+    /// - `params` specifies the parameter values which are used by the [function](crate::Function).
+    ///
+    /// # Error
+    ///
+    /// If fail to run, then an error is returned.
     pub fn run_wasm_from_buffer(
         &self,
         buffer: &[u8],
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
-        let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(func_name.as_ref()).into();
+        let raw_func_name = func_name.into();
 
         // prepare parameters
         let raw_params = params
@@ -194,14 +319,33 @@ impl Vm {
         Ok(returns.into_iter().map(Into::into))
     }
 
-    /// Instantiate a WASM module from a WasmEdge AST Module and invoke a function by name.
+    /// Instantiates a WASM module from a WasmEdge AST [Module](crate::Module) and invokes a function by name.
+    ///
+    /// The workflow of the function can be summarized as the following steps:
+    ///
+    /// - First, loads and instantiates the WASM module from a WasmEdge AST [Module](crate::Module), then
+    ///
+    /// - Invokes a function by name and parameters.
+    ///
+    /// # Arguments
+    ///
+    /// - `module` specifies the WasmEdge AST [Module](crate::Module) generated by [Loader](crate::Loader)
+    /// or [Compiler](crate::Compiler).
+    ///
+    /// - `func_name` specifies the name of the [function](crate::Function).
+    ///
+    /// - `params` specifies the parameter values which are used by the [function](crate::Function).
+    ///
+    /// # Error
+    ///
+    /// If fail to run, then an error is returned.
     pub fn run_wasm_from_module(
         &self,
         module: &mut Module,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
-        let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(func_name.as_ref()).into();
+        let raw_func_name = func_name.into();
 
         // prepare parameters
         let raw_params = params
@@ -238,7 +382,16 @@ impl Vm {
         Ok(returns.into_iter().map(Into::into))
     }
 
-    /// Load the WASM module from a loaded WasmEdge AST Module.
+    /// Loads a WASM module from a WasmEdge AST [Module](crate::Module).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies a WasmEdge AST [Module](crate::Module) generated by [Loader](crate::Loader) or
+    /// [Compiler](crate::Compiler).
+    ///
+    /// # Error
+    ///
+    /// If fail to load, then an error is returned.
     pub fn load_wasm_from_module(self, module: &mut Module) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_VMLoadWasmFromASTModule(
@@ -250,7 +403,15 @@ impl Vm {
         Ok(self)
     }
 
-    /// Load the WASM module from a buffer.
+    /// Loads a WASM module from a WASM binary buffer.
+    ///
+    /// # Argument
+    ///
+    /// - `buffer` specifies the buffer of a WASM binary.
+    ///
+    /// # Error
+    ///
+    /// If fail to load, then an error is returned.
     pub fn load_wasm_from_buffer(self, buffer: &[u8]) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_VMLoadWasmFromBuffer(
@@ -262,7 +423,15 @@ impl Vm {
         Ok(self)
     }
 
-    /// Load the WASM module from a WASM file.
+    /// Loads a WASM module from a WASM file.
+    ///
+    /// # Argument
+    ///
+    /// - `path` specifies the path to a WASM file.
+    ///
+    /// # Error
+    ///
+    /// If fail to load, then an error is returned.
     pub fn load_wasm_from_file<P: AsRef<Path>>(self, path: P) -> WasmEdgeResult<Self> {
         let path = utils::path_to_cstring(path.as_ref())?;
         unsafe {
@@ -274,7 +443,14 @@ impl Vm {
         Ok(self)
     }
 
-    /// Validate the WASM module loaded into the VM instance.
+    /// Validates a WASM module loaded into the [`Vm`].
+    ///
+    /// This is the second step to invoke a WASM function step by step. After loading a WASM module into the [`Vm`],
+    /// call this function to validate it. Note that only validated WASM modules can be instantiated in the [`Vm`].
+    ///
+    /// # Error
+    ///
+    /// If fail to validate, then an error is returned.
     pub fn validate(self) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_VMValidate(self.ctx))?;
@@ -282,13 +458,14 @@ impl Vm {
         Ok(self)
     }
 
-    /// Instantiate the validated WASM module in the VM context.
+    /// Instantiates a validated WASM module in the [`Vm`].
     ///
-    /// This is the third step to invoke a WASM function step by step.
-    /// After validating a WASM module in the VM context, You can call this function
-    /// to instantiate it. And you can then call `execute` for invoking
-    /// the exported function in this WASM module.
+    /// This is the third step to invoke a WASM function step by step. After validating a WASM module in the [`Vm`],
+    /// call this function to instantiate it; then, call `execute` to invoke the exported function in this WASM module.
     ///
+    /// # Error
+    ///
+    /// If fail to instantiate, then an error is returned.
     pub fn instantiate(self) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_VMInstantiate(self.ctx))?;
@@ -296,13 +473,30 @@ impl Vm {
         Ok(self)
     }
 
-    /// Invoke a function by name.
+    /// Runs an exported WASM function by name. The WASM function is hosted by the anonymous [module](crate::Module) in
+    /// the [store](crate::Store) of the [`Vm`].
+    ///
+    /// This is the final step to invoke a WASM function step by step.
+    /// After instantiating a WASM module in the [`Vm`], the WASM module is registered into the [store](crate::Store)
+    /// of the [`Vm`] as an anonymous module. Then repeatedly call this function to invoke the exported WASM functions
+    /// by their names until the [`Vm`] is reset or a new WASM module is registered
+    /// or loaded.
+    ///
+    /// # Arguments
+    ///
+    /// - `func_name` specifies the name of the exported WASM function to run.
+    ///
+    /// - `params` specifies the parameter values passed to the exported WASM function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run the WASM function, then an error is returned.
     pub fn run_function(
         &mut self,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
-        let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(func_name.as_ref()).into();
+        let raw_func_name = func_name.into();
 
         // prepare parameters
         let raw_params = params
@@ -336,15 +530,30 @@ impl Vm {
         Ok(returns.into_iter().map(Into::into))
     }
 
-    /// Invoke a WASM function by its module name and function name.
+    /// Runs an exported WASM function by its name and the module's name in which the WASM function is hosted.
+    ///
+    /// After registering a WASM module in the [`Vm`], repeatedly call this function to run exported WASM functions by
+    /// their function names and the module names until the [`Vm`] is reset.
+    ///
+    /// # Arguments
+    ///
+    /// - `mod_name` specifies the name of the WASM module registered into the [store](crate::Store) of the [`Vm`].
+    ///
+    /// - `func_name` specifies the name of the exported WASM function to run.
+    ///
+    /// - `params` specifies the parameter values passed to the exported WASM function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run the WASM function, then an error is returned.
     pub fn run_registered_function(
         &self,
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
-        let raw_mod_name: wasmedge::WasmEdge_String = StringRef::from(mod_name.as_ref()).into();
-        let raw_func_name: wasmedge::WasmEdge_String = StringRef::from(func_name.as_ref()).into();
+        let raw_mod_name = mod_name.into();
+        let raw_func_name = func_name.into();
 
         // prepare parameters
         let raw_params = params
@@ -379,14 +588,14 @@ impl Vm {
         Ok(returns.into_iter().map(Into::into))
     }
 
-    /// Get the function type by function name.
+    /// Returns the function type of a WASM function by its name. The function is hosted in the anonymous
+    /// [module](crate::Module) of the [`Vm`].
+    ///
+    /// # Argument
+    ///
+    /// - `func_name` specifies the name of the target WASM function.
     pub fn get_function_type(&self, func_name: impl AsRef<str>) -> Option<FuncType> {
-        let ty_ctx = unsafe {
-            wasmedge::WasmEdge_VMGetFunctionType(
-                self.ctx,
-                wasmedge::WasmEdge_String::from(StringRef::from(func_name.as_ref())),
-            )
-        };
+        let ty_ctx = unsafe { wasmedge::WasmEdge_VMGetFunctionType(self.ctx, func_name.into()) };
         match ty_ctx.is_null() {
             true => None,
             false => Some(FuncType {
@@ -396,7 +605,14 @@ impl Vm {
         }
     }
 
-    /// Get the function type by function name.
+    /// Returns the function type of a WASM function by its name and the name of the registered [module](crate::Module)
+    /// which hosts the WASM function.
+    ///
+    /// # Arguments
+    ///
+    /// - `mod_name` specifies the name of the registered [module](crate::Module).
+    ///
+    /// - `func_name` specifies the name of the target WASM function.
     pub fn get_registered_function_type(
         &self,
         mod_name: impl AsRef<str>,
@@ -405,8 +621,8 @@ impl Vm {
         let ty_ctx = unsafe {
             wasmedge::WasmEdge_VMGetFunctionTypeRegistered(
                 self.ctx,
-                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
-                wasmedge::WasmEdge_String::from(StringRef::from(func_name.as_ref())),
+                mod_name.into(),
+                func_name.into(),
             )
         };
         match ty_ctx.is_null() {
@@ -418,17 +634,17 @@ impl Vm {
         }
     }
 
-    /// Reset of WasmEdge_VMContext.
+    /// Resets the [`Vm`].
     pub fn reset(&mut self) {
         unsafe { wasmedge::WasmEdge_VMCleanup(self.ctx) }
     }
 
-    /// Get the length of exported function list.
+    /// Returns the length of the exported function list.
     pub fn function_list_len(&self) -> usize {
         unsafe { wasmedge::WasmEdge_VMGetFunctionListLength(self.ctx) as usize }
     }
 
-    /// Get the exported function list.
+    /// Returns an iterator of the exported functions.
     pub fn function_iter(
         &self,
     ) -> WasmEdgeResult<impl Iterator<Item = (Option<String>, Option<FuncType>)>> {
@@ -461,7 +677,7 @@ impl Vm {
         Ok(returns)
     }
 
-    /// Get the mutable ImportObj instance corresponding to the HostRegistration settings.
+    /// Returns the mutable [ImportObj](crate::ImportObj) corresponding to the HostRegistration settings.
     pub fn import_obj_mut(&mut self, reg: HostRegistration) -> WasmEdgeResult<ImportObj> {
         let io_ctx = unsafe { wasmedge::WasmEdge_VMGetImportModuleContext(self.ctx, reg.into()) };
         match io_ctx.is_null() {
@@ -475,7 +691,7 @@ impl Vm {
         }
     }
 
-    /// Get the mutable Store instance from VM.
+    /// Returns the mutable [Store](crate::Store) from the [`Vm`].
     pub fn store_mut(&self) -> WasmEdgeResult<Store> {
         let store_ctx = unsafe { wasmedge::WasmEdge_VMGetStoreContext(self.ctx) };
         match store_ctx.is_null() {
@@ -489,7 +705,7 @@ impl Vm {
         }
     }
 
-    /// Get the mutable Statistics instance from VM
+    /// Returns the mutable [Statistics](crate::Statistics) from the [`Vm`].
     pub fn statistics_mut(&self) -> WasmEdgeResult<Statistics> {
         let stat_ctx = unsafe { wasmedge::WasmEdge_VMGetStatisticsContext(self.ctx) };
         match stat_ctx.is_null() {
@@ -503,6 +719,15 @@ impl Vm {
         }
     }
 
+    /// Initializes the WASI host module with the given parameters.
+    ///
+    /// # Arguments
+    ///
+    /// - `args` specifies the commandline arguments. The first argument is the program name.
+    ///
+    /// - `envs` specifies the environment variables in the format `ENV_VAR_NAME=VALUE`.
+    ///
+    /// - `preopens` specifies the directories to pre-open. The required format is `DIR1:DIR2`.
     pub fn init_wasi_obj<T, E>(
         &mut self,
         args: Option<T>,
@@ -633,7 +858,7 @@ mod tests {
         let conf = conf.enable_bulkmemoryoperations(true);
         assert!(conf.has_bulkmemoryoperations());
 
-        let result = Module::load_from_file(&conf, path);
+        let result = Module::create_from_file(&conf, path);
         assert!(result.is_ok());
         let mut ast_module = result.unwrap();
 

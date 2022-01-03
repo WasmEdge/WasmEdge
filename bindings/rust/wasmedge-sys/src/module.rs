@@ -1,3 +1,5 @@
+//! Defines WasmEdge AST Module, Export, and Import structs.
+
 use super::wasmedge;
 use crate::{
     error::{check, Error, WasmEdgeResult},
@@ -8,6 +10,15 @@ use crate::{
 use ::core::mem::MaybeUninit as MU;
 use std::{borrow::Cow, ffi::CStr, path::Path};
 
+/// Struct of WasmEdge AST (short for abstract syntax tree) Module.
+///
+/// [`Module`] is the representation of WasmEdge AST Module concept, but not equivalent to *[W3C Module](https://www.w3.org/TR/wasm-core-1/#concepts%E2%91%A0)*. The initial state
+/// of a [`Module`] loaded from a file or buffer is a AST module; After the instantiation step, it "transform"s
+/// a module which is equivalent to W3C Module in semantics. The state transformation can be summarized
+/// as below:
+///
+/// `a WASM file ---<load>--> AST Module ---<instantiate>--> Module`
+///
 #[derive(Debug)]
 pub struct Module {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ASTModuleContext,
@@ -21,7 +32,18 @@ impl Drop for Module {
     }
 }
 impl Module {
-    pub fn load_from_file<P: AsRef<Path>>(config: &Config, path: P) -> WasmEdgeResult<Self> {
+    /// Creates a [`Module`] from a WASM file.
+    ///
+    /// # Arguments
+    ///
+    /// - `config` specifies the configuration used by the [Loader](crate::Loader) under the hood.
+    ///
+    /// - `path` specifies the path to the WASM file.
+    ///
+    /// # Error
+    ///
+    /// If fail to create a [`Module`], then an error is returned.
+    pub fn create_from_file<P: AsRef<Path>>(config: &Config, path: P) -> WasmEdgeResult<Self> {
         let loader_ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config.ctx) };
         let mut ctx: *mut wasmedge::WasmEdge_ASTModuleContext = std::ptr::null_mut();
 
@@ -41,7 +63,18 @@ impl Module {
         })
     }
 
-    pub fn load_from_buffer(config: &Config, buffer: &[u8]) -> WasmEdgeResult<Self> {
+    /// Creates a [`Module`] from a WASM buffer.
+    ///
+    /// # Arguments
+    ///
+    /// - `config` specifies the configuration used by the [Loader](crate::Loader) under the hood.
+    ///
+    /// - `buffer` specifies the WASM buffer.
+    ///
+    /// # Error
+    ///
+    /// If fail to create a [`Module`], then an error is returned.
+    pub fn create_from_buffer(config: &Config, buffer: &[u8]) -> WasmEdgeResult<Self> {
         if buffer.is_empty() {
             return Err(Error::OperationError(String::from(
                 "WasmEdge fail to load an empty buffer",
@@ -85,60 +118,71 @@ impl Module {
         })
     }
 
-    /// Get the length of imports list
-    pub fn imports_len(&self) -> u32 {
+    /// Returns the number of the imports of the [`Module`].
+    pub fn count_of_imports(&self) -> u32 {
         unsafe { wasmedge::WasmEdge_ASTModuleListImportsLength(self.ctx) }
     }
 
-    /// Get the imports
-    pub fn imports(&self) -> WasmEdgeResult<impl Iterator<Item = ImportType>> {
-        let size = self.imports_len();
+    /// Returns the imports of the [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the imports, then an error is returned.
+    pub fn imports(&self) -> WasmEdgeResult<impl Iterator<Item = Import>> {
+        let size = self.count_of_imports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
             wasmedge::WasmEdge_ASTModuleListImports(self.ctx, returns.as_mut_ptr(), size);
             returns.set_len(size as usize);
         }
 
-        Ok(returns.into_iter().map(|ctx| ImportType { ctx }))
+        Ok(returns.into_iter().map(|ctx| Import { ctx }))
     }
 
-    /// Get the length of exports list
-    pub fn exports_len(&self) -> u32 {
+    /// Returns the count of the exports of the [`Module`].
+    pub fn count_of_exports(&self) -> u32 {
         unsafe { wasmedge::WasmEdge_ASTModuleListExportsLength(self.ctx) }
     }
 
-    /// Get the exports
-    pub fn exports(&self) -> WasmEdgeResult<impl Iterator<Item = ExportType>> {
-        let size = self.exports_len();
+    /// Returns the exports of the [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the exports, then an error is returned.
+    pub fn exports(&self) -> WasmEdgeResult<impl Iterator<Item = Export>> {
+        let size = self.count_of_exports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
             wasmedge::WasmEdge_ASTModuleListExports(self.ctx, returns.as_mut_ptr(), size);
             returns.set_len(size as usize);
         }
 
-        Ok(returns.into_iter().map(|ctx| ExportType { ctx }))
+        Ok(returns.into_iter().map(|ctx| Export { ctx }))
     }
 }
 
+/// Struct of WasmEdge Import.
+///
+/// The [`Import`] is used for getting the information of the imports from a WasmEdge AST [`Module`].
 #[derive(Debug)]
-pub struct ImportType {
+pub struct Import {
     pub(crate) ctx: *const wasmedge::WasmEdge_ImportTypeContext,
 }
-impl Drop for ImportType {
+impl Drop for Import {
     fn drop(&mut self) {
         if !self.ctx.is_null() {
             self.ctx = std::ptr::null();
         }
     }
 }
-impl ImportType {
-    /// Get the external type
+impl Import {
+    /// Returns the external type of the [`Import`].
     pub fn ty(&self) -> ExternType {
         let ty = unsafe { wasmedge::WasmEdge_ImportTypeGetExternalType(self.ctx) };
         ty.into()
     }
 
-    /// Get the external name
+    /// Returns the external name of the [`Import`].
     pub fn name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
             let raw_name = wasmedge::WasmEdge_ImportTypeGetExternalName(self.ctx);
@@ -147,7 +191,7 @@ impl ImportType {
         c_name.to_string_lossy()
     }
 
-    /// Get the module name
+    /// Returns the module name from the [`Import`].
     pub fn module_name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
             let raw_name = wasmedge::WasmEdge_ImportTypeGetModuleName(self.ctx);
@@ -156,7 +200,15 @@ impl ImportType {
         c_name.to_string_lossy()
     }
 
-    /// Get the external value (which is function type)
+    /// Returns the [function type](crate::FuncType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the function type, then an error is returned.
     pub fn function_type(&self, module: &Module) -> WasmEdgeResult<FuncType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Function {
@@ -178,7 +230,15 @@ impl ImportType {
         }
     }
 
-    /// Get the external value (which is table type)
+    /// Returns the [table type](crate::TableType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the table type, then an error is returned.
     pub fn table_type(&self, module: &Module) -> WasmEdgeResult<TableType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Table {
@@ -199,7 +259,15 @@ impl ImportType {
         }
     }
 
-    /// Get the external value (which is memory type)
+    /// Returns the [memory type](crate::MemType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the memory type, then an error is returned.
     pub fn memory_type(&self, module: &Module) -> WasmEdgeResult<MemType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Memory {
@@ -221,7 +289,15 @@ impl ImportType {
         }
     }
 
-    /// Get the external value (which is global type)
+    /// Returns the [global type](crate::GlobalType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the global type, then an error is returned.
     pub fn global_type(&self, module: &Module) -> WasmEdgeResult<GlobalType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Global {
@@ -244,25 +320,28 @@ impl ImportType {
     }
 }
 
+/// Struct of WasmEdge Export.
+///
+/// The [`Export`] is used for getting the information of the exports from a WasmEdge AST [`Module`].
 #[derive(Debug)]
-pub struct ExportType {
+pub struct Export {
     pub(crate) ctx: *const wasmedge::WasmEdge_ExportTypeContext,
 }
-impl Drop for ExportType {
+impl Drop for Export {
     fn drop(&mut self) {
         if !self.ctx.is_null() {
             self.ctx = std::ptr::null();
         }
     }
 }
-impl ExportType {
-    /// Get the external type
+impl Export {
+    /// Returns the external type of the [`Export`].
     pub fn ty(&self) -> ExternType {
         let ty = unsafe { wasmedge::WasmEdge_ExportTypeGetExternalType(self.ctx) };
         ty.into()
     }
 
-    /// Get the external name
+    /// Returns the external name of the [`Export`].
     pub fn name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
             let raw_name = wasmedge::WasmEdge_ExportTypeGetExternalName(self.ctx);
@@ -271,7 +350,15 @@ impl ExportType {
         c_name.to_string_lossy()
     }
 
-    /// Get the external value (which is function type)
+    /// Returns the [function type](crate::FuncType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the function type, then an error is returned.
     pub fn function_type(&self, module: &Module) -> WasmEdgeResult<FuncType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Function {
@@ -293,7 +380,15 @@ impl ExportType {
         }
     }
 
-    /// Get the external value (which is table type)
+    /// Returns the [table type](crate::TableType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the table type, then an error is returned.
     pub fn table_type(&self, module: &Module) -> WasmEdgeResult<TableType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Table {
@@ -314,7 +409,15 @@ impl ExportType {
         }
     }
 
-    /// Get the external value (which is memory type)
+    /// Returns the [memory type](crate::MemType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the memory type, then an error is returned.
     pub fn memory_type(&self, module: &Module) -> WasmEdgeResult<MemType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Memory {
@@ -336,7 +439,15 @@ impl ExportType {
         }
     }
 
-    /// Get the external value (which is global type)
+    /// Returns the [global type](crate::GlobalType).
+    ///
+    /// # Argument
+    ///
+    /// - `module` specifies the target WasmEdge AST [`Module`].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the global type, then an error is returned.
     pub fn global_type(&self, module: &Module) -> WasmEdgeResult<GlobalType> {
         let external_ty = self.ty();
         if external_ty != ExternType::Global {
@@ -380,7 +491,7 @@ mod tests {
         let conf = conf.enable_bulkmemoryoperations(true);
         assert!(conf.has_bulkmemoryoperations());
 
-        let result = Module::load_from_buffer(&conf, &buf);
+        let result = Module::create_from_buffer(&conf, &buf);
         assert!(result.is_ok());
         let module = result.unwrap();
         assert!(!module.ctx.is_null());
@@ -397,7 +508,7 @@ mod tests {
         let conf = conf.enable_bulkmemoryoperations(true);
         assert!(conf.has_bulkmemoryoperations());
 
-        let result = Module::load_from_file(&conf, path);
+        let result = Module::create_from_file(&conf, path);
         assert!(result.is_ok());
         let module = result.unwrap();
         assert!(!module.ctx.is_null());

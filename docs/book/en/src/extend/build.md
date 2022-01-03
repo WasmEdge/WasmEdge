@@ -4,7 +4,7 @@ Please follow this guide to build and test WasmEdge from source code.
 
 The following guide is based on Linux distributions. For MacOS, please refer to [Build for macOS](build_on_mac.md). For Windows, please refer to [Build for Windows](build_on_windows.md)
 
-> If you just want the latest builds from the `HEAD` of the `master` branch, and do not want to build it yourself, you can download the release package directly from our Github Actions's CI artifact. [Here is an example](https://github.com/WasmEdge/WasmEdge/actions/runs/1521549504#artifacts).
+> If you just want the latest builds from the `HEAD` of the `master` branch, and do not want to build it yourself, you can download the release package directly from our Github Action's CI artifact. [Here is an example](https://github.com/WasmEdge/WasmEdge/actions/runs/1521549504#artifacts).
 
 ## Get Source Code
 
@@ -74,7 +74,7 @@ $ sudo apt install -y clang-12
 Our development environment requires `libLLVM-12` and `>=GLIBCXX_3.4.33`.
 
 If users are using the older operating system than Ubuntu 20.04, please use our special docker image to build WasmEdge.
-If you are looking for the pre-built binaries for the older operatoring system, we also provide several pre-built binaries based on manylinux\* distribution.
+If you are looking for the pre-built binaries for the older operating system, we also provide several pre-built binaries based on manylinux\* distribution.
 
 | Portable Linux Built Distributions Tags | Base Image  | Provided Requirements                                                 | Docker Image                             |
 | ---                                     | ---         | ---                                                                   | ---                                      |

@@ -251,7 +251,7 @@ inline constexpr __wasi_errno_t fromErrNo(int ErrNo) noexcept {
   case EXDEV:
     return __WASI_ERRNO_XDEV;
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 
@@ -511,7 +511,7 @@ inline constexpr int toWhence(__wasi_whence_t Whence) noexcept {
   case __WASI_WHENCE_SET:
     return SEEK_SET;
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 

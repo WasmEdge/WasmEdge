@@ -128,7 +128,7 @@ parseValueList(const rapidjson::Value &Args) {
         Result.emplace_back(static_cast<uint64_t>(std::stoull(Value)));
         ResultTypes.emplace_back(WasmEdge::ValType::F64);
       } else {
-        assuming(false);
+        assumingUnreachable();
       }
     } else if (ValueNode.IsArray()) {
       WasmEdge::uint64x2_t I64x2;
@@ -162,7 +162,7 @@ parseValueList(const rapidjson::Value &Args) {
       Result.emplace_back(I64x2);
       ResultTypes.emplace_back(WasmEdge::ValType::V128);
     } else {
-      assuming(false);
+      assumingUnreachable();
     }
   }
   return {Result, ResultTypes};
@@ -188,7 +188,7 @@ parseExpectedList(const rapidjson::Value &Args) {
       Value.pop_back();
       Result.emplace_back(Type + LaneType, std::move(Value));
     } else {
-      assuming(false);
+      assumingUnreachable();
     }
   }
   return Result;

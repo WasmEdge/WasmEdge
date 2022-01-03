@@ -25,17 +25,20 @@ _ldconfig() {
 
 _downloader() {
     local url=$1
-    if ! command -v wget &>/dev/null; then
-        if command -v curl &>/dev/null; then
-            pushd "$TMP_DIR"
-            curl -L -OC0 "$url" --progress-bar
-            popd
-        else
+    if ! command -v curl &>/dev/null; then
+        if ! command -v wget &>/dev/null; then
             echo "${RED}Please install wget or curl${NC}"
             exit 1
+        else
+            wget --help | grep -q '\--show-progress' &&
+                _PROGRESS_OPT="--show-progress" || _PROGRESS_OPT=""
+
+            wget q -c --directory-prefix="$TMP_DIR" "$_PROGRESS_OPT " "$url"
         fi
     else
-        wget -q -c --directory-prefix="$TMP_DIR" --show-progress "$url"
+        pushd "$TMP_DIR"
+        curl -L -OC0 "$url" --progress-bar
+        popd
     fi
 }
 
@@ -563,7 +566,7 @@ main() {
 
     if [ "$REMOVE_OLD" == "1" ] || [[ "$REMOVE_OLD" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         if [ -f "$IPATH/env" ]; then
-            bash <(wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -p "$IPATH" -q
+            bash <(curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -p "$IPATH" -q
         fi
     fi
 
@@ -576,12 +579,10 @@ main() {
 
     local _source=". \"$IPATH/env\""
     local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
-    if [ -f "$__HOME__/.profile" ]; then
-        if [ "$_grep" = "" ]; then
-            echo "$_source" >>"$__HOME__/.profile"
+    if [ "$_grep" = "" ]; then
+        if [ ! -f "$__HOME__/.profile" ]; then
+            echo "Generating $__HOME__/.profile"
         fi
-    else
-        echo "Generating $__HOME__/.profile"
         echo "$_source" >>"$__HOME__/.profile"
     fi
 
@@ -595,19 +596,22 @@ main() {
             echo "$_source" >>"$__HOME__/.zprofile"
         fi
     elif [[ "$_shell_" =~ "bash" ]]; then
-        local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
-        if [ "$_grep" = "" ]; then
-            echo "$_source" >>"$__HOME__/.bash_profile"
+        if [ ! -f "$__HOME__/.bashrc" ]; then
+            local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
+            if [ "$_grep" = "" ]; then
+                if [ ! -f "$__HOME__/.bash_profile" ]; then
+                    echo "Generating $__HOME__/.bash_profile"
+                fi
+                echo "$_source" >>"$__HOME__/.bash_profile"
+            fi
         fi
     fi
 
-    if [ -f "$__HOME__/$_shell_rc" ]; then
-        local _grep=$(cat "$__HOME__/$_shell_rc" | grep "$IPATH/env")
-        if [ "$_grep" = "" ]; then
-            echo "$_source" >>"$__HOME__/$_shell_rc"
+    local _grep=$(cat "$__HOME__/$_shell_rc" | grep "$IPATH/env")
+    if [ "$_grep" = "" ]; then
+        if [ ! -f "$__HOME__/$_shell_rc" ]; then
+            echo "Generating $__HOME__/$_shell_rc"
         fi
-    else
-        echo "Generating $__HOME__/$_shell_rc"
         echo "$_source" >>"$__HOME__/$_shell_rc"
     fi
 

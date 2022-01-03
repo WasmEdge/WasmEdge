@@ -117,7 +117,7 @@ thread_local Fault *localHandler = nullptr;
     assuming(Siginfo->si_code == FPE_INTDIV);
     Fault::emitFault(ErrCode::DivideByZero);
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 

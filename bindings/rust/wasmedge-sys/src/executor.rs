@@ -1,15 +1,28 @@
+//! Defines WasmEdge Executor.
+
 use super::wasmedge;
 use crate::{
     error::{check, Error, WasmEdgeResult},
-    string::StringRef,
     Config, ImportObj, Module, Statistics, Store, Value,
 };
 use std::ptr;
 
+/// Struct of WasmEdge Executor.
 pub struct Executor {
     ctx: *mut wasmedge::WasmEdge_ExecutorContext,
 }
 impl Executor {
+    /// Creates a new [`Executor`] to be associated with the given [`Config`] and [`Statistics`].
+    ///
+    /// # Arguments
+    ///
+    /// - `config` specifies the configuration of the new [`Executor`]. It is optional.
+    ///
+    /// - `stat` specifies the [`Statistics`] needed by the new [`Executor`]. It is optional.
+    ///
+    /// # Error
+    ///
+    /// If fail to create a [`Executor`], then an error is returned.
     pub fn create(conf: Option<&Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
         let conf = match conf {
             Some(conf) => conf.ctx,
@@ -32,7 +45,17 @@ impl Executor {
         }
     }
 
-    /// Register and instantiate WasmEdge import object into a store.
+    /// Registers and instantiates a WasmEdge [`ImportObj`] into a [`Store`].
+    ///
+    /// # Arguments
+    ///
+    /// - `store` specifies the target [`Store`], into which the given [`ImportObj`] is registered.
+    ///
+    /// - `imp_obj` specifies the WasmEdge [`ImportObj`] to be registered.
+    ///
+    /// # Error
+    ///
+    /// If fail to register the given [`ImportObj`], then an error is returned.
     pub fn register_import_object(
         self,
         store: &mut Store,
@@ -48,7 +71,22 @@ impl Executor {
         Ok(self)
     }
 
-    /// Register and instantiate WasmEdge AST Module into a store.
+    /// Registers and instantiates a WasmEdge AST [`Module`] into a store.
+    ///
+    /// Instantiates the instances in a WasmEdge AST [`Module`], and then registers the [`Module`] into
+    /// a [`Store`] with their exported names and the given [`Module`] name.
+    ///
+    /// # Arguments
+    ///
+    /// - `store` specifies the target [`Store`], into which the given [`Module`] is registered.
+    ///
+    /// - `ast_mod` specifies the AST [`Module`] to be registered.
+    ///
+    /// - `mod_name` specifies the [`Module`] name for all exported instances.
+    ///
+    /// # Error
+    ///
+    /// If fail to register the given [`Module`], then an error is returned.
     pub fn register_module(
         self,
         store: &mut Store,
@@ -60,7 +98,7 @@ impl Executor {
                 self.ctx,
                 store.ctx,
                 ast_mod.ctx,
-                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+                mod_name.into(),
             ))?;
             ast_mod.ctx = std::ptr::null_mut();
             ast_mod.registered = true;
@@ -68,7 +106,20 @@ impl Executor {
         Ok(self)
     }
 
-    /// Instantiate WasmEdge AST Module into a store.
+    /// Instantiates a WasmEdge AST [`Module`] into a [`Store`].
+    ///
+    /// Instantiates the WasmEdge AST [`Module`] as an active anonymous module in the [`Store`].
+    ///
+    ///
+    /// # Arguments
+    ///
+    /// - `store` specifies the [`Store`], in which the [`Module`] to be instantiated is stored.
+    ///
+    /// - `ast_mod` specifies the target [`Module`] to be instantiated.
+    ///
+    /// # Error
+    ///
+    /// If fail to instantiate the given [`Module`], then an error is returned.
     pub fn instantiate(self, store: &mut Store, ast_mod: &mut Module) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInstantiate(
@@ -82,7 +133,26 @@ impl Executor {
         Ok(self)
     }
 
-    /// Invoke a WASM function by name.
+    /// Invokes a WASM function in the anonymous [`Module`].
+    ///
+    /// After instantiating a WasmEdge [`Module`], the [`Module`] is registered as an
+    /// anonymous module in the [`Store`]; then, you can repeatedly call this function
+    /// to invoke exported WASM functions by their names until the [`Store`] is reset or
+    /// a new [`Module`] is registered or instantiated.
+    ///
+    /// For calling the functions in a registered [`Module`], reference `invoke_registered_function`.
+    ///
+    /// # Arguments
+    ///
+    /// - `store` specifies the target [`Store`] which owns the target function specified by `func_name`.
+    ///
+    /// - `func_name` specifies the name of the target function, which is stored in an anonymous module in `store`.
+    ///
+    /// - `params` specifies the argument values for the target function.
+    ///
+    /// # Error
+    ///
+    /// If fail to invoke the function specified by `func_name`, then an error is returned.
     pub fn invoke_function(
         &self,
         store: &Store,
@@ -110,7 +180,7 @@ impl Executor {
             check(wasmedge::WasmEdge_ExecutorInvoke(
                 self.ctx,
                 store.ctx,
-                StringRef::from(func_name.as_ref()).into(),
+                func_name.into(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -122,7 +192,22 @@ impl Executor {
         Ok(returns.into_iter().map(Into::into))
     }
 
-    /// Invoke a WASM function by its module name and function name.
+    /// Invokes a registered WASM function by its module name and function name.
+    ///
+    /// # Arguments
+    ///
+    /// - `store` specifies the target [`Store`] which owns the module and the target function.
+    ///
+    /// - `mod_name` specifies the name of the registered module.
+    ///
+    /// - `func_name` specifies the name of the target function.
+    ///
+    /// - `params` specifies the argument values for the target function.
+    ///
+    /// # Error
+    ///
+    /// If fail to invoke the target registered function, then an error is returned.
+    ///
     pub fn invoke_registered_function(
         &self,
         store: &Store,
@@ -151,8 +236,8 @@ impl Executor {
             check(wasmedge::WasmEdge_ExecutorInvokeRegistered(
                 self.ctx,
                 store.ctx,
-                StringRef::from(mod_name.as_ref()).into(),
-                StringRef::from(func_name.as_ref()).into(),
+                mod_name.into(),
+                func_name.into(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),

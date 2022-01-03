@@ -1,6 +1,9 @@
+//! Defines WasmEdge AOT Compiler.
+
 use crate::{error::check, utils, wasmedge, Config, Error, WasmEdgeResult};
 use std::path::Path;
 
+/// Struct of WasmEdge AOT Compiler.
 #[derive(Debug)]
 pub struct Compiler {
     pub(crate) ctx: *mut wasmedge::WasmEdge_CompilerContext,
@@ -13,7 +16,11 @@ impl Drop for Compiler {
     }
 }
 impl Compiler {
-    /// Create a Compiler instance
+    /// Creates a new AOT [`Compiler`].
+    ///
+    /// # Error
+    ///
+    /// If fail to create a AOT [`Compiler`], then an error is returned.
     pub fn create(config: &Config) -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_CompilerCreate(config.ctx) };
         match ctx.is_null() {
@@ -24,6 +31,17 @@ impl Compiler {
         }
     }
 
+    /// Compiles the input WASM from the given file path.
+    ///
+    /// # Arguments
+    ///
+    /// - `in_path` specifies the input WASM file path.
+    ///
+    /// - `out_path` specifies the output WASM file path.
+    ///
+    /// # Error
+    ///
+    /// If fail to compile, then an error is returned.
     pub fn compile(
         &self,
         in_path: impl AsRef<Path>,

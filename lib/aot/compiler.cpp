@@ -115,11 +115,6 @@ static llvm::Value *createLikely(llvm::IRBuilder<> &Builder,
                                  llvm::Value *Value);
 class FunctionCompiler;
 
-template <typename... Ts> struct overloaded : Ts... {
-  using Ts::operator()...;
-};
-template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
 /// XXX: Misalignment handler not implemented yet, forcing unalignment
 /// force unalignment load/store
 static inline constexpr const bool kForceUnalignment = true;
@@ -148,7 +143,7 @@ toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) {
   case OL::Oz:
     return llvm::PassBuilder::OptimizationLevel::Oz;
   default:
-    assuming(false);
+    assumingUnreachable();
   }
 }
 
@@ -300,7 +295,9 @@ struct WasmEdge::AOT::Compiler::CompileContext {
             /// CostTable
             llvm::ArrayType::get(Int64Ty, UINT16_MAX + 1)->getPointerTo(),
             /// Gas
-            Int64PtrTy)),
+            Int64PtrTy,
+            /// StopToken
+            llvm::Type::getInt32PtrTy(LLContext))),
         ExecCtxPtrTy(ExecCtxTy->getPointerTo()),
         IntrinsicsTableTy(llvm::ArrayType::get(
             Int8PtrTy, uint32_t(AST::Module::Intrinsics::kIntrinsicMax))),
@@ -386,6 +383,10 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   llvm::Value *getGas(llvm::IRBuilder<> &Builder, llvm::LoadInst *ExecCtx) {
     return Builder.CreateExtractValue(ExecCtx, {4});
   }
+  llvm::Value *getStopToken(llvm::IRBuilder<> &Builder,
+                            llvm::LoadInst *ExecCtx) {
+    return Builder.CreateExtractValue(ExecCtx, {5});
+  }
   llvm::FunctionCallee getIntrinsic(llvm::IRBuilder<> &Builder,
                                     AST::Module::Intrinsics Index,
                                     llvm::FunctionType *Ty) {
@@ -400,24 +401,22 @@ struct WasmEdge::AOT::Compiler::CompileContext {
                                 Builder.CreateLoad(Ty->getPointerTo(), Ptr));
   }
   std::pair<std::vector<ValType>, std::vector<ValType>>
-  resolveBlockType(const BlockType &Type) const {
+  resolveBlockType(const BlockType &BType) const {
     using VecT = std::vector<ValType>;
     using RetT = std::pair<VecT, VecT>;
-    return std::visit(overloaded{[](const ValType &VType) -> RetT {
-                                   if (VType == ValType::None) {
-                                     return RetT{};
-                                   }
-                                   return RetT{{}, {VType}};
-                                 },
-                                 [this](const uint32_t &Index) -> RetT {
-                                   const auto &FType = *FunctionTypes[Index];
-                                   return RetT{
-                                       VecT(FType.getParamTypes().begin(),
-                                            FType.getParamTypes().end()),
-                                       VecT(FType.getReturnTypes().begin(),
-                                            FType.getReturnTypes().end())};
-                                 }},
-                      Type);
+    if (BType.IsValType) {
+      if (BType.Data.Type == ValType::None) {
+        return RetT{};
+      }
+      return RetT{{}, {BType.Data.Type}};
+    } else {
+      /// Type index case. t2* = type[index].returns
+      const uint32_t TypeIdx = BType.Data.Idx;
+      const auto &FType = *FunctionTypes[TypeIdx];
+      return RetT{
+          VecT(FType.getParamTypes().begin(), FType.getParamTypes().end()),
+          VecT(FType.getReturnTypes().begin(), FType.getReturnTypes().end())};
+    }
   }
 };
 
@@ -446,8 +445,7 @@ static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
   case ValType::F64:
     return llvm::Type::getDoubleTy(LLContext);
   default:
-    assuming(false);
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 
@@ -509,8 +507,7 @@ static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
   case ValType::F64:
     return llvm::ConstantFP::get(llvm::Type::getDoubleTy(LLContext), 0.0);
   default:
-    assuming(false);
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 
@@ -519,9 +516,10 @@ class FunctionCompiler {
 
 public:
   FunctionCompiler(AOT::Compiler::CompileContext &Context, llvm::Function *F,
-                   Span<const ValType> Locals, bool InstructionCounting,
-                   bool GasMeasuring, bool OptNone)
-      : Context(Context), LLContext(Context.LLContext), OptNone(OptNone), F(F),
+                   Span<const ValType> Locals, bool Interruptible,
+                   bool InstructionCounting, bool GasMeasuring, bool OptNone)
+      : Context(Context), LLContext(Context.LLContext),
+        Interruptible(Interruptible), OptNone(OptNone), F(F),
         Builder(llvm::BasicBlock::Create(LLContext, "entry", F)) {
     if (F) {
       setIsFPConstrained(Builder);
@@ -614,6 +612,7 @@ public:
         }
         enterBlock(EndBlock, nullptr, nullptr, std::move(Args),
                    std::move(Type));
+        checkStop();
         return;
       }
       case OpCode::Loop: {
@@ -644,6 +643,7 @@ public:
           }
         }
         enterBlock(Loop, EndLoop, nullptr, std::move(Args), std::move(Type));
+        checkStop();
         return;
       }
       case OpCode::If: {
@@ -737,7 +737,7 @@ public:
         break;
       }
       case OpCode::Br_table: {
-        const auto &LabelTable = Instr.getLabelList();
+        auto LabelTable = Instr.getLabelList();
         assuming(LabelTable.size() <= std::numeric_limits<uint32_t>::max());
         const uint32_t LabelTableSize =
             static_cast<uint32_t>(LabelTable.size());
@@ -1812,42 +1812,42 @@ public:
         break;
       case OpCode::V128__load8_lane:
         compileLoadLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                          Instr.getTargetIndex(), Context.Int8Ty,
+                          Instr.getMemoryLane(), Context.Int8Ty,
                           Context.Int8x16Ty);
         break;
       case OpCode::V128__load16_lane:
         compileLoadLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                          Instr.getTargetIndex(), Context.Int16Ty,
+                          Instr.getMemoryLane(), Context.Int16Ty,
                           Context.Int16x8Ty);
         break;
       case OpCode::V128__load32_lane:
         compileLoadLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                          Instr.getTargetIndex(), Context.Int32Ty,
+                          Instr.getMemoryLane(), Context.Int32Ty,
                           Context.Int32x4Ty);
         break;
       case OpCode::V128__load64_lane:
         compileLoadLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                          Instr.getTargetIndex(), Context.Int64Ty,
+                          Instr.getMemoryLane(), Context.Int64Ty,
                           Context.Int64x2Ty);
         break;
       case OpCode::V128__store8_lane:
         compileStoreLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Instr.getTargetIndex(), Context.Int8Ty,
+                           Instr.getMemoryLane(), Context.Int8Ty,
                            Context.Int8x16Ty);
         break;
       case OpCode::V128__store16_lane:
         compileStoreLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Instr.getTargetIndex(), Context.Int16Ty,
+                           Instr.getMemoryLane(), Context.Int16Ty,
                            Context.Int16x8Ty);
         break;
       case OpCode::V128__store32_lane:
         compileStoreLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Instr.getTargetIndex(), Context.Int32Ty,
+                           Instr.getMemoryLane(), Context.Int32Ty,
                            Context.Int32x4Ty);
         break;
       case OpCode::V128__store64_lane:
         compileStoreLaneOp(Instr.getMemoryOffset(), Instr.getMemoryAlign(),
-                           Instr.getTargetIndex(), Context.Int64Ty,
+                           Instr.getMemoryLane(), Context.Int64Ty,
                            Context.Int64x2Ty);
         break;
       case OpCode::V128__const: {
@@ -1870,50 +1870,50 @@ public:
         break;
       }
       case OpCode::I8x16__extract_lane_s:
-        compileExtractLaneOp(Context.Int8x16Ty, Instr.getTargetIndex(),
+        compileExtractLaneOp(Context.Int8x16Ty, Instr.getMemoryLane(),
                              Context.Int32Ty, true);
         break;
       case OpCode::I8x16__extract_lane_u:
-        compileExtractLaneOp(Context.Int8x16Ty, Instr.getTargetIndex(),
+        compileExtractLaneOp(Context.Int8x16Ty, Instr.getMemoryLane(),
                              Context.Int32Ty, false);
         break;
       case OpCode::I8x16__replace_lane:
-        compileReplaceLaneOp(Context.Int8x16Ty, Instr.getTargetIndex());
+        compileReplaceLaneOp(Context.Int8x16Ty, Instr.getMemoryLane());
         break;
       case OpCode::I16x8__extract_lane_s:
-        compileExtractLaneOp(Context.Int16x8Ty, Instr.getTargetIndex(),
+        compileExtractLaneOp(Context.Int16x8Ty, Instr.getMemoryLane(),
                              Context.Int32Ty, true);
         break;
       case OpCode::I16x8__extract_lane_u:
-        compileExtractLaneOp(Context.Int16x8Ty, Instr.getTargetIndex(),
+        compileExtractLaneOp(Context.Int16x8Ty, Instr.getMemoryLane(),
                              Context.Int32Ty, false);
         break;
       case OpCode::I16x8__replace_lane:
-        compileReplaceLaneOp(Context.Int16x8Ty, Instr.getTargetIndex());
+        compileReplaceLaneOp(Context.Int16x8Ty, Instr.getMemoryLane());
         break;
       case OpCode::I32x4__extract_lane:
-        compileExtractLaneOp(Context.Int32x4Ty, Instr.getTargetIndex());
+        compileExtractLaneOp(Context.Int32x4Ty, Instr.getMemoryLane());
         break;
       case OpCode::I32x4__replace_lane:
-        compileReplaceLaneOp(Context.Int32x4Ty, Instr.getTargetIndex());
+        compileReplaceLaneOp(Context.Int32x4Ty, Instr.getMemoryLane());
         break;
       case OpCode::I64x2__extract_lane:
-        compileExtractLaneOp(Context.Int64x2Ty, Instr.getTargetIndex());
+        compileExtractLaneOp(Context.Int64x2Ty, Instr.getMemoryLane());
         break;
       case OpCode::I64x2__replace_lane:
-        compileReplaceLaneOp(Context.Int64x2Ty, Instr.getTargetIndex());
+        compileReplaceLaneOp(Context.Int64x2Ty, Instr.getMemoryLane());
         break;
       case OpCode::F32x4__extract_lane:
-        compileExtractLaneOp(Context.Floatx4Ty, Instr.getTargetIndex());
+        compileExtractLaneOp(Context.Floatx4Ty, Instr.getMemoryLane());
         break;
       case OpCode::F32x4__replace_lane:
-        compileReplaceLaneOp(Context.Floatx4Ty, Instr.getTargetIndex());
+        compileReplaceLaneOp(Context.Floatx4Ty, Instr.getMemoryLane());
         break;
       case OpCode::F64x2__extract_lane:
-        compileExtractLaneOp(Context.Doublex2Ty, Instr.getTargetIndex());
+        compileExtractLaneOp(Context.Doublex2Ty, Instr.getMemoryLane());
         break;
       case OpCode::F64x2__replace_lane:
-        compileReplaceLaneOp(Context.Doublex2Ty, Instr.getTargetIndex());
+        compileReplaceLaneOp(Context.Doublex2Ty, Instr.getMemoryLane());
         break;
       case OpCode::I8x16__swizzle: {
         auto *Index = Builder.CreateBitCast(stackPop(), Context.Int8x16Ty);
@@ -2651,7 +2651,7 @@ public:
         break;
 
       default:
-        assuming(false);
+        assumingUnreachable();
       }
       return;
     };
@@ -3713,6 +3713,25 @@ private:
     return Entry;
   }
 
+  void checkStop() {
+    if (!Interruptible) {
+      return;
+    }
+    auto *NotStopBB = llvm::BasicBlock::Create(LLContext, "NotStop", F);
+    auto *StopToken = Builder.CreateAtomicRMW(
+        llvm::AtomicRMWInst::BinOp::Xchg,
+        Context.getStopToken(Builder, ExecCtx), Builder.getInt32(0),
+#if LLVM_VERSION_MAJOR >= 13
+        llvm::MaybeAlign(),
+#endif
+        llvm::AtomicOrdering::Monotonic);
+    auto *NotStop = createLikely(
+        Builder, Builder.CreateICmpEQ(StopToken, Builder.getInt32(0)));
+    Builder.CreateCondBr(NotStop, NotStopBB, getTrapBB(ErrCode::Interrupted));
+
+    Builder.SetInsertPoint(NotStopBB);
+  }
+
   void setUnreachable() { IsUnreachable = true; }
 
   void clearUnreachable() { IsUnreachable = false; }
@@ -3802,6 +3821,7 @@ private:
   llvm::Value *LocalGas = nullptr;
   std::unordered_map<ErrCode, llvm::BasicBlock *> TrapBB;
   bool IsUnreachable = false;
+  bool Interruptible = false;
   bool OptNone = false;
   struct Control {
     size_t StackSize;
@@ -4643,6 +4663,7 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
       }
     }
     FunctionCompiler FC(*Context, F, Locals,
+                        Conf.getCompilerConfigure().isInterruptible(),
                         Conf.getStatisticsConfigure().isInstructionCounting(),
                         Conf.getStatisticsConfigure().isCostMeasuring(),
                         Conf.getCompilerConfigure().getOptimizationLevel() ==

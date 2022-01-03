@@ -44,45 +44,13 @@ Executor::runFunction(Runtime::StoreManager &StoreMgr,
     spdlog::debug(" Terminated.");
   }
 
-  /// Print time cost.
-  if (Stat) {
-    if (Conf.getStatisticsConfigure().isTimeMeasuring()) {
-      Stat->stopRecordWasm();
-    }
+  if (Stat && Conf.getStatisticsConfigure().isTimeMeasuring()) {
+    Stat->stopRecordWasm();
+  }
 
-    auto Nano = [](auto &&Duration) {
-      return std::chrono::nanoseconds(Duration).count();
-    };
-    if (Conf.getStatisticsConfigure().isTimeMeasuring() ||
-        Conf.getStatisticsConfigure().isInstructionCounting() ||
-        Conf.getStatisticsConfigure().isCostMeasuring()) {
-      spdlog::info("====================  Statistics  ====================");
-    }
-    if (Conf.getStatisticsConfigure().isTimeMeasuring()) {
-      spdlog::info(" Total execution time: {} ns",
-                   Nano(Stat->getTotalExecTime()));
-      spdlog::info(" Wasm instructions execution time: {} ns",
-                   Nano(Stat->getWasmExecTime()));
-      spdlog::info(" Host functions execution time: {} ns",
-                   Nano(Stat->getHostFuncExecTime()));
-    }
-    if (Conf.getStatisticsConfigure().isInstructionCounting()) {
-      spdlog::info(" Executed wasm instructions count: {}",
-                   Stat->getInstrCount());
-    }
-    if (Conf.getStatisticsConfigure().isCostMeasuring()) {
-      spdlog::info(" Gas costs: {}", Stat->getTotalCost());
-    }
-    if (Conf.getStatisticsConfigure().isInstructionCounting() &&
-        Conf.getStatisticsConfigure().isTimeMeasuring()) {
-      spdlog::info(" Instructions per second: {}",
-                   static_cast<uint64_t>(Stat->getInstrPerSecond()));
-    }
-    if (Conf.getStatisticsConfigure().isTimeMeasuring() ||
-        Conf.getStatisticsConfigure().isInstructionCounting() ||
-        Conf.getStatisticsConfigure().isCostMeasuring()) {
-      spdlog::info("=======================   End   ======================\n");
-    }
+  // If Statistics is enabled, then dump it here.
+  if (Stat) {
+    Stat->dumpToLog(Conf);
   }
 
   if (Res || Res.error() == ErrCode::Terminated) {
@@ -118,9 +86,13 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
       if (Stat && Conf.getStatisticsConfigure().isCostMeasuring()) {
         /// Reach here means end of if-statement.
         if (unlikely(!Stat->subInstrCost(Instr.getOpCode()))) {
+          spdlog::error(
+              ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
           return Unexpect(ErrCode::CostLimitExceeded);
         }
         if (unlikely(!Stat->addInstrCost(OpCode::End))) {
+          spdlog::error(
+              ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
           return Unexpect(ErrCode::CostLimitExceeded);
         }
       }
@@ -793,56 +765,55 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
     /// SIMD Lane Instructions
     case OpCode::I8x16__extract_lane_s:
       return runExtractLaneOp<int8_t, int32_t>(StackMgr.getTop(),
-                                               Instr.getTargetIndex());
+                                               Instr.getMemoryLane());
     case OpCode::I8x16__extract_lane_u:
       return runExtractLaneOp<uint8_t, uint32_t>(StackMgr.getTop(),
-                                                 Instr.getTargetIndex());
+                                                 Instr.getMemoryLane());
     case OpCode::I16x8__extract_lane_s:
       return runExtractLaneOp<int16_t, int32_t>(StackMgr.getTop(),
-                                                Instr.getTargetIndex());
+                                                Instr.getMemoryLane());
     case OpCode::I16x8__extract_lane_u:
       return runExtractLaneOp<uint16_t, uint32_t>(StackMgr.getTop(),
-                                                  Instr.getTargetIndex());
+                                                  Instr.getMemoryLane());
     case OpCode::I32x4__extract_lane:
       return runExtractLaneOp<uint32_t>(StackMgr.getTop(),
-                                        Instr.getTargetIndex());
+                                        Instr.getMemoryLane());
     case OpCode::I64x2__extract_lane:
       return runExtractLaneOp<uint64_t>(StackMgr.getTop(),
-                                        Instr.getTargetIndex());
+                                        Instr.getMemoryLane());
     case OpCode::F32x4__extract_lane:
-      return runExtractLaneOp<float>(StackMgr.getTop(), Instr.getTargetIndex());
+      return runExtractLaneOp<float>(StackMgr.getTop(), Instr.getMemoryLane());
     case OpCode::F64x2__extract_lane:
-      return runExtractLaneOp<double>(StackMgr.getTop(),
-                                      Instr.getTargetIndex());
+      return runExtractLaneOp<double>(StackMgr.getTop(), Instr.getMemoryLane());
     case OpCode::I8x16__replace_lane: {
       ValVariant Rhs = StackMgr.pop();
       return runReplaceLaneOp<uint32_t, uint8_t>(StackMgr.getTop(), Rhs,
-                                                 Instr.getTargetIndex());
+                                                 Instr.getMemoryLane());
     }
     case OpCode::I16x8__replace_lane: {
       ValVariant Rhs = StackMgr.pop();
       return runReplaceLaneOp<uint32_t, uint16_t>(StackMgr.getTop(), Rhs,
-                                                  Instr.getTargetIndex());
+                                                  Instr.getMemoryLane());
     }
     case OpCode::I32x4__replace_lane: {
       ValVariant Rhs = StackMgr.pop();
       return runReplaceLaneOp<uint32_t>(StackMgr.getTop(), Rhs,
-                                        Instr.getTargetIndex());
+                                        Instr.getMemoryLane());
     }
     case OpCode::I64x2__replace_lane: {
       ValVariant Rhs = StackMgr.pop();
       return runReplaceLaneOp<uint64_t>(StackMgr.getTop(), Rhs,
-                                        Instr.getTargetIndex());
+                                        Instr.getMemoryLane());
     }
     case OpCode::F32x4__replace_lane: {
       ValVariant Rhs = StackMgr.pop();
       return runReplaceLaneOp<float>(StackMgr.getTop(), Rhs,
-                                     Instr.getTargetIndex());
+                                     Instr.getMemoryLane());
     }
     case OpCode::F64x2__replace_lane: {
       ValVariant Rhs = StackMgr.pop();
       return runReplaceLaneOp<double>(StackMgr.getTop(), Rhs,
-                                      Instr.getTargetIndex());
+                                      Instr.getMemoryLane());
     }
 
       /// SIMD Numeric Instructions
@@ -1576,6 +1547,9 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
       /// Add cost. Note: if-else case should be processed additionally.
       if (Conf.getStatisticsConfigure().isCostMeasuring()) {
         if (unlikely(!Stat->addInstrCost(Code))) {
+          const AST::Instruction &Instr = *PC;
+          spdlog::error(
+              ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
           return Unexpect(ErrCode::CostLimitExceeded);
         }
       }

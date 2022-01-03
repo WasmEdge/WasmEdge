@@ -159,55 +159,56 @@ TEST(WasiCryptoTest, Encryption) {
   EXPECT_EQ(Msg, Msg3);
 }
 
-TEST(WasiCryptoTest, Session) {
-  WasiCryptoContext Ctx;
-
-  auto Msg = "test"_u8;
-  std::vector<uint8_t> Msg2(Msg.size(), 0);
-
-  std::array<uint8_t, 32> Squeezed;
-  std::array<uint8_t, 32> Squeezed2;
-  auto KeyHandle =
-      Ctx.symmetricKeyGenerate(SymmetricAlgorithm::Xoodyak128, std::nullopt)
-          .value();
-
-  auto SymmetricState = Ctx.symmetricStateOpen(SymmetricAlgorithm::Xoodyak128,
-                                               KeyHandle, std::nullopt)
-                            .value();
-
-  EXPECT_TRUE(Ctx.symmetricStateAbsorb(SymmetricState, "data"_u8).has_value());
-  EXPECT_TRUE(Ctx.symmetricStateSqueeze(SymmetricState, Squeezed).has_value());
-
-  std::vector<uint8_t> CiphertextWithTag(
-      Msg.size() + Ctx.symmetricStateMaxTagLen(SymmetricState).value());
-  Ctx.symmetricStateEncrypt(SymmetricState, CiphertextWithTag, Msg).value();
-
-  EXPECT_TRUE(
-      Ctx.symmetricStateAbsorb(SymmetricState, "more_data"_u8).has_value());
-
-  EXPECT_TRUE(Ctx.symmetricStateRatchet(SymmetricState).has_value());
-
-  EXPECT_TRUE(Ctx.symmetricStateSqueeze(SymmetricState, Squeezed).has_value());
-  EXPECT_TRUE(Ctx.symmetricStateClose(SymmetricState).has_value());
-
-  //
-
-  auto SymmetricState2 = Ctx.symmetricStateOpen(SymmetricAlgorithm::Xoodyak128,
-                                                KeyHandle, std::nullopt)
-                             .value();
-  EXPECT_TRUE(Ctx.symmetricStateAbsorb(SymmetricState2, "data"_u8).has_value());
-  EXPECT_TRUE(
-      Ctx.symmetricStateSqueeze(SymmetricState2, Squeezed2).has_value());
-
-  Ctx.symmetricStateDecrypt(SymmetricState2, Msg2, CiphertextWithTag).value();
-
-  EXPECT_TRUE(
-      Ctx.symmetricStateAbsorb(SymmetricState2, "more_data"_u8).has_value());
-
-  EXPECT_TRUE(Ctx.symmetricStateRatchet(SymmetricState2).has_value());
-
-  EXPECT_TRUE(
-      Ctx.symmetricStateSqueeze(SymmetricState2, Squeezed2).has_value());
-  EXPECT_TRUE(Ctx.symmetricStateClose(SymmetricState2).has_value());
-  EXPECT_EQ(Squeezed, Squeezed2);
-}
+// Not Implementation
+//TEST(WasiCryptoTest, Session) {
+//  WasiCryptoContext Ctx;
+//
+//  auto Msg = "test"_u8;
+//  std::vector<uint8_t> Msg2(Msg.size(), 0);
+//
+//  std::array<uint8_t, 32> Squeezed;
+//  std::array<uint8_t, 32> Squeezed2;
+//  auto KeyHandle =
+//      Ctx.symmetricKeyGenerate(SymmetricAlgorithm::Xoodyak128, std::nullopt)
+//          .value();
+//
+//  auto SymmetricState = Ctx.symmetricStateOpen(SymmetricAlgorithm::Xoodyak128,
+//                                               KeyHandle, std::nullopt)
+//                            .value();
+//
+//  EXPECT_TRUE(Ctx.symmetricStateAbsorb(SymmetricState, "data"_u8).has_value());
+//  EXPECT_TRUE(Ctx.symmetricStateSqueeze(SymmetricState, Squeezed).has_value());
+//
+//  std::vector<uint8_t> CiphertextWithTag(
+//      Msg.size() + Ctx.symmetricStateMaxTagLen(SymmetricState).value());
+//  Ctx.symmetricStateEncrypt(SymmetricState, CiphertextWithTag, Msg).value();
+//
+//  EXPECT_TRUE(
+//      Ctx.symmetricStateAbsorb(SymmetricState, "more_data"_u8).has_value());
+//
+//  EXPECT_TRUE(Ctx.symmetricStateRatchet(SymmetricState).has_value());
+//
+//  EXPECT_TRUE(Ctx.symmetricStateSqueeze(SymmetricState, Squeezed).has_value());
+//  EXPECT_TRUE(Ctx.symmetricStateClose(SymmetricState).has_value());
+//
+//  //
+//
+//  auto SymmetricState2 = Ctx.symmetricStateOpen(SymmetricAlgorithm::Xoodyak128,
+//                                                KeyHandle, std::nullopt)
+//                             .value();
+//  EXPECT_TRUE(Ctx.symmetricStateAbsorb(SymmetricState2, "data"_u8).has_value());
+//  EXPECT_TRUE(
+//      Ctx.symmetricStateSqueeze(SymmetricState2, Squeezed2).has_value());
+//
+//  Ctx.symmetricStateDecrypt(SymmetricState2, Msg2, CiphertextWithTag).value();
+//
+//  EXPECT_TRUE(
+//      Ctx.symmetricStateAbsorb(SymmetricState2, "more_data"_u8).has_value());
+//
+//  EXPECT_TRUE(Ctx.symmetricStateRatchet(SymmetricState2).has_value());
+//
+//  EXPECT_TRUE(
+//      Ctx.symmetricStateSqueeze(SymmetricState2, Squeezed2).has_value());
+//  EXPECT_TRUE(Ctx.symmetricStateClose(SymmetricState2).has_value());
+//  EXPECT_EQ(Squeezed, Squeezed2);
+//}

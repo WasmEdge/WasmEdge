@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/wrapper/aes_gcm.h"
-#include "common/errcode.h"
 #include "host/wasi_crypto/symmetric/tag.h"
 
 namespace WasmEdge {
@@ -33,7 +32,7 @@ WasiCryptoExpect<AesGcmCtx> AesGcmCtx::import(SymmetricAlgorithm Alg,
   }
 
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), Cipher, nullptr, Key.data(),
-                             Nonce.data(), Mode::Unchanged));
+                                    Nonce.data(), Mode::Unchanged));
 
   return AesGcmCtx{Alg, std::move(Ctx)};
 }
@@ -49,8 +48,8 @@ WasiCryptoExpect<void> AesGcmCtx::absorb(Span<const uint8_t> Data) {
 
 WasiCryptoExpect<std::vector<uint8_t>>
 AesGcmCtx::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
-  opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr, nullptr,
-                             Mode::Encrypt));
+  opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
+                                    nullptr, Mode::Encrypt));
   //  auto Nonce = Options.get("nonce");
   //  if (!Nonce) {
   //    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
@@ -61,8 +60,8 @@ AesGcmCtx::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
   //  }
 
   int ActualOutSize;
-  opensslAssuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize, Data.data(),
-                            Data.size()));
+  opensslAssuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize,
+                                   Data.data(), Data.size()));
 
   // we need check the equal.
   if (ActualOutSize < 0 ||
@@ -82,8 +81,8 @@ AesGcmCtx::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
   RawTagData.reserve(TagLen);
   RawTagData.resize(TagLen);
 
-  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_GCM_GET_TAG, TagLen,
-                               RawTagData.data()));
+  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_GET_TAG, TagLen,
+                                      RawTagData.data()));
 
   return RawTagData;
 }
@@ -91,15 +90,15 @@ AesGcmCtx::encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) {
 WasiCryptoExpect<__wasi_size_t>
 AesGcmCtx::decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
                            Span<const uint8_t> RawTag) {
-  opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr, nullptr,
-                             Mode::Decrypt));
+  opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
+                                    nullptr, Mode::Decrypt));
 
   int ActualOutSize;
-  opensslAssuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize, Data.data(),
-                            Data.size()));
+  opensslAssuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize,
+                                   Data.data(), Data.size()));
 
-  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_GCM_SET_TAG, TagLen,
-                               const_cast<uint8_t *>(RawTag.data())));
+  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_SET_TAG, TagLen,
+                                      const_cast<uint8_t *>(RawTag.data())));
 
   // Notice: Finalise the decryption. Normally ciphertext bytes may be written
   // at this stage, but this does not occur in GCM mode

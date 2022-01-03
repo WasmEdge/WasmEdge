@@ -52,6 +52,57 @@ ChaChaPolySymmetricState::make(SymmetricAlgorithm, std::optional<SymmetricKey>,
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
+WasiCryptoExpect<std::vector<uint8_t>>
+ChaChaPolySymmetricState::optionsGet(std::string_view Name) {
+  return Options.get(Name);
+}
+
+WasiCryptoExpect<uint64_t>
+ChaChaPolySymmetricState::optionsGetU64(std::string_view Name) {
+  return Options.getU64(Name);
+}
+
+WasiCryptoExpect<void> ChaChaPolySymmetricState::absorb(Span<const uint8_t> Data) {
+  return Ctx.absorb(Data);
+}
+
+WasiCryptoExpect<__wasi_size_t>
+ChaChaPolySymmetricState::encryptUnchecked(Span<uint8_t> Out,
+                                       Span<const uint8_t> Data) {
+  auto Tag = Ctx.encryptDetached(Out.first(Data.size()), Data);
+  if (!Tag) {
+    return WasiCryptoUnexpect(Tag);
+  }
+
+  std::copy(Tag->begin(), Tag->end(), Out.subspan(Data.size()).begin());
+
+  return Out.size();
+}
+
+WasiCryptoExpect<SymmetricTag>
+ChaChaPolySymmetricState::encryptDetachedUnchecked(Span<uint8_t> Out,
+                                               Span<const uint8_t> Data) {
+  auto Res = Ctx.encryptDetached(Out, Data);
+  if (!Res) {
+    return WasiCryptoUnexpect(Res);
+  }
+
+  return SymmetricTag{Alg, std::move(*Res)};
+}
+
+WasiCryptoExpect<__wasi_size_t>
+ChaChaPolySymmetricState::decryptUnchecked(Span<uint8_t> Out,
+                                       Span<uint8_t const> Data) {
+  return decryptDetachedUnchecked(Out, Data.first(Out.size()),
+                                  Data.subspan(Out.size()));
+}
+
+WasiCryptoExpect<__wasi_size_t> ChaChaPolySymmetricState::decryptDetachedUnchecked(
+    Span<uint8_t> Out, Span<const uint8_t> Data, Span<uint8_t const> RawTag) {
+  return Ctx.decryptDetached(Out, Data, RawTag);
+}
+
+
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

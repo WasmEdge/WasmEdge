@@ -11,7 +11,7 @@ You can install WasmEdge using our one-line installer.
 Your system should have `git` and `wget` as prerequisites.
 
 ```
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
 ```
 
 If you would like to install WasmEdge with its [Tensorflow and image processing extensions](https://www.secondstate.io/articles/wasi-tensorflow/), 
@@ -19,7 +19,7 @@ please run the following command. It will attempt to install
 Tensorflow and image shared libraries on your system.
 
 ```
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
 ```
 
 Run the following command to make the installed binary available 

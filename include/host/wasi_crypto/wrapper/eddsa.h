@@ -98,6 +98,7 @@ public:
   WasiCryptoExpect<EddsaSignCtx> sign();
 
 private:
+  std::vector<uint8_t> Cache;
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> MdCtx;
 };
 
@@ -111,6 +112,7 @@ public:
   WasiCryptoExpect<void> verify(Span<uint8_t const> Data);
 
 private:
+  std::vector<uint8_t> Cache;
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> MdCtx;
 };
 

@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 #include "host/wasi_crypto/signature/signature.h"
 
+#include <iostream>
 using namespace WasmEdge::Host::WASICrypto;
 using namespace std::literals;
 
@@ -14,6 +15,25 @@ WasmEdge::Span<uint8_t const> operator"" _u8(const char *Str,
   return {reinterpret_cast<uint8_t const *>(Str), Len};
 }
 
+//std::ostream &operator<<(std::ostream &Os, const std::vector<uint8_t> &Vec) {
+//  for (size_t Index = 0; Index <= Vec.size(); Index += 15) {
+//    std::cout << "              ";
+//    auto Diff = Vec.size() - Index;
+//    if (Diff >= 15) {
+//      for (auto B = Vec.begin() + Index; B < Vec.begin() + Index + 15; ++B) {
+//        Os << std::setw(2) << std::setfill('0') << std::hex
+//           << static_cast<unsigned int>(*B) << ":";
+//      }
+//    } else {
+//      for (auto B = Vec.begin() + Index; B < Vec.end(); ++B) {
+//        Os << std::setw(2) << std::setfill('0') << std::hex
+//           << static_cast<unsigned int>(*B) << ":";
+//      }
+//    }
+//    std::cout << "\n";
+//  }
+//  return Os;
+//}
 } // namespace
 
 TEST(WasiCryptoTest, TestSignaturesEcdsa) {
@@ -38,6 +58,8 @@ TEST(WasiCryptoTest, TestSignaturesEcdsa) {
       Ctx.keypairExport(KpHandle, __WASI_KEYPAIR_ENCODING_RAW).value();
   Raw = std::vector<uint8_t>(Ctx.arrayOutputLen(KpSerialized).value(), 0);
   Ctx.arrayOutputPull(KpSerialized, Raw).value();
+
+
   auto const Kp2Handle =
       Ctx.keypairImport(__WASI_ALGORITHM_TYPE_SIGNATURES, Alg, Raw,
                         __WASI_KEYPAIR_ENCODING_RAW)
@@ -104,20 +126,20 @@ TEST(WasiCryptoTest, TestSignaturesRsa) {
   auto PkHandle = Ctx.keypairPublickey(KpHandle).value();
 
   auto const PkSerialized =
-      Ctx.publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_LOCAL).value();
+      Ctx.publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_RAW).value();
   auto Raw = std::vector<uint8_t>(Ctx.arrayOutputLen(PkSerialized).value(), 0);
   Ctx.arrayOutputPull(PkSerialized, Raw).value();
   PkHandle = Ctx.publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES, Alg, Raw,
-                                 __WASI_PUBLICKEY_ENCODING_LOCAL)
+                                 __WASI_PUBLICKEY_ENCODING_RAW)
                  .value();
 
   auto const KpSerialized =
-      Ctx.keypairExport(KpHandle, __WASI_KEYPAIR_ENCODING_LOCAL).value();
+      Ctx.keypairExport(KpHandle, __WASI_KEYPAIR_ENCODING_RAW).value();
   Raw = std::vector<uint8_t>(Ctx.arrayOutputLen(KpSerialized).value(), 0);
   Ctx.arrayOutputPull(KpSerialized, Raw).value();
   auto const Kp2Handle =
       Ctx.keypairImport(__WASI_ALGORITHM_TYPE_SIGNATURES, Alg, Raw,
-                        __WASI_KEYPAIR_ENCODING_LOCAL)
+                        __WASI_KEYPAIR_ENCODING_RAW)
           .value();
   KpHandle = Kp2Handle;
 

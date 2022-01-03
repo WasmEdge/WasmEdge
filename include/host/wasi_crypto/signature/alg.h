@@ -35,7 +35,7 @@ tryFrom(std::string_view AlgStr) noexcept {
   if (AlgStr == "ECDSA_K256_SHA256") {
     return SignatureAlgorithm::ECDSA_K256_SHA256;
   }
-  if (AlgStr == "ED25519") {
+  if (AlgStr == "Ed25519") {
     return SignatureAlgorithm::Ed25519;
   }
   if (AlgStr == "RSA_PKCS1_2048_SHA256") {

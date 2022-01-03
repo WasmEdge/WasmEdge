@@ -36,10 +36,11 @@ enum class Proposal : uint8_t {
   ReferenceTypes,
   SIMD,
   TailCall,
+  MultiMemories,
   Annotations,
   Memory64,
-  Threads,
   ExceptionHandling,
+  Threads,
   FunctionReferences,
   Max
 };
@@ -57,10 +58,11 @@ static inline std::unordered_map<Proposal, std::string_view> ProposalStr = {
     {Proposal::ReferenceTypes, "Reference types"sv},
     {Proposal::SIMD, "Fixed-width SIMD"sv},
     {Proposal::TailCall, "Tail call"sv},
+    {Proposal::MultiMemories, "Multiple memories"sv},
     {Proposal::Annotations, "Custom Annotation Syntax in the Text Format"sv},
     {Proposal::Memory64, "Memory64"sv},
-    {Proposal::Threads, "Threads"sv},
     {Proposal::ExceptionHandling, "Exception handling"sv},
+    {Proposal::Threads, "Threads"sv},
     {Proposal::FunctionReferences, "Typed Function References"sv},
 };
 
@@ -81,10 +83,11 @@ enum WasmEdge_Proposal {
   WasmEdge_Proposal_ReferenceTypes,
   WasmEdge_Proposal_SIMD,
   WasmEdge_Proposal_TailCall,
+  WasmEdge_Proposal_MultiMemories,
   WasmEdge_Proposal_Annotations,
   WasmEdge_Proposal_Memory64,
-  WasmEdge_Proposal_Threads,
   WasmEdge_Proposal_ExceptionHandling,
+  WasmEdge_Proposal_Threads,
   WasmEdge_Proposal_FunctionReferences
 };
 

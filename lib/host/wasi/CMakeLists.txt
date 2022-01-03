@@ -20,12 +20,12 @@ wasmedge_add_library(wasmedgeHostModuleWasi
 target_include_directories(wasmedgeHostModuleWasi
   PUBLIC
   ${PROJECT_SOURCE_DIR}/thirdparty
+  ${PROJECT_SOURCE_DIR}/thirdparty/boost
 )
 
 target_link_libraries(wasmedgeHostModuleWasi
   PUBLIC
   Threads::Threads
-  Boost::boost
   wasmedgeSystem
 )
 

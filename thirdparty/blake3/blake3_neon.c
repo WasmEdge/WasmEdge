@@ -2,7 +2,12 @@
 
 #include <arm_neon.h>
 
-// TODO: This is probably incorrect for big-endian ARM. How should that work?
+#ifdef __ARM_BIG_ENDIAN
+#error "This implementation only supports little-endian ARM."
+// It might be that all we need for big-endian support here is to get the loads
+// and stores right, but step zero would be finding a way to test it in CI.
+#endif
+
 INLINE uint32x4_t loadu_128(const uint8_t src[16]) {
   // vld1q_u32 has alignment requirements. Don't use it.
   uint32x4_t x;

@@ -12,9 +12,10 @@ use std::{borrow::Cow, ffi::CStr, path::Path};
 
 /// Struct of WasmEdge AST (short for abstract syntax tree) Module.
 ///
-/// [`Module`] is the representation of WasmEdge AST Module concept, but not equivalent to *[W3C Module](https://www.w3.org/TR/wasm-core-1/#concepts%E2%91%A0)*. The initial state
-/// of a [`Module`] loaded from a file or buffer is a AST module; After the instantiation step, it "transform"s
-/// a module which is equivalent to W3C Module in semantics. The state transformation can be summarized
+/// [`Module`] is the representation of WasmEdge AST Module concept, but not equivalent to
+/// *[W3C Module](https://www.w3.org/TR/wasm-core-1/#concepts%E2%91%A0)*.
+/// The initial state of a [`Module`] loaded from a file or buffer is a AST module; After the instantiation step,
+/// it "transform"s a module which is equivalent to W3C Module in semantics. The state transformation can be summarized
 /// as below:
 ///
 /// `a WASM file ---<load>--> AST Module ---<instantiate>--> Module`
@@ -32,7 +33,7 @@ impl Drop for Module {
     }
 }
 impl Module {
-    /// Creates a [`Module`] from a WASM file.
+    /// Creates a WasmEdge AST [`Module`] from a WASM file.
     ///
     /// # Arguments
     ///
@@ -42,7 +43,20 @@ impl Module {
     ///
     /// # Error
     ///
-    /// If fail to create a [`Module`], then an error is returned.
+    /// If fail to create a [Module](crate::Module), then an error is returned.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use wasmedge_sys::{Config, Module};
+    /// use std::path::PathBuf;
+    ///
+    /// let path = PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/test.wasm");
+    /// let config = Config::create().expect("fail to create Config context");
+    /// // set configurations if needed
+    ///
+    /// let module = Module::create_from_file(&config, path).expect("fail to create a module from a wasm file");
+    /// ```
     pub fn create_from_file<P: AsRef<Path>>(config: &Config, path: P) -> WasmEdgeResult<Self> {
         let loader_ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config.ctx) };
         let mut ctx: *mut wasmedge::WasmEdge_ASTModuleContext = std::ptr::null_mut();
@@ -63,13 +77,13 @@ impl Module {
         })
     }
 
-    /// Creates a [`Module`] from a WASM buffer.
+    /// Creates a WasmEdge AST [`Module`] from a WASM binary buffer.
     ///
     /// # Arguments
     ///
     /// - `config` specifies the configuration used by the [Loader](crate::Loader) under the hood.
     ///
-    /// - `buffer` specifies the WASM buffer.
+    /// - `buffer` specifies the buffer of a WASM binary.
     ///
     /// # Error
     ///
@@ -123,12 +137,12 @@ impl Module {
         unsafe { wasmedge::WasmEdge_ASTModuleListImportsLength(self.ctx) }
     }
 
-    /// Returns the imports of the [`Module`].
+    /// Returns an iterator of the imports of the [`Module`].
     ///
     /// # Error
     ///
     /// If fail to get the imports, then an error is returned.
-    pub fn imports(&self) -> WasmEdgeResult<impl Iterator<Item = Import>> {
+    pub fn imports_iter(&self) -> WasmEdgeResult<impl Iterator<Item = Import>> {
         let size = self.count_of_imports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
@@ -144,12 +158,12 @@ impl Module {
         unsafe { wasmedge::WasmEdge_ASTModuleListExportsLength(self.ctx) }
     }
 
-    /// Returns the exports of the [`Module`].
+    /// Returns an iterator of the exports of the [`Module`].
     ///
     /// # Error
     ///
     /// If fail to get the exports, then an error is returned.
-    pub fn exports(&self) -> WasmEdgeResult<impl Iterator<Item = Export>> {
+    pub fn exports_iter(&self) -> WasmEdgeResult<impl Iterator<Item = Export>> {
         let size = self.count_of_exports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
@@ -473,7 +487,7 @@ impl Export {
 #[cfg(test)]
 mod tests {
     use super::Module;
-    use crate::Config;
+    use crate::{types::ExternType, Config};
 
     #[test]
     fn test_module_from_buffer() {
@@ -495,6 +509,76 @@ mod tests {
         assert!(result.is_ok());
         let module = result.unwrap();
         assert!(!module.ctx.is_null());
+
+        // check the counts of imports and exports
+        assert_eq!(module.count_of_imports(), 6);
+        assert_eq!(module.count_of_exports(), 16);
+
+        // check imports
+        let result = module.imports_iter();
+        assert!(result.is_ok());
+        let imports = result.unwrap();
+        for import in imports {
+            match import.ty() {
+                ExternType::Function => assert!(
+                    import.function_type(&module).is_ok()
+                        && import.global_type(&module).is_err()
+                        && import.memory_type(&module).is_err()
+                        && import.table_type(&module).is_err()
+                ),
+                ExternType::Global => assert!(
+                    import.function_type(&module).is_err()
+                        && import.global_type(&module).is_ok()
+                        && import.memory_type(&module).is_err()
+                        && import.table_type(&module).is_err()
+                ),
+                ExternType::Memory => assert!(
+                    import.function_type(&module).is_err()
+                        && import.global_type(&module).is_err()
+                        && import.memory_type(&module).is_ok()
+                        && import.table_type(&module).is_err()
+                ),
+                ExternType::Table => assert!(
+                    import.function_type(&module).is_err()
+                        && import.global_type(&module).is_err()
+                        && import.memory_type(&module).is_err()
+                        && import.table_type(&module).is_ok()
+                ),
+            }
+        }
+
+        // check exports
+        let result = module.exports_iter();
+        assert!(result.is_ok());
+        let exports = result.unwrap();
+        for export in exports {
+            match export.ty() {
+                ExternType::Function => assert!(
+                    export.function_type(&module).is_ok()
+                        && export.global_type(&module).is_err()
+                        && export.memory_type(&module).is_err()
+                        && export.table_type(&module).is_err()
+                ),
+                ExternType::Global => assert!(
+                    export.function_type(&module).is_err()
+                        && export.global_type(&module).is_ok()
+                        && export.memory_type(&module).is_err()
+                        && export.table_type(&module).is_err()
+                ),
+                ExternType::Memory => assert!(
+                    export.function_type(&module).is_err()
+                        && export.global_type(&module).is_err()
+                        && export.memory_type(&module).is_ok()
+                        && export.table_type(&module).is_err()
+                ),
+                ExternType::Table => assert!(
+                    export.function_type(&module).is_err()
+                        && export.global_type(&module).is_err()
+                        && export.memory_type(&module).is_err()
+                        && export.table_type(&module).is_ok()
+                ),
+            }
+        }
     }
 
     #[test]
@@ -512,5 +596,75 @@ mod tests {
         assert!(result.is_ok());
         let module = result.unwrap();
         assert!(!module.ctx.is_null());
+
+        // check the counts of imports and exports
+        assert_eq!(module.count_of_imports(), 6);
+        assert_eq!(module.count_of_exports(), 16);
+
+        // check imports
+        let result = module.imports_iter();
+        assert!(result.is_ok());
+        let imports = result.unwrap();
+        for import in imports {
+            match import.ty() {
+                ExternType::Function => assert!(
+                    import.function_type(&module).is_ok()
+                        && import.global_type(&module).is_err()
+                        && import.memory_type(&module).is_err()
+                        && import.table_type(&module).is_err()
+                ),
+                ExternType::Global => assert!(
+                    import.function_type(&module).is_err()
+                        && import.global_type(&module).is_ok()
+                        && import.memory_type(&module).is_err()
+                        && import.table_type(&module).is_err()
+                ),
+                ExternType::Memory => assert!(
+                    import.function_type(&module).is_err()
+                        && import.global_type(&module).is_err()
+                        && import.memory_type(&module).is_ok()
+                        && import.table_type(&module).is_err()
+                ),
+                ExternType::Table => assert!(
+                    import.function_type(&module).is_err()
+                        && import.global_type(&module).is_err()
+                        && import.memory_type(&module).is_err()
+                        && import.table_type(&module).is_ok()
+                ),
+            }
+        }
+
+        // check exports
+        let result = module.exports_iter();
+        assert!(result.is_ok());
+        let exports = result.unwrap();
+        for export in exports {
+            match export.ty() {
+                ExternType::Function => assert!(
+                    export.function_type(&module).is_ok()
+                        && export.global_type(&module).is_err()
+                        && export.memory_type(&module).is_err()
+                        && export.table_type(&module).is_err()
+                ),
+                ExternType::Global => assert!(
+                    export.function_type(&module).is_err()
+                        && export.global_type(&module).is_ok()
+                        && export.memory_type(&module).is_err()
+                        && export.table_type(&module).is_err()
+                ),
+                ExternType::Memory => assert!(
+                    export.function_type(&module).is_err()
+                        && export.global_type(&module).is_err()
+                        && export.memory_type(&module).is_ok()
+                        && export.table_type(&module).is_err()
+                ),
+                ExternType::Table => assert!(
+                    export.function_type(&module).is_err()
+                        && export.global_type(&module).is_err()
+                        && export.memory_type(&module).is_err()
+                        && export.table_type(&module).is_ok()
+                ),
+            }
+        }
     }
 }

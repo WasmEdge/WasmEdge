@@ -540,6 +540,23 @@ public:
                             __wasi_siflags_t SiFlags,
                             __wasi_size_t &NWritten) const noexcept;
 
+  /// Send a message on a socket.
+  ///
+  /// Note: This is similar to `sendto` in POSIX, though it also supports
+  /// writing the data from multiple buffers in the manner of `writev`.
+  ///
+  /// @param[in] SiData List of scatter/gather vectors to which to retrieve
+  /// data.
+  /// @param[in] SiFlags Message flags.
+  /// @param[in] Address Address of the target.
+  /// @param[in] AddressLength The buffer size of Address.
+  /// @param[out] NWritten The number of bytes transmitted.
+  /// @return Nothing or WASI error
+  WasiExpect<void> sockSendTo(Span<Span<const uint8_t>> SiData,
+                              __wasi_siflags_t SiFlags, uint8_t *Address,
+                              uint8_t AddressLength,
+                              __wasi_size_t &NWritten) const noexcept;
+
   /// Shut down socket send and receive channels.
   ///
   /// Note: This is similar to `shutdown` in POSIX.

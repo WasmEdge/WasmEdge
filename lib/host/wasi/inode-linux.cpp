@@ -1062,6 +1062,38 @@ WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>> SiData,
   return {};
 }
 
+WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
+                                   __wasi_siflags_t, uint8_t *Address,
+                                   uint8_t AddressLength,
+                                   __wasi_size_t &NWritten) const noexcept {
+  int SysSiFlags = 0;
+
+  iovec SysIOVs[kIOVMax];
+  size_t SysIOVsSize = 0;
+  for (auto &IOV : SiData) {
+    SysIOVs[SysIOVsSize].iov_base = const_cast<uint8_t *>(IOV.data());
+    SysIOVs[SysIOVsSize].iov_len = IOV.size();
+    ++SysIOVsSize;
+  }
+
+  msghdr SysMsgHdr;
+  SysMsgHdr.msg_name = Address;
+  SysMsgHdr.msg_namelen = AddressLength;
+  SysMsgHdr.msg_iov = SysIOVs;
+  SysMsgHdr.msg_iovlen = SysIOVsSize;
+  SysMsgHdr.msg_control = nullptr;
+  SysMsgHdr.msg_controllen = 0;
+
+  /// Store recv bytes length and flags.
+  if (auto Res = ::sendmsg(Fd, &SysMsgHdr, SysSiFlags); unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  } else {
+    NWritten = Res;
+  }
+
+  return {};
+}
+
 WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
   int SysFlags = 0;
   if (SdFlags == __WASI_SDFLAGS_RD) {

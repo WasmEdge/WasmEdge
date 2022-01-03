@@ -15,5 +15,9 @@ target_include_directories(wasmedgeSystem
 target_link_libraries(wasmedgeSystem
   PUBLIC
   wasmedgeCommon
-  Boost::boost
+)
+
+target_include_directories(wasmedgeSystem
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/thirdparty/boost
 )

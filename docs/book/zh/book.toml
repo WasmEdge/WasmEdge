@@ -2,13 +2,13 @@
 title = "WasmEdge Runtime"
 description = ""
 author = ["Second State", "Michael Yuan", "Vivian Hu", "Miley Fu"]
-language = "en"
+language = "zh"
 
 [output.html]
 git-repository-url = "https://github.com/WasmEdge/WasmEdge"
 git-repository-icon = "fa-github"
-edit-url-template = "https://github.com/WasmEdge/WasmEdge/tree/master/docs/book/en/{path}"
-site-url = "/book/en/"
+edit-url-template = "https://github.com/WasmEdge/WasmEdge/tree/master/docs/book/zh/{path}"
+site-url = "/book/zh/"
 cname = "wasmedge.org"
 
 [output.html.playground]

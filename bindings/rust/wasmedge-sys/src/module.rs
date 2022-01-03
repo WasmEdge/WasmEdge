@@ -130,7 +130,7 @@ impl Module {
     }
 
     /// Returns the imports of the [`Module`].
-    pub fn imports(&self) -> impl Iterator<Item = Import> {
+    pub fn imports_iter(&self) -> impl Iterator<Item = Import> {
         let size = self.count_of_imports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
@@ -147,7 +147,7 @@ impl Module {
     }
 
     /// Returns the exports of the [`Module`].
-    pub fn exports(&self) -> impl Iterator<Item = Export> {
+    pub fn exports_iter(&self) -> impl Iterator<Item = Export> {
         let size = self.count_of_exports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
@@ -471,7 +471,7 @@ impl Export {
 #[cfg(test)]
 mod tests {
     use super::Module;
-    use crate::{types::ExternType, Config};
+    use crate::{types::ExternalType, Config};
 
     #[test]
     fn test_module_from_buffer() {
@@ -499,30 +499,28 @@ mod tests {
         assert_eq!(module.count_of_exports(), 16);
 
         // check imports
-        let result = module.imports_iter();
-        assert!(result.is_ok());
-        let imports = result.unwrap();
-        for import in imports {
+        let imports_iter = module.imports_iter();
+        for import in imports_iter {
             match import.ty() {
-                ExternType::Function => assert!(
+                ExternalType::Function => assert!(
                     import.function_type(&module).is_ok()
                         && import.global_type(&module).is_err()
                         && import.memory_type(&module).is_err()
                         && import.table_type(&module).is_err()
                 ),
-                ExternType::Global => assert!(
+                ExternalType::Global => assert!(
                     import.function_type(&module).is_err()
                         && import.global_type(&module).is_ok()
                         && import.memory_type(&module).is_err()
                         && import.table_type(&module).is_err()
                 ),
-                ExternType::Memory => assert!(
+                ExternalType::Memory => assert!(
                     import.function_type(&module).is_err()
                         && import.global_type(&module).is_err()
                         && import.memory_type(&module).is_ok()
                         && import.table_type(&module).is_err()
                 ),
-                ExternType::Table => assert!(
+                ExternalType::Table => assert!(
                     import.function_type(&module).is_err()
                         && import.global_type(&module).is_err()
                         && import.memory_type(&module).is_err()
@@ -532,30 +530,28 @@ mod tests {
         }
 
         // check exports
-        let result = module.exports_iter();
-        assert!(result.is_ok());
-        let exports = result.unwrap();
-        for export in exports {
+        let exports_iter = module.exports_iter();
+        for export in exports_iter {
             match export.ty() {
-                ExternType::Function => assert!(
+                ExternalType::Function => assert!(
                     export.function_type(&module).is_ok()
                         && export.global_type(&module).is_err()
                         && export.memory_type(&module).is_err()
                         && export.table_type(&module).is_err()
                 ),
-                ExternType::Global => assert!(
+                ExternalType::Global => assert!(
                     export.function_type(&module).is_err()
                         && export.global_type(&module).is_ok()
                         && export.memory_type(&module).is_err()
                         && export.table_type(&module).is_err()
                 ),
-                ExternType::Memory => assert!(
+                ExternalType::Memory => assert!(
                     export.function_type(&module).is_err()
                         && export.global_type(&module).is_err()
                         && export.memory_type(&module).is_ok()
                         && export.table_type(&module).is_err()
                 ),
-                ExternType::Table => assert!(
+                ExternalType::Table => assert!(
                     export.function_type(&module).is_err()
                         && export.global_type(&module).is_err()
                         && export.memory_type(&module).is_err()
@@ -586,30 +582,28 @@ mod tests {
         assert_eq!(module.count_of_exports(), 16);
 
         // check imports
-        let result = module.imports_iter();
-        assert!(result.is_ok());
-        let imports = result.unwrap();
-        for import in imports {
+        let imports_iter = module.imports_iter();
+        for import in imports_iter {
             match import.ty() {
-                ExternType::Function => assert!(
+                ExternalType::Function => assert!(
                     import.function_type(&module).is_ok()
                         && import.global_type(&module).is_err()
                         && import.memory_type(&module).is_err()
                         && import.table_type(&module).is_err()
                 ),
-                ExternType::Global => assert!(
+                ExternalType::Global => assert!(
                     import.function_type(&module).is_err()
                         && import.global_type(&module).is_ok()
                         && import.memory_type(&module).is_err()
                         && import.table_type(&module).is_err()
                 ),
-                ExternType::Memory => assert!(
+                ExternalType::Memory => assert!(
                     import.function_type(&module).is_err()
                         && import.global_type(&module).is_err()
                         && import.memory_type(&module).is_ok()
                         && import.table_type(&module).is_err()
                 ),
-                ExternType::Table => assert!(
+                ExternalType::Table => assert!(
                     import.function_type(&module).is_err()
                         && import.global_type(&module).is_err()
                         && import.memory_type(&module).is_err()
@@ -619,30 +613,28 @@ mod tests {
         }
 
         // check exports
-        let result = module.exports_iter();
-        assert!(result.is_ok());
-        let exports = result.unwrap();
-        for export in exports {
+        let exports_iter = module.exports_iter();
+        for export in exports_iter {
             match export.ty() {
-                ExternType::Function => assert!(
+                ExternalType::Function => assert!(
                     export.function_type(&module).is_ok()
                         && export.global_type(&module).is_err()
                         && export.memory_type(&module).is_err()
                         && export.table_type(&module).is_err()
                 ),
-                ExternType::Global => assert!(
+                ExternalType::Global => assert!(
                     export.function_type(&module).is_err()
                         && export.global_type(&module).is_ok()
                         && export.memory_type(&module).is_err()
                         && export.table_type(&module).is_err()
                 ),
-                ExternType::Memory => assert!(
+                ExternalType::Memory => assert!(
                     export.function_type(&module).is_err()
                         && export.global_type(&module).is_err()
                         && export.memory_type(&module).is_ok()
                         && export.table_type(&module).is_err()
                 ),
-                ExternType::Table => assert!(
+                ExternalType::Table => assert!(
                     export.function_type(&module).is_err()
                         && export.global_type(&module).is_err()
                         && export.memory_type(&module).is_err()

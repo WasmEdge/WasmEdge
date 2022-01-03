@@ -1,8 +1,9 @@
 use crate::error::WasmEdgeResult;
-use std::{ffi::CString, os::unix::ffi::OsStrExt, path::Path};
+use std::{ffi::CString, path::Path};
 
 #[cfg(unix)]
 pub fn path_to_cstring(path: &Path) -> WasmEdgeResult<CString> {
+    use std::os::unix::ffi::OsStrExt;
     Ok(CString::new(path.as_os_str().as_bytes())?)
 }
 

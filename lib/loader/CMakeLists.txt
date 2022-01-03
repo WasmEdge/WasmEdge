@@ -36,6 +36,10 @@ target_link_libraries(wasmedgeLoader
   PUBLIC
   wasmedgeCommon
   wasmedgeLoaderFileMgr
-  Boost::boost
   std::filesystem
+)
+
+target_include_directories(wasmedgeLoader
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/thirdparty/boost
 )

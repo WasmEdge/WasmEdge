@@ -25,17 +25,20 @@ _ldconfig() {
 
 _downloader() {
     local url=$1
-    if ! command -v wget &>/dev/null; then
-        if command -v curl &>/dev/null; then
-            pushd "$TMP_DIR"
-            curl -L -OC0 "$url" --progress-bar
-            popd
-        else
+    if ! command -v curl &>/dev/null; then
+        if ! command -v wget &>/dev/null; then
             echo "${RED}Please install wget or curl${NC}"
             exit 1
+        else
+            wget --help | grep -q '\--show-progress' &&
+                _PROGRESS_OPT="--show-progress" || _PROGRESS_OPT=""
+
+            wget q -c --directory-prefix="$TMP_DIR" "$_PROGRESS_OPT " "$url"
         fi
     else
-        wget -q -c --directory-prefix="$TMP_DIR" --show-progress "$url"
+        pushd "$TMP_DIR"
+        curl -L -OC0 "$url" --progress-bar
+        popd
     fi
 }
 
@@ -563,7 +566,7 @@ main() {
 
     if [ "$REMOVE_OLD" == "1" ] || [[ "$REMOVE_OLD" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         if [ -f "$IPATH/env" ]; then
-            bash <(wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -p "$IPATH" -q
+            bash <(curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -p "$IPATH" -q
         fi
     fi
 

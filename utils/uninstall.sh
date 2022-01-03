@@ -259,6 +259,8 @@ main() {
         echo "${YELLOW}Sourcing not found in ${__HOME__}/${_shell_rc} ${NC}"
         exit 1
     fi
+
+    exit 0
 }
 
 main "$@"

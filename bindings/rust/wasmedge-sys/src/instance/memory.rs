@@ -5,7 +5,10 @@
 //! the limit range specifies min size (initial size) of that memory, while the end
 //! restricts the size to which the memory can grow later.
 
-use crate::{error::check, wasmedge, Error, WasmEdgeResult};
+use crate::{
+    error::{check, MemError},
+    wasmedge, WasmEdgeError, WasmEdgeResult,
+};
 use std::ops::RangeInclusive;
 
 /// Struct of WasmEdge Memory.
@@ -41,9 +44,7 @@ impl Memory {
         let ctx = unsafe { wasmedge::WasmEdge_MemoryInstanceCreate(mem_ty.ctx) };
         mem_ty.ctx = std::ptr::null_mut();
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create Memory instance",
-            ))),
+            true => Err(WasmEdgeError::Mem(MemError::Create)),
             false => Ok(Memory {
                 ctx,
                 registered: false,
@@ -60,9 +61,7 @@ impl Memory {
     pub fn ty(&self) -> WasmEdgeResult<MemType> {
         let ty_ctx = unsafe { wasmedge::WasmEdge_MemoryInstanceGetMemoryType(self.ctx) };
         match ty_ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get type info from a Memory instance",
-            ))),
+            true => Err(WasmEdgeError::Mem(MemError::Type)),
             false => Ok(MemType {
                 ctx: ty_ctx as *mut _,
                 registered: true,
@@ -111,7 +110,7 @@ impl Memory {
     /// then an error is returned.
     ///
     /// ```
-    /// use wasmedge_sys::{Error, WasmEdgeError, Memory};
+    /// use wasmedge_sys::{error::{CoreError, CoreExecutionError}, WasmEdgeError, Memory};
     ///
     /// // create a Memory: the min size 1 and the max size 2
     /// let mut mem = Memory::create(1..=2).expect("fail to create a Memory");
@@ -119,10 +118,7 @@ impl Memory {
     /// // set data and the data length is larger than the data size in the memory
     /// let result = mem.set_data(vec![1; 10], u32::pow(2, 16) - 9);
     /// assert!(result.is_err());
-    /// match result.unwrap_err() {
-    ///     Error::WasmEdgeError(WasmEdgeError { code, message: _ }) => assert!(code == 136),
-    ///     _ => assert!(false),
-    /// }
+    /// assert_eq!(result.unwrap_err(), WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::MemoryOutOfBounds)));
     /// ```
     ///
     /// # Example
@@ -179,16 +175,12 @@ impl Memory {
         let ptr =
             unsafe { wasmedge::WasmEdge_MemoryInstanceGetPointerConst(self.ctx, offset, len) };
         match ptr.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get the const data pointer in the memory instance",
-            ))),
+            true => Err(WasmEdgeError::Mem(MemError::ConstPtr)),
             false => {
                 let result = unsafe { ptr.as_ref() };
                 match result {
                     Some(ptr) => Ok(ptr),
-                    None => Err(Error::OperationError(String::from(
-                        "fail to convert the raw const data pointer into a reference",
-                    ))),
+                    None => Err(WasmEdgeError::Mem(MemError::Ptr2Ref)),
                 }
             }
         }
@@ -210,16 +202,12 @@ impl Memory {
     pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<&mut u8> {
         let ptr = unsafe { wasmedge::WasmEdge_MemoryInstanceGetPointer(self.ctx, offset, len) };
         match ptr.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get the data pointer in the memory instance",
-            ))),
+            true => Err(WasmEdgeError::Mem(MemError::MutPtr)),
             false => {
                 let result = unsafe { ptr.as_mut() };
                 match result {
                     Some(ptr) => Ok(ptr),
-                    None => Err(Error::OperationError(String::from(
-                        "fail to convert the raw data pointer into a reference",
-                    ))),
+                    None => Err(WasmEdgeError::Mem(MemError::Ptr2Ref)),
                 }
             }
         }
@@ -313,9 +301,7 @@ impl MemType {
         let ctx =
             unsafe { wasmedge::WasmEdge_MemoryTypeCreate(wasmedge::WasmEdge_Limit::from(limit)) };
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create MemType instance",
-            ))),
+            true => Err(WasmEdgeError::MemTypeCreate),
             false => Ok(Self {
                 ctx,
                 registered: false,
@@ -350,7 +336,7 @@ impl Drop for MemType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::WasmEdgeError;
+    use crate::error::{CoreError, CoreExecutionError, WasmEdgeError};
 
     #[test]
     fn test_memtype() {
@@ -436,10 +422,10 @@ mod tests {
         // set data and the data length is larger than the data size in the memory
         let result = mem.set_data(vec![1; 10], u32::pow(2, 16) - 9);
         assert!(result.is_err());
-        match result.unwrap_err() {
-            Error::WasmEdgeError(WasmEdgeError { code, message: _ }) => assert!(code == 0x88u32),
-            _ => panic!(),
-        }
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::MemoryOutOfBounds))
+        );
 
         // grow the memory size
         let result = mem.grow(1);

@@ -53,7 +53,10 @@ pub use compiler::Compiler;
 #[doc(inline)]
 pub use config::Config;
 #[doc(inline)]
-pub use error::{Error, WasmEdgeError, WasmEdgeResult};
+pub use error::{
+    ExportError, FuncError, GlobalError, ImportError, StoreError, TableError, VmError,
+    WasmEdgeError, WasmEdgeResult,
+};
 #[doc(inline)]
 pub use executor::Executor;
 #[doc(inline)]
@@ -77,7 +80,8 @@ pub use statistics::Statistics;
 pub use store::Store;
 #[doc(inline)]
 pub use types::{
-    CompilerOptimizationLevel, CompilerOutputFormat, Mutability, RefType, ValType, Value,
+    CompilerOptimizationLevel, CompilerOutputFormat, ExternalType, Mutability, RefType, ValType,
+    Value,
 };
 #[doc(inline)]
 pub use validator::Validator;

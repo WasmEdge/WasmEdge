@@ -2,7 +2,7 @@
 
 use crate::{
     types::{CompilerOptimizationLevel, CompilerOutputFormat},
-    wasmedge, Error, WasmEdgeResult,
+    wasmedge, WasmEdgeError, WasmEdgeResult,
 };
 
 /// Struct of WasmEdge Config.
@@ -138,9 +138,7 @@ impl Config {
     pub fn create() -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_ConfigureCreate() };
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create Config instance",
-            ))),
+            true => Err(WasmEdgeError::ConfigCreate),
             false => Ok(Self { ctx }),
         }
     }

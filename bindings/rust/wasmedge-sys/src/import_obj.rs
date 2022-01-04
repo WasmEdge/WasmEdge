@@ -4,7 +4,7 @@ use super::wasmedge;
 use crate::{
     instance::{Function, Global, Memory, Table},
     utils::string_to_c_char,
-    Error, WasmEdgeResult,
+    WasmEdgeError, WasmEdgeResult,
 };
 
 /// Struct of WasmEdge ImportObj.
@@ -30,9 +30,7 @@ impl ImportObj {
         let raw_module_name = name.into();
         let ctx = unsafe { wasmedge::WasmEdge_ImportObjectCreate(raw_module_name) };
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create ImportObj instance",
-            ))),
+            true => Err(WasmEdgeError::ImportObjCreate),
             false => Ok(ImportObj {
                 ctx,
                 registered: false,
@@ -98,9 +96,7 @@ impl ImportObj {
             )
         };
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create ImportObj for the WASI Specification",
-            ))),
+            true => Err(WasmEdgeError::ImportObjCreate),
             false => Ok(ImportObj {
                 ctx,
                 registered: false,
@@ -194,9 +190,7 @@ impl ImportObj {
         let ctx =
             unsafe { wasmedge::WasmEdge_ImportObjectCreateWasmEdgeProcess(cmds, cmds_len, allow) };
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to an ImportObj instance for the wasmedge_process specification",
-            ))),
+            true => Err(WasmEdgeError::ImportObjCreate),
             false => Ok(Self {
                 ctx,
                 registered: false,

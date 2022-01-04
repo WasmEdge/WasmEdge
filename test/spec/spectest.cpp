@@ -50,18 +50,23 @@ void resolveRegister(std::map<std::string, std::string> &Alias,
       /// Record last module in order.
       ItMod = It;
     } else if (CmdType == "register"sv) {
-      const auto NewName = It->GetObject()["as"].Get<std::string>();
+      const auto NewNameStr = It->GetObject()["as"].Get<std::string>();
+      auto OrgName = ItMod->FindMember("name");
       if (It->GetObject().HasMember("name")) {
-        /// Set aliasing.
-        Alias.emplace(It->GetObject()["name"].Get<std::string>(), NewName);
+        /// Register command records the original name. Set aliasing.
+        Alias.emplace(It->GetObject()["name"].Get<std::string>(), NewNameStr);
+      } else if (OrgName != ItMod->MemberEnd()) {
+        /// Register command not records the original name. Get name from
+        /// the module.
+        Alias.emplace(OrgName->value.Get<std::string>(), NewNameStr);
       }
-      if (auto Name = ItMod->FindMember("name"); Name != ItMod->MemberEnd()) {
+      if (OrgName != ItMod->MemberEnd()) {
         /// Module has origin name. Replace to aliased one.
-        Name->value.SetString(NewName, Allocator);
+        OrgName->value.SetString(NewNameStr, Allocator);
       } else {
         /// Module has no origin name. Add the aliased one.
         rapidjson::Value Text;
-        Text.SetString(NewName, Allocator);
+        Text.SetString(NewNameStr, Allocator);
         ItMod->AddMember("name", Text, Allocator);
       }
     }

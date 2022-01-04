@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 //===-- wasmedge/runtime/instance/function.h - Function Instance definition ==//
 //
 // Part of the WasmEdge Project.
@@ -88,7 +90,7 @@ public:
   }
 
   /// Getter of symbol
-  auto getSymbol() const noexcept {
+  auto &getSymbol() const noexcept {
     return *std::get_if<Symbol<CompiledFunction>>(&Data);
   }
 

@@ -2,6 +2,7 @@
 title = "WasmEdge Runtime"
 description = ""
 author = ["Second State", "Michael Yuan", "Vivian Hu", "Miley Fu"]
+language = "en"
 
 [output.html]
 git-repository-url = "https://github.com/WasmEdge/WasmEdge"

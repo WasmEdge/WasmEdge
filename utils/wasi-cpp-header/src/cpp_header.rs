@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 use heck::ShoutySnakeCase;
 use witx::*;
 
@@ -6,7 +8,10 @@ pub fn to_cpp_header(doc: &Document, inputs_str: &str) -> String {
     let mut ret = String::new();
 
     ret.push_str(&format!(
-        r#"/**
+        r#"// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
+/**
  * THIS FILE IS AUTO-GENERATED from the following files:
  *   {}
  *

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "wasmedge/wasmedge.h"
 #include "gtest/gtest.h"
@@ -1611,6 +1612,7 @@ TEST(APICoreTest, Store) {
   WasmEdge_StringDelete(ModName[0]);
   WasmEdge_StringDelete(ModName[1]);
   WasmEdge_StringDelete(ModName[2]);
+  WasmEdge_StringDelete(ErrName);
   WasmEdge_StoreDelete(Store);
   WasmEdge_ImportObjectDelete(ImpObj);
 }

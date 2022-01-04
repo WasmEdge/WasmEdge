@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 # Add the git command here to support describing version without the root CMakeList.
 find_program(GIT_CMD git)

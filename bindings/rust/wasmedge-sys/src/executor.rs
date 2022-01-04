@@ -2,13 +2,15 @@
 
 use super::wasmedge;
 use crate::{
-    error::{check, Error, WasmEdgeResult},
-    string::StringRef,
+    error::{check, WasmEdgeError, WasmEdgeResult},
     Config, ImportObj, Module, Statistics, Store, Value,
 };
 use std::ptr;
 
 /// Struct of WasmEdge Executor.
+///
+/// [`Executor`] defines an execution environment for both WASM and compiled WASM. It works based on the
+/// [Store](crate::Store).
 pub struct Executor {
     ctx: *mut wasmedge::WasmEdge_ExecutorContext,
 }
@@ -39,9 +41,7 @@ impl Executor {
         };
         let raw = unsafe { wasmedge::WasmEdge_ExecutorCreate(conf, stat_ctx) };
         match raw.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create Executor instance",
-            ))),
+            true => Err(WasmEdgeError::ExecutorCreate),
             false => Ok(Executor { ctx: raw }),
         }
     }
@@ -99,7 +99,7 @@ impl Executor {
                 self.ctx,
                 store.ctx,
                 ast_mod.ctx,
-                wasmedge::WasmEdge_String::from(StringRef::from(mod_name.as_ref())),
+                mod_name.into(),
             ))?;
             ast_mod.ctx = std::ptr::null_mut();
             ast_mod.registered = true;
@@ -107,20 +107,24 @@ impl Executor {
         Ok(self)
     }
 
-    /// Instantiates a WasmEdge AST [`Module`] into a [`Store`].
+    /// Instantiates a WasmEdge AST [Module](crate::Module) into a [Store](crate::Store).
     ///
-    /// Instantiates the WasmEdge AST [`Module`] as an active anonymous module in the [`Store`].
+    /// Instantiates the WasmEdge AST [Module](crate::Module) as an active anonymous module in the
+    /// [Store](crate::Store). Notice that when a new module is instantiated into the [Store](crate::Store), the old
+    /// instantiated module is removed; in addition, ensure that the [imports](crate::ImportObj) are registered into the
+    /// [Store](crate::Store).
     ///
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the [`Store`], in which the [`Module`] to be instantiated is stored.
+    /// - `store` specifies the [Store](crate::Store), in which the [Module](crate::Module) to be instantiated
+    /// is stored.
     ///
-    /// - `ast_mod` specifies the target [`Module`] to be instantiated.
+    /// - `ast_mod` specifies the target [Module](crate::Module) to be instantiated.
     ///
     /// # Error
     ///
-    /// If fail to instantiate the given [`Module`], then an error is returned.
+    /// If fail to instantiate the given [Module](crate::Module), then an error is returned.
     pub fn instantiate(self, store: &mut Store, ast_mod: &mut Module) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInstantiate(
@@ -166,13 +170,7 @@ impl Executor {
 
         // get the length of the function's returns
         let returns_len = store
-            .find_func(func_name.as_ref())
-            .ok_or_else(|| {
-                Error::OperationError(format!(
-                    "fail to find the function named '{}'",
-                    func_name.as_ref()
-                ))
-            })?
+            .find_func(func_name.as_ref())?
             .get_type()?
             .returns_len();
         let mut returns = Vec::with_capacity(returns_len);
@@ -181,7 +179,7 @@ impl Executor {
             check(wasmedge::WasmEdge_ExecutorInvoke(
                 self.ctx,
                 store.ctx,
-                StringRef::from(func_name.as_ref()).into(),
+                func_name.into(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -222,13 +220,7 @@ impl Executor {
 
         // get the length of the function's returns
         let returns_len = store
-            .find_func_registered(mod_name.as_ref(), func_name.as_ref())
-            .ok_or_else(|| {
-                Error::OperationError(format!(
-                    "fail to find the registered function named '{}'",
-                    func_name.as_ref()
-                ))
-            })?
+            .find_func_registered(mod_name.as_ref(), func_name.as_ref())?
             .get_type()?
             .returns_len();
         let mut returns = Vec::with_capacity(returns_len);
@@ -237,8 +229,8 @@ impl Executor {
             check(wasmedge::WasmEdge_ExecutorInvokeRegistered(
                 self.ctx,
                 store.ctx,
-                StringRef::from(mod_name.as_ref()).into(),
-                StringRef::from(func_name.as_ref()).into(),
+                mod_name.into(),
+                func_name.into(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),

@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 //===-- wasmedge/common/configure.h - Configuration class -----------------===//
 //
 // Part of the WasmEdge Project.
@@ -64,11 +66,18 @@ public:
 
   bool isGenericBinary() const noexcept { return GenericBinary; }
 
+  void setInterruptible(bool IsInterruptible) noexcept {
+    Interruptible = IsInterruptible;
+  }
+
+  bool isInterruptible() const noexcept { return Interruptible; }
+
 private:
   OptimizationLevel OptLevel = OptimizationLevel::O3;
   OutputFormat OFormat = OutputFormat::Wasm;
   bool DumpIR = false;
   bool GenericBinary = false;
+  bool Interruptible = false;
 };
 
 class RuntimeConfigure {
@@ -99,10 +108,15 @@ public:
 
   bool isTimeMeasuring() const noexcept { return TimeMeasuring; }
 
+  void setCostLimit(uint64_t Cost) noexcept { CostLimit = Cost; }
+
+  uint64_t getCostLimit() const noexcept { return CostLimit; }
+
 private:
   bool InstrCounting = false;
   bool CostMeasuring = false;
   bool TimeMeasuring = false;
+  uint64_t CostLimit = UINT64_C(-1);
 };
 
 class Configure {

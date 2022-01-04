@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 //===-- wasmedge/executor/executor.h - Executor class definition ----------===//
 //
 // Part of the WasmEdge Project.
@@ -21,6 +23,7 @@
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"
 
+#include <atomic>
 #include <csignal>
 #include <memory>
 #include <type_traits>
@@ -84,10 +87,12 @@ public:
       : Conf(Conf), Stat(S) {
     assuming(This == nullptr);
     This = this;
+    ExecutionContext.StopToken = &StopToken;
     if (Stat) {
       ExecutionContext.InstrCount = &Stat->getInstrCountRef();
       ExecutionContext.CostTable = Stat->getCostTable().data();
       ExecutionContext.Gas = &Stat->getTotalCostRef();
+      Stat->setCostLimit(Conf.getStatisticsConfigure().getCostLimit());
     }
   }
   ~Executor() noexcept { This = nullptr; }
@@ -108,6 +113,11 @@ public:
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
          Span<const ValVariant> Params, Span<const ValType> ParamTypes);
+
+  /// Register new thread
+  void newThread() noexcept { This = this; }
+  /// Stop execution
+  void stop() noexcept { StopToken.store(1, std::memory_order_relaxed); }
 
 private:
   /// Run Wasm bytecode expression for initialization.
@@ -384,10 +394,10 @@ private:
                               const AST::Instruction &Instr);
   /// ======= SIMD Lane instructions =======
   template <typename TIn, typename TOut = TIn>
-  Expect<void> runExtractLaneOp(ValVariant &Val, const uint32_t Index) const;
+  Expect<void> runExtractLaneOp(ValVariant &Val, const uint8_t Index) const;
   template <typename TIn, typename TOut = TIn>
   Expect<void> runReplaceLaneOp(ValVariant &Val1, const ValVariant &Val2,
-                                const uint32_t Index) const;
+                                const uint8_t Index) const;
   /// ======= SIMD Numeric instructions =======
   template <typename TIn, typename TOut = TIn>
   Expect<void> runSplatOp(ValVariant &Val) const;
@@ -534,6 +544,7 @@ private:
     uint64_t *InstrCount;
     uint64_t *CostTable;
     uint64_t *Gas;
+    std::atomic_uint32_t *StopToken;
   } ExecutionContext;
   /// @}
 
@@ -552,6 +563,10 @@ private:
 public:
   /// Callbacks for compiled modules;
   static const AST::Module::IntrinsicsTable Intrinsics;
+
+private:
+  /// Stop Execution
+  std::atomic_uint32_t StopToken = 0;
 };
 
 } // namespace Executor

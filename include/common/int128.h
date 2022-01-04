@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 //===-- wasmedge/common/int128.h - 128-bit integer type -------------------===//
 //
 // Part of the WasmEdge Project.

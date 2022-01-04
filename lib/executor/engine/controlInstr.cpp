@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "executor/executor.h"
 
@@ -83,7 +84,7 @@ Expect<void> Executor::runBrTableOp(Runtime::StoreManager &StoreMgr,
   uint32_t Value = StackMgr.pop().get<uint32_t>();
 
   /// Do branch.
-  const auto &LabelTable = Instr.getLabelList();
+  auto LabelTable = Instr.getLabelList();
   if (Value < LabelTable.size()) {
     return branchToLabel(StoreMgr, LabelTable[Value], PC);
   }

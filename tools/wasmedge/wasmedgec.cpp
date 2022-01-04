@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "aot/compiler.h"
 #include "common/configure.h"
 #include "common/filesystem.h"
@@ -25,6 +27,9 @@ int main(int Argc, const char *Argv[]) {
 
   PO::Option<PO::Toggle> ConfDumpIR(
       PO::Description("Dump LLVM IR to `wasm.ll` and `wasm-opt.ll`."sv));
+
+  PO::Option<PO::Toggle> ConfInterruptible(
+      PO::Description("Generate a interruptible binary"sv));
 
   PO::Option<PO::Toggle> ConfEnableInstructionCounting(PO::Description(
       "Enable generating code for counting Wasm instructions executed."sv));
@@ -54,6 +59,7 @@ int main(int Argc, const char *Argv[]) {
   if (!Parser.add_option(WasmName)
            .add_option(SoName)
            .add_option("dump"sv, ConfDumpIR)
+           .add_option("interruptible"sv, ConfInterruptible)
            .add_option("enable-instruction-count"sv,
                        ConfEnableInstructionCounting)
            .add_option("enable-gas-measuring"sv, ConfEnableGasMeasuring)
@@ -136,6 +142,9 @@ int main(int Argc, const char *Argv[]) {
   {
     if (ConfDumpIR.value()) {
       Conf.getCompilerConfigure().setDumpIR(true);
+    }
+    if (ConfInterruptible.value()) {
+      Conf.getCompilerConfigure().setInterruptible(true);
     }
     if (ConfEnableAllStatistics.value()) {
       Conf.getStatisticsConfigure().setInstructionCounting(true);

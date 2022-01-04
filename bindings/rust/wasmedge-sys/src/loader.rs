@@ -1,12 +1,25 @@
-use crate::{error::check, utils, wasmedge, Config, Error, Module, WasmEdgeResult};
+//! Defines WasmEdge Loader struct.
+
+use crate::{error::check, utils, wasmedge, Config, Module, WasmEdgeError, WasmEdgeResult};
 use std::path::Path;
 
+/// Struct of WasmEdge Loader.
+///
+/// [`Loader`] is used to load WASM modules from the given WASM files or buffers.
 #[derive(Debug)]
 pub struct Loader {
     pub(crate) ctx: *mut wasmedge::WasmEdge_LoaderContext,
 }
 impl Loader {
-    /// Create a Loader instance
+    /// Create a new [`Loader`] to be associated with the given global configuration.
+    ///
+    /// # Arguements
+    ///
+    /// - `config` specifies a global configuration.
+    ///
+    /// # Error
+    ///
+    /// If fail to create a [`Loader`], then an error is returned.
     pub fn create(config: Option<&Config>) -> WasmEdgeResult<Self> {
         let config_ctx = match config {
             Some(config) => config.ctx,
@@ -15,22 +28,21 @@ impl Loader {
         let ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config_ctx) };
 
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create Loader instance",
-            ))),
+            true => Err(WasmEdgeError::LoaderCreate),
             false => Ok(Self { ctx }),
         }
     }
 
-    /// Load a WASM module from a WASM file
+    /// Loads a WASM module from a WASM file.
+    ///
+    /// # Arguments
+    ///
+    /// - `path` specifies the file path to the target WASM file.
+    ///
+    /// # Error
+    ///
+    /// If fail to load, then an error is returned.
     pub fn from_file(&self, path: impl AsRef<Path>) -> WasmEdgeResult<Module> {
-        if !path.as_ref().exists() {
-            return Err(Error::OperationError(format!(
-                "Not found file: {}",
-                path.as_ref().to_string_lossy()
-            )));
-        }
-
         let c_path = utils::path_to_cstring(path.as_ref())?;
         let mut mod_ctx = std::ptr::null_mut();
         unsafe {
@@ -42,10 +54,7 @@ impl Loader {
         }
 
         match mod_ctx.is_null() {
-            true => Err(Error::OperationError(format!(
-                "fail to load wasm module from {}",
-                path.as_ref().to_string_lossy()
-            ))),
+            true => Err(WasmEdgeError::ModuleCreate),
             false => Ok(Module {
                 ctx: mod_ctx,
                 registered: false,
@@ -53,7 +62,15 @@ impl Loader {
         }
     }
 
-    /// Load and parse the WASM module from a buffer
+    /// Loads a WASM module from a buffer.
+    ///
+    /// # Arguments
+    ///
+    /// - `buffer` specifies a WASM buffer.
+    ///
+    /// # Error
+    ///
+    /// If fail to load, then an error is returned.
     pub fn from_buffer(&self, buffer: &[u8]) -> WasmEdgeResult<Module> {
         let mut mod_ctx = std::ptr::null_mut();
         unsafe {
@@ -66,9 +83,7 @@ impl Loader {
         }
 
         match mod_ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to load wasm module from the buffer",
-            ))),
+            true => Err(WasmEdgeError::ModuleCreate),
             false => Ok(Module {
                 ctx: mod_ctx,
                 registered: false,

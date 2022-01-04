@@ -1,8 +1,8 @@
 # WebAssembly Serverless Functions in Netlify
 
-In this article we will show you two serverless fucntions in Rust and WasmEdge deployed on Netlify. One is the image processing function, the other one is the trnsorflow inference function.
+In this article we will show you two serverless functions in Rust and WasmEdge deployed on Netlify. One is the image processing function, the other one is the TensorFlow inference function.
 
-> For more insights on why WasmEdge on Netlify, please refer to the artilce [WebAssembly Serverless Functions in Netlify](https://www.secondstate.io/articles/netlify-wasmedge-webassembly-rust-serverless/).
+> For more insights on why WasmEdge on Netlify, please refer to the article [WebAssembly Serverless Functions in Netlify](https://www.secondstate.io/articles/netlify-wasmedge-webassembly-rust-serverless/).
 
 ## Prerequisite 
 

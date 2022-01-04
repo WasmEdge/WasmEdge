@@ -1,16 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "validator/formchecker.h"
 
 #include "common/errinfo.h"
 #include "common/log.h"
-
-namespace {
-template <typename... Ts> struct overloaded : Ts... {
-  using Ts::operator()...;
-};
-template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-} // namespace
 
 namespace WasmEdge {
 namespace Validator {
@@ -192,6 +186,34 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   /// Note: The instructions and their immediates have passed proposal
   /// configuration checking in loader phase.
 
+  /// Helper lambda for checking and resolve the block type.
+  auto checkBlockType = [this](std::vector<VType> &Buffer,
+                               const BlockType &BType)
+      -> Expect<std::pair<Span<const VType>, Span<const VType>>> {
+    using ReturnType = std::pair<Span<const VType>, Span<const VType>>;
+    if (BType.IsValType) {
+      /// ValType case. t2* = valtype | none
+      if (BType.Data.Type != ValType::None) {
+        Buffer.clear();
+        Buffer.reserve(1);
+        Buffer.push_back(ASTToVType(BType.Data.Type));
+      }
+      return ReturnType{{}, Buffer};
+    } else {
+      /// Type index case. t2* = type[index].returns
+      const uint32_t TypeIdx = BType.Data.Idx;
+      if (Types.size() <= TypeIdx) {
+        /// Function type index out of range.
+        spdlog::error(ErrCode::InvalidFuncTypeIdx);
+        spdlog::error(ErrInfo::InfoForbidIndex(
+            ErrInfo::IndexCategory::FunctionType, TypeIdx,
+            static_cast<uint32_t>(Types.size())));
+        return Unexpect(ErrCode::InvalidFuncTypeIdx);
+      }
+      return ReturnType{Types[TypeIdx].first, Types[TypeIdx].second};
+    }
+  };
+
   /// Helper lambda for checking control stack depth and return index.
   auto checkCtrlStackDepth = [this](uint32_t N) -> Expect<uint32_t> {
     /// Check the control stack for at least N + 1 frames.
@@ -265,7 +287,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   auto checkLaneAndTrans = [this,
                             &Instr](uint32_t N, Span<const VType> Take,
                                     Span<const VType> Put) -> Expect<void> {
-    if (Instr.getTargetIndex() >= N) {
+    if (Instr.getMemoryLane() >= N) {
       spdlog::error(ErrCode::InvalidLaneIdx);
       return Unexpect(ErrCode::InvalidLaneIdx);
     }
@@ -292,7 +314,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(ErrCode::InvalidAlignment);
     }
     const uint32_t I = 128 / N;
-    if (Instr.getTargetIndex() >= I) {
+    if (Instr.getMemoryLane() >= I) {
       spdlog::error(ErrCode::InvalidLaneIdx);
       return Unexpect(ErrCode::InvalidLaneIdx);
     }
@@ -317,7 +339,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     /// Get blocktype [t1*] -> [t2*]
     std::vector<VType> Buffer;
     Span<const VType> T1, T2;
-    if (auto Res = resolveBlockType(Buffer, Instr.getBlockType())) {
+    if (auto Res = checkBlockType(Buffer, Instr.getBlockType())) {
       std::tie(T1, T2) = std::move(*Res);
     } else {
       return Unexpect(Res);
@@ -1276,7 +1298,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                       std::array{VType::V128});
 
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 
@@ -1383,35 +1405,6 @@ Expect<void> FormChecker::StackTrans(Span<const VType> Take,
   }
   pushTypes(Put);
   return {};
-}
-
-Expect<std::pair<Span<const VType>, Span<const VType>>>
-FormChecker::resolveBlockType(std::vector<VType> &Buffer, BlockType Type) {
-  using ReturnType = std::pair<Span<const VType>, Span<const VType>>;
-  return std::visit(
-      overloaded{
-          [this, &Buffer](ValType RetType) -> Expect<ReturnType> {
-            /// ValType case. t2* = valtype | none
-            if (RetType != ValType::None) {
-              Buffer.clear();
-              Buffer.reserve(1);
-              Buffer.push_back(ASTToVType(RetType));
-            }
-            return ReturnType{{}, Buffer};
-          },
-          [this](uint32_t TypeIdx) -> Expect<ReturnType> {
-            /// Type index case. t2* = type[index].returns
-            if (Types.size() <= TypeIdx) {
-              /// Function type index out of range.
-              spdlog::error(ErrCode::InvalidFuncTypeIdx);
-              spdlog::error(ErrInfo::InfoForbidIndex(
-                  ErrInfo::IndexCategory::FunctionType, TypeIdx,
-                  static_cast<uint32_t>(Types.size())));
-              return Unexpect(ErrCode::InvalidFuncTypeIdx);
-            }
-            return ReturnType{Types[TypeIdx].first, Types[TypeIdx].second};
-          }},
-      Type);
 }
 
 } // namespace Validator

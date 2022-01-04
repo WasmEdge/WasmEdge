@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 //===-- wasmedge/common/statistics.h - Executor statistics definition -----===//
 //
 // Part of the WasmEdge Project.
@@ -11,8 +13,10 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/configure.h"
 #include "common/enum_ast.h"
 #include "common/errcode.h"
+#include "common/log.h"
 #include "common/span.h"
 #include "common/timer.h"
 
@@ -77,6 +81,7 @@ public:
     CostSum += Cost;
     if (unlikely(CostSum > CostLimit)) {
       CostSum = CostLimit;
+      spdlog::error("Cost exceeded limit. Force terminate the execution.");
       return false;
     }
     return true;
@@ -129,6 +134,38 @@ public:
   Timer::Timer::Clock::duration getTotalExecTime() const noexcept {
     return TimeRecorder.getRecord(Timer::TimerTag::Wasm) +
            TimeRecorder.getRecord(Timer::TimerTag::HostFunc);
+  }
+
+  void dumpToLog(const Configure &Conf) const noexcept {
+    auto Nano = [](auto &&Duration) {
+      return std::chrono::nanoseconds(Duration).count();
+    };
+    const auto &StatConf = Conf.getStatisticsConfigure();
+    if (StatConf.isTimeMeasuring() || StatConf.isInstructionCounting() ||
+        StatConf.isCostMeasuring()) {
+      spdlog::info("====================  Statistics  ====================");
+    }
+    if (StatConf.isTimeMeasuring()) {
+      spdlog::info(" Total execution time: {} ns", Nano(getTotalExecTime()));
+      spdlog::info(" Wasm instructions execution time: {} ns",
+                   Nano(getWasmExecTime()));
+      spdlog::info(" Host functions execution time: {} ns",
+                   Nano(getHostFuncExecTime()));
+    }
+    if (StatConf.isInstructionCounting()) {
+      spdlog::info(" Executed wasm instructions count: {}", getInstrCount());
+    }
+    if (StatConf.isCostMeasuring()) {
+      spdlog::info(" Gas costs: {}", getTotalCost());
+    }
+    if (StatConf.isInstructionCounting() && StatConf.isTimeMeasuring()) {
+      spdlog::info(" Instructions per second: {}",
+                   static_cast<uint64_t>(getInstrPerSecond()));
+    }
+    if (StatConf.isTimeMeasuring() || StatConf.isInstructionCounting() ||
+        StatConf.isCostMeasuring()) {
+      spdlog::info("=======================   End   ======================");
+    }
   }
 
 private:

@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 //===-- wasmedge/po/argument_parser.h - Argument parser -------------------===//
 //
 // Part of the WasmEdge Project.
@@ -196,40 +198,13 @@ private:
 
     void usage() const noexcept {
       using std::cout;
-      cout << "usage:"sv;
+      cout << YELLOW_COLOR << "USAGE"sv << RESET_COLOR << '\n';
       for (const char *Part : ProgramNames) {
-        cout << ' ' << Part;
+        cout << '\t' << Part;
       }
-      for (const auto &Index : NonpositionalList) {
-        const auto &Desc = ArgumentDescriptors[Index];
-        if (Desc.hidden()) {
-          continue;
-        }
 
-        bool First = true;
-        cout << ' ' << '[';
-        for (const auto &Option : Desc.options()) {
-          if (!First) {
-            cout << '|';
-          }
-          if (Option.size() == 1) {
-            cout << '-' << Option;
-          } else {
-            cout << '-' << '-' << Option;
-          }
-          First = false;
-        }
-        switch (Desc.max_nargs()) {
-        case 0:
-          break;
-        case 1:
-          cout << ' ' << Desc.meta();
-          break;
-        default:
-          cout << ' ' << Desc.meta() << " ..."sv;
-          break;
-        }
-        cout << ']';
+      if (NonpositionalList.size() != 0) {
+        cout << " [OPTIONS]"sv;
       }
       bool First = true;
       for (const auto &Index : PositionalList) {
@@ -268,12 +243,14 @@ private:
     void help() const noexcept {
       usage();
       using std::cout;
-      const constexpr std::string_view kIndent = "  "sv;
+      const constexpr std::string_view kIndent = "\t"sv;
 
+      cout << '\n';
       if (!SubCommandList.empty()) {
-        cout << "SubCommands:\n"sv;
+        cout << YELLOW_COLOR << "SubCommands"sv << RESET_COLOR << '\n';
         for (const auto Offset : SubCommandList) {
           cout << kIndent;
+          cout << GREEN_COLOR;
           bool First = true;
           for (const auto &Name : this[Offset].SubCommandNames) {
             if (!First) {
@@ -282,13 +259,14 @@ private:
             cout << Name;
             First = false;
           }
-          cout << '\n';
+          cout << RESET_COLOR << '\n';
           indent_output(kIndent, 2, 80, this[Offset].SC->description());
           cout << '\n';
         }
+        cout << '\n';
       }
 
-      cout << "Options:\n"sv;
+      cout << YELLOW_COLOR << "OPTIONS"sv << RESET_COLOR << '\n';
       for (const auto &Index : NonpositionalList) {
         const auto &Desc = ArgumentDescriptors[Index];
         if (Desc.hidden()) {
@@ -296,6 +274,7 @@ private:
         }
 
         cout << kIndent;
+        cout << GREEN_COLOR;
         bool First = true;
         for (const auto &Option : Desc.options()) {
           if (!First) {
@@ -308,7 +287,7 @@ private:
           }
           First = false;
         }
-        cout << '\n';
+        cout << RESET_COLOR << '\n';
         indent_output(kIndent, 2, 80, Desc.description());
         cout << '\n';
       }
@@ -418,6 +397,10 @@ private:
     std::vector<std::size_t> NonpositionalList;
     std::vector<std::size_t> PositionalList;
     std::unique_ptr<Option<Toggle>> HelpOpt;
+
+    static constexpr char YELLOW_COLOR[] = "\u001b[33m";
+    static constexpr char GREEN_COLOR[] = "\u001b[32m";
+    static constexpr char RESET_COLOR[] = "\u001b[0m";
   };
 
 public:

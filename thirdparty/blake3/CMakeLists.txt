@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 enable_language(ASM-ATT OPTIONAL)
 
 if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
@@ -6,9 +8,25 @@ if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "
     blake3_avx2.c
     blake3_sse2.c
     blake3_sse41.c
+  )
+  set(SIMD_AVX512_FILES
+    blake3_avx512.c
+  )
+  set(SIMD_UNIX_FILES
     blake3_avx2_x86-64_unix.S
     blake3_sse2_x86-64_unix.S
     blake3_sse41_x86-64_unix.S
+  )
+  set(SIMD_AVX512_UNIX_FILES
+    blake3_avx512_x86-64_unix.S
+  )
+  set(SIMD_WIN_FILES
+    blake3_avx2_x86-64_windows_gnu.S
+    blake3_sse2_x86-64_windows_gnu.S
+    blake3_sse41_x86-64_windows_gnu.S
+  )
+  set(SIMD_AVX512_WIN_FILES
+    blake3_avx512_x86-64_unix.S
   )
   set_source_files_properties(blake3_avx2.c PROPERTIES COMPILE_FLAGS -mavx2)
   set_source_files_properties(blake3_sse2.c PROPERTIES COMPILE_FLAGS -msse2)
@@ -31,9 +49,20 @@ if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "
     set(BLAKE3_AVX512 ON)
   endif()
 
+  if(WIN32)
+    set(SIMD_FILES ${SIMD_FILES} ${SIMD_WIN_FILES})
+  else()
+    set(SIMD_FILES ${SIMD_FILES} ${SIMD_UNIX_FILES})
+  endif()
+
   if(BLAKE3_AVX512)
-    set(SIMD_FILES ${SIMD_FILES} blake3_avx512.c blake3_avx512_x86-64_unix.S)
+    set(SIMD_FILES ${SIMD_FILES} ${SIMD_AVX512_FILES})
     set_source_files_properties(blake3_avx512.c PROPERTIES COMPILE_FLAGS "-mavx512f -mavx512vl")
+    if(WIN32)
+      set(SIMD_FILES ${SIMD_FILES} ${SIMD_AVX512_WIN_FILES})
+    else()
+      set(SIMD_FILES ${SIMD_FILES} ${SIMD_AVX512_UNIX_FILES})
+    endif()
   else()
     set(SIMD_DEFS ${SIMD_DEFS} -DBLAKE3_NO_AVX512)
   endif()

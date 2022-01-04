@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "common/defines.h"
 #if !WASMEDGE_OS_LINUX
 #error
@@ -200,7 +202,7 @@ inline constexpr __wasi_errno_t fromErrNo(int ErrNo) noexcept {
   case EXDEV:
     return __WASI_ERRNO_XDEV;
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 
@@ -229,7 +231,7 @@ inline constexpr __wasi_errno_t fromEAIErrNo(int ErrNo) noexcept {
   case EAI_SYSTEM:
     return __WASI_ERRNO_AISYSTEM;
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 
@@ -244,7 +246,7 @@ inline constexpr clockid_t toClockId(__wasi_clockid_t Clock) noexcept {
   case __WASI_CLOCKID_THREAD_CPUTIME_ID:
     return CLOCK_THREAD_CPUTIME_ID;
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 
@@ -302,7 +304,7 @@ inline constexpr int toAdvice(__wasi_advice_t Advice) noexcept {
   case __WASI_ADVICE_NOREUSE:
     return POSIX_FADV_NOREUSE;
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 
@@ -356,7 +358,7 @@ inline constexpr int toWhence(__wasi_whence_t Whence) noexcept {
   case __WASI_WHENCE_SET:
     return SEEK_SET;
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 

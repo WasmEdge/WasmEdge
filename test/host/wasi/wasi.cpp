@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "common/defines.h"
 #include "gtest/gtest.h"
 
@@ -212,7 +214,7 @@ __wasi_errno_t convertErrno(int SysErrno) noexcept {
   case EXDEV:
     return __WASI_ERRNO_XDEV;
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 

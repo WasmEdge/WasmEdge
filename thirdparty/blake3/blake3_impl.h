@@ -38,6 +38,10 @@ enum blake3_flags {
 #define IS_X86_32
 #endif
 
+#if defined(__aarch64__) || defined(_M_ARM64)
+#define IS_AARCH64
+#endif
+
 #if defined(IS_X86)
 #if defined(_MSC_VER)
 #include <intrin.h>
@@ -45,9 +49,18 @@ enum blake3_flags {
 #include <immintrin.h>
 #endif
 
+#if !defined(BLAKE3_USE_NEON)
+  // If BLAKE3_USE_NEON not manually set, autodetect based on AArch64ness
+  #if defined(IS_AARCH64)
+    #define BLAKE3_USE_NEON 1
+  #else
+    #define BLAKE3_USE_NEON 0
+  #endif
+#endif
+
 #if defined(IS_X86)
 #define MAX_SIMD_DEGREE 16
-#elif defined(BLAKE3_USE_NEON)
+#elif BLAKE3_USE_NEON == 1
 #define MAX_SIMD_DEGREE 4
 #else
 #define MAX_SIMD_DEGREE 1
@@ -257,7 +270,7 @@ void blake3_hash_many_avx512(const uint8_t *const *inputs, size_t num_inputs,
 #endif
 #endif
 
-#if defined(BLAKE3_USE_NEON)
+#if BLAKE3_USE_NEON == 1
 void blake3_hash_many_neon(const uint8_t *const *inputs, size_t num_inputs,
                            size_t blocks, const uint32_t key[8],
                            uint64_t counter, bool increment_counter,

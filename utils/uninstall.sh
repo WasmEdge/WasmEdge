@@ -115,9 +115,9 @@ remove_parsed() {
                 ask_remove "$IPATH"
             fi
         fi
-        exit 0
     else
         echo "${RED}env file not found${NC}"
+        exit 1
     fi
 }
 
@@ -242,6 +242,25 @@ main() {
     fi
 
     detect_bin_path wasmedge
+
+    local _shell_ _shell_rc line_num
+    _shell_="${SHELL#${SHELL%/*}/}"
+    _shell_rc=".""$_shell_""rc"
+
+    line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/${_shell_rc}" | cut -d : -f 1)"
+
+    if [ "$line_num" != "" ]; then
+        sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/${_shell_rc}"
+        [[ -f "${__HOME__}/.profile" ]] && line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/.profile" | cut -d : -f 1)" &&
+            sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/.profile"
+        [[ -f "${__HOME__}/.bash_profile" ]] && line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/.bash_profile" | cut -d : -f 1)" &&
+            sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/.bash_profile"
+    else
+        echo "${YELLOW}Sourcing not found in ${__HOME__}/${_shell_rc} ${NC}"
+        exit 1
+    fi
+
+    exit 0
 }
 
 main "$@"

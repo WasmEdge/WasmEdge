@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 //===-- wasmedge/validator/formchecker.h - Form checking class definition -===//
 //
 // Part of the WasmEdge Project.
@@ -120,10 +122,6 @@ private:
   Span<const VType> getLabelTypes(const CtrlFrame &F);
   Expect<void> unreachable();
   Expect<void> StackTrans(Span<const VType> Take, Span<const VType> Put);
-
-  /// Helper functions
-  Expect<std::pair<Span<const VType>, Span<const VType>>>
-  resolveBlockType(std::vector<VType> &Buffer, BlockType Type);
 
   /// Contexts.
   std::vector<std::pair<std::vector<VType>, std::vector<VType>>> Types;

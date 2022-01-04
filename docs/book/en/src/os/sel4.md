@@ -19,8 +19,8 @@ This demo is based on the seL4 simulator on Linux.
 ### System requirements
 
 Hardware:
-- at least 4Gb of RAM
-- at least 20Gb of disk storage (the wasmedge_sel4 directory will contain over 11 Gb of data after the following installation completes) 
+- at least 4GB of RAM
+- at least 20GB of disk storage (the wasmedge_sel4 directory will contain over 11 GB of data after the following installation completes) 
 
 Software: Ubuntu 20.04 with dev tools packages (ep. Python) installed. We recommend the [GitHub Actions Ubuntu 20.04 VM](https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md) (See a list of [installed apt packages](https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md#installed-apt-packages)). Or, you could use our Docker image (see the [Dockerfile](https://github.com/second-state/wasmedge-seL4/blob/main/docs/Dockerfile.sel4_build)).
 
@@ -30,7 +30,7 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/sel4_build
 (docker) root#
 ```
 
-> If you do not want to build the seL4 system simulator yourself, you can download the [build artifact](https://github.com/second-state/wasmedge-seL4/actions/runs/1374510169) from our GitHUb Actions, and skip directly to [Boot wasmedge-seL4](#boot-wasmedge-sel4)
+> If you do not want to build the seL4 system simulator yourself, you can download the [build artifact](https://github.com/second-state/wasmedge-seL4/actions/runs/1374510169) from our GitHub Actions, and skip directly to [Boot wasmedge-seL4](#boot-wasmedge-sel4)
 
 ### Automatic installation: all-in-one script
 
@@ -48,7 +48,7 @@ If this automatic installation completed successfully, skip over the manual inst
 
 ### Manual installation: managing memory usage
 
-The above all-in-one script will work in most cases. However, if your system resources were stressed and you encountered an error such as `ninja: build stopped: subcommand failed` please note that you can decrease the parallelization of the install by explicitly passing in a `-j` parameter to the `ninja` command (on the last line of the `build.sh` file). You see, Ninja runs the most amount of parallel processes by default and so the following proceedure is a way to explicitly set/reduce parallelization.
+The above all-in-one script will work in most cases. However, if your system resources were stressed and you encountered an error such as `ninja: build stopped: subcommand failed` please note that you can decrease the parallelization of the install by explicitly passing in a `-j` parameter to the `ninja` command (on the last line of the `build.sh` file). You see, Ninja runs the most amount of parallel processes by default and so the following procedure is a way to explicitly set/reduce parallelization.
 
 Manually fetch the `wasmedge-sel4 repository.
 

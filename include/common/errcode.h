@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 //===-- wasmedge/common/errcode.h - Error code definition -----------------===//
 //
 // Part of the WasmEdge Project.
@@ -21,8 +23,11 @@
 #ifdef NDEBUG
 #define assuming(R)                                                            \
   (static_cast<bool>(R) ? static_cast<void>(0) : __builtin_unreachable())
+#define assumingUnreachable() __builtin_unreachable()
 #else
 #define assuming(expr) assert(expr)
+#define assumingUnreachable()                                                  \
+  (assert(false && "unreachable"), __builtin_unreachable())
 #endif
 
 namespace WasmEdge {

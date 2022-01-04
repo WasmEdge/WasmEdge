@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "host/wasi/wasifunc.h"
 #include "common/filesystem.h"
 #include "common/log.h"
@@ -1496,7 +1499,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
         continue;
       }
       default:
-        __builtin_unreachable();
+        assumingUnreachable();
       }
     }
 

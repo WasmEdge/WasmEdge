@@ -27,13 +27,13 @@ TEST(WasiCryptoTest, KeyExchange) {
 
   auto SharedKey1Handle = Ctx.kxDh(Pk1, Sk2).value();
   std::vector<uint8_t> SharedKey1RawBytes(
-      Ctx.arrayOutputLen(KxKpRawBytesHandle).value());
+      Ctx.arrayOutputLen(SharedKey1Handle).value());
 
   Ctx.arrayOutputPull(SharedKey1Handle, SharedKey1RawBytes).value();
 
   auto SharedKey2Handle = Ctx.kxDh(Pk2, Sk1).value();
   std::vector<uint8_t> SharedKey2RawBytes(
-      Ctx.arrayOutputLen(KxKpRawBytesHandle).value());
+      Ctx.arrayOutputLen(SharedKey2Handle).value());
   Ctx.arrayOutputPull(SharedKey2Handle, SharedKey2RawBytes).value();
 
   EXPECT_EQ(SharedKey1RawBytes, SharedKey2RawBytes);

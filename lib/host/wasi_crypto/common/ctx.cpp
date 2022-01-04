@@ -10,6 +10,10 @@ namespace WASICrypto {
 WasiCryptoExpect<__wasi_size_t>
 WasiCryptoContext::arrayOutputLen(__wasi_array_output_t ArrayOutputHandle) {
   auto ArrayOutput = ArrayOutputManger.get(ArrayOutputHandle);
+  if(!ArrayOutput) {
+    return WasiCryptoUnexpect(ArrayOutput);
+  }
+
   return ArrayOutput->len();
 }
 

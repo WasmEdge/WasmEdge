@@ -1,8 +1,8 @@
 #ifndef PY_WASMEDGE_H
 #define PY_WASMEDGE_H
 
+#include "doc_strings.hpp"
 #include "pybind11/pybind11.h"
-#include <doc_strings.hpp>
 #include <functional>
 #include <sstream>
 #include <string>
@@ -25,8 +25,6 @@ struct logging {
   static std::string _str;
   const char *doc() { return pysdk::logging_doc; }
 };
-
-std::string logging::_str = "logging: Level not set";
 
 class Value {
 private:
@@ -73,6 +71,30 @@ public:
   pybind11::list listModules();
   pybind11::list listRegisteredFunctions(const std::string &);
 };
+
+// class ASTModuleCxt {
+// private:
+//   WasmEdge_ASTModuleContext *ASTCxt;
+
+// public:
+//   Loader();
+//   ~Loader();
+//   WasmEdge_ASTModuleContext *get();
+//   pysdk::result parse(pybind11::object);
+//   pybind11::list listExports();
+//   pybind11::list listImports();
+// };
+
+// class Loader {
+// private:
+//   WasmEdge_LoaderContext *LoadCxt;
+
+// public:
+//   Loader();
+//   ~Loader();
+//   WasmEdge_LoaderContext *get();
+//   pysdk::result parse(pybind11::object);
+// };
 
 class result {
 private:

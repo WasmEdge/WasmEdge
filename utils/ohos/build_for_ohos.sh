@@ -1,5 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 OHOS_DIR_PATH=$1
 WASMEDGE_ROOT_PATH=$(dirname $(dirname $(pwd)))

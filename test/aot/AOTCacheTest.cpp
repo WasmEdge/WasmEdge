@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 //===-- wasmedge/test/aot/AOTCacheTest.cpp - aot cache unit tests ---------===//
 //
 // Part of the WasmEdge Project.

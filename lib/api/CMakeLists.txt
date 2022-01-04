@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 add_definitions(-DWASMEDGE_COMPILE_LIBRARY)
 if(WASMEDGE_BUILD_AOT_RUNTIME)
@@ -122,7 +123,7 @@ if(WASMEDGE_BUILD_STATIC_LIB)
 
     # Pack the tinfo.
     wasmedge_add_libs_component_command("tinfo" ${ZLIB_PATH})
-  
+
     wasmedge_add_static_lib_component_command(utilBlake3)
     wasmedge_add_static_lib_component_command(wasmedgeAOT)
   endif()

@@ -116,8 +116,6 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
                                  ASTNodeAttr::Desc_Import, *TargetModInst)) {
       TargetAddr = *Res;
     } else {
-      spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Desc_Import));
       return Unexpect(Res);
     }
 

@@ -9,6 +9,18 @@
 namespace WasmEdge {
 namespace Validator {
 
+namespace {
+
+// Helper function for printing error log of index out of range.
+auto logOutOfRange(ErrCode Code, ErrInfo::IndexCategory Cate, uint32_t Idx,
+                   uint32_t Bound) {
+  spdlog::error(Code);
+  spdlog::error(ErrInfo::InfoForbidIndex(Cate, Idx, Bound));
+  return Unexpect(Code);
+}
+
+} // namespace
+
 void FormChecker::reset(bool CleanGlobal) {
   ValStack.clear();
   CtrlStack.clear();
@@ -202,13 +214,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     } else {
       // Type index case. t2* = type[index].returns
       const uint32_t TypeIdx = BType.Data.Idx;
-      if (Types.size() <= TypeIdx) {
-        // Function type index out of range.
-        spdlog::error(ErrCode::InvalidFuncTypeIdx);
-        spdlog::error(ErrInfo::InfoForbidIndex(
-            ErrInfo::IndexCategory::FunctionType, TypeIdx,
-            static_cast<uint32_t>(Types.size())));
-        return Unexpect(ErrCode::InvalidFuncTypeIdx);
+      if (TypeIdx >= Types.size()) {
+        return logOutOfRange(ErrCode::InvalidFuncTypeIdx,
+                             ErrInfo::IndexCategory::FunctionType, TypeIdx,
+                             static_cast<uint32_t>(Types.size()));
       }
       return ReturnType{Types[TypeIdx].first, Types[TypeIdx].second};
     }
@@ -217,39 +226,49 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   // Helper lambda for checking control stack depth and return index.
   auto checkCtrlStackDepth = [this](uint32_t N) -> Expect<uint32_t> {
     // Check the control stack for at least N + 1 frames.
-    if (CtrlStack.size() <= N) {
-      // Branch out of stack
-      spdlog::error(ErrCode::InvalidLabelIdx);
-      spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Label, N,
-                                   static_cast<uint32_t>(CtrlStack.size())));
-      return Unexpect(ErrCode::InvalidLabelIdx);
+    if (N >= CtrlStack.size()) {
+      // Branch out of stack.
+      return logOutOfRange(ErrCode::InvalidLabelIdx,
+                           ErrInfo::IndexCategory::Label, N,
+                           static_cast<uint32_t>(CtrlStack.size()));
     }
     // Return the index of the last N element.
     return static_cast<uint32_t>(CtrlStack.size()) - UINT32_C(1) - N;
   };
 
   // Helper lambda for checking memory index and perform transformation.
-  auto checkMemAndTrans = [this](uint32_t N, Span<const VType> Take,
-                                 Span<const VType> Put) -> Expect<void> {
-    if (Mems <= N) {
-      spdlog::error(ErrCode::InvalidMemoryIdx);
-      spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, N, Mems));
-      return Unexpect(ErrCode::InvalidMemoryIdx);
+  auto checkMemAndTrans = [this,
+                           &Instr](Span<const VType> Take,
+                                   Span<const VType> Put) -> Expect<void> {
+    if (Instr.getTargetIndex() >= Mems) {
+      return logOutOfRange(ErrCode::InvalidMemoryIdx,
+                           ErrInfo::IndexCategory::Memory,
+                           Instr.getTargetIndex(), Mems);
+    }
+    return StackTrans(Take, Put);
+  };
+
+  // Helper lambda for checking lane index and perform transformation.
+  auto checkLaneAndTrans = [this,
+                            &Instr](uint32_t N, Span<const VType> Take,
+                                    Span<const VType> Put) -> Expect<void> {
+    if (Instr.getMemoryLane() >= N) {
+      return logOutOfRange(ErrCode::InvalidLaneIdx,
+                           ErrInfo::IndexCategory::Lane, Instr.getMemoryLane(),
+                           N);
     }
     return StackTrans(Take, Put);
   };
 
   // Helper lambda for checking memory alignment and perform transformation.
-  auto checkAlignAndTrans = [this,
+  auto checkAlignAndTrans = [this, checkLaneAndTrans,
                              &Instr](uint32_t N, Span<const VType> Take,
-                                     Span<const VType> Put) -> Expect<void> {
-    if (Mems == 0) {
-      spdlog::error(ErrCode::InvalidMemoryIdx);
-      spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, 0, Mems));
-      return Unexpect(ErrCode::InvalidMemoryIdx);
+                                     Span<const VType> Put,
+                                     bool CheckLane = false) -> Expect<void> {
+    if (Instr.getTargetIndex() >= Mems) {
+      return logOutOfRange(ErrCode::InvalidMemoryIdx,
+                           ErrInfo::IndexCategory::Memory,
+                           Instr.getTargetIndex(), Mems);
     }
     if (Instr.getMemoryAlign() > 31 ||
         (1UL << Instr.getMemoryAlign()) > (N >> 3UL)) {
@@ -258,6 +277,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       spdlog::error(ErrInfo::InfoMismatch(static_cast<uint8_t>(N >> 3),
                                           Instr.getMemoryAlign()));
       return Unexpect(ErrCode::InvalidAlignment);
+    }
+    if (CheckLane) {
+      return checkLaneAndTrans(128 / N, Take, Put);
     }
     return StackTrans(Take, Put);
   };
@@ -281,44 +303,6 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(ErrCode::TypeCheckFailed);
     }
     return {};
-  };
-
-  // Helper lambda for checking lane index and perform transformation.
-  auto checkLaneAndTrans = [this,
-                            &Instr](uint32_t N, Span<const VType> Take,
-                                    Span<const VType> Put) -> Expect<void> {
-    if (Instr.getMemoryLane() >= N) {
-      spdlog::error(ErrCode::InvalidLaneIdx);
-      return Unexpect(ErrCode::InvalidLaneIdx);
-    }
-    return StackTrans(Take, Put);
-  };
-
-  // Helper lambda for checking memory alignment, lane index and perform
-  // transformation.
-  auto checkAlignLaneAndTrans =
-      [this, &Instr](const uint32_t N, Span<const VType> Take,
-                     Span<const VType> Put) -> Expect<void> {
-    if (Mems == 0) {
-      spdlog::error(ErrCode::InvalidMemoryIdx);
-      spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, 0, Mems));
-      return Unexpect(ErrCode::InvalidMemoryIdx);
-    }
-    if (Instr.getMemoryAlign() > 31 ||
-        (1UL << Instr.getMemoryAlign()) > (N >> 3UL)) {
-      // 2 ^ align needs to <= N / 8
-      spdlog::error(ErrCode::InvalidAlignment);
-      spdlog::error(ErrInfo::InfoMismatch(static_cast<uint8_t>(N >> 3),
-                                          Instr.getMemoryAlign()));
-      return Unexpect(ErrCode::InvalidAlignment);
-    }
-    const uint32_t I = 128 / N;
-    if (Instr.getMemoryLane() >= I) {
-      spdlog::error(ErrCode::InvalidLaneIdx);
-      return Unexpect(ErrCode::InvalidLaneIdx);
-    }
-    return StackTrans(Take, Put);
   };
 
   switch (Instr.getOpCode()) {
@@ -455,13 +439,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   case OpCode::Call: {
     auto N = Instr.getTargetIndex();
-    if (Funcs.size() <= N) {
-      // Call function index out of range
-      spdlog::error(ErrCode::InvalidFuncIdx);
-      spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function, N,
-                                   static_cast<uint32_t>(Funcs.size())));
-      return Unexpect(ErrCode::InvalidFuncIdx);
+    if (N >= Funcs.size()) {
+      return logOutOfRange(ErrCode::InvalidFuncIdx,
+                           ErrInfo::IndexCategory::Function, N,
+                           static_cast<uint32_t>(Funcs.size()));
     }
     return StackTrans(Types[Funcs[N]].first, Types[Funcs[N]].second);
   }
@@ -469,24 +450,20 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     auto N = Instr.getTargetIndex();
     auto T = Instr.getSourceIndex();
     // Check source table index.
-    if (Tables.size() <= T) {
-      spdlog::error(ErrCode::InvalidTableIdx);
-      spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Table, T,
-                                   static_cast<uint32_t>(Tables.size())));
-      return Unexpect(ErrCode::InvalidTableIdx);
+    if (T >= Tables.size()) {
+      return logOutOfRange(ErrCode::InvalidTableIdx,
+                           ErrInfo::IndexCategory::Table, T,
+                           static_cast<uint32_t>(Tables.size()));
     }
     if (Tables[T] != RefType::FuncRef) {
       spdlog::error(ErrCode::InvalidTableIdx);
       return Unexpect(ErrCode::InvalidTableIdx);
     }
     // Check target function type index.
-    if (Types.size() <= N) {
-      spdlog::error(ErrCode::InvalidFuncTypeIdx);
-      spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::FunctionType, N,
-                                   static_cast<uint32_t>(Types.size())));
-      return Unexpect(ErrCode::InvalidFuncTypeIdx);
+    if (N >= Types.size()) {
+      return logOutOfRange(ErrCode::InvalidFuncTypeIdx,
+                           ErrInfo::IndexCategory::FunctionType, N,
+                           static_cast<uint32_t>(Types.size()));
     }
     if (auto Res = popType(VType::I32); !Res) {
       return Unexpect(Res);
@@ -581,12 +558,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::Local__set:
   case OpCode::Local__tee: {
     if (Instr.getTargetIndex() >= Locals.size()) {
-      // Local index out of range
-      spdlog::error(ErrCode::InvalidLocalIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::Local, Instr.getTargetIndex(),
-          static_cast<uint32_t>(Locals.size())));
-      return Unexpect(ErrCode::InvalidLocalIdx);
+      return logOutOfRange(
+          ErrCode::InvalidLocalIdx, ErrInfo::IndexCategory::Local,
+          Instr.getTargetIndex(), static_cast<uint32_t>(Locals.size()));
     }
     VType TExpect = Locals[Instr.getTargetIndex()];
     if (Instr.getOpCode() == OpCode::Local__get) {
@@ -608,12 +582,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     [[fallthrough]];
   case OpCode::Global__get: {
     if (Instr.getTargetIndex() >= Globals.size()) {
-      // Global index out of range
-      spdlog::error(ErrCode::InvalidGlobalIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::Global, Instr.getTargetIndex(),
-          static_cast<uint32_t>(Locals.size())));
-      return Unexpect(ErrCode::InvalidGlobalIdx);
+      return logOutOfRange(
+          ErrCode::InvalidGlobalIdx, ErrInfo::IndexCategory::Global,
+          Instr.getTargetIndex(), static_cast<uint32_t>(Globals.size()));
     }
     VType ExpT = Globals[Instr.getTargetIndex()].first;
     if (Instr.getOpCode() == OpCode::Global__set) {
@@ -632,12 +603,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::Table__init:
   case OpCode::Table__copy: {
     // Check target table index to perform.
-    if (Tables.size() <= Instr.getTargetIndex()) {
-      spdlog::error(ErrCode::InvalidTableIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::Table, Instr.getTargetIndex(),
-          static_cast<uint32_t>(Tables.size())));
-      return Unexpect(ErrCode::InvalidTableIdx);
+    if (Instr.getTargetIndex() >= Tables.size()) {
+      return logOutOfRange(
+          ErrCode::InvalidTableIdx, ErrInfo::IndexCategory::Table,
+          Instr.getTargetIndex(), static_cast<uint32_t>(Tables.size()));
     }
     VType ExpT = ASTToVType(Tables[Instr.getTargetIndex()]);
     if (Instr.getOpCode() == OpCode::Table__get) {
@@ -652,12 +621,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return StackTrans(std::array{VType::I32, ExpT, VType::I32}, {});
     } else if (Instr.getOpCode() == OpCode::Table__init) {
       // Check source element index for initialization.
-      if (Elems.size() <= Instr.getSourceIndex()) {
-        spdlog::error(ErrCode::InvalidElemIdx);
-        spdlog::error(ErrInfo::InfoForbidIndex(
-            ErrInfo::IndexCategory::Element, Instr.getSourceIndex(),
-            static_cast<uint32_t>(Elems.size())));
-        return Unexpect(ErrCode::InvalidElemIdx);
+      if (Instr.getSourceIndex() >= Elems.size()) {
+        return logOutOfRange(
+            ErrCode::InvalidElemIdx, ErrInfo::IndexCategory::Element,
+            Instr.getSourceIndex(), static_cast<uint32_t>(Elems.size()));
       }
       // Check is the reference types matched.
       if (Elems[Instr.getSourceIndex()] != Tables[Instr.getTargetIndex()]) {
@@ -670,12 +637,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return StackTrans(std::array{VType::I32, VType::I32, VType::I32}, {});
     } else {
       // Check source table index for copying.
-      if (Tables.size() <= Instr.getSourceIndex()) {
-        spdlog::error(ErrCode::InvalidTableIdx);
-        spdlog::error(ErrInfo::InfoForbidIndex(
-            ErrInfo::IndexCategory::Table, Instr.getSourceIndex(),
-            static_cast<uint32_t>(Tables.size())));
-        return Unexpect(ErrCode::InvalidTableIdx);
+      if (Instr.getSourceIndex() >= Tables.size()) {
+        return logOutOfRange(
+            ErrCode::InvalidTableIdx, ErrInfo::IndexCategory::Table,
+            Instr.getSourceIndex(), static_cast<uint32_t>(Tables.size()));
       }
       // Check is the reference types matched.
       if (Tables[Instr.getSourceIndex()] != Tables[Instr.getTargetIndex()]) {
@@ -690,12 +655,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   }
   case OpCode::Elem__drop:
     // Check target element index to drop.
-    if (Elems.size() <= Instr.getTargetIndex()) {
-      spdlog::error(ErrCode::InvalidElemIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::Element, Instr.getTargetIndex(),
-          static_cast<uint32_t>(Elems.size())));
-      return Unexpect(ErrCode::InvalidElemIdx);
+    if (Instr.getTargetIndex() >= Elems.size()) {
+      return logOutOfRange(
+          ErrCode::InvalidElemIdx, ErrInfo::IndexCategory::Element,
+          Instr.getTargetIndex(), static_cast<uint32_t>(Elems.size()));
     }
     return {};
 
@@ -751,38 +714,39 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I64__store32:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I64}, {});
   case OpCode::Memory__size:
-    return checkMemAndTrans(0, {}, std::array{VType::I32});
+    return checkMemAndTrans({}, std::array{VType::I32});
   case OpCode::Memory__grow:
-    return checkMemAndTrans(0, std::array{VType::I32}, std::array{VType::I32});
+    return checkMemAndTrans(std::array{VType::I32}, std::array{VType::I32});
   case OpCode::Memory__init:
-    // Check target memory index to initialize. Memory[0] must exist.
-    if (Mems == 0) {
-      spdlog::error(ErrCode::InvalidMemoryIdx);
-      spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, 0, Mems));
-      return Unexpect(ErrCode::InvalidMemoryIdx);
+    // Check the target memory index. Memory index should be checked first.
+    if (Instr.getTargetIndex() >= Mems) {
+      return logOutOfRange(ErrCode::InvalidMemoryIdx,
+                           ErrInfo::IndexCategory::Memory,
+                           Instr.getTargetIndex(), Mems);
     }
-    // Check source data index for initialization.
+    // Check the source data index.
     if (Instr.getSourceIndex() >= Datas.size()) {
-      spdlog::error(ErrCode::InvalidDataIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::Data, Instr.getSourceIndex(),
-          static_cast<uint32_t>(Datas.size())));
-      return Unexpect(ErrCode::InvalidDataIdx);
+      return logOutOfRange(ErrCode::InvalidDataIdx,
+                           ErrInfo::IndexCategory::Data, Instr.getSourceIndex(),
+                           static_cast<uint32_t>(Datas.size()));
+    }
+    return StackTrans(std::array{VType::I32, VType::I32, VType::I32}, {});
+  case OpCode::Memory__copy:
+    /// Check the source memory index.
+    if (Instr.getSourceIndex() >= Mems) {
+      return logOutOfRange(ErrCode::InvalidMemoryIdx,
+                           ErrInfo::IndexCategory::Memory,
+                           Instr.getSourceIndex(), Mems);
     }
     [[fallthrough]];
-  case OpCode::Memory__copy:
   case OpCode::Memory__fill:
-    return checkMemAndTrans(0, std::array{VType::I32, VType::I32, VType::I32},
-                            {});
+    return checkMemAndTrans(std::array{VType::I32, VType::I32, VType::I32}, {});
   case OpCode::Data__drop:
-    // Check target data index to drop.
+    // Check the target data index.
     if (Instr.getTargetIndex() >= Datas.size()) {
-      spdlog::error(ErrCode::InvalidDataIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(
-          ErrInfo::IndexCategory::Data, Instr.getTargetIndex(),
-          static_cast<uint32_t>(Datas.size())));
-      return Unexpect(ErrCode::InvalidDataIdx);
+      return logOutOfRange(ErrCode::InvalidDataIdx,
+                           ErrInfo::IndexCategory::Data, Instr.getTargetIndex(),
+                           static_cast<uint32_t>(Datas.size()));
     }
     return {};
 
@@ -1007,25 +971,28 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::V128__store:
     return checkAlignAndTrans(128, std::array{VType::I32, VType::V128}, {});
   case OpCode::V128__load8_lane:
-    return checkAlignLaneAndTrans(8, std::array{VType::I32, VType::V128},
-                                  std::array{VType::V128});
+    return checkAlignAndTrans(8, std::array{VType::I32, VType::V128},
+                              std::array{VType::V128}, true);
   case OpCode::V128__load16_lane:
-    return checkAlignLaneAndTrans(16, std::array{VType::I32, VType::V128},
-                                  std::array{VType::V128});
+    return checkAlignAndTrans(16, std::array{VType::I32, VType::V128},
+                              std::array{VType::V128}, true);
   case OpCode::V128__load32_lane:
-    return checkAlignLaneAndTrans(32, std::array{VType::I32, VType::V128},
-                                  std::array{VType::V128});
+    return checkAlignAndTrans(32, std::array{VType::I32, VType::V128},
+                              std::array{VType::V128}, true);
   case OpCode::V128__load64_lane:
-    return checkAlignLaneAndTrans(64, std::array{VType::I32, VType::V128},
-                                  std::array{VType::V128});
+    return checkAlignAndTrans(64, std::array{VType::I32, VType::V128},
+                              std::array{VType::V128}, true);
   case OpCode::V128__store8_lane:
-    return checkAlignLaneAndTrans(8, std::array{VType::I32, VType::V128}, {});
+    return checkAlignAndTrans(8, std::array{VType::I32, VType::V128}, {}, true);
   case OpCode::V128__store16_lane:
-    return checkAlignLaneAndTrans(16, std::array{VType::I32, VType::V128}, {});
+    return checkAlignAndTrans(16, std::array{VType::I32, VType::V128}, {},
+                              true);
   case OpCode::V128__store32_lane:
-    return checkAlignLaneAndTrans(32, std::array{VType::I32, VType::V128}, {});
+    return checkAlignAndTrans(32, std::array{VType::I32, VType::V128}, {},
+                              true);
   case OpCode::V128__store64_lane:
-    return checkAlignLaneAndTrans(64, std::array{VType::I32, VType::V128}, {});
+    return checkAlignAndTrans(64, std::array{VType::I32, VType::V128}, {},
+                              true);
 
   // SIMD Const Instruction.
   case OpCode::V128__const:

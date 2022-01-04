@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+# SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 NAME=${1:+$1/}wasmedge
 INTERMEDIATES=()
 IMAGES=()

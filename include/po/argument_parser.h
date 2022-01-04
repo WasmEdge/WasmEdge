@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 //===-- wasmedge/po/argument_parser.h - Argument parser -------------------===//
 //
 // Part of the WasmEdge Project.

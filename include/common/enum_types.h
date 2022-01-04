@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 //===-- wasmedge/common/enum_types.h - WASM types related enumerations ----===//
 //
 // Part of the WasmEdge Project.

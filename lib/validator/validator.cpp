@@ -92,7 +92,7 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     return Unexpect(Res);
   }
 
-  // Multiple tables is for ReferenceTypes proposal.
+  // Multiple tables is for the ReferenceTypes proposal.
   if (Checker.getTables().size() > 1 &&
       !Conf.hasProposal(Proposal::ReferenceTypes)) {
     spdlog::error(ErrCode::MultiTables);
@@ -101,11 +101,10 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     return Unexpect(ErrCode::MultiTables);
   }
 
-  // In current version, memory must be <= 1.
-  if (Checker.getMemories() > 1) {
+  // Multiple memories is for the MultiMemories proposal.
+  if (Checker.getMemories() > 1 && !Conf.hasProposal(Proposal::MultiMemories)) {
     spdlog::error(ErrCode::MultiMemories);
-    spdlog::error(ErrInfo::InfoInstanceBound(ExternalType::Memory,
-                                             Checker.getMemories(), 1));
+    spdlog::error(ErrInfo::InfoProposal(Proposal::MultiMemories));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(ErrCode::MultiMemories);
   }

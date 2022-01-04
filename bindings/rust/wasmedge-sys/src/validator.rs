@@ -1,6 +1,6 @@
 //! Defines WasmEdge Validator struct.
 
-use crate::{error::check, wasmedge, Config, Error, Module, WasmEdgeResult};
+use crate::{error::check, wasmedge, Config, Module, WasmEdgeError, WasmEdgeResult};
 
 /// Struct of WasmEdge Validator.
 #[derive(Debug)]
@@ -24,9 +24,7 @@ impl Validator {
         };
         let ctx = unsafe { wasmedge::WasmEdge_ValidatorCreate(config_ctx) };
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create Validator instance",
-            ))),
+            true => Err(WasmEdgeError::CompilerCreate),
             false => Ok(Self { ctx }),
         }
     }

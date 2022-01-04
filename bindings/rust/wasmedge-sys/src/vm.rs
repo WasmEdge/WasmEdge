@@ -2,7 +2,7 @@
 
 use super::wasmedge;
 use crate::{
-    error::{check, Error, WasmEdgeResult},
+    error::{check, VmError, WasmEdgeError, WasmEdgeResult},
     instance::function::FuncType,
     types::HostRegistration,
     utils, Config, ImportObj, Module, Statistics, Store, Value,
@@ -42,9 +42,7 @@ impl Vm {
         };
         let vm = unsafe { wasmedge::WasmEdge_VMCreate(conf, store) };
         match vm.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create Vm instance",
-            ))),
+            true => Err(WasmEdgeError::Vm(VmError::Create)),
             false => Ok(Self {
                 ctx: vm,
                 import_objects: vec![],
@@ -223,7 +221,6 @@ impl Vm {
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
         let path = utils::path_to_cstring(path.as_ref())?;
-        let raw_func_name = func_name.into();
 
         // prepare parameters
         let raw_params = params
@@ -232,21 +229,16 @@ impl Vm {
             .collect::<Vec<_>>();
 
         // prepare returns
-        let func_type = unsafe { wasmedge::WasmEdge_VMGetFunctionType(self.ctx, raw_func_name) };
-        if func_type.is_null() {
-            return Err(Error::OperationError(String::from(
-                "WasmEdge Vm failed to get function type!",
-            )));
-        }
+        let func_type = self.get_function_type(func_name.as_ref())?;
         // get the info of the funtion return
-        let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type) };
+        let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.ctx) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
         unsafe {
             check(wasmedge::WasmEdge_VMRunWasmFromFile(
                 self.ctx,
                 path.as_ptr(),
-                raw_func_name,
+                func_name.as_ref().into(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -283,8 +275,6 @@ impl Vm {
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
-        let raw_func_name = func_name.into();
-
         // prepare parameters
         let raw_params = params
             .into_iter()
@@ -292,14 +282,9 @@ impl Vm {
             .collect::<Vec<_>>();
 
         // prepare returns
-        let func_type = unsafe { wasmedge::WasmEdge_VMGetFunctionType(self.ctx, raw_func_name) };
-        if func_type.is_null() {
-            return Err(Error::OperationError(String::from(
-                "WasmEdge Vm failed to get function type!",
-            )));
-        }
+        let func_type = self.get_function_type(func_name.as_ref())?;
         // get the info of the funtion return
-        let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type) };
+        let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.ctx) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
         unsafe {
@@ -307,7 +292,7 @@ impl Vm {
                 self.ctx,
                 buffer.as_ptr(),
                 buffer.len() as u32,
-                raw_func_name,
+                func_name.as_ref().into(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -345,8 +330,6 @@ impl Vm {
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
-        let raw_func_name = func_name.into();
-
         // prepare parameters
         let raw_params = params
             .into_iter()
@@ -354,21 +337,17 @@ impl Vm {
             .collect::<Vec<_>>();
 
         // prepare returns
-        let func_type = unsafe { wasmedge::WasmEdge_VMGetFunctionType(self.ctx, raw_func_name) };
-        if func_type.is_null() {
-            return Err(Error::OperationError(String::from(
-                "WasmEdge Vm failed to get function type!",
-            )));
-        }
+        let func_type = self.get_function_type(func_name.as_ref())?;
+
         // get the info of the funtion return
-        let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type) };
+        let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.ctx) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
         unsafe {
             check(wasmedge::WasmEdge_VMRunWasmFromASTModule(
                 self.ctx,
                 module.ctx,
-                raw_func_name,
+                func_name.as_ref().into(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -496,8 +475,6 @@ impl Vm {
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
-        let raw_func_name = func_name.into();
-
         // prepare parameters
         let raw_params = params
             .into_iter()
@@ -505,20 +482,16 @@ impl Vm {
             .collect::<Vec<_>>();
 
         // prepare returns
-        let func_type = unsafe { wasmedge::WasmEdge_VMGetFunctionType(self.ctx, raw_func_name) };
-        if func_type.is_null() {
-            return Err(Error::OperationError(String::from(
-                "WasmEdge Vm failed to get function type!",
-            )));
-        }
+        let func_type = self.get_function_type(func_name.as_ref())?;
+
         // get the info of the funtion return
-        let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type) };
+        let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.ctx) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
         unsafe {
             check(wasmedge::WasmEdge_VMExecute(
                 self.ctx,
-                raw_func_name,
+                func_name.as_ref().into(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -552,9 +525,6 @@ impl Vm {
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
-        let raw_mod_name = mod_name.into();
-        let raw_func_name = func_name.into();
-
         // prepare parameters
         let raw_params = params
             .into_iter()
@@ -562,21 +532,17 @@ impl Vm {
             .collect::<Vec<_>>();
 
         // prepare returns
-        let func_type = unsafe { wasmedge::WasmEdge_VMGetFunctionType(self.ctx, raw_func_name) };
-        if func_type.is_null() {
-            return Err(Error::OperationError(String::from(
-                "WasmEdge Vm failed to get function type!",
-            )));
-        }
+        let func_type = self.get_registered_function_type(mod_name.as_ref(), func_name.as_ref())?;
+
         // get the info of the funtion return
-        let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type) };
+        let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.ctx) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
         unsafe {
             check(wasmedge::WasmEdge_VMExecuteRegistered(
                 self.ctx,
-                raw_mod_name,
-                raw_func_name,
+                mod_name.as_ref().into(),
+                func_name.as_ref().into(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -594,11 +560,18 @@ impl Vm {
     /// # Argument
     ///
     /// - `func_name` specifies the name of the target WASM function.
-    pub fn get_function_type(&self, func_name: impl AsRef<str>) -> Option<FuncType> {
-        let ty_ctx = unsafe { wasmedge::WasmEdge_VMGetFunctionType(self.ctx, func_name.into()) };
+    ///
+    /// # Error
+    ///
+    /// If fail to get the function type, then an error is returned.
+    pub fn get_function_type(&self, func_name: impl AsRef<str>) -> WasmEdgeResult<FuncType> {
+        let ty_ctx =
+            unsafe { wasmedge::WasmEdge_VMGetFunctionType(self.ctx, func_name.as_ref().into()) };
         match ty_ctx.is_null() {
-            true => None,
-            false => Some(FuncType {
+            true => Err(WasmEdgeError::Vm(VmError::NotFoundFuncType(
+                func_name.as_ref().to_string(),
+            ))),
+            false => Ok(FuncType {
                 ctx: ty_ctx as *mut _,
                 registered: true,
             }),
@@ -617,17 +590,19 @@ impl Vm {
         &self,
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
-    ) -> Option<FuncType> {
+    ) -> WasmEdgeResult<FuncType> {
         let ty_ctx = unsafe {
             wasmedge::WasmEdge_VMGetFunctionTypeRegistered(
                 self.ctx,
-                mod_name.into(),
-                func_name.into(),
+                mod_name.as_ref().into(),
+                func_name.as_ref().into(),
             )
         };
         match ty_ctx.is_null() {
-            true => None,
-            false => Some(FuncType {
+            true => Err(WasmEdgeError::Vm(VmError::NotFoundFuncType(
+                func_name.as_ref().to_string(),
+            ))),
+            false => Ok(FuncType {
                 ctx: ty_ctx as *mut _,
                 registered: true,
             }),
@@ -681,9 +656,7 @@ impl Vm {
     pub fn import_obj_mut(&mut self, reg: HostRegistration) -> WasmEdgeResult<ImportObj> {
         let io_ctx = unsafe { wasmedge::WasmEdge_VMGetImportModuleContext(self.ctx, reg.into()) };
         match io_ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get ImportObj instance from the VM instance",
-            ))),
+            true => Err(WasmEdgeError::Vm(VmError::NotFoundImportObj)),
             false => Ok(ImportObj {
                 ctx: io_ctx,
                 registered: true,
@@ -695,9 +668,7 @@ impl Vm {
     pub fn store_mut(&self) -> WasmEdgeResult<Store> {
         let store_ctx = unsafe { wasmedge::WasmEdge_VMGetStoreContext(self.ctx) };
         match store_ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get Store instance from the VM instance",
-            ))),
+            true => Err(WasmEdgeError::Vm(VmError::NotFoundStore)),
             false => Ok(Store {
                 ctx: store_ctx,
                 registered: true,
@@ -709,9 +680,7 @@ impl Vm {
     pub fn statistics_mut(&self) -> WasmEdgeResult<Statistics> {
         let stat_ctx = unsafe { wasmedge::WasmEdge_VMGetStatisticsContext(self.ctx) };
         match stat_ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get Statistics instance from the VM instance",
-            ))),
+            true => Err(WasmEdgeError::Vm(VmError::NotFoundStatistics)),
             false => Ok(Statistics {
                 ctx: stat_ctx,
                 registered: true,
@@ -738,22 +707,7 @@ impl Vm {
         T: Iterator<Item = E>,
         E: AsRef<str>,
     {
-        let io_ctx = unsafe {
-            wasmedge::WasmEdge_VMGetImportModuleContext(
-                self.ctx,
-                wasmedge::WasmEdge_HostRegistration_Wasi,
-            )
-        };
-        if io_ctx.is_null() {
-            return Err(Error::OperationError(String::from(
-                "fail to get ImportObj instace from the Vm instance.",
-            )));
-        }
-
-        let mut import_obj = ImportObj {
-            ctx: io_ctx,
-            registered: true,
-        };
+        let mut import_obj = self.import_obj_mut(HostRegistration::Wasi)?;
         import_obj.init_wasi(args, envs, preopens);
 
         Ok(())

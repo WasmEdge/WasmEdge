@@ -2,7 +2,7 @@
 
 use super::wasmedge;
 use crate::{
-    error::{check, Error, WasmEdgeResult},
+    error::{check, WasmEdgeError, WasmEdgeResult},
     Config, ImportObj, Module, Statistics, Store, Value,
 };
 use std::ptr;
@@ -41,9 +41,7 @@ impl Executor {
         };
         let raw = unsafe { wasmedge::WasmEdge_ExecutorCreate(conf, stat_ctx) };
         match raw.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create Executor instance",
-            ))),
+            true => Err(WasmEdgeError::ExecutorCreate),
             false => Ok(Executor { ctx: raw }),
         }
     }
@@ -172,13 +170,7 @@ impl Executor {
 
         // get the length of the function's returns
         let returns_len = store
-            .find_func(func_name.as_ref())
-            .ok_or_else(|| {
-                Error::OperationError(format!(
-                    "fail to find the function named '{}'",
-                    func_name.as_ref()
-                ))
-            })?
+            .find_func(func_name.as_ref())?
             .get_type()?
             .returns_len();
         let mut returns = Vec::with_capacity(returns_len);
@@ -228,13 +220,7 @@ impl Executor {
 
         // get the length of the function's returns
         let returns_len = store
-            .find_func_registered(mod_name.as_ref(), func_name.as_ref())
-            .ok_or_else(|| {
-                Error::OperationError(format!(
-                    "fail to find the registered function named '{}'",
-                    func_name.as_ref()
-                ))
-            })?
+            .find_func_registered(mod_name.as_ref(), func_name.as_ref())?
             .get_type()?
             .returns_len();
         let mut returns = Vec::with_capacity(returns_len);

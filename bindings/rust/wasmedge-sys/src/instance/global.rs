@@ -5,7 +5,7 @@
 
 use crate::{
     types::{Mutability, ValType},
-    wasmedge, Error, Value, WasmEdgeResult,
+    wasmedge, GlobalError, Value, WasmEdgeError, WasmEdgeResult,
 };
 
 /// Struct of WasmEdge Global.
@@ -32,9 +32,7 @@ impl Global {
             wasmedge::WasmEdge_GlobalInstanceCreate(ty.ctx, wasmedge::WasmEdge_Value::from(val))
         };
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create Global instance",
-            ))),
+            true => Err(WasmEdgeError::Global(GlobalError::Create)),
             false => {
                 ty.ctx = std::ptr::null_mut();
                 ty.registered = true;
@@ -55,9 +53,7 @@ impl Global {
     pub fn ty(&self) -> WasmEdgeResult<GlobalType> {
         let ty_ctx = unsafe { wasmedge::WasmEdge_GlobalInstanceGetGlobalType(self.ctx) };
         match ty_ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to get type info from the Global instance",
-            ))),
+            true => Err(WasmEdgeError::Global(GlobalError::Type)),
             false => Ok(GlobalType {
                 ctx: ty_ctx as *mut _,
                 registered: true,
@@ -98,16 +94,10 @@ impl Global {
     pub fn set_value(&mut self, val: Value) -> WasmEdgeResult<()> {
         let ty = self.ty()?;
         if ty.mutability() == Mutability::Const {
-            return Err(Error::OperationError(String::from(
-                "Cannot set value for a const `Global`.",
-            )));
+            return Err(WasmEdgeError::Global(GlobalError::ModifyConst));
         }
         if ty.value_type() != val.ty() {
-            return Err(Error::OperationError(format!(
-                "found a type conflict, expected:{:?}, fould:{:?}",
-                ty.value_type(),
-                val.ty()
-            )));
+            return Err(WasmEdgeError::Global(GlobalError::UnmatchedValType));
         }
         unsafe {
             wasmedge::WasmEdge_GlobalInstanceSetValue(self.ctx, wasmedge::WasmEdge_Value::from(val))
@@ -145,9 +135,7 @@ impl GlobalType {
             )
         };
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create GlobalType instance",
-            ))),
+            true => Err(WasmEdgeError::GlobalTypeCreate),
             false => Ok(Self {
                 ctx,
                 registered: false,

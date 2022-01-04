@@ -2,7 +2,7 @@
 
 use crate::{
     instance::{Function, Global, Memory, Table},
-    wasmedge, Error, WasmEdgeResult,
+    wasmedge, StoreError, WasmEdgeError, WasmEdgeResult,
 };
 
 /// Struct of Wasmedge Store.
@@ -25,9 +25,7 @@ impl Store {
     pub fn create() -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_StoreCreate() };
         match ctx.is_null() {
-            true => Err(Error::OperationError(String::from(
-                "fail to create Store instance",
-            ))),
+            true => Err(WasmEdgeError::Store(StoreError::Create)),
             false => Ok(Store {
                 ctx,
                 registered: false,
@@ -44,11 +42,16 @@ impl Store {
     ///
     /// - `name` specifies the target exported [function](crate::Function) instance.
     ///
-    pub fn find_func(&self, name: impl AsRef<str>) -> Option<Function> {
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindFunction(self.ctx, name.into()) };
+    /// # Error
+    ///
+    /// If fail to find the target [function](crate::Function), then an error is returned.
+    pub fn find_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
+        let ctx = unsafe { wasmedge::WasmEdge_StoreFindFunction(self.ctx, name.as_ref().into()) };
         match ctx.is_null() {
-            true => None,
-            false => Some(Function {
+            true => Err(WasmEdgeError::Store(StoreError::NotFoundFunc(
+                name.as_ref().to_string(),
+            ))),
+            false => Ok(Function {
                 ctx,
                 registered: true,
                 ty: None,
@@ -64,23 +67,28 @@ impl Store {
     /// - `mod_name` specifies the name of the registered [module](crate::Module).
     ///
     /// - `func_name` specifies the name of the exported [function](crate::Function) instance.
+    ///
+    /// # Error
+    ///
+    /// If fail to find the target registered [function](crate::Function), then an error is returned.
     pub fn find_func_registered(
         &self,
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
-    ) -> Option<Function> {
-        // let mod_name = WasmEdgeString::from(mod_name.as_ref());
-        // let func_name = WasmEdgeString::from(func_name.as_ref());
+    ) -> WasmEdgeResult<Function> {
         let ctx = unsafe {
             wasmedge::WasmEdge_StoreFindFunctionRegistered(
                 self.ctx,
-                mod_name.into(),
-                func_name.into(),
+                mod_name.as_ref().into(),
+                func_name.as_ref().into(),
             )
         };
         match ctx.is_null() {
-            true => None,
-            false => Some(Function {
+            true => Err(WasmEdgeError::Store(StoreError::NotFoundFuncRegistered {
+                func_name: func_name.as_ref().to_string(),
+                mod_name: mod_name.as_ref().to_string(),
+            })),
+            false => Ok(Function {
                 ctx,
                 registered: true,
                 ty: None,
@@ -97,11 +105,16 @@ impl Store {
     ///
     /// - `name` specifies the target exported [table](crate::Table) instance.
     ///
-    pub fn find_table(&self, name: impl AsRef<str>) -> Option<Table> {
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindTable(self.ctx, name.into()) };
+    /// # Error
+    ///
+    /// If fail to find the target [table](crate::Table), then an error is returned.
+    pub fn find_table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
+        let ctx = unsafe { wasmedge::WasmEdge_StoreFindTable(self.ctx, name.as_ref().into()) };
         match ctx.is_null() {
-            true => None,
-            false => Some(Table {
+            true => Err(WasmEdgeError::Store(StoreError::NotFoundGlobal(
+                name.as_ref().to_string(),
+            ))),
+            false => Ok(Table {
                 ctx,
                 registered: true,
             }),
@@ -116,21 +129,28 @@ impl Store {
     /// - `mod_name` specifies the name of the registered [module](crate::Module).
     ///
     /// - `table_name` specifies the name of the exported [table](crate::Table) instance.
+    ///
+    /// # Error
+    ///
+    /// If fail to find the target registered [table](crate::Table), then an error is returned.
     pub fn find_table_registered(
         &self,
         mod_name: impl AsRef<str>,
         table_name: impl AsRef<str>,
-    ) -> Option<Table> {
+    ) -> WasmEdgeResult<Table> {
         let ctx = unsafe {
             wasmedge::WasmEdge_StoreFindTableRegistered(
                 self.ctx,
-                mod_name.into(),
-                table_name.into(),
+                mod_name.as_ref().into(),
+                table_name.as_ref().into(),
             )
         };
         match ctx.is_null() {
-            true => None,
-            false => Some(Table {
+            true => Err(WasmEdgeError::Store(StoreError::NotFoundTableRegistered {
+                table_name: table_name.as_ref().to_string(),
+                mod_name: mod_name.as_ref().to_string(),
+            })),
+            false => Ok(Table {
                 ctx,
                 registered: true,
             }),
@@ -146,11 +166,16 @@ impl Store {
     ///
     /// - `name` specifies the target exported [memory](crate::Memory) instance.
     ///
-    pub fn find_memory(&self, name: impl AsRef<str>) -> Option<Memory> {
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindMemory(self.ctx, name.into()) };
+    /// # Error
+    ///
+    /// If fail to find the target [memory](crate::Memory), then an error is returned.
+    pub fn find_memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
+        let ctx = unsafe { wasmedge::WasmEdge_StoreFindMemory(self.ctx, name.as_ref().into()) };
         match ctx.is_null() {
-            true => None,
-            false => Some(Memory {
+            true => Err(WasmEdgeError::Store(StoreError::NotFoundMem(
+                name.as_ref().to_string(),
+            ))),
+            false => Ok(Memory {
                 ctx,
                 registered: true,
             }),
@@ -165,17 +190,28 @@ impl Store {
     /// - `mod_name` specifies the name of the registered [module](crate::Module).
     ///
     /// - `mem_name` specifies the name of the exported [memory](crate::Memory) instance.
+    ///
+    /// # Error
+    ///
+    /// If fail to get the target registered [memory](crate::Memory), then an error is returned.
     pub fn find_memory_registered(
         &self,
         mod_name: impl AsRef<str>,
         mem_name: impl AsRef<str>,
-    ) -> Option<Memory> {
+    ) -> WasmEdgeResult<Memory> {
         let ctx = unsafe {
-            wasmedge::WasmEdge_StoreFindMemoryRegistered(self.ctx, mod_name.into(), mem_name.into())
+            wasmedge::WasmEdge_StoreFindMemoryRegistered(
+                self.ctx,
+                mod_name.as_ref().into(),
+                mem_name.as_ref().into(),
+            )
         };
         match ctx.is_null() {
-            true => None,
-            false => Some(Memory {
+            true => Err(WasmEdgeError::Store(StoreError::NotFoundMemRegistered {
+                mem_name: mem_name.as_ref().to_string(),
+                mod_name: mod_name.as_ref().to_string(),
+            })),
+            false => Ok(Memory {
                 ctx,
                 registered: true,
             }),
@@ -191,11 +227,16 @@ impl Store {
     ///
     /// - `name` specifies the target exported [global](crate::Global) instance.
     ///
-    pub fn find_global(&self, name: impl AsRef<str>) -> Option<Global> {
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindGlobal(self.ctx, name.into()) };
+    /// # Error
+    ///
+    /// If fail to find the target [global](crate::Global), then an error is returned.
+    pub fn find_global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
+        let ctx = unsafe { wasmedge::WasmEdge_StoreFindGlobal(self.ctx, name.as_ref().into()) };
         match ctx.is_null() {
-            true => None,
-            false => Some(Global {
+            true => Err(WasmEdgeError::Store(StoreError::NotFoundGlobal(
+                name.as_ref().to_string(),
+            ))),
+            false => Ok(Global {
                 ctx,
                 registered: true,
             }),
@@ -210,21 +251,28 @@ impl Store {
     /// - `mod_name` specifies the name of the registered [module](crate::Module).
     ///
     /// - `global_name` specifies the name of the exported [global](crate::Global) instance.
+    ///
+    /// # Error
+    ///
+    /// If fail to find the target registered [global](crate::Global), then an error is returned.
     pub fn find_global_registered(
         &self,
         mod_name: impl AsRef<str>,
         global_name: impl AsRef<str>,
-    ) -> Option<Global> {
+    ) -> WasmEdgeResult<Global> {
         let ctx = unsafe {
             wasmedge::WasmEdge_StoreFindGlobalRegistered(
                 self.ctx,
-                mod_name.into(),
-                global_name.into(),
+                mod_name.as_ref().into(),
+                global_name.as_ref().into(),
             )
         };
         match ctx.is_null() {
-            true => None,
-            false => Some(Global {
+            true => Err(WasmEdgeError::Store(StoreError::NotFoundGlobalRegistered {
+                global_name: global_name.as_ref().to_string(),
+                mod_name: mod_name.as_ref().to_string(),
+            })),
+            false => Ok(Global {
                 ctx,
                 registered: true,
             }),
@@ -618,27 +666,27 @@ mod tests {
 
         // check the function list after instantiation
         let result = store.find_func("add");
-        assert!(result.is_none());
+        assert!(result.is_err());
         let result = store.find_func_registered("extern_module", "add");
-        assert!(result.is_some());
+        assert!(result.is_ok());
 
         // check the table list after instantiation
         let result = store.find_table("table");
-        assert!(result.is_none());
+        assert!(result.is_err());
         let result = store.find_table_registered("extern_module", "table");
-        assert!(result.is_some());
+        assert!(result.is_ok());
 
         // check the memory list after instantiation
         let result = store.find_memory("mem");
-        assert!(result.is_none());
+        assert!(result.is_err());
         let result = store.find_memory_registered("extern_module", "mem");
-        assert!(result.is_some());
+        assert!(result.is_ok());
 
         // check the global list after instantiation
         let result = store.find_global("global");
-        assert!(result.is_none());
+        assert!(result.is_err());
         let result = store.find_global_registered("extern_module", "global");
-        assert!(result.is_some());
+        assert!(result.is_ok());
         let global = result.unwrap();
         assert!(!global.ctx.is_null() && global.registered);
         let val = global.get_value();

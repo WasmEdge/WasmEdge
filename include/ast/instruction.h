@@ -220,8 +220,9 @@ private:
       uint32_t ValTypeListSize;
       ValType *ValTypeList;
     } SelectT;
-    // Type 6: MemAlign, MemOffset, and MemLane.
+    // Type 6: TargetIdx, MemAlign, MemOffset, and MemLane.
     struct {
+      uint32_t TargetIdx;
       uint32_t MemAlign;
       uint32_t MemOffset;
       uint8_t MemLane;

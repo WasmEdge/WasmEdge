@@ -11,7 +11,7 @@ namespace WASICrypto {
 
 class ArrayOutput {
 public:
-  ArrayOutput(std::vector<uint8_t>&& Data);
+  ArrayOutput(std::vector<uint8_t> &&Data);
 
   WasiCryptoExpect<__wasi_size_t> pull(Span<uint8_t> Buf);
 

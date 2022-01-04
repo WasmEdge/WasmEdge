@@ -686,7 +686,8 @@ public:
       __wasi_signature_verification_state_t VerificationHandle);
 
 private:
-  WasiCryptoExpect<__wasi_array_output_t> allocateArrayOutput(std::vector<uint8_t> &&Data);
+  WasiCryptoExpect<__wasi_array_output_t>
+  allocateArrayOutput(std::vector<uint8_t> &&Data);
 
   WasiCryptoExpect<std::optional<SymmetricOptions>>
   readSymmetricOption(std::optional<__wasi_options_t> OptOptionsHandle);

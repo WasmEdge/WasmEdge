@@ -7,8 +7,8 @@
 #include "host/wasi_crypto/key_exchange/options.h"
 #include "host/wasi_crypto/lock.h"
 
-#include <vector>
 #include <memory>
+#include <vector>
 
 namespace WasmEdge {
 namespace Host {
@@ -57,9 +57,9 @@ public:
       : Inner(
             std::make_shared<Mutex<std::unique_ptr<Base>>>(std::move(Inner))) {}
 
-  static WasiCryptoExpect<KxPublicKey> import(KxAlgorithm Alg,
-                                              Span<uint8_t const> Raw,
-                                              __wasi_publickey_encoding_e_t Encoding);
+  static WasiCryptoExpect<KxPublicKey>
+  import(KxAlgorithm Alg, Span<uint8_t const> Raw,
+         __wasi_publickey_encoding_e_t Encoding);
 
   auto &inner() { return Inner; }
 

@@ -18,7 +18,6 @@ public:
           OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx)
       : Alg(Alg), Ctx(std::move(Ctx)) {}
 
-
   static WasiCryptoExpect<HkdfCtx> import(SymmetricAlgorithm Alg,
                                           Span<const uint8_t> Key);
 

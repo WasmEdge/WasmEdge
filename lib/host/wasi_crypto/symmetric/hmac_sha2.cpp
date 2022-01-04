@@ -60,9 +60,7 @@ HmacSha2SymmetricState::import(SymmetricAlgorithm Alg,
   }
 
   auto Ctx = OptKey->inner()->locked(
-      [Alg](auto &Inner)  {
-        return HmacSha2Ctx::import(Alg, Inner->asRef());
-      });
+      [Alg](auto &Inner) { return HmacSha2Ctx::import(Alg, Inner->asRef()); });
   if (!Ctx) {
     return WasiCryptoUnexpect(Ctx);
   }

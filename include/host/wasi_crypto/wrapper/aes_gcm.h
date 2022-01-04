@@ -37,7 +37,7 @@ public:
 private:
   enum Mode { Unchanged = -1, Decrypt = 0, Encrypt = 1 };
 
-//  SymmetricAlgorithm Alg;
+  //  SymmetricAlgorithm Alg;
   OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx;
 };
 

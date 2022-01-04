@@ -152,7 +152,7 @@ public:
     return {};
   }
 
-  WasiCryptoExpect<HandleType> registerManger(MangerType&& Manger) {
+  WasiCryptoExpect<HandleType> registerManger(MangerType &&Manger) {
     std::scoped_lock Guard{Mutex};
     auto NextHandle = nextHandle(LastHandle);
 

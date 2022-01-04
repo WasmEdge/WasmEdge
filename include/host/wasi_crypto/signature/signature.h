@@ -21,7 +21,8 @@ public:
 
     virtual Span<uint8_t const> asRef() = 0;
 
-    virtual WasiCryptoExpect<std::vector<uint8_t>> exportData(__wasi_signature_encoding_e_t Encoding) = 0;
+    virtual WasiCryptoExpect<std::vector<uint8_t>>
+    exportData(__wasi_signature_encoding_e_t Encoding) = 0;
   };
 
   Signature(std::unique_ptr<Base> Inner)
@@ -67,7 +68,8 @@ public:
 
     virtual WasiCryptoExpect<void> update(Span<uint8_t const> Input) = 0;
 
-    virtual WasiCryptoExpect<void> verify(std::unique_ptr<Signature::Base> &Sig) = 0;
+    virtual WasiCryptoExpect<void>
+    verify(std::unique_ptr<Signature::Base> &Sig) = 0;
   };
 
   SignatureVerificationState(std::unique_ptr<Base> Inner)

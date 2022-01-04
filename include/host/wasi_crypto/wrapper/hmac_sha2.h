@@ -16,7 +16,7 @@ public:
       : Ctx(std::move(Ctx)) {}
 
   static WasiCryptoExpect<HmacSha2Ctx> import(SymmetricAlgorithm Alg,
-                                           Span<uint8_t const> Raw);
+                                              Span<uint8_t const> Raw);
 
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data);
 

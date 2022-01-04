@@ -180,25 +180,25 @@ WasiCryptoExpect<RsaSignStateCtx> RsaKpCtx::asSignState() {
   return RsaSignStateCtx{std::move(SignCtx)};
 }
 
-WasiCryptoExpect<RsaKpCtx> RsaKpCtx::generate(SignatureAlgorithm ) {
+WasiCryptoExpect<RsaKpCtx> RsaKpCtx::generate(SignatureAlgorithm) {
   EVP_PKEY_CTX *Ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
   opensslAssuming(Ctx);
 
   opensslAssuming(EVP_PKEY_keygen_init(Ctx));
-//      if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048) <= 0)
-        /* Generate key */
+  //      if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048) <= 0)
+  /* Generate key */
   EVP_PKEY *PKey = nullptr;
   opensslAssuming(EVP_PKEY_keygen(Ctx, &PKey));
-//  EVP_PKEY *Params = initRsa(Alg);
+  //  EVP_PKEY *Params = initRsa(Alg);
 
   // Generate Key
-//  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> KCtx{
-//      EVP_PKEY_CTX_new(Params, nullptr)};
-//  opensslAssuming(Ctx);
-//  opensslAssuming(EVP_PKEY_keygen_init(KCtx.get()));
+  //  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> KCtx{
+  //      EVP_PKEY_CTX_new(Params, nullptr)};
+  //  opensslAssuming(Ctx);
+  //  opensslAssuming(EVP_PKEY_keygen_init(KCtx.get()));
 
-//  EVP_PKEY *Key = nullptr;
-//  opensslAssuming(EVP_PKEY_keygen(KCtx.get(), &Key));
+  //  EVP_PKEY *Key = nullptr;
+  //  opensslAssuming(EVP_PKEY_keygen(KCtx.get(), &Key));
 
   return RsaKpCtx{OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free>{PKey}};
 }

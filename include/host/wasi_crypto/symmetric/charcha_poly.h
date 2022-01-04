@@ -17,7 +17,7 @@ public:
 
   Span<const uint8_t> asRef() override { return Raw; }
 
-  SymmetricAlgorithm alg() override { return Alg;}
+  SymmetricAlgorithm alg() override { return Alg; }
 
 private:
   SymmetricAlgorithm Alg;
@@ -52,7 +52,6 @@ public:
 
   /// @param[in] optional additional authentication data(AAD)
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override;
-
 
 protected:
   /// @param[out] Out The encrypted text and tag.

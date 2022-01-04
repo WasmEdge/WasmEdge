@@ -3,11 +3,11 @@
 #include "gtest/gtest.h"
 
 #include "host/wasi_crypto/ctx.h"
-#include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/error.h"
+#include "host/wasi_crypto/symmetric/alg.h"
 
-#include <vector>
 #include <array>
+#include <vector>
 
 using namespace WasmEdge::Host::WASICrypto;
 using namespace std::literals;
@@ -165,7 +165,7 @@ TEST(WasiCryptoTest, Encryption) {
 }
 
 // Not Implementation
-//TEST(WasiCryptoTest, Session) {
+// TEST(WasiCryptoTest, Session) {
 //  WasiCryptoContext Ctx;
 //
 //  auto Msg = "test"_u8;
@@ -181,8 +181,10 @@ TEST(WasiCryptoTest, Encryption) {
 //                                               KeyHandle, std::nullopt)
 //                            .value();
 //
-//  EXPECT_TRUE(Ctx.symmetricStateAbsorb(SymmetricState, "data"_u8).has_value());
-//  EXPECT_TRUE(Ctx.symmetricStateSqueeze(SymmetricState, Squeezed).has_value());
+//  EXPECT_TRUE(Ctx.symmetricStateAbsorb(SymmetricState,
+//  "data"_u8).has_value());
+//  EXPECT_TRUE(Ctx.symmetricStateSqueeze(SymmetricState,
+//  Squeezed).has_value());
 //
 //  std::vector<uint8_t> CiphertextWithTag(
 //      Msg.size() + Ctx.symmetricStateMaxTagLen(SymmetricState).value());
@@ -193,16 +195,18 @@ TEST(WasiCryptoTest, Encryption) {
 //
 //  EXPECT_TRUE(Ctx.symmetricStateRatchet(SymmetricState).has_value());
 //
-//  EXPECT_TRUE(Ctx.symmetricStateSqueeze(SymmetricState, Squeezed).has_value());
+//  EXPECT_TRUE(Ctx.symmetricStateSqueeze(SymmetricState,
+//  Squeezed).has_value());
 //  EXPECT_TRUE(Ctx.symmetricStateClose(SymmetricState).has_value());
 //
 //  //
 //
-//  auto SymmetricState2 = Ctx.symmetricStateOpen(SymmetricAlgorithm::Xoodyak128,
+//  auto SymmetricState2 =
+//  Ctx.symmetricStateOpen(SymmetricAlgorithm::Xoodyak128,
 //                                                KeyHandle, std::nullopt)
 //                             .value();
-//  EXPECT_TRUE(Ctx.symmetricStateAbsorb(SymmetricState2, "data"_u8).has_value());
-//  EXPECT_TRUE(
+//  EXPECT_TRUE(Ctx.symmetricStateAbsorb(SymmetricState2,
+//  "data"_u8).has_value()); EXPECT_TRUE(
 //      Ctx.symmetricStateSqueeze(SymmetricState2, Squeezed2).has_value());
 //
 //  Ctx.symmetricStateDecrypt(SymmetricState2, Msg2, CiphertextWithTag).value();

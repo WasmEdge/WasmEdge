@@ -43,7 +43,8 @@ EddsaSignatureSecretKey::import(SignatureAlgorithm Alg,
     return WasiCryptoUnexpect(Sk);
   }
 
-  return SignatureSecretKey{std::make_unique<EddsaSignatureSecretKey>(std::move(*Sk))};
+  return SignatureSecretKey{
+      std::make_unique<EddsaSignatureSecretKey>(std::move(*Sk))};
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
@@ -59,7 +60,8 @@ EddsaSignatureKeyPair::generate(SignatureAlgorithm Alg,
     return WasiCryptoUnexpect(Res);
   }
 
-  return SignatureKeyPair{std::make_unique<EddsaSignatureKeyPair>(std::move(*Res))};
+  return SignatureKeyPair{
+      std::make_unique<EddsaSignatureKeyPair>(std::move(*Res))};
 }
 
 WasiCryptoExpect<SignatureKeyPair>
@@ -71,7 +73,8 @@ EddsaSignatureKeyPair::import(SignatureAlgorithm Alg,
     return WasiCryptoUnexpect(Res);
   }
 
-  return SignatureKeyPair{std::make_unique<EddsaSignatureKeyPair>(std::move(*Res))};
+  return SignatureKeyPair{
+      std::make_unique<EddsaSignatureKeyPair>(std::move(*Res))};
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
@@ -119,7 +122,8 @@ EddsaSignature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
   return Signature{std::make_unique<EddsaSignature>(std::move(*Res))};
 }
 
-WasiCryptoExpect<std::vector<uint8_t>> EddsaSignature::exportData(__wasi_signature_encoding_e_t Encoding) {
+WasiCryptoExpect<std::vector<uint8_t>>
+EddsaSignature::exportData(__wasi_signature_encoding_e_t Encoding) {
   return Ctx.exportData(Encoding);
 }
 

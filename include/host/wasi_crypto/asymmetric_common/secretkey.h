@@ -2,11 +2,11 @@
 #pragma once
 
 #include "common/span.h"
+#include "host/wasi_crypto/asymmetric_common/publickey.h"
 #include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/key_exchange/secretkey.h"
 #include "host/wasi_crypto/signature/secretkey.h"
 #include "host/wasi_crypto/varianthelper.h"
-#include "host/wasi_crypto/asymmetric_common/publickey.h"
 
 #include <variant>
 
@@ -25,8 +25,7 @@ public:
   WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_secretkey_encoding_e_t SkEncoding);
 
-  WasiCryptoExpect<PublicKey>
-  publicKey();
+  WasiCryptoExpect<PublicKey> publicKey();
 };
 
 } // namespace WASICrypto

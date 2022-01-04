@@ -7,8 +7,8 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-//SymmetricTag::SymmetricTag(SymmetricAlgorithm Alg, Span<uint8_t> Raw)
-//    : Alg(Alg), Raw(Raw.begin(),  Raw.end()) {}
+// SymmetricTag::SymmetricTag(SymmetricAlgorithm Alg, Span<uint8_t> Raw)
+//     : Alg(Alg), Raw(Raw.begin(),  Raw.end()) {}
 
 WasiCryptoExpect<void> SymmetricTag::verify(Span<uint8_t const> RawTag) {
   if (!std::equal(RawTag.begin(), RawTag.end(), Raw.begin(), Raw.end())) {

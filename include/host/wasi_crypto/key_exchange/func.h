@@ -3,8 +3,8 @@
 
 #include "host/wasi_crypto/ctx.h"
 #include "runtime/hostfunc.h"
-#include "wasi_crypto/api.hpp"
 #include "runtime/instance/memory.h"
+#include "wasi_crypto/api.hpp"
 
 namespace WasmEdge {
 namespace Host {

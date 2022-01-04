@@ -29,7 +29,7 @@ Sha2SymmetricState::optionsGet(std::string_view Name) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   }
   return OptOptions->inner()->locked(
-      [&Name](auto& Inner) { return Inner.get(Name); });
+      [&Name](auto &Inner) { return Inner.get(Name); });
 }
 
 WasiCryptoExpect<uint64_t>

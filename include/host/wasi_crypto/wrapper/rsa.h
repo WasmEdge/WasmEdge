@@ -15,8 +15,7 @@ class RsaVerificationCtx;
 
 class RsaPkCtx {
 public:
-  RsaPkCtx(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Pk)
-      : Pk(std::move(Pk)) {}
+  RsaPkCtx(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Pk) : Pk(std::move(Pk)) {}
 
   static WasiCryptoExpect<RsaPkCtx>
   import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
@@ -33,8 +32,7 @@ private:
 
 class RsaSkCtx {
 public:
-  RsaSkCtx(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Sk)
-      : Sk(std::move(Sk)) {}
+  RsaSkCtx(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Sk) : Sk(std::move(Sk)) {}
 
   static WasiCryptoExpect<RsaSkCtx>
   import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
@@ -49,8 +47,7 @@ private:
 
 class RsaKpCtx {
 public:
-  RsaKpCtx(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Kp)
-      : Kp(std::move(Kp)) {}
+  RsaKpCtx(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Kp) : Kp(std::move(Kp)) {}
 
   static WasiCryptoExpect<RsaKpCtx>
   import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,

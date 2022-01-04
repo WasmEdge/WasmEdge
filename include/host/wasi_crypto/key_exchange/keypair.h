@@ -60,8 +60,6 @@ private:
   std::shared_ptr<Mutex<std::unique_ptr<Base>>> Inner;
 };
 
-
-
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

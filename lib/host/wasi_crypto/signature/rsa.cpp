@@ -23,8 +23,7 @@ RsaSignaturePublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
   return Ctx.exportData(Encoding);
 }
 
-WasiCryptoExpect<SignatureVerificationState>
-RsaSignaturePublicKey::asState() {
+WasiCryptoExpect<SignatureVerificationState> RsaSignaturePublicKey::asState() {
   auto Res = Ctx.asVerification();
   if (!Res) {
     return WasiCryptoUnexpect(Res);
@@ -36,14 +35,15 @@ RsaSignaturePublicKey::asState() {
 
 WasiCryptoExpect<SignatureSecretKey>
 RsaSignatureSecretKey::import(SignatureAlgorithm Alg,
-                                Span<const uint8_t> Encoded,
-                                __wasi_secretkey_encoding_e_t Encoding) {
+                              Span<const uint8_t> Encoded,
+                              __wasi_secretkey_encoding_e_t Encoding) {
   auto Sk = RsaSkCtx::import(Alg, Encoded, Encoding);
   if (!Sk) {
     return WasiCryptoUnexpect(Sk);
   }
 
-  return SignatureSecretKey{std::make_unique<RsaSignatureSecretKey>(std::move(*Sk))};
+  return SignatureSecretKey{
+      std::make_unique<RsaSignatureSecretKey>(std::move(*Sk))};
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
@@ -53,25 +53,26 @@ RsaSignatureSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
 
 WasiCryptoExpect<SignatureKeyPair>
 RsaSignatureKeyPair::generate(SignatureAlgorithm Alg,
-                                std::optional<SignatureOptions>) {
+                              std::optional<SignatureOptions>) {
   auto Res = RsaKpCtx::generate(Alg);
   if (!Res) {
     return WasiCryptoUnexpect(Res);
   }
 
-  return SignatureKeyPair{std::make_unique<RsaSignatureKeyPair>(std::move(*Res))};
+  return SignatureKeyPair{
+      std::make_unique<RsaSignatureKeyPair>(std::move(*Res))};
 }
 
 WasiCryptoExpect<SignatureKeyPair>
-RsaSignatureKeyPair::import(SignatureAlgorithm Alg,
-                              Span<const uint8_t> Encoded,
-                              __wasi_keypair_encoding_e_t Encoding) {
+RsaSignatureKeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+                            __wasi_keypair_encoding_e_t Encoding) {
   auto Res = RsaKpCtx::import(Alg, Encoded, Encoding);
   if (!Res) {
     return WasiCryptoUnexpect(Res);
   }
 
-  return SignatureKeyPair{std::make_unique<RsaSignatureKeyPair>(std::move(*Res))};
+  return SignatureKeyPair{
+      std::make_unique<RsaSignatureKeyPair>(std::move(*Res))};
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
@@ -110,7 +111,7 @@ WasiCryptoExpect<SignatureState> RsaSignatureKeyPair::asState() {
 
 WasiCryptoExpect<Signature>
 RsaSignature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                       __wasi_signature_encoding_e_t Encoding) {
+                     __wasi_signature_encoding_e_t Encoding) {
   auto Res = RsaSignCtx::import(Alg, Encoded, Encoding);
   if (!Res) {
     return WasiCryptoUnexpect(Res);
@@ -119,7 +120,8 @@ RsaSignature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
   return Signature{std::make_unique<RsaSignature>(std::move(*Res))};
 }
 
-WasiCryptoExpect<std::vector<uint8_t>> RsaSignature::exportData(__wasi_signature_encoding_e_t Encoding) {
+WasiCryptoExpect<std::vector<uint8_t>>
+RsaSignature::exportData(__wasi_signature_encoding_e_t Encoding) {
   return Ctx.exportData(Encoding);
 }
 

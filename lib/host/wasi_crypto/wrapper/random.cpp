@@ -8,7 +8,7 @@ namespace Host {
 namespace WASICrypto {
 
 WasiCryptoExpect<void> CryptoRandom::fill(Span<uint8_t> Bytes) {
-  if(!RAND_bytes(Bytes.data(), Bytes.size())) {
+  if (!RAND_bytes(Bytes.data(), Bytes.size())) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_RNG_ERROR);
   }
   return {};

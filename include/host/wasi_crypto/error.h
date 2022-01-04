@@ -20,7 +20,6 @@ constexpr auto WasiCryptoUnexpect(const WasiCryptoExpect<T> &Val) {
   return Unexpected<__wasi_crypto_errno_e_t>(Val.error());
 }
 
-
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

@@ -6,8 +6,8 @@
 #include "host/wasi_crypto/signature/options.h"
 #include "host/wasi_crypto/signature/publickey.h"
 #include "host/wasi_crypto/signature/secretkey.h"
-#include "host/wasi_crypto/varianthelper.h"
 #include "host/wasi_crypto/signature/signature.h"
+#include "host/wasi_crypto/varianthelper.h"
 
 namespace WasmEdge {
 namespace Host {

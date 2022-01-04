@@ -79,7 +79,6 @@ SignatureKeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
   }
 }
 
-
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

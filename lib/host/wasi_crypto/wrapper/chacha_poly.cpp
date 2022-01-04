@@ -9,8 +9,7 @@ namespace WASICrypto {
 namespace {
 const std::map<SymmetricAlgorithm, size_t> NonceMap{
     {SymmetricAlgorithm::ChaCha20Poly1305, 12},
-    {SymmetricAlgorithm::XChaCha20Poly1305 , 24}
-};
+    {SymmetricAlgorithm::XChaCha20Poly1305, 24}};
 }
 
 WasiCryptoExpect<ChaChaPolyCtx>
@@ -27,8 +26,8 @@ ChaChaPolyCtx::import(SymmetricAlgorithm Alg, Span<uint8_t const> Key,
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
   }
 
-  opensslAssuming(EVP_CipherInit_ex(Ctx.get(), EVP_chacha20_poly1305(), nullptr, Key.data(),
-                                    Nonce.data(), Mode::Unchanged));
+  opensslAssuming(EVP_CipherInit_ex(Ctx.get(), EVP_chacha20_poly1305(), nullptr,
+                                    Key.data(), Nonce.data(), Mode::Unchanged));
 
   return ChaChaPolyCtx{Alg, std::move(Ctx)};
 }

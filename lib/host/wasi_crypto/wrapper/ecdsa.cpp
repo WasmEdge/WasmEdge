@@ -100,7 +100,7 @@ WasiCryptoExpect<EcdsaVerificationCtx> EcdsaPkCtx::asVerification() {
 WasiCryptoExpect<EcdsaSkCtx>
 EcdsaSkCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
                    __wasi_secretkey_encoding_e_t Encoding) {
-  EVP_PKEY * Sk = initEC(Alg);
+  EVP_PKEY *Sk = initEC(Alg);
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();

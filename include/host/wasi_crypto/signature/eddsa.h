@@ -17,8 +17,7 @@ namespace WASICrypto {
 
 class EddsaSignaturePublicKey : public SignaturePublicKey::Base {
 public:
-  EddsaSignaturePublicKey(EddsaPkCtx Ctx)
-      : Ctx(std::move(Ctx)) {}
+  EddsaSignaturePublicKey(EddsaPkCtx Ctx) : Ctx(std::move(Ctx)) {}
 
   static WasiCryptoExpect<std::unique_ptr<EddsaSignaturePublicKey>>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
@@ -35,8 +34,7 @@ private:
 
 class EddsaSignatureSecretKey : public SignatureSecretKey::Base {
 public:
-  EddsaSignatureSecretKey(EddsaSkCtx Ctx)
-      : Ctx(std::move(Ctx)) {}
+  EddsaSignatureSecretKey(EddsaSkCtx Ctx) : Ctx(std::move(Ctx)) {}
 
   static WasiCryptoExpect<SignatureSecretKey>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,

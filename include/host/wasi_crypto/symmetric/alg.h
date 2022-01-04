@@ -27,7 +27,7 @@ enum class SymmetricAlgorithm {
   Xoodyak160
 };
 
-template<>
+template <>
 constexpr WasiCryptoExpect<SymmetricAlgorithm>
 tryFrom(std::string_view Value) noexcept {
   if (Value == "HKDF-EXTRACT/SHA-256")
@@ -62,7 +62,6 @@ tryFrom(std::string_view Value) noexcept {
     return SymmetricAlgorithm::Xoodyak160;
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
 }
-
 
 } // namespace WASICrypto
 } // namespace Host

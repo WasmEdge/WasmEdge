@@ -43,7 +43,7 @@ TEST(WasiCryptoTest, KeyExchange) {
 }
 
 // Not Implementation
-//TEST(WasiCryptoTest, KeyEncapsulation) {
+// TEST(WasiCryptoTest, KeyEncapsulation) {
 //  WasiCryptoContext Ctx;
 //
 //  auto KxKpHandle = Ctx.keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
@@ -52,9 +52,11 @@ TEST(WasiCryptoTest, KeyExchange) {
 //  auto Pk = Ctx.keypairPublickey(KxKpHandle).value();
 //  auto Sk = Ctx.keypairSecretkey(KxKpHandle).value();
 //
-//  auto [SecretHandle, EncapsulatedSecretHandle] = Ctx.kxEncapsulate(Pk).value();
+//  auto [SecretHandle, EncapsulatedSecretHandle] =
+//  Ctx.kxEncapsulate(Pk).value();
 //
-//  std::vector<uint8_t> SecretRawBytes(Ctx.arrayOutputLen(SecretHandle).value(),
+//  std::vector<uint8_t>
+//  SecretRawBytes(Ctx.arrayOutputLen(SecretHandle).value(),
 //                                      0);
 //
 //  Ctx.arrayOutputPull(SecretHandle, SecretRawBytes).value();

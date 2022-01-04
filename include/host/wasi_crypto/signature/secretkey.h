@@ -19,7 +19,7 @@ public:
     virtual ~Base() = default;
 
     virtual WasiCryptoExpect<std::vector<uint8_t>>
-    exportData(__wasi_secretkey_encoding_e_t) = 0;
+        exportData(__wasi_secretkey_encoding_e_t) = 0;
 
     WasiCryptoExpect<SignaturePublicKey> publicKey() {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);

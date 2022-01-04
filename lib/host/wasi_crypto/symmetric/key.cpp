@@ -31,13 +31,13 @@ WasiCryptoExpect<SymmetricKey> SymmetricKey::import(SymmetricAlgorithm Alg,
 }
 
 WasiCryptoExpect<SymmetricKey> SymmetricKey::from(SymmetricAlgorithm Alg,
-                                                    std::vector<uint8_t>&& Data) {
+                                                  std::vector<uint8_t> &&Data) {
   auto Builder = builder(Alg);
   if (!Builder) {
     return WasiCryptoUnexpect(Builder);
   }
 
-  //TODO: a vector way
+  // TODO: a vector way
   return (*Builder)->import(Data);
 }
 

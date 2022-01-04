@@ -23,7 +23,7 @@ public:
   WasiCryptoExpect<void> verify(Span<uint8_t const> RawTag);
 
 private:
-//  SymmetricAlgorithm Alg;
+  //  SymmetricAlgorithm Alg;
   std::vector<uint8_t> Raw;
 };
 

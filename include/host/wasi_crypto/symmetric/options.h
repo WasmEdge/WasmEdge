@@ -19,7 +19,6 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-
 class SymmetricOptions {
 public:
   class Inner {

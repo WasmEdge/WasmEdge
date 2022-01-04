@@ -20,12 +20,10 @@ namespace WASICrypto {
           OPENSSL_die("assertion failed: " #cond, __FILE__, __LINE__)))
 #endif
 
-
 template <auto Fn> using Deleter = std::integral_constant<decltype(Fn), Fn>;
 
 template <typename T, auto Fn>
 using OpenSSLUniquePtr = std::unique_ptr<T, Deleter<Fn>>;
-
 
 } // namespace WASICrypto
 } // namespace Host

@@ -8,12 +8,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-enum class KxAlgorithm {
-  X25519,
-  Kyber768
-};
+enum class KxAlgorithm { X25519, Kyber768 };
 
-template<>
+template <>
 constexpr WasiCryptoExpect<KxAlgorithm>
 tryFrom(std::string_view AlgStr) noexcept {
   if (AlgStr == "X25519") {

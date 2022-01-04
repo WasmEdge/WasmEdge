@@ -5,8 +5,6 @@
 
 namespace WasmEdge {
 namespace Host {
-namespace WASICrypto {
-
-} // namespace WASICrypto
+namespace WASICrypto {} // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

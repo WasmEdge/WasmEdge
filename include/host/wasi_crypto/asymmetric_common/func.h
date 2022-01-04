@@ -76,8 +76,7 @@ public:
   using HostFunction::HostFunction;
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_keypair_t Kp, uint8_t_ptr KpId,
-                        __wasi_size_t KpIdMaxLen,
-                        uint8_t_ptr /* Out */ SizePtr,
+                        __wasi_size_t KpIdMaxLen, uint8_t_ptr /* Out */ SizePtr,
                         uint8_t_ptr /* Out */ VersionPtr);
 };
 
@@ -136,17 +135,16 @@ public:
   using HostFunction::HostFunction;
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         uint32_t AlgorithmType, const_uint8_t_ptr AlgorithmPtr,
-                        __wasi_size_t AlgorithmLen, const_uint8_t_ptr EncodedPtr,
-                        __wasi_size_t EncodedLen, uint32_t Encoding,
-                        uint8_t_ptr /* Out */ PublickeyPtr);
+                        __wasi_size_t AlgorithmLen,
+                        const_uint8_t_ptr EncodedPtr, __wasi_size_t EncodedLen,
+                        uint32_t Encoding, uint8_t_ptr /* Out */ PublickeyPtr);
 };
 
 class PublickeyExport : public HostFunction<PublickeyExport> {
 public:
   using HostFunction::HostFunction;
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        __wasi_publickey_t Pk,
-                        uint32_t Encoding,
+                        __wasi_publickey_t Pk, uint32_t Encoding,
                         uint8_t_ptr /* Out */ ArrayOutputPtr);
 };
 
@@ -176,20 +174,17 @@ class SecretkeyImport : public HostFunction<SecretkeyImport> {
 public:
   using HostFunction::HostFunction;
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        uint32_t AlgorithmType,
-                        const_uint8_t_ptr AlgorithmPtr,
-                        __wasi_size_t AlgorithmLen, const_uint8_t_ptr EncodedPtr,
-                        __wasi_size_t EncodedLen,
-                        uint32_t Encoding,
-                        uint8_t_ptr /* Out */ SecretkeyPtr);
+                        uint32_t AlgorithmType, const_uint8_t_ptr AlgorithmPtr,
+                        __wasi_size_t AlgorithmLen,
+                        const_uint8_t_ptr EncodedPtr, __wasi_size_t EncodedLen,
+                        uint32_t Encoding, uint8_t_ptr /* Out */ SecretkeyPtr);
 };
 
 class SecretkeyExport : public HostFunction<SecretkeyExport> {
 public:
   using HostFunction::HostFunction;
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        __wasi_secretkey_t Sk,
-                        uint32_t Encoding,
+                        __wasi_secretkey_t Sk, uint32_t Encoding,
                         uint8_t_ptr /* Out */ ArrayOutputPtr);
 };
 

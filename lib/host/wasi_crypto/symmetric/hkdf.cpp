@@ -105,7 +105,6 @@ HkdfSymmetricState::optionsGetU64(std::string_view Name) {
       [&Name](auto &Inner) { return Inner.getU64(Name); });
 }
 
-
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

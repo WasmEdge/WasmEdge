@@ -14,6 +14,7 @@ public:
   virtual ~WasiCryptoModule() = default;
 
   WASICrypto::WasiCryptoContext &getContext() { return Ctx; }
+
 private:
   WASICrypto::WasiCryptoContext Ctx;
 };

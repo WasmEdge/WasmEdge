@@ -35,8 +35,8 @@ public:
       : Sk(std::move(Ctx)) {}
 
   // Raw
-  static WasiCryptoExpect<X25519SKCtx> import(Span<uint8_t const> Raw,
-                                              __wasi_secretkey_encoding_e_t Encoding);
+  static WasiCryptoExpect<X25519SKCtx>
+  import(Span<uint8_t const> Raw, __wasi_secretkey_encoding_e_t Encoding);
 
   WasiCryptoExpect<std::vector<uint8_t>> exportData();
 

@@ -17,8 +17,7 @@ namespace WASICrypto {
 
 class RsaSignaturePublicKey : public SignaturePublicKey::Base {
 public:
-  RsaSignaturePublicKey(RsaPkCtx Ctx)
-      : Ctx(std::move(Ctx)) {}
+  RsaSignaturePublicKey(RsaPkCtx Ctx) : Ctx(std::move(Ctx)) {}
 
   static WasiCryptoExpect<std::unique_ptr<RsaSignaturePublicKey>>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
@@ -35,8 +34,7 @@ private:
 
 class RsaSignatureSecretKey : public SignatureSecretKey::Base {
 public:
-  RsaSignatureSecretKey(RsaSkCtx Ctx)
-      : Ctx(std::move(Ctx)) {}
+  RsaSignatureSecretKey(RsaSkCtx Ctx) : Ctx(std::move(Ctx)) {}
 
   static WasiCryptoExpect<SignatureSecretKey>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
@@ -102,11 +100,9 @@ private:
   RsaSignStateCtx Ctx;
 };
 
-class RsaSignatureVerificationState
-    : public SignatureVerificationState::Base {
+class RsaSignatureVerificationState : public SignatureVerificationState::Base {
 public:
-  RsaSignatureVerificationState(RsaVerificationCtx Ctx)
-      : Ctx(std::move(Ctx)){};
+  RsaSignatureVerificationState(RsaVerificationCtx Ctx) : Ctx(std::move(Ctx)){};
 
   WasiCryptoExpect<void> update(Span<const uint8_t> Input) override;
 

@@ -5,9 +5,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-class SignatureOptions {
-
-};
+class SignatureOptions {};
 
 } // namespace WASICrypto
 } // namespace Host

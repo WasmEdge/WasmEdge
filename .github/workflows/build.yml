@@ -80,7 +80,7 @@ jobs:
     - name: Install requirment
       run: |
         dnf update -y
-        dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev
+        dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev openssl-devel
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
@@ -147,6 +147,9 @@ jobs:
       env:
         CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
       run: |
+        apt update
+        apt install -y libssl-dev
+        export OPENSSL_ROOT_DIR=/usr/local
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON .
         cmake --build build
     - name: Test WasmEdge
@@ -161,7 +164,8 @@ jobs:
       if: ${{ matrix.coverage }}
       run: |
         apt update
-        apt install -y gcovr
+        apt install -y gcovr libssl-dev
+        export OPENSSL_ROOT_DIR=/usr/local
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --target wasm32-wasi
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_COVERAGE=ON .
         cmake --build build
@@ -245,6 +249,7 @@ jobs:
         export CPPFLAGS="-I/usr/local/opt/llvm/include"
         export CC=clang
         export CXX=clang++
+        export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
         cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON .
         cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
         cmake --build build
@@ -276,7 +281,7 @@ jobs:
     - name: Install dependency
       uses: crazy-max/ghaction-chocolatey@v1
       with:
-        args: install cmake ninja vswhere
+        args: install cmake ninja vswhere openssl
 
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
       with:

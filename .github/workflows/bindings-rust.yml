@@ -48,6 +48,9 @@ jobs:
 
     - name: Test on standalone crate
       run: |
+        apt update
+        apt install libssl-dev
+        export OPENSSL_ROOT_DIR=/usr/local
         cd bindings/rust/
         export WASMEDGE_DIR="$(pwd)/../../"
         cargo test --lib --examples

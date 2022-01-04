@@ -4,6 +4,7 @@
 #include "wasi_crypto/api.hpp"
 #include "host/wasi_crypto/error.h"
 
+#include <string_view>
 #include <memory>
 #include <optional>
 

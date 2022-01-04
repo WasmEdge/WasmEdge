@@ -7,6 +7,7 @@
 #include "host/wasi_crypto/key_exchange/options.h"
 #include "host/wasi_crypto/lock.h"
 
+#include <vector>
 #include <memory>
 
 namespace WasmEdge {

@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+#include "gtest/gtest.h"
+
 #include "host/wasi_crypto/ctx.h"
 #include "host/wasi_crypto/symmetric/alg.h"
-#include "gtest/gtest.h"
+#include "host/wasi_crypto/error.h"
+
+#include <vector>
+#include <array>
 
 using namespace WasmEdge::Host::WASICrypto;
 using namespace std::literals;

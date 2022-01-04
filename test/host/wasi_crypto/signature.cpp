@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 #include "host/wasi_crypto/signature/signature.h"
 
+#include <vector>
 #include <iostream>
 using namespace WasmEdge::Host::WASICrypto;
 using namespace std::literals;

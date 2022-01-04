@@ -79,7 +79,7 @@ tryFrom(std::string_view AlgStr) noexcept {
 
 enum class SignatureAlgorithmFamily { ECDSA, EdDSA, RSA };
 
- constexpr WasiCryptoExpect<SignatureAlgorithmFamily>
+constexpr WasiCryptoExpect<SignatureAlgorithmFamily>
 family(SignatureAlgorithm Alg) {
   switch (Alg) {
   case SignatureAlgorithm::ECDSA_P256_SHA256:

@@ -299,7 +299,8 @@ private:
                                Runtime::Instance::DataInstance &DataInst,
                                const AST::Instruction &Instr);
   Expect<void> runDataDropOp(Runtime::Instance::DataInstance &DataInst);
-  Expect<void> runMemoryCopyOp(Runtime::Instance::MemoryInstance &MemInst,
+  Expect<void> runMemoryCopyOp(Runtime::Instance::MemoryInstance &MemInstDst,
+                               Runtime::Instance::MemoryInstance &MemInstSrc,
                                const AST::Instruction &Instr);
   Expect<void> runMemoryFillOp(Runtime::Instance::MemoryInstance &MemInst,
                                const AST::Instruction &Instr);

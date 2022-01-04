@@ -193,65 +193,93 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
 
     // Memory Instructions
     case OpCode::I32__load:
-      return runLoadOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runLoadOp<uint32_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I64__load:
-      return runLoadOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runLoadOp<uint64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::F32__load:
-      return runLoadOp<float>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runLoadOp<float>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::F64__load:
-      return runLoadOp<double>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runLoadOp<double>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I32__load8_s:
-      return runLoadOp<int32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+      return runLoadOp<int32_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 8);
     case OpCode::I32__load8_u:
-      return runLoadOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+      return runLoadOp<uint32_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 8);
     case OpCode::I32__load16_s:
-      return runLoadOp<int32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+      return runLoadOp<int32_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 16);
     case OpCode::I32__load16_u:
-      return runLoadOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+      return runLoadOp<uint32_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 16);
     case OpCode::I64__load8_s:
-      return runLoadOp<int64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+      return runLoadOp<int64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 8);
     case OpCode::I64__load8_u:
-      return runLoadOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+      return runLoadOp<uint64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 8);
     case OpCode::I64__load16_s:
-      return runLoadOp<int64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+      return runLoadOp<int64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 16);
     case OpCode::I64__load16_u:
-      return runLoadOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+      return runLoadOp<uint64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 16);
     case OpCode::I64__load32_s:
-      return runLoadOp<int64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 32);
+      return runLoadOp<int64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 32);
     case OpCode::I64__load32_u:
-      return runLoadOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 32);
+      return runLoadOp<uint64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 32);
     case OpCode::I32__store:
-      return runStoreOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runStoreOp<uint32_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I64__store:
-      return runStoreOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runStoreOp<uint64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::F32__store:
-      return runStoreOp<float>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runStoreOp<float>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::F64__store:
-      return runStoreOp<double>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runStoreOp<double>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I32__store8:
-      return runStoreOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+      return runStoreOp<uint32_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 8);
     case OpCode::I32__store16:
-      return runStoreOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+      return runStoreOp<uint32_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 16);
     case OpCode::I64__store8:
-      return runStoreOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 8);
+      return runStoreOp<uint64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 8);
     case OpCode::I64__store16:
-      return runStoreOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 16);
+      return runStoreOp<uint64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 16);
     case OpCode::I64__store32:
-      return runStoreOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 32);
+      return runStoreOp<uint64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 32);
     case OpCode::Memory__grow:
-      return runMemoryGrowOp(*getMemInstByIdx(StoreMgr, 0));
+      return runMemoryGrowOp(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()));
     case OpCode::Memory__size:
-      return runMemorySizeOp(*getMemInstByIdx(StoreMgr, 0));
+      return runMemorySizeOp(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()));
     case OpCode::Memory__init:
       return runMemoryInitOp(
-          *getMemInstByIdx(StoreMgr, 0),
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()),
           *getDataInstByIdx(StoreMgr, Instr.getSourceIndex()), Instr);
     case OpCode::Data__drop:
       return runDataDropOp(*getDataInstByIdx(StoreMgr, Instr.getTargetIndex()));
     case OpCode::Memory__copy:
-      return runMemoryCopyOp(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runMemoryCopyOp(*getMemInstByIdx(StoreMgr, Instr.getTargetIndex()),
+                             *getMemInstByIdx(StoreMgr, Instr.getSourceIndex()),
+                             Instr);
     case OpCode::Memory__fill:
-      return runMemoryFillOp(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runMemoryFillOp(*getMemInstByIdx(StoreMgr, Instr.getTargetIndex()),
+                             Instr);
 
     // Const numeric instructions
     case OpCode::I32__const:
@@ -691,55 +719,71 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
 
     // SIMD Memory Instructions
     case OpCode::V128__load:
-      return runLoadOp<uint128_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runLoadOp<uint128_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load8x8_s:
-      return runLoadExpandOp<int8_t, int16_t>(*getMemInstByIdx(StoreMgr, 0),
-                                              Instr);
+      return runLoadExpandOp<int8_t, int16_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load8x8_u:
-      return runLoadExpandOp<uint8_t, uint16_t>(*getMemInstByIdx(StoreMgr, 0),
-                                                Instr);
+      return runLoadExpandOp<uint8_t, uint16_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load16x4_s:
-      return runLoadExpandOp<int16_t, int32_t>(*getMemInstByIdx(StoreMgr, 0),
-                                               Instr);
+      return runLoadExpandOp<int16_t, int32_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load16x4_u:
-      return runLoadExpandOp<uint16_t, uint32_t>(*getMemInstByIdx(StoreMgr, 0),
-                                                 Instr);
+      return runLoadExpandOp<uint16_t, uint32_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load32x2_s:
-      return runLoadExpandOp<int32_t, int64_t>(*getMemInstByIdx(StoreMgr, 0),
-                                               Instr);
+      return runLoadExpandOp<int32_t, int64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load32x2_u:
-      return runLoadExpandOp<uint32_t, uint64_t>(*getMemInstByIdx(StoreMgr, 0),
-                                                 Instr);
+      return runLoadExpandOp<uint32_t, uint64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load8_splat:
-      return runLoadSplatOp<uint8_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runLoadSplatOp<uint8_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load16_splat:
-      return runLoadSplatOp<uint16_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runLoadSplatOp<uint16_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load32_splat:
-      return runLoadSplatOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runLoadSplatOp<uint32_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load64_splat:
-      return runLoadSplatOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runLoadSplatOp<uint64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load32_zero:
-      return runLoadOp<uint128_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 32);
+      return runLoadOp<uint128_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 32);
     case OpCode::V128__load64_zero:
-      return runLoadOp<uint128_t>(*getMemInstByIdx(StoreMgr, 0), Instr, 64);
+      return runLoadOp<uint128_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr, 64);
     case OpCode::V128__store:
-      return runStoreOp<uint128_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runStoreOp<uint128_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load8_lane:
-      return runLoadLaneOp<uint8_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runLoadLaneOp<uint8_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load16_lane:
-      return runLoadLaneOp<uint16_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runLoadLaneOp<uint16_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load32_lane:
-      return runLoadLaneOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runLoadLaneOp<uint32_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load64_lane:
-      return runLoadLaneOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runLoadLaneOp<uint64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__store8_lane:
-      return runStoreLaneOp<uint8_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runStoreLaneOp<uint8_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__store16_lane:
-      return runStoreLaneOp<uint16_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runStoreLaneOp<uint16_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__store32_lane:
-      return runStoreLaneOp<uint32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runStoreLaneOp<uint32_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__store64_lane:
-      return runStoreLaneOp<uint64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+      return runStoreLaneOp<uint64_t>(
+          *getMemInstByIdx(StoreMgr, Instr.getTargetIndex()), Instr);
 
     // SIMD Const Instructions
     case OpCode::V128__const:

@@ -117,7 +117,23 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   };
 
-  auto readCheckZero = [this, readU8]() -> Expect<void> {
+  auto readMemImmediate = [this, readU32, &Instr]() -> Expect<void> {
+    Instr.getTargetIndex() = 0;
+    if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
+      return Unexpect(Res);
+    }
+    if (auto Res = readU32(Instr.getMemoryOffset()); unlikely(!Res)) {
+      return Unexpect(Res);
+    }
+    if (Conf.hasProposal(Proposal::MultiMemories) &&
+        Instr.getMemoryAlign() >= 64) {
+      Instr.getMemoryAlign() -= 64;
+      return readU32(Instr.getTargetIndex());
+    }
+    return {};
+  };
+
+  auto readCheckZero = [this, readU8](uint32_t &Dst) -> Expect<void> {
     uint8_t C = 0;
     if (auto Res = readU8(C); unlikely(!Res)) {
       return Unexpect(Res);
@@ -126,6 +142,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       return logLoadError(ErrCode::ExpectedZeroByte, FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
+    Dst = 0;
     return {};
   };
 
@@ -270,26 +287,23 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return readU32(Instr.getTargetIndex());
 
   // Table Instructions.
-  case OpCode::Table__get:
-  case OpCode::Table__set:
-  case OpCode::Table__copy:
-  case OpCode::Table__grow:
-  case OpCode::Table__size:
-  case OpCode::Table__fill:
-    if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-    if (Instr.getOpCode() == OpCode::Table__copy) {
-      return readU32(Instr.getSourceIndex());
-    }
-    return {};
   case OpCode::Table__init:
     if (auto Res = readU32(Instr.getSourceIndex()); unlikely(!Res)) {
       return Unexpect(Res);
     }
     [[fallthrough]];
+  case OpCode::Table__get:
+  case OpCode::Table__set:
+  case OpCode::Table__grow:
+  case OpCode::Table__size:
+  case OpCode::Table__fill:
   case OpCode::Elem__drop:
     return readU32(Instr.getTargetIndex());
+  case OpCode::Table__copy:
+    if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
+      return Unexpect(Res);
+    }
+    return readU32(Instr.getSourceIndex());
 
   // Memory Instructions.
   case OpCode::I32__load:
@@ -315,30 +329,35 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::I64__store8:
   case OpCode::I64__store16:
   case OpCode::I64__store32:
-    // Read memory arguments.
-    if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-    return readU32(Instr.getMemoryOffset());
+    return readMemImmediate();
 
-  case OpCode::Memory__copy:
-    if (auto Res = readCheckZero(); unlikely(!Res)) {
+  case OpCode::Memory__init:
+    if (!HasDataSection) {
+      return logLoadError(ErrCode::DataCountRequired, Instr.getOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    if (auto Res = readU32(Instr.getSourceIndex()); unlikely(!Res)) {
       return Unexpect(Res);
     }
     [[fallthrough]];
   case OpCode::Memory__grow:
   case OpCode::Memory__size:
   case OpCode::Memory__fill:
-    return readCheckZero();
-  case OpCode::Memory__init:
-    if (!HasDataSection) {
-      return logLoadError(ErrCode::DataCountRequired, Instr.getOffset(),
-                          ASTNodeAttr::Instruction);
+    if (Conf.hasProposal(Proposal::MultiMemories)) {
+      return readU32(Instr.getTargetIndex());
     }
-    if (auto Res = readU32(Instr.getSourceIndex()); !Res) {
+    return readCheckZero(Instr.getTargetIndex());
+  case OpCode::Memory__copy:
+    if (Conf.hasProposal(Proposal::MultiMemories)) {
+      if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
+        return Unexpect(Res);
+      }
+      return readU32(Instr.getSourceIndex());
+    }
+    if (auto Res = readCheckZero(Instr.getTargetIndex()); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    return readCheckZero();
+    return readCheckZero(Instr.getSourceIndex());
   case OpCode::Data__drop:
     if (!HasDataSection) {
       return logLoadError(ErrCode::DataCountRequired, Instr.getOffset(),
@@ -537,14 +556,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::V128__load32_zero:
   case OpCode::V128__load64_zero:
   case OpCode::V128__store:
-    // Read memory arguments.
-    if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-    if (auto Res = readU32(Instr.getMemoryOffset()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-    return {};
+    return readMemImmediate();
   case OpCode::V128__load8_lane:
   case OpCode::V128__load16_lane:
   case OpCode::V128__load32_lane:
@@ -553,11 +565,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::V128__store16_lane:
   case OpCode::V128__store32_lane:
   case OpCode::V128__store64_lane:
-    // Read memory arguments.
-    if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-    if (auto Res = readU32(Instr.getMemoryOffset()); unlikely(!Res)) {
+    // Read memory immediate.
+    if (auto Res = readMemImmediate(); unlikely(!Res)) {
       return Unexpect(Res);
     }
     // Read lane index.

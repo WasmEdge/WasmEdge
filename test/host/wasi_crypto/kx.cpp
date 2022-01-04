@@ -42,33 +42,34 @@ TEST(WasiCryptoTest, KeyExchange) {
   EXPECT_TRUE(Ctx.keypairClose(KxKpHandle2).has_value());
 }
 
-TEST(WasiCryptoTest, KeyEncapsulation) {
-  WasiCryptoContext Ctx;
-
-  auto KxKpHandle = Ctx.keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
-                                        "Kyber768", std::nullopt)
-                        .value();
-  auto Pk = Ctx.keypairPublickey(KxKpHandle).value();
-  auto Sk = Ctx.keypairSecretkey(KxKpHandle).value();
-
-  auto [SecretHandle, EncapsulatedSecretHandle] = Ctx.kxEncapsulate(Pk).value();
-
-  std::vector<uint8_t> SecretRawBytes(Ctx.arrayOutputLen(SecretHandle).value(),
-                                      0);
-
-  Ctx.arrayOutputPull(SecretHandle, SecretRawBytes).value();
-  std::vector<uint8_t> EncapsulatedSecretRawBytes(
-      Ctx.arrayOutputLen(EncapsulatedSecretHandle).value(), 0);
-
-  Ctx.arrayOutputPull(EncapsulatedSecretHandle, EncapsulatedSecretRawBytes)
-      .value();
-
-  auto DecapsulatedSecretHandle =
-      Ctx.kxDecapsulate(Sk, EncapsulatedSecretRawBytes).value();
-  std::vector<uint8_t> DecapsulatedSecretRawBytes(
-      Ctx.arrayOutputLen(DecapsulatedSecretHandle).value(), 0);
-  Ctx.arrayOutputPull(DecapsulatedSecretHandle, DecapsulatedSecretRawBytes)
-      .value();
-
-  EXPECT_EQ(SecretRawBytes, DecapsulatedSecretRawBytes);
-}
+// Not Implementation
+//TEST(WasiCryptoTest, KeyEncapsulation) {
+//  WasiCryptoContext Ctx;
+//
+//  auto KxKpHandle = Ctx.keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+//                                        "Kyber768", std::nullopt)
+//                        .value();
+//  auto Pk = Ctx.keypairPublickey(KxKpHandle).value();
+//  auto Sk = Ctx.keypairSecretkey(KxKpHandle).value();
+//
+//  auto [SecretHandle, EncapsulatedSecretHandle] = Ctx.kxEncapsulate(Pk).value();
+//
+//  std::vector<uint8_t> SecretRawBytes(Ctx.arrayOutputLen(SecretHandle).value(),
+//                                      0);
+//
+//  Ctx.arrayOutputPull(SecretHandle, SecretRawBytes).value();
+//  std::vector<uint8_t> EncapsulatedSecretRawBytes(
+//      Ctx.arrayOutputLen(EncapsulatedSecretHandle).value(), 0);
+//
+//  Ctx.arrayOutputPull(EncapsulatedSecretHandle, EncapsulatedSecretRawBytes)
+//      .value();
+//
+//  auto DecapsulatedSecretHandle =
+//      Ctx.kxDecapsulate(Sk, EncapsulatedSecretRawBytes).value();
+//  std::vector<uint8_t> DecapsulatedSecretRawBytes(
+//      Ctx.arrayOutputLen(DecapsulatedSecretHandle).value(), 0);
+//  Ctx.arrayOutputPull(DecapsulatedSecretHandle, DecapsulatedSecretRawBytes)
+//      .value();
+//
+//  EXPECT_EQ(SecretRawBytes, DecapsulatedSecretRawBytes);
+//}

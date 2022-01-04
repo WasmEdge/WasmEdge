@@ -13,9 +13,9 @@ namespace WASICrypto {
 
 class AesGcmCtx {
 public:
-  AesGcmCtx(SymmetricAlgorithm Alg,
+  AesGcmCtx(SymmetricAlgorithm /*Alg*/,
             OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx)
-      : Alg(Alg), Ctx(std::move(Ctx)) {}
+      : /*Alg(Alg),*/ Ctx(std::move(Ctx)) {}
 
   inline static constexpr __wasi_size_t NonceLen = 12;
 
@@ -37,7 +37,7 @@ public:
 private:
   enum Mode { Unchanged = -1, Decrypt = 0, Encrypt = 1 };
 
-  SymmetricAlgorithm Alg;
+//  SymmetricAlgorithm Alg;
   OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx;
 };
 

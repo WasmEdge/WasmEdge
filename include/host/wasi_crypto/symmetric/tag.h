@@ -15,15 +15,15 @@ namespace WASICrypto {
 
 class SymmetricTag {
 public:
-  SymmetricTag(SymmetricAlgorithm Alg, std::vector<uint8_t> &&Data)
-      : Alg(Alg), Raw(Data) {}
+  SymmetricTag(SymmetricAlgorithm /*Alg*/, std::vector<uint8_t> &&Data)
+      : /*Alg(Alg),*/ Raw(Data) {}
 
   Span<uint8_t const> asRef() { return Raw; }
 
   WasiCryptoExpect<void> verify(Span<uint8_t const> RawTag);
 
 private:
-  SymmetricAlgorithm Alg;
+//  SymmetricAlgorithm Alg;
   std::vector<uint8_t> Raw;
 };
 

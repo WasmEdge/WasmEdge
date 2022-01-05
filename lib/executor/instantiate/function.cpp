@@ -6,19 +6,19 @@
 namespace WasmEdge {
 namespace Executor {
 
-/// Instantiate function instance. See "include/executor/executor.h".
+// Instantiate function instance. See "include/executor/executor.h".
 Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::FunctionSection &FuncSec,
                                    const AST::CodeSection &CodeSec) {
 
-  /// Get the function type indices.
+  // Get the function type indices.
   auto TypeIdxs = FuncSec.getContent();
   auto CodeSegs = CodeSec.getContent();
 
-  /// Iterate through code segments to make function instances.
+  // Iterate through code segments to make function instances.
   for (uint32_t I = 0; I < CodeSegs.size(); ++I) {
-    /// Insert function instance to store manager.
+    // Insert function instance to store manager.
     uint32_t NewFuncInstAddr;
     auto *FuncType = *ModInst.getFuncType(TypeIdxs[I]);
     if (InsMode == InstantiateMode::Instantiate) {

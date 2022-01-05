@@ -11,11 +11,11 @@ namespace Executor {
 Expect<void> Executor::runBlockOp(Runtime::StoreManager &StoreMgr,
                                   const AST::Instruction &Instr,
                                   AST::InstrView::iterator &PC) {
-  /// Get result type for arity.
+  // Get result type for arity.
   auto BlockSig = getBlockArity(StoreMgr, Instr.getBlockType());
   AST::InstrView::iterator Cont = PC + Instr.getJumpEnd();
 
-  /// Create Label{ nothing } and push.
+  // Create Label{ nothing } and push.
   StackMgr.pushLabel(BlockSig.first, BlockSig.second, Cont);
   return {};
 }
@@ -23,11 +23,11 @@ Expect<void> Executor::runBlockOp(Runtime::StoreManager &StoreMgr,
 Expect<void> Executor::runLoopOp(Runtime::StoreManager &StoreMgr,
                                  const AST::Instruction &Instr,
                                  AST::InstrView::iterator &PC) {
-  /// Get result type for arity.
+  // Get result type for arity.
   auto BlockSig = getBlockArity(StoreMgr, Instr.getBlockType());
   AST::InstrView::iterator Cont = PC + Instr.getJumpEnd();
 
-  /// Create Label{ loop-instruction } and push.
+  // Create Label{ loop-instruction } and push.
   StackMgr.pushLabel(BlockSig.first, BlockSig.first, Cont, PC);
   return {};
 }
@@ -35,17 +35,17 @@ Expect<void> Executor::runLoopOp(Runtime::StoreManager &StoreMgr,
 Expect<void> Executor::runIfElseOp(Runtime::StoreManager &StoreMgr,
                                    const AST::Instruction &Instr,
                                    AST::InstrView::iterator &PC) {
-  /// Get condition.
+  // Get condition.
   uint32_t Cond = StackMgr.pop().get<uint32_t>();
 
-  /// Get result type for arity.
+  // Get result type for arity.
   auto BlockSig = getBlockArity(StoreMgr, Instr.getBlockType());
   AST::InstrView::iterator Cont = PC + Instr.getJumpEnd();
 
-  /// If non-zero, run if-statement; else, run else-statement.
+  // If non-zero, run if-statement; else, run else-statement.
   if (Cond == 0) {
     if (Instr.getJumpElse() == Instr.getJumpEnd()) {
-      /// No else-statement case. Jump to right before End instruction.
+      // No else-statement case. Jump to right before End instruction.
       PC += (Instr.getJumpEnd() - 1);
     } else {
       if (Stat) {
@@ -54,7 +54,7 @@ Expect<void> Executor::runIfElseOp(Runtime::StoreManager &StoreMgr,
           return Unexpect(ErrCode::CostLimitExceeded);
         }
       }
-      /// Have else-statement case. Jump to Else instruction to continue.
+      // Have else-statement case. Jump to Else instruction to continue.
       PC += Instr.getJumpElse();
     }
   }
@@ -80,10 +80,10 @@ Expect<void> Executor::runBrIfOp(Runtime::StoreManager &StoreMgr,
 Expect<void> Executor::runBrTableOp(Runtime::StoreManager &StoreMgr,
                                     const AST::Instruction &Instr,
                                     AST::InstrView::iterator &PC) {
-  /// Get value on top of stack.
+  // Get value on top of stack.
   uint32_t Value = StackMgr.pop().get<uint32_t>();
 
-  /// Do branch.
+  // Do branch.
   auto LabelTable = Instr.getLabelList();
   if (Value < LabelTable.size()) {
     return branchToLabel(StoreMgr, LabelTable[Value], PC);
@@ -100,7 +100,7 @@ Expect<void> Executor::runReturnOp(AST::InstrView::iterator &PC) {
 Expect<void> Executor::runCallOp(Runtime::StoreManager &StoreMgr,
                                  const AST::Instruction &Instr,
                                  AST::InstrView::iterator &PC) {
-  /// Get Function address.
+  // Get Function address.
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
   const uint32_t FuncAddr = *ModInst->getFuncAddr(Instr.getTargetIndex());
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
@@ -115,17 +115,17 @@ Expect<void> Executor::runCallOp(Runtime::StoreManager &StoreMgr,
 Expect<void> Executor::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
                                          const AST::Instruction &Instr,
                                          AST::InstrView::iterator &PC) {
-  /// Get Table Instance
+  // Get Table Instance
   const auto *TabInst = getTabInstByIdx(StoreMgr, Instr.getSourceIndex());
 
-  /// Get function type at index x.
+  // Get function type at index x.
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
   const auto *TargetFuncType = *ModInst->getFuncType(Instr.getTargetIndex());
 
-  /// Pop the value i32.const i from the Stack.
+  // Pop the value i32.const i from the Stack.
   uint32_t Idx = StackMgr.pop().get<uint32_t>();
 
-  /// If idx not small than tab.elem, trap.
+  // If idx not small than tab.elem, trap.
   if (Idx >= TabInst->getSize()) {
     spdlog::error(ErrCode::UndefinedElement);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
@@ -134,7 +134,7 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
     return Unexpect(ErrCode::UndefinedElement);
   }
 
-  /// Get function address.
+  // Get function address.
   ValVariant Ref = TabInst->getRefAddr(Idx)->get<UnknownRef>();
   if (isNullRef(Ref)) {
     spdlog::error(ErrCode::UninitializedElement);
@@ -145,7 +145,7 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
   }
   uint32_t FuncAddr = retrieveFuncIdx(Ref);
 
-  /// Check function type.
+  // Check function type.
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
   const auto &FuncType = FuncInst->getFuncType();
   if (*TargetFuncType != FuncType) {

@@ -1897,7 +1897,7 @@ WasiSockSetOpt::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   const __wasi_fd_t WasiFd = Fd;
 
   if (auto Res = Env.sockSetOpt(WasiFd, Level, Name, InnerFlagPtr, FlagSize);
-  unlikely(!Res)) {
+      unlikely(!Res)) {
     return Res.error();
   }
 

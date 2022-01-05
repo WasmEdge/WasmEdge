@@ -1056,14 +1056,16 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
   return {};
 }
 
-WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t OptName, void *FlagPtr,
+WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t OptName,
+                                   void *FlagPtr,
                                    uint32_t *FlagSizePtr) const noexcept {
-  auto SysLevel = toSockOptLevel((__wasi_sock_opt_level_t) Level);
-  auto SysOptName = toSockOptSoName((__wasi_sock_opt_so_t) OptName);
+  auto SysLevel = toSockOptLevel((__wasi_sock_opt_level_t)Level);
+  auto SysOptName = toSockOptSoName((__wasi_sock_opt_so_t)OptName);
   if (OptName == __WASI_SOCK_OPT_SO_ERROR) {
     int ErrorCode = 0;
     int *WasiErrorPtr = (int *)FlagPtr;
-    if (auto Res = ::getsockopt(Fd, SysLevel, SysOptName, &ErrorCode, FlagSizePtr);
+    if (auto Res =
+            ::getsockopt(Fd, SysLevel, SysOptName, &ErrorCode, FlagSizePtr);
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
@@ -1078,10 +1080,11 @@ WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t OptName, void *FlagPtr
   return WasiUnexpect(__WASI_ERRNO_SUCCESS);
 }
 
-WasiExpect<void> INode::sockSetOpt(int32_t Level, int32_t OptName, void *FlagPtr,
+WasiExpect<void> INode::sockSetOpt(int32_t Level, int32_t OptName,
+                                   void *FlagPtr,
                                    uint32_t FlagSizePtr) const noexcept {
-  auto SysLevel = toSockOptLevel((__wasi_sock_opt_level_t) Level);
-  auto SysOptName = toSockOptSoName((__wasi_sock_opt_so_t) OptName);
+  auto SysLevel = toSockOptLevel((__wasi_sock_opt_level_t)Level);
+  auto SysOptName = toSockOptSoName((__wasi_sock_opt_so_t)OptName);
 
   if (auto Res = ::setsockopt(Fd, SysLevel, SysOptName, FlagPtr, FlagSizePtr);
       unlikely(Res < 0)) {
@@ -1103,7 +1106,7 @@ WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressPtr,
   }
 
   auto AddrLen = 4;
-  if(slen != 16){
+  if (slen != 16) {
     AddrLen = 16;
   }
 
@@ -1136,9 +1139,9 @@ WasiExpect<void> INode::sockGetPeerAddr(uint8_t *AddressPtr,
   }
 
   auto AddrLen = 4;
-  if(slen != 16){
+  if (slen != 16) {
     AddrLen = 16;
-  } 
+  }
 
   if (SocketAddr.sa_family == AF_INET) {
     *AddrTypePtr = 4;

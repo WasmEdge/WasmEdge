@@ -363,8 +363,7 @@ inline constexpr int toWhence(__wasi_whence_t Whence) noexcept {
 }
 
 inline constexpr int toSockOptLevel(__wasi_sock_opt_level_t Level) noexcept {
-  switch (Level)
-  {
+  switch (Level) {
   case __WASI_SOCK_OPT_LEVEL_SOL_SOCKET:
     return SOL_SOCKET;
   default:
@@ -373,8 +372,7 @@ inline constexpr int toSockOptLevel(__wasi_sock_opt_level_t Level) noexcept {
 }
 
 inline constexpr int toSockOptSoName(__wasi_sock_opt_so_t SoName) noexcept {
-  switch (SoName)
-  {
+  switch (SoName) {
   case __WASI_SOCK_OPT_SO_REUSEADDR:
     return SO_REUSEADDR;
   case __WASI_SOCK_OPT_SO_TYPE:
@@ -403,7 +401,7 @@ inline constexpr int toSockOptSoName(__wasi_sock_opt_so_t SoName) noexcept {
     return SO_REUSEADDR;
   case __WASI_SOCK_OPT_SO_ACCEPTCONN:
     return SO_TYPE;
-  
+
   default:
     __builtin_unreachable();
   }

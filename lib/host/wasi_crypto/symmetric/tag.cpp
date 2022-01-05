@@ -6,18 +6,15 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Symmetric {
 
-// SymmetricTag::SymmetricTag(SymmetricAlgorithm Alg, Span<uint8_t> Raw)
-//     : Alg(Alg), Raw(Raw.begin(),  Raw.end()) {}
-
-WasiCryptoExpect<void> SymmetricTag::verify(Span<uint8_t const> RawTag) {
-  if (!std::equal(RawTag.begin(), RawTag.end(), Raw.begin(), Raw.end())) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
-  }
+WasiCryptoExpect<void> Tag::verify(Span<uint8_t const> RawTag) {
+  ensureOrReturn(std::equal(RawTag.begin(), RawTag.end(), Raw.begin(), Raw.end()),
+         __WASI_CRYPTO_ERRNO_INVALID_TAG);
 
   return {};
 }
-
+} // namespace Symmetric
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

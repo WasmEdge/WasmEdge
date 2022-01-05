@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#define OPENSSL_API_COMPAT 0x10100000L
+
 #include "host/wasi_crypto/error.h"
+#include "openssl/err.h"
 #include "wasi_crypto/api.hpp"
 
 #include <memory>
@@ -118,6 +121,30 @@ cast(uint64_t Algorithm) noexcept {
 
 template <typename T>
 constexpr WasiCryptoExpect<T> tryFrom(std::string_view) noexcept;
+
+#ifdef NDEBUG
+#define opensslAssuming(Cond)                                                  \
+  (static_cast<bool>(Cond) ? static_cast<void>(0) : __builtin_unreachable())
+#else
+#define opensslAssuming(Cond)                                                  \
+  (static_cast<bool>(Cond)                                                     \
+       ? static_cast<void>(0)                                                  \
+       : (ERR_print_errors_fp(stderr),                                         \
+          OPENSSL_die("assertion failed: " #Cond, __FILE__, __LINE__)))
+#endif
+
+template <auto Fn> using Deleter = std::integral_constant<decltype(Fn), Fn>;
+
+template <typename T, auto Fn>
+using OpenSSLUniquePtr = std::unique_ptr<T, Deleter<Fn>>;
+
+/// ensure Expr is true or return ErrorCode
+#define ensureOrReturn(Expr, ErrorCode)                                        \
+  do {                                                                         \
+    if (!(Expr)) {                                                             \
+      return WasiCryptoUnexpect((ErrorCode));                                  \
+    }                                                                          \
+  } while (0)
 
 } // namespace WASICrypto
 } // namespace Host

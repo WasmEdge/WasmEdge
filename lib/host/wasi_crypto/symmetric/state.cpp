@@ -12,16 +12,6 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-namespace {
-constexpr bool checkAdd(Span<const uint8_t> Data, __wasi_size_t TagSize) {
-  return (SIZE_MAX - TagSize) < Data.size();
-}
-
-constexpr bool checkSub(Span<const uint8_t> Data, __wasi_size_t TagSize) {
-  return TagSize > Data.size();
-}
-
-} // namespace
 
 WasiCryptoExpect<void> SymmetricState::Base::absorb(Span<uint8_t const>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
@@ -193,6 +183,7 @@ SymmetricState::import(SymmetricAlgorithm Alg,
     __builtin_unreachable();
   }
 }
+
 
 } // namespace WASICrypto
 } // namespace Host

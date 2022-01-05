@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include "host/wasi_crypto/symmetric/hash/hash_state.h"
 #include "host/wasi_crypto/symmetric/options.h"
-#include "host/wasi_crypto/symmetric/state.h"
 #include "host/wasi_crypto/util.h"
 #include "host/wasi_crypto/wrapper/sha2.h"
 
@@ -11,12 +11,14 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Symmetric {
+using EvpMdCtx = OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 
-class Sha2SymmetricState : public SymmetricState::Base {
+class Sha2State : public HashState {
 public:
-  static WasiCryptoExpect<std::unique_ptr<Sha2SymmetricState>>
-  import(SymmetricAlgorithm Alg, std::optional<SymmetricKey> OptKey,
-         std::optional<SymmetricOptions> OptOptions);
+  Sha2State(SymmetricAlgorithm Alg, std::shared_ptr<Options> OptOptions,
+            EVP_MD_CTX *Ctx)
+      : OptOptions(OptOptions), Ctx(Ctx) {}
 
   WasiCryptoExpect<std::vector<uint8_t>>
   optionsGet(std::string_view Name) override;
@@ -28,15 +30,15 @@ public:
   WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) override;
 
 private:
-  Sha2SymmetricState(SymmetricAlgorithm Alg,
-                     std::optional<SymmetricOptions> OptOptions, Sha2Ctx Ctx)
-      : SymmetricState::Base(Alg), OptOptions(OptOptions), Ctx(std::move(Ctx)) {
-  }
-
-  std::optional<SymmetricOptions> OptOptions;
-  Sha2Ctx Ctx;
+  std::shared_ptr<Options> OptOptions;
+  EvpMdCtx Ctx;
 };
 
+WasiCryptoExpect<std::unique_ptr<Sha2State>>
+import(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
+       std::shared_ptr<Options> OptOptions);
+
+} // namespace Symmetric
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

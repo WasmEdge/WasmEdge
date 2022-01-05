@@ -8,14 +8,15 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   common/array_output.cpp
   common/options.cpp
   common/func.cpp
-  symmetric/aes_gcm.cpp
-  symmetric/charcha_poly.cpp
-  symmetric/hkdf.cpp
+  symmetric/aeads/aeads_state.cpp
+  symmetric/aeads/aes_gcm.cpp
+  symmetric/aeads/charcha_poly.cpp
+  symmetric/extract_and_expand/hkdf.cpp
+  symmetric/session/xoodyak.cpp
+  symmetric/hash/sha2.cpp
+  symmetric/mac/hmac_sha2.cpp
   symmetric/options.cpp
   symmetric/state.cpp
-  symmetric/sha2.cpp
-  symmetric/hmac_sha2.cpp
-  symmetric/xoodyak.cpp
   symmetric/ctx.cpp
   symmetric/key.cpp
   symmetric/func.cpp
@@ -42,16 +43,11 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   key_exchange/keypair.cpp
   key_exchange/publickey.cpp
   key_exchange/dh/x25519.cpp
-  wrapper/sha2.cpp
-  wrapper/aes_gcm.cpp
-  wrapper/hkdf.cpp
   wrapper/random.cpp
-  wrapper/hmac_sha2.cpp
   wrapper/x25519.cpp
   wrapper/ecdsa.cpp
   wrapper/eddsa.cpp
   wrapper/rsa.cpp
-  wrapper/chacha_poly.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

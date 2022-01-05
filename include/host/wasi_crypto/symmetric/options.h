@@ -18,39 +18,34 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Symmetric {
 
-class SymmetricOptions {
+class Options {
 public:
-  class Inner {
-  public:
-    WasiCryptoExpect<void> set(std::string_view Name,
-                               Span<const uint8_t> Value);
+  WasiCryptoExpect<void> set(std::string_view Name, Span<const uint8_t> Value);
 
-    WasiCryptoExpect<void> setU64(std::string_view Name, uint64_t Value);
+  WasiCryptoExpect<void> setU64(std::string_view Name, uint64_t Value);
 
-    WasiCryptoExpect<void> setGuestBuffer(std::string_view Name,
-                                          Span<uint8_t> Buffer);
+  WasiCryptoExpect<void> setGuestBuffer(std::string_view Name,
+                                        Span<uint8_t> Buffer);
 
-    WasiCryptoExpect<std::vector<uint8_t>> get(std::string_view Name);
+  WasiCryptoExpect<std::vector<uint8_t>> get(std::string_view Name);
 
-    WasiCryptoExpect<uint64_t> getU64(std::string_view Name);
-
-  private:
-    std::optional<std::vector<uint8_t>> Context;
-    std::optional<std::vector<uint8_t>> Salt;
-    std::optional<std::vector<uint8_t>> Nonce;
-    std::optional<uint64_t> MemoryLimit;
-    std::optional<uint64_t> OpsLimit;
-    std::optional<uint64_t> Parallelism;
-    std::optional<Span<uint8_t>> GuestBuffer;
-  };
-
-  auto &inner() { return V; }
+  WasiCryptoExpect<uint64_t> getU64(std::string_view Name);
 
 private:
-  std::shared_ptr<Mutex<Inner>> V = std::make_shared<Mutex<Inner>>(Inner{});
+  std::optional<std::vector<uint8_t>> Context;
+  std::optional<std::vector<uint8_t>> Salt;
+  std::optional<std::vector<uint8_t>> Nonce;
+  std::optional<uint64_t> MemoryLimit;
+  std::optional<uint64_t> OpsLimit;
+  std::optional<uint64_t> Parallelism;
+  std::optional<Span<uint8_t>> GuestBuffer;
 };
 
+using OptOptionsPtr = std::shared_ptr<Options>;
+
+} // namespace Symmetric
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

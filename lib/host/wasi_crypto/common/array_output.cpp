@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/common/array_output.h"
+#include "host/wasi_crypto/util.h"
 
 #include <algorithm>
 #include <vector>
@@ -12,9 +13,7 @@ namespace WASICrypto {
 ArrayOutput::ArrayOutput(std::vector<uint8_t> &&Data) : Data(std::move(Data)) {}
 
 WasiCryptoExpect<__wasi_size_t> ArrayOutput::pull(Span<uint8_t> Buf) {
-  if (Buf.size() < Data.size()) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OVERFLOW);
-  }
+  ensureOrReturn(Buf.size() >= Data.size(), __WASI_CRYPTO_ERRNO_OVERFLOW);
 
   std::copy(Data.begin(), Data.end(), Buf.begin());
 

@@ -5,9 +5,10 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Symmetric {
 
-WasiCryptoExpect<void> SymmetricOptions::Inner::set(std::string_view Name,
-                                                    Span<const uint8_t> Value) {
+WasiCryptoExpect<void> Options::set(std::string_view Name,
+                                    Span<const uint8_t> Value) {
   std::optional<std::vector<uint8_t>> *Res;
   if ("context" == Name) {
     Res = &Context;
@@ -22,8 +23,7 @@ WasiCryptoExpect<void> SymmetricOptions::Inner::set(std::string_view Name,
   return {};
 }
 
-WasiCryptoExpect<void> SymmetricOptions::Inner::setU64(std::string_view Name,
-                                                       uint64_t Value) {
+WasiCryptoExpect<void> Options::setU64(std::string_view Name, uint64_t Value) {
   std::optional<uint64_t> *Res;
   if ("memory_limit" == Name) {
     Res = &MemoryLimit;
@@ -38,9 +38,8 @@ WasiCryptoExpect<void> SymmetricOptions::Inner::setU64(std::string_view Name,
   return {};
 }
 
-WasiCryptoExpect<void>
-SymmetricOptions::Inner::setGuestBuffer(std::string_view Name,
-                                        Span<uint8_t> Buffer) {
+WasiCryptoExpect<void> Options::setGuestBuffer(std::string_view Name,
+                                               Span<uint8_t> Buffer) {
   if ("buffer" == Name) {
     GuestBuffer = Buffer;
   } else {
@@ -50,8 +49,7 @@ SymmetricOptions::Inner::setGuestBuffer(std::string_view Name,
   return {};
 }
 
-WasiCryptoExpect<std::vector<uint8_t>>
-SymmetricOptions::Inner::get(std::string_view Name) {
+WasiCryptoExpect<std::vector<uint8_t>> Options::get(std::string_view Name) {
   std::optional<std::vector<uint8_t>> *Res;
   if ("context" == Name) {
     Res = &Context;
@@ -69,8 +67,7 @@ SymmetricOptions::Inner::get(std::string_view Name) {
   return **Res;
 }
 
-WasiCryptoExpect<uint64_t>
-SymmetricOptions::Inner::getU64(std::string_view Name) {
+WasiCryptoExpect<uint64_t> Options::getU64(std::string_view Name) {
   std::optional<uint64_t> *Res;
 
   if ("memory_limit" == Name) {
@@ -90,6 +87,7 @@ SymmetricOptions::Inner::getU64(std::string_view Name) {
   return **Res;
 }
 
+} // namespace Symmetric
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

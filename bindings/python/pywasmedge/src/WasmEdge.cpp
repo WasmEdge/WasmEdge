@@ -109,6 +109,17 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("imports", &pysdk::ASTModuleCxt::listImports)
       .def("exports", &pysdk::ASTModuleCxt::listExports);
 
+  /* Loader parse function overload */
+  auto (pysdk::Loader::*parse_file)(pysdk::ASTModuleCxt &, std::string &) =
+      &pysdk::Loader::parse;
+  auto (pysdk::Loader::*parse_bytes)(pysdk::ASTModuleCxt &, pybind11::tuple) =
+      &pysdk::Loader::parse;
+
+  pybind11::class_<pysdk::Loader>(module, "Loader")
+      .def(pybind11::init<pysdk::Configure &>())
+      .def("parse", parse_file)
+      .def("parse", parse_bytes);
+
   /*Overloading VM run functions*/
 
   pybind11::tuple (pysdk::VM::*run_step_by_step)(

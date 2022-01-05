@@ -99,6 +99,18 @@ public:
   int get_code();
 };
 
+class Loader {
+private:
+  WasmEdge_LoaderContext *LoadCxt;
+
+public:
+  Loader(pysdk::Configure &);
+  ~Loader();
+  WasmEdge_LoaderContext *get();
+  pysdk::result parse(pysdk::ASTModuleCxt &, std::string &);
+  pysdk::result parse(pysdk::ASTModuleCxt &, pybind11::tuple);
+};
+
 WasmEdge_Result host_function(void *, WasmEdge_MemoryInstanceContext *,
                               const WasmEdge_Value *, WasmEdge_Value *);
 

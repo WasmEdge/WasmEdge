@@ -9,22 +9,22 @@
 namespace WasmEdge {
 namespace Executor {
 
-/// Instantiate module instance. See "include/executor/Executor.h".
+// Instantiate module instance. See "include/executor/Executor.h".
 Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
                                    const AST::Module &Mod,
                                    std::string_view Name) {
-  /// Reset store manager and stack manager.
+  // Reset store manager and stack manager.
   StoreMgr.reset();
   StackMgr.reset();
 
-  /// Check is module name duplicated.
+  // Check is module name duplicated.
   if (auto Res = StoreMgr.findModule(Name)) {
     spdlog::error(ErrCode::ModuleNameConflict);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(ErrCode::ModuleNameConflict);
   }
 
-  /// Insert the module instance to store manager and retrieve instance.
+  // Insert the module instance to store manager and retrieve instance.
   uint32_t ModInstAddr;
   if (InsMode == InstantiateMode::Instantiate) {
     ModInstAddr = StoreMgr.pushModule(Name);
@@ -33,13 +33,13 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
   }
   auto *ModInst = *StoreMgr.getModule(ModInstAddr);
 
-  /// Instantiate Function Types in Module Instance. (TypeSec)
+  // Instantiate Function Types in Module Instance. (TypeSec)
   for (auto &FuncType : Mod.getTypeSection().getContent()) {
-    /// Copy param and return lists to module instance.
+    // Copy param and return lists to module instance.
     ModInst->addFuncType(FuncType);
   }
 
-  /// Instantiate ImportSection and do import matching. (ImportSec)
+  // Instantiate ImportSection and do import matching. (ImportSec)
   const AST::ImportSection &ImportSec = Mod.getImportSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, ImportSec); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Import));
@@ -47,7 +47,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     return Unexpect(Res);
   }
 
-  /// Instantiate Functions in module. (FunctionSec, CodeSec)
+  // Instantiate Functions in module. (FunctionSec, CodeSec)
   const AST::FunctionSection &FuncSec = Mod.getFunctionSection();
   const AST::CodeSection &CodeSec = Mod.getCodeSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, FuncSec, CodeSec); !Res) {
@@ -56,7 +56,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     return Unexpect(Res);
   }
 
-  /// Instantiate TableSection (TableSec)
+  // Instantiate TableSection (TableSec)
   const AST::TableSection &TabSec = Mod.getTableSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, TabSec); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Table));
@@ -64,7 +64,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     return Unexpect(Res);
   }
 
-  /// Instantiate MemorySection (MemorySec)
+  // Instantiate MemorySection (MemorySec)
   const AST::MemorySection &MemSec = Mod.getMemorySection();
   if (auto Res = instantiate(StoreMgr, *ModInst, MemSec); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Memory));
@@ -72,7 +72,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     return Unexpect(Res);
   }
 
-  /// Add a temp module to Store with only imported globals for initialization.
+  // Add a temp module to Store with only imported globals for initialization.
   uint32_t TmpModInstAddr = StoreMgr.pushModule("");
   auto *TmpModInst = *StoreMgr.getModule(TmpModInstAddr);
   for (uint32_t I = 0; I < ModInst->getGlobalImportNum(); ++I) {
@@ -82,10 +82,10 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     TmpModInst->importFunction(*(ModInst->getFuncAddr(I)));
   }
 
-  /// Push a new frame {TmpModInst:{globaddrs}, locals:none}
+  // Push a new frame {TmpModInst:{globaddrs}, locals:none}
   StackMgr.pushFrame(TmpModInstAddr, 0, 0);
 
-  /// Instantiate GlobalSection (GlobalSec)
+  // Instantiate GlobalSection (GlobalSec)
   const AST::GlobalSection &GlobSec = Mod.getGlobalSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, GlobSec); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Global));
@@ -93,13 +93,13 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     return Unexpect(Res);
   }
 
-  /// Pop frame with temp. module.
+  // Pop frame with temp. module.
   StackMgr.popFrame();
 
-  /// Pop the added temp. module.
+  // Pop the added temp. module.
   StoreMgr.popModule();
 
-  /// Instantiate ExportSection (ExportSec)
+  // Instantiate ExportSection (ExportSec)
   const AST::ExportSection &ExportSec = Mod.getExportSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, ExportSec); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Export));
@@ -107,10 +107,10 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     return Unexpect(Res);
   }
 
-  /// Push a new frame {ModInst, locals:none}
+  // Push a new frame {ModInst, locals:none}
   StackMgr.pushFrame(ModInst->Addr, 0, 0);
 
-  /// Instantiate ElementSection (ElemSec)
+  // Instantiate ElementSection (ElemSec)
   const AST::ElementSection &ElemSec = Mod.getElementSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, ElemSec); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Element));
@@ -118,7 +118,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     return Unexpect(Res);
   }
 
-  /// Instantiate DataSection (DataSec)
+  // Instantiate DataSection (DataSec)
   const AST::DataSection &DataSec = Mod.getDataSection();
   if (auto Res = instantiate(StoreMgr, *ModInst, DataSec); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Data));
@@ -126,21 +126,21 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     return Unexpect(Res);
   }
 
-  /// Initialize table instances
+  // Initialize table instances
   if (auto Res = initTable(StoreMgr, *ModInst, ElemSec); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Element));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
 
-  /// Initialize memory instances
+  // Initialize memory instances
   if (auto Res = initMemory(StoreMgr, *ModInst, DataSec); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Data));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
 
-  /// Prepare pointers for compiled functions
+  // Prepare pointers for compiled functions
   ModInst->MemoryPtr =
       ModInst->getMemAddr(0)
           .and_then([&StoreMgr](uint32_t MemAddr) {
@@ -158,17 +158,17 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
         &(*StoreMgr.getGlobal(*ModInst->getGlobalAddr(I)))->getValue());
   }
 
-  /// Instantiate StartSection (StartSec)
+  // Instantiate StartSection (StartSec)
   const AST::StartSection &StartSec = Mod.getStartSection();
   if (StartSec.getContent()) {
-    /// Get the module instance from ID.
+    // Get the module instance from ID.
     ModInst->setStartIdx(*StartSec.getContent());
 
-    /// Get function instance.
+    // Get function instance.
     const uint32_t Addr = *ModInst->getStartAddr();
     const auto *FuncInst = *StoreMgr.getFunction(Addr);
 
-    /// Execute instruction: call start.func
+    // Execute instruction: call start.func
     auto Instrs = FuncInst->getInstrs();
     AST::InstrView::iterator StartIt;
     if (auto Res = enterFunction(StoreMgr, *FuncInst, Instrs.end())) {
@@ -183,7 +183,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     }
   }
 
-  /// Pop Frame.
+  // Pop Frame.
   StackMgr.popFrame();
 
   return {};

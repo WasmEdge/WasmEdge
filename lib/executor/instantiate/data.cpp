@@ -9,17 +9,17 @@
 namespace WasmEdge {
 namespace Executor {
 
-/// Instantiate data instance. See "include/executor/executor.h".
+// Instantiate data instance. See "include/executor/executor.h".
 Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::DataSection &DataSec) {
-  /// A frame with module is pushed into stack outside.
-  /// Instantiate data instances.
+  // A frame with module is pushed into stack outside.
+  // Instantiate data instances.
   for (const auto &DataSeg : DataSec.getContent()) {
     uint32_t Offset = 0;
-    /// Initialize memory if data mode is active.
+    // Initialize memory if data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
-      /// Run initialize expression.
+      // Run initialize expression.
       if (auto Res = runExpression(StoreMgr, DataSeg.getExpr().getInstrs());
           unlikely(!Res)) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
@@ -28,13 +28,13 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       }
       Offset = StackMgr.pop().get<uint32_t>();
 
-      /// Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
-      /// enabled.
+      // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
+      // enabled.
       if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
           !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
-        /// Memory index should be 0. Checked in validation phase.
+        // Memory index should be 0. Checked in validation phase.
         auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg.getIdx());
-        /// Check data fits.
+        // Check data fits.
         assuming(MemInst);
         if (!MemInst->checkAccessBound(
                 Offset, static_cast<uint32_t>(DataSeg.getData().size()))) {
@@ -45,7 +45,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       }
     }
 
-    /// Insert data instance to store manager.
+    // Insert data instance to store manager.
     uint32_t NewDataInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
       NewDataInstAddr = StoreMgr.pushData(Offset, DataSeg.getData());
@@ -57,17 +57,17 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
   return {};
 }
 
-/// Initialize memory with Data Instances. See
-/// "include/executor/executor.h".
+// Initialize memory with Data Instances. See
+// "include/executor/executor.h".
 Expect<void> Executor::initMemory(Runtime::StoreManager &StoreMgr,
                                   Runtime::Instance::ModuleInstance &,
                                   const AST::DataSection &DataSec) {
-  /// initialize memory.
+  // initialize memory.
   uint32_t Idx = 0;
   for (const auto &DataSeg : DataSec.getContent()) {
-    /// Initialize memory if data mode is active.
+    // Initialize memory if data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
-      /// Memory index should be 0. Checked in validation phase.
+      // Memory index should be 0. Checked in validation phase.
       auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg.getIdx());
       assuming(MemInst);
 
@@ -75,7 +75,7 @@ Expect<void> Executor::initMemory(Runtime::StoreManager &StoreMgr,
       assuming(DataInst);
       const uint32_t Off = DataInst->getOffset();
 
-      /// Replace mem[Off : Off + n] with data[0 : n].
+      // Replace mem[Off : Off + n] with data[0 : n].
       if (auto Res = MemInst->setBytes(
               DataInst->getData(), Off, 0,
               static_cast<uint32_t>(DataInst->getData().size()));
@@ -84,15 +84,15 @@ Expect<void> Executor::initMemory(Runtime::StoreManager &StoreMgr,
         return Unexpect(Res);
       }
 
-      /// Drop the data instance.
+      // Drop the data instance.
       DataInst->clear();
 
-      /// Operation above is equal to the following instruction sequence:
-      ///   expr(init) -> i32.const off
-      ///   i32.const 0
-      ///   i32.const n
-      ///   memory.init idx
-      ///   data.drop idx
+      // Operation above is equal to the following instruction sequence:
+      //   expr(init) -> i32.const off
+      //   i32.const 0
+      //   i32.const n
+      //   memory.init idx
+      //   data.drop idx
     }
     Idx++;
   }

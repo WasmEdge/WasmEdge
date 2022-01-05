@@ -6,7 +6,7 @@
 namespace WasmEdge {
 namespace Loader {
 
-/// OpCode loader. See "include/loader/loader.h".
+// OpCode loader. See "include/loader/loader.h".
 Expect<OpCode> Loader::loadOpCode() {
   uint16_t Payload;
   if (auto B1 = FMgr.readByte()) {
@@ -17,7 +17,7 @@ Expect<OpCode> Loader::loadOpCode() {
   }
 
   if (Payload == 0xFCU || Payload == 0xFDU) {
-    /// 2-bytes OpCode case.
+    // 2-bytes OpCode case.
     if (auto B2 = FMgr.readU32()) {
       Payload <<= 8;
       Payload += (*B2);
@@ -29,16 +29,16 @@ Expect<OpCode> Loader::loadOpCode() {
   return static_cast<OpCode>(Payload);
 }
 
-/// Load instruction sequence. See "include/loader/loader.h".
+// Load instruction sequence. See "include/loader/loader.h".
 Expect<AST::InstrVec> Loader::loadInstrSeq() {
   OpCode Code;
   AST::InstrVec Instrs;
   std::vector<std::pair<OpCode, uint32_t>> BlockStack;
   uint32_t Cnt = 0;
   bool IsReachEnd = false;
-  /// Read opcode until the End code of the top block.
+  // Read opcode until the End code of the top block.
   do {
-    /// Read the opcode and check if error.
+    // Read the opcode and check if error.
     uint64_t Offset = FMgr.getOffset();
     if (auto Res = loadOpCode()) {
       Code = *Res;
@@ -46,23 +46,23 @@ Expect<AST::InstrVec> Loader::loadInstrSeq() {
       return Unexpect(Res);
     }
 
-    /// Check with proposals.
+    // Check with proposals.
     if (auto Res = checkInstrProposals(Code, Offset); !Res) {
       return Unexpect(Res);
     }
 
-    /// Process the instructions which contain a block.
+    // Process the instructions which contain a block.
     if (Code == OpCode::Block || Code == OpCode::Loop || Code == OpCode::If) {
       BlockStack.push_back(std::make_pair(Code, Cnt));
     } else if (Code == OpCode::Else) {
       if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::If) {
-        /// An Else instruction appeared outside the If-block.
+        // An Else instruction appeared outside the If-block.
         return logLoadError(ErrCode::IllegalOpCode, Offset,
                             ASTNodeAttr::Instruction);
       }
       uint32_t Pos = BlockStack.back().second;
       if (Instrs[Pos].getJumpElse() > 0) {
-        /// An Else instruction appeared before in this If-block.
+        // An Else instruction appeared before in this If-block.
         return logLoadError(ErrCode::IllegalOpCode, Offset,
                             ASTNodeAttr::Instruction);
       }
@@ -73,7 +73,7 @@ Expect<AST::InstrVec> Loader::loadInstrSeq() {
         Instrs[Pos].setJumpEnd(Cnt - Pos);
         if (BlockStack.back().first == OpCode::If &&
             Instrs[Pos].getJumpElse() == 0) {
-          /// If block without else. Set the else jump the same as end jump.
+          // If block without else. Set the else jump the same as end jump.
           Instrs[Pos].setJumpElse(Cnt - Pos);
         }
         BlockStack.pop_back();
@@ -82,7 +82,7 @@ Expect<AST::InstrVec> Loader::loadInstrSeq() {
       }
     }
 
-    /// Create the instruction node and load contents.
+    // Create the instruction node and load contents.
     Instrs.emplace_back(Code, Offset);
     if (auto Res = loadInstruction(Instrs.back()); !Res) {
       return Unexpect(Res);
@@ -92,10 +92,10 @@ Expect<AST::InstrVec> Loader::loadInstrSeq() {
   return Instrs;
 }
 
-/// Load instruction node. See "include/loader/loader.h".
+// Load instruction node. See "include/loader/loader.h".
 Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
-  /// Node: The instruction has checked for the proposals. Need to check their
-  /// immediates.
+  // Node: The instruction has checked for the proposals. Need to check their
+  // immediates.
 
   auto readU8 = [this](uint8_t &Dst) -> Expect<void> {
     if (auto Res = FMgr.readByte()) {
@@ -130,7 +130,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   };
 
   switch (Instr.getOpCode()) {
-  /// Control instructions.
+  // Control instructions.
   case OpCode::Unreachable:
   case OpCode::Nop:
   case OpCode::Return:
@@ -141,10 +141,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Block:
   case OpCode::Loop:
   case OpCode::If:
-    /// Read the block return type.
+    // Read the block return type.
     if (auto Res = FMgr.readS32()) {
       if (*Res < 0) {
-        /// Value type case.
+        // Value type case.
         ValType VType = static_cast<ValType>((*Res) & INT32_C(0x7F));
         if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
                                                ASTNodeAttr::Instruction);
@@ -153,7 +153,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
         }
         Instr.setBlockType(VType);
       } else {
-        /// Type index case.
+        // Type index case.
         if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
           return logNeedProposal(ErrCode::MalformedValType,
                                  Proposal::MultiValue, FMgr.getLastOffset(),
@@ -173,7 +173,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Br_table: {
     uint32_t VecCnt = 0;
-    /// Read the vector of labels.
+    // Read the vector of labels.
     if (auto Res = readU32(VecCnt); unlikely(!Res)) {
       return Unexpect(Res);
     }
@@ -186,7 +186,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
         Instr.getLabelList()[I] = Label;
       }
     }
-    /// Read default label.
+    // Read default label.
     return readU32(Instr.getTargetIndex());
   }
 
@@ -194,12 +194,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return readU32(Instr.getTargetIndex());
 
   case OpCode::Call_indirect: {
-    /// Read the type index.
+    // Read the type index.
     if (auto Res = readU32(Instr.getTargetIndex()); !Res) {
       return Unexpect(Res);
     }
     uint64_t SrcIdxOffset = FMgr.getOffset();
-    /// Read the table index.
+    // Read the table index.
     if (auto Res = readU32(Instr.getSourceIndex()); !Res) {
       return Unexpect(Res);
     }
@@ -212,7 +212,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   }
 
-  /// Reference Instructions.
+  // Reference Instructions.
   case OpCode::Ref__null:
     if (auto Res = FMgr.readByte(); unlikely(!Res)) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
@@ -232,12 +232,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Ref__func:
     return readU32(Instr.getTargetIndex());
 
-  /// Parametric Instructions.
+  // Parametric Instructions.
   case OpCode::Drop:
   case OpCode::Select:
     return {};
   case OpCode::Select_t: {
-    /// Read the vector of value types.
+    // Read the vector of value types.
     uint32_t VecCnt;
     if (auto Res = readU32(VecCnt); unlikely(!Res)) {
       return Unexpect(Res);
@@ -261,7 +261,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   }
 
-  /// Variable Instructions.
+  // Variable Instructions.
   case OpCode::Local__get:
   case OpCode::Local__set:
   case OpCode::Local__tee:
@@ -269,7 +269,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Global__set:
     return readU32(Instr.getTargetIndex());
 
-  /// Table Instructions.
+  // Table Instructions.
   case OpCode::Table__get:
   case OpCode::Table__set:
   case OpCode::Table__copy:
@@ -291,7 +291,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Elem__drop:
     return readU32(Instr.getTargetIndex());
 
-  /// Memory Instructions.
+  // Memory Instructions.
   case OpCode::I32__load:
   case OpCode::I64__load:
   case OpCode::F32__load:
@@ -315,7 +315,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::I64__store8:
   case OpCode::I64__store16:
   case OpCode::I64__store32:
-    /// Read memory arguments.
+    // Read memory arguments.
     if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
       return Unexpect(Res);
     }
@@ -346,7 +346,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     }
     return readU32(Instr.getTargetIndex());
 
-  /// Const Instructions.
+  // Const Instructions.
   case OpCode::I32__const:
     if (auto Res = FMgr.readS32(); unlikely(!Res)) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
@@ -380,7 +380,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     }
     return {};
 
-  /// Unary Numeric Instructions.
+  // Unary Numeric Instructions.
   case OpCode::I32__eqz:
   case OpCode::I32__clz:
   case OpCode::I32__ctz:
@@ -442,7 +442,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::I64__trunc_sat_f64_s:
   case OpCode::I64__trunc_sat_f64_u:
 
-  /// Binary Numeric Instructions.
+  // Binary Numeric Instructions.
   case OpCode::I32__eq:
   case OpCode::I32__ne:
   case OpCode::I32__lt_s:
@@ -522,7 +522,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::F64__copysign:
     return {};
 
-  /// SIMD Memory Instruction.
+  // SIMD Memory Instruction.
   case OpCode::V128__load:
   case OpCode::V128__load8x8_s:
   case OpCode::V128__load8x8_u:
@@ -537,7 +537,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::V128__load32_zero:
   case OpCode::V128__load64_zero:
   case OpCode::V128__store:
-    /// Read memory arguments.
+    // Read memory arguments.
     if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
       return Unexpect(Res);
     }
@@ -553,21 +553,21 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::V128__store16_lane:
   case OpCode::V128__store32_lane:
   case OpCode::V128__store64_lane:
-    /// Read memory arguments.
+    // Read memory arguments.
     if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
       return Unexpect(Res);
     }
     if (auto Res = readU32(Instr.getMemoryOffset()); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    /// Read lane index.
+    // Read lane index.
     return readU8(Instr.getMemoryLane());
 
-  /// SIMD Const Instruction.
+  // SIMD Const Instruction.
   case OpCode::V128__const:
-  /// SIMD Shuffle Instruction.
+  // SIMD Shuffle Instruction.
   case OpCode::I8x16__shuffle: {
-    /// Read value.
+    // Read value.
     uint128_t Value = 0;
     for (uint32_t I = 0; I < 16; ++I) {
       if (auto Res = FMgr.readByte(); unlikely(!Res)) {
@@ -581,7 +581,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   }
 
-  /// SIMD Lane Instructions.
+  // SIMD Lane Instructions.
   case OpCode::I8x16__extract_lane_s:
   case OpCode::I8x16__extract_lane_u:
   case OpCode::I8x16__replace_lane:
@@ -596,10 +596,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::F32x4__replace_lane:
   case OpCode::F64x2__extract_lane:
   case OpCode::F64x2__replace_lane:
-    /// Read lane index.
+    // Read lane index.
     return readU8(Instr.getMemoryLane());
 
-  /// SIMD Numeric Instructions.
+  // SIMD Numeric Instructions.
   case OpCode::I8x16__swizzle:
   case OpCode::I8x16__splat:
   case OpCode::I16x8__splat:
@@ -823,7 +823,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 Expect<void> Loader::checkInstrProposals(OpCode Code, uint64_t Offset) {
   if (Code >= OpCode::I32__trunc_sat_f32_s &&
       Code <= OpCode::I64__trunc_sat_f64_u) {
-    /// These instructions are for NonTrapFloatToIntConversions proposal.
+    // These instructions are for NonTrapFloatToIntConversions proposal.
     if (unlikely(!Conf.hasProposal(Proposal::NonTrapFloatToIntConversions))) {
       return logNeedProposal(ErrCode::IllegalOpCode,
                              Proposal::NonTrapFloatToIntConversions, Offset,
@@ -831,7 +831,7 @@ Expect<void> Loader::checkInstrProposals(OpCode Code, uint64_t Offset) {
     }
   } else if (Code >= OpCode::I32__extend8_s &&
              Code <= OpCode::I64__extend32_s) {
-    /// These instructions are for SignExtensionOperators proposal.
+    // These instructions are for SignExtensionOperators proposal.
     if (unlikely(!Conf.hasProposal(Proposal::SignExtensionOperators))) {
       return logNeedProposal(ErrCode::IllegalOpCode,
                              Proposal::SignExtensionOperators, Offset,
@@ -840,8 +840,8 @@ Expect<void> Loader::checkInstrProposals(OpCode Code, uint64_t Offset) {
   } else if ((Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
              (Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||
              (Code >= OpCode::Memory__init && Code <= OpCode::Memory__fill)) {
-    /// These instructions are for ReferenceTypes or BulkMemoryOperations
-    /// proposal.
+    // These instructions are for ReferenceTypes or BulkMemoryOperations
+    // proposal.
     if (unlikely(!Conf.hasProposal(Proposal::ReferenceTypes)) &&
         unlikely(!Conf.hasProposal(Proposal::BulkMemoryOperations))) {
       return logNeedProposal(ErrCode::IllegalOpCode, Proposal::ReferenceTypes,
@@ -850,14 +850,14 @@ Expect<void> Loader::checkInstrProposals(OpCode Code, uint64_t Offset) {
   } else if (Code == OpCode::Select_t ||
              (Code >= OpCode::Table__get && Code <= OpCode::Table__set) ||
              (Code >= OpCode::Table__grow && Code <= OpCode::Table__fill)) {
-    /// These instructions are for ReferenceTypes proposal.
+    // These instructions are for ReferenceTypes proposal.
     if (unlikely(!Conf.hasProposal(Proposal::ReferenceTypes))) {
       return logNeedProposal(ErrCode::IllegalOpCode, Proposal::ReferenceTypes,
                              Offset, ASTNodeAttr::Instruction);
     }
   } else if (Code >= OpCode::V128__load &&
              Code <= OpCode::F64x2__convert_low_i32x4_u) {
-    /// These instructions are for SIMD proposal.
+    // These instructions are for SIMD proposal.
     if (!Conf.hasProposal(Proposal::SIMD)) {
       return logNeedProposal(ErrCode::IllegalOpCode, Proposal::SIMD, Offset,
                              ASTNodeAttr::Instruction);

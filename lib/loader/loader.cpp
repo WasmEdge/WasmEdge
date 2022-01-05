@@ -11,7 +11,7 @@
 namespace WasmEdge {
 namespace Loader {
 
-/// Load data from file path. See "include/loader/loader.h".
+// Load data from file path. See "include/loader/loader.h".
 Expect<std::vector<Byte>>
 Loader::loadFile(const std::filesystem::path &FilePath) {
   std::error_code EC;
@@ -55,11 +55,11 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
   return Buf;
 }
 
-/// Parse module from file path. See "include/loader/loader.h".
+// Parse module from file path. See "include/loader/loader.h".
 Expect<std::unique_ptr<AST::Module>>
 Loader::parseModule(const std::filesystem::path &FilePath) {
   using namespace std::literals::string_view_literals;
-  /// Set path and check the header.
+  // Set path and check the header.
   if (auto Res = FMgr.setPath(FilePath); !Res) {
     spdlog::error(Res.error());
     spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -70,7 +70,7 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
   case FileMgr::FileHeader::DLL:
   case FileMgr::FileHeader::MachO_32:
   case FileMgr::FileHeader::MachO_64: {
-    /// AOT compiled WASM cases. Use ldmgr to load the module.
+    // AOT compiled WASM cases. Use ldmgr to load the module.
     FMgr.reset();
     if (auto Res = LMgr.setPath(FilePath); !Res) {
       spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -118,13 +118,13 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
   }
 }
 
-/// Parse module from byte code. See "include/loader/loader.h".
+// Parse module from byte code. See "include/loader/loader.h".
 Expect<std::unique_ptr<AST::Module>>
 Loader::parseModule(Span<const uint8_t> Code) {
   if (auto Res = FMgr.setCode(Code); !Res) {
     return Unexpect(Res);
   }
-  /// Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled WASM.
+  // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled WASM.
   switch (FMgr.getHeaderType()) {
   case FileMgr::FileHeader::ELF:
   case FileMgr::FileHeader::DLL:
@@ -139,11 +139,11 @@ Loader::parseModule(Span<const uint8_t> Code) {
   default:
     break;
   }
-  /// For other header checking, handle in the module loading.
+  // For other header checking, handle in the module loading.
   return loadModule();
 }
 
-/// Helper function of checking the valid value types.
+// Helper function of checking the valid value types.
 Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
                                               ASTNodeAttr Node) {
   if (VType == ValType::V128 && !Conf.hasProposal(Proposal::SIMD)) {
@@ -173,7 +173,7 @@ Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
   }
 }
 
-/// Helper function of checking the valid reference types.
+// Helper function of checking the valid reference types.
 Expect<RefType> Loader::checkRefTypeProposals(RefType RType, uint64_t Off,
                                               ASTNodeAttr Node) {
   switch (RType) {

@@ -53,7 +53,7 @@ static inline constexpr const __wasi_rights_t kNoInheritingRights =
 void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
                    Span<const std::string> Args, Span<const std::string> Envs) {
   {
-    /// Open dir for WASI environment.
+    // Open dir for WASI environment.
     std::vector<std::shared_ptr<VINode>> PreopenedDirs;
     PreopenedDirs.reserve(Dirs.size());
     for (const auto &Dir : Dirs) {

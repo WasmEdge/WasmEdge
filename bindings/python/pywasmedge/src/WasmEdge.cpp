@@ -120,6 +120,10 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("parse", parse_file)
       .def("parse", parse_bytes);
 
+  pybind11::class_<pysdk::Validator>(module, "Validator")
+      .def(pybind11::init<pysdk::Configure &>())
+      .def("validate", &pysdk::Validator::validate);
+
   /*Overloading VM run functions*/
 
   pybind11::tuple (pysdk::VM::*run_step_by_step)(

@@ -111,6 +111,17 @@ public:
   pysdk::result parse(pysdk::ASTModuleCxt &, pybind11::tuple);
 };
 
+class Validator {
+private:
+  WasmEdge_ValidatorContext *ValidCxt;
+
+public:
+  Validator(pysdk::Configure &);
+  ~Validator();
+  WasmEdge_ValidatorContext *get();
+  pysdk::result validate(pysdk::ASTModuleCxt &);
+};
+
 WasmEdge_Result host_function(void *, WasmEdge_MemoryInstanceContext *,
                               const WasmEdge_Value *, WasmEdge_Value *);
 

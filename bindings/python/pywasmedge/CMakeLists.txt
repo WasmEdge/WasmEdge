@@ -9,6 +9,7 @@ pybind11_add_module(WasmEdge
     src/vm.cpp
     src/ast_module.cpp
     src/loader.cpp
+    src/validator.cpp
 )
 INCLUDE_DIRECTORIES("include/")
 set_target_properties(WasmEdge PROPERTIES 

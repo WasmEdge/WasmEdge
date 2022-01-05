@@ -99,7 +99,7 @@ WasiExpect<void> INode::fdRead(Span<Span<uint8_t>> IOVs,
     }
     NRead += NumberOfBytesRead;
   }
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+  return {};
 }
 
 WasiExpect<void> INode::fdReaddir(Span<uint8_t>, __wasi_dircookie_t,
@@ -130,7 +130,7 @@ WasiExpect<void> INode::fdWrite(Span<Span<const uint8_t>> IOVs,
     }
     NWritten += NumberOfBytesWritten;
   }
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+  return {};
 }
 
 WasiExpect<void> INode::pathCreateDirectory(std::string) const noexcept {

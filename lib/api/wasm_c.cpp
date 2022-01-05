@@ -22,14 +22,14 @@
 #define OWN
 #endif
 
-/// wasm_config_t implementation.
+// wasm_config_t implementation.
 struct wasm_config_t : public wasm::Config {
   wasm_config_t() noexcept = default;
   ~wasm_config_t() noexcept = default;
   WasmEdge::Configure conf;
 };
 
-/// wasm_engine_t implementation.
+// wasm_engine_t implementation.
 struct wasm_engine_t : public wasm::Engine {
   wasm_engine_t() noexcept : conf(), exec(conf, nullptr) {}
   wasm_engine_t(const wasm_config_t *c) noexcept
@@ -39,7 +39,7 @@ struct wasm_engine_t : public wasm::Engine {
   WasmEdge::Executor::Executor exec;
 };
 
-/// wasm_store_t implementation.
+// wasm_store_t implementation.
 struct wasm_store_t : public wasm::Store {
   wasm_store_t(wasm_engine_t *e) noexcept
       : engine(e), load(e->conf), valid(e->conf), store() {}
@@ -50,30 +50,30 @@ struct wasm_store_t : public wasm::Store {
   WasmEdge::Runtime::StoreManager store;
 };
 
-/// wasm_valtype_t implementation.
+// wasm_valtype_t implementation.
 struct wasm_valtype_t : public wasm::ValType {
   wasm_valtype_t(wasm::ValKind k) noexcept : mkind(k) {}
   ~wasm_valtype_t() noexcept = default;
   wasm::ValKind mkind;
 };
 
-/// wasm_externtype_kind_t implementation.
+// wasm_externtype_kind_t implementation.
 struct wasm_externtype_kind_t {
   wasm_externtype_kind_t(wasm::ExternKind k) noexcept : mkind(k) {}
   wasm::ExternKind mkind;
 };
 
-/// wasm_externtype_t implementation.
+// wasm_externtype_t implementation.
 struct wasm_externtype_t : public wasm::ExternType, wasm_externtype_kind_t {};
 
-/// wasm_externtype_impl_t implementation.
+// wasm_externtype_impl_t implementation.
 template <class C>
 struct wasm_externtype_impl_t : public C, wasm_externtype_kind_t {
   wasm_externtype_impl_t(wasm::ExternKind k) noexcept
       : wasm_externtype_kind_t(k) {}
 };
 
-/// wasm_functype_t implementation.
+// wasm_functype_t implementation.
 struct wasm_functype_t : public wasm_externtype_impl_t<wasm::FuncType> {
   wasm_functype_t(wasm::ownvec<wasm::ValType> &&vp,
                   wasm::ownvec<wasm::ValType> &&vr) noexcept
@@ -83,7 +83,7 @@ struct wasm_functype_t : public wasm_externtype_impl_t<wasm::FuncType> {
   wasm::ownvec<wasm::ValType> mparams, mresults;
 };
 
-/// wasm_globaltype_t implementation.
+// wasm_globaltype_t implementation.
 struct wasm_globaltype_t : public wasm_externtype_impl_t<wasm::GlobalType> {
   wasm_globaltype_t(wasm::own<wasm::ValType> &&vt,
                     wasm::Mutability mut) noexcept
@@ -94,7 +94,7 @@ struct wasm_globaltype_t : public wasm_externtype_impl_t<wasm::GlobalType> {
   wasm::Mutability mmutability;
 };
 
-/// wasm_tabletype_t implementation.
+// wasm_tabletype_t implementation.
 struct wasm_tabletype_t : public wasm_externtype_impl_t<wasm::TableType> {
   wasm_tabletype_t(wasm::own<wasm::ValType> &&vt, wasm::Limits lim) noexcept
       : wasm_externtype_impl_t(wasm::ExternKind::TABLE),
@@ -104,7 +104,7 @@ struct wasm_tabletype_t : public wasm_externtype_impl_t<wasm::TableType> {
   wasm::Limits mlimits;
 };
 
-/// wasm_memorytype_t implementation.
+// wasm_memorytype_t implementation.
 struct wasm_memorytype_t : public wasm_externtype_impl_t<wasm::MemoryType> {
   wasm_memorytype_t(wasm::Limits lim) noexcept
       : wasm_externtype_impl_t(wasm::ExternKind::MEMORY), mlimits(lim) {}
@@ -112,7 +112,7 @@ struct wasm_memorytype_t : public wasm_externtype_impl_t<wasm::MemoryType> {
   wasm::Limits mlimits;
 };
 
-/// wasm_importtype_t implementation.
+// wasm_importtype_t implementation.
 struct wasm_importtype_t : public wasm::ImportType {
   wasm_importtype_t(wasm::Name &&mod, wasm::Name &&n,
                     wasm::own<wasm::ExternType> &&ext) noexcept
@@ -122,7 +122,7 @@ struct wasm_importtype_t : public wasm::ImportType {
   wasm::own<wasm::ExternType> mtype;
 };
 
-/// wasm_exporttype_t implementation.
+// wasm_exporttype_t implementation.
 struct wasm_exporttype_t : public wasm::ExportType {
   wasm_exporttype_t(wasm::Name &&n, wasm::own<wasm::ExternType> &&ext) noexcept
       : mname(std::move(n)), mtype(std::move(ext)) {}
@@ -146,7 +146,7 @@ struct wasm_instance_t : wasm::Instance {};
 
 namespace {
 
-/// Global variables to prevent from new/delete.
+// Global variables to prevent from new/delete.
 wasm_valtype_t wasm_valtype_i32(wasm::ValKind::I32);
 wasm_valtype_t wasm_valtype_i64(wasm::ValKind::I64);
 wasm_valtype_t wasm_valtype_f32(wasm::ValKind::F32);
@@ -154,7 +154,7 @@ wasm_valtype_t wasm_valtype_f64(wasm::ValKind::F64);
 wasm_valtype_t wasm_valtype_anyref(wasm::ValKind::ANYREF);
 wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
 
-/// Helper macro for the C APIs to get attributtes.
+// Helper macro for the C APIs to get attributtes.
 #define WASM_DECLARE_C_GET_ATTR(name, target, attr, cast_type, def_val,        \
                                 is_ref, is_const)                              \
   WASMEDGE_CAPI_EXPORT is_const target wasm_##name##_##attr(                   \
@@ -165,7 +165,7 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
     return def_val;                                                            \
   }
 
-/// Helper macro for the WASM_DECLARE_OWN implementation.
+// Helper macro for the WASM_DECLARE_OWN implementation.
 #define WASM_DECLARE_OWN_IMPL(name, Name)                                      \
   WASMEDGE_CAPI_EXPORT void wasm_##name##_delete(OWN wasm_##name##_t *obj) {   \
     wasm::own<Name> ptr(obj);                                                  \
@@ -195,7 +195,7 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
     }                                                                          \
   }
 
-/// Helper macro for the parts of WASM_DECLARE_VEC implementation.
+// Helper macro for the parts of WASM_DECLARE_VEC implementation.
 #define WASM_DECLARE_VEC_SCALAR_IMPL(name, Name)                               \
   WASMEDGE_CAPI_EXPORT void wasm_##name##_vec_new(                             \
       OWN wasm_##name##_vec_t *out, size_t size,                               \
@@ -236,7 +236,7 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
     }                                                                          \
   }
 
-/// Helper macro for the parts of WASM_DECLARE_VEC implementation.
+// Helper macro for the parts of WASM_DECLARE_VEC implementation.
 #define WASM_DECLARE_VEC_PTR_IMPL(name, Name)                                  \
   WASMEDGE_CAPI_EXPORT void wasm_##name##_vec_new(                             \
       OWN wasm_##name##_vec_t *out, size_t size,                               \
@@ -280,7 +280,7 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
     }                                                                          \
   }
 
-/// Helper macro for the WASM_DECLARE_TYPE implementation.
+// Helper macro for the WASM_DECLARE_TYPE implementation.
 #define WASM_DECLARE_TYPE_IMPL(name, Name)                                     \
   WASM_DECLARE_OWN_IMPL(name, Name)                                            \
   WASM_DECLARE_VEC_PTR_IMPL(name, Name)                                        \
@@ -292,7 +292,7 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
     return nullptr;                                                            \
   }
 
-/// Helper macro for the wasm_externtype_t conversions.
+// Helper macro for the wasm_externtype_t conversions.
 #define WASM_EXTERNTYPE_C_CONV(in, out)                                        \
   WASMEDGE_CAPI_EXPORT wasm_##out##_t *wasm_##in##_as_##out(                   \
       wasm_##in##_t *in) {                                                     \
@@ -305,7 +305,7 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
         static_cast<const wasm::ExternType *>(in));                            \
   }
 
-/// Helper macro for the wasm::ExternType conversions.
+// Helper macro for the wasm::ExternType conversions.
 #define WASM_EXTERNTYPE_CPP_CONV(name, Name, enum, const_quant)                \
   const_quant Name *wasm::ExternType::name() const_quant {                     \
     if (kind() == wasm::ExternKind::enum) {                                    \
@@ -425,18 +425,18 @@ inline borrowed_val borrow_val(const wasm_val_t *v) {
 #define UNUSED(x) (void)(x)
 } // namespace
 
-/// The followings are the C API implementation.
+// The followings are the C API implementation.
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/// >>>>>>>> wasm_byte_vec_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm_byte_vec_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_VEC_SCALAR_IMPL(byte, byte_t)
 
-/// <<<<<<<< wasm_byte_vec_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm_byte_vec_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm_config_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm_config_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_OWN_IMPL(config, wasm::Config)
 
@@ -444,9 +444,9 @@ WASMEDGE_CAPI_EXPORT OWN wasm_config_t *wasm_config_new() {
   return new (std::nothrow) wasm_config_t;
 }
 
-/// <<<<<<<< wasm_config_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm_config_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm_engine_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm_engine_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_OWN_IMPL(engine, wasm::Engine)
 
@@ -461,9 +461,9 @@ wasm_engine_new_with_config(OWN wasm_config_t *conf) {
   return res;
 }
 
-/// <<<<<<<< wasm_engine_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm_engine_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm_store_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm_store_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_OWN_IMPL(store, wasm::Store)
 
@@ -474,16 +474,16 @@ WASMEDGE_CAPI_EXPORT OWN wasm_store_t *wasm_store_new(wasm_engine_t *engine) {
   return nullptr;
 }
 
-/// <<<<<<<< wasm_store_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm_store_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm_valtype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm_valtype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_TYPE_IMPL(valtype, wasm::ValType)
 
 WASMEDGE_CAPI_EXPORT OWN wasm_valtype_t *wasm_valtype_new(wasm_valkind_t kind) {
-  /// Return the pointer to the instances.
-  /// When delete the `wasm_valtype_t`, the `destroy()` function will do nothing
-  /// when the unique pointer releases the pointer.
+  // Return the pointer to the instances.
+  // When delete the `wasm_valtype_t`, the `destroy()` function will do nothing
+  // when the unique pointer releases the pointer.
   switch (kind) {
   case WASM_I32:
     return &wasm_valtype_i32;
@@ -503,9 +503,9 @@ WASMEDGE_CAPI_EXPORT OWN wasm_valtype_t *wasm_valtype_new(wasm_valkind_t kind) {
 
 WASM_DECLARE_C_GET_ATTR(valtype, wasm_valkind_t, kind, static, WASM_I32, , )
 
-/// <<<<<<<< wasm_valtype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm_valtype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm_functype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm_functype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_TYPE_IMPL(functype, wasm::FuncType)
 
@@ -529,9 +529,9 @@ WASM_DECLARE_C_GET_ATTR(functype, wasm_valtype_vec_t *, params, reinterpret,
 WASM_DECLARE_C_GET_ATTR(functype, wasm_valtype_vec_t *, results, reinterpret,
                         nullptr, &, const)
 
-/// <<<<<<<< wasm_functype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm_functype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm_globaltype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm_globaltype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_TYPE_IMPL(globaltype, wasm::GlobalType)
 
@@ -549,9 +549,9 @@ WASM_DECLARE_C_GET_ATTR(globaltype, wasm_valtype_t *, content, static, nullptr,
 WASM_DECLARE_C_GET_ATTR(globaltype, wasm_mutability_t, mutability, static,
                         WASM_CONST, , )
 
-/// <<<<<<<< wasm_globaltype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm_globaltype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm_tabletype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm_tabletype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_TYPE_IMPL(tabletype, wasm::TableType)
 
@@ -569,9 +569,9 @@ WASM_DECLARE_C_GET_ATTR(tabletype, wasm_valtype_t *, element, static, nullptr, ,
 WASM_DECLARE_C_GET_ATTR(tabletype, wasm_limits_t *, limits, reinterpret,
                         nullptr, &, const)
 
-/// <<<<<<<< wasm_tabletype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm_tabletype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm_memorytype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm_memorytype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_TYPE_IMPL(memorytype, wasm::MemoryType)
 
@@ -587,9 +587,9 @@ wasm_memorytype_new(const wasm_limits_t *limits) {
 WASM_DECLARE_C_GET_ATTR(memorytype, wasm_limits_t *, limits, reinterpret,
                         nullptr, &, const)
 
-/// <<<<<<<< wasm_memorytype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm_memorytype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm_externtype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm_externtype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_TYPE_IMPL(externtype, wasm::ExternType)
 
@@ -619,9 +619,9 @@ WASM_EXTERNTYPE_C_CONV_CONST(externtype, globaltype)
 WASM_EXTERNTYPE_C_CONV_CONST(externtype, tabletype)
 WASM_EXTERNTYPE_C_CONV_CONST(externtype, memorytype)
 
-/// <<<<<<<< wasm_externtype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm_externtype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm_importtype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm_importtype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_TYPE_IMPL(importtype, wasm::ImportType)
 
@@ -644,9 +644,9 @@ WASM_DECLARE_C_GET_ATTR(importtype, wasm_name_t *, name, reinterpret,
 WASM_DECLARE_C_GET_ATTR(importtype, wasm_externtype_t *, type, static, nullptr,
                         , const)
 
-/// <<<<<<<< wasm_importtype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm_importtype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm_exporttype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm_exporttype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_TYPE_IMPL(exporttype, wasm::ExportType)
 
@@ -665,15 +665,19 @@ WASM_DECLARE_C_GET_ATTR(exporttype, wasm_name_t *, name, reinterpret,
 WASM_DECLARE_C_GET_ATTR(exporttype, wasm_externtype_t *, type, static, nullptr,
                         , const)
 
-/// <<<<<<<< wasm_exporttype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm_exporttype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-///////////////////////////////////////////////////////////////////////////////
-// Runtime Values
-// References
+////////////////////////////////////////////////////////////////////////////////
+
+// Runtime Objects
+
+// >>>>>>>> wasm_ref_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DEFINE_REF_BASE(ref, wasm::Ref)
 
-// Values
+// <<<<<<<< wasm_ref_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> wasm_val_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_VEC_BASE_IMPL(val, wasm::Val);
 
@@ -713,10 +717,9 @@ WASMEDGE_CAPI_EXPORT void wasm_val_copy(OWN wasm_val_t *out,
   }
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Runtime Objects
+// <<<<<<<< wasm_val_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-// Frames
+// >>>>>>>> wasm_frame_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_OWN_IMPL(frame, wasm::Frame)
 WASM_DECLARE_VEC_PTR_IMPL(frame, wasm::Frame)
@@ -727,8 +730,10 @@ wasm_frame_copy(const wasm_frame_t *frame) {
 }
 
 WASMEDGE_CAPI_EXPORT wasm_instance_t *
-wasm_frame_instance(const wasm_frame_t *frame);
-// Defined below along with wasm_instance_t.
+wasm_frame_instance(const wasm_frame_t *frame) {
+  return static_cast<wasm_instance_t *>(
+      static_cast<const wasm::Frame *>(frame)->instance());
+}
 
 WASMEDGE_CAPI_EXPORT uint32_t wasm_frame_func_index(const wasm_frame_t *frame) {
   return static_cast<const wasm::Frame *>(frame)->func_index();
@@ -743,9 +748,9 @@ wasm_frame_module_offset(const wasm_frame_t *frame) {
   return static_cast<const wasm::Frame *>(frame)->module_offset();
 }
 
-// Traps
+// <<<<<<<< wasm_frame_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// >>>>>>>> wasm_trap_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DEFINE_REF(trap, wasm::Trap)
 
@@ -774,7 +779,9 @@ WASMEDGE_CAPI_EXPORT void wasm_trap_trace(const wasm_trap_t *trap,
   UNUSED(out);
 }
 
-// Foreign Objects
+// <<<<<<<< wasm_trap_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> wasm_foreign_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DEFINE_REF(foreign, wasm::Foreign)
 
@@ -782,7 +789,9 @@ WASMEDGE_CAPI_EXPORT OWN wasm_foreign_t *wasm_foreign_new(wasm_store_t *store) {
   return static_cast<wasm_foreign_t *>(wasm::Foreign::make(store).release());
 }
 
-// Modules
+// <<<<<<<< wasm_foreign_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> wasm_module_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DEFINE_SHARABLE_REF(module, wasm::Module)
 
@@ -838,7 +847,9 @@ wasm_module_obtain(wasm_store_t *store, const wasm_shared_module_t *shared) {
   return nullptr;
 }
 
-// Function Instances
+// <<<<<<<< wasm_module_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> wasm_func_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DEFINE_REF(func, wasm::Func)
 
@@ -922,7 +933,9 @@ WASMEDGE_CAPI_EXPORT OWN wasm_trap_t *wasm_func_call(const wasm_func_t *func,
   return nullptr;
 }
 
-// Global Instances
+// <<<<<<<< wasm_func_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> wasm_global_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DEFINE_REF(global, wasm::Global)
 
@@ -946,24 +959,24 @@ WASMEDGE_CAPI_EXPORT void wasm_global_get(const wasm_global_t *global,
   switch (v.kind()) {
   case wasm::ValKind::I32:
     *out = {kind, {.i32 = v.i32()}};
-    break;
+    return;
   case wasm::ValKind::I64:
     *out = {kind, {.i64 = v.i64()}};
-    break;
+    return;
   case wasm::ValKind::F32:
     *out = {kind, {.f32 = v.f32()}};
-    break;
+    return;
   case wasm::ValKind::F64:
     *out = {kind, {.f64 = v.f64()}};
-    break;
+    return;
   case wasm::ValKind::ANYREF:
   case wasm::ValKind::FUNCREF:
     *out = {kind,
             {.ref = static_cast<wasm_ref_t *>(v.release_ref().release())}};
+    return;
   default:
     assert(false);
   }
-  *out = {kind, {.i32 = v.i32()}};
 }
 
 WASMEDGE_CAPI_EXPORT void wasm_global_set(wasm_global_t *global,
@@ -972,7 +985,9 @@ WASMEDGE_CAPI_EXPORT void wasm_global_set(wasm_global_t *global,
   global->set(val_.it);
 }
 
-// Table Instances
+// <<<<<<<< wasm_global_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> wasm_table_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DEFINE_REF(table, wasm::Table)
 
@@ -1008,7 +1023,9 @@ wasm_table_grow(wasm_table_t *table, wasm_table_size_t delta, wasm_ref_t *ref) {
   return table->grow(delta, ref);
 }
 
-// Memory Instances
+// <<<<<<<< wasm_table_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> wasm_memory_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DEFINE_REF(memory, wasm::Memory)
 
@@ -1041,8 +1058,9 @@ WASMEDGE_CAPI_EXPORT bool wasm_memory_grow(wasm_memory_t *memory,
   return memory->grow(delta);
 }
 
-// Externals
-// WASM_DECLARE_TYPE_IMPL
+// <<<<<<<< wasm_memory_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> wasm_extern_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DEFINE_REF(extern, wasm::Extern)
 WASM_DECLARE_VEC_PTR_IMPL(extern, wasm::Extern)
@@ -1129,7 +1147,10 @@ wasm_extern_as_memory_const(const wasm_extern_t *external) {
   return static_cast<const wasm_memory_t *>(external->memory());
 }
 
-// Module Instances
+// <<<<<<<< wasm_extern_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> wasm_instance_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 WASM_DEFINE_REF(instance, wasm::Instance)
 
 WASMEDGE_CAPI_EXPORT OWN wasm_instance_t *
@@ -1150,23 +1171,19 @@ WASMEDGE_CAPI_EXPORT void wasm_instance_exports(const wasm_instance_t *instance,
           reinterpret_cast<wasm_extern_t **>(instance->exports().release())};
 }
 
-WASMEDGE_CAPI_EXPORT wasm_instance_t *
-wasm_frame_instance(const wasm_frame_t *frame) {
-  return static_cast<wasm_instance_t *>(
-      static_cast<const wasm::Frame *>(frame)->instance());
-}
+// <<<<<<<< wasm_instance_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #ifdef OWN
 #undef OWN
 #endif
 
 #ifdef __cplusplus
-} /// extern "C"
+} // extern "C"
 #endif
 
-/// The followings are the C++ API implementation.
+// The followings are the C++ API implementation.
 
-/// >>>>>>>> wasm::Config functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Config functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 wasm::own<wasm::Config> wasm::Config::make() {
   return wasm::own<wasm::Config>(wasm_config_new());
@@ -1174,9 +1191,9 @@ wasm::own<wasm::Config> wasm::Config::make() {
 
 void wasm::Config::destroy() { delete static_cast<wasm_config_t *>(this); }
 
-/// <<<<<<<< wasm::Config functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::Config functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::Engine functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Engine functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 wasm::own<wasm::Engine> wasm::Engine::make(wasm::own<wasm::Config> &&config) {
   wasm_config_t *conf = static_cast<wasm_config_t *>(config.release());
@@ -1185,9 +1202,9 @@ wasm::own<wasm::Engine> wasm::Engine::make(wasm::own<wasm::Config> &&config) {
 
 void wasm::Engine::destroy() { delete static_cast<wasm_engine_t *>(this); }
 
-/// <<<<<<<< wasm::Engine functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::Engine functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::Store functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Store functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 wasm::own<wasm::Store> wasm::Store::make(wasm::Engine *engine) {
   return wasm::own<wasm::Store>(
@@ -1196,12 +1213,12 @@ wasm::own<wasm::Store> wasm::Store::make(wasm::Engine *engine) {
 
 void wasm::Store::destroy() { delete static_cast<wasm_store_t *>(this); }
 
-/// <<<<<<<< wasm::Store functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::Store functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::ValType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::ValType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::ValType::destroy() {
-  /// Not to delete the struct because the ValTypes are global variables.
+  // Not to delete the struct because the ValTypes are global variables.
 }
 
 wasm::own<wasm::ValType> wasm::ValType::make(wasm::ValKind kind) {
@@ -1228,9 +1245,9 @@ wasm::ValKind wasm::ValType::kind() const {
   return (static_cast<const wasm_valtype_t *>(this))->mkind;
 }
 
-/// <<<<<<<< wasm::ValType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::ValType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::FuncType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::FuncType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::FuncType::destroy() { delete static_cast<wasm_functype_t *>(this); }
 
@@ -1256,9 +1273,9 @@ const wasm::ownvec<wasm::ValType> &wasm::FuncType::results() const {
   return (static_cast<const wasm_functype_t *>(this))->mresults;
 }
 
-/// <<<<<<<< wasm::FuncType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::FuncType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::GlobalType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::GlobalType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::GlobalType::destroy() {
   delete static_cast<wasm_globaltype_t *>(this);
@@ -1286,9 +1303,9 @@ wasm::Mutability wasm::GlobalType::mutability() const {
   return (static_cast<const wasm_globaltype_t *>(this))->mmutability;
 }
 
-/// <<<<<<<< wasm::GlobalType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::GlobalType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::TableType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::TableType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::TableType::destroy() {
   delete static_cast<wasm_tabletype_t *>(this);
@@ -1315,9 +1332,9 @@ const wasm::Limits &wasm::TableType::limits() const {
   return (static_cast<const wasm_tabletype_t *>(this))->mlimits;
 }
 
-/// <<<<<<<< wasm::TableType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::TableType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::MemoryType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::MemoryType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::MemoryType::destroy() {
   delete static_cast<wasm_memorytype_t *>(this);
@@ -1335,9 +1352,9 @@ const wasm::Limits &wasm::MemoryType::limits() const {
   return (static_cast<const wasm_memorytype_t *>(this))->mlimits;
 }
 
-/// <<<<<<<< wasm::MemoryType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::MemoryType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::ExternType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::ExternType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::ExternType::destroy() {
   switch (kind()) {
@@ -1383,9 +1400,9 @@ WASM_EXTERNTYPE_CPP_CONV(table, wasm::TableType, TABLE, const)
 WASM_EXTERNTYPE_CPP_CONV(memory, wasm::MemoryType, MEMORY, )
 WASM_EXTERNTYPE_CPP_CONV(memory, wasm::MemoryType, MEMORY, const)
 
-/// <<<<<<<< wasm::ExternType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::ExternType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::ImportType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::ImportType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::ImportType::destroy() {
   delete static_cast<wasm_importtype_t *>(this);
@@ -1416,9 +1433,9 @@ const wasm::ExternType *wasm::ImportType::type() const {
   return static_cast<const wasm_importtype_t *>(this)->mtype.get();
 }
 
-/// <<<<<<<< wasm::ImportType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::ImportType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::ExportType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::ExportType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::ExportType::destroy() {
   delete static_cast<wasm_exporttype_t *>(this);
@@ -1445,9 +1462,9 @@ const wasm::ExternType *wasm::ExportType::type() const {
   return static_cast<const wasm_exporttype_t *>(this)->mtype.get();
 }
 
-/// <<<<<<<< wasm::ExportType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::ExportType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::References functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Ref functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::Ref::destroy() {}
 bool wasm::Ref::same(const wasm::Ref *that) const {
@@ -1462,9 +1479,9 @@ WASMEDGE_CAPI_EXPORT void wasm::Ref::set_host_info(void *info,
 }
 wasm::own<wasm::Ref> wasm::Ref::copy() const { return wasm::own<wasm::Ref>(); }
 
-/// <<<<<<<< wasm::References functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::Ref functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::Frame functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Frame functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::Frame::destroy() {}
 wasm::own<wasm::Frame> wasm::Frame::copy() const {
@@ -1475,9 +1492,9 @@ uint32_t wasm::Frame::func_index() const { return 0; }
 size_t wasm::Frame::func_offset() const { return 0; }
 size_t wasm::Frame::module_offset() const { return 0; }
 
-/// <<<<<<<< wasm::Frame functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::Frame functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::Trap functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Trap functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::Trap::destroy() {}
 wasm::own<wasm::Trap> wasm::Trap::make(wasm::Store *,
@@ -1500,31 +1517,35 @@ wasm::own<wasm::Trap> wasm::Trap::copy() const {
   return wasm::own<wasm::Trap>();
 }
 
-/// <<<<<<<< wasm::Trap functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::Trap functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::Modules functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Modules functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::Module::destroy() {}
 bool wasm::Module::validate(wasm::Store *, const wasm::vec<byte_t> &binary) {
   UNUSED(binary);
   return false;
 }
-wasm::own<wasm::Module> make(wasm::Store *, const wasm::vec<byte_t> &binary) {
+wasm::own<wasm::Module> wasm::Module::make(wasm::Store *,
+                                           const wasm::vec<byte_t> &binary) {
   UNUSED(binary);
   return wasm::own<wasm::Module>();
 }
-wasm::own<wasm::Module> copy() { return wasm::own<wasm::Module>(); }
-wasm::ownvec<wasm::ImportType> imports() {
+wasm::own<wasm::Module> wasm::Module::copy() const {
+  return wasm::own<wasm::Module>();
+}
+wasm::ownvec<wasm::ImportType> wasm::Module::imports() const {
   return wasm::ownvec<wasm::ImportType>::make_uninitialized();
 }
-wasm::ownvec<wasm::ExportType> exports() {
+wasm::ownvec<wasm::ExportType> wasm::Module::exports() const {
   return wasm::ownvec<wasm::ExportType>::make_uninitialized();
 }
-wasm::own<wasm::Shared<wasm::Module>> share() {
+wasm::own<wasm::Shared<wasm::Module>> wasm::Module::share() const {
   return wasm::own<wasm::Shared<wasm::Module>>();
 }
-wasm::own<wasm::Module> obtain(wasm::Store *store,
-                               const wasm::Shared<wasm::Module> *module) {
+wasm::own<wasm::Module>
+wasm::Module::obtain(wasm::Store *store,
+                     const wasm::Shared<wasm::Module> *module) {
   UNUSED(store);
   UNUSED(module);
   return wasm::own<wasm::Module>();
@@ -1541,15 +1562,15 @@ wasm::Module::deserialize(wasm::Store *store,
   return wasm::own<wasm::Module>();
 }
 
-/// <<<<<<<< wasm::Modules functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::Modules functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::Shared functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Shared functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::Shared<wasm::Module>::destroy() {}
 
-/// <<<<<<<< wasm::Shared functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::Shared functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::Foreign functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Foreign functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::Foreign::destroy() {}
 wasm::own<wasm::Foreign> wasm::Foreign::make(wasm::Store *) {
@@ -1559,9 +1580,9 @@ wasm::own<wasm::Foreign> wasm::Foreign::copy() const {
   return own<wasm::Foreign>();
 }
 
-/// <<<<<<<< wasm::Foreign functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::Foreign functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::Externals functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Extern functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::Extern::destroy() {}
 
@@ -1582,9 +1603,9 @@ const wasm::Global *wasm::Extern::global() const { return nullptr; }
 const wasm::Table *wasm::Extern::table() const { return nullptr; }
 const wasm::Memory *wasm::Extern::memory() const { return nullptr; }
 
-/// <<<<<<<< wasm::Externals functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::Extern functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::Func Instances functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Func functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::Func::destroy() {}
 wasm::own<wasm::Func> wasm::Func::make(wasm::Store *, const wasm::FuncType *,
@@ -1609,9 +1630,9 @@ wasm::own<wasm::Trap> wasm::Func::call(const wasm::vec<wasm::Val> &,
                                        wasm::vec<wasm::Val> &) const {
   return wasm::own<wasm::Trap>();
 }
-/// <<<<<<<< wasm::Func Instances functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::Func functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::Global Instances functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Global functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 void wasm::Global::destroy() {}
 wasm::own<wasm::Global>
 wasm::Global::make(wasm::Store *, const wasm::GlobalType *, const wasm::Val &) {
@@ -1626,9 +1647,10 @@ wasm::own<wasm::GlobalType> wasm::Global::type() const {
 wasm::Val wasm::Global::get() const { return Val(); }
 void wasm::Global::set(const wasm::Val &) {}
 
-/// <<<<<<<< wasm::Global Instances functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::Global functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::Table Instances functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Table functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 void wasm::Table::destroy() {}
 wasm::own<wasm::Table> wasm::Table::make(wasm::Store *, const wasm::TableType *,
                                          const wasm::Ref *init) {
@@ -1654,9 +1676,9 @@ bool wasm::Table::grow(wasm::Table::size_t delta, const wasm::Ref *init) {
   return false;
 }
 
-/// <<<<<<<< wasm::Table Instances functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::Table functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::Memory Instances functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Memory functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::Memory::destroy() {}
 wasm::own<wasm::Memory> wasm::Memory::make(Store *, const wasm::MemoryType *) {
@@ -1676,9 +1698,9 @@ bool wasm::Memory::grow(wasm::Memory::pages_t delta) {
   return false;
 }
 
-/// <<<<<<<< wasm::Memory Instances functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< wasm::Memory functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> wasm::Module Instances functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> wasm::Instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::Instance::destroy() {}
 wasm::own<wasm::Instance>
@@ -1692,4 +1714,5 @@ wasm::own<wasm::Instance> wasm::Instance::copy() const {
 wasm::ownvec<wasm::Extern> wasm::Instance::exports() const {
   return wasm::ownvec<wasm::Extern>::make_uninitialized();
 }
-/// <<<<<<<< wasm::Module  Instances functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// <<<<<<<< wasm::Instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

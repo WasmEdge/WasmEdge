@@ -72,3 +72,33 @@ def test_value():
     assert val.Value * val2.Value == num1 * num2
     assert val.Type == WasmEdge.Type.I32
     assert val2.Type == WasmEdge.Type.F32
+
+
+def test_step_by_step():
+    wasm_base_path = os.path.abspath(os.path.join(__file__, "../../../.."))
+    path = os.path.join(
+        wasm_base_path, "tools/wasmedge/examples/fibonacci.wasm"
+    )
+    log = WasmEdge.Logging()
+    log.debug()
+
+    cfx = WasmEdge.Configure()
+    store = WasmEdge.Store()
+    loader = WasmEdge.Loader(cfx)
+    validator = WasmEdge.Validator(cfx)
+    executor = WasmEdge.Executor(cfx)
+    ast = WasmEdge.ASTModule()
+
+    num = [18]
+
+    assert loader.parse(ast, path)
+
+    assert validator.validate(ast)
+
+    assert executor.instantiate(store, ast)
+
+    func_name = "fib"
+    res, l = executor.invoke(store, func_name, num)
+    assert res
+
+    assert l[0] == fibonacci(num[0])

@@ -106,6 +106,7 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("listRegisteredFunctions", &pysdk::Store::listRegisteredFunctions);
 
   pybind11::class_<pysdk::ASTModuleCxt>(module, "ASTModule")
+      .def(pybind11::init())
       .def("imports", &pysdk::ASTModuleCxt::listImports)
       .def("exports", &pysdk::ASTModuleCxt::listExports);
 
@@ -123,6 +124,11 @@ PYBIND11_MODULE(WasmEdge, module) {
   pybind11::class_<pysdk::Validator>(module, "Validator")
       .def(pybind11::init<pysdk::Configure &>())
       .def("validate", &pysdk::Validator::validate);
+
+  pybind11::class_<pysdk::Executor>(module, "Executor")
+      .def(pybind11::init<pysdk::Configure &>())
+      .def("instantiate", &pysdk::Executor::instantiate)
+      .def("invoke", &pysdk::Executor::invoke);
 
   /*Overloading VM run functions*/
 

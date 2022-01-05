@@ -7,6 +7,7 @@ pysdk::ASTModuleCxt::ASTModuleCxt() { ASTCxt = NULL; }
 pysdk::ASTModuleCxt::~ASTModuleCxt() { WasmEdge_ASTModuleDelete(ASTCxt); }
 
 WasmEdge_ASTModuleContext *pysdk::ASTModuleCxt::get() { return ASTCxt; }
+WasmEdge_ASTModuleContext **pysdk::ASTModuleCxt::get_addr() { return &ASTCxt; }
 
 pybind11::list pysdk::ASTModuleCxt::listImports() {
   pybind11::list ret;

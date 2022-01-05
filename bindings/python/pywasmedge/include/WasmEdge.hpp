@@ -80,6 +80,7 @@ public:
   ASTModuleCxt();
   ~ASTModuleCxt();
   WasmEdge_ASTModuleContext *get();
+  WasmEdge_ASTModuleContext **get_addr();
   pybind11::list listExports();
   pybind11::list listImports();
 };
@@ -120,6 +121,18 @@ public:
   ~Validator();
   WasmEdge_ValidatorContext *get();
   pysdk::result validate(pysdk::ASTModuleCxt &);
+};
+
+class Executor {
+private:
+  WasmEdge_ExecutorContext *ExecCxt;
+
+public:
+  Executor(pysdk::Configure &);
+  ~Executor();
+  WasmEdge_ExecutorContext *get();
+  pysdk::result instantiate(pysdk::Store &, pysdk::ASTModuleCxt &);
+  pybind11::tuple invoke(pysdk::Store &, std::string &, pybind11::list);
 };
 
 WasmEdge_Result host_function(void *, WasmEdge_MemoryInstanceContext *,

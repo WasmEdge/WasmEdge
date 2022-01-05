@@ -12,9 +12,8 @@ WasmEdge_LoaderContext *pysdk::Loader::get() { return LoadCxt; }
 
 pysdk::result pysdk::Loader::parse(pysdk::ASTModuleCxt &ast,
                                    std::string &path) {
-  auto ast_ = ast.get();
   return pysdk::result(
-      WasmEdge_LoaderParseFromFile(LoadCxt, &ast_, path.c_str()));
+      WasmEdge_LoaderParseFromFile(LoadCxt, ast.get_addr(), path.c_str()));
 }
 
 pysdk::result pysdk::Loader::parse(pysdk::ASTModuleCxt &ast,
@@ -24,10 +23,8 @@ pysdk::result pysdk::Loader::parse(pysdk::ASTModuleCxt &ast,
   for (size_t i = 0; i < len; i++) {
     buf[i] = buf_.cast<uint8_t>();
   }
-
-  auto ast_ = ast.get();
   return pysdk::result(
-      WasmEdge_LoaderParseFromBuffer(LoadCxt, &ast_, buf, len));
+      WasmEdge_LoaderParseFromBuffer(LoadCxt, ast.get_addr(), buf, len));
 }
 
 /* --------------- Loader End -------------------------------- */

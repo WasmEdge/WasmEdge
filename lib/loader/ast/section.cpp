@@ -9,7 +9,7 @@
 namespace WasmEdge {
 namespace Loader {
 
-/// Load content size. See "include/loader/loader.h".
+// Load content size. See "include/loader/loader.h".
 Expect<uint32_t> Loader::loadSectionSize(ASTNodeAttr Node) {
   if (auto Res = FMgr.readU32()) {
     return *Res;
@@ -18,10 +18,10 @@ Expect<uint32_t> Loader::loadSectionSize(ASTNodeAttr Node) {
   }
 }
 
-/// Load content of custom section. See "include/loader/loader.h".
+// Load content of custom section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::CustomSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
-    /// Read name.
+    // Read name.
     auto StartOffset = FMgr.getOffset();
     if (auto Res = FMgr.readName()) {
       Sec.setName(*Res);
@@ -30,7 +30,7 @@ Expect<void> Loader::loadSection(AST::CustomSection &Sec) {
                           ASTNodeAttr::Sec_Custom);
     }
     auto ReadSize = FMgr.getOffset() - StartOffset;
-    /// Read remain bytes.
+    // Read remain bytes.
     if (auto Res = FMgr.readBytes(Sec.getContentSize() - ReadSize)) {
       Sec.getContent().insert(Sec.getContent().end(), (*Res).begin(),
                               (*Res).end());
@@ -42,7 +42,7 @@ Expect<void> Loader::loadSection(AST::CustomSection &Sec) {
   });
 }
 
-/// Load vector of type section. See "include/loader/loader.h".
+// Load vector of type section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::TypeSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(Sec, [this](AST::FunctionType &FuncType) {
@@ -51,7 +51,7 @@ Expect<void> Loader::loadSection(AST::TypeSection &Sec) {
   });
 }
 
-/// Load vector of import section. See "include/loader/loader.h".
+// Load vector of import section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::ImportSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
@@ -59,7 +59,7 @@ Expect<void> Loader::loadSection(AST::ImportSection &Sec) {
   });
 }
 
-/// Load vector of function section. See "include/loader/loader.h".
+// Load vector of function section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::FunctionSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
     return loadSectionContentVec(
@@ -76,7 +76,7 @@ Expect<void> Loader::loadSection(AST::FunctionSection &Sec) {
   });
 }
 
-/// Load vector of table section. See "include/loader/loader.h".
+// Load vector of table section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::TableSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
@@ -84,7 +84,7 @@ Expect<void> Loader::loadSection(AST::TableSection &Sec) {
   });
 }
 
-/// Load vector of memory section. See "include/loader/loader.h".
+// Load vector of memory section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::MemorySection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
@@ -92,7 +92,7 @@ Expect<void> Loader::loadSection(AST::MemorySection &Sec) {
   });
 }
 
-/// Load vector of global section. See "include/loader/loader.h".
+// Load vector of global section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::GlobalSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(Sec, [this](AST::GlobalSegment &GlobSeg) {
@@ -101,7 +101,7 @@ Expect<void> Loader::loadSection(AST::GlobalSection &Sec) {
   });
 }
 
-/// Load vector of export section. See "include/loader/loader.h".
+// Load vector of export section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::ExportSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
@@ -109,10 +109,10 @@ Expect<void> Loader::loadSection(AST::ExportSection &Sec) {
   });
 }
 
-/// Load start function index. See "include/loader/loader.h".
+// Load start function index. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::StartSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
-    /// Read u32 of start function index.
+    // Read u32 of start function index.
     if (auto Res = FMgr.readU32()) {
       Sec.setContent(*Res);
     } else {
@@ -123,7 +123,7 @@ Expect<void> Loader::loadSection(AST::StartSection &Sec) {
   });
 }
 
-/// Load vector of element section. See "include/loader/loader.h".
+// Load vector of element section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::ElementSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(Sec, [this](AST::ElementSegment &ElemSeg) {
@@ -132,7 +132,7 @@ Expect<void> Loader::loadSection(AST::ElementSection &Sec) {
   });
 }
 
-/// Load vector of code section. See "include/loader/loader.h".
+// Load vector of code section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::CodeSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(Sec, [this](AST::CodeSegment &CodeSeg) {
@@ -141,7 +141,7 @@ Expect<void> Loader::loadSection(AST::CodeSection &Sec) {
   });
 }
 
-/// Load vector of data section. See "include/loader/loader.h".
+// Load vector of data section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::DataSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(Sec, [this](AST::DataSegment &DataSeg) {
@@ -150,10 +150,10 @@ Expect<void> Loader::loadSection(AST::DataSection &Sec) {
   });
 }
 
-/// Load content of data count section. See "include/loader/loader.h".
+// Load content of data count section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::DataCountSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
-    /// Read u32 of data count.
+    // Read u32 of data count.
     if (auto Res = FMgr.readU32()) {
       Sec.setContent(*Res);
     } else {

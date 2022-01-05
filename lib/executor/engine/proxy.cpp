@@ -37,7 +37,7 @@ struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StoreManager &,
 #pragma clang diagnostic ignored "-Wc99-designator"
 #endif
 
-/// Intrinsics table
+// Intrinsics table
 const AST::Module::IntrinsicsTable Executor::Intrinsics = {
 #define ENTRY(NAME, FUNC)                                                      \
   [uint8_t(AST::Module::Intrinsics::NAME)] = reinterpret_cast<void *>(         \

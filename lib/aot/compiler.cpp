@@ -56,7 +56,7 @@
 
 namespace {
 
-/// is x86_64
+// is x86_64
 #if defined(_M_X64) && !defined(__x86_64__)
 #define __x86_64__ 1
 #endif
@@ -116,17 +116,17 @@ static llvm::Value *createLikely(llvm::IRBuilder<> &Builder,
                                  llvm::Value *Value);
 class FunctionCompiler;
 
-/// XXX: Misalignment handler not implemented yet, forcing unalignment
-/// force unalignment load/store
+// XXX: Misalignment handler not implemented yet, forcing unalignment
+// force unalignment load/store
 static inline constexpr const bool kForceUnalignment = true;
 
-/// force checking div/rem on zero
+// force checking div/rem on zero
 static inline constexpr const bool kForceDivCheck = true;
 
-/// Size of a ValVariant
+// Size of a ValVariant
 static inline constexpr const uint32_t kValSize = sizeof(WasmEdge::ValVariant);
 
-/// Translate Compiler::OptimizationLevel to llvm::PassBuilder version
+// Translate Compiler::OptimizationLevel to llvm::PassBuilder version
 static inline llvm::PassBuilder::OptimizationLevel
 toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) {
   using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
@@ -287,17 +287,17 @@ struct WasmEdge::AOT::Compiler::CompileContext {
         Int128PtrTy(Int128Ty->getPointerTo()),
         ExecCtxTy(llvm::StructType::create(
             "ExecCtx",
-            /// Memory
+            // Memory
             Int8PtrTy,
-            /// Globals
+            // Globals
             Int128PtrTy->getPointerTo(),
-            /// InstrCount
+            // InstrCount
             Int64PtrTy,
-            /// CostTable
+            // CostTable
             llvm::ArrayType::get(Int64Ty, UINT16_MAX + 1)->getPointerTo(),
-            /// Gas
+            // Gas
             Int64PtrTy,
-            /// StopToken
+            // StopToken
             llvm::Type::getInt32PtrTy(LLContext))),
         ExecCtxPtrTy(ExecCtxTy->getPointerTo()),
         IntrinsicsTableTy(llvm::ArrayType::get(
@@ -348,7 +348,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
     }
 
     {
-      /// create trap
+      // create trap
       llvm::IRBuilder<> Builder(
           llvm::BasicBlock::Create(LLContext, "entry", Trap));
       auto *CallTrap = Builder.CreateCall(
@@ -411,7 +411,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
       }
       return RetT{{}, {BType.Data.Type}};
     } else {
-      /// Type index case. t2* = type[index].returns
+      // Type index case. t2* = type[index].returns
       const uint32_t TypeIdx = BType.Data.Idx;
       const auto &FType = *FunctionTypes[TypeIdx];
       return RetT{
@@ -1234,7 +1234,7 @@ public:
 #if LLVM_VERSION_MAJOR >= 10
         stackPush(Builder.CreateFPTrunc(stackPop(), Context.FloatTy));
 #else
-        /// llvm 9 didn't add constrains on fptrunc, do it manually.
+        // llvm 9 didn't add constrains on fptrunc, do it manually.
         auto &LLContext = Context.LLContext;
         auto *Value = stackPop();
         auto ExceptStr = llvm::ConstrainedFPIntrinsic::ExceptionBehaviorToStr(
@@ -2657,7 +2657,7 @@ public:
       return;
     };
     for (const auto &Instr : Instrs) {
-      /// Update instruction count
+      // Update instruction count
       if (LocalInstrCount) {
         Builder.CreateStore(
             Builder.CreateAdd(
@@ -2676,7 +2676,7 @@ public:
         Builder.CreateStore(NewGas, LocalGas);
       }
 
-      /// Make the instruction node according to Code.
+      // Make the instruction node according to Code.
       Dispatch(Instr);
     }
   }
@@ -3869,7 +3869,7 @@ static llvm::Value *createLikely(llvm::IRBuilder<> &Builder,
                                        Builder.getTrue());
 }
 
-/// Write output object and link
+// Write output object and link
 Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
                                  const llvm::SmallString<0> &OSVec) {
   using namespace std::literals;
@@ -4163,7 +4163,7 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
     return Unexpect(ErrCode::IllegalPath);
   }
   OS.write(reinterpret_cast<const char *>(Data.data()), Data.size());
-  /// Custom section id
+  // Custom section id
   WriteByte(OS, UINT8_C(0x00));
   WriteName(OS, std::string_view(OSCustomSecVec.data(), OSCustomSecVec.size()));
 
@@ -4207,25 +4207,25 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   };
   RAIICleanup Cleanup(Context, NewContext);
 
-  /// Compile Function Types
+  // Compile Function Types
   compile(Module.getTypeSection());
-  /// Compile ImportSection
+  // Compile ImportSection
   compile(Module.getImportSection());
-  /// Compile GlobalSection
+  // Compile GlobalSection
   compile(Module.getGlobalSection());
-  /// Compile MemorySection (MemorySec, DataSec)
+  // Compile MemorySection (MemorySec, DataSec)
   compile(Module.getMemorySection(), Module.getDataSection());
-  /// Compile TableSection (TableSec, ElemSec)
+  // Compile TableSection (TableSec, ElemSec)
   compile(Module.getTableSection(), Module.getElementSection());
-  /// compile Functions in module. (FunctionSec, CodeSec)
+  // compile Functions in module. (FunctionSec, CodeSec)
   compile(Module.getFunctionSection(), Module.getCodeSection());
-  /// Compile ExportSection
+  // Compile ExportSection
   compile(Module.getExportSection());
-  /// StartSection is not required to compile
+  // StartSection is not required to compile
 
   if (Conf.getCompilerConfigure().getOutputFormat() ==
       CompilerConfigure::OutputFormat::Native) {
-    /// create wasm.code and wasm.size
+    // create wasm.code and wasm.size
     auto *Int32Ty = Context->Int32Ty;
     auto *Content = llvm::ConstantDataArray::getString(
         LLContext,
@@ -4240,7 +4240,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
         llvm::ConstantInt::get(Int32Ty, Data.size()), "wasm.size");
   }
 
-  /// set dllexport
+  // set dllexport
   for (auto &GV : LLModule.global_values()) {
     if (GV.hasExternalLinkage()) {
       GV.setVisibility(llvm::GlobalValue::ProtectedVisibility);
@@ -4395,12 +4395,12 @@ void Compiler::compile(const AST::TypeSection &TypeSec) {
   Context->FunctionTypes.reserve(Size);
   Context->FunctionWrappers.reserve(Size);
 
-  /// Iterate and compile types.
+  // Iterate and compile types.
   for (size_t I = 0; I < Size; ++I) {
     const auto &FuncType = FuncTypes[I];
     const auto Name = "t" + std::to_string(Context->FunctionTypes.size());
 
-    /// Check function type is unique
+    // Check function type is unique
     {
       bool Unique = true;
       for (size_t J = 0; J < I; ++J) {
@@ -4419,7 +4419,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec) {
       }
     }
 
-    /// Create Wrapper
+    // Create Wrapper
     auto *F = llvm::Function::Create(WrapperTy, llvm::Function::ExternalLinkage,
                                      Name, Context->LLModule);
     {
@@ -4478,24 +4478,24 @@ void Compiler::compile(const AST::TypeSection &TypeSec) {
       }
       Builder.CreateRetVoid();
     }
-    /// Copy wrapper, param and return lists to module instance.
+    // Copy wrapper, param and return lists to module instance.
     Context->FunctionTypes.push_back(&FuncType);
     Context->FunctionWrappers.push_back(F);
   }
 }
 
 void Compiler::compile(const AST::ImportSection &ImportSec) {
-  /// Iterate and compile import descriptions.
+  // Iterate and compile import descriptions.
   for (const auto &ImpDesc : ImportSec.getContent()) {
-    /// Get data from import description.
+    // Get data from import description.
     const auto &ExtType = ImpDesc.getExternalType();
 
-    /// Add the imports into module istance.
+    // Add the imports into module istance.
     switch (ExtType) {
-    case ExternalType::Function: /// Function type index
+    case ExternalType::Function: // Function type index
     {
       const auto FuncID = static_cast<uint32_t>(Context->Functions.size());
-      /// Get the function type index in module.
+      // Get the function type index in module.
       uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
       assuming(TypeIdx < Context->FunctionTypes.size());
       const auto &FuncType = *Context->FunctionTypes[TypeIdx];
@@ -4578,19 +4578,19 @@ void Compiler::compile(const AST::ImportSection &ImportSec) {
       Context->Functions.emplace_back(TypeIdx, F, nullptr);
       break;
     }
-    case ExternalType::Table: /// Table type
+    case ExternalType::Table: // Table type
     {
-      /// Nothing to do.
+      // Nothing to do.
       break;
     }
-    case ExternalType::Memory: /// Memory type
+    case ExternalType::Memory: // Memory type
     {
-      /// Nothing to do.
+      // Nothing to do.
       break;
     }
-    case ExternalType::Global: /// Global type
+    case ExternalType::Global: // Global type
     {
-      /// Get global type. External type checked in validation.
+      // Get global type. External type checked in validation.
       const auto &GlobType = ImpDesc.getExternalGlobalType();
       const auto &ValType = GlobType.getValType();
       auto *Type = toLLVMType(Context->LLContext, ValType);

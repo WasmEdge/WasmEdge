@@ -6,13 +6,13 @@
 namespace WasmEdge {
 namespace Executor {
 
-/// Instantiate memory instance. See "include/executor/executor.h".
+// Instantiate memory instance. See "include/executor/executor.h".
 Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::MemorySection &MemSec) {
-  /// Iterate and istantiate memory types.
+  // Iterate and istantiate memory types.
   for (const auto &MemType : MemSec.getContent()) {
-    /// Insert memory instance to store manager.
+    // Insert memory instance to store manager.
     uint32_t NewMemInstAddr;
     if (InsMode == InstantiateMode::Instantiate) {
       NewMemInstAddr = StoreMgr.pushMemory(

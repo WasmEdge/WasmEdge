@@ -38,6 +38,7 @@ Expect<void> Executor::runGlobalGetOp(Runtime::StoreManager &StoreMgr,
 Expect<void> Executor::runGlobalSetOp(Runtime::StoreManager &StoreMgr,
                                       const uint32_t Idx) {
   auto *GlobInst = getGlobInstByIdx(StoreMgr, Idx);
+  assuming(GlobInst);
   GlobInst->getValue() = StackMgr.pop();
   return {};
 }

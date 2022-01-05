@@ -7,7 +7,7 @@
 
 namespace WasmEdge {
 
-/// Set path to loadable manager. See "include/loader/ldmgr.h".
+// Set path to loadable manager. See "include/loader/ldmgr.h".
 Expect<void> LDMgr::setPath(const std::filesystem::path &FilePath) {
   Library = std::make_shared<Loader::SharedLibrary>();
   if (auto Res = Library->load(FilePath); unlikely(!Res)) {

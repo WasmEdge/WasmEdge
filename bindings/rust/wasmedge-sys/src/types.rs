@@ -287,19 +287,17 @@ pub enum Value {
     NullRef(RefType),
 }
 impl Value {
+    /// Returns a [`Value`] which implies a reference to an external object.
+    ///
+    /// # Argument
+    ///
+    /// - `extern_obj` specifies an external object.
     pub fn gen_extern_ref<T>(extern_obj: &mut T) -> Value {
         unsafe {
             let ptr = extern_obj as *mut T as *mut c_void;
             wasmedge::WasmEdge_ValueGenExternRef(ptr).into()
         }
     }
-
-    // pub fn gen_extern_ref(&mut self) -> Value {
-    //     unsafe {
-    //         let self_ptr: *mut c_void = self as *mut _ as *mut c_void;
-    //         wasmedge::WasmEdge_ValueGenExternRef(self_ptr).into()
-    //     }
-    // }
 
     pub fn ty(&self) -> ValType {
         match &self {

@@ -278,19 +278,28 @@ pub enum Value {
     ///
     /// The packed data can be interpreted as signed or unsigned integers, single or double precision floating-point
     /// values, or a single 128 bit type. The interpretation is determined by individual operations.
-    V128(u128),
+    V128(i128),
     /// A reference to [functions](crate::Function).
-    FuncRef(u128),
+    FuncRef(u32),
     /// A reference to object owned by the [Vm](crate::Vm).
     ExternRef(u128),
+    /// A null reference value.
+    NullRef(RefType),
 }
 impl Value {
-    pub fn gen_extern_ref(&mut self) -> Value {
+    pub fn gen_extern_ref<T>(extern_obj: &mut T) -> Value {
         unsafe {
-            let self_ptr: *mut c_void = self as *mut _ as *mut c_void;
-            wasmedge::WasmEdge_ValueGenExternRef(self_ptr).into()
+            let ptr = extern_obj as *mut T as *mut c_void;
+            wasmedge::WasmEdge_ValueGenExternRef(ptr).into()
         }
     }
+
+    // pub fn gen_extern_ref(&mut self) -> Value {
+    //     unsafe {
+    //         let self_ptr: *mut c_void = self as *mut _ as *mut c_void;
+    //         wasmedge::WasmEdge_ValueGenExternRef(self_ptr).into()
+    //     }
+    // }
 
     pub fn ty(&self) -> ValType {
         match &self {
@@ -301,6 +310,10 @@ impl Value {
             Value::V128(_) => ValType::V128,
             Value::FuncRef(_) => ValType::FuncRef,
             Value::ExternRef(_) => ValType::ExternRef,
+            Value::NullRef(v) => match &v {
+                RefType::FuncRef => ValType::FuncRef,
+                RefType::ExternRef => ValType::ExternRef,
+            },
         }
     }
 }
@@ -316,47 +329,59 @@ impl From<Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>> for Value {
 impl From<Value> for wasmedge::WasmEdge_Value {
     fn from(value: Value) -> Self {
         match value {
-            Value::I32(v) => Self {
-                Value: v as u128,
-                Type: wasmedge::WasmEdge_ValType_I32,
-            },
-            Value::I64(v) => Self {
-                Value: v as u128,
-                Type: wasmedge::WasmEdge_ValType_I64,
-            },
-            Value::F32(v) => Self {
-                Value: v.to_bits() as u128,
-                Type: wasmedge::WasmEdge_ValType_F32,
-            },
-            Value::F64(v) => Self {
-                Value: v.to_bits() as u128,
-                Type: wasmedge::WasmEdge_ValType_F64,
-            },
-            Value::V128(v) => Self {
-                Value: v as u128,
-                Type: wasmedge::WasmEdge_ValType_V128,
-            },
-            Value::FuncRef(v) => Self {
-                Value: v as u128,
-                Type: wasmedge::WasmEdge_ValType_FuncRef,
-            },
+            Value::I32(v) => unsafe { wasmedge::WasmEdge_ValueGenI32(v) },
+            Value::I64(v) => unsafe { wasmedge::WasmEdge_ValueGenI64(v) },
+            Value::F32(v) => unsafe { wasmedge::WasmEdge_ValueGenF32(v) },
+            Value::F64(v) => unsafe { wasmedge::WasmEdge_ValueGenF64(v) },
+            Value::V128(v) => unsafe { wasmedge::WasmEdge_ValueGenV128(v) },
+            Value::FuncRef(idx) => unsafe { wasmedge::WasmEdge_ValueGenFuncRef(idx) },
             Value::ExternRef(v) => Self {
                 Value: v as u128,
                 Type: wasmedge::WasmEdge_ValType_ExternRef,
             },
+            Value::NullRef(v) => unsafe { wasmedge::WasmEdge_ValueGenNullRef(v.into()) },
         }
     }
 }
 impl From<wasmedge::WasmEdge_Value> for Value {
     fn from(value: wasmedge::WasmEdge_Value) -> Self {
         match value.Type {
-            wasmedge::WasmEdge_ValType_I32 => Self::I32(value.Value as i32),
-            wasmedge::WasmEdge_ValType_I64 => Self::I64(value.Value as i64),
-            wasmedge::WasmEdge_ValType_F32 => Self::F32(f32::from_bits(value.Value as u32)),
-            wasmedge::WasmEdge_ValType_F64 => Self::F64(f64::from_bits(value.Value as u64)),
-            wasmedge::WasmEdge_ValType_V128 => Self::V128(value.Value as u128),
-            wasmedge::WasmEdge_ValType_FuncRef => Self::FuncRef(value.Value as u128),
-            wasmedge::WasmEdge_ValType_ExternRef => Self::ExternRef(value.Value as u128),
+            wasmedge::WasmEdge_ValType_I32 => {
+                let val = unsafe { wasmedge::WasmEdge_ValueGetI32(value) };
+                Self::I32(val)
+            }
+            wasmedge::WasmEdge_ValType_I64 => {
+                let val = unsafe { wasmedge::WasmEdge_ValueGetI64(value) };
+                Self::I64(val)
+            }
+            wasmedge::WasmEdge_ValType_F32 => {
+                let val = unsafe { wasmedge::WasmEdge_ValueGetF32(value) };
+                Self::F32(val)
+            }
+            wasmedge::WasmEdge_ValType_F64 => {
+                let val = unsafe { wasmedge::WasmEdge_ValueGetF64(value) };
+                Self::F64(val)
+            }
+            wasmedge::WasmEdge_ValType_V128 => {
+                let val = unsafe { wasmedge::WasmEdge_ValueGetV128(value) };
+                Self::V128(val)
+            }
+            wasmedge::WasmEdge_ValType_FuncRef => unsafe {
+                if wasmedge::WasmEdge_ValueIsNullRef(value) {
+                    Self::NullRef(RefType::FuncRef)
+                } else {
+                    let idx = wasmedge::WasmEdge_ValueGetFuncIdx(value);
+                    Self::FuncRef(idx)
+                }
+            },
+            wasmedge::WasmEdge_ValType_ExternRef => unsafe {
+                if wasmedge::WasmEdge_ValueIsNullRef(value) {
+                    Self::NullRef(RefType::ExternRef)
+                } else {
+                    let val = wasmedge::WasmEdge_ValueGetExternRef(value);
+                    Self::ExternRef(val as u128)
+                }
+            },
             _ => panic!("unknown WasmEdge_ValType `{}`", value.Type),
         }
     }
@@ -419,5 +444,80 @@ impl<T: AsRef<str>> From<T> for wasmedge::WasmEdge_String {
         let cs =
             CString::new(s.as_ref()).expect("fail to convert a string slice to WasmEdge_String");
         unsafe { wasmedge::WasmEdge_StringCreateByCString(cs.as_ptr()) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{RefType, Table, TableType};
+
+    #[test]
+    fn test_value() {
+        // I32
+        let val = Value::I32(1314);
+        assert_eq!(val.ty(), ValType::I32);
+        let raw_val: wasmedge::WasmEdge_Value = val.into();
+        let val: Value = raw_val.into();
+        assert_eq!(val.ty(), ValType::I32);
+
+        // I64
+        let val = Value::I64(1314);
+        assert_eq!(val.ty(), ValType::I64);
+        let raw_val: wasmedge::WasmEdge_Value = val.into();
+        let val: Value = raw_val.into();
+        assert_eq!(val.ty(), ValType::I64);
+
+        // F32
+        let val = Value::F32(13.14);
+        assert_eq!(val.ty(), ValType::F32);
+        let raw_val: wasmedge::WasmEdge_Value = val.into();
+        let val: Value = raw_val.into();
+        assert_eq!(val.ty(), ValType::F32);
+
+        // F64
+        let val = Value::F64(13.14);
+        assert_eq!(val.ty(), ValType::F64);
+        let raw_val: wasmedge::WasmEdge_Value = val.into();
+        let val: Value = raw_val.into();
+        assert_eq!(val.ty(), ValType::F64);
+
+        // V128
+        let val = Value::V128(1314);
+        assert_eq!(val.ty(), ValType::V128);
+        let raw_val: wasmedge::WasmEdge_Value = val.into();
+        let val: Value = raw_val.into();
+        assert_eq!(val.ty(), ValType::V128);
+
+        // ExternRef
+        let result = TableType::create(RefType::FuncRef, 10..=20);
+        assert!(result.is_ok());
+        let mut ty = result.unwrap();
+        let result = Table::create(&mut ty);
+        assert!(result.is_ok());
+        let mut table = result.unwrap();
+        let value = Value::gen_extern_ref(&mut table);
+        if let Value::ExternRef(v) = value {
+            let raw_val: wasmedge::WasmEdge_Value = value.into();
+            let val: Value = raw_val.into();
+            assert_eq!(val.ty(), ValType::ExternRef);
+            assert_eq!(val, Value::ExternRef(v));
+        }
+
+        // NullRef(FuncRef)
+        let val = Value::NullRef(RefType::FuncRef);
+        assert_eq!(val.ty(), ValType::FuncRef);
+        let raw_val: wasmedge::WasmEdge_Value = val.into();
+        let val: Value = raw_val.into();
+        assert_eq!(val, Value::NullRef(RefType::FuncRef));
+        assert_eq!(val.ty(), ValType::FuncRef);
+
+        // NullRef(ExternRef)
+        let val = Value::NullRef(RefType::ExternRef);
+        assert_eq!(val.ty(), ValType::ExternRef);
+        let raw_val: wasmedge::WasmEdge_Value = val.into();
+        let val: Value = raw_val.into();
+        assert_eq!(val, Value::NullRef(RefType::ExternRef));
+        assert_eq!(val.ty(), ValType::ExternRef);
     }
 }

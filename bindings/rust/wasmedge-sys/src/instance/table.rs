@@ -317,8 +317,6 @@ mod tests {
         // get data in the scope of the capacity
         let result = table.get_data(9);
         assert!(result.is_ok());
-        let value = result.unwrap();
-        assert_eq!(value, Value::FuncRef(0));
 
         // set data
         let result = table.set_data(Value::FuncRef(5), 3);

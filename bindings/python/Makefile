@@ -26,7 +26,7 @@ fmt:              ## Format code using black & isort.
 	$(ENV_PREFIX)isort pywasmedge/
 	$(ENV_PREFIX)black -l 79 pywasmedge/
 	$(ENV_PREFIX)black -l 79 tests/
-	@find . -regex '.*\.\(cpp\|hpp\|cc\|cxx\)' -exec clang-format -style=file -i {} \;
+	@find . -regex '.*\.\(cpp\|hpp\|cc\|cxx\)' -not -path "./pybind11/*" -exec clang-format -style=file -i {} \;
 
 .PHONY: lint
 lint:             ## Run pep8, black, mypy linters.

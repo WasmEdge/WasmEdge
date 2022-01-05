@@ -22,10 +22,11 @@
 #include <unordered_map>
 #endif
 
-/// Wasm Proposal enum class.
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
     (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
+
+/// WASM Proposal C++ enumeration class.
 enum class Proposal : uint8_t {
   ImportExportMutGlobals = 0,
   NonTrapFloatToIntConversions,
@@ -44,6 +45,7 @@ enum class Proposal : uint8_t {
 };
 
 namespace detail {
+
 using namespace std::literals::string_view_literals;
 static inline std::unordered_map<Proposal, std::string_view> ProposalStr = {
     {Proposal::ImportExportMutGlobals, "Import/Export of mutable globals"sv},
@@ -61,11 +63,15 @@ static inline std::unordered_map<Proposal, std::string_view> ProposalStr = {
     {Proposal::ExceptionHandling, "Exception handling"sv},
     {Proposal::FunctionReferences, "Typed Function References"sv},
 };
+
 } // namespace detail
+
 using detail::ProposalStr;
+
 } // namespace WasmEdge
 #endif
 
+/// WASM Proposal C enumeration.
 enum WasmEdge_Proposal {
   WasmEdge_Proposal_ImportExportMutGlobals = 0,
   WasmEdge_Proposal_NonTrapFloatToIntConversions,
@@ -82,43 +88,46 @@ enum WasmEdge_Proposal {
   WasmEdge_Proposal_FunctionReferences
 };
 
-/// Host Module Registration enum class.
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
     (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
+
+/// Host Module Registration C++ enumeration class.
 enum class HostRegistration : uint8_t { Wasi = 0, WasmEdge_Process, Max };
+
 } // namespace WasmEdge
 #endif
 
+/// Host Module Registration C enumeration.
 enum WasmEdge_HostRegistration {
   WasmEdge_HostRegistration_Wasi = 0,
   WasmEdge_HostRegistration_WasmEdge_Process
 };
 
-/// AOT compiler optimization level enumeration.
+/// AOT compiler optimization level C enumeration.
 enum WasmEdge_CompilerOptimizationLevel {
-  /// Disable as many optimizations as possible.
+  // Disable as many optimizations as possible.
   WasmEdge_CompilerOptimizationLevel_O0 = 0,
-  /// Optimize quickly without destroying debuggability.
+  // Optimize quickly without destroying debuggability.
   WasmEdge_CompilerOptimizationLevel_O1,
-  /// Optimize for fast execution as much as possible without triggering
-  /// significant incremental compile time or code size growth.
+  // Optimize for fast execution as much as possible without triggering
+  // significant incremental compile time or code size growth.
   WasmEdge_CompilerOptimizationLevel_O2,
-  /// Optimize for fast execution as much as possible.
+  // Optimize for fast execution as much as possible.
   WasmEdge_CompilerOptimizationLevel_O3,
-  /// Optimize for small code size as much as possible without triggering
-  /// significant incremental compile time or execution time slowdowns.
+  // Optimize for small code size as much as possible without triggering
+  // significant incremental compile time or execution time slowdowns.
   WasmEdge_CompilerOptimizationLevel_Os,
-  /// Optimize for small code size as much as possible.
+  // Optimize for small code size as much as possible.
   WasmEdge_CompilerOptimizationLevel_Oz
 };
 
-/// AOT compiler output binary format enumeration.
+/// AOT compiler output binary format C enumeration.
 enum WasmEdge_CompilerOutputFormat {
-  /// Native dynamic library format.
+  // Native dynamic library format.
   WasmEdge_CompilerOutputFormat_Native = 0,
-  /// WebAssembly with AOT compiled codes in custom sections.
+  // WebAssembly with AOT compiled codes in custom sections.
   WasmEdge_CompilerOutputFormat_Wasm
 };
 
-#endif /// WASMEDGE_C_API_ENUM_CONFIGURE_H
+#endif // WASMEDGE_C_API_ENUM_CONFIGURE_H

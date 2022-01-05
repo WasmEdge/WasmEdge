@@ -32,7 +32,7 @@ using namespace std::literals;
 using namespace WasmEdge;
 static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
 
-/// Parameterized testing class.
+// Parameterized testing class.
 class CoreTest : public testing::TestWithParam<std::string> {};
 
 TEST_P(CoreTest, TestSuites) {
@@ -61,25 +61,25 @@ TEST_P(CoreTest, TestSuites) {
         .and_then([&VM]() { return VM.validate(); })
         .and_then([&VM]() { return VM.instantiate(); });
   };
-  /// Helper function to call functions.
+  // Helper function to call functions.
   T.onInvoke = [&VM](const std::string &ModName, const std::string &Field,
                      const std::vector<ValVariant> &Params,
                      const std::vector<ValType> &ParamTypes)
       -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
     if (!ModName.empty()) {
-      /// Invoke function of named module. Named modules are registered in
-      /// Store Manager.
+      // Invoke function of named module. Named modules are registered in Store
+      // Manager.
       return VM.execute(ModName, Field, Params, ParamTypes);
     } else {
-      /// Invoke function of anonymous module. Anonymous modules are
-      /// instantiated in VM.
+      // Invoke function of anonymous module. Anonymous modules are instantiated
+      // in VM.
       return VM.execute(Field, Params, ParamTypes);
     }
   };
-  /// Helper function to get values.
+  // Helper function to get values.
   T.onGet = [&VM](const std::string &ModName, const std::string &Field)
       -> Expect<std::pair<ValVariant, ValType>> {
-    /// Get module instance.
+    // Get module instance.
     auto &Store = VM.getStoreManager();
     WasmEdge::Runtime::Instance::ModuleInstance *ModInst = nullptr;
     if (ModName.empty()) {
@@ -92,7 +92,7 @@ TEST_P(CoreTest, TestSuites) {
       }
     }
 
-    /// Get global instance.
+    // Get global instance.
     auto &Globs = ModInst->getGlobalExports();
     if (Globs.find(Field) == Globs.cend()) {
       return Unexpect(ErrCode::IncompatibleImportType);
@@ -107,7 +107,7 @@ TEST_P(CoreTest, TestSuites) {
   T.run(Proposal, UnitName);
 }
 
-/// Initiate test suite.
+// Initiate test suite.
 INSTANTIATE_TEST_SUITE_P(TestUnit, CoreTest, testing::ValuesIn(T.enumerate()));
 
 TEST(AsyncRunWsmFile, InterruptTest) {

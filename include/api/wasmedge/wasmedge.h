@@ -21,10 +21,10 @@
 #define WASMEDGE_CAPI_EXPORT __declspec(dllexport)
 #else
 #define WASMEDGE_CAPI_EXPORT __declspec(dllimport)
-#endif /// WASMEDGE_COMPILE_LIBRARY
+#endif // WASMEDGE_COMPILE_LIBRARY
 #else
 #define WASMEDGE_CAPI_EXPORT __attribute__((visibility("default")))
-#endif /// _WIN32
+#endif // _WIN32
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -40,12 +40,12 @@
 /// WasmEdge WASM value struct.
 typedef struct WasmEdge_Value {
   uint128_t Value;
-  /// The value type is used in the parameters of invoking functions. For the
-  /// return values of invoking functions, this member will always be
-  /// `WasmEdge_ValType_I32`. Users should use APIs to retrieve the WASM
-  /// function's `WasmEdge_FunctionTypeContext` to get the actual return list
-  /// value types, and then use the corresponding `WasmEdge_ValueGet` functions
-  /// to retrieve the value.
+  // The value type is used in the parameters of invoking functions. For the
+  // return values of invoking functions, this member will always be
+  // `WasmEdge_ValType_I32`. Users should use APIs to retrieve the WASM
+  // function's `WasmEdge_FunctionTypeContext` to get the actual return list
+  // value types, and then use the corresponding `WasmEdge_ValueGet` functions
+  // to retrieve the value.
   enum WasmEdge_ValType Type;
 } WasmEdge_Value;
 
@@ -141,7 +141,7 @@ typedef struct WasmEdge_VMContext WasmEdge_VMContext;
 extern "C" {
 #endif
 
-/// >>>>>>>> WasmEdge version functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge version functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Get the version string of the WasmEdge C API.
 ///
@@ -165,9 +165,9 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetMinor(void);
 /// \returns Value of the patch version.
 WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetPatch(void);
 
-/// <<<<<<<< WasmEdge version functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge version functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge logging functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge logging functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Set the logging system to filter to error level.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetErrorLevel(void);
@@ -175,9 +175,9 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetErrorLevel(void);
 /// Set the logging system to filter to debug level.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetDebugLevel(void);
 
-/// <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge value functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge value functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Generate the I32 WASM value.
 ///
@@ -318,9 +318,9 @@ WasmEdge_ValueGetFuncIdx(const WasmEdge_Value Val);
 WASMEDGE_CAPI_EXPORT extern void *
 WasmEdge_ValueGetExternRef(const WasmEdge_Value Val);
 
-/// <<<<<<<< WasmEdge value functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge value functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// <<<<<<<< WasmEdge string functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge string functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// Creation of the WasmEdge_String with the C string.
 ///
@@ -396,9 +396,9 @@ WasmEdge_StringCopy(const WasmEdge_String Str, char *Buf, const uint32_t Len);
 /// \param Str the WasmEdge_String object to delete.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_StringDelete(WasmEdge_String Str);
 
-/// >>>>>>>> WasmEdge string functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge string functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// >>>>>>>> WasmEdge result functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge result functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Check the result is a success or not.
 ///
@@ -426,9 +426,9 @@ WasmEdge_ResultGetCode(const WasmEdge_Result Res);
 WASMEDGE_CAPI_EXPORT extern const char *
 WasmEdge_ResultGetMessage(const WasmEdge_Result Res);
 
-/// <<<<<<<< WasmEdge result functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge result functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge limit functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge limit functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Compare the two WasmEdge_Limit objects.
 ///
@@ -440,9 +440,9 @@ WasmEdge_ResultGetMessage(const WasmEdge_Result Res);
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_LimitIsEqual(const WasmEdge_Limit Lim1, const WasmEdge_Limit Lim2);
 
-/// <<<<<<<< WasmEdge limit functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge limit functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge configure functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge configure functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_ConfigureContext.
 ///
@@ -695,9 +695,9 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt);
 
-/// <<<<<<<< WasmEdge configure functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge configure functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge statistics functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge statistics functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_StatisticsContext.
 ///
@@ -761,9 +761,9 @@ WasmEdge_StatisticsSetCostLimit(WasmEdge_StatisticsContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_StatisticsDelete(WasmEdge_StatisticsContext *Cxt);
 
-/// <<<<<<<< WasmEdge statistics functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge statistics functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge AST module functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge AST module functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Get the length of imports list of the AST module.
 ///
@@ -822,9 +822,9 @@ WasmEdge_ASTModuleListExports(const WasmEdge_ASTModuleContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt);
 
-/// <<<<<<<< WasmEdge AST module functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge AST module functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge function type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge function type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_FunctionTypeContext.
 ///
@@ -901,9 +901,9 @@ WasmEdge_FunctionTypeGetReturns(const WasmEdge_FunctionTypeContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_FunctionTypeDelete(WasmEdge_FunctionTypeContext *Cxt);
 
-/// <<<<<<<< WasmEdge function type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge function type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge table type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge table type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_TableTypeContext.
 ///
@@ -943,9 +943,9 @@ WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_TableTypeDelete(WasmEdge_TableTypeContext *Cxt);
 
-/// <<<<<<<< WasmEdge table type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge table type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge memory type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge memory type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_MemoryTypeContext.
 ///
@@ -975,9 +975,9 @@ WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt);
 
-/// <<<<<<<< WasmEdge memory type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge memory type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge global type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge global type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_GlobalTypeContext.
 ///
@@ -1017,9 +1017,9 @@ WasmEdge_GlobalTypeGetMutability(const WasmEdge_GlobalTypeContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_GlobalTypeDelete(WasmEdge_GlobalTypeContext *Cxt);
 
-/// <<<<<<<< WasmEdge global type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge global type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge import type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge import type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Get the external type from an import type.
 ///
@@ -1119,9 +1119,9 @@ WASMEDGE_CAPI_EXPORT extern const WasmEdge_GlobalTypeContext *
 WasmEdge_ImportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
                                  const WasmEdge_ImportTypeContext *Cxt);
 
-/// <<<<<<<< WasmEdge import type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge import type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge export type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge export type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Get the external type from an export type.
 ///
@@ -1210,9 +1210,9 @@ WASMEDGE_CAPI_EXPORT extern const WasmEdge_GlobalTypeContext *
 WasmEdge_ExportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
                                  const WasmEdge_ExportTypeContext *Cxt);
 
-/// <<<<<<<< WasmEdge export type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge export type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge AOT compiler functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge AOT compiler functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_CompilerContext.
 ///
@@ -1247,9 +1247,9 @@ WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt, const char *InPath,
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt);
 
-/// <<<<<<<< WasmEdge AOT compiler functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge AOT compiler functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge loader functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge loader functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_LoaderContext.
 ///
@@ -1310,9 +1310,9 @@ WasmEdge_LoaderParseFromBuffer(WasmEdge_LoaderContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_LoaderDelete(WasmEdge_LoaderContext *Cxt);
 
-/// <<<<<<<< WasmEdge loader functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge loader functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge validator functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge validator functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_ValidatorContext.
 ///
@@ -1346,9 +1346,9 @@ WasmEdge_ValidatorValidate(WasmEdge_ValidatorContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ValidatorDelete(WasmEdge_ValidatorContext *Cxt);
 
-/// <<<<<<<< WasmEdge validator functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge validator functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge executor functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge executor functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_ExecutorContext.
 ///
@@ -1476,9 +1476,9 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorInvokeRegistered(
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ExecutorDelete(WasmEdge_ExecutorContext *Cxt);
 
-/// <<<<<<<< WasmEdge executor functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge executor functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge store functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge store functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_StoreContext.
 ///
@@ -1928,9 +1928,9 @@ WasmEdge_StoreListModule(const WasmEdge_StoreContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_StoreDelete(WasmEdge_StoreContext *Cxt);
 
-/// <<<<<<<< WasmEdge store functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge store functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge function instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge function instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
     void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
@@ -2096,9 +2096,9 @@ WasmEdge_FunctionInstanceGetFunctionType(
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_FunctionInstanceDelete(WasmEdge_FunctionInstanceContext *Cxt);
 
-/// <<<<<<<< WasmEdge function instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge function instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge table instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge table instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_TableInstanceContext.
 ///
@@ -2176,9 +2176,9 @@ WasmEdge_TableInstanceGrow(WasmEdge_TableInstanceContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt);
 
-/// <<<<<<<< WasmEdge table instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge table instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge memory instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge memory instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_MemoryInstanceContext.
 ///
@@ -2287,9 +2287,9 @@ WasmEdge_MemoryInstanceGrowPage(WasmEdge_MemoryInstanceContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_MemoryInstanceDelete(WasmEdge_MemoryInstanceContext *Cxt);
 
-/// <<<<<<<< WasmEdge memory instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge memory instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge global instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge global instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_GlobalInstanceContext.
 ///
@@ -2347,9 +2347,9 @@ WasmEdge_GlobalInstanceSetValue(WasmEdge_GlobalInstanceContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_GlobalInstanceDelete(WasmEdge_GlobalInstanceContext *Cxt);
 
-/// <<<<<<<< WasmEdge global instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge global instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// <<<<<<<< WasmEdge import object functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge import object functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 /// Creation of the WasmEdge_ImportObjectContext.
 ///
@@ -2521,9 +2521,9 @@ WasmEdge_ImportObjectAddGlobal(WasmEdge_ImportObjectContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ImportObjectDelete(WasmEdge_ImportObjectContext *Cxt);
 
-/// >>>>>>>> WasmEdge import object functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge import object functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// >>>>>>>> WasmEdge Async functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge Async functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Wait a WasmEdge_Async execution.
 ///
@@ -2565,9 +2565,9 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_AsyncGet(
 /// \param Cxt the WasmEdge_ASync to delete.
 WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncDelete(WasmEdge_Async *Cxt);
 
-/// <<<<<<<< WasmEdge Async functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge Async functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge VM functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge VM functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Creation of the WasmEdge_VMContext.
 ///
@@ -3114,7 +3114,7 @@ WasmEdge_VMGetStatisticsContext(WasmEdge_VMContext *Cxt);
 /// \param Cxt the WasmEdge_VMContext to delete.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt);
 
-/// <<<<<<<< WasmEdge VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #ifdef __cplusplus
 } /// extern "C"

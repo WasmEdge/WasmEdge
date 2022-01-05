@@ -126,17 +126,17 @@ private:
   template <typename T, typename L>
   Expect<void> loadSectionContent(T &Sec, L &&Func) {
     if (auto Res = loadSectionSize(NodeAttrFromAST<T>())) {
-      /// Set the section size.
+      // Set the section size.
       Sec.setContentSize(*Res);
       auto StartOffset = FMgr.getOffset();
-      /// Bound the expected section size in file manager and load content.
+      // Bound the expected section size in file manager and load content.
       FMgr.setSectionSize(*Res);
       auto ResContent = Func();
       FMgr.unsetSectionSize();
       if (!ResContent) {
         return Unexpect(ResContent);
       }
-      /// Check the read size match the section size.
+      // Check the read size match the section size.
       auto EndOffset = FMgr.getOffset();
       if (EndOffset - StartOffset != Sec.getContentSize()) {
         return logLoadError(ErrCode::SectionSizeMismatch, EndOffset,
@@ -150,7 +150,7 @@ private:
   template <typename T, typename L>
   Expect<void> loadSectionContentVec(T &Sec, L &&Func) {
     uint32_t VecCnt = 0;
-    /// Read vector size.
+    // Read the vector size.
     if (auto Res = FMgr.readU32()) {
       VecCnt = *Res;
       Sec.getContent().resize(VecCnt);
@@ -159,7 +159,7 @@ private:
                           NodeAttrFromAST<T>());
     }
 
-    /// Sequently create AST node T and read data.
+    // Sequently create the AST node T and read data.
     for (uint32_t I = 0; I < VecCnt; ++I) {
       if (auto Res = Func(Sec.getContent()[I]); !Res) {
         spdlog::error(ErrInfo::InfoAST(NodeAttrFromAST<T>()));

@@ -26,19 +26,19 @@ class CompilerConfigure {
 public:
   /// AOT compiler optimization level enum class.
   enum class OptimizationLevel : uint8_t {
-    /// Disable as many optimizations as possible.
+    // Disable as many optimizations as possible.
     O0,
-    /// Optimize quickly without destroying debuggability.
+    // Optimize quickly without destroying debuggability.
     O1,
-    /// Optimize for fast execution as much as possible without triggering
-    /// significant incremental compile time or code size growth.
+    // Optimize for fast execution as much as possible without triggering
+    // significant incremental compile time or code size growth.
     O2,
-    /// Optimize for fast execution as much as possible.
+    // Optimize for fast execution as much as possible.
     O3,
-    /// Optimize for small code size as much as possible without triggering
-    /// significant incremental compile time or execution time slowdowns.
+    // Optimize for small code size as much as possible without triggering
+    // significant incremental compile time or execution time slowdowns.
     Os,
-    /// Optimize for small code size as much as possible.
+    // Optimize for small code size as much as possible.
     Oz
   };
   void setOptimizationLevel(OptimizationLevel Level) noexcept {
@@ -48,9 +48,9 @@ public:
 
   /// AOT compiler output binary format.
   enum class OutputFormat : uint8_t {
-    /// Native dynamic library format.
+    // Native dynamic library format.
     Native,
-    /// WebAssembly with AOT compiled codes in custom sections.
+    // WebAssembly with AOT compiled codes in custom sections.
     Wasm,
   };
   void setOutputFormat(OutputFormat Format) noexcept { OFormat = Format; }

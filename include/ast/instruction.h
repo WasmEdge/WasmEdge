@@ -178,37 +178,37 @@ private:
   /// \name Data of instructions.
   /// @{
   union Inner {
-    /// Type 1: BlockType, JumpEnd, and JumpElse.
+    // Type 1: BlockType, JumpEnd, and JumpElse.
     struct {
       uint32_t JumpEnd;
       uint32_t JumpElse;
       BlockType ResType;
     } Blocks;
-    /// Type 2: TargetIdx and SourceIdx.
+    // Type 2: TargetIdx and SourceIdx.
     struct {
       uint32_t TargetIdx;
       uint32_t SourceIdx;
     } Indices;
-    /// Type 3: TargetIdx and LabelList.
+    // Type 3: TargetIdx and LabelList.
     struct {
       uint32_t TargetIdx;
       uint32_t LabelListSize;
       uint32_t *LabelList;
     } BrTable;
-    /// Type 4: RefType.
+    // Type 4: RefType.
     RefType ReferenceType;
-    /// Type 5: ValTypeList.
+    // Type 5: ValTypeList.
     struct {
       uint32_t ValTypeListSize;
       ValType *ValTypeList;
     } SelectT;
-    /// Type 6: MemAlign, MemOffset, and MemLane.
+    // Type 6: MemAlign, MemOffset, and MemLane.
     struct {
       uint32_t MemAlign;
       uint32_t MemOffset;
       uint8_t MemLane;
     } Memories;
-    /// Type 7: Num.
+    // Type 7: Num.
     uint128_t Num;
   } Data;
   uint32_t Offset = 0;
@@ -220,7 +220,7 @@ private:
   /// @}
 };
 
-/// Type aliasing
+// Type aliasing
 using InstrVec = std::vector<Instruction>;
 using InstrView = Span<const Instruction>;
 

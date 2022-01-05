@@ -72,29 +72,17 @@ public:
   pybind11::list listRegisteredFunctions(const std::string &);
 };
 
-// class ASTModuleCxt {
-// private:
-//   WasmEdge_ASTModuleContext *ASTCxt;
+class ASTModuleCxt {
+private:
+  WasmEdge_ASTModuleContext *ASTCxt;
 
-// public:
-//   Loader();
-//   ~Loader();
-//   WasmEdge_ASTModuleContext *get();
-//   pysdk::result parse(pybind11::object);
-//   pybind11::list listExports();
-//   pybind11::list listImports();
-// };
-
-// class Loader {
-// private:
-//   WasmEdge_LoaderContext *LoadCxt;
-
-// public:
-//   Loader();
-//   ~Loader();
-//   WasmEdge_LoaderContext *get();
-//   pysdk::result parse(pybind11::object);
-// };
+public:
+  ASTModuleCxt();
+  ~ASTModuleCxt();
+  WasmEdge_ASTModuleContext *get();
+  pybind11::list listExports();
+  pybind11::list listImports();
+};
 
 class result {
 private:

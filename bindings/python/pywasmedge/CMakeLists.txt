@@ -7,6 +7,7 @@ pybind11_add_module(WasmEdge
     src/store.cpp
     src/value.cpp
     src/vm.cpp
+    src/ast_module.cpp
 )
 INCLUDE_DIRECTORIES("include/")
 set_target_properties(WasmEdge PROPERTIES 

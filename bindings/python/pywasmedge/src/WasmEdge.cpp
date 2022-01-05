@@ -105,6 +105,10 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("listModules", &pysdk::Store::listModules)
       .def("listRegisteredFunctions", &pysdk::Store::listRegisteredFunctions);
 
+  pybind11::class_<pysdk::ASTModuleCxt>(module, "ASTModule")
+      .def("imports", &pysdk::ASTModuleCxt::listImports)
+      .def("exports", &pysdk::ASTModuleCxt::listExports);
+
   /*Overloading VM run functions*/
 
   pybind11::tuple (pysdk::VM::*run_step_by_step)(

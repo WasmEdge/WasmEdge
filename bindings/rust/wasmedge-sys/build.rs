@@ -174,6 +174,16 @@ fn find_wasmedge() -> Option<Paths> {
             lib_dir: PathBuf::from("/usr/lib"),
             inc_dir: PathBuf::from("/usr/include"),
         })
+    } else if PathBuf::from("/root/.wasmedge/include/wasmedge")
+        .join(WASMEDGE_H)
+        .exists()
+    {
+        // this path only works in the official docker container for the purpose of development
+        Some(Paths {
+            header: PathBuf::from("/root/.wasmedge/include/wasmedge/wasmedge.h"),
+            lib_dir: PathBuf::from("/root/.wasmedge/lib"),
+            inc_dir: PathBuf::from("/root/.wasmedge/include"),
+        })
     } else {
         None
     }

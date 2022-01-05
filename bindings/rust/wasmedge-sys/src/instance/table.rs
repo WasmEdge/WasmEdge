@@ -80,12 +80,14 @@ impl Table {
     ///
     /// If fail to get the data, then an error is returned.
     pub fn get_data(&self, idx: usize) -> WasmEdgeResult<Value> {
-        let data = std::ptr::null_mut();
         let raw_val = unsafe {
+            let mut data = wasmedge::WasmEdge_ValueGenI32(0);
             check(wasmedge::WasmEdge_TableInstanceGetData(
-                self.ctx, data, idx as u32,
+                self.ctx,
+                &mut data as *mut _,
+                idx as u32,
             ))?;
-            *data
+            data
         };
         Ok(raw_val.into())
     }
@@ -235,10 +237,7 @@ impl TableType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        error::{CoreCommonError, CoreError},
-        RefType, WasmEdgeError,
-    };
+    use crate::RefType;
 
     #[test]
     fn test_tabletype() {
@@ -308,7 +307,7 @@ mod tests {
         assert!(result.is_ok());
         assert!(ty.ctx.is_null());
         assert!(ty.registered);
-        let table = result.unwrap();
+        let mut table = result.unwrap();
         assert!(!table.ctx.is_null());
         assert!(!table.registered);
 
@@ -317,10 +316,17 @@ mod tests {
 
         // get data in the scope of the capacity
         let result = table.get_data(9);
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
-        );
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value, Value::FuncRef(0));
+
+        // set data
+        let result = table.set_data(Value::FuncRef(5), 3);
+        assert!(result.is_ok());
+        // get data
+        let result = table.get_data(3);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value, Value::FuncRef(5));
     }
 }

@@ -185,8 +185,14 @@ TEST_P(CoreTest, TestSuites) {
       return Unexpect(ErrCode::WrongInstanceAddress);
     }
     WasmEdge_Value Val = WasmEdge_GlobalInstanceGetValue(GlobCxt);
+#if defined(__x86_64__) || defined(__aarch64__)
     return std::make_pair(ValVariant(Val.Value),
                           static_cast<ValType>(Val.Type));
+#else
+    return std::make_pair(
+        ValVariant(WasmEdge::uint128_t(Val.Value.High, Val.Value.Low)),
+        static_cast<ValType>(Val.Type));
+#endif
   };
 
   T.run(Proposal, UnitName);

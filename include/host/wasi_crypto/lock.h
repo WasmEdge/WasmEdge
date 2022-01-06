@@ -19,13 +19,13 @@ public:
   // too. For simplicity of the example, this should be okay:
   explicit Mutex(T value) : value(std::move(value)) {}
 
-  //  template <typename F>
-  //  std::invoke_result_t<F &&, T const &> locked(F &&fn) const & {
-  //    // Lock the mutex while invoking the function.
-  //    // scoped_lock automatically unlocks at the end of the scope
-  //    std::scoped_lock lock(mutex);
-  //    return std::invoke(std::forward<F>(fn), value);
-  //  }
+    template <typename F>
+    std::invoke_result_t<F &&, T const &> locked(F &&fn) const & {
+      // Lock the mutex while invoking the function.
+      // scoped_lock automatically unlocks at the end of the scope
+      std::scoped_lock lock(mutex);
+      return std::invoke(std::forward<F>(fn), value);
+    }
 
   template <typename F> std::invoke_result_t<F &&, T &> locked(F &&fn) & {
     std::scoped_lock lock(mutex);
@@ -55,6 +55,9 @@ auto acquireLocked(Mutex<M1> &m1, Mutex<M2> &m2, F &&fn) {
 //   std::scoped_lock lock(Arg.mutex...);
 //   return std::invoke(std::forward<F>(fn), std::forward<Args>(Arg.value)...);
 // }
+
+
+
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

@@ -8,10 +8,10 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
-
+namespace Common {
 class ArrayOutput {
 public:
-  ArrayOutput(std::vector<uint8_t> &&Data);
+  ArrayOutput(std::vector<uint8_t> &&Data) : Data(std::move(Data)) {}
 
   WasiCryptoExpect<__wasi_size_t> pull(Span<uint8_t> Buf);
 
@@ -20,6 +20,8 @@ public:
 private:
   std::vector<uint8_t> Data;
 };
+
+} // namespace Common
 
 } // namespace WASICrypto
 } // namespace Host

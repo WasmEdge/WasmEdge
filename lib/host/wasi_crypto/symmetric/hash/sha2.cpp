@@ -6,23 +6,32 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
+namespace {
+constexpr EVP_MD const *getMd(SymmetricAlgorithm Alg) {
+  switch (Alg) {
+  case SymmetricAlgorithm::Sha256:
+    return EVP_sha256();
+    break;
+  case SymmetricAlgorithm::Sha512:
+    return EVP_sha512();
+    break;
+  case SymmetricAlgorithm::Sha512_256:
+    return EVP_sha512_256();
+  default:
+    __builtin_unreachable();
+  }
+}
+} // namespace
 
 WasiCryptoExpect<std::vector<uint8_t>>
 Sha2State::optionsGet(std::string_view Name) {
-  if (!OptOptions) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
-  }
-  return OptOptions->inner()->locked(
-      [&Name](auto &Inner) { return Inner.get(Name); });
+  ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
+  return OptOption->get(Name);
 }
 
-WasiCryptoExpect<uint64_t>
-Sha2State::optionsGetU64(std::string_view Name) {
-  if (!OptOptions) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
-  }
-  return OptOptions->inner()->locked(
-      [&Name](auto &Inner) { return Inner.getU64(Name); });
+WasiCryptoExpect<uint64_t> Sha2State::optionsGetU64(std::string_view Name) {
+  ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
+  return OptOption->getU64(Name);
 }
 
 WasiCryptoExpect<void> Sha2State::absorb(Span<uint8_t const> Data) {
@@ -31,49 +40,46 @@ WasiCryptoExpect<void> Sha2State::absorb(Span<uint8_t const> Data) {
 }
 
 WasiCryptoExpect<void> Sha2State::squeeze(Span<uint8_t> Out) {
-  unsigned int ActualOutSize;
-  auto CacheSize = EVP_MD_CTX_size(Ctx.get());
-  std::vector<uint8_t> Cache;
-  Cache.reserve(CacheSize);
-  Cache.resize(CacheSize);
 
-  opensslAssuming(EVP_DigestFinal_ex(Ctx.get(), Cache.data(), &ActualOutSize));
-  if (ActualOutSize > Out.size()) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_LENGTH);
-  }
+  // If finalization is required, the implementation MUST duplicate the internal
+  // state and apply the finalization on the copy, leaving the state unchanged
+  // from the guest perspective.
 
-  std::copy(Cache.data(), Cache.data() + ActualOutSize, Out.data());
+  // allocate by EVP_MD_CTX_copy
+  EVP_MD_CTX *CopyCtx = nullptr;
+  opensslAssuming(EVP_MD_CTX_copy(CopyCtx, Ctx.get()));
 
+  // Note: just copy `Out.size()` length from ctx. However, OpenSSL don't have
+  // such a function, it will copy `EVP_MD_CTX_size(CopyCtx)`, so create Cache
+  std::vector<uint8_t> Cache(EVP_MD_CTX_size(CopyCtx));
+  ensureOrReturn(Cache.size() >= Out.size(),
+                 __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
+
+  unsigned int Size = 0;
+  // Auto clean CopyCtx, not leak
+  opensslAssuming(EVP_DigestFinal(CopyCtx, Cache.data(), &Size));
+
+  // Check
+  opensslAssuming(Size == Cache.size());
+
+  std::copy(Cache.begin(), Cache.begin() + Size, Out.data());
+
+  return {};
 }
 
-
 WasiCryptoExpect<std::unique_ptr<Sha2State>>
-import(SymmetricAlgorithm Alg,
-                  std::shared_ptr<Key> OptKey,
-                  std::shared_ptr<Options> OptOptions) {
-  if (OptKey) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
-  }
+Sha2State::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
+                std::shared_ptr<Option> OptOption) {
+  ensureOrReturn(!OptKey, __WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
 
-  EVP_MD_CTX* Ctx = EVP_MD_CTX_new();
+  EVP_MD_CTX *Ctx = EVP_MD_CTX_new();
   opensslAssuming(Ctx);
 
-  EVP_MD const *Md;
-  switch (Alg) {
-  case SymmetricAlgorithm::Sha256:
-    Md = EVP_sha256();
-    break;
-  case SymmetricAlgorithm::Sha512:
-    Md = EVP_sha512();
-    break;
-  default:
-    __builtin_unreachable();
-  }
+  EVP_MD const *Md = getMd(Alg);
 
   opensslAssuming(EVP_DigestInit(Ctx, Md));
 
-  return std::unique_ptr<Sha2State>{
-      new Sha2State(Alg, OptOptions, Ctx)};
+  return std::make_unique<Sha2State>(OptOption, Ctx);
 }
 } // namespace Symmetric
 } // namespace WASICrypto

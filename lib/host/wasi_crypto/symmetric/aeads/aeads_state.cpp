@@ -2,7 +2,6 @@
 
 #include "host/wasi_crypto/symmetric/aeads/aeads_state.h"
 
-#include <optional>
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
@@ -99,6 +98,7 @@ AEADsState::decryptUnchecked(Span<uint8_t> Out, Span<const uint8_t> Data) {
   return decryptDetachedUnchecked(Out, Data.first(Out.size()),
                                   Data.subspan(Out.size()));
 }
+
 
 } // namespace Symmetric
 } // namespace WASICrypto

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#define OPENSSL_API_COMPAT 0x10100000L
-
 #include "host/wasi_crypto/error.h"
 #include "openssl/err.h"
 #include "wasi_crypto/api.hpp"
@@ -142,7 +140,7 @@ using OpenSSLUniquePtr = std::unique_ptr<T, Deleter<Fn>>;
 #define ensureOrReturn(Expr, ErrorCode)                                        \
   do {                                                                         \
     if (!(Expr)) {                                                             \
-      return WasiCryptoUnexpect((ErrorCode));                                  \
+      return WasiCryptoUnexpect(ErrorCode);                                    \
     }                                                                          \
   } while (0)
 

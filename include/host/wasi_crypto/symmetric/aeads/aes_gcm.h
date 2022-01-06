@@ -1,25 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/symmetric/aeads/aeads_state.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/tag.h"
-#include "host/wasi_crypto/wrapper/aes_gcm.h"
+
+#include "openssl/evp.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
-using EvpCipherCtxPtr = OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
-
 
 class AesGcmKeyBuilder : public Key::Builder {
 public:
-  AesGcmKeyBuilder(SymmetricAlgorithm Alg);
+  using Builder::Builder;
 
-  WasiCryptoExpect<Key> generate(std::shared_ptr<Options> OptOptions) override;
+  WasiCryptoExpect<std::unique_ptr<Key>> generate(std::shared_ptr<Option> OptOption) override;
 
-  WasiCryptoExpect<Key> import(Span<uint8_t const> Raw) override;
+  WasiCryptoExpect<std::unique_ptr<Key>> import(Span<uint8_t const> Raw) override;
 
   WasiCryptoExpect<__wasi_size_t> keyLen() override;
 
@@ -30,21 +30,18 @@ private:
 // Nonce = IV,
 class AesGcmState : public AEADsState {
 public:
+  using EvpCipherCtxPtr = OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
+
   inline static constexpr __wasi_size_t TagLen = 16;
 
-  AesGcmState(SymmetricAlgorithm /*Alg*/, EVP_CIPHER_CTX *Ctx)
-        : /*Alg(Alg),*/ Ctx(std::move(Ctx)) {}
-
-  AesGcmState(SymmetricAlgorithm Alg, Options::Inner Options,
-                       EVP_CIPHER_CTX *Ctx)
-      : SymmetricState::Base(Alg), Options(Options), Ctx(Ctx) {}
+  AesGcmState(EVP_CIPHER_CTX *Ctx) : Ctx(Ctx) {}
 
   /// There are four inputs for authenticated encryption:
   /// @param[in] OptKey The secret key for encrypt
-  /// @param[in] OptOptions `Must` contain an Nonce(Initialization vector).
+  /// @param[in] OptOption `Must` contain an Nonce(Initialization vector).
   static WasiCryptoExpect<std::unique_ptr<AesGcmState>>
-  import(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
-         std::shared_ptr<Options> OptOptions);
+  open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
+       std::shared_ptr<Option> OptOption);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   optionsGet(std::string_view Name) override;
@@ -57,7 +54,6 @@ public:
   WasiCryptoExpect<__wasi_size_t> maxTagLen() override { return TagLen; }
 
 protected:
-
   /// @param[out] Out The encrypted text.
   /// @param[in] Data The plain text.
   /// @return Tag.
@@ -73,7 +69,7 @@ protected:
                            Span<uint8_t const> RawTag) override;
 
 private:
-  Options Options;
+  std::shared_ptr<Option> OptOption;
 
   enum Mode { Unchanged = -1, Decrypt = 0, Encrypt = 1 };
 

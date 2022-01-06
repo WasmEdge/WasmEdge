@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/aeads/aes_gcm.h"
-#include "host/wasi_crypto/wrapper/aes_gcm.h"
-#include "host/wasi_crypto/wrapper/random.h"
+#include "openssl/rand.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -32,45 +31,28 @@ constexpr __wasi_size_t getKeySize(SymmetricAlgorithm Alg) {
 }
 
 inline constexpr __wasi_size_t NonceSize = 12;
-inline constexpr __wasi_size_t TagLen = 16;
+//inline constexpr __wasi_size_t TagLen = 16;
 
 } // namespace
 
-AesGcmKeyBuilder::AesGcmKeyBuilder(SymmetricAlgorithm Alg) : Alg(Alg) {}
-
-WasiCryptoExpect<Key>
-AesGcmKeyBuilder::generate(std::shared_ptr<Options> OptOptions) {
+WasiCryptoExpect<std::unique_ptr<Key>>
+AesGcmKeyBuilder::generate(std::shared_ptr<Option>) {
   auto Len = keyLen();
   if (!Len) {
     return WasiCryptoUnexpect(Len);
   }
 
-  if (OptOptions.has_value()) {
-    auto Nonce = OptOptions->inner()->locked(
-        [](auto &Inner) { return Inner.get("nonce"); });
-    if (Nonce) {
-      // but size not equal
-      if (Nonce->size() != *Len) {
-        return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_NONCE);
-      }
+  std::vector<uint8_t> Res(*Len, 0);
+  ensureOrReturn(RAND_bytes(Res.data(), Res.size()),
+                 __WASI_CRYPTO_ERRNO_RNG_ERROR);
 
-      return import(*Nonce);
-    }
-  }
-
-  // generate random by host TODO: may I need to generate a option and register.
-  // Need read proposal more detailed.
-  std::vector<uint8_t> Raw(*Len, 0);
-  CryptoRandom Random;
-  if (auto Res = Random.fill(Raw); !Res) {
-    return WasiCryptoUnexpect(Res);
-  }
-
-  return import(Raw);
+  return std::make_unique<Key>(Alg, std::move(Res));
 }
 
-WasiCryptoExpect<Key> AesGcmKeyBuilder::import(Span<uint8_t const> Raw) {
-  return Key{std::make_unique<AesGcmKey>(Alg, Raw)};
+WasiCryptoExpect<std::unique_ptr<Key>>
+AesGcmKeyBuilder::import(Span<uint8_t const> Raw) {
+  return std::make_unique<Key>(Alg,
+                               std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
 WasiCryptoExpect<__wasi_size_t> AesGcmKeyBuilder::keyLen() {
@@ -85,53 +67,39 @@ WasiCryptoExpect<__wasi_size_t> AesGcmKeyBuilder::keyLen() {
 }
 
 WasiCryptoExpect<std::unique_ptr<AesGcmState>>
-AesGcmState::import(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
-                    std::shared_ptr<Options> OptOptions) {
-  if (!OptKey) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
-  }
-  if (!OptOptions) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
+AesGcmState::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
+                  std::shared_ptr<Option> OptOption) {
+  ensureOrReturn(OptKey, __WASI_CRYPTO_ERRNO_KEY_REQUIRED);
+  ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
+
+  auto Nonce = OptOption->get("nonce");
+  if (!Nonce) {
+    return WasiCryptoUnexpect(Nonce);
   }
 
-  return acquireLocked(
-      *OptKey->inner(), *OptOptions->inner(),
-      [Alg](auto &Key,
-            auto &Option) -> WasiCryptoExpect<std::unique_ptr<AesGcmState>> {
-        auto Nonce = Option.get("nonce");
-        if (!Nonce) {
-          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
-        }
+  std::vector<uint8_t> Key =
+      OptKey->inner().locked([](auto &Data) { return Data.Data; });
 
-        {
-          ensureOrReturn(Nonce.size() == NonceSize, __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-          ensureOrReturn(getKeySize(Alg) == Key.size(),
+  ensureOrReturn(Nonce->size() == NonceSize,
+                 __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+  ensureOrReturn(getKeySize(Alg) == Key.size(),
                  __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 
-          EVP_CIPHER_CTX *Ctx = EVP_CIPHER_CTX_new();
-          opensslAssuming(Ctx);
-          opensslAssuming(EVP_CipherInit(Ctx, getCipher(Alg), Key.data(),
-                                         Nonce.data(), Mode::Unchanged));
+  EVP_CIPHER_CTX *Ctx = EVP_CIPHER_CTX_new();
+  opensslAssuming(Ctx);
+  opensslAssuming(EVP_CipherInit(Ctx, getCipher(Alg), Key.data(), Nonce->data(),
+                                 Mode::Unchanged));
 
-          return AesGcmCtx{Alg, Ctx};
-        }
-        auto AesGcmCtx = AesGcmCtx::import(Alg, Key->asRef(), *Nonce);
-        if (!AesGcmCtx) {
-          return WasiCryptoUnexpect(AesGcmCtx);
-        }
-
-        return std::make_unique<AesGcmState>(Alg, Option,
-                                             std::move(*AesGcmCtx));
-      });
+  return std::make_unique<AesGcmState>(Ctx);
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
 AesGcmState::optionsGet(std::string_view Name) {
-  return Options.get(Name);
+  return OptOption->get(Name);
 }
 
 WasiCryptoExpect<uint64_t> AesGcmState::optionsGetU64(std::string_view Name) {
-  return Options.getU64(Name);
+  return OptOption->getU64(Name);
 }
 
 WasiCryptoExpect<void> AesGcmState::absorb(Span<const uint8_t> Data) {
@@ -150,7 +118,7 @@ AesGcmState::encryptDetachedUnchecked(Span<uint8_t> Out,
 
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
                                     nullptr, Mode::Encrypt));
-  //  auto Nonce = Options.get("nonce");
+  //  auto Nonce = Option.get("nonce");
   //  if (!Nonce) {
   //    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
   //  }

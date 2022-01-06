@@ -3,11 +3,7 @@
 
 #include "common/span.h"
 #include "host/wasi_crypto/error.h"
-#include "host/wasi_crypto/symmetric/alg.h"
-#include "host/wasi_crypto/util.h"
 
-
-#include <algorithm>
 #include <vector>
 
 namespace WasmEdge {

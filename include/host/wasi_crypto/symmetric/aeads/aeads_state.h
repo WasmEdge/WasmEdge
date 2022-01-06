@@ -102,7 +102,8 @@ public:
   }
   WasiCryptoExpect<void> ratchet() override final { return State::ratchet(); }
 
-  WasiCryptoExpect<Key> squeezeKey(SymmetricAlgorithm KeyAlg) override final {
+  WasiCryptoExpect<std::unique_ptr<Key>>
+  squeezeKey(SymmetricAlgorithm KeyAlg) override final {
     return State::squeezeKey(KeyAlg);
   }
   WasiCryptoExpect<Tag> squeezeTag() override final {

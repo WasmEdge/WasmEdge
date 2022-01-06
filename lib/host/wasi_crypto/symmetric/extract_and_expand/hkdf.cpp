@@ -1,35 +1,48 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/extract_and_expand/hkdf.h"
-#include "host/wasi_crypto/wrapper/random.h"
+#include <openssl/kdf.h>
+#include <openssl/rand.h>
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
+namespace {
 
-HkdfKeyBuilder::HkdfKeyBuilder(SymmetricAlgorithm Alg)
-    : Alg(Alg) {}
+constexpr std::tuple<const EVP_MD *, int> getConfig(SymmetricAlgorithm Alg) {
+  switch (Alg) {
+  case SymmetricAlgorithm::HkdfSha256Extract:
+    return {EVP_sha256(), EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY};
+  case SymmetricAlgorithm::HkdfSha256Expand:
+    return {EVP_sha256(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY};
+  case SymmetricAlgorithm::HkdfSha512Extract:
+    return {EVP_sha512(), EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY};
+  case SymmetricAlgorithm::HkdfSha512Expand:
+    return {EVP_sha512(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY};
+  default:
+    __builtin_unreachable();
+  }
+}
+} // namespace
 
-WasiCryptoExpect<Key>
-HkdfKeyBuilder::generate(std::optional<Options>) {
+WasiCryptoExpect<std::unique_ptr<Key>>
+HkdfKeyBuilder::generate(std::shared_ptr<Option>) {
   auto Len = keyLen();
   if (!Len) {
     return WasiCryptoUnexpect(Len);
   }
 
   std::vector<uint8_t> Raw(*Len, 0);
-  CryptoRandom Random;
-  if (auto Res = Random.fill(Raw); !Res.has_value()) {
-    return WasiCryptoUnexpect(Res);
-  }
+  RAND_bytes(Raw.data(), Raw.size());
 
-  return import(Raw);
+  return std::make_unique<Key>(Alg, std::move(Raw));
 }
 
-WasiCryptoExpect<Key>
+WasiCryptoExpect<std::unique_ptr<Key>>
 HkdfKeyBuilder::import(Span<uint8_t const> Raw) {
-  return Key{std::make_unique<HkdfKey>(Alg, Raw)};
+  return std::make_unique<Key>(Alg,
+                               std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
 WasiCryptoExpect<__wasi_size_t> HkdfKeyBuilder::keyLen() {
@@ -46,118 +59,81 @@ WasiCryptoExpect<__wasi_size_t> HkdfKeyBuilder::keyLen() {
 }
 
 WasiCryptoExpect<std::unique_ptr<HkdfState>>
-HkdfState::import(SymmetricAlgorithm Alg,
-                           std::optional<Key> OptKey,
-                           std::optional<Options> OptOptions) {
-  if (!OptKey) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
-  }
+HkdfState::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
+                std::shared_ptr<Option> OptOption) {
+  ensureOrReturn(OptKey, __WASI_CRYPTO_ERRNO_KEY_REQUIRED);
 
-  if (auto Res = OptKey->isType<HkdfKey>(); !Res) {
-    return WasiCryptoUnexpect(Res);
-  }
+  EVP_PKEY_CTX *Ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
+  opensslAssuming(Ctx);
+  opensslAssuming(EVP_PKEY_derive_init(Ctx));
 
-  auto Ctx = OptKey->inner()->locked(
-      [Alg](auto &Data) {   // init ctx
-        OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx{
-            EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr)};
+  auto [Md, Mode] = getConfig(Alg);
+  opensslAssuming(EVP_PKEY_CTX_set_hkdf_md(Ctx, Md));
+  opensslAssuming(EVP_PKEY_CTX_hkdf_mode(Ctx, Mode));
 
-        opensslAssuming(EVP_PKEY_derive_init(Ctx.get()));
+  OptKey->inner().locked([&Ctx](auto &Inner) {
+    opensslAssuming(
+        EVP_PKEY_CTX_set1_hkdf_key(Ctx, Inner.Data.data(), Inner.Data.size()));
+  });
 
-        // init md and mode
-        EVP_MD const *Md;
-        int Mode;
-        switch (Alg) {
-        case SymmetricAlgorithm::HkdfSha256Extract:
-          Md = EVP_sha256();
-          Mode = EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY;
-          break;
-        case SymmetricAlgorithm::HkdfSha256Expand:
-          Md = EVP_sha256();
-          Mode = EVP_PKEY_HKDEF_MODE_EXPAND_ONLY;
-          break;
-        case SymmetricAlgorithm::HkdfSha512Extract:
-          Md = EVP_sha512();
-          Mode = EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY;
-          break;
-        case SymmetricAlgorithm::HkdfSha512Expand:
-          Md = EVP_sha512();
-          Mode = EVP_PKEY_HKDEF_MODE_EXPAND_ONLY;
-          break;
-        default:
-          __builtin_unreachable();
-        }
-
-        opensslAssuming(EVP_PKEY_CTX_set_hkdf_md(Ctx.get(), Md));
-        opensslAssuming(EVP_PKEY_CTX_hkdf_mode(Ctx.get(), Mode));
-
-        opensslAssuming(EVP_PKEY_CTX_set1_hkdf_key(Ctx.get(), Key.data(), Key.size()));
-
-        return HkdfCtx{Alg, std::move(Ctx)};
-      });
-  if (!Ctx) {
-    return WasiCryptoUnexpect(Ctx);
-  }
-
-  return std::unique_ptr<HkdfState>{
-      new HkdfState{Alg, OptOptions, std::move(*Ctx)}};
+  return std::make_unique<HkdfState>(OptOption, Ctx);
 }
 
 WasiCryptoExpect<void> HkdfState::absorb(Span<const uint8_t> Data) {
   switch (Alg) {
   case SymmetricAlgorithm::HkdfSha256Extract:
   case SymmetricAlgorithm::HkdfSha512Extract:
-    opensslAssuming(EVP_PKEY_CTX_set1_hkdf_salt(Ctx.get(), Data.data(), Data.size()));
+    opensslAssuming(
+        EVP_PKEY_CTX_set1_hkdf_salt(Ctx.get(), Data.data(), Data.size()));
     return {};
   case SymmetricAlgorithm::HkdfSha256Expand:
   case SymmetricAlgorithm::HkdfSha512Expand:
-    opensslAssuming(EVP_PKEY_CTX_add1_hkdf_info(Ctx.get(), Data.data(), Data.size()));
+    opensslAssuming(
+        EVP_PKEY_CTX_add1_hkdf_info(Ctx.get(), Data.data(), Data.size()));
     return {};
   default:
     __builtin_unreachable();
   }
 }
 
-WasiCryptoExpect<Key>
+WasiCryptoExpect<std::unique_ptr<Key>>
 HkdfState::squeezeKey(SymmetricAlgorithm Alg) {
+  switch (Alg) {
+  case SymmetricAlgorithm::HkdfSha256Extract:
+    break;
+  case SymmetricAlgorithm::HkdfSha512Extract:
+    break;
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  }
+
   // check Size
   size_t Size;
   opensslAssuming(EVP_PKEY_derive(Ctx.get(), nullptr, &Size));
 
-  // allocate
-  std::vector<uint8_t> Data;
-  Data.reserve(Size);
-  Data.resize(Size);
-
+  std::vector<uint8_t> Data(Size);
   opensslAssuming(EVP_PKEY_derive(Ctx.get(), Data.data(), &Size));
 
-  return Data;
+  // TODO: may a better way
+  return std::make_unique<Key>(Alg, std::move(Data));
 }
 
 WasiCryptoExpect<void> HkdfState::squeeze(Span<uint8_t> Out) {
   size_t Size = Out.size();
-  opensslAssuming(EVP_PKEY_derive(Ctx.get(), Out.data(), &Size));
-  return {};
+  ensureOrReturn(EVP_PKEY_derive(Ctx.get(), Out.data(), &Size),
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
 HkdfState::optionsGet(std::string_view Name) {
-  if (!OptOptions) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
-  }
-  return OptOptions->inner()->locked(
-      [&Name](auto &Inner) { return Inner.get(Name); });
+  ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
+  return OptOption->get(Name);
 }
 
-WasiCryptoExpect<uint64_t>
-HkdfState::optionsGetU64(std::string_view Name) {
-  if (!OptOptions) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
-  }
-  return OptOptions->inner()->locked(
-      [&Name](auto &Inner) { return Inner.getU64(Name); });
+WasiCryptoExpect<uint64_t> HkdfState::optionsGetU64(std::string_view Name) {
+  ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
+  return OptOption->getU64(Name);
 }
-
 
 } // namespace Symmetric
 } // namespace WASICrypto

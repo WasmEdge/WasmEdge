@@ -18,31 +18,30 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
-using EvpMdCtxPtr = OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 
 class HmacSha2KeyBuilder : public Key::Builder {
 public:
-  HmacSha2KeyBuilder(SymmetricAlgorithm Alg);
+  using Builder::Builder;
 
-  WasiCryptoExpect<Key> generate(std::optional<Options> OptOption) override;
+  WasiCryptoExpect<std::unique_ptr<Key>>
+  generate(std::shared_ptr<Option> OptOption) override;
 
-  WasiCryptoExpect<Key> import(Span<uint8_t const> Raw) override;
+  WasiCryptoExpect<std::unique_ptr<Key>>
+  import(Span<uint8_t const> Raw) override;
 
   WasiCryptoExpect<__wasi_size_t> keyLen() override;
-
-private:
-  SymmetricAlgorithm Alg;
 };
 
 class HmacSha2State : public MACState {
+  using EvpMdCtxPtr = OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free>;
+
 public:
-  HmacSha2State(SymmetricAlgorithm Alg,
-                std::shared_ptr<Options> OptOptions, EVP_MD_CTX *Ctx)
-      : SymmetricState::Base(Alg), OptOptions(OptOptions), Ctx(Ctx) {}
+  HmacSha2State(std::shared_ptr<Option> OptOption, EVP_MD_CTX *Ctx)
+      : OptOption(OptOption), Ctx(Ctx) {}
 
   static WasiCryptoExpect<std::unique_ptr<HmacSha2State>>
-  import(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
-         std::shared_ptr<Options> OptOptions);
+  open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
+       std::shared_ptr<Option> OptOption);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   optionsGet(std::string_view Name) override;
@@ -53,10 +52,10 @@ public:
 
   WasiCryptoExpect<Tag> squeezeTag() override;
 
-  std::shared_ptr<Options> OptOptions;
+private:
+  std::shared_ptr<Option> OptOption;
   EvpMdCtxPtr Ctx;
 };
-
 
 } // namespace Symmetric
 } // namespace WASICrypto

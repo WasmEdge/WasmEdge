@@ -3,10 +3,6 @@
 
 #include "common/span.h"
 #include "host/wasi_crypto/error.h"
-#include "host/wasi_crypto/key_exchange/options.h"
-#include "host/wasi_crypto/signature/options.h"
-#include "host/wasi_crypto/symmetric/options.h"
-#include "host/wasi_crypto/varianthelper.h"
 #include "wasi_crypto/api.hpp"
 
 #include <memory>
@@ -15,42 +11,34 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Common {
 
-class Options
-    : public VariantTemplate<SymmetricOptions, SignatureOptions, KxOptions> {
+class Options {
 public:
-  using VariantTemplate<SymmetricOptions, SignatureOptions,
-                        KxOptions>::VariantTemplate;
+  Options(__wasi_algorithm_type_e_t /*Alg*/) /*: Alg(Alg)*/ {}
 
-  WasiCryptoExpect<void> set(std::string_view Name, Span<const uint8_t> Value);
+  virtual ~Options() = default;
 
-  WasiCryptoExpect<void> setU64(std::string_view Name, uint64_t Value);
+  static std::unique_ptr<Options> open(__wasi_algorithm_type_e_t Alg);
 
-  WasiCryptoExpect<void> setGuestBuffer(std::string_view Name,
-                                        Span<uint8_t> Buffer);
+  virtual WasiCryptoExpect<void> set(std::string_view Name,
+                                     Span<const uint8_t> Value);
 
-  WasiCryptoExpect<std::vector<uint8_t>> get(std::string_view Name);
+  virtual WasiCryptoExpect<void> setU64(std::string_view Name, uint64_t Value);
 
-  WasiCryptoExpect<uint64_t> getU64(std::string_view Name);
+  virtual WasiCryptoExpect<void> setGuestBuffer(std::string_view Name,
+                                                Span<uint8_t> Buffer);
 
-  static WasiCryptoExpect<Options>
-  generate(__wasi_algorithm_type_e_t Algorithm);
+  virtual WasiCryptoExpect<std::vector<uint8_t>>
+  get(std::string_view Name) const;
+
+  virtual WasiCryptoExpect<uint64_t> getU64(std::string_view Name) const;
+
+private:
+//  __wasi_algorithm_type_e_t Alg;
 };
 
-template <typename T>
-WasiCryptoExpect<std::optional<T>>
-optOptionsAs(std::optional<Options> OptOptions) {
-  if (OptOptions) {
-    auto Res = OptOptions->template as<T>();
-    if (!Res) {
-      return WasiCryptoUnexpect(Res);
-    }
-
-    return std::make_optional(*Res);
-  }
-  return std::nullopt;
-}
-
+} // namespace Common
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

@@ -28,7 +28,7 @@ public:
   /// @param[in] Alg Key's Alg
   /// @return returns the PRK, whose algorithm type is set to the EXPAND
   /// counterpart of the EXTRACT operation.
-  virtual WasiCryptoExpect<Key>
+  virtual WasiCryptoExpect<std::unique_ptr<Key>>
   squeezeKey(SymmetricAlgorithm KeyAlg) override = 0;
 
   /// Below should always return `__WASI_CRYPTO_ERRNO_INVALID_OPERATION`

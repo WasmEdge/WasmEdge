@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/tag.h"
-#include "host/wasi_crypto/symmetric/alg.h"
+#include "host/wasi_crypto/util.h"
+
+#include <algorithm>
 
 namespace WasmEdge {
 namespace Host {
@@ -14,6 +16,7 @@ WasiCryptoExpect<void> Tag::verify(Span<uint8_t const> RawTag) {
 
   return {};
 }
+
 } // namespace Symmetric
 } // namespace WASICrypto
 } // namespace Host

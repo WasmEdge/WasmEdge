@@ -6,15 +6,18 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
+using namespace std::literals;
 
-WasiCryptoExpect<void> Options::set(std::string_view Name,
+WasiCryptoExpect<void> Option::set(std::string_view Name,
                                     Span<const uint8_t> Value) {
+  std::unique_lock Lock{Mutex};
+
   std::optional<std::vector<uint8_t>> *Res;
-  if ("context" == Name) {
+  if ("context"sv == Name) {
     Res = &Context;
-  } else if ("salt" == Name) {
+  } else if ("salt"sv == Name) {
     Res = &Salt;
-  } else if ("nonce" == Name) {
+  } else if ("nonce"sv == Name) {
     Res = &Nonce;
   } else {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
@@ -23,13 +26,15 @@ WasiCryptoExpect<void> Options::set(std::string_view Name,
   return {};
 }
 
-WasiCryptoExpect<void> Options::setU64(std::string_view Name, uint64_t Value) {
+WasiCryptoExpect<void> Option::setU64(std::string_view Name, uint64_t Value) {
+  std::unique_lock Lock{Mutex};
+
   std::optional<uint64_t> *Res;
-  if ("memory_limit" == Name) {
+  if ("memory_limit"sv == Name) {
     Res = &MemoryLimit;
-  } else if ("ops_limit" == Name) {
+  } else if ("ops_limit"sv == Name) {
     Res = &OpsLimit;
-  } else if ("parallelism" == Name) {
+  } else if ("parallelism"sv == Name) {
     Res = &Parallelism;
   } else {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
@@ -38,9 +43,11 @@ WasiCryptoExpect<void> Options::setU64(std::string_view Name, uint64_t Value) {
   return {};
 }
 
-WasiCryptoExpect<void> Options::setGuestBuffer(std::string_view Name,
+WasiCryptoExpect<void> Option::setGuestBuffer(std::string_view Name,
                                                Span<uint8_t> Buffer) {
-  if ("buffer" == Name) {
+  std::unique_lock Lock{Mutex};
+
+  if ("buffer"sv == Name) {
     GuestBuffer = Buffer;
   } else {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
@@ -49,17 +56,21 @@ WasiCryptoExpect<void> Options::setGuestBuffer(std::string_view Name,
   return {};
 }
 
-WasiCryptoExpect<std::vector<uint8_t>> Options::get(std::string_view Name) {
-  std::optional<std::vector<uint8_t>> *Res;
-  if ("context" == Name) {
+WasiCryptoExpect<std::vector<uint8_t>>
+Option::get(std::string_view Name) const {
+  std::shared_lock Lock{Mutex};
+
+  std::optional<std::vector<uint8_t>> const *Res;
+  if ("context"sv == Name) {
     Res = &Context;
-  } else if ("salt" == Name) {
+  } else if ("salt"sv == Name) {
     Res = &Salt;
-  } else if ("nonce" == Name) {
+  } else if ("nonce"sv == Name) {
     Res = &Nonce;
   } else {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }
+
   if (!Res->has_value()) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   }
@@ -67,14 +78,16 @@ WasiCryptoExpect<std::vector<uint8_t>> Options::get(std::string_view Name) {
   return **Res;
 }
 
-WasiCryptoExpect<uint64_t> Options::getU64(std::string_view Name) {
-  std::optional<uint64_t> *Res;
+WasiCryptoExpect<uint64_t> Option::getU64(std::string_view Name) const {
+  std::shared_lock Lock{Mutex};
 
-  if ("memory_limit" == Name) {
+  std::optional<uint64_t> const *Res;
+
+  if ("memory_limit"sv == Name) {
     Res = &MemoryLimit;
-  } else if ("ops_limit" == Name) {
+  } else if ("ops_limit"sv == Name) {
     Res = &OpsLimit;
-  } else if ("parallelism" == Name) {
+  } else if ("parallelism"sv == Name) {
     Res = &Parallelism;
   } else {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);

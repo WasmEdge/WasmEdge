@@ -39,29 +39,32 @@ public:
 
 public:
   WasiCryptoExpect<void> ratchet() override { return State::ratchet(); }
-  
-  WasiCryptoExpect<__wasi_size_t> encrypt(Span<uint8_t> Out,
-                                          Span<const uint8_t> Data) override {
+
+  WasiCryptoExpect<__wasi_size_t>
+  encrypt(Span<uint8_t> Out, Span<const uint8_t> Data) override final {
     return State::encrypt(Out, Data);
   }
-  WasiCryptoExpect<Tag> encryptDetached(Span<uint8_t> Out,
-                                        Span<const uint8_t> Data) override {
+  WasiCryptoExpect<Tag>
+  encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) override final {
     return State::encryptDetached(Out, Data);
   }
-  WasiCryptoExpect<__wasi_size_t> decrypt(Span<uint8_t> Out,
-                                          Span<const uint8_t> Data) override {
+  WasiCryptoExpect<__wasi_size_t>
+  decrypt(Span<uint8_t> Out, Span<const uint8_t> Data) override final {
     return State::decrypt(Out, Data);
   }
   WasiCryptoExpect<__wasi_size_t>
   decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
-                  Span<uint8_t> RawTag) override {
+                  Span<uint8_t> RawTag) override final {
     return State::decryptDetached(Out, Data, RawTag);
   }
-  WasiCryptoExpect<Key> squeezeKey(SymmetricAlgorithm KeyAlg) override {
+  WasiCryptoExpect<std::unique_ptr<Key>>
+  squeezeKey(SymmetricAlgorithm KeyAlg) override final {
     return State::squeezeKey(KeyAlg);
   }
-  WasiCryptoExpect<Tag> squeezeTag() override { return State::squeezeTag(); }
-  WasiCryptoExpect<__wasi_size_t> maxTagLen() override {
+  WasiCryptoExpect<Tag> squeezeTag() override final {
+    return State::squeezeTag();
+  }
+  WasiCryptoExpect<__wasi_size_t> maxTagLen() override final {
     return State::maxTagLen();
   }
 };

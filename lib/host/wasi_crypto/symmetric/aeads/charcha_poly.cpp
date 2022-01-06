@@ -1,38 +1,72 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/aeads/charcha_poly.h"
-#include "host/wasi_crypto/wrapper/random.h"
 
+#include <cstddef>
 #include <map>
+#include <openssl/rand.h>
+
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
-
-
 namespace {
-const std::map<SymmetricAlgorithm, size_t> NonceMap{
-    {SymmetricAlgorithm::ChaCha20Poly1305, 12},
-    {SymmetricAlgorithm::XChaCha20Poly1305, 24}};
+constexpr size_t getNonceSize(SymmetricAlgorithm Alg) {
+  switch (Alg) {
+  case SymmetricAlgorithm::ChaCha20Poly1305:
+    return 12;
+  case SymmetricAlgorithm::XChaCha20Poly1305:
+    return 24;
+  default:
+    __builtin_unreachable();
+  }
 }
-ChaChaPolyKeyBuilder::ChaChaPolyKeyBuilder(SymmetricAlgorithm Alg) : Alg{Alg} {}
+inline size_t TagLen = 12;
+} // namespace
 
-WasiCryptoExpect<Key> ChaChaPolyKeyBuilder::generate(std::shared_ptr<Options>) {
+WasiCryptoExpect<std::unique_ptr<ChaChaPolyState>>
+ChaChaPolyState::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
+                      std::shared_ptr<Option> OptOption) {
+  ensureOrReturn(OptKey, __WASI_CRYPTO_ERRNO_KEY_REQUIRED);
+  ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
+
+  // Init unique_ptr
+  EVP_CIPHER_CTX *Ctx = EVP_CIPHER_CTX_new();
+  opensslAssuming(Ctx);
+
+  std::vector<uint8_t> Key =
+      OptKey->inner().locked([](auto &Data) { return Data.Data; });
+
+  auto Nonce = OptOption->get("nonce");
+  if (!Nonce) {
+    return WasiCryptoUnexpect(Nonce);
+  }
+
+  opensslAssuming(EVP_CipherInit_ex(Ctx, EVP_chacha20_poly1305(), nullptr,
+                                    Key.data(), Nonce->data(),
+                                    Mode::Unchanged));
+
+  return std::make_unique<ChaChaPolyState>(Ctx);
+}
+
+WasiCryptoExpect<std::unique_ptr<Key>>
+ChaChaPolyKeyBuilder::generate(std::shared_ptr<Option>) {
   auto Len = keyLen();
-  CryptoRandom Random;
   if (!Len) {
     return WasiCryptoUnexpect(Len);
   }
-  std::vector<uint8_t> Raw(*Len, 0);
-  if (auto Res = Random.fill(Raw); !Res.has_value()) {
-    return WasiCryptoUnexpect(Res);
-  }
 
-  return import(Raw);
+  std::vector<uint8_t> Res(*Len, 0);
+  ensureOrReturn(RAND_bytes(Res.data(), Res.size()),
+                 __WASI_CRYPTO_ERRNO_RNG_ERROR);
+
+  return std::make_unique<Key>(Alg, std::move(Res));
 }
 
-WasiCryptoExpect<Key> ChaChaPolyKeyBuilder::import(Span<uint8_t const> Raw) {
-  return Key{std::make_unique<ChaChaPolyKey>(Alg, Raw)};
+WasiCryptoExpect<std::unique_ptr<Key>>
+ChaChaPolyKeyBuilder::import(Span<uint8_t const> Raw) {
+  return std::make_unique<Key>(Alg,
+                               std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
 WasiCryptoExpect<__wasi_size_t> ChaChaPolyKeyBuilder::keyLen() {
@@ -46,24 +80,19 @@ WasiCryptoExpect<__wasi_size_t> ChaChaPolyKeyBuilder::keyLen() {
   }
 }
 
-WasiCryptoExpect<std::unique_ptr<ChaChaPolySymmetricState>>
-ChaChaPolySymmetricState::make(SymmetricAlgorithm, std::optional<Key>,
-                               std::shared_ptr<Options>) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-}
-
 WasiCryptoExpect<std::vector<uint8_t>>
-ChaChaPolySymmetricState::optionsGet(std::string_view Name) {
-  return Options.get(Name);
+ChaChaPolyState::optionsGet(std::string_view Name) {
+  ensureOrReturn(OptOptions, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
+  return OptOptions->get(Name);
 }
 
 WasiCryptoExpect<uint64_t>
-ChaChaPolySymmetricState::optionsGetU64(std::string_view Name) {
-  return Options.getU64(Name);
+ChaChaPolyState::optionsGetU64(std::string_view Name) {
+  ensureOrReturn(OptOptions, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
+  return OptOptions->getU64(Name);
 }
 
-WasiCryptoExpect<void>
-ChaChaPolySymmetricState::absorb(Span<const uint8_t> Data) {
+WasiCryptoExpect<void> ChaChaPolyState::absorb(Span<const uint8_t> Data) {
   int Len;
   // TODO: need change Openssl AAD default length from 12 if beyond?
   opensslAssuming(
@@ -73,8 +102,8 @@ ChaChaPolySymmetricState::absorb(Span<const uint8_t> Data) {
 }
 
 WasiCryptoExpect<Tag>
-ChaChaPolySymmetricState::encryptDetachedUnchecked(Span<uint8_t> Out,
-                                                   Span<const uint8_t> Data) {
+ChaChaPolyState::encryptDetachedUnchecked(Span<uint8_t> Out,
+                                          Span<const uint8_t> Data) {
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
                                     nullptr, Mode::Encrypt));
   //  auto Nonce = Options.get("nonce");
@@ -114,10 +143,8 @@ ChaChaPolySymmetricState::encryptDetachedUnchecked(Span<uint8_t> Out,
   return RawTagData;
 }
 
-WasiCryptoExpect<__wasi_size_t>
-ChaChaPolySymmetricState::decryptDetachedUnchecked(Span<uint8_t> Out,
-                                                   Span<const uint8_t> Data,
-                                                   Span<uint8_t const> RawTag) {
+WasiCryptoExpect<__wasi_size_t> ChaChaPolyState::decryptDetachedUnchecked(
+    Span<uint8_t> Out, Span<const uint8_t> Data, Span<uint8_t const> RawTag) {
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
                                     nullptr, Mode::Decrypt));
 
@@ -138,27 +165,9 @@ ChaChaPolySymmetricState::decryptDetachedUnchecked(Span<uint8_t> Out,
   return ActualOutSize;
 }
 
-WasiCryptoExpect<ChaChaPolyCtx>
-ChaChaPolyCtx::import(SymmetricAlgorithm Alg, Span<uint8_t const> Key,
-                      Span<uint8_t const> Nonce) {
-  // Init unique_ptr
-  OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx{
-      EVP_CIPHER_CTX_new()};
-  opensslAssuming(Ctx);
-
-  size_t NonceLen = NonceMap.at(Alg);
-
-  if (Nonce.size() != NonceLen) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-  }
-
-  opensslAssuming(EVP_CipherInit_ex(Ctx.get(), EVP_chacha20_poly1305(), nullptr,
-                                    Key.data(), Nonce.data(), Mode::Unchanged));
-
-  return ChaChaPolyCtx{Alg, std::move(Ctx)};
+WasiCryptoExpect<__wasi_size_t> ChaChaPolyState::maxTagLen() {
+  return WasmEdge::Host::WASICrypto::WasiCryptoExpect<__wasi_size_t>();
 }
-
-
 
 } // namespace Symmetric
 } // namespace WASICrypto

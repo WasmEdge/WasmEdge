@@ -16,7 +16,7 @@ WasiCryptoContext::symmetricKeyGenerate(
     return WasiCryptoUnexpect(Options);
   }
 
-  auto Key = SymmetricKey::generate(Alg, *Options);
+  auto Key = Symmetric::Key::generate(Alg, *Options);
   if (!Key) {
     return WasiCryptoUnexpect(Key);
   }
@@ -27,7 +27,7 @@ WasiCryptoContext::symmetricKeyGenerate(
 WasiCryptoExpect<__wasi_symmetric_key_t>
 WasiCryptoContext::symmetricKeyImport(SymmetricAlgorithm Alg,
                                       Span<uint8_t const> Raw) {
-  auto Key = SymmetricKey::import(Alg, Raw);
+  auto Key = Symmetric::Key::import(Alg, Raw);
   if (!Key) {
     return WasiCryptoUnexpect(Key);
   }
@@ -103,7 +103,7 @@ WasiCryptoContext::symmetricStateOpen(
     return WasiCryptoUnexpect(OptOptions);
   }
 
-  auto State = SymmetricState::import(Alg, *OptKey, *OptOptions);
+  auto State = Symmetric::Key::import(Alg, *OptKey, *OptOptions);
   if (!State) {
     return WasiCryptoUnexpect(State);
   }
@@ -337,11 +337,11 @@ WasiCryptoContext::symmetricTagClose(__wasi_symmetric_tag_t TagHandle) {
   return SymmetricTagManger.close(TagHandle);
 }
 
-WasiCryptoExpect<std::optional<SymmetricOptions>>
+WasiCryptoExpect<Symmetric::Option>
 WasiCryptoContext::readSymmetricOption(
     std::optional<__wasi_options_t> OptOptionsHandle) {
   if (!OptOptionsHandle) {
-    return std::nullopt;
+    return nullptr;
   }
 
   auto Res = OptionsManger.get(*OptOptionsHandle);
@@ -349,7 +349,7 @@ WasiCryptoContext::readSymmetricOption(
     return WasiCryptoUnexpect(Res);
   }
 
-  auto Options = Res->as<SymmetricOptions>();
+  auto Options = (*Res)->as<Symmetric::Option>();
   if (!Options) {
     return WasiCryptoUnexpect(Options);
   }
@@ -357,10 +357,10 @@ WasiCryptoContext::readSymmetricOption(
   return *Options;
 }
 
-WasiCryptoExpect<std::optional<SymmetricKey>>
+WasiCryptoExpect<std::optional<Symmetric::Key>>
 WasiCryptoContext::readSymmetricKey(
     std::optional<__wasi_symmetric_key_t> KeyHandle) {
-  std::optional<SymmetricKey> Key;
+  std::optional<Symmetric::Key> Key;
 
   if (KeyHandle) {
     auto Res = SymmetricKeyManger.get(*KeyHandle);

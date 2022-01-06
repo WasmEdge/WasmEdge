@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "common/expected.h"
-#include "experimental/expected.hpp"
 #include "host/wasi_crypto/symmetric/aeads/aeads_state.h"
 #include "host/wasi_crypto/symmetric/key.h"
+
 #include "openssl/evp.h"
 
 namespace WasmEdge {
@@ -14,11 +13,13 @@ namespace Symmetric {
 
 class ChaChaPolyKeyBuilder : public Key::Builder {
 public:
-  ChaChaPolyKeyBuilder(SymmetricAlgorithm Alg);
+  using Builder::Builder;
 
-  WasiCryptoExpect<Key> generate(std::shared_ptr<Options> OptOption) override;
+  WasiCryptoExpect<std::unique_ptr<Key>>
+  generate(std::shared_ptr<Option> OptOption) override;
 
-  WasiCryptoExpect<Key> import(Span<uint8_t const> Raw) override;
+  WasiCryptoExpect<std::unique_ptr<Key>>
+  import(Span<uint8_t const> Raw) override;
 
   WasiCryptoExpect<__wasi_size_t> keyLen() override;
 
@@ -26,14 +27,13 @@ private:
   SymmetricAlgorithm Alg;
 };
 
-class ChaChaPolySymmetricState : public AEADsState {
+class ChaChaPolyState : public AEADsState {
 public:
-  static WasiCryptoExpect<std::unique_ptr<ChaChaPolySymmetricState>>
-  import(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
-       std::shared_ptr<Options> OptOptions);
+  ChaChaPolyState(EVP_CIPHER_CTX *Ctx) : Ctx(Ctx) {}
 
-  ChaChaPolySymmetricState(SymmetricAlgorithm /*Alg*/, EVP_CIPHER_CTX *Ctx)
-      : /*Alg(Alg),*/ Ctx(Ctx) {}
+  static WasiCryptoExpect<std::unique_ptr<ChaChaPolyState>>
+  open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
+       std::shared_ptr<Option> OptOptions);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   optionsGet(std::string_view Name) override;
@@ -58,24 +58,16 @@ protected:
   decryptDetachedUnchecked(Span<uint8_t> Out, Span<const uint8_t> Data,
                            Span<uint8_t const> RawTag) override;
 
+public:
+  WasiCryptoExpect<__wasi_size_t> maxTagLen() override;
+
 private:
-  Options Options;
+  std::shared_ptr<Option> OptOptions;
 
   enum Mode { Unchanged = -1, Decrypt = 0, Encrypt = 1 };
 
   //  SymmetricAlgorithm Alg;
   OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx;
-};
-
-class ChaChaPolyCtx {
-public:
-  inline static constexpr __wasi_size_t TagLen = 16;
-
-  static WasiCryptoExpect<ChaChaPolyCtx> import(SymmetricAlgorithm Alg,
-                                                Span<uint8_t const> Key,
-                                                Span<uint8_t const> Nonce);
-
-private:
 };
 
 } // namespace Symmetric

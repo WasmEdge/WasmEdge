@@ -689,14 +689,14 @@ private:
   WasiCryptoExpect<__wasi_array_output_t>
   allocateArrayOutput(std::vector<uint8_t> &&Data);
 
-  WasiCryptoExpect<std::optional<SymmetricOptions>>
+  WasiCryptoExpect<Symmetric::Option>
   readSymmetricOption(std::optional<__wasi_options_t> OptOptionsHandle);
 
-  WasiCryptoExpect<std::optional<SymmetricKey>>
+  WasiCryptoExpect<std::shared_ptr<Symmetric::Key>>
   readSymmetricKey(std::optional<__wasi_symmetric_key_t> KeyHandle);
 
-  HandlesManger<__wasi_array_output_t, ArrayOutput> ArrayOutputManger{0x00};
-  HandlesManger<__wasi_options_t, Options> OptionsManger{0x01};
+  HandlesManger<__wasi_array_output_t, Common::ArrayOutput> ArrayOutputManger{0x00};
+  HandlesManger<__wasi_options_t, std::shared_ptr<Common::Options>> OptionsManger{0x01};
   HandlesManger<__wasi_keypair_t, KeyPair> KeypairManger{0x02};
   HandlesManger<__wasi_keypair_t, PublicKey> PublickeyManger{0x03};
   HandlesManger<__wasi_keypair_t, SecretKey> SecretkeyManger{0x04};
@@ -706,10 +706,10 @@ private:
   HandlesManger<__wasi_signature_verification_state_t,
                 SignatureVerificationState>
       SignatureVerificationStateManger{0x07};
-  HandlesManger<__wasi_symmetric_state_t, SymmetricState> SymmetricStateManger{
+  HandlesManger<__wasi_symmetric_state_t, std::shared_ptr<Symmetric::State>> SymmetricStateManger{
       0x08};
-  HandlesManger<__wasi_symmetric_key_t, SymmetricKey> SymmetricKeyManger{0x09};
-  HandlesManger<__wasi_symmetric_tag_t, SymmetricTag> SymmetricTagManger{0xa};
+  HandlesManger<__wasi_symmetric_key_t, std::shared_ptr<Symmetric::Key>> SymmetricKeyManger{0x09};
+  HandlesManger<__wasi_symmetric_tag_t, std::shared_ptr<Symmetric::Tag>> SymmetricTagManger{0xa};
 };
 
 } // namespace WASICrypto

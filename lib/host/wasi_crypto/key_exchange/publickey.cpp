@@ -26,7 +26,7 @@ KxPublicKey::builder(KxAlgorithm Alg) {
   case KxAlgorithm::Kyber768:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
-    __builtin_unreachable();
+    __buitin_unreachable()();
   }
 }
 } // namespace WASICrypto

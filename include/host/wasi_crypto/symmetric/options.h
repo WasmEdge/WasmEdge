@@ -2,15 +2,14 @@
 #pragma once
 
 #include "common/span.h"
+#include "host/wasi_crypto/common/options.h"
 #include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/lock.h"
 #include "wasi_crypto/api.hpp"
 
-#include <algorithm>
-#include <cstdint>
 #include <memory>
-#include <mutex>
 #include <optional>
+#include <shared_mutex>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -20,20 +19,26 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-class Options {
+class Option : public Common::Options {
 public:
-  WasiCryptoExpect<void> set(std::string_view Name, Span<const uint8_t> Value);
+  using Common::Options::Options;
 
-  WasiCryptoExpect<void> setU64(std::string_view Name, uint64_t Value);
+  WasiCryptoExpect<void> set(std::string_view Name,
+                             Span<const uint8_t> Value) override;
+
+  WasiCryptoExpect<void> setU64(std::string_view Name, uint64_t Value) override;
 
   WasiCryptoExpect<void> setGuestBuffer(std::string_view Name,
-                                        Span<uint8_t> Buffer);
+                                        Span<uint8_t> Buffer) override;
 
-  WasiCryptoExpect<std::vector<uint8_t>> get(std::string_view Name);
+  WasiCryptoExpect<std::vector<uint8_t>>
+  get(std::string_view Name) const override;
 
-  WasiCryptoExpect<uint64_t> getU64(std::string_view Name);
+  WasiCryptoExpect<uint64_t> getU64(std::string_view Name) const override;
 
 private:
+  mutable std::shared_mutex Mutex;
+
   std::optional<std::vector<uint8_t>> Context;
   std::optional<std::vector<uint8_t>> Salt;
   std::optional<std::vector<uint8_t>> Nonce;
@@ -42,8 +47,6 @@ private:
   std::optional<uint64_t> Parallelism;
   std::optional<Span<uint8_t>> GuestBuffer;
 };
-
-using OptOptionsPtr = std::shared_ptr<Options>;
 
 } // namespace Symmetric
 } // namespace WASICrypto

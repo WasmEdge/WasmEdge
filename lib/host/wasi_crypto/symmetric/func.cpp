@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/func.h"
-#include "host/wasi_crypto/signature/func.h"
 #include "host/wasi_crypto/util.h"
 #include "wasi_crypto/api.hpp"
 

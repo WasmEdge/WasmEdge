@@ -29,6 +29,7 @@ pub mod executor;
 #[doc(hidden)]
 pub mod import_obj;
 pub mod instance;
+#[doc(hidden)]
 pub mod io;
 #[doc(hidden)]
 pub mod loader;
@@ -65,8 +66,6 @@ pub use instance::{
     memory::{MemType, Memory},
     table::{Table, TableType},
 };
-#[doc(inline)]
-pub(crate) use io::WasmFnIO;
 #[doc(inline)]
 pub use loader::Loader;
 #[doc(inline)]

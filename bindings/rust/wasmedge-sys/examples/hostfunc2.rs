@@ -10,16 +10,12 @@
 //! generics of `Function::create_bindings::<I, O>`, wherein the I and O are the `WasmFnIO` traits
 //! base on the inputs and outputs of the real host function.
 //!
+
 use std::{
     fs::{self, File},
     io::Read,
 };
-
-use wasmedge_sys::{
-    instance::Function,
-    io::{I1, I2},
-    Config, ImportObj, Module, Value, Vm,
-};
+use wasmedge_sys::{Config, FuncType, Function, ImportObj, Module, ValType, Value, Vm};
 
 fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
     println!("Rust: Entering Rust function real_add");
@@ -69,7 +65,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::create().expect("fail to create Config instance");
     let mut import_obj = ImportObj::create("extern_module").unwrap();
 
-    let result = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
+    let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+    assert!(result.is_ok());
+    let func_ty = result.unwrap();
+    let result = Function::create(func_ty, Box::new(real_add), 0);
     assert!(result.is_ok());
     let mut host_func = result.unwrap();
     import_obj.add_func("add", &mut host_func);
@@ -78,14 +77,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut module =
         Module::create_from_buffer(&config, &wasm_binary).expect("funcs.wasm should be correct");
 
-    let vm = Vm::create(Some(&config), None)
+    let mut vm = Vm::create(Some(&config), None)
         .expect("fail to create VM instance")
         .register_wasm_from_import(&mut import_obj)
         .expect("import_obj should be regiestered")
         .load_wasm_from_module(&mut module)
-        .expect("funcs.wasm should be loaded");
-    vm.validate().expect("fail to validate vm");
-    vm.instantiate().expect("fail to instantiate vm");
+        .expect("funcs.wasm should be loaded")
+        .validate()
+        .expect("fail to validate vm")
+        .instantiate()
+        .expect("fail to instantiate vm");
 
     #[allow(clippy::type_complexity)]
     fn boxed_fn() -> Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>> {

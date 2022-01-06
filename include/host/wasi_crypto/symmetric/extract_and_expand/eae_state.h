@@ -31,8 +31,7 @@ public:
   virtual WasiCryptoExpect<std::unique_ptr<Key>>
   squeezeKey(SymmetricAlgorithm KeyAlg) override = 0;
 
-  /// Below should always return `__WASI_CRYPTO_ERRNO_INVALID_OPERATION`
-public:
+private:
   WasiCryptoExpect<void> ratchet() override final { return State::ratchet(); }
 
   WasiCryptoExpect<__wasi_size_t>

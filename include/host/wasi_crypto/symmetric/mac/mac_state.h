@@ -28,7 +28,7 @@ public:
   /// @return Tag or WasiCrypto error
   virtual WasiCryptoExpect<Tag> squeezeTag() override = 0;
 
-public:
+private:
   WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) override final {
     return State::squeeze(Out);
   }

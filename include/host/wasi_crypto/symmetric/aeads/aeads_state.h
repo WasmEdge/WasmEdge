@@ -94,9 +94,7 @@ protected:
   decryptDetachedUnchecked(Span<uint8_t> Out, Span<uint8_t const> Data,
                            Span<uint8_t const> RawTag) = 0;
 
-  // Below member function should always return
-  // `__WASI_CRYPTO_ERRNO_INVALID_OPERATION`
-public:
+private:
   WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) override final {
     return State::squeeze(Out);
   }

@@ -75,7 +75,6 @@ HmacSha2State::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
 
 WasiCryptoExpect<std::vector<uint8_t>>
 HmacSha2State::optionsGet(std::string_view Name) {
-
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   return OptOption->get(Name);
 }

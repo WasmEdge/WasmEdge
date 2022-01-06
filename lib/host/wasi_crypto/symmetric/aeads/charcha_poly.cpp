@@ -35,7 +35,7 @@ ChaChaPolyState::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
   opensslAssuming(Ctx);
 
   std::vector<uint8_t> Key =
-      OptKey->inner().locked([](auto &Data) { return Data.Data; });
+      OptKey->inner().locked([](auto &Inner) { return Inner.Data; });
 
   auto Nonce = OptOption->get("nonce");
   if (!Nonce) {

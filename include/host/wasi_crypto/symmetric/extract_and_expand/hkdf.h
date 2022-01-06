@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include <openssl/evp.h>
 #include "host/wasi_crypto/symmetric/extract_and_expand/eae_state.h"
+#include <openssl/evp.h>
 
 namespace WasmEdge {
 namespace Host {
@@ -14,9 +14,11 @@ class HkdfKeyBuilder : public Key::Builder {
 public:
   using Builder::Builder;
 
-  WasiCryptoExpect<std::unique_ptr<Key>> generate(std::shared_ptr<Option> OptOption) override;
+  WasiCryptoExpect<std::unique_ptr<Key>>
+  generate(std::shared_ptr<Option> OptOption) override;
 
-  WasiCryptoExpect<std::unique_ptr<Key>> import(Span<uint8_t const> Raw) override;
+  WasiCryptoExpect<std::unique_ptr<Key>>
+  import(Span<uint8_t const> Raw) override;
 
   WasiCryptoExpect<__wasi_size_t> keyLen() override;
 
@@ -31,13 +33,12 @@ private:
 ///
 class HkdfState : public ExtractAndExpandState {
 public:
-  HkdfState(
-                     std::shared_ptr<Option> OptOption, EVP_PKEY_CTX *Ctx)
+  HkdfState(std::shared_ptr<Option> OptOption, EVP_PKEY_CTX *Ctx)
       : OptOption(OptOption), Ctx(Ctx) {}
 
   static WasiCryptoExpect<std::unique_ptr<HkdfState>>
   open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
-         std::shared_ptr<Option> OptOption);
+       std::shared_ptr<Option> OptOption);
 
   /// absorbs the salt of the key(Extract)/info(Expand) information.
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override;
@@ -45,7 +46,8 @@ public:
   /// Extract:
   /// returns the PRK, whose algorithm type is set to the EXPAND counterpart of
   /// the EXTRACT operation
-  WasiCryptoExpect<std::unique_ptr<Key>> squeezeKey(SymmetricAlgorithm Alg) override;
+  WasiCryptoExpect<std::unique_ptr<Key>>
+  squeezeKey(SymmetricAlgorithm Alg) override;
 
   // Expand
   WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) override;
@@ -60,8 +62,6 @@ private:
   std::optional<std::vector<uint8_t>> Cache;
   EvpPkeyCtxPtr Ctx;
 };
-
-
 
 } // namespace Symmetric
 

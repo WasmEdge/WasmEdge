@@ -37,7 +37,7 @@ public:
   /// returned.
   virtual WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) override = 0;
 
-public:
+private:
   WasiCryptoExpect<void> ratchet() override { return State::ratchet(); }
 
   WasiCryptoExpect<__wasi_size_t>

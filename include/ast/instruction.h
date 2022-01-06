@@ -29,7 +29,12 @@ public:
   /// Constructor assigns the OpCode and the Offset.
   Instruction(OpCode Byte, uint32_t Off = 0) noexcept
       : Offset(Off), Code(Byte) {
+#if defined(__x86_64__) || defined(__aarch64__)
     Data.Num = static_cast<uint128_t>(0);
+#else
+    Data.Num.Low = static_cast<uint64_t>(0);
+    Data.Num.High = static_cast<uint64_t>(0);
+#endif
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
   }
@@ -150,8 +155,21 @@ public:
   uint8_t &getMemoryLane() noexcept { return Data.Memories.MemLane; }
 
   /// Getter and setter of the constant value.
-  ValVariant getNum() const noexcept { return ValVariant(Data.Num); }
-  void setNum(ValVariant N) noexcept { Data.Num = N.get<uint128_t>(); }
+  ValVariant getNum() const noexcept {
+#if defined(__x86_64__) || defined(__aarch64__)
+    return ValVariant(Data.Num);
+#else
+    uint128_t N(Data.Num.High, Data.Num.Low);
+    return ValVariant(N);
+#endif
+  }
+  void setNum(ValVariant N) noexcept {
+#if defined(__x86_64__) || defined(__aarch64__)
+    Data.Num = N.get<uint128_t>();
+#else
+    std::memcpy(&Data.Num, &N.get<uint128_t>(), sizeof(uint128_t));
+#endif
+  }
 
 private:
   /// Release allocated resources.
@@ -209,7 +227,14 @@ private:
       uint8_t MemLane;
     } Memories;
     // Type 7: Num.
+#if defined(__x86_64__) || defined(__aarch64__)
     uint128_t Num;
+#else
+    struct {
+      uint64_t Low;
+      uint64_t High;
+    } Num;
+#endif
   } Data;
   uint32_t Offset = 0;
   OpCode Code = OpCode::End;

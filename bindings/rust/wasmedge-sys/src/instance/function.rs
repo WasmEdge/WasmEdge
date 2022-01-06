@@ -181,7 +181,7 @@ impl Function {
     ///
     /// If fail to get the function type, then an error is returned.
     ///
-    pub fn get_type(&self) -> WasmEdgeResult<FuncType> {
+    pub fn ty(&self) -> WasmEdgeResult<FuncType> {
         let ty = unsafe { wasmedge::WasmEdge_FunctionInstanceGetFunctionType(self.ctx) };
         match ty.is_null() {
             true => Err(WasmEdgeError::Func(FuncError::Type)),
@@ -293,5 +293,61 @@ impl Drop for FuncType {
         if !self.registered && !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_FunctionTypeDelete(self.ctx) };
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::io::{I1, I2};
+
+    #[test]
+    fn test_func() {
+        // create a host function
+        let result = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+
+        // get func type
+        let result = host_func.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+
+        // check parameters
+        // assert_eq!(ty.params_len(), 2);
+        let param_tys = ty.params_type_iter().collect::<Vec<_>>();
+        // assert_eq!(param_tys, vec![ValType::I32; 2]);
+        println!("*** {:?}", param_tys);
+
+        // check returns
+        assert_eq!(ty.returns_len(), 1);
+        let return_tys = ty.returns_type_iter().collect::<Vec<_>>();
+        assert_eq!(return_tys, vec![ValType::I32]);
+    }
+
+    fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
+        println!("Rust: Entering Rust function real_add");
+
+        if input.len() != 2 {
+            return Err(1);
+        }
+
+        let a = if let Value::I32(i) = input[0] {
+            i
+        } else {
+            return Err(2);
+        };
+
+        let b = if let Value::I32(i) = input[1] {
+            i
+        } else {
+            return Err(3);
+        };
+
+        let c = a + b;
+        println!("Rust: calcuating in real_add c: {:?}", c);
+
+        println!("Rust: Leaving Rust function real_add");
+        Ok(vec![Value::I32(c)])
     }
 }

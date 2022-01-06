@@ -171,10 +171,7 @@ impl Executor {
             .collect::<Vec<_>>();
 
         // get the length of the function's returns
-        let returns_len = store
-            .find_func(func_name.as_ref())?
-            .get_type()?
-            .returns_len();
+        let returns_len = store.find_func(func_name.as_ref())?.ty()?.returns_len();
         let mut returns = Vec::with_capacity(returns_len);
 
         let func_name: WasmEdgeString = func_name.as_ref().into();
@@ -224,7 +221,7 @@ impl Executor {
         // get the length of the function's returns
         let returns_len = store
             .find_func_registered(mod_name.as_ref(), func_name.as_ref())?
-            .get_type()?
+            .ty()?
             .returns_len();
         let mut returns = Vec::with_capacity(returns_len);
 

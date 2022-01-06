@@ -10,7 +10,16 @@ namespace Executor {
 Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::GlobalSection &GlobSec) {
-  // A frame with temp. module is pushed into stack outside.
+  // A frame with temp. module is pushed into the stack in caller.
+
+  // Prepare pointers for compiled functions.
+  ModInst.GlobalPtrs.resize(ModInst.getGlobalNum() +
+                            GlobSec.getContent().size());
+  for (uint32_t I = 0; I < ModInst.getGlobalNum(); ++I) {
+    ModInst.GlobalPtrs[I] =
+        &(*StoreMgr.getGlobal(*ModInst.getGlobalAddr(I)))->getValue();
+  }
+
   // Instantiate and initialize globals.
   for (const auto &GlobSeg : GlobSec.getContent()) {
     // Insert global instance to store manager.
@@ -20,6 +29,8 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     } else {
       NewGlobInstAddr = StoreMgr.importGlobal(GlobSeg.getGlobalType());
     }
+    ModInst.GlobalPtrs[ModInst.getGlobalNum()] =
+        &(*StoreMgr.getGlobal(NewGlobInstAddr))->getValue();
     ModInst.addGlobalAddr(NewGlobInstAddr);
 
     // Run initialize expression.

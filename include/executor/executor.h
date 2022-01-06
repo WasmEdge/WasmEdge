@@ -483,53 +483,57 @@ private:
 public:
   Expect<void> trap(Runtime::StoreManager &StoreMgr,
                     const uint8_t Code) noexcept;
-  Expect<void> call(Runtime::StoreManager &StoreMgr, const uint32_t FuncIndex,
+  Expect<void> call(Runtime::StoreManager &StoreMgr, const uint32_t FuncIdx,
                     const ValVariant *Args, ValVariant *Rets) noexcept;
   Expect<void> callIndirect(Runtime::StoreManager &StoreMgr,
-                            const uint32_t TableIndex,
-                            const uint32_t FuncTypeIndex,
-                            const uint32_t FuncIndex, const ValVariant *Args,
+                            const uint32_t TableIdx, const uint32_t FuncTypeIdx,
+                            const uint32_t FuncIdx, const ValVariant *Args,
                             ValVariant *Rets) noexcept;
 
   Expect<uint32_t> memGrow(Runtime::StoreManager &StoreMgr,
+                           const uint32_t MemIdx,
                            const uint32_t NewSize) noexcept;
-  Expect<uint32_t> memSize(Runtime::StoreManager &StoreMgr) noexcept;
-  Expect<void> memCopy(Runtime::StoreManager &StoreMgr, const uint32_t Dst,
-                       const uint32_t Src, const uint32_t Len) noexcept;
-  Expect<void> memFill(Runtime::StoreManager &StoreMgr, const uint32_t Off,
-                       const uint8_t Val, const uint32_t Len) noexcept;
-  Expect<void> memInit(Runtime::StoreManager &StoreMgr, const uint32_t DataIdx,
-                       const uint32_t Dst, const uint32_t Src,
+  Expect<uint32_t> memSize(Runtime::StoreManager &StoreMgr,
+                           const uint32_t MemIdx) noexcept;
+  Expect<void> memCopy(Runtime::StoreManager &StoreMgr,
+                       const uint32_t DstMemIdx, const uint32_t SrcMemIdx,
+                       const uint32_t DstOff, const uint32_t SrcOff,
                        const uint32_t Len) noexcept;
+  Expect<void> memFill(Runtime::StoreManager &StoreMgr, const uint32_t MemIdx,
+                       const uint32_t Off, const uint8_t Val,
+                       const uint32_t Len) noexcept;
+  Expect<void> memInit(Runtime::StoreManager &StoreMgr, const uint32_t MemIdx,
+                       const uint32_t DataIdx, const uint32_t DstOff,
+                       const uint32_t SrcOff, const uint32_t Len) noexcept;
   Expect<void> dataDrop(Runtime::StoreManager &StoreMgr,
                         const uint32_t DataIdx) noexcept;
 
   Expect<RefVariant> tableGet(Runtime::StoreManager &StoreMgr,
-                              const uint32_t TableIndex,
-                              const uint32_t Idx) noexcept;
+                              const uint32_t TableIdx,
+                              const uint32_t Off) noexcept;
   Expect<void> tableSet(Runtime::StoreManager &StoreMgr,
-                        const uint32_t TableIndex, const uint32_t Idx,
+                        const uint32_t TableIdx, const uint32_t Off,
                         const RefVariant Ref) noexcept;
   Expect<void> tableCopy(Runtime::StoreManager &StoreMgr,
-                         const uint32_t TableIndexSrc,
-                         const uint32_t TableIndexDst, const uint32_t Dst,
-                         const uint32_t Src, const uint32_t Len) noexcept;
+                         const uint32_t TableIdxDst, const uint32_t TableIdxSrc,
+                         const uint32_t DstOff, const uint32_t SrcOff,
+                         const uint32_t Len) noexcept;
   Expect<uint32_t> tableGrow(Runtime::StoreManager &StoreMgr,
-                             const uint32_t TableIndex, const RefVariant Val,
+                             const uint32_t TableIdx, const RefVariant Val,
                              const uint32_t NewSize) noexcept;
   Expect<uint32_t> tableSize(Runtime::StoreManager &StoreMgr,
-                             const uint32_t TableIndex) noexcept;
+                             const uint32_t TableIdx) noexcept;
   Expect<void> tableFill(Runtime::StoreManager &StoreMgr,
-                         const uint32_t TableIndex, const uint32_t Off,
+                         const uint32_t TableIdx, const uint32_t Off,
                          const RefVariant Ref, const uint32_t Len) noexcept;
   Expect<void> tableInit(Runtime::StoreManager &StoreMgr,
-                         const uint32_t TableIndex, const uint32_t ElemIndex,
-                         const uint32_t Dst, const uint32_t Src,
+                         const uint32_t TableIdx, const uint32_t ElemIdx,
+                         const uint32_t DstOff, const uint32_t SrcOff,
                          const uint32_t Len) noexcept;
   Expect<void> elemDrop(Runtime::StoreManager &StoreMgr,
-                        const uint32_t ElemIndex) noexcept;
+                        const uint32_t ElemIdx) noexcept;
   Expect<RefVariant> refFunc(Runtime::StoreManager &StoreMgr,
-                             const uint32_t FuncIndex) noexcept;
+                             const uint32_t FuncIdx) noexcept;
 
   template <typename FuncPtr> struct ProxyHelper;
 
@@ -540,7 +544,7 @@ private:
   Runtime::StoreManager *CurrentStore;
   /// Execution context for compiled functions
   struct ExecutionContext {
-    uint8_t *Memory;
+    uint8_t *const *Memories;
     ValVariant *const *Globals;
     uint64_t *InstrCount;
     uint64_t *CostTable;

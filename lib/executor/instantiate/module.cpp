@@ -140,14 +140,6 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     return Unexpect(Res);
   }
 
-  // Prepare pointers for compiled functions
-  ModInst->GlobalsPtr.reserve(ModInst->getGlobalNum());
-  for (uint32_t I = 0; I < static_cast<uint32_t>(ModInst->getGlobalNum());
-       ++I) {
-    ModInst->GlobalsPtr.push_back(
-        &(*StoreMgr.getGlobal(*ModInst->getGlobalAddr(I)))->getValue());
-  }
-
   // Instantiate StartSection (StartSec)
   const AST::StartSection &StartSec = Mod.getStartSection();
   if (StartSec.getContent()) {

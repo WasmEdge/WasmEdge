@@ -10,6 +10,9 @@ namespace Executor {
 Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::MemorySection &MemSec) {
+  // Prepare pointers vector for compiled functions.
+  ModInst.MemoryPtrs.resize(ModInst.getMemNum() + MemSec.getContent().size());
+
   // Iterate and istantiate memory types.
   for (const auto &MemType : MemSec.getContent()) {
     // Insert memory instance to store manager.

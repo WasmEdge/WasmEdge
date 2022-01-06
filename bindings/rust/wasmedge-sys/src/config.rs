@@ -144,12 +144,19 @@ impl Config {
     }
 
     /// Enables host registration wasi.
-    pub fn enable_wasi(self) -> Self {
+    pub fn enable_wasi(self, flag: bool) -> Self {
         unsafe {
-            wasmedge::WasmEdge_ConfigureAddHostRegistration(
-                self.ctx,
-                wasmedge::WasmEdge_HostRegistration_Wasi,
-            )
+            if flag && !self.wasi_enabled() {
+                wasmedge::WasmEdge_ConfigureAddHostRegistration(
+                    self.ctx,
+                    wasmedge::WasmEdge_HostRegistration_Wasi,
+                )
+            } else if !flag && self.wasi_enabled() {
+                wasmedge::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.ctx,
+                    wasmedge::WasmEdge_HostRegistration_Wasi,
+                )
+            }
         };
         self
     }
@@ -175,12 +182,19 @@ impl Config {
     }
 
     /// Enables host registration WasmEdge process.
-    pub fn enable_wasmedge_process(self) -> Self {
+    pub fn enable_wasmedge_process(self, flag: bool) -> Self {
         unsafe {
-            wasmedge::WasmEdge_ConfigureAddHostRegistration(
-                self.ctx,
-                wasmedge::WasmEdge_HostRegistration_WasmEdge_Process,
-            )
+            if flag && !self.wasmedge_process_enabled() {
+                wasmedge::WasmEdge_ConfigureAddHostRegistration(
+                    self.ctx,
+                    wasmedge::WasmEdge_HostRegistration_WasmEdge_Process,
+                )
+            } else if !flag && self.wasmedge_process_enabled() {
+                wasmedge::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.ctx,
+                    wasmedge::WasmEdge_HostRegistration_WasmEdge_Process,
+                )
+            }
         };
         self
     }

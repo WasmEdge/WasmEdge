@@ -15,7 +15,7 @@ use std::{
     fs::{self, File},
     io::Read,
 };
-use wasmedge_sys::{Config, FuncType, Function, ImportObj, Module, ValType, Value, Vm};
+use wasmedge_sys::{Config, FuncType, Function, ImportObj, Loader, ValType, Value, Vm};
 
 fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
     println!("Rust: Entering Rust function real_add");

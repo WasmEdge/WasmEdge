@@ -40,10 +40,18 @@ impl From<RefType> for wasmedge::WasmEdge_RefType {
 impl From<std::ops::RangeInclusive<u32>> for wasmedge::WasmEdge_Limit {
     fn from(range: std::ops::RangeInclusive<u32>) -> Self {
         let (start, end) = range.into_inner();
-        Self {
-            Min: start,
-            Max: end,
-            HasMax: true,
+        if start == end {
+            Self {
+                Min: start,
+                Max: end,
+                HasMax: false,
+            }
+        } else {
+            Self {
+                Min: start,
+                Max: end,
+                HasMax: true,
+            }
         }
     }
 }
@@ -52,7 +60,7 @@ impl From<wasmedge::WasmEdge_Limit> for std::ops::RangeInclusive<u32> {
         let start = limit.Min;
         let end = match limit.HasMax {
             true => limit.Max,
-            false => u32::MAX,
+            false => limit.Min,
         };
         Self::new(start, end)
     }

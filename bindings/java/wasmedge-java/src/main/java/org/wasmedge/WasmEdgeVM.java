@@ -2,6 +2,7 @@ package org.wasmedge;
 
 import org.wasmedge.enums.HostRegistration;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class WasmEdgeVM {
@@ -120,7 +121,13 @@ public class WasmEdgeVM {
     public native void executeRegistered(String modName, String funcName, List<WasmEdgeValue> params,
                                          List<WasmEdgeValue> returns);
 
-    public native List<FunctionTypeContext> getFunctionList();
+    private native void getFunctionList(List<FunctionTypeContext> functionList);
+
+    public List<FunctionTypeContext> getFunctionList() {
+        List<FunctionTypeContext>  funcList = new ArrayList<>();
+        getFunctionList(funcList);
+        return funcList;
+    }
 
     public native FunctionTypeContext getFunctionType(String funcName);
 

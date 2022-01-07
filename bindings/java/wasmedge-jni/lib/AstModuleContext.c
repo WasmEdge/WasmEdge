@@ -22,7 +22,6 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_ASTModuleContext_listImports
 jobject createAstModuleContext(JNIEnv * env, WasmEdge_ASTModuleContext* mod) {
 
     jclass cls = findJavaClass(env, "org/wasmedge/ASTModuleContext");
-    printf("class: %s\n", (cls == NULL ? "true" : "false"));
     jmethodID constructor = findJavaMethod(env, cls, "<init>", "()V");
     jobject obj = (*env)->NewObject(env, cls, constructor);
     setPointer(env, obj, (long)mod);

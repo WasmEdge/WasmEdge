@@ -7,6 +7,8 @@
 #include <string.h>
 #include "wasmedge/wasmedge.h"
 
+bool checkAndHandleException(JNIEnv *env, const char* msg);
+
 void exitWithError(enum ErrorCode error, char* message) {
      exit(-1);
 }
@@ -46,10 +48,11 @@ void throwNoSuchMethodError(JNIEnv *env, char* methodName, char* sig) {
 jclass findJavaClass(JNIEnv* env, char * className) {
     jclass class = (*env)->FindClass(env, className);
 
-    if((*env)->ExceptionOccurred(env)) {
-        (*env)->ExceptionDescribe(env);
+    bool hasException = checkAndHandleException(env, "find class error");
+    if(hasException) {
         return NULL;
     }
+
     if(class == NULL) {
         throwNoClassDefError(env, className);
     }
@@ -68,6 +71,7 @@ void getClassName(JNIEnv* env, jobject obj, char* buff) {
 // First get the class object
     jmethodID mid = (*env)->GetMethodID(env, cls, "getClass", "()Ljava/lang/Class;");
     jobject clsObj = (*env)->CallObjectMethod(env, obj, mid);
+    checkAndHandleException(env, "get class name error");
 
 // Now get the class object's class descriptor
     cls = (*env)->GetObjectClass(env, clsObj);
@@ -77,6 +81,7 @@ void getClassName(JNIEnv* env, jobject obj, char* buff) {
 
 // Call the getName() to get a jstring object back
     jstring strObj = (jstring)(*env)->CallObjectMethod(env, clsObj, mid);
+    checkAndHandleException(env, "get name error");
 
 // Now get the c string from the java jstring object
     const char* str = (*env)->GetStringUTFChars(env, strObj, NULL);
@@ -130,6 +135,7 @@ int getIntVal(JNIEnv *env, jobject val) {
     jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()I");
 
     jint value = (*env)->CallIntMethod(env, val, methodId);
+    checkAndHandleException(env, "Error get int value");
     return value;
 }
 
@@ -193,4 +199,25 @@ enum WasmEdge_ValType *parseValueTypes(JNIEnv *env, jintArray jValueTypes) {
         valTypes[i] = elements[i];
     }
     return valTypes;
+}
+
+bool checkAndHandleException(JNIEnv *env, const char* msg) {
+    if((*env)->ExceptionCheck(env)) {
+        jthrowable e = (*env)->ExceptionOccurred(env);
+        (*env)->ExceptionClear(env);
+
+        jclass eclass = (*env)->GetObjectClass(env, e);
+
+        jmethodID mid = (*env)->GetMethodID(env, eclass, "toString", "()Ljava/lang/String;");
+        jstring jErrorMsg = (*env)->CallObjectMethod(env, e, mid);
+        const char* cMsg = (*env)->GetStringUTFChars(env, jErrorMsg, NULL);
+
+
+        (*env)->ReleaseStringUTFChars(env, jErrorMsg, cMsg);
+        jclass newExcCls = (*env)->FindClass(env, "java/lang/RuntimeException");
+        if (newExcCls == 0) { /* Unable to find the new exception class, give up. */
+            return true;
+        }
+        (*env)->ThrowNew(env, newExcCls, msg);
+    }
 }

@@ -130,10 +130,10 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_executeRegistered
 /*
  * Class:     org_wasmedge_WasmEdgeVM
  * Method:    getFunctionList
- * Signature: ()Ljava/util/List;
+ * Signature: (Ljava/util/List;)V
  */
-JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionList
-  (JNIEnv *, jobject);
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionList
+  (JNIEnv *, jobject, jobject);
 
 /*
  * Class:     org_wasmedge_WasmEdgeVM

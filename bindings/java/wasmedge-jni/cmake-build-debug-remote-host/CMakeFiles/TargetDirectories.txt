@@ -1,7 +1,0 @@
-/tmp/tmp.enZrVSRR11/cmake-build-debug-remote-host/CMakeFiles/install/strip.dir
-/tmp/tmp.enZrVSRR11/cmake-build-debug-remote-host/CMakeFiles/install/local.dir
-/tmp/tmp.enZrVSRR11/cmake-build-debug-remote-host/CMakeFiles/install.dir
-/tmp/tmp.enZrVSRR11/cmake-build-debug-remote-host/CMakeFiles/list_install_components.dir
-/tmp/tmp.enZrVSRR11/cmake-build-debug-remote-host/CMakeFiles/rebuild_cache.dir
-/tmp/tmp.enZrVSRR11/cmake-build-debug-remote-host/CMakeFiles/edit_cache.dir
-/tmp/tmp.enZrVSRR11/cmake-build-debug-remote-host/CMakeFiles/wasmedge_jni.dir

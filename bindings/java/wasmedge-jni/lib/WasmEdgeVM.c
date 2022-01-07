@@ -18,6 +18,7 @@ void setJavaIntValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
     jclass val_clazz = (*env)->GetObjectClass(env, jobj);
     jmethodID val_setter = (*env)->GetMethodID(env, val_clazz, "setValue", "(I)V");
     (*env)->CallIntMethod(env, jobj, val_setter, int_val);
+    checkAndHandleException(env, "Error set int value");
 }
 
 void setJavaLongValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
@@ -80,11 +81,9 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromFile
          jobjectArray params, jint param_size, jintArray param_types, jobjectArray returns, jint return_size,
          jintArray return_types) {
 
-    printf("Run wasm file\n");
 
     /* The configure and store context to the VM creation can be NULL. */
     WasmEdge_VMContext *VMCxt = getVmContext(env, this_object);
-    printf("Params done");
 
 
     /* The parameters and returns arrays. */
@@ -129,7 +128,6 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromFile
     /* Run the WASM function from file. */
     WasmEdge_Result Res = WasmEdge_VMRunWasmFromFile(VMCxt, c_file_path, FuncName, wasm_params, param_size, Returns, return_size);
 
-    printf("Run wasm finished\n");
     if (WasmEdge_ResultOK(Res)) {
         for (int i = 0; i < return_size; ++i) {
             setJavaValueObject(env, Returns[i], (*env)->GetObjectArrayElement(env, returns, i));
@@ -154,7 +152,6 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromFile
 
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_nativeInit
         (JNIEnv * env, jobject thisObject, jobject jConfigureContext, jobject jStoreContext) {
-    printf("Get configure context\n");
     WasmEdge_ConfigureContext* ConfigureContext = getConfigureContext(env, jConfigureContext);
     WasmEdge_StoreContext * StoreContext = getStoreContext(env, jStoreContext);
 
@@ -192,7 +189,6 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_execute
          jintArray paramTypes, jobjectArray retuns, jint returnSize, jintArray returnTypes) {
 
     WasmEdge_VMContext *VMCxt = getVmContext(env, thisObject);
-    printf("Params done");
 
 
     /* The parameters and returns arrays. */
@@ -257,8 +253,8 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_delete
     WasmEdge_VMDelete(getVmContext(env, thisObj));
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionList
-        (JNIEnv * env, jobject thisObject) {
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionList
+        (JNIEnv *env , jobject thisObject, jobject jFuncList) {
 
     WasmEdge_VMContext* vmContext = getVmContext(env, thisObject);
 
@@ -267,12 +263,12 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionList
     WasmEdge_String* nameList = (WasmEdge_String*)malloc(sizeof (struct WasmEdge_String));
     uint32_t RealFuncNum = WasmEdge_VMGetFunctionList(vmContext, nameList, funcList, funcLen);
 
-    jobject jFuncList = ConvertToJavaFunctionList(env, nameList, funcList, RealFuncNum);
+    ConvertToJavaFunctionList(env, nameList, funcList, RealFuncNum, jFuncList);
+
 
     free(funcList);
     free(nameList);
 
-    return jFuncList;
 }
 
 JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionType
@@ -283,10 +279,32 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionType
     WasmEdge_String wFuncName = WasmEdge_StringCreateByCString(funcName);
     const WasmEdge_FunctionTypeContext* functionTypeContext = WasmEdge_VMGetFunctionType(vmContext, wFuncName);
 
-    jobject jFuncType = ConvertToJavaFunctionType(env, functionTypeContext);
-
-    WasmEdge_StringDelete(wFuncName);
     (*env)->ReleaseStringUTFChars(env, jFuncName, funcName);
 
+    if(functionTypeContext == NULL) {
+        WasmEdge_StringDelete(wFuncName);
+        return NULL;
+    }
+
+    jobject jFuncType = ConvertToJavaFunctionType(env, functionTypeContext, wFuncName);
+
+    WasmEdge_StringDelete(wFuncName);
     return jFuncType;
+}
+
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromFile
+        (JNIEnv * env, jobject thisObject, jstring jModName, jstring jFileName) {
+    WasmEdge_VMContext * vmContext = getVmContext(env, thisObject);
+
+    const char* modName = (*env)->GetStringUTFChars(env, jModName, NULL);
+    WasmEdge_String wModName = WasmEdge_StringCreateByCString(modName);
+    const char* fileName = (*env)->GetStringUTFChars(env, jFileName, NULL);
+
+    WasmEdge_Result result = WasmEdge_VMRegisterModuleFromFile(vmContext, wModName, fileName);
+    (*env)->ReleaseStringUTFChars(env, jModName, modName);
+    (*env)->ReleaseStringUTFChars(env, jFileName, fileName);
+    WasmEdge_StringDelete(wModName);
+
+    handleWasmEdgeResult(env, &result);
+
 }

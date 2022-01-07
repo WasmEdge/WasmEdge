@@ -48,6 +48,10 @@ void setJavaFloatValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
 
 void setJavaDoubleValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
 
-enum WasmEdge_ValType *parseValueTypes(JNIEnv *env, jintArray jValueTypes) ;
+enum WasmEdge_ValType *parseValueTypes(JNIEnv *env, jintArray jValueTypes);
+
+bool checkAndHandleException(JNIEnv *env, const char* msg);
+
+
 
 #endif //WASMEDGE_JAVA_COMMON_H

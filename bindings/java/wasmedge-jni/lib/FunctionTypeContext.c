@@ -5,7 +5,8 @@
 #include "../jni/org_wasmedge_FunctionTypeContext.h"
 #include "wasmedge/wasmedge.h"
 
-jobject ConvertToJavaFunctionType(JNIEnv* env, const WasmEdge_FunctionTypeContext* functionTypeContext);
+
+jobject ConvertToJavaFunctionType(JNIEnv* env, const WasmEdge_FunctionTypeContext* functionTypeContext, const WasmEdge_String name);
 
 WasmEdge_FunctionTypeContext * getFunctionTypeContext(JNIEnv* env, jobject jFunctionTypeContext) {
     if (jFunctionTypeContext == NULL) {
@@ -66,37 +67,57 @@ JNIEXPORT void JNICALL Java_org_wasmedge_FunctionTypeContext_delete
 }
 
 jobject ConvertToJavaValueType(JNIEnv* env, enum WasmEdge_ValType* valType) {
-    jclass cls = findJavaClass(env, "org/wasmedge/enums/ValueType");
 
-    if(cls == NULL) {
+    jclass  valueTypeCalss = findJavaClass(env, "org/wasmedge/enums/ValueType");
+    if(valueTypeCalss == NULL) {
         return NULL;
     }
-    jmethodID jmethodId = (*env)->GetMethodID(env, cls, "parseType", "(I)Lorg/wasmedge/enums/ValueType;");
+
+    jmethodID jmethodId = (*env)->GetStaticMethodID(env, valueTypeCalss, "parseType", "(I)Lorg/wasmedge/enums/ValueType;");
 
     if(jmethodId == NULL) {
         return NULL;
     }
 
-    return (*env)->CallStaticObjectMethod(env, cls, jmethodId, (jint)*valType);
+    jobject  valueType = (*env)->CallStaticObjectMethod(env, valueTypeCalss, jmethodId, (jint)*valType);
+
+    if(checkAndHandleException(env, "Error when creating value type")) {
+        return NULL;
+    }
+
+    return valueType;
 }
 
 
 
 jobject ConvertToValueTypeList(JNIEnv* env, enum WasmEdge_ValType* list, int32_t len) {
-    jclass cls = findJavaClass(env, "java/util/ArrayList");
+    jclass listClass = findJavaClass(env, "java/util/ArrayList");
 
-    if(cls == NULL) {
+    if (listClass == NULL) {
         return NULL;
     }
-    jmethodID listConstructor = findJavaMethod(env, cls, "<init>", "()V");
+
+    jmethodID listConstructor = findJavaMethod(env, listClass, "<init>", "(I)V");
 
     if(listConstructor == NULL) {
         return NULL;
     }
 
-    jobject jList = (*env)->NewObject(env, cls, listConstructor);
+    jobject jList = (*env)->NewObject(env, listClass, listConstructor, len);
 
-    jmethodID addMethod = findJavaMethod(env, cls, "add", "(Ljava/lang/Object;)Z");
+    if(jList == NULL) {
+        return NULL;
+    }
+
+    if(checkAndHandleException(env, "Error when creating value type list\n")) {
+        return NULL;
+    }
+
+    char buf[256];
+    getClassName(env, jList, buf);
+
+
+    jmethodID addMethod = findJavaMethod(env, listClass, "add", "(Ljava/lang/Object;)Z");
 
     if(addMethod == NULL) {
         return NULL;
@@ -105,7 +126,13 @@ jobject ConvertToValueTypeList(JNIEnv* env, enum WasmEdge_ValType* list, int32_t
     enum WasmEdge_ValType* ptr = list;
     for (int i = 0; i < len; ++i) {
         jobject valueType = ConvertToJavaValueType(env, ptr);
+
         (*env)->CallBooleanMethod(env, jList, addMethod, valueType);
+
+        if(checkAndHandleException(env, "Error when adding value type\n")) {
+            return NULL;
+        }
+
         ptr++;
     }
 
@@ -113,42 +140,49 @@ jobject ConvertToValueTypeList(JNIEnv* env, enum WasmEdge_ValType* list, int32_t
 
 }
 
-jobject ConvertToJavaFunctionList(JNIEnv * env, WasmEdge_String* nameList, const WasmEdge_FunctionTypeContext** funcList, int32_t len) {
-    jclass cls = findJavaClass(env, "java/util/ArrayList");
+void ConvertToJavaFunctionList(JNIEnv * env, WasmEdge_String* nameList, const WasmEdge_FunctionTypeContext** funcList, int32_t len, jobject jFuncList) {
 
-    if(cls == NULL) {
-        return NULL;
-    }
-    jmethodID listConstructor = findJavaMethod(env, cls, "<init>", "()V");
+    jclass funcListClass = (*env)->GetObjectClass(env, jFuncList);
 
-    if(listConstructor == NULL) {
-        return NULL;
-    }
-
-    jobject jList = (*env)->NewObject(env, cls, listConstructor);
-
-    jmethodID addMethod = findJavaMethod(env, cls, "add", "(Ljava/lang/Object;)Z");
+    jmethodID addMethod = findJavaMethod(env, funcListClass, "add", "(Ljava/lang/Object;)Z");
 
     if(addMethod == NULL) {
-        return NULL;
+        return;
     }
-
 
     for (int i = 0; i < len; ++i) {
-        jobject jFunc = ConvertToJavaFunctionType(env, funcList[i]);
-        (*env)->CallBooleanMethod(env, jList, addMethod, jFunc);
+        jobject jFunc = ConvertToJavaFunctionType(env, funcList[i], nameList[i]);
+
+
+        char buf[256];
+
+        getClassName(env, jFuncList, buf);
+
+        getClassName(env, jFunc, buf);
+
+        (*env)->CallBooleanMethod(env, jFuncList, addMethod, jFunc);
+
+        sprintf(buf, "Error when converting to java function list with index: %d", i);
+
+        if(checkAndHandleException(env, buf)) {
+            return ;
+        }
     }
-    return jList;
 }
 
 
-jobject ConvertToJavaFunctionType(JNIEnv* env, const WasmEdge_FunctionTypeContext* functionTypeContext) {
+jobject ConvertToJavaFunctionType(JNIEnv* env, const WasmEdge_FunctionTypeContext* functionTypeContext, const WasmEdge_String name) {
     int retLen = WasmEdge_FunctionTypeGetReturnsLength(functionTypeContext);
     enum WasmEdge_ValType* list = (enum WasmEdge_ValType*)malloc(sizeof (enum WasmEdge_ValType) * retLen);
 
     int actualLen = WasmEdge_FunctionTypeGetReturns(functionTypeContext, list, retLen);
 
-    jobjectArray retArray = ConvertToValueTypeList(env,  list, actualLen);
+    jobject jReturnList = ConvertToValueTypeList(env,  list, actualLen);
+
+    if(jReturnList == NULL) {
+        printf("invalid return\n");
+        return NULL;
+    }
 
     free(list);
 
@@ -157,23 +191,50 @@ jobject ConvertToJavaFunctionType(JNIEnv* env, const WasmEdge_FunctionTypeContex
 
     int actualParamLen = WasmEdge_FunctionTypeGetParameters(functionTypeContext, paramList, paramLen);
 
-    jobject paramArray = ConvertToValueTypeList(env,  paramList, actualParamLen);
+    jobject jParamList = ConvertToValueTypeList(env,  paramList, actualParamLen);
+
+    if(jParamList == NULL) {
+        printf("invalid param");
+        return NULL;
+    }
 
     free(paramList);
 
-    jclass cls = findJavaClass(env, "org/wasmedge/FunctionType");
+    jclass functionTypeClass = findJavaClass(env, "org/wasmedge/FunctionTypeContext");
+    if(functionTypeClass == NULL) {
+       printf("invalid class");
+       return NULL;
+    }
 
-    if(cls == NULL) {
+
+    jmethodID constructor  = findJavaMethod(env, functionTypeClass, "<init>", "(Ljava/util/List;Ljava/util/List;)V");
+
+    printf("create jfun\n");
+    jobject jFunc = (*env)->NewObject(env, functionTypeClass, constructor, jParamList, jReturnList);
+
+    if(checkAndHandleException(env, "Error when creating function type context.\n")) {
         return NULL;
     }
 
-    jmethodID constructor  = findJavaMethod(env, cls, "<init>", "([Lorg/wasmedge/ValueType;[Lorg/wasmedge/ValueType)V");
+    printf("get setter\n");
+    jmethodID nameSetter = (*env)->GetMethodID(env, functionTypeClass, "setName", "(Ljava/lang/String;)V");
 
-    if(constructor == NULL) {
+    uint32_t  len = 256;
+    char BUF[len];
+    printf("name from buffer:%d\n", name.Length);
+    WasmEdge_StringCopy(name, BUF, len);
+    printf("name from buffer:%s\n", BUF);
+    jstring jstr = (*env)->NewStringUTF(env, BUF);
+
+    printf("set name %s\n", BUF);
+    (*env)->CallVoidMethod(env, jFunc, nameSetter, jstr);
+
+
+    if(checkAndHandleException(env, "Error when setting function type context name.\n")) {
         return NULL;
     }
 
-    return (*env)->NewObject(env, cls, constructor, paramArray, retArray);
+    return jFunc;
 }
 
 

@@ -35,6 +35,13 @@ public class FunctionTypeContext {
                 .collect(Collectors.toList());
     }
 
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
 
     public List<ValueType> getParameters() {
         return getTypeList(nativeGetParameters());

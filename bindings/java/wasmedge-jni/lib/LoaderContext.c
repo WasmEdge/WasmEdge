@@ -14,7 +14,6 @@ WasmEdge_LoaderContext * getLoader(JNIEnv *env, jobject jLoader) {
 
 JNIEXPORT jobject JNICALL Java_org_wasmedge_LoaderContext_parseFromFile
         (JNIEnv * env, jobject thisObject, jstring jInputPath) {
-    printf("calling parsing from file");
     WasmEdge_LoaderContext *loader = getLoader(env, thisObject);
 
     const char* inputPath = (*env)->GetStringUTFChars(env, jInputPath, NULL);

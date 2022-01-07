@@ -9,7 +9,7 @@
 #include "jni.h"
 
 WasmEdge_FunctionTypeContext * getFunctionTypeContext(JNIEnv* env, jobject jFunctionTypeContext);
-jobject ConvertToJavaFunctionList(JNIEnv * env, WasmEdge_String* nameList, const WasmEdge_FunctionTypeContext** funcList, int32_t len);
+jobject ConvertToJavaFunctionList(JNIEnv * env, WasmEdge_String* nameList, const WasmEdge_FunctionTypeContext** funcList, int32_t len, jobject jFuncList);
 
-jobject ConvertToJavaFunctionType(JNIEnv* env, const WasmEdge_FunctionTypeContext* functionTypeContext);
+jobject ConvertToJavaFunctionType(JNIEnv* env, const WasmEdge_FunctionTypeContext* functionTypeContext, WasmEdge_String name);
 #endif //WASMEDGE_JAVA_FUNCTIONTYPECONTEXT_H

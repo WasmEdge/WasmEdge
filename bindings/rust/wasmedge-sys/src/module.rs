@@ -2,13 +2,11 @@
 
 use super::wasmedge;
 use crate::{
-    error::{check, ExportError, ImportError, WasmEdgeError, WasmEdgeResult},
+    error::{ExportError, ImportError, WasmEdgeError, WasmEdgeResult},
     instance::{function::FuncType, global::GlobalType, memory::MemType, table::TableType},
     types::ExternalType,
-    utils, Config,
 };
-use ::core::mem::MaybeUninit as MU;
-use std::{borrow::Cow, ffi::CStr, path::Path};
+use std::{borrow::Cow, ffi::CStr};
 
 /// Struct of WasmEdge AST (short for abstract syntax tree) Module.
 ///
@@ -33,97 +31,6 @@ impl Drop for Module {
     }
 }
 impl Module {
-    /// Creates a WasmEdge AST [`Module`] from a WASM file.
-    ///
-    /// # Arguments
-    ///
-    /// - `config` specifies the configuration used by the [Loader](crate::Loader) under the hood.
-    ///
-    /// - `path` specifies the path to the WASM file.
-    ///
-    /// # Error
-    ///
-    /// If fail to create a [Module](crate::Module), then an error is returned.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use wasmedge_sys::{Config, Module};
-    /// use std::path::PathBuf;
-    ///
-    /// let path = PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/test.wasm");
-    /// let config = Config::create().expect("fail to create Config context");
-    /// // set configurations if needed
-    ///
-    /// let module = Module::create_from_file(&config, path).expect("fail to create a module from a wasm file");
-    /// ```
-    pub fn create_from_file<P: AsRef<Path>>(config: &Config, path: P) -> WasmEdgeResult<Self> {
-        let loader_ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config.ctx) };
-        let mut ctx: *mut wasmedge::WasmEdge_ASTModuleContext = std::ptr::null_mut();
-
-        let path = utils::path_to_cstring(path.as_ref())?;
-
-        unsafe {
-            check(wasmedge::WasmEdge_LoaderParseFromFile(
-                loader_ctx,
-                &mut ctx as *mut _,
-                path.as_ptr(),
-            ))?;
-        }
-
-        Ok(Self {
-            ctx,
-            registered: false,
-        })
-    }
-
-    /// Creates a WasmEdge AST [`Module`] from a WASM binary buffer.
-    ///
-    /// # Arguments
-    ///
-    /// - `config` specifies the configuration used by the [Loader](crate::Loader) under the hood.
-    ///
-    /// - `buffer` specifies the buffer of a WASM binary.
-    ///
-    /// # Error
-    ///
-    /// If fail to create a [`Module`], then an error is returned.
-    pub fn create_from_buffer(config: &Config, buffer: &[u8]) -> WasmEdgeResult<Self> {
-        let loader_ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config.ctx) };
-        let mut ctx: *mut wasmedge::WasmEdge_ASTModuleContext = std::ptr::null_mut();
-
-        let ptr = unsafe {
-            let ptr = libc::malloc(buffer.len());
-            let dst = ::core::slice::from_raw_parts_mut(ptr.cast::<MU<u8>>(), buffer.len());
-            let src = ::core::slice::from_raw_parts(buffer.as_ptr().cast::<MU<u8>>(), buffer.len());
-            dst.copy_from_slice(src);
-            ptr
-        };
-
-        let res = unsafe {
-            wasmedge::WasmEdge_LoaderParseFromBuffer(
-                loader_ctx,
-                &mut ctx as *mut _,
-                ptr as *const u8,
-                buffer.len() as u32,
-            )
-        };
-
-        unsafe {
-            libc::free(ptr as *mut libc::c_void);
-        }
-
-        check(res)?;
-
-        match ctx.is_null() {
-            true => Err(WasmEdgeError::ModuleCreate),
-            false => Ok(Self {
-                ctx,
-                registered: false,
-            }),
-        }
-    }
-
     /// Returns the number of the imports of the [`Module`].
     pub fn count_of_imports(&self) -> u32 {
         unsafe { wasmedge::WasmEdge_ASTModuleListImportsLength(self.ctx) }
@@ -470,115 +377,10 @@ impl Export {
 
 #[cfg(test)]
 mod tests {
-    use super::Module;
     use crate::{
-        Config, ExportError, ExternalType, ImportError, Mutability, RefType, ValType, WasmEdgeError,
+        Config, ExportError, ExternalType, ImportError, Loader, Mutability, RefType, ValType,
+        WasmEdgeError,
     };
-
-    #[test]
-    fn test_module_from_buffer() {
-        let wasm_path =
-            std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/test.wasm");
-        let result = std::fs::read(wasm_path);
-        assert!(result.is_ok());
-        let buf = result.unwrap();
-
-        let result = Config::create();
-        assert!(result.is_ok());
-        let result = Config::create();
-        assert!(result.is_ok());
-        let conf = result.unwrap();
-        let conf = conf.enable_bulk_memory_operations(true);
-        assert!(conf.bulk_memory_operations_enabled());
-
-        let result = Module::create_from_buffer(&conf, &buf);
-        assert!(result.is_ok());
-        let module = result.unwrap();
-        assert!(!module.ctx.is_null());
-
-        // check the counts of imports and exports
-        assert_eq!(module.count_of_imports(), 6);
-        assert_eq!(module.count_of_exports(), 16);
-
-        // check imports
-        let imports_iter = module.imports_iter();
-        for import in imports_iter {
-            match import.ty() {
-                ExternalType::Function => assert!(
-                    import.function_type(&module).is_ok()
-                        && import.global_type(&module).is_err()
-                        && import.memory_type(&module).is_err()
-                        && import.table_type(&module).is_err()
-                ),
-                ExternalType::Global => assert!(
-                    import.function_type(&module).is_err()
-                        && import.global_type(&module).is_ok()
-                        && import.memory_type(&module).is_err()
-                        && import.table_type(&module).is_err()
-                ),
-                ExternalType::Memory => assert!(
-                    import.function_type(&module).is_err()
-                        && import.global_type(&module).is_err()
-                        && import.memory_type(&module).is_ok()
-                        && import.table_type(&module).is_err()
-                ),
-                ExternalType::Table => assert!(
-                    import.function_type(&module).is_err()
-                        && import.global_type(&module).is_err()
-                        && import.memory_type(&module).is_err()
-                        && import.table_type(&module).is_ok()
-                ),
-            }
-        }
-
-        // check exports
-        let exports_iter = module.exports_iter();
-        for export in exports_iter {
-            match export.ty() {
-                ExternalType::Function => assert!(
-                    export.function_type(&module).is_ok()
-                        && export.global_type(&module).is_err()
-                        && export.memory_type(&module).is_err()
-                        && export.table_type(&module).is_err()
-                ),
-                ExternalType::Global => assert!(
-                    export.function_type(&module).is_err()
-                        && export.global_type(&module).is_ok()
-                        && export.memory_type(&module).is_err()
-                        && export.table_type(&module).is_err()
-                ),
-                ExternalType::Memory => assert!(
-                    export.function_type(&module).is_err()
-                        && export.global_type(&module).is_err()
-                        && export.memory_type(&module).is_ok()
-                        && export.table_type(&module).is_err()
-                ),
-                ExternalType::Table => assert!(
-                    export.function_type(&module).is_err()
-                        && export.global_type(&module).is_err()
-                        && export.memory_type(&module).is_err()
-                        && export.table_type(&module).is_ok()
-                ),
-            }
-        }
-    }
-
-    #[test]
-    fn test_module_from_file() {
-        let path =
-            std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/import.wasm");
-
-        let result = Config::create();
-        assert!(result.is_ok());
-        let conf = result.unwrap();
-        let conf = conf.enable_bulk_memory_operations(true);
-        assert!(conf.bulk_memory_operations_enabled());
-
-        let result = Module::create_from_file(&conf, path);
-        assert!(result.is_ok());
-        let module = result.unwrap();
-        assert!(!module.ctx.is_null());
-    }
 
     #[test]
     fn test_module_import() {
@@ -587,11 +389,15 @@ mod tests {
 
         let result = Config::create();
         assert!(result.is_ok());
-        let conf = result.unwrap();
-        let conf = conf.enable_bulk_memory_operations(true);
-        assert!(conf.bulk_memory_operations_enabled());
+        let config = result.unwrap();
+        let config = config.enable_bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
 
-        let result = Module::create_from_file(&conf, path);
+        // load module from file
+        let result = Loader::create(Some(&config));
+        assert!(result.is_ok());
+        let loader = result.unwrap();
+        let result = loader.from_file(path);
         assert!(result.is_ok());
         let module = result.unwrap();
         assert!(!module.ctx.is_null());
@@ -728,11 +534,15 @@ mod tests {
 
         let result = Config::create();
         assert!(result.is_ok());
-        let conf = result.unwrap();
-        let conf = conf.enable_bulk_memory_operations(true);
-        assert!(conf.bulk_memory_operations_enabled());
+        let config = result.unwrap();
+        let config = config.enable_bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
 
-        let result = Module::create_from_file(&conf, path);
+        // load module from file
+        let result = Loader::create(Some(&config));
+        assert!(result.is_ok());
+        let loader = result.unwrap();
+        let result = loader.from_file(path);
         assert!(result.is_ok());
         let module = result.unwrap();
         assert!(!module.ctx.is_null());

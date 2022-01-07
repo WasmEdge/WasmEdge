@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/key_exchange/dh/x25519.h"
-#include "host/wasi_crypto/wrapper/random.h"
 #include "host/wasi_crypto/wrapper/x25519.h"
 
 namespace WasmEdge {

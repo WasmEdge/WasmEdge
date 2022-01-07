@@ -4,7 +4,6 @@
 #include "common/span.h"
 #include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/key_exchange/alg.h"
-#include "host/wasi_crypto/wrapper/openssl.h"
 #include "openssl/evp.h"
 
 namespace WasmEdge {

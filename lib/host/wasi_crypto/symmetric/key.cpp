@@ -12,7 +12,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-WasiCryptoExpect<Key> Key::generate(SymmetricAlgorithm Alg,
+WasiCryptoExpect<std::unique_ptr<Key>> Key::generate(SymmetricAlgorithm Alg,
                                     std::shared_ptr<Option> OptOption) {
   auto Builder = builder(Alg);
   if (!Builder) {
@@ -21,7 +21,7 @@ WasiCryptoExpect<Key> Key::generate(SymmetricAlgorithm Alg,
   return (*Builder)->generate(OptOption);
 }
 
-WasiCryptoExpect<Key> Key::import(SymmetricAlgorithm Alg,
+WasiCryptoExpect<std::unique_ptr<Key>> Key::import(SymmetricAlgorithm Alg,
                                   Span<uint8_t const> Raw) {
   auto Builder = builder(Alg);
   if (!Builder) {

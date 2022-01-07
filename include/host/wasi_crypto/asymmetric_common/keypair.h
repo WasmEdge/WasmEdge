@@ -22,7 +22,7 @@ public:
 
   static WasiCryptoExpect<KeyPair> generate(__wasi_algorithm_type_e_t AlgType,
                                             std::string_view AlgStr,
-                                            std::optional<Common::Options> OptOptions);
+                                            std::shared_ptr<Common::Options> OptOptions);
 
   static WasiCryptoExpect<KeyPair> import(__wasi_algorithm_type_e_t AlgType,
                                           std::string_view AlgStr,

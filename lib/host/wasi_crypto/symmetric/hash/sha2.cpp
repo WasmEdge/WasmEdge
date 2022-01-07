@@ -18,7 +18,7 @@ constexpr EVP_MD const *getMd(SymmetricAlgorithm Alg) {
   case SymmetricAlgorithm::Sha512_256:
     return EVP_sha512_256();
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 } // namespace
@@ -45,9 +45,8 @@ WasiCryptoExpect<void> Sha2State::squeeze(Span<uint8_t> Out) {
   // state and apply the finalization on the copy, leaving the state unchanged
   // from the guest perspective.
 
-  // allocate by EVP_MD_CTX_copy
-  EVP_MD_CTX *CopyCtx = nullptr;
-  opensslAssuming(EVP_MD_CTX_copy(CopyCtx, Ctx.get()));
+  EVP_MD_CTX *CopyCtx = EVP_MD_CTX_new();
+  opensslAssuming(EVP_MD_CTX_copy_ex(CopyCtx, Ctx.get()));
 
   // Note: just copy `Out.size()` length from ctx. However, OpenSSL don't have
   // such a function, it will copy `EVP_MD_CTX_size(CopyCtx)`, so create Cache

@@ -59,8 +59,6 @@ public:
 
   virtual WasiCryptoExpect<__wasi_size_t> maxTagLen();
 
-private:
-  std::shared_mutex Mutex;
 };
 
 } // namespace Symmetric

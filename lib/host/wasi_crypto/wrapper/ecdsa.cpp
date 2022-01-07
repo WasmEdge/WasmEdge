@@ -58,7 +58,7 @@ EcdsaPkCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
   case __WASI_PUBLICKEY_ENCODING_LOCAL:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
-    __buitin_unreachable()();
+    assumingUnreachable();
   }
 
   return EcdsaPkCtx{OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free>{Pk}};
@@ -84,7 +84,7 @@ EcdsaPkCtx::exportData(__wasi_publickey_encoding_e_t Encoding) {
   case __WASI_PUBLICKEY_ENCODING_LOCAL:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
-    __buitin_unreachable()();
+    assumingUnreachable();
   }
 }
 
@@ -119,7 +119,7 @@ EcdsaSkCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
   case __WASI_SECRETKEY_ENCODING_LOCAL:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
-    __buitin_unreachable()();
+    assumingUnreachable();
   }
 
   return EcdsaSkCtx{OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free>{Sk}};
@@ -150,7 +150,7 @@ EcdsaSkCtx::exportData(__wasi_secretkey_encoding_e_t Encoding) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   }
   default:
-    __buitin_unreachable()();
+    assumingUnreachable();
   }
 }
 
@@ -173,7 +173,7 @@ EcdsaKpCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
   case __WASI_KEYPAIR_ENCODING_LOCAL:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
-    __buitin_unreachable()();
+    assumingUnreachable();
   }
 
   return EcdsaKpCtx{OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free>{Kp}};
@@ -221,7 +221,7 @@ EcdsaKpCtx::exportData(__wasi_keypair_encoding_e_t Encoding) {
   case __WASI_KEYPAIR_ENCODING_LOCAL:
     break;
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }

@@ -22,9 +22,6 @@ public:
   import(Span<uint8_t const> Raw) override;
 
   WasiCryptoExpect<__wasi_size_t> keyLen() override;
-
-private:
-  SymmetricAlgorithm Alg;
 };
 
 class ChaChaPolyState : public AEADsState {

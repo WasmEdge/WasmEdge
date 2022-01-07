@@ -20,9 +20,6 @@ public:
   import(Span<uint8_t const> Raw) override;
 
   WasiCryptoExpect<__wasi_size_t> keyLen() override;
-
-private:
-  SymmetricAlgorithm Alg;
 };
 
 class XoodyakState : public SessionState {
@@ -31,7 +28,6 @@ public:
   open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
        std::shared_ptr<Option> OptOption);
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override;
-  WasiCryptoExpect<__wasi_size_t> maxTagLen() override;
   WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) override;
   WasiCryptoExpect<__wasi_size_t>
   decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,

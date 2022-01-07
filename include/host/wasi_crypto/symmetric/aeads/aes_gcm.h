@@ -17,14 +17,13 @@ class AesGcmKeyBuilder : public Key::Builder {
 public:
   using Builder::Builder;
 
-  WasiCryptoExpect<std::unique_ptr<Key>> generate(std::shared_ptr<Option> OptOption) override;
+  WasiCryptoExpect<std::unique_ptr<Key>>
+  generate(std::shared_ptr<Option> OptOption) override;
 
-  WasiCryptoExpect<std::unique_ptr<Key>> import(Span<uint8_t const> Raw) override;
+  WasiCryptoExpect<std::unique_ptr<Key>>
+  import(Span<uint8_t const> Raw) override;
 
   WasiCryptoExpect<__wasi_size_t> keyLen() override;
-
-private:
-  SymmetricAlgorithm Alg;
 };
 
 // Nonce = IV,
@@ -34,7 +33,8 @@ public:
 
   inline static constexpr __wasi_size_t TagLen = 16;
 
-  AesGcmState(EVP_CIPHER_CTX *Ctx) : Ctx(Ctx) {}
+  AesGcmState(EVP_CIPHER_CTX *Ctx, std::shared_ptr<Option> OptOption)
+      : Ctx(Ctx), OptOption(OptOption) {}
 
   /// There are four inputs for authenticated encryption:
   /// @param[in] OptKey The secret key for encrypt
@@ -69,12 +69,12 @@ protected:
                            Span<uint8_t const> RawTag) override;
 
 private:
-  std::shared_ptr<Option> OptOption;
 
   enum Mode { Unchanged = -1, Decrypt = 0, Encrypt = 1 };
 
   //  SymmetricAlgorithm Alg;
   EvpCipherCtxPtr Ctx;
+  std::shared_ptr<Option> OptOption;
 };
 
 } // namespace Symmetric

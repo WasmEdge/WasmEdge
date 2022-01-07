@@ -9,7 +9,7 @@ namespace WASICrypto {
 WasiCryptoExpect<__wasi_keypair_t> WasiCryptoContext::keypairGenerate(
     __wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
     std::optional<__wasi_options_t> OptOptionsHandle) {
-  std::optional<Options> OptOptions;
+  std::shared_ptr<Common::Options> OptOptions;
   if (OptOptionsHandle) {
     auto Res = OptionsManger.get(*OptOptionsHandle);
     if (!Res) {

@@ -7,6 +7,8 @@
 #include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/symmetric/options.h"
 
+#include <memory>
+
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
@@ -54,10 +56,10 @@ public:
     const SymmetricAlgorithm Alg;
   };
 
-  static WasiCryptoExpect<Key> generate(SymmetricAlgorithm Alg,
+  static WasiCryptoExpect<std::unique_ptr<Key>> generate(SymmetricAlgorithm Alg,
                                         std::shared_ptr<Option> OptOption);
 
-  static WasiCryptoExpect<Key> import(SymmetricAlgorithm Alg,
+  static WasiCryptoExpect<std::unique_ptr<Key>> import(SymmetricAlgorithm Alg,
                                       Span<uint8_t const> Raw);
 
   static WasiCryptoExpect<std::unique_ptr<Key::Builder>>

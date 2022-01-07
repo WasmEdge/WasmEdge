@@ -11,6 +11,7 @@ namespace WASICrypto {
 namespace Common {
 
 std::unique_ptr<Options> Options::open(__wasi_algorithm_type_e_t Alg) {
+
   switch (Alg) {
   case __WASI_ALGORITHM_TYPE_SIGNATURES:
     return std::make_unique<SignatureOptions>(Alg);
@@ -19,7 +20,7 @@ std::unique_ptr<Options> Options::open(__wasi_algorithm_type_e_t Alg) {
   case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE:
     return std::make_unique<KxOptions>(Alg);
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 

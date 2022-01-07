@@ -17,7 +17,7 @@ constexpr EVP_MD const *getMd(SymmetricAlgorithm Alg) {
     return EVP_sha512();
     break;
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 } // namespace
@@ -90,8 +90,8 @@ WasiCryptoExpect<void> HmacSha2State::absorb(Span<const uint8_t> Data) {
 }
 
 WasiCryptoExpect<Tag> HmacSha2State::squeezeTag() {
-  EVP_MD_CTX *CopyCtx = nullptr;
-  opensslAssuming(EVP_MD_CTX_copy(CopyCtx, Ctx.get()));
+  EVP_MD_CTX *CopyCtx = EVP_MD_CTX_new();
+  opensslAssuming(EVP_MD_CTX_copy_ex(CopyCtx, Ctx.get()));
 
   size_t ActualOutSize;
   opensslAssuming(EVP_DigestSignFinal(CopyCtx, nullptr, &ActualOutSize));

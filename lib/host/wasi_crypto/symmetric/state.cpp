@@ -20,7 +20,7 @@ State::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
   if (OptKey) {
     // ensure key's alg equal with input alg
     ensureOrReturn(
-        (OptKey->inner().locked([](auto &Key) { return Key.Alg; }) != Alg),
+        OptKey->inner().locked([](auto &Inner) { return Inner.Alg; }) == Alg,
         __WASI_CRYPTO_ERRNO_INVALID_KEY);
   }
 
@@ -71,15 +71,15 @@ State::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
       return std::move(*Res);
     }
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 
-WasiCryptoExpect<void> State::absorb(Span<const uint8_t> Data) {
+WasiCryptoExpect<void> State::absorb(Span<const uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<void> State::squeeze(Span<uint8_t> Out) {
+WasiCryptoExpect<void> State::squeeze(Span<uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
@@ -87,28 +87,27 @@ WasiCryptoExpect<void> State::ratchet() {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<__wasi_size_t> State::encrypt(Span<uint8_t> Out,
-                                               Span<const uint8_t> Data) {
+WasiCryptoExpect<__wasi_size_t> State::encrypt(Span<uint8_t>,
+                                               Span<const uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<Tag> State::encryptDetached(Span<uint8_t> Out,
-                                             Span<const uint8_t> Data) {
+WasiCryptoExpect<Tag> State::encryptDetached(Span<uint8_t>,
+                                             Span<const uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<__wasi_size_t> State::decrypt(Span<uint8_t> Out,
-                                               Span<const uint8_t> Data) {
+WasiCryptoExpect<__wasi_size_t> State::decrypt(Span<uint8_t>,
+                                               Span<const uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<__wasi_size_t> State::decryptDetached(Span<uint8_t> Out,
-                                                       Span<const uint8_t> Data,
-                                                       Span<uint8_t> RawTag) {
+WasiCryptoExpect<__wasi_size_t>
+State::decryptDetached(Span<uint8_t>, Span<const uint8_t>, Span<uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<std::unique_ptr<Key>> State::squeezeKey(SymmetricAlgorithm KeyAlg) {
+WasiCryptoExpect<std::unique_ptr<Key>> State::squeezeKey(SymmetricAlgorithm) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 

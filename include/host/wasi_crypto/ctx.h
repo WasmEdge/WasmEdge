@@ -689,7 +689,7 @@ private:
   WasiCryptoExpect<__wasi_array_output_t>
   allocateArrayOutput(std::vector<uint8_t> &&Data);
 
-  WasiCryptoExpect<Symmetric::Option>
+  WasiCryptoExpect<std::shared_ptr<Symmetric::Option>>
   readSymmetricOption(std::optional<__wasi_options_t> OptOptionsHandle);
 
   WasiCryptoExpect<std::shared_ptr<Symmetric::Key>>
@@ -709,7 +709,7 @@ private:
   HandlesManger<__wasi_symmetric_state_t, std::shared_ptr<Symmetric::State>> SymmetricStateManger{
       0x08};
   HandlesManger<__wasi_symmetric_key_t, std::shared_ptr<Symmetric::Key>> SymmetricKeyManger{0x09};
-  HandlesManger<__wasi_symmetric_tag_t, std::shared_ptr<Symmetric::Tag>> SymmetricTagManger{0xa};
+  HandlesManger<__wasi_symmetric_tag_t, Symmetric::Tag> SymmetricTagManger{0xa};
 };
 
 } // namespace WASICrypto

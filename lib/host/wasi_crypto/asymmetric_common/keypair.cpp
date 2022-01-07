@@ -9,14 +9,12 @@ namespace WASICrypto {
 WasiCryptoExpect<KeyPair>
 WASICrypto::KeyPair::generate(__wasi_algorithm_type_e_t AlgType,
                               std::string_view AlgStr,
-                              std::optional<Options> OptOptions) {
+                              std::shared_ptr<Common::Options> OptOptions) {
 
   switch (AlgType) {
   case __WASI_ALGORITHM_TYPE_SIGNATURES: {
-    auto OptSigOptions = optOptionsAs<SignatureOptions>(OptOptions);
-    if (!OptSigOptions) {
-      return WasiCryptoUnexpect(OptSigOptions);
-    }
+    auto OptSigOptions = std::dynamic_pointer_cast<SignatureOptions>(OptOptions);
+    ensureOrReturn(OptSigOptions, __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
     auto Alg = tryFrom<SignatureAlgorithm>(AlgStr);
     if (!Alg) {
@@ -31,10 +29,8 @@ WASICrypto::KeyPair::generate(__wasi_algorithm_type_e_t AlgType,
     return KeyPair{*SigKp};
   }
   case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE: {
-    auto OptKxOptions = optOptionsAs<KxOptions>(OptOptions);
-    if (!OptKxOptions) {
-      return WasiCryptoUnexpect(OptKxOptions);
-    }
+    auto OptKxOptions = std::dynamic_pointer_cast<KxOptions>(OptOptions);
+    ensureOrReturn(OptKxOptions, __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
     auto Alg = tryFrom<KxAlgorithm>(AlgStr);
     if (!Alg) {

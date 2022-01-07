@@ -11,17 +11,40 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 namespace {
-constexpr size_t getNonceSize(SymmetricAlgorithm Alg) {
+constexpr __wasi_size_t getNonceSize(SymmetricAlgorithm Alg) {
   switch (Alg) {
   case SymmetricAlgorithm::ChaCha20Poly1305:
     return 12;
   case SymmetricAlgorithm::XChaCha20Poly1305:
     return 24;
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
-inline size_t TagLen = 12;
+
+constexpr const EVP_CIPHER *getCipher(SymmetricAlgorithm Alg) {
+  switch (Alg) {
+  case SymmetricAlgorithm::ChaCha20Poly1305:
+    return EVP_chacha20_poly1305();
+  case SymmetricAlgorithm::XChaCha20Poly1305:
+    return EVP_chacha20_poly1305();
+  default:
+    assumingUnreachable();
+  }
+}
+
+//constexpr __wasi_size_t getKeySize(SymmetricAlgorithm Alg) {
+//  switch (Alg) {
+//  case SymmetricAlgorithm::ChaCha20Poly1305:
+//    return 16;
+//  case SymmetricAlgorithm::XChaCha20Poly1305:
+//    return 32;
+//  default:
+//    assumingUnreachable();
+//  }
+//}
+
+inline __wasi_size_t TagLen = 12;
 } // namespace
 
 WasiCryptoExpect<std::unique_ptr<ChaChaPolyState>>
@@ -30,21 +53,23 @@ ChaChaPolyState::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
   ensureOrReturn(OptKey, __WASI_CRYPTO_ERRNO_KEY_REQUIRED);
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
 
-  // Init unique_ptr
-  EVP_CIPHER_CTX *Ctx = EVP_CIPHER_CTX_new();
-  opensslAssuming(Ctx);
-
-  std::vector<uint8_t> Key =
-      OptKey->inner().locked([](auto &Inner) { return Inner.Data; });
-
   auto Nonce = OptOption->get("nonce");
   if (!Nonce) {
     return WasiCryptoUnexpect(Nonce);
   }
 
-  opensslAssuming(EVP_CipherInit_ex(Ctx, EVP_chacha20_poly1305(), nullptr,
-                                    Key.data(), Nonce->data(),
-                                    Mode::Unchanged));
+  std::vector<uint8_t> Key =
+      OptKey->inner().locked([](auto &Inner) { return Inner.Data; });
+
+  ensureOrReturn(Nonce->size() == getNonceSize(Alg),
+                 __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+//  ensureOrReturn(getKeySize(Alg) == Key.size(),
+//                 __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+
+  EVP_CIPHER_CTX *Ctx = EVP_CIPHER_CTX_new();
+  opensslAssuming(Ctx);
+  opensslAssuming(EVP_CipherInit(Ctx, getCipher(Alg), Key.data(), Nonce->data(),
+                                 Mode::Unchanged));
 
   return std::make_unique<ChaChaPolyState>(Ctx);
 }
@@ -94,7 +119,6 @@ ChaChaPolyState::optionsGetU64(std::string_view Name) {
 
 WasiCryptoExpect<void> ChaChaPolyState::absorb(Span<const uint8_t> Data) {
   int Len;
-  // TODO: need change Openssl AAD default length from 12 if beyond?
   opensslAssuming(
       EVP_CipherUpdate(Ctx.get(), nullptr, &Len, Data.data(), Data.size()));
 
@@ -133,9 +157,7 @@ ChaChaPolyState::encryptDetachedUnchecked(Span<uint8_t> Out,
   opensslAssuming(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL));
 
   // Gen tag
-  std::vector<uint8_t> RawTagData;
-  RawTagData.reserve(TagLen);
-  RawTagData.resize(TagLen);
+  std::vector<uint8_t> RawTagData(TagLen);
 
   opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_GET_TAG, TagLen,
                                       RawTagData.data()));

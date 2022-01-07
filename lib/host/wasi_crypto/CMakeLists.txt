@@ -43,7 +43,6 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   key_exchange/keypair.cpp
   key_exchange/publickey.cpp
   key_exchange/dh/x25519.cpp
-  wrapper/random.cpp
   wrapper/x25519.cpp
   wrapper/ecdsa.cpp
   wrapper/eddsa.cpp

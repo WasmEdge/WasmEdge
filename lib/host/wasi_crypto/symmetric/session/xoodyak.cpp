@@ -45,9 +45,7 @@ XoodyakState::open(SymmetricAlgorithm, std::shared_ptr<Key>,
 WasiCryptoExpect<void> XoodyakState::absorb(Span<const uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
-WasiCryptoExpect<__wasi_size_t> XoodyakState::maxTagLen() {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-}
+
 WasiCryptoExpect<void> XoodyakState::squeeze(Span<uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }

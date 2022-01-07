@@ -21,7 +21,7 @@ constexpr std::tuple<const EVP_MD *, int> getConfig(SymmetricAlgorithm Alg) {
   case SymmetricAlgorithm::HkdfSha512Expand:
     return {EVP_sha512(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY};
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 } // namespace
@@ -80,32 +80,29 @@ HkdfState::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
 }
 
 WasiCryptoExpect<void> HkdfState::absorb(Span<const uint8_t> Data) {
-  switch (Alg) {
-  case SymmetricAlgorithm::HkdfSha256Extract:
-  case SymmetricAlgorithm::HkdfSha512Extract:
-    opensslAssuming(
-        EVP_PKEY_CTX_set1_hkdf_salt(Ctx.get(), Data.data(), Data.size()));
-    return {};
-  case SymmetricAlgorithm::HkdfSha256Expand:
-  case SymmetricAlgorithm::HkdfSha512Expand:
-    opensslAssuming(
-        EVP_PKEY_CTX_add1_hkdf_info(Ctx.get(), Data.data(), Data.size()));
-    return {};
-  default:
-    __builtin_unreachable();
-  }
+  Cache.insert(Cache.end(), Data.begin(), Data.end());
+  return {};
+  //  switch (Alg) {
+  //  case SymmetricAlgorithm::HkdfSha256Extract:
+  //  case SymmetricAlgorithm::HkdfSha512Extract:
+  //    ensureOrReturn(Cache, __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  //    opensslAssuming(
+  //        EVP_PKEY_CTX_set1_hkdf_salt(Ctx.get(), Data.data(), Data.size()));
+  //    return {};
+  //  case SymmetricAlgorithm::HkdfSha256Expand:
+  //  case SymmetricAlgorithm::HkdfSha512Expand:
+  //    opensslAssuming(
+  //        EVP_PKEY_CTX_add1_hkdf_info(Ctx.get(), Data.data(), Data.size()));
+  //    return {};
+  //  default:
+  //    assumingUnreachable();
+  //  }
 }
 
 WasiCryptoExpect<std::unique_ptr<Key>>
-HkdfState::squeezeKey(SymmetricAlgorithm Alg) {
-  switch (Alg) {
-  case SymmetricAlgorithm::HkdfSha256Extract:
-    break;
-  case SymmetricAlgorithm::HkdfSha512Extract:
-    break;
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-  }
+HkdfState::squeezeKey(SymmetricAlgorithm InputAlg) {
+  opensslAssuming(
+      EVP_PKEY_CTX_set1_hkdf_salt(Ctx.get(), Cache.data(), Cache.size()));
 
   // check Size
   size_t Size;
@@ -115,13 +112,19 @@ HkdfState::squeezeKey(SymmetricAlgorithm Alg) {
   opensslAssuming(EVP_PKEY_derive(Ctx.get(), Data.data(), &Size));
 
   // TODO: may a better way
-  return std::make_unique<Key>(Alg, std::move(Data));
+  return std::make_unique<Key>(InputAlg, std::move(Data));
 }
 
 WasiCryptoExpect<void> HkdfState::squeeze(Span<uint8_t> Out) {
+  opensslAssuming(
+      EVP_PKEY_CTX_add1_hkdf_info(Ctx.get(), Cache.data(), Cache.size()));
+
+  // TODO : More check about error
   size_t Size = Out.size();
   ensureOrReturn(EVP_PKEY_derive(Ctx.get(), Out.data(), &Size),
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+  return {};
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>

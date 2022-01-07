@@ -15,7 +15,7 @@ constexpr const EVP_CIPHER *getCipher(SymmetricAlgorithm Alg) {
   case SymmetricAlgorithm::Aes256Gcm:
     return EVP_aes_256_gcm();
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 
@@ -26,7 +26,7 @@ constexpr __wasi_size_t getKeySize(SymmetricAlgorithm Alg) {
   case SymmetricAlgorithm::Aes256Gcm:
     return 32;
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 
@@ -78,7 +78,7 @@ AesGcmState::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
   }
 
   std::vector<uint8_t> Key =
-      OptKey->inner().locked([](auto &Data) { return Data.Data; });
+      OptKey->inner().locked([](auto &Inner) { return Inner.Data; });
 
   ensureOrReturn(Nonce->size() == NonceSize,
                  __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
@@ -90,7 +90,7 @@ AesGcmState::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
   opensslAssuming(EVP_CipherInit(Ctx, getCipher(Alg), Key.data(), Nonce->data(),
                                  Mode::Unchanged));
 
-  return std::make_unique<AesGcmState>(Ctx);
+  return std::make_unique<AesGcmState>(Ctx, OptOption);
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>

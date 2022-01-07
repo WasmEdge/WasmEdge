@@ -22,8 +22,6 @@ public:
 
   WasiCryptoExpect<__wasi_size_t> keyLen() override;
 
-private:
-  SymmetricAlgorithm Alg;
 };
 
 /// Two case:
@@ -58,8 +56,9 @@ public:
   WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view Name) override;
 
 private:
+  // TODO: thread safe
   std::shared_ptr<Option> OptOption;
-  std::optional<std::vector<uint8_t>> Cache;
+  std::vector<uint8_t> Cache;
   EvpPkeyCtxPtr Ctx;
 };
 

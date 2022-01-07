@@ -140,7 +140,7 @@ using OpenSSLUniquePtr = std::unique_ptr<T, Deleter<Fn>>;
 #define ensureOrReturn(Expr, ErrorCode)                                        \
   do {                                                                         \
     if (!(Expr)) {                                                             \
-      return WasiCryptoUnexpect(ErrorCode);                                    \
+      return WasiCryptoUnexpect((ErrorCode));                                  \
     }                                                                          \
   } while (0)
 

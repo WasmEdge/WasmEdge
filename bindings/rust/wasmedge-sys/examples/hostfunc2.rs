@@ -77,8 +77,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     import_obj.add_func("add", &mut host_func);
 
     // load wasm from binary
-    let mut module =
-        Module::create_from_buffer(&config, &wasm_binary).expect("funcs.wasm should be correct");
+    // load module from file
+    let loader = Loader::create(Some(&config))?;
+    let mut module = loader.from_buffer(&wasm_binary)?;
 
     let mut vm = Vm::create(Some(&config), None)
         .expect("fail to create VM instance")

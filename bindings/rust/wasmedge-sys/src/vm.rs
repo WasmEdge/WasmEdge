@@ -737,7 +737,7 @@ impl Drop for Vm {
 #[cfg(test)]
 mod tests {
     use super::Vm;
-    use crate::{Config, Module, Store};
+    use crate::{Config, Loader, Store};
 
     #[test]
     fn test_vm_create() {
@@ -820,26 +820,30 @@ mod tests {
             std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/test.wasm");
         let result = Config::create();
         assert!(result.is_ok());
-        let conf = result.unwrap();
-        let conf = conf.enable_bulk_memory_operations(true);
-        assert!(conf.bulk_memory_operations_enabled());
+        let config = result.unwrap();
+        let config = config.enable_bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
 
-        let result = Module::create_from_file(&conf, path);
+        // load module from file
+        let result = Loader::create(Some(&config));
+        assert!(result.is_ok());
+        let loader = result.unwrap();
+        let result = loader.from_file(path);
         assert!(result.is_ok());
         let mut ast_module = result.unwrap();
 
         // create Vm instance
         let result = Config::create();
         assert!(result.is_ok());
-        let conf = result.unwrap();
-        let conf = conf.enable_bulk_memory_operations(true);
-        assert!(conf.bulk_memory_operations_enabled());
+        let config = result.unwrap();
+        let config = config.enable_bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
 
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");
         let store = result.unwrap();
 
-        let result = Vm::create(Some(&conf), Some(&store));
+        let result = Vm::create(Some(&config), Some(&store));
         assert!(result.is_ok());
         let vm = result.unwrap();
 

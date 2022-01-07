@@ -293,13 +293,70 @@ mod tests {
     use crate::ValType;
 
     #[test]
+    fn test_func_type() {
+        // test FuncType with args and returns
+        {
+            let param_tys = vec![
+                ValType::I32,
+                ValType::I64,
+                ValType::F32,
+                ValType::F64,
+                ValType::V128,
+                ValType::ExternRef,
+            ];
+            let param_len = param_tys.len();
+            let ret_tys = vec![ValType::FuncRef, ValType::ExternRef, ValType::V128];
+            let ret_len = ret_tys.len();
+
+            // create FuncType
+            let result = FuncType::create(param_tys, ret_tys);
+            assert!(result.is_ok());
+            let func_ty = result.unwrap();
+
+            // check parameters
+            assert_eq!(func_ty.params_len(), param_len);
+            let param_tys = func_ty.params_type_iter().collect::<Vec<_>>();
+            assert_eq!(
+                param_tys,
+                vec![
+                    ValType::I32,
+                    ValType::I64,
+                    ValType::F32,
+                    ValType::F64,
+                    ValType::V128,
+                    ValType::ExternRef,
+                ]
+            );
+
+            // check returns
+            assert_eq!(func_ty.returns_len(), ret_len);
+            let return_tys = func_ty.returns_type_iter().collect::<Vec<_>>();
+            assert_eq!(
+                return_tys,
+                vec![ValType::FuncRef, ValType::ExternRef, ValType::V128]
+            );
+        }
+
+        // test FuncType without args and returns
+        {
+            // create FuncType
+            let result = FuncType::create([], []);
+            assert!(result.is_ok());
+            let func_ty = result.unwrap();
+
+            assert_eq!(func_ty.params_len(), 0);
+            assert_eq!(func_ty.returns_len(), 0);
+        }
+    }
+
+    #[test]
     fn test_func() {
         // create a FuncType
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(func_ty, Box::new(real_add), 0); // Box::new(real_add), "read_add");
+        let result = Function::create(func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 

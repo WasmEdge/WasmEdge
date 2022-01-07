@@ -114,7 +114,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let config = config.enable_referencetypes(true);
+        let config = config.enable_reference_types(true);
         let result = Loader::create(Some(&config));
         assert!(result.is_ok());
     }
@@ -125,7 +125,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let config = config.enable_referencetypes(true);
+        let config = config.enable_reference_types(true);
         let result = Loader::create(Some(&config));
         assert!(result.is_ok());
         let loader = result.unwrap();
@@ -144,7 +144,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let config = config.enable_referencetypes(true);
+        let config = config.enable_reference_types(true);
         let result = Loader::create(Some(&config));
         assert!(result.is_ok());
         let loader = result.unwrap();

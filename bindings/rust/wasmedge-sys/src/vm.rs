@@ -745,8 +745,8 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let conf = result.unwrap();
-        let conf = conf.enable_bulkmemoryoperations(true);
-        assert!(conf.has_bulkmemoryoperations());
+        let conf = conf.enable_bulk_memory_operations(true);
+        assert!(conf.bulk_memory_operations_enabled());
 
         // create Store instance
         let result = Store::create();
@@ -764,8 +764,8 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let conf = result.unwrap();
-        let conf = conf.enable_bulkmemoryoperations(true);
-        assert!(conf.has_bulkmemoryoperations());
+        let conf = conf.enable_bulk_memory_operations(true);
+        assert!(conf.bulk_memory_operations_enabled());
 
         // create Store instance
         let result = Store::create();
@@ -790,8 +790,8 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let conf = result.unwrap();
-        let conf = conf.enable_bulkmemoryoperations(true);
-        assert!(conf.has_bulkmemoryoperations());
+        let conf = conf.enable_bulk_memory_operations(true);
+        assert!(conf.bulk_memory_operations_enabled());
 
         // create Store instance
         let result = Store::create();
@@ -821,8 +821,8 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let conf = result.unwrap();
-        let conf = conf.enable_bulkmemoryoperations(true);
-        assert!(conf.has_bulkmemoryoperations());
+        let conf = conf.enable_bulk_memory_operations(true);
+        assert!(conf.bulk_memory_operations_enabled());
 
         let result = Module::create_from_file(&conf, path);
         assert!(result.is_ok());
@@ -832,8 +832,8 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let conf = result.unwrap();
-        let conf = conf.enable_bulkmemoryoperations(true);
-        assert!(conf.has_bulkmemoryoperations());
+        let conf = conf.enable_bulk_memory_operations(true);
+        assert!(conf.bulk_memory_operations_enabled());
 
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");

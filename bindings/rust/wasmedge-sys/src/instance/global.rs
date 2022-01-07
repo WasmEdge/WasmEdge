@@ -169,7 +169,7 @@ mod tests {
     use crate::{Mutability, ValType};
 
     #[test]
-    fn test_globaltype() {
+    fn test_global_type() {
         // create a GlobalType instance
         let result = GlobalType::create(ValType::I32, Mutability::Const);
         assert!(result.is_ok());

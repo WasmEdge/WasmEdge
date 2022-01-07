@@ -646,13 +646,11 @@ mod tests {
         let mut import_obj = result.unwrap();
 
         // add host function
-        println!("*** register func: real_add");
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         let result = Function::create(func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
-        println!("*** real_add registered");
         let mut host_func = result.unwrap();
         import_obj.add_func("add", &mut host_func);
         assert!(host_func.ctx.is_null() && host_func.registered);
@@ -746,7 +744,6 @@ mod tests {
         assert_eq!(val, Value::F32(3.5));
 
         // run the registered function
-        println!("*** first run");
         let result = executor.run_func_registered(
             &store,
             "extern_module",
@@ -754,11 +751,9 @@ mod tests {
             vec![Value::I32(12), Value::I32(21)],
         );
         assert!(result.is_ok());
-        println!("*** first run done");
         let returns = result.unwrap().collect::<Vec<_>>();
         assert_eq!(returns, vec![Value::I32(33)]);
 
-        println!("*** second run");
         let second_run = executor.run_func_registered(
             &store,
             "extern_module",

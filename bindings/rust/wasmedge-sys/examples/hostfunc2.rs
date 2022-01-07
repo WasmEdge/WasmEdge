@@ -65,7 +65,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::create().expect("fail to create Config instance");
     let mut import_obj = ImportObj::create("extern_module").unwrap();
 
-    let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+    let result = FuncType::create(
+        vec![ValType::ExternRef, ValType::I32, ValType::I32],
+        vec![ValType::I32],
+    );
     assert!(result.is_ok());
     let func_ty = result.unwrap();
     let result = Function::create(func_ty, Box::new(real_add), 0);

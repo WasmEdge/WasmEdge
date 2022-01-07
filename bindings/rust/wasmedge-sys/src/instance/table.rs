@@ -179,9 +179,9 @@ impl TableType {
     ///
     /// # Arguments
     ///
-    /// - `ref_type` specifies the element type.
+    /// - `elem_type` specifies the element type.
     ///
-    /// - `limit` specifies a range of the table size.
+    /// - `limit` specifies a range of the table size. The upper bound for a `limit` is `u32::MAX`.
     ///
     /// # Error
     ///
@@ -240,7 +240,7 @@ mod tests {
     use crate::RefType;
 
     #[test]
-    fn test_tabletype() {
+    fn test_table_type() {
         // create a TableType instance
         let result = TableType::create(RefType::FuncRef, 10..=20);
         assert!(result.is_ok());

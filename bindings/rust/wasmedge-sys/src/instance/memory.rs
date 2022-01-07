@@ -228,20 +228,6 @@ impl Memory {
     ///
     /// If fail to grow the page count, then an error is returned.
     ///
-    /// ```
-    /// use wasmedge_sys::Memory;
-    ///
-    /// // create a Memory with a limit range [10, 20]
-    /// let mut mem = Memory::create(1..=1).expect("fail to create a Memory");
-    /// // check page count
-    /// let count = mem.page_count();
-    /// assert_eq!(count, 1);
-    ///
-    /// // grow one more page, which causes a failure
-    /// let result = mem.grow(1);
-    /// assert!(result.is_err());
-    /// ```
-    ///
     /// # Example
     ///
     /// ```
@@ -285,7 +271,7 @@ impl MemType {
     ///
     /// - `limit` specifies the linear memory size. The start value of the limit range
     /// specifies the min size (also, initial size) of the memory, while the end value specifies
-    /// the max size allowed to grow.
+    /// the max size allowed to grow. The maximum size is `u32::MAX`.
     ///
     /// # Errors
     ///
@@ -339,7 +325,7 @@ mod tests {
     use crate::error::{CoreError, CoreExecutionError, WasmEdgeError};
 
     #[test]
-    fn test_memtype() {
+    fn test_mem_type() {
         let result = MemType::create(0..=u32::MAX);
         assert!(result.is_ok());
         let ty = result.unwrap();

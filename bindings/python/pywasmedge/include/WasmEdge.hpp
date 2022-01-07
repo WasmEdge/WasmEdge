@@ -182,8 +182,6 @@ public:
   ~VM();
   const char *doc() { return pysdk::vm_doc; };
 
-  pysdk::result add(pysdk::import_object &);
-
   pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object,
                       pybind11::object, pybind11::object);
   pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object);
@@ -192,6 +190,11 @@ public:
                       std::string &);
 
   pybind11::list list_exported_functions();
+
+  pysdk::result register_module_from_file(std::string &, std::string &);
+  pysdk::result register_module_from_ast(std::string &, pysdk::ASTModuleCxt &);
+  pysdk::result register_module_from_buffer(std::string &, pybind11::tuple);
+  pysdk::result register_module_from_import_object(pysdk::import_object &);
 };
 
 } // namespace pysdk

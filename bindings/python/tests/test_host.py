@@ -20,7 +20,7 @@ def test_host_function():
     mod = WasmEdge.ImportObject(module_name)
     mod.add(func, function_name)
 
-    res = vm.add(mod)
+    res = vm.register(mod)
 
     mods = store.listModules()
 

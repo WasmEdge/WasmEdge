@@ -241,10 +241,6 @@ pybind11::tuple pysdk::VM::run(pybind11::object _FileName,
   return pybind11::make_tuple(res, returns);
 }
 
-pysdk::result pysdk::VM::add(pysdk::import_object &mod) {
-  return pysdk::result(WasmEdge_VMRegisterModuleFromImport(VMCxt, mod.get()));
-}
-
 pybind11::tuple pysdk::VM::run(pybind11::object wasm_buffer_,
                                pybind11::object params_,
                                pybind11::object return_len_,
@@ -332,6 +328,44 @@ pybind11::list pysdk::VM::list_exported_functions() {
     returns.append(std::string(buf));
   }
   return returns;
+}
+
+pysdk::result pysdk::VM::register_module_from_file(std::string &mod_name_,
+                                                   std::string &path) {
+  WasmEdge_String mod_name = WasmEdge_StringCreateByCString(mod_name_.c_str());
+  pysdk::result res(
+      WasmEdge_VMRegisterModuleFromFile(VMCxt, mod_name, path.c_str()));
+  WasmEdge_StringDelete(mod_name);
+  return res;
+}
+
+pysdk::result pysdk::VM::register_module_from_ast(std::string &mod_name_,
+                                                  pysdk::ASTModuleCxt &ast) {
+  WasmEdge_String mod_name = WasmEdge_StringCreateByCString(mod_name_.c_str());
+  pysdk::result res(
+      WasmEdge_VMRegisterModuleFromASTModule(VMCxt, mod_name, ast.get()));
+  WasmEdge_StringDelete(mod_name);
+  return res;
+}
+
+pysdk::result pysdk::VM::register_module_from_buffer(std::string &mod_name_,
+                                                     pybind11::tuple buffer) {
+  auto len = pybind11::len(buffer);
+  uint8_t buffer_[len];
+  for (size_t i = 0; i < len; i++) {
+    buffer_[i] = buffer[i].cast<uint8_t>();
+  }
+  WasmEdge_String mod_name = WasmEdge_StringCreateByCString(mod_name_.c_str());
+  pysdk::result res(
+      WasmEdge_VMRegisterModuleFromBuffer(VMCxt, mod_name, buffer_, len));
+  WasmEdge_StringDelete(mod_name);
+  return res;
+}
+
+pysdk::result
+pysdk::VM::register_module_from_import_object(pysdk::import_object &imp_obj) {
+  pysdk::result res(WasmEdge_VMRegisterModuleFromImport(VMCxt, imp_obj.get()));
+  return res;
 }
 
 /* --------------- VM End -------------------------------- */

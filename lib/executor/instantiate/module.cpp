@@ -141,16 +141,6 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
   }
 
   // Prepare pointers for compiled functions
-  ModInst->MemoryPtr =
-      ModInst->getMemAddr(0)
-          .and_then([&StoreMgr](uint32_t MemAddr) {
-            return StoreMgr.getMemory(MemAddr);
-          })
-          .map([](const Runtime::Instance::MemoryInstance *MemInst) {
-            return MemInst->getDataPtr();
-          })
-          .value_or(nullptr);
-
   ModInst->GlobalsPtr.reserve(ModInst->getGlobalNum());
   for (uint32_t I = 0; I < static_cast<uint32_t>(ModInst->getGlobalNum());
        ++I) {

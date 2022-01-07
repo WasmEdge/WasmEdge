@@ -84,7 +84,10 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     {
       CurrentStore = &StoreMgr;
       const auto &ModInst = **StoreMgr.getModule(Func.getModuleAddr());
-      ExecutionContext.Memory = ModInst.MemoryPtr;
+      ExecutionContext.Memory =
+          ModInst.getMemNum() > 0
+              ? (*StoreMgr.getMemory(*ModInst.getMemAddr(0)))->getDataPtr()
+              : nullptr;
       ExecutionContext.Globals = ModInst.GlobalsPtr.data();
     }
 

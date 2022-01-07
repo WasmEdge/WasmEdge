@@ -188,7 +188,6 @@ public:
 
   /// \name Data for compiled functions.
   /// @{
-  uint8_t *MemoryPtr;
   std::vector<ValVariant *> GlobalsPtr;
   /// @}
 

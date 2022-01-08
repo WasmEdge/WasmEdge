@@ -88,7 +88,7 @@ impl Function {
     /// The example defines a host function `real_add`, and creates a [`Function`] binding to it by calling
     /// the `create_binding` method.
     ///
-    /// ```
+    /// ```rust
     /// use wasmedge_sys::{FuncType, Function, ValType, Value, WasmEdgeResult};
     ///
     /// fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
@@ -118,12 +118,10 @@ impl Function {
     /// }
     ///
     /// // create a FuncType
-    /// let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
-    /// assert!(result.is_ok());
-    /// let func_ty = result.unwrap();
+    /// let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]).expect("fail to create a FuncType");
     ///
-    /// let result = Function::create(func_ty, Box::new(real_add), 0); // Box::new(real_add), "read_add");
-    /// assert!(result.is_ok());
+    /// // create a Function instance
+    /// let func = Function::create(func_ty, Box::new(real_add), 0).expect("fail to create a Function instance");
     /// ```
     pub fn create(
         ty: FuncType,
@@ -217,7 +215,15 @@ impl FuncType {
     ///
     /// # Error
     ///
-    /// If fail to create a [`FuncType`], then an error is returned.
+    /// If fail to create a [`FuncType`], then a [WasmEdgeError::FuncTypeCreate](crate::error::WasmEdgeError::FuncTypeCreate) error is returned.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wasmedge_sys::{FuncType, ValType};
+    ///
+    /// let func_ty = FuncType::create(vec![ValType::I32;2], vec![ValType::I32]).expect("fail to create a FuncType");
+    /// ```
     pub fn create<I: IntoIterator<Item = ValType>>(args: I, returns: I) -> WasmEdgeResult<Self> {
         let param_tys = args
             .into_iter()

@@ -46,9 +46,8 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_LoaderContext_parseFromBuffer
     return createAstModuleContext(env, mod);
 }
 
-
 JNIEXPORT void JNICALL Java_org_wasmedge_LoaderContext_nativeInit
-        (JNIEnv *env, jobject thisObject, jobject jConfigContext) {
+        (JNIEnv * env, jobject thisObject, jobject jConfigContext) {
    WasmEdge_ConfigureContext* configureContext = getConfigureContext(env, jConfigContext);
    WasmEdge_LoaderContext* loaderContext = WasmEdge_LoaderCreate(configureContext);
    setPointer(env, thisObject, (long)loaderContext);

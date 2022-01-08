@@ -26,18 +26,18 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromFile
 /*
  * Class:     org_wasmedge_WasmEdgeVM
  * Method:    runWasmFromBuffer
- * Signature: ([BLjava/lang/String;Ljava/util/List;Ljava/util/List;)V
+ * Signature: ([BLjava/lang/String;[Lorg/wasmedge/WasmEdgeValue;[I[Lorg/wasmedge/WasmEdgeValue;[I)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromBuffer
-  (JNIEnv *, jobject, jbyteArray, jstring, jobject, jobject);
+  (JNIEnv *, jobject, jbyteArray, jstring, jobjectArray, jintArray, jobjectArray, jintArray);
 
 /*
  * Class:     org_wasmedge_WasmEdgeVM
  * Method:    runWasmFromASTModule
- * Signature: (Lorg/wasmedge/ASTModuleContext;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V
+ * Signature: (Lorg/wasmedge/ASTModuleContext;Ljava/lang/String;[Lorg/wasmedge/WasmEdgeValue;[I[Lorg/wasmedge/WasmEdgeValue;[I)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromASTModule
-  (JNIEnv *, jobject, jobject, jstring, jobject, jobject);
+  (JNIEnv *, jobject, jobject, jstring, jobjectArray, jintArray, jobjectArray, jintArray);
 
 /*
  * Class:     org_wasmedge_WasmEdgeVM
@@ -122,10 +122,10 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromASTModule
 /*
  * Class:     org_wasmedge_WasmEdgeVM
  * Method:    executeRegistered
- * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V
+ * Signature: (Ljava/lang/String;Ljava/lang/String;[Lorg/wasmedge/WasmEdgeValue;[I[Lorg/wasmedge/WasmEdgeValue;[I)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_executeRegistered
-  (JNIEnv *, jobject, jstring, jstring, jobject, jobject);
+  (JNIEnv *, jobject, jstring, jstring, jobjectArray, jintArray, jobjectArray, jintArray);
 
 /*
  * Class:     org_wasmedge_WasmEdgeVM

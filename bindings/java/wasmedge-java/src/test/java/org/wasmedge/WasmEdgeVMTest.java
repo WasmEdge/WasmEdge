@@ -75,23 +75,13 @@ public class WasmEdgeVMTest extends BaseTest {
     }
 
     @Test
-    public void testRegisterModule() {
+    public void testRegisterModuleFromFile() {
         WasmEdgeVM vm = new WasmEdgeVM(null, null);
-
-        String modName = "mode";
-
+        String modName = "module";
         vm.registerModuleFromFile(modName, getResourcePath(WASM_PATH));
-
-        FunctionTypeContext function = vm.getFunctionType(FUNC_NAME);
-
-        Assert.assertEquals(function.getParameters().size(), 1);
-        Assert.assertEquals(function.getParameters().get(0), ValueType.i32);
-
-        Assert.assertEquals(function.getReturns().size(), 1);
-        Assert.assertEquals(function.getReturns().get(0), ValueType.i32);
-
         vm.destroy();
     }
+
 
     @Test
     public void testGetFunctionList() {
@@ -134,22 +124,55 @@ public class WasmEdgeVMTest extends BaseTest {
 
     @Test
     public void testRegisterModuleFromBuffer() {
-
+        WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
+        vm.registerModuleFromBuffer("module", loadFile(getResourcePath(WASM_PATH)));
+        vm.destroy();
     }
 
     @Test
     public void testRegisterModuleFromAstModule() {
+        LoaderContext loaderContext = new LoaderContext(new ConfigureContext());
+        ASTModuleContext mod = loaderContext.parseFromFile(getResourcePath(WASM_PATH));
 
+        WasmEdgeVM vm = new WasmEdgeVM(null, null);
+        vm.registerModuleFromASTModule("module", mod);
+        mod.delete();
+        loaderContext.delete();
+        vm.destroy();
     }
 
     @Test
     public void testRunWasmFromBuffer() {
+        byte[] data = loadFile(getResourcePath(WASM_PATH));
+        WasmEdgeVM vm = new WasmEdgeVM(null, null);
 
+        List<WasmEdgeValue> params = new ArrayList<>();
+        params.add(new WasmEdgeI32Value(3));
+
+        List<WasmEdgeValue> returns = new ArrayList<>();
+        returns.add(new WasmEdgeI32Value());
+        vm.runWasmFromBuffer(data, FUNC_NAME, params, returns);
+
+        WasmEdgeI32Value value = (WasmEdgeI32Value) returns.get(0);
+        Assert.assertEquals(3, value.getValue());
     }
 
     @Test
     public void testRunWasmFromASTModule() {
+        LoaderContext loaderContext = new LoaderContext(new ConfigureContext());
+        ASTModuleContext mod = loaderContext.parseFromFile(getResourcePath(WASM_PATH));
 
+        WasmEdgeVM vm = new WasmEdgeVM(null, null);
+
+        List<WasmEdgeValue> params = new ArrayList<>();
+        params.add(new WasmEdgeI32Value(3));
+
+        List<WasmEdgeValue> returns = new ArrayList<>();
+        returns.add(new WasmEdgeI32Value());
+
+        vm.runWasmFromASTModule(mod, FUNC_NAME, params, returns);
+        WasmEdgeI32Value value = (WasmEdgeI32Value) returns.get(0);
+        Assert.assertEquals(3, value.getValue());
     }
 
 }

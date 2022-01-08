@@ -50,9 +50,31 @@ public class WasmEdgeVM {
                 returnsArray, returns.size(), returnTypes);
     }
 
-    public native void runWasmFromBuffer(byte[] buffer, String funcName, List<WasmEdgeValue> parasm, List<WasmEdgeValue> returns);
+    public void runWasmFromBuffer(byte[] buffer, String funcName, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+        WasmEdgeValue[] paramsArray = valueListToArray(params);
+        int[] paramTypes = getValueTypeArray(params);
 
-    public native void runWasmFromASTModule(ASTModuleContext astModuleContext, String funcName, List<WasmEdgeValue> params, List<WasmEdgeValue> returns);
+        WasmEdgeValue[] returnsArray = valueListToArray(returns);
+        int[] returnTypes = getValueTypeArray(returns);
+
+        runWasmFromBuffer(buffer, funcName, paramsArray, paramTypes, returnsArray, returnTypes);
+    }
+
+    private native void runWasmFromBuffer(byte[] buffer, String funcName, WasmEdgeValue[] params, int[] paramTypes, WasmEdgeValue[] returns, int[] returnTypes);
+
+
+    public void runWasmFromASTModule(ASTModuleContext astModuleContext, String funcName, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+        WasmEdgeValue[] paramsArray = valueListToArray(params);
+        int[] paramTypes = getValueTypeArray(params);
+
+        WasmEdgeValue[] returnsArray = valueListToArray(returns);
+        int[] returnTypes = getValueTypeArray(returns);
+
+        runWasmFromASTModule(astModuleContext, funcName, paramsArray, paramTypes, returnsArray, returnTypes);
+    }
+
+    private native void runWasmFromASTModule(ASTModuleContext astModuleContext, String funcName, WasmEdgeValue[] params, int[] paramTypes, WasmEdgeValue[] returns, int[] returnTypes);
+
 
     private int[] getValueTypeArray(List<WasmEdgeValue> values) {
 
@@ -110,7 +132,7 @@ public class WasmEdgeVM {
         this.pointer = 0;
     }
 
-    public native void registerModuleFromFile(String modName, String fileName);
+    public native void registerModuleFromFile(String modName, String filePath);
 
     public native void registerModuleFromBuffer(String moduleName, byte[] buffer);
 
@@ -118,8 +140,18 @@ public class WasmEdgeVM {
 
     public native void registerModuleFromASTModule(String moduleName, ASTModuleContext astModuleContext);
 
-    public native void executeRegistered(String modName, String funcName, List<WasmEdgeValue> params,
-                                         List<WasmEdgeValue> returns);
+    public void executeRegistered(String modName, String funcName, List<WasmEdgeValue> params,
+                                         List<WasmEdgeValue> returns) {
+        WasmEdgeValue[] paramsArray = valueListToArray(params);
+        int[] paramTypes = getValueTypeArray(params);
+
+        WasmEdgeValue[] returnsArray = valueListToArray(returns);
+        int[] returnTypes = getValueTypeArray(returns);
+        executeRegistered(modName, funcName, paramsArray, paramTypes, returnsArray, returnTypes);
+    }
+
+    private native void executeRegistered(String modName, String funcName, WasmEdgeValue[] params,
+                                         int[] paramTypes, WasmEdgeValue[] returns, int[] returnTypes);
 
     private native void getFunctionList(List<FunctionTypeContext> functionList);
 

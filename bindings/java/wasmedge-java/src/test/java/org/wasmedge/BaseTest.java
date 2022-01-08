@@ -1,6 +1,9 @@
 package org.wasmedge;
 
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Paths;
 
@@ -36,6 +39,16 @@ public class BaseTest {
     }
     public static String getCwd() {
         return getResourcePath("./");
+    }
+
+    public byte[] loadFile(String filePath) {
+
+        try(FileInputStream in = new FileInputStream(new File(filePath))) {
+            return in.readAllBytes();
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+
     }
 
 }

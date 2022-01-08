@@ -81,16 +81,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let loader = Loader::create(Some(&config))?;
     let mut module = loader.from_buffer(&wasm_binary)?;
 
-    let mut vm = Vm::create(Some(&config), None)
-        .expect("fail to create VM instance")
-        .register_wasm_from_import(&mut import_obj)
-        .expect("import_obj should be regiestered")
-        .load_wasm_from_module(&mut module)
-        .expect("funcs.wasm should be loaded")
-        .validate()
-        .expect("fail to validate vm")
-        .instantiate()
-        .expect("fail to instantiate vm");
+    let mut vm = Vm::create(Some(&config), None)?;
+    vm.register_wasm_from_import(&mut import_obj)?;
+    let mut vm = vm
+        .load_wasm_from_module(&mut module)?
+        .validate()?
+        .instantiate()?;
 
     #[allow(clippy::type_complexity)]
     fn boxed_fn() -> Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>> {

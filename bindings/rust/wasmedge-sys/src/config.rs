@@ -146,7 +146,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if the option turns on or not.
+    /// - `enable` specifies if the option turns on or not.
     pub fn wasi(self, enable: bool) -> Self {
         unsafe {
             if enable {
@@ -185,6 +185,10 @@ impl Config {
     }
 
     /// Enables or disables host registration WasmEdge process.
+    ///
+    /// # Argument
+    ///
+    /// - `enable` specifies if the option turns on or not.
     pub fn wasmedge_process(self, enable: bool) -> Self {
         unsafe {
             if enable {
@@ -735,7 +739,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if turn on the `Interruptible` option.
+    /// - `enable` specifies if turn on the `Interruptible` option.
     pub fn interruptible(self, enable: bool) -> Self {
         unsafe {
             wasmedge::WasmEdge_ConfigureCompilerSetInterruptible(self.ctx, enable);

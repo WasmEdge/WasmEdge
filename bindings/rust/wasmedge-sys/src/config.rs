@@ -143,7 +143,7 @@ impl Config {
         }
     }
 
-    /// Enables host registration wasi.
+    /// Enables or disables host registration wasi.
     pub fn enable_wasi(self, flag: bool) -> Self {
         unsafe {
             if flag && !self.wasi_enabled() {
@@ -181,7 +181,7 @@ impl Config {
         }
     }
 
-    /// Enables host registration WasmEdge process.
+    /// Enables or disables host registration WasmEdge process.
     pub fn enable_wasmedge_process(self, flag: bool) -> Self {
         unsafe {
             if flag && !self.wasmedge_process_enabled() {
@@ -323,6 +323,27 @@ impl Config {
     /// Checks if the cost measuring option turns on or not.
     pub fn is_time_measuring(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsTimeMeasuring(self.ctx) }
+    }
+
+    /// Enables or Disables the `Interruptible` option of AOT compiler.
+    ///
+    /// This option determines to generate interruptible binary or not when compilation in AOT compiler.
+    ///
+    /// # Argument
+    ///
+    /// - `flag` specifies if turn on the `Interruptible` option.
+    pub fn enable_interruptible(self, flag: bool) -> Self {
+        unsafe {
+            if (flag && !self.interruptible_enabled()) || (!flag && self.interruptible_enabled()) {
+                wasmedge::WasmEdge_ConfigureCompilerSetInterruptible(self.ctx, flag);
+            }
+        }
+        self
+    }
+
+    /// Checks if the `Interruptible` option of AOT Compiler turns on or not.
+    pub fn interruptible_enabled(&self) -> bool {
+        unsafe { wasmedge::WasmEdge_ConfigureCompilerIsInterruptible(self.ctx) }
     }
 }
 

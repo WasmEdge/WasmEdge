@@ -439,9 +439,13 @@ impl_to_prim_conversions! {
 
 impl<T: AsRef<str>> From<T> for wasmedge::WasmEdge_String {
     fn from(s: T) -> Self {
-        let cs =
-            CString::new(s.as_ref()).expect("fail to convert a string slice to WasmEdge_String");
-        unsafe { wasmedge::WasmEdge_StringCreateByCString(cs.as_ptr()) }
+        if s.as_ref().contains('\0') {
+            let buffer = s.as_ref().as_bytes();
+            unsafe { wasmedge::WasmEdge_StringCreateByBuffer(buffer.as_ptr(), buffer.len() as u32) }
+        } else {
+            let cs = CString::new(s.as_ref()).unwrap();
+            unsafe { wasmedge::WasmEdge_StringCreateByCString(cs.as_ptr()) }
+        }
     }
 }
 

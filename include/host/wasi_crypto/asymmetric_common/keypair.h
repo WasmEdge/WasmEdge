@@ -8,39 +8,35 @@
 #include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/key_exchange/keypair.h"
 #include "host/wasi_crypto/signature/keypair.h"
-#include "host/wasi_crypto/varianthelper.h"
 
 #include <variant>
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Asymmetric {
 
-class KeyPair : public VariantTemplate<SignatureKeyPair, KxKeyPair> {
-public:
-  using VariantTemplate<SignatureKeyPair, KxKeyPair>::VariantTemplate;
+using KeyPair = std::variant<std::shared_ptr<Signatures::KeyPair>,
+                             std::shared_ptr<Kx::KeyPair>>;
 
-  static WasiCryptoExpect<KeyPair> generate(__wasi_algorithm_type_e_t AlgType,
-                                            std::string_view AlgStr,
-                                            std::shared_ptr<Common::Options> OptOptions);
-
-  static WasiCryptoExpect<KeyPair> import(__wasi_algorithm_type_e_t AlgType,
+WasiCryptoExpect<KeyPair> keypairGenerate(__wasi_algorithm_type_e_t AlgType,
                                           std::string_view AlgStr,
-                                          Span<uint8_t const> Encoded,
-                                          __wasi_keypair_encoding_e_t Encoding);
+                                          Common::Options OptOptions);
 
-  static WasiCryptoExpect<KeyPair> fromPkAndSk(PublicKey Pk, SecretKey Sk);
+WasiCryptoExpect<KeyPair> keyPairImport(__wasi_algorithm_type_e_t AlgType,
+                                        std::string_view AlgStr,
+                                        Span<const uint8_t> Encoded,
+                                        __wasi_keypair_encoding_e_t Encoding);
 
-  WasiCryptoExpect<std::vector<uint8_t>>
-  exportData(__wasi_keypair_encoding_e_t Kp);
+WasiCryptoExpect<KeyPair> keyPairFromPkAndSk(PublicKey, SecretKey);
 
-  WasiCryptoExpect<PublicKey> publicKey();
+WasiCryptoExpect<std::vector<uint8_t>>
+keyPairExportData(KeyPair KeyPair, __wasi_keypair_encoding_e_t Encoding);
 
-  WasiCryptoExpect<SecretKey> secretKey();
+WasiCryptoExpect<PublicKey> keyPairPublicKey(KeyPair KeyPair);
 
-private:
-};
-
+WasiCryptoExpect<SecretKey> keyPairSecretKey(KeyPair KeyPair);
+} // namespace Asymmetric
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

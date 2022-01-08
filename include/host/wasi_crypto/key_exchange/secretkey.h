@@ -11,60 +11,50 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
-
-class KxSecretKey {
+namespace Kx {
+class SecretKey {
 public:
-  class Base {
-  public:
-    virtual ~Base() = default;
+  virtual ~SecretKey() = default;
 
-    virtual KxAlgorithm alg() = 0;
+  virtual KxAlgorithm alg() = 0;
 
-    virtual WasiCryptoExpect<__wasi_size_t> len() = 0;
+  virtual WasiCryptoExpect<__wasi_size_t> len() = 0;
 
-    virtual WasiCryptoExpect<Span<uint8_t const>> exportData() = 0;
+  virtual WasiCryptoExpect<Span<uint8_t const>> exportData() = 0;
 
-    virtual WasiCryptoExpect<KxPublicKey> publicKey() = 0;
+  virtual WasiCryptoExpect<std::unique_ptr<PublicKey>> publicKey() = 0;
 
-    virtual WasiCryptoExpect<std::vector<uint8_t>>
-    dh(std::unique_ptr<KxPublicKey::Base> &) {
-      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-    }
+  virtual WasiCryptoExpect<std::vector<uint8_t>>
+  dh(std::unique_ptr<PublicKey> &) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  }
 
-    virtual WasiCryptoExpect<std::vector<uint8_t>>
-    decapsulate(Span<uint8_t const>) {
-      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-    }
+  virtual WasiCryptoExpect<std::vector<uint8_t>>
+  decapsulate(Span<uint8_t const>) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  }
 
-    virtual WasiCryptoExpect<std::vector<uint8_t>>
-    exportData(__wasi_secretkey_encoding_e_t) {
-      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-    }
-  };
+  virtual WasiCryptoExpect<std::vector<uint8_t>>
+  exportData(__wasi_secretkey_encoding_e_t) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  }
 
   class Builder {
   public:
     virtual ~Builder() = default;
 
-    virtual WasiCryptoExpect<KxSecretKey>
+    virtual WasiCryptoExpect<std::unique_ptr<SecretKey>>
     import(Span<uint8_t const> Raw, __wasi_secretkey_encoding_e_t Encoding) = 0;
+
+    static WasiCryptoExpect<std::unique_ptr<Builder>> builder(KxAlgorithm Alg);
   };
 
-  KxSecretKey(std::unique_ptr<Base> Inner)
-      : Inner(
-            std::make_shared<Mutex<std::unique_ptr<Base>>>(std::move(Inner))) {}
-
-  static WasiCryptoExpect<KxSecretKey>
+  static WasiCryptoExpect<std::unique_ptr<SecretKey>>
   import(KxAlgorithm Alg, Span<const uint8_t> Encoded,
          __wasi_secretkey_encoding_e_t Encoding);
-
-  auto &inner() { return Inner; }
-
-private:
-  static WasiCryptoExpect<std::unique_ptr<Builder>> builder(KxAlgorithm Alg);
-
-  std::shared_ptr<Mutex<std::unique_ptr<Base>>> Inner;
 };
+
+} // namespace Kx
 
 } // namespace WASICrypto
 } // namespace Host

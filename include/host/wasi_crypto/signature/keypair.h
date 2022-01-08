@@ -7,45 +7,35 @@
 #include "host/wasi_crypto/signature/publickey.h"
 #include "host/wasi_crypto/signature/secretkey.h"
 #include "host/wasi_crypto/signature/signature.h"
-#include "host/wasi_crypto/varianthelper.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Signatures {
 
-class SignatureKeyPair {
+class KeyPair {
 public:
-  class Base {
-  public:
-    virtual ~Base() = default;
+  virtual ~KeyPair() = default;
 
-    virtual WasiCryptoExpect<std::vector<uint8_t>>
-    exportData(__wasi_keypair_encoding_e_t Encoding) = 0;
+  virtual WasiCryptoExpect<std::vector<uint8_t>>
+  exportData(__wasi_keypair_encoding_e_t Encoding) = 0;
 
-    virtual WasiCryptoExpect<SignaturePublicKey> publicKey() = 0;
+  virtual WasiCryptoExpect<std::unique_ptr<PublicKey>> publicKey() = 0;
 
-    virtual WasiCryptoExpect<SignatureSecretKey> secretKey() = 0;
+  virtual WasiCryptoExpect<std::unique_ptr<SecretKey>> secretKey() = 0;
 
-    virtual WasiCryptoExpect<SignatureState> asState() = 0;
-  };
+  virtual WasiCryptoExpect<std::unique_ptr<State>>
+  asState(std::shared_ptr<Options> OptOptions) = 0;
 
-  SignatureKeyPair(std::unique_ptr<Base> Inner)
-      : Inner(
-            std::make_shared<Mutex<std::unique_ptr<Base>>>(std::move(Inner))) {}
+  static WasiCryptoExpect<std::unique_ptr<KeyPair>> generate(SignatureAlgorithm Alg,
+                                            std::optional<Options> Options);
 
-  static WasiCryptoExpect<SignatureKeyPair>
-  generate(SignatureAlgorithm Alg, std::optional<SignatureOptions> Options);
-
-  static WasiCryptoExpect<SignatureKeyPair>
+  static WasiCryptoExpect<std::unique_ptr<KeyPair>>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
          __wasi_keypair_encoding_e_t Encoding);
-
-  auto &inner() { return Inner; }
-
-private:
-  std::shared_ptr<Mutex<std::unique_ptr<Base>>> Inner;
 };
 
+} // namespace Signatures
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

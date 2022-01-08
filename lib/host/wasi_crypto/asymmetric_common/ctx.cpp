@@ -9,7 +9,7 @@ namespace WASICrypto {
 WasiCryptoExpect<__wasi_keypair_t> WasiCryptoContext::keypairGenerate(
     __wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
     std::optional<__wasi_options_t> OptOptionsHandle) {
-  std::shared_ptr<Common::Options> OptOptions;
+  Common::Options OptOptions;
   if (OptOptionsHandle) {
     auto Res = OptionsManger.get(*OptOptionsHandle);
     if (!Res) {
@@ -19,19 +19,18 @@ WasiCryptoExpect<__wasi_keypair_t> WasiCryptoContext::keypairGenerate(
     OptOptions = std::move(*Res);
   }
 
-  auto Kp = KeyPair::generate(AlgType, AlgStr, OptOptions);
-  if (!Kp) {
-    return WasiCryptoUnexpect(Kp);
+  auto Res = Asymmetric::keypairGenerate(AlgType, AlgStr, OptOptions);
+  if (!Res) {
+    return WasiCryptoUnexpect(Res);
   }
 
-  return KeypairManger.registerManger(std::move(*Kp));
+  return KeypairManger.registerManger(std::move(*Res));
 }
-
 WasiCryptoExpect<__wasi_keypair_t>
 WasiCryptoContext::keypairImport(__wasi_algorithm_type_e_t AlgType,
                                  std::string_view AlgStr, Span<uint8_t> Encoded,
                                  __wasi_keypair_encoding_e_t Encoding) {
-  auto Kp = KeyPair::import(AlgType, AlgStr, Encoded, Encoding);
+  auto Kp = Asymmetric::keyPairImport(AlgType, AlgStr, Encoded, Encoding);
   if (!Kp) {
     return WasiCryptoUnexpect(Kp);
   }
@@ -80,7 +79,7 @@ WasiCryptoContext::keypairFromPkAndSk(__wasi_publickey_t PkHandle,
     return WasiCryptoUnexpect(Sk);
   }
 
-  auto Kp = KeyPair::fromPkAndSk(*Pk, *Sk);
+  auto Kp = Asymmetric::keyPairFromPkAndSk(*Pk, *Sk);
   if (!Kp) {
     return WasiCryptoUnexpect(Kp);
   }
@@ -96,7 +95,7 @@ WasiCryptoContext::keypairExport(__wasi_keypair_t KpHandle,
     return WasiCryptoUnexpect(Kp);
   }
 
-  auto Encoded = Kp->exportData(KeypairEncoding);
+  auto Encoded = Asymmetric::keyPairExportData(*Kp, KeypairEncoding);
   if (!Encoded) {
     return WasiCryptoUnexpect(Encoded);
   }
@@ -111,7 +110,7 @@ WasiCryptoContext::keypairPublickey(__wasi_keypair_t KpHandle) {
     return WasiCryptoUnexpect(Kp);
   }
 
-  auto Pk = Kp->publicKey();
+  auto Pk = Asymmetric::keyPairPublicKey(*Kp);
   if (!Pk) {
     return WasiCryptoUnexpect(Pk);
   }
@@ -126,7 +125,7 @@ WasiCryptoContext::keypairSecretkey(__wasi_keypair_t KpHandle) {
     return WasiCryptoUnexpect(Kp);
   }
 
-  auto Sk = Kp->secretKey();
+  auto Sk = Asymmetric::keyPairSecretKey(*Kp);
   if (!Sk) {
     return WasiCryptoUnexpect(Sk);
   }
@@ -142,7 +141,7 @@ WasiCryptoContext::keypairClose(__wasi_keypair_t KpHandle) {
 WasiCryptoExpect<__wasi_publickey_t> WasiCryptoContext::publickeyImport(
     __wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
     Span<uint8_t> Encoded, __wasi_publickey_encoding_e_t Encoding) {
-  auto Pk = PublicKey::import(AlgType, AlgStr, Encoded, Encoding);
+  auto Pk = Asymmetric::publicKeyImport(AlgType, AlgStr, Encoded, Encoding);
   if (!Pk) {
     return WasiCryptoUnexpect(Pk);
   }
@@ -158,7 +157,7 @@ WasiCryptoContext::publickeyExport(__wasi_publickey_t PkHandle,
     return WasiCryptoUnexpect(Pk);
   }
 
-  auto Encoded = Pk->exportData(PkEncoding);
+  auto Encoded = Asymmetric::publicKeyExportData(*Pk, PkEncoding);
   if (!Encoded) {
     return WasiCryptoUnexpect(Encoded);
   }
@@ -173,7 +172,7 @@ WasiCryptoContext::publickeyVerify(__wasi_publickey_t PkHandle) {
     return WasiCryptoUnexpect(Pk);
   }
 
-  return Pk->verify();
+  return Asymmetric::publicKeyVerify(*Pk);
 }
 
 WasiCryptoExpect<__wasi_publickey_t>
@@ -183,7 +182,7 @@ WasiCryptoContext::publickeyFromSecretkey(__wasi_secretkey_t SkHandle) {
     return WasiCryptoUnexpect(Sk);
   }
 
-  auto Pk = Sk->publicKey();
+  auto Pk = Asymmetric::secretKeyPublicKey(*Sk);
   if (!Pk) {
     return WasiCryptoUnexpect(Pk);
   }
@@ -199,12 +198,12 @@ WasiCryptoContext::publickeyClose(__wasi_publickey_t PkHandle) {
 WasiCryptoExpect<__wasi_secretkey_t> WasiCryptoContext::secretkeyImport(
     __wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
     Span<uint8_t> Encoded, __wasi_secretkey_encoding_e_t EncodingEnum) {
-  auto Pk = SecretKey::import(AlgType, AlgStr, Encoded, EncodingEnum);
-  if (!Pk) {
-    return WasiCryptoUnexpect(Pk);
+  auto Sk = Asymmetric::secretKeyImport(AlgType, AlgStr, Encoded, EncodingEnum);
+  if (!Sk) {
+    return WasiCryptoUnexpect(Sk);
   }
 
-  return SecretkeyManger.registerManger(std::move(*Pk));
+  return SecretkeyManger.registerManger(std::move(*Sk));
 }
 
 WasiCryptoExpect<__wasi_array_output_t>
@@ -215,7 +214,7 @@ WasiCryptoContext::secretkeyExport(__wasi_secretkey_t SkHandle,
     return WasiCryptoUnexpect(Sk);
   }
 
-  auto Res = Sk->exportData(SkEncoding);
+  auto Res = Asymmetric::secretKeyExportData(*Sk, SkEncoding);
   if (!Res) {
     return WasiCryptoUnexpect(Res);
   }

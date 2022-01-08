@@ -695,20 +695,25 @@ private:
   WasiCryptoExpect<std::shared_ptr<Symmetric::Key>>
   readSymmetricKey(std::optional<__wasi_symmetric_key_t> KeyHandle);
 
-  HandlesManger<__wasi_array_output_t, Common::ArrayOutput> ArrayOutputManger{0x00};
-  HandlesManger<__wasi_options_t, std::shared_ptr<Common::Options>> OptionsManger{0x01};
-  HandlesManger<__wasi_keypair_t, KeyPair> KeypairManger{0x02};
-  HandlesManger<__wasi_keypair_t, PublicKey> PublickeyManger{0x03};
-  HandlesManger<__wasi_keypair_t, SecretKey> SecretkeyManger{0x04};
-  HandlesManger<__wasi_signature_state_t, SignatureState> SignatureStateManger{
-      0x05};
-  HandlesManger<__wasi_signature_t, Signature> SignatureManger{0x06};
+  HandlesManger<__wasi_array_output_t, Common::ArrayOutput> ArrayOutputManger{
+      0x00};
+  HandlesManger<__wasi_options_t, Common::Options> OptionsManger{0x01};
+  HandlesManger<__wasi_keypair_t, Asymmetric::KeyPair> KeypairManger{0x02};
+  HandlesManger<__wasi_publickey_t, Asymmetric::PublicKey> PublickeyManger{
+      0x03};
+  HandlesManger<__wasi_secretkey_t, Asymmetric::SecretKey> SecretkeyManger{
+      0x04};
+  HandlesManger<__wasi_signature_state_t, std::shared_ptr<Signatures::State>>
+      SignatureStateManger{0x05};
+  HandlesManger<__wasi_signature_t, std::shared_ptr<Signatures::Signature>>
+      SignatureManger{0x06};
   HandlesManger<__wasi_signature_verification_state_t,
-                SignatureVerificationState>
+                std::shared_ptr<Signatures::VerificationState>>
       SignatureVerificationStateManger{0x07};
-  HandlesManger<__wasi_symmetric_state_t, std::shared_ptr<Symmetric::State>> SymmetricStateManger{
-      0x08};
-  HandlesManger<__wasi_symmetric_key_t, std::shared_ptr<Symmetric::Key>> SymmetricKeyManger{0x09};
+  HandlesManger<__wasi_symmetric_state_t, std::shared_ptr<Symmetric::State>>
+      SymmetricStateManger{0x08};
+  HandlesManger<__wasi_symmetric_key_t, std::shared_ptr<Symmetric::Key>>
+      SymmetricKeyManger{0x09};
   HandlesManger<__wasi_symmetric_tag_t, Symmetric::Tag> SymmetricTagManger{0xa};
 };
 

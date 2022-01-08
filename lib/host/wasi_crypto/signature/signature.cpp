@@ -8,7 +8,7 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
-
+namespace Signatures{
 WasiCryptoExpect<Signature>
 Signature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
                   __wasi_signature_encoding_e_t Encoding) {
@@ -31,7 +31,7 @@ Signature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   }
 }
-
+}
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

@@ -7,11 +7,12 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
-
+namespace Asymmetric {
 WasiCryptoExpect<PublicKey>
-PublicKey::import(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
-                  Span<uint8_t const> Encoded,
-                  __wasi_publickey_encoding_e_t Encoding) {
+publicKeyImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
+                Span<uint8_t const> Encoded,
+                __wasi_publickey_encoding_e_t Encoding) {
+
   switch (AlgType) {
   case __WASI_ALGORITHM_TYPE_SIGNATURES: {
     auto Alg = tryFrom<SignatureAlgorithm>(AlgStr);
@@ -19,12 +20,12 @@ PublicKey::import(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
       return WasiCryptoUnexpect(Alg);
     }
 
-    auto Res = SignaturePublicKey::import(*Alg, Encoded, Encoding);
+    auto Res = Signatures::PublicKey::import(*Alg, Encoded, Encoding);
     if (!Res) {
       return WasiCryptoUnexpect(Res);
     }
 
-    return PublicKey{*Res};
+    return std::move(*Res);
   }
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
@@ -32,23 +33,23 @@ PublicKey::import(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
-PublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
-  return std::visit(Overloaded{[Encoding](auto &Pk) {
-                      return Pk.inner()->locked([Encoding](auto &Inner) {
-                        return Inner->exportData(Encoding);
-                      });
-                    }},
-                    Inner);
+publicKeyExportData(PublicKey PublicKey,
+                    __wasi_publickey_encoding_e_t Encoding) {
+  return std::visit(
+      Overloaded{
+          [Encoding](auto &Pk) -> WasiCryptoExpect<std::vector<uint8_t>> {
+            return Pk->exportData(Encoding);
+          }},
+      PublicKey);
 }
 
-WasiCryptoExpect<void> PublicKey::verify() {
-  return std::visit(Overloaded{[](auto &Pk) {
-                      return Pk.inner()->locked(
-                          [](auto &Inner) { return Inner->verify(); });
+WasiCryptoExpect<void> publicKeyVerify(PublicKey PublicKey) {
+  return std::visit(Overloaded{[](auto &Pk) -> WasiCryptoExpect<void> {
+                      return Pk->verify();
                     }},
-                    Inner);
+                    PublicKey);
 }
-
+} // namespace Asymmetric
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

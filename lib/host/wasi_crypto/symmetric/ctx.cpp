@@ -328,10 +328,17 @@ WasiCryptoContext::readSymmetricOption(
     return WasiCryptoUnexpect(Res);
   }
 
-  auto Options = std::dynamic_pointer_cast<Symmetric::Option>(*Res);
-  ensureOrReturn(Options, __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-
-  return Options;
+  return std::visit(
+      Overloaded{[](std::shared_ptr<Symmetric::Option> Options)
+                     -> WasiCryptoExpect<std::shared_ptr<Symmetric::Option>> {
+                   return Options;
+                 },
+                 [](auto &&)
+                     -> WasiCryptoExpect<std::shared_ptr<Symmetric::Option>> {
+                   return WasiCryptoUnexpect(
+                       __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+                 }},
+      *Res);
 }
 
 WasiCryptoExpect<std::shared_ptr<Symmetric::Key>>

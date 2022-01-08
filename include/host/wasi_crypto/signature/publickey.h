@@ -6,44 +6,33 @@
 #include "host/wasi_crypto/lock.h"
 #include "host/wasi_crypto/signature/alg.h"
 #include "host/wasi_crypto/signature/signature.h"
-#include "host/wasi_crypto/varianthelper.h"
 
 #include <memory>
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Signatures {
 
-class SignaturePublicKey {
+class PublicKey {
 public:
-  class Base {
-  public:
-    virtual ~Base() = default;
+  virtual ~PublicKey() = default;
 
-    virtual WasiCryptoExpect<std::vector<uint8_t>>
-    exportData(__wasi_publickey_encoding_e_t Pk) = 0;
+  virtual WasiCryptoExpect<std::vector<uint8_t>>
+  exportData(__wasi_publickey_encoding_e_t Pk) = 0;
 
-    virtual WasiCryptoExpect<SignatureVerificationState> asState() = 0;
+  virtual WasiCryptoExpect<std::unique_ptr<VerificationState>> asState() = 0;
 
-    WasiCryptoExpect<void> verify() {
-      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-    }
-  };
+  WasiCryptoExpect<void> verify() {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  }
 
-  SignaturePublicKey(std::unique_ptr<Base> Inner)
-      : Inner(
-            std::make_shared<Mutex<std::unique_ptr<Base>>>(std::move(Inner))) {}
-
-  static WasiCryptoExpect<SignaturePublicKey>
+  static WasiCryptoExpect<std::unique_ptr<PublicKey>>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
          __wasi_publickey_encoding_e_t Encoding);
-
-  auto &inner() { return Inner; }
-
-private:
-  std::shared_ptr<Mutex<std::unique_ptr<Base>>> Inner;
 };
 
+} // namespace Signatures
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

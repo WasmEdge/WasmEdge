@@ -3,8 +3,10 @@
 
 #include "common/span.h"
 #include "host/wasi_crypto/error.h"
+#include "host/wasi_crypto/key_exchange/options.h"
+#include "host/wasi_crypto/signature/options.h"
+#include "host/wasi_crypto/symmetric/options.h"
 #include "wasi_crypto/api.hpp"
-
 #include <memory>
 #include <string_view>
 
@@ -27,33 +29,27 @@ namespace Common {
 /// retrieve the actual nonce set by the runtime by reading the nonce option.
 ///
 /// An option can be reused, but is tied to algorithm type.
-class Options {
-public:
-  Options(__wasi_algorithm_type_e_t /*Alg*/) /*: Alg(Alg)*/ {}
+using Options = std::variant<std::shared_ptr<Symmetric::Option>,
+                             std::shared_ptr<Kx::Options>,
+                             std::shared_ptr<Signatures::Options>>;
 
-  virtual ~Options() = default;
+Options optionsOpen(__wasi_algorithm_type_e_t Alg);
 
-  static std::unique_ptr<Options> open(__wasi_algorithm_type_e_t Alg);
+WasiCryptoExpect<void> optionsSet(Options Options, std::string_view Name,
+                                  Span<const uint8_t> Value);
 
-  virtual WasiCryptoExpect<void> set(std::string_view Name,
-                                     Span<const uint8_t> Value);
+WasiCryptoExpect<void> optionsSetU64(Options Options, std::string_view Name,
+                                     uint64_t Value);
 
-  virtual WasiCryptoExpect<void> setU64(std::string_view Name, uint64_t Value);
+WasiCryptoExpect<void> optionsSetGuestBuffer(Options Options,
+                                             std::string_view Name,
+                                             Span<uint8_t> Value);
 
-  virtual WasiCryptoExpect<void> setGuestBuffer(std::string_view Name,
-                                                Span<uint8_t> Buffer);
+WasiCryptoExpect<std::vector<uint8_t>> optionsGet(Options Options,
+                                                  std::string_view Name);
 
-  virtual WasiCryptoExpect<std::vector<uint8_t>>
-  get(std::string_view Name) const;
-
-  virtual WasiCryptoExpect<uint64_t> getU64(std::string_view Name) const;
-
-  //  auto alg() { return Alg; }
-
-private:
-  //  __wasi_algorithm_type_e_t Alg;
-};
-
+WasiCryptoExpect<uint64_t> optionsGetU64(Options Options,
+                                         std::string_view Name);
 } // namespace Common
 } // namespace WASICrypto
 } // namespace Host

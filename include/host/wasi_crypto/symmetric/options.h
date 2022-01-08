@@ -2,7 +2,6 @@
 #pragma once
 
 #include "common/span.h"
-#include "host/wasi_crypto/common/options.h"
 #include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/lock.h"
 #include "wasi_crypto/api.hpp"
@@ -19,22 +18,19 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-class Option : public Common::Options {
+class Option {
 public:
-  using Common::Options::Options;
 
-  WasiCryptoExpect<void> set(std::string_view Name,
-                             Span<const uint8_t> Value) override;
+  WasiCryptoExpect<void> set(std::string_view Name, Span<const uint8_t> Value);
 
-  WasiCryptoExpect<void> setU64(std::string_view Name, uint64_t Value) override;
+  WasiCryptoExpect<void> setU64(std::string_view Name, uint64_t Value);
 
   WasiCryptoExpect<void> setGuestBuffer(std::string_view Name,
-                                        Span<uint8_t> Buffer) override;
+                                        Span<uint8_t> Buffer);
 
-  WasiCryptoExpect<std::vector<uint8_t>>
-  get(std::string_view Name) const override;
+  WasiCryptoExpect<std::vector<uint8_t>> get(std::string_view Name) const;
 
-  WasiCryptoExpect<uint64_t> getU64(std::string_view Name) const override;
+  WasiCryptoExpect<uint64_t> getU64(std::string_view Name) const;
 
 private:
   mutable std::shared_mutex Mutex;

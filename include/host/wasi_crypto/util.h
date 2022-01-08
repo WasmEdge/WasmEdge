@@ -144,6 +144,10 @@ using OpenSSLUniquePtr = std::unique_ptr<T, Deleter<Fn>>;
     }                                                                          \
   } while (0)
 
+
+template<class... Ts> struct Overloaded : Ts... { using Ts::operator()...; };
+
+template<class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

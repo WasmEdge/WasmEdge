@@ -27,7 +27,7 @@ WasiCryptoContext::arrayOutputPull(__wasi_array_output_t ArrayOutputHandle,
 
 WasiCryptoExpect<__wasi_options_t>
 WasiCryptoContext::optionsOpen(__wasi_algorithm_type_e_t AlgorithmType) {
-  return OptionsManger.registerManger(Common::Options::open(AlgorithmType));
+  return OptionsManger.registerManger(Common::optionsOpen(AlgorithmType));
 }
 
 WasiCryptoExpect<void>
@@ -44,7 +44,7 @@ WasiCryptoContext::optionsSet(__wasi_options_t OptionsHandle,
     return WasiCryptoUnexpect(Options);
   }
 
-  return (*Options)->set(Name, Value);
+  return Common::optionsSet(*Options, Name, Value);
 }
 
 WasiCryptoExpect<void>
@@ -55,7 +55,7 @@ WasiCryptoContext::optionsSetU64(__wasi_options_t OptionsHandle,
     return WasiCryptoUnexpect(Options);
   }
 
-  return (*Options)->setU64(Name, Value);
+  return Common::optionsSetU64(*Options, Name, Value);
 }
 
 WasiCryptoExpect<void> WasiCryptoContext::optionsSetGuestBuffer(
@@ -64,7 +64,7 @@ WasiCryptoExpect<void> WasiCryptoContext::optionsSetGuestBuffer(
   if (!Options) {
     return WasiCryptoUnexpect(Options);
   }
-  return (*Options)->setGuestBuffer(Name, Buf);
+  return Common::optionsSetGuestBuffer(*Options, Name, Buf);
 }
 
 WasiCryptoExpect<__wasi_secrets_manager_t>

@@ -8,80 +8,43 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
+#include "host/wasi_crypto/signature/alg.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Signatures {
 
 class Signature {
 public:
-  class Base {
-  public:
-    virtual ~Base() = default;
+  Signature(std::vector<uint8_t>&& Data): Inner(Data) {}
 
-    virtual Span<uint8_t const> asRef() = 0;
-
-    virtual WasiCryptoExpect<std::vector<uint8_t>>
-    exportData(__wasi_signature_encoding_e_t Encoding) = 0;
-  };
-
-  Signature(std::unique_ptr<Base> Inner)
-      : Inner(
-            std::make_shared<Mutex<std::unique_ptr<Base>>>(std::move(Inner))) {}
-
-  static WasiCryptoExpect<Signature>
-  import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-         __wasi_signature_encoding_e_t Encoding);
-
-  auto &inner() { return Inner; }
-
+  auto &raw() { return Inner; }
 private:
-  std::shared_ptr<Mutex<std::unique_ptr<Base>>> Inner;
+//  SignatureAlgorithm Alg;
+  Mutex<std::vector<uint8_t>> Inner;
 };
 
-class SignatureState {
+class State {
 public:
-  class Base {
-  public:
-    virtual ~Base() = default;
+  virtual ~State() = default;
 
-    virtual WasiCryptoExpect<void> update(Span<uint8_t const> Input) = 0;
+  virtual WasiCryptoExpect<void> update(Span<uint8_t const> Input) = 0;
 
-    virtual WasiCryptoExpect<Signature> sign() = 0;
-  };
-
-  SignatureState(std::unique_ptr<Base> Inner)
-      : Inner(
-            std::make_shared<Mutex<std::unique_ptr<Base>>>(std::move(Inner))) {}
-
-  auto &inner() { return Inner; }
-
-private:
-  std::shared_ptr<Mutex<std::unique_ptr<Base>>> Inner;
+  virtual WasiCryptoExpect<Signature> sign() = 0;
 };
 
-class SignatureVerificationState {
+class VerificationState {
 public:
-  class Base {
-  public:
-    virtual ~Base() = default;
+  virtual ~VerificationState() = default;
 
-    virtual WasiCryptoExpect<void> update(Span<uint8_t const> Input) = 0;
+  virtual WasiCryptoExpect<void> update(Span<uint8_t const> Input) = 0;
 
-    virtual WasiCryptoExpect<void>
-    verify(std::unique_ptr<Signature::Base> &Sig) = 0;
-  };
-
-  SignatureVerificationState(std::unique_ptr<Base> Inner)
-      : Inner(
-            std::make_shared<Mutex<std::unique_ptr<Base>>>(std::move(Inner))) {}
-
-  auto &inner() { return Inner; }
-
-private:
-  std::shared_ptr<Mutex<std::unique_ptr<Base>>> Inner;
+  virtual WasiCryptoExpect<void> verify(std::shared_ptr<Signature> Sig) = 0;
 };
 
+} // namespace Signatures
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

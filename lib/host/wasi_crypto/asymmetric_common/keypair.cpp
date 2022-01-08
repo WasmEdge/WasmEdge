@@ -5,54 +5,49 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Asymmetric {
 
-WasiCryptoExpect<KeyPair>
-WASICrypto::KeyPair::generate(__wasi_algorithm_type_e_t AlgType,
-                              std::string_view AlgStr,
-                              std::shared_ptr<Common::Options> OptOptions) {
+WasiCryptoExpect<KeyPair> keypairGenerate(__wasi_algorithm_type_e_t AlgType,
+                                          std::string_view AlgStr,
+                                          Common::Options OptOptions) {
+  return std::visit(
+      Overloaded{
+          [AlgType, AlgStr](std::shared_ptr<Signatures::Options> OptSigOptions)
+              -> WasiCryptoExpect<Asymmetric::KeyPair> {
+            ensureOrReturn(AlgType == __WASI_ALGORITHM_TYPE_SIGNATURES,
+                           __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+            ensureOrReturn(OptSigOptions, __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
-  switch (AlgType) {
-  case __WASI_ALGORITHM_TYPE_SIGNATURES: {
-    auto OptSigOptions = std::dynamic_pointer_cast<SignatureOptions>(OptOptions);
-    ensureOrReturn(OptSigOptions, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+            auto Alg = tryFrom<SignatureAlgorithm>(AlgStr);
+            if (!Alg) {
+              return WasiCryptoUnexpect(Alg);
+            }
 
-    auto Alg = tryFrom<SignatureAlgorithm>(AlgStr);
-    if (!Alg) {
-      return WasiCryptoUnexpect(Alg);
-    }
+            return Signatures::KeyPair::generate(*Alg, *OptSigOptions);
+          },
+          [AlgType, AlgStr](std::shared_ptr<Kx::Options> OptKxOptions)
+              -> WasiCryptoExpect<Asymmetric::KeyPair> {
+            ensureOrReturn(AlgType == __WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                           __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+            ensureOrReturn(OptKxOptions, __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
-    auto SigKp = SignatureKeyPair::generate(*Alg, *OptSigOptions);
-    if (!SigKp) {
-      return WasiCryptoUnexpect(SigKp);
-    }
+            auto Alg = tryFrom<KxAlgorithm>(AlgStr);
+            if (!Alg) {
+              return WasiCryptoUnexpect(Alg);
+            }
 
-    return KeyPair{*SigKp};
-  }
-  case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE: {
-    auto OptKxOptions = std::dynamic_pointer_cast<KxOptions>(OptOptions);
-    ensureOrReturn(OptKxOptions, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-
-    auto Alg = tryFrom<KxAlgorithm>(AlgStr);
-    if (!Alg) {
-      return WasiCryptoUnexpect(Alg);
-    }
-
-    auto KxKp = KxKeyPair::generate(*Alg, *OptKxOptions);
-    if (!KxKp) {
-      return WasiCryptoUnexpect(KxKp);
-    }
-
-    return KeyPair{*KxKp};
-  }
-
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-  }
+            return Kx::KeyPair::generate(*Alg, *OptKxOptions);
+          },
+          [](auto &&) -> WasiCryptoExpect<Asymmetric::KeyPair> {
+            return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+          }},
+      OptOptions);
 }
-WasiCryptoExpect<KeyPair>
-KeyPair::import(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
-                Span<const uint8_t> Encoded,
-                __wasi_keypair_encoding_e_t Encoding) {
+
+WasiCryptoExpect<KeyPair> keyPairImport(__wasi_algorithm_type_e_t AlgType,
+                                        std::string_view AlgStr,
+                                        Span<const uint8_t> Encoded,
+                                        __wasi_keypair_encoding_e_t Encoding) {
   switch (AlgType) {
   case __WASI_ALGORITHM_TYPE_SIGNATURES: {
     auto Alg = tryFrom<SignatureAlgorithm>(AlgStr);
@@ -60,57 +55,47 @@ KeyPair::import(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
       return WasiCryptoUnexpect(Alg);
     }
 
-    auto SigKp = SignatureKeyPair::import(*Alg, Encoded, Encoding);
+    auto SigKp = Signatures::KeyPair::import(*Alg, Encoded, Encoding);
     if (!SigKp) {
       return WasiCryptoUnexpect(SigKp);
     }
 
-    return KeyPair{*SigKp};
+    return std::move(*SigKp);
   }
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
 }
 
-WasiCryptoExpect<KeyPair> KeyPair::fromPkAndSk(PublicKey, SecretKey) {
+WasiCryptoExpect<KeyPair> keyPairFromPkAndSk(PublicKey, SecretKey) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
-KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
-  return std::visit(Overloaded{[Encoding](auto &Kp) {
-                      return Kp.inner()->locked([Encoding](auto &Inner) {
-                        return Inner->exportData(Encoding);
-                      });
-                    }},
-                    Inner);
+keyPairExportData(KeyPair KeyPair, __wasi_keypair_encoding_e_t Encoding) {
+  return std::visit(
+      Overloaded{
+          [Encoding](auto &&Kp) -> WasiCryptoExpect<std::vector<uint8_t>> {
+            return Kp->exportData(Encoding);
+          }},
+      KeyPair);
 }
 
-WasiCryptoExpect<PublicKey> KeyPair::publicKey() {
-  return std::visit(Overloaded{[](auto &Kp) -> WasiCryptoExpect<PublicKey> {
-                      auto Res = Kp.inner()->locked(
-                          [](auto &Inner) { return Inner->publicKey(); });
-                      if (!Res) {
-                        return WasiCryptoUnexpect(Res);
-                      }
-
-                      return PublicKey{*Res};
+WasiCryptoExpect<PublicKey> keyPairPublicKey(KeyPair KeyPair) {
+  return std::visit(Overloaded{[](auto &&Kp) -> WasiCryptoExpect<PublicKey> {
+                      return Kp->publicKey();
                     }},
-                    Inner);
-}
-WasiCryptoExpect<SecretKey> KeyPair::secretKey() {
-  return std::visit(Overloaded{[](auto &Kp) -> WasiCryptoExpect<SecretKey> {
-                      auto Res = Kp.inner()->locked(
-                          [](auto &Inner) { return Inner->secretKey(); });
-                      if (!Res) {
-                        return WasiCryptoUnexpect(Res);
-                      }
-
-                      return SecretKey{*Res};
-                    }},
-                    Inner);
+                    KeyPair);
 }
 
+WasiCryptoExpect<SecretKey> keyPairSecretKey(KeyPair KeyPair) {
+  return std::visit(Overloaded{[](auto &&Kp) -> WasiCryptoExpect<SecretKey> {
+                      return Kp->secretKey();
+                    }},
+                    KeyPair);
+}
+
+} // namespace Asymmetric
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

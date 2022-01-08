@@ -1,5 +1,11 @@
 include LICENSE
 include HISTORY.md
+include VERSION
 include Containerfile
+recursive-include pywasmedge *
+recursive-include pybind11 *
+include requirements-test.txt
+include requirements.txt
+include CMakeLists.txt
 graft tests
 graft project_name

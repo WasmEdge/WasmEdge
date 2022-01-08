@@ -21,6 +21,12 @@ install:          ## Install the project in dev mode.
 	@echo "Don't forget to run 'make virtualenv' if you got errors."
 	$(ENV_PREFIX)pip install -e .[test]
 
+.PHONY: pypi-test
+pypi-test:          ## PyPi testing
+	$(ENV_PREFIX)pip install build twine
+	$(ENV_PREFIX)python -m build --sdist
+	$(ENV_PREFIX)twine check dist/* && $(ENV_PREFIX)twine upload --repository testpypi dist/* --verbose
+
 .PHONY: fmt
 fmt:              ## Format code using black & isort.
 	$(ENV_PREFIX)isort pywasmedge/

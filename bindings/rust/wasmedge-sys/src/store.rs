@@ -614,7 +614,7 @@ impl Drop for Store {
 mod tests {
     use super::Store;
     use crate::{
-        instance::{Function, Global, GlobalType, Memory, Table, TableType},
+        instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         Config, Executor, FuncType, ImportObj, Mutability, RefType, ValType, Value,
     };
 
@@ -668,7 +668,10 @@ mod tests {
         assert!(table.ctx.is_null() && table.registered);
 
         // add memory
-        let result = Memory::create(0..=u32::MAX);
+        let result = MemType::create(0..=u32::MAX);
+        assert!(result.is_ok());
+        let mut mem_ty = result.unwrap();
+        let result = Memory::create(&mut mem_ty);
         assert!(result.is_ok());
         let mut memory = result.unwrap();
         import_obj.add_memory("mem", &mut memory);

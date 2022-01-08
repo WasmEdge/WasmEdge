@@ -60,7 +60,11 @@ mod tests {
 
     #[test]
     fn test_validator() {
-        // create a Loader instance with configuration
+        // create a Validator context without configuration
+        let result = Validator::create(None);
+        assert!(result.is_ok());
+
+        // create a Loader context with configuration
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
@@ -77,7 +81,7 @@ mod tests {
         let module = result.unwrap();
         assert!(!module.ctx.is_null());
 
-        // create a Validator instance
+        // create a Validator context without configuration
         let result = Validator::create(None);
         assert!(result.is_ok());
         let validator = result.unwrap();

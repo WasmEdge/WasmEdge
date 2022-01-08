@@ -94,7 +94,7 @@ impl Drop for Statistics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Config, Executor, ImportObj, Loader, Validator};
+    use crate::{Config, Executor, Loader, Validator};
 
     #[test]
     fn test_stat() {
@@ -103,9 +103,10 @@ mod tests {
         assert!(result.is_ok());
         let config = result.unwrap();
         // enable Statistics
-        config.count_instructions(true);
-        config.measure_cost(true);
-        config.measure_time(true);
+        let config = config
+            .count_instructions(true)
+            .measure_time(true)
+            .measure_cost(true);
 
         // load module from a wasm file
         let result = Loader::create(Some(&config));
@@ -139,25 +140,25 @@ mod tests {
         // create an Executor context
         let result = Executor::create(Some(&config), Some(&mut stat));
         assert!(result.is_ok());
-        let executor = result.unwrap();
+        // let executor = result.unwrap();
 
         // register an ImportObj module
-        let import_obj = create_extern_module("extern", false);
+        // let import_obj = create_extern_module("extern", false);
 
         // todo: Add more test code
     }
 
-    fn create_extern_module(name: impl AsRef<str>, wrapped: bool) -> ImportObj {
-        // create an ImportObj module
-        let result = ImportObj::create(name);
-        assert!(result.is_ok());
-        let import_obj = result.unwrap();
+    // fn create_extern_module(name: impl AsRef<str>, wrapped: bool) -> ImportObj {
+    //     // create an ImportObj module
+    //     let result = ImportObj::create(name);
+    //     assert!(result.is_ok());
+    //     let import_obj = result.unwrap();
 
-        // // create a FuncType instance
-        // let params = vec![ValType::ExternRef, ValType::I32];
-        // let returns = vec![ValType::I32];
-        // let result = FuncType::create(params, returns);
+    //     // // create a FuncType instance
+    //     // let params = vec![ValType::ExternRef, ValType::I32];
+    //     // let returns = vec![ValType::I32];
+    //     // let result = FuncType::create(params, returns);
 
-        import_obj
-    }
+    //     import_obj
+    // }
 }

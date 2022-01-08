@@ -64,12 +64,12 @@ impl Statistics {
     /// # Arguments
     ///
     /// - `cost_table` specifies the slice of cost table.
-    pub fn set_cost_table(&mut self, cost_table: &mut [u64]) {
+    pub fn set_cost_table(&mut self, cost_table: &mut impl AsMut<[u64]>) {
         unsafe {
             wasmedge::WasmEdge_StatisticsSetCostTable(
                 self.ctx,
-                cost_table.as_mut_ptr(),
-                cost_table.len() as u32,
+                cost_table.as_mut().as_mut_ptr(),
+                cost_table.as_mut().len() as u32,
             )
         }
     }
@@ -94,22 +94,70 @@ impl Drop for Statistics {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{Config, Executor, ImportObj, Loader, Validator};
 
     #[test]
     fn test_stat() {
-        // create a Statistics instance
+        // create a Config context
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        // enable Statistics
+        config.count_instructions(true);
+        config.measure_cost(true);
+        config.measure_time(true);
+
+        // load module from a wasm file
+        let result = Loader::create(Some(&config));
+        assert!(result.is_ok());
+        let loader = result.unwrap();
+        let path =
+            std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/test.wasm");
+        let result = loader.from_file(path);
+        assert!(result.is_ok());
+        let module = result.unwrap();
+
+        // validate module
+        let result = Validator::create(Some(&config));
+        assert!(result.is_ok());
+        let validator = result.unwrap();
+        let result = validator.validate(&module);
+        assert!(result.is_ok());
+
+        // create a Statistics context
         let result = Statistics::create();
         assert!(result.is_ok());
-        let stat = result.unwrap();
+        let mut stat = result.unwrap();
 
-        // check instruction count
-        assert_eq!(stat.instr_count(), 0);
+        // set cost table
+        let mut cost_table = vec![20u64; 512];
+        stat.set_cost_table(&mut cost_table);
 
-        // check instruction count per second
-        let count = stat.instr_per_sec();
-        assert!(count.is_nan());
+        // set cost limit
+        stat.set_cost_limit(100_000_000_000_000);
 
-        // check total cost
-        assert_eq!(stat.cost_in_total(), 0);
+        // create an Executor context
+        let result = Executor::create(Some(&config), Some(&mut stat));
+        assert!(result.is_ok());
+        let executor = result.unwrap();
+
+        // register an ImportObj module
+        let import_obj = create_extern_module("extern", false);
+
+        // todo: Add more test code
+    }
+
+    fn create_extern_module(name: impl AsRef<str>, wrapped: bool) -> ImportObj {
+        // create an ImportObj module
+        let result = ImportObj::create(name);
+        assert!(result.is_ok());
+        let import_obj = result.unwrap();
+
+        // // create a FuncType instance
+        // let params = vec![ValType::ExternRef, ValType::I32];
+        // let returns = vec![ValType::I32];
+        // let result = FuncType::create(params, returns);
+
+        import_obj
     }
 }

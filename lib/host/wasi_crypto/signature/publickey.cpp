@@ -20,7 +20,7 @@ PublicKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
   }
 
   case SignatureAlgorithm::Ed25519: {
-    return EddsaPublicKey::import(Alg, Encoded, Encoding);
+    return EddsaPublicKey::import(Encoded, Encoding);
   }
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA256:
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA384:

@@ -1,34 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
-#include <openssl/x509.h>
 #include "host/wasi_crypto/signature/eddsa.h"
+#include <openssl/x509.h>
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Signatures {
 
-namespace {
-
-EVP_PKEY *initED(SignatureAlgorithm) {
-  //  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> PCtx{
-  //      EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, nullptr)};
-  //
-  //  opensslAssuming(PCtx);
-  //  opensslAssuming(EVP_PKEY_paramgen_init(PCtx.get()));
-  //
-  //  EVP_PKEY *Params = nullptr;
-  //  opensslAssuming(EVP_PKEY_paramgen(PCtx.get(), &Params));
-  //  return Params;
-  return nullptr;
-}
-
-} // namespace
-
 WasiCryptoExpect<std::unique_ptr<EddsaPublicKey>>
-EddsaPublicKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+EddsaPublicKey::import(Span<const uint8_t> Encoded,
                        __wasi_publickey_encoding_e_t Encoding) {
-  EVP_PKEY *Pk = initED(Alg);
+  EVP_PKEY *Pk = nullptr;
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
@@ -88,9 +71,9 @@ EddsaPublicKey::openVerificationState() {
 }
 
 WasiCryptoExpect<std::unique_ptr<SecretKey>>
-EddsaSecretKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+EddsaSecretKey::import(Span<const uint8_t> Encoded,
                        __wasi_secretkey_encoding_e_t Encoding) {
-  EVP_PKEY *Sk = initED(Alg);
+  EVP_PKEY *Sk = nullptr;
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
@@ -145,7 +128,7 @@ EddsaSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
 }
 
 WasiCryptoExpect<std::unique_ptr<KeyPair>>
-EddsaKeyPair::generate(SignatureAlgorithm Alg, std::shared_ptr<Options>) {
+EddsaKeyPair::generate(std::shared_ptr<Options>) {
   // Generate Key
   OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> KCtx{
       EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, nullptr)};
@@ -159,9 +142,9 @@ EddsaKeyPair::generate(SignatureAlgorithm Alg, std::shared_ptr<Options>) {
 }
 
 WasiCryptoExpect<std::unique_ptr<KeyPair>>
-EddsaKeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+EddsaKeyPair::import(Span<const uint8_t> Encoded,
                      __wasi_keypair_encoding_e_t Encoding) {
-  EVP_PKEY *Kp = initED(Alg);
+  EVP_PKEY *Kp = nullptr;
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
@@ -224,7 +207,7 @@ WasiCryptoExpect<std::unique_ptr<SecretKey>> EddsaKeyPair::secretKey() {
 }
 
 WasiCryptoExpect<std::unique_ptr<SignState>> EddsaKeyPair::openSignState() {
-  EVP_MD_CTX* SignCtx = EVP_MD_CTX_create();
+  EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
   opensslAssuming(SignCtx);
 
   opensslAssuming(
@@ -234,14 +217,29 @@ WasiCryptoExpect<std::unique_ptr<SignState>> EddsaKeyPair::openSignState() {
 }
 
 WasiCryptoExpect<std::unique_ptr<Signature>>
-EddsaSignature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+EddsaSignature::import(Span<const uint8_t> Encoded,
                        __wasi_signature_encoding_e_t Encoding) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  switch (Encoding) {
+  case __WASI_SIGNATURE_ENCODING_RAW:
+    return std::make_unique<EddsaSignature>(
+        std::vector<uint8_t>{Encoded.begin(), Encoded.end()});
+  case __WASI_SIGNATURE_ENCODING_DER:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  default:
+    assumingUnreachable();
+  }
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
 EddsaSignature::exportData(__wasi_signature_encoding_e_t Encoding) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  switch (Encoding) {
+  case __WASI_SIGNATURE_ENCODING_RAW:
+    return Sign;
+  case __WASI_SIGNATURE_ENCODING_DER:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  default:
+    assumingUnreachable();
+  }
 }
 
 WasiCryptoExpect<void> EddsaSignState::update(Span<const uint8_t> Input) {

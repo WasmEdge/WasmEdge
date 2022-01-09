@@ -3,7 +3,6 @@
 
 #include "common/span.h"
 #include "host/wasi_crypto/error.h"
-#include "host/wasi_crypto/signature/alg.h"
 #include "host/wasi_crypto/signature/keypair.h"
 #include "host/wasi_crypto/signature/options.h"
 #include "host/wasi_crypto/signature/publickey.h"
@@ -21,8 +20,7 @@ public:
   EddsaPublicKey(EVP_PKEY *Pk) : Ctx(std::move(Pk)) {}
 
   static WasiCryptoExpect<std::unique_ptr<EddsaPublicKey>>
-  import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
-         __wasi_publickey_encoding_e_t Encoding);
+  import(Span<uint8_t const> Encoded, __wasi_publickey_encoding_e_t Encoding);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_publickey_encoding_e_t Encoding) override;
@@ -39,8 +37,7 @@ public:
   EddsaSecretKey(EVP_PKEY *Sk) : Sk(Sk) {}
 
   static WasiCryptoExpect<std::unique_ptr<SecretKey>>
-  import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
-         __wasi_secretkey_encoding_e_t Encoding);
+  import(Span<uint8_t const> Encoded, __wasi_secretkey_encoding_e_t Encoding);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_secretkey_encoding_e_t Encoding) override;
@@ -54,12 +51,10 @@ public:
   EddsaKeyPair(EVP_PKEY *Kp) : Kp(Kp) {}
 
   static WasiCryptoExpect<std::unique_ptr<KeyPair>>
-  generate(SignatureAlgorithm Alg,
-           std::shared_ptr<Signatures::Options> Options);
+  generate(std::shared_ptr<Signatures::Options> Options);
 
   static WasiCryptoExpect<std::unique_ptr<KeyPair>>
-  import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
-         __wasi_keypair_encoding_e_t Encoding);
+  import(Span<uint8_t const> Encoded, __wasi_keypair_encoding_e_t Encoding);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_keypair_encoding_e_t Encoding) override;
@@ -79,8 +74,7 @@ public:
   EddsaSignature(std::vector<uint8_t> &&Sign) : Sign(std::move(Sign)) {}
 
   static WasiCryptoExpect<std::unique_ptr<Signature>>
-  import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
-         __wasi_signature_encoding_e_t Encoding);
+  import(Span<uint8_t const> Encoded, __wasi_signature_encoding_e_t Encoding);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_signature_encoding_e_t Encoding) override;
@@ -88,13 +82,12 @@ public:
   Span<uint8_t const> asRef() override { return Sign; }
 
 private:
-  std::vector<uint8_t> Sign;
+  const std::vector<uint8_t> Sign;
 };
 
 class EddsaSignState : public SignState {
 public:
-  EddsaSignState(EVP_MD_CTX* MdCtx)
-      : MdCtx(MdCtx) {}
+  EddsaSignState(EVP_MD_CTX *MdCtx) : MdCtx(MdCtx) {}
 
   WasiCryptoExpect<void> update(Span<uint8_t const> Input) override;
 
@@ -107,8 +100,8 @@ private:
 
 class EddsaVerificationState : public VerificationState {
 public:
-  EddsaVerificationState(EVP_MD_CTX* MdCtx)
-      : MdCtx(MdCtx) {}
+  EddsaVerificationState(EVP_MD_CTX *MdCtx) : MdCtx(MdCtx) {}
+
   WasiCryptoExpect<void> update(Span<const uint8_t> Input) override;
 
   WasiCryptoExpect<void> verify(std::shared_ptr<Signature> Sig) override;

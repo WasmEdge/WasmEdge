@@ -13,6 +13,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
+
 class Sha2State : public HashState {
   using EvpMdCtx = OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 

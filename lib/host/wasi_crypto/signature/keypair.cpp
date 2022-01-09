@@ -17,7 +17,7 @@ KeyPair::generate(SignatureAlgorithm Alg, std::shared_ptr<Options> Options) {
   case SignatureAlgorithm::ECDSA_K256_SHA256:
     return EcdsaKeyPair::generate(Alg, Options);
   case SignatureAlgorithm::Ed25519:
-    return EddsaKeyPair::generate(Alg, Options);
+    return EddsaKeyPair::generate(Options);
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA256:
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA384:
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA512:
@@ -44,7 +44,7 @@ KeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
   case SignatureAlgorithm::ECDSA_K256_SHA256:
     return EcdsaKeyPair::import(Alg, Encoded, Encoding);
   case SignatureAlgorithm::Ed25519:
-    return EddsaKeyPair::import(Alg, Encoded, Encoding);
+    return EddsaKeyPair::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA256:
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA384:
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA512:

@@ -17,17 +17,13 @@ class SecretKey {
 public:
   virtual ~SecretKey() = default;
 
-  virtual WasiCryptoExpect<Span<uint8_t const>> exportData() = 0;
-
   virtual WasiCryptoExpect<std::unique_ptr<PublicKey>> publicKey() = 0;
 
   virtual WasiCryptoExpect<std::vector<uint8_t>>
-  exportData(__wasi_secretkey_encoding_e_t) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
+      exportData(__wasi_secretkey_encoding_e_t) = 0;
 
   virtual WasiCryptoExpect<std::vector<uint8_t>>
-  dh(std::shared_ptr<PublicKey> ) {
+  dh(std::shared_ptr<PublicKey>) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
 

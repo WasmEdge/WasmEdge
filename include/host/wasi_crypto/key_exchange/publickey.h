@@ -24,8 +24,6 @@ class PublicKey {
 public:
   virtual ~PublicKey() = default;
 
-  virtual WasiCryptoExpect<std::vector<uint8_t>> exportData() = 0;
-
   virtual WasiCryptoExpect<void> verify() {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   }
@@ -35,9 +33,7 @@ public:
   }
 
   virtual WasiCryptoExpect<std::vector<uint8_t>>
-  exportData(__wasi_publickey_encoding_e_t) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
+  exportData(__wasi_publickey_encoding_e_t) = 0;
 
   static WasiCryptoExpect<std::unique_ptr<PublicKey>>
   import(KxAlgorithm Alg, Span<uint8_t const> Raw,

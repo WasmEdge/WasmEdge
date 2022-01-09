@@ -80,7 +80,7 @@ impl Vm {
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromFile(
                 self.ctx,
-                mod_name.into_raw(),
+                mod_name.as_raw(),
                 path.as_ptr(),
             ))?
         };
@@ -148,7 +148,7 @@ impl Vm {
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromBuffer(
                 self.ctx,
-                mod_name.into_raw(),
+                mod_name.as_raw(),
                 buffer.as_ptr(),
                 buffer.len() as u32,
             ))?;
@@ -187,7 +187,7 @@ impl Vm {
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromASTModule(
                 self.ctx,
-                mod_name.into_raw(),
+                mod_name.as_raw(),
                 module.ctx,
             ))?;
         }
@@ -241,7 +241,7 @@ impl Vm {
             check(wasmedge::WasmEdge_VMRunWasmFromFile(
                 self.ctx,
                 path.as_ptr(),
-                func_name.into_raw(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -296,7 +296,7 @@ impl Vm {
                 self.ctx,
                 buffer.as_ptr(),
                 buffer.len() as u32,
-                func_name.into_raw(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -352,7 +352,7 @@ impl Vm {
             check(wasmedge::WasmEdge_VMRunWasmFromASTModule(
                 self.ctx,
                 module.ctx,
-                func_name.into_raw(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -497,7 +497,7 @@ impl Vm {
         unsafe {
             check(wasmedge::WasmEdge_VMExecute(
                 self.ctx,
-                func_name.into_raw(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -549,8 +549,8 @@ impl Vm {
         unsafe {
             check(wasmedge::WasmEdge_VMExecuteRegistered(
                 self.ctx,
-                mod_name.into_raw(),
-                func_name.into_raw(),
+                mod_name.as_raw(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -575,7 +575,7 @@ impl Vm {
     pub fn get_function_type(&self, func_name: impl AsRef<str>) -> WasmEdgeResult<FuncType> {
         let ty_ctx = unsafe {
             let func_name: WasmEdgeString = func_name.as_ref().into();
-            wasmedge::WasmEdge_VMGetFunctionType(self.ctx, func_name.into_raw())
+            wasmedge::WasmEdge_VMGetFunctionType(self.ctx, func_name.as_raw())
         };
         match ty_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundFuncType(
@@ -606,8 +606,8 @@ impl Vm {
             let func_name: WasmEdgeString = func_name.as_ref().into();
             wasmedge::WasmEdge_VMGetFunctionTypeRegistered(
                 self.ctx,
-                mod_name.into_raw(),
-                func_name.into_raw(),
+                mod_name.as_raw(),
+                func_name.as_raw(),
             )
         };
         match ty_ctx.is_null() {

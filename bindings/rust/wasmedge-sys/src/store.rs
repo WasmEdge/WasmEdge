@@ -48,7 +48,7 @@ impl Store {
     /// If fail to find the target [function](crate::Function), then an error is returned.
     pub fn find_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindFunction(self.ctx, func_name.into_raw()) };
+        let ctx = unsafe { wasmedge::WasmEdge_StoreFindFunction(self.ctx, func_name.as_raw()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::Store(StoreError::NotFoundFunc(
                 name.as_ref().to_string(),
@@ -83,8 +83,8 @@ impl Store {
             let func_name: WasmEdgeString = func_name.as_ref().into();
             wasmedge::WasmEdge_StoreFindFunctionRegistered(
                 self.ctx,
-                mod_name.into_raw(),
-                func_name.into_raw(),
+                mod_name.as_raw(),
+                func_name.as_raw(),
             )
         };
         match ctx.is_null() {
@@ -114,7 +114,7 @@ impl Store {
     /// If fail to find the target [table](crate::Table), then an error is returned.
     pub fn find_table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let table_name: WasmEdgeString = name.as_ref().into();
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindTable(self.ctx, table_name.into_raw()) };
+        let ctx = unsafe { wasmedge::WasmEdge_StoreFindTable(self.ctx, table_name.as_raw()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::Store(StoreError::NotFoundGlobal(
                 name.as_ref().to_string(),
@@ -148,8 +148,8 @@ impl Store {
             let table_name: WasmEdgeString = table_name.as_ref().into();
             wasmedge::WasmEdge_StoreFindTableRegistered(
                 self.ctx,
-                mod_name.into_raw(),
-                table_name.into_raw(),
+                mod_name.as_raw(),
+                table_name.as_raw(),
             )
         };
         match ctx.is_null() {
@@ -178,7 +178,7 @@ impl Store {
     /// If fail to find the target [memory](crate::Memory), then an error is returned.
     pub fn find_memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let mem_name: WasmEdgeString = name.as_ref().into();
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindMemory(self.ctx, mem_name.into_raw()) };
+        let ctx = unsafe { wasmedge::WasmEdge_StoreFindMemory(self.ctx, mem_name.as_raw()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::Store(StoreError::NotFoundMem(
                 name.as_ref().to_string(),
@@ -212,8 +212,8 @@ impl Store {
             let mem_name: WasmEdgeString = mem_name.as_ref().into();
             wasmedge::WasmEdge_StoreFindMemoryRegistered(
                 self.ctx,
-                mod_name.into_raw(),
-                mem_name.into_raw(),
+                mod_name.as_raw(),
+                mem_name.as_raw(),
             )
         };
         match ctx.is_null() {
@@ -242,7 +242,7 @@ impl Store {
     /// If fail to find the target [global](crate::Global), then an error is returned.
     pub fn find_global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let global_name: WasmEdgeString = name.as_ref().into();
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindGlobal(self.ctx, global_name.into_raw()) };
+        let ctx = unsafe { wasmedge::WasmEdge_StoreFindGlobal(self.ctx, global_name.as_raw()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::Store(StoreError::NotFoundGlobal(
                 name.as_ref().to_string(),
@@ -276,8 +276,8 @@ impl Store {
             let global_name: WasmEdgeString = global_name.as_ref().into();
             wasmedge::WasmEdge_StoreFindGlobalRegistered(
                 self.ctx,
-                mod_name.into_raw(),
-                global_name.into_raw(),
+                mod_name.as_raw(),
+                global_name.as_raw(),
             )
         };
         match ctx.is_null() {
@@ -329,9 +329,7 @@ impl Store {
     /// - `mod_name` specifies the name of the registered module.
     pub fn reg_func_len(&self, mod_name: impl AsRef<str>) -> u32 {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
-        unsafe {
-            wasmedge::WasmEdge_StoreListFunctionRegisteredLength(self.ctx, mod_name.into_raw())
-        }
+        unsafe { wasmedge::WasmEdge_StoreListFunctionRegisteredLength(self.ctx, mod_name.as_raw()) }
     }
 
     /// Returns the names of the exported [functions](crate::Function) in the registered module.
@@ -348,7 +346,7 @@ impl Store {
                 unsafe {
                     wasmedge::WasmEdge_StoreListFunctionRegistered(
                         self.ctx,
-                        mod_name.into_raw(),
+                        mod_name.as_raw(),
                         func_names.as_mut_ptr(),
                         len_func_names,
                     );
@@ -402,7 +400,7 @@ impl Store {
     /// - `mod_name` specifies the name of the registered module.
     pub fn reg_table_len(&self, mod_name: impl AsRef<str>) -> u32 {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
-        unsafe { wasmedge::WasmEdge_StoreListTableRegisteredLength(self.ctx, mod_name.into_raw()) }
+        unsafe { wasmedge::WasmEdge_StoreListTableRegisteredLength(self.ctx, mod_name.as_raw()) }
     }
 
     /// Returns the names of the exported [tables](crate::Table) in the registered module.
@@ -419,7 +417,7 @@ impl Store {
                 unsafe {
                     wasmedge::WasmEdge_StoreListTableRegistered(
                         self.ctx,
-                        mod_name.into_raw(),
+                        mod_name.as_raw(),
                         table_names.as_mut_ptr(),
                         len_table_names,
                     );
@@ -473,7 +471,7 @@ impl Store {
     /// - `mod_name` specifies the name of the registered module.
     pub fn reg_global_len(&self, mod_name: impl AsRef<str>) -> u32 {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
-        unsafe { wasmedge::WasmEdge_StoreListGlobalRegisteredLength(self.ctx, mod_name.into_raw()) }
+        unsafe { wasmedge::WasmEdge_StoreListGlobalRegisteredLength(self.ctx, mod_name.as_raw()) }
     }
 
     /// Returns the names of all exported [globals](crate::Global) in the registered module.
@@ -490,7 +488,7 @@ impl Store {
                 unsafe {
                     wasmedge::WasmEdge_StoreListGlobalRegistered(
                         self.ctx,
-                        mod_name.into_raw(),
+                        mod_name.as_raw(),
                         global_names.as_mut_ptr(),
                         len_global_names,
                     );
@@ -544,7 +542,7 @@ impl Store {
     /// - `mod_name` specifies the name of the registered module.
     pub fn reg_mem_len(&self, mod_name: impl AsRef<str>) -> u32 {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
-        unsafe { wasmedge::WasmEdge_StoreListMemoryRegisteredLength(self.ctx, mod_name.into_raw()) }
+        unsafe { wasmedge::WasmEdge_StoreListMemoryRegisteredLength(self.ctx, mod_name.as_raw()) }
     }
 
     /// Returns the names of all exported [memories](crate::Memory) in the registered module.
@@ -557,7 +555,7 @@ impl Store {
                 unsafe {
                     wasmedge::WasmEdge_StoreListMemoryRegistered(
                         self.ctx,
-                        mod_name.into_raw(),
+                        mod_name.as_raw(),
                         mem_names.as_mut_ptr(),
                         len_mem_names,
                     );

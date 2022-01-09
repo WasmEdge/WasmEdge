@@ -447,7 +447,7 @@ impl Drop for WasmEdgeString {
     }
 }
 impl WasmEdgeString {
-    pub(crate) fn into_raw(&self) -> wasmedge::WasmEdge_String {
+    pub(crate) fn as_raw(&self) -> wasmedge::WasmEdge_String {
         self.ctx
     }
 }

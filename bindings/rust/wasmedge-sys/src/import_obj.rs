@@ -29,7 +29,7 @@ impl ImportObj {
     /// If fail to create a host module, then an error is returned.
     pub fn create(name: impl AsRef<str>) -> WasmEdgeResult<Self> {
         let mod_name: WasmEdgeString = name.as_ref().into();
-        let ctx = unsafe { wasmedge::WasmEdge_ImportObjectCreate(mod_name.into_raw()) };
+        let ctx = unsafe { wasmedge::WasmEdge_ImportObjectCreate(mod_name.as_raw()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::ImportObjCreate),
             false => Ok(ImportObj {
@@ -234,7 +234,7 @@ impl ImportObj {
     pub fn add_func(&mut self, name: impl AsRef<str>, func: &mut Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, func_name.into_raw(), (*func).ctx);
+            wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, func_name.as_raw(), (*func).ctx);
         }
         func.registered = true;
         func.ctx = std::ptr::null_mut();
@@ -250,7 +250,7 @@ impl ImportObj {
     pub fn add_table(&mut self, name: impl AsRef<str>, table: &mut Table) {
         let table_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddTable(self.ctx, table_name.into_raw(), table.ctx);
+            wasmedge::WasmEdge_ImportObjectAddTable(self.ctx, table_name.as_raw(), table.ctx);
         }
         table.registered = true;
         table.ctx = std::ptr::null_mut();
@@ -266,7 +266,7 @@ impl ImportObj {
     pub fn add_memory(&mut self, name: impl AsRef<str>, memory: &mut Memory) {
         let mem_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddMemory(self.ctx, mem_name.into_raw(), memory.ctx);
+            wasmedge::WasmEdge_ImportObjectAddMemory(self.ctx, mem_name.as_raw(), memory.ctx);
         }
         memory.registered = true;
         memory.ctx = std::ptr::null_mut();
@@ -282,7 +282,7 @@ impl ImportObj {
     pub fn add_global(&mut self, name: impl AsRef<str>, global: &mut Global) {
         let global_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddGlobal(self.ctx, global_name.into_raw(), global.ctx);
+            wasmedge::WasmEdge_ImportObjectAddGlobal(self.ctx, global_name.as_raw(), global.ctx);
         }
         global.registered = true;
         global.ctx = std::ptr::null_mut();

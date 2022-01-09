@@ -101,7 +101,7 @@ impl Executor {
                 self.ctx,
                 store.ctx,
                 ast_mod.ctx,
-                mod_name.into_raw(),
+                mod_name.as_raw(),
             ))?;
             ast_mod.ctx = std::ptr::null_mut();
             ast_mod.registered = true;
@@ -182,7 +182,7 @@ impl Executor {
             check(wasmedge::WasmEdge_ExecutorInvoke(
                 self.ctx,
                 store.ctx,
-                func_name.into_raw(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -234,8 +234,8 @@ impl Executor {
             check(wasmedge::WasmEdge_ExecutorInvokeRegistered(
                 self.ctx,
                 store.ctx,
-                mod_name.into_raw(),
-                func_name.into_raw(),
+                mod_name.as_raw(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
